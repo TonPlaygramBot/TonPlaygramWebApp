@@ -1,0 +1,6810 @@
+{
+  "source": {
+    "sha256": "dca70c5d585b90c6c042b033bb4bfb001da8b297d7767b2cd927bb1875611602",
+    "origin": [
+      41.3275,
+      19.8188
+    ],
+    "acquiredAt": "2026-09-12T11:48:52.394445+00:00",
+    "license": "ODbL-1.0",
+    "attribution": "© OpenStreetMap contributors",
+    "bbox": [
+      19.752,
+      41.285,
+      19.878,
+      41.375
+    ]
+  },
+  "counts": {
+    "trees": 7484,
+    "shrubs": 8937,
+    "fixtures": {
+      "traffic_signals": 282,
+      "give_way": 62,
+      "stop": 509,
+      "speed": 49,
+      "litter_bin": 85,
+      "waste_container": 600,
+      "street_lamp": 1185,
+      "direction": 78,
+      "parking": 311
+    },
+    "parkingAreas": 326,
+    "parkingBays": 3845,
+    "arrows": 6306,
+    "omitted": 1691
+  },
+  "limitations": [
+    "Not a complete survey of every city object.",
+    "Existing known tree and signal owners excluded.",
+    "Street furniture models, unmeasured tree dimensions, bay layout and mounting offsets are estimates.",
+    "Source-conflicting fixtures are omitted, never shifted into buildings.",
+    "Unknown building heights remain unresolved."
+  ],
+  "omitted": [
+    {
+      "id": "node/433951721",
+      "reason": "roadside fixture conflicts with mapped road/building/water"
+    },
+    {
+      "id": "node/571094149",
+      "reason": "roadside fixture conflicts with mapped road/building/water"
+    },
+    {
+      "id": "node/571094237",
+      "reason": "roadside fixture conflicts with mapped road/building/water"
+    },
+    {
+      "id": "node/571094240",
+      "reason": "roadside fixture conflicts with mapped road/building/water"
+    },
+    {
+      "id": "node/571094278",
+      "reason": "roadside fixture conflicts with mapped road/building/water"
+    },
+    {
+      "id": "node/571094380",
+      "reason": "roadside fixture conflicts with mapped road/building/water"
+    },
+    {
+      "id": "node/571097189",
+      "reason": "roadside fixture conflicts with mapped road/building/water"
+    },
+    {
+      "id": "node/571097206",
+      "reason": "roadside fixture conflicts with mapped road/building/water"
+    },
+    {
+      "id": "node/580974400",
+      "reason": "roadside fixture conflicts with mapped road/building/water"
+    },
+    {
+      "id": "node/1433189313",
+      "reason": "roadside fixture conflicts with mapped road/building/water"
+    },
+    {
+      "id": "node/1842449692",
+      "reason": "roadside fixture conflicts with mapped road/building/water"
+    },
+    {
+      "id": "node/1880068029",
+      "reason": "roadside fixture conflicts with mapped road/building/water"
+    },
+    {
+      "id": "node/1885981710",
+      "reason": "roadside fixture conflicts with mapped road/building/water"
+    },
+    {
+      "id": "node/2379543094",
+      "reason": "roadside fixture conflicts with mapped road/building/water"
+    },
+    {
+      "id": "node/2379543370",
+      "reason": "roadside fixture conflicts with mapped road/building/water"
+    },
+    {
+      "id": "node/2613776117",
+      "reason": "tree conflicts with rendered road/building/water"
+    },
+    {
+      "id": "node/2932523030",
+      "reason": "roadside fixture conflicts with mapped road/building/water"
+    },
+    {
+      "id": "node/3637829873",
+      "reason": "roadside fixture conflicts with mapped road/building/water"
+    },
+    {
+      "id": "node/4543857792",
+      "reason": "tree conflicts with rendered road/building/water"
+    },
+    {
+      "id": "node/4543857840",
+      "reason": "tree conflicts with rendered road/building/water"
+    },
+    {
+      "id": "node/4545060335",
+      "reason": "roadside fixture conflicts with mapped road/building/water"
+    },
+    {
+      "id": "node/4546690582",
+      "reason": "tree conflicts with rendered road/building/water"
+    },
+    {
+      "id": "node/4546692097",
+      "reason": "tree conflicts with rendered road/building/water"
+    },
+    {
+      "id": "node/4546692099",
+      "reason": "tree conflicts with rendered road/building/water"
+    },
+    {
+      "id": "node/4546692209",
+      "reason": "tree conflicts with rendered road/building/water"
+    },
+    {
+      "id": "node/4546692210",
+      "reason": "tree conflicts with rendered road/building/water"
+    },
+    {
+      "id": "node/4546692211",
+      "reason": "tree conflicts with rendered road/building/water"
+    },
+    {
+      "id": "node/4546692212",
+      "reason": "tree conflicts with rendered road/building/water"
+    },
+    {
+      "id": "node/4546692213",
+      "reason": "tree conflicts with rendered road/building/water"
+    },
+    {
+      "id": "node/4546692214",
+      "reason": "tree conflicts with rendered road/building/water"
+    },
+    {
+      "id": "node/4548016657",
+      "reason": "roadside fixture conflicts with mapped road/building/water"
+    },
+    {
+      "id": "node/4548016658",
+      "reason": "roadside fixture conflicts with mapped road/building/water"
+    },
+    {
+      "id": "node/4548016659",
+      "reason": "roadside fixture conflicts with mapped road/building/water"
+    },
+    {
+      "id": "node/4553151353",
+      "reason": "roadside fixture conflicts with mapped road/building/water"
+    },
+    {
+      "id": "node/4572948614",
+      "reason": "tree conflicts with rendered road/building/water"
+    },
+    {
+      "id": "node/4572948615",
+      "reason": "tree conflicts with rendered road/building/water"
+    },
+    {
+      "id": "node/4572948616",
+      "reason": "tree conflicts with rendered road/building/water"
+    },
+    {
+      "id": "node/4572948617",
+      "reason": "tree conflicts with rendered road/building/water"
+    },
+    {
+      "id": "node/4572948618",
+      "reason": "tree conflicts with rendered road/building/water"
+    },
+    {
+      "id": "node/4572948619",
+      "reason": "tree conflicts with rendered road/building/water"
+    },
+    {
+      "id": "node/4572948620",
+      "reason": "tree conflicts with rendered road/building/water"
+    },
+    {
+      "id": "node/4572948621",
+      "reason": "tree conflicts with rendered road/building/water"
+    },
+    {
+      "id": "node/4572948622",
+      "reason": "tree conflicts with rendered road/building/water"
+    },
+    {
+      "id": "node/4572948623",
+      "reason": "tree conflicts with rendered road/building/water"
+    },
+    {
+      "id": "node/4572948624",
+      "reason": "tree conflicts with rendered road/building/water"
+    },
+    {
+      "id": "node/4572948625",
+      "reason": "tree conflicts with rendered road/building/water"
+    },
+    {
+      "id": "node/4572948626",
+      "reason": "tree conflicts with rendered road/building/water"
+    },
+    {
+      "id": "node/4572948627",
+      "reason": "tree conflicts with rendered road/building/water"
+    },
+    {
+      "id": "node/4572948628",
+      "reason": "tree conflicts with rendered road/building/water"
+    },
+    {
+      "id": "node/4572948839",
+      "reason": "tree conflicts with rendered road/building/water"
+    },
+    {
+      "id": "node/4572948840",
+      "reason": "tree conflicts with rendered road/building/water"
+    },
+    {
+      "id": "node/4572948873",
+      "reason": "tree conflicts with rendered road/building/water"
+    },
+    {
+      "id": "node/4573018009",
+      "reason": "tree conflicts with rendered road/building/water"
+    },
+    {
+      "id": "node/4573018010",
+      "reason": "tree conflicts with rendered road/building/water"
+    },
+    {
+      "id": "node/4573018012",
+      "reason": "tree conflicts with rendered road/building/water"
+    },
+    {
+      "id": "node/4573018013",
+      "reason": "tree conflicts with rendered road/building/water"
+    },
+    {
+      "id": "node/4573018015",
+      "reason": "tree conflicts with rendered road/building/water"
+    },
+    {
+      "id": "node/4573018016",
+      "reason": "tree conflicts with rendered road/building/water"
+    },
+    {
+      "id": "node/4573018028",
+      "reason": "tree conflicts with rendered road/building/water"
+    },
+    {
+      "id": "node/4573018029",
+      "reason": "tree conflicts with rendered road/building/water"
+    },
+    {
+      "id": "node/4573018030",
+      "reason": "tree conflicts with rendered road/building/water"
+    },
+    {
+      "id": "node/4573018031",
+      "reason": "tree conflicts with rendered road/building/water"
+    },
+    {
+      "id": "node/4573018033",
+      "reason": "tree conflicts with rendered road/building/water"
+    },
+    {
+      "id": "node/4573018035",
+      "reason": "tree conflicts with rendered road/building/water"
+    },
+    {
+      "id": "node/4573018036",
+      "reason": "tree conflicts with rendered road/building/water"
+    },
+    {
+      "id": "node/4573018037",
+      "reason": "tree conflicts with rendered road/building/water"
+    },
+    {
+      "id": "node/4573018038",
+      "reason": "tree conflicts with rendered road/building/water"
+    },
+    {
+      "id": "node/4573018039",
+      "reason": "tree conflicts with rendered road/building/water"
+    },
+    {
+      "id": "node/4573018040",
+      "reason": "tree conflicts with rendered road/building/water"
+    },
+    {
+      "id": "node/4573018041",
+      "reason": "tree conflicts with rendered road/building/water"
+    },
+    {
+      "id": "node/4573038635",
+      "reason": "tree conflicts with rendered road/building/water"
+    },
+    {
+      "id": "node/4573038636",
+      "reason": "tree conflicts with rendered road/building/water"
+    },
+    {
+      "id": "node/4573038637",
+      "reason": "tree conflicts with rendered road/building/water"
+    },
+    {
+      "id": "node/4576337043",
+      "reason": "tree conflicts with rendered road/building/water"
+    },
+    {
+      "id": "node/4576337064",
+      "reason": "tree conflicts with rendered road/building/water"
+    },
+    {
+      "id": "node/4576337066",
+      "reason": "tree conflicts with rendered road/building/water"
+    },
+    {
+      "id": "node/4576337069",
+      "reason": "tree conflicts with rendered road/building/water"
+    },
+    {
+      "id": "node/4576337073",
+      "reason": "tree conflicts with rendered road/building/water"
+    },
+    {
+      "id": "node/4576337158",
+      "reason": "tree conflicts with rendered road/building/water"
+    },
+    {
+      "id": "node/4578210532",
+      "reason": "tree conflicts with rendered road/building/water"
+    },
+    {
+      "id": "node/4578210533",
+      "reason": "tree conflicts with rendered road/building/water"
+    },
+    {
+      "id": "node/4578210534",
+      "reason": "tree conflicts with rendered road/building/water"
+    },
+    {
+      "id": "node/4578210536",
+      "reason": "tree conflicts with rendered road/building/water"
+    },
+    {
+      "id": "node/4578210547",
+      "reason": "tree conflicts with rendered road/building/water"
+    },
+    {
+      "id": "node/4578210548",
+      "reason": "tree conflicts with rendered road/building/water"
+    },
+    {
+      "id": "node/4578210549",
+      "reason": "tree conflicts with rendered road/building/water"
+    },
+    {
+      "id": "node/4578210552",
+      "reason": "tree conflicts with rendered road/building/water"
+    },
+    {
+      "id": "node/4578210553",
+      "reason": "tree conflicts with rendered road/building/water"
+    },
+    {
+      "id": "node/4578210557",
+      "reason": "tree conflicts with rendered road/building/water"
+    },
+    {
+      "id": "node/4578210558",
+      "reason": "tree conflicts with rendered road/building/water"
+    },
+    {
+      "id": "node/4578210561",
+      "reason": "tree conflicts with rendered road/building/water"
+    },
+    {
+      "id": "node/4578210562",
+      "reason": "tree conflicts with rendered road/building/water"
+    },
+    {
+      "id": "node/4578210564",
+      "reason": "tree conflicts with rendered road/building/water"
+    },
+    {
+      "id": "node/4578210565",
+      "reason": "tree conflicts with rendered road/building/water"
+    },
+    {
+      "id": "node/4578210566",
+      "reason": "tree conflicts with rendered road/building/water"
+    },
+    {
+      "id": "node/4578210570",
+      "reason": "tree conflicts with rendered road/building/water"
+    },
+    {
+      "id": "node/4578210576",
+      "reason": "tree conflicts with rendered road/building/water"
+    },
+    {
+      "id": "node/4578210584",
+      "reason": "tree conflicts with rendered road/building/water"
+    },
+    {
+      "id": "node/4578210686",
+      "reason": "tree conflicts with rendered road/building/water"
+    },
+    {
+      "id": "node/4578210691",
+      "reason": "tree conflicts with rendered road/building/water"
+    },
+    {
+      "id": "node/4578210692",
+      "reason": "tree conflicts with rendered road/building/water"
+    },
+    {
+      "id": "node/4578210736",
+      "reason": "tree conflicts with rendered road/building/water"
+    },
+    {
+      "id": "node/4578288341",
+      "reason": "tree conflicts with rendered road/building/water"
+    },
+    {
+      "id": "node/4578288361",
+      "reason": "tree conflicts with rendered road/building/water"
+    },
+    {
+      "id": "node/4579867874",
+      "reason": "tree conflicts with rendered road/building/water"
+    },
+    {
+      "id": "node/4579868031",
+      "reason": "tree conflicts with rendered road/building/water"
+    },
+    {
+      "id": "node/4579868047",
+      "reason": "tree conflicts with rendered road/building/water"
+    },
+    {
+      "id": "node/4579868058",
+      "reason": "tree conflicts with rendered road/building/water"
+    },
+    {
+      "id": "node/4579868059",
+      "reason": "tree conflicts with rendered road/building/water"
+    },
+    {
+      "id": "node/4579868105",
+      "reason": "tree conflicts with rendered road/building/water"
+    },
+    {
+      "id": "node/4579868188",
+      "reason": "tree conflicts with rendered road/building/water"
+    },
+    {
+      "id": "node/4579868264",
+      "reason": "tree conflicts with rendered road/building/water"
+    },
+    {
+      "id": "node/4579868301",
+      "reason": "tree conflicts with rendered road/building/water"
+    },
+    {
+      "id": "node/4579868353",
+      "reason": "tree conflicts with rendered road/building/water"
+    },
+    {
+      "id": "node/4579868354",
+      "reason": "tree conflicts with rendered road/building/water"
+    },
+    {
+      "id": "node/4579868355",
+      "reason": "tree conflicts with rendered road/building/water"
+    },
+    {
+      "id": "node/4579868356",
+      "reason": "tree conflicts with rendered road/building/water"
+    },
+    {
+      "id": "node/4579868357",
+      "reason": "tree conflicts with rendered road/building/water"
+    },
+    {
+      "id": "node/4579868382",
+      "reason": "tree conflicts with rendered road/building/water"
+    },
+    {
+      "id": "node/4579868409",
+      "reason": "tree conflicts with rendered road/building/water"
+    },
+    {
+      "id": "node/4579868411",
+      "reason": "tree conflicts with rendered road/building/water"
+    },
+    {
+      "id": "node/4579868417",
+      "reason": "tree conflicts with rendered road/building/water"
+    },
+    {
+      "id": "node/4579868429",
+      "reason": "tree conflicts with rendered road/building/water"
+    },
+    {
+      "id": "node/4584040159",
+      "reason": "tree conflicts with rendered road/building/water"
+    },
+    {
+      "id": "node/4584040160",
+      "reason": "tree conflicts with rendered road/building/water"
+    },
+    {
+      "id": "node/4584040161",
+      "reason": "tree conflicts with rendered road/building/water"
+    },
+    {
+      "id": "node/4585373327",
+      "reason": "roadside fixture conflicts with mapped road/building/water"
+    },
+    {
+      "id": "node/4585464456",
+      "reason": "roadside fixture conflicts with mapped road/building/water"
+    },
+    {
+      "id": "node/4597958156",
+      "reason": "tree conflicts with rendered road/building/water"
+    },
+    {
+      "id": "node/4601615478",
+      "reason": "roadside fixture conflicts with mapped road/building/water"
+    },
+    {
+      "id": "node/4621151398",
+      "reason": "roadside fixture conflicts with mapped road/building/water"
+    },
+    {
+      "id": "node/4622126570",
+      "reason": "roadside fixture conflicts with mapped road/building/water"
+    },
+    {
+      "id": "node/4634705082",
+      "reason": "roadside fixture conflicts with mapped road/building/water"
+    },
+    {
+      "id": "node/4636909078",
+      "reason": "bin conflicts with rendered surface"
+    },
+    {
+      "id": "node/4636909675",
+      "reason": "bin conflicts with rendered surface"
+    },
+    {
+      "id": "node/4639509592",
+      "reason": "tree conflicts with rendered road/building/water"
+    },
+    {
+      "id": "node/4642419901",
+      "reason": "tree conflicts with rendered road/building/water"
+    },
+    {
+      "id": "node/4644404747",
+      "reason": "tree conflicts with rendered road/building/water"
+    },
+    {
+      "id": "node/4644404748",
+      "reason": "tree conflicts with rendered road/building/water"
+    },
+    {
+      "id": "node/4644405968",
+      "reason": "roadside fixture conflicts with mapped road/building/water"
+    },
+    {
+      "id": "node/4644570786",
+      "reason": "tree conflicts with rendered road/building/water"
+    },
+    {
+      "id": "node/4644571400",
+      "reason": "tree conflicts with rendered road/building/water"
+    },
+    {
+      "id": "node/4644571452",
+      "reason": "tree conflicts with rendered road/building/water"
+    },
+    {
+      "id": "node/4644571453",
+      "reason": "tree conflicts with rendered road/building/water"
+    },
+    {
+      "id": "node/4644571454",
+      "reason": "tree conflicts with rendered road/building/water"
+    },
+    {
+      "id": "node/4644777198",
+      "reason": "tree conflicts with rendered road/building/water"
+    },
+    {
+      "id": "node/4647392105",
+      "reason": "tree conflicts with rendered road/building/water"
+    },
+    {
+      "id": "node/4647974964",
+      "reason": "tree conflicts with rendered road/building/water"
+    },
+    {
+      "id": "node/4647974965",
+      "reason": "tree conflicts with rendered road/building/water"
+    },
+    {
+      "id": "node/4647974966",
+      "reason": "tree conflicts with rendered road/building/water"
+    },
+    {
+      "id": "node/4647974967",
+      "reason": "tree conflicts with rendered road/building/water"
+    },
+    {
+      "id": "node/4647975310",
+      "reason": "tree conflicts with rendered road/building/water"
+    },
+    {
+      "id": "node/4647975311",
+      "reason": "tree conflicts with rendered road/building/water"
+    },
+    {
+      "id": "node/4647975312",
+      "reason": "tree conflicts with rendered road/building/water"
+    },
+    {
+      "id": "node/4647975318",
+      "reason": "tree conflicts with rendered road/building/water"
+    },
+    {
+      "id": "node/4647975319",
+      "reason": "tree conflicts with rendered road/building/water"
+    },
+    {
+      "id": "node/4647975320",
+      "reason": "tree conflicts with rendered road/building/water"
+    },
+    {
+      "id": "node/4647975321",
+      "reason": "tree conflicts with rendered road/building/water"
+    },
+    {
+      "id": "node/4647975322",
+      "reason": "tree conflicts with rendered road/building/water"
+    },
+    {
+      "id": "node/4647975323",
+      "reason": "tree conflicts with rendered road/building/water"
+    },
+    {
+      "id": "node/4647975324",
+      "reason": "tree conflicts with rendered road/building/water"
+    },
+    {
+      "id": "node/4647975325",
+      "reason": "tree conflicts with rendered road/building/water"
+    },
+    {
+      "id": "node/4647975330",
+      "reason": "tree conflicts with rendered road/building/water"
+    },
+    {
+      "id": "node/4647976518",
+      "reason": "tree conflicts with rendered road/building/water"
+    },
+    {
+      "id": "node/4647976535",
+      "reason": "tree conflicts with rendered road/building/water"
+    },
+    {
+      "id": "node/4652617641",
+      "reason": "bin conflicts with rendered surface"
+    },
+    {
+      "id": "node/4652617642",
+      "reason": "bin conflicts with rendered surface"
+    },
+    {
+      "id": "node/4652701882",
+      "reason": "tree conflicts with rendered road/building/water"
+    },
+    {
+      "id": "node/4652702604",
+      "reason": "tree conflicts with rendered road/building/water"
+    },
+    {
+      "id": "node/4652702636",
+      "reason": "tree conflicts with rendered road/building/water"
+    },
+    {
+      "id": "node/4652702637",
+      "reason": "tree conflicts with rendered road/building/water"
+    },
+    {
+      "id": "node/4652898083",
+      "reason": "tree conflicts with rendered road/building/water"
+    },
+    {
+      "id": "node/4652898633",
+      "reason": "tree conflicts with rendered road/building/water"
+    },
+    {
+      "id": "node/4652898634",
+      "reason": "tree conflicts with rendered road/building/water"
+    },
+    {
+      "id": "node/4652898651",
+      "reason": "tree conflicts with rendered road/building/water"
+    },
+    {
+      "id": "node/4653353528",
+      "reason": "tree conflicts with rendered road/building/water"
+    },
+    {
+      "id": "node/4653353529",
+      "reason": "tree conflicts with rendered road/building/water"
+    },
+    {
+      "id": "node/4653353531",
+      "reason": "tree conflicts with rendered road/building/water"
+    },
+    {
+      "id": "node/4653353533",
+      "reason": "tree conflicts with rendered road/building/water"
+    },
+    {
+      "id": "node/4653353567",
+      "reason": "tree conflicts with rendered road/building/water"
+    },
+    {
+      "id": "node/4653353568",
+      "reason": "tree conflicts with rendered road/building/water"
+    },
+    {
+      "id": "node/4653353569",
+      "reason": "tree conflicts with rendered road/building/water"
+    },
+    {
+      "id": "node/4653353570",
+      "reason": "tree conflicts with rendered road/building/water"
+    },
+    {
+      "id": "node/4653353571",
+      "reason": "tree conflicts with rendered road/building/water"
+    },
+    {
+      "id": "node/4653419547",
+      "reason": "tree conflicts with rendered road/building/water"
+    },
+    {
+      "id": "node/4653419556",
+      "reason": "tree conflicts with rendered road/building/water"
+    },
+    {
+      "id": "node/4653419557",
+      "reason": "tree conflicts with rendered road/building/water"
+    },
+    {
+      "id": "node/4653419561",
+      "reason": "tree conflicts with rendered road/building/water"
+    },
+    {
+      "id": "node/4653419563",
+      "reason": "tree conflicts with rendered road/building/water"
+    },
+    {
+      "id": "node/4653419564",
+      "reason": "tree conflicts with rendered road/building/water"
+    },
+    {
+      "id": "node/4653420218",
+      "reason": "tree conflicts with rendered road/building/water"
+    },
+    {
+      "id": "node/4653420220",
+      "reason": "tree conflicts with rendered road/building/water"
+    },
+    {
+      "id": "node/4653420242",
+      "reason": "tree conflicts with rendered road/building/water"
+    },
+    {
+      "id": "node/4653420243",
+      "reason": "tree conflicts with rendered road/building/water"
+    },
+    {
+      "id": "node/4655254352",
+      "reason": "tree conflicts with rendered road/building/water"
+    },
+    {
+      "id": "node/4655254354",
+      "reason": "tree conflicts with rendered road/building/water"
+    },
+    {
+      "id": "node/4655254360",
+      "reason": "tree conflicts with rendered road/building/water"
+    },
+    {
+      "id": "node/4655254367",
+      "reason": "tree conflicts with rendered road/building/water"
+    },
+    {
+      "id": "node/4655258646",
+      "reason": "tree conflicts with rendered road/building/water"
+    },
+    {
+      "id": "node/4655258737",
+      "reason": "tree conflicts with rendered road/building/water"
+    },
+    {
+      "id": "node/4655259204",
+      "reason": "tree conflicts with rendered road/building/water"
+    },
+    {
+      "id": "node/4655259207",
+      "reason": "tree conflicts with rendered road/building/water"
+    },
+    {
+      "id": "node/4655259208",
+      "reason": "tree conflicts with rendered road/building/water"
+    },
+    {
+      "id": "node/4655547887",
+      "reason": "tree conflicts with rendered road/building/water"
+    },
+    {
+      "id": "node/4655548812",
+      "reason": "tree conflicts with rendered road/building/water"
+    },
+    {
+      "id": "node/4655548813",
+      "reason": "tree conflicts with rendered road/building/water"
+    },
+    {
+      "id": "node/4655548816",
+      "reason": "tree conflicts with rendered road/building/water"
+    },
+    {
+      "id": "node/4655548825",
+      "reason": "tree conflicts with rendered road/building/water"
+    },
+    {
+      "id": "node/4655548989",
+      "reason": "tree conflicts with rendered road/building/water"
+    },
+    {
+      "id": "node/4655549936",
+      "reason": "tree conflicts with rendered road/building/water"
+    },
+    {
+      "id": "node/4655549937",
+      "reason": "tree conflicts with rendered road/building/water"
+    },
+    {
+      "id": "node/4655549938",
+      "reason": "tree conflicts with rendered road/building/water"
+    },
+    {
+      "id": "node/4655549940",
+      "reason": "tree conflicts with rendered road/building/water"
+    },
+    {
+      "id": "node/4655549942",
+      "reason": "tree conflicts with rendered road/building/water"
+    },
+    {
+      "id": "node/4655549943",
+      "reason": "tree conflicts with rendered road/building/water"
+    },
+    {
+      "id": "node/4655549946",
+      "reason": "tree conflicts with rendered road/building/water"
+    },
+    {
+      "id": "node/4655549947",
+      "reason": "tree conflicts with rendered road/building/water"
+    },
+    {
+      "id": "node/4655549948",
+      "reason": "tree conflicts with rendered road/building/water"
+    },
+    {
+      "id": "node/4655549960",
+      "reason": "tree conflicts with rendered road/building/water"
+    },
+    {
+      "id": "node/4655549961",
+      "reason": "tree conflicts with rendered road/building/water"
+    },
+    {
+      "id": "node/4655549962",
+      "reason": "tree conflicts with rendered road/building/water"
+    },
+    {
+      "id": "node/4655549963",
+      "reason": "tree conflicts with rendered road/building/water"
+    },
+    {
+      "id": "node/4655549964",
+      "reason": "tree conflicts with rendered road/building/water"
+    },
+    {
+      "id": "node/4655549965",
+      "reason": "tree conflicts with rendered road/building/water"
+    },
+    {
+      "id": "node/4655549966",
+      "reason": "tree conflicts with rendered road/building/water"
+    },
+    {
+      "id": "node/4655549967",
+      "reason": "tree conflicts with rendered road/building/water"
+    },
+    {
+      "id": "node/4655549970",
+      "reason": "tree conflicts with rendered road/building/water"
+    },
+    {
+      "id": "node/4655549971",
+      "reason": "tree conflicts with rendered road/building/water"
+    },
+    {
+      "id": "node/4655549972",
+      "reason": "tree conflicts with rendered road/building/water"
+    },
+    {
+      "id": "node/4655549973",
+      "reason": "tree conflicts with rendered road/building/water"
+    },
+    {
+      "id": "node/4655549974",
+      "reason": "tree conflicts with rendered road/building/water"
+    },
+    {
+      "id": "node/4655549976",
+      "reason": "tree conflicts with rendered road/building/water"
+    },
+    {
+      "id": "node/4655549977",
+      "reason": "tree conflicts with rendered road/building/water"
+    },
+    {
+      "id": "node/4655549978",
+      "reason": "tree conflicts with rendered road/building/water"
+    },
+    {
+      "id": "node/4655549980",
+      "reason": "tree conflicts with rendered road/building/water"
+    },
+    {
+      "id": "node/4655550159",
+      "reason": "tree conflicts with rendered road/building/water"
+    },
+    {
+      "id": "node/4655550160",
+      "reason": "tree conflicts with rendered road/building/water"
+    },
+    {
+      "id": "node/4655550927",
+      "reason": "tree conflicts with rendered road/building/water"
+    },
+    {
+      "id": "node/4655550928",
+      "reason": "tree conflicts with rendered road/building/water"
+    },
+    {
+      "id": "node/4655550929",
+      "reason": "tree conflicts with rendered road/building/water"
+    },
+    {
+      "id": "node/4655550950",
+      "reason": "tree conflicts with rendered road/building/water"
+    },
+    {
+      "id": "node/4655550952",
+      "reason": "tree conflicts with rendered road/building/water"
+    },
+    {
+      "id": "node/4655550959",
+      "reason": "tree conflicts with rendered road/building/water"
+    },
+    {
+      "id": "node/4655550966",
+      "reason": "tree conflicts with rendered road/building/water"
+    },
+    {
+      "id": "node/4655550967",
+      "reason": "tree conflicts with rendered road/building/water"
+    },
+    {
+      "id": "node/4655550968",
+      "reason": "tree conflicts with rendered road/building/water"
+    },
+    {
+      "id": "node/4655550969",
+      "reason": "tree conflicts with rendered road/building/water"
+    },
+    {
+      "id": "node/4655550970",
+      "reason": "tree conflicts with rendered road/building/water"
+    },
+    {
+      "id": "node/4655550971",
+      "reason": "tree conflicts with rendered road/building/water"
+    },
+    {
+      "id": "node/4655550972",
+      "reason": "tree conflicts with rendered road/building/water"
+    },
+    {
+      "id": "node/4655550973",
+      "reason": "tree conflicts with rendered road/building/water"
+    },
+    {
+      "id": "node/4655550974",
+      "reason": "tree conflicts with rendered road/building/water"
+    },
+    {
+      "id": "node/4655550975",
+      "reason": "tree conflicts with rendered road/building/water"
+    },
+    {
+      "id": "node/4655550976",
+      "reason": "tree conflicts with rendered road/building/water"
+    },
+    {
+      "id": "node/4655550977",
+      "reason": "tree conflicts with rendered road/building/water"
+    },
+    {
+      "id": "node/4655550978",
+      "reason": "tree conflicts with rendered road/building/water"
+    },
+    {
+      "id": "node/4655550979",
+      "reason": "tree conflicts with rendered road/building/water"
+    },
+    {
+      "id": "node/4655550980",
+      "reason": "tree conflicts with rendered road/building/water"
+    },
+    {
+      "id": "node/4655550981",
+      "reason": "tree conflicts with rendered road/building/water"
+    },
+    {
+      "id": "node/4655550984",
+      "reason": "tree conflicts with rendered road/building/water"
+    },
+    {
+      "id": "node/4655550988",
+      "reason": "tree conflicts with rendered road/building/water"
+    },
+    {
+      "id": "node/4655551391",
+      "reason": "tree conflicts with rendered road/building/water"
+    },
+    {
+      "id": "node/4655551392",
+      "reason": "tree conflicts with rendered road/building/water"
+    },
+    {
+      "id": "node/4655551393",
+      "reason": "tree conflicts with rendered road/building/water"
+    },
+    {
+      "id": "node/4655551394",
+      "reason": "tree conflicts with rendered road/building/water"
+    },
+    {
+      "id": "node/4655551395",
+      "reason": "tree conflicts with rendered road/building/water"
+    },
+    {
+      "id": "node/4655551396",
+      "reason": "tree conflicts with rendered road/building/water"
+    },
+    {
+      "id": "node/4655758453",
+      "reason": "tree conflicts with rendered road/building/water"
+    },
+    {
+      "id": "node/4655758454",
+      "reason": "tree conflicts with rendered road/building/water"
+    },
+    {
+      "id": "node/4655758458",
+      "reason": "tree conflicts with rendered road/building/water"
+    },
+    {
+      "id": "node/4655758459",
+      "reason": "tree conflicts with rendered road/building/water"
+    },
+    {
+      "id": "node/4655760139",
+      "reason": "tree conflicts with rendered road/building/water"
+    },
+    {
+      "id": "node/4655760141",
+      "reason": "tree conflicts with rendered road/building/water"
+    },
+    {
+      "id": "node/4655760264",
+      "reason": "tree conflicts with rendered road/building/water"
+    },
+    {
+      "id": "node/4655760273",
+      "reason": "tree conflicts with rendered road/building/water"
+    },
+    {
+      "id": "node/4655760276",
+      "reason": "tree conflicts with rendered road/building/water"
+    },
+    {
+      "id": "node/4655760278",
+      "reason": "tree conflicts with rendered road/building/water"
+    },
+    {
+      "id": "node/4659446280",
+      "reason": "tree conflicts with rendered road/building/water"
+    },
+    {
+      "id": "node/4659446281",
+      "reason": "tree conflicts with rendered road/building/water"
+    },
+    {
+      "id": "node/4659446282",
+      "reason": "tree conflicts with rendered road/building/water"
+    },
+    {
+      "id": "node/4659446283",
+      "reason": "tree conflicts with rendered road/building/water"
+    },
+    {
+      "id": "node/4659446284",
+      "reason": "tree conflicts with rendered road/building/water"
+    },
+    {
+      "id": "node/4659446285",
+      "reason": "tree conflicts with rendered road/building/water"
+    },
+    {
+      "id": "node/4659446639",
+      "reason": "tree conflicts with rendered road/building/water"
+    },
+    {
+      "id": "node/4659447123",
+      "reason": "tree conflicts with rendered road/building/water"
+    },
+    {
+      "id": "node/4659447144",
+      "reason": "tree conflicts with rendered road/building/water"
+    },
+    {
+      "id": "node/4659447145",
+      "reason": "tree conflicts with rendered road/building/water"
+    },
+    {
+      "id": "node/4659447146",
+      "reason": "tree conflicts with rendered road/building/water"
+    },
+    {
+      "id": "node/4659447147",
+      "reason": "tree conflicts with rendered road/building/water"
+    },
+    {
+      "id": "node/4659466155",
+      "reason": "tree conflicts with rendered road/building/water"
+    },
+    {
+      "id": "node/4659466157",
+      "reason": "tree conflicts with rendered road/building/water"
+    },
+    {
+      "id": "node/4659466159",
+      "reason": "tree conflicts with rendered road/building/water"
+    },
+    {
+      "id": "node/4659466160",
+      "reason": "tree conflicts with rendered road/building/water"
+    },
+    {
+      "id": "node/4659466161",
+      "reason": "tree conflicts with rendered road/building/water"
+    },
+    {
+      "id": "node/4659466162",
+      "reason": "tree conflicts with rendered road/building/water"
+    },
+    {
+      "id": "node/4663046432",
+      "reason": "tree conflicts with rendered road/building/water"
+    },
+    {
+      "id": "node/4663046463",
+      "reason": "tree conflicts with rendered road/building/water"
+    },
+    {
+      "id": "node/4663046464",
+      "reason": "tree conflicts with rendered road/building/water"
+    },
+    {
+      "id": "node/4663046465",
+      "reason": "tree conflicts with rendered road/building/water"
+    },
+    {
+      "id": "node/4663046466",
+      "reason": "tree conflicts with rendered road/building/water"
+    },
+    {
+      "id": "node/4663046880",
+      "reason": "tree conflicts with rendered road/building/water"
+    },
+    {
+      "id": "node/4663046954",
+      "reason": "tree conflicts with rendered road/building/water"
+    },
+    {
+      "id": "node/4663046956",
+      "reason": "tree conflicts with rendered road/building/water"
+    },
+    {
+      "id": "node/4663046957",
+      "reason": "tree conflicts with rendered road/building/water"
+    },
+    {
+      "id": "node/4663046993",
+      "reason": "tree conflicts with rendered road/building/water"
+    },
+    {
+      "id": "node/4663131088",
+      "reason": "bin conflicts with rendered surface"
+    },
+    {
+      "id": "node/4663131092",
+      "reason": "tree conflicts with rendered road/building/water"
+    },
+    {
+      "id": "node/4663131094",
+      "reason": "tree conflicts with rendered road/building/water"
+    },
+    {
+      "id": "node/4663131095",
+      "reason": "tree conflicts with rendered road/building/water"
+    },
+    {
+      "id": "node/4663131099",
+      "reason": "tree conflicts with rendered road/building/water"
+    },
+    {
+      "id": "node/4663131100",
+      "reason": "tree conflicts with rendered road/building/water"
+    },
+    {
+      "id": "node/4663131104",
+      "reason": "tree conflicts with rendered road/building/water"
+    },
+    {
+      "id": "node/4663131119",
+      "reason": "tree conflicts with rendered road/building/water"
+    },
+    {
+      "id": "node/4663131152",
+      "reason": "tree conflicts with rendered road/building/water"
+    },
+    {
+      "id": "node/4663131153",
+      "reason": "tree conflicts with rendered road/building/water"
+    },
+    {
+      "id": "node/4663283634",
+      "reason": "tree conflicts with rendered road/building/water"
+    },
+    {
+      "id": "node/4663283641",
+      "reason": "tree conflicts with rendered road/building/water"
+    },
+    {
+      "id": "node/4663283879",
+      "reason": "tree conflicts with rendered road/building/water"
+    },
+    {
+      "id": "node/4664867540",
+      "reason": "tree conflicts with rendered road/building/water"
+    },
+    {
+      "id": "node/4664867541",
+      "reason": "tree conflicts with rendered road/building/water"
+    },
+    {
+      "id": "node/4664903968",
+      "reason": "tree conflicts with rendered road/building/water"
+    },
+    {
+      "id": "node/4664903969",
+      "reason": "tree conflicts with rendered road/building/water"
+    },
+    {
+      "id": "node/4664903970",
+      "reason": "tree conflicts with rendered road/building/water"
+    },
+    {
+      "id": "node/4664903971",
+      "reason": "tree conflicts with rendered road/building/water"
+    },
+    {
+      "id": "node/4664904348",
+      "reason": "tree conflicts with rendered road/building/water"
+    },
+    {
+      "id": "node/4664904360",
+      "reason": "tree conflicts with rendered road/building/water"
+    },
+    {
+      "id": "node/4664924177",
+      "reason": "tree conflicts with rendered road/building/water"
+    },
+    {
+      "id": "node/4668092774",
+      "reason": "tree conflicts with rendered road/building/water"
+    },
+    {
+      "id": "node/4668092775",
+      "reason": "tree conflicts with rendered road/building/water"
+    },
+    {
+      "id": "node/4668092784",
+      "reason": "tree conflicts with rendered road/building/water"
+    },
+    {
+      "id": "node/4668094401",
+      "reason": "tree conflicts with rendered road/building/water"
+    },
+    {
+      "id": "node/4668094413",
+      "reason": "tree conflicts with rendered road/building/water"
+    },
+    {
+      "id": "node/4668094458",
+      "reason": "tree conflicts with rendered road/building/water"
+    },
+    {
+      "id": "node/4668094459",
+      "reason": "tree conflicts with rendered road/building/water"
+    },
+    {
+      "id": "node/4668094501",
+      "reason": "tree conflicts with rendered road/building/water"
+    },
+    {
+      "id": "node/4668094502",
+      "reason": "tree conflicts with rendered road/building/water"
+    },
+    {
+      "id": "node/4668094503",
+      "reason": "tree conflicts with rendered road/building/water"
+    },
+    {
+      "id": "node/4668094504",
+      "reason": "tree conflicts with rendered road/building/water"
+    },
+    {
+      "id": "node/4668094505",
+      "reason": "tree conflicts with rendered road/building/water"
+    },
+    {
+      "id": "node/4668094506",
+      "reason": "tree conflicts with rendered road/building/water"
+    },
+    {
+      "id": "node/4668094507",
+      "reason": "tree conflicts with rendered road/building/water"
+    },
+    {
+      "id": "node/4676676138",
+      "reason": "roadside fixture conflicts with mapped road/building/water"
+    },
+    {
+      "id": "node/4676729935",
+      "reason": "tree conflicts with rendered road/building/water"
+    },
+    {
+      "id": "node/4676729936",
+      "reason": "tree conflicts with rendered road/building/water"
+    },
+    {
+      "id": "node/4676729937",
+      "reason": "tree conflicts with rendered road/building/water"
+    },
+    {
+      "id": "node/4676729939",
+      "reason": "tree conflicts with rendered road/building/water"
+    },
+    {
+      "id": "node/4676730556",
+      "reason": "tree conflicts with rendered road/building/water"
+    },
+    {
+      "id": "node/4676774964",
+      "reason": "tree conflicts with rendered road/building/water"
+    },
+    {
+      "id": "node/4676775929",
+      "reason": "tree conflicts with rendered road/building/water"
+    },
+    {
+      "id": "node/4676775947",
+      "reason": "tree conflicts with rendered road/building/water"
+    },
+    {
+      "id": "node/4676776202",
+      "reason": "tree conflicts with rendered road/building/water"
+    },
+    {
+      "id": "node/4676776204",
+      "reason": "tree conflicts with rendered road/building/water"
+    },
+    {
+      "id": "node/4676776221",
+      "reason": "tree conflicts with rendered road/building/water"
+    },
+    {
+      "id": "node/4676776222",
+      "reason": "tree conflicts with rendered road/building/water"
+    },
+    {
+      "id": "node/4676776225",
+      "reason": "tree conflicts with rendered road/building/water"
+    },
+    {
+      "id": "node/4678091906",
+      "reason": "tree conflicts with rendered road/building/water"
+    },
+    {
+      "id": "node/4678091941",
+      "reason": "tree conflicts with rendered road/building/water"
+    },
+    {
+      "id": "node/4678091945",
+      "reason": "tree conflicts with rendered road/building/water"
+    },
+    {
+      "id": "node/4679402293",
+      "reason": "bin conflicts with rendered surface"
+    },
+    {
+      "id": "node/4679916279",
+      "reason": "tree conflicts with rendered road/building/water"
+    },
+    {
+      "id": "node/4679916336",
+      "reason": "tree conflicts with rendered road/building/water"
+    },
+    {
+      "id": "node/4679916377",
+      "reason": "tree conflicts with rendered road/building/water"
+    },
+    {
+      "id": "node/4679916378",
+      "reason": "tree conflicts with rendered road/building/water"
+    },
+    {
+      "id": "node/4679916382",
+      "reason": "tree conflicts with rendered road/building/water"
+    },
+    {
+      "id": "node/4679916383",
+      "reason": "tree conflicts with rendered road/building/water"
+    },
+    {
+      "id": "node/4679916399",
+      "reason": "tree conflicts with rendered road/building/water"
+    },
+    {
+      "id": "node/4679916404",
+      "reason": "tree conflicts with rendered road/building/water"
+    },
+    {
+      "id": "node/4679916443",
+      "reason": "tree conflicts with rendered road/building/water"
+    },
+    {
+      "id": "node/4679916461",
+      "reason": "tree conflicts with rendered road/building/water"
+    },
+    {
+      "id": "node/4679916487",
+      "reason": "tree conflicts with rendered road/building/water"
+    },
+    {
+      "id": "node/4679916509",
+      "reason": "tree conflicts with rendered road/building/water"
+    },
+    {
+      "id": "node/4679916527",
+      "reason": "tree conflicts with rendered road/building/water"
+    },
+    {
+      "id": "node/4679916528",
+      "reason": "tree conflicts with rendered road/building/water"
+    },
+    {
+      "id": "node/4679916537",
+      "reason": "tree conflicts with rendered road/building/water"
+    },
+    {
+      "id": "node/4679916558",
+      "reason": "tree conflicts with rendered road/building/water"
+    },
+    {
+      "id": "node/4679916561",
+      "reason": "tree conflicts with rendered road/building/water"
+    },
+    {
+      "id": "node/4679916593",
+      "reason": "tree conflicts with rendered road/building/water"
+    },
+    {
+      "id": "node/5021578001",
+      "reason": "roadside fixture conflicts with mapped road/building/water"
+    },
+    {
+      "id": "node/5177841401",
+      "reason": "roadside fixture conflicts with mapped road/building/water"
+    },
+    {
+      "id": "node/5177841402",
+      "reason": "roadside fixture conflicts with mapped road/building/water"
+    },
+    {
+      "id": "node/5218174515",
+      "reason": "tree conflicts with rendered road/building/water"
+    },
+    {
+      "id": "node/5218174517",
+      "reason": "tree conflicts with rendered road/building/water"
+    },
+    {
+      "id": "node/5218174518",
+      "reason": "tree conflicts with rendered road/building/water"
+    },
+    {
+      "id": "node/5219795921",
+      "reason": "tree conflicts with rendered road/building/water"
+    },
+    {
+      "id": "node/5219795922",
+      "reason": "tree conflicts with rendered road/building/water"
+    },
+    {
+      "id": "node/5245778388",
+      "reason": "roadside fixture conflicts with mapped road/building/water"
+    },
+    {
+      "id": "node/5246416047",
+      "reason": "roadside fixture conflicts with mapped road/building/water"
+    },
+    {
+      "id": "node/5335953156",
+      "reason": "roadside fixture conflicts with mapped road/building/water"
+    },
+    {
+      "id": "node/5336036449",
+      "reason": "tree conflicts with rendered road/building/water"
+    },
+    {
+      "id": "node/5339266727",
+      "reason": "roadside fixture conflicts with mapped road/building/water"
+    },
+    {
+      "id": "node/5348081455",
+      "reason": "roadside fixture conflicts with mapped road/building/water"
+    },
+    {
+      "id": "node/5348083013",
+      "reason": "roadside fixture conflicts with mapped road/building/water"
+    },
+    {
+      "id": "node/5348094100",
+      "reason": "roadside fixture conflicts with mapped road/building/water"
+    },
+    {
+      "id": "node/5418525510",
+      "reason": "roadside fixture conflicts with mapped road/building/water"
+    },
+    {
+      "id": "node/5418540059",
+      "reason": "roadside fixture conflicts with mapped road/building/water"
+    },
+    {
+      "id": "node/5887951681",
+      "reason": "tree conflicts with rendered road/building/water"
+    },
+    {
+      "id": "node/5893074247",
+      "reason": "tree conflicts with rendered road/building/water"
+    },
+    {
+      "id": "node/5900733841",
+      "reason": "roadside fixture conflicts with mapped road/building/water"
+    },
+    {
+      "id": "node/6150253365",
+      "reason": "bin conflicts with rendered surface"
+    },
+    {
+      "id": "node/6177243468",
+      "reason": "roadside fixture conflicts with mapped road/building/water"
+    },
+    {
+      "id": "node/6178478674",
+      "reason": "tree conflicts with rendered road/building/water"
+    },
+    {
+      "id": "node/6178478675",
+      "reason": "tree conflicts with rendered road/building/water"
+    },
+    {
+      "id": "node/6178478677",
+      "reason": "tree conflicts with rendered road/building/water"
+    },
+    {
+      "id": "node/6178478678",
+      "reason": "tree conflicts with rendered road/building/water"
+    },
+    {
+      "id": "node/6178478679",
+      "reason": "tree conflicts with rendered road/building/water"
+    },
+    {
+      "id": "node/6178478680",
+      "reason": "tree conflicts with rendered road/building/water"
+    },
+    {
+      "id": "node/6178478681",
+      "reason": "tree conflicts with rendered road/building/water"
+    },
+    {
+      "id": "node/6178478682",
+      "reason": "tree conflicts with rendered road/building/water"
+    },
+    {
+      "id": "node/6178478683",
+      "reason": "tree conflicts with rendered road/building/water"
+    },
+    {
+      "id": "node/6285845793",
+      "reason": "bin conflicts with rendered surface"
+    },
+    {
+      "id": "node/6296431491",
+      "reason": "tree conflicts with rendered road/building/water"
+    },
+    {
+      "id": "node/6296431532",
+      "reason": "tree conflicts with rendered road/building/water"
+    },
+    {
+      "id": "node/6296431533",
+      "reason": "tree conflicts with rendered road/building/water"
+    },
+    {
+      "id": "node/6296431539",
+      "reason": "tree conflicts with rendered road/building/water"
+    },
+    {
+      "id": "node/6296431712",
+      "reason": "tree conflicts with rendered road/building/water"
+    },
+    {
+      "id": "node/6296431713",
+      "reason": "tree conflicts with rendered road/building/water"
+    },
+    {
+      "id": "node/6296431714",
+      "reason": "tree conflicts with rendered road/building/water"
+    },
+    {
+      "id": "node/6296431715",
+      "reason": "tree conflicts with rendered road/building/water"
+    },
+    {
+      "id": "node/6296431716",
+      "reason": "tree conflicts with rendered road/building/water"
+    },
+    {
+      "id": "node/6296431717",
+      "reason": "tree conflicts with rendered road/building/water"
+    },
+    {
+      "id": "node/6296431718",
+      "reason": "tree conflicts with rendered road/building/water"
+    },
+    {
+      "id": "node/6296431719",
+      "reason": "tree conflicts with rendered road/building/water"
+    },
+    {
+      "id": "node/6296431720",
+      "reason": "tree conflicts with rendered road/building/water"
+    },
+    {
+      "id": "node/6296431721",
+      "reason": "tree conflicts with rendered road/building/water"
+    },
+    {
+      "id": "node/6296431722",
+      "reason": "tree conflicts with rendered road/building/water"
+    },
+    {
+      "id": "node/6296431723",
+      "reason": "tree conflicts with rendered road/building/water"
+    },
+    {
+      "id": "node/6296431724",
+      "reason": "tree conflicts with rendered road/building/water"
+    },
+    {
+      "id": "node/6296431725",
+      "reason": "tree conflicts with rendered road/building/water"
+    },
+    {
+      "id": "node/6296431726",
+      "reason": "tree conflicts with rendered road/building/water"
+    },
+    {
+      "id": "node/6296431727",
+      "reason": "tree conflicts with rendered road/building/water"
+    },
+    {
+      "id": "node/6296431728",
+      "reason": "tree conflicts with rendered road/building/water"
+    },
+    {
+      "id": "node/6296431729",
+      "reason": "tree conflicts with rendered road/building/water"
+    },
+    {
+      "id": "node/6296431730",
+      "reason": "tree conflicts with rendered road/building/water"
+    },
+    {
+      "id": "node/6296431731",
+      "reason": "tree conflicts with rendered road/building/water"
+    },
+    {
+      "id": "node/6296431732",
+      "reason": "tree conflicts with rendered road/building/water"
+    },
+    {
+      "id": "node/6296431733",
+      "reason": "tree conflicts with rendered road/building/water"
+    },
+    {
+      "id": "node/6296566610",
+      "reason": "tree conflicts with rendered road/building/water"
+    },
+    {
+      "id": "node/6296566615",
+      "reason": "tree conflicts with rendered road/building/water"
+    },
+    {
+      "id": "node/6296566616",
+      "reason": "tree conflicts with rendered road/building/water"
+    },
+    {
+      "id": "node/6296566617",
+      "reason": "tree conflicts with rendered road/building/water"
+    },
+    {
+      "id": "node/6296566618",
+      "reason": "tree conflicts with rendered road/building/water"
+    },
+    {
+      "id": "node/6296568978",
+      "reason": "tree conflicts with rendered road/building/water"
+    },
+    {
+      "id": "node/6296568984",
+      "reason": "tree conflicts with rendered road/building/water"
+    },
+    {
+      "id": "node/6296569219",
+      "reason": "tree conflicts with rendered road/building/water"
+    },
+    {
+      "id": "node/6296569220",
+      "reason": "tree conflicts with rendered road/building/water"
+    },
+    {
+      "id": "node/6296569221",
+      "reason": "tree conflicts with rendered road/building/water"
+    },
+    {
+      "id": "node/6296569222",
+      "reason": "tree conflicts with rendered road/building/water"
+    },
+    {
+      "id": "node/6296569228",
+      "reason": "tree conflicts with rendered road/building/water"
+    },
+    {
+      "id": "node/6296569229",
+      "reason": "tree conflicts with rendered road/building/water"
+    },
+    {
+      "id": "node/6296569252",
+      "reason": "tree conflicts with rendered road/building/water"
+    },
+    {
+      "id": "node/6296569257",
+      "reason": "tree conflicts with rendered road/building/water"
+    },
+    {
+      "id": "node/6296569258",
+      "reason": "tree conflicts with rendered road/building/water"
+    },
+    {
+      "id": "node/6296569261",
+      "reason": "tree conflicts with rendered road/building/water"
+    },
+    {
+      "id": "node/6296569264",
+      "reason": "tree conflicts with rendered road/building/water"
+    },
+    {
+      "id": "node/6296569265",
+      "reason": "tree conflicts with rendered road/building/water"
+    },
+    {
+      "id": "node/6296569266",
+      "reason": "tree conflicts with rendered road/building/water"
+    },
+    {
+      "id": "node/6296569267",
+      "reason": "tree conflicts with rendered road/building/water"
+    },
+    {
+      "id": "node/6296569268",
+      "reason": "tree conflicts with rendered road/building/water"
+    },
+    {
+      "id": "node/6296569269",
+      "reason": "tree conflicts with rendered road/building/water"
+    },
+    {
+      "id": "node/6296569270",
+      "reason": "tree conflicts with rendered road/building/water"
+    },
+    {
+      "id": "node/6296569291",
+      "reason": "tree conflicts with rendered road/building/water"
+    },
+    {
+      "id": "node/6296569294",
+      "reason": "tree conflicts with rendered road/building/water"
+    },
+    {
+      "id": "node/6296569491",
+      "reason": "tree conflicts with rendered road/building/water"
+    },
+    {
+      "id": "node/6296569499",
+      "reason": "tree conflicts with rendered road/building/water"
+    },
+    {
+      "id": "node/6296569501",
+      "reason": "tree conflicts with rendered road/building/water"
+    },
+    {
+      "id": "node/6296569502",
+      "reason": "tree conflicts with rendered road/building/water"
+    },
+    {
+      "id": "node/6296569503",
+      "reason": "tree conflicts with rendered road/building/water"
+    },
+    {
+      "id": "node/6301364053",
+      "reason": "roadside fixture conflicts with mapped road/building/water"
+    },
+    {
+      "id": "node/6305399808",
+      "reason": "roadside fixture conflicts with mapped road/building/water"
+    },
+    {
+      "id": "node/6313940862",
+      "reason": "roadside fixture conflicts with mapped road/building/water"
+    },
+    {
+      "id": "node/6313940863",
+      "reason": "roadside fixture conflicts with mapped road/building/water"
+    },
+    {
+      "id": "node/6313940864",
+      "reason": "roadside fixture conflicts with mapped road/building/water"
+    },
+    {
+      "id": "node/6313940865",
+      "reason": "roadside fixture conflicts with mapped road/building/water"
+    },
+    {
+      "id": "node/6313940875",
+      "reason": "roadside fixture conflicts with mapped road/building/water"
+    },
+    {
+      "id": "node/6321789536",
+      "reason": "bin conflicts with rendered surface"
+    },
+    {
+      "id": "node/6324853687",
+      "reason": "bin conflicts with rendered surface"
+    },
+    {
+      "id": "node/6324853688",
+      "reason": "bin conflicts with rendered surface"
+    },
+    {
+      "id": "node/6324853690",
+      "reason": "bin conflicts with rendered surface"
+    },
+    {
+      "id": "node/6324997936",
+      "reason": "bin conflicts with rendered surface"
+    },
+    {
+      "id": "node/6324997937",
+      "reason": "bin conflicts with rendered surface"
+    },
+    {
+      "id": "node/6324997938",
+      "reason": "bin conflicts with rendered surface"
+    },
+    {
+      "id": "node/6324997939",
+      "reason": "bin conflicts with rendered surface"
+    },
+    {
+      "id": "node/6324997940",
+      "reason": "bin conflicts with rendered surface"
+    },
+    {
+      "id": "node/6324997943",
+      "reason": "bin conflicts with rendered surface"
+    },
+    {
+      "id": "node/6324997944",
+      "reason": "bin conflicts with rendered surface"
+    },
+    {
+      "id": "node/6324997945",
+      "reason": "bin conflicts with rendered surface"
+    },
+    {
+      "id": "node/6324998225",
+      "reason": "bin conflicts with rendered surface"
+    },
+    {
+      "id": "node/6326523251",
+      "reason": "tree conflicts with rendered road/building/water"
+    },
+    {
+      "id": "node/6326523252",
+      "reason": "tree conflicts with rendered road/building/water"
+    },
+    {
+      "id": "node/6333088368",
+      "reason": "tree conflicts with rendered road/building/water"
+    },
+    {
+      "id": "node/6333088369",
+      "reason": "tree conflicts with rendered road/building/water"
+    },
+    {
+      "id": "node/6333089728",
+      "reason": "tree conflicts with rendered road/building/water"
+    },
+    {
+      "id": "node/6333089729",
+      "reason": "tree conflicts with rendered road/building/water"
+    },
+    {
+      "id": "node/6333089731",
+      "reason": "tree conflicts with rendered road/building/water"
+    },
+    {
+      "id": "node/6333089742",
+      "reason": "tree conflicts with rendered road/building/water"
+    },
+    {
+      "id": "node/6367897039",
+      "reason": "roadside fixture conflicts with mapped road/building/water"
+    },
+    {
+      "id": "node/6373576374",
+      "reason": "tree conflicts with rendered road/building/water"
+    },
+    {
+      "id": "node/6373576375",
+      "reason": "tree conflicts with rendered road/building/water"
+    },
+    {
+      "id": "node/6373576377",
+      "reason": "tree conflicts with rendered road/building/water"
+    },
+    {
+      "id": "node/6373577401",
+      "reason": "tree conflicts with rendered road/building/water"
+    },
+    {
+      "id": "node/6373577402",
+      "reason": "tree conflicts with rendered road/building/water"
+    },
+    {
+      "id": "node/6373577403",
+      "reason": "tree conflicts with rendered road/building/water"
+    },
+    {
+      "id": "node/6373577404",
+      "reason": "tree conflicts with rendered road/building/water"
+    },
+    {
+      "id": "node/6373577405",
+      "reason": "tree conflicts with rendered road/building/water"
+    },
+    {
+      "id": "node/6373577406",
+      "reason": "tree conflicts with rendered road/building/water"
+    },
+    {
+      "id": "node/6373577407",
+      "reason": "tree conflicts with rendered road/building/water"
+    },
+    {
+      "id": "node/6373577408",
+      "reason": "tree conflicts with rendered road/building/water"
+    },
+    {
+      "id": "node/6373577419",
+      "reason": "tree conflicts with rendered road/building/water"
+    },
+    {
+      "id": "node/6373577468",
+      "reason": "tree conflicts with rendered road/building/water"
+    },
+    {
+      "id": "node/6373577470",
+      "reason": "tree conflicts with rendered road/building/water"
+    },
+    {
+      "id": "node/6373577486",
+      "reason": "tree conflicts with rendered road/building/water"
+    },
+    {
+      "id": "node/6373577490",
+      "reason": "tree conflicts with rendered road/building/water"
+    },
+    {
+      "id": "node/6373577491",
+      "reason": "tree conflicts with rendered road/building/water"
+    },
+    {
+      "id": "node/6373577497",
+      "reason": "tree conflicts with rendered road/building/water"
+    },
+    {
+      "id": "node/6373577498",
+      "reason": "tree conflicts with rendered road/building/water"
+    },
+    {
+      "id": "node/6373577499",
+      "reason": "tree conflicts with rendered road/building/water"
+    },
+    {
+      "id": "node/6373577533",
+      "reason": "tree conflicts with rendered road/building/water"
+    },
+    {
+      "id": "node/6373577541",
+      "reason": "tree conflicts with rendered road/building/water"
+    },
+    {
+      "id": "node/6373577542",
+      "reason": "tree conflicts with rendered road/building/water"
+    },
+    {
+      "id": "node/6373577544",
+      "reason": "tree conflicts with rendered road/building/water"
+    },
+    {
+      "id": "node/6373577570",
+      "reason": "tree conflicts with rendered road/building/water"
+    },
+    {
+      "id": "node/6373577571",
+      "reason": "tree conflicts with rendered road/building/water"
+    },
+    {
+      "id": "node/6373577572",
+      "reason": "tree conflicts with rendered road/building/water"
+    },
+    {
+      "id": "node/6373577574",
+      "reason": "tree conflicts with rendered road/building/water"
+    },
+    {
+      "id": "node/6373577583",
+      "reason": "tree conflicts with rendered road/building/water"
+    },
+    {
+      "id": "node/6373577584",
+      "reason": "tree conflicts with rendered road/building/water"
+    },
+    {
+      "id": "node/6373577590",
+      "reason": "tree conflicts with rendered road/building/water"
+    },
+    {
+      "id": "node/6373577598",
+      "reason": "tree conflicts with rendered road/building/water"
+    },
+    {
+      "id": "node/6373577621",
+      "reason": "tree conflicts with rendered road/building/water"
+    },
+    {
+      "id": "node/6373577627",
+      "reason": "tree conflicts with rendered road/building/water"
+    },
+    {
+      "id": "node/6373577628",
+      "reason": "tree conflicts with rendered road/building/water"
+    },
+    {
+      "id": "node/6373577666",
+      "reason": "tree conflicts with rendered road/building/water"
+    },
+    {
+      "id": "node/6373577674",
+      "reason": "tree conflicts with rendered road/building/water"
+    },
+    {
+      "id": "node/6373577678",
+      "reason": "tree conflicts with rendered road/building/water"
+    },
+    {
+      "id": "node/6373577679",
+      "reason": "tree conflicts with rendered road/building/water"
+    },
+    {
+      "id": "node/6373577732",
+      "reason": "bin conflicts with rendered surface"
+    },
+    {
+      "id": "node/6373577733",
+      "reason": "bin conflicts with rendered surface"
+    },
+    {
+      "id": "node/6373598019",
+      "reason": "roadside fixture conflicts with mapped road/building/water"
+    },
+    {
+      "id": "node/6373598061",
+      "reason": "roadside fixture conflicts with mapped road/building/water"
+    },
+    {
+      "id": "node/6373598063",
+      "reason": "roadside fixture conflicts with mapped road/building/water"
+    },
+    {
+      "id": "node/6373611277",
+      "reason": "tree conflicts with rendered road/building/water"
+    },
+    {
+      "id": "node/6373611278",
+      "reason": "tree conflicts with rendered road/building/water"
+    },
+    {
+      "id": "node/6373612186",
+      "reason": "tree conflicts with rendered road/building/water"
+    },
+    {
+      "id": "node/6373612209",
+      "reason": "tree conflicts with rendered road/building/water"
+    },
+    {
+      "id": "node/6373612210",
+      "reason": "tree conflicts with rendered road/building/water"
+    },
+    {
+      "id": "node/6373612211",
+      "reason": "tree conflicts with rendered road/building/water"
+    },
+    {
+      "id": "node/6373612212",
+      "reason": "tree conflicts with rendered road/building/water"
+    },
+    {
+      "id": "node/6373612213",
+      "reason": "tree conflicts with rendered road/building/water"
+    },
+    {
+      "id": "node/6373612214",
+      "reason": "tree conflicts with rendered road/building/water"
+    },
+    {
+      "id": "node/6373612215",
+      "reason": "tree conflicts with rendered road/building/water"
+    },
+    {
+      "id": "node/6373612216",
+      "reason": "tree conflicts with rendered road/building/water"
+    },
+    {
+      "id": "node/6373612217",
+      "reason": "tree conflicts with rendered road/building/water"
+    },
+    {
+      "id": "node/6373612218",
+      "reason": "tree conflicts with rendered road/building/water"
+    },
+    {
+      "id": "node/6373612219",
+      "reason": "tree conflicts with rendered road/building/water"
+    },
+    {
+      "id": "node/6373612220",
+      "reason": "tree conflicts with rendered road/building/water"
+    },
+    {
+      "id": "node/6373612221",
+      "reason": "tree conflicts with rendered road/building/water"
+    },
+    {
+      "id": "node/6373612222",
+      "reason": "tree conflicts with rendered road/building/water"
+    },
+    {
+      "id": "node/6373612223",
+      "reason": "tree conflicts with rendered road/building/water"
+    },
+    {
+      "id": "node/6373612224",
+      "reason": "tree conflicts with rendered road/building/water"
+    },
+    {
+      "id": "node/6373612225",
+      "reason": "tree conflicts with rendered road/building/water"
+    },
+    {
+      "id": "node/6373612226",
+      "reason": "tree conflicts with rendered road/building/water"
+    },
+    {
+      "id": "node/6373612227",
+      "reason": "tree conflicts with rendered road/building/water"
+    },
+    {
+      "id": "node/6373612229",
+      "reason": "tree conflicts with rendered road/building/water"
+    },
+    {
+      "id": "node/6373612230",
+      "reason": "tree conflicts with rendered road/building/water"
+    },
+    {
+      "id": "node/6373612231",
+      "reason": "tree conflicts with rendered road/building/water"
+    },
+    {
+      "id": "node/6373612232",
+      "reason": "tree conflicts with rendered road/building/water"
+    },
+    {
+      "id": "node/6373612233",
+      "reason": "tree conflicts with rendered road/building/water"
+    },
+    {
+      "id": "node/6373612234",
+      "reason": "tree conflicts with rendered road/building/water"
+    },
+    {
+      "id": "node/6373612235",
+      "reason": "tree conflicts with rendered road/building/water"
+    },
+    {
+      "id": "node/6373612236",
+      "reason": "tree conflicts with rendered road/building/water"
+    },
+    {
+      "id": "node/6373612237",
+      "reason": "tree conflicts with rendered road/building/water"
+    },
+    {
+      "id": "node/6373612238",
+      "reason": "tree conflicts with rendered road/building/water"
+    },
+    {
+      "id": "node/6373612239",
+      "reason": "tree conflicts with rendered road/building/water"
+    },
+    {
+      "id": "node/6373612240",
+      "reason": "tree conflicts with rendered road/building/water"
+    },
+    {
+      "id": "node/6373612241",
+      "reason": "tree conflicts with rendered road/building/water"
+    },
+    {
+      "id": "node/6373612242",
+      "reason": "tree conflicts with rendered road/building/water"
+    },
+    {
+      "id": "node/6373612243",
+      "reason": "tree conflicts with rendered road/building/water"
+    },
+    {
+      "id": "node/6373612244",
+      "reason": "tree conflicts with rendered road/building/water"
+    },
+    {
+      "id": "node/6373612245",
+      "reason": "tree conflicts with rendered road/building/water"
+    },
+    {
+      "id": "node/6373612248",
+      "reason": "tree conflicts with rendered road/building/water"
+    },
+    {
+      "id": "node/6373612251",
+      "reason": "tree conflicts with rendered road/building/water"
+    },
+    {
+      "id": "node/6373612253",
+      "reason": "tree conflicts with rendered road/building/water"
+    },
+    {
+      "id": "node/6387344890",
+      "reason": "roadside fixture conflicts with mapped road/building/water"
+    },
+    {
+      "id": "node/6442520826",
+      "reason": "roadside fixture conflicts with mapped road/building/water"
+    },
+    {
+      "id": "node/6811662805",
+      "reason": "bin conflicts with rendered surface"
+    },
+    {
+      "id": "node/6811662807",
+      "reason": "bin conflicts with rendered surface"
+    },
+    {
+      "id": "node/6886403365",
+      "reason": "roadside fixture conflicts with mapped road/building/water"
+    },
+    {
+      "id": "node/6968455879",
+      "reason": "roadside fixture conflicts with mapped road/building/water"
+    },
+    {
+      "id": "node/6969203466",
+      "reason": "bin conflicts with rendered surface"
+    },
+    {
+      "id": "node/6969207319",
+      "reason": "bin conflicts with rendered surface"
+    },
+    {
+      "id": "node/6970991130",
+      "reason": "tree conflicts with rendered road/building/water"
+    },
+    {
+      "id": "node/6970991131",
+      "reason": "tree conflicts with rendered road/building/water"
+    },
+    {
+      "id": "node/6970991132",
+      "reason": "tree conflicts with rendered road/building/water"
+    },
+    {
+      "id": "node/6970991133",
+      "reason": "tree conflicts with rendered road/building/water"
+    },
+    {
+      "id": "node/6970991134",
+      "reason": "tree conflicts with rendered road/building/water"
+    },
+    {
+      "id": "node/6970991135",
+      "reason": "tree conflicts with rendered road/building/water"
+    },
+    {
+      "id": "node/6970991136",
+      "reason": "tree conflicts with rendered road/building/water"
+    },
+    {
+      "id": "node/6970991137",
+      "reason": "tree conflicts with rendered road/building/water"
+    },
+    {
+      "id": "node/6970991138",
+      "reason": "tree conflicts with rendered road/building/water"
+    },
+    {
+      "id": "node/6970991139",
+      "reason": "tree conflicts with rendered road/building/water"
+    },
+    {
+      "id": "node/6970991140",
+      "reason": "tree conflicts with rendered road/building/water"
+    },
+    {
+      "id": "node/6970999296",
+      "reason": "tree conflicts with rendered road/building/water"
+    },
+    {
+      "id": "node/6970999297",
+      "reason": "tree conflicts with rendered road/building/water"
+    },
+    {
+      "id": "node/6970999298",
+      "reason": "tree conflicts with rendered road/building/water"
+    },
+    {
+      "id": "node/6970999299",
+      "reason": "tree conflicts with rendered road/building/water"
+    },
+    {
+      "id": "node/6970999300",
+      "reason": "tree conflicts with rendered road/building/water"
+    },
+    {
+      "id": "node/6971000800",
+      "reason": "tree conflicts with rendered road/building/water"
+    },
+    {
+      "id": "node/6971000801",
+      "reason": "tree conflicts with rendered road/building/water"
+    },
+    {
+      "id": "node/6971000802",
+      "reason": "tree conflicts with rendered road/building/water"
+    },
+    {
+      "id": "node/6971000803",
+      "reason": "tree conflicts with rendered road/building/water"
+    },
+    {
+      "id": "node/6971000804",
+      "reason": "tree conflicts with rendered road/building/water"
+    },
+    {
+      "id": "node/6971000805",
+      "reason": "tree conflicts with rendered road/building/water"
+    },
+    {
+      "id": "node/6971000806",
+      "reason": "tree conflicts with rendered road/building/water"
+    },
+    {
+      "id": "node/6987320509",
+      "reason": "tree conflicts with rendered road/building/water"
+    },
+    {
+      "id": "node/6987320510",
+      "reason": "tree conflicts with rendered road/building/water"
+    },
+    {
+      "id": "node/6987320511",
+      "reason": "tree conflicts with rendered road/building/water"
+    },
+    {
+      "id": "node/6990236743",
+      "reason": "bin conflicts with rendered surface"
+    },
+    {
+      "id": "node/6990236749",
+      "reason": "bin conflicts with rendered surface"
+    },
+    {
+      "id": "node/6990236755",
+      "reason": "bin conflicts with rendered surface"
+    },
+    {
+      "id": "node/6990236812",
+      "reason": "bin conflicts with rendered surface"
+    },
+    {
+      "id": "node/6990236848",
+      "reason": "bin conflicts with rendered surface"
+    },
+    {
+      "id": "node/6990236849",
+      "reason": "bin conflicts with rendered surface"
+    },
+    {
+      "id": "node/6990236906",
+      "reason": "bin conflicts with rendered surface"
+    },
+    {
+      "id": "node/6991225016",
+      "reason": "roadside fixture conflicts with mapped road/building/water"
+    },
+    {
+      "id": "node/6991305306",
+      "reason": "roadside fixture conflicts with mapped road/building/water"
+    },
+    {
+      "id": "node/7439928711",
+      "reason": "tree conflicts with rendered road/building/water"
+    },
+    {
+      "id": "node/7439928713",
+      "reason": "tree conflicts with rendered road/building/water"
+    },
+    {
+      "id": "node/7439928729",
+      "reason": "tree conflicts with rendered road/building/water"
+    },
+    {
+      "id": "node/7793571944",
+      "reason": "tree conflicts with rendered road/building/water"
+    },
+    {
+      "id": "node/7793571945",
+      "reason": "tree conflicts with rendered road/building/water"
+    },
+    {
+      "id": "node/7794430339",
+      "reason": "bin conflicts with rendered surface"
+    },
+    {
+      "id": "node/7794430341",
+      "reason": "bin conflicts with rendered surface"
+    },
+    {
+      "id": "node/7794430342",
+      "reason": "bin conflicts with rendered surface"
+    },
+    {
+      "id": "node/7888053893",
+      "reason": "tree conflicts with rendered road/building/water"
+    },
+    {
+      "id": "node/9282711821",
+      "reason": "tree conflicts with rendered road/building/water"
+    },
+    {
+      "id": "node/9282711822",
+      "reason": "tree conflicts with rendered road/building/water"
+    },
+    {
+      "id": "node/10033912394",
+      "reason": "roadside fixture conflicts with mapped road/building/water"
+    },
+    {
+      "id": "node/10033965441",
+      "reason": "roadside fixture conflicts with mapped road/building/water"
+    },
+    {
+      "id": "node/10790032214",
+      "reason": "roadside fixture conflicts with mapped road/building/water"
+    },
+    {
+      "id": "node/10796615599",
+      "reason": "roadside fixture conflicts with mapped road/building/water"
+    },
+    {
+      "id": "node/10805163962",
+      "reason": "roadside fixture conflicts with mapped road/building/water"
+    },
+    {
+      "id": "node/10909418932",
+      "reason": "roadside fixture conflicts with mapped road/building/water"
+    },
+    {
+      "id": "node/10914831817",
+      "reason": "roadside fixture conflicts with mapped road/building/water"
+    },
+    {
+      "id": "node/10920309918",
+      "reason": "roadside fixture conflicts with mapped road/building/water"
+    },
+    {
+      "id": "node/10949902179",
+      "reason": "roadside fixture conflicts with mapped road/building/water"
+    },
+    {
+      "id": "node/10981773626",
+      "reason": "bin conflicts with rendered surface"
+    },
+    {
+      "id": "node/10981773628",
+      "reason": "bin conflicts with rendered surface"
+    },
+    {
+      "id": "node/10981773629",
+      "reason": "bin conflicts with rendered surface"
+    },
+    {
+      "id": "node/10985292699",
+      "reason": "bin conflicts with rendered surface"
+    },
+    {
+      "id": "node/10992694471",
+      "reason": "bin conflicts with rendered surface"
+    },
+    {
+      "id": "node/10992818963",
+      "reason": "roadside fixture conflicts with mapped road/building/water"
+    },
+    {
+      "id": "node/10993143213",
+      "reason": "bin conflicts with rendered surface"
+    },
+    {
+      "id": "node/10993165030",
+      "reason": "bin conflicts with rendered surface"
+    },
+    {
+      "id": "node/10996240103",
+      "reason": "bin conflicts with rendered surface"
+    },
+    {
+      "id": "node/10998297116",
+      "reason": "bin conflicts with rendered surface"
+    },
+    {
+      "id": "node/10998357505",
+      "reason": "bin conflicts with rendered surface"
+    },
+    {
+      "id": "node/10998357522",
+      "reason": "bin conflicts with rendered surface"
+    },
+    {
+      "id": "node/10998357524",
+      "reason": "bin conflicts with rendered surface"
+    },
+    {
+      "id": "node/10998440543",
+      "reason": "bin conflicts with rendered surface"
+    },
+    {
+      "id": "node/10998457029",
+      "reason": "bin conflicts with rendered surface"
+    },
+    {
+      "id": "node/10998457030",
+      "reason": "bin conflicts with rendered surface"
+    },
+    {
+      "id": "node/10998462817",
+      "reason": "bin conflicts with rendered surface"
+    },
+    {
+      "id": "node/10998462829",
+      "reason": "bin conflicts with rendered surface"
+    },
+    {
+      "id": "node/10998464493",
+      "reason": "bin conflicts with rendered surface"
+    },
+    {
+      "id": "node/10998464497",
+      "reason": "bin conflicts with rendered surface"
+    },
+    {
+      "id": "node/10998579218",
+      "reason": "bin conflicts with rendered surface"
+    },
+    {
+      "id": "node/10998618481",
+      "reason": "bin conflicts with rendered surface"
+    },
+    {
+      "id": "node/11000834457",
+      "reason": "bin conflicts with rendered surface"
+    },
+    {
+      "id": "node/11000834472",
+      "reason": "bin conflicts with rendered surface"
+    },
+    {
+      "id": "node/11006413583",
+      "reason": "tree conflicts with rendered road/building/water"
+    },
+    {
+      "id": "node/11006413584",
+      "reason": "tree conflicts with rendered road/building/water"
+    },
+    {
+      "id": "node/11006413585",
+      "reason": "tree conflicts with rendered road/building/water"
+    },
+    {
+      "id": "node/11006413586",
+      "reason": "tree conflicts with rendered road/building/water"
+    },
+    {
+      "id": "node/11006413587",
+      "reason": "tree conflicts with rendered road/building/water"
+    },
+    {
+      "id": "node/11006443497",
+      "reason": "bin conflicts with rendered surface"
+    },
+    {
+      "id": "node/11006443504",
+      "reason": "bin conflicts with rendered surface"
+    },
+    {
+      "id": "node/11006446405",
+      "reason": "bin conflicts with rendered surface"
+    },
+    {
+      "id": "node/11006733416",
+      "reason": "bin conflicts with rendered surface"
+    },
+    {
+      "id": "node/11006733420",
+      "reason": "bin conflicts with rendered surface"
+    },
+    {
+      "id": "node/11009429597",
+      "reason": "bin conflicts with rendered surface"
+    },
+    {
+      "id": "node/11009429598",
+      "reason": "bin conflicts with rendered surface"
+    },
+    {
+      "id": "node/11009438897",
+      "reason": "bin conflicts with rendered surface"
+    },
+    {
+      "id": "node/11009438898",
+      "reason": "bin conflicts with rendered surface"
+    },
+    {
+      "id": "node/11009459109",
+      "reason": "bin conflicts with rendered surface"
+    },
+    {
+      "id": "node/11009459110",
+      "reason": "bin conflicts with rendered surface"
+    },
+    {
+      "id": "node/11009469794",
+      "reason": "bin conflicts with rendered surface"
+    },
+    {
+      "id": "node/11009484175",
+      "reason": "bin conflicts with rendered surface"
+    },
+    {
+      "id": "node/11009484194",
+      "reason": "bin conflicts with rendered surface"
+    },
+    {
+      "id": "node/11009484198",
+      "reason": "bin conflicts with rendered surface"
+    },
+    {
+      "id": "node/11010702802",
+      "reason": "bin conflicts with rendered surface"
+    },
+    {
+      "id": "node/11010702803",
+      "reason": "bin conflicts with rendered surface"
+    },
+    {
+      "id": "node/11010765947",
+      "reason": "bin conflicts with rendered surface"
+    },
+    {
+      "id": "node/11010765957",
+      "reason": "bin conflicts with rendered surface"
+    },
+    {
+      "id": "node/11070158485",
+      "reason": "bin conflicts with rendered surface"
+    },
+    {
+      "id": "node/11070167513",
+      "reason": "bin conflicts with rendered surface"
+    },
+    {
+      "id": "node/11070171751",
+      "reason": "bin conflicts with rendered surface"
+    },
+    {
+      "id": "node/11070171786",
+      "reason": "bin conflicts with rendered surface"
+    },
+    {
+      "id": "node/11072021951",
+      "reason": "bin conflicts with rendered surface"
+    },
+    {
+      "id": "node/11072079052",
+      "reason": "bin conflicts with rendered surface"
+    },
+    {
+      "id": "node/11072079089",
+      "reason": "bin conflicts with rendered surface"
+    },
+    {
+      "id": "node/11072104906",
+      "reason": "bin conflicts with rendered surface"
+    },
+    {
+      "id": "node/11072104912",
+      "reason": "bin conflicts with rendered surface"
+    },
+    {
+      "id": "node/11072133833",
+      "reason": "bin conflicts with rendered surface"
+    },
+    {
+      "id": "node/11072148894",
+      "reason": "bin conflicts with rendered surface"
+    },
+    {
+      "id": "node/11072167867",
+      "reason": "bin conflicts with rendered surface"
+    },
+    {
+      "id": "node/11074196989",
+      "reason": "bin conflicts with rendered surface"
+    },
+    {
+      "id": "node/11074219724",
+      "reason": "bin conflicts with rendered surface"
+    },
+    {
+      "id": "node/11074236659",
+      "reason": "bin conflicts with rendered surface"
+    },
+    {
+      "id": "node/11074247951",
+      "reason": "bin conflicts with rendered surface"
+    },
+    {
+      "id": "node/11074247963",
+      "reason": "bin conflicts with rendered surface"
+    },
+    {
+      "id": "node/11076142551",
+      "reason": "bin conflicts with rendered surface"
+    },
+    {
+      "id": "node/11076203750",
+      "reason": "bin conflicts with rendered surface"
+    },
+    {
+      "id": "node/11081745348",
+      "reason": "bin conflicts with rendered surface"
+    },
+    {
+      "id": "node/11081745376",
+      "reason": "bin conflicts with rendered surface"
+    },
+    {
+      "id": "node/11081798722",
+      "reason": "bin conflicts with rendered surface"
+    },
+    {
+      "id": "node/11081913693",
+      "reason": "bin conflicts with rendered surface"
+    },
+    {
+      "id": "node/11081948904",
+      "reason": "bin conflicts with rendered surface"
+    },
+    {
+      "id": "node/11081975927",
+      "reason": "bin conflicts with rendered surface"
+    },
+    {
+      "id": "node/11081997357",
+      "reason": "bin conflicts with rendered surface"
+    },
+    {
+      "id": "node/11084398811",
+      "reason": "bin conflicts with rendered surface"
+    },
+    {
+      "id": "node/11084398822",
+      "reason": "bin conflicts with rendered surface"
+    },
+    {
+      "id": "node/11092506563",
+      "reason": "bin conflicts with rendered surface"
+    },
+    {
+      "id": "node/11092536898",
+      "reason": "bin conflicts with rendered surface"
+    },
+    {
+      "id": "node/11092548676",
+      "reason": "bin conflicts with rendered surface"
+    },
+    {
+      "id": "node/11092558119",
+      "reason": "bin conflicts with rendered surface"
+    },
+    {
+      "id": "node/11092574079",
+      "reason": "bin conflicts with rendered surface"
+    },
+    {
+      "id": "node/11092574085",
+      "reason": "bin conflicts with rendered surface"
+    },
+    {
+      "id": "node/11092574103",
+      "reason": "bin conflicts with rendered surface"
+    },
+    {
+      "id": "node/11092575312",
+      "reason": "bin conflicts with rendered surface"
+    },
+    {
+      "id": "node/11094509286",
+      "reason": "bin conflicts with rendered surface"
+    },
+    {
+      "id": "node/11094572591",
+      "reason": "bin conflicts with rendered surface"
+    },
+    {
+      "id": "node/11098285351",
+      "reason": "bin conflicts with rendered surface"
+    },
+    {
+      "id": "node/11099482546",
+      "reason": "bin conflicts with rendered surface"
+    },
+    {
+      "id": "node/11103154371",
+      "reason": "bin conflicts with rendered surface"
+    },
+    {
+      "id": "node/11103154372",
+      "reason": "bin conflicts with rendered surface"
+    },
+    {
+      "id": "node/11106063615",
+      "reason": "bin conflicts with rendered surface"
+    },
+    {
+      "id": "node/11106065922",
+      "reason": "bin conflicts with rendered surface"
+    },
+    {
+      "id": "node/11106084051",
+      "reason": "bin conflicts with rendered surface"
+    },
+    {
+      "id": "node/11106084058",
+      "reason": "bin conflicts with rendered surface"
+    },
+    {
+      "id": "node/11106084082",
+      "reason": "bin conflicts with rendered surface"
+    },
+    {
+      "id": "node/11106093744",
+      "reason": "bin conflicts with rendered surface"
+    },
+    {
+      "id": "node/11106093752",
+      "reason": "bin conflicts with rendered surface"
+    },
+    {
+      "id": "node/11115217830",
+      "reason": "bin conflicts with rendered surface"
+    },
+    {
+      "id": "node/11115279314",
+      "reason": "bin conflicts with rendered surface"
+    },
+    {
+      "id": "node/11117835837",
+      "reason": "bin conflicts with rendered surface"
+    },
+    {
+      "id": "node/11117945030",
+      "reason": "bin conflicts with rendered surface"
+    },
+    {
+      "id": "node/11117957147",
+      "reason": "bin conflicts with rendered surface"
+    },
+    {
+      "id": "node/11117957149",
+      "reason": "bin conflicts with rendered surface"
+    },
+    {
+      "id": "node/11117957160",
+      "reason": "bin conflicts with rendered surface"
+    },
+    {
+      "id": "node/11117957164",
+      "reason": "bin conflicts with rendered surface"
+    },
+    {
+      "id": "node/11119610310",
+      "reason": "bin conflicts with rendered surface"
+    },
+    {
+      "id": "node/11119720088",
+      "reason": "bin conflicts with rendered surface"
+    },
+    {
+      "id": "node/11120858790",
+      "reason": "bin conflicts with rendered surface"
+    },
+    {
+      "id": "node/11120858792",
+      "reason": "bin conflicts with rendered surface"
+    },
+    {
+      "id": "node/11120895602",
+      "reason": "bin conflicts with rendered surface"
+    },
+    {
+      "id": "node/11120895603",
+      "reason": "bin conflicts with rendered surface"
+    },
+    {
+      "id": "node/11120897106",
+      "reason": "bin conflicts with rendered surface"
+    },
+    {
+      "id": "node/11120897108",
+      "reason": "bin conflicts with rendered surface"
+    },
+    {
+      "id": "node/11120897116",
+      "reason": "bin conflicts with rendered surface"
+    },
+    {
+      "id": "node/11120897134",
+      "reason": "bin conflicts with rendered surface"
+    },
+    {
+      "id": "node/11123909899",
+      "reason": "bin conflicts with rendered surface"
+    },
+    {
+      "id": "node/11129833536",
+      "reason": "bin conflicts with rendered surface"
+    },
+    {
+      "id": "node/11129833539",
+      "reason": "bin conflicts with rendered surface"
+    },
+    {
+      "id": "node/11129846676",
+      "reason": "bin conflicts with rendered surface"
+    },
+    {
+      "id": "node/11129846677",
+      "reason": "bin conflicts with rendered surface"
+    },
+    {
+      "id": "node/11133061466",
+      "reason": "bin conflicts with rendered surface"
+    },
+    {
+      "id": "node/11133061467",
+      "reason": "bin conflicts with rendered surface"
+    },
+    {
+      "id": "node/11135812898",
+      "reason": "bin conflicts with rendered surface"
+    },
+    {
+      "id": "node/11135876524",
+      "reason": "bin conflicts with rendered surface"
+    },
+    {
+      "id": "node/11135894371",
+      "reason": "bin conflicts with rendered surface"
+    },
+    {
+      "id": "node/11135894374",
+      "reason": "bin conflicts with rendered surface"
+    },
+    {
+      "id": "node/11137304633",
+      "reason": "bin conflicts with rendered surface"
+    },
+    {
+      "id": "node/11137304640",
+      "reason": "bin conflicts with rendered surface"
+    },
+    {
+      "id": "node/11137385103",
+      "reason": "bin conflicts with rendered surface"
+    },
+    {
+      "id": "node/11137398614",
+      "reason": "bin conflicts with rendered surface"
+    },
+    {
+      "id": "node/11137424575",
+      "reason": "bin conflicts with rendered surface"
+    },
+    {
+      "id": "node/11137424576",
+      "reason": "bin conflicts with rendered surface"
+    },
+    {
+      "id": "node/11137424595",
+      "reason": "bin conflicts with rendered surface"
+    },
+    {
+      "id": "node/11138721783",
+      "reason": "bin conflicts with rendered surface"
+    },
+    {
+      "id": "node/11138749771",
+      "reason": "bin conflicts with rendered surface"
+    },
+    {
+      "id": "node/11138775027",
+      "reason": "bin conflicts with rendered surface"
+    },
+    {
+      "id": "node/11138775084",
+      "reason": "bin conflicts with rendered surface"
+    },
+    {
+      "id": "node/11140066923",
+      "reason": "bin conflicts with rendered surface"
+    },
+    {
+      "id": "node/11140066924",
+      "reason": "bin conflicts with rendered surface"
+    },
+    {
+      "id": "node/11140066926",
+      "reason": "bin conflicts with rendered surface"
+    },
+    {
+      "id": "node/11142517524",
+      "reason": "bin conflicts with rendered surface"
+    },
+    {
+      "id": "node/11147007848",
+      "reason": "bin conflicts with rendered surface"
+    },
+    {
+      "id": "node/11147007850",
+      "reason": "bin conflicts with rendered surface"
+    },
+    {
+      "id": "node/11147007859",
+      "reason": "bin conflicts with rendered surface"
+    },
+    {
+      "id": "node/11147220716",
+      "reason": "bin conflicts with rendered surface"
+    },
+    {
+      "id": "node/11151716583",
+      "reason": "bin conflicts with rendered surface"
+    },
+    {
+      "id": "node/11151762814",
+      "reason": "bin conflicts with rendered surface"
+    },
+    {
+      "id": "node/11151762815",
+      "reason": "bin conflicts with rendered surface"
+    },
+    {
+      "id": "node/11151762818",
+      "reason": "bin conflicts with rendered surface"
+    },
+    {
+      "id": "node/11151866919",
+      "reason": "bin conflicts with rendered surface"
+    },
+    {
+      "id": "node/11156185769",
+      "reason": "bin conflicts with rendered surface"
+    },
+    {
+      "id": "node/11156185770",
+      "reason": "bin conflicts with rendered surface"
+    },
+    {
+      "id": "node/11156463999",
+      "reason": "bin conflicts with rendered surface"
+    },
+    {
+      "id": "node/11156526564",
+      "reason": "bin conflicts with rendered surface"
+    },
+    {
+      "id": "node/11156716048",
+      "reason": "bin conflicts with rendered surface"
+    },
+    {
+      "id": "node/11159647054",
+      "reason": "bin conflicts with rendered surface"
+    },
+    {
+      "id": "node/11159735687",
+      "reason": "bin conflicts with rendered surface"
+    },
+    {
+      "id": "node/11159807129",
+      "reason": "bin conflicts with rendered surface"
+    },
+    {
+      "id": "node/11159807135",
+      "reason": "bin conflicts with rendered surface"
+    },
+    {
+      "id": "node/11159817326",
+      "reason": "bin conflicts with rendered surface"
+    },
+    {
+      "id": "node/11159817339",
+      "reason": "bin conflicts with rendered surface"
+    },
+    {
+      "id": "node/11160686250",
+      "reason": "bin conflicts with rendered surface"
+    },
+    {
+      "id": "node/11163682213",
+      "reason": "bin conflicts with rendered surface"
+    },
+    {
+      "id": "node/11163682221",
+      "reason": "bin conflicts with rendered surface"
+    },
+    {
+      "id": "node/11163682223",
+      "reason": "bin conflicts with rendered surface"
+    },
+    {
+      "id": "node/11163691305",
+      "reason": "bin conflicts with rendered surface"
+    },
+    {
+      "id": "node/11164126544",
+      "reason": "bin conflicts with rendered surface"
+    },
+    {
+      "id": "node/11165149434",
+      "reason": "bin conflicts with rendered surface"
+    },
+    {
+      "id": "node/11165581599",
+      "reason": "bin conflicts with rendered surface"
+    },
+    {
+      "id": "node/11165581601",
+      "reason": "bin conflicts with rendered surface"
+    },
+    {
+      "id": "node/11165581602",
+      "reason": "bin conflicts with rendered surface"
+    },
+    {
+      "id": "node/11165581604",
+      "reason": "bin conflicts with rendered surface"
+    },
+    {
+      "id": "node/11165595420",
+      "reason": "bin conflicts with rendered surface"
+    },
+    {
+      "id": "node/11168192735",
+      "reason": "bin conflicts with rendered surface"
+    },
+    {
+      "id": "node/11168198664",
+      "reason": "bin conflicts with rendered surface"
+    },
+    {
+      "id": "node/11168198667",
+      "reason": "bin conflicts with rendered surface"
+    },
+    {
+      "id": "node/11168198668",
+      "reason": "bin conflicts with rendered surface"
+    },
+    {
+      "id": "node/11168305088",
+      "reason": "bin conflicts with rendered surface"
+    },
+    {
+      "id": "node/11168323820",
+      "reason": "bin conflicts with rendered surface"
+    },
+    {
+      "id": "node/11173011343",
+      "reason": "bin conflicts with rendered surface"
+    },
+    {
+      "id": "node/11173011352",
+      "reason": "bin conflicts with rendered surface"
+    },
+    {
+      "id": "node/11173011366",
+      "reason": "bin conflicts with rendered surface"
+    },
+    {
+      "id": "node/11177872770",
+      "reason": "bin conflicts with rendered surface"
+    },
+    {
+      "id": "node/11177872771",
+      "reason": "bin conflicts with rendered surface"
+    },
+    {
+      "id": "node/11177892603",
+      "reason": "bin conflicts with rendered surface"
+    },
+    {
+      "id": "node/11177935804",
+      "reason": "bin conflicts with rendered surface"
+    },
+    {
+      "id": "node/11179434415",
+      "reason": "bin conflicts with rendered surface"
+    },
+    {
+      "id": "node/11179563847",
+      "reason": "bin conflicts with rendered surface"
+    },
+    {
+      "id": "node/11181788010",
+      "reason": "bin conflicts with rendered surface"
+    },
+    {
+      "id": "node/11182102719",
+      "reason": "bin conflicts with rendered surface"
+    },
+    {
+      "id": "node/11182120169",
+      "reason": "bin conflicts with rendered surface"
+    },
+    {
+      "id": "node/11182120170",
+      "reason": "bin conflicts with rendered surface"
+    },
+    {
+      "id": "node/11182168353",
+      "reason": "bin conflicts with rendered surface"
+    },
+    {
+      "id": "node/11182219599",
+      "reason": "bin conflicts with rendered surface"
+    },
+    {
+      "id": "node/11182219601",
+      "reason": "bin conflicts with rendered surface"
+    },
+    {
+      "id": "node/11182219602",
+      "reason": "bin conflicts with rendered surface"
+    },
+    {
+      "id": "node/11186835754",
+      "reason": "bin conflicts with rendered surface"
+    },
+    {
+      "id": "node/11186837530",
+      "reason": "bin conflicts with rendered surface"
+    },
+    {
+      "id": "node/11186837533",
+      "reason": "bin conflicts with rendered surface"
+    },
+    {
+      "id": "node/11191699271",
+      "reason": "bin conflicts with rendered surface"
+    },
+    {
+      "id": "node/11191699295",
+      "reason": "bin conflicts with rendered surface"
+    },
+    {
+      "id": "node/11191699314",
+      "reason": "bin conflicts with rendered surface"
+    },
+    {
+      "id": "node/11191699315",
+      "reason": "bin conflicts with rendered surface"
+    },
+    {
+      "id": "node/11191699316",
+      "reason": "bin conflicts with rendered surface"
+    },
+    {
+      "id": "node/11191699327",
+      "reason": "bin conflicts with rendered surface"
+    },
+    {
+      "id": "node/11191703751",
+      "reason": "bin conflicts with rendered surface"
+    },
+    {
+      "id": "node/11191703770",
+      "reason": "bin conflicts with rendered surface"
+    },
+    {
+      "id": "node/11191703771",
+      "reason": "bin conflicts with rendered surface"
+    },
+    {
+      "id": "node/11194900480",
+      "reason": "bin conflicts with rendered surface"
+    },
+    {
+      "id": "node/11194906169",
+      "reason": "bin conflicts with rendered surface"
+    },
+    {
+      "id": "node/11194930222",
+      "reason": "bin conflicts with rendered surface"
+    },
+    {
+      "id": "node/11194949979",
+      "reason": "bin conflicts with rendered surface"
+    },
+    {
+      "id": "node/11196822076",
+      "reason": "bin conflicts with rendered surface"
+    },
+    {
+      "id": "node/11198390809",
+      "reason": "bin conflicts with rendered surface"
+    },
+    {
+      "id": "node/11198390810",
+      "reason": "bin conflicts with rendered surface"
+    },
+    {
+      "id": "node/11198391210",
+      "reason": "bin conflicts with rendered surface"
+    },
+    {
+      "id": "node/11198727169",
+      "reason": "bin conflicts with rendered surface"
+    },
+    {
+      "id": "node/11200859741",
+      "reason": "bin conflicts with rendered surface"
+    },
+    {
+      "id": "node/11200859742",
+      "reason": "bin conflicts with rendered surface"
+    },
+    {
+      "id": "node/11200859746",
+      "reason": "bin conflicts with rendered surface"
+    },
+    {
+      "id": "node/11201005883",
+      "reason": "bin conflicts with rendered surface"
+    },
+    {
+      "id": "node/11201005899",
+      "reason": "bin conflicts with rendered surface"
+    },
+    {
+      "id": "node/11201038529",
+      "reason": "bin conflicts with rendered surface"
+    },
+    {
+      "id": "node/11201038533",
+      "reason": "bin conflicts with rendered surface"
+    },
+    {
+      "id": "node/11201051856",
+      "reason": "bin conflicts with rendered surface"
+    },
+    {
+      "id": "node/11201060798",
+      "reason": "bin conflicts with rendered surface"
+    },
+    {
+      "id": "node/11201074621",
+      "reason": "bin conflicts with rendered surface"
+    },
+    {
+      "id": "node/11216236788",
+      "reason": "bin conflicts with rendered surface"
+    },
+    {
+      "id": "node/11216299238",
+      "reason": "bin conflicts with rendered surface"
+    },
+    {
+      "id": "node/11216378991",
+      "reason": "bin conflicts with rendered surface"
+    },
+    {
+      "id": "node/11220615595",
+      "reason": "bin conflicts with rendered surface"
+    },
+    {
+      "id": "node/11220615602",
+      "reason": "bin conflicts with rendered surface"
+    },
+    {
+      "id": "node/11220631197",
+      "reason": "bin conflicts with rendered surface"
+    },
+    {
+      "id": "node/11220631198",
+      "reason": "bin conflicts with rendered surface"
+    },
+    {
+      "id": "node/11220631199",
+      "reason": "bin conflicts with rendered surface"
+    },
+    {
+      "id": "node/11220631200",
+      "reason": "bin conflicts with rendered surface"
+    },
+    {
+      "id": "node/11220790808",
+      "reason": "bin conflicts with rendered surface"
+    },
+    {
+      "id": "node/11224376392",
+      "reason": "bin conflicts with rendered surface"
+    },
+    {
+      "id": "node/11253802837",
+      "reason": "bin conflicts with rendered surface"
+    },
+    {
+      "id": "node/11253809840",
+      "reason": "bin conflicts with rendered surface"
+    },
+    {
+      "id": "node/11253881697",
+      "reason": "bin conflicts with rendered surface"
+    },
+    {
+      "id": "node/11261538373",
+      "reason": "bin conflicts with rendered surface"
+    },
+    {
+      "id": "node/11265513061",
+      "reason": "bin conflicts with rendered surface"
+    },
+    {
+      "id": "node/11265513062",
+      "reason": "bin conflicts with rendered surface"
+    },
+    {
+      "id": "node/11265540036",
+      "reason": "bin conflicts with rendered surface"
+    },
+    {
+      "id": "node/11265540039",
+      "reason": "bin conflicts with rendered surface"
+    },
+    {
+      "id": "node/11265540043",
+      "reason": "bin conflicts with rendered surface"
+    },
+    {
+      "id": "node/11316513186",
+      "reason": "bin conflicts with rendered surface"
+    },
+    {
+      "id": "node/11317214192",
+      "reason": "bin conflicts with rendered surface"
+    },
+    {
+      "id": "node/11317214193",
+      "reason": "bin conflicts with rendered surface"
+    },
+    {
+      "id": "node/11317214195",
+      "reason": "bin conflicts with rendered surface"
+    },
+    {
+      "id": "node/11317214196",
+      "reason": "bin conflicts with rendered surface"
+    },
+    {
+      "id": "node/11317214201",
+      "reason": "bin conflicts with rendered surface"
+    },
+    {
+      "id": "node/11317214202",
+      "reason": "bin conflicts with rendered surface"
+    },
+    {
+      "id": "node/11317256475",
+      "reason": "bin conflicts with rendered surface"
+    },
+    {
+      "id": "node/11336875325",
+      "reason": "bin conflicts with rendered surface"
+    },
+    {
+      "id": "node/11336886762",
+      "reason": "bin conflicts with rendered surface"
+    },
+    {
+      "id": "node/11336930511",
+      "reason": "bin conflicts with rendered surface"
+    },
+    {
+      "id": "node/11341089066",
+      "reason": "bin conflicts with rendered surface"
+    },
+    {
+      "id": "node/11341732596",
+      "reason": "bin conflicts with rendered surface"
+    },
+    {
+      "id": "node/11341732602",
+      "reason": "bin conflicts with rendered surface"
+    },
+    {
+      "id": "node/11341837679",
+      "reason": "bin conflicts with rendered surface"
+    },
+    {
+      "id": "node/11341948704",
+      "reason": "bin conflicts with rendered surface"
+    },
+    {
+      "id": "node/11341948705",
+      "reason": "bin conflicts with rendered surface"
+    },
+    {
+      "id": "node/11341948726",
+      "reason": "bin conflicts with rendered surface"
+    },
+    {
+      "id": "node/11341948732",
+      "reason": "bin conflicts with rendered surface"
+    },
+    {
+      "id": "node/11360904236",
+      "reason": "bin conflicts with rendered surface"
+    },
+    {
+      "id": "node/11360972248",
+      "reason": "bin conflicts with rendered surface"
+    },
+    {
+      "id": "node/11360992118",
+      "reason": "bin conflicts with rendered surface"
+    },
+    {
+      "id": "node/11361058280",
+      "reason": "bin conflicts with rendered surface"
+    },
+    {
+      "id": "node/11361058293",
+      "reason": "bin conflicts with rendered surface"
+    },
+    {
+      "id": "node/11382566525",
+      "reason": "bin conflicts with rendered surface"
+    },
+    {
+      "id": "node/11382566528",
+      "reason": "bin conflicts with rendered surface"
+    },
+    {
+      "id": "node/11384640270",
+      "reason": "bin conflicts with rendered surface"
+    },
+    {
+      "id": "node/11384640271",
+      "reason": "bin conflicts with rendered surface"
+    },
+    {
+      "id": "node/11384694891",
+      "reason": "bin conflicts with rendered surface"
+    },
+    {
+      "id": "node/11384713222",
+      "reason": "bin conflicts with rendered surface"
+    },
+    {
+      "id": "node/11384768764",
+      "reason": "bin conflicts with rendered surface"
+    },
+    {
+      "id": "node/11384789969",
+      "reason": "bin conflicts with rendered surface"
+    },
+    {
+      "id": "node/11384789973",
+      "reason": "bin conflicts with rendered surface"
+    },
+    {
+      "id": "node/11386295688",
+      "reason": "bin conflicts with rendered surface"
+    },
+    {
+      "id": "node/11386295710",
+      "reason": "bin conflicts with rendered surface"
+    },
+    {
+      "id": "node/11386381371",
+      "reason": "bin conflicts with rendered surface"
+    },
+    {
+      "id": "node/11386381387",
+      "reason": "bin conflicts with rendered surface"
+    },
+    {
+      "id": "node/11395209530",
+      "reason": "bin conflicts with rendered surface"
+    },
+    {
+      "id": "node/11395209531",
+      "reason": "bin conflicts with rendered surface"
+    },
+    {
+      "id": "node/11397991064",
+      "reason": "bin conflicts with rendered surface"
+    },
+    {
+      "id": "node/11404401340",
+      "reason": "bin conflicts with rendered surface"
+    },
+    {
+      "id": "node/11406384917",
+      "reason": "bin conflicts with rendered surface"
+    },
+    {
+      "id": "node/11406384918",
+      "reason": "bin conflicts with rendered surface"
+    },
+    {
+      "id": "node/11406437264",
+      "reason": "bin conflicts with rendered surface"
+    },
+    {
+      "id": "node/11406439516",
+      "reason": "bin conflicts with rendered surface"
+    },
+    {
+      "id": "node/11406455864",
+      "reason": "bin conflicts with rendered surface"
+    },
+    {
+      "id": "node/11406485373",
+      "reason": "bin conflicts with rendered surface"
+    },
+    {
+      "id": "node/11406485374",
+      "reason": "bin conflicts with rendered surface"
+    },
+    {
+      "id": "node/11406485375",
+      "reason": "bin conflicts with rendered surface"
+    },
+    {
+      "id": "node/11406517426",
+      "reason": "bin conflicts with rendered surface"
+    },
+    {
+      "id": "node/11413374540",
+      "reason": "bin conflicts with rendered surface"
+    },
+    {
+      "id": "node/11413374542",
+      "reason": "bin conflicts with rendered surface"
+    },
+    {
+      "id": "node/11413374543",
+      "reason": "bin conflicts with rendered surface"
+    },
+    {
+      "id": "node/11413374544",
+      "reason": "bin conflicts with rendered surface"
+    },
+    {
+      "id": "node/11413374556",
+      "reason": "bin conflicts with rendered surface"
+    },
+    {
+      "id": "node/11413374557",
+      "reason": "bin conflicts with rendered surface"
+    },
+    {
+      "id": "node/11413444170",
+      "reason": "bin conflicts with rendered surface"
+    },
+    {
+      "id": "node/11413449131",
+      "reason": "bin conflicts with rendered surface"
+    },
+    {
+      "id": "node/11413449133",
+      "reason": "bin conflicts with rendered surface"
+    },
+    {
+      "id": "node/11413515355",
+      "reason": "bin conflicts with rendered surface"
+    },
+    {
+      "id": "node/11413557218",
+      "reason": "bin conflicts with rendered surface"
+    },
+    {
+      "id": "node/11413557220",
+      "reason": "bin conflicts with rendered surface"
+    },
+    {
+      "id": "node/11413602445",
+      "reason": "bin conflicts with rendered surface"
+    },
+    {
+      "id": "node/11417550335",
+      "reason": "bin conflicts with rendered surface"
+    },
+    {
+      "id": "node/11417550344",
+      "reason": "bin conflicts with rendered surface"
+    },
+    {
+      "id": "node/11418602773",
+      "reason": "bin conflicts with rendered surface"
+    },
+    {
+      "id": "node/11420978510",
+      "reason": "bin conflicts with rendered surface"
+    },
+    {
+      "id": "node/11420978511",
+      "reason": "bin conflicts with rendered surface"
+    },
+    {
+      "id": "node/11420978522",
+      "reason": "bin conflicts with rendered surface"
+    },
+    {
+      "id": "node/11420978523",
+      "reason": "bin conflicts with rendered surface"
+    },
+    {
+      "id": "node/11421414182",
+      "reason": "bin conflicts with rendered surface"
+    },
+    {
+      "id": "node/11421552663",
+      "reason": "bin conflicts with rendered surface"
+    },
+    {
+      "id": "node/11421552665",
+      "reason": "bin conflicts with rendered surface"
+    },
+    {
+      "id": "node/11421716111",
+      "reason": "bin conflicts with rendered surface"
+    },
+    {
+      "id": "node/11421745169",
+      "reason": "bin conflicts with rendered surface"
+    },
+    {
+      "id": "node/11438898239",
+      "reason": "bin conflicts with rendered surface"
+    },
+    {
+      "id": "node/11438925184",
+      "reason": "bin conflicts with rendered surface"
+    },
+    {
+      "id": "node/11506310986",
+      "reason": "bin conflicts with rendered surface"
+    },
+    {
+      "id": "node/11506311008",
+      "reason": "bin conflicts with rendered surface"
+    },
+    {
+      "id": "node/11506503357",
+      "reason": "bin conflicts with rendered surface"
+    },
+    {
+      "id": "node/11514675908",
+      "reason": "bin conflicts with rendered surface"
+    },
+    {
+      "id": "node/11514836315",
+      "reason": "bin conflicts with rendered surface"
+    },
+    {
+      "id": "node/11515012649",
+      "reason": "bin conflicts with rendered surface"
+    },
+    {
+      "id": "node/11515026644",
+      "reason": "bin conflicts with rendered surface"
+    },
+    {
+      "id": "node/11515026645",
+      "reason": "bin conflicts with rendered surface"
+    },
+    {
+      "id": "node/11515026657",
+      "reason": "bin conflicts with rendered surface"
+    },
+    {
+      "id": "node/11529068856",
+      "reason": "bin conflicts with rendered surface"
+    },
+    {
+      "id": "node/11529076946",
+      "reason": "bin conflicts with rendered surface"
+    },
+    {
+      "id": "node/11529257974",
+      "reason": "bin conflicts with rendered surface"
+    },
+    {
+      "id": "node/11541727695",
+      "reason": "bin conflicts with rendered surface"
+    },
+    {
+      "id": "node/11544310487",
+      "reason": "bin conflicts with rendered surface"
+    },
+    {
+      "id": "node/11548225562",
+      "reason": "bin conflicts with rendered surface"
+    },
+    {
+      "id": "node/11548230977",
+      "reason": "bin conflicts with rendered surface"
+    },
+    {
+      "id": "node/11557793925",
+      "reason": "bin conflicts with rendered surface"
+    },
+    {
+      "id": "node/11557793926",
+      "reason": "bin conflicts with rendered surface"
+    },
+    {
+      "id": "node/11557793927",
+      "reason": "bin conflicts with rendered surface"
+    },
+    {
+      "id": "node/11557793928",
+      "reason": "bin conflicts with rendered surface"
+    },
+    {
+      "id": "node/11557823517",
+      "reason": "bin conflicts with rendered surface"
+    },
+    {
+      "id": "node/11557823519",
+      "reason": "bin conflicts with rendered surface"
+    },
+    {
+      "id": "node/11557864790",
+      "reason": "bin conflicts with rendered surface"
+    },
+    {
+      "id": "node/11561491260",
+      "reason": "bin conflicts with rendered surface"
+    },
+    {
+      "id": "node/11564998784",
+      "reason": "bin conflicts with rendered surface"
+    },
+    {
+      "id": "node/11565605925",
+      "reason": "bin conflicts with rendered surface"
+    },
+    {
+      "id": "node/11573633505",
+      "reason": "bin conflicts with rendered surface"
+    },
+    {
+      "id": "node/11573633506",
+      "reason": "bin conflicts with rendered surface"
+    },
+    {
+      "id": "node/11573633553",
+      "reason": "bin conflicts with rendered surface"
+    },
+    {
+      "id": "node/11585838422",
+      "reason": "bin conflicts with rendered surface"
+    },
+    {
+      "id": "node/11608520260",
+      "reason": "bin conflicts with rendered surface"
+    },
+    {
+      "id": "node/11612188349",
+      "reason": "bin conflicts with rendered surface"
+    },
+    {
+      "id": "node/11612207699",
+      "reason": "bin conflicts with rendered surface"
+    },
+    {
+      "id": "node/11612207700",
+      "reason": "bin conflicts with rendered surface"
+    },
+    {
+      "id": "node/11612207708",
+      "reason": "bin conflicts with rendered surface"
+    },
+    {
+      "id": "node/11635634404",
+      "reason": "bin conflicts with rendered surface"
+    },
+    {
+      "id": "node/11635635084",
+      "reason": "bin conflicts with rendered surface"
+    },
+    {
+      "id": "node/11635713064",
+      "reason": "bin conflicts with rendered surface"
+    },
+    {
+      "id": "node/11635725326",
+      "reason": "bin conflicts with rendered surface"
+    },
+    {
+      "id": "node/11635725340",
+      "reason": "bin conflicts with rendered surface"
+    },
+    {
+      "id": "node/11635725341",
+      "reason": "bin conflicts with rendered surface"
+    },
+    {
+      "id": "node/11635725342",
+      "reason": "bin conflicts with rendered surface"
+    },
+    {
+      "id": "node/11635725346",
+      "reason": "bin conflicts with rendered surface"
+    },
+    {
+      "id": "node/11639002956",
+      "reason": "bin conflicts with rendered surface"
+    },
+    {
+      "id": "node/11639002962",
+      "reason": "bin conflicts with rendered surface"
+    },
+    {
+      "id": "node/11639044192",
+      "reason": "bin conflicts with rendered surface"
+    },
+    {
+      "id": "node/11639044195",
+      "reason": "bin conflicts with rendered surface"
+    },
+    {
+      "id": "node/11643225165",
+      "reason": "bin conflicts with rendered surface"
+    },
+    {
+      "id": "node/11662741924",
+      "reason": "bin conflicts with rendered surface"
+    },
+    {
+      "id": "node/11667270317",
+      "reason": "bin conflicts with rendered surface"
+    },
+    {
+      "id": "node/11667270323",
+      "reason": "bin conflicts with rendered surface"
+    },
+    {
+      "id": "node/11669731649",
+      "reason": "bin conflicts with rendered surface"
+    },
+    {
+      "id": "node/11669753085",
+      "reason": "bin conflicts with rendered surface"
+    },
+    {
+      "id": "node/11669753110",
+      "reason": "bin conflicts with rendered surface"
+    },
+    {
+      "id": "node/11669753114",
+      "reason": "bin conflicts with rendered surface"
+    },
+    {
+      "id": "node/11669812031",
+      "reason": "bin conflicts with rendered surface"
+    },
+    {
+      "id": "node/11670196990",
+      "reason": "bin conflicts with rendered surface"
+    },
+    {
+      "id": "node/11673385319",
+      "reason": "bin conflicts with rendered surface"
+    },
+    {
+      "id": "node/11673385324",
+      "reason": "bin conflicts with rendered surface"
+    },
+    {
+      "id": "node/11673385325",
+      "reason": "bin conflicts with rendered surface"
+    },
+    {
+      "id": "node/11673385327",
+      "reason": "bin conflicts with rendered surface"
+    },
+    {
+      "id": "node/11673643054",
+      "reason": "bin conflicts with rendered surface"
+    },
+    {
+      "id": "node/11673643063",
+      "reason": "bin conflicts with rendered surface"
+    },
+    {
+      "id": "node/11673643064",
+      "reason": "bin conflicts with rendered surface"
+    },
+    {
+      "id": "node/11673693772",
+      "reason": "bin conflicts with rendered surface"
+    },
+    {
+      "id": "node/11673715819",
+      "reason": "bin conflicts with rendered surface"
+    },
+    {
+      "id": "node/11673715820",
+      "reason": "bin conflicts with rendered surface"
+    },
+    {
+      "id": "node/11673825706",
+      "reason": "bin conflicts with rendered surface"
+    },
+    {
+      "id": "node/11677815125",
+      "reason": "bin conflicts with rendered surface"
+    },
+    {
+      "id": "node/11677815141",
+      "reason": "bin conflicts with rendered surface"
+    },
+    {
+      "id": "node/11678736534",
+      "reason": "bin conflicts with rendered surface"
+    },
+    {
+      "id": "node/11678989391",
+      "reason": "bin conflicts with rendered surface"
+    },
+    {
+      "id": "node/11688329843",
+      "reason": "bin conflicts with rendered surface"
+    },
+    {
+      "id": "node/11688329854",
+      "reason": "bin conflicts with rendered surface"
+    },
+    {
+      "id": "node/11688332504",
+      "reason": "bin conflicts with rendered surface"
+    },
+    {
+      "id": "node/11688332508",
+      "reason": "bin conflicts with rendered surface"
+    },
+    {
+      "id": "node/11688356385",
+      "reason": "bin conflicts with rendered surface"
+    },
+    {
+      "id": "node/11688419182",
+      "reason": "bin conflicts with rendered surface"
+    },
+    {
+      "id": "node/11688433354",
+      "reason": "bin conflicts with rendered surface"
+    },
+    {
+      "id": "node/11688498266",
+      "reason": "bin conflicts with rendered surface"
+    },
+    {
+      "id": "node/11702595621",
+      "reason": "bin conflicts with rendered surface"
+    },
+    {
+      "id": "node/11702595622",
+      "reason": "bin conflicts with rendered surface"
+    },
+    {
+      "id": "node/11709381495",
+      "reason": "bin conflicts with rendered surface"
+    },
+    {
+      "id": "node/11709381497",
+      "reason": "bin conflicts with rendered surface"
+    },
+    {
+      "id": "node/11711955394",
+      "reason": "bin conflicts with rendered surface"
+    },
+    {
+      "id": "node/11711955406",
+      "reason": "bin conflicts with rendered surface"
+    },
+    {
+      "id": "node/11712002639",
+      "reason": "bin conflicts with rendered surface"
+    },
+    {
+      "id": "node/11712064625",
+      "reason": "bin conflicts with rendered surface"
+    },
+    {
+      "id": "node/11712064627",
+      "reason": "bin conflicts with rendered surface"
+    },
+    {
+      "id": "node/11738011650",
+      "reason": "bin conflicts with rendered surface"
+    },
+    {
+      "id": "node/11738026865",
+      "reason": "bin conflicts with rendered surface"
+    },
+    {
+      "id": "node/11738039369",
+      "reason": "bin conflicts with rendered surface"
+    },
+    {
+      "id": "node/11746085808",
+      "reason": "bin conflicts with rendered surface"
+    },
+    {
+      "id": "node/11746085810",
+      "reason": "bin conflicts with rendered surface"
+    },
+    {
+      "id": "node/11751911937",
+      "reason": "bin conflicts with rendered surface"
+    },
+    {
+      "id": "node/11769809180",
+      "reason": "bin conflicts with rendered surface"
+    },
+    {
+      "id": "node/11769809198",
+      "reason": "bin conflicts with rendered surface"
+    },
+    {
+      "id": "node/11773578090",
+      "reason": "bin conflicts with rendered surface"
+    },
+    {
+      "id": "node/11773749320",
+      "reason": "bin conflicts with rendered surface"
+    },
+    {
+      "id": "node/11774001903",
+      "reason": "bin conflicts with rendered surface"
+    },
+    {
+      "id": "node/11774059899",
+      "reason": "bin conflicts with rendered surface"
+    },
+    {
+      "id": "node/11774059900",
+      "reason": "bin conflicts with rendered surface"
+    },
+    {
+      "id": "node/11776222819",
+      "reason": "bin conflicts with rendered surface"
+    },
+    {
+      "id": "node/11778992663",
+      "reason": "bin conflicts with rendered surface"
+    },
+    {
+      "id": "node/11779153717",
+      "reason": "bin conflicts with rendered surface"
+    },
+    {
+      "id": "node/11784641231",
+      "reason": "bin conflicts with rendered surface"
+    },
+    {
+      "id": "node/11784641244",
+      "reason": "bin conflicts with rendered surface"
+    },
+    {
+      "id": "node/11784708215",
+      "reason": "bin conflicts with rendered surface"
+    },
+    {
+      "id": "node/11787852559",
+      "reason": "bin conflicts with rendered surface"
+    },
+    {
+      "id": "node/11787969716",
+      "reason": "bin conflicts with rendered surface"
+    },
+    {
+      "id": "node/11787969717",
+      "reason": "bin conflicts with rendered surface"
+    },
+    {
+      "id": "node/11787969725",
+      "reason": "bin conflicts with rendered surface"
+    },
+    {
+      "id": "node/11805541638",
+      "reason": "bin conflicts with rendered surface"
+    },
+    {
+      "id": "node/11805572243",
+      "reason": "bin conflicts with rendered surface"
+    },
+    {
+      "id": "node/11822783398",
+      "reason": "bin conflicts with rendered surface"
+    },
+    {
+      "id": "node/11822783411",
+      "reason": "bin conflicts with rendered surface"
+    },
+    {
+      "id": "node/11822783426",
+      "reason": "bin conflicts with rendered surface"
+    },
+    {
+      "id": "node/11822792433",
+      "reason": "bin conflicts with rendered surface"
+    },
+    {
+      "id": "node/11822792440",
+      "reason": "bin conflicts with rendered surface"
+    },
+    {
+      "id": "node/11822792449",
+      "reason": "bin conflicts with rendered surface"
+    },
+    {
+      "id": "node/11829103731",
+      "reason": "bin conflicts with rendered surface"
+    },
+    {
+      "id": "node/11829225773",
+      "reason": "bin conflicts with rendered surface"
+    },
+    {
+      "id": "node/11829225774",
+      "reason": "bin conflicts with rendered surface"
+    },
+    {
+      "id": "node/11829225792",
+      "reason": "bin conflicts with rendered surface"
+    },
+    {
+      "id": "node/11833807247",
+      "reason": "bin conflicts with rendered surface"
+    },
+    {
+      "id": "node/11833839897",
+      "reason": "bin conflicts with rendered surface"
+    },
+    {
+      "id": "node/11833839898",
+      "reason": "bin conflicts with rendered surface"
+    },
+    {
+      "id": "node/11833895380",
+      "reason": "bin conflicts with rendered surface"
+    },
+    {
+      "id": "node/11833989995",
+      "reason": "bin conflicts with rendered surface"
+    },
+    {
+      "id": "node/11833990002",
+      "reason": "bin conflicts with rendered surface"
+    },
+    {
+      "id": "node/11842222887",
+      "reason": "bin conflicts with rendered surface"
+    },
+    {
+      "id": "node/11845613783",
+      "reason": "bin conflicts with rendered surface"
+    },
+    {
+      "id": "node/11845613801",
+      "reason": "bin conflicts with rendered surface"
+    },
+    {
+      "id": "node/11845688399",
+      "reason": "bin conflicts with rendered surface"
+    },
+    {
+      "id": "node/11845688408",
+      "reason": "bin conflicts with rendered surface"
+    },
+    {
+      "id": "node/11845688422",
+      "reason": "bin conflicts with rendered surface"
+    },
+    {
+      "id": "node/11869918783",
+      "reason": "bin conflicts with rendered surface"
+    },
+    {
+      "id": "node/11869963979",
+      "reason": "bin conflicts with rendered surface"
+    },
+    {
+      "id": "node/11870031593",
+      "reason": "bin conflicts with rendered surface"
+    },
+    {
+      "id": "node/11875178060",
+      "reason": "bin conflicts with rendered surface"
+    },
+    {
+      "id": "node/11875178469",
+      "reason": "bin conflicts with rendered surface"
+    },
+    {
+      "id": "node/11875194788",
+      "reason": "bin conflicts with rendered surface"
+    },
+    {
+      "id": "node/11879640583",
+      "reason": "bin conflicts with rendered surface"
+    },
+    {
+      "id": "node/11879775774",
+      "reason": "bin conflicts with rendered surface"
+    },
+    {
+      "id": "node/11889944830",
+      "reason": "bin conflicts with rendered surface"
+    },
+    {
+      "id": "node/11889944839",
+      "reason": "bin conflicts with rendered surface"
+    },
+    {
+      "id": "node/11889944842",
+      "reason": "bin conflicts with rendered surface"
+    },
+    {
+      "id": "node/11889964562",
+      "reason": "bin conflicts with rendered surface"
+    },
+    {
+      "id": "node/11890117711",
+      "reason": "bin conflicts with rendered surface"
+    },
+    {
+      "id": "node/11908235365",
+      "reason": "bin conflicts with rendered surface"
+    },
+    {
+      "id": "node/11908264084",
+      "reason": "bin conflicts with rendered surface"
+    },
+    {
+      "id": "node/11909673743",
+      "reason": "bin conflicts with rendered surface"
+    },
+    {
+      "id": "node/11922515638",
+      "reason": "bin conflicts with rendered surface"
+    },
+    {
+      "id": "node/11922515645",
+      "reason": "bin conflicts with rendered surface"
+    },
+    {
+      "id": "node/11922602334",
+      "reason": "bin conflicts with rendered surface"
+    },
+    {
+      "id": "node/11922602335",
+      "reason": "bin conflicts with rendered surface"
+    },
+    {
+      "id": "node/11922602340",
+      "reason": "bin conflicts with rendered surface"
+    },
+    {
+      "id": "node/11922602367",
+      "reason": "bin conflicts with rendered surface"
+    },
+    {
+      "id": "node/11922602368",
+      "reason": "bin conflicts with rendered surface"
+    },
+    {
+      "id": "node/11922667156",
+      "reason": "bin conflicts with rendered surface"
+    },
+    {
+      "id": "node/11922667164",
+      "reason": "bin conflicts with rendered surface"
+    },
+    {
+      "id": "node/11922671572",
+      "reason": "bin conflicts with rendered surface"
+    },
+    {
+      "id": "node/11922671573",
+      "reason": "bin conflicts with rendered surface"
+    },
+    {
+      "id": "node/11922711911",
+      "reason": "bin conflicts with rendered surface"
+    },
+    {
+      "id": "node/11923706553",
+      "reason": "bin conflicts with rendered surface"
+    },
+    {
+      "id": "node/11927071116",
+      "reason": "bin conflicts with rendered surface"
+    },
+    {
+      "id": "node/11927076756",
+      "reason": "bin conflicts with rendered surface"
+    },
+    {
+      "id": "node/11943577068",
+      "reason": "bin conflicts with rendered surface"
+    },
+    {
+      "id": "node/11946165875",
+      "reason": "bin conflicts with rendered surface"
+    },
+    {
+      "id": "node/11952382505",
+      "reason": "bin conflicts with rendered surface"
+    },
+    {
+      "id": "node/11952418479",
+      "reason": "bin conflicts with rendered surface"
+    },
+    {
+      "id": "node/11952418481",
+      "reason": "bin conflicts with rendered surface"
+    },
+    {
+      "id": "node/11952418506",
+      "reason": "bin conflicts with rendered surface"
+    },
+    {
+      "id": "node/11952418507",
+      "reason": "bin conflicts with rendered surface"
+    },
+    {
+      "id": "node/11952493003",
+      "reason": "bin conflicts with rendered surface"
+    },
+    {
+      "id": "node/11952494199",
+      "reason": "bin conflicts with rendered surface"
+    },
+    {
+      "id": "node/11956456150",
+      "reason": "bin conflicts with rendered surface"
+    },
+    {
+      "id": "node/11956456156",
+      "reason": "bin conflicts with rendered surface"
+    },
+    {
+      "id": "node/11956631049",
+      "reason": "bin conflicts with rendered surface"
+    },
+    {
+      "id": "node/11958973487",
+      "reason": "bin conflicts with rendered surface"
+    },
+    {
+      "id": "node/11963675668",
+      "reason": "bin conflicts with rendered surface"
+    },
+    {
+      "id": "node/11963721314",
+      "reason": "bin conflicts with rendered surface"
+    },
+    {
+      "id": "node/11963733169",
+      "reason": "bin conflicts with rendered surface"
+    },
+    {
+      "id": "node/11964348672",
+      "reason": "bin conflicts with rendered surface"
+    },
+    {
+      "id": "node/11965040584",
+      "reason": "bin conflicts with rendered surface"
+    },
+    {
+      "id": "node/11965040585",
+      "reason": "bin conflicts with rendered surface"
+    },
+    {
+      "id": "node/11967924203",
+      "reason": "bin conflicts with rendered surface"
+    },
+    {
+      "id": "node/11968063298",
+      "reason": "bin conflicts with rendered surface"
+    },
+    {
+      "id": "node/11968063308",
+      "reason": "bin conflicts with rendered surface"
+    },
+    {
+      "id": "node/11968073785",
+      "reason": "bin conflicts with rendered surface"
+    },
+    {
+      "id": "node/11968073798",
+      "reason": "bin conflicts with rendered surface"
+    },
+    {
+      "id": "node/11976409624",
+      "reason": "bin conflicts with rendered surface"
+    },
+    {
+      "id": "node/11976523798",
+      "reason": "bin conflicts with rendered surface"
+    },
+    {
+      "id": "node/11976523801",
+      "reason": "bin conflicts with rendered surface"
+    },
+    {
+      "id": "node/11976594417",
+      "reason": "bin conflicts with rendered surface"
+    },
+    {
+      "id": "node/11976655898",
+      "reason": "bin conflicts with rendered surface"
+    },
+    {
+      "id": "node/11976688988",
+      "reason": "bin conflicts with rendered surface"
+    },
+    {
+      "id": "node/11985182589",
+      "reason": "bin conflicts with rendered surface"
+    },
+    {
+      "id": "node/11990944746",
+      "reason": "bin conflicts with rendered surface"
+    },
+    {
+      "id": "node/11990944747",
+      "reason": "bin conflicts with rendered surface"
+    },
+    {
+      "id": "node/11990944753",
+      "reason": "bin conflicts with rendered surface"
+    },
+    {
+      "id": "node/12042473516",
+      "reason": "bin conflicts with rendered surface"
+    },
+    {
+      "id": "node/12047592973",
+      "reason": "bin conflicts with rendered surface"
+    },
+    {
+      "id": "node/12047615170",
+      "reason": "bin conflicts with rendered surface"
+    },
+    {
+      "id": "node/12047635196",
+      "reason": "bin conflicts with rendered surface"
+    },
+    {
+      "id": "node/12047689295",
+      "reason": "bin conflicts with rendered surface"
+    },
+    {
+      "id": "node/12052121413",
+      "reason": "bin conflicts with rendered surface"
+    },
+    {
+      "id": "node/12052121434",
+      "reason": "bin conflicts with rendered surface"
+    },
+    {
+      "id": "node/12052152479",
+      "reason": "bin conflicts with rendered surface"
+    },
+    {
+      "id": "node/12052304679",
+      "reason": "bin conflicts with rendered surface"
+    },
+    {
+      "id": "node/12052964200",
+      "reason": "bin conflicts with rendered surface"
+    },
+    {
+      "id": "node/12053776762",
+      "reason": "bin conflicts with rendered surface"
+    },
+    {
+      "id": "node/12053776768",
+      "reason": "bin conflicts with rendered surface"
+    },
+    {
+      "id": "node/12053831979",
+      "reason": "bin conflicts with rendered surface"
+    },
+    {
+      "id": "node/12053831993",
+      "reason": "bin conflicts with rendered surface"
+    },
+    {
+      "id": "node/12061960714",
+      "reason": "bin conflicts with rendered surface"
+    },
+    {
+      "id": "node/12062017084",
+      "reason": "bin conflicts with rendered surface"
+    },
+    {
+      "id": "node/12062040464",
+      "reason": "bin conflicts with rendered surface"
+    },
+    {
+      "id": "node/12062096299",
+      "reason": "bin conflicts with rendered surface"
+    },
+    {
+      "id": "node/12062121531",
+      "reason": "bin conflicts with rendered surface"
+    },
+    {
+      "id": "node/12064001018",
+      "reason": "bin conflicts with rendered surface"
+    },
+    {
+      "id": "node/12064031354",
+      "reason": "bin conflicts with rendered surface"
+    },
+    {
+      "id": "node/12065320993",
+      "reason": "bin conflicts with rendered surface"
+    },
+    {
+      "id": "node/12065459631",
+      "reason": "bin conflicts with rendered surface"
+    },
+    {
+      "id": "node/12068888257",
+      "reason": "bin conflicts with rendered surface"
+    },
+    {
+      "id": "node/12068904516",
+      "reason": "bin conflicts with rendered surface"
+    },
+    {
+      "id": "node/12072393829",
+      "reason": "bin conflicts with rendered surface"
+    },
+    {
+      "id": "node/12072393842",
+      "reason": "bin conflicts with rendered surface"
+    },
+    {
+      "id": "node/12072424449",
+      "reason": "bin conflicts with rendered surface"
+    },
+    {
+      "id": "node/12072440779",
+      "reason": "bin conflicts with rendered surface"
+    },
+    {
+      "id": "node/12072440780",
+      "reason": "bin conflicts with rendered surface"
+    },
+    {
+      "id": "node/12076100367",
+      "reason": "bin conflicts with rendered surface"
+    },
+    {
+      "id": "node/12076144479",
+      "reason": "bin conflicts with rendered surface"
+    },
+    {
+      "id": "node/12076144482",
+      "reason": "bin conflicts with rendered surface"
+    },
+    {
+      "id": "node/12076167185",
+      "reason": "bin conflicts with rendered surface"
+    },
+    {
+      "id": "node/12076167210",
+      "reason": "bin conflicts with rendered surface"
+    },
+    {
+      "id": "node/12076184632",
+      "reason": "bin conflicts with rendered surface"
+    },
+    {
+      "id": "node/12076204269",
+      "reason": "bin conflicts with rendered surface"
+    },
+    {
+      "id": "node/12079203371",
+      "reason": "bin conflicts with rendered surface"
+    },
+    {
+      "id": "node/12079211793",
+      "reason": "bin conflicts with rendered surface"
+    },
+    {
+      "id": "node/12079247781",
+      "reason": "bin conflicts with rendered surface"
+    },
+    {
+      "id": "node/12084016842",
+      "reason": "bin conflicts with rendered surface"
+    },
+    {
+      "id": "node/12084056946",
+      "reason": "bin conflicts with rendered surface"
+    },
+    {
+      "id": "node/12084064399",
+      "reason": "bin conflicts with rendered surface"
+    },
+    {
+      "id": "node/12084097909",
+      "reason": "bin conflicts with rendered surface"
+    },
+    {
+      "id": "node/12087993856",
+      "reason": "bin conflicts with rendered surface"
+    },
+    {
+      "id": "node/12089719368",
+      "reason": "bin conflicts with rendered surface"
+    },
+    {
+      "id": "node/12089819273",
+      "reason": "bin conflicts with rendered surface"
+    },
+    {
+      "id": "node/12089819274",
+      "reason": "bin conflicts with rendered surface"
+    },
+    {
+      "id": "node/12091133641",
+      "reason": "bin conflicts with rendered surface"
+    },
+    {
+      "id": "node/12091177294",
+      "reason": "bin conflicts with rendered surface"
+    },
+    {
+      "id": "node/12091684337",
+      "reason": "bin conflicts with rendered surface"
+    },
+    {
+      "id": "node/12091684351",
+      "reason": "bin conflicts with rendered surface"
+    },
+    {
+      "id": "node/12092615250",
+      "reason": "bin conflicts with rendered surface"
+    },
+    {
+      "id": "node/12095659525",
+      "reason": "bin conflicts with rendered surface"
+    },
+    {
+      "id": "node/12095659532",
+      "reason": "bin conflicts with rendered surface"
+    },
+    {
+      "id": "node/12097433558",
+      "reason": "bin conflicts with rendered surface"
+    },
+    {
+      "id": "node/12103386208",
+      "reason": "bin conflicts with rendered surface"
+    },
+    {
+      "id": "node/12103389966",
+      "reason": "bin conflicts with rendered surface"
+    },
+    {
+      "id": "node/12105370005",
+      "reason": "bin conflicts with rendered surface"
+    },
+    {
+      "id": "node/12107108842",
+      "reason": "bin conflicts with rendered surface"
+    },
+    {
+      "id": "node/12108108771",
+      "reason": "bin conflicts with rendered surface"
+    },
+    {
+      "id": "node/12108108774",
+      "reason": "bin conflicts with rendered surface"
+    },
+    {
+      "id": "node/12108108784",
+      "reason": "bin conflicts with rendered surface"
+    },
+    {
+      "id": "node/12111612718",
+      "reason": "bin conflicts with rendered surface"
+    },
+    {
+      "id": "node/12111634759",
+      "reason": "bin conflicts with rendered surface"
+    },
+    {
+      "id": "node/12111634781",
+      "reason": "bin conflicts with rendered surface"
+    },
+    {
+      "id": "node/12111670360",
+      "reason": "bin conflicts with rendered surface"
+    },
+    {
+      "id": "node/12111719827",
+      "reason": "bin conflicts with rendered surface"
+    },
+    {
+      "id": "node/12138026640",
+      "reason": "bin conflicts with rendered surface"
+    },
+    {
+      "id": "node/12138026650",
+      "reason": "bin conflicts with rendered surface"
+    },
+    {
+      "id": "node/12138084256",
+      "reason": "bin conflicts with rendered surface"
+    },
+    {
+      "id": "node/12138304748",
+      "reason": "bin conflicts with rendered surface"
+    },
+    {
+      "id": "node/12140969193",
+      "reason": "bin conflicts with rendered surface"
+    },
+    {
+      "id": "node/12140974565",
+      "reason": "bin conflicts with rendered surface"
+    },
+    {
+      "id": "node/12141005273",
+      "reason": "bin conflicts with rendered surface"
+    },
+    {
+      "id": "node/12141005295",
+      "reason": "bin conflicts with rendered surface"
+    },
+    {
+      "id": "node/12141014875",
+      "reason": "bin conflicts with rendered surface"
+    },
+    {
+      "id": "node/12141974494",
+      "reason": "bin conflicts with rendered surface"
+    },
+    {
+      "id": "node/12141974496",
+      "reason": "bin conflicts with rendered surface"
+    },
+    {
+      "id": "node/12142026020",
+      "reason": "bin conflicts with rendered surface"
+    },
+    {
+      "id": "node/12143004019",
+      "reason": "bin conflicts with rendered surface"
+    },
+    {
+      "id": "node/12143034850",
+      "reason": "bin conflicts with rendered surface"
+    },
+    {
+      "id": "node/12143036731",
+      "reason": "bin conflicts with rendered surface"
+    },
+    {
+      "id": "node/12149761566",
+      "reason": "bin conflicts with rendered surface"
+    },
+    {
+      "id": "node/12149808035",
+      "reason": "bin conflicts with rendered surface"
+    },
+    {
+      "id": "node/12149808072",
+      "reason": "bin conflicts with rendered surface"
+    },
+    {
+      "id": "node/12149830141",
+      "reason": "bin conflicts with rendered surface"
+    },
+    {
+      "id": "node/12150309543",
+      "reason": "bin conflicts with rendered surface"
+    },
+    {
+      "id": "node/12150309597",
+      "reason": "bin conflicts with rendered surface"
+    },
+    {
+      "id": "node/12150387675",
+      "reason": "bin conflicts with rendered surface"
+    },
+    {
+      "id": "node/12155289341",
+      "reason": "bin conflicts with rendered surface"
+    },
+    {
+      "id": "node/12162293080",
+      "reason": "bin conflicts with rendered surface"
+    },
+    {
+      "id": "node/12162614976",
+      "reason": "bin conflicts with rendered surface"
+    },
+    {
+      "id": "node/12162614978",
+      "reason": "bin conflicts with rendered surface"
+    },
+    {
+      "id": "node/12162614980",
+      "reason": "bin conflicts with rendered surface"
+    },
+    {
+      "id": "node/12162614996",
+      "reason": "bin conflicts with rendered surface"
+    },
+    {
+      "id": "node/12162652452",
+      "reason": "bin conflicts with rendered surface"
+    },
+    {
+      "id": "node/12162652471",
+      "reason": "bin conflicts with rendered surface"
+    },
+    {
+      "id": "node/12164434582",
+      "reason": "bin conflicts with rendered surface"
+    },
+    {
+      "id": "node/12164458515",
+      "reason": "bin conflicts with rendered surface"
+    },
+    {
+      "id": "node/12164467303",
+      "reason": "bin conflicts with rendered surface"
+    },
+    {
+      "id": "node/12168500358",
+      "reason": "bin conflicts with rendered surface"
+    },
+    {
+      "id": "node/12168532943",
+      "reason": "bin conflicts with rendered surface"
+    },
+    {
+      "id": "node/12170806997",
+      "reason": "bin conflicts with rendered surface"
+    },
+    {
+      "id": "node/12170902709",
+      "reason": "bin conflicts with rendered surface"
+    },
+    {
+      "id": "node/12170903786",
+      "reason": "bin conflicts with rendered surface"
+    },
+    {
+      "id": "node/12170914841",
+      "reason": "bin conflicts with rendered surface"
+    },
+    {
+      "id": "node/12170914856",
+      "reason": "bin conflicts with rendered surface"
+    },
+    {
+      "id": "node/12170914892",
+      "reason": "bin conflicts with rendered surface"
+    },
+    {
+      "id": "node/12170943966",
+      "reason": "bin conflicts with rendered surface"
+    },
+    {
+      "id": "node/12175775408",
+      "reason": "bin conflicts with rendered surface"
+    },
+    {
+      "id": "node/12175775409",
+      "reason": "bin conflicts with rendered surface"
+    },
+    {
+      "id": "node/12178940926",
+      "reason": "bin conflicts with rendered surface"
+    },
+    {
+      "id": "node/12179155246",
+      "reason": "bin conflicts with rendered surface"
+    },
+    {
+      "id": "node/12181128113",
+      "reason": "bin conflicts with rendered surface"
+    },
+    {
+      "id": "node/12181137506",
+      "reason": "bin conflicts with rendered surface"
+    },
+    {
+      "id": "node/12183059475",
+      "reason": "bin conflicts with rendered surface"
+    },
+    {
+      "id": "node/12183073294",
+      "reason": "bin conflicts with rendered surface"
+    },
+    {
+      "id": "node/12183073296",
+      "reason": "bin conflicts with rendered surface"
+    },
+    {
+      "id": "node/12187201056",
+      "reason": "bin conflicts with rendered surface"
+    },
+    {
+      "id": "node/12190322738",
+      "reason": "bin conflicts with rendered surface"
+    },
+    {
+      "id": "node/12190757468",
+      "reason": "bin conflicts with rendered surface"
+    },
+    {
+      "id": "node/12191829723",
+      "reason": "bin conflicts with rendered surface"
+    },
+    {
+      "id": "node/12191846228",
+      "reason": "bin conflicts with rendered surface"
+    },
+    {
+      "id": "node/12191846230",
+      "reason": "bin conflicts with rendered surface"
+    },
+    {
+      "id": "node/12191846231",
+      "reason": "bin conflicts with rendered surface"
+    },
+    {
+      "id": "node/12193535966",
+      "reason": "bin conflicts with rendered surface"
+    },
+    {
+      "id": "node/12193535982",
+      "reason": "bin conflicts with rendered surface"
+    },
+    {
+      "id": "node/12193535984",
+      "reason": "bin conflicts with rendered surface"
+    },
+    {
+      "id": "node/12193635304",
+      "reason": "bin conflicts with rendered surface"
+    },
+    {
+      "id": "node/12193645175",
+      "reason": "bin conflicts with rendered surface"
+    },
+    {
+      "id": "node/12193660672",
+      "reason": "bin conflicts with rendered surface"
+    },
+    {
+      "id": "node/12193669957",
+      "reason": "bin conflicts with rendered surface"
+    },
+    {
+      "id": "node/12193669958",
+      "reason": "bin conflicts with rendered surface"
+    },
+    {
+      "id": "node/12193669959",
+      "reason": "bin conflicts with rendered surface"
+    },
+    {
+      "id": "node/12195633949",
+      "reason": "bin conflicts with rendered surface"
+    },
+    {
+      "id": "node/12195787565",
+      "reason": "bin conflicts with rendered surface"
+    },
+    {
+      "id": "node/12195787566",
+      "reason": "bin conflicts with rendered surface"
+    },
+    {
+      "id": "node/12200037895",
+      "reason": "bin conflicts with rendered surface"
+    },
+    {
+      "id": "node/12200076522",
+      "reason": "bin conflicts with rendered surface"
+    },
+    {
+      "id": "node/12207207073",
+      "reason": "bin conflicts with rendered surface"
+    },
+    {
+      "id": "node/12207403555",
+      "reason": "bin conflicts with rendered surface"
+    },
+    {
+      "id": "node/12207403574",
+      "reason": "bin conflicts with rendered surface"
+    },
+    {
+      "id": "node/12207468809",
+      "reason": "bin conflicts with rendered surface"
+    },
+    {
+      "id": "node/12207502198",
+      "reason": "bin conflicts with rendered surface"
+    },
+    {
+      "id": "node/12212425594",
+      "reason": "bin conflicts with rendered surface"
+    },
+    {
+      "id": "node/12212461998",
+      "reason": "bin conflicts with rendered surface"
+    },
+    {
+      "id": "node/12212629741",
+      "reason": "bin conflicts with rendered surface"
+    },
+    {
+      "id": "node/12228556644",
+      "reason": "bin conflicts with rendered surface"
+    },
+    {
+      "id": "node/12228556647",
+      "reason": "bin conflicts with rendered surface"
+    },
+    {
+      "id": "node/12228594354",
+      "reason": "bin conflicts with rendered surface"
+    },
+    {
+      "id": "node/12228594363",
+      "reason": "bin conflicts with rendered surface"
+    },
+    {
+      "id": "node/12228603902",
+      "reason": "bin conflicts with rendered surface"
+    },
+    {
+      "id": "node/12228603911",
+      "reason": "bin conflicts with rendered surface"
+    },
+    {
+      "id": "node/12228624130",
+      "reason": "bin conflicts with rendered surface"
+    },
+    {
+      "id": "node/12236609783",
+      "reason": "bin conflicts with rendered surface"
+    },
+    {
+      "id": "node/12236630979",
+      "reason": "bin conflicts with rendered surface"
+    },
+    {
+      "id": "node/12236630984",
+      "reason": "bin conflicts with rendered surface"
+    },
+    {
+      "id": "node/12236631000",
+      "reason": "bin conflicts with rendered surface"
+    },
+    {
+      "id": "node/12236642955",
+      "reason": "bin conflicts with rendered surface"
+    },
+    {
+      "id": "node/12237713555",
+      "reason": "bin conflicts with rendered surface"
+    },
+    {
+      "id": "node/12237713570",
+      "reason": "bin conflicts with rendered surface"
+    },
+    {
+      "id": "node/12237713584",
+      "reason": "bin conflicts with rendered surface"
+    },
+    {
+      "id": "node/12238663538",
+      "reason": "bin conflicts with rendered surface"
+    },
+    {
+      "id": "node/12238663539",
+      "reason": "bin conflicts with rendered surface"
+    },
+    {
+      "id": "node/12238663574",
+      "reason": "bin conflicts with rendered surface"
+    },
+    {
+      "id": "node/12238663575",
+      "reason": "bin conflicts with rendered surface"
+    },
+    {
+      "id": "node/12238730533",
+      "reason": "bin conflicts with rendered surface"
+    },
+    {
+      "id": "node/12238730535",
+      "reason": "bin conflicts with rendered surface"
+    },
+    {
+      "id": "node/12238730538",
+      "reason": "bin conflicts with rendered surface"
+    },
+    {
+      "id": "node/12238730543",
+      "reason": "bin conflicts with rendered surface"
+    },
+    {
+      "id": "node/12302152753",
+      "reason": "bin conflicts with rendered surface"
+    },
+    {
+      "id": "node/12312918198",
+      "reason": "bin conflicts with rendered surface"
+    },
+    {
+      "id": "node/12349515470",
+      "reason": "bin conflicts with rendered surface"
+    },
+    {
+      "id": "node/12349614740",
+      "reason": "bin conflicts with rendered surface"
+    },
+    {
+      "id": "node/12358669421",
+      "reason": "bin conflicts with rendered surface"
+    },
+    {
+      "id": "node/12358669461",
+      "reason": "bin conflicts with rendered surface"
+    },
+    {
+      "id": "node/12358852714",
+      "reason": "bin conflicts with rendered surface"
+    },
+    {
+      "id": "node/12374290400",
+      "reason": "bin conflicts with rendered surface"
+    },
+    {
+      "id": "node/12374329780",
+      "reason": "bin conflicts with rendered surface"
+    },
+    {
+      "id": "node/12374329794",
+      "reason": "bin conflicts with rendered surface"
+    },
+    {
+      "id": "node/12384591911",
+      "reason": "bin conflicts with rendered surface"
+    },
+    {
+      "id": "node/12384614154",
+      "reason": "bin conflicts with rendered surface"
+    },
+    {
+      "id": "node/12427689458",
+      "reason": "bin conflicts with rendered surface"
+    },
+    {
+      "id": "node/12427709309",
+      "reason": "bin conflicts with rendered surface"
+    },
+    {
+      "id": "node/12431286020",
+      "reason": "bin conflicts with rendered surface"
+    },
+    {
+      "id": "node/12431557707",
+      "reason": "bin conflicts with rendered surface"
+    },
+    {
+      "id": "node/12439891007",
+      "reason": "bin conflicts with rendered surface"
+    },
+    {
+      "id": "node/12479422547",
+      "reason": "bin conflicts with rendered surface"
+    },
+    {
+      "id": "node/12498993900",
+      "reason": "bin conflicts with rendered surface"
+    },
+    {
+      "id": "node/12499018698",
+      "reason": "bin conflicts with rendered surface"
+    },
+    {
+      "id": "node/12552736255",
+      "reason": "bin conflicts with rendered surface"
+    },
+    {
+      "id": "node/12552736261",
+      "reason": "bin conflicts with rendered surface"
+    },
+    {
+      "id": "node/12552736264",
+      "reason": "bin conflicts with rendered surface"
+    },
+    {
+      "id": "node/12552736267",
+      "reason": "bin conflicts with rendered surface"
+    },
+    {
+      "id": "node/12552736268",
+      "reason": "bin conflicts with rendered surface"
+    },
+    {
+      "id": "node/12552838266",
+      "reason": "bin conflicts with rendered surface"
+    },
+    {
+      "id": "node/12559631518",
+      "reason": "bin conflicts with rendered surface"
+    },
+    {
+      "id": "node/12610075926",
+      "reason": "bin conflicts with rendered surface"
+    },
+    {
+      "id": "node/12624638412",
+      "reason": "bin conflicts with rendered surface"
+    },
+    {
+      "id": "node/12985437798",
+      "reason": "roadside fixture conflicts with mapped road/building/water"
+    },
+    {
+      "id": "node/12986726490",
+      "reason": "roadside fixture conflicts with mapped road/building/water"
+    },
+    {
+      "id": "node/12986726491",
+      "reason": "roadside fixture conflicts with mapped road/building/water"
+    },
+    {
+      "id": "node/12986742001",
+      "reason": "roadside fixture conflicts with mapped road/building/water"
+    },
+    {
+      "id": "node/12987736787",
+      "reason": "bin conflicts with rendered surface"
+    },
+    {
+      "id": "node/12987777394",
+      "reason": "bin conflicts with rendered surface"
+    },
+    {
+      "id": "node/12987783105",
+      "reason": "bin conflicts with rendered surface"
+    },
+    {
+      "id": "node/12992156384",
+      "reason": "roadside fixture conflicts with mapped road/building/water"
+    },
+    {
+      "id": "node/12992156385",
+      "reason": "roadside fixture conflicts with mapped road/building/water"
+    },
+    {
+      "id": "node/12992156386",
+      "reason": "roadside fixture conflicts with mapped road/building/water"
+    },
+    {
+      "id": "node/12992156387",
+      "reason": "roadside fixture conflicts with mapped road/building/water"
+    },
+    {
+      "id": "node/13006906658",
+      "reason": "roadside fixture conflicts with mapped road/building/water"
+    },
+    {
+      "id": "node/13159534291",
+      "reason": "tree conflicts with rendered road/building/water"
+    },
+    {
+      "id": "node/13159534292",
+      "reason": "tree conflicts with rendered road/building/water"
+    },
+    {
+      "id": "node/13159534293",
+      "reason": "tree conflicts with rendered road/building/water"
+    },
+    {
+      "id": "node/13159534294",
+      "reason": "tree conflicts with rendered road/building/water"
+    },
+    {
+      "id": "node/13202662367",
+      "reason": "tree conflicts with rendered road/building/water"
+    },
+    {
+      "id": "node/13202662368",
+      "reason": "tree conflicts with rendered road/building/water"
+    },
+    {
+      "id": "node/13206407039",
+      "reason": "tree conflicts with rendered road/building/water"
+    },
+    {
+      "id": "node/13206407040",
+      "reason": "bin conflicts with rendered surface"
+    },
+    {
+      "id": "node/13206407108",
+      "reason": "bin conflicts with rendered surface"
+    },
+    {
+      "id": "node/13206407111",
+      "reason": "bin conflicts with rendered surface"
+    },
+    {
+      "id": "node/13608321053",
+      "reason": "bin conflicts with rendered surface"
+    },
+    {
+      "id": "node/13608441412",
+      "reason": "bin conflicts with rendered surface"
+    },
+    {
+      "id": "node/13608441413",
+      "reason": "bin conflicts with rendered surface"
+    },
+    {
+      "id": "node/13615593483",
+      "reason": "bin conflicts with rendered surface"
+    },
+    {
+      "id": "node/13615593484",
+      "reason": "bin conflicts with rendered surface"
+    },
+    {
+      "id": "node/13615603695",
+      "reason": "bin conflicts with rendered surface"
+    },
+    {
+      "id": "node/13615661431",
+      "reason": "bin conflicts with rendered surface"
+    },
+    {
+      "id": "node/13615694546",
+      "reason": "bin conflicts with rendered surface"
+    },
+    {
+      "id": "node/13655272765",
+      "reason": "roadside fixture conflicts with mapped road/building/water"
+    },
+    {
+      "id": "node/14003726141",
+      "reason": "bin conflicts with rendered surface"
+    },
+    {
+      "id": "node/14003726142",
+      "reason": "bin conflicts with rendered surface"
+    },
+    {
+      "id": "node/14003749014",
+      "reason": "bin conflicts with rendered surface"
+    },
+    {
+      "id": "way/28098412",
+      "reason": "no nearby ground road for direction"
+    },
+    {
+      "id": "way/37232458",
+      "reason": "no nearby ground road for direction"
+    },
+    {
+      "id": "way/126532243",
+      "reason": "no nearby ground road for direction"
+    },
+    {
+      "id": "way/126532250",
+      "reason": "roadside fixture conflicts with mapped road/building/water"
+    },
+    {
+      "id": "way/135174654",
+      "reason": "roadside fixture conflicts with mapped road/building/water"
+    },
+    {
+      "id": "way/173188806",
+      "reason": "no nearby ground road for direction"
+    },
+    {
+      "id": "way/173188813",
+      "reason": "roadside fixture conflicts with mapped road/building/water"
+    },
+    {
+      "id": "way/173615121",
+      "reason": "roadside fixture conflicts with mapped road/building/water"
+    },
+    {
+      "id": "way/184448526",
+      "reason": "roadside fixture conflicts with mapped road/building/water"
+    },
+    {
+      "id": "way/207187323",
+      "reason": "no nearby ground road for direction"
+    },
+    {
+      "id": "way/245105823",
+      "reason": "no clear parking bays fit mapped polygon"
+    },
+    {
+      "id": "way/248355617",
+      "reason": "no clear parking bays fit mapped polygon"
+    },
+    {
+      "id": "way/249218098",
+      "reason": "no clear parking bays fit mapped polygon"
+    },
+    {
+      "id": "way/278460533",
+      "reason": "no clear parking bays fit mapped polygon"
+    },
+    {
+      "id": "way/330625325",
+      "reason": "roadside fixture conflicts with mapped road/building/water"
+    },
+    {
+      "id": "way/330625645",
+      "reason": "roadside fixture conflicts with mapped road/building/water"
+    },
+    {
+      "id": "way/458265856",
+      "reason": "roadside fixture conflicts with mapped road/building/water"
+    },
+    {
+      "id": "way/458265862",
+      "reason": "roadside fixture conflicts with mapped road/building/water"
+    },
+    {
+      "id": "way/458265873",
+      "reason": "roadside fixture conflicts with mapped road/building/water"
+    },
+    {
+      "id": "way/458359916",
+      "reason": "no nearby ground road for direction"
+    },
+    {
+      "id": "way/458516464",
+      "reason": "no nearby ground road for direction"
+    },
+    {
+      "id": "way/458516472",
+      "reason": "no nearby ground road for direction"
+    },
+    {
+      "id": "way/458516618",
+      "reason": "roadside fixture conflicts with mapped road/building/water"
+    },
+    {
+      "id": "way/462413222",
+      "reason": "no clear parking bays fit mapped polygon"
+    },
+    {
+      "id": "way/463092171",
+      "reason": "no clear parking bays fit mapped polygon"
+    },
+    {
+      "id": "way/463092172",
+      "reason": "no clear parking bays fit mapped polygon"
+    },
+    {
+      "id": "way/463092173",
+      "reason": "no clear parking bays fit mapped polygon"
+    },
+    {
+      "id": "way/463092174",
+      "reason": "no clear parking bays fit mapped polygon"
+    },
+    {
+      "id": "way/463092178",
+      "reason": "no clear parking bays fit mapped polygon"
+    },
+    {
+      "id": "way/463092179",
+      "reason": "no clear parking bays fit mapped polygon"
+    },
+    {
+      "id": "way/467225065",
+      "reason": "roadside fixture conflicts with mapped road/building/water"
+    },
+    {
+      "id": "way/467327195",
+      "reason": "no clear parking bays fit mapped polygon"
+    },
+    {
+      "id": "way/467596120",
+      "reason": "no clear parking bays fit mapped polygon"
+    },
+    {
+      "id": "way/469779164",
+      "reason": "no nearby ground road for direction"
+    },
+    {
+      "id": "way/470276363",
+      "reason": "no clear parking bays fit mapped polygon"
+    },
+    {
+      "id": "way/472608895",
+      "reason": "no clear parking bays fit mapped polygon"
+    },
+    {
+      "id": "way/485105680",
+      "reason": "no clear parking bays fit mapped polygon"
+    },
+    {
+      "id": "way/513846603",
+      "reason": "roadside fixture conflicts with mapped road/building/water"
+    },
+    {
+      "id": "way/514142310",
+      "reason": "no nearby ground road for direction"
+    },
+    {
+      "id": "way/533163791",
+      "reason": "no clear parking bays fit mapped polygon"
+    },
+    {
+      "id": "way/533163792",
+      "reason": "no clear parking bays fit mapped polygon"
+    },
+    {
+      "id": "way/551904499",
+      "reason": "roadside fixture conflicts with mapped road/building/water"
+    },
+    {
+      "id": "way/552152846",
+      "reason": "roadside fixture conflicts with mapped road/building/water"
+    },
+    {
+      "id": "way/552868937",
+      "reason": "roadside fixture conflicts with mapped road/building/water"
+    },
+    {
+      "id": "way/552868952",
+      "reason": "roadside fixture conflicts with mapped road/building/water"
+    },
+    {
+      "id": "way/552868957",
+      "reason": "roadside fixture conflicts with mapped road/building/water"
+    },
+    {
+      "id": "way/552868959",
+      "reason": "roadside fixture conflicts with mapped road/building/water"
+    },
+    {
+      "id": "way/553281980",
+      "reason": "roadside fixture conflicts with mapped road/building/water"
+    },
+    {
+      "id": "way/562022029",
+      "reason": "roadside fixture conflicts with mapped road/building/water"
+    },
+    {
+      "id": "way/562023167",
+      "reason": "roadside fixture conflicts with mapped road/building/water"
+    },
+    {
+      "id": "way/622322153",
+      "reason": "no clear parking bays fit mapped polygon"
+    },
+    {
+      "id": "way/622322155",
+      "reason": "no clear parking bays fit mapped polygon"
+    },
+    {
+      "id": "way/622322156",
+      "reason": "no clear parking bays fit mapped polygon"
+    },
+    {
+      "id": "way/622322157",
+      "reason": "no clear parking bays fit mapped polygon"
+    },
+    {
+      "id": "way/622322158",
+      "reason": "no clear parking bays fit mapped polygon"
+    },
+    {
+      "id": "way/622322159",
+      "reason": "no clear parking bays fit mapped polygon"
+    },
+    {
+      "id": "way/622322312",
+      "reason": "no clear parking bays fit mapped polygon"
+    },
+    {
+      "id": "way/623122828",
+      "reason": "no clear parking bays fit mapped polygon"
+    },
+    {
+      "id": "way/624942277",
+      "reason": "roadside fixture conflicts with mapped road/building/water"
+    },
+    {
+      "id": "way/624942335",
+      "reason": "roadside fixture conflicts with mapped road/building/water"
+    },
+    {
+      "id": "way/655416664",
+      "reason": "no clear parking bays fit mapped polygon"
+    },
+    {
+      "id": "way/655429158",
+      "reason": "no clear parking bays fit mapped polygon"
+    },
+    {
+      "id": "way/659787270",
+      "reason": "no clear parking bays fit mapped polygon"
+    },
+    {
+      "id": "way/668351394",
+      "reason": "no clear parking bays fit mapped polygon"
+    },
+    {
+      "id": "way/672397682",
+      "reason": "no clear parking bays fit mapped polygon"
+    },
+    {
+      "id": "way/672818541",
+      "reason": "no clear parking bays fit mapped polygon"
+    },
+    {
+      "id": "way/673813141",
+      "reason": "no clear parking bays fit mapped polygon"
+    },
+    {
+      "id": "way/673813145",
+      "reason": "no clear parking bays fit mapped polygon"
+    },
+    {
+      "id": "way/675564386",
+      "reason": "no clear parking bays fit mapped polygon"
+    },
+    {
+      "id": "way/676919278",
+      "reason": "no nearby ground road for direction"
+    },
+    {
+      "id": "way/682795146",
+      "reason": "roadside fixture conflicts with mapped road/building/water"
+    },
+    {
+      "id": "way/683262562",
+      "reason": "roadside fixture conflicts with mapped road/building/water"
+    },
+    {
+      "id": "way/712661136",
+      "reason": "no clear parking bays fit mapped polygon"
+    },
+    {
+      "id": "way/713038289",
+      "reason": "roadside fixture conflicts with mapped road/building/water"
+    },
+    {
+      "id": "way/713038294",
+      "reason": "roadside fixture conflicts with mapped road/building/water"
+    },
+    {
+      "id": "way/713038297",
+      "reason": "no clear parking bays fit mapped polygon"
+    },
+    {
+      "id": "way/730333308",
+      "reason": "no nearby ground road for direction"
+    },
+    {
+      "id": "way/732450111",
+      "reason": "roadside fixture conflicts with mapped road/building/water"
+    },
+    {
+      "id": "way/733053948",
+      "reason": "roadside fixture conflicts with mapped road/building/water"
+    },
+    {
+      "id": "way/733398759",
+      "reason": "no nearby ground road for direction"
+    },
+    {
+      "id": "way/733399440",
+      "reason": "roadside fixture conflicts with mapped road/building/water"
+    },
+    {
+      "id": "way/733807425",
+      "reason": "no clear parking bays fit mapped polygon"
+    },
+    {
+      "id": "way/733807446",
+      "reason": "no clear parking bays fit mapped polygon"
+    },
+    {
+      "id": "way/733807447",
+      "reason": "no clear parking bays fit mapped polygon"
+    },
+    {
+      "id": "way/733807455",
+      "reason": "no clear parking bays fit mapped polygon"
+    },
+    {
+      "id": "way/734900732",
+      "reason": "roadside fixture conflicts with mapped road/building/water"
+    },
+    {
+      "id": "way/744255356",
+      "reason": "no clear parking bays fit mapped polygon"
+    },
+    {
+      "id": "way/744842343",
+      "reason": "roadside fixture conflicts with mapped road/building/water"
+    },
+    {
+      "id": "way/744842346",
+      "reason": "roadside fixture conflicts with mapped road/building/water"
+    },
+    {
+      "id": "way/746306390",
+      "reason": "no clear parking bays fit mapped polygon"
+    },
+    {
+      "id": "way/748941471",
+      "reason": "no clear parking bays fit mapped polygon"
+    },
+    {
+      "id": "way/835470239",
+      "reason": "no clear parking bays fit mapped polygon"
+    },
+    {
+      "id": "way/837433323",
+      "reason": "no clear parking bays fit mapped polygon"
+    },
+    {
+      "id": "way/999519790",
+      "reason": "no nearby ground road for direction"
+    },
+    {
+      "id": "way/1000054341",
+      "reason": "no clear parking bays fit mapped polygon"
+    },
+    {
+      "id": "way/1055898917",
+      "reason": "no nearby ground road for direction"
+    },
+    {
+      "id": "way/1061087877",
+      "reason": "no nearby ground road for direction"
+    },
+    {
+      "id": "way/1079476942",
+      "reason": "no nearby ground road for direction"
+    },
+    {
+      "id": "way/1097957028",
+      "reason": "no clear parking bays fit mapped polygon"
+    },
+    {
+      "id": "way/1110322423",
+      "reason": "no clear parking bays fit mapped polygon"
+    },
+    {
+      "id": "way/1110322424",
+      "reason": "no clear parking bays fit mapped polygon"
+    },
+    {
+      "id": "way/1110322425",
+      "reason": "no clear parking bays fit mapped polygon"
+    },
+    {
+      "id": "way/1110322426",
+      "reason": "no clear parking bays fit mapped polygon"
+    },
+    {
+      "id": "way/1111167992",
+      "reason": "no clear parking bays fit mapped polygon"
+    },
+    {
+      "id": "way/1132620793",
+      "reason": "no clear parking bays fit mapped polygon"
+    },
+    {
+      "id": "way/1169425795",
+      "reason": "no clear parking bays fit mapped polygon"
+    },
+    {
+      "id": "way/1169433337",
+      "reason": "no clear parking bays fit mapped polygon"
+    },
+    {
+      "id": "way/1169435966",
+      "reason": "no clear parking bays fit mapped polygon"
+    },
+    {
+      "id": "way/1173151727",
+      "reason": "no clear parking bays fit mapped polygon"
+    },
+    {
+      "id": "way/1173651160",
+      "reason": "no clear parking bays fit mapped polygon"
+    },
+    {
+      "id": "way/1173824415",
+      "reason": "roadside fixture conflicts with mapped road/building/water"
+    },
+    {
+      "id": "way/1174627673",
+      "reason": "roadside fixture conflicts with mapped road/building/water"
+    },
+    {
+      "id": "way/1175448198",
+      "reason": "no clear parking bays fit mapped polygon"
+    },
+    {
+      "id": "way/1175448200",
+      "reason": "no clear parking bays fit mapped polygon"
+    },
+    {
+      "id": "way/1175458046",
+      "reason": "no clear parking bays fit mapped polygon"
+    },
+    {
+      "id": "way/1175767085",
+      "reason": "roadside fixture conflicts with mapped road/building/water"
+    },
+    {
+      "id": "way/1176643204",
+      "reason": "no clear parking bays fit mapped polygon"
+    },
+    {
+      "id": "way/1176643212",
+      "reason": "no clear parking bays fit mapped polygon"
+    },
+    {
+      "id": "way/1176649707",
+      "reason": "no clear parking bays fit mapped polygon"
+    },
+    {
+      "id": "way/1177293320",
+      "reason": "no clear parking bays fit mapped polygon"
+    },
+    {
+      "id": "way/1177342720",
+      "reason": "no clear parking bays fit mapped polygon"
+    },
+    {
+      "id": "way/1177342724",
+      "reason": "no clear parking bays fit mapped polygon"
+    },
+    {
+      "id": "way/1177347030",
+      "reason": "no clear parking bays fit mapped polygon"
+    },
+    {
+      "id": "way/1177971468",
+      "reason": "no clear parking bays fit mapped polygon"
+    },
+    {
+      "id": "way/1177973346",
+      "reason": "no clear parking bays fit mapped polygon"
+    },
+    {
+      "id": "way/1178208841",
+      "reason": "no clear parking bays fit mapped polygon"
+    },
+    {
+      "id": "way/1179801996",
+      "reason": "no clear parking bays fit mapped polygon"
+    },
+    {
+      "id": "way/1179836693",
+      "reason": "no clear parking bays fit mapped polygon"
+    },
+    {
+      "id": "way/1183053298",
+      "reason": "no clear parking bays fit mapped polygon"
+    },
+    {
+      "id": "way/1183791738",
+      "reason": "no clear parking bays fit mapped polygon"
+    },
+    {
+      "id": "way/1184099958",
+      "reason": "no clear parking bays fit mapped polygon"
+    },
+    {
+      "id": "way/1184310857",
+      "reason": "no clear parking bays fit mapped polygon"
+    },
+    {
+      "id": "way/1184329445",
+      "reason": "no clear parking bays fit mapped polygon"
+    },
+    {
+      "id": "way/1184338126",
+      "reason": "no clear parking bays fit mapped polygon"
+    },
+    {
+      "id": "way/1184339847",
+      "reason": "no clear parking bays fit mapped polygon"
+    },
+    {
+      "id": "way/1184915971",
+      "reason": "no clear parking bays fit mapped polygon"
+    },
+    {
+      "id": "way/1185183945",
+      "reason": "roadside fixture conflicts with mapped road/building/water"
+    },
+    {
+      "id": "way/1185185132",
+      "reason": "no clear parking bays fit mapped polygon"
+    },
+    {
+      "id": "way/1185339528",
+      "reason": "no clear parking bays fit mapped polygon"
+    },
+    {
+      "id": "way/1185407883",
+      "reason": "no clear parking bays fit mapped polygon"
+    },
+    {
+      "id": "way/1192519212",
+      "reason": "no clear parking bays fit mapped polygon"
+    },
+    {
+      "id": "way/1192755764",
+      "reason": "no clear parking bays fit mapped polygon"
+    },
+    {
+      "id": "way/1192755765",
+      "reason": "no clear parking bays fit mapped polygon"
+    },
+    {
+      "id": "way/1192763999",
+      "reason": "no clear parking bays fit mapped polygon"
+    },
+    {
+      "id": "way/1192768061",
+      "reason": "no clear parking bays fit mapped polygon"
+    },
+    {
+      "id": "way/1193035938",
+      "reason": "no clear parking bays fit mapped polygon"
+    },
+    {
+      "id": "way/1193038786",
+      "reason": "no clear parking bays fit mapped polygon"
+    },
+    {
+      "id": "way/1193235911",
+      "reason": "no clear parking bays fit mapped polygon"
+    },
+    {
+      "id": "way/1193242236",
+      "reason": "no clear parking bays fit mapped polygon"
+    },
+    {
+      "id": "way/1193246452",
+      "reason": "no clear parking bays fit mapped polygon"
+    },
+    {
+      "id": "way/1195138303",
+      "reason": "no clear parking bays fit mapped polygon"
+    },
+    {
+      "id": "way/1195141491",
+      "reason": "no clear parking bays fit mapped polygon"
+    },
+    {
+      "id": "way/1195361573",
+      "reason": "no clear parking bays fit mapped polygon"
+    },
+    {
+      "id": "way/1195940256",
+      "reason": "no clear parking bays fit mapped polygon"
+    },
+    {
+      "id": "way/1196924866",
+      "reason": "no clear parking bays fit mapped polygon"
+    },
+    {
+      "id": "way/1196925980",
+      "reason": "no clear parking bays fit mapped polygon"
+    },
+    {
+      "id": "way/1196925982",
+      "reason": "no clear parking bays fit mapped polygon"
+    },
+    {
+      "id": "way/1196925985",
+      "reason": "no clear parking bays fit mapped polygon"
+    },
+    {
+      "id": "way/1197118260",
+      "reason": "no clear parking bays fit mapped polygon"
+    },
+    {
+      "id": "way/1198507996",
+      "reason": "roadside fixture conflicts with mapped road/building/water"
+    },
+    {
+      "id": "way/1198517327",
+      "reason": "no clear parking bays fit mapped polygon"
+    },
+    {
+      "id": "way/1198742228",
+      "reason": "no clear parking bays fit mapped polygon"
+    },
+    {
+      "id": "way/1198754848",
+      "reason": "no clear parking bays fit mapped polygon"
+    },
+    {
+      "id": "way/1198776209",
+      "reason": "no nearby ground road for direction"
+    },
+    {
+      "id": "way/1198821116",
+      "reason": "no clear parking bays fit mapped polygon"
+    },
+    {
+      "id": "way/1201033477",
+      "reason": "no clear parking bays fit mapped polygon"
+    },
+    {
+      "id": "way/1201041584",
+      "reason": "no clear parking bays fit mapped polygon"
+    },
+    {
+      "id": "way/1201414727",
+      "reason": "no clear parking bays fit mapped polygon"
+    },
+    {
+      "id": "way/1201815271",
+      "reason": "no clear parking bays fit mapped polygon"
+    },
+    {
+      "id": "way/1202408578",
+      "reason": "no clear parking bays fit mapped polygon"
+    },
+    {
+      "id": "way/1203545230",
+      "reason": "no clear parking bays fit mapped polygon"
+    },
+    {
+      "id": "way/1203629492",
+      "reason": "no clear parking bays fit mapped polygon"
+    },
+    {
+      "id": "way/1204032572",
+      "reason": "no clear parking bays fit mapped polygon"
+    },
+    {
+      "id": "way/1204560463",
+      "reason": "no clear parking bays fit mapped polygon"
+    },
+    {
+      "id": "way/1204743363",
+      "reason": "no clear parking bays fit mapped polygon"
+    },
+    {
+      "id": "way/1205054342",
+      "reason": "no clear parking bays fit mapped polygon"
+    },
+    {
+      "id": "way/1205066989",
+      "reason": "no clear parking bays fit mapped polygon"
+    },
+    {
+      "id": "way/1205073238",
+      "reason": "no clear parking bays fit mapped polygon"
+    },
+    {
+      "id": "way/1205592574",
+      "reason": "no clear parking bays fit mapped polygon"
+    },
+    {
+      "id": "way/1205612070",
+      "reason": "no clear parking bays fit mapped polygon"
+    },
+    {
+      "id": "way/1206476862",
+      "reason": "no clear parking bays fit mapped polygon"
+    },
+    {
+      "id": "way/1206480695",
+      "reason": "no clear parking bays fit mapped polygon"
+    },
+    {
+      "id": "way/1206748633",
+      "reason": "no clear parking bays fit mapped polygon"
+    },
+    {
+      "id": "way/1207640226",
+      "reason": "roadside fixture conflicts with mapped road/building/water"
+    },
+    {
+      "id": "way/1208920814",
+      "reason": "no clear parking bays fit mapped polygon"
+    },
+    {
+      "id": "way/1211050693",
+      "reason": "no clear parking bays fit mapped polygon"
+    },
+    {
+      "id": "way/1214641914",
+      "reason": "no clear parking bays fit mapped polygon"
+    },
+    {
+      "id": "way/1215459193",
+      "reason": "no clear parking bays fit mapped polygon"
+    },
+    {
+      "id": "way/1215459195",
+      "reason": "no clear parking bays fit mapped polygon"
+    },
+    {
+      "id": "way/1215876986",
+      "reason": "no clear parking bays fit mapped polygon"
+    },
+    {
+      "id": "way/1225087947",
+      "reason": "no clear parking bays fit mapped polygon"
+    },
+    {
+      "id": "way/1227689592",
+      "reason": "no clear parking bays fit mapped polygon"
+    },
+    {
+      "id": "way/1227869696",
+      "reason": "roadside fixture conflicts with mapped road/building/water"
+    },
+    {
+      "id": "way/1231574205",
+      "reason": "no clear parking bays fit mapped polygon"
+    },
+    {
+      "id": "way/1232186755",
+      "reason": "no clear parking bays fit mapped polygon"
+    },
+    {
+      "id": "way/1232189942",
+      "reason": "no clear parking bays fit mapped polygon"
+    },
+    {
+      "id": "way/1232189943",
+      "reason": "no clear parking bays fit mapped polygon"
+    },
+    {
+      "id": "way/1232189944",
+      "reason": "no clear parking bays fit mapped polygon"
+    },
+    {
+      "id": "way/1232218281",
+      "reason": "roadside fixture conflicts with mapped road/building/water"
+    },
+    {
+      "id": "way/1232223038",
+      "reason": "no clear parking bays fit mapped polygon"
+    },
+    {
+      "id": "way/1238659985",
+      "reason": "no clear parking bays fit mapped polygon"
+    },
+    {
+      "id": "way/1244163062",
+      "reason": "no clear parking bays fit mapped polygon"
+    },
+    {
+      "id": "way/1244235557",
+      "reason": "no clear parking bays fit mapped polygon"
+    },
+    {
+      "id": "way/1259788789",
+      "reason": "no clear parking bays fit mapped polygon"
+    },
+    {
+      "id": "way/1263939048",
+      "reason": "no clear parking bays fit mapped polygon"
+    },
+    {
+      "id": "way/1265020522",
+      "reason": "no clear parking bays fit mapped polygon"
+    },
+    {
+      "id": "way/1265398032",
+      "reason": "no clear parking bays fit mapped polygon"
+    },
+    {
+      "id": "way/1267683537",
+      "reason": "no clear parking bays fit mapped polygon"
+    },
+    {
+      "id": "way/1267692994",
+      "reason": "no clear parking bays fit mapped polygon"
+    },
+    {
+      "id": "way/1268261328",
+      "reason": "no clear parking bays fit mapped polygon"
+    },
+    {
+      "id": "way/1269168935",
+      "reason": "no clear parking bays fit mapped polygon"
+    },
+    {
+      "id": "way/1270190306",
+      "reason": "no clear parking bays fit mapped polygon"
+    },
+    {
+      "id": "way/1270190309",
+      "reason": "no clear parking bays fit mapped polygon"
+    },
+    {
+      "id": "way/1273919766",
+      "reason": "no clear parking bays fit mapped polygon"
+    },
+    {
+      "id": "way/1274509378",
+      "reason": "no clear parking bays fit mapped polygon"
+    },
+    {
+      "id": "way/1275869788",
+      "reason": "no clear parking bays fit mapped polygon"
+    },
+    {
+      "id": "way/1275869789",
+      "reason": "no clear parking bays fit mapped polygon"
+    },
+    {
+      "id": "way/1279212888",
+      "reason": "no clear parking bays fit mapped polygon"
+    },
+    {
+      "id": "way/1280992377",
+      "reason": "no clear parking bays fit mapped polygon"
+    },
+    {
+      "id": "way/1285795882",
+      "reason": "no clear parking bays fit mapped polygon"
+    },
+    {
+      "id": "way/1285989348",
+      "reason": "no clear parking bays fit mapped polygon"
+    },
+    {
+      "id": "way/1288969988",
+      "reason": "no clear parking bays fit mapped polygon"
+    },
+    {
+      "id": "way/1289748237",
+      "reason": "roadside fixture conflicts with mapped road/building/water"
+    },
+    {
+      "id": "way/1289751760",
+      "reason": "no clear parking bays fit mapped polygon"
+    },
+    {
+      "id": "way/1290544591",
+      "reason": "no clear parking bays fit mapped polygon"
+    },
+    {
+      "id": "way/1290563433",
+      "reason": "no clear parking bays fit mapped polygon"
+    },
+    {
+      "id": "way/1300105385",
+      "reason": "no clear parking bays fit mapped polygon"
+    },
+    {
+      "id": "way/1300719028",
+      "reason": "no clear parking bays fit mapped polygon"
+    },
+    {
+      "id": "way/1302781022",
+      "reason": "no clear parking bays fit mapped polygon"
+    },
+    {
+      "id": "way/1303575833",
+      "reason": "no clear parking bays fit mapped polygon"
+    },
+    {
+      "id": "way/1303586014",
+      "reason": "no clear parking bays fit mapped polygon"
+    },
+    {
+      "id": "way/1303998728",
+      "reason": "no clear parking bays fit mapped polygon"
+    },
+    {
+      "id": "way/1304343053",
+      "reason": "no clear parking bays fit mapped polygon"
+    },
+    {
+      "id": "way/1304732121",
+      "reason": "no clear parking bays fit mapped polygon"
+    },
+    {
+      "id": "way/1304735647",
+      "reason": "no clear parking bays fit mapped polygon"
+    },
+    {
+      "id": "way/1304744485",
+      "reason": "no clear parking bays fit mapped polygon"
+    },
+    {
+      "id": "way/1305137465",
+      "reason": "no clear parking bays fit mapped polygon"
+    },
+    {
+      "id": "way/1305139685",
+      "reason": "no clear parking bays fit mapped polygon"
+    },
+    {
+      "id": "way/1305398780",
+      "reason": "no clear parking bays fit mapped polygon"
+    },
+    {
+      "id": "way/1305543522",
+      "reason": "no clear parking bays fit mapped polygon"
+    },
+    {
+      "id": "way/1306937783",
+      "reason": "no clear parking bays fit mapped polygon"
+    },
+    {
+      "id": "way/1307860648",
+      "reason": "no clear parking bays fit mapped polygon"
+    },
+    {
+      "id": "way/1311278944",
+      "reason": "no clear parking bays fit mapped polygon"
+    },
+    {
+      "id": "way/1311300631",
+      "reason": "no clear parking bays fit mapped polygon"
+    },
+    {
+      "id": "way/1312599939",
+      "reason": "no clear parking bays fit mapped polygon"
+    },
+    {
+      "id": "way/1313097164",
+      "reason": "no clear parking bays fit mapped polygon"
+    },
+    {
+      "id": "way/1313097165",
+      "reason": "no clear parking bays fit mapped polygon"
+    },
+    {
+      "id": "way/1313553206",
+      "reason": "no clear parking bays fit mapped polygon"
+    },
+    {
+      "id": "way/1314155164",
+      "reason": "no clear parking bays fit mapped polygon"
+    },
+    {
+      "id": "way/1315152362",
+      "reason": "no clear parking bays fit mapped polygon"
+    },
+    {
+      "id": "way/1315595443",
+      "reason": "no clear parking bays fit mapped polygon"
+    },
+    {
+      "id": "way/1315788044",
+      "reason": "no clear parking bays fit mapped polygon"
+    },
+    {
+      "id": "way/1316263857",
+      "reason": "no clear parking bays fit mapped polygon"
+    },
+    {
+      "id": "way/1316530639",
+      "reason": "no clear parking bays fit mapped polygon"
+    },
+    {
+      "id": "way/1316809581",
+      "reason": "no clear parking bays fit mapped polygon"
+    },
+    {
+      "id": "way/1317484682",
+      "reason": "roadside fixture conflicts with mapped road/building/water"
+    },
+    {
+      "id": "way/1317718401",
+      "reason": "no clear parking bays fit mapped polygon"
+    },
+    {
+      "id": "way/1317724269",
+      "reason": "no clear parking bays fit mapped polygon"
+    },
+    {
+      "id": "way/1317730433",
+      "reason": "no clear parking bays fit mapped polygon"
+    },
+    {
+      "id": "way/1317730434",
+      "reason": "no clear parking bays fit mapped polygon"
+    },
+    {
+      "id": "way/1319055943",
+      "reason": "no clear parking bays fit mapped polygon"
+    },
+    {
+      "id": "way/1337816961",
+      "reason": "no clear parking bays fit mapped polygon"
+    },
+    {
+      "id": "way/1337816962",
+      "reason": "no clear parking bays fit mapped polygon"
+    },
+    {
+      "id": "way/1342557891",
+      "reason": "roadside fixture conflicts with mapped road/building/water"
+    },
+    {
+      "id": "way/1348764041",
+      "reason": "roadside fixture conflicts with mapped road/building/water"
+    },
+    {
+      "id": "way/1348768468",
+      "reason": "no clear parking bays fit mapped polygon"
+    },
+    {
+      "id": "way/1359743672",
+      "reason": "roadside fixture conflicts with mapped road/building/water"
+    },
+    {
+      "id": "way/1359743673",
+      "reason": "roadside fixture conflicts with mapped road/building/water"
+    },
+    {
+      "id": "way/1371224516",
+      "reason": "roadside fixture conflicts with mapped road/building/water"
+    },
+    {
+      "id": "way/1372710727",
+      "reason": "no clear parking bays fit mapped polygon"
+    },
+    {
+      "id": "way/1431964417",
+      "reason": "roadside fixture conflicts with mapped road/building/water"
+    },
+    {
+      "id": "way/1431964418",
+      "reason": "roadside fixture conflicts with mapped road/building/water"
+    },
+    {
+      "id": "way/1462056516",
+      "reason": "roadside fixture conflicts with mapped road/building/water"
+    },
+    {
+      "id": "way/1462056533",
+      "reason": "roadside fixture conflicts with mapped road/building/water"
+    },
+    {
+      "id": "way/1462056535",
+      "reason": "roadside fixture conflicts with mapped road/building/water"
+    },
+    {
+      "id": "way/1462056539",
+      "reason": "roadside fixture conflicts with mapped road/building/water"
+    },
+    {
+      "id": "way/1481407709",
+      "reason": "roadside fixture conflicts with mapped road/building/water"
+    },
+    {
+      "id": "way/1481407724",
+      "reason": "roadside fixture conflicts with mapped road/building/water"
+    },
+    {
+      "id": "way/1481407725",
+      "reason": "roadside fixture conflicts with mapped road/building/water"
+    },
+    {
+      "id": "way/1481409386",
+      "reason": "roadside fixture conflicts with mapped road/building/water"
+    },
+    {
+      "id": "way/1481409387",
+      "reason": "roadside fixture conflicts with mapped road/building/water"
+    },
+    {
+      "id": "way/1484754320",
+      "reason": "no nearby ground road for parking"
+    },
+    {
+      "id": "way/1547238975",
+      "reason": "no clear parking bays fit mapped polygon"
+    },
+    {
+      "id": "way/1547874189",
+      "reason": "roadside fixture conflicts with mapped road/building/water"
+    },
+    {
+      "id": "way/1549281265",
+      "reason": "roadside fixture conflicts with mapped road/building/water"
+    },
+    {
+      "id": "way/1549281269",
+      "reason": "roadside fixture conflicts with mapped road/building/water"
+    },
+    {
+      "id": "way/1550497611",
+      "reason": "roadside fixture conflicts with mapped road/building/water"
+    }
+  ]
+}

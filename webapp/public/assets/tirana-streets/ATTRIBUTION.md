@@ -25,3 +25,14 @@ See `DATA-LICENSE.md`, the adjacent author license files and `sources.json` for 
 ## Living city upgrade
 
 See [living/ATTRIBUTION.md](living/ATTRIBUTION.md) for the current human, car, firearms, motorcycle, substitutions and individual licenses. The current human is a Mixamo game-use asset, not CC0.
+# City completion, September 2026
+
+The models in `completion/city-completion-kit.glb` and
+`neighbourhood/completion-*.glb` are original Blender-authored project assets.
+Building footprints/levels and mapped fixture locations derive from
+© OpenStreetMap contributors (ODbL-1.0). Unmeasured facade designs, tree sizes,
+sign mounting offsets and parking layouts are authored approximations.
+Native Blender sources, source checksums, per-building asset hashes and the
+coverage/omissions report are in `assets-source/tirana-city-completion`.
+See `docs/tirana-city-completion.md` for evidence and validation limits.
+No Google Street View, Google Earth or ASIG image textures are shipped.

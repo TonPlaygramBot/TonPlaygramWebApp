@@ -1,5 +1,6 @@
 import { WORLD } from './world.mjs';
 import {BUS_STOPS} from '../../tirana-street-life/transitData.mjs';
+import {CITY_COMPLETION} from '../../tirana-city-completion/data.mjs';
 import {
   SIGNALS,
   SHOP,
@@ -138,6 +139,14 @@ for (const stop of BUS_STOPS) {
   if(stop.bench)boxes.push([-.85,-1.09,.85,-.65]);
   for(const box of boxes)STREET_SOLIDS.push({name:'bus_shelter',sourceId:stop.id,x:stop.x,z:stop.z,yaw:stop.yaw,scale:1,box});
 }
+// The new mapped fixtures use the same local-box collider as existing street
+// furniture. Leaves and overhead signboards never become invisible walls.
+for(const p of CITY_COMPLETION.fixtures){
+ const size=p.kind==='waste_container'?[.76,.52]:p.kind==='litter_bin'?[.33,.31]:[.09,.09];
+ if(p.kind==='direction')for(const x of [-.72,.72])STREET_SOLIDS.push({...p,name:p.kind,box:[x-.06,-.06,x+.06,.06]});
+ else STREET_SOLIDS.push({...p,name:p.kind,box:[-size[0],-size[1],size[0],size[1]]});
+}
+for(const p of CITY_COMPLETION.trees)STREET_SOLIDS.push({...p,yaw:0,name:'mapped_tree_trunk',box:[-.19,-.19,.19,.19]});
 const cells = new Map();
 for (const s of STREET_SOLIDS)
   for (let x = Math.floor((s.x - 5) / 32); x <= Math.floor((s.x + 5) / 32); x++)

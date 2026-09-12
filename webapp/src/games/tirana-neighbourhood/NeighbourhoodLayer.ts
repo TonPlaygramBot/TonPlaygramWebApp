@@ -4,12 +4,14 @@ import {GLTFLoader} from 'three/examples/jsm/loaders/GLTFLoader.js';
 import {mergeGeometries} from 'three/examples/jsm/utils/BufferGeometryUtils.js';
 import {NEIGHBOURHOOD} from './data.mjs';
 import {HEROES,KIT_IDS} from './assets.mjs';
+import {COMPLETED_BUILDINGS,COMPLETED_BUILDING_IDS} from '../tirana-city-completion/buildingRegistry.mjs';
 import {MappedNeighbourhood} from './MappedNeighbourhood';
 import {StreetLifeLayer} from '../tirana-street-life/StreetLifeLayer';
 import {nearbyIndex} from '../tirana-street-life/streetModels.mjs';
 import {ribbonExclusion} from '../tirana-street-detail/roadDetailCore.mjs';
 import type {StreetDetailOptions} from '../tirana-street-detail/StreetDetailLayer';
 
+const ALL_HEROES=[...HEROES,...COMPLETED_BUILDINGS.map(b=>({id:b.id,asset:'completion-'+b.id,name:b.name||'Tirana mapped building'}))];
 const BASE='/assets/tirana-streets/neighbourhood/';
 type Site=typeof NEIGHBOURHOOD.storefronts[number];
 /** Blender-authored models shared by street/FPS adapters. Source-frame placement
@@ -81,8 +83,8 @@ export class NeighbourhoodLayer {
  update(seconds:number,viewer?:{x:number;z:number},battery=false){
   if(this.dead||!viewer||seconds-this.last<.2)return;this.last=seconds;
   this.mapped.update(viewer,battery);this.parkFurniture.update(viewer,battery);
-  for(const hero of HEROES){const b=NEIGHBOURHOOD.buildings.find(b=>b.id===hero.id);if(!b)continue;const p=b.p[0];
-   if(Math.hypot(p[0]-viewer.x,p[1]-viewer.z)<1000)this.request(hero.asset,hero);
+  for(const hero of ALL_HEROES){const b=NEIGHBOURHOOD.buildings.find(b=>b.id===hero.id);if(!b)continue;const p=b.p[0];
+   if(Math.hypot(p[0]-viewer.x,p[1]-viewer.z)<(COMPLETED_BUILDING_IDS.has(hero.id)?(battery?120:240):1000))this.request(hero.asset,hero);
   }
   for(const h of this.heroes.values())h.object.visible=Math.hypot(h.x-viewer.x,h.z-viewer.z)<(battery?720:1100);
   const sites=this.near(viewer,battery?100:185,battery?24:48);
