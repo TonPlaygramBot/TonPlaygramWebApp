@@ -48,13 +48,6 @@ describe('Snooker Royal physical table specs', () => {
     assert.doesNotMatch(source, /const TARGET_RATIO = 1\.83;/);
   });
 
-  test('preserves the existing enlarged character', async () => {
-    const source = await readFile(
-      'webapp/src/pages/Games/SnookerRoyal.jsx',
-      'utf8'
-    );
-
-    assert.match(source, /targetHeight: cueLen \* 1\.38/);
-    // Release behavior is exercised against the production callback in snookerLiveStrike.test.js.
-  });
+  // Character proportions and the production shot-camera handoff are exercised
+  // with the actual GLB rig in snookerCharacterCamera.node.mjs.
 });
