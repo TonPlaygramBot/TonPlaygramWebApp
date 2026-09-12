@@ -1,6 +1,6 @@
 import { FIXED_STEP, pinSpots } from './physicsCore.mjs';
 export const ALL_PINS = Object.freeze(pinSpots().map((p) => p.id));
-export const APPROACH_MS = 1150;
+export const APPROACH_MS = 2200;
 export const RESULT_MS = 2400;
 export const REPLAY_HZ = 24;
 const round = (n) => Math.round(n * 100000) / 100000;
@@ -62,6 +62,13 @@ export function simulateRoll({ shot, standing = ALL_PINS }, BowlingPhysics) {
   }
   const result = {
     input,
+    knocked: 0,
+    events: physics.events.map((e) => ({
+      time: round(e.time),
+      strength: round(e.strength),
+      x: round(e.x),
+      z: round(e.z)
+    })),
     ids: [...standing],
     hz: REPLAY_HZ,
     stride,

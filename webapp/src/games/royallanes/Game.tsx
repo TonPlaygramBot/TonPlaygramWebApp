@@ -51,6 +51,7 @@ export function RoyalLanesGame({
   useEffect(() => {
     let active = true,
       unsubscribe: (() => void) | undefined;
+    let submitting = false;
     const timers: ReturnType<typeof setTimeout>[] = [];
     const handleError = (message: string) => {
       if (active) setError(message);
@@ -58,6 +59,7 @@ export function RoyalLanesGame({
     const canRoll = () => {
       const { view, paused, error, connection } = latest.current;
       return (
+        !submitting &&
         !!view &&
         view.phase === 'aiming' &&
         view.activeId === session.current?.localId &&
@@ -74,15 +76,21 @@ export function RoyalLanesGame({
     };
     const throwBall = (shot: Shot) => {
       if (!canRoll()) return;
+      submitting = true;
       setHint(false);
       updateAim(shot.aim);
       const turnId = latest.current.view!.turnId;
-      void session.current?.roll(shot, turnId).catch((e) => {
-        if (active) {
-          setConnection(e.message);
-          timers.push(setTimeout(() => active && setConnection(''), 3500));
-        }
-      });
+      void session.current
+        ?.roll(shot, turnId)
+        .catch((e) => {
+          if (active) {
+            setConnection(e.message);
+            timers.push(setTimeout(() => active && setConnection(''), 3500));
+          }
+        })
+        .finally(() => {
+          submitting = false;
+        });
     };
     const pause = () => {
       if (mode !== 'ai') return;
@@ -200,15 +208,10 @@ export function RoyalLanesGame({
       scene.current?.dispose();
       scene.current = null;
     };
-  }, [
-    mode,
-    tableId,
-    difficulty,
-    playerName,
-    retry,
-    createOnlineSession,
-    soundEnabled
-  ]);
+  }, [mode, tableId, difficulty, playerName, retry, createOnlineSession]);
+  useEffect(() => {
+    scene.current?.audio.setEnabled(soundEnabled);
+  }, [soundEnabled]);
   const localId = session.current?.localId || 'you',
     self = view?.players.find((p) => p.id === localId),
     opponent = view?.players.find((p) => p.id !== localId),

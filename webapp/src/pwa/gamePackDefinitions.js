@@ -81,6 +81,11 @@ const heavyPacks = [
     route: '/games/royallanes/lobby',
     gameSlugs: ['royallanes'],
     roots: ['assets/royal-lanes'],
+    files: [
+      'assets/pool-royale/readyplayer.me.glb',
+      'assets/table-tennis/athlete-male.glb',
+      'assets/table-tennis/athlete-female.glb'
+    ],
     dependencies: []
   }
 ];
