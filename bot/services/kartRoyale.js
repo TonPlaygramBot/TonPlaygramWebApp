@@ -57,6 +57,7 @@ export function attachKartRoyale(
   const finish = (r, reason = 'race_complete') => {
     if (r.status === 'finished') return;
     r.status = 'finished';
+    r.finishedAt = clock();
     if (r.tableId) {
       const finishers = standings(r.racers).filter((v) => !v.ai && v.finished);
       const tied =
@@ -96,6 +97,7 @@ export function attachKartRoyale(
     }
     r.status = 'countdown';
     r.startsAt = clock() + 3500;
+    r.finishedAt = 0;
     r.elapsed = 0;
     emit(r);
   };
@@ -476,7 +478,7 @@ export function attachKartRoyale(
         if (
           (!r.tableId ||
             (r.status === 'finished' && r.settlement?.status !== 'pending')) &&
-          (now - r.createdAt > 900000 ||
+          (now - (r.finishedAt || r.startsAt || r.createdAt) > (r.status === 'racing' || r.status === 'countdown' ? (RACE_LIMIT + 60) * 1000 : 900000) ||
             r.players.every(
               (p) => !p.connected && now - p.disconnectedAt > 60000
             ))

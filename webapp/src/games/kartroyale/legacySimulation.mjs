@@ -1,10 +1,12 @@
 import { stepRollover } from './kartDynamics.mjs';
+import {COLLECTION_BY_ID} from '../tiranastreets/shared/vehicleCollection.mjs';
+import {VEHICLE_LENGTHS} from './vehicleAssetConfig.mjs';
 import {KARTS} from './vehicleCatalog.mjs';
 export {KARTS};
 import { TIRANA_ROUTES } from './tirana-routes.mjs';
 import { resolveWallContact, resolveKartContact, damageRacer } from './collisions.mjs';
 import { resampleCircuit } from './grandRouteCore.mjs';
-import { pointAhead, cornerSpeedLimit } from './circuitMetrics.mjs';
+import { pointAhead, cornerSpeedLimit, sampleCircuitDistance } from './circuitMetrics.mjs';
 export { damageRacer };
 export const STEP = 1 / 60,
   LAPS = 3;
@@ -16,11 +18,14 @@ export const COLORS = [
   '#ffb64d',
   '#f3f6f2'
 ];
-export const RACE_LIMIT = 480;
+export const RACE_LIMIT = 1500;
 export const normalizeKart = (id) =>
   KARTS.some((k) => k.id === id) ? id : 'apex';
 export function equipKart(r, id) {
   const kartId=normalizeKart(id), kart=KARTS.find(k=>k.id===kartId);
+  const vehicle=COLLECTION_BY_ID.get(kartId);
+  r.bodyLength=vehicle?.length || VEHICLE_LENGTHS[kartId] || 2.7;
+  r.bodyWidth=vehicle?.width || (kartId==='shota'?2.5:VEHICLE_LENGTHS[kartId]&&kartId!=='buggy'?2.05:1.72);
   r.kartId=kartId; r.shieldMax=kart.shield; r.shield=kart.shield;
   r.ammunition=kart.ammunition; r.fireCooldown=0;
   return r;
@@ -128,12 +133,16 @@ export function makeTrack(id = 'skanderbeg') {
   cache.set(config.id, result);
   return result;
 }
-export function nearestPoint(track, x, z) {
+export function nearestPoint(track, x, z, hint) {
   let best = { index: 0, distance: Infinity, lane: 0, x: 0, z: 0, yaw: 0 },
     distanceSq = Infinity;
-  for (let i = 0; i < 360; i++) {
+  const count=track.points.length;
+  const local=Number.isInteger(hint)&&hint>=0&&hint<count;
+  const window=Math.min(24,Math.floor((count-1)/2));
+  for (let step = 0; step < (local?window*2+1:count); step++) {
+    const i=local?(hint-window+step+count)%count:step;
     const p = track.points[i],
-      q = track.points[(i + 1) % 360],
+      q = track.points[(i + 1) % track.points.length],
       dx = q.x - p.x,
       dz = q.z - p.z;
     const u = clamp(
@@ -148,6 +157,7 @@ export function nearestPoint(track, x, z) {
       distanceSq = d;
       best = {
         index: i,
+        width: (p.width ?? track.width) + ((q.width ?? track.width) - (p.width ?? track.width)) * u,
         distance: Math.sqrt(d),
         lane: (x - px) * -Math.cos(p.yaw) + (z - pz) * Math.sin(p.yaw),
         x: px,
@@ -156,14 +166,17 @@ export function nearestPoint(track, x, z) {
       };
     }
   }
+  // At bridges and parallel carriageways the route's current segment wins.
+  // A genuinely displaced vehicle may still recover onto the nearest road.
+  if(local&&best.distance>track.width*1.5)return nearestPoint(track,x,z);
   return best;
 }
 export function createRacer(track, id, name, slot = 0, ai = false) {
-  const index = 355 - Math.floor(slot / 2) * 4,
-    p = track.points[index],
-    lane = slot % 2 ? 2.1 : -2.1;
+  const p = sampleCircuitDistance(track, -18 - Math.floor(slot / 2) * 9),
+    index = p.index,
+    lane = (slot % 2 ? 1 : -1) * Math.min(1.65, (track.points[index].width ?? track.width) / 4);
   const kart = KARTS[slot % KARTS.length];
-  return {
+  const racer = {
     id,
     name: String(name).slice(0, 18),
     slot,
@@ -186,7 +199,7 @@ export function createRacer(track, id, name, slot = 0, ai = false) {
     nextGate: 0,
     gates: 0,
     index,
-    progress: (index - 360) / 360,
+    progress: (index - track.points.length) / track.points.length,
     finished: false,
     finishTime: 0,
     collision: 0,
@@ -213,9 +226,11 @@ export function createRacer(track, id, name, slot = 0, ai = false) {
     lastInput: 0,
     disconnected: false
   };
+  equipKart(racer,kart.id);
+  return racer;
 }
 export function aiInput(r, track, time, difficulty = 'street') {
-  const n = nearestPoint(track, r.x, r.z);
+  const n = nearestPoint(track, r.x, r.z, r.index);
   const look = clamp(5 + r.speed * 0.34, 6, 17);
   const p = pointAhead(track, n, look);
   const lane = Math.sin(time * 0.2 + r.slot * 2) * 0.65;
@@ -246,7 +261,8 @@ export function stepRacer(r, raw, track, dt, time, difficulty = 'street') {
   const input = raw || {},
     steer = Number.isFinite(input.steer) ? clamp(input.steer, -1, 1) : 0;
   if (stepRollover(r, dt)) {
-    resolveWallContact(r, nearestPoint(track, r.x, r.z), track.width, dt, false);
+    const contact = nearestPoint(track, r.x, r.z, r.index);
+    resolveWallContact(r, contact, contact.width ?? track.width, dt, false);
     return;
   }
   const previousSpeed = r.speed;
@@ -312,15 +328,16 @@ export function stepRacer(r, raw, track, dt, time, difficulty = 'street') {
     (1 - Math.exp(-dt * (drift ? 3.1 : input.brake ? 14 : 11)));
   r.x += Math.sin(r.velocityYaw) * r.speed * dt;
   r.z += Math.cos(r.velocityYaw) * r.speed * dt;
-  const near = nearestPoint(track, r.x, r.z);
+  const near = nearestPoint(track, r.x, r.z, r.index);
   r.collision = Math.max(0, r.collision - dt);
-  resolveWallContact(r, near, track.width, dt);
+  resolveWallContact(r, near, near.width ?? track.width, dt);
   if (r.retired) return;
   r.acceleration = clamp((r.speed - previousSpeed) / dt, -35, 25);
   // Sequential quarter-track gates reject shortcuts and finish-line oscillation.
-  const delta = ((near.index - r.index + 540) % 360) - 180;
+  const count = track.points.length;
+  const delta = ((near.index - r.index + count * 1.5) % count) - count / 2;
   if (delta > 0 && delta < 24) {
-    const crossed = (r.nextGate * 90 - r.index + 360) % 360;
+    const crossed = (r.nextGate * (count / 4) - r.index + count) % count;
     if (crossed > 0 && crossed <= delta) {
       r.gates++;
       if (r.nextGate === 0) {
@@ -337,7 +354,7 @@ export function stepRacer(r, raw, track, dt, time, difficulty = 'street') {
   r.index = near.index;
   r.progress = r.finished
     ? LAPS + 1
-    : Math.max(-1, r.lap - 1) + near.index / 360;
+    : Math.max(-1, r.lap - 1) + near.index / count;
 }
 export function stepRace(racers, track, dt, time, difficulty = 'street') {
   for (const r of racers)
@@ -373,9 +390,8 @@ export function stepRace(racers, track, dt, time, difficulty = 'street') {
         resolveKartContact(racers[i], racers[j]);
     for (const r of racers)
       if (!r.retired && !r.finished && !r.disconnected) {
-        const near = nearestPoint(track, r.x, r.z);
-        if (near.distance > track.width / 2 - 1.05)
-          resolveWallContact(r, near, track.width, dt, false);
+        const near = nearestPoint(track, r.x, r.z, r.index);
+        resolveWallContact(r, near, near.width ?? track.width, dt, false);
       }
   }
 }

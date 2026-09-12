@@ -1,0 +1,56 @@
+{
+  "generator": "Blender 4.3.2",
+  "description": "Original fitted cockpit families; not OEM scans",
+  "models": [
+    {
+      "style": "sedan",
+      "bytes": 1383800,
+      "source": "assets-source/racing-cockpits/sedan.blend",
+      "eye": [
+        0,
+        0,
+        0
+      ]
+    },
+    {
+      "style": "sport",
+      "bytes": 1410692,
+      "source": "assets-source/racing-cockpits/sport.blend",
+      "eye": [
+        0,
+        0,
+        0
+      ]
+    },
+    {
+      "style": "suv",
+      "bytes": 1383860,
+      "source": "assets-source/racing-cockpits/suv.blend",
+      "eye": [
+        0,
+        0,
+        0
+      ]
+    },
+    {
+      "style": "armored",
+      "bytes": 1426680,
+      "source": "assets-source/racing-cockpits/armored.blend",
+      "eye": [
+        0,
+        0,
+        0
+      ]
+    },
+    {
+      "style": "kart",
+      "bytes": 551652,
+      "source": "assets-source/racing-cockpits/kart.blend",
+      "eye": [
+        0,
+        0,
+        0
+      ]
+    }
+  ]
+}

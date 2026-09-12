@@ -2,6 +2,7 @@ import * as T from 'three';
 import {
   MILITARY_ASSETS,
   KART_ASSETS,
+  VEHICLE_LENGTHS,
   normaliseVehicleDimensions,
   vehicleDriverMount,
   type VehicleFit
@@ -23,7 +24,7 @@ export function prepareVehicleAsset(
     normaliseVehicleDimensions({
       min: bounds.min.toArray(),
       max: bounds.max.toArray()
-    }, collectionVehicle ? Math.min(4.65, collectionVehicle.length) : 3.25);
+    }, collectionVehicle ? collectionVehicle.length : VEHICLE_LENGTHS[id] || 2.7);
   // Existing Kenney karts retain their original horizontal authoring origin.
   const config = MILITARY_ASSETS[id] || KART_ASSETS[id];
   if (!config && !['ferrari', 'buggy'].includes(id))
@@ -31,7 +32,7 @@ export function prepareVehicleAsset(
   scene.scale.setScalar(fit.scale);
   scene.position.set(...(fit.offset as [number, number, number]));
   scene.userData.vehicleFit = fit;
-  if (config || collectionVehicle) {
+  if (config || collectionVehicle || id === 'buggy') {
     scene.userData.driverEye = vehicleDriverMount(id, fit);
     if (config) scene.userData.wheelRadius = config.wheelRadius * fit.scale;
     scene.userData.factoryFinish = true;

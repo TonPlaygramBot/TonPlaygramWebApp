@@ -3,6 +3,13 @@ import { beginRollover } from './kartDynamics.mjs';
 // Damage uses closing velocity along the contact normal, never absolute speed.
 const clamp = (v, lo, hi) => Math.max(lo, Math.min(hi, v));
 export const KART_RADIUS = 1.05;
+// Elliptical plan footprint keeps metre-scale cars from interpenetrating.
+function footprintRadius(r,nx,nz){
+  if(!r.bodyLength||!r.bodyWidth)return KART_RADIUS;
+  const forward=Math.sin(r.yaw)*nx+Math.cos(r.yaw)*nz;
+  const side=Math.cos(r.yaw)*nx-Math.sin(r.yaw)*nz;
+  return Math.hypot(r.bodyLength*.5*forward,r.bodyWidth*.5*side)+.04;
+}
 export function damageRacer(r, amount) {
   if (!Number.isFinite(amount) || amount <= 0 || r.retired || r.finished)
     return 0;
@@ -60,7 +67,9 @@ function impact(r, normalSpeed, nx, nz) {
   r.collision = Math.max(r.collision || 0, 0.18);
 }
 export function resolveWallContact(r, near, width, dt, damage = true) {
-  const limit = width * 0.5 - KART_RADIUS;
+  const normalX = near.distance > .001 ? (r.x-near.x)/near.distance : -Math.cos(near.yaw||0);
+  const normalZ = near.distance > .001 ? (r.z-near.z)/near.distance : Math.sin(near.yaw||0);
+  const limit = Math.max(.1,width * .5 - footprintRadius(r,normalX,normalZ));
   if (near.distance <= limit) {
     r.wallContact = false;
     return;
@@ -108,7 +117,8 @@ export function resolveKartContact(a, b) {
   let dx = b.x - a.x,
     dz = b.z - a.z,
     distance = Math.hypot(dx, dz);
-  const diameter = KART_RADIUS * 2;
+  const contactX=distance>1e-6?dx/distance:1,contactZ=distance>1e-6?dz/distance:0;
+  const diameter=footprintRadius(a,contactX,contactZ)+footprintRadius(b,contactX,contactZ);
   if (distance >= diameter) return;
   let nx, nz;
   if (distance < 1e-6) {

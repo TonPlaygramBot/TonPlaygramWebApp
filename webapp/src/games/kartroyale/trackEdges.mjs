@@ -24,7 +24,7 @@ export function circuitSides(points,halfWidth){
     const before=normals[(i+normals.length-1)%normals.length],after=normals[i],
       sx=before.x+after.x,sz=before.z+after.z,joinLength=Math.hypot(sx,sz),
       jx=joinLength>1e-6?sx/joinLength:after.x,jz=joinLength>1e-6?sz/joinLength:after.z,
-      projection=Math.max(.2,jx*after.x+jz*after.z),miter=Math.min(halfWidth*2,halfWidth/projection);
+      projection=Math.max(.2,jx*after.x+jz*after.z),localHalf=(p.width??halfWidth*2)/2,miter=Math.min(localHalf*2,localHalf/projection);
     sides.left.push({x:p.x-jx*miter,z:p.z-jz*miter});
     sides.right.push({x:p.x+jx*miter,z:p.z+jz*miter});
   });
