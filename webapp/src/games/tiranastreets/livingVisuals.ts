@@ -237,6 +237,7 @@ export class LivingVisuals {
   update(state: State, target: Player | undefined) {
     if (this.disposed) return;
     this.shop.position.set(state.shop.x, 0, state.shop.z);
+    this.shop.visible=!state.shops?.length;
     if (this.dealerLabel)
       this.dealerLabel.visible =
         !target ||

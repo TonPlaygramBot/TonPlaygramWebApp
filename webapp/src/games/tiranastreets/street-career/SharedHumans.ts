@@ -41,7 +41,7 @@ export class SharedHumans {
     }).catch(e=>{if(!this.dead)this.errors.push(`Existing two-wheeler: ${String(e)}`);});
   }
   private primeLocalHumans(){
-    const priority=['rpm-current','chess-human','athlete-male','athlete-female','mixamo-soldier'];
+    const priority=['tirana-citizen-0','tirana-citizen-1','rpm-current','chess-human','athlete-male','athlete-female','mixamo-soldier'];
     for(const id of priority){const asset=this.cast.find(a=>a.id===id&&a.url.startsWith('/'));if(asset)this.request(asset);}
   }
   retryFailed(){
@@ -108,6 +108,7 @@ export class SharedHumans {
     const box=new T.Box3().setFromObject(model),center=box.getCenter(new T.Vector3()),scale=1.76/(box.max.y-box.min.y);
     model.scale.multiplyScalar(scale);model.position.add(new T.Vector3(-center.x*scale,-box.min.y*scale,-center.z*scale));
     root.name=`shared-npc:${n.id}`;root.userData={sourceId:asset.sourceId,modelURL:asset.url,role};root.add(model);
+    if(asset.id.startsWith('tirana-citizen-')){const h=stableActorHash(n.id);root.scale.set(0.93+(h%5)*.035,.94+(h%7)*.019,1);}
     const joints:Joint[]=[];
     model.traverse(o=>{if(o instanceof T.Bone)joints.push({bone:o,rest:o.quaternion.clone(),name:o.name.toLowerCase().replace(/[^a-z0-9]/g,'')});if(o instanceof T.Mesh){o.castShadow=true;o.receiveShadow=true;}});
     const label=new T.Sprite(this.sign(role==='police'?'POLICE':role==='soldier'?'MILITARY':role==='dealer'?'ARBEN':asset.label.toUpperCase()));
@@ -144,7 +145,7 @@ export class SharedHumans {
   update(npcs:readonly NPC[],viewer:Point,time:number,dt:number,battery=false){
     if(this.dead)return;const selected=nearbyHumans(npcs,viewer,battery),keep=new Set(selected.map(n=>n.id));
     for(const [id] of this.actors)if(!keep.has(id))this.remove(id);
-    for(const n of selected){let asset=chooseSharedHuman(n,this.cast);this.request(asset);if(!this.sources.has(asset.url)){const role=actorRole(n.kind);const fallback=this.cast.find(a=>a.url.startsWith('/')&&a.roles.includes(role)&&this.sources.has(a.url));if(fallback)asset=fallback;}const source=this.sources.get(asset.url);if(!source||n.motion==='cycle'&&!this.bike)continue;
+    for(const n of selected){let asset=n.kind==='civilian'||n.kind==='dealer'||n.kind==='gang' ? this.cast.find(a=>a.id===`tirana-citizen-${stableActorHash(n.id)%8}`)||chooseSharedHuman(n,this.cast) : chooseSharedHuman(n,this.cast);this.request(asset);if(!this.sources.has(asset.url)){const role=actorRole(n.kind);const fallback=this.cast.find(a=>a.url.startsWith('/')&&a.roles.includes(role)&&this.sources.has(a.url));if(fallback)asset=fallback;}const source=this.sources.get(asset.url);if(!source||n.motion==='cycle'&&!this.bike)continue;
       let a=this.actors.get(n.id);if(a&&(a.asset!==asset.id||a.role!==actorRole(n.kind))){this.remove(n.id);a=undefined;}
       a ||= this.create(n,asset,source);
       a.root.position.set(n.x,(n.y||0)+(n.motion==='cycle'?-.18:.06),n.z);a.root.rotation.set(n.health<=0?-Math.PI/2:0,n.heading+Math.PI,0);

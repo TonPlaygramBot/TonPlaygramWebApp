@@ -136,7 +136,7 @@ export class StreetRenderer extends CityRenderer {
   }
   protected override beforeDraw(_state: State | null, _id: string, dt: number) {
     if (this.simulation)
-      this.bodyRig.syncLoot(this.simulation.loot, this.simulation.claimed);
+      this.bodyRig.syncLoot(this.simulation.loot.filter(l=>!l.collected).sort((a,b)=>Math.hypot(a.x-this.simulation!.player.x,a.z-this.simulation!.player.z)-Math.hypot(b.x-this.simulation!.player.x,b.z-this.simulation!.player.z)).filter(l=>Math.hypot(l.x-this.simulation!.player.x,l.z-this.simulation!.player.z)<90).slice(0,24), this.simulation.claimed);
     const stamp = performance.now();
     if (dt > 0) {
       this.samples.push(stamp - this.streetSampleStamp);

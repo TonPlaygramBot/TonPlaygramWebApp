@@ -1,3 +1,5 @@
+import {BusVisuals} from './population/BusVisuals';
+import {CityStores} from './population/CityStores';
 import {ImportedAssetVisuals} from './ImportedAssetVisuals';
 import {props,ORIGIN} from '../blackwater/shared/layout.mjs';
 import {CityRenderer as BaseCityRenderer} from './cityBaseRenderer';
@@ -16,6 +18,8 @@ export class CityRenderer extends BaseCityRenderer {
   readonly nativeLandmarks: NativeLandmarkLayer;
   readonly airMobility: AirMobilityVisuals;
   readonly weaponStore: WeaponStoreInterior;
+  readonly buses=new BusVisuals();
+  readonly cityStores=new CityStores();
   constructor(root:HTMLDivElement) {
     super(root);
     this.scene.add(this.imported.group);
@@ -26,9 +30,10 @@ export class CityRenderer extends BaseCityRenderer {
     this.scene.userData.tiranaLandmarks={issues,...replacement};
     this.airMobility=new AirMobilityVisuals(this.scene);
     this.weaponStore=new WeaponStoreInterior();
-    this.scene.add(this.weaponStore.group);
+    this.scene.add(this.buses.group,this.cityStores.group);
   }
   override render(state:State|null,playerId:string,dt:number,lobby:boolean) {
+    if(state){const viewer=state.players[playerId];if(viewer){this.buses.update(state,viewer,dt,this.quality==='battery',viewer.carId);this.cityStores.update(state,viewer);}}
     super.render(state,playerId,dt,lobby);
     if(state) {
       this.airMobility.update(state,dt);
@@ -44,6 +49,7 @@ export class CityRenderer extends BaseCityRenderer {
     this.imported.dispose();
     this.airMobility.dispose();
     this.weaponStore.dispose();
+    this.buses.dispose();this.cityStores.dispose();
     this.nativeLandmarks.dispose();
     super.destroy();
   }

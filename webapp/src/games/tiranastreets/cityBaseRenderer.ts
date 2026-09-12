@@ -902,7 +902,8 @@ export class CityRenderer {
         ...state.units,
         ...(state.rival ? [state.rival] : []),
       ]) {
-        if(collectionVehicleFor(car))continue;
+        if(car.model==='tirana-bus' || (collectionVehicleFor(car)&&this.collectionFleet.has(car.id)))continue;
+        if(p && Math.hypot(car.x-p.x,car.z-p.z)>(this.quality==='battery'?140:260))continue;
         const close = !p || Math.hypot(car.x - p.x, car.z - p.z) < 45;
         const detail =
           close && car.id.startsWith("car-") ? "city-car" : car.model;
@@ -1031,7 +1032,7 @@ export class CityRenderer {
       }
       // Visible drivers give nearby moving traffic a human occupant.
       for (const car of state.traffic) {
-        if (collectionVehicleFor(car) || this.forces.has(car.id)) continue;
+        if (car.model==='tirana-bus' || collectionVehicleFor(car) || this.forces.has(car.id)) continue;
         if (!p || Math.hypot(car.x - p.x, car.z - p.z) > 40) continue;
         const id = `driver-${car.id}`,
           a = this.actor("character", id);

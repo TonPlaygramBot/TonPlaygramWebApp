@@ -70,8 +70,8 @@ test('connected action replay does not repeat purchases',()=>{
  applyRoom(r,member,'input',action,130);assert.equal(r.state.players.p.cash,cash);
 });
 test('city contains server-owned walkers, riders, traffic and dealer; public snapshots omit NPC paths',()=>{
- const s=createState([{id:'p',name:'P'}],'free-roam');assert.ok(s.npcs.length>=43);assert.equal(s.traffic.length,31);assert.ok(s.npcs.some(n=>n.motion==='cycle'));
- const before=s.npcs[1].x+','+s.npcs[1].z;advanceState(s,.5);assert.notEqual(s.npcs[1].x+','+s.npcs[1].z,before);
+ const s=createState([{id:'p',name:'P'}],'free-roam');assert.ok(s.npcs.length>=43);assert.equal(s.traffic.length,2030);assert.ok(s.npcs.some(n=>n.motion==='cycle'));
+ const citizen=s.npcs.find(n=>n.id==='citizen-0');const before=citizen.x+','+citizen.z;advanceState(s,.5);assert.notEqual(citizen.x+','+citizen.z,before);
  const pub=publicState(s);assert.ok(!('path' in pub.npcs[1]));assert.ok(!('input' in pub.players.p));
 });
 test('combat extraction cannot finish while armed mission NPCs remain',()=>{
