@@ -233,3 +233,61 @@ test('nine-ball HUD warns the returning player before a third consecutive foul',
   expect(frame.activePlayer).toBe('A');
   expect((frame.meta as any).hud.next).toContain('2 fouls: next foul loses');
 });
+
+describe('break ownership and placement regions', () => {
+  test('a randomly selected B breaker keeps the turn after a legal pot', () => {
+    const rules = new PoolRoyaleRules('8ball');
+    const frame = rules.getInitialFrame('You', 'Rival');
+    frame.activePlayer = 'B';
+    const next = rules.applyShot(frame, [
+      {type:'HIT',firstContact:1,ballId:1},
+      {type:'POTTED',ball:1,ballId:1,pocket:'BL'}
+    ], {placedFromHand:true,contactMade:true});
+    expect(next.activePlayer).toBe('B');
+    expect((next.meta as any).state.currentPlayer).toBe('B');
+    expect((next.meta as any).state.assignments).toEqual({A:null,B:null});
+  });
+
+  test('8-ball break scratch offers headstring placement and spots the eight', () => {
+    const rules = new PoolRoyaleRules('8ball');
+    const next = rules.applyShot(rules.getInitialFrame('You','Rival'), [
+      {type:'HIT',firstContact:1,ballId:1},
+      {type:'POTTED',ball:8,ballId:8,pocket:'BL'},
+      {type:'POTTED',ball:'cue',ballId:'cue',pocket:'BR'}
+    ], {placedFromHand:true,contactMade:true,cueBallPotted:true});
+    expect(next.frameOver).toBe(false);
+    expect((next.meta as any).state.ballsOnTable).toContain(8);
+    expect((next.meta as any).state.ballInHandRegion).toBe('headstring');
+    expect(next.activePlayer).toBe('B');
+    const restored = new PoolRoyaleRules('8ball').applyShot(next,[
+      {type:'HIT',firstContact:1,ballId:1}
+    ], {placedFromHand:true,contactMade:true,cushionAfterContact:true});
+    expect((restored.meta as any).state.ballInHandRegion).toBe(null);
+  });
+
+  test('repeated rail IDs in different encodings do not make an illegal break legal', () => {
+    const rules = new PoolRoyaleRules('8ball');
+    const next = rules.applyShot(rules.getInitialFrame('You','Rival'), [
+      {type:'HIT',firstContact:1,ballId:1}
+    ], {placedFromHand:true,contactMade:true,cushionAfterContact:true,
+      objectBallsToRailAfterContact:['1','01','2','02']});
+    expect(next.foul?.reason).toBe('illegal break');
+  });
+});
+
+test('UK black on the break re-racks for the selected breaker without ending the frame', () => {
+  const rules = new PoolRoyaleRules('uk');
+  const frame = rules.getInitialFrame('You','Rival');
+  frame.activePlayer = 'B';
+  const next = rules.applyShot(frame,[
+    {type:'HIT',firstContact:'red',ballId:'red_1'},
+    {type:'POTTED',ball:'black',ballId:'black_8',pocket:'BR'}
+  ],{placedFromHand:true,contactMade:true});
+  expect(next.frameOver).toBe(false);
+  expect(next.activePlayer).toBe('B');
+  expect(next.currentBreak).toBe(0);
+  expect((next.meta as any).state.lastEvent).toBe('BREAK_START');
+  expect((next.meta as any).state.ballsOnTable.black8).toBe(true);
+  expect((next.meta as any).state.ballsOnTable.red).toHaveLength(7);
+  expect(poolRoyalBallInHand(next)).toBe(true);
+});
