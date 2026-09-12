@@ -1,4 +1,5 @@
 import {groundHeight} from '../../tirana-east/terrainCore.mjs';
+import { vehicleSize } from '../shared/trafficSimulation.mjs';
 import { driverSocket } from '../shared/driverView.mjs';
 /** Anchors in metres, forward = -Z, right = +X, relative to the simulation car.
  * The existing city-car GLB has seats/dashboard/steering; generic models use a
@@ -19,7 +20,7 @@ export const vehicleAnchors = (car) => {
   const eye = driverSocket(car);
   return {
     ...VEHICLE_ANCHORS,
-    doors: car.model==='tirana-bus' ? [{x:-1.9,y:0,z:-7.2},{x:1.9,y:0,z:-7.2}] : VEHICLE_ANCHORS.doors,
+    doors: car.model==='tirana-bus' ? [{x:-1.9,y:0,z:-7.2},{x:1.9,y:0,z:-7.2}] : [-1,1].map(side=>({x:side*(vehicleSize(car).width/2+.65),y:0,z:car.forceVehicle?.includes('van')?-1.2:.15})),
     eye: { x: eye.x, y: eye.y, z: eye.z },
     seat: { x: eye.x, y: eye.y - 0.55, z: eye.z - 0.02 },
     wheel: { x: eye.x, y: eye.y - 0.4, z: eye.z - 0.39 }
@@ -33,7 +34,7 @@ export const carPoint = (car, p) => ({
 export function exitPoint(state, car, world) {
   for (const side of [-1, 1])
     for (const z of (car.model==='tirana-bus'?[-7.2,-6.5,-7.8]:[0.15, 0.9, -0.6])) {
-      const p = carPoint(car, { x: side * 1.85, y: 0, z });
+      const p = carPoint(car, { x: side * (vehicleSize(car).width/2+.9), y: 0, z });
       const floor=groundHeight(car.x,car.z);
       p.y = world.surface(p.x, p.z, floor+0.38);
       if (p.y > floor+0.38 || !world.clearance(p, 1.78, 0.38)) continue;
@@ -58,27 +59,33 @@ export function exitPoint(state, car, world) {
 export function takeVehicle(state, p, car) {
   // One object, one simulation list and one driver. Commit only after validation.
   if (
-    (car.driver && car.driver !== 'npc') ||
+    (car.driver && car.driver !== 'npc') || car.destroyed || car.burning || p.aircraftId ||
     p.carId ||
     Math.abs(car.speed) > VEHICLE_ANCHORS.maxSpeed
   )
     return false;
   const traffic = state.traffic.indexOf(car);
-  if (traffic < 0 && !state.cars.includes(car)) return false;
+  const unit = state.units.indexOf(car);
+  if (traffic < 0 && unit < 0 && !state.cars.includes(car)) return false;
   if (traffic >= 0) {
     state.traffic.splice(traffic, 1);
     state.cars.push(car);
   }
+  if (unit >= 0) { state.units.splice(unit,1); if(!state.cars.includes(car))state.cars.push(car); }
+  let passenger = 0;
   for (const n of state.npcs)
     if (n.unit === car.id && n.motion === 'drive') {
       n.unit = undefined;
       n.motion = 'walk';
       n.deployed = true;
-      n.x = car.x + 2;
-      n.z = car.z;
+      const side=passenger%2?1:-1;
+      n.x = car.x + side*2.3;
+      n.z = car.z + Math.floor(passenger++/2)*1.2;
       n.speed = 0;
     }
   car.npcDriver = false;
+  car.responding = false;
+  car.target = null;
   car.driver = p.id;
   car.speed = 0;
   car.vx = 0;

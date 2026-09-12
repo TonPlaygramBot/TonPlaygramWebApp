@@ -241,7 +241,8 @@ export function attachBlackwater(
           table.players.map((p) => ({
             id: String(p.tpcAccountNumber || p.id),
             name: String(p.name || 'Operator').slice(0, 24)
-          }))
+          })),
+          { rule: 'last-stand' }
         )
       });
     },

@@ -149,7 +149,7 @@ test('untrusted input cannot teleport, accelerate, inject ammo or report a winne
   p.connected = true;
   p.input = input;
   for (let n = 0; n < 60; n++) stepMatch(m);
-  assert.ok(Math.hypot(p.x - start.x, p.z - start.z) <= 3.61);
+  assert.ok(Math.hypot(p.x - start.x, p.z - start.z) <= 5.21);
 });
 test('server owns shots, damage, reloading, respawn and the winning score', () => {
   const m = makeMatch([

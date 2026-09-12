@@ -71,6 +71,7 @@ export class StreetWorld {
     legacyBounds = true
   ) {
     this.cells = new Map();
+    this.fractures = [];
     this.legacyBounds = legacyBounds;
     this.solids = solids.map((b) => ({
       ...b,
@@ -100,6 +101,15 @@ export class StreetWorld {
   nearby(x, z) {
     return this.cells.get(Math.floor(x / 40) + ',' + Math.floor(z / 40)) || [];
   }
+  fracture(objectId, point, radius) {
+    if (this.fractures.length >= 12 || !this.solids.some(b=>String(b.id)===String(objectId)&&b.h-b.minY>4)) return null;
+    if(this.fractures.some(f=>f.objectId===objectId&&Math.hypot(f.x-point.x,f.y-point.y,f.z-point.z)<radius))return null;
+    const section={...point,objectId:String(objectId),radius};
+    this.fractures.push(section);return section;
+  }
+  broken(b, x, y, z, margin=0) {
+    return this.fractures.some(f=>f.objectId===String(b.id)&&Math.hypot(x-f.x,y-f.y,z-f.z)<f.radius-margin);
+  }
   surface(x, z, below = Infinity) {
     let y = groundHeight(x,z)+0.08;
     for (const b of this.nearby(x, z)) {
@@ -118,6 +128,7 @@ export class StreetWorld {
   clearance(p, height, radius = 0.34) {
     for (const b of this.nearby(p.x, p.z)) {
       if (p.y + height <= b.minY + 0.001 || p.y >= b.h - 0.001) continue;
+      if(this.broken(b,p.x,p.y+radius,p.z,radius)&&this.broken(b,p.x,p.y+height-radius,p.z,radius))continue;
       if (solidAt(b, p.x, p.z)) return false;
       for (const ring of [b.p, ...(b.holes || [])])
         for (let i = 0; i < ring.length; i++) {
@@ -248,8 +259,9 @@ export class StreetWorld {
             )
               candidates.push(u);
           }
-        if (candidates.length) {
-          best = Math.min(best, ...candidates);
+        const intact=candidates.filter(t=>!this.broken(b,a.x+d.x*t,a.y+d.y*t,a.z+d.z*t));
+        if (intact.length) {
+          best = Math.min(best, ...intact);
           objectId = String(b.id);
           kind = 'wall';
         }

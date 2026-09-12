@@ -23,6 +23,8 @@ export type OnlinePlayer = {
   forfeited: boolean;
 };
 export type OnlineState = {
+  rule?:'last-stand'|'deathmatch';
+  alive?:number;
   tableId: string;
   status: 'waiting' | 'countdown' | 'playing' | 'finished';
   startsAt: number;

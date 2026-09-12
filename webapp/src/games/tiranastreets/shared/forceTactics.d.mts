@@ -1,0 +1,11 @@
+export type Point={x:number;z:number};
+export type Observer=Point&{id:string;health:number;kind?:string;coverId?:string;lastSeen?:Point;lastSeenAt?:number};
+export type Cover=Point&{id:string;heading?:number;speed?:number;forceVehicle?:string;w?:number;d?:number};
+export function tacticalGoal(n:Observer,target:Point,squad:Observer[],cars:Cover[],time:number,clear:(a:Point,b:Point)=>boolean):{goal:Point;anim:string;coverId?:string};
+export function vehicleBlocks(a:Point,b:Point,car:Cover,margin?:number):boolean;
+export function coverPoint(car:Cover,target:Point,slot?:number,peek?:boolean):Point;
+export function formationSlot(leader:Point,target:Point,index:number,spacing?:number):Point;
+export function avoidVehicles(n:Point,goal:Point,cars:Cover[]):Point;
+export function deployment(stars:number,intensity?:number):{role:string;vehicles:string[];seats:number[];character:string};
+export type Pursuer=Point&{id:string;lastSeen?:Point&{heading:number;speed:number};lastSeenAt?:number};
+export function pursuitGoal(unit:Pursuer,target:Point&{heading?:number;speed?:number},convoy:Pursuer[],time:number,visible:boolean):{goal:Point;role:string};

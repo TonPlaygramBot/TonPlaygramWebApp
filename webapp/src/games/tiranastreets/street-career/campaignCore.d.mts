@@ -4,8 +4,9 @@ export type StreetProfile={version:1;completed:string[];best:Record<string,numbe
 export type StoragePort=Pick<Storage,'getItem'|'setItem'>;
 export const STREET_SAVE_KEY:string;
 export const CHAPTER_IDS:readonly string[];
+export const MISSION_REQUIREMENTS:Readonly<Record<string,readonly string[]>>;
 export function createCampaign(missions:readonly Mission[],weapons:readonly {id:string;magazine:number}[],starter:string):{
- chapters:readonly Mission[];fresh():StreetProfile;normalize(raw:unknown):StreetProfile;
+ chapters:readonly Mission[];available(profile:StreetProfile,id:string):boolean;fresh():StreetProfile;normalize(raw:unknown):StreetProfile;
  begin(raw:StreetProfile,id:string,difficulty?:string):StreetProfile|null;
  resolve(raw:StreetProfile,state:State,playerId:string):StreetProfile|null;
  abandon(raw:StreetProfile):StreetProfile;saveExplore(raw:StreetProfile,player:Player):StreetProfile;

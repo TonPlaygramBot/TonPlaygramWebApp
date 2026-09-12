@@ -105,8 +105,9 @@ export function createPlayer(id, name, index, players = []) {
     shotSerial: 0
   };
 }
-export function makeMatch(players) {
+export function makeMatch(players, options = {}) {
   const match = {
+    rule: options.rule === 'last-stand' ? 'last-stand' : 'deathmatch',
     elapsed: 0,
     players: [],
     rng: createRng(19439),
@@ -136,6 +137,7 @@ export function stepMatch(match, dt = STEP) {
     p.protection = Math.max(0, p.protection - dt);
     if (p.forfeited) continue;
     if (p.hp <= 0) {
+      if (match.rule === 'last-stand') continue;
       p.respawn -= dt;
       if (p.respawn <= 0) {
         Object.assign(
@@ -173,7 +175,7 @@ export function stepMatch(match, dt = STEP) {
     if (input.reload && !p.reload && p.ammo < w.mag && p.reserve > 0)
       p.reload = w.reload;
     const sprint = input.sprint && !input.aim && !input.fire,
-      speed = input.crouch ? 2 : input.aim ? 2.7 : sprint ? 5.7 : 3.6;
+      speed = input.crouch ? 2.2 : input.aim ? 3.3 : sprint ? 8.5 : 5.2;
     moveCircle(
       p,
       (Math.cos(p.yaw) * input.rx - Math.sin(p.yaw) * input.forward) *
@@ -243,11 +245,19 @@ export function stepMatch(match, dt = STEP) {
       if (!victim.hp) {
         p.kills++;
         victim.deaths++;
-        victim.respawn = 3;
+        victim.respawn = match.rule === 'last-stand' ? 0 : 3;
         victim.input = idleInput();
         match.events.push({ type: 'kill', by: p.id, target: victim.id, head });
       }
     }
+  }
+  if(match.rule==='last-stand') {
+    const alive=match.players.filter(p=>p.hp>0&&!p.forfeited);
+    if(alive.length<=1||match.elapsed>=MATCH_LIMIT){
+      match.done=true;match.winnerAccountId=alive.length===1?alive[0].id:'';
+      match.reason=match.winnerAccountId?'match_complete':'tie_refund';
+    }
+    return;
   }
   if (
     match.players.some((p) => p.kills >= KILL_LIMIT) ||
@@ -267,6 +277,8 @@ export function stepMatch(match, dt = STEP) {
 }
 export function publicMatch(match) {
   return {
+    rule: match.rule,
+    alive: match.players.filter(p=>p.hp>0&&!p.forfeited).length,
     elapsed: match.elapsed,
     limit: MATCH_LIMIT,
     killLimit: KILL_LIMIT,

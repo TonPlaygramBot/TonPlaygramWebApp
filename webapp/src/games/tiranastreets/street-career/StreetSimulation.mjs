@@ -2,6 +2,8 @@ import {groundHeight} from '../../tirana-east/terrainCore.mjs';
 import {CABLE_STATIONS,CABLE_DURATION,cablePoint,dismountCandidates} from '../../tirana-east/cableCore.mjs';
 import { collectWeapon } from '../shared/cityPopulation.mjs';
 import { weaponPose } from './weaponPose.mjs';
+import { CombatSimulation } from './CombatSimulation.mjs';
+import { FlightSimulation } from './FlightSimulation.mjs';
 import {
   advanceState,
   control,
@@ -39,9 +41,6 @@ export const TUTORIAL = [
   ['sprint', 'Toggle SPRINT, then move'],
   ['jump', 'Tap JUMP while moving'],
   ['crouch', 'Tap CROUCH, then stand'],
-  ['punch', 'Try a PUNCH'],
-  ['kick', 'Try a KICK'],
-  ['equip', 'Draw your weapon'],
   ['aim', 'Toggle AIM'],
   ['fire', 'Hold FIRE · drag it to look'],
   ['reload', 'Tap RELOAD'],
@@ -67,6 +66,9 @@ export class StreetSimulation {
     this.paused = false;
     this.settings = { aimAssist: false };
     this.mission = MISSIONS.find((m) => m.id === state.missionId) || FREE_ROAM;
+    this.combat = new CombatSimulation(this);
+    this.flight = new FlightSimulation(this);
+    this.body.combat = this.player.weapon ? 'ready' : 'unarmed';
     this.job = {
       parcel: false,
       vehicleId: null,
@@ -180,6 +182,7 @@ export class StreetSimulation {
       movePlayer(s, p, dt);
       return;
     }
+    if (p.aircraftId) { this.flight.step(dt); return; }
     if (p.health <= 0 || p.failed || p.finished) {
       this.cableRide=null;
       if (b.interaction !== 'dead') {
@@ -223,6 +226,7 @@ export class StreetSimulation {
     if (this.intent.fire && !p.weapon) this.startMelee('punch');
   }
   afterLife(s, dt) {
+    this.combat.step(dt);
     const p = this.player,
       b = this.body;
     if (p.health <= 0 || p.failed) return;
@@ -377,7 +381,7 @@ export class StreetSimulation {
     const clear =
       distance < 65 &&
       this.world.clear(
-        { x: n.x, y: 1.55, z: n.z },
+        { x: n.x, y: (n.y ?? groundHeight(n.x,n.z)) + 1.55, z: n.z },
         this.eye(),
         this.cars(),
         n.id
@@ -400,6 +404,12 @@ export class StreetSimulation {
       old.visible = false;
       if (now - old.at < 12) return { ...p, x: old.x, z: old.z };
     }
+    const reports=[...this.state.npcs,...this.state.units].filter(o=>o.id!==key&&o.squadId&&o.squadId===n.squadId)
+      .map(o=>this.body.seen[o.id]).filter(r=>r&&now-r.at<10).sort((a,b)=>b.at-a.at);
+    if(reports[0]){
+      const r=reports[0];this.body.seen[key]={...r,visible:false};
+      return {...p,x:r.x,z:r.z};
+    }
     // Hearing stores the incident position, never the player's future location.
     if (distance < 35 && now - p.lastCrime < 0.15) {
       this.body.seen[key] = {
@@ -415,6 +425,8 @@ export class StreetSimulation {
   }
   candidates() {
     if(this.cableRide)return [];
+    if(this.player.aircraftId)return [{id:'interact',label:'EXIT',kind:'air-exit',targetId:this.player.aircraftId,
+      visible:true,enabled:this.flight.canExit(),disabledReason:this.flight.canExit()?'':'Land and stop before exiting',priority:100,score:100,mode:'tap'}];
     const p = this.player,
       b = this.body,
       eye = this.eye(),
@@ -508,13 +520,21 @@ export class StreetSimulation {
               : ''
         });
       }
-    for (const car of [...this.state.cars, ...this.state.traffic]) {
+    for (const aircraft of this.flight.aircraft) {
+      if (aircraft.pilot || aircraft.health <= 0) continue;
+      const access = this.flight.access(aircraft);
+      add(aircraft.id, aircraft.kind === 'jet' ? 'FLY JET' : 'FLY HELI',
+        {...access,y:groundHeight(access.x,access.z)+1},10,75,'aircraft');
+    }
+    for (const car of this.cars()) {
+      if (car.destroyed || car.burning) continue;
       if (car.driver && car.driver !== 'npc') continue;
       if (dist(p, car) > (car.model==='tirana-bus'?13:5.5)) continue;
       const doors = vehicleAnchors(car).doors.map((d) => carPoint(car, d));
       const side = dist(p, doors[0]) < dist(p, doors[1]) ? 0 : 1;
       const occupied =
         this.state.traffic.includes(car) ||
+        this.state.units.includes(car) ||
         car.npcDriver ||
         car.driver === 'npc';
       const reason = b.crouched
@@ -550,7 +570,7 @@ export class StreetSimulation {
   resolve() {
     const p = this.player,
       b = this.body,
-      driving = !!p.carId,
+      driving = !!p.carId || !!p.aircraftId,
       dead = p.health <= 0 || p.failed || p.finished,
       busy =
         !!b.action ||
@@ -671,6 +691,8 @@ export class StreetSimulation {
       b = this.body,
       now = this.state.elapsed;
     b.notice = '';
+    if (descriptor.kind === 'aircraft') return this.flight.board(descriptor.targetId);
+    if (descriptor.kind === 'air-exit') return this.flight.exit();
     if (id === 'jump') {
       b.jumpUntil = now + MOTOR.buffer;
       return true;
@@ -819,7 +841,7 @@ export class StreetSimulation {
         l >= best ||
         l < 0.01 ||
         (v.x * d.x + v.z * d.z) / l < 0.65 ||
-        !this.world.clear(origin, { x: n.x, y: 0.9, z: n.z }, this.cars())
+        !this.world.clear(origin, { x: n.x, y: groundHeight(n.x,n.z)+0.9, z: n.z }, this.cars())
       )
         continue;
       best = l;
@@ -950,18 +972,9 @@ export class StreetSimulation {
       owner: p.id,
       weapon: w.id
     });
-    if (w.radius) {
-      for (const n of [...state.npcs, p]) {
-        const center = { x: n.x, y: (n === p ? b.y : 0.08) + 0.85, z: n.z },
-          l = Math.hypot(
-            center.x - hit.point.x,
-            center.y - hit.point.y,
-            center.z - hit.point.z
-          );
-        if (l < w.radius && this.world.clear(hit.point, center, cars))
-          this.damage(n, w.damage * (1 - l / (w.radius * 1.3)), p);
-      }
-    } else if (target) this.damage(target, w.damage, p);
+    if (w.radius) this.combat.impact(hit, w.damage, true);
+    else if (target) this.damage(target, w.damage, p);
+    else this.combat.impact(hit, w.damage, false);
     if (hit.kind !== 'air' && hit.kind !== 'actor')
       state.effects.push({
         id: ++state.effectSeq,
@@ -994,7 +1007,7 @@ export class StreetSimulation {
   finishEnter(a) {
     const p = this.player,
       b = this.body,
-      c = [...this.state.cars, ...this.state.traffic].find(
+      c = this.cars().find(
         (c) => c.id === a.targetId
       );
     b.interaction = 'free';
@@ -1079,6 +1092,11 @@ export class StreetSimulation {
     }
   }
   canAdvance(p, m) {
+    if (m.type === 'flight') {
+      const a = this.flight.current;
+      if (!a || a.kind !== m.aircraft) return false;
+      return p.index === m.stops.length-1 ? !a.airborne && Math.abs(a.speed)<2 : a.y-groundHeight(a.x,a.z)>20;
+    }
     if (m.type === 'delivery' || m.type === 'combat')
       return this.approved === p.index;
     if (m.type === 'race') return !!p.carId && p.carId === this.job.vehicleId;
@@ -1093,6 +1111,13 @@ export class StreetSimulation {
   objective() {
     if(this.cableRide)return {title:'Dajti Ekspres',detail:`${Math.round(this.cableRide.fraction*100)}% · ${this.cableRide.returning?'drejt Linzës':'drejt Dajtit'}`,training:false};
     const p = this.player;
+    if (this.mission.type === 'flight') {
+      const a=this.flight.aircraft.find(a=>a.kind===this.mission.aircraft);
+      const stop=this.mission.stops[p.index];
+      return {title:p.aircraftId?`${p.index===this.mission.stops.length-1?'Land at':'Fly above'} ${stop?.name||'beacon'}`:`Board the ${this.mission.aircraft}`,
+        detail:p.aircraftId?'Pass markers above 20 m. Land and stop at the final beacon.':`${Math.round(dist(p,this.flight.access(a)))} m to aircraft · follow the route`,training:false};
+    }
+    if (this.flight.current) return this.flight.objective();
     if (this.mission.id === 'first-shift') {
       const t = TUTORIAL.find(([id]) => !this.body.tutorial.includes(id));
       if (t)

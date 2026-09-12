@@ -59,6 +59,7 @@ export class CityRenderer {
   yaw = 0;
   pitch = 0.32;
   firstPerson = false;
+  protected get cockpitCamera(){return this.firstPerson;}
   protected preserveVehicleInterior = false;
   fps = 60;
   quality: "auto" | "high" | "battery" = "auto";
@@ -686,15 +687,10 @@ export class CityRenderer {
             const mats = Array.isArray(o.material) ? o.material : [o.material];
             mats.forEach((m) => {
               if (m instanceof THREE.MeshStandardMaterial) {
-                if (!["character", "city-car"].includes(name)) {
-                  m.roughness = 0.45;
-                  m.metalness = 0.25;
-                }
-                if (
-                  name === "military-suv" &&
-                  !/wheel|tire|glass/i.test(o.name)
-                )
-                  m.color.multiply(new THREE.Color("#77885c"));
+                // Preserve the authored GLTF PBR channels and livery. Colour maps
+                // use sRGB; normal/roughness/metalness maps remain linear.
+                if (m.map) m.map.colorSpace = THREE.SRGBColorSpace;
+                if (m.emissiveMap) m.emissiveMap.colorSpace = THREE.SRGBColorSpace;
               }
             });
           }
@@ -825,6 +821,7 @@ export class CityRenderer {
   protected presentLocalPlayer(_actor: Actor, _state: State, _id: string, _dt: number) { return false; }
   protected presentFirstPerson(_state: State, _id: string, _dt: number) { return false; }
   protected presentDrivenCar(_actor: Actor, _state: State, _id: string) {}
+  protected vehicleVisual(id:string){return this.collectionFleet.getRoot(id)||this.forces.getRoot(id)||this.racingFleet.getRoot(id)||this.actors.get(id)?.group;}
   protected presentVehicle(_actor: Actor, _state: State, _carId: string, _dt: number) {}
   protected beforeDraw(_state: State | null, _id: string, _dt: number) {}
   setQuality(quality: "auto" | "high" | "battery") {
@@ -877,7 +874,7 @@ export class CityRenderer {
       else this.yaw=drivenCar.heading;
       this.lastDriven={id:drivenCar.id,heading:drivenCar.heading};
     }else this.lastDriven=undefined;
-    this.driverInterior.update(this.firstPerson&&!lobby?drivenCar:undefined);
+    this.driverInterior.update(this.cockpitCamera&&!lobby?drivenCar:undefined);
     if (this.ready && state) {
       const active = new Set<string>();
       this.collectionFleet.update([...state.cars,...state.traffic],p||SPAWN,dt,p?.carId);
@@ -1149,7 +1146,7 @@ export class CityRenderer {
     this.beforeDraw(state, playerId, dt);
     // Opaque original windows/cab roofs must not cover the active interior.
     // Hide only this viewer's exterior during this draw, restoring it afterward.
-    const exterior=this.firstPerson&&!lobby&&drivenCar
+    const exterior=this.cockpitCamera&&!lobby&&drivenCar
       ? this.collectionFleet.getRoot(drivenCar.id)||this.forces.getRoot(drivenCar.id)||this.racingFleet.getRoot(drivenCar.id)||this.actors.get(drivenCar.id)?.group : undefined;
     const visible=exterior?.visible;
     if(exterior)exterior.visible=false;

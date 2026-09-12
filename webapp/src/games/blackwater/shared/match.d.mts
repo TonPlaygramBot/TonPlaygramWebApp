@@ -21,6 +21,7 @@ export type MatchPlayer = OnlinePlayer & {
   lastInput: number;
 };
 export type Match = {
+  rule:'last-stand'|'deathmatch';
   elapsed: number;
   players: MatchPlayer[];
   rng: () => number;
@@ -41,9 +42,10 @@ export function createPlayer(
   index: number,
   players?: (Vec2 & { hp: number })[]
 ): MatchPlayer;
-export function makeMatch(players: { id: string; name: string }[]): Match;
+export function makeMatch(players: { id: string; name: string }[],options?:{rule?:'last-stand'|'deathmatch'}): Match;
 export function stepMatch(match: Match, dt?: number): void;
 export function publicMatch(match: Match): {
+  rule:'last-stand'|'deathmatch';alive:number;
   elapsed: number;
   limit: number;
   killLimit: number;

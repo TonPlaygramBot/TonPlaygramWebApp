@@ -28,6 +28,11 @@ export function normalizeCheckpoint(raw, loadout, stops = 0) {
       wanted: finite(q.wanted, 0, 500, 0),
       ...loadout(q)
     },
+    aircraft: raw.aircraft && ['helicopter','jet'].includes(raw.aircraft.kind) &&
+      ['x','y','z','heading'].every(k=>Number.isFinite(raw.aircraft[k])) ? {
+      kind:raw.aircraft.kind,x:finite(raw.aircraft.x,-100000,100000,0),z:finite(raw.aircraft.z,-100000,100000,0),
+      y:finite(raw.aircraft.y,-200,2000,40),heading:finite(raw.aircraft.heading,-Math.PI*2,Math.PI*2,0),
+      health:finite(raw.aircraft.health,1,240,220),missiles:finite(raw.aircraft.missiles,0,24,24)} : null,
     car:
       car &&
       typeof car.id === 'string' &&
@@ -77,6 +82,7 @@ export function captureCheckpoint(sim) {
     elapsed: sim.state.elapsed,
     player: JSON.parse(JSON.stringify(p)),
     car: car ? { ...car } : null,
+    aircraft: sim.flight?.current ? {...sim.flight.current} : null,
     job: { ...sim.job },
     defeated: sim.state.npcs
       .filter((n) => n.kind === 'gang' && n.health <= 0)
@@ -88,7 +94,9 @@ export function restoreCheckpoint(sim, checkpoint, apply) {
   if (!checkpoint) return false;
   const p = sim.player,
     q = { ...checkpoint.player, y: groundHeight(checkpoint.player.x,checkpoint.player.z)+0.08 };
-  if (!sim.world.clearance(q, 1.78)) return false;
+  const aircraft=checkpoint.aircraft && sim.flight?.aircraft.find(a=>a.kind===checkpoint.aircraft.kind);
+  if(aircraft){q.y=checkpoint.aircraft.y;q.x=checkpoint.aircraft.x;q.z=checkpoint.aircraft.z;}
+  if (!sim.world.clearance(q, aircraft?1.3:1.78,aircraft?1.5:.32)) return false;
   apply(p, checkpoint.player);
   Object.assign(p, {
     x: q.x,
@@ -112,7 +120,13 @@ export function restoreCheckpoint(sim, checkpoint, apply) {
     }
   sim.claimed = new Set(checkpoint.claimed);
   for(const item of sim.loot)if(sim.claimed.has(item.id)){item.collected=true;item.collectedBy=p.id;}
-  if (checkpoint.car) {
+  if(aircraft){
+    Object.assign(aircraft,checkpoint.aircraft,{pilot:p.id,speed:0});
+    p.aircraftId=aircraft.id;p.carId=null;p.x=aircraft.x;p.z=aircraft.z;
+    sim.body.y=aircraft.y;sim.body.yaw=aircraft.heading;sim.body.interaction='flying';
+    sim.body.grounded=false;aircraft.airborne=aircraft.y>sim.world.surface(aircraft.x,aircraft.z,aircraft.y-.25)+2;
+  }
+  if (!aircraft && checkpoint.car) {
     const saved = checkpoint.car;
     let car =
       sim.state.cars.find((c) => c.id === saved.id) ||

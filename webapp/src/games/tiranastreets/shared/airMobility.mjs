@@ -82,7 +82,7 @@ function missile(state, helicopter) {
 
 export function updateAirMobility(state, dt) {
   const h = state.helicopter;
-  if (!h) return;
+  if (!h || h.careerManaged) return;
   const p = h.pilot && state.players[h.pilot];
   if (!p) {
     h.pilot = null;

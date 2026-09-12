@@ -4,8 +4,17 @@ import {ensureStarterWeapons} from '../shared/weapons.mjs';
 export const STREET_SAVE_KEY = 'tirana-streets:street-career:v1';
 export const CHAPTER_IDS = Object.freeze([
   'first-shift', 'lana-run', 'after-hours', 'express', 'capital-circuit',
-  'city-lights', 'rinia-rescue', 'boulevard-defense', 'five-star-escape'
+  'city-lights', 'rinia-rescue', 'boulevard-defense', 'five-star-escape',
+  'air-rescue', 'sky-patrol'
 ]);
+// Contacts unlock independent story strands. Existing completed chapters remain valid.
+export const MISSION_REQUIREMENTS = Object.freeze({
+  'first-shift': [], 'lana-run': ['first-shift'], 'express': ['first-shift'],
+  'rinia-rescue': ['first-shift'], 'air-rescue': ['first-shift'],
+  'after-hours': ['lana-run'], 'capital-circuit': ['lana-run', 'express'],
+  'city-lights': ['after-hours'], 'boulevard-defense': ['rinia-rescue'],
+  'five-star-escape': ['city-lights', 'boulevard-defense'], 'sky-patrol': ['air-rescue']
+});
 const number = (n, fallback, max) => Number.isFinite(n) ? Math.max(0, Math.min(max, n)) : fallback;
 const plain = o => !!o && typeof o === 'object' && !Array.isArray(o);
 const difficulties = new Set(['easy', 'normal', 'hard']);
@@ -15,6 +24,8 @@ export function createCampaign(missions, weapons, starter) {
   const arsenal = new Map(weapons.map(w => [w.id, w]));
   if (!arsenal.has(starter) || CHAPTER_IDS.some(id => !byId.has(id))) throw Error('Incomplete street-career catalog');
   const chapters = Object.freeze(CHAPTER_IDS.map(id => byId.get(id)));
+  const available = (p, id) => byId.has(id) && CHAPTER_IDS.includes(id) &&
+    (p.completed.includes(id) || (MISSION_REQUIREMENTS[id] || []).every(key => p.completed.includes(key)));
   function loadout(raw) {
     const inventory = Object.create(null);
     if (plain(raw?.inventory)) for (const [id, w] of arsenal) {
@@ -34,23 +45,23 @@ export function createCampaign(missions, weapons, starter) {
   function normalize(raw) {
     const p = fresh();
     if (!plain(raw) || raw.version !== 1) return p;
-    // Only a contiguous prefix unlocks subsequent chapters. Never trust indexes from storage.
+    // v1 saves migrate without losing completed missions when branches unlock out of order.
     for (const id of CHAPTER_IDS) {
-      if (!Array.isArray(raw.completed) || !raw.completed.includes(id)) break;
+      if (!Array.isArray(raw.completed) || !raw.completed.includes(id) || !available(p,id)) continue;
       p.completed.push(id);
       if (Number.isFinite(raw.best?.[id]) && raw.best[id] >= 0) p.best[id] = Math.min(86400, raw.best[id]);
     }
     p.loadout = loadout(raw.loadout);
     const a = raw.active;
-    if (plain(a) && CHAPTER_IDS.indexOf(a.id) >= 0 && CHAPTER_IDS.indexOf(a.id) <= p.completed.length) {
+    if (plain(a) && available(p, a.id)) {
       p.active = {id: a.id, difficulty: difficulties.has(a.difficulty) ? a.difficulty : 'normal', checkpoint: loadout(a.checkpoint)};
       const phase=normalizeCheckpoint(a.phase,loadout,byId.get(a.id)?.stops?.length||0);if(phase)p.active.phase=phase;
     }
     return p;
   }
   function begin(raw, id, difficulty = 'normal') {
-    const p = normalize(raw), index = CHAPTER_IDS.indexOf(id);
-    if (index < 0 || index > p.completed.length || !difficulties.has(difficulty)) return null;
+    const p = normalize(raw);
+    if (!available(p, id) || !difficulties.has(difficulty)) return null;
     // Mission starts are the durable retry checkpoint; damage/ammo are reset by the engine.
     p.active = {id, difficulty, checkpoint: loadout(p.loadout)};
     return p;
@@ -91,5 +102,5 @@ export function createCampaign(missions, weapons, starter) {
     try { if (!storage) return false; storage.setItem(STREET_SAVE_KEY, JSON.stringify(normalize(p))); return true; }
     catch { return false; }
   }
-  return {chapters, fresh, normalize, begin, resolve, abandon, saveExplore, apply, load, save};
+  return {chapters, available, fresh, normalize, begin, resolve, abandon, saveExplore, apply, load, save};
 }

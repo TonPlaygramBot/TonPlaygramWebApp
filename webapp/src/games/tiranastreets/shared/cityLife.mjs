@@ -1,7 +1,7 @@
 import { CITY_POPULATION, initCityPopulation, nearestShop, dropWeapon, collectWeapon } from './cityPopulation.mjs';
 import { WEAPON_BY_ID, STARTER_WEAPON, ensureStarterWeapons, difficultyOf } from "./weapons.mjs";
 import { forceDispatch, FORCE_VEHICLE_BOUNDS } from "./albanianForces.mjs";
-import { deployment, tacticalGoal, vehicleBlocks, avoidVehicles } from "./forceTactics.mjs";
+import { deployment, tacticalGoal, pursuitGoal, vehicleBlocks, avoidVehicles } from "./forceTactics.mjs";
 
 // Gameplay-only, bounded systems. The server owns these values in connected runs.
 const dist = (a, b) => Math.hypot(a.x - b.x, a.z - b.z);
@@ -408,6 +408,7 @@ function dispatch(state, p, stars, env) {
       forceCharacter: plan.character, squadId, role:plan.role, id,
       model: stars===5?'military-suv':'police', kind:stars===5?'military':stars>=3?'tactical':'patrol',
       heading, speed:0,vx:0,vz:0,steering:0,driver:'npc',target:p.id,path:[],pathIndex:0,nextRoute:0,
+      lastSeen:{x:p.x,z:p.z,heading:p.heading,speed:p.speed},lastSeenAt:state.elapsed,
       x:pos.x+Math.sin(heading)*vehicleIndex*8,z:pos.z+Math.cos(heading)*vehicleIndex*8,
       ...FORCE_VEHICLE_BOUNDS.find(b=>b.id===forceVehicle)};
     unit.id=id;
@@ -489,20 +490,26 @@ export function updateCityLife(state, dt, env, mission) {
     state.npcs = state.npcs.filter((n) => !n.unit);
   }
   for (const unit of state.units) {
+    if(unit.destroyed){unit.speed=0;continue;}
     const actual = state.players[unit.target] || target;
     const p = actual && env.track ? env.track(unit, actual) : actual;
     const convoy=state.units.filter(u=>u.squadId===unit.squadId),index=convoy.indexOf(unit),preceding=convoy[index-1];
-    if (!p) continue;
-    if (state.elapsed >= unit.nextRoute && (!unit.path.length || unit.pathIndex >= unit.path.length || !unit.routeTarget || dist(p,unit.routeTarget)>20)) {
+    const seen=!!actual&&dist(unit,actual)<85&&env.clear(unit,actual);
+    const order=pursuitGoal(unit,p||actual||unit,convoy,state.elapsed,seen);
+    unit.tactic=order.role;
+    if(order.role==='hold'){unit.speed=0;continue;}
+    const goal=order.goal;
+    if (state.elapsed >= unit.nextRoute && (!unit.path.length || unit.pathIndex >= unit.path.length || !unit.routeTarget || dist(goal,unit.routeTarget)>12)) {
       unit.path = env.route(
         env.nearestNode(unit.x, unit.z),
-        env.nearestNode(p.x, p.z),
+        env.nearestNode(goal.x, goal.z),
       );
       unit.pathIndex = 0;
-      unit.nextRoute = state.elapsed + 3.5;
-      unit.routeTarget={x:p.x,z:p.z};
+      unit.nextRoute = state.elapsed + 1.5;
+      unit.routeTarget={...goal};
     }
-    const d = dist(unit, p);
+    const d = dist(unit, p||goal);
+    unit.regroup = d>50 && !!actual?.carId;
     if(preceding && dist(preceding,unit)<8){unit.speed=0;continue;}
     if(state.npcs.some(n=>n.unit===unit.id && n.deployed)) {unit.speed=0;continue;}
     unit.speed = 0;
@@ -512,7 +519,7 @@ export function updateCityLife(state, dt, env, mission) {
       env.along(
         unit,
         unit.path[unit.pathIndex],
-        unit.model === "military-suv" ? 10 : 11 + stars,
+        unit.forceVehicle?.includes('bike') ? 23 : unit.model === "military-suv" ? 13 : 16 + stars,
         dt,
       )
     )
@@ -592,6 +599,12 @@ export function updateCityLife(state, dt, env, mission) {
     }
     const unit = n.unit && state.units.find((u) => u.id === n.unit),
       d = dist(n, p);
+    if(unit?.regroup && n.deployed){
+      n.anim='run';env.along(n,unit,4.5,npcDt);env.collide(n,.45);
+      if(dist(n,unit)<3){n.deployed=false;n.motion='drive';}
+      continue;
+    }
+    if(unit?.destroyed && !n.deployed){n.deployed=true;n.motion='walk';n.x+=2;n.z+=1;}
     const squadLead=unit && state.units.find(u=>u.squadId===unit.squadId);
     if (unit && !n.deployed && (dist(squadLead||unit, p) > 23 || Math.abs(unit.speed)>.5)) {
       n.motion = "drive";

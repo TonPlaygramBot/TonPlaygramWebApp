@@ -45,37 +45,5 @@ export function Game(props: ComponentProps<typeof OperationGame>) {
         </Suspense>
       </GameModeBoundary>
     );
-  return (
-    <>
-      <OperationGame {...props} />
-      <div
-        style={{
-          position: 'fixed',
-          right: 12,
-          top: 148,
-          zIndex: 40,
-          display: 'grid',
-          gap: 8
-        }}
-      >
-        <button
-          style={buttonStyle}
-          onClick={() => setActivity('street-career')}
-        >
-          STREET CAREER · DRIVE + COMBAT
-        </button>
-        <button style={buttonStyle} onClick={() => setActivity('stories')}>
-          CITY STORIES · COURIER + DAJTI
-        </button>
-      </div>
-    </>
-  );
+  return <OperationGame {...props} onCareer={()=>setActivity('street-career')} onStories={()=>setActivity('stories')} />;
 }
-const buttonStyle = {
-  minHeight: 44,
-  padding: '10px 14px',
-  borderRadius: 9,
-  background: '#193a45',
-  color: '#eef4d8',
-  border: '1px solid #91aca8'
-};

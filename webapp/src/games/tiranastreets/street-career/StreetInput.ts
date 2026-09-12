@@ -54,6 +54,7 @@ export class StreetInput extends CityInput {
     if (kind === 'gas') this.touch.gas = 1;
     if (kind === 'reverse') this.touch.gas = -1;
     if (kind === 'brake') this.touch.brake = true;
+    if (kind === 'ascend') this.touch.fast = true;
     return true;
   }
   pointerMove(id: number, x: number, y: number) {
@@ -76,6 +77,7 @@ export class StreetInput extends CityInput {
           ? -1
           : 0;
     if (owner.kind === 'brake') this.touch.brake = false;
+    if (owner.kind === 'ascend') this.touch.fast = false;
     if (owner.kind === 'move') {
       this.touch.x = 0;
       this.touch.y = 0;

@@ -17,6 +17,7 @@ export type Career = {
 };
 export type Member = { id: string; name: string };
 export type Car = Point & {
+  health?:number; destroyed?:boolean; burning?:boolean;
   id: string;
   heading: number;
   speed: number;
@@ -75,6 +76,7 @@ export type Mission = {
   reward: number;
   stars?: number;
   enemies?: number;
+  aircraft?: 'helicopter' | 'jet';
   stops: (Point & { name: string })[];
 };
 export type NPC = Point & {
@@ -96,6 +98,7 @@ export type NPC = Point & {
   downUntil: number;
 };
 export type Effect = Point & {
+  radius?:number;objectId?:string;
   y?:number;toY?:number;
   id: number;
   at: number;
@@ -105,9 +108,11 @@ export type Effect = Point & {
   owner: string;
   weapon: string;
 };
+export type Aircraft = Point & {id:string;kind?:'helicopter'|'jet';careerManaged?:boolean;y:number;roofY:number;stairX:number;stairZ:number;heading:number;speed:number;pilot:string|null;airborne:boolean;nextMissile:number;health?:number;missiles?:number;roll?:number;pitch?:number};
 export type State = {
   worldVersion?:string;
-  helicopter?: Point & { id:string; y:number; roofY:number; stairX:number; stairZ:number; heading:number; speed:number; pilot:string|null; airborne:boolean; nextMissile:number };
+  helicopter?: Aircraft;
+  jet?: Aircraft;
   lifeVersion:number;
   difficulty: string;
   shop: Shop;

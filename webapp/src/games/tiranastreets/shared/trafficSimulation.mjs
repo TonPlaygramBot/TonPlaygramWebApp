@@ -114,6 +114,7 @@ export function updateTraffic(state,dt,onImpact){
   const people=new TrafficGrid([...state.npcs,...Object.values(state.players)]);
   const viewers=Object.values(state.players);
   for(const car of state.traffic){
+    if(car.destroyed||car.burning){car.speed=car.vx=car.vz=0;continue;}
     if(car.service&&car.responsePhase!=='patrol')continue;
     let e=g.links[car.node]?.find(e=>e.to===car.next);
     if(!e){e=g.links[car.node]?.[0];if(!e){car.speed=0;continue;}car.next=e.to;}
