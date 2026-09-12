@@ -1,3 +1,5 @@
+export type Shop = {x:number;z:number;id?:string;name:string};
+export type Pickup = {id:string;x:number;y:number;z:number;weapon:string;ammo:number;source?:string;collected?:boolean;expiresAt?:number};
 export type Point = { x: number; z: number };
 export type Input = {
   x: number;
@@ -22,6 +24,8 @@ export type Car = Point & {
   vz: number;
   steering: number;
   model: string;
+  passengers?:{seat:number;face:number;shirt:number}[];
+  routeName?:string;livery?:number;trailerHeading?:number;doorsUntil?:number;braking?:boolean;
   collectionVehicle?: string;
   npcDriver?: boolean;
   racingAsset?: string;
@@ -106,7 +110,10 @@ export type State = {
   helicopter?: Point & { id:string; y:number; roofY:number; stairX:number; stairZ:number; heading:number; speed:number; pilot:string|null; airborne:boolean; nextMissile:number };
   lifeVersion:number;
   difficulty: string;
-  shop: Point & { name: string };
+  shop: Shop;
+  shops?:Shop[];
+  pickups?:Pickup[];
+  populationVersion?:number;
   npcs: NPC[];
   units: Car[];
   effects: Effect[];

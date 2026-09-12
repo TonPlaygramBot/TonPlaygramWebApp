@@ -8,7 +8,7 @@ import {
   equipStarter,
   initCityLife,
   lifeAction,
-  updateCityLife
+  updateCityLife, harm
 } from './cityLife.mjs';
 import {
   airAction,
@@ -16,8 +16,9 @@ import {
   updateAirMobility
 } from './airMobility.mjs';
 import { difficultyOf } from './weapons.mjs';
-import { stopForSignal } from './streetLayout.mjs';
-import {updateEmergencyResponse,trafficClearance} from './emergencyResponse.mjs';
+import { populateTraffic, updateTraffic, vehicleSeparation } from './trafficSimulation.mjs';
+import { initCityPopulation, shopObstacles, shopObstaclesNear } from './cityPopulation.mjs';
+import {updateEmergencyResponse} from './emergencyResponse.mjs';
 import {footprintIndex} from '../../tirana-city-source/footprintIndex.mjs';
 
 export { WORLD };
@@ -359,6 +360,7 @@ for(const b of cameraBuildings)for(let x=Math.floor(b.minX/100);x<=Math.floor(b.
   }
 function sightCandidates(a,b){
   const found=new Set();
+  for(const s of shopObstacles())if(s.h>1.2&&Math.max(a.x,b.x)>=s.minX&&Math.min(a.x,b.x)<=s.maxX&&Math.max(a.z,b.z)>=s.minZ&&Math.min(a.z,b.z)<=s.maxZ)found.add(s);
   for(let x=Math.floor(Math.min(a.x,b.x)/100);x<=Math.floor(Math.max(a.x,b.x)/100);x++)
     for(let z=Math.floor(Math.min(a.z,b.z)/100);z<=Math.floor(Math.max(a.z,b.z)/100);z++)
       for(const building of sightCells.get(`${x}:${z}`)||[])found.add(building);
@@ -449,9 +451,7 @@ for (const b of collisionBuildings) {
 }
 export function collide(entity, radius) {
   let hit = false;
-  const polys =
-    cells.get(`${Math.floor(entity.x / 40)},${Math.floor(entity.z / 40)}`) ||
-    [];
+  const polys = [...(cells.get(`${Math.floor(entity.x / 40)},${Math.floor(entity.z / 40)}`)||[]),...shopObstaclesNear(entity.x,entity.z)];
   for (const building of polys) {
     const p=building.p,holes=building.holes??[];
     let q = null,
@@ -608,22 +608,7 @@ export function createState(
     car.collectionVehicle=placement.collectionVehicle;car.npcDriver=true;
     state.cars.push(car);
   }
-  // Traffic is deterministic, follows connected OSM streets and never teleports.
-  // Distance culling keeps the broader road population affordable on phones.
-  for (let i = 0; i < 28; i++) {
-    const n = (spawnNode + 137 * (i + 1)) % nodes.length,
-      p = point(n),
-      to = links[n][0]?.[0] ?? n;
-    state.traffic.push({
-      ...vehicle(`traffic-${i}`, p.x, p.z, 0, i % 4 === 0 ? 'taxi' : 'sedan'),
-      collectionVehicle: VEHICLE_COLLECTION[i % VEHICLE_COLLECTION.length].id,
-      npcDriver: true,
-      node: n,
-      next: to,
-      seed: 11 + i * 29,
-      cruise: 5 + (i % 4)
-    });
-  }
+  populateTraffic(state, SPAWN);
   if (mission.type === 'race') {
     let from = nearestNode(SPAWN.x, SPAWN.z),
       path = [];
@@ -739,12 +724,14 @@ export function interact(state, id, action) {
     p.carId = null;
     p.speed = 0;
   } else {
-    const c = state.cars
-      .filter((c) => !c.driver)
+    const c = [...state.cars,...state.traffic]
+      .filter((c) => !c.driver && Math.abs(c.speed)<2.5)
       .sort((a, b) => distance(a, p) - distance(b, p))[0];
     if (c && distance(c, p) < 7) {
+      const ti=state.traffic.indexOf(c);if(ti>=0){state.traffic.splice(ti,1);state.cars.push(c);}
       p.carId = c.id;
       c.driver = id;
+      c.npcDriver=false;
       if(c.collectionVehicle)c.npcDriver=false;
       p.x = c.x;
       p.z = c.z;
@@ -766,32 +753,39 @@ export function movePlayer(state, p, dt) {
       return;
     }
     c.steering += (input.x - c.steering) * Math.min(1, dt * 8);
-    let accel = input.y * (input.y * c.speed < 0 ? 26 : 10.5);
+    const bus=c.model==='tirana-bus';
+    let accel = input.y * (input.y * c.speed < 0 ? (bus?9:26) : bus?3.2:10.5);
     if (input.brake) accel -= Math.sign(c.speed) * 30;
     c.speed += accel * dt;
     c.speed *= Math.exp(-(input.y === 0 ? 1.25 : 0.12) * dt);
-    c.speed = clamp(c.speed, -7, c.model === 'sedan-sports' ? 32 : 24);
+    c.speed = clamp(c.speed, -7, bus ? 16 : c.model === 'sedan-sports' ? 32 : 24);
     // Positive steering is screen-right when the chase camera faces forward.
     c.heading = angle(
       c.heading -
-        ((c.steering * c.speed) / (2.8 + Math.abs(c.speed) * 0.55)) * dt
+        ((c.steering * c.speed) / ((bus?7:2.8) + Math.abs(c.speed) * 0.55)) * dt
     );
     const grip = input.brake ? 3 : 10;
     c.vx += (-Math.sin(c.heading) * c.speed - c.vx) * Math.min(1, dt * grip);
     c.vz += (-Math.cos(c.heading) * c.speed - c.vz) * Math.min(1, dt * grip);
     c.x += c.vx * dt;
     c.z += c.vz * dt;
-    if (collide(c, 1.35)) {
+    let wallHit=collide(c,bus?1.3:1.35);
+    if(bus){for(const offset of [-7.5,7.5]){const q={x:c.x+Math.sin(c.heading)*offset,z:c.z+Math.cos(c.heading)*offset},x=q.x,z=q.z;if(collide(q,1.3)){c.x+=q.x-x;c.z+=q.z-z;wallHit=true;}}c.trailerHeading=(c.trailerHeading??c.heading)+angle(c.heading-(c.trailerHeading??c.heading))*Math.min(1,dt*Math.max(.35,Math.abs(c.speed)/7));}
+    if (wallHit) {
       c.speed *= 0.55;
       c.vx *= 0.3;
       c.vz *= 0.3;
     }
     for (const o of [...state.cars, ...state.traffic]) {
       if (o.id === c.id) continue;
+      if(bus||o.model==='tirana-bus'){
+        const separation=vehicleSeparation(c,o);if(separation){c.x+=separation.x;c.z+=separation.z;c.speed*=.65;c.vx*=.5;c.vz*=.5;}continue;
+      }
       const d = distance(c, o);
-      if (d < 2.8 && d > 0.01) {
-        c.x += ((c.x - o.x) / d) * (2.8 - d);
-        c.z += ((c.z - o.z) / d) * (2.8 - d);
+      const radius=2.8;
+      if (d < radius && d > 0.01) {
+        c.x += ((c.x - o.x) / d) * (radius - d);
+        c.z += ((c.z - o.z) / d) * (radius - d);
         c.speed *= 0.85;
       }
     }
@@ -840,30 +834,7 @@ export function stepState(state, dt = STEP, systems) {
   updateAirMobility(state, dt);
   for (const p of Object.values(state.players)) (systems?.movePlayer || movePlayer)(state, p, dt);
   updateEmergencyResponse(state,dt,lifeEnvironment);
-  for (const t of state.traffic) {
-    if(t.service&&t.responsePhase!=='patrol')continue;
-    const forwardX = -Math.sin(t.heading),
-      forwardZ = -Math.cos(t.heading);
-    const blocked = [...state.cars, ...state.traffic].some((vehicle) => {
-      if (vehicle.id === t.id) return false;
-      const dx = vehicle.x - t.x,
-        dz = vehicle.z - t.z,
-        forward = dx * forwardX + dz * forwardZ,
-        side = Math.abs(dx * forwardZ - dz * forwardX);
-      return forward > 0 && forward < 8 && side < 2.2;
-    });
-    const speed = blocked || stopForSignal(t, state.elapsed) ? 0 : Math.min(t.cruise,trafficClearance(t,[...state.cars,...state.traffic,...state.units],state.npcs));
-    if (along(t, point(t.next), speed, dt)) {
-      const old = t.node;
-      t.node = t.next;
-      t.seed = (t.seed * 1664525 + 1013904223) >>> 0;
-      const options = links[t.node].filter(([n]) => n !== old);
-      t.next =
-        (options.length ? options : links[t.node])[
-          t.seed % Math.max(1, options.length || links[t.node].length)
-        ]?.[0] ?? old;
-    }
-  }
+  updateTraffic(state, dt, (npc, damage, car) => harm(state, npc, damage, car, systems?.life ? {...lifeEnvironment,...systems.life} : lifeEnvironment));
   updateCityLife(state, dt, systems?.life ? {...lifeEnvironment, ...systems.life} : lifeEnvironment, mission);
   systems?.afterLife?.(state, dt);
   const rival = state.rival;
@@ -985,7 +956,10 @@ export function upgradeState(state) {
     for(const unit of state.units||[]){unit.path=[];unit.pathIndex=0;unit.nextRoute=0;}
     state.worldVersion=WORLD.regionalSource?.sha256;
   }
-  if (state.lifeVersion === 2) return state;
+  if (state.lifeVersion === 2) {
+    if(!state.populationVersion){initCityPopulation(state,lifeEnvironment);populateTraffic(state,SPAWN);}
+    return state;
+  }
   state.difficulty ||= 'normal';
   for (const p of Object.values(state.players))
     if (!p.inventory) equipStarter(p);

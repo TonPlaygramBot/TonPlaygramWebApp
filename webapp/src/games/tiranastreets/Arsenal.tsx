@@ -1,3 +1,4 @@
+import { nearestShop } from './shared/cityPopulation.mjs';
 import { useEffect, useState } from "react";
 import { WEAPON_BY_ID } from "./shared/weapons.mjs";
 import { WEAPON_STORE_CATALOG } from './weaponStoreCatalog.mjs';
@@ -28,7 +29,7 @@ export function Arsenal({
   }, []);
   const near =
     !player.carId &&
-    Math.hypot(player.x - state.shop.x, player.z - state.shop.z) <= 9;
+    !!nearestShop(state,player) && Math.hypot(player.x - nearestShop(state,player).x, player.z - nearestShop(state,player).z) <= 9;
   const canShop = near && wantedStars(player.wanted) === 0 && player.health > 0;
   return (
     <div className="ts-arsenal">
@@ -38,7 +39,7 @@ export function Arsenal({
       </div>
       <p>
         {!near
-          ? "Find Arben’s lime shop marker near your starting car to buy equipment."
+          ? "Find any lime Arsenal marker on the city map to buy equipment."
           : player.wanted
             ? "Arben is closed during a pursuit. Lose your wanted stars first."
             : "Choose a weapon from the physical display. Purchases use your verified TPG account."}

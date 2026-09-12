@@ -1,3 +1,4 @@
+import { CITY_POPULATION, initCityPopulation, nearestShop, dropWeapon, collectWeapon } from './cityPopulation.mjs';
 import { WEAPON_BY_ID, STARTER_WEAPON, difficultyOf } from "./weapons.mjs";
 import { forceDispatch, FORCE_VEHICLE_BOUNDS } from "./albanianForces.mjs";
 import { deployment, tacticalGoal, vehicleBlocks, avoidVehicles } from "./forceTactics.mjs";
@@ -30,12 +31,7 @@ export function initCityLife(state, env, mission) {
   state.effects = [];
   state.effectSeq = 0;
   state.nextDispatch = 8;
-  state.shop = {
-    x: env.spawn.x + 12,
-    z: env.spawn.z + 2,
-    name: "Arben · Arsenal",
-  };
-  env.collide(state.shop, 1);
+  initCityPopulation(state, env);
   state.npcs.push({
     ...state.shop,
     id: "dealer",
@@ -47,6 +43,7 @@ export function initCityLife(state, env, mission) {
     weapon: null,
     downUntil: 0,
   });
+  for(const shop of state.shops.slice(1))state.npcs.push({...shop,id:`dealer-${shop.id}`,kind:"dealer",motion:"idle",heading:0,speed:0,health:100,weapon:null,downUntil:0});
   const paths = env.world.roads
     .filter(
       (r) =>
@@ -58,8 +55,8 @@ export function initCityLife(state, env, mission) {
         dist({ x: b.a[0], z: b.a[1] }, env.spawn),
     );
   // Populate the full city; the renderer selects only nearby pedestrians.
-  for (let i = 0; i < 44 && paths.length; i++) {
-    const r = paths[i < 16 ? i * 2 : (i * 59) % paths.length];
+  for (let i = 0; i < CITY_POPULATION.pedestrians && paths.length; i++) {
+    const r = paths[i < 36 ? (i * 2) % paths.length : (i * 59) % paths.length];
     const t = (i * 0.173) % 1;
     const n = {
       id: `citizen-${i}`,
@@ -126,6 +123,7 @@ export function initCityLife(state, env, mission) {
   // Ambulance, fire brigade and patrol vehicles share the road graph and can be
   // promoted to incident responders without a second traffic simulation.
   for (const [i, service] of ["ambulance", "fire-brigade", "police-patrol"].entries()) {
+    if ([...state.cars, ...state.traffic].some(c => c.id === `service-${service}`)) continue;
     const node = env.nearestNode(env.spawn.x + 35 + i * 14, env.spawn.z - 30);
     const p = env.world.graph.nodes[node];
     const next = env.world.graph.edges.find((e) => e[0] === node)?.[1] ?? node;
@@ -186,6 +184,7 @@ function emit(state, kind, from, to, owner, weapon = "") {
     state.effects.splice(0, state.effects.length - 48);
 }
 export function lifeAction(state, p, action) {
+  if(action.startsWith("pickup:")){collectWeapon(state,p,action.slice(7));return true;}
   if (action === "reload") {
     const w = WEAPON_BY_ID.get(p.weapon),
       inv = p.inventory[p.weapon];
@@ -210,7 +209,7 @@ export function lifeAction(state, p, action) {
   }
   if (!action.startsWith("buy:")) return false;
   p.shopMessage = "";
-  if (p.carId || dist(p, state.shop) > 9 || p.health <= 0) {
+  if (p.carId || (!nearestShop(state,p) || dist(p, nearestShop(state,p)) > 9) || p.health <= 0) {
     p.shopMessage = "Walk up to Arben to shop.";
     return true;
   }
@@ -273,6 +272,7 @@ export function harm(state, target, amount, attacker, env) {
     target.health = Math.max(0, target.health - amount);
     target.panicUntil = state.elapsed + 12;
     if (!target.health) {
+      dropWeapon(state,target);
       target.downUntil = state.elapsed + (target.kind === "gang" ? 3600 : 35);
       if (attacker?.inventory && target.kind === "gang") {
         attacker.kills++;
@@ -420,6 +420,7 @@ function dispatch(state, p, stars, env) {
   });
 }
 export function updateCityLife(state, dt, env, mission) {
+  if(state.pickups)state.pickups=state.pickups.filter(l=>!l.expiresAt||l.expiresAt>state.elapsed);
   // Retain a short, bounded event window so polling clients receive audiovisual events.
   state.effects = state.effects.filter((e) => state.elapsed - e.at < 0.7);
   const players = Object.values(state.players),
@@ -516,10 +517,17 @@ export function updateCityLife(state, dt, env, mission) {
       unit.pathIndex++;
   }
   for (const n of state.npcs) {
+    let npcDt=dt;
+    if(n.kind==='civilian' && !players.some(p=>(p.x-n.x)**2+(p.z-n.z)**2<180*180)){
+      n.lifeAccumulator=(n.lifeAccumulator||0)+dt;
+      if(n.lifeAccumulator<.2)continue;
+      npcDt=n.lifeAccumulator;n.lifeAccumulator=0;
+    }
     if (n.health <= 0) {
       n.speed = 0;
       if (n.kind === "civilian" && state.elapsed > n.downUntil) {
         n.health = 100;
+        n.weaponDropped=false;
         n.panicUntil = 0;
       }
       continue;
@@ -537,7 +545,7 @@ export function updateCityLife(state, dt, env, mission) {
             x: n.x + ((n.x - danger.x) / d) * 6,
             z: n.z + ((n.z - danger.z) / d) * 6,
           };
-        env.along(n, to, n.motion === "cycle" ? 6 : 4.8, dt);
+        env.along(n, to, n.motion === "cycle" ? 6 : 4.8, npcDt);
         env.collide(n, 0.45);
       } else if (n.path?.length) {
         if (
@@ -545,7 +553,7 @@ export function updateCityLife(state, dt, env, mission) {
             n,
             n.path[n.pathIndex],
             n.motion === "cycle" ? 4.5 : n.role === "child" ? 2.1 : 1.3,
-            dt,
+            npcDt,
           )
         )
           n.pathIndex = 1 - n.pathIndex;

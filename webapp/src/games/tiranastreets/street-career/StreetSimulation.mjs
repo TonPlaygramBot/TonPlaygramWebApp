@@ -1,3 +1,4 @@
+import { collectWeapon } from '../shared/cityPopulation.mjs';
 import { weaponPose } from './weaponPose.mjs';
 import {
   advanceState,
@@ -16,7 +17,7 @@ import {
   carPoint,
   exitPoint,
   takeVehicle,
-  VEHICLE_ANCHORS
+  vehicleAnchors
 } from './vehicleCore.mjs';
 const dist = (a, b) => Math.hypot(a.x - b.x, a.z - b.z);
 const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
@@ -56,7 +57,7 @@ export class StreetSimulation {
     this.intent = { ...defaults, yaw: this.body.yaw };
     this.events = [];
     this.eventSeq = 0;
-    this.loot = [];
+    this.state.pickups ??= [];
     this.claimed = new Set();
     this.approved = -1;
     this.paused = false;
@@ -102,6 +103,7 @@ export class StreetSimulation {
       }
     };
   }
+  get loot() { return this.state.pickups || []; }
   get player() {
     return this.state.players.local;
   }
@@ -244,7 +246,7 @@ export class StreetSimulation {
       if (a.kind === 'entering' && t < a.duration) {
         const c = this.cars().find((c) => c.id === a.targetId);
         if (c) {
-          const door = carPoint(c, VEHICLE_ANCHORS.doors[a.side || 0]);
+          const door = carPoint(c, vehicleAnchors(c).doors[a.side || 0]);
           const q = { x: p.x, y: b.y, z: p.z };
           this.world.move(
             q,
@@ -354,21 +356,8 @@ export class StreetSimulation {
         target.z = q.z;
       }
     }
-    if (
-      target.health <= 0 &&
-      target.weapon &&
-      target.kind !== 'civilian' &&
-      !this.loot.some((l) => l.id === 'drop:' + target.id)
-    )
-      this.loot.push({
-        id: 'drop:' + target.id,
-        weapon: target.weapon,
-        x: target.x,
-        z: target.z,
-        y: 0.15,
-        ammo: WEAPON_BY_ID.get(target.weapon)?.magazine || 8
-      });
   }
+
   track(n, p) {
     const now = this.state.elapsed,
       key = n.id,
@@ -495,7 +484,7 @@ export class StreetSimulation {
         'objective'
       );
     for (const l of this.loot)
-      if (!this.claimed.has(l.id)) {
+      if (!l.collected && !this.claimed.has(l.id)) {
         const w = WEAPON_BY_ID.get(l.weapon),
           inv = p.inventory[l.weapon];
         add(l.id, 'MERR ARMËN', l, 3.2, 80, 'loot', {
@@ -508,8 +497,8 @@ export class StreetSimulation {
       }
     for (const car of [...this.state.cars, ...this.state.traffic]) {
       if (car.driver && car.driver !== 'npc') continue;
-      if (dist(p, car) > 5.5) continue;
-      const doors = VEHICLE_ANCHORS.doors.map((d) => carPoint(car, d));
+      if (dist(p, car) > (car.model==='tirana-bus'?13:5.5)) continue;
+      const doors = vehicleAnchors(car).doors.map((d) => carPoint(car, d));
       const side = dist(p, doors[0]) < dist(p, doors[1]) ? 0 : 1;
       const occupied =
         this.state.traffic.includes(car) ||
@@ -534,7 +523,7 @@ export class StreetSimulation {
         { enabled: !reason, disabledReason: reason, side, occupied }
       );
     }
-    add('arsenal', 'ARBEN', this.state.shop, 4, 50, 'arsenal');
+    for(const shop of this.state.shops || [this.state.shop])add(shop.id || 'arsenal', 'ARSENAL', shop, 5, 50, 'arsenal');
     return out;
   }
   focus() {
@@ -997,7 +986,7 @@ export class StreetSimulation {
     b.interaction = 'free';
     if (
       !c ||
-      dist(p, carPoint(c, VEHICLE_ANCHORS.doors[a.side || 0])) > 2.4 ||
+      dist(p, carPoint(c, vehicleAnchors(c).doors[a.side || 0])) > 2.4 ||
       !takeVehicle(this.state, p, c)
     ) {
       b.notice = 'Car is no longer available';
@@ -1049,17 +1038,7 @@ export class StreetSimulation {
     if (live.kind === 'loot') {
       const l = this.loot.find((l) => l.id === a.targetId);
       if (!l || this.claimed.has(l.id)) return;
-      const w = WEAPON_BY_ID.get(l.weapon);
-      if (!w) return;
-      const inv = this.player.inventory[l.weapon];
-      if (inv) {
-        if (inv.reserve >= w.magazine * 8) return;
-        inv.reserve = Math.min(w.magazine * 8, inv.reserve + l.ammo);
-      } else
-        this.player.inventory[l.weapon] = {
-          ammo: Math.min(w.magazine, l.ammo),
-          reserve: 0
-        };
+      if(!collectWeapon(this.state,this.player,l.id))return;
       this.claimed.add(l.id);
       this.event('loot', { targetId: l.id });
     } else if (live.kind === 'objective') {

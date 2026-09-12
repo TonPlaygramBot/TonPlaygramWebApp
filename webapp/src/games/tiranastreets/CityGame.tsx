@@ -1,3 +1,4 @@
+import { nearestShop } from './shared/cityPopulation.mjs';
 "use client";
 
 import {
@@ -1216,7 +1217,7 @@ export default function CityGame({
           )}
           {!result &&
             view &&
-            Math.hypot(player.x - view.shop.x, player.z - view.shop.z) < 12 &&
+            Math.hypot(player.x - nearestShop(view,player).x, player.z - nearestShop(view,player).z) < 12 &&
             !driving && (
               <button
                 className="ts-shop-prompt"

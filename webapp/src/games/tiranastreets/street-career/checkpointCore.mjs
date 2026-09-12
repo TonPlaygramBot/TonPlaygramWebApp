@@ -60,8 +60,8 @@ export function normalizeCheckpoint(raw, loadout, stops = 0) {
       : [],
     claimed: Array.isArray(raw.claimed)
       ? raw.claimed
-          .filter((id) => typeof id === 'string' && id.startsWith('drop:'))
-          .slice(0, 100)
+          .filter((id) => typeof id === 'string' && (id.startsWith('drop:') || /^city-weapon-\d+$/.test(id)))
+          .slice(0, 428)
       : []
   };
 }
@@ -109,6 +109,7 @@ export function restoreCheckpoint(sim, checkpoint, apply) {
       n.downUntil = 86400;
     }
   sim.claimed = new Set(checkpoint.claimed);
+  for(const item of sim.loot)if(sim.claimed.has(item.id)){item.collected=true;item.collectedBy=p.id;}
   if (checkpoint.car) {
     const saved = checkpoint.car;
     let car =

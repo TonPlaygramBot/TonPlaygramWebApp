@@ -1,4 +1,6 @@
 import { detailPostObstacles } from '../../tirana-street-detail/sharedRoadDetails.mjs';
+import {shopObstacles} from '../shared/cityPopulation.mjs';
+import {vehicleSize} from '../shared/trafficSimulation.mjs';
 /** Headless 3D queries over the SAME city footprints as the shared simulation.
  * No scene objects or renderer callbacks can affect a hit or clearance result. */
 import {
@@ -52,6 +54,7 @@ export class StreetWorld {
   constructor(
     solids = [
       ...collisionSolids,
+      ...shopObstacles(),
       ...detailPostObstacles().map((p, i) => ({
         id: 'detail-post:' + i,
         h: p.h,
@@ -248,6 +251,7 @@ export class StreetWorld {
       }
     for (const car of cars) {
       if (car.id === ignoreCar) continue;
+      const size=vehicleSize(car);
       const c = Math.cos(car.heading),
         s = Math.sin(car.heading),
         x = a.x - car.x,
@@ -256,8 +260,8 @@ export class StreetWorld {
         { x: x * c - z * s, y: a.y, z: x * s + z * c },
         { x: d.x * c - d.z * s, y: d.y, z: d.x * s + d.z * c },
         {
-          min: { x: -1.05, y: 0, z: -2.13 },
-          max: { x: 1.05, y: 1.5, z: 2.13 }
+          min: { x: -size.width/2, y: 0, z: -size.length/2 },
+          max: { x: size.width/2, y: car.model==='tirana-bus'?3.5:1.5, z: size.length/2 }
         },
         best
       );

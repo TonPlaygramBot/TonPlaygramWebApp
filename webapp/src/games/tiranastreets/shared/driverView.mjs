@@ -4,6 +4,7 @@ import {collectionVehicleFor} from './vehicleCollection.mjs';
  * Original collection GLBs use +X forward; convert their authored seat socket.
  */
 export function driverSocket(car) {
+  if(car.model==='tirana-bus')return {x:-.64,y:2.05,z:-7.7,width:2.55,length:18,open:false};
   const asset=collectionVehicleFor({collectionVehicle:car.collectionVehicle||car.racingAsset});
   if(asset) {
     const [forward,height,left]=asset.driverSeat;

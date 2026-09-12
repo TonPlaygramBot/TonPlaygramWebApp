@@ -87,7 +87,7 @@ export class StreetSimulation {
   eventSeq: number;
   hooks: SimulationSystems;
   settings: { aimAssist: boolean };
-  loot: {
+  loot: {collected?:boolean;
     id: string;
     weapon: string;
     x: number;
