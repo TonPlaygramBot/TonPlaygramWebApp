@@ -5,6 +5,13 @@ import { TennisRenderer } from './render';
 import { TennisAudio } from './audio';
 import { LineReview } from './LineReview';
 import {
+  STROKES,
+  courtCue,
+  scoreMoment,
+  freshStats,
+  collectStats
+} from './feedback';
+import {
   beginSwipe,
   readSwipe,
   sampleSwipe,
@@ -64,8 +71,10 @@ export default function TennisGame({
     careerId = useRef(''),
     settledId = useRef(''),
     pointer = useRef<number | null>(null),
+    touches = useRef(new Set<number>()),
     charging = useRef(false),
     gesture = useRef<Swipe | null>(null),
+    stats = useRef(freshStats()),
     nextSwing = useRef(0);
   const [screen, setScreen] = useState<
       'home' | 'career' | 'online' | 'match' | 'help' | 'credits'
@@ -77,6 +86,10 @@ export default function TennisGame({
     [paused, setPaused] = useState(false),
     [muted, setMuted] = useState(false),
     [assist, setAssist] = useState(true),
+    [hints, setHints] = useState(true),
+    [eco, setEco] = useState(false),
+    [strokeMenu, setStrokeMenu] = useState(false),
+    [confirmExit, setConfirmExit] = useState(false),
     [difficulty, setDifficulty] = useState(launch?.difficulty ?? 2),
     [surface, setSurface] = useState<Surface>(launch?.surface ?? 'hard'),
     [format, setFormat] = useState(launch?.format ?? 'quick'),
@@ -138,7 +151,9 @@ export default function TennisGame({
       view = new TennisRenderer(canvas.current, 0);
       renderer.current = view;
       audio.current = new TennisAudio();
-      setReady(true);
+      view.ready.then(() => {
+        if (!view.disposed) setReady(!view.loadError);
+      });
     } catch {
       setError(
         '3D graphics are unavailable in this browser. Try opening the full game in Safari or Chrome.'
@@ -149,8 +164,13 @@ export default function TennisGame({
       last = 0,
       acc = 0,
       lastHud = 0,
-      lastStep = 0;
+      lastStep = 0,
+      reportedError = '';
     const tick = (now: number) => {
+      if ((!running.current || pausedRef.current) && now - last < 1000 / 30) {
+        raf = requestAnimationFrame(tick);
+        return;
+      }
       const dt = last ? Math.min((now - last) / 1000, 0.06) : 0;
       last = now;
       if (running.current && !pausedRef.current && !roomRef.current) {
@@ -162,24 +182,36 @@ export default function TennisGame({
         }
       }
       if (charging.current && gesture.current) {
-        const { power } = readSwipe(gesture.current, now);
-        if (now - lastHud > 80) setCharge(power);
+        const { power, dx } = readSwipe(gesture.current, now);
+        if (now - lastHud > 80) {
+          setCharge(power);
+          setAim(dx);
+        }
       }
       view.draw(frame.current, dt, !!roomRef.current);
+      collectStats(stats.current, frame.current);
+      if (audio.current) audio.current.seat = roomRef.current?.seat ?? 0;
       audio.current?.events(frame.current.events);
       if (
         running.current &&
         frame.current.phase === 'rally' &&
         now - lastStep > 270 &&
-        Math.abs(
-          frame.current.players[0].x - frame.current.players[0].targetX
+        !pausedRef.current &&
+        Math.hypot(
+          frame.current.players[view.seat].x -
+            frame.current.players[view.seat].targetX,
+          frame.current.players[view.seat].z -
+            frame.current.players[view.seat].targetZ
         ) > 0.3
       ) {
         audio.current?.sample('step', 1.3);
         lastStep = now;
       }
-      if (view.loadError && !error) setError(view.loadError);
-      if (now - lastHud > 85) {
+      if (view.loadError && view.loadError !== reportedError) {
+        reportedError = view.loadError;
+        setError(view.loadError);
+      }
+      if (running.current && !pausedRef.current && now - lastHud > 85) {
         updateHud();
         lastHud = now;
       }
@@ -188,9 +220,13 @@ export default function TennisGame({
     raf = requestAnimationFrame(tick);
     const hidden = () => {
       if (document.hidden) {
+        cancelAnimationFrame(raf);
+        last = 0;
+        acc = 0;
         charging.current = false;
         pointer.current = null;
         gesture.current = null;
+        touches.current.clear();
         input.current.moveX = null;
         input.current.moveZ = null;
         setCharge(0);
@@ -198,14 +234,47 @@ export default function TennisGame({
           pausedRef.current = true;
           setPaused(true);
         }
+      } else {
+        last = 0;
+        cancelAnimationFrame(raf);
+        raf = requestAnimationFrame(tick);
       }
     };
+    const contextLost = (event: Event) => {
+      event.preventDefault();
+      charging.current = false;
+      pointer.current = null;
+      gesture.current = null;
+      touches.current.clear();
+      input.current.moveX = input.current.moveZ = null;
+      setCharge(0);
+      if (running.current && !roomRef.current) {
+        pausedRef.current = true;
+        setPaused(true);
+      }
+      setNotice('Graphics interrupted. Waiting for the court to recover…');
+    };
+    const contextRestored = () =>
+      setNotice('Court restored. You can continue playing.');
+    view.renderer.domElement.addEventListener('webglcontextlost', contextLost);
+    view.renderer.domElement.addEventListener(
+      'webglcontextrestored',
+      contextRestored
+    );
     document.addEventListener('visibilitychange', hidden);
     return () => {
       cancelAnimationFrame(raf);
       view.dispose();
       audio.current?.dispose();
       document.removeEventListener('visibilitychange', hidden);
+      view.renderer.domElement.removeEventListener(
+        'webglcontextlost',
+        contextLost
+      );
+      view.renderer.domElement.removeEventListener(
+        'webglcontextrestored',
+        contextRestored
+      );
     };
     // This effect owns the renderer and simulation loop for the life of the game.
   }, []);
@@ -215,6 +284,12 @@ export default function TennisGame({
   useEffect(() => {
     if (audio.current) audio.current.enabled = !muted;
   }, [muted]);
+  useEffect(() => {
+    renderer.current?.setQuality(eco ? 'low' : 'high');
+  }, [eco]);
+  useEffect(() => {
+    if (renderer.current) renderer.current.guides = hints;
+  }, [hints]);
   useEffect(() => {
     if (renderer.current) {
       renderer.current.seat = own;
@@ -296,7 +371,11 @@ export default function TennisGame({
     charging.current = false;
     pointer.current = null;
     gesture.current = null;
+    touches.current.clear();
     setCharge(0);
+    stats.current = freshStats();
+    setStrokeMenu(false);
+    setConfirmExit(false);
     nextSwing.current = 0;
     setShot('flat');
     setAim(0);
@@ -350,9 +429,13 @@ export default function TennisGame({
     const next = !pausedRef.current;
     pausedRef.current = next;
     setPaused(next);
+    setStrokeMenu(false);
+    setConfirmExit(false);
+    if (!next) unlock();
     charging.current = false;
     pointer.current = null;
     gesture.current = null;
+    touches.current.clear();
     input.current.moveX = null;
     input.current.moveZ = null;
     setCharge(0);
@@ -372,6 +455,7 @@ export default function TennisGame({
   const chooseShot = (v: Shot) => {
     setShot(v);
     input.current.shot = v;
+    setStrokeMenu(false);
   };
   const move = (e: React.PointerEvent<HTMLDivElement>) => {
     if (pointer.current !== e.pointerId) return;
@@ -445,6 +529,7 @@ export default function TennisGame({
     (frame.current.phase !== 'serve' || frame.current.score.server === own);
   const tour = TOUR[career.tour];
   const finishCourtTouch = (e: React.PointerEvent<HTMLDivElement>) => {
+    touches.current.delete(e.pointerId);
     if (pointer.current !== e.pointerId || !gesture.current) return;
     sampleSwipe(gesture.current, e.clientX, e.clientY, e.timeStamp);
     const { power, dx, dy } = readSwipe(gesture.current);
@@ -461,8 +546,50 @@ export default function TennisGame({
     if (e.currentTarget.hasPointerCapture(e.pointerId))
       e.currentTarget.releasePointerCapture(e.pointerId);
   };
+  useEffect(() => {
+    const dialogs =
+      canvas.current?.parentElement?.querySelectorAll<HTMLElement>('.tr-modal');
+    const dialog = dialogs?.[dialogs.length - 1];
+    if (!dialog) return;
+    const previous = document.activeElement as HTMLElement | null;
+    const controls = () =>
+      Array.from(
+        dialog.querySelectorAll<HTMLElement>(
+          'button:not(:disabled), input:not(:disabled), select:not(:disabled), a[href]'
+        )
+      );
+    controls()[0]?.focus();
+    const keydown = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') {
+        if (confirmExit) setConfirmExit(false);
+        else if (pausedRef.current) pause();
+      }
+      if (event.key !== 'Tab') return;
+      const items = controls(),
+        first = items[0],
+        last = items[items.length - 1];
+      if (
+        !dialog.contains(document.activeElement) ||
+        (event.shiftKey && document.activeElement === first)
+      ) {
+        event.preventDefault();
+        (event.shiftKey ? last : first)?.focus();
+      } else if (!event.shiftKey && document.activeElement === last) {
+        event.preventDefault();
+        first?.focus();
+      }
+    };
+    document.addEventListener('keydown', keydown);
+    return () => {
+      document.removeEventListener('keydown', keydown);
+      if (previous?.isConnected) previous.focus();
+    };
+  }, [paused, confirmExit, screen, hud.phase, reviewActive(hud)]);
   return (
-    <div className={`tr-game ${inline ? 'tr-inline' : ''}`}>
+    <div
+      className={`tr-game ${inline ? 'tr-inline' : ''}`}
+      data-screen={screen}
+    >
       {onLobby && screen !== 'match' && (
         <button className="tr-app-lobby" onClick={onLobby}>
           ← Games lobby
@@ -472,6 +599,17 @@ export default function TennisGame({
         className="tr-court"
         ref={canvas}
         onPointerDown={(e) => {
+          if (e.button !== 0 || screen !== 'match' || paused) return;
+          touches.current.add(e.pointerId);
+          e.currentTarget.setPointerCapture(e.pointerId);
+          if (touches.current.size > 1) {
+            pointer.current = null;
+            gesture.current = null;
+            charging.current = false;
+            input.current.moveX = input.current.moveZ = null;
+            setCharge(0);
+            return;
+          }
           if (
             screen !== 'match' ||
             paused ||
@@ -480,6 +618,7 @@ export default function TennisGame({
             e.button !== 0
           )
             return;
+          setStrokeMenu(false);
           pointer.current = e.pointerId;
           e.currentTarget.setPointerCapture(e.pointerId);
           gesture.current = beginSwipe(
@@ -498,6 +637,7 @@ export default function TennisGame({
         onPointerMove={move}
         onPointerUp={finishCourtTouch}
         onLostPointerCapture={(e) => {
+          touches.current.delete(e.pointerId);
           if (pointer.current !== e.pointerId) return;
           pointer.current = null;
           gesture.current = null;
@@ -507,6 +647,7 @@ export default function TennisGame({
           setCharge(0);
         }}
         onPointerCancel={(e) => {
+          touches.current.delete(e.pointerId);
           if (pointer.current !== e.pointerId) return;
           pointer.current = null;
           gesture.current = null;
@@ -545,6 +686,7 @@ export default function TennisGame({
             variant="ghost"
             className="tr-icon"
             aria-label={screen === 'match' ? 'Pause match' : 'How to play'}
+            disabled={screen === 'match' && !!room}
             onClick={() => (screen === 'match' ? pause() : setScreen('help'))}
           >
             {screen === 'match' ? 'Ⅱ' : '?'}
@@ -571,10 +713,19 @@ export default function TennisGame({
                       : 'SHORT SET'}
               </span>
             </div>
+            <div className="tr-score-head" aria-hidden="true">
+              <span>PLAYER</span>
+              <span>SETS</span>
+              <span>GAMES</span>
+              <span>PTS</span>
+            </div>
             <div className="tr-score-row">
               <span className="tr-player-name">
                 <i className="tr-player-dot" />
-                You {hud.score.server === own && <small>●</small>}
+                <span className="tr-name-text">You</span>{' '}
+                {hud.score.server === own && (
+                  <small aria-label="Serving">●</small>
+                )}
               </span>
               <span className="tr-set-score">{hud.score.sets[own]}</span>
               <span className="tr-games-score">{hud.score.games[own]}</span>
@@ -583,14 +734,25 @@ export default function TennisGame({
             <div className="tr-score-row tr-opponent">
               <span className="tr-player-name">
                 <i className="tr-player-dot" />
-                {opponentName}
-                {hud.score.server === op && <small>●</small>}
+                <span className="tr-name-text">{opponentName}</span>
+                {hud.score.server === op && (
+                  <small aria-label="Serving">●</small>
+                )}
               </span>
               <span className="tr-set-score">{hud.score.sets[op]}</span>
               <span className="tr-games-score">{hud.score.games[op]}</span>
               <b>{scores[op]}</b>
             </div>
           </div>
+          {scoreMoment(hud, own) &&
+            !reviewActive(hud) &&
+            (hud.phase === 'serve' ||
+              hud.phase === 'rally' ||
+              hud.phase === 'toss') && (
+              <div className="tr-moment" role="status">
+                {scoreMoment(hud, own)}
+              </div>
+            )}
           {room && (
             <div className="tr-network" role="status">
               {onLobby ? 'ONLINE MATCH' : 'ROOM'}{' '}
@@ -617,19 +779,37 @@ export default function TennisGame({
                         : 'Return the serve'}
           </div>
           <div className="tr-touch-hud" hidden={reviewActive(hud)}>
+            {hints && (
+              <p className="tr-live-cue" role="status">
+                {courtCue(hud, own, assist)}
+              </p>
+            )}
+            {strokeMenu && (
+              <div
+                className="tr-strokes"
+                role="group"
+                aria-label="Choose your stroke"
+              >
+                {STROKES.map((option) => (
+                  <button
+                    type="button"
+                    key={option.value}
+                    aria-pressed={shot === option.value}
+                    onClick={() => chooseShot(option.value)}
+                  >
+                    <b>{option.label}</b>
+                    <small>{option.hint}</small>
+                  </button>
+                ))}
+              </div>
+            )}
             <div className="tr-touch-state">
               <button
                 type="button"
                 className="tr-stroke-picker"
                 aria-label={`Shot type: ${shot}. Change stroke`}
-                onClick={() =>
-                  chooseShot(
-                    (['flat', 'topspin', 'slice', 'lob'] as Shot[])[
-                      (['flat', 'topspin', 'slice', 'lob'].indexOf(shot) + 1) %
-                        4
-                    ]
-                  )
-                }
+                aria-expanded={strokeMenu}
+                onClick={() => setStrokeMenu(!strokeMenu)}
               >
                 {shot === 'flat' ? 'Drive' : shot} ▾
               </button>
@@ -648,10 +828,8 @@ export default function TennisGame({
             >
               <i style={{ width: `${charge * 100}%` }} />
             </div>
-            <p>
-              Tap softly · swipe faster to hit harder
-              <br />
-              Swipe toward your opponent · angle to steer
+            <p className="tr-control-note">
+              {assist ? 'Auto movement' : 'Drag to move'} · swipe to aim & hit
             </p>
           </div>
           {reviewActive(hud) && hud.review && (
@@ -695,41 +873,46 @@ export default function TennisGame({
               </Button>
             </div>
             <div className="tr-options">
-              <button onClick={() => setDifficulty((difficulty + 1) % 3)}>
-                {['Club', 'Tour', 'Pro'][difficulty]} AI ▾
-              </button>
-              <button
-                onClick={() => {
-                  const v: Surface =
-                    surface === 'hard'
-                      ? 'clay'
-                      : surface === 'clay'
-                        ? 'grass'
-                        : 'hard';
-                  setSurface(v);
-                  frame.current.config.surface = v;
-                }}
-              >
-                {surface} court ▾
-              </button>
-              <button
-                onClick={() =>
-                  setFormat(
-                    format === 'quick'
-                      ? 'set'
-                      : format === 'set'
-                        ? 'full'
-                        : 'quick'
-                  )
-                }
-              >
-                {format === 'quick'
-                  ? 'Quick game'
-                  : format === 'set'
-                    ? 'Short set'
-                    : 'Full match'}{' '}
-                ▾
-              </button>
+              <label>
+                Opponent
+                <select
+                  aria-label="AI difficulty"
+                  value={difficulty}
+                  onChange={(e) => setDifficulty(Number(e.target.value))}
+                >
+                  <option value={0}>Club</option>
+                  <option value={1}>Tour</option>
+                  <option value={2}>Pro</option>
+                </select>
+              </label>
+              <label>
+                Court
+                <select
+                  aria-label="Court surface"
+                  value={surface}
+                  onChange={(e) => {
+                    const next = e.target.value as Surface;
+                    setSurface(next);
+                    frame.current.config.surface = next;
+                  }}
+                >
+                  <option value="hard">Hard</option>
+                  <option value="clay">Clay</option>
+                  <option value="grass">Grass</option>
+                </select>
+              </label>
+              <label>
+                Match
+                <select
+                  aria-label="Match length"
+                  value={format}
+                  onChange={(e) => setFormat(e.target.value)}
+                >
+                  <option value="quick">1 game</option>
+                  <option value="set">1 set</option>
+                  <option value="full">3 sets</option>
+                </select>
+              </label>
             </div>
             <div className="tr-home-footer">
               <button onClick={() => setScreen('help')}>How to play</button>
@@ -1003,14 +1186,65 @@ export default function TennisGame({
         </div>
       )}
       {paused && screen === 'match' && (
-        <div className="tr-modal">
+        <div
+          className="tr-modal"
+          role="dialog"
+          aria-modal="true"
+          aria-label="Match paused"
+        >
           <div className="tr-modal-card">
             <span className="tr-eyebrow">TAKE A BREATHER</span>
             <h2>Match paused.</h2>
+            <div className="tr-settings">
+              <label>
+                <span>
+                  Auto movement<small>Player follows the ball</small>
+                </span>
+                <input
+                  type="checkbox"
+                  checked={assist}
+                  onChange={(e) => setAssist(e.target.checked)}
+                />
+              </label>
+              <label>
+                <span>
+                  Coaching hints<small>Tips during the rally</small>
+                </span>
+                <input
+                  type="checkbox"
+                  checked={hints}
+                  onChange={(e) => setHints(e.target.checked)}
+                />
+              </label>
+              <label>
+                <span>
+                  Battery saver<small>Lower resolution, fewer shadows</small>
+                </span>
+                <input
+                  type="checkbox"
+                  checked={eco}
+                  onChange={(e) => setEco(e.target.checked)}
+                />
+              </label>
+              <label>
+                <span>Sound</span>
+                <input
+                  type="checkbox"
+                  checked={!muted}
+                  onChange={(e) => {
+                    unlock();
+                    setMuted(!e.target.checked);
+                  }}
+                />
+              </label>
+            </div>
             <Button className="tr-primary" onClick={pause}>
               BACK TO COURT<span>↗</span>
             </Button>
-            <Button className="tr-secondary" onClick={exit}>
+            <Button
+              className="tr-secondary"
+              onClick={() => setConfirmExit(true)}
+            >
               LEAVE MATCH
             </Button>
           </div>
@@ -1041,6 +1275,30 @@ export default function TennisGame({
               {hud.score.history.map((s) => `${s[own]}–${s[op]}`).join(' · ')} ·
               Best rally: {hud.bestRally} shots
             </p>
+            <div
+              className="tr-result-stats"
+              aria-label={
+                room ? 'Your stats since joining' : 'Your match stats'
+              }
+            >
+              <div>
+                <b>{stats.current.points[own]}</b>
+                <span>Points won</span>
+              </div>
+              <div>
+                <b>{stats.current.shots[own]}</b>
+                <span>Shots hit</span>
+              </div>
+              <div>
+                <b>{hud.bestRally}</b>
+                <span>Best rally</span>
+              </div>
+            </div>
+            {room && (
+              <small className="tr-session-note">
+                Shot and point stats since joining
+              </small>
+            )}
             {modeRef.current === 'career' && (
               <p>
                 {resultSaved
@@ -1081,9 +1339,38 @@ export default function TennisGame({
         </div>
       )}
       {room && room.joined && (
-        <button className="tr-leave-online" onClick={exit}>
+        <button
+          className="tr-leave-online"
+          onClick={() => setConfirmExit(true)}
+        >
           Leave
         </button>
+      )}
+      {confirmExit && (
+        <div
+          className="tr-modal tr-confirm"
+          role="dialog"
+          aria-modal="true"
+          aria-label="Leave this match?"
+        >
+          <div className="tr-modal-card">
+            <h2>Leave this match?</h2>
+            <p>
+              {room
+                ? 'Leaving retires you from this online match.'
+                : 'Your current match will end.'}
+            </p>
+            <Button
+              className="tr-primary"
+              onClick={() => setConfirmExit(false)}
+            >
+              KEEP PLAYING
+            </Button>
+            <Button className="tr-secondary" onClick={exit}>
+              LEAVE MATCH
+            </Button>
+          </div>
+        </div>
       )}
       {(error || notice) && (
         <div className="tr-toast" role={error ? 'alert' : 'status'}>

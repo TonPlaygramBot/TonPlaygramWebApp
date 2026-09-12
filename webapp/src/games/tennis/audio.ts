@@ -1,12 +1,26 @@
 import { assets } from './assets';
 import { decode } from './render';
-import type { Event } from './engine';
+import type { Event, Seat } from './engine';
 export class TennisAudio {
   ctx: AudioContext | null = null;
   gain: GainNode | null = null;
   buffers: Record<string, AudioBuffer> = {};
-  enabled = true;
+  private audible = true;
+  private decoding: Promise<void> | null = null;
+  seat: Seat = 0;
   lastEvent = 0;
+  get enabled() {
+    return this.audible;
+  }
+  set enabled(value: boolean) {
+    this.audible = value;
+    if (this.ctx && this.gain)
+      this.gain.gain.setTargetAtTime(
+        value ? 0.5 : 0,
+        this.ctx.currentTime,
+        0.015
+      );
+  }
   async unlock() {
     if (!this.ctx) {
       const C =
@@ -16,17 +30,23 @@ export class TennisAudio {
       if (!C) return;
       this.ctx = new C();
       this.gain = this.ctx.createGain();
-      this.gain.gain.value = 0.5;
+      this.gain.gain.value = this.enabled ? 0.5 : 0;
       this.gain.connect(this.ctx.destination);
-      for (const name of ['hit', 'bounce', 'step'] as const) {
-        try {
-          this.buffers[name] = await this.ctx.decodeAudioData(
-            decode(assets[name]).buffer
-          );
-        } catch {}
-      }
+      const context = this.ctx;
+      this.decoding = Promise.all(
+        (['hit', 'bounce', 'step'] as const).map(async (name) => {
+          try {
+            const buffer = await context.decodeAudioData(
+              decode(assets[name]).buffer
+            );
+            if (this.ctx === context) this.buffers[name] = buffer;
+          } catch {}
+        })
+      ).then(() => {});
     }
+    // Resume inside the input gesture, before awaiting sample decoding (iOS).
     if (this.ctx.state === 'suspended') await this.ctx.resume();
+    await this.decoding;
   }
   tone(freq: number, duration: number, at = 0, volume = 0.08) {
     if (!this.ctx || !this.gain || !this.enabled) return;
@@ -82,7 +102,7 @@ export class TennisAudio {
       if (e.type === 'fault') this.tone(180, 0.12);
       if (e.type === 'point') {
         this.crowd();
-        this.tone(e.seat === 0 ? 660 : 330, 0.12);
+        this.tone(e.seat === this.seat ? 660 : 330, 0.12);
       }
       if (e.type === 'win') {
         this.crowd();
@@ -94,5 +114,8 @@ export class TennisAudio {
   }
   dispose() {
     this.ctx?.close().catch(() => {});
+    this.ctx = null;
+    this.gain = null;
+    this.buffers = {};
   }
 }

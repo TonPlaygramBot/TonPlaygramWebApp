@@ -262,6 +262,9 @@ try {
     })
     .click();
   await page
+    .getByRole('button', { name: 'Topspin Higher net clearance', exact: true })
+    .click();
+  await page
     .getByRole('button', {
       name: 'Shot type: topspin. Change stroke',
       exact: true
