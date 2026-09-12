@@ -20,6 +20,7 @@ import { UrbanLifeLayer } from './UrbanLifeLayer';
 import {StreetLifeLayer} from '../tirana-street-life/StreetLifeLayer';
 import {MatureTreeLayer} from '../tirana-street-life/MatureTreeLayer';
 import {BuildingBrandLayer} from '../tirana-city-source/BuildingBrandLayer';
+import {BUSINESS_SIGN_BUILDING_IDS} from '../tirana-city-source/businessSignRegistry.mjs';
 import {REAL_STOREFRONT_BUILDING_IDS,FUEL_CANOPY_IDS} from '../tirana-street-life/registry.mjs';
 export {
   disposeTree,
@@ -33,7 +34,7 @@ export class WorldEnhancements extends ExistingEnhancements {
   private panoramaViewer = new T.Vector3();
   readonly shopfronts = new ShopfrontDetails(
     WORLD,
-    new Set([...WORLD.buildings.filter(b=>b.neighbourhood).map(b=>b.id), ...CIVIC_SITES.map((s) => s.way), ...INSTITUTION_BUILDING_IDS, ...REAL_STOREFRONT_BUILDING_IDS, ...FUEL_CANOPY_IDS]),
+    new Set([...WORLD.buildings.filter(b=>b.neighbourhood).map(b=>b.id), ...CIVIC_SITES.map((s) => s.way), ...INSTITUTION_BUILDING_IDS, ...BUSINESS_SIGN_BUILDING_IDS, ...REAL_STOREFRONT_BUILDING_IDS, ...FUEL_CANOPY_IDS]),
     this.civic.errors
   );
   readonly institutions = new InstitutionLayer(undefined, this.civic.errors);

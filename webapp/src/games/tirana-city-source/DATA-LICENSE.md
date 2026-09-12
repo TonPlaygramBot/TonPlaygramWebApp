@@ -15,3 +15,12 @@ widths, crown sizes, species and facade details are not verified measurements.
 `landmarkData.mjs` is a second ODbL derivative containing the regional building footprints, stadium relation rings and Taivani fountain from the 2026-09-10 extracts. It records source file hashes and height provenance; see `docs/tirana-landmark-expansion.md` for selections and reproduction.
 
 `cityBuildingData.mjs` adds 34 ODbL building outlines and relation holes. `allLandmarks.mjs` combines the two datasets. The supplemental raw Polytechnic response is retained in `webapp/scripts/fixtures/tirana-city/polytechnic-geometry.json`; see `docs/tirana-public-buildings.md` for source selections, limitations and reproduction.
+
+`businessSites.mjs` is an ODbL derivative of the archived Tirana OSM source,
+with exact identities, matched footprints and documented placement omissions.
+See `docs/tirana-business-expansion.md` and `docs/tirana-business-coverage.json`.
+`businessBuildingProfiles.mjs` contains authored facade interpretations and one
+explicitly labeled, estimated visual building part; it is not surveyed OSM data.
+Brand artwork is separately identified in
+`webapp/public/assets/tirana-streets/signs/business-sources.json`; it remains
+brand-owned and is not covered by any CC0 claim for original game assets.

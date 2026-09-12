@@ -36,7 +36,7 @@ test('flag readiness is per country, double sided and visible without a network 
  }finally{layer?.dispose();T.TextureLoader.prototype.load=oldLoad;globalThis.document=oldDocument;}
 });
 test('source-specific models retain the school courtyard and agree with collision height',()=>{
- const {T,ReferenceFacades}=api;const ids=new Set(Object.keys(NEIGHBOURHOOD_REFERENCE_PROFILES));const layer=new ReferenceFacades(WORLD,ids);assert.equal(layer.group.children.length,5);layer.group.updateMatrixWorld(true);
+ const {T,ReferenceFacades}=api;const ids=new Set(['relation/14761294','731114346','885643064','885643065','885643063']);const layer=new ReferenceFacades(WORLD,ids);assert.equal(layer.group.children.length,5);layer.group.updateMatrixWorld(true);
  let triangles=0;layer.group.traverse(o=>{if(o.isMesh){const p=o.geometry.getAttribute('position');triangles+=(o.geometry.index?.count||p.count)/3;for(let i=0;i<p.count;i++)assert.ok(Number.isFinite(p.getX(i)+p.getY(i)+p.getZ(i)));}});assert.ok(triangles<65000);
  const b=WORLD.buildings.find(b=>b.id==='relation/14761294'),hole=b.holes[0],x=hole.reduce((s,p)=>s+p[0],0)/hole.length,z=hole.reduce((s,p)=>s+p[1],0)/hole.length;
  assert.equal(new T.Raycaster(new T.Vector3(x,100,z),new T.Vector3(0,-1,0)).intersectObject(layer.group,true).length,0);

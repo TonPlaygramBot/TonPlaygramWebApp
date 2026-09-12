@@ -43,7 +43,8 @@ export class StreetLifeLayer {
    if(s.text==='TIRANË'){ctx.globalAlpha=.16;for(let k=0;k<8;k++)ctx.fillRect(x+k*32,y+35,18,13);ctx.globalAlpha=1;}
   });
   this.atlas=new T.CanvasTexture(canvas);this.atlas.colorSpace=T.SRGBColorSpace;this.atlas.anisotropy=2;
-  for(const reference of SIGN_REFERENCES){
+  const usedBrands=new Set(signs.map(s=>signReferenceFor(s.text)?.id).filter(Boolean));
+  for(const reference of SIGN_REFERENCES.filter(r=>usedBrands.has(r.id))){
    const image=new Image();
    image.onload=()=>{
     if(this.dead)return;

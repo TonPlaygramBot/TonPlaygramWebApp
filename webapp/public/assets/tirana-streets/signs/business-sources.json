@@ -1,0 +1,650 @@
+[
+  {
+    "id": "abi",
+    "file": "abi-logo.png",
+    "sourceUrl": "https://aab.al/wp-content/uploads/2023/11/abi.png",
+    "referencePage": "https://aab.al/en/",
+    "retrieved": "2026-09-12",
+    "originalSha256": "e2a99cd1e2663caa97d08a15b1f7bcf25ba664e4109f71bacc8c88f3ab9ee36b",
+    "sha256": "d5e80659562716c8472ab3a1a5273d8845e9ef2d3566c47ecd7a69cb50dad07f",
+    "originalDimensions": [
+      260,
+      120
+    ],
+    "cropBox": [
+      45,
+      43,
+      215,
+      77
+    ],
+    "dimensions": [
+      170,
+      34
+    ],
+    "usage": "Official business/trade-association artwork for matching mapped identities; brand-owned, not CC0. Blank margins cropped and proportionally reduced; SVG rasterized where necessary."
+  },
+  {
+    "id": "bkt",
+    "file": "bkt-logo.png",
+    "sourceUrl": "https://aab.al/wp-content/uploads/2024/09/bkt1.png",
+    "referencePage": "https://aab.al/en/",
+    "retrieved": "2026-09-12",
+    "originalSha256": "7dcb12e0943921ce551544bbcbdf780cefb67ed5f174ac44515abfd291cb6297",
+    "sha256": "14a29648dd4e6613e0a88a98c65a2bdfb775769fb7d52c03ba31feeb12b24433",
+    "originalDimensions": [
+      260,
+      120
+    ],
+    "cropBox": [
+      67,
+      29,
+      193,
+      91
+    ],
+    "dimensions": [
+      126,
+      62
+    ],
+    "usage": "Official business/trade-association artwork for matching mapped identities; brand-owned, not CC0. Blank margins cropped and proportionally reduced; SVG rasterized where necessary."
+  },
+  {
+    "id": "credins",
+    "file": "credins-logo.png",
+    "sourceUrl": "https://aab.al/wp-content/uploads/2024/05/credins-home.png",
+    "referencePage": "https://aab.al/en/",
+    "retrieved": "2026-09-12",
+    "originalSha256": "49cc7d4b5717bc94e15a9e10230ef3bf69f4fd948c64997d44d1658e75d01793",
+    "sha256": "e546fbb0dabcf27436659b6a9a9a085919972b5d8aae80872c1f33743b5ef02b",
+    "originalDimensions": [
+      260,
+      120
+    ],
+    "cropBox": [
+      43,
+      35,
+      217,
+      85
+    ],
+    "dimensions": [
+      174,
+      50
+    ],
+    "usage": "Official business/trade-association artwork for matching mapped identities; brand-owned, not CC0. Blank margins cropped and proportionally reduced; SVG rasterized where necessary."
+  },
+  {
+    "id": "fibank",
+    "file": "fibank-logo.png",
+    "sourceUrl": "https://aab.al/wp-content/uploads/2023/11/fibank.png",
+    "referencePage": "https://aab.al/en/",
+    "retrieved": "2026-09-12",
+    "originalSha256": "4a3fc07ed95a5654264ca1ad7760c857f53f1394abbf097ad8e25ac6ee47c85a",
+    "sha256": "c2aadbb6742280faae330574d69dc886b83b06f0606d227e742be20f09e4226e",
+    "originalDimensions": [
+      260,
+      120
+    ],
+    "cropBox": [
+      72,
+      41,
+      190,
+      80
+    ],
+    "dimensions": [
+      118,
+      39
+    ],
+    "usage": "Official business/trade-association artwork for matching mapped identities; brand-owned, not CC0. Blank margins cropped and proportionally reduced; SVG rasterized where necessary."
+  },
+  {
+    "id": "intesa",
+    "file": "intesa-logo.png",
+    "sourceUrl": "https://aab.al/wp-content/uploads/2023/11/intesa.png",
+    "referencePage": "https://aab.al/en/",
+    "retrieved": "2026-09-12",
+    "originalSha256": "135b6c37d953f8addf618ad5ecd0e1f75aecfcdf3358764694c9f9cf447c3d60",
+    "sha256": "20e268f10d3dabce13d31790fc2e3bb89b36ceedce66aa05023143651d460632",
+    "originalDimensions": [
+      260,
+      120
+    ],
+    "cropBox": [
+      50,
+      48,
+      210,
+      73
+    ],
+    "dimensions": [
+      160,
+      25
+    ],
+    "usage": "Official business/trade-association artwork for matching mapped identities; brand-owned, not CC0. Blank margins cropped and proportionally reduced; SVG rasterized where necessary."
+  },
+  {
+    "id": "otp",
+    "file": "otp-logo.png",
+    "sourceUrl": "https://aab.al/wp-content/uploads/2023/11/otp.png",
+    "referencePage": "https://aab.al/en/",
+    "retrieved": "2026-09-12",
+    "originalSha256": "7354bbfb23075ce8934c052095fa1b65f2ef37cf08195e065f5c77fc708641a8",
+    "sha256": "6df140874c3fc721f96b0a868dd5fd40a7d62500f1e23cae5aa7e6de662ea666",
+    "originalDimensions": [
+      260,
+      120
+    ],
+    "cropBox": [
+      54,
+      48,
+      207,
+      79
+    ],
+    "dimensions": [
+      153,
+      31
+    ],
+    "usage": "Official business/trade-association artwork for matching mapped identities; brand-owned, not CC0. Blank margins cropped and proportionally reduced; SVG rasterized where necessary."
+  },
+  {
+    "id": "procredit",
+    "file": "procredit-logo.png",
+    "sourceUrl": "https://aab.al/wp-content/uploads/2023/11/procredit.png",
+    "referencePage": "https://aab.al/en/",
+    "retrieved": "2026-09-12",
+    "originalSha256": "5742d8f5f73f9e708c47e206b114df79af1f4490767c12fd69486a5553384845",
+    "sha256": "34064cc0aad6ca7294270d572fa91e88b4729a1818d261855b9d0f05de5cd281",
+    "originalDimensions": [
+      260,
+      120
+    ],
+    "cropBox": [
+      87,
+      27,
+      174,
+      93
+    ],
+    "dimensions": [
+      87,
+      66
+    ],
+    "usage": "Official business/trade-association artwork for matching mapped identities; brand-owned, not CC0. Blank margins cropped and proportionally reduced; SVG rasterized where necessary."
+  },
+  {
+    "id": "raiffeisen",
+    "file": "raiffeisen-logo.png",
+    "sourceUrl": "https://aab.al/wp-content/uploads/2023/11/raiffeisen.png",
+    "referencePage": "https://aab.al/en/",
+    "retrieved": "2026-09-12",
+    "originalSha256": "e293142fd430df9a155d1553769e07b86b53b42e34446c4e3b034fa5fb32b828",
+    "sha256": "6c3701fd0ced81458ef6c356262b866d9bec2e7ca202a33396bd1e6b2416af45",
+    "originalDimensions": [
+      260,
+      120
+    ],
+    "cropBox": [
+      64,
+      43,
+      196,
+      78
+    ],
+    "dimensions": [
+      132,
+      35
+    ],
+    "usage": "Official business/trade-association artwork for matching mapped identities; brand-owned, not CC0. Blank margins cropped and proportionally reduced; SVG rasterized where necessary."
+  },
+  {
+    "id": "tirana-bank",
+    "file": "tirana-bank-logo.png",
+    "sourceUrl": "https://aab.al/wp-content/uploads/2023/11/tirana.png",
+    "referencePage": "https://aab.al/en/",
+    "retrieved": "2026-09-12",
+    "originalSha256": "aaaf2e090a74782db152629b950e03b0fb7b0882cd48f851fe4147a3e1df8361",
+    "sha256": "c3932348140bdf1dfaeb65ba5de7fc75efae5dc3f778f04bace38a55566c7eed",
+    "originalDimensions": [
+      260,
+      120
+    ],
+    "cropBox": [
+      52,
+      50,
+      209,
+      71
+    ],
+    "dimensions": [
+      157,
+      21
+    ],
+    "usage": "Official business/trade-association artwork for matching mapped identities; brand-owned, not CC0. Blank margins cropped and proportionally reduced; SVG rasterized where necessary."
+  },
+  {
+    "id": "uba",
+    "file": "uba-logo.png",
+    "sourceUrl": "https://aab.al/wp-content/uploads/2023/11/uba.png",
+    "referencePage": "https://aab.al/en/",
+    "retrieved": "2026-09-12",
+    "originalSha256": "ae28be49ec83e769229287c0854d1afaa266f042707a9cb43a84b5ab393a2839",
+    "sha256": "2756124c4004f387ae3c16205a75410332915aa718b412e118b19fc8a4492c5d",
+    "originalDimensions": [
+      260,
+      120
+    ],
+    "cropBox": [
+      61,
+      33,
+      200,
+      87
+    ],
+    "dimensions": [
+      139,
+      54
+    ],
+    "usage": "Official business/trade-association artwork for matching mapped identities; brand-owned, not CC0. Blank margins cropped and proportionally reduced; SVG rasterized where necessary."
+  },
+  {
+    "id": "union",
+    "file": "union-logo.png",
+    "sourceUrl": "https://aab.al/wp-content/uploads/2023/11/union.png",
+    "referencePage": "https://aab.al/en/",
+    "retrieved": "2026-09-12",
+    "originalSha256": "40831a145d30ff04b1f194f66805438b13d9d119f094b20eb8546e1b56b113fa",
+    "sha256": "751780cf55183191cec9d7fb0429ca268337fc1f16c7715226b6a2e7079c294b",
+    "originalDimensions": [
+      260,
+      120
+    ],
+    "cropBox": [
+      54,
+      49,
+      206,
+      72
+    ],
+    "dimensions": [
+      152,
+      23
+    ],
+    "usage": "Official business/trade-association artwork for matching mapped identities; brand-owned, not CC0. Blank margins cropped and proportionally reduced; SVG rasterized where necessary."
+  },
+  {
+    "id": "big-market",
+    "file": "big-market-logo.png",
+    "sourceUrl": "https://bigmarket.al/images/admin/BIG.png",
+    "referencePage": "https://bigmarket.al/",
+    "retrieved": "2026-09-12",
+    "originalSha256": "d3b6cfdb655102e7a2519bde49f5d9d0293690746d7afe9565c319e86458d341",
+    "sha256": "d1275f2970d6c4be047a06ed9e452726a8bf59b15ec8ec7b19007194bf9edc55",
+    "originalDimensions": [
+      72,
+      72
+    ],
+    "cropBox": [
+      0,
+      0,
+      72,
+      72
+    ],
+    "dimensions": [
+      72,
+      72
+    ],
+    "usage": "Official business/trade-association artwork for matching mapped identities; brand-owned, not CC0. Blank margins cropped and proportionally reduced; SVG rasterized where necessary."
+  },
+  {
+    "id": "conad",
+    "file": "conad-logo.png",
+    "sourceUrl": "https://www.conadalbania.al/wp-content/uploads/2017/07/conad-ita_logo-web.png",
+    "referencePage": "https://www.conadalbania.al/",
+    "retrieved": "2026-09-12",
+    "originalSha256": "5b63480f51e9150ba88b6e13f0fc33a10a5763f907e403056c84bfbc01587eac",
+    "sha256": "6c747aa3a807711e6713e2e6aa4a279851266d1f36f4ae62a119afda118a57f3",
+    "originalDimensions": [
+      310,
+      50
+    ],
+    "cropBox": [
+      7,
+      1,
+      308,
+      50
+    ],
+    "dimensions": [
+      301,
+      49
+    ],
+    "usage": "Official business/trade-association artwork for matching mapped identities; brand-owned, not CC0. Blank margins cropped and proportionally reduced; SVG rasterized where necessary."
+  },
+  {
+    "id": "eco-market",
+    "file": "eco-market-logo.png",
+    "sourceUrl": "https://ecomarket.al/wp-content/uploads/2025/07/ecoM-logo-1024x645.png",
+    "referencePage": "https://ecomarket.al/",
+    "retrieved": "2026-09-12",
+    "originalSha256": "e0782771e5eb1541720e273ddac52cafa019bf5843c31553702acb4612dcdfcc",
+    "sha256": "fbbf45bc127b659fb8fd39e2a3a1e9d1e91cf54f0e6cd1f5cd100e372fee340e",
+    "originalDimensions": [
+      1024,
+      645
+    ],
+    "cropBox": [
+      50,
+      19,
+      987,
+      605
+    ],
+    "dimensions": [
+      409,
+      256
+    ],
+    "usage": "Official business/trade-association artwork for matching mapped identities; brand-owned, not CC0. Blank margins cropped and proportionally reduced; SVG rasterized where necessary."
+  },
+  {
+    "id": "xheko",
+    "file": "xheko-logo.png",
+    "sourceUrl": "https://xheko-imperial.com/assets/front/images/logo/xheko_imperial.svg",
+    "referencePage": "https://xheko-imperial.com/",
+    "retrieved": "2026-09-12",
+    "originalSha256": "6c3347e283bc58eddc0d8ef12ae03efd2ee61f88e36c0de33a296dca38e53ada",
+    "sha256": "4b7f73f8f3d8393818c24c5116c2b9c446ccace4ddc77b19c720aa0f54c88aa8",
+    "originalDimensions": [
+      139,
+      112
+    ],
+    "cropBox": [
+      11,
+      9,
+      128,
+      103
+    ],
+    "dimensions": [
+      117,
+      94
+    ],
+    "usage": "Official business/trade-association artwork for matching mapped identities; brand-owned, not CC0. Blank margins cropped and proportionally reduced; SVG rasterized where necessary."
+  },
+  {
+    "id": "rogner",
+    "file": "rogner-logo.png",
+    "sourceUrl": "https://www.hotel-europapark.com/fileadmin/root_tirana/_misc/rh-logo-transparent.png",
+    "referencePage": "https://www.hotel-europapark.com/",
+    "retrieved": "2026-09-12",
+    "originalSha256": "cf45e556fffedeafc1b51c5a61baea2fe80fe93e67a22689e81d5966495ce2d7",
+    "sha256": "ce5bb3d5c7d1f0df077d814870a485b1290358fe3a91805ef54154fa09607976",
+    "originalDimensions": [
+      145,
+      85
+    ],
+    "cropBox": [
+      0,
+      10,
+      145,
+      75
+    ],
+    "dimensions": [
+      145,
+      65
+    ],
+    "usage": "Official business/trade-association artwork for matching mapped identities; brand-owned, not CC0. Blank margins cropped and proportionally reduced; SVG rasterized where necessary."
+  },
+  {
+    "id": "plaza",
+    "file": "plaza-logo.png",
+    "sourceUrl": "https://www.plazatirana.com/wp-content/uploads/sites/378/2021/11/Maritim-Hotel-Plaza-Tirana-Logo-200x149.png",
+    "referencePage": "https://www.plazatirana.com/",
+    "retrieved": "2026-09-12",
+    "originalSha256": "1c84e510b8608475746f60cc4999265109c7cb6d250b5620caae3a0493d6d1b4",
+    "sha256": "1c84e510b8608475746f60cc4999265109c7cb6d250b5620caae3a0493d6d1b4",
+    "originalDimensions": [
+      200,
+      149
+    ],
+    "cropBox": [
+      0,
+      0,
+      200,
+      149
+    ],
+    "dimensions": [
+      200,
+      149
+    ],
+    "usage": "Official business/trade-association artwork for matching mapped identities; brand-owned, not CC0. Blank margins cropped and proportionally reduced; SVG rasterized where necessary."
+  },
+  {
+    "id": "dinasty",
+    "file": "dinasty-logo.png",
+    "sourceUrl": "https://dinastyhotel.al/images/logo.png",
+    "referencePage": "https://dinastyhotel.al/en/",
+    "retrieved": "2026-09-12",
+    "originalSha256": "e20a8d804495e9f118dc7ae6f7a96c201ba0d6fd0290ec2e72e4dd24f4da2521",
+    "sha256": "614a6d51cf741d7424dda5cb86370e66842c13e8aa56de12e0fc8e1b2027a963",
+    "originalDimensions": [
+      132,
+      152
+    ],
+    "cropBox": [
+      1,
+      0,
+      131,
+      152
+    ],
+    "dimensions": [
+      130,
+      152
+    ],
+    "usage": "Official business/trade-association artwork for matching mapped identities; brand-owned, not CC0. Blank margins cropped and proportionally reduced; SVG rasterized where necessary."
+  },
+  {
+    "id": "mondial",
+    "file": "mondial-logo.png",
+    "sourceUrl": "https://www.hotelmondial.al/images/logo_menu.png",
+    "referencePage": "https://www.hotelmondial.al/",
+    "retrieved": "2026-09-12",
+    "originalSha256": "9b041cefb6610d48d00e6b675e567e1a3439083596c3b15f5038583d292656ae",
+    "sha256": "50e309d77c5b2256e807a7d7ac1785fe30322eddf2ce1f1a2f1fe7d9bf7a58f9",
+    "originalDimensions": [
+      159,
+      80
+    ],
+    "cropBox": [
+      15,
+      8,
+      145,
+      73
+    ],
+    "dimensions": [
+      130,
+      65
+    ],
+    "usage": "Official business/trade-association artwork for matching mapped identities; brand-owned, not CC0. Blank margins cropped and proportionally reduced; SVG rasterized where necessary."
+  },
+  {
+    "id": "tirana-international",
+    "file": "tirana-international-logo.png",
+    "sourceUrl": "https://tiranainternational.com/cms/uploads/logo/logo.png",
+    "referencePage": "https://tiranainternational.com/",
+    "retrieved": "2026-09-12",
+    "originalSha256": "c1f8313c72e62435ab4475d571550c9412fce0840cff693b45d742c4a1a757df",
+    "sha256": "f7f5673a2e071953cdda8060d582942f12543fa18d640549dd0b709278e03b82",
+    "originalDimensions": [
+      185,
+      85
+    ],
+    "cropBox": [
+      2,
+      9,
+      184,
+      73
+    ],
+    "dimensions": [
+      182,
+      64
+    ],
+    "usage": "Official business/trade-association artwork for matching mapped identities; brand-owned, not CC0. Blank margins cropped and proportionally reduced; SVG rasterized where necessary."
+  },
+  {
+    "id": "monarc",
+    "file": "monarc-logo.png",
+    "sourceUrl": "https://cdn.travoo.com/0000/1/2021/07/12/m-logo4.png",
+    "referencePage": "https://www.monarc.al/",
+    "retrieved": "2026-09-12",
+    "originalSha256": "8053b632cfe4af780d72408c730116cf413a357beb6abbe84f1011de2bfbede1",
+    "sha256": "71e9acf5825b2efc24c06e615c624d76f5c9a29beb2f32d1c64bb40b80e32d0d",
+    "originalDimensions": [
+      140,
+      91
+    ],
+    "cropBox": [
+      2,
+      11,
+      138,
+      80
+    ],
+    "dimensions": [
+      136,
+      69
+    ],
+    "usage": "Official business/trade-association artwork for matching mapped identities; brand-owned, not CC0. Blank margins cropped and proportionally reduced; SVG rasterized where necessary."
+  },
+  {
+    "id": "senator",
+    "file": "senator-logo.png",
+    "sourceUrl": "https://hotelsenator-al.com/wp-content/uploads/2024/03/desktop1.png",
+    "referencePage": "https://hotelsenator-al.com/",
+    "retrieved": "2026-09-12",
+    "originalSha256": "aad0281ef72493015fd39958d0294dc5ce7f15408a90c9f61cf765a19cbb49ca",
+    "sha256": "0836313646dcfc8419cd95a9a009a9709626228b4e85c191ef193faa43925738",
+    "originalDimensions": [
+      250,
+      90
+    ],
+    "cropBox": [
+      45,
+      4,
+      205,
+      85
+    ],
+    "dimensions": [
+      160,
+      81
+    ],
+    "usage": "Official business/trade-association artwork for matching mapped identities; brand-owned, not CC0. Blank margins cropped and proportionally reduced; SVG rasterized where necessary."
+  },
+  {
+    "id": "gloria",
+    "file": "gloria-logo.png",
+    "sourceUrl": "https://www.hotelboutiquegloria.al/wp-content/uploads/2024/10/logo.png",
+    "referencePage": "https://www.hotelboutiquegloria.al/",
+    "retrieved": "2026-09-12",
+    "originalSha256": "ceabe25149e455de2107ec6723f632e365fe04a43eb7af70392d461220044c3c",
+    "sha256": "57725f37eef6949f1e212c4f5d3d9ce39c6fc25fbeeb80f76201ff1e4b8df55b",
+    "originalDimensions": [
+      130,
+      100
+    ],
+    "cropBox": [
+      1,
+      1,
+      127,
+      99
+    ],
+    "dimensions": [
+      126,
+      98
+    ],
+    "usage": "Official business/trade-association artwork for matching mapped identities; brand-owned, not CC0. Blank margins cropped and proportionally reduced; SVG rasterized where necessary."
+  },
+  {
+    "id": "sophie",
+    "file": "sophie-logo.png",
+    "sourceUrl": "https://www.sophiecaffe.com/wp-content/uploads/2019/12/300.jpg",
+    "referencePage": "https://www.sophiecaffe.com/",
+    "retrieved": "2026-09-12",
+    "originalSha256": "0755f6e51f072f48e3a2ed9c0b67a5e13bcb19c5e76f246e007c44b5cd2f97af",
+    "sha256": "3195db4487cbcb63bc42fc1d427e605152c9a413f498a1e7d837fbbf9a467332",
+    "originalDimensions": [
+      900,
+      618
+    ],
+    "cropBox": [
+      37,
+      20,
+      863,
+      604
+    ],
+    "dimensions": [
+      362,
+      256
+    ],
+    "usage": "Official business/trade-association artwork for matching mapped identities; brand-owned, not CC0. Blank margins cropped and proportionally reduced; SVG rasterized where necessary."
+  },
+  {
+    "id": "kfc",
+    "file": "kfc-logo.png",
+    "sourceUrl": "https://toptani.com.al/img/cms/dyqanet/kfcn.png",
+    "referencePage": "https://toptani.com.al/en/content/100-kfc",
+    "retrieved": "2026-09-12",
+    "originalSha256": "bbde322cd5dd744ffeaf9c93d03700a7b0a4cbc19e36c7bc351b5d6f087f9151",
+    "sha256": "b72bbda6c9fd55d8cbcfa2f1f6e25058d302a6bf8ee591fbe64b5099c846cef3",
+    "originalDimensions": [
+      369,
+      136
+    ],
+    "cropBox": [
+      127,
+      11,
+      242,
+      125
+    ],
+    "dimensions": [
+      115,
+      114
+    ],
+    "usage": "Official business/trade-association artwork for matching mapped identities; brand-owned, not CC0. Blank margins cropped and proportionally reduced; SVG rasterized where necessary."
+  },
+  {
+    "id": "burger-king",
+    "file": "burger-king-logo.png",
+    "sourceUrl": "https://toptani.com.al/img/cms/dyqanet/burgernew.png",
+    "referencePage": "https://toptani.com.al/en/",
+    "retrieved": "2026-09-12",
+    "originalSha256": "de77ca84d9712dd611a77226ee9c23100ef92ed37cb00ad24779d2ac99e30039",
+    "sha256": "98e1059961d4415e7218c0bb12ba45fac0411d25f09b7dd0d54bd90de0fbac57",
+    "originalDimensions": [
+      369,
+      136
+    ],
+    "cropBox": [
+      132,
+      7,
+      239,
+      125
+    ],
+    "dimensions": [
+      107,
+      118
+    ],
+    "usage": "Official business/trade-association artwork for matching mapped identities; brand-owned, not CC0. Blank margins cropped and proportionally reduced; SVG rasterized where necessary."
+  },
+  {
+    "id": "elysee",
+    "file": "elysee-logo.png",
+    "sourceUrl": "https://hotelelysee.al/wp-content/uploads/2020/09/hotelelysee.png",
+    "referencePage": "https://hotelelysee.al/",
+    "retrieved": "2026-09-12",
+    "originalSha256": "b82d56192942036e54c4fcd3507424ff1850888e162a35f08fb973d7b41e296d",
+    "sha256": "c353f06a2e0ca2c58e6918eb53c43e3b430f036512f256c56decd462d5c09cd4",
+    "originalDimensions": [
+      339,
+      80
+    ],
+    "cropBox": [
+      0,
+      1,
+      318,
+      79
+    ],
+    "dimensions": [
+      318,
+      78
+    ],
+    "usage": "Official business/trade-association artwork for matching mapped identities; brand-owned, not CC0. Blank margins cropped and proportionally reduced; SVG rasterized where necessary."
+  }
+]

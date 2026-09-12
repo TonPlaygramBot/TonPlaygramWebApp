@@ -9,6 +9,7 @@ import { landmarkDetails } from './LandmarkDetails';
 import {hotelMunicipalEntrances} from './HotelMunicipalEntrances';
 import {NEIGHBOURHOOD_REFERENCE_PROFILES} from './neighbourhoodProfiles.mjs';
 import {neighbourhoodBuildingDetails} from './NeighbourhoodBuildingDetails';
+import {businessBuildingDetails} from './BusinessBuildingDetails';
 
 /** Recognizable, photo-informed details fitted to existing footprints. Dimensions
  * retain game estimates. No claim of photogrammetry, surveyed height or exact bays. */
@@ -49,7 +50,7 @@ export class ReferenceFacades {
         box(color,e.a[0]+e.ux*u+e.nx*offset,y,e.a[1]+e.uz*u+e.nz*offset,w,h,d,-Math.atan2(e.uz,e.ux));
       };
       const centre={x:b.p.reduce((s,p)=>s+p[0],0)/b.p.length,z:b.p.reduce((s,p)=>s+p[1],0)/b.p.length};
-      const detailed=neighbourhoodBuildingDetails(profile,edges,height,add,wall)||civicBuildingDetails(profile,edges,height,b.p,b.holes??[],add,box,wall)||landmarkDetails(profile,edges,height,add,box,wall,centre);
+      const detailed=businessBuildingDetails(profile,edges,height,add,wall)||neighbourhoodBuildingDetails(profile,edges,height,add,wall)||civicBuildingDetails(profile,edges,height,b.p,b.holes??[],add,box,wall)||landmarkDetails(profile,edges,height,add,box,wall,centre);
       hotelMunicipalEntrances(profile,edges,add,wall);
       if(profile.style==='stadium'&&b.holes?.length){
         const hole=b.holes[0],pitch=new T.Shape(hole.map(p=>new T.Vector2(p[0],-p[1])));
