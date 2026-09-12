@@ -1,0 +1,33 @@
+import React from 'react';
+import { createRoot } from 'react-dom/client';
+import { act } from 'react';
+import { afterEach, expect, it, vi } from 'vitest';
+import DiceRoller from './DiceRoller';
+vi.mock('./Dice.jsx', () => ({ default: () => <canvas data-visual="dice" /> }));
+vi.mock('../utils/socket.js', () => ({ socket: { emit: vi.fn() } }));
+vi.mock('../utils/diceAudio.js', () => ({ createDiceRollAudio: () => ({ pause: vi.fn(), play: () => Promise.resolve() }) }));
+vi.stubGlobal('IS_REACT_ACT_ENVIRONMENT', true);
+let root;
+afterEach(() => { if (root) act(() => root.unmount()); document.body.innerHTML = ''; vi.useRealTimers(); });
+it('locks rapid taps, chooses once and does not mount hidden WebGL', () => {
+  vi.useFakeTimers();
+  const host = document.createElement('div'); document.body.append(host); root = createRoot(host);
+  const start = vi.fn(), end = vi.fn();
+  act(() => root.render(<DiceRoller clickable renderVisual={false} numDice={1} durationMs={980} onRollStart={start} onRollEnd={end} />));
+  const button = host.querySelector('[role="button"]');
+  act(() => { button.click(); button.click(); });
+  expect(start).toHaveBeenCalledTimes(1);
+  expect(host.querySelector('canvas')).toBeNull();
+  act(() => vi.advanceTimersByTime(980));
+  expect(end).toHaveBeenCalledTimes(1);
+  expect(end.mock.calls[0][0]).toEqual(start.mock.calls[0][0]);
+});
+it('cancels its callback when leaving mid-roll', () => {
+  vi.useFakeTimers();
+  const host = document.createElement('div'); root = createRoot(host); const end = vi.fn();
+  act(() => root.render(<DiceRoller clickable renderVisual={false} onRollEnd={end} />));
+  act(() => host.querySelector('[role="button"]').click());
+  act(() => root.unmount()); root = null;
+  act(() => vi.runAllTimers());
+  expect(end).not.toHaveBeenCalled();
+});

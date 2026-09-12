@@ -307,10 +307,6 @@ export class GameRoom {
 
   rollDice(socket, value) {
     if (this.status !== 'playing') return;
-    if (this.turnTimer) {
-      clearTimeout(this.turnTimer);
-      this.turnTimer = null;
-    }
     const playerIndex = this.players.findIndex((p) => p.socketId === socket.id);
     if (playerIndex === -1) return;
     const player = this.players[playerIndex];
@@ -323,6 +319,10 @@ export class GameRoom {
       socket.emit('error', 'roll cooldown');
       this.warnCheat(player, socket, 'roll cooldown');
       return;
+    }
+    if (this.turnTimer) {
+      clearTimeout(this.turnTimer);
+      this.turnTimer = null;
     }
     player.lastRollTime = Date.now();
 
@@ -344,7 +344,7 @@ export class GameRoom {
         dice: result.dice
       });
       const from = prevPositions[playerIndex];
-      const to = result.path.length ? result.path[result.path.length - 1] : from;
+      const to = result.landing ?? from;
 
       if (to !== from) {
         this.io.to(this.id).emit('movePlayer', { playerId: player.playerId, from, to });

@@ -1,9 +1,19 @@
 import React, { useEffect } from 'react';
 import { createPortal } from 'react-dom';
 import coinConfetti from '../utils/coinConfetti';
+import { isGameMuted, getGameVolume } from '../utils/sound.js';
 import { loadAvatar } from '../utils/avatarUtils.js';
 
 export default function GameEndPopup({ open, ranking = [], onReturn }) {
+  useEffect(() => {
+    if (!open) return;
+    coinConfetti();
+    const snd = new Audio('/assets/sounds/11l-victory_sound_with_t-1749487412779-357604.mp3');
+    snd.volume = getGameVolume();
+    if (!isGameMuted()) snd.play().catch(() => {});
+    return () => snd.pause();
+  }, [open]);
+
   if (!open) return null;
 
   const players = ranking.map((r, i) => {
@@ -20,12 +30,7 @@ export default function GameEndPopup({ open, ranking = [], onReturn }) {
     return r;
   });
 
-  useEffect(() => {
-    coinConfetti();
-    const snd = new Audio('/assets/sounds/11l-victory_sound_with_t-1749487412779-357604.mp3');
-    snd.play().catch(() => {});
-    return () => snd.pause();
-  }, []);
+
 
   const winner = players[0];
   const others = players.slice(1);

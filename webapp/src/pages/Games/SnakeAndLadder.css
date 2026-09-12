@@ -1,0 +1,19 @@
+.snake-turn-panel { position: fixed; z-index: 30; bottom: calc(env(safe-area-inset-bottom, 0px) + 12px); left: max(12px, env(safe-area-inset-left, 0px)); right: max(12px, env(safe-area-inset-right, 0px)); margin: 0 auto; max-width: 460px; padding: 12px 14px 0; border: 1px solid #d4af3750; border-radius: 20px; background: #090f1ef2; box-shadow: 0 12px 32px #0008; color: #f8fafc; pointer-events: auto; overflow: hidden; backdrop-filter: blur(16px); }
+.snake-turn-meta { display: flex; flex-wrap: wrap; justify-content: space-between; gap: 6px; margin-bottom: 10px; color: #c4ccdb; font-size: 12px; }
+.snake-turn-meta > span:first-child { display: inline-flex; align-items: center; gap: 6px; color: #f5d785; font-variant-numeric: tabular-nums; }
+.snake-turn-main { display: flex; align-items: center; gap: 10px; padding-bottom: 12px; }
+.snake-roll-result { flex: 0 0 44px; height: 44px; display: grid; place-items: center; border-radius: 12px; color: #161d2c; background: #faf3df; font-size: 26px; font-weight: 800; font-variant-numeric: tabular-nums; }
+.snake-roll-result.is-rolling svg { animation: snake-roll-wait .85s linear infinite; }
+.snake-turn-copy { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 3px; }
+.snake-turn-copy strong { font-size: 14px; line-height: 1.25; overflow-wrap: anywhere; }
+.snake-turn-copy > span { color: #a7b4cc; font-size: 12px; }
+.snake-roll-button { flex-shrink: 0; display: flex; align-items: center; justify-content: center; gap: 5px; min-height: 48px; min-width: 96px; border: 1px solid #ffe7a5; border-radius: 13px; padding: 0 12px; background: linear-gradient(145deg, #ffe5a0, #d7a839); color: #201807; font-size: 14px; font-weight: 800; touch-action: manipulation; transition: transform .16s ease, box-shadow .16s ease; }
+.snake-roll-button:active:not(:disabled) { transform: scale(.96); }
+.snake-roll-button:focus-visible { outline: 3px solid #7dd3fc; outline-offset: 3px; }
+.snake-roll-button:disabled { background: #1f2a40; border-color: #344058; color: #a3b0c7; }
+.snake-turn-clock { height: 3px; margin: 0 -14px; background: #ffffff0a; }
+.snake-turn-clock > span { display: block; height: 100%; background: #f5d785; transition: width .15s linear; }
+.snake-turn-clock > span[data-urgent="true"] { background: #fb923c; }
+@keyframes snake-roll-wait { to { transform: rotate(360deg); } }
+@media (max-width: 359px) { .snake-turn-panel { left: 8px; right: 8px; padding: 10px 10px 0; } .snake-turn-main { gap: 8px; } .snake-roll-button { min-width: 80px; padding: 0 8px; } .snake-turn-copy > span { display: none; } }
+@media (prefers-reduced-motion: reduce) { .snake-roll-result.is-rolling svg { animation: none; } .snake-roll-button, .snake-turn-clock > span { transition: none; } }

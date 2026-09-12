@@ -6,6 +6,9 @@ import { socket } from '../utils/socket.js';
 export default function DiceRoller({
   onRollEnd,
   onRollStart,
+  durationMs = 1050,
+  triggerDelayMs = 1000,
+  disabled = false,
   clickable = false,
   numDice = 2,
   trigger,
@@ -24,6 +27,21 @@ export default function DiceRoller({
   const soundRef = useRef(null);
   const startValuesRef = useRef(values);
   const triggerRef = useRef(trigger);
+  const rollingRef = useRef(false);
+  const timersRef = useRef(new Set());
+  const callbacksRef = useRef({ onRollStart, onRollEnd });
+  callbacksRef.current = { onRollStart, onRollEnd };
+  const rollRef = useRef(null);
+  const later = (fn, ms) => {
+    const id = setTimeout(() => { timersRef.current.delete(id); fn(); }, ms);
+    timersRef.current.add(id);
+    return id;
+  };
+  useEffect(() => () => {
+    timersRef.current.forEach(clearTimeout);
+    timersRef.current.clear();
+    rollingRef.current = false;
+  }, []);
 
   useEffect(() => {
     const initial = Array(numDice).fill(1);
@@ -49,19 +67,21 @@ export default function DiceRoller({
   useEffect(() => {
     if (trigger !== undefined && trigger !== triggerRef.current) {
       triggerRef.current = trigger;
-      setTimeout(() => rollDice(), 1000); // show dice briefly before rolling
+      const id = later(() => rollRef.current?.(), triggerDelayMs);
+      return () => { clearTimeout(id); timersRef.current.delete(id); };
     }
-  }, [trigger]);
+  }, [trigger, triggerDelayMs]);
 
   const rollDice = () => {
-    if (rolling) return;
+    if (rollingRef.current || disabled) return;
+    rollingRef.current = true;
     if (soundRef.current && !muted) {
       soundRef.current.currentTime = 0;
       soundRef.current.play().catch(() => {});
     }
     startValuesRef.current = values;
     setRolling(true);
-    onRollStart && onRollStart();
+
 
     const rand = () => {
       if (window.crypto?.getRandomValues) {
@@ -77,37 +97,31 @@ export default function DiceRoller({
       return Math.floor(Math.random() * 6) + 1;
     };
 
-    const tick = 50; // ms between face changes
-    const iterations = 20; // ~1 second of rolling
-    let count = 0;
-
-    const id = setInterval(() => {
-      const results = Array.from({ length: numDice }, rand);
+    // Choose once before the throw, so the visible cube lands on the same
+    // result used by gameplay. No independently randomized landing face.
+    const results = Array.from({ length: numDice }, rand);
+    callbacksRef.current.onRollStart?.(results);
+    later(() => {
       setValues(results);
-      count += 1;
-      if (count >= iterations) {
-        clearInterval(id);
-        // allow the final face to be visible before stopping
-        setTimeout(() => {
-          setRolling(false);
-          startValuesRef.current = results;
-          onRollEnd && onRollEnd(results);
-          if (emitRollEvent) {
-            socket.emit('rollDice');
-          }
-        }, tick);
-      }
-    }, tick);
+      setRolling(false);
+      rollingRef.current = false;
+      startValuesRef.current = results;
+      callbacksRef.current.onRollEnd?.(results);
+      if (emitRollEvent) socket.emit('rollDice');
+    }, durationMs);
   };
+  rollRef.current = rollDice;
 
   return (
     <div className={`flex flex-col items-center space-y-4 ${className}`}>
       <div
         className={`${diceWrapperClassName} ${clickable ? 'cursor-pointer' : ''}`}
-        onClick={clickable ? rollDice : undefined}
+        onClick={clickable && !disabled ? rollDice : undefined}
         ref={divRef}
         role={clickable ? 'button' : undefined}
-        tabIndex={clickable ? 0 : -1}
+        tabIndex={clickable && renderVisual && !disabled ? 0 : -1}
+        aria-disabled={disabled || rolling}
+        aria-label="Roll dice"
         onKeyDown={
           clickable
             ? (event) => {
@@ -133,7 +147,7 @@ export default function DiceRoller({
       {!clickable && showButton && (
         <button
           onClick={rollDice}
-          disabled={rolling}
+          disabled={rolling || disabled}
           className="px-4 py-2 bg-primary hover:bg-primary-hover text-white rounded disabled:opacity-50"
         >
           Roll Dice

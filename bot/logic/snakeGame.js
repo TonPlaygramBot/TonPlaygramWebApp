@@ -41,7 +41,7 @@ export class SnakeGame {
 
     const rand = () => Math.floor(Math.random() * 6) + 1;
     const suppliedDice = Array.isArray(diceValue) ? diceValue : [diceValue];
-    const dice = suppliedDice.map(Number).every(Number.isFinite)
+    const dice = suppliedDice.length > 0 && suppliedDice.map(Number).every(Number.isFinite)
       ? suppliedDice.map((value) => Math.max(1, Math.min(6, Math.floor(value))))
       : [rand()];
     const diceTotal = dice.reduce((sum, value) => sum + value, 0);
@@ -83,7 +83,7 @@ export class SnakeGame {
       player.bonus = bonus;
       delete this.diceCells[player.position];
       extraTurn = true;
-    } else if (dice.length > 1 && dice.every((value) => value === 6)) {
+    } else if (dice.length >= 1 && dice.every((value) => value === 6)) {
       extraTurn = true;
     }
 
@@ -99,6 +99,7 @@ export class SnakeGame {
       player: player.id,
       dice,
       path,
+      landing: target,
       position: player.position,
       extraTurn,
       finished: this.finished,
