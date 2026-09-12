@@ -25,6 +25,20 @@ const GAME_ENTRYPOINTS = [
 const GLTF_MANIFEST_PATH = '/pwa/gltf-assets.json';
 const HALLWAY_MANIFEST_PATH = '/pwa/hallway-assets.json';
 const GLTF_EXTENSIONS = /\.(gltf|glb|bin|ktx2|dds|hdr|exr)$/i;
+const MANAGED_GAME_ASSET_PREFIXES = [
+  '/assets/tirana-streets/',
+  '/assets/tirana-detail-kit/',
+  '/assets/tirana-landmarks/',
+  '/assets/blackwater/',
+  '/assets/kart-royale/',
+  '/assets/pool-royale/',
+  '/models/pool-royale/',
+  '/assets/table-tennis/',
+  '/assets/royal-lanes/'
+];
+const shouldWarmAsset = asset =>
+  import.meta.env.VITE_PRELOAD_ALL_GAME_ASSETS === 'true' ||
+  !MANAGED_GAME_ASSET_PREFIXES.some(prefix => asset.startsWith(prefix));
 
 const runWhenIdle = cb => {
   if ('requestIdleCallback' in window) {
@@ -53,7 +67,7 @@ async function warmGltfMaterials({ baseUrl = '/', forceReload = false } = {}) {
 
     await Promise.all(
       assets.map(async asset => {
-        if (typeof asset !== 'string' || !GLTF_EXTENSIONS.test(asset)) return;
+        if (typeof asset !== 'string' || !GLTF_EXTENSIONS.test(asset) || !shouldWarmAsset(asset)) return;
         try {
           const request = new Request(asset, { cache: forceReload ? 'reload' : 'default', mode: 'cors' });
           const response = await fetch(request);
