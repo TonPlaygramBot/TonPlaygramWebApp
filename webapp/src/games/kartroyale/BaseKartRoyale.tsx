@@ -1105,7 +1105,7 @@ export default function KartRoyale({
           <div className="rr-map"><CircuitMap id={trackId} frame={hud}/></div>
           <button className="rr-camera" aria-label={`Switch to ${cameraMode==='driver'?'chase':'driver'} camera`} onClick={()=>setCameraMode(v=>v==='driver'?'chase':'driver')}><Camera size={18}/></button>
           <button className="rr-recover" aria-label="Recover kart on track" {...touch('recover',true)}><RotateCcw size={18}/></button>
-          {(hud?.countdown || 0)>0 && <div className="rr-countdown" role="status"><span>READY TO RACE</span><b>{hud!.countdown}</b><p>Hold GAS to accelerate.<br/>Slide your gas thumb up to drift.</p></div>}
+          {(hud?.countdown || 0)>0 && <div className="rr-countdown" role="status"><span>READY TO RACE</span><b>{hud!.countdown}</b><p>Hold GAS to accelerate.<br/>Slide a steering thumb up to drift.</p></div>}
           {notice && <div className="rr-notice" role="status"><WifiOff size={16}/>{notice}</div>}
           <div className="rr-feedback" aria-live="polite">
             {hud?.drifting ? <><strong>{['HOLD YOUR DRIFT','MINI TURBO','SUPER TURBO','ROYAL TURBO'][driftTier(hud.driftCharge)]}</strong><div className={`rr-drift-meter tier-${driftTier(hud.driftCharge)}`}><i style={{width:`${Math.min(100,hud.driftCharge/1.9*100)}%`}}/></div><span>{hud.driftCharge>=.55?'Release DRIFT to boost':'Steer + hold DRIFT'}</span></> : (hud?.turbo||0)>0 ? <strong className="rr-turbo">TURBO!</strong> : (hud?.slipstream||0)>.35 ? <strong>SLIPSTREAM</strong> : null}
@@ -1372,11 +1372,13 @@ export default function KartRoyale({
                   <b>02 · Turn a drift into speed.</b>
                   <p>
                     Hold DRIFT while steering. Charge the meter, then release
-                    for a short turbo.
+                    for a short turbo. With two thumbs, keep GAS held and slide
+                    your steering thumb upward to drift; slide it back down to release.
                   </p>
                   <b>03 · Make your move.</b>
                   <p>
-                    Hold BOOST on straights. Charge blue, gold or violet drift sparks,
+                    Hold BOOST on straights, or slide your gas thumb upward to boost.
+                    Charge blue, gold or violet drift sparks,
                     then release DRIFT for a stronger turbo. Complete three ordered laps.
                     Bumps slow you down; your kart stays in the race.
                   </p>

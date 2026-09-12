@@ -22,4 +22,4 @@ let fragment=await readFile(resolve(here,'racing-manual-preview.html'),'utf8');
 const css=await readFile(resolve(root,'webapp/src/games/kartroyale/kart-controls.css'),'utf8');
 fragment+='\n<style>\n'+css+'\n</style>\n<script type="module">\n'+result.outputFiles[0].text+'\n</script>\n';
 if(Buffer.byteLength(fragment)>1000000)throw Error('Inline preview exceeds 1 MB');
-const output=process.argv[2]||'/workspace/racing-manual-karts.html';await writeFile(output,fragment);console.log(JSON.stringify({output,bytes:Buffer.byteLength(fragment),buildings:buildings.length,trees:trees.length}));
+const output=process.argv[2]||'/workspace/racing-royal-upgrade.html';await writeFile(output,fragment);console.log(JSON.stringify({output,bytes:Buffer.byteLength(fragment),buildings:buildings.length,trees:trees.length}));

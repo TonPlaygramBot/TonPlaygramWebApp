@@ -34,9 +34,9 @@ test('three rewarded drift tiers increase turbo; a stationary turn and braking g
 test('boost strips work per racer with a cooldown and reject off-strip positions',()=>{
   const track=makeTrack('blloku'),pad=boostPads(track)[0];assert.ok(pad);
   const a=make(),b=make();
-  for(const r of [a,b]){Object.assign(r,{x:pad.x,z:pad.z,speed:12,boost:0});stepBoostPads(r,track,1);assert.ok(r.turbo>0);assert.equal(r.boost,18);}
-  stepBoostPads(a,track,2);assert.equal(a.boost,18);
-  a.x+=Math.cos(pad.yaw)*8;a.z-=Math.sin(pad.yaw)*8;stepBoostPads(a,track,20);assert.equal(a.boost,18);
+  for(const r of [a,b]){Object.assign(r,{x:pad.x,z:pad.z,yaw:pad.yaw,velocityYaw:pad.yaw,speed:12,boost:0});stepBoostPads(r,track,1);assert.ok(r.turbo>0);assert.equal(r.boost,24);}
+  stepBoostPads(a,track,2);assert.equal(a.boost,24);
+  a.x+=Math.cos(pad.yaw)*8;a.z-=Math.sin(pad.yaw)*8;stepBoostPads(a,track,20);assert.equal(a.boost,24);
 });
 test('slipstream rewards following, never an oncoming or disconnected kart',()=>{
   for(const other of [{yaw:0,disconnected:false,yes:true},{yaw:Math.PI,disconnected:false,yes:false},{yaw:0,disconnected:true,yes:false}]){

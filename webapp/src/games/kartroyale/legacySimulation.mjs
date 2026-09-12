@@ -238,7 +238,8 @@ export function aiInput(r, track, time, difficulty = 'street') {
       p.z + Math.sin(p.yaw) * lane - r.z
     ) - r.yaw
   );
-  const safeSpeed = cornerSpeedLimit(track, n);
+  // Look far enough ahead to brake from the faster straight-line pace.
+  const safeSpeed = cornerSpeedLimit(track, n, Math.max(45, r.speed * r.speed / 40 + 16));
   return {
     throttle: true,
     steer: clamp(-turn * 3.6, -1, 1),
@@ -267,7 +268,7 @@ export function stepRacer(r, raw, track, dt, time, difficulty = 'street') {
     // Keep index, gates, laps and progress: recovery cannot manufacture distance.
     return;
   }
-  const previousSpeed = r.speed;
+  const previousSpeed = r.speed, previousX = r.x, previousZ = r.z;
   const throttle = input.throttle === true && !input.brake && !input.reverse;
   r.throttle = (r.throttle || 0) + ((throttle ? 1 : 0) - (r.throttle || 0)) * (1 - Math.exp(-dt * 14));
   r.braking = input.brake === true;
@@ -290,17 +291,19 @@ export function stepRacer(r, raw, track, dt, time, difficulty = 'street') {
         r.slot * 0.006
       : 1,
     damageFactor = 1,
-    max = (boost || r.turbo > 0 ? 43 : 31) * kart.speed * factor * damageFactor;
-  const drag = .9 + .17 * Math.abs(r.speed) + .008 * r.speed * r.speed;
-  const drive = (boost || r.turbo > 0 ? 22 : (kart.id === 'oopi' || kart.id === 'aegis' ? 17 : 15.5)) * kart.speed * factor;
-  const acceleration = input.reverse === true ? (r.speed > 0 ? -28 * kart.brake : -7)
-    : input.brake ? -Math.sign(r.speed) * 28 * kart.brake
+    max = (boost || r.turbo > 0 ? 53 : 39) * kart.speed * factor * damageFactor;
+  const drag = .9 + .17 * Math.abs(r.speed) + .006 * r.speed * r.speed;
+  const drive = (boost || r.turbo > 0 ? 31 : (kart.id === 'oopi' || kart.id === 'aegis' ? 23 : 21)) * kart.speed * factor;
+  const acceleration = input.reverse === true ? (r.speed > 0 ? -36 * kart.brake : -7)
+    : input.brake ? -Math.sign(r.speed) * 36 * kart.brake
     : throttle ? drive - drag : -Math.sign(r.speed) * drag;
-  r.speed = clamp(r.speed + acceleration * dt, input.reverse || r.speed < 0 ? -7 : 0, max);
+  // Turbo expiry should coast back to cruise speed, never snap down by 50 km/h.
+  const speedCeiling = previousSpeed > max ? Math.max(max, previousSpeed - 9 * dt) : max;
+  r.speed = clamp(r.speed + acceleration * dt, input.reverse || r.speed < 0 ? -7 : 0, speedCeiling);
   if (!throttle && !input.reverse && Math.sign(r.speed) !== Math.sign(previousSpeed)) r.speed = 0;
   if (input.brake && !input.reverse && Math.sign(r.speed) !== Math.sign(previousSpeed)) r.speed = 0;
   // Nitro is earned primarily by cornering; passive recharge prevents dead ends.
-  r.boost = clamp(r.boost + (boost ? -32 : drift ? 14 : 3) * dt, 0, 100);
+  r.boost = clamp(r.boost + (boost ? -27 : drift ? 16 : 4) * dt, 0, 100);
   const turn =
     (-r.steering * kart.handling * (drift ? 1.42 : 1.28) * clamp(r.speed / 10, -1, 1)) /
     (1 + Math.max(0, r.speed - 22) * 0.022);
@@ -327,8 +330,8 @@ export function stepRacer(r, raw, track, dt, time, difficulty = 'street') {
   r.collision = Math.max(0, r.collision - dt);
   resolveWallContact(r, near, near.width ?? track.width, dt);
   if (r.retired) return;
-  r.acceleration = clamp((r.speed - previousSpeed) / dt, -35, 25);
-  stepBoostPads(r, track, time);
+  r.acceleration = clamp((r.speed - previousSpeed) / dt, -45, 35);
+  stepBoostPads(r, track, time, previousX, previousZ);
   // Sequential quarter-track gates reject shortcuts and finish-line oscillation.
   const count = track.points.length;
   const delta = ((near.index - r.index + count * 1.5) % count) - count / 2;

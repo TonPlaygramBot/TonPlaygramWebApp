@@ -26,30 +26,44 @@ const pads = new WeakMap();
 export function boostPads(track) {
   if (pads.has(track)) return pads.get(track);
   const result = [];
-  for (let i = 0; i < 6; i++) {
-    // Search each sixth of the route for a straight, retaining the road geometry.
-    for (let attempt = 0; attempt < 10; attempt++) {
-      const p = sampleCircuitDistance(track, track.length * ((i + .32 + attempt * .05) / 6));
-      if (cornerSpeedLimit(track, p, 32) < 26) continue;
-      result.push({ ...p, id: i, width: Math.min(3.8, (track.points[p.index].width ?? track.width) * .48) });
+  const sections = clamp(Math.ceil(track.length / 85), 12, 36);
+  for (let i = 0; i < sections; i++) {
+    // Distribute across the entire route, leaving a braking approach to turns.
+    for (let attempt = 0; attempt < 12; attempt++) {
+      const p = sampleCircuitDistance(track, track.length * ((i + .15 + attempt * .065) / sections));
+      if (cornerSpeedLimit(track, p, 65) < 32) continue;
+      if (result.some(other => Math.hypot(other.x-p.x, other.z-p.z) < 28)) continue;
+      result.push({ ...p, id: i, length: 6, width: Math.min(4.8, (track.points[p.index].width ?? track.width) * .62) });
       break;
     }
   }
   pads.set(track, result);
   return result;
 }
-export function stepBoostPads(r, track, time) {
+export function stepBoostPads(r, track, time, previousX = r.x, previousZ = r.z) {
   if (r.speed < 2 || r.finished || r.retired || r.disconnected) return;
   for (const pad of boostPads(track)) {
     const dx = r.x - pad.x, dz = r.z - pad.z;
     const along = dx * Math.sin(pad.yaw) + dz * Math.cos(pad.yaw);
     const across = dx * Math.cos(pad.yaw) - dz * Math.sin(pad.yaw);
     const cooldown = r.padCooldowns?.[pad.id] || 0;
-    if (Math.abs(along) > 2 || Math.abs(across) > pad.width / 2 || time < cooldown) continue;
+    if (time < cooldown || Math.cos(r.velocityYaw - pad.yaw) < .55) continue;
+    const oldX = previousX - pad.x, oldZ = previousZ - pad.z;
+    const oldAlong = oldX * Math.sin(pad.yaw) + oldZ * Math.cos(pad.yaw);
+    const oldAcross = oldX * Math.cos(pad.yaw) - oldZ * Math.sin(pad.yaw);
+    // Sweep the travel segment through the pad rectangle, including a long
+    // fixed step on slower phones. A parallel near miss must remain a miss.
+    let enter = 0, exit = 1;
+    for (const [from,to,half] of [[oldAlong,along,pad.length/2],[oldAcross,across,pad.width/2]]) {
+      const delta = to-from;
+      if (Math.abs(delta)<1e-8) { if (Math.abs(from)>half) exit=-1; }
+      else { const a=(-half-from)/delta,b=(half-from)/delta; enter=Math.max(enter,Math.min(a,b));exit=Math.min(exit,Math.max(a,b)); }
+    }
+    if (enter>exit) continue;
     r.padCooldowns ||= {};
     r.padCooldowns[pad.id] = time + 8;
-    r.turbo = Math.max(r.turbo, .85);
-    r.boost = Math.min(100, r.boost + 18);
+    r.turbo = Math.max(r.turbo, 1.15);
+    r.boost = Math.min(100, r.boost + 24);
     r.boostEvent = (r.boostEvent || 0) + 1;
   }
 }

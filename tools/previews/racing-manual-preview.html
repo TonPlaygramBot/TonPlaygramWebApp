@@ -1,15 +1,20 @@
-<div id="racing-manual-preview"></div>
+<div id="racing-royal-upgrade"></div>
 <style>
-#racing-manual-preview{max-width:440px;margin:0 auto;font-family:Arial,sans-serif}
-#racing-manual-preview .rr-preview{height:650px;position:relative;border-radius:24px;overflow:hidden;background:#102332;color:#f4fbff;isolation:isolate}
-#racing-manual-preview .rr-preview-canvas{position:absolute;inset:0}#racing-manual-preview canvas{width:100%;height:100%;display:block}
-#racing-manual-preview header{position:absolute;top:0;left:0;right:0;padding:20px 16px;display:flex;align-items:center;justify-content:space-between;background:linear-gradient(#0b202bef,transparent);gap:8px}
-#racing-manual-preview header b{font-size:16px;letter-spacing:1px}#racing-manual-preview header small{display:block;font-size:11px;margin-top:6px}#racing-manual-preview .rr-preview-tag{font-size:10px;color:#baff80}
-#racing-manual-preview button{font-family:inherit;cursor:pointer}#racing-manual-preview header button,#racing-manual-preview .rr-preview-overlay button{min-height:44px;padding:8px 14px;background:#183747;border:1px solid #88b2c7;border-radius:12px;color:#f5fbff;font-size:11px;font-weight:700}
-#racing-manual-preview .rr-preview-garage{position:absolute;left:16px;right:16px;bottom:22px;display:grid;gap:14px}#racing-manual-preview .rr-preview-picks{display:flex;gap:8px}#racing-manual-preview .rr-preview-picks button{flex:1;min-width:0;min-height:50px;background:#112c3ce8;border:1px solid #4b7b91;border-radius:12px;color:#edfaff;font-size:12px}#racing-manual-preview .rr-preview-picks button[aria-pressed=true]{background:#254f63;border-color:#a2edff}
-#racing-manual-preview .rr-preview-start{min-height:54px;background:#baff79;border:0;border-radius:14px;font-size:14px;font-weight:800;color:#193726;letter-spacing:1px}#racing-manual-preview button:disabled{opacity:.5}
-#racing-manual-preview .rr-preview-stats{position:absolute;top:90px;left:18px;right:18px;display:flex;align-items:center;justify-content:space-between;font-size:12px;text-shadow:0 2px 5px #102c3c}#racing-manual-preview .rr-preview-stats b{font-size:24px}
-#racing-manual-preview .rr-speed{position:absolute;left:50%;bottom:210px;transform:translateX(-50%);text-align:center;text-shadow:0 2px 6px #092334;pointer-events:none}#racing-manual-preview .rr-speed b{display:block;font-size:32px}#racing-manual-preview .rr-speed span{font-size:10px}
-#racing-manual-preview .rr-preview-overlay{position:absolute;inset:170px 50px 270px;z-index:15;display:flex;flex-direction:column;justify-content:center;gap:12px;text-align:center;background:#102635f5;border-radius:20px;padding:18px}
-#racing-manual-preview .kart-gas small{font-size:10px}#racing-manual-preview .kart-controls{bottom:22px}
+#racing-royal-upgrade{max-width:440px;margin:0 auto;font-family:Arial,sans-serif}
+#racing-royal-upgrade .rr-preview{height:650px;position:relative;border-radius:24px;overflow:hidden;background:#102332;color:#f4fbff;isolation:isolate}
+#racing-royal-upgrade .rr-preview-canvas{position:absolute;inset:0}#racing-royal-upgrade canvas{width:100%;height:100%;display:block}
+#racing-royal-upgrade header{position:absolute;top:0;left:0;right:0;padding:20px 16px;display:flex;align-items:center;justify-content:space-between;background:linear-gradient(#0b202bef,transparent);gap:8px}
+#racing-royal-upgrade header b{font-size:16px;letter-spacing:1px}#racing-royal-upgrade header small{display:block;font-size:12px;margin-top:6px}#racing-royal-upgrade .rr-preview-tag{font-size:12px;color:#baff80}
+#racing-royal-upgrade button{font-family:inherit;cursor:pointer}#racing-royal-upgrade header button,#racing-royal-upgrade .rr-preview-overlay button{min-height:44px;padding:8px 14px;background:#183747;border:1px solid #88b2c7;border-radius:12px;color:#f5fbff;font-size:12px;font-weight:700}
+#racing-royal-upgrade .rr-preview-garage{position:absolute;left:16px;right:16px;bottom:22px;display:grid;gap:14px}#racing-royal-upgrade .rr-preview-picks{display:flex;gap:8px}#racing-royal-upgrade .rr-preview-picks button{flex:1;min-width:0;min-height:50px;background:#112c3ce8;border:1px solid #4b7b91;border-radius:12px;color:#edfaff;font-size:12px}#racing-royal-upgrade .rr-preview-picks button[aria-pressed=true]{background:#254f63;border-color:#a2edff}
+#racing-royal-upgrade .rr-preview-start{min-height:54px;background:#baff79;border:0;border-radius:14px;font-size:14px;font-weight:800;color:#193726;letter-spacing:1px}#racing-royal-upgrade button:disabled{opacity:.5}
+#racing-royal-upgrade .rr-preview-stats{position:absolute;top:90px;left:18px;right:18px;display:flex;align-items:center;justify-content:space-between;font-size:12px;text-shadow:0 2px 5px #102c3c}#racing-royal-upgrade .rr-preview-stats b{font-size:24px}
+#racing-royal-upgrade .rr-speed{position:absolute;left:50%;bottom:176px;transform:translateX(-50%);text-align:center;text-shadow:0 2px 6px #092334;pointer-events:none}#racing-royal-upgrade .rr-speed b{display:block;font-size:32px}#racing-royal-upgrade .rr-speed span{font-size:12px}
+#racing-royal-upgrade .rr-preview-overlay{position:absolute;inset:170px 50px 270px;z-index:15;display:flex;flex-direction:column;justify-content:center;gap:12px;text-align:center;background:#102635f5;border-radius:20px;padding:18px}
+#racing-royal-upgrade .kart-gas small{font-size:12px}#racing-royal-upgrade .kart-controls{bottom:22px}
+</style>
+
+<style>
+#racing-royal-upgrade .rr-preview-feedback{position:absolute;bottom:240px;left:100px;right:100px;text-align:center;color:#a4efff;font-size:13px;display:flex;flex-direction:column;gap:6px;pointer-events:none}
+#racing-royal-upgrade progress{width:100%;height:6px;accent-color:#e7b653}
 </style>

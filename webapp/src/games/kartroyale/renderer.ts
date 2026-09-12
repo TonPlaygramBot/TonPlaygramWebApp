@@ -1,5 +1,6 @@
 import * as T from 'three';
 import { KartDriver } from './KartDriver';
+import { KartMotion } from './KartMotion';
 import { RacingCockpit } from './RacingCockpit';
 import { createWebGLRenderer } from '../tiranastreets/createWebGLRenderer';
 import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js';
@@ -83,6 +84,7 @@ const neutral = (): Input => ({
   fire: false
 });
 interface KartRig {
+  motion: KartMotion;
   body: T.Object3D;
   steeringWheel?: T.Object3D;
   wheels: T.Object3D[];
@@ -411,6 +413,7 @@ export class KartRenderer {
       }
     });
     const rig: KartRig = {
+      motion: new KartMotion(),
       body: model.getObjectByName('body') || model.children[0] || model,
       steeringWheel: model.getObjectByName('steering_wheel'),
       wheels: [],
@@ -835,10 +838,11 @@ export class KartRenderer {
     const smooth = 1 - Math.exp(-dt * 10);
     const steer = Number.isFinite(r.steering) ? r.steering : 0;
     const yawRate = r.yawRate || 0;
-    rig.spin = (rig.spin + (r.speed / rig.wheelRadius) * dt) % (Math.PI * 2);
+    rig.motion.update(r,dt,rig.wheelRadius,this.reducedMotion);
+    rig.spin = rig.motion.wheelSpin;
     for (const wheel of rig.wheels) wheel.rotation.x = rig.spin;
     for (const front of rig.front)
-      front.rotation.y += (-steer * 0.42 - front.rotation.y) * smooth;
+      front.rotation.y += ((front.name.endsWith('fl') ? rig.motion.leftSteer : rig.motion.rightSteer) - front.rotation.y) * smooth;
     if (rig.steeringWheel) rig.steeringWheel.rotation.z = steer * 0.65;
     const driver =
       this.cameraMode === 'driver' &&
@@ -864,24 +868,23 @@ export class KartRenderer {
       this.effects?.crash(r);
     }
     rig.crashAge += dt;
-    const spring = Math.sin(rig.crashAge * 23) * Math.exp(-rig.crashAge * 7);
+    const spring = this.reducedMotion ? 0 : Math.sin(rig.crashAge * 23) * Math.exp(-rig.crashAge * 7);
     const bounce =
       Math.sin(Math.min(Math.PI, rig.crashAge * 16)) *
       Math.exp(-rig.crashAge * 7);
     rig.body.rotation.z =
       rig.bodyRotation.z +
       (r.rollAngle || 0) +
-      T.MathUtils.clamp(yawRate * r.speed * 0.0018, -0.055, 0.055) +
+      rig.motion.roll +
       spring * rig.kickRoll;
     rig.body.rotation.x =
       rig.bodyRotation.x +
-      T.MathUtils.clamp(-(r.acceleration || 0) * 0.0017, -0.035, 0.055) +
+      rig.motion.pitch +
       spring * rig.kickPitch;
     rig.body.position.copy(rig.bodyPosition);
     rig.body.position.y +=
-      ((r.hop || 0) > 0 ? Math.sin((1 - r.hop / .24) * Math.PI) * .18 : 0) +
-      bounce * rig.kickSize * 0.1 +
-      (r.speed > 1 ? Math.sin(this.motionTime * 28 + r.slot) * 0.005 : 0);
+      (!this.reducedMotion && (r.hop || 0) > 0 ? Math.sin((1 - r.hop / .24) * Math.PI) * .18 : 0) +
+      (this.reducedMotion ? 0 : bounce * rig.kickSize * 0.1) + rig.motion.height;
     rig.body.position.x += spring * rig.kickRoll * 0.3;
     rig.smoke.visible = r.health < 25 && !r.retired;
     if (rig.smoke.visible) {
@@ -1226,10 +1229,11 @@ export class KartRenderer {
           this.camera.rotateZ(spring * (rig?.kickRoll || 0) * 0.18);
         } else {
           this.camera.near = 0.15;
+          const surge=this.reducedMotion?0:(this.rigs.get(v)?.motion.boost||0);
           this.cameraTarget.set(
-            v.position.x - Math.sin(yaw) * 7.8,
-            3.7 + me.speed * 0.009,
-            v.position.z - Math.cos(yaw) * 7.8
+            v.position.x - Math.sin(yaw) * (7.8+surge*.45),
+            3.7 + Math.max(0,me.speed) * 0.009,
+            v.position.z - Math.cos(yaw) * (7.8+surge*.45)
           );
           this.camera.position.lerp(this.cameraTarget, 1 - Math.exp(-dt * 5.5));
           this.vector.set(

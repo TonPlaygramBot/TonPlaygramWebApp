@@ -28,7 +28,7 @@ export class RaceEffects {
     };
     for(const r of racers){
       if(r.finished||r.disconnected)continue;
-      const turbo=r.turbo>0||r.input?.boost&&r.boost>1;
+      const turbo=r.speed>2&&!r.braking&&(r.throttle||0)>.1&&(r.turbo>0||r.input?.boost&&r.boost>1);
       const tier=driftTier(r.driftCharge);
       if(!r.drifting&&!turbo)continue;
       const s=Math.sin(r.yaw),c=Math.cos(r.yaw);

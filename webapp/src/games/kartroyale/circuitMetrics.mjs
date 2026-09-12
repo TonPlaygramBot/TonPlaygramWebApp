@@ -48,7 +48,7 @@ export function pointAhead(track, near, metres) {
  * rather than an average sample length. Does not alter track or player physics. */
 export function cornerSpeedLimit(track, near, horizon=45) {
   const m=metrics(track), count=track.points.length, at=circuitDistance(track,near);
-  let limit=32;
+  let limit=43;
   for(let step=1;step<=count;step++){
     const index=(near.index+step)%count;
     const ahead=wrap(m.distance[index]-at,m.length);
