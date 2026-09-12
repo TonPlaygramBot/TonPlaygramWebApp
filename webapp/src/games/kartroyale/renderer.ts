@@ -1,4 +1,5 @@
 import * as T from 'three';
+import { KartDriver } from './KartDriver';
 import { RacingCockpit } from './RacingCockpit';
 import { createWebGLRenderer } from '../tiranastreets/createWebGLRenderer';
 import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js';
@@ -32,6 +33,9 @@ export type CameraMode = 'driver' | 'chase';
 export type Quality = 'auto' | 'high' | 'performance';
 export interface Frame {
   speed: number;
+  lapTime: number;
+  bestLap: number;
+  throttle: number;
   boost: number;
   lap: number;
   position: number;
@@ -69,6 +73,7 @@ export interface ServerRace {
 }
 const neutral = (): Input => ({
   steer: 0,
+  throttle: false,
   brake: false,
   recover: false,
   reverse: false,
@@ -86,6 +91,9 @@ interface KartRig {
   wheelRadius: number;
   driverEye?: T.Vector3;
   cockpit?: RacingCockpit;
+  driver?: KartDriver;
+  aero?: T.Object3D;
+  lights: T.MeshStandardMaterial[];
   smoke: T.Mesh;
   chassisScale: T.Vector3;
   bodyPosition: T.Vector3;
@@ -116,6 +124,7 @@ export class KartRenderer {
   private scenery: TiranaScenery | null = null;
   private supporters: Supporters | null = null;
   private humanTemplates: T.Group[] = [];
+  private driverModels: T.Group[] = [];
   private effects: RaceEffects | null = null;
   private cameraMode: CameraMode = 'chase';
   private motionTime = 0;
@@ -278,7 +287,9 @@ export class KartRenderer {
       ...KARTS.filter((k) => k.id !== 'apex').map((k) =>
         loader.loadAsync(vehicleAssetUrl(k.id, true))
       ),
-      ...cockpitStyles.map(style => loader.loadAsync(COCKPIT_URL + style + '.glb'))
+      ...cockpitStyles.map(style => loader.loadAsync(COCKPIT_URL + style + '.glb')),
+      loader.loadAsync('/assets/kart-royale/karts/race-driver.glb'),
+      loader.loadAsync('/assets/kart-royale/karts/race-driver-lod.glb')
     ]);
     draco.dispose();
     const failed = results.find((r) => r.status === 'rejected');
@@ -352,9 +363,10 @@ export class KartRenderer {
       this.collectTextures(scene);
     });
     cockpitStyles.forEach((style,i) => {
-      const model = (results[results.length-cockpitStyles.length+i] as PromiseFulfilledResult<import('three/examples/jsm/loaders/GLTFLoader.js').GLTF>).value.scene;
+      const model = (results[results.length-2-cockpitStyles.length+i] as PromiseFulfilledResult<import('three/examples/jsm/loaders/GLTFLoader.js').GLTF>).value.scene;
       this.cockpitModels.set(style,model);this.collectTextures(model);
     });
+    this.driverModels = results.slice(-2).map(r => (r as PromiseFulfilledResult<import('three/examples/jsm/loaders/GLTFLoader.js').GLTF>).value.scene);
     this.roadMaps = results
       .slice(3, 6)
       .map((r) => (r as PromiseFulfilledResult<T.Texture>).value);
@@ -419,6 +431,8 @@ export class KartRenderer {
       kickRoll: 0,
       kickSize: 0,
       driverParts: [],
+      aero: model.getObjectByName('aero_wing'),
+      lights: [],
       smoke: new T.Mesh(
         new T.IcosahedronGeometry(0.24, 1),
         new T.MeshBasicMaterial({
@@ -437,8 +451,8 @@ export class KartRenderer {
     rig.smoke.visible = false;
     model.add(rig.smoke);
     model.traverse((o) => {
-      if (/^(character|body_suit|body_visor)$/.test(o.name))
-        rig.driverParts.push(o);
+      if (/^(character|body_suit|body_visor)$/.test(o.name)) o.visible = false;
+      if (o instanceof T.Mesh && ['energy','brake_light'].includes(o.material.name)) rig.lights.push(o.material as T.MeshStandardMaterial);
       if (/^wheel_[fr][lr]$/.test(o.name) || o.name.startsWith('wheel-'))
         rig.wheels.push(o);
       if (/^steer_f[lr]$/.test(o.name)) rig.front.push(o);
@@ -485,8 +499,10 @@ export class KartRenderer {
         model.add(post);
       }
     }
+    const driverModel = this.driverModels[low ? 1 : 0];
+    if (driverModel) { rig.driver = new KartDriver(driverModel, COLORS[slot % 6], kartId === 'oopi'); rig.body.add(rig.driver.root); }
     const cabin=this.cockpitModels.get(cockpitStyle(kartId));
-    if(!low && cabin && rig.driverEye)rig.cockpit=new RacingCockpit(cabin,model,rig.body,rig.driverEye);
+    if(!rig.driver && !low && cabin && rig.driverEye)rig.cockpit=new RacingCockpit(cabin,model,rig.body,rig.driverEye);
     this.rigs.set(model, rig);
     return model;
   }
@@ -582,7 +598,7 @@ export class KartRenderer {
     for (let i = 0; i <= sampleCount; i++) {
       for (const side of ['left', 'right'] as const) {
         const p = sides[side][i % sampleCount];
-        positions.push(p.x, 0.045, p.z);
+        positions.push(p.x, 0.115, p.z);
         normals.push(0, 1, 0);
         const n = positions.length;
         uvs.push(positions[n - 3] / 3, positions[n - 1] / 3);
@@ -597,7 +613,9 @@ export class KartRenderer {
     geo.setAttribute('normal', new T.Float32BufferAttribute(normals, 3));
     geo.setAttribute('uv', new T.Float32BufferAttribute(uvs, 2));
     geo.setIndex(indices);
-    geo.dispose(); // The shared city's original asphalt remains visible.
+    const surface = new T.Mesh(geo, new T.MeshStandardMaterial({color:'#69737a',map:this.roadMaps[0],normalMap:this.roadMaps[1],roughnessMap:this.roadMaps[2],roughness:.92}));
+    surface.name = 'Rounded closed-event race surface'; surface.receiveShadow = true;
+    this.world.add(surface);
     const edges = Array.from({ length: sampleCount }, (_, i) => {
         const p = track.points[i],
           q = track.points[(i + 1) % sampleCount],
@@ -641,7 +659,7 @@ export class KartRenderer {
       [-1, 1].forEach((side, s) => {
         const sideEdge = sideEdges[s],
           curbPoint = sideEdge.side(side, -0.1);
-        m.position.set(curbPoint.x, 0.1, curbPoint.z);
+        m.position.set(curbPoint.x, 0.15, curbPoint.z);
         m.rotation.set(0, sideEdge.yaw, 0);
         m.scale.set(1, 1, sideEdge.length + 0.12);
         m.updateMatrix();
@@ -703,7 +721,7 @@ export class KartRenderer {
         d = Math.floor(i / 15) * 1.2;
       m.position.set(
         start.x - Math.cos(start.yaw) * lane + Math.sin(start.yaw) * d,
-        0.08,
+        0.14,
         start.z + Math.sin(start.yaw) * lane + Math.cos(start.yaw) * d
       );
       m.rotation.set(0, start.yaw, 0);
@@ -827,6 +845,9 @@ export class KartRenderer {
       r.id === this.me &&
       this.state !== 'garage';
     rig.cockpit?.update(driver,steer,r.speed);
+    rig.driver?.update(r, this.motionTime, driver, this.reducedMotion);
+    if (rig.aero) rig.aero.rotation.x += ((r.braking ? .35 : r.turbo > 0 ? -.12 : 0) - rig.aero.rotation.x) * smooth;
+    for (const light of rig.lights) light.emissiveIntensity = light.name === 'brake_light' ? (r.braking ? 4 : .3) : .8 + (r.throttle || 0) * 1.5 + (r.turbo > 0 ? 2 : 0);
     rig.driverParts.forEach((part) => (part.visible = !driver));
     if ((r.impactId || 0) > rig.lastImpact) {
       rig.lastImpact = r.impactId;
@@ -889,7 +910,7 @@ export class KartRenderer {
             const m = this.transform;
             m.position.set(
               (x + previous.x) / 2 + Math.cos(r.yaw) * side * 0.85,
-              0.069,
+              0.14,
               (z + previous.z) / 2 - Math.sin(r.yaw) * side * 0.85
             );
             m.rotation.set(0, Math.atan2(x - previous.x, z - previous.z), 0);
@@ -920,7 +941,7 @@ export class KartRenderer {
             r.id === this.me ? this.color : r.color
           );
       });
-      v.position.set(r.x, 0.08, r.z);
+      v.position.set(r.x, 0.13, r.z);
       v.rotation.y = r.yaw;
       this.world.add(v);
       this.visuals.set(r.id, v);
@@ -1134,7 +1155,7 @@ export class KartRenderer {
         }
         v.visible = !r.disconnected;
         const smooth = 1 - Math.exp(-dt * (this.network ? 16 : 22));
-        this.vector.set(r.x, 0.08, r.z);
+        this.vector.set(r.x, 0.13, r.z);
         v.position.lerp(this.vector, smooth);
         v.rotation.y += wrapAngle(r.yaw - v.rotation.y) * smooth;
         this.animateKart(
@@ -1235,6 +1256,9 @@ export class KartRenderer {
           this.uiAt = now;
           this.onFrame({
             speed: me.speed,
+            throttle: me.throttle || 0,
+            lapTime: Math.max(0, this.time - (me.lapStartedAt || 0)),
+            bestLap: me.lapTimes?.length ? Math.min(...me.lapTimes) : 0,
             boost: me.boost,
             lap: Math.min(3, Math.max(1, me.lap)),
             position:
@@ -1301,6 +1325,7 @@ export class KartRenderer {
     this.effects?.dispose();
     this.scenery?.dispose();
     this.release(this.scene, true);
+    this.driverModels.forEach((model) => this.release(model, true));
     this.humanTemplates.forEach((model) => this.release(model, true));
     if (this.full) this.release(this.full, true);
     if (this.low) this.release(this.low, true);

@@ -1,4 +1,5 @@
 import {combineMappedLoops,resampleCircuit,routeLength} from './grandRouteCore.mjs';
+import { buildingClearance, roundRaceCourse } from './raceCourse.mjs';
 import { WORLD } from '../tiranastreets/shared/world.mjs';
 /** Pre-authored source-backed routes. Browser and server use identical geometry. */
 export function buildRaceCatalog(legacy,routes){
@@ -28,11 +29,19 @@ export function buildRaceCatalog(legacy,routes){
    if(!config)throw Error('This circuit is unavailable. Choose a listed circuit.');
    if(cache.has(id))return cache.get(id);
    // Metre-based sampling retains every source corner and four sequential gates.
-   const count=Math.max(360,Math.ceil(Math.max(routeLength(config.points)/6,config.points.length)/4)*4);
-   const samples=resampleCircuit(config.points,count,config.widths);
+   const course=roundRaceCourse(config.points,config.widths||config.points.map(()=>config.width));
+   const count=Math.max(360,Math.ceil(Math.max(routeLength(course.points)/4,course.points.length)/4)*4);
+   const samples=resampleCircuit(course.points,count,course.widths);
+   // Leave space for the outer tyre barriers, then taper width changes so the
+   // rendered edges and collision corridor stay predictable through junctions.
+   samples.points.forEach(p=>{p.width=Math.min(p.width,Math.max(6,2*(buildingClearance(p.x,p.z)-1.6)));});
+   for(let pass=0;pass<3;pass++)for(const direction of [1,-1])for(let j=0;j<count;j++){
+    const i=direction===1?j:count-1-j,p=samples.points[i],q=samples.points[(i+direction+count)%count];
+    p.width=Math.min(p.width,q.width+Math.hypot(p.x-q.x,p.z-q.z)*.35);
+   }
    const xs=samples.points.map(p=>p.x),zs=samples.points.map(p=>p.z);
    const bounds=[Math.min(...xs),Math.min(...zs),Math.max(...xs),Math.max(...zs)];
-   const track={...config,...samples,bounds,center:{x:(bounds[0]+bounds[2])/2,z:(bounds[1]+bounds[3])/2},x:(bounds[2]-bounds[0])/2,z:(bounds[3]-bounds[1])/2,bend:0};
+   const track={...config,...samples,width:Math.max(...course.widths),turns:course.turns,bounds,center:{x:(bounds[0]+bounds[2])/2,z:(bounds[1]+bounds[3])/2},x:(bounds[2]-bounds[0])/2,z:(bounds[3]-bounds[1])/2,bend:0};
    cache.set(id,track);return track;
   }};
 }

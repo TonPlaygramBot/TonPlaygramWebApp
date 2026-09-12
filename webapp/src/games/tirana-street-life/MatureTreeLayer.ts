@@ -19,7 +19,7 @@ export class MatureTreeLayer {
  constructor(trees:Tree[]=CANOPY_TREES,options:StreetDetailOptions={}){
   this.group.name='Tirana:mature-boulevard-and-square-trees';
   const blocked=options.track?ribbonExclusion(options.track):null;
-  const eligible=trees.filter(t=>!blocked||!blocked(t.x,t.z,.8));this.near=nearbyIndex(eligible);
+  const eligible=trees.filter(t=>!blocked||!blocked(t.x,t.z,Math.max(.8,t.crown*.75)));this.near=nearbyIndex(eligible);
   this.group.userData={mappedTrunks:eligible.filter(t=>t.zone!=='estimated-area-canopy').length,estimatedAreaTrunks:eligible.filter(t=>t.zone==='estimated-area-canopy').length,accuracy:'Mapped trunks, interpolated rows and estimated canopy within mapped green spaces; not satellite verified'};
   // Original clustered leaf cutout. Repeated small cards leave daylight gaps;
   // opacity is tested instead of sorted transparency on mobile.

@@ -1,5 +1,6 @@
 export interface Input {
   steer: number;
+  throttle?: boolean;
   brake: boolean;
   reverse?: boolean;
   recover?: boolean;
@@ -27,6 +28,10 @@ export interface Racer {
   steering: number;
   yawRate: number;
   acceleration: number;
+  throttle: number;
+  braking: boolean;
+  lapStartedAt: number;
+  lapTimes: number[];
   boost: number;
   driftCharge: number;
   hop: number;

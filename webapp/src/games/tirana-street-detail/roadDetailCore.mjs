@@ -47,9 +47,9 @@ function gridIndex(items,bounds,cell=32){
 export function ribbonExclusion(track){
   if(!track||!Array.isArray(track.points)||track.points.length<2||!finite(track.width)||track.width<=0)throw Error('Valid race ribbon required');
   const points=track.points.map(p=>Array.isArray(p)?[p[0],p[1]]:[p.x,p.z]);if(!points.every(point))throw Error('Invalid race point');
-  const segments=points.map((a,i)=>({a,b:points[(i+1)%points.length]})),width=track.width;
+  const segments=points.map((a,i)=>({a,b:points[(i+1)%points.length],width:Math.max(track.points[i].width||track.width,track.points[(i+1)%points.length].width||track.width)})),width=track.width;
   const near=gridIndex(segments,s=>[Math.min(s.a[0],s.b[0])-width/2,Math.min(s.a[1],s.b[1])-width/2,Math.max(s.a[0],s.b[0])+width/2,Math.max(s.a[1],s.b[1])+width/2]);
-  return (x,z,pad=0)=>{if(![x,z,pad].every(finite)||pad<0)return true;return near(x,z,pad+1).some(s=>segmentDistance(x,z,s.a,s.b)<width/2+pad+1);};
+  return (x,z,pad=0)=>{if(![x,z,pad].every(finite)||pad<0)return true;return near(x,z,pad+1).some(s=>segmentDistance(x,z,s.a,s.b)<s.width/2+pad+1);};
 }
 export function buildRoadDetails(world,{signals=[],river=[],exclude=()=>false,includeCycling=true,includePosts=true}={}){
   const roads=(world.roads||[]).filter(r=>point(r.a)&&point(r.b)&&finite(r.w)&&r.w>0&&r.w<=80&&Math.hypot(r.b[0]-r.a[0],r.b[1]-r.a[1])<10000);

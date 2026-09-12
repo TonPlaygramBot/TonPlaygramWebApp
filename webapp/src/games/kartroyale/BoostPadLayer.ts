@@ -8,7 +8,7 @@ export function createBoostPadLayer(track:Track){
   const bright=new T.MeshBasicMaterial({color:'#72edff',toneMapped:false});
   const geometry=new T.BoxGeometry(1,.025,1);
   for(const pad of pads){
-    const g=new T.Group();g.position.set(pad.x,.105,pad.z);g.rotation.y=pad.yaw;
+    const g=new T.Group();g.position.set(pad.x,.145,pad.z);g.rotation.y=pad.yaw;
     const floor=new T.Mesh(geometry,base);floor.scale.set(pad.width,1,4);g.add(floor);
     for(let row=0;row<3;row++)for(const side of [-1,1]){
       const arrow=new T.Mesh(geometry,bright);arrow.scale.set(pad.width*.42,1,.18);arrow.rotation.y=side*.38;arrow.position.set(side*pad.width*.19,.018,-1.2+row*1.05);g.add(arrow);

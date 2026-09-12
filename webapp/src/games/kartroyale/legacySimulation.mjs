@@ -187,7 +187,7 @@ export function createRacer(track, id, name, slot = 0, ai = false) {
     rollTime: 0, rollAngle: 0, rollDirection: 1, rollCooldown: 0, lift: 0,
     steering: 0,
     yawRate: 0,
-    acceleration: 0,
+    acceleration: 0, throttle: 0, braking: false, lapStartedAt: 0, lapTimes: [],
     boost: 100,
     driftCharge: 0,
     recoveryAt: -10, hop: 0, boostEvent: 0, slipstream: 0, draftCooldown: 0, padCooldowns: {},
@@ -220,7 +220,7 @@ export function createRacer(track, id, name, slot = 0, ai = false) {
     damageRear: 0,
     damageSide: 0,
     hitFlash: 0,
-    input: { steer: 0, brake: false, drift: false, boost: false, shield: false, fire: false },
+    input: { steer: 0, throttle: false, brake: false, drift: false, boost: false, shield: false, fire: false },
     lastInput: 0,
     disconnected: false
   };
@@ -240,6 +240,7 @@ export function aiInput(r, track, time, difficulty = 'street') {
   );
   const safeSpeed = cornerSpeedLimit(track, n);
   return {
+    throttle: true,
     steer: clamp(-turn * 3.6, -1, 1),
     brake: r.speed > safeSpeed || (Math.abs(turn) > 0.55 && r.speed > 8),
     drift: false,
@@ -267,6 +268,9 @@ export function stepRacer(r, raw, track, dt, time, difficulty = 'street') {
     return;
   }
   const previousSpeed = r.speed;
+  const throttle = input.throttle === true && !input.brake && !input.reverse;
+  r.throttle = (r.throttle || 0) + ((throttle ? 1 : 0) - (r.throttle || 0)) * (1 - Math.exp(-dt * 14));
+  r.braking = input.brake === true;
   r.health = Number.isFinite(r.health) ? r.health : 100;
   r.hitFlash = Math.max(0, (r.hitFlash || 0) - dt);
   r.impactCooldown = Math.max(0, (r.impactCooldown || 0) - dt);
@@ -280,27 +284,20 @@ export function stepRacer(r, raw, track, dt, time, difficulty = 'street') {
     (r.steering || 0) +
     (steer - (r.steering || 0)) * (1 - Math.exp(-dt * (steer ? 8 : 12)));
   const drift = stepDrift(r, input, dt),
-    boost = input.boost === true && r.boost > 1 && !input.brake && !input.reverse && r.speed >= 0;
+    boost = throttle && input.boost === true && r.boost > 1 && !input.brake && !input.reverse && r.speed >= 0;
   const factor = r.ai
       ? ({ rookie: 0.76, street: 0.88, pro: 0.98 }[difficulty] || 0.88) +
         r.slot * 0.006
       : 1,
     damageFactor = 1,
     max = (boost || r.turbo > 0 ? 43 : 31) * kart.speed * factor * damageFactor;
-  r.speed = clamp(
-    r.speed +
-      (input.reverse === true
-        ? (r.speed > 0 ? -28 * kart.brake : -7)
-        : input.brake
-        ? -Math.sign(r.speed) * 28 * kart.brake
-        : (boost || r.turbo > 0 ? 22 : (kart.id === 'oopi' ? 17 : 15.5)) * kart.speed * factor * damageFactor -
-          0.6 -
-          0.16 * r.speed -
-          0.008 * r.speed * r.speed) *
-        dt,
-    input.reverse === true || r.speed < 0 ? -7 : 0,
-    max
-  );
+  const drag = .9 + .17 * Math.abs(r.speed) + .008 * r.speed * r.speed;
+  const drive = (boost || r.turbo > 0 ? 22 : (kart.id === 'oopi' || kart.id === 'aegis' ? 17 : 15.5)) * kart.speed * factor;
+  const acceleration = input.reverse === true ? (r.speed > 0 ? -28 * kart.brake : -7)
+    : input.brake ? -Math.sign(r.speed) * 28 * kart.brake
+    : throttle ? drive - drag : -Math.sign(r.speed) * drag;
+  r.speed = clamp(r.speed + acceleration * dt, input.reverse || r.speed < 0 ? -7 : 0, max);
+  if (!throttle && !input.reverse && Math.sign(r.speed) !== Math.sign(previousSpeed)) r.speed = 0;
   if (input.brake && !input.reverse && Math.sign(r.speed) !== Math.sign(previousSpeed)) r.speed = 0;
   // Nitro is earned primarily by cornering; passive recharge prevents dead ends.
   r.boost = clamp(r.boost + (boost ? -32 : drift ? 14 : 3) * dt, 0, 100);
@@ -340,6 +337,8 @@ export function stepRacer(r, raw, track, dt, time, difficulty = 'street') {
     if (crossed > 0 && crossed <= delta) {
       r.gates++;
       if (r.nextGate === 0) {
+        if (r.lap > 0) (r.lapTimes ||= []).push(Math.max(0, time - r.lapStartedAt));
+        r.lapStartedAt = time;
         r.lap++;
         if (r.lap > LAPS) {
           r.finished = true;

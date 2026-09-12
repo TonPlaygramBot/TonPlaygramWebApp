@@ -1,4 +1,5 @@
 import {useEffect,useRef,useState} from 'react';
+import {KartControls} from './KartControls';
 import {KartRenderer,type Frame,type Result} from './renderer';
 import {CUPS,TRACKS,KARTS,normalizeKart,GRAND_ROUTE_DIAGNOSTICS} from './simulation.mjs';
 import {loadCareer,recordRace,formatTime} from './career';
@@ -6,6 +7,7 @@ import {createHeldRaceInput} from './heldRaceInput.mjs';
 import {KART_TASKS,loadKartTasks,saveKartTasks,finishKartTask,kartTaskXP} from './kartTaskCore.mjs';
 import '../tirana-social/explore.css';
 import './kart-royale.css';
+import './kart-controls.css';
 const storage=()=>{try{return window.localStorage;}catch{return undefined;}};
 /** Existing KartRenderer and cups; new tasks are optional device-local goals.
  * A single renderer and input owner are mounted for a career session. */
@@ -46,7 +48,7 @@ export function RacingCareerGame({onExit}:{onExit:()=>void}){
     }catch(e){setError(e instanceof Error?e.message:'Renderer unavailable');}
     const blur=()=>{if(!alive)return;held.current.clear();game?.clearInput();game?.pause(true);pausedRef.current=true;setPaused(true);};
     const visibility=()=>{if(document.hidden)blur();};
-    const keymap:Record<string,['steer'|'brake'|'boost'|'drift',number|boolean]>={arrowleft:['steer',-1],a:['steer',-1],arrowright:['steer',1],d:['steer',1],' ':['drift',true],arrowdown:['brake',true],s:['brake',true],shift:['boost',true]};
+    const keymap:Record<string,['steer'|'throttle'|'brake'|'boost'|'drift',number|boolean]>={arrowup:['throttle',true],w:['throttle',true],arrowleft:['steer',-1],a:['steer',-1],arrowright:['steer',1],d:['steer',1],' ':['drift',true],arrowdown:['brake',true],s:['brake',true],shift:['boost',true]};
     const down=(e:KeyboardEvent)=>{
       if((e.target as HTMLElement)?.closest?.('input,textarea,select,[contenteditable="true"]')||e.ctrlKey||e.metaKey||e.altKey)return;
       const key=e.key.toLowerCase(),value=keymap[key];
@@ -71,12 +73,8 @@ export function RacingCareerGame({onExit}:{onExit:()=>void}){
       engine.current.startLocal(config.track,config.difficulty);setRacing(true);
     }catch(e){finished.current=true;setRacing(false);setError(e instanceof Error?e.message:'Race could not start.');}
   }
-  function hold(id:string,key:'steer'|'brake'|'boost'|'drift',value:number|boolean){if(pausedRef.current||finished.current)return;held.current.hold(id,key,value);if(engine.current)Object.assign(engine.current.input,held.current.read());}
+  function hold(id:string,key:'steer'|'throttle'|'brake'|'boost'|'drift',value:number|boolean){if(pausedRef.current||finished.current)return;held.current.hold(id,key,value);if(engine.current)Object.assign(engine.current.input,held.current.read());}
   function release(id:string){held.current.release(id);if(engine.current)Object.assign(engine.current.input,held.current.read());}
-  const button=(key:'steer'|'brake'|'boost'|'drift',value:number|boolean,label:string)=><button key={label} aria-label={label}
-    onPointerDown={e=>{e.preventDefault();e.currentTarget.setPointerCapture(e.pointerId);hold(`touch:${e.pointerId}`,key,value);}}
-    onPointerUp={e=>release(`touch:${e.pointerId}`)} onPointerCancel={e=>release(`touch:${e.pointerId}`)}
-    onLostPointerCapture={e=>release(`touch:${e.pointerId}`)}>{label}</button>;
   return <main className="te-game" aria-label="Racing Royal Career"><div className="te-canvas" ref={host}/>
     <header className="te-header"><div><b>RACING ROYAL · KART CAREER</b><small>{hud?`${Math.round(hud.speed)} · LAP ${hud.lap} · ${hud.position} PLACE`:'PREPARING CITY'}</small></div>
       <button onClick={()=>pause(!paused)}>{paused?'RESUME':'PAUSE'}</button><button onClick={onExit}>GARAGE</button></header>
@@ -94,6 +92,8 @@ export function RacingCareerGame({onExit}:{onExit:()=>void}){
         <b>{mission.title}{tasks.completed.includes(mission.id)?' · COMPLETE':''}</b><br/><small>{mission.description} · {mission.xp} first-completion XP</small></button>)}
       {!!GRAND_ROUTE_DIAGNOSTICS.length&&<details><summary>Route availability</summary><p>{GRAND_ROUTE_DIAGNOSTICS.join('; ')}</p></details>}
     </section>}
-    {racing&&<><div className="te-actions rr-steering">{button('steer',-1,'← LEFT')}{button('steer',1,'RIGHT →')}</div><div className="te-actions rr-pedals">{button('brake',true,'BRAKE')}{button('drift',true,'DRIFT')}{button('boost',true,'BOOST')}</div></>}
+    {racing&&<KartControls boost={hud?.boost||0} drifting={hud?.drifting} disabled={paused}
+      hold={(id,key,value)=>hold(id,key as 'steer'|'throttle'|'brake'|'boost'|'drift',value)} release={release}/>}
+
   </main>;
 }

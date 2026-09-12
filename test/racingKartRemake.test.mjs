@@ -6,10 +6,10 @@ import { stepDrift, boostPads, stepBoostPads, stepSlipstream } from '../webapp/s
 import { createHeldRaceInput } from '../webapp/src/games/kartroyale/heldRaceInput.mjs';
 import { damageRacer } from '../webapp/src/games/kartroyale/collisions.mjs';
 import { WORLD } from '../webapp/src/games/tiranastreets/shared/world.mjs';
-const input={steer:0,brake:false,boost:false,drift:false,reverse:false,recover:false,shield:false,fire:false};
+const input={steer:0,throttle:false,brake:false,boost:false,drift:false,reverse:false,recover:false,shield:false,fire:false};
 const make=()=>createRacer(makeTrack('blloku'),'you','You');
 test('saved car and military choices migrate to a kart; every selectable kart has a real model',()=>{
-  assert.deepEqual(KARTS.map(k=>k.id),['apex','oobi','oodi','ooli','oopi']);
+  assert.deepEqual(KARTS.map(k=>k.id),['apex','oobi','oodi','ooli','oopi','photon','vortex','aegis']);
   for(const id of ['benz','buggy','shota','defender','unknown',null])assert.equal(normalizeKart(id),'apex');
   for(const kart of KARTS){
     const r=equipKart(make(),kart.id);assert.equal(r.kartId,kart.id);assert.equal(r.ammunition,0);
@@ -72,5 +72,5 @@ test('track recovery preserves lap gates and progress; holding it cannot repeate
   stepRacer(r,{...input,recover:true},track,STEP,10);
   assert.equal(r.lap,2);assert.equal(r.gates,6);assert.equal(r.nextGate,2);assert.equal(r.progress,1.4);
   assert.equal(r.speed,0);assert.equal(r.x,track.points[r.index].x);
-  stepRacer(r,{...input,recover:true},track,STEP,10+STEP);assert.ok(r.speed>0);
+  stepRacer(r,{...input,recover:true,throttle:true},track,STEP,10+STEP);assert.ok(r.speed>0);
 });

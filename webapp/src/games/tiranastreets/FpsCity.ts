@@ -46,7 +46,7 @@ export class FpsCity {
   private trees: { x: number; z: number }[] = [];
   readonly ready: Promise<void>;
 
-  constructor(private loadAssets = true) {
+  constructor(private loadAssets = true, private raceClearance?: (x:number,z:number,pad:number)=>boolean) {
     this.agedHousing = new AgedHousingLayer(undefined, loadAssets);
     this.urbanRoads=new UrbanRoadCells(loadAssets);this.group.add(this.urbanRoads.group);
     this.group.add(this.agedHousing.group);
@@ -268,7 +268,7 @@ export class FpsCity {
     }
     const [furniture, kit] = results.map(r => (r as PromiseFulfilledResult<Awaited<ReturnType<GLTFLoader['loadAsync']>>>).value);
     furniture.scene.add(kit.scene);
-    this.streets = new StreetVisuals(furniture.scene, this.trees);
+    this.streets = new StreetVisuals(furniture.scene, this.trees, this.raceClearance);
     this.group.add(this.streets.group);
     // Shared streamed pavements remain the sole surface owner.
   }

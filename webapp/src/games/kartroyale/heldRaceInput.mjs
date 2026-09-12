@@ -1,7 +1,7 @@
 /** Independent owners preserve multi-touch chords and keyboard + touch input. */
 export function createHeldRaceInput() {
   const owners = new Map();
-  const allowed = ['steer','brake','boost','drift','reverse','recover'];
+  const allowed = ['steer','throttle','brake','boost','drift','reverse','recover'];
   return {
     hold(id, key, value) {
       if(typeof id!=='string'||!id||id.length>64||!allowed.includes(key))return;
@@ -12,7 +12,7 @@ export function createHeldRaceInput() {
     release(id){owners.delete(id);},
     clear(){owners.clear();},
     read(){
-      const input={steer:0,brake:false,boost:false,drift:false,reverse:false,recover:false,shield:false,fire:false};
+      const input={steer:0,throttle:false,brake:false,boost:false,drift:false,reverse:false,recover:false,shield:false,fire:false};
       for(const item of owners.values()){
         if(item.key==='steer')input.steer+=item.value;
         else input[item.key] ||= item.value;

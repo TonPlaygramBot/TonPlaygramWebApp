@@ -1,0 +1,65 @@
+{
+  "generator": "Blender 4.5.3 LTS",
+  "units": "metres",
+  "up": "+Y",
+  "forward": "+Z",
+  "license": "Original project artwork",
+  "assets": [
+    {
+      "id": "photon",
+      "lod": false,
+      "file": "photon.glb",
+      "bytes": 266284,
+      "triangles": 10932
+    },
+    {
+      "id": "photon",
+      "lod": true,
+      "file": "photon-lod.glb",
+      "bytes": 108688,
+      "triangles": 3412
+    },
+    {
+      "id": "vortex",
+      "lod": false,
+      "file": "vortex.glb",
+      "bytes": 259040,
+      "triangles": 10716
+    },
+    {
+      "id": "vortex",
+      "lod": true,
+      "file": "vortex-lod.glb",
+      "bytes": 106272,
+      "triangles": 3324
+    },
+    {
+      "id": "aegis",
+      "lod": false,
+      "file": "aegis.glb",
+      "bytes": 274032,
+      "triangles": 11248
+    },
+    {
+      "id": "aegis",
+      "lod": true,
+      "file": "aegis-lod.glb",
+      "bytes": 110628,
+      "triangles": 3472
+    },
+    {
+      "id": "race-driver",
+      "lod": false,
+      "file": "race-driver.glb",
+      "bytes": 209288,
+      "triangles": 7628
+    },
+    {
+      "id": "race-driver",
+      "lod": true,
+      "file": "race-driver-lod.glb",
+      "bytes": 80412,
+      "triangles": 1900
+    }
+  ]
+}

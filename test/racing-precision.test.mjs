@@ -55,9 +55,9 @@ test('joined road sides meet precisely at square corners',()=>{
   assert.deepEqual(sides.left.map(p=>[Math.round(p.x),Math.round(p.z)]),[[-10,-10],[110,-10],[110,110],[-10,110]]);
   assert.deepEqual(sides.right.map(p=>[Math.round(p.x),Math.round(p.z)]),[[10,10],[90,10],[90,90],[10,90]]);
 });
-test('five kart classes expose distinct race parameters',()=>{
-  assert.equal(sim.KARTS.length,5);
-  assert.equal(new Set(sim.KARTS.map(k=>`${k.speed}/${k.handling}/${k.brake}/${k.shield}/${k.ammunition}`)).size,5);
+test('eight kart classes expose distinct race parameters',()=>{
+  assert.equal(sim.KARTS.length,8);
+  assert.equal(new Set(sim.KARTS.map(k=>`${k.speed}/${k.handling}/${k.brake}/${k.shield}/${k.ammunition}`)).size,8);
 });
 test('stale shooting inputs cannot activate removed combat',()=>{
   const track=sim.makeTrack('skanderbeg'), racer=sim.createRacer(track,'a','A',0);

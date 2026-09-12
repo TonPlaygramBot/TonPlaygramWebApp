@@ -9,30 +9,30 @@ import {vehicleDriverMount,cockpitStyle} from '../webapp/src/games/kartroyale/ve
 import {resolveKartContact} from '../webapp/src/games/kartroyale/collisions.mjs';
 const key=(a,b)=>[a.join(','),b.join(',')].sort().join('|');
 const edges=new Map(WORLD.roads.filter(r=>!r.walk).map(r=>[key(r.a,r.b),r]));
-test('five courses are at least 2.6x longer and every closed edge belongs to the shared city',()=>{
+test('archived city routes retain mapped edges while active races use rounded compact circuits',()=>{
  assert.equal(CITY_CIRCUITS.routes.length,5);
  for(const route of CITY_CIRCUITS.routes){
   assert.ok(route.length>=route.originalLength*2.6);
   assert.ok(route.length>=4800&&route.length<=5400);
   assert.equal(new Set(route.points.map(p=>p.join(','))).size,route.points.length);
   route.points.forEach((a,i)=>{const edge=edges.get(key(a,route.points[(i+1)%route.points.length]));assert.ok(edge,route.id+' disconnected edge');assert.ok(route.widths[i]<=edge.w+.001);});
-  const track=makeTrack(route.id);assert.ok(Math.abs(track.length-route.length)<.001);
+  const track=makeTrack(route.id);assert.ok(track.length>=800&&track.length<2200);assert.ok(track.turns.length>0);
   assert.equal(track.points.length%4,0);
-  for(const p of track.points){const near=nearestPoint(track,p.x,p.z);assert.ok(near.distance<1e-7);assert.ok(near.width>=6&&near.width<=12);}
+  for(const p of track.points){const near=nearestPoint(track,p.x,p.z);assert.ok(near.distance<1e-7);assert.ok(near.width>=6&&near.width<=18);}
  }
 });
-test('all street cameras are at seated eye height and physical footprints retain source dimensions',()=>{
+test('street cameras retain source seats while stale racing car IDs migrate to kart footprints',()=>{
  const t=makeTrack();
  for(const car of COLLECTION_BY_ID.values()){
   const eye=vehicleDriverMount(car.id,{scale:1,offset:[0,0,0]});
   assert.ok(Math.abs(eye[1]-(car.driverSeat[1]+.62))<1e-8);assert.ok(eye[0]>0);assert.ok(eye[1]<car.height+.02);
-  const r=equipKart(createRacer(t,car.id,car.name),car.id);assert.equal(r.bodyLength,car.length);assert.equal(r.bodyWidth,car.width);assert.ok(cockpitStyle(car.id));
+  const r=equipKart(createRacer(t,car.id,car.name),car.id);assert.equal(r.kartId,'apex');assert.equal(r.bodyLength,2.7);assert.equal(r.bodyWidth,1.72);assert.ok(cockpitStyle(car.id));
  }
 });
-test('long cars contact nose-to-tail before their visible bodies overlap',()=>{
+test('migrated car selections use the compact kart collision footprint',()=>{
  const t=makeTrack(),a=equipKart(createRacer(t,'a','A'),'benz'),b=equipKart(createRacer(t,'b','B'),'benz');
- Object.assign(a,{x:0,z:0,yaw:0,velocityYaw:0,speed:0});Object.assign(b,{x:0,z:4,yaw:0,velocityYaw:0,speed:0});
- resolveKartContact(a,b);assert.ok(Math.abs(b.z-a.z)>5.2);
+ Object.assign(a,{x:0,z:0,yaw:0,velocityYaw:0,speed:0});Object.assign(b,{x:0,z:2.4,yaw:0,velocityYaw:0,speed:0});
+ resolveKartContact(a,b);assert.ok(Math.abs(b.z-a.z)>2.4);assert.equal(a.kartId,'apex');assert.equal(b.kartId,'apex');
 });
 test('all five Blender cockpit exports contain eye, steering, and instrument pivots',()=>{
  for(const style of ['sedan','sport','suv','armored','kart']){
@@ -53,7 +53,7 @@ for(const [i,route] of CITY_CIRCUITS.routes.entries())test(route.id+': a full ra
 
 test('cockpit eye survives native orientation, scaling, and an exterior mesh parent',async()=>{
  const T=await import('../webapp/node_modules/three/build/three.module.js');
- const {default:ts}=await import('typescript');
+ const {default:ts}=await import('../webapp/node_modules/typescript/lib/typescript.js');
  const src=fs.readFileSync(new URL('../webapp/src/games/kartroyale/RacingCockpit.ts',import.meta.url),'utf8');
  const code=ts.transpileModule(src,{compilerOptions:{target:ts.ScriptTarget.ES2022,module:ts.ModuleKind.ES2022}}).outputText.replace("'three'",JSON.stringify(new URL('../webapp/node_modules/three/build/three.module.js',import.meta.url).href));
  const {RacingCockpit}=await import('data:text/javascript;base64,'+Buffer.from(code).toString('base64'));

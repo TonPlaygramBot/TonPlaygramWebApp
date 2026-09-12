@@ -1,4 +1,5 @@
 import * as T from 'three';
+import { ribbonExclusion } from '../tirana-street-detail/roadDetailCore.mjs';
 import { FpsCity } from './FpsCity';
 import { WORLD } from './shared/world.mjs';
 import { BUILDING_PROFILES } from './shared/architecture.mjs';
@@ -6,6 +7,7 @@ import { nativeReplacementIds } from '../tirana-landmarks/nativeLocations.mjs';
 import { INSTITUTION_BUILDING_IDS } from '../tirana-city-source/registry.mjs';
 import { FUEL_CANOPY_IDS } from '../tirana-street-life/fuelCollision.mjs';
 import { UrbanDetailLayer } from '../tirana-detail-kit/UrbanDetailLayer';
+import type { StreetDetailOptions } from '../tirana-street-detail/StreetDetailLayer';
 import { WorldEnhancements } from '../tirana-expansion/WorldEnhancements';
 
 /** Static Tirana, in WORLD metres. Both games instantiate this exact assembly.
@@ -13,11 +15,12 @@ import { WorldEnhancements } from '../tirana-expansion/WorldEnhancements';
 export class TiranaCityScene {
   readonly group = new T.Group();
   readonly city: FpsCity;
-  readonly enhancements = new WorldEnhancements({ profile: 'fps' });
+  readonly enhancements: WorldEnhancements;
   readonly details: UrbanDetailLayer;
   private disposed = false;
-  constructor(loadAssets = true) {
-    this.city = new FpsCity(loadAssets);
+  constructor(loadAssets = true, track?: StreetDetailOptions['track']) {
+    this.enhancements = new WorldEnhancements({ profile: 'fps', track });
+    this.city = new FpsCity(loadAssets, track ? ribbonExclusion(track) : undefined);
     const excluded = new Set([...nativeReplacementIds(WORLD), ...Object.keys(BUILDING_PROFILES), ...INSTITUTION_BUILDING_IDS, ...FUEL_CANOPY_IDS]);
     this.details = new UrbanDetailLayer(WORLD, excluded, { roofsOnly: true });
     this.group.name = 'Shared Tirana Streets city';
