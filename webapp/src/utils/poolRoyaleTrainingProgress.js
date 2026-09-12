@@ -1,156 +1,14 @@
+import { coachingDefinition } from '../config/poolRoyalCoaching.js';
 const TRAINING_PROGRESS_KEY = 'poolRoyaleTrainingProgress'
 export const TRAINING_LEVEL_COUNT = 50
 const BASE_ATTEMPTS_PER_LEVEL = 3
-const TRAINING_MAX_LAYOUT_BALLS = 25
-const MIN_LAYOUT_GAP = 0.08
-
 const clampLevel = (value, fallback = 1) => {
-  const numeric = Number(value)
-  if (!Number.isFinite(numeric)) return fallback
-  return Math.max(1, Math.min(TRAINING_LEVEL_COUNT, Math.floor(numeric)))
-}
-
-const rotate = (arr, offset) => {
-  if (!Array.isArray(arr) || arr.length === 0) return []
-  const shift = ((offset % arr.length) + arr.length) % arr.length
-  return [...arr.slice(shift), ...arr.slice(0, shift)]
-}
-
-const STRATEGY_DRILLS = [
-  { title: 'Stop Shot Basics', objective: 'Pocket the balls and keep cue-ball control.' },
-  { title: 'Cut Shot Basics', objective: 'Pocket medium cut shots with smooth aim.' },
-  { title: 'Rail Recovery', objective: 'Use one rail and stay in position.' },
-  { title: 'Two-Rail Control', objective: 'Use two rails to move to your next ball.' },
-  { title: 'Stun & Draw', objective: 'Mix stun and draw to stay on line.' },
-  { title: 'Inside Spin', objective: 'Use inside spin to hold your angle.' },
-  { title: 'Outside Spin', objective: 'Use outside spin to open the pocket line.' },
-  { title: 'Break Cluster', objective: 'Open a cluster and keep one easy shot.' },
-  { title: 'Safety Recovery', objective: 'Escape pressure and continue the run.' },
-  { title: 'Final Balls', objective: 'Finish the last balls with calm pace.' }
-]
-
-const PATTERN_LIBRARY = [
-  [
-    { x: -0.56, z: -0.34 }, { x: -0.43, z: -0.24 }, { x: -0.3, z: -0.15 }, { x: -0.16, z: -0.06 },
-    { x: -0.02, z: 0.03 }, { x: 0.12, z: 0.12 }, { x: 0.27, z: 0.2 }, { x: 0.41, z: 0.27 },
-    { x: 0.53, z: 0.14 }, { x: 0.49, z: -0.02 }, { x: 0.36, z: -0.12 }, { x: 0.23, z: -0.22 },
-    { x: 0.08, z: -0.31 }, { x: -0.08, z: -0.33 }, { x: -0.24, z: -0.31 }, { x: -0.38, z: -0.23 },
-    { x: -0.5, z: -0.11 }, { x: -0.52, z: 0.05 }, { x: -0.45, z: 0.19 }, { x: -0.3, z: 0.29 }
-  ],
-  [
-    { x: -0.52, z: 0.3 }, { x: -0.39, z: 0.22 }, { x: -0.25, z: 0.13 }, { x: -0.1, z: 0.04 },
-    { x: 0.04, z: -0.06 }, { x: 0.18, z: -0.15 }, { x: 0.33, z: -0.22 }, { x: 0.48, z: -0.27 },
-    { x: 0.56, z: -0.11 }, { x: 0.5, z: 0.03 }, { x: 0.37, z: 0.12 }, { x: 0.22, z: 0.2 },
-    { x: 0.06, z: 0.28 }, { x: -0.1, z: 0.33 }, { x: -0.26, z: 0.33 }, { x: -0.4, z: 0.28 },
-    { x: -0.51, z: 0.16 }, { x: -0.55, z: 0.01 }, { x: -0.48, z: -0.13 }, { x: -0.33, z: -0.24 }
-  ],
-  [
-    { x: -0.5, z: -0.02 }, { x: -0.36, z: 0.08 }, { x: -0.36, z: -0.12 }, { x: -0.22, z: 0.17 },
-    { x: -0.22, z: -0.21 }, { x: -0.07, z: 0.24 }, { x: -0.07, z: -0.28 }, { x: 0.08, z: 0.3 },
-    { x: 0.08, z: -0.34 }, { x: 0.23, z: 0.23 }, { x: 0.23, z: -0.27 }, { x: 0.37, z: 0.14 },
-    { x: 0.37, z: -0.18 }, { x: 0.49, z: 0.04 }, { x: 0.49, z: -0.05 }, { x: -0.5, z: 0.21 },
-    { x: -0.5, z: -0.24 }, { x: 0.21, z: 0.33 }, { x: 0.21, z: -0.35 }, { x: 0.53, z: 0.24 }
-  ],
-  [
-    { x: -0.56, z: 0.35 }, { x: -0.43, z: 0.28 }, { x: -0.29, z: 0.2 }, { x: -0.14, z: 0.13 },
-    { x: 0.01, z: 0.06 }, { x: 0.16, z: -0.01 }, { x: 0.31, z: -0.08 }, { x: 0.45, z: -0.16 },
-    { x: 0.56, z: -0.27 }, { x: 0.43, z: -0.31 }, { x: 0.28, z: -0.34 }, { x: 0.12, z: -0.35 },
-    { x: -0.04, z: -0.34 }, { x: -0.2, z: -0.3 }, { x: -0.35, z: -0.24 }, { x: -0.49, z: -0.16 },
-    { x: -0.55, z: -0.02 }, { x: -0.52, z: 0.12 }, { x: -0.41, z: 0.22 }, { x: -0.25, z: 0.3 }
-  ],
-  [
-    { x: -0.47, z: 0.34 }, { x: -0.31, z: 0.33 }, { x: -0.15, z: 0.34 }, { x: 0.01, z: 0.34 },
-    { x: 0.17, z: 0.33 }, { x: 0.33, z: 0.29 }, { x: 0.48, z: 0.23 }, { x: 0.56, z: 0.1 },
-    { x: 0.54, z: -0.05 }, { x: 0.46, z: -0.18 }, { x: 0.32, z: -0.27 }, { x: 0.16, z: -0.33 },
-    { x: 0, z: -0.35 }, { x: -0.16, z: -0.35 }, { x: -0.32, z: -0.31 }, { x: -0.46, z: -0.24 },
-    { x: -0.54, z: -0.11 }, { x: -0.55, z: 0.04 }, { x: -0.5, z: 0.18 }, { x: -0.39, z: 0.28 }
-  ]
-]
-
-const getTrainingTargetCount = (level) => {
-  const normalized = clampLevel(level)
-  return normalized <= TRAINING_MAX_LAYOUT_BALLS ? normalized : TRAINING_MAX_LAYOUT_BALLS
-}
-
-const clampLayoutCoord = (value, min, max) => Math.max(min, Math.min(max, value))
-
-const stabilizeTrainingSlot = (slot) => {
-  const safe = {
-    x: clampLayoutCoord(slot?.x ?? 0, -0.44, 0.44),
-    z: clampLayoutCoord(slot?.z ?? 0, -0.31, 0.31)
-  }
-
-  const nearCornerPocket = Math.abs(safe.x) > 0.44 && Math.abs(safe.z) > 0.24
-  if (nearCornerPocket) {
-    safe.x = Math.sign(safe.x || 1) * 0.42
-    safe.z = Math.sign(safe.z || 1) * 0.22
-  }
-
-  return safe
-}
-
-const resolveLayoutSlot = (pattern, index, level) => {
-  if (index < pattern.length) return pattern[index]
-
-  const extraIndex = index - pattern.length
-  const angle = ((extraIndex * 137.5) + (level * 11)) * (Math.PI / 180)
-  const radius = 0.14 + (extraIndex * 0.052)
-
-  return {
-    x: clampLayoutCoord(Math.cos(angle) * radius, -0.56, 0.56),
-    z: clampLayoutCoord(Math.sin(angle) * radius, -0.35, 0.35)
-  }
-}
-
-const buildTrainingLayout = (level) => {
-  const targetCount = getTrainingTargetCount(level)
-  const triangleSpacingX = 0.085
-  const triangleSpacingZ = 0.09
-  const apexX = 0.18
-  const maxX = 0.44
-  const maxZ = 0.31
-
-  const balls = []
-  let row = 0
-  while (balls.length < targetCount) {
-    const rowBallCount = row + 1
-    const x = clampLayoutCoord(apexX + row * triangleSpacingX, -maxX, maxX)
-    const rowStartZ = -((rowBallCount - 1) * triangleSpacingZ) / 2
-    for (let column = 0; column < rowBallCount && balls.length < targetCount; column += 1) {
-      const z = clampLayoutCoord(rowStartZ + column * triangleSpacingZ, -maxZ, maxZ)
-      balls.push({
-        rackIndex: balls.length,
-        x,
-        z
-      })
-    }
-    row += 1
-  }
-
-  return {
-    cue: { x: -0.68, z: 0 },
-    balls
-  }
-}
-
-
-const buildTrainingDefinition = (level) => {
-  const discipline = level <= 17 ? '8-Ball' : level <= 34 ? '9-Ball' : 'Pool Position Play'
-  const targetCount = getTrainingTargetCount(level)
-  const strategy = STRATEGY_DRILLS[(level - 1) % STRATEGY_DRILLS.length]
-  const rewardAmount = level * 100
-  const reward = `${rewardAmount.toLocaleString('en-US')} TPG`
-
-  return {
-    level,
-    discipline,
-    title: `Task ${String(level).padStart(2, '0')} · ${strategy.title}`,
-    objective: `${strategy.objective} Clear ${targetCount} ball${targetCount > 1 ? 's' : ''}.`,
-    rewardAmount,
-    reward,
-    layout: buildTrainingLayout(level)
-  }
-}
+  const numeric = Number(value);
+  return Number.isFinite(numeric) ? Math.max(1, Math.min(TRAINING_LEVEL_COUNT, Math.floor(numeric))) : fallback;
+};
+const buildTrainingDefinition = level => ({ ...coachingDefinition(level),
+  discipline: 'Pool skills', rewardAmount: level * 100,
+  reward: `${(level * 100).toLocaleString('en-US')} TPG` });
 
 export const TRAINING_LEVELS = Array.from(
   { length: TRAINING_LEVEL_COUNT },
@@ -166,29 +24,18 @@ export function getTrainingLayout (level) {
   return describeTrainingLevel(level).layout
 }
 
+// The free-practice rack uses the production diameter-aware rack generator.
+// These normalized coordinates retain a full-size, unclamped triangle for previews.
 export function getPracticeLayout () {
-  const triangleRows = 5
-  const triangleSpacingX = 0.086
-  const triangleSpacingZ = 0.094
-  const apexX = 0.2
-  const maxX = 0.44
-  const maxZ = 0.31
-  const balls = []
-
-  for (let row = 0; row < triangleRows; row += 1) {
-    const rowBallCount = row + 1
-    const x = clampLayoutCoord(apexX + row * triangleSpacingX, -maxX, maxX)
-    const rowStartZ = -((rowBallCount - 1) * triangleSpacingZ) / 2
-    for (let col = 0; col < rowBallCount; col += 1) {
-      const z = clampLayoutCoord(rowStartZ + col * triangleSpacingZ, -maxZ, maxZ)
-      balls.push({ rackIndex: balls.length, x, z })
+  const spacing = .16;
+  const balls = [];
+  for (let row = 0; row < 5; row++) {
+    for (let col = 0; col <= row; col++) {
+      balls.push({ rackIndex: balls.length, x: (col - row / 2) * spacing,
+        z: .2 + row * spacing * Math.sqrt(3) / 4 });
     }
   }
-
-  return {
-    cue: { x: -0.7, z: 0 },
-    balls
-  }
+  return { cue: { x: 0, z: -.7 }, balls };
 }
 
 export function loadTrainingProgress () {
@@ -220,7 +67,8 @@ export function loadTrainingProgress () {
         .filter((lvl) => Number.isFinite(lvl) && lvl > 0)
         .sort((a, b) => a - b)
       : []
-    return { completed, rewarded, lastLevel, carryShots, attemptsAwardedLevels }
+    const mastery = Object.fromEntries(Object.entries(parsed?.mastery || {}).filter(([level, stars]) => Number(level) >= 1 && Number(level) <= TRAINING_LEVEL_COUNT && Number.isInteger(stars) && stars >= 1 && stars <= 3));
+    return { completed, rewarded, lastLevel, carryShots, attemptsAwardedLevels, mastery }
   } catch (err) {
     console.warn('Failed to load Pool Royale training progress', err)
     return { completed: [], rewarded: [], lastLevel: 1, carryShots: 0, attemptsAwardedLevels: [] }

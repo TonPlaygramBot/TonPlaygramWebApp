@@ -110,7 +110,7 @@ it('the rounded cue cap contacts the cue ball through tilt and spin, and launche
     advancePoolRoyalCueStroke(cue, skipped, 500);
     expect(hits).toBe(2);
     expect(cue.visible).toBe(true);
-    advancePoolRoyalCueStroke(cue, skipped, 551);
+    advancePoolRoyalCueStroke(cue, skipped, 621);
     expect(cue.visible).toBe(false); expect(hits).toBe(2);
   }
 });

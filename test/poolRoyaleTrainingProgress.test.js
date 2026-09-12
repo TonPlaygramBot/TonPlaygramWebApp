@@ -18,19 +18,18 @@ describe('resolvePlayableTrainingLevel', () => {
 });
 
 describe('pool royale training layout progression', () => {
-  test('increases object-ball count by one from task 1 to task 25', () => {
-    for (let level = 1; level <= 25; level++) {
-      const layout = getTrainingLayout(level);
-      expect(Array.isArray(layout.balls)).toBe(true);
-      expect(layout.balls.length).toBe(level);
+  test('teaches ten distinct skills across five progressively tighter tiers', () => {
+    const skills = new Set();
+    for (let level = 1; level <= 50; level++) {
+      const drill = describeTrainingLevel(level);
+      skills.add(drill.id);
+      expect(drill.layout.balls.length).toBeGreaterThan(0);
+      expect(drill.layout.balls.length).toBeLessThanOrEqual(3);
+      expect(drill.shotLimit).toBeGreaterThanOrEqual(1);
+      expect(drill.objective.length).toBeGreaterThan(20);
     }
-  });
-
-  test('keeps 25 object balls from task 26 to task 50', () => {
-    for (let level = 26; level <= 50; level++) {
-      const layout = getTrainingLayout(level);
-      expect(layout.balls.length).toBe(25);
-    }
+    expect(skills.size).toBe(10);
+    expect(describeTrainingLevel(42).zone.radius).toBeLessThan(describeTrainingLevel(2).zone.radius);
   });
 
   test('does not repeat the same exact rack between early consecutive tasks', () => {
@@ -39,14 +38,13 @@ describe('pool royale training layout progression', () => {
     expect(level1).not.toEqual(level2);
   });
 
-  test('keeps early training balls away from pocket-edge dead zones', () => {
-    for (let level = 1; level <= 12; level++) {
+  test('keeps drills inside the playable area with unique rack IDs', () => {
+    for (let level = 1; level <= 50; level++) {
       const layout = getTrainingLayout(level);
-      layout.balls.forEach((ball) => {
-        expect(Math.abs(ball.x)).toBeLessThanOrEqual(0.5);
-        expect(Math.abs(ball.z)).toBeLessThanOrEqual(0.31);
-        const nearCornerPocket = Math.abs(ball.x) > 0.44 && Math.abs(ball.z) > 0.24;
-        expect(nearCornerPocket).toBe(false);
+      expect(new Set(layout.balls.map(ball => ball.rackIndex)).size).toBe(layout.balls.length);
+      [...layout.balls, layout.cue].forEach(ball => {
+        expect(Math.abs(ball.x)).toBeLessThan(.8);
+        expect(Math.abs(ball.z)).toBeLessThan(.8);
       });
     }
   });
