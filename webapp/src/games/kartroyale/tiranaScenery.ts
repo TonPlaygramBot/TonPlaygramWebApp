@@ -7,11 +7,13 @@ export { inside, occupied } from './baseTiranaScenery';
 
 /** No replacement shells, changed footprints, rescaled map or clipped buildings. */
 export class TiranaScenery {
-  readonly shared = new TiranaCityScene();
-  readonly group = this.shared.group;
+  readonly shared: TiranaCityScene;
+  readonly group: T.Group;
   private viewer = new T.Vector3();
   private guide: T.Group;
   constructor(private track: Track) {
+    this.shared = new TiranaCityScene(true, track);
+    this.group = this.shared.group;
     this.guide = new TurnGuideLayer(track).group;
     this.group.add(this.guide);
   }

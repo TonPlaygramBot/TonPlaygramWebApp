@@ -88,7 +88,7 @@ export class KartAudio {
       0.08
     );
     this.engineGain?.gain.setTargetAtTime(
-      running ? 0.04 + Math.abs(frame.speed) * 0.002 : 0,
+      running ? 0.015 + (frame.throttle || 0) * .04 + Math.abs(frame.speed) * 0.001 : 0,
       now,
       0.08
     );

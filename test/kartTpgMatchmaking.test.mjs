@@ -10,6 +10,7 @@ import {
 } from '../bot/config/onlineGamePolicy.js';
 import {
   aiInput,
+  RACE_LIMIT,
   damageRacer,
   standings
 } from '../webapp/src/games/kartroyale/simulation.mjs';
@@ -237,7 +238,7 @@ test('an incomplete grid start refunds; leaving a race without a finisher also r
   assert.equal((await emit(a, 'match', { tableId: 'no-finisher' })).ok, false);
 });
 
-test('all-retired TPG race closes with the existing no-finisher refund outcome', async (t) => {
+test('damage cannot retire karts and an idle manual-gas race times out with a no-finisher refund', async (t) => {
   let outcome;
   const { service, connect, emit, tick } = await setup(t, async (_, result) => {
     outcome = result;
@@ -253,8 +254,12 @@ test('all-retired TPG race closes with the existing no-finisher refund outcome',
   const room = service.rooms.get(id);
   room.racers.forEach((r) => damageRacer(r, 100));
   await tick(100);
+  assert.equal(room.status, 'racing');
+  assert.ok(room.racers.every((r) => !r.retired && r.speed === 0));
+  room.elapsed = RACE_LIMIT;
+  await tick(100);
   assert.equal(room.status, 'finished');
-  assert.ok(room.racers.every((r) => r.retired && !r.finished));
+  assert.ok(room.racers.every((r) => !r.retired && !r.finished));
   assert.equal(outcome.winnerAccountId, '');
   assert.equal(outcome.reason, 'no_finisher_refund');
 });

@@ -196,7 +196,7 @@ test('real multiplayer clients: ready/start, authority, isolation, reconnect, fi
   const room = service.rooms.get(created.code);
   assert.equal(
     room.racers.find((r) => r.id === joined.playerId).kartId,
-    'oopi'
+    KARTS.at(-1).id
   );
   assert.equal(room.racers.length, 6);
   assert.equal(room.racers[0].kartId, 'oodi');

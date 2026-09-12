@@ -46,13 +46,15 @@ export class StreetVisuals {
   private off = new T.MeshStandardMaterial({ color: 0x172122, roughness: 0.4 });
   constructor(
     private source: T.Group,
-    _points: Point[]
+    _points: Point[],
+    blocked?: (x:number,z:number,pad:number)=>boolean
   ) {
     this.group.name = 'Tirana streets and local GLTF fixtures';
     this.surfaceMaterials();
     this.pavements();
     const placements = new Map<string, Placement[]>();
     const add = (name: string, x: number, z: number, yaw = 0, scale = 1) => {
+      if (blocked?.(x,z,name.startsWith('tree') ? scale*2.6 : 1.2)) return;
       if (!placements.has(name)) placements.set(name, []);
       placements.get(name)!.push({ x, z, yaw, scale });
     };

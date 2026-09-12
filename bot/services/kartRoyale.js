@@ -373,6 +373,7 @@ export function attachKartRoyale(
         steer: Number.isFinite(d.steer)
           ? Math.max(-1, Math.min(1, d.steer))
           : 0,
+        throttle: d.throttle === true,
         brake: d.brake === true,
         reverse: d.reverse === true,
         drift: d.drift === true,
@@ -419,7 +420,7 @@ export function attachKartRoyale(
       const racer = r.racers.find((v) => v.id === p.id);
       if (racer) {
         racer.disconnected = true;
-        racer.input = { steer: 0, brake: true, drift: false, boost: false, shield:false, fire:false };
+        racer.input = { steer: 0, throttle: false, brake: true, drift: false, boost: false, shield:false, fire:false };
       }
       emit(r);
     });
@@ -443,7 +444,7 @@ export function attachKartRoyale(
         room.elapsed += STEP;
         for (const r of room.racers)
           if (!r.ai && now - r.lastInput > 900)
-            r.input = { steer: 0, brake: true, drift: false, boost: false, shield:false, fire:false };
+            r.input = { steer: 0, throttle: false, brake: true, drift: false, boost: false, shield:false, fire:false };
         stepRace(room.racers, room.track, STEP, room.elapsed, 'street');
         const allDone = room.racers
           .filter((r) => !r.ai)

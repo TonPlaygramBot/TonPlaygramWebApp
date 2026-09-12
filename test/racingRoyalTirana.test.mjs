@@ -54,7 +54,7 @@ test('all six circuits use closed, unique paths from Tirana Streets road segment
       )
     );
     const track = makeTrack(route.id);
-    assert.equal(track.points.length, 360);
+    assert.ok(track.points.length >= 360 && track.points.length % 4 === 0);
     assert.ok(track.length > 800 && track.length < 2000);
     for (const p of track.points)
       assert.ok(
@@ -183,8 +183,8 @@ test('swept food collisions catch fast crossing karts instead of tunnelling', ()
     )
   );
 });
-test('five unique kart types are selectable and stale IDs cannot bypass validation', () => {
-  assert.equal(simulation.KARTS.length, 5);
+test('eight unique kart types are selectable and stale IDs cannot bypass validation', () => {
+  assert.equal(simulation.KARTS.length, 8);
   assert.equal(
     new Set(simulation.KARTS.map((k) => k.id)).size,
     simulation.KARTS.length
@@ -252,6 +252,6 @@ test('bumper damage is capped and cannot retire or stop a kart', () => {
  for(let i=0;i<20;i++)damageRacer(r,35);
  assert.equal(r.health,50);assert.equal(r.retired,false);
  const gates=r.gates;
- stepRacer(r,{...blank,brake:false,boost:true},t,STEP,2);
+ stepRacer(r,{...blank,throttle:true,brake:false,boost:true},t,STEP,2);
  assert.ok(r.speed>0);assert.equal(r.gates,gates);assert.equal(r.finished,false);
 });

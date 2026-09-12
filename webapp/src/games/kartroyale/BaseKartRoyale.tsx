@@ -26,6 +26,7 @@ import {
 } from 'lucide-react';
 import { createHeldRaceInput } from './heldRaceInput.mjs';
 import { driftTier } from './arcadeRules.mjs';
+import { KartControls } from './KartControls';
 import { KartRenderer } from './renderer';
 import type { Quality, Frame, Result, CameraMode } from './renderer';
 import {
@@ -42,6 +43,7 @@ import { request, saveSession, loadSession } from './network';
 import type { Room, Session } from './network';
 import './kart-royale.css';
 import './kart-mobile.css';
+import './kart-controls.css';
 type Mode = 'ai' | 'online' | 'career';
 interface Props {
   getSocket?: () => Promise<Socket>;
@@ -279,7 +281,7 @@ export default function KartRoyale({
   useEffect(() => {
     const mapping: Record<string, [string, number | boolean]> = {
       ArrowRight:['steer',1],d:['steer',1],ArrowLeft:['steer',-1],a:['steer',-1],
-      ArrowDown:['brake',true],s:['brake',true],r:['reverse',true],' ':['drift',true],Shift:['boost',true]
+      ArrowUp:['throttle',true],w:['throttle',true],ArrowDown:['brake',true],s:['brake',true],r:['reverse',true],' ':['drift',true],Shift:['boost',true]
     };
     const apply = () => { if(engine.current) Object.assign(engine.current.input, heldInput.current.read()); };
     const down = (e: KeyboardEvent) => {
@@ -1079,7 +1081,7 @@ export default function KartRoyale({
                       ? renderOnlineLobby
                         ? 'TPG races · Shared Royal matchmaking'
                         : 'Live races · No entry fee'
-                      : 'Auto throttle · Touch & keyboard'}
+                      : 'Manual gas · Touch & keyboard'}
                 </span>
                 <button onClick={() => setModal('help')}>
                   How to play <b>?</b>
@@ -1087,7 +1089,7 @@ export default function KartRoyale({
               </div>
             </section>
             <div className="kr-garage-bottom">
-              <span>SIX CIRCUITS. ONE TIRANA.</span>
+              <span>SIX CIRCUITS · EIGHT KARTS. ONE TIRANA.</span>
               <span>EST. TONPLAYGRAM</span>
             </div>
           </main>
@@ -1097,29 +1099,22 @@ export default function KartRoyale({
         <div className="rr-race-ui">
           <div className="rr-race-top">
             <div className="rr-place"><b>{hud?.position || 1}</b><span>/{hud?.racers.length || 6}<small>POSITION</small></span></div>
-            <div className="rr-lap"><span>LAP <b>{hud?.lap || 1}</b> / 3</span><time>{formatTime(hud?.time || 0)}</time></div>
+            <div className="rr-lap"><span>LAP <b>{hud?.lap || 1}</b> / 3</span><time aria-label="Current lap time">{formatTime(hud?.lapTime || 0)}</time>{!!hud?.bestLap && <small>BEST {formatTime(hud.bestLap)}</small>}</div>
             <button className="kr-icon" aria-label="Pause menu" onClick={()=>setModal('pause')}><Pause size={22}/></button>
           </div>
           <div className="rr-map"><CircuitMap id={trackId} frame={hud}/></div>
           <button className="rr-camera" aria-label={`Switch to ${cameraMode==='driver'?'chase':'driver'} camera`} onClick={()=>setCameraMode(v=>v==='driver'?'chase':'driver')}><Camera size={18}/></button>
           <button className="rr-recover" aria-label="Recover kart on track" {...touch('recover',true)}><RotateCcw size={18}/></button>
-          {(hud?.countdown || 0)>0 && <div className="rr-countdown" role="status"><span>READY TO RACE</span><b>{hud!.countdown}</b><p>Auto-accelerate is on.<br/>Steer with your left thumb.</p></div>}
+          {(hud?.countdown || 0)>0 && <div className="rr-countdown" role="status"><span>READY TO RACE</span><b>{hud!.countdown}</b><p>Hold GAS to accelerate.<br/>Slide your gas thumb up to drift.</p></div>}
           {notice && <div className="rr-notice" role="status"><WifiOff size={16}/>{notice}</div>}
           <div className="rr-feedback" aria-live="polite">
             {hud?.drifting ? <><strong>{['HOLD YOUR DRIFT','MINI TURBO','SUPER TURBO','ROYAL TURBO'][driftTier(hud.driftCharge)]}</strong><div className={`rr-drift-meter tier-${driftTier(hud.driftCharge)}`}><i style={{width:`${Math.min(100,hud.driftCharge/1.9*100)}%`}}/></div><span>{hud.driftCharge>=.55?'Release DRIFT to boost':'Steer + hold DRIFT'}</span></> : (hud?.turbo||0)>0 ? <strong className="rr-turbo">TURBO!</strong> : (hud?.slipstream||0)>.35 ? <strong>SLIPSTREAM</strong> : null}
           </div>
           <div className="rr-speed"><b>{Math.round(Math.abs(hud?.speed||0)*3.6)}</b><span>KM/H</span></div>
-          <div className="rr-touch-controls">
-            <div className="rr-steer-stack">
-              <button className="rr-brake" aria-label="Hold brake" {...touch('brake',true)}>BRAKE</button>
-              <div className="rr-steering"><button aria-label="Steer left" {...touch('steer',-1)}><ChevronLeft size={34}/></button><button aria-label="Steer right" {...touch('steer',1)}><ChevronRight size={34}/></button></div>
-            </div>
-            <div className="rr-actions">
-              <button className="rr-boost" aria-label="Hold boost" {...touch('boost',true)}><Zap size={24}/><span>BOOST</span><i style={{width:`${hud?.boost||0}%`}}/></button>
-              <button className={`rr-drift ${hud?.drifting?'active':''}`} aria-label="Hold drift" {...touch('drift',true)}>DRIFT</button>
-            </div>
-          </div>
-          <div className="rr-key-hint">← → STEER · SPACE DRIFT · SHIFT BOOST · ↓ BRAKE</div>
+          <KartControls boost={hud?.boost||0} drifting={hud?.drifting} disabled={!!modal}
+            hold={(id,key,value)=>{audio.current?.unlock();heldInput.current.hold(id,key,value);if(engine.current)Object.assign(engine.current.input,heldInput.current.read());}}
+            release={id=>{heldInput.current.release(id);if(engine.current)Object.assign(engine.current.input,heldInput.current.read());}}/>
+          <div className="rr-key-hint">↑ GAS · ← → STEER · SPACE DRIFT · SHIFT BOOST · ↓ BRAKE</div>
         </div>
       )}
       {screen === 'results' && result && (
@@ -1371,7 +1366,7 @@ export default function KartRoyale({
                 <div className="kr-howto">
                   <b>01 · Hit the racing line.</b>
                   <p>
-                    Your kart accelerates automatically. Hold left and right to
+                    Hold GAS to accelerate; release it to coast. Use left and right to
                     steer. Brake before tight corners.
                   </p>
                   <b>02 · Turn a drift into speed.</b>

@@ -7,10 +7,10 @@ export const KART_ASSETS = Object.freeze(
       ['oobi', 0.265],
       ['oodi', 0.275],
       ['ooli', 0.285],
-      ['oopi', 0.34]
+      ['oopi', 0.34], ['photon', .28], ['vortex', .28], ['aegis', .28]
     ].map(([file, wheelRadius]) => [
       file,
-      { file, wheelRadius, eye: [0, file === 'oopi' ? 1.15 : 1.05, -0.28] }
+      { file, wheelRadius, eye: [0, file === 'oopi' ? 1.30 : 1.20, -0.28] }
     ])
   )
 );

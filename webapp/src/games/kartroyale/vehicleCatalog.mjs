@@ -5,5 +5,8 @@ export const KARTS = [
   { id: 'oobi', name: 'Eagle Shifter', detail: 'Speed · Own the straight', speed: 1.08, handling: .96, brake: .96, shield: 0, ammunition: 0 },
   { id: 'oodi', name: 'Illyrian Drift', detail: 'Handling · Chase the perfect drift', speed: .98, handling: 1.18, brake: 1.05, shield: 0, ammunition: 0 },
   { id: 'ooli', name: 'Besa Endurance', detail: 'Control · Smooth through every turn', speed: .96, handling: 1.1, brake: 1.15, shield: 0, ammunition: 0 },
-  { id: 'oopi', name: 'Dajti Cross', detail: 'Acceleration · Quick off the grid', speed: 1.03, handling: 1.02, brake: 1.02, shield: 0, ammunition: 0 }
+  { id: 'oopi', name: 'Dajti Cross', detail: 'Acceleration · Quick off the grid', speed: 1.03, handling: 1.02, brake: 1.02, shield: 0, ammunition: 0 },
+  { id: 'photon', name: 'Photon GT', detail: 'Electric sprint · Twin ion channels', speed: 1.10, handling: 1.02, brake: 1.02, shield: 0, ammunition: 0 },
+  { id: 'vortex', name: 'Vortex R', detail: 'Vector aero · Built for drift', speed: 1.02, handling: 1.23, brake: 1.04, shield: 0, ammunition: 0 },
+  { id: 'aegis', name: 'Aegis XR', detail: 'Armoured electric · Fast launch', speed: 1.04, handling: 1.08, brake: 1.18, shield: 0, ammunition: 0 }
 ];
