@@ -6,6 +6,7 @@ import { facadeEdges, type FacadeEdge } from './sourceCore.mjs';
 import { landmarkBuildings } from './landmarkCatalog.mjs';
 import { civicBuildingDetails } from './CivicBuildingDetails';
 import { landmarkDetails } from './LandmarkDetails';
+import {hotelMunicipalEntrances} from './HotelMunicipalEntrances';
 
 /** Recognizable, photo-informed details fitted to existing footprints. Dimensions
  * retain game estimates. No claim of photogrammetry, surveyed height or exact bays. */
@@ -47,6 +48,7 @@ export class ReferenceFacades {
       };
       const centre={x:b.p.reduce((s,p)=>s+p[0],0)/b.p.length,z:b.p.reduce((s,p)=>s+p[1],0)/b.p.length};
       const detailed=civicBuildingDetails(profile,edges,height,b.p,b.holes??[],add,box,wall)||landmarkDetails(profile,edges,height,add,box,wall,centre);
+      hotelMunicipalEntrances(profile,edges,add,wall);
       if(profile.style==='stadium'&&b.holes?.length){
         const hole=b.holes[0],pitch=new T.Shape(hole.map(p=>new T.Vector2(p[0],-p[1])));
         add(0x4f7846,new T.ShapeGeometry(pitch).rotateX(-Math.PI/2).translate(0,.08,0));

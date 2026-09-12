@@ -1,4 +1,5 @@
 import * as T from 'three';
+import {exteriorFrontage} from './entranceCore.mjs';
 import type {ReferenceProfile} from './profiles.mjs';
 import type {FacadeEdge} from './sourceCore.mjs';
 
@@ -17,7 +18,7 @@ export function civicBuildingDetails(p:ReferenceProfile,edges:FacadeEdge[],heigh
  const minX=Math.min(...xs),maxX=Math.max(...xs),minZ=Math.min(...zs),maxZ=Math.max(...zs);
  const cx=(minX+maxX)/2,cz=(minZ+maxZ)/2,width=maxX-minX,depth=maxZ-minZ;
  const direction=p.front??[0,-1];
- const front=edges.filter(e=>e.length>4).sort((a,b)=>(b.nx*direction[0]+b.nz*direction[1])*2+Math.log(b.length)-(a.nx*direction[0]+a.nz*direction[1])*2-Math.log(a.length))[0];
+ const front=style==='prime-minister'?exteriorFrontage(edges,direction):edges.filter(e=>e.length>4).sort((a,b)=>(b.nx*direction[0]+b.nz*direction[1])*2+Math.log(b.length)-(a.nx*direction[0]+a.nz*direction[1])*2-Math.log(a.length))[0];
  const glass=0x354e58,wood=0x655246,slate=0x566976;
  const at=(e:FacadeEdge,u:number,y:number,offset=.2)=>new T.Vector3(e.a[0]+e.ux*u+e.nx*offset,y,e.a[1]+e.uz*u+e.nz*offset);
  const place=(e:FacadeEdge,g:T.BufferGeometry,u:number,y:number,offset=.2)=>{const v=at(e,u,y,offset);return g.rotateY(Math.atan2(e.nx,e.nz)).translate(v.x,v.y,v.z);};
@@ -152,7 +153,11 @@ export function civicBuildingDetails(p:ReferenceProfile,edges:FacadeEdge[],heigh
   const rows=style==='polytechnic-tower'?5:style==='concert-hall'?3:Math.max(2,Math.round(h/3.6));
   for(let row=0;row<rows;row++)for(let i=0;i<n;i++){
    const u=(i+.5)*pitch,y=(row+.55)*h/rows;
-   if(e===front&&['parliament','children-theatre','polytechnic-tower','prime-minister'].includes(style))continue;
+   if(e===front&&['parliament','children-theatre','polytechnic-tower'].includes(style))continue;
+   if(style==='prime-minister'&&front&&e.nx*front.nx+e.nz*front.nz>.999&&Math.abs((e.a[0]-front.a[0])*front.nx+(e.a[1]-front.a[1])*front.nz)<.1){
+    const along=(e.a[0]-front.a[0])*front.ux+(e.a[1]-front.a[1])*front.uz+u;
+    if(along>front.length*.70-8)continue;
+   }
    window(e,u,y,Math.min(1.6,pitch-.7),Math.min(2,h/rows*.6),classical||style==='hotel-dajti'||style==='monarc');
    if(classical&&row===1){
     if(style==='infrastructure'||style==='agriculture')arch(e,u,y+1.2,1.95,1.1,p.trim);
@@ -169,9 +174,20 @@ export function civicBuildingDetails(p:ReferenceProfile,edges:FacadeEdge[],heigh
  if(front){
   const e=front,u=e.length/2;
   if(style==='prime-minister'){
-   for(let i=0;i<3;i++){window(e,u+(i-1)*3.8,2.5,2.5,4);window(e,u+(i-1)*3.8,10.2,2.4,7);}
-   wall(e,p.trim,u,5.6,13,.5,2.2,1);wall(e,p.trim,u,6.15,13,.8,.3,2.1);
-   wall(e,0xc5bfaa,e.length*.83,11,Math.min(7,e.length*.18),7,.35,.3);stairs(e,16,5);
+   // The public entrance sits towards the south end of the boulevard facade.
+   // Span/offset are photo estimates on the retained, collinear OSM frontage.
+   const entry=e.length*.70;
+   for(let i=0;i<3;i++){
+    const bay=entry+(i-1)*3.8;
+    window(e,bay,2.6,2.5,4);window(e,bay,10.4,2.4,7);
+    for(const y of [1.3,2.1,2.9,3.7,7.7,8.7,9.7,10.7,11.7,12.7,13.7])wall(e,wood,bay,y,2.4,.09,.09,.33);
+    for(const side of [-.65,.65])wall(e,wood,bay+side,2.6,.08,4,.09,.34);
+   }
+   wall(e,p.trim,entry,5.25,13,.55,2.1,1);
+   wall(e,p.trim,entry,5.92,13,.8,.28,2.02);
+   for(const d of [-6.35,6.35])wall(e,p.trim,entry+d,5.92,.3,.8,2.1,1);
+   const stairEdge={...e,length:entry*2};stairs(stairEdge,16,7);
+   wall(e,0xc5bfaa,Math.min(e.length-3.8,entry+11),10.5,6,8,.25,.28);
   } else if(style==='presidency'){
    wall(e,p.trim,u,5.5,15,.5,4,1.8);
    for(const d of [-6,6])wall(e,p.trim,u+d,2.7,.5,5.4,.55,3.5);stairs(e,17,6);
