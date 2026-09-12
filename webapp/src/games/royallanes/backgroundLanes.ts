@@ -2,7 +2,7 @@ import * as T from 'three';
 import { HumanBowler } from './bowlers';
 import { RollSimulator } from './simulator';
 import { ALL_PINS, APPROACH_MS, chooseAiShot } from './shared/replay.mjs';
-import { PIN_COM, pinSpots } from './shared/physicsCore.mjs';
+import { LANE_SPACING, PIN_COM, pinSpots } from './shared/physicsCore.mjs';
 import type { RollReplay } from './types';
 import type { BowlingAudio } from './audio';
 
@@ -41,7 +41,7 @@ export class BackgroundLanes {
     private audio: BowlingAudio
   ) {
     this.group.name = 'Royal Lanes: neighbouring bowlers';
-    for (const [i, x] of [-2.45, 2.45].entries()) {
+    for (const [i, x] of [-LANE_SPACING, LANE_SPACING].entries()) {
       const group = new T.Group();
       group.position.x = x;
       const bowler = new HumanBowler(

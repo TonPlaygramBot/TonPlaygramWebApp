@@ -3,8 +3,15 @@ import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 import { RGBELoader } from 'three/addons/loaders/RGBELoader.js';
 import { RoomEnvironment } from 'three/addons/environments/RoomEnvironment.js';
 import { Reflector } from 'three/addons/objects/Reflector.js';
-import { PIN_COM, pinSpots } from './shared/physicsCore.mjs';
+import {
+  LANE_SCALE_X,
+  LANE_WIDTH,
+  LANE_SPACING,
+  PIN_COM,
+  pinSpots
+} from './shared/physicsCore.mjs';
 import { HumanBowler } from './bowlers';
+import { BowlingCamera } from './camera';
 import { BackgroundLanes } from './backgroundLanes';
 import type { MatchView, Shot } from './types';
 import { BowlingAudio } from './audio';
@@ -12,6 +19,7 @@ export class BowlingScene {
   renderer: T.WebGLRenderer;
   scene = new T.Scene();
   camera = new T.PerspectiveCamera(64, 1, 0.025, 85);
+  private cameraRig = new BowlingCamera(this.camera);
   audio = new BowlingAudio();
   ready = false;
   disposed = false;
@@ -48,7 +56,6 @@ export class BowlingScene {
   private reflection: Reflector | null = null;
   private environmentTarget: T.WebGLRenderTarget | null = null;
   private slowFrames = 0;
-  private cameraLook = new T.Vector3(0, 0.1, -16);
   private lastRollSound = -1;
 
   private temp = new T.Vector3();
@@ -129,8 +136,12 @@ export class BowlingScene {
     this.observer = new ResizeObserver(() => this.resize());
     this.observer.observe(container);
     this.resize();
-    this.camera.position.set(0, 1.64, 2.05);
-    this.camera.lookAt(0, 0.2, -18);
+    this.cameraRig.update(0, {
+      ball: this.ball.position,
+      hasRoll: false,
+      releaseElapsed: -1,
+      duration: 0
+    });
     this.renderer.domElement.addEventListener(
       'webglcontextlost',
       this.contextLost
@@ -193,7 +204,7 @@ export class BowlingScene {
       wood.colorSpace = T.SRGBColorSpace;
       for (const texture of [wood, normal, rough]) {
         texture.wrapS = texture.wrapT = T.RepeatWrapping;
-        texture.repeat.set(22, 1.054);
+        texture.repeat.set(22, LANE_WIDTH);
         texture.rotation = Math.PI / 2;
         texture.anisotropy = Math.min(
           8,
@@ -218,13 +229,14 @@ export class BowlingScene {
         if (object.name.startsWith('Approach')) {
           const m = maple.clone();
           m.map = wood.clone();
-          m.map.repeat.set(4, 2.36);
+          m.map.repeat.set(4, 2.36 * LANE_SCALE_X);
           m.normalMap = null;
           m.roughnessMap = null;
           m.roughness = 0.28;
           object.material = m;
         }
       });
+      alley.scene.scale.x *= LANE_SCALE_X;
       this.scene.add(alley.scene);
       this.addLaneDetails();
       for (const body of pinSpots()) {
@@ -247,7 +259,7 @@ export class BowlingScene {
         for (const lane of [-2, 2])
           for (const spot of pinSpots()) {
             matrix
-              .makeTranslation(spot.x + lane * 2.45, 0, spot.z)
+              .makeTranslation(spot.x + lane * LANE_SPACING, 0, spot.z)
               .multiply(part.matrixWorld);
             instances.setMatrixAt(i++, matrix);
           }
@@ -284,13 +296,16 @@ export class BowlingScene {
           }
       });
       this.scene.add(this.ball);
-      const reflector = new Reflector(new T.PlaneGeometry(1.05, 21.96), {
-        textureWidth: 512,
-        textureHeight: 1024,
-        color: 0xc0aa89,
-        clipBias: 0.003,
-        multisample: 0
-      });
+      const reflector = new Reflector(
+        new T.PlaneGeometry(LANE_WIDTH - 0.004, 21.96),
+        {
+          textureWidth: 512,
+          textureHeight: 1024,
+          color: 0xc0aa89,
+          clipBias: 0.003,
+          multisample: 0
+        }
+      );
       reflector.rotation.x = -Math.PI / 2;
       reflector.position.set(0, 0.001, -9);
       const reflectionMaterial = reflector.material as T.ShaderMaterial;
@@ -359,21 +374,21 @@ export class BowlingScene {
       return seed / 2147483647;
     };
     for (let lane = -2; lane <= 2; lane++) {
-      const center = lane * 2.45;
+      const center = lane * LANE_SPACING;
       for (let i = 1; i < 39; i++) {
-        const x = center - 0.527 + i * (1.054 / 39);
+        const x = center - LANE_WIDTH / 2 + i * (LANE_WIDTH / 39);
         points.push(new T.Vector3(x, 0.002, 2), new T.Vector3(x, 0.002, -20));
       }
       for (let i = 0; i < 39; i++)
         for (let z = 1 + rand() * 2; z > -20; z -= 1.4 + rand() * 1.7) {
-          const x = center - 0.527 + i * (1.054 / 39);
+          const x = center - LANE_WIDTH / 2 + i * (LANE_WIDTH / 39);
           points.push(
             new T.Vector3(x, 0.002, z),
-            new T.Vector3(x + 1.054 / 39, 0.002, z)
+            new T.Vector3(x + LANE_WIDTH / 39, 0.002, z)
           );
         }
       const line = new T.Mesh(
-        new T.PlaneGeometry(1.054, 0.019),
+        new T.PlaneGeometry(LANE_WIDTH, 0.019),
         new T.MeshBasicMaterial({ color: 0x2c2922 })
       );
       line.rotation.x = -Math.PI / 2;
@@ -391,7 +406,7 @@ export class BowlingScene {
         );
         arrow.rotation.x = -Math.PI / 2;
         arrow.position.set(
-          center + i * 0.135,
+          center + i * 0.135 * LANE_SCALE_X,
           0.004,
           -4.572 + Math.abs(i) * 0.11
         );
@@ -478,7 +493,7 @@ export class BowlingScene {
             ? this.humanPrototype
             : this.humanVariants[1] || this.humanPrototype,
           index === 0 ? 0xb4d5be : 0xe3bdad,
-          p.id === localId
+          false
         );
         this.scene.add(b.root);
         this.bowlers.set(p.id, b);
@@ -491,8 +506,6 @@ export class BowlingScene {
           time: 0
         });
       }
-      const own = this.bowlers.get(localId);
-      if (own) this.camera.position.copy(own.eye);
     }
     if (!view.roll || !['rolling', 'result', 'finished'].includes(view.phase)) {
       const player = view.players.find((p) => p.id === view.activeId);
@@ -554,7 +567,6 @@ export class BowlingScene {
       h = this.container.clientHeight;
     this.renderer.setSize(w, h);
     this.camera.aspect = w / h;
-    this.camera.fov = w / h < 0.7 ? 64 : 57;
     this.camera.updateProjectionMatrix();
   }
   private tick = (now: number) => {
@@ -601,19 +613,9 @@ export class BowlingScene {
               ? (time - view.roll!.endsAt) / 1000
               : -1
         });
-      const local = this.bowlers.get(this.localId),
-        active = this.bowlers.get(rolling ? view.roll!.actorId : view.activeId);
-      if (local) {
-        this.camera.position.lerp(local.eye, 1 - Math.exp(-dt * 12));
-        this.cameraLook.set(
-          this.camera.position.x + this.aim * 0.1,
-          this.camera.position.y - 0.1,
-          -18.5
-        );
-        this.camera.lookAt(this.cameraLook);
-      }
-      this.backgroundClock += dt * 1000;
-      this.background?.update(dt, this.backgroundClock, this.camera.position);
+      const active = this.bowlers.get(
+        rolling ? view.roll!.actorId : view.activeId
+      );
       this.ball.visible = !!active;
       if (rolling) {
         const roll = view.roll!,
@@ -684,6 +686,15 @@ export class BowlingScene {
         this.ball.rotation.set(0.2, -0.2, Math.sin(now * 0.0005) * 0.025);
         this.audio.rolling('main', 0, 0, 0, false);
       }
+      // Sample the replay first, so the camera follows the displayed ball.
+      this.cameraRig.update(dt, {
+        ball: this.ball.position,
+        hasRoll: rolling,
+        releaseElapsed: rolling ? (time - view.roll!.releaseAt) / 1000 : -1,
+        duration: rolling ? view.roll!.replay.durationMs / 1000 : 0
+      });
+      this.backgroundClock += dt * 1000;
+      this.background?.update(dt, this.backgroundClock, this.camera.position);
     }
     this.renderer.render(this.scene, this.camera);
     if (dt > 0.039) this.slowFrames++;

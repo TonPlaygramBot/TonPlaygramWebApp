@@ -142,6 +142,6 @@ const fragment = (
 ).replace('/* ROYAL_LANES_PREVIEW */', () => result.outputFiles[0].text);
 if (Buffer.byteLength(fragment) > 1_000_000)
   throw Error(`Preview exceeds 1 MB: ${Buffer.byteLength(fragment)}`);
-const output = process.argv[2] || '/workspace/royal-lanes-bowlers.html';
+const output = process.argv[2] || '/workspace/royal-lanes-ball-camera.html';
 await writeFile(output, fragment);
 console.log(`${output}: ${Buffer.byteLength(fragment)} bytes`);

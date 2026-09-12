@@ -3,6 +3,12 @@ export const PIN_COM = 0.145;
 export const BALL_RADIUS = 0.1085;
 export const HEAD_Z = -18.288;
 export const FIXED_STEP = 1 / 180;
+// Shared by the alley renderer, neighbouring lanes and both physics runtimes.
+// Scale the lane environment horizontally; people, balls and pins keep their size.
+export const LANE_SCALE_X = 1.2;
+export const LANE_WIDTH = 1.054 * LANE_SCALE_X;
+export const LANE_SPACING = 2.45 * LANE_SCALE_X;
+export const GUTTER_THRESHOLD = 0.615 * LANE_SCALE_X;
 export function pinSpots() {
   const spots = [];
   let id = 0;
@@ -65,8 +71,8 @@ export const createBowlingPhysics = (C) =>
         const body = new C.Body({
           mass: 0,
           material: this.laneMaterial,
-          shape: new C.Box(new C.Vec3(w / 2, h / 2, d / 2)),
-          position: new C.Vec3(x, y, z),
+          shape: new C.Box(new C.Vec3((w * LANE_SCALE_X) / 2, h / 2, d / 2)),
+          position: new C.Vec3(x * LANE_SCALE_X, y, z),
           collisionFilterGroup: 1
         });
         this.world.addBody(body);
@@ -182,7 +188,7 @@ export const createBowlingPhysics = (C) =>
       if (this.active) {
         this.elapsed += dt;
         if (
-          Math.abs(this.ball.position.x) > 0.615 &&
+          Math.abs(this.ball.position.x) > GUTTER_THRESHOLD &&
           this.ball.position.z > HEAD_Z + 0.4
         ) {
           this.gutter = true;
@@ -215,7 +221,7 @@ export const createBowlingPhysics = (C) =>
           return (
             up.y > 0.78 &&
             p.body.position.y > 0.09 &&
-            Math.abs(p.body.position.x) < 0.65 &&
+            Math.abs(p.body.position.x) < 0.65 * LANE_SCALE_X &&
             p.body.position.z > -20.1
           );
         })

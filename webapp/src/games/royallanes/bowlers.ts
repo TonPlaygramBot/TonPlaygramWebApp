@@ -137,14 +137,17 @@ export class HumanBowler {
         object.castShadow = !firstPerson;
         object.receiveShadow = true;
         object.frustumCulled = false;
-        object.material = (
-          Array.isArray(object.material) ? object.material : [object.material]
-        ).map((material) => {
+        const cloneMaterial = (material: T.Material) => {
           const m = material.clone() as T.MeshStandardMaterial;
           if (/outfit_top/i.test(object.name))
             m.color.multiply(new T.Color(shirt));
           return m;
-        });
+        };
+        // A material array renders only geometry.groups. Most character parts
+        // have one material and no groups, so preserve their scalar material.
+        object.material = Array.isArray(object.material)
+          ? object.material.map(cloneMaterial)
+          : cloneMaterial(object.material);
         if (firstPerson && /head|eye|teeth|beard|hair/i.test(object.name))
           object.layers.set(2);
       }

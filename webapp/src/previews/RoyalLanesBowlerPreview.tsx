@@ -4,10 +4,13 @@ import * as T from 'three';
 import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js';
 import * as C from 'cannon-es';
 import { HumanBowler } from '../games/royallanes/bowlers';
+import { BowlingCamera } from '../games/royallanes/camera';
 import { BowlingAudio } from '../games/royallanes/audio';
 import { BowlingTouch } from '../games/royallanes/touch';
 import {
   createBowlingPhysics,
+  LANE_SCALE_X,
+  LANE_SPACING,
   PIN_COM,
   pinSpots
 } from '../games/royallanes/shared/physicsCore.mjs';
@@ -40,10 +43,9 @@ function Preview() {
     [character, setCharacter] = useState('adrian'),
     [loop, setLoop] = useState(false),
     [sound, setSound] = useState(false),
-    [eye, setEye] = useState(false),
     [ready, setReady] = useState(false);
-  const options = useRef({ character, loop, sound, eye });
-  options.current = { character, loop, sound, eye };
+  const options = useRef({ character, loop, sound });
+  options.current = { character, loop, sound };
   useEffect(() => {
     const el = stage.current!;
     let dead = false,
@@ -86,6 +88,7 @@ function Preview() {
     light.position.set(1, 5, 4);
     scene.add(light);
     const camera = new T.PerspectiveCamera(55, 1, 0.025, 80);
+    const cameraRig = new BowlingCamera(camera);
     const resize = () => {
       renderer.setSize(el.clientWidth, el.clientHeight);
       camera.aspect = el.clientWidth / el.clientHeight;
@@ -98,10 +101,11 @@ function Preview() {
     void Promise.all([...names.map(model), model('alley'), model('pin')])
       .then(([adrian, maya, alley, pin]) => {
         if (dead) return;
+        alley.scale.x *= LANE_SCALE_X;
         scene.add(alley);
         const prototypes = [adrian, adrian, maya],
           choices = [adrian, maya];
-        const groups = [0, -2.45, 2.45].map((x) => {
+        const groups = [0, -LANE_SPACING, LANE_SPACING].map((x) => {
           const g = new T.Group();
           g.position.x = x;
           scene.add(g);
@@ -110,6 +114,14 @@ function Preview() {
         actors = prototypes.map((p, i) => {
           const a = new HumanBowler(p, 0xffffff, false);
           groups[i].add(a.root);
+          a.pose({
+            active: true,
+            rolling: false,
+            elapsed: 0,
+            dt: 10,
+            watching: false,
+            time: 0
+          });
           return a;
         });
         const balls = groups.map((g, i) => {
@@ -279,20 +291,11 @@ function Preview() {
               if (options.current.loop) bowl();
             }
           }
-          if (options.current.eye) {
-            camera.position.copy(actors[0].eye);
-            camera.lookAt(camera.position.x, camera.position.y - 0.1, -18.5);
-          } else {
-            camera.position.set(1.2, 2.6, 6.7);
-            camera.lookAt(0, 0.85, -2);
-          }
-          // First-person head hiding affects only the chosen local actor.
-          actors[0].model.traverse((o) => {
-            if (
-              o instanceof T.Mesh &&
-              /head|eye|teeth|beard|hair/i.test(o.name)
-            )
-              o.visible = !options.current.eye;
+          cameraRig.update(dt, {
+            ball: balls[0].position,
+            hasRoll: !!mainReplay && elapsed >= 0,
+            releaseElapsed: elapsed - release,
+            duration: (mainReplay?.durationMs || 0) / 1000
           });
           const label =
             elapsed < 0
@@ -320,7 +323,7 @@ function Preview() {
     <div className="rl-bowler-preview">
       <div className="rl-preview-title">
         <strong>ROYAL LANES</strong>
-        <span>Bowler motion</span>
+        <span>Follow the ball</span>
       </div>
       <div
         ref={stage}
@@ -360,9 +363,6 @@ function Preview() {
           }}
         >
           Sound {sound ? 'on' : 'off'}
-        </button>
-        <button aria-pressed={eye} onClick={() => setEye((v) => !v)}>
-          {eye ? 'Player eyes' : 'Full bowler'}
         </button>
       </div>
     </div>
