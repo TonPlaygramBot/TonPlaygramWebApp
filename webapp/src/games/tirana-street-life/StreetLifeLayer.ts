@@ -10,8 +10,8 @@ type Sign={text:string;p:number[];s:number[];bg:string;fg:string;yaw:number;atla
 type Model=Point&{id:string;yaw:number;type:string;parts:Part[];signs:Sign[]};
 type Data=Pick<StreetLifeData,'storefronts'|'stops'|'fuel'|'advertising'>;
 
-/** Three geometry draws + one shared sign-atlas draw. No remote logos, one texture
- * per shop, async loaders, or thousands of scene nodes. Nearest objects win. */
+/** Three geometry draws + one shared sign-atlas draw. Packaged brand artwork
+ * updates the shared atlas asynchronously. Nearest objects win. */
 export class StreetLifeLayer {
  readonly group=new T.Group();
  private disposed=false;private dead=false;private last=-Infinity;
@@ -27,11 +27,14 @@ export class StreetLifeLayer {
   const models:Model[]=[];
   for(const [key,type] of [['storefronts','storefront'],['stops','stop'],['fuel','fuel'],['advertising','advertising']] as const)
    for(const s of data[key])if(!blocked||!blocked(s.x,s.z,Math.max(4,'width' in s?Number(s.width):0)))models.push(buildStreetModel(type==='advertising'?referencedAdvertising(s,data.storefronts):s,type));
-  if(this.labelsOnly)for(const model of models)for(const sign of model.signs)sign.p[2]=.238;
+  if(this.labelsOnly)for(const model of models)for(const sign of model.signs)sign.p[2]=Math.max(.238,sign.p[2]);
   const signs:Sign[]=[],signIndex=new Map<string,number>();
-  for(const sign of models.flatMap(m=>m.signs)){const key=JSON.stringify([sign.text,sign.bg,sign.fg]);if(!signIndex.has(key)){signIndex.set(key,signs.length);signs.push(sign);}sign.atlas=signIndex.get(key)!;}
+  for(const sign of models.flatMap(m=>m.signs)){const key=JSON.stringify([sign.text,sign.bg,sign.fg,Math.round(sign.s[0]/sign.s[1]*10)]);if(!signIndex.has(key)){signIndex.set(key,signs.length);signs.push(sign);}sign.atlas=signIndex.get(key)!;}
+  // The full neighbourhood has more than 1,300 unique boards: eight columns
+  // exceeded 4096 pixels vertically and could disappear on mobile GPUs.
+  this.columns=Math.min(16,Math.max(8,Math.ceil(signs.length/Math.floor(4096/48))));
   this.rows=Math.max(1,Math.ceil(signs.length/this.columns));
-  const canvas=document.createElement('canvas');canvas.width=2048;canvas.height=this.rows*48;
+  const canvas=document.createElement('canvas');canvas.width=this.columns*256;canvas.height=this.rows*48;
   const ctx=canvas.getContext('2d');if(!ctx)throw Error('Street sign canvas unavailable');
   signs.forEach((s,i)=>{
    const x=(i%this.columns)*256,y=Math.floor(i/this.columns)*48;
@@ -48,7 +51,8 @@ export class StreetLifeLayer {
      if(signReferenceFor(sign.text)?.id!==reference.id)return;
      const x=(i%this.columns)*256,y=Math.floor(i/this.columns)*48;
      ctx.fillStyle=reference.background;ctx.fillRect(x,y,256,48);
-     const [sx,sy,sw,sh]=reference.crop;
+     const [sx,sy,sw,sh]=reference.crop??[0,0,image.naturalWidth,image.naturalHeight];
+     if(!sw||!sh)return;
      const physicalRatio=sign.s[0]/sign.s[1],ratio=(sw/sh)*256/48/physicalRatio;
      const h=Math.min(40,232/ratio),w=h*ratio;
      ctx.drawImage(image,sx,sy,sw,sh,x+(256-w)/2,y+(48-h)/2,w,h);
@@ -66,7 +70,7 @@ export class StreetLifeLayer {
    const geo=shape==='cylinder'?new T.CylinderGeometry(1,1,1,8):new T.BoxGeometry(1,1,1);
    const mesh=new T.InstancedMesh(geo,shape==='glass'?this.glassMaterial:this.material,6720);mesh.count=0;mesh.frustumCulled=false;mesh.receiveShadow=true;mesh.castShadow=true;mesh.instanceMatrix.setUsage(T.DynamicDrawUsage);this.meshes.set(shape,mesh);this.group.add(mesh);
   }
-  this.signMaterial=new T.MeshStandardMaterial({map:this.atlas,roughness:.7,emissiveMap:this.atlas,emissive:0xffffff,emissiveIntensity:.07});
+  this.signMaterial=new T.MeshStandardMaterial({map:this.atlas,roughness:.7,emissiveMap:this.atlas,emissive:0xffffff,emissiveIntensity:.18,polygonOffset:true,polygonOffsetFactor:-1,polygonOffsetUnits:-1});
   this.signMaterial.userData.environmentLight='business';
   this.signMaterial.userData.nightIntensity=1.4;
   this.signMaterial.onBeforeCompile=shader=>{

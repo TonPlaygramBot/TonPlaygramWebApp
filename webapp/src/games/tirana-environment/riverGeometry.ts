@@ -37,7 +37,14 @@ export function cutChannels(polygon: number[][], holes: number[][][] = []) {
   const cuts = CHANNEL_RINGS.filter((_,i) => {
     const b=channelBounds[i];return b[0]<=box[2] && b[2]>=box[0] && b[1]<=box[3] && b[3]>=box[1];
   });
-  return (cuts.length ? polygonClipping.difference([polygon,...holes] as any,...cuts.map(p=>[p]) as any) : [[polygon,...holes]]) as number[][][][];
+  if(!cuts.length)return [[polygon,...holes]];
+  try{return polygonClipping.difference([polygon,...holes] as any,...cuts.map(p=>[p]) as any) as number[][][][];}
+  catch{
+    // Cell clipping can leave 1e-16 m seam coordinates. Snap only on numeric
+    // sweep failure; the millimetre grid is far below the source's accuracy.
+    const snap=(ring:number[][])=>ring.map(p=>p.map(n=>Math.round(n*1000)/1000));
+    return polygonClipping.difference([polygon,...holes].map(snap) as any,...cuts.map(p=>[snap(p)]) as any) as number[][][][];
+  }
 }
 export function surfaceGeometry(rings: number[][][], y: number, metres = 3) {
   const shape = new T.Shape(rings[0].map(p=>new T.Vector2(p[0],-p[1])));

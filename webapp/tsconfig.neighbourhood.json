@@ -1,5 +1,19 @@
 {
-  "extends":"./tsconfig.json",
-  "compilerOptions":{"noEmit":true,"moduleResolution":"Bundler","types":["vite/client"]},
-  "include":["src/games/tirana-neighbourhood/**/*.ts","src/games/tirana-neighbourhood/**/*.tsx","src/games/tirana-neighbourhood/**/*.mts","src/games/tiranastreets/FpsCity.ts","src/games/tiranastreets/map/CityMapCore.tsx","src/games/tirana-expansion/WorldEnhancements.ts"]
+  "extends": "./tsconfig.json",
+  "compilerOptions": {
+    "noEmit": true,
+    "moduleResolution": "Bundler",
+    "types": [
+      "vite/client"
+    ]
+  },
+  "include": [
+    "src/games/tirana-neighbourhood/**/*.ts",
+    "src/games/tirana-neighbourhood/**/*.tsx",
+    "src/games/tirana-neighbourhood/**/*.mts",
+    "src/games/tiranastreets/FpsCity.ts",
+    "src/games/tiranastreets/map/CityMapCore.tsx",
+    "src/games/tirana-expansion/WorldEnhancements.ts",
+    "src/games/tirana-environment/RealismReview.tsx"
+  ]
 }

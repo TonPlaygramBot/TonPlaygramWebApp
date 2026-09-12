@@ -6,6 +6,7 @@ import { resolvePlaces, mappedCycling, mappedTrees } from './sourceCore.mjs';
 import { REFERENCE_BUILDINGS } from './profiles.mjs';
 import { landmarkBuildings, LANDMARK_REPLACED_IDS } from './landmarkCatalog.mjs';
 import { CITY_BUILDING_DATA } from './cityBuildingData.mjs';
+import {EDUCATION_SITES} from './educationSites.mjs';
 const basePlaces = resolvePlaces(WORLD, CITY_SOURCE);
 const referencePlaces = Object.entries(REFERENCE_BUILDINGS).flatMap(([id, profile]) => {
   // Private malls and residences must never inherit the government's AL flag.
@@ -18,6 +19,7 @@ const referencePlaces = Object.entries(REFERENCE_BUILDINGS).flatMap(([id, profil
   return [{...building, category}];
 });
 export const CITY_PLACES = resolvePlaces(WORLD, {...CITY_SOURCE, places: [...CITY_SOURCE.places, ...referencePlaces]});
+for(const site of EDUCATION_SITES)if(!CITY_PLACES.sites.some(s=>s.buildingId===site.buildingId&&s.category===site.category))CITY_PLACES.sites.push(site);
 // An Albanian flag is also visible in the University's recorded photo reference.
 CITY_PLACES.sites = CITY_PLACES.sites.map(site => ({...site,
   country: site.country ?? REFERENCE_BUILDINGS[site.buildingId]?.flagCountry ?? null}));

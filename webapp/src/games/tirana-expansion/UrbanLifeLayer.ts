@@ -1,4 +1,6 @@
 import * as THREE from 'three';
+import {footprintIndex} from '../tirana-city-source/footprintIndex.mjs';
+const buildingsNear=footprintIndex(WORLD.buildings);
 import { WORLD } from '../tiranastreets/shared/world.mjs';
 import { RIVER_TREES } from '../tiranastreets/shared/landscape.mjs';
 import { onCarriageway } from '../tiranastreets/shared/streetLayout.mjs';
@@ -13,7 +15,7 @@ const hash = (value: number) => {
 };
 
 function buildingContains(x: number, z: number) {
-  return WORLD.buildings.some((building) => {
+  return buildingsNear(x,z).some((building:any) => {
     let inside = false;
     for (let i = 0, j = building.p.length - 1; i < building.p.length; j = i++) {
       const a = building.p[i], b = building.p[j];

@@ -82,8 +82,10 @@ export class NeighbourhoodLayer {
   }).catch(error=>{if(!this.dead)this.group.userData.assetErrors.push({asset,message:String(error)});});
  }
  update(seconds:number,viewer?:{x:number;z:number},battery=false){
-  if(this.dead||!viewer||seconds-this.last<.2)return;this.last=seconds;
-  this.mapped.update(viewer,battery);this.parkFurniture.update(viewer,battery);
+  if(this.dead||!viewer)return;
+  this.mapped.update(viewer,battery);
+  if(seconds>=this.last&&seconds-this.last<.2)return;this.last=seconds;
+  this.parkFurniture.update(viewer,battery);
   for(const hero of ALL_HEROES){const b=NEIGHBOURHOOD.buildings.find(b=>b.id===hero.id);if(!b)continue;const p=b.p[0];
    if(Math.hypot(p[0]-viewer.x,p[1]-viewer.z)<(COMPLETED_BUILDING_IDS.has(hero.id)?(battery?120:240):1000))this.request(hero.asset,hero);
   }

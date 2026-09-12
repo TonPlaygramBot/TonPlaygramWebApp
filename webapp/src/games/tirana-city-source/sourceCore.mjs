@@ -1,6 +1,8 @@
 // Source geometry stays in WORLD metres. This module never changes gameplay data.
 import { containsPoint, distanceToPolygon } from '../tirana-landmarks/nativeLocations.mjs';
 import {footprintIndex} from './footprintIndex.mjs';
+import {spatialIndex} from '../tirana-city-completion/placementCore.mjs';
+const frontageRoadIndexes=new WeakMap();
 
 export const CLOSED_PLACES = Object.freeze({
   'way/382468440': { reason: 'Former Iranian embassy; diplomatic relations severed in September 2022.',
@@ -83,8 +85,17 @@ export function frontage(site, roads, entrances=[]) {
   const distance=(p,e)=>segmentDistance(p[0],p[1],e.a,e.b);
   if(entry)return edges.sort((a,b)=>distance(entry.p,a)-distance(entry.p,b))[0];
   if(site.anchor)return edges.sort((a,b)=>distance(site.anchor,a)-distance(site.anchor,b))[0];
-  const score=e=>Math.min(...roads.filter(r=>r.name).map(r=>segmentDistance(e.x+e.nx*2,e.z+e.nz*2,r.a,r.b)));
-  return edges.sort((a,b)=>score(a)-score(b)||b.length-a.length)[0];
+  if(!frontageRoadIndexes.has(roads)){
+    const named=roads.filter(r=>r.name);
+    frontageRoadIndexes.set(roads,{named,near:spatialIndex(named,r=>[Math.min(r.a[0],r.b[0]),Math.min(r.a[1],r.b[1]),Math.max(r.a[0],r.b[0]),Math.max(r.a[1],r.b[1])],120)});
+  }
+  const {named,near}=frontageRoadIndexes.get(roads);
+  const scores=edges.map(e=>{const x=e.x+e.nx*2,z=e.z+e.nz*2,local=near(x,z,120);let score=Infinity;
+    for(const r of local.length?local:named)score=Math.min(score,segmentDistance(x,z,r.a,r.b));
+    // Spatial candidates guarantee a global nearest result inside 120 m.
+    if(score>120&&local.length)for(const r of named)score=Math.min(score,segmentDistance(x,z,r.a,r.b));
+    return {e,score};});
+  return scores.sort((a,b)=>a.score-b.score||b.e.length-a.e.length)[0]?.e;
 }
 export function segmentDistance(x,z,a,b) {
   const dx=b[0]-a[0],dz=b[1]-a[1],t=Math.max(0,Math.min(1,((x-a[0])*dx+(z-a[1])*dz)/(dx*dx+dz*dz||1)));

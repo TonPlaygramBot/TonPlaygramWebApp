@@ -1,3 +1,4 @@
+import {attachEnhancements} from '../tirana-expansion/WorldEnhancements';
 import {BusVisuals} from './population/BusVisuals';
 import {CityStores} from './population/CityStores';
 import {ImportedAssetVisuals} from './ImportedAssetVisuals';
@@ -15,6 +16,8 @@ import {WeaponStoreInterior} from './WeaponStoreInterior';
  * the city's landmark layer. Base renderer also owns source-informed façades. */
 export class CityRenderer extends BaseCityRenderer {
   private imported=new ImportedAssetVisuals();
+  private cityDetails:ReturnType<typeof attachEnhancements>;
+  protected ownDetailUpdate=true;
   readonly nativeLandmarks: NativeLandmarkLayer;
   readonly airMobility: AirMobilityVisuals;
   readonly weaponStore: WeaponStoreInterior;
@@ -31,9 +34,12 @@ export class CityRenderer extends BaseCityRenderer {
     this.airMobility=new AirMobilityVisuals(this.scene);
     this.weaponStore=new WeaponStoreInterior();
     this.scene.add(this.buses.group,this.cityStores.group);
+    this.cityDetails=attachEnhancements(this.scene);
+    this.cityDetails.bindBuildings(this.scene,[this.nativeLandmarks.group,this.referenceFacades.group]);
   }
   override render(state:State|null,playerId:string,dt:number,lobby:boolean) {
     if(state){const viewer=state.players[playerId];if(viewer){this.buses.update(state,viewer,dt,this.quality==='battery',viewer.carId);this.cityStores.update(state,viewer);}}
+    if(this.ownDetailUpdate)this.cityDetails.update(state?.elapsed||0,this.camera,state?.players[playerId],this.quality==='battery');
     super.render(state,playerId,dt,lobby);
     if(state) {
       this.airMobility.update(state,dt);
@@ -46,6 +52,8 @@ export class CityRenderer extends BaseCityRenderer {
     this.weaponStore?.setBatteryMode(quality==='battery');
   }
   override destroy() {
+    if(this.disposed)return;
+    this.cityDetails.dispose();
     this.imported.dispose();
     this.airMobility.dispose();
     this.weaponStore.dispose();

@@ -7,6 +7,8 @@ import { landmarkBuildings } from './landmarkCatalog.mjs';
 import { civicBuildingDetails } from './CivicBuildingDetails';
 import { landmarkDetails } from './LandmarkDetails';
 import {hotelMunicipalEntrances} from './HotelMunicipalEntrances';
+import {NEIGHBOURHOOD_REFERENCE_PROFILES} from './neighbourhoodProfiles.mjs';
+import {neighbourhoodBuildingDetails} from './NeighbourhoodBuildingDetails';
 
 /** Recognizable, photo-informed details fitted to existing footprints. Dimensions
  * retain game estimates. No claim of photogrammetry, surveyed height or exact bays. */
@@ -20,7 +22,7 @@ export class ReferenceFacades {
     for(const b of landmarkBuildings(world)){
       // Live game uses the Blender replacement; standalone legacy explorer
       // keeps its selected-site fallback until its own asset finishes loading.
-      if(!onlyIds&&'neighbourhood' in b&&b.neighbourhood)continue;
+      if(!onlyIds&&'neighbourhood' in b&&b.neighbourhood&&!NEIGHBOURHOOD_REFERENCE_PROFILES[b.id])continue;
       if(onlyIds&&!onlyIds.has(b.id))continue;
       const profile=REFERENCE_BUILDINGS[b.id];if(!profile)continue;
       const group=new T.Group(),height=profile.height??b.h;
@@ -47,7 +49,7 @@ export class ReferenceFacades {
         box(color,e.a[0]+e.ux*u+e.nx*offset,y,e.a[1]+e.uz*u+e.nz*offset,w,h,d,-Math.atan2(e.uz,e.ux));
       };
       const centre={x:b.p.reduce((s,p)=>s+p[0],0)/b.p.length,z:b.p.reduce((s,p)=>s+p[1],0)/b.p.length};
-      const detailed=civicBuildingDetails(profile,edges,height,b.p,b.holes??[],add,box,wall)||landmarkDetails(profile,edges,height,add,box,wall,centre);
+      const detailed=neighbourhoodBuildingDetails(profile,edges,height,add,wall)||civicBuildingDetails(profile,edges,height,b.p,b.holes??[],add,box,wall)||landmarkDetails(profile,edges,height,add,box,wall,centre);
       hotelMunicipalEntrances(profile,edges,add,wall);
       if(profile.style==='stadium'&&b.holes?.length){
         const hole=b.holes[0],pitch=new T.Shape(hole.map(p=>new T.Vector2(p[0],-p[1])));
@@ -188,9 +190,10 @@ export class ReferenceFacades {
       }
       for(const [color,geometries] of parts){
         const geometry=mergeGeometries(geometries,false);geometries.forEach(g=>g.dispose());if(!geometry)continue;
-        if(!this.materials.has(color))this.materials.set(color,new T.MeshStandardMaterial({color,roughness:color===0x28434a||color===0x345663?.33:.88,metalness:color===0x28434a||color===0x345663?.22:0}));
+        const glass=[0x28434a,0x345663,0x354349,0x48605f,0x435c68,0x425864].includes(color);
+        if(!this.materials.has(color))this.materials.set(color,new T.MeshStandardMaterial({color,roughness:glass?.33:.88,metalness:glass?.22:0}));
         const material=this.materials.get(color)!;
-        if(color===0x28434a||color===0x345663)material.userData.environmentWindow=true;
+        if(glass)material.userData.environmentWindow=true;
         const mesh=new T.Mesh(geometry,material);mesh.castShadow=true;mesh.receiveShadow=true;group.add(mesh);
       }
       this.group.add(group);this.entries.push({group,x:b.p.reduce((s,p)=>s+p[0],0)/b.p.length,z:b.p.reduce((s,p)=>s+p[1],0)/b.p.length});

@@ -25,6 +25,7 @@ export class StreetRenderer extends CityRenderer {
   constructor(root: HTMLDivElement) {
     super(root);
     this.preserveVehicleInterior = true;
+    this.ownDetailUpdate=false;
     this.bodyRig = new FirstPersonBody(this.scene);
     this.camera.near = 0.035;
     this.setFirstPerson(true);
@@ -197,7 +198,6 @@ export class StreetRenderer extends CityRenderer {
     if (this.disposed) return;
     this.bodyRig.dispose();
     this.humans.dispose();
-    this.details.dispose();
     super.destroy();
   }
 }

@@ -16,7 +16,7 @@ import type {ExploreConnection} from './ExploreConnection';
 /** Shared view over server-authoritative peaceful state. One city/camera/frame
  * loop; used from Tirana Streets and Racing Royal, not a separate fantasy map. */
 export class ExploreRuntime {
-  readonly scene=new T.Scene();readonly camera=new T.PerspectiveCamera(62,1,.15,1600);
+  readonly scene=new T.Scene();readonly camera=new T.PerspectiveCamera(62,1,.15,2800);
   readonly audio=new CityAudio();readonly renderer:T.WebGLRenderer;readonly city=new FpsCity();readonly humans=new SharedHumans();readonly faces=new FacePanels();
   readonly collectionFleet=new CollectionVehicleVisuals();
   readonly atmosphere:CinematicAtmosphere;

@@ -11,7 +11,9 @@ export function buildStreetModel(site,type){
   for(let i=0;i<3;i++)box(C.wood,x,.74+i*.13,z-.065,width,.085,.055);
   for(const side of [-1,1]){pole(x+side*width*.36,.05,z+.18,.4,.045);pole(x+side*width*.36,.1,z-.06,.99,.035);}
  };
- if(type==='storefront'){
+ if(type==='storefront'&&site.kind==='building-sign'){
+  sign(site.name,0,site.mountHeight,.8,site.width,site.signHeight,'#ffffff','#202526');
+ }else if(type==='storefront'){
   const w=site.width,food=['cafe','restaurant','bar','pub','fast_food'].includes(site.kind),mulliri=/mulliri/i.test(site.name),sophie=/sophie/i.test(site.name);
   const accent=mulliri?C.red:food?0x4d4d3b:0x566365;
   // Shallow external bays keep the mapped footprint and entrances intact.
