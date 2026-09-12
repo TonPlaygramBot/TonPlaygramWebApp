@@ -7,7 +7,8 @@ import {
   type State,
   type Point
 } from '../shared/engine.mjs';
-import { WEAPONS, STARTER_WEAPON } from '../shared/weapons.mjs';
+import { WEAPONS, WEAPON_BY_ID, STARTER_WEAPON } from '../shared/weapons.mjs';
+import {loadWeaponStoreAccount} from '../weaponStoreApi';
 import { collideDetailPosts } from '../../tirana-street-detail/sharedRoadDetails.mjs';
 import { CityAudio } from '../audio';
 import { StreetRenderer } from './StreetRenderer';
@@ -53,6 +54,7 @@ export class StreetCareerRuntime {
   paused = true;
   ready = false;
   route: Point[] = [];
+  private ownedWeapons = new Set<string>();
   private disposed = false;
   private raf = 0;
   private last = 0;
@@ -103,7 +105,10 @@ export class StreetCareerRuntime {
     this.raf = requestAnimationFrame(this.loop);
   }
   async load(progress: (message: string) => void) {
+    void loadWeaponStoreAccount().then(a=>this.grantWeapons(a.ownedWeaponIds)).catch(()=>{});
     await this.renderer.load(progress);
+    progress('Preparing nearby vehicles and police…');
+    await this.renderer.prepareActors(this.state,this.state.players.local);
     if (this.disposed) return;
     this.ready = true;
     this.emit();
@@ -162,6 +167,7 @@ export class StreetCareerRuntime {
         this.profile.active?.phase,
         campaign.apply
       );
+    this.grantWeapons([...this.ownedWeapons]);
     // The introductory chapter starts holstered, preserving the owned starter ID.
     if (id === 'first-shift' && !restore) this.state.players.local.weapon = '';
     this.simulation.settings.aimAssist = this.settings.aimAssist;
@@ -236,6 +242,15 @@ export class StreetCareerRuntime {
     }
     this.emit();
   }
+  grantWeapons(ids: string[]) {
+    if (this.disposed) return;
+    for (const id of ids) {
+      const w=WEAPON_BY_ID.get(id);if(!w)continue;
+      this.ownedWeapons.add(id);
+      this.state.players.local.inventory[id] ||= {ammo:w.magazine,reserve:w.category==='melee'?0:w.magazine*3};
+    }
+    this.emit();
+  }
   action(action: string, targetId?: string | null) {
     if (this.disposed || !this.ready) return false;
     if (
@@ -244,6 +259,8 @@ export class StreetCareerRuntime {
     ) {
       if (this.simulation.body.action || this.state.players.local.carId)
         return false;
+      const item=action.startsWith('buy:')?action.slice(4):'';
+      if(WEAPON_BY_ID.has(item)&&!this.state.players.local.inventory[item])return false;
       interact(this.state, 'local', action);
       this.simulation.body.combat = this.state.players.local.weapon
         ? 'ready'

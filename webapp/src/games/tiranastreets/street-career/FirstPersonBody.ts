@@ -15,8 +15,13 @@ import { direction3 } from './spatialCore.mjs';
 import { carPoint, vehicleAnchors } from './vehicleCore.mjs';
 const v = new T.Vector3(),
   q = new T.Quaternion();
-const clean = (name: string) =>
-  name.toLowerCase().replace(/mixamorig|[^a-z0-9]/g, '');
+const clean = (name: string) => {
+  let n=name.toLowerCase().replace(/mixamorig|[^a-z0-9]/g,'');
+  const aliases:Record<string,string>={upperarml:'leftarm',upperarmr:'rightarm',lowerarml:'leftforearm',lowerarmr:'rightforearm',wristl:'lefthand',wristr:'righthand',upperlegl:'leftupleg',upperlegr:'rightupleg',lowerlegl:'leftleg',lowerlegr:'rightleg',footl:'leftfoot',footr:'rightfoot'};
+  const finger=n.match(/^(thumb|index|middle|ring|pinky)(\d)([lr])$/);
+  if(finger)return (finger[3]==='l'?'left':'right')+'hand'+finger[1]+finger[2];
+  return aliases[n]||n;
+};
 /** Rig-specific head masking, without scaling bones or hiding an entire skin.
  * One body + one skeleton supplies BOTH legs and arms. Original full geometry
  * draws only into the shadow map, so there are no doubled arms or body shadows. */
@@ -178,7 +183,8 @@ export class FirstPersonBody {
         this.rests.set(o, o.quaternion.clone());
       }
     });
-    this.release = maskHead(actor.group);
+    // Third-person uses the complete skin, including the head.
+    this.release = undefined;
     // Remove horizontal root translation from private clips; physics owns all movement.
     for (const key of ['idle', 'walk', 'run'] as const) {
       const action = actor[key];
@@ -280,7 +286,7 @@ export class FirstPersonBody {
     const root = actor.group;
     root.visible = p.health > 0;
     root.position.set(p.x, b.y, p.z);
-    root.rotation.set(0, b.yaw, 0);
+    root.rotation.set(0, b.yaw + Math.PI, 0);
     root.scale.setScalar(1);
     const moving = p.speed > 0.15 && !car && b.grounded,
       motion = moving ? (p.speed > 3 ? 'run' : 'walk') : 'idle';
@@ -421,13 +427,17 @@ export class FirstPersonBody {
       );
       left.y -= 0.18 * Math.sin(turn);
       r.y += 0.18 * Math.sin(turn);
-      root.rotation.y = car.heading;
+      root.rotation.y = car.heading + Math.PI;
     }
     // Arm bones return to rest before solving; the lower-body mixer stays intact.
     for (const side of ['left', 'right'] as const) {
       set(side + 'arm', 0);
       set(side + 'forearm', 0);
       set(side + 'hand', 0);
+    }
+    if (WEAPON_BY_ID.get(p.weapon)?.category === 'melee') {
+      left = local(-.26,-.55,.06);
+      if(a?.kind==='punch')r=local(.12,-.2,.3+.42*swing);
     }
     armPose(root, this.bones, 'left', left);
     armPose(root, this.bones, 'right', r);
@@ -470,12 +480,18 @@ export class FirstPersonBody {
       'YXZ'
     );
     this.weapon.position.y += b.recoil * 0.2;
+    if (config?.category === 'melee') {
+      this.weapon.rotation.x += a?.kind === 'punch' ? -.75 * swing : .2;
+      const grip = pose.anchors.rightGrip;
+      this.weapon.position.copy(r).sub(new T.Vector3(grip.x,grip.y,grip.z).applyQuaternion(this.weapon.quaternion));
+    }
     this.muzzle.position.set(
       pose.anchors.muzzle.x,
       pose.anchors.muzzle.y,
       pose.anchors.muzzle.z
     );
     this.muzzle.visible =
+      config?.category !== 'melee' &&
       time < p.nextShot &&
       time > p.nextShot - (config?.interval || 0.1) + 0.05 &&
       time < p.nextShot - (config?.interval || 0.1) + 0.1;

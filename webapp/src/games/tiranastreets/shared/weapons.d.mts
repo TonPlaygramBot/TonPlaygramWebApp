@@ -14,6 +14,8 @@ export type Weapon = {
 export const WEAPONS: readonly Weapon[];
 export const WEAPON_BY_ID: Map<string, Weapon>;
 export const STARTER_WEAPON: string;
+export const STARTER_WEAPONS: readonly string[];
+export function ensureStarterWeapons(player: {inventory: Record<string,{ammo:number;reserve:number}>}): void;
 export type Difficulty = "easy" | "normal" | "hard";
 export const DIFFICULTIES: Record<
   Difficulty,

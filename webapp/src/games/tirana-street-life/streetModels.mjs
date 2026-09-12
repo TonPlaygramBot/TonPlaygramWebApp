@@ -11,9 +11,13 @@ export function buildStreetModel(site,type){
   for(let i=0;i<3;i++)box(C.wood,x,.74+i*.13,z-.065,width,.085,.055);
   for(const side of [-1,1]){pole(x+side*width*.36,.05,z+.18,.4,.045);pole(x+side*width*.36,.1,z-.06,.99,.035);}
  };
- if(type==='storefront'&&site.kind==='building-sign'){
+ if(type==='storefront'&&['building-sign','fuel-sign'].includes(site.kind)){
+  if(site.kind==='fuel-sign'){
+   for(const x of [-site.width*.36,site.width*.36])pole(x,.03,.75,site.mountHeight,.055);
+   box(C.metal,0,site.mountHeight,.76,site.width+.12,site.signHeight+.10,.06);
+  }
   sign(site.name,0,site.mountHeight,.8,site.width,site.signHeight,'#ffffff','#202526');
- }else if(type==='storefront'){
+ }else if(type==='storefront'||type==='store-detail'){
   const w=site.width,food=['cafe','restaurant','bar','pub','fast_food'].includes(site.kind),mulliri=/mulliri/i.test(site.name),sophie=/sophie/i.test(site.name);
   const accent=mulliri?C.red:food?0x4d4d3b:0x566365;
   // Shallow external bays keep the mapped footprint and entrances intact.
@@ -25,8 +29,27 @@ export function buildStreetModel(site,type){
   pole(w*.19,1.02,.16,.56,.016,C.light);
   box(accent,0,3.21,.11,w+.05,.48,.2);
   sign(site.name,0,3.21,.218,w-.15,.36,mulliri?'#45372f':sophie?'#ded7c7':food?'#303d36':'#536061',mulliri?'#f26558':sophie?'#333735':'#fff6dd');
+  const tradeStart=parts.length;
+  // Universal barber pole: a trade symbol, independent of business artwork.
+  if(site.kind==='hairdresser'||site.shop==='hairdresser'||/barber|berber|hair/i.test(site.name)){
+   const x=Math.max(.25,w/2-.25);pole(x,1.8,.35,.88,.105,C.light);
+   for(let j=0;j<8;j++)box(j%2?0xb3212b:0x285b98,x,1.86+j*.105,.46,.18,.045,.02);
+   for(const y of [1.77,2.73])box(C.metal,x,y,.35,.25,.10,.26);
+  }
+  if(site.kind==='bakery'||site.shop==='bakery'){
+   box(C.wood,0,.70,.15,w*.7,.08,.20);
+   for(let j=0;j<5;j++)box(0xb88b4c,-w*.29+j*w*.14,.85,.19,.19,.14,.08);
+  }
+  if(site.kind==='fast_food'){
+   box(0x272e2d,w*.29,1.8,.27,Math.min(.75,w*.23),.90,.09);
+   for(let j=0;j<5;j++)box(j%2?0xe2af53:0xd7d8ce,w*.29,2.11-j*.14,.325,Math.min(.58,w*.18),.025,.01);
+  }
+  if(site.kind==='cafe'){
+   for(let j=0;j<3;j++){pole(-.3+j*.3,.78,.23,.12,.05,C.light);box(C.wood,-.3+j*.3,.77,.23,.17,.025,.15);}
+  }
+  const tradeEnd=parts.length;
   // Openable awnings on café/bakery models: not a claim about branch fabric.
-  if(food||site.shop==='bakery'){
+  if(food||site.shop==='bakery'||site.kind==='bakery'){
    parts.push({shape:'box',color:accent,p:[0,2.78,.65],s:[w-.06,.075,1.05],pitch:.12});
    box(accent,0,2.69,1.15,w-.06,.18,.045);
    for(const x of [-w*.43,w*.43])box(C.metal,x,2.76,.61,.035,.035,1.05);
@@ -41,6 +64,7 @@ export function buildStreetModel(site,type){
     for(const dz of [-.7,.7]){box(C.wood,x,.47,z+dz,.48,.06,.44);box(C.wood,x,.75,z+dz+Math.sign(dz)*.17,.48,.28,.045);for(const sx of [-.19,.19])pole(x+sx,.05,z+dz,.4,.025);}
    }
   }
+  if(type==='store-detail'){parts.splice(tradeEnd);parts.splice(0,tradeStart);signs.length=0;}
  }else if(type==='stop'){
   pole(0,.05,.12,2.7,.045,C.light);box(0x21578a,0,2.35,.13,.58,.76,.08);
   sign('BUS',0,2.46,.18,.48,.25,'#21578a');

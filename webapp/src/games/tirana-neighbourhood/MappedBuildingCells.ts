@@ -1,4 +1,5 @@
 import * as T from 'three';
+import {CellWorkQueue} from './cellWorkQueue.mjs';
 import {appendBuildingShell,shellGeometry} from './buildingShell';
 import {sourceBuildingColour,firstWindowHeight} from './buildingAppearance';
 import {EnvironmentMaterials} from '../tirana-environment/EnvironmentMaterials';
@@ -16,7 +17,7 @@ export class MappedBuildingCells {
  private buckets:Bucket[]=[];
  private frame=0;
  private lookup=new Map<string,Bucket>();private cached=new Set<Bucket>();private selected=new Set<Bucket>();
- private jobs:Generator<void,void>[]=[];private viewer={x:Infinity,z:Infinity};private battery?:boolean;private dead=false;
+ private jobs=new CellWorkQueue();private viewer={x:Infinity,z:Infinity};private battery?:boolean;private dead=false;
  private finish:EnvironmentMaterials;
  private roof:T.MeshStandardMaterial;
  constructor(buildings:any[],private wall:T.MeshStandardMaterial,private glass:T.MeshStandardMaterial,private aged:boolean,loadTextures=true){
@@ -94,28 +95,28 @@ export class MappedBuildingCells {
   if(this.dead)return;
   if(this.battery!==battery||Math.hypot(viewer.x-this.viewer.x,viewer.z-this.viewer.z)>45){
    this.viewer={x:viewer.x,z:viewer.z};this.battery=battery;this.frame++;
-   for(const job of this.jobs)job.return();this.jobs=[];
-   const radius=battery?1100:1800,selected:Bucket[]=[],distance=(b:Bucket)=>(b.x-viewer.x)**2+(b.z-viewer.z)**2;
+   const tasks:{key:string;create:()=>Generator<void,void>}[]=[];
+   const radius=battery?1400:2400,selected:Bucket[]=[],distance=(b:Bucket)=>(b.x-viewer.x)**2+(b.z-viewer.z)**2;
    for(let x=Math.floor((viewer.x-radius)/240);x<=Math.floor((viewer.x+radius)/240);x++)for(let z=Math.floor((viewer.z-radius)/240);z<=Math.floor((viewer.z+radius)/240);z++){
     const b=this.lookup.get(`${x*240+120}:${z*240+120}`);if(b&&distance(b)<(radius+170)**2)selected.push(b);
    }
    selected.sort((a,b)=>distance(a)-distance(b));this.selected=new Set(selected);
-   for(const b of selected){b.used=this.frame;if(!b.root)this.jobs.push(this.coarse(b));}
-   for(const b of selected)if(!b.detail&&distance(b)<(battery?150:330)**2)this.jobs.push(this.details(b));
+   for(const b of selected){b.used=this.frame;if(!b.root)tasks.push({key:b.x+":"+b.z,create:()=>this.coarse(b)});}
+   for(const b of selected)if(!b.detail&&distance(b)<(battery?150:330)**2)tasks.push({key:b.x+":"+b.z+":detail",create:()=>this.details(b)});
+   this.jobs.sync(tasks);
    for(const b of this.cached){b.root!.visible=this.selected.has(b);b.root!.children[0].castShadow=!battery&&distance(b)<240**2;if(b.detail)b.detail.visible=distance(b)<(battery?240:420)**2;}
    const stale=[...this.cached].filter(b=>!this.selected.has(b)).sort((a,b)=>a.used-b.used);
-   while(this.cached.size>(battery?140:270)&&stale.length){const b=stale.shift()!;this.release(b.root!);b.root=undefined;b.detail=undefined;this.cached.delete(b);}
+   while(this.cached.size>(battery?220:460)&&stale.length){const b=stale.shift()!;this.release(b.root!);b.root=undefined;b.detail=undefined;this.cached.delete(b);}
    // Close detail has a separate cache; distant shells retain no window meshes.
    for(const b of this.cached)if(b.detail&&distance(b)>600**2){this.release(b.detail);b.detail=undefined;}
   }
-  const start=performance.now();let steps=0;
-  while(this.jobs.length&&performance.now()-start<(battery?2:4)&&steps++<120)if(this.jobs[0].next().done)this.jobs.shift();
-  if(this.cached.size>(battery?140:270)){
+  this.jobs.run(battery?1.5:3,180);
+  if(this.cached.size>(battery?220:460)){
    const stale=[...this.cached].filter(b=>!this.selected.has(b)).sort((a,b)=>a.used-b.used);
-   while(this.cached.size>(battery?140:270)&&stale.length){const b=stale.shift()!;this.release(b.root!);b.root=undefined;b.detail=undefined;this.cached.delete(b);}
+   while(this.cached.size>(battery?220:460)&&stale.length){const b=stale.shift()!;this.release(b.root!);b.root=undefined;b.detail=undefined;this.cached.delete(b);}
   }
-  this.group.userData={cachedCells:this.cached.size,pendingJobs:this.jobs.length,radius:battery?1100:1800};
+  this.group.userData={cachedCells:this.cached.size,pendingJobs:this.jobs.length,radius:battery?1400:2400};
  }
  private release(root:T.Group){root.traverse(o=>{if(o instanceof T.Mesh)o.geometry.dispose();});root.clear();root.removeFromParent();}
- dispose(){if(this.dead)return;this.dead=true;for(const job of this.jobs)job.return();this.jobs=[];this.finish.dispose();for(const b of this.buckets)if(b.root)this.release(b.root);this.buckets=[];this.group.removeFromParent();}
+ dispose(){if(this.dead)return;this.dead=true;this.jobs.dispose();this.finish.dispose();for(const b of this.buckets)if(b.root)this.release(b.root);this.buckets=[];this.group.removeFromParent();}
 }

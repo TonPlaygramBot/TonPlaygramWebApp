@@ -34,7 +34,7 @@ test('actual vehicle GLB loads lazily, faces travel, spins only wheel pivots, an
   try {
     downloads=[];const s=state();s.units=[car('patrol')];
     layer.update(s,{x:0,z:0},0,1/60);
-    assert.equal(layer.has('patrol'),false,'existing game actor remains available during loading');
+    assert.equal(layer.has('patrol'),false);assert.equal(layer.ownsVehicle(s.units[0]),true,'pending final model suppresses the generic replacement');
     await settle(layer);layer.update(s,{x:0,z:0},.1,1/60);
     const root=layer.getRoot('patrol');assert.ok(root);
     const bounds=new T.Box3().setFromObject(root,true),size=bounds.getSize(new T.Vector3());
@@ -58,8 +58,10 @@ test('actual officer clones keep independent skeletons and switch Idle/Walk with
     const skins=roots.map(root=>{let skin;root.traverse(o=>{if(o instanceof T.SkinnedMesh)skin=o;});return skin;});
     assert.notEqual(skins[0].skeleton,skins[1].skeleton);
     assert.notEqual(skins[0].skeleton.bones[0],skins[1].skeleton.bones[0]);
-    const a=layer.actors.get('npc-a');assert.ok(a.walk.isRunning());assert.equal(a.moving,true);
-    s.npcs[0].speed=0;layer.update(s,{x:0,z:0},2,.2);assert.equal(a.moving,false);assert.ok(a.idle.isRunning());
+    const a=layer.actors.get('npc-a');assert.equal(a.moving,false,'stationary actor ignores stale speed hint');
+    for(let i=0;i<30;i++){s.npcs[0].z-=1.4/60;layer.update(s,{x:0,z:0},1+i/60,1/60);}
+    assert.ok(a.walk.isRunning());assert.equal(a.moving,true);
+    s.npcs[0].speed=0;for(let i=0;i<90;i++)layer.update(s,{x:0,z:0},2+i/60,1/60);assert.equal(a.moving,false);assert.ok(a.idle.isRunning());
     const height=new T.Box3().setFromObject(roots[1]).getSize(new T.Vector3()).y;
     assert.ok(height>1.7 && height<2.1,'human proportions remain in metres');
     s.npcs[0].health=0;layer.update(s,{x:0,z:0},3,.1);assert.equal(roots[0].rotation.x,-Math.PI/2);
@@ -71,7 +73,7 @@ test('failed downloads retain fallback availability and dispose prevents late sc
     console.warn=()=>{};globalThis.fetch=async()=>new Response('',{status:404});
     const s=state();s.units=[car('missing')];layer.update(s,{x:0,z:0},0,1/60);
     while(layer.pending.size)await new Promise(r=>setTimeout(r,10));
-    assert.equal(layer.has('missing'),false);assert.equal(layer.errors.size,1);
+    assert.equal(layer.has('missing'),false);assert.equal(layer.ownsVehicle(s.units[0]),false,'failed asset exposes a stable fallback');assert.equal(layer.errors.size,1);
     globalThis.fetch=goodFetch;layer.retryFailed();layer.dispose();
     while(layer.pending.size)await new Promise(r=>setTimeout(r,10));
     assert.equal(layer.group.children.length,0);assert.equal(layer.sources.size,0);
@@ -84,7 +86,7 @@ test('aiming changes private arm bones and cover lowers the visible officer',asy
   layer.update(s,{x:0,z:0},0,1/60);await settle(layer);layer.update(s,{x:0,z:0},1,1/60);
   const root=layer.getRoot('npc-pose'),bone=root.getObjectByName(T.PropertyBinding.sanitizeNodeName('upperarm01.R'));assert.ok(bone);
   const idle=bone.quaternion.clone();s.npcs[0].anim='aim';layer.update(s,{x:0,z:0},2,1/60);assert.ok(bone.quaternion.angleTo(idle)>.1);
-  const standing=root.position.y;s.npcs[0].anim='cover';layer.update(s,{x:0,z:0},3,1/60);assert.ok(root.position.y<standing-.25);
+  const standing=root.position.y;s.npcs[0].anim='cover';for(let i=0;i<30;i++)layer.update(s,{x:0,z:0},3+i/60,1/60);assert.ok(root.position.y<standing-.25);
   s.npcs[0].anim='ride';s.npcs[0].motion='drive';layer.update(s,{x:0,z:0},4,1/60);assert.ok(layer.has('npc-pose'),'motorcycle passengers are rendered');
  }finally{layer.dispose();}
 });

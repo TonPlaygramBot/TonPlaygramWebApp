@@ -1,0 +1,5400 @@
+{
+  "source": {
+    "archiveSha256": "dca70c5d585b90c6c042b033bb4bfb001da8b297d7767b2cd927bb1875611602",
+    "attribution": "© OpenStreetMap contributors",
+    "license": "ODbL-1.0",
+    "municipalReference": "https://tirana.al/artikull/kende-lojerash-ne-cdo-lagje",
+    "note": "Municipal article describes neighborhood playgrounds, including Mine Peza and the Lake Park. It supplies no equipment coordinates. Only mapped source points/polygons are rendered; no inferred address points."
+  },
+  "furnished": {
+    "park": 227,
+    "playground": 74
+  },
+  "counts": {
+    "fuel": 106,
+    "playground": 116,
+    "park": 242
+  },
+  "sites": [
+    {
+      "id": "node/2782650980",
+      "name": "Kastrati",
+      "category": "fuel",
+      "x": -504.4316642478949,
+      "z": 1383.128735999779,
+      "source": "https://www.openstreetmap.org/node/2782650980",
+      "accuracy": "Mapped point; no surveyed extent"
+    },
+    {
+      "id": "node/4548140893",
+      "name": "ESP & Oil",
+      "category": "fuel",
+      "x": -206.4473232620027,
+      "z": 821.5972600003968,
+      "source": "https://www.openstreetmap.org/node/4548140893",
+      "accuracy": "Mapped point; no surveyed extent"
+    },
+    {
+      "id": "node/4655550905",
+      "name": "Kënd Lojrash",
+      "category": "playground",
+      "x": -972.5996222963179,
+      "z": -714.9526999999256,
+      "source": "https://www.openstreetmap.org/node/4655550905",
+      "accuracy": "Mapped point; no surveyed extent"
+    },
+    {
+      "id": "node/4802066229",
+      "name": "Park",
+      "category": "park",
+      "x": 1429.2230487029135,
+      "z": 660.6619359998413,
+      "source": "https://www.openstreetmap.org/node/4802066229",
+      "accuracy": "Mapped point; no surveyed extent"
+    },
+    {
+      "id": "node/6809764160",
+      "name": "Karburant",
+      "category": "fuel",
+      "x": 2957.046930652713,
+      "z": -2138.9915360000346,
+      "source": "https://www.openstreetmap.org/node/6809764160",
+      "accuracy": "Mapped point; no surveyed extent"
+    },
+    {
+      "id": "node/6812207209",
+      "name": "Start",
+      "category": "fuel",
+      "x": 2240.684081624424,
+      "z": -505.4373279995798,
+      "source": "https://www.openstreetmap.org/node/6812207209",
+      "accuracy": "Mapped point; no surveyed extent"
+    },
+    {
+      "id": "node/6841192697",
+      "name": "Kënd lojërash",
+      "category": "playground",
+      "x": -1304.5237159727983,
+      "z": -708.3736879997673,
+      "source": "https://www.openstreetmap.org/node/6841192697",
+      "accuracy": "Mapped point; no surveyed extent"
+    },
+    {
+      "id": "node/6841226988",
+      "name": "Kënd lojërash",
+      "category": "playground",
+      "x": 575.738583078066,
+      "z": 137.6805760001031,
+      "source": "https://www.openstreetmap.org/node/6841226988",
+      "accuracy": "Mapped point; no surveyed extent"
+    },
+    {
+      "id": "node/6844882589",
+      "name": "Bujari Petrol",
+      "category": "fuel",
+      "x": -4031.2484628503958,
+      "z": -4183.260883999712,
+      "source": "https://www.openstreetmap.org/node/6844882589",
+      "accuracy": "Mapped point; no surveyed extent"
+    },
+    {
+      "id": "node/6851510692",
+      "name": "Kënd lojërash",
+      "category": "playground",
+      "x": -1839.5680340022427,
+      "z": -310.13752000004445,
+      "source": "https://www.openstreetmap.org/node/6851510692",
+      "accuracy": "Mapped point; no surveyed extent"
+    },
+    {
+      "id": "node/8732203507",
+      "name": "Kartilat Signs",
+      "category": "park",
+      "x": 2361.99779863013,
+      "z": -5055.174783999628,
+      "source": "https://www.openstreetmap.org/node/8732203507",
+      "accuracy": "Mapped point; no surveyed extent"
+    },
+    {
+      "id": "node/9128749850",
+      "name": "Kënd lojërash",
+      "category": "playground",
+      "x": -1188.7690963904508,
+      "z": -1496.9534360003147,
+      "source": "https://www.openstreetmap.org/node/9128749850",
+      "accuracy": "Mapped point; no surveyed extent"
+    },
+    {
+      "id": "node/9128750019",
+      "name": "Gega Oil",
+      "category": "fuel",
+      "x": -1580.2967459002455,
+      "z": -307.6105559997802,
+      "source": "https://www.openstreetmap.org/node/9128750019",
+      "accuracy": "Mapped point; no surveyed extent"
+    },
+    {
+      "id": "node/9275642303",
+      "name": "Parku i Qershive",
+      "category": "park",
+      "x": -1985.93530736614,
+      "z": 2394.905083999984,
+      "source": "https://www.openstreetmap.org/node/9275642303",
+      "accuracy": "Mapped point; no surveyed extent"
+    },
+    {
+      "id": "node/9381914388",
+      "name": "Kënd lojërash",
+      "category": "playground",
+      "x": 474.7719985965221,
+      "z": 368.20203199993443,
+      "source": "https://www.openstreetmap.org/node/9381914388",
+      "accuracy": "Mapped point; no surveyed extent"
+    },
+    {
+      "id": "node/9757539400",
+      "name": "Bolv",
+      "category": "fuel",
+      "x": 1014.0044486697273,
+      "z": -1141.9762199998954,
+      "source": "https://www.openstreetmap.org/node/9757539400",
+      "accuracy": "Mapped point; no surveyed extent"
+    },
+    {
+      "id": "node/10560013780",
+      "name": "Akademia e Çiklizmit",
+      "category": "playground",
+      "x": 77.4344653131818,
+      "z": 2346.2805079996733,
+      "source": "https://www.openstreetmap.org/node/10560013780",
+      "accuracy": "Mapped point; no surveyed extent"
+    },
+    {
+      "id": "node/10912950977",
+      "name": "Elit Oil",
+      "category": "fuel",
+      "x": -4630.627839181579,
+      "z": -1276.7290799997968,
+      "source": "https://www.openstreetmap.org/node/10912950977",
+      "accuracy": "Mapped point; no surveyed extent"
+    },
+    {
+      "id": "node/10916837538",
+      "name": "Saga & Gas",
+      "category": "fuel",
+      "x": -2976.0899741574462,
+      "z": -377.14102799998756,
+      "source": "https://www.openstreetmap.org/node/10916837538",
+      "accuracy": "Mapped point; no surveyed extent"
+    },
+    {
+      "id": "node/10937294176",
+      "name": "Kënd lojërash",
+      "category": "playground",
+      "x": -3687.9971857018936,
+      "z": 120.45937199976237,
+      "source": "https://www.openstreetmap.org/node/10937294176",
+      "accuracy": "Mapped point; no surveyed extent"
+    },
+    {
+      "id": "node/10937966242",
+      "name": "Kënd lojërash",
+      "category": "playground",
+      "x": -921.7234314406684,
+      "z": 867.2829880003758,
+      "source": "https://www.openstreetmap.org/node/10937966242",
+      "accuracy": "Mapped point; no surveyed extent"
+    },
+    {
+      "id": "node/10985262597",
+      "name": "Kënd lojërash",
+      "category": "playground",
+      "x": -3389.0849352211108,
+      "z": -629.9042200002978,
+      "source": "https://www.openstreetmap.org/node/10985262597",
+      "accuracy": "Mapped point; no surveyed extent"
+    },
+    {
+      "id": "node/10998470118",
+      "name": "Kënd lojërash",
+      "category": "playground",
+      "x": -2064.4397944390516,
+      "z": 890.0479279998501,
+      "source": "https://www.openstreetmap.org/node/10998470118",
+      "accuracy": "Mapped point; no surveyed extent"
+    },
+    {
+      "id": "node/11009407447",
+      "name": "Kënd lojërash",
+      "category": "playground",
+      "x": -2123.9513952772077,
+      "z": -1164.6075760001816,
+      "source": "https://www.openstreetmap.org/node/11009407447",
+      "accuracy": "Mapped point; no surveyed extent"
+    },
+    {
+      "id": "node/11009438889",
+      "name": "Kënd lojërash",
+      "category": "playground",
+      "x": -1807.7850439210076,
+      "z": -1442.963235999788,
+      "source": "https://www.openstreetmap.org/node/11009438889",
+      "accuracy": "Mapped point; no surveyed extent"
+    },
+    {
+      "id": "node/11009444812",
+      "name": "Kënd lojërash",
+      "category": "playground",
+      "x": -1815.5761398589832,
+      "z": -1513.2618160002708,
+      "source": "https://www.openstreetmap.org/node/11009444812",
+      "accuracy": "Mapped point; no surveyed extent"
+    },
+    {
+      "id": "node/11009484163",
+      "name": "Kënd lojërash",
+      "category": "playground",
+      "x": -1018.1842211683926,
+      "z": -1451.089595999836,
+      "source": "https://www.openstreetmap.org/node/11009484163",
+      "accuracy": "Mapped point; no surveyed extent"
+    },
+    {
+      "id": "node/11070171767",
+      "name": "Kënd lojërash",
+      "category": "playground",
+      "x": 1199.527830802523,
+      "z": -2043.85746399961,
+      "source": "https://www.openstreetmap.org/node/11070171767",
+      "accuracy": "Mapped point; no surveyed extent"
+    },
+    {
+      "id": "node/11076142527",
+      "name": "Kënd lojërash",
+      "category": "playground",
+      "x": -1241.0246121707935,
+      "z": 67.77161600021856,
+      "source": "https://www.openstreetmap.org/node/11076142527",
+      "accuracy": "Mapped point; no surveyed extent"
+    },
+    {
+      "id": "node/11076187058",
+      "name": "Kënd lojërash",
+      "category": "playground",
+      "x": -1189.7638822452132,
+      "z": -125.9029200000981,
+      "source": "https://www.openstreetmap.org/node/11076187058",
+      "accuracy": "Mapped point; no surveyed extent"
+    },
+    {
+      "id": "node/11084351484",
+      "name": "Kënd lojërash",
+      "category": "playground",
+      "x": -835.7705897748294,
+      "z": 717.4017400000702,
+      "source": "https://www.openstreetmap.org/node/11084351484",
+      "accuracy": "Mapped point; no surveyed extent"
+    },
+    {
+      "id": "node/11092574095",
+      "name": "Kënd lojërash",
+      "category": "playground",
+      "x": -891.386642643998,
+      "z": 444.9794360001957,
+      "source": "https://www.openstreetmap.org/node/11092574095",
+      "accuracy": "Mapped point; no surveyed extent"
+    },
+    {
+      "id": "node/11094572604",
+      "name": "Kënd lojërash",
+      "category": "playground",
+      "x": -3110.2439522796108,
+      "z": -463.1134640001301,
+      "source": "https://www.openstreetmap.org/node/11094572604",
+      "accuracy": "Mapped point; no surveyed extent"
+    },
+    {
+      "id": "node/11336965282",
+      "name": "Kënd lojërash",
+      "category": "playground",
+      "x": -759.498101216238,
+      "z": -1335.160948000025,
+      "source": "https://www.openstreetmap.org/node/11336965282",
+      "accuracy": "Mapped point; no surveyed extent"
+    },
+    {
+      "id": "node/11712064655",
+      "name": "Auto Gaz",
+      "category": "fuel",
+      "x": -3633.994525017118,
+      "z": 904.9202800004261,
+      "source": "https://www.openstreetmap.org/node/11712064655",
+      "accuracy": "Mapped point; no surveyed extent"
+    },
+    {
+      "id": "node/11755007581",
+      "name": "Kënd lojërash",
+      "category": "playground",
+      "x": 761.2452461206713,
+      "z": 781.2326280001137,
+      "source": "https://www.openstreetmap.org/node/11755007581",
+      "accuracy": "Mapped point; no surveyed extent"
+    },
+    {
+      "id": "node/11971909319",
+      "name": "Kënd lojërash",
+      "category": "playground",
+      "x": 669.8336215714297,
+      "z": 1716.777040000104,
+      "source": "https://www.openstreetmap.org/node/11971909319",
+      "accuracy": "Mapped point; no surveyed extent"
+    },
+    {
+      "id": "node/11990888165",
+      "name": "Toptani Jungle",
+      "category": "playground",
+      "x": 285.11900123474186,
+      "z": 55.72679200025533,
+      "source": "https://www.openstreetmap.org/node/11990888165",
+      "accuracy": "Mapped point; no surveyed extent"
+    },
+    {
+      "id": "node/12103449822",
+      "name": "OMW",
+      "category": "fuel",
+      "x": 1959.360313818714,
+      "z": -302.73473999975124,
+      "source": "https://www.openstreetmap.org/node/12103449822",
+      "accuracy": "Mapped point; no surveyed extent"
+    },
+    {
+      "id": "node/12163400977",
+      "name": "Eida",
+      "category": "fuel",
+      "x": 2107.265743462037,
+      "z": -2649.9726000003297,
+      "source": "https://www.openstreetmap.org/node/12163400977",
+      "accuracy": "Mapped point; no surveyed extent"
+    },
+    {
+      "id": "node/12178176931",
+      "name": "Kastrati",
+      "category": "fuel",
+      "x": 3401.4236236377883,
+      "z": -2202.956008000057,
+      "source": "https://www.openstreetmap.org/node/12178176931",
+      "accuracy": "Mapped point; no surveyed extent"
+    },
+    {
+      "id": "node/12473444404",
+      "name": "Dodo Playground",
+      "category": "playground",
+      "x": 1641.237828933073,
+      "z": -1297.4234679995948,
+      "source": "https://www.openstreetmap.org/node/12473444404",
+      "accuracy": "Mapped point; no surveyed extent"
+    },
+    {
+      "id": "node/12805960250",
+      "name": "Parku i Artit",
+      "category": "park",
+      "x": 2568.3113691720923,
+      "z": -1953.532416000016,
+      "source": "https://www.openstreetmap.org/node/12805960250",
+      "accuracy": "Mapped point; no surveyed extent"
+    },
+    {
+      "id": "node/12961374801",
+      "name": "Kënd lojërash",
+      "category": "playground",
+      "x": -702.6281165973213,
+      "z": 1044.4265039997165,
+      "source": "https://www.openstreetmap.org/node/12961374801",
+      "accuracy": "Mapped point; no surveyed extent"
+    },
+    {
+      "id": "node/12964963301",
+      "name": "Kënd lojërash",
+      "category": "playground",
+      "x": -990.8150708461163,
+      "z": 1196.2447199997196,
+      "source": "https://www.openstreetmap.org/node/12964963301",
+      "accuracy": "Mapped point; no surveyed extent"
+    },
+    {
+      "id": "node/12997421836",
+      "name": "Kastrati",
+      "category": "fuel",
+      "x": -2172.662463978409,
+      "z": 716.2440119999874,
+      "source": "https://www.openstreetmap.org/node/12997421836",
+      "accuracy": "Mapped point; no surveyed extent"
+    },
+    {
+      "id": "node/12997421838",
+      "name": "Veliaj Petrol",
+      "category": "fuel",
+      "x": -1961.4418405228025,
+      "z": 816.5544639999985,
+      "source": "https://www.openstreetmap.org/node/12997421838",
+      "accuracy": "Mapped point; no surveyed extent"
+    },
+    {
+      "id": "node/13013508845",
+      "name": "Alpet",
+      "category": "fuel",
+      "x": 2621.5783898970913,
+      "z": 3139.858524000099,
+      "source": "https://www.openstreetmap.org/node/13013508845",
+      "accuracy": "Mapped point; no surveyed extent"
+    },
+    {
+      "id": "node/13050864650",
+      "name": "ESP & OIL",
+      "category": "fuel",
+      "x": -21.37535655900914,
+      "z": -985.3044520001237,
+      "source": "https://www.openstreetmap.org/node/13050864650",
+      "accuracy": "Mapped point; no surveyed extent"
+    },
+    {
+      "id": "way/174415401",
+      "name": "Park",
+      "category": "park",
+      "x": -357.63471027132454,
+      "z": 999.847853400138,
+      "source": "https://www.openstreetmap.org/way/174415401",
+      "accuracy": "Mapped boundary; equipment layout estimated",
+      "furnishingAnchor": {
+        "x": -358.5447439915423,
+        "z": 999.5138520001318
+      }
+    },
+    {
+      "id": "way/177582866",
+      "name": "Gazheli",
+      "category": "fuel",
+      "x": -1071.8260281607108,
+      "z": -709.7967286664532,
+      "source": "https://www.openstreetmap.org/way/177582866",
+      "accuracy": "Mapped boundary; equipment layout estimated"
+    },
+    {
+      "id": "way/233519313",
+      "name": "Parku Zoologjik i Tiranës",
+      "category": "park",
+      "x": -793.5346595017955,
+      "z": 2250.7737201482473,
+      "source": "https://www.openstreetmap.org/way/233519313",
+      "accuracy": "Mapped boundary; equipment layout estimated",
+      "furnishingAnchor": {
+        "x": -792.6102479354963,
+        "z": 2258.56365800032
+      }
+    },
+    {
+      "id": "way/236566865",
+      "name": "Park",
+      "category": "park",
+      "x": 158.74623958807987,
+      "z": -194.1190569999206,
+      "source": "https://www.openstreetmap.org/way/236566865",
+      "accuracy": "Mapped boundary; equipment layout estimated",
+      "furnishingAnchor": {
+        "x": 158.73870513105297,
+        "z": -191.54167439964527
+      }
+    },
+    {
+      "id": "way/248353858",
+      "name": "Park",
+      "category": "park",
+      "x": -212.11210921848684,
+      "z": -280.61386571429244,
+      "source": "https://www.openstreetmap.org/way/248353858",
+      "accuracy": "Mapped boundary; equipment layout estimated",
+      "furnishingAnchor": {
+        "x": -212.18964673089104,
+        "z": -281.82486438658236
+      }
+    },
+    {
+      "id": "way/248355616",
+      "name": "Parku i Galerisë Kombëtare të Arteve",
+      "category": "park",
+      "x": 68.8001002738118,
+      "z": 205.76110500007562,
+      "source": "https://www.openstreetmap.org/way/248355616",
+      "accuracy": "Mapped boundary; equipment layout estimated",
+      "furnishingAnchor": {
+        "x": 69.25274142839969,
+        "z": 205.2725661333522
+      }
+    },
+    {
+      "id": "way/248355618",
+      "name": "Parku Rinia",
+      "category": "park",
+      "x": -37.14145842446955,
+      "z": 277.4529078096542,
+      "source": "https://www.openstreetmap.org/way/248355618",
+      "accuracy": "Mapped boundary; equipment layout estimated",
+      "furnishingAnchor": {
+        "x": -37.34069783666004,
+        "z": 279.76048879994346
+      }
+    },
+    {
+      "id": "way/248989209",
+      "name": "Park",
+      "category": "park",
+      "x": 356.6753131571388,
+      "z": 348.4636045000695,
+      "source": "https://www.openstreetmap.org/way/248989209",
+      "accuracy": "Mapped boundary; equipment layout estimated",
+      "furnishingAnchor": {
+        "x": 350.3765226427599,
+        "z": 361.4699976575276
+      }
+    },
+    {
+      "id": "way/248989211",
+      "name": "Park",
+      "category": "park",
+      "x": 55.63277195939642,
+      "z": 815.9811660001209,
+      "source": "https://www.openstreetmap.org/way/248989211",
+      "accuracy": "Mapped boundary; equipment layout estimated",
+      "furnishingAnchor": {
+        "x": 54.918436154949774,
+        "z": 816.1718809804356
+      }
+    },
+    {
+      "id": "way/248989217",
+      "name": "Park",
+      "category": "park",
+      "x": 228.55255457726452,
+      "z": 508.1727291034369,
+      "source": "https://www.openstreetmap.org/way/248989217",
+      "accuracy": "Mapped boundary; equipment layout estimated"
+    },
+    {
+      "id": "way/248993232",
+      "name": "Park",
+      "category": "park",
+      "x": -20.11445852178059,
+      "z": 445.5954066665464,
+      "source": "https://www.openstreetmap.org/way/248993232",
+      "accuracy": "Mapped boundary; equipment layout estimated",
+      "furnishingAnchor": {
+        "x": -18.708256411854368,
+        "z": 444.084653364519
+      }
+    },
+    {
+      "id": "way/248993233",
+      "name": "Park",
+      "category": "park",
+      "x": -339.80853786683264,
+      "z": 488.82838400019807,
+      "source": "https://www.openstreetmap.org/way/248993233",
+      "accuracy": "Mapped boundary; equipment layout estimated",
+      "furnishingAnchor": {
+        "x": -339.33999805416084,
+        "z": 491.75579132507943
+      }
+    },
+    {
+      "id": "way/248993235",
+      "name": "Park",
+      "category": "park",
+      "x": 364.45696590521294,
+      "z": 320.84114414824336,
+      "source": "https://www.openstreetmap.org/way/248993235",
+      "accuracy": "Mapped boundary; equipment layout estimated",
+      "furnishingAnchor": {
+        "x": 359.7414422521521,
+        "z": 337.08507748755693
+      }
+    },
+    {
+      "id": "way/248993236",
+      "name": "Park",
+      "category": "park",
+      "x": -334.48908073338566,
+      "z": 511.7899893333265,
+      "source": "https://www.openstreetmap.org/way/248993236",
+      "accuracy": "Mapped boundary; equipment layout estimated",
+      "furnishingAnchor": {
+        "x": -345.53553550343247,
+        "z": 515.5841396146002
+      }
+    },
+    {
+      "id": "way/248993238",
+      "name": "Park",
+      "category": "park",
+      "x": -1493.9955898594928,
+      "z": 728.0142466666603,
+      "source": "https://www.openstreetmap.org/way/248993238",
+      "accuracy": "Mapped boundary; equipment layout estimated",
+      "furnishingAnchor": {
+        "x": -1506.8881108165413,
+        "z": 735.3915245415815
+      }
+    },
+    {
+      "id": "way/248993239",
+      "name": "Park",
+      "category": "park",
+      "x": -854.2568875825092,
+      "z": 619.6828176002869,
+      "source": "https://www.openstreetmap.org/way/248993239",
+      "accuracy": "Mapped boundary; equipment layout estimated",
+      "furnishingAnchor": {
+        "x": -853.8610758112359,
+        "z": 619.3591835617304
+      }
+    },
+    {
+      "id": "way/248993240",
+      "name": "Park",
+      "category": "park",
+      "x": -1464.8068452427488,
+      "z": 748.8310866666147,
+      "source": "https://www.openstreetmap.org/way/248993240",
+      "accuracy": "Mapped boundary; equipment layout estimated",
+      "furnishingAnchor": {
+        "x": -1449.3109086907848,
+        "z": 740.5094049452746
+      }
+    },
+    {
+      "id": "way/248993242",
+      "name": "Park",
+      "category": "park",
+      "x": -1940.991855739643,
+      "z": 731.0634870000727,
+      "source": "https://www.openstreetmap.org/way/248993242",
+      "accuracy": "Mapped boundary; equipment layout estimated",
+      "furnishingAnchor": {
+        "x": -1949.775690185801,
+        "z": 756.8283199536554
+      }
+    },
+    {
+      "id": "way/248993243",
+      "name": "Park",
+      "category": "park",
+      "x": -860.1721016228902,
+      "z": 598.6388848002009,
+      "source": "https://www.openstreetmap.org/way/248993243",
+      "accuracy": "Mapped boundary; equipment layout estimated",
+      "furnishingAnchor": {
+        "x": -860.083921107562,
+        "z": 597.6956046957425
+      }
+    },
+    {
+      "id": "way/248993245",
+      "name": "Park",
+      "category": "park",
+      "x": -1977.5138724036487,
+      "z": 741.0318512281226,
+      "source": "https://www.openstreetmap.org/way/248993245",
+      "accuracy": "Mapped boundary; equipment layout estimated",
+      "furnishingAnchor": {
+        "x": -1977.963518614889,
+        "z": 774.4418355660356
+      }
+    },
+    {
+      "id": "way/248993246",
+      "name": "Park",
+      "category": "park",
+      "x": -24.730320617969543,
+      "z": 421.99742200003027,
+      "source": "https://www.openstreetmap.org/way/248993246",
+      "accuracy": "Mapped boundary; equipment layout estimated",
+      "furnishingAnchor": {
+        "x": -24.121061797826428,
+        "z": 421.79759813838405
+      }
+    },
+    {
+      "id": "way/248993649",
+      "name": "Park",
+      "category": "park",
+      "x": 1403.3105490963485,
+      "z": -396.67073050001693,
+      "source": "https://www.openstreetmap.org/way/248993649",
+      "accuracy": "Mapped boundary; equipment layout estimated",
+      "furnishingAnchor": {
+        "x": 1404.5817445545842,
+        "z": -395.0293262045972
+      }
+    },
+    {
+      "id": "way/248993651",
+      "name": "Park",
+      "category": "park",
+      "x": 1627.645208766944,
+      "z": -496.756223333369,
+      "source": "https://www.openstreetmap.org/way/248993651",
+      "accuracy": "Mapped boundary; equipment layout estimated",
+      "furnishingAnchor": {
+        "x": 1626.5574799524832,
+        "z": -493.3939082889945
+      }
+    },
+    {
+      "id": "way/248993654",
+      "name": "Park",
+      "category": "park",
+      "x": 984.5776560572414,
+      "z": -157.98057314278213,
+      "source": "https://www.openstreetmap.org/way/248993654",
+      "accuracy": "Mapped boundary; equipment layout estimated",
+      "furnishingAnchor": {
+        "x": 961.4060395343755,
+        "z": -142.41919363398975
+      }
+    },
+    {
+      "id": "way/248993655",
+      "name": "Park",
+      "category": "park",
+      "x": 952.2654090688242,
+      "z": -115.6675519998521,
+      "source": "https://www.openstreetmap.org/way/248993655",
+      "accuracy": "Mapped boundary; equipment layout estimated",
+      "furnishingAnchor": {
+        "x": 937.2475117941458,
+        "z": -108.67615282720007
+      }
+    },
+    {
+      "id": "way/248993656",
+      "name": "Park",
+      "category": "park",
+      "x": 647.4377574808758,
+      "z": 107.78773076924959,
+      "source": "https://www.openstreetmap.org/way/248993656",
+      "accuracy": "Mapped boundary; equipment layout estimated",
+      "furnishingAnchor": {
+        "x": 649.8662497806872,
+        "z": 106.43636200022992
+      }
+    },
+    {
+      "id": "way/248993657",
+      "name": "Park",
+      "category": "park",
+      "x": 1862.6041535007837,
+      "z": -592.6309856295616,
+      "source": "https://www.openstreetmap.org/way/248993657",
+      "accuracy": "Mapped boundary; equipment layout estimated",
+      "furnishingAnchor": {
+        "x": 1903.8212954044113,
+        "z": -607.275662622253
+      }
+    },
+    {
+      "id": "way/248993659",
+      "name": "Parku Ali Demi",
+      "category": "park",
+      "x": 1478.2299855859424,
+      "z": -2.36236942852239,
+      "source": "https://www.openstreetmap.org/way/248993659",
+      "accuracy": "Mapped boundary; equipment layout estimated",
+      "furnishingAnchor": {
+        "x": 1479.4971977417445,
+        "z": -4.203472799972871
+      }
+    },
+    {
+      "id": "way/248993660",
+      "name": "Park",
+      "category": "park",
+      "x": 1401.6402655638437,
+      "z": -368.41725066674326,
+      "source": "https://www.openstreetmap.org/way/248993660",
+      "accuracy": "Mapped boundary; equipment layout estimated",
+      "furnishingAnchor": {
+        "x": 1403.55212726238,
+        "z": -367.37294304686344
+      }
+    },
+    {
+      "id": "way/248993661",
+      "name": "Park",
+      "category": "park",
+      "x": 643.2236699266564,
+      "z": 147.3178520001909,
+      "source": "https://www.openstreetmap.org/way/248993661",
+      "accuracy": "Mapped boundary; equipment layout estimated",
+      "furnishingAnchor": {
+        "x": 641.839519248905,
+        "z": 151.77588480035524
+      }
+    },
+    {
+      "id": "way/255157551",
+      "name": "EIDA",
+      "category": "fuel",
+      "x": -592.0276209249673,
+      "z": 502.9091271111153,
+      "source": "https://www.openstreetmap.org/way/255157551",
+      "accuracy": "Mapped boundary; equipment layout estimated"
+    },
+    {
+      "id": "way/256162006",
+      "name": "Gega Oil",
+      "category": "fuel",
+      "x": 1186.0247771897143,
+      "z": 10.171467428676765,
+      "source": "https://www.openstreetmap.org/way/256162006",
+      "accuracy": "Mapped boundary; equipment layout estimated"
+    },
+    {
+      "id": "way/267654108",
+      "name": "Park",
+      "category": "park",
+      "x": 1673.3647336285462,
+      "z": 2012.1302875088325,
+      "source": "https://www.openstreetmap.org/way/267654108",
+      "accuracy": "Mapped boundary; equipment layout estimated",
+      "furnishingAnchor": {
+        "x": 1670.2620171547424,
+        "z": 2060.62910143222
+      }
+    },
+    {
+      "id": "way/293898199",
+      "name": "Veliaj Petrol",
+      "category": "fuel",
+      "x": 3164.9022401364123,
+      "z": 4621.825107428539,
+      "source": "https://www.openstreetmap.org/way/293898199",
+      "accuracy": "Mapped boundary; equipment layout estimated"
+    },
+    {
+      "id": "way/295491001",
+      "name": "Park",
+      "category": "park",
+      "x": 342.0558622137849,
+      "z": 735.1525091429028,
+      "source": "https://www.openstreetmap.org/way/295491001",
+      "accuracy": "Mapped boundary; equipment layout estimated",
+      "furnishingAnchor": {
+        "x": 341.2182019800008,
+        "z": 735.2365599998094
+      }
+    },
+    {
+      "id": "way/318665797",
+      "name": "Kastrati",
+      "category": "fuel",
+      "x": -1237.8921712380277,
+      "z": -481.9806137142168,
+      "source": "https://www.openstreetmap.org/way/318665797",
+      "accuracy": "Mapped boundary; equipment layout estimated"
+    },
+    {
+      "id": "way/331537933",
+      "name": "Eida",
+      "category": "fuel",
+      "x": -2575.9758777142256,
+      "z": -1287.807010285588,
+      "source": "https://www.openstreetmap.org/way/331537933",
+      "accuracy": "Mapped boundary; equipment layout estimated"
+    },
+    {
+      "id": "way/331538928",
+      "name": "Eida",
+      "category": "fuel",
+      "x": -2595.6494697558255,
+      "z": -1227.85005828573,
+      "source": "https://www.openstreetmap.org/way/331538928",
+      "accuracy": "Mapped boundary; equipment layout estimated"
+    },
+    {
+      "id": "way/331541062",
+      "name": "Kastrati",
+      "category": "fuel",
+      "x": -2462.633583973905,
+      "z": -1170.3962159999173,
+      "source": "https://www.openstreetmap.org/way/331541062",
+      "accuracy": "Mapped boundary; equipment layout estimated"
+    },
+    {
+      "id": "way/358955857",
+      "name": "Park",
+      "category": "park",
+      "x": 1727.7065635628219,
+      "z": 2117.8439304000785,
+      "source": "https://www.openstreetmap.org/way/358955857",
+      "accuracy": "Mapped boundary; equipment layout estimated",
+      "furnishingAnchor": {
+        "x": 1764.731284612666,
+        "z": 2164.6404457173767
+      }
+    },
+    {
+      "id": "way/358955860",
+      "name": "Gega Oil",
+      "category": "fuel",
+      "x": 1695.260791370096,
+      "z": 2242.4825594287227,
+      "source": "https://www.openstreetmap.org/way/358955860",
+      "accuracy": "Mapped boundary; equipment layout estimated"
+    },
+    {
+      "id": "way/379558197",
+      "name": "Parku 1 Kilometër",
+      "category": "park",
+      "x": -2220.979625154253,
+      "z": -609.1841132413471,
+      "source": "https://www.openstreetmap.org/way/379558197",
+      "accuracy": "Mapped boundary; equipment layout estimated",
+      "furnishingAnchor": {
+        "x": -2226.141133202114,
+        "z": -599.0853580451842
+      }
+    },
+    {
+      "id": "way/385032174",
+      "name": "Esp & Oil",
+      "category": "fuel",
+      "x": -3988.084549365359,
+      "z": -2673.1303405713033,
+      "source": "https://www.openstreetmap.org/way/385032174",
+      "accuracy": "Mapped boundary; equipment layout estimated"
+    },
+    {
+      "id": "way/405363901",
+      "name": "Kënd lojërash",
+      "category": "playground",
+      "x": -492.9276763994679,
+      "z": 1742.0661610001264,
+      "source": "https://www.openstreetmap.org/way/405363901",
+      "accuracy": "Mapped boundary; equipment layout estimated",
+      "furnishingAnchor": {
+        "x": -492.80915040418154,
+        "z": 1742.8571000004335
+      }
+    },
+    {
+      "id": "way/418303345",
+      "name": "Kastrati",
+      "category": "fuel",
+      "x": -1818.538344628872,
+      "z": -931.4010816000186,
+      "source": "https://www.openstreetmap.org/way/418303345",
+      "accuracy": "Mapped boundary; equipment layout estimated"
+    },
+    {
+      "id": "way/457037391",
+      "name": "Kastrati",
+      "category": "fuel",
+      "x": 1896.784342628349,
+      "z": 2283.5151114285622,
+      "source": "https://www.openstreetmap.org/way/457037391",
+      "accuracy": "Mapped boundary; equipment layout estimated"
+    },
+    {
+      "id": "way/457445473",
+      "name": "Park",
+      "category": "park",
+      "x": -1051.8012954219241,
+      "z": -1037.0326295998436,
+      "source": "https://www.openstreetmap.org/way/457445473",
+      "accuracy": "Mapped boundary; equipment layout estimated",
+      "furnishingAnchor": {
+        "x": -1052.1195579190276,
+        "z": -1037.6794520000603
+      }
+    },
+    {
+      "id": "way/457446412",
+      "name": "Park",
+      "category": "park",
+      "x": -1073.8370560358028,
+      "z": -1025.5800279998407,
+      "source": "https://www.openstreetmap.org/way/457446412",
+      "accuracy": "Mapped boundary; equipment layout estimated",
+      "furnishingAnchor": {
+        "x": -1074.274336345687,
+        "z": -1024.9108999998296
+      }
+    },
+    {
+      "id": "way/457448799",
+      "name": "Park",
+      "category": "park",
+      "x": -1031.1247968247083,
+      "z": -992.4586173332177,
+      "source": "https://www.openstreetmap.org/way/457448799",
+      "accuracy": "Mapped boundary; equipment layout estimated",
+      "furnishingAnchor": {
+        "x": -1032.0022706008228,
+        "z": -992.2423880002573
+      }
+    },
+    {
+      "id": "way/457450962",
+      "name": "Park",
+      "category": "park",
+      "x": -982.6157504608856,
+      "z": -1088.3719293333888,
+      "source": "https://www.openstreetmap.org/way/457450962",
+      "accuracy": "Mapped boundary; equipment layout estimated",
+      "furnishingAnchor": {
+        "x": -982.281850263031,
+        "z": -1089.0239960001607
+      }
+    },
+    {
+      "id": "way/457753490",
+      "name": "Parku i Institutit Bujqësor",
+      "category": "park",
+      "x": -4155.721356405138,
+      "z": -3696.335932849949,
+      "source": "https://www.openstreetmap.org/way/457753490",
+      "accuracy": "Mapped boundary; equipment layout estimated",
+      "furnishingAnchor": {
+        "x": -4149.5549768840765,
+        "z": -3689.33667106669
+      }
+    },
+    {
+      "id": "way/457888631",
+      "name": "Çerdhja Nr. 62",
+      "category": "park",
+      "x": 3850.4259315213344,
+      "z": -495.6362204443548,
+      "source": "https://www.openstreetmap.org/way/457888631",
+      "accuracy": "Mapped boundary; equipment layout estimated"
+    },
+    {
+      "id": "way/458265875",
+      "name": "Park",
+      "category": "park",
+      "x": -3530.4034833823803,
+      "z": -1740.5725688419877,
+      "source": "https://www.openstreetmap.org/way/458265875",
+      "accuracy": "Mapped boundary; equipment layout estimated",
+      "furnishingAnchor": {
+        "x": -3528.5008416265346,
+        "z": -1740.6389506115513
+      }
+    },
+    {
+      "id": "way/458307653",
+      "name": "Park",
+      "category": "park",
+      "x": -2978.0231189380384,
+      "z": -182.74680819988222,
+      "source": "https://www.openstreetmap.org/way/458307653",
+      "accuracy": "Mapped boundary; equipment layout estimated",
+      "furnishingAnchor": {
+        "x": -2977.3812876921243,
+        "z": -182.79751199985583
+      }
+    },
+    {
+      "id": "way/458516480",
+      "name": "Sheshi Frederik Shopen",
+      "category": "park",
+      "x": 56.990153078362866,
+      "z": 1182.0472455000759,
+      "source": "https://www.openstreetmap.org/way/458516480",
+      "accuracy": "Mapped boundary; equipment layout estimated",
+      "furnishingAnchor": {
+        "x": 57.24230510159294,
+        "z": 1181.4143440004088
+      }
+    },
+    {
+      "id": "way/458516534",
+      "name": "Park",
+      "category": "park",
+      "x": 250.89404053853016,
+      "z": 1223.0230734117968,
+      "source": "https://www.openstreetmap.org/way/458516534",
+      "accuracy": "Mapped boundary; equipment layout estimated",
+      "furnishingAnchor": {
+        "x": 250.07822036159936,
+        "z": 1223.8865359999334
+      }
+    },
+    {
+      "id": "way/458516545",
+      "name": "Park",
+      "category": "park",
+      "x": 284.04420259218557,
+      "z": 1090.5050325715335,
+      "source": "https://www.openstreetmap.org/way/458516545",
+      "accuracy": "Mapped boundary; equipment layout estimated",
+      "furnishingAnchor": {
+        "x": 284.5988345853052,
+        "z": 1089.6645479997044
+      }
+    },
+    {
+      "id": "way/458689213",
+      "name": "Park",
+      "category": "park",
+      "x": -479.6640043289945,
+      "z": 354.8926128000634,
+      "source": "https://www.openstreetmap.org/way/458689213",
+      "accuracy": "Mapped boundary; equipment layout estimated",
+      "furnishingAnchor": {
+        "x": -479.3067310274899,
+        "z": 354.9521039998793
+      }
+    },
+    {
+      "id": "way/458689214",
+      "name": "Park",
+      "category": "park",
+      "x": -475.29530611319404,
+      "z": 381.55597920016766,
+      "source": "https://www.openstreetmap.org/way/458689214",
+      "accuracy": "Mapped boundary; equipment layout estimated",
+      "furnishingAnchor": {
+        "x": -475.06628840538855,
+        "z": 381.4319640000807
+      }
+    },
+    {
+      "id": "way/458689215",
+      "name": "Park",
+      "category": "park",
+      "x": -470.1040286696943,
+      "z": 400.9813192001639,
+      "source": "https://www.openstreetmap.org/way/458689215",
+      "accuracy": "Mapped boundary; equipment layout estimated",
+      "furnishingAnchor": {
+        "x": -470.39959355115985,
+        "z": 401.66979200036036
+      }
+    },
+    {
+      "id": "way/459076213",
+      "name": "Park",
+      "category": "park",
+      "x": 319.5651035079797,
+      "z": 770.7717285715573,
+      "source": "https://www.openstreetmap.org/way/459076213",
+      "accuracy": "Mapped boundary; equipment layout estimated",
+      "furnishingAnchor": {
+        "x": 319.87206154703676,
+        "z": 770.057456000168
+      }
+    },
+    {
+      "id": "way/459076215",
+      "name": "Park",
+      "category": "park",
+      "x": 327.5421721805588,
+      "z": 740.8042400000201,
+      "source": "https://www.openstreetmap.org/way/459076215",
+      "accuracy": "Mapped boundary; equipment layout estimated",
+      "furnishingAnchor": {
+        "x": 326.858487856704,
+        "z": 739.9824039998247
+      }
+    },
+    {
+      "id": "way/459076218",
+      "name": "Park",
+      "category": "park",
+      "x": 342.01499332709056,
+      "z": 768.0572875555898,
+      "source": "https://www.openstreetmap.org/way/459076218",
+      "accuracy": "Mapped boundary; equipment layout estimated",
+      "furnishingAnchor": {
+        "x": 343.49605114757355,
+        "z": 766.6027759997022
+      }
+    },
+    {
+      "id": "way/459076226",
+      "name": "Park",
+      "category": "park",
+      "x": 313.7119889447202,
+      "z": 614.8359447999634,
+      "source": "https://www.openstreetmap.org/way/459076226",
+      "accuracy": "Mapped boundary; equipment layout estimated",
+      "furnishingAnchor": {
+        "x": 313.62541268820274,
+        "z": 615.2669960002341
+      }
+    },
+    {
+      "id": "way/459076228",
+      "name": "Park",
+      "category": "park",
+      "x": 278.29142026114476,
+      "z": 595.8106146666972,
+      "source": "https://www.openstreetmap.org/way/459076228",
+      "accuracy": "Mapped boundary; equipment layout estimated",
+      "furnishingAnchor": {
+        "x": 273.3989180035788,
+        "z": 590.9154736001719
+      }
+    },
+    {
+      "id": "way/459076233",
+      "name": "Park",
+      "category": "park",
+      "x": 168.94974822047686,
+      "z": 671.0748088000332,
+      "source": "https://www.openstreetmap.org/way/459076233",
+      "accuracy": "Mapped boundary; equipment layout estimated",
+      "furnishingAnchor": {
+        "x": 169.48798453055994,
+        "z": 671.5130840000766
+      }
+    },
+    {
+      "id": "way/460065222",
+      "name": "Kastrati",
+      "category": "fuel",
+      "x": -2541.7256276382004,
+      "z": 733.7610091430261,
+      "source": "https://www.openstreetmap.org/way/460065222",
+      "accuracy": "Mapped boundary; equipment layout estimated"
+    },
+    {
+      "id": "way/460065250",
+      "name": "Braka Oil",
+      "category": "fuel",
+      "x": -2703.5580592476467,
+      "z": 787.9945228572919,
+      "source": "https://www.openstreetmap.org/way/460065250",
+      "accuracy": "Mapped boundary; equipment layout estimated"
+    },
+    {
+      "id": "way/460183551",
+      "name": "Bolv-Oil",
+      "category": "fuel",
+      "x": -5118.552984721494,
+      "z": 2250.6693502857156,
+      "source": "https://www.openstreetmap.org/way/460183551",
+      "accuracy": "Mapped boundary; equipment layout estimated"
+    },
+    {
+      "id": "way/461850139",
+      "name": "Park",
+      "category": "park",
+      "x": -1361.9036328366897,
+      "z": -1313.5277613332676,
+      "source": "https://www.openstreetmap.org/way/461850139",
+      "accuracy": "Mapped boundary; equipment layout estimated",
+      "furnishingAnchor": {
+        "x": -1362.5846150237505,
+        "z": -1314.0832520001525
+      }
+    },
+    {
+      "id": "way/461850141",
+      "name": "Park",
+      "category": "park",
+      "x": -1379.0666146713002,
+      "z": -1309.8879683998744,
+      "source": "https://www.openstreetmap.org/way/461850141",
+      "accuracy": "Mapped boundary; equipment layout estimated",
+      "furnishingAnchor": {
+        "x": -1378.774984938857,
+        "z": -1309.8455719995943
+      }
+    },
+    {
+      "id": "way/461850144",
+      "name": "Park",
+      "category": "park",
+      "x": -1324.51138806225,
+      "z": -1250.3598457777262,
+      "source": "https://www.openstreetmap.org/way/461850144",
+      "accuracy": "Mapped boundary; equipment layout estimated",
+      "furnishingAnchor": {
+        "x": -1324.6825225672858,
+        "z": -1251.628971999943
+      }
+    },
+    {
+      "id": "way/461850149",
+      "name": "Park",
+      "category": "park",
+      "x": -1360.2939560054417,
+      "z": -1247.5558186666285,
+      "source": "https://www.openstreetmap.org/way/461850149",
+      "accuracy": "Mapped boundary; equipment layout estimated",
+      "furnishingAnchor": {
+        "x": -1360.08304232397,
+        "z": -1248.0999800001136
+      }
+    },
+    {
+      "id": "way/461850151",
+      "name": "Park",
+      "category": "park",
+      "x": -1346.9376588494506,
+      "z": -1288.1807274285181,
+      "source": "https://www.openstreetmap.org/way/461850151",
+      "accuracy": "Mapped boundary; equipment layout estimated",
+      "furnishingAnchor": {
+        "x": -1347.090240652198,
+        "z": -1288.223616000107
+      }
+    },
+    {
+      "id": "way/461850153",
+      "name": "Park",
+      "category": "park",
+      "x": -1365.744379343881,
+      "z": -1278.9901128889182,
+      "source": "https://www.openstreetmap.org/way/461850153",
+      "accuracy": "Mapped boundary; equipment layout estimated",
+      "furnishingAnchor": {
+        "x": -1365.1384983021685,
+        "z": -1279.8261799999013
+      }
+    },
+    {
+      "id": "way/461850156",
+      "name": "Park",
+      "category": "park",
+      "x": -1344.9707773335435,
+      "z": -1241.3468131428915,
+      "source": "https://www.openstreetmap.org/way/461850156",
+      "accuracy": "Mapped boundary; equipment layout estimated",
+      "furnishingAnchor": {
+        "x": -1346.1246709234806,
+        "z": -1240.7343559998976
+      }
+    },
+    {
+      "id": "way/461850170",
+      "name": "Park",
+      "category": "park",
+      "x": -1354.437862524987,
+      "z": -1184.28524133323,
+      "source": "https://www.openstreetmap.org/way/461850170",
+      "accuracy": "Mapped boundary; equipment layout estimated",
+      "furnishingAnchor": {
+        "x": -1353.993156074489,
+        "z": -1184.0763839999877
+      }
+    },
+    {
+      "id": "way/461850173",
+      "name": "Park",
+      "category": "park",
+      "x": -1332.2780484068903,
+      "z": -1197.4555390769806,
+      "source": "https://www.openstreetmap.org/way/461850173",
+      "accuracy": "Mapped boundary; equipment layout estimated",
+      "furnishingAnchor": {
+        "x": -1333.1674607398586,
+        "z": -1197.6351600002415
+      }
+    },
+    {
+      "id": "way/461850175",
+      "name": "Park",
+      "category": "park",
+      "x": -1306.5188607122172,
+      "z": -1203.5261081903882,
+      "source": "https://www.openstreetmap.org/way/461850175",
+      "accuracy": "Mapped boundary; equipment layout estimated",
+      "furnishingAnchor": {
+        "x": -1305.7460844019276,
+        "z": -1203.5797959998251
+      }
+    },
+    {
+      "id": "way/462228070",
+      "name": "Park",
+      "category": "park",
+      "x": 1632.3142136849024,
+      "z": -1568.261847428552,
+      "source": "https://www.openstreetmap.org/way/462228070",
+      "accuracy": "Mapped boundary; equipment layout estimated",
+      "furnishingAnchor": {
+        "x": 1632.3578895750113,
+        "z": -1567.5300696593104
+      }
+    },
+    {
+      "id": "way/462228071",
+      "name": "Park",
+      "category": "park",
+      "x": 1576.822518999281,
+      "z": -1540.5619327999855,
+      "source": "https://www.openstreetmap.org/way/462228071",
+      "accuracy": "Mapped boundary; equipment layout estimated",
+      "furnishingAnchor": {
+        "x": 1570.591592606609,
+        "z": -1549.8257639998121
+      }
+    },
+    {
+      "id": "way/462228072",
+      "name": "Park",
+      "category": "park",
+      "x": 1677.4369094196463,
+      "z": -1528.96307384607,
+      "source": "https://www.openstreetmap.org/way/462228072",
+      "accuracy": "Mapped boundary; equipment layout estimated"
+    },
+    {
+      "id": "way/462228073",
+      "name": "Park",
+      "category": "park",
+      "x": 1605.8554576202307,
+      "z": -1480.6625491426291,
+      "source": "https://www.openstreetmap.org/way/462228073",
+      "accuracy": "Mapped boundary; equipment layout estimated",
+      "furnishingAnchor": {
+        "x": 1604.9409630021166,
+        "z": -1479.7498239995582
+      }
+    },
+    {
+      "id": "way/462228074",
+      "name": "Park",
+      "category": "park",
+      "x": 1676.3353786057596,
+      "z": -1699.7089009999704,
+      "source": "https://www.openstreetmap.org/way/462228074",
+      "accuracy": "Mapped boundary; equipment layout estimated",
+      "furnishingAnchor": {
+        "x": 1673.6037750876778,
+        "z": -1697.539489333469
+      }
+    },
+    {
+      "id": "way/462228075",
+      "name": "Park",
+      "category": "park",
+      "x": 1826.2863889099779,
+      "z": -1606.1539032001228,
+      "source": "https://www.openstreetmap.org/way/462228075",
+      "accuracy": "Mapped boundary; equipment layout estimated",
+      "furnishingAnchor": {
+        "x": 1826.1931250175028,
+        "z": -1604.9473720002406
+      }
+    },
+    {
+      "id": "way/462228076",
+      "name": "Park",
+      "category": "park",
+      "x": 1835.500279406429,
+      "z": -1592.1609791998576,
+      "source": "https://www.openstreetmap.org/way/462228076",
+      "accuracy": "Mapped boundary; equipment layout estimated",
+      "furnishingAnchor": {
+        "x": 1835.4137031498526,
+        "z": -1590.9544479996591
+      }
+    },
+    {
+      "id": "way/462228077",
+      "name": "Park",
+      "category": "park",
+      "x": 1800.724572216346,
+      "z": -1610.5532695998045,
+      "source": "https://www.openstreetmap.org/way/462228077",
+      "accuracy": "Mapped boundary; equipment layout estimated",
+      "furnishingAnchor": {
+        "x": 1799.743440082336,
+        "z": -1610.2612440000055
+      }
+    },
+    {
+      "id": "way/462228078",
+      "name": "Park",
+      "category": "park",
+      "x": 1760.1523565246907,
+      "z": -1584.9496695997452,
+      "source": "https://www.openstreetmap.org/way/462228078",
+      "accuracy": "Mapped boundary; equipment layout estimated",
+      "furnishingAnchor": {
+        "x": 1759.494299664098,
+        "z": -1584.0936719999595
+      }
+    },
+    {
+      "id": "way/462228079",
+      "name": "Park",
+      "category": "park",
+      "x": 1742.8297073805015,
+      "z": -1554.6884407998343,
+      "source": "https://www.openstreetmap.org/way/462228079",
+      "accuracy": "Mapped boundary; equipment layout estimated",
+      "furnishingAnchor": {
+        "x": 1742.4345370694714,
+        "z": -1555.1172239995954
+      }
+    },
+    {
+      "id": "way/462228080",
+      "name": "Park",
+      "category": "park",
+      "x": 1612.4552188774344,
+      "z": -1926.8582886666766,
+      "source": "https://www.openstreetmap.org/way/462228080",
+      "accuracy": "Mapped boundary; equipment layout estimated",
+      "furnishingAnchor": {
+        "x": 1611.7643565358858,
+        "z": -1926.0698016000072
+      }
+    },
+    {
+      "id": "way/462228081",
+      "name": "Park",
+      "category": "park",
+      "x": 1489.2495975128836,
+      "z": -1798.5504856000591,
+      "source": "https://www.openstreetmap.org/way/462228081",
+      "accuracy": "Mapped boundary; equipment layout estimated",
+      "furnishingAnchor": {
+        "x": 1488.2981629043816,
+        "z": -1798.0358200001897
+      }
+    },
+    {
+      "id": "way/462228082",
+      "name": "Park",
+      "category": "park",
+      "x": 1464.518333766701,
+      "z": -1780.4597867691684,
+      "source": "https://www.openstreetmap.org/way/462228082",
+      "accuracy": "Mapped boundary; equipment layout estimated"
+    },
+    {
+      "id": "way/462228083",
+      "name": "Park",
+      "category": "park",
+      "x": 1450.9031703879843,
+      "z": -1775.9337602284702,
+      "source": "https://www.openstreetmap.org/way/462228083",
+      "accuracy": "Mapped boundary; equipment layout estimated",
+      "furnishingAnchor": {
+        "x": 1445.8637720767906,
+        "z": -1780.0402255999445
+      }
+    },
+    {
+      "id": "way/462228084",
+      "name": "Park",
+      "category": "park",
+      "x": 1490.4383248115419,
+      "z": -1665.3412629333898,
+      "source": "https://www.openstreetmap.org/way/462228084",
+      "accuracy": "Mapped boundary; equipment layout estimated",
+      "furnishingAnchor": {
+        "x": 1479.1336906737279,
+        "z": -1668.6074213334825
+      }
+    },
+    {
+      "id": "way/462228085",
+      "name": "Park",
+      "category": "park",
+      "x": 1619.426256117027,
+      "z": -1663.918255999856,
+      "source": "https://www.openstreetmap.org/way/462228085",
+      "accuracy": "Mapped boundary; equipment layout estimated",
+      "furnishingAnchor": {
+        "x": 1620.5106578416191,
+        "z": -1662.6892040000344
+      }
+    },
+    {
+      "id": "way/462228086",
+      "name": "Park",
+      "category": "park",
+      "x": 1554.0454947317414,
+      "z": -1623.2075199998424,
+      "source": "https://www.openstreetmap.org/way/462228086",
+      "accuracy": "Mapped boundary; equipment layout estimated",
+      "furnishingAnchor": {
+        "x": 1552.4200950900558,
+        "z": -1622.3170519995865
+      }
+    },
+    {
+      "id": "way/462228087",
+      "name": "Park",
+      "category": "park",
+      "x": 1568.1450073081933,
+      "z": -1745.0796439999353,
+      "source": "https://www.openstreetmap.org/way/462228087",
+      "accuracy": "Mapped boundary; equipment layout estimated",
+      "furnishingAnchor": {
+        "x": 1569.295863131978,
+        "z": -1746.4498359998443
+      }
+    },
+    {
+      "id": "way/462228088",
+      "name": "Park",
+      "category": "park",
+      "x": 1502.9549955406774,
+      "z": -1704.4701079998822,
+      "source": "https://www.openstreetmap.org/way/462228088",
+      "accuracy": "Mapped boundary; equipment layout estimated",
+      "furnishingAnchor": {
+        "x": 1501.6233621934125,
+        "z": -1706.1817799999756
+      }
+    },
+    {
+      "id": "way/462228089",
+      "name": "Park",
+      "category": "park",
+      "x": 1548.9096399858345,
+      "z": -1857.6397777142215,
+      "source": "https://www.openstreetmap.org/way/462228089",
+      "accuracy": "Mapped boundary; equipment layout estimated",
+      "furnishingAnchor": {
+        "x": 1548.2082424328073,
+        "z": -1855.705913866905
+      }
+    },
+    {
+      "id": "way/462228091",
+      "name": "Park",
+      "category": "park",
+      "x": 1487.196493261479,
+      "z": -1730.3147888888252,
+      "source": "https://www.openstreetmap.org/way/462228091",
+      "accuracy": "Mapped boundary; equipment layout estimated",
+      "furnishingAnchor": {
+        "x": 1483.756861225098,
+        "z": -1728.7874079997575
+      }
+    },
+    {
+      "id": "way/462228092",
+      "name": "Park",
+      "category": "park",
+      "x": 1550.8256344302476,
+      "z": -1771.5353479998516,
+      "source": "https://www.openstreetmap.org/way/462228092",
+      "accuracy": "Mapped boundary; equipment layout estimated"
+    },
+    {
+      "id": "way/462228093",
+      "name": "Park",
+      "category": "park",
+      "x": 1574.4302744376687,
+      "z": -1798.5338732307923,
+      "source": "https://www.openstreetmap.org/way/462228093",
+      "accuracy": "Mapped boundary; equipment layout estimated",
+      "furnishingAnchor": {
+        "x": 1575.9834991301395,
+        "z": -1796.2476239997313
+      }
+    },
+    {
+      "id": "way/462228094",
+      "name": "Park",
+      "category": "park",
+      "x": 1634.4178334725107,
+      "z": -1727.6669189998854,
+      "source": "https://www.openstreetmap.org/way/462228094",
+      "accuracy": "Mapped boundary; equipment layout estimated",
+      "furnishingAnchor": {
+        "x": 1634.8276472591274,
+        "z": -1724.8885869330966
+      }
+    },
+    {
+      "id": "way/462228095",
+      "name": "Park",
+      "category": "park",
+      "x": 1607.1285632468466,
+      "z": -1838.5605015555154,
+      "source": "https://www.openstreetmap.org/way/462228095",
+      "accuracy": "Mapped boundary; equipment layout estimated",
+      "furnishingAnchor": {
+        "x": 1604.9267889802345,
+        "z": -1838.9819392001184
+      }
+    },
+    {
+      "id": "way/462228096",
+      "name": "Park",
+      "category": "park",
+      "x": 1666.7845984458997,
+      "z": -1858.6237669999186,
+      "source": "https://www.openstreetmap.org/way/462228096",
+      "accuracy": "Mapped boundary; equipment layout estimated",
+      "furnishingAnchor": {
+        "x": 1666.2381712929252,
+        "z": -1859.22177053321
+      }
+    },
+    {
+      "id": "way/462228097",
+      "name": "Park",
+      "category": "park",
+      "x": 1746.9538291940864,
+      "z": -1756.0380137142051,
+      "source": "https://www.openstreetmap.org/way/462228097",
+      "accuracy": "Mapped boundary; equipment layout estimated"
+    },
+    {
+      "id": "way/462228099",
+      "name": "Park",
+      "category": "park",
+      "x": 1786.2976694593247,
+      "z": -1699.0615751998405,
+      "source": "https://www.openstreetmap.org/way/462228099",
+      "accuracy": "Mapped boundary; equipment layout estimated",
+      "furnishingAnchor": {
+        "x": 1786.1132442450662,
+        "z": -1699.6584279996766
+      }
+    },
+    {
+      "id": "way/462618121",
+      "name": "Park",
+      "category": "park",
+      "x": 1437.4563048599018,
+      "z": -1388.4621567142997,
+      "source": "https://www.openstreetmap.org/way/462618121",
+      "accuracy": "Mapped boundary; equipment layout estimated",
+      "furnishingAnchor": {
+        "x": 1436.73235186758,
+        "z": -1387.8993960001005
+      }
+    },
+    {
+      "id": "way/462618123",
+      "name": "Park",
+      "category": "park",
+      "x": 1432.201136608231,
+      "z": -1345.296633999924,
+      "source": "https://www.openstreetmap.org/way/462618123",
+      "accuracy": "Mapped boundary; equipment layout estimated",
+      "furnishingAnchor": {
+        "x": 1431.8628746250765,
+        "z": -1345.241571999912
+      }
+    },
+    {
+      "id": "way/462618124",
+      "name": "Park",
+      "category": "park",
+      "x": 1245.8675752393665,
+      "z": -1580.0327888888462,
+      "source": "https://www.openstreetmap.org/way/462618124",
+      "accuracy": "Mapped boundary; equipment layout estimated",
+      "furnishingAnchor": {
+        "x": 1246.740750652402,
+        "z": -1579.0693800001345
+      }
+    },
+    {
+      "id": "way/462618125",
+      "name": "Park",
+      "category": "park",
+      "x": 1230.1421564928246,
+      "z": -1552.6145491998027,
+      "source": "https://www.openstreetmap.org/way/462618125",
+      "accuracy": "Mapped boundary; equipment layout estimated",
+      "furnishingAnchor": {
+        "x": 1230.6402565299422,
+        "z": -1553.076927866464
+      }
+    },
+    {
+      "id": "way/462618129",
+      "name": "Park",
+      "category": "park",
+      "x": 1308.7569895597173,
+      "z": -1522.3878295998202,
+      "source": "https://www.openstreetmap.org/way/462618129",
+      "accuracy": "Mapped boundary; equipment layout estimated",
+      "furnishingAnchor": {
+        "x": 1308.1040329889868,
+        "z": -1522.206975999544
+      }
+    },
+    {
+      "id": "way/462618130",
+      "name": "Park",
+      "category": "park",
+      "x": 1265.3891031767473,
+      "z": -1544.3868880000393,
+      "source": "https://www.openstreetmap.org/way/462618130",
+      "accuracy": "Mapped boundary; equipment layout estimated",
+      "furnishingAnchor": {
+        "x": 1264.7347135410412,
+        "z": -1545.3504040002776
+      }
+    },
+    {
+      "id": "way/462618135",
+      "name": "Park",
+      "category": "park",
+      "x": 931.3891553441773,
+      "z": -1420.300710399849,
+      "source": "https://www.openstreetmap.org/way/462618135",
+      "accuracy": "Mapped boundary; equipment layout estimated",
+      "furnishingAnchor": {
+        "x": 931.3598842522631,
+        "z": -1420.7352268347568
+      }
+    },
+    {
+      "id": "way/462618136",
+      "name": "Park",
+      "category": "park",
+      "x": 939.7627324351797,
+      "z": -1377.7233548569757,
+      "source": "https://www.openstreetmap.org/way/462618136",
+      "accuracy": "Mapped boundary; equipment layout estimated",
+      "furnishingAnchor": {
+        "x": 939.893138660442,
+        "z": -1378.5634079997967
+      }
+    },
+    {
+      "id": "way/462618156",
+      "name": "Park",
+      "category": "park",
+      "x": 1058.410351697155,
+      "z": -1363.5998683999176,
+      "source": "https://www.openstreetmap.org/way/462618156",
+      "accuracy": "Mapped boundary; equipment layout estimated",
+      "furnishingAnchor": {
+        "x": 1057.83183735818,
+        "z": -1364.3995960002285
+      }
+    },
+    {
+      "id": "way/462618228",
+      "name": "Park",
+      "category": "park",
+      "x": 975.2710421107661,
+      "z": -1312.2411279999442,
+      "source": "https://www.openstreetmap.org/way/462618228",
+      "accuracy": "Mapped boundary; equipment layout estimated",
+      "furnishingAnchor": {
+        "x": 969.4677060785599,
+        "z": -1311.0406824967258
+      }
+    },
+    {
+      "id": "way/463076458",
+      "name": "Park",
+      "category": "park",
+      "x": -1097.7119165490344,
+      "z": -1373.3169911999678,
+      "source": "https://www.openstreetmap.org/way/463076458",
+      "accuracy": "Mapped boundary; equipment layout estimated",
+      "furnishingAnchor": {
+        "x": -1097.0624560091767,
+        "z": -1373.531595999807
+      }
+    },
+    {
+      "id": "way/463102791",
+      "name": "Park",
+      "category": "park",
+      "x": -4062.0149322597395,
+      "z": -3910.199603199964,
+      "source": "https://www.openstreetmap.org/way/463102791",
+      "accuracy": "Mapped boundary; equipment layout estimated",
+      "furnishingAnchor": {
+        "x": -4061.6560716120803,
+        "z": -3909.731692000008
+      }
+    },
+    {
+      "id": "way/463102792",
+      "name": "Park",
+      "category": "park",
+      "x": -4050.4637129818952,
+      "z": -3877.6229184000454,
+      "source": "https://www.openstreetmap.org/way/463102792",
+      "accuracy": "Mapped boundary; equipment layout estimated",
+      "furnishingAnchor": {
+        "x": -4049.950555306861,
+        "z": -3876.8217400001904
+      }
+    },
+    {
+      "id": "way/463249165",
+      "name": "Gega Oil",
+      "category": "fuel",
+      "x": 2355.8081526699048,
+      "z": -3190.3453245713404,
+      "source": "https://www.openstreetmap.org/way/463249165",
+      "accuracy": "Mapped boundary; equipment layout estimated"
+    },
+    {
+      "id": "way/463437116",
+      "name": "Kastrati",
+      "category": "fuel",
+      "x": 1059.4361872904121,
+      "z": -2575.771458857148,
+      "source": "https://www.openstreetmap.org/way/463437116",
+      "accuracy": "Mapped boundary; equipment layout estimated"
+    },
+    {
+      "id": "way/463677541",
+      "name": "Park",
+      "category": "park",
+      "x": 2276.221827337575,
+      "z": -1868.0087753683767,
+      "source": "https://www.openstreetmap.org/way/463677541",
+      "accuracy": "Mapped boundary; equipment layout estimated",
+      "furnishingAnchor": {
+        "x": 2274.9607259126046,
+        "z": -1869.6995799997467
+      }
+    },
+    {
+      "id": "way/464136225",
+      "name": "Mend Oil",
+      "category": "fuel",
+      "x": -1411.4673751277155,
+      "z": -1643.3971223999974,
+      "source": "https://www.openstreetmap.org/way/464136225",
+      "accuracy": "Mapped boundary; equipment layout estimated"
+    },
+    {
+      "id": "way/464163875",
+      "name": "ESP & Oil",
+      "category": "fuel",
+      "x": -454.15039434465,
+      "z": -103.34206666664335,
+      "source": "https://www.openstreetmap.org/way/464163875",
+      "accuracy": "Mapped boundary; equipment layout estimated"
+    },
+    {
+      "id": "way/464176792",
+      "name": "Park",
+      "category": "park",
+      "x": 1661.9639274972787,
+      "z": 2146.311444444536,
+      "source": "https://www.openstreetmap.org/way/464176792",
+      "accuracy": "Mapped boundary; equipment layout estimated",
+      "furnishingAnchor": {
+        "x": 1662.1566023250332,
+        "z": 2144.6442072707296
+      }
+    },
+    {
+      "id": "way/464179287",
+      "name": "Park",
+      "category": "park",
+      "x": 1769.3886891841735,
+      "z": 2133.0907196923513,
+      "source": "https://www.openstreetmap.org/way/464179287",
+      "accuracy": "Mapped boundary; equipment layout estimated",
+      "furnishingAnchor": {
+        "x": 1770.0685754421897,
+        "z": 2137.6892960738687
+      }
+    },
+    {
+      "id": "way/464183921",
+      "name": "Park",
+      "category": "park",
+      "x": -1792.495436120493,
+      "z": -288.5014957646498,
+      "source": "https://www.openstreetmap.org/way/464183921",
+      "accuracy": "Mapped boundary; equipment layout estimated"
+    },
+    {
+      "id": "way/464189937",
+      "name": "Kënd Lojrash",
+      "category": "playground",
+      "x": -1857.8127409595281,
+      "z": -360.71205133340567,
+      "source": "https://www.openstreetmap.org/way/464189937",
+      "accuracy": "Mapped boundary; equipment layout estimated",
+      "furnishingAnchor": {
+        "x": -1859.0764657297532,
+        "z": -361.44336400032546
+      }
+    },
+    {
+      "id": "way/464282339",
+      "name": "Park",
+      "category": "park",
+      "x": 2026.6522626081673,
+      "z": 2512.629164571414,
+      "source": "https://www.openstreetmap.org/way/464282339",
+      "accuracy": "Mapped boundary; equipment layout estimated",
+      "furnishingAnchor": {
+        "x": 2027.423838512543,
+        "z": 2513.52091999995
+      }
+    },
+    {
+      "id": "way/464285484",
+      "name": "Park",
+      "category": "park",
+      "x": 2035.6578810121246,
+      "z": 2550.248963428629,
+      "source": "https://www.openstreetmap.org/way/464285484",
+      "accuracy": "Mapped boundary; equipment layout estimated",
+      "furnishingAnchor": {
+        "x": 2034.8429769794252,
+        "z": 2549.488707999704
+      }
+    },
+    {
+      "id": "way/464506662",
+      "name": "Park",
+      "category": "park",
+      "x": 1863.8596775447277,
+      "z": -657.460690857089,
+      "source": "https://www.openstreetmap.org/way/464506662",
+      "accuracy": "Mapped boundary; equipment layout estimated",
+      "furnishingAnchor": {
+        "x": 1863.296754082689,
+        "z": -657.161816000239
+      }
+    },
+    {
+      "id": "way/464712558",
+      "name": "Park",
+      "category": "park",
+      "x": -3398.3021695354223,
+      "z": -1893.8315000001444,
+      "source": "https://www.openstreetmap.org/way/464712558",
+      "accuracy": "Mapped boundary; equipment layout estimated",
+      "furnishingAnchor": {
+        "x": -3399.193415419951,
+        "z": -1893.5929080000208
+      }
+    },
+    {
+      "id": "way/464712559",
+      "name": "Park",
+      "category": "park",
+      "x": -3422.7989801966783,
+      "z": -1858.7478887998793,
+      "source": "https://www.openstreetmap.org/way/464712559",
+      "accuracy": "Mapped boundary; equipment layout estimated",
+      "furnishingAnchor": {
+        "x": -3423.686882263288,
+        "z": -1858.5048439997038
+      }
+    },
+    {
+      "id": "way/464712560",
+      "name": "Park",
+      "category": "park",
+      "x": -3415.790337670539,
+      "z": -1811.0472687997674,
+      "source": "https://www.openstreetmap.org/way/464712560",
+      "accuracy": "Mapped boundary; equipment layout estimated",
+      "furnishingAnchor": {
+        "x": -3414.4537225318045,
+        "z": -1811.0971199995795
+      }
+    },
+    {
+      "id": "way/464712561",
+      "name": "Park",
+      "category": "park",
+      "x": -3424.5592615289825,
+      "z": -1773.672691999951,
+      "source": "https://www.openstreetmap.org/way/464712561",
+      "accuracy": "Mapped boundary; equipment layout estimated",
+      "furnishingAnchor": {
+        "x": -3426.1341602020343,
+        "z": -1779.4119840000683
+      }
+    },
+    {
+      "id": "way/464712562",
+      "name": "Park",
+      "category": "park",
+      "x": -3451.7250957747046,
+      "z": -1777.2210170000176,
+      "source": "https://www.openstreetmap.org/way/464712562",
+      "accuracy": "Mapped boundary; equipment layout estimated",
+      "furnishingAnchor": {
+        "x": -3451.2670899559516,
+        "z": -1777.6752439998272
+      }
+    },
+    {
+      "id": "way/464712563",
+      "name": "Park",
+      "category": "park",
+      "x": -3453.9282538588477,
+      "z": -1808.206827679921,
+      "source": "https://www.openstreetmap.org/way/464712563",
+      "accuracy": "Mapped boundary; equipment layout estimated",
+      "furnishingAnchor": {
+        "x": -3453.2670899559516,
+        "z": -1809.1419439995427
+      }
+    },
+    {
+      "id": "way/464712565",
+      "name": "Park",
+      "category": "park",
+      "x": -3442.255821178701,
+      "z": -1759.6101929999686,
+      "source": "https://www.openstreetmap.org/way/464712565",
+      "accuracy": "Mapped boundary; equipment layout estimated",
+      "furnishingAnchor": {
+        "x": -3442.117610237513,
+        "z": -1759.0070279996978
+      }
+    },
+    {
+      "id": "way/464712567",
+      "name": "Park",
+      "category": "park",
+      "x": -3355.0582432626597,
+      "z": -1775.605207199901,
+      "source": "https://www.openstreetmap.org/way/464712567",
+      "accuracy": "Mapped boundary; equipment layout estimated",
+      "furnishingAnchor": {
+        "x": -3354.2169945873293,
+        "z": -1775.7384239998512
+      }
+    },
+    {
+      "id": "way/464712568",
+      "name": "Park",
+      "category": "park",
+      "x": -3303.8225919720685,
+      "z": -1824.7173647998982,
+      "source": "https://www.openstreetmap.org/way/464712568",
+      "accuracy": "Mapped boundary; equipment layout estimated",
+      "furnishingAnchor": {
+        "x": -3304.707547057238,
+        "z": -1825.3833839997876
+      }
+    },
+    {
+      "id": "way/464712569",
+      "name": "Park",
+      "category": "park",
+      "x": -3294.059200717924,
+      "z": -1852.3147060000804,
+      "source": "https://www.openstreetmap.org/way/464712569",
+      "accuracy": "Mapped boundary; equipment layout estimated",
+      "furnishingAnchor": {
+        "x": -3293.489122233251,
+        "z": -1852.5233480002773
+      }
+    },
+    {
+      "id": "way/464712570",
+      "name": "Park",
+      "category": "park",
+      "x": -3265.040990818986,
+      "z": -1890.5898615999918,
+      "source": "https://www.openstreetmap.org/way/464712570",
+      "accuracy": "Mapped boundary; equipment layout estimated",
+      "furnishingAnchor": {
+        "x": -3264.682130171208,
+        "z": -1890.9698120000883
+      }
+    },
+    {
+      "id": "way/464712571",
+      "name": "Park",
+      "category": "park",
+      "x": -3300.8083933655216,
+      "z": -1950.1992253332985,
+      "source": "https://www.openstreetmap.org/way/464712571",
+      "accuracy": "Mapped boundary; equipment layout estimated",
+      "furnishingAnchor": {
+        "x": -3298.956095536177,
+        "z": -1951.6126338557294
+      }
+    },
+    {
+      "id": "way/464821228",
+      "name": "Gega Oil",
+      "category": "fuel",
+      "x": 2748.274459660887,
+      "z": 3460.285192571358,
+      "source": "https://www.openstreetmap.org/way/464821228",
+      "accuracy": "Mapped boundary; equipment layout estimated"
+    },
+    {
+      "id": "way/465410507",
+      "name": "Vëllezërit Frashëri",
+      "category": "park",
+      "x": 31.67045774458998,
+      "z": 498.21951046164804,
+      "source": "https://www.openstreetmap.org/way/465410507",
+      "accuracy": "Mapped boundary; equipment layout estimated",
+      "furnishingAnchor": {
+        "x": 32.75602340014081,
+        "z": 497.924682666571
+      }
+    },
+    {
+      "id": "way/465751203",
+      "name": "Park",
+      "category": "park",
+      "x": 1508.6847036778563,
+      "z": -1464.4350086666363,
+      "source": "https://www.openstreetmap.org/way/465751203",
+      "accuracy": "Mapped boundary; equipment layout estimated"
+    },
+    {
+      "id": "way/467590517",
+      "name": "Park",
+      "category": "park",
+      "x": 2568.2968308330155,
+      "z": -483.55229999993355,
+      "source": "https://www.openstreetmap.org/way/467590517",
+      "accuracy": "Mapped boundary; equipment layout estimated",
+      "furnishingAnchor": {
+        "x": 2570.3974809418055,
+        "z": -483.29252165138246
+      }
+    },
+    {
+      "id": "way/468719344",
+      "name": "Park",
+      "category": "park",
+      "x": 1766.3902490018315,
+      "z": 2123.900996800073,
+      "source": "https://www.openstreetmap.org/way/468719344",
+      "accuracy": "Mapped boundary; equipment layout estimated",
+      "furnishingAnchor": {
+        "x": 1766.115059302091,
+        "z": 2124.5434080000878
+      }
+    },
+    {
+      "id": "way/469036060",
+      "name": "Bolv Oil",
+      "category": "fuel",
+      "x": -5036.64884983113,
+      "z": -1709.6623004999142,
+      "source": "https://www.openstreetmap.org/way/469036060",
+      "accuracy": "Mapped boundary; equipment layout estimated"
+    },
+    {
+      "id": "way/469069096",
+      "name": "Park",
+      "category": "park",
+      "x": 1990.9417459813303,
+      "z": 2429.680215111095,
+      "source": "https://www.openstreetmap.org/way/469069096",
+      "accuracy": "Mapped boundary; equipment layout estimated",
+      "furnishingAnchor": {
+        "x": 1991.80494920169,
+        "z": 2429.145854752621
+      }
+    },
+    {
+      "id": "way/470276356",
+      "name": "Park",
+      "category": "park",
+      "x": 80.64403885447626,
+      "z": 1063.0771877648579,
+      "source": "https://www.openstreetmap.org/way/470276356",
+      "accuracy": "Mapped boundary; equipment layout estimated",
+      "furnishingAnchor": {
+        "x": 79.93623189917326,
+        "z": 1062.5617400000829
+      }
+    },
+    {
+      "id": "way/470276358",
+      "name": "Park",
+      "category": "park",
+      "x": 136.52251587165557,
+      "z": 1054.8757413334822,
+      "source": "https://www.openstreetmap.org/way/470276358",
+      "accuracy": "Mapped boundary; equipment layout estimated",
+      "furnishingAnchor": {
+        "x": 136.92755676466498,
+        "z": 1054.2611759997344
+      }
+    },
+    {
+      "id": "way/470276365",
+      "name": "Park",
+      "category": "park",
+      "x": 129.1761905972033,
+      "z": 1110.0376556923063,
+      "source": "https://www.openstreetmap.org/way/470276365",
+      "accuracy": "Mapped boundary; equipment layout estimated",
+      "furnishingAnchor": {
+        "x": 123.481270917414,
+        "z": 1110.7669120001613
+      }
+    },
+    {
+      "id": "way/471104381",
+      "name": "Park",
+      "category": "park",
+      "x": -681.1775241332228,
+      "z": 629.0509849412742,
+      "source": "https://www.openstreetmap.org/way/471104381",
+      "accuracy": "Mapped boundary; equipment layout estimated",
+      "furnishingAnchor": {
+        "x": -680.1764813041789,
+        "z": 629.9934245308856
+      }
+    },
+    {
+      "id": "way/471104382",
+      "name": "Park",
+      "category": "park",
+      "x": -1011.9097855372497,
+      "z": 682.0369662858496,
+      "source": "https://www.openstreetmap.org/way/471104382",
+      "accuracy": "Mapped boundary; equipment layout estimated",
+      "furnishingAnchor": {
+        "x": -1012.6499239311261,
+        "z": 683.0013079998632
+      }
+    },
+    {
+      "id": "way/471104384",
+      "name": "Park",
+      "category": "park",
+      "x": -655.2119414160632,
+      "z": 1064.356123600148,
+      "source": "https://www.openstreetmap.org/way/471104384",
+      "accuracy": "Mapped boundary; equipment layout estimated",
+      "furnishingAnchor": {
+        "x": -654.5562323581,
+        "z": 1064.558275999839
+      }
+    },
+    {
+      "id": "way/471104385",
+      "name": "Park",
+      "category": "park",
+      "x": -671.3480924736298,
+      "z": 1064.5160533334258,
+      "source": "https://www.openstreetmap.org/way/471104385",
+      "accuracy": "Mapped boundary; equipment layout estimated",
+      "furnishingAnchor": {
+        "x": -672.0338876400558,
+        "z": 1064.558275999839
+      }
+    },
+    {
+      "id": "way/471104386",
+      "name": "Park",
+      "category": "park",
+      "x": -675.431476885334,
+      "z": 1049.9510120000637,
+      "source": "https://www.openstreetmap.org/way/471104386",
+      "accuracy": "Mapped boundary; equipment layout estimated",
+      "furnishingAnchor": {
+        "x": -674.9262902091857,
+        "z": 1051.2629079998562
+      }
+    },
+    {
+      "id": "way/471104416",
+      "name": "Park",
+      "category": "park",
+      "x": -709.5240445915344,
+      "z": 1033.0264083333705,
+      "source": "https://www.openstreetmap.org/way/471104416",
+      "accuracy": "Mapped boundary; equipment layout estimated",
+      "furnishingAnchor": {
+        "x": -710.6665284255971,
+        "z": 1033.6369807777628
+      }
+    },
+    {
+      "id": "way/471104417",
+      "name": "Park",
+      "category": "park",
+      "x": -826.2908657474028,
+      "z": 884.4707960000829,
+      "source": "https://www.openstreetmap.org/way/471104417",
+      "accuracy": "Mapped boundary; equipment layout estimated",
+      "furnishingAnchor": {
+        "x": -825.1298769573252,
+        "z": 885.5331275762679
+      }
+    },
+    {
+      "id": "way/471104418",
+      "name": "Park",
+      "category": "park",
+      "x": -843.8112181307379,
+      "z": 947.2435874001065,
+      "source": "https://www.openstreetmap.org/way/471104418",
+      "accuracy": "Mapped boundary; equipment layout estimated",
+      "furnishingAnchor": {
+        "x": -845.0712337383189,
+        "z": 946.8021740000671
+      }
+    },
+    {
+      "id": "way/471127190",
+      "name": "Park",
+      "category": "park",
+      "x": -271.1251229086104,
+      "z": 391.04044320026736,
+      "source": "https://www.openstreetmap.org/way/471127190",
+      "accuracy": "Mapped boundary; equipment layout estimated",
+      "furnishingAnchor": {
+        "x": -269.849887003584,
+        "z": 390.15386913725104
+      }
+    },
+    {
+      "id": "way/471127249",
+      "name": "Park",
+      "category": "park",
+      "x": -1106.2901100902418,
+      "z": 462.01386977788934,
+      "source": "https://www.openstreetmap.org/way/471127249",
+      "accuracy": "Mapped boundary; equipment layout estimated",
+      "furnishingAnchor": {
+        "x": -1105.4220010068043,
+        "z": 461.29278400027044
+      }
+    },
+    {
+      "id": "way/471127250",
+      "name": "Park",
+      "category": "park",
+      "x": -1098.790812287189,
+      "z": 462.53888153850903,
+      "source": "https://www.openstreetmap.org/way/471127250",
+      "accuracy": "Mapped boundary; equipment layout estimated",
+      "furnishingAnchor": {
+        "x": -1094.1913806169764,
+        "z": 463.34497999988577
+      }
+    },
+    {
+      "id": "way/471127252",
+      "name": "Park",
+      "category": "park",
+      "x": -1062.8351633586578,
+      "z": 472.6605455001211,
+      "source": "https://www.openstreetmap.org/way/471127252",
+      "accuracy": "Mapped boundary; equipment layout estimated",
+      "furnishingAnchor": {
+        "x": -1062.0506128134793,
+        "z": 472.79184399995324
+      }
+    },
+    {
+      "id": "way/471176412",
+      "name": "Park",
+      "category": "park",
+      "x": -265.24139648779163,
+      "z": -18.25184166659364,
+      "source": "https://www.openstreetmap.org/way/471176412",
+      "accuracy": "Mapped boundary; equipment layout estimated",
+      "furnishingAnchor": {
+        "x": -265.42777226275035,
+        "z": -18.526348000300047
+      }
+    },
+    {
+      "id": "way/472066302",
+      "name": "Park",
+      "category": "park",
+      "x": 2387.904028577931,
+      "z": -1859.0282842352444,
+      "source": "https://www.openstreetmap.org/way/472066302",
+      "accuracy": "Mapped boundary; equipment layout estimated",
+      "furnishingAnchor": {
+        "x": 2388.9928466293895,
+        "z": -1858.6403553954483
+      }
+    },
+    {
+      "id": "way/472094588",
+      "name": "Kënd Lojrash",
+      "category": "playground",
+      "x": -2588.9876587807084,
+      "z": -868.6035214997904,
+      "source": "https://www.openstreetmap.org/way/472094588",
+      "accuracy": "Mapped boundary; equipment layout estimated",
+      "furnishingAnchor": {
+        "x": -2587.9932825991464,
+        "z": -868.2649679996251
+      }
+    },
+    {
+      "id": "way/472268971",
+      "name": "Kastrati",
+      "category": "fuel",
+      "x": -2018.849224463167,
+      "z": 693.7732748571392,
+      "source": "https://www.openstreetmap.org/way/472268971",
+      "accuracy": "Mapped boundary; equipment layout estimated"
+    },
+    {
+      "id": "way/472895495",
+      "name": "Park",
+      "category": "park",
+      "x": -1429.71458994852,
+      "z": 137.68725520018114,
+      "source": "https://www.openstreetmap.org/way/472895495",
+      "accuracy": "Mapped boundary; equipment layout estimated",
+      "furnishingAnchor": {
+        "x": -1430.0566560080727,
+        "z": 136.71330000029081
+      }
+    },
+    {
+      "id": "way/472895540",
+      "name": "Park",
+      "category": "park",
+      "x": -1496.0843615028823,
+      "z": 162.06856160003565,
+      "source": "https://www.openstreetmap.org/way/472895540",
+      "accuracy": "Mapped boundary; equipment layout estimated",
+      "furnishingAnchor": {
+        "x": -1496.8013320150274,
+        "z": 161.8419840001378
+      }
+    },
+    {
+      "id": "way/472895604",
+      "name": "Kënd Lojrash",
+      "category": "playground",
+      "x": -1773.470783614841,
+      "z": 284.2533936000293,
+      "source": "https://www.openstreetmap.org/way/472895604",
+      "accuracy": "Mapped boundary; equipment layout estimated",
+      "furnishingAnchor": {
+        "x": -1773.9282091292396,
+        "z": 285.13283199978866
+      }
+    },
+    {
+      "id": "way/472948760",
+      "name": "Park",
+      "category": "park",
+      "x": -2044.8394479343972,
+      "z": -523.4229293332223,
+      "source": "https://www.openstreetmap.org/way/472948760",
+      "accuracy": "Mapped boundary; equipment layout estimated",
+      "furnishingAnchor": {
+        "x": -2045.7684299565144,
+        "z": -524.1416399998668
+      }
+    },
+    {
+      "id": "way/472948762",
+      "name": "Park",
+      "category": "park",
+      "x": -2036.3029592342314,
+      "z": -549.8985359998819,
+      "source": "https://www.openstreetmap.org/way/472948762",
+      "accuracy": "Mapped boundary; equipment layout estimated",
+      "furnishingAnchor": {
+        "x": -2036.4642563741022,
+        "z": -550.4352759997274
+      }
+    },
+    {
+      "id": "way/472948765",
+      "name": "Park",
+      "category": "park",
+      "x": -1991.374155949814,
+      "z": -648.5717276922031,
+      "source": "https://www.openstreetmap.org/way/472948765",
+      "accuracy": "Mapped boundary; equipment layout estimated",
+      "furnishingAnchor": {
+        "x": -1992.279906024633,
+        "z": -649.2479549332506
+      }
+    },
+    {
+      "id": "way/473594302",
+      "name": "Park",
+      "category": "park",
+      "x": -1158.092701078403,
+      "z": 1705.5796395001073,
+      "source": "https://www.openstreetmap.org/way/473594302",
+      "accuracy": "Mapped boundary; equipment layout estimated"
+    },
+    {
+      "id": "way/473761141",
+      "name": "Kënd lojërash",
+      "category": "playground",
+      "x": -465.59405414341603,
+      "z": 1742.0889816001163,
+      "source": "https://www.openstreetmap.org/way/473761141",
+      "accuracy": "Mapped boundary; equipment layout estimated",
+      "furnishingAnchor": {
+        "x": -465.4734382619895,
+        "z": 1742.8793639999026
+      }
+    },
+    {
+      "id": "way/473807072",
+      "name": "Park",
+      "category": "park",
+      "x": 857.7963189345935,
+      "z": 2011.781719200167,
+      "source": "https://www.openstreetmap.org/way/473807072",
+      "accuracy": "Mapped boundary; equipment layout estimated"
+    },
+    {
+      "id": "way/473807073",
+      "name": "Park",
+      "category": "park",
+      "x": 856.8817847118553,
+      "z": 2026.5138079998947,
+      "source": "https://www.openstreetmap.org/way/473807073",
+      "accuracy": "Mapped boundary; equipment layout estimated"
+    },
+    {
+      "id": "way/473807076",
+      "name": "Kënd Lojrash",
+      "category": "playground",
+      "x": 868.5985229805578,
+      "z": 1948.8922273333053,
+      "source": "https://www.openstreetmap.org/way/473807076",
+      "accuracy": "Mapped boundary; equipment layout estimated",
+      "furnishingAnchor": {
+        "x": 869.4706619572446,
+        "z": 1948.5987240001825
+      }
+    },
+    {
+      "id": "way/473981782",
+      "name": "Kënd Lojrash",
+      "category": "playground",
+      "x": 3040.287935921284,
+      "z": 1744.041534399956,
+      "source": "https://www.openstreetmap.org/way/473981782",
+      "accuracy": "Mapped boundary; equipment layout estimated",
+      "furnishingAnchor": {
+        "x": 3040.0328113956975,
+        "z": 1744.8273160000085
+      }
+    },
+    {
+      "id": "way/478276694",
+      "name": "Park",
+      "category": "park",
+      "x": -1764.8573871006986,
+      "z": -930.7465199999493,
+      "source": "https://www.openstreetmap.org/way/478276694",
+      "accuracy": "Mapped boundary; equipment layout estimated",
+      "furnishingAnchor": {
+        "x": -1764.7881548873986,
+        "z": -931.8919831816288
+      }
+    },
+    {
+      "id": "way/530482862",
+      "name": "Park",
+      "category": "park",
+      "x": 229.7502925497836,
+      "z": 1227.9604428236585,
+      "source": "https://www.openstreetmap.org/way/530482862",
+      "accuracy": "Mapped boundary; equipment layout estimated",
+      "furnishingAnchor": {
+        "x": 228.9369310625868,
+        "z": 1228.8180119998217
+      }
+    },
+    {
+      "id": "way/541871517",
+      "name": "Kënd lojërash",
+      "category": "playground",
+      "x": 2814.8560859698,
+      "z": -1963.4064999999227,
+      "source": "https://www.openstreetmap.org/way/541871517",
+      "accuracy": "Mapped boundary; equipment layout estimated",
+      "furnishingAnchor": {
+        "x": 2814.3480217860792,
+        "z": -1963.872647999829
+      }
+    },
+    {
+      "id": "way/542242816",
+      "name": "Kënd lojërash",
+      "category": "playground",
+      "x": 749.7157616599559,
+      "z": -1083.8493688000679,
+      "source": "https://www.openstreetmap.org/way/542242816",
+      "accuracy": "Mapped boundary; equipment layout estimated",
+      "furnishingAnchor": {
+        "x": 749.4735310071192,
+        "z": -1084.1069280002666
+      }
+    },
+    {
+      "id": "way/543914248",
+      "name": "Panorama",
+      "category": "park",
+      "x": -691.5870867811341,
+      "z": -946.532552307588,
+      "source": "https://www.openstreetmap.org/way/543914248",
+      "accuracy": "Mapped boundary; equipment layout estimated",
+      "furnishingAnchor": {
+        "x": -691.7375888876569,
+        "z": -946.4158519995774
+      }
+    },
+    {
+      "id": "way/549956357",
+      "name": "Mini Railway",
+      "category": "playground",
+      "x": -17.569441489181816,
+      "z": 1612.35537548159,
+      "source": "https://www.openstreetmap.org/way/549956357",
+      "accuracy": "Mapped boundary; equipment layout estimated",
+      "furnishingAnchor": {
+        "x": -17.331842580197772,
+        "z": 1604.0583671632278
+      }
+    },
+    {
+      "id": "way/575113273",
+      "name": "ER Petrol",
+      "category": "fuel",
+      "x": -1102.2635959163442,
+      "z": -747.4742195554227,
+      "source": "https://www.openstreetmap.org/way/575113273",
+      "accuracy": "Mapped boundary; equipment layout estimated"
+    },
+    {
+      "id": "way/575469283",
+      "name": "Karburant",
+      "category": "fuel",
+      "x": -1068.540926013428,
+      "z": -716.8292371426778,
+      "source": "https://www.openstreetmap.org/way/575469283",
+      "accuracy": "Mapped boundary; equipment layout estimated"
+    },
+    {
+      "id": "way/576205977",
+      "name": "Park",
+      "category": "park",
+      "x": -1411.1196180557888,
+      "z": -768.3016968000779,
+      "source": "https://www.openstreetmap.org/way/576205977",
+      "accuracy": "Mapped boundary; equipment layout estimated",
+      "furnishingAnchor": {
+        "x": -1410.7187905575774,
+        "z": -769.7873504928931
+      }
+    },
+    {
+      "id": "way/576239961",
+      "name": "Park",
+      "category": "park",
+      "x": -1162.7358013586686,
+      "z": -924.3990536000977,
+      "source": "https://www.openstreetmap.org/way/576239961",
+      "accuracy": "Mapped boundary; equipment layout estimated",
+      "furnishingAnchor": {
+        "x": -1162.8584505029767,
+        "z": -925.272128000192
+      }
+    },
+    {
+      "id": "way/576628685",
+      "name": "Start",
+      "category": "fuel",
+      "x": -1274.6968594211735,
+      "z": -611.1706542855122,
+      "source": "https://www.openstreetmap.org/way/576628685",
+      "accuracy": "Mapped boundary; equipment layout estimated"
+    },
+    {
+      "id": "way/576872664",
+      "name": "Park",
+      "category": "park",
+      "x": -1064.8189878808555,
+      "z": -659.5974384999582,
+      "source": "https://www.openstreetmap.org/way/576872664",
+      "accuracy": "Mapped boundary; equipment layout estimated",
+      "furnishingAnchor": {
+        "x": -1064.090257230079,
+        "z": -660.5930941237132
+      }
+    },
+    {
+      "id": "way/583282344",
+      "name": "Parku i postes",
+      "category": "park",
+      "x": 1385.4345577843521,
+      "z": -1224.4579788569542,
+      "source": "https://www.openstreetmap.org/way/583282344",
+      "accuracy": "Mapped boundary; equipment layout estimated",
+      "furnishingAnchor": {
+        "x": 1385.25841126325,
+        "z": -1224.7748279997063
+      }
+    },
+    {
+      "id": "way/639377608",
+      "name": "Park",
+      "category": "park",
+      "x": -298.11182404730914,
+      "z": -1255.1432043334605,
+      "source": "https://www.openstreetmap.org/way/639377608",
+      "accuracy": "Mapped boundary; equipment layout estimated",
+      "furnishingAnchor": {
+        "x": -300.2015926951115,
+        "z": -1256.6388181333218
+      }
+    },
+    {
+      "id": "way/639377610",
+      "name": "Park",
+      "category": "park",
+      "x": -246.35788096689052,
+      "z": -1238.1066059998216,
+      "source": "https://www.openstreetmap.org/way/639377610",
+      "accuracy": "Mapped boundary; equipment layout estimated",
+      "furnishingAnchor": {
+        "x": -250.45660584097308,
+        "z": -1235.8175253329896
+      }
+    },
+    {
+      "id": "way/639377613",
+      "name": "Park",
+      "category": "park",
+      "x": -348.299562374807,
+      "z": -1480.8342999999475,
+      "source": "https://www.openstreetmap.org/way/639377613",
+      "accuracy": "Mapped boundary; equipment layout estimated",
+      "furnishingAnchor": {
+        "x": -348.8874552293843,
+        "z": -1488.1725439999168
+      }
+    },
+    {
+      "id": "way/639377616",
+      "name": "Park",
+      "category": "park",
+      "x": -342.2726132732904,
+      "z": -1689.9210899999978,
+      "source": "https://www.openstreetmap.org/way/639377616",
+      "accuracy": "Mapped boundary; equipment layout estimated",
+      "furnishingAnchor": {
+        "x": -341.9828473442496,
+        "z": -1691.4198578668706
+      }
+    },
+    {
+      "id": "way/639377636",
+      "name": "Park",
+      "category": "park",
+      "x": -440.00541090975224,
+      "z": -1921.3143839999454,
+      "source": "https://www.openstreetmap.org/way/639377636",
+      "accuracy": "Mapped boundary; equipment layout estimated",
+      "furnishingAnchor": {
+        "x": -435.2068880936955,
+        "z": -1923.5005359998818
+      }
+    },
+    {
+      "id": "way/639377638",
+      "name": "Park",
+      "category": "park",
+      "x": -396.053203188007,
+      "z": -1945.5376159999228,
+      "source": "https://www.openstreetmap.org/way/639377638",
+      "accuracy": "Mapped boundary; equipment layout estimated",
+      "furnishingAnchor": {
+        "x": -399.60001207361665,
+        "z": -1948.0629229330757
+      }
+    },
+    {
+      "id": "way/639377640",
+      "name": "Park",
+      "category": "park",
+      "x": -254.8704520799031,
+      "z": -1058.3359379999376,
+      "source": "https://www.openstreetmap.org/way/639377640",
+      "accuracy": "Mapped boundary; equipment layout estimated",
+      "furnishingAnchor": {
+        "x": -255.74547088651994,
+        "z": -1058.8788381334086
+      }
+    },
+    {
+      "id": "way/639377641",
+      "name": "Park",
+      "category": "park",
+      "x": -220.45875663238888,
+      "z": -1083.6868415999086,
+      "source": "https://www.openstreetmap.org/way/639377641",
+      "accuracy": "Mapped boundary; equipment layout estimated",
+      "furnishingAnchor": {
+        "x": -220.0509980598612,
+        "z": -1081.8879399998705
+      }
+    },
+    {
+      "id": "way/657621678",
+      "name": "Sheshi Adem Jashari",
+      "category": "park",
+      "x": -931.241237839511,
+      "z": -468.0808097776882,
+      "source": "https://www.openstreetmap.org/way/657621678",
+      "accuracy": "Mapped boundary; equipment layout estimated",
+      "furnishingAnchor": {
+        "x": -931.0336173736024,
+        "z": -468.01424400018664
+      }
+    },
+    {
+      "id": "way/657646043",
+      "name": "Lulishtja Fan Stilian Noli",
+      "category": "park",
+      "x": 417.76640358079453,
+      "z": 107.93649044441351,
+      "source": "https://www.openstreetmap.org/way/657646043",
+      "accuracy": "Mapped boundary; equipment layout estimated",
+      "furnishingAnchor": {
+        "x": 419.46649013938634,
+        "z": 109.4646424659796
+      }
+    },
+    {
+      "id": "way/666625519",
+      "name": "Park",
+      "category": "park",
+      "x": -1305.9331352594188,
+      "z": -701.5987527998506,
+      "source": "https://www.openstreetmap.org/way/666625519",
+      "accuracy": "Mapped boundary; equipment layout estimated",
+      "furnishingAnchor": {
+        "x": -1306.9461854718404,
+        "z": -701.5846709029059
+      }
+    },
+    {
+      "id": "way/672484138",
+      "name": "Sheshi Rekreativ Tika",
+      "category": "park",
+      "x": 393.8346517196358,
+      "z": 2438.725892777875,
+      "source": "https://www.openstreetmap.org/way/672484138",
+      "accuracy": "Mapped boundary; equipment layout estimated",
+      "furnishingAnchor": {
+        "x": 393.5360973795266,
+        "z": 2438.6515880000866
+      }
+    },
+    {
+      "id": "way/672488678",
+      "name": "Kënd lojërash",
+      "category": "playground",
+      "x": -1854.5449948200628,
+      "z": -322.8769807998991,
+      "source": "https://www.openstreetmap.org/way/672488678",
+      "accuracy": "Mapped boundary; equipment layout estimated",
+      "furnishingAnchor": {
+        "x": -1855.0367367502502,
+        "z": -323.40908000002463
+      }
+    },
+    {
+      "id": "way/672493810",
+      "name": "Shesh Rekreativ",
+      "category": "playground",
+      "x": 106.9757040774364,
+      "z": 874.1978153334414,
+      "source": "https://www.openstreetmap.org/way/672493810",
+      "accuracy": "Mapped boundary; equipment layout estimated",
+      "furnishingAnchor": {
+        "x": 107.8534583654802,
+        "z": 873.7126291329959
+      }
+    },
+    {
+      "id": "way/672493812",
+      "name": "Kënd lojërash",
+      "category": "playground",
+      "x": 704.2649155078027,
+      "z": 603.8041328001318,
+      "source": "https://www.openstreetmap.org/way/672493812",
+      "accuracy": "Mapped boundary; equipment layout estimated"
+    },
+    {
+      "id": "way/672493814",
+      "name": "Sheshi Rekreativ tek Sitki Çiço",
+      "category": "park",
+      "x": 1704.5849410080157,
+      "z": -605.4330480000834,
+      "source": "https://www.openstreetmap.org/way/672493814",
+      "accuracy": "Mapped boundary; equipment layout estimated",
+      "furnishingAnchor": {
+        "x": 1703.7509117183354,
+        "z": -606.7706533049335
+      }
+    },
+    {
+      "id": "way/672493815",
+      "name": "Sheshi Rekreativ tek ish ATSh",
+      "category": "playground",
+      "x": 635.6811649028214,
+      "z": -62.11532311096859,
+      "source": "https://www.openstreetmap.org/way/672493815",
+      "accuracy": "Mapped boundary; equipment layout estimated",
+      "furnishingAnchor": {
+        "x": 634.6948248812779,
+        "z": -62.71629199966938
+      }
+    },
+    {
+      "id": "way/672493818",
+      "name": "Sheshi Rekreativ Blloku 1 Maji",
+      "category": "playground",
+      "x": -1043.4922792296186,
+      "z": 820.3616080000187,
+      "source": "https://www.openstreetmap.org/way/672493818",
+      "accuracy": "Mapped boundary; equipment layout estimated",
+      "furnishingAnchor": {
+        "x": -1043.5903541732534,
+        "z": 821.2982399997906
+      }
+    },
+    {
+      "id": "way/672493820",
+      "name": "Sheshi Rekreativ Sali Butka",
+      "category": "playground",
+      "x": -1613.7803062779071,
+      "z": 513.4809931427618,
+      "source": "https://www.openstreetmap.org/way/672493820",
+      "accuracy": "Mapped boundary; equipment layout estimated",
+      "furnishingAnchor": {
+        "x": -1613.8201662230142,
+        "z": 514.329283999725
+      }
+    },
+    {
+      "id": "way/672818548",
+      "name": "Kënd Lojrash",
+      "category": "playground",
+      "x": -419.2270018594265,
+      "z": 2087.8492726668937,
+      "source": "https://www.openstreetmap.org/way/672818548",
+      "accuracy": "Mapped boundary; equipment layout estimated",
+      "furnishingAnchor": {
+        "x": -418.85027162727897,
+        "z": 2087.6593720003634
+      }
+    },
+    {
+      "id": "way/673540711",
+      "name": "Park",
+      "category": "park",
+      "x": -168.6418781203698,
+      "z": -990.7798057143259,
+      "source": "https://www.openstreetmap.org/way/673540711",
+      "accuracy": "Mapped boundary; equipment layout estimated",
+      "furnishingAnchor": {
+        "x": -168.0871615644368,
+        "z": -991.0550240002622
+      }
+    },
+    {
+      "id": "way/673540713",
+      "name": "Park",
+      "category": "park",
+      "x": -166.97856750992395,
+      "z": -973.0303087996954,
+      "source": "https://www.openstreetmap.org/way/673540713",
+      "accuracy": "Mapped boundary; equipment layout estimated",
+      "furnishingAnchor": {
+        "x": -166.53849243155315,
+        "z": -972.3899760001427
+      }
+    },
+    {
+      "id": "way/673540740",
+      "name": "Park",
+      "category": "park",
+      "x": -449.1750718135194,
+      "z": -2169.4301346666025,
+      "source": "https://www.openstreetmap.org/way/673540740",
+      "accuracy": "Mapped boundary; equipment layout estimated",
+      "furnishingAnchor": {
+        "x": -449.77073424464265,
+        "z": -2170.853576000086
+      }
+    },
+    {
+      "id": "way/673540742",
+      "name": "Park",
+      "category": "park",
+      "x": -485.484755510793,
+      "z": -2159.857078499756,
+      "source": "https://www.openstreetmap.org/way/673540742",
+      "accuracy": "Mapped boundary; equipment layout estimated",
+      "furnishingAnchor": {
+        "x": -486.3823915441371,
+        "z": -2159.9965364000295
+      }
+    },
+    {
+      "id": "way/673540775",
+      "name": "Park",
+      "category": "park",
+      "x": -383.5710345809509,
+      "z": -1688.8156823998597,
+      "source": "https://www.openstreetmap.org/way/673540775",
+      "accuracy": "Mapped boundary; equipment layout estimated",
+      "furnishingAnchor": {
+        "x": -384.2881663386313,
+        "z": -1687.4242119996793
+      }
+    },
+    {
+      "id": "way/673540776",
+      "name": "Park",
+      "category": "park",
+      "x": -313.395162189245,
+      "z": -1543.028784000022,
+      "source": "https://www.openstreetmap.org/way/673540776",
+      "accuracy": "Mapped boundary; equipment layout estimated",
+      "furnishingAnchor": {
+        "x": -313.8053016892341,
+        "z": -1539.1608146667006
+      }
+    },
+    {
+      "id": "way/674228681",
+      "name": "Park",
+      "category": "park",
+      "x": 66.39389481273908,
+      "z": -230.7234222857589,
+      "source": "https://www.openstreetmap.org/way/674228681",
+      "accuracy": "Mapped boundary; equipment layout estimated",
+      "furnishingAnchor": {
+        "x": 65.87779964678589,
+        "z": -229.82503575203572
+      }
+    },
+    {
+      "id": "way/674420804",
+      "name": "Park",
+      "category": "park",
+      "x": -993.0651817079943,
+      "z": -470.16558599988485,
+      "source": "https://www.openstreetmap.org/way/674420804",
+      "accuracy": "Mapped boundary; equipment layout estimated",
+      "furnishingAnchor": {
+        "x": -993.7510614372053,
+        "z": -470.9861919998838
+      }
+    },
+    {
+      "id": "way/675387167",
+      "name": "Park",
+      "category": "park",
+      "x": 1912.107181916965,
+      "z": -587.2641643845675,
+      "source": "https://www.openstreetmap.org/way/675387167",
+      "accuracy": "Mapped boundary; equipment layout estimated",
+      "furnishingAnchor": {
+        "x": 1919.8771948300325,
+        "z": -582.5959663364083
+      }
+    },
+    {
+      "id": "way/675567871",
+      "name": "Bolv-Oil",
+      "category": "fuel",
+      "x": 401.7919765461994,
+      "z": -737.6444868570438,
+      "source": "https://www.openstreetmap.org/way/675567871",
+      "accuracy": "Mapped boundary; equipment layout estimated"
+    },
+    {
+      "id": "way/705554042",
+      "name": "Kotoria Petrol",
+      "category": "fuel",
+      "x": -3057.187592088579,
+      "z": -5028.46688960011,
+      "source": "https://www.openstreetmap.org/way/705554042",
+      "accuracy": "Mapped boundary; equipment layout estimated"
+    },
+    {
+      "id": "way/712391854",
+      "name": "Gega Oil",
+      "category": "fuel",
+      "x": -2551.177884589048,
+      "z": 667.8245828571833,
+      "source": "https://www.openstreetmap.org/way/712391854",
+      "accuracy": "Mapped boundary; equipment layout estimated"
+    },
+    {
+      "id": "way/713797728",
+      "name": "Park",
+      "category": "park",
+      "x": 490.396545499986,
+      "z": 348.9496090666218,
+      "source": "https://www.openstreetmap.org/way/713797728",
+      "accuracy": "Mapped boundary; equipment layout estimated",
+      "furnishingAnchor": {
+        "x": 491.2599916519043,
+        "z": 350.03977333348155
+      }
+    },
+    {
+      "id": "way/725193733",
+      "name": "Veliaj Petrol",
+      "category": "fuel",
+      "x": 916.9728214405135,
+      "z": -1268.8492142857444,
+      "source": "https://www.openstreetmap.org/way/725193733",
+      "accuracy": "Mapped boundary; equipment layout estimated"
+    },
+    {
+      "id": "way/725210210",
+      "name": "iFuel",
+      "category": "fuel",
+      "x": 1324.357572434284,
+      "z": -829.3740751998407,
+      "source": "https://www.openstreetmap.org/way/725210210",
+      "accuracy": "Mapped boundary; equipment layout estimated"
+    },
+    {
+      "id": "way/725854364",
+      "name": "AC OIL",
+      "category": "fuel",
+      "x": 4269.58577836931,
+      "z": -503.3690024000876,
+      "source": "https://www.openstreetmap.org/way/725854364",
+      "accuracy": "Mapped boundary; equipment layout estimated"
+    },
+    {
+      "id": "way/725945164",
+      "name": "iFuel",
+      "category": "fuel",
+      "x": 2426.385402643472,
+      "z": -877.5037542855284,
+      "source": "https://www.openstreetmap.org/way/725945164",
+      "accuracy": "Mapped boundary; equipment layout estimated"
+    },
+    {
+      "id": "way/725961210",
+      "name": "NERI",
+      "category": "fuel",
+      "x": 2869.9165873630336,
+      "z": 3786.2253817144074,
+      "source": "https://www.openstreetmap.org/way/725961210",
+      "accuracy": "Mapped boundary; equipment layout estimated"
+    },
+    {
+      "id": "way/725967336",
+      "name": "Veliaj Petrol",
+      "category": "fuel",
+      "x": 3169.431202771929,
+      "z": -798.4916807999475,
+      "source": "https://www.openstreetmap.org/way/725967336",
+      "accuracy": "Mapped boundary; equipment layout estimated"
+    },
+    {
+      "id": "way/725974865",
+      "name": "Oega Oil",
+      "category": "fuel",
+      "x": 3857.214678206623,
+      "z": -1847.986743428641,
+      "source": "https://www.openstreetmap.org/way/725974865",
+      "accuracy": "Mapped boundary; equipment layout estimated"
+    },
+    {
+      "id": "way/725985064",
+      "name": "Kastrati",
+      "category": "fuel",
+      "x": 1583.331260734426,
+      "z": -885.5887668572002,
+      "source": "https://www.openstreetmap.org/way/725985064",
+      "accuracy": "Mapped boundary; equipment layout estimated"
+    },
+    {
+      "id": "way/726574186",
+      "name": "Eida",
+      "category": "fuel",
+      "x": 1978.157347856129,
+      "z": -1430.091463428563,
+      "source": "https://www.openstreetmap.org/way/726574186",
+      "accuracy": "Mapped boundary; equipment layout estimated"
+    },
+    {
+      "id": "way/726870750",
+      "name": "Auto Gas Anel",
+      "category": "fuel",
+      "x": 2272.268114534529,
+      "z": 668.4209400000261,
+      "source": "https://www.openstreetmap.org/way/726870750",
+      "accuracy": "Mapped boundary; equipment layout estimated"
+    },
+    {
+      "id": "way/727500506",
+      "name": "Alpet",
+      "category": "fuel",
+      "x": 2098.1430914281445,
+      "z": -2200.1412022856466,
+      "source": "https://www.openstreetmap.org/way/727500506",
+      "accuracy": "Mapped boundary; equipment layout estimated"
+    },
+    {
+      "id": "way/727500510",
+      "name": "Kastrati",
+      "category": "fuel",
+      "x": 2363.054683962107,
+      "z": -2147.2164937142775,
+      "source": "https://www.openstreetmap.org/way/727500510",
+      "accuracy": "Mapped boundary; equipment layout estimated"
+    },
+    {
+      "id": "way/727528487",
+      "name": "Gega Oil",
+      "category": "fuel",
+      "x": 2838.1647962981024,
+      "z": 4617.5035059999545,
+      "source": "https://www.openstreetmap.org/way/727528487",
+      "accuracy": "Mapped boundary; equipment layout estimated"
+    },
+    {
+      "id": "way/729195076",
+      "name": "Gega Oil",
+      "category": "fuel",
+      "x": -4358.580777881751,
+      "z": -2118.3130508570002,
+      "source": "https://www.openstreetmap.org/way/729195076",
+      "accuracy": "Mapped boundary; equipment layout estimated"
+    },
+    {
+      "id": "way/730008918",
+      "name": "Eida",
+      "category": "fuel",
+      "x": 1209.5545079167055,
+      "z": -320.4664257141284,
+      "source": "https://www.openstreetmap.org/way/730008918",
+      "accuracy": "Mapped boundary; equipment layout estimated"
+    },
+    {
+      "id": "way/730038388",
+      "name": "Karburant",
+      "category": "fuel",
+      "x": -3662.6627486320635,
+      "z": 1142.5328200000722,
+      "source": "https://www.openstreetmap.org/way/730038388",
+      "accuracy": "Mapped boundary; equipment layout estimated"
+    },
+    {
+      "id": "way/730235637",
+      "name": "Eida",
+      "category": "fuel",
+      "x": -4970.76100604588,
+      "z": 1898.782059428669,
+      "source": "https://www.openstreetmap.org/way/730235637",
+      "accuracy": "Mapped boundary; equipment layout estimated"
+    },
+    {
+      "id": "way/730235641",
+      "name": "Braka",
+      "category": "fuel",
+      "x": -4464.901531512324,
+      "z": 1558.2662655998815,
+      "source": "https://www.openstreetmap.org/way/730235641",
+      "accuracy": "Mapped boundary; equipment layout estimated"
+    },
+    {
+      "id": "way/732411461",
+      "name": "Auto Gaz",
+      "category": "fuel",
+      "x": -3714.6089612475016,
+      "z": -852.6911623999142,
+      "source": "https://www.openstreetmap.org/way/732411461",
+      "accuracy": "Mapped boundary; equipment layout estimated"
+    },
+    {
+      "id": "way/732439141",
+      "name": "Bolv",
+      "category": "fuel",
+      "x": -3822.134444734165,
+      "z": -1577.522081142652,
+      "source": "https://www.openstreetmap.org/way/732439141",
+      "accuracy": "Mapped boundary; equipment layout estimated"
+    },
+    {
+      "id": "way/733079717",
+      "name": "Gega Oil",
+      "category": "fuel",
+      "x": -3743.961951019835,
+      "z": 25.325300000015833,
+      "source": "https://www.openstreetmap.org/way/733079717",
+      "accuracy": "Mapped boundary; equipment layout estimated"
+    },
+    {
+      "id": "way/733091208",
+      "name": "Alpet",
+      "category": "fuel",
+      "x": -3747.7046387373052,
+      "z": 173.53674800024342,
+      "source": "https://www.openstreetmap.org/way/733091208",
+      "accuracy": "Mapped boundary; equipment layout estimated"
+    },
+    {
+      "id": "way/733110440",
+      "name": "Kuka Oil",
+      "category": "fuel",
+      "x": 633.953260220906,
+      "z": -3433.6574485713754,
+      "source": "https://www.openstreetmap.org/way/733110440",
+      "accuracy": "Mapped boundary; equipment layout estimated"
+    },
+    {
+      "id": "way/733323417",
+      "name": "Elezi Oil",
+      "category": "fuel",
+      "x": 1354.6692825957873,
+      "z": 2675.9769520001682,
+      "source": "https://www.openstreetmap.org/way/733323417",
+      "accuracy": "Mapped boundary; equipment layout estimated"
+    },
+    {
+      "id": "way/733353317",
+      "name": "Gega Oil",
+      "category": "fuel",
+      "x": -3628.6435802641686,
+      "z": 144.5373314000268,
+      "source": "https://www.openstreetmap.org/way/733353317",
+      "accuracy": "Mapped boundary; equipment layout estimated"
+    },
+    {
+      "id": "way/733409386",
+      "name": "Braka",
+      "category": "fuel",
+      "x": -1765.5308877760688,
+      "z": 1291.6971672000677,
+      "source": "https://www.openstreetmap.org/way/733409386",
+      "accuracy": "Mapped boundary; equipment layout estimated"
+    },
+    {
+      "id": "way/733412620",
+      "name": "Karburant",
+      "category": "fuel",
+      "x": -3575.915989035604,
+      "z": -1832.8504039999116,
+      "source": "https://www.openstreetmap.org/way/733412620",
+      "accuracy": "Mapped boundary; equipment layout estimated"
+    },
+    {
+      "id": "way/733672654",
+      "name": "Bujari",
+      "category": "fuel",
+      "x": -4418.696654401303,
+      "z": -5203.936152799817,
+      "source": "https://www.openstreetmap.org/way/733672654",
+      "accuracy": "Mapped boundary; equipment layout estimated"
+    },
+    {
+      "id": "way/733672655",
+      "name": "Kastrati",
+      "category": "fuel",
+      "x": -4154.785058866925,
+      "z": -4590.172927999936,
+      "source": "https://www.openstreetmap.org/way/733672655",
+      "accuracy": "Mapped boundary; equipment layout estimated"
+    },
+    {
+      "id": "way/733678966",
+      "name": "Alpet",
+      "category": "fuel",
+      "x": -2995.0482279912617,
+      "z": 872.4402845715068,
+      "source": "https://www.openstreetmap.org/way/733678966",
+      "accuracy": "Mapped boundary; equipment layout estimated"
+    },
+    {
+      "id": "way/733727726",
+      "name": "Daku Oil",
+      "category": "fuel",
+      "x": 373.18441934359527,
+      "z": -2953.422968571398,
+      "source": "https://www.openstreetmap.org/way/733727726",
+      "accuracy": "Mapped boundary; equipment layout estimated"
+    },
+    {
+      "id": "way/733743436",
+      "name": "Daku Oil",
+      "category": "fuel",
+      "x": -3678.038579168311,
+      "z": -3053.8002125713983,
+      "source": "https://www.openstreetmap.org/way/733743436",
+      "accuracy": "Mapped boundary; equipment layout estimated"
+    },
+    {
+      "id": "way/733743438",
+      "name": "Start",
+      "category": "fuel",
+      "x": -4009.2795785964904,
+      "z": -2720.6655708569147,
+      "source": "https://www.openstreetmap.org/way/733743438",
+      "accuracy": "Mapped boundary; equipment layout estimated"
+    },
+    {
+      "id": "way/733746170",
+      "name": "Kanina",
+      "category": "fuel",
+      "x": -468.0325334192446,
+      "z": -2853.1939391998926,
+      "source": "https://www.openstreetmap.org/way/733746170",
+      "accuracy": "Mapped boundary; equipment layout estimated"
+    },
+    {
+      "id": "way/733750218",
+      "name": "Alpet",
+      "category": "fuel",
+      "x": 994.8933345843523,
+      "z": -1013.0215417143528,
+      "source": "https://www.openstreetmap.org/way/733750218",
+      "accuracy": "Mapped boundary; equipment layout estimated"
+    },
+    {
+      "id": "way/734500556",
+      "name": "Karburant",
+      "category": "fuel",
+      "x": -2500.84816913215,
+      "z": -5281.940303199861,
+      "source": "https://www.openstreetmap.org/way/734500556",
+      "accuracy": "Mapped boundary; equipment layout estimated"
+    },
+    {
+      "id": "way/734500558",
+      "name": "Veliaj Petrol",
+      "category": "fuel",
+      "x": -3021.634447213598,
+      "z": -5077.701499199957,
+      "source": "https://www.openstreetmap.org/way/734500558",
+      "accuracy": "Mapped boundary; equipment layout estimated"
+    },
+    {
+      "id": "way/734587963",
+      "name": "Kastrati",
+      "category": "fuel",
+      "x": -3119.4012367141027,
+      "z": -2805.8237805713197,
+      "source": "https://www.openstreetmap.org/way/734587963",
+      "accuracy": "Mapped boundary; equipment layout estimated"
+    },
+    {
+      "id": "way/734600058",
+      "name": "Daku Oil",
+      "category": "fuel",
+      "x": -2633.164719263844,
+      "z": -2710.296907999735,
+      "source": "https://www.openstreetmap.org/way/734600058",
+      "accuracy": "Mapped boundary; equipment layout estimated"
+    },
+    {
+      "id": "way/734603779",
+      "name": "Gega Oil",
+      "category": "fuel",
+      "x": -1639.4847129249154,
+      "z": -2635.8890297141047,
+      "source": "https://www.openstreetmap.org/way/734603779",
+      "accuracy": "Mapped boundary; equipment layout estimated"
+    },
+    {
+      "id": "way/734607141",
+      "name": "Daku Oil",
+      "category": "fuel",
+      "x": 1124.2692356300863,
+      "z": -3041.2274137142244,
+      "source": "https://www.openstreetmap.org/way/734607141",
+      "accuracy": "Mapped boundary; equipment layout estimated"
+    },
+    {
+      "id": "way/734616547",
+      "name": "Ahmati Petrol",
+      "category": "fuel",
+      "x": -1363.0871055641564,
+      "z": -2697.323357142849,
+      "source": "https://www.openstreetmap.org/way/734616547",
+      "accuracy": "Mapped boundary; equipment layout estimated"
+    },
+    {
+      "id": "way/734905581",
+      "name": "Anel",
+      "category": "fuel",
+      "x": -3417.3700528309987,
+      "z": 442.61627142872214,
+      "source": "https://www.openstreetmap.org/way/734905581",
+      "accuracy": "Mapped boundary; equipment layout estimated"
+    },
+    {
+      "id": "way/734906676",
+      "name": "Kastrati",
+      "category": "fuel",
+      "x": -752.4008475132163,
+      "z": 326.74646399987444,
+      "source": "https://www.openstreetmap.org/way/734906676",
+      "accuracy": "Mapped boundary; equipment layout estimated"
+    },
+    {
+      "id": "way/735006243",
+      "name": "Erg",
+      "category": "fuel",
+      "x": -1981.0717240863382,
+      "z": -20.921480799762435,
+      "source": "https://www.openstreetmap.org/way/735006243",
+      "accuracy": "Mapped boundary; equipment layout estimated"
+    },
+    {
+      "id": "way/735016128",
+      "name": "Eida",
+      "category": "fuel",
+      "x": -4942.985581836772,
+      "z": -1550.5851855998164,
+      "source": "https://www.openstreetmap.org/way/735016128",
+      "accuracy": "Mapped boundary; equipment layout estimated"
+    },
+    {
+      "id": "way/735250403",
+      "name": "Alpet",
+      "category": "fuel",
+      "x": -2141.376269714382,
+      "z": -1194.8102822857331,
+      "source": "https://www.openstreetmap.org/way/735250403",
+      "accuracy": "Mapped boundary; equipment layout estimated"
+    },
+    {
+      "id": "way/735258490",
+      "name": "Kastrati",
+      "category": "fuel",
+      "x": 486.1994966082028,
+      "z": -1348.061080666499,
+      "source": "https://www.openstreetmap.org/way/735258490",
+      "accuracy": "Mapped boundary; equipment layout estimated"
+    },
+    {
+      "id": "way/735269860",
+      "name": "Bolv-Oil",
+      "category": "fuel",
+      "x": 626.6983693835997,
+      "z": -295.0803767998401,
+      "source": "https://www.openstreetmap.org/way/735269860",
+      "accuracy": "Mapped boundary; equipment layout estimated"
+    },
+    {
+      "id": "way/735297649",
+      "name": "Kastrati",
+      "category": "fuel",
+      "x": -3882.244350150213,
+      "z": -2470.0747091427324,
+      "source": "https://www.openstreetmap.org/way/735297649",
+      "accuracy": "Mapped boundary; equipment layout estimated"
+    },
+    {
+      "id": "way/735297652",
+      "name": "Dhima",
+      "category": "fuel",
+      "x": -3357.0645340620777,
+      "z": -1662.5352567999594,
+      "source": "https://www.openstreetmap.org/way/735297652",
+      "accuracy": "Mapped boundary; equipment layout estimated"
+    },
+    {
+      "id": "way/735297655",
+      "name": "Bolv-Oil",
+      "category": "fuel",
+      "x": -2998.135288536834,
+      "z": -1489.2469114284331,
+      "source": "https://www.openstreetmap.org/way/735297655",
+      "accuracy": "Mapped boundary; equipment layout estimated"
+    },
+    {
+      "id": "way/735330945",
+      "name": "Gega Oil",
+      "category": "fuel",
+      "x": -33.72407642938561,
+      "z": -1342.8954616000815,
+      "source": "https://www.openstreetmap.org/way/735330945",
+      "accuracy": "Mapped boundary; equipment layout estimated"
+    },
+    {
+      "id": "way/735355767",
+      "name": "OMW",
+      "category": "fuel",
+      "x": -2019.8702831736043,
+      "z": -964.4748897142748,
+      "source": "https://www.openstreetmap.org/way/735355767",
+      "accuracy": "Mapped boundary; equipment layout estimated"
+    },
+    {
+      "id": "way/744842331",
+      "name": "Park",
+      "category": "park",
+      "x": -2919.8854093202185,
+      "z": -157.19274560000667,
+      "source": "https://www.openstreetmap.org/way/744842331",
+      "accuracy": "Mapped boundary; equipment layout estimated",
+      "furnishingAnchor": {
+        "x": -2919.710770936252,
+        "z": -156.65566800031388
+      }
+    },
+    {
+      "id": "way/744842332",
+      "name": "Park",
+      "category": "park",
+      "x": -2900.194425082308,
+      "z": -161.09218399994376,
+      "source": "https://www.openstreetmap.org/way/744842332",
+      "accuracy": "Mapped boundary; equipment layout estimated",
+      "furnishingAnchor": {
+        "x": -2901.3511413756414,
+        "z": -161.9878960001397
+      }
+    },
+    {
+      "id": "way/744842333",
+      "name": "Park",
+      "category": "park",
+      "x": -2938.508445399665,
+      "z": -131.33215542844252,
+      "source": "https://www.openstreetmap.org/way/744842333",
+      "accuracy": "Mapped boundary; equipment layout estimated",
+      "furnishingAnchor": {
+        "x": -2938.893857960147,
+        "z": -130.70351199977483
+      }
+    },
+    {
+      "id": "way/744842334",
+      "name": "Park",
+      "category": "park",
+      "x": -2839.672649226966,
+      "z": -86.77811450006604,
+      "source": "https://www.openstreetmap.org/way/744842334",
+      "accuracy": "Mapped boundary; equipment layout estimated",
+      "furnishingAnchor": {
+        "x": -2840.2324391525112,
+        "z": -87.70782000023023
+      }
+    },
+    {
+      "id": "way/744842335",
+      "name": "Park",
+      "category": "park",
+      "x": -2856.941379305891,
+      "z": -108.28764320005627,
+      "source": "https://www.openstreetmap.org/way/744842335",
+      "accuracy": "Mapped boundary; equipment layout estimated",
+      "furnishingAnchor": {
+        "x": -2856.0655019407413,
+        "z": -108.34308399992472
+      }
+    },
+    {
+      "id": "way/744842336",
+      "name": "Park",
+      "category": "park",
+      "x": -2828.579115037872,
+      "z": -94.59973599987524,
+      "source": "https://www.openstreetmap.org/way/744842336",
+      "accuracy": "Mapped boundary; equipment layout estimated",
+      "furnishingAnchor": {
+        "x": -2828.6293906956103,
+        "z": -95.40017999967232
+      }
+    },
+    {
+      "id": "way/744842338",
+      "name": "Park",
+      "category": "park",
+      "x": -2953.910134326809,
+      "z": -247.16314117652382,
+      "source": "https://www.openstreetmap.org/way/744842338",
+      "accuracy": "Mapped boundary; equipment layout estimated",
+      "furnishingAnchor": {
+        "x": -2954.507419270209,
+        "z": -247.0142600000197
+      }
+    },
+    {
+      "id": "way/748931001",
+      "name": "Kastrati",
+      "category": "fuel",
+      "x": -4844.662589466847,
+      "z": -2259.494423999946,
+      "source": "https://www.openstreetmap.org/way/748931001",
+      "accuracy": "Mapped boundary; equipment layout estimated"
+    },
+    {
+      "id": "way/753054859",
+      "name": "Kastrati",
+      "category": "fuel",
+      "x": -4204.611095453063,
+      "z": -4610.422758856972,
+      "source": "https://www.openstreetmap.org/way/753054859",
+      "accuracy": "Mapped boundary; equipment layout estimated"
+    },
+    {
+      "id": "way/836446505",
+      "name": "Parku Gintash",
+      "category": "park",
+      "x": -2320.221808458883,
+      "z": -1254.8279831999766,
+      "source": "https://www.openstreetmap.org/way/836446505",
+      "accuracy": "Mapped boundary; equipment layout estimated",
+      "furnishingAnchor": {
+        "x": -2321.1130543434715,
+        "z": -1254.4527400000777
+      }
+    },
+    {
+      "id": "way/836446509",
+      "name": "Park",
+      "category": "park",
+      "x": -2154.2162919867114,
+      "z": -1263.2615863999767,
+      "source": "https://www.openstreetmap.org/way/836446509",
+      "accuracy": "Mapped boundary; equipment layout estimated",
+      "furnishingAnchor": {
+        "x": -2153.502108395226,
+        "z": -1262.7906080002247
+      }
+    },
+    {
+      "id": "way/854194734",
+      "name": "Kënd lojërash",
+      "category": "playground",
+      "x": 1492.7647101885268,
+      "z": 7.059712000095146,
+      "source": "https://www.openstreetmap.org/way/854194734",
+      "accuracy": "Mapped boundary; equipment layout estimated",
+      "furnishingAnchor": {
+        "x": 1492.2566797191578,
+        "z": 6.424559999939708
+      }
+    },
+    {
+      "id": "way/957688195",
+      "name": "Parku Helen",
+      "category": "park",
+      "x": 3723.2347577534238,
+      "z": 1513.346697500076,
+      "source": "https://www.openstreetmap.org/way/957688195",
+      "accuracy": "Mapped boundary; equipment layout estimated",
+      "furnishingAnchor": {
+        "x": 3723.523149371451,
+        "z": 1513.946360647941
+      }
+    },
+    {
+      "id": "way/964246668",
+      "name": "Parku i Artit",
+      "category": "park",
+      "x": 2590.9818121638705,
+      "z": -1965.0403350768338,
+      "source": "https://www.openstreetmap.org/way/964246668",
+      "accuracy": "Mapped boundary; equipment layout estimated",
+      "furnishingAnchor": {
+        "x": 2589.1925246115616,
+        "z": -1965.7330539640882
+      }
+    },
+    {
+      "id": "way/1035238368",
+      "name": "Park",
+      "category": "park",
+      "x": 3625.299403998937,
+      "z": -2899.761957714072,
+      "source": "https://www.openstreetmap.org/way/1035238368",
+      "accuracy": "Mapped boundary; equipment layout estimated",
+      "furnishingAnchor": {
+        "x": 3624.9498603412744,
+        "z": -2899.335563999602
+      }
+    },
+    {
+      "id": "way/1056185096",
+      "name": "Kënd lojërash",
+      "category": "playground",
+      "x": -2014.5082321680084,
+      "z": 643.0199424002782,
+      "source": "https://www.openstreetmap.org/way/1056185096",
+      "accuracy": "Mapped boundary; equipment layout estimated",
+      "furnishingAnchor": {
+        "x": -2014.816942344297,
+        "z": 642.6887640001324
+      }
+    },
+    {
+      "id": "way/1060269447",
+      "name": "Kënd lojërash",
+      "category": "playground",
+      "x": -35.37236971439796,
+      "z": 357.9721878334549,
+      "source": "https://www.openstreetmap.org/way/1060269447",
+      "accuracy": "Mapped boundary; equipment layout estimated",
+      "furnishingAnchor": {
+        "x": -36.22162775988575,
+        "z": 358.850342721617
+      }
+    },
+    {
+      "id": "way/1060269448",
+      "name": "Kënd lojërash",
+      "category": "playground",
+      "x": -167.06550677790568,
+      "z": 389.642264000064,
+      "source": "https://www.openstreetmap.org/way/1060269448",
+      "accuracy": "Mapped boundary; equipment layout estimated",
+      "furnishingAnchor": {
+        "x": -167.91543407061368,
+        "z": 390.09269999991295
+      }
+    },
+    {
+      "id": "way/1060269459",
+      "name": "Kënd lojërash",
+      "category": "playground",
+      "x": -197.57951792834007,
+      "z": 259.63831519981585,
+      "source": "https://www.openstreetmap.org/way/1060269459",
+      "accuracy": "Mapped boundary; equipment layout estimated"
+    },
+    {
+      "id": "way/1061890256",
+      "name": "Park",
+      "category": "park",
+      "x": 1995.0973686835355,
+      "z": -1226.971266399848,
+      "source": "https://www.openstreetmap.org/way/1061890256",
+      "accuracy": "Mapped boundary; equipment layout estimated",
+      "furnishingAnchor": {
+        "x": 1994.8009255661873,
+        "z": -1227.4465080000798
+      }
+    },
+    {
+      "id": "way/1096790158",
+      "name": "Kënd lojërash",
+      "category": "playground",
+      "x": 1270.241221937544,
+      "z": 133.03535142885434,
+      "source": "https://www.openstreetmap.org/way/1096790158",
+      "accuracy": "Mapped boundary; equipment layout estimated",
+      "furnishingAnchor": {
+        "x": 1270.7852699136613,
+        "z": 133.29611200000338
+      }
+    },
+    {
+      "id": "way/1109767364",
+      "name": "Park",
+      "category": "park",
+      "x": -4320.579002854897,
+      "z": 1526.7582528000335,
+      "source": "https://www.openstreetmap.org/way/1109767364",
+      "accuracy": "Mapped boundary; equipment layout estimated",
+      "furnishingAnchor": {
+        "x": -4319.846909663576,
+        "z": 1526.409916000098
+      }
+    },
+    {
+      "id": "way/1110784567",
+      "name": "Kënd lojërash",
+      "category": "playground",
+      "x": -17.357699522046186,
+      "z": 1572.0709792857633,
+      "source": "https://www.openstreetmap.org/way/1110784567",
+      "accuracy": "Mapped boundary; equipment layout estimated",
+      "furnishingAnchor": {
+        "x": -16.444616204513583,
+        "z": 1569.7262225603283
+      }
+    },
+    {
+      "id": "way/1118125166",
+      "name": "Kënd lojërash",
+      "category": "playground",
+      "x": 3357.164848602154,
+      "z": 2058.5034653334055,
+      "source": "https://www.openstreetmap.org/way/1118125166",
+      "accuracy": "Mapped boundary; equipment layout estimated",
+      "furnishingAnchor": {
+        "x": 3354.589908058561,
+        "z": 2061.0687840001196
+      }
+    },
+    {
+      "id": "way/1153248057",
+      "name": "Tre Manjolat",
+      "category": "park",
+      "x": 1426.5275598602211,
+      "z": 700.8162968889291,
+      "source": "https://www.openstreetmap.org/way/1153248057",
+      "accuracy": "Mapped boundary; equipment layout estimated",
+      "furnishingAnchor": {
+        "x": 1426.0760007411402,
+        "z": 700.6900560001309
+      }
+    },
+    {
+      "id": "way/1168817103",
+      "name": "Kënd lojërash",
+      "category": "playground",
+      "x": -2243.3674955685465,
+      "z": -1218.8385054998632,
+      "source": "https://www.openstreetmap.org/way/1168817103",
+      "accuracy": "Mapped boundary; equipment layout estimated",
+      "furnishingAnchor": {
+        "x": -2242.9803793270694,
+        "z": -1219.7689999997963
+      }
+    },
+    {
+      "id": "way/1172623444",
+      "name": "Park",
+      "category": "park",
+      "x": -1459.1490255735966,
+      "z": -1776.6099497142673,
+      "source": "https://www.openstreetmap.org/way/1172623444",
+      "accuracy": "Mapped boundary; equipment layout estimated",
+      "furnishingAnchor": {
+        "x": -1458.6486223340446,
+        "z": -1776.1910759999612
+      }
+    },
+    {
+      "id": "way/1172625940",
+      "name": "Kënd lojërash",
+      "category": "playground",
+      "x": -1941.0244878206713,
+      "z": -1515.644063999793,
+      "source": "https://www.openstreetmap.org/way/1172625940",
+      "accuracy": "Mapped boundary; equipment layout estimated",
+      "furnishingAnchor": {
+        "x": -1940.2059344946965,
+        "z": -1514.8968239995988
+      }
+    },
+    {
+      "id": "way/1173153938",
+      "name": "Park",
+      "category": "park",
+      "x": -2065.983230431106,
+      "z": -1297.9197208419623,
+      "source": "https://www.openstreetmap.org/way/1173153938",
+      "accuracy": "Mapped boundary; equipment layout estimated",
+      "furnishingAnchor": {
+        "x": -2064.84087388426,
+        "z": -1299.3422833330421
+      }
+    },
+    {
+      "id": "way/1174080111",
+      "name": "Kënd lojërash",
+      "category": "playground",
+      "x": -1904.2959909190658,
+      "z": -1236.789690399737,
+      "source": "https://www.openstreetmap.org/way/1174080111",
+      "accuracy": "Mapped boundary; equipment layout estimated"
+    },
+    {
+      "id": "way/1174085518",
+      "name": "Park",
+      "category": "park",
+      "x": -1113.2924365155504,
+      "z": -801.0453615998911,
+      "source": "https://www.openstreetmap.org/way/1174085518",
+      "accuracy": "Mapped boundary; equipment layout estimated",
+      "furnishingAnchor": {
+        "x": -1114.1975390714565,
+        "z": -801.1910959995944
+      }
+    },
+    {
+      "id": "way/1174085531",
+      "name": "Park",
+      "category": "park",
+      "x": -949.4227837902384,
+      "z": -1047.3681349999817,
+      "source": "https://www.openstreetmap.org/way/1174085531",
+      "accuracy": "Mapped boundary; equipment layout estimated",
+      "furnishingAnchor": {
+        "x": -949.3410209185583,
+        "z": -1046.4848640001344
+      }
+    },
+    {
+      "id": "way/1174887915",
+      "name": "Park",
+      "category": "park",
+      "x": -2523.179660943661,
+      "z": -978.1046672940404,
+      "source": "https://www.openstreetmap.org/way/1174887915",
+      "accuracy": "Mapped boundary; equipment layout estimated",
+      "furnishingAnchor": {
+        "x": -2529.1534139408022,
+        "z": -978.4968925333674
+      }
+    },
+    {
+      "id": "way/1175769686",
+      "name": "Park",
+      "category": "park",
+      "x": -2705.931214650393,
+      "z": -200.7945631999949,
+      "source": "https://www.openstreetmap.org/way/1175769686",
+      "accuracy": "Mapped boundary; equipment layout estimated",
+      "furnishingAnchor": {
+        "x": -2705.1483982270934,
+        "z": -201.59916400024298
+      }
+    },
+    {
+      "id": "way/1180469809",
+      "name": "Kënd lojërash",
+      "category": "playground",
+      "x": -1796.5063458103607,
+      "z": 752.8638392000122,
+      "source": "https://www.openstreetmap.org/way/1180469809",
+      "accuracy": "Mapped boundary; equipment layout estimated",
+      "furnishingAnchor": {
+        "x": -1797.0653609371961,
+        "z": 753.7268519998191
+      }
+    },
+    {
+      "id": "way/1181852086",
+      "name": "Park",
+      "category": "park",
+      "x": -2073.981617943389,
+      "z": -1341.3042217142356,
+      "source": "https://www.openstreetmap.org/way/1181852086",
+      "accuracy": "Mapped boundary; equipment layout estimated",
+      "furnishingAnchor": {
+        "x": -2073.7622205494818,
+        "z": -1342.2119863999496
+      }
+    },
+    {
+      "id": "way/1182607477",
+      "name": "Park",
+      "category": "park",
+      "x": -2230.2889874197667,
+      "z": -1232.1815989999695,
+      "source": "https://www.openstreetmap.org/way/1182607477",
+      "accuracy": "Mapped boundary; equipment layout estimated",
+      "furnishingAnchor": {
+        "x": -2230.7087126851443,
+        "z": -1231.999496000291
+      }
+    },
+    {
+      "id": "way/1183566324",
+      "name": "Park",
+      "category": "park",
+      "x": -323.4358116858695,
+      "z": 204.49929279978505,
+      "source": "https://www.openstreetmap.org/way/1183566324",
+      "accuracy": "Mapped boundary; equipment layout estimated",
+      "furnishingAnchor": {
+        "x": -322.5966317561558,
+        "z": 203.88017599984693
+      }
+    },
+    {
+      "id": "way/1183778466",
+      "name": "Veliaj Petrol",
+      "category": "fuel",
+      "x": -2335.9762069614817,
+      "z": 570.8689975999795,
+      "source": "https://www.openstreetmap.org/way/1183778466",
+      "accuracy": "Mapped boundary; equipment layout estimated"
+    },
+    {
+      "id": "way/1184325631",
+      "name": "Park",
+      "category": "park",
+      "x": -2078.411380644948,
+      "z": 888.4059580000408,
+      "source": "https://www.openstreetmap.org/way/1184325631",
+      "accuracy": "Mapped boundary; equipment layout estimated",
+      "furnishingAnchor": {
+        "x": -2078.9392736326135,
+        "z": 888.3979880000468
+      }
+    },
+    {
+      "id": "way/1185183942",
+      "name": "Park",
+      "category": "park",
+      "x": -1193.8191904072776,
+      "z": -1508.2746799999074,
+      "source": "https://www.openstreetmap.org/way/1185183942",
+      "accuracy": "Mapped boundary; equipment layout estimated",
+      "furnishingAnchor": {
+        "x": -1194.0312232772956,
+        "z": -1509.2765896000196
+      }
+    },
+    {
+      "id": "way/1185339524",
+      "name": "Park",
+      "category": "park",
+      "x": -124.2947307519556,
+      "z": 1075.9077999999643,
+      "source": "https://www.openstreetmap.org/way/1185339524",
+      "accuracy": "Mapped boundary; equipment layout estimated",
+      "furnishingAnchor": {
+        "x": -125.02292322771271,
+        "z": 1075.6344679998365
+      }
+    },
+    {
+      "id": "way/1192763991",
+      "name": "Park",
+      "category": "park",
+      "x": -1419.246767702558,
+      "z": 315.888311200174,
+      "source": "https://www.openstreetmap.org/way/1192763991",
+      "accuracy": "Mapped boundary; equipment layout estimated",
+      "furnishingAnchor": {
+        "x": -1419.1097895525365,
+        "z": 315.94211200019447
+      }
+    },
+    {
+      "id": "way/1193038788",
+      "name": "Park",
+      "category": "park",
+      "x": -1119.3305358674445,
+      "z": -382.82391400005514,
+      "source": "https://www.openstreetmap.org/way/1193038788",
+      "accuracy": "Mapped boundary; equipment layout estimated",
+      "furnishingAnchor": {
+        "x": -1119.5727265050937,
+        "z": -382.11612000019835
+      }
+    },
+    {
+      "id": "way/1193038789",
+      "name": "Kënd lojërash",
+      "category": "playground",
+      "x": -1038.2853442256187,
+      "z": -441.43468914287234,
+      "source": "https://www.openstreetmap.org/way/1193038789",
+      "accuracy": "Mapped boundary; equipment layout estimated",
+      "furnishingAnchor": {
+        "x": -1039.0657715838638,
+        "z": -440.2654440000375
+      }
+    },
+    {
+      "id": "way/1193235912",
+      "name": "Kënd lojërash",
+      "category": "playground",
+      "x": -1229.740619681319,
+      "z": -92.83716933315007,
+      "source": "https://www.openstreetmap.org/way/1193235912",
+      "accuracy": "Mapped boundary; equipment layout estimated",
+      "furnishingAnchor": {
+        "x": -1230.783491997153,
+        "z": -93.75215999957979
+      }
+    },
+    {
+      "id": "way/1196925984",
+      "name": "Kënd lojërash",
+      "category": "playground",
+      "x": -661.6145169297406,
+      "z": 355.9790959999463,
+      "source": "https://www.openstreetmap.org/way/1196925984",
+      "accuracy": "Mapped boundary; equipment layout estimated",
+      "furnishingAnchor": {
+        "x": -660.838073602442,
+        "z": 356.0659359997768
+      }
+    },
+    {
+      "id": "way/1198496250",
+      "name": "Kënd lojërash",
+      "category": "playground",
+      "x": -264.6369217697689,
+      "z": -8.368083428619611,
+      "source": "https://www.openstreetmap.org/way/1198496250",
+      "accuracy": "Mapped boundary; equipment layout estimated",
+      "furnishingAnchor": {
+        "x": -265.6656624738469,
+        "z": -10.106311999732805
+      }
+    },
+    {
+      "id": "way/1201209442",
+      "name": "Kënd lojërash",
+      "category": "playground",
+      "x": -571.8380193820211,
+      "z": 1684.0667711998904,
+      "source": "https://www.openstreetmap.org/way/1201209442",
+      "accuracy": "Mapped boundary; equipment layout estimated",
+      "furnishingAnchor": {
+        "x": -572.4735454863038,
+        "z": 1684.4993959998474
+      }
+    },
+    {
+      "id": "way/1202430708",
+      "name": "Park",
+      "category": "park",
+      "x": -928.068326093782,
+      "z": 1342.2492490002023,
+      "source": "https://www.openstreetmap.org/way/1202430708",
+      "accuracy": "Mapped boundary; equipment layout estimated",
+      "furnishingAnchor": {
+        "x": -927.2466589269799,
+        "z": 1342.665124000339
+      }
+    },
+    {
+      "id": "way/1207886678",
+      "name": "Park",
+      "category": "park",
+      "x": -2626.6660089826564,
+      "z": 785.0687152001733,
+      "source": "https://www.openstreetmap.org/way/1207886678",
+      "accuracy": "Mapped boundary; equipment layout estimated",
+      "furnishingAnchor": {
+        "x": -2627.5070975972667,
+        "z": 785.5530520003979
+      }
+    },
+    {
+      "id": "way/1230017157",
+      "name": "Kënd lojërash",
+      "category": "playground",
+      "x": -3314.695016196012,
+      "z": 419.1576487999599,
+      "source": "https://www.openstreetmap.org/way/1230017157",
+      "accuracy": "Mapped boundary; equipment layout estimated"
+    },
+    {
+      "id": "way/1230715924",
+      "name": "Kënd lojërash",
+      "category": "playground",
+      "x": -1898.5145295985476,
+      "z": 90.63006479999467,
+      "source": "https://www.openstreetmap.org/way/1230715924",
+      "accuracy": "Mapped boundary; equipment layout estimated"
+    },
+    {
+      "id": "way/1230715925",
+      "name": "Kënd lojërash",
+      "category": "playground",
+      "x": -1846.1181554851007,
+      "z": 93.51770560008389,
+      "source": "https://www.openstreetmap.org/way/1230715925",
+      "accuracy": "Mapped boundary; equipment layout estimated",
+      "furnishingAnchor": {
+        "x": -1846.321868808737,
+        "z": 92.88695199999077
+      }
+    },
+    {
+      "id": "way/1230718433",
+      "name": "Kënd lojërash",
+      "category": "playground",
+      "x": -1402.788495511129,
+      "z": 127.85992560018775,
+      "source": "https://www.openstreetmap.org/way/1230718433",
+      "accuracy": "Mapped boundary; equipment layout estimated"
+    },
+    {
+      "id": "way/1230720772",
+      "name": "Park",
+      "category": "park",
+      "x": -1689.6947674663456,
+      "z": 304.4802376000585,
+      "source": "https://www.openstreetmap.org/way/1230720772",
+      "accuracy": "Mapped boundary; equipment layout estimated",
+      "furnishingAnchor": {
+        "x": -1688.7510509426368,
+        "z": 304.00138400001936
+      }
+    },
+    {
+      "id": "way/1231554931",
+      "name": "Kënd lojërash",
+      "category": "playground",
+      "x": -1908.9087878487398,
+      "z": 321.45653760022657,
+      "source": "https://www.openstreetmap.org/way/1231554931",
+      "accuracy": "Mapped boundary; equipment layout estimated",
+      "furnishingAnchor": {
+        "x": -1909.3069028751067,
+        "z": 322.4546679996735
+      }
+    },
+    {
+      "id": "way/1231577924",
+      "name": "Micka Oil",
+      "category": "fuel",
+      "x": -3060.411032639683,
+      "z": 935.3017344001603,
+      "source": "https://www.openstreetmap.org/way/1231577924",
+      "accuracy": "Mapped boundary; equipment layout estimated"
+    },
+    {
+      "id": "way/1232218289",
+      "name": "Park",
+      "category": "park",
+      "x": -3104.6263380411297,
+      "z": 92.02824400011892,
+      "source": "https://www.openstreetmap.org/way/1232218289",
+      "accuracy": "Mapped boundary; equipment layout estimated",
+      "furnishingAnchor": {
+        "x": -3103.7253820410397,
+        "z": 91.12038800024847
+      }
+    },
+    {
+      "id": "way/1239624358",
+      "name": "Park",
+      "category": "park",
+      "x": -1925.8504805850375,
+      "z": 7.832157142857252,
+      "source": "https://www.openstreetmap.org/way/1239624358",
+      "accuracy": "Mapped boundary; equipment layout estimated",
+      "furnishingAnchor": {
+        "x": -1926.425581387449,
+        "z": 8.721323999942978
+      }
+    },
+    {
+      "id": "way/1242343974",
+      "name": "Park",
+      "category": "park",
+      "x": 458.2981219210439,
+      "z": -1414.4022346666118,
+      "source": "https://www.openstreetmap.org/way/1242343974",
+      "accuracy": "Mapped boundary; equipment layout estimated",
+      "furnishingAnchor": {
+        "x": 457.33633492566,
+        "z": -1414.0893800001281
+      }
+    },
+    {
+      "id": "way/1242369401",
+      "name": "Kënd lojërash",
+      "category": "playground",
+      "x": 166.61576325712235,
+      "z": -888.3536375999831,
+      "source": "https://www.openstreetmap.org/way/1242369401",
+      "accuracy": "Mapped boundary; equipment layout estimated",
+      "furnishingAnchor": {
+        "x": 166.2364360664445,
+        "z": -887.6716560001177
+      }
+    },
+    {
+      "id": "way/1242372415",
+      "name": "Park",
+      "category": "park",
+      "x": 386.6523628672753,
+      "z": -1140.7316623997472,
+      "source": "https://www.openstreetmap.org/way/1242372415",
+      "accuracy": "Mapped boundary; equipment layout estimated",
+      "furnishingAnchor": {
+        "x": 386.679476422807,
+        "z": -1140.6427839996377
+      }
+    },
+    {
+      "id": "way/1264234786",
+      "name": "Kënd lojërash",
+      "category": "playground",
+      "x": -844.7366662038144,
+      "z": -2421.84947155543,
+      "source": "https://www.openstreetmap.org/way/1264234786",
+      "accuracy": "Mapped boundary; equipment layout estimated",
+      "furnishingAnchor": {
+        "x": -845.3165126104974,
+        "z": -2422.6778799997246
+      }
+    },
+    {
+      "id": "way/1265390821",
+      "name": "Kënd lojërash",
+      "category": "playground",
+      "x": 741.0055934607901,
+      "z": -1838.516592000024,
+      "source": "https://www.openstreetmap.org/way/1265390821",
+      "accuracy": "Mapped boundary; equipment layout estimated",
+      "furnishingAnchor": {
+        "x": 741.1683653335086,
+        "z": -1837.5131680002128
+      }
+    },
+    {
+      "id": "way/1266340502",
+      "name": "Kënd lojërash",
+      "category": "playground",
+      "x": -5005.2090190722565,
+      "z": -2434.566173599955,
+      "source": "https://www.openstreetmap.org/way/1266340502",
+      "accuracy": "Mapped boundary; equipment layout estimated",
+      "furnishingAnchor": {
+        "x": -5004.641564370025,
+        "z": -2433.442523999756
+      }
+    },
+    {
+      "id": "way/1267688585",
+      "name": "Kënd lojërash",
+      "category": "playground",
+      "x": 1518.2187647476976,
+      "z": 51.19829440001388,
+      "source": "https://www.openstreetmap.org/way/1267688585",
+      "accuracy": "Mapped boundary; equipment layout estimated"
+    },
+    {
+      "id": "way/1267738459",
+      "name": "Park",
+      "category": "park",
+      "x": 1670.1367759899767,
+      "z": -148.93502799984708,
+      "source": "https://www.openstreetmap.org/way/1267738459",
+      "accuracy": "Mapped boundary; equipment layout estimated",
+      "furnishingAnchor": {
+        "x": 1669.2153511807155,
+        "z": -149.924863999837
+      }
+    },
+    {
+      "id": "way/1267743730",
+      "name": "Park",
+      "category": "park",
+      "x": 1267.054842035892,
+      "z": 195.91021266661195,
+      "source": "https://www.openstreetmap.org/way/1267743730",
+      "accuracy": "Mapped boundary; equipment layout estimated",
+      "furnishingAnchor": {
+        "x": 1266.6009608210009,
+        "z": 195.88739999977776
+      }
+    },
+    {
+      "id": "way/1267957727",
+      "name": "Park",
+      "category": "park",
+      "x": -3850.158983384372,
+      "z": 518.6398800001003,
+      "source": "https://www.openstreetmap.org/way/1267957727",
+      "accuracy": "Mapped boundary; equipment layout estimated",
+      "furnishingAnchor": {
+        "x": -3849.194013442878,
+        "z": 519.1680520003218
+      }
+    },
+    {
+      "id": "way/1267986326",
+      "name": "Kënd lojërash",
+      "category": "playground",
+      "x": -4481.428351972643,
+      "z": -1065.33685280014,
+      "source": "https://www.openstreetmap.org/way/1267986326",
+      "accuracy": "Mapped boundary; equipment layout estimated",
+      "furnishingAnchor": {
+        "x": -4481.47417559937,
+        "z": -1065.208700000256
+      }
+    },
+    {
+      "id": "way/1267986327",
+      "name": "Kënd lojërash",
+      "category": "playground",
+      "x": -4009.8814658363635,
+      "z": -559.271679999709,
+      "source": "https://www.openstreetmap.org/way/1267986327",
+      "accuracy": "Mapped boundary; equipment layout estimated",
+      "furnishingAnchor": {
+        "x": -4010.3802922393443,
+        "z": -559.9938639996016
+      }
+    },
+    {
+      "id": "way/1268261337",
+      "name": "Park",
+      "category": "park",
+      "x": -3926.647148203809,
+      "z": 870.4845511998228,
+      "source": "https://www.openstreetmap.org/way/1268261337",
+      "accuracy": "Mapped boundary; equipment layout estimated",
+      "furnishingAnchor": {
+        "x": -3926.030729007379,
+        "z": 870.2528279999823
+      }
+    },
+    {
+      "id": "way/1275876014",
+      "name": "Kënd lojërash",
+      "category": "playground",
+      "x": 1364.9682420329027,
+      "z": -2369.590915999827,
+      "source": "https://www.openstreetmap.org/way/1275876014",
+      "accuracy": "Mapped boundary; equipment layout estimated",
+      "furnishingAnchor": {
+        "x": 1365.9189607326439,
+        "z": -2369.155223999916
+      }
+    },
+    {
+      "id": "way/1279761885",
+      "name": "Daku Oil",
+      "category": "fuel",
+      "x": -4871.197630903205,
+      "z": -3762.2629565713028,
+      "source": "https://www.openstreetmap.org/way/1279761885",
+      "accuracy": "Mapped boundary; equipment layout estimated"
+    },
+    {
+      "id": "way/1284246436",
+      "name": "Kënd lojërash",
+      "category": "playground",
+      "x": 1720.9391241981748,
+      "z": -618.3009653332914,
+      "source": "https://www.openstreetmap.org/way/1284246436",
+      "accuracy": "Mapped boundary; equipment layout estimated",
+      "furnishingAnchor": {
+        "x": 1720.2277626044272,
+        "z": -618.6817679996578
+      }
+    },
+    {
+      "id": "way/1285225369",
+      "name": "Kënd lojërash",
+      "category": "playground",
+      "x": -1749.1996806686634,
+      "z": -2494.5208991999457,
+      "source": "https://www.openstreetmap.org/way/1285225369",
+      "accuracy": "Mapped boundary; equipment layout estimated",
+      "furnishingAnchor": {
+        "x": -1750.0031913458517,
+        "z": -2494.5238080000972
+      }
+    },
+    {
+      "id": "way/1285241065",
+      "name": "Kënd lojërash",
+      "category": "playground",
+      "x": -214.84365025751526,
+      "z": -3864.8923632001365,
+      "source": "https://www.openstreetmap.org/way/1285241065",
+      "accuracy": "Mapped boundary; equipment layout estimated",
+      "furnishingAnchor": {
+        "x": -213.8866407582957,
+        "z": -3863.5928280000962
+      }
+    },
+    {
+      "id": "way/1285796039",
+      "name": "Park",
+      "category": "park",
+      "x": 1868.6628332561895,
+      "z": -1732.9772805713549,
+      "source": "https://www.openstreetmap.org/way/1285796039",
+      "accuracy": "Mapped boundary; equipment layout estimated",
+      "furnishingAnchor": {
+        "x": 1867.8277120341838,
+        "z": -1733.7262560000893
+      }
+    },
+    {
+      "id": "way/1287859586",
+      "name": "Kënd lojërash",
+      "category": "playground",
+      "x": 1260.0459208583975,
+      "z": -2184.7062072000354,
+      "source": "https://www.openstreetmap.org/way/1287859586",
+      "accuracy": "Mapped boundary; equipment layout estimated"
+    },
+    {
+      "id": "way/1287859596",
+      "name": "Kënd lojërash",
+      "category": "playground",
+      "x": 1883.9338112137916,
+      "z": -2155.7318375998175,
+      "source": "https://www.openstreetmap.org/way/1287859596",
+      "accuracy": "Mapped boundary; equipment layout estimated",
+      "furnishingAnchor": {
+        "x": 1884.3779414865767,
+        "z": -2155.391188000185
+      }
+    },
+    {
+      "id": "way/1288176338",
+      "name": "Kënd lojërash",
+      "category": "playground",
+      "x": -1820.9710862170127,
+      "z": -1149.9872119999616,
+      "source": "https://www.openstreetmap.org/way/1288176338",
+      "accuracy": "Mapped boundary; equipment layout estimated",
+      "furnishingAnchor": {
+        "x": -1821.2496091782557,
+        "z": -1149.2476320001542
+      }
+    },
+    {
+      "id": "way/1289452899",
+      "name": "Kënd lojërash",
+      "category": "playground",
+      "x": -701.3808724835901,
+      "z": 1827.0617639999275,
+      "source": "https://www.openstreetmap.org/way/1289452899",
+      "accuracy": "Mapped boundary; equipment layout estimated",
+      "furnishingAnchor": {
+        "x": -702.3327862253326,
+        "z": 1827.282187999895
+      }
+    },
+    {
+      "id": "way/1289721031",
+      "name": "Park",
+      "category": "park",
+      "x": -468.80024363344774,
+      "z": 2776.7256000000075,
+      "source": "https://www.openstreetmap.org/way/1289721031",
+      "accuracy": "Mapped boundary; equipment layout estimated",
+      "furnishingAnchor": {
+        "x": -468.8239461632797,
+        "z": 2776.9863160004566
+      }
+    },
+    {
+      "id": "way/1290563430",
+      "name": "Kënd lojërash",
+      "category": "playground",
+      "x": 2367.4806152055708,
+      "z": 2959.3378375000502,
+      "source": "https://www.openstreetmap.org/way/1290563430",
+      "accuracy": "Mapped boundary; equipment layout estimated",
+      "furnishingAnchor": {
+        "x": 2368.0675058499037,
+        "z": 2960.1339280003763
+      }
+    },
+    {
+      "id": "way/1290802136",
+      "name": "Kënd lojërash",
+      "category": "playground",
+      "x": 1023.413952519034,
+      "z": 1445.3788800001753,
+      "source": "https://www.openstreetmap.org/way/1290802136",
+      "accuracy": "Mapped boundary; equipment layout estimated",
+      "furnishingAnchor": {
+        "x": 1022.8578843735793,
+        "z": 1445.680988000424
+      }
+    },
+    {
+      "id": "way/1291703569",
+      "name": "American Corner",
+      "category": "park",
+      "x": 562.2065696129871,
+      "z": 143.6835070000548,
+      "source": "https://www.openstreetmap.org/way/1291703569",
+      "accuracy": "Mapped boundary; equipment layout estimated",
+      "furnishingAnchor": {
+        "x": 562.413746800321,
+        "z": 144.6243919997625
+      }
+    },
+    {
+      "id": "way/1291888575",
+      "name": "Park",
+      "category": "park",
+      "x": 145.94595229590337,
+      "z": 351.3259200001462,
+      "source": "https://www.openstreetmap.org/way/1291888575",
+      "accuracy": "Mapped boundary; equipment layout estimated",
+      "furnishingAnchor": {
+        "x": 145.23487574663804,
+        "z": 351.5535280000192
+      }
+    },
+    {
+      "id": "way/1296916578",
+      "name": "Kënd lojërash",
+      "category": "playground",
+      "x": -687.248225710539,
+      "z": 1820.435997600014,
+      "source": "https://www.openstreetmap.org/way/1296916578",
+      "accuracy": "Mapped boundary; equipment layout estimated",
+      "furnishingAnchor": {
+        "x": -687.1100547846202,
+        "z": 1821.1039279996742
+      }
+    },
+    {
+      "id": "way/1300716054",
+      "name": "Kënd lojërash",
+      "category": "playground",
+      "x": 410.43359647655296,
+      "z": 2434.8533792001485,
+      "source": "https://www.openstreetmap.org/way/1300716054",
+      "accuracy": "Mapped boundary; equipment layout estimated",
+      "furnishingAnchor": {
+        "x": 411.0477800681722,
+        "z": 2434.1467799998045
+      }
+    },
+    {
+      "id": "way/1300721546",
+      "name": "Kënd lojërash",
+      "category": "playground",
+      "x": -550.7244360035139,
+      "z": 1513.8756662857006,
+      "source": "https://www.openstreetmap.org/way/1300721546",
+      "accuracy": "Mapped boundary; equipment layout estimated",
+      "furnishingAnchor": {
+        "x": -549.277876863274,
+        "z": 1514.472988000268
+      }
+    },
+    {
+      "id": "way/1300721547",
+      "name": "Kënd lojërash",
+      "category": "playground",
+      "x": -539.658786868061,
+      "z": 1502.3111085714143,
+      "source": "https://www.openstreetmap.org/way/1300721547",
+      "accuracy": "Mapped boundary; equipment layout estimated"
+    },
+    {
+      "id": "way/1301395739",
+      "name": "Park",
+      "category": "park",
+      "x": -3868.471402656178,
+      "z": 1452.0502875999891,
+      "source": "https://www.openstreetmap.org/way/1301395739",
+      "accuracy": "Mapped boundary; equipment layout estimated",
+      "furnishingAnchor": {
+        "x": -3868.5233502229644,
+        "z": 1452.051619999835
+      }
+    },
+    {
+      "id": "way/1302362324",
+      "name": "Park",
+      "category": "park",
+      "x": -4276.445620994416,
+      "z": 1716.3250808000428,
+      "source": "https://www.openstreetmap.org/way/1302362324",
+      "accuracy": "Mapped boundary; equipment layout estimated",
+      "furnishingAnchor": {
+        "x": -4276.56523859436,
+        "z": 1717.0678279996848
+      }
+    },
+    {
+      "id": "way/1302362326",
+      "name": "Kënd lojërash",
+      "category": "playground",
+      "x": -4200.117840016737,
+      "z": 1750.490302000118,
+      "source": "https://www.openstreetmap.org/way/1302362326",
+      "accuracy": "Mapped boundary; equipment layout estimated",
+      "furnishingAnchor": {
+        "x": -4200.735491380519,
+        "z": 1749.5918120003187
+      }
+    },
+    {
+      "id": "way/1302362332",
+      "name": "Park",
+      "category": "park",
+      "x": -4281.066299780732,
+      "z": 1601.7659868574242,
+      "source": "https://www.openstreetmap.org/way/1302362332",
+      "accuracy": "Mapped boundary; equipment layout estimated",
+      "furnishingAnchor": {
+        "x": -4281.096211095075,
+        "z": 1603.5256084002606
+      }
+    },
+    {
+      "id": "way/1302371983",
+      "name": "Park",
+      "category": "park",
+      "x": -3891.737688293626,
+      "z": 1736.592000000066,
+      "source": "https://www.openstreetmap.org/way/1302371983",
+      "accuracy": "Mapped boundary; equipment layout estimated",
+      "furnishingAnchor": {
+        "x": -3891.3283581020173,
+        "z": 1736.8415760002815
+      }
+    },
+    {
+      "id": "way/1302610754",
+      "name": "Kënd lojërash",
+      "category": "playground",
+      "x": 1021.8490456954221,
+      "z": 2788.4836232001717,
+      "source": "https://www.openstreetmap.org/way/1302610754",
+      "accuracy": "Mapped boundary; equipment layout estimated"
+    },
+    {
+      "id": "way/1303279756",
+      "name": "Karburant",
+      "category": "fuel",
+      "x": 2983.8125218262335,
+      "z": -2739.113203199845,
+      "source": "https://www.openstreetmap.org/way/1303279756",
+      "accuracy": "Mapped boundary; equipment layout estimated"
+    },
+    {
+      "id": "way/1304105748",
+      "name": "Kënd lojërash",
+      "category": "playground",
+      "x": 1025.108710941533,
+      "z": 439.5062026665751,
+      "source": "https://www.openstreetmap.org/way/1304105748",
+      "accuracy": "Mapped boundary; equipment layout estimated",
+      "furnishingAnchor": {
+        "x": 1025.863098518817,
+        "z": 439.25537199982693
+      }
+    },
+    {
+      "id": "way/1304739654",
+      "name": "Kënd lojërash",
+      "category": "playground",
+      "x": 1646.7189039365317,
+      "z": 841.8408020000675,
+      "source": "https://www.openstreetmap.org/way/1304739654",
+      "accuracy": "Mapped boundary; equipment layout estimated",
+      "furnishingAnchor": {
+        "x": 1647.098547527839,
+        "z": 842.1707400000879
+      }
+    },
+    {
+      "id": "way/1305335000",
+      "name": "Kënd lojërash",
+      "category": "playground",
+      "x": 700.1931005614638,
+      "z": -2842.7963331427136,
+      "source": "https://www.openstreetmap.org/way/1305335000",
+      "accuracy": "Mapped boundary; equipment layout estimated",
+      "furnishingAnchor": {
+        "x": 699.5858352068135,
+        "z": -2841.8089599997265
+      }
+    },
+    {
+      "id": "way/1307361244",
+      "name": "Kënd lojërash",
+      "category": "playground",
+      "x": 2167.7102695219032,
+      "z": -225.22930319984107,
+      "source": "https://www.openstreetmap.org/way/1307361244",
+      "accuracy": "Mapped boundary; equipment layout estimated"
+    },
+    {
+      "id": "way/1307864826",
+      "name": "Kënd lojërash",
+      "category": "playground",
+      "x": 2016.146702987568,
+      "z": -783.365519200044,
+      "source": "https://www.openstreetmap.org/way/1307864826",
+      "accuracy": "Mapped boundary; equipment layout estimated",
+      "furnishingAnchor": {
+        "x": 2016.9498122960697,
+        "z": -782.2887719997958
+      }
+    },
+    {
+      "id": "way/1311278947",
+      "name": "Kënd lojërash",
+      "category": "playground",
+      "x": 2407.5673503214493,
+      "z": -466.21261279980394,
+      "source": "https://www.openstreetmap.org/way/1311278947",
+      "accuracy": "Mapped boundary; equipment layout estimated",
+      "furnishingAnchor": {
+        "x": 2408.565279309669,
+        "z": -465.5128200000467
+      }
+    },
+    {
+      "id": "way/1311522716",
+      "name": "Kënd lojërash",
+      "category": "playground",
+      "x": 2947.281310186443,
+      "z": -874.0646023998959,
+      "source": "https://www.openstreetmap.org/way/1311522716",
+      "accuracy": "Mapped boundary; equipment layout estimated"
+    },
+    {
+      "id": "way/1313749215",
+      "name": "Kënd lojërash",
+      "category": "playground",
+      "x": 1414.3096204269864,
+      "z": -1363.382794399991,
+      "source": "https://www.openstreetmap.org/way/1313749215",
+      "accuracy": "Mapped boundary; equipment layout estimated",
+      "furnishingAnchor": {
+        "x": 1414.6801867038232,
+        "z": -1361.7463799997702
+      }
+    },
+    {
+      "id": "way/1314027631",
+      "name": "Park",
+      "category": "park",
+      "x": 252.9570451139035,
+      "z": -2439.05459599994,
+      "source": "https://www.openstreetmap.org/way/1314027631",
+      "accuracy": "Mapped boundary; equipment layout estimated",
+      "furnishingAnchor": {
+        "x": 253.6330111685297,
+        "z": -2437.0348839999892
+      }
+    },
+    {
+      "id": "way/1316389930",
+      "name": "Kënd lojërash",
+      "category": "playground",
+      "x": 3579.3123527461826,
+      "z": -2439.1420617141553,
+      "source": "https://www.openstreetmap.org/way/1316389930",
+      "accuracy": "Mapped boundary; equipment layout estimated",
+      "furnishingAnchor": {
+        "x": 3579.4720122228614,
+        "z": -2438.3964119996263
+      }
+    },
+    {
+      "id": "way/1317484688",
+      "name": "Kënd lojërash",
+      "category": "playground",
+      "x": 2555.9434223481253,
+      "z": 239.89088933337024,
+      "source": "https://www.openstreetmap.org/way/1317484688",
+      "accuracy": "Mapped boundary; equipment layout estimated",
+      "furnishingAnchor": {
+        "x": 2555.4801451522685,
+        "z": 239.03898000022005
+      }
+    },
+    {
+      "id": "way/1317486614",
+      "name": "Kënd lojërash",
+      "category": "playground",
+      "x": 2458.9467857859577,
+      "z": 290.1043728002223,
+      "source": "https://www.openstreetmap.org/way/1317486614",
+      "accuracy": "Mapped boundary; equipment layout estimated",
+      "furnishingAnchor": {
+        "x": 2458.613875210681,
+        "z": 289.5893920000979
+      }
+    },
+    {
+      "id": "way/1317586181",
+      "name": "Kënd lojërash",
+      "category": "playground",
+      "x": 2242.227253630966,
+      "z": 86.76058159986115,
+      "source": "https://www.openstreetmap.org/way/1317586181",
+      "accuracy": "Mapped boundary; equipment layout estimated",
+      "furnishingAnchor": {
+        "x": 2241.24484869052,
+        "z": 86.57510799979073
+      }
+    },
+    {
+      "id": "way/1317590047",
+      "name": "Kënd lojërash",
+      "category": "playground",
+      "x": 2161.683037578611,
+      "z": 17.432712000123104,
+      "source": "https://www.openstreetmap.org/way/1317590047",
+      "accuracy": "Mapped boundary; equipment layout estimated"
+    },
+    {
+      "id": "way/1318201100",
+      "name": "Kënd lojërash",
+      "category": "playground",
+      "x": 2167.385919176006,
+      "z": -78.1154703999203,
+      "source": "https://www.openstreetmap.org/way/1318201100",
+      "accuracy": "Mapped boundary; equipment layout estimated",
+      "furnishingAnchor": {
+        "x": 2167.172904649452,
+        "z": -78.76848800007585
+      }
+    },
+    {
+      "id": "way/1331172846",
+      "name": "Park",
+      "category": "park",
+      "x": -5145.891085305142,
+      "z": -3298.9491165714294,
+      "source": "https://www.openstreetmap.org/way/1331172846",
+      "accuracy": "Mapped boundary; equipment layout estimated",
+      "furnishingAnchor": {
+        "x": -5146.214632284618,
+        "z": -3297.9424950443313
+      }
+    },
+    {
+      "id": "way/1344620629",
+      "name": "Kënd lojërash",
+      "category": "playground",
+      "x": -3070.522738268682,
+      "z": 428.24358719999003,
+      "source": "https://www.openstreetmap.org/way/1344620629",
+      "accuracy": "Mapped boundary; equipment layout estimated",
+      "furnishingAnchor": {
+        "x": -3071.1874804991285,
+        "z": 429.1624080001689
+      }
+    },
+    {
+      "id": "way/1356044070",
+      "name": "Kënd lojërash",
+      "category": "playground",
+      "x": -698.0855398454386,
+      "z": -1692.618373600004,
+      "source": "https://www.openstreetmap.org/way/1356044070",
+      "accuracy": "Mapped boundary; equipment layout estimated",
+      "furnishingAnchor": {
+        "x": -696.2470374669075,
+        "z": -1691.8064199996502
+      }
+    },
+    {
+      "id": "way/1356407637",
+      "name": "Kënd lojërash",
+      "category": "playground",
+      "x": 80.28181922327472,
+      "z": 2342.938743444548,
+      "source": "https://www.openstreetmap.org/way/1356407637",
+      "accuracy": "Mapped boundary; equipment layout estimated",
+      "furnishingAnchor": {
+        "x": 79.8355520996241,
+        "z": 2342.71837706695
+      }
+    },
+    {
+      "id": "way/1359651143",
+      "name": "Kënd lojërash",
+      "category": "playground",
+      "x": -1297.3170282262367,
+      "z": -1574.46504599988,
+      "source": "https://www.openstreetmap.org/way/1359651143",
+      "accuracy": "Mapped boundary; equipment layout estimated",
+      "furnishingAnchor": {
+        "x": -1296.7653806636652,
+        "z": -1573.4734079999362
+      }
+    },
+    {
+      "id": "way/1375064015",
+      "name": "Park",
+      "category": "park",
+      "x": 2567.2660080702153,
+      "z": -395.72107813323396,
+      "source": "https://www.openstreetmap.org/way/1375064015",
+      "accuracy": "Mapped boundary; equipment layout estimated",
+      "furnishingAnchor": {
+        "x": 2573.5448496335216,
+        "z": -389.31716201498296
+      }
+    },
+    {
+      "id": "way/1431132679",
+      "name": "Kënd Lojrash",
+      "category": "playground",
+      "x": -2389.2352861187887,
+      "z": -4325.740743499939,
+      "source": "https://www.openstreetmap.org/way/1431132679",
+      "accuracy": "Mapped boundary; equipment layout estimated",
+      "furnishingAnchor": {
+        "x": -2389.957730350426,
+        "z": -4325.274319999976
+      }
+    },
+    {
+      "id": "way/1431964432",
+      "name": "Park",
+      "category": "park",
+      "x": -3540.2239888612403,
+      "z": -1677.1036039999883,
+      "source": "https://www.openstreetmap.org/way/1431964432",
+      "accuracy": "Mapped boundary; equipment layout estimated",
+      "furnishingAnchor": {
+        "x": -3542.0976415652112,
+        "z": -1677.597308406616
+      }
+    },
+    {
+      "id": "way/1433323256",
+      "name": "Park",
+      "category": "park",
+      "x": 1951.4973257938095,
+      "z": -457.58976559980687,
+      "source": "https://www.openstreetmap.org/way/1433323256",
+      "accuracy": "Mapped boundary; equipment layout estimated",
+      "furnishingAnchor": {
+        "x": 1952.0376308493314,
+        "z": -458.04358399986523
+      }
+    },
+    {
+      "id": "way/1473967860",
+      "name": "Kënd lojërash",
+      "category": "playground",
+      "x": -2095.3032345702536,
+      "z": -4374.827019200068,
+      "source": "https://www.openstreetmap.org/way/1473967860",
+      "accuracy": "Mapped boundary; equipment layout estimated",
+      "furnishingAnchor": {
+        "x": -2095.363311704777,
+        "z": -4374.295887999746
+      }
+    },
+    {
+      "id": "way/1484154495",
+      "name": "Kënd lojërash",
+      "category": "playground",
+      "x": -3336.84613853081,
+      "z": 87.5346266667408,
+      "source": "https://www.openstreetmap.org/way/1484154495",
+      "accuracy": "Mapped boundary; equipment layout estimated",
+      "furnishingAnchor": {
+        "x": -3337.0503966760575,
+        "z": 87.50990000020172
+      }
+    },
+    {
+      "id": "way/1484397275",
+      "name": "Kënd lojërash",
+      "category": "playground",
+      "x": -3654.3266103604055,
+      "z": -1007.192190399946,
+      "source": "https://www.openstreetmap.org/way/1484397275",
+      "accuracy": "Mapped boundary; equipment layout estimated",
+      "furnishingAnchor": {
+        "x": -3654.7004404249797,
+        "z": -1006.5761599998253
+      }
+    },
+    {
+      "id": "way/1485112426",
+      "name": "Kënd lojërash",
+      "category": "playground",
+      "x": -5102.7027141799745,
+      "z": -3294.2958769599873,
+      "source": "https://www.openstreetmap.org/way/1485112426",
+      "accuracy": "Mapped boundary; equipment layout estimated",
+      "furnishingAnchor": {
+        "x": -5103.01884321067,
+        "z": -3293.671879999837
+      }
+    },
+    {
+      "id": "way/1524779368",
+      "name": "Park",
+      "category": "park",
+      "x": 177.2566280845979,
+      "z": -64.10807479996058,
+      "source": "https://www.openstreetmap.org/way/1524779368",
+      "accuracy": "Mapped boundary; equipment layout estimated",
+      "furnishingAnchor": {
+        "x": 175.93120954083702,
+        "z": -63.91873868265146
+      }
+    },
+    {
+      "id": "way/1524779369",
+      "name": "Park",
+      "category": "park",
+      "x": 91.97826613997279,
+      "z": -58.71979567557014,
+      "source": "https://www.openstreetmap.org/way/1524779369",
+      "accuracy": "Mapped boundary; equipment layout estimated",
+      "furnishingAnchor": {
+        "x": 93.49662171307847,
+        "z": -58.68347656865167
+      }
+    },
+    {
+      "id": "way/1536675734",
+      "name": "Kënd lojërash",
+      "category": "playground",
+      "x": 502.70959797856943,
+      "z": -2270.5361536000946,
+      "source": "https://www.openstreetmap.org/way/1536675734",
+      "accuracy": "Mapped boundary; equipment layout estimated",
+      "furnishingAnchor": {
+        "x": 501.88052726698953,
+        "z": -2271.4905760000524
+      }
+    },
+    {
+      "id": "way/1536675735",
+      "name": "Kënd lojërash",
+      "category": "playground",
+      "x": 528.6793604682804,
+      "z": -2275.516610400081,
+      "source": "https://www.openstreetmap.org/way/1536675735",
+      "accuracy": "Mapped boundary; equipment layout estimated",
+      "furnishingAnchor": {
+        "x": 527.8787122096682,
+        "z": -2275.123368000227
+      }
+    },
+    {
+      "id": "way/1536679051",
+      "name": "Kënd lojërash",
+      "category": "playground",
+      "x": -80.94686746965579,
+      "z": -806.6024559999718,
+      "source": "https://www.openstreetmap.org/way/1536679051",
+      "accuracy": "Mapped boundary; equipment layout estimated"
+    },
+    {
+      "id": "way/1550497631",
+      "name": "BUCI OIL",
+      "category": "fuel",
+      "x": -5324.35805608331,
+      "z": -4977.537989599923,
+      "source": "https://www.openstreetmap.org/way/1550497631",
+      "accuracy": "Mapped boundary; equipment layout estimated"
+    }
+  ]
+}

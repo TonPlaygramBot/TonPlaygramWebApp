@@ -54,7 +54,7 @@ export type Actor = {
 export class CityRenderer {
   renderer: THREE.WebGLRenderer;
   scene = new THREE.Scene();
-  camera = new THREE.PerspectiveCamera(52, 1, 0.15, 2800);
+  camera = new THREE.PerspectiveCamera(52, 1, 0.15, 3600);
   yaw = 0;
   pitch = 0.32;
   firstPerson = false;
@@ -634,6 +634,14 @@ export class CityRenderer {
     this.scene.add(this.beacon);
     this.beacon.visible = false;
   }
+  async prepareActors(state:State,viewer:{x:number;z:number}) {
+    this.forces.update(state,viewer,state.elapsed,0,this.quality==='battery');
+    this.collectionFleet.update([...state.cars,...state.traffic].filter(c=>Math.hypot(c.x-viewer.x,c.z-viewer.z)<70),viewer,0);
+    await Promise.all([this.forces.whenIdle(),this.collectionFleet.whenIdle()]);
+    if(this.disposed)return;
+    this.forces.update(state,viewer,state.elapsed,0,this.quality==='battery');
+    this.collectionFleet.update([...state.cars,...state.traffic],viewer,0);
+  }
   async load(onProgress?: (message: string) => void) {
     const loader = new GLTFLoader();
     const files = [
@@ -650,7 +658,7 @@ export class CityRenderer {
       files.map(async (name) => {
         const file =
           name === "character"
-            ? "living/human"
+            ? "living/suited-agent"
             : ["city-car", "motorbike", "military-suv"].includes(name)
               ? "living/" + name
               : name;
@@ -896,11 +904,9 @@ export class CityRenderer {
         ...state.units,
         ...(state.rival ? [state.rival] : []),
       ]) {
-        if(car.model==='tirana-bus' || (collectionVehicleFor(car)&&this.collectionFleet.has(car.id)))continue;
+        if(car.model==='tirana-bus' || this.collectionFleet.owns(car) || this.forces.ownsVehicle(car))continue;
         if(p && Math.hypot(car.x-p.x,car.z-p.z)>(this.quality==='battery'?140:260))continue;
-        const close = !p || Math.hypot(car.x - p.x, car.z - p.z) < 45;
-        const detail =
-          close && car.id.startsWith("car-") ? "city-car" : car.model;
+        const detail = car.model;
         const a = this.actor(detail, car.id);
         active.add(car.id);
         a.group.visible = !this.forces.has(car.id) && !this.racingFleet.has(car.id) && (
@@ -977,7 +983,7 @@ export class CityRenderer {
         )
           continue;
         const id = `npc-${n.id}`;
-        if (this.forces.has(id)) {
+        if (this.forces.ownsPerson(n)) {
           const fallback = this.actors.get(id);
           if (fallback) fallback.group.visible = false;
           continue;

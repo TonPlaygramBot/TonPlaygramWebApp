@@ -1,4 +1,5 @@
 import {normalizeCheckpoint} from './checkpointCore.mjs';
+import {ensureStarterWeapons} from '../shared/weapons.mjs';
 /** Local, fictional street economy. No account, TPG or room APIs belong here. */
 export const STREET_SAVE_KEY = 'tirana-streets:street-career:v1';
 export const CHAPTER_IDS = Object.freeze([
@@ -25,6 +26,7 @@ export function createCampaign(missions, weapons, starter) {
       const w = arsenal.get(starter);
       inventory[starter] = {ammo: w.magazine, reserve: w.magazine * 3};
     }
+    if(arsenal.has('glockSidearmAttack')&&arsenal.has('combatKnife'))ensureStarterWeapons({inventory});
     return {cash: Math.floor(number(raw?.cash, 750, 10000000)), inventory,
       weapon: raw?.weapon === '' ? '' : Object.hasOwn(inventory, raw?.weapon) ? raw.weapon : Object.keys(inventory)[0]};
   }

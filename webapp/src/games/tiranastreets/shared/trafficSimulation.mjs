@@ -1,3 +1,4 @@
+import {cornerSpeed} from './drivingScale.mjs';
 import { WORLD } from './world.mjs';
 import { VEHICLE_COLLECTION, collectionVehicleFor } from './vehicleCollection.mjs';
 import { FORCE_VEHICLE_BOUNDS } from './albanianForces.mjs';
@@ -54,12 +55,13 @@ const nextRandom=c=>c.seed=(Math.imul(c.seed,1664525)+1013904223)>>>0;
 export function populateTraffic(state,spawn){
   const g=roadGraph(),occupied=new TrafficGrid([...state.cars,...state.traffic]);
   const local=[...g.edges].sort((a,b)=>Math.hypot(g.nodes[a.from][0]-spawn.x,g.nodes[a.from][1]-spawn.z)-Math.hypot(g.nodes[b.from][0]-spawn.x,g.nodes[b.from][1]-spawn.z));
+  const ids=new Set([...state.traffic,...state.cars].map(c=>c.id));
   const make=(i,bus)=>{
     const id=bus?`tirana-bus-${i}`:`traffic-${i}`;
-    if([...state.traffic,...state.cars].some(c=>c.id===id))return;
+    if(ids.has(id))return;
     let edge,p;
     for(let attempt=0;attempt<600;attempt++){
-      const n=i<25&&!bus?(i*9+attempt*17)%Math.min(local.length,500):(i*7919+attempt*193+(bus?123:0))%local.length;
+      const n=i<96&&!bus?(i*9+attempt*17)%Math.min(local.length,500):(i*7919+attempt*193+(bus?123:0))%local.length;
       edge=local[n];if(bus&&(edge.w<7||edge.len<28))continue;
       p=lanePoint(edge,.2+((i*37+attempt*13)%60)/100);
       if(occupied.near(p.x,p.z,22).some(c=>Math.hypot(c.x-p.x,c.z-p.z)<(vehicleSize(c).length+(bus?18:4.5))*.5+2)){p=null;continue;}break;
@@ -68,10 +70,10 @@ export function populateTraffic(state,spawn){
     const heading=Math.atan2(g.nodes[edge.from][0]-g.nodes[edge.to][0],g.nodes[edge.from][1]-g.nodes[edge.to][1]);
     const model=bus?'tirana-bus':i%17===0?'motorbike':i%19===0?'police':i%23===0?'military-suv':i%5===0?'taxi':i%7===0?'sedan-sports':'sedan';
     const c={id,...p,heading,model,speed:0,vx:0,vz:0,steering:0,driver:null,npcDriver:true,node:edge.from,next:edge.to,seed:11+i*29,cruise:bus?7:5+(i%6),lane:edge.lane,edgeWidth:edge.w};
-    if(!bus&&i%10===1)c.collectionVehicle=VEHICLE_COLLECTION[Math.floor(i/10)%VEHICLE_COLLECTION.length].id;
+    if(['sedan','sedan-sports','taxi'].includes(model)&&i%10===1)c.collectionVehicle=VEHICLE_COLLECTION[Math.floor(i/10)%VEHICLE_COLLECTION.length].id;
     if(model==='police'){c.forceVehicle=i%2?'traffic_bike':'patrol_sedan';c.forceCharacter=i%2?'traffic_officer':'patrol_officer';}
     if(bus){c.passengers=Array.from({length:12+i%9},(_,seat)=>({seat,face:(i+seat*3)%8,shirt:(i+seat)%6}));c.routeName=['UNAZA','KOMBINAT – KINOSTUDIO','TIRANË – KAMËZ'][i%3];c.livery=i%3;c.busStopAt=20+i*3;c.trailerHeading=heading;}
-    state.traffic.push(c);const k=key(c.x,c.z);if(!occupied.cells.has(k))occupied.cells.set(k,[]);occupied.cells.get(k).push(c);
+    state.traffic.push(c);ids.add(id);const k=key(c.x,c.z);if(!occupied.cells.has(k))occupied.cells.set(k,[]);occupied.cells.get(k).push(c);
   };
   for(let i=0;i<CITY_POPULATION.vehicles-3;i++)make(i,false);
   for(let i=0;i<CITY_POPULATION.buses;i++)make(i,true);
@@ -106,6 +108,7 @@ export function updateTraffic(state,dt,onImpact){
   const step=.05;state.trafficAccumulator-=step;
   const g=roadGraph(),vehicles=new TrafficGrid([...state.cars,...state.traffic,...state.units]);
   const people=new TrafficGrid([...state.npcs,...Object.values(state.players)]);
+  const viewers=Object.values(state.players);
   for(const car of state.traffic){
     if(car.service&&car.responsePhase!=='patrol')continue;
     let e=g.links[car.node]?.find(e=>e.to===car.next);
@@ -120,8 +123,15 @@ export function updateTraffic(state,dt,onImpact){
       continue;
     }
     const desired=Math.atan2(-dx,-dz);car.heading+=turn(desired-car.heading)*Math.min(1,step*(car.model==='tirana-bus'?3:6));car.heading=turn(car.heading);
-    const nearbyPeople=people.near(car.x,car.z,50),decision=trafficDecision(car,vehicles.near(car.x,car.z,55),nearbyPeople,state.elapsed);
-    let target=decision.target;
+    const close=viewers.some(p=>(p.x-car.x)**2+(p.z-car.z)**2<320**2);
+    const refresh=close||!car.awareness||state.elapsed>=car.awarenessAt;
+    const nearbyPeople=refresh?people.near(car.x,car.z,50):[];
+    if(refresh){car.awareness=trafficDecision(car,vehicles.near(car.x,car.z,55),nearbyPeople,state.elapsed);car.awarenessAt=state.elapsed+.25;}
+    const decision=car.awareness;
+    let target=cornerSpeed(turn(desired-car.heading),decision.target);
+    // Slow before the current edge ends, so the next lane is reached without
+    // high-speed right-angle slides. Long buses need a gentler approach.
+    if(d<12)target=Math.min(target,Math.sqrt(2.4*d+4));
     if(car.model==='tirana-bus'){
       if(state.elapsed>=car.busStopAt&&car.speed<.25&&decision.reason==='signal'&&!car.doorsUntil){car.doorsUntil=state.elapsed+3;car.busStopAt=state.elapsed+55;}
       if(state.elapsed<(car.doorsUntil||0))target=0;else car.doorsUntil=0;
@@ -131,8 +141,9 @@ export function updateTraffic(state,dt,onImpact){
     car.speed=Math.max(0,before+Math.max(-deceleration*step,Math.min(1.8*step,target-before)));
     car.braking=car.speed<before-.01;car.trafficReason=target<.1?decision.reason:'';
     // Cars cannot drive through a stopped queue or the red stop line.
-    if(decision.reason!=='pedestrian'&&decision.gap<car.speed*step)car.speed=Math.max(0,decision.gap/step);
+    if((decision.reason!=='pedestrian'||decision.gap>=0)&&decision.gap<car.speed*step)car.speed=Math.max(0,decision.gap/step);
     const oldX=car.x,oldZ=car.z,move=Math.min(d,car.speed*step);
+    decision.gap-=move;
     car.x+=dx/d*move;car.z+=dz/d*move;car.vx=(car.x-oldX)/step;car.vz=(car.z-oldZ)/step;
     if(car.speed>2)for(const n of nearbyPeople){
       if(n.health<=0||n.carId||n.aircraftId||n.motion==='drive'||state.elapsed-(n.trafficHitAt??-10)<2)continue;

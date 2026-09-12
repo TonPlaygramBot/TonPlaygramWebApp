@@ -50,6 +50,7 @@ export type Career = {
   upgrades: number[];
   bestRally: number;
   completed: boolean;
+  medals: string[];
 };
 export const freshCareer = (): Career => ({
   tour: 0,
@@ -59,7 +60,8 @@ export const freshCareer = (): Career => ({
   credits: 0,
   upgrades: [0, 0, 0],
   bestRally: 0,
-  completed: false
+  completed: false,
+  medals: []
 });
 export function normalizeCareer(
   value: Partial<Career> | null | undefined
@@ -85,7 +87,16 @@ export function normalizeCareer(
     credits: number(value?.credits),
     upgrades,
     bestRally: number(value?.bestRally),
-    completed
+    completed,
+    medals: Array.isArray(value?.medals)
+      ? [
+          ...new Set(
+            value.medals.filter(
+              (m) => typeof m === 'string' && /^rally-[0-4]$/.test(m)
+            )
+          )
+        ]
+      : []
   };
 }
 export function careerResult(c: Career, won: boolean, rally: number): Career {
@@ -96,6 +107,11 @@ export function careerResult(c: Career, won: boolean, rally: number): Career {
     bestRally: Math.max(current.bestRally, rally)
   };
   if (n.completed) return n;
+  const medal = `rally-${n.tour}`;
+  if (rally >= rallyGoal(n.tour) && !n.medals.includes(medal)) {
+    n.medals = [...n.medals, medal];
+    n.credits += 1;
+  }
   if (won) {
     n.wins++;
     n.credits += 2;
@@ -169,4 +185,31 @@ export function previewServices(): GameServices {
     syncRoom: offline,
     leaveRoom: async () => {}
   };
+}
+
+/** Existing saves retain all five events and their current round. */
+export const ROUND_FORMATS = [
+  {
+    name: 'Sprint',
+    detail: 'Start at 6–6. First to 11, win by two.',
+    points: [6, 6],
+    gamesToWin: 1
+  },
+  {
+    name: 'Comeback',
+    detail: 'Recover from 4–8. First to 11, win by two.',
+    points: [4, 8],
+    gamesToWin: 1
+  },
+  {
+    name: 'Championship',
+    detail: 'Best of three games. Each game to 11.',
+    points: [0, 0],
+    gamesToWin: 2
+  }
+];
+export const rallyGoal = (tour: number) =>
+  4 + Math.min(4, Math.max(0, tour)) * 2;
+export function careerRound(c: Career) {
+  return ROUND_FORMATS[Math.min(2, Math.max(0, c.round))];
 }
