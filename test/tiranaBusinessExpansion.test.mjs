@@ -51,13 +51,23 @@ test('height corrections agree with colliders and the rear tower adds no new gro
  for(const part of BUSINESS_BUILDING_PARTS){const parent=WORLD.buildings.find(b=>b.id===part.parentBuildingId);assert.ok(parent);assert.equal(polygonClipping.difference([part.p],[parent.p]).length,0);assert.equal(WORLD.buildings.find(b=>b.id===part.id).h,BUSINESS_BUILDING_PROFILES[part.id].height);assert.match(part.id,/^visual-part\//);assert.ok(!BUSINESS_SIGNS.some(s=>s.buildingId===part.id));}
 });
 
-test('bank/hotel atlas stays below 4096 and visible identity draws remain bounded',()=>{
+test('bank/hotel atlas is bounded and loads artwork only for selected nearby signs',async()=>{
  const oldDocument=globalThis.document,oldImage=globalThis.Image,canvases=[],images=[],draws=[];
  const ctx=new Proxy({measureText:s=>({width:s.length*7}),drawImage:(...args)=>draws.push(args)},{get:(o,k)=>o[k]||(()=>{})});
  globalThis.document={createElement:()=>{const c={width:0,height:0,getContext:()=>ctx};canvases.push(c);return c;}};
  globalThis.Image=class {naturalWidth=256;naturalHeight=128;set src(value){this.url=value;images.push(this);}};
- let layer;try{layer=new api.BuildingBrandLayer();assert.ok(canvases[0].width<=4096&&canvases[0].height<=4096);assert.equal(new Set(images.map(i=>i.url)).size,images.length);assert.ok(images.length>=20&&images.length<=31);images.forEach(i=>i.onload());assert.ok(draws.length>=images.length&&draws.length<BUSINESS_SIGNS.length);
-  const site=BUSINESS_SIGNS.find(s=>s.name==='Hotel Mondial');layer.update(1,site,false,true);const mesh=layer.group.children.find(o=>o.isInstancedMesh);assert.ok(mesh.count>0&&mesh.count<=48);const uv=mesh.geometry.getAttribute('instanceAtlas');for(let i=0;i<mesh.count;i++){assert.ok(uv.getX(i)>=0&&uv.getY(i)>=0);assert.ok(uv.getX(i)+uv.getZ(i)<=1&&uv.getY(i)+uv.getW(i)<=1);}
-  layer.dispose();const count=draws.length;images.forEach(i=>i.onload());assert.equal(draws.length,count);console.log('Business atlas',canvases[0].width,canvases[0].height);
+ let layer;try{
+  layer=new api.BuildingBrandLayer();assert.ok(canvases[0].width<=4096&&canvases[0].height<=4096);assert.equal(images.length,0);
+  layer.update(0,{x:1e5,z:1e5},false,true);assert.equal(images.length,0);
+  const site=BUSINESS_SIGNS.find(s=>s.name==='Hotel Mondial');layer.update(1,site,false,true);
+  assert.ok(images.length>0&&images.length<=4);assert.ok(images.some(i=>i.url.includes('mondial-logo')));
+  for(let i=0;i<images.length;i++)images[i].onload?.();await Promise.resolve();
+  assert.ok(draws.length>0);assert.equal(new Set(images.map(i=>i.url)).size,images.length);
+  const mesh=layer.group.children.find(o=>o.isInstancedMesh);assert.ok(mesh.count>0&&mesh.count<=48);
+  const uv=mesh.geometry.getAttribute('instanceAtlas');for(let i=0;i<mesh.count;i++){assert.ok(uv.getX(i)>=0&&uv.getY(i)>=0);assert.ok(uv.getX(i)+uv.getZ(i)<=1&&uv.getY(i)+uv.getW(i)<=1);}
+  layer.update(2,BUSINESS_SIGNS.find(s=>s.name==='Hotel Opera'),false,true);
+  const outstanding=images.filter(i=>i.onload);assert.ok(outstanding.length>0);
+  layer.dispose();const count=draws.length;for(let i=0;i<images.length;i++)images[i].onload?.();await Promise.resolve();assert.equal(draws.length,count);
+  console.log('Business atlas',canvases[0].width,canvases[0].height);
  }finally{layer?.dispose();globalThis.document=oldDocument;globalThis.Image=oldImage;}
 });

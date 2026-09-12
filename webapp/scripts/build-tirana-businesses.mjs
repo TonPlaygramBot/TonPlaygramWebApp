@@ -53,6 +53,7 @@ const {BUSINESS_SIGNS}=await import('../src/games/tirana-city-source/businessSig
 const {STREET_LIFE}=await import('../src/games/tirana-street-life/registry.mjs');
 const {NEIGHBOURHOOD}=await import('../src/games/tirana-neighbourhood/data.mjs');
 const {BUSINESS_SIGN_REFERENCES}=await import('../src/games/tirana-street-life/businessSignReferences.mjs');
+const {CITY_BUSINESS_SIGN_REFERENCES}=await import('../src/games/tirana-street-life/cityBusinessSignReferences.mjs');
 const brandCounts={};for(const s of [...BUSINESS_SIGNS,...STREET_LIFE.storefronts,...NEIGHBOURHOOD.storefronts]){const r=signReferenceFor(s.name);if(r)brandCounts[r.id]=(brandCounts[r.id]||0)+1;}
-await writeFile(new URL('../../docs/tirana-business-logo-counts.json',import.meta.url),JSON.stringify({businessBoards:BUSINESS_SIGNS.length,mappedLogoPlacements:Object.values(brandCounts).reduce((a,b)=>a+b,0),newBrandPlacements:BUSINESS_SIGN_REFERENCES.reduce((n,r)=>n+(brandCounts[r.id]||0),0),brandCounts},null,2)+'\n');
+await writeFile(new URL('../../docs/tirana-business-logo-counts.json',import.meta.url),JSON.stringify({businessBoards:BUSINESS_SIGNS.length,mappedLogoPlacements:Object.values(brandCounts).reduce((a,b)=>a+b,0),newBrandPlacements:BUSINESS_SIGN_REFERENCES.reduce((n,r)=>n+(brandCounts[r.id]||0),0),cityExpansionPlacements:CITY_BUSINESS_SIGN_REFERENCES.reduce((n,r)=>n+(brandCounts[r.id]||0),0),brandCounts},null,2)+'\n');
 console.log({mappedPlaces:places.length,matched:sites.length,counts,issues:issues.length});

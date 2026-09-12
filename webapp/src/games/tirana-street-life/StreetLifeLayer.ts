@@ -1,12 +1,13 @@
 import * as T from 'three';
 import {signReferenceFor,referencedAdvertising,SIGN_REFERENCES} from './signReferences.mjs';
+import {loadBrandArtwork} from './brandArtworkCache';
 import {STREET_LIFE,type StreetLifeData} from './registry.mjs';
 import {buildStreetModel,nearbyIndex} from './streetModels.mjs';
 import {ribbonExclusion} from '../tirana-street-detail/roadDetailCore.mjs';
 import type {StreetDetailOptions} from '../tirana-street-detail/StreetDetailLayer';
 type Point={x:number;z:number};
 type Part={shape:string;color:number;p:number[];s:number[];pitch?:number};
-type Sign={text:string;p:number[];s:number[];bg:string;fg:string;yaw:number;atlas?:number};
+type Sign={text:string;p:number[];s:number[];bg:string;fg:string;yaw:number;atlas?:number;brand?:string};
 type Model=Point&{id:string;yaw:number;type:string;parts:Part[];signs:Sign[]};
 type Data=Pick<StreetLifeData,'storefronts'|'stops'|'fuel'|'advertising'>;
 
@@ -20,6 +21,7 @@ export class StreetLifeLayer {
  private labels:T.InstancedMesh;private atlas:T.CanvasTexture;
  private dummy=new T.Object3D();private parent=new T.Object3D();private color=new T.Color();
  private columns=8;private rows=1;
+ private brandRequests=new Map<string,()=>void>();private requestedBrands=new Set<string>();
  private material:T.MeshStandardMaterial;private glassMaterial:T.MeshStandardMaterial;private signMaterial:T.MeshStandardMaterial;
  constructor(data:Data=STREET_LIFE,options:StreetDetailOptions={},private labelsOnly=false){
   this.group.name='Tirana:mapped-storefronts-stops-and-fuel';
@@ -29,7 +31,7 @@ export class StreetLifeLayer {
    for(const s of data[key])if(!blocked||!blocked(s.x,s.z,Math.max(4,'width' in s?Number(s.width):0)))models.push(buildStreetModel(type==='advertising'?referencedAdvertising(s,data.storefronts):s,type));
   if(this.labelsOnly)for(const model of models)for(const sign of model.signs)sign.p[2]=Math.max(.238,sign.p[2]);
   const signs:Sign[]=[],signIndex=new Map<string,number>();
-  for(const sign of models.flatMap(m=>m.signs)){const key=JSON.stringify([sign.text,sign.bg,sign.fg,Math.round(sign.s[0]/sign.s[1]*10)]);if(!signIndex.has(key)){signIndex.set(key,signs.length);signs.push(sign);}sign.atlas=signIndex.get(key)!;}
+  for(const sign of models.flatMap(m=>m.signs)){sign.brand=signReferenceFor(sign.text)?.id;const key=JSON.stringify([sign.text,sign.bg,sign.fg,Math.round(sign.s[0]/sign.s[1]*10)]);if(!signIndex.has(key)){signIndex.set(key,signs.length);signs.push(sign);}sign.atlas=signIndex.get(key)!;}
   // The full neighbourhood has more than 1,300 unique boards: eight columns
   // exceeded 4096 pixels vertically and could disappear on mobile GPUs.
   this.columns=Math.min(16,Math.max(8,Math.ceil(signs.length/Math.floor(4096/48))));
@@ -43,13 +45,12 @@ export class StreetLifeLayer {
    if(s.text==='TIRANË'){ctx.globalAlpha=.16;for(let k=0;k<8;k++)ctx.fillRect(x+k*32,y+35,18,13);ctx.globalAlpha=1;}
   });
   this.atlas=new T.CanvasTexture(canvas);this.atlas.colorSpace=T.SRGBColorSpace;this.atlas.anisotropy=2;
-  const usedBrands=new Set(signs.map(s=>signReferenceFor(s.text)?.id).filter(Boolean));
+  const usedBrands=new Set(signs.map(s=>s.brand).filter(Boolean));
   for(const reference of SIGN_REFERENCES.filter(r=>usedBrands.has(r.id))){
-   const image=new Image();
-   image.onload=()=>{
-    if(this.dead)return;
+   this.brandRequests.set(reference.id,()=>{void loadBrandArtwork(reference.logo).then(image=>{
+    if(this.dead||!image)return;
     signs.forEach((sign,i)=>{
-     if(signReferenceFor(sign.text)?.id!==reference.id)return;
+     if(sign.brand!==reference.id)return;
      const x=(i%this.columns)*256,y=Math.floor(i/this.columns)*48;
      ctx.fillStyle=reference.background;ctx.fillRect(x,y,256,48);
      const [sx,sy,sw,sh]=reference.crop??[0,0,image.naturalWidth,image.naturalHeight];
@@ -59,8 +60,7 @@ export class StreetLifeLayer {
      ctx.drawImage(image,sx,sy,sw,sh,x+(256-w)/2,y+(48-h)/2,w,h);
     });
     this.atlas.needsUpdate=true;
-   };
-   image.src=reference.logo;
+   });});
   }
   this.material=new T.MeshStandardMaterial({color:0xffffff,roughness:.66,metalness:.15});
   this.glassMaterial=new T.MeshStandardMaterial({color:0xffffff,roughness:.23,metalness:.48});
@@ -96,6 +96,7 @@ export class StreetLifeLayer {
     mesh.setMatrixAt(mesh.count,this.dummy.matrix.premultiply(this.parent.matrix));mesh.setColorAt(mesh.count++,this.color.setHex(p.color));
    }
    for(const s of model.signs){
+    if(s.brand&&!this.requestedBrands.has(s.brand)){this.requestedBrands.add(s.brand);this.brandRequests.get(s.brand)?.();}
     if(this.labels.count>=384)break;const n=this.labels.count++,a=s.atlas!;
     this.dummy.position.fromArray(s.p);this.dummy.scale.fromArray(s.s);this.dummy.rotation.set(0,s.yaw,0);this.dummy.updateMatrix();
     this.labels.setMatrixAt(n,this.dummy.matrix.premultiply(this.parent.matrix));uv.setXYZW(n,(a%this.columns+.025)/this.columns,1-(Math.floor(a/this.columns)+.97)/this.rows,.95/this.columns,.94/this.rows);
@@ -104,5 +105,5 @@ export class StreetLifeLayer {
   this.meshes.forEach(m=>{m.instanceMatrix.needsUpdate=true;if(m.instanceColor)m.instanceColor.needsUpdate=true;});this.labels.instanceMatrix.needsUpdate=true;uv.needsUpdate=true;
  }
  retire(){this.dead=true;}
- dispose(){if(this.disposed)return;this.disposed=true;this.dead=true;this.group.removeFromParent();this.meshes.forEach(m=>m.geometry.dispose());this.labels.geometry.dispose();this.material.dispose();this.glassMaterial.dispose();this.signMaterial.dispose();this.atlas.dispose();this.group.clear();}
+ dispose(){if(this.disposed)return;this.disposed=true;this.dead=true;this.brandRequests.clear();this.requestedBrands.clear();this.group.removeFromParent();this.meshes.forEach(m=>m.geometry.dispose());this.labels.geometry.dispose();this.material.dispose();this.glassMaterial.dispose();this.signMaterial.dispose();this.atlas.dispose();this.group.clear();}
 }

@@ -1,0 +1,796 @@
+[
+  {
+    "id": "mulaj",
+    "file": "mulaj-logo.png",
+    "sourceUrl": "https://hotelmulaj.com/wp-content/uploads/2021/08/Mulaj-Hotel-Logo-1.png",
+    "referencePage": "https://hotelmulaj.com/",
+    "retrieved": "2026-09-12",
+    "originalSha256": "fe529e14132ec15a7657f1e67416c2c276d9d1befc8ab8d4234b858c177fcbe4",
+    "sha256": "1b246602e3b4c7ec394a89821052104be5b20fa45a470d64f4623627f0b32dae",
+    "originalDimensions": [
+      451,
+      200
+    ],
+    "cropBox": [
+      16,
+      12,
+      437,
+      186
+    ],
+    "dimensions": [
+      256,
+      106
+    ],
+    "usage": "Original operator or operator-authorized partner artwork for matching mapped identities; brand-owned, not CC0. Blank margins cropped and proportionally reduced; SVG rasterized where necessary. Prepared for the 256-pixel sign atlas with a 192-colour PNG palette."
+  },
+  {
+    "id": "opera",
+    "file": "opera-logo.png",
+    "sourceUrl": "https://hotelopera.al/wp-content/uploads/2019/11/logo-opera-1.png",
+    "referencePage": "https://hotelopera.al/",
+    "retrieved": "2026-09-12",
+    "originalSha256": "ab3c4d34c86c37f45f0fc73be257fe1c02791277e3adea72ff00dfbe660bc668",
+    "sha256": "eca4ec5a74ef60dd0c2e374196490a076e6e7f0262e747fd1be4aadcc8ae8b9a",
+    "originalDimensions": [
+      162,
+      99
+    ],
+    "cropBox": [
+      3,
+      0,
+      159,
+      99
+    ],
+    "dimensions": [
+      156,
+      99
+    ],
+    "usage": "Original operator or operator-authorized partner artwork for matching mapped identities; brand-owned, not CC0. Blank margins cropped and proportionally reduced; SVG rasterized where necessary. Prepared for the 256-pixel sign atlas with a 192-colour PNG palette."
+  },
+  {
+    "id": "iliria",
+    "file": "iliria-logo.png",
+    "sourceUrl": "https://www.iliriahoteltirana.com/images/logo2.jpg",
+    "referencePage": "https://www.iliriahoteltirana.com/",
+    "retrieved": "2026-09-12",
+    "originalSha256": "ece2b9ee9b9ef48768551633fb5e8d4799d7fcc9925bf3d01e1684b5f404b64b",
+    "sha256": "faf2ceb86527e1bc998c9a95d6b8b4dc636fa6583fd04eddcdefb1d760184559",
+    "originalDimensions": [
+      1024,
+      581
+    ],
+    "cropBox": [
+      0,
+      6,
+      1022,
+      575
+    ],
+    "dimensions": [
+      230,
+      128
+    ],
+    "usage": "Original operator or operator-authorized partner artwork for matching mapped identities; brand-owned, not CC0. Blank margins cropped and proportionally reduced; SVG rasterized where necessary. Prepared for the 256-pixel sign atlas with a 192-colour PNG palette."
+  },
+  {
+    "id": "arka",
+    "file": "arka-logo.png",
+    "sourceUrl": "https://arkahotel.al/wp-content/uploads/2024/07/ARKA-HOTEL-LOGO-01.png",
+    "referencePage": "https://arkahotel.al/",
+    "retrieved": "2026-09-12",
+    "originalSha256": "c59fe208a4cc90813650d20fb9ef75606a443cf17c0cd132eb44d399c6dc0101",
+    "sha256": "b4336e898201886d2a06c5edc73e68b483bbe1ec567dc56ee2717c18723e3c6d",
+    "originalDimensions": [
+      500,
+      280
+    ],
+    "cropBox": [
+      2,
+      31,
+      498,
+      277
+    ],
+    "dimensions": [
+      256,
+      127
+    ],
+    "usage": "Original operator or operator-authorized partner artwork for matching mapped identities; brand-owned, not CC0. Blank margins cropped and proportionally reduced; SVG rasterized where necessary. Prepared for the 256-pixel sign atlas with a 192-colour PNG palette."
+  },
+  {
+    "id": "black-diamond",
+    "file": "black-diamond-logo.png",
+    "sourceUrl": "https://blackdiamond-hotel.com/wp-content/uploads/2020/07/BLACKdiamondlogo.png",
+    "referencePage": "https://blackdiamond-hotel.com/",
+    "retrieved": "2026-09-12",
+    "originalSha256": "5cb177d4afd2ae09a1f1692c281d60ed4a6c1f99292a5459122b9f25b5540c67",
+    "sha256": "0bad7bf16f5a61cf0aaee6982071d4c1894a6f5ae4ab3a6f2171f6c3e1f83e03",
+    "originalDimensions": [
+      500,
+      130
+    ],
+    "cropBox": [
+      71,
+      47,
+      422,
+      82
+    ],
+    "dimensions": [
+      256,
+      26
+    ],
+    "usage": "Original operator or operator-authorized partner artwork for matching mapped identities; brand-owned, not CC0. Blank margins cropped and proportionally reduced; SVG rasterized where necessary. Prepared for the 256-pixel sign atlas with a 192-colour PNG palette."
+  },
+  {
+    "id": "hilton",
+    "file": "hilton-logo.png",
+    "sourceUrl": "https://www.hilton.com/modules/assets/svgs/logos/GI.svg",
+    "referencePage": "https://www.hilton.com/en/hotels/tiagigi-hilton-garden-inn-tirana/",
+    "retrieved": "2026-09-12",
+    "originalSha256": "7dca53d0c3dd73ed6f86d70d06cbb9a05d17f0ea35e5bfae3119de59f7f0af82",
+    "sha256": "62153ff066276ad661819dfc6827223a050359fba50253e691f06a366139d8d4",
+    "originalDimensions": [
+      501,
+      171
+    ],
+    "cropBox": [
+      0,
+      0,
+      501,
+      171
+    ],
+    "dimensions": [
+      256,
+      87
+    ],
+    "usage": "Original operator or operator-authorized partner artwork for matching mapped identities; brand-owned, not CC0. Blank margins cropped and proportionally reduced; SVG rasterized where necessary. Prepared for the 256-pixel sign atlas with a 192-colour PNG palette."
+  },
+  {
+    "id": "imperator",
+    "file": "imperator-logo.png",
+    "sourceUrl": "https://imperatorhotel.al/wp-content/uploads/2022/04/logo-desktop.png",
+    "referencePage": "https://imperatorhotel.al/",
+    "retrieved": "2026-09-12",
+    "originalSha256": "5d18a716d9d187b88247eafb732fa4262711ea1d4086b6f136b9c6c00ff142b1",
+    "sha256": "6d0eaee686da121e02610f39ac413a054e5bb9ab9b12af8926efecf47ec979e3",
+    "originalDimensions": [
+      230,
+      120
+    ],
+    "cropBox": [
+      44,
+      3,
+      186,
+      115
+    ],
+    "dimensions": [
+      142,
+      112
+    ],
+    "usage": "Original operator or operator-authorized partner artwork for matching mapped identities; brand-owned, not CC0. Blank margins cropped and proportionally reduced; SVG rasterized where necessary. Prepared for the 256-pixel sign atlas with a 192-colour PNG palette."
+  },
+  {
+    "id": "triss",
+    "file": "triss-logo.png",
+    "sourceUrl": "https://trisshotel.com/wp-content/uploads/2022/05/logo-triss-hotel.png",
+    "referencePage": "https://trisshotel.com/",
+    "retrieved": "2026-09-12",
+    "originalSha256": "cbbed72064e19edc96456772d3f02515546009fcfa62a5cb9c318cf98f5bed0d",
+    "sha256": "fa5ff34329887d61b20495eb3207a8dec89feed65039da25d498d9e30ae250fa",
+    "originalDimensions": [
+      147,
+      75
+    ],
+    "cropBox": [
+      0,
+      0,
+      147,
+      75
+    ],
+    "dimensions": [
+      147,
+      75
+    ],
+    "usage": "Original operator or operator-authorized partner artwork for matching mapped identities; brand-owned, not CC0. Blank margins cropped and proportionally reduced; SVG rasterized where necessary. Prepared for the 256-pixel sign atlas with a 192-colour PNG palette."
+  },
+  {
+    "id": "privilege",
+    "file": "privilege-logo.png",
+    "sourceUrl": "https://hotelprivilege.al/wp-content/uploads/2024/07/logo-e-zeze.png",
+    "referencePage": "https://hotelprivilege.al/",
+    "retrieved": "2026-09-12",
+    "originalSha256": "31691fc0e99cb5f063cc68a720c6fa8b3920054a519a79dc78eb88f2ab6b6fb5",
+    "sha256": "c7e8c0c0a97148a4aadb3db8a2ac68c9a6d1bfa9d8559053740f294229318a5b",
+    "originalDimensions": [
+      370,
+      148
+    ],
+    "cropBox": [
+      4,
+      26,
+      366,
+      127
+    ],
+    "dimensions": [
+      256,
+      71
+    ],
+    "usage": "Original operator or operator-authorized partner artwork for matching mapped identities; brand-owned, not CC0. Blank margins cropped and proportionally reduced; SVG rasterized where necessary. Prepared for the 256-pixel sign atlas with a 192-colour PNG palette."
+  },
+  {
+    "id": "victoria",
+    "file": "victoria-logo.png",
+    "sourceUrl": "https://hotelvictoria.al/wp-content/uploads/2024/09/Hotel-Victoria-Logo-Final-1024x717-1.png",
+    "referencePage": "https://hotelvictoria.al/",
+    "retrieved": "2026-09-12",
+    "originalSha256": "2295fb04f48b56f1d5e14986366293029f8564827c1d60ef7207efb5fad3b15b",
+    "sha256": "83601d6032294109a5a725ee1a6991258c0f49c45320443c10d961ff1df3ebd5",
+    "originalDimensions": [
+      1024,
+      717
+    ],
+    "cropBox": [
+      2,
+      104,
+      1024,
+      625
+    ],
+    "dimensions": [
+      251,
+      128
+    ],
+    "usage": "Original operator or operator-authorized partner artwork for matching mapped identities; brand-owned, not CC0. Blank margins cropped and proportionally reduced; SVG rasterized where necessary. Prepared for the 256-pixel sign atlas with a 192-colour PNG palette."
+  },
+  {
+    "id": "emerald",
+    "file": "emerald-logo.png",
+    "sourceUrl": "https://emeraldhotel.al/wp-content/uploads/2019/05/log-emerald-ok.png",
+    "referencePage": "https://emeraldhotel.al/",
+    "retrieved": "2026-09-12",
+    "originalSha256": "8d0333d7d2167f95f2e564bf59ad163f9733e52a9e6fce428c5a69e69a5593a5",
+    "sha256": "2f8bcb805164b909386602e15395227ad1639ede76a51511cae23e71616875b7",
+    "originalDimensions": [
+      120,
+      60
+    ],
+    "cropBox": [
+      17,
+      0,
+      104,
+      60
+    ],
+    "dimensions": [
+      87,
+      60
+    ],
+    "usage": "Original operator or operator-authorized partner artwork for matching mapped identities; brand-owned, not CC0. Blank margins cropped and proportionally reduced; SVG rasterized where necessary. Prepared for the 256-pixel sign atlas with a 192-colour PNG palette."
+  },
+  {
+    "id": "bonsai",
+    "file": "bonsai-logo.png",
+    "sourceUrl": "https://bonsai.al/img/bonsai-logo.png",
+    "referencePage": "https://bonsai.al/",
+    "retrieved": "2026-09-12",
+    "originalSha256": "3c1f071bac895b9b2ce05f62c489e3aab7a763ea89b37e65ec510216d64a5ae9",
+    "sha256": "df971cdeb3be7d5665f0eaecfa2a0767560f16499624296a5a07db4f3e964f2e",
+    "originalDimensions": [
+      1683,
+      568
+    ],
+    "cropBox": [
+      38,
+      44,
+      1633,
+      539
+    ],
+    "dimensions": [
+      256,
+      79
+    ],
+    "usage": "Original operator or operator-authorized partner artwork for matching mapped identities; brand-owned, not CC0. Blank margins cropped and proportionally reduced; SVG rasterized where necessary. Prepared for the 256-pixel sign atlas with a 192-colour PNG palette."
+  },
+  {
+    "id": "residence-inn",
+    "file": "residence-inn-logo.png",
+    "sourceUrl": "https://residenceinn.al/img/LOGOOO-01.png",
+    "referencePage": "https://residenceinn.al/",
+    "retrieved": "2026-09-12",
+    "originalSha256": "25bdf1db041e63c5000f64d75c3176c51ecb9dea98388545448ae9b3652d5036",
+    "sha256": "2a5e96f95b791d52b274af13afea57f176ad764bf0a3b16f2d7e9c7786dcd3d4",
+    "originalDimensions": [
+      1578,
+      873
+    ],
+    "cropBox": [
+      12,
+      38,
+      1560,
+      813
+    ],
+    "dimensions": [
+      256,
+      128
+    ],
+    "usage": "Original operator or operator-authorized partner artwork for matching mapped identities; brand-owned, not CC0. Blank margins cropped and proportionally reduced; SVG rasterized where necessary. Prepared for the 256-pixel sign atlas with a 192-colour PNG palette."
+  },
+  {
+    "id": "chateau-linza",
+    "file": "chateau-linza-logo.png",
+    "sourceUrl": "https://chateaulinzaresort.al/wp-content/uploads/2024/04/Logo-Footer.svg",
+    "referencePage": "https://chateaulinzaresort.al/",
+    "retrieved": "2026-09-12",
+    "originalSha256": "c9a1224e18acb27732e8f11a1213ff8082488d7fb7b6dcbb65f47e96f7a32f52",
+    "sha256": "3dc0c8ff11e1ddc5ac6e8c08f99c2087530e3e5ea84263e49b55c99fb40b13b7",
+    "originalDimensions": [
+      244,
+      92
+    ],
+    "cropBox": [
+      0,
+      0,
+      244,
+      92
+    ],
+    "dimensions": [
+      244,
+      92
+    ],
+    "usage": "Original operator or operator-authorized partner artwork for matching mapped identities; brand-owned, not CC0. Blank margins cropped and proportionally reduced; SVG rasterized where necessary. Prepared for the 256-pixel sign atlas with a 192-colour PNG palette."
+  },
+  {
+    "id": "colosseo",
+    "file": "colosseo-logo.png",
+    "sourceUrl": "https://hotelcolosseotirana.com/hotel-colosseo-tirane-logo.svg",
+    "referencePage": "https://hotelcolosseotirana.com/",
+    "retrieved": "2026-09-12",
+    "originalSha256": "7519b5eb4e0610fdfb0a99c1887655ad819cb356e57c4c145e075bebc0496f82",
+    "sha256": "42973c4366e77a6a4374b1627f26cc86fd105a850253063993e114ebd35b66a9",
+    "originalDimensions": [
+      900,
+      540
+    ],
+    "cropBox": [
+      8,
+      13,
+      889,
+      524
+    ],
+    "dimensions": [
+      221,
+      128
+    ],
+    "usage": "Original operator or operator-authorized partner artwork for matching mapped identities; brand-owned, not CC0. Blank margins cropped and proportionally reduced; SVG rasterized where necessary. Prepared for the 256-pixel sign atlas with a 192-colour PNG palette."
+  },
+  {
+    "id": "sarotel",
+    "file": "sarotel-logo.png",
+    "sourceUrl": "https://sarotel.com/wp-content/uploads/2019/09/desktop-logo-sarotel.png",
+    "referencePage": "https://sarotel.com/",
+    "retrieved": "2026-09-12",
+    "originalSha256": "e6b5387c14b69276d8851cd99f84d7fddf3c8c70830f89d985e32d2f12b5fb11",
+    "sha256": "7f59b340001a59e8b95cca773d035c2dd459027215b869270829212cedeadccc",
+    "originalDimensions": [
+      175,
+      215
+    ],
+    "cropBox": [
+      0,
+      0,
+      175,
+      215
+    ],
+    "dimensions": [
+      104,
+      128
+    ],
+    "usage": "Original operator or operator-authorized partner artwork for matching mapped identities; brand-owned, not CC0. Blank margins cropped and proportionally reduced; SVG rasterized where necessary. Prepared for the 256-pixel sign atlas with a 192-colour PNG palette."
+  },
+  {
+    "id": "boka",
+    "file": "boka-logo.png",
+    "sourceUrl": "https://bokahotel.al/images/logo.png",
+    "referencePage": "https://bokahotel.al/",
+    "retrieved": "2026-09-12",
+    "originalSha256": "0c90a5bcf089a6c865939ca4cbcb457edf7276c58653ad57d4d4f5994ae72dfb",
+    "sha256": "15a7c3e0f4c116b2e763ac4b2cf0267c071901730d9230755f5572143689722f",
+    "originalDimensions": [
+      257,
+      67
+    ],
+    "cropBox": [
+      8,
+      12,
+      242,
+      60
+    ],
+    "dimensions": [
+      234,
+      48
+    ],
+    "usage": "Original operator or operator-authorized partner artwork for matching mapped identities; brand-owned, not CC0. Blank margins cropped and proportionally reduced; SVG rasterized where necessary. Prepared for the 256-pixel sign atlas with a 192-colour PNG palette."
+  },
+  {
+    "id": "marriott",
+    "file": "marriott-logo.png",
+    "sourceUrl": "https://cache.marriott.com/content/dam/marriott-digital/mc/global-property-shared/en_us/logo/assets/mc_logo_L.png",
+    "referencePage": "https://www.marriott.com/en-us/hotels/tiamc-tirana-marriott/overview/",
+    "retrieved": "2026-09-12",
+    "originalSha256": "6fd1cc0ae7bf321d2c7f3480ed97876a854245f329ecccf4ade74eb69020bf08",
+    "sha256": "6a028cca2bfcf264ce54506a1759d9c402cc4dc0baa04c1dad83d5db4bcbc69d",
+    "originalDimensions": [
+      241,
+      180
+    ],
+    "cropBox": [
+      0,
+      0,
+      238,
+      180
+    ],
+    "dimensions": [
+      169,
+      128
+    ],
+    "usage": "Original operator or operator-authorized partner artwork for matching mapped identities; brand-owned, not CC0. Blank margins cropped and proportionally reduced; SVG rasterized where necessary. Prepared for the 256-pixel sign atlas with a 192-colour PNG palette."
+  },
+  {
+    "id": "neranxi",
+    "file": "neranxi-logo.png",
+    "sourceUrl": "https://neranxi.al/wp-content/uploads/2022/08/neranxi-group-logo-copy.svg",
+    "referencePage": "https://neranxi.al/",
+    "retrieved": "2026-09-12",
+    "originalSha256": "c001666da5e3c2e7f42aec3d740035b74ba2dd69b86993296c65973dea49e823",
+    "sha256": "3f4d9eb8c4351d3c80a11fc157b3a13366b5c608eb62627272f49ee596333701",
+    "originalDimensions": [
+      842,
+      219
+    ],
+    "cropBox": [
+      38,
+      16,
+      801,
+      203
+    ],
+    "dimensions": [
+      256,
+      63
+    ],
+    "usage": "Original operator or operator-authorized partner artwork for matching mapped identities; brand-owned, not CC0. Blank margins cropped and proportionally reduced; SVG rasterized where necessary. Prepared for the 256-pixel sign atlas with a 192-colour PNG palette."
+  },
+  {
+    "id": "pizzahut",
+    "file": "pizzahut-logo.png",
+    "sourceUrl": "https://www.pizzahut.al/admin/files/6320.svg",
+    "referencePage": "https://www.pizzahut.al/",
+    "retrieved": "2026-09-12",
+    "originalSha256": "7d01e061f98537b6db9076673b36cf59182c053b7234ac24d1e225b45a800e6c",
+    "sha256": "28b610b56bb6966073a30efab7b3c2083e98e20daf03b518a88fcecd0e325a60",
+    "originalDimensions": [
+      254,
+      239
+    ],
+    "cropBox": [
+      0,
+      0,
+      254,
+      239
+    ],
+    "dimensions": [
+      136,
+      128
+    ],
+    "usage": "Original operator or operator-authorized partner artwork for matching mapped identities; brand-owned, not CC0. Blank margins cropped and proportionally reduced; SVG rasterized where necessary. Prepared for the 256-pixel sign atlas with a 192-colour PNG palette."
+  },
+  {
+    "id": "qtu",
+    "file": "qtu-logo.png",
+    "sourceUrl": "https://cdn-files.eu.placewise.com/f/CJmGPRC_BxoTY21zX2NvbXBvbmVudF9pbWFnZSIaaWQtMTc2ODk5MjU4OTIyMy02OTkxLWxvZ284nKruT16PhaYD0Eh9sGayab-ZK4Q?transform=none",
+    "referencePage": "https://www.qtu.al/",
+    "retrieved": "2026-09-12",
+    "originalSha256": "d70b885c10db57c247816c9f3501dc6c3c5fbf051ba6f6111a4a331f1087a714",
+    "sha256": "c20ebc0eee9df476d9d2c7bb0001f5b20a47e99148594eaae20c3445854098b1",
+    "originalDimensions": [
+      1318,
+      343
+    ],
+    "cropBox": [
+      165,
+      0,
+      1152,
+      343
+    ],
+    "dimensions": [
+      256,
+      89
+    ],
+    "usage": "Original operator or operator-authorized partner artwork for matching mapped identities; brand-owned, not CC0. Blank margins cropped and proportionally reduced; SVG rasterized where necessary. Prepared for the 256-pixel sign atlas with a 192-colour PNG palette."
+  },
+  {
+    "id": "teg",
+    "file": "teg-logo.png",
+    "sourceUrl": "https://cdn-files.eu.placewise.com/f/CJiGPRC-BxoTY21zX2NvbXBvbmVudF9pbWFnZSIaaWQtMTc1ODA5NzU5OTMxOS04ODg3LWxvZ28476nVSnb1GLd4LsFBYVpHsrla3Ls?transform=none",
+    "referencePage": "https://www.teg.al/",
+    "retrieved": "2026-09-12",
+    "originalSha256": "b495867b7519507d5c6be00064607d8024fb67a6e9dca7941fa6e7a909cb5e77",
+    "sha256": "a43a2da18c7f0ff0bcb4242c4a82e2d9eefe9be2d6a45f7382a342d7e5175c83",
+    "originalDimensions": [
+      382,
+      285
+    ],
+    "cropBox": [
+      17,
+      24,
+      363,
+      285
+    ],
+    "dimensions": [
+      170,
+      128
+    ],
+    "usage": "Original operator or operator-authorized partner artwork for matching mapped identities; brand-owned, not CC0. Blank margins cropped and proportionally reduced; SVG rasterized where necessary. Prepared for the 256-pixel sign atlas with a 192-colour PNG palette."
+  },
+  {
+    "id": "moncafe",
+    "file": "moncafe-logo.png",
+    "sourceUrl": "https://moncafeboutiquehotel.com/wp-content/uploads/2024/09/cropped-Artboard-5-copy-8-1.png",
+    "referencePage": "https://moncafeboutiquehotel.com/",
+    "retrieved": "2026-09-12",
+    "originalSha256": "b1534c37fe8250ee56fdfb62ec375249a2ee45620d3ef2a88d52b86e01eab2d8",
+    "sha256": "6da040aa2406382a304e22e1e813216f28f6002391386e5328c736648a02f7c9",
+    "originalDimensions": [
+      512,
+      251
+    ],
+    "cropBox": [
+      3,
+      0,
+      509,
+      251
+    ],
+    "dimensions": [
+      256,
+      127
+    ],
+    "usage": "Original operator or operator-authorized partner artwork for matching mapped identities; brand-owned, not CC0. Blank margins cropped and proportionally reduced; SVG rasterized where necessary. Prepared for the 256-pixel sign atlas with a 192-colour PNG palette."
+  },
+  {
+    "id": "light",
+    "file": "light-logo.png",
+    "sourceUrl": "https://lighthotel.al/wp-content/uploads/2019/07/light-hotel-1.png",
+    "referencePage": "https://lighthotel.al/",
+    "retrieved": "2026-09-12",
+    "originalSha256": "448c28ec6eb7d5c0c871e2b275ee51fad42b2c8ba9e27dffd0bc047cc6cfc8b7",
+    "sha256": "19b766ef4fa7604d51bf5b85915d953dca5e686a0c467317fbb2259d99f329bd",
+    "originalDimensions": [
+      220,
+      80
+    ],
+    "cropBox": [
+      4,
+      7,
+      220,
+      58
+    ],
+    "dimensions": [
+      216,
+      51
+    ],
+    "usage": "Original operator or operator-authorized partner artwork for matching mapped identities; brand-owned, not CC0. Blank margins cropped and proportionally reduced; SVG rasterized where necessary. Prepared for the 256-pixel sign atlas with a 192-colour PNG palette."
+  },
+  {
+    "id": "vila-verde",
+    "file": "vila-verde-logo.png",
+    "sourceUrl": "https://www.vilaverde.al/wp-content/uploads/2023/12/VILA-VERDE-HOTEL.png",
+    "referencePage": "https://www.vilaverde.al/",
+    "retrieved": "2026-09-12",
+    "originalSha256": "8fc41bd99e211fafab928676bffdb8aaf9f38976e6db6c3d525c4cd8b676c091",
+    "sha256": "847549a23683f255112f92035d0e9eb4785875adc153e5d6d0fe18a0920ab956",
+    "originalDimensions": [
+      607,
+      276
+    ],
+    "cropBox": [
+      0,
+      0,
+      607,
+      276
+    ],
+    "dimensions": [
+      256,
+      117
+    ],
+    "usage": "Original operator or operator-authorized partner artwork for matching mapped identities; brand-owned, not CC0. Blank margins cropped and proportionally reduced; SVG rasterized where necessary. Prepared for the 256-pixel sign atlas with a 192-colour PNG palette."
+  },
+  {
+    "id": "deluxe",
+    "file": "deluxe-logo.png",
+    "sourceUrl": "https://hoteldeluxe.al/wp-content/uploads/2026/05/cropped-Untitled-design-1-140x107.png",
+    "referencePage": "https://hoteldeluxe.al/",
+    "retrieved": "2026-09-12",
+    "originalSha256": "9b98ab370cb7f6bf67b2cb7302ba3b0239f79f82f55d68ef965e8b6967f36ecb",
+    "sha256": "59a5f39740e0d50a1bca179ef20896e2a760cabb53e0a590b8a40d86a6d6ebdd",
+    "originalDimensions": [
+      140,
+      107
+    ],
+    "cropBox": [
+      18,
+      14,
+      122,
+      94
+    ],
+    "dimensions": [
+      104,
+      80
+    ],
+    "usage": "Original operator or operator-authorized partner artwork for matching mapped identities; brand-owned, not CC0. Blank margins cropped and proportionally reduced; SVG rasterized where necessary. Prepared for the 256-pixel sign atlas with a 192-colour PNG palette."
+  },
+  {
+    "id": "rossmann-lala",
+    "file": "rossmann-lala-logo.png",
+    "sourceUrl": "https://static.wixstatic.com/media/e628d2_1b6e58a89c3f497e91a2449716aa477c~mv2.png/v1/fill/w_407,h_40,al_c,q_85,usm_0.66_1.00_0.01,enc_avif,quality_auto/rossmann%20%26%20lala.png",
+    "referencePage": "https://www.rossmann-lala.al/",
+    "retrieved": "2026-09-12",
+    "originalSha256": "8e6053e24ccfe25140ea2dec4d4e7a4671db86d66ac288c02d079848888083a0",
+    "sha256": "4cd9017b476be9f47d4a63be1231f5a8f35983e5cb7ee8f2791c601585f63f2f",
+    "originalDimensions": [
+      407,
+      40
+    ],
+    "cropBox": [
+      1,
+      0,
+      407,
+      40
+    ],
+    "dimensions": [
+      256,
+      25
+    ],
+    "usage": "Original operator or operator-authorized partner artwork for matching mapped identities; brand-owned, not CC0. Blank margins cropped and proportionally reduced; SVG rasterized where necessary. Prepared for the 256-pixel sign atlas with a 192-colour PNG palette."
+  },
+  {
+    "id": "diambe",
+    "file": "diambe-logo.png",
+    "sourceUrl": "https://alma-m.mk/wp-content/uploads/2020/11/diambe.png",
+    "referencePage": "https://alma-m.mk/diambe-albania/",
+    "retrieved": "2026-09-12",
+    "originalSha256": "1158f27ee9dedfe6e1ce1a674615a917bb16214ed303ad6475a6bc3dd8a7ab94",
+    "sha256": "92f8e23a636da9c5b5360b0e746e82fece6dd5ca53afec92b0e5baf9878f06c5",
+    "originalDimensions": [
+      420,
+      220
+    ],
+    "cropBox": [
+      126,
+      17,
+      295,
+      203
+    ],
+    "dimensions": [
+      116,
+      128
+    ],
+    "usage": "Original operator or operator-authorized partner artwork for matching mapped identities; brand-owned, not CC0. Blank margins cropped and proportionally reduced; SVG rasterized where necessary. Prepared for the 256-pixel sign atlas with a 192-colour PNG palette."
+  },
+  {
+    "id": "intersport",
+    "file": "intersport-logo.png",
+    "sourceUrl": "https://toptani.com.al/img/cms/dyqanet/adidas%20INTERSPORT%20Logo-pdf.jpg",
+    "referencePage": "https://toptani.com.al/en/content/71-intersport",
+    "retrieved": "2026-09-12",
+    "originalSha256": "15925b02d05924080552d87331edd3637ad6860fe9d1847918eb694b27a15d64",
+    "sha256": "7ac7475dcdab6aefd45ba453e93ce71b0ca55408be0e6ac6bca0022c9a303545",
+    "originalDimensions": [
+      480,
+      108
+    ],
+    "cropBox": [
+      22,
+      23,
+      446,
+      73
+    ],
+    "dimensions": [
+      256,
+      30
+    ],
+    "usage": "Original operator or operator-authorized partner artwork for matching mapped identities; brand-owned, not CC0. Blank margins cropped and proportionally reduced; SVG rasterized where necessary. Prepared for the 256-pixel sign atlas with a 192-colour PNG palette."
+  },
+  {
+    "id": "adidas",
+    "file": "adidas-logo.png",
+    "sourceUrl": "https://toptani.com.al/img/cms/dyqanet/adidas%20INTERSPORT%20Logo-pdf.png",
+    "referencePage": "https://toptani.com.al/en/content/15-brand-adidas",
+    "retrieved": "2026-09-12",
+    "originalSha256": "d9890117c9ad03a0a0f9a79a6948690c7502bf5f787ed846acf67541842da894",
+    "sha256": "84d860e81c4425b34146c787d9945672859e50a0e118f15c3b46a39b9e401ba2",
+    "originalDimensions": [
+      450,
+      244
+    ],
+    "cropBox": [
+      60,
+      19,
+      362,
+      210
+    ],
+    "dimensions": [
+      202,
+      128
+    ],
+    "usage": "Original operator or operator-authorized partner artwork for matching mapped identities; brand-owned, not CC0. Blank margins cropped and proportionally reduced; SVG rasterized where necessary. Prepared for the 256-pixel sign atlas with a 192-colour PNG palette."
+  },
+  {
+    "id": "vodafone",
+    "file": "vodafone-logo.png",
+    "sourceUrl": "https://www.vodafone.al/#top-navigation-logo",
+    "referencePage": "https://www.vodafone.al/",
+    "retrieved": "2026-09-12",
+    "originalSha256": "a65ce85b344a6321f975b7840edde4461cfe5f710586ffd8f1d6a27c052c7c12",
+    "sha256": "4d3e3a78c87a2f4526a2a5c834f280bb410b66dd14f9d07177bdcdda8a230430",
+    "originalDimensions": [
+      256,
+      256
+    ],
+    "cropBox": [
+      19,
+      19,
+      237,
+      237
+    ],
+    "dimensions": [
+      128,
+      128
+    ],
+    "usage": "Original operator or operator-authorized partner artwork for matching mapped identities; brand-owned, not CC0. Blank margins cropped and proportionally reduced; SVG rasterized where necessary. Prepared for the 256-pixel sign atlas with a 192-colour PNG palette.",
+    "extraction": "Official top-navigation SVG, data-icon-id Vodafone; viewport enlarged for rasterization, original viewBox and paths retained."
+  },
+  {
+    "id": "one",
+    "file": "one-logo.png",
+    "sourceUrl": "https://www.one.al/js/index-B2YQ1H8R.js",
+    "referencePage": "https://www.one.al/",
+    "retrieved": "2026-09-12",
+    "originalSha256": "44b7dea7ba8720401c2f24e0ca82b803abc01613a488a2df7e34318a3df77050",
+    "sha256": "0a505ed2ef1965482f6ecc1dfaae461e5c55bf8d1712522dd0b34435cfe77d02",
+    "originalDimensions": [
+      102,
+      51
+    ],
+    "cropBox": [
+      0,
+      0,
+      102,
+      51
+    ],
+    "dimensions": [
+      102,
+      51
+    ],
+    "usage": "Original operator or operator-authorized partner artwork for matching mapped identities; brand-owned, not CC0. Blank margins cropped and proportionally reduced; SVG rasterized where necessary. Prepared for the 256-pixel sign atlas with a 192-colour PNG palette.",
+    "extraction": "Official site bundle sa SVG data URI; decoded without changing paths."
+  },
+  {
+    "id": "radisson",
+    "file": "radisson-logo.png",
+    "sourceUrl": "https://statics.radissonhotels.com/main/img/logos/rco.svg",
+    "referencePage": "https://www.radissonhotels.com/en-us/hotels/radisson-collection-morina-tirana",
+    "retrieved": "2026-09-12",
+    "originalSha256": "cb94e9ef3aaf7eaf4a51c02fe3ddcf5a0d740a6bc1d19ce786f897d9c785e87b",
+    "sha256": "5cedf11d313f7975eef71280ff98c9f3fc065cf8905d4a535c23cc2f1e6aaf1b",
+    "originalDimensions": [
+      128,
+      81
+    ],
+    "cropBox": [
+      0,
+      0,
+      128,
+      81
+    ],
+    "dimensions": [
+      128,
+      81
+    ],
+    "usage": "Original operator or operator-authorized partner artwork for matching mapped identities; brand-owned, not CC0. Blank margins cropped and proportionally reduced; SVG rasterized where necessary. Prepared for the 256-pixel sign atlas with a 192-colour PNG palette."
+  }
+]
