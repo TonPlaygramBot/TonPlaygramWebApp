@@ -6,7 +6,6 @@ export type BcaEightBallState = {
   currentPlayer: BcaSeat;
   assignments: { A: BcaGroup | null; B: BcaGroup | null };
   ballInHand: boolean;
-  ballInHandRegion?: 'headstring' | 'table' | null;
   frameOver: boolean;
   winner: BcaSeat | null;
   breakInProgress: boolean;

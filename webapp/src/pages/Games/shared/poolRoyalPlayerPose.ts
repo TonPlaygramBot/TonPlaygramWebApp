@@ -95,8 +95,7 @@ export function bridgeSkinBounds(human: HumanRig) {
 }
 
 export function refinePoolRoyalBridge(human: HumanRig, bridgeTarget: THREE.Vector3,
-  forward: THREE.Vector3, clothY: number, style: 'open' | 'compact' | 'raised' = 'open',
-  cue?: { back: THREE.Vector3; tip: THREE.Vector3 }) {
+  forward: THREE.Vector3, clothY: number, style: 'open' | 'compact' | 'raised' = 'open') {
   const weight = THREE.MathUtils.smoothstep(human.poseT, 0.1, 0.95);
   if (!weight) return;
   const b = human.bones;
@@ -120,21 +119,10 @@ export function refinePoolRoyalBridge(human: HumanRig, bridgeTarget: THREE.Vecto
   // Start from the actual rendered cue axis rather than a fixed ball offset,
   // then place the palm slightly beside it so the thumb/index channel supports
   // the shaft without the wrist floating or intersecting the cue.
-  let supportY = clothY;
-  if (cue) {
-    const shaft = cue.tip.clone().sub(cue.back);
-    const horizontalSq = shaft.x * shaft.x + shaft.z * shaft.z;
-    const t = horizontalSq > 1e-8 ? ((bridgeTarget.x - cue.back.x) * shaft.x +
-      (bridgeTarget.z - cue.back.z) * shaft.z) / horizontalSq : 1;
-    const shaftY = cue.back.y + shaft.y * t;
-    // Height follows the shaft, with the palm always below the cue channel.
-    supportY += clamp(shaftY - clothY - CFG.ballR, 0, CFG.ballR * 1.8);
-    if (supportY > clothY + CFG.ballR * 0.25) style = 'raised';
-  }
   const wrist = bridgeTarget.clone()
     .addScaledVector(side, 0.1 * CFG.humanScale)
     .addScaledVector(forward, -0.033 * CFG.humanScale)
-    .setY(supportY + 0.031 * CFG.humanScale);
+    .setY(clothY + 0.031 * CFG.humanScale);
   const shoulder = point(b.leftUpperArm!);
   const reach = (shoulder.distanceTo(point(b.leftLowerArm!)) + point(b.leftLowerArm!).distanceTo(point(b.leftHand!))) * 0.97;
   const delta = wrist.clone().sub(shoulder);
@@ -154,7 +142,7 @@ export function refinePoolRoyalBridge(human: HumanRig, bridgeTarget: THREE.Vecto
   // Lift/lower the wrist until the skinned finger pads meet the cloth; the
   // correction translates the target and resolves the arm at its real length.
   for (let i = 0; i < 4; i++) {
-    const clearance = supportY + 0.002 * CFG.humanScale - bridgeSkinBounds(human).min.y;
+    const clearance = clothY + 0.002 * CFG.humanScale - bridgeSkinBounds(human).min.y;
     if (Math.abs(clearance) < 0.0005) break;
     wrist.y += clearance;
     place();

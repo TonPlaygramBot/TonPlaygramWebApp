@@ -4,7 +4,7 @@ const unit = value => THREE.MathUtils.clamp(Number.isFinite(value) ? value : 0, 
 const easeOut = t => 1 - (1 - unit(t)) ** 3;
 
 // Ratios and timing from the supplied human/cue demo, scaled by the live ball.
-export const POOL_ROYAL_STROKE = Object.freeze({ strikeDuration: 160, holdDuration: 120, hitArmRatio: 0.88 });
+export const POOL_ROYAL_STROKE = Object.freeze({ strikeDuration: 120, holdDuration: 50, hitArmRatio: 0.88 });
 export const referenceCuePull = (power, radius) => radius * (0.42 / 0.045) * easeOut(power);
 export const referenceCueFeather = (power, radius, now) => Math.sin(now * 0.012) * radius * (0.035 / 0.045) * (0.25 + unit(power) * 0.75);
 
@@ -20,7 +20,7 @@ export function sampleCueStrokeTimeline({ elapsed = 0, pullbackDuration = 0,
     // A single continuous push; phase boundaries must never move the cue backward.
     const contactTime = THREE.MathUtils.clamp(hitArmRatio, 0.5, 1);
     const t = unit(progress / contactTime);
-    const eased = animationStyle === 'linear' ? t : t * t;
+    const eased = animationStyle === 'linear' ? t : easeOut(t);
     return { phase: progress < 1 - strikeWindowRatio ? 'release' : 'strike', t: eased,
       hitArmed: progress >= contactTime, done: false };
   }
@@ -43,33 +43,18 @@ export function resolveCueBallContact(ball, direction, offset, ballRadius, tipRa
 /** Move the visible cue BEFORE launching physics; even a skipped frame hits once. */
 export function advancePoolRoyalCueStroke(cue, stroke, now) {
   let sample = sampleCueStrokeTimeline({ ...stroke, elapsed: now - stroke.startTime });
-  if (!stroke.shotApplied) {
-    if (sample.phase === 'pullback') cue.position.lerpVectors(stroke.idlePos, stroke.pullPos, THREE.MathUtils.smoothstep(sample.t, 0, 1));
-    else cue.position.lerpVectors(stroke.pullPos, stroke.contactPos, sample.t);
-    if (sample.hitArmed) {
-      cue.position.copy(stroke.contactPos);
-      stroke.shotApplied = true;
-      stroke.impactAt = now;
-      stroke.onImpact?.();
-      // Contact is visible for this frame, even if the entire release was skipped.
-      sample = { phase: 'strike', t: 1, hitArmed: true, done: false };
-    }
-  } else {
-    const elapsed = Math.max(0, now - stroke.impactAt);
-    const followMs = Math.max(50, stroke.holdDuration ?? 120);
-    const recoverMs = Math.max(0, stroke.recoverDuration ?? 0);
-    const follow = stroke.followPos ?? stroke.contactPos;
-    if (elapsed < followMs) {
-      cue.position.lerpVectors(stroke.contactPos, follow, easeOut(elapsed / followMs));
-      sample = { phase: 'hold', t: 1, hitArmed: true, done: false };
-    } else if (elapsed < followMs + recoverMs) {
-      const t = (elapsed - followMs) / recoverMs;
-      cue.position.lerpVectors(follow, stroke.idlePos, THREE.MathUtils.smoothstep(t, 0, 1));
-      sample = { phase: 'recover', t, hitArmed: true, done: false };
-    } else {
-      cue.position.copy(follow);
-      sample = { phase: 'done', t: 1, hitArmed: true, done: true };
-    }
+  if (sample.phase === 'pullback') cue.position.lerpVectors(stroke.idlePos, stroke.pullPos, THREE.MathUtils.smoothstep(sample.t, 0, 1));
+  else if (sample.phase === 'recover') cue.position.lerpVectors(stroke.contactPos, stroke.idlePos, sample.t);
+  else cue.position.lerpVectors(stroke.pullPos, stroke.contactPos, sample.t);
+  if (sample.hitArmed && !stroke.shotApplied) {
+    cue.position.copy(stroke.contactPos);
+    stroke.shotApplied = true;
+    stroke.impactAt = now;
+    stroke.onImpact?.();
+  }
+  // A dropped mobile frame must still display contact before the cue disappears.
+  if (sample.done && now - stroke.impactAt < (stroke.holdDuration ?? 50)) {
+    sample = { phase: 'hold', t: 1, hitArmed: true, done: false };
   }
   stroke.phase = sample.phase;
   cue.visible = !sample.done;

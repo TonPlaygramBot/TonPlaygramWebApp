@@ -1,5 +1,4 @@
 import * as THREE from 'three';
-import { createOpenSnookerPlayer } from './createOpenSnookerPlayer.ts';
 import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js';
 import { clone as cloneSkeleton } from 'three/examples/jsm/utils/SkeletonUtils.js';
 import {
@@ -54,7 +53,6 @@ type Options = {
   /** Exact desired character height in game-world units. */
   targetHeight?: number;
   modelUrl?: string;
-  playerProfiles?: { A: string; B: string };
   model?: THREE.Object3D;
   onError?: (error: unknown) => void;
 };
@@ -169,9 +167,7 @@ export class PoolRoyalHumanPlayers {
     this.group.name = 'PoolRoyalReferencePlayers';
     this.group.position.y = options.floorY;
     parent.add(this.group);
-    const load = options.playerProfiles
-      ? Promise.resolve(createOpenSnookerPlayer(options.playerProfiles.A))
-      : options.model
+    const load = options.model
       ? Promise.resolve(options.model)
       : new GLTFLoader().loadAsync(options.modelUrl ?? HUMAN_URL).then(gltf => gltf.scene);
     this.ready = load.then(model => {
@@ -181,9 +177,7 @@ export class PoolRoyalHumanPlayers {
       }
       for (const seat of ['A', 'B'] as const) {
         // Object3D.clone alone shares bone references between skinned players.
-        const human = createReferenceHuman(options.playerProfiles
-          ? (seat === 'A' ? model : createOpenSnookerPlayer(options.playerProfiles.B))
-          : cloneSkeleton(model));
+        const human = createReferenceHuman(cloneSkeleton(model));
         if (!human.activeGlb) throw new Error('The reference character skeleton is incomplete.');
         if (!this.players.length) {
           const height = new THREE.Box3().setFromObject(human.modelRoot).getSize(new THREE.Vector3()).y;
@@ -194,7 +188,7 @@ export class PoolRoyalHumanPlayers {
         const reachEquipment = createCueReachEquipment();
         const headMeshes: THREE.Object3D[] = [];
         human.model!.traverse(object => {
-          if ((object as THREE.Mesh).isMesh && /^(EyeLeft|EyeRight|Wolf3D_(Head|Teeth|Beard|Headwear)|OpenSnookerHead_.*)$/.test(object.name)) headMeshes.push(object);
+          if ((object as THREE.Mesh).isMesh && /^(EyeLeft|EyeRight|Wolf3D_(Head|Teeth|Beard|Headwear))$/.test(object.name)) headMeshes.push(object);
         });
         this.group.add(human.modelRoot, cue.group, reachEquipment.group);
         this.players.push({ seat, human, cue, initialized: false, state: 'idle',
@@ -283,6 +277,23 @@ export class PoolRoyalHumanPlayers {
       }
       let bridge = resolvePoolRoyalBridgeAnchor({ cueBall, aimForward: aim, clothY });
       let bridgeStyle: 'open' | 'compact' | 'raised' = 'open';
+      if (active && state !== 'idle' && frame.bridgeBounds) {
+        const safety = resolveSafeBridgeAnchor(
+          bridge,
+          aim,
+          (frame.bridgeObstacles ?? []).map(obstacle => ({
+            position: this.toReference(obstacle.position),
+            radius: obstacle.radius / this.referenceScale
+          })),
+          {
+            halfWidth: frame.bridgeBounds.halfWidth / this.referenceScale,
+            halfLength: frame.bridgeBounds.halfLength / this.referenceScale
+          },
+          CFG.humanScale * 0.12
+        );
+        bridge = safety.anchor;
+        bridgeStyle = safety.style;
+      }
       const idleRight = rootTarget.clone().add(new THREE.Vector3(
         CFG.idleRightHandX, CFG.idleRightHandY, CFG.idleRightHandZ
       ).applyAxisAngle(THREE.Object3D.DEFAULT_UP, yaw));
@@ -315,31 +326,12 @@ export class PoolRoyalHumanPlayers {
         }
       }
       bridge = resolvePoolRoyalBridgeAnchor({ cueBall, aimForward: aim, cueTip: tip, clothY });
-      if (active && state !== 'idle' && frame.bridgeBounds) {
-        const safety = resolveSafeBridgeAnchor(
-          bridge,
-          aim,
-          (frame.bridgeObstacles ?? []).map(obstacle => ({
-            position: this.toReference(obstacle.position),
-            radius: obstacle.radius / this.referenceScale
-          })),
-          {
-            halfWidth: frame.bridgeBounds.halfWidth / this.referenceScale,
-            halfLength: frame.bridgeBounds.halfLength / this.referenceScale
-          },
-          CFG.humanScale * 0.12
-        );
-        bridge = safety.anchor;
-        bridgeStyle = safety.style;
-      }
-
       const reachProfile = resolveCueReachProfile({
         cueBall,
         aimForward: aim,
         tableW,
         tableL
       });
-      if (bridgeStyle === 'raised') reachProfile.needsExtension = true;
       const reachPose = active && state !== 'idle'
         ? poseCueReachEquipment(player.reachEquipment, {
           cueBack: back,
@@ -362,7 +354,7 @@ export class PoolRoyalHumanPlayers {
       updateHumanPose(human, Math.min(dt, 0.033), state, rootTarget, aim, bridge,
         idleRight, idleLeft, back, tip, active ? power : 0, clothY, supportMode,
         reachPose?.restDirection, rearGripOffset, rearGrip);
-      if (!reachPose) refinePoolRoyalBridge(human, bridge, aim, clothY, bridgeStyle, { back, tip });
+      if (!reachPose) refinePoolRoyalBridge(human, bridge, aim, clothY, bridgeStyle);
       this.group.add(human.modelRoot);
       setCuePose(player.cue, back, tip);
       // While aiming, the gameplay cue is the visible cue; the parked player

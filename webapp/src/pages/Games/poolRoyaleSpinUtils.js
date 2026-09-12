@@ -11,7 +11,7 @@ export const SPIN_LEVEL2_MAG = SPIN_RING2_RADIUS;
 export const SPIN_LEVEL3_MAG = SPIN_RING3_RADIUS;
 export const STRAIGHT_SPIN_DEADZONE = 0.02;
 export const SPIN_RESPONSE_EXPONENT = 1.32;
-export const SPIN_CENTER_TOPSPIN_BIAS = 0;
+export const SPIN_CENTER_TOPSPIN_BIAS = 0.1;
 export const SPIN_DIRECTIONS = [
   {
     id: 'stun',
@@ -138,8 +138,8 @@ export const computeQuantizedOffsetScaled = (
 };
 
 export const normalizeSpinInput = (spin) => {
-  let x = clamp(Number.isFinite(spin?.x) ? spin.x : 0, -1, 1);
-  let y = clamp(Number.isFinite(spin?.y) ? spin.y : 0, -1, 1);
+  let x = clamp(spin?.x ?? 0, -1, 1);
+  let y = clamp(spin?.y ?? 0, -1, 1);
 
   // Keep straight high/low and left/right shots easier to select by gently
   // snapping near-axis drag noise to the principal axis.
@@ -197,10 +197,10 @@ export const mapUiOffsetToCueFrame = (
 
 export const mapSpinForPhysics = (spin, options = {}) => {
   const adjusted = {
-    x: clamp(Number.isFinite(spin?.x) ? spin.x : 0, -1, 1),
-    y: clamp(Number.isFinite(spin?.y) ? spin.y : 0, -1, 1)
+    x: clamp(spin?.x ?? 0, -1, 1),
+    y: clamp(spin?.y ?? 0, -1, 1)
   };
-  const quantized = options.normalized ? adjusted : normalizeSpinInput(adjusted);
+  const quantized = normalizeSpinInput(adjusted);
   if (Math.hypot(quantized.x, quantized.y) <= 1e-6) {
     return { x: 0, y: SPIN_CENTER_TOPSPIN_BIAS };
   }

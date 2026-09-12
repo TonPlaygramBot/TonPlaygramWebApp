@@ -32,7 +32,6 @@ type UkSerializedState = {
 };
 
 type EightBallSerializedState = {
-  ballInHandRegion?: 'headstring' | 'table' | null;
   ballsOnTable: number[];
   currentPlayer: 'A' | 'B';
   assignments: { A: 'SOLID' | 'STRIPE' | null; B: 'SOLID' | 'STRIPE' | null };
@@ -138,7 +137,6 @@ function serializeEightBallState(state: BcaEightBall['state']): EightBallSeriali
       B: state.assignments?.B ?? null
     },
     ballInHand: state.ballInHand,
-    ballInHandRegion: state.ballInHandRegion,
     frameOver: state.frameOver,
     winner: state.winner,
     breakInProgress: state.breakInProgress
@@ -154,7 +152,6 @@ function applyEightBallState(game: BcaEightBall, snapshot: EightBallSerializedSt
       B: snapshot.assignments?.B ?? null
     },
     ballInHand: snapshot.ballInHand,
-    ballInHandRegion: snapshot.ballInHandRegion ?? null,
     frameOver: snapshot.frameOver,
     winner: snapshot.winner,
     breakInProgress: snapshot.breakInProgress
@@ -314,7 +311,6 @@ export class PoolRoyaleRules {
       default: {
         const game = new BcaEightBall();
         game.state.ballInHand = true;
-        game.state.ballInHandRegion = 'headstring';
         const snapshot = serializeEightBallState(game.state);
         const ballOn = this.computeEightBallBallOn(snapshot);
         const base: FrameState = {
@@ -364,7 +360,6 @@ export class PoolRoyaleRules {
     } else {
       game.startBreak();
     }
-    game.state.currentPlayer = state.activePlayer;
     const contactOrder: UkColour[] = [];
     for (const ev of events) {
       if (ev.type !== 'HIT') continue;
@@ -392,7 +387,7 @@ export class PoolRoyaleRules {
       noCushionAfterContact: Boolean(context.noCushionAfterContact),
       placedFromHand: Boolean(context.placedFromHand)
     });
-    const pottedCount = shotResult.rerack ? 0 : potted.filter((colour) => colour !== 'cue').length;
+    const pottedCount = potted.filter((colour) => colour !== 'cue').length;
     const snapshot = serializeUkState(game.state);
     const totals = previous ? previous.totals : { blue: UK_TOTAL_PER_COLOUR, red: UK_TOTAL_PER_COLOUR };
     const playerScores = this.computeUkScores(snapshot, totals);
@@ -476,7 +471,6 @@ export class PoolRoyaleRules {
     } else {
       game.state.ballInHand = true;
     }
-    game.state.currentPlayer = state.activePlayer;
     const contactOrder: number[] = [];
     for (const ev of events) {
       if (ev.type !== 'HIT') continue;
@@ -588,7 +582,6 @@ export class PoolRoyaleRules {
     } else {
       game.state.ballInHand = true;
     }
-    game.state.currentPlayer = state.activePlayer;
     const contactOrder: number[] = [];
     for (const ev of events) {
       if (ev.type !== 'HIT') continue;
