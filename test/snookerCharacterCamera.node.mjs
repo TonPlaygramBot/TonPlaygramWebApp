@@ -49,13 +49,12 @@ test('eye handoff preserves the existing safe view, target, blend and source pos
   assert.equal(position.y, m.clothY + m.ballR * 4);
 });
 
-test('below-cloth eyes stay clear during stroke, hold and release on both table sizes', () => {
+test('shot camera preserves the established animated eye pose on both table sizes', () => {
   for (const table of Object.values(TABLE_SIZE_OPTIONS)) {
     for (const scale of [table.scale, table.mobileScale, table.compactScale]) {
       const world = new THREE.Group();
       world.scale.setScalar(m.worldScale * scale);
       world.position.y = m.surfaceProxyY * m.worldScale * (1 - scale);
-      const minimumY = world.localToWorld(new THREE.Vector3(0, m.clothY + m.cameraClearance, 0)).y;
       const rig = cameraRig(world);
       const eye = { position: new THREE.Vector3(4, m.clothY - 3, 10),
         target: new THREE.Vector3(0, m.ballY, 0), blend: 1 };
@@ -66,7 +65,7 @@ test('below-cloth eyes stay clear during stroke, hold and release on both table 
         rig.now = time;
         if (time > 0) rig.cueAnimating = false;
         const pose = rig.resolve();
-        assert.ok(pose.position.y >= minimumY - 1e-9);
+        assert.equal(pose.position.y, world.localToWorld(eye.position.clone()).y);
         assert.equal(pose.position.x, 4 * world.scale.x);
         assert.equal(pose.position.z, 10 * world.scale.z);
         assert.equal(eye.position.y, m.clothY - 3, 'the rig and held pose are not modified');
@@ -88,17 +87,17 @@ test('overhead, replay and cue-gallery views retain camera ownership', () => {
   }
 });
 
-test('the real character is slightly taller and its shot camera clears the cloth in portrait', async () => {
+test('the real character is clearly bigger and its original shot camera is preserved in portrait', async () => {
   const world = new THREE.Group();
   const players = new PoolRoyalHumanPlayers(world, { ...m, model: await loadPoseModel() });
   assert.equal(await players.ready, true);
   world.updateMatrixWorld(true);
   const oldHeight = m.cueLength * 1.38;
   const height = new THREE.Box3().setFromObject(players.players[0].human.modelRoot).getSize(new THREE.Vector3()).y;
-  assert.ok(height / oldHeight > 1.04 && height / oldHeight < 1.06);
+  assert.ok(height / oldHeight > 1.15 && height / oldHeight < 1.17);
   assert.equal(players.group.position.y, m.floorY, 'the character stays anchored to the floor');
   const rig = cameraRig(world);
-  let corrected = 0;
+  let cameraPoses = 0;
   for (const fps of [30, 60, 120]) for (const seat of ['A', 'B']) {
     for (const yaw of [0, Math.PI / 2, Math.PI, -Math.PI / 2]) {
       const direction = new THREE.Vector3(Math.sin(yaw), 0, Math.cos(yaw));
@@ -113,8 +112,8 @@ test('the real character is slightly taller and its shot camera clears the cloth
         rig.now = i * 1000 / fps;
         const pose = rig.resolve();
         if (!pose) continue;
-        if (players.eyeView.position.y < m.clothY) corrected++;
-        assert.ok(pose.position.y >= m.clothY + m.cameraClearance - 1e-9);
+        cameraPoses++;
+        assert.ok(pose.position.distanceTo(world.localToWorld(players.eyeView.position.clone())) < 1e-9);
         for (const aspect of [320 / 640, 390 / 844]) {
           const camera = new THREE.PerspectiveCamera(m.cameraFov, aspect, 0.01, 500);
           camera.position.copy(pose.position);
@@ -127,6 +126,6 @@ test('the real character is slightly taller and its shot camera clears the cloth
       }
     }
   }
-  assert.ok(corrected > 0, 'exercise the actual below-cloth animation, not only a synthetic eye');
+  assert.ok(cameraPoses > 0, 'exercise the actual pose-driven camera, not only a synthetic eye');
   players.dispose();
 });

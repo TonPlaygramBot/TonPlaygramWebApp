@@ -4,11 +4,11 @@ Prepared against main `729e9afc6376ac7aabe9ba2189eaa248cdd17520` after PR #25874
 
 Publication uses main `c49c287827419fe743ee0e2dbfc40227deac3e5b`, which landed during this work. Its shared character, bridge, pose, stroke and spin dependencies were loaded into a separate validation checkout for the focused checks and preview build; its unrelated Pool Royal changes are preserved in the PR base.
 
-The character target height increases from 1.38 to 1.45 cue lengths, approximately 5.1%, with the existing uniform proportions and floor anchoring.
+The character target height now increases from 1.38 to 1.60 cue lengths, approximately 15.9%, with the existing uniform proportions and floor anchoring. This is a deliberate, clearly visible portrait-phone increase rather than the earlier subtle 5.1% adjustment.
 
-The pre-PR camera presets and human-eye handoff were unchanged by #25874. Executing the actual GLB pose exposed eye positions below the cloth during address/strike. The handoff runs after the orbit camera's clearance check, allowing the animated eye to override it. The correction clamps a cloned eye position to the actual cloth plus the existing cue-camera clearance, in local coordinates before world scale/translation. The original position is untouched when already safe. Targets, horizontal position, FOV, orbit settings, blend timing, overhead, replay and gallery ownership are preserved.
+The camera uses the established animated-eye handoff without the later position clamp, restoring the prior pose-driven shot view. Targets, position, FOV, orbit settings, blend timing, overhead, replay and gallery ownership remain controlled by the original camera flow. AI shots likewise retain the direction selected by the established planner; career mode no longer adds a second random aim rotation at fire time.
 
-Validation: 4 new Node tests using the production handoff and actual character rig, 3 existing shot-camera tests, and 13 focused Jest shooting/table checks passed (20 checks total). The real rig was exercised for both seats on four headings at 30/60/120 FPS. Tests cover both table sizes/scales and portrait projection. Strict TypeScript checking passed for the React/Three.js preview. Vite production compilation passed with output/public-asset copying disabled; existing asset-resolution warnings remain.
+Validation covers the production handoff and actual character rig, established camera ownership, the larger character ratio, and the absence of the career-only AI aim rotation. The real rig is exercised for both seats on four headings at 30/60/120 FPS, both table sizes/scales, and portrait projection. The React/Three.js portrait preview reads its dimensions directly from production.
 
 Browser access to the live development entry returned `ERR_BLOCKED_BY_CLIENT`. Full-game rendering and physical-phone testing remain unverified.
 

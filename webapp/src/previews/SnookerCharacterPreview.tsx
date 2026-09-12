@@ -101,9 +101,7 @@ function SnookerCharacterPreview() {
         const eyePose = shotCamera.resolve({ eye: p.eyeView, stroke, shooting: stroke || (running && elapsed >= 1250),
           cueBlend: 0, now });
         if (eyePose) {
-          const position = eyePose.position.clone();
-          position.y = Math.max(position.y, m.clothY + m.cameraClearance);
-          camera.position.lerp(position, eyePose.blend);
+          camera.position.lerp(eyePose.position, eyePose.blend);
           camera.lookAt(focus.clone().lerp(eyePose.target, eyePose.blend));
         }
       }
@@ -126,7 +124,7 @@ function SnookerCharacterPreview() {
   return <section className="snooker-character-inspector">
     <div className="snooker-inspector-controls">
       <button type="button" aria-pressed={!taller} onClick={() => { live.current.taller = false; setTaller(false); }}>Previous height</button>
-      <button type="button" aria-pressed={taller} onClick={() => { live.current.taller = true; setTaller(true); }}>Taller +5%</button>
+      <button type="button" aria-pressed={taller} onClick={() => { live.current.taller = true; setTaller(true); }}>Bigger + taller 16%</button>
     </div>
     <div ref={host} className="snooker-inspector-stage" role="img" aria-label="Snooker human character and shooting-eye preview" />
     <div className="snooker-inspector-controls">
