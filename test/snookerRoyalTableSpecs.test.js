@@ -40,6 +40,8 @@ describe('Snooker Royal physical table specs', () => {
     assert.match(source, /const BALL_SIZE_SCALE = 0\.96;/);
     assert.match(source, /const CUE_VISUAL_LIFT = BALL_R \* 0\.14;/);
     assert.match(source, /const SNOOKER_CUE_STRAIGHT_ON_TABLE = true;/);
+    assert.match(source, /targetHeight: cueLen \* 1\.6,/);
+    assert.doesNotMatch(source, /aimDir\.rotateAround\(new THREE\.Vector2\(\), careerMatch\.aimError\(\)\)/);
     assert.match(source, /providedCueBack\.y = providedCueTip\.y;/);
     assert.match(source, /spinInput: spinRef\.current/);
     assert.match(source, /const CORNER_MOUTH_REF = 83;/);
