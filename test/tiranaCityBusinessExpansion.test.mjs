@@ -19,7 +19,7 @@ try{const file=join(dir,'api.mjs');await build({stdin:{contents:`export {Referen
 
 test('33 additional identities have original packaged artwork, exact mapped matches and bounded bytes',async()=>{
  const manifest=JSON.parse(await readFile(new URL('../webapp/public/assets/tirana-streets/signs/city-business-sources.json',import.meta.url)));
- assert.equal(manifest.length,33);assert.equal(CITY_BUSINESS_SIGN_REFERENCES.length,33);assert.equal(SIGN_REFERENCES.length,64);
+ assert.equal(manifest.length,33);assert.equal(CITY_BUSINESS_SIGN_REFERENCES.length,33);assert.equal(SIGN_REFERENCES.length,74);
  const signs=[...BUSINESS_SIGNS,...STREET_LIFE.storefronts,...NEIGHBOURHOOD.storefronts];
  let bytes=0,placements=0;
  for(const r of CITY_BUSINESS_SIGN_REFERENCES){
@@ -30,7 +30,7 @@ test('33 additional identities have original packaged artwork, exact mapped matc
   assert.ok(b.readUInt32BE(16)<=256&&b.readUInt32BE(20)<=128);assert.match(m.sourceUrl,/^https:\/\//);assert.match(m.usage,/not CC0/);
  }
  assert.equal(placements,67);assert.ok(bytes<150000);console.log('City expansion artwork bytes / placements',bytes,placements);
- const allCount=signs.filter(s=>signReferenceFor(s.name)).length;assert.equal(allCount,366);
+ const allCount=signs.filter(s=>signReferenceFor(s.name)).length;assert.equal(allCount,376);
  for(const name of ['Starlight Hotel','Diamond Coffee','Diamond Dental','Bar Ilirian','Oz Lighting Studio by deluxe','One Hotel','Residence Inn by Marriott','ALDI','Supermarket Xhangolli','KMY'])assert.equal(signReferenceFor(name),undefined,name);
  assert.equal(signReferenceFor('  MÔNCAFÉ BOUTIQUE HOTEL & SPA ').id,'moncafe');assert.equal(signReferenceFor('Residence Inn Hotel').id,'residence-inn');
 });

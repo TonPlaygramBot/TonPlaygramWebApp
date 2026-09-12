@@ -33,7 +33,7 @@ const defaults = {
 };
 export const TUTORIAL = [
   ['move', 'Move with the left stick'],
-  ['look-down', 'Drag down to see your body'],
+  ['look-down', 'Drag to look around your character'],
   ['sprint', 'Toggle SPRINT, then move'],
   ['jump', 'Tap JUMP while moving'],
   ['crouch', 'Tap CROUCH, then stand'],
@@ -601,12 +601,12 @@ export class StreetSimulation {
         const w = WEAPON_BY_ID.get(p.weapon),
           inv = p.inventory[p.weapon];
         list.push(
-          a('fire', 'FIRE', true, !inv?.ammo ? 'Reload first' : '', 'hold'),
+          a('fire', w?.category==='melee'?'SLASH':'FIRE', true, !inv?.ammo ? 'Reload first' : '', 'hold'),
           a('aim', 'AIM', true, '', 'toggle'),
           a(
             'reload',
             'RELOAD',
-            !!w && !!inv && (inv.ammo < w.magazine || !!p.reloadAt),
+            !!w && w.category!=='melee' && !!inv && (inv.ammo < w.magazine || !!p.reloadAt),
             !inv?.reserve ? 'No spare ammo' : ''
           )
         );
@@ -767,7 +767,7 @@ export class StreetSimulation {
       b = this.body;
     if (
       this.paused ||
-      p.weapon ||
+      (p.weapon && WEAPON_BY_ID.get(p.weapon)?.category !== 'melee') ||
       p.health <= 0 ||
       b.interaction !== 'free' ||
       b.action ||
@@ -793,7 +793,7 @@ export class StreetSimulation {
     const p = this.player,
       b = this.body,
       d = direction3(b.yaw, b.pitch * 0.35),
-      range = a.kind === 'kick' ? 2.05 : 1.5,
+      range = a.kind === 'kick' ? 2.05 : WEAPON_BY_ID.get(p.weapon)?.category==='melee' ? 1.65 : 1.5,
       origin = { x: p.x, y: b.y + (a.kind === 'kick' ? 0.85 : 1.3), z: p.z };
     let target = null,
       best = range;
@@ -813,7 +813,7 @@ export class StreetSimulation {
       target = n;
     }
     if (target) {
-      this.damage(target, a.kind === 'kick' ? 30 : 16, p);
+      this.damage(target, a.kind === 'kick' ? 30 : WEAPON_BY_ID.get(p.weapon)?.category==='melee' ? 35 : 16, p);
       reportCrime(this.state, p, target.kind === 'gang' ? 4 : 55);
       this.event('melee-hit');
     }
@@ -836,6 +836,7 @@ export class StreetSimulation {
       !inv.ammo
     )
       return;
+    if(w.category==='melee'){this.startMelee('punch');p.nextShot=this.state.elapsed+w.interval;return;}
     inv.ammo--;
     p.nextShot = this.state.elapsed + w.interval;
     b.combat = 'fire';

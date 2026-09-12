@@ -23,12 +23,12 @@ export class StreetLifeLayer {
  private columns=8;private rows=1;
  private brandRequests=new Map<string,()=>void>();private requestedBrands=new Set<string>();
  private material:T.MeshStandardMaterial;private glassMaterial:T.MeshStandardMaterial;private signMaterial:T.MeshStandardMaterial;
- constructor(data:Data=STREET_LIFE,options:StreetDetailOptions={},private labelsOnly=false){
+ constructor(data:Data=STREET_LIFE,options:StreetDetailOptions={},private labelsOnly=false,tradesOnly=false){
   this.group.name='Tirana:mapped-storefronts-stops-and-fuel';
   const blocked=options.track?ribbonExclusion(options.track):null;
   const models:Model[]=[];
   for(const [key,type] of [['storefronts','storefront'],['stops','stop'],['fuel','fuel'],['advertising','advertising']] as const)
-   for(const s of data[key])if(!blocked||!blocked(s.x,s.z,Math.max(4,'width' in s?Number(s.width):0)))models.push(buildStreetModel(type==='advertising'?referencedAdvertising(s,data.storefronts):s,type));
+   for(const s of data[key])if(!blocked||!blocked(s.x,s.z,Math.max(4,'width' in s?Number(s.width):0)))models.push(buildStreetModel(type==='advertising'?referencedAdvertising(s,data.storefronts):s,tradesOnly&&type==='storefront'?'store-detail':type));
   if(this.labelsOnly)for(const model of models)for(const sign of model.signs)sign.p[2]=Math.max(.238,sign.p[2]);
   const signs:Sign[]=[],signIndex=new Map<string,number>();
   for(const sign of models.flatMap(m=>m.signs)){sign.brand=signReferenceFor(sign.text)?.id;const key=JSON.stringify([sign.text,sign.bg,sign.fg,Math.round(sign.s[0]/sign.s[1]*10)]);if(!signIndex.has(key)){signIndex.set(key,signs.length);signs.push(sign);}sign.atlas=signIndex.get(key)!;}
@@ -57,7 +57,9 @@ export class StreetLifeLayer {
      if(!sw||!sh)return;
      const physicalRatio=sign.s[0]/sign.s[1],ratio=(sw/sh)*256/48/physicalRatio;
      const h=Math.min(40,232/ratio),w=h*ratio;
-     ctx.drawImage(image,sx,sy,sw,sh,x+(256-w)/2,y+(48-h)/2,w,h);
+     if('keepName' in reference&&reference.keepName){
+      const iw=Math.min(48,w);ctx.drawImage(image,sx,sy,sw,sh,x+10,y+4,iw,40);ctx.fillStyle=reference.foreground;ctx.font='bold 24px Arial';ctx.textAlign='left';ctx.textBaseline='middle';ctx.fillText(sign.text,x+68,y+24,178);
+     }else ctx.drawImage(image,sx,sy,sw,sh,x+(256-w)/2,y+(48-h)/2,w,h);
     });
     this.atlas.needsUpdate=true;
    });});

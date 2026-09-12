@@ -109,6 +109,7 @@ export class StreetSimulation {
   pause(): void;
   resume(): void;
   eye(): Point & { y: number };
+  cars(): import('../shared/engine.mjs').Car[];
   resolve(): StreetAction[];
   execute(id: string, targetId?: string | null): boolean;
   objective(): { title: string; detail: string; training: boolean };

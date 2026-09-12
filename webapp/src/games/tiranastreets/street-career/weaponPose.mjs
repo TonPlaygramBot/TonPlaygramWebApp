@@ -6,7 +6,7 @@ import { direction3 } from './spatialCore.mjs';
 export function weaponAnchors(id) {
   const w = WEAPON_BY_ID.get(id),
     sidearm = w?.category === 'sidearm',
-    length = sidearm ? 0.28 : w?.radius ? 0.72 : 0.7;
+    length = w?.category === 'melee' ? .30 : sidearm ? 0.28 : w?.radius ? 0.72 : 0.7;
   return {
     length,
     rightGrip: { x: 0, y: -0.045, z: -length * 0.2 },

@@ -565,6 +565,7 @@ export function StreetCareerGame({ onExit }: { onExit: () => void }) {
                     player={p}
                     state={view.state}
                     onAction={(a) => runtime.current?.action(a)}
+                    onOwned={(ids) => runtime.current?.grantWeapons(ids)}
                   />
                 ) : (
                   <CityMap

@@ -1,3 +1,6 @@
+import {NEIGHBOURHOOD} from '../tirana-neighbourhood/data.mjs';
+import {STREET_LIFE} from '../tirana-street-life/registry.mjs';
+import {LOCAL_FUEL} from '../tirana-environment/mappedAmenitiesCore.mjs';
 import {RegionalPanorama} from '../tirana-region/RegionalPanorama';
 import {CityCompletionLayer} from '../tirana-city-completion/CityCompletionLayer';
 import {FacadeCompletionLayer} from '../tirana-city-completion/FacadeCompletionLayer';
@@ -30,6 +33,8 @@ export {
 } from './BaseWorldEnhancements';
 /** One shared street-detail integration, using the unchanged city metre frame. */
 export class WorldEnhancements extends ExistingEnhancements {
+  readonly tradeDetails=new StreetLifeLayer({storefronts:NEIGHBOURHOOD.storefronts.filter(s=>['hairdresser','bakery','cafe','fast_food'].includes(s.shop||s.kind)||/barber|berber|hair/i.test(s.name)),stops:[],fuel:[],advertising:[]} as any,{},false,true);
+  readonly fuelBrands=new StreetLifeLayer({storefronts:LOCAL_FUEL,stops:[],fuel:[],advertising:[]} as any,{});
   readonly panorama = new RegionalPanorama();
   private panoramaViewer = new T.Vector3();
   readonly shopfronts = new ShopfrontDetails(
@@ -68,7 +73,7 @@ export class WorldEnhancements extends ExistingEnhancements {
       options
     );
     this.group.add(
-      this.institutions.group,
+      this.tradeDetails.group,this.fuelBrands.group,this.institutions.group,
       this.buildingBrands.group,
       this.shopfronts.group,
       this.streets.group,
@@ -103,6 +108,8 @@ export class WorldEnhancements extends ExistingEnhancements {
       );
       viewer = { x: p.x, z: p.z };
     }
+    this.tradeDetails.update(seconds,viewer,battery);
+    this.fuelBrands.update(seconds,viewer,battery);
     this.institutions.update(seconds, viewer, battery);
     this.buildingBrands.update(seconds, viewer, battery);
     this.shopfronts.update(seconds, viewer, battery);
@@ -117,6 +124,8 @@ export class WorldEnhancements extends ExistingEnhancements {
     this.facadeCompletion.update(seconds,viewer,battery);
   }
   override retire() {
+    this.tradeDetails.retire();
+    this.fuelBrands.retire();
     this.institutions.retire();
     this.buildingBrands.retire();
     this.ground.retire();
@@ -132,6 +141,8 @@ export class WorldEnhancements extends ExistingEnhancements {
   }
   override dispose() {
     this.panorama.dispose();
+    this.tradeDetails.dispose();
+    this.fuelBrands.dispose();
     this.institutions.dispose();
     this.buildingBrands.dispose();
     this.attractions.dispose();

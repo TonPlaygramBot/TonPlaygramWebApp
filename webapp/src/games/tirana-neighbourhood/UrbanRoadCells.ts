@@ -1,4 +1,5 @@
 import * as T from 'three';
+import {CellWorkQueue} from './cellWorkQueue.mjs';
 import {EnvironmentMaterials} from '../tirana-environment/EnvironmentMaterials';
 import {WORLD} from '../tiranastreets/shared/world.mjs';
 import {cutChannels,surfaceGeometry} from '../tirana-environment/riverGeometry';
@@ -16,7 +17,7 @@ export class UrbanRoadCells {
  private visible=new Set<Cell>();private cache=new Set<Cell>();
  private tick=0;private last=-Infinity;private dead=false;
  private viewer={x:Infinity,z:Infinity};private battery?:boolean;
- private jobs:Generator<void,void>[]=[];
+ private jobs=new CellWorkQueue();
  private asphalt=new T.MeshStandardMaterial({color:0x777b78,roughness:.94});
  private pavement=new T.MeshStandardMaterial({color:0xb5afa3,roughness:.92});
  private textures=new Set<T.Texture>();
@@ -73,28 +74,28 @@ export class UrbanRoadCells {
   if(this.dead)return;
   if(this.battery!==battery||seconds<this.last||Math.hypot(viewer.x-this.viewer.x,viewer.z-this.viewer.z)>45||this.last===-Infinity){
    this.last=seconds;this.viewer={x:viewer.x,z:viewer.z};this.battery=battery;this.tick++;
-   for(const job of this.jobs)job.return();this.jobs=[];
-   const radius=battery?1100:1800,selected:Cell[]=[];
+   const tasks:{key:string;create:()=>Generator<void,void>}[]=[];
+   const radius=battery?1400:2400,selected:Cell[]=[];
    for(let x=Math.floor((viewer.x-radius)/240);x<=Math.floor((viewer.x+radius)/240);x++)for(let z=Math.floor((viewer.z-radius)/240);z<=Math.floor((viewer.z+radius)/240);z++){
     const c=this.cells.get(`${x}:${z}`);if(c&&Math.hypot(c.x-viewer.x,c.z-viewer.z)<radius+170)selected.push(c);
    }
    const distance=(c:Cell)=>(c.x-viewer.x)**2+(c.z-viewer.z)**2;
    selected.sort((a,b)=>distance(a)-distance(b));this.visible=new Set(selected);
    // All roads first; costly close detail never delays the wider road network.
-   for(const c of selected){c.used=this.tick;if(!c.root)this.jobs.push(this.buildRoad(c));}
-   for(const c of selected)if(!c.paving&&distance(c)<(battery?300:520)**2)this.jobs.push(this.buildPaving(c));
+   for(const c of selected){c.used=this.tick;if(!c.root)tasks.push({key:c.key,create:()=>this.buildRoad(c)});}
+   for(const c of selected)if(!c.paving&&distance(c)<(battery?300:520)**2)tasks.push({key:c.key+":paving",create:()=>this.buildPaving(c)});
+   this.jobs.sync(tasks);
    for(const c of this.cache){c.root!.visible=this.visible.has(c);if(c.paving)c.paving.visible=distance(c)<(battery?380:650)**2;}
    const stale=[...this.cache].filter(c=>!this.visible.has(c)).sort((a,b)=>(a.used||0)-(b.used||0));
-   while(this.cache.size>(battery?140:270)&&stale.length)this.release(stale.shift()!);
+   while(this.cache.size>(battery?220:460)&&stale.length)this.release(stale.shift()!);
   }
-  const start=performance.now(),budget=battery?2:4;let steps=0;
-  while(this.jobs.length&&performance.now()-start<budget&&steps++<100){if(this.jobs[0].next().done)this.jobs.shift();}
-  if(this.cache.size>(battery?140:270)){
+  this.jobs.run(battery?1.5:3,180);
+  if(this.cache.size>(battery?220:460)){
    const stale=[...this.cache].filter(c=>!this.visible.has(c)).sort((a,b)=>(a.used||0)-(b.used||0));
-   while(this.cache.size>(battery?140:270)&&stale.length)this.release(stale.shift()!);
+   while(this.cache.size>(battery?220:460)&&stale.length)this.release(stale.shift()!);
   }
-  this.group.userData={cachedCells:this.cache.size,pendingJobs:this.jobs.length,radius:battery?1100:1800};
+  this.group.userData={cachedCells:this.cache.size,pendingJobs:this.jobs.length,radius:battery?1400:2400};
  }
  private release(c:Cell){c.root?.traverse(o=>{if(o instanceof T.Mesh)o.geometry.dispose();});c.root?.removeFromParent();c.root=undefined;c.paving=undefined;this.cache.delete(c);}
- dispose(){if(this.dead)return;this.dead=true;for(const job of this.jobs)job.return();this.jobs=[];this.materials.dispose();for(const c of this.cache)this.release(c);this.textures.forEach(t=>t.dispose());this.asphalt.dispose();this.pavement.dispose();this.group.clear();this.group.removeFromParent();}
+ dispose(){if(this.dead)return;this.dead=true;this.jobs.dispose();this.materials.dispose();for(const c of this.cache)this.release(c);this.textures.forEach(t=>t.dispose());this.asphalt.dispose();this.pavement.dispose();this.group.clear();this.group.removeFromParent();}
 }

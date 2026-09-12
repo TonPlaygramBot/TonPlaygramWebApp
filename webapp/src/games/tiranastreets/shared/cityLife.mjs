@@ -1,5 +1,5 @@
 import { CITY_POPULATION, initCityPopulation, nearestShop, dropWeapon, collectWeapon } from './cityPopulation.mjs';
-import { WEAPON_BY_ID, STARTER_WEAPON, difficultyOf } from "./weapons.mjs";
+import { WEAPON_BY_ID, STARTER_WEAPON, ensureStarterWeapons, difficultyOf } from "./weapons.mjs";
 import { forceDispatch, FORCE_VEHICLE_BOUNDS } from "./albanianForces.mjs";
 import { deployment, tacticalGoal, vehicleBlocks, avoidVehicles } from "./forceTactics.mjs";
 
@@ -19,6 +19,7 @@ export function equipStarter(p) {
   p.respawnAt = 0;
   p.weapon = STARTER_WEAPON;
   p.inventory = { [STARTER_WEAPON]: { ammo: 16, reserve: 96 } };
+  ensureStarterWeapons(p);
   p.nextShot = 0;
   p.reloadAt = 0;
   p.kills = 0;
@@ -242,6 +243,7 @@ export function lifeAction(state, p, action) {
   }
   const own = p.inventory[id],
     price = own ? Math.max(30, Math.round(w.price * 0.2)) : w.price;
+  if (w.category === 'melee') return true;
   if (own && own.reserve >= w.magazine * 8) {
     p.shopMessage = "Ammo is full.";
     return true;
@@ -321,7 +323,7 @@ function fire(state, p, env) {
     lifeAction(state, p, "reload");
     return;
   }
-  inv.ammo--;
+  if(w.category!=='melee')inv.ammo--;
   p.nextShot = state.elapsed + w.interval;
   p.heading = p.input.yaw;
   const dx = -Math.sin(p.input.yaw),
@@ -376,7 +378,7 @@ function fire(state, p, env) {
           ? 60
           : 12,
   );
-  emit(state, w.radius ? "explosion" : "shot", p, end, p.id, w.id);
+  if(w.category!=='melee')emit(state, w.radius ? "explosion" : "shot", p, end, p.id, w.id);
   if (w.radius) {
     for (const n of candidates)
       if (dist(n, end) < w.radius && env.clear(end, n))

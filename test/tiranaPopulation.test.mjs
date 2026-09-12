@@ -10,7 +10,7 @@ import {takeVehicle,exitPoint,vehicleAnchors,carPoint} from '../webapp/src/games
 import {StreetSimulation} from '../webapp/src/games/tiranastreets/street-career/StreetSimulation.mjs';
 const state=()=>createState([{id:'local',name:'You'}],'free-roam');
 test('population persists, uses a varied fleet, and every bus has passengers',()=>{
- const s=state();assert.equal(s.traffic.filter(c=>c.model!=='tirana-bus').length,2000);assert.equal(s.traffic.filter(c=>c.model==='tirana-bus').length,30);assert.equal(s.shops.length,15);assert.equal(s.pickups.length,300);assert.ok(s.npcs.length>=600);
+ const s=state();assert.equal(s.traffic.filter(c=>c.model!=='tirana-bus').length,2800);assert.equal(s.traffic.filter(c=>c.model==='tirana-bus').length,30);assert.equal(s.shops.length,15);assert.equal(s.pickups.length,300);assert.ok(s.npcs.length>=600);
  assert.equal(new Set(s.pickups.map(p=>`${p.x},${p.z}`)).size,300);assert.ok(new Set(s.traffic.map(c=>c.model)).size>=6);
  assert.ok(s.traffic.filter(c=>c.model==='tirana-bus').every(c=>c.passengers.length>=12));
  const ids=s.traffic.map(c=>c.id);advanceState(s,1);assert.deepEqual(s.traffic.map(c=>c.id),ids);assert.ok(s.traffic.filter(c=>c.speed>.1).length>1500);

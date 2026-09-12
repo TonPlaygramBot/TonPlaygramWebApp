@@ -1,0 +1,114 @@
+[
+  {
+    "id": "gega-oil",
+    "assetURL": "https://gegaoil.al/app/themes/gegaoil/public/build/assets/logo-vPeTrpsI.png",
+    "sha256": "698fdd332601814f90ac227993f5266e927389a4afc95d9d413e71d5ec0a4c3f",
+    "size": [
+      238,
+      56
+    ],
+    "bytes": 14246
+  },
+  {
+    "id": "eida",
+    "assetURL": "https://europetrolgroup.com/wp-content/uploads/2021/01/elda_logo.png",
+    "sha256": "1b2576f5adf2ce580c8ef99ec1a78105e10bc0b2ee7e8a6b0964b110b77d9116",
+    "size": [
+      256,
+      256
+    ],
+    "bytes": 16637
+  },
+  {
+    "id": "bolv",
+    "assetURL": "https://static.wixstatic.com/media/dd9885_4e4aa5b650de41ffaf8ca93e2cbe5c0c~mv2.png",
+    "sha256": "f6557c06870787ac57ce1c20e76ec9b534e77ff85f6edf9f81e84ab1d7681ccd",
+    "size": [
+      256,
+      256
+    ],
+    "bytes": 9916
+  },
+  {
+    "id": "kastrati",
+    "assetURL": "https://kastrati.al/wp-content/uploads/2024/07/Group-12.png",
+    "sha256": "d26a9d6b0d32dc2eb0f54569078a98ba955769eef5b49e83a8a002d5a352f0d5",
+    "size": [
+      63,
+      71
+    ],
+    "bytes": 2359
+  },
+  {
+    "id": "crepa-crepa",
+    "name": "Crepa Crepa",
+    "source": "https://wolt.com/en/alb/tirana/restaurant/crepa-crepa-tirana",
+    "assetURL": "https://imageproxy.wolt.com/assets/673206db8f745d19b0dbfbdc",
+    "sha256": "060cab8f8c3daae532b44de23a2dc88c1d2f8903a4db41e1b48572305d3be263",
+    "size": [
+      256,
+      256
+    ],
+    "bytes": 22634
+  },
+  {
+    "id": "hebs",
+    "name": "Heb's Bllok",
+    "source": "https://wolt.com/en/alb/tirana/restaurant/hebs-bllok",
+    "assetURL": "https://imageproxy.wolt.com/mes-image/18c976f0-8c89-42e0-a118-73e07321dd63/2167efa4-4782-401e-b5f5-e0aceffaac2b",
+    "sha256": "9e500f36862d30078e23e95933dd18023e4eaee6c6cdfec21a05f6f087d11273",
+    "size": [
+      256,
+      256
+    ],
+    "bytes": 9820
+  },
+  {
+    "id": "delibros",
+    "name": "Delibros Rruga e Kavajës",
+    "source": "https://wolt.com/en/alb/tirana/restaurant/delibros-rruga-e-kavajs",
+    "assetURL": "https://imageproxy.wolt.com/assets/689b27f59ec96fca3dd5ffdd",
+    "sha256": "8c49bc6da39c786476234f41272ac843326798942688c7fed4ec86c3f6bc7a7b",
+    "size": [
+      256,
+      256
+    ],
+    "bytes": 9648
+  },
+  {
+    "id": "mr-chicken",
+    "name": "Mr. Chicken",
+    "source": "https://wolt.com/en/alb/tirana/restaurant/mr-chicken01",
+    "assetURL": "https://imageproxy.wolt.com/assets/68e66c9584261fa042b8d9a7",
+    "sha256": "bcbbce947ddf5c9ac481309978a82e0ac35f16d30a9b31c1565442d595a73e63",
+    "size": [
+      256,
+      256
+    ],
+    "bytes": 34244
+  },
+  {
+    "id": "hermanos",
+    "name": "Hermanos Burgers",
+    "source": "https://wolt.com/en/alb/tirana/restaurant/hermanos-burgers-1",
+    "assetURL": "https://imageproxy.wolt.com/assets/6a9138c0e896c0fee8a0987b",
+    "sha256": "cd93166a956253d14d99cb9239a8b1e138873bd4db6ad9dab42c63c2f72e404c",
+    "size": [
+      256,
+      256
+    ],
+    "bytes": 14568
+  },
+  {
+    "id": "mono-mia",
+    "name": "MonoMia Bakery & Pastry",
+    "source": "https://wolt.com/en/alb/tirana/restaurant/mono-mia",
+    "assetURL": "https://imageproxy.wolt.com/assets/6a7af9ff60d850b7321b2399",
+    "sha256": "8ba93ee0d9b33f2cd68acbb17fde65a15b2612ea129f1a598215fb0dc10af40b",
+    "size": [
+      256,
+      256
+    ],
+    "bytes": 34226
+  }
+]

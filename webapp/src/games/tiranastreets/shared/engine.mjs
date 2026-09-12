@@ -1,3 +1,4 @@
+import {drivingScale} from './drivingScale.mjs';
 import {importedFleet,IMPORTED_PLACEMENT_ORIGIN} from '../../blackwater/shared/importedPlacements.mjs';
 import {VEHICLE_COLLECTION} from './vehicleCollection.mjs';
 import {COLLECTION_PLACEMENTS} from './collectionPlacements.mjs';
@@ -754,11 +755,12 @@ export function movePlayer(state, p, dt) {
     }
     c.steering += (input.x - c.steering) * Math.min(1, dt * 8);
     const bus=c.model==='tirana-bus';
-    let accel = input.y * (input.y * c.speed < 0 ? (bus?9:26) : bus?3.2:10.5);
-    if (input.brake) accel -= Math.sign(c.speed) * 30;
+    const scale=drivingScale(c);
+    let accel = input.y * (input.y * c.speed < 0 ? scale.braking : scale.acceleration);
+    if (input.brake) accel = -Math.sign(c.speed) * Math.min(scale.braking,Math.abs(c.speed)/dt);
     c.speed += accel * dt;
     c.speed *= Math.exp(-(input.y === 0 ? 1.25 : 0.12) * dt);
-    c.speed = clamp(c.speed, -7, bus ? 16 : c.model === 'sedan-sports' ? 32 : 24);
+    c.speed = clamp(c.speed, -scale.reverse, scale.maximum);
     // Positive steering is screen-right when the chase camera faces forward.
     c.heading = angle(
       c.heading -

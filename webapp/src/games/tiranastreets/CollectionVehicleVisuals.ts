@@ -29,13 +29,18 @@ export class CollectionVehicleVisuals {
   private human?:T.Group;
   private dead=false;
   private frame=0;
+  private waiters: (()=>void)[]=[];
+  whenIdle(){return this.pending.size?new Promise<void>(resolve=>this.waiters.push(resolve)):Promise.resolve();}
+  private settleWaiters(){if(!this.pending.size)for(const resolve of this.waiters.splice(0))resolve();}
+
   private readonly range:number;
   private readonly maxVisible:number;
   constructor(options:Options={}) {
-    this.range=options.range??180;this.maxVisible=options.maxVisible??8;
+    this.range=options.range??260;this.maxVisible=options.maxVisible??12;
     this.group.name='Tirana:original-ten-car-collection';
     this.group.userData.quality='Original GLB geometry and PBR maps; no LOD reduction';
   }
+  owns(car:CollectionCar){const a=collectionVehicleFor(car);return !!a&&!this.errors.has(a.id)&&!this.errors.has('driver');}
   has(id:string){return this.actors.has(id);}
   getRoot(id:string){return this.actors.get(id)?.root;}
   get loadedCount(){return this.actors.size;}
@@ -75,18 +80,20 @@ export class CollectionVehicleVisuals {
       // Let in-flight decoding settle before terminating its worker on disposal.
       if(this.dead&&this.pending.size===0)this.draco.dispose();
       else this.pump();
+      this.settleWaiters();
     }
   }
   update(cars:readonly CollectionCar[], viewer:{x:number;z:number}, dt:number, playerCarId?:string|null) {
     if(this.dead)return;
     this.frame++;
     const distance=(c:CollectionCar)=>Math.hypot(c.x-viewer.x,c.z-viewer.z);
-    const selected=cars.filter(c=>collectionVehicleFor(c)&&Number.isFinite(c.x)&&Number.isFinite(c.z)&&distance(c)<this.range)
+    const selected=cars.filter(c=>collectionVehicleFor(c)&&Number.isFinite(c.x)&&Number.isFinite(c.z)&&distance(c)<this.range+140)
       .sort((a,b)=>Number(b.id===playerCarId)-Number(a.id===playerCarId)||distance(a)-distance(b)||a.id.localeCompare(b.id)).slice(0,this.maxVisible);
     const keep=new Set(selected.map(c=>c.id));
     for(const id of this.actors.keys())if(!keep.has(id))this.remove(id);
     this.desired=new Map(selected.map(c=>{const a=collectionVehicleFor(c)!;return[a.id,a];}));
     for(const car of selected){
+      if(distance(car)>this.range&&car.id!==playerCarId){const old=this.actors.get(car.id);if(old)old.root.visible=false;continue;}
       const asset=collectionVehicleFor(car)!,source=this.sources.get(asset.id);
       let actor=this.actors.get(car.id);
       if(actor&&actor.assetId!==asset.id){this.remove(car.id);actor=undefined;}
@@ -100,6 +107,7 @@ export class CollectionVehicleVisuals {
         actor={root,driver,assetId:asset.id};this.actors.set(car.id,actor);this.group.add(root);
         root.position.set(car.x,.03,car.z);root.rotation.y=car.heading+Math.PI/2;
       }
+      actor.root.visible=true;
       const alpha=1-Math.exp(-Math.max(0,dt)*18);
       actor.root.position.lerp(new T.Vector3(car.x,.03,car.z),alpha);
       actor.root.rotation.y+=Math.atan2(Math.sin(car.heading+Math.PI/2-actor.root.rotation.y),Math.cos(car.heading+Math.PI/2-actor.root.rotation.y))*alpha;
@@ -129,7 +137,7 @@ export class CollectionVehicleVisuals {
     for(const id of this.actors.keys())this.remove(id);
     disposeWeaponResources([...this.sources.values()].map(s=>s.root));this.sources.clear();
     if(this.human)disposeWeaponResources([this.human]);this.human=undefined;
-    this.desired.clear();this.group.removeFromParent();
+    this.desired.clear();this.group.removeFromParent();for(const resolve of this.waiters.splice(0))resolve();
     if(!this.pending.size)this.draco.dispose();
   }
 }

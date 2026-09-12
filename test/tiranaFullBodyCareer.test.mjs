@@ -445,3 +445,17 @@ test('validated vault moves the body over a low solid to a clear landing', () =>
     true
   );
 });
+
+test('fresh loadouts include Glock and CC0 knife; knife slashes without consuming ammunition',()=>{
+  const s=run();assert.equal(s.player.weapon,'glockSidearmAttack');assert.ok(s.player.inventory.combatKnife);
+  s.player.weapon='combatKnife';s.state.npcs.push(npc('close',0,-1));
+  s.intent.fire=true;s.step(1/60);s.intent.fire=false;tick(s,.35);
+  assert.equal(s.state.npcs[0].health,65);assert.equal(s.player.inventory.combatKnife.ammo,1);
+  assert.ok(!s.state.effects.some(e=>e.type==='shot'));assert.ok(!s.resolve().find(a=>a.id==='reload'&&a.visible));
+});
+test('knife respects walls and cannot hit a distant target',()=>{
+  for(const [solids,z] of [[[wall(-1,1,-.7,-.6)],-1],[[],-3]]){
+    const s=run('free-roam',solids);s.player.weapon='combatKnife';s.state.npcs.push(npc('protected',0,z));
+    s.intent.fire=true;s.step(1/60);s.intent.fire=false;tick(s,.45);assert.equal(s.state.npcs[0].health,100);
+  }
+});

@@ -3,6 +3,7 @@ import assert from 'node:assert/strict';
 import {readFileSync} from 'node:fs';
 import {createHash} from 'node:crypto';
 import {VEHICLE_COLLECTION,collectionVehicleFor} from '../webapp/src/games/tiranastreets/shared/vehicleCollection.mjs';
+import {forceVehicleFor} from '../webapp/src/games/tiranastreets/shared/albanianForces.mjs';
 import {COLLECTION_PLACEMENTS} from '../webapp/src/games/tiranastreets/shared/collectionPlacements.mjs';
 import {createState,interact,advanceState,control,FREE_ROAM,emptyInput} from '../webapp/src/games/tiranastreets/shared/engine.mjs';
 import {ORIGIN,OBSTACLES,props,START,EXTRACTION,SPAWNS,BATTLEFIELD_MAPS} from '../webapp/src/games/blackwater/shared/layout.mjs';
@@ -25,7 +26,9 @@ test('the same ten cars exist as parked FPS props and enterable simulation vehic
  const state=createState([{id:'tester',name:'Tester'}],FREE_ROAM.id,'solo');
  assert.equal(state.cars.filter(collectionVehicleFor).length,10);
  assert.deepEqual(new Set(state.traffic.filter(collectionVehicleFor).map(c=>c.collectionVehicle)),new Set(expected));
- assert.equal(state.traffic.filter(collectionVehicleFor).length,28,'keep traffic population unchanged');
+ assert.equal(state.traffic.filter(collectionVehicleFor).length,240,'civilian collection vehicles scale with the denser traffic population');
+ assert.equal(state.traffic.filter(c=>collectionVehicleFor(c)&&forceVehicleFor(c)).length,0,'one visual owner per vehicle');
+ assert.equal(forceVehicleFor({model:'police',forceVehicle:'patrol_hatch',collectionVehicle:'benz'}),undefined,'legacy dual assignment uses its collection model');
  for(const p of COLLECTION_PLACEMENTS){
   const car=state.cars.find(c=>c.id===p.id),prop=props.find(c=>c.collectionVehicle===p.collectionVehicle);
   assert.ok(car&&prop,p.id);assert.equal(car.x,p.x);assert.equal(car.z,p.z);

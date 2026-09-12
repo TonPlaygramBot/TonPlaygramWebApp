@@ -1,3 +1,4 @@
+import {collectionVehicleFor} from './vehicleCollection.mjs';
 /** Local Albanian Forces v2 assets. Simulation roles/physics stay independent
  * of the presentation model, and explicit IDs survive multiplayer snapshots. */
 const BASE = '/assets/tirana-streets/albanian-forces/';
@@ -38,6 +39,9 @@ export function forceDispatch(stars, slot = 0) {
   return {forceVehicle, forceCharacter};
 }
 export function forceVehicleFor(car) {
+  // Legacy snapshots can carry both assignments. A collection car has one
+  // visual owner; rendering its police fallback as well creates two bodies.
+  if(collectionVehicleFor(car))return undefined;
   const explicit = FORCE_ASSET_BY_ID.get(car.forceVehicle);
   if (explicit?.category === 'vehicle') return explicit;
   // Existing saves and older servers still get a compatible model.

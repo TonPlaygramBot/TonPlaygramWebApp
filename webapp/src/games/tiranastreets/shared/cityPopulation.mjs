@@ -2,7 +2,7 @@ import { WORLD } from './world.mjs';
 import { WEAPONS, WEAPON_BY_ID } from './weapons.mjs';
 import { onCarriageway } from './streetLayout.mjs';
 import { footprintIndex } from '../../tirana-city-source/footprintIndex.mjs';
-export const CITY_POPULATION = Object.freeze({ vehicles: 2000, buses: 30, weapons: 300, shops: 15, pedestrians: 600 });
+export const CITY_POPULATION = Object.freeze({ vehicles: 2800, buses: 30, weapons: 300, shops: 15, pedestrians: 600 });
 export const nearestShop = (state, p) => (state.shops?.length ? state.shops : [state.shop]).filter(Boolean)
   .reduce((best, s) => !best || Math.hypot(s.x-p.x,s.z-p.z)<Math.hypot(best.x-p.x,best.z-p.z) ? s : best, null);
 const nearBuilding = footprintIndex(WORLD.buildings, 40, 10);

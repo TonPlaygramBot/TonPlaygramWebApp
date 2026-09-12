@@ -1,3 +1,4 @@
+import {RainPuddles} from './RainPuddles';
 import * as T from 'three';
 import {urbanLightLevel} from './urbanLightingCore.mjs';
 import {applyWindowLighting} from './windowLighting';
@@ -8,6 +9,7 @@ import {environmentAt, environmentRandom, environmentSeed} from './weatherCore.m
 export class CinematicAtmosphere {
   readonly group=new T.Group();
   readonly seed:number;
+  readonly puddles=new RainPuddles();
   current:ReturnType<typeof environmentAt>;
   private sun:T.DirectionalLight;
   private hemisphere:T.HemisphereLight;
@@ -63,7 +65,7 @@ export class CinematicAtmosphere {
       fragmentShader:'uniform float opacity;void main(){gl_FragColor=vec4(.68,.78,.83,opacity);}'
     }));
     this.rain.name='Local rain';this.rain.frustumCulled=false;
-    this.group.name='Tirana:cinematic-weather-and-time';this.group.add(this.sky,this.rain);scene.add(this.group);
+    this.group.name='Tirana:cinematic-weather-and-time';this.group.add(this.sky,this.rain,this.puddles.group);scene.add(this.group);
     scene.fog=new T.FogExp2(0xb9c4c5,.0006);
   }
   update(seconds:number,camera:T.PerspectiveCamera,battery=false){
@@ -84,6 +86,7 @@ export class CinematicAtmosphere {
     this.sun.intensity=.12+p.daylight*3.2*(1-p.cloud*.8);
     this.renderer.toneMappingExposure=1.02+p.golden*.08+p.night*.12;
     this.scene.environmentIntensity=.22+p.daylight*.58;
+    this.puddles.update(seconds,camera.position,p.wetness,p.rain,battery);
     this.rain.visible=p.rain>.015;this.rain.position.set(camera.position.x,camera.position.y-8,camera.position.z);
     this.rain.geometry.setDrawRange(0,battery?360:1440);this.rain.material.uniforms.time.value=seconds;this.rain.material.uniforms.opacity.value=p.rain*.36;this.rain.material.uniforms.wind.value.set(p.windX,p.windZ);
     // Snap the moving shadow box to its texel grid; limit map rendering on phones.
@@ -122,6 +125,7 @@ export class CinematicAtmosphere {
   dispose(){
     if(this.dead)return;this.dead=true;
     for(const [m,dry] of this.surfaces){m.roughness=dry.roughness;m.color.copy(dry.color);m.emissive.copy(dry.emissive);m.emissiveIntensity=dry.intensity;}this.surfaces.clear();
+    this.puddles.dispose();
     this.sky.geometry.dispose();this.sky.material.dispose();this.rain.geometry.dispose();this.rain.material.dispose();
     this.emitters.clear();this.localLights.clear();this.group.removeFromParent();this.group.clear();
     if(this.ownSun){this.sun.removeFromParent();this.sun.target.removeFromParent();this.sun.dispose();}

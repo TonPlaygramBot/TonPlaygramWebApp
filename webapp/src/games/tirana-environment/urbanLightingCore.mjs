@@ -15,7 +15,7 @@ export function streetLampPlacements(world) {
     if(r.walk||r.tunnel||r.w<5)continue;
     const dx=r.b[0]-r.a[0],dz=r.b[1]-r.a[1],len=Math.hypot(dx,dz);if(len<24)continue;
     const yaw=Math.atan2(dx,dz),nx=dz/len,nz=-dx/len;
-    for(let d=14,i=0;d<len-7;d+=32,i++){
+    for(let d=14,i=0;d<len-7;d+=26,i++){
       const side=i%2?-1:1,x=r.a[0]+dx*d/len+nx*side*(r.w/2+1.45),z=r.a[1]+dz*d/len+nz*side*(r.w/2+1.45);
       if((bins.get(key(x,z))||[]).some(b=>insideRing([x,z],b.p)))continue;
       let close=false;
