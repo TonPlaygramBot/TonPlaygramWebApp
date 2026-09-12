@@ -1,5 +1,4 @@
 import { CHESS_HUMAN_CHARACTER_OPTIONS } from '../../config/chessBattleInventoryConfig.js';
-import { POOL_ROYALE_HDRI_VARIANTS } from '../../config/poolRoyaleInventoryConfig.js';
 import {
   getChessBattleInventory,
   isChessOptionUnlocked
@@ -44,14 +43,27 @@ export const CHARACTERS = [
     model: 'athlete-female'
   }
 ];
-export const ARENAS = ['dancingHall', 'colorfulStudio', 'neonPhotostudio'].map(
-  (id) => {
-    const a = POOL_ROYALE_HDRI_VARIANTS.find(
-      (a: { id: string }) => a.id === id
-    )!;
-    return { id: a.id, name: a.name, assetId: a.assetId };
+// Keep legacy ids so saved choices and existing online room metadata still resolve.
+export const ARENAS = [
+  {
+    id: 'dancingHall',
+    name: 'Royal Centre Court',
+    assetId: 'royal',
+    color: '#37d5bc'
+  },
+  {
+    id: 'colorfulStudio',
+    name: 'Continental Arena',
+    assetId: 'continental',
+    color: '#ffb34b'
+  },
+  {
+    id: 'neonPhotostudio',
+    name: 'Masters Night Arena',
+    assetId: 'masters',
+    color: '#ab92ff'
   }
-);
+];
 export const SHARED_CHARACTERS = CHESS_HUMAN_CHARACTER_OPTIONS.map((c) => ({
   id: c.id,
   name: c.label,
@@ -59,11 +71,6 @@ export const SHARED_CHARACTERS = CHESS_HUMAN_CHARACTER_OPTIONS.map((c) => ({
   color: '#c69264',
   model: c.id === 'rpm-current' ? 'chess-human' : c.id,
   urls: c.modelUrls
-}));
-export const SHARED_ARENAS = POOL_ROYALE_HDRI_VARIANTS.map((a) => ({
-  id: a.id,
-  name: a.name,
-  assetId: a.assetId
 }));
 export type AppearanceChoices = {
   characters: typeof CHARACTERS;
@@ -79,13 +86,6 @@ export function ownedAppearance(): AppearanceChoices {
         isChessOptionUnlocked('humanCharacter', c.id, inventory)
       )
     ],
-    arenas: [
-      ...ARENAS,
-      ...SHARED_ARENAS.filter(
-        (a) =>
-          !ARENAS.some((base) => base.id === a.id) &&
-          isChessOptionUnlocked('environmentHdri', a.id, inventory)
-      )
-    ]
+    arenas: ARENAS
   };
 }

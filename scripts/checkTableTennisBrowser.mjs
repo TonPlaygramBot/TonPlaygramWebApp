@@ -50,8 +50,8 @@ await build({
         (globalThis as any).__ttProbe = {
           read: () => ({ state: structuredClone(frame.current), input: structuredClone(input.current),
             visual: renderer.current?.ball.position.toArray(), webgl: renderer.current?.renderer.constructor.name,
-            models: renderer.current?.actors.map(a => Boolean(a.model)), nativeEnvironment: renderer.current?.scene.background === renderer.current?.environment, env: renderer.current?.envId,
-            floorOrRail: renderer.current?.stage.children.some((m:any) => m.geometry?.parameters?.width === 5 || m.geometry?.parameters?.depth === 5.6 || m.geometry?.parameters?.width === 4),
+            models: renderer.current?.actors.map(a => Boolean(a.model)), nativeEnvironment: renderer.current?.scene.environment === null && Boolean(renderer.current?.arena.root), env: renderer.current?.envId,
+            floorOrRail: Boolean(renderer.current?.arena.root.children.some((m:any) => m.geometry?.parameters?.width === 16)),
             backgroundRotation: renderer.current?.scene.backgroundRotation.toArray().slice(0,3),
             arms: renderer.current?.actors.map(a => a.rig?.bones.rightUpperArm?.quaternion.toArray()),
             distinctArms: renderer.current?.actors.map(a => Boolean(a.rig?.right && a.rig?.left && a.rig.right.upper !== a.rig.left.upper)),
@@ -208,13 +208,13 @@ try {
   );
   assert.equal(
     await page.evaluate(() => __ttProbe.read().floorOrRail),
-    false,
-    'No procedural platform or rails'
+    true,
+    'Competition arena includes a physical floor'
   );
   assert.deepEqual(
     await page.evaluate(() => __ttProbe.read().backgroundRotation),
     [0, 0, 0],
-    'Original panorama orientation'
+    'Arena retains unrotated world orientation'
   );
   let projectionCases = 0;
   for (const width of [320, 390, 480]) {
@@ -255,8 +255,8 @@ try {
     await load();
     assert.equal(
       await page.locator('.tt-game button:visible').count(),
-      0,
-      'No visible in-game buttons'
+      1,
+      'Visible pause control stays available in player view'
     );
     await page.screenshot({ path: path.join(output, `portrait-${width}.png`) });
     assert.equal(
@@ -381,8 +381,8 @@ try {
   );
   assert.equal(
     await page.locator('.tt-game button:visible').count(),
-    0,
-    'No buttons in the touch menu'
+    2,
+    'Resume and exit controls in the pause menu'
   );
   await twoTouch();
   assert.equal(
@@ -493,8 +493,8 @@ try {
     await page.getByLabel('Arena', { exact: true }).selectOption(arena);
     if (previous.env !== arena)
       await page.waitForFunction(
-        (old) => __ttProbe.read().envLoaded !== old,
-        previous.loaded
+        (selected) => __ttProbe.read().env === selected,
+        arena
       );
     await page.keyboard.press('Escape');
     await page.clock.runFor(120);

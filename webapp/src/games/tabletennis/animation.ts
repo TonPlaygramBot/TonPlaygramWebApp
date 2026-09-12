@@ -32,7 +32,7 @@ function baseVectors(player: PosePlayer) {
     0,
     Math.cos(player.yaw)
   );
-  return { forward, right: new THREE.Vector3(forward.z, 0, -forward.x) };
+  return { forward, right: new THREE.Vector3(-forward.z, 0, forward.x) };
 }
 function servePalmPosition(player: PosePlayer) {
   const { forward, right } = baseVectors(player);
@@ -239,8 +239,13 @@ function solveTwoBoneArm(
   const rootPos = getWorldPos(upper);
   const toTarget = handTarget.clone().sub(rootPos);
   const distRaw = Math.max(0.0001, toTarget.length());
-  const dist = clamp(distRaw, 0.001, upperLen + foreLen - 0.001);
+  const dist = clamp(
+    distRaw,
+    Math.abs(upperLen - foreLen) + 0.001,
+    upperLen + foreLen - 0.008
+  );
   const dir = toTarget.normalize();
+  const reachable = rootPos.clone().addScaledVector(dir, dist);
 
   const hintDir = elbowHint.clone().sub(rootPos);
   let normal = new THREE.Vector3().crossVectors(dir, hintDir).normalize();
@@ -273,7 +278,7 @@ function solveTwoBoneArm(
   rotateBoneSoChildPointsTo(
     fore,
     hand,
-    handTarget.clone().sub(getWorldPos(fore)).normalize()
+    reachable.clone().sub(getWorldPos(fore)).normalize()
   );
   hand.updateMatrixWorld(true);
   return true;
@@ -314,26 +319,26 @@ function tableTennisPose(player: PosePlayer, ball: PoseBall): StrokePose {
     .clone()
     .addScaledVector(right, 0.17)
     .addScaledVector(forward, 0.08)
-    .setY(CFG.tableY + 0.34);
+    .setY(CFG.tableY + 0.38);
   let rightHand = rightShoulder
     .clone()
-    .addScaledVector(right, 0.32)
-    .addScaledVector(forward, 0.23)
-    .setY(CFG.tableY + 0.18);
+    .addScaledVector(right, -0.03)
+    .addScaledVector(forward, 0.34)
+    .setY(CFG.tableY + 0.38);
   let leftElbow = leftShoulder
     .clone()
     .addScaledVector(right, -0.18)
     .addScaledVector(forward, 0.07)
-    .setY(CFG.tableY + 0.34);
+    .setY(CFG.tableY + 0.38);
   let leftHand = leftShoulder
     .clone()
-    .addScaledVector(right, -0.28)
-    .addScaledVector(forward, 0.2)
-    .setY(CFG.tableY + 0.18);
+    .addScaledVector(right, 0.05)
+    .addScaledVector(forward, 0.3)
+    .setY(CFG.tableY + 0.38);
   let paddleCenter = rightHand
     .clone()
-    .addScaledVector(forward, 0.14)
-    .setY(CFG.tableY + 0.2);
+    .addScaledVector(forward, 0.045)
+    .setY(rightHand.y + 0.12);
   let faceNormal = forward
     .clone()
     .multiplyScalar(-1)
@@ -372,10 +377,10 @@ function tableTennisPose(player: PosePlayer, ball: PoseBall): StrokePose {
       .clone()
       .setY(lerp(CFG.tableY + 0.28, CFG.tableY + 0.88, toss) - 0.55 * contact);
 
-    const prepHand = rightShoulder
+    const prepHand = base
       .clone()
-      .addScaledVector(right, 0.24)
-      .addScaledVector(forward, -0.12)
+      .addScaledVector(right, 0.26 + 0.12 * load)
+      .addScaledVector(forward, 0.3 - 0.28 * load)
       .setY(CFG.tableY + 0.32);
     const dropHand = rightShoulder
       .clone()
@@ -404,9 +409,9 @@ function tableTennisPose(player: PosePlayer, ball: PoseBall): StrokePose {
       .setY((rightShoulder.y + rightHand.y) * 0.5 - 0.02);
     paddleCenter = rightHand
       .clone()
-      .addScaledVector(forward, 0.18 + 0.1 * contact)
+      .addScaledVector(forward, 0.055 + 0.1 * contact)
       .addScaledVector(right, -0.03 * follow)
-      .setY(rightHand.y + 0.04 + 0.12 * contact);
+      .setY(rightHand.y + 0.12 + 0.04 * contact);
     faceNormal = forward
       .clone()
       .multiplyScalar(-0.75)
@@ -469,7 +474,7 @@ function tableTennisPose(player: PosePlayer, ball: PoseBall): StrokePose {
       .addScaledVector(forward, 0.34)
       .setY(CFG.tableY + 0.2);
     wristPronation = -0.85 + 0.7 * contact;
-  } else {
+  } else if (action === 'forehand') {
     const prep = clamp01(tRaw / 0.24);
     const contact = clamp01((tRaw - 0.38) / 0.18);
     const follow = clamp01((tRaw - 0.56) / 0.42);
@@ -560,7 +565,7 @@ export function humanPose(s: MatchState, seat: Seat, yaw: number) {
     recent ? p.hitY : s.ball.y,
     recent ? p.hitZ : s.ball.z
   );
-  const right = new THREE.Vector3(Math.cos(yaw), 0, -Math.sin(yaw));
+  const right = new THREE.Vector3(-Math.cos(yaw), 0, Math.sin(yaw));
   const backhand =
     contact
       .clone()
@@ -605,7 +610,11 @@ export function humanPose(s: MatchState, seat: Seat, yaw: number) {
   });
   // The free palm follows the real toss and clears the line to the receiver.
   if (serving && s.phase === 'serve')
-    pose.leftHand.set(s.ball.x, s.ball.y - 0.04, s.ball.z);
+    pose.leftHand.set(
+      s.ball.x,
+      s.ball.y - 0.06,
+      s.ball.z + side(seat, s) * 0.09
+    );
   if (serving && s.phase === 'toss')
     pose.leftHand
       .copy(servePalmPosition(player))
@@ -638,8 +647,14 @@ export function bindHuman(model: THREE.Object3D) {
         );
         if (source) followers.push({ bone, source });
       }
+  const fingers: BoneRest[] = [];
+  bones.rightHand?.traverse((o) => {
+    if ((o as THREE.Bone).isBone && o !== bones.rightHand)
+      fingers.push({ bone: o as THREE.Bone, q: o.quaternion.clone() });
+  });
   return {
     bones,
+    fingers,
     followers,
     rest: captureRestPose(bones),
     right: makeArmChain(
@@ -688,7 +703,42 @@ export function applyHumanPose(
   const world = (v: THREE.Vector3) => stage.localToWorld(v.clone());
   solveTwoBoneArm(rig.right, world(pose.rightElbow), world(pose.rightHand));
   solveTwoBoneArm(rig.left, world(pose.leftElbow), world(pose.leftHand));
-  addLocalRotation(bones.rightHand, 0.03, pose.wristPronation, -0.1);
+  // Point the palm toward the blade, then wrap the fingers around the handle.
+  const alignPalm = (
+    hand: THREE.Bone | undefined,
+    direction: THREE.Vector3
+  ) => {
+    if (!hand) return;
+    const middle = hand.children.find((b) => /middle|index/i.test(b.name));
+    if (!middle) return;
+    const current = middle.position
+      .clone()
+      .normalize()
+      .applyQuaternion(hand.getWorldQuaternion(new THREE.Quaternion()));
+    const desired = direction.clone().transformDirection(stage.matrixWorld);
+    const q = new THREE.Quaternion().setFromUnitVectors(current, desired);
+    setBoneWorldQuaternion(
+      hand,
+      q.multiply(hand.getWorldQuaternion(new THREE.Quaternion()))
+    );
+  };
+  alignPalm(
+    bones.rightHand,
+    pose.paddleCenter.clone().sub(pose.paddleGrip).normalize()
+  );
+  if (pose.action === 'serve' || pose.action === 'ready') {
+    const forward = new THREE.Vector3(0, 0, 1).applyQuaternion(root.quaternion);
+    alignPalm(bones.leftHand, forward);
+  }
+  for (const finger of rig.fingers) {
+    finger.bone.quaternion.copy(finger.q);
+    addLocalRotation(
+      finger.bone,
+      /thumb/i.test(finger.bone.name) ? 0.25 : 0.85,
+      0,
+      0
+    );
+  }
   for (const { bone, source } of rig.followers) {
     bone.quaternion.copy(source.quaternion);
     bone.position.copy(source.position);
