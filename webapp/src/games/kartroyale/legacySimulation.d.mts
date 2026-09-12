@@ -40,6 +40,8 @@ export interface Racer {
   collision: number;
   health: number;
   kartId: string;
+  bodyLength?: number;
+  bodyWidth?: number;
   shield: number;
   shieldMax: number;
   shieldActive: boolean;
@@ -72,7 +74,7 @@ export interface TrackConfig {
   accent: string;
 }
 export interface Track extends TrackConfig {
-  points: { x: number; z: number; yaw: number; distance: number }[];
+  points: { x: number; z: number; yaw: number; distance: number; width?: number }[];
   length: number;
   x: number;
   z: number;
@@ -102,9 +104,11 @@ export function makeTrack(id?: string): Track;
 export function nearestPoint(
   t: Track,
   x: number,
-  z: number
+  z: number,
+  hint?: number
 ): {
   index: number;
+  width: number;
   distance: number;
   lane: number;
   x: number;

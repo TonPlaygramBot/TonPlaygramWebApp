@@ -38,9 +38,9 @@ export function vehicleAssetUrl(id, low = false) {
     ? `/assets/kart-royale/military/${config.file}${low ? '-lod' : ''}.glb`
     : `/assets/kart-royale/kenney-${id}.glb`;
 }
-// 3.25 m keeps the stylised racers substantial beside the widened street
-// circuit (the former 2.7 m target read like a toy on a phone display).
-export function normaliseVehicleDimensions({ min, max }, targetLength = 3.25) {
+// All road and vehicle dimensions are metres. Collection cars retain their
+// authored dimensions; karts use their physical 2.7 m footprint.
+export function normaliseVehicleDimensions({ min, max }, targetLength = 2.7) {
   const length = max[2] - min[2];
   if (
     ![...min, ...max, targetLength].every(Number.isFinite) ||
@@ -63,8 +63,9 @@ export function vehicleDriverMount(id, fit) {
   if (collection) {
     // Collection cars are authored nose +X. After the adapter turns them to
     // race-forward +Z, native [x,y,z] becomes [-z,y,x].
+    // driverSeat is the cushion/pelvis socket, not a camera socket.
     const [x, y, z] = collection.driverSeat;
-    return [-z * fit.scale + fit.offset[0], y * fit.scale + fit.offset[1],
+    return [-z * fit.scale + fit.offset[0], (y + 0.62) * fit.scale + fit.offset[1],
       x * fit.scale + fit.offset[2]];
   }
   const eye = (MILITARY_ASSETS[id] || KART_ASSETS[id])?.eye;
@@ -72,3 +73,14 @@ export function vehicleDriverMount(id, fit) {
     ? eye.map((v, i) => v * fit.scale + fit.offset[i])
     : [0, 1.08, -0.1];
 }
+
+/** Physical lengths of the authored military fleet, before runtime fitting. */
+export const VEHICLE_LENGTHS = Object.freeze({shota: 6.2, 'brabus-g': 4.82, defender: 4.76, 'brabus-s65': 5.3, buggy: 2.7});
+export function cockpitStyle(id) {
+  if (KART_ASSETS[id] || id === 'buggy') return 'kart';
+  if (id === 'shota') return 'armored';
+  if (['range','landrover','defender','brabus-g'].includes(id)) return 'suv';
+  if (['bmw','ferrari','bugatti'].includes(id)) return 'sport';
+  return 'sedan';
+}
+export const COCKPIT_URL = '/assets/kart-royale/cockpits/';

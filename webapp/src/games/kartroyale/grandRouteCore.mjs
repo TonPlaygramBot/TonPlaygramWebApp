@@ -38,14 +38,15 @@ export function extendMappedRoute(route,graph,{ratio=1.4,maxRatio=2.6,candidates
     }
   }return best;
 }
-export function resampleCircuit(raw,count=360){
+export function resampleCircuit(raw,count=360,widths){
   if(!Array.isArray(raw)||raw.length<3||!Number.isInteger(count)||count<3||raw.some(p=>!Array.isArray(p)||p.length!==2||p.some(n=>!Number.isFinite(n))))throw Error('Invalid route');
-  const corners=raw.filter((p,i)=>{const a=raw[(i+raw.length-1)%raw.length],b=raw[(i+1)%raw.length],cross=(p[0]-a[0])*(b[1]-p[1])-(p[1]-a[1])*(b[0]-p[0]);return Math.abs(cross)>1e-7||dist(a,b)<.01;});
+  if(widths && (widths.length!==raw.length || widths.some(w=>!Number.isFinite(w)||w<6)))throw Error('Invalid road widths');
+  const corners=widths?raw:raw.filter((p,i)=>{const a=raw[(i+raw.length-1)%raw.length],b=raw[(i+1)%raw.length],cross=(p[0]-a[0])*(b[1]-p[1])-(p[1]-a[1])*(b[0]-p[0]);return Math.abs(cross)>1e-7||dist(a,b)<.01;});
   if(corners.length<3||corners.length>count)throw Error('Circuit needs a higher-resolution simulation; not silently simplified');
   const lengths=corners.map((p,i)=>dist(p,corners[(i+1)%corners.length]));if(lengths.some(n=>n<.001))throw Error('Degenerate circuit');
   const total=lengths.reduce((a,b)=>a+b,0),extra=count-corners.length,alloc=lengths.map(l=>1+Math.floor(extra*l/total));
   let left=count-alloc.reduce((a,b)=>a+b,0);const fractions=lengths.map((l,i)=>({i,f:(extra*l/total)%1})).sort((a,b)=>b.f-a.f||a.i-b.i);for(let i=0;i<left;i++)alloc[fractions[i].i]++;
-  let points=corners.flatMap((a,i)=>Array.from({length:alloc[i]},(_,j)=>{const b=corners[(i+1)%corners.length];return {x:a[0]+(b[0]-a[0])*j/alloc[i],z:a[1]+(b[1]-a[1])*j/alloc[i]};}));
+  let points=corners.flatMap((a,i)=>Array.from({length:alloc[i]},(_,j)=>{const b=corners[(i+1)%corners.length];return {x:a[0]+(b[0]-a[0])*j/alloc[i],z:a[1]+(b[1]-a[1])*j/alloc[i],...(widths?{width:j===0?Math.min(widths[i],widths[(i+widths.length-1)%widths.length]):widths[i]}:{})};}));
   const wrap=a=>Math.atan2(Math.sin(a),Math.cos(a)),index=i=>((i%count)+count)%count;let start=0,score=Infinity;
   for(let i=0;i<count;i++){let s=0;for(let k=-16;k<12;k++){const a=points[index(i+k)],b=points[index(i+k+1)],c=points[index(i+k+2)];s+=Math.abs(wrap(Math.atan2(c.x-b.x,c.z-b.z)-Math.atan2(b.x-a.x,b.z-a.z)));}if(s<score){score=s;start=i;}}
   points=points.slice(start).concat(points.slice(0,start));let distance=0;points.forEach((p,i)=>{const q=points[(i+1)%count];p.yaw=Math.atan2(q.x-p.x,q.z-p.z);p.distance=distance;distance+=Math.hypot(q.x-p.x,q.z-p.z);});return {points,length:distance};

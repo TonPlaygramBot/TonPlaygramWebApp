@@ -10,6 +10,7 @@ import {
   createRacer,
   makeTrack,
   STEP,
+  RACE_LIMIT,
   stepRacer,
   aiInput
 } from '../webapp/src/games/kartroyale/simulation.mjs';
@@ -95,10 +96,10 @@ for (const v of MILITARY_VEHICLES) {
           .size
     );
   });
-  test(`${v.id}: finishes a race using unchanged shared fixed-step physics`, () => {
+  test(`${v.id}: finishes a race using shared fixed-step physics on the long course`, () => {
     const track = makeTrack('skanderbeg');
     const r = equipKart(createRacer(track, 'test', 'Driver', 0, true), v.id);
-    for (let t = 0; t < 480 && !r.finished; t += STEP)
+    for (let t = 0; t < RACE_LIMIT && !r.finished; t += STEP)
       stepRacer(r, aiInput(r, track, t, 'rookie'), track, STEP, t, 'rookie');
     assert(r.finished, `${v.id} failed to complete`);
     assert(Number.isFinite(r.speed) && r.gates === 13);
@@ -150,7 +151,7 @@ test('asset fitting applies one scale to the body, floor and actual left-hand se
     min: [-1.5, 0.04, -2.9],
     max: [1.5, 3.8, 3.5]
   });
-  assert(Math.abs(fit.scale * 6.4 - 3.25) < 1e-10);
+  assert(Math.abs(fit.scale * 6.4 - 2.7) < 1e-10);
   assert.equal(0.04 * fit.scale + fit.offset[1], 0);
   const eye = vehicleDriverMount('shota', fit);
   assert(eye[0] > 0, 'Vehicle-left is screen-left facing +Z');

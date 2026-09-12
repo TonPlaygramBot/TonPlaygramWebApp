@@ -1,6 +1,8 @@
 import * as T from 'three';
 import { mergeGeometries } from 'three/examples/jsm/utils/BufferGeometryUtils.js';
 import { WORLD } from '../tiranastreets/shared/world.mjs';
+import { REFERENCE_BUILDINGS } from '../tirana-city-source/profiles.mjs';
+import { AGED_HOUSING_IDS } from '../tirana-city-source/housingRegistry.mjs';
 import type { Track } from './simulation.mjs';
 
 export function inside(x: number, z: number, polygon: number[][]) {
@@ -161,7 +163,7 @@ export class TiranaScenery {
       const p = building.p,
         x = p.reduce((s, p) => s + p[0], 0) / p.length,
         z = p.reduce((s, p) => s + p[1], 0) / p.length;
-      if (!near(x, z)) continue;
+      if (!near(x, z) || building.neighbourhood || REFERENCE_BUILDINGS[building.id]) continue;
       // Only the three bespoke landmark shells below replace special buildings.
       if (['pyramid', 'mosque', 'clock'].includes(building.special)) continue;
       const cx = Math.floor(x / 100),
@@ -205,7 +207,7 @@ export class TiranaScenery {
         );
         batch.rooftop.push(utility);
       }
-      for (let i = 0; i < p.length; i++) {
+      for (let i = 0; !AGED_HOUSING_IDS.has(building.id) && i < p.length; i++) {
         const a = p[i],
           c = p[(i + 1) % p.length],
           dx = c[0] - a[0],

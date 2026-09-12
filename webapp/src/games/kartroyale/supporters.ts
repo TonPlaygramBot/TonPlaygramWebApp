@@ -51,11 +51,11 @@ export class Supporters {
   });
   private heldGeometry = new T.SphereGeometry(0.11, 12, 8);
   constructor(track: Track, flagTexture: T.Texture, templates: T.Group[]) {
-    const stride = Math.max(2, Math.round(8 / (track.length / 360)));
-    for (let i = 10; i < 345; i += stride)
+    const stride = Math.max(2, Math.round(8 / (track.length / track.points.length)));
+    for (let i = 10; i < track.points.length - 15; i += stride)
       for (const side of [-1, 1]) {
         const p = track.points[i],
-          offset = track.width / 2 + 2.3 + (i % 3) * 0.28;
+          offset = (p.width ?? track.width) / 2 + 2.3 + (i % 3) * 0.28;
         const x = p.x - Math.cos(p.yaw) * offset * side,
           z = p.z + Math.sin(p.yaw) * offset * side;
         if (occupied(x, z)) continue;

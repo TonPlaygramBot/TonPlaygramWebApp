@@ -1,4 +1,6 @@
 import * as THREE from 'three';
+import {ReferenceFacades} from '../tirana-city-source/ReferenceFacades';
+import {AgedHousingLayer} from '../tirana-city-source/AgedHousingLayer';
 import {TurnGuideLayer} from './TurnGuideLayer';
 import {WorldEnhancements} from '../tirana-expansion/WorldEnhancements';
 import {publishAtlas,clearAtlas} from './raceAtlasStore';
@@ -12,6 +14,8 @@ import {UrbanDetailLayer} from '../tirana-detail-kit/UrbanDetailLayer';
 export {inside,occupied} from './baseTiranaScenery';
 
 export class TiranaScenery extends BaseTiranaScenery {
+  readonly referenceFacades=new ReferenceFacades();
+  readonly agedHousing=new AgedHousingLayer();
   readonly nativeLandmarks:NativeLandmarkLayer;
   readonly urbanDetails:UrbanDetailLayer;
   readonly enhancements:WorldEnhancements;
@@ -21,9 +25,9 @@ export class TiranaScenery extends BaseTiranaScenery {
     this.atlasTrack=track;
     this.group.add(new TurnGuideLayer(track).group);
     this.enhancements=new WorldEnhancements({profile:'racing',track});
-    this.group.add(this.enhancements.group);
+    this.group.add(this.enhancements.group,this.referenceFacades.group,this.agedHousing.group);
     // Race-owned disposal retires async work before the scene traversal.
-    const lifetime=new THREE.BufferGeometry();lifetime.addEventListener('dispose',()=>{this.enhancements.retire();clearAtlas();});
+    const lifetime=new THREE.BufferGeometry();lifetime.addEventListener('dispose',()=>{this.enhancements.dispose();this.referenceFacades.dispose();this.agedHousing.dispose();clearAtlas();});
     const sentinel=new THREE.Mesh(lifetime,new THREE.MeshBasicMaterial());sentinel.visible=false;sentinel.name='Tirana:async-lifetime';this.group.add(sentinel);
     const {landmarks,issues}=resolveNativeLandmarks(WORLD), b=track.bounds;
     const near=(x:number,z:number)=>x>b[0]-200&&x<b[2]+200&&z>b[1]-200&&z<b[3]+200;
@@ -38,6 +42,8 @@ export class TiranaScenery extends BaseTiranaScenery {
   }
   override update(x:number,z:number,performance:boolean) {
     super.update(x,z,performance);
+    this.referenceFacades.update({x,z},performance);
+    this.agedHousing.update(globalThis.performance.now()/1000,{x,z},performance);
     this.nativeLandmarks.setBatteryMode(performance);
     this.urbanDetails.update({x,z},performance);
     publishAtlas(x,z,this.atlasTrack);

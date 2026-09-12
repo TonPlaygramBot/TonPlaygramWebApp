@@ -12,6 +12,7 @@ import {
   stepRacer,
   aiInput,
   STEP,
+  RACE_LIMIT,
   TRACKS
 } from '../webapp/src/games/kartroyale/simulation.mjs';
 test('all AI drivers complete three ordered laps on all circuits and difficulties', () => {
@@ -22,7 +23,7 @@ test('all AI drivers complete three ordered laps on all circuits and difficultie
           createRacer(track, String(i), 'AI', i, true)
         );
       let time = 0;
-      for (; time < 480 && !racers.every((r) => r.finished); time += STEP)
+      for (; time < RACE_LIMIT && !racers.every((r) => r.finished); time += STEP)
         stepRace(racers, track, STEP, time, d);
       assert.ok(
         racers.every((r) => r.finished),
@@ -80,10 +81,10 @@ test('finish-line oscillation cannot earn laps; nonfinite steering and empty boo
     r = createRacer(t, 'you', 'You');
   r.lap = 1;
   r.nextGate = 1;
-  r.index = 359;
+  r.index = t.points.length - 1;
   r.gates = 1;
   for (let i = 0; i < 12; i++) {
-    const p = t.points[i % 2 ? 358 : 1];
+    const p = t.points[i % 2 ? t.points.length - 2 : 1];
     r.x = p.x;
     r.z = p.z;
     r.speed = 0;
@@ -254,7 +255,7 @@ test('real multiplayer clients: ready/start, authority, isolation, reconnect, fi
   assert.equal(room.players.length, 2);
   assert.equal(room.racers[0].disconnected, false);
   // Both remote humans are driven by an input controller, never by position packets.
-  for (let i = 0; i < 1600 && room.status !== 'finished'; i++) {
+  for (let i = 0; i < Math.ceil(RACE_LIMIT / .19) && room.status !== 'finished'; i++) {
     for (const [s, id] of [
       [replacement, created.playerId],
       [b, joined.playerId]

@@ -15,3 +15,8 @@ export function normaliseVehicleDimensions(
   targetLength?: number
 ): VehicleFit;
 export function vehicleDriverMount(id: string, fit: VehicleFit): number[];
+
+export const VEHICLE_LENGTHS: Readonly<Record<string, number>>;
+export type CockpitStyle = 'kart' | 'armored' | 'suv' | 'sport' | 'sedan';
+export function cockpitStyle(id: string): CockpitStyle;
+export const COCKPIT_URL: string;

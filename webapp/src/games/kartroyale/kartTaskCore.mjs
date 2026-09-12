@@ -1,8 +1,9 @@
+import {RACE_LIMIT} from './legacySimulation.mjs';
 /** Device-local kart challenges, evaluated only from the existing renderer's
  * completed race result. Task XP never credits TPG or multiplayer settlements. */
 export const KART_TASK_KEY='tonplaygram.kartroyale.tasks.v1';
 export const KART_TASKS=Object.freeze([
-  {id:'qender-qualifier',title:'Qendër qualifier',track:'skanderbeg',difficulty:'rookie',seconds:420,xp:100,description:'Finish the full Skënderbej race within 7 minutes.'},
+  {id:'qender-qualifier',title:'Qendër qualifier',track:'skanderbeg',difficulty:'rookie',seconds:1320,xp:100,description:'Finish the full Skënderbej race within 22 minutes.'},
   {id:'blloku-clean',title:'Clean driving in Blloku',track:'blloku',difficulty:'rookie',health:75,xp:150,description:'Finish with at least 75% kart health.'},
   {id:'lana-podium',title:'Lana podium',track:'lana',difficulty:'street',place:3,xp:200,description:'Finish in the top three against AI.'},
   {id:'grand-endurance',title:'Grand endurance',track:'lana-pyramid-grand',difficulty:'street',health:40,seconds:480,xp:250,description:'Complete the Grand race within 8 minutes, with at least 40% kart health.'}
@@ -18,7 +19,7 @@ export function finishKartTask(profile,id,result){
   const p=normalizeKartTasks(profile),index=KART_TASKS.findIndex(t=>t.id===id),t=KART_TASKS[index];
   if(!t||index>p.completed.length)return {profile:p,complete:false,xp:0,reason:'Complete the earlier kart mission first.'};
   const racers=Array.isArray(result?.racers)?result.racers:[],me=racers.find(r=>r.id===result?.playerId);
-  if(result?.trackId!==t.track||!me?.finished||me.retired||me.disconnected||!Number.isFinite(me.finishTime)||me.finishTime<=0||me.finishTime>480)
+  if(result?.trackId!==t.track||!me?.finished||me.retired||me.disconnected||!Number.isFinite(me.finishTime)||me.finishTime<=0||me.finishTime>RACE_LIMIT)
     return {profile:p,complete:false,xp:0,reason:'Finish this mission’s complete race to record a result.'};
   const place=racers.filter(r=>r.finished&&Number.isFinite(r.finishTime)&&r.finishTime<me.finishTime).length+1;
   if(t.seconds&&me.finishTime>t.seconds)return {profile:p,complete:false,xp:0,reason:'Time target missed. Retry the mission.'};

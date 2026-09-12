@@ -1,5 +1,5 @@
-// Browser and server retain the original fixed-step kart physics and original
-// five Tirana circuit IDs. No whole-city path searches during module import.
+// Browser and server share fixed-step physics and the five updated Tirana IDs.
+// Long city routes are authored offline; no graph searches during module import.
 export * from './legacySimulation.mjs';
 import * as legacy from './legacySimulation.mjs';
 import {TIRANA_ROUTES} from './tirana-routes.mjs';

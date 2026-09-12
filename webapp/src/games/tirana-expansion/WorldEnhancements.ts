@@ -56,10 +56,8 @@ export class WorldEnhancements extends ExistingEnhancements {
     this.streetLife=new StreetLifeLayer(undefined,options);
     this.matureTrees=new MatureTreeLayer(undefined,options);
     // Photo-informed full façades now replace these three generic bay kits.
-    if (options.profile !== "racing") {
-      this.civic.retire();
-      this.civic.group.visible = false;
-    }
+    this.civic.retire();
+    this.civic.group.visible = false;
     this.ground = new GroundDetailLayer(WORLD, options, this.civic.errors);
     this.group.add(this.ground.group, this.panorama.group);
     this.streets = new StreetDetailLayer(

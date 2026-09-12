@@ -1,8 +1,10 @@
 import * as T from 'three';
+import { RacingCockpit } from './RacingCockpit';
+import { createWebGLRenderer } from '../tiranastreets/createWebGLRenderer';
 import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js';
 import { DRACOLoader } from 'three/examples/jsm/loaders/DRACOLoader.js';
 import { isMilitaryVehicle } from './militaryVehicleCatalog.mjs';
-import { KART_ASSETS, vehicleAssetUrl } from './vehicleAssetConfig.mjs';
+import { KART_ASSETS, vehicleAssetUrl, cockpitStyle, COCKPIT_URL } from './vehicleAssetConfig.mjs';
 import { prepareVehicleAsset } from './vehicleAssetAdapter';
 import { RoomEnvironment } from 'three/examples/jsm/environments/RoomEnvironment.js';
 import {
@@ -80,6 +82,7 @@ interface KartRig {
   spin: number;
   wheelRadius: number;
   driverEye?: T.Vector3;
+  cockpit?: RacingCockpit;
   smoke: T.Mesh;
   chassisScale: T.Vector3;
   bodyPosition: T.Vector3;
@@ -103,6 +106,8 @@ export class KartRenderer {
   private low: T.Group | null = null;
   private kartModels = new Map<string, T.Group>();
   private kartLowModels = new Map<string, T.Group>();
+  private cockpitModels = new Map<string,T.Group>();
+  private cockpitForward = new T.Vector3();
   private kartId = 'apex';
   private flagTexture: T.Texture | null = null;
   private scenery: TiranaScenery | null = null;
@@ -164,11 +169,7 @@ export class KartRenderer {
     private onFinish: (r: Result) => void,
     private onError: (s: string) => void
   ) {
-    this.renderer = new T.WebGLRenderer({
-      antialias: true,
-      alpha: false,
-      powerPreference: 'high-performance'
-    });
+    this.renderer = createWebGLRenderer();
     this.renderer.outputColorSpace = T.SRGBColorSpace;
     this.renderer.toneMapping = T.ACESFilmicToneMapping;
     this.renderer.toneMappingExposure = 1.3;
@@ -260,6 +261,7 @@ export class KartRenderer {
       .setDecoderPath('/assets/tirana-streets/imported/draco/');
     const loader = new GLTFLoader().setDRACOLoader(draco);
     const textures = new T.TextureLoader();
+    const cockpitStyles = ['sedan','sport','suv','armored','kart'];
     const results = await Promise.allSettled([
       loader.loadAsync(vehicleAssetUrl('apex')),
       loader.loadAsync(vehicleAssetUrl('apex', true)),
@@ -272,7 +274,8 @@ export class KartRenderer {
       loader.loadAsync('/assets/table-tennis/athlete-female.glb'),
       ...KARTS.filter((k) => k.id !== 'apex').map((k) =>
         loader.loadAsync(vehicleAssetUrl(k.id, true))
-      )
+      ),
+      ...cockpitStyles.map(style => loader.loadAsync(COCKPIT_URL + style + '.glb'))
     ]);
     draco.dispose();
     const failed = results.find((r) => r.status === 'rejected');
@@ -344,6 +347,10 @@ export class KartRenderer {
       );
       this.kartLowModels.set(k.id, scene);
       this.collectTextures(scene);
+    });
+    cockpitStyles.forEach((style,i) => {
+      const model = (results[results.length-cockpitStyles.length+i] as PromiseFulfilledResult<import('three/examples/jsm/loaders/GLTFLoader.js').GLTF>).value.scene;
+      this.cockpitModels.set(style,model);this.collectTextures(model);
     });
     this.roadMaps = results
       .slice(3, 6)
@@ -471,6 +478,8 @@ export class KartRenderer {
         model.add(post);
       }
     }
+    const cabin=this.cockpitModels.get(cockpitStyle(kartId));
+    if(!low && cabin && rig.driverEye)rig.cockpit=new RacingCockpit(cabin,model,rig.body,rig.driverEye);
     this.rigs.set(model, rig);
     return model;
   }
@@ -557,26 +566,28 @@ export class KartRenderer {
     this.release(this.world, true);
     this.world.clear();
     const ground = new T.Mesh(
-      new T.PlaneGeometry(4000, 4000),
+      new T.PlaneGeometry(Math.max(4000, track.x * 2 + 1000), Math.max(4000, track.z * 2 + 1000)),
       new T.MeshStandardMaterial({ color: track.ground, roughness: 0.95 })
     );
     ground.rotation.x = -Math.PI / 2;
+    ground.position.set(track.center.x, 0, track.center.z);
     ground.receiveShadow = true;
     this.world.add(ground);
+    const sampleCount = track.points.length;
     const sides = circuitSides(track.points, track.width / 2),
       positions: number[] = [],
       indices: number[] = [],
       normals: number[] = [],
       uvs: number[] = [];
-    for (let i = 0; i <= 360; i++) {
+    for (let i = 0; i <= sampleCount; i++) {
       for (const side of ['left', 'right'] as const) {
-        const p = sides[side][i % 360];
+        const p = sides[side][i % sampleCount];
         positions.push(p.x, 0.045, p.z);
         normals.push(0, 1, 0);
         const n = positions.length;
         uvs.push(positions[n - 3] / 3, positions[n - 1] / 3);
       }
-      if (i < 360) {
+      if (i < sampleCount) {
         const a = i * 2;
         indices.push(a, a + 2, a + 1, a + 1, a + 2, a + 3);
       }
@@ -601,13 +612,13 @@ export class KartRenderer {
     );
     road.receiveShadow = true;
     this.world.add(road);
-    const edges = Array.from({ length: 360 }, (_, i) => {
+    const edges = Array.from({ length: sampleCount }, (_, i) => {
         const p = track.points[i],
-          q = track.points[(i + 1) % 360],
+          q = track.points[(i + 1) % sampleCount],
           centerEdge = segmentFrame(p, q, track.width / 2),
           sideEdges = [-1, 1].map((side) => {
             const key = side < 0 ? 'left' : 'right';
-            return segmentFrame(sides[key][i], sides[key][(i + 1) % 360], 0);
+            return segmentFrame(sides[key][i], sides[key][(i + 1) % sampleCount], 0);
           });
         return {
           p,
@@ -625,26 +636,21 @@ export class KartRenderer {
       curb = new T.InstancedMesh(
         new T.BoxGeometry(0.55, 0.14, 1),
         new T.MeshStandardMaterial({ roughness: 0.7 }),
-        720
+        sampleCount * 2
       ),
-      tireGeometry = new T.TorusGeometry(0.43, 0.14, 8, 16),
+      tireGeometry = new T.TorusGeometry(0.43, 0.14, 4, 8),
       tires = new T.InstancedMesh(
         tireGeometry,
         new T.MeshStandardMaterial({ roughness: 0.9, metalness: 0.02 }),
         tireCapacity
       ),
-      tireTreads = new T.InstancedMesh(
-        new T.TorusGeometry(0.4, 0.105, 8, 16),
-        new T.MeshStandardMaterial({ color: '#17191a', roughness: 0.98 }),
-        tireCapacity
-      ),
       marks = new T.InstancedMesh(
         new T.BoxGeometry(0.12, 0.01, 1.8),
         new T.MeshBasicMaterial({ color: '#e2e7d8' }),
-        90
+        Math.ceil(sampleCount / 4)
       );
     let tireAt = 0;
-    for (let i = 0; i < 360; i++) {
+    for (let i = 0; i < sampleCount; i++) {
       const { p, edge, sideEdges, tireCount } = edges[i];
       [-1, 1].forEach((side, s) => {
         const sideEdge = sideEdges[s],
@@ -675,7 +681,6 @@ export class KartRenderer {
             n,
             new T.Color((i + j) % 2 === 0 ? '#c82424' : '#eeeae0')
           );
-          tireTreads.setMatrixAt(n, m.matrix);
           if ((i + j) % 3 === 0) {
             const upper = tireAt++;
             m.position.y = 0.49;
@@ -685,7 +690,6 @@ export class KartRenderer {
               upper,
               new T.Color((i + j) % 2 === 0 ? '#eeeae0' : '#c82424')
             );
-            tireTreads.setMatrixAt(upper, m.matrix);
           }
         }
       });
@@ -697,17 +701,18 @@ export class KartRenderer {
         marks.setMatrixAt(i / 4, m.matrix);
       }
     }
-    tires.count = tireTreads.count = tireAt;
-    tires.receiveShadow = tireTreads.receiveShadow = true;
-    this.world.add(curb, tires, tireTreads, marks);
+    tires.count = tireAt;
+    tires.receiveShadow = true;
+    this.world.add(curb, tires, marks);
     const start = track.points[0],
+      startWidth = start.width ?? track.width,
       checker = new T.InstancedMesh(
-        new T.BoxGeometry(track.width / 15, 0.02, 1.2),
+        new T.BoxGeometry(startWidth / 15, 0.02, 1.2),
         new T.MeshStandardMaterial({ roughness: 0.7 }),
         30
       );
     for (let i = 0; i < 30; i++) {
-      const lane = ((i % 15) - 7) * (track.width / 15),
+      const lane = ((i % 15) - 7) * (startWidth / 15),
         d = Math.floor(i / 15) * 1.2;
       m.position.set(
         start.x - Math.cos(start.yaw) * lane + Math.sin(start.yaw) * d,
@@ -802,7 +807,7 @@ export class KartRenderer {
         24
       );
     for (let i = 0; i < 24; i++) {
-      const p = track.points[i * 15],
+      const p = track.points[Math.floor(i * sampleCount / 24)],
         o = track.width / 2 + 3;
       m.position.set(p.x - Math.cos(p.yaw) * o, 3, p.z + Math.sin(p.yaw) * o);
       m.rotation.set(0, p.yaw, 0);
@@ -833,6 +838,7 @@ export class KartRenderer {
       this.cameraMode === 'driver' &&
       r.id === this.me &&
       this.state !== 'garage';
+    rig.cockpit?.update(driver,steer,r.speed);
     rig.driverParts.forEach((part) => (part.visible = !driver));
     if ((r.impactId || 0) > rig.lastImpact) {
       rig.lastImpact = r.impactId;
@@ -1002,8 +1008,12 @@ export class KartRenderer {
     if (!r) return;
     const driver = this.cameraMode === 'driver';
     const visual = this.visuals.get(r.id),
-      eye = visual && this.rigs.get(visual)?.driverEye;
-    if (driver && eye && visual) {
+      eye = visual && this.rigs.get(visual)?.driverEye,
+      cockpit = visual && this.rigs.get(visual)?.cockpit;
+    if(driver && cockpit){
+      cockpit.eye(this.camera.position);
+      this.lookTarget.copy(this.camera.position).addScaledVector(cockpit.forward(this.cockpitForward),24);
+    } else if (driver && eye && visual) {
       visual.updateMatrixWorld(true);
       this.camera.position.copy(eye).applyMatrix4(visual.matrixWorld);
       this.lookTarget.set(
@@ -1190,7 +1200,12 @@ export class KartRenderer {
             : Math.sin(this.motionTime * 27) *
               Math.min(0.004, me.speed * 0.0002);
           // Model-specific head mounts stay inside the left seat through turns.
-          if (rig?.driverEye) {
+          if(rig?.cockpit){
+            rig.cockpit.eye(this.camera.position);
+            this.camera.position.y += bob + spring * .02;
+            this.lookTarget.copy(this.camera.position).addScaledVector(rig.cockpit.forward(this.cockpitForward),24);
+            this.camera.near=.025;
+          } else if (rig?.driverEye) {
             v.updateMatrixWorld(true);
             this.camera.position
               .copy(rig.driverEye)
@@ -1316,6 +1331,7 @@ export class KartRenderer {
     this.humanTemplates.forEach((model) => this.release(model, true));
     if (this.full) this.release(this.full, true);
     if (this.low) this.release(this.low, true);
+    this.cockpitModels.forEach((model) => this.release(model, true));
     this.kartModels.forEach((model) => this.release(model, true));
     this.kartLowModels.forEach((model) => this.release(model, true));
     this.textures.forEach((t) => t.dispose());
