@@ -1,55 +1,28 @@
-import * as THREE from 'three';
-import {ReferenceFacades} from '../tirana-city-source/ReferenceFacades';
-import {AgedHousingLayer} from '../tirana-city-source/AgedHousingLayer';
-import {TurnGuideLayer} from './TurnGuideLayer';
-import {WorldEnhancements} from '../tirana-expansion/WorldEnhancements';
-import {publishAtlas,clearAtlas} from './raceAtlasStore';
-import {TiranaScenery as BaseTiranaScenery} from './baseTiranaScenery';
-import {WORLD} from '../tiranastreets/shared/world.mjs';
-import type {Track} from './simulation.mjs';
-import {resolveNativeLandmarks} from '../tirana-landmarks/nativeLocations.mjs';
-import {NativeLandmarkLayer} from '../tirana-landmarks/NativeLandmarkLayer';
-import {replaceLegacyCityLandmarks} from '../tirana-landmarks/legacyReplacement';
-import {UrbanDetailLayer} from '../tirana-detail-kit/UrbanDetailLayer';
-export {inside,occupied} from './baseTiranaScenery';
+import * as T from 'three';
+import { TiranaCityScene } from '../tiranastreets/TiranaCityScene';
+import { TurnGuideLayer } from './TurnGuideLayer';
+import { publishAtlas, clearAtlas } from './raceAtlasStore';
+import type { Track } from './simulation.mjs';
+export { inside, occupied } from './baseTiranaScenery';
 
-export class TiranaScenery extends BaseTiranaScenery {
-  readonly referenceFacades=new ReferenceFacades();
-  readonly agedHousing=new AgedHousingLayer();
-  readonly nativeLandmarks:NativeLandmarkLayer;
-  readonly urbanDetails:UrbanDetailLayer;
-  readonly enhancements:WorldEnhancements;
-  private atlasTrack:Track;
-  constructor(track:Track) {
-    super(track);
-    this.atlasTrack=track;
-    this.group.add(new TurnGuideLayer(track).group);
-    this.enhancements=new WorldEnhancements({profile:'racing',track});
-    this.group.add(this.enhancements.group,this.referenceFacades.group,this.agedHousing.group);
-    // Race-owned disposal retires async work before the scene traversal.
-    const lifetime=new THREE.BufferGeometry();lifetime.addEventListener('dispose',()=>{this.enhancements.dispose();this.referenceFacades.dispose();this.agedHousing.dispose();clearAtlas();});
-    const sentinel=new THREE.Mesh(lifetime,new THREE.MeshBasicMaterial());sentinel.visible=false;sentinel.name='Tirana:async-lifetime';this.group.add(sentinel);
-    const {landmarks,issues}=resolveNativeLandmarks(WORLD), b=track.bounds;
-    const near=(x:number,z:number)=>x>b[0]-200&&x<b[2]+200&&z>b[1]-200&&z<b[3]+200;
-    const local=landmarks.filter(l=>near(l.x,l.z));
-    const replacement=replaceLegacyCityLandmarks(this.group,local,'kartroyale');
-    this.nativeLandmarks=new NativeLandmarkLayer(local);
-    const buildings=WORLD.buildings.filter(item=>item.p.some(p=>near(p[0],p[1])));
-    this.urbanDetails=new UrbanDetailLayer({...WORLD,buildings},new Set(landmarks.flatMap(l=>l.buildingId?[l.buildingId]:[])));
-    this.group.add(this.nativeLandmarks.group,this.urbanDetails.group);
-    this.enhancements.bindBuildings(this.group,[this.nativeLandmarks.group,this.urbanDetails.group]);
-    this.group.userData.tiranaLandmarks={issues,...replacement};
+/** No replacement shells, changed footprints, rescaled map or clipped buildings. */
+export class TiranaScenery {
+  readonly shared = new TiranaCityScene();
+  readonly group = this.shared.group;
+  private viewer = new T.Vector3();
+  private guide: T.Group;
+  constructor(private track: Track) {
+    this.guide = new TurnGuideLayer(track).group;
+    this.group.add(this.guide);
   }
-  override update(x:number,z:number,performance:boolean) {
-    super.update(x,z,performance);
-    this.referenceFacades.update({x,z},performance);
-    this.agedHousing.update(globalThis.performance.now()/1000,{x,z},performance);
-    this.nativeLandmarks.setBatteryMode(performance);
-    this.urbanDetails.update({x,z},performance);
-    publishAtlas(x,z,this.atlasTrack);
-    let root:THREE.Object3D=this.group;while(root.parent)root=root.parent;
-    const camera=root.children.find(o=>o instanceof THREE.PerspectiveCamera) as THREE.PerspectiveCamera|undefined;
-    this.enhancements.update(globalThis.performance.now()/1000,camera,{x,z},performance);
+  update(x: number, z: number, battery: boolean, camera?: T.PerspectiveCamera) {
+    this.viewer.set(x, 0, z);
+    this.shared.update(this.viewer, performance.now() / 1000, battery, camera);
+    publishAtlas(x, z, this.track);
   }
-  // The owning race renderer traverses this group to dispose its geometry/materials.
+  dispose() {
+    this.guide.traverse(o => { if (o instanceof T.Mesh) { o.geometry.dispose(); (o.material as T.Material).dispose(); } });
+    this.shared.dispose();
+    clearAtlas();
+  }
 }

@@ -1,4 +1,3 @@
-import { beginRollover } from './kartDynamics.mjs';
 // Equal-mass planar contact response, shared by browser and authoritative server.
 // Damage uses closing velocity along the contact normal, never absolute speed.
 const clamp = (v, lo, hi) => Math.max(lo, Math.min(hi, v));
@@ -19,7 +18,8 @@ export function damageRacer(r, amount) {
     r.shield -= absorbed;
     amount -= absorbed;
   }
-  const damage = Math.min(r.health, amount);
+  // Arcade bumpers lose momentum, never eliminate a player from the race.
+  const damage = Math.min(Math.max(0, r.health - 50), amount);
   r.health -= damage;
   r.hitFlash = Math.max(r.hitFlash || 0, Math.min(0.5, damage / 20));
   if (r.health <= 0) {
@@ -48,7 +48,7 @@ function impact(r, normalSpeed, nx, nz) {
     r,
     Math.min(14, Math.max(0, normalSpeed - 3.5) ** 2 * 0.018)
   );
-  beginRollover(r, normalSpeed, nx, nz);
+  r.hop = Math.max(r.hop || 0, .12);
   if (normalSpeed > 1.5) {
     r.impactId = (r.impactId || 0) + 1;
     r.impact = clamp(normalSpeed / 28, 0.08, 1);

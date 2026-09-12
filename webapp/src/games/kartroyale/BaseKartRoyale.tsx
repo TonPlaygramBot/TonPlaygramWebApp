@@ -22,12 +22,10 @@ import {
   Cpu,
   Camera,
   Wifi,
-  WifiOff,
-  Wrench,
-  Shield,
-  Crosshair
+  WifiOff
 } from 'lucide-react';
-import { isMilitaryVehicle } from './militaryVehicleCatalog.mjs';
+import { createHeldRaceInput } from './heldRaceInput.mjs';
+import { driftTier } from './arcadeRules.mjs';
 import { KartRenderer } from './renderer';
 import type { Quality, Frame, Result, CameraMode } from './renderer';
 import {
@@ -43,6 +41,7 @@ import { KartAudio } from './audio';
 import { request, saveSession, loadSession } from './network';
 import type { Room, Session } from './network';
 import './kart-royale.css';
+import './kart-mobile.css';
 type Mode = 'ai' | 'online' | 'career';
 interface Props {
   getSocket?: () => Promise<Socket>;
@@ -115,9 +114,10 @@ export default function KartRoyale({
     null
   );
   const slideDirection = useRef(0);
+  const heldInput = useRef(createHeldRaceInput());
   const [loaded, setLoaded] = useState(false),
     [error, setError] = useState(''),
-    [mode, setMode] = useState<Mode>(renderOnlineLobby ? 'online' : 'ai'),
+    [mode, setMode] = useState<Mode>('ai'),
     [trackId, setTrackId] = useState('skanderbeg'),
     [difficulty, setDifficulty] = useState('rookie'),
     [paint, setPaint] = useState(0),
@@ -139,11 +139,11 @@ export default function KartRoyale({
     [saved, setSaved] = useState(true);
   const [cameraMode, setCameraMode] = useState<CameraMode>(() => {
     try {
-      return localStorage.getItem('racingRoyal.camera') === 'chase'
-        ? 'chase'
-        : 'driver';
+      return localStorage.getItem('racingRoyal.camera') === 'driver'
+        ? 'driver'
+        : 'chase';
     } catch {
-      return 'driver';
+      return 'chase';
     }
   });
   const [muted, setMuted] = useState(() => {
@@ -277,20 +277,11 @@ export default function KartRoyale({
     } catch {}
   }, [muted]);
   useEffect(() => {
-    const keys = new Set<string>();
-    const apply = () => {
-      const i = engine.current?.input;
-      if (!i) return;
-      i.steer =
-        Number(keys.has('ArrowRight') || keys.has('d')) -
-        Number(keys.has('ArrowLeft') || keys.has('a'));
-      i.brake = keys.has('ArrowDown') || keys.has('s');
-      i.reverse = keys.has('r');
-      i.drift = keys.has(' ');
-      i.boost = keys.has('Shift');
-      i.shield = keys.has('q');
-      i.fire = keys.has('e');
+    const mapping: Record<string, [string, number | boolean]> = {
+      ArrowRight:['steer',1],d:['steer',1],ArrowLeft:['steer',-1],a:['steer',-1],
+      ArrowDown:['brake',true],s:['brake',true],r:['reverse',true],' ':['drift',true],Shift:['boost',true]
     };
+    const apply = () => { if(engine.current) Object.assign(engine.current.input, heldInput.current.read()); };
     const down = (e: KeyboardEvent) => {
       const key = e.key.length === 1 ? e.key.toLowerCase() : e.key;
       if (
@@ -300,33 +291,18 @@ export default function KartRoyale({
         e.target instanceof HTMLSelectElement
       )
         return;
-      if (
-        [
-          'ArrowLeft',
-          'ArrowRight',
-          'ArrowDown',
-          'a',
-          'd',
-          's',
-          ' ',
-          'Shift',
-          'q',
-          'e'
-        ].includes(key)
-      ) {
-        e.preventDefault();
-        keys.add(key);
-        apply();
+      if (mapping[key]) {
+        e.preventDefault(); heldInput.current.hold(`key:${key}`, ...mapping[key]); apply();
       }
       if (e.key === 'Escape') setModal('pause');
     };
     const up = (e: KeyboardEvent) => {
       const key = e.key.length === 1 ? e.key.toLowerCase() : e.key;
-      keys.delete(key);
+      heldInput.current.release(`key:${key}`);
       if (!modalRef.current) apply();
     };
     const blur = () => {
-      keys.clear();
+      heldInput.current.clear();
       engine.current?.clearInput();
       audio.current?.silence();
       if (screenRef.current === 'race' && !sessionRef.current)
@@ -349,6 +325,7 @@ export default function KartRoyale({
   useEffect(() => {
     engine.current?.pause(modal === 'pause' && !session);
     if (modal) {
+      heldInput.current.clear();
       engine.current?.clearInput();
       audio.current?.silence();
     }
@@ -587,6 +564,7 @@ export default function KartRoyale({
     audio.current?.silence();
   };
   const garage = () => {
+    heldInput.current.clear();
     if (session) {
       leave();
       return;
@@ -598,6 +576,7 @@ export default function KartRoyale({
     setResult(null);
   };
   const start = () => {
+    heldInput.current.clear();
     if (!loaded) return;
     audio.current?.unlock();
     done.current = false;
@@ -612,38 +591,20 @@ export default function KartRoyale({
       mode === 'career' ? CUPS[cup].difficulty : difficulty
     );
   };
-  const hold =
-    (
-      key:
-        'steer' | 'drift' | 'boost' | 'brake' | 'reverse' | 'shield' | 'fire',
-      value: number | boolean
-    ) =>
-    (e: React.PointerEvent<HTMLButtonElement>) => {
-      e.preventDefault();
-      e.currentTarget.setPointerCapture(e.pointerId);
-      audio.current?.unlock();
-      const i = engine.current?.input;
-      if (i) (i as unknown as Record<string, number | boolean>)[key] = value;
+  const touch = (key: 'steer'|'drift'|'boost'|'brake'|'reverse'|'recover', value: number|boolean) => {
+    const release = (e: React.PointerEvent<HTMLButtonElement>) => {
+      heldInput.current.release(`touch:${e.pointerId}`);
+      if(engine.current) Object.assign(engine.current.input,heldInput.current.read());
     };
-  const release =
-    (
-      key: 'steer' | 'drift' | 'boost' | 'brake' | 'reverse' | 'shield' | 'fire'
-    ) =>
-    () => {
-      const i = engine.current?.input;
-      if (i)
-        (i as unknown as Record<string, number | boolean>)[key] =
-          key === 'steer' ? 0 : false;
+    return {
+      onPointerDown: (e: React.PointerEvent<HTMLButtonElement>) => {
+        e.preventDefault();e.currentTarget.setPointerCapture(e.pointerId);audio.current?.unlock();
+        heldInput.current.hold(`touch:${e.pointerId}`,key,value);
+        if(engine.current)Object.assign(engine.current.input,heldInput.current.read());
+      },
+      onPointerUp:release,onPointerCancel:release,onLostPointerCapture:release
     };
-  const touch = (
-    key: 'steer' | 'drift' | 'boost' | 'brake' | 'reverse' | 'shield' | 'fire',
-    value: number | boolean
-  ) => ({
-    onPointerDown: hold(key, value),
-    onPointerUp: release(key),
-    onPointerCancel: release(key),
-    onLostPointerCapture: release(key)
-  });
+  };
   const copy = async () => {
     if (!room) return;
     try {
@@ -675,7 +636,7 @@ export default function KartRoyale({
       : 0;
   return (
     <div
-      className={`kr-app kr-${screen}`}
+      className={`kr-app rr-remake kr-${screen}`}
       onPointerDownCapture={(e) => {
         audio.current?.unlock();
         if (screen !== 'lobby' || !loaded || room || busy || modal) return;
@@ -747,87 +708,20 @@ export default function KartRoyale({
             </div>
           </header>
           <main className="kr-lobby-layout">
-            <section className="kr-title">
-              <div className="kr-eyebrow">
-                <i />
-                TIRANA STREET SERIES · 01
-              </div>
-              <h1>
-                RACING
-                <br />
-                <em>ROYAL</em>
-                <sup>®</sup>
-              </h1>
-              <p>YOUR STREETS. YOUR RACE.</p>
+            <section className="rr-garage-heading">
+              <span>TIRANA KART SERIES</span><h1>Racing <em>Royal</em></h1>
             </section>
-            <section
-              className={`kr-vehicle-info ${isMilitaryVehicle(kartId) ? 'kr-military-info' : ''}`}
-            >
-              <span className="kr-label">
-                YOUR VEHICLE · {KARTS.length} CLASSES
-              </span>
-              <h2>{KARTS.find((k) => k.id === kartId)?.name}</h2>
-              <p>{KARTS.find((k) => k.id === kartId)?.detail}</p>
-              <div
-                className="kr-vehicle-carousel"
-                role="group"
-                aria-label="Choose vehicle by swiping left or right"
-              >
-                <button
-                  aria-label="Previous vehicle"
-                  disabled={!loaded || !!room || busy}
-                  onClick={() => changeVehicle(-1)}
-                >
-                  <ChevronLeft size={22} />
-                </button>
-                <span aria-live="polite">
-                  {KARTS.findIndex((k) => k.id === kartId) + 1} / {KARTS.length}
-                  <small>SWIPE LEFT / RIGHT</small>
-                </span>
-                <button
-                  aria-label="Next vehicle"
-                  disabled={!loaded || !!room || busy}
-                  onClick={() => changeVehicle(1)}
-                >
-                  <ChevronRight size={22} />
-                </button>
+            <div className="rr-showcase" aria-hidden="true" />
+            <section className="rr-kart-picker" aria-label="Choose your kart">
+              <div className="rr-kart-title">
+                <button className="kr-icon" aria-label="Previous kart" disabled={!loaded || !!room || busy} onClick={()=>changeVehicle(-1)}><ChevronLeft/></button>
+                <div><span className="kr-label">KART {KARTS.findIndex(k=>k.id===kartId)+1} / {KARTS.length}</span><h2>{KARTS.find(k=>k.id===kartId)?.name}</h2><p>{KARTS.find(k=>k.id===kartId)?.detail}</p></div>
+                <button className="kr-icon" aria-label="Next kart" disabled={!loaded || !!room || busy} onClick={()=>changeVehicle(1)}><ChevronRight/></button>
               </div>
-              {(() => {
-                const k = KARTS.find((k) => k.id === kartId)!;
-                return (
-                  <div className="kr-kart-stats">
-                    <span>
-                      SPD <b>{Math.round(k.speed * 100)}</b>
-                    </span>
-                    <span>
-                      HND <b>{Math.round(k.handling * 100)}</b>
-                    </span>
-                    <span>
-                      BRK <b>{Math.round(k.brake * 100)}</b>
-                    </span>
-                    <span>
-                      SHD <b>{k.shield}</b>
-                    </span>
-                    <span>
-                      AMMO <b>{k.ammunition}</b>
-                    </span>
-                  </div>
-                );
-              })()}
-              {!isMilitaryVehicle(kartId) && (
-                <div className="kr-swatches">
-                  {COLORS.slice(0, 5).map((c, i) => (
-                    <button
-                      key={c}
-                      aria-label={`Select ${['lime', 'blue', 'pink', 'violet', 'orange'][i]} paint`}
-                      aria-pressed={paint === i}
-                      className={paint === i ? 'active' : ''}
-                      style={{ '--swatch': c } as React.CSSProperties}
-                      onClick={() => setPaint(i)}
-                    />
-                  ))}
-                </div>
-              )}
+              <div className="rr-kart-bottom">
+                <div className="kr-swatches">{COLORS.slice(0,5).map((c,i)=><button key={c} aria-label={`Select ${['lime','blue','pink','violet','orange'][i]} paint`} aria-pressed={paint===i} className={paint===i?'active':''} style={{'--swatch':c} as React.CSSProperties} onClick={()=>setPaint(i)}/>)}</div>
+                <div className="rr-stats"><span>SPEED <b>{Math.round((KARTS.find(k=>k.id===kartId)?.speed||1)*100)}</b></span><span>GRIP <b>{Math.round((KARTS.find(k=>k.id===kartId)?.handling||1)*100)}</b></span></div>
+              </div>
             </section>
             <section className="kr-controls-panel">
               <div className="kr-mode-list" aria-label="Race mode">
@@ -1193,174 +1087,39 @@ export default function KartRoyale({
               </div>
             </section>
             <div className="kr-garage-bottom">
-              <span>FIVE CIRCUITS. ONE TIRANA.</span>
+              <span>SIX CIRCUITS. ONE TIRANA.</span>
               <span>EST. TONPLAYGRAM</span>
             </div>
           </main>
         </>
       )}
       {screen === 'race' && (
-        <div className="kr-race-ui">
-          <div className="kr-race-top">
-            <div className="kr-position">
-              <b>{hud?.position || 1}</b>
-              <span>
-                / {hud?.racers.length || 6}
-                <br />
-                POSITION
-              </span>
-            </div>
-            <div className="kr-lap">
-              <span>
-                LAP <b>{hud?.lap || 1}</b> / 3
-              </span>
-              <time>{formatTime(hud?.time || 0)}</time>
-            </div>
-            <button
-              className="kr-icon"
-              aria-label="Pause menu"
-              onClick={() => setModal('pause')}
-            >
-              <Pause size={20} />
-            </button>
+        <div className="rr-race-ui">
+          <div className="rr-race-top">
+            <div className="rr-place"><b>{hud?.position || 1}</b><span>/{hud?.racers.length || 6}<small>POSITION</small></span></div>
+            <div className="rr-lap"><span>LAP <b>{hud?.lap || 1}</b> / 3</span><time>{formatTime(hud?.time || 0)}</time></div>
+            <button className="kr-icon" aria-label="Pause menu" onClick={()=>setModal('pause')}><Pause size={22}/></button>
           </div>
-          <div className="kr-race-side">
-            <div className="kr-race-map">
-              <CircuitMap id={trackId} frame={hud} />
-            </div>
-            <small>{hud?.fps || '—'} FPS</small>
+          <div className="rr-map"><CircuitMap id={trackId} frame={hud}/></div>
+          <button className="rr-camera" aria-label={`Switch to ${cameraMode==='driver'?'chase':'driver'} camera`} onClick={()=>setCameraMode(v=>v==='driver'?'chase':'driver')}><Camera size={18}/></button>
+          <button className="rr-recover" aria-label="Recover kart on track" {...touch('recover',true)}><RotateCcw size={18}/></button>
+          {(hud?.countdown || 0)>0 && <div className="rr-countdown" role="status"><span>READY TO RACE</span><b>{hud!.countdown}</b><p>Auto-accelerate is on.<br/>Steer with your left thumb.</p></div>}
+          {notice && <div className="rr-notice" role="status"><WifiOff size={16}/>{notice}</div>}
+          <div className="rr-feedback" aria-live="polite">
+            {hud?.drifting ? <><strong>{['HOLD YOUR DRIFT','MINI TURBO','SUPER TURBO','ROYAL TURBO'][driftTier(hud.driftCharge)]}</strong><div className={`rr-drift-meter tier-${driftTier(hud.driftCharge)}`}><i style={{width:`${Math.min(100,hud.driftCharge/1.9*100)}%`}}/></div><span>{hud.driftCharge>=.55?'Release DRIFT to boost':'Steer + hold DRIFT'}</span></> : (hud?.turbo||0)>0 ? <strong className="rr-turbo">TURBO!</strong> : (hud?.slipstream||0)>.35 ? <strong>SLIPSTREAM</strong> : null}
           </div>
-          <button
-            className="kr-camera-toggle"
-            aria-label={`Switch to ${cameraMode === 'driver' ? 'chase' : 'driver'} camera`}
-            onClick={() =>
-              setCameraMode((v) => (v === 'driver' ? 'chase' : 'driver'))
-            }
-          >
-            <Camera size={17} /> {cameraMode === 'driver' ? 'DRIVER' : 'CHASE'}
-          </button>
-          {(hud?.countdown || 0) > 0 && (
-            <div className="kr-countdown">
-              <span>GET READY</span>
-              <b>{hud!.countdown}</b>
-              <small>Auto throttle. Hold left or right to steer.</small>
+          <div className="rr-speed"><b>{Math.round(Math.abs(hud?.speed||0)*3.6)}</b><span>KM/H</span></div>
+          <div className="rr-touch-controls">
+            <div className="rr-steer-stack">
+              <button className="rr-brake" aria-label="Hold brake" {...touch('brake',true)}>BRAKE</button>
+              <div className="rr-steering"><button aria-label="Steer left" {...touch('steer',-1)}><ChevronLeft size={34}/></button><button aria-label="Steer right" {...touch('steer',1)}><ChevronRight size={34}/></button></div>
             </div>
-          )}
-          {hud?.drifting && (
-            <div className="kr-drift-label">
-              {hud.driftCharge > 0.5 ? 'RELEASE FOR TURBO' : 'CHARGING DRIFT'}
-              <div>
-                <i
-                  style={{
-                    width: `${Math.min(100, (hud.driftCharge / 1.5) * 100)}%`
-                  }}
-                />
-              </div>
-            </div>
-          )}
-          {notice && (
-            <div className="kr-race-notice">
-              <WifiOff size={16} />
-              {notice}
-            </div>
-          )}
-          <div className="kr-speed">
-            <b>{Math.round((hud?.speed || 0) * 3.6)}</b>
-            <span>KM/H</span>
-          </div>
-          <div className="kr-integrity-hud">
-            <div
-              className="kr-health"
-              aria-label={`${Math.round(hud?.health ?? 100)} percent car health`}
-            >
-              <span>
-                <Wrench size={14} /> INTEGRITY
-              </span>
-              <div>
-                <i style={{ width: `${hud?.health ?? 100}%` }} />
-              </div>
-              <b>{Math.round(hud?.health ?? 100)}</b>
-            </div>
-            <small>
-              {(hud?.health ?? 100) > 70
-                ? 'RACE READY'
-                : (hud?.health ?? 100) > 40
-                  ? 'BODYWORK DAMAGED'
-                  : 'ENGINE DAMAGED · SLOW DOWN'}
-            </small>
-          </div>
-          <div className="kr-combat-hud" aria-label="Combat supplies">
-            <span>
-              <Shield size={13} /> {Math.round(hud?.shield || 0)}
-            </span>
-            <span>
-              <Crosshair size={13} /> {hud?.ammunition || 0}
-            </span>
-          </div>
-          <div className="kr-touch-controls">
-            <div className="kr-steering">
-              <button aria-label="Steer left" {...touch('steer', -1)}>
-                <ChevronLeft size={35} />
-              </button>
-              <button aria-label="Steer right" {...touch('steer', 1)}>
-                <ChevronRight size={35} />
-              </button>
-            </div>
-            <div className="kr-pedals">
-              <div className="kr-combat-buttons">
-                <button
-                  className="kr-shield-button"
-                  aria-label="Hold shield"
-                  disabled={!hud?.shield}
-                  {...touch('shield', true)}
-                >
-                  <Shield size={22} />
-                  <span>SHIELD</span>
-                </button>
-                <button
-                  className="kr-fire-button"
-                  aria-label="Fire missile"
-                  disabled={!hud?.ammunition}
-                  {...touch('fire', true)}
-                >
-                  <Crosshair size={22} />
-                  <span>FIRE</span>
-                </button>
-              </div>
-              <button className="kr-drift-button" {...touch('drift', true)}>
-                DRIFT
-              </button>
-              <div className="kr-pedal-column">
-                <button
-                  className="kr-brake"
-                  aria-label="Brake"
-                  {...touch('brake', true)}
-                >
-                  BRAKE
-                </button>
-                <button
-                  className="kr-brake kr-reverse"
-                  aria-label="Hold to reverse"
-                  {...touch('reverse', true)}
-                >
-                  REV
-                </button>
-                <button
-                  className="kr-boost-button"
-                  aria-label="Hold boost"
-                  {...touch('boost', true)}
-                >
-                  <Zap size={28} />
-                  <span>BOOST</span>
-                  <i style={{ height: `${hud?.boost || 0}%` }} />
-                </button>
-              </div>
+            <div className="rr-actions">
+              <button className="rr-boost" aria-label="Hold boost" {...touch('boost',true)}><Zap size={24}/><span>BOOST</span><i style={{width:`${hud?.boost||0}%`}}/></button>
+              <button className={`rr-drift ${hud?.drifting?'active':''}`} aria-label="Hold drift" {...touch('drift',true)}>DRIFT</button>
             </div>
           </div>
-          <div className="kr-key-hint">
-            ← → STEER <span>SPACE DRIFT</span> SHIFT BOOST · R REVERSE · Q
-            SHIELD · E FIRE
-          </div>
+          <div className="rr-key-hint">← → STEER · SPACE DRIFT · SHIFT BOOST · ↓ BRAKE</div>
         </div>
       )}
       {screen === 'results' && result && (
@@ -1622,22 +1381,19 @@ export default function KartRoyale({
                   </p>
                   <b>03 · Make your move.</b>
                   <p>
-                    Hold BOOST on the straights. Use SHIELD to absorb attacks
-                    and FIRE when you have ammunition. Finish three complete
-                    laps. The harder you crash, the more bodywork and engine
-                    damage you take. Small bumps are forgiving. At zero
-                    integrity your kart retires.
+                    Hold BOOST on straights. Charge blue, gold or violet drift sparks,
+                    then release DRIFT for a stronger turbo. Complete three ordered laps.
+                    Bumps slow you down; your kart stays in the race.
                   </p>
-                  <b>04 · Watch the crowd.</b>
+                  <b>04 · Find extra speed.</b>
                   <p>
-                    Supporters throw eggs and tomatoes. Steer away from their
-                    flight paths. Splashes clear automatically and do not damage
-                    your kart. Tap the camera button to change your view.
+                    Follow another kart to charge a slipstream boost. Cross the cyan
+                    boost strips for turbo and extra boost energy. The crowd cheers you on.
                   </p>
                 </div>
                 <p>
                   Keyboard: arrows or A/D to steer, Space to drift, Shift to
-                  boost, down arrow to brake, Q to shield and E to fire.
+                  boost, down arrow to brake and R to reverse. Tap the reset arrow if you get stuck.
                 </p>
               </>
             ) : (

@@ -27,7 +27,7 @@ import { Supporters } from './supporters';
 import { prepareHuman } from './supporterHuman';
 import { RaceEffects } from './raceEffects';
 import { circuitSides, segmentFrame } from './trackEdges.mjs';
-import type { FoodKind } from './foodFlight.mjs';
+import { createBoostPadLayer } from './BoostPadLayer';
 export type CameraMode = 'driver' | 'chase';
 export type Quality = 'auto' | 'high' | 'performance';
 export interface Frame {
@@ -49,8 +49,9 @@ export interface Frame {
   impactId: number;
   impact: number;
   retired: boolean;
-  foodHitId: number;
-  foodKind: FoodKind;
+  turbo: number;
+  boostEvent: number;
+  slipstream: number;
 }
 export interface Result {
   racers: Racer[];
@@ -69,6 +70,8 @@ export interface ServerRace {
 const neutral = (): Input => ({
   steer: 0,
   brake: false,
+  recover: false,
+  reverse: false,
   drift: false,
   boost: false,
   shield: false,
@@ -114,7 +117,7 @@ export class KartRenderer {
   private supporters: Supporters | null = null;
   private humanTemplates: T.Group[] = [];
   private effects: RaceEffects | null = null;
-  private cameraMode: CameraMode = 'driver';
+  private cameraMode: CameraMode = 'chase';
   private motionTime = 0;
   private reducedMotion = matchMedia('(prefers-reduced-motion: reduce)')
     .matches;
@@ -261,7 +264,7 @@ export class KartRenderer {
       .setDecoderPath('/assets/tirana-streets/imported/draco/');
     const loader = new GLTFLoader().setDRACOLoader(draco);
     const textures = new T.TextureLoader();
-    const cockpitStyles = ['sedan','sport','suv','armored','kart'];
+    const cockpitStyles = ['kart'];
     const results = await Promise.allSettled([
       loader.loadAsync(vehicleAssetUrl('apex')),
       loader.loadAsync(vehicleAssetUrl('apex', true)),
@@ -387,7 +390,11 @@ export class KartRenderer {
         o.castShadow = true;
         o.receiveShadow = true;
         const m = (o.material as T.MeshStandardMaterial).clone();
-        if (m.name === 'paint') m.color.set(COLORS[slot % 6]);
+        if (m.name === 'paint') {
+          const finish = new T.MeshPhysicalMaterial(); T.MeshStandardMaterial.prototype.copy.call(finish, m); finish.color.set(COLORS[slot % 6]);
+          finish.clearcoat = 1; finish.clearcoatRoughness = .22; finish.roughness = .32; finish.metalness = .28;
+          m.dispose(); o.material = finish; return;
+        }
         o.material = m;
       }
     });
@@ -554,6 +561,7 @@ export class KartRenderer {
       this.release(v, false);
     }
     this.visuals.clear();
+    this.scenery?.dispose();
     this.scenery = null;
     this.supporters?.dispose();
     this.supporters = null;
@@ -565,14 +573,6 @@ export class KartRenderer {
     this.cityAt = this.skidAt = 0;
     this.release(this.world, true);
     this.world.clear();
-    const ground = new T.Mesh(
-      new T.PlaneGeometry(Math.max(4000, track.x * 2 + 1000), Math.max(4000, track.z * 2 + 1000)),
-      new T.MeshStandardMaterial({ color: track.ground, roughness: 0.95 })
-    );
-    ground.rotation.x = -Math.PI / 2;
-    ground.position.set(track.center.x, 0, track.center.z);
-    ground.receiveShadow = true;
-    this.world.add(ground);
     const sampleCount = track.points.length;
     const sides = circuitSides(track.points, track.width / 2),
       positions: number[] = [],
@@ -597,21 +597,7 @@ export class KartRenderer {
     geo.setAttribute('normal', new T.Float32BufferAttribute(normals, 3));
     geo.setAttribute('uv', new T.Float32BufferAttribute(uvs, 2));
     geo.setIndex(indices);
-    const road = new T.Mesh(
-      geo,
-      new T.MeshStandardMaterial({
-        color: '#858b8d',
-        map: this.roadMaps[0],
-        normalMap: this.roadMaps[1],
-        normalScale: new T.Vector2(0.48, 0.48),
-        roughnessMap: this.roadMaps[2],
-        roughness: 0.93,
-        metalness: 0.02,
-        side: T.DoubleSide
-      })
-    );
-    road.receiveShadow = true;
-    this.world.add(road);
+    geo.dispose(); // The shared city's original asphalt remains visible.
     const edges = Array.from({ length: sampleCount }, (_, i) => {
         const p = track.points[i],
           q = track.points[(i + 1) % sampleCount],
@@ -703,7 +689,8 @@ export class KartRenderer {
     }
     tires.count = tireAt;
     tires.receiveShadow = true;
-    this.world.add(curb, tires, marks);
+    marks.geometry.dispose(); (marks.material as T.Material).dispose();
+    this.world.add(curb, tires, createBoostPadLayer(track));
     const start = track.points[0],
       startWidth = start.width ?? track.width,
       checker = new T.InstancedMesh(
@@ -819,7 +806,8 @@ export class KartRenderer {
     }
     this.world.add(posts, lamps);
     this.scene.background = new T.Color(track.sky);
-    this.scene.fog = new T.Fog(track.sky, 80, 390);
+    this.scene.fog = new T.FogExp2('#c5d2cc', .0017);
+    this.camera.far = 2800;
     this.garage.visible = false;
     this.world.visible = true;
   }
@@ -870,7 +858,7 @@ export class KartRenderer {
       spring * rig.kickPitch;
     rig.body.position.copy(rig.bodyPosition);
     rig.body.position.y +=
-      (r.lift || 0) / (rig.body.parent?.scale.y || 1) +
+      ((r.hop || 0) > 0 ? Math.sin((1 - r.hop / .24) * Math.PI) * .18 : 0) +
       bounce * rig.kickSize * 0.1 +
       (r.speed > 1 ? Math.sin(this.motionTime * 28 + r.slot) * 0.005 : 0);
     rig.body.position.x += spring * rig.kickRoll * 0.3;
@@ -1039,7 +1027,7 @@ export class KartRenderer {
     this.camera.updateProjectionMatrix();
   }
   private raceFov(speed: number) {
-    if (this.cameraMode === 'chase') return 57 + speed * 0.18;
+    if (this.cameraMode === 'chase') return (this.camera.aspect < .85 ? 60 : 55) + (this.reducedMotion ? 0 : speed * .12);
     // Preserve useful horizontal sight in portrait without rotating the screen.
     return (
       T.MathUtils.clamp(
@@ -1080,19 +1068,10 @@ export class KartRenderer {
         .matches
         ? -0.48
         : Math.sin(now * 0.00012) * 0.3 - 0.48;
-      const mobile = this.camera.aspect < 0.85;
-      this.camera.fov = mobile ? 42 : 38;
-      const portraitFit = mobile ? Math.max(1, 0.72 / this.camera.aspect) : 1;
-      this.camera.position.set(
-        mobile ? 4.7 * portraitFit : 5.7,
-        mobile ? 3.35 * portraitFit : 3.2,
-        mobile ? 6.4 * portraitFit : 6.5
-      );
-      this.vector.set(
-        mobile ? 0 : -1.5,
-        mobile ? -0.1 : 0.65,
-        mobile ? 0 : 0.8
-      );
+      const fit = Math.max(1, 1.35 / this.camera.aspect);
+      this.camera.fov = 38;
+      this.camera.position.set(4.3 * fit, 2.9 * fit, 5.5 * fit);
+      this.vector.set(0, .62, 0);
       this.camera.lookAt(this.vector);
       this.camera.updateProjectionMatrix();
     } else {
@@ -1171,18 +1150,10 @@ export class KartRenderer {
           yaw = v.rotation.y + wrapAngle(me.velocityYaw - v.rotation.y) * 0.22;
         if (now - this.cityAt > 180) {
           this.cityAt = now;
-          this.scenery?.update(me.x, me.z, this.quality === 'performance');
+          this.scenery?.update(me.x, me.z, this.quality === 'performance', this.camera);
         }
         const running = this.state === 'racing' && !this.paused;
-        this.supporters?.update(
-          this.time,
-          me,
-          this.racers,
-          this.quality === 'performance',
-          running,
-          (origin, target, kind, seed) =>
-            this.effects?.launch(origin, target, kind, seed)
-        );
+        this.supporters?.update(this.motionTime, me, this.quality === 'performance');
         if (now - this.skidAt > 65) {
           this.skidAt = now;
           this.updateSkids();
@@ -1235,9 +1206,9 @@ export class KartRenderer {
         } else {
           this.camera.near = 0.15;
           this.cameraTarget.set(
-            v.position.x - Math.sin(yaw) * 9.5,
-            4.4 + me.speed * 0.016,
-            v.position.z - Math.cos(yaw) * 9.5
+            v.position.x - Math.sin(yaw) * 7.8,
+            3.7 + me.speed * 0.009,
+            v.position.z - Math.cos(yaw) * 7.8
           );
           this.camera.position.lerp(this.cameraTarget, 1 - Math.exp(-dt * 5.5));
           this.vector.set(
@@ -1283,8 +1254,9 @@ export class KartRenderer {
             impactId: me.impactId ?? 0,
             impact: me.impact ?? 0,
             retired: me.retired ?? false,
-            foodHitId: this.effects?.foodHitId ?? 0,
-            foodKind: this.effects?.lastFoodKind ?? 'egg'
+            turbo: me.turbo,
+            boostEvent: me.boostEvent || 0,
+            slipstream: me.slipstream || 0
           });
         }
       }
@@ -1327,6 +1299,7 @@ export class KartRenderer {
     );
     this.supporters?.dispose();
     this.effects?.dispose();
+    this.scenery?.dispose();
     this.release(this.scene, true);
     this.humanTemplates.forEach((model) => this.release(model, true));
     if (this.full) this.release(this.full, true);

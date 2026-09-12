@@ -46,7 +46,7 @@ export function RacingCareerGame({onExit}:{onExit:()=>void}){
     }catch(e){setError(e instanceof Error?e.message:'Renderer unavailable');}
     const blur=()=>{if(!alive)return;held.current.clear();game?.clearInput();game?.pause(true);pausedRef.current=true;setPaused(true);};
     const visibility=()=>{if(document.hidden)blur();};
-    const keymap:Record<string,['steer'|'brake'|'boost',number|boolean]>={arrowleft:['steer',-1],a:['steer',-1],arrowright:['steer',1],d:['steer',1],' ':['brake',true],s:['brake',true],shift:['boost',true]};
+    const keymap:Record<string,['steer'|'brake'|'boost'|'drift',number|boolean]>={arrowleft:['steer',-1],a:['steer',-1],arrowright:['steer',1],d:['steer',1],' ':['drift',true],arrowdown:['brake',true],s:['brake',true],shift:['boost',true]};
     const down=(e:KeyboardEvent)=>{
       if((e.target as HTMLElement)?.closest?.('input,textarea,select,[contenteditable="true"]')||e.ctrlKey||e.metaKey||e.altKey)return;
       const key=e.key.toLowerCase(),value=keymap[key];
@@ -71,9 +71,9 @@ export function RacingCareerGame({onExit}:{onExit:()=>void}){
       engine.current.startLocal(config.track,config.difficulty);setRacing(true);
     }catch(e){finished.current=true;setRacing(false);setError(e instanceof Error?e.message:'Race could not start.');}
   }
-  function hold(id:string,key:'steer'|'brake'|'boost',value:number|boolean){if(pausedRef.current||finished.current)return;held.current.hold(id,key,value);if(engine.current)Object.assign(engine.current.input,held.current.read());}
+  function hold(id:string,key:'steer'|'brake'|'boost'|'drift',value:number|boolean){if(pausedRef.current||finished.current)return;held.current.hold(id,key,value);if(engine.current)Object.assign(engine.current.input,held.current.read());}
   function release(id:string){held.current.release(id);if(engine.current)Object.assign(engine.current.input,held.current.read());}
-  const button=(key:'steer'|'brake'|'boost',value:number|boolean,label:string)=><button key={label} aria-label={label}
+  const button=(key:'steer'|'brake'|'boost'|'drift',value:number|boolean,label:string)=><button key={label} aria-label={label}
     onPointerDown={e=>{e.preventDefault();e.currentTarget.setPointerCapture(e.pointerId);hold(`touch:${e.pointerId}`,key,value);}}
     onPointerUp={e=>release(`touch:${e.pointerId}`)} onPointerCancel={e=>release(`touch:${e.pointerId}`)}
     onLostPointerCapture={e=>release(`touch:${e.pointerId}`)}>{label}</button>;
@@ -85,7 +85,7 @@ export function RacingCareerGame({onExit}:{onExit:()=>void}){
       <p>{career.credits} career credits · {career.wins} wins · {kartTaskXP(tasks)} task XP. Saved on this device, not TPG.</p>
       {!saved&&<p role="alert">Device save failed. Progress remains in this session.</p>}
       {result&&<p>Race complete · {formatTime(result.elapsed)}</p>}{notice&&<p role="status">{notice}</p>}
-      <label className="rr-career-vehicle">Vehicle<select aria-label="Career vehicle" value={kartId} disabled={!ready} onChange={e=>chooseVehicle(e.target.value)}>{KARTS.map(k=><option value={k.id} key={k.id}>{k.name}</option>)}</select></label>
+      <label className="rr-career-vehicle">Kart<select aria-label="Career kart" value={kartId} disabled={!ready} onChange={e=>chooseVehicle(e.target.value)}>{KARTS.map(k=><option value={k.id} key={k.id}>{k.name}</option>)}</select></label>
       <h2>Championship cups</h2>
       {CUPS.map((cup,index)=><button className="rr-career-card" key={`${cup.track}:${index}`} disabled={!ready||index>0&&!career.cups[index-1]} onClick={()=>start(index)}>
         <b>{index+1}. {cup.name}</b><br/><small>{career.cups[index]?'Completed · replay':`Finish in the top ${cup.target}`} · {cup.reward} first-completion credits</small></button>)}
@@ -94,6 +94,6 @@ export function RacingCareerGame({onExit}:{onExit:()=>void}){
         <b>{mission.title}{tasks.completed.includes(mission.id)?' · COMPLETE':''}</b><br/><small>{mission.description} · {mission.xp} first-completion XP</small></button>)}
       {!!GRAND_ROUTE_DIAGNOSTICS.length&&<details><summary>Route availability</summary><p>{GRAND_ROUTE_DIAGNOSTICS.join('; ')}</p></details>}
     </section>}
-    {racing&&<><div className="te-actions rr-steering">{button('steer',-1,'← LEFT')}{button('steer',1,'RIGHT →')}</div><div className="te-actions rr-pedals">{button('brake',true,'BRAKE')}{button('boost',true,'BOOST')}</div></>}
+    {racing&&<><div className="te-actions rr-steering">{button('steer',-1,'← LEFT')}{button('steer',1,'RIGHT →')}</div><div className="te-actions rr-pedals">{button('brake',true,'BRAKE')}{button('drift',true,'DRIFT')}{button('boost',true,'BOOST')}</div></>}
   </main>;
 }

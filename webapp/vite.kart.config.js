@@ -5,10 +5,10 @@ const root = fileURLToPath(new URL('.', import.meta.url));
 
 // Same React/Three.js game as the app route, without app sign-in dependencies.
 // Runtime assets are copied explicitly by the preview publisher.
-export default defineConfig({
+export default defineConfig(({ command }) => ({
   root,
   plugins: [react()],
-  publicDir: false,
+  publicDir: command === 'serve' ? 'public' : false,
   build: {
     outDir: 'dist-kart',
     emptyOutDir: true,
@@ -19,4 +19,4 @@ export default defineConfig({
       }
     }
   }
-});
+}));

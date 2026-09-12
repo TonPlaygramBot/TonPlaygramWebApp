@@ -2,6 +2,7 @@ export interface Input {
   steer: number;
   brake: boolean;
   reverse?: boolean;
+  recover?: boolean;
   drift: boolean;
   boost: boolean;
   shield: boolean;
@@ -28,6 +29,12 @@ export interface Racer {
   acceleration: number;
   boost: number;
   driftCharge: number;
+  hop: number;
+  recoveryAt: number;
+  boostEvent: number;
+  slipstream: number;
+  draftCooldown: number;
+  padCooldowns: Record<number, number>;
   turbo: number;
   drifting: boolean;
   lap: number;

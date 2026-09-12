@@ -378,7 +378,8 @@ export function attachKartRoyale(
         drift: d.drift === true,
         boost: d.boost === true,
         shield: d.shield === true,
-        fire: d.fire === true
+        recover: d.recover === true,
+        fire: false
       };
       r.lastInput = clock();
     });

@@ -11,7 +11,7 @@ export class KartAudio {
   private sources: AudioScheduledSourceNode[] = [];
   private lastImpact = 0;
   private lastCrowd = -1;
-  private lastFoodHit = 0;
+  private lastBoost = 0;
   muted = false;
   unlock() {
     if (!this.context)
@@ -106,16 +106,9 @@ export class KartAudio {
       if (running && frame.impactId > this.lastImpact) this.crash(frame.impact);
       this.lastImpact = frame.impactId;
     }
-    if (frame.foodHitId !== this.lastFoodHit) {
-      if (running && frame.foodHitId > this.lastFoodHit) {
-        this.burst(
-          frame.foodKind === 'egg' ? 0.11 : 0.18,
-          0.22,
-          frame.foodKind === 'egg' ? 2900 : 900
-        );
-        this.beep(frame.foodKind === 'egg' ? 145 : 90, 0.055);
-      }
-      this.lastFoodHit = frame.foodHitId;
+    if (frame.boostEvent !== this.lastBoost) {
+      if (running && frame.boostEvent > this.lastBoost) { this.beep(720, .1); this.burst(.18,.08,1500); }
+      this.lastBoost = frame.boostEvent;
     }
     const crowd = Math.floor(frame.time / 16);
     if (running && crowd !== this.lastCrowd) {

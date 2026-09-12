@@ -1,0 +1,119 @@
+/* Portrait-first race surface; all directions use the driver's screen. */
+.rr-remake{--lime:#8ff04f;--ink:#101920;font-family:Inter,Arial,sans-serif;touch-action:none}
+.rr-remake .kr-header{padding:12px 18px;padding-top:max(12px,env(safe-area-inset-top));height:68px;border:0;background:linear-gradient(#091219f0,#09121900)}
+.rr-remake .kr-brand{font-size:12px!important;letter-spacing:1px;gap:8px}
+.rr-remake .kr-brand small{font-size:10px;letter-spacing:2px}
+.rr-remake .kr-brand-symbol{font:900 21px Arial;padding:8px;letter-spacing:-1px;border-radius:9px;transform:none}
+.rr-remake .kr-header-actions{gap:12px}
+.rr-remake .kr-wallet{font-size:13px;gap:4px}
+.rr-remake .kr-icon{width:44px;height:44px;min-width:44px;border-radius:14px;background:#182833dd;display:inline-flex;align-items:center;justify-content:center;color:#eef5f8}
+.rr-remake .kr-vignette{background:linear-gradient(0deg,#08121c 12%,transparent 72%)}
+.rr-remake.kr-lobby .kr-canvas{top:92px;bottom:auto;height:250px;touch-action:pan-y}
+.rr-remake .kr-lobby-layout{position:absolute;inset:68px 0 0;display:flex;flex-direction:column;padding:8px 16px 30px;overflow-y:auto;overscroll-behavior:contain;touch-action:pan-y;gap:0;max-width:600px;margin:0 auto}
+.rr-garage-heading{position:relative;z-index:1;text-align:center;flex-shrink:0}
+.rr-garage-heading>span{font-size:11px;font-weight:700;color:#8ca5b5;letter-spacing:3px}
+.rr-garage-heading h1{font-size:30px;font-weight:900;letter-spacing:-1px;line-height:1.1;margin-top:3px}
+.rr-garage-heading em{color:var(--lime);font-style:normal}
+.rr-showcase{height:210px;min-height:210px;pointer-events:none}
+.rr-kart-picker{position:relative;z-index:1;flex-shrink:0;padding:4px 0 16px;background:linear-gradient(transparent,#0b1620 24%)}
+.rr-kart-title{display:flex;align-items:center;justify-content:space-between;gap:6px;text-align:center}
+.rr-kart-title>div{min-width:0}
+.rr-kart-title h2{font-size:23px;line-height:1.2;letter-spacing:-.6px;margin:4px 0}
+.rr-kart-title p{font-size:12px;color:#aac0cd;line-height:1.4}
+.rr-remake .kr-label{font-family:inherit;font-size:11px;letter-spacing:1.5px;line-height:1.4}
+.rr-kart-bottom{display:flex;align-items:center;justify-content:space-between;gap:8px;margin-top:9px}
+.rr-remake .kr-swatches{display:flex;gap:0;margin:0}
+.rr-remake .kr-swatches button{width:38px;height:40px;border:0!important;border-radius:50%;background:radial-gradient(circle,var(--swatch) 0 9px,transparent 10px);position:relative}
+.rr-remake .kr-swatches button.active:after{content:'';position:absolute;inset:6px 5px;border:1px solid var(--swatch);border-radius:50%}
+.rr-stats{display:flex;gap:10px;font-size:10px;letter-spacing:.5px;color:#a2b6c3}
+.rr-stats b{display:block;font-size:17px;color:#e9f5fa}
+.rr-remake .kr-controls-panel{position:relative;inset:auto;transform:none;width:100%;max-width:none;padding:14px;border:1px solid #39566966;border-radius:24px;background:#132330f5;box-shadow:0 15px 50px #0004;z-index:2;margin:0;flex-shrink:0}
+.rr-remake .kr-mode-list{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:5px;margin-bottom:14px}
+.rr-remake .kr-mode{min-height:54px;padding:9px 3px;display:flex;flex-direction:column;justify-content:center;gap:5px;text-align:center;border-radius:12px;background:#0b1823;border:0;box-shadow:none}
+.rr-remake .kr-mode.active{background:#8ff04f;color:#101c16}
+.rr-remake .kr-mode svg{width:17px;height:17px}
+.rr-remake .kr-mode b{font-size:11px;letter-spacing:.2px;font-family:inherit}
+.rr-remake .kr-mode small,.rr-remake .kr-mode .kr-tick{display:none}
+.rr-remake .kr-options{margin:0 0 12px;padding:0;background:none;border:0}
+.rr-remake .kr-track-selector{display:flex;gap:8px;align-items:center;margin:0;padding:0}
+.rr-remake .kr-track-mini{width:52px;height:52px;min-width:52px;background:#0b1823;border-radius:14px;color:#a0dfcf;padding:5px}
+.rr-remake .kr-track-selector>div:nth-child(2){min-width:0;flex:1}
+.rr-remake .kr-track-selector .kr-label{font-size:10px;letter-spacing:.7px}
+.rr-remake .kr-track-selector h3{font-family:inherit;font-size:16px;line-height:1.25;margin:4px 0}
+.rr-remake .kr-track-selector p{font-size:12px}
+.rr-remake .kr-track-arrows{display:flex;flex-direction:column;gap:2px}
+.rr-remake .kr-track-arrows .kr-icon{width:34px;min-width:34px;height:32px;border-radius:9px}
+.rr-remake .kr-difficulty{display:flex;align-items:center;gap:8px;margin-top:12px;padding:0;border:0}
+.rr-remake .kr-difficulty>div{display:flex;flex:1;gap:4px}
+.rr-remake .kr-difficulty button{flex:1;font-size:12px;min-height:36px;padding:8px;border-radius:9px;background:#0c1924}
+.rr-remake .kr-difficulty button.active{color:var(--lime);background:#264c30}
+.rr-remake .kr-start{min-height:56px;margin:10px 0 0;padding:14px 16px;border-radius:15px;background:var(--lime);color:#0b2214;font:800 17px/1.1 Arial;letter-spacing:.4px;box-shadow:0 5px 0 #416b27;gap:8px}
+.rr-remake .kr-panel-footer{margin-top:16px;gap:8px;display:flex;align-items:center;justify-content:space-between}
+.rr-remake .kr-panel-footer span{font-size:10px;line-height:1.4;max-width:60%}
+.rr-remake .kr-panel-footer button{font-size:12px;min-height:38px;padding:6px;background:none}
+.rr-remake .kr-garage-bottom{position:relative;inset:auto;font-size:10px;letter-spacing:1px;display:flex;justify-content:space-between;margin-top:16px;color:#7f97a9;flex-shrink:0}
+.rr-remake .kr-map-credit{font:9px Arial;bottom:4px;left:50%;right:auto;transform:translateX(-50%);white-space:nowrap;z-index:5;background:#0a1625aa;padding:3px 6px;border-radius:4px}
+.rr-remake.kr-lobby .kr-map-credit{display:none}
+.rr-race-ui{position:absolute;inset:0;pointer-events:none;background:linear-gradient(#08131c77,transparent 22%,transparent 70%,#08131c66)}
+.rr-race-ui button{pointer-events:auto;touch-action:none;user-select:none;-webkit-user-select:none}
+.rr-race-top{display:flex;align-items:center;justify-content:space-between;position:absolute;top:max(14px,env(safe-area-inset-top));left:16px;right:16px;gap:12px}
+.rr-place{display:flex;align-items:center;gap:7px;text-shadow:0 2px 12px #0009}
+.rr-place>b{font-size:58px;font-style:italic;font-weight:900;line-height:1;color:#c6ff7e}
+.rr-place>span{font-size:20px;font-weight:700}
+.rr-place small{display:block;font-size:9px;letter-spacing:1.2px}
+.rr-lap{display:flex;flex-direction:column;gap:5px;align-items:center;background:#101f2cce;border:1px solid #9bbedb33;border-radius:16px;padding:10px 17px;font-size:13px;font-weight:700}
+.rr-lap b{font-size:20px;margin:0 3px}
+.rr-lap time{font-size:12px;font-variant-numeric:tabular-nums;letter-spacing:1px;color:#c1d8e5}
+.rr-map{position:absolute;top:112px;left:16px;width:78px;height:78px;background:#14202cba;border:1px solid #d0edff30;border-radius:50%;padding:10px;color:#d1eeea}
+.rr-camera{position:absolute;right:16px;top:115px;width:44px;height:44px;border-radius:50%;background:#14202cba;display:grid;place-items:center}
+.rr-countdown{position:absolute;left:12px;right:12px;top:32%;text-align:center;text-shadow:0 3px 15px #0009}
+.rr-countdown>span{font-size:13px;letter-spacing:3px;font-weight:800}
+.rr-countdown>b{display:block;font-size:112px;font-weight:900;line-height:1.15;color:#c6ff7e}
+.rr-countdown>p{font-size:14px;line-height:1.5}
+.rr-touch-controls{position:absolute;bottom:max(30px,calc(env(safe-area-inset-bottom) + 18px));left:16px;right:16px;display:flex;justify-content:space-between;align-items:flex-end;gap:16px}
+.rr-steer-stack{display:flex;flex-direction:column;gap:10px;align-items:flex-start}
+.rr-steering{display:flex;gap:7px}
+.rr-steering button{width:64px;height:76px;border:1px solid #d2eaff55!important;border-radius:23px;background:#102b40cf;box-shadow:0 5px 0 #091926cc;display:grid;place-items:center}
+.rr-brake{height:40px;width:88px;border-radius:12px;background:#112331de;font-size:11px!important;font-weight:800;letter-spacing:1px}
+.rr-actions{display:flex;flex-direction:column;align-items:flex-end;gap:12px}
+.rr-boost{position:relative;width:76px;height:76px;border-radius:24px;background:#164b63ed;border:1px solid #8ae6ff70!important;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:3px;overflow:hidden;font-weight:800;box-shadow:0 4px 0 #08202bd9}
+.rr-boost span{font-size:10px;letter-spacing:1px}
+.rr-boost i{position:absolute;bottom:0;left:0;height:6px;background:#66e7ff}
+.rr-drift{width:106px;height:70px;border-radius:23px;background:#b7ff69;color:#142409!important;font-size:18px!important;font-weight:900;letter-spacing:1px;box-shadow:0 5px 0 #4a7336}
+.rr-drift.active{background:#ffd876;box-shadow:0 5px 0 #805918}
+.rr-speed{position:absolute;bottom:43px;left:50%;transform:translateX(-50%);display:flex;flex-direction:column;text-align:center;text-shadow:0 2px 8px #071320}
+.rr-speed b{font-size:30px;line-height:1;font-weight:800;font-variant-numeric:tabular-nums}
+.rr-speed span{font-size:9px;letter-spacing:1px;margin-top:4px}
+.rr-feedback{position:absolute;left:90px;right:90px;bottom:206px;text-align:center;min-height:55px;text-shadow:0 2px 6px #06141f;font-size:11px;letter-spacing:.5px}
+.rr-feedback strong{display:block;font-size:13px;color:#c6ff93;margin-bottom:7px}
+.rr-feedback .rr-turbo{font-size:26px;color:#8feaff;font-style:italic}
+.rr-drift-meter{height:7px;background:#0e2333ba;border-radius:5px;overflow:hidden;margin:0 0 5px}
+.rr-drift-meter i{display:block;height:100%;background:#38d8ff;transition:width .08s linear}
+.rr-drift-meter.tier-2 i{background:#ffbe43}.rr-drift-meter.tier-3 i{background:#d575ff}
+.rr-notice{position:absolute;top:205px;left:18px;right:18px;border-radius:12px;background:#122234ef;padding:12px;font-size:14px;display:flex;align-items:center;gap:8px;z-index:5}
+.rr-key-hint{display:none}
+.rr-remake .kr-modal{width:min(440px,calc(100vw - 28px));max-height:calc(100dvh - 36px);overflow-y:auto;border-radius:24px;background:#132330;padding:24px}
+.rr-remake .kr-modal h2{font-family:inherit;font-size:25px;line-height:1.2;margin:10px 0 20px}
+.rr-remake .kr-modal p{font-size:14px;line-height:1.55}
+.rr-remake .kr-setting{font-size:14px;min-height:52px;gap:12px}
+.rr-remake .kr-setting select{font-size:16px;min-height:40px;max-width:60%}
+.rr-remake .kr-results{border-radius:24px;background:#132330;max-height:calc(100dvh - 30px);overflow-y:auto;width:min(480px,calc(100vw - 28px));padding:24px}
+.rr-remake .kr-result-table{font-size:13px}
+.rr-remake .kr-results h2{font-family:inherit;font-size:24px}
+.rr-remake .kr-secondary{border-radius:12px;min-height:44px}
+@media(min-width:760px){
+  .rr-remake .kr-lobby-layout{max-width:1100px;display:grid;grid-template-columns:1fr 420px;grid-template-rows:70px 1fr 140px;column-gap:40px;padding:35px;overflow:auto}
+  .rr-garage-heading{grid-column:1;grid-row:1;text-align:left}
+  .rr-garage-heading h1{font-size:42px}
+  .rr-showcase{grid-column:1;grid-row:2;height:260px}
+  .rr-kart-picker{grid-column:1;grid-row:3;background:transparent}
+  .rr-remake .kr-controls-panel{grid-column:2;grid-row:1/4;align-self:center}
+  .rr-remake.kr-lobby .kr-canvas{inset:120px 44% 80px 0;height:auto}
+  .rr-remake .kr-garage-bottom{display:none}
+  .rr-touch-controls{left:36px;right:36px;bottom:36px}
+  .rr-speed{bottom:64px}.rr-feedback{bottom:145px;left:calc(50% - 120px);right:calc(50% - 120px)}
+  .rr-key-hint{display:block;position:absolute;bottom:24px;left:50%;transform:translateX(-50%);font-size:11px;white-space:nowrap;color:#d3e1eb}
+}
+@media(max-width:360px){.rr-remake .kr-lobby-layout{padding-left:10px;padding-right:10px}.rr-stats{gap:6px}.rr-remake .kr-swatches button{width:32px}.rr-touch-controls{left:10px;right:10px}.rr-steering button{width:56px}.rr-drift{width:96px}.rr-speed{left:53%;font-size:25px}.rr-feedback{left:65px;right:65px}.rr-remake .kr-header{padding-left:12px;padding-right:12px}.rr-remake .kr-brand>span:nth-child(2){font-size:10px}.rr-kart-title h2{font-size:21px}}
+@media(prefers-reduced-motion:reduce){.rr-remake *{animation:none!important;transition:none!important}}
+.rr-recover{position:absolute;right:16px;top:168px;width:44px;height:44px;display:grid;place-items:center;border-radius:50%;background:#14202cba}
