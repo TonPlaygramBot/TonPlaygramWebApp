@@ -1,4 +1,3 @@
-import { POOL_ROYAL_PLAYERS } from '../config/poolRoyalPlayers.js';
 import {
   TRAINING_LEVEL_COUNT,
   describeTrainingLevel
@@ -47,31 +46,31 @@ const CAREER_TRAINING_STAGE_COUNT = TRAINING_LEVEL_COUNT
 const CAREER_PHASE_DETAILS = [
   {
     id: 1,
-    title: 'Club apprentice',
+    title: 'Academy Foundations',
     summary:
       'Focus on cue control, basic positioning, and winning your first mixed fixtures.'
   },
   {
     id: 2,
-    title: 'County contender',
+    title: 'City Circuit',
     summary:
       'Face stronger league rivals, keep streaks alive, and qualify for larger events.'
   },
   {
     id: 3,
-    title: 'National challenger',
+    title: 'National Tour',
     summary:
       'Longer brackets, tighter tactical windows, and pressure-tested showdown tables.'
   },
   {
     id: 4,
-    title: 'Tour professional',
+    title: 'Continental Stage',
     summary:
       'High-stakes draws with elite AI opponents and advanced positional requirements.'
   },
   {
     id: 5,
-    title: 'World title campaign',
+    title: 'Legend Arena',
     summary:
       'Every frame counts: championship difficulty, prestige gifts, and top-tier payouts.'
   }
@@ -101,7 +100,7 @@ const getBracketRounds = (players) => {
   return Math.max(1, Math.round(Math.log2(safePlayers)))
 }
 
-const getTrainingLevel = (level) => Math.min(TRAINING_LEVEL_COUNT, Math.floor((level - 1) / 20) * 10 + ((level - 1) % 10) + 1)
+const getTrainingLevel = (level) => ((level - 1) % TRAINING_LEVEL_COUNT) + 1
 
 const buildReward = (level, type) => {
   const tpc =
@@ -136,13 +135,7 @@ const buildStage = (level) => {
   const phaseDetail =
     CAREER_PHASE_DETAILS.find((entry) => entry.id === phase) ||
     CAREER_PHASE_DETAILS[CAREER_PHASE_DETAILS.length - 1]
-  const opponent = POOL_ROYAL_PLAYERS[Math.min(5, phaseIndex + (level % 4 === 0 ? 1 : 0))];
   const commonMeta = {
-    opponent,
-    season: phaseIndex + 1,
-    week: ((level - 1) % 20) + 1,
-    rankingPoints: type === 'training' ? 15 : type === 'tournament' ? 160 : type === 'showdown' ? 100 : 50,
-    coachingFocus: ['Stroke and pace', 'Position and patterns', 'Safety and escapes', 'Match consistency', 'Championship finishing'][phaseIndex],
     phase,
     phaseTitle: phaseDetail.title,
     phaseSummary: phaseDetail.summary,
@@ -180,7 +173,7 @@ const buildStage = (level) => {
     friendly: {
       titleBase: FRIENDLY_TITLES[(level - 1) % FRIENDLY_TITLES.length],
       icon: '🤝',
-      objective: `Beat ${opponent.name} in a club friendly and earn ranking points.`,
+      objective: 'Win a tactical friendly against an adaptive AI rival.',
       detailBrief: 'Single fixture designed to test shot selection under moderate pressure.',
       winCondition: 'Reach the target score before your opponent.',
       players: null,
@@ -191,7 +184,7 @@ const buildStage = (level) => {
     league: {
       titleBase: 'League Fixture',
       icon: '🗓️',
-      objective: `Beat ${opponent.name} in this week's league fixture.`,
+      objective: 'Win the scheduled league match to keep your table ranking alive.',
       detailBrief: 'Season ladder match where consistency matters more than fast clears.',
       winCondition: 'Win the frame and avoid foul-heavy play.',
       players: null,
@@ -202,9 +195,9 @@ const buildStage = (level) => {
     showdown: {
       titleBase: 'Rival Showdown',
       icon: '⚡',
-      objective: `Defeat ${opponent.name} in the season's featured frame.`,
+      objective: 'Defeat the featured rival in a high-pressure race-to-win set.',
       detailBrief: 'Headliner duel with tighter miss tolerance and stronger rival AI.',
-      winCondition: 'Win the frame with a legal finish.',
+      winCondition: 'Win the race set with clean finishes and no collapse rounds.',
       players: 2,
       eventType: 'match',
       roundTarget: 1,
@@ -229,7 +222,7 @@ const buildStage = (level) => {
     id: `career-stage-${String(level).padStart(3, '0')}`,
     level,
     ...commonMeta,
-    title: type === 'tournament' ? `${stageMeta.titleBase} · Season ${phase}` : `${stageMeta.titleBase} · ${opponent.name}`,
+    title: `${stageMeta.titleBase} ${String(level).padStart(2, '0')}`,
     type,
     icon: stageMeta.icon,
     objective: stageMeta.objective,
@@ -337,16 +330,4 @@ export function getNextCareerStage (
 ) {
   const roadmap = getCareerRoadmap(trainingProgress, careerProgress)
   return roadmap.find((stage) => stage.playable) || null
-}
-
-export function getCareerAthlete(progress = loadCareerProgress()) {
-  const completed = new Set(progress.completedStageIds || []);
-  const earned = CAREER_STAGES.filter(stage => completed.has(stage.id));
-  return {
-    rankingPoints: earned.reduce((sum, stage) => sum + stage.rankingPoints, 0),
-    titles: earned.filter(stage => stage.type === 'tournament').length,
-    fixturesWon: earned.filter(stage => stage.type !== 'training').length,
-    drillsPassed: earned.filter(stage => stage.type === 'training').length,
-    rank: CAREER_PHASE_DETAILS[Math.min(4, Math.floor(earned.length / 20))].title
-  };
 }

@@ -38,8 +38,8 @@ export function resolveSafeBridgeAnchor(
     return dx * dx + dz * dz >= (handRadius + radius) ** 2;
   });
 
-  const lateralSteps = [0]; // keep the cue channel directly under the shaft
-  const rearSteps = [0, 0.65, 1.3, 2, 3, 4, 6, 8];
+  const lateralSteps = [0, 0.75, -0.75, 1.5, -1.5, 2.25, -2.25];
+  const rearSteps = [0, 0.65, 1.3, 2];
   for (const rear of rearSteps) for (const lateral of lateralSteps) {
     const candidate = clampToCloth(preferred.clone()
       .addScaledVector(forward, -rear * handRadius)

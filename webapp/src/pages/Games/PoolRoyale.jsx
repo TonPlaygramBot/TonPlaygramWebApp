@@ -1,4 +1,3 @@
-import { generateRackPositions, arrangePoolRack } from './poolRoyaleRack.js';
 import React, {
   Component,
   useCallback,
@@ -124,9 +123,6 @@ import {
   buildPoolSuggestionKey,
   shouldApplyPoolSuggestion
 } from './poolRoyaleAimSuggestion.js';
-import { evaluateCoachingShot } from '../../config/poolRoyalCoaching.js';
-import { CAREER_STAGES, loadCareerProgress } from '../../utils/poolRoyaleCareerProgress.js';
-import { checkCueTipAccess, isLegalCuePlacement, rotatePoolBall } from './shared/poolRoyalShotGeometry.ts';
 import { advancePoolRoyalCueStroke, POOL_ROYAL_STROKE, referenceCuePull, referenceCueFeather, resolveCueBallContact } from './poolRoyaleCueStrokeTimeline.js';
 import { PoolRoyalShotCamera } from './shared/poolRoyalShotCamera.ts';
 import { createPoolRoyalCue } from './shared/createPoolRoyalCue.ts';
@@ -1574,7 +1570,7 @@ const PHYSICS_BASE_STEP = 1 / 60;
 const FRICTION = 0.9962;
 // Cushions use a slightly higher restitution than ball-ball impacts so rail
 // rebounds feel livelier without making direct ball collisions over-energetic.
-const DEFAULT_CUSHION_RESTITUTION = 0.995;
+const DEFAULT_CUSHION_RESTITUTION = 1.012;
 let CUSHION_RESTITUTION = DEFAULT_CUSHION_RESTITUTION;
 const BALL_MASS = 0.17;
 const BALL_INERTIA = (2 / 5) * BALL_MASS * BALL_R * BALL_R;
@@ -2126,8 +2122,6 @@ const AMERICAN_BALL_SET = Object.freeze({
   ]
 });
 const POOL_VARIANT_COLOR_SETS = Object.freeze({
-  '8ball': { id: '8ball', label: '8-Ball · American', cueColor: 0xffffff,
-    rackLayout: 'triangle', disableSnookerMarkings: true, ...AMERICAN_BALL_SET },
   uk: {
     id: 'uk',
     label: '8Ball',
@@ -2228,9 +2222,7 @@ function normalizeBallSetKey(value) {
 function resolvePoolVariant(variantId, ballSet = null) {
   const normalized = normalizeVariantKey(variantId);
   let key = normalized;
-  if (['8ball', 'eightball', 'bca', 'american8ball'].includes(normalized)) {
-    key = '8ball';
-  } else if (normalized === '9' || normalized === 'nineball') {
+  if (normalized === '9' || normalized === 'nineball') {
     key = '9ball';
   } else if (
     normalized === 'american' ||
@@ -2357,10 +2349,75 @@ function getPoolBallId(variant, index) {
   return `ball_${index + 1}`;
 }
 
+function generateRackPositions(ballCount, layout, ballRadius, startZ, anchor = null) {
+  const positions = [];
+  if (ballCount <= 0 || !Number.isFinite(ballRadius) || !Number.isFinite(startZ)) {
+    return positions;
+  }
+  const diameter = ballRadius * 2;
+  const rackGap = Math.max(ballRadius * 0.028, 0.00075 * (ballRadius / 0.0525));
+  const columnSpacing = diameter + rackGap;
+  const halfColumn = columnSpacing * 0.5;
+  const baseRowSpacing = Math.sqrt(
+    Math.max(0, diameter * diameter - halfColumn * halfColumn)
+  );
+  const rowSpacing = baseRowSpacing + rackGap * 0.55;
+  const alignAnchorToPositions = () => {
+    const anchorIndex = Number.isFinite(anchor?.index)
+      ? Math.max(0, Math.floor(anchor.index))
+      : -1;
+    if (anchorIndex < 0 || anchorIndex >= positions.length) return positions;
+    const targetX = Number.isFinite(anchor?.x) ? anchor.x : positions[anchorIndex].x;
+    const targetZ = Number.isFinite(anchor?.z) ? anchor.z : positions[anchorIndex].z;
+    const dx = targetX - positions[anchorIndex].x;
+    const dz = targetZ - positions[anchorIndex].z;
+    if (Math.abs(dx) <= 1e-8 && Math.abs(dz) <= 1e-8) return positions;
+    positions.forEach((pos) => {
+      pos.x += dx;
+      pos.z += dz;
+    });
+    return positions;
+  };
+  if (layout === 'diamond') {
+    const rows = [1, 2, 3, 2, 1];
+    let index = 0;
+    for (let r = 0; r < rows.length && index < ballCount; r++) {
+      const count = rows[r];
+      const centerOffset = (count - 1) / 2;
+      for (let i = 0; i < count && index < ballCount; i++) {
+        const x = (i - centerOffset) * columnSpacing;
+        const z = startZ + r * rowSpacing;
+        positions.push({ x, z });
+        index++;
+      }
+    }
+    return alignAnchorToPositions();
+  }
+  let row = 0;
+  let placed = 0;
+  while (placed < ballCount) {
+    const count = row + 1;
+    const centerOffset = row / 2;
+    for (let i = 0; i < count && placed < ballCount; i++) {
+      const x = (i - centerOffset) * columnSpacing;
+      const z = startZ + row * rowSpacing;
+      positions.push({ x, z });
+      placed++;
+    }
+    row++;
+  }
+  return alignAnchorToPositions();
+}
 
-function resolvePoolRackAnchor(variant, spots) {
-  if (!spots?.penalty) return null;
-  return { index: 0, x: spots.penalty[0], z: spots.penalty[1] };
+function resolveEightBallRackAnchor(variant, spots) {
+  const numbers = Array.isArray(variant?.objectNumbers) ? variant.objectNumbers : [];
+  const eightIndex = numbers.findIndex((number) => number === 8);
+  if (eightIndex < 0 || !spots?.penalty) return null;
+  return {
+    index: eightIndex,
+    x: spots.penalty[0],
+    z: spots.penalty[1]
+  };
 }
 
 // Updated colors for dark cloth (ball colors overridden per variant at runtime)
@@ -6702,6 +6759,37 @@ const computeCueViewVector = (cueBall, camera) => {
   return TMP_VEC2_VIEW.clone().normalize();
 };
 
+const clampSpinToVisibleHemisphere = (spinInput, aimDir, cueBall, camera) => {
+  if (!spinInput || !aimDir || !cueBall || !camera) return spinInput;
+  const viewVec = computeCueViewVector(cueBall, camera);
+  if (!viewVec) return spinInput;
+  const axes = prepareSpinAxes(aimDir);
+  TMP_VEC2_SPIN.set(0, 0);
+  TMP_VEC2_SPIN.addScaledVector(axes.perp, spinInput.x ?? 0);
+  TMP_VEC2_SPIN.addScaledVector(axes.axis, spinInput.y ?? 0);
+  if (TMP_VEC2_SPIN.lengthSq() < 1e-8) return spinInput;
+  TMP_VEC2_VIEW.set(viewVec.x, viewVec.y).normalize();
+  const viewDot = TMP_VEC2_SPIN.dot(TMP_VEC2_VIEW);
+  if (viewDot >= 0) return spinInput;
+  const dx = camera.position.x - cueBall.pos.x;
+  const dz = camera.position.z - cueBall.pos.y;
+  const planarDistance = Math.hypot(dx, dz);
+  const elevation = Math.atan2(camera.position.y ?? 0, Math.max(planarDistance, 1e-6));
+  const relax =
+    elevation <= 0
+      ? 0
+      : THREE.MathUtils.clamp(
+          (elevation - 0.35) / (0.75 - 0.35),
+          0,
+          1
+        );
+  TMP_VEC2_SPIN.addScaledVector(TMP_VEC2_VIEW, -viewDot * (1 - relax));
+  return {
+    x: TMP_VEC2_SPIN.dot(axes.perp),
+    y: TMP_VEC2_SPIN.dot(axes.axis)
+  };
+};
+
 const resolveCameraBasis = (camera) => {
   if (!camera) return null;
   TMP_VEC3_A.set(1, 0, 0).applyQuaternion(camera.quaternion).normalize();
@@ -6761,9 +6849,183 @@ const resolveBackspinPreviewLerp = (backSpinWeight) => {
 };
 
 function checkSpinLegality2D(cueBall, spinVec, balls = [], options = {}) {
-  return checkCueTipAccess(cueBall, { x: (spinVec?.x || 0) * PHYSICS_PROFILE.maxTipOffsetRatio,
-    y: (spinVec?.y || 0) * PHYSICS_PROFILE.maxTipOffsetRatio }, balls,
-    options.axes?.axis || { x: 0, y: 1 }, BALL_R, CUE_TIP_RADIUS);
+  if (!cueBall || !cueBall.pos) {
+    return { blocked: false, reason: '' };
+  }
+  const sx = spinVec?.x ?? 0;
+  const sy = spinVec?.y ?? 0;
+  const magnitude = Math.hypot(sx, sy);
+  if (magnitude <= SPIN_STUN_RADIUS) {
+    return { blocked: false, reason: '' };
+  }
+  const axes = options.axes;
+  TMP_VEC2_SPIN.set(0, 0);
+  if (axes?.perp) TMP_VEC2_SPIN.addScaledVector(axes.perp, sx);
+  if (axes?.axis) TMP_VEC2_SPIN.addScaledVector(axes.axis, sy);
+  if (!axes) TMP_VEC2_SPIN.set(sx, sy);
+  if (TMP_VEC2_SPIN.lengthSq() < 1e-8) {
+    return { blocked: false, reason: '' };
+  }
+  TMP_VEC2_SPIN.normalize();
+  if (options.view) {
+    TMP_VEC2_VIEW.set(options.view.x ?? 0, options.view.y ?? 0);
+    if (TMP_VEC2_VIEW.lengthSq() > 1e-8) {
+      TMP_VEC2_VIEW.normalize();
+      const viewDot = TMP_VEC2_VIEW.dot(TMP_VEC2_SPIN);
+      if (viewDot < SPIN_VIEW_BLOCK_THRESHOLD) {
+        return { blocked: true, reason: 'Strike point not visible' };
+      }
+    }
+  }
+  const contact = cueBall.pos
+    .clone()
+    .add(TMP_VEC2_SPIN.clone().multiplyScalar(BALL_R));
+  const cushionClearX = RAIL_LIMIT_X - SPIN_CUSHION_EPS;
+  const cushionClearY = RAIL_LIMIT_Y - SPIN_CUSHION_EPS;
+  if (
+    Math.abs(contact.x) > cushionClearX ||
+    Math.abs(contact.y) > cushionClearY
+  ) {
+    return { blocked: true, reason: 'Cushion blocks that strike point' };
+  }
+  const blockingRadius = BALL_R + CUE_TIP_RADIUS * 0.85;
+  const blockingRadiusSq = blockingRadius * blockingRadius;
+  const combinedRadius = BALL_R * 2 + 0.003;
+  for (const other of balls) {
+    if (!other || other === cueBall || !other.active) continue;
+    const offset = other.pos.clone().sub(cueBall.pos);
+    const dist = offset.length();
+    if (dist >= combinedRadius) continue;
+    const proj = offset.dot(TMP_VEC2_SPIN);
+    if (!(proj > 0)) continue;
+    const lateralSq = Math.max(offset.lengthSq() - proj * proj, 0);
+    if (lateralSq < blockingRadiusSq) {
+      return { blocked: true, reason: 'Another ball blocks that side' };
+    }
+  }
+  return { blocked: false, reason: '' };
+}
+
+function distanceToTableEdge(pos, dir) {
+  let minT = Infinity;
+  if (Math.abs(dir.x) > 1e-6) {
+    const boundX = dir.x > 0 ? RAIL_LIMIT_X : -RAIL_LIMIT_X;
+    const tx = (boundX - pos.x) / dir.x;
+    if (tx > 0) minT = Math.min(minT, tx);
+  }
+  if (Math.abs(dir.y) > 1e-6) {
+    const boundY = dir.y > 0 ? RAIL_LIMIT_Y : -RAIL_LIMIT_Y;
+    const ty = (boundY - pos.y) / dir.y;
+    if (ty > 0) minT = Math.min(minT, ty);
+  }
+  return minT;
+}
+
+function applyAxisClearance(
+  limits,
+  key,
+  positive,
+  clearance,
+  { margin = SPIN_TIP_MARGIN, soft = false } = {}
+) {
+  if (!Number.isFinite(clearance)) return;
+  if (soft) {
+    const total = MAX_SPIN_CONTACT_OFFSET + margin;
+    if (total <= 0) return;
+    if (clearance <= 0) {
+      if (positive) {
+        if (key === 'maxX') limits.maxX = Math.min(limits.maxX, 0);
+        if (key === 'maxY') limits.maxY = Math.min(limits.maxY, 0);
+      } else {
+        if (key === 'minX') limits.minX = Math.max(limits.minX, 0);
+        if (key === 'minY') limits.minY = Math.max(limits.minY, 0);
+      }
+      return;
+    }
+    const normalized = clamp(clearance / total, 0, 1);
+    if (positive) {
+      if (key === 'maxX') limits.maxX = Math.min(limits.maxX, normalized);
+      if (key === 'maxY') limits.maxY = Math.min(limits.maxY, normalized);
+    } else {
+      const limit = -normalized;
+      if (key === 'minX') limits.minX = Math.max(limits.minX, limit);
+      if (key === 'minY') limits.minY = Math.max(limits.minY, limit);
+    }
+    return;
+  }
+  const safeClearance = clearance - margin;
+  if (safeClearance <= 0) {
+    if (positive) {
+      if (key === 'maxX') limits.maxX = Math.min(limits.maxX, 0);
+      if (key === 'maxY') limits.maxY = Math.min(limits.maxY, 0);
+    } else {
+      if (key === 'minX') limits.minX = Math.max(limits.minX, 0);
+      if (key === 'minY') limits.minY = Math.max(limits.minY, 0);
+    }
+    return;
+  }
+  const normalized = clamp(safeClearance / MAX_SPIN_CONTACT_OFFSET, 0, 1);
+  if (positive) {
+    if (key === 'maxX') limits.maxX = Math.min(limits.maxX, normalized);
+    if (key === 'maxY') limits.maxY = Math.min(limits.maxY, normalized);
+  } else {
+    const limit = -normalized;
+    if (key === 'minX') limits.minX = Math.max(limits.minX, limit);
+    if (key === 'minY') limits.minY = Math.max(limits.minY, limit);
+  }
+}
+
+function computeSpinLimits(cueBall, aimDir, balls = [], axesInput = null) {
+  if (!cueBall || !aimDir) return { ...DEFAULT_SPIN_LIMITS };
+  const spinAxes = axesInput || prepareSpinAxes(aimDir);
+  const forward = spinAxes.axis;
+  const lateral = spinAxes.perp;
+  const axes = [
+    { key: 'maxX', dir: lateral.clone(), positive: true },
+    { key: 'minX', dir: lateral.clone().multiplyScalar(-1), positive: false },
+    { key: 'maxY', dir: forward.clone(), positive: true },
+    { key: 'minY', dir: forward.clone().multiplyScalar(-1), positive: false }
+  ];
+  const limits = { ...DEFAULT_SPIN_LIMITS };
+  const cueCenter = new THREE.Vector2(cueBall.pos.x, cueBall.pos.y);
+  const combinedRadius = BALL_R * 2 + CUE_TIP_RADIUS * 1.1;
+  const combinedRadiusSq = combinedRadius * combinedRadius;
+
+  for (const axis of axes) {
+    const centerToEdge = distanceToTableEdge(cueBall.pos, axis.dir);
+    if (centerToEdge !== Infinity) {
+      const clearance = centerToEdge - BALL_R;
+      applyAxisClearance(limits, axis.key, axis.positive, clearance, {
+        soft: true,
+        margin: SPIN_TIP_MARGIN * 0.75
+      });
+    }
+    let nearest = Infinity;
+    for (const other of balls) {
+      if (!other || other === cueBall || !other.active) continue;
+      const otherPos = new THREE.Vector2(other.pos.x, other.pos.y);
+      const offset = otherPos.sub(cueCenter);
+      const proj = offset.dot(axis.dir);
+      if (!(proj > 0)) continue;
+      const offsetSq = offset.lengthSq();
+      const lateralSq = Math.max(offsetSq - proj * proj, 0);
+      if (lateralSq >= combinedRadiusSq) continue;
+      const penetration = Math.sqrt(Math.max(combinedRadiusSq - lateralSq, 0));
+      const clearance = proj - penetration;
+      if (clearance < nearest) nearest = clearance;
+    }
+    if (nearest !== Infinity) {
+      applyAxisClearance(limits, axis.key, axis.positive, nearest);
+    }
+  }
+
+  limits.minX = clampSpinValue(limits.minX);
+  limits.maxX = clampSpinValue(limits.maxX);
+  limits.minY = clampSpinValue(limits.minY);
+  limits.maxY = clampSpinValue(limits.maxY);
+  if (limits.minX > limits.maxX) limits.minX = limits.maxX = 0;
+  if (limits.minY > limits.maxY) limits.minY = limits.maxY = 0;
+  return limits;
 }
 
 const cornerPocketCenter = (sx, sz) =>
@@ -7605,7 +7867,7 @@ function applyRailImpulse(ball, impact) {
     ? CUSHION_CUT_RESTITUTION_SCALE * glancingScale
     : 1;
   const normalImpulseMag =
-    -(1 + Math.min(0.995, (CUSHION_RESTITUTION + 0.015) * restitutionScale)) * relNormal * BALL_MASS;
+    -(1 + CUSHION_RESTITUTION * restitutionScale) * relNormal * BALL_MASS;
   TMP_VEC3_E.copy(TMP_VEC3_A).multiplyScalar(normalImpulseMag);
   TMP_VEC3_C.addScaledVector(TMP_VEC3_E, 1 / BALL_MASS);
   ball.omega.addScaledVector(
@@ -7622,7 +7884,7 @@ function applyRailImpulse(ball, impact) {
     const denom = 1 / BALL_MASS + rCrossT / BALL_INERTIA;
     const jt = -tangentialSpeed / Math.max(denom, 1e-6);
     const frictionScale = isCutImpact ? CUSHION_CUT_FRICTION_SCALE : 1;
-    const maxFriction = RAIL_FRICTION * 0.82 * frictionScale * Math.abs(normalImpulseMag);
+    const maxFriction = RAIL_FRICTION * frictionScale * Math.abs(normalImpulseMag);
     const clampedJt = clamp(jt, -maxFriction, maxFriction);
     const impulseT = TMP_VEC3_D.multiplyScalar(clampedJt);
     TMP_VEC3_C.addScaledVector(impulseT, 1 / BALL_MASS);
@@ -9068,11 +9330,16 @@ export function Table3D(
     depthWrite: false,
     depthTest: false,
     polygonOffset: true,
-    polygonOffsetFactor: -1,
-    polygonOffsetUnits: -1
+    polygonOffsetFactor: -4,
+    polygonOffsetUnits: -4
   });
-  // Coplanar with the cloth. Polygon offset prevents z-fighting without floating.
-  const markingHeight = cloth.position.y;
+  const externalMarkingLift =
+    usesExternalTableModel && Number.isFinite(resolvedTableOptions?.tableModel?.markingVisualLift)
+      ? Math.max(0, resolvedTableOptions.tableModel.markingVisualLift)
+      : 0;
+  const markingHeight = clothPlaneLocal - CLOTH_DROP + MICRO_EPS * 2 + externalMarkingLift;
+  // A bright, slightly raised head string remains readable on a phone even on
+  // pale cloth textures and externally loaded table models.
   const lineThickness = Math.max(BALL_R * 0.16, 0.14);
   const baulkLineLength = PLAY_W - SIDE_RAIL_INNER_THICKNESS * 0.4;
   const baulkLineGeom = new THREE.PlaneGeometry(baulkLineLength, lineThickness);
@@ -9204,6 +9471,13 @@ export function Table3D(
     mesh.receiveShadow = false;
     mesh.userData.externalTablePocketHardwareHidden = true;
     return mesh;
+  };
+  const removePocketDropEntry = (ballId) => {
+    const entry = pocketDropRef.current.get(ballId);
+    if (entry) {
+      clearPocketGlow(entry);
+    }
+    pocketDropRef.current.delete(ballId);
   };
   const resolvePocketFieldCutRadius = (index) =>
     Math.max(
@@ -14258,10 +14532,6 @@ function mountPoolRoyaleExternalTableModel({
   const setGeneratedVisualsVisible = (visible) => {
     generatedVisualObjects.forEach((object) => {
       const forceGeneratedChrome = Boolean(externalTableModelForMount?.forceGeneratedChromePlates);
-      if (object === markingsGroup || object.parent === markingsGroup) {
-        object.visible = true;
-        return;
-      }
       if (!visible && externalTableModelForMount?.keepGeneratedShell) {
         object.visible = object.userData?.externalTableHideWhenMounted
           ? false
@@ -14837,10 +15107,9 @@ function PoolRoyaleGame({
     const params = new URLSearchParams(location.search);
     return params.get('careerStageId') || '';
   }, [location.search]);
-  const careerStage = useMemo(() => careerMode ? CAREER_STAGES.find(stage => stage.id === careerStageId) : null, [careerMode, careerStageId]);
   const tournamentStateKey = useMemo(
-    () => `poolRoyaleTournamentState_${tournamentKey}_${careerStageId || "casual"}`,
-    [tournamentKey, careerStageId]
+    () => `poolRoyaleTournamentState_${tournamentKey}`,
+    [tournamentKey]
   );
   const tournamentOppKey = useMemo(
     () => `poolRoyaleTournamentOpponent_${tournamentKey}`,
@@ -15551,10 +15820,7 @@ function PoolRoyaleGame({
   const isTraining = playType === 'training';
   const hasCareerTaskId = Boolean(careerStageId);
   const usesCareerAttempts = isTraining && careerMode && hasCareerTaskId;
-  const isCoachedTraining = isTraining && (usesCareerAttempts || Number(initialTrainingLevel) > 0);
-  const isFreePractice = isTraining && !isCoachedTraining;
-  const coachingSessionRef = useRef({ shots: 0, targets: new Set(), potted: new Set(), status: 'playing' });
-  const [coachingResult, setCoachingResult] = useState(null);
+  const isFreePractice = isTraining && !usesCareerAttempts;
   const [trainingAttemptsStoreOpen, setTrainingAttemptsStoreOpen] = useState(false);
   const [selectedTrainingBundleId, setSelectedTrainingBundleId] = useState(TRAINING_ATTEMPT_BUNDLES[0]?.id || '');
   const [trainingPurchaseState, setTrainingPurchaseState] = useState('idle');
@@ -15589,7 +15855,7 @@ function PoolRoyaleGame({
     bonusAwardedStageIds: []
   });
   const [trainingLevel, setTrainingLevel] = useState(() => {
-    if (isFreePractice) {
+    if (isTraining && !usesCareerAttempts) {
       return PRACTICE_FREEPLAY_LEVEL;
     }
     const requested = Number(initialTrainingLevel);
@@ -15608,7 +15874,6 @@ function PoolRoyaleGame({
   const trainingCompletionHandledRef = useRef(false);
   const pendingTrainingLayoutLevelRef = useRef(null);
   const trainingTableRef = useRef(null);
-  const coachingZoneRef = useRef(null);
   const trainingAutoAdvanceTimeoutRef = useRef(null);
   const trainingCommentaryKeyRef = useRef('');
   const [trainingTaskTransition, setTrainingTaskTransition] = useState(null);
@@ -15672,7 +15937,7 @@ function PoolRoyaleGame({
   }, [trainingShotsRemaining]);
   useEffect(() => {
     const stored = loadTrainingProgress();
-    if (isFreePractice) {
+    if (isTraining && !usesCareerAttempts) {
       setTrainingShotsRemaining(0);
       setTrainingLevel(PRACTICE_FREEPLAY_LEVEL);
       return;
@@ -15705,16 +15970,16 @@ function PoolRoyaleGame({
     } else {
       setTrainingShotsRemaining(0);
     }
-    setTrainingLevel(Number(initialTrainingLevel) > 0 ? Number(initialTrainingLevel) : playableLevel);
-  }, [careerStageId, initialTrainingLevel, isTraining, isFreePractice, usesCareerAttempts]);
+    setTrainingLevel(playableLevel);
+  }, [careerStageId, initialTrainingLevel, isTraining, usesCareerAttempts]);
   useEffect(() => {
     if (!isTraining) return;
     if (trainingModeState !== 'solo') setTrainingModeState('solo');
-    const shouldEnableRules = isCoachedTraining;
+    const shouldEnableRules = usesCareerAttempts;
     if (trainingRulesOn !== shouldEnableRules) {
       setTrainingRulesOn(shouldEnableRules);
     }
-  }, [isTraining, isCoachedTraining, trainingModeState, trainingRulesOn]);
+  }, [isTraining, trainingModeState, trainingRulesOn, usesCareerAttempts]);
   const currentTrainingInfo = useMemo(
     () => describeTrainingLevel(trainingLevel),
     [trainingLevel]
@@ -15942,7 +16207,7 @@ function PoolRoyaleGame({
 
   const applyTrainingLayoutForLevel = useCallback((level) => {
     if (!isTraining) return;
-    if (!isCoachedTraining) {
+    if (!usesCareerAttempts) {
       const baselineSnapshot = initialLayoutRef.current;
       if (Array.isArray(baselineSnapshot) && baselineSnapshot.length > 0) {
         if (applyBallSnapshotRef.current) {
@@ -15961,17 +16226,6 @@ function PoolRoyaleGame({
     }
 
     const trainingLayout = getTrainingLayout(level);
-    const zone = describeTrainingLevel(level).zone;
-    if (coachingZoneRef.current) {
-      const limitX = PLAY_W / 2 - BALL_R * 2.5, limitZ = PLAY_H / 2 - BALL_R * 2.5;
-      coachingZoneRef.current.visible = Boolean(zone);
-      if (zone) {
-        coachingZoneRef.current.position.set(zone.x * limitX, CLOTH_TOP_LOCAL + CLOTH_LIFT - CLOTH_DROP + (trainingTableRef.current?.userData?.playfieldVisualLift || 0), zone.z * limitZ);
-        coachingZoneRef.current.scale.set(zone.radius * limitX, 1, zone.radius * limitZ);
-      }
-    }
-    coachingSessionRef.current = { shots: 0, targets: new Set(), potted: new Set(), status: 'playing' };
-    setCoachingResult(null);
     const startingBalls = Array.isArray(ballsRef.current) ? ballsRef.current : [];
     if (!startingBalls.length || !trainingLayout) {
       trainingLayoutReadyRef.current = false;
@@ -16037,7 +16291,6 @@ function PoolRoyaleGame({
       const objectBall = preferredBall && !assignedBallIds.has(preferredBall.id) ? preferredBall : fallbackBall;
       if (!objectBall || assignedBallIds.has(objectBall.id)) return;
       assignedBallIds.add(objectBall.id);
-      if (entry.target !== false) coachingSessionRef.current.targets.add(objectBall.id);
       const ballState = stateById.get(objectBall.id);
       const x = normalize(entry?.x, limitX);
       const z = normalize(entry?.z, limitZ);
@@ -16056,7 +16309,7 @@ function PoolRoyaleGame({
     const activeObjectCount = snapshot.filter((entry) => entry.id !== 'cue' && entry.active).length;
     trainingLayoutReadyRef.current = activeObjectCount > 0 && entries.length > 0;
     initialLayoutRef.current = snapshot;
-  }, [ensureTrainingBallPoolForLayout, isTraining, isCoachedTraining]);
+  }, [ensureTrainingBallPoolForLayout, isTraining, usesCareerAttempts]);
 
   const flushPendingTrainingLayout = useCallback(() => {
     if (!isTraining) return;
@@ -16069,8 +16322,7 @@ function PoolRoyaleGame({
 
   const handleTrainingRoadmapContinue = useCallback(() => {
     if (usesCareerAttempts) {
-      window.location.assign('/games/poolroyale/career');
-      return;
+      setCareerTaskResultModal(null);
     }
     const completedLevel = Number(lastCompletedLevel) || trainingLevelRef.current || trainingLevel;
     const computedNextLevel = resolvePlayableTrainingLevel(
@@ -17050,7 +17302,7 @@ function PoolRoyaleGame({
   const playerLabel = playerName || 'Player';
   const effectiveMode = isTraining ? trainingModeState : mode;
   const opponentLabel =
-    effectiveMode === 'online' ? opponentName || 'Opponent' : careerStage?.opponent?.name || opponentName || 'AI';
+    effectiveMode === 'online' ? opponentName || 'Opponent' : opponentName || 'AI';
   const tableId = useMemo(() => {
     const params = new URLSearchParams(location.search);
     return params.get('tableId') || '';
@@ -17074,8 +17326,7 @@ function PoolRoyaleGame({
     const baseFrame = rules.getInitialFrame(framePlayerAName, framePlayerBName);
     const desiredStarter = starterSeat === 'B' ? 'B' : 'A';
     if (baseFrame.activePlayer === desiredStarter) return baseFrame;
-    return { ...baseFrame, activePlayer: desiredStarter, meta: { ...baseFrame.meta,
-      state: { ...baseFrame.meta.state, currentPlayer: desiredStarter } } };
+    return { ...baseFrame, activePlayer: desiredStarter };
   }, [framePlayerAName, framePlayerBName, rules, starterSeat]);
   const [frameState, setFrameState] = useState(initialFrame);
   useEffect(() => {
@@ -17313,9 +17564,7 @@ const shotPowerRef = useRef(0);
       setBreakRollState('done');
       setBreakRollMessage(`${breakerLabel} breaks first. Random selection complete.`);
       setHud((prev) => ({ ...prev, turn: breakerSeat === 'A' ? 0 : 1 }));
-      setFrameState((prev) => ({ ...prev, activePlayer: breakerSeat,
-        meta: prev.meta?.state ? { ...prev.meta, state: { ...prev.meta.state, currentPlayer: breakerSeat } } : prev.meta
-      }));
+      setFrameState((prev) => ({ ...prev, activePlayer: breakerSeat }));
       await new Promise((resolve) => window.setTimeout(resolve, RANDOM_BREAK_RESULT_PAUSE_MS));
       if (announce) showRuleToast(`${breakerLabel} breaks first`);
       breakRollBusyRef.current = false;
@@ -17460,8 +17709,9 @@ const shotPowerRef = useRef(0);
       bonusAwardedStageIds: []
     };
     const rewardedBonusStageIds = new Set(careerAttemptsState?.bonusAwardedStageIds || []);
-    const nftMilestoneReached = usesCareerAttempts &&
-      careerStageLevel % 3 === 0 && !rewardedBonusStageIds.has(rewardStageId);
+    const nftMilestoneReached = usesCareerAttempts
+      ? careerStageLevel % 3 === 0 && !rewardedBonusStageIds.has(rewardStageId)
+      : completedLevel % 3 === 0;
     const nftReward = nftMilestoneReached ? pickPoolRoyaleRewardNft(careerStageLevel) : null;
     const nftReceipt = nftReward
       ? {
@@ -17470,10 +17720,14 @@ const shotPowerRef = useRef(0);
         issuedAt: new Date().toISOString()
       }
       : null;
+    const previous = trainingProgressRef.current || { completed: [], rewarded: [] };
+    const previousRewardedSet = new Set(
+      (previous?.rewarded || []).map((lvl) => Number(lvl)).filter((lvl) => Number.isFinite(lvl) && lvl > 0)
+    );
     const isCareerTrainingSession = Boolean(usesCareerAttempts);
-    // Open coaching drills award mastery; the existing career path owns coin rewards.
-    const shouldAwardReward = isCareerTrainingSession &&
-      !loadCareerProgress().completedStageIds.includes(careerStageId) && completedRewardAmount > 0;
+    const shouldAwardReward = isCareerTrainingSession
+      ? completedRewardAmount > 0
+      : !previousRewardedSet.has(completedLevel) && completedRewardAmount > 0;
 
     if (isCareerTrainingSession) {
       if (careerStageId) {
@@ -17516,7 +17770,6 @@ const shotPowerRef = useRef(0);
           completed,
           rewarded,
           lastLevel,
-          mastery: { ...prev?.mastery, [completedLevel]: Math.max(prev?.mastery?.[completedLevel] || 0, coachingResult?.stars || 1) },
           carryShots,
           attemptsAwardedLevels: Array.isArray(prev?.attemptsAwardedLevels)
             ? prev.attemptsAwardedLevels
@@ -17558,7 +17811,6 @@ const shotPowerRef = useRef(0);
     awardTrainingTaskPayout,
     careerStageId,
     frameState.frameOver,
-    coachingResult,
     isFreePractice,
     isTraining,
     usesCareerAttempts,
@@ -18043,14 +18295,13 @@ const shotPowerRef = useRef(0);
   const { mapDelta } = useAimCalibration();
 
   const goToLobby = useCallback(() => {
-    if (careerMode) { window.location.assign('/games/poolroyale/career'); return; }
     const winnerId = frameRef.current?.winner ?? frameState.winner;
     const winnerParam = winnerId === 'A' ? '1' : winnerId === 'B' ? '0' : '';
     const lobbyUrl = winnerParam
       ? `/games/poolroyale/lobby?winner=${winnerParam}`
       : '/games/poolroyale/lobby';
     window.location.assign(lobbyUrl);
-  }, [frameState.winner, careerMode]);
+  }, [frameState.winner]);
   const resetTableLayoutForRematch = useCallback(() => {
     if (skipReplayRef.current) {
       skipReplayRef.current();
@@ -19989,13 +20240,6 @@ const shotPowerRef = useRef(0);
       sceneRef.current = scene;
       const world = new THREE.Group();
       scene.add(world);
-      if (isCoachedTraining) {
-        const geometry = new THREE.RingGeometry(.93, 1, 64);
-        geometry.rotateX(-Math.PI / 2);
-        const zone = new THREE.Mesh(geometry, new THREE.MeshBasicMaterial({ color: 0xe4c775, side: THREE.DoubleSide, transparent: true, opacity: .85, depthWrite: false }));
-        zone.name = 'CoachingPositionZone'; zone.visible = false;
-        world.add(zone); coachingZoneRef.current = zone;
-      }
       worldRef.current = world;
       const applyHdriEnvironment = async (variantConfig = activeEnvironmentVariantRef.current) => {
         const sceneInstance = sceneRef.current;
@@ -21452,7 +21696,7 @@ const shotPowerRef = useRef(0);
                 ? child.material
                 : [child.material];
               const fixedMaterials = sourceMaterials.map((material) => {
-                const fixed = material?.clone?.() || new THREE.MeshStandardMaterial({ color: 0xffffff });
+                const fixed = normalizeLoadedGltfMaterial(material);
                 fixed.skinning = material?.skinning ?? fixed.skinning;
                 return fixed;
               });
@@ -25093,20 +25337,65 @@ const shotPowerRef = useRef(0);
           exit: (immediate = true) => exitTopView(immediate)
         };
         cameraUpdateRef.current = () => updateCamera();
+        const clampSpinToLimits = (input) => {
+          const limits = spinLimitsRef.current || DEFAULT_SPIN_LIMITS;
+          const current = input || spinRequestRef.current || spinRef.current || { x: 0, y: 0 };
+          const maxTopspin = Math.min(limits.maxY, MAX_TOPSPIN_INPUT);
+          return {
+            x: clamp(current.x ?? 0, limits.minX, limits.maxX),
+            y: clamp(current.y ?? 0, limits.minY, maxTopspin)
+          };
+        };
         const applySpinConstraints = (aimVec, updateUi = false) => {
-          // Keep the requested point, including while an obstacle blocks it.
-          // Turning away from the obstacle restores the exact chosen spin.
-          const requested = spinRequestRef.current || { x: 0, y: 0 };
-          const normalized = normalizeSpinInput(requested);
-          const legality = checkSpinLegality2D(cueRef.current || cue, normalized,
-            ballsRef.current?.length ? ballsRef.current : balls,
-            { axes: prepareSpinAxes(aimVec) });
-          spinLegalityRef.current = legality;
-          spinLimitsRef.current = { ...DEFAULT_SPIN_LIMITS };
-          spinRef.current = normalized;
-          if (updateUi) updateSpinDotPosition(requested, legality.blocked);
+          const cueBall = cueRef.current || cue;
+          let legality = spinLegalityRef.current || { blocked: false, reason: '' };
+          const ballsList = ballsRef.current?.length ? ballsRef.current : balls;
+          if (cueBall && aimVec) {
+            const axes = prepareSpinAxes(aimVec);
+            const activeCamera = activeRenderCameraRef.current ?? camera;
+            const viewVec = computeCueViewVector(cueBall, activeCamera);
+            spinLimitsRef.current = computeSpinLimits(cueBall, aimVec, balls, axes);
+            const requested = spinRequestRef.current || spinRef.current || {
+              x: 0,
+              y: 0
+            };
+            const viewClamped = clampSpinToVisibleHemisphere(
+              requested,
+              aimVec,
+              cueBall,
+              activeCamera
+            );
+            if (
+              viewClamped.x !== requested.x ||
+              viewClamped.y !== requested.y
+            ) {
+              spinRequestRef.current = { ...viewClamped };
+            }
+            legality = checkSpinLegality2D(cueBall, viewClamped, ballsList, {
+              axes,
+              view: viewVec
+                ? { x: viewVec.x, y: viewVec.y }
+                : null
+            });
+            spinLegalityRef.current = legality;
+          }
+          const clampedRequest = clampSpinToLimits();
+          spinRequestRef.current = clampedRequest;
+          const normalized = normalizeSpinInput(clampedRequest);
+          if (
+            normalized.x !== clampedRequest.x ||
+            normalized.y !== clampedRequest.y
+          ) {
+            spinRef.current = normalized;
+          } else {
+            spinRef.current = clampedRequest;
+          }
+          if (updateUi) {
+            updateSpinDotPosition(clampedRequest, legality.blocked);
+          }
           const result = legality.blocked ? { x: 0, y: 0 } : normalized;
-          spinAppliedRef.current = { ...result, magnitude: Math.hypot(result.x, result.y), mode: 'standard' };
+          const magnitude = Math.hypot(result.x ?? 0, result.y ?? 0);
+          spinAppliedRef.current = { ...result, magnitude, mode: 'standard' };
           return result;
         };
         const drag = { on: false, x: 0, y: 0, moved: false };
@@ -25489,10 +25778,6 @@ const shotPowerRef = useRef(0);
         rendererRef.current,
         { tableModel: activeTableModel, chromePlateStyle: activeChromePlateStyle }
       );
-      if (coachingZoneRef.current) {
-        table.add(coachingZoneRef.current);
-        coachingZoneRef.current.userData.externalTableKeepVisible = true;
-      }
       const SPOTS = spotPositions(baulkZ);
 
       // Break order is now randomized directly; no dice meshes or dice roll animation are added to the table.
@@ -25628,13 +25913,13 @@ const shotPowerRef = useRef(0);
           const rackNumbers = AMERICAN_BALL_SET.objectNumbers || [];
           const rackPatterns = AMERICAN_BALL_SET.objectPatterns || [];
           const rackStartZ = SPOTS.pink[1] + BALL_R * 2 + RACK_VERTICAL_SCREEN_LIFT;
-          const rackPositions = arrangePoolRack(generateRackPositions(
+          const rackPositions = generateRackPositions(
             rackColors.length,
             'triangle',
             BALL_R,
             rackStartZ,
-            resolvePoolRackAnchor(AMERICAN_BALL_SET, SPOTS)
-          ), rackNumbers, 'triangle');
+            resolveEightBallRackAnchor(AMERICAN_BALL_SET, SPOTS)
+          );
           rackColors.forEach((color, index) => {
             const pos =
               rackPositions[index] ||
@@ -25938,7 +26223,6 @@ const shotPowerRef = useRef(0);
         disposePlayerCharacters();
         if (disposed) return;
         referencePlayers = new PoolRoyalHumanPlayers(world, {
-          playerProfiles: { A: 'alex', B: careerStage?.opponent?.id || 'amara' },
           floorY,
           clothY: TABLE_Y + CLOTH_TOP_LOCAL + CLOTH_LIFT - CLOTH_DROP,
           tableW: Math.max(TABLE.W, PLAY_W),
@@ -26174,7 +26458,7 @@ const shotPowerRef = useRef(0);
         return entries.length > 0;
       };
 
-      const trainingLayout = isCoachedTraining
+      const trainingLayout = isTraining && usesCareerAttempts
         ? getTrainingLayout(trainingLevelRef.current || 1)
         : null;
       const appliedTraining = isTraining ? placeTrainingLayout(trainingLayout) : false;
@@ -26185,13 +26469,13 @@ const shotPowerRef = useRef(0);
         const rackColors = Array.isArray(variantConfig?.objectColors)
           ? variantConfig.objectColors
           : [];
-        const rackPositions = arrangePoolRack(generateRackPositions(
+        const rackPositions = generateRackPositions(
           rackColors.length,
           rackLayout,
           BALL_R,
           rackStartZ,
-          resolvePoolRackAnchor(variantConfig, SPOTS)
-        ), variantConfig.objectNumbers, rackLayout);
+          resolveEightBallRackAnchor(variantConfig, SPOTS)
+        );
         for (let rid = 0; rid < rackColors.length; rid++) {
           const pos = rackPositions[rid] || rackPositions[rackPositions.length - 1] || {
             x: 0,
@@ -26910,7 +27194,7 @@ const shotPowerRef = useRef(0);
           frameSnapshot?.meta?.variant ?? activeVariantRef.current?.id ?? variantKey;
         const metaState = frameSnapshot?.meta?.state ?? {};
         const breakPlacementRestricted = Boolean(
-          metaState.mustPlayFromBaulk || metaState.ballInHandRegion === 'headstring' ||
+          metaState.mustPlayFromBaulk ||
             metaState.breakInProgress ||
             frameSnapshot?.meta?.breakInProgress
         );
@@ -26923,14 +27207,16 @@ const shotPowerRef = useRef(0);
         return true;
       };
 
-      const isSpotFree = (point, clearanceMultiplier = 2.015) => {
-        const limitY = PLAY_H / 2 - BALL_R;
-        return isLegalCuePlacement(point, balls, cue, BALL_R,
-          { x: PLAY_W / 2 - BALL_R, minY: -limitY,
-            maxY: allowFullTableInHand() ? limitY : baulkZ },
-          pocketCenters(), Math.max(CAPTURE_R, SIDE_CAPTURE_R) + BALL_R * 0.15) &&
-          balls.every(ball => !ball.active || ball === cue ||
-            point.distanceTo(ball.pos) >= BALL_R * Math.max(2.015, clearanceMultiplier));
+      const isSpotFree = (point, clearanceMultiplier = 2.05) => {
+        if (!point) return false;
+        const clearance = BALL_R * clearanceMultiplier;
+        for (const ball of balls) {
+          if (!ball.active || ball === cue) continue;
+          if (point.distanceTo(ball.pos) <= clearance) {
+            return false;
+          }
+        }
+        return true;
       };
       const clampInHandPosition = (point, { ignoreBaulk = false } = {}) => {
         if (!point) return null;
@@ -26956,6 +27242,8 @@ const shotPowerRef = useRef(0);
         const step = Math.max(BALL_R * 0.35, 0.002);
         const ringCount = Math.max(1, Math.ceil(maxRadius / step));
         const angleSteps = 16;
+        let best = null;
+        let bestClearance = -Infinity;
         for (let ring = 1; ring <= ringCount; ring += 1) {
           const radius = step * ring;
           for (let i = 0; i < angleSteps; i += 1) {
@@ -26969,10 +27257,19 @@ const shotPowerRef = useRef(0);
             if (isSpotFree(candidate, clearanceMultiplier)) {
               return candidate;
             }
-
+            let minDist = Infinity;
+            for (const ball of balls) {
+              if (!ball.active || ball === cue) continue;
+              const dist = candidate.distanceTo(ball.pos);
+              if (dist < minDist) minDist = dist;
+            }
+            if (minDist > bestClearance) {
+              bestClearance = minDist;
+              best = candidate.clone();
+            }
           }
         }
-        return null;
+        return best;
       };
       const defaultInHandPosition = ({ forceBaulk = false, forceCenter = false } = {}) => {
         const restrictToBaulk = forceBaulk || (!forceCenter && !allowFullTableInHand());
@@ -26992,9 +27289,6 @@ const shotPowerRef = useRef(0);
           cue.shadow.position.set(pos.x, BALL_SHADOW_Y, pos.y);
         }
         cue.vel.set(0, 0);
-        cue.omega?.set(0, 0, 0);
-        cue.lift = 0;
-        cue.liftVel = 0;
         cue.spin?.set(0, 0);
         cue.pendingSpin?.set(0, 0);
         cue.spinMode = 'standard';
@@ -27036,7 +27330,7 @@ const shotPowerRef = useRef(0);
         } else {
           next = inHandDrag.lastPos?.clone?.() ?? null;
         }
-        if (!next || !isSpotFree(next)) return false;
+        if (!next) return false;
         cue.active = true;
         updateCuePlacement(next);
         inHandDrag.lastPos = next;
@@ -27256,7 +27550,7 @@ const shotPowerRef = useRef(0);
         const fallbackTarget = defaultInHandPosition();
         const fallbackClamped = fallbackTarget ? clampInHandPosition(fallbackTarget) : null;
         const pos = findAiInHandPlacement() || fallbackClamped;
-        if (!pos || !isSpotFree(pos)) return false;
+        if (!pos) return false;
         cue.active = false;
         updateCuePlacement(pos);
         cue.active = true;
@@ -27322,11 +27616,9 @@ const shotPowerRef = useRef(0);
         inHandDrag.smoothedPos = null;
         const pos = inHandDrag.lastPos;
         if (pos) {
-          if (tryUpdatePlacement(pos, true)) {
-            inHandPlacementModeRef.current = false;
-            setInHandPlacementMode(false);
-            autoAimRequestRef.current = true;
-          }
+          tryUpdatePlacement(pos, true);
+          setInHandPlacementMode(false);
+          autoAimRequestRef.current = true;
         }
         e.preventDefault?.();
       };
@@ -27480,7 +27772,7 @@ const shotPowerRef = useRef(0);
         ...POOL_ROYAL_STROKE, motion: 'classic',
         pullRatio: 1 - Math.pow(1 - THREE.MathUtils.clamp(powerRatio ?? 0, 0, 1), 3),
         pullSmoothing: 1, pullbackDuration: 0, recoverDuration: 0,
-        forwardOnly: true, cameraExtraHoldMs: 240, spinScale: 1
+        forwardOnly: true, cameraExtraHoldMs: 240, spinScale: 0.22
       });
 
       const computeCuePull = (
@@ -27540,7 +27832,7 @@ const shotPowerRef = useRef(0);
         return vec;
       };
       const computeSpinOffsets = (spin, ranges) => {
-        const normalizedSpin = spin || { x: 0, y: 0 };
+        const normalizedSpin = normalizeSpinInput(spin);
         const offsetSide = ranges?.offsetSide ?? 0;
         const offsetVertical = ranges?.offsetVertical ?? 0;
         const magnitude = Math.hypot(normalizedSpin?.x ?? 0, normalizedSpin?.y ?? 0);
@@ -27705,153 +27997,6 @@ const shotPowerRef = useRef(0);
       };
 
       // Fire (slider triggers on release)
-        function resolveCueObstruction(
-          dirVec3,
-          pullDistance = cuePullTargetRef.current ?? 0,
-          viewCamera = null,
-          cueOffset = null
-        ) {
-          if (!cue?.pos || !dirVec3 || !Number.isFinite(cue?.pos?.x) || !Number.isFinite(cue?.pos?.y)) return 0;
-          const backward = new THREE.Vector2(-dirVec3.x, -dirVec3.z);
-          if (backward.lengthSq() < 1e-8) return 0;
-          backward.normalize();
-          const origin = TMP_VEC2_OBSTRUCTION_OFFSET.set(cue.pos.x, cue.pos.y);
-          if (cueOffset) {
-            const offsetX = cueOffset.x ?? 0;
-            const offsetY = cueOffset.z ?? cueOffset.y ?? 0;
-            const offsetMagSq = offsetX * offsetX + offsetY * offsetY;
-            if (offsetMagSq > 1e-8) {
-              origin.add(TMP_VEC2_OBSTRUCTION_DELTA.set(offsetX, offsetY));
-            }
-          }
-          const reach = cueLen + pullDistance + CUE_TIP_GAP;
-          if (!Number.isFinite(reach) || reach <= 1e-6) return 0;
-          const clearanceSq = CUE_OBSTRUCTION_CLEARANCE * CUE_OBSTRUCTION_CLEARANCE;
-          let strength = 0;
-          const applyRailObstruction = (railPos, axis) => {
-            const axisPos = axis === 'x' ? origin.x : origin.y;
-            const axisDir = axis === 'x' ? backward.x : backward.y;
-            let closestT = 0;
-            let distance = Math.abs(axisPos - railPos);
-            if (Math.abs(axisDir) > 1e-6) {
-              const tAtRail = (railPos - axisPos) / axisDir;
-              closestT = THREE.MathUtils.clamp(tAtRail, 0, reach);
-              const closestPos = axisPos + axisDir * closestT;
-              distance = Math.abs(closestPos - railPos);
-            }
-            if (distance > CUE_OBSTRUCTION_RAIL_CLEARANCE) return;
-            const depth = THREE.MathUtils.clamp(1 - closestT / reach, 0, 1);
-            const proximity = THREE.MathUtils.clamp(
-              1 - distance / CUE_OBSTRUCTION_RAIL_CLEARANCE,
-              0,
-              1
-            );
-            const influence = Math.max(proximity, 0.6 * proximity + 0.4 * depth);
-            strength = Math.max(strength, influence * CUE_OBSTRUCTION_RAIL_INFLUENCE);
-          };
-          applyRailObstruction(RAIL_LIMIT_X, 'x');
-          applyRailObstruction(-RAIL_LIMIT_X, 'x');
-          applyRailObstruction(RAIL_LIMIT_Y, 'y');
-          applyRailObstruction(-RAIL_LIMIT_Y, 'y');
-          balls.forEach((b) => {
-            if (
-              !b?.active ||
-              b === cue ||
-              !b?.pos ||
-              !Number.isFinite(b.pos.x) ||
-              !Number.isFinite(b.pos.y)
-            ) return;
-            const delta = b.pos.clone().sub(origin);
-            const along = delta.dot(backward);
-            if (along < 0 || along > reach) return;
-            const lateralSq = delta.lengthSq() - along * along;
-            if (lateralSq > clearanceSq) return;
-            const lateral = Math.sqrt(Math.max(lateralSq, 0));
-            const proximity = THREE.MathUtils.clamp(
-              1 - lateral / CUE_OBSTRUCTION_CLEARANCE,
-              0,
-              1
-            );
-            const depth = THREE.MathUtils.clamp(1 - along / reach, 0, 1);
-            const influence = Math.max(proximity, 0.6 * proximity + 0.4 * depth);
-            strength = Math.max(strength, influence);
-          });
-          const topspinLift = Math.max(0, cueOffset?.y ?? 0);
-          if (strength > 0 && topspinLift > 0) {
-            const topspinRatio = THREE.MathUtils.clamp(
-              topspinLift / Math.max(MAX_SPIN_VERTICAL, 1e-6),
-              0,
-              1
-            );
-            strength = Math.min(1, strength + topspinRatio * 0.25);
-          }
-          const cueSpinOffset = cueOffset
-            ? TMP_VEC3_CUE_SAMPLE_POINT.set(
-                cueOffset.x ?? 0,
-                cueOffset.y ?? 0,
-                cueOffset.z ?? cueOffset.y ?? 0
-              )
-            : TMP_VEC3_CUE_SAMPLE_POINT.set(0, 0, 0);
-          const segmentLength = cueLen + pullDistance;
-          const sampleCount = clamp(
-            Math.ceil(segmentLength / CUE_OBSTRUCTION_SAMPLE_STEP),
-            CUE_OBSTRUCTION_SAMPLE_MIN,
-            CUE_OBSTRUCTION_SAMPLE_MAX
-          );
-          const tipTarget = resolveCueTipTarget(
-            dirVec3,
-            pullDistance,
-            cueSpinOffset
-          );
-          if (
-            !tipTarget ||
-            !Number.isFinite(tipTarget.x) ||
-            !Number.isFinite(tipTarget.y) ||
-            !Number.isFinite(tipTarget.z)
-          ) {
-            return strength;
-          }
-          TMP_VEC3_CUE_SAMPLE_START.copy(tipTarget);
-          TMP_VEC3_CUE_SAMPLE_END
-            .copy(tipTarget)
-            .addScaledVector(dirVec3, -(cueLen + Math.max(pullDistance, 0)));
-          const cushionBoxes = table?.userData?.cueObstructionBoxes ?? [];
-          let minDistance = Infinity;
-          for (let i = 0; i < sampleCount; i += 1) {
-            const t = sampleCount === 1 ? 0 : i / (sampleCount - 1);
-            const point = CUE_OBSTRUCTION_SAMPLE_POINTS[i];
-            point.lerpVectors(TMP_VEC3_CUE_SAMPLE_START, TMP_VEC3_CUE_SAMPLE_END, t);
-            for (const b of balls) {
-              if (
-                !b?.active ||
-                b === cue ||
-                !b?.pos ||
-                !Number.isFinite(b.pos.x) ||
-                !Number.isFinite(b.pos.y)
-              ) continue;
-              TMP_VEC3_OBSTRUCTION_TARGET.set(b.pos.x, BALL_CENTER_Y, b.pos.y);
-              const gap =
-                point.distanceTo(TMP_VEC3_OBSTRUCTION_TARGET) -
-                (BALL_R + CUE_OBSTRUCTION_POINT_RADIUS);
-              if (gap < minDistance) minDistance = gap;
-            }
-            for (const box of cushionBoxes) {
-              if (!box || typeof box.distanceToPoint !== 'function') continue;
-              const gap = box.distanceToPoint(point) - CUE_OBSTRUCTION_POINT_RADIUS;
-              if (gap < minDistance) minDistance = gap;
-            }
-          }
-          if (Number.isFinite(minDistance) && minDistance < CUE_OBSTRUCTION_CLEARANCE) {
-            const obstructionStrength = THREE.MathUtils.clamp(
-              1 - minDistance / CUE_OBSTRUCTION_CLEARANCE,
-              0,
-              1
-            );
-            strength = Math.max(strength, obstructionStrength);
-          }
-          return strength;
-        }
-
       const fire = (committedPowerOverride = null) => {
         const clampedPower = resolvePoolRoyalReleasePower({
           busy: Boolean(shootingRef.current || cueStrokeStateRef.current || pendingImpactRef.current),
@@ -27859,7 +28004,6 @@ const shotPowerRef = useRef(0);
           minPower: MIN_SHOT_POWER_TO_FIRE
         });
         if (clampedPower === null) return;
-        if (isCoachedTraining && coachingSessionRef.current.status !== 'playing') return;
         const currentHud = hudRef.current;
         const frameSnapshot = frameRef.current ?? frameState;
         const fullTableHandPlacement =
@@ -27867,15 +28011,6 @@ const shotPowerRef = useRef(0);
         const inHandPlacementActive = Boolean(
           currentHud?.inHand && !fullTableHandPlacement
         );
-        applySpinConstraints(aimDirRef.current, true);
-        if (spinLegalityRef.current.blocked) {
-          showRuleToast(spinLegalityRef.current.reason);
-          return;
-        }
-        if (currentHud?.inHand && (!cueBallPlacedFromHandRef.current || !isSpotFree(cue.pos))) {
-          showRuleToast('Place the cue ball in a clear position before shooting.');
-          return;
-        }
         if (breakRollStateRef.current !== 'done') {
           breakRollStateRef.current = 'done';
           setBreakRollState('done');
@@ -27985,10 +28120,9 @@ const shotPowerRef = useRef(0);
           x: (rawSpin?.x ?? 0) * spinScale,
           y: (rawSpin?.y ?? 0) * spinScale
         };
-        shotContextRef.current.spin = { ...appliedSpin };
         const liftAngle = resolveUserCueLift();
         const liftStrength = normalizeCueLift(liftAngle);
-        const physicsSpin = mapSpinForPhysics(appliedSpin, { normalized: true });
+        const physicsSpin = mapSpinForPhysics(appliedSpin);
         const swerveActive = false;
         const guideAimDir2D = resolveSwerveAimDir(
           aimDir.clone(),
@@ -28358,7 +28492,7 @@ const shotPowerRef = useRef(0);
           const contactPos = contactTip.sub(TMP_VEC3_CUE_TIP_OFFSET);
           const impactPos = contactPos.clone();
           shotImpactPayload.contactAdvance = contactPos.distanceTo(idlePos);
-          const followPos = contactPos.clone().addScaledVector(cueAxis, BALL_R * THREE.MathUtils.lerp(0.25, 1.45, clampedPower));
+          const followPos = contactPos.clone();
           const followDurationResolved = strikeHoldDuration;
           const recoverDuration = strokeProfile.recoverDuration ?? 0;
           const forwardPreviewHold =
@@ -29565,11 +29699,9 @@ const shotPowerRef = useRef(0);
             scoredPots.find((entry) => entry?.plan && isFirstContactLegal(entry.plan))?.plan ??
             scoredPots[0]?.plan ??
             null;
-          let bestPot = easyAttackPot ?? playableCushionPots[0]?.plan ?? relaxedPot;
+          const bestPot = easyAttackPot ?? playableCushionPots[0]?.plan ?? relaxedPot;
           const bestSafetyCandidate =
             safetyShots.find((plan) => isPlayablePlan(plan, { allowCushion: true })) ?? null;
-          if (careerStage?.opponent && bestSafetyCandidate && !easyAttackPot &&
-              (bestPot?.potChance ?? 0) < 0.25 + careerStage.opponent.safety * 0.35) bestPot = null;
           const bestSafety = bestPot ? null : bestSafetyCandidate;
           const relaxedSafety =
             !bestPot && !bestSafety
@@ -30767,11 +30899,6 @@ const shotPowerRef = useRef(0);
             stopAiThinking();
             setAiPlanning(null);
             const dir = plan.aimDir.clone().normalize();
-            if (careerStage?.opponent && plan.type !== 'break') {
-              const error = (1 - careerStage.opponent.accuracy) * 0.045;
-              dir.rotateAround(new THREE.Vector2(), (Math.random() * 2 - 1) * error);
-              plan.aimDir.copy(dir);
-            }
             aimDirRef.current.copy(dir);
             topViewRef.current = false;
             topViewLockedRef.current = false;
@@ -31008,39 +31135,34 @@ const shotPowerRef = useRef(0);
           console.error('Pool Royale shot resolution failed:', err);
         }
         if (isTraining) {
-          let complete = false;
-          if (isCoachedTraining) {
-            const session = coachingSessionRef.current;
-            session.shots += 1;
-            for (const entry of potted) if (session.targets.has(entry.id)) session.potted.add(entry.id);
-            const result = evaluateCoachingShot(describeTrainingLevel(trainingLevelRef.current), {
-              shots: session.shots,
-              cue: { x: cue.pos.x / (PLAY_W / 2 - BALL_R * 2.5), z: cue.pos.y / (PLAY_H / 2 - BALL_R * 2.5) },
-              pottedTargets: session.potted.size, targetCount: session.targets.size,
-              scratched: cueBallPotted,
-              blockerPotted: potted.some(entry => entry.id !== 'cue' && !session.targets.has(entry.id)),
-              firstTargetHit: session.targets.has(firstHit),
-              cushionBeforeContact: Boolean(shotContextRef.current.cushionBeforeContact),
-              spin: shotContextRef.current.spin
-            });
-            session.status = result.status;
-            setCoachingResult(result);
-            complete = result.status === 'complete';
+          const disableRuleEnding = !trainingRulesRef.current;
+          const remainingTrainingObjectBalls = balls.filter((entry) => entry?.id !== 'cue' && entry?.active).length;
+          const currentActivePlayer = currentState?.activePlayer === 'B' ? 'B' : 'A';
+          const switchedTrainingPlayer = cueBallPotted
+            ? (currentActivePlayer === 'A' ? 'B' : 'A')
+            : currentActivePlayer;
+          const nextTrainingPlayer =
+            trainingModeRef.current === 'solo'
+              ? 'A'
+              : switchedTrainingPlayer;
+          const nextTrainingMeta =
+            safeState && typeof safeState.meta === 'object' ? { ...safeState.meta } : safeState?.meta;
+          if (nextTrainingMeta?.state && typeof nextTrainingMeta.state === 'object') {
+            nextTrainingMeta.state = {
+              ...nextTrainingMeta.state,
+              currentPlayer: nextTrainingPlayer
+            };
           }
-          const nextTrainingMeta = safeState.meta?.state ? {
-            ...safeState.meta, state: { ...safeState.meta.state, currentPlayer: 'A' }
-          } : safeState.meta;
-          safeState = { ...safeState, foul: undefined, activePlayer: 'A',
-            frameOver: complete, winner: complete ? 'A' : undefined, meta: nextTrainingMeta };
-        }
-        if (!isTraining && safeState.meta?.variant === 'uk' &&
-            safeState.meta.state?.lastEvent === 'BREAK_START' && isPoolRoyalBreak(currentState)) {
-          resetTableLayoutForRematch();
-          potted = [];
-          pottedIds.clear();
-          cueBallPlacedFromHandRef.current = false;
-          setPottedBySeat({ A: [], B: [] });
-          showRuleToast('Black on the break. Re-rack; the same player breaks again.');
+          safeState = {
+            ...safeState,
+            foul: undefined,
+            activePlayer: nextTrainingPlayer,
+            frameOver: disableRuleEnding ? false : remainingTrainingObjectBalls === 0,
+            winner: disableRuleEnding
+              ? undefined
+              : (remainingTrainingObjectBalls === 0 ? nextTrainingPlayer : undefined),
+            meta: nextTrainingMeta ?? safeState?.meta
+          };
         }
         let remainingTrainingShots = Math.max(0, Number(trainingShotsRemainingRef.current) || 0);
         let trainingOutOfAttempts = false;
@@ -31342,6 +31464,26 @@ const shotPowerRef = useRef(0);
                 simBall.mesh.visible = false;
               }
             });
+            if (isTraining) {
+              const remainingObjectBalls = balls.filter(
+                (ball) => ball && ball.active && String(ball.id).toLowerCase() !== 'cue'
+              );
+              if (remainingObjectBalls.length === 0) {
+                const meta =
+                  safeState && typeof safeState.meta === 'object' ? { ...safeState.meta } : {};
+                const hudMeta = meta && typeof meta.hud === 'object' ? meta.hud : null;
+                const hud = hudMeta
+                  ? { ...hudMeta, next: 'task complete', phase: 'complete' }
+                  : undefined;
+                safeState = {
+                  ...safeState,
+                  ballOn: [],
+                  frameOver: true,
+                  winner: 'A',
+                  meta: hud ? { ...meta, hud } : meta
+                };
+              }
+            }
             if (cueBallPotted) {
               removePocketDropEntry(cue.id);
               respawnCueBallForInHand({ preferCenter: !isTraining });
@@ -31747,7 +31889,7 @@ const shotPowerRef = useRef(0);
         const appliedSpin = applySpinConstraints(aimDir, true);
         const aimPreviewSpin = resolveAimPreviewSpin(appliedSpin);
         const liftStrength = normalizeCueLift(resolveUserCueLift());
-        const physicsSpin = mapSpinForPhysics(appliedSpin, { normalized: true });
+        const physicsSpin = mapSpinForPhysics(appliedSpin);
         const ranges = spinRangeRef.current || {};
         const newCollisions = new Set();
         let shouldSlowAim = false;
@@ -31784,6 +31926,162 @@ const shotPowerRef = useRef(0);
           isOnlineMatch &&
           currentHud?.turn === 1 &&
           remoteAimFresh;
+        function resolveCueObstruction(
+          dirVec3,
+          pullDistance = cuePullTargetRef.current ?? 0,
+          viewCamera = null,
+          cueOffset = null
+        ) {
+          if (!cue?.pos || !dirVec3 || !Number.isFinite(cue?.pos?.x) || !Number.isFinite(cue?.pos?.y)) return 0;
+          if (viewCamera?.getWorldDirection) {
+            viewCamera.getWorldDirection(TMP_VEC3_CAM_DIR);
+            TMP_VEC3_CAM_DIR.y = 0;
+            if (TMP_VEC3_CAM_DIR.lengthSq() > 1e-8) {
+              TMP_VEC3_CAM_DIR.normalize();
+              if (TMP_VEC3_CAM_DIR.dot(dirVec3) < -0.15) {
+                return 0;
+              }
+            }
+          }
+          const backward = new THREE.Vector2(-dirVec3.x, -dirVec3.z);
+          if (backward.lengthSq() < 1e-8) return 0;
+          backward.normalize();
+          const origin = TMP_VEC2_OBSTRUCTION_OFFSET.set(cue.pos.x, cue.pos.y);
+          if (cueOffset) {
+            const offsetX = cueOffset.x ?? 0;
+            const offsetY = cueOffset.z ?? cueOffset.y ?? 0;
+            const offsetMagSq = offsetX * offsetX + offsetY * offsetY;
+            if (offsetMagSq > 1e-8) {
+              origin.add(TMP_VEC2_OBSTRUCTION_DELTA.set(offsetX, offsetY));
+            }
+          }
+          const reach = cueLen + pullDistance + CUE_TIP_GAP;
+          if (!Number.isFinite(reach) || reach <= 1e-6) return 0;
+          const clearanceSq = CUE_OBSTRUCTION_CLEARANCE * CUE_OBSTRUCTION_CLEARANCE;
+          let strength = 0;
+          const applyRailObstruction = (railPos, axis) => {
+            const axisPos = axis === 'x' ? origin.x : origin.y;
+            const axisDir = axis === 'x' ? backward.x : backward.y;
+            let closestT = 0;
+            let distance = Math.abs(axisPos - railPos);
+            if (Math.abs(axisDir) > 1e-6) {
+              const tAtRail = (railPos - axisPos) / axisDir;
+              closestT = THREE.MathUtils.clamp(tAtRail, 0, reach);
+              const closestPos = axisPos + axisDir * closestT;
+              distance = Math.abs(closestPos - railPos);
+            }
+            if (distance > CUE_OBSTRUCTION_RAIL_CLEARANCE) return;
+            const depth = THREE.MathUtils.clamp(1 - closestT / reach, 0, 1);
+            const proximity = THREE.MathUtils.clamp(
+              1 - distance / CUE_OBSTRUCTION_RAIL_CLEARANCE,
+              0,
+              1
+            );
+            const influence = Math.max(proximity, 0.6 * proximity + 0.4 * depth);
+            strength = Math.max(strength, influence * CUE_OBSTRUCTION_RAIL_INFLUENCE);
+          };
+          applyRailObstruction(RAIL_LIMIT_X, 'x');
+          applyRailObstruction(-RAIL_LIMIT_X, 'x');
+          applyRailObstruction(RAIL_LIMIT_Y, 'y');
+          applyRailObstruction(-RAIL_LIMIT_Y, 'y');
+          balls.forEach((b) => {
+            if (
+              !b?.active ||
+              b === cue ||
+              !b?.pos ||
+              !Number.isFinite(b.pos.x) ||
+              !Number.isFinite(b.pos.y)
+            ) return;
+            const delta = b.pos.clone().sub(origin);
+            const along = delta.dot(backward);
+            if (along < 0 || along > reach) return;
+            const lateralSq = delta.lengthSq() - along * along;
+            if (lateralSq > clearanceSq) return;
+            const lateral = Math.sqrt(Math.max(lateralSq, 0));
+            const proximity = THREE.MathUtils.clamp(
+              1 - lateral / CUE_OBSTRUCTION_CLEARANCE,
+              0,
+              1
+            );
+            const depth = THREE.MathUtils.clamp(1 - along / reach, 0, 1);
+            const influence = Math.max(proximity, 0.6 * proximity + 0.4 * depth);
+            strength = Math.max(strength, influence);
+          });
+          const topspinLift = Math.max(0, cueOffset?.y ?? 0);
+          if (strength > 0 && topspinLift > 0) {
+            const topspinRatio = THREE.MathUtils.clamp(
+              topspinLift / Math.max(MAX_SPIN_VERTICAL, 1e-6),
+              0,
+              1
+            );
+            strength = Math.min(1, strength + topspinRatio * 0.25);
+          }
+          const cueSpinOffset = cueOffset
+            ? TMP_VEC3_CUE_SAMPLE_POINT.set(
+                cueOffset.x ?? 0,
+                cueOffset.y ?? 0,
+                cueOffset.z ?? cueOffset.y ?? 0
+              )
+            : TMP_VEC3_CUE_SAMPLE_POINT.set(0, 0, 0);
+          const segmentLength = cueLen + pullDistance;
+          const sampleCount = clamp(
+            Math.ceil(segmentLength / CUE_OBSTRUCTION_SAMPLE_STEP),
+            CUE_OBSTRUCTION_SAMPLE_MIN,
+            CUE_OBSTRUCTION_SAMPLE_MAX
+          );
+          const tipTarget = resolveCueTipTarget(
+            dirVec3,
+            pullDistance,
+            cueSpinOffset
+          );
+          if (
+            !tipTarget ||
+            !Number.isFinite(tipTarget.x) ||
+            !Number.isFinite(tipTarget.y) ||
+            !Number.isFinite(tipTarget.z)
+          ) {
+            return strength;
+          }
+          TMP_VEC3_CUE_SAMPLE_START.copy(tipTarget);
+          TMP_VEC3_CUE_SAMPLE_END
+            .copy(tipTarget)
+            .addScaledVector(dirVec3, -(cueLen + Math.max(pullDistance, 0)));
+          const cushionBoxes = table?.userData?.cueObstructionBoxes ?? [];
+          let minDistance = Infinity;
+          for (let i = 0; i < sampleCount; i += 1) {
+            const t = sampleCount === 1 ? 0 : i / (sampleCount - 1);
+            const point = CUE_OBSTRUCTION_SAMPLE_POINTS[i];
+            point.lerpVectors(TMP_VEC3_CUE_SAMPLE_START, TMP_VEC3_CUE_SAMPLE_END, t);
+            for (const b of balls) {
+              if (
+                !b?.active ||
+                b === cue ||
+                !b?.pos ||
+                !Number.isFinite(b.pos.x) ||
+                !Number.isFinite(b.pos.y)
+              ) continue;
+              TMP_VEC3_OBSTRUCTION_TARGET.set(b.pos.x, BALL_CENTER_Y, b.pos.y);
+              const gap =
+                point.distanceTo(TMP_VEC3_OBSTRUCTION_TARGET) -
+                (BALL_R + CUE_OBSTRUCTION_POINT_RADIUS);
+              if (gap < minDistance) minDistance = gap;
+            }
+            for (const box of cushionBoxes) {
+              if (!box || typeof box.distanceToPoint !== 'function') continue;
+              const gap = box.distanceToPoint(point) - CUE_OBSTRUCTION_POINT_RADIUS;
+              if (gap < minDistance) minDistance = gap;
+            }
+          }
+          if (Number.isFinite(minDistance) && minDistance < CUE_OBSTRUCTION_CLEARANCE) {
+            const obstructionStrength = THREE.MathUtils.clamp(
+              1 - minDistance / CUE_OBSTRUCTION_CLEARANCE,
+              0,
+              1
+            );
+            strength = Math.max(strength, obstructionStrength);
+          }
+          return strength;
+        }
 
         sidePocketAimRef.current = false;
         if (canShowCue && (isPlayerTurn || previewingAiShot || aiCueViewActive)) {
@@ -32208,7 +32506,7 @@ const shotPowerRef = useRef(0);
           const remoteSpinNormalized = normalizeSpinInput(remoteSpin);
           const aimPreviewSpin = resolveAimPreviewSpin(remoteSpinNormalized);
           const remoteSwerveActive = false;
-          const remotePhysicsSpin = mapSpinForPhysics(remoteSpinNormalized, { normalized: true });
+          const remotePhysicsSpin = mapSpinForPhysics(remoteSpinNormalized);
           const guideAimDir2D = resolveSwerveAimDir(
             remoteAimDir,
             remotePhysicsSpin,
@@ -32566,7 +32864,8 @@ const shotPowerRef = useRef(0);
             if (hasSpin) {
               applySpinController(b, stepScale, hasLift);
             }
-            if (!hasLift) {
+            const preImpactCueSpinLocked = isCue && !b.impacted;
+            if (!hasLift && !preImpactCueSpinLocked) {
               const dt = SPIN_FIXED_DT * stepScale;
               if (b.omega) {
                 TMP_VEC3_A.set(b.vel.x, 0, b.vel.y);
@@ -32577,8 +32876,7 @@ const shotPowerRef = useRef(0);
                 const relSpeed = TMP_VEC3_D.length();
                 if (relSpeed > SPIN_SLIDE_EPS) {
                   TMP_VEC3_E.copy(TMP_VEC3_D).multiplyScalar(
-                    -Math.min(SPIN_KINETIC_FRICTION * BALL_MASS * SPIN_GRAVITY,
-                      relSpeed / (dt * (1 / BALL_MASS + BALL_R * BALL_R / BALL_INERTIA))) / relSpeed
+                    (-SPIN_KINETIC_FRICTION * BALL_MASS * SPIN_GRAVITY) / relSpeed
                   );
                   TMP_VEC3_A.addScaledVector(TMP_VEC3_E, dt / BALL_MASS);
                   TMP_VEC3_C.addScaledVector(
@@ -32641,10 +32939,7 @@ const shotPowerRef = useRef(0);
               b.launchDir = null;
             }
             const railImpact = reflectRails(b);
-            if (railImpact && b.id === 'cue') {
-              b.impacted = true;
-              if (!shotContextRef.current.contactMade) shotContextRef.current.cushionBeforeContact = true;
-            }
+            if (railImpact && b.id === 'cue') b.impacted = true;
             if (railImpact && shotContextRef.current.contactMade) {
               recordPoolRoyalRail(shotContextRef.current, b.id);
               if (
@@ -32676,7 +32971,11 @@ const shotPowerRef = useRef(0);
             }
             const liftAmount = b.lift ?? 0;
             b.mesh.position.set(b.pos.x, BALL_CENTER_Y + liftAmount, b.pos.y);
-            rotatePoolBall(b.mesh, b.omega, b.vel, stepScale, BALL_R);
+            if (scaledSpeed > 0) {
+              const axis = new THREE.Vector3(b.vel.y, 0, -b.vel.x).normalize();
+              const angle = scaledSpeed / BALL_R;
+              b.mesh.rotateOnWorldAxis(axis, angle);
+            }
             if (b.shadow) {
               const droppingShadow = pocketDropRef.current.has(b.id);
               const shadowVisible = b.mesh.visible && !droppingShadow;
@@ -34304,7 +34603,21 @@ const shotPowerRef = useRef(0);
       };
     };
 
-    const clampToPlayable = (nx, ny) => clampToUnitCircle(nx, ny);
+    const clampToPlayable = (nx, ny) => {
+      const raw = clampToUnitCircle(nx, ny);
+      const limited = clampToLimits(raw.x, raw.y);
+      const aimVec = aimDirRef.current;
+      const cueBall = cueRef.current;
+      const activeCamera = activeRenderCameraRef.current ?? cameraRef.current;
+      const viewLimited = clampSpinToVisibleHemisphere(
+        limited,
+        aimVec,
+        cueBall,
+        activeCamera
+      );
+      const reclamped = clampToLimits(viewLimited.x, viewLimited.y);
+      return clampToUnitCircle(reclamped.x, reclamped.y);
+    };
 
     const applySpin = (nx, ny, { updateRequest = true } = {}) => {
       const clamped = clampToPlayable(nx, ny);
@@ -34325,7 +34638,7 @@ const shotPowerRef = useRef(0);
         : null;
       const legality = checkSpinLegality2D(
         cueBall,
-        normalized,
+        clamped,
         ballsList || [],
         {
           axes,
@@ -35694,27 +36007,7 @@ const shotPowerRef = useRef(0);
       </div>
       )}
 
-      {isCoachedTraining && !replayActive && (
-        <section aria-label="Shot coach" className="absolute left-3 right-3 z-[75] rounded-xl border border-emerald-300/40 bg-slate-950/95 p-3 text-white" style={{ top: topControlsOffset, maxWidth: 420 }}>
-          <details open={!coachingResult || coachingResult.status !== 'playing'}>
-            <summary className="cursor-pointer text-sm font-semibold">{currentTrainingInfo.title} · {coachingSessionRef.current.shots}/{currentTrainingInfo.shotLimit} shots</summary>
-            <p className="mt-2 text-sm">{currentTrainingInfo.objective}</p>
-            <p className="mt-1 text-sm text-emerald-200" aria-live="polite">{coachingResult?.feedback || currentTrainingInfo.tip}</p>
-            {currentTrainingInfo.zone && <p className="mt-1 text-xs">Finish in the gold cue-ball zone.</p>}
-            <div className="mt-2 flex flex-wrap gap-2">
-              <button disabled={shotActive} className="min-h-11 rounded-lg bg-emerald-800 px-3 text-sm disabled:opacity-40" onClick={() => {
-                setFrameState(prev => ({ ...prev, frameOver: false, winner: undefined, foul: undefined }));
-                setHud(prev => ({ ...prev, over: false, inHand: false, turn: 0 }));
-                setCareerTaskResultModal(null);
-                applyTrainingLayoutForLevel(trainingLevelRef.current);
-              }}>Retry drill</button>
-              {coachingResult?.status === 'complete' && <button className="min-h-11 rounded-lg bg-amber-300 px-3 text-sm text-black" onClick={handleTrainingRoadmapContinue}>{'★'.repeat(coachingResult.stars)} · Continue</button>}
-              <button className="min-h-11 px-2 text-sm" onClick={() => window.location.assign('/games/poolroyale/career?tab=training')}>Training centre</button>
-            </div>
-          </details>
-        </section>
-      )}
-      {isTraining && !isCoachedTraining && !replayActive && (
+      {isTraining && !replayActive && (
         <div
           className="absolute z-50 flex flex-col items-end gap-2"
           style={{
