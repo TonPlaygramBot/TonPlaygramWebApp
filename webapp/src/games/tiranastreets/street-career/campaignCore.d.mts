@@ -1,6 +1,6 @@
 import type {Mission,Player,State} from '../shared/engine.mjs';
 export type Loadout={cash:number;weapon:string;inventory:Record<string,{ammo:number;reserve:number}>};
-export type StreetProfile={version:1;completed:string[];best:Record<string,number>;loadout:Loadout;active:null|{id:string;difficulty:string;checkpoint:Loadout}};
+export type StreetProfile={version:1;completed:string[];best:Record<string,number>;loadout:Loadout;active:null|{id:string;difficulty:string;checkpoint:Loadout;phase?:import('./checkpointCore.mjs').PhaseCheckpoint}};
 export type StoragePort=Pick<Storage,'getItem'|'setItem'>;
 export const STREET_SAVE_KEY:string;
 export const CHAPTER_IDS:readonly string[];

@@ -36,7 +36,7 @@ const Y = new THREE.Vector3(0, 1, 0);
 const tmp = new THREE.Object3D();
 const smoothAngle = (a: number, b: number, t: number) =>
   a + Math.atan2(Math.sin(b - a), Math.cos(b - a)) * t;
-type Actor = {
+export type Actor = {
   group: THREE.Group;
   mixer?: THREE.AnimationMixer;
   idle?: THREE.AnimationAction;
@@ -54,6 +54,7 @@ export class CityRenderer {
   yaw = 0;
   pitch = 0.32;
   firstPerson = false;
+  protected preserveVehicleInterior = false;
   fps = 60;
   quality: "auto" | "high" | "battery" = "auto";
   ready = false;
@@ -664,7 +665,7 @@ export class CityRenderer {
           this.disposeObject(gltf.scene);
           return;
         }
-        if (name === "city-car") this.mergeCarSurfaces(gltf.scene);
+        if (name === "city-car" && !this.preserveVehicleInterior) this.mergeCarSurfaces(gltf.scene);
         if (name === "motorbike") gltf.scene.rotation.y = -Math.PI / 2;
         gltf.scene.updateMatrixWorld(true);
         const box = new THREE.Box3().setFromObject(gltf.scene),
@@ -826,6 +827,12 @@ export class CityRenderer {
     this.manualUntil = this.clock + 2.8;
   }
   setFirstPerson(enabled: boolean) { this.firstPerson = enabled; this.pitch = enabled ? 0 : 0.32; }
+  /** Optional local presentation seams; the default renderer keeps its contract. */
+  protected presentLocalPlayer(_actor: Actor, _state: State, _id: string, _dt: number) { return false; }
+  protected presentFirstPerson(_state: State, _id: string, _dt: number) { return false; }
+  protected presentDrivenCar(_actor: Actor, _state: State, _id: string) {}
+  protected presentVehicle(_actor: Actor, _state: State, _carId: string, _dt: number) {}
+  protected beforeDraw(_state: State | null, _id: string, _dt: number) {}
   setQuality(quality: "auto" | "high" | "battery") {
     this.quality = quality;
     this.dpr = Math.min(
@@ -928,10 +935,13 @@ export class CityRenderer {
           w.rotation.x += car.speed * dt * 2;
           if (w.name.includes("front")) w.rotation.y = -car.steering * 0.32;
         }
+        if (p?.carId === car.id) this.presentDrivenCar(a, state, playerId);
+        this.presentVehicle(a, state, car.id, dt);
       }
       for (const pl of Object.values(state.players)) {
         const a = this.actor("character", `player-${pl.id}`);
         active.add(`player-${pl.id}`);
+        if (pl.id === playerId && this.presentLocalPlayer(a, state, playerId, dt)) continue;
         a.group.visible = !pl.carId && !(this.firstPerson && pl.id === playerId);
         a.group.rotation.x = pl.health <= 0 ? -Math.PI / 2 : 0;
         a.group.position.lerp(
@@ -1068,6 +1078,8 @@ export class CityRenderer {
       );
       this.camera.lookAt(pyramid.x, 5, pyramid.z);
       target.set(pyramid.x, 0, pyramid.z);
+    } else if (this.firstPerson && p && state && this.presentFirstPerson(state, playerId, dt)) {
+      // The optional full-body view has already placed the camera at its eye anchor.
     } else if (this.firstPerson && p) {
       const eye=drivenCar?driverEye(drivenCar):{x:p.x,y:1.68,z:p.z};
       this.lastTarget.set(eye.x,eye.y,eye.z);
@@ -1141,6 +1153,7 @@ export class CityRenderer {
     for (const cell of this.mappedTreeCells) cell.group.visible =
       Math.hypot(cell.x - this.camera.position.x, cell.z - this.camera.position.z) <
       (this.quality === "battery" ? 140 : 260);
+    this.beforeDraw(state, playerId, dt);
     // Opaque original windows/cab roofs must not cover the active interior.
     // Hide only this viewer's exterior during this draw, restoring it afterward.
     const exterior=this.firstPerson&&!lobby&&drivenCar
@@ -1149,6 +1162,7 @@ export class CityRenderer {
     if(exterior)exterior.visible=false;
     try{this.renderer.render(this.scene, this.camera);}
     finally{if(exterior)exterior.visible=visible!;}
+
   }
   private mergeCarSurfaces(root: THREE.Group) {
     root.updateMatrixWorld(true);

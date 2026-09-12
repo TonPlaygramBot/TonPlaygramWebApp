@@ -74,6 +74,7 @@ export type Mission = {
   stops: (Point & { name: string })[];
 };
 export type NPC = Point & {
+  y?:number;hitUntil?:number;
   id: string;
   kind: string;
   motion: string;
@@ -91,6 +92,7 @@ export type NPC = Point & {
   downUntil: number;
 };
 export type Effect = Point & {
+  y?:number;toY?:number;
   id: number;
   at: number;
   kind: string;
@@ -211,8 +213,8 @@ export function removePlayer(state: State, id: string): void;
 export function control(state: State, id: string, raw: Partial<Input>): void;
 export function interact(state: State, id: string, action: string): void;
 export function movePlayer(state: State, p: Player, dt: number): void;
-export function stepState(state: State, dt?: number): void;
-export function advanceState(state: State, seconds: number): void;
+export function stepState(state: State, dt?: number, systems?:SimulationSystems): void;
+export function advanceState(state: State, seconds: number, systems?:SimulationSystems): void;
 export function awardCareer(career: Career, state: State, id: string): Career;
 export function navigation(state: State, id: string): Point[];
 export function publicState(state: State): State;
@@ -220,3 +222,12 @@ export function publicState(state: State): State;
 export function lineOfSight(a: Point, b: Point): boolean;
 
 export function upgradeState(state:State):State;
+
+/** Optional local systems; absent for every existing server/online mode. */
+export type SimulationSystems={
+ movePlayer?:(state:State,p:Player,dt:number)=>void;
+ afterLife?:(state:State,dt:number)=>void;
+ canAdvanceObjective?:(state:State,p:Player,mission:Mission,target:Point)=>boolean;
+ life?:Record<string,unknown>;
+};
+export const collisionSolids:{id:string;p:number[][];h:number;minHeight?:number;minY?:number;holes?:number[][][]}[];

@@ -1,5 +1,7 @@
 # Tirana Streets — playable solo career and shared human NPCs
 
+This document records the original Street Career integration. The subsequent [full-body career implementation and validation](tirana-full-body-career.md) adds physical movement/combat, contextual controls and versioned phase checkpoints; it supersedes the mission-start-only checkpoint and validation status below.
+
 ## Integration
 
 The active `blackwater/ui.tsx` now has a lazy-loaded **STREET CAREER · DRIVE + COMBAT** entry. `?activity=street-career` opens it directly. The previous courier/Dajti career is retained as **CITY STORIES**, including its existing `?activity=career` URL and saved progress. Online mode always returns the original OperationGame before either local branch. No gameplay files in the operation, server, paid-room or account-balance implementations are changed.

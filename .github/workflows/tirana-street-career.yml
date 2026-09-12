@@ -7,6 +7,7 @@ on:
       - 'webapp/src/games/tabletennis/options.ts'
       - 'webapp/src/config/chessBattleInventoryConfig.js'
       - 'test/tiranaStreetCareer*'
+      - 'test/tiranaFullBody*'
       - '.github/workflows/tirana-street-career.yml'
 permissions:
   contents: read
@@ -24,7 +25,7 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: '22'
-      - run: node --test test/tiranaStreetCareer.test.mjs test/tiranaStreetCareer.integration.test.mjs test/tiranaCityLife.test.mjs test/tiranaCareerExpansion.test.mjs
+      - run: node --test test/tiranaFullBodyCareer.test.mjs test/tiranaStreetCareer.test.mjs test/tiranaStreetCareer.integration.test.mjs test/tiranaCityLife.test.mjs test/tiranaCareerExpansion.test.mjs
   application:
     runs-on: ubuntu-latest
     timeout-minutes: 25
@@ -38,6 +39,8 @@ jobs:
           cache: npm
           cache-dependency-path: webapp/package-lock.json
       - run: npm ci --prefix webapp
+      - name: Real-rig and pointer-ownership tests
+        run: node --test test/tiranaFullBodyPresentation.test.mjs
       - run: npm run build --prefix webapp
       - name: Dependency-aware typecheck (no error suppression)
         working-directory: webapp

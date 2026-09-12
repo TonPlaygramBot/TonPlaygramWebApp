@@ -251,12 +251,12 @@ export class LivingVisuals {
       const age = state.elapsed - e.at;
       if (age < 0 || age > 0.2 || count >= 48) continue;
       if (e.kind === "shot") {
-        attr.setXYZ(count * 2, e.x, 1.2, e.z);
-        attr.setXYZ(count * 2 + 1, e.toX, 1.1, e.toZ);
+        attr.setXYZ(count * 2, e.x, e.y ?? 1.2, e.z);
+        attr.setXYZ(count * 2 + 1, e.toX, e.toY ?? 1.1, e.toZ);
         count++;
       }
       if ((e.kind === "explosion" || e.kind === "hit") && marks < 48) {
-        temp.position.set(e.toX, 1, e.toZ);
+        temp.position.set(e.toX, e.toY ?? 1, e.toZ);
         temp.scale.setScalar(e.kind === "explosion" ? 1 + age * 14 : 0.18);
         temp.updateMatrix();
         this.marks.setMatrixAt(marks++, temp.matrix);

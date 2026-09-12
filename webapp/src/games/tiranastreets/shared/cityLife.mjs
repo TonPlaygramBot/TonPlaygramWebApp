@@ -260,7 +260,7 @@ export function lifeAction(state, p, action) {
   emit(state, "purchase", p, p, p.id);
   return true;
 }
-function harm(state, target, amount, attacker, env) {
+export function harm(state, target, amount, attacker, env) {
   if (
     target.health <= 0 ||
     target.kind === "dealer" ||
@@ -268,6 +268,7 @@ function harm(state, target, amount, attacker, env) {
     target.failed
   )
     return;
+  amount = env.damageAmount ? env.damageAmount(target, amount, attacker) : amount;
   if (target.kind) {
     target.health = Math.max(0, target.health - amount);
     target.panicUntil = state.elapsed + 12;
@@ -301,6 +302,7 @@ function harm(state, target, amount, attacker, env) {
       }
     }
   }
+  env.onDamage?.(target, attacker);
   emit(state, "hit", target, target, attacker?.id || "");
 }
 function fire(state, p, env) {
@@ -448,7 +450,7 @@ export function updateCityLife(state, dt, env, mission) {
       }
       p.reloadAt = 0;
     }
-    if (!p.aircraftId && state.elapsed - p.inputAt < 0.45 && p.input.fire) fire(state, p, env);
+    if (!p.aircraftId && state.elapsed - p.inputAt < 0.45 && p.input.fire) (env.firePlayer || fire)(state, p, env);
     if (state.elapsed - p.lastDamage > 18 && p.health < 100)
       p.health = Math.min(100, p.health + dt * 1.5);
     const visible = state.npcs.some(
@@ -484,7 +486,8 @@ export function updateCityLife(state, dt, env, mission) {
     state.npcs = state.npcs.filter((n) => !n.unit);
   }
   for (const unit of state.units) {
-    const p = state.players[unit.target] || target;
+    const actual = state.players[unit.target] || target;
+    const p = actual && env.track ? env.track(unit, actual) : actual;
     const convoy=state.units.filter(u=>u.squadId===unit.squadId),index=convoy.indexOf(unit),preceding=convoy[index-1];
     if (!p) continue;
     if (state.elapsed >= unit.nextRoute && (!unit.path.length || unit.pathIndex >= unit.path.length || !unit.routeTarget || dist(p,unit.routeTarget)>20)) {
@@ -522,6 +525,7 @@ export function updateCityLife(state, dt, env, mission) {
       continue;
     }
     if (n.kind === "dealer") continue;
+    if (env.recovering?.(n)) { n.speed=0; n.anim='hit'; continue; }
     if (n.kind === "civilian") {
       const danger = players.find(
         (p) => state.elapsed - p.lastCrime < 9 && dist(p, n) < 40,
@@ -562,7 +566,7 @@ export function updateCityLife(state, dt, env, mission) {
       }
       continue;
     }
-    const p = players
+    const actual = players
       .filter(
         (p) =>
           p.health > 0 &&
@@ -571,6 +575,7 @@ export function updateCityLife(state, dt, env, mission) {
           (n.kind === "gang" || p.wanted > 0),
       )
       .sort((a, b) => dist(a, n) - dist(b, n))[0];
+    const p = actual && env.track ? env.track(n, actual) : actual;
     if (!p) {
       n.speed = 0;
       continue;
@@ -611,7 +616,7 @@ export function updateCityLife(state, dt, env, mission) {
     env.collide(n,.45);
     if(n.anim==='aim'||n.anim==='cover') n.heading=Math.atan2(n.x-p.x,n.z-p.z);
     const canShoot=n.anim==='aim' && !cars.some(c=>vehicleBlocks(n,p,c));
-    if (canShoot && d < 46 && state.elapsed >= n.nextShot && env.clear(n, p)) {
+    if (canShoot && d < 46 && state.elapsed >= n.nextShot && env.clear(n, actual || p) && (!env.track || p === actual)) {
       n.nextShot =
         state.elapsed + (n.kind === "soldier" ? 0.85 : 1.6) / cfg.damage;
       // Grace period and readable cadence give touch players time to react.
