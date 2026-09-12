@@ -28,6 +28,8 @@ export type Car = Point & {
   forceVehicle?: string;
   forceCharacter?: string;
   responding?: boolean;
+  service?:string;
+  responsePhase?:'patrol'|'responding'|'onscene'|'returning';
   driver: string | null;
 };
 export type Player = Point &
@@ -98,6 +100,7 @@ export type Effect = Point & {
   weapon: string;
 };
 export type State = {
+  worldVersion?:string;
   helicopter?: Point & { id:string; y:number; roofY:number; stairX:number; stairZ:number; heading:number; speed:number; pilot:string|null; airborne:boolean; nextMissile:number };
   lifeVersion:number;
   difficulty: string;
@@ -159,6 +162,8 @@ export const WORLD: {
   }[];
   parks: number[][][];
   water: (number[][] | { line: number[][]; width: number })[];
+  waterAreas?:{polygons:{outer:number[][];holes:number[][][]}[]}[];
+  regionalSource?:{sha256:string};
   areas: number[][][];
   landmarks: (Point & { id: string; name: string })[];
   graph: { nodes: number[][]; edges: number[][]; directions?: number[] };

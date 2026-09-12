@@ -1,21 +1,26 @@
 #!/usr/bin/env node
 import fs from 'node:fs';
+import {removeExactDuplicates,cutWaterFromParks} from './tirana/sourceOverlap.mjs';
+import {packRecords} from './tirana/compactSource.mjs';
 import {gunzipSync} from 'node:zlib';
+import {readSourceArchive} from './tirana/sourceArchive.mjs';
+import {writeCompressedSource} from './tirana/compressedSource.mjs';
 import {createHash} from 'node:crypto';
 import {importRegionSource} from './tirana/regionImport.mjs';
 import {facadeEdges} from '../src/games/tirana-city-source/sourceCore.mjs';
 import {WORLD as CORE} from '../src/games/tiranastreets/shared/centralWorld.mjs';
 import {HEROES,KIT_IDS} from '../src/games/tirana-neighbourhood/assets.mjs';
 
-const archive='assets-source/tirana-neighbourhood/source.osm.json.gz';
-const bytes=fs.readFileSync(archive),raw=JSON.parse(gunzipSync(bytes));
+const urban=process.argv.includes('--urban');
+const archive=urban?'assets-source/tirana-urban/source.osm.json.gz':'assets-source/tirana-neighbourhood/source.osm.json.gz';
+const bytes=readSourceArchive(archive),raw=JSON.parse(gunzipSync(bytes));
 const ways=new Set(raw.elements.filter(e=>e.type==='way').map(e=>e.id));
 const geometryRelation=e=>e.type==='relation'&&e.tags.type==='multipolygon'&&(e.tags.building||e.tags['building:part']||e.tags.natural==='water'||e.tags.landuse==='reservoir');
 const omittedRelations=raw.elements.filter(geometryRelation).filter(e=>e.members.some(m=>m.type==='relation'||m.type==='way'&&!ways.has(m.ref))).map(e=>e.id);
 if(omittedRelations.length)throw Error(`Incomplete geometry relations: ${omittedRelations.join(',')}`);
 const source=importRegionSource({...raw,elements:raw.elements.filter(e=>e.type!=='relation'||geometryRelation(e))},{origin:CORE.origin,sourceURL:raw.receipts[0].url,acquiredAt:raw.receipts.at(-1).acquiredAt,sha256:createHash('sha256').update(bytes).digest('hex')});
 const round=p=>p.map(v=>Math.round(v*100)/100);
-const envelopes=raw.receipts.map(r=>r.bbox);
+const envelopes=raw.receipts.map(r=>r.bbox).filter(Boolean);
 const inside=(p,margin=0)=>{
  const lat=CORE.origin[0]-p[1]/111320,lon=CORE.origin[1]+p[0]/(111320*Math.cos(CORE.origin[0]*Math.PI/180));
  return envelopes.some(([w,s,e,n])=>lon>=w-margin/84000&&lon<=e+margin/84000&&lat>=s-margin/111320&&lat<=n+margin/111320);
@@ -76,12 +81,22 @@ for(const w of source.water){
  if(w.line)for(let i=1;i<w.line.length;i++){const a=round(w.line[i-1]),b=round(w.line[i]);if(inside(a,25)&&inside(b,25)&&outsideCore(center([a,b])))water.push({...w,id:`${w.id}:${i}`,line:[a,b],width:w.width??(w.waterway==='river'?8:w.waterway==='stream'?2:1),widthBasis:w.width?'OSM width':'class-based visual estimate'});}
  else for(const polygon of w.polygons)if(inside(center(polygon.outer))&&polygon.outer.every(outsideCore))water.push({...w,polygons:[{outer:roundRing(polygon.outer),holes:polygon.holes.map(roundRing)}]});
 }
-const data={origin:CORE.origin,bounds,roads,buildings,places,water,storefronts:fronts,polygonFeatures,source:{...source.source,receipts:raw.receipts},terrainAccuracy:'Existing flat gameplay datum; terrain slopes are not surveyed',unresolved};
+const deduped=removeExactDuplicates(buildings);
+const surfaces=cutWaterFromParks(polygonFeatures,water);
+const districts=raw.elements.filter(e=>e.type==='node'&&['suburb','neighbourhood','quarter'].includes(e.tags?.place)&&e.tags.name).map(e=>({id:`node/${e.id}`,name:e.tags.name,point:pointMap.get(e.id),source:`https://www.openstreetmap.org/node/${e.id}`})).filter(d=>d.point&&inside(d.point));
+const audit={duplicates:deduped.duplicates,waterSurfaceCorrections:surfaces.corrected,districts,buildingCount:deduped.buildings.length,monuments:places.filter(p=>p.tags.historic==='memorial'||p.tags.historic==='monument'||p.tags.tourism==='artwork').map(p=>({id:p.id,name:p.name,source:p.source})),unknownHeights:buildings.filter(b=>b.heightSource==='unknown'&&!b.levels).length};
+if(urban)fs.writeFileSync('assets-source/tirana-urban/coverage-audit.json',JSON.stringify(audit,null,2)+'\n');
+const data={origin:CORE.origin,bounds,roads,buildings:deduped.buildings,places,water,storefronts:fronts,polygonFeatures:surfaces.features,districts,source:{...source.source,receipts:raw.receipts},terrainAccuracy:'Existing flat gameplay datum; terrain slopes are not surveyed',unresolved};
 // Repeated way tags/provenance are stored once in the JS payload. Runtime road
 // records retain the same source fields; the full acquisition remains archived.
 const roadWays={},segments=[];
 for(const r of roads){const {id,a,b,nodeA,nodeB,...common}=r;roadWays[r.way]=common;segments.push({id,way:r.way,a,b,nodeA,nodeB});}
-fs.writeFileSync('webapp/src/games/tirana-neighbourhood/data.mjs','// © OpenStreetMap contributors, ODbL-1.0. Rebuild with build-tirana-neighbourhood.mjs.\nconst roadWays = '+JSON.stringify(roadWays)+';\nexport const NEIGHBOURHOOD = '+JSON.stringify({...data,roads:segments})+';\nNEIGHBOURHOOD.roads=NEIGHBOURHOOD.roads.map(r=>({...roadWays[r.way],...r}));\n');
+const compact={...data,roads:undefined,buildings:packRecords(data.buildings),places:packRecords(data.places),storefronts:packRecords(data.storefronts)};
+const roadNodes=[],pointIds=new Map();
+const pointIndex=(id,p)=>{if(!pointIds.has(id)){pointIds.set(id,roadNodes.length);roadNodes.push([id,...p]);}return pointIds.get(id);};
+const compactSegments=roads.map(r=>[r.way,Number(r.id.split(':').at(-1)),pointIndex(r.nodeA,r.a),pointIndex(r.nodeB,r.b)]);
+writeCompressedSource({roadWays:packRecords(Object.values(roadWays)),points:roadNodes,segments:compactSegments,neighbourhood:compact},'webapp/src/games/tirana-neighbourhood');
+fs.mkdirSync('assets-source/tirana-neighbourhood',{recursive:true});
 fs.writeFileSync('assets-source/tirana-neighbourhood/building-input.json',JSON.stringify(buildings.filter(b=>['548100908','682723386','1227869701','548098442'].includes(b.id)),null,2));
 const kitNames={market:'Market',pharmacy:'Farmaci',barber:'Berberanë',produce:'Fruta-perime',cafe:'Bar / restorant',civic:'Shërbime publike',clinic:'Klinikë'};
 const review=[...HEROES.map(h=>{const b=buildings.find(b=>b.id===h.id);return {...h,origin:center(b.p),fronts:fronts.filter(s=>s.buildingId===h.id).map(({x,z,yaw,width,name,model})=>({x,z,yaw,width,name,model}))};}),...KIT_IDS.map(asset=>({asset,name:kitNames[asset],origin:[0,0],fronts:[]}))];

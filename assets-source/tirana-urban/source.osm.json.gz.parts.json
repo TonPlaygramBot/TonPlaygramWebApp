@@ -1,0 +1,46 @@
+{
+  "bytes": 8331115,
+  "sha256": "dca70c5d585b90c6c042b033bb4bfb001da8b297d7767b2cd927bb1875611602",
+  "parts": [
+    {
+      "file": "source.osm.json.gz.000",
+      "bytes": 1048576,
+      "sha256": "5a30bf43b13d47ed79ba65bdc26c80c584dcf67b0f2825619d53ee50a1f7e460"
+    },
+    {
+      "file": "source.osm.json.gz.001",
+      "bytes": 1048576,
+      "sha256": "c0bd01603537b2e878a0321c7478a5fe598c5a714b39a57e92ceb42610e5ee99"
+    },
+    {
+      "file": "source.osm.json.gz.002",
+      "bytes": 1048576,
+      "sha256": "d0b7913a0400d2c131b1c840817c186b0432ab796529718beff1b82193efccdc"
+    },
+    {
+      "file": "source.osm.json.gz.003",
+      "bytes": 1048576,
+      "sha256": "982ba7b51d3f6edd92aa481bd0d7cb1a01d695220a76967131dd4b6ae1ef3bab"
+    },
+    {
+      "file": "source.osm.json.gz.004",
+      "bytes": 1048576,
+      "sha256": "7f39ff4162df49245a04066f4f1dd7823964d31a39b8429e253628f320d68ebe"
+    },
+    {
+      "file": "source.osm.json.gz.005",
+      "bytes": 1048576,
+      "sha256": "2b3b41b4fa2d92fb91a62c3feb78479e4770faa7c748d99e9db1ba15c2ed93ea"
+    },
+    {
+      "file": "source.osm.json.gz.006",
+      "bytes": 1048576,
+      "sha256": "663793a9cc36470aadedcb5412044e446bfaf43dbd3c27d112b1a24330dc678f"
+    },
+    {
+      "file": "source.osm.json.gz.007",
+      "bytes": 991083,
+      "sha256": "5f22f39545c69c188205bee97cf790b94044aee5bbf72b093b0f6e6a427ef77f"
+    }
+  ]
+}

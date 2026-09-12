@@ -1,4 +1,8 @@
+import {createWebGLRenderer} from './createWebGLRenderer';
 import {CollectionVehicleVisuals} from './CollectionVehicleVisuals';
+import {UrbanRoadCells} from '../tirana-neighbourhood/UrbanRoadCells';
+import {DriverInterior} from './DriverInterior';
+import {driverEye,driverFov} from './shared/driverView.mjs';
 import {AgedHousingLayer} from '../tirana-city-source/AgedHousingLayer';
 import {AGED_HOUSING_IDS} from '../tirana-city-source/housingRegistry.mjs';
 import {collectionVehicleFor} from './shared/vehicleCollection.mjs';
@@ -74,8 +78,11 @@ export class CityRenderer {
   private forces = new AlbanianForcesVisuals();
   private racingFleet = new ImportedAssetVisuals();
   readonly collectionFleet = new CollectionVehicleVisuals();
+  readonly driverInterior = new DriverInterior();
+ private urbanRoads=new UrbanRoadCells();
   private worldTextures = new Set<THREE.Texture>();
   private manualUntil = 0;
+  private lastDriven?:{id:string;heading:number};
   private lastTarget = new THREE.Vector3(SPAWN.x, 0, SPAWN.z);
   private landmarkText: THREE.Sprite[] = [];
   readonly referenceFacades = new ReferenceFacades();
@@ -84,11 +91,7 @@ export class CityRenderer {
   private mappedTreeCells: {group: THREE.Group; x:number; z:number}[] = [];
   constructor(root: HTMLDivElement) {
     this.root = root;
-    this.renderer = new THREE.WebGLRenderer({
-      antialias: true,
-      alpha: false,
-      powerPreference: "high-performance",
-    });
+    this.renderer = createWebGLRenderer();
     this.renderer.outputColorSpace = THREE.SRGBColorSpace;
     this.renderer.toneMapping = THREE.ACESFilmicToneMapping;
     this.renderer.toneMappingExposure = 1.05;
@@ -121,7 +124,7 @@ export class CityRenderer {
     ground.rotation.x = -Math.PI / 2;
     ground.receiveShadow = true;
     this.scene.add(ground);
-    const environment = new RoomEnvironment(this.renderer);
+    const environment = new RoomEnvironment();
     const pmrem = new THREE.PMREMGenerator(this.renderer);
     this.scene.environment = pmrem.fromScene(environment, 0.04).texture;
     this.worldTextures.add(this.scene.environment);
@@ -129,7 +132,7 @@ export class CityRenderer {
     pmrem.dispose();
     this.living = new LivingVisuals();
     this.scene.add(this.living.group);
-    this.scene.add(this.forces.group,this.racingFleet.group,this.collectionFleet.group);
+    this.scene.add(this.forces.group,this.racingFleet.group,this.collectionFleet.group,this.driverInterior.group,this.urbanRoads.group);
     this.buildStreets();
     this.buildBlocks();
     this.scene.add(this.referenceFacades.group);
@@ -232,7 +235,7 @@ export class CityRenderer {
       sideGeo: THREE.BufferGeometry[] = [],
       paintGeo: THREE.BufferGeometry[] = [];
     for (const r of WORLD.roads) {
-      if(r.neighbourhood&&r.tunnel)continue;
+      if(r.neighbourhood)continue;
       const len = Math.hypot(r.a[0] - r.b[0], r.a[1] - r.b[1]);
       (r.walk ? walkGeo : roadGeo).push(
         this.strip(r.a, r.b, r.w, r.bridge ? 0.16 : 0.09),
@@ -841,7 +844,7 @@ export class CityRenderer {
     this.renderer.setSize(w, h, false);
   }
   render(state: State | null, playerId: string, dt: number, lobby: boolean) {
-    if (this.disposed) return;
+    if (this.disposed || this.renderer.getContext().isContextLost()) return;
     this.clock += dt;
     const stamp = performance.now();
     this.sampleTime += Math.max(0, (stamp - this.sampleStamp) / 1000);
@@ -867,6 +870,13 @@ export class CityRenderer {
     }
     let target = new THREE.Vector3(SPAWN.x, 1, SPAWN.z);
     const p = state?.players[playerId];
+    const drivenCar=p?.carId?state?.cars.find(c=>c.id===p.carId):undefined;
+    if(this.firstPerson&&drivenCar){
+      if(this.lastDriven?.id===drivenCar.id)this.yaw+=Math.atan2(Math.sin(drivenCar.heading-this.lastDriven.heading),Math.cos(drivenCar.heading-this.lastDriven.heading));
+      else this.yaw=drivenCar.heading;
+      this.lastDriven={id:drivenCar.id,heading:drivenCar.heading};
+    }else this.lastDriven=undefined;
+    this.driverInterior.update(this.firstPerson&&!lobby?drivenCar:undefined);
     if (this.ready && state) {
       const active = new Set<string>();
       this.collectionFleet.update([...state.cars,...state.traffic],p||SPAWN,dt,p?.carId);
@@ -1059,14 +1069,20 @@ export class CityRenderer {
       this.camera.lookAt(pyramid.x, 5, pyramid.z);
       target.set(pyramid.x, 0, pyramid.z);
     } else if (this.firstPerson && p) {
-      this.lastTarget.set(p.x, p.carId ? 1.28 : 1.68, p.z);
+      const eye=drivenCar?driverEye(drivenCar):{x:p.x,y:1.68,z:p.z};
+      this.lastTarget.set(eye.x,eye.y,eye.z);
       if (p.carId && this.clock > this.manualUntil) this.yaw = smoothAngle(this.yaw, p.heading, Math.min(1, dt * 4));
-      this.camera.position.lerp(this.lastTarget, Math.min(1, dt * 14));
+      // Seat and cabin share a transform; independent position smoothing caused
+      // the eye to leave the cabin on acceleration, tight turns and entry.
+      if(drivenCar)this.camera.position.copy(this.lastTarget);
+      else this.camera.position.lerp(this.lastTarget,1-Math.exp(-dt*14));
       const direction = new THREE.Vector3(-Math.sin(this.yaw) * Math.cos(this.pitch), Math.sin(this.pitch), -Math.cos(this.yaw) * Math.cos(this.pitch));
       this.camera.lookAt(this.camera.position.clone().add(direction));
-      this.camera.fov = 74 + (p.carId ? Math.min(8, Math.abs(p.speed) * .2) : 0);
+      this.camera.near=drivenCar?.04:.15;
+      this.camera.fov = drivenCar?driverFov(this.camera.aspect):74;
       this.camera.updateProjectionMatrix();
     } else {
+      this.camera.near=.15;
       this.lastTarget.lerp(target, Math.min(1, dt * 9));
       const wanted = p?.carId
         ? 9.5 + Math.min(4, Math.abs(p.speed) * 0.11)
@@ -1121,10 +1137,18 @@ export class CityRenderer {
     }
     this.referenceFacades.update(this.camera.position, this.quality === "battery");
     this.agedHousing.update(this.clock, this.camera.position, this.quality === "battery");
+    this.urbanRoads.update(this.clock,this.camera.position,this.quality === "battery");
     for (const cell of this.mappedTreeCells) cell.group.visible =
       Math.hypot(cell.x - this.camera.position.x, cell.z - this.camera.position.z) <
       (this.quality === "battery" ? 140 : 260);
-    this.renderer.render(this.scene, this.camera);
+    // Opaque original windows/cab roofs must not cover the active interior.
+    // Hide only this viewer's exterior during this draw, restoring it afterward.
+    const exterior=this.firstPerson&&!lobby&&drivenCar
+      ? this.collectionFleet.getRoot(drivenCar.id)||this.forces.getRoot(drivenCar.id)||this.racingFleet.getRoot(drivenCar.id)||this.actors.get(drivenCar.id)?.group : undefined;
+    const visible=exterior?.visible;
+    if(exterior)exterior.visible=false;
+    try{this.renderer.render(this.scene, this.camera);}
+    finally{if(exterior)exterior.visible=visible!;}
   }
   private mergeCarSurfaces(root: THREE.Group) {
     root.updateMatrixWorld(true);
@@ -1216,6 +1240,7 @@ export class CityRenderer {
     this.forces.dispose();
     this.racingFleet.dispose();
     this.collectionFleet.dispose();
+    this.driverInterior.dispose();this.urbanRoads.dispose();
     this.observer.disconnect();
     for (const a of this.actors.values()) a.mixer?.stopAllAction();
     this.disposeObject(this.scene);

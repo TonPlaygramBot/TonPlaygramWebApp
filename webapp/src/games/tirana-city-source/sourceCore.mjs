@@ -1,5 +1,6 @@
 // Source geometry stays in WORLD metres. This module never changes gameplay data.
 import { containsPoint, distanceToPolygon } from '../tirana-landmarks/nativeLocations.mjs';
+import {footprintIndex} from './footprintIndex.mjs';
 
 export const CLOSED_PLACES = Object.freeze({
   'way/382468440': { reason: 'Former Iranian embassy; diplomatic relations severed in September 2022.',
@@ -149,7 +150,8 @@ export function mappedCycling(world,source) {
 
 export function cyclingDecals(segments,world,exclude=()=>false) {
   const decals=[];
-  const occupied=(x,z)=>world.buildings.some(b=>containsPoint(x,z,b.p));
+  const candidates=footprintIndex(world.buildings);
+  const occupied=(x,z)=>candidates(x,z).some(b=>containsPoint(x,z,b.p)&&!(b.holes||[]).some(h=>containsPoint(x,z,h)));
   const push=(kind,x,z,w,d,yaw,s)=>{if(!exclude(x,z)&&!occupied(x,z))decals.push({kind,x,z,w,d,yaw,evidence:s.evidence,source:s.way});};
   for(const s of segments){
     const dx=s.b[0]-s.a[0],dz=s.b[1]-s.a[1],length=Math.hypot(dx,dz),ux=dx/length,uz=dz/length,yaw=Math.atan2(dx,dz);
@@ -165,7 +167,8 @@ export function cyclingDecals(segments,world,exclude=()=>false) {
 }
 
 export function mappedTrees(world,source) {
-  return source.trees.filter(t=>inside(t.p,world.bounds)&&!world.buildings.some(b=>containsPoint(t.p[0],t.p[1],b.p))).map(t=>{
+  const candidates=footprintIndex(world.buildings);
+  return source.trees.filter(t=>inside(t.p,world.bounds)&&!candidates(...t.p).some(b=>containsPoint(t.p[0],t.p[1],b.p)&&!(b.holes||[]).some(h=>containsPoint(t.p[0],t.p[1],h)))).map(t=>{
     const height=metres(t.tags.height),crown=metres(t.tags.diameter_crown);
     const text=`${t.tags.genus||''} ${t.tags.species||''}`.toLowerCase();
     const model=/cupress|cypress/.test(text)?'tree_cypress':/tilia|linden/.test(text)?'tree_linden':'tree_plane';

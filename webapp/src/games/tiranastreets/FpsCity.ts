@@ -1,4 +1,5 @@
 import * as T from 'three';
+import {UrbanRoadCells} from '../tirana-neighbourhood/UrbanRoadCells';
 import {AgedHousingLayer} from '../tirana-city-source/AgedHousingLayer';
 import {AGED_HOUSING_IDS} from '../tirana-city-source/housingRegistry.mjs';
 import { DRACOLoader } from 'three/examples/jsm/loaders/DRACOLoader.js';
@@ -27,6 +28,7 @@ export class FpsCity {
   readonly landmarks = new NativeLandmarkLayer(resolveNativeLandmarks(WORLD).landmarks);
   readonly referenceFacades = new ReferenceFacades();
   readonly agedHousing: AgedHousingLayer;
+ readonly urbanRoads:UrbanRoadCells;
   private cells: Cell[] = [];
   private batches = new Map<string, Batch>();
   private materials = new Map<string, T.MeshStandardMaterial>();
@@ -43,6 +45,7 @@ export class FpsCity {
 
   constructor(private loadAssets = true) {
     this.agedHousing = new AgedHousingLayer(undefined, loadAssets);
+    this.urbanRoads=new UrbanRoadCells(loadAssets);this.group.add(this.urbanRoads.group);
     this.group.add(this.agedHousing.group);
     this.group.name = 'Tirana mapped city';
     this.group.userData = { source: WORLD.source, attribution: WORLD.attribution,
@@ -121,7 +124,7 @@ export class FpsCity {
     const asphalt = this.material(0x666965), paving = this.material(0xbab5a6), paint = this.material(0xe5e2d4);
     const roads: T.BufferGeometry[] = [], walks: T.BufferGeometry[] = [], shoulders: T.BufferGeometry[] = [], markings: T.BufferGeometry[] = [];
     for (const r of WORLD.roads) {
-      if(r.neighbourhood&&r.tunnel)continue;
+      if(r.neighbourhood)continue;
       const dx = r.b[0] - r.a[0], dz = r.b[1] - r.a[1], length = Math.hypot(dx, dz);
       if (length < .05) continue;
       (r.walk ? walks : roads).push(this.strip(r.a, r.b, r.w, r.bridge ? .16 : .09));
@@ -279,12 +282,12 @@ export class FpsCity {
     this.landscape?.update(camera, time, battery);
     this.landmarks.setBatteryMode(battery);
     this.referenceFacades.update(camera, battery);
-    this.agedHousing.update(time, camera, battery);
+    this.agedHousing.update(time, camera, battery);this.urbanRoads.update(time,camera,battery);
   }
   dispose() {
     this.disposed = true;
     this.referenceFacades.dispose();
-    this.agedHousing.dispose();
+    this.agedHousing.dispose();this.urbanRoads.dispose();
     this.draco?.dispose();
     this.streets?.dispose(); this.landscape?.dispose(); this.landmarks.dispose();
     disposeObject(this.group);

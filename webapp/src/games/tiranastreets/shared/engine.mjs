@@ -17,6 +17,8 @@ import {
 } from './airMobility.mjs';
 import { difficultyOf } from './weapons.mjs';
 import { stopForSignal } from './streetLayout.mjs';
+import {updateEmergencyResponse,trafficClearance} from './emergencyResponse.mjs';
+import {footprintIndex} from '../../tirana-city-source/footprintIndex.mjs';
 
 export { WORLD };
 export const STEP = 1 / 60;
@@ -116,6 +118,7 @@ export function route(a, b) {
       }
     }
   }
+  if(!Number.isFinite(dist[b]))return [];
   const out = [];
   for (let n = b; n >= 0; n = prev[n]) {
     out.push(point(n));
@@ -332,6 +335,8 @@ const waterSegments = WORLD.water.flatMap((w) =>
     : w.line.slice(1).map((b, i) => ({ a: w.line[i], b, width: w.width }))
 );
 const waterCells=new Map();
+const lakePolygons=(WORLD.waterAreas||[]).flatMap(w=>w.polygons.map(p=>({p:p.outer,holes:p.holes||[]})));
+const lakeCandidates=footprintIndex(lakePolygons,80,4);
 for(const water of waterSegments){const margin=water.width/2+6;
  for(let x=Math.floor((Math.min(water.a[0],water.b[0])-margin)/40);x<=Math.floor((Math.max(water.a[0],water.b[0])+margin)/40);x++)
   for(let z=Math.floor((Math.min(water.a[1],water.b[1])-margin)/40);z<=Math.floor((Math.max(water.a[1],water.b[1])+margin)/40);z++){const key=`${x},${z}`;if(!waterCells.has(key))waterCells.set(key,[]);waterCells.get(key).push(water);}
@@ -345,10 +350,22 @@ const cameraBuildings = collisionBuildings.map((b) => ({
   minZ: Math.min(...b.p.map((p) => p[1])),
   maxZ: Math.max(...b.p.map((p) => p[1]))
 }));
+const sightCells=new Map();
+for(const b of cameraBuildings)for(let x=Math.floor(b.minX/100);x<=Math.floor(b.maxX/100);x++)
+  for(let z=Math.floor(b.minZ/100);z<=Math.floor(b.maxZ/100);z++){
+    const key=`${x}:${z}`;if(!sightCells.has(key))sightCells.set(key,[]);sightCells.get(key).push(b);
+  }
+function sightCandidates(a,b){
+  const found=new Set();
+  for(let x=Math.floor(Math.min(a.x,b.x)/100);x<=Math.floor(Math.max(a.x,b.x)/100);x++)
+    for(let z=Math.floor(Math.min(a.z,b.z)/100);z<=Math.floor(Math.max(a.z,b.z)/100);z++)
+      for(const building of sightCells.get(`${x}:${z}`)||[])found.add(building);
+  return found;
+}
 export function lineOfSight(a, c) {
   const dx = c.x - a.x,
     dz = c.z - a.z;
-  for (const b of cameraBuildings) {
+  for (const b of sightCandidates(a,c)) {
     if (
       b.h < 1.2 ||
       Math.max(a.x, c.x) < b.minX ||
@@ -379,7 +396,7 @@ export function cameraDistance(x, z, y, yaw, wanted, pitch) {
   const dx = Math.sin(yaw) * wanted,
     dz = Math.cos(yaw) * wanted;
   let fraction = 1;
-  for (const b of cameraBuildings) {
+  for (const b of sightCandidates({x,z},{x:x+dx,z:z+dz})) {
     if (
       Math.max(x, x + dx) < b.minX ||
       Math.min(x, x + dx) > b.maxX ||
@@ -484,6 +501,20 @@ export function collide(entity, radius) {
     entity.z = q[1] + nz * (limit + 0.03);
     hit = true;
   }
+  for(const lake of lakeCandidates(entity.x,entity.z)){
+    const roads=roadCells.get(`${Math.floor(entity.x/40)},${Math.floor(entity.z/40)}`)||[];
+    if(roads.some(r=>r.bridge&&Math.hypot(entity.x-closest(entity.x,entity.z,r.a,r.b)[0],entity.z-closest(entity.x,entity.z,r.a,r.b)[1])<r.w/2+.8))continue;
+    const inside=insidePolygon(entity.x,entity.z,lake.p)&&!lake.holes.some(h=>insidePolygon(entity.x,entity.z,h));
+    let near=null,distance=Infinity;
+    for(const ring of [lake.p,...lake.holes])for(let i=0;i<ring.length;i++){
+      const q=closest(entity.x,entity.z,ring[i],ring[(i+1)%ring.length]),d=Math.hypot(entity.x-q[0],entity.z-q[1]);
+      if(d<distance){near=q;distance=d;}
+    }
+    if(near&&(inside||distance<radius)){
+      const sign=inside?-1:1,dx=entity.x-near[0],dz=entity.z-near[1],length=Math.hypot(dx,dz)||1;
+      entity.x=near[0]+sign*dx/length*(radius+.03);entity.z=near[1]+sign*dz/length*(radius+.03);hit=true;
+    }
+  }
   const b = WORLD.bounds,
     x = entity.x,
     z = entity.z;
@@ -529,6 +560,7 @@ export function createState(
       ? FREE_ROAM
       : MISSIONS.find((m) => m.id === missionId) || MISSIONS[0];
   const state = {
+    worldVersion:WORLD.regionalSource?.sha256,
     difficulty: ['easy', 'normal', 'hard'].includes(difficulty)
       ? difficulty
       : 'normal',
@@ -787,7 +819,7 @@ function along(v, target, speed, dt) {
   const dx = target.x - v.x,
     dz = target.z - v.z,
     d = Math.hypot(dx, dz);
-  if (d < 0.02) return true;
+  if (d < 0.02) {v.speed=0;return true;}
   const move = Math.min(d, speed * dt);
   v.x += (dx / d) * move;
   v.z += (dz / d) * move;
@@ -805,7 +837,9 @@ export function stepState(state, dt = STEP) {
       : MISSIONS.find((m) => m.id === state.missionId);
   updateAirMobility(state, dt);
   for (const p of Object.values(state.players)) movePlayer(state, p, dt);
+  updateEmergencyResponse(state,dt,lifeEnvironment);
   for (const t of state.traffic) {
+    if(t.service&&t.responsePhase!=='patrol')continue;
     const forwardX = -Math.sin(t.heading),
       forwardZ = -Math.cos(t.heading);
     const blocked = [...state.cars, ...state.traffic].some((vehicle) => {
@@ -816,7 +850,7 @@ export function stepState(state, dt = STEP) {
         side = Math.abs(dx * forwardZ - dz * forwardX);
       return forward > 0 && forward < 8 && side < 2.2;
     });
-    const speed = blocked || stopForSignal(t, state.elapsed) ? 0 : t.cruise;
+    const speed = blocked || stopForSignal(t, state.elapsed) ? 0 : Math.min(t.cruise,trafficClearance(t,[...state.cars,...state.traffic,...state.units],state.npcs));
     if (along(t, point(t.next), speed, dt)) {
       const old = t.node;
       t.node = t.next;
@@ -940,6 +974,13 @@ export function navigation(state, id) {
 // D1 can retain a run created by the previous game version. Upgrade that run
 // without deleting the room, changing its owner or resetting chapter progress.
 export function upgradeState(state) {
+  // Expanded source snapshots preserve coordinates, but regional graph indices
+  // change. Rebind persisted traffic before it resumes an old room/save.
+  if(state.worldVersion!==WORLD.regionalSource?.sha256){
+    for(const car of state.traffic||[]){car.node=nearestNode(car.x,car.z);car.next=links[car.node][0]?.[0]??car.node;car.responsePath=[];car.responseGoal=undefined;car.nextResponseRoute=0;car.homeNode=car.node;}
+    for(const unit of state.units||[]){unit.path=[];unit.pathIndex=0;unit.nextRoute=0;}
+    state.worldVersion=WORLD.regionalSource?.sha256;
+  }
   if (state.lifeVersion === 2) return state;
   state.difficulty ||= 'normal';
   for (const p of Object.values(state.players))
@@ -965,6 +1006,7 @@ export function publicState(state) {
     delete u.path;
     delete u.nextRoute;
   }
+  for(const car of s.traffic||[]){delete car.responsePath;delete car.nextResponseRoute;delete car.responseIndex;}
   if (s.rival) {
     delete s.rival.path;
     delete s.rival.nextRoute;

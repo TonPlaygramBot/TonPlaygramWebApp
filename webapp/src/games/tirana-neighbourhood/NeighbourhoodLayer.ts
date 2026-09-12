@@ -1,4 +1,5 @@
 import * as T from 'three';
+import {ParkFurniture} from './ParkFurniture';
 import {GLTFLoader} from 'three/examples/jsm/loaders/GLTFLoader.js';
 import {mergeGeometries} from 'three/examples/jsm/utils/BufferGeometryUtils.js';
 import {NEIGHBOURHOOD} from './data.mjs';
@@ -16,6 +17,7 @@ type Site=typeof NEIGHBOURHOOD.storefronts[number];
 export class NeighbourhoodLayer {
  readonly group=new T.Group();
  readonly mapped:MappedNeighbourhood;
+ private parkFurniture=new ParkFurniture();
  private labels:StreetLifeLayer;
  private loader=new GLTFLoader();
  private near:(p:{x:number;z:number},r:number,n:number)=>Site[];
@@ -31,7 +33,7 @@ export class NeighbourhoodLayer {
   const sites=NEIGHBOURHOOD.storefronts.filter(s=>!blocked||!blocked(s.x,s.z,Math.max(4,s.width)));
   this.near=nearbyIndex(sites);
   this.labels=new StreetLifeLayer({storefronts:sites,stops:[],fuel:[],advertising:[]},options,true);
-  this.group.add(this.mapped.group,this.labels.group);
+  this.group.add(this.mapped.group,this.labels.group,this.parkFurniture.group);
  }
  private own(root:T.Object3D){
   root.traverse(o=>{if(!(o instanceof T.Mesh))return;o.castShadow=true;o.receiveShadow=true;this.geometries.add(o.geometry);
@@ -78,7 +80,7 @@ export class NeighbourhoodLayer {
  }
  update(seconds:number,viewer?:{x:number;z:number},battery=false){
   if(this.dead||!viewer||seconds-this.last<.2)return;this.last=seconds;
-  this.mapped.update(viewer,battery);
+  this.mapped.update(viewer,battery);this.parkFurniture.update(viewer,battery);
   for(const hero of HEROES){const b=NEIGHBOURHOOD.buildings.find(b=>b.id===hero.id);if(!b)continue;const p=b.p[0];
    if(Math.hypot(p[0]-viewer.x,p[1]-viewer.z)<1000)this.request(hero.asset,hero);
   }
@@ -94,6 +96,6 @@ export class NeighbourhoodLayer {
   this.labels.update(seconds,viewer,battery,true);
  }
  retire(){this.dead=true;this.labels.retire();}
- dispose(){if(this.disposed)return;this.disposed=true;this.retire();this.labels.dispose();this.mapped.dispose();this.geometries.forEach(g=>g.dispose());this.materials.forEach(m=>m.dispose());new Set(this.textures.values()).forEach(t=>t.dispose());this.group.clear();this.group.removeFromParent();}
+ dispose(){if(this.disposed)return;this.disposed=true;this.retire();this.labels.dispose();this.mapped.dispose();this.parkFurniture.dispose();this.geometries.forEach(g=>g.dispose());this.materials.forEach(m=>m.dispose());new Set(this.textures.values()).forEach(t=>t.dispose());this.group.clear();this.group.removeFromParent();}
 }
 function disposeLoaded(root:T.Object3D){const textures=new Set<T.Texture>();root.traverse(o=>{if(!(o instanceof T.Mesh))return;o.geometry.dispose();for(const m of Array.isArray(o.material)?o.material:[o.material]){for(const v of Object.values(m))if(v instanceof T.Texture)textures.add(v);m.dispose();}});textures.forEach(t=>t.dispose());}

@@ -15,6 +15,9 @@ try{
 const {T,GLTFLoader,NeighbourhoodLayer,NEIGHBOURHOOD:n}=api;
 // Canvas text is stubbed; actual Three geometry/GLTF parsing/lifecycle executes.
 globalThis.document={createElement:()=>({width:0,height:0,getContext:()=>({fillRect(){},fillText(){}})})};
+// Geometry/lifecycle test has no DOM image decoder. Real texture files are
+// validated separately; complete texture loads still exercise resource ownership.
+T.TextureLoader.prototype.load=function(_url,onLoad){const texture=new T.Texture();queueMicrotask(()=>onLoad?.(texture));return texture;};
 async function geometryAsset(name){
  const bytes=await readFile(new URL(`../webapp/public/assets/tirana-streets/neighbourhood/${name}.glb`,import.meta.url)),length=bytes.readUInt32LE(12),g=JSON.parse(bytes.subarray(20,20+length)),binary=bytes.subarray(28+length);
  // Test decoding meshes without a DOM image decoder. Real PBR files/hashes and

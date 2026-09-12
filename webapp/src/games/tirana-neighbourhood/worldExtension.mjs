@@ -5,7 +5,7 @@ export function extendNeighbourhood(core,region){
  const pointKey=p=>`${p[0]},${p[1]}`;
  const segmentKey=r=>[pointKey(r.a),pointKey(r.b)].sort().join('|')+`|${!!r.walk}`;
  const coreRoads=new Set(core.roads.map(segmentKey));
- const nodes=core.graph.nodes.map(p=>[...p]),edges=core.graph.edges.map(e=>[...e]),directions=edges.map(()=>0);
+ const nodes=core.graph.nodes.map(p=>[...p]),edges=core.graph.edges.map(e=>[...e]),directions=edges.map((_,i)=>core.graph.directions?.[i]??0);
  const oldNodes=new Map();nodes.forEach((p,i)=>{const k=pointKey(p);if(!oldNodes.has(k))oldNodes.set(k,[]);oldNodes.get(k).push(i);});
  const proven=new Map(),conflicts=new Set();
  for(const r of region.roads){if(r.walk||r.bridge||r.tunnel||r.layer||!coreRoads.has(segmentKey(r)))continue;
@@ -35,6 +35,7 @@ export function extendNeighbourhood(core,region){
  const newRoads=region.roads.filter(r=>!coreRoads.has(segmentKey(r)));
  return {...core,bounds:region.bounds,roads:[...core.roads,...newRoads],buildings:[...core.buildings,...region.buildings],
   water:[...(core.water??[]),...(region.water??[]).filter(w=>w.line)],
+  waterAreas:[...(core.waterAreas??[]),...(region.water??[]).filter(w=>w.polygons)],
   sourceNodeAliases,
   graph:{nodes:[...remap.keys()].map(i=>nodes[i]),edges:edges.filter(([a,b])=>remap.has(a)&&remap.has(b)).map(([a,b])=>[remap.get(a),remap.get(b)]),directions:directions.filter((_,i)=>remap.has(edges[i][0])&&remap.has(edges[i][1]))},
   regionalSource:region.source,regionalCoverage:{sourceRoads:region.roads.length,addedRoads:newRoads.length,addedBuildings:region.buildings.length,provenSeamNodes:proven.size},

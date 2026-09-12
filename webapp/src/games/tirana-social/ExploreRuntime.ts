@@ -1,3 +1,4 @@
+import {createWebGLRenderer} from '../tiranastreets/createWebGLRenderer';
 import * as T from 'three';
 import {CollectionVehicleVisuals} from '../tiranastreets/CollectionVehicleVisuals';
 import {collectionVehicleFor} from '../tiranastreets/shared/vehicleCollection.mjs';
@@ -24,7 +25,7 @@ export class ExploreRuntime {
   private cars=new Map<string,T.Group>();private templates=new Map<string,T.Group>();private requests=new Set<string>();
   private assetsReady=false;private visibleReady=false;private dead=false;private frame=0;private last=0;private observer:ResizeObserver;private target=new T.Vector3();
   constructor(private root:HTMLDivElement,private connection:ExploreConnection,private fail:(s:string)=>void,private publish:(s:{fps:number;ready:boolean;paused:boolean})=>void){
-    this.renderer=new T.WebGLRenderer({antialias:true,powerPreference:'high-performance'});this.renderer.setPixelRatio(Math.min(window.devicePixelRatio||1,1.5));this.renderer.outputColorSpace=T.SRGBColorSpace;this.renderer.toneMapping=T.ACESFilmicToneMapping;root.appendChild(this.renderer.domElement);
+    this.renderer=createWebGLRenderer();this.renderer.setPixelRatio(Math.min(window.devicePixelRatio||1,1.5));this.renderer.outputColorSpace=T.SRGBColorSpace;this.renderer.toneMapping=T.ACESFilmicToneMapping;root.appendChild(this.renderer.domElement);
     this.scene.background=new T.Color('#b5cdd3');this.scene.fog=new T.Fog('#b5cdd3',400,1400);this.scene.add(new T.HemisphereLight('#d5efff','#706a4e',2.2));const sun=new T.DirectionalLight('#ffedc4',3);sun.position.set(-120,240,-100);this.scene.add(sun);
     this.scene.add(this.city.group,this.humans.group,this.collectionFleet.group);this.details=attachEnhancements(this.scene,{x:0,z:0},{profile:'fps'});this.details.bindBuildings(this.city.group,[this.city.landmarks.group]);
     this.input=new CityInput(action=>{if(action==='pause')this.pause(!this.paused);else if(['vehicle','recover'].includes(action))void connection.request('interact',{interaction:action}).catch(e=>fail(e.message));});
