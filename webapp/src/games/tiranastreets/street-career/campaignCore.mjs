@@ -1,3 +1,4 @@
+import {normalizeCheckpoint} from './checkpointCore.mjs';
 /** Local, fictional street economy. No account, TPG or room APIs belong here. */
 export const STREET_SAVE_KEY = 'tirana-streets:street-career:v1';
 export const CHAPTER_IDS = Object.freeze([
@@ -41,6 +42,7 @@ export function createCampaign(missions, weapons, starter) {
     const a = raw.active;
     if (plain(a) && CHAPTER_IDS.indexOf(a.id) >= 0 && CHAPTER_IDS.indexOf(a.id) <= p.completed.length) {
       p.active = {id: a.id, difficulty: difficulties.has(a.difficulty) ? a.difficulty : 'normal', checkpoint: loadout(a.checkpoint)};
+      const phase=normalizeCheckpoint(a.phase,loadout,byId.get(a.id)?.stops?.length||0);if(phase)p.active.phase=phase;
     }
     return p;
   }

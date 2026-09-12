@@ -147,9 +147,9 @@ export class SharedHumans {
     for(const n of selected){let asset=chooseSharedHuman(n,this.cast);this.request(asset);if(!this.sources.has(asset.url)){const role=actorRole(n.kind);const fallback=this.cast.find(a=>a.url.startsWith('/')&&a.roles.includes(role)&&this.sources.has(a.url));if(fallback)asset=fallback;}const source=this.sources.get(asset.url);if(!source||n.motion==='cycle'&&!this.bike)continue;
       let a=this.actors.get(n.id);if(a&&(a.asset!==asset.id||a.role!==actorRole(n.kind))){this.remove(n.id);a=undefined;}
       a ||= this.create(n,asset,source);
-      a.root.position.set(n.x,n.motion==='cycle'?-.18:.06,n.z);a.root.rotation.set(n.health<=0?-Math.PI/2:0,n.heading+Math.PI,0);
+      a.root.position.set(n.x,(n.y||0)+(n.motion==='cycle'?-.18:.06),n.z);a.root.rotation.set(n.health<=0?-Math.PI/2:0,n.heading+Math.PI,0);
       a.label.visible=n.health>0&&Math.hypot(n.x-viewer.x,n.z-viewer.z)<18;
-      if(n.health>0)this.pose(a,n,time,dt);
+      if(n.health>0)this.pose(a,n,time,dt);if(n.anim==='hit')a.root.rotation.z=Math.sin((time-(n.hitUntil||time)+.38)*18)*.13;
       this.held.pose(`shared-${n.id}`,a.root,n,time);
       if(n.motion==='cycle'&&this.bike&&n.health>0){let bike=this.bikes.get(n.id);if(!bike){bike=this.bike.clone(true);this.bikes.set(n.id,bike);this.group.add(bike);}bike.position.set(n.x,0,n.z);bike.rotation.y=n.heading+Math.PI;}
       else{this.bikes.get(n.id)?.removeFromParent();this.bikes.delete(n.id);}

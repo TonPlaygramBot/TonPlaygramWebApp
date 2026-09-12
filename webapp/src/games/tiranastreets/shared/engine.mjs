@@ -343,6 +343,8 @@ for(const water of waterSegments){const margin=water.width/2+6;
 }
 const importedSolids=importedFleet.filter(a=>a.assetId).map(a=>{const x=a.x+IMPORTED_PLACEMENT_ORIGIN.x,z=a.z+IMPORTED_PLACEMENT_ORIGIN.z;return {id:'imported-'+a.assetId,h:a.h,p:[[x-a.w/2,z-a.d/2],[x+a.w/2,z-a.d/2],[x+a.w/2,z+a.d/2],[x-a.w/2,z+a.d/2]]};});
 const collisionBuildings = [...importedSolids,...WORLD.buildings.filter(b=>!FUEL_CANOPY_IDS.has(b.id)),...fuelCanopyObstacles().filter(b=>b.minY===0)];
+// Read-only geometry contract for the optional local 3D player system.
+export const collisionSolids = [...collisionBuildings, ...fuelCanopyObstacles().filter(b=>b.minY>0)];
 const cameraBuildings = collisionBuildings.map((b) => ({
   ...b,
   minX: Math.min(...b.p.map((p) => p[0])),
@@ -827,7 +829,7 @@ function along(v, target, speed, dt) {
   v.speed = speed;
   return d <= speed * dt + 0.1;
 }
-export function stepState(state, dt = STEP) {
+export function stepState(state, dt = STEP, systems) {
   if (state.phase !== 'active') return;
   dt = clamp(dt, 0, 0.05);
   state.elapsed += dt;
@@ -836,7 +838,7 @@ export function stepState(state, dt = STEP) {
       ? FREE_ROAM
       : MISSIONS.find((m) => m.id === state.missionId);
   updateAirMobility(state, dt);
-  for (const p of Object.values(state.players)) movePlayer(state, p, dt);
+  for (const p of Object.values(state.players)) (systems?.movePlayer || movePlayer)(state, p, dt);
   updateEmergencyResponse(state,dt,lifeEnvironment);
   for (const t of state.traffic) {
     if(t.service&&t.responsePhase!=='patrol')continue;
@@ -862,7 +864,8 @@ export function stepState(state, dt = STEP) {
         ]?.[0] ?? old;
     }
   }
-  updateCityLife(state, dt, lifeEnvironment, mission);
+  updateCityLife(state, dt, systems?.life ? {...lifeEnvironment, ...systems.life} : lifeEnvironment, mission);
+  systems?.afterLife?.(state, dt);
   const rival = state.rival;
   if (rival && state.elapsed > rival.delay) {
     if (mission.type === 'pursuit') {
@@ -906,6 +909,7 @@ export function stepState(state, dt = STEP) {
       target = mission.stops[idx];
     if (
       target &&
+      (!systems?.canAdvanceObjective || systems.canAdvanceObjective(state, p, mission, target)) &&
       !(mission.type === 'combat' && state.objectiveRemaining > 0) &&
       distance(p, target) < (mission.type === 'delivery' ? 12 : 17) &&
       (mission.type !== 'delivery' || Math.abs(p.speed) < 2.5)
@@ -942,11 +946,11 @@ export function stepState(state, dt = STEP) {
   )
     state.phase = 'finished';
 }
-export function advanceState(state, seconds) {
+export function advanceState(state, seconds, systems) {
   let remaining = clamp(seconds, 0, 2);
   while (remaining > 0) {
     const dt = Math.min(STEP, remaining);
-    stepState(state, dt);
+    stepState(state, dt, systems);
     remaining -= dt;
   }
 }

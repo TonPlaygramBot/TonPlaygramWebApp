@@ -11,6 +11,8 @@ export class CityAudio {
   private sirenGain: GainNode | null = null;
   private noise: AudioBuffer | null = null;
   enabled = true;
+  volume = 1;
+  private voices = 0;
   async unlock() {
     if (!this.context) {
       const Context = window.AudioContext;
@@ -49,13 +51,14 @@ export class CityAudio {
     this.sirenGain?.gain.setTargetAtTime(0, t, 0.1);
     this.engine.frequency.setTargetAtTime(28 + Math.abs(speed) * 3, t, 0.1);
     this.gain.gain.setTargetAtTime(
-      this.enabled && inCar ? 0.018 + Math.abs(speed) * 0.0008 : 0,
+      this.enabled && inCar ? (0.018 + Math.abs(speed) * 0.0008)*this.volume : 0,
       t,
       0.1,
     );
   }
   private burst(duration: number, frequency: number, volume: number, pan = 0) {
-    if (!this.context || !this.noise || !this.enabled) return;
+    if (!this.context || !this.noise || !this.enabled || this.voices >= 10) return;
+    this.voices++;
     const c = this.context,
       source = c.createBufferSource(),
       filter = c.createBiquadFilter(),
@@ -64,7 +67,7 @@ export class CityAudio {
     source.buffer = this.noise;
     filter.type = "lowpass";
     filter.frequency.value = frequency;
-    gain.gain.setValueAtTime(Math.max(0.0001, volume), c.currentTime);
+    gain.gain.setValueAtTime(Math.max(0.0001, volume * this.volume), c.currentTime);
     gain.gain.exponentialRampToValueAtTime(0.0001, c.currentTime + duration);
     stereo.pan.value = Math.max(-1, Math.min(1, pan));
     source.connect(filter);
@@ -72,6 +75,7 @@ export class CityAudio {
     gain.connect(stereo);
     stereo.connect(c.destination);
     source.onended = () => {
+      this.voices=Math.max(0,this.voices-1);
       source.disconnect();
       filter.disconnect();
       gain.disconnect();
@@ -127,11 +131,18 @@ export class CityAudio {
         0.05,
       );
       this.sirenGain.gain.setTargetAtTime(
-        this.enabled && distance < 130 ? 0.023 / (1 + distance * 0.035) : 0,
+        this.enabled && distance < 130 ? 0.023*this.volume / (1 + distance * 0.035) : 0,
         t,
         0.08,
       );
     }
+  }
+  street(kind:string) {
+    if(kind==='door')this.burst(.12,480,.05);
+    if(kind==='punch'||kind==='kick')this.burst(.1,850,.035);
+    if(kind==='land')this.burst(.12,300,.04);
+    if(kind==='block'||kind==='melee-hit')this.burst(.09,250,.08);
+    if(kind==='loot'||kind==='objective')this.cue();
   }
   cue(success = true) {
     if (!this.context || !this.enabled) return;
@@ -144,7 +155,7 @@ export class CityAudio {
       success ? 990 : 110,
       c.currentTime + 0.17,
     );
-    g.gain.setValueAtTime(0.07, c.currentTime);
+    g.gain.setValueAtTime(.07*this.volume, c.currentTime);
     g.gain.exponentialRampToValueAtTime(0.001, c.currentTime + 0.25);
     o.connect(g);
     g.connect(c.destination);
