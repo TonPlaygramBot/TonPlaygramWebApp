@@ -1,4 +1,6 @@
 import * as T from 'three';
+import {AgedHousingLayer} from '../tirana-city-source/AgedHousingLayer';
+import {AGED_HOUSING_IDS} from '../tirana-city-source/housingRegistry.mjs';
 import { DRACOLoader } from 'three/examples/jsm/loaders/DRACOLoader.js';
 import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js';
 import { mergeGeometries } from 'three/examples/jsm/utils/BufferGeometryUtils.js';
@@ -24,6 +26,7 @@ export class FpsCity {
   readonly group = new T.Group();
   readonly landmarks = new NativeLandmarkLayer(resolveNativeLandmarks(WORLD).landmarks);
   readonly referenceFacades = new ReferenceFacades();
+  readonly agedHousing: AgedHousingLayer;
   private cells: Cell[] = [];
   private batches = new Map<string, Batch>();
   private materials = new Map<string, T.MeshStandardMaterial>();
@@ -39,6 +42,8 @@ export class FpsCity {
   readonly ready: Promise<void>;
 
   constructor(private loadAssets = true) {
+    this.agedHousing = new AgedHousingLayer(undefined, loadAssets);
+    this.group.add(this.agedHousing.group);
     this.group.name = 'Tirana mapped city';
     this.group.userData = { source: WORLD.source, attribution: WORLD.attribution,
       buildings: WORLD.buildings.length, roads: WORLD.roads.length, assetErrors: [] as string[] };
@@ -160,6 +165,7 @@ export class FpsCity {
       const key = `${Math.floor(cx / 140)}:${Math.floor(cz / 140)}:${p.color}`;
       if (!shells.has(key)) shells.set(key, { parts: [], material: this.material(p.color), x: cx, z: cz });
       shells.get(key)!.parts.push(this.polygon(b.p, height, 0));
+      if(AGED_HOUSING_IDS.has(String(b.id)))continue;
       const trim = this.material(p.trim);
       for (let i = 0; i < b.p.length; i++) {
         const a = b.p[i], c = b.p[(i + 1) % b.p.length], dx = c[0] - a[0], dz = c[1] - a[1], length = Math.hypot(dx, dz);
@@ -273,10 +279,12 @@ export class FpsCity {
     this.landscape?.update(camera, time, battery);
     this.landmarks.setBatteryMode(battery);
     this.referenceFacades.update(camera, battery);
+    this.agedHousing.update(time, camera, battery);
   }
   dispose() {
     this.disposed = true;
     this.referenceFacades.dispose();
+    this.agedHousing.dispose();
     this.draco?.dispose();
     this.streets?.dispose(); this.landscape?.dispose(); this.landmarks.dispose();
     disposeObject(this.group);

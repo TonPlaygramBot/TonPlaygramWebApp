@@ -15,7 +15,7 @@ type Site=typeof NEIGHBOURHOOD.storefronts[number];
  * happens here; attachEnhancements owns the one adapter-origin translation. */
 export class NeighbourhoodLayer {
  readonly group=new T.Group();
- readonly mapped=new MappedNeighbourhood();
+ readonly mapped:MappedNeighbourhood;
  private labels:StreetLifeLayer;
  private loader=new GLTFLoader();
  private near:(p:{x:number;z:number},r:number,n:number)=>Site[];
@@ -25,6 +25,7 @@ export class NeighbourhoodLayer {
  private geometries=new Set<T.BufferGeometry>();private materials=new Set<T.Material>();private textures=new Map<string,T.Texture>();
  private last=-Infinity;private dead=false;private disposed=false;private dummy=new T.Object3D();
  constructor(options:StreetDetailOptions={}){
+  this.mapped=new MappedNeighbourhood(options.profile!=='racing');
   this.group.name='Tirana:Blender-neighbourhood';this.group.userData.assetErrors=[];
   const blocked=options.track?ribbonExclusion(options.track):null;
   const sites=NEIGHBOURHOOD.storefronts.filter(s=>!blocked||!blocked(s.x,s.z,Math.max(4,s.width)));

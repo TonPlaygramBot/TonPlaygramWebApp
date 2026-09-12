@@ -1,4 +1,6 @@
 import {CollectionVehicleVisuals} from './CollectionVehicleVisuals';
+import {AgedHousingLayer} from '../tirana-city-source/AgedHousingLayer';
+import {AGED_HOUSING_IDS} from '../tirana-city-source/housingRegistry.mjs';
 import {collectionVehicleFor} from './shared/vehicleCollection.mjs';
 import {ImportedAssetVisuals} from './ImportedAssetVisuals';
 import * as THREE from "three";
@@ -77,6 +79,7 @@ export class CityRenderer {
   private lastTarget = new THREE.Vector3(SPAWN.x, 0, SPAWN.z);
   private landmarkText: THREE.Sprite[] = [];
   readonly referenceFacades = new ReferenceFacades();
+  readonly agedHousing = new AgedHousingLayer();
   private treePoints: Point[] = [];
   private mappedTreeCells: {group: THREE.Group; x:number; z:number}[] = [];
   constructor(root: HTMLDivElement) {
@@ -130,6 +133,7 @@ export class CityRenderer {
     this.buildStreets();
     this.buildBlocks();
     this.scene.add(this.referenceFacades.group);
+    this.scene.add(this.agedHousing.group);
     this.buildLandmarks();
     this.buildBeacon();
     this.observer = new ResizeObserver(() => this.resize());
@@ -352,6 +356,7 @@ export class CityRenderer {
         );
       buckets.get(key)!.geos[Number(b.id) % colors.length].push(geo);
       if (DETAIL_IDS.has(b.id)) continue;
+      if (AGED_HOUSING_IDS.has(String(b.id))) continue;
       // Window ribbons follow actual facades; geometry is merged, not thousands of draw calls.
       for (let i = 0; i < b.p.length; i++) {
         const a = b.p[i],
@@ -1115,6 +1120,7 @@ export class CityRenderer {
       }
     }
     this.referenceFacades.update(this.camera.position, this.quality === "battery");
+    this.agedHousing.update(this.clock, this.camera.position, this.quality === "battery");
     for (const cell of this.mappedTreeCells) cell.group.visible =
       Math.hypot(cell.x - this.camera.position.x, cell.z - this.camera.position.z) <
       (this.quality === "battery" ? 140 : 260);
@@ -1205,6 +1211,7 @@ export class CityRenderer {
   destroy() {
     this.disposed = true;
     this.referenceFacades.dispose();
+    this.agedHousing.dispose();
     this.living.dispose();
     this.forces.dispose();
     this.racingFleet.dispose();

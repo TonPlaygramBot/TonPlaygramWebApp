@@ -1,4 +1,5 @@
 import * as T from 'three';
+import {AGED_HOUSING_IDS} from '../tirana-city-source/housingRegistry.mjs';
 import {mergeGeometries} from 'three/examples/jsm/utils/BufferGeometryUtils.js';
 import {NEIGHBOURHOOD} from './data.mjs';
 import {HERO_IDS} from './assets.mjs';
@@ -13,7 +14,7 @@ export class MappedNeighbourhood {
  private cells:Cell[]=[];
  private materials:T.Material[]=[];
  private wall:T.MeshStandardMaterial;
- constructor(){
+ constructor(agedHousing=false){
   this.group.name='Tirana:Ali-Demi-source-footprints';
   this.wall=new T.MeshStandardMaterial({vertexColors:true,roughness:.86});
   const glass=new T.MeshStandardMaterial({color:0x365761,roughness:.3,metalness:.3});
@@ -43,6 +44,7 @@ export class MappedNeighbourhood {
     this.heroFallbacks.set(b.id,fallback);this.group.add(fallback);continue;
    }
    bucket.shells.push(geometry);
+   if(agedHousing&&AGED_HOUSING_IDS.has(String(b.id)))continue;
    // Windows are an explicit generic approximation, only on buildings with
    // sourced heights/levels. Unknown one-storey placeholders gain no fake bays.
    if(b.heightSource==='unknown'&&!b.levels)continue;
