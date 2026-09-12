@@ -728,7 +728,7 @@ export default function CityGame({
             make a name for yourself.
           </p>
           <div className="ts-city-pulse" aria-label="Live city simulation">
-            <span><SunMedium size={15} /><b>17:24</b><small>GOLDEN HOUR</small></span>
+            <span><SunMedium size={15} /><b>{renderer.current?.atmosphere.current.clock || '—'}</b><small>{renderer.current?.atmosphere.current.name || 'TIRANA'}</small></span>
             <span><CarFront size={15} /><b>LIVE</b><small>TRAFFIC</small></span>
             <span><Footprints size={15} /><b>ACTIVE</b><small>CITY LIFE</small></span>
           </div>
@@ -1142,7 +1142,7 @@ export default function CityGame({
           <div className="ts-status-stack">
             <span className="ts-location"><MapPin size={13} /> {district}</span>
             <span className="ts-city-status">
-              <SunMedium size={13} /> {cityClock(view?.elapsed)} · {activeTraffic} CARS · {streetPopulation} PEOPLE
+              <SunMedium size={13} /> {renderer.current?.atmosphere.current.clock || cityClock(view?.elapsed)} · {renderer.current?.atmosphere.current.name || 'Clear'} · {activeTraffic} CARS · {streetPopulation} PEOPLE
             </span>
             {view?.rival && mission.type === "race" && (
               <span>

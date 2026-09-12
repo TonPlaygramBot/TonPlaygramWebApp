@@ -1,4 +1,5 @@
 import * as T from 'three';
+import {cutChannels,surfaceGeometry} from '../tirana-environment/riverGeometry';
 import {MappedBuildingCells} from './MappedBuildingCells';
 import {mergeGeometries} from 'three/examples/jsm/utils/BufferGeometryUtils.js';
 import {NEIGHBOURHOOD} from './data.mjs';
@@ -22,6 +23,7 @@ export class MappedNeighbourhood {
   this.group.name='Tirana:urban-source-footprints';
   this.wall=new T.MeshStandardMaterial({vertexColors:true,roughness:.86});
   const glass=new T.MeshStandardMaterial({color:0x365761,roughness:.3,metalness:.3});
+  glass.userData.environmentWindow=true;
   this.materials.push(this.wall,glass);
   this.buildingCells=new MappedBuildingCells(NEIGHBOURHOOD.buildings.filter(b=>!HERO_IDS.has(b.id)&&!COMPLETED_BUILDING_IDS.has(b.id)),this.wall,glass,agedHousing);
   this.group.add(this.buildingCells.group);
@@ -46,8 +48,8 @@ export class MappedNeighbourhood {
    const cover=t.man_made==='reservoir_covered',c=cover?0xb0b2a6:t.leisure==='pitch'?0x536f4d:t.amenity==='marketplace'?0xb5aa8d:0x788360;
    const shape=new T.Shape(p.map((v:number[])=>new T.Vector2(v[0],-v[1])));
    for(const h of feature.holes??[])shape.holes.push(new T.Path(h.map((v:number[])=>new T.Vector2(v[0],-v[1]))));
-   const geometry=new T.ShapeGeometry(shape).rotateX(-Math.PI/2).translate(0,cover?.18:.05,0);
-   if(!surfaces.has(c))surfaces.set(c,[]);surfaces.get(c)!.push(geometry);
+   if(!surfaces.has(c))surfaces.set(c,[]);
+   for(const rings of cutChannels(p,feature.holes??[]))surfaces.get(c)!.push(surfaceGeometry(rings,cover?.18:.05));
   }
   for(const [color,parts] of surfaces){const geo=mergeGeometries(parts);parts.forEach(p=>p.dispose());if(!geo)continue;const mat=new T.MeshStandardMaterial({color,roughness:.95});this.materials.push(mat);const mesh=new T.Mesh(geo,mat);mesh.receiveShadow=true;this.group.add(mesh);}
   const waterMaterial=new T.MeshStandardMaterial({color:0x557a70,roughness:.3,metalness:.2});this.materials.push(waterMaterial);

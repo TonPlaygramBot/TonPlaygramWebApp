@@ -1,4 +1,6 @@
 import * as T from 'three';
+import {cutChannels, surfaceGeometry} from '../tirana-environment/riverGeometry';
+import {EnvironmentMaterials} from '../tirana-environment/EnvironmentMaterials';
 import {UrbanRoadCells} from '../tirana-neighbourhood/UrbanRoadCells';
 import {AgedHousingLayer} from '../tirana-city-source/AgedHousingLayer';
 import {AGED_HOUSING_IDS} from '../tirana-city-source/housingRegistry.mjs';
@@ -36,7 +38,8 @@ export class FpsCity {
   private box = new T.BoxGeometry(1, 1, 1);
   private dummy = new T.Object3D();
   private streets?: StreetVisuals;
-  private landscape?: LandscapeVisuals;
+  readonly landscape: LandscapeVisuals;
+  private surfaceMaterials: EnvironmentMaterials;
   private disposed = false;
   private draco?: DRACOLoader;
   private fallbackPavements = new T.Group();
@@ -50,6 +53,9 @@ export class FpsCity {
     this.group.name = 'Tirana mapped city';
     this.group.userData = { source: WORLD.source, attribution: WORLD.attribution,
       buildings: WORLD.buildings.length, roads: WORLD.roads.length, assetErrors: [] as string[] };
+    this.surfaceMaterials = new EnvironmentMaterials(loadAssets);
+    this.landscape = new LandscapeVisuals(loadAssets);
+    this.group.add(this.landscape.group);
     this.surfaces(loadAssets);
     this.buildings();
     this.square();
@@ -63,7 +69,9 @@ export class FpsCity {
     if (!this.materials.has(key)) this.materials.set(key, new T.MeshStandardMaterial({
       color, roughness: glass ? .27 : .87, metalness: glass ? .45 : 0
     }));
-    return this.materials.get(key)!;
+    const material=this.materials.get(key)!;
+    if(glass)material.userData.environmentWindow=true;
+    return material;
   }
   private mesh(geometry: T.BufferGeometry, material: T.Material, parent: T.Object3D = this.group) {
     const mesh = new T.Mesh(geometry, material);
@@ -115,16 +123,15 @@ export class FpsCity {
     this.batches.clear();
   }
   private surfaces(loadAssets: boolean) {
-    const [x0, z0, x1, z1] = WORLD.bounds;
-    const ground = new T.PlaneGeometry(x1 - x0 + 100, z1 - z0 + 100);
-    ground.rotateX(-Math.PI / 2); ground.translate((x0 + x1) / 2, -.04, (z0 + z1) / 2);
-    this.mesh(ground, this.material(0xaaa996));
-    for (const p of WORLD.areas) this.mesh(this.polygon(p, 0, .045), this.material(0xbdb7a7));
-    for (const p of WORLD.parks) this.mesh(this.polygon(p, 0, .05), this.material(0x63784a));
-    const asphalt = this.material(0x666965), paving = this.material(0xbab5a6), paint = this.material(0xe5e2d4);
+    const areaMaterial=this.surfaceMaterials.create('concrete_pavement');
+    const parkMaterial=this.surfaceMaterials.create('grass_path_2',0xb2bc9e,true);
+    for (const p of WORLD.areas) for(const rings of cutChannels(p)) this.mesh(surfaceGeometry(rings,.045),areaMaterial);
+    for (const p of WORLD.parks) for(const rings of cutChannels(p)) this.mesh(surfaceGeometry(rings,.05),parkMaterial);
+    const asphalt = this.material(0x999999), paving = this.material(0xffffff), paint = this.material(0xe5e2d4);
+    this.surfaceMaterials.apply(paving,'concrete_pavement');asphalt.userData.environmentSurface=true;
     const roads: T.BufferGeometry[] = [], walks: T.BufferGeometry[] = [], shoulders: T.BufferGeometry[] = [], markings: T.BufferGeometry[] = [];
     for (const r of WORLD.roads) {
-      if(r.neighbourhood)continue;
+      if(r.neighbourhood || r.tunnel)continue;
       const dx = r.b[0] - r.a[0], dz = r.b[1] - r.a[1], length = Math.hypot(dx, dz);
       if (length < .05) continue;
       (r.walk ? walks : roads).push(this.strip(r.a, r.b, r.w, r.bridge ? .16 : .09));
@@ -149,11 +156,8 @@ export class FpsCity {
         this.textures.add(t);
       }, undefined, () => { this.group.userData.assetErrors.push(file); });
     }
-    // The river remains below road level; the retained landscape kit adds banks.
-    for (const water of WORLD.water) {
-      if (Array.isArray(water)) this.mesh(this.polygon(water, 0, -.1), this.material(0x557a70));
-      else this.merge(water.line.slice(1).map((p, i) => this.strip(water.line[i], p, water.width, -1.13)), this.material(0x557a70));
-    }
+    // Small ornamental pools remain at their original datum. Landscape owns all waterways.
+    for(const water of WORLD.water) if(Array.isArray(water)) this.mesh(this.polygon(water,0,.075),this.material(0x557a70));
 
   }
   private buildings() {
@@ -269,10 +273,6 @@ export class FpsCity {
     this.fallbackPavements.visible = false;
   }
   update(camera: T.Vector3, time: number, battery: boolean) {
-    if (this.loadAssets && !this.landscape && camera.z > 350) {
-      this.landscape = new LandscapeVisuals();
-      this.group.add(this.landscape.group);
-    }
     for (const cell of this.cells) {
       const d = Math.hypot(camera.x - cell.x, camera.z - cell.z);
       cell.object.visible = d < (cell.detail ? battery ? 120 : 240 : battery ? 500 : 1000);
@@ -285,7 +285,9 @@ export class FpsCity {
     this.agedHousing.update(time, camera, battery);this.urbanRoads.update(time,camera,battery);
   }
   dispose() {
+    if(this.disposed)return;
     this.disposed = true;
+    this.surfaceMaterials.dispose();
     this.referenceFacades.dispose();
     this.agedHousing.dispose();this.urbanRoads.dispose();
     this.draco?.dispose();

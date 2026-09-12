@@ -2,8 +2,8 @@ import {facadeEdges} from '../tirana-city-source/sourceCore.mjs';
 import {hash} from './placementCore.mjs';
 /** Match the streamed shell's window rhythm; never add floors or replace a
  * photo-specific landmark. Bay detail is architectural interpretation. */
-export function facadeModules(b){
- if(!b.p?.length||!Number.isFinite(b.h)||b.h<3||b.heightSource==='unknown'&&!b.levels||b.tags?.building==='construction'||b.tags?.construction)return [];
+export function facadeModules(b,{allowEstimatedHeight=false}={}){
+ if(!b.p?.length||!Number.isFinite(b.h)||b.h<3||b.heightSource==='unknown'&&!b.levels&&!allowEstimatedHeight||b.tags?.building==='construction'||b.tags?.construction)return [];
  const modules=[],seed=hash(b.id),residential=['apartments','residential'].includes(b.tags?.building);
  const edges=facadeEdges(b.p);if(!edges.length)return [];
  const front=edges.reduce((a,b)=>a.length>b.length?a:b);

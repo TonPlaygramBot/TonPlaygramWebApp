@@ -1,4 +1,6 @@
 import * as T from 'three';
+import {EnvironmentMaterials} from '../tirana-environment/EnvironmentMaterials';
+import {surfaceGeometry} from '../tirana-environment/riverGeometry';
 import {mergeGeometries} from 'three/examples/jsm/utils/BufferGeometryUtils.js';
 import {facadeEdges} from '../tirana-city-source/sourceCore.mjs';
 import {AGED_HOUSING_IDS} from '../tirana-city-source/housingRegistry.mjs';
@@ -11,7 +13,10 @@ export class MappedBuildingCells {
  readonly group=new T.Group();
  private buckets:Bucket[]=[];
  private frame=0;
- constructor(buildings:any[],private wall:T.MeshStandardMaterial,private glass:T.MeshStandardMaterial,private aged:boolean){
+ private finish:EnvironmentMaterials;
+ private roof:T.MeshStandardMaterial;
+ constructor(buildings:any[],private wall:T.MeshStandardMaterial,private glass:T.MeshStandardMaterial,private aged:boolean,loadTextures=true){
+  this.finish=new EnvironmentMaterials(loadTextures);this.roof=this.finish.create('rough_concrete',0xa5a396);
   const map=new Map<string,Bucket>();
   for(const b of buildings){
    const x=Math.floor(b.p.reduce((s:number,p:number[])=>s+p[0]/b.p.length,0)/240)*240+120;
@@ -21,7 +26,7 @@ export class MappedBuildingCells {
   this.buckets=[...map.values()];this.group.name='Tirana:streamed-building-cells';
  }
  build(buildings:any[]){
-  const group=new T.Group(),shells:T.BufferGeometry[]=[],windows:T.BufferGeometry[]=[];
+  const group=new T.Group(),shells:T.BufferGeometry[]=[],windows:T.BufferGeometry[]=[],roofs:T.BufferGeometry[]=[];
   for(const b of buildings){
    const shape=new T.Shape(b.p.map((p:number[])=>new T.Vector2(p[0],-p[1])));
    for(const h of b.holes??[])shape.holes.push(new T.Path(h.map((p:number[])=>new T.Vector2(p[0],-p[1]))));
@@ -33,10 +38,20 @@ export class MappedBuildingCells {
    const colors=new Float32Array(pos.count*3);
    for(let i=0;i<pos.count;i++){
     uv.setXY(i,(Math.abs(normal.getX(i))>.5?pos.getZ(i):pos.getX(i))/4,Math.abs(normal.getY(i))>.5?pos.getZ(i)/4:pos.getY(i)/4);
-    color.toArray(colors,i*3);
+    const shade=Math.abs(normal.getY(i))>.5?.72:.84+.16*Math.min(1,(pos.getY(i)-(b.minHeight||0))/2.2);
+    colors[i*3]=color.r*shade;colors[i*3+1]=color.g*shade;colors[i*3+2]=color.b*shade;
    }
    geo.setAttribute('color',new T.BufferAttribute(colors,3));shells.push(geo);
-   if(this.aged&&AGED_HOUSING_IDS.has(String(b.id))||b.heightSource==='unknown'&&!b.levels)continue;
+   // Finish the existing authored shell height without changing source metadata.
+   // A missing surveyed height is not an unfinished/under-construction building.
+   if(b.tags?.building==='construction'||b.tags?.construction)continue;
+   const roof=surfaceGeometry([b.p,...(b.holes??[])],b.h+.018,3).toNonIndexed();roofs.push(roof);
+   for(const edge of facadeEdges(b.p)){
+     if(edge.length<1)continue;
+     const trim=new T.BoxGeometry(edge.length,.32,.18).rotateY(-Math.atan2(edge.uz,edge.ux)).translate((edge.a[0]+edge.b[0])/2,b.h+.16,(edge.a[1]+edge.b[1])/2).toNonIndexed();
+     roofs.push(trim);
+   }
+   if(this.aged&&AGED_HOUSING_IDS.has(String(b.id)))continue;
    for(const edge of facadeEdges(b.p)){
     const columns=Math.min(24,Math.floor(edge.length/4));if(!columns)continue;
     for(let y=Math.max((b.minHeight||0)+1.7,4.7);y<b.h-1;y+=3.2)for(let j=0;j<columns;j++){
@@ -45,7 +60,7 @@ export class MappedBuildingCells {
     }
    }
   }
-  for(const [parts,material,detail] of [[shells,this.wall,false],[windows,this.glass,true]] as const){
+  for(const [parts,material,detail] of [[shells,this.wall,false],[windows,this.glass,true],[roofs,this.roof,false]] as const){
    if(!parts.length)continue;const geo=mergeGeometries(parts,false);parts.forEach(g=>g.dispose());
    if(!geo)throw Error('Mapped building cell merge failed');
    const mesh=new T.Mesh(geo,material);mesh.castShadow=!detail;mesh.receiveShadow=true;mesh.userData.windows=detail;group.add(mesh);
@@ -67,5 +82,5 @@ export class MappedBuildingCells {
   this.group.userData.cachedCells=this.buckets.filter(b=>b.root).length;
  }
  private release(root:T.Group){root.traverse(o=>{if(o instanceof T.Mesh)o.geometry.dispose();});root.clear();root.removeFromParent();}
- dispose(){for(const b of this.buckets)if(b.root)this.release(b.root);this.buckets=[];this.group.removeFromParent();}
+ dispose(){this.finish.dispose();for(const b of this.buckets)if(b.root)this.release(b.root);this.buckets=[];this.group.removeFromParent();}
 }

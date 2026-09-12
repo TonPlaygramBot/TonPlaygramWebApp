@@ -1,5 +1,4 @@
 import { STREET_PROPS } from './shared/streetDressing.mjs';
-import { RAILINGS } from './shared/landscape.mjs';
 import { MAPPED_TREES } from '../tirana-city-source/registry.mjs';
 import {MATURE_TREE_IDS,STREET_LIFE} from '../tirana-street-life/registry.mjs';
 import * as T from 'three';
@@ -186,16 +185,7 @@ export class StreetVisuals {
           );
       }
     }
-    this.instance(
-      'iron_railing',
-      RAILINGS.map((r) => ({
-        x: r.x,
-        z: r.z,
-        yaw: r.yaw,
-        scale: 1,
-        length: r.length
-      }))
-    );
+    // The shared infrastructure layer owns railing visibility in every city mode.
     for (const p of STREET_PROPS) add(p.name, p.x, p.z, p.yaw);
     for (const [name, items] of placements) {
       this.instance(name, items);
