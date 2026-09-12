@@ -5,13 +5,22 @@ export const SCENE_SCALE = { playerHeight: 1.75 };
 export function tableCamera(
   camera: THREE.PerspectiveCamera,
   width: number,
-  height: number
+  height: number,
+  player = { x: 0, z: 1.7 }
 ) {
   camera.aspect = width / height;
-  camera.fov = 49;
+  // Eye height remains human-sized. Widen the vertical lens on portrait screens
+  // instead of moving the player several metres away from their table.
+  camera.fov = THREE.MathUtils.radToDeg(
+    2 *
+      Math.atan(
+        Math.tan(THREE.MathUtils.degToRad(58 / 2)) / Math.min(1, camera.aspect)
+      )
+  );
   camera.up.set(0, 1, 0);
-  camera.position.set(0.65, 3.15, camera.aspect < 0.6 ? 5.7 : 5.25);
-  camera.lookAt(0, 0.65, 0);
+  camera.near = 0.06;
+  camera.position.set(player.x, 1.62, player.z + 0.32);
+  camera.lookAt(player.x * 0.22, 0.92, -0.4);
   camera.updateProjectionMatrix();
   camera.updateMatrixWorld();
 }
@@ -42,7 +51,8 @@ export function tableFingerOffset(
   dx: number,
   dy: number,
   width: number,
-  height: number
+  height: number,
+  player = { x: 0, z: 1.7 }
 ) {
   stage.updateWorldMatrix(true, false);
   const project = (x: number, z: number) =>

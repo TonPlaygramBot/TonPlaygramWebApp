@@ -1,7 +1,8 @@
 import * as THREE from 'three';
 import { SoftwareRenderer } from './software';
 import { clone } from 'three/examples/jsm/utils/SkeletonUtils.js';
-import { loadCharacter, loadEnvironment } from './assetLoader';
+import { loadCharacter } from './assetLoader';
+import { buildArena } from './arena';
 import { CHARACTERS } from './options';
 import { MatchState, Seat, side, clamp } from './engine';
 import {
@@ -29,6 +30,11 @@ type Actor = {
   lastX: number;
   lastZ: number;
   groundY: number;
+  parts: {
+    mesh: THREE.Mesh;
+    full: THREE.BufferGeometry;
+    arms: THREE.BufferGeometry | null;
+  }[];
 };
 export class TableTennisRenderer {
   renderer: THREE.WebGLRenderer | SoftwareRenderer;
@@ -44,7 +50,8 @@ export class TableTennisRenderer {
   seat: Seat = 0;
   environment: THREE.Texture | null = null;
   envId = '';
-  envRequest = 0;
+  arena = buildArena();
+
   constructor(
     private host: HTMLElement,
     private report: (m: string) => void
@@ -89,6 +96,7 @@ export class TableTennisRenderer {
     const fill = new THREE.DirectionalLight(0x82d5ff, 0.45);
     fill.position.set(-3, 3, -3);
     this.scene.add(fill);
+    this.stage.add(this.arena.root);
     this.table();
     const bmat = new THREE.MeshStandardMaterial({
       color: '#fff7dc',
@@ -98,6 +106,7 @@ export class TableTennisRenderer {
     });
     this.ball = new THREE.Mesh(new THREE.SphereGeometry(0.02, 16, 12), bmat);
     this.ball.castShadow = true;
+    this.ball.renderOrder = 3;
     this.stage.add(this.ball);
     this.shadow = new THREE.Mesh(
       new THREE.CircleGeometry(0.045, 20),
@@ -137,7 +146,8 @@ export class TableTennisRenderer {
         lastTime: 0,
         lastX: 0,
         lastZ: 0,
-        groundY: 0
+        groundY: 0,
+        parts: []
       });
     }
     this.resize = new ResizeObserver(() => this.size());
@@ -240,35 +250,11 @@ export class TableTennisRenderer {
     return g;
   }
   async appearance(arena: string, characters: string[]) {
-    const environmentTask = (async () => {
-      if (this.envId !== arena) {
-        this.envId = arena;
-        const request = ++this.envRequest;
-        try {
-          const t = await loadEnvironment(arena);
-          if (this.dead || request !== this.envRequest) {
-            t.dispose();
-            return;
-          }
-          t.mapping = THREE.EquirectangularReflectionMapping;
-          this.environment?.dispose();
-          this.environment = t;
-          this.scene.environment = t;
-          this.scene.background = t;
-          this.scene.backgroundBlurriness = 0;
-          // Native equirectangular panorama: its photographed floor stays visible,
-          // with no projected dome, room scaling, crop, repeat or added rotation.
-          this.scene.backgroundIntensity = 1;
-          this.scene.environmentRotation.set(0, 0, 0);
-          this.scene.backgroundRotation.set(0, 0, 0);
-        } catch {
-          if (!this.dead)
-            this.report('Environment unavailable · studio lights active');
-        }
-      }
-    })();
+    this.envId = arena;
+    this.arena.setTheme(arena);
+    // Lighting and architecture are local geometry; no panoramic background.
+    this.scene.environment = null;
     await Promise.all([
-      environmentTask,
       ...characters.map(async (id, n) => {
         const a = this.actors[n];
         if (a.id === id) return;
@@ -279,6 +265,11 @@ export class TableTennisRenderer {
             this.disposeObject(template);
             return;
           }
+          for (const part of a.parts) {
+            part.mesh.geometry = part.full;
+            part.arms?.dispose();
+          }
+          a.parts = [];
           if (a.model) {
             a.root.remove(a.model);
             this.disposeObject(a.model);
@@ -364,6 +355,51 @@ export class TableTennisRenderer {
           a.root.updateWorldMatrix(true, true);
           a.rig = bindHuman(model);
           a.groundY = model.position.y;
+          // Reuse the real skinned hands in first person. Crop torso/head triangles,
+          // preserving each character's skin, fingers and existing arm deformation.
+          model.traverse((o) => {
+            const mesh = o as THREE.SkinnedMesh;
+            if (!mesh.isMesh) return;
+            const full = mesh.geometry,
+              indices: number[] = [];
+            if (
+              mesh.isSkinnedMesh &&
+              full.attributes.skinIndex &&
+              full.attributes.skinWeight
+            ) {
+              const skinIndex = full.attributes.skinIndex,
+                skinWeight = full.attributes.skinWeight;
+              const arm = (vertex: number) => {
+                let weight = 0;
+                for (let k = 0; k < 4; k++) {
+                  const bone =
+                    mesh.skeleton.bones[skinIndex.getComponent(vertex, k)];
+                  const name =
+                    bone?.name.toLowerCase().replace(/[_.\-\s]/g, '') || '';
+                  if (
+                    /forearm|lowerarm|hand|finger|thumb|index|middle|ring|pinky/.test(
+                      name
+                    )
+                  )
+                    weight += skinWeight.getComponent(vertex, k);
+                }
+                return weight > 0.6;
+              };
+              const count = full.index?.count ?? full.attributes.position.count;
+              for (let i = 0; i < count; i += 3) {
+                const tri = [0, 1, 2].map((k) =>
+                  full.index ? full.index.getX(i + k) : i + k
+                );
+                if (tri.every(arm)) indices.push(...tri);
+              }
+            }
+            const arms = indices.length ? full.clone() : null;
+            if (arms) {
+              arms.setIndex(indices);
+              arms.clearGroups();
+            }
+            a.parts.push({ mesh, full, arms });
+          });
         } catch {
           if (!this.dead)
             this.report('Character could not load. Choose another player.');
@@ -376,6 +412,15 @@ export class TableTennisRenderer {
     this.seat = seat;
     this.stage.rotation.y = side(seat, s) < 0 ? Math.PI : 0;
     this.stage.updateWorldMatrix(true, false);
+    const localPlayer = this.stage.localToWorld(
+      new THREE.Vector3(s.players[seat].x, 0, s.players[seat].z)
+    );
+    tableCamera(
+      this.camera,
+      this.host.clientWidth || 390,
+      this.host.clientHeight || 750,
+      { x: localPlayer.x, z: localPlayer.z }
+    );
     this.ball.position.set(s.ball.x, s.ball.y, s.ball.z);
     this.shadow.position.set(s.ball.x, 0.766, s.ball.z);
     this.shadow.visible =
@@ -388,6 +433,11 @@ export class TableTennisRenderer {
     );
     this.target.visible = false;
     this.actors.forEach((a, n) => {
+      a.root.visible = true;
+      for (const part of a.parts) {
+        part.mesh.visible = n !== seat || Boolean(part.arms);
+        part.mesh.geometry = n === seat && part.arms ? part.arms : part.full;
+      }
       const p = s.players[n],
         sign = side(n as Seat, s),
         dt = clamp(s.time - a.lastTime, 0, 0.1);
@@ -459,6 +509,11 @@ export class TableTennisRenderer {
   dispose() {
     this.dead = true;
     this.resize.disconnect();
+    for (const actor of this.actors)
+      for (const part of actor.parts) {
+        part.mesh.geometry = part.full;
+        part.arms?.dispose();
+      }
     this.disposeObject(this.scene);
     this.environment?.dispose();
     this.renderer.dispose();

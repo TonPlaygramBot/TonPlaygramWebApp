@@ -604,3 +604,132 @@
   color: #d5ff89;
   font-size: 12px;
 }
+
+/* Portrait player view keeps controls clear of the table and the hitting hand. */
+.tt-game .tt-match-menu {
+  position: absolute;
+  z-index: 8;
+  right: 12px;
+  top: 148px;
+  width: 44px;
+  height: 44px;
+  border-radius: 50%;
+  background: #10252bec;
+  font-size: 20px;
+}
+.tt-game .tt-swipe-trail {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  z-index: 7;
+  pointer-events: none;
+  color: #d5ff89;
+  filter: drop-shadow(0 0 5px #152f38);
+}
+.tt-game .tt-power-track {
+  display: block;
+  height: 4px;
+  width: 110px;
+  background: #ffffff25;
+  margin-top: 6px;
+  border-radius: 4px;
+  overflow: hidden;
+}
+.tt-game .tt-power-track > span {
+  display: block;
+  height: 100%;
+  background: #d5ff89;
+}
+.tt-game .tt-match-mission {
+  position: absolute;
+  bottom: 100px;
+  left: 12px;
+  right: 12px;
+  text-align: center;
+  font-size: 12px;
+  pointer-events: none;
+  color: #e7ffd7;
+  text-shadow: 0 1px 4px #000;
+}
+.tt-game .tt-career-panel {
+  background: linear-gradient(155deg, #14283bf7, #091c2cfa);
+  border-color: #5b788d;
+  padding: 20px;
+}
+.tt-game .tt-career-panel h2 {
+  font-size: 32px;
+  margin-bottom: 12px;
+}
+.tt-game .tt-next-match {
+  padding: 18px;
+  background: #254753;
+  border-radius: 16px;
+  margin: 16px 0;
+}
+.tt-game .tt-next-match h3 {
+  font-size: 26px;
+  margin: 5px 0 10px;
+}
+.tt-game .tt-next-match p,
+.tt-game .tt-mission-card p {
+  font-size: 14px;
+  line-height: 1.5;
+}
+.tt-game .tt-mission-card {
+  padding: 16px;
+  border: 1px solid #a9cbff40;
+  border-radius: 12px;
+}
+.tt-game .tt-mission-card b {
+  display: block;
+  font-size: 16px;
+  margin-bottom: 8px;
+}
+.tt-game .tt-mission-card p {
+  margin-bottom: 0;
+  color: #c5d9e7;
+}
+.tt-game .tt-career-stats {
+  flex-wrap: wrap;
+  font-size: 14px;
+  gap: 10px;
+}
+.tt-game .tt-career-panel .tt-tour li {
+  grid-template-columns: 24px minmax(0, 1fr) auto;
+  font-size: 14px;
+  gap: 8px;
+}
+.tt-game .tt-career-panel .tt-tour small {
+  font-size: 12px;
+}
+.tt-game .tt-career-panel .tt-training {
+  grid-template-columns: 1fr;
+}
+.tt-game .tt-career-panel .tt-training button {
+  display: flex;
+  justify-content: space-between;
+  padding: 14px;
+  font-size: 14px;
+}
+.tt-game .tt-career-panel .tt-training small {
+  margin: 0;
+  font-size: 12px;
+}
+.tt-game .tt-touch-help {
+  font-size: 12px;
+  bottom: max(22px, env(safe-area-inset-bottom));
+}
+.tt-game .tt-touch-feedback {
+  min-width: 138px;
+  font-size: 14px;
+}
+.tt-game[data-view='match'] .tt-call {
+  right: 65px;
+  font-size: 14px;
+}
+@media (prefers-reduced-motion: reduce) {
+  .tt-game .tt-touch-help {
+    transition: none;
+  }
+}
