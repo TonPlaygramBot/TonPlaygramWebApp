@@ -468,6 +468,10 @@ export function StreetCareerGame({ onExit }: { onExit: () => void }) {
                       ))}
                     </div>
                     <details>
+                      <summary>World sources & models</summary>
+                      <p>Map data © OpenStreetMap contributors · ODbL. Terrain: Mapzen; Europe terrain produced using Copernicus data and information funded by the European Union – EU-DEM layers; SRTM/GMTED2010 courtesy of USGS. Buildings and cableway: original Blender models informed by public photographs. The city datum and terrain seam are adapted for gameplay.</p>
+                    </details>
+                    <details>
                       <summary>Shared human cast</summary>
                       <p>{HUMAN_ROSTER.map((h) => h.label).join(' · ')}</p>
                       <p>
@@ -478,6 +482,7 @@ export function StreetCareerGame({ onExit }: { onExit: () => void }) {
                     </details>
                     <details>
                       <summary>Controls & comfort</summary>
+                      <p>Explore Farkë, Surrel, Kinostudio and the Dajti trails. Approach a cable station and tap HIP for the 15-minute Dajti Ekspres ride. You can walk freely after arriving.</p>
                       <p>
                         WASD / arrows · Mouse drag to look · F fire · Space jump
                         · C crouch · Shift sprint · Z aim · V kick · B guard · E

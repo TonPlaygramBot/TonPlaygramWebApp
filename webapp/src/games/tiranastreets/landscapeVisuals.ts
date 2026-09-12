@@ -1,3 +1,4 @@
+import {URBAN_DATUM_BOUNDS} from '../tirana-east/terrainCore.mjs';
 import * as T from 'three';
 import {mergeGeometries} from 'three/examples/jsm/utils/BufferGeometryUtils.js';
 import {WORLD} from './shared/world.mjs';
@@ -25,7 +26,7 @@ export class LandscapeVisuals {
     const grass=this.materials.create('grass_path_2',0xb2bc9e,true);
     const concrete=this.materials.create('rough_concrete',0x9c9f95);
     const bed=this.materials.create('asphalt_02',0x67665a);
-    const [x0,z0,x1,z1]=WORLD.bounds;
+    const [x0,z0,x1,z1]=URBAN_DATUM_BOUNDS;
     this.addMerged(cutChannels([[x0-80,z0-80],[x1+80,z0-80],[x1+80,z1+80],[x0-80,z1+80]])
       .map(p=>surfaceGeometry(p,-.045)),grass,'Terrain with open watercourses');
     const paving=this.materials.create('concrete_pavement',0xd7d2c6);

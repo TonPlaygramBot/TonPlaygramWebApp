@@ -1,6 +1,9 @@
 {
   "extends": "./tsconfig.neighbourhood.json",
-  "compilerOptions": { "allowJs": true, "checkJs": false },
+  "compilerOptions": {
+    "allowJs": true,
+    "checkJs": false
+  },
   "include": [
     "src/games/tirana-neighbourhood/**/*.ts",
     "src/games/tirana-neighbourhood/**/*.tsx",
@@ -10,6 +13,9 @@
     "src/games/tiranastreets/street-career/**/*.mts",
     "src/games/tiranastreets/map/CityMapCore.tsx",
     "src/games/tirana-expansion/WorldEnhancements.ts",
-    "src/games/tirana-environment/LivingCityReview.tsx"
+    "src/games/tirana-environment/LivingCityReview.tsx",
+    "src/games/tirana-east/**/*.ts",
+    "src/games/tirana-east/**/*.tsx",
+    "src/games/tirana-east/**/*.mts"
   ]
 }

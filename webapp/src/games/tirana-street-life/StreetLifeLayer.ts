@@ -1,3 +1,4 @@
+import {groundHeight} from '../tirana-east/terrainCore.mjs';
 import * as T from 'three';
 import {signReferenceFor,referencedAdvertising,SIGN_REFERENCES} from './signReferences.mjs';
 import {loadBrandArtwork} from './brandArtworkCache';
@@ -91,7 +92,7 @@ export class StreetLifeLayer {
   this.meshes.forEach(m=>m.count=0);this.labels.count=0;
   const uv=this.labels.geometry.getAttribute('instanceAtlas') as T.InstancedBufferAttribute;
   for(const model of selected){
-   this.parent.position.set(model.x,.12,model.z);this.parent.rotation.set(0,model.yaw,0);this.parent.updateMatrix();
+   this.parent.position.set(model.x,groundHeight(model.x,model.z)+.12,model.z);this.parent.rotation.set(0,model.yaw,0);this.parent.updateMatrix();
    for(const p of this.labelsOnly?[]:model.parts){
     const mesh=this.meshes.get(p.shape)!;if(mesh.count>=mesh.instanceMatrix.count)continue;
     this.dummy.position.fromArray(p.p);this.dummy.scale.fromArray(p.s);this.dummy.rotation.set(p.pitch||0,0,0);this.dummy.updateMatrix();

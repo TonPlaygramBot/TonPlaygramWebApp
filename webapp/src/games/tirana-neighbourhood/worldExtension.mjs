@@ -36,7 +36,7 @@ export function extendNeighbourhood(core,region){
  return {...core,bounds:region.bounds,roads:[...core.roads,...newRoads],buildings:[...core.buildings,...region.buildings],
   water:[...(core.water??[]),...(region.water??[]).filter(w=>w.line)],
   waterAreas:[...(core.waterAreas??[]),...(region.water??[]).filter(w=>w.polygons)],
-  sourceNodeAliases,
+  sourceNodeAliases:{...(core.sourceNodeAliases||{}),...sourceNodeAliases},
   graph:{nodes:[...remap.keys()].map(i=>nodes[i]),edges:edges.filter(([a,b])=>remap.has(a)&&remap.has(b)).map(([a,b])=>[remap.get(a),remap.get(b)]),directions:directions.filter((_,i)=>remap.has(edges[i][0])&&remap.has(edges[i][1]))},
   regionalSource:region.source,regionalCoverage:{sourceRoads:region.roads.length,addedRoads:newRoads.length,addedBuildings:region.buildings.length,provenSeamNodes:proven.size},
   attribution:core.attribution,source:core.source,sourceSha256:core.sourceSha256};

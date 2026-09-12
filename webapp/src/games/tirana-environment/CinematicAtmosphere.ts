@@ -1,3 +1,4 @@
+import {groundHeight} from '../tirana-east/terrainCore.mjs';
 import {RainPuddles} from './RainPuddles';
 import * as T from 'three';
 import {urbanLightLevel} from './urbanLightingCore.mjs';
@@ -78,7 +79,7 @@ export class CinematicAtmosphere {
     this.direction.set(Math.cos(angle),p.sunHeight,Math.sin(angle)*.65).normalize();
     this.sky.position.copy(camera.position);this.sky.scale.setScalar(camera.far*.8);
     const u=this.sky.material.uniforms;u.cloud.value=p.cloud;u.night.value=p.night;u.time.value=seconds;
-    const fog=this.scene.fog as T.FogExp2;fog.color.copy(this.horizon);fog.density=p.fog*(.85+p.night*.2);
+    const fog=this.scene.fog as T.FogExp2;fog.color.copy(this.horizon);fog.density=p.fog*(.85+p.night*.2)*Math.max(.09,1-Math.max(0,camera.position.y-100)/650);
     this.hemisphere.color.copy(this.top).lerp(this.temp.set('#eef2ee'),.55);
     this.hemisphere.groundColor.set('#696b50').lerp(this.temp.set('#293240'),p.night);
     this.hemisphere.intensity=.65+p.daylight*(1.05+p.cloud*.3);
@@ -92,7 +93,7 @@ export class CinematicAtmosphere {
     // Snap the moving shadow box to its texel grid; limit map rendering on phones.
     if(seconds<this.shadowAt||seconds-this.shadowAt>(battery?.25:.075)){
       const texel=120/this.sun.shadow.mapSize.x;
-      this.sun.target.position.set(Math.round(camera.position.x/texel)*texel,0,Math.round(camera.position.z/texel)*texel);
+      this.sun.target.position.set(Math.round(camera.position.x/texel)*texel,groundHeight(camera.position.x,camera.position.z),Math.round(camera.position.z/texel)*texel);
       const lightDirection=this.direction.clone();if(lightDirection.y<.12)lightDirection.set(-lightDirection.x,.3,-lightDirection.z).normalize();
       this.sun.position.copy(this.sun.target.position).addScaledVector(lightDirection,200);
       this.sun.shadow.needsUpdate=true;this.shadowAt=seconds;

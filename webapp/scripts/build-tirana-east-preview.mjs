@@ -1,0 +1,26 @@
+import fs from 'node:fs';import path from 'node:path';import {fileURLToPath} from 'node:url';import {gzipSync} from 'node:zlib';import {build} from 'esbuild';
+import {WORLD} from '../src/games/tiranastreets/shared/world.mjs';import {EAST} from '../src/games/tirana-east/data.mjs';import {NEIGHBOURHOOD} from '../src/games/tirana-neighbourhood/data.mjs';import {BLENDER} from '../src/games/tirana-east/blenderData.mjs';import {housingProfile} from '../src/games/tirana-east/housingCore.mjs';
+const root=path.resolve(path.dirname(fileURLToPath(import.meta.url)),'..'),center=b=>({x:b.p.reduce((s,p)=>s+p[0]/b.p.length,0),z:b.p.reduce((s,p)=>s+p[1]/b.p.length,0)});
+const home=WORLD.buildings.filter(b=>housingProfile(b)?.kind==='house'&&b.p.length===4&&b.h>=6&&b.h<=10&&b.roofShape!=='flat').sort((a,b)=>Math.hypot(center(a).x,center(a).z)-Math.hypot(center(b).x,center(b).z))[0];
+const dorm=WORLD.buildings.find(b=>b.id==='1217286572'),old=WORLD.buildings.find(b=>b.id==='548017164'),shop=[...NEIGHBOURHOOD.storefronts,...EAST.storefronts].find(s=>s.shop==='greengrocer');
+const upper=EAST.cable[0].points.at(-1);
+const views=[{name:'Banesë private · çati me tjegulla',...center(home),height:4,distance:25,yaw:.85,lift:.3},{name:'Qyteti Studenti · Godina 15',...center(dorm),height:10,distance:65,yaw:.8,lift:.2},{name:'Qyteti Studenti · Godinat 9 / 10',...center(old),height:7,distance:90,yaw:-.9,lift:.27},{name:'Fruta • Perime',x:shop.x,z:shop.z,height:1.7,distance:8,yaw:shop.yaw,lift:.08},{name:'Dajti Ekspres · stacioni i sipërm',x:upper[0],z:upper[1],height:9,distance:70,yaw:1.4,lift:.4},{name:'Tirana nga Dajti',x:upper[0],z:upper[1],height:25,distance:250,yaw:1,lift:.2,camera:[7990,1510,-5500],target:[0,80,0]},{name:'Mali i Krujës',x:1500,z:-21500,height:500,distance:6500,yaw:-1.3,lift:.2},{name:'Malësia e Krrabës',x:13000,z:12000,height:600,distance:7000,yaw:-1.8,lift:.25}];
+const near=(x,z)=>views.slice(0,5).some(v=>Math.hypot(v.x-x,v.z-z)<130),subset={origin:WORLD.origin,bounds:WORLD.bounds,buildings:WORLD.buildings.filter(b=>b.h>=8||b.p.some(p=>near(...p))).map(b=>({id:b.id,p:b.p,h:b.h,holes:b.holes,levels:b.levels,minHeight:b.minHeight,tags:{building:b.tags?.building,'building:colour':b.tags?.['building:colour'],'building:material':b.tags?.['building:material']},roofShape:b.roofShape})),roads:WORLD.roads.filter(r=>r.a.some(Number.isFinite)&&(near(...r.a)||near(...r.b))).map(({a,b,w,walk})=>({a,b,w,walk})),landmarks:[],parks:[],areas:[],water:[]};
+const east={forests:EAST.forests,cable:EAST.cable,roads:EAST.roads.filter(r=>Math.hypot(r.a[0]-upper[0],r.a[1]-upper[1])<850).map(({a,b,w})=>({a,b,w})),buildings:[],storefronts:[],peaks:EAST.peaks};
+const closeHousing=new Set(subset.buildings.filter(b=>housingProfile(b)&&views.slice(0,3).some(v=>Math.hypot(b.p[0][0]-v.x,b.p[0][1]-v.z)<90)).map(b=>b.id));
+const blender={models:Object.fromEntries(Object.entries(BLENDER.models).filter(([id])=>!id.startsWith('roof-')||closeHousing.has(id.slice(5)))),roofs:Object.fromEntries(Object.entries(BLENDER.roofs).filter(([id])=>closeHousing.has(id)))};
+const packed=(name,value)=>`import {decodeSource} from ${JSON.stringify(path.join(root,'src/games/tirana-neighbourhood/decodeSource.mjs'))};export const ${name}=decodeSource(['${gzipSync(JSON.stringify(value),{level:9}).toString('base64')}']);`;
+const result=await build({entryPoints:[path.join(root,'src/games/tirana-east/EasternReview.tsx')],bundle:true,write:false,minify:true,format:'esm',platform:'browser',plugins:[{name:'east-review',setup(b){
+ b.onResolve({filter:/^(three|react|react-dom)(\/.*)?$/},({path:s})=>({path:`https://esm.sh/${s.startsWith('three')?s.replace('three','three@0.164.0'):s.startsWith('react-dom')?s.replace('react-dom','react-dom@18.2.0'):s.replace('react','react@18.2.0')}`,external:true}));
+ b.onLoad({filter:/tiranastreets\/shared\/world\.mjs$/},()=>({contents:packed('WORLD',subset),loader:'js'}));
+ b.onLoad({filter:/tirana-east\/data\.mjs$/},()=>({contents:packed('EAST',east),loader:'js'}));
+ b.onLoad({filter:/tirana-east\/blenderData\.mjs$/},()=>({contents:packed('BLENDER',blender),loader:'js'}));
+ b.onLoad({filter:/tirana-east\/reviewData\.mjs$/},()=>({contents:packed('REVIEW',{views}),loader:'js'}));
+}}]});
+const text=result.outputFiles[0].text;
+if(/\bfetch\s*\(|XMLHttpRequest|WebSocket/.test(text))throw Error('Inline preview must remain offline');
+const html=fs.readFileSync(path.join(root,'scripts/tirana-east-preview.fragment.html'),'utf8').replace('/*__EAST_REVIEW_BUNDLE__*/',text.replace(/<\/script/gi,'<\\/script'));
+if(Buffer.byteLength(html)>1000000)throw Error('Preview too large: '+Buffer.byteLength(html));
+fs.writeFileSync(process.argv[2]||'/workspace/tirana-east-dajti.html',html);
+fs.writeFileSync('/tmp/east-review-selection.json',JSON.stringify({views,buildings:subset.buildings.filter(b=>b.p.some(p=>near(...p))),roads:subset.roads}));
+console.log({bytes:Buffer.byteLength(html),views:views.length,buildings:subset.buildings.length,roads:subset.roads.length,home:home.id,shop:shop.id});

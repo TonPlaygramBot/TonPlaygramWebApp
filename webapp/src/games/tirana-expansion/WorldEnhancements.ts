@@ -1,3 +1,7 @@
+import {TerrainLayer} from '../tirana-east/TerrainLayer';
+import {HousingDetails} from '../tirana-east/HousingDetails';
+import {EasternDistricts} from '../tirana-east/EasternDistricts';
+import {DajtiCableway} from '../tirana-east/DajtiCableway';
 import {NEIGHBOURHOOD} from '../tirana-neighbourhood/data.mjs';
 import {STREET_LIFE} from '../tirana-street-life/registry.mjs';
 import {LOCAL_FUEL} from '../tirana-environment/mappedAmenitiesCore.mjs';
@@ -33,6 +37,10 @@ export {
 } from './BaseWorldEnhancements';
 /** One shared street-detail integration, using the unchanged city metre frame. */
 export class WorldEnhancements extends ExistingEnhancements {
+  readonly terrain=new TerrainLayer();
+  readonly housing=new HousingDetails();
+  readonly eastern=new EasternDistricts();
+  readonly sourceCable=new DajtiCableway();
   readonly tradeDetails=new StreetLifeLayer({storefronts:NEIGHBOURHOOD.storefronts.filter(s=>['hairdresser','bakery','cafe','fast_food'].includes(s.shop||s.kind)||/barber|berber|hair/i.test(s.name)),stops:[],fuel:[],advertising:[]} as any,{},false,true);
   readonly fuelBrands=new StreetLifeLayer({storefronts:LOCAL_FUEL,stops:[],fuel:[],advertising:[]} as any,{});
   readonly panorama = new RegionalPanorama();
@@ -55,6 +63,8 @@ export class WorldEnhancements extends ExistingEnhancements {
   readonly facadeCompletion: FacadeCompletionLayer;
   constructor(options: StreetDetailOptions = {}) {
     super();
+    this.dajti.retire();this.dajti.group.visible=false;
+    this.group.add(this.terrain.group,this.housing.group,this.eastern.group,this.sourceCable.group);
     this.cityCompletion=new CityCompletionLayer(options);
     this.facadeCompletion=new FacadeCompletionLayer();
     this.group.add(this.cityCompletion.group,this.facadeCompletion.group);
@@ -108,6 +118,8 @@ export class WorldEnhancements extends ExistingEnhancements {
       );
       viewer = { x: p.x, z: p.z };
     }
+    this.terrain.update(viewer,battery);this.housing.update(viewer,battery);this.eastern.update(seconds,viewer,battery);this.sourceCable.update(seconds,viewer);
+    if(camera&&camera.far<55000){camera.far=55000;camera.updateProjectionMatrix();}
     this.tradeDetails.update(seconds,viewer,battery);
     this.fuelBrands.update(seconds,viewer,battery);
     this.institutions.update(seconds, viewer, battery);
@@ -124,6 +136,7 @@ export class WorldEnhancements extends ExistingEnhancements {
     this.facadeCompletion.update(seconds,viewer,battery);
   }
   override retire() {
+    this.housing.retire();this.eastern.retire();
     this.tradeDetails.retire();
     this.fuelBrands.retire();
     this.institutions.retire();
@@ -140,6 +153,7 @@ export class WorldEnhancements extends ExistingEnhancements {
     super.retire();
   }
   override dispose() {
+    this.terrain.dispose();this.housing.dispose();this.eastern.dispose();this.sourceCable.dispose();
     this.panorama.dispose();
     this.tradeDetails.dispose();
     this.fuelBrands.dispose();

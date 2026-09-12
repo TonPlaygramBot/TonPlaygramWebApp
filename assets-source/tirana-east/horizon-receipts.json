@@ -1,0 +1,42 @@
+[
+  {
+    "url": "https://api.openstreetmap.org/api/0.6/map?bbox=19.770,41.480,19.810,41.520",
+    "sha256": "5c1c0e9c2eb6b2cb2d33e515c7127e65f5cea4206a8004e72ecf28ba4fa9554b",
+    "acquiredAt": "2026-09-12T21:20:54.719974+00:00"
+  },
+  {
+    "url": "https://api.openstreetmap.org/api/0.6/map?bbox=19.770,41.520,19.810,41.560",
+    "sha256": "80963d5c8b443904633f01603bf4046852abe0271a29825f9994b9da1835002c",
+    "acquiredAt": "2026-09-12T21:20:53.622026+00:00"
+  },
+  {
+    "url": "https://api.openstreetmap.org/api/0.6/map?bbox=19.810,41.480,19.850,41.520",
+    "sha256": "38fbb2e9ad73b3728d699e3c22385655fa12d9cee4a0f941577c8c3ecffb3a06",
+    "acquiredAt": "2026-09-12T21:21:04.427561+00:00"
+  },
+  {
+    "url": "https://api.openstreetmap.org/api/0.6/map?bbox=19.810,41.520,19.850,41.560",
+    "sha256": "20168300f4605f78ce750985585428ab710e80076e1fab82465b7d957753d756",
+    "acquiredAt": "2026-09-12T21:21:04.481596+00:00"
+  },
+  {
+    "url": "https://api.openstreetmap.org/api/0.6/map?bbox=19.950,41.190,19.990,41.230",
+    "sha256": "4c87f424723ef1abc071972e38f92d6b2c3156c983e68e065f3f8e9af420e7b8",
+    "acquiredAt": "2026-09-12T21:21:15.685773+00:00"
+  },
+  {
+    "url": "https://api.openstreetmap.org/api/0.6/map?bbox=19.950,41.230,19.990,41.270",
+    "sha256": "db1a91c0cd0b3b989114c2a4124fddae3d37974e533c862799fa65f8db2b7fad",
+    "acquiredAt": "2026-09-12T21:21:15.632350+00:00"
+  },
+  {
+    "url": "https://api.openstreetmap.org/api/0.6/map?bbox=19.990,41.190,20.030,41.230",
+    "sha256": "eff250a6ca22712675eeb6016bdc822b297b576a8b09403af701ff3868a9e23f",
+    "acquiredAt": "2026-09-12T21:21:26.090120+00:00"
+  },
+  {
+    "url": "https://api.openstreetmap.org/api/0.6/map?bbox=19.990,41.230,20.030,41.270",
+    "sha256": "52e69313fbb0d969cf49dffe0bf0ca0b7fb130c11c92bbce23dd06dec2e64686",
+    "acquiredAt": "2026-09-12T21:21:25.990152+00:00"
+  }
+]

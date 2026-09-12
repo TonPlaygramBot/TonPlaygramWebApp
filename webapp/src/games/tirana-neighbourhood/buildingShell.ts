@@ -1,3 +1,4 @@
+import {buildingGround} from '../tirana-east/terrainCore.mjs';
 import * as T from 'three';
 import {sourceBuildingColour} from './buildingAppearance';
 /** Direct footprint walls/roofs: no extrusion objects, window planes or trim boxes. */
@@ -6,7 +7,7 @@ export function appendBuildingShell(b:any,positions:number[],colors:number[]){
  const holes=(b.holes||[]).map((ring:number[][])=>ring.map(p=>new T.Vector2(p[0],p[1])));
  const faces=T.ShapeUtils.triangulateShape(outer,holes);
  const points=[...outer,...holes.flat()];
- const low=b.minHeight||0,high=Math.max(low+.1,b.h);
+ const base=buildingGround(b),low=base+(b.minHeight||0),high=base+Math.max((b.minHeight||0)+.1,b.h);
  const color=sourceBuildingColour(b);
  const triangle=(a:number[],c:number[],d:number[],shade:number)=>{
   positions.push(...a,...c,...d);for(let i=0;i<3;i++)colors.push(color.r*shade,color.g*shade,color.b*shade);

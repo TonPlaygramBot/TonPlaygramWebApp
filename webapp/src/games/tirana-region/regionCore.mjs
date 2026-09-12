@@ -13,7 +13,7 @@ export const REGION_REFERENCES = Object.freeze([
 ].map(Object.freeze));
 // Authored acquisition envelope, not an administrative boundary or ring-road line.
 export const REGION_BBOX = Object.freeze([19.680,41.240,19.980,41.460]); // west,south,east,north
-export const REGION_STATUS='Regional extent and references. Continuous roads, terrain and collision require the reviewed regional import.';
+export const REGION_STATUS='Farkë, Surrel, Kinostudio and Dajti now connect to Tirana with sourced roads and paths. Krujë and Krrabë are DEM skyline terrain; western references remain outside playable coverage.';
 export function projectRegion(origin,latitude,longitude){
   if(!Array.isArray(origin)||origin.length!==2||![...origin,latitude,longitude].every(Number.isFinite)||Math.abs(origin[0])>=89||Math.abs(origin[1])>180||Math.abs(latitude)>90||Math.abs(longitude)>180)throw Error('Invalid WGS84 coordinate');
   return {x:(longitude-origin[1])*111320*Math.cos(origin[0]*Math.PI/180),z:(origin[0]-latitude)*111320};

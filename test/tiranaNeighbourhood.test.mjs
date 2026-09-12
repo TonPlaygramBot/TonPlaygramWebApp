@@ -6,6 +6,7 @@ import {createHash} from 'node:crypto';
 import {gunzipSync} from 'node:zlib';
 import {WORLD as core} from '../webapp/src/games/tiranastreets/shared/centralWorld.mjs';
 import {WORLD,collide,lineOfSight,createState,advanceState} from '../webapp/src/games/tiranastreets/shared/engine.mjs';
+import {EAST} from '../webapp/src/games/tirana-east/data.mjs';
 import {NEIGHBOURHOOD as n} from '../webapp/src/games/tirana-neighbourhood/data.mjs';
 import {extendNeighbourhood} from '../webapp/src/games/tirana-neighbourhood/worldExtension.mjs';
 import {buildMapGraph,findMapRoute} from '../webapp/src/games/tiranastreets/map/mapCore.mjs';
@@ -17,9 +18,9 @@ test('frozen source checksum, complete records and unchanged central metre geome
  assert.equal(createHash('sha256').update(archive).digest('hex'),n.source.sha256);
  const raw=JSON.parse(gunzipSync(archive));assert.equal(raw.receipts.length,35);assert.equal(raw.elements.length,580579);
  const ids=new Set(raw.elements.map(e=>`${e.type}/${e.id}`));assert.equal(ids.size,raw.elements.length);
- assert.deepEqual(WORLD.origin,core.origin);assert.deepEqual(WORLD.roads.slice(0,core.roads.length),core.roads);assert.deepEqual(WORLD.buildings.slice(0,core.buildings.length),core.buildings);
+ assert.deepEqual(WORLD.origin,core.origin);assert.deepEqual(WORLD.roads.slice(0,core.roads.length),core.roads);assert.deepEqual(WORLD.buildings.slice(0,core.buildings.length).map(({id,p,holes})=>({id,p,holes})),core.buildings.map(({id,p,holes})=>({id,p,holes}))); // Reviewed façade heights on main can differ from the old central snapshot.
  assert.deepEqual(WORLD.graph.nodes.slice(0,core.graph.nodes.length),core.graph.nodes);assert.deepEqual(WORLD.graph.edges.slice(0,core.graph.edges.length),core.graph.edges);
- assert.equal(n.buildings.length,44543);assert.equal(WORLD.roads.length-core.roads.length,118879);
+ assert.equal(n.buildings.length,44543);assert.equal(WORLD.roads.length-core.roads.length,118879+WORLD.regionalCoverage.addedRoads);assert.equal(WORLD.regionalCoverage.addedBuildings,EAST.buildings.length);
  assert.ok(WORLD.regionalCoverage.provenSeamNodes>1000);
 });
 test('walk and drive routes reach the three source-identified focus areas from central Tirana',()=>{

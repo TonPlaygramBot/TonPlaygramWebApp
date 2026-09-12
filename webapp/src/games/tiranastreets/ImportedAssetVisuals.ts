@@ -1,3 +1,5 @@
+import {alignVehicle} from '../tirana-east/terrainTransforms';
+import {groundHeight} from '../tirana-east/terrainCore.mjs';
 import * as T from 'three';
 import {GLTFLoader} from 'three/examples/jsm/loaders/GLTFLoader.js';
 import {DRACOLoader} from 'three/examples/jsm/loaders/DRACOLoader.js';
@@ -58,7 +60,7 @@ export class ImportedAssetVisuals {
       if(!source){if(this.pending.size<2&&!this.pending.has(key)&&!this.failed.has(key))void this.load(key,!!e.racingAsset);continue;}
       let root=this.instances.get(e.id);
       if(!root){root=clone(source) as T.Group;root.name=e.id;root.userData.assetKey=key;this.instances.set(e.id,root);this.group.add(root);}
-      root.position.set(e.x,e.y||.03,e.z);root.rotation.y=(e.heading||0)+(e.racingAsset?Math.PI:0);
+      root.position.set(e.x,(e.y??.03)+groundHeight(e.x,e.z),e.z);root.rotation.y=(e.heading||0)+(e.racingAsset?Math.PI:0);if(e.racingAsset)alignVehicle(root,(e.heading||0)+Math.PI);
     }
     const live=new Set([...this.instances.values()].map(r=>r.userData.assetKey));
     for(const [key,source] of this.sources)if(this.sources.size>12 && !live.has(key)){disposeWeaponResources([source]);this.sources.delete(key);}
