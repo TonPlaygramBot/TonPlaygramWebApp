@@ -1,4 +1,6 @@
 import * as T from 'three';
+import {urbanLightLevel} from './urbanLightingCore.mjs';
+import {applyWindowLighting} from './windowLighting';
 import {environmentAt, environmentRandom, environmentSeed} from './weatherCore.mjs';
 
 /** Shared, entirely cosmetic day/weather system. No frame-loop ownership and no
@@ -13,6 +15,8 @@ export class CinematicAtmosphere {
   private sky:T.Mesh<T.SphereGeometry,T.ShaderMaterial>;
   private rain:T.LineSegments<T.BufferGeometry,T.ShaderMaterial>;
   private surfaces=new Map<T.MeshStandardMaterial,{roughness:number;color:T.Color;emissive:T.Color;intensity:number;window:boolean}>();
+  private emitters=new Set<T.MeshStandardMaterial>();
+  private localLights=new Set<T.PointLight>();
   private scanAt=-Infinity;private shadowAt=-Infinity;private dead=false;
   private top=new T.Color();private horizon=new T.Color();private temp=new T.Color();
   private direction=new T.Vector3();
@@ -47,15 +51,15 @@ export class CinematicAtmosphere {
         }`
     }));
     this.sky.name='Moving cloud sky';this.sky.frustumCulled=false;this.sky.renderOrder=-1000;
-    const points:number[]=[];
+    const points:number[]=[],tips:number[]=[];
     for(let i=0;i<720;i++){
       const x=(environmentRandom(seed,i+100)-.5)*56,y=environmentRandom(seed,i+900)*24,z=(environmentRandom(seed,i+1800)-.5)*56;
-      points.push(x,y,z,x+.08,y+.75,z+.035);
+      points.push(x,y,z,x+.08,y+.75,z+.035);tips.push(0,.75);
     }
-    const geometry=new T.BufferGeometry().setAttribute('position',new T.Float32BufferAttribute(points,3));
+    const geometry=new T.BufferGeometry().setAttribute('position',new T.Float32BufferAttribute(points,3)).setAttribute('dropTip',new T.Float32BufferAttribute(tips,1));
     this.rain=new T.LineSegments(geometry,new T.ShaderMaterial({transparent:true,depthWrite:false,
-      uniforms:{time:{value:0},opacity:{value:0}},
-      vertexShader:'uniform float time;void main(){vec3 p=position;p.y=mod(p.y-time*15.,24.);p.x+=sin(time*.2)*.8;gl_Position=projectionMatrix*modelViewMatrix*vec4(p,1.);}',
+      uniforms:{time:{value:0},opacity:{value:0},wind:{value:new T.Vector2()}},
+      vertexShader:'uniform float time;uniform vec2 wind;attribute float dropTip;void main(){vec3 p=position;p.y=mod(p.y-dropTip-time*15.,24.)+dropTip;p.xz+=wind*(24.-p.y)*.13;gl_Position=projectionMatrix*modelViewMatrix*vec4(p,1.);}',
       fragmentShader:'uniform float opacity;void main(){gl_FragColor=vec4(.68,.78,.83,opacity);}'
     }));
     this.rain.name='Local rain';this.rain.frustumCulled=false;
@@ -81,7 +85,7 @@ export class CinematicAtmosphere {
     this.renderer.toneMappingExposure=1.02+p.golden*.08+p.night*.12;
     this.scene.environmentIntensity=.22+p.daylight*.58;
     this.rain.visible=p.rain>.015;this.rain.position.set(camera.position.x,camera.position.y-8,camera.position.z);
-    this.rain.geometry.setDrawRange(0,battery?360:1440);this.rain.material.uniforms.time.value=seconds;this.rain.material.uniforms.opacity.value=p.rain*.36;
+    this.rain.geometry.setDrawRange(0,battery?360:1440);this.rain.material.uniforms.time.value=seconds;this.rain.material.uniforms.opacity.value=p.rain*.36;this.rain.material.uniforms.wind.value.set(p.windX,p.windZ);
     // Snap the moving shadow box to its texel grid; limit map rendering on phones.
     if(seconds<this.shadowAt||seconds-this.shadowAt>(battery?.25:.075)){
       const texel=120/this.sun.shadow.mapSize.x;
@@ -91,16 +95,27 @@ export class CinematicAtmosphere {
       this.sun.shadow.needsUpdate=true;this.shadowAt=seconds;
     }
     if(seconds<this.scanAt||seconds-this.scanAt>2){
-      const found=new Set<T.MeshStandardMaterial>();
-      this.scene.traverse(o=>{if(!(o instanceof T.Mesh))return;for(const m of Array.isArray(o.material)?o.material:[o.material]){
-        if(!(m instanceof T.MeshStandardMaterial)||!m.userData.environmentSurface&&!m.userData.environmentWindow)continue;
+      const found=new Set<T.MeshStandardMaterial>();this.emitters.clear();this.localLights.clear();
+      this.scene.traverse(o=>{if(o instanceof T.PointLight&&o.userData.environmentLight)this.localLights.add(o);if(!(o instanceof T.Mesh))return;for(const m of Array.isArray(o.material)?o.material:[o.material]){
+        if(!(m instanceof T.MeshStandardMaterial))continue;
+        if(m.userData.environmentLight)this.emitters.add(m);
+        if(!m.userData.environmentSurface&&!m.userData.environmentWindow)continue;
+        if(m.userData.environmentWindow)applyWindowLighting(m);
         found.add(m);if(!this.surfaces.has(m))this.surfaces.set(m,{roughness:m.roughness,color:m.color.clone(),emissive:m.emissive.clone(),intensity:m.emissiveIntensity,window:!!m.userData.environmentWindow});
       }});
       for(const m of this.surfaces.keys())if(!found.has(m))this.surfaces.delete(m);
       this.scanAt=seconds;
     }
+    for(const light of this.localLights){
+      if(!light.parent){this.localLights.delete(light);continue;}
+      light.intensity=light.userData.lightAvailable===false?0:urbanLightLevel(p,light.userData.environmentLight)*light.userData.nightIntensity;
+    }
+    for(const m of this.emitters){
+      if(!m.emissiveMap)m.emissive.set('#ffe2b4');
+      m.emissiveIntensity=urbanLightLevel(p,m.userData.environmentLight)*(m.userData.nightIntensity||1);
+    }
     for(const [m,dry] of this.surfaces){
-      if(dry.window){m.emissive.set('#e6b975');m.emissiveIntensity=p.night*.32;}
+      if(dry.window){m.emissive.set('#ffe3b0');m.emissiveIntensity=urbanLightLevel(p,'apartment')*1.15;}
       else{m.roughness=dry.roughness*(1-p.wetness*.65);m.color.copy(dry.color).multiplyScalar(1-p.wetness*.19);}
     }
   }
@@ -108,7 +123,7 @@ export class CinematicAtmosphere {
     if(this.dead)return;this.dead=true;
     for(const [m,dry] of this.surfaces){m.roughness=dry.roughness;m.color.copy(dry.color);m.emissive.copy(dry.emissive);m.emissiveIntensity=dry.intensity;}this.surfaces.clear();
     this.sky.geometry.dispose();this.sky.material.dispose();this.rain.geometry.dispose();this.rain.material.dispose();
-    this.group.removeFromParent();this.group.clear();
+    this.emitters.clear();this.localLights.clear();this.group.removeFromParent();this.group.clear();
     if(this.ownSun){this.sun.removeFromParent();this.sun.target.removeFromParent();this.sun.dispose();}
     if(this.ownHemisphere)this.hemisphere.removeFromParent();
   }

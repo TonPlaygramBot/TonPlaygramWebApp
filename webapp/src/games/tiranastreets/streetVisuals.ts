@@ -81,7 +81,7 @@ export class StreetVisuals {
       )
         return;
       occupied.push({ x, z });
-      add('street_lamp', x, z, yaw - Math.PI / 2);
+      // Landscape's shared UrbanLighting owns lamps in every city mode.
       if (i % 3 === 0) {
         add(
           'park_bench',

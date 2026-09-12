@@ -42,3 +42,9 @@ test('concrete glTF dimensions agree with shared physics and every triangle has 
 test('glTF material library uses standard PNG, normal and packed ORM channels',()=>{assert.throws(()=>buildFinishGltf({color:'data:image/svg+xml,hi'}));const image='data:image/png;base64,AAAA',g=buildFinishGltf({color:image,normal:image,orm:image});assert.equal(g.materials[0].normalTexture.index,1);assert.equal(g.materials[0].pbrMetallicRoughness.metallicRoughnessTexture.index,2);assert.equal(g.samplers[0].wrapS,10497);});
 
 test('render profiles avoid duplicate FPS crossings while adding missing street-career zebras',async()=>{const {streetDetailProfile}=await import('../webapp/src/games/tirana-street-detail/roadDetailCore.mjs');assert.ok(streetDetailProfile('fps').skipPaint.includes('zebra'));assert.ok(!streetDetailProfile('street').skipPaint.includes('zebra'));assert.deepEqual(streetDetailProfile('racing').skipPaint,[]);assert.equal(streetDetailProfile('street').postY,.07);assert.equal(streetDetailProfile('fps').postY,.23);assert.equal(streetDetailProfile('racing').postY,.02);assert.throws(()=>streetDetailProfile('unknown'));});
+
+test('turning off concrete posts preserves markings and creates no collision points',()=>{
+ const world={buildings:[],roads:[{a:[0,0],b:[0,60],w:12,name:'Example'}]};
+ const original=buildRoadDetails(world),removed=buildRoadDetails(world,{includePosts:false});
+ assert.ok(original.posts.length>0);assert.equal(removed.posts.length,0);assert.deepEqual(removed.decals,original.decals);
+});

@@ -52,7 +52,7 @@ export async function pruneNativeGamePacks({ distDir = DEFAULT_DIST_DIR } = {}) 
     const manifestPath = path.join(distDir, String(pack.manifestUrl || '').replace(/^\/+/, ''));
     const manifest = JSON.parse(await readFile(manifestPath, 'utf8'));
     for (const asset of manifest.assets || []) {
-      if (!asset?.url || seenUrls.has(asset.url) || preservedUrls.has(asset.url)) continue;
+      if (!asset?.url || asset.nativeRemovable === false || seenUrls.has(asset.url) || preservedUrls.has(asset.url)) continue;
       seenUrls.add(asset.url);
       if (!/^https:\/\//i.test(String(asset.sourceUrl || '')) && catalog.source === 'cdn') {
         throw new Error(`Pack asset is missing an HTTPS CDN source: ${asset.url}`);

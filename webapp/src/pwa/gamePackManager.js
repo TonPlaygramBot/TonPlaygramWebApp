@@ -1,5 +1,6 @@
 import {
   GAME_PACK_CACHE_PREFIX,
+  GAME_PACK_COMPLETE_PATH,
   findGamePack,
   loadGamePackCatalog,
   loadGamePackManifest,
@@ -13,6 +14,10 @@ const PROGRESS_EVENT = 'tonplaygram-game-pack-progress';
 const MAX_HASH_BYTES = 24 * 1024 * 1024;
 const DEFAULT_CONCURRENCY = 3;
 const activeInstalls = new Map();
+const completionRequest = () => new Request(new URL(GAME_PACK_COMPLETE_PATH, window.location.origin));
+const checkCancelled = signal => {
+  if (signal?.aborted) throw new DOMException('Download cancelled.', 'AbortError');
+};
 
 const safePackId = value => String(value || '').replace(/[^a-z0-9_-]+/gi, '-').toLowerCase();
 
@@ -88,7 +93,15 @@ export async function reconcileGamePackInstallations() {
   const cacheNames = new Set(await caches.keys());
   for (const [packId, installation] of Object.entries(state.packs)) {
     if (installation?.status !== 'installed') continue;
-    if (installation.cacheName && cacheNames.has(installation.cacheName)) continue;
+    if (installation.cacheName && cacheNames.has(installation.cacheName)) {
+      const cache = await caches.open(installation.cacheName);
+      const files = (await cache.keys()).filter(request => new URL(request.url).pathname !== GAME_PACK_COMPLETE_PATH);
+      if (files.length >= installation.assetCount) {
+        if (!(await cache.match(completionRequest()))) await cache.put(completionRequest(), new Response('complete'));
+        continue;
+      }
+      await cache.delete(completionRequest());
+    }
     state.packs[packId] = {
       ...installation,
       status: 'partial',
@@ -228,6 +241,9 @@ async function downloadAsset({ pack, asset, cache, cacheName, signal, onBytes })
   });
 
   if (!response.ok) throw new Error(`Download failed for ${asset.url} (${response.status}).`);
+  if (/text\/html/i.test(response.headers.get('content-type') || '') && !/\.html(?:[?#]|$)/i.test(asset.url)) {
+    throw new Error(`The server returned a page instead of ${asset.url}. Please check for game updates.`);
+  }
   const contentLength = Number(response.headers.get('content-length') || 0);
   const contentEncoding = response.headers.get('content-encoding');
   if (asset.size && contentLength && !contentEncoding && asset.size !== contentLength) {
@@ -255,6 +271,7 @@ async function downloadAsset({ pack, asset, cache, cacheName, signal, onBytes })
 
   if (!response.body?.tee) {
     const buffer = await response.arrayBuffer();
+    if (asset.size && buffer.byteLength !== asset.size) throw new Error(`Size mismatch for ${asset.url}.`);
     onBytes?.(buffer.byteLength);
     const headers = withPackHeaders(response.headers, pack, asset, buffer.byteLength);
     await cache.put(
@@ -305,6 +322,7 @@ async function deleteOldPackCaches(packId, keepCacheName) {
 }
 
 async function performInstall(packId, { catalog, concurrency = DEFAULT_CONCURRENCY, signal } = {}) {
+  checkCancelled(signal);
   if (!isGamePackStorageSupported()) {
     throw new Error('Game-pack storage is not supported on this device.');
   }
@@ -315,17 +333,25 @@ async function performInstall(packId, { catalog, concurrency = DEFAULT_CONCURREN
 
   for (const dependencyId of catalogPack.dependencies || []) {
     const dependency = findGamePack(resolvedCatalog, dependencyId);
+    if (!dependency) throw new Error(`Missing download dependency: ${dependencyId}. Check for game updates.`);
     const dependencyState = readState().packs[dependencyId];
     if (dependency && getGamePackStatus(dependency, dependencyState) !== 'installed') {
-      await installGamePack(dependencyId, {
-        catalog: resolvedCatalog,
-        concurrency,
-        signal
-      });
+      dispatchProgress({ packId, phase: 'dependency', dependencyTitle: dependency.title, percent: 0 });
+      const relay = event => {
+        if (event.detail?.packId !== dependencyId) return;
+        dispatchProgress({ ...event.detail, packId, phase: 'dependency', dependencyTitle: dependency.title });
+      };
+      window.addEventListener(PROGRESS_EVENT, relay);
+      try {
+        await installGamePack(dependencyId, { catalog: resolvedCatalog, concurrency, signal });
+      } finally {
+        window.removeEventListener(PROGRESS_EVENT, relay);
+      }
     }
   }
 
   const manifest = await loadGamePackManifest(catalogPack, { fetchImpl: getNetworkFetch() });
+  checkCancelled(signal);
   const assets = await resolveGamePackAssets(manifest, { fetchImpl: getNetworkFetch() });
   if (!assets.length) throw new Error(`The ${catalogPack.title} pack has no downloadable assets.`);
 
@@ -336,6 +362,7 @@ async function performInstall(packId, { catalog, concurrency = DEFAULT_CONCURREN
   };
   const cacheName = getPackCacheName(pack.id, pack.version);
   const cache = await caches.open(cacheName);
+  const previousInstallation = readState().packs[pack.id];
   const totalBytes = assets.reduce((sum, asset) => sum + (asset.size || 0), 0);
   let completedAssets = 0;
   let downloadedBytes = 0;
@@ -375,9 +402,14 @@ async function performInstall(packId, { catalog, concurrency = DEFAULT_CONCURREN
   emitProgress('preparing', null, true);
 
   let cursor = 0;
+  let workerError;
+  const workersController = new AbortController();
+  const abortWorkers = () => workersController.abort();
+  signal?.addEventListener('abort', abortWorkers, { once: true });
+  if (signal?.aborted) abortWorkers();
   const worker = async () => {
     while (cursor < assets.length) {
-      if (signal?.aborted) throw new DOMException('Download cancelled.', 'AbortError');
+      checkCancelled(workersController.signal);
       const index = cursor++;
       const asset = assets[index];
       emitProgress('downloading', asset.url, true);
@@ -386,7 +418,7 @@ async function performInstall(packId, { catalog, concurrency = DEFAULT_CONCURREN
         asset,
         cache,
         cacheName,
-        signal,
+        signal: workersController.signal,
         onBytes: size => {
           downloadedBytes += size;
           emitProgress('downloading', asset.url);
@@ -400,8 +432,17 @@ async function performInstall(packId, { catalog, concurrency = DEFAULT_CONCURREN
 
   try {
     const workerCount = Math.max(1, Math.min(Number(concurrency) || DEFAULT_CONCURRENCY, assets.length));
-    await Promise.all(Array.from({ length: workerCount }, worker));
+    // Settle every writer before exposing Resume or removing a partial cache.
+    // Otherwise a late worker can overwrite a subsequent attempt's result.
+    await Promise.allSettled(Array.from({ length: workerCount }, () => worker().catch(error => {
+      workerError ||= error;
+      abortWorkers();
+      throw error;
+    })));
+    if (workerError) throw workerError;
+    checkCancelled(signal);
 
+    await cache.put(completionRequest(), new Response('complete'));
     const installation = updatePackState(pack.id, {
       status: 'installed',
       version: pack.version,
@@ -416,14 +457,18 @@ async function performInstall(packId, { catalog, concurrency = DEFAULT_CONCURREN
       lastError: null,
       dependencies: pack.dependencies
     });
-    await deleteOldPackCaches(pack.id, cacheName);
-    await clearRuntimeCopies(assets);
+    // Successful activation must not be undone by best-effort cache cleanup.
+    await deleteOldPackCaches(pack.id, cacheName).catch(() => {});
+    await clearRuntimeCopies(assets).catch(() => {});
     emitProgress('complete', null, true);
     dispatchChanged({ packId: pack.id, status: 'installed', installation });
     return installation;
   } catch (error) {
     const cancelled = error?.name === 'AbortError';
-    const installation = updatePackState(pack.id, {
+    const installation = updatePackState(pack.id, previousInstallation?.status === 'installed' ? {
+      ...previousInstallation,
+      lastError: cancelled ? null : error?.message || 'Update failed. Your previous download is still available.'
+    } : {
       status: 'partial',
       version: pack.version,
       cacheName,
@@ -438,6 +483,8 @@ async function performInstall(packId, { catalog, concurrency = DEFAULT_CONCURREN
     emitProgress(cancelled ? 'cancelled' : 'failed', null, true);
     dispatchChanged({ packId: pack.id, status: installation.status, error: installation.lastError });
     throw error;
+  } finally {
+    signal?.removeEventListener('abort', abortWorkers);
   }
 }
 
@@ -447,16 +494,31 @@ export function installGamePack(packId, options = {}) {
   const externalSignal = options.signal;
   const abortFromExternal = () => controller.abort();
   externalSignal?.addEventListener?.('abort', abortFromExternal, { once: true });
+  if (externalSignal?.aborted) controller.abort();
 
+  const previousInstallation = readState().packs[packId];
   const promise = requestPersistentGamePackStorage()
     .catch(() => false)
     .then(() => performInstall(packId, { ...options, signal: controller.signal }))
+    .catch(error => {
+      const cancelled = error?.name === 'AbortError';
+      const message = error?.name === 'QuotaExceededError'
+        ? 'Not enough device storage. Remove a downloaded game or free space, then resume.'
+        : error?.message || 'Download failed. Try again when connected.';
+      updatePackState(packId, { ...(previousInstallation?.status === 'installed' ? previousInstallation : { status: 'partial' }), lastError: cancelled ? null : message });
+      dispatchProgress({ packId, phase: cancelled ? 'cancelled' : 'failed', percent: 0 });
+      throw error;
+    })
     .finally(() => {
       externalSignal?.removeEventListener?.('abort', abortFromExternal);
       activeInstalls.delete(packId);
+      // All hooks must see the final state AFTER the active flag is cleared.
+      dispatchChanged({ packId, status: readState().packs[packId]?.status || 'not-installed' });
     });
 
   activeInstalls.set(packId, { controller, promise });
+  dispatchProgress({ packId, phase: 'preparing', percent: 0 });
+  dispatchChanged({ packId, status: 'downloading' });
   return promise;
 }
 
@@ -474,7 +536,9 @@ const isDependencyUsed = (catalog, dependencyId, state, excludingPackId) =>
   });
 
 export async function removeGamePack(packId, { catalog, removeUnusedDependencies = true } = {}) {
+  const pending = activeInstalls.get(packId)?.promise;
   cancelGamePackInstall(packId);
+  if (pending) await pending.catch(() => {});
   if (!isGamePackStorageSupported()) {
     removePackState(packId);
     dispatchChanged({ packId, status: 'not-installed' });

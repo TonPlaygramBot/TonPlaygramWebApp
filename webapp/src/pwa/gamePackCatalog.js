@@ -1,162 +1,24 @@
+import { GAME_PACK_DEFINITIONS } from './gamePackDefinitions.js';
 export const GAME_PACK_SCHEMA_VERSION = 1;
 export const GAME_PACK_CATALOG_URL = '/pwa/game-packs/index.json';
 export const GAME_PACK_CACHE_PREFIX = 'tonplaygram-pack-';
+export const GAME_PACK_COMPLETE_PATH = '/pwa/game-packs/.complete';
 const GAME_PACK_METADATA_CACHE = `${GAME_PACK_CACHE_PREFIX}metadata-v1`;
-
-const source = (includePrefixes, excludePrefixes = []) => ({
-  url: '/pwa/offline-assets.json',
-  includePrefixes,
-  excludePrefixes
-});
-
-const gltfSource = (includePrefixes, excludePrefixes = []) => ({
-  url: '/pwa/gltf-assets.json',
-  includePrefixes,
-  excludePrefixes
-});
-
-const fallbackManifest = ({ id, version, dependencies = [], prefixes, excludes = [], assets = [] }) => ({
-  schemaVersion: GAME_PACK_SCHEMA_VERSION,
-  id,
-  version,
-  dependencies,
-  assets,
-  assetSources: [source(prefixes, excludes), gltfSource(prefixes, excludes)]
-});
-
 export const FALLBACK_GAME_PACK_CATALOG = Object.freeze({
-  schemaVersion: GAME_PACK_SCHEMA_VERSION,
-  generatedAt: null,
-  source: 'runtime-fallback',
-  packs: [
-    {
-      id: 'shared-tirana-vehicles',
-      title: 'Shared Tirana Vehicle Fleet',
-      description: 'Vehicle models shared by Tirana Streets and Racing Royal.',
-      version: 'fallback-1',
-      manifestUrl: '/pwa/game-packs/shared-tirana-vehicles.json',
-      hidden: true,
-      route: null,
-      cover: '/assets/kart-royale/cover.webp',
-      dependencies: [],
-      totalBytes: 0,
-      assetCount: 0,
-      fallbackManifest: fallbackManifest({
-        id: 'shared-tirana-vehicles',
-        version: 'fallback-1',
-        prefixes: ['/assets/tirana-streets/vehicle-collection/']
-      })
-    },
-    {
-      id: 'tirana-streets',
-      gameSlugs: ['tiranastreets'],
-      title: 'Tirana Streets',
-      description: 'City, landmark, street-life, vehicle and operation assets.',
-      version: 'fallback-1',
-      manifestUrl: '/pwa/game-packs/tirana-streets.json',
-      route: '/games/tiranastreets/lobby',
-      cover: '/assets/tirana-streets/map.svg',
-      dependencies: ['shared-tirana-vehicles'],
-      totalBytes: 0,
-      assetCount: 0,
-      fallbackManifest: fallbackManifest({
-        id: 'tirana-streets',
-        version: 'fallback-1',
-        dependencies: ['shared-tirana-vehicles'],
-        prefixes: [
-          '/assets/tirana-streets/',
-          '/assets/tirana-detail-kit/',
-          '/assets/tirana-landmarks/',
-          '/assets/blackwater/'
-        ],
-        excludes: ['/assets/tirana-streets/vehicle-collection/']
-      })
-    },
-    {
-      id: 'racing-royal',
-      gameSlugs: ['kartroyale'],
-      title: 'Racing Royal',
-      description: 'Tracks, vehicles, environments and racing presentation assets.',
-      version: 'fallback-1',
-      manifestUrl: '/pwa/game-packs/racing-royal.json',
-      route: '/games/kartroyale/lobby',
-      cover: '/assets/kart-royale/cover.webp',
-      dependencies: ['shared-tirana-vehicles'],
-      totalBytes: 0,
-      assetCount: 0,
-      fallbackManifest: fallbackManifest({
-        id: 'racing-royal',
-        version: 'fallback-1',
-        dependencies: ['shared-tirana-vehicles'],
-        prefixes: ['/assets/kart-royale/']
-      })
-    },
-    {
-      id: 'pool-royale',
-      gameSlugs: ['poolroyale', 'snookerroyale'],
-      title: 'Pool & Snooker Royale',
-      description: 'Tables, arenas, materials, cues and offline game entry assets.',
-      version: 'fallback-1',
-      manifestUrl: '/pwa/game-packs/pool-royale.json',
-      route: '/games/poolroyale/lobby',
-      cover: '/assets/icons/pool-royale.svg',
-      dependencies: [],
-      totalBytes: 0,
-      assetCount: 0,
-      fallbackManifest: fallbackManifest({
-        id: 'pool-royale',
-        version: 'fallback-1',
-        prefixes: ['/assets/pool-royale/', '/models/pool-royale/'],
-        assets: [
-          '/pool-royale-bracket.html',
-          '/pool-royale-api.js',
-          '/snooker-royale-bracket.html',
-          '/snooker-royale-api.js',
-          '/lib/poolAi.js',
-          '/game-preloads/pool-royale-preload.txt',
-          '/game-preloads/snooker-royale-preload.txt',
-          '/power-slider.js',
-          '/power-slider.css'
-        ]
-      })
-    },
-    {
-      id: 'table-tennis-royal',
-      gameSlugs: ['tabletennisroyal', 'tennisroyal'],
-      title: 'Table Tennis & Tennis Royal',
-      description: 'Athletes, arenas, rackets, tables and court assets.',
-      version: 'fallback-1',
-      manifestUrl: '/pwa/game-packs/table-tennis-royal.json',
-      route: '/games/tabletennisroyal/lobby',
-      cover: '/assets/icons/table-tennis-royal.svg',
-      dependencies: [],
-      totalBytes: 0,
-      assetCount: 0,
-      fallbackManifest: fallbackManifest({
-        id: 'table-tennis-royal',
-        version: 'fallback-1',
-        prefixes: ['/assets/table-tennis/']
-      })
-    },
-    {
-      id: 'royal-lanes',
-      gameSlugs: ['royallanes'],
-      title: 'Royal Lanes Bowling',
-      description: 'Bowling lane, ball, pin, character and arena assets.',
-      version: 'fallback-1',
-      manifestUrl: '/pwa/game-packs/royal-lanes.json',
-      route: '/games/royallanes/lobby',
-      cover: '/assets/royal-lanes/mark.svg',
-      dependencies: [],
-      totalBytes: 0,
-      assetCount: 0,
-      fallbackManifest: fallbackManifest({
-        id: 'royal-lanes',
-        version: 'fallback-1',
-        prefixes: ['/assets/royal-lanes/']
-      })
+  schemaVersion: 1, source: 'runtime-fallback',
+  packs: GAME_PACK_DEFINITIONS.map(definition => ({
+    ...definition, version: 'fallback-2', totalBytes: 0, assetCount: 0,
+    manifestUrl: `/pwa/game-packs/${definition.id}.json`,
+    fallbackManifest: {
+      schemaVersion: 1, id: definition.id, version: 'fallback-2',
+      dependencies: definition.dependencies || [],
+      assets: (definition.files || []).map(file => `/${file}`),
+      assetSources: ['/pwa/offline-assets.json', '/pwa/gltf-assets.json'].map(url => ({
+        url, includePrefixes: (definition.roots || []).map(root => `/${root}/`),
+        excludePrefixes: (definition.excludeRoots || []).map(root => `/${root}/`)
+      }))
     }
-  ]
+  }))
 });
 
 let cachedCatalogPromise = null;
@@ -198,11 +60,15 @@ async function fetchJsonWithMetadataCache(url, networkFetch) {
   try {
     const response = await networkFetch(request, { cache: 'no-store' });
     if (!response.ok) throw new Error(`Request failed (${response.status}).`);
-    if (typeof caches !== 'undefined') {
-      const cache = await caches.open(GAME_PACK_METADATA_CACHE);
-      await cache.put(request, response.clone());
-    }
-    return await response.json();
+    const value = await response.clone().json();
+    // A full/disabled cache must not turn a successful catalog fetch into failure.
+    try {
+      if (typeof caches !== 'undefined') {
+        const cache = await caches.open(GAME_PACK_METADATA_CACHE);
+        await cache.put(request, response);
+      }
+    } catch { /* Downloads report storage failures separately. */ }
+    return value;
   } catch (networkError) {
     if (typeof caches !== 'undefined') {
       const cached = await caches.match(request, { ignoreVary: true });

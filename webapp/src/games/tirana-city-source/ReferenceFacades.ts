@@ -189,7 +189,9 @@ export class ReferenceFacades {
       for(const [color,geometries] of parts){
         const geometry=mergeGeometries(geometries,false);geometries.forEach(g=>g.dispose());if(!geometry)continue;
         if(!this.materials.has(color))this.materials.set(color,new T.MeshStandardMaterial({color,roughness:color===0x28434a||color===0x345663?.33:.88,metalness:color===0x28434a||color===0x345663?.22:0}));
-        const mesh=new T.Mesh(geometry,this.materials.get(color));mesh.castShadow=true;mesh.receiveShadow=true;group.add(mesh);
+        const material=this.materials.get(color)!;
+        if(color===0x28434a||color===0x345663)material.userData.environmentWindow=true;
+        const mesh=new T.Mesh(geometry,material);mesh.castShadow=true;mesh.receiveShadow=true;group.add(mesh);
       }
       this.group.add(group);this.entries.push({group,x:b.p.reduce((s,p)=>s+p[0],0)/b.p.length,z:b.p.reduce((s,p)=>s+p[1],0)/b.p.length});
     }

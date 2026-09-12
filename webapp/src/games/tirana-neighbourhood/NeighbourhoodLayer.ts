@@ -41,6 +41,7 @@ export class NeighbourhoodLayer {
   root.traverse(o=>{if(!(o instanceof T.Mesh))return;o.castShadow=true;o.receiveShadow=true;this.geometries.add(o.geometry);
    for(const material of Array.isArray(o.material)?o.material:[o.material]){
     this.materials.add(material);
+    if(material instanceof T.MeshStandardMaterial&&/glass|window|glazing/i.test(material.name))material.userData.environmentWindow=true;
     for(const key of ['map','normalMap','roughnessMap','metalnessMap'] as const){
      const m=material as T.MeshStandardMaterial,t=m[key];if(!t)continue;
      // glTF-exported image names are shared across these authored assets. Include

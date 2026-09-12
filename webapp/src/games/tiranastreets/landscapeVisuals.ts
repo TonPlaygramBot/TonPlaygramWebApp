@@ -3,6 +3,8 @@ import {mergeGeometries} from 'three/examples/jsm/utils/BufferGeometryUtils.js';
 import {WORLD} from './shared/world.mjs';
 import {EnvironmentMaterials} from '../tirana-environment/EnvironmentMaterials';
 import {InfrastructureLayer} from '../tirana-environment/InfrastructureLayer';
+import {UrbanLighting} from '../tirana-environment/UrbanLighting';
+import {PavementAprons} from '../tirana-environment/PavementAprons';
 import {WATER_PATHS, WATER_LEVEL, BED_LEVEL, BANK_LEVEL, BANK_WIDTH, cutChannels, surfaceGeometry, bankGeometry, riverRing} from '../tirana-environment/riverGeometry';
 
 /** A continuous ground datum with actual openings, shared by all city views.
@@ -11,6 +13,8 @@ export class LandscapeVisuals {
   readonly group = new T.Group();
   readonly materials: EnvironmentMaterials;
   readonly infrastructure: InfrastructureLayer;
+  readonly lighting = new UrbanLighting();
+  readonly aprons: PavementAprons;
   private dead = false;
   private time = {value:0};
   private water: T.MeshPhysicalMaterial;
@@ -24,6 +28,8 @@ export class LandscapeVisuals {
     const [x0,z0,x1,z1]=WORLD.bounds;
     this.addMerged(cutChannels([[x0-80,z0-80],[x1+80,z0-80],[x1+80,z1+80],[x0-80,z1+80]])
       .map(p=>surfaceGeometry(p,-.045)),grass,'Terrain with open watercourses');
+    const paving=this.materials.create('concrete_pavement',0xd7d2c6);
+    this.aprons=new PavementAprons(WORLD,paving);this.group.add(this.aprons.group);
     this.water=new T.MeshPhysicalMaterial({color:0x536b60,roughness:.2,metalness:.05,clearcoat:.8,clearcoatRoughness:.16,envMapIntensity:1.1});
     this.water.name='Lana flowing water';
     this.water.onBeforeCompile=shader=>{
@@ -51,7 +57,7 @@ export class LandscapeVisuals {
     this.addMerged(banks,grass,'Planted river embankments');
     this.addMerged(surfaces,this.water,'Recessed water');
     this.infrastructure=new InfrastructureLayer(loadTextures);
-    this.group.add(this.infrastructure.group);
+    this.group.add(this.infrastructure.group,this.lighting.group);
   }
   private addMerged(parts:T.BufferGeometry[],material:T.Material,name:string){
     if(!parts.length)return;
@@ -61,11 +67,12 @@ export class LandscapeVisuals {
     const mesh=new T.Mesh(geometry,material);mesh.name=name;mesh.receiveShadow=true;this.group.add(mesh);
   }
   update(viewer:{x:number;z:number},seconds:number,battery:boolean){
-    if(this.dead)return;this.time.value=seconds;this.infrastructure.update(viewer,seconds,battery);
+    if(this.dead)return;this.time.value=seconds;this.infrastructure.update(viewer,seconds,battery);this.lighting.update(viewer,seconds,battery);this.aprons.update(viewer,seconds,battery);
   }
   dispose(){
     if(this.dead)return;this.dead=true;
     this.infrastructure.dispose();
+    this.lighting.dispose();this.aprons.dispose();
     this.group.traverse(o=>{if(o instanceof T.Mesh)o.geometry.dispose();});
     this.materials.dispose();this.water.dispose();this.group.clear();this.group.removeFromParent();
   }

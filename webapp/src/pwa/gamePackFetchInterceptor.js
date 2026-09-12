@@ -1,4 +1,4 @@
-import { GAME_PACK_CACHE_PREFIX } from './gamePackCatalog.js';
+import { GAME_PACK_CACHE_PREFIX, GAME_PACK_COMPLETE_PATH } from './gamePackCatalog.js';
 
 const NETWORK_FETCH_SYMBOL = Symbol.for('tonplaygram.network-fetch');
 const CACHEABLE_PATH = /^\/(?:assets|models|game-preloads|lib)\//;
@@ -12,6 +12,7 @@ async function matchGamePackCache(request) {
   const names = (await caches.keys()).filter(name => name.startsWith(GAME_PACK_CACHE_PREFIX)).reverse();
   for (const name of names) {
     const cache = await caches.open(name);
+    if (!(await cache.match(new URL(GAME_PACK_COMPLETE_PATH, window.location.origin).href))) continue;
     const response = await cache.match(request, { ignoreVary: true });
     if (response) return response;
   }
@@ -20,6 +21,7 @@ async function matchGamePackCache(request) {
 
 const shouldCheckPackCache = (input, init) => {
   if (typeof window === 'undefined') return null;
+  if (['no-store', 'reload'].includes(init?.cache || (input instanceof Request ? input.cache : ''))) return null;
   const method = String(init?.method || (input instanceof Request ? input.method : 'GET')).toUpperCase();
   if (method !== 'GET') return null;
 

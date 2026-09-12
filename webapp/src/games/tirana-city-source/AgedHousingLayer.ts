@@ -32,6 +32,7 @@ export class AgedHousingLayer {
     };
     plaster.customProgramCacheKey=()=> 'tirana-aged-plaster-v1';
     this.materials=[plaster,new T.MeshStandardMaterial({color:0xe0dacc,roughness:.88}),new T.MeshStandardMaterial({color:0x314851,roughness:.35,metalness:.15}),new T.MeshStandardMaterial({color:0x9ba2a0,roughness:.55,metalness:.55}),new T.MeshStandardMaterial({color:0x292d2c,roughness:.83})];
+    this.materials[2].userData.environmentWindow=true;
     if(loadTextures)for(const [file,key] of [['plastered_wall_02-diff.jpg','map'],['plastered_wall_02-nor_gl.jpg','normalMap']] as const){
       new T.TextureLoader().load('/assets/tirana-streets/materials/'+file,t=>{
         if(this.dead){t.dispose();return;}t.wrapS=t.wrapT=T.RepeatWrapping;t.anisotropy=2;

@@ -1,4 +1,5 @@
 import * as T from 'three';
+import {signReferenceFor,referencedAdvertising,SIGN_REFERENCES} from './signReferences.mjs';
 import {STREET_LIFE,type StreetLifeData} from './registry.mjs';
 import {buildStreetModel,nearbyIndex} from './streetModels.mjs';
 import {ribbonExclusion} from '../tirana-street-detail/roadDetailCore.mjs';
@@ -25,7 +26,7 @@ export class StreetLifeLayer {
   const blocked=options.track?ribbonExclusion(options.track):null;
   const models:Model[]=[];
   for(const [key,type] of [['storefronts','storefront'],['stops','stop'],['fuel','fuel'],['advertising','advertising']] as const)
-   for(const s of data[key])if(!blocked||!blocked(s.x,s.z,Math.max(4,'width' in s?Number(s.width):0)))models.push(buildStreetModel(s,type));
+   for(const s of data[key])if(!blocked||!blocked(s.x,s.z,Math.max(4,'width' in s?Number(s.width):0)))models.push(buildStreetModel(type==='advertising'?referencedAdvertising(s,data.storefronts):s,type));
   if(this.labelsOnly)for(const model of models)for(const sign of model.signs)sign.p[2]=.238;
   const signs:Sign[]=[],signIndex=new Map<string,number>();
   for(const sign of models.flatMap(m=>m.signs)){const key=JSON.stringify([sign.text,sign.bg,sign.fg]);if(!signIndex.has(key)){signIndex.set(key,signs.length);signs.push(sign);}sign.atlas=signIndex.get(key)!;}
@@ -39,14 +40,35 @@ export class StreetLifeLayer {
    if(s.text==='TIRANË'){ctx.globalAlpha=.16;for(let k=0;k<8;k++)ctx.fillRect(x+k*32,y+35,18,13);ctx.globalAlpha=1;}
   });
   this.atlas=new T.CanvasTexture(canvas);this.atlas.colorSpace=T.SRGBColorSpace;this.atlas.anisotropy=2;
+  for(const reference of SIGN_REFERENCES){
+   const image=new Image();
+   image.onload=()=>{
+    if(this.dead)return;
+    signs.forEach((sign,i)=>{
+     if(signReferenceFor(sign.text)?.id!==reference.id)return;
+     const x=(i%this.columns)*256,y=Math.floor(i/this.columns)*48;
+     ctx.fillStyle=reference.background;ctx.fillRect(x,y,256,48);
+     const [sx,sy,sw,sh]=reference.crop;
+     const physicalRatio=sign.s[0]/sign.s[1],ratio=(sw/sh)*256/48/physicalRatio;
+     const h=Math.min(40,232/ratio),w=h*ratio;
+     ctx.drawImage(image,sx,sy,sw,sh,x+(256-w)/2,y+(48-h)/2,w,h);
+    });
+    this.atlas.needsUpdate=true;
+   };
+   image.src=reference.logo;
+  }
   this.material=new T.MeshStandardMaterial({color:0xffffff,roughness:.66,metalness:.15});
   this.glassMaterial=new T.MeshStandardMaterial({color:0xffffff,roughness:.23,metalness:.48});
+  this.glassMaterial.userData.environmentLight='business';
+  this.glassMaterial.userData.nightIntensity=.42;
   // 96 selected models x a tested maximum of 70 parts, with independent budgets.
   for(const shape of this.labelsOnly?[]:['box','glass','cylinder']){
    const geo=shape==='cylinder'?new T.CylinderGeometry(1,1,1,8):new T.BoxGeometry(1,1,1);
    const mesh=new T.InstancedMesh(geo,shape==='glass'?this.glassMaterial:this.material,6720);mesh.count=0;mesh.frustumCulled=false;mesh.receiveShadow=true;mesh.castShadow=true;mesh.instanceMatrix.setUsage(T.DynamicDrawUsage);this.meshes.set(shape,mesh);this.group.add(mesh);
   }
   this.signMaterial=new T.MeshStandardMaterial({map:this.atlas,roughness:.7,emissiveMap:this.atlas,emissive:0xffffff,emissiveIntensity:.07});
+  this.signMaterial.userData.environmentLight='business';
+  this.signMaterial.userData.nightIntensity=1.4;
   this.signMaterial.onBeforeCompile=shader=>{
    shader.vertexShader='attribute vec4 instanceAtlas;\n'+shader.vertexShader;
    shader.vertexShader=shader.vertexShader.replace('#include <uv_vertex>','#include <uv_vertex>\n#ifdef USE_MAP\nvMapUv=vMapUv*instanceAtlas.zw+instanceAtlas.xy;\n#endif\n#ifdef USE_EMISSIVEMAP\nvEmissiveMapUv=vEmissiveMapUv*instanceAtlas.zw+instanceAtlas.xy;\n#endif');
