@@ -13,6 +13,7 @@ export type PhaseCheckpoint = {
     armor: number;
     wanted: number;
   };
+  aircraft?: null | {kind:'helicopter'|'jet';x:number;y:number;z:number;heading:number;health:number;missiles:number};
   car: null | {
     id: string;
     model: string;

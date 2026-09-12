@@ -45,7 +45,7 @@ export function tacticalGoal(n, target, squad, cars, time, clear) {
   else {
     const report=squad.filter(o=>o.lastSeen&&time-o.lastSeenAt<8).sort((a,b)=>b.lastSeenAt-a.lastSeenAt)[0];
     if(report){n.lastSeen={...report.lastSeen};n.lastSeenAt=report.lastSeenAt;}
-    if(!n.lastSeen){n.lastSeen={x:target.x,z:target.z};n.lastSeenAt=time;}
+    if(!n.lastSeen)return {goal:n,anim:'idle'};
     const searching=time-n.lastSeenAt<12&&Math.hypot(n.x-n.lastSeen.x,n.z-n.lastSeen.z)>1.2;
     return {goal:searching?n.lastSeen:n,anim:searching?'walk':'idle'};
   }
@@ -61,9 +61,30 @@ export function tacticalGoal(n, target, squad, cars, time, clear) {
     const goal=coverPoint(cover,target,index,peek);
     return {goal, anim: Math.hypot(n.x-goal.x,n.z-goal.z)>.7?'run':peek?'aim':'cover', coverId:cover.id};
   }
+  // Alternating pairs flank while the lead pair holds a readable firing line.
+  if(index>=2 && distance>11 && distance<42){
+    const side=index%2?1:-1,yaw=Math.atan2(n.x-target.x,n.z-target.z);
+    const goal={x:target.x+Math.sin(yaw+side*.65)*16,z:target.z+Math.cos(yaw+side*.65)*16};
+    if(Math.hypot(n.x-goal.x,n.z-goal.z)>3)return {goal,anim:'run'};
+  }
   const holding=distance<20 && visible;
   if(holding) return {goal:n,anim:'aim'};
   return {goal:leader===n?target:formationSlot(leader,target,index),anim:distance>30?'run':'walk'};
+}
+/** Pursuer / left interceptor / right interceptor / roadblock. Predictions
+ * only use an observed heading; search orders share a timestamped report. */
+export function pursuitGoal(unit,target,convoy,time,visible) {
+  if(visible){unit.lastSeen={x:target.x,z:target.z,heading:target.heading||0,speed:Math.min(32,Math.abs(target.speed||0))};unit.lastSeenAt=time;}
+  else {
+    const report=convoy.filter(u=>u.lastSeen&&time-u.lastSeenAt<12).sort((a,b)=>b.lastSeenAt-a.lastSeenAt)[0];
+    if(report&&(!unit.lastSeen||report.lastSeenAt>unit.lastSeenAt)){unit.lastSeen={...report.lastSeen};unit.lastSeenAt=report.lastSeenAt;}
+  }
+  if(!unit.lastSeen||time-unit.lastSeenAt>18)return {goal:unit,role:'hold'};
+  const index=Math.max(0,convoy.findIndex(u=>u.id===unit.id)),seen=unit.lastSeen;
+  if(!visible){const angle=index*Math.PI*.7;return {goal:{x:seen.x+Math.sin(angle)*Math.min(18,(time-unit.lastSeenAt)*2),z:seen.z+Math.cos(angle)*Math.min(18,(time-unit.lastSeenAt)*2)},role:'search'};}
+  const lead=index===0?0:Math.min(55,seen.speed*(index>=3?2.2:1.2));
+  const side=index===1?-7:index===2?7:0;
+  return {goal:{x:seen.x-Math.sin(seen.heading)*lead+Math.cos(seen.heading)*side,z:seen.z-Math.cos(seen.heading)*lead-Math.sin(seen.heading)*side},role:index===0?'pursue':index>=3?'roadblock':'intercept'};
 }
 export function avoidVehicles(n, goal, cars) {
   const blocker=cars.find(c=>Math.abs(c.speed||0)<1 && vehicleBlocks(n,goal,c,.5));

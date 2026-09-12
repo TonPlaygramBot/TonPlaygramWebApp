@@ -15,6 +15,7 @@ import { CityMap } from '../map/CityMap';
 import { StreetArsenal } from './StreetArsenal';
 import { difficultyOf, WEAPON_BY_ID } from '../shared/weapons.mjs';
 import { wantedStars } from '../shared/cityLife.mjs';
+import { MISSION_REQUIREMENTS } from './campaignCore.mjs';
 import '../city.css';
 import './street-career.css';
 const storage = () => {
@@ -30,7 +31,7 @@ export function StreetCareerGame({ onExit }: { onExit: () => void }) {
     runtime = useRef<StreetCareerRuntime>(),
     modal = useRef<HTMLDialogElement>(null);
   const [view, setView] = useState<StreetView | null>(null),
-    [panel, setPanel] = useState<Panel>('journal'),
+    [panel, setPanel] = useState<Panel>(null),
     [error, setError] = useState(''),
     [loading, setLoading] = useState('Loading Tirana'),
     [difficulty, setDifficulty] = useState('normal'),
@@ -57,13 +58,7 @@ export function StreetCareerGame({ onExit }: { onExit: () => void }) {
             if (!cancelled) setLoading(m);
           })
           .then(() => {
-            if (
-              !cancelled &&
-              new URLSearchParams(window.location.search).get('explore') === '1'
-            ) {
-              g?.explore();
-              setPanel(null);
-            }
+            if (!cancelled) { g?.resume(); setPanel(null); }
           })
           .catch((e) => {
             if (!cancelled) setError(String(e));
@@ -173,13 +168,16 @@ export function StreetCareerGame({ onExit }: { onExit: () => void }) {
       <span key={slot} className={'tsc-slot-' + slot} />
     );
   };
+  const [vehicleView,setVehicleView]=useState<'cockpit'|'chase'>('cockpit');
   const p = view?.state.players.local,
+    flying = !!p?.aircraftId,
+    aircraft = flying ? (p?.aircraftId === view?.state.jet?.id ? view?.state.jet : view?.state.helicopter) : undefined,
     driving = !!p?.carId,
     mission = campaign.chapters.find((m) => m.id === view?.state.missionId),
     target = mission?.stops[p?.index || 0];
   return (
     <main
-      className="tsc"
+      className={`tsc ${driving?'is-driving':flying?'is-flying':'is-on-foot'}`}
       style={
         {
           '--action-size': `${view?.settings.buttonSize || 54}px`,
@@ -208,6 +206,7 @@ export function StreetCareerGame({ onExit }: { onExit: () => void }) {
           <button onClick={onExit}>RETURN TO GAMES</button>
         </div>
       )}
+      {!view?.ready && !error && <div className="tsc-loading" role="status">{loading}…</div>}
       {view && p && !panel && !error && (
         <>
           <section className="tsc-objective">
@@ -235,13 +234,14 @@ export function StreetCareerGame({ onExit }: { onExit: () => void }) {
           </section>
           <nav className="tsc-tools">
             <button onClick={() => open('map')}>MAP</button>
+            {driving&&<button aria-label="Change driving camera view" onClick={()=>{const next=vehicleView==='cockpit'?'chase':'cockpit';setVehicleView(next);if(runtime.current)runtime.current.renderer.vehicleView=next;}}>CAMERA · {vehicleView==='cockpit'?'COCKPIT':'CHASE'}</button>}
             <button onClick={() => open('arsenal')}>ARSENAL</button>
-            {!driving && actionButton('holster', 'holster')}
+            {!driving && !flying && actionButton('holster', 'holster')}
           </nav>
           <div
             className="tsc-stick"
             role="group"
-            aria-label={driving ? 'Steer left or right' : 'Movement joystick'}
+            aria-label={flying ? 'Aircraft steering and throttle' : driving ? 'Steer left or right' : 'Movement joystick'}
             onPointerDown={(e) => {
               if (stickId.current !== null) return;
               e.preventDefault();
@@ -284,7 +284,13 @@ export function StreetCareerGame({ onExit }: { onExit: () => void }) {
           </div>
           <div className="tsc-actions">
             {actionButton('interact', 'context')}
-            {driving ? (
+            {flying ? (
+              <>
+                <button className="tsc-slot-aim" aria-label="Climb" {...pointer('ascend')}>UP</button>
+                <button className="tsc-slot-secondary" aria-label="Descend and land" {...pointer('brake')}>DOWN</button>
+                <button className="tsc-slot-primary" aria-label="Fire missile" {...pointer('fire')}>MISSILE<small>{aircraft?.missiles ?? 0}</small></button>
+              </>
+            ) : driving ? (
               <>
                 <button className="tsc-slot-secondary" {...pointer('reverse')}>
                   REVERSE
@@ -332,10 +338,10 @@ export function StreetCareerGame({ onExit }: { onExit: () => void }) {
             </p>
           )}
           <footer>
-            {driving
+            {flying ? `${aircraft?.kind === 'jet' ? 'Fighter jet' : 'Helicopter'} · ${Math.round(aircraft?.y || 0)} m · ${Math.round(p.speed * 3.6)} km/h` : driving
               ? 'Steer: left stick · Pedals: right'
               : 'Move: left stick · Look: right drag'}
-            {!driving && p.weapon && (
+            {!driving && !flying && p.weapon && (
               <small>
                 {WEAPON_BY_ID.get(p.weapon)?.label} ·{' '}
                 {p.inventory[p.weapon]?.ammo || 0}/
@@ -385,8 +391,8 @@ export function StreetCareerGame({ onExit }: { onExit: () => void }) {
                 {panel === 'journal' ? (
                   <>
                     <p>
-                      Start your first shift, build your reputation and find
-                      your own route through Tirana.
+                      Explore on foot, steal a ride or fly. Complete jobs to unlock
+                      new contacts, harder missions and your next story.
                     </p>
                     <p>
                       <strong>
@@ -450,15 +456,15 @@ export function StreetCareerGame({ onExit }: { onExit: () => void }) {
                       {campaign.chapters.map((m, i) => (
                         <button
                           key={m.id}
-                          disabled={i > view.profile.completed.length}
+                          disabled={!campaign.available(view.profile,m.id)}
                           onClick={() => start(m.id)}
                         >
                           <strong>
                             {i + 1}. {m.title}
                           </strong>
                           <small>
-                            {i > view.profile.completed.length
-                              ? 'Complete the previous chapter'
+                            {!campaign.available(view.profile,m.id)
+                              ? `Requires: ${(MISSION_REQUIREMENTS[m.id]||[]).map(id=>campaign.chapters.find(c=>c.id===id)?.title).join(' + ')}`
                               : view.profile.completed.includes(m.id)
                                 ? 'Completed · Replay without duplicate payout'
                                 : `${m.type} · $${Math.round(m.reward * difficultyOf(difficulty).reward)} first completion`}
@@ -487,6 +493,8 @@ export function StreetCareerGame({ onExit }: { onExit: () => void }) {
                         WASD / arrows · Mouse drag to look · F fire · Space jump
                         · C crouch · Shift sprint · Z aim · V kick · B guard · E
                         interact · R reload · H draw / holster · Esc pause.
+                        Aircraft: left stick steers and controls speed; UP climbs,
+                        DOWN descends. Land and stop to exit and rearm. Drag to aim missiles.
                       </p>
                       {(
                         [

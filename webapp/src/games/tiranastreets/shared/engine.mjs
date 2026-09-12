@@ -141,7 +141,7 @@ export const MISSIONS = [
     type: 'delivery',
     description:
       'Your first courier job. Collect a parcel, then make two city deliveries.',
-    time: 210,
+    time: 600,
     reward: 150,
     stops: [
       stop('rinia', -85, 0),
@@ -278,6 +278,18 @@ export const MISSIONS = [
       stop('pyramid', -80, 0),
       stop('square', -50, 100)
     ]
+  },
+  {
+    id: 'air-rescue', title: 'Above the Lana', district: 'LANA', type: 'flight',
+    aircraft: 'helicopter', time: 600, reward: 750,
+    description: 'Board the rescue helicopter, climb through the flight markers and land at the final beacon.',
+    stops: [stop('rinia', -85, 0), stop('pyramid', -75, 0), stop('mother', 0, -70)]
+  },
+  {
+    id: 'sky-patrol', title: 'Capital air patrol', district: 'TIRANA', type: 'flight',
+    aircraft: 'jet', time: 720, reward: 1200,
+    description: 'Pilot the fighter jet around the city. Pass the airborne checkpoints, then slow down and land at the beacon.',
+    stops: [stop('square', -50, 100), stop('blloku', -50, 0), stop('pyramid', 80, 0), stop('mother', 0, -70)]
   }
 ];
 export const SPAWN = roadPoint(-60, 130);
@@ -749,7 +761,7 @@ export function movePlayer(state, p, dt) {
   if (p.aircraftId) return;
   if (p.carId) {
     const c = state.cars.find((c) => c.id === p.carId);
-    if (!c) {
+    if (!c || c.destroyed) {
       p.carId = null;
       return;
     }
@@ -797,7 +809,7 @@ export function movePlayer(state, p, dt) {
     p.speed = c.speed;
   } else {
     const l = Math.max(1, Math.hypot(input.x, input.y)),
-      speed = input.fast ? 7.2 : 4.2;
+      speed = input.fast ? 10 : 6.2;
     const vx =
       ((Math.cos(input.yaw) * input.x - Math.sin(input.yaw) * input.y) *
         speed) /

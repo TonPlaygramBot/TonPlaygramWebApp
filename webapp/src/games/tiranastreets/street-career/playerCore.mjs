@@ -1,10 +1,10 @@
 export const MOTOR = Object.freeze({
-  walk: 2.1,
-  run: 4.2,
-  sprint: 7.2,
-  crouch: 1.6,
-  accel: 18,
-  brake: 24,
+  walk: 3.1,
+  run: 6.2,
+  sprint: 10,
+  crouch: 2.2,
+  accel: 25,
+  brake: 32,
   gravity: 21,
   jumpSpeed: 6.2,
   standing: 1.78,
@@ -17,8 +17,8 @@ export const MOTOR = Object.freeze({
   buffer: 0.12,
   fallSafe: 8,
   fallDamage: 5,
-  sprintDrain: 18,
-  recovery: 22,
+  sprintDrain: 12,
+  recovery: 26,
   kickCost: 20
 });
 const approach = (a, b, d) => (a < b ? Math.min(b, a + d) : Math.max(b, a - d));
@@ -68,7 +68,7 @@ export function cancelActions(p, b) {
   p.reloadAt = 0;
   p.speed = 0;
   b.combat = p.weapon ? 'ready' : 'unarmed';
-  b.interaction = p.health <= 0 ? 'dead' : p.carId ? 'driving' : 'free';
+  b.interaction = p.health <= 0 ? 'dead' : p.aircraftId ? 'flying' : p.carId ? 'driving' : 'free';
 }
 export function stepMotor(state, p, b, intent, dt, world, emit, damage) {
   b.yaw = intent.yaw;

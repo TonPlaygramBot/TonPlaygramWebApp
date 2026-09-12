@@ -1,6 +1,8 @@
 import type { Point, Car } from '../shared/engine.mjs';
 export type Vec3 = Point & { y: number };
 export class StreetWorld {
+  fractures:(Vec3&{objectId:string;radius:number})[];
+  fracture(objectId:string,point:Vec3,radius:number):(Vec3&{objectId:string;radius:number})|null;
   constructor(
     solids?: {
       p: number[][];

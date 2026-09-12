@@ -7,7 +7,7 @@ import {
   type State,
   type Point
 } from '../shared/engine.mjs';
-import { WEAPONS, WEAPON_BY_ID, STARTER_WEAPON } from '../shared/weapons.mjs';
+import { WEAPONS, WEAPON_BY_ID, STARTER_WEAPON, ensureStarterWeapons } from '../shared/weapons.mjs';
 import {loadWeaponStoreAccount} from '../weaponStoreApi';
 import { collideDetailPosts } from '../../tirana-street-detail/sharedRoadDetails.mjs';
 import { CityAudio } from '../audio';
@@ -90,6 +90,9 @@ export class StreetCareerRuntime {
     );
     this.input.setEnabled(false);
     campaign.apply(this.state.players.local, this.profile.loadout);
+    ensureStarterWeapons(this.state.players.local);
+    this.state.players.local.weapon = 'glockSidearmAttack';
+    this.simulation.body.combat = 'ready';
     if (this.profile.active)
       this.newRun(this.profile.active.id, this.profile.active.difficulty, true);
     else this.renderer.simulation = this.simulation;
@@ -168,8 +171,11 @@ export class StreetCareerRuntime {
         campaign.apply
       );
     this.grantWeapons([...this.ownedWeapons]);
-    // The introductory chapter starts holstered, preserving the owned starter ID.
-    if (id === 'first-shift' && !restore) this.state.players.local.weapon = '';
+    if (!restore) {
+      ensureStarterWeapons(this.state.players.local);
+      this.state.players.local.weapon = 'glockSidearmAttack';
+      this.simulation.body.combat = 'ready';
+    }
     this.simulation.settings.aimAssist = this.settings.aimAssist;
     this.renderer.simulation = this.simulation;
     this.route = [];
@@ -257,7 +263,7 @@ export class StreetCareerRuntime {
       /^(buy:|equip:)/.test(action) ||
       (this.paused && action === 'holster')
     ) {
-      if (this.simulation.body.action || this.state.players.local.carId)
+      if (this.simulation.body.action || this.state.players.local.carId || this.state.players.local.aircraftId)
         return false;
       const item=action.startsWith('buy:')?action.slice(4):'';
       if(WEAPON_BY_ID.has(item)&&!this.state.players.local.inventory[item])return false;
@@ -283,7 +289,7 @@ export class StreetCareerRuntime {
     const car = p.carId
       ? this.state.cars.find((c) => c.id === p.carId)
       : undefined;
-    if (collideDetailPosts(car || p, car ? 1.35 : 0.34)) {
+    if (!p.aircraftId && collideDetailPosts(car || p, car ? 1.35 : 0.34)) {
       if (car) {
         car.speed *= 0.45;
         car.vx *= 0.3;
@@ -349,7 +355,9 @@ export class StreetCareerRuntime {
         this.audio.city(this.state, p, dt);
       }
       if (now - this.routeAt > 750) {
-        this.route = navigation(this.state, 'local');
+        const mission = MISSIONS.find(m=>m.id===this.state.missionId);
+        const aircraft = mission?.aircraft && this.simulation.flight.aircraft.find(a=>a.kind===mission.aircraft);
+        this.route = aircraft && !p.aircraftId ? [p,this.simulation.flight.access(aircraft)] : navigation(this.state, 'local');
         this.renderer.setRoute(this.route);
         this.routeAt = now;
       }

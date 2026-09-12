@@ -58,6 +58,7 @@ import {
   type Difficulty,
   type Settings
 } from './core';
+import { BATTLE_MODES, OPERATIONS, type BattleMode } from './shared/battlefield.mjs';
 import './styles.css';
 const initial: Snapshot = {
   phase: 'menu',
@@ -104,6 +105,8 @@ export function Game({
   initialDifficulty = 'recruit',
   initialMap = 'skanderbeg',
   onExit,
+  onCareer,
+  onStories,
   onEngine
 }: {
   mode?: 'ai' | 'online';
@@ -111,6 +114,8 @@ export function Game({
   initialDifficulty?: Difficulty;
   initialMap?: BattlefieldMapId;
   onExit: () => void;
+  onCareer?: () => void;
+  onStories?: () => void;
   onEngine?: (game: GameEngine) => void;
 }) {
   const canvas = useRef<HTMLCanvasElement>(null),
@@ -120,6 +125,8 @@ export function Game({
     [error, setError] = useState(''),
     [weapon, setWeapon] = useState<WeaponId>(initialWeapon),
     [battlefieldMap, setBattlefieldMap] = useState<BattlefieldMapId>(initialMap),
+    [battleMode, setBattleMode] = useState<BattleMode>('last-stand'),
+    [operationId, setOperationId] = useState(''),
     [difficulty, setDifficulty] = useState<Difficulty>(initialDifficulty),
     [settingsOpen, setSettingsOpen] = useState(false),
     [helpOpen, setHelpOpen] = useState(false),
@@ -141,7 +148,7 @@ export function Game({
       );
       engine.current = game;
       setSettings(game.settings);
-      if (mode === 'ai') game.start(initialWeapon, initialDifficulty, initialMap);
+      // Solo begins at the operation board so the selected rules are explicit.
       onEngine?.(game);
     } catch (e) {
       setError(
@@ -239,17 +246,15 @@ export function Game({
         <div className="menu-layer">
           <div className="menu-title">
             <div className="eyebrow">
-              <span className="tiny-rule" /> OPERATION 01
+              <span className="tiny-rule" /> TIRANA BATTLEFIELD
             </div>
             <h1>
-              NO WAY
+              YOUR CITY.
               <br />
-              BUT <em>THROUGH.</em>
+              YOUR <em>MISSION.</em>
             </h1>
             <p>
-              Tirana streets. Three waves.
-              <br />
-              One way out.
+              Choose a district operation or a one-life survival battle.
             </p>
           </div>
           <div className="location-stamp">
@@ -260,12 +265,31 @@ export function Game({
           <div className="menu-bottom">
             <div className="mission-bar">
               <span>
-                <Shield size={15} /> SOLO SURVIVAL
+                <Shield size={15} /> SOLO VS AI
               </span>
               <span>
-                3 WAVES <i /> EXTRACTION
+                5 MODES <i /> 6 OPERATIONS
               </span>
             </div>
+            <div className="bw-mode-links">
+              {onCareer && <button onClick={onCareer}>STREET CAREER · FREE ROAM</button>}
+              {onStories && <button onClick={onStories}>CITY STORIES</button>}
+            </div>
+            <label className="battlefield-map-label">OPERATION
+              <select aria-label="Operation" value={operationId} onChange={e=>{
+                const id=e.target.value,op=OPERATIONS.find(o=>o.id===id);setOperationId(id);
+                if(op){setBattlefieldMap(op.map);setBattleMode(op.mode);}
+              }}>
+                <option value="">Custom battle</option>
+                {OPERATIONS.map((op,i)=><option key={op.id} value={op.id} disabled={i>(state.operations?.length||0)}>{i<(state.operations?.length||0)?'✓ ':''}{op.title}{i>(state.operations?.length||0)?' · Locked':''}</option>)}
+              </select>
+            </label>
+            <label className="battlefield-map-label">BATTLE RULES
+              <select aria-label="Battle rules" value={battleMode} disabled={!!operationId} onChange={e=>setBattleMode(e.target.value as BattleMode)}>
+                {BATTLE_MODES.map(m=><option key={m.id} value={m.id}>{m.name}</option>)}
+              </select>
+            </label>
+            <p className="bw-mode-description">{BATTLE_MODES.find(m=>m.id===battleMode)?.description}</p>
             <div className="loadout-label">
               CHOOSE YOUR LOADOUT <span>8 SHARED WEAPONS</span>
             </div>
@@ -278,7 +302,7 @@ export function Game({
               {(Object.entries(WEAPONS) as [WeaponId,(typeof WEAPONS)[WeaponId]][]).map(([id,item])=><label key={id} className={`loadout-card ${weapon===id?'selected':''}`}><RadioGroupItem value={id} aria-label={item.name}/><div><strong>{item.name}</strong><small>{item.role}</small></div>{item.interval<.1?<Zap size={25}/>:<Crosshair size={25}/>}</label>)}
             </RadioGroup>
             <label className="battlefield-map-label">BATTLEFIELD MAP
-              <select value={battlefieldMap} onChange={e=>setBattlefieldMap(e.target.value as BattlefieldMapId)}>{BATTLEFIELD_MAPS.map(map=><option key={map.id} value={map.id}>{map.name}</option>)}</select>
+              <select aria-label="Battlefield map" disabled={!!operationId} value={battlefieldMap} onChange={e=>setBattlefieldMap(e.target.value as BattlefieldMapId)}>{BATTLEFIELD_MAPS.map(map=><option key={map.id} value={map.id}>{map.name}</option>)}</select>
             </label>
             <RadioGroup
               value={difficulty}
@@ -299,7 +323,7 @@ export function Game({
             <button
               className="deploy-btn"
               disabled={!state.ready || !!error}
-              onClick={() => engine.current?.start(weapon, difficulty, battlefieldMap)}
+              onClick={() => engine.current?.start(weapon, difficulty, battlefieldMap, battleMode, operationId)}
             >
               <span>
                 {state.ready
@@ -352,10 +376,10 @@ export function Game({
           <div className="mission-status">
             {state.online ? (
               <>
-                <div className="mission-kicker">TPG DEATHMATCH</div>
+                <div className="mission-kicker">{state.online.rule==='last-stand'?'LAST OPERATOR STANDING':'TPG DEATHMATCH'}</div>
                 <div className="wave-number">
-                  <b>{state.kills}</b>
-                  <span>/ {state.online.killLimit} KILLS</span>
+                  <b>{state.online.rule==='last-stand'?state.online.players.filter(p=>p.hp>0&&!p.forfeited).length:state.kills}</b>
+                  <span>{state.online.rule==='last-stand'?'ALIVE':`/ ${state.online.killLimit} KILLS`}</span>
                 </div>
                 <p>
                   {clock(
@@ -370,7 +394,7 @@ export function Game({
             ) : (
               <>
                 <div className="mission-kicker">
-                  {state.extract ? 'EXTRACTION OPEN' : 'SECURE THE BLOCK'}
+                  {state.extract ? 'EXTRACTION OPEN' : BATTLE_MODES.find(m=>m.id===state.battleMode)?.name.toUpperCase()}
                 </div>
                 <div className="wave-number">
                   {state.extract ? (
@@ -381,8 +405,7 @@ export function Game({
                     </>
                   ) : (
                     <>
-                      WAVE <b>0{state.wave}</b>
-                      <span>/ 03</span>
+                      {state.battleMode==='waves'?<>WAVE <b>0{state.wave}</b><span>/ 03</span></>:state.battleMode==='last-stand'?<><b>{state.remaining+(state.health>0?1:0)}</b><span>ALIVE</span></>:<><b>{Math.floor(state.objectiveProgress||0)}</b><span>{state.battleMode==='hold'?'/ 45 SEC':state.battleMode==='extraction'?'/ 3 SEC':'SECURED'}</span></>}
                     </>
                   )}
                 </div>
@@ -392,7 +415,7 @@ export function Game({
                   ) : (
                     <>
                       <span className="enemy-dot" />
-                      {state.remaining} HOSTILES REMAINING
+                      {state.objective}
                     </>
                   )}
                 </p>
@@ -499,7 +522,13 @@ export function Game({
                   <Footprints size={22} />
                   <span>SPRINT</span>
                 </button>
-                <div className="right-controls">
+                <div className="bw-vehicle-context">
+                  {!state.online&&(state.driving||state.nearVehicle)&&<button aria-label={state.driving?'Exit vehicle':'Enter vehicle'} onClick={()=>engine.current?.toggleVehicle()}>{state.driving?'EXIT VEHICLE':'DRIVE'}</button>}
+                  {state.driving&&<button aria-label="Change driving camera view" onClick={()=>engine.current?.changeVehicleCamera()}>CAMERA · {state.vehicleView?.toUpperCase()}</button>}
+                </div>
+                {state.driving?<div className="bw-pedals"><small>{state.vehicleSpeed} km/h · steer with left stick</small>
+                  {(['reverse','brake','gas'] as const).map(pedal=><button key={pedal} aria-label={pedal} onPointerDown={e=>{e.preventDefault();e.currentTarget.setPointerCapture(e.pointerId);engine.current?.setVehiclePedal(pedal,true);}} onPointerUp={()=>{engine.current?.setVehiclePedal(pedal,false);}} onPointerCancel={()=>{engine.current?.setVehiclePedal(pedal,false);}} onLostPointerCapture={()=>{engine.current?.setVehiclePedal(pedal,false);}}>{pedal.toUpperCase()}</button>)}
+                </div>:<div className="right-controls">
                   <LookFire engine={engine.current} />
                   <button
                     className={`touch-btn ads ${state.aim ? 'active' : ''}`}
@@ -527,7 +556,7 @@ export function Game({
                     <Footprints size={22} />
                     <span>LOW</span>
                   </button>
-                </div>
+                </div>}
               </div>
               <button
                 className="medkit-btn"
@@ -553,7 +582,7 @@ export function Game({
                   <kbd>C</kbd> CROUCH
                 </span>
                 <span>
-                  <kbd>E</kbd> HEAL
+                  <kbd>E</kbd> HEAL · <kbd>G</kbd> VEHICLE · <kbd>V</kbd> CAMERA
                 </span>
                 <button onClick={() => engine.current?.input.lock()}>
                   LOCK MOUSE <MousePointer2 size={12} />
@@ -597,6 +626,7 @@ export function Game({
             >
               <Settings2 size={17} /> Settings
             </button>
+            {mode==='ai'&&<button className="text-btn" onClick={()=>engine.current?.menu()}>Choose another operation</button>}
             <button className="text-btn" onClick={onExit}>
               {mode === 'online' ? 'Leave match (forfeit)' : 'Return to lobby'}
             </button>
@@ -677,7 +707,7 @@ export function Game({
                   ? 'The match result is confirmed.'
                   : 'Match drawn or cancelled. Stakes are refunded.'
                 : state.phase === 'won'
-                  ? 'Tirana is clear. Extraction confirmed.'
+                  ? state.battleMode==='last-stand'?'You are the last operator standing.':'Operation complete. District progress saved.'
                   : 'Find cover. Control your shots. Go again.'}
             </p>
             <div className="result-score">
@@ -716,12 +746,13 @@ export function Game({
             ) : (
               <button
                 className="deploy-btn"
-                onClick={() => engine.current?.start(weapon, difficulty)}
+                onClick={() => engine.current?.start(weapon, difficulty, battlefieldMap, battleMode, operationId)}
               >
                 <span>DEPLOY AGAIN</span>
                 <RotateCw size={21} />
               </button>
             )}
+            {mode==='ai'&&<button className="text-btn" onClick={()=>engine.current?.menu()}>Choose another operation</button>}
             <button className="text-btn" onClick={onExit}>
               Return to lobby
             </button>
@@ -817,6 +848,7 @@ export function Game({
         <DialogContent className="game-dialog">
           <DialogTitle className="dialog-title">GET IN. GET OUT.</DialogTitle>
           <DialogDescription>Your first operation in Tirana.</DialogDescription>
+          <p>Last operator standing: one life, bots fight each other, stay inside the amber zone. District missions: follow the blue beacon, then the green extraction ring. Hold missions need 45 uncontested seconds.</p>
           <ol className="briefing-list">
             <li>
               <span>01</span>
@@ -939,10 +971,12 @@ const MiniMap = memo(function MiniMap({ state }: { state: Snapshot }) {
               fill="#7b8c84"
             />
           ))}
+        {state.objectivePoint&&<circle cx={x(state.objectivePoint.x)} cy={z(state.objectivePoint.z)} r="4" fill="#63c9ff"><title>Mission beacon</title></circle>}
+        {state.battleMode==='last-stand'&&state.zoneCenter&&!state.online&&<circle cx={x(state.zoneCenter.x)} cy={z(state.zoneCenter.z)} r={(state.zone||110)/size*100} fill="none" stroke="#ffae46"/>}
         {state.extract ? (
           <circle
-            cx={x(EXTRACTION.x)}
-            cy={z(EXTRACTION.z)}
+            cx={x(state.extractionPoint?.x??EXTRACTION.x)}
+            cy={z(state.extractionPoint?.z??EXTRACTION.z)}
             r="4"
             fill="none"
             stroke="#a3e3b8"

@@ -148,8 +148,8 @@ export default function BlackwaterLobby() {
           </legend>
           <div className="grid grid-cols-2 gap-3">
             {[
-              ['ai', 'Solo operation', 'Free · 3 waves + extraction'],
-              ['online', 'TPG multiplayer', '2–4 human operators']
+              ['ai', 'Battlefield vs AI', 'Free · survival + city missions'],
+              ['online', 'TPG multiplayer', '2–4 operators · one life']
             ].map(([id, title, detail]) => (
               <button
                 key={id}
@@ -258,7 +258,7 @@ export default function BlackwaterLobby() {
         <div className="rounded-xl border border-white/10 bg-white/5 p-4 text-sm text-white/70">
           {mode === 'ai' ? (
             <p>
-              Clear three waves, select upgrades and reach extraction. Move with
+              Play last operator standing or choose city operations from the battle menu. Move with
               the left thumb; drag on the right to aim.
             </p>
           ) : (
@@ -268,8 +268,8 @@ export default function BlackwaterLobby() {
                 {(stake.amount * maxPlayers).toLocaleString()} TPG prize
               </p>
               <p>
-                First to 5 eliminations wins. After 3 minutes, the highest score
-                wins; a tie refunds every stake. Leaving an active match
+                Last operator alive wins. No respawns. If several operators survive
+                the 3-minute limit, every stake is refunded. Leaving an active match
                 forfeits your place. You have 15 seconds to reconnect.
               </p>
               <p className="mt-2">
