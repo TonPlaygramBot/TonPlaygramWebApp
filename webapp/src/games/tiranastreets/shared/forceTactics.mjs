@@ -38,6 +38,17 @@ export function coverPoint(car, target, slot=0, peek=false) {
   return {x:car.x+nx*radius-nz*side,z:car.z+nz*radius+nx*side};
 }
 export function tacticalGoal(n, target, squad, cars, time, clear) {
+  const visible=clear(n,target);
+  if(visible){n.lastSeen={x:target.x,z:target.z};n.lastSeenAt=time;}
+  // Officers investigate the last observed position instead of tracking a
+  // hidden player through every wall. A squad report seeds the first search.
+  else {
+    const report=squad.filter(o=>o.lastSeen&&time-o.lastSeenAt<8).sort((a,b)=>b.lastSeenAt-a.lastSeenAt)[0];
+    if(report){n.lastSeen={...report.lastSeen};n.lastSeenAt=report.lastSeenAt;}
+    if(!n.lastSeen){n.lastSeen={x:target.x,z:target.z};n.lastSeenAt=time;}
+    const searching=time-n.lastSeenAt<12&&Math.hypot(n.x-n.lastSeen.x,n.z-n.lastSeen.z)>1.2;
+    return {goal:searching?n.lastSeen:n,anim:searching?'walk':'idle'};
+  }
   const members=squad.filter(o=>o.health>0).sort((a,b)=>a.id.localeCompare(b.id));
   const index=Math.max(0,members.findIndex(o=>o.id===n.id)), leader=members[0]||n;
   const distance=Math.hypot(n.x-target.x,n.z-target.z);
@@ -50,7 +61,7 @@ export function tacticalGoal(n, target, squad, cars, time, clear) {
     const goal=coverPoint(cover,target,index,peek);
     return {goal, anim: Math.hypot(n.x-goal.x,n.z-goal.z)>.7?'run':peek?'aim':'cover', coverId:cover.id};
   }
-  const holding=distance<20 && clear(n,target);
+  const holding=distance<20 && visible;
   if(holding) return {goal:n,anim:'aim'};
   return {goal:leader===n?target:formationSlot(leader,target,index),anim:distance>30?'run':'walk'};
 }

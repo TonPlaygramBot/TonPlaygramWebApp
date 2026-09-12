@@ -1,0 +1,1088 @@
+{
+  "duplicates": [],
+  "waterSurfaceCorrections": 6,
+  "districts": [
+    {
+      "id": "node/728418041",
+      "name": "Babrru",
+      "point": [
+        1049.71,
+        -2979
+      ],
+      "source": "https://www.openstreetmap.org/node/728418041"
+    },
+    {
+      "id": "node/728420226",
+      "name": "Yzberisht",
+      "point": [
+        -3766.37,
+        462.61
+      ],
+      "source": "https://www.openstreetmap.org/node/728420226"
+    },
+    {
+      "id": "node/728421072",
+      "name": "Sauk",
+      "point": [
+        1114.01,
+        3011.5
+      ],
+      "source": "https://www.openstreetmap.org/node/728421072"
+    },
+    {
+      "id": "node/728423880",
+      "name": "Selitë",
+      "point": [
+        -2028.66,
+        1490.99
+      ],
+      "source": "https://www.openstreetmap.org/node/728423880"
+    },
+    {
+      "id": "node/4596338866",
+      "name": "Lapraka",
+      "point": [
+        -2475.23,
+        -1834.22
+      ],
+      "source": "https://www.openstreetmap.org/node/4596338866"
+    },
+    {
+      "id": "node/4596685807",
+      "name": "Shkozë",
+      "point": [
+        3188.47,
+        -585.54
+      ],
+      "source": "https://www.openstreetmap.org/node/4596685807"
+    },
+    {
+      "id": "node/6295535537",
+      "name": "Ish Fusha e Druve",
+      "point": [
+        -2428.21,
+        857.59
+      ],
+      "source": "https://www.openstreetmap.org/node/6295535537"
+    },
+    {
+      "id": "node/6295535538",
+      "name": "Ish Zdruktharia",
+      "point": [
+        -884.97,
+        1143.29
+      ],
+      "source": "https://www.openstreetmap.org/node/6295535538"
+    },
+    {
+      "id": "node/6295535539",
+      "name": "Ish Merkata",
+      "point": [
+        -408.45,
+        1072.58
+      ],
+      "source": "https://www.openstreetmap.org/node/6295535539"
+    },
+    {
+      "id": "node/6298022009",
+      "name": "Don Bosko",
+      "point": [
+        -1468.12,
+        -1486.02
+      ],
+      "source": "https://www.openstreetmap.org/node/6298022009"
+    },
+    {
+      "id": "node/6298022010",
+      "name": "Kinostudio",
+      "point": [
+        2454.75,
+        -2054.09
+      ],
+      "source": "https://www.openstreetmap.org/node/6298022010"
+    },
+    {
+      "id": "node/6298022011",
+      "name": "Xhamlliku",
+      "point": [
+        1545.77,
+        -896.63
+      ],
+      "source": "https://www.openstreetmap.org/node/6298022011"
+    },
+    {
+      "id": "node/6298022012",
+      "name": "Ali Demi",
+      "point": [
+        1715.7,
+        -21.04
+      ],
+      "source": "https://www.openstreetmap.org/node/6298022012"
+    },
+    {
+      "id": "node/6298022013",
+      "name": "Blloku",
+      "point": [
+        -228.52,
+        686.48
+      ],
+      "source": "https://www.openstreetmap.org/node/6298022013"
+    },
+    {
+      "id": "node/6298022014",
+      "name": "Komuna e Parisit",
+      "point": [
+        -1167,
+        1323.16
+      ],
+      "source": "https://www.openstreetmap.org/node/6298022014"
+    },
+    {
+      "id": "node/6298022015",
+      "name": "Vasil Shanto",
+      "point": [
+        -1112.15,
+        706.25
+      ],
+      "source": "https://www.openstreetmap.org/node/6298022015"
+    },
+    {
+      "id": "node/6298022016",
+      "name": "21 Dhjetori",
+      "point": [
+        -1284.6,
+        186.83
+      ],
+      "source": "https://www.openstreetmap.org/node/6298022016"
+    },
+    {
+      "id": "node/6298022017",
+      "name": "Kombinat",
+      "point": [
+        -4691.88,
+        1735.94
+      ],
+      "source": "https://www.openstreetmap.org/node/6298022017"
+    },
+    {
+      "id": "node/6300865133",
+      "name": "Brryli",
+      "point": [
+        1335.85,
+        -428.99
+      ],
+      "source": "https://www.openstreetmap.org/node/6300865133"
+    },
+    {
+      "id": "node/6304297128",
+      "name": "Kafja e Rremës",
+      "point": [
+        2240.4,
+        -3435.55
+      ],
+      "source": "https://www.openstreetmap.org/node/6304297128"
+    },
+    {
+      "id": "node/6313760888",
+      "name": "Varri i Bamit",
+      "point": [
+        1837.8,
+        -1198.74
+      ],
+      "source": "https://www.openstreetmap.org/node/6313760888"
+    },
+    {
+      "id": "node/6313760889",
+      "name": "Zogu i Zi",
+      "point": [
+        -1213.2,
+        -652.3
+      ],
+      "source": "https://www.openstreetmap.org/node/6313760889"
+    },
+    {
+      "id": "node/6313760890",
+      "name": "Shkolla e Bashkuar",
+      "point": [
+        1759.5,
+        -1756.15
+      ],
+      "source": "https://www.openstreetmap.org/node/6313760890"
+    },
+    {
+      "id": "node/6313760891",
+      "name": "Porcelani",
+      "point": [
+        2208.68,
+        -1924.76
+      ],
+      "source": "https://www.openstreetmap.org/node/6313760891"
+    },
+    {
+      "id": "node/6313760892",
+      "name": "Poligrafiku",
+      "point": [
+        2476.57,
+        -621.94
+      ],
+      "source": "https://www.openstreetmap.org/node/6313760892"
+    },
+    {
+      "id": "node/6313760893",
+      "name": "Oxhaku",
+      "point": [
+        2165.79,
+        -1438.45
+      ],
+      "source": "https://www.openstreetmap.org/node/6313760893"
+    },
+    {
+      "id": "node/6313760894",
+      "name": "Libri Universitar",
+      "point": [
+        -39.03,
+        912.57
+      ],
+      "source": "https://www.openstreetmap.org/node/6313760894"
+    },
+    {
+      "id": "node/6313760895",
+      "name": "Fresku",
+      "point": [
+        3122.43,
+        -1978.17
+      ],
+      "source": "https://www.openstreetmap.org/node/6313760895"
+    },
+    {
+      "id": "node/6313760896",
+      "name": "Ish Stacioni i Trenit",
+      "point": [
+        -225.21,
+        -1014.84
+      ],
+      "source": "https://www.openstreetmap.org/node/6313760896"
+    },
+    {
+      "id": "node/6313760897",
+      "name": "Astir",
+      "point": [
+        -2979.58,
+        -185.45
+      ],
+      "source": "https://www.openstreetmap.org/node/6313760897"
+    },
+    {
+      "id": "node/6313760898",
+      "name": "Njësia Bashkiake Nr. 1",
+      "point": [
+        2691.86,
+        65.96
+      ],
+      "source": "https://www.openstreetmap.org/node/6313760898"
+    },
+    {
+      "id": "node/6313760899",
+      "name": "Njësia Bashkiake Nr. 2",
+      "point": [
+        1278.75,
+        1500.27
+      ],
+      "source": "https://www.openstreetmap.org/node/6313760899"
+    },
+    {
+      "id": "node/6313760900",
+      "name": "Njësia Bashkiake Nr. 3",
+      "point": [
+        2317.94,
+        -1559.03
+      ],
+      "source": "https://www.openstreetmap.org/node/6313760900"
+    },
+    {
+      "id": "node/6313760901",
+      "name": "Njësia Bashkiake Nr. 4",
+      "point": [
+        1897.09,
+        -2672.35
+      ],
+      "source": "https://www.openstreetmap.org/node/6313760901"
+    },
+    {
+      "id": "node/6313760902",
+      "name": "Njësia Bashkiake Nr. 5",
+      "point": [
+        -1751.42,
+        1144.09
+      ],
+      "source": "https://www.openstreetmap.org/node/6313760902"
+    },
+    {
+      "id": "node/6313760903",
+      "name": "Njësia Bashkiake Nr. 6",
+      "point": [
+        -3855.31,
+        1190.39
+      ],
+      "source": "https://www.openstreetmap.org/node/6313760903"
+    },
+    {
+      "id": "node/6313760904",
+      "name": "Njësia Bashkiake Nr. 7",
+      "point": [
+        -2123.71,
+        -88.62
+      ],
+      "source": "https://www.openstreetmap.org/node/6313760904"
+    },
+    {
+      "id": "node/6313760905",
+      "name": "Njësia Bashkiake Nr. 8",
+      "point": [
+        438,
+        -2046.75
+      ],
+      "source": "https://www.openstreetmap.org/node/6313760905"
+    },
+    {
+      "id": "node/6313760906",
+      "name": "Njësia Bashkiake Nr. 9",
+      "point": [
+        -751.07,
+        -1448.97
+      ],
+      "source": "https://www.openstreetmap.org/node/6313760906"
+    },
+    {
+      "id": "node/6313760907",
+      "name": "Njësia Bashkiake Nr. 10",
+      "point": [
+        -432.06,
+        94.52
+      ],
+      "source": "https://www.openstreetmap.org/node/6313760907"
+    },
+    {
+      "id": "node/6313760908",
+      "name": "Njësia Bashkiake Nr. 11",
+      "point": [
+        -3075.49,
+        -2348.73
+      ],
+      "source": "https://www.openstreetmap.org/node/6313760908"
+    },
+    {
+      "id": "node/6313760910",
+      "name": "Qendra",
+      "point": [
+        -54.03,
+        -199.7
+      ],
+      "source": "https://www.openstreetmap.org/node/6313760910"
+    },
+    {
+      "id": "node/6313760911",
+      "name": "Brraka",
+      "point": [
+        -611.87,
+        -1136.63
+      ],
+      "source": "https://www.openstreetmap.org/node/6313760911"
+    },
+    {
+      "id": "node/6313760912",
+      "name": "Medreseja",
+      "point": [
+        627.23,
+        -1164.54
+      ],
+      "source": "https://www.openstreetmap.org/node/6313760912"
+    },
+    {
+      "id": "node/6313760913",
+      "name": "Selvia",
+      "point": [
+        373.3,
+        -641.37
+      ],
+      "source": "https://www.openstreetmap.org/node/6313760913"
+    },
+    {
+      "id": "node/6313760914",
+      "name": "Ish Fusha e Aviacionit",
+      "point": [
+        -2230.14,
+        -558.01
+      ],
+      "source": "https://www.openstreetmap.org/node/6313760914"
+    },
+    {
+      "id": "node/6313760915",
+      "name": "Tirana e Re",
+      "point": [
+        -568.05,
+        1122.88
+      ],
+      "source": "https://www.openstreetmap.org/node/6313760915"
+    },
+    {
+      "id": "node/6313760916",
+      "name": "Allias",
+      "point": [
+        1580.82,
+        -2462.92
+      ],
+      "source": "https://www.openstreetmap.org/node/6313760916"
+    },
+    {
+      "id": "node/6313760917",
+      "name": "Qyteti Studenti",
+      "point": [
+        1313.55,
+        895.19
+      ],
+      "source": "https://www.openstreetmap.org/node/6313760917"
+    },
+    {
+      "id": "node/6314115528",
+      "name": "Shushica",
+      "point": [
+        -745.93,
+        1129.53
+      ],
+      "source": "https://www.openstreetmap.org/node/6314115528"
+    },
+    {
+      "id": "node/6317843120",
+      "name": "Ish-Uzina Dinamo",
+      "point": [
+        429.56,
+        -1551.39
+      ],
+      "source": "https://www.openstreetmap.org/node/6317843120"
+    },
+    {
+      "id": "node/9124938566",
+      "name": "Blloku Gintash",
+      "point": [
+        -2366.74,
+        -1270.55
+      ],
+      "source": "https://www.openstreetmap.org/node/9124938566"
+    },
+    {
+      "id": "node/10049605333",
+      "name": "Tregu Çam",
+      "point": [
+        -395.39,
+        26.16
+      ],
+      "source": "https://www.openstreetmap.org/node/10049605333"
+    },
+    {
+      "id": "node/10844107559",
+      "name": "Xhameta(Sharrë)",
+      "point": [
+        -4156.96,
+        2980.31
+      ],
+      "source": "https://www.openstreetmap.org/node/10844107559"
+    },
+    {
+      "id": "node/11007909814",
+      "name": "Kompleksi Vizion",
+      "point": [
+        -1324.69,
+        -1059.64
+      ],
+      "source": "https://www.openstreetmap.org/node/11007909814"
+    },
+    {
+      "id": "node/11404423908",
+      "name": "Kompleksi Delijorgji",
+      "point": [
+        -2094.86,
+        581.6
+      ],
+      "source": "https://www.openstreetmap.org/node/11404423908"
+    },
+    {
+      "id": "node/11751928672",
+      "name": "Farmacia 10",
+      "point": [
+        863.08,
+        -1471.54
+      ],
+      "source": "https://www.openstreetmap.org/node/11751928672"
+    },
+    {
+      "id": "node/13159566670",
+      "name": "Ahmati",
+      "point": [
+        -1362.46,
+        -2689.42
+      ],
+      "source": "https://www.openstreetmap.org/node/13159566670"
+    },
+    {
+      "id": "node/13178544077",
+      "name": "Shkolla Ibrahim Basha",
+      "point": [
+        -1978.68,
+        -4763.09
+      ],
+      "source": "https://www.openstreetmap.org/node/13178544077"
+    },
+    {
+      "id": "node/13178544084",
+      "name": "Univers Siti",
+      "point": [
+        -5150.95,
+        -3318.62
+      ],
+      "source": "https://www.openstreetmap.org/node/13178544084"
+    },
+    {
+      "id": "node/13893764067",
+      "name": "Kthesa e Kamzës",
+      "point": [
+        -3528.66,
+        -1786.53
+      ],
+      "source": "https://www.openstreetmap.org/node/13893764067"
+    },
+    {
+      "id": "node/13893764068",
+      "name": "Treshi",
+      "point": [
+        -4029.64,
+        -2719.15
+      ],
+      "source": "https://www.openstreetmap.org/node/13893764068"
+    }
+  ],
+  "buildingCount": 44543,
+  "monuments": [
+    {
+      "id": "node/2991919994",
+      "name": "Lapidari",
+      "source": "https://www.openstreetmap.org/node/2991919994"
+    },
+    {
+      "id": "node/3006044550",
+      "name": "Ushtari i Panjohur",
+      "source": "https://www.openstreetmap.org/node/3006044550"
+    },
+    {
+      "id": "node/3006052706",
+      "name": "Lapidar",
+      "source": "https://www.openstreetmap.org/node/3006052706"
+    },
+    {
+      "id": "node/3440475773",
+      "name": "Blue Summer",
+      "source": "https://www.openstreetmap.org/node/3440475773"
+    },
+    {
+      "id": "node/3837057226",
+      "name": "DEBATIK",
+      "source": "https://www.openstreetmap.org/node/3837057226"
+    },
+    {
+      "id": "node/3841572655",
+      "name": "Qemal Stafa",
+      "source": "https://www.openstreetmap.org/node/3841572655"
+    },
+    {
+      "id": "node/4190306392",
+      "name": "Kolona nga Miniera e Spaçit",
+      "source": "https://www.openstreetmap.org/node/4190306392"
+    },
+    {
+      "id": "node/4391192652",
+      "name": "Përmendorja e Pavarësisë",
+      "source": "https://www.openstreetmap.org/node/4391192652"
+    },
+    {
+      "id": "node/4440836792",
+      "name": "",
+      "source": "https://www.openstreetmap.org/node/4440836792"
+    },
+    {
+      "id": "node/4448973289",
+      "name": "Selvia",
+      "source": "https://www.openstreetmap.org/node/4448973289"
+    },
+    {
+      "id": "node/4464782054",
+      "name": "Papa Françesku",
+      "source": "https://www.openstreetmap.org/node/4464782054"
+    },
+    {
+      "id": "node/4545059450",
+      "name": "Frederik Shopen",
+      "source": "https://www.openstreetmap.org/node/4545059450"
+    },
+    {
+      "id": "node/4550053417",
+      "name": "Avni Rustemi",
+      "source": "https://www.openstreetmap.org/node/4550053417"
+    },
+    {
+      "id": "node/4551484162",
+      "name": "Mbreti Zog I",
+      "source": "https://www.openstreetmap.org/node/4551484162"
+    },
+    {
+      "id": "node/4578288291",
+      "name": "Adem Jashari",
+      "source": "https://www.openstreetmap.org/node/4578288291"
+    },
+    {
+      "id": "node/4621152086",
+      "name": "Inside Out Mosaics",
+      "source": "https://www.openstreetmap.org/node/4621152086"
+    },
+    {
+      "id": "node/4631971351",
+      "name": "Nëna Shqipëri",
+      "source": "https://www.openstreetmap.org/node/4631971351"
+    },
+    {
+      "id": "node/4647394950",
+      "name": "Ismail Qemal Vlora",
+      "source": "https://www.openstreetmap.org/node/4647394950"
+    },
+    {
+      "id": "node/4717813500",
+      "name": "MC Ministria e Komunikimit",
+      "source": "https://www.openstreetmap.org/node/4717813500"
+    },
+    {
+      "id": "node/4975624478",
+      "name": "Thomas Woodrow Wilson",
+      "source": "https://www.openstreetmap.org/node/4975624478"
+    },
+    {
+      "id": "node/5061033221",
+      "name": "Nënë Tereza",
+      "source": "https://www.openstreetmap.org/node/5061033221"
+    },
+    {
+      "id": "node/5100486821",
+      "name": "REJA",
+      "source": "https://www.openstreetmap.org/node/5100486821"
+    },
+    {
+      "id": "node/5179401322",
+      "name": "Bunkeri i Memorialit \"Postbllok\"",
+      "source": "https://www.openstreetmap.org/node/5179401322"
+    },
+    {
+      "id": "node/5179412421",
+      "name": "Fragment i Murit të Berlinit (Nr. 28/40)",
+      "source": "https://www.openstreetmap.org/node/5179412421"
+    },
+    {
+      "id": "node/5305030926",
+      "name": "ArtFlower",
+      "source": "https://www.openstreetmap.org/node/5305030926"
+    },
+    {
+      "id": "node/5312347803",
+      "name": "",
+      "source": "https://www.openstreetmap.org/node/5312347803"
+    },
+    {
+      "id": "node/5487424618",
+      "name": "Public Art by Kaldea and Dingo B",
+      "source": "https://www.openstreetmap.org/node/5487424618"
+    },
+    {
+      "id": "node/6009292731",
+      "name": "Mine Peza",
+      "source": "https://www.openstreetmap.org/node/6009292731"
+    },
+    {
+      "id": "node/6310556080",
+      "name": "Instalacion Spiderman",
+      "source": "https://www.openstreetmap.org/node/6310556080"
+    },
+    {
+      "id": "node/6310556082",
+      "name": "",
+      "source": "https://www.openstreetmap.org/node/6310556082"
+    },
+    {
+      "id": "node/6310556083",
+      "name": "",
+      "source": "https://www.openstreetmap.org/node/6310556083"
+    },
+    {
+      "id": "node/6310852717",
+      "name": "Njeriu Lakuriq",
+      "source": "https://www.openstreetmap.org/node/6310852717"
+    },
+    {
+      "id": "node/6310852721",
+      "name": "Naim Frashëri",
+      "source": "https://www.openstreetmap.org/node/6310852721"
+    },
+    {
+      "id": "node/6317358998",
+      "name": "4 Deshmoret",
+      "source": "https://www.openstreetmap.org/node/6317358998"
+    },
+    {
+      "id": "node/6317389181",
+      "name": "Hafiz Ibrahim Dalliu",
+      "source": "https://www.openstreetmap.org/node/6317389181"
+    },
+    {
+      "id": "node/6392334351",
+      "name": "Vojo Kushi",
+      "source": "https://www.openstreetmap.org/node/6392334351"
+    },
+    {
+      "id": "node/6442256741",
+      "name": "Sulejman Pashë Bargjini",
+      "source": "https://www.openstreetmap.org/node/6442256741"
+    },
+    {
+      "id": "node/6442499069",
+      "name": "Jeronim de Rada",
+      "source": "https://www.openstreetmap.org/node/6442499069"
+    },
+    {
+      "id": "node/6442499070",
+      "name": "",
+      "source": "https://www.openstreetmap.org/node/6442499070"
+    },
+    {
+      "id": "node/6442783830",
+      "name": "",
+      "source": "https://www.openstreetmap.org/node/6442783830"
+    },
+    {
+      "id": "node/6841226998",
+      "name": "Dedë Gjon Luli",
+      "source": "https://www.openstreetmap.org/node/6841226998"
+    },
+    {
+      "id": "node/6851456534",
+      "name": "Lapidari Sauk",
+      "source": "https://www.openstreetmap.org/node/6851456534"
+    },
+    {
+      "id": "node/6851509987",
+      "name": "",
+      "source": "https://www.openstreetmap.org/node/6851509987"
+    },
+    {
+      "id": "node/7937862219",
+      "name": "Aleks Buda",
+      "source": "https://www.openstreetmap.org/node/7937862219"
+    },
+    {
+      "id": "node/7937862222",
+      "name": "Fan S. Noli",
+      "source": "https://www.openstreetmap.org/node/7937862222"
+    },
+    {
+      "id": "node/8167752400",
+      "name": "Papa Gjon Pali II",
+      "source": "https://www.openstreetmap.org/node/8167752400"
+    },
+    {
+      "id": "node/8895511965",
+      "name": "Françesk Radi",
+      "source": "https://www.openstreetmap.org/node/8895511965"
+    },
+    {
+      "id": "node/9005369108",
+      "name": "Holocaust Memorial",
+      "source": "https://www.openstreetmap.org/node/9005369108"
+    },
+    {
+      "id": "node/9124938623",
+      "name": "Ali Demi",
+      "source": "https://www.openstreetmap.org/node/9124938623"
+    },
+    {
+      "id": "node/9124938870",
+      "name": "Mihal Grameno",
+      "source": "https://www.openstreetmap.org/node/9124938870"
+    },
+    {
+      "id": "node/9124938933",
+      "name": "2 Korrik 1990",
+      "source": "https://www.openstreetmap.org/node/9124938933"
+    },
+    {
+      "id": "node/9524687816",
+      "name": "Zâni",
+      "source": "https://www.openstreetmap.org/node/9524687816"
+    },
+    {
+      "id": "node/9986471126",
+      "name": "Big Bang",
+      "source": "https://www.openstreetmap.org/node/9986471126"
+    },
+    {
+      "id": "node/10147170493",
+      "name": "Geraldine Apponyi",
+      "source": "https://www.openstreetmap.org/node/10147170493"
+    },
+    {
+      "id": "node/10162437283",
+      "name": "Selam Musa Salaria",
+      "source": "https://www.openstreetmap.org/node/10162437283"
+    },
+    {
+      "id": "node/10182551408",
+      "name": "Janos Hunyadi",
+      "source": "https://www.openstreetmap.org/node/10182551408"
+    },
+    {
+      "id": "node/10183645859",
+      "name": "Azem Hajdari & Besim Çera",
+      "source": "https://www.openstreetmap.org/node/10183645859"
+    },
+    {
+      "id": "node/10183909057",
+      "name": "Azem Hajdari",
+      "source": "https://www.openstreetmap.org/node/10183909057"
+    },
+    {
+      "id": "node/10202980081",
+      "name": "Kërpudha",
+      "source": "https://www.openstreetmap.org/node/10202980081"
+    },
+    {
+      "id": "node/10202997720",
+      "name": "",
+      "source": "https://www.openstreetmap.org/node/10202997720"
+    },
+    {
+      "id": "node/10204085754",
+      "name": "Hasan Prishtina",
+      "source": "https://www.openstreetmap.org/node/10204085754"
+    },
+    {
+      "id": "node/10204184127",
+      "name": "",
+      "source": "https://www.openstreetmap.org/node/10204184127"
+    },
+    {
+      "id": "node/10221479210",
+      "name": "Shtegu i Qershive Japoneze さくらのみち",
+      "source": "https://www.openstreetmap.org/node/10221479210"
+    },
+    {
+      "id": "node/10271368598",
+      "name": "",
+      "source": "https://www.openstreetmap.org/node/10271368598"
+    },
+    {
+      "id": "node/10272072159",
+      "name": "Henry Dunant",
+      "source": "https://www.openstreetmap.org/node/10272072159"
+    },
+    {
+      "id": "node/10544379036",
+      "name": "Çufoja dhe Bubi Kaçurrel",
+      "source": "https://www.openstreetmap.org/node/10544379036"
+    },
+    {
+      "id": "node/10604289826",
+      "name": "Rotary International",
+      "source": "https://www.openstreetmap.org/node/10604289826"
+    },
+    {
+      "id": "node/10648634622",
+      "name": "Eqrem Çabej",
+      "source": "https://www.openstreetmap.org/node/10648634622"
+    },
+    {
+      "id": "node/10648634623",
+      "name": "Sabri Godo",
+      "source": "https://www.openstreetmap.org/node/10648634623"
+    },
+    {
+      "id": "node/10869397455",
+      "name": "",
+      "source": "https://www.openstreetmap.org/node/10869397455"
+    },
+    {
+      "id": "node/10873272480",
+      "name": "",
+      "source": "https://www.openstreetmap.org/node/10873272480"
+    },
+    {
+      "id": "node/10895946897",
+      "name": "Këmbana e Paqes",
+      "source": "https://www.openstreetmap.org/node/10895946897"
+    },
+    {
+      "id": "node/11074199239",
+      "name": "",
+      "source": "https://www.openstreetmap.org/node/11074199239"
+    },
+    {
+      "id": "node/11186748096",
+      "name": "Mehdi Frashëri",
+      "source": "https://www.openstreetmap.org/node/11186748096"
+    },
+    {
+      "id": "node/11204796293",
+      "name": "",
+      "source": "https://www.openstreetmap.org/node/11204796293"
+    },
+    {
+      "id": "node/11215357369",
+      "name": "",
+      "source": "https://www.openstreetmap.org/node/11215357369"
+    },
+    {
+      "id": "node/11571500311",
+      "name": "Shimon Peres",
+      "source": "https://www.openstreetmap.org/node/11571500311"
+    },
+    {
+      "id": "node/11889979170",
+      "name": "",
+      "source": "https://www.openstreetmap.org/node/11889979170"
+    },
+    {
+      "id": "node/11909428567",
+      "name": "Abdyl Frashëri",
+      "source": "https://www.openstreetmap.org/node/11909428567"
+    },
+    {
+      "id": "node/11909428568",
+      "name": "Sami Frashëri",
+      "source": "https://www.openstreetmap.org/node/11909428568"
+    },
+    {
+      "id": "node/11952217687",
+      "name": "Three Times Black",
+      "source": "https://www.openstreetmap.org/node/11952217687"
+    },
+    {
+      "id": "node/11971909314",
+      "name": "",
+      "source": "https://www.openstreetmap.org/node/11971909314"
+    },
+    {
+      "id": "node/11971909315",
+      "name": "",
+      "source": "https://www.openstreetmap.org/node/11971909315"
+    },
+    {
+      "id": "node/11971958053",
+      "name": "Rinush Idrizi",
+      "source": "https://www.openstreetmap.org/node/11971958053"
+    },
+    {
+      "id": "node/11976688987",
+      "name": "Gani Strazimi",
+      "source": "https://www.openstreetmap.org/node/11976688987"
+    },
+    {
+      "id": "node/11978597679",
+      "name": "",
+      "source": "https://www.openstreetmap.org/node/11978597679"
+    },
+    {
+      "id": "node/11979190544",
+      "name": "",
+      "source": "https://www.openstreetmap.org/node/11979190544"
+    },
+    {
+      "id": "node/11980432344",
+      "name": "",
+      "source": "https://www.openstreetmap.org/node/11980432344"
+    },
+    {
+      "id": "node/11987921471",
+      "name": "",
+      "source": "https://www.openstreetmap.org/node/11987921471"
+    },
+    {
+      "id": "node/11989753068",
+      "name": "Bandiera d'acciaio",
+      "source": "https://www.openstreetmap.org/node/11989753068"
+    },
+    {
+      "id": "node/12052152478",
+      "name": "",
+      "source": "https://www.openstreetmap.org/node/12052152478"
+    },
+    {
+      "id": "node/12173903992",
+      "name": "",
+      "source": "https://www.openstreetmap.org/node/12173903992"
+    },
+    {
+      "id": "node/13033931678",
+      "name": "I Love T",
+      "source": "https://www.openstreetmap.org/node/13033931678"
+    },
+    {
+      "id": "node/13111823719",
+      "name": "Mother's Care",
+      "source": "https://www.openstreetmap.org/node/13111823719"
+    },
+    {
+      "id": "node/13137823114",
+      "name": "Skanderbeg Monument",
+      "source": "https://www.openstreetmap.org/node/13137823114"
+    },
+    {
+      "id": "node/13137942770",
+      "name": "",
+      "source": "https://www.openstreetmap.org/node/13137942770"
+    },
+    {
+      "id": "node/13137946612",
+      "name": "",
+      "source": "https://www.openstreetmap.org/node/13137946612"
+    },
+    {
+      "id": "node/13138007761",
+      "name": "",
+      "source": "https://www.openstreetmap.org/node/13138007761"
+    },
+    {
+      "id": "node/13138008545",
+      "name": "",
+      "source": "https://www.openstreetmap.org/node/13138008545"
+    },
+    {
+      "id": "node/13138013434",
+      "name": "",
+      "source": "https://www.openstreetmap.org/node/13138013434"
+    },
+    {
+      "id": "node/13138017483",
+      "name": "",
+      "source": "https://www.openstreetmap.org/node/13138017483"
+    },
+    {
+      "id": "node/13285838493",
+      "name": "Old locomotive",
+      "source": "https://www.openstreetmap.org/node/13285838493"
+    },
+    {
+      "id": "node/14083931351",
+      "name": "Statue of Haji Bektash Veli",
+      "source": "https://www.openstreetmap.org/node/14083931351"
+    },
+    {
+      "id": "node/14084226038",
+      "name": "Statue of Imam Ali",
+      "source": "https://www.openstreetmap.org/node/14084226038"
+    }
+  ],
+  "unknownHeights": 40608
+}

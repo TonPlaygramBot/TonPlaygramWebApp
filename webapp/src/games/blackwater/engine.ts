@@ -1,3 +1,4 @@
+import {createWebGLRenderer} from '../tiranastreets/createWebGLRenderer';
 import { tacticalGoal } from '../tiranastreets/shared/forceTactics.mjs';
 import { props as cityCover } from './shared/layout.mjs';
 import { BattlefieldForces } from './BattlefieldForces';
@@ -190,12 +191,7 @@ export class GameEngine {
     this.callback = onState;
     this.errorCallback = onError;
     try {
-      this.renderer = new THREE.WebGLRenderer({
-        canvas,
-        antialias: true,
-        alpha: false,
-        powerPreference: 'high-performance'
-      });
+      this.renderer = createWebGLRenderer(canvas);
     } catch {
       this.renderer = new CompatibilityRenderer(
         canvas

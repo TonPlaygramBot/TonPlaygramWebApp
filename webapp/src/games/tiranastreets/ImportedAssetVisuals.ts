@@ -20,6 +20,7 @@ export class ImportedAssetVisuals {
   private loader=new GLTFLoader().setDRACOLoader(this.draco);
   constructor(){this.group.name='Tirana:Imported-assets';}
   has(id:string){return this.instances.has(id);}
+  getRoot(id:string){return this.instances.get(id);}
   private async load(key:string,racing:boolean) {
     this.pending.add(key);
     let scene:T.Group|undefined;

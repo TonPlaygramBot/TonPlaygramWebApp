@@ -1,0 +1,18 @@
+[
+  {
+    "file": "park-bench.glb",
+    "bytes": 116028,
+    "sha256": "03473ec43a3db3902c1c85ce0df62a64662f161fb10b6ee8dc04cb63c1f17176",
+    "authoring": "Blender 4.5.3",
+    "license": "Original project asset",
+    "units": "metres"
+  },
+  {
+    "file": "driver-interior.glb",
+    "bytes": 1802112,
+    "sha256": "89007c3ae7ec30daef777bfb8623cadd823ac15b3cc6f1e84d6da47d7caae8fd",
+    "authoring": "Blender 4.5.3",
+    "license": "Original project asset",
+    "units": "metres"
+  }
+]

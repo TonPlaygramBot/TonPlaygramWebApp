@@ -1,4 +1,5 @@
 import { WORLD } from './world.mjs';
+import {footprintIndex} from '../../tirana-city-source/footprintIndex.mjs';
 import {
   SHOP,
   SIGNALS,
@@ -52,10 +53,11 @@ const buildings = WORLD.buildings.map((b) => ({
   minZ: Math.min(...b.p.map((p) => p[1])),
   maxZ: Math.max(...b.p.map((p) => p[1]))
 }));
+const landscapeBuildings=footprintIndex(buildings,80,.4);
 export const freeLandscape = (x, z) =>
   !onCarriageway(x, z, 0.4) &&
   Math.hypot(x - SHOP.x, z - SHOP.z) > 11 &&
-  !buildings.some(
+  !landscapeBuildings(x,z).some(
     (b) =>
       x > b.minX - 0.4 &&
       x < b.maxX + 0.4 &&

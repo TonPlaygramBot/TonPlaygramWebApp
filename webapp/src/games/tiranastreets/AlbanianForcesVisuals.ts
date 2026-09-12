@@ -16,6 +16,8 @@ type Actor = {
   lamps: {material: T.MeshStandardMaterial; base: number}[];
   mixer?: T.AnimationMixer; idle?: T.AnimationAction; walk?: T.AnimationAction;
   moving?: boolean;
+  height?:number;
+  gaitSpeed?:number;
 };
 
 /** Near-field visuals only. The existing actors remain the distant/loading
@@ -137,22 +139,28 @@ export class AlbanianForcesVisuals {
       actor ||= this.create(c.key, c.asset, source);
       const e = c.entity, person = c.asset.category === 'person';
       const first = !actor.root.userData.placed;
+      const oldX=actor.root.position.x,oldZ=actor.root.position.z;
       const alpha = first ? 1 : Math.min(1, dt * (person ? 12 : 18));
       actor.root.position.lerp(new T.Vector3(e.x, person ? .06 : .03, e.z), alpha);
       actor.root.rotation.y += Math.atan2(Math.sin(e.heading + Math.PI - actor.root.rotation.y), Math.cos(e.heading + Math.PI - actor.root.rotation.y)) * (first ? 1 : Math.min(1, dt * 14));
       actor.root.userData.placed = true;
       if (person) {
-        const npc = e as ForceNPC, riding = npc.motion === 'drive', moving = npc.speed > .15 && npc.health > 0 && !riding;
+        const npc = e as ForceNPC, riding = npc.motion === 'drive';
+        const measured=first||dt<=0?0:Math.hypot(actor.root.position.x-oldX,actor.root.position.z-oldZ)/dt;
+        actor.gaitSpeed=(actor.gaitSpeed||0)+(measured-(actor.gaitSpeed||0))*(1-Math.exp(-dt*12));
+        const moving=actor.gaitSpeed>.12&&npc.health>0&&!riding;
         resetForcePose(actor.root);
-        actor.root.position.y = riding ? .38 : npc.anim === 'cover' ? -.32 : .06;
+        const height=riding?.38:npc.anim==='cover'?-.32:.06;
+        actor.height=(actor.height??height)+(height-(actor.height??height))*(1-Math.exp(-dt*12));
+        actor.root.position.y=actor.height;
         actor.root.rotation.x = npc.health <= 0 ? -Math.PI / 2 : 0;
         if (actor.moving !== moving) {
           (moving ? actor.walk : actor.idle)?.reset().fadeIn(.18).play();
           (moving ? actor.idle : actor.walk)?.fadeOut(.18);
           actor.moving = moving;
         }
-        if (npc.health > 0) actor.mixer?.update(dt * (moving ? Math.min(2.3, Math.max(.6, npc.speed / 1.4)) : 1));
-        poseForce(actor.root, npc.anim || (moving ? 'walk' : 'idle'), npc.health > 0);
+        if (npc.health > 0) actor.mixer?.update(dt * (moving ? Math.min(2.8, Math.max(.15, actor.gaitSpeed / 1.4)) : 1));
+        poseForce(actor.root, npc.anim || (moving ? 'walk' : 'idle'), npc.health > 0,dt);
       } else {
         const car = e as ForceCar;
         for (const wheel of actor.wheels) wheel.rotation.z -= car.speed * dt / actor.asset.wheelRadius;

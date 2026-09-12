@@ -1,6 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {readFileSync} from 'node:fs';
+import {readSourceArchive} from '../webapp/scripts/tirana/sourceArchive.mjs';
 import {createHash} from 'node:crypto';
 import {gunzipSync} from 'node:zlib';
 import {WORLD as core} from '../webapp/src/games/tiranastreets/shared/centralWorld.mjs';
@@ -12,13 +13,13 @@ import {facadeEdges} from '../webapp/src/games/tirana-city-source/sourceCore.mjs
 import {ORIGIN,buildings as fpsBuildings} from '../webapp/src/games/blackwater/shared/layout.mjs';
 
 test('frozen source checksum, complete records and unchanged central metre geometry',()=>{
- const archive=readFileSync(new URL('../assets-source/tirana-neighbourhood/source.osm.json.gz',import.meta.url));
+ const archive=readSourceArchive(new URL('../assets-source/tirana-urban/source.osm.json.gz',import.meta.url));
  assert.equal(createHash('sha256').update(archive).digest('hex'),n.source.sha256);
- const raw=JSON.parse(gunzipSync(archive));assert.equal(raw.receipts.length,6);assert.equal(raw.elements.length,81930);
+ const raw=JSON.parse(gunzipSync(archive));assert.equal(raw.receipts.length,35);assert.equal(raw.elements.length,580579);
  const ids=new Set(raw.elements.map(e=>`${e.type}/${e.id}`));assert.equal(ids.size,raw.elements.length);
  assert.deepEqual(WORLD.origin,core.origin);assert.deepEqual(WORLD.roads.slice(0,core.roads.length),core.roads);assert.deepEqual(WORLD.buildings.slice(0,core.buildings.length),core.buildings);
  assert.deepEqual(WORLD.graph.nodes.slice(0,core.graph.nodes.length),core.graph.nodes);assert.deepEqual(WORLD.graph.edges.slice(0,core.graph.edges.length),core.graph.edges);
- assert.equal(n.buildings.length,4298);assert.equal(WORLD.roads.length-core.roads.length,14530);
+ assert.equal(n.buildings.length,44543);assert.equal(WORLD.roads.length-core.roads.length,118879);
  assert.ok(WORLD.regionalCoverage.provenSeamNodes>1000);
 });
 test('walk and drive routes reach the three source-identified focus areas from central Tirana',()=>{
@@ -44,13 +45,13 @@ test('source courtyards remain open in street collision, sight lines and FPS coo
  const translated=fpsBuildings.find(f=>f.id===b.id);assert.deepEqual(translated.holes,hole?[hole.map(v=>[v[0]-ORIGIN.x,v[1]-ORIGIN.z])]:[]);
 });
 test('frontages fit their selected source wall and every category has a source-linked tenant',()=>{
- assert.equal(n.storefronts.length,190);
+ assert.equal(n.storefronts.length,1559);
  for(const category of ['market','pharmacy','barber','produce','cafe','civic','clinic'])assert.ok(n.storefronts.some(s=>s.model===category),category);
  for(const s of n.storefronts){
   assert.ok(n.places.some(p=>p.id===s.id));const b=n.buildings.find(b=>b.id===s.buildingId);assert.ok(b);
   assert.ok(facadeEdges(b.p).some(e=>{const u=(s.x-e.a[0])*e.ux+(s.z-e.a[1])*e.uz;return Math.abs((s.x-e.a[0])*e.nx+(s.z-e.a[1])*e.nz-.08)<1e-5&&u>=s.width/2+.124&&u<=e.length-s.width/2-.124;}),s.name);
  }
- assert.equal(n.polygonFeatures.filter(p=>p.tags.man_made==='reservoir_covered').length,3);
+ assert.equal(n.polygonFeatures.filter(p=>p.tags.man_made==='reservoir_covered').length,7);
  assert.ok(n.unresolved.length>0);assert.ok(!n.storefronts.some(s=>/flabina/i.test(s.name)));
 });
 test('real free-roam state advances on the expanded city with finite player/vehicle positions',()=>{

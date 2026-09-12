@@ -422,14 +422,6 @@ export function updateCityLife(state, dt, env, mission) {
   state.effects = state.effects.filter((e) => state.elapsed - e.at < 0.7);
   const players = Object.values(state.players),
     cfg = difficultyOf(state.difficulty);
-  const activeEmergency = players.some((p) => p.wanted > 0 || state.elapsed - p.lastDamage < 8);
-  for (const vehicle of state.traffic || []) {
-    if (!vehicle.service) continue;
-    vehicle.responding = activeEmergency;
-    vehicle.cruise = activeEmergency
-      ? vehicle.service === "police-patrol" ? 15 : 12
-      : vehicle.service === "police-patrol" ? 8 : 7;
-  }
   for (const p of players) {
     if (p.health <= 0) {
       if (state.missionId === "free-roam" && state.elapsed >= p.respawnAt) {
@@ -586,11 +578,11 @@ export function updateCityLife(state, dt, env, mission) {
     const unit = n.unit && state.units.find((u) => u.id === n.unit),
       d = dist(n, p);
     const squadLead=unit && state.units.find(u=>u.squadId===unit.squadId);
-    if (unit && !n.deployed && dist(squadLead||unit, p) > 23) {
+    if (unit && !n.deployed && (dist(squadLead||unit, p) > 23 || Math.abs(unit.speed)>.5)) {
       n.motion = "drive";
-      const seatOffset = n.seat ? .38 : -.32;
-      n.x = unit.x + Math.sin(unit.heading)*seatOffset;
-      n.z = unit.z + Math.cos(unit.heading)*seatOffset;
+      const seatOffset = n.seat%2 ? .38 : -.32, back=Math.floor((n.seat||0)/2)*.7;
+      n.x = unit.x + Math.cos(unit.heading)*seatOffset+Math.sin(unit.heading)*back;
+      n.z = unit.z - Math.sin(unit.heading)*seatOffset+Math.cos(unit.heading)*back;
       n.speed = unit.speed;
       n.anim = unit.forceVehicle.includes("bike") ? "ride" : "drive";
       n.heading = unit.heading;
@@ -613,7 +605,8 @@ export function updateCityLife(state, dt, env, mission) {
     // Personal space prevents overlapping squad members even while converging.
     for(const other of state.npcs) if(other!==n && other.health>0 && other.motion!=='drive') {
       const dx=n.x-other.x,dz=n.z-other.z,l=Math.hypot(dx,dz);
-      if(l<.85 && l>0.001){n.x+=dx/l*(.85-l)*.5;n.z+=dz/l*(.85-l)*.5;}
+      if(l<.85){const a=l>.001?Math.atan2(dz,dx):n.id.localeCompare(other.id)<0?0:Math.PI;
+        n.x+=Math.cos(a)*(.85-l)*.5;n.z+=Math.sin(a)*(.85-l)*.5;}
     }
     env.collide(n,.45);
     if(n.anim==='aim'||n.anim==='cover') n.heading=Math.atan2(n.x-p.x,n.z-p.z);

@@ -1,3 +1,4 @@
+import {createWebGLRenderer} from '../createWebGLRenderer';
 import * as T from 'three';
 import {makeCityWorld} from '../../blackwater/cityWorld';
 import {GameInput} from '../../blackwater/input';
@@ -29,7 +30,7 @@ export class CareerRuntime {
  private footstepAt=0;private rideYaw=0;private fps=60;private counted=0;private countedTime=0;
  constructor(canvas:HTMLCanvasElement,surface:HTMLElement,private publish:(v:CareerView)=>void,private storage?:Storage){
   this.profile=loadCareer(storage);
-  try{this.renderer=new T.WebGLRenderer({canvas,antialias:true,powerPreference:'high-performance'});}catch{this.renderer=new CompatibilityRenderer(canvas) as unknown as T.WebGLRenderer;}
+  try{this.renderer=createWebGLRenderer(canvas);}catch{this.renderer=new CompatibilityRenderer(canvas) as unknown as T.WebGLRenderer;}
   this.renderer.outputColorSpace=T.SRGBColorSpace;this.renderer.toneMapping=T.ACESFilmicToneMapping;this.renderer.toneMappingExposure=1.08;
   this.renderer.setPixelRatio(Math.min(devicePixelRatio||1,1.5));this.renderer.shadowMap.enabled=true;this.renderer.shadowMap.type=T.PCFSoftShadowMap;
   this.world=makeCityWorld(this.scene,this.camera,this.renderer);this.world.gun.visible=false;this.world.extraction.visible=false;
