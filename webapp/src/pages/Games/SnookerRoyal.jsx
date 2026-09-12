@@ -18121,10 +18121,20 @@ const shotPowerRef = useRef(0);
               cueGalleryStateRef.current?.active
             )
           });
+          // The animated eyes can dip below the cloth during the stroke. Keep
+          // the existing eye view, but apply its clearance in table coordinates
+          // before the venue scale/translation and final camera blend.
+          const position = pose?.position.clone();
+          if (position) {
+            position.y = Math.max(
+              position.y,
+              TABLE_Y + BALL_CENTER_Y - BALL_R + CAMERA_CUE_SURFACE_MARGIN
+            );
+          }
           return pose
             ? {
                 ...pose,
-                position: world.localToWorld(pose.position.clone()),
+                position: world.localToWorld(position),
                 target: world.localToWorld(pose.target.clone())
               }
             : null;
@@ -22068,7 +22078,7 @@ const shotPowerRef = useRef(0);
         tableL: Math.max(TABLE.H, PLAY_H),
         // Match Pool Royale's cue-relative proportions, with a slightly taller
         // silhouette that remains grounded at the venue floor.
-        targetHeight: cueLen * 1.38,
+        targetHeight: cueLen * 1.45,
         onError: (error) => console.warn('Snooker Royal player characters could not load', error)
       });
       referencePlayers.setCueAppearance(cueBody, cueTipLocal, cueButtLocal);
