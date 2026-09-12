@@ -90,7 +90,7 @@ export class NeighbourhoodLayer {
    if(Math.hypot(p[0]-viewer.x,p[1]-viewer.z)<(COMPLETED_BUILDING_IDS.has(hero.id)?(battery?120:240):1000))this.request(hero.asset,hero);
   }
   for(const h of this.heroes.values())h.object.visible=Math.hypot(h.x-viewer.x,h.z-viewer.z)<(battery?720:1100);
-  const sites=this.near(viewer,battery?100:185,battery?24:48);
+  const sites=this.near(viewer,battery?100:185,battery?24:48).filter(s=>!['greengrocer','supermarket','convenience','marketplace'].includes(s.shop||s.kind));
   for(const site of sites)if(KIT_IDS.includes(site.model))this.request(site.model);
   this.kits.forEach(meshes=>meshes.forEach(mesh=>mesh.count=0));
   for(const site of sites){const meshes=this.kits.get(site.model);if(!meshes)continue;

@@ -1,3 +1,4 @@
+import {groundHeight,buildingGround,terrainRay} from '../../tirana-east/terrainCore.mjs';
 import { detailPostObstacles } from '../../tirana-street-detail/sharedRoadDetails.mjs';
 import {shopObstacles} from '../shared/cityPopulation.mjs';
 import {vehicleSize} from '../shared/trafficSimulation.mjs';
@@ -73,7 +74,8 @@ export class StreetWorld {
     this.legacyBounds = legacyBounds;
     this.solids = solids.map((b) => ({
       ...b,
-      minY: b.minY ?? b.minHeight ?? 0,
+      minY: (b.minY ?? b.minHeight ?? 0)+buildingGround(b),
+      h:b.h+buildingGround(b),
       minX: Math.min(...b.p.map((p) => p[0])),
       maxX: Math.max(...b.p.map((p) => p[0])),
       minZ: Math.min(...b.p.map((p) => p[1])),
@@ -99,7 +101,7 @@ export class StreetWorld {
     return this.cells.get(Math.floor(x / 40) + ',' + Math.floor(z / 40)) || [];
   }
   surface(x, z, below = Infinity) {
-    let y = 0.08;
+    let y = groundHeight(x,z)+0.08;
     for (const b of this.nearby(x, z)) {
       if (b.h > below) continue;
       let support = solidAt(b, x, z);
@@ -135,6 +137,9 @@ export class StreetWorld {
         [0, dz / n]
       ]) {
         const q = { x: p.x + x, z: p.z + z, y: p.y };
+        const floor=groundHeight(q.x,q.z)+.08;
+        if(floor>p.y){if(floor-p.y>Math.max(step,.14)){hit=true;continue;}q.y=floor;}
+        else if(step>0&&p.y-floor<.3)q.y=floor;
         if (!this.clearance(q, height)) {
           const top = this.surface(q.x, q.z, p.y + step);
           if (
@@ -257,7 +262,7 @@ export class StreetWorld {
         x = a.x - car.x,
         z = a.z - car.z;
       const t = rayBox(
-        { x: x * c - z * s, y: a.y, z: x * s + z * c },
+        { x: x * c - z * s, y: a.y-groundHeight(car.x,car.z), z: x * s + z * c },
         { x: d.x * c - d.z * s, y: d.y, z: d.x * s + d.z * c },
         {
           min: { x: -size.width/2, y: 0, z: -size.length/2 },
@@ -271,14 +276,8 @@ export class StreetWorld {
         kind = 'car';
       }
     }
-    if (d.y < -0.0001) {
-      const t = (0.08 - a.y) / d.y;
-      if (t >= 0 && t < best) {
-        best = t;
-        objectId = 'ground';
-        kind = 'ground';
-      }
-    }
+    const terrainHit=terrainRay(a,d,best);
+    if(terrainHit!==null&&terrainHit<best){best=terrainHit;objectId='ground';kind='ground';}
     return { distance: best, point: pointAlong(a, d, best), objectId, kind };
   }
   clear(a, b, cars = [], ignore = '') {

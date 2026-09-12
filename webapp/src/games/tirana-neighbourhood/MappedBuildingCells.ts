@@ -1,3 +1,5 @@
+import {housingProfile} from '../tirana-east/housingCore.mjs';
+import {buildingGround} from '../tirana-east/terrainCore.mjs';
 import * as T from 'three';
 import {CellWorkQueue} from './cellWorkQueue.mjs';
 import {appendBuildingShell,shellGeometry} from './buildingShell';
@@ -32,7 +34,8 @@ export class MappedBuildingCells {
  }
  build(buildings:any[],detailOnly=false){
   const group=new T.Group(),shells:T.BufferGeometry[]=[],windows:T.BufferGeometry[]=[],roofs:T.BufferGeometry[]=[];
-  for(const b of buildings){
+  for(const original of buildings){
+   const base=buildingGround(original),b={...original,h:original.h+base,minHeight:(original.minHeight||0)+base};
    if(!detailOnly){
    const shape=new T.Shape(b.p.map((p:number[])=>new T.Vector2(p[0],-p[1])));
    for(const h of b.holes??[])shape.holes.push(new T.Path(h.map((p:number[])=>new T.Vector2(p[0],-p[1]))));
@@ -56,7 +59,7 @@ export class MappedBuildingCells {
      const trim=new T.BoxGeometry(edge.length,.32,.18).rotateY(-Math.atan2(edge.uz,edge.ux)).translate((edge.a[0]+edge.b[0])/2,b.h+.16,(edge.a[1]+edge.b[1])/2).toNonIndexed();
      roofs.push(trim);
    }
-   if(this.aged&&AGED_HOUSING_IDS.has(String(b.id)))continue;
+   if(housingProfile(b)||this.aged&&AGED_HOUSING_IDS.has(String(b.id)))continue;
    for(const edge of facadeEdges(b.p)){
     const columns=Math.min(24,Math.floor(edge.length/4));if(!columns)continue;
     for(let y=firstWindowHeight(b);y<b.h-1;y+=3.2)for(let j=0;j<columns;j++){

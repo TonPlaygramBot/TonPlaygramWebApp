@@ -1,3 +1,5 @@
+import {groundHeight} from '../../tirana-east/terrainCore.mjs';
+import {CABLE_STATIONS,CABLE_DURATION,cablePoint,dismountCandidates} from '../../tirana-east/cableCore.mjs';
 import { collectWeapon } from '../shared/cityPopulation.mjs';
 import { weaponPose } from './weaponPose.mjs';
 import {
@@ -53,7 +55,9 @@ export class StreetSimulation {
   constructor(state, world = new StreetWorld()) {
     this.state = state;
     this.world = world;
+    this.cableRide=null;
     this.body = createBody(state.players.local.heading);
+    this.body.y=groundHeight(state.players.local.x,state.players.local.z)+.08;
     this.intent = { ...defaults, yaw: this.body.yaw };
     this.events = [];
     this.eventSeq = 0;
@@ -82,7 +86,7 @@ export class StreetSimulation {
               y:
                 a.id === 'local'
                   ? this.body.y + this.body.eye
-                  : (a.y || 0) + 1.55,
+                  : (a.y ?? groundHeight(a.x,a.z)) + 1.55,
               z: a.z
             },
             {
@@ -90,7 +94,7 @@ export class StreetSimulation {
               y:
                 c.id === 'local'
                   ? this.body.y + this.body.eye
-                  : (c.y || 0) + 1.55,
+                  : (c.y ?? groundHeight(c.x,c.z)) + 1.55,
               z: c.z
             }
           ),
@@ -177,6 +181,7 @@ export class StreetSimulation {
       return;
     }
     if (p.health <= 0 || p.failed || p.finished) {
+      this.cableRide=null;
       if (b.interaction !== 'dead') {
         cancelActions(p, b);
         b.interaction = 'dead';
@@ -187,16 +192,22 @@ export class StreetSimulation {
     if (b.interaction === 'dead') {
       cancelActions(p, b);
       b.interaction = 'free';
-      b.y = 0.08;
+      b.y = groundHeight(p.x,p.z)+0.08;
       b.vy = 0;
       b.grounded = true;
       this.event('respawn');
+    }
+    if(this.cableRide){
+      const ride=this.cableRide;ride.fraction=Math.min(1,ride.fraction+dt/CABLE_DURATION);const at=cablePoint(ride.fraction,ride.returning);
+      p.x=at.x;p.z=at.z;p.speed=0;b.y=at.y+.1;b.vy=0;b.interaction='cableway';
+      if(ride.fraction>=1){const exit=dismountCandidates(ride.returning?0:1).find(q=>this.world.clearance(q,MOTOR.standing));if(exit){p.x=exit.x;p.z=exit.z;b.y=exit.y;b.grounded=true;b.interaction='free';this.cableRide=null;b.notice=ride.returning?'Linzë · Mirë se u ktheve':'Dajt · Ndiq shtigjet drejt Maja e Tujanit';}}
+      return;
     }
     if (p.carId) {
       b.interaction = b.action?.kind === 'exiting' ? 'exiting' : 'driving';
       movePlayer(s, p, dt);
       if (Math.abs(p.speed) > 2) this.eventOnce('drive');
-      b.y = 0.08;
+      b.y = groundHeight(p.x,p.z)+0.08;
       return;
     }
     stepMotor(
@@ -344,7 +355,7 @@ export class StreetSimulation {
       target.anim = 'hit';
       if (attacker) {
         const l = dist(target, attacker) || 1,
-          q = { x: target.x, y: 0.08, z: target.z };
+          q = { x: target.x, y: groundHeight(target.x,target.z)+0.08, z: target.z };
         this.world.move(
           q,
           ((target.x - attacker.x) / l) * 0.32,
@@ -403,6 +414,7 @@ export class StreetSimulation {
     return null;
   }
   candidates() {
+    if(this.cableRide)return [];
     const p = this.player,
       b = this.body,
       eye = this.eye(),
@@ -419,7 +431,7 @@ export class StreetSimulation {
       if (
         l > range ||
         dot < 0.05 ||
-        !this.world.clear(
+        kind!=='cableway' && !this.world.clear(
           eye,
           point,
           this.cars(),
@@ -441,6 +453,7 @@ export class StreetSimulation {
         ...extra
       });
     };
+    if(!p.carId)for(const station of CABLE_STATIONS)add(station.id,'HIP · Dajti Ekspres',{...station,y:groundHeight(station.x,station.z)+1},16,90,'cableway');
     if (p.carId) {
       const car = this.state.cars.find((c) => c.id === p.carId);
       const reason = !car
@@ -510,13 +523,13 @@ export class StreetSimulation {
           ? 'Land before entering'
           : Math.abs(car.speed) > 2.5
             ? 'Wait for the car to stop'
-            : !this.world.clearance({ ...doors[side], y: 0.08 }, MOTOR.standing)
+            : !this.world.clearance({ ...doors[side], y: groundHeight(doors[side].x,doors[side].z)+0.08 }, MOTOR.standing)
               ? 'Door is blocked'
               : '';
       add(
         car.id,
         occupied ? 'MERR MAKINËN' : 'HYR',
-        { ...doors[side], y: 0.9, id: car.id },
+        { ...doors[side], y: groundHeight(car.x,car.z)+0.9, id: car.id },
         3.5,
         60,
         'vehicle',
@@ -542,7 +555,7 @@ export class StreetSimulation {
       busy =
         !!b.action ||
         b.interaction === 'entering' ||
-        b.interaction === 'exiting';
+        b.interaction === 'exiting' || b.interaction === 'cableway';
     const reason = dead
       ? 'Run ended'
       : this.paused
@@ -853,7 +866,7 @@ export class StreetSimulation {
       for (const n of this.state.npcs) {
         if (n.health <= 0 || n.kind === 'dealer' || n.motion === 'drive')
           continue;
-        const to = { x: n.x, y: (n.y || 0.08) + 1.2, z: n.z },
+        const to = { x: n.x, y: (n.y ?? groundHeight(n.x,n.z)+0.08) + 1.2, z: n.z },
           dx = to.x - eye.x,
           dy = to.y - eye.y,
           dz = to.z - eye.z,
@@ -882,7 +895,7 @@ export class StreetSimulation {
     for (const n of this.state.npcs) {
       if (n.health <= 0 || n.kind === 'dealer' || n.motion === 'drive')
         continue;
-      const y = n.y || 0.08,
+      const y = n.y ?? groundHeight(n.x,n.z)+0.08,
         t = rayBox(
           eye,
           d,
@@ -1036,6 +1049,9 @@ export class StreetSimulation {
       this.body.notice = 'Move closer and try again';
       return;
     }
+    if(live.kind==='cableway'){
+      cancelActions(this.player,this.body);this.cableRide={fraction:0,returning:live.targetId==='dajti-upper'};this.body.interaction='cableway';this.body.notice='Dajti Ekspres · udhëtim 15 minuta';return;
+    }
     if (live.kind === 'loot') {
       const l = this.loot.find((l) => l.id === a.targetId);
       if (!l || this.claimed.has(l.id)) return;
@@ -1075,6 +1091,7 @@ export class StreetSimulation {
     return true;
   }
   objective() {
+    if(this.cableRide)return {title:'Dajti Ekspres',detail:`${Math.round(this.cableRide.fraction*100)}% · ${this.cableRide.returning?'drejt Linzës':'drejt Dajtit'}`,training:false};
     const p = this.player;
     if (this.mission.id === 'first-shift') {
       const t = TUTORIAL.find(([id]) => !this.body.tutorial.includes(id));

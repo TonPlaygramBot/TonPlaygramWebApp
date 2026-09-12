@@ -1,3 +1,5 @@
+import {alignVehicle} from '../tirana-east/terrainTransforms';
+import {groundHeight} from '../tirana-east/terrainCore.mjs';
 import * as T from 'three';
 import {resetForcePose,poseForce} from './forcePose';
 import {GLTFLoader, type GLTF} from 'three/examples/jsm/loaders/GLTFLoader.js';
@@ -149,8 +151,9 @@ export class AlbanianForcesVisuals {
       const first = !actor.root.userData.placed;
       const oldX=actor.root.position.x,oldZ=actor.root.position.z;
       const alpha = first ? 1 : Math.min(1, dt * (person ? 12 : 18));
-      actor.root.position.lerp(new T.Vector3(e.x, person ? .06 : .03, e.z), alpha);
+      actor.root.position.lerp(new T.Vector3(e.x, groundHeight(e.x,e.z)+(person ? .06 : .03), e.z), alpha);
       actor.root.rotation.y += Math.atan2(Math.sin(e.heading + Math.PI - actor.root.rotation.y), Math.cos(e.heading + Math.PI - actor.root.rotation.y)) * (first ? 1 : Math.min(1, dt * 14));
+      if(!person)alignVehicle(actor.root,e.heading+Math.PI);
       actor.root.userData.placed = true;
       if (person) {
         const npc = e as ForceNPC, riding = npc.motion === 'drive';
@@ -160,7 +163,7 @@ export class AlbanianForcesVisuals {
         resetForcePose(actor.root);
         const height=riding?.38:npc.anim==='cover'?-.32:.06;
         actor.height=(actor.height??height)+(height-(actor.height??height))*(1-Math.exp(-dt*12));
-        actor.root.position.y=actor.height;
+        actor.root.position.y=groundHeight(e.x,e.z)+actor.height;
         actor.root.rotation.x = npc.health <= 0 ? -Math.PI / 2 : 0;
         if (actor.moving !== moving) {
           (moving ? actor.walk : actor.idle)?.reset().fadeIn(.18).play();

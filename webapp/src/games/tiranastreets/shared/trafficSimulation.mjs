@@ -59,10 +59,13 @@ export function populateTraffic(state,spawn){
   const make=(i,bus)=>{
     const id=bus?`tirana-bus-${i}`:`traffic-${i}`;
     if(ids.has(id))return;
+    const pool=bus?local.filter(e=>e.w>=7&&e.len>=28):local;
+    if(!pool.length)throw Error(`No eligible traffic roads for ${id}`);
     let edge,p;
-    for(let attempt=0;attempt<600;attempt++){
-      const n=i<96&&!bus?(i*9+attempt*17)%Math.min(local.length,500):(i*7919+attempt*193+(bus?123:0))%local.length;
-      edge=local[n];if(bus&&(edge.w<7||edge.len<28))continue;
+    for(let attempt=0;attempt<Math.max(600,bus?pool.length*3:0);attempt++){
+      p=null;
+      const n=i<96&&!bus?(i*9+attempt*17)%Math.min(pool.length,500):bus?(i*37+attempt)%pool.length:(i*7919+attempt*193)%pool.length;
+      edge=pool[n];
       p=lanePoint(edge,.2+((i*37+attempt*13)%60)/100);
       if(occupied.near(p.x,p.z,22).some(c=>Math.hypot(c.x-p.x,c.z-p.z)<(vehicleSize(c).length+(bus?18:4.5))*.5+2)){p=null;continue;}break;
     }
@@ -75,8 +78,9 @@ export function populateTraffic(state,spawn){
     if(bus){c.passengers=Array.from({length:12+i%9},(_,seat)=>({seat,face:(i+seat*3)%8,shirt:(i+seat)%6}));c.routeName=['UNAZA','KOMBINAT – KINOSTUDIO','TIRANË – KAMËZ'][i%3];c.livery=i%3;c.busStopAt=20+i*3;c.trailerHeading=heading;}
     state.traffic.push(c);ids.add(id);const k=key(c.x,c.z);if(!occupied.cells.has(k))occupied.cells.set(k,[]);occupied.cells.get(k).push(c);
   };
-  for(let i=0;i<CITY_POPULATION.vehicles-3;i++)make(i,false);
+  // Reserve articulated-bus clearance before filling ordinary traffic lanes.
   for(let i=0;i<CITY_POPULATION.buses;i++)make(i,true);
+  for(let i=0;i<CITY_POPULATION.vehicles-3;i++)make(i,false);
 }
 export function redSignalGap(car,time){
   const fx=-Math.sin(car.heading),fz=-Math.cos(car.heading),length=vehicleSize(car).length;

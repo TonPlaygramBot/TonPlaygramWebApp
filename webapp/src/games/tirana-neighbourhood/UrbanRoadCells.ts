@@ -1,3 +1,4 @@
+import {appendGroundTriangle,drapeGeometry} from '../tirana-east/drapeGeometry';
 import * as T from 'three';
 import {CellWorkQueue} from './cellWorkQueue.mjs';
 import {EnvironmentMaterials} from '../tirana-environment/EnvironmentMaterials';
@@ -37,7 +38,7 @@ export class UrbanRoadCells {
   for(const r of cell.roads){
    if(!r.walk){const ring=roadRing(r);if(ring){const clipped=clipRingToBounds(ring,cell.bounds),y=r.bridge?.16:.09;
     for(let i=1;i<clipped.length-1;i++){const a=clipped[0],b=clipped[i],c=clipped[i+1];
-     const face=(b[0]-a[0])*(c[1]-a[1])-(b[1]-a[1])*(c[0]-a[0])>0?[a,c,b]:[a,b,c];for(const p of face)positions.push(p[0],y,p[1]);
+     const face=(b[0]-a[0])*(c[1]-a[1])-(b[1]-a[1])*(c[0]-a[0])>0?[a,c,b]:[a,b,c];appendGroundTriangle(positions,face[0],face[1],face[2],y);
     }
    }}
    yield;
@@ -45,7 +46,7 @@ export class UrbanRoadCells {
   const root=new T.Group();root.name=`Road cell ${cell.key}`;
   if(positions.length){const geo=new T.BufferGeometry(),normals=new Float32Array(positions.length),uv=new Float32Array(positions.length/3*2);
    for(let i=0;i<positions.length/3;i++){normals[i*3+1]=1;uv[i*2]=positions[i*3]/5;uv[i*2+1]=positions[i*3+2]/5;}
-   geo.setAttribute('position',new T.Float32BufferAttribute(positions,3));geo.setAttribute('normal',new T.BufferAttribute(normals,3));geo.setAttribute('uv',new T.BufferAttribute(uv,2));geo.computeBoundingSphere();
+   geo.setAttribute('position',new T.Float32BufferAttribute(positions,3));geo.setAttribute('normal',new T.BufferAttribute(normals,3));geo.setAttribute('uv',new T.BufferAttribute(uv,2));geo.computeVertexNormals();geo.computeBoundingSphere();
    const mesh=new T.Mesh(geo,this.asphalt);mesh.receiveShadow=true;root.add(mesh);
   }
   cell.root=root;this.group.add(root);this.cache.add(cell);root.visible=this.visible.has(cell);
@@ -60,7 +61,7 @@ export class UrbanRoadCells {
     // InfrastructureLayer owns elevated bridge sidewalks and pedestrian decks.
     if(!r.bridge){const ring=roadRing(r,r.w+(r.walk?0:3.8));if(ring)
      for(const polygon of this.clip(ring,cell))for(const dry of cutChannels(polygon[0],polygon.slice(1)))
-      for(const cleared of cutRoads(dry))parts.push(surfaceGeometry(cleared,.075));
+      for(const cleared of cutRoads(dry))parts.push(drapeGeometry(surfaceGeometry(cleared,.075)));
     }
     yield;
    }

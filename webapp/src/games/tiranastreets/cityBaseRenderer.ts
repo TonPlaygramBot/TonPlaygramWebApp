@@ -1,3 +1,4 @@
+import {groundHeight} from '../tirana-east/terrainCore.mjs';
 import {LandscapeVisuals} from './landscapeVisuals';
 import {CinematicAtmosphere} from '../tirana-environment/CinematicAtmosphere';
 import {EnvironmentMaterials} from '../tirana-environment/EnvironmentMaterials';
@@ -291,18 +292,9 @@ export class CityRenderer {
         this.worldTextures.add(t);
       });
     for(const water of WORLD.water)if(Array.isArray(water))this.polygon(water,0,0x507f83,.075);
-    // Far mountains give the basin a horizon, outside the playable OSM district.
-    const mountainMat = this.material(0x7e9b9c);
-    for (let i = 0; i < 13; i++) {
-      const mountain = new THREE.Mesh(
-        new THREE.ConeGeometry(260 + (i % 3) * 50, 160 + (i % 4) * 45, 6),
-        mountainMat,
-      );
-      mountain.position.set(1600 + (i % 2) * 180, 30, -1200 + i * 240);
-      mountain.rotation.y = i;
-      this.scene.add(mountain);
-    }
+    // Source DEM mountains are owned by WorldEnhancements.
   }
+
   private buildBlocks() {
     const colors = [
       0xc9bda7, 0xaebbaf, 0xdfbd9d, 0xe1d2b7, 0x909a96, 0xdab48e, 0xbfa9a6,
@@ -914,12 +906,12 @@ export class CityRenderer {
           Math.hypot(car.x - p.x, car.z - p.z) <
             (this.quality === "battery" ? 180 : 350));
         if (!a.group.userData.placed) {
-          a.group.position.set(car.x, 0, car.z);
+          a.group.position.set(car.x, groundHeight(car.x,car.z), car.z);
           a.group.rotation.y = car.heading + Math.PI;
           a.group.userData.placed = true;
         }
         a.group.position.lerp(
-          new THREE.Vector3(car.x, 0.03, car.z),
+          new THREE.Vector3(car.x, groundHeight(car.x,car.z)+0.03, car.z),
           Math.min(1, dt * 18),
         );
         a.group.rotation.y = smoothAngle(
@@ -946,7 +938,7 @@ export class CityRenderer {
         a.group.visible = !pl.carId && !(this.firstPerson && pl.id === playerId);
         a.group.rotation.x = pl.health <= 0 ? -Math.PI / 2 : 0;
         a.group.position.lerp(
-          new THREE.Vector3(pl.x, 0.08, pl.z),
+          new THREE.Vector3(pl.x, groundHeight(pl.x,pl.z)+0.08, pl.z),
           a.group.userData.placed ? Math.min(1, dt * 20) : 1,
         );
         a.group.userData.placed = true;
@@ -992,7 +984,7 @@ export class CityRenderer {
         active.add(id);
         a.group.visible = true;
         a.group.position.lerp(
-          new THREE.Vector3(n.x, n.motion === "cycle" ? -0.18 : 0.06, n.z),
+          new THREE.Vector3(n.x, groundHeight(n.x,n.z)+(n.motion === "cycle" ? -0.18 : 0.06), n.z),
           a.group.userData.placed ? Math.min(1, dt * 12) : 1,
         );
         a.group.userData.placed = true;

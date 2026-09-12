@@ -83,6 +83,7 @@ export class StreetSimulation {
   body: BodyState;
   intent: StreetIntent;
   paused: boolean;
+  cableRide: null|{fraction:number;returning:boolean};
   events: StreetEvent[];
   eventSeq: number;
   hooks: SimulationSystems;

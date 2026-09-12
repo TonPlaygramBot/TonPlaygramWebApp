@@ -1,3 +1,5 @@
+import {alignVehicle} from '../../tirana-east/terrainTransforms';
+import {groundHeight} from '../../tirana-east/terrainCore.mjs';
 import { driverEye } from '../shared/driverView.mjs';
 import * as T from 'three';
 import type { Actor } from '../cityBaseRenderer';
@@ -78,7 +80,7 @@ export class StreetRenderer extends CityRenderer {
       const hit=sim.world.cast(origin,ray,distance,sim.cars());
       const safe=Math.max(.3,Math.min(distance,hit.distance-.22));
       this.camera.position.copy(target).addScaledVector(desired,safe);
-      this.camera.position.y=Math.max(b.y+.24,this.camera.position.y);
+      this.camera.position.y=Math.max(b.y+.24,groundHeight(this.camera.position.x,this.camera.position.z)+.24,this.camera.position.y);
       if(b.aim){const aim=direction3(this.yaw,this.pitch);this.camera.lookAt(p.x+aim.x*25,b.y+b.eye+aim.y*25,p.z+aim.z*25);}else this.camera.lookAt(target);
     }
     const d = direction3(this.yaw, this.pitch);
@@ -102,6 +104,8 @@ export class StreetRenderer extends CityRenderer {
     carId: string,
     dt: number
   ) {
+    const vehicle=state.cars.find(c=>c.id===carId)||state.traffic.find(c=>c.id===carId);
+    if(vehicle)alignVehicle(actor.group,vehicle.heading+Math.PI);
     const action = this.simulation?.body.action,
       active =
         action?.targetId === carId &&
@@ -141,8 +145,9 @@ export class StreetRenderer extends CityRenderer {
     const p = state.players[id],
       car = state.cars.find((c) => c.id === p.carId);
     if (car) {
-      actor.group.position.set(car.x, 0.03, car.z);
+      actor.group.position.set(car.x, groundHeight(car.x,car.z)+0.03, car.z);
       actor.group.rotation.set(0, car.heading + Math.PI, 0);
+      alignVehicle(actor.group,car.heading+Math.PI);
     }
   }
   protected override beforeDraw(_state: State | null, _id: string, dt: number) {
@@ -169,6 +174,7 @@ export class StreetRenderer extends CityRenderer {
   override render(state: State | null, id: string, dt: number, lobby: boolean) {
     if (this.disposed) return;
     const p = state?.players[id];
+    this.details.sourceCable.setRide(this.simulation?.cableRide||undefined);
     if (state && p)
       this.humans.update(
         state.npcs.filter((n) => !forceCharacterFor(n)),

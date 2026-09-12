@@ -1,3 +1,4 @@
+import {groundHeight} from '../../tirana-east/terrainCore.mjs';
 /** Versioned phase checkpoints inside the existing v1 profile/key. Old profiles
  * remain readable and old mission-start checkpoints remain the safe fallback. */
 const finite = (v, a, b, f) =>
@@ -86,7 +87,7 @@ export function captureCheckpoint(sim) {
 export function restoreCheckpoint(sim, checkpoint, apply) {
   if (!checkpoint) return false;
   const p = sim.player,
-    q = { ...checkpoint.player, y: 0.08 };
+    q = { ...checkpoint.player, y: groundHeight(checkpoint.player.x,checkpoint.player.z)+0.08 };
   if (!sim.world.clearance(q, 1.78)) return false;
   apply(p, checkpoint.player);
   Object.assign(p, {
@@ -99,6 +100,7 @@ export function restoreCheckpoint(sim, checkpoint, apply) {
     index: checkpoint.index
   });
   sim.state.elapsed = checkpoint.elapsed;
+  sim.body.y = q.y;
   sim.body.yaw = p.heading;
   sim.intent.yaw = p.heading;
   sim.body.tutorial = [...checkpoint.job.tutorial];

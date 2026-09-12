@@ -1,0 +1,2 @@
+export const CABLE_SOURCE:string;export const CABLE_DURATION:number;export const CABLE_LENGTH:number;export const CABLE_NODES:{x:number;y:number;z:number}[];export const CABLE_STATIONS:{id:string;name:string;x:number;y:number;z:number}[];export const CABLE_PYLONS:{id:string;x:number;y:number;z:number}[];
+export function cablePoint(fraction:number,returning?:boolean):{x:number;y:number;z:number;yaw:number};export function dismountCandidates(index:number):{x:number;y:number;z:number}[];

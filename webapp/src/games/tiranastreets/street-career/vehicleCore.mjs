@@ -1,3 +1,4 @@
+import {groundHeight} from '../../tirana-east/terrainCore.mjs';
 import { driverSocket } from '../shared/driverView.mjs';
 /** Anchors in metres, forward = -Z, right = +X, relative to the simulation car.
  * The existing city-car GLB has seats/dashboard/steering; generic models use a
@@ -26,15 +27,16 @@ export const vehicleAnchors = (car) => {
 };
 export const carPoint = (car, p) => ({
   x: car.x + p.x * Math.cos(car.heading) + p.z * Math.sin(car.heading),
-  y: p.y,
+  y: p.y+groundHeight(car.x,car.z),
   z: car.z - p.x * Math.sin(car.heading) + p.z * Math.cos(car.heading)
 });
 export function exitPoint(state, car, world) {
   for (const side of [-1, 1])
     for (const z of (car.model==='tirana-bus'?[-7.2,-6.5,-7.8]:[0.15, 0.9, -0.6])) {
       const p = carPoint(car, { x: side * 1.85, y: 0, z });
-      p.y = world.surface(p.x, p.z, 0.38);
-      if (p.y > 0.38 || !world.clearance(p, 1.78, 0.38)) continue;
+      const floor=groundHeight(car.x,car.z);
+      p.y = world.surface(p.x, p.z, floor+0.38);
+      if (p.y > floor+0.38 || !world.clearance(p, 1.78, 0.38)) continue;
       if (
         [...state.cars, ...state.traffic, ...state.units].some(
           (c) => c.id !== car.id && Math.hypot(c.x - p.x, c.z - p.z) < 1.7

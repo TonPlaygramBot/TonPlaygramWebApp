@@ -1,3 +1,5 @@
+import {alignVehicle} from '../tirana-east/terrainTransforms';
+import {groundHeight} from '../tirana-east/terrainCore.mjs';
 import * as T from 'three';
 import {GLTFLoader} from 'three/examples/jsm/loaders/GLTFLoader.js';
 import {DRACOLoader} from 'three/examples/jsm/loaders/DRACOLoader.js';
@@ -105,12 +107,13 @@ export class CollectionVehicleVisuals {
         root.add(clone(source.root));
         const driver=createNpcVehicleDriver(this.human,asset,car.id);root.add(driver);
         actor={root,driver,assetId:asset.id};this.actors.set(car.id,actor);this.group.add(root);
-        root.position.set(car.x,.03,car.z);root.rotation.y=car.heading+Math.PI/2;
+        root.position.set(car.x,groundHeight(car.x,car.z)+.03,car.z);root.rotation.y=car.heading+Math.PI/2;
       }
       actor.root.visible=true;
       const alpha=1-Math.exp(-Math.max(0,dt)*18);
-      actor.root.position.lerp(new T.Vector3(car.x,.03,car.z),alpha);
+      actor.root.position.lerp(new T.Vector3(car.x,groundHeight(car.x,car.z)+.03,car.z),alpha);
       actor.root.rotation.y+=Math.atan2(Math.sin(car.heading+Math.PI/2-actor.root.rotation.y),Math.cos(car.heading+Math.PI/2-actor.root.rotation.y))*alpha;
+      alignVehicle(actor.root,car.heading+Math.PI/2);
       // Waiting NPCs yield the seat when a player takes control. Player state is
       // authoritative; no NPC remains superimposed on a player or FPS camera.
       actor.driver.visible=car.npcDriver!==false&&!car.driver;

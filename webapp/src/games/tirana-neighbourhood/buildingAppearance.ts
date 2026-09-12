@@ -1,3 +1,4 @@
+import {housingProfile} from '../tirana-east/housingCore.mjs';
 import * as T from 'three';
 /** Use explicit source finishes before the neutral, estimated game palette. */
 export function sourceBuildingColour(b:any){
@@ -6,6 +7,7 @@ export function sourceBuildingColour(b:any){
  const material=b.tags?.['building:material'];
  const finishes:Record<string,number>={brick:0xa57361,stone:0xc7bca5,concrete:0xb9b8ae,glass:0x557886,metal:0x9babae,steel:0x9ba2a5};
  if(finishes[material])return new T.Color(finishes[material]);
+ const housing=housingProfile(b);if(housing)return new T.Color(housing.colour);
  const seed=Array.from(String(b.id)).reduce((n,c)=>n+c.charCodeAt(0),0);
  return new T.Color([0xcbbfa8,0xcebea9,0xc3c4b9,0xd0bfa7,0xc2b7a8][seed%5]);
 }

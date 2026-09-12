@@ -1,3 +1,4 @@
+import {groundHeight} from '../../tirana-east/terrainCore.mjs';
 import {collectionVehicleFor} from './vehicleCollection.mjs';
 
 /** Canonical car space: +X screen-right, +Y up, -Z forward. Seats are metres.
@@ -18,7 +19,7 @@ export function driverSocket(car) {
 }
 export function driverEye(car) {
   const seat=driverSocket(car),c=Math.cos(car.heading),s=Math.sin(car.heading);
-  return {x:car.x+seat.x*c+seat.z*s,y:seat.y,z:car.z-seat.x*s+seat.z*c};
+  return {x:car.x+seat.x*c+seat.z*s,y:seat.y+groundHeight(car.x,car.z),z:car.z-seat.x*s+seat.z*c};
 }
 /** Keep portrait field of view stable; speed does not turn the windshield into
  * a zoom effect. The small acceleration response never moves the eye out of cab.

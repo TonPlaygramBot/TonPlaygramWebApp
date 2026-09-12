@@ -1,3 +1,5 @@
+import {groundHeight} from '../../tirana-east/terrainCore.mjs';
+import {alignVehicle} from '../../tirana-east/terrainTransforms';
 import * as T from 'three';
 import {GLTFLoader} from 'three/examples/jsm/loaders/GLTFLoader.js';
 import {clone} from 'three/examples/jsm/utils/SkeletonUtils.js';
@@ -22,7 +24,7 @@ export class BusVisuals {
     const doors:T.Object3D[]=[],wheels:T.Object3D[]=[];root.traverse(o=>{if(o.name.startsWith('Door_')){o.userData.rest=o.position.clone();doors.push(o);}if(o.name.startsWith('Wheel'))wheels.push(o);});
     a={root,rear:root.getObjectByName('ArticulatedRear'),passengers,doors,wheels,driver};this.actors.set(car.id,a);this.group.add(root);
    }
-   a.root.position.set(car.x,.03,car.z);a.root.rotation.y=car.heading;
+   a.root.position.set(car.x,groundHeight(car.x,car.z)+.03,car.z);a.root.rotation.set(0,car.heading,0);alignVehicle(a.root,car.heading);
    if(a.rear)a.rear.rotation.y=T.MathUtils.clamp(Math.atan2(Math.sin((car.trailerHeading??car.heading)-car.heading),Math.cos((car.trailerHeading??car.heading)-car.heading)),-.5,.5);
    a.passengers.visible=Math.hypot(car.x-p.x,car.z-p.z)<90||car.id===firstPersonId;a.driver.visible=!car.driver;
    for(const wheel of a.wheels)wheel.rotateZ(-car.speed*dt/.51);

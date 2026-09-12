@@ -1,3 +1,4 @@
+import {groundHeight} from '../../tirana-east/terrainCore.mjs';
 import { weaponPose, weaponAnchors } from './weaponPose.mjs';
 import * as T from 'three';
 import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js';
@@ -407,7 +408,7 @@ export class FirstPersonBody {
     }
     if (car) {
       const seat = carPoint(car, vehicleAnchors(car).seat);
-      root.position.y = vehicleAnchors(car).eye.y - 1.62;
+      root.position.y = groundHeight(car.x,car.z)+vehicleAnchors(car).eye.y - 1.62;
       root.position.x = seat.x;
       root.position.z = seat.z;
       const wheel = carPoint(car, vehicleAnchors(car).wheel),

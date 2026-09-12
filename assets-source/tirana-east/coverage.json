@@ -1,0 +1,1115 @@
+{
+  "buildings": 1821,
+  "roads": 31508,
+  "forests": 104,
+  "storefronts": 43,
+  "peaks": [
+    {
+      "id": "node/4596685808",
+      "name": "Kodra Bregasit",
+      "point": [
+        5186.63,
+        -1865.67
+      ],
+      "elevation": 387
+    },
+    {
+      "id": "node/4686614860",
+      "name": "",
+      "point": [
+        5019.52,
+        -1278.8
+      ],
+      "elevation": 298
+    },
+    {
+      "id": "node/4596685809",
+      "name": "Kodra Balliut",
+      "point": [
+        4287.05,
+        -2251.22
+      ],
+      "elevation": 307
+    },
+    {
+      "id": "node/4596685811",
+      "name": "Kodra Tomës",
+      "point": [
+        4289.74,
+        -3418.5
+      ],
+      "elevation": 341
+    },
+    {
+      "id": "node/4596685812",
+      "name": "Kodra Baushollës",
+      "point": [
+        3859.24,
+        -3228.46
+      ],
+      "elevation": 320
+    },
+    {
+      "id": "node/4686614862",
+      "name": "Sheshi Repartit",
+      "point": [
+        4641.93,
+        -3636.8
+      ],
+      "elevation": 327
+    },
+    {
+      "id": "node/4686614863",
+      "name": "",
+      "point": [
+        4459.87,
+        -3151.81
+      ],
+      "elevation": 300
+    },
+    {
+      "id": "node/4686614864",
+      "name": "",
+      "point": [
+        3988.1,
+        -3370.56
+      ],
+      "elevation": 321
+    },
+    {
+      "id": "node/4686614865",
+      "name": "Kodra e Çelës",
+      "point": [
+        3603.35,
+        -4102.03
+      ],
+      "elevation": 261
+    },
+    {
+      "id": "node/11525014932",
+      "name": "",
+      "point": [
+        3518.51,
+        -2974.49
+      ],
+      "elevation": null
+    },
+    {
+      "id": "node/4596685796",
+      "name": "Maja Shpatës",
+      "point": [
+        4214.41,
+        -6095.74
+      ],
+      "elevation": 445
+    },
+    {
+      "id": "node/4686614867",
+      "name": "",
+      "point": [
+        3688.55,
+        -4215.88
+      ],
+      "elevation": null
+    },
+    {
+      "id": "node/4596685794",
+      "name": "Kodra Mallomallës",
+      "point": [
+        3913.05,
+        -8298.97
+      ],
+      "elevation": 432
+    },
+    {
+      "id": "node/4686615409",
+      "name": "",
+      "point": [
+        4088.11,
+        -8477.6
+      ],
+      "elevation": 450
+    },
+    {
+      "id": "node/4687145338",
+      "name": "",
+      "point": [
+        4361.33,
+        -8275.57
+      ],
+      "elevation": 450
+    },
+    {
+      "id": "node/5554285302",
+      "name": "Maja Fikasit",
+      "point": [
+        6535.12,
+        6573.5
+      ],
+      "elevation": 284
+    },
+    {
+      "id": "node/5554285298",
+      "name": "",
+      "point": [
+        6599.11,
+        2996.9
+      ],
+      "elevation": 311
+    },
+    {
+      "id": "node/5554285299",
+      "name": "",
+      "point": [
+        6308.28,
+        3325.69
+      ],
+      "elevation": 296
+    },
+    {
+      "id": "node/5554285304",
+      "name": "",
+      "point": [
+        6561.3,
+        4537.63
+      ],
+      "elevation": 315
+    },
+    {
+      "id": "node/5554285240",
+      "name": "",
+      "point": [
+        6564.21,
+        501.02
+      ],
+      "elevation": 353
+    },
+    {
+      "id": "node/5554285241",
+      "name": "",
+      "point": [
+        6123.61,
+        615.91
+      ],
+      "elevation": 365
+    },
+    {
+      "id": "node/5554285242",
+      "name": "",
+      "point": [
+        5573.94,
+        819.5
+      ],
+      "elevation": 311
+    },
+    {
+      "id": "node/5554285316",
+      "name": "",
+      "point": [
+        6985.9,
+        2415.04
+      ],
+      "elevation": 362
+    },
+    {
+      "id": "node/5554285317",
+      "name": "",
+      "point": [
+        7062.97,
+        1668.86
+      ],
+      "elevation": 376
+    },
+    {
+      "id": "node/4686614857",
+      "name": "",
+      "point": [
+        6910.15,
+        -898.59
+      ],
+      "elevation": 431
+    },
+    {
+      "id": "node/4686614858",
+      "name": "",
+      "point": [
+        6722.7,
+        -687.84
+      ],
+      "elevation": 447
+    },
+    {
+      "id": "node/4686614859",
+      "name": "",
+      "point": [
+        6387.27,
+        -773.93
+      ],
+      "elevation": 401
+    },
+    {
+      "id": "node/5554284866",
+      "name": "Kodra Surelit",
+      "point": [
+        6221.76,
+        -340.19
+      ],
+      "elevation": 413
+    },
+    {
+      "id": "node/5554285239",
+      "name": "Kodra Shën Markut",
+      "point": [
+        5617.57,
+        210.18
+      ],
+      "elevation": 364
+    },
+    {
+      "id": "node/5554285324",
+      "name": "",
+      "point": [
+        6940.82,
+        -55.93
+      ],
+      "elevation": 407
+    },
+    {
+      "id": "node/4596685801",
+      "name": "Kodra Ltinit",
+      "point": [
+        6570.52,
+        -3315.41
+      ],
+      "elevation": 736
+    },
+    {
+      "id": "node/4596685800",
+      "name": "Kodra Tufinës",
+      "point": [
+        5874.54,
+        -4321.19
+      ],
+      "elevation": 677
+    },
+    {
+      "id": "node/4686614623",
+      "name": "",
+      "point": [
+        5606.98,
+        -4513.68
+      ],
+      "elevation": 635
+    },
+    {
+      "id": "node/4686614624",
+      "name": "",
+      "point": [
+        6926.29,
+        -4934.05
+      ],
+      "elevation": 1072
+    },
+    {
+      "id": "node/5554285247",
+      "name": "",
+      "point": [
+        7779.85,
+        6186.36
+      ],
+      "elevation": 300
+    },
+    {
+      "id": "node/5554285254",
+      "name": "",
+      "point": [
+        8960.6,
+        4908.67
+      ],
+      "elevation": 313
+    },
+    {
+      "id": "node/5554285249",
+      "name": "",
+      "point": [
+        8072.14,
+        3139.47
+      ],
+      "elevation": 402
+    },
+    {
+      "id": "node/5554285296",
+      "name": "Kodra Qafës Pulqizës",
+      "point": [
+        8091.04,
+        2742.33
+      ],
+      "elevation": 406
+    },
+    {
+      "id": "node/5554285306",
+      "name": "",
+      "point": [
+        7638.8,
+        4143.32
+      ],
+      "elevation": 326
+    },
+    {
+      "id": "node/5554285307",
+      "name": "",
+      "point": [
+        7260.73,
+        3977.45
+      ],
+      "elevation": 305
+    },
+    {
+      "id": "node/5554285308",
+      "name": "",
+      "point": [
+        7499.21,
+        3552.63
+      ],
+      "elevation": 357
+    },
+    {
+      "id": "node/5554285310",
+      "name": "",
+      "point": [
+        7275.27,
+        2860.17
+      ],
+      "elevation": 291
+    },
+    {
+      "id": "node/5554285313",
+      "name": "",
+      "point": [
+        8739.58,
+        2663.78
+      ],
+      "elevation": 460
+    },
+    {
+      "id": "node/5554285295",
+      "name": "",
+      "point": [
+        8383.32,
+        1625.23
+      ],
+      "elevation": 445
+    },
+    {
+      "id": "node/5554285314",
+      "name": "",
+      "point": [
+        8182.65,
+        2215.76
+      ],
+      "elevation": 431
+    },
+    {
+      "id": "node/5554285315",
+      "name": "",
+      "point": [
+        7692.61,
+        2442.67
+      ],
+      "elevation": 350
+    },
+    {
+      "id": "node/5554285318",
+      "name": "",
+      "point": [
+        7230.2,
+        1328.53
+      ],
+      "elevation": 397
+    },
+    {
+      "id": "node/5554285319",
+      "name": "",
+      "point": [
+        7739.14,
+        1116.18
+      ],
+      "elevation": 351
+    },
+    {
+      "id": "node/5554285320",
+      "name": "",
+      "point": [
+        7881.65,
+        626.09
+      ],
+      "elevation": 364
+    },
+    {
+      "id": "node/5554285321",
+      "name": "Kodra Kamziut",
+      "point": [
+        7244.74,
+        886.41
+      ],
+      "elevation": 433
+    },
+    {
+      "id": "node/5554285322",
+      "name": "",
+      "point": [
+        7326.17,
+        394.86
+      ],
+      "elevation": 450
+    },
+    {
+      "id": "node/4597116350",
+      "name": "",
+      "point": [
+        8104.71,
+        -770.63
+      ],
+      "elevation": 648
+    },
+    {
+      "id": "node/4597116351",
+      "name": "",
+      "point": [
+        8582.74,
+        -949.09
+      ],
+      "elevation": 688
+    },
+    {
+      "id": "node/4686614856",
+      "name": "",
+      "point": [
+        7668.91,
+        -826.84
+      ],
+      "elevation": 551
+    },
+    {
+      "id": "node/4686614907",
+      "name": "",
+      "point": [
+        8665.35,
+        -1841.48
+      ],
+      "elevation": 894
+    },
+    {
+      "id": "node/5554285323",
+      "name": "",
+      "point": [
+        7717.33,
+        109.85
+      ],
+      "elevation": 413
+    },
+    {
+      "id": "node/4597116348",
+      "name": "Kodra Kalasë",
+      "point": [
+        8683.2,
+        -2919.91
+      ],
+      "elevation": 1148
+    },
+    {
+      "id": "node/4597116349",
+      "name": "Kodra Malit",
+      "point": [
+        7519.04,
+        -1961.47
+      ],
+      "elevation": 713
+    },
+    {
+      "id": "node/4686614626",
+      "name": "",
+      "point": [
+        7305.67,
+        -2816.74
+      ],
+      "elevation": 686
+    },
+    {
+      "id": "node/4686614906",
+      "name": "",
+      "point": [
+        8545.16,
+        -3246.39
+      ],
+      "elevation": 1141
+    },
+    {
+      "id": "node/26863587",
+      "name": "Mali i Dajtit",
+      "point": [
+        8796.18,
+        -4356.81
+      ],
+      "elevation": 1613
+    },
+    {
+      "id": "node/2939030840",
+      "name": "Maja e Tujanit",
+      "point": [
+        7965.25,
+        -5513.98
+      ],
+      "elevation": null
+    },
+    {
+      "id": "node/4686614625",
+      "name": "",
+      "point": [
+        7125.4,
+        -4668.75
+      ],
+      "elevation": 1059
+    },
+    {
+      "id": "node/5554285255",
+      "name": "",
+      "point": [
+        8991.14,
+        5371.41
+      ],
+      "elevation": 340
+    },
+    {
+      "id": "node/5554285250",
+      "name": "Kodra Reçalit",
+      "point": [
+        9359.04,
+        2687.05
+      ],
+      "elevation": null
+    },
+    {
+      "id": "node/5554285251",
+      "name": "",
+      "point": [
+        8969.33,
+        3168.57
+      ],
+      "elevation": 431
+    },
+    {
+      "id": "node/5554285252",
+      "name": "",
+      "point": [
+        9149.64,
+        3539.54
+      ],
+      "elevation": 429
+    },
+    {
+      "id": "node/5554285253",
+      "name": "",
+      "point": [
+        9258.71,
+        4469.24
+      ],
+      "elevation": 340
+    },
+    {
+      "id": "node/5554285294",
+      "name": "",
+      "point": [
+        8970.79,
+        1075.46
+      ],
+      "elevation": 495
+    },
+    {
+      "id": "node/5554285311",
+      "name": "",
+      "point": [
+        10030.84,
+        1503.05
+      ],
+      "elevation": 700
+    },
+    {
+      "id": "node/5554285312",
+      "name": "",
+      "point": [
+        9347.4,
+        2468.85
+      ],
+      "elevation": 544
+    },
+    {
+      "id": "node/4597116352",
+      "name": "Gurët e Gjakut",
+      "point": [
+        9451.83,
+        -1824.28
+      ],
+      "elevation": null
+    },
+    {
+      "id": "node/5554285231",
+      "name": "Maja Batrës Madhe",
+      "point": [
+        9966.86,
+        -457.25
+      ],
+      "elevation": 1074
+    },
+    {
+      "id": "node/5554285237",
+      "name": "Kodra Burgut",
+      "point": [
+        9609.15,
+        -1723.6
+      ],
+      "elevation": null
+    },
+    {
+      "id": "node/5554285292",
+      "name": "",
+      "point": [
+        9510.26,
+        -748.05
+      ],
+      "elevation": 936
+    },
+    {
+      "id": "node/5554285293",
+      "name": "",
+      "point": [
+        10551.42,
+        -1192.95
+      ],
+      "elevation": 1503
+    },
+    {
+      "id": "node/4597116353",
+      "name": "",
+      "point": [
+        9366.62,
+        -3585.11
+      ],
+      "elevation": 1565
+    },
+    {
+      "id": "node/5554285291",
+      "name": "",
+      "point": [
+        9994.49,
+        -2502.79
+      ],
+      "elevation": 1556
+    },
+    {
+      "id": "node/4687333498",
+      "name": "",
+      "point": [
+        12471.19,
+        6294.24
+      ],
+      "elevation": 600
+    },
+    {
+      "id": "node/5554285261",
+      "name": "",
+      "point": [
+        11567.85,
+        6305.71
+      ],
+      "elevation": 809
+    },
+    {
+      "id": "node/5554285262",
+      "name": "Kodra Konorës",
+      "point": [
+        11416.62,
+        5279.73
+      ],
+      "elevation": 891
+    },
+    {
+      "id": "node/5554285263",
+      "name": "",
+      "point": [
+        11240.68,
+        4684.59
+      ],
+      "elevation": 891
+    },
+    {
+      "id": "node/5554285265",
+      "name": "",
+      "point": [
+        10945.49,
+        4003.65
+      ],
+      "elevation": 999
+    },
+    {
+      "id": "node/5554285266",
+      "name": "",
+      "point": [
+        11665.29,
+        4019.65
+      ],
+      "elevation": 870
+    },
+    {
+      "id": "node/5554285267",
+      "name": "Kodra Rasës",
+      "point": [
+        11884.86,
+        3554.09
+      ],
+      "elevation": 864
+    },
+    {
+      "id": "node/5554285268",
+      "name": "",
+      "point": [
+        11137.43,
+        3242.76
+      ],
+      "elevation": 1154
+    },
+    {
+      "id": "node/5554285273",
+      "name": "",
+      "point": [
+        12246.93,
+        2515.41
+      ],
+      "elevation": 983
+    },
+    {
+      "id": "node/5554285269",
+      "name": "",
+      "point": [
+        12408.34,
+        860.23
+      ],
+      "elevation": 1000
+    },
+    {
+      "id": "node/5554285270",
+      "name": "",
+      "point": [
+        11390.45,
+        838.41
+      ],
+      "elevation": 1310
+    },
+    {
+      "id": "node/5554285271",
+      "name": "",
+      "point": [
+        11330.84,
+        1444.88
+      ],
+      "elevation": 1365
+    },
+    {
+      "id": "node/5554285272",
+      "name": "Maja Priskës",
+      "point": [
+        11201.41,
+        2144.49
+      ],
+      "elevation": 1353
+    },
+    {
+      "id": "node/5554285229",
+      "name": "",
+      "point": [
+        12369.08,
+        -192.61
+      ],
+      "elevation": 923
+    },
+    {
+      "id": "node/5554285288",
+      "name": "",
+      "point": [
+        12052.08,
+        -1315.08
+      ],
+      "elevation": 872
+    },
+    {
+      "id": "node/5554285289",
+      "name": "",
+      "point": [
+        11672.55,
+        -1796.29
+      ],
+      "elevation": 891
+    },
+    {
+      "id": "node/5554285290",
+      "name": "",
+      "point": [
+        11188.33,
+        -2409.76
+      ],
+      "elevation": 928
+    }
+  ],
+  "cable": [
+    {
+      "id": "way/103710384",
+      "name": "Dajti Ekspres",
+      "pylons": [
+        {
+          "id": "node/12619125676",
+          "point": [
+            3696.67,
+            -2683.11
+          ]
+        },
+        {
+          "id": "node/12619125677",
+          "point": [
+            3896.33,
+            -2787.75
+          ]
+        },
+        {
+          "id": "node/4715611778",
+          "point": [
+            4221.49,
+            -2958.4
+          ]
+        },
+        {
+          "id": "node/12619125678",
+          "point": [
+            4477.15,
+            -3092.56
+          ]
+        },
+        {
+          "id": "node/4715611813",
+          "point": [
+            4670.42,
+            -3193.98
+          ]
+        },
+        {
+          "id": "node/12619125679",
+          "point": [
+            4925.87,
+            -3328.07
+          ]
+        },
+        {
+          "id": "node/12619125680",
+          "point": [
+            4975.26,
+            -3354
+          ]
+        },
+        {
+          "id": "node/12619125683",
+          "point": [
+            5199.67,
+            -3471.84
+          ]
+        },
+        {
+          "id": "node/4715611777",
+          "point": [
+            5402.41,
+            -3578.29
+          ]
+        },
+        {
+          "id": "node/12619125681",
+          "point": [
+            5505.01,
+            -3632.17
+          ]
+        },
+        {
+          "id": "node/12619125682",
+          "point": [
+            5536.21,
+            -3648.55
+          ]
+        },
+        {
+          "id": "node/12619125684",
+          "point": [
+            5658.63,
+            -3712.83
+          ]
+        },
+        {
+          "id": "node/4715611776",
+          "point": [
+            6012.56,
+            -3898.66
+          ]
+        },
+        {
+          "id": "node/4715611771",
+          "point": [
+            6542.1,
+            -4176.68
+          ]
+        },
+        {
+          "id": "node/12619125688",
+          "point": [
+            6550.1,
+            -4180.89
+          ]
+        },
+        {
+          "id": "node/12619125685",
+          "point": [
+            6753.29,
+            -4287.57
+          ]
+        },
+        {
+          "id": "node/12619125686",
+          "point": [
+            6848.52,
+            -4337.56
+          ]
+        },
+        {
+          "id": "node/12619125687",
+          "point": [
+            7010.6,
+            -4422.67
+          ]
+        },
+        {
+          "id": "node/4715611770",
+          "point": [
+            7198.09,
+            -4521.09
+          ]
+        },
+        {
+          "id": "node/4715611769",
+          "point": [
+            7204.16,
+            -4524.28
+          ]
+        },
+        {
+          "id": "node/4715611768",
+          "point": [
+            7211.27,
+            -4528.01
+          ]
+        }
+      ],
+      "tags": {
+        "aerialway": "gondola",
+        "aerialway:bicycle": "no",
+        "aerialway:capacity": "560",
+        "aerialway:duration": "15",
+        "aerialway:occupancy": "8",
+        "contact:facebook": "https://www.facebook.com/DajtiEkspres",
+        "contact:instagram": "https://www.instagram.com/dajtiekspres/",
+        "length": "4354",
+        "name": "Dajti Ekspres",
+        "oneway": "no",
+        "opening_hours": "Mo-Fr 09:00-17:30; Tu off; Sa,Su 09:00-18:00",
+        "start_date": "2005",
+        "website": "https://dajtiekspres.com/",
+        "wikidata": "Q16352142",
+        "wikimedia_commons": "Category:Dajti Ekspres",
+        "wikipedia": "sq:Dajti Ekspres"
+      },
+      "points": 25
+    }
+  ],
+  "unresolved": [
+    {
+      "id": "node/4731186872",
+      "reason": "no unique containing shop footprint"
+    },
+    {
+      "id": "node/6316141449",
+      "reason": "no unique containing shop footprint"
+    },
+    {
+      "id": "node/10225997577",
+      "reason": "no unique containing shop footprint"
+    },
+    {
+      "id": "node/10226150840",
+      "reason": "no unique containing shop footprint"
+    },
+    {
+      "id": "node/12237713569",
+      "reason": "no unique containing shop footprint"
+    },
+    {
+      "id": "node/6805634941",
+      "reason": "no unique containing shop footprint"
+    },
+    {
+      "id": "node/6805885075",
+      "reason": "no unique containing shop footprint"
+    },
+    {
+      "id": "node/12140974589",
+      "reason": "no unique containing shop footprint"
+    },
+    {
+      "id": "node/5166922723",
+      "reason": "no unique containing shop footprint"
+    },
+    {
+      "id": "node/11508768670",
+      "reason": "no unique containing shop footprint"
+    },
+    {
+      "id": "node/11249192899",
+      "reason": "no unique containing shop footprint"
+    },
+    {
+      "id": "node/11561574580",
+      "reason": "no unique containing shop footprint"
+    },
+    {
+      "id": "node/6805764405",
+      "reason": "no unique containing shop footprint"
+    },
+    {
+      "id": "node/12891487365",
+      "reason": "no unique containing shop footprint"
+    },
+    {
+      "id": "node/6805695165",
+      "reason": "no unique containing shop footprint"
+    },
+    {
+      "id": "node/11805892097",
+      "reason": "no unique containing shop footprint"
+    },
+    {
+      "id": "node/8712609920",
+      "reason": "no unique containing shop footprint"
+    },
+    {
+      "id": "node/11810092799",
+      "reason": "no unique containing shop footprint"
+    },
+    {
+      "id": "node/11034665578",
+      "reason": "no unique containing shop footprint"
+    }
+  ]
+}
