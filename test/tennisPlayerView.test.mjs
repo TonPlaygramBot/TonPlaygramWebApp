@@ -30,9 +30,9 @@ const { playerCamera, fingerDirection, THREE } = await import(
     Buffer.from(bundle.outputFiles[0].text).toString('base64')
 );
 
-test('close player camera keeps both seats visible on narrow and tall phones', () => {
+test('player-eye camera stays at table-tennis eye height and player offset on portrait phones', () => {
   for (const width of [320, 390, 480])
-    for (const height of [360, 460, 650])
+    for (const height of [270, 460, 650])
       for (const seat of [0, 1])
         for (const x of [-4, 0, 4]) {
           const camera = new THREE.PerspectiveCamera(
@@ -42,11 +42,31 @@ test('close player camera keeps both seats visible on narrow and tall phones', (
             160
           );
           const p = { x, z: side(seat) * 12.4 };
-          playerCamera(camera, seat, p, 10);
-          assert.ok(camera.position.y < 5);
-          for (const y of [0, 1.87]) {
-            const point = new THREE.Vector3(x, y, p.z).project(camera);
-            assert.ok(Math.abs(point.x) < 1 && Math.abs(point.y) < 1);
+          playerCamera(camera, seat, p);
+          assert.equal(camera.position.y, 1.62);
+          assert.equal(camera.position.x, x);
+          assert.ok(
+            Math.abs(camera.position.z - p.z - side(seat) * 0.32) < 1e-10
+          );
+          assert.equal(camera.near, 0.06);
+          const horizontalFov = THREE.MathUtils.radToDeg(
+            2 *
+              Math.atan(
+                Math.tan(THREE.MathUtils.degToRad(camera.fov / 2)) *
+                  camera.aspect
+              )
+          );
+          assert.ok(horizontalFov >= 58 - 1e-8);
+          // From the baseline, the net and far athlete remain in view.
+          for (const point of [
+            new THREE.Vector3(-5.65, 1.05, 0),
+            new THREE.Vector3(5.65, 1.05, 0),
+            new THREE.Vector3(0, 1.8, -p.z)
+          ]) {
+            point.project(camera);
+            assert.ok(
+              Math.abs(point.x) < 1 && Math.abs(point.y) < 1 && point.z < 1
+            );
           }
         }
 });
@@ -56,7 +76,7 @@ test('screen vectors retain their angle and sign in all directions, for both sea
     for (const x of [-3, 0, 3]) {
       const camera = new THREE.PerspectiveCamera(64, 390 / 460, 0.1, 160),
         anchor = { x, y: 1.2, z: side(seat) * 10 };
-      playerCamera(camera, seat, anchor, 10);
+      playerCamera(camera, seat, anchor);
       for (const [dx, dy] of [
         [0, -1],
         [0, 1],
