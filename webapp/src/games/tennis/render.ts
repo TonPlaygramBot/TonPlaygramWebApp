@@ -14,6 +14,11 @@ import {
 } from './engine';
 import { reviewBall, CENTRE_LINE_HALF } from '../../../../shared/tennis/court';
 import { playerCamera, fingerDirection } from './camera';
+import {
+  preparePlayerView,
+  showPlayerView,
+  disposePlayerView
+} from './firstPerson';
 
 export const decode = (data: string) =>
   Uint8Array.from(atob(data), (c) => c.charCodeAt(0));
@@ -26,6 +31,7 @@ type Actor = {
   lastZ: number;
   marker: THREE.Mesh;
   racket: THREE.Group;
+  viewParts: ReturnType<typeof preparePlayerView>;
 };
 export class TennisRenderer {
   scene = new THREE.Scene();
@@ -300,12 +306,15 @@ export class TennisRenderer {
     playerCamera(
       this.camera,
       this.seat,
-      { x: 0, z: side(this.seat) * 12.4 },
-      10
+      this.clock > 0 && this.actors[this.seat]
+        ? this.actors[this.seat].root.position
+        : { x: 0, z: side(this.seat) * 12.4 }
     );
   }
   shotDirection(dx: number, dy: number, s: MatchState) {
-    const p = s.players[this.seat];
+    // The projection anchor must follow the same displayed player as the
+    // camera, especially while a new online snapshot is being interpolated.
+    const p = this.actors[this.seat]?.root.position ?? s.players[this.seat];
     return fingerDirection(this.camera, { x: p.x, y: 1.2, z: p.z }, dx, dy);
   }
 
@@ -399,7 +408,8 @@ export class TennisRenderer {
       lastX: 0,
       lastZ: 0,
       marker,
-      racket
+      racket,
+      viewParts: []
     };
     this.actors[seat] = actor;
     try {
@@ -409,6 +419,8 @@ export class TennisRenderer {
         return;
       }
       actor.rig = dressAthlete(model, seat);
+      actor.viewParts = preparePlayerView(model);
+      showPlayerView(actor.viewParts, seat === this.seat);
       group.add(model);
       group.add(racket);
       actor.model = model;
@@ -493,12 +505,6 @@ export class TennisRenderer {
       this.renderer.render(this.scene, this.camera);
       return;
     }
-    playerCamera(
-      this.camera,
-      this.seat,
-      s.players[this.seat],
-      this.reviewing ? 10 : dt
-    );
     this.reviewing = false;
     this.reviewMark.visible = this.reviewPath.visible = false;
     this.ball.scale.setScalar(1);
@@ -516,6 +522,8 @@ export class TennisRenderer {
       const a = this.actors[i],
         p = s.players[i];
       if (!a) continue;
+      showPlayerView(a.viewParts, i === this.seat);
+      a.marker.visible = i !== this.seat;
       const speed =
         Math.hypot(p.x - a.lastX, p.z - a.lastZ) / Math.max(0.001, dt);
       a.lastX = p.x;
@@ -529,13 +537,24 @@ export class TennisRenderer {
       const distance = Math.min(0.2, speed * dt);
       a.stride += distance * 8;
       if (a.rig)
-        poseAthlete(a.rig, a.root, a.racket, s, i as Seat, a.stride, speed);
+        poseAthlete(
+          a.rig,
+          a.root,
+          a.racket,
+          s,
+          i as Seat,
+          a.stride,
+          speed,
+          i === this.seat
+        );
       if (a.marker.material instanceof THREE.MeshBasicMaterial) {
         a.marker.material.opacity =
           s.phase === 'serve' && s.score.server === i ? 0.9 : 0.55;
         a.marker.material.color.setHex(i === this.seat ? 0xddff47 : 0xff8772);
       }
     }
+    // Use the same interpolated transform as the local hands in online play.
+    playerCamera(this.camera, this.seat, this.actors[this.seat].root.position);
     if (smooth && s.phase === 'rally')
       this.ball.position.lerp(
         new THREE.Vector3(s.ball.x, s.ball.y, s.ball.z),
@@ -562,6 +581,7 @@ export class TennisRenderer {
   dispose() {
     this.disposed = true;
     this.resize.disconnect();
+    this.actors.forEach((actor) => disposePlayerView(actor.viewParts));
     this.surfaceMaps.forEach((maps) => maps.forEach((map) => map?.dispose()));
     this.scene.traverse((o) => {
       if (o instanceof THREE.Mesh || o instanceof THREE.LineSegments) {

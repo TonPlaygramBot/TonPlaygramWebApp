@@ -255,7 +255,8 @@ export function poseAthlete(
   state: MatchState,
   seat: Seat,
   stride: number,
-  speed: number
+  speed: number,
+  firstPerson = false
 ) {
   for (const [bone, q] of rig.rest) bone.quaternion.copy(q);
   const player = state.players[seat];
@@ -353,7 +354,9 @@ export function poseAthlete(
       ? vec(0, 0.9 - progress, 0.5)
       : hitting
         ? vec(-0.85 + progress * 1.7, 0.3 + progress * 0.6, 0.12)
-        : vec(-0.65, 0.65, 0.25);
+        : firstPerson
+          ? vec(0.12, 0.78, 0.38)
+          : vec(-0.65, 0.65, 0.25);
   racket.quaternion.setFromUnitVectors(vec(0, 1, 0), direction.normalize());
 }
 
