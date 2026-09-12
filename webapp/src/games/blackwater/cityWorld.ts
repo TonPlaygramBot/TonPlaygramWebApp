@@ -3,32 +3,20 @@ import {CollectionVehicleVisuals} from '../tiranastreets/CollectionVehicleVisual
 import {ImportedAssetVisuals} from '../tiranastreets/ImportedAssetVisuals';
 import { AlbanianForcesVisuals, type ForceFrame } from '../tiranastreets/AlbanianForcesVisuals';
 import * as THREE from 'three';
-import {attachEnhancements} from '../tirana-expansion/WorldEnhancements';
+import { TiranaCityScene } from '../tiranastreets/TiranaCityScene';
 import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js';
 import { makeWorld, type World } from './world';
-import { FpsCity, disposeObject } from '../tiranastreets/FpsCity';
+import { disposeObject } from '../tiranastreets/FpsCity';
 import { ORIGIN, OBSTACLES, START, EXTRACTION, props } from './shared/layout.mjs';
-import { WORLD } from '../tiranastreets/shared/world.mjs';
-import { BUILDING_PROFILES } from '../tiranastreets/shared/architecture.mjs';
-import { nativeReplacementIds } from '../tirana-landmarks/nativeLocations.mjs';
-import { INSTITUTION_BUILDING_IDS } from '../tirana-city-source/registry.mjs';
-import {FUEL_CANOPY_IDS} from '../tirana-street-life/fuelCollision.mjs';
-import { UrbanDetailLayer } from '../tirana-detail-kit/UrbanDetailLayer';
 
 /** The active Tirana Streets FPS retains one simulation, camera and game loop. */
 export function makeCityWorld(scene:THREE.Scene,camera:THREE.PerspectiveCamera,renderer:THREE.WebGLRenderer):World {
   const world = makeWorld(scene, camera, renderer, false);
-  const enhancements=attachEnhancements(scene,ORIGIN);
   const webgl = renderer instanceof THREE.WebGLRenderer;
-  const city = new FpsCity(webgl);
-  city.group.position.set(-ORIGIN.x, 0, -ORIGIN.z);
-  scene.add(city.group);
-  enhancements.bindBuildings(city.group,[city.landmarks.group, city.referenceFacades.group]);
-  // FpsCity already owns street facades. Add only rooftop modules, and leave its
-  // researched civic profiles/native landmarks free of generic fixture dressing.
-  const excluded=new Set([...nativeReplacementIds(WORLD),...Object.keys(BUILDING_PROFILES),...INSTITUTION_BUILDING_IDS,...FUEL_CANOPY_IDS]);
-  const details=new UrbanDetailLayer(WORLD,excluded,{roofsOnly:true});
-  details.group.position.set(-ORIGIN.x,0,-ORIGIN.z);scene.add(details.group);
+  const sharedCity = new TiranaCityScene(webgl);
+  const city = sharedCity.city;
+  sharedCity.group.position.set(-ORIGIN.x, 0, -ORIGIN.z);
+  scene.add(sharedCity.group);
   scene.userData.tiranaCity = city.group.userData;
   world.obstacles = [...OBSTACLES];
   world.extraction.position.set(EXTRACTION.x, .12, EXTRACTION.z);
@@ -106,14 +94,12 @@ export function makeCityWorld(scene:THREE.Scene,camera:THREE.PerspectiveCamera,r
     for(const [id,fallback] of importedFallbacks)fallback.visible=!imported.has(id);
     forceTime = now;
     for (const [id, fallback] of fleetFallbacks) fallback.visible = !forces?.has(id);
-    enhancements.update(performance.now()/1000,camera);
     point.copy(position);point.x+=ORIGIN.x;point.z+=ORIGIN.z;
-    city.update(point, performance.now()/1000, !renderer.shadowMap.enabled);
-    details.update(point,!webgl||!renderer.shadowMap.enabled);
+    sharedCity.update(point, now, !webgl || !renderer.shadowMap.enabled, camera);
     atmosphere.update(now,camera,!renderer.shadowMap.enabled);
   };
   world.update(new THREE.Vector3(START.x,1.68,START.z));
   const dispose = world.dispose;
-  world.dispose=()=>{disposed=true;atmosphere.dispose();collection?.dispose();imported.dispose();forces?.dispose();enhancements.dispose();details.dispose();city.dispose();dispose();concrete.dispose();metal.dispose();};
+  world.dispose=()=>{disposed=true;atmosphere.dispose();collection?.dispose();imported.dispose();forces?.dispose();sharedCity.dispose();dispose();concrete.dispose();metal.dispose();};
   return world;
 }

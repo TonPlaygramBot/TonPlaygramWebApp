@@ -16,14 +16,14 @@ for(const id of ['apex','oobi','oodi','ooli','oopi']) {
   for(let i=0;i<60;i++)stepRacer(r,{},track,STEP,i*STEP);
   assert.ok(r.speed>0);
  });
- test(`${id}: energetic side contact overturns and recovers; throttle cannot bypass it`,()=>{
-  const r=equipKart(createRacer(track,id,id),id);r.speed=25;
-  beginRollover(r,25,Math.cos(r.yaw),-Math.sin(r.yaw));assert.equal(r.rollTime,2.2);
-  let inverted=false;
-  for(let i=0;i<134;i++){stepRacer(r,{boost:true,steer:1},track,STEP,i*STEP);inverted ||= Math.abs(r.rollAngle)>3;}
-  assert.ok(inverted);assert.equal(r.rollTime,0);assert.equal(r.rollAngle,0);assert.equal(r.lift,0);assert.equal(r.gates,0);
-  assert.ok(r.speed<1 && Number.isFinite(r.x));
-  beginRollover(r,30,Math.cos(r.yaw),-Math.sin(r.yaw));assert.equal(r.rollTime,0,'recovery cooldown');
+ test(`${id}: energetic side contact stays upright and the kart can continue`,()=>{
+  const r=equipKart(createRacer(track,id,id),id);
+  Object.assign(r,{x:11,z:0,yaw:0,velocityYaw:Math.PI/2,speed:25});
+  resolveWallContact(r,{x:0,z:0,distance:11},20,STEP);
+  assert.equal(r.rollTime,0);assert.equal(r.retired,false);assert.ok(r.hop>0);
+  assert.ok(r.health>=50 && r.health<100);
+  for(let i=0;i<60;i++)stepRacer(r,{},track,STEP,i*STEP);
+  assert.ok(Number.isFinite(r.x)&&Number.isFinite(r.z));assert.equal(r.rollAngle,0);
  });
 }
 test('reverse wall response keeps signed velocity consistent',()=>{

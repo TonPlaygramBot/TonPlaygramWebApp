@@ -55,16 +55,13 @@ test('joined road sides meet precisely at square corners',()=>{
   assert.deepEqual(sides.left.map(p=>[Math.round(p.x),Math.round(p.z)]),[[-10,-10],[110,-10],[110,110],[-10,110]]);
   assert.deepEqual(sides.right.map(p=>[Math.round(p.x),Math.round(p.z)]),[[10,10],[90,10],[90,90],[10,90]]);
 });
-test('nine vehicle classes expose distinct race parameters',()=>{
-  assert.equal(sim.KARTS.length,9);
-  assert.equal(new Set(sim.KARTS.map(k=>`${k.speed}/${k.handling}/${k.brake}/${k.shield}/${k.ammunition}`)).size,9);
+test('five kart classes expose distinct race parameters',()=>{
+  assert.equal(sim.KARTS.length,5);
+  assert.equal(new Set(sim.KARTS.map(k=>`${k.speed}/${k.handling}/${k.brake}/${k.shield}/${k.ammunition}`)).size,5);
 });
-test('shield absorbs impacts and missiles consume finite ammunition',()=>{
-  const track=sim.makeTrack('skanderbeg'), shooter=sim.createRacer(track,'a','A',0), target=sim.createRacer(track,'b','B',1);
-  shooter.x=0; shooter.z=0; shooter.yaw=0; shooter.ammunition=2; shooter.input.fire=true;
-  target.x=0; target.z=12; target.shieldActive=true; target.input.shield=true;
-  const health=target.health;
-  sim.stepRace([shooter,target],track,sim.STEP,1);
-  assert.equal(shooter.ammunition,1); assert.equal(shooter.missileHits,1);
-  assert.ok(target.health>health-5); assert.ok(target.shield<target.shieldMax);
+test('stale shooting inputs cannot activate removed combat',()=>{
+  const track=sim.makeTrack('skanderbeg'), racer=sim.createRacer(track,'a','A',0);
+  racer.input.fire=true;racer.ammunition=2;
+  sim.stepRace([racer],track,sim.STEP,1);
+  assert.equal(racer.ammunition,0);assert.equal(racer.missileHits,0);
 });

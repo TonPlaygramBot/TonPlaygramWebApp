@@ -30,10 +30,10 @@ const racer = (id = 'a', slot = 0) => {
 };
 const energy = (rs) => rs.reduce((s, r) => s + r.speed * r.speed, 0);
 
-test('all five circuits use closed, unique paths from Tirana Streets road segments', () => {
+test('all six circuits use closed, unique paths from Tirana Streets road segments', () => {
   assert.deepEqual(
     TRACKS.map((t) => t.id),
-    ['skanderbeg', 'blloku', 'lana', 'pyramid', 'stadium']
+    ['skanderbeg', 'blloku', 'lana', 'pyramid', 'stadium','lana-pyramid-grand']
   );
   const edges = new Set(
     WORLD.roads
@@ -93,7 +93,8 @@ test('combat and automatic pickups are absent, including stale client inputs', (
   stepRace([r], t, STEP, 1);
   assert.equal(r.health, 50);
   assert.equal(r.weapon, undefined);
-  assert.equal(r.shield, undefined);
+  assert.equal(r.shield, 0);
+  assert.equal(r.shieldActive,false);
 });
 test('grazing a wall preserves tangential momentum; head-on impact causes greater gradual damage', () => {
   const head = racer(),
@@ -109,7 +110,7 @@ test('grazing a wall preserves tangential momentum; head-on impact causes greate
     '25 m/s hit costs about 8 integrity'
   );
   assert.ok(glance.speed > 22 && head.speed < 5);
-  assert.equal(head.z, 3.95);
+  assert.ok(Math.abs(head.z - (5 - head.bodyLength/2 - .04)) < 1e-9);
   assert.equal(head.impactId, 1);
 });
 test('minor bumps are harmless, severe impacts are capped, and one contact cannot charge twice', () => {
@@ -182,8 +183,8 @@ test('swept food collisions catch fast crossing karts instead of tunnelling', ()
     )
   );
 });
-test('six unique kart types are selectable and stale IDs cannot bypass validation', () => {
-  assert.ok(simulation.KARTS.length >= 5);
+test('five unique kart types are selectable and stale IDs cannot bypass validation', () => {
+  assert.equal(simulation.KARTS.length, 5);
   assert.equal(
     new Set(simulation.KARTS.map((k) => k.id)).size,
     simulation.KARTS.length
@@ -223,7 +224,7 @@ test('separating and exactly overlapping karts never gain energy or produce NaNs
   a.z = b.z = 0;
   a.speed = b.speed = 0;
   resolveKartContact(a, b);
-  assert.ok(Math.hypot(a.x - b.x, a.z - b.z) >= 2.1);
+  assert.ok(Math.hypot(a.x - b.x, a.z - b.z) >= a.bodyWidth + .08);
   assert.ok(Number.isFinite(a.speed) && Number.isFinite(b.speed));
 });
 test('scrape damage scales with elapsed time, and invalid damage cannot heal or corrupt a kart', () => {
@@ -246,20 +247,11 @@ test('scrape damage scales with elapsed time, and invalid damage cannot heal or 
     assert.equal(damageRacer(r, value), 0);
   assert.equal(r.health, 100);
 });
-test('damage accumulates to retirement; retired karts cannot move or finish laps', () => {
-  const t = makeTrack(),
-    r = createRacer(t, 'a', 'a');
-  damageRacer(r, 35);
-  assert.equal(r.health, 65);
-  assert.equal(r.retired, false);
-  damageRacer(r, 35);
-  assert.equal(r.health, 30);
-  damageRacer(r, 35);
-  assert.equal(r.health, 0);
-  assert.equal(r.retired, true);
-  const p = { x: r.x, z: r.z, gates: r.gates };
-  stepRacer(r, { ...blank, brake: false, boost: true }, t, STEP, 2);
-  assert.deepEqual({ x: r.x, z: r.z, gates: r.gates }, p);
-  assert.equal(r.finished, false);
-  assert.equal(r.speed, 0);
+test('bumper damage is capped and cannot retire or stop a kart', () => {
+ const t=makeTrack(),r=createRacer(t,'a','a');
+ for(let i=0;i<20;i++)damageRacer(r,35);
+ assert.equal(r.health,50);assert.equal(r.retired,false);
+ const gates=r.gates;
+ stepRacer(r,{...blank,brake:false,boost:true},t,STEP,2);
+ assert.ok(r.speed>0);assert.equal(r.gates,gates);assert.equal(r.finished,false);
 });

@@ -35,34 +35,17 @@ function glb(url) {
   );
   return j;
 }
-test('military and Tirana Streets vehicles extend the original fleet without changing old IDs', () => {
-  assert.deepEqual(
-    KARTS.slice(0, 5).map((k) => k.id),
-    ['apex', 'oobi', 'oodi', 'ooli', 'oopi']
-  );
-  assert.deepEqual(
-    MILITARY_VEHICLES.map((k) => k.id),
-    ['shota', 'brabus-g', 'defender', 'brabus-s65']
-  );
-  assert.equal(new Set(KARTS.map((k) => k.id)).size, KARTS.length);
-  assert.deepEqual(
-    VEHICLE_COLLECTION.map((vehicle) => vehicle.id),
-    KARTS.slice(6, 6 + VEHICLE_COLLECTION.length).map((vehicle) => vehicle.id)
-  );
-  for (const vehicle of VEHICLE_COLLECTION) {
-    assert.equal(vehicleAssetUrl(vehicle.id), vehicle.url);
-    assert.equal(vehicleAssetUrl(vehicle.id, true), vehicle.url);
-    assert.equal(normalizeKart(vehicle.id), vehicle.id);
+test('legacy military and city choices migrate to a kart while shared asset URLs remain available', () => {
+  assert.deepEqual(KARTS.map(k=>k.id),['apex','oobi','oodi','ooli','oopi']);
+  for(const v of [...MILITARY_VEHICLES,...VEHICLE_COLLECTION]){
+    assert.equal(normalizeKart(v.id),'apex');
+    const r=equipKart(createRacer(makeTrack(),'p','Player'),v.id);
+    assert.equal(r.kartId,'apex');assert.equal(r.ammunition,0);
+    assert.ok(vehicleAssetUrl(v.id));
   }
-  for (const v of MILITARY_VEHICLES) {
-    assert.equal(normalizeKart(v.id), v.id);
-    const r = equipKart(createRacer(makeTrack(), 'p', 'Player'), v.id);
-    assert.equal(r.kartId, v.id);
-    assert.equal(r.shield, v.shield);
-    assert.equal(r.ammunition, v.ammunition);
-  }
-  assert.equal(normalizeKart('../../anything'), 'apex');
+  assert.equal(normalizeKart('../../anything'),'apex');
 });
+
 for (const v of MILITARY_VEHICLES) {
   test(`${v.id}: self-contained GLB and opponent LOD retain the rig`, () => {
     for (const low of [false, true]) {
@@ -96,11 +79,12 @@ for (const v of MILITARY_VEHICLES) {
           .size
     );
   });
-  test(`${v.id}: finishes a race using shared fixed-step physics on the long course`, () => {
+  test(`${v.id}: migrates and completes a race using the fallback kart`, () => {
     const track = makeTrack('skanderbeg');
     const r = equipKart(createRacer(track, 'test', 'Driver', 0, true), v.id);
     for (let t = 0; t < RACE_LIMIT && !r.finished; t += STEP)
       stepRacer(r, aiInput(r, track, t, 'rookie'), track, STEP, t, 'rookie');
+    assert.equal(r.kartId,'apex');
     assert(r.finished, `${v.id} failed to complete`);
     assert(Number.isFinite(r.speed) && r.gates === 13);
   });

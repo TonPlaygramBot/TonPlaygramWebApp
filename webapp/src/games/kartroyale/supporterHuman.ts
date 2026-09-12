@@ -139,33 +139,10 @@ export function poseHuman(
   flag = false
 ) {
   for (const [bone, rest] of h.rest) bone.quaternion.copy(rest);
-  const active = throwingAge >= 0 && throwingAge < 1.45;
   const breath = Math.sin(time * 2.5) * 0.008;
-  let wrist = vec(-0.34, 1.06 + breath, 0.27);
-  const windup = vec(-0.39, 1.75, -0.28),
-    release = vec(-0.2, 1.65, 0.49),
-    follow = vec(0.17, 1.12, 0.49);
-  if (active) {
-    if (throwingAge < 0.48) wrist.lerp(windup, ease(throwingAge / 0.48));
-    else if (throwingAge < 0.68)
-      wrist.copy(windup).lerp(release, ease((throwingAge - 0.48) / 0.2));
-    else if (throwingAge < 0.95)
-      wrist.copy(release).lerp(follow, ease((throwingAge - 0.68) / 0.27));
-    else
-      wrist
-        .copy(follow)
-        .lerp(vec(-0.34, 1.06, 0.27), ease((throwingAge - 0.95) / 0.5));
-  }
+  const wrist = vec(-.38, 1.55 + Math.sin(time * 3.2) * .13, .32);
   for (const bone of h.bones.get('spine_02') || [])
-    bone.quaternion.multiply(
-      new T.Quaternion().setFromEuler(
-        new T.Euler(
-          active ? Math.sin(throwingAge * 4) * 0.12 : breath,
-          active ? Math.sin(throwingAge * 4.5) * 0.2 : 0,
-          0
-        )
-      )
-    );
+    bone.quaternion.multiply(new T.Quaternion().setFromEuler(new T.Euler(breath, Math.sin(time * 2) * .025, 0)));
   h.root.updateWorldMatrix(true, true);
   const world = (v: T.Vector3) => h.root.localToWorld(v);
   const pole = (x: number, y: number, z: number) =>
@@ -196,7 +173,7 @@ export function poseHuman(
       world(vec(sign * 0.15, 0.09, sign * 0.045)),
       pole(0, 0, 1)
     );
-  const grip = active && throwingAge < 0.68 ? 0.75 : 0.22;
+  const grip = .22;
   for (const finger of ['index', 'middle', 'ring', 'pinky'])
     for (const joint of ['01', '02', '03'])
       for (const bone of h.bones.get(`${finger}_${joint}_r`) || [])
@@ -210,7 +187,7 @@ export function poseHuman(
 export function bakeHuman(
   h: Human
 ): { geometry: T.BufferGeometry; material: T.Material | T.Material[] }[] {
-  poseHuman(h, 0);
+  poseHuman(h, 0, -1, true);
   const parts: {
     geometry: T.BufferGeometry;
     material: T.Material | T.Material[];

@@ -1,12 +1,21 @@
 import {combineMappedLoops,resampleCircuit,routeLength} from './grandRouteCore.mjs';
-import {CITY_CIRCUITS} from './city-circuits.mjs';
+import { WORLD } from '../tiranastreets/shared/world.mjs';
 /** Pre-authored source-backed routes. Browser and server use identical geometry. */
 export function buildRaceCatalog(legacy,routes){
  const diagnostics=[],cache=new Map();
+ // Compact three-lap events follow existing, connected streets. The full city
+ // is unchanged; race duration no longer depends on the 5 km expedition routes.
+ const edgeKey=(a,b)=>[a.join(','),b.join(',')].sort().join('|');
+ const roads=new Map(WORLD.roads.filter(r=>!r.walk).map(r=>[edgeKey(r.a,r.b),r.w]));
  const tracks=legacy.TRACKS.map(old=>{
-  const city=CITY_CIRCUITS.routes.find(r=>r.id===old.id);
-  if(!city)throw Error('Missing Tirana city circuit: '+old.id);
-  return {...old,...city,width:Math.max(...city.widths),mapVersion:CITY_CIRCUITS.version};
+  const route=routes.find(r=>r.id===old.id);
+  if(!route)throw Error('Missing Tirana city circuit: '+old.id);
+  const widths=route.points.map((p,i)=>{
+    const width=roads.get(edgeKey(p,route.points[(i+1)%route.points.length]));
+    if(!width)throw Error('Race route left the shared Tirana street network');
+    return Math.max(6,width);
+  });
+  return {...old,...route,widths,width:Math.max(...widths),mapVersion:'shared-tirana-streets'};
  });
  const grand=combineMappedLoops(routes.find(r=>r.id==='lana'),routes.find(r=>r.id==='pyramid'));
  if(grand)tracks.push({...legacy.TRACKS.find(t=>t.id==='lana'),...grand,width:10,name:'Lana–Pyramid · Classic Grand'});

@@ -14,7 +14,7 @@ export default function KartRoyale(props:ComponentProps<typeof BaseKartRoyale>){
   const [retry,setRetry]=useState(0);
   const back=()=>{setMode('race');setRetry(n=>n+1);};
   return <GameModeBoundary key={`${mode}:${retry}`} onBack={back}>
-    <Suspense fallback={<main className="tsl-root"><section className="tsl-careers"><h1>Racing Royal</h1><p role="status">Loading {mode==='explore'?'shared exploration':mode==='career'?'kart career':'the original racing garage'}…</p><button onClick={props.onExit}>Back to Games</button></section></main>}>
+    <Suspense fallback={<main className="tsl-root"><section className="tsl-careers"><h1>Racing Royal</h1><p role="status">Loading {mode==='explore'?'shared exploration':mode==='career'?'kart career':'your kart garage'}…</p><button onClick={props.onExit}>Back to Games</button></section></main>}>
       {mode==='explore'?<Explore sourceGame="racing" onExit={back}/>:
        mode==='career'?<><Career onExit={back}/><RacingAtlas/></>:
        <><Race {...props} renderOnlineLobby={props.renderOnlineLobby?lobby=><>

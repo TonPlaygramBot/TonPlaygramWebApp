@@ -1,6 +1,4 @@
-import { stepRollover } from './kartDynamics.mjs';
-import {COLLECTION_BY_ID} from '../tiranastreets/shared/vehicleCollection.mjs';
-import {VEHICLE_LENGTHS} from './vehicleAssetConfig.mjs';
+import { stepDrift, stepBoostPads, stepSlipstream } from './arcadeRules.mjs';
 import {KARTS} from './vehicleCatalog.mjs';
 export {KARTS};
 import { TIRANA_ROUTES } from './tirana-routes.mjs';
@@ -23,9 +21,8 @@ export const normalizeKart = (id) =>
   KARTS.some((k) => k.id === id) ? id : 'apex';
 export function equipKart(r, id) {
   const kartId=normalizeKart(id), kart=KARTS.find(k=>k.id===kartId);
-  const vehicle=COLLECTION_BY_ID.get(kartId);
-  r.bodyLength=vehicle?.length || VEHICLE_LENGTHS[kartId] || 2.7;
-  r.bodyWidth=vehicle?.width || (kartId==='shota'?2.5:VEHICLE_LENGTHS[kartId]&&kartId!=='buggy'?2.05:1.72);
+  r.bodyLength=2.7;
+  r.bodyWidth=1.72;
   r.kartId=kartId; r.shieldMax=kart.shield; r.shield=kart.shield;
   r.ammunition=kart.ammunition; r.fireCooldown=0;
   return r;
@@ -193,6 +190,7 @@ export function createRacer(track, id, name, slot = 0, ai = false) {
     acceleration: 0,
     boost: 100,
     driftCharge: 0,
+    recoveryAt: -10, hop: 0, boostEvent: 0, slipstream: 0, draftCooldown: 0, padCooldowns: {},
     turbo: 0,
     drifting: false,
     lap: 0,
@@ -260,9 +258,12 @@ export function stepRacer(r, raw, track, dt, time, difficulty = 'street') {
   dt = Math.min(dt, STEP * 3);
   const input = raw || {},
     steer = Number.isFinite(input.steer) ? clamp(input.steer, -1, 1) : 0;
-  if (stepRollover(r, dt)) {
-    const contact = nearestPoint(track, r.x, r.z, r.index);
-    resolveWallContact(r, contact, contact.width ?? track.width, dt, false);
+  if (input.recover === true && time - (r.recoveryAt ?? -10) >= 3) {
+    const point = track.points[r.index];
+    r.x = point.x; r.z = point.z; r.yaw = r.velocityYaw = point.yaw;
+    r.speed = 0; r.yawRate = 0; r.steering = 0; r.drifting = false;
+    r.driftCharge = 0; r.turbo = 0; r.recoveryAt = time;
+    // Keep index, gates, laps and progress: recovery cannot manufacture distance.
     return;
   }
   const previousSpeed = r.speed;
@@ -271,23 +272,20 @@ export function stepRacer(r, raw, track, dt, time, difficulty = 'street') {
   r.impactCooldown = Math.max(0, (r.impactCooldown || 0) - dt);
   r.fireCooldown = Math.max(0, (r.fireCooldown || 0) - dt);
   const kart = KARTS.find(k => k.id === r.kartId) || KARTS[0];
-  r.shieldMax = Number.isFinite(r.shieldMax) ? r.shieldMax : kart.shield;
-  r.shield = clamp(Number.isFinite(r.shield) ? r.shield : r.shieldMax, 0, r.shieldMax);
-  r.shieldActive = input.shield === true && r.shield > 0;
-  r.shield = clamp(r.shield + (r.shieldActive ? -18 : 4) * dt, 0, r.shieldMax);
+  // Keep legacy wire fields inert so stale clients cannot enable combat.
+  r.shieldMax = 0; r.shield = 0; r.shieldActive = false; r.ammunition = 0;
   // A finite steering rack response makes touch buttons progressive. Physics
   // and the visible wheels share this value on both the client and server.
   r.steering =
     (r.steering || 0) +
     (steer - (r.steering || 0)) * (1 - Math.exp(-dt * (steer ? 8 : 12)));
-  const drift =
-      input.drift === true && r.speed > 10 && Math.abs(r.steering) > 0.08,
-    boost = input.boost === true && r.boost > 0 && !input.brake && !input.reverse && r.speed >= 0;
+  const drift = stepDrift(r, input, dt),
+    boost = input.boost === true && r.boost > 1 && !input.brake && !input.reverse && r.speed >= 0;
   const factor = r.ai
       ? ({ rookie: 0.76, street: 0.88, pro: 0.98 }[difficulty] || 0.88) +
         r.slot * 0.006
       : 1,
-    damageFactor = 0.82 + r.health * 0.0018,
+    damageFactor = 1,
     max = (boost || r.turbo > 0 ? 43 : 31) * kart.speed * factor * damageFactor;
   r.speed = clamp(
     r.speed +
@@ -295,7 +293,7 @@ export function stepRacer(r, raw, track, dt, time, difficulty = 'street') {
         ? (r.speed > 0 ? -28 * kart.brake : -7)
         : input.brake
         ? -Math.sign(r.speed) * 28 * kart.brake
-        : (boost || r.turbo > 0 ? 22 : 13.8) * kart.speed * factor * damageFactor -
+        : (boost || r.turbo > 0 ? 22 : (kart.id === 'oopi' ? 17 : 15.5)) * kart.speed * factor * damageFactor -
           0.6 -
           0.16 * r.speed -
           0.008 * r.speed * r.speed) *
@@ -304,23 +302,23 @@ export function stepRacer(r, raw, track, dt, time, difficulty = 'street') {
     max
   );
   if (input.brake && !input.reverse && Math.sign(r.speed) !== Math.sign(previousSpeed)) r.speed = 0;
-  if (drift) {
-    r.speed = Math.max(0, r.speed - 0.75 * dt);
-    r.driftCharge = Math.min(1.5, r.driftCharge + dt);
-  } else if (r.drifting) {
-    if (r.driftCharge > 0.5) r.turbo = Math.min(1.8, r.driftCharge);
-    r.driftCharge = 0;
-  }
-  r.drifting = drift;
-  r.turbo = Math.max(0, r.turbo - dt);
-  r.boost = clamp(r.boost + (boost ? -34 : drift ? 17 : 5) * dt, 0, 100);
+  // Nitro is earned primarily by cornering; passive recharge prevents dead ends.
+  r.boost = clamp(r.boost + (boost ? -32 : drift ? 14 : 3) * dt, 0, 100);
   const turn =
-    (-r.steering * kart.handling * (drift ? 1.48 : 1.15) * clamp(r.speed / 10, -1, 1)) /
+    (-r.steering * kart.handling * (drift ? 1.42 : 1.28) * clamp(r.speed / 10, -1, 1)) /
     (1 + Math.max(0, r.speed - 22) * 0.022);
   r.yawRate =
     (r.yawRate || 0) +
     (turn - (r.yawRate || 0)) * (1 - Math.exp(-dt * (drift ? 7 : 12)));
   r.yaw += r.yawRate * dt;
+  // Gentle edge assistance preserves screen-relative steering and never teleports.
+  // Only turn toward the route when moving forward into its outside edge.
+  const guidance = nearestPoint(track, r.x, r.z, r.index);
+  if (!input.reverse && !input.brake && r.speed > 2 && guidance.distance > (guidance.width ?? track.width) * .32) {
+    const target = pointAhead(track, guidance, Math.max(6, r.speed * .45));
+    const correction = wrapAngle(Math.atan2(target.x-r.x,target.z-r.z)-r.yaw);
+    if (Math.abs(correction) < 1.4) r.yaw += correction * dt * 1.8;
+  }
   // Tire scrub sheds speed in sustained corners; braking restores grip sooner.
   r.speed *= Math.max(0, 1 - Math.abs(r.yawRate) * (drift ? 0.022 : 0.014) * dt);
   r.velocityYaw +=
@@ -333,6 +331,7 @@ export function stepRacer(r, raw, track, dt, time, difficulty = 'street') {
   resolveWallContact(r, near, near.width ?? track.width, dt);
   if (r.retired) return;
   r.acceleration = clamp((r.speed - previousSpeed) / dt, -35, 25);
+  stepBoostPads(r, track, time);
   // Sequential quarter-track gates reject shortcuts and finish-line oscillation.
   const count = track.points.length;
   const delta = ((near.index - r.index + count * 1.5) % count) - count / 2;
@@ -366,22 +365,7 @@ export function stepRace(racers, track, dt, time, difficulty = 'street') {
       time,
       difficulty
     );
-  for (const r of racers) {
-    if (!r.input?.fire || r.fireCooldown > 0 || r.ammunition <= 0 || r.finished || r.retired) continue;
-    r.fireCooldown = .65; r.ammunition--;
-    let target = null, best = 42;
-    for (const other of racers) {
-      if (other === r || other.finished || other.retired || other.disconnected) continue;
-      const dx=other.x-r.x,dz=other.z-r.z,forward=dx*Math.sin(r.yaw)+dz*Math.cos(r.yaw),side=Math.abs(dx*Math.cos(r.yaw)-dz*Math.sin(r.yaw));
-      if (forward>2 && forward<best && side<5) { target=other; best=forward; }
-    }
-    if (target) {
-      const blocked=target.shieldActive&&target.shield>0;
-      if(blocked) target.shield=Math.max(0,target.shield-28);
-      damageRacer(target,blocked?3:14); target.hitFlash=.45; target.impactId=(target.impactId||0)+1; r.missileHits=(r.missileHits||0)+1;
-    }
-    r.input.fire=false;
-  }
+  stepSlipstream(racers, dt);
   // A second positional pass prevents multi-kart contacts from leaving bodies
   // interpenetrating or pushed through a track barrier.
   for (let pass = 0; pass < 2; pass++) {

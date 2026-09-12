@@ -4,7 +4,7 @@ import { createServer } from 'node:http';
 import { Server } from 'socket.io';
 import { io as client } from 'socket.io-client';
 import { attachKartRoyale } from '../bot/services/kartRoyale.js';
-import { MILITARY_VEHICLES } from '../webapp/src/games/kartroyale/militaryVehicleCatalog.mjs';
+import { KARTS } from '../webapp/src/games/kartroyale/vehicleCatalog.mjs';
 import {
   makeTrack,
   createRacer,
@@ -160,7 +160,7 @@ test('real multiplayer clients: ready/start, authority, isolation, reconnect, fi
   assert.equal(joined.ok, true);
   assert.equal((await emit(b, 'start')).ok, false);
   assert.equal((await emit(a, 'start')).ok, false);
-  for (const vehicle of MILITARY_VEHICLES) {
+  for (const vehicle of KARTS) {
     assert.equal(
       (await emit(b, 'appearance', { kartId: vehicle.id })).ok,
       true
@@ -196,7 +196,7 @@ test('real multiplayer clients: ready/start, authority, isolation, reconnect, fi
   const room = service.rooms.get(created.code);
   assert.equal(
     room.racers.find((r) => r.id === joined.playerId).kartId,
-    'brabus-s65'
+    'oopi'
   );
   assert.equal(room.racers.length, 6);
   assert.equal(room.racers[0].kartId, 'oodi');
