@@ -53,4 +53,5 @@ export interface ShotContext {
   snookered?: boolean;
   variant?: string;
   simulated?: boolean;
+  respottedBlackStarter?: 'A' | 'B';
 }

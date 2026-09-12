@@ -28,6 +28,8 @@ export class PowerSlider {
     this.onShotRelease = onShotRelease;
     this.onFeedback = onFeedback;
     this.locked = false;
+    this.destroyed = false;
+    this.activePointerId = null;
     this._returnAnimFrame = null;
     this._shotAnimFrame = null;
 
@@ -38,7 +40,10 @@ export class PowerSlider {
     this.el.setAttribute('aria-orientation', 'vertical');
     this.el.setAttribute('aria-valuemin', String(this.min));
     this.el.setAttribute('aria-valuemax', String(this.max));
-    this.el.setAttribute('aria-label', 'Shot power. Pull down, then release to shoot.');
+    this.el.setAttribute(
+      'aria-label',
+      'Shot power. Pull down, then release to shoot.'
+    );
 
     this.track = document.createElement('div');
     this.track.className = 'ps-track';
@@ -63,7 +68,8 @@ export class PowerSlider {
     if (this.hasCueImage) this.cueImg.src = cueSrc;
     else this.el.classList.add('ps-no-cue-image');
 
-    if (this.hasCueImage) this.handle.append(this.cueImg, this.handleText, this.powerBar);
+    if (this.hasCueImage)
+      this.handle.append(this.cueImg, this.handleText, this.powerBar);
     else this.handle.append(this.handleText, this.powerBar);
     this.el.appendChild(this.handle);
 
@@ -71,7 +77,8 @@ export class PowerSlider {
     this.tooltip.className = 'ps-tooltip';
     this.el.appendChild(this.tooltip);
 
-    const isBilliardsTheme = this.theme === 'pool-royale' || this.theme === 'snooker-royale';
+    const isBilliardsTheme =
+      this.theme === 'pool-royale' || this.theme === 'snooker-royale';
     if (isBilliardsTheme) {
       this.handle.style.left = '50%';
       this.tooltip.style.left = '50%';
@@ -131,7 +138,11 @@ export class PowerSlider {
     this._cancelReturnAnimation();
     const target = this._clamp(this._step(v));
     const start = this.value;
-    if (!Number.isFinite(duration) || duration <= 0 || Math.abs(target - start) < 1e-6) {
+    if (
+      !Number.isFinite(duration) ||
+      duration <= 0 ||
+      Math.abs(target - start) < 1e-6
+    ) {
       this.set(target, { animate: true });
       return;
     }
@@ -155,6 +166,11 @@ export class PowerSlider {
 
   lock() {
     this.locked = true;
+    if (this.dragging)
+      this._pointerUp({
+        type: 'pointercancel',
+        pointerId: this.activePointerId
+      });
     this.el.classList.add('ps-locked');
     this.el.tabIndex = -1;
     this.el.setAttribute('aria-disabled', 'true');
@@ -168,7 +184,14 @@ export class PowerSlider {
   }
 
   destroy() {
+    if (this.dragging)
+      this._pointerUp({
+        type: 'pointercancel',
+        pointerId: this.activePointerId
+      });
+    this.destroyed = true;
     this._cancelReturnAnimation();
+    this._cancelShotAnimation();
     this.el.removeEventListener('pointerdown', this._onPointerDown);
     this.el.removeEventListener('wheel', this._onWheel);
     this.el.removeEventListener('keydown', this._onKeyDown);
@@ -192,7 +215,10 @@ export class PowerSlider {
     const trackH = this.el.clientHeight;
     const handleH = this.handle.offsetHeight;
     const y = ratio * (trackH - handleH);
-    const translateX = this.theme === 'pool-royale' || this.theme === 'snooker-royale' ? '-50%' : '0';
+    const translateX =
+      this.theme === 'pool-royale' || this.theme === 'snooker-royale'
+        ? '-50%'
+        : '0';
     this.handle.style.transform = `translate(${translateX}, ${y}px)`;
     const ttH = this.tooltip.offsetHeight;
     this.tooltip.style.transform = `translate(${translateX}, ${y - ttH - 8}px)`;
@@ -201,14 +227,18 @@ export class PowerSlider {
     this._updateHandleColor(ratio);
     const pctValue = Math.round(this.value);
     if (this.handleText) {
-      this.handleText.textContent = pctValue <= this.min ? 'Pull' : `${pctValue}%`;
+      this.handleText.textContent =
+        pctValue <= this.min ? 'Pull' : `${pctValue}%`;
     }
     this.tooltip.textContent = `${pctValue}%`;
     this.el.setAttribute('aria-valuenow', String(Math.round(this.value)));
     this.el.setAttribute('aria-valuetext', `${pctValue} percent shot power`);
     if (ratio >= 0.9) this.el.classList.add('ps-hot');
     else this.el.classList.remove('ps-hot');
-    if (this.hasCueImage && (this.theme === 'pool-royale' || this.theme === 'snooker-royale')) {
+    if (
+      this.hasCueImage &&
+      (this.theme === 'pool-royale' || this.theme === 'snooker-royale')
+    ) {
       const drop = ratio * 28;
       const tilt = -8 - ratio * 10;
       this.cueImg.style.transform = `translateY(${drop}px) rotate(${tilt}deg)`;
@@ -243,37 +273,65 @@ export class PowerSlider {
   }
 
   _pointerDown(e) {
-    if (this.locked) return;
+    if (
+      this.locked ||
+      this.destroyed ||
+      this.dragging ||
+      e.isPrimary === false ||
+      (e.button != null && e.button !== 0)
+    )
+      return;
     e.preventDefault();
     this._cancelReturnAnimation();
     this._cancelShotAnimation();
     this.dragging = true;
     this._feedbackBand = getPowerFeedbackBand(this.value, this.min, this.max);
     this.el.classList.add('ps-no-animate');
-    this.el.setPointerCapture(e.pointerId);
+    this.activePointerId = e.pointerId;
+    try {
+      this.el.setPointerCapture(e.pointerId);
+    } catch {
+      this.dragging = false;
+      this.activePointerId = null;
+      return;
+    }
     if (typeof this.onStart === 'function') this.onStart(this.value);
     this._updateFromClientY(e.clientY);
     this.el.addEventListener('pointermove', this._onPointerMove);
     this.el.addEventListener('pointerup', this._onPointerUp);
     this.el.addEventListener('pointercancel', this._onPointerUp);
+    this.el.addEventListener('lostpointercapture', this._onPointerUp);
   }
 
   _pointerMove(e) {
-    if (!this.dragging) return;
+    if (
+      !this.dragging ||
+      (this.activePointerId != null && e.pointerId !== this.activePointerId)
+    )
+      return;
     this._updateFromClientY(e.clientY);
     const nextBand = getPowerFeedbackBand(this.value, this.min, this.max);
     if (nextBand !== this._feedbackBand) {
       this._feedbackBand = nextBand;
       if (typeof this.onFeedback === 'function') {
-        this.onFeedback({ type: 'power-band', band: nextBand, value: this.value });
+        this.onFeedback({
+          type: 'power-band',
+          band: nextBand,
+          value: this.value
+        });
       }
     }
   }
 
   _pointerUp(e) {
-    if (!this.dragging) return;
-    const cancelled = isPowerPointerCancel(e);
+    if (
+      !this.dragging ||
+      (this.activePointerId != null && e.pointerId !== this.activePointerId)
+    )
+      return;
+    const cancelled = isPowerPointerCancel(e) || this.locked || this.destroyed;
     this.dragging = false;
+    this.activePointerId = null;
     try {
       this.el.releasePointerCapture(e.pointerId);
     } catch {
@@ -282,6 +340,7 @@ export class PowerSlider {
     this.el.removeEventListener('pointermove', this._onPointerMove);
     this.el.removeEventListener('pointerup', this._onPointerUp);
     this.el.removeEventListener('pointercancel', this._onPointerUp);
+    this.el.removeEventListener('lostpointercapture', this._onPointerUp);
     this.el.classList.remove('ps-no-animate');
     if (cancelled) {
       this._feedbackBand = 0;
@@ -291,11 +350,18 @@ export class PowerSlider {
       }
       return;
     }
-    if (typeof this.onCommit === 'function') this.onCommit(this.value);
+    const releasedPower = this.value;
+    const accepted =
+      typeof this.onCommit === 'function' ? this.onCommit(releasedPower) : true;
+    if (this.destroyed || accepted === false) return;
     if (typeof this.onFeedback === 'function') {
-      this.onFeedback({ type: 'release', band: this._feedbackBand, value: this.value });
+      this.onFeedback({
+        type: 'release',
+        band: this._feedbackBand,
+        value: this.value
+      });
     }
-    this._playShotAnimation(this.value);
+    this._playShotAnimation(releasedPower);
   }
 
   _wheel(e) {
@@ -339,17 +405,28 @@ export class PowerSlider {
     const power = this._clamp(this._step(powerValue));
     const pullDuration = 90;
     const resetDuration = 150;
-    const strikeOvershoot = Math.max(this.min + (this.max - this.min) * 0.14, this.min + 1);
+    const strikeOvershoot = Math.max(
+      this.min + (this.max - this.min) * 0.14,
+      this.min + 1
+    );
 
-    this.animateTo(strikeOvershoot, { duration: pullDuration });
-
+    this._cancelReturnAnimation();
+    const start = this.value;
     const startedAt = performance.now();
     const step = (now) => {
-      const t = Math.min(1, Math.max(0, (now - startedAt) / resetDuration));
+      if (this.destroyed) return;
+      const elapsed = Math.max(0, now - startedAt);
+      const pulling = elapsed < pullDuration;
+      const t = Math.min(
+        1,
+        (pulling ? elapsed : elapsed - pullDuration) /
+          (pulling ? pullDuration : resetDuration)
+      );
       const eased = 1 - Math.pow(1 - t, 3);
-      const next = strikeOvershoot + (this.min - strikeOvershoot) * eased;
-      this.set(next, { animate: true });
-      if (t >= 1) {
+      const from = pulling ? start : strikeOvershoot;
+      const to = pulling ? strikeOvershoot : this.min;
+      this.set(from + (to - from) * eased, { animate: true });
+      if (!pulling && t >= 1) {
         this._shotAnimFrame = null;
         if (typeof this.onShotRelease === 'function') this.onShotRelease(power);
         return;
@@ -376,12 +453,15 @@ export class PowerSlider {
 }
 
 export function isPowerPointerCancel(event) {
-  return event?.type === 'pointercancel';
+  return (
+    event?.type === 'pointercancel' || event?.type === 'lostpointercapture'
+  );
 }
 
 export function getPowerFeedbackBand(value, min = 0, max = 100) {
   const range = max - min;
-  if (!Number.isFinite(value) || !Number.isFinite(range) || range <= 0) return 0;
+  if (!Number.isFinite(value) || !Number.isFinite(range) || range <= 0)
+    return 0;
   const ratio = Math.min(1, Math.max(0, (value - min) / range));
   if (ratio >= 0.9) return 4;
   if (ratio >= 0.75) return 3;

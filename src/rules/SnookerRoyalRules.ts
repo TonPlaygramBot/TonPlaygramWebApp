@@ -8,6 +8,7 @@ type HudInfo = {
 
 type SnookerMeta = {
   variant: 'snooker';
+  respottedBlack?: boolean;
   colorsRemaining: BallColor[];
   freeBall: boolean;
   hud: HudInfo;
@@ -162,6 +163,7 @@ export class SnookerRoyalRules {
   }
 
   applyShot(state: FrameState, events: ShotEvent[], context: ShotContext = {}): FrameState {
+    if (state.frameOver) return state;
     const meta = state.meta as SnookerMeta | undefined;
     const colorsRemaining = Array.isArray(meta?.colorsRemaining)
       ? [...meta.colorsRemaining]
@@ -464,12 +466,29 @@ export class SnookerRoyalRules {
       pottedColors.forEach((entry) => restoreBallState(entry.ball));
     }
 
+    const completedVisitBreak = nextBreak;
+    // A tied final black starts a deciding black, never a tied frame result.
+    const tiedFinalBlack = scores.A === scores.B && inColorsOrder &&
+      colorsOrderTarget === 'BLACK' && (Boolean(foulReason) || pottedNonCueColors.includes('BLACK'));
+    if (tiedFinalBlack) {
+      frameOver = false;
+      winner = undefined;
+      colorsRemaining.splice(0, colorsRemaining.length, 'BLACK');
+      const black = ballsState.find(ball => ball.color === 'BLACK');
+      if (black) { black.onTable = true; black.potted = false; }
+      nextBallInHand = true;
+      nextFreeBall = false;
+      nextBreak = 0;
+      nextActivePlayer = context.respottedBlackStarter ?? (state.activePlayer === 'A' ? 'B' : 'A');
+    }
+    const highestBreak = Math.max(state.players[state.activePlayer].highestBreak ?? 0,
+      state.currentBreak ?? 0, completedVisitBreak);
     const nextState: FrameState = {
       ...state,
       activePlayer: nextActivePlayer,
       players: {
-        A: { ...state.players.A, score: scores.A },
-        B: { ...state.players.B, score: scores.B }
+        A: { ...state.players.A, score: scores.A, highestBreak: state.activePlayer === 'A' ? highestBreak : state.players.A.highestBreak ?? 0 },
+        B: { ...state.players.B, score: scores.B, highestBreak: state.activePlayer === 'B' ? highestBreak : state.players.B.highestBreak ?? 0 }
       },
       currentBreak: nextBreak,
       phase: nextPhase,
@@ -491,6 +510,7 @@ export class SnookerRoyalRules {
       balls: ballsState,
       meta: {
         variant: 'snooker',
+        respottedBlack: tiedFinalBlack || Boolean(meta?.respottedBlack),
         colorsRemaining,
         freeBall: nextFreeBall,
         hud: buildHud(
