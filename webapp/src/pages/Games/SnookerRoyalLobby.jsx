@@ -213,20 +213,8 @@ export default function SnookerRoyalLobby() {
       return;
     }
 
-    let tgId;
-    let accountId;
-    try {
-      tgId = getTelegramId();
-      accountId = await ensureAccountId();
-    } catch (error) {
-      const message = 'Unable to verify your TPG account. Please retry.';
-      setMatchingError(message);
-      try {
-        window?.Telegram?.WebApp?.showAlert?.(message);
-      } catch {}
-      console.error('[SnookerRoyalLobby] ensureAccountId failed (offline)', error);
-      return;
-    }
+    const tgId = getTelegramId();
+    const accountId = accountIdRef.current || undefined;
 
     accountIdRef.current = accountId;
 
@@ -472,15 +460,19 @@ export default function SnookerRoyalLobby() {
           </p>
         </div>
 
+        <button type="button" onClick={() => navigate('/games/snookerroyale/career')} className="w-full rounded-2xl border border-amber-300/40 bg-emerald-950 px-5 py-4 text-left text-white">
+          <span className="block text-xs uppercase tracking-widest text-amber-200">Career · Road to the world title</span>
+          <span className="mt-1 block text-sm">Build breaks, win tournaments and earn your tour card →</span>
+        </button>
         <div className="space-y-3">
           <div className="flex items-center justify-between">
-            <h3 className="font-semibold text-white">Table</h3>
-            <span className="text-[11px] uppercase tracking-[0.3em] text-white/40">GLB</span>
+            <h3 className="font-semibold text-white">Championship table</h3>
+            <span className="text-[11px] uppercase tracking-[0.3em] text-white/40">15 REDS</span>
           </div>
           <div className="lobby-option-card lobby-option-card-active cursor-default">
             <div className="text-center">
-              <p className="lobby-option-label">GLB Snooker Table</p>
-              <p className="lobby-option-subtitle">Default table with original GLB cushions and procedural bases.</p>
+              <p className="lobby-option-label">Snooker Royal</p>
+              <p className="lobby-option-subtitle">{tableSize === '10ft' ? '10 ft club table' : '12 ft championship table'} with snooker pocket geometry.</p>
             </div>
           </div>
         </div>

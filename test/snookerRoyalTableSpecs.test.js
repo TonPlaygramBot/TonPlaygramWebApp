@@ -21,11 +21,17 @@ describe('Snooker Royal physical table specs', () => {
     assert.equal(table.ballDiameterMm, 52.5);
     assert.equal(table.ballDiameterToleranceMm, 0.05);
     assert.deepEqual(table.pocketMouthMm, { corner: 83, side: 87 });
-    assert.equal(table.pocketTemplate, 'WPBSA-authorised snooker cushion template');
+    assert.equal(
+      table.pocketTemplate,
+      'WPBSA-authorised snooker cushion template'
+    );
   });
 
   test('Snooker Royal scene uses official snooker dimensions instead of Pool Royale sizing', async () => {
-    const source = await readFile('webapp/src/pages/Games/SnookerRoyal.jsx', 'utf8');
+    const source = await readFile(
+      'webapp/src/pages/Games/SnookerRoyal.jsx',
+      'utf8'
+    );
 
     assert.match(source, /const WIDTH_REF = 3569;/);
     assert.match(source, /const HEIGHT_REF = 1778;/);
@@ -42,15 +48,13 @@ describe('Snooker Royal physical table specs', () => {
     assert.doesNotMatch(source, /const TARGET_RATIO = 1\.83;/);
   });
 
-  test('uses the enlarged character and the captured release-to-shoot handoff', async () => {
-    const source = await readFile('webapp/src/pages/Games/SnookerRoyal.jsx', 'utf8');
+  test('preserves the existing enlarged character', async () => {
+    const source = await readFile(
+      'webapp/src/pages/Games/SnookerRoyal.jsx',
+      'utf8'
+    );
 
     assert.match(source, /targetHeight: cueLen \* 1\.38/);
-    assert.match(source, /const fire = \(committedPowerOverride = null\) =>/);
-    assert.match(source, /committedPower: committedPowerOverride/);
-    assert.match(source, /const committedPower = clampPower\(value \/ 100, 0\);/);
-    assert.match(source, /shotPowerRef\.current = committedPower;/);
-    assert.match(source, /powerRef\.current = committedPower;/);
-    assert.match(source, /fireRef\.current\?\.\(committedPower\);/);
+    // Release behavior is exercised against the production callback in snookerLiveStrike.test.js.
   });
 });

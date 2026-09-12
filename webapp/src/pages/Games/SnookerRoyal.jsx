@@ -26,7 +26,10 @@ import {
 } from './snookerTableModel.js';
 import { PoolRoyalePowerSlider } from '../../../../pool-royale-power-slider.js';
 import '../../../../pool-royale-power-slider.css';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useLocation } from 'react-router-dom';
+import { SnookerCareerMatch } from '../../games/snooker/SnookerCareer';
+import { resolveSnookerLaunchOptions } from '../../games/snooker/launchOptions';
+import { consumeSnookerPhysicsTime } from '../../games/snooker/physicsClock';
 import {
   isTelegramWebView,
   getTelegramUsername,
@@ -6105,7 +6108,7 @@ const pocketIdFromCenter = (center) => {
   }
   return center.x < 0 ? 'BL' : 'BR';
 };
-const allStopped = (balls) => balls.every((b) => b.vel.length() < STOP_EPS);
+const allStopped = (balls) => balls.every((b) => !b.active || b.vel.lengthSq() < STOP_EPS * STOP_EPS);
 
 function makeClothTexture(
   palette = TABLE_FINISHES[DEFAULT_TABLE_FINISH_ID]?.colors
@@ -12249,7 +12252,11 @@ function SnookerRoyalGame({
   playerName,
   playerAvatar,
   opponentName,
-  opponentAvatar
+  opponentAvatar,
+  careerMatch = null,
+  savedFrame = null,
+  onCareerCheckpoint,
+  onCareerFrameComplete
 }) {
   const navigate = useNavigate();
   const mountRef = useRef(null);
@@ -13796,22 +13803,24 @@ function SnookerRoyalGame({
   }, [location.search]);
   const localSeat = useMemo(() => {
     const params = new URLSearchParams(location.search);
-    return params.get('seat') === 'B' ? 'B' : 'A';
-  }, [location.search]);
+    return !careerMatch && params.get('seat') === 'B' ? 'B' : 'A';
+  }, [careerMatch, location.search]);
   const starterSeat = useMemo(() => {
     const params = new URLSearchParams(location.search);
+    if (careerMatch) return careerMatch.frameNumber % 2 === 0 ? 'B' : 'A';
     return params.get('starter') === 'B' ? 'B' : 'A';
-  }, [location.search]);
+  }, [careerMatch, location.search]);
   const isOnlineMatch = mode === 'online';
   const aiOpponentEnabled = !isOnlineMatch;
   const framePlayerAName = localSeat === 'A' ? playerLabel : opponentLabel;
   const framePlayerBName = localSeat === 'A' ? opponentLabel : playerLabel;
   const initialFrame = useMemo(() => {
+    if (savedFrame?.frame && !savedFrame.frame.frameOver) return savedFrame.frame;
     const baseFrame = rules.getInitialFrame(framePlayerAName, framePlayerBName);
     const desiredStarter = starterSeat === 'B' ? 'B' : 'A';
     if (baseFrame.activePlayer === desiredStarter) return baseFrame;
     return { ...baseFrame, activePlayer: desiredStarter };
-  }, [framePlayerAName, framePlayerBName, rules, starterSeat]);
+  }, [framePlayerAName, framePlayerBName, rules, savedFrame, starterSeat]);
   const [frameState, setFrameState] = useState(initialFrame);
   useEffect(() => {
     setFrameState(initialFrame);
@@ -14346,17 +14355,8 @@ const shotPowerRef = useRef(0);
     lastShotReminderRef.current = { A: 0, B: 0 };
     setTurnCycle(0);
     setRuleToast(null);
-    setHud((prev) => ({
-      ...prev,
-      A: 0,
-      B: 0,
-      turn: 0,
-      phase: 'reds',
-      next: 'red',
-      inHand: nextInHand,
-      over: false
-    }));
-  }, [initialFrame]);
+    setHud((prev) => buildSnookerViewerHud(initialFrame, prev, localSeat));
+  }, [initialFrame, localSeat]);
   useEffect(() => {
     if (!isTraining) return;
     gameOverHandledRef.current = false;
@@ -14550,6 +14550,7 @@ const shotPowerRef = useRef(0);
   // installed its fire handler. Preserve an early mobile release rather than
   // silently sending it to a placeholder no-op.
   const fireRef = useRef(null);
+  const [shotReady, setShotReady] = useState(false);
   const pendingShotPowerRef = useRef(null);
   const sceneRef = useRef(null);
   const updateEnvironmentRef = useRef(() => {});
@@ -14721,7 +14722,7 @@ const shotPowerRef = useRef(0);
   const snookerSpotsRef = useRef(null);
   const captureBallSnapshotRef = useRef(null);
   const applyBallSnapshotRef = useRef(null);
-  const pendingLayoutRef = useRef(null);
+  const pendingLayoutRef = useRef(savedFrame?.layout ?? null);
   const audioContextRef = useRef(null);
   const audioBuffersRef = useRef({
     cue: null,
@@ -15284,6 +15285,10 @@ const shotPowerRef = useRef(0);
       return undefined;
     }
     setHud((prev) => ({ ...prev, over: true }));
+    if (onCareerFrameComplete) {
+      onCareerFrameComplete(frameState);
+      return undefined;
+    }
     const currentFrame = frameRef.current || frameState;
     const winnerSeat = (currentFrame?.winner ?? frameState.winner) === 'B' ? 'B' : 'A';
     const finalScores = {
@@ -15331,6 +15336,7 @@ const shotPowerRef = useRef(0);
   }, [
     frameState.frameOver,
     frameState.winner,
+    onCareerFrameComplete,
     goToLobby,
     handleTournamentResult,
     isTraining,
@@ -15661,7 +15667,10 @@ const shotPowerRef = useRef(0);
 
   useEffect(() => {
     const isSoloTraining = isTraining && trainingModeState === 'solo';
-    if (hud.over || isSoloTraining) return undefined;
+    if (hud.over || isSoloTraining || (careerMatch && hud.turn === 0)) {
+      setTimer(null);
+      return undefined;
+    }
     if (!aiOpponentEnabled && hud.turn === 1) {
       // In online matches, the remote player drives turn changes; skip AI countdowns.
       return undefined;
@@ -15700,7 +15709,7 @@ const shotPowerRef = useRef(0);
       });
     }, 1000);
     return () => clearInterval(timerRef.current);
-  }, [aiOpponentEnabled, commitShotClockExpiry, hud.turn, hud.over, playTurnKnock, isTraining, trainingModeState, turnCycle]);
+  }, [aiOpponentEnabled, careerMatch, commitShotClockExpiry, hud.turn, hud.over, playTurnKnock, isTraining, trainingModeState, turnCycle]);
 
   useEffect(() => {
     if (hud.over) {
@@ -16259,7 +16268,7 @@ const shotPowerRef = useRef(0);
             );
             const minutes = Math.floor(timerValue / 60);
             const seconds = timerValue % 60;
-            const timerText = `${minutes}:${seconds.toString().padStart(2, '0')}`;
+            const timerText = careerMatch ? 'NO SHOT CLOCK' : `${minutes}:${seconds.toString().padStart(2, '0')}`;
             const highestBreakA =
               frameStateCurrent.players?.A?.highestBreak ?? 0;
             const highestBreakB =
@@ -22961,6 +22970,74 @@ const shotPowerRef = useRef(0);
         return { side, vert, hasSpin };
       };
 
+      function resolveCueObstruction(
+        dirVec3,
+        pullDistance = cuePullTargetRef.current ?? 0,
+        viewCamera = null
+      ) {
+        if (!cue?.pos || !dirVec3) return 0;
+        if (viewCamera?.getWorldDirection) {
+          viewCamera.getWorldDirection(TMP_VEC3_CAM_DIR);
+          TMP_VEC3_CAM_DIR.y = 0;
+          if (TMP_VEC3_CAM_DIR.lengthSq() > 1e-8) {
+            TMP_VEC3_CAM_DIR.normalize();
+            if (TMP_VEC3_CAM_DIR.dot(dirVec3) < -0.15) {
+              return 0;
+            }
+          }
+        }
+        const backward = new THREE.Vector2(-dirVec3.x, -dirVec3.z);
+        if (backward.lengthSq() < 1e-8) return 0;
+        backward.normalize();
+        const origin = new THREE.Vector2(cue.pos.x, cue.pos.y);
+        const reach = cueLen + pullDistance + CUE_TIP_GAP;
+        const clearanceSq = CUE_OBSTRUCTION_CLEARANCE * CUE_OBSTRUCTION_CLEARANCE;
+        let strength = 0;
+        const applyRailObstruction = (railPos, axis) => {
+          const axisPos = axis === 'x' ? origin.x : origin.y;
+          const axisDir = axis === 'x' ? backward.x : backward.y;
+          let closestT = 0;
+          let distance = Math.abs(axisPos - railPos);
+          if (Math.abs(axisDir) > 1e-6) {
+            const tAtRail = (railPos - axisPos) / axisDir;
+            closestT = THREE.MathUtils.clamp(tAtRail, 0, reach);
+            const closestPos = axisPos + axisDir * closestT;
+            distance = Math.abs(closestPos - railPos);
+          }
+          if (distance > CUE_OBSTRUCTION_RAIL_CLEARANCE) return;
+          const depth = THREE.MathUtils.clamp(1 - closestT / reach, 0, 1);
+          const proximity = THREE.MathUtils.clamp(
+            1 - distance / CUE_OBSTRUCTION_RAIL_CLEARANCE,
+            0,
+            1
+          );
+          const influence = Math.max(proximity, 0.6 * proximity + 0.4 * depth);
+          strength = Math.max(strength, influence * CUE_OBSTRUCTION_RAIL_INFLUENCE);
+        };
+        applyRailObstruction(RAIL_LIMIT_X, 'x');
+        applyRailObstruction(-RAIL_LIMIT_X, 'x');
+        applyRailObstruction(RAIL_LIMIT_Y, 'y');
+        applyRailObstruction(-RAIL_LIMIT_Y, 'y');
+        balls.forEach((b) => {
+          if (!b?.active || b === cue) return;
+          const delta = b.pos.clone().sub(origin);
+          const along = delta.dot(backward);
+          if (along < 0 || along > reach) return;
+          const lateralSq = delta.lengthSq() - along * along;
+          if (lateralSq > clearanceSq) return;
+          const lateral = Math.sqrt(Math.max(lateralSq, 0));
+          const proximity = THREE.MathUtils.clamp(
+            1 - lateral / CUE_OBSTRUCTION_CLEARANCE,
+            0,
+            1
+          );
+          const depth = THREE.MathUtils.clamp(1 - along / reach, 0, 1);
+          const influence = Math.max(proximity, 0.6 * proximity + 0.4 * depth);
+          strength = Math.max(strength, influence);
+        });
+        return strength;
+      }
+
       // Fire (slider triggers on release)
       const fire = (committedPowerOverride = null) => {
         // The slider resets as soon as the release is committed. Capture the
@@ -22972,8 +23049,9 @@ const shotPowerRef = useRef(0);
           currentPower: powerRef.current,
           minPower: 0
         });
-        if (clampedPower === null || clampedPower <= 0) return;
+        if (clampedPower === null || clampedPower <= 0) return false;
         const currentHud = hudRef.current;
+        if (Number.isFinite(committedPowerOverride) && currentHud?.turn !== 0) return false;
         const frameSnapshot = frameRef.current ?? frameState;
         const fullTableHandPlacement =
           allowFullTableInHand() && Boolean(frameSnapshot?.meta?.state?.ballInHand);
@@ -22987,7 +23065,7 @@ const shotPowerRef = useRef(0);
           currentHud?.over ||
           replayPlaybackRef.current
         )
-          return;
+          return false;
         if (currentHud?.inHand && (fullTableHandPlacement || inHandPlacementActive)) {
           hudRef.current = { ...currentHud, inHand: false };
           setHud((prev) => ({ ...prev, inHand: false }));
@@ -23037,6 +23115,9 @@ const shotPowerRef = useRef(0);
         firstHit = null;
         clearInterval(timerRef.current);
         const aimDir = aimDirRef.current.clone();
+        if (careerMatch && currentHud?.turn === 1) {
+          aimDir.rotateAround(new THREE.Vector2(), careerMatch.aimError());
+        }
         const prediction = calcTarget(cue, aimDir.clone(), balls);
         const predictedTravelRaw = prediction.targetBall
           ? cue.pos.distanceTo(prediction.targetBall.pos)
@@ -23103,11 +23184,11 @@ const shotPowerRef = useRef(0);
           const isPowerShot = clampedPower >= POWER_REPLAY_THRESHOLD;
           if (isPowerShot) replayTags.add('power');
           if (spinMagnitude >= SPIN_REPLAY_THRESHOLD) replayTags.add('spin');
-          const shouldRecordReplay = true;
+          const shouldRecordReplay = !skipAllReplaysRef.current || isOnlineMatch;
           const preferZoomReplay =
             replayTags.size > 0 && !replayTags.has('long') && !replayTags.has('bank');
           const frameStateCurrent = frameRef.current ?? null;
-          const isBreakShot = (frameStateCurrent?.currentBreak ?? 0) === 0;
+          const isBreakShot = Boolean(frameStateCurrent?.meta?.breakInProgress);
           const isBreakCameraShot = Boolean(frameStateCurrent?.meta?.breakInProgress);
           const powerScale = SHOT_MIN_FACTOR + SHOT_POWER_RANGE * clampedPower;
           const speedBase = SHOT_BASE_SPEED * (isBreakShot ? SHOT_BREAK_MULTIPLIER : 1);
@@ -23443,13 +23524,13 @@ const shotPowerRef = useRef(0);
             BALL_R * 0.72,
             clampedPower
           );
-          TMP_VEC3_FOLLOW_DIR.copy(impactPos).sub(pullPos);
-          if (TMP_VEC3_FOLLOW_DIR.lengthSq() > 1e-8) {
-            TMP_VEC3_FOLLOW_DIR.normalize();
+          const followDirection = impactPos.clone().sub(pullPos);
+          if (followDirection.lengthSq() > 1e-8) {
+            followDirection.normalize();
           }
           const settlePos = impactPos
             .clone()
-            .addScaledVector(TMP_VEC3_FOLLOW_DIR, followExtra);
+            .addScaledVector(followDirection, followExtra);
           const cameraForCueVisibility =
             activeRenderCameraRef.current ?? cameraRef.current ?? camera;
           const cueBallY = cue?.pos ? CUE_Y : BALL_CENTER_Y;
@@ -23540,6 +23621,7 @@ const shotPowerRef = useRef(0);
             };
           }
           const animateStroke = (now) => {
+            if (disposed) return;
             if (!ENABLE_CUE_STROKE_ANIMATION) {
               applyCueBallImpact();
               cueStick.visible = false;
@@ -23599,6 +23681,7 @@ const shotPowerRef = useRef(0);
             requestAnimationFrame(animateStroke);
           };
           requestAnimationFrame(animateStroke);
+          return true;
         };
         let aiThinkingHandle = null;
         const planKey = (plan) =>
@@ -25268,6 +25351,7 @@ const shotPowerRef = useRef(0);
         };
 
         fireRef.current = fire;
+        setShotReady(true);
         drainQueuedSnookerShot({ fire, pendingRef: pendingShotPowerRef });
 
         const selectReplayBanner = (tag = 'default') => {
@@ -25362,7 +25446,8 @@ const shotPowerRef = useRef(0);
           contactMade: shotContextRef.current.contactMade,
           cushionAfterContact: shotContextRef.current.cushionAfterContact,
           noCushionAfterContact,
-          variant: variantId
+          variant: variantId,
+          respottedBlackStarter: Math.random() < 0.5 ? 'A' : 'B'
         };
         let safeState = currentState;
         let shotResolved = false;
@@ -25671,7 +25756,7 @@ const shotPowerRef = useRef(0);
                 };
               }
             }
-            if (cueBallPotted) {
+            if (cueBallPotted || safeState.meta?.respottedBlack && !currentState.meta?.respottedBlack) {
               cue.active = false;
               pocketDropRef.current.delete(cue.id);
               const fallback = defaultInHandPosition();
@@ -25710,6 +25795,7 @@ const shotPowerRef = useRef(0);
           console.error('Snooker Royal post-resolution update failed:', err);
         } finally {
           frameRef.current = safeState;
+          onCareerCheckpoint?.(safeState, captureBallSnapshot());
           setFrameState(safeState);
           setTurnCycle((value) => value + 1);
           setHud((prev) => ({ ...prev, inHand: nextInHand }));
@@ -25813,6 +25899,7 @@ const shotPowerRef = useRef(0);
 
   // Loop
   let lastStepTime = performance.now();
+  const physicsClock = { remainderMs: 0 };
   let lastReplayFrameAt = 0;
   let lastLiveSyncSentAt = 0;
   let lastLiveAimSentAt = 0;
@@ -25921,17 +26008,8 @@ const shotPowerRef = useRef(0);
           }
         }
         const frameTiming = frameTimingRef.current;
-        const targetFrameTime =
-          frameTiming && Number.isFinite(frameTiming.targetMs)
-            ? frameTiming.targetMs
-            : 1000 / 60;
-        const maxFrameTime =
-          frameTiming && Number.isFinite(frameTiming.maxMs)
-            ? frameTiming.maxMs
-            : targetFrameTime * FRAME_TIME_CATCH_UP_MULTIPLIER;
-        const rawDelta = Math.max(now - lastStepTime, 0);
-        const deltaMs = Math.min(rawDelta, maxFrameTime);
-        const appliedDeltaMs = deltaMs;
+        const physicsFrame = consumeSnookerPhysicsTime(physicsClock, now - lastStepTime);
+        const appliedDeltaMs = physicsFrame.elapsedMs;
         const deltaSeconds = appliedDeltaMs / 1000;
         coinTicker.update(deltaSeconds);
         dynamicTextureEntries.forEach((entry) => {
@@ -25943,17 +26021,9 @@ const shotPowerRef = useRef(0);
           entry.accumulator = 0;
           entry.update(elapsed);
         });
-        const frameScaleBase =
-          targetFrameTime > 0 ? appliedDeltaMs / targetFrameTime : 1;
-        const frameScale = Math.min(
-          MAX_FRAME_SCALE,
-          Math.max(frameScaleBase, MIN_FRAME_SCALE)
-        );
-        const physicsSubsteps = Math.min(
-          MAX_PHYSICS_SUBSTEPS,
-          Math.max(1, Math.ceil(frameScale))
-        );
-        const subStepScale = frameScale / physicsSubsteps;
+        const frameScale = 1;
+        const physicsSubsteps = physicsFrame.steps;
+        const subStepScale = physicsFrame.stepScale;
         lastStepTime = now;
         if (topViewRef.current && topViewLockedRef.current) {
           const fallbackAim = aimDirRef.current.clone();
@@ -26024,73 +26094,6 @@ const shotPowerRef = useRef(0);
           isOnlineMatch &&
           currentHud?.turn === 1 &&
           remoteAimFresh;
-        function resolveCueObstruction(
-          dirVec3,
-          pullDistance = cuePullTargetRef.current ?? 0,
-          viewCamera = null
-        ) {
-          if (!cue?.pos || !dirVec3) return 0;
-          if (viewCamera?.getWorldDirection) {
-            viewCamera.getWorldDirection(TMP_VEC3_CAM_DIR);
-            TMP_VEC3_CAM_DIR.y = 0;
-            if (TMP_VEC3_CAM_DIR.lengthSq() > 1e-8) {
-              TMP_VEC3_CAM_DIR.normalize();
-              if (TMP_VEC3_CAM_DIR.dot(dirVec3) < -0.15) {
-                return 0;
-              }
-            }
-          }
-          const backward = new THREE.Vector2(-dirVec3.x, -dirVec3.z);
-          if (backward.lengthSq() < 1e-8) return 0;
-          backward.normalize();
-          const origin = new THREE.Vector2(cue.pos.x, cue.pos.y);
-          const reach = cueLen + pullDistance + CUE_TIP_GAP;
-          const clearanceSq = CUE_OBSTRUCTION_CLEARANCE * CUE_OBSTRUCTION_CLEARANCE;
-          let strength = 0;
-          const applyRailObstruction = (railPos, axis) => {
-            const axisPos = axis === 'x' ? origin.x : origin.y;
-            const axisDir = axis === 'x' ? backward.x : backward.y;
-            let closestT = 0;
-            let distance = Math.abs(axisPos - railPos);
-            if (Math.abs(axisDir) > 1e-6) {
-              const tAtRail = (railPos - axisPos) / axisDir;
-              closestT = THREE.MathUtils.clamp(tAtRail, 0, reach);
-              const closestPos = axisPos + axisDir * closestT;
-              distance = Math.abs(closestPos - railPos);
-            }
-            if (distance > CUE_OBSTRUCTION_RAIL_CLEARANCE) return;
-            const depth = THREE.MathUtils.clamp(1 - closestT / reach, 0, 1);
-            const proximity = THREE.MathUtils.clamp(
-              1 - distance / CUE_OBSTRUCTION_RAIL_CLEARANCE,
-              0,
-              1
-            );
-            const influence = Math.max(proximity, 0.6 * proximity + 0.4 * depth);
-            strength = Math.max(strength, influence * CUE_OBSTRUCTION_RAIL_INFLUENCE);
-          };
-          applyRailObstruction(RAIL_LIMIT_X, 'x');
-          applyRailObstruction(-RAIL_LIMIT_X, 'x');
-          applyRailObstruction(RAIL_LIMIT_Y, 'y');
-          applyRailObstruction(-RAIL_LIMIT_Y, 'y');
-          balls.forEach((b) => {
-            if (!b?.active || b === cue) return;
-            const delta = b.pos.clone().sub(origin);
-            const along = delta.dot(backward);
-            if (along < 0 || along > reach) return;
-            const lateralSq = delta.lengthSq() - along * along;
-            if (lateralSq > clearanceSq) return;
-            const lateral = Math.sqrt(Math.max(lateralSq, 0));
-            const proximity = THREE.MathUtils.clamp(
-              1 - lateral / CUE_OBSTRUCTION_CLEARANCE,
-              0,
-              1
-            );
-            const depth = THREE.MathUtils.clamp(1 - along / reach, 0, 1);
-            const influence = Math.max(proximity, 0.6 * proximity + 0.4 * depth);
-            strength = Math.max(strength, influence);
-          });
-          return strength;
-        }
 
         sidePocketAimRef.current = false;
         if (canShowCue && (isPlayerTurn || previewingAiShot)) {
@@ -26784,14 +26787,14 @@ const shotPowerRef = useRef(0);
             b.pos.addScaledVector(b.vel, stepScale);
             let speed = b.vel.length();
             let scaledSpeed = speed * stepScale;
-            if (scaledSpeed < STOP_EPS) {
+            if (speed < STOP_EPS) {
               b.vel.multiplyScalar(Math.pow(STOP_SOFTENING, stepScale));
               speed = b.vel.length();
               scaledSpeed = speed * stepScale;
             }
             const hasSpinAfter =
               (b.spin?.lengthSq() ?? 0) > 1e-6 || (b.omega?.lengthSq() ?? 0) > 1e-6;
-            if (scaledSpeed < STOP_FINAL_EPS) {
+            if (speed < STOP_FINAL_EPS) {
               b.vel.set(0, 0);
               if (!hasSpinAfter && b.spin) b.spin.set(0, 0);
               if (!hasSpinAfter && b.pendingSpin) b.pendingSpin.set(0, 0);
@@ -27694,6 +27697,8 @@ const shotPowerRef = useRef(0);
       return () => {
         disposed = true;
         if (fireRef.current === fire) fireRef.current = null;
+        pendingShotPowerRef.current = null;
+        setShotReady(false);
         if (shotImpactFallbackTimer) {
           clearTimeout(shotImpactFallbackTimer);
           shotImpactFallbackTimer = null;
@@ -27710,7 +27715,7 @@ const shotPowerRef = useRef(0);
         pocketRestIndexRef.current.clear();
         captureBallSnapshotRef.current = null;
         applyBallSnapshotRef.current = null;
-        pendingLayoutRef.current = null;
+        pendingLayoutRef.current = careerMatch ? captureBallSnapshot() : null;
         captureReplayCameraSnapshotRef.current = null;
         skipReplayRef.current = () => {};
         pendingRemoteReplayRef.current = null;
@@ -27904,7 +27909,7 @@ const shotPowerRef = useRef(0);
   // NEW Big Pull Slider (right side): drag DOWN to set power, releases → fire()
   // --------------------------------------------------
   const sliderRef = useRef(null);
-  const showPowerSlider = hud.turn === 0 && !hud.over && !replayActive && !shotActive;
+  const showPowerSlider = shotReady && hud.turn === 0 && !hud.over && !hud.inHand && !replayActive && !shotActive;
   useEffect(() => {
     if (!showPowerSlider) {
       return undefined;
@@ -27932,15 +27937,17 @@ const shotPowerRef = useRef(0);
         const committedPower = clampPower(value / 100, 0);
         shotPowerRef.current = committedPower;
         powerRef.current = committedPower;
-        deliverOrQueueSnookerShot({
+        const accepted = deliverOrQueueSnookerShot({
           fire: fireRef.current,
           power: committedPower,
           pendingRef: pendingShotPowerRef
         });
+        if (!accepted) showRuleToast('Wait for the balls to settle, then pull to shoot.');
         requestAnimationFrame(() => {
           slider.set(slider.min, { animate: true });
           applyPower(0);
         });
+        return accepted;
       }
     });
     sliderInstanceRef.current = slider;
@@ -27949,7 +27956,7 @@ const shotPowerRef = useRef(0);
       sliderInstanceRef.current = null;
       slider.destroy();
     };
-  }, [applySliderLock, applyPower, captureCueStickAnchor, clampPower, showPowerSlider]);
+  }, [applySliderLock, applyPower, captureCueStickAnchor, clampPower, showPowerSlider, showRuleToast]);
   useEffect(() => {
     if (shotActive || hud.over || hud.turn !== 0) return;
     const slider = sliderInstanceRef.current;
@@ -28542,7 +28549,7 @@ const shotPowerRef = useRef(0);
   }, []);
 
   return (
-    <div className="w-full h-[100vh] bg-black text-white overflow-hidden select-none">
+    <div className="w-full h-[100dvh] bg-black text-white overflow-hidden select-none">
       {/* Canvas host now stretches full width so table reaches the slider */}
       <div ref={mountRef} className="absolute inset-0" />
 
@@ -29884,5 +29891,8 @@ const shotPowerRef = useRef(0);
 }
 
 export default function SnookerRoyal() {
-  return <SnookerRoyalGame gameTitle="Snooker Royal" />;
+  const { search } = useLocation();
+  const options = resolveSnookerLaunchOptions(search);
+  if (options.mode === 'career') return <SnookerCareerMatch Game={SnookerRoyalGame} />;
+  return <SnookerRoyalGame {...options} />;
 }
