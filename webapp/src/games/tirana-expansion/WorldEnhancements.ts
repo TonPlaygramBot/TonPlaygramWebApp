@@ -1,4 +1,6 @@
 import {RegionalPanorama} from '../tirana-region/RegionalPanorama';
+import {CityCompletionLayer} from '../tirana-city-completion/CityCompletionLayer';
+import {FacadeCompletionLayer} from '../tirana-city-completion/FacadeCompletionLayer';
 import {NeighbourhoodLayer} from '../tirana-neighbourhood/NeighbourhoodLayer';
 import * as T from 'three';
 import { InstitutionLayer } from '../tirana-city-source/InstitutionLayer';
@@ -41,8 +43,13 @@ export class WorldEnhancements extends ExistingEnhancements {
   readonly streetLife: StreetLifeLayer;
   readonly matureTrees: MatureTreeLayer;
   readonly neighbourhood: NeighbourhoodLayer;
+  readonly cityCompletion: CityCompletionLayer;
+  readonly facadeCompletion: FacadeCompletionLayer;
   constructor(options: StreetDetailOptions = {}) {
     super();
+    this.cityCompletion=new CityCompletionLayer(options);
+    this.facadeCompletion=new FacadeCompletionLayer();
+    this.group.add(this.cityCompletion.group,this.facadeCompletion.group);
     this.neighbourhood=new NeighbourhoodLayer(options);
     this.streetLife=new StreetLifeLayer(undefined,options);
     this.matureTrees=new MatureTreeLayer(undefined,options);
@@ -103,6 +110,8 @@ export class WorldEnhancements extends ExistingEnhancements {
     this.streetLife.update(seconds,viewer,battery);
     this.matureTrees.update(seconds,viewer,battery);
     this.neighbourhood.update(seconds,viewer,battery);
+    this.cityCompletion.update(seconds,viewer,battery);
+    this.facadeCompletion.update(seconds,viewer,battery);
   }
   override retire() {
     this.institutions.retire();
@@ -113,6 +122,8 @@ export class WorldEnhancements extends ExistingEnhancements {
     this.streetLife.retire();
     this.matureTrees.retire();
     this.neighbourhood.retire();
+    this.cityCompletion.retire();
+    this.facadeCompletion.retire();
     super.retire();
   }
   override dispose() {
@@ -126,6 +137,8 @@ export class WorldEnhancements extends ExistingEnhancements {
     this.streetLife.dispose();
     this.matureTrees.dispose();
     this.neighbourhood.dispose();
+    this.cityCompletion.dispose();
+    this.facadeCompletion.dispose();
     super.dispose();
   }
 }

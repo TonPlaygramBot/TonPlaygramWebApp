@@ -3,6 +3,7 @@ import {MappedBuildingCells} from './MappedBuildingCells';
 import {mergeGeometries} from 'three/examples/jsm/utils/BufferGeometryUtils.js';
 import {NEIGHBOURHOOD} from './data.mjs';
 import {HERO_IDS} from './assets.mjs';
+import {COMPLETED_BUILDING_IDS} from '../tirana-city-completion/buildingRegistry.mjs';
 import {facadeEdges} from '../tirana-city-source/sourceCore.mjs';
 
 type Cell={object:T.Object3D;x:number;z:number;detail:boolean};
@@ -22,9 +23,9 @@ export class MappedNeighbourhood {
   this.wall=new T.MeshStandardMaterial({vertexColors:true,roughness:.86});
   const glass=new T.MeshStandardMaterial({color:0x365761,roughness:.3,metalness:.3});
   this.materials.push(this.wall,glass);
-  this.buildingCells=new MappedBuildingCells(NEIGHBOURHOOD.buildings.filter(b=>!HERO_IDS.has(b.id)),this.wall,glass,agedHousing);
+  this.buildingCells=new MappedBuildingCells(NEIGHBOURHOOD.buildings.filter(b=>!HERO_IDS.has(b.id)&&!COMPLETED_BUILDING_IDS.has(b.id)),this.wall,glass,agedHousing);
   this.group.add(this.buildingCells.group);
-  for(const b of NEIGHBOURHOOD.buildings.filter(b=>HERO_IDS.has(b.id))){
+  for(const b of NEIGHBOURHOOD.buildings.filter(b=>HERO_IDS.has(b.id)||COMPLETED_BUILDING_IDS.has(b.id))){
    const fallback=this.buildingCells.build([b]);
    this.heroFallbacks.set(b.id,fallback as unknown as T.Mesh);this.group.add(fallback);
   }

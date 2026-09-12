@@ -1,0 +1,18 @@
+{
+  "models": {
+    "air_conditioner": 120,
+    "balcony_bay": 416,
+    "direction_pole": 84,
+    "entrance_bay": 164,
+    "litter_bin": 568,
+    "shrub": 180,
+    "sign_pole": 48,
+    "street_lamp": 124,
+    "traffic_signals": 176,
+    "waste_container": 300,
+    "window_bay": 120
+  },
+  "glbBytes": 179276,
+  "blenderVersion": "4.5.3 LTS",
+  "generator": "tools/blender/tirana_city_completion.py"
+}

@@ -1,0 +1,114 @@
+[
+  {
+    "id": "1115814080",
+    "file": "completion-1115814080.glb",
+    "bytes": 1168044,
+    "sha256": "ca4e63920850162b48aa2dd4f898feeb8e0540f230fbe8c0b9c6e4876c8c49f7",
+    "origin": [
+      766.9095238095238,
+      -187.05095238095237
+    ],
+    "height": 25.6,
+    "source": "https://www.openstreetmap.org/way/1115814080",
+    "triangles": 20505,
+    "accuracy": "OSM footprint and existing height; authored facade detail"
+  },
+  {
+    "id": "736721581",
+    "file": "completion-736721581.glb",
+    "bytes": 1071920,
+    "sha256": "c1dc34450dd0af2c3c02d2fe59a9dbe8b4ad8b5e921f0fd2e0545828def3921e",
+    "origin": [
+      1182.797142857143,
+      200.92
+    ],
+    "height": 32,
+    "source": "https://www.openstreetmap.org/way/736721581",
+    "triangles": 18984,
+    "accuracy": "OSM footprint and existing height; authored facade detail"
+  },
+  {
+    "id": "539189135",
+    "file": "completion-539189135.glb",
+    "bytes": 1266308,
+    "sha256": "b0c5ce639161e82b9b092c9aae3c429d3ed402327463ab07795ada55e909b8a3",
+    "origin": [
+      -891.6753333333332,
+      289.3193333333333
+    ],
+    "height": 32,
+    "source": "https://www.openstreetmap.org/way/539189135",
+    "triangles": 22144,
+    "accuracy": "OSM footprint and existing height; authored facade detail"
+  },
+  {
+    "id": "56015546",
+    "file": "completion-56015546.glb",
+    "bytes": 2744100,
+    "sha256": "64b644615f2a021b85d6cb28b74e3f29d7fe1a3749d5bb5eed253c938e71cf04",
+    "origin": [
+      -881.653,
+      986.7589999999998
+    ],
+    "height": 32,
+    "source": "https://www.openstreetmap.org/way/56015546",
+    "triangles": 45560,
+    "accuracy": "OSM footprint and existing height; authored facade detail"
+  },
+  {
+    "id": "555982512",
+    "file": "completion-555982512.glb",
+    "bytes": 3485940,
+    "sha256": "5b59b2e35f700699858ae51be847b08f0bb8e6bfa6f5fb4bba63a78fe9e62907",
+    "origin": [
+      685.6894117647059,
+      -105.76941176470588
+    ],
+    "height": 25.6,
+    "source": "https://www.openstreetmap.org/way/555982512",
+    "triangles": 61000,
+    "accuracy": "OSM footprint and existing height; authored facade detail"
+  },
+  {
+    "id": "444672041",
+    "file": "completion-444672041.glb",
+    "bytes": 1734240,
+    "sha256": "90f352390c4a853b09aea0c84905bdaa477506a9e5fc2114caa639758403ecf2",
+    "origin": [
+      1555.1299999999999,
+      275.03
+    ],
+    "height": 28.8,
+    "source": "https://www.openstreetmap.org/way/444672041",
+    "triangles": 30336,
+    "accuracy": "OSM footprint and existing height; authored facade detail"
+  },
+  {
+    "id": "1165383442",
+    "file": "completion-1165383442.glb",
+    "bytes": 3478328,
+    "sha256": "73850f5c2bc44ac56beb2949a1e280766ddcf5af9c214a13488cb8ca8d95387a",
+    "origin": [
+      1134.7044444444446,
+      1058.47
+    ],
+    "height": 32,
+    "source": "https://www.openstreetmap.org/way/1165383442",
+    "triangles": 59752,
+    "accuracy": "OSM footprint and existing height; authored facade detail"
+  },
+  {
+    "id": "449517261",
+    "file": "completion-449517261.glb",
+    "bytes": 5410276,
+    "sha256": "cd461c7e75e021ca165093d9617a2430a63eb14c7f2d7107fa9945f1b44995e9",
+    "origin": [
+      -1294.994,
+      -1297.873
+    ],
+    "height": 28.8,
+    "source": "https://www.openstreetmap.org/way/449517261",
+    "triangles": 87520,
+    "accuracy": "OSM footprint and existing height; authored facade detail"
+  }
+]

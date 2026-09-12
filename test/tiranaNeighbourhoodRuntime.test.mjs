@@ -32,7 +32,9 @@ test('actual shared layer decodes Blender GLBs, places heroes, bounds instances 
  layer.loader={loadAsync(url){const p=geometryAsset(url.split('/').at(-1).replace('.glb',''));requests.push(p);return p;}};
  layer.update(0,{x:-10000,z:-10000});assert.equal(requests.length,0);
  layer.update(1,{x:1185,z:226});await Promise.all(requests);await new Promise(resolve=>setImmediate(resolve));layer.update(2,{x:1185,z:226});
- assert.deepEqual(layer.group.userData.assetErrors,[]);assert.equal(layer.heroes.size,4);assert.ok(layer.kits.size>=1);
+ assert.deepEqual(layer.group.userData.assetErrors,[]);
+ for(const id of ['1227869701','682723386','548100908','548098442','736721581'])assert.ok(layer.heroes.has(id),`Expected decoded building ${id}`);
+ assert.equal(layer.mapped.heroFallbacks.get('736721581').visible,false);assert.ok(layer.kits.size>=1);
  const hero=layer.heroes.get('682723386'),b=n.buildings.find(b=>b.id==='682723386');
  assert.ok(Math.abs(hero.x-b.p.reduce((s,p)=>s+p[0]/b.p.length,0))<1e-6);assert.equal(layer.mapped.heroFallbacks.get(b.id).visible,false);
  let totalInstances=0,vertices=0;layer.group.traverse(o=>{if(o instanceof T.InstancedMesh){assert.ok(o.count<=48||o===layer.labels.labels);totalInstances+=o.count;}if(o instanceof T.Mesh)vertices+=o.geometry.attributes.position.count;});
