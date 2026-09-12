@@ -33,3 +33,33 @@ test('browser and backend physics adapters produce identical replays', async () 
     await pool.close();
   }
 });
+
+test('replay sound events come from impacts after release, with bounded finite energy', () => {
+  const hit = simulateRoll(
+    { shot: { aim: 0.055, hook: 0, power: 78 }, standing: ALL_PINS },
+    BowlingPhysics
+  );
+  assert.ok(hit.events.length > 0 && hit.events.length <= 80);
+  assert.ok(
+    hit.events[0].time > 1,
+    'no impact sounds from rack settling or approach'
+  );
+  assert.ok(
+    hit.events.every(
+      (e) =>
+        [e.time, e.strength, e.x, e.z].every(Number.isFinite) &&
+        e.time <= hit.durationMs / 1000 &&
+        e.strength > 0 &&
+        e.strength <= 1
+    )
+  );
+  assert.ok(
+    hit.events.every((e, i) => i === 0 || e.time >= hit.events[i - 1].time)
+  );
+  const gutter = simulateRoll(
+    { shot: { aim: 1.2, hook: 0, power: 78 }, standing: ALL_PINS },
+    BowlingPhysics
+  );
+  assert.equal(gutter.knocked, 0);
+  assert.equal(gutter.events.length, 0, 'gutter does not invent pin crashes');
+});

@@ -8,6 +8,7 @@ export type BowlerState = {
   standing: number[];
 };
 export type RollReplay = {
+  events?: { time: number; strength: number; x: number; z: number }[];
   ids: number[];
   hz: number;
   stride: number;

@@ -12,12 +12,20 @@ export function resolveGesture(
   | { kind: 'aim'; aim: number }
   | { kind: 'roll'; shot: Shot }
   | { kind: 'cancel' } {
-  if (points.length < 2 || width <= 0 || height <= 0) return { kind: 'cancel' };
+  if (
+    points.length < 2 ||
+    !Number.isFinite(aim) ||
+    ![width, height].every(Number.isFinite) ||
+    width <= 0 ||
+    height <= 0 ||
+    points.some((p) => ![p.x, p.y, p.t].every(Number.isFinite))
+  )
+    return { kind: 'cancel' };
   const first = points[0],
     last = points.at(-1)!;
   const dx = last.x - first.x,
     up = first.y - last.y;
-  if (up < Math.max(45, height * 0.075))
+  if (up < Math.max(45, height * 0.075) || up < Math.abs(dx) * 0.75)
     return Math.abs(dx) > 8
       ? { kind: 'aim', aim: clamp(aim + (dx / width) * 1.9, -1.2, 1.2) }
       : { kind: 'cancel' };
@@ -27,7 +35,23 @@ export function resolveGesture(
   const midUp = first.y - mid.y;
   const projected = midUp > 10 ? ((mid.x - first.x) * up) / midUp : dx;
   const curve = dx - projected;
-  const speed = up / Math.max(100, last.t - first.t);
+  // Use the recent release stroke, excluding time spent holding before the swipe.
+  const cutoff = last.t - 140;
+  let tail = first;
+  for (let i = 1; i < points.length; i++) {
+    const a = points[i - 1],
+      b = points[i];
+    if (b.t >= cutoff) {
+      const blend = clamp((cutoff - a.t) / Math.max(1, b.t - a.t), 0, 1);
+      tail = {
+        x: a.x + (b.x - a.x) * blend,
+        y: a.y + (b.y - a.y) * blend,
+        t: a.t + (b.t - a.t) * blend
+      };
+      break;
+    }
+  }
+  const speed = Math.max(0, tail.y - last.y) / Math.max(32, last.t - tail.t);
   return {
     kind: 'roll',
     shot: {
@@ -49,6 +73,7 @@ export class BowlingTouch {
   private fingers = new Set<number>();
   private multi = false;
   private startAt = 0;
+  private beganReady = false;
   constructor(
     private element: HTMLElement,
     private callbacks: {
@@ -78,13 +103,19 @@ export class BowlingTouch {
       this.points = [];
       return;
     }
+    this.beganReady = this.callbacks.ready();
     this.primary = e.pointerId;
     this.originAim = this.aim;
     this.startAt = performance.now();
     this.points = [{ x: e.clientX, y: e.clientY, t: this.startAt }];
   };
   private move = (e: PointerEvent) => {
-    if (this.primary !== e.pointerId || this.multi || !this.callbacks.ready())
+    if (
+      this.primary !== e.pointerId ||
+      this.multi ||
+      !this.beganReady ||
+      !this.callbacks.ready()
+    )
       return;
     this.points.push({ x: e.clientX, y: e.clientY, t: performance.now() });
     if (this.points.length > 100) this.points.splice(1, 1);
@@ -114,7 +145,7 @@ export class BowlingTouch {
     const points = this.points;
     this.primary = null;
     this.points = [];
-    if (!this.callbacks.ready()) {
+    if (!this.callbacks.ready() || !this.beganReady) {
       if (performance.now() - this.startAt < 500) this.callbacks.onTap();
       return;
     }

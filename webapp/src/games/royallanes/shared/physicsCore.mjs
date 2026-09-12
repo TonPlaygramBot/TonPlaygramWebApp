@@ -25,6 +25,8 @@ export const createBowlingPhysics = (C) =>
     gutter = false;
     elapsed = 0;
     firstImpact = false;
+    events = [];
+    contactTimes = new Map();
     shot = { aim: 0.055, hook: 0, power: 75 };
     onImpact;
     pinMaterial = new C.Material('pin');
@@ -119,10 +121,26 @@ export const createBowlingPhysics = (C) =>
             new C.Cylinder(r1, r0, top - bottom, 12),
             new C.Vec3(0, (bottom + top) / 2 - PIN_COM, 0)
           );
+        body.addEventListener('collide', ({ body: other, contact }) => {
+          if (!this.active || this.events.length >= 80) return;
+          const speed = Math.abs(contact.getImpactVelocityAlongNormal());
+          if (speed < 0.45) return;
+          const key = [body.id, other.id].sort((a, b) => a - b).join(':');
+          if (this.elapsed - (this.contactTimes.get(key) ?? -1) < 0.075) return;
+          this.contactTimes.set(key, this.elapsed);
+          this.events.push({
+            time: this.elapsed,
+            strength: Math.min(1, speed / 7),
+            x: body.position.x,
+            z: body.position.z
+          });
+        });
         this.world.addBody(body);
         this.pins.push({ id: spot.id, body, home: body.position.clone() });
       }
       this.active = false;
+      this.events = [];
+      this.contactTimes.clear();
       this.gutter = false;
       this.elapsed = 0;
       this.firstImpact = false;

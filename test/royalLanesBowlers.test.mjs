@@ -4,6 +4,7 @@ import { readFile } from 'node:fs/promises';
 import { createRequire } from 'node:module';
 import { pathToFileURL } from 'node:url';
 import ts from 'typescript';
+import { APPROACH_MS } from '../webapp/src/games/royallanes/shared/replay.mjs';
 
 const require = createRequire(new URL('../webapp/package.json', import.meta.url));
 const threeURL = new URL('../webapp/node_modules/three/build/three.module.js', import.meta.url).href;
@@ -57,10 +58,109 @@ test('the full delivery has finite grounded limbs, a low release, and independen
       const foot = local.bones.get(name).getWorldPosition(new THREE.Vector3());
       assert.ok(foot.y > -.05 && foot.y < .22, `${name} above the floor: ${foot.y}`);
     }
-    if (frame === 69) release = local.ballSocket.clone();
+    if (frame === Math.round(APPROACH_MS / 1000 * 60)) release = local.ballSocket.clone();
   }
   assert.ok(release.y > .08 && release.y < .5, `Release height ${release.y}`);
   assert.ok(release.z > -.2 && release.z < .3, `Release by the foul line ${release.z}`);
   assert.ok(opponent.bones.get('righthand').getWorldPosition(new THREE.Vector3()).distanceTo(fixedHand) < 1e-8);
   local.dispose(); opponent.dispose();
 });
+
+for (const asset of [
+  'table-tennis/athlete-male',
+  'table-tennis/athlete-female',
+  'pool-royale/readyplayer.me'
+]) {
+  test(`${asset}: repeated deliveries keep hands, feet and clothing aligned at 30/60/120 FPS`, async () => {
+    const bytes = await readFile(
+      new URL(`../webapp/public/assets/${asset}.glb`, import.meta.url)
+    );
+    const { scene } = await loader.parseAsync(
+      bytes.buffer.slice(bytes.byteOffset, bytes.byteOffset + bytes.byteLength),
+      ''
+    );
+    for (const fps of [30, 60, 120]) {
+      const bowler = new HumanBowler(scene, 0xffffff, false);
+      for (let cycle = 0; cycle < 3; cycle++) {
+        bowler.pose({
+          active: true,
+          rolling: false,
+          elapsed: 0,
+          dt: 10,
+          watching: false,
+          time: 0
+        });
+        for (let frame = 0; frame <= fps * 7; frame++) {
+          const elapsed = frame / fps;
+          bowler.pose({
+            active: true,
+            rolling: true,
+            elapsed,
+            dt: 1 / fps,
+            watching: false,
+            time: elapsed * 1000,
+            reaction: 'strike',
+            reactionElapsed: elapsed - 5
+          });
+          for (const b of bowler.bones.values())
+            assert.ok(
+              b.matrixWorld.elements.every(Number.isFinite),
+              `${asset}/${b.name}`
+            );
+          for (const side of ['left', 'right']) {
+            const foot = bowler.bones
+              .get(`${side}foot`)
+              .getWorldPosition(new THREE.Vector3());
+            assert.ok(
+              foot.y > -0.02 && foot.y < 0.23,
+              `${asset} ${fps} ${elapsed} ${side} foot ${foot.y}`
+            );
+          }
+          if (frame === Math.round((APPROACH_MS / 1000) * fps)) {
+            const launch = new THREE.Vector3(0, 0.1105, -0.04);
+            assert.ok(
+              bowler.bones.get('hips').getWorldPosition(new THREE.Vector3()).y >
+                0.48,
+              'release is a forward bend, not a deep squat'
+            );
+            assert.ok(
+              bowler.ballSocket.distanceTo(launch) < 0.01,
+              `${asset} launch gap ${bowler.ballSocket.distanceTo(launch)} ${bowler.ballSocket.toArray()}`
+            );
+          }
+        }
+        for (const { bone, source } of bowler.followers) {
+          assert.ok(
+            bone
+              .getWorldQuaternion(new THREE.Quaternion())
+              .normalize()
+              .angleTo(
+                source.getWorldQuaternion(new THREE.Quaternion()).normalize()
+              ) < 1e-5,
+            `${asset}: clothing rotation ${bone.name}`
+          );
+          assert.ok(
+            bone
+              .getWorldPosition(new THREE.Vector3())
+              .distanceTo(source.getWorldPosition(new THREE.Vector3())) < 0.01,
+            `${asset}: clothing position ${bone.name}`
+          );
+        }
+        for (let frame = 0; frame < fps * 3; frame++)
+          bowler.pose({
+            active: false,
+            rolling: false,
+            elapsed: 0,
+            dt: 1 / fps,
+            watching: true,
+            time: (frame / fps) * 1000
+          });
+        assert.ok(
+          bowler.root.position.x > 1.1,
+          'returns out of the active lane'
+        );
+      }
+      bowler.dispose();
+    }
+  });
+}

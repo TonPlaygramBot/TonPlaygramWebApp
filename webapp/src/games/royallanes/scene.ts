@@ -5,6 +5,7 @@ import { RoomEnvironment } from 'three/addons/environments/RoomEnvironment.js';
 import { Reflector } from 'three/addons/objects/Reflector.js';
 import { PIN_COM, pinSpots } from './shared/physicsCore.mjs';
 import { HumanBowler } from './bowlers';
+import { BackgroundLanes } from './backgroundLanes';
 import type { MatchView, Shot } from './types';
 import { BowlingAudio } from './audio';
 export class BowlingScene {
@@ -38,16 +39,18 @@ export class BowlingScene {
   private last = 0;
   private observer: ResizeObserver;
   private aim = 0.055;
-  private hook = 0;
+  private background: BackgroundLanes | null = null;
+  private humanVariants: T.Object3D[] = [];
+  private backgroundClock = 0;
+  private replayTime = -1;
+  private stepIndex = -1;
   private raf = 0;
   private reflection: Reflector | null = null;
   private environmentTarget: T.WebGLRenderTarget | null = null;
   private slowFrames = 0;
   private cameraLook = new T.Vector3(0, 0.1, -16);
   private lastRollSound = -1;
-  private lastPinSound = 0;
-  private impactRoll = -1;
-  private releaseOrigin = new T.Vector3();
+
   private temp = new T.Vector3();
   private qa = new T.Quaternion();
   private qb = new T.Quaternion();
@@ -132,11 +135,16 @@ export class BowlingScene {
       'webglcontextlost',
       this.contextLost
     );
+    document.addEventListener('visibilitychange', this.visibility);
     this.raf = requestAnimationFrame(this.tick);
   }
+  private visibility = () => {
+    this.audio.setPaused(document.hidden || this.paused);
+    this.last = 0;
+  };
   private contextLost = (event: Event) => {
     event.preventDefault();
-    this.paused = true;
+    this.setPaused(true);
     this.onError(
       'Graphics were interrupted. Tap the lane to reload and reconnect.'
     );
@@ -149,20 +157,36 @@ export class BowlingScene {
     const gltf = new GLTFLoader(manager);
     const textures = new T.TextureLoader(manager);
     try {
-      const [alley, pin, ball, pinLod, human, wood, normal, rough] =
-        await Promise.all([
-          gltf.loadAsync('/assets/royal-lanes/models/royal-alley.glb'),
-          gltf.loadAsync('/assets/royal-lanes/models/tournament-pin.glb'),
-          gltf.loadAsync('/assets/royal-lanes/models/pearl-ball.glb'),
-          gltf.loadAsync('/assets/royal-lanes/models/distant-pin.glb'),
-          gltf.loadAsync('/assets/pool-royale/readyplayer.me.glb'),
-          textures.loadAsync('/assets/royal-lanes/textures/maple-color.jpg'),
-          textures.loadAsync('/assets/royal-lanes/textures/maple-normal.jpg'),
-          textures.loadAsync('/assets/royal-lanes/textures/maple-roughness.jpg')
-        ]);
+      const [
+        alley,
+        pin,
+        ball,
+        pinLod,
+        human,
+        wood,
+        normal,
+        rough,
+        male,
+        female
+      ] = await Promise.all([
+        gltf.loadAsync('/assets/royal-lanes/models/royal-alley.glb'),
+        gltf.loadAsync('/assets/royal-lanes/models/tournament-pin.glb'),
+        gltf.loadAsync('/assets/royal-lanes/models/pearl-ball.glb'),
+        gltf.loadAsync('/assets/royal-lanes/models/distant-pin.glb'),
+        gltf.loadAsync('/assets/pool-royale/readyplayer.me.glb'),
+        textures.loadAsync('/assets/royal-lanes/textures/maple-color.jpg'),
+        textures.loadAsync('/assets/royal-lanes/textures/maple-normal.jpg'),
+        textures.loadAsync('/assets/royal-lanes/textures/maple-roughness.jpg'),
+        gltf
+          .loadAsync('/assets/table-tennis/athlete-male.glb')
+          .catch(() => null),
+        gltf
+          .loadAsync('/assets/table-tennis/athlete-female.glb')
+          .catch(() => null)
+      ]);
       if (this.disposed) {
-        for (const g of [alley, pin, ball, pinLod, human])
-          this.disposeObject(g.scene);
+        for (const g of [alley, pin, ball, pinLod, human, male, female])
+          if (g) this.disposeObject(g.scene);
         for (const t of [wood, normal, rough]) t.dispose();
         return;
       }
@@ -217,10 +241,10 @@ export class BowlingScene {
       pinLod.scene.updateMatrixWorld(true);
       pinLod.scene.traverse((part) => {
         if (!(part instanceof T.Mesh)) return;
-        const instances = new T.InstancedMesh(part.geometry, part.material, 40);
+        const instances = new T.InstancedMesh(part.geometry, part.material, 20);
         let i = 0;
         const matrix = new T.Matrix4();
-        for (const lane of [-2, -1, 1, 2])
+        for (const lane of [-2, 2])
           for (const spot of pinSpots()) {
             matrix
               .makeTranslation(spot.x + lane * 2.45, 0, spot.z)
@@ -284,6 +308,18 @@ export class BowlingScene {
       this.scene.add(reflector);
       this.reflection = reflector;
       this.humanPrototype = human.scene;
+      this.humanVariants = [
+        human.scene,
+        female?.scene || human.scene,
+        male?.scene || human.scene
+      ];
+      this.background = new BackgroundLanes(
+        [male?.scene || human.scene, female?.scene || human.scene],
+        this.ball,
+        pinLod.scene,
+        this.audio
+      );
+      this.scene.add(this.background.group);
       this.ready = true;
       this.onProgress(100);
       this.setAim(this.aim);
@@ -438,7 +474,9 @@ export class BowlingScene {
     if (this.humanPrototype && !this.bowlers.size) {
       for (const [index, p] of view.players.entries()) {
         const b = new HumanBowler(
-          this.humanPrototype,
+          p.id === localId
+            ? this.humanPrototype
+            : this.humanVariants[1] || this.humanPrototype,
           index === 0 ? 0xb4d5be : 0xe3bdad,
           p.id === localId
         );
@@ -477,6 +515,7 @@ export class BowlingScene {
   }
   setPaused(value: boolean) {
     this.paused = value;
+    this.audio.setPaused(value || document.hidden);
     this.last = 0;
   }
   private resetPins(ids: number[]) {
@@ -541,7 +580,26 @@ export class BowlingScene {
           elapsed: Math.max(0, approachElapsed),
           dt,
           watching: id !== view.activeId,
-          time
+          time,
+          releaseSeconds: rolling
+            ? (view.roll!.releaseAt - view.roll!.startsAt) / 1000
+            : undefined,
+          reaction:
+            view.lastResult?.actorId === id
+              ? view.lastResult.title.startsWith('Strike')
+                ? 'strike'
+                : view.lastResult.title.startsWith('Spare')
+                  ? 'spare'
+                  : view.lastResult.gutter
+                    ? 'miss'
+                    : 'neutral'
+              : 'neutral',
+          reactionElapsed:
+            rolling &&
+            view.lastResult?.actorId === id &&
+            view.phase !== 'rolling'
+              ? (time - view.roll!.endsAt) / 1000
+              : -1
         });
       const local = this.bowlers.get(this.localId),
         active = this.bowlers.get(rolling ? view.roll!.actorId : view.activeId);
@@ -554,15 +612,30 @@ export class BowlingScene {
         );
         this.camera.lookAt(this.cameraLook);
       }
+      this.backgroundClock += dt * 1000;
+      this.background?.update(dt, this.backgroundClock, this.camera.position);
       this.ball.visible = !!active;
       if (rolling) {
         const roll = view.roll!,
           replay = roll.replay,
           elapsed = (time - roll.releaseAt) / 1000;
+        if (this.lastRollSound !== roll.id) {
+          this.lastRollSound = roll.id;
+          this.replayTime = -1;
+          this.stepIndex = -1;
+        }
         if (elapsed < 0 && active) {
           this.ball.position.copy(active.ballSocket);
           this.ball.rotation.set(0.2, -0.2, 0);
-          this.releaseOrigin.copy(this.ball.position);
+          const step = Math.floor(
+            (Math.max(0, approachElapsed) /
+              ((roll.releaseAt - roll.startsAt) / 1000)) *
+              4
+          );
+          if (step !== this.stepIndex && step < 4) {
+            this.audio.step(0, 0.5);
+            this.stepIndex = step;
+          }
         } else {
           const index = Math.max(
               0,
@@ -572,41 +645,44 @@ export class BowlingScene {
             a = replay.frames[i],
             b = replay.frames[Math.min(i + 1, replay.frames.length - 1)];
           this.applyBody(this.ball, a, b, 0, index - i);
-          if (elapsed < 0.18)
-            this.ball.position.lerpVectors(
-              this.releaseOrigin,
-              this.ball.position,
-              T.MathUtils.smoothstep(elapsed, 0, 0.18)
-            );
           for (const [id, mesh] of this.pinMeshes) {
             const idx = replay.ids.indexOf(id);
             mesh.visible = idx >= 0;
             if (idx >= 0)
               this.applyBody(mesh, a, b, (idx + 1) * 7, index - i, true);
           }
-          if (this.lastRollSound !== roll.id) {
-            this.lastRollSound = roll.id;
-            if (elapsed < 0.3) this.audio.roll();
+          const pan = T.MathUtils.clamp(
+            (this.ball.position.x - this.camera.position.x) / 4,
+            -1,
+            1
+          );
+          const distance = this.camera.position.distanceTo(this.ball.position);
+          if (this.replayTime < 0 && elapsed < 0.2) this.audio.release(pan);
+          for (const event of replay.events || []) {
+            if (
+              event.time > this.replayTime &&
+              event.time <= elapsed &&
+              elapsed - event.time < 0.15
+            )
+              this.audio.impact(
+                event.strength / (1 + distance * 0.035),
+                T.MathUtils.clamp((event.x - this.camera.position.x) / 4, -1, 1)
+              );
           }
-          if (this.ball.position.z < -18 && this.impactRoll !== roll.id) {
-            this.impactRoll = roll.id;
-            if (!replay.gutter && replay.knocked) this.audio.impact(1);
-          }
-          if (
-            !replay.gutter &&
-            replay.knocked &&
-            this.ball.position.z < -18 &&
-            elapsed < 3.5 &&
-            now - this.lastPinSound > 220
-          ) {
-            this.audio.impact(0.22);
-            this.lastPinSound = now;
-          }
+          const speed = Math.hypot(b[0] - a[0], b[2] - a[2]) * replay.hz;
+          this.audio.rolling(
+            'main',
+            speed,
+            distance,
+            pan,
+            view.phase === 'rolling' && this.ball.position.z > -20.4
+          );
+          this.replayTime = elapsed;
         }
       } else if (active) {
         this.ball.position.copy(active.ballSocket);
         this.ball.rotation.set(0.2, -0.2, Math.sin(now * 0.0005) * 0.025);
-        this.releaseOrigin.copy(this.ball.position);
+        this.audio.rolling('main', 0, 0, 0, false);
       }
     }
     this.renderer.render(this.scene, this.camera);
@@ -638,10 +714,15 @@ export class BowlingScene {
       'webglcontextlost',
       this.contextLost
     );
+    document.removeEventListener('visibilitychange', this.visibility);
+    this.background?.dispose();
+    for (const bowler of this.bowlers.values()) bowler.dispose();
     this.audio.dispose();
     this.reflection?.getRenderTarget().dispose();
     this.environmentTarget?.dispose();
     this.disposeObject(this.scene);
+    for (const prototype of new Set(this.humanVariants))
+      this.disposeObject(prototype);
     this.aimLine.geometry.dispose();
     (this.aimLine.material as T.Material).dispose();
     this.renderer.dispose();
