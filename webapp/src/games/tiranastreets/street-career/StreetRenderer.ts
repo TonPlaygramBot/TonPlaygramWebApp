@@ -66,13 +66,23 @@ export class StreetRenderer extends CityRenderer {
       const eye = driverEye(car);
       this.camera.position.set(eye.x, eye.y, eye.z);
     } else {
-      const bob = b.grounded
-        ? Math.sin(b.gait * 2) * 0.012 * this.settings.headBob
-        : 0;
-      this.camera.position.set(p.x, b.y + b.eye + bob, p.z);
+      const target = new T.Vector3(p.x,b.y+(b.crouched?.65:1.0),p.z);
+      const pitch = T.MathUtils.clamp(this.pitch,-.45,.85);
+      const direction = direction3(this.yaw,pitch);
+      // Metre-scale chase distance keeps head and feet in portrait framing.
+      const distance = b.aim ? 2.8 : 4.6;
+      const desired = new T.Vector3(-direction.x,-direction.y+.22,-direction.z).normalize();
+      if(b.aim)desired.addScaledVector(new T.Vector3(Math.cos(this.yaw),0,-Math.sin(this.yaw)),.65/distance).normalize();
+      const origin={x:target.x,y:target.y,z:target.z};
+      const ray={x:desired.x,y:desired.y,z:desired.z};
+      const hit=sim.world.cast(origin,ray,distance,sim.cars());
+      const safe=Math.max(.3,Math.min(distance,hit.distance-.22));
+      this.camera.position.copy(target).addScaledVector(desired,safe);
+      this.camera.position.y=Math.max(b.y+.24,this.camera.position.y);
+      if(b.aim){const aim=direction3(this.yaw,this.pitch);this.camera.lookAt(p.x+aim.x*25,b.y+b.eye+aim.y*25,p.z+aim.z*25);}else this.camera.lookAt(target);
     }
     const d = direction3(this.yaw, this.pitch);
-    this.camera.lookAt(
+    if(car)this.camera.lookAt(
       this.camera.position.x + d.x,
       this.camera.position.y + d.y,
       this.camera.position.z + d.z
@@ -187,7 +197,7 @@ export class StreetRenderer extends CityRenderer {
         : [];
     super.render(
       state
-        ? { ...state, npcs: visible.filter((n) => !this.humans.has(n.id)) }
+        ? { ...state, npcs: visible.filter((n) => forceCharacterFor(n)) }
         : null,
       id,
       dt,

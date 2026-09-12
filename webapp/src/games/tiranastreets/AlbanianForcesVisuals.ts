@@ -20,8 +20,8 @@ type Actor = {
   gaitSpeed?:number;
 };
 
-/** Near-field visuals only. The existing actors remain the distant/loading
- * fallback. No asset download blocks starting or simulating the game. */
+/** Prefetch final models outside their visible range. Generic role models are
+ * used only after a recorded load failure, never while a final model is pending. */
 export class AlbanianForcesVisuals {
   readonly group = new T.Group();
   readonly errors = new Map<string, string>();
@@ -32,8 +32,14 @@ export class AlbanianForcesVisuals {
   private desired = new Map<string, ForceAsset>();
   private dead = false;
   private frame = 0;
+  private waiters: (()=>void)[]=[];
+  whenIdle(){return this.pending.size?new Promise<void>(resolve=>this.waiters.push(resolve)):Promise.resolve();}
+  private settleWaiters(){if(!this.pending.size)for(const resolve of this.waiters.splice(0))resolve();}
+
   constructor() { this.group.name = 'Tirana:Albanian-Forces'; }
 
+  ownsVehicle(car: ForceCar) {const a=forceVehicleFor(car);return !!a&&!this.errors.has(a.id);}
+  ownsPerson(npc: ForceNPC) {const a=forceCharacterFor(npc);return !!a&&!this.errors.has(a.id);}
   has(key: string) { return this.actors.has(key); }
   getRoot(key: string) { return this.actors.get(key)?.root; }
 
@@ -70,7 +76,7 @@ export class AlbanianForcesVisuals {
     } finally {
       clearTimeout(timer);
       this.pending.delete(asset.id);
-      this.pump();
+      this.pump();this.settleWaiters();
     }
   }
 
@@ -112,7 +118,7 @@ export class AlbanianForcesVisuals {
     const vehicles: Candidate[] = [];
     for (const car of [...state.cars, ...state.traffic, ...state.units]) {
       const asset = forceVehicleFor(car), d = distance(car);
-      if (asset && d < (battery ? 32 : 65)) vehicles.push({
+      if (asset && d < (battery ? 180 : 350)) vehicles.push({
         key: car.id, asset, entity: car, distance: d,
         flashing: state.units.includes(car) || !!car.responding,
       });
@@ -120,23 +126,25 @@ export class AlbanianForcesVisuals {
     const people: Candidate[] = [];
     for (const npc of state.npcs) {
       const asset = forceCharacterFor(npc), d = distance(npc);
-      if (asset && (npc.motion !== 'drive' || npc.anim === 'ride') && d < (battery ? 24 : 45)) people.push({
+      if (asset && (npc.motion !== 'drive' || npc.anim === 'ride') && d < (battery ? 100 : 220)) people.push({
         key: `npc-${npc.id}`, asset, entity: npc, distance: d, flashing: false,
       });
     }
     const nearest = (a: Candidate, b: Candidate) => a.distance - b.distance || a.key.localeCompare(b.key);
-    const cap = battery ? 2 : 3;
-    const selected = [...vehicles.sort(nearest).slice(0, cap), ...people.sort(nearest).slice(0, battery ? 4 : 8)];
+    const cap = battery ? 5 : 12;
+    const selected = [...vehicles.sort(nearest).slice(0, cap), ...people.sort(nearest).slice(0, battery ? 8 : 16)];
     const keep = new Set(selected.map(c => c.key));
     for (const key of this.actors.keys()) if (!keep.has(key)) this.remove(key);
     this.desired = new Map(selected.map(c => [c.asset.id, c.asset]));
     for (const c of selected) {
+      if(c.distance>(c.asset.category==='person'?(battery?85:180):(battery?140:260))){const old=this.actors.get(c.key);if(old)old.root.visible=false;continue;}
       const source = this.sources.get(c.asset.id);
       if (!source) continue;
       source.used = this.frame;
       let actor = this.actors.get(c.key);
       if (actor && actor.asset.id !== c.asset.id) { this.remove(c.key); actor = undefined; }
       actor ||= this.create(c.key, c.asset, source);
+      actor.root.visible=true;
       const e = c.entity, person = c.asset.category === 'person';
       const first = !actor.root.userData.placed;
       const oldX=actor.root.position.x,oldZ=actor.root.position.z;
@@ -201,6 +209,7 @@ export class AlbanianForcesVisuals {
     for (const key of this.actors.keys()) this.remove(key);
     for (const source of this.sources.values()) disposeWeaponResources([source.frame]);
     this.sources.clear(); this.desired.clear(); this.errors.clear();
+    for(const resolve of this.waiters.splice(0))resolve();
     this.group.removeFromParent();
   }
 }

@@ -16,7 +16,7 @@ export class AgedHousingLayer {
   constructor(private buildings=AGED_HOUSING,loadTextures=true){
     this.group.name='Tirana:aged-apartment-details';
     this.group.userData={buildings:buildings.length,classification:'Date-tagged or explicitly estimated typology',assetErrors:[]};
-    const plaster=new T.MeshStandardMaterial({color:0xcfc3a9,roughness:.96});
+    const plaster=new T.MeshStandardMaterial({color:0xffffff,roughness:.96,vertexColors:true});
     // Analytic chipped-plaster / exposed-brick finish layered over the existing
     // CC0 plaster map. This is an authored material, never a site photograph.
     plaster.onBeforeCompile=shader=>{
@@ -26,11 +26,15 @@ export class AgedHousingLayer {
         vec2 bf=fract(brickUV);float mortar=1.0-smoothstep(.025,.075,min(bf.x,bf.y));
         vec3 brick=mix(vec3(.39,.19,.11)*(0.8+0.3*housingHash(floor(brickUV))),vec3(.53,.49,.40),mortar);
         float wear=housingNoise(housingUV*2.3)+.25*housingNoise(housingUV*13.0);
-        float exposed=smoothstep(.62,.70,wear);
+        float exposed=smoothstep(.78,.88,wear);
+        vec2 panel=floor(housingUV*vec2(1.0,1.25));float repair=housingHash(panel);
+        vec3 patch=repair>.78?vec3(.77,.73,.65):repair>.64?vec3(.94,.86,.72):vec3(1.);
+        float streak=pow(max(0.,sin(housingUV.x*14.)),18.)*smoothstep(.12,.8,fract(housingUV.y*1.25))*.13;
+        diffuseColor.rgb*=patch*(1.-streak);
         diffuseColor.rgb=mix(diffuseColor.rgb*(.76+.24*housingNoise(housingUV*8.0)),brick,exposed);
       `);
     };
-    plaster.customProgramCacheKey=()=> 'tirana-aged-plaster-v1';
+    plaster.customProgramCacheKey=()=> 'tirana-aged-plaster-v2';
     this.materials=[plaster,new T.MeshStandardMaterial({color:0xe0dacc,roughness:.88}),new T.MeshStandardMaterial({color:0x314851,roughness:.35,metalness:.15}),new T.MeshStandardMaterial({color:0x9ba2a0,roughness:.55,metalness:.55}),new T.MeshStandardMaterial({color:0x292d2c,roughness:.83})];
     this.materials[2].userData.environmentWindow=true;
     if(loadTextures)for(const [file,key] of [['plastered_wall_02-diff.jpg','map'],['plastered_wall_02-nor_gl.jpg','normalMap']] as const){
@@ -47,15 +51,20 @@ export class AgedHousingLayer {
     const add=(m:number,g:T.BufferGeometry)=>{if(g.index){const old=g;g=g.toNonIndexed();old.dispose();}parts[m].push(g);};
     const box=(m:number,x:number,y:number,z:number,w:number,h:number,d:number,yaw=0)=>add(m,new T.BoxGeometry(w,h,d).rotateY(yaw).translate(x,y,z));
     const seed=housingSeed(b.id);
+    // Photo-informed faded ochre, cream, rose and grey. Exact facade colours
+    // remain estimated unless the mapped building supplies a colour tag.
+    const palette=[0xc5b69e,0xd3c7af,0xc5b5a9,0xbcb8aa,0xd8c3ad,0xd0bbb0];
+    const tint=new T.Color(b.tags?.['building:colour']||palette[seed%palette.length]);
     for(const [edgeIndex,e] of facadeEdges(b.p).entries()){
       const yaw=Math.atan2(e.nx,e.nz);
       const wall=(m:number,u:number,y:number,w:number,h:number,d:number,offset:number)=>box(m,e.a[0]+e.ux*u+e.nx*offset,y,e.a[1]+e.uz*u+e.nz*offset,w,h,d,yaw);
       const g=new T.PlaneGeometry(e.length,b.h).rotateY(yaw).translate(e.a[0]+e.ux*e.length/2+e.nx*.045,b.h/2,e.a[1]+e.uz*e.length/2+e.nz*.045);
-      const uv=g.getAttribute('uv');for(let i=0;i<uv.count;i++)uv.setXY(i,uv.getX(i)*e.length/4,uv.getY(i)*b.h/4);add(0,g);
+      const uv=g.getAttribute('uv');for(let i=0;i<uv.count;i++)uv.setXY(i,uv.getX(i)*e.length/4+seed%29,uv.getY(i)*b.h/4);
+      const colors=new Float32Array(g.getAttribute('position').count*3);for(let i=0;i<colors.length;i+=3){colors[i]=tint.r;colors[i+1]=tint.g;colors[i+2]=tint.b;}g.setAttribute('color',new T.BufferAttribute(colors,3));add(0,g);
       wall(1,e.length/2,b.h+.12,e.length,.24,.3,.06);
       if(e.length<3)continue;
       const columns=Math.floor(e.length/3.4),pitch=e.length/columns;
-      for(let row=1,y=3.2;y<b.h-1;row++,y+=3.2)for(let j=0;j<columns;j++){
+      for(let row=0,y=1.85;y<b.h-1;row++,y+=3.2)for(let j=0;j<columns;j++){
         const u=(j+.5)*pitch,w=Math.min(1.3,pitch-.7);
         wall(1,u,y,w+.22,1.8,.09,.10);wall(2,u,y,w,1.56,.05,.18);
         wall(1,u,y,.065,1.56,.05,.23);wall(1,u,y-.91,w+.42,.12,.42,.22);
@@ -69,8 +78,10 @@ export class AgedHousingLayer {
           for(const dy of [-.1,0,.1])wall(3,acU,acY+dy,.62,.022,.02,.51);
           wall(3,acU,acY-.3,.62,.045,.45,.28);group.userData.airConditioners++;
         }
-        if(j%3===1&&row%2===1){
-          wall(1,u,y-1.1,w+.65,.13,1,.53);wall(4,u,y-.56,w+.65,.05,.06,1);
+        if(j%3===1&&row>0){
+          wall(1,u,y-1.1,w+.65,.13,1,.53);
+          if((seed+j+row)%3===0){wall(2,u,y-.16,w+.55,1.72,.035,1.015);for(const k of [-1,0,1])wall(1,u+k*(w+.55)/3,y-.16,.045,1.72,.06,1.05);}
+          else if((seed+row)%4===0){wall(1,u,y+.78,w+.65,.08,1.05,.55);}wall(4,u,y-.56,w+.65,.05,.06,1);
           for(let rail=-2;rail<=2;rail++)wall(4,u+rail*.3,y-.8,.035,.5,.04,1);
         }
       }
@@ -87,11 +98,12 @@ export class AgedHousingLayer {
     return group;
   }
   update(seconds:number,viewer?:{x:number;z:number},battery=false){
-    if(this.dead||!viewer||seconds-this.last<.25)return;this.last=seconds;
+    if(this.dead||!viewer||seconds>=this.last&&seconds-this.last<.08)return;this.last=seconds;
     const radius=battery?150:260,limit=battery?12:24;
     const near=this.buildings.map(b=>({b,d:Math.hypot(b.x-viewer.x,b.z-viewer.z)})).filter(v=>v.d<radius).sort((a,b)=>a.d-b.d).slice(0,limit);
     const active=new Set(near.map(v=>String(v.b.id)));this.cache.forEach(g=>g.visible=false);
-    for(const {b} of near){let g=this.cache.get(String(b.id));if(!g){g=this.build(b);this.cache.set(String(b.id),g);this.group.add(g);}g.visible=true;}
+    let built=0;
+    for(const {b} of near){let g=this.cache.get(String(b.id));if(!g){if(built++>=1)continue;g=this.build(b);this.cache.set(String(b.id),g);this.group.add(g);}g.visible=true;}
     for(const [id,g] of this.cache){if(this.cache.size<=36)break;if(active.has(id))continue;this.disposeGeometry(g);this.cache.delete(id);}
   }
   private disposeGeometry(g:T.Group){g.traverse(o=>{if(o instanceof T.Mesh)o.geometry.dispose();});g.removeFromParent();}

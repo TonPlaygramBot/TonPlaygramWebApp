@@ -1,0 +1,1 @@
+export const LIVING_REVIEW:{views:{name:string;x:number;z:number;distance:number;height:number;yaw:number}[];agent:{positions:number[];color:number}[];knife:{positions:number[];uv:number[];texture:string}};
