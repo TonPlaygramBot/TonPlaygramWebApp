@@ -1,4 +1,5 @@
 import * as T from 'three';
+import {CHANNEL_RINGS} from './riverGeometry';
 import polygonClipping from 'polygon-clipping';
 import {GLTFLoader} from 'three/examples/jsm/loaders/GLTFLoader.js';
 import {insideRing,seededParkPoints,roadCorridor,PAVING_REFERENCES} from './surfaceCore.mjs';
@@ -14,7 +15,7 @@ export class GroundDetailLayer {
     this.group.name='Tirana:mapped-park-ground-and-stone-paving';this.group.userData={references:PAVING_REFERENCES,accuracy:'Existing OSM area boundaries; authored textures and vegetation infill'};
     const closed=(ring:number[][])=>[...ring,...(ring.length&&ring[0].join(',')!==ring.at(-1)!.join(',')?[ring[0]]:[])];
     const waterCuts=(world.water||[]).flatMap((w:any)=>Array.isArray(w)?[w]:(w.line||[]).slice(1).map((b:number[],i:number)=>roadCorridor({a:w.line[i],b,w:w.width},.5)).filter(Boolean));
-    const cuts=[...waterCuts,...(world.areas||[]),...(world.buildings||[]).map((b:any)=>b.p),...(world.roads||[]).map((r:any)=>roadCorridor(r,r.walk?.2:2.5)).filter(Boolean)].map((p:number[][])=>[closed(p)]);
+    const cuts=[...CHANNEL_RINGS,...waterCuts,...(world.areas||[]),...(world.buildings||[]).map((b:any)=>b.p),...(world.roads||[]).map((r:any)=>roadCorridor(r,r.walk?.2:2.5)).filter(Boolean)].map((p:number[][])=>[closed(p)]);
     let parks:Polygon[]=[];
     try{for(const p of world.parks||[]){if(p.length<3)continue;const box=[Math.min(...p.map((v:number[])=>v[0])),Math.min(...p.map((v:number[])=>v[1])),Math.max(...p.map((v:number[])=>v[0])),Math.max(...p.map((v:number[])=>v[1]))];const nearby=cuts.filter((poly:number[][][])=>Math.max(...poly[0].map(v=>v[0]))>=box[0]&&Math.min(...poly[0].map(v=>v[0]))<=box[2]&&Math.max(...poly[0].map(v=>v[1]))>=box[1]&&Math.min(...poly[0].map(v=>v[1]))<=box[3]);const result=nearby.length?polygonClipping.difference([closed(p)] as any,...nearby as any):[[closed(p)]];parks.push(...result as Polygon[]);}}
     catch(e){errors.push(`Park clipping failed: ${String(e)}`);parks=[];}

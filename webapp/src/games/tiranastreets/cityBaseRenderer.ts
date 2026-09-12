@@ -1,3 +1,7 @@
+import {LandscapeVisuals} from './landscapeVisuals';
+import {CinematicAtmosphere} from '../tirana-environment/CinematicAtmosphere';
+import {EnvironmentMaterials} from '../tirana-environment/EnvironmentMaterials';
+import {cutChannels,surfaceGeometry} from '../tirana-environment/riverGeometry';
 import {createWebGLRenderer} from './createWebGLRenderer';
 import {CollectionVehicleVisuals} from './CollectionVehicleVisuals';
 import {UrbanRoadCells} from '../tirana-neighbourhood/UrbanRoadCells';
@@ -59,6 +63,9 @@ export class CityRenderer {
   quality: "auto" | "high" | "battery" = "auto";
   ready = false;
   disposed = false;
+  readonly landscape: LandscapeVisuals;
+  readonly atmosphere: CinematicAtmosphere;
+  private surfaceMaterials=new EnvironmentMaterials();
   private root: HTMLDivElement;
   private clock = 0;
   private sampleTime = 0;
@@ -118,13 +125,9 @@ export class CityRenderer {
     this.sunlight.shadow.bias = -0.0007;
     this.sunlight.shadow.normalBias = 0.08;
     this.scene.add(this.sunlight, this.sunlight.target);
-    const ground = new THREE.Mesh(
-      new THREE.PlaneGeometry(3800, 3800),
-      new THREE.MeshStandardMaterial({ color: 0xaeb5a1, roughness: 1 }),
-    );
-    ground.rotation.x = -Math.PI / 2;
-    ground.receiveShadow = true;
-    this.scene.add(ground);
+    this.landscape=new LandscapeVisuals();
+    this.scene.add(this.landscape.group);
+    this.atmosphere=new CinematicAtmosphere(this.scene,this.renderer);
     const environment = new RoomEnvironment();
     const pmrem = new THREE.PMREMGenerator(this.renderer);
     this.scene.environment = pmrem.fromScene(environment, 0.04).texture;
@@ -225,18 +228,21 @@ export class CityRenderer {
     return mesh;
   }
   private buildStreets() {
-    for (const p of WORLD.parks) this.polygon(p, 0, 0x6e8754, 0.04);
-    for (const p of WORLD.areas) this.polygon(p, 0, 0xc7b8a0, 0.06);
+    const grass=this.surfaceMaterials.create('grass_path_2',0xb2bc9e,true),stone=this.surfaceMaterials.create('concrete_pavement');
+    for(const [polygons,y,material] of [[WORLD.parks,.04,grass],[WORLD.areas,.06,stone]] as const)
+      for(const p of polygons)for(const rings of cutChannels(p)){const mesh=new THREE.Mesh(surfaceGeometry(rings,y),material);mesh.receiveShadow=true;this.scene.add(mesh);}
     const paving = this.material(0xb8aea0),
       asphalt = this.material(0x555d5c),
       foot = this.material(0xc3b9a1),
       white = this.material(0xe9e3c7);
+    this.surfaceMaterials.apply(paving,'concrete_pavement');
+    this.surfaceMaterials.apply(foot,'concrete_pavement');asphalt.userData.environmentSurface=true;
     const roadGeo: THREE.BufferGeometry[] = [],
       walkGeo: THREE.BufferGeometry[] = [],
       sideGeo: THREE.BufferGeometry[] = [],
       paintGeo: THREE.BufferGeometry[] = [];
     for (const r of WORLD.roads) {
-      if(r.neighbourhood)continue;
+      if(r.neighbourhood || r.tunnel)continue;
       const len = Math.hypot(r.a[0] - r.b[0], r.a[1] - r.b[1]);
       (r.walk ? walkGeo : roadGeo).push(
         this.strip(r.a, r.b, r.w, r.bridge ? 0.16 : 0.09),
@@ -286,18 +292,7 @@ export class CityRenderer {
         asphalt.needsUpdate = true;
         this.worldTextures.add(t);
       });
-    for (const water of WORLD.water) {
-      if (Array.isArray(water)) this.polygon(water, 0, 0x507f83, 0.075);
-      else {
-        const geos = water.line
-          .slice(1)
-          .map((b, i) => this.strip(water.line[i], b, water.width, 0.075));
-        this.merged(
-          geos,
-          this.material(0x497a7e, { metalness: 0.3, roughness: 0.25 }),
-        );
-      }
-    }
+    for(const water of WORLD.water)if(Array.isArray(water))this.polygon(water,0,0x507f83,.075);
     // Far mountains give the basin a horizon, outside the playable OSM district.
     const mountainMat = this.material(0x7e9b9c);
     for (let i = 0; i < 13; i++) {
@@ -1125,8 +1120,8 @@ export class CityRenderer {
       this.camera.updateProjectionMatrix();
     }
     this.facades?.update(target, dt, this.quality === "battery");
-    this.sunlight.position.set(target.x - 85, 145, target.z - 75);
-    this.sunlight.target.position.copy(target);
+    this.landscape.update(target,this.clock,this.quality === "battery");
+    this.atmosphere.update(this.clock,this.camera,this.quality === "battery");
     for (const chunk of this.cityChunks) chunk.visible = true;
     for (const label of this.landmarkText)
       label.visible = label.position.distanceTo(this.camera.position) < 300;
@@ -1256,6 +1251,7 @@ export class CityRenderer {
     this.racingFleet.dispose();
     this.collectionFleet.dispose();
     this.driverInterior.dispose();this.urbanRoads.dispose();
+    this.atmosphere.dispose();this.landscape.dispose();this.surfaceMaterials.dispose();
     this.observer.disconnect();
     for (const a of this.actors.values()) a.mixer?.stopAllAction();
     this.disposeObject(this.scene);

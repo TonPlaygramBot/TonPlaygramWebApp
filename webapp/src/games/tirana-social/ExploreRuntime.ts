@@ -1,3 +1,4 @@
+import {CinematicAtmosphere} from '../tirana-environment/CinematicAtmosphere';
 import {createWebGLRenderer} from '../tiranastreets/createWebGLRenderer';
 import * as T from 'three';
 import {CollectionVehicleVisuals} from '../tiranastreets/CollectionVehicleVisuals';
@@ -18,6 +19,7 @@ export class ExploreRuntime {
   readonly scene=new T.Scene();readonly camera=new T.PerspectiveCamera(62,1,.15,1600);
   readonly audio=new CityAudio();readonly renderer:T.WebGLRenderer;readonly city=new FpsCity();readonly humans=new SharedHumans();readonly faces=new FacePanels();
   readonly collectionFleet=new CollectionVehicleVisuals();
+  readonly atmosphere:CinematicAtmosphere;
   readonly details:ReturnType<typeof attachEnhancements>;readonly input:CityInput;
   yaw=0; pitch=.3; paused=false;
   private overlayOpen=false; private networkAvailable=false; private fps=0;
@@ -27,6 +29,8 @@ export class ExploreRuntime {
   constructor(private root:HTMLDivElement,private connection:ExploreConnection,private fail:(s:string)=>void,private publish:(s:{fps:number;ready:boolean;paused:boolean})=>void){
     this.renderer=createWebGLRenderer();this.renderer.setPixelRatio(Math.min(window.devicePixelRatio||1,1.5));this.renderer.outputColorSpace=T.SRGBColorSpace;this.renderer.toneMapping=T.ACESFilmicToneMapping;root.appendChild(this.renderer.domElement);
     this.scene.background=new T.Color('#b5cdd3');this.scene.fog=new T.Fog('#b5cdd3',400,1400);this.scene.add(new T.HemisphereLight('#d5efff','#706a4e',2.2));const sun=new T.DirectionalLight('#ffedc4',3);sun.position.set(-120,240,-100);this.scene.add(sun);
+    this.renderer.shadowMap.enabled=true;this.renderer.shadowMap.type=T.PCFSoftShadowMap;
+    this.atmosphere=new CinematicAtmosphere(this.scene,this.renderer);
     this.scene.add(this.city.group,this.humans.group,this.collectionFleet.group);this.details=attachEnhancements(this.scene,{x:0,z:0},{profile:'fps'});this.details.bindBuildings(this.city.group,[this.city.landmarks.group]);
     this.input=new CityInput(action=>{if(action==='pause')this.pause(!this.paused);else if(['vehicle','recover'].includes(action))void connection.request('interact',{interaction:action}).catch(e=>fail(e.message));});
     this.input.setEnabled(false);
@@ -69,8 +73,9 @@ export class ExploreRuntime {
       this.camera.position.copy(this.target).add(new T.Vector3(Math.sin(this.yaw)*d,1.7+this.pitch*d,Math.cos(this.yaw)*d));this.camera.lookAt(this.target);
       this.audio.update(p.speed,!!p.carId&&!this.paused);if(!this.paused)this.audio.city(s.state,p,dt);this.city.update(this.target,s.state.elapsed,false);this.details.update(s.state.elapsed,this.camera,p,false);
     }
+    this.atmosphere.update(s?.state.elapsed||0,this.camera,false);
     this.renderer.render(this.scene,this.camera);this.frames++;this.seconds+=real;if(this.seconds>=1){const assetErrors=[...this.humans.errors,...this.collectionFleet.errors.values()];if(assetErrors.length>this.assetErrorCount){this.assetErrorCount=assetErrors.length;this.fail(assetErrors.at(-1)||'A shared city asset failed');}this.fps=Math.round(this.frames/this.seconds);this.publishStatus();this.frames=0;this.seconds=0;}
     this.frame=requestAnimationFrame(this.loop);
   };
-  dispose(){if(this.dead)return;this.dead=true;cancelAnimationFrame(this.frame);this.observer.disconnect();window.removeEventListener('blur',this.blur);document.removeEventListener('visibilitychange',this.visibility);this.renderer.domElement.removeEventListener('webglcontextlost',this.lost);this.input.destroy();this.audio.destroy();this.faces.dispose();this.humans.dispose();this.collectionFleet.dispose();this.details.dispose();this.city.dispose();for(const g of this.templates.values())disposeObject(g);this.cars.clear();this.shown.clear();this.renderer.dispose();this.renderer.domElement.remove();}
+  dispose(){if(this.dead)return;this.dead=true;cancelAnimationFrame(this.frame);this.observer.disconnect();window.removeEventListener('blur',this.blur);document.removeEventListener('visibilitychange',this.visibility);this.renderer.domElement.removeEventListener('webglcontextlost',this.lost);this.input.destroy();this.audio.destroy();this.faces.dispose();this.humans.dispose();this.collectionFleet.dispose();this.atmosphere.dispose();this.details.dispose();this.city.dispose();for(const g of this.templates.values())disposeObject(g);this.cars.clear();this.shown.clear();this.renderer.dispose();this.renderer.domElement.remove();}
 }

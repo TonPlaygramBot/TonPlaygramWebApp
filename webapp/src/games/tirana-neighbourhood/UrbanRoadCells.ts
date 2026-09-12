@@ -1,4 +1,5 @@
 import * as T from 'three';
+import {EnvironmentMaterials} from '../tirana-environment/EnvironmentMaterials';
 import {WORLD} from '../tiranastreets/shared/world.mjs';
 type Bucket={x:number;z:number;roads:any[];mesh?:T.Group;used:number};
 /** Source road surfaces stream alongside buildings. Direct buffer construction
@@ -6,11 +7,13 @@ type Bucket={x:number;z:number;roads:any[];mesh?:T.Group;used:number};
  */
 export class UrbanRoadCells {
  readonly group=new T.Group();
+ private materials:EnvironmentMaterials;
  private cells:Bucket[]=[];private tick=0;private last=-Infinity;private dead=false;
  private asphalt=new T.MeshStandardMaterial({color:0x777b78,roughness:.94});
  private pavement=new T.MeshStandardMaterial({color:0xb5afa3,roughness:.92});
  private textures=new Set<T.Texture>();
  constructor(loadTextures=true){
+  this.materials=new EnvironmentMaterials(loadTextures);this.materials.apply(this.pavement,'concrete_pavement');this.asphalt.userData.environmentSurface=true;
   const cells=new Map<string,Bucket>();this.group.name='Tirana:streamed-road-cells';
   for(const r of WORLD.roads){
    if(!r.neighbourhood||r.tunnel)continue;
@@ -60,5 +63,5 @@ export class UrbanRoadCells {
   while(cached.length>(battery?40:72)){const c=cached.shift()!;this.release(c);}
  }
  private release(c:Bucket){c.mesh?.traverse(o=>{if(o instanceof T.Mesh)o.geometry.dispose();});c.mesh?.removeFromParent();c.mesh=undefined;}
- dispose(){this.dead=true;this.cells.forEach(c=>this.release(c));this.textures.forEach(t=>t.dispose());this.asphalt.dispose();this.pavement.dispose();this.group.removeFromParent();}
+ dispose(){this.dead=true;this.materials.dispose();this.cells.forEach(c=>this.release(c));this.textures.forEach(t=>t.dispose());this.asphalt.dispose();this.pavement.dispose();this.group.removeFromParent();}
 }

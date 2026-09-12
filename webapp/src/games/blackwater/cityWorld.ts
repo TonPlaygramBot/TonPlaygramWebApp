@@ -1,3 +1,4 @@
+import {CinematicAtmosphere} from '../tirana-environment/CinematicAtmosphere';
 import {CollectionVehicleVisuals} from '../tiranastreets/CollectionVehicleVisuals';
 import {ImportedAssetVisuals} from '../tiranastreets/ImportedAssetVisuals';
 import { AlbanianForcesVisuals, type ForceFrame } from '../tiranastreets/AlbanianForcesVisuals';
@@ -93,7 +94,9 @@ export function makeCityWorld(scene:THREE.Scene,camera:THREE.PerspectiveCamera,r
     },undefined,()=>city.group.userData.assetErrors.push('parked car'));
   }
   const point = new THREE.Vector3();
-  let shadowX = Infinity, shadowZ = Infinity, forceTime = performance.now() / 1000;
+  const atmosphere=new CinematicAtmosphere(scene,renderer);
+  world.sky.visible=false;
+  let forceTime = performance.now() / 1000;
   world.update = position => {
     const now = performance.now() / 1000;
     forces?.update(fleet, position, now, Math.min(.05, now - forceTime), !renderer.shadowMap.enabled);
@@ -107,15 +110,10 @@ export function makeCityWorld(scene:THREE.Scene,camera:THREE.PerspectiveCamera,r
     point.copy(position);point.x+=ORIGIN.x;point.z+=ORIGIN.z;
     city.update(point, performance.now()/1000, !renderer.shadowMap.enabled);
     details.update(point,!webgl||!renderer.shadowMap.enabled);
-    if (Math.hypot(position.x-shadowX,position.z-shadowZ)>12) {
-      shadowX=position.x;shadowZ=position.z;
-      sun.position.set(position.x-80,140,position.z-70);
-      sun.target.position.set(position.x,0,position.z);
-      sun.shadow.needsUpdate=true;
-    }
+    atmosphere.update(now,camera,!renderer.shadowMap.enabled);
   };
   world.update(new THREE.Vector3(START.x,1.68,START.z));
   const dispose = world.dispose;
-  world.dispose=()=>{disposed=true;collection?.dispose();imported.dispose();forces?.dispose();enhancements.dispose();details.dispose();city.dispose();dispose();concrete.dispose();metal.dispose();};
+  world.dispose=()=>{disposed=true;atmosphere.dispose();collection?.dispose();imported.dispose();forces?.dispose();enhancements.dispose();details.dispose();city.dispose();dispose();concrete.dispose();metal.dispose();};
   return world;
 }

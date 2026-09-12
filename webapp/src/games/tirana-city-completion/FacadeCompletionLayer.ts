@@ -15,7 +15,7 @@ export class FacadeCompletionLayer {
  private batches=new Map<string,T.InstancedMesh[]>();private materials=new Map<string,T.Material>();
  private dummy=new T.Object3D();private last=-Infinity;private dead=false;
  constructor(buildings:any[]=NEIGHBOURHOOD.buildings){
-  const eligible=buildings.filter(b=>!HERO_IDS.has(b.id)&&!COMPLETED_BUILDING_IDS.has(b.id)&&!AGED_HOUSING_IDS.has(b.id)&&!(b.heightSource==='unknown'&&!b.levels));
+  const eligible=buildings.filter(b=>!HERO_IDS.has(b.id)&&!COMPLETED_BUILDING_IDS.has(b.id)&&!AGED_HOUSING_IDS.has(b.id));
   this.near=spatialIndex(eligible,(b:any)=>bounds(b.p));this.group.name='Tirana:Blender-near-facade-completion';
   for(const name of ['window_bay','balcony_bay','air_conditioner','entrance_bay']){
    const capacity=name==='window_bay'?900:180;
@@ -24,14 +24,14 @@ export class FacadeCompletionLayer {
     const mesh=new T.InstancedMesh(p.geometry,this.materials.get(p.material)!,capacity);mesh.count=0;mesh.frustumCulled=false;mesh.receiveShadow=true;mesh.castShadow=false;mesh.instanceMatrix.setUsage(T.DynamicDrawUsage);this.group.add(mesh);return mesh;
    }));
   }
-  this.group.userData={eligibleBuildings:eligible.length,accuracy:'Source footprints and existing known heights; authored Blender facade modules'};
+  this.group.userData={eligibleBuildings:eligible.length,accuracy:'Source footprints and existing shell heights, including explicit visual height estimates; authored Blender facade modules'};
  }
  update(seconds:number,viewer?:{x:number;z:number},battery=false){
   if(this.dead||!viewer||seconds>=this.last&&seconds-this.last<.3)return;this.last=seconds;
   const distance=(b:any)=>Math.min(...b.p.map((p:number[])=>Math.hypot(p[0]-viewer.x,p[1]-viewer.z)));
   const buildings=this.near(viewer.x,viewer.z,battery?75:130).filter((b:any)=>distance(b)<(battery?80:140)).sort((a:any,b:any)=>distance(a)-distance(b)).slice(0,battery?12:32);
   const modules=[];
-  for(const b of buildings){if(!this.cache.has(b.id))this.cache.set(b.id,facadeModules(b));modules.push(...this.cache.get(b.id)!);}
+  for(const b of buildings){if(!this.cache.has(b.id))this.cache.set(b.id,facadeModules(b,{allowEstimatedHeight:true}));modules.push(...this.cache.get(b.id)!);}
   // Nearest bays win regardless of footprint traversal and tall-building order.
   modules.sort((a,b)=>Math.hypot(a.x-viewer.x,a.z-viewer.z)-Math.hypot(b.x-viewer.x,b.z-viewer.z));
   this.batches.forEach(meshes=>meshes.forEach(m=>m.count=0));
