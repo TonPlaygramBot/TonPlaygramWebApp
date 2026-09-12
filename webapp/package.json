@@ -30,7 +30,8 @@
     "fetch:pool-royale-showood-table": "node scripts/fetch-pool-royale-showood-table.mjs",
     "fetch:sketchfab-assets": "node scripts/fetch-sketchfab-assets.mjs",
     "generate:military-vehicles": "node scripts/build-military-vehicles.mjs",
-    "import:tirana-originals": "node scripts/import-tirana-originals.mjs"
+    "import:tirana-originals": "node scripts/import-tirana-originals.mjs",
+    "test:snake": "vitest run --config vitest.snake.config.mjs"
   },
   "type": "module",
   "dependencies": {

@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import * as THREE from 'three';
+import { createRoyalDiceMotion, ROYAL_DICE_ROLL_MS } from '../utils/royalDiceMotion';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 import { SNAKE_CAPTURE_WEAPON_OPTIONS } from '../config/snakeWeaponCatalog.js';
@@ -174,16 +175,9 @@ const DICE_PIP_RIM_OUTER = DICE_PIP_RADIUS * 1.08;
 const DICE_PIP_RIM_OFFSET = DICE_SIZE * 0.0048;
 const DICE_PIP_SPREAD = DICE_SIZE * 0.3;
 const DICE_FACE_INSET = DICE_SIZE * 0.064;
-// Keep Snake dice motion aligned with Ludo Battle Royal's frame-synced single-arc spinDice roll.
-// Ludo Battle Royal's spinDice defaults to a 900 ms physical throw. Keep the
-// same duration here so the hidden result generator cannot stop the 3D roll
-// before the cube has completed its arc.
-const DICE_ROLL_DURATION = 900;
-const DICE_SETTLE_DURATION = 220;
-const DICE_RESULT_HOLD_DURATION = 720;
-// Ludo Battle Royal's spinDice uses a 0.06-world-unit bounce by default.
-// Keep the same throw configuration rather than scaling the arc with the
-// Snake board tile size, which made the roll look flatter on portrait phones.
+const DICE_ROLL_DURATION = ROYAL_DICE_ROLL_MS;
+const DICE_SETTLE_DURATION = 160;
+const DICE_RESULT_HOLD_DURATION = 400;
 const DICE_BOUNCE_HEIGHT = 0.06;
 const DICE_THROW_LANDING_MARGIN = TILE_SIZE * 1.8;
 const DICE_THROW_START_EXTRA = TILE_SIZE * 3.6;
@@ -2880,84 +2874,36 @@ function computeDiceThrowLayout(board, seatIndex, count) {
   return result;
 }
 
-function createDiceRollAnimation(
-  diceArray,
-  {
-    basePositions,
-    baseY,
-    startPositions = [],
-    rollId = null
-  }
-) {
-  const start = performance.now();
-  const startQuaternions = diceArray.map((die) => die.quaternion.clone());
-  const spinVectors = diceArray.map(() =>
-    new THREE.Vector3(
-      1.2 + Math.random() * 0.7,
-      1.35 + Math.random() * 0.65,
-      1.05 + Math.random() * 0.75
-    )
-  );
-  const wobbleVectors = diceArray.map(
-    () => new THREE.Vector3((Math.random() - 0.5) * 0.16, 0, (Math.random() - 0.5) * 0.16)
-  );
-  let targetValues = diceArray.map(() => 1 + Math.floor(Math.random() * 6));
-
+function createDiceRollAnimation(diceArray, { basePositions, baseY, startPositions = [], values = [], rollId = null }) {
+  const startedAt = performance.now();
+  let targetValues = values;
+  const reducedMotion = window.matchMedia?.('(prefers-reduced-motion: reduce)').matches;
+  const motions = diceArray.map((die, index) => createRoyalDiceMotion(
+    die,
+    startPositions[index] ?? die.position,
+    new THREE.Vector3(basePositions[index].x, baseY, basePositions[index].z),
+    {
+      startedAt,
+      duration: DICE_ROLL_DURATION,
+      height: DICE_BOUNCE_HEIGHT,
+      reducedMotion,
+      target: values[index] ? getDiceOrientationQuaternion(values[index]) : null
+    }
+  ));
   return {
     type: 'diceRoll',
     rollId,
-    // The online result commonly arrives while the cube is still airborne.
-    // Keep the physical Ludo-style throw running and only change the face that
-    // is applied when it reaches the table.
-    setTargetValues(values = []) {
-      if (!Array.isArray(values) || !values.length) return;
-      targetValues = diceArray.map((_, index) => values[index] ?? values[values.length - 1] ?? 1);
+    setTargetValues(next = []) {
+      if (!next.length) return;
+      targetValues = next;
+      motions.forEach((motion, index) => motion.setTarget(getDiceOrientationQuaternion(next[index] ?? next[0])));
     },
-    update: (now) => {
-      const t = Math.min((now - start) / Math.max(1, DICE_ROLL_DURATION), 1);
-      const eased = easeOutCubic(t);
-      diceArray.forEach((die, index) => {
-        const base = basePositions[index];
-        if (!base) return;
-        const startPos = startPositions[index] ?? base;
-        const endPos = new THREE.Vector3(base.x, baseY, base.z);
-        // Deliberately mirror Ludo Battle Royal's spinDice path: one eased
-        // translation, one decaying sine bounce, and the same wobble curve.
-        const position = startPos.clone().lerp(endPos, eased);
-        const wobbleStrength = Math.sin(eased * Math.PI);
-        position.addScaledVector(wobbleVectors[index], wobbleStrength * 0.45);
-        const bounce = Math.sin(Math.min(1, eased * 1.25) * Math.PI)
-          * DICE_BOUNCE_HEIGHT
-          * (1 - eased * 0.45);
-        position.y = THREE.MathUtils.lerp(startPos.y, endPos.y, eased) + bounce;
-        die.position.copy(position);
-
-        // Derive rotation from elapsed progress instead of adding once per
-        // rendered frame. This gives 30/60/90 Hz phones the same complete roll.
-        const spinProgress = eased * (1 - eased * 0.14);
-        const spin = new THREE.Quaternion().setFromEuler(new THREE.Euler(
-          spinVectors[index].x * spinProgress * Math.PI * 2.4,
-          spinVectors[index].y * spinProgress * Math.PI * 2.4,
-          spinVectors[index].z * spinProgress * Math.PI * 2.4
-        ));
-        die.quaternion.copy(startQuaternions[index]).multiply(spin);
-      });
-      if (t >= 1) {
-        diceArray.forEach((die, index) => {
-          const base = basePositions[index];
-          if (!base) return;
-          const targetValue = targetValues[index] ?? 1;
-          if (typeof die.userData?.setValue === 'function') {
-            die.userData.setValue(targetValue);
-          } else {
-            setDiceOrientation(die, targetValue);
-          }
-          die.position.copy(base);
-          die.position.y = baseY;
-        });
-        return true;
+    update(now) {
+      const finished = motions.map((motion) => motion.update(now)).every(Boolean);
+      if (finished && targetValues.length) {
+        diceArray.forEach((die, index) => die.userData.setValue?.(targetValues[index] ?? targetValues[0]));
       }
-      return false;
+      return finished;
     }
   };
 }
@@ -5728,7 +5674,7 @@ export default function SnakeBoard3D({
     if (previousTurnRef.current === currentTurn) return;
     previousTurnRef.current = currentTurn;
 
-    const focusState = computeTurnCameraFocusState(board, camera, currentTurn, players);
+    const focusState = computeTurnCameraFocusState(board, camera, players[currentTurn]?.seatIndex ?? currentTurn, players);
     if (!focusState) return;
     turnCameraStateRef.current = {
       position: focusState.position.clone(),
@@ -5754,7 +5700,7 @@ export default function SnakeBoard3D({
     if (diceStateRef.current?.currentId == null) {
       const seatCount = Array.isArray(board.seatAnchors) ? board.seatAnchors.length : 0;
       if (seatCount > 0) {
-        const seatIndex = Math.max(0, Math.min(seatCount - 1, currentTurn));
+        const seatIndex = Math.max(0, Math.min(seatCount - 1, players[currentTurn]?.seatIndex ?? currentTurn));
         const visibleDice = Array.isArray(board.diceSet) ? board.diceSet.filter((die) => die?.visible) : [];
         if (visibleDice.length) {
           const layout = computeDiceThrowLayout(board, seatIndex, visibleDice.length);
@@ -6270,18 +6216,19 @@ export default function SnakeBoard3D({
         });
       }
       let hasDiceCenter = false;
-      if (board?.diceLights && board?.diceSet?.length) {
+      if (board?.diceSet?.length) {
         DICE_CENTER_VECTOR.set(0, 0, 0);
         let visibleCount = 0;
         board.diceSet.forEach((die) => {
           if (!die.visible) return;
-          DICE_CENTER_VECTOR.add(die.position);
+          die.getWorldPosition(TEMP_SEAT_VECTOR);
+          DICE_CENTER_VECTOR.add(TEMP_SEAT_VECTOR);
           visibleCount += 1;
         });
         if (visibleCount > 0) {
           DICE_CENTER_VECTOR.multiplyScalar(1 / visibleCount);
           hasDiceCenter = true;
-          const { accent, fill, target } = board.diceLights;
+          const { accent, fill, target } = board.diceLights || {};
           if (target) target.position.copy(DICE_CENTER_VECTOR);
           if (accent?.userData?.offset) {
             accent.position.copy(DICE_CENTER_VECTOR).add(accent.userData.offset);
@@ -6553,10 +6500,12 @@ export default function SnakeBoard3D({
       onSlideComplete?.(slide.id, false);
       return;
     }
+    if (token.userData.activeSlideId === slide.id) return;
+    token.userData.activeSlideId = slide.id;
     const pathMap =
       slide.type === 'ladder'
         ? board.laddersGroup?.userData?.paths
-        : board.snakesGroup?.userData?.paths;
+        : slide.type === 'snake' ? board.snakesGroup?.userData?.paths : null;
     const startBase = token.position.clone();
     const endBase = (board.indexToPosition.get(slide.to) || board.serpentineIndexToXZ(slide.to)).clone();
     startBase.y = startBase.y ?? token.parent?.position?.y ?? 0;
@@ -6568,7 +6517,10 @@ export default function SnakeBoard3D({
     }
     const curve = pathInfo.curve;
     token.userData.isSliding = true;
-    const duration = Number.isFinite(slide.duration) ? slide.duration : 1100;
+    const reducedMotion = window.matchMedia?.('(prefers-reduced-motion: reduce)').matches;
+    const duration = reducedMotion ? 120 : Number.isFinite(slide.duration) ? slide.duration : 1100;
+    const isStep = !['snake', 'ladder'].includes(slide.type);
+    const originalScale = token.scale.clone();
     const startTime = performance.now();
     const lift = TOKEN_HEIGHT * 0.6;
     const camera = cameraRef.current;
@@ -6600,7 +6552,14 @@ export default function SnakeBoard3D({
       update: (now) => {
         const t = Math.min((now - startTime) / duration, 1);
         let pos;
-        if (t < 0.18) {
+        if (isStep || reducedMotion) {
+          pos = startBase.clone().lerp(endBase, easeInOut(t));
+          if (!reducedMotion) {
+            const hop = Math.sin(Math.PI * t);
+            pos.y += hop * TOKEN_HEIGHT * 0.55;
+            token.scale.set(originalScale.x * (1 - hop * 0.055), originalScale.y * (1 + hop * 0.09), originalScale.z * (1 - hop * 0.055));
+          }
+        } else if (t < 0.18) {
           const local = easeInOut(t / 0.18);
           const target = curve.getPoint(0).clone().add(new THREE.Vector3(0, lift, 0));
           pos = startBase.clone().lerp(target, local);
@@ -6615,6 +6574,7 @@ export default function SnakeBoard3D({
         token.position.copy(pos);
         if (t >= 1) {
           token.userData.isSliding = false;
+          token.scale.copy(originalScale);
           token.position.copy(endBase);
           onSlideComplete?.(slide.id, true);
           return true;
@@ -6629,11 +6589,17 @@ export default function SnakeBoard3D({
     const board = boardRef.current;
     const diceSet = board.diceSet || [];
     if (!diceSet.length) return;
+    // Seat anchors and the countdown update React during a throw. Consume each
+    // event once per board so those renders cannot restart the dice mid-air.
+    const eventKey = `${diceEvent.id}:${diceEvent.phase}`;
+    if (board.lastDiceEventKey === eventKey) return;
+    board.lastDiceEventKey = eventKey;
     const diceBaseY = board.diceBaseY ?? 0;
     const diceAnchorZ = board.diceAnchorZ ?? 0;
     if (diceEvent.phase === 'start') {
       removeAnimationsByType(animationsRef.current, 'cameraDiceZoom');
       removeAnimationsByType(animationsRef.current, 'diceRoll');
+      removeAnimationsByType(animationsRef.current, 'diceSettle');
       removeAnimationsByType(animationsRef.current, 'diceHandoff');
       const count = Math.max(1, Math.min(diceEvent.count ?? diceSet.length, diceSet.length));
       const prevState = diceStateRef.current || {};
@@ -6716,6 +6682,7 @@ export default function SnakeBoard3D({
           baseY: diceBaseY,
           startPositions,
           bouncePoints,
+          values: diceEvent.values || [],
           rollId: diceEvent.id
         });
         if (rollAnimation) animationsRef.current.push(rollAnimation);
@@ -6745,7 +6712,7 @@ export default function SnakeBoard3D({
         // If the result arrived before landing, the active roll now owns the
         // authoritative final face. Starting a settle animation here would
         // fight it and visually freeze the die in mid-air.
-        if (!activeRoll) {
+        if (!activeRoll && active.some((die, i) => die.quaternion.angleTo(getDiceOrientationQuaternion(values[i] ?? values[0] ?? 1)) > 0.001)) {
           const settleAnimation = createDiceSettleAnimation(active, {
             basePositions,
             baseY: diceBaseY,
@@ -6756,7 +6723,7 @@ export default function SnakeBoard3D({
 
         const seatCount = Array.isArray(board.seatAnchors) ? board.seatAnchors.length : 0;
         if (seatCount > 0) {
-          const seatIndex = Math.max(0, Math.min(seatCount - 1, currentTurn || 0));
+          const seatIndex = Math.max(0, Math.min(seatCount - 1, players[currentTurn]?.seatIndex ?? currentTurn ?? 0));
           const handoffLayout = computeDiceThrowLayout(board, seatIndex, active.length);
           const handoffBases = Array.isArray(handoffLayout.basePositions) ? handoffLayout.basePositions : [];
           if (handoffBases.length) {
@@ -7212,3 +7179,6 @@ export default function SnakeBoard3D({
     </div>
   );
 }
+
+// Reuse the production die in the portrait motion review.
+export { makeDice as createSnakeDie, getDiceOrientationQuaternion };

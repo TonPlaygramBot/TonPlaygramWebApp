@@ -145,7 +145,7 @@ test('authoritative snake state keeps every phone on the same roster, board and 
   const state = states.at(-1)?.data;
   assert.ok(state, 'snakeState should be broadcast after an authoritative roll');
   assert.equal(state.roomId, 'snake-sync-2');
-  assert.equal(state.currentPlayerId, 'p2');
+  assert.equal(state.currentPlayerId, 'p1'); // A single six grants another turn.
   assert.deepEqual(state.snakes, { 9: 2 });
   assert.deepEqual(state.ladders, { 3: 8 });
   assert.deepEqual(state.diceCells, { 7: 1 });
@@ -276,4 +276,48 @@ test('dice cells are shared across players', () => {
     clearTimeout(room.turnTimer);
     room.turnTimer = null;
   }
+});
+
+
+test('a single six enters and keeps the turn, including an exact-finish overshoot', () => {
+  const room = createRoom('single-six', new DummyIO(), 2, {snakes: {}, ladders: {}, diceCells: {}});
+  room.rollCooldown = 0;
+  const first = {id: 'six-a', join() {}, emit() {}};
+  const second = {id: 'six-b', join() {}, emit() {}};
+  room.addPlayer('p1', 'A', first); room.addPlayer('p2', 'B', second); room.startGame();
+  room.rollDice(first, [6]);
+  assert.equal(room.players[0].position, 1);
+  assert.equal(room.currentTurn, 0);
+  room.players[0].position = FINAL_TILE - 2;
+  room.rollDice(first, [6]);
+  assert.equal(room.players[0].position, FINAL_TILE - 2);
+  assert.equal(room.currentTurn, 0);
+  room.rollDice(first, [1]);
+  assert.equal(room.currentTurn, 1);
+});
+
+test('network events separate the rolled landing from ladder and snake destinations', () => {
+  const io = new DummyIO();
+  const room = createRoom('jumps', io, 1, {snakes: {9: 2}, ladders: {3: 8}, diceCells: {}});
+  room.rollCooldown = 0;
+  const socket = {id: 'jump', join() {}, emit() {}};
+  room.addPlayer('p1', 'A', socket); room.startGame();
+  room.players[0].position = 1;
+  room.rollDice(socket, [2]);
+  assert.deepEqual(io.emitted.filter(e => e.event === 'movePlayer').at(-1).data, {playerId:'p1',from:1,to:3});
+  assert.deepEqual(io.emitted.filter(e => e.event === 'snakeOrLadder').at(-1).data, {playerId:'p1',from:3,to:8});
+  room.rollDice(socket, [1]);
+  assert.deepEqual(io.emitted.filter(e => e.event === 'movePlayer').at(-1).data, {playerId:'p1',from:8,to:9});
+  assert.deepEqual(io.emitted.filter(e => e.event === 'snakeOrLadder').at(-1).data, {playerId:'p1',from:9,to:2});
+});
+
+test('an out-of-turn request does not cancel the active player timer', () => {
+  const room = createRoom('timer', new DummyIO(), 2, {snakes: {}, ladders: {}, diceCells: {}});
+  const first = {id:'timer-a',join(){},emit(){}};
+  const second = {id:'timer-b',join(){},emit(){}};
+  room.addPlayer('p1','A',first); room.addPlayer('p2','B',second); room.startGame();
+  const timer = room.turnTimer;
+  room.rollDice(second, [1]);
+  assert.ok(timer);
+  assert.equal(room.turnTimer, timer);
 });
