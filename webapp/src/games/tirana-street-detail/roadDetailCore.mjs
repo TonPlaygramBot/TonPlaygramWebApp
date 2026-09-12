@@ -51,7 +51,7 @@ export function ribbonExclusion(track){
   const near=gridIndex(segments,s=>[Math.min(s.a[0],s.b[0])-width/2,Math.min(s.a[1],s.b[1])-width/2,Math.max(s.a[0],s.b[0])+width/2,Math.max(s.a[1],s.b[1])+width/2]);
   return (x,z,pad=0)=>{if(![x,z,pad].every(finite)||pad<0)return true;return near(x,z,pad+1).some(s=>segmentDistance(x,z,s.a,s.b)<width/2+pad+1);};
 }
-export function buildRoadDetails(world,{signals=[],river=[],exclude=()=>false,includeCycling=true}={}){
+export function buildRoadDetails(world,{signals=[],river=[],exclude=()=>false,includeCycling=true,includePosts=true}={}){
   const roads=(world.roads||[]).filter(r=>point(r.a)&&point(r.b)&&finite(r.w)&&r.w>0&&r.w<=80&&Math.hypot(r.b[0]-r.a[0],r.b[1]-r.a[1])<10000);
   const buildings=(world.buildings||[]).filter(b=>Array.isArray(b.p)&&b.p.length>=3&&b.p.every(point));
   const masks=signals.filter(s=>[s.x,s.z,s.yaw,s.width].every(finite)&&s.width>1);
@@ -96,7 +96,7 @@ export function buildRoadDetails(world,{signals=[],river=[],exclude=()=>false,in
     }
     // Concrete pedestrian bollards, NOT flexible cycle-lane delineators. Kept
     // outside carriageways, footpath centrelines and every crossing approach.
-    if(r.walk||r.w<8||length<18)continue;
+    if(!includePosts||r.walk||r.w<8||length<18)continue;
     for(const side of [-1,1])for(let d=6;d<length-6;d+=6){
       const x=r.a[0]+ux*d+rx*side*(r.w/2+.55),z=r.a[1]+uz*d+rz*side*(r.w/2+.55);
       if(blocked(x,z,2)||occupied(x,z,.55)||exclude(x,z,1)||roadNear(x,z).some(o=>segmentDistance(x,z,o.a,o.b)<(o.walk?o.w/2+.55:o.w/2+.25)))continue;

@@ -76,7 +76,7 @@ export function buildStreetModel(site,type){
  }else if(type==='advertising'){
   for(const x of [-1.12,1.12])pole(x,.05,0,3.5,.065);
   box(C.metal,0,3,0,3.55,1.9,.16);
-  for(const yaw of [0,Math.PI])sign('TIRANË',0,3,yaw?-.091:.091,3.4,1.76,'#97363c','#faf2da',yaw);
+  for(const yaw of [0,Math.PI])sign(site.name||'TIRANË',0,3,yaw?-.091:.091,3.4,1.76,/mulliri/i.test(site.name||'')?'#faf5eb':'#97363c','#faf2da',yaw);
   for(const x of [-1.3,1.3]){box(C.metal,x,4.02,.12,.05,.28,.4);box(C.light,x,3.99,.31,.38,.07,.17);}
  }
  return {id:site.id,x:site.x,z:site.z,yaw:site.yaw||0,type,parts,signs};

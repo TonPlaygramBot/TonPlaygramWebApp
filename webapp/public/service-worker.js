@@ -291,6 +291,13 @@ self.addEventListener('fetch', event => {
 
   if (request.method !== 'GET') return;
 
+  // Installer integrity checks require the exact current server bytes. Returning
+  // the stale runtime response here defeats the pack worker's network bypass.
+  if (request.cache === 'no-store' || request.cache === 'reload') {
+    event.respondWith(fetch(request));
+    return;
+  }
+
   const url = new URL(request.url);
   if (VERSION_ASSETS.includes(url.pathname)) {
     event.respondWith(networkFirst(event, request));

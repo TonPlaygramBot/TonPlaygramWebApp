@@ -25,7 +25,7 @@
   }
 
   const shouldUsePackCache = request => {
-    if (!request || request.method !== 'GET') return false;
+    if (!request || request.method !== 'GET' || ['no-store', 'reload'].includes(request.cache)) return false;
     try {
       const url = new URL(request.url);
       return (
@@ -43,6 +43,7 @@
       .reverse();
     for (const cacheName of cacheNames) {
       const cache = await nativeOpen.call(self.caches, cacheName);
+      if (!(await cache.match(new URL('/pwa/game-packs/.complete', self.location.origin).href))) continue;
       const response = await cache.match(request, { ignoreVary: true });
       if (response) return response;
     }
@@ -53,7 +54,7 @@
     self.fetch = async (input, init) => {
       let request;
       try {
-        request = input instanceof Request ? input : new Request(input, init);
+        request = new Request(input, init);
       } catch {
         return nativeFetch(input, init);
       }

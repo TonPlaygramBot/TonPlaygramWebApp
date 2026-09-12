@@ -53,6 +53,7 @@ export class CityFacades {
       const box = new THREE.Box3().setFromObject(template), size = box.getSize(new THREE.Vector3());
       template.traverse((o) => {
         if (o instanceof THREE.Mesh) {
+          for(const material of Array.isArray(o.material)?o.material:[o.material])if(material instanceof THREE.MeshStandardMaterial&&/glass|window|glazing/i.test(material.name))material.userData.environmentWindow=true;
           const mesh = new THREE.InstancedMesh(o.geometry, o.material, lod ? 120 : 10);
           mesh.count = 0;
           mesh.instanceMatrix.setUsage(THREE.DynamicDrawUsage);

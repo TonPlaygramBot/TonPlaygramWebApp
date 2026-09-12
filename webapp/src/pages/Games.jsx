@@ -27,7 +27,7 @@ const BADGE_STYLES = {
 export default function Games() {
   useTelegramBackButton();
   const [readinessMap, setReadinessMap] = useState(ONLINE_READINESS_BY_GAME);
-  const { packs: gamePacks, install: installGamePack, supported: gamePacksSupported } = useGamePacks();
+  const { packs: gamePacks, install: installGamePack, supported: gamePacksSupported, error: downloadError } = useGamePacks();
   const packBySlug = useMemo(() => {
     const map = new Map();
     for (const pack of gamePacks) {
@@ -53,6 +53,7 @@ export default function Games() {
         Jump straight into a lobby. Tap any game to start your next match.
       </p>
       <GamePackManager />
+      {downloadError && <p role="alert" className="text-sm text-red-300">{downloadError}</p>}
       <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
         {gamesCatalog.map((game) => {
           const thumbnail = getGameThumbnail(game.slug);
@@ -139,14 +140,20 @@ export default function Games() {
           }
 
           return (
+            <div key={game.name} className={cardClass}>
             <Link
-              key={game.name}
               to={game.route}
               reloadDocument={Boolean(game.standalone)}
-              className={cardClass}
+              className="flex flex-1 flex-col"
             >
               {cardContent}
             </Link>
+            {gamePack && <Link
+              to={`/games?downloadPack=${encodeURIComponent(gamePack.id)}&returnTo=${encodeURIComponent(game.route)}`}
+              className="flex min-h-11 items-center justify-center border-t border-border px-2 py-3 text-sm font-semibold text-primary"
+              aria-label={`Manage download for ${game.name}`}
+            >{packDownloading ? `Downloading ${packPercent}%` : packReady ? 'Manage download' : 'Download game'}</Link>}
+            </div>
           );
         })}
       </div>

@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import {
   CheckCircle2,
@@ -39,6 +39,12 @@ export default function GamePackManager() {
   const pendingRoute = query.get('returnTo');
   const safePendingRoute = pendingRoute?.startsWith('/games/') ? pendingRoute : null;
   const [expanded, setExpanded] = useState(Boolean(focusedPackId));
+  const sectionRef = useRef(null);
+  useEffect(() => {
+    if (!focusedPackId) return;
+    setExpanded(true);
+    sectionRef.current?.scrollIntoView({ block: 'start' });
+  }, [focusedPackId]);
   const {
     packs,
     storage,
@@ -65,7 +71,7 @@ export default function GamePackManager() {
     : 'Storage is calculated by your device';
 
   return (
-    <section className={`game-pack-manager ${expanded ? 'is-open' : ''}`} aria-label="Game downloads">
+    <section ref={sectionRef} className={`game-pack-manager ${expanded ? 'is-open' : ''}`} aria-label="Game downloads">
       <button
         type="button"
         className="game-pack-manager__summary"
@@ -85,7 +91,7 @@ export default function GamePackManager() {
           <div className="game-pack-manager__intro">
             <div>
               <p><HardDrive size={15} /> Install once, load faster</p>
-              <span>Downloaded assets stay on this device and only changed files are fetched during updates.</span>
+              <span>Save game files on this device for faster loading. Online matches and accounts still need internet.</span>
             </div>
             <button type="button" onClick={() => void refresh({ forceCatalog: true })} aria-label="Check for game updates">
               <RefreshCw size={16} />
@@ -135,14 +141,16 @@ export default function GamePackManager() {
                       </div>
 
                       {working && (
-                        <div className="game-pack-progress" aria-label={`${pack.title} download ${percent}%`}>
+                        <div className="game-pack-progress" role="progressbar" aria-valuenow={percent} aria-valuemin={0} aria-valuemax={100} aria-label={`${pack.title} download`}>
                           <div><span style={{ width: `${percent}%` }} /></div>
                           <p>
-                            <strong>{percent}%</strong>
-                            <span>{download?.completedAssets || 0}/{download?.totalAssets || 0} files</span>
+                            <strong>{download?.phase === 'dependency' ? 'Shared files ' : ''}{percent}%</strong>
+                            <span>{download?.phase === 'dependency' ? `Downloading ${download.dependencyTitle}` : download?.totalAssets ? `${download.completedAssets || 0}/${download.totalAssets} files` : 'Preparing download…'}</span>
                           </p>
                         </div>
                       )}
+
+                      {!working && pack.installation?.lastError && <p role="alert" className="game-pack-manager__error">{pack.installation.lastError}</p>}
 
                       <div className="game-pack-card__actions">
                         {working ? (

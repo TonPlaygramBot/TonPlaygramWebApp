@@ -1,6 +1,7 @@
 import { spawn } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
 import { dirname, join } from 'node:path';
+import { generateBuiltGamePacks } from './generate-game-pack-manifests.mjs';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const webappRoot = join(__dirname, '..');
@@ -21,11 +22,20 @@ const child = spawn(process.execPath, [`--max-old-space-size=${memoryLimitMb}`, 
   env: process.env
 });
 
-child.on('exit', (code, signal) => {
+child.on('exit', async (code, signal) => {
   if (signal) {
     console.error(`[build] Vite build terminated with signal ${signal}`);
     process.exit(1);
   }
 
+  if (code === 0) {
+    try {
+      await generateBuiltGamePacks(join(webappRoot, 'dist'));
+      console.log('[build] Versioned game downloads include executable runtime chunks.');
+    } catch (error) {
+      console.error('[build] Game download generation failed:', error);
+      process.exit(1);
+    }
+  }
   process.exit(code ?? 1);
 });

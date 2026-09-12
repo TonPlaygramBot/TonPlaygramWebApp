@@ -24,9 +24,13 @@ export function environmentAt(seed, seconds=0) {
   const daylight=smooth(-.12,.22,sunHeight);
   const cloud=mix(from.cloud,to.cloud,blend),rain=mix(from.rain,to.rain,blend);
   const wetness=Math.max(rain,from.rain*(1-smooth(0,150,within)));
+  const windFrom=environmentRandom(seed,slot+90)*Math.PI*2,windTo=environmentRandom(seed,slot+91)*Math.PI*2;
+  const windSpeed=1.2+rain*3.5+cloud*1.4;
+  const windX=mix(Math.cos(windFrom),Math.cos(windTo),blend)*windSpeed;
+  const windZ=mix(Math.sin(windFrom),Math.sin(windTo),blend)*windSpeed;
   const minutes=Math.floor(hour*60);
   return {hour,clock:`${String(Math.floor(minutes/60)).padStart(2,'0')}:${String(minutes%60).padStart(2,'0')}`,
-    name:WEATHER_NAMES[blend<.5?previous:next],cloud,rain,wetness,sunHeight,daylight,
+    name:WEATHER_NAMES[blend<.5?previous:next],windX,windZ,cloud,rain,wetness,sunHeight,daylight,
     fog:mix(from.fog,to.fog,blend),golden:daylight*(1-smooth(.08,.38,sunHeight)),night:1-daylight};
 }
 let sessionSeed;

@@ -12,7 +12,7 @@ const temporary=await mkdtemp(join(tmpdir(),'tirana-environment-'));
 let api;
 try{
  const file=join(temporary,'runtime.mjs');
- await build({stdin:{contents:"export * as T from 'three';export {GLTFLoader} from 'three/examples/jsm/loaders/GLTFLoader.js';export * from './src/games/tirana-environment/riverGeometry';export {LandscapeVisuals} from './src/games/tiranastreets/landscapeVisuals';export {CinematicAtmosphere} from './src/games/tirana-environment/CinematicAtmosphere';export {MappedBuildingCells} from './src/games/tirana-neighbourhood/MappedBuildingCells';export {WORLD} from './src/games/tiranastreets/shared/world.mjs';",resolveDir:new URL('../webapp/',import.meta.url).pathname,loader:'ts'},outfile:file,bundle:true,platform:'node',format:'esm'});
+ await build({stdin:{contents:"export {UrbanLighting} from './src/games/tirana-environment/UrbanLighting';export {PavementAprons} from './src/games/tirana-environment/PavementAprons';export * as T from 'three';export {GLTFLoader} from 'three/examples/jsm/loaders/GLTFLoader.js';export * from './src/games/tirana-environment/riverGeometry';export {LandscapeVisuals} from './src/games/tiranastreets/landscapeVisuals';export {CinematicAtmosphere} from './src/games/tirana-environment/CinematicAtmosphere';export {MappedBuildingCells} from './src/games/tirana-neighbourhood/MappedBuildingCells';export {WORLD} from './src/games/tiranastreets/shared/world.mjs';",resolveDir:new URL('../webapp/',import.meta.url).pathname,loader:'ts'},outfile:file,bundle:true,platform:'node',format:'esm'});
  api=await import(pathToFileURL(file));
 }finally{await rm(temporary,{recursive:true,force:true});}
 const {T}=api;
@@ -62,4 +62,25 @@ test('estimated-height buildings gain a finished shell without changing their so
  const building={id:'estimate',p:[[0,0],[20,0],[20,15],[0,15]],h:12,levels:null,heightSource:'unknown',tags:{building:'apartments'}},before=JSON.stringify(building);
  const layer=new api.MappedBuildingCells([building],new T.MeshStandardMaterial({vertexColors:true}),new T.MeshStandardMaterial(),false),root=layer.build([building]);
  assert.equal(root.children.length,3);assert.ok(root.children.some(m=>m.userData.windows));assert.ok(facadeModules(building,{allowEstimatedHeight:true}).some(p=>p.model==='entrance_bay'));assert.equal(JSON.stringify(building),before);layer.dispose();
+});
+
+test('street lights, shop lights and apartment windows follow the same day/night clock',()=>{
+ const scene=new T.Scene(),renderer={toneMappingExposure:1},camera=new T.PerspectiveCamera(55,.5,.1,1200);
+ const lighting=new api.UrbanLighting();scene.add(lighting.group);lighting.update({x:0,z:430},0,false);
+ const glass=new T.MeshStandardMaterial({color:0x345663});glass.userData.environmentWindow=true;scene.add(new T.Mesh(new T.PlaneGeometry(2,2),glass));
+ const sign=new T.MeshStandardMaterial({emissive:0xffffff});sign.userData.environmentLight='business';sign.userData.nightIntensity=1.4;scene.add(new T.Mesh(new T.PlaneGeometry(2,1),sign));
+ const atmosphere=new api.CinematicAtmosphere(scene,renderer,17);
+ let day,night;for(let t=0;t<5000;t+=10){const p=environmentAt(17,t);if(p.hour>12&&p.hour<14)day=t;if(p.hour>20&&p.hour<22)night=t;}
+ assert.ok(day!==undefined&&night!==undefined);
+ atmosphere.update(night,camera,false);const active=[];lighting.group.traverse(o=>{if(o.isPointLight&&o.intensity>0)active.push(o);});assert.ok(active.length>0&&active.length<=8);assert.ok(glass.emissiveIntensity>0);assert.ok(sign.emissiveIntensity>0);assert.ok(glass.userData.roomLighting);
+ atmosphere.update(day,camera,false);lighting.group.traverse(o=>{if(o.isPointLight)assert.equal(o.intensity,0);});assert.equal(glass.emissiveIntensity,0);assert.equal(sign.emissiveIntensity,0);
+ lighting.update({x:0,z:430},1,true);atmosphere.update(night,camera,true);const battery=[];lighting.group.traverse(o=>{if(o.isPointLight&&o.intensity>0)battery.push(o);});assert.ok(battery.length<=3);
+ atmosphere.dispose();lighting.dispose();
+});
+test('large-building paving streams above grass, below asphalt, and releases geometry',()=>{
+ const material=new T.MeshStandardMaterial();const world={buildings:[{id:'large',h:30,p:[[0,-200],[30,-200],[30,-170],[0,-170]]}]};
+ const layer=new api.PavementAprons(world,material);assert.equal(layer.group.children.length,0);
+ layer.update({x:15,z:-185},0,false);assert.ok(layer.group.children.length>0);layer.group.updateMatrixWorld(true);
+ const ray=new T.Raycaster(new T.Vector3(-1,4,-185),new T.Vector3(0,-1,0));const hits=ray.intersectObject(layer.group,true);assert.ok(hits.length>0);assert.ok(hits[0].point.y>.061&&hits[0].point.y<.09);
+ let disposed=0;layer.group.children[0].geometry.addEventListener('dispose',()=>disposed++);layer.dispose();layer.dispose();assert.equal(disposed,1);assert.equal(layer.group.children.length,0);material.dispose();
 });

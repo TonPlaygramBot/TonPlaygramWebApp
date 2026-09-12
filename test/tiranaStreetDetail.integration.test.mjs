@@ -3,25 +3,21 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import {readFileSync} from 'node:fs';
 import {createHash} from 'node:crypto';
-import {WORLD} from '../webapp/src/games/tiranastreets/shared/world.mjs';
 import {STREET_DETAILS,detailPostObstacles} from '../webapp/src/games/tirana-street-detail/sharedRoadDetails.mjs';
-import {ribbonExclusion,segmentDistance} from '../webapp/src/games/tirana-street-detail/roadDetailCore.mjs';
+import {ribbonExclusion} from '../webapp/src/games/tirana-street-detail/roadDetailCore.mjs';
 import {OBSTACLES,ORIGIN} from '../webapp/src/games/blackwater/shared/layout.mjs';
 import {TRACKS,makeTrack} from '../webapp/src/games/kartroyale/simulation.mjs';
 const read=p=>readFileSync(new URL('../'+p,import.meta.url),'utf8');
 test('original source WORLD is unchanged, not replaced by invented lane geometry',()=>{
  const b=readFileSync(new URL('../webapp/src/games/tiranastreets/shared/world.mjs',import.meta.url));
- assert.equal(createHash('sha1').update(`blob ${b.length}\0`).update(b).digest('hex'),'69157413d6ebc8eeb2c822436dde2761e793b6b7');
+ // Existing main map at 16bf14f; this change only alters the surrounding rendering.
+ assert.equal(createHash('sha1').update(`blob ${b.length}\0`).update(b).digest('hex'),'7dce43d85beb0cb7f682017ec0426ee2472d0973');
  assert.ok(STREET_DETAILS.decals.some(p=>p.kind==='bicycle'),'Real stored city must produce a visible cycle section');
- assert.ok(STREET_DETAILS.posts.length>0,'Real stored city must produce pedestrian posts');
+ assert.equal(STREET_DETAILS.posts.length,0,'Concrete pedestrian posts are removed');
 });
-test('all actual-city posts clear mapped carriageways and have FPS collision',()=>{
- const boxes=detailPostObstacles(ORIGIN);assert.equal(boxes.length,STREET_DETAILS.posts.length);
- for(let i=0;i<boxes.length;i++){
-  const p=STREET_DETAILS.posts[i],b=boxes[i];
-  assert.ok(OBSTACLES.some(o=>Math.abs(o.x-b.x)<1e-8&&Math.abs(o.z-b.z)<1e-8&&o.w===b.w&&o.d===b.d&&o.minY===.23));
-  for(const road of WORLD.roads)assert.ok(segmentDistance(p.x,p.z,road.a,road.b)>=road.w/2+.249999,'Post on carriageway or footpath');
- }
+test('removed concrete posts leave no invisible FPS collision boxes',()=>{
+ assert.deepEqual(detailPostObstacles(ORIGIN),[]);
+ assert.equal(OBSTACLES.filter(o=>o.minY===.23).length,0);
 });
 test('every Racing Royal circuit has a closed ribbon exclusion without changing its points',()=>{
  for(const config of TRACKS){const track=makeTrack(config.id),before=JSON.stringify(track.points),exclude=ribbonExclusion(track);
@@ -31,8 +27,8 @@ test('every Racing Royal circuit has a closed ribbon exclusion without changing 
  }
 });
 test('actual lobby and both active scene adapters use the new integrations',()=>{
- assert.match(read('webapp/src/pages/Games/TiranaStreetsLobby.jsx'),/localActivityURL\(item.id\)/);
- assert.match(read('webapp/src/games/blackwater/ui.tsx'),/activity==='street-career'/);
+ assert.match(read('webapp/src/pages/Games/TiranaStreetsLobby.jsx'),/gameModeURL\('streets',\s*'career'\)/);
+ assert.match(read('webapp/src/games/blackwater/ui.tsx'),/activity\s*===\s*'street-career'/);
  assert.match(read('webapp/src/games/blackwater/cityWorld.ts'),/enhancements.bindBuildings\(city.group/);
  assert.match(read('webapp/src/games/tiranastreets/street-career/StreetRenderer.ts'),/details.bindBuildings\(this.scene/);
  assert.match(read('webapp/src/games/kartroyale/tiranaScenery.ts'),/profile:'racing',track/);

@@ -68,7 +68,6 @@ export class InfrastructureLayer {
       for(const side of [-1,1]){
         const offset=side*half;
         if(!r.walk)box(this.paving,x+nx*side*(r.w/2+.64),.19,z+nz*side*(r.w/2+.64),1.24,.1,length,yaw);
-        box(this.concrete,x+nx*offset,.22,z+nz*offset,.19,.19,length,yaw);
         for(const height of [.67,1.32])box(this.steel,x+nx*offset,height,z+nz*offset,.065,.065,length,yaw);
         const count=Math.max(1,Math.ceil(length/1.6));
         for(let i=0;i<=count;i++){

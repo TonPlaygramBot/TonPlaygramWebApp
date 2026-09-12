@@ -13,87 +13,8 @@ const PACKABLE_EXTENSIONS = new Set([
   '.basis', '.bin', '.dds', '.exr', '.glb', '.gltf', '.hdr', '.json', '.ktx2', '.wasm'
 ]);
 
-export const GAME_PACK_DEFINITIONS = Object.freeze([
-  {
-    id: 'shared-tirana-vehicles',
-    title: 'Shared Tirana Vehicle Fleet',
-    description: 'Vehicle models shared by Tirana Streets and Racing Royal.',
-    hidden: true,
-    cover: '/assets/kart-royale/cover.webp',
-    route: null,
-    gameSlugs: [],
-    roots: ['assets/tirana-streets/vehicle-collection'],
-    dependencies: []
-  },
-  {
-    id: 'tirana-streets',
-    title: 'Tirana Streets',
-    description: 'City, landmark, street-life, vehicle and operation assets.',
-    cover: '/assets/tirana-streets/map.svg',
-    route: '/games/tiranastreets/lobby',
-    gameSlugs: ['tiranastreets'],
-    roots: ['assets/tirana-streets', 'assets/tirana-detail-kit', 'assets/tirana-landmarks', 'assets/blackwater'],
-    excludeRoots: ['assets/tirana-streets/vehicle-collection'],
-    excludeFiles: ['assets/tirana-streets/living/human.glb'],
-    dependencies: ['shared-tirana-vehicles']
-  },
-  {
-    id: 'racing-royal',
-    title: 'Racing Royal',
-    description: 'Tracks, vehicles, environments and racing presentation assets.',
-    cover: '/assets/kart-royale/cover.webp',
-    route: '/games/kartroyale/lobby',
-    gameSlugs: ['kartroyale'],
-    roots: ['assets/kart-royale'],
-    dependencies: ['shared-tirana-vehicles']
-  },
-  {
-    id: 'pool-royale',
-    title: 'Pool & Snooker Royale',
-    description: 'Tables, arenas, materials, cues and offline game entry assets.',
-    cover: '/assets/icons/pool-royale.svg',
-    route: '/games/poolroyale/lobby',
-    gameSlugs: ['poolroyale', 'snookerroyale'],
-    roots: ['assets/pool-royale', 'models/pool-royale'],
-    files: [
-      'pool-royale-bracket.html',
-      'pool-royale-api.js',
-      'snooker-royale-bracket.html',
-      'snooker-royale-api.js',
-      'lib/poolAi.js',
-      'game-preloads/pool-royale-preload.txt',
-      'game-preloads/snooker-royale-preload.txt',
-      'power-slider.js',
-      'power-slider.css'
-    ],
-    dependencies: []
-  },
-  {
-    id: 'table-tennis-royal',
-    title: 'Table Tennis & Tennis Royal',
-    description: 'Athletes, arenas, rackets, tables and court assets.',
-    cover: '/assets/icons/table-tennis-royal.svg',
-    route: '/games/tabletennisroyal/lobby',
-    gameSlugs: ['tabletennisroyal', 'tennisroyal'],
-    roots: ['assets/table-tennis'],
-    excludeFiles: [
-      'assets/table-tennis/chess-human.glb',
-      'assets/table-tennis/athlete-male.glb',
-      'assets/table-tennis/athlete-female.glb'
-    ],
-    dependencies: []
-  },
-  {
-    id: 'royal-lanes',
-    title: 'Royal Lanes Bowling',
-    description: 'Bowling lane, ball, pin, character and arena assets.',
-    cover: '/assets/royal-lanes/mark.svg',
-    route: '/games/royallanes/lobby',
-    gameSlugs: ['royallanes'],
-    roots: ['assets/royal-lanes'],
-    dependencies: []
-  }
-]);
+import { GAME_PACK_DEFINITIONS, RUNTIME_MEDIA_EXTENSIONS } from '../src/pwa/gamePackDefinitions.js';
+export { GAME_PACK_DEFINITIONS };
 
 const normalizeRelative = value => value.split(path.sep).join('/').replace(/^\/+/, '');
 const publicUrl = relativePath => `/${normalizeRelative(relativePath)}`;
@@ -144,7 +65,7 @@ async function collectDefinitionFiles(publicDir, definition) {
   const excludes = (definition.excludeRoots || []).map(normalizeRelative);
   const excludedFiles = new Set((definition.excludeFiles || []).map(normalizeRelative));
   return [...collected]
-    .filter(isEligible)
+    .filter(file => isEligible(file) || definition.runtimeMedia && RUNTIME_MEDIA_EXTENSIONS.has(path.extname(file).toLowerCase()))
     .filter(file => !excludedFiles.has(file))
     .filter(file => !excludes.some(root => withinRoot(file, root)))
     .sort();
@@ -183,7 +104,13 @@ export async function generateGamePackManifests({
   for (const definition of definitions) {
     const files = await collectDefinitionFiles(publicDir, definition);
     const assets = [];
-    for (const file of files) assets.push(await buildAsset(publicDir, file, cdnBaseUrl));
+    for (const file of files) {
+      // Core media/code stays readable inside Capacitor. A binary-only CDN
+      // rollout must not suddenly require uploading the launcher and its images.
+      const asset = await buildAsset(publicDir, file, definition.keepInNative || !isEligible(file) ? '' : cdnBaseUrl);
+      asset.nativeRemovable = !definition.keepInNative && isEligible(file);
+      assets.push(asset);
+    }
     const version = packVersion(assets);
     const manifest = {
       schemaVersion: SCHEMA_VERSION,
@@ -221,6 +148,28 @@ export async function generateGamePackManifests({
   };
   await writeFile(path.join(outputDir, 'index.json'), `${JSON.stringify(catalog, null, 2)}\n`);
   return catalog;
+}
+
+// Vite hashes the executable chunks, so collect them only after the build. Every
+// game depends on this shared runtime rather than downloading just its cover.
+export async function generateBuiltGamePacks(distDir) {
+  const entries = await readdir(path.join(distDir, 'assets'), { withFileTypes: true });
+  const runtimeFiles = entries.filter(entry => entry.isFile() && /\.(js|css|woff2?)$/i.test(entry.name))
+    .map(entry => `assets/${entry.name}`);
+  if (!runtimeFiles.length) throw new Error('Game runtime chunks are missing from the build.');
+  const runtime = {
+    id: 'shared-game-runtime', title: 'Shared game runtime', hidden: true,
+    description: 'Executable game code and application shell.', gameSlugs: [],
+    roots: [], files: ['index.html', ...runtimeFiles], dependencies: [],
+    runtimeMedia: true, keepInNative: true
+  };
+  return generateGamePackManifests({
+    publicDir: distDir,
+    outputDir: path.join(distDir, 'pwa', 'game-packs'),
+    definitions: [runtime, ...GAME_PACK_DEFINITIONS.map(pack => ({
+      ...pack, dependencies: pack.hidden ? pack.dependencies : ['shared-game-runtime', ...(pack.dependencies || [])]
+    }))]
+  });
 }
 
 async function main() {
