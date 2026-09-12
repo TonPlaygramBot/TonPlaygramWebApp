@@ -1,0 +1,35 @@
+import {readFile,writeFile} from 'node:fs/promises';
+import {fileURLToPath} from 'node:url';
+import {gzipSync} from 'node:zlib';
+import path from 'node:path';
+import {build} from 'esbuild';
+import {WORLD} from '../src/games/tiranastreets/shared/world.mjs';
+import {BUSINESS_BUILDING_PROFILES} from '../src/games/tirana-city-source/businessBuildingProfiles.mjs';
+import {BUSINESS_SIGNS} from '../src/games/tirana-city-source/businessSignRegistry.mjs';
+import {CANOPY_TREES} from '../src/games/tirana-street-life/canopyRegistry.mjs';
+import {STREET_LIFE} from '../src/games/tirana-street-life/registry.mjs';
+import {NEIGHBOURHOOD} from '../src/games/tirana-neighbourhood/data.mjs';
+import {SIGN_REFERENCES,signReferenceFor} from '../src/games/tirana-street-life/signReferences.mjs';
+const root=path.resolve(path.dirname(fileURLToPath(import.meta.url)),'..');
+const centres=WORLD.buildings.filter(b=>BUSINESS_BUILDING_PROFILES[b.id]).map(b=>[b.p.reduce((s,p)=>s+p[0],0)/b.p.length,b.p.reduce((s,p)=>s+p[1],0)/b.p.length]);
+const near=(x,z)=>centres.some(p=>Math.hypot(x-p[0],z-p[1])<180);
+const intersects=points=>points.some(p=>near(...p));
+const subset={graph:{nodes:[],edges:[]},origin:WORLD.origin,bounds:WORLD.bounds,landmarks:[],water:WORLD.water.filter(w=>Array.isArray(w)?intersects(w):w.line&&intersects(w.line)),roads:WORLD.roads.filter(r=>intersects([r.a,r.b])).map(({a,b,w,walk,bridge,tunnel,name})=>({a,b,w,walk,bridge,tunnel,name})),buildings:WORLD.buildings.filter(b=>intersects(b.p)).map(({id,p,h,holes,minHeight})=>({id,p,h,holes,minHeight})),parks:[],areas:[]};
+const trees=CANOPY_TREES.filter(t=>near(t.x,t.z)),businesses=BUSINESS_SIGNS.filter(s=>near(s.x,s.z));
+const shops={storefronts:[...STREET_LIFE.storefronts,...NEIGHBOURHOOD.storefronts].filter(s=>near(s.x,s.z)),trees:[],stops:[],fuel:[],advertising:[]};
+const used=new Set([...businesses,...shops.storefronts].map(s=>signReferenceFor(s.name)?.id));
+const artwork=[];for(const r of SIGN_REFERENCES.filter(r=>used.has(r.id))){const file=path.join(root,'public',r.logo),mime=r.logo.endsWith('.svg')?'image/svg+xml':r.logo.endsWith('.jpg')?'image/jpeg':'image/png';artwork.push({...r,logo:'data:'+mime+';base64,'+(await readFile(file)).toString('base64')});}
+const packedExport=(name,data)=>`import {decodeSource} from ${JSON.stringify(path.join(root,'src/games/tirana-neighbourhood/decodeSource.mjs'))};export const ${name}=decodeSource(['${gzipSync(JSON.stringify(data),{level:9}).toString('base64')}']);`;
+const result=await build({entryPoints:[path.join(root,'src/games/tirana-environment/BusinessReview.tsx')],write:false,bundle:true,minify:true,format:'esm',platform:'browser',plugins:[{name:'business-in-chat',setup(b){
+ b.onResolve({filter:/^(three|react|react-dom)(\/.*)?$/},({path:s})=>({path:`https://esm.sh/${s.startsWith('three')?s.replace('three','three@0.164.0'):s.startsWith('react-dom')?s.replace('react-dom','react-dom@18.2.0'):s.replace('react','react@18.2.0')}`,external:true}));
+ b.onResolve({filter:/^polygon-clipping$/},()=>({path:'https://esm.sh/polygon-clipping@0.15.7',external:true}));
+ b.onLoad({filter:/tiranastreets\/shared\/world\.mjs$/},()=>({contents:packedExport('WORLD',subset),loader:'js'}));
+ b.onLoad({filter:/tirana-city-source\/businessSignRegistry\.mjs$/},()=>({contents:packedExport('BUSINESS_SIGNS',businesses)+'export const BUSINESS_SIGN_BUILDING_IDS=new Set(BUSINESS_SIGNS.map(s=>s.buildingId));',loader:'js'}));
+ b.onLoad({filter:/tirana-street-life\/canopyRegistry\.mjs$/},()=>({contents:packedExport('CANOPY_TREES',trees),loader:'js'}));
+ b.onLoad({filter:/tirana-street-life\/registry\.mjs$/},()=>({contents:packedExport('STREET_LIFE',shops)+'export const MATURE_TREE_IDS=new Set();export const FUEL_CANOPY_IDS=new Set();export const REAL_STOREFRONT_BUILDING_IDS=new Set();',loader:'js'}));
+ b.onLoad({filter:/tirana-city-source\/housingRegistry\.mjs$/},()=>({contents:'export const AGED_HOUSING_IDS=new Set();',loader:'js'}));
+ b.onLoad({filter:/tirana-street-life\/signReferences\.mjs$/},()=>({contents:'export const SIGN_REFERENCES=['+artwork.map(r=>'({...'+JSON.stringify(r)+',match:'+r.match.toString()+'})').join(',')+'];export const signReferenceFor='+signReferenceFor.toString()+';export const referencedAdvertising=s=>s;',loader:'js'}));
+}}]});
+const template=await readFile(path.join(root,'scripts/tirana-business-preview.fragment.html'),'utf8');const html=template.replace('/*__BUSINESS_REVIEW_BUNDLE__*/',result.outputFiles[0].text.replace(/<\/script/gi,'<\\/script'));
+if(Buffer.byteLength(html)>1000000)throw Error('Preview exceeds 1 MB: '+Buffer.byteLength(html));
+await writeFile(process.argv[2]||'/workspace/tirana-business-landmarks.html',html);console.log({bytes:Buffer.byteLength(html),buildings:subset.buildings.length,roads:subset.roads.length,trees:trees.length,businesses:businesses.length,shops:shops.storefronts.length,brands:artwork.length});

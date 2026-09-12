@@ -1,0 +1,3402 @@
+{
+  "source": {
+    "archiveSha256": "dca70c5d585b90c6c042b033bb4bfb001da8b297d7767b2cd927bb1875611602",
+    "attribution": "© OpenStreetMap contributors",
+    "license": "ODbL-1.0",
+    "accuracy": "Mapped identities, not a live occupancy survey; no nearby-building fallback"
+  },
+  "mappedPlaces": 438,
+  "matchedIdentities": 402,
+  "counts": {
+    "hotel": 231,
+    "bank": 171
+  },
+  "sites": [
+    {
+      "id": "business/way/56015564:56015564",
+      "name": "Hotel Dinasty",
+      "buildingId": "56015564",
+      "category": "hotel",
+      "source": "https://www.openstreetmap.org/way/56015564",
+      "match": "source-building-id"
+    },
+    {
+      "id": "business/way/196893237:196893237",
+      "name": "Hotel Mondial",
+      "buildingId": "196893237",
+      "category": "hotel",
+      "source": "https://www.openstreetmap.org/way/196893237",
+      "match": "source-building-id"
+    },
+    {
+      "id": "business/way/236566876:236566876",
+      "name": "Tirana International Hotel & Conference Centre",
+      "buildingId": "236566876",
+      "category": "hotel",
+      "source": "https://www.openstreetmap.org/way/236566876",
+      "match": "source-building-id"
+    },
+    {
+      "id": "business/way/248344798:248344798",
+      "name": "Mak Albania",
+      "buildingId": "248344798",
+      "category": "hotel",
+      "source": "https://www.openstreetmap.org/way/248344798",
+      "match": "source-building-id"
+    },
+    {
+      "id": "business/way/293898200:293898200",
+      "name": "Mai Tai Resort",
+      "buildingId": "293898200",
+      "category": "hotel",
+      "source": "https://www.openstreetmap.org/way/293898200",
+      "match": "source-building-id"
+    },
+    {
+      "id": "business/way/295491009:295491009",
+      "name": "Hotel Elysee",
+      "buildingId": "295491009",
+      "category": "hotel",
+      "source": "https://www.openstreetmap.org/way/295491009",
+      "match": "source-building-id"
+    },
+    {
+      "id": "business/way/332205077:332205077",
+      "name": "Hotel Meridian",
+      "buildingId": "332205077",
+      "category": "hotel",
+      "source": "https://www.openstreetmap.org/way/332205077",
+      "match": "source-building-id"
+    },
+    {
+      "id": "business/way/357208310:357208310",
+      "name": "Hotel Gloria",
+      "buildingId": "357208310",
+      "category": "hotel",
+      "source": "https://www.openstreetmap.org/way/357208310",
+      "match": "source-building-id"
+    },
+    {
+      "id": "business/way/358955864:358955864",
+      "name": "Hotel Arbëria",
+      "buildingId": "358955864",
+      "category": "hotel",
+      "source": "https://www.openstreetmap.org/way/358955864",
+      "match": "source-building-id"
+    },
+    {
+      "id": "business/way/360601454:360601454",
+      "name": "Banka Kombëtare Tregtare",
+      "buildingId": "360601454",
+      "category": "bank",
+      "source": "https://www.openstreetmap.org/way/360601454",
+      "match": "source-building-id"
+    },
+    {
+      "id": "business/way/379613448:379613448",
+      "name": "Selim Brahja",
+      "buildingId": "379613448",
+      "category": "hotel",
+      "source": "https://www.openstreetmap.org/way/379613448",
+      "match": "source-building-id"
+    },
+    {
+      "id": "business/way/380047334:380047334",
+      "name": "Tirana Bank",
+      "buildingId": "380047334",
+      "category": "bank",
+      "source": "https://www.openstreetmap.org/way/380047334",
+      "match": "source-building-id"
+    },
+    {
+      "id": "business/way/380893198:380893198",
+      "name": "Hotel Vila 15",
+      "buildingId": "380893198",
+      "category": "hotel",
+      "source": "https://www.openstreetmap.org/way/380893198",
+      "match": "source-building-id"
+    },
+    {
+      "id": "business/way/382410981:382410981",
+      "name": "MonarC",
+      "buildingId": "382410981",
+      "category": "hotel",
+      "source": "https://www.openstreetmap.org/way/382410981",
+      "match": "source-building-id"
+    },
+    {
+      "id": "business/way/400647876:400647876",
+      "name": "Xheko Imperial Luxury Hotel & Spa",
+      "buildingId": "400647876",
+      "category": "hotel",
+      "source": "https://www.openstreetmap.org/way/400647876",
+      "match": "source-building-id"
+    },
+    {
+      "id": "business/way/405310204:405310204",
+      "name": "Theranda Boutique Hotel",
+      "buildingId": "405310204",
+      "category": "hotel",
+      "source": "https://www.openstreetmap.org/way/405310204",
+      "match": "source-building-id"
+    },
+    {
+      "id": "business/way/405311017:405311017",
+      "name": "Arté Boutique Hotel",
+      "buildingId": "405311017",
+      "category": "hotel",
+      "source": "https://www.openstreetmap.org/way/405311017",
+      "match": "source-building-id"
+    },
+    {
+      "id": "business/way/405505328:405505328",
+      "name": "Hotel Europa",
+      "buildingId": "405505328",
+      "category": "hotel",
+      "source": "https://www.openstreetmap.org/way/405505328",
+      "match": "source-building-id"
+    },
+    {
+      "id": "business/way/405907464:405907464",
+      "name": "Hotel Senator",
+      "buildingId": "405907464",
+      "category": "hotel",
+      "source": "https://www.openstreetmap.org/way/405907464",
+      "match": "source-building-id"
+    },
+    {
+      "id": "business/way/405907466:405907466",
+      "name": "Center Hotel",
+      "buildingId": "405907466",
+      "category": "hotel",
+      "source": "https://www.openstreetmap.org/way/405907466",
+      "match": "source-building-id"
+    },
+    {
+      "id": "business/way/406072156:406072156",
+      "name": "Theatro",
+      "buildingId": "406072156",
+      "category": "hotel",
+      "source": "https://www.openstreetmap.org/way/406072156",
+      "match": "source-building-id"
+    },
+    {
+      "id": "business/way/410328906:410328906",
+      "name": "Hotel Nurlon",
+      "buildingId": "410328906",
+      "category": "hotel",
+      "source": "https://www.openstreetmap.org/way/410328906",
+      "match": "source-building-id"
+    },
+    {
+      "id": "business/way/410328910:410328910",
+      "name": "Hotel Bea",
+      "buildingId": "410328910",
+      "category": "hotel",
+      "source": "https://www.openstreetmap.org/way/410328910",
+      "match": "source-building-id"
+    },
+    {
+      "id": "business/way/413186082:413186082",
+      "name": "Freddy's Hotel",
+      "buildingId": "413186082",
+      "category": "hotel",
+      "source": "https://www.openstreetmap.org/way/413186082",
+      "match": "source-building-id"
+    },
+    {
+      "id": "business/way/416591333:416591333",
+      "name": "Broadway Boutique Hotel",
+      "buildingId": "416591333",
+      "category": "hotel",
+      "source": "https://www.openstreetmap.org/way/416591333",
+      "match": "source-building-id"
+    },
+    {
+      "id": "business/way/416591343:416591343",
+      "name": "Hotel Antigone",
+      "buildingId": "416591343",
+      "category": "hotel",
+      "source": "https://www.openstreetmap.org/way/416591343",
+      "match": "source-building-id"
+    },
+    {
+      "id": "business/way/449517055:449517055",
+      "name": "Hotel Ferrari",
+      "buildingId": "449517055",
+      "category": "hotel",
+      "source": "https://www.openstreetmap.org/way/449517055",
+      "match": "source-building-id"
+    },
+    {
+      "id": "business/way/451968055:451968055",
+      "name": "Primo Tirana Hotel",
+      "buildingId": "451968055",
+      "category": "hotel",
+      "source": "https://www.openstreetmap.org/way/451968055",
+      "match": "source-building-id"
+    },
+    {
+      "id": "business/way/452041911:452041911",
+      "name": "Hotel Palma",
+      "buildingId": "452041911",
+      "category": "hotel",
+      "source": "https://www.openstreetmap.org/way/452041911",
+      "match": "source-building-id"
+    },
+    {
+      "id": "business/way/458648476:458648476",
+      "name": "Hotel Klindi",
+      "buildingId": "458648476",
+      "category": "hotel",
+      "source": "https://www.openstreetmap.org/way/458648476",
+      "match": "source-building-id"
+    },
+    {
+      "id": "business/way/459891313:459891313",
+      "name": "Brilant",
+      "buildingId": "459891313",
+      "category": "hotel",
+      "source": "https://www.openstreetmap.org/way/459891313",
+      "match": "source-building-id"
+    },
+    {
+      "id": "business/way/460183478:460183478",
+      "name": "Sidi",
+      "buildingId": "460183478",
+      "category": "hotel",
+      "source": "https://www.openstreetmap.org/way/460183478",
+      "match": "source-building-id"
+    },
+    {
+      "id": "business/way/464313000:464313000",
+      "name": "Hotel Baron",
+      "buildingId": "464313000",
+      "category": "hotel",
+      "source": "https://www.openstreetmap.org/way/464313000",
+      "match": "source-building-id"
+    },
+    {
+      "id": "business/way/464589852:464589852",
+      "name": "Banka Kombëtare Tregtare",
+      "buildingId": "464589852",
+      "category": "bank",
+      "source": "https://www.openstreetmap.org/way/464589852",
+      "match": "source-building-id"
+    },
+    {
+      "id": "business/way/464820889:464820889",
+      "name": "Hotel Arandi AG",
+      "buildingId": "464820889",
+      "category": "hotel",
+      "source": "https://www.openstreetmap.org/way/464820889",
+      "match": "source-building-id"
+    },
+    {
+      "id": "business/way/465309333:465309333",
+      "name": "Raiffeisen Bank",
+      "buildingId": "465309333",
+      "category": "bank",
+      "source": "https://www.openstreetmap.org/way/465309333",
+      "match": "source-building-id"
+    },
+    {
+      "id": "business/way/467594860:467594860",
+      "name": "Orchidea",
+      "buildingId": "467594860",
+      "category": "hotel",
+      "source": "https://www.openstreetmap.org/way/467594860",
+      "match": "source-building-id"
+    },
+    {
+      "id": "business/way/469424840:469424840",
+      "name": "The Plaza",
+      "buildingId": "469424840",
+      "category": "hotel",
+      "source": "https://www.openstreetmap.org/way/469424840",
+      "match": "source-building-id"
+    },
+    {
+      "id": "business/way/471200022:471200022",
+      "name": "New W Hotel",
+      "buildingId": "471200022",
+      "category": "hotel",
+      "source": "https://www.openstreetmap.org/way/471200022",
+      "match": "source-building-id"
+    },
+    {
+      "id": "business/way/475693726:475693726",
+      "name": "Eler Hotel",
+      "buildingId": "475693726",
+      "category": "hotel",
+      "source": "https://www.openstreetmap.org/way/475693726",
+      "match": "source-building-id"
+    },
+    {
+      "id": "business/way/475694861:475694861",
+      "name": "Hotel Artist",
+      "buildingId": "475694861",
+      "category": "hotel",
+      "source": "https://www.openstreetmap.org/way/475694861",
+      "match": "source-building-id"
+    },
+    {
+      "id": "business/way/480920774:480920774",
+      "name": "Hotel Capital Bruçi",
+      "buildingId": "480920774",
+      "category": "hotel",
+      "source": "https://www.openstreetmap.org/way/480920774",
+      "match": "source-building-id"
+    },
+    {
+      "id": "business/way/484564143:484564143",
+      "name": "Hotel Viktoria",
+      "buildingId": "484564143",
+      "category": "hotel",
+      "source": "https://www.openstreetmap.org/way/484564143",
+      "match": "source-building-id"
+    },
+    {
+      "id": "business/way/487456710:487456710",
+      "name": "Ramel Hotel",
+      "buildingId": "487456710",
+      "category": "hotel",
+      "source": "https://www.openstreetmap.org/way/487456710",
+      "match": "source-building-id"
+    },
+    {
+      "id": "business/way/530551223:530551223",
+      "name": "Lot Boutique Hotel",
+      "buildingId": "530551223",
+      "category": "hotel",
+      "source": "https://www.openstreetmap.org/way/530551223",
+      "match": "source-building-id"
+    },
+    {
+      "id": "business/way/534848431:534848431",
+      "name": "Moncafe Boutique Hotel & SPA",
+      "buildingId": "534848431",
+      "category": "hotel",
+      "source": "https://www.openstreetmap.org/way/534848431",
+      "match": "source-building-id"
+    },
+    {
+      "id": "business/way/543080342:543080342",
+      "name": "Pandora Residence",
+      "buildingId": "543080342",
+      "category": "hotel",
+      "source": "https://www.openstreetmap.org/way/543080342",
+      "match": "source-building-id"
+    },
+    {
+      "id": "business/way/551243323:551243323",
+      "name": "Iliria Boutique Hotel",
+      "buildingId": "551243323",
+      "category": "hotel",
+      "source": "https://www.openstreetmap.org/way/551243323",
+      "match": "source-building-id"
+    },
+    {
+      "id": "business/way/562087871:562087871",
+      "name": "Hotel Domus",
+      "buildingId": "562087871",
+      "category": "hotel",
+      "source": "https://www.openstreetmap.org/way/562087871",
+      "match": "source-building-id"
+    },
+    {
+      "id": "business/way/566710902:566710902",
+      "name": "Star",
+      "buildingId": "566710902",
+      "category": "hotel",
+      "source": "https://www.openstreetmap.org/way/566710902",
+      "match": "source-building-id"
+    },
+    {
+      "id": "business/way/578757642:578757642",
+      "name": "Vila Alizee",
+      "buildingId": "578757642",
+      "category": "hotel",
+      "source": "https://www.openstreetmap.org/way/578757642",
+      "match": "source-building-id"
+    },
+    {
+      "id": "business/way/618800855:618800855",
+      "name": "Hilton Garden Inn Tirana",
+      "buildingId": "618800855",
+      "category": "hotel",
+      "source": "https://www.openstreetmap.org/way/618800855",
+      "match": "source-building-id"
+    },
+    {
+      "id": "business/way/623094563:623094563",
+      "name": "Central Inn",
+      "buildingId": "623094563",
+      "category": "hotel",
+      "source": "https://www.openstreetmap.org/way/623094563",
+      "match": "source-building-id"
+    },
+    {
+      "id": "business/way/623122819:623122819",
+      "name": "Vila Verde",
+      "buildingId": "623122819",
+      "category": "hotel",
+      "source": "https://www.openstreetmap.org/way/623122819",
+      "match": "source-building-id"
+    },
+    {
+      "id": "business/way/675320690:675320690",
+      "name": "Intesa Sanpaolo",
+      "buildingId": "675320690",
+      "category": "bank",
+      "source": "https://www.openstreetmap.org/way/675320690",
+      "match": "source-building-id"
+    },
+    {
+      "id": "business/way/682795147:682795147",
+      "name": "Vila e Artë",
+      "buildingId": "682795147",
+      "category": "hotel",
+      "source": "https://www.openstreetmap.org/way/682795147",
+      "match": "source-building-id"
+    },
+    {
+      "id": "business/way/682795203:682795203",
+      "name": "Starlight Hotel",
+      "buildingId": "682795203",
+      "category": "hotel",
+      "source": "https://www.openstreetmap.org/way/682795203",
+      "match": "source-building-id"
+    },
+    {
+      "id": "business/way/690948136:690948136",
+      "name": "Sar'Otel",
+      "buildingId": "690948136",
+      "category": "hotel",
+      "source": "https://www.openstreetmap.org/way/690948136",
+      "match": "source-building-id"
+    },
+    {
+      "id": "business/way/695563728:695563728",
+      "name": "Jolly City Center Hotel",
+      "buildingId": "695563728",
+      "category": "hotel",
+      "source": "https://www.openstreetmap.org/way/695563728",
+      "match": "source-building-id"
+    },
+    {
+      "id": "business/way/712377326:712377326",
+      "name": "Venis Hotel",
+      "buildingId": "712377326",
+      "category": "hotel",
+      "source": "https://www.openstreetmap.org/way/712377326",
+      "match": "source-building-id"
+    },
+    {
+      "id": "business/way/713103196:713103196",
+      "name": "Home Hotel",
+      "buildingId": "713103196",
+      "category": "hotel",
+      "source": "https://www.openstreetmap.org/way/713103196",
+      "match": "source-building-id"
+    },
+    {
+      "id": "business/way/713103919:713103919",
+      "name": "SR99",
+      "buildingId": "713103919",
+      "category": "hotel",
+      "source": "https://www.openstreetmap.org/way/713103919",
+      "match": "source-building-id"
+    },
+    {
+      "id": "business/way/713118667:713118667",
+      "name": "Queen Hotel Tirana",
+      "buildingId": "713118667",
+      "category": "hotel",
+      "source": "https://www.openstreetmap.org/way/713118667",
+      "match": "source-building-id"
+    },
+    {
+      "id": "business/way/725211404:725211404",
+      "name": "abi Bank",
+      "buildingId": "725211404",
+      "category": "bank",
+      "source": "https://www.openstreetmap.org/way/725211404",
+      "match": "source-building-id"
+    },
+    {
+      "id": "business/way/726155560:726155560",
+      "name": "Privilege Hotel & Spa",
+      "buildingId": "726155560",
+      "category": "hotel",
+      "source": "https://www.openstreetmap.org/way/726155560",
+      "match": "source-building-id"
+    },
+    {
+      "id": "business/way/726162719:726162719",
+      "name": "Hotel Gjuta",
+      "buildingId": "726162719",
+      "category": "hotel",
+      "source": "https://www.openstreetmap.org/way/726162719",
+      "match": "source-building-id"
+    },
+    {
+      "id": "business/way/726958441:726958441",
+      "name": "Hotel Victoria",
+      "buildingId": "726958441",
+      "category": "hotel",
+      "source": "https://www.openstreetmap.org/way/726958441",
+      "match": "source-building-id"
+    },
+    {
+      "id": "business/way/730038385:730038385",
+      "name": "OTP Bank",
+      "buildingId": "730038385",
+      "category": "bank",
+      "source": "https://www.openstreetmap.org/way/730038385",
+      "match": "source-building-id"
+    },
+    {
+      "id": "business/way/730235631:730235631",
+      "name": "Hotel Mustang",
+      "buildingId": "730235631",
+      "category": "hotel",
+      "source": "https://www.openstreetmap.org/way/730235631",
+      "match": "source-building-id"
+    },
+    {
+      "id": "business/way/733744895:733744895",
+      "name": "Hotel Dream",
+      "buildingId": "733744895",
+      "category": "hotel",
+      "source": "https://www.openstreetmap.org/way/733744895",
+      "match": "source-building-id"
+    },
+    {
+      "id": "business/way/733807430:733807430",
+      "name": "Hotel Daniel & Roel",
+      "buildingId": "733807430",
+      "category": "hotel",
+      "source": "https://www.openstreetmap.org/way/733807430",
+      "match": "source-building-id"
+    },
+    {
+      "id": "business/way/751130226:751130226",
+      "name": "Hotel Miri",
+      "buildingId": "751130226",
+      "category": "hotel",
+      "source": "https://www.openstreetmap.org/way/751130226",
+      "match": "source-building-id"
+    },
+    {
+      "id": "business/way/751160064:751160064",
+      "name": "Hotel Darda",
+      "buildingId": "751160064",
+      "category": "hotel",
+      "source": "https://www.openstreetmap.org/way/751160064",
+      "match": "source-building-id"
+    },
+    {
+      "id": "business/way/752699141:752699141",
+      "name": "Coli's",
+      "buildingId": "752699141",
+      "category": "hotel",
+      "source": "https://www.openstreetmap.org/way/752699141",
+      "match": "source-building-id"
+    },
+    {
+      "id": "business/way/789612513:789612513",
+      "name": "Radisson Collection Morina Hotel Tirana",
+      "buildingId": "789612513",
+      "category": "hotel",
+      "source": "https://www.openstreetmap.org/way/789612513",
+      "match": "source-building-id"
+    },
+    {
+      "id": "business/way/795642504:795642504",
+      "name": "Marriott Tirana",
+      "buildingId": "795642504",
+      "category": "hotel",
+      "source": "https://www.openstreetmap.org/way/795642504",
+      "match": "source-building-id"
+    },
+    {
+      "id": "business/way/1010185297:1010185297",
+      "name": "Vila 15",
+      "buildingId": "1010185297",
+      "category": "hotel",
+      "source": "https://www.openstreetmap.org/way/1010185297",
+      "match": "source-building-id"
+    },
+    {
+      "id": "business/way/1056420420:1056420420",
+      "name": "Hotel Agron",
+      "buildingId": "1056420420",
+      "category": "hotel",
+      "source": "https://www.openstreetmap.org/way/1056420420",
+      "match": "source-building-id"
+    },
+    {
+      "id": "business/way/1071530561:1071530561",
+      "name": "313 Boutique Hotel",
+      "buildingId": "1071530561",
+      "category": "hotel",
+      "source": "https://www.openstreetmap.org/way/1071530561",
+      "match": "source-building-id"
+    },
+    {
+      "id": "business/way/1162060905:1162060905",
+      "name": "Hotel Zanussi",
+      "buildingId": "1162060905",
+      "category": "hotel",
+      "source": "https://www.openstreetmap.org/way/1162060905",
+      "match": "source-building-id"
+    },
+    {
+      "id": "business/way/1162828946:1162828946",
+      "name": "Marinaj Hotel",
+      "buildingId": "1162828946",
+      "category": "hotel",
+      "source": "https://www.openstreetmap.org/way/1162828946",
+      "match": "source-building-id"
+    },
+    {
+      "id": "business/way/1170404059:1170404059",
+      "name": "A & A",
+      "buildingId": "1170404059",
+      "category": "hotel",
+      "source": "https://www.openstreetmap.org/way/1170404059",
+      "match": "source-building-id"
+    },
+    {
+      "id": "business/way/1171011999:1171011999",
+      "name": "Lubjana",
+      "buildingId": "1171011999",
+      "category": "hotel",
+      "source": "https://www.openstreetmap.org/way/1171011999",
+      "match": "source-building-id"
+    },
+    {
+      "id": "business/way/1171801804:1171801804",
+      "name": "Algo",
+      "buildingId": "1171801804",
+      "category": "hotel",
+      "source": "https://www.openstreetmap.org/way/1171801804",
+      "match": "source-building-id"
+    },
+    {
+      "id": "business/way/1173151726:1173151726",
+      "name": "Viol",
+      "buildingId": "1173151726",
+      "category": "hotel",
+      "source": "https://www.openstreetmap.org/way/1173151726",
+      "match": "source-building-id"
+    },
+    {
+      "id": "business/way/1173528593:1173528593",
+      "name": "Edisem",
+      "buildingId": "1173528593",
+      "category": "hotel",
+      "source": "https://www.openstreetmap.org/way/1173528593",
+      "match": "source-building-id"
+    },
+    {
+      "id": "business/way/1174006985:1174006985",
+      "name": "Intesa Sanpaolo",
+      "buildingId": "1174006985",
+      "category": "bank",
+      "source": "https://www.openstreetmap.org/way/1174006985",
+      "match": "source-building-id"
+    },
+    {
+      "id": "business/way/1174112179:1174112179",
+      "name": "VH Eurostar Tirana Hotel",
+      "buildingId": "1174112179",
+      "category": "hotel",
+      "source": "https://www.openstreetmap.org/way/1174112179",
+      "match": "source-building-id"
+    },
+    {
+      "id": "business/way/1178662351:1178662351",
+      "name": "Hotel Imperator",
+      "buildingId": "1178662351",
+      "category": "hotel",
+      "source": "https://www.openstreetmap.org/way/1178662351",
+      "match": "source-building-id"
+    },
+    {
+      "id": "business/way/1180344377:1180344377",
+      "name": "Hotel demms",
+      "buildingId": "1180344377",
+      "category": "hotel",
+      "source": "https://www.openstreetmap.org/way/1180344377",
+      "match": "source-building-id"
+    },
+    {
+      "id": "business/way/1185182446:1185182446",
+      "name": "White House Hotel",
+      "buildingId": "1185182446",
+      "category": "hotel",
+      "source": "https://www.openstreetmap.org/way/1185182446",
+      "match": "source-building-id"
+    },
+    {
+      "id": "business/way/1193246454:1193246454",
+      "name": "Art Hotel",
+      "buildingId": "1193246454",
+      "category": "hotel",
+      "source": "https://www.openstreetmap.org/way/1193246454",
+      "match": "source-building-id"
+    },
+    {
+      "id": "business/way/1193436013:1193436013",
+      "name": "Hotel Bermon",
+      "buildingId": "1193436013",
+      "category": "hotel",
+      "source": "https://www.openstreetmap.org/way/1193436013",
+      "match": "source-building-id"
+    },
+    {
+      "id": "business/way/1201558915:1201558915",
+      "name": "Hotel Kastria",
+      "buildingId": "1201558915",
+      "category": "hotel",
+      "source": "https://www.openstreetmap.org/way/1201558915",
+      "match": "source-building-id"
+    },
+    {
+      "id": "business/way/1201564810:1201564810",
+      "name": "Hotel de Charme",
+      "buildingId": "1201564810",
+      "category": "hotel",
+      "source": "https://www.openstreetmap.org/way/1201564810",
+      "match": "source-building-id"
+    },
+    {
+      "id": "business/way/1205073232:1205073232",
+      "name": "Hotel Rimini",
+      "buildingId": "1205073232",
+      "category": "hotel",
+      "source": "https://www.openstreetmap.org/way/1205073232",
+      "match": "source-building-id"
+    },
+    {
+      "id": "business/way/1205652393:1205652393",
+      "name": "Hotel Brilant Antik",
+      "buildingId": "1205652393",
+      "category": "hotel",
+      "source": "https://www.openstreetmap.org/way/1205652393",
+      "match": "source-building-id"
+    },
+    {
+      "id": "business/way/1205652394:1205652394",
+      "name": "N Hotel City Center",
+      "buildingId": "1205652394",
+      "category": "hotel",
+      "source": "https://www.openstreetmap.org/way/1205652394",
+      "match": "source-building-id"
+    },
+    {
+      "id": "business/way/1226925320:1226925320",
+      "name": "Oxygen Hotel",
+      "buildingId": "1226925320",
+      "category": "hotel",
+      "source": "https://www.openstreetmap.org/way/1226925320",
+      "match": "source-building-id"
+    },
+    {
+      "id": "business/way/1226925563:1226925563",
+      "name": "Hotel Kaloshi",
+      "buildingId": "1226925563",
+      "category": "hotel",
+      "source": "https://www.openstreetmap.org/way/1226925563",
+      "match": "source-building-id"
+    },
+    {
+      "id": "business/way/1227691629:1227691629",
+      "name": "Hotel Bylis",
+      "buildingId": "1227691629",
+      "category": "hotel",
+      "source": "https://www.openstreetmap.org/way/1227691629",
+      "match": "source-building-id"
+    },
+    {
+      "id": "business/way/1227872007:1227872007",
+      "name": "Hotel Pik Loti",
+      "buildingId": "1227872007",
+      "category": "hotel",
+      "source": "https://www.openstreetmap.org/way/1227872007",
+      "match": "source-building-id"
+    },
+    {
+      "id": "business/way/1230004203:1230004203",
+      "name": "Hotel Deluxe",
+      "buildingId": "1230004203",
+      "category": "hotel",
+      "source": "https://www.openstreetmap.org/way/1230004203",
+      "match": "source-building-id"
+    },
+    {
+      "id": "business/way/1230020168:1230020168",
+      "name": "Soleo Hotel",
+      "buildingId": "1230020168",
+      "category": "hotel",
+      "source": "https://www.openstreetmap.org/way/1230020168",
+      "match": "source-building-id"
+    },
+    {
+      "id": "business/way/1231578045:1231578045",
+      "name": "Hotel Tosi",
+      "buildingId": "1231578045",
+      "category": "hotel",
+      "source": "https://www.openstreetmap.org/way/1231578045",
+      "match": "source-building-id"
+    },
+    {
+      "id": "business/way/1255349163:1255349163",
+      "name": "Hotel Alen",
+      "buildingId": "1255349163",
+      "category": "hotel",
+      "source": "https://www.openstreetmap.org/way/1255349163",
+      "match": "source-building-id"
+    },
+    {
+      "id": "business/way/1255396525:1255396525",
+      "name": "Emerald Boutique Hotel",
+      "buildingId": "1255396525",
+      "category": "hotel",
+      "source": "https://www.openstreetmap.org/way/1255396525",
+      "match": "source-building-id"
+    },
+    {
+      "id": "business/way/1290354629:1290354629",
+      "name": "Mer's Hotel",
+      "buildingId": "1290354629",
+      "category": "hotel",
+      "source": "https://www.openstreetmap.org/way/1290354629",
+      "match": "source-building-id"
+    },
+    {
+      "id": "business/way/1290541289:1290541289",
+      "name": "Olivar Hotel",
+      "buildingId": "1290541289",
+      "category": "hotel",
+      "source": "https://www.openstreetmap.org/way/1290541289",
+      "match": "source-building-id"
+    },
+    {
+      "id": "business/way/1290644043:1290644043",
+      "name": "Hotel Bonsai",
+      "buildingId": "1290644043",
+      "category": "hotel",
+      "source": "https://www.openstreetmap.org/way/1290644043",
+      "match": "source-building-id"
+    },
+    {
+      "id": "business/way/1301292169:1301292169",
+      "name": "Imperium Hotel",
+      "buildingId": "1301292169",
+      "category": "hotel",
+      "source": "https://www.openstreetmap.org/way/1301292169",
+      "match": "source-building-id"
+    },
+    {
+      "id": "business/way/1307146834:1307146834",
+      "name": "Rose Boutique Hotel",
+      "buildingId": "1307146834",
+      "category": "hotel",
+      "source": "https://www.openstreetmap.org/way/1307146834",
+      "match": "source-building-id"
+    },
+    {
+      "id": "business/way/1307769816:1307769816",
+      "name": "Residence Inn Hotel",
+      "buildingId": "1307769816",
+      "category": "hotel",
+      "source": "https://www.openstreetmap.org/way/1307769816",
+      "match": "source-building-id"
+    },
+    {
+      "id": "business/way/1311278936:1311278936",
+      "name": "Ethan Hotel",
+      "buildingId": "1311278936",
+      "category": "hotel",
+      "source": "https://www.openstreetmap.org/way/1311278936",
+      "match": "source-building-id"
+    },
+    {
+      "id": "business/way/1311759988:1311759988",
+      "name": "Jata Crown Hotel",
+      "buildingId": "1311759988",
+      "category": "hotel",
+      "source": "https://www.openstreetmap.org/way/1311759988",
+      "match": "source-building-id"
+    },
+    {
+      "id": "business/way/1314955625:1314955625",
+      "name": "Ambasada QTA",
+      "buildingId": "1314955625",
+      "category": "hotel",
+      "source": "https://www.openstreetmap.org/way/1314955625",
+      "match": "source-building-id"
+    },
+    {
+      "id": "business/way/1315688885:1315688885",
+      "name": "Dark Boutique Hotel",
+      "buildingId": "1315688885",
+      "category": "hotel",
+      "source": "https://www.openstreetmap.org/way/1315688885",
+      "match": "source-building-id"
+    },
+    {
+      "id": "business/way/1315710121:1315710121",
+      "name": "Chateau Linza Resort",
+      "buildingId": "1315710121",
+      "category": "hotel",
+      "source": "https://www.openstreetmap.org/way/1315710121",
+      "match": "source-building-id"
+    },
+    {
+      "id": "business/way/1315788053:1315788053",
+      "name": "Arka Art Hotel",
+      "buildingId": "1315788053",
+      "category": "hotel",
+      "source": "https://www.openstreetmap.org/way/1315788053",
+      "match": "source-building-id"
+    },
+    {
+      "id": "business/way/1322626561:1322626561",
+      "name": "Golden Ring Resort",
+      "buildingId": "1322626561",
+      "category": "hotel",
+      "source": "https://www.openstreetmap.org/way/1322626561",
+      "match": "source-building-id"
+    },
+    {
+      "id": "business/way/1351014947:1351014947",
+      "name": "Hotel Veranda",
+      "buildingId": "1351014947",
+      "category": "hotel",
+      "source": "https://www.openstreetmap.org/way/1351014947",
+      "match": "source-building-id"
+    },
+    {
+      "id": "business/way/1359392705:1359392705",
+      "name": "Hotel Serenity",
+      "buildingId": "1359392705",
+      "category": "hotel",
+      "source": "https://www.openstreetmap.org/way/1359392705",
+      "match": "source-building-id"
+    },
+    {
+      "id": "business/way/1372710721:1372710721",
+      "name": "Teranda",
+      "buildingId": "1372710721",
+      "category": "hotel",
+      "source": "https://www.openstreetmap.org/way/1372710721",
+      "match": "source-building-id"
+    },
+    {
+      "id": "business/node/2608158268:1170406860",
+      "name": "Tirana Bank",
+      "buildingId": "1170406860",
+      "category": "bank",
+      "source": "https://www.openstreetmap.org/node/2608158268",
+      "match": "unique-containing-footprint"
+    },
+    {
+      "id": "business/node/2608167317:415810112",
+      "name": "Raiffeisen Bank",
+      "buildingId": "415810112",
+      "category": "bank",
+      "source": "https://www.openstreetmap.org/node/2608167317",
+      "match": "unique-containing-footprint"
+    },
+    {
+      "id": "business/node/2608192828:1010185354",
+      "name": "Credins Bank",
+      "buildingId": "1010185354",
+      "category": "bank",
+      "source": "https://www.openstreetmap.org/node/2608192828",
+      "match": "unique-containing-footprint"
+    },
+    {
+      "id": "business/node/2608876451:318665798",
+      "name": "Union Bank",
+      "buildingId": "318665798",
+      "category": "bank",
+      "source": "https://www.openstreetmap.org/node/2608876451",
+      "match": "unique-containing-footprint"
+    },
+    {
+      "id": "business/node/2609866261:1010185352",
+      "name": "Raiffeisen Bank",
+      "buildingId": "1010185352",
+      "category": "bank",
+      "source": "https://www.openstreetmap.org/node/2609866261",
+      "match": "unique-containing-footprint"
+    },
+    {
+      "id": "business/node/2610610581:318665811",
+      "name": "Raiffeisen Bank",
+      "buildingId": "318665811",
+      "category": "bank",
+      "source": "https://www.openstreetmap.org/node/2610610581",
+      "match": "unique-containing-footprint"
+    },
+    {
+      "id": "business/node/2614424867:1249637844",
+      "name": "Raiffeisen Bank",
+      "buildingId": "1249637844",
+      "category": "bank",
+      "source": "https://www.openstreetmap.org/node/2614424867",
+      "match": "unique-containing-footprint"
+    },
+    {
+      "id": "business/node/3142008898:413186085",
+      "name": "HOTEL IDEA",
+      "buildingId": "413186085",
+      "category": "hotel",
+      "source": "https://www.openstreetmap.org/node/3142008898",
+      "match": "unique-containing-footprint"
+    },
+    {
+      "id": "business/node/3508576793:1162761033",
+      "name": "Hotel 7777",
+      "buildingId": "1162761033",
+      "category": "hotel",
+      "source": "https://www.openstreetmap.org/node/3508576793",
+      "match": "unique-containing-footprint"
+    },
+    {
+      "id": "business/node/3590226774:562091531",
+      "name": "City Hotel Tirana",
+      "buildingId": "562091531",
+      "category": "hotel",
+      "source": "https://www.openstreetmap.org/node/3590226774",
+      "match": "unique-containing-footprint"
+    },
+    {
+      "id": "business/node/4075517989:475693728",
+      "name": "Banka Kombëtare Tregtare",
+      "buildingId": "475693728",
+      "category": "bank",
+      "source": "https://www.openstreetmap.org/node/4075517989",
+      "match": "unique-containing-footprint"
+    },
+    {
+      "id": "business/node/4182980324:386255998",
+      "name": "Hotel Nobel",
+      "buildingId": "386255998",
+      "category": "hotel",
+      "source": "https://www.openstreetmap.org/node/4182980324",
+      "match": "unique-containing-footprint"
+    },
+    {
+      "id": "business/node/4322891393:404972881",
+      "name": "Apartment Gledis",
+      "buildingId": "404972881",
+      "category": "hotel",
+      "source": "https://www.openstreetmap.org/node/4322891393",
+      "match": "unique-containing-footprint"
+    },
+    {
+      "id": "business/node/4370809723:624746524",
+      "name": "Tirana Bank",
+      "buildingId": "624746524",
+      "category": "bank",
+      "source": "https://www.openstreetmap.org/node/4370809723",
+      "match": "unique-containing-footprint"
+    },
+    {
+      "id": "business/node/4370811616:1195146071",
+      "name": "Credins Bank",
+      "buildingId": "1195146071",
+      "category": "bank",
+      "source": "https://www.openstreetmap.org/node/4370811616",
+      "match": "unique-containing-footprint"
+    },
+    {
+      "id": "business/node/4370811706:405505342",
+      "name": "Golden City Hotel",
+      "buildingId": "405505342",
+      "category": "hotel",
+      "source": "https://www.openstreetmap.org/node/4370811706",
+      "match": "unique-containing-footprint"
+    },
+    {
+      "id": "business/node/4370814127:400427182",
+      "name": "Intesa Sanpaolo",
+      "buildingId": "400427182",
+      "category": "bank",
+      "source": "https://www.openstreetmap.org/node/4370814127",
+      "match": "unique-containing-footprint"
+    },
+    {
+      "id": "business/node/4370817203:1195146076",
+      "name": "OTP Bank",
+      "buildingId": "1195146076",
+      "category": "bank",
+      "source": "https://www.openstreetmap.org/node/4370817203",
+      "match": "unique-containing-footprint"
+    },
+    {
+      "id": "business/node/4371291093:1195043901",
+      "name": "Tirana Bank",
+      "buildingId": "1195043901",
+      "category": "bank",
+      "source": "https://www.openstreetmap.org/node/4371291093",
+      "match": "unique-containing-footprint"
+    },
+    {
+      "id": "business/node/4371556690:725985437",
+      "name": "Union Bank",
+      "buildingId": "725985437",
+      "category": "bank",
+      "source": "https://www.openstreetmap.org/node/4371556690",
+      "match": "unique-containing-footprint"
+    },
+    {
+      "id": "business/node/4405609589:404972881",
+      "name": "Tirana Bank",
+      "buildingId": "404972881",
+      "category": "bank",
+      "source": "https://www.openstreetmap.org/node/4405609589",
+      "match": "unique-containing-footprint"
+    },
+    {
+      "id": "business/node/4465092300:449560868",
+      "name": "Townhouse",
+      "buildingId": "449560868",
+      "category": "hotel",
+      "source": "https://www.openstreetmap.org/node/4465092300",
+      "match": "unique-containing-footprint"
+    },
+    {
+      "id": "business/node/4479432189:1204559244",
+      "name": "Raiffeisen Bank",
+      "buildingId": "1204559244",
+      "category": "bank",
+      "source": "https://www.openstreetmap.org/node/4479432189",
+      "match": "unique-containing-footprint"
+    },
+    {
+      "id": "business/node/4508212091:331537868",
+      "name": "Raiffeisen Bank",
+      "buildingId": "331537868",
+      "category": "bank",
+      "source": "https://www.openstreetmap.org/node/4508212091",
+      "match": "unique-containing-footprint"
+    },
+    {
+      "id": "business/node/4508219492:449523474",
+      "name": "Banka Kombëtare Tregtare",
+      "buildingId": "449523474",
+      "category": "bank",
+      "source": "https://www.openstreetmap.org/node/4508219492",
+      "match": "unique-containing-footprint"
+    },
+    {
+      "id": "business/node/4535756111:318665823",
+      "name": "Prestige Hotel",
+      "buildingId": "318665823",
+      "category": "hotel",
+      "source": "https://www.openstreetmap.org/node/4535756111",
+      "match": "unique-containing-footprint"
+    },
+    {
+      "id": "business/node/4538197481:457720092",
+      "name": "Banka Kombëtare Tregtare",
+      "buildingId": "457720092",
+      "category": "bank",
+      "source": "https://www.openstreetmap.org/node/4538197481",
+      "match": "unique-containing-footprint"
+    },
+    {
+      "id": "business/node/4543857828:462428145",
+      "name": "Tirana Bank",
+      "buildingId": "462428145",
+      "category": "bank",
+      "source": "https://www.openstreetmap.org/node/4543857828",
+      "match": "unique-containing-footprint"
+    },
+    {
+      "id": "business/node/4568789573:562090448",
+      "name": "Intesa Sanpaolo",
+      "buildingId": "562090448",
+      "category": "bank",
+      "source": "https://www.openstreetmap.org/node/4568789573",
+      "match": "unique-containing-footprint"
+    },
+    {
+      "id": "business/node/4568823715:409325666",
+      "name": "Credins bank",
+      "buildingId": "409325666",
+      "category": "bank",
+      "source": "https://www.openstreetmap.org/node/4568823715",
+      "match": "unique-containing-footprint"
+    },
+    {
+      "id": "business/node/4580449097:396414040",
+      "name": "Intesa Sanpaolo",
+      "buildingId": "396414040",
+      "category": "bank",
+      "source": "https://www.openstreetmap.org/node/4580449097",
+      "match": "unique-containing-footprint"
+    },
+    {
+      "id": "business/node/4602213774:562091542",
+      "name": "Padam Boutique Hotel",
+      "buildingId": "562091542",
+      "category": "hotel",
+      "source": "https://www.openstreetmap.org/node/4602213774",
+      "match": "unique-containing-footprint"
+    },
+    {
+      "id": "business/node/4602213963:623177694",
+      "name": "abi Bank",
+      "buildingId": "623177694",
+      "category": "bank",
+      "source": "https://www.openstreetmap.org/node/4602213963",
+      "match": "unique-containing-footprint"
+    },
+    {
+      "id": "business/node/4602213964:623177692",
+      "name": "Credins Bank",
+      "buildingId": "623177692",
+      "category": "bank",
+      "source": "https://www.openstreetmap.org/node/4602213964",
+      "match": "unique-containing-footprint"
+    },
+    {
+      "id": "business/node/4602218096:449517261",
+      "name": "Credins Bank",
+      "buildingId": "449517261",
+      "category": "bank",
+      "source": "https://www.openstreetmap.org/node/4602218096",
+      "match": "unique-containing-footprint"
+    },
+    {
+      "id": "business/node/4603902596:256324964",
+      "name": "Unjon Bank",
+      "buildingId": "256324964",
+      "category": "bank",
+      "source": "https://www.openstreetmap.org/node/4603902596",
+      "match": "unique-containing-footprint"
+    },
+    {
+      "id": "business/node/4603906391:56015546",
+      "name": "OTP Bank",
+      "buildingId": "56015546",
+      "category": "bank",
+      "source": "https://www.openstreetmap.org/node/4603906391",
+      "match": "unique-containing-footprint"
+    },
+    {
+      "id": "business/node/4622438991:821077474",
+      "name": "OTP Bank",
+      "buildingId": "821077474",
+      "category": "bank",
+      "source": "https://www.openstreetmap.org/node/4622438991",
+      "match": "unique-containing-footprint"
+    },
+    {
+      "id": "business/node/4622460789:487456590",
+      "name": "Union Bank",
+      "buildingId": "487456590",
+      "category": "bank",
+      "source": "https://www.openstreetmap.org/node/4622460789",
+      "match": "unique-containing-footprint"
+    },
+    {
+      "id": "business/node/4625621490:398655248",
+      "name": "Banka Kombëtare Tregtare",
+      "buildingId": "398655248",
+      "category": "bank",
+      "source": "https://www.openstreetmap.org/node/4625621490",
+      "match": "unique-containing-footprint"
+    },
+    {
+      "id": "business/node/4631472293:551285835",
+      "name": "IuteCredit",
+      "buildingId": "551285835",
+      "category": "bank",
+      "source": "https://www.openstreetmap.org/node/4631472293",
+      "match": "unique-containing-footprint"
+    },
+    {
+      "id": "business/node/4643956589:733053947",
+      "name": "Hotel Relax",
+      "buildingId": "733053947",
+      "category": "hotel",
+      "source": "https://www.openstreetmap.org/node/4643956589",
+      "match": "unique-containing-footprint"
+    },
+    {
+      "id": "business/node/4664234402:1183778479",
+      "name": "Oda Hotel",
+      "buildingId": "1183778479",
+      "category": "hotel",
+      "source": "https://www.openstreetmap.org/node/4664234402",
+      "match": "unique-containing-footprint"
+    },
+    {
+      "id": "business/node/4664234407:551280680",
+      "name": "Friends House",
+      "buildingId": "551280680",
+      "category": "hotel",
+      "source": "https://www.openstreetmap.org/node/4664234407",
+      "match": "unique-containing-footprint"
+    },
+    {
+      "id": "business/node/4664234408:551279522",
+      "name": "Banka Kombëtare Tregtare",
+      "buildingId": "551279522",
+      "category": "bank",
+      "source": "https://www.openstreetmap.org/node/4664234408",
+      "match": "unique-containing-footprint"
+    },
+    {
+      "id": "business/node/4664234411:551278317",
+      "name": "Hotel Sokrat",
+      "buildingId": "551278317",
+      "category": "hotel",
+      "source": "https://www.openstreetmap.org/node/4664234411",
+      "match": "unique-containing-footprint"
+    },
+    {
+      "id": "business/node/4664234432:562086287",
+      "name": "Yasmine's Hotel & Restaurant",
+      "buildingId": "562086287",
+      "category": "hotel",
+      "source": "https://www.openstreetmap.org/node/4664234432",
+      "match": "unique-containing-footprint"
+    },
+    {
+      "id": "business/node/4664234503:472212145",
+      "name": "Green House Hotel",
+      "buildingId": "472212145",
+      "category": "hotel",
+      "source": "https://www.openstreetmap.org/node/4664234503",
+      "match": "unique-containing-footprint"
+    },
+    {
+      "id": "business/node/4664234507:402764788",
+      "name": "Nov Hotel",
+      "buildingId": "402764788",
+      "category": "hotel",
+      "source": "https://www.openstreetmap.org/node/4664234507",
+      "match": "unique-containing-footprint"
+    },
+    {
+      "id": "business/node/4718214081:562087857",
+      "name": "Raiffeisen Bank",
+      "buildingId": "562087857",
+      "category": "bank",
+      "source": "https://www.openstreetmap.org/node/4718214081",
+      "match": "unique-containing-footprint"
+    },
+    {
+      "id": "business/node/4790114722:551320357",
+      "name": "Credins Bank",
+      "buildingId": "551320357",
+      "category": "bank",
+      "source": "https://www.openstreetmap.org/node/4790114722",
+      "match": "unique-containing-footprint"
+    },
+    {
+      "id": "business/node/4949764821:1317214592",
+      "name": "Vila Tako",
+      "buildingId": "1317214592",
+      "category": "hotel",
+      "source": "https://www.openstreetmap.org/node/4949764821",
+      "match": "unique-containing-footprint"
+    },
+    {
+      "id": "business/node/4974618146:548126602",
+      "name": "Hotel La Villa",
+      "buildingId": "548126602",
+      "category": "hotel",
+      "source": "https://www.openstreetmap.org/node/4974618146",
+      "match": "unique-containing-footprint"
+    },
+    {
+      "id": "business/node/5030917633:530551224",
+      "name": "Tirana Bank",
+      "buildingId": "530551224",
+      "category": "bank",
+      "source": "https://www.openstreetmap.org/node/5030917633",
+      "match": "unique-containing-footprint"
+    },
+    {
+      "id": "business/node/5327548563:551321855",
+      "name": "Hotel Drinos",
+      "buildingId": "551321855",
+      "category": "hotel",
+      "source": "https://www.openstreetmap.org/node/5327548563",
+      "match": "unique-containing-footprint"
+    },
+    {
+      "id": "business/node/5885019929:623122832",
+      "name": "Fondacioni Besa",
+      "buildingId": "623122832",
+      "category": "bank",
+      "source": "https://www.openstreetmap.org/node/5885019929",
+      "match": "unique-containing-footprint"
+    },
+    {
+      "id": "business/node/5922574860:380889100",
+      "name": "Union Bank Dega Blloku",
+      "buildingId": "380889100",
+      "category": "bank",
+      "source": "https://www.openstreetmap.org/node/5922574860",
+      "match": "unique-containing-footprint"
+    },
+    {
+      "id": "business/node/5985314752:331541061",
+      "name": "Banka Kombëtare Tregtare",
+      "buildingId": "331541061",
+      "category": "bank",
+      "source": "https://www.openstreetmap.org/node/5985314752",
+      "match": "unique-containing-footprint"
+    },
+    {
+      "id": "business/node/5985314755:331536802",
+      "name": "Credins Bank",
+      "buildingId": "331536802",
+      "category": "bank",
+      "source": "https://www.openstreetmap.org/node/5985314755",
+      "match": "unique-containing-footprint"
+    },
+    {
+      "id": "business/node/6083096293:409325663",
+      "name": "Elite Hotel Center",
+      "buildingId": "409325663",
+      "category": "hotel",
+      "source": "https://www.openstreetmap.org/node/6083096293",
+      "match": "unique-containing-footprint"
+    },
+    {
+      "id": "business/node/6367897026:405309608",
+      "name": "UnionBank",
+      "buildingId": "405309608",
+      "category": "bank",
+      "source": "https://www.openstreetmap.org/node/6367897026",
+      "match": "unique-containing-footprint"
+    },
+    {
+      "id": "business/node/6442256739:682795214",
+      "name": "Hotel Livia",
+      "buildingId": "682795214",
+      "category": "hotel",
+      "source": "https://www.openstreetmap.org/node/6442256739",
+      "match": "unique-containing-footprint"
+    },
+    {
+      "id": "business/node/6442479104:1181046381",
+      "name": "abi Bank",
+      "buildingId": "1181046381",
+      "category": "bank",
+      "source": "https://www.openstreetmap.org/node/6442479104",
+      "match": "unique-containing-footprint"
+    },
+    {
+      "id": "business/node/6495276696:543118582",
+      "name": "Hotel Marion",
+      "buildingId": "543118582",
+      "category": "hotel",
+      "source": "https://www.openstreetmap.org/node/6495276696",
+      "match": "unique-containing-footprint"
+    },
+    {
+      "id": "business/node/6617268860:416591672",
+      "name": "Hotel Piemonte",
+      "buildingId": "416591672",
+      "category": "hotel",
+      "source": "https://www.openstreetmap.org/node/6617268860",
+      "match": "unique-containing-footprint"
+    },
+    {
+      "id": "business/node/6806447893:725963501",
+      "name": "Intesa Sanpaolo",
+      "buildingId": "725963501",
+      "category": "bank",
+      "source": "https://www.openstreetmap.org/node/6806447893",
+      "match": "unique-containing-footprint"
+    },
+    {
+      "id": "business/node/6810036353:725979311",
+      "name": "Western Union",
+      "buildingId": "725979311",
+      "category": "bank",
+      "source": "https://www.openstreetmap.org/node/6810036353",
+      "match": "unique-containing-footprint"
+    },
+    {
+      "id": "business/node/6810178510:1176584366",
+      "name": "Credins Bank",
+      "buildingId": "1176584366",
+      "category": "bank",
+      "source": "https://www.openstreetmap.org/node/6810178510",
+      "match": "unique-containing-footprint"
+    },
+    {
+      "id": "business/node/6811635890:457505027",
+      "name": "Union Bank",
+      "buildingId": "457505027",
+      "category": "bank",
+      "source": "https://www.openstreetmap.org/node/6811635890",
+      "match": "unique-containing-footprint"
+    },
+    {
+      "id": "business/node/6813034770:726965572",
+      "name": "Credins Bank",
+      "buildingId": "726965572",
+      "category": "bank",
+      "source": "https://www.openstreetmap.org/node/6813034770",
+      "match": "unique-containing-footprint"
+    },
+    {
+      "id": "business/node/6817890114:1301205844",
+      "name": "Raiffeisen Bank",
+      "buildingId": "1301205844",
+      "category": "bank",
+      "source": "https://www.openstreetmap.org/node/6817890114",
+      "match": "unique-containing-footprint"
+    },
+    {
+      "id": "business/node/6817890115:1193436012",
+      "name": "Union Bank",
+      "buildingId": "1193436012",
+      "category": "bank",
+      "source": "https://www.openstreetmap.org/node/6817890115",
+      "match": "unique-containing-footprint"
+    },
+    {
+      "id": "business/node/6823297887:728085259",
+      "name": "Hotel Exclusive",
+      "buildingId": "728085259",
+      "category": "hotel",
+      "source": "https://www.openstreetmap.org/node/6823297887",
+      "match": "unique-containing-footprint"
+    },
+    {
+      "id": "business/node/6828409127:804598368",
+      "name": "Raiffeisen Bank",
+      "buildingId": "804598368",
+      "category": "bank",
+      "source": "https://www.openstreetmap.org/node/6828409127",
+      "match": "unique-containing-footprint"
+    },
+    {
+      "id": "business/node/6828409128:804598368",
+      "name": "Intesa Sanpaolo",
+      "buildingId": "804598368",
+      "category": "bank",
+      "source": "https://www.openstreetmap.org/node/6828409128",
+      "match": "unique-containing-footprint"
+    },
+    {
+      "id": "business/node/6828409129:804598369",
+      "name": "Fibank",
+      "buildingId": "804598369",
+      "category": "bank",
+      "source": "https://www.openstreetmap.org/node/6828409129",
+      "match": "unique-containing-footprint"
+    },
+    {
+      "id": "business/node/6831450905:683262557",
+      "name": "Banka Kombëtare Tregtare",
+      "buildingId": "683262557",
+      "category": "bank",
+      "source": "https://www.openstreetmap.org/node/6831450905",
+      "match": "unique-containing-footprint"
+    },
+    {
+      "id": "business/node/6841113811:675564393",
+      "name": "Raiffeisen Bank",
+      "buildingId": "675564393",
+      "category": "bank",
+      "source": "https://www.openstreetmap.org/node/6841113811",
+      "match": "unique-containing-footprint"
+    },
+    {
+      "id": "business/node/6841192688:478329151",
+      "name": "Raiffeisen Bank",
+      "buildingId": "478329151",
+      "category": "bank",
+      "source": "https://www.openstreetmap.org/node/6841192688",
+      "match": "unique-containing-footprint"
+    },
+    {
+      "id": "business/node/6841192693:1181047478",
+      "name": "Western Union",
+      "buildingId": "1181047478",
+      "category": "bank",
+      "source": "https://www.openstreetmap.org/node/6841192693",
+      "match": "unique-containing-footprint"
+    },
+    {
+      "id": "business/node/6841192706:1193246455",
+      "name": "Eder",
+      "buildingId": "1193246455",
+      "category": "hotel",
+      "source": "https://www.openstreetmap.org/node/6841192706",
+      "match": "unique-containing-footprint"
+    },
+    {
+      "id": "business/node/6841216699:386256003",
+      "name": "AK Invest",
+      "buildingId": "386256003",
+      "category": "bank",
+      "source": "https://www.openstreetmap.org/node/6841216699",
+      "match": "unique-containing-footprint"
+    },
+    {
+      "id": "business/node/6841544451:730282460",
+      "name": "Banka Kombëtare Tregtare",
+      "buildingId": "730282460",
+      "category": "bank",
+      "source": "https://www.openstreetmap.org/node/6841544451",
+      "match": "unique-containing-footprint"
+    },
+    {
+      "id": "business/node/6847436085:318665842",
+      "name": "Union Bank",
+      "buildingId": "318665842",
+      "category": "bank",
+      "source": "https://www.openstreetmap.org/node/6847436085",
+      "match": "unique-containing-footprint"
+    },
+    {
+      "id": "business/node/6847436185:318665842",
+      "name": "Banka Kombëtare Tregtare",
+      "buildingId": "318665842",
+      "category": "bank",
+      "source": "https://www.openstreetmap.org/node/6847436185",
+      "match": "unique-containing-footprint"
+    },
+    {
+      "id": "business/node/6851510698:884310981",
+      "name": "Intesa Sanpaolo",
+      "buildingId": "884310981",
+      "category": "bank",
+      "source": "https://www.openstreetmap.org/node/6851510698",
+      "match": "unique-containing-footprint"
+    },
+    {
+      "id": "business/node/6864253933:660616279",
+      "name": "MoneyGram",
+      "buildingId": "660616279",
+      "category": "bank",
+      "source": "https://www.openstreetmap.org/node/6864253933",
+      "match": "unique-containing-footprint"
+    },
+    {
+      "id": "business/node/6864718439:450803161",
+      "name": "Western Union",
+      "buildingId": "450803161",
+      "category": "bank",
+      "source": "https://www.openstreetmap.org/node/6864718439",
+      "match": "unique-containing-footprint"
+    },
+    {
+      "id": "business/node/6882967963:410005613",
+      "name": "Raiffeisen Bank",
+      "buildingId": "410005613",
+      "category": "bank",
+      "source": "https://www.openstreetmap.org/node/6882967963",
+      "match": "unique-containing-footprint"
+    },
+    {
+      "id": "business/node/6883094657:1196135045",
+      "name": "Fibank",
+      "buildingId": "1196135045",
+      "category": "bank",
+      "source": "https://www.openstreetmap.org/node/6883094657",
+      "match": "unique-containing-footprint"
+    },
+    {
+      "id": "business/node/6883668749:734994023",
+      "name": "Credins Bank",
+      "buildingId": "734994023",
+      "category": "bank",
+      "source": "https://www.openstreetmap.org/node/6883668749",
+      "match": "unique-containing-footprint"
+    },
+    {
+      "id": "business/node/6883759787:402718225",
+      "name": "Intesa Sanpaolo Bank",
+      "buildingId": "402718225",
+      "category": "bank",
+      "source": "https://www.openstreetmap.org/node/6883759787",
+      "match": "unique-containing-footprint"
+    },
+    {
+      "id": "business/node/6886347585:623177693",
+      "name": "Intesa Sanpaolo",
+      "buildingId": "623177693",
+      "category": "bank",
+      "source": "https://www.openstreetmap.org/node/6886347585",
+      "match": "unique-containing-footprint"
+    },
+    {
+      "id": "business/node/7699504298:487456591",
+      "name": "Intesa Sanpaolo",
+      "buildingId": "487456591",
+      "category": "bank",
+      "source": "https://www.openstreetmap.org/node/7699504298",
+      "match": "unique-containing-footprint"
+    },
+    {
+      "id": "business/node/7794862718:405908854",
+      "name": "Austria",
+      "buildingId": "405908854",
+      "category": "hotel",
+      "source": "https://www.openstreetmap.org/node/7794862718",
+      "match": "unique-containing-footprint"
+    },
+    {
+      "id": "business/node/7834482175:1188700735",
+      "name": "Banka Kombëtare Tregtare",
+      "buildingId": "1188700735",
+      "category": "bank",
+      "source": "https://www.openstreetmap.org/node/7834482175",
+      "match": "unique-containing-footprint"
+    },
+    {
+      "id": "business/node/7834624270:551323414",
+      "name": "Banka Kombëtare Tregtare",
+      "buildingId": "551323414",
+      "category": "bank",
+      "source": "https://www.openstreetmap.org/node/7834624270",
+      "match": "unique-containing-footprint"
+    },
+    {
+      "id": "business/node/8213133341:229658197",
+      "name": "AiA SUITES & APARTMENTS",
+      "buildingId": "229658197",
+      "category": "hotel",
+      "source": "https://www.openstreetmap.org/node/8213133341",
+      "match": "unique-containing-footprint"
+    },
+    {
+      "id": "business/node/8742360260:659792500",
+      "name": "Intesa Sanpaolo",
+      "buildingId": "659792500",
+      "category": "bank",
+      "source": "https://www.openstreetmap.org/node/8742360260",
+      "match": "unique-containing-footprint"
+    },
+    {
+      "id": "business/node/8742360267:256324962",
+      "name": "Intesa Sanpaolo",
+      "buildingId": "256324962",
+      "category": "bank",
+      "source": "https://www.openstreetmap.org/node/8742360267",
+      "match": "unique-containing-footprint"
+    },
+    {
+      "id": "business/node/9124938347:795458402",
+      "name": "Black Diamond Hotel",
+      "buildingId": "795458402",
+      "category": "hotel",
+      "source": "https://www.openstreetmap.org/node/9124938347",
+      "match": "unique-containing-footprint"
+    },
+    {
+      "id": "business/node/9124938354:928993243",
+      "name": "Western Union",
+      "buildingId": "928993243",
+      "category": "bank",
+      "source": "https://www.openstreetmap.org/node/9124938354",
+      "match": "unique-containing-footprint"
+    },
+    {
+      "id": "business/node/9124938537:396414953",
+      "name": "Colosseo",
+      "buildingId": "396414953",
+      "category": "hotel",
+      "source": "https://www.openstreetmap.org/node/9124938537",
+      "match": "unique-containing-footprint"
+    },
+    {
+      "id": "business/node/9124938557:551285836",
+      "name": "OTP Bank",
+      "buildingId": "551285836",
+      "category": "bank",
+      "source": "https://www.openstreetmap.org/node/9124938557",
+      "match": "unique-containing-footprint"
+    },
+    {
+      "id": "business/node/9124938563:449523474",
+      "name": "OTP Bank",
+      "buildingId": "449523474",
+      "category": "bank",
+      "source": "https://www.openstreetmap.org/node/9124938563",
+      "match": "unique-containing-footprint"
+    },
+    {
+      "id": "business/node/9124938564:449523474",
+      "name": "Raiffeisen Bank",
+      "buildingId": "449523474",
+      "category": "bank",
+      "source": "https://www.openstreetmap.org/node/9124938564",
+      "match": "unique-containing-footprint"
+    },
+    {
+      "id": "business/node/9124938570:659792497",
+      "name": "Tirana Bank",
+      "buildingId": "659792497",
+      "category": "bank",
+      "source": "https://www.openstreetmap.org/node/9124938570",
+      "match": "unique-containing-footprint"
+    },
+    {
+      "id": "business/node/9124938572:400427182",
+      "name": "Union Bank",
+      "buildingId": "400427182",
+      "category": "bank",
+      "source": "https://www.openstreetmap.org/node/9124938572",
+      "match": "unique-containing-footprint"
+    },
+    {
+      "id": "business/node/9124938574:405493774",
+      "name": "Credins Bank",
+      "buildingId": "405493774",
+      "category": "bank",
+      "source": "https://www.openstreetmap.org/node/9124938574",
+      "match": "unique-containing-footprint"
+    },
+    {
+      "id": "business/node/9124938575:1181044050",
+      "name": "Fibank",
+      "buildingId": "1181044050",
+      "category": "bank",
+      "source": "https://www.openstreetmap.org/node/9124938575",
+      "match": "unique-containing-footprint"
+    },
+    {
+      "id": "business/node/9124938631:1263932445",
+      "name": "Union Bank",
+      "buildingId": "1263932445",
+      "category": "bank",
+      "source": "https://www.openstreetmap.org/node/9124938631",
+      "match": "unique-containing-footprint"
+    },
+    {
+      "id": "business/node/9124938642:409325663",
+      "name": "Center",
+      "buildingId": "409325663",
+      "category": "hotel",
+      "source": "https://www.openstreetmap.org/node/9124938642",
+      "match": "unique-containing-footprint"
+    },
+    {
+      "id": "business/node/9124938650:577164530",
+      "name": "Albanopolis",
+      "buildingId": "577164530",
+      "category": "hotel",
+      "source": "https://www.openstreetmap.org/node/9124938650",
+      "match": "unique-containing-footprint"
+    },
+    {
+      "id": "business/node/9124938653:804598340",
+      "name": "ARC Hotel",
+      "buildingId": "804598340",
+      "category": "hotel",
+      "source": "https://www.openstreetmap.org/node/9124938653",
+      "match": "unique-containing-footprint"
+    },
+    {
+      "id": "business/node/9124938659:386256003",
+      "name": "Co in Center",
+      "buildingId": "386256003",
+      "category": "hotel",
+      "source": "https://www.openstreetmap.org/node/9124938659",
+      "match": "unique-containing-footprint"
+    },
+    {
+      "id": "business/node/9124938661:543116097",
+      "name": "Vila Park Hotel",
+      "buildingId": "543116097",
+      "category": "hotel",
+      "source": "https://www.openstreetmap.org/node/9124938661",
+      "match": "unique-containing-footprint"
+    },
+    {
+      "id": "business/node/9124938724:893757078",
+      "name": "Boka",
+      "buildingId": "893757078",
+      "category": "hotel",
+      "source": "https://www.openstreetmap.org/node/9124938724",
+      "match": "unique-containing-footprint"
+    },
+    {
+      "id": "business/node/9124938734:535208028",
+      "name": "Raiffeisen Bank",
+      "buildingId": "535208028",
+      "category": "bank",
+      "source": "https://www.openstreetmap.org/node/9124938734",
+      "match": "unique-containing-footprint"
+    },
+    {
+      "id": "business/node/9124938742:318664764",
+      "name": "Union Bank",
+      "buildingId": "318664764",
+      "category": "bank",
+      "source": "https://www.openstreetmap.org/node/9124938742",
+      "match": "unique-containing-footprint"
+    },
+    {
+      "id": "business/node/9124938842:1242334922",
+      "name": "Raiffeisen Bank",
+      "buildingId": "1242334922",
+      "category": "bank",
+      "source": "https://www.openstreetmap.org/node/9124938842",
+      "match": "unique-containing-footprint"
+    },
+    {
+      "id": "business/node/9124938852:478297107",
+      "name": "Dilo",
+      "buildingId": "478297107",
+      "category": "hotel",
+      "source": "https://www.openstreetmap.org/node/9124938852",
+      "match": "unique-containing-footprint"
+    },
+    {
+      "id": "business/node/9124938859:446590825",
+      "name": "OTP Bank",
+      "buildingId": "446590825",
+      "category": "bank",
+      "source": "https://www.openstreetmap.org/node/9124938859",
+      "match": "unique-containing-footprint"
+    },
+    {
+      "id": "business/node/9124938863:1181044050",
+      "name": "OTP Bank",
+      "buildingId": "1181044050",
+      "category": "bank",
+      "source": "https://www.openstreetmap.org/node/9124938863",
+      "match": "unique-containing-footprint"
+    },
+    {
+      "id": "business/node/9124938885:400645215",
+      "name": "Credins Bank",
+      "buildingId": "400645215",
+      "category": "bank",
+      "source": "https://www.openstreetmap.org/node/9124938885",
+      "match": "unique-containing-footprint"
+    },
+    {
+      "id": "business/node/9124938923:1242334923",
+      "name": "Tirana Bank",
+      "buildingId": "1242334923",
+      "category": "bank",
+      "source": "https://www.openstreetmap.org/node/9124938923",
+      "match": "unique-containing-footprint"
+    },
+    {
+      "id": "business/node/9124939031:417061793",
+      "name": "3A",
+      "buildingId": "417061793",
+      "category": "hotel",
+      "source": "https://www.openstreetmap.org/node/9124939031",
+      "match": "unique-containing-footprint"
+    },
+    {
+      "id": "business/node/9124944620:1182135764",
+      "name": "Allure",
+      "buildingId": "1182135764",
+      "category": "hotel",
+      "source": "https://www.openstreetmap.org/node/9124944620",
+      "match": "unique-containing-footprint"
+    },
+    {
+      "id": "business/node/9124944621:1178661485",
+      "name": "Doro City",
+      "buildingId": "1178661485",
+      "category": "hotel",
+      "source": "https://www.openstreetmap.org/node/9124944621",
+      "match": "unique-containing-footprint"
+    },
+    {
+      "id": "business/node/9124944626:400645215",
+      "name": "Banka Kombëtare Tregtare",
+      "buildingId": "400645215",
+      "category": "bank",
+      "source": "https://www.openstreetmap.org/node/9124944626",
+      "match": "unique-containing-footprint"
+    },
+    {
+      "id": "business/node/9124944627:400645214",
+      "name": "OTP Bank",
+      "buildingId": "400645214",
+      "category": "bank",
+      "source": "https://www.openstreetmap.org/node/9124944627",
+      "match": "unique-containing-footprint"
+    },
+    {
+      "id": "business/node/9128749717:806899969",
+      "name": "Granda",
+      "buildingId": "806899969",
+      "category": "hotel",
+      "source": "https://www.openstreetmap.org/node/9128749717",
+      "match": "unique-containing-footprint"
+    },
+    {
+      "id": "business/node/9128749838:1241934699",
+      "name": "abi Bank",
+      "buildingId": "1241934699",
+      "category": "bank",
+      "source": "https://www.openstreetmap.org/node/9128749838",
+      "match": "unique-containing-footprint"
+    },
+    {
+      "id": "business/node/9128751950:405490646",
+      "name": "Hotel Elior",
+      "buildingId": "405490646",
+      "category": "hotel",
+      "source": "https://www.openstreetmap.org/node/9128751950",
+      "match": "unique-containing-footprint"
+    },
+    {
+      "id": "business/node/9128751951:682795205",
+      "name": "Tredi 18 Residence",
+      "buildingId": "682795205",
+      "category": "hotel",
+      "source": "https://www.openstreetmap.org/node/9128751951",
+      "match": "unique-containing-footprint"
+    },
+    {
+      "id": "business/node/9536060463:478498102",
+      "name": "Tirana Square Hotel",
+      "buildingId": "478498102",
+      "category": "hotel",
+      "source": "https://www.openstreetmap.org/node/9536060463",
+      "match": "unique-containing-footprint"
+    },
+    {
+      "id": "business/node/9536060464:478498098",
+      "name": "Hotel Petite Maison Hermes",
+      "buildingId": "478498098",
+      "category": "hotel",
+      "source": "https://www.openstreetmap.org/node/9536060464",
+      "match": "unique-containing-footprint"
+    },
+    {
+      "id": "business/node/9544032236:386256003",
+      "name": "Oresti",
+      "buildingId": "386256003",
+      "category": "hotel",
+      "source": "https://www.openstreetmap.org/node/9544032236",
+      "match": "unique-containing-footprint"
+    },
+    {
+      "id": "business/node/9544032243:1215737243",
+      "name": "Fabjo",
+      "buildingId": "1215737243",
+      "category": "hotel",
+      "source": "https://www.openstreetmap.org/node/9544032243",
+      "match": "unique-containing-footprint"
+    },
+    {
+      "id": "business/node/9544032259:675564394",
+      "name": "abi Bank",
+      "buildingId": "675564394",
+      "category": "bank",
+      "source": "https://www.openstreetmap.org/node/9544032259",
+      "match": "unique-containing-footprint"
+    },
+    {
+      "id": "business/node/9550892561:1222795753",
+      "name": "Hotel Villa Tafaj",
+      "buildingId": "1222795753",
+      "category": "hotel",
+      "source": "https://www.openstreetmap.org/node/9550892561",
+      "match": "unique-containing-footprint"
+    },
+    {
+      "id": "business/node/9550894553:487413352",
+      "name": "Hotel Stela Center",
+      "buildingId": "487413352",
+      "category": "hotel",
+      "source": "https://www.openstreetmap.org/node/9550894553",
+      "match": "unique-containing-footprint"
+    },
+    {
+      "id": "business/node/9706522463:1056360458",
+      "name": "Garden Boutique B&B",
+      "buildingId": "1056360458",
+      "category": "hotel",
+      "source": "https://www.openstreetmap.org/node/9706522463",
+      "match": "unique-containing-footprint"
+    },
+    {
+      "id": "business/node/9727874790:478498088",
+      "name": "ProCredit Bank",
+      "buildingId": "478498088",
+      "category": "bank",
+      "source": "https://www.openstreetmap.org/node/9727874790",
+      "match": "unique-containing-footprint"
+    },
+    {
+      "id": "business/node/9930562966:1221100293",
+      "name": "Hotel Euro",
+      "buildingId": "1221100293",
+      "category": "hotel",
+      "source": "https://www.openstreetmap.org/node/9930562966",
+      "match": "unique-containing-footprint"
+    },
+    {
+      "id": "business/node/9995825239:713138741",
+      "name": "Hotel Vila Tirana",
+      "buildingId": "713138741",
+      "category": "hotel",
+      "source": "https://www.openstreetmap.org/node/9995825239",
+      "match": "unique-containing-footprint"
+    },
+    {
+      "id": "business/node/10101347137:471736069",
+      "name": "Hotel Elisa by Melia",
+      "buildingId": "471736069",
+      "category": "hotel",
+      "source": "https://www.openstreetmap.org/node/10101347137",
+      "match": "unique-containing-footprint"
+    },
+    {
+      "id": "business/node/10101347165:884114677",
+      "name": "Hotel Opera",
+      "buildingId": "884114677",
+      "category": "hotel",
+      "source": "https://www.openstreetmap.org/node/10101347165",
+      "match": "unique-containing-footprint"
+    },
+    {
+      "id": "business/node/10141234279:449528397",
+      "name": "Sky 2",
+      "buildingId": "449528397",
+      "category": "hotel",
+      "source": "https://www.openstreetmap.org/node/10141234279",
+      "match": "unique-containing-footprint"
+    },
+    {
+      "id": "business/node/10566591776:331536802",
+      "name": "Union Bank",
+      "buildingId": "331536802",
+      "category": "bank",
+      "source": "https://www.openstreetmap.org/node/10566591776",
+      "match": "unique-containing-footprint"
+    },
+    {
+      "id": "business/node/10566611276:474922329",
+      "name": "abi Bank",
+      "buildingId": "474922329",
+      "category": "bank",
+      "source": "https://www.openstreetmap.org/node/10566611276",
+      "match": "unique-containing-footprint"
+    },
+    {
+      "id": "business/node/10602667305:478297117",
+      "name": "HOTEL51",
+      "buildingId": "478297117",
+      "category": "hotel",
+      "source": "https://www.openstreetmap.org/node/10602667305",
+      "match": "unique-containing-footprint"
+    },
+    {
+      "id": "business/node/10819294212:356923871",
+      "name": "Credins Bank",
+      "buildingId": "356923871",
+      "category": "bank",
+      "source": "https://www.openstreetmap.org/node/10819294212",
+      "match": "unique-containing-footprint"
+    },
+    {
+      "id": "business/node/10861398233:1167735325",
+      "name": "Hotel Nordic",
+      "buildingId": "1167735325",
+      "category": "hotel",
+      "source": "https://www.openstreetmap.org/node/10861398233",
+      "match": "unique-containing-footprint"
+    },
+    {
+      "id": "business/node/10865606751:465295336",
+      "name": "Mulaj",
+      "buildingId": "465295336",
+      "category": "hotel",
+      "source": "https://www.openstreetmap.org/node/10865606751",
+      "match": "unique-containing-footprint"
+    },
+    {
+      "id": "business/node/10865606753:405307533",
+      "name": "Hotel Boutique Kotoni",
+      "buildingId": "405307533",
+      "category": "hotel",
+      "source": "https://www.openstreetmap.org/node/10865606753",
+      "match": "unique-containing-footprint"
+    },
+    {
+      "id": "business/node/10874208900:55972699",
+      "name": "Sokrati",
+      "buildingId": "55972699",
+      "category": "hotel",
+      "source": "https://www.openstreetmap.org/node/10874208900",
+      "match": "unique-containing-footprint"
+    },
+    {
+      "id": "business/node/10876156955:1162622704",
+      "name": "Lux de Paris",
+      "buildingId": "1162622704",
+      "category": "hotel",
+      "source": "https://www.openstreetmap.org/node/10876156955",
+      "match": "unique-containing-footprint"
+    },
+    {
+      "id": "business/node/10876251574:332169907",
+      "name": "Star Hotel - astir",
+      "buildingId": "332169907",
+      "category": "hotel",
+      "source": "https://www.openstreetmap.org/node/10876251574",
+      "match": "unique-containing-footprint"
+    },
+    {
+      "id": "business/node/10876251575:332169907",
+      "name": "New Artist",
+      "buildingId": "332169907",
+      "category": "hotel",
+      "source": "https://www.openstreetmap.org/node/10876251575",
+      "match": "unique-containing-footprint"
+    },
+    {
+      "id": "business/node/10879740519:734993893",
+      "name": "Credins Bank",
+      "buildingId": "734993893",
+      "category": "bank",
+      "source": "https://www.openstreetmap.org/node/10879740519",
+      "match": "unique-containing-footprint"
+    },
+    {
+      "id": "business/node/10879740523:448782108",
+      "name": "United Bank of Albania",
+      "buildingId": "448782108",
+      "category": "bank",
+      "source": "https://www.openstreetmap.org/node/10879740523",
+      "match": "unique-containing-footprint"
+    },
+    {
+      "id": "business/node/10879755272:405493777",
+      "name": "OTP Bank",
+      "buildingId": "405493777",
+      "category": "bank",
+      "source": "https://www.openstreetmap.org/node/10879755272",
+      "match": "unique-containing-footprint"
+    },
+    {
+      "id": "business/node/10879755273:405907495",
+      "name": "Tirana Bank",
+      "buildingId": "405907495",
+      "category": "bank",
+      "source": "https://www.openstreetmap.org/node/10879755273",
+      "match": "unique-containing-footprint"
+    },
+    {
+      "id": "business/node/10879755274:405907495",
+      "name": "Raiffeisen Bank",
+      "buildingId": "405907495",
+      "category": "bank",
+      "source": "https://www.openstreetmap.org/node/10879755274",
+      "match": "unique-containing-footprint"
+    },
+    {
+      "id": "business/node/10882049331:289794187",
+      "name": "Terminal",
+      "buildingId": "289794187",
+      "category": "hotel",
+      "source": "https://www.openstreetmap.org/node/10882049331",
+      "match": "unique-containing-footprint"
+    },
+    {
+      "id": "business/node/10903547640:474922326",
+      "name": "Tirana Bank",
+      "buildingId": "474922326",
+      "category": "bank",
+      "source": "https://www.openstreetmap.org/node/10903547640",
+      "match": "unique-containing-footprint"
+    },
+    {
+      "id": "business/node/10905557174:1173727107",
+      "name": "Credins Bank",
+      "buildingId": "1173727107",
+      "category": "bank",
+      "source": "https://www.openstreetmap.org/node/10905557174",
+      "match": "unique-containing-footprint"
+    },
+    {
+      "id": "business/node/10916837542:804598323",
+      "name": "Light Hotel",
+      "buildingId": "804598323",
+      "category": "hotel",
+      "source": "https://www.openstreetmap.org/node/10916837542",
+      "match": "unique-containing-footprint"
+    },
+    {
+      "id": "business/node/10916901709:1184315631",
+      "name": "Union Bank",
+      "buildingId": "1184315631",
+      "category": "bank",
+      "source": "https://www.openstreetmap.org/node/10916901709",
+      "match": "unique-containing-footprint"
+    },
+    {
+      "id": "business/node/10925217505:659804576",
+      "name": "ProCredit Bank",
+      "buildingId": "659804576",
+      "category": "bank",
+      "source": "https://www.openstreetmap.org/node/10925217505",
+      "match": "unique-containing-footprint"
+    },
+    {
+      "id": "business/node/10932194673:804598370",
+      "name": "OTP Bank",
+      "buildingId": "804598370",
+      "category": "bank",
+      "source": "https://www.openstreetmap.org/node/10932194673",
+      "match": "unique-containing-footprint"
+    },
+    {
+      "id": "business/node/10938060410:475693724",
+      "name": "Hotel Xhimi",
+      "buildingId": "475693724",
+      "category": "hotel",
+      "source": "https://www.openstreetmap.org/node/10938060410",
+      "match": "unique-containing-footprint"
+    },
+    {
+      "id": "business/node/10940133454:576628688",
+      "name": "United Bank of Albania",
+      "buildingId": "576628688",
+      "category": "bank",
+      "source": "https://www.openstreetmap.org/node/10940133454",
+      "match": "unique-containing-footprint"
+    },
+    {
+      "id": "business/node/10957853660:713102942",
+      "name": "F&M",
+      "buildingId": "713102942",
+      "category": "hotel",
+      "source": "https://www.openstreetmap.org/node/10957853660",
+      "match": "unique-containing-footprint"
+    },
+    {
+      "id": "business/node/10963660651:1180346902",
+      "name": "Credins Bank",
+      "buildingId": "1180346902",
+      "category": "bank",
+      "source": "https://www.openstreetmap.org/node/10963660651",
+      "match": "unique-containing-footprint"
+    },
+    {
+      "id": "business/node/10968426141:405490638",
+      "name": "Banka Kombëtare Tregtare",
+      "buildingId": "405490638",
+      "category": "bank",
+      "source": "https://www.openstreetmap.org/node/10968426141",
+      "match": "unique-containing-footprint"
+    },
+    {
+      "id": "business/node/10968483328:396414040",
+      "name": "Ebel Boutique Hotel",
+      "buildingId": "396414040",
+      "category": "hotel",
+      "source": "https://www.openstreetmap.org/node/10968483328",
+      "match": "unique-containing-footprint"
+    },
+    {
+      "id": "business/node/10974914413:1181852087",
+      "name": "Eljo’s",
+      "buildingId": "1181852087",
+      "category": "hotel",
+      "source": "https://www.openstreetmap.org/node/10974914413",
+      "match": "unique-containing-footprint"
+    },
+    {
+      "id": "business/node/10974914414:462397781",
+      "name": "2 Brother's",
+      "buildingId": "462397781",
+      "category": "hotel",
+      "source": "https://www.openstreetmap.org/node/10974914414",
+      "match": "unique-containing-footprint"
+    },
+    {
+      "id": "business/node/10977936460:736537555",
+      "name": "Prime Hotel",
+      "buildingId": "736537555",
+      "category": "hotel",
+      "source": "https://www.openstreetmap.org/node/10977936460",
+      "match": "unique-containing-footprint"
+    },
+    {
+      "id": "business/node/10982979275:256328736",
+      "name": "Triss Hotel",
+      "buildingId": "256328736",
+      "category": "hotel",
+      "source": "https://www.openstreetmap.org/node/10982979275",
+      "match": "unique-containing-footprint"
+    },
+    {
+      "id": "business/node/10996328478:1184099773",
+      "name": "Raiffeisen Bank",
+      "buildingId": "1184099773",
+      "category": "bank",
+      "source": "https://www.openstreetmap.org/node/10996328478",
+      "match": "unique-containing-footprint"
+    },
+    {
+      "id": "business/node/11000834420:537666443",
+      "name": "abi Bank",
+      "buildingId": "537666443",
+      "category": "bank",
+      "source": "https://www.openstreetmap.org/node/11000834420",
+      "match": "unique-containing-footprint"
+    },
+    {
+      "id": "business/node/11000834459:534848428",
+      "name": "Tirana Bank",
+      "buildingId": "534848428",
+      "category": "bank",
+      "source": "https://www.openstreetmap.org/node/11000834459",
+      "match": "unique-containing-footprint"
+    },
+    {
+      "id": "business/node/11010723363:623178123",
+      "name": "Grand Tirana",
+      "buildingId": "623178123",
+      "category": "hotel",
+      "source": "https://www.openstreetmap.org/node/11010723363",
+      "match": "unique-containing-footprint"
+    },
+    {
+      "id": "business/node/11076088628:462413215",
+      "name": "Flowers",
+      "buildingId": "462413215",
+      "category": "hotel",
+      "source": "https://www.openstreetmap.org/node/11076088628",
+      "match": "unique-containing-footprint"
+    },
+    {
+      "id": "business/node/11081913690:725968281",
+      "name": "OTP Bank",
+      "buildingId": "725968281",
+      "category": "bank",
+      "source": "https://www.openstreetmap.org/node/11081913690",
+      "match": "unique-containing-footprint"
+    },
+    {
+      "id": "business/node/11081997358:1444739311",
+      "name": "OTP Bank",
+      "buildingId": "1444739311",
+      "category": "bank",
+      "source": "https://www.openstreetmap.org/node/11081997358",
+      "match": "unique-containing-footprint"
+    },
+    {
+      "id": "business/node/11081997368:1193867476",
+      "name": "Raiffeisen Bank",
+      "buildingId": "1193867476",
+      "category": "bank",
+      "source": "https://www.openstreetmap.org/node/11081997368",
+      "match": "unique-containing-footprint"
+    },
+    {
+      "id": "business/node/11084388113:1115276666",
+      "name": "ApartHotel Folé",
+      "buildingId": "1115276666",
+      "category": "hotel",
+      "source": "https://www.openstreetmap.org/node/11084388113",
+      "match": "unique-containing-footprint"
+    },
+    {
+      "id": "business/node/11086013728:624746524",
+      "name": "Hotel Rosa Blu",
+      "buildingId": "624746524",
+      "category": "hotel",
+      "source": "https://www.openstreetmap.org/node/11086013728",
+      "match": "unique-containing-footprint"
+    },
+    {
+      "id": "business/node/11107199605:1280989537",
+      "name": "Raiffeisen Bank",
+      "buildingId": "1280989537",
+      "category": "bank",
+      "source": "https://www.openstreetmap.org/node/11107199605",
+      "match": "unique-containing-footprint"
+    },
+    {
+      "id": "business/node/11115217842:1198145171",
+      "name": "Republika",
+      "buildingId": "1198145171",
+      "category": "hotel",
+      "source": "https://www.openstreetmap.org/node/11115217842",
+      "match": "unique-containing-footprint"
+    },
+    {
+      "id": "business/node/11117851248:405309609",
+      "name": "Vila Shard Boutique Hotel",
+      "buildingId": "405309609",
+      "category": "hotel",
+      "source": "https://www.openstreetmap.org/node/11117851248",
+      "match": "unique-containing-footprint"
+    },
+    {
+      "id": "business/node/11119659845:1198742231",
+      "name": "abi Bank",
+      "buildingId": "1198742231",
+      "category": "bank",
+      "source": "https://www.openstreetmap.org/node/11119659845",
+      "match": "unique-containing-footprint"
+    },
+    {
+      "id": "business/node/11123991370:465295338",
+      "name": "Sky Hotel",
+      "buildingId": "465295338",
+      "category": "hotel",
+      "source": "https://www.openstreetmap.org/node/11123991370",
+      "match": "unique-containing-footprint"
+    },
+    {
+      "id": "business/node/11133069122:1200709940",
+      "name": "Banka Kombëtare Tregtare",
+      "buildingId": "1200709940",
+      "category": "bank",
+      "source": "https://www.openstreetmap.org/node/11133069122",
+      "match": "unique-containing-footprint"
+    },
+    {
+      "id": "business/node/11137300701:812871230",
+      "name": "Banka Kombëtare Tregtare",
+      "buildingId": "812871230",
+      "category": "bank",
+      "source": "https://www.openstreetmap.org/node/11137300701",
+      "match": "unique-containing-footprint"
+    },
+    {
+      "id": "business/node/11138775085:1201415754",
+      "name": "Credins Bank",
+      "buildingId": "1201415754",
+      "category": "bank",
+      "source": "https://www.openstreetmap.org/node/11138775085",
+      "match": "unique-containing-footprint"
+    },
+    {
+      "id": "business/node/11147151172:535260347",
+      "name": "Olimpic Hotel",
+      "buildingId": "535260347",
+      "category": "hotel",
+      "source": "https://www.openstreetmap.org/node/11147151172",
+      "match": "unique-containing-footprint"
+    },
+    {
+      "id": "business/node/11149242286:485090379",
+      "name": "Western Union",
+      "buildingId": "485090379",
+      "category": "bank",
+      "source": "https://www.openstreetmap.org/node/11149242286",
+      "match": "unique-containing-footprint"
+    },
+    {
+      "id": "business/node/11163951112:400645175",
+      "name": "Credins Bank",
+      "buildingId": "400645175",
+      "category": "bank",
+      "source": "https://www.openstreetmap.org/node/11163951112",
+      "match": "unique-containing-footprint"
+    },
+    {
+      "id": "business/node/11163951129:400645200",
+      "name": "Metro Hotel Tirana",
+      "buildingId": "400645200",
+      "category": "hotel",
+      "source": "https://www.openstreetmap.org/node/11163951129",
+      "match": "unique-containing-footprint"
+    },
+    {
+      "id": "business/node/11164104360:400647851",
+      "name": "Banka Kombëtare Tregtare",
+      "buildingId": "400647851",
+      "category": "bank",
+      "source": "https://www.openstreetmap.org/node/11164104360",
+      "match": "unique-containing-footprint"
+    },
+    {
+      "id": "business/node/11164126537:400645181",
+      "name": "La Bohème Hotel",
+      "buildingId": "400645181",
+      "category": "hotel",
+      "source": "https://www.openstreetmap.org/node/11164126537",
+      "match": "unique-containing-footprint"
+    },
+    {
+      "id": "business/node/11165813352:733320003",
+      "name": "Park Hotel Tirana",
+      "buildingId": "733320003",
+      "category": "hotel",
+      "source": "https://www.openstreetmap.org/node/11165813352",
+      "match": "unique-containing-footprint"
+    },
+    {
+      "id": "business/node/11168305081:400650376",
+      "name": "Hotel Palma",
+      "buildingId": "400650376",
+      "category": "hotel",
+      "source": "https://www.openstreetmap.org/node/11168305081",
+      "match": "unique-containing-footprint"
+    },
+    {
+      "id": "business/node/11173126824:409325663",
+      "name": "Hotel Tier Center",
+      "buildingId": "409325663",
+      "category": "hotel",
+      "source": "https://www.openstreetmap.org/node/11173126824",
+      "match": "unique-containing-footprint"
+    },
+    {
+      "id": "business/node/11173170573:404972894",
+      "name": "Union Bank",
+      "buildingId": "404972894",
+      "category": "bank",
+      "source": "https://www.openstreetmap.org/node/11173170573",
+      "match": "unique-containing-footprint"
+    },
+    {
+      "id": "business/node/11173170578:409325635",
+      "name": "The Crown",
+      "buildingId": "409325635",
+      "category": "hotel",
+      "source": "https://www.openstreetmap.org/node/11173170578",
+      "match": "unique-containing-footprint"
+    },
+    {
+      "id": "business/node/11182223524:1291894323",
+      "name": "Relax Hotel",
+      "buildingId": "1291894323",
+      "category": "hotel",
+      "source": "https://www.openstreetmap.org/node/11182223524",
+      "match": "unique-containing-footprint"
+    },
+    {
+      "id": "business/node/11186733275:344111189",
+      "name": "Banka Kombëtare Tregtare",
+      "buildingId": "344111189",
+      "category": "bank",
+      "source": "https://www.openstreetmap.org/node/11186733275",
+      "match": "unique-containing-footprint"
+    },
+    {
+      "id": "business/node/11200859759:804598372",
+      "name": "Hotel Ikea",
+      "buildingId": "804598372",
+      "category": "hotel",
+      "source": "https://www.openstreetmap.org/node/11200859759",
+      "match": "unique-containing-footprint"
+    },
+    {
+      "id": "business/node/11220876885:1173539216",
+      "name": "Prince Hotel",
+      "buildingId": "1173539216",
+      "category": "hotel",
+      "source": "https://www.openstreetmap.org/node/11220876885",
+      "match": "unique-containing-footprint"
+    },
+    {
+      "id": "business/node/11341923774:1222810320",
+      "name": "Fibank",
+      "buildingId": "1222810320",
+      "category": "bank",
+      "source": "https://www.openstreetmap.org/node/11341923774",
+      "match": "unique-containing-footprint"
+    },
+    {
+      "id": "business/node/11348950157:1232992063",
+      "name": "Iute Credit",
+      "buildingId": "1232992063",
+      "category": "bank",
+      "source": "https://www.openstreetmap.org/node/11348950157",
+      "match": "unique-containing-footprint"
+    },
+    {
+      "id": "business/node/11379601114:413186080",
+      "name": "Hotel Boutique Vila 135",
+      "buildingId": "413186080",
+      "category": "hotel",
+      "source": "https://www.openstreetmap.org/node/11379601114",
+      "match": "unique-containing-footprint"
+    },
+    {
+      "id": "business/node/11384694896:623067780",
+      "name": "Hotel City Center",
+      "buildingId": "623067780",
+      "category": "hotel",
+      "source": "https://www.openstreetmap.org/node/11384694896",
+      "match": "unique-containing-footprint"
+    },
+    {
+      "id": "business/node/11404423907:659792500",
+      "name": "Habitat Hotel",
+      "buildingId": "659792500",
+      "category": "hotel",
+      "source": "https://www.openstreetmap.org/node/11404423907",
+      "match": "unique-containing-footprint"
+    },
+    {
+      "id": "business/node/11514918969:1162762878",
+      "name": "Credins Bank",
+      "buildingId": "1162762878",
+      "category": "bank",
+      "source": "https://www.openstreetmap.org/node/11514918969",
+      "match": "unique-containing-footprint"
+    },
+    {
+      "id": "business/node/11515012701:847218349",
+      "name": "Tirana Bank",
+      "buildingId": "847218349",
+      "category": "bank",
+      "source": "https://www.openstreetmap.org/node/11515012701",
+      "match": "unique-containing-footprint"
+    },
+    {
+      "id": "business/node/11539894258:795838798",
+      "name": "Credins Bank",
+      "buildingId": "795838798",
+      "category": "bank",
+      "source": "https://www.openstreetmap.org/node/11539894258",
+      "match": "unique-containing-footprint"
+    },
+    {
+      "id": "business/node/11539894260:534848439",
+      "name": "Banka Kombëtare Tregtare",
+      "buildingId": "534848439",
+      "category": "bank",
+      "source": "https://www.openstreetmap.org/node/11539894260",
+      "match": "unique-containing-footprint"
+    },
+    {
+      "id": "business/node/11541728872:449527787",
+      "name": "Credins Bank",
+      "buildingId": "449527787",
+      "category": "bank",
+      "source": "https://www.openstreetmap.org/node/11541728872",
+      "match": "unique-containing-footprint"
+    },
+    {
+      "id": "business/node/11544090950:229660867",
+      "name": "OTP Bank",
+      "buildingId": "229660867",
+      "category": "bank",
+      "source": "https://www.openstreetmap.org/node/11544090950",
+      "match": "unique-containing-footprint"
+    },
+    {
+      "id": "business/node/11544310500:456810062",
+      "name": "Banka Kombëtare Tregtare",
+      "buildingId": "456810062",
+      "category": "bank",
+      "source": "https://www.openstreetmap.org/node/11544310500",
+      "match": "unique-containing-footprint"
+    },
+    {
+      "id": "business/node/11544310507:456810062",
+      "name": "Western Union",
+      "buildingId": "456810062",
+      "category": "bank",
+      "source": "https://www.openstreetmap.org/node/11544310507",
+      "match": "unique-containing-footprint"
+    },
+    {
+      "id": "business/node/11548216566:1123761999",
+      "name": "Banka Kombëtare Tregtare",
+      "buildingId": "1123761999",
+      "category": "bank",
+      "source": "https://www.openstreetmap.org/node/11548216566",
+      "match": "unique-containing-footprint"
+    },
+    {
+      "id": "business/node/11585840965:1110743892",
+      "name": "Urban In",
+      "buildingId": "1110743892",
+      "category": "hotel",
+      "source": "https://www.openstreetmap.org/node/11585840965",
+      "match": "unique-containing-footprint"
+    },
+    {
+      "id": "business/node/11608452766:1248895609",
+      "name": "Western Union",
+      "buildingId": "1248895609",
+      "category": "bank",
+      "source": "https://www.openstreetmap.org/node/11608452766",
+      "match": "unique-containing-footprint"
+    },
+    {
+      "id": "business/node/11608520263:1175780293",
+      "name": "Mercure",
+      "buildingId": "1175780293",
+      "category": "hotel",
+      "source": "https://www.openstreetmap.org/node/11608520263",
+      "match": "unique-containing-footprint"
+    },
+    {
+      "id": "business/node/11612188350:576999923",
+      "name": "Hotel One",
+      "buildingId": "576999923",
+      "category": "hotel",
+      "source": "https://www.openstreetmap.org/node/11612188350",
+      "match": "unique-containing-footprint"
+    },
+    {
+      "id": "business/node/11627434832:478329131",
+      "name": "Hotel Gjika",
+      "buildingId": "478329131",
+      "category": "hotel",
+      "source": "https://www.openstreetmap.org/node/11627434832",
+      "match": "unique-containing-footprint"
+    },
+    {
+      "id": "business/node/11638953393:1174102242",
+      "name": "Olia Residence",
+      "buildingId": "1174102242",
+      "category": "hotel",
+      "source": "https://www.openstreetmap.org/node/11638953393",
+      "match": "unique-containing-footprint"
+    },
+    {
+      "id": "business/node/11667558815:575673656",
+      "name": "Boutique Hotel Adelar",
+      "buildingId": "575673656",
+      "category": "hotel",
+      "source": "https://www.openstreetmap.org/node/11667558815",
+      "match": "unique-containing-footprint"
+    },
+    {
+      "id": "business/node/11678989437:1256330700",
+      "name": "Intesa Sanpaolo",
+      "buildingId": "1256330700",
+      "category": "bank",
+      "source": "https://www.openstreetmap.org/node/11678989437",
+      "match": "unique-containing-footprint"
+    },
+    {
+      "id": "business/node/11702587414:462397780",
+      "name": "Kashari",
+      "buildingId": "462397780",
+      "category": "hotel",
+      "source": "https://www.openstreetmap.org/node/11702587414",
+      "match": "unique-containing-footprint"
+    },
+    {
+      "id": "business/node/11702587419:462397779",
+      "name": "Klerichi Hotel",
+      "buildingId": "462397779",
+      "category": "hotel",
+      "source": "https://www.openstreetmap.org/node/11702587419",
+      "match": "unique-containing-footprint"
+    },
+    {
+      "id": "business/node/11728069580:206840680",
+      "name": "Hotel London",
+      "buildingId": "206840680",
+      "category": "hotel",
+      "source": "https://www.openstreetmap.org/node/11728069580",
+      "match": "unique-containing-footprint"
+    },
+    {
+      "id": "business/node/11810527467:804598368",
+      "name": "Destiny Hotel",
+      "buildingId": "804598368",
+      "category": "hotel",
+      "source": "https://www.openstreetmap.org/node/11810527467",
+      "match": "unique-containing-footprint"
+    },
+    {
+      "id": "business/node/11870031588:788681572",
+      "name": "Vivi La Vita",
+      "buildingId": "788681572",
+      "category": "hotel",
+      "source": "https://www.openstreetmap.org/node/11870031588",
+      "match": "unique-containing-footprint"
+    },
+    {
+      "id": "business/node/11872275375:804598355",
+      "name": "abi Bank",
+      "buildingId": "804598355",
+      "category": "bank",
+      "source": "https://www.openstreetmap.org/node/11872275375",
+      "match": "unique-containing-footprint"
+    },
+    {
+      "id": "business/node/11872275376:804598355",
+      "name": "Tirana Bank",
+      "buildingId": "804598355",
+      "category": "bank",
+      "source": "https://www.openstreetmap.org/node/11872275376",
+      "match": "unique-containing-footprint"
+    },
+    {
+      "id": "business/node/11892096369:1281231576",
+      "name": "Kalpazo. Inn",
+      "buildingId": "1281231576",
+      "category": "hotel",
+      "source": "https://www.openstreetmap.org/node/11892096369",
+      "match": "unique-containing-footprint"
+    },
+    {
+      "id": "business/node/11948763601:318665804",
+      "name": "By Bel Ami",
+      "buildingId": "318665804",
+      "category": "hotel",
+      "source": "https://www.openstreetmap.org/node/11948763601",
+      "match": "unique-containing-footprint"
+    },
+    {
+      "id": "business/node/12053715534:804598371",
+      "name": "Iute",
+      "buildingId": "804598371",
+      "category": "bank",
+      "source": "https://www.openstreetmap.org/node/12053715534",
+      "match": "unique-containing-footprint"
+    },
+    {
+      "id": "business/node/12065329108:1190232191",
+      "name": "Raiffeisen Bank",
+      "buildingId": "1190232191",
+      "category": "bank",
+      "source": "https://www.openstreetmap.org/node/12065329108",
+      "match": "unique-containing-footprint"
+    },
+    {
+      "id": "business/node/12065386478:804598374",
+      "name": "Hotel Frekel",
+      "buildingId": "804598374",
+      "category": "hotel",
+      "source": "https://www.openstreetmap.org/node/12065386478",
+      "match": "unique-containing-footprint"
+    },
+    {
+      "id": "business/node/12068904497:548126599",
+      "name": "Hotel Italia",
+      "buildingId": "548126599",
+      "category": "hotel",
+      "source": "https://www.openstreetmap.org/node/12068904497",
+      "match": "unique-containing-footprint"
+    },
+    {
+      "id": "business/node/12068939877:381742881",
+      "name": "Ikea",
+      "buildingId": "381742881",
+      "category": "hotel",
+      "source": "https://www.openstreetmap.org/node/12068939877",
+      "match": "unique-containing-footprint"
+    },
+    {
+      "id": "business/node/12103449827:1226927876",
+      "name": "Raiffeisen Bank",
+      "buildingId": "1226927876",
+      "category": "bank",
+      "source": "https://www.openstreetmap.org/node/12103449827",
+      "match": "unique-containing-footprint"
+    },
+    {
+      "id": "business/node/12111687380:400645191",
+      "name": "ProCredit Bank",
+      "buildingId": "400645191",
+      "category": "bank",
+      "source": "https://www.openstreetmap.org/node/12111687380",
+      "match": "unique-containing-footprint"
+    },
+    {
+      "id": "business/node/12155327114:1313229907",
+      "name": "Hotel Djakbe",
+      "buildingId": "1313229907",
+      "category": "hotel",
+      "source": "https://www.openstreetmap.org/node/12155327114",
+      "match": "unique-containing-footprint"
+    },
+    {
+      "id": "business/node/12212741144:1215772194",
+      "name": "ProCredit Bank",
+      "buildingId": "1215772194",
+      "category": "bank",
+      "source": "https://www.openstreetmap.org/node/12212741144",
+      "match": "unique-containing-footprint"
+    },
+    {
+      "id": "business/node/12349579062:465460519",
+      "name": "United Bank of Albania",
+      "buildingId": "465460519",
+      "category": "bank",
+      "source": "https://www.openstreetmap.org/node/12349579062",
+      "match": "unique-containing-footprint"
+    },
+    {
+      "id": "business/node/12386815683:1242334922",
+      "name": "United Bank of Albania",
+      "buildingId": "1242334922",
+      "category": "bank",
+      "source": "https://www.openstreetmap.org/node/12386815683",
+      "match": "unique-containing-footprint"
+    },
+    {
+      "id": "business/node/12469097803:418306520",
+      "name": "Vila 15",
+      "buildingId": "418306520",
+      "category": "hotel",
+      "source": "https://www.openstreetmap.org/node/12469097803",
+      "match": "unique-containing-footprint"
+    },
+    {
+      "id": "business/node/12517177066:229660868",
+      "name": "abi Bank",
+      "buildingId": "229660868",
+      "category": "bank",
+      "source": "https://www.openstreetmap.org/node/12517177066",
+      "match": "unique-containing-footprint"
+    },
+    {
+      "id": "business/node/12582818003:1359389247",
+      "name": "Iute Credit",
+      "buildingId": "1359389247",
+      "category": "bank",
+      "source": "https://www.openstreetmap.org/node/12582818003",
+      "match": "unique-containing-footprint"
+    },
+    {
+      "id": "business/node/12620865438:804598358",
+      "name": "United Bank of Albania (UBA)",
+      "buildingId": "804598358",
+      "category": "bank",
+      "source": "https://www.openstreetmap.org/node/12620865438",
+      "match": "unique-containing-footprint"
+    },
+    {
+      "id": "business/node/12626560605:449523474",
+      "name": "abi Bank",
+      "buildingId": "449523474",
+      "category": "bank",
+      "source": "https://www.openstreetmap.org/node/12626560605",
+      "match": "unique-containing-footprint"
+    },
+    {
+      "id": "business/node/13593851374:1176728867",
+      "name": "ProCredit Bank",
+      "buildingId": "1176728867",
+      "category": "bank",
+      "source": "https://www.openstreetmap.org/node/13593851374",
+      "match": "unique-containing-footprint"
+    },
+    {
+      "id": "business/node/13594124086:1133151967",
+      "name": "Tirana Bank",
+      "buildingId": "1133151967",
+      "category": "bank",
+      "source": "https://www.openstreetmap.org/node/13594124086",
+      "match": "unique-containing-footprint"
+    },
+    {
+      "id": "business/node/13594150837:1255594721",
+      "name": "abi Bank",
+      "buildingId": "1255594721",
+      "category": "bank",
+      "source": "https://www.openstreetmap.org/node/13594150837",
+      "match": "unique-containing-footprint"
+    },
+    {
+      "id": "business/node/13594150838:1255594721",
+      "name": "OTP Bank",
+      "buildingId": "1255594721",
+      "category": "bank",
+      "source": "https://www.openstreetmap.org/node/13594150838",
+      "match": "unique-containing-footprint"
+    },
+    {
+      "id": "business/node/13606640889:789644445",
+      "name": "abi Bank",
+      "buildingId": "789644445",
+      "category": "bank",
+      "source": "https://www.openstreetmap.org/node/13606640889",
+      "match": "unique-containing-footprint"
+    },
+    {
+      "id": "business/node/13938507228:400645208",
+      "name": "The Bubbles Jaccuzi Hotel Tirana",
+      "buildingId": "400645208",
+      "category": "hotel",
+      "source": "https://www.openstreetmap.org/node/13938507228",
+      "match": "unique-containing-footprint"
+    },
+    {
+      "id": "business/node/14001159402:400645193",
+      "name": "Ziraat Bank",
+      "buildingId": "400645193",
+      "category": "bank",
+      "source": "https://www.openstreetmap.org/node/14001159402",
+      "match": "unique-containing-footprint"
+    },
+    {
+      "id": "business/node/14001203502:789348819",
+      "name": "American Bank of Investments",
+      "buildingId": "789348819",
+      "category": "bank",
+      "source": "https://www.openstreetmap.org/node/14001203502",
+      "match": "unique-containing-footprint"
+    },
+    {
+      "id": "business/node/14110790501:383062053",
+      "name": "Bazaar Hotel",
+      "buildingId": "383062053",
+      "category": "hotel",
+      "source": "https://www.openstreetmap.org/node/14110790501",
+      "match": "unique-containing-footprint"
+    },
+    {
+      "id": "business/way/457906825:457907644",
+      "name": "Banka e Shqipërisë - Qendra e Emisionit të Monedhës",
+      "buildingId": "457907644",
+      "category": "bank",
+      "source": "https://www.openstreetmap.org/way/457906825",
+      "match": "campus-contained-footprint"
+    },
+    {
+      "id": "business/way/457906825:457907695",
+      "name": "Banka e Shqipërisë - Qendra e Emisionit të Monedhës",
+      "buildingId": "457907695",
+      "category": "bank",
+      "source": "https://www.openstreetmap.org/way/457906825",
+      "match": "campus-contained-footprint"
+    },
+    {
+      "id": "business/way/457906825:457907824",
+      "name": "Banka e Shqipërisë - Qendra e Emisionit të Monedhës",
+      "buildingId": "457907824",
+      "category": "bank",
+      "source": "https://www.openstreetmap.org/way/457906825",
+      "match": "campus-contained-footprint"
+    },
+    {
+      "id": "business/way/457906825:1188709586",
+      "name": "Banka e Shqipërisë - Qendra e Emisionit të Monedhës",
+      "buildingId": "1188709586",
+      "category": "bank",
+      "source": "https://www.openstreetmap.org/way/457906825",
+      "match": "campus-contained-footprint"
+    },
+    {
+      "id": "business/way/470258643:249185545",
+      "name": "Rogner Hotel",
+      "buildingId": "249185545",
+      "category": "hotel",
+      "source": "https://www.openstreetmap.org/way/470258643",
+      "match": "campus-contained-footprint"
+    },
+    {
+      "id": "business/way/470258643:470249445",
+      "name": "Rogner Hotel",
+      "buildingId": "470249445",
+      "category": "hotel",
+      "source": "https://www.openstreetmap.org/way/470258643",
+      "match": "campus-contained-footprint"
+    },
+    {
+      "id": "business/way/470258643:470249446",
+      "name": "Rogner Hotel",
+      "buildingId": "470249446",
+      "category": "hotel",
+      "source": "https://www.openstreetmap.org/way/470258643",
+      "match": "campus-contained-footprint"
+    },
+    {
+      "id": "business/way/470258643:692292408",
+      "name": "Rogner Hotel",
+      "buildingId": "692292408",
+      "category": "hotel",
+      "source": "https://www.openstreetmap.org/way/470258643",
+      "match": "campus-contained-footprint"
+    },
+    {
+      "id": "business/way/470258643:692292410",
+      "name": "Rogner Hotel",
+      "buildingId": "692292410",
+      "category": "hotel",
+      "source": "https://www.openstreetmap.org/way/470258643",
+      "match": "campus-contained-footprint"
+    }
+  ],
+  "issues": [
+    {
+      "id": "node/2827753801",
+      "reason": "No unambiguous existing building footprint"
+    },
+    {
+      "id": "node/4269438392",
+      "reason": "No unambiguous existing building footprint"
+    },
+    {
+      "id": "node/4568853152",
+      "reason": "No unambiguous existing building footprint"
+    },
+    {
+      "id": "node/4603915995",
+      "reason": "No unambiguous existing building footprint"
+    },
+    {
+      "id": "node/5052506723",
+      "reason": "No unambiguous existing building footprint"
+    },
+    {
+      "id": "node/5725425554",
+      "reason": "No unambiguous existing building footprint"
+    },
+    {
+      "id": "node/5734187312",
+      "reason": "No unambiguous existing building footprint"
+    },
+    {
+      "id": "node/6612187674",
+      "reason": "No unambiguous existing building footprint"
+    },
+    {
+      "id": "node/6813156607",
+      "reason": "No unambiguous existing building footprint"
+    },
+    {
+      "id": "node/6841544444",
+      "reason": "No unambiguous existing building footprint"
+    },
+    {
+      "id": "node/9124938723",
+      "reason": "No unambiguous existing building footprint"
+    },
+    {
+      "id": "node/9124939030",
+      "reason": "No unambiguous existing building footprint"
+    },
+    {
+      "id": "node/9124946419",
+      "reason": "No unambiguous existing building footprint"
+    },
+    {
+      "id": "node/9128749837",
+      "reason": "No unambiguous existing building footprint"
+    },
+    {
+      "id": "node/9282711825",
+      "reason": "No unambiguous existing building footprint"
+    },
+    {
+      "id": "node/9536060465",
+      "reason": "No unambiguous existing building footprint"
+    },
+    {
+      "id": "node/9536060466",
+      "reason": "No unambiguous existing building footprint"
+    },
+    {
+      "id": "node/9930266017",
+      "reason": "No unambiguous existing building footprint"
+    },
+    {
+      "id": "node/9958685279",
+      "reason": "No unambiguous existing building footprint"
+    },
+    {
+      "id": "node/10028788126",
+      "reason": "No unambiguous existing building footprint"
+    },
+    {
+      "id": "node/10900658473",
+      "reason": "No unambiguous existing building footprint"
+    },
+    {
+      "id": "node/10996190865",
+      "reason": "No unambiguous existing building footprint"
+    },
+    {
+      "id": "node/11106093742",
+      "reason": "No unambiguous existing building footprint"
+    },
+    {
+      "id": "node/11106093778",
+      "reason": "No unambiguous existing building footprint"
+    },
+    {
+      "id": "node/11108328505",
+      "reason": "No unambiguous existing building footprint"
+    },
+    {
+      "id": "node/11220790829",
+      "reason": "No unambiguous existing building footprint"
+    },
+    {
+      "id": "node/11459823241",
+      "reason": "No unambiguous existing building footprint"
+    },
+    {
+      "id": "node/11627401363",
+      "reason": "No unambiguous existing building footprint"
+    },
+    {
+      "id": "node/11728095202",
+      "reason": "No unambiguous existing building footprint"
+    },
+    {
+      "id": "node/11784711211",
+      "reason": "No unambiguous existing building footprint"
+    },
+    {
+      "id": "node/12052304677",
+      "reason": "No unambiguous existing building footprint"
+    },
+    {
+      "id": "node/12103819301",
+      "reason": "No unambiguous existing building footprint"
+    },
+    {
+      "id": "node/12582912645",
+      "reason": "No unambiguous existing building footprint"
+    },
+    {
+      "id": "node/12582912646",
+      "reason": "No unambiguous existing building footprint"
+    },
+    {
+      "id": "node/12601618606",
+      "reason": "No unambiguous existing building footprint"
+    },
+    {
+      "id": "node/13604600296",
+      "reason": "No unambiguous existing building footprint"
+    },
+    {
+      "id": "node/13812255025",
+      "reason": "No unambiguous existing building footprint"
+    },
+    {
+      "id": "way/1059411854",
+      "reason": "No unambiguous existing building footprint"
+    },
+    {
+      "id": "node/6864471927:331541061",
+      "reason": "No non-overlapping fascia space below roof"
+    },
+    {
+      "id": "node/10909578432:229658197",
+      "reason": "No non-overlapping fascia space below roof"
+    },
+    {
+      "id": "node/11438894757:1193867476",
+      "reason": "No non-overlapping fascia space below roof"
+    },
+    {
+      "id": "node/11515012702:847218349",
+      "reason": "No non-overlapping fascia space below roof"
+    }
+  ]
+}

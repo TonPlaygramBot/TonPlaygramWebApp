@@ -5,9 +5,11 @@ import { WORLD } from '../tiranastreets/shared/world.mjs';
 import { CITY_SOURCE } from './sourceData.mjs';
 import { CITY_PLACES } from './registry.mjs';
 import { frontage, type CitySite } from './sourceCore.mjs';
+import {BUSINESS_SIGN_BUILDING_IDS} from './businessSignRegistry.mjs';
 
 const flagBase = '/assets/tirana-streets/flags/';
 type SignItem = {site:CitySite;edge:NonNullable<ReturnType<typeof frontage>>};
+const businessOwnsName=(site:CitySite)=>['bank','hotel'].includes(site.category)&&BUSINESS_SIGN_BUILDING_IDS.has(site.buildingId);
 
 /** Shared, locally packaged flag artwork. Cloth proportions come from the SVG,
  * including square Swiss/Vatican flags. No emoji substitutes or remote hotlinks. */
@@ -27,6 +29,7 @@ export class InstitutionLayer {
     this.group.userData={source:CITY_SOURCE.source,accuracy:'Mapped building identity; authored exterior sign and flag mounts',
       omitted:CITY_PLACES.issues};
     const items=sites.flatMap(site=>{
+      if(!site.country&&businessOwnsName(site))return [];
       const edge=frontage(site,WORLD.roads,CITY_SOURCE.entrances);
       return edge?[{site,edge}]:[];
     });
@@ -43,7 +46,7 @@ export class InstitutionLayer {
     items.forEach(({site,edge},i)=>{
       const group=new T.Group();group.name=site.name||site.category;group.userData={...site};
       group.position.set(edge.x+edge.nx*.26,0,edge.z+edge.nz*.26);group.rotation.y=edge.yaw;
-      if(site.name){
+      if(site.name&&!businessOwnsName(site)){
         const width=Math.min(edge.length-.6,4.6),height=width/4;
         const geometry=new T.PlaneGeometry(width,height),uv=geometry.getAttribute('uv');
         const col=i%8,row=Math.floor(i/8),rows=Math.ceil(items.length/8);
