@@ -8029,8 +8029,7 @@ async function restoreSeatedHumans(token) {
         {
           targetHeight: LEGACY_DOMINO_HUMAN_HEIGHT,
           seatHeight: STOOL_HEIGHT,
-          supportsArmrest: true,
-          restoreLegacyScale: true
+          supportsArmrest: true
         }
       );
       if (restoredHuman) seatedHumanActors[visualSeatIndex] = restoredHuman;

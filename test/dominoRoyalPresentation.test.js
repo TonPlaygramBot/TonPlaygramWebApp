@@ -22,7 +22,6 @@ describe('Domino Royal lightweight presentation', () => {
     expect(source).toContain('__DOMINO_ROYAL_SEATED_HUMANS__');
     expect(gameSource).toContain('chairs.forEach((chair, visualSeatIndex) =>');
     expect(gameSource).toContain('LEGACY_DOMINO_HUMAN_HEIGHT = 1.13');
-    expect(gameSource).toContain('restoreLegacyScale: true');
     expect(gameSource).toContain("runSeatedHumanDominoAction(current, 'placePiece')");
     expect(gameSource).toContain("runSeatedHumanDominoAction(human, 'placePiece')");
     expect(gameSource).toContain('seatHeight: STOOL_HEIGHT');

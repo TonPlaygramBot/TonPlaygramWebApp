@@ -606,16 +606,19 @@ export function computeSeatedHumanScale(actorTemplate, targetHeight) {
 export function createRestoredSeatedHumanActor(
   actorTemplate,
   chairGroup,
-  { targetHeight = 1.13, seatHeight = 0, supportsArmrest = true, restoreLegacyScale = false } = {}
+  { targetHeight = 1.13, seatHeight = 0, supportsArmrest = true } = {}
 ) {
   if (!actorTemplate?.isObject3D || !chairGroup?.isObject3D) return null;
   const actor = cloneSkeleton(actorTemplate);
-  const measuredHeight = measureObjectHeight(actor);
-  const normalizedScale = targetHeight / Math.max(measuredHeight, 0.01);
-  const legacyScale = Number(actorTemplate.userData?.seatedHumanScale);
-  actor.scale.multiplyScalar(
-    restoreLegacyScale && Number.isFinite(legacyScale) ? legacyScale : normalizedScale
-  );
+  // Keep restored actors on the same visual scale path as the original seated
+  // humans.  The loader stores the historic 4.35 presentation multiplier (and
+  // any character-specific adapter) here; recomputing only the literal height
+  // made restored Snake players a fraction of their former on-screen size.
+  const storedScale = Number(actorTemplate.userData?.seatedHumanScale);
+  const seatedScale = Number.isFinite(storedScale) && storedScale > 0
+    ? storedScale
+    : computeSeatedHumanScale(actor, targetHeight);
+  actor.scale.multiplyScalar(seatedScale);
   chairGroup.add(actor);
 
   const rig = saveSeatedHumanBoneRig(actor);

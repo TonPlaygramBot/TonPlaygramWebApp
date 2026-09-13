@@ -24,6 +24,20 @@ function controller(name, dependencies) {
 
 const noop = () => {};
 
+test('portrait seated-human sizing and character selection remain wired to the restored implementation', () => {
+  assert.match(source, /const SEATED_HUMAN_ACTOR_TARGET_HEIGHT = SEATED_HUMAN_BASE_HEIGHT \* 0\.65;/);
+  assert.match(source, /const SEATED_HUMAN_TARGET_HEIGHT = BACK_HEIGHT \* 2\.42;/);
+  assert.match(source, /const SEATED_HUMAN_VISUAL_SCALE_MULTIPLIER = 4\.2;/);
+  assert.match(source, /const SEATED_HUMAN_SEAT_Y_OFFSET = -6\.75 \* MODEL_SCALE \* STOOL_SCALE;/);
+  assert.match(source, /const SEATED_HUMAN_SEAT_Z_OFFSET = -SEAT_DEPTH \* 0\.42;/);
+  assert.match(source, /const SELF_BOTTOM_HUMAN_EXTRA_Z_OFFSET = SEAT_DEPTH \* 0\.12;/);
+  assert.match(source, /const SEATED_HUMAN_FOOT_GROUND_CLEARANCE = -1\.55 \* MODEL_SCALE \* STOOL_SCALE;/);
+  assert.match(source, /actor\.scale\.multiplyScalar\(SEATED_HUMAN_ACTOR_TARGET_HEIGHT \/ Math\.max\(height, 0\.01\)\);/);
+  assert.match(source, /humanCharacterIndex: humanPool\[aiIndex % humanPool\.length\] \?\? 0/);
+  assert.match(source, /\{ key: 'humanCharacter', label: 'Human Character', options: HUMAN_CHARACTER_OPTIONS \}/);
+  assert.match(source, /requestCharacter\?\.\(HUMAN_CHARACTER_OPTIONS\[safe\.humanCharacter\]\)/);
+});
+
 test('rapid taps cannot clear the pending move or turn timer', async () => {
   for (const patch of [{ pendingRoll: 6 }, { onlinePendingRoll: 3 }, { winner: 0 }, { animation: {} }]) {
     const roll = controller('rollDice', {
