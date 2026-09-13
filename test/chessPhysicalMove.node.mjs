@@ -1,7 +1,11 @@
 import test from 'node:test';
+import {
+  calibrateHandRig,
+  applyHandGrip,
+  solveFingerContact
+} from '../webapp/src/games/chess/anatomicalHand.ts';
 import assert from 'node:assert/strict';
-import fs from 'node:fs';
-import vm from 'node:vm';
+import { loadRig } from './chessAvatarFixture.mjs';
 import * as THREE from '../webapp/node_modules/three/build/three.module.js';
 import {
   samplePhysicalMove,
@@ -61,44 +65,6 @@ test('joint solver gives the same pose for either seat and a scaled, rotated par
   assert.ok(b.error < 1e-6);
   assert.ok(a.q.angleTo(b.q) < 1e-6);
 });
-function loadRig() {
-  const bytes = fs.readFileSync(
-    new URL(
-      '../webapp/public/assets/table-tennis/chess-human.glb',
-      import.meta.url
-    )
-  );
-  const json = JSON.parse(
-    bytes.subarray(20, 20 + bytes.readUInt32LE(12)).toString()
-  );
-  const nodes = json.nodes.map((n) => {
-    const node = new THREE.Bone();
-    node.name = n.name || '';
-    if (n.translation) node.position.fromArray(n.translation);
-    if (n.rotation) node.quaternion.fromArray(n.rotation);
-    if (n.scale) node.scale.fromArray(n.scale);
-    return node;
-  });
-  json.nodes.forEach((n, i) =>
-    n.children?.forEach((j) => nodes[i].add(nodes[j]))
-  );
-  const root = new THREE.Group();
-  json.scenes[json.scene || 0].nodes.forEach((i) => root.add(nodes[i]));
-  root.updateMatrixWorld(true);
-  const source = fs.readFileSync(
-    new URL('../webapp/src/pages/Games/ChessBattleRoyal.jsx', import.meta.url),
-    'utf8'
-  );
-  const functions = source.slice(
-    source.indexOf('function normalizeBoneName('),
-    source.indexOf('function resetBoneRig(')
-  );
-  const rig = vm.runInNewContext(functions + '\nsaveBoneRig(root)', {
-    root,
-    normalizeRigBoneName
-  });
-  return { root, rig };
-}
 test('the actual chess avatar resolves all three thumb/index/middle joints', () => {
   const { rig } = loadRig();
   for (const name of [
@@ -117,7 +83,7 @@ test('the actual chess avatar resolves all three thumb/index/middle joints', () 
     'mixamorigrightindex1'
   );
 });
-test('actual avatar fingertip contact stays finite under translated/scaled board parents', () => {
+test('actual avatar thumb/index contact survives translated/scaled board parents', () => {
   const { root, rig } = loadRig();
   root.rotation.y = Math.PI;
   root.scale.setScalar(3.2);
@@ -148,7 +114,7 @@ test('actual avatar fingertip contact stays finite under translated/scaled board
   const target = parent.localToWorld(
     mesh.position.clone().add(new THREE.Vector3(0, 0.08, 0))
   );
-  for (const chain of [rig.rightThumb, rig.rightIndex, rig.rightMiddle]) {
+  for (const chain of [rig.rightThumb, rig.rightIndex]) {
     const tip = tipPosition(chain);
     assert.ok(tip.toArray().every(Number.isFinite));
     assert.ok(
@@ -158,4 +124,217 @@ test('actual avatar fingertip contact stays finite under translated/scaled board
   }
   updatePhysicalPieceMove(rig, action, 1, 0.03);
   assert.ok(mesh.position.distanceTo(to) < 1e-10);
+});
+
+test('all four fingers curl into each palm and both hands remain mirrored', () => {
+  const { rig } = loadRig();
+  const before = new Map();
+  for (const side of ['left', 'right'])
+    for (const digit of ['Index', 'Middle', 'Ring', 'Pinky'])
+      before.set(
+        side + digit,
+        rig[side + 'Hand'].worldToLocal(tipPosition(rig[side + digit])).z
+      );
+  for (const side of ['left', 'right']) applyHandGrip(rig, side, 0.2);
+  for (const side of ['left', 'right'])
+    for (const digit of ['Index', 'Middle', 'Ring', 'Pinky']) {
+      // Independent asset fact: the palm side of this GLB is hand-local +Z.
+      assert.ok(
+        rig[side + 'Hand'].worldToLocal(tipPosition(rig[side + digit])).z >
+          before.get(side + digit) + 0.01,
+        side + digit
+      );
+    }
+  for (const grip of [0, 0.25, 0.5, 0.75, 1]) {
+    for (const side of ['left', 'right']) applyHandGrip(rig, side, grip);
+    for (const digit of ['Thumb', 'Index', 'Middle', 'Ring', 'Pinky']) {
+      const left = tipPosition(rig['left' + digit]);
+      left.x *= -1;
+      assert.ok(
+        left.distanceTo(tipPosition(rig['right' + digit])) < 0.0001,
+        digit
+      );
+    }
+  }
+});
+
+function assertHinges(profile) {
+  for (const [digit, finger] of Object.entries(profile.fingers)) {
+    for (const [i, joint] of finger.joints.entries()) {
+      const q = joint.bind
+        .clone()
+        .invert()
+        .multiply(joint.bone.quaternion)
+        .normalize();
+      if (q.w < 0) q.set(-q.x, -q.y, -q.z, -q.w);
+      const axis = new THREE.Vector3(q.x, q.y, q.z);
+      const angle = 2 * Math.atan2(axis.length(), q.w);
+      assert.ok(Number.isFinite(angle));
+      // MCP permits spread/opposition; middle and distal joints are hinges.
+      if (i > 0 && angle > 1e-7) {
+        assert.ok(
+          axis.normalize().dot(joint.flexAxis) > 0.999999,
+          `${digit}${i}: twist or backward bend`
+        );
+        assert.ok(
+          angle <= joint.maxFlex + 1e-7,
+          `${digit}${i}: excessive flexion`
+        );
+      }
+      assert.ok(joint.flex >= 0 && joint.flex <= joint.maxFlex);
+      assert.ok(Math.abs(joint.spread) <= joint.maxSpread);
+      assert.ok(
+        joint.opposition >= 0 && joint.opposition <= joint.maxOpposition
+      );
+    }
+    if (!finger.thumb)
+      assert.ok(
+        Math.abs(finger.joints[2].flex - 0.65 * finger.joints[1].flex) < 1e-9,
+        'smooth middle/distal curl'
+      );
+  }
+}
+
+test('unreachable targets cannot hyperextend or twist any digit on either hand', () => {
+  const { rig } = loadRig();
+  const profiles = calibrateHandRig(rig);
+  for (const side of ['left', 'right']) {
+    const profile = profiles[side];
+    for (const targetLocal of [
+      [0, -2, -2],
+      [4, 0, 0],
+      [-4, 0, 0],
+      [0, 3, 0]
+    ]) {
+      applyHandGrip(rig, side, 0.5);
+      const target = profile.hand.localToWorld(
+        new THREE.Vector3(...targetLocal)
+      );
+      for (const finger of Object.values(profile.fingers))
+        solveFingerContact(finger, target, 30);
+      assertHinges(profile);
+    }
+  }
+});
+
+test('calibration survives rolled bone frames and opposite, scaled seats', () => {
+  function pose(roll, yaw, scale) {
+    let { root, rig } = loadRig();
+    for (const side of ['left', 'right'])
+      for (const digit of ['Thumb', 'Index', 'Middle', 'Ring', 'Pinky']) {
+        for (const bone of rig[side + digit]) {
+          const q = new THREE.Quaternion().setFromAxisAngle(
+            new THREE.Vector3(0, 1, 0),
+            roll
+          );
+          bone.quaternion.multiply(q);
+          for (const child of bone.children) {
+            child.position.applyQuaternion(q.clone().invert());
+            child.quaternion.premultiply(q.clone().invert());
+          }
+        }
+      }
+    root.rotation.set(0.13, yaw, 0.21);
+    root.scale.setScalar(scale);
+    root.position.set(3, 2, -1);
+    ({ rig } = loadRig(root));
+    for (const side of ['left', 'right']) applyHandGrip(rig, side, 0.7);
+    const tips = [];
+    for (const side of ['left', 'right'])
+      for (const digit of ['Thumb', 'Index', 'Middle', 'Ring', 'Pinky'])
+        tips.push(root.worldToLocal(tipPosition(rig[side + digit])));
+    return tips;
+  }
+  const baseline = pose(0, 0, 1),
+    rolled = pose(1.7, Math.PI, 3.2);
+  baseline.forEach((p, i) =>
+    assert.ok(p.distanceTo(rolled[i]) < 1e-6, `digit ${i}`)
+  );
+});
+
+test('actual seated pickup has continuous joints through grip, carry, release and withdrawal', () => {
+  for (const yaw of [0, Math.PI]) {
+    const { root, rig, pose } = loadRig();
+    root.rotation.y = yaw;
+    pose('idle', 1, 0);
+    root.updateMatrixWorld(true);
+    const contact = [rig.rightThumb, rig.rightIndex, rig.rightMiddle]
+      .map(tipPosition)
+      .reduce((sum, p) => sum.add(p), new THREE.Vector3())
+      .multiplyScalar(1 / 3);
+    const from = contact
+      .clone()
+      .add(
+        new THREE.Vector3(0.045, -0.065, 0.055).applyAxisAngle(
+          new THREE.Vector3(0, 1, 0),
+          yaw
+        )
+      );
+    const to = from
+      .clone()
+      .add(
+        new THREE.Vector3(0.09, 0, 0.12).applyAxisAngle(
+          new THREE.Vector3(0, 1, 0),
+          yaw
+        )
+      );
+    const parent = new THREE.Group(),
+      mesh = new THREE.Object3D();
+    parent.add(mesh);
+    const action = { mesh, from, to, gripHeight: 0.032, gripRadius: 0.009 };
+    const profile = calibrateHandRig(rig).right;
+    const joints = Object.values(profile.fingers).flatMap((f) => f.joints);
+    let previous;
+    for (let i = 0; i <= 400; i++) {
+      const u = i / 400,
+        f = samplePhysicalMove(u, from, to, 0.045);
+      pose('reachPiece', f.reach, f.grip, { forwardReach: 0.05, sideReach: 0 });
+      updatePhysicalPieceMove(rig, action, u, 0.045);
+      assertHinges(profile);
+      if (previous)
+        joints.forEach((j, k) =>
+          assert.ok(
+            j.bone.quaternion.angleTo(previous[k]) < 0.08,
+            `${j.bone.name} snapped at ${u}`
+          )
+        );
+      previous = joints.map((j) => j.bone.quaternion.clone());
+      if (u >= 0.3 && u <= 0.82) {
+        const target = mesh.position
+          .clone()
+          .add(new THREE.Vector3(0, 0.032, 0));
+        const anchor = rig.rightHand.localToWorld(
+          action.gripAnchorLocal.clone()
+        );
+        assert.ok(
+          anchor.distanceTo(target) < 0.008,
+          `wrist lost the piece at ${u}`
+        );
+      }
+    }
+    for (const j of joints)
+      assert.ok(
+        j.bind.angleTo(j.bone.quaternion) < 1e-7,
+        'release returns to rest'
+      );
+    assert.ok(mesh.position.distanceTo(to) < 1e-10);
+  }
+});
+
+test('distal extension follows a rolled terminal joint when no fingertip bone is present', () => {
+  const base = new THREE.Bone(),
+    last = new THREE.Bone();
+  base.add(last);
+  last.position.set(0, 0.03, 0);
+  last.rotation.y = 1.2;
+  const chain = [base, last];
+  const before = tipPosition(chain);
+  last.rotateX(0.5);
+  const after = tipPosition(chain);
+  assert.ok(before.distanceTo(after) > 0.005);
+  assert.ok(
+    Math.abs(
+      after.distanceTo(last.getWorldPosition(new THREE.Vector3())) - 0.0216
+    ) < 1e-9
+  );
 });

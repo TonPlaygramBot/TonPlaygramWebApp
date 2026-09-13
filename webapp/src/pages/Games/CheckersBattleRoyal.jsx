@@ -55,6 +55,9 @@ import {
 import { getCustomHdriVariantsForGame } from '../../utils/customHdriCatalog.js';
 import { socket } from '../../utils/socket.js';
 import { canControlCheckersTurn } from './shared/checkersTurnControl.js';
+import { createInitialBoard as createInitial, cloneBoard as copyBoard, normalizeBoard } from '../../../../shared/checkersRules.js';
+import { applyMoveToBoard, getMovesForSide, searchBestMove } from './shared/checkersAi.js';
+import { createCheckersReplay, isCheckersTap, nextCheckersAnimationStart } from './shared/checkersPresentation.js';
 
 const SIZE = 8;
 const clamp = (value, min, max) => Math.max(min, Math.min(max, value));
@@ -129,51 +132,51 @@ const PLAYER_FACE_CAMERA_LOOK_DRAG_SPEED = 0.0045;
 // Lower chairs toward the floor for stronger downward screen placement.
 const CHECKERS_GRAPHICS_PROFILE_STORAGE_KEY =
   'checkersBattleRoyalGraphicsProfile';
-const CHECKERS_DEFAULT_GRAPHICS_PROFILE_ID = 'hz90_2k';
+const CHECKERS_DEFAULT_GRAPHICS_PROFILE_ID = 'hz60_fhd';
 const CHECKERS_GRAPHICS_PROFILES = Object.freeze([
   {
     id: 'hz60_fhd',
     label: '60Hz · Full HD',
     renderScale: 1,
     maxFps: 60,
-    fpsHint: '50–60 FPS',
+    fpsHint: '60 FPS cap',
     preferredResolutions: ['1k'],
     fallbackResolution: '1k',
     hdriGroundResolution: 256,
     hdriRadiusMultiplier: 7.5,
     description:
-      'Balanced visuals: Full HD target with stable 50–60 FPS at 60Hz.'
+      'Recommended for mobile. Balanced detail with a 60 FPS cap.'
   },
   {
     id: 'hz90_2k',
     label: '90Hz · 2K',
     renderScale: 1.35,
     maxFps: 90,
-    fpsHint: '60–90 FPS',
+    fpsHint: '90 FPS cap',
     preferredResolutions: ['2k', '1k'],
     fallbackResolution: '2k',
     hdriGroundResolution: 320,
     hdriRadiusMultiplier: 8.5,
-    description: 'Sharper arena textures with smooth 60–90 FPS on 90Hz.'
+    description: 'Sharper textures with a 90 FPS cap. Actual performance depends on your device.'
   },
   {
     id: 'hz120_4k',
     label: '120Hz · 4K',
     renderScale: 1.85,
     maxFps: 120,
-    fpsHint: '105–120 FPS',
+    fpsHint: '120 FPS cap',
     preferredResolutions: ['4k', '2k'],
     fallbackResolution: '4k',
     hdriGroundResolution: 448,
     hdriRadiusMultiplier: 9.5,
-    description: 'Ultra quality mode targeting 4K detail and 105–120 FPS.'
+    description: 'High-resolution textures with a 120 FPS cap for capable devices.'
   },
   {
     id: 'hz144_6k',
     label: '144Hz · 6K (auto 4K fallback)',
     renderScale: 2,
     maxFps: 144,
-    fpsHint: '120–144 FPS',
+    fpsHint: '144 FPS cap',
     preferredResolutions: ['6k', '4k', '2k'],
     fallbackResolution: '4k',
     hdriGroundResolution: 512,
@@ -318,10 +321,6 @@ const SHADOW_CATCHER_OPACITY = 0.26;
 const SHADOW_CATCHER_ELEVATION = 0.004;
 const MOVE_SOUND_URL = '/assets/sounds/domino-pieces-1-32112 (mp3cut.net).mp3';
 const CAPTURE_SOUND_VOLUME_MULTIPLIER = 0.72;
-const TAP_MAX_DISTANCE_PX = 16;
-const TAP_MAX_DURATION_MS = 340;
-const TOUCH_TAP_MAX_DISTANCE_PX = 40;
-const TOUCH_TAP_MAX_DURATION_MS = 360;
 const MOUSE_PICK_RADIUS_IN_TILES = 0.58;
 const TOUCH_PICK_RADIUS_IN_TILES = 0.74;
 
@@ -414,10 +413,10 @@ const FALLBACK_SEAT_POSITIONS = [
   { left: '50%', top: '88%' }
 ];
 const RULE_SUMMARY =
-  'Forced captures are ON. Chain captures are mandatory. Reach the far rank to crown a king.';
+  'Captures are compulsory. Continue with the same piece. Crowning ends your turn.';
 const HUMAN_SIDE = 'light';
 const AI_SIDE = 'dark';
-const AI_SEARCH_DEPTH = 6;
+const AI_SEARCH_DEPTH = 4;
 const CAPTURE_STRIP_OFFSET_ROWS = 1.15;
 const CAPTURE_STRIP_PIECE_GAP = 0.82;
 const ONLINE_SOCKET_CONNECT_TIMEOUT_MS = 6000;
@@ -601,97 +600,6 @@ const disposeGroupMeshes = (
   });
 };
 
-const createInitial = () => {
-  const board = Array.from({ length: SIZE }, () => Array(SIZE).fill(null));
-  for (let r = 0; r < 3; r += 1)
-    for (let c = 0; c < SIZE; c += 1)
-      if ((r + c) % 2 === 1) board[r][c] = { side: 'dark', king: false };
-  for (let r = 5; r < SIZE; r += 1)
-    for (let c = 0; c < SIZE; c += 1)
-      if ((r + c) % 2 === 1) board[r][c] = { side: 'light', king: false };
-  return board;
-};
-
-const inBounds = (r, c) => r >= 0 && r < SIZE && c >= 0 && c < SIZE;
-const copyBoard = (board) =>
-  board.map((row) => row.map((cell) => (cell ? { ...cell } : null)));
-
-const getPieceDirs = (piece) => {
-  if (piece.king)
-    return [
-      [1, 1],
-      [1, -1],
-      [-1, 1],
-      [-1, -1]
-    ];
-  return piece.side === 'light'
-    ? [
-        [-1, 1],
-        [-1, -1]
-      ]
-    : [
-        [1, 1],
-        [1, -1]
-      ];
-};
-
-const getMoves = (board, r, c) => {
-  const piece = board[r][c];
-  if (!piece) return [];
-  const dirs = getPieceDirs(piece);
-  const captures = [];
-  const normals = [];
-  dirs.forEach(([dr, dc]) => {
-    const nr = r + dr;
-    const nc = c + dc;
-    if (!inBounds(nr, nc)) return;
-    if (!board[nr][nc]) normals.push({ r: nr, c: nc });
-    else if (board[nr][nc].side !== piece.side) {
-      const jr = nr + dr;
-      const jc = nc + dc;
-      if (inBounds(jr, jc) && !board[jr][jc])
-        captures.push({ r: jr, c: jc, capture: [nr, nc] });
-    }
-  });
-  return captures.length ? captures : normals;
-};
-
-const getMovesForSide = (board, side) => {
-  const captures = [];
-  const normals = [];
-  for (let r = 0; r < SIZE; r += 1) {
-    for (let c = 0; c < SIZE; c += 1) {
-      const piece = board[r][c];
-      if (!piece || piece.side !== side) continue;
-      getMoves(board, r, c).forEach((move) => {
-        const payload = { from: { r, c }, ...move };
-        if (move.capture) captures.push(payload);
-        else normals.push(payload);
-      });
-    }
-  }
-  return captures.length ? captures : normals;
-};
-
-const applyMoveToBoard = (board, move) => {
-  const next = copyBoard(board);
-  const moving = next[move.from.r][move.from.c];
-  if (!moving) return null;
-  next[move.from.r][move.from.c] = null;
-  if (move.capture) next[move.capture[0]][move.capture[1]] = null;
-  const movedPiece = { ...moving };
-  if (movedPiece.side === 'light' && move.r === 0) movedPiece.king = true;
-  if (movedPiece.side === 'dark' && move.r === SIZE - 1) movedPiece.king = true;
-  next[move.r][move.c] = movedPiece;
-  return {
-    board: next,
-    piece: movedPiece,
-    chainCaptures: move.capture
-      ? getMoves(next, move.r, move.c).filter((m) => m.capture)
-      : []
-  };
-};
-
 const inferMoveFromBoardDelta = (beforeBoard, afterBoard) => {
   if (!Array.isArray(beforeBoard) || !Array.isArray(afterBoard)) return null;
   const removed = [];
@@ -713,111 +621,9 @@ const inferMoveFromBoardDelta = (beforeBoard, afterBoard) => {
     from: { r: source.r, c: source.c },
     to: { r: target.r, c: target.c },
     side: target.piece.side,
-    king: target.piece.king,
+    king: source.piece.king,
     capture: Math.abs(target.r - source.r) > 1 || removed.length > 1
   };
-};
-
-const evaluateBoard = (board, side) => {
-  let score = 0;
-  for (let r = 0; r < SIZE; r += 1) {
-    for (let c = 0; c < SIZE; c += 1) {
-      const piece = board[r][c];
-      if (!piece) continue;
-      const centerBonus = 3.5 - Math.abs(c - 3.5);
-      const advancement = piece.side === 'dark' ? r : SIZE - 1 - r;
-      const value =
-        (piece.king ? 180 : 100) + advancement * 6 + centerBonus * 3;
-      score += piece.side === side ? value : -value;
-    }
-  }
-  score +=
-    (getMovesForSide(board, side).length -
-      getMovesForSide(board, side === 'dark' ? 'light' : 'dark').length) *
-    4;
-  return score;
-};
-
-const searchBestMove = (
-  board,
-  side,
-  depth,
-  alpha = -Infinity,
-  beta = Infinity
-) => {
-  const moves = getMovesForSide(board, side);
-  const enemy = side === 'dark' ? 'light' : 'dark';
-  if (!moves.length) return { score: -99999 + depth, move: null };
-  if (depth <= 0) return { score: evaluateBoard(board, AI_SIDE), move: null };
-
-  let bestMove = null;
-  const ordered = [...moves].sort(
-    (a, b) => Number(Boolean(b.capture)) - Number(Boolean(a.capture))
-  );
-
-  if (side === AI_SIDE) {
-    let bestScore = -Infinity;
-    for (const move of ordered) {
-      const applied = applyMoveToBoard(board, move);
-      if (!applied) continue;
-      let score;
-      if (move.capture && applied.chainCaptures.length) {
-        const chained = applied.chainCaptures.map((m) => ({
-          from: { r: move.r, c: move.c },
-          ...m
-        }));
-        let chainBest = -Infinity;
-        for (const cm of chained) {
-          const nextApplied = applyMoveToBoard(applied.board, cm);
-          if (!nextApplied) continue;
-          const branch = searchBestMove(
-            nextApplied.board,
-            nextApplied.chainCaptures.length ? side : enemy,
-            depth - 1,
-            alpha,
-            beta
-          );
-          chainBest = Math.max(chainBest, branch.score);
-        }
-        score = chainBest;
-      } else {
-        score = searchBestMove(
-          applied.board,
-          enemy,
-          depth - 1,
-          alpha,
-          beta
-        ).score;
-      }
-      if (score > bestScore) {
-        bestScore = score;
-        bestMove = move;
-      }
-      alpha = Math.max(alpha, score);
-      if (beta <= alpha) break;
-    }
-    return { score: bestScore, move: bestMove };
-  }
-
-  let bestScore = Infinity;
-  for (const move of ordered) {
-    const applied = applyMoveToBoard(board, move);
-    if (!applied) continue;
-    const score = searchBestMove(
-      applied.board,
-      enemy,
-      depth - 1,
-      alpha,
-      beta
-    ).score;
-    if (score < bestScore) {
-      bestScore = score;
-      bestMove = move;
-    }
-    beta = Math.min(beta, score);
-    if (beta <= alpha) break;
-  }
-  return { score: bestScore, move: bestMove };
 };
 
 function buildFallbackCheckersBoardModel() {
@@ -1844,6 +1650,14 @@ export default function CheckersBattleRoyal() {
 
   const boardRef = useRef(createInitial());
   const selectedRef = useRef(null);
+  const rulesStateRef = useRef({ turn: 'light', requiredFrom: null });
+  const replayControllerRef = useRef(null);
+  if (!replayControllerRef.current) replayControllerRef.current = createCheckersReplay();
+  const renderPiecesRef = useRef(() => {});
+  const renderCapturedPiecesRef = useRef(() => {});
+  const queueMoveAnimationRef = useRef(() => {});
+  const pendingMoveTimerRef = useRef(null);
+  const gameOverRef = useRef(null);
   const piecesGroupRef = useRef(null);
   const capturedPiecesGroupRef = useRef(null);
   const effectsGroupRef = useRef(null);
@@ -1886,9 +1700,8 @@ export default function CheckersBattleRoyal() {
   const [viewMode, setViewMode] = useState('3d');
   const [graphicsProfileId, setGraphicsProfileId] = useState(() => {
     if (typeof window === 'undefined') return CHECKERS_DEFAULT_GRAPHICS_PROFILE_ID;
-    const saved = window.localStorage.getItem(
-      CHECKERS_GRAPHICS_PROFILE_STORAGE_KEY
-    );
+    let saved;
+    try { saved = window.localStorage.getItem(CHECKERS_GRAPHICS_PROFILE_STORAGE_KEY); } catch { /* Storage is optional. */ }
     return (
       CHECKERS_GRAPHICS_PROFILES.find((profile) => profile.id === saved)?.id ||
       CHECKERS_DEFAULT_GRAPHICS_PROFILE_ID
@@ -1896,7 +1709,10 @@ export default function CheckersBattleRoyal() {
   });
   const [showGift, setShowGift] = useState(false);
   const [canReplay, setCanReplay] = useState(false);
+  const [isAnimating, setIsAnimating] = useState(false);
+  const [arenaError, setArenaError] = useState(null);
   const [gameOver, setGameOver] = useState(null);
+  gameOverRef.current = gameOver;
   const [capturedBySide, setCapturedBySide] = useState({
     light: [],
     dark: []
@@ -2131,10 +1947,7 @@ export default function CheckersBattleRoyal() {
 
   useEffect(() => {
     if (typeof window === 'undefined') return;
-    window.localStorage.setItem(
-      CHECKERS_GRAPHICS_PROFILE_STORAGE_KEY,
-      graphicsProfileId
-    );
+    try { window.localStorage.setItem(CHECKERS_GRAPHICS_PROFILE_STORAGE_KEY, graphicsProfileId); } catch { /* Keep the session setting. */ }
   }, [graphicsProfileId]);
 
 
@@ -2303,20 +2116,21 @@ export default function CheckersBattleRoyal() {
   const rivalName = onlineOpponent?.name || 'Rival';
   const rivalPhoto = onlineOpponent?.avatar || '/assets/icons/profile.svg';
 
+  const playerSide = mode === 'online' ? onlineRef.current.side : HUMAN_SIDE;
   const players = [
     {
       index: 0,
       name: rivalName,
       photoUrl: rivalPhoto,
       color: '#f43f5e',
-      isTurn: turn === 'dark'
+      isTurn: !gameOver && turn !== playerSide
     },
     {
       index: 1,
       name: playerName,
       photoUrl: playerPhotoUrl,
       color: '#38bdf8',
-      isTurn: turn === 'light'
+      isTurn: !gameOver && turn === playerSide
     }
   ];
 
@@ -2326,12 +2140,15 @@ export default function CheckersBattleRoyal() {
       if (!group) return;
       disposeGroupMeshes(group);
       group.clear();
-      const board = boardRef.current;
+      const board = replayControllerRef.current.getBoard(boardRef.current);
       const { x, y, z, tile } = boardOriginRef.current;
       for (let r = 0; r < SIZE; r += 1) {
         for (let c = 0; c < SIZE; c += 1) {
           const piece = board[r][c];
           if (!piece) continue;
+          if (!replayControllerRef.current.isActive() && activeAnimationsRef.current.some(
+            (anim) => anim.type === 'move' && anim.toCell.r === r && anim.toCell.c === c
+          )) continue;
           const pieceGroup = createCheckerMesh({
             tile,
             side: piece.side,
@@ -2352,6 +2169,8 @@ export default function CheckersBattleRoyal() {
     },
     [checkerHeadPreset, piecePalette.dark, piecePalette.light]
   );
+
+  renderPiecesRef.current = renderPieces;
 
   const renderCapturedPieces = useMemo(
     () => () => {
@@ -2392,6 +2211,8 @@ export default function CheckersBattleRoyal() {
     [capturedBySide, checkerHeadPreset, piecePalette]
   );
 
+  renderCapturedPiecesRef.current = renderCapturedPieces;
+
   const queueMoveAnimation = useMemo(
     () =>
       ({ from, to, side, king, capture = false }) => {
@@ -2418,10 +2239,12 @@ export default function CheckersBattleRoyal() {
         moving.position.copy(fromPos);
         moving.scale.setScalar(capture ? 1.05 : 1);
         group.add(moving);
-        const startedAt = performance.now();
+        const startedAt = nextCheckersAnimationStart(activeAnimationsRef.current, performance.now());
+        moving.visible = false;
         const duration = capture ? CAPTURE_JUMP_DURATION_MS : MOVE_JUMP_DURATION_MS;
         const moveAnimation = {
           type: 'move',
+          toCell: { ...to },
           object: moving,
           startedAt,
           duration,
@@ -2430,10 +2253,13 @@ export default function CheckersBattleRoyal() {
           arcHeight: tile * (capture ? 0.72 : 0.52)
         };
         activeAnimationsRef.current.push(moveAnimation);
+        setIsAnimating(true);
       },
     [checkerHeadPreset, piecePalette]
   );
 
+
+  queueMoveAnimationRef.current = queueMoveAnimation;
 
   useEffect(() => {
     renderPieces();
@@ -2459,7 +2285,7 @@ export default function CheckersBattleRoyal() {
           y + tile * 0.02,
           z + (r - 3.5) * tile
         );
-      const sideMoves = getMovesForSide(board, turnRef.current);
+      const sideMoves = getMovesForSide(board, turnRef.current, rulesStateRef.current.requiredFrom);
       const forcedCaptures = sideMoves.filter((move) => move.capture);
       const allowedMoves = forcedCaptures.length
         ? forcedCaptures
@@ -2500,14 +2326,20 @@ export default function CheckersBattleRoyal() {
     const mount = mountRef.current;
     if (!mount) return;
 
+    let sceneDisposed = false;
+    gltfBoardRef.current = null;
     const scene = new THREE.Scene();
     scene.background = new THREE.Color('#0b1220');
     sceneRef.current = scene;
 
-    const renderer = new THREE.WebGLRenderer({
-      antialias: true,
-      powerPreference: 'high-performance'
-    });
+    let renderer;
+    try {
+      renderer = new THREE.WebGLRenderer({ antialias: true, powerPreference: 'high-performance' });
+    } catch {
+      sceneRef.current = null;
+      setArenaError('The 3D board could not start. Try reloading the game.');
+      return;
+    }
     rendererRef.current = renderer;
     const applyRendererQualityProfile = () => {
       const dpr = window.devicePixelRatio || 1;
@@ -2606,6 +2438,8 @@ export default function CheckersBattleRoyal() {
     const pointer = new THREE.Vector2();
 
     const applyMove = (r, c) => {
+      if (gameOverRef.current || rulesStateRef.current.winner || rulesStateRef.current.draw || pendingMoveRef.current ||
+          replayControllerRef.current.isActive() || activeAnimationsRef.current.some((anim) => anim.type === 'move')) return;
       const isOnlineGame = onlineRef.current.enabled;
       if (isOnlineGame && !onlineRef.current.synced) return;
       const activeTurn = turnRef.current;
@@ -2621,7 +2455,7 @@ export default function CheckersBattleRoyal() {
       }
       const board = boardRef.current;
       const selected = selectedRef.current;
-      const sideMoves = getMovesForSide(board, activeTurn);
+      const sideMoves = getMovesForSide(board, activeTurn, rulesStateRef.current.requiredFrom);
       if (!sideMoves.length) {
         const winnerSide = activeTurn === HUMAN_SIDE ? AI_SIDE : HUMAN_SIDE;
         setStatus(
@@ -2663,6 +2497,13 @@ export default function CheckersBattleRoyal() {
           .toString(36)
           .slice(2, 8)}`;
         pendingMoveRef.current = clientMoveId;
+        window.clearTimeout(pendingMoveTimerRef.current);
+        pendingMoveTimerRef.current = window.setTimeout(() => {
+          if (pendingMoveRef.current !== clientMoveId) return;
+          onlineRef.current.synced = false;
+          setStatus('Waiting for confirmation. Refreshing the board…');
+          socket.emit('checkersSyncRequest', { tableId: onlineRef.current.tableId });
+        }, 8000);
         socket.emit('checkersMove', {
           tableId: onlineRef.current.tableId,
           move: {
@@ -2681,15 +2522,16 @@ export default function CheckersBattleRoyal() {
       const applied = applyMoveToBoard(board, {
         from: { ...selected },
         ...move
-      });
+      }, { ...rulesStateRef.current, trackDraws: true, turn: activeTurn });
       if (!applied) return;
+      rulesStateRef.current = applied;
       const movedPieceBefore = beforeBoard[selected.r]?.[selected.c];
       if (movedPieceBefore?.side) {
-        queueMoveAnimation({
+        queueMoveAnimationRef.current({
           from: { ...selected },
           to: { r, c },
           side: movedPieceBefore.side,
-          king: applied.piece?.king ?? movedPieceBefore.king,
+          king: movedPieceBefore.king,
           capture: Array.isArray(move.capture)
         });
       }
@@ -2711,7 +2553,7 @@ export default function CheckersBattleRoyal() {
         : moveSoundRef.current;
       if (moveAudio) moveAudio.currentTime = 0;
       moveAudio?.play().catch(() => {});
-      renderPieces();
+      renderPiecesRef.current();
 
       if (move.capture && applied.chainCaptures.length) {
         selectedRef.current = { r, c };
@@ -2740,8 +2582,11 @@ export default function CheckersBattleRoyal() {
         afterTurn: nextTurn
       };
       setCanReplay(true);
-      const nextMoves = getMovesForSide(applied.board, nextTurn);
-      if (!nextMoves.length) {
+      if (applied.draw) {
+        setGameOver('draw');
+        setTurn(nextTurn);
+        setStatus(applied.reason === 'threefold_repetition' ? 'Draw by threefold repetition.' : 'Draw: 40 moves each without progress.');
+      } else if (applied.winner) {
         const winnerSide = activeTurn;
         setGameOver(winnerSide);
         setTurn(nextTurn);
@@ -2806,26 +2651,18 @@ export default function CheckersBattleRoyal() {
     };
 
     const onPointerDown = (event) => {
-      if (!event.isPrimary) return;
-      const isTouchPointer =
-        event.pointerType === 'touch' || event.pointerType === 'pen';
+      if (!event.isPrimary) { pointerDownRef.current = null; return; }
+      if (event.pointerType === 'mouse' && event.button !== 0) return;
       pointerDownRef.current = {
         id: event.pointerId,
         x: event.clientX,
         y: event.clientY,
         at: performance.now(),
         pointerType: event.pointerType || 'mouse',
-        handledOnDown: false
+        lookDragged: false
       };
       renderer.domElement.setPointerCapture?.(event.pointerId);
 
-      if (isTouchPointer) {
-        const cell = resolveBoardCellFromEvent(event, true);
-        if (cell) {
-          applyMove(cell.r, cell.c);
-          pointerDownRef.current.handledOnDown = true;
-        }
-      }
     };
 
     const onPointerMove = (event) => {
@@ -2841,7 +2678,7 @@ export default function CheckersBattleRoyal() {
       const dy = event.clientY - (pointerDown.lastY ?? pointerDown.y);
       pointerDown.lastX = event.clientX;
       pointerDown.lastY = event.clientY;
-      if (!dx && !dy) return;
+      if (!pointerDown.lookDragged && Math.hypot(event.clientX - pointerDown.x, event.clientY - pointerDown.y) <= 12) return;
       pointerDown.lookDragged = true;
       const look = playerFaceLookRef.current;
       look.yaw = clamp(
@@ -2867,34 +2704,9 @@ export default function CheckersBattleRoyal() {
       const pointerDown = pointerDownRef.current;
       pointerDownRef.current = null;
       if (!pointerDown || pointerDown.id !== event.pointerId) return;
-      if (pointerDown.handledOnDown) {
-        renderer.domElement.releasePointerCapture?.(event.pointerId);
-        return;
-      }
-      if (pointerDown.lookDragged) {
-        renderer.domElement.releasePointerCapture?.(event.pointerId);
-        return;
-      }
-
       renderer.domElement.releasePointerCapture?.(event.pointerId);
-
-      const isTouchPointer =
-        pointerDown.pointerType === 'touch' ||
-        pointerDown.pointerType === 'pen';
-      const maxDuration = isTouchPointer
-        ? TOUCH_TAP_MAX_DURATION_MS
-        : TAP_MAX_DURATION_MS;
-      const maxDistance = isTouchPointer
-        ? TOUCH_TAP_MAX_DISTANCE_PX
-        : TAP_MAX_DISTANCE_PX;
-
-      if (pointerDown) {
-        const dt = performance.now() - pointerDown.at;
-        const dx = event.clientX - pointerDown.x;
-        const dy = event.clientY - pointerDown.y;
-        const dist = Math.hypot(dx, dy);
-        if (dt > maxDuration || dist > maxDistance) return;
-      }
+      if (!isCheckersTap(pointerDown, { x: event.clientX, y: event.clientY, at: performance.now() })) return;
+      const isTouchPointer = pointerDown.pointerType === 'touch' || pointerDown.pointerType === 'pen';
       const cell = resolveBoardCellFromEvent(event, isTouchPointer);
       if (cell) applyMove(cell.r, cell.c);
     };
@@ -2903,7 +2715,8 @@ export default function CheckersBattleRoyal() {
       const pickMaterial = new THREE.MeshBasicMaterial({ visible: false });
       const setupPickTiles = () => {
         const { x, y, z, tile } = boardOriginRef.current;
-        if (pickTiles.length) return;
+        pickTiles.forEach((pick) => { scene.remove(pick); pick.geometry.dispose(); });
+        pickTiles.length = 0;
         for (let r = 0; r < SIZE; r += 1) {
           for (let c = 0; c < SIZE; c += 1) {
             const pick = new THREE.Mesh(
@@ -2921,69 +2734,6 @@ export default function CheckersBattleRoyal() {
           }
         }
       };
-
-      try {
-        const selectedTableOption =
-          CHESS_TABLE_OPTIONS.find((option) => option.id === appearance.tableId) ||
-          CHESS_TABLE_OPTIONS[0];
-        if (
-          selectedTableOption?.source === 'polyhaven' &&
-          selectedTableOption?.assetId
-        ) {
-          const tableModel = await buildPolyhavenTableTemplate(
-            selectedTableOption.assetId,
-            renderer
-          );
-          scene.add(tableModel);
-          tableRef.current = {
-            group: tableModel,
-            shapeId: `polyhaven:${selectedTableOption.assetId}`,
-            userData: { selectedTableId: appearance.tableId },
-            dispose: () => {
-              tableModel.parent?.remove?.(tableModel);
-              disposeGroupMeshes(tableModel, {
-                disposeGeometry: false,
-                disposeMaterials: false
-              });
-            }
-          };
-        } else {
-          const desiredShapeId =
-            CHECKERS_TABLE_SHAPE_BY_ID[appearance.tableId] || 'classicOctagon';
-          const desiredShape =
-            TABLE_SHAPE_OPTIONS.find((shape) => shape.id === desiredShapeId) ||
-            TABLE_SHAPE_OPTIONS[0];
-          const table = createMurlanStyleTable({
-            arena: scene,
-            renderer,
-            tableRadius: TABLE_RADIUS,
-            tableHeight: TABLE_HEIGHT,
-            pedestalHeightScale: 1.24,
-            shapeOption: desiredShape
-          });
-          table.userData = { selectedTableId: appearance.tableId };
-          const finish =
-            MURLAN_TABLE_FINISHES.find((f) => f.id === appearance.tableFinish) ||
-            MURLAN_TABLE_FINISHES[0];
-          const cloth =
-            TABLE_CLOTH_OPTIONS.find((clothOpt) => clothOpt.id === appearance.tableCloth) ||
-            TABLE_CLOTH_OPTIONS[0];
-          applyTableMaterials(
-            table.materials,
-            {
-              woodOption: finish?.woodOption,
-              clothOption: cloth
-            },
-            renderer
-          );
-          reduceCheckersTableBase(table.group);
-          tableRef.current = table;
-        }
-      } catch (error) {
-        console.error('Checkers table load failed:', error);
-      }
-
-      await rebuildChairs({ scene, chairId: appearance.chairId });
 
       const addVisibleBoardBase = () => {
         const boardBase = new THREE.Group();
@@ -3024,22 +2774,6 @@ export default function CheckersBattleRoyal() {
 
       const proceduralBoard = addVisibleBoardBase();
 
-      const shouldForceProceduralBoard = appearance.tableId === 'diamondEdge';
-
-      if (!shouldForceProceduralBoard) {
-        try {
-          const boardRoot = await loadCheckersBoardModel(renderer);
-          scene.add(boardRoot);
-          gltfBoardRef.current = boardRoot;
-          applyCheckersBoardTheme(boardRoot, boardThemeRef.current);
-          proceduralBoard.visible = false;
-        } catch {
-          proceduralBoard.visible = true;
-        }
-      } else {
-        proceduralBoard.visible = true;
-      }
-
       boardOriginRef.current = {
         x: 0,
         y: TABLE_HEIGHT + CHECKER_BOARD_PIECE_BASE_HEIGHT_OFFSET,
@@ -3058,15 +2792,106 @@ export default function CheckersBattleRoyal() {
       });
 
       setupPickTiles();
-      renderPieces();
-      renderCapturedPieces();
+      renderPiecesRef.current();
+      renderCapturedPiecesRef.current();
       renderHighlights();
-      setStatus(
-        `Tap your piece, then a highlighted square to move. ${RULE_SUMMARY}`
-      );
+      if (!onlineRef.current.enabled) setStatus(`Tap a piece, then a highlighted square. ${RULE_SUMMARY}`);
+      // Decorations must never gate the board, controls, or initial move.
+      void (async () => {
+        try {
+          const selectedTableOption =
+            CHESS_TABLE_OPTIONS.find((option) => option.id === appearance.tableId) ||
+            CHESS_TABLE_OPTIONS[0];
+          if (
+            selectedTableOption?.source === 'polyhaven' &&
+            selectedTableOption?.assetId
+          ) {
+            const tableModel = await buildPolyhavenTableTemplate(
+              selectedTableOption.assetId,
+              renderer
+            );
+            if (sceneDisposed) return;
+            scene.add(tableModel);
+            tableRef.current = {
+              group: tableModel,
+              shapeId: `polyhaven:${selectedTableOption.assetId}`,
+              userData: { selectedTableId: appearance.tableId },
+              dispose: () => {
+                tableModel.parent?.remove?.(tableModel);
+                disposeGroupMeshes(tableModel, {
+                  disposeGeometry: false,
+                  disposeMaterials: false
+                });
+              }
+            };
+          } else {
+            const desiredShapeId =
+              CHECKERS_TABLE_SHAPE_BY_ID[appearance.tableId] || 'classicOctagon';
+            const desiredShape =
+              TABLE_SHAPE_OPTIONS.find((shape) => shape.id === desiredShapeId) ||
+              TABLE_SHAPE_OPTIONS[0];
+            const table = createMurlanStyleTable({
+              arena: scene,
+              renderer,
+              tableRadius: TABLE_RADIUS,
+              tableHeight: TABLE_HEIGHT,
+              pedestalHeightScale: 1.24,
+              shapeOption: desiredShape
+            });
+            table.userData = { selectedTableId: appearance.tableId };
+            const finish =
+              MURLAN_TABLE_FINISHES.find((f) => f.id === appearance.tableFinish) ||
+              MURLAN_TABLE_FINISHES[0];
+            const cloth =
+              TABLE_CLOTH_OPTIONS.find((clothOpt) => clothOpt.id === appearance.tableCloth) ||
+              TABLE_CLOTH_OPTIONS[0];
+            applyTableMaterials(
+              table.materials,
+              {
+                woodOption: finish?.woodOption,
+                clothOption: cloth
+              },
+              renderer
+            );
+            reduceCheckersTableBase(table.group);
+            tableRef.current = table;
+          }
+        } catch (error) {
+          console.error('Checkers table load failed:', error);
+        }
+
+        if (!sceneDisposed) await rebuildChairs({ scene, chairId: appearance.chairId });
+
+      })().catch((error) => { if (!sceneDisposed) console.warn('Checkers decoration unavailable:', error); });
+      const shouldForceProceduralBoard = appearance.tableId === 'diamondEdge';
+
+      if (!shouldForceProceduralBoard) {
+        try {
+          const boardRoot = await loadCheckersBoardModel(renderer);
+          if (sceneDisposed) return;
+          scene.add(boardRoot);
+          gltfBoardRef.current = boardRoot;
+          applyCheckersBoardTheme(boardRoot, boardThemeRef.current);
+          proceduralBoard.visible = false;
+        } catch {
+          proceduralBoard.visible = true;
+        }
+      } else {
+        proceduralBoard.visible = true;
+      }
+
+
+      if (sceneDisposed) return;
+      boardOriginRef.current.tile = resolveCheckersPlayableTileSize(gltfBoardRef.current || proceduralBoard);
+      setupPickTiles();
+      renderPiecesRef.current();
+      renderCapturedPiecesRef.current();
+      renderHighlights();
     };
 
-    void buildSceneAssets();
+    void buildSceneAssets().catch((error) => {
+      if (!sceneDisposed) { console.error('Checkers arena failed:', error); setStatus('Arena could not load. Reload or return to the lobby.'); }
+    });
 
     const onResize = () => {
       if (!mount) return;
@@ -3102,6 +2927,8 @@ export default function CheckersBattleRoyal() {
           const elapsed = now - anim.startedAt;
           const t = Math.max(0, Math.min(1, elapsed / anim.duration));
           if (anim.type === 'move') {
+            if (elapsed < 0) continue;
+            anim.object.visible = true;
             anim.object.position.lerpVectors(anim.from, anim.to, t);
             anim.object.position.y += Math.sin(Math.PI * t) * anim.arcHeight;
             anim.object.rotation.z = Math.sin(t * Math.PI * 2.1) * 0.1;
@@ -3115,6 +2942,8 @@ export default function CheckersBattleRoyal() {
               anim.object.parent?.remove(anim.object);
               disposeGroupMeshes(anim.object);
               animations.splice(i, 1);
+              renderPiecesRef.current();
+              if (!animations.some((queued) => queued.type === 'move')) setIsAnimating(false);
             }
           } else if (anim.type === 'smoke') {
             anim.object.position.y += (anim.lift / anim.duration) * minFrameMs;
@@ -3144,6 +2973,10 @@ export default function CheckersBattleRoyal() {
     loop();
 
     return () => {
+      sceneDisposed = true;
+      chairLoadRequestRef.current += 1;
+      replayControllerRef.current.cancel();
+      controls.dispose();
       cancelAnimationFrame(raf);
       window.removeEventListener('resize', onResize);
       renderer.domElement.removeEventListener('pointerdown', onPointerDown);
@@ -3157,6 +2990,7 @@ export default function CheckersBattleRoyal() {
       disposeGroupMeshes(effectsGroupRef.current);
       effectsGroupRef.current?.clear?.();
       activeAnimationsRef.current = [];
+      setIsAnimating(false);
       disposeGroupMeshes(highlightGroupRef.current);
       highlightGroupRef.current?.clear?.();
       renderer.dispose();
@@ -3220,34 +3054,51 @@ export default function CheckersBattleRoyal() {
       }
     };
 
-    const handleCheckersState = ({ tableId: eventTableId, board, turn: remoteTurn, lastMove, moveSeq, winner } = {}) => {
+    const handleCheckersState = ({ tableId: eventTableId, board, turn: remoteTurn, lastMove, moveSeq, winner, draw, requiredFrom, reason, players: remotePlayers = [] } = {}) => {
       if (!eventTableId || String(eventTableId) !== String(tableId)) return;
-      if (!Array.isArray(board)) return;
+      if (!normalizeBoard(board)) return;
+      const self = remotePlayers.find((player) => String(player.id) === String(accountId));
+      if (self?.side === 'light' || self?.side === 'dark') onlineRef.current.side = self.side;
+      const opponent = remotePlayers.find((player) => String(player.id) !== String(accountId));
+      if (opponent) setOnlineOpponent({ name: opponent.name || 'Opponent', avatar: opponent.avatar || '' });
       const nextMoveSeq = Number(moveSeq);
       if (Number.isFinite(nextMoveSeq) && nextMoveSeq < lastAppliedMoveSeqRef.current) return;
+      const previousMoveSeq = lastAppliedMoveSeqRef.current;
       const isNewMove = Number.isFinite(nextMoveSeq)
         ? nextMoveSeq > lastAppliedMoveSeqRef.current
         : true;
-      const inferredMove = isNewMove && lastMove?.from && lastMove?.to
+      const canAnimateSnapshot = isNewMove && previousMoveSeq >= 0 && nextMoveSeq === previousMoveSeq + 1;
+      const inferredMove = canAnimateSnapshot && lastMove?.from && lastMove?.to
         ? {
             from: lastMove.from,
             to: lastMove.to,
             side: lastMove.side || board[lastMove.to.r]?.[lastMove.to.c]?.side,
-            king: board[lastMove.to.r]?.[lastMove.to.c]?.king,
+            king: boardRef.current[lastMove.from.r]?.[lastMove.from.c]?.king,
             capture: Boolean(lastMove.capture)
           }
-        : isNewMove
+        : canAnimateSnapshot
         ? inferMoveFromBoardDelta(boardRef.current, board)
         : null;
+      replayControllerRef.current.cancel();
+      pendingMoveRef.current = null;
+      window.clearTimeout(pendingMoveTimerRef.current);
+      if (isNewMove && !canAnimateSnapshot) {
+        disposeGroupMeshes(effectsGroupRef.current);
+        effectsGroupRef.current?.clear();
+        activeAnimationsRef.current = [];
+        setIsAnimating(false);
+      }
+      rulesStateRef.current = { turn: remoteTurn, requiredFrom, winner, draw, reason };
       boardRef.current = copyBoard(board);
       if (inferredMove) {
-        queueMoveAnimation(inferredMove);
+        queueMoveAnimationRef.current(inferredMove);
       }
       if (Number.isFinite(nextMoveSeq)) lastAppliedMoveSeqRef.current = nextMoveSeq;
-      selectedRef.current = null;
+      selectedRef.current = requiredFrom ? { ...requiredFrom } : null;
+      turnRef.current = remoteTurn;
       setTurn(remoteTurn === 'dark' ? 'dark' : 'light');
       setCanReplay(false);
-      setGameOver(winner === 'dark' ? 'dark' : winner === 'light' ? 'light' : null);
+      setGameOver(draw ? 'draw' : winner === 'dark' ? 'dark' : winner === 'light' ? 'light' : null);
       const remaining = board.flat().reduce(
         (counts, piece) => {
           if (piece?.side === 'light' || piece?.side === 'dark') counts[piece.side] += 1;
@@ -3259,17 +3110,18 @@ export default function CheckersBattleRoyal() {
         light: Array.from({ length: Math.max(0, 12 - remaining.dark) }, () => ({ side: 'dark', king: false })),
         dark: Array.from({ length: Math.max(0, 12 - remaining.light) }, () => ({ side: 'light', king: false }))
       });
-      renderPieces();
+      renderPiecesRef.current();
       renderHighlights();
-      onlineRef.current.synced = true;
-      setOnlineStatus('in-game');
+      const matchStarted = remotePlayers.length === 2 && remotePlayers.some((player) => player.side === 'light') && remotePlayers.some((player) => player.side === 'dark');
+      onlineRef.current.synced = matchStarted;
+      setOnlineStatus(matchStarted ? 'in-game' : 'waiting');
       const myTurn = (remoteTurn === 'dark' ? 'dark' : 'light') === onlineRef.current.side;
-      setStatus(myTurn ? 'Your turn. Forced captures are enabled.' : 'Waiting for opponent move…');
+      setStatus(!matchStarted ? 'Waiting for an opponent…' : draw ? 'Match drawn.' : winner ? 'Match complete.' : myTurn ? (requiredFrom ? 'Continue capturing with the selected piece.' : 'Your turn. Captures are compulsory.') : 'Waiting for opponent move…');
     };
     const handleMoveAccepted = ({ tableId: eventTableId, clientMoveId, chainCapture } = {}) => {
       if (!eventTableId || eventTableId !== tableId) return;
       if (pendingMoveRef.current && clientMoveId && pendingMoveRef.current !== clientMoveId) return;
-      pendingMoveRef.current = null;
+      // Keep input locked until the authoritative board snapshot arrives.
       if (chainCapture) {
         setStatus('Chain capture required.');
       }
@@ -3278,6 +3130,8 @@ export default function CheckersBattleRoyal() {
       if (!eventTableId || eventTableId !== tableId) return;
       if (pendingMoveRef.current && clientMoveId && pendingMoveRef.current !== clientMoveId) return;
       pendingMoveRef.current = null;
+      onlineRef.current.synced = false;
+      window.clearTimeout(pendingMoveTimerRef.current);
       const msg =
         error === 'move_rate_limited'
           ? 'Too fast. Wait a moment and retry.'
@@ -3291,21 +3145,26 @@ export default function CheckersBattleRoyal() {
       setStatus(msg);
       socket.emit('checkersSyncRequest', { tableId });
     };
-    const handleMatchEnded = ({ tableId: eventTableId, winnerId } = {}) => {
+    const handleMatchEnded = ({ tableId: eventTableId, winnerId, winnerSide, draw } = {}) => {
       if (!eventTableId || eventTableId !== tableId) return;
       pendingMoveRef.current = null;
       const meWon = winnerId && String(winnerId) === String(accountId);
-      setGameOver(meWon ? HUMAN_SIDE : AI_SIDE);
-      setStatus(meWon ? 'You won the match!' : 'You lost the match.');
+      setGameOver(draw ? 'draw' : winnerSide || (meWon ? onlineRef.current.side : onlineRef.current.side === 'light' ? 'dark' : 'light'));
+      setStatus(draw ? 'Match drawn.' : meWon ? 'You won the match!' : 'You lost the match.');
     };
-    const handleSettlementConfirmed = ({ tableId: eventTableId, payoutAmount, winnerId, status: settlementStatus } = {}) => {
+    const handleSettlementConfirmed = ({ tableId: eventTableId, payoutAmount, refundAmount, draw, winnerId, status: settlementStatus } = {}) => {
       if (!eventTableId || eventTableId !== tableId) return;
+      if (settlementStatus === 'failed') { setStatus('Settlement pending. Please contact support if your balance is not updated.'); return; }
+      if (draw && settlementStatus === 'settled') { setStatus(`Draw settled. ${Number(refundAmount) || 0} TPG stake returned.`); return; }
       if (String(winnerId || '') !== String(accountId || '')) return;
       if (settlementStatus === 'settled' && Number(payoutAmount) > 0) {
         setStatus(`Match settled. +${Number(payoutAmount)} TPG paid.`);
       }
     };
     const handleSocketDisconnect = () => {
+      onlineRef.current.synced = false;
+      pendingMoveRef.current = null;
+      window.clearTimeout(pendingMoveTimerRef.current);
       setOnlineStatus('reconnecting');
       setStatus('Connection lost. Reconnecting to table…');
     };
@@ -3357,6 +3216,7 @@ export default function CheckersBattleRoyal() {
 
     return () => {
       cancelled = true;
+      window.clearTimeout(pendingMoveTimerRef.current);
       socket.off('gameStart', handleGameStart);
       socket.off('lobbyUpdate', handleLobbyUpdate);
       socket.off('checkersState', handleCheckersState);
@@ -3368,14 +3228,15 @@ export default function CheckersBattleRoyal() {
       socket.off('connect', handleSocketReconnect);
       socket.emit('leaveLobby', { accountId, tableId });
     };
-  }, [accountId, mode, queueMoveAnimation, renderHighlights, renderPieces, tableId, waitingForOpponent]);
+  }, [accountId, mode, renderHighlights, tableId, waitingForOpponent]);
 
   useEffect(() => {
     if (onlineRef.current.enabled) return;
-    if (turn !== AI_SIDE || aiBusyRef.current || gameOver) return;
+    if (turn !== AI_SIDE || aiBusyRef.current || gameOver || arenaError) return;
     aiBusyRef.current = true;
     setStatus('AI is thinking…');
     const timer = window.setTimeout(() => {
+      replayControllerRef.current.cancel();
       const board = boardRef.current;
       const sideMoves = getMovesForSide(board, AI_SIDE);
       if (!sideMoves.length) {
@@ -3386,19 +3247,20 @@ export default function CheckersBattleRoyal() {
       }
       const chosen =
         searchBestMove(board, AI_SIDE, AI_SEARCH_DEPTH).move || sideMoves[0];
-      const applied = applyMoveToBoard(board, chosen);
+      const applied = applyMoveToBoard(board, chosen, { ...rulesStateRef.current, turn: AI_SIDE, trackDraws: true });
       if (!applied) {
         aiBusyRef.current = false;
         return;
       }
+      rulesStateRef.current = applied;
       const beforeBoard = copyBoard(board);
       const movedPieceBefore = beforeBoard[chosen.from.r]?.[chosen.from.c];
       if (movedPieceBefore?.side) {
-        queueMoveAnimation({
+        queueMoveAnimationRef.current({
           from: { ...chosen.from },
           to: { r: chosen.r, c: chosen.c },
           side: movedPieceBefore.side,
-          king: applied.piece?.king ?? movedPieceBefore.king,
+          king: movedPieceBefore.king,
           capture: Array.isArray(chosen.capture)
         });
       }
@@ -3418,7 +3280,7 @@ export default function CheckersBattleRoyal() {
         : moveSoundRef.current;
       if (moveAudio) moveAudio.currentTime = 0;
       moveAudio?.play().catch(() => {});
-      renderPieces();
+      renderPiecesRef.current();
 
       if (chosen.capture && applied.chainCaptures.length) {
         let chainBoard = applied.board;
@@ -3429,7 +3291,8 @@ export default function CheckersBattleRoyal() {
           const bestChain = searchBestMove(
             chainBoard,
             AI_SIDE,
-            Math.max(2, AI_SEARCH_DEPTH - 2)
+            Math.max(2, AI_SEARCH_DEPTH - 2),
+            -Infinity, Infinity, currentFrom
           ).move;
           const forced = chainCaptureMoves.map((m) => ({
             from: { ...currentFrom },
@@ -3449,16 +3312,17 @@ export default function CheckersBattleRoyal() {
               }));
             }
           }
-          const nextChain = applyMoveToBoard(chainBoard, selectedChainMove);
+          const nextChain = applyMoveToBoard(chainBoard, selectedChainMove, { ...rulesStateRef.current, turn: AI_SIDE, trackDraws: true });
           if (!nextChain) break;
+          rulesStateRef.current = nextChain;
           const chainPieceBefore =
             chainBoard[selectedChainMove.from.r]?.[selectedChainMove.from.c];
           if (chainPieceBefore?.side) {
-            queueMoveAnimation({
+            queueMoveAnimationRef.current({
               from: { ...selectedChainMove.from },
               to: { r: selectedChainMove.r, c: selectedChainMove.c },
               side: chainPieceBefore.side,
-              king: nextChain.piece?.king ?? chainPieceBefore.king,
+              king: chainPieceBefore.king,
               capture: true
             });
           }
@@ -3467,7 +3331,7 @@ export default function CheckersBattleRoyal() {
           chainCaptureMoves = nextChain.chainCaptures;
         }
         boardRef.current = chainBoard;
-        renderPieces();
+        renderPiecesRef.current();
         replayStateRef.current = {
           beforeBoard: chainBefore,
           afterBoard: copyBoard(chainBoard),
@@ -3486,7 +3350,10 @@ export default function CheckersBattleRoyal() {
       setCanReplay(true);
       selectedRef.current = null;
       setTurn(HUMAN_SIDE);
-      setStatus('Your turn. Forced captures are enabled.');
+      if (rulesStateRef.current.winner || rulesStateRef.current.draw) {
+        setGameOver(rulesStateRef.current.draw ? 'draw' : rulesStateRef.current.winner);
+        setStatus(rulesStateRef.current.draw ? 'Match drawn.' : 'No legal moves remain. AI wins.');
+      } else setStatus('Your turn. Captures are compulsory.');
       renderHighlights();
       aiBusyRef.current = false;
     }, 1050);
@@ -3495,7 +3362,7 @@ export default function CheckersBattleRoyal() {
       window.clearTimeout(timer);
       aiBusyRef.current = false;
     };
-  }, [turn, queueMoveAnimation, renderHighlights, renderPieces, gameOver]);
+  }, [turn, renderHighlights, gameOver, arenaError]);
 
   useEffect(() => {
     const scene = sceneRef.current;
@@ -3513,14 +3380,16 @@ export default function CheckersBattleRoyal() {
       ? `polyhaven:${selectedTableOption.assetId}`
       : desiredShapeId;
 
+    let appearanceCancelled = false;
     const rebuildSelectedTable = async () => {
       const currentTable = tableRef.current;
-      currentTable.dispose?.();
+      currentTable?.dispose?.();
       if (selectedIsPolyhaven) {
         const tableModel = await buildPolyhavenTableTemplate(
           selectedTableOption.assetId,
           rendererRef.current
         );
+        if (appearanceCancelled || sceneRef.current !== scene) return;
         scene.add(tableModel);
         tableRef.current = {
           group: tableModel,
@@ -3614,7 +3483,7 @@ export default function CheckersBattleRoyal() {
           rendererRef.current,
           variant
         );
-        if (!envResult?.envMap) return;
+        if (appearanceCancelled || sceneRef.current !== scene || !envResult?.envMap) return;
         const { envMap, skyboxMap } = envResult;
         scene.environment = envMap;
         scene.background = null;
@@ -3685,6 +3554,7 @@ export default function CheckersBattleRoyal() {
     };
 
     void applyHdri();
+    return () => { appearanceCancelled = true; };
   }, [appearance, graphicsProfile, rebuildChairs]);
 
   useEffect(() => {
@@ -3715,13 +3585,19 @@ export default function CheckersBattleRoyal() {
       controls.target.copy(target);
       applyBottomPlayerFaceCamera(camera, playerFaceLookRef.current);
     }
-  }, [viewMode]);
+  }, [viewMode, graphicsProfile, rebuildChairs]);
 
   const restartGame = () => {
     if (onlineRef.current.enabled && onlineRef.current.tableId) {
-      socket.emit('checkersSyncRequest', { tableId: onlineRef.current.tableId });
+      navigate('/games/checkersbattleroyal/lobby');
       return;
     }
+    replayControllerRef.current.cancel();
+    disposeGroupMeshes(effectsGroupRef.current);
+    effectsGroupRef.current?.clear();
+    activeAnimationsRef.current = [];
+    setIsAnimating(false);
+    rulesStateRef.current = { turn: HUMAN_SIDE, requiredFrom: null };
     boardRef.current = createInitial();
     selectedRef.current = null;
     replayStateRef.current = null;
@@ -3737,23 +3613,16 @@ export default function CheckersBattleRoyal() {
   };
 
   useEffect(() => {
-    if (!gameOver) return;
+    if (!gameOver || gameOver === 'draw' || isAnimating) return;
     const winnerAvatar =
-      gameOver === HUMAN_SIDE ? playerPhotoUrl : '/assets/icons/profile.svg';
+      gameOver === playerSide ? playerPhotoUrl : '/assets/icons/profile.svg';
     coinConfetti(60, winnerAvatar);
-  }, [gameOver, playerPhotoUrl]);
+  }, [gameOver, playerPhotoUrl, playerSide, isAnimating]);
 
   const replayLastMove = () => {
-    if (!replayStateRef.current) return;
-    const replay = replayStateRef.current;
-    boardRef.current = copyBoard(replay.beforeBoard);
-    setTurn(replay.beforeTurn);
-    renderPieces();
-    setTimeout(() => {
-      boardRef.current = copyBoard(replay.afterBoard);
-      setTurn(replay.afterTurn);
-      renderPieces();
-    }, 700);
+    if (!replayStateRef.current || pendingMoveRef.current || aiBusyRef.current ||
+        rulesStateRef.current.requiredFrom || activeAnimationsRef.current.some((anim) => anim.type === 'move')) return;
+    replayControllerRef.current.play(replayStateRef.current.beforeBoard, () => renderPiecesRef.current());
   };
 
   const optionButton = (active) =>
@@ -3769,11 +3638,26 @@ export default function CheckersBattleRoyal() {
 
   return (
     <div className="fixed inset-0 bg-[#050814] text-white">
-      <div ref={mountRef} className="h-full w-full" />
+      <div ref={mountRef} className="h-full w-full" aria-label="Checkers board" />
+      <div role="status" aria-live="polite" className="pointer-events-none absolute left-1/2 z-20 w-[calc(100%-2rem)] max-w-md -translate-x-1/2 rounded-xl border border-white/10 bg-slate-950/85 px-3 py-2 text-center text-xs text-white/90" style={{ bottom: 'max(12px, env(safe-area-inset-bottom))' }}>
+        <span className="font-semibold">{gameOver ? 'Match complete' : turn === playerSide ? 'Your turn' : mode === 'online' ? 'Opponent’s turn' : 'AI’s turn'}</span>
+        <span className="mx-2 text-white/40">·</span>{status}
+      </div>
+      {arenaError && (
+        <div role="alert" className="absolute inset-0 z-50 flex items-center justify-center bg-slate-950/95 p-6">
+          <div className="max-w-xs text-center">
+            <p>{arenaError}</p>
+            <button type="button" onClick={() => window.location.reload()} className="mt-4 min-h-11 rounded-xl bg-cyan-700 px-5 py-3 font-semibold">Reload game</button>
+            <button type="button" onClick={() => navigate('/games/checkersbattleroyal/lobby')} className="ml-2 mt-4 min-h-11 rounded-xl border border-white/20 px-5 py-3">Lobby</button>
+          </div>
+        </div>
+      )}
       <div className="absolute inset-0 pointer-events-none">
         <div className="absolute top-20 left-4 z-20 flex flex-col items-start gap-3 pointer-events-none">
           <button
             type="button"
+            aria-expanded={configOpen}
+            aria-controls="checkers-settings"
             onClick={() => setConfigOpen((open) => !open)}
             className="pointer-events-auto flex items-center gap-2 rounded-full border border-white/15 bg-black/60 px-3 py-2 text-xs font-semibold uppercase tracking-[0.3em] text-gray-100"
           >
@@ -3787,26 +3671,41 @@ export default function CheckersBattleRoyal() {
             <button
               type="button"
               onClick={replayLastMove}
-              disabled={!canReplay}
-              className={`icon-only-button flex h-10 w-10 items-center justify-center text-[1.4rem] ${canReplay ? 'text-white/90' : 'text-white/40'}`}
+              aria-label="Replay last move"
+              title="Replay last move"
+              disabled={!canReplay || isAnimating || turn !== playerSide || Boolean(rulesStateRef.current.requiredFrom)}
+              className={`icon-only-button flex h-11 w-11 items-center justify-center text-[1.4rem] ${canReplay ? 'text-white/90' : 'text-white/40'}`}
             >
               ↺
             </button>
             <button
               type="button"
+              aria-label={viewMode === '3d' ? 'Switch to top-down view' : 'Switch to 3D view'}
               onClick={() =>
                 setViewMode((mode) => (mode === '3d' ? '2d' : '3d'))
               }
-              className="icon-only-button flex h-10 w-10 items-center justify-center text-[0.75rem] font-semibold uppercase tracking-[0.08em] text-white/90"
+              className="icon-only-button flex h-11 w-11 items-center justify-center text-[0.75rem] font-semibold uppercase tracking-[0.08em] text-white/90"
             >
               {viewMode === '3d' ? '2D' : '3D'}
             </button>
           </div>
           {configOpen && (
-            <div className="pointer-events-auto mt-2 w-72 max-w-[80vw] rounded-2xl border border-white/15 bg-black/80 p-4 text-xs text-white shadow-2xl backdrop-blur max-h-[80vh] overflow-y-auto pr-1">
+            <div id="checkers-settings" className="pointer-events-auto mt-2 w-72 max-w-[80vw] rounded-2xl border border-white/15 bg-black/80 p-4 text-xs text-white shadow-2xl backdrop-blur max-h-[60dvh] overflow-y-auto pr-1">
               <div className="mb-2 text-xs font-semibold uppercase tracking-[0.22em] text-white/80">
                 Checkers Battle Royal
               </div>
+              <details className="mb-3 rounded-xl border border-white/15 p-3 text-white/85">
+                <summary className="min-h-8 cursor-pointer font-semibold">How to play</summary>
+                <p className="mt-2">English/American movement rules. Battle Royal house rule: light opens.</p>
+                <ul className="mt-2 list-disc space-y-2 pl-4">
+                  <li>Move men one square diagonally forward on dark squares. Kings move one square in either direction.</li>
+                  <li>Jump an adjacent opponent into an empty square beyond it. Men capture forward; kings capture either way.</li>
+                  <li>Captures are compulsory. Choose any available capture, then complete all jumps with that same piece.</li>
+                  <li>Reaching the far row crowns a king and ends the turn, including during a capture.</li>
+                  <li>Win by taking every opponent piece or leaving them no legal move.</li>
+                  <li>Automatic draw after three repetitions with the same side to move, or 40 moves each with only kings moving and no captures.</li>
+                </ul>
+              </details>
               <button
                 type="button"
                 onClick={() =>
@@ -4064,30 +3963,30 @@ export default function CheckersBattleRoyal() {
           ))}
         </div>
 
-        {gameOver ? (
+        {gameOver && !isAnimating ? (
           <div className="absolute inset-0 z-30 flex items-center justify-center bg-black/65 p-4">
             <div className="w-full max-w-xs rounded-2xl border border-yellow-300/40 bg-slate-950/90 p-4 text-center shadow-2xl">
               <p className="text-xs uppercase tracking-[0.2em] text-yellow-300">
-                Winner
+                {gameOver === 'draw' ? 'Draw' : 'Winner'}
               </p>
-              <img
+              {gameOver !== 'draw' && <img
                 src={
-                  gameOver === HUMAN_SIDE
+                  gameOver === playerSide
                     ? playerPhotoUrl
                     : '/assets/icons/profile.svg'
                 }
                 alt="winner avatar"
                 className="mx-auto mt-3 h-20 w-20 rounded-full border-4 border-yellow-300/70 object-cover"
-              />
+              />}
               <p className="mt-2 text-lg font-bold text-white">
-                {gameOver === HUMAN_SIDE ? playerName : 'Rival'}
+                {gameOver === 'draw' ? 'Honours even' : gameOver === playerSide ? playerName : rivalName}
               </p>
               <div className="mt-4 flex gap-2">
                 <button
                   onClick={restartGame}
                   className="flex-1 rounded-xl border border-cyan-300/60 bg-cyan-500/20 px-3 py-2 text-sm font-semibold text-cyan-100"
                 >
-                  Play Again
+                  {mode === 'online' ? 'New Match' : 'Play Again'}
                 </button>
                 <button
                   onClick={() => navigate('/games/checkersbattleroyal/lobby')}

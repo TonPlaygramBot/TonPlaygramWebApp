@@ -1,3 +1,4 @@
+import { calibrateHandRig, applyHandGrip } from '../../games/chess/anatomicalHand.ts';
 import { PHYSICAL_MOVE_DURATION_MS, samplePhysicalMove, updatePhysicalPieceMove, rotateJointToTarget, normalizeRigBoneName } from '../../games/chess/physicalPieceMove.ts';
 import { START_FEN, PROMOTIONS, parseFEN, boardToFEN, cloneBoard, boardToWireBoard, parseWireBoard, inBoard, genMoves, findKing, isSquareAttacked, applyMove, revertMove, isPlayerInCheck, generateMoves, legalMoves, anyLegal, enPassantCaptureSquare, getBoardState, setBoardState, positionKey, getGameOutcome, getTimeoutOutcome, DRAW_LABELS } from '../../games/chess/chessRules.mjs';
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
@@ -1178,7 +1179,7 @@ function saveBoneRig(modelRoot) {
       position: bone.position.clone()
     });
   });
-  return {
+  const rig = {
     saved,
     hips: findBoneByNeedle(bones, 'hips', 'pelvis'),
     spine: findBoneByNeedle(bones, 'spine'),
@@ -1250,6 +1251,8 @@ function saveBoneRig(modelRoot) {
       findBoneByNeedle(bones, 'rightpinky3')
     ].filter(Boolean)
   };
+  calibrateHandRig(rig);
+  return rig;
 }
 
 function resetBoneRig(rig) {
@@ -1283,43 +1286,12 @@ function smooth01(v) {
   return t * t * (3 - 2 * t);
 }
 
-function curlFingerChain(rig, chain = [], amount = 0, sideSpread = 0) {
-  const grip = clamp(amount, 0, 1);
-  const weaponFist = smooth01(Math.max(0, grip - 0.78) / 0.22);
-  chain.forEach((bone, index) => {
-    const curl = index === 0
-      ? THREE.MathUtils.lerp(-0.38, -0.52, weaponFist)
-      : THREE.MathUtils.lerp(-0.72, -0.96, weaponFist);
-    const side = index === 0 ? sideSpread : sideSpread * 0.25;
-    addBoneRot(rig, bone, curl * grip, 0.03 * grip, side * grip);
-  });
-}
-
 function applyRightHandGrip(rig, gripAmount = 0) {
-  if (!rig) return;
-  const grip = clamp(gripAmount, 0, 1);
-  const open = 1 - grip;
-  curlFingerChain(rig, rig.rightIndex, grip, -0.08 + 0.08 * open);
-  curlFingerChain(rig, rig.rightMiddle, grip, -0.02);
-  curlFingerChain(rig, rig.rightRing, grip, 0.04 - 0.04 * open);
-  curlFingerChain(rig, rig.rightPinky, grip, 0.09 - 0.06 * open);
-  (rig.rightThumb || []).forEach((bone, index) => {
-    const fold = index === 0 ? -0.28 : -0.48;
-    addBoneRot(rig, bone, fold * grip, -0.24 * grip, 0.22 * grip);
-  });
+  if (rig) applyHandGrip(rig, 'right', gripAmount);
 }
 
 function applyLeftHandSupportGrip(rig, gripAmount = 0) {
-  if (!rig) return;
-  const grip = clamp(gripAmount, 0, 1);
-  curlFingerChain(rig, rig.leftIndex, grip * 0.86, 0.08);
-  curlFingerChain(rig, rig.leftMiddle, grip * 0.9, 0.03);
-  curlFingerChain(rig, rig.leftRing, grip * 0.82, -0.02);
-  curlFingerChain(rig, rig.leftPinky, grip * 0.76, -0.06);
-  (rig.leftThumb || []).forEach((bone, index) => {
-    const fold = index === 0 ? -0.2 : -0.38;
-    addBoneRot(rig, bone, fold * grip, 0.2 * grip, -0.18 * grip);
-  });
+  if (rig) applyHandGrip(rig, 'left', gripAmount);
 }
 
 function rotateBoneTowardTarget(rig, bone, endBone, targetWorld, strength = 0.5) {

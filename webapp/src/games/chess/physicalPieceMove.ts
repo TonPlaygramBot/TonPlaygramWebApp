@@ -1,7 +1,14 @@
 import * as THREE from 'three';
+import {
+  applyHandGrip,
+  applyPinchPose,
+  createPinchPose
+} from './anatomicalHand.ts';
+import type { HandBoneRig, PinchPose } from './anatomicalHand.ts';
+export { tipPosition } from './anatomicalHand.ts';
 
 export const PHYSICAL_MOVE_DURATION_MS = 1600;
-export type FingerRig = {
+export type FingerRig = HandBoneRig & {
   rightUpperArm?: THREE.Bone;
   rightForeArm?: THREE.Bone;
   rightHand?: THREE.Bone;
@@ -78,34 +85,6 @@ export function rotateJointToTarget(
   bone.updateWorldMatrix(false, true);
 }
 
-export function tipPosition(chain: THREE.Bone[]) {
-  const last = chain[chain.length - 1];
-  const child = last?.children.find((node) => node instanceof THREE.Bone);
-  if (child) return child.getWorldPosition(new THREE.Vector3());
-  if (!last) return null;
-  // Distal bones are knuckles, not fingertips. Extend the final phalanx in its
-  // own frame for skeletons that do not provide a terminal/end bone.
-  if (chain.length < 2) return last.getWorldPosition(new THREE.Vector3());
-  const localDirection = last.position.clone().normalize();
-  return last.localToWorld(
-    localDirection.multiplyScalar(last.position.length() * 0.72)
-  );
-}
-
-export function solveFingerContact(
-  chain: THREE.Bone[],
-  target: THREE.Vector3,
-  strength = 1
-) {
-  if (chain.length < 2) return;
-  for (let iteration = 0; iteration < 10; iteration++) {
-    for (let i = chain.length - 1; i >= 0; i--) {
-      const tip = tipPosition(chain);
-      if (tip) rotateJointToTarget(chain[i], tip, target, strength);
-    }
-  }
-}
-
 export type PhysicalMoveAction = {
   mesh: THREE.Object3D;
   from: THREE.Vector3;
@@ -114,6 +93,7 @@ export type PhysicalMoveAction = {
   gripRadius?: number;
   restHandWorld?: THREE.Vector3;
   gripAnchorLocal?: THREE.Vector3;
+  pinchPose?: PinchPose;
 };
 
 export function updatePhysicalPieceMove(
@@ -140,80 +120,30 @@ export function updatePhysicalPieceMove(
   const contact = mesh.parent.localToWorld(
     frame.position.clone().add(new THREE.Vector3(0, action.gripHeight, 0))
   );
-  const thumb = rig.rightThumb || [],
-    index = rig.rightIndex || [],
-    middle = rig.rightMiddle || [];
   if (!action.gripAnchorLocal) {
-    const chains = [thumb, index, middle].filter((chain) => chain.length >= 2);
-    const tips = chains.map((chain) => tipPosition(chain)!);
-    const anchor = tips.length
-      ? tips
-          .reduce((sum, p) => sum.add(p), new THREE.Vector3())
-          .multiplyScalar(1 / tips.length)
-      : hand.getWorldPosition(new THREE.Vector3());
-    // Project into the common reach of all three digits. The average of open
-    // fingertips can lie beyond the short thumb's reach and is not a grip.
-    const reachSpheres = chains.map((chain) => {
-      let length = 0;
-      for (let i = 1; i < chain.length; i++)
-        length += chain[i]
-          .getWorldPosition(new THREE.Vector3())
-          .distanceTo(chain[i - 1].getWorldPosition(new THREE.Vector3()));
-      length += tipPosition(chain)!.distanceTo(
-        chain[chain.length - 1].getWorldPosition(new THREE.Vector3())
-      );
-      return {
-        base: chain[0].getWorldPosition(new THREE.Vector3()),
-        radius: length * 0.82
-      };
-    });
-    for (let iteration = 0; iteration < 12; iteration++)
-      for (const sphere of reachSpheres) {
-        const delta = anchor.clone().sub(sphere.base);
-        if (delta.length() > sphere.radius)
-          anchor.copy(sphere.base).add(delta.setLength(sphere.radius));
-      }
-    action.gripAnchorLocal = hand.worldToLocal(anchor);
+    action.pinchPose = createPinchPose(rig, action.gripRadius || 0.01);
+    action.gripAnchorLocal =
+      action.pinchPose?.anchor.clone() || new THREE.Vector3();
   }
+  applyHandGrip(rig, 'right', frame.grip);
+  if (action.pinchPose) applyPinchPose(action.pinchPose, frame.grip);
   const pinchPosition = () =>
     hand.localToWorld(action.gripAnchorLocal!.clone());
   if (!action.restHandWorld) action.restHandWorld = pinchPosition();
   const pinchTarget = action.restHandWorld.clone().lerp(contact, frame.reach);
-  for (let iteration = 0; iteration < 32; iteration++) {
+  const tolerance = 0.001 * Math.abs(hand.getWorldScale(new THREE.Vector3()).x);
+  for (let iteration = 0; iteration < 128; iteration++) {
     for (const joint of [rig.rightForeArm, rig.rightUpperArm]) {
       if (joint) rotateJointToTarget(joint, pinchPosition(), pinchTarget);
     }
-    if (pinchPosition().distanceTo(pinchTarget) > 0.008) {
+    if (pinchPosition().distanceTo(pinchTarget) > tolerance) {
       if (rig.chest)
-        rotateJointToTarget(rig.chest, pinchPosition(), pinchTarget, 0.12);
+        rotateJointToTarget(rig.chest, pinchPosition(), pinchTarget, 0.35);
       if (rig.spine && rig.spine !== rig.chest)
-        rotateJointToTarget(rig.spine, pinchPosition(), pinchTarget, 0.06);
+        rotateJointToTarget(rig.spine, pinchPosition(), pinchTarget, 0.16);
+    } else {
+      break;
     }
-  }
-  if (frame.reach > 0.95 && thumb.length && index.length) {
-    const thumbPos = tipPosition(thumb)!;
-    const indexPos = tipPosition(index)!;
-    const lateral = thumbPos.clone().sub(indexPos).setY(0).normalize();
-    if (lateral.lengthSq() < 0.1) lateral.set(1, 0, 0);
-    const tangent = new THREE.Vector3()
-      .crossVectors(new THREE.Vector3(0, 1, 0), lateral)
-      .normalize();
-    const radius = (action.gripRadius || 0.01) * (1 + (1 - frame.grip) * 1.4);
-    solveFingerContact(thumb, contact.clone().addScaledVector(lateral, radius));
-    solveFingerContact(
-      index,
-      contact
-        .clone()
-        .addScaledVector(lateral, -radius)
-        .addScaledVector(tangent, radius * 0.35)
-    );
-    solveFingerContact(
-      middle,
-      contact
-        .clone()
-        .addScaledVector(lateral, -radius)
-        .addScaledVector(tangent, -radius * 0.35)
-    );
   }
   return frame;
 }

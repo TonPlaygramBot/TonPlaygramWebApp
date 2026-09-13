@@ -24,9 +24,13 @@ over-the-board tournament procedure or every possible dead position.
 The character adapter now resolves the actual `RightHandIndex1`/Mixamo-style
 finger names. Previously the finger arrays were empty. The new TypeScript
 motion controller shares one timeline between the hand and piece: reach,
-close, lift, carry, lower, open, withdraw. Its arm and finger solver converts
-world rotations into each joint's parent frame. A common reachable grip
-anchor accounts for the thumb being shorter than the other fingers. Piece
+close, lift, carry, lower, open, withdraw. Arm corrections respect each joint's parent frame. Finger axes are calibrated
+from the imported palm and bone geometry, with mirrored hand conventions.
+Middle/distal joints have no twist or backward flexion; distal curl follows
+the middle joint. The thumb has separate bounded opposition. A fitted
+thumb/index precision pinch accounts for pad thickness, while the remaining
+fingers stay within their natural curl limits. The grasp is fixed in hand
+space during carry and blends continuously to rest during release. Piece
 positions stay in the board parent's coordinates. Castling queues the rook
 after the king; firearm captures queue the hand move after the effect.
 Promotion replaces the pawn mesh after placement. Network acknowledgements
@@ -36,7 +40,13 @@ motion path. Resync/unmount cancels pending movement callbacks.
 ## Validation
 
 - `node --test test/chessRules.node.mjs test/chessPhysicalMove.node.mjs`:
-  18 tests pass, including the repository's real chess-human skeleton.
+  23 tests pass, including the repository's real chess-human skeleton.
+- The hand regressions cover inward curl on both hands, all ten digits,
+  unreachable targets, rotated bone frames, opposite/scaled seats, terminal
+  bone fallback, and 802 complete-motion samples without joint snapping.
+- Multi-angle software renders of the actual skinned avatar were inspected at
+  closure, placement and release. These confirm the corrected bend direction
+  and thumb/index grip for the default pawn/avatar.
 - Opening perft: 20, 400, 8,902 and 197,281 nodes through depth four.
 - Kiwipete: 48, 2,039 and 97,862 nodes through depth three.
 - Rook/pawn en-passant endgame: 2,812 nodes at depth three.
@@ -63,8 +73,8 @@ settlement, captures, castling and underpromotion before merging. The existing
 full webapp build also requires the complete unrelated game-asset checkout.
 
 Further coverage is needed for arbitrary blocked/dead positions, draw claims
-made by announcing an intended move through the UI, and per-character
-anatomical joint limits. The current solver bounds each correction but does
-not contain a separately authored anatomical constraint profile for every rig.
+made by announcing an intended move through the UI, and character/piece cosmetic combinations. The calibrated hinge limits are
+conservative animation constraints, not a collision simulation or a separately
+authored anatomical profile for every avatar.
 Keep this change as a draft until those visual and integration release checks
 are reviewed.

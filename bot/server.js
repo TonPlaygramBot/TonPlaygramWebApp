@@ -103,6 +103,7 @@ import {
   normalizeOnlineGameType
 } from './config/onlineGamePolicy.js';
 import { createCheckersRealtimeStore } from './utils/checkersRealtimeState.js';
+import { buildCheckersSettlement } from './utils/checkersSettlement.js';
 import { applyAuthoritativeMove, SIDES } from './utils/checkersAuthoritativeEngine.js';
 
 validateEnv();
@@ -1176,87 +1177,34 @@ function ensureCheckersSession(tableId, table = null) {
   return session;
 }
 
-async function settleCheckersMatch({
-  tableId,
-  winnerId,
-  loserId,
-  reason = 'match_end',
-  stake = 0,
-  token = 'TPG'
-} = {}) {
-  if (!winnerId || !loserId || !stake) {
-    return {
-      ok: true,
-      status: 'skipped',
-      reason: stake ? 'missing_players' : 'zero_stake'
-    };
+async function settleCheckersMatch(options = {}) {
+  const plan = buildCheckersSettlement(options);
+  if (!plan) return { ok: true, status: 'skipped', reason: 'zero_stake' };
+  if (checkersSettlementLedger.has(plan.idempotencyKey)) {
+    return { ok: true, status: 'duplicate', settlement: checkersSettlementLedger.get(plan.idempotencyKey) };
   }
-
-  const round = 1;
-  const settlementKey = `${tableId}:${round}`;
-  if (checkersSettlementLedger.has(settlementKey)) {
-    return {
-      ok: true,
-      status: 'duplicate',
-      settlement: checkersSettlementLedger.get(settlementKey)
-    };
-  }
-
-  const now = new Date();
-  const payoutAmount = Number(stake) * 2;
-  const detail = `checkers:${tableId}:${reason}`;
-  const result = await User.bulkWrite([
-    {
-      updateOne: {
-        filter: { accountId: String(winnerId), isBanned: { $ne: true } },
-        update: {
-          $inc: { balance: payoutAmount },
-          $push: {
-            transactions: {
-              amount: payoutAmount,
-              type: 'game_win',
-              token,
-              game: 'checkersbattle',
-              players: 2,
-              detail,
-              date: now
-            }
-          }
-        }
-      }
-    },
-    {
-      updateOne: {
-        filter: { accountId: String(loserId), isBanned: { $ne: true } },
-        update: {
-          $push: {
-            transactions: {
-              amount: 0,
-              type: 'game_loss',
-              token,
-              game: 'checkersbattle',
-              players: 2,
-              detail,
-              date: now
-            }
-          }
-        }
-      }
-    }
-  ]);
-
+  const result = await User.bulkWrite(plan.operations);
+  // A retry may match zero writes because receipts already exist. Confirm both
+  // receipts before reporting success; missing/banned accounts must not look paid.
+  const receipts = await User.countDocuments({
+    accountId: { $in: plan.accounts },
+    'transactions.transactionId': { $in: plan.operations.map((op) => op.updateOne.update.$push.transactions.transactionId) }
+  });
+  if (receipts !== 2) throw new Error('settlement_incomplete');
   const settlement = {
-    idempotencyKey: settlementKey,
-    winnerId: String(winnerId),
-    loserId: String(loserId),
-    payoutAmount,
-    token,
-    reason,
+    idempotencyKey: plan.idempotencyKey,
+    winnerId: options.draw ? null : String(options.winnerId),
+    loserId: options.draw ? null : String(options.loserId),
+    payoutAmount: plan.payoutAmount,
+    refundAmount: plan.refundAmount,
+    draw: plan.draw,
+    token: options.token || 'TPG',
+    reason: options.reason,
     matched: result.matchedCount || 0,
     modified: result.modifiedCount || 0,
-    settledAt: now.toISOString()
+    settledAt: new Date().toISOString()
   };
-  checkersSettlementLedger.set(settlementKey, settlement);
+  checkersSettlementLedger.set(plan.idempotencyKey, settlement);
   return { ok: true, status: 'settled', settlement };
 }
 
@@ -1700,10 +1648,13 @@ function maybeStartGame(table) {
           requiredFrom: null,
           winner: null,
           reason: null,
+          draw: false,
+          quietPlies: 0,
+          positionCounts: null,
           moveSeq: 0
         });
         ensureCheckersSession(table.id, table);
-        io.to(table.id).emit('checkersState', { tableId: table.id, ...initial });
+        io.to(table.id).emit('checkersState', { tableId: table.id, ...initial, players: table.players });
       }
       const gameStartPayload = {
         tableId: table.id,
@@ -2775,7 +2726,7 @@ io.on('connection', (socket) => {
     }
     const state = checkersRealtimeStore.getState(tableId);
     socket.join(tableId);
-    const payload = { tableId, ...state };
+    const payload = { tableId, ...state, players: table.players };
     socket.emit('checkersState', payload);
     await registerConnection({
       userId: String(accountId),
@@ -2797,7 +2748,7 @@ io.on('connection', (socket) => {
       return;
     }
     const state = checkersRealtimeStore.getState(tableId);
-    socket.emit('checkersState', { tableId, ...state });
+    socket.emit('checkersState', { tableId, ...state, players: table.players });
   });
 
   socket.on('chessSyncRequest', ({ tableId }) => {
@@ -3455,7 +3406,15 @@ io.on('connection', (socket) => {
       return;
     }
 
+    if (table.players.length !== 2) {
+      socket.emit('checkersMoveRejected', { tableId, error: 'waiting_for_players' });
+      return;
+    }
     const session = ensureCheckersSession(tableId, table);
+    if (!session.playersBySide.light || !session.playersBySide.dark) {
+      socket.emit('checkersMoveRejected', { tableId, error: 'waiting_for_players' });
+      return;
+    }
     const now = Date.now();
     const lastActionAt = session.lastMoveAtByPlayer.get(playerId) || 0;
     if (now - lastActionAt < checkersMoveRateLimitMs) {
@@ -3527,6 +3486,9 @@ io.on('connection', (socket) => {
       requiredFrom: authoritative.requiredFrom,
       winner: authoritative.winner,
       reason: authoritative.reason,
+      draw: authoritative.draw,
+      quietPlies: authoritative.quietPlies,
+      positionCounts: authoritative.positionCounts,
       moveSeq: nextMoveSeq
     });
 
@@ -3542,17 +3504,18 @@ io.on('connection', (socket) => {
       chainCapture: Boolean(authoritative.chainCapture)
     });
 
-    io.to(tableId).emit('checkersState', { tableId, ...nextState });
+    io.to(tableId).emit('checkersState', { tableId, ...nextState, players: table.players });
 
-    if (!authoritative.winner) return;
+    if (!authoritative.winner && !authoritative.draw) return;
 
     const winnerSide = authoritative.winner;
     const loserSide = winnerSide === SIDES.LIGHT ? SIDES.DARK : SIDES.LIGHT;
     const winnerId = session.playersBySide[winnerSide];
-    const loserId = session.playersBySide[loserSide];
+    const loserId = authoritative.draw ? null : session.playersBySide[loserSide];
     const matchEndPayload = {
       tableId,
       winnerSide,
+      draw: authoritative.draw,
       winnerId: winnerId ? String(winnerId) : null,
       loserId: loserId ? String(loserId) : null,
       reason: authoritative.reason || 'match_end'
@@ -3564,6 +3527,8 @@ io.on('connection', (socket) => {
         tableId,
         winnerId,
         loserId,
+        draw: authoritative.draw,
+        playerIds: [session.playersBySide.light, session.playersBySide.dark],
         reason: matchEndPayload.reason,
         stake: Number(session.stake || table.stake || 0),
         token: session.token || table.meta?.token || 'TPG'
@@ -3574,6 +3539,8 @@ io.on('connection', (socket) => {
         winnerId: winnerId ? String(winnerId) : null,
         loserId: loserId ? String(loserId) : null,
         payoutAmount: settlementResult.settlement?.payoutAmount || 0,
+        refundAmount: settlementResult.settlement?.refundAmount || 0,
+        draw: authoritative.draw,
         token: settlementResult.settlement?.token || session.token || 'TPG',
         status: settlementResult.status || 'skipped'
       });
@@ -4082,19 +4049,19 @@ io.on('connection', (socket) => {
 
   socket.on('joinFourInRow', ({ tableId, accountId } = {}, cb) => {
     const table = tableMap.get(String(tableId || ''));
-    const playerId = String(accountId || socket.data.playerId || '');
+    const playerId = String(socket.data.playerId || '');
     if (
+      !playerId || (accountId != null && String(accountId) !== playerId) ||
       !table ||
       table.gameType !== 'fourinrow' ||
+      table.players.length !== 2 ||
       !table.players.some((player) => String(player.id) === playerId)
     ) {
       return cb?.({ success: false, error: 'not_a_table_player' });
     }
     socket.join(table.id);
     if (!fourInRowStates.has(table.id)) {
-      const [cols = 7, rows = 6] = String(table.meta?.boardSize || '7x6')
-        .split('x')
-        .map(Number);
+      const [cols, rows] = table.meta?.boardSize === '8x7' ? [8, 7] : [7, 6];
       fourInRowStates.set(table.id, {
         tableId: table.id,
         board: Array.from({ length: rows }, () => Array(cols).fill(null)),
@@ -4110,17 +4077,26 @@ io.on('connection', (socket) => {
 
   socket.on('fourInRowSyncRequest', ({ tableId } = {}) => {
     const state = fourInRowStates.get(String(tableId || ''));
-    if (state) socket.emit('fourInRowState', state);
+    if (state && socket.rooms.has(state.tableId) && state.players.includes(String(socket.data.playerId || ''))) {
+      socket.emit('fourInRowState', state);
+    }
   });
 
-  socket.on('fourInRowMove', ({ tableId, accountId, column } = {}, cb) => {
+  socket.on('fourInRowMove', ({ tableId, accountId, column, revision } = {}, cb) => {
     const id = String(tableId || '');
-    const playerId = String(accountId || socket.data.playerId || '');
+    const playerId = String(socket.data.playerId || '');
     const state = fourInRowStates.get(id);
+    if (!playerId || (accountId != null && String(accountId) !== playerId) || !socket.rooms.has(id)) {
+      return cb?.({ success: false, error: 'not_a_table_player' });
+    }
     if (!state || state.winner || state.turn !== playerId) {
       return cb?.({ success: false, error: 'not_your_turn' });
     }
-    const col = Number(column);
+    // Older clients omit revision; updated clients reject delayed or replayed moves.
+    if (revision != null && revision !== state.revision) {
+      return cb?.({ success: false, error: 'stale_revision' });
+    }
+    const col = column;
     if (!Number.isInteger(col) || col < 0 || col >= state.board[0].length) {
       return cb?.({ success: false, error: 'invalid_column' });
     }

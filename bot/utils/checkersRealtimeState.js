@@ -1,4 +1,4 @@
-import { createInitialBoard, normalizeBoard, SIDES } from './checkersAuthoritativeEngine.js';
+import { createInitialBoard, normalizeBoard, inBounds, SIDES } from './checkersAuthoritativeEngine.js';
 
 export function createInitialCheckersBoard() {
   return createInitialBoard();
@@ -16,6 +16,9 @@ export function createCheckersRealtimeStore() {
         requiredFrom: null,
         winner: null,
         reason: null,
+        draw: false,
+        quietPlies: 0,
+        positionCounts: null,
         moveSeq: 0,
         updatedAt: Date.now()
       });
@@ -38,7 +41,7 @@ export function createCheckersRealtimeStore() {
     }
     if (
       nextState.requiredFrom &&
-      (!Number.isInteger(nextState.requiredFrom.r) || !Number.isInteger(nextState.requiredFrom.c))
+      !inBounds(nextState.requiredFrom.r, nextState.requiredFrom.c)
     ) {
       merged.requiredFrom = base.requiredFrom;
     }
