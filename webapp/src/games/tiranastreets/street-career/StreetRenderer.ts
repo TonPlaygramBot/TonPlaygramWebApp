@@ -32,11 +32,14 @@ export class StreetRenderer extends CityRenderer {
   private clearWrecks(){for(const [mesh,saved] of this.wreckMaterials){mesh.material=saved.original;saved.copies.forEach(m=>m.dispose());}this.wreckMaterials.clear();}
   private showWrecks(sim:StreetSimulation){
     const active=new Set<T.Mesh>();
-    for(const car of sim.cars())if(car.destroyed){
+    for(const car of sim.cars())if(car.destroyed||(car.health??140)<110){
       this.vehicleVisual(car.id)?.traverse(o=>{
-        if(!(o instanceof T.Mesh))return;active.add(o);if(this.wreckMaterials.has(o))return;
+        if(!(o instanceof T.Mesh))return;active.add(o);const existing=this.wreckMaterials.get(o);if(existing){
+          const originals=Array.isArray(existing.original)?existing.original:[existing.original];
+          existing.copies.forEach((copy,i)=>{const original=originals[i];if(copy instanceof T.MeshStandardMaterial&&original instanceof T.MeshStandardMaterial){const damage=car.destroyed?1:1-(car.health??140)/140;copy.color.copy(original.color).multiplyScalar(1-damage*.78);copy.roughness=Math.max(original.roughness,damage*.95);}});return;
+        }
         const original=o.material,copies=(Array.isArray(original)?original:[original]).map(m=>{
-          const copy=m.clone();if(copy instanceof T.MeshStandardMaterial){copy.color.multiplyScalar(.22);copy.roughness=.95;copy.metalness=.15;copy.emissive.set(0);}
+          const copy=m.clone();if(copy instanceof T.MeshStandardMaterial){const damage=car.destroyed?1:1-(car.health??140)/140;copy.color.multiplyScalar(1-damage*.78);copy.roughness=Math.max(copy.roughness,damage*.95);if(car.destroyed){copy.metalness=.15;copy.emissive.set(0);}}
           return copy;
         });
         this.wreckMaterials.set(o,{original,copies});o.material=Array.isArray(original)?copies:copies[0];
@@ -193,6 +196,8 @@ export class StreetRenderer extends CityRenderer {
       actor.group.position.set(car.x, groundHeight(car.x,car.z)+0.03, car.z);
       actor.group.rotation.set(0, car.heading + Math.PI, 0);
       alignVehicle(actor.group,car.heading+Math.PI);
+      const shock=Math.max(0,(car.crashUntil||0)-state.elapsed);
+      actor.group.rotation.z+=Math.sin(shock*40)*shock*.18;
     }
   }
   protected override beforeDraw(_state: State | null, _id: string, dt: number) {

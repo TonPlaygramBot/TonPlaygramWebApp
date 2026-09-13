@@ -17,7 +17,7 @@ export type Career = {
 };
 export type Member = { id: string; name: string };
 export type Car = Point & {
-  health?:number; destroyed?:boolean; burning?:boolean;
+  health?:number; destroyed?:boolean; burning?:boolean; crashUntil?:number;
   id: string;
   heading: number;
   speed: number;
@@ -80,6 +80,7 @@ export type Mission = {
   stops: (Point & { name: string })[];
 };
 export type NPC = Point & {
+  firedAt?:number; reloadUntil?:number; rounds?:number;
   y?:number;hitUntil?:number;
   id: string;
   kind: string;
@@ -224,7 +225,7 @@ export function addPlayer(
 export function removePlayer(state: State, id: string): void;
 export function control(state: State, id: string, raw: Partial<Input>): void;
 export function interact(state: State, id: string, action: string): void;
-export function movePlayer(state: State, p: Player, dt: number): void;
+export function movePlayer(state: State, p: Player, dt: number, onCollision?:(a:Car,b:Car|null,normal:Point)=>void): void;
 export function stepState(state: State, dt?: number, systems?:SimulationSystems): void;
 export function advanceState(state: State, seconds: number, systems?:SimulationSystems): void;
 export function awardCareer(career: Career, state: State, id: string): Career;

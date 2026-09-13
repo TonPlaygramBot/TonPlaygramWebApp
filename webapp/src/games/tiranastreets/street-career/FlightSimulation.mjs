@@ -22,9 +22,11 @@ export class FlightSimulation {
   get current() { return this.aircraft.find(a=>a.id===this.sim.player.aircraftId); }
   board(id) {
     const p=this.sim.player,b=this.sim.body,a=this.aircraft.find(a=>a.id===id);
-    if (!a || a.pilot || a.health<=0 || p.carId || p.aircraftId || p.health<=0) return false;
+    if (!a || a.pilot || a.airborne || Math.abs(a.speed)>2 || a.health<=0 || p.carId || p.aircraftId || p.health<=0) return false;
     const access=this.access(a);
     if (Math.hypot(p.x-access.x,p.z-access.z)>10) return false;
+    const homeStairs=a.kind==='helicopter'&&Math.hypot(a.x-a.homeX,a.z-a.homeZ)<4;
+    if(!homeStairs&&Math.abs(b.y-(a.y-(a.kind==='jet'?1.3:.65)))>2.5)return false;
     a.pilot=p.id;p.aircraftId=a.id;p.x=a.x;p.z=a.z;p.speed=0;
     b.y=a.y;b.yaw=a.heading;b.pitch=0;b.interaction='flying';b.action=null;b.aim=false;
     this.sim.event('enter',{vehicleId:a.id});return true;
@@ -44,13 +46,15 @@ export class FlightSimulation {
     let safe;
     for(let r=0;r<=8&&!safe;r+=2)for(let n=0;n<8;n++){
       const x=access.x+Math.cos(n*Math.PI/4)*r,z=access.z+Math.sin(n*Math.PI/4)*r;
-      const q={x,z,y:groundHeight(x,z)+.08};
+      const floor=this.sim.world.surface(x,z,a.y);
+      const q={x,z,y:floor+.08};
+      if(!(a.kind==='helicopter'&&Math.hypot(a.x-a.homeX,a.z-a.homeZ)<4)&&Math.abs(floor-(a.y-(a.kind==='jet'?1.3:.65)))>1.5)continue;
       if(this.sim.world.clearance(q,1.78)){safe=q;break;}
     }
     if(!safe)return false;
     a.pilot=null;p.aircraftId=null;Object.assign(p,{x:safe.x,z:safe.z,speed:0});
     Object.assign(b,{y:safe.y,vy:0,vx:0,vz:0,grounded:true,interaction:'free'});
-    a.missiles=24;this.sim.event('exit');return true;
+    this.sim.event('exit');return true;
   }
   step(dt) {
     const a=this.current,p=this.sim.player,b=this.sim.body;
@@ -63,9 +67,10 @@ export class FlightSimulation {
     a.speed+=(desired-a.speed)*(1-Math.exp(-dt*1.8));
     a.pitch+=(clamp(input.y*.12,-.15,.15)-a.pitch)*(1-Math.exp(-dt*5));
     a.roll+=(-input.x*.38-a.roll)*(1-Math.exp(-dt*5));
-    const floor=this.sim.world.surface(a.x,a.z,a.y-.25);
+    const nextX=a.x-Math.sin(a.heading)*a.speed*dt,nextZ=a.z-Math.cos(a.heading)*a.speed*dt;
+    const floor=this.sim.world.surface(nextX,nextZ,a.y-.25);
     const height=a.kind==='jet'?1.3:.65;
-    const next={x:a.x-Math.sin(a.heading)*a.speed*dt,z:a.z-Math.cos(a.heading)*a.speed*dt,
+    const next={x:nextX,z:nextZ,
       y:clamp(a.y+((input.fast?12:0)-(input.brake?9:0))*dt,floor+height,groundHeight(a.x,a.z)+650)};
     const delta={x:next.x-a.x,y:next.y-a.y,z:next.z-a.z},length=Math.hypot(delta.x,delta.y,delta.z);
     const collision=length>0?this.sim.world.cast(a,{x:delta.x/length,y:delta.y/length,z:delta.z/length},length+1.6):null;
@@ -77,7 +82,14 @@ export class FlightSimulation {
       a.x=clamp(next.x,WORLD.bounds[0]+8,WORLD.bounds[2]-8);
       a.z=clamp(next.z,WORLD.bounds[1]+8,WORLD.bounds[3]-8);a.y=next.y;
     }
+    const wasAirborne=a.airborne;
     a.airborne=a.y>this.sim.world.surface(a.x,a.z,a.y-.25)+height+.4;
+    if(wasAirborne&&!a.airborne){
+      const impact=Math.abs(a.speed);
+      if(impact>14){a.health=Math.max(0,a.health-(impact-14)*2);this.sim.combat.emit('crash',a,{radius:3});this.sim.damage(p,(impact-14)*.5,p);}
+      a.speed*=.45;this.sim.event('land',{vehicleId:a.id});
+      if(a.health<=0){this.sim.combat.emit('blast',a,{radius:10});this.sim.damage(p,300,p);a.pilot=null;p.aircraftId=null;return;}
+    }
     if(!a.airborne&&Math.abs(input.y)<.1)a.speed*=Math.exp(-dt*8);
     Object.assign(p,{x:a.x,z:a.z,heading:a.heading,speed:Math.abs(a.speed)});
     b.y=a.y;b.interaction='flying';b.grounded=false;b.action=null;

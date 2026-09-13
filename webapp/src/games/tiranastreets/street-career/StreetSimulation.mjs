@@ -2,6 +2,8 @@ import {groundHeight} from '../../tirana-east/terrainCore.mjs';
 import {CABLE_STATIONS,CABLE_DURATION,cablePoint,dismountCandidates} from '../../tirana-east/cableCore.mjs';
 import { collectWeapon } from '../shared/cityPopulation.mjs';
 import { weaponPose } from './weaponPose.mjs';
+import { traceShot, hitMultiplier } from './shotCore.mjs';
+import { CrashSimulation } from './CrashSimulation.mjs';
 import { CombatSimulation } from './CombatSimulation.mjs';
 import { FlightSimulation } from './FlightSimulation.mjs';
 import {
@@ -15,7 +17,7 @@ import {
 } from '../shared/engine.mjs';
 import { WEAPON_BY_ID } from '../shared/weapons.mjs';
 import { harm, reportCrime } from '../shared/cityLife.mjs';
-import { StreetWorld, direction3, pointAlong, rayBox } from './spatialCore.mjs';
+import { StreetWorld, direction3 } from './spatialCore.mjs';
 import { createBody, stepMotor, cancelActions, MOTOR } from './playerCore.mjs';
 import {
   carPoint,
@@ -67,6 +69,7 @@ export class StreetSimulation {
     this.settings = { aimAssist: false };
     this.mission = MISSIONS.find((m) => m.id === state.missionId) || FREE_ROAM;
     this.combat = new CombatSimulation(this);
+    this.crashes = new CrashSimulation(this);
     this.flight = new FlightSimulation(this);
     this.body.combat = this.player.weapon ? 'ready' : 'unarmed';
     this.job = {
@@ -101,6 +104,7 @@ export class StreetSimulation {
             }
           ),
         firePlayer: () => this.fire(),
+        fireNPC: (n,p,scale) => this.fireNPC(n,p,scale),
         damageAmount: (target, amount, attacker) =>
           this.guardDamage(target, amount, attacker),
         onDamage: (target, attacker) => this.damaged(target, attacker),
@@ -208,7 +212,9 @@ export class StreetSimulation {
     }
     if (p.carId) {
       b.interaction = b.action?.kind === 'exiting' ? 'exiting' : 'driving';
-      movePlayer(s, p, dt);
+      const car=s.cars.find(c=>c.id===p.carId);
+      const steps=Math.max(1,Math.ceil(Math.abs(car?.speed||0)*dt/.35));
+      for(let i=0;i<steps&&p.carId;i++)movePlayer(s,p,dt/steps,(a,c,n)=>this.crashes.impact(a,c,n));
       if (Math.abs(p.speed) > 2) this.eventOnce('drive');
       b.y = groundHeight(p.x,p.z)+0.08;
       return;
@@ -849,6 +855,35 @@ export class StreetSimulation {
       this.event('melee-hit');
     }
   }
+  fireNPC(n,p,scale=1) {
+    const now=this.state.elapsed,w=WEAPON_BY_ID.get(n.weapon);
+    if(this.paused||!w||w.category==='melee'||n.health<=0||p.health<=0||now<(n.nextShot||0)||now<(n.hitUntil||0))return;
+    if(n.loadedWeapon!==w.id){n.loadedWeapon=w.id;n.rounds=w.magazine;n.reloadUntil=0;}
+    if(n.reloadUntil){
+      if(now<n.reloadUntil){n.anim='reload';return;}
+      n.rounds=w.magazine;n.reloadUntil=0;
+    }
+    if(n.rounds<=0){n.reloadUntil=now+w.reload;n.anim='reload';return;}
+    const from={x:n.x-Math.sin(n.heading)*.38,y:(n.y??groundHeight(n.x,n.z)) +1.38,z:n.z-Math.cos(n.heading)*.38};
+    const to={x:p.x,y:(p===this.player?this.body.y:p.y??groundHeight(p.x,p.z))+(p===this.player?this.body.eye*.72:1.15),z:p.z};
+    const dx=to.x-from.x,dy=to.y-from.y,dz=to.z-from.z,length=Math.hypot(dx,dy,dz);
+    if(!length||length>w.range)return;
+    // Deterministic burst spread: moving targets and distance matter, no random frame dependence.
+    const spread=Math.sin((n.shotsFired||0)*2.399+n.x)* (n.kind==='soldier'?.012:.024);
+    const direction={x:dx/length+spread,y:dy/length,z:dz/length-spread};
+    const norm=Math.hypot(direction.x,direction.y,direction.z);for(const axis of ['x','y','z'])direction[axis]/=norm;
+    const proxy={...p,y:p===this.player?this.body.y:p.y,height:p===this.player?this.body.eye+.15:1.76};
+    const cars=this.cars();
+    let {hit,target}=traceShot(this.world,from,direction,w.range,cars,[proxy]);
+    const eye={x:n.x,y:from.y+.17,z:n.z};
+    const muzzleTravel=this.world.cast(eye,{x:from.x-eye.x,y:from.y-eye.y,z:from.z-eye.z},1,cars);
+    if(muzzleTravel.distance<1){hit=muzzleTravel;target=null;}
+    n.rounds--;n.shotsFired=(n.shotsFired||0)+1;n.firedAt=now;
+    n.nextShot=now+Math.max(w.interval,n.kind==='soldier'?.22:.42)/Math.max(.5,scale);
+    this.combat.emit('shot',from,{toX:hit.point.x,toY:hit.point.y,toZ:hit.point.z,owner:n.id,weapon:w.id});
+    if(target&&now-p.lastDamage>.35)this.damage(p,Math.min(w.damage,n.kind==='soldier'?8:5)*scale,n);
+    else if(hit.kind!=='air'){this.combat.emit('hit',hit.point);const car=cars.find(c=>c.id===hit.objectId);if(car)this.combat.damageVehicle(car,w.damage*.5,n);}
+  }
   fire() {
     const p = this.player,
       b = this.body,
@@ -907,27 +942,7 @@ export class StreetSimulation {
         d = { x: d.x / l, y: d.y / l, z: d.z / l };
       }
     }
-    const worldHit = this.world.cast(eye, d, max, cars);
-    let target = null,
-      hit = worldHit;
-    for (const n of this.state.npcs) {
-      if (n.health <= 0 || n.kind === 'dealer' || n.motion === 'drive')
-        continue;
-      const y = n.y ?? groundHeight(n.x,n.z)+0.08,
-        t = rayBox(
-          eye,
-          d,
-          {
-            min: { x: n.x - 0.3, y, z: n.z - 0.3 },
-            max: { x: n.x + 0.3, y: y + 1.76, z: n.z + 0.3 }
-          },
-          hit.distance
-        );
-      if (t !== null && t < hit.distance) {
-        target = n;
-        hit = { distance: t, point: pointAlong(eye, d, t), kind: 'actor' };
-      }
-    }
+    let {hit,target}=traceShot(this.world,eye,d,max,cars,this.state.npcs);
     // Camera defines intent; the offset muzzle must ALSO have a clear trajectory.
     const muzzle = weaponPose(p, b).muzzle;
     const muzzleTravel = this.world.cast(
@@ -937,7 +952,7 @@ export class StreetSimulation {
       cars
     );
     if (muzzleTravel.distance < 1) {
-      hit = { point: muzzleTravel.point, kind: muzzleTravel.kind };
+      hit = muzzleTravel;
       target = null;
     } else if (!this.world.clear(muzzle, hit.point, cars)) {
       const v = {
@@ -969,7 +984,7 @@ export class StreetSimulation {
       weapon: w.id
     });
     if (w.radius) this.combat.impact(hit, w.damage, true);
-    else if (target) this.damage(target, w.damage, p);
+    else if (target) this.damage(target, w.damage*hitMultiplier(target,hit.point), p);
     else this.combat.impact(hit, w.damage, false);
     if (hit.kind !== 'air' && hit.kind !== 'actor')
       state.effects.push({

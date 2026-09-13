@@ -121,3 +121,17 @@ test('main service worker bypasses stale runtime cache for installer requests',a
  let result;listeners.get('fetch')({request:new Request(origin+'/assets/demo.glb',{cache:'no-store'}),respondWith:p=>{result=p;}});
  assert.equal(await (await result).text(),'current');assert.equal(cacheReads,0);assert.equal(networkCalls,1);
 });
+
+test('unrelated cached entries cannot conceal an evicted asset or a lost dependency',async()=>{
+ setup();const shared=pack('shared'),game=pack('demo','v1',['shared']),catalog={packs:[game,shared]};
+ serve(catalog.packs,{shared:{'/human.glb':'human'},demo:{'/city.glb':'city'}});
+ await installGamePack('demo',{catalog});
+ const cache=await caches.open(getGamePackInstallations().shared.cacheName);await cache.delete(origin+'/human.glb');await cache.put(origin+'/unrelated.glb',new Response('other'));
+ await reconcileGamePackInstallations();assert.equal(getGamePackStatus(shared),'partial');assert.equal(getGamePackStatus(game),'partial');
+ await installGamePack('demo',{catalog});assert.equal(getGamePackStatus(shared),'installed');assert.equal(getGamePackStatus(game),'installed');assert.equal(await (await cache.match(origin+'/human.glb')).text(),'human');
+});
+test('Tirana cannot claim a complete download without the built executable runtime',async()=>{
+ setup();const p=pack('tirana-streets');let fetched=false;routeFetch=async()=>{fetched=true;throw Error('unexpected');};
+ await assert.rejects(installGamePack(p.id,{catalog:{packs:[p]}}),/complete offline game/);assert.equal(fetched,false);assert.equal(getGamePackStatus(p),'partial');
+ assert.ok(GAME_PACK_DEFINITIONS.find(p=>p.id==='tirana-streets').dependencies.includes('shared-table-games'));
+});

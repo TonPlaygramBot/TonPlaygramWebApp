@@ -30,7 +30,7 @@ export class CombatSimulation {
     return true;
   }
   damageVehicle(car, amount, owner = this.sim.player) {
-    if (car.destroyed) return;
+    if (car.destroyed || !Number.isFinite(amount) || amount <= 0) return;
     if (owner === this.sim.player && car.driver !== owner.id) reportCrime(this.sim.state, owner, car.forceVehicle ? 70 : 25);
     car.health = Math.max(0, (car.health ?? 140) - amount);
     if (car.health <= 55 && !this.fires.has(car.id)) {

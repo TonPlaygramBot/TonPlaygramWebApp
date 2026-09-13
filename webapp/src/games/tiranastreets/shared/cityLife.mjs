@@ -641,6 +641,7 @@ export function updateCityLife(state, dt, env, mission) {
     if(n.anim==='aim'||n.anim==='cover') n.heading=Math.atan2(n.x-p.x,n.z-p.z);
     const canShoot=n.anim==='aim' && !cars.some(c=>vehicleBlocks(n,p,c));
     if (canShoot && d < 46 && state.elapsed >= n.nextShot && env.clear(n, actual || p) && (!env.track || p === actual)) {
+      if(env.fireNPC){env.fireNPC(n,actual||p,cfg.damage);continue;}
       n.nextShot =
         state.elapsed + (n.kind === "soldier" ? 0.85 : 1.6) / cfg.damage;
       // Grace period and readable cadence give touch players time to react.
