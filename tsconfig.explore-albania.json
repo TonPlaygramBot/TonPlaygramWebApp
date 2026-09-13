@@ -1,0 +1,8 @@
+{
+  "extends": "./webapp/tsconfig.json",
+  "compilerOptions": { "noEmit": true },
+  "include": [
+    "webapp/src/games/explorealbania/**/*.ts",
+    "webapp/src/games/explorealbania/**/*.tsx"
+  ]
+}
