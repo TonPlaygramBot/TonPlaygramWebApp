@@ -85,6 +85,40 @@ export function createSnakeHumanInteraction(actor: THREE.Object3D) {
       });
     });
   };
+  const fingertip = (side: Side, name: string) => {
+    const chain = arms[side].fingers[name], last = chain[chain.length - 1];
+    // The skin extends beyond the terminal joint; use an anatomical distal tip.
+    return last.localToWorld(last.position.clone().multiplyScalar(0.72));
+  };
+  const conformGrip = (side: Side, center: THREE.Vector3, axis: THREE.Vector3, radius: number, amount: number, trigger?: THREE.Vector3) => {
+    const arm = arms[side];
+    const flexAxis = V(1, 0, 0).applyQuaternion(arm.basis).applyQuaternion(arm.hand.getWorldQuaternion(Q())).normalize();
+    for (const name of ['Index', 'Middle', 'Ring', 'Pinky']) {
+      const chain = arm.fingers[name];
+      const tip = fingertip(side, name), delta = tip.clone().sub(center);
+      const projected = center.clone().addScaledVector(axis, delta.dot(axis));
+      const radial = tip.clone().sub(projected).normalize();
+      const target = name === 'Index' && trigger ? trigger.clone() : projected.addScaledVector(radial, radius + unit * 0.006);
+      // One flexion axis per joint prevents sideways knuckle kinks. Limit each
+      // correction and preserve authored bone lengths and the anchored palm.
+      const flexion = new Map<THREE.Bone, number>();
+      for (let iteration = 0; iteration < 5; iteration++) {
+        for (let i = chain.length - 1; i >= 0; i--) {
+          const bone = chain[i], origin = worldPoint(bone);
+          const from = fingertip(side, name).sub(origin), to = target.clone().sub(origin);
+          from.addScaledVector(flexAxis, -from.dot(flexAxis)).normalize();
+          to.addScaledVector(flexAxis, -to.dot(flexAxis)).normalize();
+          const angle = Math.atan2(flexAxis.dot(from.clone().cross(to)), from.dot(to));
+          const sign = side === 'right' ? -1 : 1;
+          const baseCurl = (name === 'Index' && trigger ? i ? 0.62 : 0.2 : i ? 1.12 : 0.9) * amount;
+          const prior = flexion.get(bone) ?? baseCurl;
+          const next = THREE.MathUtils.clamp(prior + sign * THREE.MathUtils.clamp(angle, -0.12, 0.12) * THREE.MathUtils.clamp(amount, 0, 1), 0, 1.55);
+          const correction = (next - prior) * sign; flexion.set(bone, next);
+          worldQuaternion(bone, Q().setFromAxisAngle(flexAxis, correction).multiply(bone.getWorldQuaternion(Q())));
+        }
+      }
+    }
+  };
   const orientation = (side: Side, radial: THREE.Vector3, fingers: THREE.Vector3) => {
     const y = fingers.clone().normalize();
     const x = radial.clone().addScaledVector(y, -radial.dot(y)).normalize();
@@ -108,8 +142,8 @@ export function createSnakeHumanInteraction(actor: THREE.Object3D) {
         total += angle;
       }
       if (hips) {
-        // The board's actual die is farther away than a chest-height test prop.
-        // Shift weight toward the front of the existing seat while keeping both
+        // A legacy parking slot may require a seated weight shift. Dice
+        // pickups disable this fallback. Keep both
         // feet planted; neither the die, chair nor limb lengths are relocated.
         const planted = legs.map(leg => ({ ...leg, target: worldPoint(leg.foot!), q: leg.foot!.getWorldQuaternion(Q()), knee: worldPoint(leg.lower!) }));
         const excess = Math.max(0, worldPoint(upper).distanceTo(wrist) - (a + b) * 0.985);
@@ -153,7 +187,7 @@ export function createSnakeHumanInteraction(actor: THREE.Object3D) {
     reach(side, target, orientation(side, radial, forward), false);
     for (const bone of [arm.upper, arm.lower, arm.hand]) rest.set(bone, { position: bone.position.clone(), quaternion: bone.quaternion.clone() });
   }
-  return { actor, arms, unit, forward, reset, grip, orientation, reach,
+  return { actor, arms, unit, forward, reset, grip, conformGrip, fingertip, orientation, reach,
     dispose() { reset(); arms.right.palm.removeFromParent(); arms.left.palm.removeFromParent(); } };
 }
 export type SnakeHuman = NonNullable<ReturnType<typeof createSnakeHumanInteraction>>;

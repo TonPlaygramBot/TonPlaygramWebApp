@@ -341,7 +341,8 @@ export class GameRoom {
       this.io.to(this.id).emit('diceRolled', {
         playerId: player.playerId,
         value: total,
-        dice: result.dice
+        dice: result.dice,
+        nextPlayerId: this.players[this.game.currentTurn]?.playerId
       });
       const from = prevPositions[playerIndex];
       const to = result.landing ?? from;

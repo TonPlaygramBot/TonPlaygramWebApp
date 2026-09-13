@@ -32,10 +32,13 @@ for(const id of ['polyAssaultRifle01Attack','polyPistol01Attack','polyShotgun01A
  const dieGap=worldPoint(review.human.arms.right.palm).distanceTo(worldPoint(review.die));
  if(dieGap>0.003)throw new Error('Die contact gap: '+dieGap);
  review.update(900);await save(id+'-lift',review);
+ review.update(3050);await save(id+'-receiver',review);
+ const receiverGap=worldPoint(review.receiver.arms.right.palm).distanceTo(worldPoint(review.die));
+ if(receiverGap>0.003)throw new Error('Receiver contact gap: '+receiverGap);
  review.start('fire');review.update(1040);await save(id+'-aim',review);
  const contacts=readSnakeWeaponContacts(review.scene.getObjectByName('snake-held-firearm'));
  const rightGap=worldPoint(review.human.arms.right.palm).distanceTo(contacts.grip),leftGap=worldPoint(review.human.arms.left.palm).distanceTo(contacts.support);
  if(Math.max(rightGap,leftGap)>0.003)throw new Error(id+' grip gap: '+rightGap+', '+leftGap);
- console.log(id, {dieGap,rightGap,leftGap});
+ console.log(id, {dieGap,receiverGap,rightGap,leftGap});
  review.dispose();
 }

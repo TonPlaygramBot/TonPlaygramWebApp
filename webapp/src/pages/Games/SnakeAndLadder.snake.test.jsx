@@ -50,6 +50,7 @@ it('keeps local rolling locked until the die lands and the entry hop finishes', 
   await act(async () => { roll().click(); roll().click(); });
   expect(roll().disabled).toBe(true);
   expect(testState.board.diceEvent.values).toEqual([6]);
+  expect(testState.board.diceEvent.receiverSeatIndex).toBe(0);
   await act(async () => vi.advanceTimersByTimeAsync(SNAKE_DICE_RELEASE_MS));
   expect(testState.board.players[0].position).toBe(0);
   expect(testState.board.diceEvent.phase).toBe('start');
@@ -68,7 +69,9 @@ it('animates a server roll and ladder before applying the final snapshot', async
   const state = { roomId: 'snake-2', status: 'playing', currentPlayerId: 'p1', maxPlayers: 2,
     snakes: {9:2}, ladders: {3:8}, diceCells: {}, players: [{playerId:'p1',name:'You',position:1},{playerId:'p2',name:'Opponent',position:0}] };
   await emit('snakeState', state);
-  await emit('diceRolled', {playerId:'p1',dice:[2],value:2});
+  await emit('diceRolled', {playerId:'p1',dice:[2],value:2,nextPlayerId:'p2'});
+  expect(testState.board.players.map(p => p.seatIndex).sort()).toEqual([0, 1]);
+  expect(testState.board.diceEvent.receiverSeatIndex).toBe(testState.board.players[1].seatIndex);
   await emit('movePlayer', {playerId:'p1',from:1,to:3});
   await emit('snakeOrLadder', {playerId:'p1',from:3,to:8});
   await emit('turnChanged', {playerId:'p2'});

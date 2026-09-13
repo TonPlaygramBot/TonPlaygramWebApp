@@ -39,7 +39,7 @@ function App() {
         if (dead) return;
         if (running) {
           elapsed = Math.min(total, now - startTime); review.update(elapsed); setProgress(elapsed / total * 100);
-          setStatus(kind === 'dice' ? elapsed < 480 ? 'Reach the resting die' : elapsed < 640 ? 'Close the fingers' : elapsed < 1120 ? 'Lift & throw' : 'Release & land'
+          setStatus(kind === 'dice' ? elapsed >= 2420 ? 'Next player picks up & throws' : elapsed < 480 ? 'Reach the resting die' : elapsed < 640 ? 'Close the fingers' : elapsed < 1120 ? 'Lift & throw' : 'Land within the next player’s reach'
             : elapsed < 420 ? 'Reach the parked grip' : elapsed < 1020 ? 'Lift & aim' : elapsed < total - 720 ? 'Fire at the token' : 'Return to the same place');
           if (elapsed >= total) { running = false; setPlaying(false); pauseTime = now; }
         } else if (loopRef.current && total && elapsed >= total && now - pauseTime > 700) start(kind);
@@ -61,7 +61,7 @@ function App() {
       </select></label>
     </div>
     <div className="viz-row">
-      <button className="btn btn-primary" disabled={!ready} onClick={() => actions.current?.start('dice')}>Throw dice</button>
+      <button className="btn btn-primary" disabled={!ready} onClick={() => actions.current?.start('dice')}>Two turns</button>
       <button className="btn" disabled={!ready} onClick={() => actions.current?.start('fire')}>Aim & fire</button>
       <button className="btn" disabled={!ready} onClick={() => actions.current?.pause()}>{playing ? 'Pause' : 'Play'}</button>
       <label className="form-check"><input className="form-check-input" type="checkbox" checked={loop} onChange={e => setLoop(e.target.checked)} /><span className="form-check-label">Repeat</span></label>

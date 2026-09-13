@@ -166,7 +166,7 @@ export function createSnakeFirearmAnimation({
         const recover = ease((elapsed - timing.durationMs - returnMs) / 240);
         const radial = forward.clone().applyQuaternion(weapon.quaternion);
         const down = modelUp.clone().applyQuaternion(weapon.quaternion).negate();
-        const handQ = human.orientation('right', radial, down);
+        const handQ = human.orientation('right', down.clone().negate().addScaledVector(radial, -0.15), radial.clone().addScaledVector(down, -0.15));
         const gripWorld = weapon.localToWorld(gripLocal.clone());
         const handTarget = restPalm.clone().lerp(gripWorld, reach).lerp(restPalm, recover);
         human.grip('right', ease((elapsed - timing.pickupLeadMs * 0.72) / (timing.pickupLeadMs * 0.28)) * (1 - recover), true);
@@ -175,13 +175,17 @@ export function createSnakeFirearmAnimation({
           const leftPalm = worldPoint(human.arms.left.palm);
           const supportWorld = weapon.localToWorld(supportLocal.clone());
           const supportFingers = contacts?.pistol ? down : down.clone().negate().cross(radial).normalize();
-          const leftQ = human.orientation('left', radial, supportFingers);
+          const leftQ = contacts?.pistol ? human.orientation('left', down.clone().negate(), radial) : human.orientation('left', radial, supportFingers);
           const leftStartQ = human.arms.left.hand.getWorldQuaternion(new THREE.Quaternion());
           human.grip('left', carry * 0.88);
           human.reach('left', leftPalm.lerp(supportWorld, carry), leftStartQ.slerp(leftQ, carry), false);
+          human.conformGrip('left', supportWorld, contacts?.pistol ? down.clone().negate() : radial, contacts?.gripRadius ?? 0.03, carry);
           // Torso solving precedes both arm contacts, so the support solve cannot
           // pull the already attached trigger hand away from its grip.
         }
+        human.conformGrip('right', gripWorld, down.clone().negate(), contacts?.gripRadius ?? 0.03,
+          ease((elapsed - timing.pickupLeadMs * 0.72) / (timing.pickupLeadMs * 0.28)) * (1 - recover),
+          contacts?.trigger ? weapon.localToWorld(contacts.trigger.clone()) : undefined);
         if (recover >= 1) human.reset();
       }
       muzzle.copy(muzzleLocal); weapon.localToWorld(muzzle);

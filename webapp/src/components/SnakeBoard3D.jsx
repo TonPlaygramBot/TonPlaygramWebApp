@@ -186,12 +186,8 @@ const DICE_PIP_RIM_OFFSET = DICE_SIZE * 0.0048;
 const DICE_PIP_SPREAD = DICE_SIZE * 0.3;
 const DICE_FACE_INSET = DICE_SIZE * 0.064;
 const DICE_SETTLE_DURATION = 160;
-const DICE_RESULT_HOLD_DURATION = 400;
 const DICE_BOUNCE_HEIGHT = 0.06;
 const DICE_THROW_LANDING_MARGIN = TILE_SIZE * 1.8;
-const DICE_THROW_START_EXTRA = TILE_SIZE * 3.6;
-const DICE_THROW_HEIGHT = DICE_SIZE * 0.78;
-const BOARD_EDGE_BUFFER = TILE_SIZE * 0.2;
 const DICE_RETREAT_EXTRA = DICE_SIZE * 0.95;
 const BOARD_BASE_EXTRA = RAW_BOARD_SIZE * (0.36 / 3.4);
 const BOARD_BASE_HEIGHT = RAW_BOARD_SIZE * (0.24 / 3.4);
@@ -275,7 +271,6 @@ function alignChairLegsToGround(chair) {
 }
 
 
-const TURN_CAMERA_TURN_IN_DURATION = 620;
 
 const BOARD_TILE_HEIGHT = TILE_SIZE * 0.14 * PYRAMID_HEIGHT_MULTIPLIER;
 const TILE_SIDE_COLOR = new THREE.Color('#334155');
@@ -480,86 +475,9 @@ const TEMP_SEAT_VECTOR = new THREE.Vector3();
 const TEMP_NDC_VECTOR = new THREE.Vector3();
 const DICE_CENTER_VECTOR = new THREE.Vector3();
 const BOARD_FRONT_VECTOR = new THREE.Vector3(0, 0, 1);
-const BOARD_SIDE_VECTOR = new THREE.Vector3(1, 0, 0);
 
-const SIDE_SEAT_THROW_START_EXTRA = 0;
-const SIDE_SEAT_THROW_BOUNCE_EXTRA = 0;
-const SIDE_SEAT_THROW_SETTLE_EXTRA = 0;
 
-const DICE_SEAT_ADJUSTMENTS = [
-  {
-    front: {
-      start: -TILE_SIZE * 0.08,
-      bounce: -TILE_SIZE * 0.06,
-      base: -TILE_SIZE * 0.14
-    },
-    side: {
-      start: -TILE_SIZE * 0.03,
-      bounce: -TILE_SIZE * 0.04,
-      base: -TILE_SIZE * 0.08
-    },
-    forward: {
-      // Blue (turn anchor): near bottom-center. Purple (result): slightly inward.
-      start: -TILE_SIZE * 1.2,
-      bounce: -TILE_SIZE * 0.92,
-      base: -TILE_SIZE * 0.62
-    }
-  },
-  {
-    front: {
-      start: TILE_SIZE * 0.04,
-      bounce: TILE_SIZE * 0.03,
-      base: TILE_SIZE * 0.06
-    },
-    side: {
-      start: TILE_SIZE * 0.12,
-      bounce: TILE_SIZE * 0.08,
-      base: TILE_SIZE * 0.04
-    },
-    forward: {
-      // Blue (turn anchor): right side. Purple (result): inside-right edge.
-      start: -TILE_SIZE * 1.28,
-      bounce: -TILE_SIZE * 1.0,
-      base: -TILE_SIZE * 0.66
-    }
-  },
-  {
-    front: {
-      start: TILE_SIZE * 0.18,
-      bounce: TILE_SIZE * 0.12,
-      base: TILE_SIZE * 0.18
-    },
-    side: {
-      start: TILE_SIZE * 0.03,
-      bounce: TILE_SIZE * 0.02,
-      base: TILE_SIZE * 0.04
-    },
-    forward: {
-      // Blue (turn anchor): top-center. Purple (result): inward toward board center.
-      start: -TILE_SIZE * 1.28,
-      bounce: -TILE_SIZE * 1.0,
-      base: -TILE_SIZE * 0.68
-    }
-  },
-  {
-    front: {
-      start: TILE_SIZE * 0.04,
-      bounce: TILE_SIZE * 0.03,
-      base: TILE_SIZE * 0.06
-    },
-    side: {
-      start: -TILE_SIZE * 0.12,
-      bounce: -TILE_SIZE * 0.08,
-      base: -TILE_SIZE * 0.04
-    },
-    forward: {
-      // Blue (turn anchor): left side. Purple (result): inside-left edge.
-      start: -TILE_SIZE * 1.28,
-      bounce: -TILE_SIZE * 1.0,
-      base: -TILE_SIZE * 0.66
-    }
-  }
-];
+
 
 const DEFAULT_COLORS = ['#f97316', '#22d3ee', '#22c55e', '#a855f7'];
 
@@ -2494,124 +2412,32 @@ function makeDice(theme = {}) {
 }
 
 export function computeDiceThrowLayout(board, seatIndex, count) {
-  const result = {
-    basePositions: [],
-    startPositions: [],
-    travelVectors: [],
-    bouncePoints: [],
-    retreatVectors: [],
-    edgeNormals: []
-  };
-  if (!board?.root || !Array.isArray(board?.seatAnchors)) return result;
-  if (typeof seatIndex !== 'number' || seatIndex < 0) return result;
-  const anchor = board.seatAnchors[seatIndex];
-  if (!anchor) return result;
-
-  board.root.updateMatrixWorld(true);
-  anchor.updateMatrixWorld?.(true);
-
-  const seatWorld = new THREE.Vector3();
-  anchor.getWorldPosition(seatWorld);
-
-  const diceBaseY = board.diceBaseY ?? 0;
-  const centerLocal = new THREE.Vector3(0, diceBaseY, 0);
-  const seatLocal = seatWorld.clone();
-  board.root.worldToLocal(seatLocal);
-
-  const direction = centerLocal.clone().sub(seatLocal).setY(0);
-  if (direction.lengthSq() < 1e-6) direction.set(0, 0, 1);
-  direction.normalize();
-  const awayFromBoard = direction.clone().multiplyScalar(-1);
-
-  const lateral = new THREE.Vector3(-direction.z, 0, direction.x);
-  if (lateral.lengthSq() < 1e-6) lateral.set(1, 0, 0);
-  lateral.normalize();
-
-  const boardHalf = (BASE_LEVEL_TILES * TILE_SIZE) / 2;
-  const boardEdgeDistance = boardHalf + BOARD_EDGE_BUFFER;
-  const baseStartDistance = boardHalf + DICE_THROW_START_EXTRA;
-  const settleBaseDistance =
-    boardHalf + DICE_THROW_LANDING_MARGIN * 0.52 + DICE_RETREAT_EXTRA * 0.12;
-
-  const seatAdjust = DICE_SEAT_ADJUSTMENTS[seatIndex] ?? {};
-  const forwardAdjust = seatAdjust.forward ?? {};
-  const frontAdjust = seatAdjust.front ?? {};
-  const sideAdjust = seatAdjust.side ?? {};
-
-  const isSideSeat = seatIndex === 1 || seatIndex === 3;
-  const sideStartBoost = isSideSeat ? SIDE_SEAT_THROW_START_EXTRA : 0;
-  const sideBounceBoost = isSideSeat ? SIDE_SEAT_THROW_BOUNCE_EXTRA : 0;
-  const sideSettleBoost = isSideSeat ? SIDE_SEAT_THROW_SETTLE_EXTRA : 0;
-
-  const startBaseDistance = baseStartDistance + (forwardAdjust.start ?? 0) + sideStartBoost;
-  const bounceBaseDistance = boardEdgeDistance + (forwardAdjust.bounce ?? 0) + sideBounceBoost;
-  const settleDistanceBase = settleBaseDistance + (forwardAdjust.base ?? 0) + sideSettleBoost;
-
-  const applyAxisOffsets = (vec, phase) => {
-    const front = frontAdjust?.[phase];
-    if (typeof front === 'number' && Number.isFinite(front) && front !== 0) {
-      vec.addScaledVector(BOARD_FRONT_VECTOR, front);
-    }
-    const side = sideAdjust?.[phase];
-    if (typeof side === 'number' && Number.isFinite(side) && side !== 0) {
-      vec.addScaledVector(BOARD_SIDE_VECTOR, side);
-    }
-  };
-
-  const spacing = DICE_SIZE * 1.35;
-  const centerOffset = (count - 1) / 2;
-
-  for (let i = 0; i < count; i += 1) {
-    const offset = (i - centerOffset) * spacing;
-    const lateralJitter = (Math.random() - 0.5) * DICE_SIZE * 0.38;
-    const bounceJitter = (Math.random() - 0.5) * DICE_SIZE * 0.2;
-    const retreatExtra = Math.random() * DICE_SIZE * 0.22;
-    const outwardJitter = Math.random() * DICE_SIZE * 0.18;
-
-    const startDistance = startBaseDistance + Math.random() * DICE_SIZE * 0.7;
-    const bounceDistance = bounceBaseDistance + (Math.random() - 0.5) * DICE_SIZE * 0.08;
-    const settleDistance = Math.max(
-      bounceDistance + DICE_SIZE * 0.22,
-      settleDistanceBase + (Math.random() - 0.1) * DICE_SIZE * 0.3
-    );
-
-    const start = centerLocal
-      .clone()
-      .addScaledVector(awayFromBoard, startDistance)
-      .addScaledVector(lateral, offset * 0.9 + lateralJitter);
-    start.y = diceBaseY + DICE_THROW_HEIGHT + Math.random() * (DICE_THROW_HEIGHT * 0.25);
-    applyAxisOffsets(start, 'start');
-
-    const bounce = centerLocal
-      .clone()
-      .addScaledVector(awayFromBoard, bounceDistance)
-      .addScaledVector(lateral, offset * 0.35 + bounceJitter);
-    bounce.y = diceBaseY + DICE_SIZE * (0.12 + Math.random() * 0.12);
-    applyAxisOffsets(bounce, 'bounce');
-
-    const base = centerLocal
-      .clone()
-      .addScaledVector(awayFromBoard, settleDistance + retreatExtra)
-      .addScaledVector(lateral, offset + lateralJitter * 0.45);
-    base.addScaledVector(awayFromBoard, outwardJitter);
-    base.y = diceBaseY;
-    applyAxisOffsets(base, 'base');
-
-    const bouncePoint = bounce.clone();
-
-    result.startPositions.push(start);
-    result.bouncePoints.push(bouncePoint);
-    result.basePositions.push(base);
-    const approach = bouncePoint.clone().sub(start);
-    const retreat = base.clone().sub(bouncePoint);
-    result.travelVectors.push(approach);
-    result.retreatVectors.push(retreat);
-    result.edgeNormals.push(awayFromBoard.clone());
+  const result = { basePositions: [], startPositions: [], travelVectors: [], bouncePoints: [], retreatVectors: [], edgeNormals: [] };
+  const anchor = board?.seatAnchors?.[seatIndex];
+  if (!board?.root || !anchor) return result;
+  board.root.updateWorldMatrix(true, true);
+  const center = board.root.getWorldPosition(new THREE.Vector3());
+  const seat = anchor.getWorldPosition(new THREE.Vector3());
+  const outward = seat.clone().sub(center).setY(0).normalize();
+  const lateral = new THREE.Vector3(-outward.z, 0, outward.x);
+  const radius = (board.tableInfo?.radius ?? TABLE_RADIUS) - DICE_SIZE * 1.4;
+  const worldScale = board.root.getWorldScale(new THREE.Vector3());
+  const surfaceY = board.tableInfo?.surfaceY ?? TABLE_HEIGHT;
+  // Use the actual right shoulder's lateral position, keeping the die fully on
+  // the rim. No seat-number offsets: a two-player opponent sits across the table.
+  const human = board.getSeatHuman?.(seatIndex);
+  const shoulder = human?.arms.right.upper.getWorldPosition(new THREE.Vector3());
+  const side = shoulder ? shoulder.clone().sub(center).dot(lateral) : -0.38;
+  for (let i = 0; i < count; i++) {
+    const offset = side + (i - (count - 1) / 2) * DICE_SIZE * worldScale.x * 1.35;
+    const radial = Math.sqrt(Math.max(0, radius * radius - offset * offset));
+    const world = center.clone().addScaledVector(outward, radial).addScaledVector(lateral, offset);
+    world.y = surfaceY + DICE_SIZE * worldScale.y * 0.5 + 0.002;
+    const base = board.root.worldToLocal(world);
+    result.basePositions.push(base); result.startPositions.push(base.clone());
+    result.bouncePoints.push(base.clone()); result.travelVectors.push(new THREE.Vector3());
+    result.retreatVectors.push(new THREE.Vector3()); result.edgeNormals.push(outward.clone());
   }
-
-  result.direction = direction;
-  result.lateral = lateral;
-  result.seatIndex = seatIndex;
   return result;
 }
 
@@ -2620,7 +2446,7 @@ function createDiceRollAnimation(diceArray, { basePositions, baseY, values = [],
   let targetValues = values;
   const reducedMotion = window.matchMedia?.('(prefers-reduced-motion: reduce)').matches;
   const motions = diceArray.map((die, index) => createSnakeDiceInteraction(
-    die, new THREE.Vector3(basePositions[index].x, baseY, basePositions[index].z),
+    die, basePositions[index].clone(),
     { human, startedAt, height: DICE_BOUNCE_HEIGHT, reducedMotion,
       target: values[index] ? getDiceOrientationQuaternion(values[index]) : null }
   ));
@@ -2695,42 +2521,6 @@ function createDiceSettleAnimation(diceArray, { basePositions, baseY, startState
   };
 }
 
-function createDiceHandoffAnimation(
-  diceArray,
-  { basePositions, baseY, duration = TURN_CAMERA_TURN_IN_DURATION, delay = DICE_RESULT_HOLD_DURATION }
-) {
-  if (!Array.isArray(diceArray) || !diceArray.length || !Array.isArray(basePositions) || !basePositions.length) {
-    return null;
-  }
-  const startPositions = diceArray.map((die) => die.position.clone());
-  return {
-    type: 'diceHandoff',
-    start: performance.now(),
-    update(now) {
-      const elapsed = now - this.start;
-      if (elapsed < delay) return false;
-      const t = clamp01((elapsed - delay) / duration);
-      const eased = easeInOutCubic(t);
-      diceArray.forEach((die, index) => {
-        const from = startPositions[index] || die.position;
-        const to = basePositions[index] || die.position;
-        die.position.copy(from.clone().lerp(to, eased));
-        die.position.y = baseY;
-      });
-      if (t >= 1) {
-        diceArray.forEach((die, index) => {
-          const to = basePositions[index];
-          if (to) {
-            die.position.copy(to);
-            die.position.y = baseY;
-          }
-        });
-        return true;
-      }
-      return false;
-    }
-  };
-}
 
 function createTileLabel(number) {
   const size = 256;
@@ -3317,7 +3107,7 @@ function buildArena(
   for (let i = 0; i < activePlayerCount; i += 1) {
     const angle = getSeatAngle(i, activePlayerCount);
     const forward = new THREE.Vector3(Math.cos(angle), 0, Math.sin(angle));
-    const seatRadius = getSeatRadius(chairRadius, i);
+    const seatRadius = getSeatRadius((tableInfo.radius ?? TABLE_RADIUS) + SEAT_DEPTH * 0.08, i);
     const seatPos = forward.clone().multiplyScalar(seatRadius);
     seatPos.y = CHAIR_BASE_HEIGHT;
     const group = new THREE.Group();
@@ -5397,7 +5187,6 @@ export default function SnakeBoard3D({
   const cameraRestoreRef = useRef(null);
   const startCameraMinYRef = useRef(null);
   const fixedSeatCameraPositionRef = useRef(null);
-  const previousTurnRef = useRef(null);
   const headLookRef = useRef({ yaw: 0, pitch: 0 });
   const manualCameraActiveRef = useRef(false);
   const soundEnabledRef = useRef(soundEnabled);
@@ -5435,43 +5224,6 @@ export default function SnakeBoard3D({
   useEffect(() => {
     diceEventRef.current = diceEvent;
   }, [diceEvent]);
-
-  useEffect(() => {
-    const board = boardRef.current;
-    const camera = cameraRef.current;
-    const controls = board?.controls;
-    if (!board || !camera || !controls || cameraViewMode === '2d') return;
-    if (!Number.isInteger(currentTurn) || currentTurn < 0) return;
-    if (previousTurnRef.current === currentTurn) return;
-    previousTurnRef.current = currentTurn;
-
-    // Move the die to the active seat; action framing is owned by the director.
-    if (diceStateRef.current?.currentId == null) {
-      const seatCount = Array.isArray(board.seatAnchors) ? board.seatAnchors.length : 0;
-      if (seatCount > 0) {
-        const seatIndex = Math.max(0, Math.min(seatCount - 1, players[currentTurn]?.seatIndex ?? currentTurn));
-        const visibleDice = Array.isArray(board.diceSet) ? board.diceSet.filter((die) => die?.visible) : [];
-        if (visibleDice.length) {
-          const layout = computeDiceThrowLayout(board, seatIndex, visibleDice.length);
-          const basePositions = Array.isArray(layout.basePositions) ? layout.basePositions : [];
-          if (basePositions.length) {
-            removeAnimationsByType(animationsRef.current, 'diceHandoff');
-            const handoffAnimation = createDiceHandoffAnimation(visibleDice, {
-              basePositions,
-              baseY: board.diceBaseY ?? 0,
-              duration: TURN_CAMERA_TURN_IN_DURATION,
-              delay: 0
-            });
-            if (handoffAnimation) animationsRef.current.push(handoffAnimation);
-            diceStateRef.current = {
-              ...(diceStateRef.current || {}),
-              lastSeatIndex: seatIndex
-            };
-          }
-        }
-      }
-    }
-  }, [currentTurn, cameraViewMode, players]);
 
   useEffect(() => {
     const board = boardRef.current;
@@ -5631,6 +5383,7 @@ export default function SnakeBoard3D({
     const handlers = disposeHandlers.current;
     handlers.length = 0;
 
+    diceStateRef.current = { currentId: null, initialized: false };
     const arena = buildArena(
       scene,
       renderer,
@@ -5963,6 +5716,14 @@ export default function SnakeBoard3D({
       if (boardRef.current && boardRef.current.humanCount !== humanCount) {
         boardRef.current.humanCount = humanCount;
         updateSeatWeaponDisplays(boardRef.current, playersRef.current);
+        if (humanCount > 0 && !diceStateRef.current.initialized && diceStateRef.current.currentId == null) {
+          const seat = playersRef.current[currentTurnRef.current]?.seatIndex ?? currentTurnRef.current ?? 0;
+          const layout = computeDiceThrowLayout(boardRef.current, seat, 1);
+          if (layout.basePositions[0]) {
+            boardRef.current.diceSet[0].position.copy(layout.basePositions[0]);
+            diceStateRef.current.initialized = true;
+          }
+        }
       }
       const active = animationsRef.current;
       for (let i = active.length - 1; i >= 0; i -= 1) {
@@ -6332,7 +6093,6 @@ export default function SnakeBoard3D({
       if (diceStateRef.current.currentId === diceEvent.id) return;
       removeAnimationsByType(animationsRef.current, 'diceRoll');
       removeAnimationsByType(animationsRef.current, 'diceSettle');
-      removeAnimationsByType(animationsRef.current, 'diceHandoff');
       const count = Math.max(1, Math.min(diceEvent.count ?? diceSet.length, diceSet.length));
       const prevState = diceStateRef.current || {};
       const rawSeatIndex = Number.isInteger(diceEvent.seatIndex)
@@ -6346,7 +6106,8 @@ export default function SnakeBoard3D({
         : 0;
       const seatCount = Array.isArray(board.seatAnchors) ? board.seatAnchors.length : 0;
       const seatIndex = seatCount > 0 ? Math.max(0, Math.min(seatCount - 1, rawSeatIndex)) : Math.max(0, rawSeatIndex);
-      const layout = computeDiceThrowLayout(board, seatIndex, count);
+      const receiverSeatIndex = Number.isInteger(diceEvent.receiverSeatIndex) ? Math.max(0, Math.min(seatCount - 1, diceEvent.receiverSeatIndex)) : seatIndex;
+      const layout = computeDiceThrowLayout(board, receiverSeatIndex, count);
       const spacing = DICE_SIZE * 1.35;
       const centerOffset = (count - 1) / 2;
       const basePositions = [];
@@ -6379,12 +6140,13 @@ export default function SnakeBoard3D({
         visibleIndex += 1;
       });
       diceStateRef.current = {
+        initialized: true,
         currentId: diceEvent.id,
         basePositions: basePositions.map((vec) => vec.clone()),
         baseY: diceBaseY,
         count,
         seatIndex,
-        lastSeatIndex: seatIndex
+        lastSeatIndex: receiverSeatIndex
       };
       const active = diceSet.filter((_, idx) => idx < count);
       if (active.length) {
@@ -6436,7 +6198,7 @@ export default function SnakeBoard3D({
         if (!activeRoll && active.some((die, i) => die.quaternion.angleTo(getDiceOrientationQuaternion(values[i] ?? values[0] ?? 1)) > 0.001)) {
           const settleAnimation = createDiceSettleAnimation(active, {
             basePositions,
-            baseY: diceBaseY,
+            baseY: active[0].position.y,
             startStates
           });
           if (settleAnimation) animationsRef.current.push(settleAnimation);
@@ -6445,6 +6207,7 @@ export default function SnakeBoard3D({
       }
       const lastSeatIndex = diceStateRef.current.lastSeatIndex;
       diceStateRef.current = {
+        initialized: true,
         currentId: null,
         basePositions: [],
         baseY: diceBaseY,
@@ -6878,7 +6641,7 @@ export const SNAKE_SCENE_DIMENSIONS = Object.freeze({
   boardScale: BOARD_SCALE, footprintScale: BOARD_FOOTPRINT_SCALE,
   tileSize: TILE_SIZE, tokenHeight: TOKEN_HEIGHT, diceSize: DICE_SIZE,
   tableHeight: TABLE_HEIGHT, tableRadius: TABLE_RADIUS,
-  chairRadius: TABLE_RADIUS + SEAT_DEPTH / 2 + AI_CHAIR_GAP + CHAIR_GLOBAL_PUSHBACK,
+  chairRadius: TABLE_RADIUS + SEAT_DEPTH * 0.08,
   bottomChairExtra: SELF_BOTTOM_CHAIR_EXTRA_PUSHBACK, chairBaseHeight: CHAIR_BASE_HEIGHT,
   seatHeight: SEAT_THICKNESS * 0.65, avatarAnchorHeight: AVATAR_ANCHOR_HEIGHT
 });
