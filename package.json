@@ -27,7 +27,8 @@
     "help:ingest": "node --loader ts-node/esm packages/ingestion-public/src/cli.ts",
     "help:api": "node --loader ts-node/esm/transpile-only packages/api/src/server.ts",
     "help:test": "jest test/platformHelpAgent --runInBand",
-    "reset-social-wall": "node bot/scripts/resetSocialWall.js"
+    "reset-social-wall": "node bot/scripts/resetSocialWall.js",
+    "test:tabletop": "node --test test/tabletopEngine.test.mjs test/tabletopPolicy.test.mjs bot/tests/tabletop.test.mjs test/kartStake.test.mjs"
   },
   "engines": {
     "node": ">=22"

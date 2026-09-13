@@ -1,4 +1,6 @@
+import { TABLETOP_IDS } from '../../webapp/src/games/tabletop/shared/catalog.mjs';
 const CONTRACTS = {
+  ...Object.fromEntries(TABLETOP_IDS.map(id => [id, ['format', 'players']])),
   poolroyale: ['variant'],
   snookerroyale: ['playType', 'tableSize'],
   snookerchampion: ['playType', 'tableSize'],
