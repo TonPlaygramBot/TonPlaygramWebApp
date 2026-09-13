@@ -1,4 +1,6 @@
 import * as THREE from 'three';
+import { type SnakeHuman, worldPoint } from './snakeHumanInteraction';
+import { readSnakeWeaponContacts, snakeAimQuaternion } from './snakeWeaponGrip';
 import {
   createCaptureMuzzleFx, createCaptureTargetReticleFx, createCaliberProjectileFx,
   createCaliberShellCasingFx, createBulletAerodynamicRingsFx,
@@ -36,11 +38,12 @@ function disposeMeshes(root: THREE.Object3D) {
 
 export function createSnakeFirearmAnimation({
   scene, weaponId, parkedWeapon, origin, target, victims = [], startedAt,
-  reducedMotion = false, onShot, onImpact
+  reducedMotion = false, human, onShot, onImpact
 }: {
   scene: THREE.Object3D; weaponId: string; parkedWeapon?: THREE.Object3D | null;
   origin: THREE.Vector3; target: THREE.Vector3; victims?: THREE.Object3D[];
   startedAt: number; reducedMotion?: boolean;
+  human?: SnakeHuman | null;
   onShot?: (shotIndex: number) => void; onImpact?: () => void;
 }) {
   const timing = getLudoFirearmTiming(weaponId);
@@ -55,19 +58,41 @@ export function createSnakeFirearmAnimation({
   art.position.set(0, 0, 0); art.visible = true; weapon.add(art);
   const box = new THREE.Box3().setFromObject(art);
   const size = box.getSize(new THREE.Vector3());
+  const contacts = readSnakeWeaponContacts(art);
   const center = box.getCenter(new THREE.Vector3());
-  art.position.sub(center);
-  const forward = size.x >= size.z ? new THREE.Vector3(1,0,0) : new THREE.Vector3(0,0,1);
+  const forward = contacts ? contacts.muzzle.clone().sub(contacts.stock).normalize()
+    : size.x >= size.z ? new THREE.Vector3(1,0,0) : new THREE.Vector3(0,0,1);
   // Same reversed Gunify muzzle correction used by Ludo's AK47 and KRSV racks.
   let reversedMuzzle = false;
   parkedWeapon?.traverse(object => { if (object.userData.firearmMuzzleReversed) reversedMuzzle = true; });
-  if (reversedMuzzle) forward.negate();
+  if (reversedMuzzle && !contacts) forward.negate();
   const length = Math.max(size.x, size.z, 0.3);
-  const muzzleLocal = forward.clone().multiplyScalar(length * 0.52);
-  const recoilAxis = new THREE.Vector3().crossVectors(forward, UP).normalize();
+  const muzzleLocal = contacts?.muzzle ?? center.clone().addScaledVector(forward, length * 0.5);
+  const gripLocal = contacts?.grip ?? center.clone().addScaledVector(forward, -length * 0.16);
+  const supportLocal = contacts?.support ?? center.clone().addScaledVector(forward, length * 0.18);
+  const stockLocal = contacts?.stock ?? center.clone().addScaledVector(forward, -length * 0.46);
+  const modelUp = contacts?.up ?? UP;
+  const recoilAxis = new THREE.Vector3().crossVectors(forward, modelUp).normalize();
   const ready = origin.clone().add(new THREE.Vector3(0, Math.max(0.1, size.y * 0.7), 0));
   const aim = target.clone().sub(ready).normalize();
   const aimedQuaternion = new THREE.Quaternion().setFromUnitVectors(forward, aim);
+  if (human) {
+    const shoulder = worldPoint(human.arms.right.upper);
+    const chest = shoulder.clone().lerp(worldPoint(human.arms.left.upper), 0.5);
+    const anchor = contacts?.pistol ? chest.addScaledVector(human.forward, human.unit * 0.48)
+      : shoulder.addScaledVector(human.forward, human.unit * 0.06);
+    const pivot = contacts?.pistol ? gripLocal : stockLocal;
+    const basis = new THREE.Quaternion().setFromRotationMatrix(new THREE.Matrix4().makeBasis(
+      forward, modelUp, forward.clone().cross(modelUp).normalize()));
+    aimedQuaternion.copy(snakeAimQuaternion(anchor, target, muzzleLocal.clone().sub(pivot).dot(modelUp))).multiply(basis.invert());
+    ready.copy(anchor).sub(pivot.clone().applyQuaternion(aimedQuaternion));
+    aim.copy(target).sub(anchor).normalize();
+  }
+  const restPalm = human ? worldPoint(human.arms.right.palm) : origin.clone();
+  const restHandQ = human?.arms.right.hand.getWorldQuaternion(new THREE.Quaternion());
+  const parkedVisible = parkedWeapon?.visible ?? true;
+  const returnMs = human ? 480 : 0;
+  const duration = timing.durationMs + returnMs + (human ? 240 : 0);
   const focus = origin.clone();
   const muzzle = new THREE.Vector3();
   const muzzleFx = createCaptureMuzzleFx();
@@ -106,26 +131,59 @@ export function createSnakeFirearmAnimation({
     if (disposed) return;
     disposed = true;
     victims.forEach((v, i) => { v.visible = victimVisibility[i]; });
+    if (parkedWeapon) parkedWeapon.visible = parkedVisible;
+    human?.reset();
     // Cloned rack meshes share resources with the live model; only dispose owned effects.
     weapon.remove(art);
     if (!parkedWeapon) disposeMeshes(art);
     effects.removeFromParent(); disposeMeshes(effects);
   };
   return {
-    duration: timing.durationMs,
+    duration,
     focus,
-    overview: () => [origin, ready, target],
+    overview: () => [origin, ready, target, ...(human ? [worldPoint(human.arms.right.upper)] : [])],
     dispose,
     update(now: number) {
       if (disposed) return true;
       const elapsed = Math.max(0, now - startedAt);
       const state = sampleLudoFirearmVolley(elapsed, timing);
-      const draw = ease(elapsed / timing.pickupLeadMs);
-      const shoulder = ease((elapsed - timing.pickupLeadMs * 0.52) / (timing.preFireLeadMs - timing.pickupLeadMs * 0.52));
+      // First reach the parked grip, close the fingers, then lift and shoulder.
+      const draw = ease((elapsed - timing.pickupLeadMs) / (timing.preFireLeadMs - timing.pickupLeadMs));
+      const returning = human ? ease((elapsed - timing.durationMs) / returnMs) : 0;
+      const carry = draw * (1 - returning);
       const recoil = reducedMotion ? 0 : state.recoil;
-      weapon.position.copy(origin).lerp(ready, reducedMotion ? 1 : draw).addScaledVector(aim, -0.018 * recoil);
-      weapon.quaternion.identity().slerp(aimedQuaternion, reducedMotion ? 1 : shoulder);
+      weapon.position.copy(origin).lerp(ready, carry).addScaledVector(aim, -0.018 * recoil);
+      weapon.quaternion.identity().slerp(aimedQuaternion, carry);
       weapon.quaternion.multiply(new THREE.Quaternion().setFromAxisAngle(recoilAxis, FIREARM_RECOIL_ROTATION_RAD * recoil));
+      // The rack and held mesh use identical geometry and world scale, with an
+      // atomic visibility handoff. There is never a duplicate gun on the table.
+      weapon.visible = !parkedWeapon || (elapsed >= timing.pickupLeadMs && returning < 1);
+      if (parkedWeapon) parkedWeapon.visible = weapon.visible ? false : parkedVisible;
+      weapon.updateWorldMatrix(true, true);
+      if (human && restHandQ) {
+        human.reset();
+        const reach = ease(elapsed / (timing.pickupLeadMs * 0.72));
+        const recover = ease((elapsed - timing.durationMs - returnMs) / 240);
+        const radial = forward.clone().applyQuaternion(weapon.quaternion);
+        const down = modelUp.clone().applyQuaternion(weapon.quaternion).negate();
+        const handQ = human.orientation('right', radial, down);
+        const gripWorld = weapon.localToWorld(gripLocal.clone());
+        const handTarget = restPalm.clone().lerp(gripWorld, reach).lerp(restPalm, recover);
+        human.grip('right', ease((elapsed - timing.pickupLeadMs * 0.72) / (timing.pickupLeadMs * 0.28)) * (1 - recover), true);
+        human.reach('right', handTarget, restHandQ.clone().slerp(handQ, reach * (1 - recover)));
+        if (carry > 0) {
+          const leftPalm = worldPoint(human.arms.left.palm);
+          const supportWorld = weapon.localToWorld(supportLocal.clone());
+          const supportFingers = contacts?.pistol ? down : down.clone().negate().cross(radial).normalize();
+          const leftQ = human.orientation('left', radial, supportFingers);
+          const leftStartQ = human.arms.left.hand.getWorldQuaternion(new THREE.Quaternion());
+          human.grip('left', carry * 0.88);
+          human.reach('left', leftPalm.lerp(supportWorld, carry), leftStartQ.slerp(leftQ, carry), false);
+          // Torso solving precedes both arm contacts, so the support solve cannot
+          // pull the already attached trigger hand away from its grip.
+        }
+        if (recover >= 1) human.reset();
+      }
       muzzle.copy(muzzleLocal); weapon.localToWorld(muzzle);
       focus.copy(elapsed < timing.preFireLeadMs ? weapon.position : target);
       const firedIndex = elapsed < timing.preFireLeadMs ? -1 : Math.min(timing.shots - 1, state.shotIndex);
@@ -178,7 +236,7 @@ export function createSnakeFirearmAnimation({
           fragment.rotation.set(age * 3, angle + age * 2, age * 4);
         });
       }
-      return elapsed >= timing.durationMs;
+      return elapsed >= duration;
     }
   };
 }

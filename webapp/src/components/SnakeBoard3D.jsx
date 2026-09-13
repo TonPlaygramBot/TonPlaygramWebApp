@@ -1,11 +1,15 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import * as THREE from 'three';
+import { createSnakeHumanInteraction } from '../utils/snakeHumanInteraction';
+import { createSnakeDiceInteraction, SNAKE_DICE_PRESENTATION_MS } from '../utils/snakeDiceInteraction';
+import { prepareSnakeFirearm, snakeWeaponProfile } from '../utils/snakeWeaponGrip';
 import { createSnakeFirearmAnimation } from '../utils/snakeFirearmAnimation';
 import { FIREARM_CAPTURE_ANIMATION_IDS } from '../utils/ludoFirearmPresentation';
 import { createSnakeCameraDirector } from '../utils/snakeCameraDirector';
-import { createRoyalDiceMotion, ROYAL_DICE_ROLL_MS, ROYAL_DICE_READ_MS } from '../utils/royalDiceMotion';
+import { ROYAL_DICE_READ_MS } from '../utils/royalDiceMotion';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
+import { CHESS_HUMAN_CHARACTER_OPTIONS } from '../config/chessBattleInventoryConfig.js';
 import { SNAKE_CAPTURE_WEAPON_OPTIONS, SNAKE_SHARED_CAPTURE_WEAPON_OPTIONS } from '../config/snakeWeaponCatalog.js';
 import { DRACOLoader } from 'three/addons/loaders/DRACOLoader.js';
 import { KTX2Loader } from 'three/addons/loaders/KTX2Loader.js';
@@ -181,7 +185,6 @@ const DICE_PIP_RIM_OUTER = DICE_PIP_RADIUS * 1.08;
 const DICE_PIP_RIM_OFFSET = DICE_SIZE * 0.0048;
 const DICE_PIP_SPREAD = DICE_SIZE * 0.3;
 const DICE_FACE_INSET = DICE_SIZE * 0.064;
-const DICE_ROLL_DURATION = ROYAL_DICE_ROLL_MS;
 const DICE_SETTLE_DURATION = 160;
 const DICE_RESULT_HOLD_DURATION = 400;
 const DICE_BOUNCE_HEIGHT = 0.06;
@@ -343,37 +346,7 @@ const WEAPON_SLOT_LATERAL_NUDGE_BY_SEAT = Object.freeze([
 ]);
 // Slightly enlarge parked/capture weapon displays while per-model overrides keep AK47/FPS guns smaller.
 const WEAPON_DISPLAY_SIZE_MULTIPLIER = 1.72;
-const FIREARM_DISPLAY_SIZE_MULTIPLIER = 0.86;
-const FIREARM_MODEL_SCALE_BY_ID = Object.freeze({
-  // Keep AK47 GLTF smaller than the shared firearm baseline.
-  'slot-10-ak47-gltf': 0.014,
-  // Match SigSauer GLTF visual size with Glock-sized sidearms.
-  'slot-15-sigsauer-gltf': 0.12,
-  // Keep FPS Gun GLTF smaller than the shared firearm baseline.
-  'slot-18-fps-gun-gltf': 0.03,
-  // Keep the GLB sniper close to AK-47 visual size, only slightly bigger.
-  'slot-16-awp-glb': 0.018,
-  // Keep Gunify Mosin using the larger Ludo marksman silhouette.
-  'slot-13-mosin-gltf': 3,
-  'poly-shotgun-01': 1,
-  'poly-assault-rifle-01': 1.02,
-  'poly-pistol-01': 0.6,
-  'poly-revolver-01': 0.64,
-  'poly-sawed-off-01': 0.85,
-  'poly-revolver-02': 0.64,
-  'poly-shotgun-02': 1.05,
-  'poly-shotgun-03': 1.03,
-  'poly-smg-01': 0.84,
-  'poly-robot-large-gun-01': 0.83,
-  'poly-robot-flying-gun-01': 0.78,
-  'poly-bazooka-01': 1.08,
-  'poly-grenade-launcher-01': 0.98,
-  'poly-dynamite-bomb-01': 0.58,
-  'poly-molotov-01': 0.46,
-  'poly-gas-tank-01': 0.62,
-  'poly-hand-grenade-01': 0.36,
-  'poly-tank-01': 0.7
-});
+
 const WEAPON_PARKING_OUTWARD_OFFSET = TILE_SIZE * 0.52;
 const WEAPON_FROM_TOKEN_CENTER_OFFSET = TOKEN_RADIUS * 0.58;
 const WEAPON_PARKING_OUTWARD_OFFSET_BY_SEAT = Object.freeze([
@@ -2339,7 +2312,7 @@ function remapTakeoffLandingProgress(progress, takeoff = 0.2, landing = 0.24) {
 function removeAnimationsByType(list, type) {
   if (!Array.isArray(list) || !type) return;
   for (let i = list.length - 1; i >= 0; i -= 1) {
-    if (list[i]?.type === type) list.splice(i, 1);
+    if (list[i]?.type === type) { list[i].dispose?.(); list.splice(i, 1); }
   }
 }
 
@@ -2520,7 +2493,7 @@ function makeDice(theme = {}) {
   return dice;
 }
 
-function computeDiceThrowLayout(board, seatIndex, count) {
+export function computeDiceThrowLayout(board, seatIndex, count) {
   const result = {
     basePositions: [],
     startPositions: [],
@@ -2642,25 +2615,19 @@ function computeDiceThrowLayout(board, seatIndex, count) {
   return result;
 }
 
-function createDiceRollAnimation(diceArray, { basePositions, baseY, startPositions = [], values = [], rollId = null }) {
+function createDiceRollAnimation(diceArray, { basePositions, baseY, values = [], rollId = null, human = null }) {
   const startedAt = performance.now();
   let targetValues = values;
   const reducedMotion = window.matchMedia?.('(prefers-reduced-motion: reduce)').matches;
-  const motions = diceArray.map((die, index) => createRoyalDiceMotion(
-    die,
-    startPositions[index] ?? die.position,
-    new THREE.Vector3(basePositions[index].x, baseY, basePositions[index].z),
-    {
-      startedAt,
-      duration: DICE_ROLL_DURATION,
-      height: DICE_BOUNCE_HEIGHT,
-      reducedMotion,
-      target: values[index] ? getDiceOrientationQuaternion(values[index]) : null
-    }
+  const motions = diceArray.map((die, index) => createSnakeDiceInteraction(
+    die, new THREE.Vector3(basePositions[index].x, baseY, basePositions[index].z),
+    { human, startedAt, height: DICE_BOUNCE_HEIGHT, reducedMotion,
+      target: values[index] ? getDiceOrientationQuaternion(values[index]) : null }
   ));
   return {
     type: 'diceRoll',
     rollId,
+    dispose() { motions.forEach(motion => motion.dispose()); },
     setTargetValues(next = []) {
       if (!next.length) return;
       targetValues = next;
@@ -3389,6 +3356,7 @@ function buildArena(
     .catch(() => {});
 
   loadSeatedHumanTemplate({
+    option: { ...CHESS_HUMAN_CHARACTER_OPTIONS[0], modelUrls: ['/assets/pool-royale/readyplayer.me.glb', ...CHESS_HUMAN_CHARACTER_OPTIONS[0].modelUrls] },
     renderer,
     targetHeight: 1.13,
     createLoader: createConfiguredGLTFLoader
@@ -3400,7 +3368,10 @@ function buildArena(
           targetHeight: 1.13,
           seatHeight: SEAT_THICKNESS * 0.65
         });
-        if (restoredHuman) chair.humanActor = restoredHuman;
+        if (restoredHuman) {
+          chair.humanActor = restoredHuman;
+          chair.interaction = createSnakeHumanInteraction(restoredHuman.actor);
+        }
       });
     })
     .catch((error) => console.warn('Unable to restore Snake & Ladder seated humans', error));
@@ -3416,7 +3387,8 @@ function buildArena(
     disposed = true;
     controls.dispose();
     disposeChairMaterials(chairMaterials);
-    chairs.forEach(({ group }) => {
+    chairs.forEach(({ group, interaction }) => {
+      interaction?.dispose();
       group.parent?.remove(group);
     });
     if (tableInfo?.dispose) tableInfo.dispose();
@@ -3432,6 +3404,7 @@ function buildArena(
     updateHdriZoom,
     controls,
     tableInfo,
+    getSeatHuman: (seat) => chairs[seat]?.interaction ?? null,
     seatAnchors: chairs.map(({ anchor }) => anchor),
     weaponAnchors: chairs.map(({ weaponAnchor }) => weaponAnchor),
     startCameraState
@@ -5204,38 +5177,36 @@ function createSeatWeaponMesh(weaponType = 'fighter', options = {}) {
   const isVehicleWeapon = ['supportTruck', 'drone', 'ukrainianDrone', 'helicopter', 'fighter', 'javelin'].includes(
     normalizedWeaponType
   );
-  const firearmScale = isVehicleWeapon ? 1 : FIREARM_DISPLAY_SIZE_MULTIPLIER;
-  const firearmModelScaleById = catalogWeaponType
-    ? catalogOption?.modelScale ?? FIREARM_MODEL_SCALE_BY_ID[catalogWeaponType] ?? 1
-    : 1;
-  if (catalogWeaponType && !catalogOption?.vehicleKind) {
+  if (firearmId && snakeWeaponProfile(rawWeaponType).handheld && !isVehicleWeapon) {
+    const length = options.firearmLength ?? 0.75;
     const holder = new THREE.Group();
-    const fallback = createPolySeatWeaponMesh(normalizedWeaponType);
-    fallback.scale.multiplyScalar(firearmScale);
-    fallback.position.set(0, 0, 0);
-    applyFlatTableWeaponParkingPose(fallback, parkingPose);
-    holder.add(fallback);
-    loadCaptureWeaponCatalogModel(catalogWeaponType)
-      .then((model) => {
-        if (!model || !holder.parent) return;
-        while (holder.children.length) holder.remove(holder.children[0]);
-        model.scale.setScalar(
-          TOKEN_HEIGHT * 1.22 * WEAPON_DISPLAY_SIZE_MULTIPLIER * firearmScale * firearmModelScaleById
-        );
-        model.position.set(0, 0, 0);
-        applyFlatTableWeaponParkingPose(model, parkingPose);
-        holder.add(model);
-        holder.userData.firearmMuzzleReversed = ['slot-10-ak47-gltf', 'slot-11-krsv-gltf'].includes(catalogWeaponType);
-      })
-      .catch(() => {});
+    const install = (model, reversed = false) => {
+      const visual = prepareSnakeFirearm(model, firearmId, length, reversed);
+      applyFlatTableWeaponParkingPose(visual, parkingPose);
+      holder.clear(); holder.add(visual);
+    };
+    const fallback = createPolySeatWeaponMesh(firearmId);
+    fallback.rotation.set(0, 0, 0); fallback.position.set(0, 0, 0);
+    install(fallback);
+    if (catalogWeaponType) loadCaptureWeaponCatalogModel(catalogWeaponType).then(model => {
+      if (!model || !holder.parent) return;
+      install(model, ['slot-10-ak47-gltf', 'slot-11-krsv-gltf'].includes(catalogWeaponType));
+    }).catch(() => {});
     return holder;
   }
-  if (/^poly[A-Za-z0-9]+Attack$/.test(normalizedWeaponType)) {
-    const polyMesh = createPolySeatWeaponMesh(normalizedWeaponType);
-    polyMesh.scale.multiplyScalar(firearmScale);
-    polyMesh.position.set(0, 0, 0);
-    applyFlatTableWeaponParkingPose(polyMesh, parkingPose);
-    return polyMesh;
+  if (catalogWeaponType && !catalogOption?.vehicleKind) {
+    // Ludo's autonomous robots, tanks and thrown explosives retain their display
+    // scale and effects; they do not acquire a shoulder/trigger-hand pose.
+    const holder = new THREE.Group();
+    const fallback = createPolySeatWeaponMesh(normalizedWeaponType);
+    fallback.scale.multiplyScalar(0.86); fallback.position.set(0, 0, 0);
+    applyFlatTableWeaponParkingPose(fallback, parkingPose); holder.add(fallback);
+    loadCaptureWeaponCatalogModel(catalogWeaponType).then(model => {
+      if (!model || !holder.parent) return;
+      holder.clear(); model.scale.setScalar(TOKEN_HEIGHT * 1.22 * WEAPON_DISPLAY_SIZE_MULTIPLIER * 0.86 * (catalogOption.modelScale ?? 1));
+      model.position.set(0, 0, 0); applyFlatTableWeaponParkingPose(model, parkingPose); holder.add(model);
+    }).catch(() => {});
+    return holder;
   }
   const rig = createCaptureVehicleRig(normalizedWeaponType);
   const group = rig.root;
@@ -5293,12 +5264,18 @@ function updateSeatWeaponDisplays(board, players = []) {
     }
     const configuredWeaponType = typeof player?.weaponType === 'string' ? player.weaponType.trim() : '';
     const parkedWeaponType = configuredWeaponType || fallbackOrder[seatIndex % fallbackOrder.length];
-    if (holder.userData.weaponType !== parkedWeaponType) {
+    const firearmId = resolveSnakeFirearmAnimationId(parkedWeaponType);
+    const human = board.getSeatHuman?.(seatIndex);
+    const parentScale = board.weaponDisplayGroup.getWorldScale(new THREE.Vector3());
+    const firearmLength = firearmId && snakeWeaponProfile(parkedWeaponType).handheld ? (human?.unit ?? 1.6) * snakeWeaponProfile(firearmId).lengthInArms /
+      (getSeatWeaponParkingPose(seatIndex) === 'vertical' ? parentScale.z : parentScale.x) : 0;
+    if (holder.userData.weaponType !== parkedWeaponType || holder.userData.firearmLength !== firearmLength) {
       while (holder.children.length) {
         const child = holder.children.pop();
         if (child) holder.remove(child);
       }
-      holder.add(createSeatWeaponMesh(parkedWeaponType, { parkingPose: getSeatWeaponParkingPose(seatIndex) }));
+      holder.add(createSeatWeaponMesh(parkedWeaponType, { parkingPose: getSeatWeaponParkingPose(seatIndex), firearmLength }));
+      holder.userData.firearmLength = firearmLength;
       holder.userData.weaponType = parkedWeaponType;
     }
     // Park every weapon back on the shared table-side slots instead of drifting to the chair/hand anchors.
@@ -5410,6 +5387,8 @@ export default function SnakeBoard3D({
   const snakeTextureRef = useRef(null);
   const animationsRef = useRef([]);
   const diceStateRef = useRef({ currentId: null, basePositions: [], baseY: 0, count: 0 });
+  const playersRef = useRef(players);
+  playersRef.current = players;
   const seatCallbackRef = useRef(null);
   const diceAnchorCallbackRef = useRef(null);
   const diceTapCallbackRef = useRef(null);
@@ -5678,6 +5657,7 @@ export default function SnakeBoard3D({
       scene,
       boardLookTarget: arena.boardLookTarget,
       controls: arena.controls,
+      getSeatHuman: arena.getSeatHuman,
       seatAnchors: arena.seatAnchors ?? [],
       weaponAnchors: arena.weaponAnchors ?? [],
       startCameraState: arena.startCameraState ?? null,
@@ -5979,6 +5959,11 @@ export default function SnakeBoard3D({
       frameAccumulatorRef.current = Math.max(0, carry - targetMs);
       lastFrameTimeRef.current = now;
       const deltaSeconds = Math.min(0.2, Math.max(0, effectiveMs / 1000));
+      const humanCount = arena.seatAnchors.filter((_, seat) => arena.getSeatHuman(seat)).length;
+      if (boardRef.current && boardRef.current.humanCount !== humanCount) {
+        boardRef.current.humanCount = humanCount;
+        updateSeatWeaponDisplays(boardRef.current, playersRef.current);
+      }
       const active = animationsRef.current;
       for (let i = active.length - 1; i >= 0; i -= 1) {
         const anim = active[i];
@@ -6344,6 +6329,7 @@ export default function SnakeBoard3D({
     const diceBaseY = board.diceBaseY ?? 0;
     const diceAnchorZ = board.diceAnchorZ ?? 0;
     if (diceEvent.phase === 'start') {
+      if (diceStateRef.current.currentId === diceEvent.id) return;
       removeAnimationsByType(animationsRef.current, 'diceRoll');
       removeAnimationsByType(animationsRef.current, 'diceSettle');
       removeAnimationsByType(animationsRef.current, 'diceHandoff');
@@ -6383,10 +6369,9 @@ export default function SnakeBoard3D({
         const normal = layout.edgeNormals?.[visibleIndex]
           ? layout.edgeNormals[visibleIndex].clone()
           : new THREE.Vector3(0, 0, 0);
-        die.position.copy(start);
-        die.rotation.set(Math.random() * Math.PI, Math.random() * Math.PI, Math.random() * Math.PI);
+        // Keep the real resting transform; the hand reaches this die before lifting it.
         basePositions.push(base.clone());
-        startPositions.push(start.clone());
+        startPositions.push(die.position.clone());
         travelVectors.push(travel.clone());
         bouncePoints.push(bounce.clone());
         retreatVectors.push(retreat.clone());
@@ -6406,7 +6391,7 @@ export default function SnakeBoard3D({
         const dieWorldPositions = active.map(() => new THREE.Vector3());
         board.startCameraShot?.({
           id: `dice:${diceEvent.id}`, priority: 1,
-          until: performance.now() + ROYAL_DICE_ROLL_MS + ROYAL_DICE_READ_MS,
+          until: performance.now() + SNAKE_DICE_PRESENTATION_MS + ROYAL_DICE_READ_MS,
           points: () => active.map((die, index) => die.getWorldPosition(dieWorldPositions[index])),
           overview: () => active.flatMap((die, index) => [startPositions[index], basePositions[index]].map(point =>
             die.parent.localToWorld(point.clone()).add(new THREE.Vector3(0, DICE_BOUNCE_HEIGHT, 0))))
@@ -6418,7 +6403,8 @@ export default function SnakeBoard3D({
           startPositions,
           bouncePoints,
           values: diceEvent.values || [],
-          rollId: diceEvent.id
+          rollId: diceEvent.id,
+          human: board.getSeatHuman?.(seatIndex)
         });
         if (rollAnimation) animationsRef.current.push(rollAnimation);
       }
@@ -6456,21 +6442,6 @@ export default function SnakeBoard3D({
           if (settleAnimation) animationsRef.current.push(settleAnimation);
         }
 
-        const seatCount = Array.isArray(board.seatAnchors) ? board.seatAnchors.length : 0;
-        if (seatCount > 0) {
-          const seatIndex = Math.max(0, Math.min(seatCount - 1, players[currentTurn]?.seatIndex ?? currentTurn ?? 0));
-          const handoffLayout = computeDiceThrowLayout(board, seatIndex, active.length);
-          const handoffBases = Array.isArray(handoffLayout.basePositions) ? handoffLayout.basePositions : [];
-          if (handoffBases.length) {
-            removeAnimationsByType(animationsRef.current, 'diceHandoff');
-            const handoffAnimation = createDiceHandoffAnimation(active, {
-              basePositions: handoffBases,
-              baseY: board.diceBaseY ?? 0,
-              duration: TURN_CAMERA_TURN_IN_DURATION
-            });
-            if (handoffAnimation) animationsRef.current.push(handoffAnimation);
-          }
-        }
       }
       const lastSeatIndex = diceStateRef.current.lastSeatIndex;
       diceStateRef.current = {
@@ -6518,6 +6489,7 @@ export default function SnakeBoard3D({
       const motion = createSnakeFirearmAnimation({
         scene: board.scene, weaponId: firearmId,
         parkedWeapon, origin, target: impact, victims, startedAt, reducedMotion,
+        human: snakeWeaponProfile(captureEvent.weaponType || firearmId).handheld ? board.getSeatHuman?.(players[captureEvent.attackerIndex]?.seatIndex ?? captureEvent.attackerIndex) : null,
         onShot: () => playCaptureSfx('shot'), onImpact: () => playCaptureSfx('impact')
       });
       attacker.userData.isSliding = true;
@@ -6898,10 +6870,15 @@ export {
   makeDice as createSnakeDie, getDiceOrientationQuaternion,
   buildSnakeBoard as createSnakeBoardScene,
   updateTokens as updateSnakeBoardTokens,
+  updateSeatWeaponDisplays as updateSnakeSeatWeapons,
   updateLadders as updateSnakeBoardLadders,
   updateSnakes as updateSnakeBoardSnakes
 };
 export const SNAKE_SCENE_DIMENSIONS = Object.freeze({
   boardScale: BOARD_SCALE, footprintScale: BOARD_FOOTPRINT_SCALE,
-  tileSize: TILE_SIZE, tokenHeight: TOKEN_HEIGHT, diceSize: DICE_SIZE
+  tileSize: TILE_SIZE, tokenHeight: TOKEN_HEIGHT, diceSize: DICE_SIZE,
+  tableHeight: TABLE_HEIGHT, tableRadius: TABLE_RADIUS,
+  chairRadius: TABLE_RADIUS + SEAT_DEPTH / 2 + AI_CHAIR_GAP + CHAIR_GLOBAL_PUSHBACK,
+  bottomChairExtra: SELF_BOTTOM_CHAIR_EXTRA_PUSHBACK, chairBaseHeight: CHAIR_BASE_HEIGHT,
+  seatHeight: SEAT_THICKNESS * 0.65, avatarAnchorHeight: AVATAR_ANCHOR_HEIGHT
 });

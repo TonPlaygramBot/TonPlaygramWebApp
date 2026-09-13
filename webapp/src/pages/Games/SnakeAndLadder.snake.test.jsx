@@ -3,6 +3,7 @@ import { createRoot } from 'react-dom/client';
 import { BrowserRouter } from 'react-router-dom';
 import { beforeEach, afterEach, expect, it, vi } from 'vitest';
 import SnakeAndLadder from './SnakeAndLadder';
+import { SNAKE_DICE_PRESENTATION_MS, SNAKE_DICE_RELEASE_MS } from '../../utils/snakeDiceInteraction';
 
 const testState = vi.hoisted(() => ({ handlers: new Map(), events: [], board: null }));
 vi.mock('../../utils/socket.js', () => ({ socket: {
@@ -49,7 +50,10 @@ it('keeps local rolling locked until the die lands and the entry hop finishes', 
   await act(async () => { roll().click(); roll().click(); });
   expect(roll().disabled).toBe(true);
   expect(testState.board.diceEvent.values).toEqual([6]);
-  await act(async () => vi.advanceTimersByTimeAsync(980));
+  await act(async () => vi.advanceTimersByTimeAsync(SNAKE_DICE_RELEASE_MS));
+  expect(testState.board.players[0].position).toBe(0);
+  expect(testState.board.diceEvent.phase).toBe('start');
+  await act(async () => vi.advanceTimersByTimeAsync(SNAKE_DICE_PRESENTATION_MS - SNAKE_DICE_RELEASE_MS));
   expect(roll().disabled).toBe(true);
   await act(async () => vi.advanceTimersByTimeAsync(320));
   await act(async () => vi.advanceTimersByTimeAsync(100));
@@ -71,7 +75,7 @@ it('animates a server roll and ladder before applying the final snapshot', async
   await emit('snakeState', {...state,currentPlayerId:'p2',players:[{...state.players[0],position:8},state.players[1]]});
   expect(testState.board.players[0].position).toBe(1);
   expect(host.querySelector('.snake-roll-button').disabled).toBe(true);
-  await act(async () => vi.advanceTimersByTimeAsync(1300));
+  await act(async () => vi.advanceTimersByTimeAsync(SNAKE_DICE_PRESENTATION_MS + 320));
   for (let step=0;step<5;step++) await act(async () => vi.advanceTimersByTimeAsync(100));
   expect(testState.board.players[0].position).toBe(8);
   expect(testState.board.currentTurn).toBe(1);
