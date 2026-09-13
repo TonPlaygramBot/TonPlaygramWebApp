@@ -30,6 +30,8 @@ import { prepareHuman } from './supporterHuman';
 import { RaceEffects } from './raceEffects';
 import { circuitSides, segmentFrame } from './trackEdges.mjs';
 import { createBoostPadLayer } from './BoostPadLayer';
+import { createRoadBumpLayer } from './RoadBumpLayer';
+import { createTyreBarrierLayer } from './TyreBarrierLayer';
 export type CameraMode = 'driver' | 'chase';
 export type Quality = 'auto' | 'high' | 'performance';
 export interface Frame {
@@ -89,6 +91,7 @@ interface KartRig {
   steeringWheel?: T.Object3D;
   wheels: T.Object3D[];
   front: T.Object3D[];
+  wheelHeights: Map<T.Object3D, number>;
   spin: number;
   wheelRadius: number;
   driverEye?: T.Vector3;
@@ -418,6 +421,7 @@ export class KartRenderer {
       steeringWheel: model.getObjectByName('steering_wheel'),
       wheels: [],
       front: [],
+      wheelHeights: new Map(),
       spin: 0,
       wheelRadius: source?.userData.wheelRadius || 0.28,
       driverEye: source?.userData.driverEye
@@ -631,34 +635,21 @@ export class KartRenderer {
           p,
           edge: centerEdge,
           sideEdges,
-          tireCount: Math.max(
-            1,
-            Math.ceil(Math.max(...sideEdges.map((e) => e.length)) / 0.76)
-          )
         };
       }),
-      tireBaseCount = edges.reduce((sum, edge) => sum + edge.tireCount * 2, 0),
-      tireCapacity = tireBaseCount + Math.ceil(tireBaseCount / 3),
       m = new T.Object3D(),
       curb = new T.InstancedMesh(
         new T.BoxGeometry(0.55, 0.14, 1),
         new T.MeshStandardMaterial({ roughness: 0.7 }),
         sampleCount * 2
       ),
-      tireGeometry = new T.TorusGeometry(0.43, 0.14, 4, 8),
-      tires = new T.InstancedMesh(
-        tireGeometry,
-        new T.MeshStandardMaterial({ roughness: 0.9, metalness: 0.02 }),
-        tireCapacity
-      ),
       marks = new T.InstancedMesh(
         new T.BoxGeometry(0.12, 0.01, 1.8),
         new T.MeshBasicMaterial({ color: '#e2e7d8' }),
         Math.ceil(sampleCount / 4)
       );
-    let tireAt = 0;
     for (let i = 0; i < sampleCount; i++) {
-      const { p, edge, sideEdges, tireCount } = edges[i];
+      const { p, edge, sideEdges } = edges[i];
       [-1, 1].forEach((side, s) => {
         const sideEdge = sideEdges[s],
           curbPoint = sideEdge.side(side, -0.1);
@@ -671,34 +662,6 @@ export class KartRenderer {
           i * 2 + s,
           new T.Color(i % 6 < 3 ? track.accent : '#e7e6d9')
         );
-        for (let j = 0; j < tireCount; j++) {
-          // Use the segment midpoint cells so neighbouring segments meet without
-          // leaving the visible holes produced by one tyre per route sample.
-          const along = ((j + 0.5) / tireCount - 0.5) * sideEdge.length,
-            tirePoint = sideEdge.side(side, 0.72);
-          tirePoint.x += sideEdge.tx * along;
-          tirePoint.z += sideEdge.tz * along;
-          const n = tireAt++;
-          m.position.set(tirePoint.x, 0.18, tirePoint.z);
-          m.rotation.set(Math.PI / 2, sideEdge.yaw, 0);
-          m.scale.set(1, 1, 1);
-          m.updateMatrix();
-          tires.setMatrixAt(n, m.matrix);
-          tires.setColorAt(
-            n,
-            new T.Color((i + j) % 2 === 0 ? '#c82424' : '#eeeae0')
-          );
-          if ((i + j) % 3 === 0) {
-            const upper = tireAt++;
-            m.position.y = 0.49;
-            m.updateMatrix();
-            tires.setMatrixAt(upper, m.matrix);
-            tires.setColorAt(
-              upper,
-              new T.Color((i + j) % 2 === 0 ? '#eeeae0' : '#c82424')
-            );
-          }
-        }
       });
       m.scale.set(1, 1, 1);
       if (i % 4 === 0) {
@@ -708,10 +671,8 @@ export class KartRenderer {
         marks.setMatrixAt(i / 4, m.matrix);
       }
     }
-    tires.count = tireAt;
-    tires.receiveShadow = true;
     marks.geometry.dispose(); (marks.material as T.Material).dispose();
-    this.world.add(curb, tires, createBoostPadLayer(track));
+    this.world.add(curb, createTyreBarrierLayer(track), createBoostPadLayer(track), createRoadBumpLayer(track));
     const start = track.points[0],
       startWidth = start.width ?? track.width,
       checker = new T.InstancedMesh(
@@ -746,11 +707,11 @@ export class KartRenderer {
     });
     for (const s of [-1, 1]) {
       const pole = new T.Mesh(new T.BoxGeometry(0.5, 6, 0.6), metal);
-      pole.position.set(s * (track.width / 2 + 1), 3, 0);
+      pole.position.set(s * (startWidth / 2 + 1), 3, 0);
       arch.add(pole);
     }
     const beam = new T.Mesh(
-      new T.BoxGeometry(track.width + 2.5, 1.1, 0.7),
+      new T.BoxGeometry(startWidth + 2.5, 1.1, 0.7),
       metal
     );
     beam.position.y = 5.65;
@@ -770,7 +731,7 @@ export class KartRenderer {
       tex.userData.ephemeral = true;
       tex.colorSpace = T.SRGBColorSpace;
       const sign = new T.Mesh(
-        new T.PlaneGeometry(track.width, 1),
+        new T.PlaneGeometry(startWidth, 1),
         new T.MeshBasicMaterial({ map: tex, side: T.DoubleSide })
       );
       sign.position.set(0, 5.65, -0.36);
@@ -840,7 +801,16 @@ export class KartRenderer {
     const yawRate = r.yawRate || 0;
     rig.motion.update(r,dt,rig.wheelRadius,this.reducedMotion);
     rig.spin = rig.motion.wheelSpin;
-    for (const wheel of rig.wheels) wheel.rotation.x = rig.spin;
+    for (const wheel of rig.wheels) {
+      wheel.rotation.x = rig.spin;
+      const index = ['fl','fr','rl','rr'].findIndex(suffix => wheel.name.endsWith(suffix));
+      if (index >= 0) {
+        if (!rig.wheelHeights.has(wheel)) rig.wheelHeights.set(wheel, wheel.position.y);
+        const contact = this.reducedMotion ? 0 : r.suspension?.wheels[index] || 0;
+        wheel.parent?.getWorldScale(this.vector);
+        wheel.position.y = rig.wheelHeights.get(wheel)! + contact / Math.max(.01, this.vector.y);
+      }
+    }
     for (const front of rig.front)
       front.rotation.y += ((front.name.endsWith('fl') ? rig.motion.leftSteer : rig.motion.rightSteer) - front.rotation.y) * smooth;
     if (rig.steeringWheel) rig.steeringWheel.rotation.z = steer * 0.65;
@@ -1305,6 +1275,7 @@ export class KartRenderer {
     group.traverse((o) => {
       if (o instanceof T.Mesh) {
         if (geometry || o.geometry.userData.kartOwned) geos.add(o.geometry);
+        if (geometry && o instanceof T.InstancedMesh) o.dispose();
         for (const m of Array.isArray(o.material) ? o.material : [o.material])
           mats.add(m);
       }

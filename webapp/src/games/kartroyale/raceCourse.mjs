@@ -33,7 +33,7 @@ export function roundRaceCourse(raw, roadWidths) {
   const add=(p,w)=>{
     const previous=points.at(-1);if(previous&&Math.hypot(previous[0]-p[0],previous[1]-p[1])<.01)return;
     const available=Math.max(6,2*(buildingClearance(...p)-.85));
-    points.push(p);widths.push(Math.max(6,Math.min(18,w+3,available)));
+    points.push(p);widths.push(Math.max(6,Math.min(22,w+6,available)));
   };
   for(let i=0;i<raw.length;i++) {
     const p=raw[i],a=raw[(i+raw.length-1)%raw.length],b=raw[(i+1)%raw.length];
@@ -42,7 +42,7 @@ export function roundRaceCourse(raw, roadWidths) {
     const angle=Math.acos(Math.max(-1,Math.min(1,incoming[0]*outgoing[0]+incoming[1]*outgoing[1])));
     const width=Math.min(roadWidths[i],roadWidths[(i+raw.length-1)%raw.length]);
     if(angle<.12||angle>2.8){add([...p],width);continue;}
-    let trim=Math.min(18,li*.42,lo*.42),curve=[];
+    let trim=Math.min(24,li*.42,lo*.42),curve=[];
     for(let attempt=0;attempt<7;attempt++) {
       const entry=[p[0]-incoming[0]*trim,p[1]-incoming[1]*trim],exit=[p[0]+outgoing[0]*trim,p[1]+outgoing[1]*trim];
       const steps=Math.max(4,Math.ceil(trim*1.1));

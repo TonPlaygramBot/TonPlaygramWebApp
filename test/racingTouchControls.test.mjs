@@ -28,7 +28,8 @@ test('production touch controls preserve two-thumb chords and release every poin
   });
   try{
     await render(false);
-    assert.deepEqual([...document.querySelectorAll('.kart-pedal-controls button')].map(b=>b.textContent),['BRAKE','GAS']);
+    assert.deepEqual([...document.querySelectorAll('.kart-pedal-controls button')].map(b=>b.textContent),['DRIFT','GAS']);
+    assert.equal(document.querySelector('.kart-center-control').textContent,'BRAKE');
     await event('.kart-gas','pointerdown',1);await event('.kart-steer-controls button','pointerdown',2);
     assert.equal(held.read().throttle,true);assert.equal(held.read().steer,-1);
     await event('.kart-steer-controls button','pointermove',2,550);assert.equal(held.read().drift,true);

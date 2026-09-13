@@ -55,7 +55,7 @@ test('all six circuits use closed, unique paths from Tirana Streets road segment
     );
     const track = makeTrack(route.id);
     assert.ok(track.points.length >= 360 && track.points.length % 4 === 0);
-    assert.ok(track.length > 800 && track.length < 2000);
+    assert.ok(track.length > 1400 && track.length < 4400);
     for (const p of track.points)
       assert.ok(
         Number.isFinite(p.x) && Number.isFinite(p.z) && Number.isFinite(p.yaw)

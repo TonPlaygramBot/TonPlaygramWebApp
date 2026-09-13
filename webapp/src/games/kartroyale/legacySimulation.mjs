@@ -5,6 +5,7 @@ import { TIRANA_ROUTES } from './tirana-routes.mjs';
 import { resolveWallContact, resolveKartContact, damageRacer } from './collisions.mjs';
 import { resampleCircuit } from './grandRouteCore.mjs';
 import { pointAhead, cornerSpeedLimit, sampleCircuitDistance } from './circuitMetrics.mjs';
+import { roadBumps, resetSuspension, stepSuspension } from './roadFeel.mjs';
 export { damageRacer };
 export const STEP = 1 / 60,
   LAPS = 3;
@@ -225,30 +226,53 @@ export function createRacer(track, id, name, slot = 0, ai = false) {
     disconnected: false
   };
   equipKart(racer,kart.id);
+  resetSuspension(racer);
   return racer;
 }
-export function aiInput(r, track, time, difficulty = 'street') {
+export function aiInput(r, track, time, difficulty = 'street', racers = []) {
   const n = nearestPoint(track, r.x, r.z, r.index);
   const look = clamp(5 + r.speed * 0.34, 6, 17);
   const p = pointAhead(track, n, look);
-  const lane = Math.sin(time * 0.2 + r.slot * 2) * 0.65;
+  const room = Math.max(0, Math.min(2.2, (n.width ?? track.width) / 2 - 2.4));
+  const s = Math.sin(r.yaw), c = Math.cos(r.yaw);
+  let lane = (r.slot % 2 ? 1 : -1) * Math.min(room, .55), blocked = false;
+  for (const other of racers) {
+    if (other === r || other.finished || other.retired || other.disconnected) continue;
+    const dx = other.x - r.x, dz = other.z - r.z;
+    const ahead = dx * s + dz * c, across = dx * -c + dz * s;
+    if (ahead > 0 && ahead < 22 && Math.abs(across) < 2.6 && other.speed < r.speed + 2) {
+      lane = clamp(n.lane + (across > 0 ? -2.4 : 2.4), -room, room);
+      if (ahead < 4.5 && Math.abs(across) < 1.6) blocked = true;
+      break;
+    }
+  }
+  const aiLane = (r.aiLane ?? n.lane) + (lane - (r.aiLane ?? n.lane)) * .055;
   const turn = wrapAngle(
     Math.atan2(
-      p.x - Math.cos(p.yaw) * lane - r.x,
-      p.z + Math.sin(p.yaw) * lane - r.z
+      p.x - Math.cos(p.yaw) * aiLane - r.x,
+      p.z + Math.sin(p.yaw) * aiLane - r.z
     ) - r.yaw
   );
   // Look far enough ahead to brake from the faster straight-line pace.
-  const safeSpeed = cornerSpeedLimit(track, n, Math.max(45, r.speed * r.speed / 40 + 16));
+  let safeSpeed = cornerSpeedLimit(track, n, Math.max(45, r.speed * r.speed / 40 + 16)) *
+    ({ rookie: 1, street: 1.08, pro: 1.16 }[difficulty] || 1.08);
+  for (const bump of roadBumps(track)) {
+    const dx = bump.x - r.x, dz = bump.z - r.z, ahead = dx * s + dz * c;
+    if (ahead > 0 && ahead < 45 && Math.abs(dx * c - dz * s) < bump.width / 2)
+      safeSpeed = Math.min(safeSpeed, Math.sqrt(24 ** 2 + 36 * Math.max(0, ahead - 6)));
+  }
+  const braking = blocked || r.speed > safeSpeed || (Math.abs(turn) > .55 && r.speed > 8);
   return {
+    aiLane,
     throttle: true,
     steer: clamp(-turn * 3.6, -1, 1),
-    brake: r.speed > safeSpeed || (Math.abs(turn) > 0.55 && r.speed > 8),
-    drift: false,
+    brake: braking,
+    drift: difficulty === 'pro' && !braking && safeSpeed > 28 && (n.width ?? track.width) > 12 &&
+      r.speed > 12 && r.speed < 27 && Math.abs(turn) > .06 && Math.abs(turn) < .16,
     boost:
-      Math.abs(turn) < 0.04 &&
-      safeSpeed > 30 &&
-      r.boost > 65 &&
+      !braking && Math.abs(turn) < 0.11 &&
+      safeSpeed > 34 &&
+      r.boost > (difficulty === 'pro' ? 20 : 38) &&
       difficulty !== 'rookie'
   };
 }
@@ -260,11 +284,13 @@ export function stepRacer(r, raw, track, dt, time, difficulty = 'street') {
   dt = Math.min(dt, STEP * 3);
   const input = raw || {},
     steer = Number.isFinite(input.steer) ? clamp(input.steer, -1, 1) : 0;
+  if (r.ai && Number.isFinite(input.aiLane)) r.aiLane = input.aiLane;
   if (input.recover === true && time - (r.recoveryAt ?? -10) >= 3) {
     const point = track.points[r.index];
     r.x = point.x; r.z = point.z; r.yaw = r.velocityYaw = point.yaw;
     r.speed = 0; r.yawRate = 0; r.steering = 0; r.drifting = false;
     r.driftCharge = 0; r.turbo = 0; r.recoveryAt = time;
+    r.collisionSpin = 0; r.boosting = false; resetSuspension(r);
     // Keep index, gates, laps and progress: recovery cannot manufacture distance.
     return;
   }
@@ -286,8 +312,10 @@ export function stepRacer(r, raw, track, dt, time, difficulty = 'street') {
     (steer - (r.steering || 0)) * (1 - Math.exp(-dt * (steer ? 8 : 12)));
   const drift = stepDrift(r, input, dt),
     boost = throttle && input.boost === true && r.boost > 1 && !input.brake && !input.reverse && r.speed >= 0;
+  r.boosting = throttle && !input.brake && !input.reverse && (boost || r.turbo > 0);
+  const grip = r.suspension?.grip ?? 1;
   const factor = r.ai
-      ? ({ rookie: 0.76, street: 0.88, pro: 0.98 }[difficulty] || 0.88) +
+      ? ({ rookie: 0.82, street: 0.94, pro: 1 }[difficulty] || 0.94) +
         r.slot * 0.006
       : 1,
     damageFactor = 1,
@@ -310,7 +338,8 @@ export function stepRacer(r, raw, track, dt, time, difficulty = 'street') {
   r.yawRate =
     (r.yawRate || 0) +
     (turn - (r.yawRate || 0)) * (1 - Math.exp(-dt * (drift ? 7 : 12)));
-  r.yaw += r.yawRate * dt;
+  r.collisionSpin = (r.collisionSpin || 0) * Math.exp(-dt * 5);
+  r.yaw += (r.yawRate * grip + r.collisionSpin) * dt;
   // Gentle edge assistance preserves screen-relative steering and never teleports.
   // Only turn toward the route when moving forward into its outside edge.
   const guidance = nearestPoint(track, r.x, r.z, r.index);
@@ -323,7 +352,7 @@ export function stepRacer(r, raw, track, dt, time, difficulty = 'street') {
   r.speed *= Math.max(0, 1 - Math.abs(r.yawRate) * (drift ? 0.022 : 0.014) * dt);
   r.velocityYaw +=
     wrapAngle(r.yaw - r.velocityYaw) *
-    (1 - Math.exp(-dt * (drift ? 3.1 : input.brake ? 14 : 11)));
+    (1 - Math.exp(-dt * (drift ? 3.1 : input.brake ? 14 : 11) * grip));
   r.x += Math.sin(r.velocityYaw) * r.speed * dt;
   r.z += Math.cos(r.velocityYaw) * r.speed * dt;
   const near = nearestPoint(track, r.x, r.z, r.index);
@@ -331,6 +360,9 @@ export function stepRacer(r, raw, track, dt, time, difficulty = 'street') {
   resolveWallContact(r, near, near.width ?? track.width, dt);
   if (r.retired) return;
   r.acceleration = clamp((r.speed - previousSpeed) / dt, -45, 35);
+  stepSuspension(r, track, dt);
+  // Suspension absorbs a slow crossing. A fast hit sheds a little momentum.
+  r.speed *= Math.exp(-dt * (r.bumpImpact || 0) * .24);
   stepBoostPads(r, track, time, previousX, previousZ);
   // Sequential quarter-track gates reject shortcuts and finish-line oscillation.
   const count = track.points.length;
@@ -358,15 +390,20 @@ export function stepRacer(r, raw, track, dt, time, difficulty = 'street') {
     : Math.max(-1, r.lap - 1) + near.index / count;
 }
 export function stepRace(racers, track, dt, time, difficulty = 'street') {
-  for (const r of racers)
+  // Decide from one shared frame before any racer advances.
+  const inputs = racers.map(r => r.ai ? aiInput(r, track, time, difficulty, racers) : r.input);
+  for (let i = 0; i < racers.length; i++) {
+    const r = racers[i];
+    if (r.ai) r.input = inputs[i];
     stepRacer(
       r,
-      r.ai ? aiInput(r, track, time, difficulty) : r.input,
+      inputs[i],
       track,
       dt,
       time,
       difficulty
     );
+  }
   stepSlipstream(racers, dt);
   // A second positional pass prevents multi-kart contacts from leaving bodies
   // interpenetrating or pushed through a track barrier.

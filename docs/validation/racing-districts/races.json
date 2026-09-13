@@ -1,0 +1,200 @@
+[
+  {
+    "track": "skanderbeg",
+    "difficulty": "rookie",
+    "length": 3126,
+    "bumps": 8,
+    "finished": 6,
+    "meanFinish": 448.53055555547627,
+    "walls": 0,
+    "driftFrames": 0,
+    "boostFrames": 36333
+  },
+  {
+    "track": "skanderbeg",
+    "difficulty": "street",
+    "length": 3126,
+    "bumps": 8,
+    "finished": 6,
+    "meanFinish": 403.75555555551705,
+    "walls": 0,
+    "driftFrames": 0,
+    "boostFrames": 51269
+  },
+  {
+    "track": "skanderbeg",
+    "difficulty": "pro",
+    "length": 3126,
+    "bumps": 8,
+    "finished": 6,
+    "meanFinish": 381.3583333333151,
+    "walls": 0,
+    "driftFrames": 2798,
+    "boostFrames": 50696
+  },
+  {
+    "track": "blloku",
+    "difficulty": "rookie",
+    "length": 2063,
+    "bumps": 6,
+    "finished": 6,
+    "meanFinish": 247.02222222231094,
+    "walls": 0,
+    "driftFrames": 0,
+    "boostFrames": 28104
+  },
+  {
+    "track": "blloku",
+    "difficulty": "street",
+    "length": 2063,
+    "bumps": 6,
+    "finished": 6,
+    "meanFinish": 220.9916666667347,
+    "walls": 0,
+    "driftFrames": 0,
+    "boostFrames": 38530
+  },
+  {
+    "track": "blloku",
+    "difficulty": "pro",
+    "length": 2063,
+    "bumps": 6,
+    "finished": 6,
+    "meanFinish": 209.22777777783642,
+    "walls": 0,
+    "driftFrames": 1295,
+    "boostFrames": 38272
+  },
+  {
+    "track": "lana",
+    "difficulty": "rookie",
+    "length": 2614,
+    "bumps": 6,
+    "finished": 6,
+    "meanFinish": 420.39722222216847,
+    "walls": 749,
+    "driftFrames": 0,
+    "boostFrames": 26967
+  },
+  {
+    "track": "lana",
+    "difficulty": "street",
+    "length": 2614,
+    "bumps": 6,
+    "finished": 6,
+    "meanFinish": 381.66666666664815,
+    "walls": 664,
+    "driftFrames": 0,
+    "boostFrames": 37412
+  },
+  {
+    "track": "lana",
+    "difficulty": "pro",
+    "length": 2614,
+    "bumps": 6,
+    "finished": 6,
+    "meanFinish": 358.93888888889114,
+    "walls": 627,
+    "driftFrames": 2784,
+    "boostFrames": 37081
+  },
+  {
+    "track": "pyramid",
+    "difficulty": "rookie",
+    "length": 1630,
+    "bumps": 4,
+    "finished": 6,
+    "meanFinish": 226.07222222229427,
+    "walls": 37,
+    "driftFrames": 0,
+    "boostFrames": 18839
+  },
+  {
+    "track": "pyramid",
+    "difficulty": "street",
+    "length": 1630,
+    "bumps": 4,
+    "finished": 6,
+    "meanFinish": 203.6222222222764,
+    "walls": 35,
+    "driftFrames": 0,
+    "boostFrames": 26412
+  },
+  {
+    "track": "pyramid",
+    "difficulty": "pro",
+    "length": 1630,
+    "bumps": 4,
+    "finished": 6,
+    "meanFinish": 191.50833333337786,
+    "walls": 9,
+    "driftFrames": 1801,
+    "boostFrames": 25728
+  },
+  {
+    "track": "stadium",
+    "difficulty": "rookie",
+    "length": 1476,
+    "bumps": 4,
+    "finished": 6,
+    "meanFinish": 298.97500000005675,
+    "walls": 17,
+    "driftFrames": 0,
+    "boostFrames": 11045
+  },
+  {
+    "track": "stadium",
+    "difficulty": "street",
+    "length": 1476,
+    "bumps": 4,
+    "finished": 6,
+    "meanFinish": 272.708333333414,
+    "walls": 14,
+    "driftFrames": 0,
+    "boostFrames": 17778
+  },
+  {
+    "track": "stadium",
+    "difficulty": "pro",
+    "length": 1476,
+    "bumps": 4,
+    "finished": 6,
+    "meanFinish": 255.79166666676088,
+    "walls": 19,
+    "driftFrames": 472,
+    "boostFrames": 18113
+  },
+  {
+    "track": "lana-pyramid-grand",
+    "difficulty": "rookie",
+    "length": 3497,
+    "bumps": 8,
+    "finished": 6,
+    "meanFinish": 465.688888888794,
+    "walls": 23,
+    "driftFrames": 0,
+    "boostFrames": 37126
+  },
+  {
+    "track": "lana-pyramid-grand",
+    "difficulty": "street",
+    "length": 3497,
+    "bumps": 8,
+    "finished": 6,
+    "meanFinish": 417.31666666661584,
+    "walls": 37,
+    "driftFrames": 0,
+    "boostFrames": 52213
+  },
+  {
+    "track": "lana-pyramid-grand",
+    "difficulty": "pro",
+    "length": 3497,
+    "bumps": 8,
+    "finished": 6,
+    "meanFinish": 393.052777777749,
+    "walls": 16,
+    "driftFrames": 1605,
+    "boostFrames": 53228
+  }
+]

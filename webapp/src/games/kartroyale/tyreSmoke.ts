@@ -8,6 +8,7 @@ export class TyreSmoke {
   private size = new Float32Array(COUNT);
   private age = new Float32Array(COUNT).fill(10);
   private velocity = new Float32Array(COUNT * 3);
+  private exhaust = new Float32Array(COUNT);
   private cursor = 0;
   private clock = 0;
   private credits = new Map<string, number>();
@@ -16,17 +17,18 @@ export class TyreSmoke {
     transparent: true,
     depthWrite: false,
     uniforms: { pixelScale: { value: 500 } },
-    vertexShader: `attribute float opacity; attribute float size; varying float a;
+    vertexShader: `attribute float opacity; attribute float size; attribute float exhaust; varying float a; varying float e;
       uniform float pixelScale;
-      void main(){a=opacity;vec4 p=modelViewMatrix*vec4(position,1.);
+      void main(){a=opacity;e=exhaust;vec4 p=modelViewMatrix*vec4(position,1.);
       gl_PointSize=clamp(size*pixelScale/max(1.,-p.z),1.,90.);gl_Position=projectionMatrix*p;}`,
-    fragmentShader: `varying float a; void main(){vec2 p=gl_PointCoord*2.-1.;
+    fragmentShader: `varying float a; varying float e; void main(){vec2 p=gl_PointCoord*2.-1.;
       float d=length(p);float edge=1.-smoothstep(.12,1.,d);
       float wisps=.82+.18*sin(p.x*12.+p.y*7.);
-      gl_FragColor=vec4(.63,.65,.67,a*edge*edge*wisps);}`
+      gl_FragColor=vec4(mix(vec3(.72,.74,.75),vec3(.46,.57,.64),e),a*edge*edge*wisps);}`
   });
   readonly mesh: T.Points;
   constructor() {
+    this.geometry.setAttribute('exhaust', new T.BufferAttribute(this.exhaust, 1).setUsage(T.DynamicDrawUsage));
     this.geometry.setAttribute(
       'position',
       new T.BufferAttribute(this.positions, 3).setUsage(T.DynamicDrawUsage)
@@ -50,14 +52,17 @@ export class TyreSmoke {
     for (const id of this.credits.keys())
       if (!present.has(id)) this.credits.delete(id);
     for (const r of racers) {
+      const boosting = r.speed > 3 && !r.braking && (r.boosting === true ||
+        (r.throttle > .1 && (r.turbo > 0 || r.input?.boost && r.boost > 1)));
       const smoking =
         !r.retired &&
+        !r.finished &&
         !r.disconnected &&
         !(r.rollTime > 0) &&
-        ((r.drifting && Math.abs(r.speed) > 8) ||
+        (boosting || (r.drifting && Math.abs(r.speed) > 8) ||
           (r.acceleration < -15 && Math.abs(r.speed) > 5) ||
           r.health < 25);
-      let credit = smoking ? (this.credits.get(r.id) || 0) + dt * 22 : 0;
+      let credit = smoking ? (this.credits.get(r.id) || 0) + dt * (r.drifting ? 30 : 22) : 0;
       while (credit >= 1) {
         credit--;
         const i = this.cursor++ % COUNT,
@@ -65,9 +70,11 @@ export class TyreSmoke {
         const s = Math.sin(r.yaw),
           c = Math.cos(r.yaw),
           k = i * 3;
-        this.positions[k] = r.x + c * side * 0.75 - s * 0.8;
-        this.positions[k + 1] = r.health < 25 ? 0.65 : 0.15;
-        this.positions[k + 2] = r.z - s * side * 0.75 - c * 0.8;
+        const exhaust = boosting && !r.drifting;
+        this.exhaust[i] = Number(exhaust);
+        this.positions[k] = r.x + c * side * (exhaust ? .42 : .75) - s * (exhaust ? 1.35 : .8);
+        this.positions[k + 1] = (exhaust ? .38 : .15) + (r.suspension?.height || 0);
+        this.positions[k + 2] = r.z - s * side * (exhaust ? .42 : .75) - c * (exhaust ? 1.35 : .8);
         this.velocity[k] = -s * r.speed * 0.06 + Math.sin(i * 2.4) * 0.25;
         this.velocity[k + 1] = 0.4 + (i % 5) * 0.06;
         this.velocity[k + 2] = -c * r.speed * 0.06;
@@ -80,13 +87,13 @@ export class TyreSmoke {
       const age = this.age[i],
         k = i * 3;
       this.alpha[i] =
-        age < 1.35 ? Math.min(1, age * 12) * (1 - age / 1.35) * 0.32 : 0;
+        age < 1.35 ? Math.min(1, age * 12) * (1 - age / 1.35) * .48 : 0;
       this.size[i] = 0.22 + Math.min(age, 1.35) * 0.75;
       if (this.alpha[i] > 0)
         for (let j = 0; j < 3; j++)
           this.positions[k + j] += this.velocity[k + j] * dt;
     }
-    for (const key of ['position', 'opacity', 'size'])
+    for (const key of ['position', 'opacity', 'size', 'exhaust'])
       this.geometry.attributes[key].needsUpdate = true;
   }
   clear() {

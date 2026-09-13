@@ -5,7 +5,7 @@ import {beginRollover} from '../webapp/src/games/kartroyale/kartDynamics.mjs';
 import {resolveWallContact} from '../webapp/src/games/kartroyale/collisions.mjs';
 const track=makeTrack('skanderbeg');
 for(const id of ['apex','oobi','oodi','ooli','oopi']) {
- test(`${id}: reverse moves backwards, brakes stop, release resumes forward`,()=>{
+ test(`${id}: reverse moves backwards, brakes stop, gas resumes forward`,()=>{
   const r=equipKart(createRacer(track,id,id),id),x=r.x,z=r.z,yaw=r.yaw;
   for(let i=0;i<60;i++)stepRacer(r,{reverse:true,boost:true},track,STEP,i*STEP);
   assert.ok(r.speed<0 && r.speed>=-7);
@@ -14,6 +14,8 @@ for(const id of ['apex','oobi','oodi','ooli','oopi']) {
   for(let i=0;i<30;i++)stepRacer(r,{brake:true},track,STEP,i*STEP);
   assert.equal(r.speed,0);
   for(let i=0;i<60;i++)stepRacer(r,{},track,STEP,i*STEP);
+  assert.equal(r.speed,0,'releasing the brake alone cannot press the gas');
+  for(let i=0;i<60;i++)stepRacer(r,{throttle:true},track,STEP,i*STEP);
   assert.ok(r.speed>0);
  });
  test(`${id}: energetic side contact stays upright and the kart can continue`,()=>{

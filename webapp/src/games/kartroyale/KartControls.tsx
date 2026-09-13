@@ -2,7 +2,7 @@ import React, { useEffect, useRef, useState } from 'react';
 import { ChevronLeft, ChevronRight, Zap } from 'lucide-react';
 type Props = { hold: (id:string,key:string,value:number|boolean)=>void; release:(id:string)=>void; boost:number; drifting?:boolean; disabled?:boolean };
 
-/** Screen order: steering · drift · brake · gas, with boost above the pedals.
+/** Screen order: steering · brake · drift · gas, with boost above the pedals.
  * Each pointer owns its chord. Slide a steering thumb up for drift; slide the
  * gas thumb up for boost, so both actions work with just two thumbs. */
 export function KartControls({hold,release,boost,drifting,disabled=false}:Props) {
@@ -50,13 +50,13 @@ export function KartControls({hold,release,boost,drifting,disabled=false}:Props)
       <button disabled={disabled} className={active('steer',-1)} {...touch('steer',-1,'drift')} aria-label="Steer left; slide up to drift"><ChevronLeft size={36}/></button>
       <button disabled={disabled} className={active('steer',1)} {...touch('steer',1,'drift')} aria-label="Steer right; slide up to drift"><ChevronRight size={36}/></button>
     </div>
-    <button disabled={disabled} className={`kart-drift${drifting?' is-active':active('drift')}`} {...touch('drift',true)}>DRIFT</button>
+    <button disabled={disabled} className={`kart-brake kart-center-control${active('brake')}`} {...touch('brake',true)} aria-label="Hold brake">BRAKE</button>
     <div className="kart-right-controls">
       <button disabled={disabled} className={`kart-boost${active('boost')}${energy<1?' is-empty':''}`} {...touch('boost',true)} aria-label={`Hold boost while accelerating; ${energy}% energy`}>
         <Zap size={18}/><span>BOOST</span><i style={{width:`${energy}%`}}/>
       </button>
       <div className="kart-pedal-controls">
-        <button disabled={disabled} className={`kart-brake${active('brake')}`} {...touch('brake',true)} aria-label="Hold brake">BRAKE</button>
+        <button disabled={disabled} className={`kart-drift${drifting?' is-active':active('drift')}`} {...touch('drift',true)} aria-label="Hold drift while steering">DRIFT</button>
         <button disabled={disabled} className={`kart-gas${active('throttle')}`} {...touch('throttle',true,'boost')} aria-label="Hold gas to accelerate; slide up to boost">GAS</button>
       </div>
     </div>

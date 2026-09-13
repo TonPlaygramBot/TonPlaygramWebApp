@@ -20,11 +20,15 @@ function path(graph,a,b,blocked){
 }
 /** Find an exterior detour using actual connected road edges. New closed-race
  * IDs only: old circuits/saves stay immutable. Never scale the geographic city. */
-export function extendMappedRoute(route,graph,{ratio=1.4,maxRatio=2.6,candidates=20,maxLength=2200}={}){
+export function extendMappedRoute(route,graph,{ratio=1.4,maxRatio=2.6,candidates=20,maxLength=2200,junctionsOnly=false,accept=()=>true}={}){
   const raw=route.points;if(!Array.isArray(raw)||raw.length<4)return null;
   const originalLength=routeLength(raw),originalKeys=raw.map(pointKey),originalSet=new Set(originalKeys);let best=null;
   for(const fraction of [.25,.5,.75]){
-    const ai=0,bi=Math.floor(raw.length*fraction),a=originalKeys[ai],b=originalKeys[bi];
+    const ai=0;
+    const junctions=originalKeys.map((key,i)=>({key,i})).filter(({key,i})=>i>0&&graph.edges.get(key)?.size>2);
+    const bi=junctionsOnly?junctions.sort((a,b)=>Math.abs(a.i-raw.length*fraction)-Math.abs(b.i-raw.length*fraction))[0]?.i:Math.floor(raw.length*fraction);
+    if(!Number.isInteger(bi))continue;
+    const a=originalKeys[ai],b=originalKeys[bi];
     const blocked=new Set(originalKeys);blocked.delete(a);blocked.delete(b);
     const mid=[(raw[0][0]+raw[bi][0])/2,(raw[0][1]+raw[bi][1])/2];
     const waypoints=[...graph.nodes].filter(([k,p])=>!originalSet.has(k)&&dist(p,mid)>100).sort((u,v)=>dist(v[1],mid)-dist(u[1],mid)||u[0].localeCompare(v[0]));
@@ -33,7 +37,7 @@ export function extendMappedRoute(route,graph,{ratio=1.4,maxRatio=2.6,candidates
       const ids=[...first,...second.slice(1),...originalKeys.slice(bi+1)],seen=new Set(ids);if(seen.size!==ids.length)continue;
       const points=ids.map(k=>graph.nodes.get(k));if(points.some(p=>!p))continue;
       let width=10,valid=true;const names=new Set();for(let i=0;i<ids.length;i++){const edge=graph.edges.get(ids[i])?.get(ids[(i+1)%ids.length]);if(!edge){valid=false;break;}width=Math.min(width,edge.width);if(edge.name)names.add(edge.name);}
-      if(!valid)continue;const length=routeLength(points);if(length<originalLength*ratio||length>originalLength*maxRatio||length>maxLength)continue;
+      if(!valid)continue;const length=routeLength(points);if(length<originalLength*ratio||length>originalLength*maxRatio||length>maxLength||!accept(points))continue;
       if(!best||length>best.length)best={...route,id:`${route.id}-grand`,points:points.map(p=>[...p]),streets:[...names].sort(),width:Math.max(6,Math.min(10,width)),length,originalLength,source:'Connected edges of the checked-in OSM snapshot; authored closed race, not a current legal driving itinerary'};
     }
   }return best;
