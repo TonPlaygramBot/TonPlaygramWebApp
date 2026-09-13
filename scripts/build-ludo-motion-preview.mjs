@@ -66,7 +66,12 @@ const result = await build({
   entryPoints: [resolve(root, 'webapp/src/previews/ludo/LudoMotionPreview.tsx')],
   bundle: true, format: 'esm', platform: 'browser', jsx: 'automatic', minify: true,
   target: 'es2022', write: false, define: { LUDO_PREVIEW_MODEL: JSON.stringify(modelData) },
-  plugins: [{ name: 'cdn', setup(api) {
+  plugins: [{ name: 'blender-inline', setup(api) {
+    api.onLoad({ filter: /ludo-presentation\.json$/ }, async args => {
+      const packed = gzipSync(await readFile(args.path)).toString('base64');
+      return { loader: 'js', contents: `const bytes=Uint8Array.from(atob('${packed}'),c=>c.charCodeAt(0));export default JSON.parse(await new Response(new Blob([bytes]).stream().pipeThrough(new DecompressionStream('gzip'))).text());` };
+    });
+  } }, { name: 'cdn', setup(api) {
     api.onResolve({ filter: /^(three|react|react-dom)(\/.*)?$/ }, args => {
       if (args.path === 'three') return { path: 'https://cdn.jsdelivr.net/npm/three@0.164.1/build/three.module.js', external: true };
       if (args.path === 'react-dom/client') return { path: 'https://esm.sh/react-dom@18.3.1/client?deps=react@18.3.1', external: true };

@@ -7,10 +7,12 @@ const setup = source.slice(source.indexOf('      const scene='), source.indexOf(
 const frame = source.slice(source.indexOf('      const saved='), source.indexOf('      raf=requestAnimationFrame(frame);'));
 const check = `import * as THREE from 'three';
 import { V, smooth, world, makeActor, pose, palmOrientation, solveArm, heldPose, type Weapon } from '../motion';
+import { createLudoBlenderModel } from '../../../utils/ludoBlenderMeshes';
+import { createCaliberProjectileFx, createCaliberShellCasingFx, getLudoFirearmBallistics } from '../../../utils/ludoFirearmPresentation';
 import assert from 'node:assert/strict';
 import { readFile, writeFile } from 'node:fs/promises';
 const json=JSON.parse(await readFile(new URL('./avatar.json',import.meta.url),'utf8'));
-const controls={current:null},setBusy=()=>{},setStatus=()=>{};
+const controls={current:null},setBusy=()=>{},setStatus=()=>{},setView=()=>{};
 let dead=false,raf=0;const requestAnimationFrame=()=>0,renderer={render(){}};
 ${functions}
 ${setup}
@@ -21,13 +23,13 @@ function check(value,message){assert(value,message);assertions++;}
 async function exportScene(name){
   scene.updateMatrixWorld(true);camera.updateMatrixWorld(true);camera.aspect=360/470;camera.updateProjectionMatrix();
   const meshes=[];
-  scene.traverse(o=>{if(!o.isMesh||!o.visible)return;
+  scene.traverse(o=>{if(!o.isMesh||!o.visible)return;for(let p=o.parent;p;p=p.parent)if(!p.visible)return;
     if(o.isSkinnedMesh)o.skeleton.update();
     const pos=o.geometry.attributes.position;if(!pos)return;
     const points=[];for(let i=0;i<pos.count;i++)points.push(o.getVertexPosition(i,new THREE.Vector3()).applyMatrix4(o.matrixWorld).toArray());
     meshes.push({points,indices:o.geometry.index?Array.from(o.geometry.index.array):Array.from({length:pos.count},(_,i)=>i),color:o.material.color.toArray()});
   });
-  await writeFile(new URL(name+'.json',import.meta.url),JSON.stringify({meshes,camera:camera.projectionMatrix.clone().multiply(camera.matrixWorldInverse).elements}));
+  await writeFile(new URL(name+'.json',import.meta.url),JSON.stringify({meshes,cameraWorld:camera.matrixWorld.elements,fov:camera.fov,camera:camera.projectionMatrix.clone().multiply(camera.matrixWorldInverse).elements}));
 }
 await exportScene('idle');
 for(const id of ['rifle','smg','pistol']){
@@ -56,6 +58,7 @@ for(let round=0;round<2;round++){
   check(die.position.distanceTo(landing)<1e-9,'die lands on tabletop');
   check(actor.position.distanceTo(initial)<1e-9,'seated root stays fixed');
 }
+for(const id of ['truck','drone','missile','ammo','player']){controls.current.view(id);await exportScene(id);}
 console.log(assertions+' motion checks passed');
 `;
 await writeFile(new URL('runtime-check.ts', dir), check);

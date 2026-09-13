@@ -1,3 +1,5 @@
+import { createLudoBlenderModel } from '../../utils/ludoBlenderMeshes';
+import { palmMarker, palmOrientation, solveArm, world as boneWorld } from '../../utils/ludoHumanMotion';
 import {
   FIREARM_CAPTURE_ANIMATION_IDS,
   FIREARM_MARKSMAN_IDS,
@@ -84,7 +86,7 @@ import {
   ludoBattleAccountId
 } from '../../utils/ludoBattleInventory.js';
 import { giftSounds } from '../../utils/giftSounds.js';
-import { playLudoDiceRollSfx, playLudoTokenStepSfx } from '../../utils/ludoSfx.js';
+import { playLudoDiceRollSfx, playLudoTokenStepSfx, ludoWeaponSoundUrl, playLudoPresentationSfx } from '../../utils/ludoSfx.js';
 import { socket } from '../../utils/socket.js';
 import { loadExactUkrainianDroneModel } from '../../utils/ukrainianDroneModel.js';
 import {
@@ -191,6 +193,9 @@ const LARGE_RACK_FIREARM_IDS = new Set([
 ]);
 const FIREARM_TWO_HANDED_IDS = new Set([
   'fpsGunAttack',
+  'krsvBurstAttack',
+  'uziSprayAttack',
+  'smgBurstAttack',
   'assaultRifleAttack',
   'ak47VolleyAttack',
   'mosinMarksmanAttack',
@@ -211,8 +216,6 @@ const FIREARM_TWO_HANDED_IDS = new Set([
 ]);
 const FIREARM_SINGLE_HAND_ONLY_IDS = new Set([
   'glockSidearmAttack',
-  'uziSprayAttack',
-  'smgBurstAttack',
   'smithSidearmAttack',
   'sigsauerTacticalAttack',
   'grenadeBlastAttack',
@@ -1418,21 +1421,8 @@ function resolveFirearmRackAimTarget(arena, playerIndex, getKingTokenPositionFor
   return arena?.boardLookTarget?.isVector3 ? arena.boardLookTarget : null;
 }
 
-function playCaptureWeaponSourceSound(captureAnimationId, { volume = 1, muted = false } = {}) {
-  if (muted) return false;
-  const config = CAPTURE_WEAPON_MODEL_CONFIG[captureAnimationId];
-  const sourceUrl = Array.isArray(config?.soundUrls) ? config.soundUrls.find(Boolean) : null;
-  if (!sourceUrl) return false;
-  let audio = FIREARM_SOURCE_AUDIO_CACHE.get(sourceUrl);
-  if (!audio) {
-    audio = new Audio(sourceUrl);
-    audio.preload = 'auto';
-    FIREARM_SOURCE_AUDIO_CACHE.set(sourceUrl, audio);
-  }
-  audio.volume = clamp(volume, 0, 1);
-  audio.currentTime = 0;
-  audio.play().catch(() => {});
-  return true;
+function playCaptureWeaponSourceSound(captureAnimationId, options = {}) {
+  return playLudoPresentationSfx(ludoWeaponSoundUrl(captureAnimationId), options);
 }
 
 function removeAk47RearWoodStock(root) {
@@ -1843,7 +1833,7 @@ async function attachFirearmToRightHand(attackerEntry, captureAnimationId) {
   }
   const twoHanded = FIREARM_TWO_HANDED_IDS.has(captureAnimationId) && !FIREARM_SINGLE_HAND_ONLY_IDS.has(captureAnimationId);
   const gripProfile = FIREARM_BALLISTICS_PROFILE_BY_ID[captureAnimationId] || 'default';
-  const sourceLeftGrip = findObjectByNeedles(weapon, ['l_wrist', 'left_wrist']);
+  const sourceLeftGrip = findObjectByNeedles(weapon, ['l_wrist', 'left_wrist', 'handguard', 'foregrip', 'support']);
   const offhandTarget = new THREE.Object3D();
   if (sourceLeftGrip?.isObject3D) {
     sourceLeftGrip.updateMatrixWorld?.(true);
@@ -1852,6 +1842,11 @@ async function attachFirearmToRightHand(attackerEntry, captureAnimationId) {
   } else {
     offhandTarget.position.set(...(tuning.offhandOffset || FIREARM_HAND_ATTACH_TUNING.default.offhandOffset));
   }
+  const rightGrip = new THREE.Object3D();
+  rightGrip.name = 'rightGripContact';
+  if (sourceRightGrip) rightGrip.position.copy(weapon.worldToLocal(sourceRightGrip.getWorldPosition(new THREE.Vector3())));
+  else if (attackerEntry.rightPalm) rightGrip.position.copy(weapon.worldToLocal(boneWorld(attackerEntry.rightPalm)));
+  weapon.add(rightGrip);
   offhandTarget.name = 'offhandTarget';
   weapon.add(offhandTarget);
   const muzzle = new THREE.Object3D();
@@ -1861,12 +1856,12 @@ async function attachFirearmToRightHand(attackerEntry, captureAnimationId) {
     weapon,
     muzzle,
     offhandTarget,
+    rightGrip,
     twoHanded,
     gripProfile,
     muzzleForward: new THREE.Vector3(...(FIREARM_MUZZLE_FORWARD_BY_ID[captureAnimationId] || FIREARM_MUZZLE_FORWARD_BY_ID.default)),
-    // Keep the final aim roll matched to SMG burst too; this avoids each
-    // weapon profile twisting to a different visual orientation mid-animation.
-    aimRollRad: FIREARM_AIM_ROLL_BY_PROFILE.smg ?? FIREARM_AIM_ROLL_BY_PROFILE.default,
+    // Preserve the roll authored for each grip profile.
+    aimRollRad: FIREARM_AIM_ROLL_BY_PROFILE[gripProfile] ?? FIREARM_AIM_ROLL_BY_PROFILE.default,
     release: () => {
       const mixer = weapon.userData?.captureWeaponMixer;
       if (mixer && weaponMixers?.delete) {
@@ -2778,23 +2773,7 @@ function createFxPolygon(points, depth, color, roughness = 0.62, metalness = 0.1
 function createCaptureMissileFx({ withTrail = true } = {}) {
   const root = new THREE.Group();
   root.userData.lockCaptureTexture = true;
-  const body = addFxCylinder(root, 0.09, 0.1, 1.18, [0, 0, 0], [0, 0, Math.PI / 2], '#d3d8de', 16, 0.3, 0.86);
-  body.material = createCaptureVehicleMaterial('missile', { color: '#556b2f', roughness: 0.24, metalness: 0.82 });
-
-  const nose = new THREE.Mesh(
-    new THREE.ConeGeometry(0.1, 0.28, 16),
-    new THREE.MeshStandardMaterial({ color: '#7a8f45', roughness: 0.2, metalness: 0.86 })
-  );
-  nose.position.set(0.74, 0, 0);
-  nose.rotation.z = -Math.PI / 2;
-  nose.castShadow = true;
-  nose.receiveShadow = true;
-  root.add(nose);
-
-  addFxBox(root, [0.17, 0.025, 0.34], [-0.19, 0, 0], '#6b7f3d', 0.24, 0.76);
-  addFxBox(root, [0.17, 0.34, 0.025], [-0.19, 0, 0], '#6b7f3d', 0.24, 0.76);
-  addFxBox(root, [0.12, 0.024, 0.22], [-0.44, 0, 0], '#5e7035', 0.28, 0.72);
-  addFxBox(root, [0.12, 0.22, 0.024], [-0.44, 0, 0], '#5e7035', 0.28, 0.72);
+  root.add(createLudoBlenderModel('missile'));
 
   const trail = [];
   if (withTrail) {
@@ -2821,33 +2800,7 @@ function createCaptureMissileFx({ withTrail = true } = {}) {
 async function createCaptureMissileTruckFx() {
   const root = new THREE.Group();
   root.userData.lockCaptureTexture = true;
-  const body = new THREE.Mesh(
-    new THREE.BoxGeometry(2.1, 0.62, 1.0),
-    createCaptureVehicleMaterial('fighter', { color: '#f1b445', roughness: 0.56, metalness: 0.24 })
-  );
-  body.castShadow = true;
-  body.receiveShadow = true;
-  root.add(body);
-  const cabin = new THREE.Mesh(
-    new THREE.BoxGeometry(0.78, 0.62, 0.92),
-    createCaptureVehicleMaterial('fighter', { color: '#f3be59', roughness: 0.52, metalness: 0.22 })
-  );
-  cabin.position.set(0.86, 0.44, 0);
-  cabin.castShadow = true;
-  cabin.receiveShadow = true;
-  root.add(cabin);
-  const cabinWindow = addFxBox(root, [0.42, 0.22, 0.86], [0.94, 0.48, 0], '#050608', 0.16, 0.56);
-  cabinWindow.material = createCaptureVehicleMaterial('truck', { color: '#050608', roughness: 0.12, metalness: 0.42 });
-
-  const wheelOffsets = [
-    [-0.72, -0.34, -0.56],
-    [-0.72, -0.34, 0.56],
-    [0.72, -0.34, -0.56],
-    [0.72, -0.34, 0.56]
-  ];
-  wheelOffsets.forEach(([x, y, z]) => {
-    addFxCylinder(root, 0.22, 0.22, 0.18, [x, y, z], [Math.PI / 2, 0, 0], '#050608', 16, 0.9, 0.08);
-  });
+  root.add(createLudoBlenderModel('truck'));
 
   const launcher = new THREE.Group();
   launcher.position.set(-0.12, 0.96, 0);
@@ -2938,117 +2891,13 @@ async function createCaptureDroneLauncherTruckFx() {
 async function createCaptureDroneFx() {
   const root = new THREE.Group();
   root.userData.lockCaptureTexture = true;
-  const loadedDrone = await loadCaptureVehicleModel('drone');
-  if (loadedDrone) {
-    const model = loadedDrone.clone(true);
-    fitObjectToTargetSize(model, 3.85 * CAPTURE_DRONE_SIZE_MULTIPLIER);
-    model.rotation.y = Math.PI;
-    const propeller = applyMilitaryDroneLook(model);
-    root.add(model);
-    const trail = [];
-    for (let i = 0; i < 5; i += 1) {
-      trail.push(
-        addFxSphere(
-          root,
-          0.12 + i * 0.03,
-          [-0.84 - i * 0.19, 0, 0],
-          i < 2 ? '#f6af4b' : '#8f989d',
-          i < 2 ? 0.2 : 1,
-          0,
-          true,
-          i < 2 ? 0.8 - i * 0.15 : 0.26 - (i - 2) * 0.04
-        )
-      );
-    }
-    root.visible = false;
-    return { root, propeller, trail };
-  }
-  root.scale.setScalar(0.3);
-  const body = new THREE.Mesh(
-    new THREE.CylinderGeometry(0.13, 0.18, 2.85, 24),
-    createCaptureVehicleMaterial('fighter', { color: '#d1d7de', roughness: 0.28, metalness: 0.84 })
-  );
-  body.rotation.set(0, 0, Math.PI / 2);
-  body.castShadow = true;
-  body.receiveShadow = true;
-  root.add(body);
-  const nose = new THREE.Mesh(
-    new THREE.ConeGeometry(0.17, 0.68, 22),
-    createCaptureVehicleMaterial('fighter', { color: '#edf1f6', roughness: 0.24, metalness: 0.88 })
-  );
-  nose.position.set(1.74, 0, 0);
-  nose.rotation.z = -Math.PI / 2;
-  nose.castShadow = true;
-  root.add(nose);
-  const tail = new THREE.Mesh(
-    new THREE.CylinderGeometry(0.17, 0.13, 0.58, 16),
-    createCaptureVehicleMaterial('fighter', { color: '#10151c', roughness: 0.44, metalness: 0.44 })
-  );
-  tail.position.set(-1.62, 0, 0);
-  tail.rotation.set(0, 0, Math.PI / 2);
-  tail.castShadow = true;
-  tail.receiveShadow = true;
-  root.add(tail);
-  const deltaWing = createFxPolygon(
-    [
-      [-1.25, -1.95],
-      [1.05, 0],
-      [-1.3, 1.95]
-    ],
-    0.08,
-    '#a8b0b7',
-    0.74,
-    0.12
-  );
-  deltaWing.position.set(-0.14, -0.06, 0);
-  root.add(deltaWing);
-  addFxBox(root, [0.65, 0.08, 0.24], [-0.12, 0.2, 0], '#889198', 0.58, 0.2);
-  const spine = createFxPolygon(
-    [
-      [-0.52, -0.16],
-      [0.92, 0],
-      [-0.52, 0.16]
-    ],
-    0.06,
-    '#798289',
-    0.55,
-    0.24
-  );
-  spine.position.set(0.15, 0.03, 0);
-  root.add(spine);
-  addFxCylinder(root, 0.04, 0.04, 0.64, [0.28, -0.22, -0.55], [Math.PI / 2, 0, 0], '#656e76', 12, 0.54, 0.22);
-  addFxCylinder(root, 0.04, 0.04, 0.64, [0.28, -0.22, 0.55], [Math.PI / 2, 0, 0], '#656e76', 12, 0.54, 0.22);
-  addFxSphere(root, 0.09, [1.05, 0, 0], '#000000', 0.22, 0.35);
-  const propeller = new THREE.Group();
-  propeller.position.set(-1.95, 0, 0);
-  addFxBox(propeller, [0.05, 1.0, 0.08], [0, 0, 0], '#191d20', 0.6, 0.12);
-  const blade2 = new THREE.Mesh(
-    new THREE.BoxGeometry(0.05, 1.0, 0.08),
-    new THREE.MeshStandardMaterial({ color: '#191d20', roughness: 0.6 })
-  );
-  blade2.rotation.x = Math.PI / 2;
-  blade2.castShadow = true;
-  propeller.add(blade2);
-  addFxSphere(propeller, 0.07, [0, 0, 0], '#41484d', 0.45, 0.25);
+  root.add(createLudoBlenderModel('drone'));
+  const propeller = createLudoBlenderModel('drone-propeller');
+  propeller.position.set(-1.57, 0, 0);
   root.add(propeller);
-  const trail = [];
-  for (let i = 0; i < 5; i += 1) {
-    trail.push(
-      addFxSphere(
-        root,
-        0.12 + i * 0.03,
-        [-0.84 - i * 0.19, 0, 0],
-        i < 2 ? '#f6af4b' : '#8f989d',
-        i < 2 ? 0.2 : 1,
-        0,
-        true,
-        i < 2 ? 0.8 - i * 0.15 : 0.26 - (i - 2) * 0.04
-      )
-    );
-  }
-  applyMilitaryDroneLook(root, propeller);
+  fitObjectToTargetSize(root, 3.85 * CAPTURE_DRONE_SIZE_MULTIPLIER);
   root.visible = false;
-  return { root, propeller, trail };
+  return { root, propeller, trail: [] };
 }
 
 async function createCaptureJetFx() {
@@ -3958,7 +3807,7 @@ const CHAIR_MODEL_URLS = [
 const SEATED_HUMAN_MODEL_URL = 'https://threejs.org/examples/models/gltf/readyplayer.me.glb';
 const SEATED_HUMAN_BASE_HEIGHT = 1.74;
 // Preserve the original actor normalization independently from the larger portrait presentation scale.
-const SEATED_HUMAN_ACTOR_TARGET_HEIGHT = SEATED_HUMAN_BASE_HEIGHT * 0.65;
+const SEATED_HUMAN_ACTOR_TARGET_HEIGHT = SEATED_HUMAN_BASE_HEIGHT * 0.84;
 const SEATED_HUMAN_TARGET_HEIGHT = BACK_HEIGHT * 2.42;
 // Slightly upscale seated humans so they read better on portrait/mobile gameplay.
 const SEATED_HUMAN_VISUAL_SCALE_MULTIPLIER = 4.2;
@@ -4030,11 +3879,11 @@ const SEATED_HELPER_FACE_CAMERA_UP = 0.146 * MODEL_SCALE;
 const SEATED_HELPER_FACE_CAMERA_FORWARD = -0.072 * MODEL_SCALE;
 // The bottom-seat gameplay camera is intentionally raised and pushed farther toward the table so
 // portrait players see over the local avatar and closer into the Ludo board/action area.
-const SEATED_FACE_CAMERA_GAMEPLAY_FORWARD = 0.37 * MODEL_SCALE;
+const SEATED_FACE_CAMERA_GAMEPLAY_FORWARD = 0.10;
 // Lift the human player's locked first-person camera higher so portrait gameplay has a clearer
 // over-the-table view of the dice, tokens, and board while staying only slightly closer.
-const SEATED_FACE_CAMERA_GAMEPLAY_UP = 0.78 * MODEL_SCALE;
-const SEATED_FACE_CAMERA_GAMEPLAY_LOOK_DOWN = 0.37 * MODEL_SCALE;
+const SEATED_FACE_CAMERA_GAMEPLAY_UP = 0.075;
+const SEATED_FACE_CAMERA_GAMEPLAY_LOOK_DOWN = 0;
 const SEATED_CONTACT_IK_ITERATIONS = 9;
 const SEATED_CONTACT_IK_MAX_STEP_RAD = 0.34;
 const SEATED_CONTACT_DICE_Y_OFFSET = 0.005;
@@ -5595,10 +5444,10 @@ const TOKEN_STEP_DURATION_SECONDS = 0.34;
 const LUDO_CAPTURE_MISSILE_LAUNCH_SOUND_URL = '/assets/sounds/launch-85216.mp3';
 const LUDO_CAPTURE_MISSILE_IMPACT_SOUND_URL = '/assets/sounds/080998_bullet-hit-39870.mp3';
 const LUDO_CAPTURE_FIREARM_SHOT_SOUND_URL = '/assets/sounds/080998_bullet-hit-39870.mp3';
-const LUDO_CAPTURE_FIREARM_SHELL_SOUND_URL = '/assets/sounds/cueshootsound.mp3';
+const LUDO_CAPTURE_FIREARM_SHELL_SOUND_URL = '/assets/ludo/audio/shell.wav';
 const LUDO_CAPTURE_GLASS_SHATTER_SOUND_URL = '/assets/sounds/glass-bottle-breaking-351297.mp3';
 const LUDO_CAPTURE_DRONE_SOUND_URL =
-  '/assets/sounds/kimsa-kimsa-big-motorcycle-sound-394700.mp3';
+  '/assets/ludo/audio/drone.wav';
 const LUDO_CAPTURE_FIGHTER_SOUND_URL = '/assets/sounds/race-care-151963.mp3';
 const LUDO_CAPTURE_HELICOPTER_SOUND_URL = '/assets/sounds/dragon-studio-helicopter-sound-8d-372463.mp3';
 const HAHA_SOUND_MAX_DURATION_MS = 6000;
@@ -9150,6 +8999,7 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount, onlin
           const color = new THREE.Color(activeColors[anim.player] ?? DEFAULT_PLAYER_COLORS[anim.player] ?? 0xffffff);
           setTileHighlight(nextTile, true, color);
           anim.activeHighlightTiles.push(nextTile);
+          if (anim.activeHighlightTiles.length > 3) setTileHighlight(anim.activeHighlightTiles.shift(), false);
         }
         anim.highlightIndex = nextIndex;
         return;
@@ -10367,7 +10217,7 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount, onlin
           actor.position.copy(chair.group.worldToLocal(actorWorld));
           actor.updateMatrixWorld(true);
           entry.actor?.removeFromParent();
-          Object.assign(entry, { actor, rig, actionHelpers: createSeatedHumanActionHelpers(actor, rig) });
+          Object.assign(entry, { actor, rig, headScale: rig.head?.scale.clone(), rightPalm: palmMarker(rig, 'right'), leftPalm: palmMarker(rig, 'left'), actionHelpers: createSeatedHumanActionHelpers(actor, rig) });
         };
         install(defaultTemplate);
         if (!entry.actor) continue;
@@ -10764,6 +10614,10 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount, onlin
           updateTokenStacks();
         } else {
           anim.elapsed += delta;
+          anim.activeHighlightTiles.forEach((tile, index) => {
+            const recent = index === anim.activeHighlightTiles.length - 1;
+            tile.material.emissiveIntensity = recent ? 1.5 + Math.sin(Math.min(1, anim.elapsed / Math.max(seg.duration, .001)) * Math.PI) * 1.25 : .65;
+          });
           const duration = Math.max(seg.duration, 1e-4);
           const t = Math.min(1, anim.elapsed / duration);
           const jumpT =
@@ -10825,7 +10679,7 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount, onlin
       if (Array.isArray(actors) && actors.length) {
         actors.forEach((entry) => {
           const { rig, playerIndex } = entry;
-          if (!rig) return;
+          if (!rig || entry.propMotion) return;
           const pose = resolveSeatedHumanActionPose(actorState, state, playerIndex, now);
           const throwBias = {
             lateral: actorState?.throwLateral ?? 0,
@@ -10863,7 +10717,7 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount, onlin
           if (
             !hasContactTarget &&
             diceRef.current?.isObject3D &&
-            (actorState?.holdPlayer === playerIndex || actorState?.throwPlayer === playerIndex)
+            actorState?.holdPlayer === playerIndex
           ) {
             hasContactTarget = sampleSeatedObjectContactTarget(entry, diceRef.current, 'dice', handContactTarget);
           }
@@ -10979,7 +10833,7 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount, onlin
           controls.target.lerp(liftedTarget.target, 0.18);
           if (cameraTurnStateRef.current.followOffset?.isVector3) {
             const followCameraTarget = liftedTarget.target.clone().add(cameraTurnStateRef.current.followOffset);
-            camera.position.lerp(followCameraTarget, 0.12);
+            camera.position.lerp(followCameraTarget, 1 - Math.exp(-7.7 * delta));
           }
           cameraTurnStateRef.current.currentTarget = controls.target.clone();
         }
@@ -10987,7 +10841,7 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount, onlin
 
       if (!isCamera2d && camera && controls && dynamicFirearmCameraRef.current && firearmCinematicCameraPoseRef.current) {
         const pose = firearmCinematicCameraPoseRef.current;
-        const lerpFactor = clamp(pose.lerp ?? 0.28, 0.02, 1);
+        const lerpFactor = 1 - Math.pow(1 - clamp(pose.lerp ?? 0.28, 0.02, 1), delta * 60);
         if (pose.position?.isVector3) camera.position.lerp(pose.position, lerpFactor);
         if (pose.target?.isVector3) {
           controls.target.lerp(pose.target, Math.min(1, lerpFactor * 1.18));
@@ -11023,6 +10877,11 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount, onlin
         }
       }
       // Keep OrbitControls from applying any orbit/pan deltas while custom look is active.
+      // Hide only the local head in eye view; hands/body and all opponents stay visible.
+      const selfActor = seatedHumanActorsRef.current?.find((entry) => entry.playerIndex === 0);
+      if (selfActor?.rig?.head && selfActor.headScale) {
+        selfActor.rig.head.scale.copy(selfActor.headScale).multiplyScalar(!isCamera2d && !dynamicFirearmCameraRef.current ? .001 : 1);
+      }
       renderer.render(scene, camera);
       animationId = requestAnimationFrame(step);
     };
@@ -11213,8 +11072,7 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount, onlin
   };
   const playFirearmShellSound = () => {
     if (!settingsRef.current.soundEnabled || !firearmShellSoundRef.current) return;
-    firearmShellSoundRef.current.currentTime = 0;
-    firearmShellSoundRef.current.play().catch(() => {});
+    playLudoPresentationSfx('/assets/ludo/audio/shell.wav', { volume: .45 * getGameVolume(), muted: !settingsRef.current.soundEnabled });
   };
   const playGlassShatterSound = () => {
     if (!settingsRef.current.soundEnabled || !firearmGlassSoundRef.current) return;
@@ -11366,14 +11224,26 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount, onlin
           const muzzleTarget = new THREE.Vector3();
           const shellBase = new THREE.Vector3();
           const shooterRoot = attackerEntry?.actorRoot;
+          const firearmOwner = {};
+          const rightPalmStart = attackerEntry?.rightPalm ? boneWorld(attackerEntry.rightPalm) : null;
+          const leftPalmStart = attackerEntry?.leftPalm ? boneWorld(attackerEntry.leftPalm) : null;
+          const aimMode = FIREARM_TWO_HANDED_IDS.has(resolvedCaptureAnimationId) ? 'firearmAimRifle' : 'firearmAimPistol';
+          if (attackerEntry?.rig) {
+            applySeatedHumanPose(attackerEntry.rig, aimMode, 1, .85, {}, { idleBreathAmp: 0 }, attackerEntry.chairSupportsArmrest !== false);
+            attackerEntry.actor.updateMatrixWorld(true);
+          }
           const handWeaponAttachment = await attachFirearmToRightHand(attackerEntry, resolvedCaptureAnimationId);
+          if (handWeaponAttachment) {
+            scene.attach(handWeaponAttachment.weapon);
+            attackerEntry.propMotion = firearmOwner;
+          }
           const firearmTiming = getLudoFirearmTiming(resolvedCaptureAnimationId);
           const { pickupLeadMs, reloadLeadMs, aimLeadMs } = firearmTiming;
           const rackWorld = new THREE.Vector3();
           parkedEntry?.weaponHolder?.getWorldPosition?.(rackWorld);
           // Keep the parked weapon visible on the table during the hand-held attack so the
           // rack presentation stays like the legacy portrait view instead of disappearing.
-          if (parkedEntry?.weaponHolder) parkedEntry.weaponHolder.visible = true;
+          if (parkedEntry?.weaponHolder && handWeaponAttachment) parkedEntry.weaponHolder.visible = false;
           if (shooterRoot?.isObject3D) {
             shooterRoot.updateMatrixWorld?.(true);
             shooterRoot.getWorldPosition(muzzleOrigin);
@@ -11392,7 +11262,7 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount, onlin
           };
           const muzzleFx = createCaptureMuzzleFx();
           const tracers = Array.from({ length: 10 }, () => createCaptureBulletTracerFx('#ffe39a'));
-          const shells = Array.from({ length: Math.max(16, Math.min(42, shots + 6)) }, () => createCaliberShellCasingFx(mergedBallistics));
+          const shells = Array.from({ length: shots }, () => createCaliberShellCasingFx(mergedBallistics));
           const { pelletsPerShot } = firearmTiming;
           const projectileCount = shots * pelletsPerShot;
           const bullets = Array.from({ length: projectileCount }, (_, index) => {
@@ -11414,6 +11284,7 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount, onlin
           tracers.forEach((entry) => scene.add(entry.root));
           shells.forEach((entry) => scene.add(entry));
           scene.add(targetReticle.root);
+          let lastAudibleShot = -1;
           let shatterDone = false;
           let chipDamageDone = false;
           const hideTarget = targetToken?.isObject3D ? targetToken : null;
@@ -11445,6 +11316,10 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount, onlin
             handWeaponAttachment.weapon.parent.worldToLocal(rackLocalStart);
           }
           const tickFirearm = () => {
+            if (attackerEntry?.propMotion === firearmOwner) {
+              applySeatedHumanPose(attackerEntry.rig, aimMode, 1, .85, {}, { idleBreathAmp: 0 }, attackerEntry.chairSupportsArmrest !== false);
+              attackerEntry.actor.updateMatrixWorld(true);
+            }
             const elapsed = performance.now() - volleyStart;
             const { elapsedShooting, shotIndex: shotIdx, firing: weaponAnimationActive } = sampleLudoFirearmVolley(elapsed, firearmTiming);
             if (handWeaponAttachment?.muzzle?.isObject3D) {
@@ -11502,10 +11377,20 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount, onlin
                 handWeaponAttachment.muzzle.getWorldPosition(muzzleOrigin);
               }
             }
-            if (handWeaponAttachment?.twoHanded && handWeaponAttachment?.offhandTarget?.isObject3D) {
-              handWeaponAttachment.offhandTarget.updateMatrixWorld?.(true);
-              const offhandWorld = handWeaponAttachment.offhandTarget.getWorldPosition(new THREE.Vector3());
-              solveSeatedLeftArmContactIK(attackerEntry, offhandWorld, elapsed >= pickupLeadMs ? 0.95 : 0.5);
+            if (handWeaponAttachment?.rightGrip && attackerEntry?.rightPalm) {
+              const reach = smoother01(clamp(elapsed / pickupLeadMs, 0, 1));
+              const forward = muzzleTarget.clone().sub(muzzleOrigin).normalize();
+              const up = new THREE.Vector3(0, 1, 0);
+              const rightTarget = handWeaponAttachment.rightGrip.getWorldPosition(new THREE.Vector3());
+              solveArm(attackerEntry.rig, 'right', attackerEntry.rightPalm,
+                rightPalmStart.clone().lerp(rightTarget, reach),
+                palmOrientation(attackerEntry.rig, 'right', forward, up), true);
+              if (handWeaponAttachment.twoHanded && attackerEntry.leftPalm) {
+                const support = handWeaponAttachment.offhandTarget.getWorldPosition(new THREE.Vector3());
+                solveArm(attackerEntry.rig, 'left', attackerEntry.leftPalm,
+                  leftPalmStart.clone().lerp(support, reach),
+                  palmOrientation(attackerEntry.rig, 'left', forward.clone().negate(), up));
+              }
             }
             cinematicAimDir.copy(muzzleTarget).sub(muzzleOrigin);
             if (cinematicAimDir.lengthSq() < 1e-7) cinematicAimDir.set(0, 0, -1);
@@ -11536,17 +11421,13 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount, onlin
             targetReticle.horizontal.material.opacity = clamp(0.5 + reticlePulse * 0.4, 0, 1);
             targetReticle.vertical.material.opacity = clamp(0.5 + reticlePulse * 0.4, 0, 1);
             if (elapsed >= preFireLeadMs && elapsedShooting >= 0 && elapsedShooting < shots * cadenceMs) {
-              if (elapsedShooting % cadenceMs < 16) {
-                playFirearmShotSound();
-                playFirearmShellSound();
+              if (shotIdx !== lastAudibleShot) {
+                lastAudibleShot = shotIdx;
                 playCaptureWeaponSourceSound(resolvedCaptureAnimationId, {
                   volume: 0.8 * getGameVolume(),
                   muted: !settingsRef.current.soundEnabled
                 });
-                const openSourceShotUrl = FIREARM_CAPTURE_SHOT_SOUND_URL_BY_ID[resolvedCaptureAnimationId];
-                if (openSourceShotUrl) {
-                  playWeaponSfxFromUrl(openSourceShotUrl, 0.9 * getGameVolume());
-                }
+
               }
               const pulse = 1 - ((elapsedShooting % cadenceMs) / Math.max(1, cadenceMs));
               muzzleFx.flash.scale.setScalar(0.76 + pulse * 1.08);
@@ -11583,10 +11464,16 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount, onlin
                 return;
               }
               const isFinalProjectile = idx >= finalProjectileStartIndex;
-              const cinematicBulletSpeed = mergedBallistics.bulletSpeed * (isFinalProjectile ? FIREARM_FINAL_BULLET_SLOWMO_FACTOR : FIREARM_NON_FINAL_BULLET_CINEMATIC_FACTOR);
-              const rawShotProgress = clamp((life * cinematicBulletSpeed) / Math.max(24, cadenceMs * (isFinalProjectile ? 2.18 : 0.82)), 0, 1);
+              const travelMs = isFinalProjectile
+                ? clamp(760 * (.26 / mergedBallistics.bulletSpeed), 680, 1080)
+                : clamp(115 * (.26 / mergedBallistics.bulletSpeed), 85, 220);
+              const rawShotProgress = clamp(life / travelMs, 0, 1);
               const shotProgress = isFinalProjectile ? easeInOutSine01(rawShotProgress) : rawShotProgress;
-              const start = muzzleOrigin.clone();
+              if (!bulletMesh.userData.launchOrigin) {
+                bulletMesh.userData.launchOrigin = muzzleOrigin.clone();
+                bulletMesh.userData.launchTarget = muzzleTarget.clone();
+              }
+              const start = bulletMesh.userData.launchOrigin.clone();
               const pelletIndex = Number(bulletMesh.userData?.pelletIndex ?? 0);
               const pelletOffset = FIREARM_SCATTER_PROJECTILE_IDS.has(resolvedCaptureAnimationId)
                 ? new THREE.Vector3(
@@ -11595,15 +11482,14 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount, onlin
                   Math.sin(pelletIndex * 1.719) * mergedBallistics.tracerSpread * 0.72
                 )
                 : new THREE.Vector3();
-              const end = muzzleTarget.clone().add(pelletOffset);
+              const end = bulletMesh.userData.launchTarget.clone().add(pelletOffset);
               const bulletPos = start.lerp(end, shotProgress);
-              const projectileDir = end.clone().sub(muzzleOrigin);
+              const projectileDir = end.clone().sub(bulletMesh.userData.launchOrigin);
               if (projectileDir.lengthSq() < 1e-7) projectileDir.set(0, 1, 0);
               projectileDir.normalize();
               bulletMesh.quaternion.setFromUnitVectors(new THREE.Vector3(0, 1, 0), projectileDir);
               bulletMesh.rotateY(life * (isFinalProjectile ? FIREARM_FINAL_BULLET_SPIN_RATE : 0.032));
-              bulletMesh.rotateX(singleShotFirearm ? 0.18 : 0.1);
-              if (isFinalProjectile) bulletMesh.rotateZ(life * 0.036);
+
               bulletMesh.visible = shotProgress < 0.995;
               bulletMesh.position.copy(bulletPos);
               if (!chipDamageDone && idx === 0 && shotProgress >= 0.92) {
@@ -11668,39 +11554,33 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount, onlin
             }
             shells.forEach((shell, idx) => {
               const shellState = shellStates[idx];
-              const launchAt = idx * (cadenceMs * 0.7);
-              const shellLife = elapsedShooting - launchAt;
-              if (shellLife < 0) {
-                shell.visible = false;
-                return;
-              }
-              if (shellState?.landed) {
-                shell.visible = elapsed - shellState.settledAt < 12000;
-                return;
+              const shellLife = elapsedShooting - idx * cadenceMs;
+              const retainsCase = /Revolver|smithSidearm/.test(resolvedCaptureAnimationId);
+              const explosive = FIREARM_BALLISTICS_PROFILE_BY_ID[resolvedCaptureAnimationId] === 'explosive';
+              if (shellLife < 0 || retainsCase || explosive) { shell.visible = false; return; }
+              if (!shellState.origin) {
+                const hand = attackerEntry?.rig?.rightHand;
+                shellState.origin = hand?.getWorldPosition(new THREE.Vector3()) ?? muzzleOrigin.clone();
+                const aim = muzzleTarget.clone().sub(muzzleOrigin).normalize();
+                const side = new THREE.Vector3().crossVectors(aim, cameraWorldUp).normalize();
+                shellState.velocity = side.multiplyScalar(.20 + (idx % 3) * .025).add(new THREE.Vector3(0, .30, 0));
               }
               shell.visible = true;
-              if (shellLife < 18) shellBase.copy(muzzleOrigin);
-              const nextY =
-                shellBase.y +
-                0.018 +
-                Math.sin((shellLife / 760) * Math.PI) * mergedBallistics.shellArc -
-                shellLife * 0.00012;
-              shell.position.set(
-                shellBase.x + shellLife * mergedBallistics.shellDriftX,
-                nextY,
-                shellBase.z + shellLife * mergedBallistics.shellDriftZ
-              );
-              if (shell.position.y <= tableSurfaceY + HDRI_GROUND_ALIGNMENT_OFFSET + 0.006) {
-                shell.position.y = tableSurfaceY + HDRI_GROUND_ALIGNMENT_OFFSET + 0.006;
+              if (shellState.landed) return;
+              const seconds = shellLife / 1000;
+              shell.position.copy(shellState.origin).addScaledVector(shellState.velocity, seconds);
+              shell.position.y -= .9 * seconds * seconds;
+              const floor = tableSurfaceY + HDRI_GROUND_ALIGNMENT_OFFSET + mergedBallistics.shellRadius;
+              if (shell.position.y <= floor) {
+                shell.position.y = floor;
                 shellState.landed = true;
                 shellState.settledAt = elapsed;
-              }
-              shell.rotation.x += 0.34;
-              shell.rotation.y += 0.26;
-              shell.rotation.z += 0.28;
+                shell.rotation.set(Math.PI / 2, 0, idx * 2.399);
+                playFirearmShellSound();
+              } else shell.rotation.set(seconds * 12, seconds * 8, seconds * 10);
             });
             const impactPhase = clamp((elapsedShooting - shots * cadenceMs * 0.72) / Math.max(140, shots * cadenceMs * 0.28), 0, 1);
-            if (!shatterDone && (finalImpactDone || impactPhase >= 0.98)) {
+            if (!shatterDone && (finalImpactDone || elapsed >= durationMs - 60)) {
               shatterDone = true;
               playGlassShatterSound();
               if (hideTarget) hideTarget.visible = false;
@@ -11735,11 +11615,12 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount, onlin
             [muzzleFx.root, targetReticle.root, aerodynamicRings, ...tracers.map((entry) => entry.root), ...shells, ...bullets].forEach((obj) => {
               obj?.parent?.remove?.(obj);
             });
-            bullets.forEach((bullet) => bullet?.userData?.dispose?.());
+            [...bullets, ...shells].forEach((object) => object?.userData?.dispose?.());
             handWeaponAttachment?.release?.();
+            if (attackerEntry?.propMotion === firearmOwner) attackerEntry.propMotion = null;
+            if (parkedEntry?.weaponHolder) parkedEntry.weaponHolder.visible = true;
             dynamicFirearmCameraRef.current = false;
             firearmCinematicCameraPoseRef.current = null;
-            if (parkedEntry?.weaponHolder) parkedEntry.weaponHolder.visible = true;
             playCapture();
             seatedHumanActionRef.current = {
               ...seatedHumanActionRef.current,
@@ -13457,51 +13338,79 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount, onlin
     return true;
   }, []);
 
-  const syncDiceToThrowHand = useCallback((player, dice, { duration = 28 } = {}) => {
-    if (!dice?.isObject3D || !dice.parent?.isObject3D) return Promise.resolve();
+  // Keep the die unchanged on the table until the palm reaches it. The rig owns
+  // contact, windup and release; spinDice still owns the flight and result.
+  const syncDiceToThrowHand = useCallback((player, dice, { isCurrent = () => true } = {}) => {
+    const entry = seatedHumanActorsRef.current?.find((actor) => actor.playerIndex === player);
+    if (!entry?.rightPalm || !dice?.parent) return Promise.resolve();
+    const { actor, rig, rightPalm } = entry;
     const parent = dice.parent;
-    const worldTarget = new THREE.Vector3();
-    const localTarget = new THREE.Vector3();
+    const pickup = dice.getWorldPosition(new THREE.Vector3());
+    const originalQ = dice.getWorldQuaternion(new THREE.Quaternion());
+    const startPalm = boneWorld(rightPalm);
     const start = performance.now();
-
-    const snapToHand = (blend = 1) => {
-      const sampledHold =
-        sampleHumanActionHelperPosition(player, 'diceHold', worldTarget) ||
-        sampleHumanActionHelperPosition(player, 'dicePickup', worldTarget);
-      if (!sampledHold && !sampleSeatedContactEffectorPosition(player, worldTarget)) return false;
-      worldTarget.y -= DICE_SIZE * SEATED_DICE_THROW_VERTICAL_NUDGE;
-      localTarget.copy(worldTarget);
-      parent.worldToLocal(localTarget);
-      if (blend >= 1) {
-        dice.position.copy(localTarget);
-      } else {
-        dice.position.lerp(localTarget, clamp(blend, 0, 1));
-      }
-      return true;
+    const poseAt = (mode, amount, grip) => {
+      applySeatedHumanPose(rig, mode, amount, grip, {}, { idleBreathAmp: 0 }, entry.chairSupportsArmrest !== false);
+      actor.updateMatrixWorld(true);
     };
-
-    // Remove visible pickup lag: snap into the hand immediately on fist motion.
-    snapToHand(1);
-
+    const snapshot = () => rig.bones.map((bone) => bone.quaternion.clone());
+    const blend = (from, amount) => rig.bones.forEach((bone, index) => {
+      bone.quaternion.slerpQuaternions(from[index], bone.quaternion, smooth01(amount));
+    });
+    let contactPose = null;
+    let palmOffsetQ = null;
+    const owner = {};
+    entry.propMotion = owner;
+    seatedHumanActionRef.current = { ...seatedHumanActionRef.current, holdPlayer: null, throwPlayer: null };
     return new Promise((resolve) => {
       const step = () => {
-        if (!dice?.isObject3D || !parent?.isObject3D) {
+        if (!isCurrent() || entry.actor !== actor || entry.propMotion !== owner || !actor.parent || !dice.parent) {
+          if (entry.propMotion === owner) entry.propMotion = null;
           resolve();
           return;
         }
-        const elapsed = performance.now() - start;
-        const phase = clamp(elapsed / Math.max(1, duration), 0, 1);
-        const blend = 0.92 + (1 - Math.pow(1 - phase, 2)) * 0.08;
-        snapToHand(blend);
-        if (phase < 1) {
-          requestAnimationFrame(step);
+        const t = performance.now() - start;
+        if (t < 550) {
+          poseAt('reachDice', smooth01(t / 550), 0);
+          solveArm(rig, 'right', rightPalm, startPalm.clone().lerp(pickup, smooth01(t / 550)), undefined, true);
         } else {
+          if (!contactPose) {
+            poseAt('gripDice', 1, .8);
+            solveArm(rig, 'right', rightPalm, pickup, undefined, true);
+            contactPose = snapshot();
+            palmOffsetQ = rightPalm.getWorldQuaternion(new THREE.Quaternion()).invert().multiply(originalQ);
+          }
+          if (t < 720) {
+            poseAt('gripDice', 1, smooth01((t - 550) / 170) * .8);
+            solveArm(rig, 'right', rightPalm, pickup, undefined, true);
+          } else if (t < 1080) {
+            poseAt('windUp', 1, .8);
+            blend(contactPose, (t - 720) / 360);
+          } else {
+            poseAt('windUp', 1, .8);
+            const windup = snapshot();
+            poseAt('release', 1, 1 - smooth01((t - 1080) / 260));
+            blend(windup, (t - 1080) / 260);
+          }
+          actor.updateMatrixWorld(true);
+          // Store the grip transform once, retaining the die's orientation at contact.
+          if (t >= 720) {
+            dice.position.copy(parent.worldToLocal(boneWorld(rightPalm)));
+            const q = rightPalm.getWorldQuaternion(new THREE.Quaternion()).multiply(palmOffsetQ);
+            dice.quaternion.copy(parent.getWorldQuaternion(new THREE.Quaternion()).invert().multiply(q));
+          }
+        }
+        if (t < 1340) requestAnimationFrame(step);
+        else {
+          entry.propMotion = null;
+          seatedHumanActionRef.current = { ...seatedHumanActionRef.current, holdPlayer: null,
+            throwPlayer: player, throwStartMs: performance.now() - SEATED_HUMAN_DICE_PHASES.windupMs - SEATED_HUMAN_DICE_PHASES.releaseMs };
           resolve();
         }
       };
       requestAnimationFrame(step);
     });
-  }, [sampleHumanActionHelperPosition, sampleSeatedContactEffectorPosition]);
+  }, []);
 
   const rollDice = async () => {
     const state = stateRef.current;
@@ -13551,7 +13460,6 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount, onlin
     } else {
       preserveUserTurnCameraRef.current = true;
     }
-    playDiceSound();
     const diceToTarget = baseTarget.clone().sub(dice.position);
     let throwLateral = 0;
     let throwForward = 1;
@@ -13567,9 +13475,10 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount, onlin
       throwForward = clamp(-localDir.z * 1.4, -1, 1);
     }
     beginDiceThrowPose(player, { lateral: throwLateral, forward: throwForward });
-    await syncDiceToThrowHand(player, dice, { duration: 12 });
+    await syncDiceToThrowHand(player, dice, { isCurrent: () => stateRef.current === state });
     if (stateRef.current !== state) return;
     const landingFocus = baseTarget.clone();
+    playDiceSound();
     const value = await spinDice(dice, {
       duration: resolveFrameSyncedDuration(AUTO_ROLL_DURATION_MS, { min: 620, max: 1800 }),
       targetPosition: baseTarget,
@@ -13753,16 +13662,19 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount, onlin
         throwForward = clamp(-localDir.z * 1.4, -1, 1);
       }
       dice.userData.isRolling = true;
-      playDiceSound();
       beginDiceThrowPose(presentedTurn, { lateral: throwLateral, forward: throwForward });
-      void syncDiceToThrowHand(presentedTurn, dice, { duration: 12 })
-        .then(() => isCurrent() ? spinDice(dice, {
+      void syncDiceToThrowHand(presentedTurn, dice, { isCurrent })
+        .then(() => {
+          if (!isCurrent()) return null;
+          playDiceSound();
+          return spinDice(dice, {
           duration: resolveFrameSyncedDuration(AUTO_ROLL_DURATION_MS, { min: 620, max: 1800 }),
           targetPosition,
           bounceHeight: dice.userData?.bounceHeight ?? 0.06,
           value: action.roll,
           isCurrent
-        }) : null)
+        });
+        })
         .finally(() => {
           if (!isCurrent()) return;
           dice.userData.isRolling = false;
