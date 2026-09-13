@@ -4,12 +4,13 @@ import { DOMINO_ROYAL_INLINE_STYLE } from './dominoRoyalTemplate.js';
 import { socket } from '../../utils/socket.js';
 import {
   createRestoredSeatedHumanActor,
+  applySeatedHumanPose,
   loadSeatedHumanTemplate
 } from './shared/seatedHumanActors.js';
 
 const INLINE_STYLE_ID = 'domino-royal-inline-style';
 const GAME_SCRIPT_SELECTOR = 'script[data-domino-royal-script="true"]';
-const DOMINO_ROYAL_SCRIPT_VERSION = '2026-09-13-restored-humans-v76';
+const DOMINO_ROYAL_SCRIPT_VERSION = '2026-09-13-legacy-human-scale-motion-v77';
 
 export default function DominoRoyalArena() {
   useEffect(() => {
@@ -42,6 +43,7 @@ export default function DominoRoyalArena() {
     // models, scale normalization and seated pose as the other royal tables.
     window.__DOMINO_ROYAL_SEATED_HUMANS__ = {
       createRestoredSeatedHumanActor,
+      applySeatedHumanPose,
       loadSeatedHumanTemplate
     };
 

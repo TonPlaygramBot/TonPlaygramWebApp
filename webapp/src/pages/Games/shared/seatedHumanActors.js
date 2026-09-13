@@ -606,12 +606,16 @@ export function computeSeatedHumanScale(actorTemplate, targetHeight) {
 export function createRestoredSeatedHumanActor(
   actorTemplate,
   chairGroup,
-  { targetHeight = 1.13, seatHeight = 0, supportsArmrest = true } = {}
+  { targetHeight = 1.13, seatHeight = 0, supportsArmrest = true, restoreLegacyScale = false } = {}
 ) {
   if (!actorTemplate?.isObject3D || !chairGroup?.isObject3D) return null;
   const actor = cloneSkeleton(actorTemplate);
   const measuredHeight = measureObjectHeight(actor);
-  actor.scale.multiplyScalar(targetHeight / Math.max(measuredHeight, 0.01));
+  const normalizedScale = targetHeight / Math.max(measuredHeight, 0.01);
+  const legacyScale = Number(actorTemplate.userData?.seatedHumanScale);
+  actor.scale.multiplyScalar(
+    restoreLegacyScale && Number.isFinite(legacyScale) ? legacyScale : normalizedScale
+  );
   chairGroup.add(actor);
 
   const rig = saveSeatedHumanBoneRig(actor);
