@@ -10,7 +10,9 @@ offsets its exterior and hole boundaries, and tests complete tyre footprints
 against asphalt, buildings and other tyres. The boolean operation uses a 1 mm
 snap to avoid coincident-edge numerical failures; final clearance uses the
 original unsnapped triangles. Kerbs follow the same union, removing their crossed
-inside-corner spurs too. Both layers use spatially culled instance batches.
+inside-corner spurs too. Both layers use spatially culled instance batches. A
+shared surface builder also corrects downward-facing asphalt triangles so the
+visible road matches the audited footprint in both the game and preview.
 
 ## Full circuit inspection
 
@@ -74,7 +76,7 @@ geometry, race numbers and liveries are original, without manufacturer branding.
 
 ## Reproduce and review
 
-All 90 regression checks pass and the standalone Racing Royal production build
+All 91 regression checks pass and the standalone Racing Royal production build
 succeeds. Results are saved in `validation/racing-corners/tests.txt`.
 
 ```sh

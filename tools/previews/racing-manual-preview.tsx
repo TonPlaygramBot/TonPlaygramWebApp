@@ -20,7 +20,7 @@ import {KartDriver} from '../../webapp/src/games/kartroyale/KartDriver';
 import {KartControls} from '../../webapp/src/games/kartroyale/KartControls';
 import {createHeldRaceInput} from '../../webapp/src/games/kartroyale/heldRaceInput.mjs';
 import {STEP,createRacer,equipKart,stepRace,COLORS,standings} from '../../webapp/src/games/kartroyale/legacySimulation.mjs';
-import {circuitSides} from '../../webapp/src/games/kartroyale/trackEdges.mjs';
+import {createRaceSurfaceGeometry} from '../../webapp/src/games/kartroyale/RaceSurface';
 import {boostPads} from '../../webapp/src/games/kartroyale/arcadeRules.mjs';
 import DATA from 'preview-data';
 const choices=KART_DESIGNS.map(k=>[k.id,k.name]);
@@ -44,9 +44,7 @@ function App(){
   scene.add(new T.HemisphereLight('#edfbff','#627450',2.2));const sun=new T.DirectionalLight('#fff3dc',3);sun.position.set(20,35,10);scene.add(sun);
   const {track,buildings,trees,tyres}=DATA.courses[course];
   const ground=new T.Mesh(new T.PlaneGeometry(1800,1800),new T.MeshStandardMaterial({color:'#96a48d',roughness:1}));ground.rotation.x=-Math.PI/2;ground.position.set(track.center.x,.10,track.center.z);world.add(ground);
-  const sides=circuitSides(track.points,track.width/2),positions=[],indices=[];
-  for(let i=0;i<=track.points.length;i++){for(const side of ['left','right']){const p=sides[side][i%track.points.length];positions.push(p.x,.115,p.z);}if(i<track.points.length){const a=i*2;indices.push(a,a+2,a+1,a+1,a+2,a+3);}}
-  const geo=new T.BufferGeometry();geo.setAttribute('position',new T.Float32BufferAttribute(positions,3));geo.setIndex(indices);geo.computeVertexNormals();world.add(new T.Mesh(geo,new T.MeshStandardMaterial({color:'#4b5861',roughness:.94})));
+  const geo=createRaceSurfaceGeometry(track);world.add(new T.Mesh(geo,new T.MeshStandardMaterial({color:'#4b5861',roughness:.94})));
   const dummy=new T.Object3D();world.add(createKerbLayer(track));
   const cityBatches=new Map<string,{color:string,geometries:T.BufferGeometry[]}>();
   for(const b of buildings){const shape=new T.Shape(b.p.map(p=>new T.Vector2(p[0],-p[1]))),g=new T.ExtrudeGeometry(shape,{depth:b.h,bevelEnabled:false});g.rotateX(-Math.PI/2);const key=`${b.color}/${Math.floor(b.p[0][0]/64)}/${Math.floor(b.p[0][1]/64)}`;if(!cityBatches.has(key))cityBatches.set(key,{color:b.color,geometries:[]});cityBatches.get(key)!.geometries.push(g);}

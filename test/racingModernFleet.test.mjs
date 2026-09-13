@@ -112,3 +112,15 @@ test('kerbs follow the asphalt union rather than leaving crossed spurs in corner
     }
   }
 });
+
+test('rendered asphalt faces upwards on all six circuits, including folded joins',async()=>{
+  const file=new URL('../webapp/src/games/kartroyale/RaceSurface.ts',import.meta.url);
+  const code=await build({entryPoints:[file.pathname],bundle:true,write:false,format:'esm',platform:'node',plugins:[{name:'three',setup(b){b.onResolve({filter:/^three$/},()=>({path:new URL('../webapp/node_modules/three/build/three.module.js',import.meta.url).href,external:true}));}}]});
+  const {createRaceSurfaceGeometry}=await import('data:text/javascript;base64,'+Buffer.from(code.outputFiles[0].text).toString('base64'));
+  for(const {id} of TRACKS){
+    const track=makeTrack(id),geo=createRaceSurfaceGeometry(track),p=geo.attributes.position,indices=geo.index.array;
+    assert.equal(indices.length,track.points.length*6);
+    for(let i=0;i<indices.length;i+=3){const [a,b,c]=indices.slice(i,i+3),normal=(p.getZ(b)-p.getZ(a))*(p.getX(c)-p.getX(a))-(p.getX(b)-p.getX(a))*(p.getZ(c)-p.getZ(a));assert.ok(normal>=-1e-4,id+' downward-facing asphalt triangle');}
+    geo.dispose();
+  }
+});

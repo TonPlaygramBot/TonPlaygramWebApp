@@ -28,7 +28,7 @@ import { TiranaScenery } from './tiranaScenery';
 import { Supporters } from './supporters';
 import { prepareHuman } from './supporterHuman';
 import { RaceEffects } from './raceEffects';
-import { circuitSides } from './trackEdges.mjs';
+import { createRaceSurfaceGeometry } from './RaceSurface';
 import { createBoostPadLayer } from './BoostPadLayer';
 import { createRoadBumpLayer } from './RoadBumpLayer';
 import { createTyreBarrierLayer } from './TyreBarrierLayer';
@@ -599,29 +599,7 @@ export class KartRenderer {
     this.release(this.world, true);
     this.world.clear();
     const sampleCount = track.points.length;
-    const sides = circuitSides(track.points, track.width / 2),
-      positions: number[] = [],
-      indices: number[] = [],
-      normals: number[] = [],
-      uvs: number[] = [];
-    for (let i = 0; i <= sampleCount; i++) {
-      for (const side of ['left', 'right'] as const) {
-        const p = sides[side][i % sampleCount];
-        positions.push(p.x, 0.115, p.z);
-        normals.push(0, 1, 0);
-        const n = positions.length;
-        uvs.push(positions[n - 3] / 3, positions[n - 1] / 3);
-      }
-      if (i < sampleCount) {
-        const a = i * 2;
-        indices.push(a, a + 2, a + 1, a + 1, a + 2, a + 3);
-      }
-    }
-    const geo = new T.BufferGeometry();
-    geo.setAttribute('position', new T.Float32BufferAttribute(positions, 3));
-    geo.setAttribute('normal', new T.Float32BufferAttribute(normals, 3));
-    geo.setAttribute('uv', new T.Float32BufferAttribute(uvs, 2));
-    geo.setIndex(indices);
+    const geo = createRaceSurfaceGeometry(track);
     const surface = new T.Mesh(geo, new T.MeshStandardMaterial({color:'#69737a',map:this.roadMaps[0],normalMap:this.roadMaps[1],roughnessMap:this.roadMaps[2],roughness:.92}));
     surface.name = 'Rounded closed-event race surface'; surface.receiveShadow = true;
     this.world.add(surface);
