@@ -107,7 +107,11 @@ const DEFAULT_FRAME_RATE_ID = 'fhd60';
 
 const MODEL_SCALE = 0.75;
 const CHARACTER_PROPORTION_SCALE = 1.82;
-const ENABLE_3D_HUMAN_CHARACTERS = false;
+// Murlan uses the seated human roster; the lightweight stand-ins are retained
+// below solely as a graceful fallback when a model cannot be loaded.
+const ENABLE_3D_HUMAN_CHARACTERS = true;
+// Voice commentary is deliberately unavailable in Murlan. Keeping the guard
+// false also prevents speech listeners or synthesis work from being started.
 const ENABLE_VOICE_COMMENTARY = false;
 const ARENA_GROWTH = 1.45; // expanded arena footprint for wider walkways
 const CHAIR_SIZE_SCALE = 1.14;

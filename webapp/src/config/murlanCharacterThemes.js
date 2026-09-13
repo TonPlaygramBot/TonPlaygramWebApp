@@ -376,7 +376,16 @@ const DOMINO_ROYAL_CHARACTER_IDS = new Set([
 ]);
 
 export const MURLAN_CHARACTER_THEMES = Object.freeze(
-  CHARACTER_THEME_CATALOG.filter((theme) => DOMINO_ROYAL_CHARACTER_IDS.has(theme.id))
+  CHARACTER_THEME_CATALOG.filter((theme) => DOMINO_ROYAL_CHARACTER_IDS.has(theme.id)).map((theme) =>
+    theme.id === 'rpm-current'
+      ? {
+          ...theme,
+          preserveOriginalMaterials: true,
+          url: '/assets/pool-royale/readyplayer.me.glb',
+          modelUrls: ['/assets/pool-royale/readyplayer.me.glb', ...theme.modelUrls]
+        }
+      : theme
+  )
 );
 
 export const POOL_ROYALE_CHARACTER_THEMES = CHARACTER_THEME_CATALOG;
