@@ -1,3 +1,4 @@
+import {spatialIndex} from '../../tirana-city-completion/placementCore.mjs';
 import { WORLD } from './world.mjs';
 import {BUS_STOPS} from '../../tirana-street-life/transitData.mjs';
 import {CITY_COMPLETION} from '../../tirana-city-completion/data.mjs';
@@ -13,6 +14,11 @@ import { RIVER_SEGMENTS, freeLandscape, nearBridge } from './landscape.mjs';
 // Original city dressing, not a claim that each fixture exists at this OSM location.
 // The same footprints are consumed by the scene and the authoritative simulation.
 export const STREET_PROPS = [];
+const propCells=new Map();
+const addProp=p=>{STREET_PROPS.push(p);const key=Math.floor(p.x/16)+','+Math.floor(p.z/16);if(!propCells.has(key))propCells.set(key,[]);propCells.get(key).push(p);};
+const propsNear=(x,z,r)=>{const out=[];for(let i=Math.floor((x-r)/16);i<=Math.floor((x+r)/16);i++)for(let j=Math.floor((z-r)/16);j<=Math.floor((z+r)/16);j++)out.push(...(propCells.get(i+','+j)||[]));return out;};
+const signalsNear=spatialIndex(SIGNALS,s=>{const r=s.width/2+8;return [s.x-r,s.z-r,s.x+r,s.z+r];});
+const riversNear=spatialIndex(RIVER_SEGMENTS,r=>{const pad=r.width/2+1;return [Math.min(r.a[0],r.b[0])-pad,Math.min(r.a[1],r.b[1])-pad,Math.max(r.a[0],r.b[0])+pad,Math.max(r.a[1],r.b[1])+pad];});
 const dimensions = {
   bus_shelter: [2.14, 0.9],
   bicycle_rack: [0.98, 0.37],
@@ -29,11 +35,11 @@ function fits(p) {
   if (
     nearBridge(p.x, p.z, 7) ||
     Math.hypot(p.x - SHOP.x, p.z - SHOP.z) < 15 ||
-    SIGNALS.some((s) => Math.hypot(s.x - p.x, s.z - p.z) < s.width / 2 + 8)
+    signalsNear(p.x,p.z).some((s) => Math.hypot(s.x - p.x, s.z - p.z) < s.width / 2 + 8)
   )
     return false;
   if (
-    STREET_PROPS.some(
+    propsNear(p.x,p.z,9).some(
       (q) =>
         Math.hypot(q.x - p.x, q.z - p.z) < (p.name === 'bus_shelter' ? 9 : 5)
     )
@@ -50,7 +56,7 @@ function fits(p) {
     return (
       freeLandscape(q.x, q.z) &&
       pavementHeight(q.x, q.z) > 0.2 &&
-      !RIVER_SEGMENTS.some(
+      !riversNear(q.x,q.z).some(
         (r) => segmentDistance(q.x, q.z, r.a, r.b) < r.width / 2 + 1
       )
     );
@@ -79,12 +85,12 @@ for (const [i, r] of WORLD.roads.entries()) {
       scale: 1
     };
     if (fits(p)) {
-      STREET_PROPS.push(p);
+      addProp(p);
 
     }
   }
   if (i % 11 === 0 && len > 36)
-    STREET_PROPS.push({
+    addProp({
       name: 'manhole_cover',
       x: r.a[0] + dx * 0.42,
       z: r.a[1] + dz * 0.42,
@@ -108,7 +114,7 @@ for (const s of SIGNALS)
       scale: 1
     };
     if (!onCarriageway(p.x, p.z, 0.08) && freeLandscape(p.x, p.z))
-      STREET_PROPS.push(p);
+      addProp(p);
   }
 export const STREET_SOLIDS = [];
 for (const p of STREET_PROPS) {

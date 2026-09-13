@@ -1,3 +1,5 @@
+import {loadPlayerGltf} from './loadPlayerGltf';
+import {fetchGameGlb} from './fetchGameGlb.mjs';
 import {groundHeight} from '../tirana-east/terrainCore.mjs';
 import {LandscapeVisuals} from './landscapeVisuals';
 import {CinematicAtmosphere} from '../tirana-environment/CinematicAtmosphere';
@@ -68,6 +70,7 @@ export class CityRenderer {
   targetFps = 60;
   ready = false;
   disposed = false;
+  private loadAbort = new AbortController();
   readonly landscape: LandscapeVisuals;
   readonly atmosphere: CinematicAtmosphere;
   private surfaceMaterials=new EnvironmentMaterials();
@@ -665,7 +668,7 @@ export class CityRenderer {
                 : name;
           const url = ASSETS + file + '.glb';
           let source = vehicleSources.get(url);
-          if (!source) { source = loader.loadAsync(url); vehicleSources.set(url, source); }
+          if (!source) { source = name === 'character' ? loadPlayerGltf(loader,this.loadAbort.signal,onProgress) : loader.loadAsync(url); vehicleSources.set(url, source); }
           const original = await source;
           const gltf = {...original, scene: clone(original.scene)};
           if (this.disposed) {
@@ -723,7 +726,14 @@ export class CityRenderer {
       pending.push(character);
       if (this.disposed) return;
       onProgress?.("Adding textured city facades");
-      const [, city] = await Promise.all([character, loader.loadAsync(ASSETS + "city.glb")]);
+      const cityRequest = fetchGameGlb(ASSETS + "city.glb",{signal:this.loadAbort.signal,onRetry:()=>onProgress?.("Retrying city download…")}).then(bytes=>loader.parseAsync(bytes,ASSETS));
+      pending.push(cityRequest);
+      const [playerResult,cityResult] = await Promise.allSettled([character,cityRequest]);
+      if(playerResult.status==='rejected'||cityResult.status==='rejected'){
+        if(cityResult.status==='fulfilled')this.disposeObject(cityResult.value.scene);
+        throw playerResult.status==='rejected'?playerResult.reason:(cityResult as PromiseRejectedResult).reason;
+      }
+      const city=cityResult.value;
       if (this.disposed) {
         this.disposeObject(city.scene);
         return;
@@ -1277,6 +1287,7 @@ export class CityRenderer {
   }
   destroy() {
     this.disposed = true;
+    this.loadAbort.abort();
     this.referenceFacades.dispose();
     this.agedHousing.dispose();
     this.living.dispose();

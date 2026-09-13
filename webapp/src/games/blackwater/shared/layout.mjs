@@ -1,3 +1,4 @@
+import {nearestRoadIndex,placementObstacleIndex} from './placementIndex.mjs';
 import {BATTLEFIELD_MAP_CATALOG} from './mapCatalog.mjs';
 import {COLLECTION_PLACEMENTS} from '../../tiranastreets/shared/collectionPlacements.mjs';
 import {importedFleet} from './importedPlacements.mjs';
@@ -7,7 +8,7 @@ import { detailPostObstacles } from '../../tirana-street-detail/sharedRoadDetail
 import { nativeReplacementIds } from '../../tirana-landmarks/nativeLocations.mjs';
 import { nativeLandmarkObstacles } from '../../tirana-landmarks/nativeCollision.mjs';
 import {FUEL_CANOPY_IDS,fuelCanopyObstacles} from '../../tirana-street-life/fuelCollision.mjs';
-import { buildingProfile, footprintDistance } from '../../tiranastreets/shared/architecture.mjs';
+import { buildingProfile } from '../../tiranastreets/shared/architecture.mjs';
 import { STREET_SOLIDS } from '../../tiranastreets/shared/streetDressing.mjs';
 import { RAILINGS } from '../../tiranastreets/shared/landscape.mjs';
 import { CITY_BUILDING_DATA } from '../../tirana-city-source/cityBuildingData.mjs';
@@ -31,26 +32,7 @@ export const roads = WORLD.roads.map((r, id) => ({
   b: [r.b[0] - ORIGIN.x, r.b[1] - ORIGIN.z]
 }));
 const streets = roads.filter((r) => !r.walk);
-export function nearestRoad(x, z) {
-  let best,
-    distance = Infinity;
-  for (const r of streets) {
-    const dx = r.b[0] - r.a[0],
-      dz = r.b[1] - r.a[1],
-      l = dx * dx + dz * dz,
-      t = l
-        ? Math.max(0, Math.min(1, ((x - r.a[0]) * dx + (z - r.a[1]) * dz) / l))
-        : 0;
-    const px = r.a[0] + dx * t,
-      pz = r.a[1] + dz * t,
-      d = Math.hypot(x - px, z - pz);
-    if (d < distance) {
-      distance = d;
-      best = { x: px, z: pz, road: r, distance: d };
-    }
-  }
-  return best;
-}
+export const nearestRoad = nearestRoadIndex(streets);
 const catalogBuildings = new Map(CITY_BUILDING_DATA.buildings.map(b=>[b.id,b]));
 const innerMembers = new Set(CITY_BUILDING_DATA.buildings.flatMap(b=>b.replaces??[]));
 const existingBuildingIds=new Set(WORLD.buildings.map(b=>b.id));
@@ -135,11 +117,12 @@ export const railingObstacles = RAILINGS.map(r=>({x:r.x-ORIGIN.x,z:r.z-ORIGIN.z,
 const replaced = nativeReplacementIds(WORLD);
 export const landmarkObstacles = nativeLandmarkObstacles(WORLD, ORIGIN);
 const cityObstacles = [...buildings.filter(b=>!replaced.has(b.id)&&!FUEL_CANOPY_IDS.has(b.id)), ...fuelCanopyObstacles(ORIGIN), ...landmarkObstacles, ...streetObstacles, ...railingObstacles, ...detailPostObstacles(ORIGIN)];
-const clear = (x,z,r=.5,obstacles=OBSTACLES) => !obstacles.some(o=>o.footprint?footprintDistance(x,z,o.footprint,o.holes)<r:Math.hypot(x-o.x,z-o.z)<Math.hypot(o.w,o.d)/2+r);
-const safeNear = (x,z,obstacles=OBSTACLES) => {x=Math.max(MAP.minX+2,Math.min(MAP.maxX-2,x));z=Math.max(MAP.minZ+2,Math.min(MAP.maxZ-2,z));const road=nearestRoad(x,z); if(clear(road.x,road.z,.5,obstacles))return {x:road.x,z:road.z}; for(let radius=4;radius<60;radius+=4)for(let i=0;i<16;i++){const p=nearestRoad(x+Math.cos(i*Math.PI/8)*radius,z+Math.sin(i*Math.PI/8)*radius);if(clear(p.x,p.z,.5,obstacles)&&p.x>MAP.minX+.5&&p.x<MAP.maxX-.5&&p.z>MAP.minZ+.5&&p.z<MAP.maxZ-.5)return {x:p.x,z:p.z};} return {x:START.x,z:START.z}; };
+const clear = (x,z,r=.5,obstacles) => obstacles.clear(x,z,r);
+const safeNear = (x,z,obstacles) => {x=Math.max(MAP.minX+2,Math.min(MAP.maxX-2,x));z=Math.max(MAP.minZ+2,Math.min(MAP.maxZ-2,z));const road=nearestRoad(x,z); if(clear(road.x,road.z,.5,obstacles))return {x:road.x,z:road.z}; for(let radius=4;radius<60;radius+=4)for(let i=0;i<16;i++){const p=nearestRoad(x+Math.cos(i*Math.PI/8)*radius,z+Math.sin(i*Math.PI/8)*radius);if(clear(p.x,p.z,.5,obstacles)&&p.x>MAP.minX+.5&&p.x<MAP.maxX-.5&&p.z>MAP.minZ+.5&&p.z<MAP.maxZ-.5)return {x:p.x,z:p.z};} return {x:START.x,z:START.z}; };
 const fleet = [];
 const smallProps = legacyProps.slice(8);
-const forceSpawn = safeNear(START.x, START.z, [...cityObstacles, ...smallProps]);
+const deploymentIndex = placementObstacleIndex([...cityObstacles, ...smallProps]);
+const forceSpawn = safeNear(START.x, START.z, deploymentIndex);
 const protectedPoints = [START, EXTRACTION, forceSpawn, ...SPAWNS];
 // Several legacy covers snapped onto the same distant road point. Place the
 // fleet in clear space near deployment, with room for the full original hull.
@@ -152,16 +135,15 @@ for (const [index, asset] of FORCE_VEHICLE_BOUNDS.entries()) {
       const x = forceSpawn.x + Math.sin(angle) * radius, z = forceSpawn.z - Math.cos(angle) * radius;
       if (x < MAP.minX+r || x > MAP.maxX-r || z < MAP.minZ+r || z > MAP.maxZ-r) continue;
       if (protectedPoints.some(p=>Math.hypot(x-p.x,z-p.z)<r+3)) continue;
-      if ([...cityObstacles,...smallProps,...fleet].some(o => o.footprint
-        ? footprintDistance(x,z,o.footprint,o.holes) < r
-        : Math.hypot(x-o.x,z-o.z) < r+Math.hypot(o.w,o.d)/2)) continue;
+      if (!deploymentIndex.clear(x,z,r)) continue;
       spot = {x,z}; break;
     }
   }
   if (!spot) throw new Error(`No clear deployment space for ${asset.id}`);
-  fleet.push({...spot,sx:0,sz:0,forceVehicle:asset.id,w:asset.w,d:asset.d,h:asset.h+.03,rot:0});
+  const placed={...spot,sx:0,sz:0,forceVehicle:asset.id,w:asset.w,d:asset.d,h:asset.h+.03,rot:0};
+  fleet.push(placed);deploymentIndex.add(placed);
 }
-const baseObstacles=[...cityObstacles,...fleet,...smallProps];
+const baseObstacles=deploymentIndex;
 const collectionProps=COLLECTION_PLACEMENTS.map(p=>({collectionVehicle:p.collectionVehicle,x:p.x-ORIGIN.x,z:p.z-ORIGIN.z,w:p.w,d:p.d,h:p.h,sx:0,sz:0,rot:p.heading+Math.PI}));
 // Ground firearms belong to the pickup systems. Decorative duplicates could
 // not be collected and also streamed the large original firearm textures.
