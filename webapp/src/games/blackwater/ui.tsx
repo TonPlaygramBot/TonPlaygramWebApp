@@ -1,18 +1,18 @@
 'use client';
 import { lazy, Suspense, useState, type ComponentProps } from 'react';
-import { Game as OperationGame } from './operationUi';
-import { CareerGame } from '../tiranastreets/career/CareerGame';
+import type { Game as OperationGameType } from './operationUi';
 import '../tiranastreets/career/career.css';
 import { GameModeBoundary } from '../shared/GameModeBoundary';
+const OperationGame = lazy(() => import('./operationUi').then(m => ({default:m.Game})));
+const CareerGame = lazy(() => import('../tiranastreets/career/CareerGame').then(m => ({default:m.CareerGame})));
 const StreetCareer = lazy(() =>
   import('../tiranastreets/street-career/StreetCareerGame').then((m) => ({
     default: m.StreetCareerGame
   }))
 );
-export * from './operationUi';
 /** Mutually exclusive runtimes. Online never mounts or imports the solo campaign.
  * Existing ?activity=career keeps opening the courier/Dajti City Stories. */
-export function Game(props: ComponentProps<typeof OperationGame>) {
+export function Game(props: ComponentProps<typeof OperationGameType>) {
   const [activity, setActivity] = useState(() => {
     const a =
       typeof window !== 'undefined'
@@ -24,11 +24,12 @@ export function Game(props: ComponentProps<typeof OperationGame>) {
         ? 'stories'
         : 'operation';
   });
-  if (props.mode === 'online') return <OperationGame {...props} />;
+  const loading = <div className="tc-game"><p className="tc-status" role="status">Loading Tirana Streets…</p></div>;
+  if (props.mode === 'online') return <Suspense fallback={loading}><OperationGame {...props} /></Suspense>;
   if (activity === 'stories')
     return (
       <GameModeBoundary onBack={() => setActivity('operation')}>
-        <CareerGame onExit={() => setActivity('operation')} />
+        <Suspense fallback={loading}><CareerGame onExit={() => setActivity('operation')} /></Suspense>
       </GameModeBoundary>
     );
   if (activity === 'street-career')
@@ -45,5 +46,5 @@ export function Game(props: ComponentProps<typeof OperationGame>) {
         </Suspense>
       </GameModeBoundary>
     );
-  return <OperationGame {...props} onCareer={()=>setActivity('street-career')} onStories={()=>setActivity('stories')} />;
+  return <GameModeBoundary onBack={props.onExit}><Suspense fallback={loading}><OperationGame {...props} onCareer={()=>setActivity('street-career')} /></Suspense></GameModeBoundary>;
 }

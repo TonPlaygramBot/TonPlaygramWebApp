@@ -26,7 +26,7 @@ export function StreetArsenal({player:p,state,onAction,onOwned}:{player:Player;s
   <p role="status">{message}</p>{!account&&<button disabled={!!busy} onClick={()=>void refresh()}>RETRY ACCOUNT</button>}
   {!near&&<p>Owned weapons can be equipped anywhere.</p>}{wantedStars(p.wanted)>0&&<p>Lose your wanted stars before shopping.</p>}
   <label>Category <select value={filter} onChange={e=>setFilter(e.target.value)}>{['all',...new Set(WEAPONS.map(w=>w.category))].map(c=><option key={c} value={c}>{c}</option>)}</select></label>
-  <div className="tsc-chapters">{WEAPONS.filter(w=>(p.inventory[w.id]||catalog.has(w.id))&&(filter==='all'||w.category===filter)).map(w=>{
+  <div className="tsc-chapters">{WEAPONS.filter(w=>w.id!=='fpsGunAttack'&&(p.inventory[w.id]||catalog.has(w.id))&&(filter==='all'||w.category===filter)).map(w=>{
    const own=p.inventory[w.id],item=catalog.get(w.id),ammoPrice=Math.max(30,Math.round(w.price*.2));
    return <div key={w.id} className="tsc-weapon"><strong>{w.label}</strong><p>{w.category}{own&&w.category!=='melee'?` · ${own.ammo} loaded / ${own.reserve} reserve`:''}</p>
     {own?<><button disabled={p.weapon===w.id||p.finished||p.failed} onClick={()=>onAction(`equip:${w.id}`)}>{p.weapon===w.id?'EQUIPPED':'EQUIP'}</button>{w.category!=='melee'&&<button disabled={!canBuy||p.cash<ammoPrice||own.reserve>=w.magazine*8} onClick={()=>onAction(`buy:${w.id}`)}>AMMO ${ammoPrice}</button>}</>:

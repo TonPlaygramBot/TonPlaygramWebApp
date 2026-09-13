@@ -9,7 +9,7 @@ import { DEFAULT_SETTINGS, type StreetSettings } from './settings';
 import { direction3 } from './spatialCore.mjs';
 import { CityRenderer } from '../renderer';
 import type { State } from '../shared/engine.mjs';
-import { attachEnhancements } from '../../tirana-expansion/WorldEnhancements';
+import type { attachEnhancements } from '../../tirana-expansion/WorldEnhancements';
 import { SharedHumans } from './SharedHumans';
 import { nearbyHumans } from './humanRoster.mjs';
 import { forceCharacterFor } from '../shared/albanianForces.mjs';
@@ -59,7 +59,7 @@ export class StreetRenderer extends CityRenderer {
     this.camera.near = 0.035;
     this.setFirstPerson(true);
     this.scene.add(this.humans.group);
-    this.details = attachEnhancements(this.scene);
+    this.details = this.cityDetails;
     this.details.bindBuildings(this.scene, [
       this.nativeLandmarks.group,
       this.referenceFacades.group,
@@ -83,7 +83,7 @@ export class StreetRenderer extends CityRenderer {
     const p = state.players[id],
       car = state.cars.find((c) => c.id === p.carId);
     if(p.aircraftId){actor.group.visible=false;this.bodyRig.weapon.visible=false;return true;}
-    this.bodyRig.update(actor, p, sim.body, state.elapsed, dt, car);
+    this.bodyRig.update(actor, p, sim.body, state.elapsed, dt, car, !car || this.vehicleView === 'cockpit');
     return true;
   }
   protected override presentFirstPerson(state: State, id: string, dt: number) {
@@ -116,20 +116,12 @@ export class StreetRenderer extends CityRenderer {
         this.camera.lookAt(target.x,target.y,target.z);
       }
     } else {
-      const target = new T.Vector3(p.x,b.y+(b.crouched?.65:1.0),p.z);
-      const pitch = T.MathUtils.clamp(this.pitch,-.45,.85);
-      const direction = direction3(this.yaw,pitch);
-      // Metre-scale chase distance keeps head and feet in portrait framing.
-      const distance = b.aim ? 2.8 : 4.6;
-      const desired = new T.Vector3(-direction.x,-direction.y+.22,-direction.z).normalize();
-      if(b.aim)desired.addScaledVector(new T.Vector3(Math.cos(this.yaw),0,-Math.sin(this.yaw)),.65/distance).normalize();
-      const origin={x:target.x,y:target.y,z:target.z};
-      const ray={x:desired.x,y:desired.y,z:desired.z};
-      const hit=sim.world.cast(origin,ray,distance,sim.cars());
-      const safe=Math.max(.3,Math.min(distance,hit.distance-.22));
-      this.camera.position.copy(target).addScaledVector(desired,safe);
-      this.camera.position.y=Math.max(b.y+.24,groundHeight(this.camera.position.x,this.camera.position.z)+.24,this.camera.position.y);
-      if(b.aim){const aim=direction3(this.yaw,this.pitch);this.camera.lookAt(p.x+aim.x*25,b.y+b.eye+aim.y*25,p.z+aim.z*25);}else this.camera.lookAt(target);
+      this.flightHeading = undefined;
+      // Camera follows the physical player's eyes. Looking down shows the body;
+      // aiming never pulls the camera back behind the character.
+      this.camera.position.set(p.x, b.y + b.eye, p.z);
+      const look = direction3(this.yaw, this.pitch + b.recoil * this.settings.shake);
+      this.camera.lookAt(p.x + look.x, b.y + b.eye + look.y, p.z + look.z);
     }
     const d = car?driverDirection(car,this.yaw,this.pitch):direction3(this.yaw, this.pitch);
     if(car&&this.vehicleView==='cockpit'){const up=driverUp(car);this.camera.up.set(up.x,up.y,up.z);}

@@ -10,7 +10,7 @@ import {
   campaign,
   type StreetView
 } from './StreetCareerRuntime';
-import { screenStick, HUMAN_ROSTER } from './humanRoster.mjs';
+import { screenStick } from './humanRoster.mjs';
 import { CityMap } from '../map/CityMap';
 import { StreetArsenal } from './StreetArsenal';
 import { difficultyOf, WEAPON_BY_ID } from '../shared/weapons.mjs';
@@ -206,7 +206,7 @@ export function StreetCareerGame({ onExit }: { onExit: () => void }) {
         <strong>
           TIRANA STREETS<small>STREET CAREER · SOLO</small>
         </strong>
-        <button onClick={() => open('journal')}>JOURNAL</button>
+        <button onClick={() => open('journal')}>MENU</button>
         <button onClick={onExit}>EXIT</button>
       </header>
       {failure && (
@@ -462,11 +462,23 @@ export function StreetCareerGame({ onExit }: { onExit: () => void }) {
                         <option value="hard">Veteran</option>
                       </select>
                     </label>
+                    {!view.profile.active && <section aria-label="Available jobs">
+                      <h3>Next jobs</h3>
+                      <div className="tsc-chapters">
+                        {campaign.chapters.filter(m=>campaign.available(view.profile,m.id)&&!view.profile.completed.includes(m.id)).slice(0,3).map(m=><button key={m.id} onClick={()=>start(m.id)}>
+                          <strong>{m.title}</strong><span>{m.description}</span>
+                          <small>${Math.round(m.reward*difficultyOf(difficulty).reward)} · {m.stops.length} stops</small>
+                        </button>)}
+                        {view.profile.completed.length===campaign.chapters.length&&<p>All jobs completed. Explore freely or replay a chapter below.</p>}
+                      </div>
+                    </section>}
+                    {view.profile.active&&<p>Finish your current job or end it to choose another.</p>}
+                    <details><summary>All chapters & replays</summary>
                     <div className="tsc-chapters">
                       {campaign.chapters.map((m, i) => (
                         <button
                           key={m.id}
-                          disabled={!campaign.available(view.profile,m.id)}
+                          disabled={!!view.profile.active || !campaign.available(view.profile,m.id)}
                           onClick={() => start(m.id)}
                         >
                           <strong>
@@ -483,18 +495,10 @@ export function StreetCareerGame({ onExit }: { onExit: () => void }) {
                         </button>
                       ))}
                     </div>
+                    </details>
                     <details>
                       <summary>World sources & models</summary>
                       <p>Map data © OpenStreetMap contributors · ODbL. Terrain: Mapzen; Europe terrain produced using Copernicus data and information funded by the European Union – EU-DEM layers; SRTM/GMTED2010 courtesy of USGS. Buildings and cableway: original Blender models informed by public photographs. The city datum and terrain seam are adapted for gameplay.</p>
-                    </details>
-                    <details>
-                      <summary>Shared human cast</summary>
-                      <p>{HUMAN_ROSTER.map((h) => h.label).join(' · ')}</p>
-                      <p>
-                        Civilians and patrols reuse the existing human rigs; the
-                        military uses the existing soldier. Original model
-                        licences remain in force.
-                      </p>
                     </details>
                     <details>
                       <summary>Controls & comfort</summary>
@@ -510,10 +514,7 @@ export function StreetCareerGame({ onExit }: { onExit: () => void }) {
                         [
                           'fov',
                           'sensitivity',
-                          'headBob',
-                          'shake',
                           'buttonSize',
-                          'opacity',
                           'volume'
                         ] as const
                       ).map((key) => {

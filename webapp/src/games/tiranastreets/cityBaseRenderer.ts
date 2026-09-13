@@ -51,6 +51,7 @@ export type Actor = {
   wheels: THREE.Object3D[];
   model: string;
   walk?: THREE.AnimationAction;
+  clips?: Record<string, THREE.AnimationAction>;
 };
 
 export class CityRenderer {
@@ -639,6 +640,7 @@ export class CityRenderer {
   async load(onProgress?: (message: string) => void) {
     const draco = new DRACOLoader().setDecoderPath(ASSETS + 'imported/draco/').setWorkerLimit(1);
     const loader = new GLTFLoader().setDRACOLoader(draco);
+    const pending: Promise<unknown>[] = [];
     const vehicleSources = new Map<string, ReturnType<GLTFLoader['loadAsync']>>();
     try {
       const files = [
@@ -652,12 +654,11 @@ export class CityRenderer {
         "motorbike",
         "military-suv",
       ];
-      const vehicleLoads = await Promise.allSettled(
-        files.map(async (name) => {
+      const loadModel = async (name: string) => {
           const roadModel = CIVILIAN_VEHICLE_MODELS[name];
           const file = roadModel ? 'vehicle-collection/' + roadModel :
             name === "character"
-              ? "living/suited-agent"
+              ? "living/operator"
               : ["city-car", "motorbike", "military-suv"].includes(name)
                 ? "living/" + name
                 : name;
@@ -714,13 +715,14 @@ export class CityRenderer {
               ? "Your character is ready"
               : "Loading city vehicles",
           );
-        }),
-      );
-      const failedVehicle = vehicleLoads.find(result => result.status === 'rejected');
-      if (failedVehicle?.status === 'rejected') throw failedVehicle.reason;
+      };
+      // Only the player blocks entry. Nearby road vehicles stream in two lanes
+      // after the core city is ready; a missing optional vehicle cannot fail play.
+      const character = loadModel('character');
+      pending.push(character);
       if (this.disposed) return;
       onProgress?.("Adding textured city facades");
-      const city = await loader.loadAsync(ASSETS + "city.glb");
+      const [, city] = await Promise.all([character, loader.loadAsync(ASSETS + "city.glb")]);
       if (this.disposed) {
         this.disposeObject(city.scene);
         return;
@@ -761,17 +763,30 @@ export class CityRenderer {
       this.scene.add(city.scene);
 
       onProgress?.("Placing GLTF pavements, trees and traffic signs");
-      await this.loadStreetFurniture(loader);
+      const furniture = this.loadStreetFurniture(loader).catch(error => {
+        if (!this.disposed) console.warn('Street furniture unavailable', error);
+      });
+      pending.push(furniture);
+      await character;
 
       this.ready = true;
       onProgress?.("City ready");
+      const queue = files.filter(name => name !== 'character');
+      const stream = async () => {
+        while (!this.disposed && queue.length) {
+          const name = queue.shift()!;
+          try { await loadModel(name); }
+          catch (error) { if (!this.disposed) console.warn(`Vehicle ${name} unavailable`, error); }
+        }
+      };
+      pending.push(stream(), stream());
     } finally {
-      draco.dispose();
+      void Promise.allSettled(pending).then(() => draco.dispose());
     }
   }
   private actor(model: string, id: string): Actor {
     const existing = this.actors.get(id);
-    if (existing && existing.model === model) return existing;
+    if (existing && existing.model === model && (existing.group.children.length || !this.models.has(model))) return existing;
     if (existing) {
       existing.mixer?.stopAllAction();
       existing.group.removeFromParent();
@@ -793,6 +808,7 @@ export class CityRenderer {
     });
     if (model === "character" && this.animations.length) {
       actor.mixer = new THREE.AnimationMixer(group);
+      actor.clips = Object.fromEntries(this.animations.map(clip => [clip.name, actor.mixer!.clipAction(clip)]));
       actor.idle = actor.mixer.clipAction(
         this.animations.find((a) => a.name.toLowerCase() === "idle") ||
           this.animations[0],

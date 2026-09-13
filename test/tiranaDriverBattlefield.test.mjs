@@ -62,8 +62,8 @@ test('every mapped district has a unique clear deployment, full wave and reachab
  }
  assert.ok(BATTLEFIELD_MAPS.length>100);
 });
-test('all districts have operations and existing completion order survives reload without duplicate rewards',()=>{
- for(const m of BATTLEFIELD_MAPS)assert.ok(missions.OPERATIONS.some(o=>o.map===m.id),m.name);
+test('three curated operations preserve progress and cannot award duplicate completions',()=>{
+ assert.deepEqual(missions.OPERATIONS.map(o=>o.id),['square-sweep','bazaar-intel','dajti-survival']);
  let p={completed:[]};for(const op of missions.OPERATIONS)p=missions.finishOperation(p,op.id,true);
  assert.equal(p.completed.length,missions.OPERATIONS.length);assert.deepEqual(missions.normalizeOperations(JSON.parse(JSON.stringify(p))),p);
  assert.deepEqual(missions.finishOperation(p,missions.OPERATIONS[0].id,true),p);

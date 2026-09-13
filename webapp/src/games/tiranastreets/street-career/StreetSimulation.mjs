@@ -509,15 +509,11 @@ export class StreetSimulation {
         'objective'
       );
     for (const l of this.loot)
-      if (!l.collected && !this.claimed.has(l.id)) {
-        const w = WEAPON_BY_ID.get(l.weapon),
-          inv = p.inventory[l.weapon];
-        add(l.id, 'MERR ARMËN', l, 3.2, 80, 'loot', {
-          enabled: !!w && (!inv || inv.reserve < w.magazine * 8),
-          disabledReason:
-            inv && w && inv.reserve >= w.magazine * 8
-              ? 'Ammo capacity reached'
-              : ''
+      if (!l.collected && !this.claimed.has(l.id) && (!l.expiresAt || l.expiresAt > this.state.elapsed)) {
+        const w = WEAPON_BY_ID.get(l.weapon);
+        add(l.id, `PICK UP ${w?.label || 'WEAPON'}`, l, 3.2, 80, 'loot', {
+          enabled: !!w,
+          disabledReason: ''
         });
       }
     for (const aircraft of this.flight.aircraft) {
@@ -1069,6 +1065,7 @@ export class StreetSimulation {
       const l = this.loot.find((l) => l.id === a.targetId);
       if (!l || this.claimed.has(l.id)) return;
       if(!collectWeapon(this.state,this.player,l.id))return;
+      this.body.combat = 'ready';
       this.claimed.add(l.id);
       this.event('loot', { targetId: l.id });
     } else if (live.kind === 'objective') {

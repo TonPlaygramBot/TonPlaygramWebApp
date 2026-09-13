@@ -7,3 +7,5 @@ export function sectorSpawns(mapId:string,count?:number,obstacles?:readonly Obst
 export function zoneRadius(elapsed:number):number;
 export function normalizeOperations(raw:unknown):{completed:string[]};
 export function finishOperation(raw:unknown,id:string,won:boolean):{completed:string[]};
+
+export function operationUnlocked(raw:{completed:string[]},id:string):boolean;

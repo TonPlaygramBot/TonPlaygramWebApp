@@ -24,11 +24,12 @@ export function driverSocket(car) {
   return {x:bike?0:truck?-.48:-.38,y:bike?1.48:truck?1.8:1.19,z:truck?-.35:.08,
     width:truck?2.2:1.85,length:truck?5.2:4.4,open:bike};
 }
-export function driverEye(car, sample=groundHeight) {
-  const seat=driverSocket(car),c=Math.cos(car.heading),s=Math.sin(car.heading);
+export function driverPoint(car, seat, sample=groundHeight) {
+  const c=Math.cos(car.heading),s=Math.sin(car.heading);
   const offset=onSupport({x:seat.x*c+seat.z*s,y:seat.y,z:-seat.x*s+seat.z*c},car,sample);
   return {x:car.x+offset.x,y:offset.y+sample(car.x,car.z),z:car.z+offset.z};
 }
+export function driverEye(car, sample=groundHeight) {return driverPoint(car,driverSocket(car),sample);}
 /** Same sampled support plane as the exterior. The eye and dashboard must tilt
  * together on hills; otherwise even a correct seat socket leaves the cabin. */
 function onSupport(v,car,sample){

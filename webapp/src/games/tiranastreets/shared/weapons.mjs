@@ -434,7 +434,7 @@ export const WEAPONS = Object.freeze([
   {id:'mrtkGunAttack',label:'MRTK Gun',category:'rifle',model:'mrtkGunAttack',magazine:24,damage:20,interval:.16,range:42,reload:2.1,price:300,radius:0}
 ].map(w=>Object.freeze({...w,model: ['fpsGunAttack','glockSidearmAttack','uziSprayAttack','ak47VolleyAttack','krsvBurstAttack','smithSidearmAttack','mosinMarksmanAttack'].includes(w.id)?w.id:w.model})));
 export const WEAPON_BY_ID = new Map(WEAPONS.map(w => [w.id, w]));
-export const STARTER_WEAPON = "glockSidearmAttack";
+export const STARTER_WEAPON = "ak47VolleyAttack";
 export const STARTER_WEAPONS = Object.freeze([STARTER_WEAPON, 'combatKnife']);
 /** Idempotent migration: preserve existing equipment and ammunition. */
 export function ensureStarterWeapons(player) {
@@ -443,6 +443,14 @@ export function ensureStarterWeapons(player) {
     const w = WEAPON_BY_ID.get(id);
     player.inventory[id] ||= {ammo:w.magazine,reserve:w.category==='melee'?0:w.magazine*3};
   }
+  // Keep old saves readable while retiring the generic FPS gun in Tirana.
+  const legacy = player.inventory.fpsGunAttack;
+  if (legacy) {
+    const w = WEAPON_BY_ID.get(STARTER_WEAPON), target = player.inventory[STARTER_WEAPON];
+    target.reserve = Math.min(w.magazine * 8, target.reserve + Math.max(0, legacy.ammo || 0) + Math.max(0, legacy.reserve || 0));
+    delete player.inventory.fpsGunAttack;
+  }
+  if (player.weapon === 'fpsGunAttack') player.weapon = STARTER_WEAPON;
 }
 export const DIFFICULTIES = Object.freeze({ easy: {label:"Explorer", damage:0.55, time:1.35, rival:0.8, reward:0.8}, normal: {label:"Street", damage:1, time:1, rival:1, reward:1}, hard: {label:"Veteran", damage:1.45, time:0.85, rival:1.14, reward:1.25} });
 export const difficultyOf = id => DIFFICULTIES[id] || DIFFICULTIES.normal;

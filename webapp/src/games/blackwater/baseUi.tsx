@@ -58,7 +58,7 @@ import {
   type Difficulty,
   type Settings
 } from './core';
-import { BATTLE_MODES, OPERATIONS, type BattleMode } from './shared/battlefield.mjs';
+import { BATTLE_MODES, OPERATIONS, operationUnlocked, type BattleMode } from './shared/battlefield.mjs';
 import './styles.css';
 const initial: Snapshot = {
   phase: 'menu',
@@ -84,7 +84,7 @@ const initial: Snapshot = {
   message: '',
   messageKind: '',
   medkits: 1,
-  weapon: 'ar',
+  weapon: 'ak47',
   shots: 0,
   hits: 0,
   x: 0,
@@ -101,7 +101,7 @@ const clock = (s: number) =>
     .padStart(2, '0')}:${(s % 60).toString().padStart(2, '0')}`;
 export function Game({
   mode = 'ai',
-  initialWeapon = 'ar',
+  initialWeapon = 'ak47',
   initialDifficulty = 'recruit',
   initialMap = 'skanderbeg',
   onExit,
@@ -123,10 +123,9 @@ export function Game({
     engine = useRef<GameEngine | null>(null);
   const [state, setState] = useState(initial),
     [error, setError] = useState(''),
-    [weapon, setWeapon] = useState<WeaponId>(initialWeapon),
-    [battlefieldMap, setBattlefieldMap] = useState<BattlefieldMapId>(initialMap),
-    [battleMode, setBattleMode] = useState<BattleMode>('last-stand'),
-    [operationId, setOperationId] = useState(''),
+    [battlefieldMap, setBattlefieldMap] = useState<BattlefieldMapId>(mode === 'online' ? initialMap : OPERATIONS[0].map),
+    [battleMode, setBattleMode] = useState<BattleMode>('sweep'),
+    [operationId, setOperationId] = useState(OPERATIONS[0].id),
     [difficulty, setDifficulty] = useState<Difficulty>(initialDifficulty),
     [settingsOpen, setSettingsOpen] = useState(false),
     [helpOpen, setHelpOpen] = useState(false),
@@ -254,7 +253,7 @@ export function Game({
               YOUR <em>MISSION.</em>
             </h1>
             <p>
-              Choose a district operation or a one-life survival battle.
+              Complete three operations, one objective at a time.
             </p>
           </div>
           <div className="location-stamp">
@@ -268,42 +267,22 @@ export function Game({
                 <Shield size={15} /> SOLO VS AI
               </span>
               <span>
-                {BATTLE_MODES.length} MODES <i /> {OPERATIONS.length} OPERATIONS
+                {OPERATIONS.length} OPERATIONS
               </span>
             </div>
             <div className="bw-mode-links">
               {onCareer && <button onClick={onCareer}>STREET CAREER · FREE ROAM</button>}
-              {onStories && <button onClick={onStories}>CITY STORIES</button>}
             </div>
             <label className="battlefield-map-label">OPERATION
               <select aria-label="Operation" value={operationId} onChange={e=>{
                 const id=e.target.value,op=OPERATIONS.find(o=>o.id===id);setOperationId(id);
                 if(op){setBattlefieldMap(op.map);setBattleMode(op.mode);}
               }}>
-                <option value="">Custom battle</option>
-                {OPERATIONS.map((op,i)=><option key={op.id} value={op.id} disabled={i>(state.operations?.length||0)}>{i<(state.operations?.length||0)?'✓ ':''}{op.title}{i>(state.operations?.length||0)?' · Locked':''}</option>)}
-              </select>
-            </label>
-            <label className="battlefield-map-label">BATTLE RULES
-              <select aria-label="Battle rules" value={battleMode} disabled={!!operationId} onChange={e=>setBattleMode(e.target.value as BattleMode)}>
-                {BATTLE_MODES.map(m=><option key={m.id} value={m.id}>{m.name}</option>)}
+                {OPERATIONS.map(op=><option key={op.id} value={op.id} disabled={!operationUnlocked({completed:state.operations||[]},op.id)}>{state.operations?.includes(op.id)?'✓ ':''}{op.title}{!operationUnlocked({completed:state.operations||[]},op.id)?' · Locked':''}</option>)}
               </select>
             </label>
             <p className="bw-mode-description">{BATTLE_MODES.find(m=>m.id===battleMode)?.description}</p>
-            <div className="loadout-label">
-              CHOOSE YOUR LOADOUT <span>8 SHARED WEAPONS</span>
-            </div>
-            <RadioGroup
-              value={weapon}
-              onValueChange={(v) => setWeapon(v as WeaponId)}
-              className="loadout-options"
-              aria-label="Weapon loadout"
-            >
-              {(Object.entries(WEAPONS) as [WeaponId,(typeof WEAPONS)[WeaponId]][]).map(([id,item])=><label key={id} className={`loadout-card ${weapon===id?'selected':''}`}><RadioGroupItem value={id} aria-label={item.name}/><div><strong>{item.name}</strong><small>{item.role}</small></div>{item.interval<.1?<Zap size={25}/>:<Crosshair size={25}/>}</label>)}
-            </RadioGroup>
-            <label className="battlefield-map-label">BATTLEFIELD MAP
-              <select aria-label="Battlefield map" disabled={!!operationId} value={battlefieldMap} onChange={e=>setBattlefieldMap(e.target.value as BattlefieldMapId)}>{BATTLEFIELD_MAPS.map(map=><option key={map.id} value={map.id}>{map.name}</option>)}</select>
-            </label>
+            <p className="bw-starting-kit">Start with AK-47 · Pick up weapons from the ground</p>
             <RadioGroup
               value={difficulty}
               onValueChange={(v) => setDifficulty(v as Difficulty)}
@@ -323,7 +302,7 @@ export function Game({
             <button
               className="deploy-btn"
               disabled={!state.ready || !!error}
-              onClick={() => engine.current?.start(weapon, difficulty, battlefieldMap, battleMode, operationId)}
+              onClick={() => engine.current?.start('ak47', difficulty, battlefieldMap, battleMode, operationId)}
             >
               <span>
                 {state.ready
@@ -505,6 +484,7 @@ export function Game({
                   {state.reload > 0 ? 'RELOADING' : WEAPONS[state.weapon].role}
                 </small>
               </div>
+              {state.pickupWeapon && !state.driving && <button className="bw-pickup" onClick={() => engine.current?.pickupWeapon()} aria-label={`Pick up ${state.pickupWeapon}`}>PICK UP {state.pickupWeapon}</button>}
               <div className="touch-controls">
                 <Joystick engine={engine.current} />
                 <button
@@ -582,7 +562,7 @@ export function Game({
                   <kbd>C</kbd> CROUCH
                 </span>
                 <span>
-                  <kbd>E</kbd> HEAL · <kbd>G</kbd> VEHICLE · <kbd>V</kbd> CAMERA
+                  <kbd>E</kbd> PICK UP · <kbd>H</kbd> HEAL · <kbd>G</kbd> VEHICLE · <kbd>V</kbd> CAMERA
                 </span>
                 <button onClick={() => engine.current?.input.lock()}>
                   LOCK MOUSE <MousePointer2 size={12} />
@@ -746,7 +726,7 @@ export function Game({
             ) : (
               <button
                 className="deploy-btn"
-                onClick={() => engine.current?.start(weapon, difficulty, battlefieldMap, battleMode, operationId)}
+                onClick={() => engine.current?.start('ak47', difficulty, battlefieldMap, battleMode, operationId)}
               >
                 <span>DEPLOY AGAIN</span>
                 <RotateCw size={21} />

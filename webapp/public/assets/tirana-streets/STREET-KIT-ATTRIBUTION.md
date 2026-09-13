@@ -24,7 +24,7 @@ See `DATA-LICENSE.md`, the adjacent author license files and `sources.json` for 
 
 ## Living city upgrade
 
-See [living/ATTRIBUTION.md](living/ATTRIBUTION.md) for the current human, car, firearms, motorcycle, substitutions and individual licenses. The current human is a Mixamo game-use asset, not CC0.
+See [living/ATTRIBUTION.md](living/ATTRIBUTION.md) for the current human, car, firearms, motorcycle, substitutions and individual licenses. The current player is the CC0 Quaternius operator; the separate Mixamo soldier remains under Adobe game-use terms.
 
 
 ## Original street fixtures

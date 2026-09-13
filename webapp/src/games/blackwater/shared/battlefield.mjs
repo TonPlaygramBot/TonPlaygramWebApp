@@ -7,7 +7,7 @@ export const BATTLE_MODES = Object.freeze([
   {id:'extraction',name:'Intel extraction',description:'Reach the intel beacon, collect it, then survive the trip to extraction.'},
   {id:'waves',name:'Three-wave survival',description:'Defeat three waves, select upgrades and extract.'}
 ]);
-export const OPERATIONS = Object.freeze([
+const LEGACY_OPERATIONS = Object.freeze([
   {id:'square-sweep',map:'skanderbeg',mode:'sweep',title:'Clear the square'},
   {id:'bazaar-intel',map:'bazaar',mode:'extraction',title:'Bazaar intelligence'},
   {id:'lana-hold',map:'lana',mode:'hold',title:'Hold the river crossing'},
@@ -20,6 +20,12 @@ export const OPERATIONS = Object.freeze([
     title:`${m.name} · ${['District sweep','Hold the beacon','Recover intelligence','Three-wave defense','Last operator'][i%5]}`
   }))
 ]);
+// Three curated missions. Legacy completions are retained for existing saves.
+export const OPERATIONS = Object.freeze([LEGACY_OPERATIONS[0], LEGACY_OPERATIONS[1], LEGACY_OPERATIONS[5]]);
+export function operationUnlocked(raw, id) {
+  const index = OPERATIONS.findIndex(o => o.id === id);
+  return index >= 0 && (raw.completed.includes(id) || index === 0 || raw.completed.includes(OPERATIONS[index - 1].id));
+}
 export function sectorObstacles(center,radius=150,obstacles=OBSTACLES) {
   return obstacles.filter(o=>Math.abs(o.x-center.x)<radius+(o.w||1)/2&&Math.abs(o.z-center.z)<radius+(o.d||1)/2);
 }
@@ -44,11 +50,16 @@ export function zoneRadius(elapsed) {return Math.max(8,110-Math.max(0,elapsed-25
 export function normalizeOperations(raw) {
   if(!raw||!Array.isArray(raw.completed))return {completed:[]};
   const completed=[];
-  for(const op of OPERATIONS){if(!raw.completed.includes(op.id))break;completed.push(op.id);}
+  for (const [index,op] of LEGACY_OPERATIONS.entries()) {
+    if (!raw.completed.includes(op.id)) continue;
+    const featured=OPERATIONS.findIndex(item=>item.id===op.id);
+    const previous=featured===0?null:featured>0?OPERATIONS[featured-1].id:LEGACY_OPERATIONS[index-1]?.id;
+    if (!previous || completed.includes(previous)) completed.push(op.id);
+  }
   return {completed};
 }
 export function finishOperation(raw,id,won) {
   const p=normalizeOperations(raw),index=OPERATIONS.findIndex(o=>o.id===id);
-  if(won&&index===p.completed.length)p.completed.push(id);
+  if(won&&index>=0&&!p.completed.includes(id)&&operationUnlocked(p,id))p.completed.push(id);
   return p;
 }

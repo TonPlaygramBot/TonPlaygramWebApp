@@ -113,27 +113,11 @@ export function makeWorld(scene:THREE.Scene,camera:THREE.PerspectiveCamera,rende
   return {obstacles,rain,rainData,extraction,gun,muzzle,gunLight,sky,dispose:()=>{const geos=new Set<THREE.BufferGeometry>(),materials=new Set<THREE.Material>(),textures=new Set<THREE.Texture>();scene.traverse(o=>{if(o instanceof THREE.Mesh||o instanceof THREE.Line||o instanceof THREE.Points){geos.add(o.geometry);for(const m of Array.isArray(o.material)?o.material:[o.material])materials.add(m);}});for(const m of materials){for(const v of Object.values(m))if(v instanceof THREE.Texture)textures.add(v);m.dispose();}geos.forEach(g=>g.dispose());textures.forEach(t=>t.dispose());resources.forEach(r=>r.dispose());}};
 }
 function makeGun(){
-  const gun=new THREE.Group();const body=material('#293536',.4,.72),metal=material('#555b55',.35,.72),grip=material('#4b5043',.8,.12),black=material('#131b1b',.5,.5),skin=material('#6d6b53',.85),sleeve=material('#364341',.9);
-  function box(x:number,y:number,z:number,w:number,h:number,d:number,m:THREE.Material){const mesh=new THREE.Mesh(new THREE.BoxGeometry(w,h,d),m);mesh.position.set(x,y,z);mesh.frustumCulled=false;gun.add(mesh);return mesh;}
-  function cyl(x:number,y:number,z:number,r:number,l:number,m:THREE.Material){const mesh=new THREE.Mesh(new THREE.CylinderGeometry(r,r,l,12),m);mesh.rotation.x=Math.PI/2;mesh.position.set(x,y,z);gun.add(mesh);return mesh;}
-  box(0,0,0,.125,.145,.34,body);box(0,-.07,.04,.105,.10,.23,metal);box(0,.024,-.29,.104,.13,.36,grip);box(0,.10,-.14,.09,.026,.57,black);
-  for(let i=0;i<15;i++)box(0,.12,.12-i*.041,.105,.022,.015,metal);
-  for(let i=0;i<7;i++){box(.055,.015,-.15-i*.04,.009,.045,.021,black);box(-.055,.015,-.15-i*.04,.009,.045,.021,black);box(0,-.047,-.15-i*.04,.107,.017,.024,metal);}
-  cyl(0,.025,-.55,.022,.22,metal);cyl(0,.025,-.70,.035,.10,black);for(let i=0;i<3;i++)cyl(0,.025,-.68-i*.027,.036,.01,metal);
-  const mag=box(0,-.18,-.02,.078,.25,.12,grip);mag.rotation.x=-.12;for(let i=0;i<4;i++)box(.042,-.12-i*.035,-.02,.007,.012,.093,black);
-  box(0,-.17,.17,.076,.2,.09,grip).rotation.x=-.3;box(0,0,.31,.095,.105,.27,body);box(0,-.035,.44,.1,.23,.07,grip);
-  // Open reflex optic and a luminous aiming point.
-  box(0,.142,-.085,.094,.035,.12,black);box(-.049,.19,-.085,.016,.085,.065,metal);box(.049,.19,-.085,.016,.085,.065,metal);box(0,.235,-.085,.11,.016,.065,metal);
-  const glass=new THREE.Mesh(new THREE.PlaneGeometry(.083,.069),new THREE.MeshBasicMaterial({color:'#90ddcc',transparent:true,opacity:.07,side:THREE.DoubleSide}));glass.position.set(0,.19,-.083);gun.add(glass);
-  const dot=new THREE.Mesh(new THREE.SphereGeometry(.0025,6,4),new THREE.MeshBasicMaterial({color:'#ff624d'}));dot.position.set(0,.19,-.081);gun.add(dot);
-  box(.068,.011,.053,.018,.039,.093,black);box(.074,-.035,.11,.027,.035,.024,metal);
-  // Gloved hands and articulated forearms stay inside the camera's view model.
-  const right=box(.024,-.16,.15,.125,.12,.14,skin);right.rotation.z=-.13;const forearm=box(.13,-.28,.32,.16,.17,.42,sleeve);forearm.rotation.set(-.35,-.25,-.3);
-  const left=box(-.036,-.102,-.31,.137,.14,.14,skin);left.rotation.z=.2;const arm=box(-.20,-.21,-.1,.15,.18,.45,sleeve);arm.rotation.set(-.25,.66,.25);
-  for(let i=0;i<3;i++)box(-.065,-.08-i*.026,-.32,.078,.014,.12,grip);
-  gun.position.set(.25,-.26,-.52);gun.rotation.set(0,0,0);
-  const muzzle=new THREE.Mesh(new THREE.OctahedronGeometry(.11,0),new THREE.MeshBasicMaterial({color:'#ffe7a3',transparent:true,opacity:.9,blending:THREE.AdditiveBlending,depthWrite:false}));muzzle.position.set(0,.025,-.79);muzzle.scale.set(.8,.8,2.5);muzzle.visible=false;gun.add(muzzle);const gunLight=new THREE.PointLight('#ffc381',0,6);gunLight.position.copy(muzzle.position);gun.add(gunLight);
-  return {gun,muzzle,gunLight};
+  // Compatibility handles for combat effects; no camera-attached weapon mesh.
+  const gun=new THREE.Group();gun.name='combat-effects';gun.visible=false;
+  const muzzle=new THREE.Mesh(new THREE.OctahedronGeometry(.04),new THREE.MeshBasicMaterial({color:0xffdf9b}));
+  muzzle.visible=false;const gunLight=new THREE.PointLight(0xffcc99,0,4);
+  gun.add(muzzle,gunLight);return {gun,muzzle,gunLight};
 }
 export type ActorVisual={group:THREE.Group;body:THREE.Group;legs:THREE.Group[];arms:THREE.Group[];flash:THREE.Mesh;materials:THREE.Material[]};
 export function makeEnemy():ActorVisual{

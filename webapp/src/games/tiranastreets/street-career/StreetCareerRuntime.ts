@@ -93,7 +93,6 @@ export class StreetCareerRuntime {
     this.input.setEnabled(false);
     campaign.apply(this.state.players.local, this.profile.loadout);
     ensureStarterWeapons(this.state.players.local);
-    this.state.players.local.weapon = 'glockSidearmAttack';
     this.simulation.body.combat = 'ready';
     if (this.profile.active)
       this.newRun(this.profile.active.id, this.profile.active.difficulty, true);
@@ -111,11 +110,10 @@ export class StreetCareerRuntime {
   }
   async load(progress: (message: string) => void) {
     void loadWeaponStoreAccount().then(a=>this.grantWeapons(a.ownedWeaponIds)).catch(()=>{});
-    await this.renderer.load(progress);
+    await Promise.all([this.renderer.load(progress),this.renderer.bodyRig.prepare(this.state.players.local.weapon)]);
     if (this.disposed || this.graphicsError) return;
-    progress('Preparing nearby vehicles and police…');
-    await this.renderer.prepareActors(this.state,this.state.players.local);
-    if (this.disposed || this.graphicsError) return;
+    if (this.renderer.bodyRig.errors.length)
+      throw Error('Your weapon could not load. Reload to retry.');
     this.ready = true;
     this.emit();
   }
@@ -174,8 +172,7 @@ export class StreetCareerRuntime {
     this.grantWeapons([...this.ownedWeapons]);
     if (!restore) {
       ensureStarterWeapons(this.state.players.local);
-      this.state.players.local.weapon = 'glockSidearmAttack';
-      this.simulation.body.combat = 'ready';
+      this.simulation.body.combat = this.state.players.local.weapon ? 'ready' : 'unarmed';
     }
     this.simulation.settings.aimAssist = this.settings.aimAssist;
     this.renderer.simulation = this.simulation;
@@ -252,7 +249,7 @@ export class StreetCareerRuntime {
   grantWeapons(ids: string[]) {
     if (this.disposed) return;
     for (const id of ids) {
-      const w=WEAPON_BY_ID.get(id);if(!w)continue;
+      const w=WEAPON_BY_ID.get(id);if(!w||id==='fpsGunAttack')continue;
       this.ownedWeapons.add(id);
       this.state.players.local.inventory[id] ||= {ammo:w.magazine,reserve:w.category==='melee'?0:w.magazine*3};
     }
