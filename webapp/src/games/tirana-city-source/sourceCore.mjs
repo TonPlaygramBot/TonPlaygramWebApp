@@ -23,10 +23,6 @@ const centre = p => ({x:p.reduce((s,v)=>s+v[0],0)/p.length,z:p.reduce((s,v)=>s+v
  * building is required. Nearby buildings are never substituted for an embassy. */
 export function resolvePlaces(world, source) {
   const sites = [], issues = [];
-  const byId=new Map(),order=new Map();
-  world.buildings.forEach((b,i)=>{const id='way/'+b.id;if(!byId.has(id))byId.set(id,[]);byId.get(id).push(b);order.set(b,i);});
-  const near=spatialIndex(world.buildings,b=>[Math.min(...b.p.map(p=>p[0])),Math.min(...b.p.map(p=>p[1])),Math.max(...b.p.map(p=>p[0])),Math.max(...b.p.map(p=>p[1]))],120);
-  const ordered=items=>items.sort((a,b)=>order.get(a)-order.get(b));
   for (const place of source.places) {
     if (CLOSED_PLACES[place.id]) { issues.push({id:place.id,reason:CLOSED_PLACES[place.id].reason}); continue; }
     if (place.tags.building === 'roof') continue;
@@ -34,16 +30,15 @@ export function resolvePlaces(world, source) {
     const polygon = isNode ? null : ring(place.p);
     const point = isNode ? {x:place.p[0],z:place.p[1]} : centre(polygon);
     if (!inside([point.x,point.z],world.bounds)) { issues.push({id:place.id,reason:'Outside the playable map'}); continue; }
-    let buildings = (byId.get(place.id)||[]);
+    let buildings = world.buildings.filter(b => `way/${b.id}` === place.id);
     let match = 'source-building-id';
     if (!buildings.length && isNode) {
-      buildings = ordered(near(point.x,point.z).filter(b => containsPoint(point.x,point.z,b.p)));
+      buildings = world.buildings.filter(b => containsPoint(point.x,point.z,b.p));
       if (buildings.length !== 1) buildings = [];
       match = 'unique-containing-footprint';
     } else if (!buildings.length && polygon?.length >= 3) {
       // Campus boundaries must never themselves become a solid building.
-      const xs=polygon.map(p=>p[0]),zs=polygon.map(p=>p[1]),minX=Math.min(...xs),maxX=Math.max(...xs),minZ=Math.min(...zs),maxZ=Math.max(...zs);
-      buildings = ordered(near((minX+maxX)/2,(minZ+maxZ)/2,Math.max(maxX-minX,maxZ-minZ)/2+.1).filter(b => b.p.every(p => distanceToPolygon(p[0],p[1],polygon) < .1)));
+      buildings = world.buildings.filter(b => b.p.every(p => distanceToPolygon(p[0],p[1],polygon) < .1));
       match = 'campus-contained-footprint';
     }
     if (!buildings.length) { issues.push({id:place.id,reason:'No unambiguous existing building footprint'}); continue; }
