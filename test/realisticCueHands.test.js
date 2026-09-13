@@ -4,7 +4,8 @@ import * as THREE from '../webapp/node_modules/three/build/three.cjs';
 import {
   cueHandSmoothingAlpha,
   prepareRealisticCueHandFrame,
-  resolveCueFingerPose
+  resolveCueFingerPose,
+  resolveCueGripPoint
 } from '../webapp/src/pages/Games/shared/realisticCueHands.js';
 
 test('cue hand smoothing alpha is stable and frame-rate safe', () => {
@@ -34,6 +35,20 @@ test('closed bridge loops index farther than open bridge', () => {
   const openIndex = resolveCueFingerPose('LeftHandIndex2', 'bridge', 1, 'open');
   const closedIndex = resolveCueFingerPose('LeftHandIndex2', 'bridge', 1, 'closed');
   assert.ok(closedIndex.x > openIndex.x);
+});
+
+test('rear hand target stays on the cue shaft', () => {
+  const grip = resolveCueGripPoint(
+    { cfg: {} },
+    {
+      cueBack: new THREE.Vector3(0, 1, 0),
+      cueTip: new THREE.Vector3(0, 1, -10)
+    }
+  );
+  assert.ok(grip);
+  assert.equal(grip.x, 0);
+  assert.equal(grip.y, 1);
+  assert.ok(Math.abs(grip.z + 2.8) < 1e-9);
 });
 
 test('hand target preparation smooths copies without mutating game vectors', () => {
