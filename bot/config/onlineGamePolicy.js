@@ -1,3 +1,4 @@
+import { TABLETOP_IDS } from '../../webapp/src/games/tabletop/shared/catalog.mjs';
 import { TRACKS, normalizeTrack } from '../../webapp/src/games/kartroyale/simulation.mjs';
 const BASE_SECURITY_CONTROLS = Object.freeze([
   'tpg_account_number_required',
@@ -10,6 +11,7 @@ const BASE_SECURITY_CONTROLS = Object.freeze([
 ]);
 
 const GAME_ONLINE_POLICY = Object.freeze({
+  ...Object.fromEntries(TABLETOP_IDS.map(id => [id, {maxPlayers:[2,3,4],allowMatchMeta:['format','mode','token']}])),
   royallanes: { maxPlayers: [2], allowMatchMeta: ['format', 'mode', 'token'] },
   blackwater: { maxPlayers: [2, 3, 4], allowMatchMeta: ['mapId', 'mode', 'token'] },
   kartroyale: {
@@ -208,6 +210,8 @@ export function validateSeatTableRequest({
        !['quick','set','full'].includes(matchMeta.format))) {
     return {ok:false,error:'invalid_tennis_options'};
   }
+
+  if (TABLETOP_IDS.includes(normalizedGameType) && (matchMeta.format !== 'classic' || !Number.isSafeInteger(normalizedStake * normalizedMaxPlayers))) return {ok:false,error:'invalid_tabletop_options'};
 
   const safeMatchMeta = {};
   if (normalizedGameType === 'royallanes') {
