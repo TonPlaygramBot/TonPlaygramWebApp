@@ -3,12 +3,12 @@ import { driveHumanPoseWithRealisticHands } from './realisticCueHands';
 
 export function createBilardoHumanRig(scene, opts = {}) {
   return createHumanRig(scene, {
+    ...opts,
     cueHands: {
       bridgeStyle: 'open',
       gripStyle: 'relaxed',
       ...(opts.cueHands || {})
-    },
-    ...opts
+    }
   });
 }
 
