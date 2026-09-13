@@ -42,3 +42,6 @@ jobs:
 
       - name: Run tests
         run: npm test
+
+      - name: Check Four in Row gameplay and animations
+        run: npm run test:fourinrow --prefix webapp
