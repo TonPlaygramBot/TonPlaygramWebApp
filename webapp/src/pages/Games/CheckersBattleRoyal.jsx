@@ -1,3 +1,5 @@
+import { createSeatedHumanModelLibrary } from '../../games/chess/seatedHumanModel.js';
+import { createCheckersHumanActor, updateCheckersHumanMove, idleCheckersHuman, disposeCheckersHuman, setCheckersHumanView, checkersSeatForSide, checkersPortraitFov, CHECKERS_HUMAN_CAMERA_TARGET_HEIGHT, PHYSICAL_MOVE_DURATION_MS } from '../../games/checkers/checkersHumanActors.ts';
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import * as THREE from 'three';
@@ -33,6 +35,7 @@ import GiftPopup from '../../components/GiftPopup.jsx';
 import {
   CHESS_BATTLE_OPTION_LABELS,
   CHESS_BATTLE_OPTION_THUMBNAILS,
+  CHESS_HUMAN_CHARACTER_OPTIONS,
   CHESS_CHAIR_OPTIONS,
   CHESS_TABLE_OPTIONS
 } from '../../config/chessBattleInventoryConfig.js';
@@ -125,7 +128,7 @@ const PLAYER_FACE_CAMERA_SEAT_ANGLE = Math.PI / 2;
 const PLAYER_FACE_CAMERA_RADIUS =
   TABLE_RADIUS * 0.98 * CHECKERS_CAMERA_FRAME_COMPENSATION;
 const PLAYER_FACE_CAMERA_EYE_HEIGHT = 2.05 * CHECKERS_ARENA_SCALE;
-const PLAYER_FACE_CAMERA_TARGET_HEIGHT = 0.18 * CHECKERS_ARENA_SCALE;
+const PLAYER_FACE_CAMERA_TARGET_HEIGHT = CHECKERS_HUMAN_CAMERA_TARGET_HEIGHT * CHECKERS_ARENA_SCALE;
 const PLAYER_FACE_CAMERA_YAW_LIMIT = THREE.MathUtils.degToRad(18);
 const PLAYER_FACE_CAMERA_PITCH_LIMIT = THREE.MathUtils.degToRad(12);
 const PLAYER_FACE_CAMERA_LOOK_DRAG_SPEED = 0.0045;
@@ -420,8 +423,9 @@ const AI_SEARCH_DEPTH = 4;
 const CAPTURE_STRIP_OFFSET_ROWS = 1.15;
 const CAPTURE_STRIP_PIECE_GAP = 0.82;
 const ONLINE_SOCKET_CONNECT_TIMEOUT_MS = 6000;
-const MOVE_JUMP_DURATION_MS = 340;
-const CAPTURE_JUMP_DURATION_MS = 430;
+const checkersHumanModels = createSeatedHumanModelLibrary({
+  createLoader: createConfiguredGLTFLoader, targetHeight: TABLE_RADIUS * 2.4, visualScaleMultiplier: 1
+});
 
 async function ensureOnlineSocketConnected(timeoutMs = ONLINE_SOCKET_CONNECT_TIMEOUT_MS) {
   if (socket.connected) return true;
@@ -1682,6 +1686,11 @@ export default function CheckersBattleRoyal() {
   const chairsRef = useRef([]);
   const chairLoadRequestRef = useRef(0);
   const activeChairIdRef = useRef(null);
+  const humanActorsRef = useRef([]);
+  const humanLoadRequestRef = useRef(0);
+  const loadHumansRef = useRef(() => {});
+  const pendingHumanInstallRef = useRef(null);
+  const [humanStatus, setHumanStatus] = useState('loading');
   const keyLightRef = useRef(null);
   const shadowCatcherRef = useRef(null);
   const envRef = useRef({ map: null, skybox: null });
@@ -1839,12 +1848,16 @@ export default function CheckersBattleRoyal() {
       hdriId: inventory.environmentHdri?.[0] || POOL_ROYALE_DEFAULT_HDRI_ID,
       boardTheme:
         inventory.boardTheme?.[0] || CHECKERS_BOARD_THEME_OPTIONS[0]?.id,
-      headStyle: inventory.headStyle?.[0] || 'current'
+      headStyle: inventory.headStyle?.[0] || 'current',
+      humanCharacter: inventory.humanCharacter?.[0] || CHESS_HUMAN_CHARACTER_OPTIONS[0].id
     }),
     [inventory]
   );
 
   const [appearance, setAppearance] = useState(inv);
+  const unlockedHumanOptions = useMemo(() => CHESS_HUMAN_CHARACTER_OPTIONS.filter(
+    (option) => isChessOptionUnlocked('humanCharacter', option.id, inventory)
+  ), [inventory]);
   const showTableSurfaceOptions = CHECKERS_PROCEDURAL_TABLE_IDS.has(
     appearance.tableId
   );
@@ -1989,6 +2002,8 @@ export default function CheckersBattleRoyal() {
   ]);
 
   useEffect(() => {
+    if (appearance.humanCharacter)
+      setChessBattleEquippedOption('humanCharacter', appearance.humanCharacter, resolvedAccountId);
     if (appearance.tableId)
       setChessBattleEquippedOption('tables', appearance.tableId, resolvedAccountId);
     if (appearance.chairId)
@@ -2014,6 +2029,7 @@ export default function CheckersBattleRoyal() {
         resolvedAccountId
       );
   }, [
+    appearance.humanCharacter,
     appearance.boardTheme,
     appearance.chairId,
     appearance.hdriId,
@@ -2110,6 +2126,47 @@ export default function CheckersBattleRoyal() {
     [appearance.chairId]
   );
 
+  loadHumansRef.current = async () => {
+    const scene = sceneRef.current;
+    if (!scene || !rendererRef.current) return;
+    const request = ++humanLoadRequestRef.current;
+    pendingHumanInstallRef.current = null;
+    const selected = unlockedHumanOptions.find((option) => option.id === appearance.humanCharacter) || CHESS_HUMAN_CHARACTER_OPTIONS[0];
+    const rival = CHESS_HUMAN_CHARACTER_OPTIONS[0];
+    setHumanStatus('loading');
+    // The default rival is bundled with the app, matching Chess's default human.
+    const results = await Promise.allSettled([selected, rival].map((option) =>
+      checkersHumanModels.loadSeatedHumanTemplate(option, rendererRef.current, 2)
+    ));
+    if (request !== humanLoadRequestRef.current || scene !== sceneRef.current) return;
+    const install = () => {
+      if (request !== humanLoadRequestRef.current || scene !== sceneRef.current) return;
+      results.forEach((result, index) => {
+        if (result.status !== 'fulfilled') return;
+        const seat = index === 0 ? 'bottom' : 'top';
+        const entry = createCheckersHumanActor(result.value, {
+          seat,
+          distance: index === 0 ? BOTTOM_CHAIR_DISTANCE : CHAIR_DISTANCE,
+          seatY: TABLE_HEIGHT - 0.12,
+          height: TABLE_RADIUS * 2.4
+        });
+        setCheckersHumanView(entry, viewModeRef.current);
+        const previous = humanActorsRef.current.find((actor) => actor.seat === seat);
+        if (previous) disposeCheckersHuman(previous);
+        humanActorsRef.current = [...humanActorsRef.current.filter((actor) => actor.seat !== seat), entry];
+        scene.add(entry.root);
+      });
+      setHumanStatus(results.every((result) => result.status === 'fulfilled') ? 'ready' : 'error');
+    };
+    // A model finishing its download must never replace a hand holding a token.
+    if (activeAnimationsRef.current.some((animation) => animation.type === 'move')) pendingHumanInstallRef.current = install;
+    else install();
+  };
+
+  useEffect(() => {
+    void loadHumansRef.current();
+  }, [appearance.humanCharacter, graphicsProfile, rebuildChairs]);
+
   const playerName =
     getTelegramFirstName() || getTelegramUsername() || 'Player';
   const playerPhotoUrl = getTelegramPhotoUrl() || '/assets/icons/profile.svg';
@@ -2182,7 +2239,8 @@ export default function CheckersBattleRoyal() {
       const maxPerRow = 12;
 
       const placeCapturedForSide = (side, edge) => {
-        const captured = capturedBySide[side] || [];
+        const pendingCaptures = activeAnimationsRef.current.filter((animation) => animation.type === 'move' && animation.side === side && animation.capture).length;
+        const captured = (capturedBySide[side] || []).slice(0, Math.max(0, (capturedBySide[side] || []).length - pendingCaptures));
         captured.forEach((piece, idx) => {
           const row = Math.floor(idx / maxPerRow);
           const col = idx % maxPerRow;
@@ -2215,7 +2273,7 @@ export default function CheckersBattleRoyal() {
 
   const queueMoveAnimation = useMemo(
     () =>
-      ({ from, to, side, king, capture = false }) => {
+      ({ from, to, side, king, capture = false, capturedPiece = null }) => {
         const group = effectsGroupRef.current;
         if (!group || !from || !to) return;
         const { x, y, z, tile } = boardOriginRef.current;
@@ -2237,20 +2295,31 @@ export default function CheckersBattleRoyal() {
           checkerHeadPreset
         });
         moving.position.copy(fromPos);
-        moving.scale.setScalar(capture ? 1.05 : 1);
+        moving.scale.setScalar(1);
         group.add(moving);
         const startedAt = nextCheckersAnimationStart(activeAnimationsRef.current, performance.now());
         moving.visible = false;
-        const duration = capture ? CAPTURE_JUMP_DURATION_MS : MOVE_JUMP_DURATION_MS;
+        const duration = PHYSICAL_MOVE_DURATION_MS;
+        const captureCell = capture ? { r: (from.r + to.r) / 2, c: (from.c + to.c) / 2 } : null;
+        const victim = capturedPiece || (captureCell && boardRef.current[captureCell.r]?.[captureCell.c]);
+        let capturedMesh = null;
+        if (captureCell && victim?.side) {
+          capturedMesh = createCheckerMesh({ tile, side: victim.side, king: victim.king, chipSet: piecePalette, checkerHeadPreset });
+          capturedMesh.position.set(x + (captureCell.c - 3.5) * tile, fromPos.y, z + (captureCell.r - 3.5) * tile);
+          group.add(capturedMesh);
+        }
         const moveAnimation = {
           type: 'move',
+          side, capture, capturedMesh,
+          humanSeat: checkersSeatForSide(side, onlineRef.current.enabled ? onlineRef.current.side : HUMAN_SIDE),
+          fromCell: { ...from },
+          mesh: moving,
           toCell: { ...to },
           object: moving,
           startedAt,
           duration,
           from: fromPos,
-          to: toPos,
-          arcHeight: tile * (capture ? 0.72 : 0.52)
+          to: toPos
         };
         activeAnimationsRef.current.push(moveAnimation);
         setIsAnimating(true);
@@ -2355,7 +2424,7 @@ export default function CheckersBattleRoyal() {
     mount.appendChild(renderer.domElement);
 
     const camera = new THREE.PerspectiveCamera(
-      ARENA_CAMERA_DEFAULTS.fov,
+      checkersPortraitFov(mount.clientWidth / mount.clientHeight, ARENA_CAMERA_DEFAULTS.fov),
       mount.clientWidth / mount.clientHeight,
       ARENA_CAMERA_DEFAULTS.near,
       ARENA_CAMERA_DEFAULTS.far
@@ -2889,6 +2958,7 @@ export default function CheckersBattleRoyal() {
       renderHighlights();
     };
 
+    void loadHumansRef.current();
     void buildSceneAssets().catch((error) => {
       if (!sceneDisposed) { console.error('Checkers arena failed:', error); setStatus('Arena could not load. Reload or return to the lobby.'); }
     });
@@ -2898,6 +2968,7 @@ export default function CheckersBattleRoyal() {
       applyRendererQualityProfile();
       renderer.setSize(mount.clientWidth, mount.clientHeight);
       camera.aspect = mount.clientWidth / mount.clientHeight;
+      camera.fov = checkersPortraitFov(camera.aspect, ARENA_CAMERA_DEFAULTS.fov);
       camera.updateProjectionMatrix();
       if (viewModeRef.current === '3d') {
         applyBottomPlayerFaceCamera(camera, playerFaceLookRef.current);
@@ -2921,6 +2992,14 @@ export default function CheckersBattleRoyal() {
       const minFrameMs = 1000 / maxFps;
       if (now - previousFrameAt < minFrameMs) return;
       const animations = activeAnimationsRef.current;
+      if (!animations.some((animation) => animation.type === 'move') && pendingHumanInstallRef.current) {
+        const install = pendingHumanInstallRef.current;
+        pendingHumanInstallRef.current = null;
+        install();
+      }
+      for (const actor of humanActorsRef.current) {
+        if (!animations.some((animation) => animation.type === 'move' && animation.humanSeat === actor.seat && now >= animation.startedAt && now < animation.startedAt + animation.duration)) idleCheckersHuman(actor);
+      }
       if (animations.length) {
         for (let i = animations.length - 1; i >= 0; i -= 1) {
           const anim = animations[i];
@@ -2929,9 +3008,15 @@ export default function CheckersBattleRoyal() {
           if (anim.type === 'move') {
             if (elapsed < 0) continue;
             anim.object.visible = true;
-            anim.object.position.lerpVectors(anim.from, anim.to, t);
-            anim.object.position.y += Math.sin(Math.PI * t) * anim.arcHeight;
-            anim.object.rotation.z = Math.sin(t * Math.PI * 2.1) * 0.1;
+            const actor = humanActorsRef.current.find((entry) => entry.seat === anim.humanSeat);
+            // Latch the rig at pickup so a late asset load cannot snap the arm mid-carry.
+            if (!anim.actorResolved) { anim.actor = actor; anim.actorResolved = true; }
+            updateCheckersHumanMove(anim.actor, anim, t, boardOriginRef.current.tile);
+            if (anim.capturedMesh && t >= 0.82) {
+              anim.capturedMesh.removeFromParent();
+              disposeGroupMeshes(anim.capturedMesh);
+              anim.capturedMesh = null;
+            }
             if (t >= 1) {
               animateSmokePuff(
                 effectsGroupRef.current,
@@ -2943,6 +3028,7 @@ export default function CheckersBattleRoyal() {
               disposeGroupMeshes(anim.object);
               animations.splice(i, 1);
               renderPiecesRef.current();
+              renderCapturedPiecesRef.current();
               if (!animations.some((queued) => queued.type === 'move')) setIsAnimating(false);
             }
           } else if (anim.type === 'smoke') {
@@ -2974,6 +3060,11 @@ export default function CheckersBattleRoyal() {
 
     return () => {
       sceneDisposed = true;
+      humanLoadRequestRef.current += 1;
+      pendingHumanInstallRef.current = null;
+      humanActorsRef.current.forEach(disposeCheckersHuman);
+      humanActorsRef.current = [];
+      sceneRef.current = null;
       chairLoadRequestRef.current += 1;
       replayControllerRef.current.cancel();
       controls.dispose();
@@ -3074,7 +3165,8 @@ export default function CheckersBattleRoyal() {
             to: lastMove.to,
             side: lastMove.side || board[lastMove.to.r]?.[lastMove.to.c]?.side,
             king: boardRef.current[lastMove.from.r]?.[lastMove.from.c]?.king,
-            capture: Boolean(lastMove.capture)
+            capture: Boolean(lastMove.capture),
+            capturedPiece: lastMove.capture ? boardRef.current[lastMove.capture.r]?.[lastMove.capture.c] : null
           }
         : canAnimateSnapshot
         ? inferMoveFromBoardDelta(boardRef.current, board)
@@ -3232,7 +3324,7 @@ export default function CheckersBattleRoyal() {
 
   useEffect(() => {
     if (onlineRef.current.enabled) return;
-    if (turn !== AI_SIDE || aiBusyRef.current || gameOver || arenaError) return;
+    if (turn !== AI_SIDE || aiBusyRef.current || gameOver || arenaError || isAnimating) return;
     aiBusyRef.current = true;
     setStatus('AI is thinking…');
     const timer = window.setTimeout(() => {
@@ -3323,7 +3415,8 @@ export default function CheckersBattleRoyal() {
               to: { r: selectedChainMove.r, c: selectedChainMove.c },
               side: chainPieceBefore.side,
               king: chainPieceBefore.king,
-              capture: true
+              capture: true,
+              capturedPiece: Array.isArray(selectedChainMove.capture) ? chainBoard[selectedChainMove.capture[0]]?.[selectedChainMove.capture[1]] : null
             });
           }
           chainBoard = nextChain.board;
@@ -3362,7 +3455,7 @@ export default function CheckersBattleRoyal() {
       window.clearTimeout(timer);
       aiBusyRef.current = false;
     };
-  }, [turn, renderHighlights, gameOver, arenaError]);
+  }, [turn, renderHighlights, gameOver, arenaError, isAnimating]);
 
   useEffect(() => {
     const scene = sceneRef.current;
@@ -3561,6 +3654,7 @@ export default function CheckersBattleRoyal() {
     const camera = cameraRef.current;
     const controls = controlsRef.current;
     viewModeRef.current = viewMode;
+    humanActorsRef.current.forEach((actor) => setCheckersHumanView(actor, viewMode));
     if (!camera || !controls) return;
 
     const target = new THREE.Vector3(0, TABLE_HEIGHT, 0);
@@ -3596,6 +3690,7 @@ export default function CheckersBattleRoyal() {
     disposeGroupMeshes(effectsGroupRef.current);
     effectsGroupRef.current?.clear();
     activeAnimationsRef.current = [];
+    humanActorsRef.current.forEach(idleCheckersHuman);
     setIsAnimating(false);
     rulesStateRef.current = { turn: HUMAN_SIDE, requiredFrom: null };
     boardRef.current = createInitial();
@@ -3693,6 +3788,14 @@ export default function CheckersBattleRoyal() {
             <div id="checkers-settings" className="pointer-events-auto mt-2 w-72 max-w-[80vw] rounded-2xl border border-white/15 bg-black/80 p-4 text-xs text-white shadow-2xl backdrop-blur max-h-[60dvh] overflow-y-auto pr-1">
               <div className="mb-2 text-xs font-semibold uppercase tracking-[0.22em] text-white/80">
                 Checkers Battle Royal
+              </div>
+              <div className="mb-3 rounded-xl border border-white/15 p-3">
+                <label htmlFor="checkers-human-character" className="mb-2 block font-semibold">Human character</label>
+                <select id="checkers-human-character" value={appearance.humanCharacter} disabled={isAnimating} onChange={(event) => setAppearance((previous) => ({ ...previous, humanCharacter: event.target.value }))} className="min-h-11 w-full rounded-lg border border-white/20 bg-slate-900 px-3 text-sm text-white">
+                  {unlockedHumanOptions.map((option) => <option key={option.id} value={option.id}>{option.label}</option>)}
+                </select>
+                {humanStatus === 'loading' && <p className="mt-2 text-white/70">Loading characters…</p>}
+                {humanStatus === 'error' && <button type="button" className="mt-2 min-h-11 rounded-lg border border-white/20 px-3" onClick={() => void loadHumansRef.current()}>Retry characters</button>}
               </div>
               <details className="mb-3 rounded-xl border border-white/15 p-3 text-white/85">
                 <summary className="min-h-8 cursor-pointer font-semibold">How to play</summary>
