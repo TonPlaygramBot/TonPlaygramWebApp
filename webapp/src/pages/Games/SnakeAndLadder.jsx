@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef, useCallback, useMemo } from "react";
 import coinConfetti from "../../utils/coinConfetti";
-import { ROYAL_DICE_ROLL_MS, ROYAL_DICE_READ_MS } from '../../utils/royalDiceMotion';
+import { SNAKE_DICE_PRESENTATION_MS } from '../../utils/snakeDiceInteraction';
+import { ROYAL_DICE_READ_MS } from '../../utils/royalDiceMotion';
 import { createSnakePresentationQueue } from '../../utils/snakePresentationQueue.js';
 import './SnakeAndLadder.css';
 import DiceRoller from "../../components/DiceRoller.jsx";
@@ -2078,7 +2079,7 @@ export default function SnakeAndLadder() {
       const visualSeat = assignments.get(seatIndex) ?? seatIndex;
       startDiceBoardAnimation({ id: rollId, phase: 'start', count: 1, values: serverValues, seatIndex: visualSeat });
       playDiceRollSound(`online:${rollId}`);
-      await waitForPresentation(ROYAL_DICE_ROLL_MS);
+      await waitForPresentation(SNAKE_DICE_PRESENTATION_MS);
       if (!mountedRef.current) return;
       startDiceBoardAnimation({ id: rollId, phase: 'end', values: serverValues, seatIndex: visualSeat });
       activeDiceBoardRollRef.current = { id: rollId, seatIndex, phase: 'end' };
@@ -3920,7 +3921,7 @@ export default function SnakeAndLadder() {
               !moving
             }
             numDice={1}
-            durationMs={ROYAL_DICE_ROLL_MS}
+            durationMs={SNAKE_DICE_PRESENTATION_MS}
             triggerDelayMs={0}
             renderVisual={false}
             trigger={aiRollingIndex != null ? aiRollTrigger : playerAutoRolling ? playerRollTrigger : undefined}
