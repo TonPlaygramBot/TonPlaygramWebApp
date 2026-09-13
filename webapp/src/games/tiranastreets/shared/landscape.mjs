@@ -1,4 +1,3 @@
-import {spatialIndex} from '../../tirana-city-completion/placementCore.mjs';
 import { WORLD } from './world.mjs';
 import {footprintIndex} from '../../tirana-city-source/footprintIndex.mjs';
 import {
@@ -45,9 +44,8 @@ export function riverOutline(line, halfWidth) {
   ];
 }
 const bridgeRoads = WORLD.roads.filter((r) => r.bridge);
-const bridgesNear=spatialIndex(bridgeRoads,r=>[Math.min(r.a[0],r.b[0])-r.w/2,Math.min(r.a[1],r.b[1])-r.w/2,Math.max(r.a[0],r.b[0])+r.w/2,Math.max(r.a[1],r.b[1])+r.w/2]);
 export const nearBridge = (x, z, margin = 2) =>
-  bridgesNear(x,z,Math.max(0,margin)).some((r) => segmentDistance(x, z, r.a, r.b) < r.w / 2 + margin);
+  bridgeRoads.some((r) => segmentDistance(x, z, r.a, r.b) < r.w / 2 + margin);
 const buildings = WORLD.buildings.map((b) => ({
   p: b.p,
   minX: Math.min(...b.p.map((p) => p[0])),

@@ -1,4 +1,3 @@
-import {fetchGameGlb} from '../fetchGameGlb.mjs';
 import {groundHeight} from '../../tirana-east/terrainCore.mjs';
 import { weaponPose, weaponAnchors } from './weaponPose.mjs';
 import * as T from 'three';
@@ -247,9 +246,14 @@ export class FirstPersonBody {
     let source: T.Group | undefined, prepared: T.Group | undefined;
     const abort = new AbortController();
     this.aborts.add(abort);
+    const timer = setTimeout(() => abort.abort(), 15000);
     try {
-      const url = new URL(weaponModelUrl(model), window.location.href);
-      const bytes = await fetchGameGlb(url,{signal:abort.signal,maxBytes:20*1024*1024});
+      const url = new URL(weaponModelUrl(model), window.location.href),
+        response = await fetch(url, { signal: abort.signal });
+      if (!response.ok) throw Error('HTTP ' + response.status);
+      const bytes = await response.arrayBuffer();
+      if (bytes.byteLength > 20 * 1024 * 1024)
+        throw Error('Weapon exceeds 20 MB budget');
       const g = await new GLTFLoader().parseAsync(
         bytes,
         new URL('.', url).href
@@ -297,6 +301,7 @@ export class FirstPersonBody {
         this.errors.push(`Held weapon ${id}: ${String(e)}`);
       }
     } finally {
+      clearTimeout(timer);
       this.aborts.delete(abort);
       this.loading.delete(id);
     }

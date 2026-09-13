@@ -157,8 +157,7 @@ export default function App() {
       const canonicalUrl = new URL(canonical);
       const isLocalhost =
         window.location.hostname === 'localhost' ||
-        window.location.hostname === '127.0.0.1' ||
-        (import.meta.env.DEV && window.location.hostname === 'terminal.local');
+        window.location.hostname === '127.0.0.1';
       if (!isLocalhost && canonicalUrl.origin !== window.location.origin) {
         const next = new URL(window.location.href);
         next.protocol = canonicalUrl.protocol;
