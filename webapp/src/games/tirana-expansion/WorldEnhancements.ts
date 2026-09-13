@@ -1,3 +1,4 @@
+import {RegionalArchitecture} from '../tirana-regional-detail/RegionalArchitecture';
 import {TerrainLayer} from '../tirana-east/TerrainLayer';
 import {HousingDetails} from '../tirana-east/HousingDetails';
 import {EasternDistricts} from '../tirana-east/EasternDistricts';
@@ -37,6 +38,7 @@ export {
 } from './BaseWorldEnhancements';
 /** One shared street-detail integration, using the unchanged city metre frame. */
 export class WorldEnhancements extends ExistingEnhancements {
+  readonly regionalArchitecture=new RegionalArchitecture();
   readonly terrain=new TerrainLayer();
   readonly housing=new HousingDetails();
   readonly eastern=new EasternDistricts();
@@ -64,7 +66,7 @@ export class WorldEnhancements extends ExistingEnhancements {
   constructor(options: StreetDetailOptions = {}) {
     super();
     this.dajti.retire();this.dajti.group.visible=false;
-    this.group.add(this.terrain.group,this.housing.group,this.eastern.group,this.sourceCable.group);
+    this.group.add(this.regionalArchitecture.group,this.terrain.group,this.housing.group,this.eastern.group,this.sourceCable.group);
     this.cityCompletion=new CityCompletionLayer(options);
     this.facadeCompletion=new FacadeCompletionLayer();
     this.group.add(this.cityCompletion.group,this.facadeCompletion.group);
@@ -118,6 +120,7 @@ export class WorldEnhancements extends ExistingEnhancements {
       );
       viewer = { x: p.x, z: p.z };
     }
+    this.regionalArchitecture.update(seconds,viewer,battery);
     this.terrain.update(viewer,battery);this.housing.update(viewer,battery);this.eastern.update(seconds,viewer,battery);this.sourceCable.update(seconds,viewer);
     if(camera&&camera.far<55000){camera.far=55000;camera.updateProjectionMatrix();}
     this.tradeDetails.update(seconds,viewer,battery);
@@ -136,6 +139,7 @@ export class WorldEnhancements extends ExistingEnhancements {
     this.facadeCompletion.update(seconds,viewer,battery);
   }
   override retire() {
+    this.regionalArchitecture.retire();
     this.housing.retire();this.eastern.retire();
     this.tradeDetails.retire();
     this.fuelBrands.retire();
@@ -153,6 +157,7 @@ export class WorldEnhancements extends ExistingEnhancements {
     super.retire();
   }
   override dispose() {
+    this.regionalArchitecture.dispose();
     this.terrain.dispose();this.housing.dispose();this.eastern.dispose();this.sourceCable.dispose();
     this.panorama.dispose();
     this.tradeDetails.dispose();

@@ -1,5 +1,5 @@
 {
-  "blender": "4.2.9 LTS",
+  "blender": "4.5.3 LTS (regional hero refresh; existing kits 4.2.9)",
   "models": [
     {
       "asset": "amavita",
@@ -19,9 +19,9 @@
         443.6746078431372
       ],
       "file": "grand.glb",
-      "triangles": 36452,
-      "bytes": 2488252,
-      "sha256": "f85fc034f1445366bfa114185851da5932fb472439455a026b4132a399bfe9a9"
+      "triangles": 65576,
+      "bytes": 2453888,
+      "sha256": "520324dbcec1dd69eb241a549f61614fcc279633d986dd66a17618bd7b98effe"
     },
     {
       "asset": "britaniku",
@@ -41,9 +41,9 @@
         181.98399999999998
       ],
       "file": "njesia-2.glb",
-      "triangles": 5068,
-      "bytes": 359240,
-      "sha256": "dae85d8394de787e44c0f5b87b87eee788bba2ba73a6b84129530ec7a173f00c"
+      "triangles": 5188,
+      "bytes": 367624,
+      "sha256": "5cf646b8c44deb185b4fe90d123178ba8dee29761ab974df4b781e6d9d097f04"
     },
     {
       "asset": "market",
