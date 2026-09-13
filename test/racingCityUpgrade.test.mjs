@@ -9,16 +9,16 @@ import {vehicleDriverMount,cockpitStyle} from '../webapp/src/games/kartroyale/ve
 import {resolveKartContact} from '../webapp/src/games/kartroyale/collisions.mjs';
 const key=(a,b)=>[a.join(','),b.join(',')].sort().join('|');
 const edges=new Map(WORLD.roads.filter(r=>!r.walk).map(r=>[key(r.a,r.b),r]));
-test('archived city routes retain mapped edges while active races use rounded compact circuits',()=>{
+test('archived city routes retain mapped edges while active races use rounded district circuits',()=>{
  assert.equal(CITY_CIRCUITS.routes.length,5);
  for(const route of CITY_CIRCUITS.routes){
   assert.ok(route.length>=route.originalLength*2.6);
   assert.ok(route.length>=4800&&route.length<=5400);
   assert.equal(new Set(route.points.map(p=>p.join(','))).size,route.points.length);
   route.points.forEach((a,i)=>{const edge=edges.get(key(a,route.points[(i+1)%route.points.length]));assert.ok(edge,route.id+' disconnected edge');assert.ok(route.widths[i]<=edge.w+.001);});
-  const track=makeTrack(route.id);assert.ok(track.length>=800&&track.length<2200);assert.ok(track.turns.length>0);
+  const track=makeTrack(route.id);assert.ok(track.length>=1400&&track.length<4400);assert.ok(track.turns.length>0);
   assert.equal(track.points.length%4,0);
-  for(const p of track.points){const near=nearestPoint(track,p.x,p.z);assert.ok(near.distance<1e-7);assert.ok(near.width>=6&&near.width<=18);}
+  for(const p of track.points){const near=nearestPoint(track,p.x,p.z);assert.ok(near.distance<1e-7);assert.ok(near.width>=6&&near.width<=22);}
  }
 });
 test('street cameras retain source seats while stale racing car IDs migrate to kart footprints',()=>{

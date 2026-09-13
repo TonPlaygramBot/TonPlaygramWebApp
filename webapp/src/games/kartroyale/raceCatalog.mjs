@@ -2,24 +2,27 @@ import {combineMappedLoops,resampleCircuit,routeLength} from './grandRouteCore.m
 import { buildingClearance, roundRaceCourse } from './raceCourse.mjs';
 import { WORLD } from '../tiranastreets/shared/world.mjs';
 /** Pre-authored source-backed routes. Browser and server use identical geometry. */
-export function buildRaceCatalog(legacy,routes){
+export function buildRaceCatalog(legacy,routes,districtRoutes=[]){
  const diagnostics=[],cache=new Map();
- // Compact three-lap events follow existing, connected streets. The full city
- // is unchanged; race duration no longer depends on the 5 km expedition routes.
+ // District extensions retain the six map/save IDs and the shared street graph.
+ // Build once per revision; geometry never changes during a running race.
  const edgeKey=(a,b)=>[a.join(','),b.join(',')].sort().join('|');
  const roads=new Map(WORLD.roads.filter(r=>!r.walk).map(r=>[edgeKey(r.a,r.b),r.w]));
- const tracks=legacy.TRACKS.map(old=>{
-  const route=routes.find(r=>r.id===old.id);
-  if(!route)throw Error('Missing Tirana city circuit: '+old.id);
-  const widths=route.points.map((p,i)=>{
+ const widthsFor=route=>route.points.map((p,i)=>{
     const width=roads.get(edgeKey(p,route.points[(i+1)%route.points.length]));
     if(!width)throw Error('Race route left the shared Tirana street network');
     return Math.max(6,width);
   });
-  return {...old,...route,widths,width:Math.max(...widths),mapVersion:'shared-tirana-streets'};
+ const tracks=legacy.TRACKS.map(old=>{
+  const route=districtRoutes.find(r=>r.id===old.id)||routes.find(r=>r.id===old.id);
+  if(!route)throw Error('Missing Tirana city circuit: '+old.id);
+  const widths=widthsFor(route);
+  return {...old,...route,widths,width:Math.max(...widths),roadFeelVersion:1,mapVersion:'tirana-district-racing-v2'};
  });
- const grand=combineMappedLoops(routes.find(r=>r.id==='lana'),routes.find(r=>r.id==='pyramid'));
- if(grand)tracks.push({...legacy.TRACKS.find(t=>t.id==='lana'),...grand,width:10,name:'Lana–Pyramid · Classic Grand'});
+ const grand=districtRoutes.find(r=>r.id==='lana-pyramid-grand')||combineMappedLoops(routes.find(r=>r.id==='lana'),routes.find(r=>r.id==='pyramid'));
+ if(grand)tracks.push({...legacy.TRACKS.find(t=>t.id==='lana'),...grand,
+  widths:widthsFor(grand),
+  width:10,roadFeelVersion:1,mapVersion:'tirana-district-racing-v2',name:'Lana–Pyramid · Classic Grand'});
  return {tracks,cups:[...legacy.CUPS,...tracks.filter(t=>t.id.endsWith('-grand')).map(t=>({name:t.name+' Cup',track:t.id,difficulty:'street',target:2,reward:500}))],diagnostics,
   makeTrack(id='skanderbeg'){
    if(typeof id!=='string')throw Error('Choose a valid circuit');
@@ -41,7 +44,7 @@ export function buildRaceCatalog(legacy,routes){
    }
    const xs=samples.points.map(p=>p.x),zs=samples.points.map(p=>p.z);
    const bounds=[Math.min(...xs),Math.min(...zs),Math.max(...xs),Math.max(...zs)];
-   const track={...config,...samples,width:Math.max(...course.widths),turns:course.turns,bounds,center:{x:(bounds[0]+bounds[2])/2,z:(bounds[1]+bounds[3])/2},x:(bounds[2]-bounds[0])/2,z:(bounds[3]-bounds[1])/2,bend:0};
+   const track={...config,...samples,width:Math.max(...samples.points.map(p=>p.width)),turns:course.turns,bounds,center:{x:(bounds[0]+bounds[2])/2,z:(bounds[1]+bounds[3])/2},x:(bounds[2]-bounds[0])/2,z:(bounds[3]-bounds[1])/2,bend:0};
    cache.set(id,track);return track;
   }};
 }

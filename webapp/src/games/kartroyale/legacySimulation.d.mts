@@ -1,4 +1,5 @@
 export interface Input {
+  aiLane?: number;
   steer: number;
   throttle?: boolean;
   brake: boolean;
@@ -20,6 +21,12 @@ export interface Racer {
   yaw: number;
   velocityYaw: number;
   speed: number;
+  boosting?: boolean;
+  collisionSpin?: number;
+  bumpImpact?: number;
+  aiLane?: number;
+  suspension?: { height:number; velocity:number; pitch:number; pitchVelocity:number;
+    roll:number; rollVelocity:number; wheels:number[]; grip:number };
   rollTime: number;
   rollAngle: number;
   rollDirection: number;
@@ -86,6 +93,7 @@ export interface TrackConfig {
   accent: string;
 }
 export interface Track extends TrackConfig {
+  roadFeelVersion?: number;
   points: { x: number; z: number; yaw: number; distance: number; width?: number }[];
   length: number;
   x: number;
@@ -134,7 +142,7 @@ export function createRacer(
   slot?: number,
   ai?: boolean
 ): Racer;
-export function aiInput(r: Racer, t: Track, time: number, d?: string): Input;
+export function aiInput(r: Racer, t: Track, time: number, d?: string, racers?: Racer[]): Input;
 export function stepRacer(
   r: Racer,
   input: Input,

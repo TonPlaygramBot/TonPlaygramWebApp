@@ -100,6 +100,8 @@ export function resolveWallContact(r, near, width, dt, damage = true) {
       -0.8,
       0.8
     );
+    r.collisionSpin = clamp((r.collisionSpin || 0) +
+      (Math.sin(r.yaw) * nz - Math.cos(r.yaw) * nx) * closing * .045, -.95, .95);
   }
   r.wallContact = true;
   if (r.retired) r.speed = 0;
@@ -152,6 +154,11 @@ export function resolveKartContact(a, b) {
   impact(b, closing * 0.65, -nx, -nz);
   a.yawRate -= tangent * 0.12;
   b.yawRate += tangent * 0.12;
+  // Off-axis impacts rotate the chassis briefly; tyres then regain their line.
+  const sideA = Math.sin(a.yaw) * nz - Math.cos(a.yaw) * nx;
+  const sideB = Math.sin(b.yaw) * nz - Math.cos(b.yaw) * nx;
+  a.collisionSpin = clamp((a.collisionSpin || 0) + sideA * closing * .025 - tangent * .12, -.85, .85);
+  b.collisionSpin = clamp((b.collisionSpin || 0) - sideB * closing * .025 + tangent * .12, -.85, .85);
   if (a.retired) a.speed = 0;
   if (b.retired) b.speed = 0;
 }

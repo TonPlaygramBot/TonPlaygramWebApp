@@ -56,11 +56,11 @@ test('bumper damage never retires a kart and stale fire input has no weapon effe
   const r=make();for(let i=0;i<100;i++)damageRacer(r,14);assert.equal(r.retired,false);assert.equal(r.health,50);
   r.input.fire=true;r.ammunition=3;stepRace([r],makeTrack('blloku'),STEP,1);assert.equal(r.ammunition,0);assert.equal(r.missileHits,0);
 });
-test('compact circuits retain exact mapped street edges and both games share one city assembly',()=>{
+test('district circuits retain exact mapped street edges and both games share one city assembly',()=>{
   const key=(a,b)=>[a.join(','),b.join(',')].sort().join('|');
   const roads=new Set(WORLD.roads.filter(r=>!r.walk).map(r=>key(r.a,r.b)));
   for(const config of TRACKS){
-    assert.ok(makeTrack(config.id).length<2200);
+    assert.ok(makeTrack(config.id).length>1400&&makeTrack(config.id).length<4400);
     for(let i=0;i<config.points.length;i++)assert.ok(roads.has(key(config.points[i],config.points[(i+1)%config.points.length])),config.id);
   }
   for(const path of ['blackwater/cityWorld.ts','kartroyale/tiranaScenery.ts'])assert.match(readFileSync(new URL('../webapp/src/games/'+path,import.meta.url),'utf8'),/new TiranaCityScene/);
