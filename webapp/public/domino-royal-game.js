@@ -6197,6 +6197,19 @@ function updateSeatedHumanDominoAction(anim, t) {
     grip,
     anim.humanReachProfile
   );
+
+  // Keep the restored playing hand physically attached to the moving tile.
+  // The pose supplies the historic shoulder/elbow silhouette and the final IK
+  // pass puts the palm between the curled fingers, so the tile is visibly held
+  // from both sides throughout pickup, carry and release at every seat.
+  const applyArmIK = DOMINO_SEATED_HUMANS?.applySeatedHumanRightArmIK;
+  const restoredHuman = seatedHumanActors[getVisualSeatIndex(anim.sourceSeat)];
+  if (mode !== 'idle' && restoredHuman?.rig && applyArmIK && anim.mesh) {
+    anim.mesh.updateWorldMatrix(true, false);
+    const tileContact = anim.mesh.getWorldPosition(new THREE.Vector3());
+    const contactStrength = THREE.MathUtils.clamp(0.72 + grip * 0.24, 0, 0.96);
+    applyArmIK(restoredHuman.rig, tileContact, contactStrength);
+  }
 }
 
 function centerFurnitureInHdri() {
@@ -11320,7 +11333,6 @@ function updatePlacementAnimations(now) {
     const t = duration > 0 ? Math.min(1, elapsed / duration) : 1;
     const rotateT = smoothPlacementStep(PLACE_ANIM_LIFT_END, PLACE_ANIM_LOWER_END, t);
 
-    updateSeatedHumanDominoAction(anim, t);
     anim.mesh.position.copy(resolvePrecisionPlacementPosition(anim, t));
     if (anim.endQuat && anim.startQuat) {
       const quat = anim.startQuat.clone().slerp(anim.endQuat, rotateT);
@@ -11331,6 +11343,8 @@ function updatePlacementAnimations(now) {
       const scale = anim.startScale.clone().lerp(anim.endScale, rotateT);
       anim.mesh.scale.copy(scale);
     }
+
+    updateSeatedHumanDominoAction(anim, t);
 
     if (t >= 1) {
       if (anim.segment) {

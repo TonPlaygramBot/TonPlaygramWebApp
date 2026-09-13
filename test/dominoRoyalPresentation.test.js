@@ -18,6 +18,7 @@ describe('Domino Royal lightweight presentation', () => {
   test('restores the shared seated human characters at every occupied chair', () => {
     expect(source).toContain('createRestoredSeatedHumanActor');
     expect(source).toContain('applySeatedHumanPose');
+    expect(source).toContain('applySeatedHumanRightArmIK');
     expect(source).toContain('loadSeatedHumanTemplate');
     expect(source).toContain('__DOMINO_ROYAL_SEATED_HUMANS__');
     expect(gameSource).toContain('chairs.forEach((chair, visualSeatIndex) =>');
@@ -27,6 +28,8 @@ describe('Domino Royal lightweight presentation', () => {
     expect(gameSource).toContain("mode = 'carryPiece'");
     expect(gameSource).toContain("mode = 'placePiece'");
     expect(gameSource).toContain('humanReachProfile: getDominoHumanReachProfile');
+    expect(gameSource).toContain('applySeatedHumanRightArmIK');
+    expect(gameSource).toContain('anim.mesh.getWorldPosition');
     expect(gameSource).toContain('seatHeight: STOOL_HEIGHT');
     expect(gameSource).toContain(
       "console.warn('Unable to restore Domino Royal seated humans', error)"
