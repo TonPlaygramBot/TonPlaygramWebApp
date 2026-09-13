@@ -39,7 +39,7 @@ import {
   resolveOpeningCard,
   sortHand
 } from '../../../../lib/murlan.js';
-import { createCardContactRig, saveCardContactRest, restoreCardHand, heldCardPose, cardScaleForHand, sampleCardTransfer, smoothCardMotion, CARD_PICKUP_REACH_MS, CARD_CARRY_MS, CARD_RELEASE_MS, CARD_RECOVER_MS, CARD_ACTION_MS } from '../../games/murlan/cardContact.ts';
+import { createCardContactRig, saveCardContactRest, restoreCardHand, heldCardPose, cardScaleForHand, supportFixedCards, sampleCardTransfer, smoothCardMotion, CARD_PICKUP_REACH_MS, CARD_CARRY_MS, CARD_RELEASE_MS, CARD_RECOVER_MS, CARD_ACTION_MS } from '../../games/murlan/cardContact.ts';
 import { beginCardPlay, stepCardPlay } from '../../games/murlan/cardMotion.ts';
 import { FLAG_EMOJIS } from '../../utils/flagEmojis.js';
 import AvatarTimer from '../../components/AvatarTimer.jsx';
@@ -2641,6 +2641,7 @@ function updateCharacterCardContacts(store, time) {
     if (!contactRig) return;
     if (!rig.handMeshes?.length) restoreCardHand(contactRig, 'left');
     const play = rig.cardPlay;
+    if (rig.isBottomHumanSeat) supportFixedCards(contactRig, rig.handMeshes || [], CARD_H, time, Boolean(play));
     if (play) {
       const elapsed = time - play.start;
       const attention = smoothCardMotion(elapsed / CARD_PICKUP_REACH_MS) *
@@ -3064,6 +3065,117 @@ function resolveSeatHandRadius(tableRadius, isHumanSeat) {
     AI_HAND_CLOSER_OFFSET -
     HAND_CARDS_INWARD_BIAS
   );
+}
+
+// The card layout is independent of the character rig. Preserve these screen
+// transforms; hands must follow them, never replace them with a palm-sized fan.
+function getHandCardLayout(seat, cardCount, cardIdx, isHumanCard, selected = false) {
+  const isSideSeat = seat?.handVariant === 'side';
+  const baseHeight = TABLE_HEIGHT + CARD_H / 2 + AI_CARD_LIFT + HUMAN_HAND_EXTRA_LIFT;
+  const forward = seat.forward;
+  const right = seat.right;
+  const radius = seat.radius;
+  const spacing = seat.spacing;
+  const maxSpread = seat.maxSpread;
+  const spread = cardCount > 1 ? Math.min((cardCount - 1) * spacing, maxSpread) : 0;
+  const { normalizedOffset, centerWeight, leftWeight } = calcFanCardPose(cardCount, cardIdx);
+  const aiHandVariant = isHumanCard ? 'human' : seat?.handVariant;
+  const humanLineOffset = cardCount > 1 ? -spread / 2 + (cardIdx / Math.max(cardCount - 1, 1)) * spread : 0;
+  const lateral = humanLineOffset;
+  const radial = radius + PLAYER_HAND_OUTWARD_PUSH_ONE_CARD;
+  const fanArcLift = isHumanCard ? HUMAN_HAND_FAN_ARC_LIFT : AI_HAND_FAN_ARC_LIFT;
+  const fanDirection = isHumanCard
+    ? HUMAN_HAND_FAN_DIRECTION
+    : isSideSeat
+      ? -HUMAN_HAND_FAN_DIRECTION
+      : (forward?.x ?? 0) < -0.45
+        ? -HUMAN_HAND_FAN_DIRECTION
+        : HUMAN_HAND_FAN_DIRECTION;
+  const aiFanMaxYaw =
+    aiHandVariant === 'side'
+      ? AI_SIDE_HAND_FAN_MAX_YAW
+      : aiHandVariant === 'top'
+        ? AI_TOP_HAND_FAN_MAX_YAW
+        : AI_HAND_FAN_MAX_YAW;
+  const fanYaw = HUMAN_HAND_UNIFORM_YAW_FROM_LEFT
+    ? HUMAN_HAND_FAN_MAX_YAW
+    : normalizedOffset * (isHumanCard ? HUMAN_HAND_FAN_MAX_YAW : aiFanMaxYaw) * fanDirection;
+  const layoutAxis = right?.clone?.() ?? new THREE.Vector3(1, 0, 0);
+  if (layoutAxis.lengthSq() > 1e-6) {
+    layoutAxis.normalize();
+  } else {
+    layoutAxis.set(1, 0, 0);
+  }
+  const target = forward.clone().multiplyScalar(radial).addScaledVector(layoutAxis, lateral);
+  const aiExtraInwardPull =
+    aiHandVariant === 'side'
+      ? AI_SIDE_HAND_EXTRA_INWARD_PULL
+      : aiHandVariant === 'top'
+        ? AI_TOP_HAND_EXTRA_INWARD_PULL
+        : 0;
+  const aiExtraUpShift =
+    aiHandVariant === 'side' ? AI_SIDE_HAND_UP_SHIFT_Y : aiHandVariant === 'top' ? AI_TOP_HAND_UP_SHIFT_Y : 0;
+  const aiPalmLateralShift =
+    aiHandVariant === 'side'
+      ? (forward?.x ?? 0) < 0
+        ? AI_SIDE_HAND_LATERAL_PALM_SHIFT
+        : -AI_SIDE_HAND_LATERAL_PALM_SHIFT
+      : aiHandVariant === 'top'
+        ? AI_TOP_HAND_LATERAL_PALM_SHIFT
+        : 0;
+  const aiSideTopwardShift =
+    aiHandVariant === 'side'
+      ? (forward?.x ?? 0) < 0
+        ? AI_SIDE_HAND_TOPWARD_SHIFT
+        : -AI_SIDE_HAND_TOPWARD_SHIFT
+      : 0;
+  const aiExtraOutwardPush =
+    aiHandVariant === 'side'
+      ? AI_SIDE_HAND_EXTRA_OUTWARD_PUSH
+      : aiHandVariant === 'top'
+        ? AI_TOP_HAND_EXTRA_OUTWARD_PUSH
+        : 0;
+  target.addScaledVector(forward, isHumanCard ? HUMAN_HAND_CLOSER_OFFSET : AI_HAND_CLOSER_OFFSET);
+  target.addScaledVector(
+    forward,
+    PLAYER_HAND_SUBTLE_OUTWARD_NUDGE +
+      aiExtraOutwardPush -
+      (HUMAN_HAND_EXTRA_INWARD_PULL + aiExtraInwardPull + PLAYER_HAND_SCREEN_TOP_NUDGE),
+  );
+  target.z -= PLAYER_HAND_SCREEN_TOP_SHIFT;
+  target.addScaledVector(
+    layoutAxis,
+    (isHumanCard ? HUMAN_HAND_LEFT_SHIFT : AI_HAND_LEFT_SHIFT) + aiPalmLateralShift + aiSideTopwardShift,
+  );
+  target.y =
+    baseHeight +
+    centerWeight * fanArcLift +
+    HUMAN_HAND_BOTTOM_SHIFT_Y +
+    HUMAN_HAND_UP_SHIFT_Y +
+    aiExtraUpShift +
+    leftWeight * HUMAN_HAND_DIRECTIONAL_LIFT +
+    PLAYER_HAND_UP_LIFT_ONE_CARD -
+    PLAYER_HAND_LOWER_OFFSET;
+  if (isHumanCard && selected) target.y += HUMAN_SELECTION_OFFSET;
+  const handLookTarget = target.clone().addScaledVector(forward, 2.4 * MODEL_SCALE);
+  return {
+    position: target,
+    lookTarget: handLookTarget,
+    scale: isHumanCard ? HUMAN_HAND_CARD_SCALE : AI_HAND_CARD_SCALE,
+    orientation: {
+      face: isHumanCard ? 'front' : 'back',
+      yawY: fanYaw,
+      pitchX:
+        centerWeight * HUMAN_HAND_BOTTOM_INWARD_TILT_X +
+        (aiHandVariant === 'side'
+          ? AI_SIDE_HAND_GRIP_PITCH_X
+          : aiHandVariant === 'top'
+            ? AI_TOP_HAND_GRIP_PITCH_X
+            : 0),
+      rollZ:
+        !isHumanCard && aiHandVariant === 'side' ? AI_SIDE_HAND_GRIP_ROLL_Z * Math.sign(forward?.x || 1) : 0,
+    },
+  };
 }
 
 function calcFanCardPose(cardCount, cardIdx) {
@@ -4489,14 +4601,6 @@ export default function MurlanRoyaleArena({ search }) {
       const cards = player.hand;
       if (seat.characterRig) seat.characterRig.handMeshes = cards.map((card) => cardMap.get(card.id)?.mesh).filter(Boolean);
 
-      const baseHeight = TABLE_HEIGHT + CARD_H / 2 + AI_CARD_LIFT + HUMAN_HAND_EXTRA_LIFT;
-      const forward = seat.forward;
-      const right = seat.right;
-      const radius = seat.radius;
-      const focus = seat.focus;
-      const spacing = seat.spacing;
-      const maxSpread = seat.maxSpread;
-      const spread = cards.length > 1 ? Math.min((cards.length - 1) * spacing, maxSpread) : 0;
       cards.forEach((card, cardIdx) => {
         const entry = cardMap.get(card.id);
         if (!entry) return;
@@ -4504,7 +4608,6 @@ export default function MurlanRoyaleArena({ search }) {
         const isHumanCard = player.isHuman;
         const layerIndex = isHumanCard ? cards.length - 1 - cardIdx : cardIdx;
         applyHandCardLayering(mesh, isHumanCard, layerIndex);
-        const isSideSeat = seat?.handVariant === 'side';
         const backLogoVariant = isHumanCard
           ? 'default'
           : seat?.handVariant === 'top'
@@ -4516,84 +4619,9 @@ export default function MurlanRoyaleArena({ search }) {
         mesh.visible = true;
         updateCardFace(mesh, isHumanCard ? 'front' : 'back');
         handsVisible.add(card.id);
-        const { normalizedOffset, centerWeight, leftWeight } = calcFanCardPose(cards.length, cardIdx);
-        const aiHandVariant = isHumanCard ? 'human' : seat?.handVariant;
-        const humanLineOffset = cards.length > 1
-          ? -spread / 2 + (cardIdx / Math.max(cards.length - 1, 1)) * spread
-          : 0;
-        const lateral = humanLineOffset;
-        const radial = radius + PLAYER_HAND_OUTWARD_PUSH_ONE_CARD;
-        const fanArcLift = isHumanCard ? HUMAN_HAND_FAN_ARC_LIFT : AI_HAND_FAN_ARC_LIFT;
-        const fanDirection = isHumanCard
-          ? HUMAN_HAND_FAN_DIRECTION
-          : isSideSeat
-            ? -HUMAN_HAND_FAN_DIRECTION
-            : (forward?.x ?? 0) < -0.45
-              ? -HUMAN_HAND_FAN_DIRECTION
-              : HUMAN_HAND_FAN_DIRECTION;
-        const aiFanMaxYaw = aiHandVariant === 'side'
-          ? AI_SIDE_HAND_FAN_MAX_YAW
-          : aiHandVariant === 'top'
-            ? AI_TOP_HAND_FAN_MAX_YAW
-            : AI_HAND_FAN_MAX_YAW;
-        const fanYaw = HUMAN_HAND_UNIFORM_YAW_FROM_LEFT
-          ? HUMAN_HAND_FAN_MAX_YAW
-          : normalizedOffset * (isHumanCard ? HUMAN_HAND_FAN_MAX_YAW : aiFanMaxYaw) * fanDirection;
-        const layoutAxis = right?.clone?.() ?? new THREE.Vector3(1, 0, 0);
-        if (layoutAxis.lengthSq() > 1e-6) {
-          layoutAxis.normalize();
-        } else {
-          layoutAxis.set(1, 0, 0);
-        }
-        const target = forward.clone().multiplyScalar(radial).addScaledVector(layoutAxis, lateral);
-        const aiExtraInwardPull = aiHandVariant === 'side'
-          ? AI_SIDE_HAND_EXTRA_INWARD_PULL
-          : aiHandVariant === 'top'
-            ? AI_TOP_HAND_EXTRA_INWARD_PULL
-            : 0;
-        const aiExtraUpShift = aiHandVariant === 'side'
-          ? AI_SIDE_HAND_UP_SHIFT_Y
-          : aiHandVariant === 'top'
-            ? AI_TOP_HAND_UP_SHIFT_Y
-            : 0;
-        const aiPalmLateralShift = aiHandVariant === 'side'
-          ? (forward?.x ?? 0) < 0
-            ? AI_SIDE_HAND_LATERAL_PALM_SHIFT
-            : -AI_SIDE_HAND_LATERAL_PALM_SHIFT
-          : aiHandVariant === 'top'
-            ? AI_TOP_HAND_LATERAL_PALM_SHIFT
-            : 0;
-        const aiSideTopwardShift = aiHandVariant === 'side'
-          ? (forward?.x ?? 0) < 0
-            ? AI_SIDE_HAND_TOPWARD_SHIFT
-            : -AI_SIDE_HAND_TOPWARD_SHIFT
-          : 0;
-        const aiExtraOutwardPush = aiHandVariant === 'side'
-          ? AI_SIDE_HAND_EXTRA_OUTWARD_PUSH
-          : aiHandVariant === 'top'
-            ? AI_TOP_HAND_EXTRA_OUTWARD_PUSH
-            : 0;
-        target.addScaledVector(forward, isHumanCard ? HUMAN_HAND_CLOSER_OFFSET : AI_HAND_CLOSER_OFFSET);
-        target.addScaledVector(
-          forward,
-          PLAYER_HAND_SUBTLE_OUTWARD_NUDGE +
-            aiExtraOutwardPush -
-            (HUMAN_HAND_EXTRA_INWARD_PULL + aiExtraInwardPull + PLAYER_HAND_SCREEN_TOP_NUDGE)
-        );
-        target.z -= PLAYER_HAND_SCREEN_TOP_SHIFT;
-        target.addScaledVector(layoutAxis, (isHumanCard ? HUMAN_HAND_LEFT_SHIFT : AI_HAND_LEFT_SHIFT) + aiPalmLateralShift + aiSideTopwardShift);
-        target.y =
-          baseHeight +
-          centerWeight * fanArcLift +
-          HUMAN_HAND_BOTTOM_SHIFT_Y +
-          HUMAN_HAND_UP_SHIFT_Y +
-          aiExtraUpShift +
-          leftWeight * HUMAN_HAND_DIRECTIONAL_LIFT +
-          PLAYER_HAND_UP_LIFT_ONE_CARD -
-          PLAYER_HAND_LOWER_OFFSET;
-        if (isHumanCard && selectionSet.has(card.id)) target.y += HUMAN_SELECTION_OFFSET;
-        mesh.scale.setScalar(cardScaleForHand(seat.characterRig?.cardContact, CARD_H, isHumanCard ? HUMAN_HAND_CARD_SCALE : AI_HAND_CARD_SCALE));
-        const handLookTarget = target.clone().addScaledVector(forward, 2.4 * MODEL_SCALE);
+        const { position: target, lookTarget: handLookTarget, orientation, scale } =
+          getHandCardLayout(seat, cards.length, cardIdx, isHumanCard, selectionSet.has(card.id));
+        mesh.scale.setScalar(isHumanCard ? scale : cardScaleForHand(seat.characterRig?.cardContact, CARD_H, scale));
         setCommunityCardLegibility(mesh, false);
         const previousPlayer = previous?.players?.[idx];
         const isNewHandCard = Boolean(card && !previousPlayer?.hand?.some((prevCard) => prevCard.id === card.id));
@@ -4610,26 +4638,12 @@ export default function MurlanRoyaleArena({ search }) {
           mesh,
           target,
           handLookTarget,
-          {
-            face: isHumanCard ? 'front' : 'back',
-            yawY: fanYaw,
-            pitchX:
-              centerWeight * HUMAN_HAND_BOTTOM_INWARD_TILT_X +
-              (aiHandVariant === 'side'
-                ? AI_SIDE_HAND_GRIP_PITCH_X
-                : aiHandVariant === 'top'
-                  ? AI_TOP_HAND_GRIP_PITCH_X
-                  : 0),
-            rollZ:
-              !isHumanCard && aiHandVariant === 'side'
-                ? AI_SIDE_HAND_GRIP_ROLL_Z * Math.sign(forward?.x || 1)
-                : 0
-          },
+          orientation,
           immediate,
           three.animations,
           handDealDelay
         );
-        if (seat.characterRig?.cardContact?.arms.left) {
+        if (!isHumanCard && seat.characterRig?.cardContact?.arms.left) {
           const poseHelper = new THREE.Object3D();
           poseHelper.position.copy(target);
           orientMesh(poseHelper, handLookTarget, { face: isHumanCard ? 'front' : 'back' });
