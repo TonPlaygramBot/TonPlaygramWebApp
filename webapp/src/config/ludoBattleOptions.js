@@ -387,7 +387,7 @@ export const HUMAN_CHARACTER_OPTIONS = Object.freeze([
     id: 'rpm-current',
     label: 'Current Avatar',
     description: 'Ready Player Me seated avatar with full PBR texture maps.',
-    modelUrls: ['https://threejs.org/examples/models/gltf/readyplayer.me.glb'],
+    modelUrls: ['/assets/table-tennis/chess-human.glb', 'https://threejs.org/examples/models/gltf/readyplayer.me.glb'],
     source: 'three.js examples',
     license: 'MIT examples bundle'
   },

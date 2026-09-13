@@ -35,6 +35,10 @@ import {
 import { applyRendererSRGB, applySRGBColorSpace } from '../utils/colorSpace.js';
 import { getGameVolume } from '../utils/sound.js';
 import { playLudoCaptureWeaponSfx } from '../utils/ludoSfx.js';
+import {
+  createRestoredSeatedHumanActor,
+  loadSeatedHumanTemplate
+} from '../pages/Games/shared/seatedHumanActors.js';
 const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
 const clamp01 = (v) => clamp(v, 0, 1);
 const smootherstep01 = (v) => {
@@ -3383,6 +3387,23 @@ function buildArena(
       if (prevMaterials !== chairMaterials) disposeChairMaterials(prevMaterials);
     })
     .catch(() => {});
+
+  loadSeatedHumanTemplate({
+    renderer,
+    targetHeight: 1.13,
+    createLoader: createConfiguredGLTFLoader
+  })
+    .then((humanTemplate) => {
+      if (disposed) return;
+      chairs.forEach((chair) => {
+        const restoredHuman = createRestoredSeatedHumanActor(humanTemplate, chair.group, {
+          targetHeight: 1.13,
+          seatHeight: SEAT_THICKNESS * 0.65
+        });
+        if (restoredHuman) chair.humanActor = restoredHuman;
+      });
+    })
+    .catch((error) => console.warn('Unable to restore Snake & Ladder seated humans', error));
 
   const updateCameraTarget = () => {
     const radius = camera.position.distanceTo(boardLookTarget);
