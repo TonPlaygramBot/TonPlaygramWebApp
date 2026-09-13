@@ -10,7 +10,7 @@ import {
 
 const INLINE_STYLE_ID = 'domino-royal-inline-style';
 const GAME_SCRIPT_SELECTOR = 'script[data-domino-royal-script="true"]';
-const DOMINO_ROYAL_SCRIPT_VERSION = '2026-09-13-legacy-human-scale-motion-v77';
+const DOMINO_ROYAL_SCRIPT_VERSION = '2026-09-13-legacy-human-hand-motion-v78';
 
 export default function DominoRoyalArena() {
   useEffect(() => {

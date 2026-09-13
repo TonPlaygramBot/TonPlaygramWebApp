@@ -22,8 +22,11 @@ describe('Domino Royal lightweight presentation', () => {
     expect(source).toContain('__DOMINO_ROYAL_SEATED_HUMANS__');
     expect(gameSource).toContain('chairs.forEach((chair, visualSeatIndex) =>');
     expect(gameSource).toContain('LEGACY_DOMINO_HUMAN_HEIGHT = 1.13');
-    expect(gameSource).toContain("runSeatedHumanDominoAction(current, 'placePiece')");
-    expect(gameSource).toContain("runSeatedHumanDominoAction(human, 'placePiece')");
+    expect(gameSource).toContain('updateSeatedHumanDominoAction(anim, t)');
+    expect(gameSource).toContain("mode = 'gripPiece'");
+    expect(gameSource).toContain("mode = 'carryPiece'");
+    expect(gameSource).toContain("mode = 'placePiece'");
+    expect(gameSource).toContain('humanReachProfile: getDominoHumanReachProfile');
     expect(gameSource).toContain('seatHeight: STOOL_HEIGHT');
     expect(gameSource).toContain(
       "console.warn('Unable to restore Domino Royal seated humans', error)"
