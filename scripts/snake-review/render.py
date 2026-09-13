@@ -7,7 +7,12 @@ for name in sys.argv[1:]:
  rgb=np.zeros((H,W,3),dtype=np.float64);rgb[:]=[.13,.18,.17];depth=np.full((H,W),np.inf)
  m=np.array(data['camera']).reshape((4,4),order='F')
  light=np.array([.3,.8,-.5]);light/=np.linalg.norm(light)
- for mesh in data['meshes']:
+ opaque=[mesh for mesh in data['meshes'] if mesh.get('opacity',1)>=1]
+ transparent=[mesh for mesh in data['meshes'] if mesh.get('opacity',1)<1]
+ def view_depth(mesh):
+  p=np.r_[np.mean(mesh['points'],axis=0),1]@m.T
+  return p[2]/p[3]
+ for mesh in opaque+sorted(transparent,key=view_depth,reverse=True):
   pts=np.array(mesh['points']);indices=np.array(mesh['indices']).reshape((-1,3));p=np.c_[pts,np.ones(len(pts))]@m.T
   screen=p[:,:3]/p[:,3,None];screen[:,0]=(screen[:,0]*.5+.5)*W;screen[:,1]=(.5-screen[:,1]*.5)*H
   color=np.array(mesh['color'])
@@ -26,6 +31,7 @@ for name in sys.argv[1:]:
    if not np.any(mask):continue
    normal=np.cross(pts[ids[1]]-pts[ids[0]],pts[ids[2]]-pts[ids[0]]);n=np.linalg.norm(normal)
    shade=.48+.52*abs(np.dot(normal,light)/(n or 1))
-   rgb[y0:y1+1,x0:x1+1][mask]=np.power(np.clip(color*shade,0,1),1/2.2)
-   view[mask]=z[mask]
+   alpha=mesh.get('opacity',1)
+   rgb[y0:y1+1,x0:x1+1][mask]=np.power(np.clip(color*shade,0,1),1/2.2)*alpha+rgb[y0:y1+1,x0:x1+1][mask]*(1-alpha)
+   if mesh.get('depthWrite',True):view[mask]=z[mask]
  out=Path(name).with_suffix('.png');Image.fromarray((rgb*255).astype('uint8')).resize((360,470),Image.Resampling.LANCZOS).save(out);print(out)

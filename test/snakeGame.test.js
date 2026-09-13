@@ -321,3 +321,16 @@ test('an out-of-turn request does not cancel the active player timer', () => {
   assert.ok(timer);
   assert.equal(room.turnTimer, timer);
 });
+
+test('diceRolled announces the receiver before presentation for normal and bonus turns', () => {
+  const io = new DummyIO(), room = createRoom('receiver', io, 2, { snakes: {}, ladders: { 3: 8 }, diceCells: { 8: 1 } });
+  room.rollCooldown = 0;
+  const sockets = [0, 1].map(i => ({ id: 'receiver-' + i, join() {}, emit() {} }));
+  sockets.forEach((socket, i) => room.addPlayer('p' + i, 'Player ' + i, socket)); room.startGame();
+  const announced = () => io.emitted.filter(e => e.event === 'diceRolled').at(-1).data.nextPlayerId;
+  room.rollDice(sockets[0], [2]); assert.equal(announced(), 'p1');
+  room.players[1].position = 1;
+  room.rollDice(sockets[1], [2]); assert.equal(announced(), 'p1');
+  room.rollDice(sockets[1], [6]); assert.equal(announced(), 'p1');
+  room.rollDice(sockets[1], [1]); assert.equal(announced(), 'p0');
+});

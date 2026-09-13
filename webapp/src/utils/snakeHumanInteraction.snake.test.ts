@@ -8,7 +8,7 @@ import { createSnakeHumanInteraction, worldPoint } from './snakeHumanInteraction
 import { createSnakeDiceInteraction, SNAKE_DICE_RELEASE_MS, SNAKE_DICE_PRESENTATION_MS } from './snakeDiceInteraction';
 import { createSnakeFirearmAnimation, createSnakeFirearmFallback } from './snakeFirearmAnimation';
 import { prepareSnakeFirearm, readSnakeWeaponContacts, snakeWeaponProfile } from './snakeWeaponGrip';
-import { computeDiceThrowLayout, updateSnakeSeatWeapons, SNAKE_SCENE_DIMENSIONS as D } from '../components/SnakeBoard3D';
+import { computeDiceThrowLayout, getDiceOrientationQuaternion, updateSnakeSeatWeapons, SNAKE_SCENE_DIMENSIONS as D } from '../components/SnakeBoard3D';
 import { getLudoFirearmTiming } from './ludoFirearmPresentation';
 
 let template: THREE.Object3D;
@@ -143,4 +143,93 @@ it('reaches the production parking slots without moving or resizing the gun befo
       motion.dispose(); expect(rack.visible).toBe(true); human.dispose();
     }
   } finally { loading.mockRestore(); }
+});
+
+it.each([2, 3, 4])('lands for the next of %i seated players without torso lean or a handoff slide', count => {
+  const yaws = count === 2 ? [0, Math.PI] : Array.from({ length: count }, (_, i) => i * Math.PI / 2);
+  const seats = yaws.map(fixture);
+  for (let roller = 0; roller < count; roller++) {
+    const source = seats[roller], receiver = seats[(roller + count - 1) % count];
+    const die = new THREE.Object3D(); source.boardRoot.add(die); die.position.copy(source.pickup);
+    const destinationWorld = receiver.boardRoot.localToWorld(receiver.pickup.clone());
+    const destination = source.boardRoot.worldToLocal(destinationWorld.clone());
+    const motion = createSnakeDiceInteraction(die, destination, { human: source.human, startedAt: 0 });
+    const spine = source.human.actor.getObjectByName('Spine')!, hips = source.human.actor.getObjectByName('Hips')!;
+    const spineQ = spine.quaternion.clone(), hipsPosition = hips.position.clone();
+    for (let t = 0; t <= 1120; t += 10) {
+      motion.update(t);
+      expect(spine.quaternion.angleTo(spineQ)).toBeLessThan(1e-7);
+      expect(hips.position.distanceTo(hipsPosition)).toBeLessThan(1e-10);
+      if (t >= 480) expect(worldPoint(source.human.arms.right.palm).distanceTo(worldPoint(die))).toBeLessThan(0.003);
+    }
+    // Compare both sides of release in world space, including nonuniform board scale.
+    motion.dispose(); die.position.copy(source.pickup);
+    const fresh = createSnakeDiceInteraction(die, destination, { human: source.human, startedAt: 0 });
+    fresh.update(1119.99); const before = worldPoint(die);
+    fresh.update(1120); const release = worldPoint(die);
+    fresh.update(1120.01); const after = worldPoint(die);
+    expect(worldPoint(source.human.arms.right.palm).distanceTo(after)).toBeLessThan(0.00001);
+    expect(release.clone().sub(before).divideScalar(0.00001).distanceTo(after.clone().sub(release).divideScalar(0.00001))).toBeLessThan(0.02);
+    fresh.update(SNAKE_DICE_PRESENTATION_MS);
+    expect(worldPoint(die).distanceTo(destinationWorld)).toBeLessThan(1e-9);
+    fresh.dispose();
+    const pickup = createSnakeDiceInteraction(die, source.pickup, { human: receiver.human, startedAt: 3000 });
+    const receiverSpine = receiver.human.actor.getObjectByName('Spine')!, q = receiverSpine.quaternion.clone();
+    for (let time = 3000; time <= 3640; time += 10) {
+      pickup.update(time);
+      expect(receiverSpine.quaternion.angleTo(q)).toBeLessThan(1e-7);
+      expect(worldPoint(die).distanceTo(destinationWorld)).toBeLessThan(0.003);
+      if (time >= 3480) expect(worldPoint(receiver.human.arms.right.palm).distanceTo(destinationWorld)).toBeLessThan(0.003);
+    }
+    pickup.dispose();
+  }
+  seats.forEach(s => s.human.dispose());
+});
+
+it.each(['polyAssaultRifle01Attack', 'polyPistol01Attack', 'polyShotgun01Attack'])('uses the actual %s grip geometry throughout draw and recoil', async id => {
+  const loader = new GLTFLoader(); loader.register(() => ({ name: 'ContactTextures', loadTexture: () => Promise.resolve(null) }));
+  const bytes = await readFile(`public/assets/tirana-streets/imported/${id}.glb`);
+  const model = (await loader.parseAsync(bytes.buffer.slice(bytes.byteOffset, bytes.byteOffset + bytes.byteLength), '')).scene;
+  const { scene, human, point } = fixture(0);
+  const rack = prepareSnakeFirearm(model, id, human.unit * snakeWeaponProfile(id).lengthInArms);
+  rack.rotation.x = Math.PI / 2; rack.position.copy(point(0.65, 0.92, 2.05)); scene.add(rack);
+  const target = point(-0.35, 0.94, 0.5);
+  const motion = createSnakeFirearmAnimation({ scene, weaponId: id, parkedWeapon: rack, origin: worldPoint(rack), target, human, startedAt: 0 });
+  for (let time = 420; time < 1700; time += 17) {
+    motion.update(time);
+    const contacts = readSnakeWeaponContacts(scene.getObjectByName('snake-held-firearm')!)!;
+    expect(worldPoint(human.arms.right.palm).distanceTo(contacts.grip)).toBeLessThan(0.003);
+    if (time >= 1020) expect(worldPoint(human.arms.left.palm).distanceTo(contacts.support)).toBeLessThan(0.003);
+    const radial = new THREE.Vector3(1, 0, 0).applyQuaternion(human.arms.right.basis).applyQuaternion(human.arms.right.hand.getWorldQuaternion(new THREE.Quaternion()));
+    expect(radial.dot(contacts.up)).toBeGreaterThan(0.95);
+  }
+  motion.dispose(); human.dispose();
+});
+
+it.each([0, Math.PI / 2, Math.PI, -Math.PI / 2])('centers the readable result between board and player at yaw %f', yaw => {
+  const { boardRoot, pickup, chair, human } = fixture(yaw);
+  const center = boardRoot.getWorldPosition(new THREE.Vector3());
+  const die = boardRoot.localToWorld(pickup.clone()).sub(center).setY(0);
+  const towardPlayer = chair.position.clone().sub(center).setY(0).normalize();
+  expect(die.clone().normalize().distanceTo(towardPlayer)).toBeLessThan(1e-9);
+  expect(die.length()).toBeGreaterThan(D.tileSize * 4 * D.footprintScale + D.diceSize);
+  expect(die.length()).toBeLessThan(D.tableRadius - D.diceSize);
+  human.dispose();
+});
+
+it.each([1, 2, 3, 4, 5, 6])('pinches landed face %i above the tabletop with thumb contact and fixed finger lengths', face => {
+  const { scene, human, boardRoot, pickup } = fixture(0);
+  const die = new THREE.Mesh(new THREE.BoxGeometry(D.diceSize, D.diceSize, D.diceSize), new THREE.MeshBasicMaterial());
+  boardRoot.add(die); die.position.copy(pickup); die.quaternion.copy(getDiceOrientationQuaternion(face));
+  const half = D.diceSize * 0.5; die.userData.gripHalfExtent = half;
+  const lengths = Object.values(human.arms.right.fingers).flat().map(bone => [bone, bone.position.length()] as const);
+  const motion = createSnakeDiceInteraction(die, pickup, { human, startedAt: 0 }); motion.update(630);
+  const thumb = human.fingertip('right', 'Thumb'), local = die.worldToLocal(thumb.clone());
+  const surface = die.localToWorld(local.clone().clampScalar(-half, half));
+  expect(thumb.distanceTo(surface)).toBeLessThan(0.003);
+  for (const name of ['Thumb', 'Index', 'Middle', 'Ring', 'Pinky']) {
+    expect(human.fingertip('right', name).y).toBeGreaterThan(D.tableHeight + 0.01);
+  }
+  lengths.forEach(([bone, length]) => expect(bone.position.length()).toBeCloseTo(length, 10));
+  motion.dispose(); human.dispose();
 });

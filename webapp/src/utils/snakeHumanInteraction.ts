@@ -85,6 +85,87 @@ export function createSnakeHumanInteraction(actor: THREE.Object3D) {
       });
     });
   };
+  const fingertip = (side: Side, name: string) => {
+    const chain = arms[side].fingers[name], last = chain[chain.length - 1];
+    // The skin extends beyond the terminal joint; use an anatomical distal tip.
+    return last.localToWorld(last.position.clone().multiplyScalar(0.72));
+  };
+  const dieContactTarget = (cube: THREE.Object3D, tip: THREE.Vector3) => {
+    const scale = cube.getWorldScale(V());
+    const half = Number(cube.userData.gripHalfExtent) || unit * 0.04 / Math.max(scale.x, scale.y, scale.z);
+    const local = cube.worldToLocal(tip.clone());
+    const surface = local.clone().clampScalar(-half, half);
+    // Pinch the sides above the tabletop, rather than curling under the cube.
+    const axes = ['x', 'y', 'z'] as const;
+    const up = V(0, 1, 0).applyQuaternion(cube.getWorldQuaternion(Q()).invert());
+    const vertical = axes.reduce((a, b) => Math.abs(up[a]) > Math.abs(up[b]) ? a : b);
+    const sign = up[vertical] < 0 ? -1 : 1;
+    const sides = axes.filter(axis => axis !== vertical);
+    const axis = Math.abs(local[sides[0]]) > Math.abs(local[sides[1]]) ? sides[0] : sides[1];
+    surface[axis] = (local[axis] < 0 ? -1 : 1) * half;
+    surface[vertical] = sign * THREE.MathUtils.clamp(sign * surface[vertical], -half * 0.1, half * 0.8);
+    return cube.localToWorld(surface);
+  };
+  const conformGrip = (side: Side, center: THREE.Vector3, axis: THREE.Vector3, radius: number, amount: number, trigger?: THREE.Vector3, cube?: THREE.Object3D) => {
+    const arm = arms[side];
+    const flexAxis = V(1, 0, 0).applyQuaternion(arm.basis).applyQuaternion(arm.hand.getWorldQuaternion(Q())).normalize();
+    for (const name of ['Index', 'Middle', 'Ring', 'Pinky']) {
+      const chain = arm.fingers[name];
+      const tip = fingertip(side, name), delta = tip.clone().sub(center);
+      const projected = center.clone().addScaledVector(axis, delta.dot(axis));
+      const radial = tip.clone().sub(projected).normalize();
+      let target = name === 'Index' && trigger ? trigger.clone() : projected.addScaledVector(radial, radius + unit * 0.006);
+      if (cube) target = dieContactTarget(cube, tip);
+      // One flexion axis per joint prevents sideways knuckle kinks. Limit each
+      // correction and preserve authored bone lengths and the anchored palm.
+      const flexion = new Map<THREE.Bone, number>();
+      for (let iteration = 0; iteration < 5; iteration++) {
+        for (let i = chain.length - 1; i >= 0; i--) {
+          const bone = chain[i], origin = worldPoint(bone);
+          const from = fingertip(side, name).sub(origin), to = target.clone().sub(origin);
+          from.addScaledVector(flexAxis, -from.dot(flexAxis)).normalize();
+          to.addScaledVector(flexAxis, -to.dot(flexAxis)).normalize();
+          const angle = Math.atan2(flexAxis.dot(from.clone().cross(to)), from.dot(to));
+          const sign = side === 'right' ? -1 : 1;
+          const baseCurl = (name === 'Index' && trigger ? i ? 0.62 : 0.2 : i ? 1.12 : 0.9) * amount;
+          const prior = flexion.get(bone) ?? baseCurl;
+          const next = THREE.MathUtils.clamp(prior + sign * THREE.MathUtils.clamp(angle, -0.12, 0.12) * THREE.MathUtils.clamp(amount, 0, 1), 0, 1.55);
+          const correction = (next - prior) * sign; flexion.set(bone, next);
+          worldQuaternion(bone, Q().setFromAxisAngle(flexAxis, correction).multiply(bone.getWorldQuaternion(Q())));
+        }
+      }
+    }
+  };
+  const conformDie = (side: Side, die: THREE.Object3D, amount: number) => {
+    const axis = V(1, 0, 0).applyQuaternion(arms[side].basis).applyQuaternion(arms[side].hand.getWorldQuaternion(Q()));
+    conformGrip(side, worldPoint(die), axis, 0, amount, undefined, die);
+    // A small MCP spread adjustment lets the index and middle fingers form a
+    // pinch around a small cube without bending their distal joints sideways.
+    const spreadAxis = V(0, 0, 1).applyQuaternion(arms[side].basis).applyQuaternion(arms[side].hand.getWorldQuaternion(Q()));
+    for (const name of ['Index', 'Middle']) {
+      const bone = arms[side].fingers[name][0], target = dieContactTarget(die, fingertip(side, name));
+      for (let i = 0; i < 4; i++) {
+        const origin = worldPoint(bone), from = fingertip(side, name).sub(origin), to = target.clone().sub(origin);
+        from.addScaledVector(spreadAxis, -from.dot(spreadAxis)).normalize();
+        to.addScaledVector(spreadAxis, -to.dot(spreadAxis)).normalize();
+        const angle = Math.atan2(spreadAxis.dot(from.clone().cross(to)), from.dot(to));
+        worldQuaternion(bone, Q().setFromAxisAngle(spreadAxis, THREE.MathUtils.clamp(angle, -0.07, 0.07) * amount).multiply(bone.getWorldQuaternion(Q())));
+      }
+    }
+    // The thumb opposes the fingers on the actual die surface. Its saddle joint
+    // has an opposition axis that differs from the four finger flexion axes.
+    const target = dieContactTarget(die, fingertip(side, 'Thumb'));
+    const chain = arms[side].fingers.Thumb;
+    for (let iteration = 0; iteration < 6; iteration++) for (let i = chain.length - 1; i >= 0; i--) {
+      const bone = chain[i], origin = worldPoint(bone);
+      const from = fingertip(side, 'Thumb').sub(origin).normalize(), to = target.clone().sub(origin).normalize();
+      const angle = Math.acos(THREE.MathUtils.clamp(from.dot(to), -1, 1));
+      if (angle < 1e-5) continue;
+      const rotation = Q().setFromUnitVectors(from, to);
+      rotation.slerp(Q(), 1 - Math.min(1, 0.1 / angle) * THREE.MathUtils.clamp(amount, 0, 1));
+      worldQuaternion(bone, rotation.multiply(bone.getWorldQuaternion(Q())));
+    }
+  };
   const orientation = (side: Side, radial: THREE.Vector3, fingers: THREE.Vector3) => {
     const y = fingers.clone().normalize();
     const x = radial.clone().addScaledVector(y, -radial.dot(y)).normalize();
@@ -108,8 +189,8 @@ export function createSnakeHumanInteraction(actor: THREE.Object3D) {
         total += angle;
       }
       if (hips) {
-        // The board's actual die is farther away than a chest-height test prop.
-        // Shift weight toward the front of the existing seat while keeping both
+        // A legacy parking slot may require a seated weight shift. Dice
+        // pickups disable this fallback. Keep both
         // feet planted; neither the die, chair nor limb lengths are relocated.
         const planted = legs.map(leg => ({ ...leg, target: worldPoint(leg.foot!), q: leg.foot!.getWorldQuaternion(Q()), knee: worldPoint(leg.lower!) }));
         const excess = Math.max(0, worldPoint(upper).distanceTo(wrist) - (a + b) * 0.985);
@@ -153,7 +234,7 @@ export function createSnakeHumanInteraction(actor: THREE.Object3D) {
     reach(side, target, orientation(side, radial, forward), false);
     for (const bone of [arm.upper, arm.lower, arm.hand]) rest.set(bone, { position: bone.position.clone(), quaternion: bone.quaternion.clone() });
   }
-  return { actor, arms, unit, forward, reset, grip, orientation, reach,
+  return { actor, arms, unit, forward, reset, grip, conformGrip, conformDie, fingertip, orientation, reach,
     dispose() { reset(); arms.right.palm.removeFromParent(); arms.left.palm.removeFromParent(); } };
 }
 export type SnakeHuman = NonNullable<ReturnType<typeof createSnakeHumanInteraction>>;

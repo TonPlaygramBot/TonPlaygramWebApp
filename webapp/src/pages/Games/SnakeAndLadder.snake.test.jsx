@@ -3,7 +3,7 @@ import { createRoot } from 'react-dom/client';
 import { BrowserRouter } from 'react-router-dom';
 import { beforeEach, afterEach, expect, it, vi } from 'vitest';
 import SnakeAndLadder from './SnakeAndLadder';
-import { SNAKE_DICE_PRESENTATION_MS, SNAKE_DICE_RELEASE_MS } from '../../utils/snakeDiceInteraction';
+import { SNAKE_DICE_PRESENTATION_MS, SNAKE_DICE_RELEASE_MS, SNAKE_DICE_READ_MS } from '../../utils/snakeDiceInteraction';
 
 const testState = vi.hoisted(() => ({ handlers: new Map(), events: [], board: null }));
 vi.mock('../../utils/socket.js', () => ({ socket: {
@@ -50,12 +50,13 @@ it('keeps local rolling locked until the die lands and the entry hop finishes', 
   await act(async () => { roll().click(); roll().click(); });
   expect(roll().disabled).toBe(true);
   expect(testState.board.diceEvent.values).toEqual([6]);
+  expect(testState.board.diceEvent.receiverSeatIndex).toBe(0);
   await act(async () => vi.advanceTimersByTimeAsync(SNAKE_DICE_RELEASE_MS));
   expect(testState.board.players[0].position).toBe(0);
   expect(testState.board.diceEvent.phase).toBe('start');
   await act(async () => vi.advanceTimersByTimeAsync(SNAKE_DICE_PRESENTATION_MS - SNAKE_DICE_RELEASE_MS));
   expect(roll().disabled).toBe(true);
-  await act(async () => vi.advanceTimersByTimeAsync(320));
+  await act(async () => vi.advanceTimersByTimeAsync(SNAKE_DICE_READ_MS));
   await act(async () => vi.advanceTimersByTimeAsync(100));
   expect(testState.board.players[0].position).toBe(1);
   expect(roll().disabled).toBe(false);
@@ -68,14 +69,16 @@ it('animates a server roll and ladder before applying the final snapshot', async
   const state = { roomId: 'snake-2', status: 'playing', currentPlayerId: 'p1', maxPlayers: 2,
     snakes: {9:2}, ladders: {3:8}, diceCells: {}, players: [{playerId:'p1',name:'You',position:1},{playerId:'p2',name:'Opponent',position:0}] };
   await emit('snakeState', state);
-  await emit('diceRolled', {playerId:'p1',dice:[2],value:2});
+  await emit('diceRolled', {playerId:'p1',dice:[2],value:2,nextPlayerId:'p2'});
+  expect(testState.board.players.map(p => p.seatIndex).sort()).toEqual([0, 1]);
+  expect(testState.board.diceEvent.receiverSeatIndex).toBe(testState.board.players[1].seatIndex);
   await emit('movePlayer', {playerId:'p1',from:1,to:3});
   await emit('snakeOrLadder', {playerId:'p1',from:3,to:8});
   await emit('turnChanged', {playerId:'p2'});
   await emit('snakeState', {...state,currentPlayerId:'p2',players:[{...state.players[0],position:8},state.players[1]]});
   expect(testState.board.players[0].position).toBe(1);
   expect(host.querySelector('.snake-roll-button').disabled).toBe(true);
-  await act(async () => vi.advanceTimersByTimeAsync(SNAKE_DICE_PRESENTATION_MS + 320));
+  await act(async () => vi.advanceTimersByTimeAsync(SNAKE_DICE_PRESENTATION_MS + SNAKE_DICE_READ_MS));
   for (let step=0;step<5;step++) await act(async () => vi.advanceTimersByTimeAsync(100));
   expect(testState.board.players[0].position).toBe(8);
   expect(testState.board.currentTurn).toBe(1);

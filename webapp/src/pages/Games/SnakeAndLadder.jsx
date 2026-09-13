@@ -1,7 +1,8 @@
 import { useState, useEffect, useRef, useCallback, useMemo } from "react";
 import coinConfetti from "../../utils/coinConfetti";
+import { snakeDiceReceiver } from '../../utils/snakeDiceReceiver';
 import { SNAKE_DICE_PRESENTATION_MS } from '../../utils/snakeDiceInteraction';
-import { ROYAL_DICE_READ_MS } from '../../utils/royalDiceMotion';
+import { SNAKE_DICE_READ_MS } from '../../utils/snakeDiceInteraction';
 import { createSnakePresentationQueue } from '../../utils/snakePresentationQueue.js';
 import './SnakeAndLadder.css';
 import DiceRoller from "../../components/DiceRoller.jsx";
@@ -183,13 +184,13 @@ const PENULTIMATE_TILE = FINAL_TILE - 1;
 const TURN_TIME = 15;
 const AI_ROLL_DELAY_MS = 1300;
 const TURN_ADVANCE_AFTER_DICE_MS = 0;
-const DICE_RESULT_HOLD_MS = ROYAL_DICE_READ_MS;
+const DICE_RESULT_HOLD_MS = SNAKE_DICE_READ_MS;
 const DICE_SFX_MIN_INTERVAL_MS = 850;
 const DEFAULT_CAPACITY = 4;
 const SEAT_LAYOUTS = {
   1: [0],
-  2: [3, 1],
-  3: [0, 1, 3],
+  2: [0, 1],
+  3: [0, 1, 2],
   4: [0, 1, 2, 3]
 };
 
@@ -1436,6 +1437,9 @@ export default function SnakeAndLadder() {
     current.onComplete?.();
   }, []);
 
+  const diceReceiverBoardRef = useRef({ snakes, ladders, diceCells });
+  diceReceiverBoardRef.current = { snakes, ladders, diceCells };
+
   const startDiceBoardAnimation = useCallback((phase) => {
     setDiceBoardEvent(phase);
   }, []);
@@ -2064,7 +2068,7 @@ export default function SnakeAndLadder() {
         unseatTable(myAccountId, tableId).catch(() => {});
       }
     };
-    const onRolled = async ({ value, dice, playerId, accountId: rollerAccountId }) => {
+    const onRolled = async ({ value, dice, playerId, accountId: rollerAccountId, nextPlayerId }) => {
       const serverValues = normalizeAuthoritativeDiceValues(dice ?? value, 1);
       if (!serverValues.length) return;
       const rollerIndex = resolveTurnIndex({ playerId: playerId ?? rollerAccountId });
@@ -2077,7 +2081,13 @@ export default function SnakeAndLadder() {
       activeDiceBoardRollRef.current = { id: rollId, seatIndex, phase: 'start' };
       const assignments = computeSeatAssignments(playersRef.current, myAccountId);
       const visualSeat = assignments.get(seatIndex) ?? seatIndex;
-      startDiceBoardAnimation({ id: rollId, phase: 'start', count: 1, values: serverValues, seatIndex: visualSeat });
+      const announcedReceiver = playersRef.current.findIndex(p => String(p.id) === String(nextPlayerId));
+      const receiver = announcedReceiver >= 0 ? announcedReceiver : snakeDiceReceiver({
+        roller: seatIndex, positions: playersRef.current.map(p => p.position || 0), values: serverValues,
+        ...diceReceiverBoardRef.current, online: true
+      });
+      const receiverSeatIndex = assignments.get(receiver) ?? receiver;
+      startDiceBoardAnimation({ id: rollId, phase: 'start', count: 1, values: serverValues, seatIndex: visualSeat, receiverSeatIndex });
       playDiceRollSound(`online:${rollId}`);
       await waitForPresentation(SNAKE_DICE_PRESENTATION_MS);
       if (!mountedRef.current) return;
@@ -2086,7 +2096,7 @@ export default function SnakeAndLadder() {
       setRollResult(serverValues.reduce((sum, face) => sum + face, 0));
       playGameHaptic('diceLand');
       setRollingIndex(null);
-      await waitForPresentation(ROYAL_DICE_READ_MS);
+      await waitForPresentation(SNAKE_DICE_READ_MS);
       // The queued move/turn/state events release the input lock.
     };
     const onWon = ({ playerId }) => {
@@ -3900,6 +3910,7 @@ export default function SnakeAndLadder() {
                 phase: 'start',
                 values,
                 count: diceCount,
+                receiverSeatIndex: snakeDiceReceiver({ roller: aiRollingIndex ?? 0, positions: [pos, ...aiPositions], values, snakes, ladders, diceCells }),
                 seatIndex: aiRollingIndex ?? 0
               });
               setPendingExtraRoll(false);

@@ -1,6 +1,7 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { createRoot } from 'react-dom/client';
 import * as THREE from 'three';
+import { SNAKE_DICE_PRESENTATION_MS, SNAKE_DICE_READ_MS } from '../../utils/snakeDiceInteraction';
 import { createSnakeInteractionScene, REVIEW_WEAPONS } from './interactionScene';
 declare const SNAKE_PREVIEW_ASSETS: string;
 
@@ -29,7 +30,10 @@ function App() {
       const resize = () => { const w = element.clientWidth, h = Math.min(480, Math.max(390, w * 1.22)); renderer.setSize(w, h); review.camera.aspect = w / h; review.camera.updateProjectionMatrix(); };
       const observer = new ResizeObserver(resize); observer.observe(element); resize();
       const start = (next: string) => { kind = next; total = review.start(kind); elapsed = 0; startTime = performance.now(); running = true; setPlaying(true); setProgress(0); };
-      actions.current = { start, pause() { running = !running; if (running) startTime = performance.now() - elapsed; setPlaying(running); },
+      actions.current = { start, result() {
+          kind = 'dice'; total = review.start(kind); running = false; setPlaying(false); elapsed = SNAKE_DICE_PRESENTATION_MS;
+          review.update(elapsed); setProgress(elapsed / total * 100); setStatus('Rolled 6 — result between board and player');
+        }, pause() { running = !running; if (running) startTime = performance.now() - elapsed; setPlaying(running); },
         seek(percent: number) { if (!total) total = review.start(kind); running = false; setPlaying(false); review.start(kind); elapsed = percent * total / 100;
           // Replay deterministic checkpoints so reverse scrubbing also restores visibility and contacts.
           for (let t = 0; t < elapsed; t += 1000 / 60) review.update(t);
@@ -39,7 +43,7 @@ function App() {
         if (dead) return;
         if (running) {
           elapsed = Math.min(total, now - startTime); review.update(elapsed); setProgress(elapsed / total * 100);
-          setStatus(kind === 'dice' ? elapsed < 480 ? 'Reach the resting die' : elapsed < 640 ? 'Close the fingers' : elapsed < 1120 ? 'Lift & throw' : 'Release & land'
+          setStatus(kind === 'dice' ? elapsed >= SNAKE_DICE_PRESENTATION_MS + SNAKE_DICE_READ_MS ? 'Next player picks up & throws' : elapsed < 480 ? 'Reach the resting die' : elapsed < 640 ? 'Close the fingers' : elapsed < 1120 ? 'Lift & throw' : 'Land within the next player’s reach'
             : elapsed < 420 ? 'Reach the parked grip' : elapsed < 1020 ? 'Lift & aim' : elapsed < total - 720 ? 'Fire at the token' : 'Return to the same place');
           if (elapsed >= total) { running = false; setPlaying(false); pauseTime = now; }
         } else if (loopRef.current && total && elapsed >= total && now - pauseTime > 700) start(kind);
@@ -61,7 +65,8 @@ function App() {
       </select></label>
     </div>
     <div className="viz-row">
-      <button className="btn btn-primary" disabled={!ready} onClick={() => actions.current?.start('dice')}>Throw dice</button>
+      <button className="btn btn-primary" disabled={!ready} onClick={() => actions.current?.start('dice')}>Two turns</button>
+      <button className="btn" disabled={!ready} onClick={() => actions.current?.result()}>Show result</button>
       <button className="btn" disabled={!ready} onClick={() => actions.current?.start('fire')}>Aim & fire</button>
       <button className="btn" disabled={!ready} onClick={() => actions.current?.pause()}>{playing ? 'Pause' : 'Play'}</button>
       <label className="form-check"><input className="form-check-input" type="checkbox" checked={loop} onChange={e => setLoop(e.target.checked)} /><span className="form-check-label">Repeat</span></label>
