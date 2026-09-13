@@ -14,6 +14,8 @@ const DOMINO_ONLINE_MODE = (urlParams.get('mode') || '').toLowerCase() === 'onli
 const DOMINO_ONLINE_TABLE_ID = urlParams.get('tableId') || urlParams.get('table') || '';
 const DOMINO_ONLINE_ACCOUNT_ID = urlParams.get('accountId') || '';
 const DOMINO_ONLINE_SOCKET = typeof window !== 'undefined' ? window.__DOMINO_ROYAL_SOCKET__ : null;
+const DOMINO_SEATED_HUMANS =
+  typeof window !== 'undefined' ? window.__DOMINO_ROYAL_SEATED_HUMANS__ : null;
 let DOMINO_ONLINE_MATCH = (() => {
   if (typeof window === 'undefined') return null;
   try {
@@ -6137,6 +6139,7 @@ async function applyTableTheme(
 
 const tableParts = {};
 const chairs = [];
+const seatedHumanActors = [];
 
 function centerFurnitureInHdri() {
   const centerCandidates = [];
@@ -7932,6 +7935,7 @@ function placeChairsWithOption(option, chairData, token) {
     chair.parent?.remove(chair);
     disposeChairResources(chair);
   }
+  seatedHumanActors.length = 0;
 
   const seatBottomOffset = -chairTemplateBounds.min.y;
   const labelHeight = seatBottomOffset + chairTemplateBounds.max.y + 0.12;
@@ -7978,6 +7982,44 @@ function placeChairsWithOption(option, chairData, token) {
 
   refreshSeatBadges(seatAvatarSources, buildSeatNames(N));
   syncArenaGroundToFurniture();
+  restoreSeatedHumans(token);
+}
+
+async function restoreSeatedHumans(token) {
+  if (
+    token !== chairBuildToken ||
+    !DOMINO_SEATED_HUMANS?.loadSeatedHumanTemplate ||
+    !DOMINO_SEATED_HUMANS?.createRestoredSeatedHumanActor
+  ) {
+    return;
+  }
+
+  try {
+    const humanTemplate = await DOMINO_SEATED_HUMANS.loadSeatedHumanTemplate({
+      renderer,
+      maxAnisotropy: renderer.capabilities?.getMaxAnisotropy?.() ?? 1,
+      targetHeight: 1.13,
+      createLoader: () => createConfiguredGltfLoader()
+    });
+    if (token !== chairBuildToken) return;
+
+    chairs.forEach((chair) => {
+      if (!chair) return;
+      const restoredHuman = DOMINO_SEATED_HUMANS.createRestoredSeatedHumanActor(
+        humanTemplate,
+        chair,
+        {
+          targetHeight: 1.13,
+          seatHeight: STOOL_HEIGHT,
+          supportsArmrest: true
+        }
+      );
+      if (restoredHuman) seatedHumanActors.push(restoredHuman);
+    });
+    syncArenaGroundToFurniture();
+  } catch (error) {
+    console.warn('Unable to restore Domino Royal seated humans', error);
+  }
 }
 
 async function buildChairs(
