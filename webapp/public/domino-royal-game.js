@@ -6140,6 +6140,21 @@ async function applyTableTheme(
 const tableParts = {};
 const chairs = [];
 const seatedHumanActors = [];
+const LEGACY_DOMINO_HUMAN_HEIGHT = 1.13;
+const LEGACY_DOMINO_HUMAN_ACTION_MS = 760;
+
+function runSeatedHumanDominoAction(logicalSeatIndex, mode = 'placePiece') {
+  const visualSeatIndex = getVisualSeatIndex(logicalSeatIndex);
+  const restoredHuman = seatedHumanActors[visualSeatIndex];
+  const applyPose = DOMINO_SEATED_HUMANS?.applySeatedHumanPose;
+  if (!restoredHuman?.rig || !applyPose) return;
+  if (restoredHuman.actionTimer) clearTimeout(restoredHuman.actionTimer);
+  applyPose(restoredHuman.rig, mode, 1, mode === 'gripPiece' ? 1 : 0);
+  restoredHuman.actionTimer = setTimeout(() => {
+    applyPose(restoredHuman.rig, 'idle', 1, 0);
+    restoredHuman.actionTimer = null;
+  }, LEGACY_DOMINO_HUMAN_ACTION_MS);
+}
 
 function centerFurnitureInHdri() {
   const centerCandidates = [];
@@ -7935,6 +7950,9 @@ function placeChairsWithOption(option, chairData, token) {
     chair.parent?.remove(chair);
     disposeChairResources(chair);
   }
+  seatedHumanActors.forEach((restoredHuman) => {
+    if (restoredHuman?.actionTimer) clearTimeout(restoredHuman.actionTimer);
+  });
   seatedHumanActors.length = 0;
 
   const seatBottomOffset = -chairTemplateBounds.min.y;
@@ -7998,23 +8016,23 @@ async function restoreSeatedHumans(token) {
     const humanTemplate = await DOMINO_SEATED_HUMANS.loadSeatedHumanTemplate({
       renderer,
       maxAnisotropy: renderer.capabilities?.getMaxAnisotropy?.() ?? 1,
-      targetHeight: 1.13,
+      targetHeight: LEGACY_DOMINO_HUMAN_HEIGHT,
       createLoader: () => createConfiguredGltfLoader()
     });
     if (token !== chairBuildToken) return;
 
-    chairs.forEach((chair) => {
+    chairs.forEach((chair, visualSeatIndex) => {
       if (!chair) return;
       const restoredHuman = DOMINO_SEATED_HUMANS.createRestoredSeatedHumanActor(
         humanTemplate,
         chair,
         {
-          targetHeight: 1.13,
+          targetHeight: LEGACY_DOMINO_HUMAN_HEIGHT,
           seatHeight: STOOL_HEIGHT,
           supportsArmrest: true
         }
       );
-      if (restoredHuman) seatedHumanActors.push(restoredHuman);
+      if (restoredHuman) seatedHumanActors[visualSeatIndex] = restoredHuman;
     });
     syncArenaGroundToFurniture();
   } catch (error) {
@@ -9971,6 +9989,7 @@ renderer.domElement.addEventListener('pointerdown', (ev) => {
         showMarkersFor(selectedTile);
         return;
       }
+      runSeatedHumanDominoAction(human, 'placePiece');
       playedPlacement = placement;
       emitDominoOnlineState('play');
     }
@@ -10627,6 +10646,7 @@ function cpuPlay() {
     const picked = player.hand.splice(move.index, 1)[0];
     const placement = placeOnBoard(picked, move.side, { animate: true });
     if (placement.success) {
+      runSeatedHumanDominoAction(current, 'placePiece');
       renderHands();
       if (player.hand.length === 0) {
         concludeHand({
