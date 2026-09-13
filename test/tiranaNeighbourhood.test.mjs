@@ -63,7 +63,7 @@ test('real free-roam state advances on the expanded city with finite player/vehi
 });
 test('all eleven Blender GLBs and local PBR images match their manifest and contain finite geometry',()=>{
  const root=new URL('../webapp/public/assets/tirana-streets/neighbourhood/',import.meta.url),manifest=JSON.parse(readFileSync(new URL('manifest.json',root)));
- assert.equal(manifest.models.length,11);assert.match(manifest.blender,/4\.2\.9/);
+ assert.equal(manifest.models.length,11);assert.match(manifest.blender,/4\.(2|5)\./);
  let total=0;
  for(const asset of [...manifest.models,...manifest.textures]){
   const bytes=readFileSync(new URL(asset.file,root));assert.equal(bytes.length,asset.bytes);assert.equal(createHash('sha256').update(bytes).digest('hex'),asset.sha256);total+=bytes.length;

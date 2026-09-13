@@ -14,6 +14,7 @@ import { SharedHumans } from './SharedHumans';
 import { nearbyHumans } from './humanRoster.mjs';
 import { forceCharacterFor } from '../shared/albanianForces.mjs';
 import { CombatEffects } from '../CombatEffects';
+import { MissileVisuals } from '../MissileVisuals';
 /** Local career only. Reuses the original driving renderer and the newer shared
  * city details without editing map coordinates, physics or paid-match actors. */
 export class StreetRenderer extends CityRenderer {
@@ -25,7 +26,7 @@ export class StreetRenderer extends CityRenderer {
   readonly combatEffects: CombatEffects;
   private effectState?:State;
   private cutCount=0;
-  private missileMeshes:T.InstancedMesh;
+  private missileMeshes:MissileVisuals;
   private wreckMaterials=new Map<T.Mesh,{original:T.Material|T.Material[];copies:T.Material[]}>();
   private clearWrecks(){for(const [mesh,saved] of this.wreckMaterials){mesh.material=saved.original;saved.copies.forEach(m=>m.dispose());}this.wreckMaterials.clear();}
   private showWrecks(sim:StreetSimulation){
@@ -54,8 +55,8 @@ export class StreetRenderer extends CityRenderer {
     this.ownDetailUpdate=false;
     this.bodyRig = new FirstPersonBody(this.scene);
     this.combatEffects = new CombatEffects(this.scene);
-    this.missileMeshes = new T.InstancedMesh(new T.CylinderGeometry(.09,.09,1.1,6),new T.MeshStandardMaterial({color:0xd1d6d7,metalness:.6,roughness:.4}),8);
-    this.missileMeshes.count=0;this.missileMeshes.frustumCulled=false;this.scene.add(this.missileMeshes);
+    this.missileMeshes = new MissileVisuals(this.scene);
+    this.airMobility.authoritativeMissiles = true;
     this.camera.near = 0.035;
     this.setFirstPerson(true);
     this.scene.add(this.humans.group);
@@ -202,10 +203,7 @@ export class StreetRenderer extends CityRenderer {
       }
       const fires=[...sim.combat.fires.values()].map(f=>({x:f.car.x,z:f.car.z,y:groundHeight(f.car.x,f.car.z)+.8}));
       this.combatEffects.update(dt,this.camera,fires,sim.combat.missiles,this.quality==='battery');
-      const dummy=new T.Object3D();
-      this.missileMeshes.count=sim.combat.missiles.length;
-      sim.combat.missiles.forEach((m,i)=>{dummy.position.set(m.x,m.y,m.z);dummy.quaternion.setFromUnitVectors(new T.Vector3(0,1,0),new T.Vector3(m.direction.x,m.direction.y,m.direction.z));dummy.updateMatrix();this.missileMeshes.setMatrixAt(i,dummy.matrix);});
-      this.missileMeshes.instanceMatrix.needsUpdate=true;
+      this.missileMeshes.update(sim.combat.missiles);
     }
     if (this.simulation)
       this.bodyRig.syncLoot(this.simulation.loot.filter(l=>!l.collected).sort((a,b)=>Math.hypot(a.x-this.simulation!.player.x,a.z-this.simulation!.player.z)-Math.hypot(b.x-this.simulation!.player.x,b.z-this.simulation!.player.z)).filter(l=>Math.hypot(l.x-this.simulation!.player.x,l.z-this.simulation!.player.z)<90).slice(0,24), this.simulation.claimed);
@@ -269,7 +267,7 @@ export class StreetRenderer extends CityRenderer {
   override destroy() {
     if (this.disposed) return;
     this.bodyRig.dispose();
-    this.clearWrecks();this.combatEffects.dispose();this.missileMeshes.removeFromParent();this.missileMeshes.geometry.dispose();(this.missileMeshes.material as T.Material).dispose();
+    this.clearWrecks();this.combatEffects.dispose();this.missileMeshes.dispose();
     this.humans.dispose();
     super.destroy();
   }

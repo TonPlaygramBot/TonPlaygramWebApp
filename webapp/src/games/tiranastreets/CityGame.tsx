@@ -292,10 +292,14 @@ export default function CityGame({
     streetPopulation = view?.npcs.filter((npc) => npc.health > 0).length || 0,
     activeTraffic = (view?.traffic.length || 0) + (view?.cars.length || 0);
   const setScreen = (v: string) => {
+    if(v === "playing" && screenRef.current !== "playing" && !overlayRef.current)void audio.current?.unlock().catch(()=>{});
+    else if(v !== "playing")audio.current?.suspend();
     screenRef.current = v;
     setScreenState(v);
   };
   const setOverlay = (v: string | null) => {
+    if(v)audio.current?.suspend();
+    else if(screenRef.current === "playing")void audio.current?.unlock().catch(()=>{});
     overlayRef.current = v;
     setOverlayState(v);
     input.current?.clear();
@@ -439,9 +443,10 @@ export default function CityGame({
                 audio.current?.cue(true);
               lastIndex = p.index;
             }
-            audio.current?.update(p.speed, !!p.carId && !overlayRef.current);
-            if (!overlayRef.current) audio.current?.city(state, p, dt);
-          } else audio.current?.update(0, false);
+            if (overlayRef.current) audio.current?.suspend();
+            else audio.current?.update(p.speed, !!p.carId);
+            if (!overlayRef.current) audio.current?.city(state, p, dt, city.yaw);
+          } else audio.current?.suspend();
           city.render(state, identity.current, dt, !playing);
           if (uiTime > 0.1) {
             uiTime = 0;

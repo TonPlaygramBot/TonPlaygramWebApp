@@ -87,9 +87,9 @@ export class NeighbourhoodLayer {
   if(seconds>=this.last&&seconds-this.last<.2)return;this.last=seconds;
   this.parkFurniture.update(viewer,battery);
   for(const hero of ALL_HEROES){const b=NEIGHBOURHOOD.buildings.find(b=>b.id===hero.id);if(!b)continue;const p=b.p[0];
-   if(Math.hypot(p[0]-viewer.x,p[1]-viewer.z)<(COMPLETED_BUILDING_IDS.has(hero.id)?(battery?120:240):1000))this.request(hero.asset,hero);
+   if(Math.hypot(p[0]-viewer.x,p[1]-viewer.z)<(hero.asset==='grand'?(battery?200:350):COMPLETED_BUILDING_IDS.has(hero.id)?(battery?120:240):1000))this.request(hero.asset,hero);
   }
-  for(const h of this.heroes.values())h.object.visible=Math.hypot(h.x-viewer.x,h.z-viewer.z)<(battery?720:1100);
+  for(const [id,h] of this.heroes){h.object.visible=Math.hypot(h.x-viewer.x,h.z-viewer.z)<(id==='548100908'?(battery?240:420):(battery?720:1100));const fallback=this.mapped.heroFallbacks.get(id);if(fallback)fallback.visible=!h.object.visible;}
   const sites=this.near(viewer,battery?100:185,battery?24:48).filter(s=>!['greengrocer','supermarket','convenience','marketplace'].includes(s.shop||s.kind));
   for(const site of sites)if(KIT_IDS.includes(site.model))this.request(site.model);
   this.kits.forEach(meshes=>meshes.forEach(mesh=>mesh.count=0));

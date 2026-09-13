@@ -1,0 +1,33 @@
+{
+  "blender": "4.5.3 LTS",
+  "license": "CC0-1.0",
+  "models": {
+    "window": {
+      "triangles": 84
+    },
+    "balcony": {
+      "triangles": 156
+    },
+    "ac": {
+      "triangles": 96
+    },
+    "plinth": {
+      "triangles": 24
+    },
+    "gutter": {
+      "triangles": 24
+    },
+    "downpipe": {
+      "triangles": 52
+    },
+    "tank": {
+      "triangles": 100
+    },
+    "porch": {
+      "triangles": 48
+    },
+    "coping": {
+      "triangles": 24
+    }
+  }
+}

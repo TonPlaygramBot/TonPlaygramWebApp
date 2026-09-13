@@ -226,7 +226,7 @@ export class StreetCareerRuntime {
     this.input.setEnabled(false);
     this.simulation.pause();
     this.accumulator = 0;
-    this.audio.update(0, false);
+    this.audio.suspend();
     this.persist();
     this.emit();
   }
@@ -350,7 +350,7 @@ export class StreetCareerRuntime {
       }
       if (!this.paused) {
         this.audio.update(p.speed, !!p.carId);
-        this.audio.city(this.state, p, dt);
+        this.audio.city(this.state, p, dt, this.renderer.yaw, this.simulation.body.grounded, this.simulation.body.y);
       }
       if (now - this.routeAt > 750) {
         const mission = MISSIONS.find(m=>m.id===this.state.missionId);

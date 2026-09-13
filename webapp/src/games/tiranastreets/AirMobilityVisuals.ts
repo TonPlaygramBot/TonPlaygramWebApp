@@ -1,6 +1,20 @@
 import * as THREE from "three";
 import { GLTFLoader } from "three/examples/jsm/loaders/GLTFLoader.js";
 import type { State } from "./shared/engine.mjs";
+import { MissileVisuals } from "./MissileVisuals";
+import { groundHeight } from "../tirana-east/terrainCore.mjs";
+
+/** Recenter spinning geometry without moving the authored model. */
+export function rotorPivot(object: THREE.Mesh) {
+  const parent = object.parent!; object.geometry.computeBoundingBox();
+  const bounds = object.geometry.boundingBox!, size = bounds.getSize(new THREE.Vector3());
+  const center = bounds.getCenter(new THREE.Vector3());
+  object.updateWorldMatrix(true, false); object.localToWorld(center); parent.worldToLocal(center);
+  const pivot = new THREE.Group(); pivot.position.copy(center); pivot.quaternion.copy(object.quaternion);
+  parent.add(pivot); parent.updateWorldMatrix(true, true); pivot.attach(object);
+  const axis = size.x <= size.y && size.x <= size.z ? new THREE.Vector3(1,0,0) : size.y <= size.z ? new THREE.Vector3(0,1,0) : new THREE.Vector3(0,0,1);
+  return { pivot, axis };
+}
 
 const HELICOPTER_URLS = [
   "/assets/tirana-streets/imported/helicopter.glb",
@@ -14,11 +28,24 @@ export class AirMobilityVisuals {
   private jet = new THREE.Group();
   private disposed = false;
   private rotor: THREE.Object3D | null = null;
-  private missiles: { mesh: THREE.Group; born: number; from: THREE.Vector3; to: THREE.Vector3 }[] = [];
+  authoritativeMissiles = false;
+  private rotorParts: ReturnType<typeof rotorPivot>[] = [];
+  private rotorSpeed = 0;
+  private blur = new THREE.Mesh(new THREE.RingGeometry(.4, 4, 32), new THREE.MeshBasicMaterial({color:0x8d9388,transparent:true,opacity:0,depthWrite:false,side:THREE.DoubleSide}));
+  private wash = new THREE.Mesh(new THREE.RingGeometry(2, 4, 32), new THREE.MeshBasicMaterial({color:0xaa9879,transparent:true,opacity:0,depthWrite:false,side:THREE.DoubleSide}));
+  private exhaust = new THREE.Mesh(new THREE.ConeGeometry(.45, 2.5, 12), new THREE.MeshBasicMaterial({color:0xffac65,transparent:true,opacity:0,depthWrite:false,blending:THREE.AdditiveBlending}));
+  private missileVisuals: MissileVisuals;
+  private missiles: { x:number;y:number;z:number; born:number; from:THREE.Vector3; to:THREE.Vector3; direction:THREE.Vector3 }[] = [];
+  private elapsed = 0;
   private seen = new Set<number>();
 
   constructor(private scene: THREE.Scene) {
     scene.add(this.group);
+    this.missileVisuals = new MissileVisuals(this.group);
+    this.blur.rotation.x = -Math.PI/2; this.blur.position.y = 1.35;
+    this.wash.rotation.x = -Math.PI/2; this.group.add(this.wash);
+    this.exhaust.rotation.x = Math.PI/2; this.exhaust.position.z = 6;
+    this.jet.add(this.exhaust);
     this.buildFallbackHelicopter();
     this.jet.name = 'Tirana:pilotable-F15';
     this.group.add(this.jet);
@@ -60,7 +87,8 @@ export class AirMobilityVisuals {
     const rotor = new THREE.Mesh(new THREE.BoxGeometry(8, .06, .18), new THREE.MeshStandardMaterial({ color: 0x202522, metalness: .8 }));
     rotor.position.y = 1.35;
     this.rotor = rotor;
-    this.helicopter.add(body, boom, rotor);
+    this.helicopter.add(body, boom, rotor, this.blur);
+    this.rotorParts = [rotorPivot(rotor)];
     this.group.add(this.helicopter);
   }
 
@@ -78,9 +106,15 @@ export class AirMobilityVisuals {
         const fitted = new THREE.Box3().setFromObject(model);
         const c = fitted.getCenter(new THREE.Vector3());
         model.position.sub(c);
-        this.release(this.helicopter);this.helicopter.clear();
+        this.blur.removeFromParent();this.release(this.helicopter);this.helicopter.clear();
         this.helicopter.add(model);
-        this.rotor = model.getObjectByName("rotor") || model.getObjectByName("Rotor") || null;
+        const parts:THREE.Mesh[]=[];
+        model.traverse(o=>{if(o instanceof THREE.Mesh && /rotor|propell?ar|propeller/i.test(o.name))parts.push(o);});
+        parts.sort((a,b)=>Number(/back|tail/i.test(a.name))-Number(/back|tail/i.test(b.name)));
+        this.rotorParts = parts.map(rotorPivot);
+        this.rotor = model.getObjectByName("AW101_propellar") || model.getObjectByName("rotor") || model.getObjectByName("Rotor") || null;
+        this.helicopter.add(this.blur);
+        if(this.rotorParts[0]){this.rotorParts[0].pivot.getWorldPosition(this.blur.position);this.helicopter.worldToLocal(this.blur.position);}
         return;
       } catch { /* try the same Snake & Ladder source through its fallback CDN */ }
     }
@@ -106,41 +140,49 @@ export class AirMobilityVisuals {
   }
 
   update(state: State, dt: number) {
-    const h = state.helicopter;
-    if (!h) return;
-    this.buildStairs(state);
-    this.helicopter.position.set(h.x, h.y, h.z);
-    this.helicopter.rotation.y = h.heading;
-    this.helicopter.rotation.x = h.pitch || 0;
-    this.helicopter.rotation.z = h.roll || 0;
-    this.helicopter.visible = (h.health ?? 1)>0;
-    const j=state.jet;this.jet.visible=!!j&&(j.health??1)>0;
-    if(j){this.jet.position.set(j.x,j.y,j.z);this.jet.rotation.set(j.pitch||0,j.heading,j.roll||0,'YXZ');}
-    if (this.rotor) this.rotor.rotation.y += dt * (h.pilot ? 28 : 2);
-    for (const effect of state.effects) {
-      if (effect.kind !== "missile" || this.seen.has(effect.id)) continue;
-      this.seen.add(effect.id);
-      if(this.seen.size>128)this.seen.delete(this.seen.values().next().value!);
-      const root = new THREE.Group();
-      const shell = new THREE.Mesh(new THREE.CylinderGeometry(.12, .12, 1.2, 10), new THREE.MeshStandardMaterial({ color: 0xd9ddd7, metalness: .7 }));
-      shell.rotation.x = Math.PI / 2;
-      root.add(shell);
-      this.group.add(root);
-      this.missiles.push({ mesh: root, born: state.elapsed, from: new THREE.Vector3(effect.x, effect.y || h.y, effect.z), to: new THREE.Vector3(effect.toX, .4, effect.toZ) });
+    const h = state.helicopter, j = state.jet;
+    if(state.elapsed < this.elapsed){this.seen.clear();this.missiles=[];}
+    this.elapsed=state.elapsed;
+    this.helicopter.visible=!!h&&(h.health??1)>0;
+    this.jet.visible=!!j&&(j.health??1)>0;
+    if(h){
+      this.buildStairs(state);
+      this.helicopter.position.set(h.x,h.y,h.z);
+      this.helicopter.rotation.set(h.pitch||0,h.heading,h.roll||0,'YXZ');
     }
-    this.missiles = this.missiles.filter((m) => {
-      const t = Math.min(1, (state.elapsed - m.born) / .72);
-      m.mesh.position.lerpVectors(m.from, m.to, t);
-      m.mesh.position.y += Math.sin(t * Math.PI) * 7;
-      if (t < 1) return true;
-      m.mesh.removeFromParent();
-      this.release(m.mesh);
-      return false;
+    const target=h?.pilot&&(h.health??1)>0?34:0;
+    this.rotorSpeed=THREE.MathUtils.lerp(this.rotorSpeed,target,1-Math.exp(-Math.max(0,dt)*1.5));
+    if(this.rotorSpeed<.01)this.rotorSpeed=0;
+    for(const part of this.rotorParts)part.pivot.rotateOnAxis(part.axis,dt*this.rotorSpeed);
+    (this.blur.material as THREE.MeshBasicMaterial).opacity=this.rotorSpeed/34*.15;
+    this.blur.visible=this.helicopter.visible;
+    const floor=h?groundHeight(h.x,h.z):0, altitude=h?Math.max(0,h.y-floor):100;
+    this.wash.visible=!!h&&this.helicopter.visible&&altitude<24&&this.rotorSpeed>4;
+    if(h){this.wash.position.set(h.x,floor+.1,h.z);this.wash.scale.setScalar(1+altitude*.13);this.wash.rotation.z+=dt*.35;}
+    (this.wash.material as THREE.MeshBasicMaterial).opacity=Math.max(0,1-altitude/24)*this.rotorSpeed/34*.16;
+    if(j){
+      this.jet.position.set(j.x,j.y,j.z);this.jet.rotation.set(j.pitch||0,j.heading,j.roll||0,'YXZ');
+      const power=j.pilot?THREE.MathUtils.clamp(Math.abs(j.speed||0)/80,.25,1):0;
+      this.exhaust.scale.set(1,power*(1+Math.sin(state.elapsed*37)*.08),1);
+      (this.exhaust.material as THREE.MeshBasicMaterial).opacity=power*.55;
+    }
+    if(!this.authoritativeMissiles)for(const effect of state.effects){
+      if(effect.kind!=='missile'||this.seen.has(effect.id))continue;
+      this.seen.add(effect.id);if(this.seen.size>128)this.seen.delete(this.seen.values().next().value!);
+      const from=new THREE.Vector3(effect.x,effect.y??h?.y??1,effect.z),to=new THREE.Vector3(effect.toX,effect.toY??groundHeight(effect.toX,effect.toZ)+.4,effect.toZ);
+      if(this.missiles.length>=8)this.missiles.shift();
+      this.missiles.push({x:from.x,y:from.y,z:from.z,born:state.elapsed,from,to,direction:to.clone().sub(from).normalize()});
+    }
+    this.missiles=this.authoritativeMissiles?[]:this.missiles.filter(m=>{
+      const t=THREE.MathUtils.clamp((state.elapsed-m.born)/.72,0,1);
+      m.x=THREE.MathUtils.lerp(m.from.x,m.to.x,t);m.y=THREE.MathUtils.lerp(m.from.y,m.to.y,t);m.z=THREE.MathUtils.lerp(m.from.z,m.to.z,t);return t<1;
     });
+    this.missileVisuals.update(this.missiles);
   }
 
   dispose() {
     this.disposed=true;
+    this.missileVisuals.dispose();
     this.release(this.group);
     this.group.removeFromParent();
   }
