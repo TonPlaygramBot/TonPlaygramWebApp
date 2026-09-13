@@ -80,8 +80,10 @@ const STOOL_HEIGHT = CHAIR_BASE_HEIGHT + SEAT_THICKNESS;
 // Portrait calibration: keep the chair ring close to the table.
 const CHAIR_GLOBAL_PUSHBACK = 0.18 * MODEL_SCALE;
 const CHAIR_TABLE_CLEARANCE = 0.22 * MODEL_SCALE;
-const TABLE_HEIGHT_LIFT = -0.045 * MODEL_SCALE;
-const TABLE_HEIGHT = (STOOL_HEIGHT + TABLE_HEIGHT_LIFT) * 0.88;
+// The original seated thighs peak near 0.715. A thin top leaves a small
+// underside gap above them instead of forcing the knees around the table.
+const TABLE_HEIGHT = 0.835;
+const TABLE_TOP_THICKNESS_SCALE = 0.4;
 const TABLE_MODEL_TARGET_DIAMETER = TABLE_RADIUS * 2;
 const TABLE_MODEL_TARGET_HEIGHT = TABLE_HEIGHT;
 
@@ -2891,6 +2893,7 @@ function buildArena(
     baseOption,
     includeBase: false,
     flushPlayingSurface: true,
+    topThicknessScale: TABLE_TOP_THICKNESS_SCALE,
     shapeOption,
     rotationY: 0
   });
@@ -6535,7 +6538,7 @@ export function getSnakePortraitCameraState() {
 export const SNAKE_SCENE_DIMENSIONS = Object.freeze({
   boardScale: BOARD_SCALE, footprintScale: BOARD_FOOTPRINT_SCALE,
   tileSize: TILE_SIZE, tokenHeight: TOKEN_HEIGHT, diceSize: DICE_SIZE,
-  tableHeight: TABLE_HEIGHT, tableRadius: TABLE_RADIUS,
+  tableHeight: TABLE_HEIGHT, tableRadius: TABLE_RADIUS, topThicknessScale: TABLE_TOP_THICKNESS_SCALE,
   chairRadius: SEATING_TABLE_RADIUS + SEAT_DEPTH * 0.08,
   bottomChairExtra: CHAIR_TABLE_CLEARANCE, seatClearance: CHAIR_TABLE_CLEARANCE, chairBaseHeight: CHAIR_BASE_HEIGHT,
   seatHeight: SEAT_THICKNESS * 0.65, avatarAnchorHeight: AVATAR_ANCHOR_HEIGHT

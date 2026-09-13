@@ -1,11 +1,14 @@
 # Snake table and parked weapons
 
-Based on main after #25918 and #25919.
+Updated from main after #25923 to restore the original seated legs.
 
-The Snake table is 12% lower and 10% narrower. Chair spacing is independent of
-table size; each seat now has the same clearance as the bottom seat. The seated
-leg chains turn outward to keep the thighs beside the short tabletop, preserving
-bone lengths and foot heights. Camera distance retains its previous calibration.
+The Snake table retains its 10% narrower footprint. The original seated leg pose
+is restored: there is no outward leg rotation and no character or leg resizing.
+The tabletop surface is now 0.835 world units high, with its edge thickness at
+40% of the original profile. Its lowest underside is about 0.745, leaving roughly
+0.030–0.037 clearance above the tested character's thighs under the octagon.
+The front nameplate fits inside the thin fascia instead of hanging into leg space.
+Chair spacing remains independent of table size; each seat has the same clearance.
 
 The procedural Snake table has a flush cloth/wood surface and its nameplate is
 on the front fascia. Other games retain the existing table defaults. Imported
@@ -23,19 +26,19 @@ Table metadata stays live when an imported table replaces the procedural one.
 
 ## Verification
 
-- 89 Snake tests: four table outlines, two/three/four players, three real imported
+- 90 Snake tests, including original leg-pose/size preservation: four table outlines, two/three/four players, three real imported
   firearm meshes, catalog fallbacks, real reserve tokens, asynchronous model
   replacement, repeat-layout stability, and existing pickup/throw/grip/game flow.
 - TypeScript checking for changed interaction, parking and preview modules.
 - Vite production build.
 - Production board/table geometry and real skinned character geometry sampled
   and rendered for idle, pickup, lift, result, next-player pickup, and aiming.
-  The default character clears the tabletop envelope; dice and both firearm
+  The default character’s thighs remain beneath the tabletop with a small underside gap; dice and both firearm
   contacts remain within the 0.003 world-unit tolerance. All four portrait result
   sightlines are clear.
 
 Reproduce the interactive review with
-`node scripts/build-snake-interaction-preview.mjs /workspace/snake-table-parking.html`
+`node scripts/build-snake-interaction-preview.mjs /workspace/snake-thigh-clearance.html`
 and geometry checks with `node scripts/check-snake-interaction-preview.mjs`.
 `scripts/snake-review/render.py` rasterizes the resulting frame JSON files.
 
