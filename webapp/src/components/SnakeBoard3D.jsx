@@ -6,7 +6,8 @@ import { prepareSnakeFirearm, snakeWeaponProfile } from '../utils/snakeWeaponGri
 import { createSnakeFirearmAnimation } from '../utils/snakeFirearmAnimation';
 import { FIREARM_CAPTURE_ANIMATION_IDS } from '../utils/ludoFirearmPresentation';
 import { createSnakeCameraDirector } from '../utils/snakeCameraDirector';
-import { ROYAL_DICE_READ_MS } from '../utils/royalDiceMotion';
+import { createSnakeDiceVisibility } from '../utils/snakeDiceVisibility';
+import { SNAKE_DICE_READ_MS } from '../utils/snakeDiceInteraction';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 import { CHESS_HUMAN_CHARACTER_OPTIONS } from '../config/chessBattleInventoryConfig.js';
@@ -2406,6 +2407,7 @@ function makeDice(theme = {}) {
       dice.userData.appliedQuaternion = setDiceOrientation(dice, val, target);
     }
   };
+  dice.userData.gripHalfExtent = DICE_SIZE * 0.5;
   dice.userData.currentValue = 1;
   dice.userData.setValue(1, { immediate: true });
   return dice;
@@ -2420,16 +2422,14 @@ export function computeDiceThrowLayout(board, seatIndex, count) {
   const seat = anchor.getWorldPosition(new THREE.Vector3());
   const outward = seat.clone().sub(center).setY(0).normalize();
   const lateral = new THREE.Vector3(-outward.z, 0, outward.x);
-  const radius = (board.tableInfo?.radius ?? TABLE_RADIUS) - DICE_SIZE * 1.4;
+  const tableRadius = board.tableInfo?.radius ?? TABLE_RADIUS;
+  // The result belongs in the open strip directly between the board and the
+  // receiving player's torso. Keep it away from hands resting on the rim.
+  const radius = tableRadius * 0.83;
   const worldScale = board.root.getWorldScale(new THREE.Vector3());
   const surfaceY = board.tableInfo?.surfaceY ?? TABLE_HEIGHT;
-  // Use the actual right shoulder's lateral position, keeping the die fully on
-  // the rim. No seat-number offsets: a two-player opponent sits across the table.
-  const human = board.getSeatHuman?.(seatIndex);
-  const shoulder = human?.arms.right.upper.getWorldPosition(new THREE.Vector3());
-  const side = shoulder ? shoulder.clone().sub(center).dot(lateral) : -0.38;
   for (let i = 0; i < count; i++) {
-    const offset = side + (i - (count - 1) / 2) * DICE_SIZE * worldScale.x * 1.35;
+    const offset = (i - (count - 1) / 2) * DICE_SIZE * worldScale.x * 1.35;
     const radial = Math.sqrt(Math.max(0, radius * radius - offset * offset));
     const world = center.clone().addScaledVector(outward, radial).addScaledVector(lateral, offset);
     world.y = surfaceY + DICE_SIZE * worldScale.y * 0.5 + 0.002;
@@ -2441,7 +2441,7 @@ export function computeDiceThrowLayout(board, seatIndex, count) {
   return result;
 }
 
-function createDiceRollAnimation(diceArray, { basePositions, baseY, values = [], rollId = null, human = null }) {
+function createDiceRollAnimation(diceArray, { basePositions, baseY, values = [], rollId = null, human = null, visibility = null }) {
   const startedAt = performance.now();
   let targetValues = values;
   const reducedMotion = window.matchMedia?.('(prefers-reduced-motion: reduce)').matches;
@@ -2453,7 +2453,7 @@ function createDiceRollAnimation(diceArray, { basePositions, baseY, values = [],
   return {
     type: 'diceRoll',
     rollId,
-    dispose() { motions.forEach(motion => motion.dispose()); },
+    dispose() { motions.forEach(motion => motion.dispose()); visibility?.dispose(); },
     setTargetValues(next = []) {
       if (!next.length) return;
       targetValues = next;
@@ -2461,10 +2461,13 @@ function createDiceRollAnimation(diceArray, { basePositions, baseY, values = [],
     },
     update(now) {
       const finished = motions.map((motion) => motion.update(now)).every(Boolean);
+      visibility?.update(now);
       if (finished && targetValues.length) {
         diceArray.forEach((die, index) => die.userData.setValue?.(targetValues[index] ?? targetValues[0]));
       }
-      return finished;
+      const done = finished && now - startedAt >= SNAKE_DICE_PRESENTATION_MS + SNAKE_DICE_READ_MS;
+      if (done) visibility?.dispose();
+      return done;
     }
   };
 }
@@ -6153,7 +6156,7 @@ export default function SnakeBoard3D({
         const dieWorldPositions = active.map(() => new THREE.Vector3());
         board.startCameraShot?.({
           id: `dice:${diceEvent.id}`, priority: 1,
-          until: performance.now() + SNAKE_DICE_PRESENTATION_MS + ROYAL_DICE_READ_MS,
+          until: performance.now() + SNAKE_DICE_PRESENTATION_MS + SNAKE_DICE_READ_MS,
           points: () => active.map((die, index) => die.getWorldPosition(dieWorldPositions[index])),
           overview: () => active.flatMap((die, index) => [startPositions[index], basePositions[index]].map(point =>
             die.parent.localToWorld(point.clone()).add(new THREE.Vector3(0, DICE_BOUNCE_HEIGHT, 0))))
@@ -6166,7 +6169,11 @@ export default function SnakeBoard3D({
           bouncePoints,
           values: diceEvent.values || [],
           rollId: diceEvent.id,
-          human: board.getSeatHuman?.(seatIndex)
+          human: board.getSeatHuman?.(seatIndex),
+          visibility: createSnakeDiceVisibility(cameraRef.current, active, [
+            ...board.seatAnchors.map((_, seat) => board.getSeatHuman?.(seat)?.actor).filter(Boolean),
+            board.weaponDisplayGroup
+          ].filter(Boolean))
         });
         if (rollAnimation) animationsRef.current.push(rollAnimation);
       }
@@ -6637,6 +6644,17 @@ export {
   updateLadders as updateSnakeBoardLadders,
   updateSnakes as updateSnakeBoardSnakes
 };
+// Shared review data from the production portrait camera configuration.
+export function getSnakePortraitCameraState() {
+  const target = new THREE.Vector3(0, TABLE_HEIGHT + PORTRAIT_CAMERA_TUNING.targetLift + CAMERA_TARGET_EXTRA, 0);
+  const chairRadius = TABLE_RADIUS + SEAT_DEPTH / 2 + AI_CHAIR_GAP + CHAIR_GLOBAL_PUSHBACK;
+  const z = chairRadius + PORTRAIT_CAMERA_TUNING.backOffset - PORTRAIT_CAMERA_TUNING.forwardOffset;
+  const y = TABLE_HEIGHT + PORTRAIT_CAMERA_TUNING.heightOffset + CAMERA_EXTRA_LIFT;
+  const polar = clamp(Math.atan2(z, y - target.y), CAM.phiMin, CAM.phiMax);
+  const span = Math.max(TABLE_RADIUS * 2.6, RAW_BOARD_SIZE * BOARD_SCALE * 1.6);
+  const radius = clamp(Math.max(span / (2 * Math.tan(THREE.MathUtils.degToRad(CAM.fov) / 2)), CAM.maxR * PORTRAIT_INITIAL_CAMERA_DISTANCE_FACTOR), CAM.minR, CAM.maxR);
+  return { position: target.clone().add(new THREE.Vector3(0, Math.cos(polar) * radius, Math.sin(polar) * radius)), target, fov: CAM.fov };
+}
 export const SNAKE_SCENE_DIMENSIONS = Object.freeze({
   boardScale: BOARD_SCALE, footprintScale: BOARD_FOOTPRINT_SCALE,
   tileSize: TILE_SIZE, tokenHeight: TOKEN_HEIGHT, diceSize: DICE_SIZE,

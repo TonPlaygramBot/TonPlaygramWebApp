@@ -152,9 +152,16 @@ export function createSnakeFirearmAnimation({
       const returning = human ? ease((elapsed - timing.durationMs) / returnMs) : 0;
       const carry = draw * (1 - returning);
       const recoil = reducedMotion ? 0 : state.recoil;
-      weapon.position.copy(origin).lerp(ready, carry).addScaledVector(aim, -0.018 * recoil);
       weapon.quaternion.identity().slerp(aimedQuaternion, carry);
       weapon.quaternion.multiply(new THREE.Quaternion().setFromAxisAngle(recoilAxis, FIREARM_RECOIL_ROTATION_RAD * recoil));
+      // Rotate around the closed firing hand, with clearance over the table.
+      // Interpolating the mesh origin would swing the grip as the barrel turns.
+      const parkedGrip = origin.clone().add(gripLocal);
+      const aimingGrip = ready.clone().add(gripLocal.clone().applyQuaternion(aimedQuaternion));
+      const gripPath = parkedGrip.lerp(aimingGrip, carry)
+        .addScaledVector(UP, Math.sin(Math.PI * carry) * (human?.unit ?? 1) * 0.12);
+      weapon.position.copy(gripPath).sub(gripLocal.clone().applyQuaternion(weapon.quaternion))
+        .addScaledVector(aim, -0.018 * recoil);
       // The rack and held mesh use identical geometry and world scale, with an
       // atomic visibility handoff. There is never a duplicate gun on the table.
       weapon.visible = !parkedWeapon || (elapsed >= timing.pickupLeadMs && returning < 1);
@@ -185,7 +192,7 @@ export function createSnakeFirearmAnimation({
         }
         human.conformGrip('right', gripWorld, down.clone().negate(), contacts?.gripRadius ?? 0.03,
           ease((elapsed - timing.pickupLeadMs * 0.72) / (timing.pickupLeadMs * 0.28)) * (1 - recover),
-          contacts?.trigger ? weapon.localToWorld(contacts.trigger.clone()) : undefined);
+          contacts?.trigger ? weapon.localToWorld(contacts.trigger.clone().addScaledVector(modelUp, 0.022 * (1 - carry))) : undefined);
         if (recover >= 1) human.reset();
       }
       muzzle.copy(muzzleLocal); weapon.localToWorld(muzzle);

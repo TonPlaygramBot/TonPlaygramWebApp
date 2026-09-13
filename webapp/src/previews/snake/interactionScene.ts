@@ -1,11 +1,12 @@
 import * as THREE from 'three';
 import { createRestoredSeatedHumanActor } from '../../pages/Games/shared/seatedHumanActors';
 import { createSnakeHumanInteraction, worldPoint } from '../../utils/snakeHumanInteraction';
-import { ROYAL_DICE_READ_MS } from '../../utils/royalDiceMotion';
+import { SNAKE_DICE_READ_MS } from '../../utils/snakeDiceInteraction';
 import { createSnakeDiceInteraction, SNAKE_DICE_PRESENTATION_MS } from '../../utils/snakeDiceInteraction';
+import { createSnakeDiceVisibility } from '../../utils/snakeDiceVisibility';
 import { prepareSnakeFirearm, snakeWeaponProfile } from '../../utils/snakeWeaponGrip';
 import { createSnakeFirearmAnimation } from '../../utils/snakeFirearmAnimation';
-import { createSnakeBoardScene, getDiceOrientationQuaternion, computeDiceThrowLayout, SNAKE_SCENE_DIMENSIONS as D } from '../../components/SnakeBoard3D';
+import { createSnakeBoardScene, getDiceOrientationQuaternion, computeDiceThrowLayout, getSnakePortraitCameraState, SNAKE_SCENE_DIMENSIONS as D } from '../../components/SnakeBoard3D';
 
 export const REVIEW_WEAPONS = ['polyAssaultRifle01Attack', 'polyPistol01Attack', 'polyShotgun01Attack'];
 export function createSnakeInteractionScene(assets: Record<string, object>, seat = 0, weaponId = REVIEW_WEAPONS[0]) {
@@ -48,22 +49,25 @@ export function createSnakeInteractionScene(assets: Record<string, object>, seat
   const weapon = prepareSnakeFirearm(new THREE.ObjectLoader().parse(assets[weaponId]), weaponId,
     human.unit * snakeWeaponProfile(weaponId).lengthInArms);
   weapon.rotation.x = Math.PI / 2; weapon.rotation.y = yaw;
-  weapon.position.copy(point(0.65, 0.92, 2.05)); scene.add(weapon);
+  weapon.position.copy(point(-0.65, 0.92, 2.05)); scene.add(weapon);
   const token = mesh(new THREE.CylinderGeometry(0.07, 0.12, 0.25, 20), '#efb947', point(-0.35, 0.94, 0.5));
   const target = worldPoint(token);
   let motion: { update: (now: number) => boolean; dispose: () => void; duration?: number } | null = null;
+  const visibility = () => createSnakeDiceVisibility(camera, [die], [human.actor, receiver.actor, weapon]);
+  let sightline: ReturnType<typeof visibility> | null = null;
   let kind = 'dice', secondThrow = false;
-  const secondStart = SNAKE_DICE_PRESENTATION_MS + ROYAL_DICE_READ_MS;
+  const secondStart = SNAKE_DICE_PRESENTATION_MS + SNAKE_DICE_READ_MS;
   const duration = () => kind === 'dice' ? secondStart + SNAKE_DICE_PRESENTATION_MS : motion?.duration ?? 0;
   const start = (next: string) => {
-    motion?.dispose(); human.reset(); receiver.reset(); secondThrow = false; kind = next; die.position.copy(dieRest); die.quaternion.copy(getDiceOrientationQuaternion(1));
+    motion?.dispose(); sightline?.dispose(); sightline = null; human.reset(); receiver.reset(); secondThrow = false; kind = next; die.position.copy(dieRest); die.quaternion.copy(getDiceOrientationQuaternion(1));
     if (kind === 'dice') {
       motion = createSnakeDiceInteraction(die, nextLayout.basePositions[0].clone(), { human, startedAt: 0, target: getDiceOrientationQuaternion(6), height: 0.13 });
     } else {
       motion = createSnakeFirearmAnimation({ scene, weaponId, parkedWeapon: weapon, origin: worldPoint(weapon), target, victims: [token], human, startedAt: 0 });
     }
-    if (kind === 'dice') { camera.position.set(5, 5.5, 7); camera.lookAt(0, 0.85, 0); }
-    else { camera.position.copy(point(4.8, 3.7, -1.5)); camera.lookAt(point(0.2, 1.35, 1.9)); }
+    if (kind === 'dice') { const state = getSnakePortraitCameraState(); camera.position.copy(state.position); camera.fov = state.fov; camera.lookAt(state.target); sightline = visibility(); }
+    else { camera.fov = 38; camera.position.copy(point(4.8, 3.7, -1.5)); camera.lookAt(point(0.2, 1.35, 1.9)); }
+    camera.updateProjectionMatrix();
     nextChair.visible = kind === 'dice';
     motion.update(0);
     return duration();
@@ -76,10 +80,11 @@ export function createSnakeInteractionScene(assets: Record<string, object>, seat
         secondThrow = true;
       }
       motion?.update(time);
+      if (kind === 'dice') { camera.lookAt(worldPoint(die)); sightline?.update(time); }
       return time >= duration();
     },
     dispose() {
-      motion?.dispose(); human.dispose(); receiver.dispose();
+      motion?.dispose(); sightline?.dispose(); human.dispose(); receiver.dispose();
       const geometries = new Set<THREE.BufferGeometry>(), materials = new Set<THREE.Material>();
       scene.traverse(object => { const m = object as THREE.Mesh; if (m.geometry) geometries.add(m.geometry);
         if (m.material) (Array.isArray(m.material) ? m.material : [m.material]).forEach(mat => materials.add(mat)); });

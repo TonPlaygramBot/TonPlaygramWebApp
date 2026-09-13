@@ -2,7 +2,7 @@ import { useState, useEffect, useRef, useCallback, useMemo } from "react";
 import coinConfetti from "../../utils/coinConfetti";
 import { snakeDiceReceiver } from '../../utils/snakeDiceReceiver';
 import { SNAKE_DICE_PRESENTATION_MS } from '../../utils/snakeDiceInteraction';
-import { ROYAL_DICE_READ_MS } from '../../utils/royalDiceMotion';
+import { SNAKE_DICE_READ_MS } from '../../utils/snakeDiceInteraction';
 import { createSnakePresentationQueue } from '../../utils/snakePresentationQueue.js';
 import './SnakeAndLadder.css';
 import DiceRoller from "../../components/DiceRoller.jsx";
@@ -184,7 +184,7 @@ const PENULTIMATE_TILE = FINAL_TILE - 1;
 const TURN_TIME = 15;
 const AI_ROLL_DELAY_MS = 1300;
 const TURN_ADVANCE_AFTER_DICE_MS = 0;
-const DICE_RESULT_HOLD_MS = ROYAL_DICE_READ_MS;
+const DICE_RESULT_HOLD_MS = SNAKE_DICE_READ_MS;
 const DICE_SFX_MIN_INTERVAL_MS = 850;
 const DEFAULT_CAPACITY = 4;
 const SEAT_LAYOUTS = {
@@ -2096,7 +2096,7 @@ export default function SnakeAndLadder() {
       setRollResult(serverValues.reduce((sum, face) => sum + face, 0));
       playGameHaptic('diceLand');
       setRollingIndex(null);
-      await waitForPresentation(ROYAL_DICE_READ_MS);
+      await waitForPresentation(SNAKE_DICE_READ_MS);
       // The queued move/turn/state events release the input lock.
     };
     const onWon = ({ playerId }) => {

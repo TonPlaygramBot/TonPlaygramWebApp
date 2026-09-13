@@ -6,6 +6,7 @@ export const SNAKE_DICE_REACH_MS = 480;
 export const SNAKE_DICE_GRIP_MS = 160;
 export const SNAKE_DICE_RELEASE_MS = 1120;
 export const SNAKE_DICE_PRESENTATION_MS = SNAKE_DICE_RELEASE_MS + ROYAL_DICE_ROLL_MS;
+export const SNAKE_DICE_READ_MS = 750;
 const FLIGHT_MS = 760;
 const UP = new THREE.Vector3(0, 1, 0);
 
@@ -56,6 +57,7 @@ export function createSnakeDiceInteraction(die: THREE.Object3D, destination: THR
       die.quaternion.copy(parent.getWorldQuaternion(new THREE.Quaternion()).invert()
         .multiply(human.arms.right.hand.getWorldQuaternion(new THREE.Quaternion())).multiply(handOffset));
     }
+    human.conformDie('right', die, squeeze);
   };
   return {
     setTarget(next: THREE.Quaternion) { landing = next.clone(); },
