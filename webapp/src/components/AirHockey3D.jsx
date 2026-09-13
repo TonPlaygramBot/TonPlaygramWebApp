@@ -1,10 +1,6 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import * as THREE from 'three';
 import { EXRLoader } from 'three/examples/jsm/loaders/EXRLoader.js';
-import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js';
-import { DRACOLoader } from 'three/examples/jsm/loaders/DRACOLoader.js';
-import { KTX2Loader } from 'three/examples/jsm/loaders/KTX2Loader.js';
-import { MeshoptDecoder } from 'three/examples/jsm/libs/meshopt_decoder.module.js';
 import { RGBELoader } from 'three/examples/jsm/loaders/RGBELoader.js';
 import { bombSound, chatBeep } from '../assets/coreSoundData.js';
 import GiftPopup from './GiftPopup.jsx';
@@ -22,12 +18,10 @@ import {
   primeSpeechSynthesis,
   speakCommentaryLines
 } from '../utils/textToSpeech.js';
-import { applyWoodTextures, WOOD_GRAIN_OPTIONS_BY_ID } from '../utils/woodMaterials.js';
 import { AIR_HOCKEY_CUSTOMIZATION } from '../config/airHockeyInventoryConfig.js';
-import {
-  Table3D as PoolRoyaleTable3D,
-  POOL_ROYALE_TABLE_DIMENSIONS
-} from '../pages/Games/PoolRoyale.jsx';
+import { AIR_HOCKEY_DIMENSIONS, SOURCE_FIELD, loadAirHockeyModel, fitAirHockeyPiece, disposeAirHockeyModel } from './airHockey/model';
+import { AirHockeyControls, AirHockeySettingsSheet } from './airHockey/AirHockeyControls';
+import { resolveAirHockeyRails } from './airHockey/collisions';
 import {
   airHockeyAccountId,
   getAirHockeyInventory,
@@ -50,8 +44,6 @@ const clamp = (value, min, max) => Math.max(min, Math.min(max, value));
 const resolveNumber = (...values) => values.find((value) => typeof value === 'number' && !Number.isNaN(value));
 
 const DEFAULT_RENDER_PIXEL_RATIO_CAP = 1.25;
-const DRACO_DECODER_PATH = 'https://www.gstatic.com/draco/versioned/decoders/1.5.7/';
-const BASIS_TRANSCODER_PATH = 'https://cdn.jsdelivr.net/npm/three@0.164.0/examples/jsm/libs/basis/';
 const RENDER_PIXEL_RATIO_SCALE = 1.0;
 const MIN_RENDER_PIXEL_RATIO = 0.85;
 const GRAPHICS_STORAGE_KEY = 'airHockeyGraphics';
@@ -68,7 +60,7 @@ const GRAPHICS_OPTIONS = Object.freeze([
     pixelRatioCap: 1.4,
     pixelRatioScale: 1,
     resolution: 'HD render • DPR 1.4 cap',
-    description: 'Minimum HD output for battery saver and 50–60 Hz displays.'
+    description: 'Lower power use for everyday play.'
   },
   {
     id: 'fhd60',
@@ -78,7 +70,7 @@ const GRAPHICS_OPTIONS = Object.freeze([
     pixelRatioCap: 1.5,
     pixelRatioScale: 1,
     resolution: 'Full HD render • DPR 1.5 cap',
-    description: '1080p-focused profile that mirrors the Snooker frame pacing.'
+    description: 'Balanced detail and smooth motion.'
   },
   {
     id: 'qhd90',
@@ -88,7 +80,7 @@ const GRAPHICS_OPTIONS = Object.freeze([
     pixelRatioCap: 1.7,
     pixelRatioScale: 1,
     resolution: 'QHD render • DPR 1.7 cap',
-    description: 'Sharper 1440p render for capable 90 Hz mobile and desktop GPUs.'
+    description: 'Sharper detail on compatible 90 Hz displays.'
   },
   {
     id: 'uhd120',
@@ -98,7 +90,7 @@ const GRAPHICS_OPTIONS = Object.freeze([
     pixelRatioCap: 2,
     pixelRatioScale: 1,
     resolution: 'Ultra HD render • DPR 2.0 cap',
-    description: '4K-oriented profile for 120 Hz flagships and desktops.'
+    description: 'Extra clarity on compatible 120 Hz displays.'
   },
   {
     id: 'ultra144',
@@ -108,7 +100,7 @@ const GRAPHICS_OPTIONS = Object.freeze([
     pixelRatioCap: 2.2,
     pixelRatioScale: 1,
     resolution: 'Ultra HD+ render • DPR 2.2 cap',
-    description: 'Maximum clarity preset that prioritizes UHD detail at 144 Hz.'
+    description: 'Highest detail for capable 144 Hz displays.'
   }
 ]);
 const DEFAULT_GRAPHICS_ID = 'fhd60';
@@ -186,13 +178,6 @@ const AIR_HOCKEY_COMMENTARY_PRESETS = Object.freeze([
   }
 ]);
 const DEFAULT_COMMENTARY_PRESET_ID = AIR_HOCKEY_COMMENTARY_PRESETS[0]?.id || 'english';
-const HUD_VERTICAL_SHIFT_REM = 9;
-const HUD_TOP_ROW_LIFT_REM = 2.5;
-const HUD_ICON_ROW_TOP_REM = 0.9;
-const HUD_MENU_LEFT_REM = 0.5;
-const AIR_HOCKEY_MENU_TOP_TWEAK_REM = -1.05;
-const AIR_HOCKEY_TARGET_CENTER_TOP_TWEAK_REM = -0.25;
-const AIR_HOCKEY_RIGHT_ICON_STACK_DOWN_REM = 0.6;
 const AIR_HOCKEY_TOP_VIEW_CAMERA_DISTANCE_SCALE = 0.9;
 const CAMERA_LIFT_STEP = 0.2;
 const CAMERA_LIFT_MIN = 0.45;
@@ -253,265 +238,6 @@ function selectPerformanceProfile(option = null) {
 }
 
 const DEFAULT_HDRI_RESOLUTIONS = ['4k'];
-const LOCK_POOL_ROYALE_TABLE_STYLE = false;
-const PREFERRED_MARBLE_TEXTURE_SIZES = ['2k', '1k'];
-const MARBLE_TEXTURE_CACHE = new Map();
-const GLTF_MATERIAL_CACHE = new Map();
-let sharedKtx2Loader = null;
-const POOL_BALL_MARBLE_FINISH = Object.freeze({
-  clearcoat: 1,
-  clearcoatRoughness: 0.03,
-  metalness: 0.24,
-  roughness: 0.08,
-  reflectivity: 0.9,
-  sheen: 0.14,
-  sheenColor: new THREE.Color(0xf8f9ff),
-  envMapIntensity: 1.05
-});
-
-const pickBestTextureUrls = (apiJson, preferredSizes = PREFERRED_MARBLE_TEXTURE_SIZES) => {
-  const urls = [];
-  const walk = (value) => {
-    if (!value) return;
-    if (typeof value === 'string') {
-      const lower = value.toLowerCase();
-      if (value.startsWith('http') && (lower.includes('.jpg') || lower.includes('.png'))) {
-        urls.push(value);
-      }
-      return;
-    }
-    if (Array.isArray(value)) {
-      value.forEach(walk);
-      return;
-    }
-    if (typeof value === 'object') {
-      Object.values(value).forEach(walk);
-    }
-  };
-  walk(apiJson);
-  const pick = (keywords) => {
-    const scored = urls
-      .filter((url) => keywords.some((kw) => url.toLowerCase().includes(kw)))
-      .map((url) => {
-        const lower = url.toLowerCase();
-        let score = 0;
-        preferredSizes.forEach((size, index) => {
-          if (lower.includes(size)) {
-            score += (preferredSizes.length - index) * 10;
-          }
-        });
-        if (lower.includes('jpg')) score += 6;
-        if (lower.includes('png')) score += 3;
-        if (lower.includes('preview') || lower.includes('thumb')) score -= 50;
-        if (lower.includes('.exr')) score -= 100;
-        return { url, score };
-      })
-      .sort((a, b) => b.score - a.score);
-    return scored[0]?.url;
-  };
-  return {
-    diffuse: pick(['diff', 'diffuse', 'albedo', 'basecolor']),
-    normal: pick(['nor_gl', 'normal_gl', 'nor', 'normal']),
-    roughness: pick(['rough', 'roughness'])
-  };
-};
-
-const loadTexture = (loader, url, isColor) =>
-  new Promise((resolve) => {
-    loader.load(
-      url,
-      (texture) => {
-        if (isColor) {
-          texture.colorSpace = THREE.SRGBColorSpace;
-        }
-        resolve(texture);
-      },
-      undefined,
-      () => resolve(null)
-    );
-  });
-
-const createFallbackTexture = (color) => {
-  const canvas = document.createElement('canvas');
-  canvas.width = 8;
-  canvas.height = 8;
-  const ctx = canvas.getContext('2d');
-  ctx.fillStyle = color;
-  ctx.fillRect(0, 0, canvas.width, canvas.height);
-  const texture = new THREE.CanvasTexture(canvas);
-  texture.colorSpace = THREE.SRGBColorSpace;
-  return texture;
-};
-
-const loadMarbleTextureSet = (fieldOption) => {
-  const assetId = fieldOption?.assetId;
-  const textureUrls = fieldOption?.textureUrls;
-  const cacheKey = fieldOption?.id || assetId || textureUrls?.diffuse;
-  if (!cacheKey) return Promise.resolve(null);
-  if (MARBLE_TEXTURE_CACHE.has(cacheKey)) return MARBLE_TEXTURE_CACHE.get(cacheKey);
-  const promise = (async () => {
-    try {
-      let urls = textureUrls;
-      if (!urls?.diffuse && assetId) {
-        const response = await fetch(`https://api.polyhaven.com/files/${encodeURIComponent(assetId)}`);
-        if (!response.ok) return null;
-        const json = await response.json();
-        urls = pickBestTextureUrls(json, PREFERRED_MARBLE_TEXTURE_SIZES);
-      }
-      if (!urls?.diffuse) return null;
-      const loader = new THREE.TextureLoader();
-      loader.setCrossOrigin('anonymous');
-      const [map, normal, roughness] = await Promise.all([
-        loadTexture(loader, urls.diffuse, true),
-        urls.normal ? loadTexture(loader, urls.normal, false) : Promise.resolve(null),
-        urls.roughness ? loadTexture(loader, urls.roughness, false) : Promise.resolve(null)
-      ]);
-      return { map, normal, roughness };
-    } catch (error) {
-      console.warn('Failed to load marble texture set', error);
-      return null;
-    }
-  })();
-  MARBLE_TEXTURE_CACHE.set(cacheKey, promise);
-  return promise;
-};
-
-const createConfiguredGltfLoader = (renderer = null) => {
-  const loader = new GLTFLoader();
-  loader.setCrossOrigin('anonymous');
-  const draco = new DRACOLoader();
-  draco.setDecoderPath(DRACO_DECODER_PATH);
-  loader.setDRACOLoader(draco);
-  loader.setMeshoptDecoder(MeshoptDecoder);
-
-  if (!sharedKtx2Loader) {
-    sharedKtx2Loader = new KTX2Loader();
-    sharedKtx2Loader.setTranscoderPath(BASIS_TRANSCODER_PATH);
-  }
-  if (renderer) {
-    try {
-      sharedKtx2Loader.detectSupport(renderer);
-    } catch (error) {
-      console.warn('Air Hockey KTX2 support detection failed', error);
-    }
-  }
-
-  loader.setKTX2Loader(sharedKtx2Loader);
-  return loader;
-};
-
-const loadGltfMaterialSet = (fieldOption) => {
-  const urls = fieldOption?.gltfUrls;
-  const cacheKey = fieldOption?.id || urls?.[0];
-  if (!Array.isArray(urls) || !urls.length) return Promise.resolve(null);
-  if (GLTF_MATERIAL_CACHE.has(cacheKey)) return GLTF_MATERIAL_CACHE.get(cacheKey);
-
-  const promise = (async () => {
-    const loader = createConfiguredGltfLoader();
-    let gltf = null;
-    for (const url of urls) {
-      try {
-        gltf = await loader.loadAsync(url);
-        if (gltf) break;
-      } catch (error) {
-        console.warn('Failed to load field GLTF material', url, error);
-      }
-    }
-    if (!gltf) return null;
-    const root = gltf.scene || gltf.scenes?.[0] || gltf;
-    let pickedMaterial = null;
-    root?.traverse?.((child) => {
-      if (pickedMaterial || !child?.isMesh) return;
-      if (child.material) {
-        pickedMaterial = Array.isArray(child.material) ? child.material[0] : child.material;
-      }
-    });
-    if (!pickedMaterial) return null;
-    const textures = {
-      map: pickedMaterial.map ?? null,
-      normal: pickedMaterial.normalMap ?? null,
-      roughness: pickedMaterial.roughnessMap ?? null,
-      metalness: pickedMaterial.metalnessMap ?? null,
-      emissive: pickedMaterial.emissiveMap ?? null
-    };
-    if (textures.map) {
-      textures.map.colorSpace = THREE.SRGBColorSpace;
-    }
-    if (textures.emissive) {
-      textures.emissive.colorSpace = THREE.SRGBColorSpace;
-    }
-    return {
-      textures,
-      materialProps: {
-        color: pickedMaterial.color?.clone?.(),
-        roughness: pickedMaterial.roughness,
-        metalness: pickedMaterial.metalness,
-        clearcoat: pickedMaterial.clearcoat,
-        clearcoatRoughness: pickedMaterial.clearcoatRoughness,
-        sheen: pickedMaterial.sheen,
-        sheenColor: pickedMaterial.sheenColor?.clone?.(),
-        envMapIntensity: pickedMaterial.envMapIntensity
-      }
-    };
-  })();
-
-  GLTF_MATERIAL_CACHE.set(cacheKey, promise);
-  return promise;
-};
-
-
-const createNebulaSpherePaletteTexture = (colors = []) => {
-  if (!Array.isArray(colors) || colors.length < 3 || typeof document === 'undefined') return null;
-  const canvas = document.createElement('canvas');
-  canvas.width = 1024;
-  canvas.height = 1024;
-  const ctx = canvas.getContext('2d');
-  if (!ctx) return null;
-  const gradient = ctx.createRadialGradient(320, 260, 30, 512, 512, 560);
-  gradient.addColorStop(0, colors[0]);
-  gradient.addColorStop(0.44, colors[1]);
-  gradient.addColorStop(1, colors[2]);
-  ctx.fillStyle = gradient;
-  ctx.fillRect(0, 0, canvas.width, canvas.height);
-  ctx.globalAlpha = 0.13;
-  for (let i = 0; i < 110; i += 1) {
-    ctx.fillStyle = i % 2 === 0 ? '#ffffff' : colors[1];
-    ctx.beginPath();
-    ctx.arc(Math.random() * canvas.width, Math.random() * canvas.height, 14 + Math.random() * 70, 0, Math.PI * 2);
-    ctx.fill();
-  }
-  ctx.globalAlpha = 0.18;
-  for (let i = 0; i < 38; i += 1) {
-    ctx.strokeStyle = i % 2 ? colors[0] : 'rgba(0,0,0,0.8)';
-    ctx.lineWidth = 8 + Math.random() * 18;
-    ctx.beginPath();
-    ctx.moveTo(Math.random() * canvas.width, Math.random() * canvas.height);
-    for (let j = 0; j < 5; j += 1) {
-      ctx.lineTo(Math.random() * canvas.width, Math.random() * canvas.height);
-    }
-    ctx.stroke();
-  }
-  ctx.globalAlpha = 1;
-  const texture = new THREE.CanvasTexture(canvas);
-  texture.colorSpace = THREE.SRGBColorSpace;
-  texture.wrapS = THREE.RepeatWrapping;
-  texture.wrapT = THREE.RepeatWrapping;
-  texture.needsUpdate = true;
-  return texture;
-};
-
-const loadFieldSurface = async (fieldOption) => {
-  if (fieldOption?.generatedTexture === 'nebulaSphere') {
-    const map = createNebulaSpherePaletteTexture(fieldOption?.swatches || []);
-    return map ? { textures: { map, normal: null, roughness: null, metalness: null, emissive: null } } : null;
-  }
-  if (Array.isArray(fieldOption?.gltfUrls) && fieldOption.gltfUrls.length) {
-    return loadGltfMaterialSet(fieldOption);
-  }
-  const textures = await loadMarbleTextureSet(fieldOption);
-  return textures ? { textures } : null;
-};
-
 const pickPolyHavenHdriUrl = (json, preferred = DEFAULT_HDRI_RESOLUTIONS) => {
   if (!json || typeof json !== 'object') return null;
   const resolutions = Array.isArray(preferred) && preferred.length ? preferred : DEFAULT_HDRI_RESOLUTIONS;
@@ -635,6 +361,8 @@ export default function AirHockey3D({
     ...defaultSelections
   });
   const [showCustomizer, setShowCustomizer] = useState(false);
+  const [tableReady, setTableReady] = useState(false);
+  const [tableError, setTableError] = useState('');
   const [isTopDownView, setIsTopDownView] = useState(false);
   const [showChat, setShowChat] = useState(false);
   const [showGift, setShowGift] = useState(false);
@@ -729,7 +457,6 @@ export default function AirHockey3D({
   });
   const sceneRef = useRef(null);
   const environmentRef = useRef({ envMap: null });
-  const tableBaseRef = useRef({ rebuild: () => {}, clear: () => {} });
   const malletRefs = useRef({ player: null, ai: null });
   const malletDimensionsRef = useRef({
     radius: 0,
@@ -894,9 +621,7 @@ export default function AirHockey3D({
     selectionsRef.current = selections;
   }, [selections]);
 
-  useEffect(() => {
-    tableBaseRef.current?.rebuild?.(selections.tableBase);
-  }, [selections.tableBase]);
+
 
   useEffect(() => {
     const handler = (event) => {
@@ -1369,10 +1094,16 @@ export default function AirHockey3D({
       return false;
     };
 
-    const renderer = new THREE.WebGLRenderer({
-      antialias: true,
-      powerPreference: 'high-performance'
-    });
+    let renderer;
+    try {
+      renderer = new THREE.WebGLRenderer({
+        antialias: true,
+        powerPreference: 'high-performance'
+      });
+    } catch {
+      setTableError('3D graphics could not start. Please try again.');
+      return;
+    }
     renderer.toneMapping = THREE.ACESFilmicToneMapping;
     renderer.toneMappingExposure = 1.85;
     renderer.outputColorSpace = THREE.SRGBColorSpace;
@@ -1380,135 +1111,22 @@ export default function AirHockey3D({
     rendererRef.current = renderer;
     updateRendererSettings();
 
-    const createPuckTexture = () => {
-      const size = 512;
-      const canvas = document.createElement('canvas');
-      canvas.width = size;
-      canvas.height = size;
-      const ctx = canvas.getContext('2d');
-      const cx = size / 2;
-      const cy = size / 2;
-      ctx.fillStyle = '#0b0c0f';
-      ctx.fillRect(0, 0, size, size);
-
-      const outerRim = ctx.createRadialGradient(cx, cy, size * 0.1, cx, cy, size * 0.48);
-      outerRim.addColorStop(0, '#1b1f23');
-      outerRim.addColorStop(0.55, '#0f1114');
-      outerRim.addColorStop(1, '#040506');
-      ctx.fillStyle = outerRim;
-      ctx.beginPath();
-      ctx.arc(cx, cy, size * 0.48, 0, Math.PI * 2);
-      ctx.fill();
-
-      const rimCut = ctx.createRadialGradient(cx, cy, size * 0.14, cx, cy, size * 0.42);
-      rimCut.addColorStop(0, 'rgba(255,255,255,0.08)');
-      rimCut.addColorStop(0.42, 'rgba(60,60,60,0.2)');
-      rimCut.addColorStop(1, 'rgba(0,0,0,0.55)');
-      ctx.strokeStyle = rimCut;
-      ctx.lineWidth = size * 0.05;
-      ctx.beginPath();
-      ctx.arc(cx, cy, size * 0.36, 0, Math.PI * 2);
-      ctx.stroke();
-
-      const top = ctx.createRadialGradient(cx, cy * 0.98, size * 0.06, cx, cy, size * 0.33);
-      top.addColorStop(0, 'rgba(240,240,240,0.28)');
-      top.addColorStop(0.6, 'rgba(80,85,90,0.18)');
-      top.addColorStop(1, 'rgba(10,10,10,0.55)');
-      ctx.fillStyle = top;
-      ctx.beginPath();
-      ctx.arc(cx, cy, size * 0.34, 0, Math.PI * 2);
-      ctx.fill();
-
-      ctx.save();
-      ctx.translate(cx, cy);
-      ctx.rotate(-0.4);
-      const sheen = ctx.createLinearGradient(-size * 0.2, -size * 0.18, size * 0.12, size * 0.26);
-      sheen.addColorStop(0, 'rgba(255,255,255,0.12)');
-      sheen.addColorStop(0.55, 'rgba(255,255,255,0.25)');
-      sheen.addColorStop(1, 'rgba(255,255,255,0.06)');
-      ctx.fillStyle = sheen;
-      ctx.beginPath();
-      ctx.ellipse(0, size * 0.02, size * 0.32, size * 0.21, -0.2, 0, Math.PI * 2);
-      ctx.fill();
-      ctx.restore();
-
-      ctx.globalCompositeOperation = 'lighter';
-      ctx.fillStyle = 'rgba(255,255,255,0.08)';
-      for (let i = 0; i < 8; i += 1) {
-        const angle = (i / 8) * Math.PI * 2;
-        const radius = size * 0.36;
-        const x = cx + Math.cos(angle) * radius;
-        const y = cy + Math.sin(angle) * radius;
-        ctx.beginPath();
-        ctx.arc(x, y, size * 0.01, 0, Math.PI * 2);
-        ctx.fill();
-      }
-      ctx.globalCompositeOperation = 'source-over';
-
-      const texture = new THREE.CanvasTexture(canvas);
-      texture.colorSpace = THREE.SRGBColorSpace;
-      texture.anisotropy = renderer.capabilities.getMaxAnisotropy();
-      texture.needsUpdate = true;
-      return texture;
-    };
-
-    const createMalletTexture = (color) => {
-      const size = 512;
-      const canvas = document.createElement('canvas');
-      canvas.width = size;
-      canvas.height = size;
-      const ctx = canvas.getContext('2d');
-      const cx = size / 2;
-      const cy = size / 2;
-
-      const base = ctx.createRadialGradient(cx, cy, size * 0.08, cx, cy, size * 0.5);
-      base.addColorStop(0, '#fafafc');
-      base.addColorStop(0.08, '#ffffff');
-      base.addColorStop(0.26, color);
-      base.addColorStop(1, '#0a0a0c');
-      ctx.fillStyle = base;
-      ctx.beginPath();
-      ctx.arc(cx, cy, size * 0.48, 0, Math.PI * 2);
-      ctx.fill();
-
-      const gloss = ctx.createLinearGradient(cx - size * 0.18, cy - size * 0.25, cx + size * 0.22, cy + size * 0.26);
-      gloss.addColorStop(0, 'rgba(255,255,255,0.18)');
-      gloss.addColorStop(0.55, 'rgba(255,255,255,0.34)');
-      gloss.addColorStop(1, 'rgba(255,255,255,0.08)');
-      ctx.fillStyle = gloss;
-      ctx.beginPath();
-      ctx.ellipse(cx - size * 0.06, cy, size * 0.32, size * 0.18, -0.3, 0, Math.PI * 2);
-      ctx.fill();
-
-      ctx.strokeStyle = 'rgba(0,0,0,0.45)';
-      ctx.lineWidth = size * 0.018;
-      ctx.beginPath();
-      ctx.arc(cx, cy, size * 0.34, 0, Math.PI * 2);
-      ctx.stroke();
-
-      const texture = new THREE.CanvasTexture(canvas);
-      texture.colorSpace = THREE.SRGBColorSpace;
-      texture.anisotropy = renderer.capabilities.getMaxAnisotropy();
-      texture.needsUpdate = true;
-      return texture;
-    };
-
     const scene = new THREE.Scene();
     scene.background = new THREE.Color(0x050505);
     sceneRef.current = scene;
 
     const TABLE_SCALE = 1;
     const TABLE = {
-      w: POOL_ROYALE_TABLE_DIMENSIONS.tableWidth * TABLE_SCALE,
-      h: POOL_ROYALE_TABLE_DIMENSIONS.tableLength * TABLE_SCALE,
-      thickness: POOL_ROYALE_TABLE_DIMENSIONS.tableThickness * TABLE_SCALE,
+      w: AIR_HOCKEY_DIMENSIONS.tableWidth * TABLE_SCALE,
+      h: AIR_HOCKEY_DIMENSIONS.tableLength * TABLE_SCALE,
+      thickness: AIR_HOCKEY_DIMENSIONS.tableThickness * TABLE_SCALE,
       topExtension: 0
     };
-    const TABLE_WALL = POOL_ROYALE_TABLE_DIMENSIONS.tableWall * TABLE_SCALE;
+    const TABLE_WALL = AIR_HOCKEY_DIMENSIONS.tableWall * TABLE_SCALE;
     const PLAYFIELD = {
-      w: POOL_ROYALE_TABLE_DIMENSIONS.playfieldWidth * TABLE_SCALE,
-      h: POOL_ROYALE_TABLE_DIMENSIONS.playfieldHeight * TABLE_SCALE,
-      goalW: POOL_ROYALE_TABLE_DIMENSIONS.playfieldWidth * 0.45454545454545453,
+      w: AIR_HOCKEY_DIMENSIONS.playfieldWidth * TABLE_SCALE,
+      h: AIR_HOCKEY_DIMENSIONS.playfieldHeight * TABLE_SCALE,
+      goalW: AIR_HOCKEY_DIMENSIONS.playfieldWidth * SOURCE_FIELD.goalHalfWidth / SOURCE_FIELD.halfWidth,
       inset: 0
     };
     const SCALE_WIDTH = PLAYFIELD.w / 2.2;
@@ -1526,15 +1144,6 @@ export default function AirHockey3D({
     };
     const PUCK_RADIUS = PLAYFIELD.w * 0.0285;
     const PUCK_HEIGHT = PUCK_RADIUS * 1.05;
-    const CORNER_POCKET_RADIUS = Math.max(PUCK_RADIUS * 2.3, PLAYFIELD.w * 0.055);
-    const CORNER_POCKET_CAPTURE = Math.max(PUCK_RADIUS * 0.6, CORNER_POCKET_RADIUS - PUCK_RADIUS * 0.25);
-    const cornerPocketCenters = [
-      new THREE.Vector2(-PLAYFIELD.w / 2, -PLAYFIELD.h / 2),
-      new THREE.Vector2(PLAYFIELD.w / 2, -PLAYFIELD.h / 2),
-      new THREE.Vector2(-PLAYFIELD.w / 2, PLAYFIELD.h / 2),
-      new THREE.Vector2(PLAYFIELD.w / 2, PLAYFIELD.h / 2)
-    ];
-
     const camera = new THREE.PerspectiveCamera(
       56,
       host.clientWidth / host.clientHeight,
@@ -1546,360 +1155,73 @@ export default function AirHockey3D({
     const world = new THREE.Group();
     scene.add(world);
 
-    const poolTableEntry = PoolRoyaleTable3D(
-      world,
-      null,
-      null,
-      null,
-      selectionsRef.current.tableBase,
-      renderer,
-      { enableSidePockets: false, mergeSideCushions: true }
-    );
-    const poolTable = poolTableEntry?.group ?? new THREE.Group();
-    const poolMarkings = poolTable?.userData?.markings;
-    if (poolMarkings?.group) {
-      poolMarkings.group.traverse((child) => {
-        if (!child?.isMesh) return;
-        child.geometry?.dispose?.();
-        if (Array.isArray(child.material)) {
-          child.material.forEach((mat) => mat?.dispose?.());
-        } else {
-          child.material?.dispose?.();
-        }
-      });
-      poolTable.remove(poolMarkings.group);
-      delete poolTable.userData.markings;
-    }
-    const clothPlaneLocal =
-      poolTable?.userData?.clothPlaneLocal ?? -TABLE.thickness + 0.01;
-    const elevatedTableSurfaceY = (poolTable?.position?.y ?? 0) + clothPlaneLocal;
-
+    const elevatedTableSurfaceY = AIR_HOCKEY_DIMENSIONS.surfaceY;
     const tableGroup = new THREE.Group();
     tableGroup.position.y = elevatedTableSurfaceY;
     tableGroup.position.z = -TABLE.topExtension / 2;
     const tableCenterZ = tableGroup.position.z;
     world.add(tableGroup);
     tableGroupRef.current = tableGroup;
-
-    const finishMaterials = poolTable?.userData?.finish?.materials ?? {};
-    materialsRef.current.tableSurface = poolTableEntry?.clothMat ?? null;
-    materialsRef.current.cushion = poolTableEntry?.cushionMat ?? null;
-    materialsRef.current.frame = finishMaterials.frame ?? null;
-    materialsRef.current.trim = finishMaterials.trim ?? null;
-    materialsRef.current.rail = finishMaterials.rail ?? null;
-    materialsRef.current.base = finishMaterials.leg ?? finishMaterials.frame ?? null;
-    materialsRef.current.baseAccent = finishMaterials.trim ?? finishMaterials.rail ?? null;
-
     const railThickness = TABLE_WALL * 0.6;
-
-    tableBaseRef.current = {
-      rebuild: (variantId) => poolTableEntry?.setBaseVariant?.(variantId),
-      clear: () => {}
-    };
-
-    const goalGeometry = new THREE.BoxGeometry(
-      PLAYFIELD.goalW,
-      0.11 * SCALE_WIDTH,
-      railThickness * 0.6
-    );
-    const goalMaterial = new THREE.MeshStandardMaterial({
-      color: 0x99ffd6,
-      emissive: 0x003322,
-      emissiveIntensity: 0.6
-    });
-    materialsRef.current.goal = goalMaterial;
-    const goalInsetTowardCenter = railThickness * 0.44;
-    const northGoal = new THREE.Mesh(goalGeometry, goalMaterial);
-    northGoal.position.set(0, 0.055 * SCALE_WIDTH, -PLAYFIELD.h / 2 - railThickness * 0.7 + goalInsetTowardCenter);
-    tableGroup.add(northGoal);
-    const southGoal = new THREE.Mesh(goalGeometry, goalMaterial);
-    southGoal.position.set(0, 0.055 * SCALE_WIDTH, PLAYFIELD.h / 2 + railThickness * 0.7 - goalInsetTowardCenter);
-    tableGroup.add(southGoal);
-
-    const goalOpeningWidth = PLAYFIELD.goalW * 0.74;
-    const goalSideCushionWidth = Math.max(
-      PLAYFIELD.goalW * 0.09,
-      (PLAYFIELD.goalW - goalOpeningWidth) / 2
-    );
-    const goalCutoutGeometry = new THREE.BoxGeometry(
-      goalOpeningWidth,
-      0.13 * SCALE_WIDTH,
-      railThickness * 1.05
-    );
-    const goalCutoutMaterial = new THREE.MeshStandardMaterial({
-      color: 0x09121d,
-      roughness: 0.82,
-      metalness: 0.08,
-      emissive: new THREE.Color(0x02060b),
-      emissiveIntensity: 0.35
-    });
-    const pocketNetReference =
-      poolTable?.userData?.finish?.parts?.pocketNetMeshes?.[0]?.material ?? null;
-    const goalNetMaterial = pocketNetReference
-      ? pocketNetReference.clone()
-      : new THREE.MeshStandardMaterial({
-          color: 0xc8f3ff,
-          emissive: new THREE.Color(0x0e3446),
-          emissiveIntensity: 0.45,
-          roughness: 0.78,
-          metalness: 0.1,
-          transparent: true,
-          opacity: 0.7
-        });
-    goalNetMaterial.wireframe = true;
-    goalNetMaterial.transparent = true;
-    goalNetMaterial.opacity = typeof goalNetMaterial.opacity === 'number' ? goalNetMaterial.opacity : 0.68;
-    goalNetMaterial.needsUpdate = true;
-
-    const goalPocketCavityMaterial = new THREE.MeshStandardMaterial({
-      color: 0x04070b,
-      roughness: 0.92,
-      metalness: 0.04,
-      emissive: new THREE.Color(0x010205),
-      emissiveIntensity: 0.3
-    });
-    const goalSideCushionMaterial =
-      materialsRef.current.cushion?.clone?.() ?? goalCutoutMaterial.clone();
-    if (goalSideCushionMaterial?.color) {
-      goalSideCushionMaterial.color.offsetHSL(0, 0, -0.04);
-    }
-    const createGoalMouth = (direction) => {
-      const mouth = new THREE.Mesh(goalCutoutGeometry, goalCutoutMaterial);
-      mouth.position.set(
-        0,
-        0.048 * SCALE_WIDTH,
-        direction * (PLAYFIELD.h / 2 + railThickness * 0.08 - goalInsetTowardCenter)
-      );
-      tableGroup.add(mouth);
-
-      const cavity = new THREE.Mesh(
-        new THREE.BoxGeometry(goalOpeningWidth * 0.94, 0.125 * SCALE_WIDTH, railThickness * 1.8),
-        goalPocketCavityMaterial
-      );
-      cavity.position.set(
-        0,
-        0.04 * SCALE_WIDTH,
-        direction * (PLAYFIELD.h / 2 + railThickness * 0.92 - goalInsetTowardCenter)
-      );
-      tableGroup.add(cavity);
-
-      const sideOffsetX = goalOpeningWidth / 2 + goalSideCushionWidth / 2;
-      [-1, 1].forEach((xDirection) => {
-        const sideCushion = new THREE.Mesh(
-          new THREE.BoxGeometry(goalSideCushionWidth, 0.16 * SCALE_WIDTH, railThickness * 0.68),
-          goalSideCushionMaterial
-        );
-        sideCushion.position.set(
-          xDirection * sideOffsetX,
-          0.07 * SCALE_WIDTH,
-          direction * (PLAYFIELD.h / 2 + railThickness * 0.26 - goalInsetTowardCenter)
-        );
-        tableGroup.add(sideCushion);
-      });
-
-      const net = new THREE.Mesh(
-        new THREE.BoxGeometry(goalOpeningWidth * 0.96, 0.165 * SCALE_WIDTH, railThickness * 1.15),
-        goalNetMaterial
-      );
-      net.position.set(
-        0,
-        0.062 * SCALE_WIDTH,
-        direction * (PLAYFIELD.h / 2 + railThickness * 0.95 - goalInsetTowardCenter)
-      );
-      tableGroup.add(net);
-    };
-    createGoalMouth(-1);
-    createGoalMouth(1);
-
-    const goalTrimMaterial = new THREE.MeshStandardMaterial({
-      color: 0x09121d,
-      roughness: 0.82,
-      metalness: 0.08,
-      emissive: new THREE.Color(0x02060b),
-      emissiveIntensity: 0.24
-    });
-    const goalCushionTrimGeometry = new THREE.BoxGeometry(
-      PLAYFIELD.goalW * 0.92,
-      0.2 * SCALE_WIDTH,
-      railThickness * 0.5
-    );
-    const addGoalCushionTrim = (direction) => {
-      const trim = new THREE.Mesh(goalCushionTrimGeometry, goalTrimMaterial);
-      trim.position.set(
-        0,
-        0.072 * SCALE_WIDTH,
-        direction * (PLAYFIELD.h / 2 + railThickness * 0.22 - goalInsetTowardCenter)
-      );
-      tableGroup.add(trim);
-    };
-    addGoalCushionTrim(-1);
-    addGoalCushionTrim(1);
-
-    const createGoalLabel = (text, accent) => {
-      const width = 1024;
-      const height = 300;
-      const canvas = document.createElement('canvas');
-      canvas.width = width;
-      canvas.height = height;
-      const ctx = canvas.getContext('2d');
-      const gradient = ctx.createLinearGradient(0, 0, 0, height);
-      gradient.addColorStop(0, 'rgba(0,0,0,0.82)');
-      gradient.addColorStop(1, 'rgba(0,0,0,0.55)');
-      ctx.fillStyle = gradient;
-      const radius = 36;
-      ctx.beginPath();
-      ctx.moveTo(radius, 0);
-      ctx.lineTo(width - radius, 0);
-      ctx.quadraticCurveTo(width, 0, width, radius);
-      ctx.lineTo(width, height - radius);
-      ctx.quadraticCurveTo(width, height, width - radius, height);
-      ctx.lineTo(radius, height);
-      ctx.quadraticCurveTo(0, height, 0, height - radius);
-      ctx.lineTo(0, radius);
-      ctx.quadraticCurveTo(0, 0, radius, 0);
-      ctx.closePath();
-      ctx.fill();
-
-      ctx.strokeStyle = `${accent}80`;
-      ctx.lineWidth = 14;
-      ctx.stroke();
-
-      ctx.font = '700 150px "Inter", "Helvetica", sans-serif';
-      ctx.fillStyle = accent;
-      ctx.textAlign = 'center';
-      ctx.textBaseline = 'middle';
-      ctx.shadowColor = 'rgba(0,0,0,0.45)';
-      ctx.shadowBlur = 24;
-      ctx.fillText(text, width / 2, height / 2 + 8);
-
-      const map = new THREE.CanvasTexture(canvas);
-      map.colorSpace = THREE.SRGBColorSpace;
-      map.needsUpdate = true;
-      const material = new THREE.SpriteMaterial({
-        map,
-        transparent: true,
-        depthTest: false,
-        depthWrite: false
-      });
-      const sprite = new THREE.Sprite(material);
-      const labelWidth = PLAYFIELD.goalW * 0.72;
-      const labelHeight = labelWidth * (height / width) * 0.6;
-      sprite.scale.set(labelWidth, labelHeight, 1);
-      sprite.renderOrder = 15;
-      return sprite;
-    };
-
     const goalLabels = [];
 
-    const northLabel = createGoalLabel(ai?.name || 'Opponent', '#22d3ee');
-    northLabel.position.set(0, northGoal.position.y + SCALE_WIDTH * 0.12, northGoal.position.z);
-    tableGroup.add(northLabel);
-    goalLabels.push(northLabel);
+    scene.add(new THREE.HemisphereLight(0xd6f5ff, 0x202634, 2.2));
+    const keyLight = new THREE.DirectionalLight(0xffffff, 2.6);
+    keyLight.position.set(-PLAYFIELD.w, PLAYFIELD.h, PLAYFIELD.h * 0.35);
+    scene.add(keyLight);
 
-    const southLabel = createGoalLabel(player?.name || 'You', '#ff5577');
-    southLabel.position.set(0, southGoal.position.y + SCALE_WIDTH * 0.12, southGoal.position.z);
-    tableGroup.add(southLabel);
-    goalLabels.push(southLabel);
+    const goalMaterial = new THREE.MeshStandardMaterial({ color: 0x99ffd6, emissive: 0x003322, emissiveIntensity: 0.6 });
+    materialsRef.current.goal = goalMaterial;
+    for (const end of [-1, 1]) {
+      const strip = new THREE.Mesh(new THREE.BoxGeometry(PLAYFIELD.goalW, SCALE_WIDTH * 0.018, SCALE_WIDTH * 0.035), goalMaterial);
+      strip.position.set(0, SCALE_WIDTH * 0.012, end * (PLAYFIELD.h / 2 + SCALE_WIDTH * 0.025));
+      tableGroup.add(strip);
+    }
 
-    const markingLift = PLAYFIELD.h * 0.002;
-    const markingThickness = PLAYFIELD.h * 0.01;
-    const lineMaterial = new THREE.MeshStandardMaterial({
-      color: 0xf8fafc,
-      roughness: 0.28,
-      metalness: 0.05,
-      transparent: true,
-      opacity: 0.9
+    const you = new THREE.Group();
+    const aiMallet = new THREE.Group();
+    const puck = new THREE.Group();
+    you.name = 'air-hockey-player-mallet';
+    aiMallet.name = 'air-hockey-opponent-mallet';
+    puck.name = 'air-hockey-puck';
+    tableGroup.add(you, aiMallet, puck);
+    malletRefs.current = { player: you, ai: aiMallet };
+    const playerMaterial = new THREE.MeshStandardMaterial({ color: 0xff5577, roughness: 0.3, metalness: 0.2 });
+    const aiMaterial = new THREE.MeshStandardMaterial({ color: 0x66ddff, roughness: 0.3, metalness: 0.2 });
+    const puckMaterial = new THREE.MeshStandardMaterial({ color: 0x111111, roughness: 0.3, metalness: 0.2 });
+    materialsRef.current.playerMallet = playerMaterial;
+    materialsRef.current.aiMallet = aiMaterial;
+    materialsRef.current.puck = puckMaterial;
+    let modelDisposed = false;
+    let modelLoaded = false;
+    let loadedModel = null;
+    setTableReady(false);
+    setTableError('');
+    loadAirHockeyModel().then((model) => {
+      if (modelDisposed) { disposeAirHockeyModel(model); return; }
+      loadedModel = model;
+      const table = new THREE.Mesh(model.table, model.material);
+      table.name = 'air-hockey-uploaded-table';
+      tableGroup.add(table);
+      [you, aiMallet].forEach((group, i) => {
+        const geometry = fitAirHockeyPiece(model.mallets[i], MALLET_RADIUS);
+        group.add(new THREE.Mesh(geometry, i === 0 ? playerMaterial : aiMaterial));
+      });
+      const puckGeometry = fitAirHockeyPiece(model.puck, PUCK_RADIUS);
+      const puckMesh = new THREE.Mesh(puckGeometry, puckMaterial);
+      puckMesh.position.y = -PUCK_HEIGHT / 2 + SCALE_WIDTH * 0.004;
+      puck.add(puckMesh);
+      const malletHeight = model.mallets[0].boundingBox.max.y;
+      malletDimensionsRef.current = { radius: MALLET_RADIUS, knobRadius: MALLET_RADIUS * 0.48, height: 0, knobHeight: malletHeight };
+      modelLoaded = true;
+      reset();
+      physicsAccumulatorRef.current = 0;
+      setTableReady(true);
+    }).catch((error) => {
+      if (modelDisposed) return;
+      console.error('Air Hockey model failed to load', error);
+      setTableError('The table could not load. Please try again.');
     });
-    const lineMesh = new THREE.Mesh(
-      new THREE.PlaneGeometry(PLAYFIELD.w * 0.92, markingThickness),
-      lineMaterial
-    );
-    lineMesh.rotation.x = -Math.PI / 2;
-    lineMesh.position.set(0, markingLift, 0);
-    tableGroup.add(lineMesh);
-
-    const circleRadius = PLAYFIELD.w * 0.18;
-    const circleMaterial = lineMaterial.clone();
-    const circleMesh = new THREE.Mesh(
-      new THREE.RingGeometry(
-        Math.max(0.01, circleRadius - markingThickness * 0.5),
-        circleRadius + markingThickness * 0.5,
-        96
-      ),
-      circleMaterial
-    );
-    circleMesh.rotation.x = -Math.PI / 2;
-    circleMesh.position.set(0, markingLift, 0);
-    tableGroup.add(circleMesh);
-
-    materialsRef.current.line = lineMaterial;
-    materialsRef.current.rings = [circleMaterial];
-    tableMarkingsRef.current = { line: lineMesh, circle: circleMesh };
-
-    const makeMallet = (color) => {
-      const mallet = new THREE.Group();
-      const baseTexture = createMalletTexture(new THREE.Color(color).getStyle());
-      const baseMaterial = new THREE.MeshStandardMaterial({
-        color,
-        map: baseTexture,
-        roughness: 0.32,
-        metalness: 0.28
-      });
-      const base = new THREE.Mesh(
-        new THREE.CylinderGeometry(MALLET_RADIUS, MALLET_RADIUS, MALLET_HEIGHT, 32),
-        baseMaterial
-      );
-      base.position.y = MALLET_HEIGHT / 2;
-      const knobMaterial = new THREE.MeshStandardMaterial({
-        color: 0x222222,
-        roughness: 0.26,
-        metalness: 0.22
-      });
-      const knob = new THREE.Mesh(
-        new THREE.CylinderGeometry(
-          MALLET_KNOB_RADIUS,
-          MALLET_KNOB_RADIUS,
-          MALLET_KNOB_HEIGHT,
-          32
-        ),
-        knobMaterial
-      );
-      knob.position.y = MALLET_HEIGHT + MALLET_KNOB_HEIGHT / 2;
-      mallet.add(base, knob);
-      return { mallet, baseMaterial, knobMaterial };
-    };
-
-    const youData = makeMallet(0xff5577);
-    const you = youData.mallet;
-    you.position.set(0, 0, PLAYFIELD.h * 0.42);
-    tableGroup.add(you);
-    materialsRef.current.playerMallet = youData.baseMaterial;
-    materialsRef.current.playerKnob = youData.knobMaterial;
-    malletRefs.current.player = you;
-
-    const aiData = makeMallet(0x66ddff);
-    const aiMallet = aiData.mallet;
-    aiMallet.position.set(0, 0, -PLAYFIELD.h * 0.36);
-    tableGroup.add(aiMallet);
-    materialsRef.current.aiMallet = aiData.baseMaterial;
-    materialsRef.current.aiKnob = aiData.knobMaterial;
-    malletRefs.current.ai = aiMallet;
-
-    const puckTexture = createPuckTexture();
-    const puck = new THREE.Mesh(
-      new THREE.CylinderGeometry(PUCK_RADIUS, PUCK_RADIUS, PUCK_HEIGHT, 32),
-      new THREE.MeshStandardMaterial({
-        color: 0x111111,
-        map: puckTexture,
-        roughness: 0.34,
-        metalness: 0.22,
-        clearcoat: 0.35,
-        clearcoatRoughness: 0.28
-      })
-    );
-    puck.position.y = PUCK_HEIGHT / 2;
-    tableGroup.add(puck);
-    materialsRef.current.puck = puck.material;
 
     const playerRailZ = PLAYFIELD.h / 2 + railThickness / 2;
     const cameraFocus = new THREE.Vector3(
@@ -2129,8 +1451,8 @@ export default function AirHockey3D({
       }
     };
 
-    // loop
-    reset();
+    // Load the table before serving.
+    reset(false, false);
     fitCameraToTable();
 
     const tick = (timestamp = performance.now()) => {
@@ -2153,6 +1475,13 @@ export default function AirHockey3D({
       }
 
       frameAccumulatorRef.current = Math.max(0, frameAccumulatorRef.current - targetInterval);
+
+      if (!modelLoaded) {
+        physicsAccumulatorRef.current = 0;
+        renderer.render(scene, camera);
+        raf.current = requestAnimationFrame(tick);
+        return;
+      }
 
       if (online && seatIndex === 1) {
         const snapshot = onlineSyncRef.current.snapshot;
@@ -2196,56 +1525,23 @@ export default function AirHockey3D({
         S.vel.multiplyScalar(Math.pow(S.friction, nominalFrameScale));
         S.vel.clampLength(0, MAX_SPEED);
 
-        const cornerPocketed = cornerPocketCenters.some((center) => {
-          const dx = puck.position.x - center.x;
-          const dz = puck.position.z - center.y;
-          return dx * dx + dz * dz <= CORNER_POCKET_CAPTURE * CORNER_POCKET_CAPTURE;
-        });
-
-        if (cornerPocketed) {
-          const playerGetsPuck = lastTouchRef.current !== 'player';
-          const spawnZ = playerGetsPuck ? PLAYFIELD.h * 0.24 : -PLAYFIELD.h * 0.24;
-          reset(playerGetsPuck, true, spawnZ);
-          playPost();
-        } else {
-          if (Math.abs(puck.position.x) > PLAYFIELD.w / 2 - PUCK_RADIUS) {
-            puck.position.x = clamp(
-              puck.position.x,
-              -PLAYFIELD.w / 2 + PUCK_RADIUS,
-              PLAYFIELD.w / 2 - PUCK_RADIUS
-            );
-            S.vel.x = -S.vel.x;
-            playHit();
+        const railContact = resolveAirHockeyRails(puck.position, S.vel, PLAYFIELD, PUCK_RADIUS);
+        if (railContact === 'north-goal' || railContact === 'south-goal') {
+          const atTop = railContact === 'north-goal';
+          const ended = recordGoal(atTop);
+          playGoal();
+          S.vel.set(0, 0, 0);
+          clearTimeout(restartTimeoutRef.current);
+          if (!ended) {
+            reset(atTop, false);
+            restartTimeoutRef.current = setTimeout(() => servePuck(atTop), GOAL_RESET_DELAY);
           }
-
-          const goalHalf = PLAYFIELD.goalW / 2;
-          const atTop = puck.position.z < -PLAYFIELD.h / 2 + PUCK_RADIUS;
-          const atBot = puck.position.z > PLAYFIELD.h / 2 - PUCK_RADIUS;
-          if (atTop || atBot) {
-            if (Math.abs(puck.position.x) <= goalHalf) {
-              const ended = recordGoal(atTop);
-              playGoal();
-              S.vel.set(0, 0, 0);
-              clearTimeout(restartTimeoutRef.current);
-              if (!ended) {
-                reset(!atBot, false);
-                restartTimeoutRef.current = setTimeout(() => servePuck(!atBot), GOAL_RESET_DELAY);
-              }
-            } else {
-              S.vel.z = -S.vel.z;
-              puck.position.z = clamp(
-                puck.position.z,
-                -PLAYFIELD.h / 2 + PUCK_RADIUS,
-                PLAYFIELD.h / 2 - PUCK_RADIUS
-              );
-              playHit();
-            }
-          }
-
-          if (!online) aiUpdate(dt);
-          handleCollision(you, true);
-          handleCollision(aiMallet);
+        } else if (railContact === 'rail') {
+          playHit();
         }
+        if (!online) aiUpdate(dt);
+        handleCollision(you, true);
+        handleCollision(aiMallet);
         physicsAccumulatorRef.current -= AIR_HOCKEY_FIXED_STEP_SECONDS;
         physicsSteps += 1;
       }
@@ -2278,6 +1574,14 @@ export default function AirHockey3D({
     window.addEventListener('resize', onResize);
 
     return () => {
+      modelDisposed = true;
+      if (loadedModel) disposeAirHockeyModel(loadedModel);
+      playerMaterial.dispose();
+      aiMaterial.dispose();
+      puckMaterial.dispose();
+      goalMaterial.dispose();
+      tableGroup.traverse((object) => { if (object.isMesh) object.geometry?.dispose(); });
+      clearTimeout(restartTimeoutRef.current);
       cancelAnimationFrame(raf.current);
       window.removeEventListener('resize', onResize);
       renderer.domElement.removeEventListener('touchstart', onMove);
@@ -2362,102 +1666,10 @@ export default function AirHockey3D({
   }, [selections.environmentHdri]);
 
   useEffect(() => {
-    const mats = materialsRef.current;
-    const fieldOption = getOption('field', selections.field);
-    if (!mats?.tableSurface || !fieldOption) return undefined;
-    let cancelled = false;
-
-    const applyTextureRepeat = (texture, repeat) => {
-      if (!texture) return;
-      texture.wrapS = THREE.RepeatWrapping;
-      texture.wrapT = THREE.RepeatWrapping;
-      texture.repeat.set(repeat, repeat);
-      texture.anisotropy = rendererRef.current?.capabilities.getMaxAnisotropy() ?? 1;
-      texture.needsUpdate = true;
-    };
-
-    const applyFieldMaterial = (surface) => {
-      if (cancelled || !mats.tableSurface) return;
-      const mat = mats.tableSurface;
-      const fallbackColor = fieldOption.color || fieldOption.swatches?.[0] || '#f8fafc';
-      const repeat = fieldOption.repeat ?? 1;
-      const textures = surface?.textures ?? surface;
-      const materialProps = surface?.materialProps;
-      const hasTextures = Boolean(textures?.map);
-      const baseColor = materialProps?.color || (fieldOption.color ? new THREE.Color(fieldOption.color) : null);
-
-      if (hasTextures) {
-        applyTextureRepeat(textures.map, repeat);
-        applyTextureRepeat(textures.normal, repeat);
-        applyTextureRepeat(textures.roughness, repeat);
-        applyTextureRepeat(textures.metalness, repeat);
-        mat.map = textures.map;
-        mat.normalMap = textures.normal ?? null;
-        mat.roughnessMap = textures.roughness ?? null;
-        mat.metalnessMap = textures.metalness ?? null;
-        mat.color.set(0xffffff);
-        if (baseColor) {
-          mat.color.copy(baseColor);
-        }
-      } else {
-        mat.map = createFallbackTexture(fallbackColor);
-        mat.normalMap = null;
-        mat.roughnessMap = null;
-        mat.metalnessMap = null;
-        mat.color.set(fallbackColor);
-      }
-
-      mat.bumpMap = null;
-      const roughness = resolveNumber(fieldOption.roughness, materialProps?.roughness, POOL_BALL_MARBLE_FINISH.roughness);
-      const metalness = resolveNumber(fieldOption.metalness, materialProps?.metalness, POOL_BALL_MARBLE_FINISH.metalness);
-      const clearcoat = resolveNumber(fieldOption.clearcoat, materialProps?.clearcoat, POOL_BALL_MARBLE_FINISH.clearcoat);
-      const clearcoatRoughness = resolveNumber(
-        fieldOption.clearcoatRoughness,
-        materialProps?.clearcoatRoughness,
-        POOL_BALL_MARBLE_FINISH.clearcoatRoughness
-      );
-      const reflectivity = resolveNumber(fieldOption.reflectivity, POOL_BALL_MARBLE_FINISH.reflectivity);
-      const sheen = resolveNumber(fieldOption.sheen, materialProps?.sheen, 0);
-      const envMapIntensity = resolveNumber(
-        fieldOption.envMapIntensity,
-        materialProps?.envMapIntensity,
-        POOL_BALL_MARBLE_FINISH.envMapIntensity
-      );
-      if ('sheenRoughness' in mat) {
-        mat.sheenRoughness = 1;
-      }
-      if (typeof metalness === 'number') mat.metalness = metalness;
-      if (typeof roughness === 'number') mat.roughness = roughness;
-      if (typeof clearcoat === 'number') mat.clearcoat = clearcoat;
-      if (typeof clearcoatRoughness === 'number') mat.clearcoatRoughness = clearcoatRoughness;
-      if (typeof reflectivity === 'number') mat.reflectivity = reflectivity;
-      if ('sheen' in mat) {
-        mat.sheen = sheen ?? 0;
-      }
-      if ('sheenColor' in mat) {
-        mat.sheenColor = materialProps?.sheenColor || POOL_BALL_MARBLE_FINISH.sheenColor;
-      }
-      if ('envMapIntensity' in mat && typeof envMapIntensity === 'number') {
-        mat.envMapIntensity = envMapIntensity;
-      }
-      mat.needsUpdate = true;
-    };
-
-    loadFieldSurface(fieldOption).then((surface) => {
-      if (cancelled) return;
-      applyFieldMaterial(surface);
-    });
-
-    return () => {
-      cancelled = true;
-    };
-  }, [selections.field]);
-
-  useEffect(() => {
     const playerMallet = malletRefs.current.player;
     const aiMallet = malletRefs.current.ai;
     const dims = malletDimensionsRef.current;
-    if (!playerMallet || !aiMallet || !dims.knobRadius || !dims.knobHeight) {
+    if (!tableReady || !playerMallet || !aiMallet || !dims.knobRadius || !dims.knobHeight) {
       return undefined;
     }
 
@@ -2531,6 +1743,7 @@ export default function AirHockey3D({
       img.src = url;
     };
 
+    let avatarsCancelled = false;
     const setAvatar = (key, avatar) => {
       const existing = avatarSpritesRef.current[key];
       if (existing) {
@@ -2540,6 +1753,7 @@ export default function AirHockey3D({
         existing.geometry?.dispose();
       }
       loadAvatarImage(key, avatar, (image, url) => {
+        if (avatarsCancelled) return;
         const label = typeof avatar === 'string' ? avatar.slice(0, 2) : '?';
         const texture = createCircleTexture(image, label);
         const material = new THREE.MeshBasicMaterial({
@@ -2564,6 +1778,7 @@ export default function AirHockey3D({
     setAvatar('ai', ai.avatar);
 
     return () => {
+      avatarsCancelled = true;
       ['player', 'ai'].forEach((key) => {
         const sprite = avatarSpritesRef.current[key];
         if (sprite) {
@@ -2575,116 +1790,16 @@ export default function AirHockey3D({
         }
       });
     };
-  }, [player.avatar, ai.avatar]);
+  }, [tableReady, player.avatar, ai.avatar]);
 
   useEffect(() => {
     const mats = materialsRef.current;
     if (!mats) return;
 
-    const fieldTheme = getOption('field', selections.field);
-    const cushionTheme = getOption('cushionCloth', selections.cushionCloth);
     const puckTheme = getOption('puck', selections.puck);
     const malletTheme = getOption('mallet', selections.mallet);
     const goalTheme = getOption('goals', selections.goals);
 
-    if (!LOCK_POOL_ROYALE_TABLE_STYLE) {
-      const tableTheme = getOption('table', selections.table);
-      const baseTheme = getOption('tableBase', selections.tableBase);
-      const tableGrain =
-        tableTheme?.woodTextureId && WOOD_GRAIN_OPTIONS_BY_ID[tableTheme.woodTextureId]
-          ? WOOD_GRAIN_OPTIONS_BY_ID[tableTheme.woodTextureId]
-          : null;
-      const fallbackHsl = tableTheme?.wood
-        ? new THREE.Color(tableTheme.wood).getHSL({})
-        : { h: 0.08, s: 0.35, l: 0.5 };
-      const baseHsl = baseTheme?.base ? new THREE.Color(baseTheme.base).getHSL({}) : fallbackHsl;
-      const accentHsl = baseTheme?.accent ? new THREE.Color(baseTheme.accent).getHSL({}) : baseHsl;
-
-      const applyTableTexture = (material, surfaceKey) => {
-        if (!material || !tableGrain) return;
-        const surface = tableGrain[surfaceKey] || tableGrain.frame || tableGrain.rail;
-        if (!surface) return;
-        applyWoodTextures(material, {
-          mapUrl: surface.mapUrl,
-          roughnessMapUrl: surface.roughnessMapUrl,
-          normalMapUrl: surface.normalMapUrl,
-          repeat: surface.repeat,
-          rotation: surface.rotation,
-          textureSize: surface.textureSize,
-          hue: fallbackHsl.h * 360,
-          sat: fallbackHsl.s,
-          light: fallbackHsl.l,
-          contrast: 0.55
-        });
-      };
-      const applyBaseTexture = (material, surfaceKey, tint) => {
-        if (!material || !tableGrain) return;
-        const surface = tableGrain[surfaceKey] || tableGrain.frame || tableGrain.rail;
-        if (!surface) return;
-        applyWoodTextures(material, {
-          mapUrl: surface.mapUrl,
-          roughnessMapUrl: surface.roughnessMapUrl,
-          normalMapUrl: surface.normalMapUrl,
-          repeat: surface.repeat,
-          rotation: surface.rotation,
-          textureSize: surface.textureSize,
-          hue: tint.h * 360,
-          sat: tint.s,
-          light: tint.l,
-          contrast: 0.55
-        });
-      };
-
-      if (tableGrain) {
-        applyTableTexture(mats.frame, 'frame');
-        applyTableTexture(mats.rail, 'rail');
-        applyTableTexture(mats.trim, 'rail');
-        applyBaseTexture(mats.base, 'frame', baseHsl);
-        applyBaseTexture(mats.baseAccent, 'rail', accentHsl);
-      } else {
-        if (mats.frame) mats.frame.color.set(tableTheme.wood);
-        if (mats.rail) mats.rail.color.set(tableTheme.wood);
-        if (mats.trim) mats.trim.color.set(tableTheme.trim);
-      }
-      if (mats.base) mats.base.color.set(baseTheme.base);
-      if (mats.baseAccent) mats.baseAccent.color.set(baseTheme.accent);
-    }
-    if (mats.line && fieldTheme?.lineColor) {
-      mats.line.color.set(fieldTheme.lineColor);
-    }
-    if (Array.isArray(mats.rings) && fieldTheme?.lineColor) {
-      mats.rings.forEach((ring) => ring?.color?.set?.(fieldTheme.lineColor));
-    }
-    if (mats.cushion && cushionTheme) {
-      const palette = cushionTheme.palette || {};
-      const base = palette.base ?? cushionTheme.baseColor ?? 0x2d7f4b;
-      const baseColor = new THREE.Color(base);
-      mats.cushion.color.copy(baseColor);
-      if (mats.cushion.emissive) {
-        mats.cushion.emissive.copy(baseColor.clone().multiplyScalar(0.06));
-      }
-      if (typeof cushionTheme.detail?.emissiveIntensity === 'number') {
-        mats.cushion.emissiveIntensity = cushionTheme.detail.emissiveIntensity;
-      }
-      if (typeof cushionTheme.detail?.sheen === 'number' && 'sheen' in mats.cushion) {
-        mats.cushion.sheen = cushionTheme.detail.sheen;
-      }
-      if (
-        typeof cushionTheme.detail?.sheenRoughness === 'number' &&
-        'sheenRoughness' in mats.cushion
-      ) {
-        mats.cushion.sheenRoughness = cushionTheme.detail.sheenRoughness;
-      }
-      if (typeof cushionTheme.detail?.envMapIntensity === 'number') {
-        mats.cushion.envMapIntensity = cushionTheme.detail.envMapIntensity;
-      }
-      if (typeof cushionTheme.detail?.bumpMultiplier === 'number') {
-        const baseBumpScale =
-          mats.cushion.userData?.baseBumpScale ?? mats.cushion.bumpScale ?? 1;
-        mats.cushion.bumpScale = baseBumpScale * cushionTheme.detail.bumpMultiplier;
-      }
-      mats.cushion.needsUpdate = true;
-    }
     if (mats.puck) {
       mats.puck.color.set(puckTheme.color);
       mats.puck.emissive.set(puckTheme.emissive);
@@ -2720,6 +1835,8 @@ export default function AirHockey3D({
             return (
               <button
                 key={`${key}-${option.name}`}
+                type="button"
+                aria-pressed={active}
                 onClick={() =>
                   setSelections((prev) => ({
                     ...prev,
@@ -2746,235 +1863,41 @@ export default function AirHockey3D({
   return (
     <div
       ref={hostRef}
-      className="w-full h-[100dvh] bg-black relative overflow-hidden select-none"
+      className="ah-game w-full h-[100dvh] bg-black relative overflow-hidden select-none"
       style={{ touchAction: 'none', overscrollBehavior: 'none' }}
     >
-      <div
-        className={`absolute left-2 right-2 z-30 grid grid-cols-2 items-center gap-2 text-white ${
-          isTopDownView ? 'bottom-12' : ''
-        }`}
-        style={isTopDownView ? undefined : { top: `${2.35 + HUD_VERTICAL_SHIFT_REM - HUD_TOP_ROW_LIFT_REM}rem` }}
-      >
-        <div
-          className="flex items-center gap-2 rounded bg-white/10 px-2 py-1 text-xs cursor-pointer"
-          data-player-index="0"
-          data-self-player="true"
-          role="button"
-          tabIndex={0}
-          aria-label={liveMode ? 'Turn off live avatar video' : 'Turn on live avatar video'}
-          onClick={toggleLiveFromAvatar}
-          onKeyDown={(event) => {
-            if (event.key === 'Enter' || event.key === ' ') {
-              event.preventDefault();
-              toggleLiveFromAvatar();
-            }
-          }}
-        >
-          {liveMode ? (
-            <video
-              ref={topLiveVideoRef}
-              autoPlay
-              playsInline
-              muted
-              className="h-10 w-10 rounded-full border border-emerald-300/70 object-cover bg-black scale-x-[-1]"
-            />
-          ) : (
-            <img
-              src={getAvatarUrl(player.avatar)}
-              alt=""
-              className="h-5 w-5 rounded-full object-cover"
-            />
-          )}
-          <span className="truncate">
-            {player.name}: {ui.left}
-            {liveMode ? <span className="ml-1 text-emerald-200">• Live</span> : null}
-          </span>
-        </div>
-        <div
-          className="flex items-center justify-end gap-2 rounded bg-white/10 px-2 py-1 text-xs"
-          data-player-index="1"
-        >
-          <span className="truncate text-right">
-            {ui.right}: {ai.name}
-          </span>
-          <img
-            src={getAvatarUrl(ai.avatar)}
-            alt=""
-            className="h-5 w-5 rounded-full object-cover"
-          />
-        </div>
-      </div>
-      <div
-        className={`absolute z-40 text-white text-[10px] bg-white/10 rounded px-3 py-1 backdrop-blur ${
-          isTopDownView ? 'left-1/2 -translate-x-1/2 bottom-4' : 'left-1/2 -translate-x-1/2'
-        }`}
-        style={
-          isTopDownView
-            ? undefined
-            : {
-                top: `${HUD_ICON_ROW_TOP_REM + HUD_VERTICAL_SHIFT_REM - HUD_TOP_ROW_LIFT_REM + AIR_HOCKEY_TARGET_CENTER_TOP_TWEAK_REM}rem`
-              }
-        }
-      >
-        <span className="uppercase tracking-wide">{playType}</span>
-        <span className="mx-2">•</span>
-        <span>Target: {targetValue}</span>
-      </div>
-      <button
-        type="button"
-        onClick={() => setShowCustomizer((prev) => !prev)}
-        className={`absolute z-40 pointer-events-auto flex items-center gap-2 rounded-full border border-white/15 bg-black/60 px-3 py-2 text-xs font-semibold uppercase tracking-[0.3em] text-gray-100 shadow-[0_6px_18px_rgba(2,6,23,0.45)] transition hover:border-white/30 hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/70 ${
-          showCustomizer ? 'bg-black/60' : 'hover:bg-black/60'
-        }`}
-        style={
-          isTopDownView
-            ? {
-                left: '50%',
-                top: `${HUD_ICON_ROW_TOP_REM + HUD_VERTICAL_SHIFT_REM - HUD_TOP_ROW_LIFT_REM - 0.35 + AIR_HOCKEY_MENU_TOP_TWEAK_REM}rem`,
-                transform: 'translateX(-50%)'
-              }
-            : {
-                left: `${HUD_MENU_LEFT_REM}rem`,
-                top: `${HUD_ICON_ROW_TOP_REM + HUD_VERTICAL_SHIFT_REM - HUD_TOP_ROW_LIFT_REM - 0.35 + AIR_HOCKEY_MENU_TOP_TWEAK_REM}rem`
-              }
-        }
-        aria-label={showCustomizer ? 'Close menu' : 'Open menu'}
-      >
-        <span className="text-lg leading-none" aria-hidden="true">☰</span>
-        <span className="leading-none">Menu</span>
-      </button>
-      <div
-        className={`absolute z-20 flex flex-col gap-3 pointer-events-auto ${
-          isTopDownView
-            ? 'left-3 top-[45%] -translate-y-1/2 items-center'
-            : 'bottom-2 left-2 items-start'
-        }`}
-      >
-        <button
-          type="button"
-          onClick={() => setShowChat(true)}
-          className="flex flex-col items-center rounded bg-transparent px-2 py-1 text-[10px] font-semibold text-white hover:bg-white/10"
-        >
-          <span className="text-xl">💬</span>
-          <span>Chat</span>
+      <div className="ah-scoreboard" aria-label={`Score: ${player.name} ${ui.left}, ${ai.name} ${ui.right}`}>
+        <button type="button" className="ah-player" data-player-index="0" data-self-player="true"
+          aria-label={liveMode ? 'Turn off live avatar video' : 'Turn on live avatar video'} onClick={toggleLiveFromAvatar}>
+          {liveMode ? <video ref={topLiveVideoRef} autoPlay playsInline muted /> : <img src={getAvatarUrl(player.avatar)} alt="" />}
+          <span className="ah-player-info"><span className="ah-player-name">{player.name}{liveMode ? ' • Live' : ''}</span><strong className="ah-player-score">{ui.left}</strong></span>
         </button>
-        {isTopDownView ? (
-          <>
-            <button
-              type="button"
-              onClick={() => {
-                toggleGameMuted();
-                setMuted(isGameMuted());
-              }}
-              className="flex items-center justify-center rounded bg-transparent px-2 py-1 text-[10px] font-semibold text-white hover:bg-white/10"
-              aria-label={muted ? 'Unmute' : 'Mute'}
-            >
-              <span className="text-xl">{muted ? '🔇' : '🔊'}</span>
-            </button>
-            <button
-              type="button"
-              onClick={() => setShowGift(true)}
-              className="flex flex-col items-center rounded bg-transparent px-2 py-1 text-[10px] font-semibold text-white hover:bg-white/10"
-            >
-              <span className="text-xl">🎁</span>
-              <span>Gift</span>
-            </button>
-          </>
-        ) : null}
+        <div className="ah-match-target"><span>{playType}</span><strong>First to {targetValue}</strong></div>
+        <div className="ah-player" data-player-index="1">
+          <span className="ah-player-info"><span className="ah-player-name">{ai.name}</span><strong className="ah-player-score">{ui.right}</strong></span>
+          <img src={getAvatarUrl(ai.avatar)} alt="" />
+        </div>
       </div>
-      {!isTopDownView && (
-        <>
-          <div
-            className="absolute right-3 z-40 flex flex-col items-center gap-1"
-            style={{
-              top: `${3.7 + HUD_VERTICAL_SHIFT_REM - HUD_TOP_ROW_LIFT_REM + AIR_HOCKEY_RIGHT_ICON_STACK_DOWN_REM}rem`
-            }}
-          >
-            <button
-              type="button"
-              onClick={() => {
-                toggleGameMuted();
-                setMuted(isGameMuted());
-              }}
-              className="flex items-center justify-center rounded bg-transparent px-2 py-1 text-[10px] font-semibold text-white hover:bg-white/10"
-              aria-label={muted ? 'Unmute' : 'Mute'}
-            >
-              <span className="text-xl">{muted ? '🔇' : '🔊'}</span>
-            </button>
-            <button
-              type="button"
-              aria-pressed={isTopDownView}
-              onClick={() => setIsTopDownView((prev) => !prev)}
-              className={`rounded px-3 py-2 text-xs font-semibold backdrop-blur border transition ${
-                isTopDownView
-                  ? 'border-emerald-300 bg-emerald-300/20 text-emerald-100'
-                  : 'border-white/15 bg-white/10 text-white hover:bg-white/20'
-              }`}
-            >
-              <span className="inline-flex items-center gap-1">
-                <span aria-hidden>🧭</span>
-                <span>{isTopDownView ? '3D' : '2D'}</span>
-              </span>
-            </button>
-            <button
-              type="button"
-              onClick={() => {
-                const nextLift = clamp(cameraLiftUi + CAMERA_LIFT_STEP, CAMERA_LIFT_MIN, CAMERA_LIFT_MAX);
-                setCameraLiftUi(nextLift);
-                cameraViewRef.current.applyCurrent?.(false, nextLift);
-              }}
-              className="rounded border border-white/15 bg-white/10 px-2 py-1 text-lg leading-none text-white transition hover:bg-white/20"
-              aria-label="Lift camera angle up"
-              title="Camera up"
-            >
-              ▲
-            </button>
-            <button
-              type="button"
-              onClick={() => {
-                const nextLift = clamp(cameraLiftUi - CAMERA_LIFT_STEP, CAMERA_LIFT_MIN, CAMERA_LIFT_MAX);
-                setCameraLiftUi(nextLift);
-                cameraViewRef.current.applyCurrent?.(false, nextLift);
-              }}
-              className="rounded border border-white/15 bg-white/10 px-2 py-1 text-lg leading-none text-white transition hover:bg-white/20"
-              aria-label="Lower camera angle down"
-              title="Camera down"
-            >
-              ▼
-            </button>
-          </div>
-        </>
-      )}
-      <div className="absolute bottom-2 right-2 flex flex-col items-end space-y-2 z-20">
-        {!isTopDownView && (
-          <button
-            type="button"
-            onClick={() => setShowGift(true)}
-            className="flex flex-col items-center rounded bg-transparent px-2 py-1 text-[10px] font-semibold text-white hover:bg-white/10"
-          >
-            <span className="text-xl">🎁</span>
-            <span>Gift</span>
-          </button>
-        )}
-        {isTopDownView && (
-          <button
-            type="button"
-            aria-pressed={isTopDownView}
-            onClick={() => setIsTopDownView((prev) => !prev)}
-            className="rounded px-3 py-2 text-xs font-semibold backdrop-blur border transition border-emerald-300 bg-emerald-300/20 text-emerald-100"
-          >
-            <span className="inline-flex items-center gap-1">
-              <span aria-hidden>🧭</span>
-              <span>3D</span>
-            </span>
-          </button>
-        )}
-        {showCustomizer && (
-          <div className="w-72 max-h-[70vh] overflow-y-auto bg-black/70 border border-white/15 rounded-lg p-3 space-y-3 backdrop-blur">
+      <AirHockeyControls topView={isTopDownView} muted={muted} settingsOpen={showCustomizer}
+        lift={cameraLiftUi} minLift={CAMERA_LIFT_MIN} maxLift={CAMERA_LIFT_MAX}
+        onView={() => setIsTopDownView((prev) => !prev)}
+        onMute={() => { toggleGameMuted(); setMuted(isGameMuted()); }}
+        onSettings={() => setShowCustomizer((prev) => !prev)}
+        onChat={() => setShowChat(true)} onGift={() => setShowGift(true)}
+        onLift={(direction) => {
+          const nextLift = clamp(cameraLiftUi + direction * CAMERA_LIFT_STEP, CAMERA_LIFT_MIN, CAMERA_LIFT_MAX);
+          setCameraLiftUi(nextLift);
+          cameraViewRef.current.applyCurrent?.(false, nextLift);
+        }} />
+      {!tableReady && <div className="ah-model-status" role={tableError ? 'alert' : 'status'}>
+        <span>{tableError || 'Loading your table…'}</span>
+        {tableError && <button type="button" onClick={() => window.location.reload()}>Retry</button>}
+      </div>}
+      <AirHockeySettingsSheet open={showCustomizer} onClose={() => setShowCustomizer(false)}>
             <div className="rounded-xl border border-white/10 bg-white/5 p-3">
               <div>
-                <p className="text-[10px] uppercase tracking-[0.35em] text-white/70">Graphics</p>
-                <p className="mt-1 text-[0.7rem] text-white/60">Match the Murlan Royale quality presets.</p>
+                <p className="ah-setting-label">Graphics</p>
+                <p className="mt-1 text-[0.7rem] text-white/60">Choose the detail and frame rate for your phone.</p>
               </div>
               <div className="mt-2 grid gap-2">
                 {GRAPHICS_OPTIONS.map((option) => {
@@ -2992,15 +1915,15 @@ export default function AirHockey3D({
                       }`}
                     >
                       <span className="flex items-center justify-between gap-2">
-                        <span className="text-[11px] font-semibold uppercase tracking-[0.26em] text-white">
+                        <span className="text-sm font-semibold text-white">
                           {option.label}
                         </span>
                         <span className="text-[11px] font-semibold tracking-wide text-sky-100">
-                          {option.resolution ? `${option.resolution} • ${option.fps} FPS` : `${option.fps} FPS`}
+                          {option.fps} FPS
                         </span>
                       </span>
                       {option.description ? (
-                        <span className="mt-1 block text-[10px] uppercase tracking-[0.2em] text-white/60">
+                        <span className="mt-1 block text-xs text-white/60">
                           {option.description}
                         </span>
                       ) : null}
@@ -3011,7 +1934,7 @@ export default function AirHockey3D({
             </div>
             <div className="rounded-xl border border-white/10 bg-white/5 p-3">
               <div>
-                <p className="text-[10px] uppercase tracking-[0.35em] text-white/70">Commentary</p>
+                <p className="ah-setting-label">Commentary</p>
               </div>
               <div className="mt-2 grid gap-2">
                 {AIR_HOCKEY_COMMENTARY_PRESETS.map((preset) => {
@@ -3030,14 +1953,14 @@ export default function AirHockey3D({
                       } ${commentarySupported ? '' : 'cursor-not-allowed opacity-60'}`}
                     >
                       <span className="flex items-center justify-between gap-2">
-                        <span className="text-[11px] font-semibold uppercase tracking-[0.26em] text-white">{preset.label}</span>
+                        <span className="text-sm font-semibold text-white">{preset.label}</span>
                         {active && (
                           <span className="rounded-full border border-sky-200/70 px-2 py-0.5 text-[9px] tracking-[0.3em] text-sky-100">
                             Active
                           </span>
                         )}
                       </span>
-                      <span className="mt-1 block text-[10px] uppercase tracking-[0.2em] text-white/60">
+                      <span className="mt-1 block text-xs text-white/60">
                         {preset.description}
                       </span>
                     </button>
@@ -3070,17 +1993,11 @@ export default function AirHockey3D({
                 </p>
               )}
             </div>
-            {renderOptionRow('Field Surface', 'field')}
-            {renderOptionRow('Cushion Cloth', 'cushionCloth')}
-            {renderOptionRow('Table Finish', 'table')}
-            {renderOptionRow('Table Base', 'tableBase')}
             {renderOptionRow('HDRI Environment', 'environmentHdri')}
             {renderOptionRow(gameVariant.optionLabels.puck, 'puck')}
             {renderOptionRow(gameVariant.optionLabels.mallet, 'mallet')}
             {renderOptionRow('Goals', 'goals')}
-          </div>
-        )}
-      </div>
+      </AirHockeySettingsSheet>
       {goalPopup && (
         <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
           <div
