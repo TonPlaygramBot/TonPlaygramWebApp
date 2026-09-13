@@ -1,3 +1,5 @@
+import {groundHeight} from '../../tirana-east/terrainCore.mjs';
+import {POLICE_STATION} from './ArrestSimulation.mjs';
 import {
   createState,
   navigation,
@@ -310,7 +312,7 @@ export class StreetCareerRuntime {
       /^(buy:|equip:)/.test(action) ||
       (this.paused && action === 'holster')
     ) {
-      if (this.simulation.body.action || this.state.players.local.carId || this.state.players.local.aircraftId)
+      if (this.simulation.arrest.locked || this.simulation.body.action || this.state.players.local.carId || this.state.players.local.aircraftId)
         return false;
       const item=action.startsWith('buy:')?action.slice(4):'';
       if(WEAPON_BY_ID.has(item)&&!this.state.players.local.inventory[item])return false;
@@ -342,6 +344,13 @@ export class StreetCareerRuntime {
     for (const event of this.simulation.events) {
       if (event.id <= this.eventAt) continue;
       this.eventAt = event.id;
+      if(event.kind==='arrest-complete'){
+        this.profile=campaign.saveExplore({...this.profile,active:null},p);
+        this.newRun(FREE_ROAM.id,'normal');
+        const released=this.state.players.local;released.x=POLICE_STATION.x;released.z=POLICE_STATION.z;released.weapon='';released.wanted=0;
+        this.simulation.body.y=groundHeight(released.x,released.z)+.08;this.simulation.body.notice='Drejtoria e Policisë Tiranë · Je liruar';
+        this.input.releaseAll();this.persist();this.emit();return;
+      }
       if (event.kind === 'checkpoint') this.persist();
       if (event.kind === 'enter') {
         this.renderer.yaw = this.simulation.body.yaw;
@@ -353,7 +362,7 @@ export class StreetCareerRuntime {
           1.3,
           this.renderer.pitch + 0.012 * this.settings.shake
         );
-      if (event.kind === 'dead' || event.kind === 'hurt')
+      if (event.kind === 'dead' || event.kind === 'arrest-spray')
         this.input.releaseAll();
       if (event.kind === 'arsenal') {
         this.pause();

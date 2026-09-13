@@ -9,9 +9,9 @@ export class GameInput {
     on(window,'blur',(()=>{if(this.active)this.onPause();this.clear();}) as EventListener);
     on(document,'visibilitychange',(()=>{if(document.hidden&&this.active)this.onPause();}) as EventListener);
     on(surface,'contextmenu',((e:Event)=>e.preventDefault()) as EventListener);
-    on(surface,'pointerdown',((e:PointerEvent)=>{if(!this.active)return;this.pointer=e.pointerId;this.last={x:e.clientX,y:e.clientY};surface.setPointerCapture(e.pointerId);if(e.pointerType==='mouse'){if(e.button===0){this.firing=true;this.onFire();}if(e.button===2)this.aiming=true;}}) as EventListener);
+    on(surface,'pointerdown',((e:PointerEvent)=>{if(!this.active||this.pointer!==null&&this.pointer!==e.pointerId)return;e.preventDefault();this.pointer=e.pointerId;this.last={x:e.clientX,y:e.clientY};surface.setPointerCapture(e.pointerId);if(e.pointerType==='mouse'){if(e.button===0){this.firing=true;this.onFire();}if(e.button===2)this.aiming=true;}}) as EventListener);
     on(surface,'pointermove',((e:PointerEvent)=>{if(!this.active)return;if(document.pointerLockElement===surface){this.onLook(e.movementX,e.movementY);return;}if(e.pointerId!==this.pointer)return;this.onLook(e.clientX-this.last.x,e.clientY-this.last.y);this.last={x:e.clientX,y:e.clientY};}) as EventListener);
-    const end=(e:PointerEvent)=>{if(e.pointerId===this.pointer){this.pointer=null;this.firing=false;if(e.pointerType==='mouse')this.aiming=false;}};
+    const end=(e:PointerEvent)=>{if(e.pointerId===this.pointer){this.pointer=null;if(e.pointerType==='mouse'){this.firing=false;this.aiming=false;}}};
     on(surface,'pointerup',end as EventListener);on(surface,'pointercancel',end as EventListener);on(surface,'lostpointercapture',end as EventListener);
     on(document,'pointerlockchange',(()=>{if(!document.pointerLockElement&&this.active)this.onPause();}) as EventListener);
   }

@@ -8,8 +8,14 @@ const turn=a=>Math.atan2(Math.sin(a),Math.cos(a));
 const key=(x,z)=>`${Math.floor(x/32)},${Math.floor(z/32)}`;
 export class TrafficGrid {
   cells=new Map();
+  queries=new Map();
   constructor(actors=[]){for(const a of actors){const k=key(a.x,a.z);let c=this.cells.get(k);if(!c)this.cells.set(k,c=[]);c.push(a);}}
-  near(x,z,r=48){const result=[];for(let ix=Math.floor((x-r)/32);ix<=Math.floor((x+r)/32);ix++)for(let iz=Math.floor((z-r)/32);iz<=Math.floor((z+r)/32);iz++){const c=this.cells.get(`${ix},${iz}`);if(c)for(const a of c)result.push(a);}return result;}
+  near(x,z,r=48){
+    const minX=Math.floor((x-r)/32),maxX=Math.floor((x+r)/32),minZ=Math.floor((z-r)/32),maxZ=Math.floor((z+r)/32),query=`${minX}:${maxX}:${minZ}:${maxZ}`;
+    const cached=this.queries.get(query);if(cached)return cached;
+    const result=[];for(let ix=minX;ix<=maxX;ix++)for(let iz=minZ;iz<=maxZ;iz++){const c=this.cells.get(`${ix},${iz}`);if(c)for(const a of c)result.push(a);}
+    this.queries.set(query,result);return result;
+  }
 }
 const sizeCache=new WeakMap();
 export function vehicleSize(car){
@@ -52,6 +58,12 @@ function roadGraph(){
   return graph={nodes,links,edges};
 }
 export function lanePoint(e,t=1){const {nodes}=roadGraph(),a=nodes[e.from],b=nodes[e.to],dx=(b[0]-a[0])/e.len,dz=(b[1]-a[1])/e.len;return {x:a[0]+(b[0]-a[0])*t-dz*e.lane,z:a[1]+(b[1]-a[1])*t+dx*e.lane};}
+/** Emergency routes use the same right-hand lanes and one-way rules as traffic. */
+export function trafficLaneRoute(ids){
+ const g=roadGraph(),edges=ids.slice(1).map((to,i)=>g.links[ids[i]]?.find(e=>e.to===to));
+ return ids.map((id,i)=>{const a=edges[i-1]&&lanePoint(edges[i-1]),b=edges[i]&&lanePoint(edges[i],0);
+  return a&&b?{x:(a.x+b.x)/2,z:(a.z+b.z)/2}:a||b||{x:g.nodes[id][0],z:g.nodes[id][1]};});
+}
 const nextRandom=c=>c.seed=(Math.imul(c.seed,1664525)+1013904223)>>>0;
 export function populateTraffic(state,spawn){
   const g=roadGraph(),occupied=new TrafficGrid([...state.cars,...state.traffic]);
@@ -77,7 +89,7 @@ export function populateTraffic(state,spawn){
     if(['sedan','sedan-sports','taxi'].includes(model)&&i%10===1)c.collectionVehicle=VEHICLE_COLLECTION[Math.floor(i/10)%VEHICLE_COLLECTION.length].id;
     if(model==='police'){c.forceVehicle=i%2?'traffic_bike':'patrol_sedan';c.forceCharacter=i%2?'traffic_officer':'patrol_officer';}
     if(bus){c.passengers=Array.from({length:12+i%9},(_,seat)=>({seat,face:(i+seat*3)%8,shirt:(i+seat)%6}));c.routeName=['UNAZA','KOMBINAT – KINOSTUDIO','TIRANË – KAMËZ'][i%3];c.livery=i%3;c.busStopAt=20+i*3;c.trailerHeading=heading;}
-    state.traffic.push(c);ids.add(id);const k=key(c.x,c.z);if(!occupied.cells.has(k))occupied.cells.set(k,[]);occupied.cells.get(k).push(c);
+    state.traffic.push(c);ids.add(id);const k=key(c.x,c.z);if(!occupied.cells.has(k))occupied.cells.set(k,[]);occupied.cells.get(k).push(c);occupied.queries.clear();
   };
   // Reserve articulated-bus clearance before filling ordinary traffic lanes.
   for(let i=0;i<CITY_POPULATION.buses;i++)make(i,true);

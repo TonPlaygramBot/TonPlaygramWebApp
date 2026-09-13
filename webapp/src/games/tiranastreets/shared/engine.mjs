@@ -993,6 +993,10 @@ export function publicState(state) {
     delete p.lastAction;
   }
   for (const n of s.npcs || []) {
+    delete n.tacticCache;
+    delete n.tacticAt;
+    delete n.aimSince;
+    delete n.lifeAccumulator;
     delete n.path;
     delete n.origin;
     delete n.nextShot;

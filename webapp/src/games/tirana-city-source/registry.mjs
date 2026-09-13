@@ -32,7 +32,7 @@ for (const b of landmarkBuildings(WORLD)) {
   CITY_PLACES.sites.push({id:`catalog/${b.id}`,sourceId:`way/${b.id}`,buildingId:b.id,
     name:profile.name,category:profile.category,country:profile.flagCountry,
     footprint:b.p,x:b.p.reduce((s,v)=>s+v[0],0)/b.p.length,z:b.p.reduce((s,v)=>s+v[1],0)/b.p.length,
-    height:profile.height??b.h,tags:b.tags??{},match:'mapped catalog footprint',source:profile.source,
+    height:b.visualHeightSource?b.h:profile.height??b.h,tags:b.tags??{},match:'mapped catalog footprint',source:profile.source,
     website:null,placementAccuracy:'Mapped outline; pole location estimated',anchor:null});
 }
 export const INSTITUTION_BUILDING_IDS = new Set([...CITY_PLACES.sites.map(p=>p.buildingId),...Object.keys(REFERENCE_BUILDINGS),...LANDMARK_REPLACED_IDS]);

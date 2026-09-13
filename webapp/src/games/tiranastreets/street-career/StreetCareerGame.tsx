@@ -1,4 +1,5 @@
 import {OpticalSight} from '../OpticalSight';
+import {touchAction} from '../touchActions';
 import {weaponAnchors} from './weaponPose.mjs';
 import {
   useEffect,
@@ -171,7 +172,7 @@ export function StreetCareerGame({ onExit }: { onExit: () => void }) {
         title={a.disabledReason || a.label}
         data-action={a.id}
         data-enabled={a.enabled}
-        onClick={() => runtime.current?.action(a.id, a.targetId)}
+        {...touchAction(() => { runtime.current?.action(a.id, a.targetId); }, a.enabled)}
       >
         {a.label}
         {!a.enabled && a.disabledReason && <small>{a.disabledReason}</small>}
@@ -253,12 +254,12 @@ export function StreetCareerGame({ onExit }: { onExit: () => void }) {
           </nav>
           {!driving && !flying && <WeaponSwitcher
             selected={p.weapon || ''}
-            disabled={p.health <= 0 || p.finished || p.failed}
-            weapons={Object.entries(p.inventory).flatMap(([id, ammo]) => {
+            disabled={p.health <= 0 || p.finished || p.failed || !!p.arrest && p.arrest.phase!=='pursuit'}
+            weapons={[{id:'',label:'No weapon',icon:'✋'},...Object.entries(p.inventory).flatMap(([id, ammo]) => {
               const w = WEAPON_BY_ID.get(id);
-              return w ? [{id, label: w.label, thumbnail: `/assets/tirana-streets/weapon-thumbnails/${id}.webp`,
+              return w ? [{id, label: w.label, icon:({punch:'✊',egg:'🥚',tomato:'🍅'} as Record<string,string>)[id], category:w.category, thumbnail: `/assets/tirana-streets/weapon-thumbnails/${id}.webp`,
                 ammo: w.category === 'melee' ? undefined : ammo.ammo, reserve: ammo.reserve}] : [];
-            })}
+            })]}
             onOpen={() => {reset(); runtime.current?.input.releaseAll();}}
             onSelect={id => runtime.current?.action(`equip:${id}`) ?? false}
           />}
@@ -306,6 +307,10 @@ export function StreetCareerGame({ onExit }: { onExit: () => void }) {
             <i />
             <i />
           </div>}
+          {p.arrest && p.arrest.phase!=='pursuit' && <div className={'tsc-custody tsc-custody-'+p.arrest.phase} role="status">
+            <strong>{view.body.notice}</strong><span>Drejtoria e Policisë Tiranë · pranë Myslym Shyrit</span>
+            <progress aria-label="Arrest sequence" max="5" value={['spray','down','backup','escort','transport'].indexOf(p.arrest.phase)+1}/>
+          </div>}
           <div className="tsc-actions">
             {actionButton('interact', 'context')}
             {flying ? (
@@ -330,8 +335,8 @@ export function StreetCareerGame({ onExit }: { onExit: () => void }) {
               </>
             ) : (
               <>
-                {actionButton(p.weapon ? 'aim' : 'guard', 'aim')}
-                {actionButton(p.weapon ? 'reload' : 'kick', 'secondary')}
+                {actionButton(p.weapon && p.weapon!=='punch' ? 'aim' : 'guard', 'aim')}
+                {actionButton(p.weapon && p.weapon!=='punch' ? 'reload' : 'kick', 'secondary')}
                 {actionButton('jump', 'jump')}
                 {primary && (
                   <button

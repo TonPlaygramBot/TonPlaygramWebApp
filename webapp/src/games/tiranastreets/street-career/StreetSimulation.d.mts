@@ -81,6 +81,8 @@ export class StreetSimulation {
   state: State;
   combat: import('./CombatSimulation.mjs').CombatSimulation;
   flight: import('./FlightSimulation.mjs').FlightSimulation;
+  arrest: import('./ArrestSimulation.mjs').ArrestSimulation;
+  throwables: import('./ThrowableSimulation.mjs').ThrowableSimulation;
   world: import('./spatialCore.mjs').StreetWorld;
   body: BodyState;
   intent: StreetIntent;

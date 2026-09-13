@@ -9,7 +9,7 @@ import {forceVehicleFor, forceCharacterFor, type ForceAsset} from './shared/alba
 import type {Point, NPC, Car} from './shared/engine.mjs';
 
 export type ForceCar = Pick<Car, 'id' | 'x' | 'z' | 'heading' | 'speed' | 'steering' | 'model' | 'forceVehicle' | 'responding'>;
-export type ForceNPC = Pick<NPC, 'id' | 'x' | 'z' | 'heading' | 'speed' | 'kind' | 'motion' | 'health' | 'forceCharacter' | 'anim'>;
+export type ForceNPC = Pick<NPC, 'id' | 'x' | 'z' | 'heading' | 'speed' | 'kind' | 'motion' | 'health' | 'forceCharacter' | 'anim'> & Partial<Pick<NPC,'weapon'|'aimPitch'>>;
 export type ForceFrame = {cars: ForceCar[]; traffic: ForceCar[]; units: ForceCar[]; npcs: ForceNPC[]};
 type Candidate = {key: string; asset: ForceAsset; entity: ForceCar | ForceNPC; distance: number; flashing: boolean};
 type Source = {gltf: GLTF; frame: T.Group; used: number};
@@ -20,6 +20,7 @@ type Actor = {
   moving?: boolean;
   height?:number;
   gaitSpeed?:number;
+  poseTime?:number;
 };
 
 /** Prefetch final models outside their visible range. Generic role models are
@@ -151,7 +152,10 @@ export class AlbanianForcesVisuals {
       const first = !actor.root.userData.placed;
       const oldX=actor.root.position.x,oldZ=actor.root.position.z;
       const alpha = first ? 1 : Math.min(1, dt * (person ? 12 : 18));
-      actor.root.position.lerp(new T.Vector3(e.x, groundHeight(e.x,e.z)+(person ? .06 : .03), e.z), alpha);
+      const ground=groundHeight(e.x,e.z);
+      actor.root.position.x+=(e.x-actor.root.position.x)*alpha;
+      actor.root.position.z+=(e.z-actor.root.position.z)*alpha;
+      actor.root.position.y=ground+(person?.06:.03);
       actor.root.rotation.y += Math.atan2(Math.sin(e.heading + Math.PI - actor.root.rotation.y), Math.cos(e.heading + Math.PI - actor.root.rotation.y)) * (first ? 1 : Math.min(1, dt * 14));
       if(!person)alignVehicle(actor.root,e.heading+Math.PI);
       actor.root.userData.placed = true;
@@ -160,18 +164,23 @@ export class AlbanianForcesVisuals {
         const measured=first||dt<=0?0:Math.hypot(actor.root.position.x-oldX,actor.root.position.z-oldZ)/dt;
         actor.gaitSpeed=(actor.gaitSpeed||0)+(measured-(actor.gaitSpeed||0))*(1-Math.exp(-dt*12));
         const moving=actor.gaitSpeed>.12&&npc.health>0&&!riding;
-        resetForcePose(actor.root);
         const height=riding?.38:npc.anim==='cover'?-.32:.06;
         actor.height=(actor.height??height)+(height-(actor.height??height))*(1-Math.exp(-dt*12));
-        actor.root.position.y=groundHeight(e.x,e.z)+actor.height;
+        actor.root.position.y=ground+actor.height;
         actor.root.rotation.x = npc.health <= 0 ? -Math.PI / 2 : 0;
         if (actor.moving !== moving) {
           (moving ? actor.walk : actor.idle)?.reset().fadeIn(.18).play();
           (moving ? actor.idle : actor.walk)?.fadeOut(.18);
           actor.moving = moving;
         }
-        if (npc.health > 0) actor.mixer?.update(dt * (moving ? Math.min(2.8, Math.max(.15, actor.gaitSpeed / 1.4)) : 1));
-        poseForce(actor.root, npc.anim || (moving ? 'walk' : 'idle'), npc.health > 0,dt);
+        actor.poseTime=(actor.poseTime||0)+dt;
+        // Nearby combat stays at render rate; distant original uniforms retain
+        // all detail with 20/10 Hz skeletal sampling and smooth root movement.
+        if(first||c.distance<35||actor.poseTime>=(c.distance<85?.05:.1)){
+          const poseDt=actor.poseTime;actor.poseTime=0;resetForcePose(actor.root);
+          if(npc.health>0)actor.mixer?.update(poseDt*(moving?Math.min(2.8,Math.max(.15,actor.gaitSpeed/1.4)):1));
+          poseForce(actor.root,npc.anim||(moving?'walk':'idle'),npc.health>0,poseDt,npc.aimPitch||0,npc.weapon??undefined);
+        }
       } else {
         const car = e as ForceCar;
         for (const wheel of actor.wheels) wheel.rotation.z -= car.speed * dt / actor.asset.wheelRadius;

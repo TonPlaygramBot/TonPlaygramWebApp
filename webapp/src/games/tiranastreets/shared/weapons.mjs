@@ -1,6 +1,9 @@
 import {UPLOADED_WEAPONS} from './uploadedWeapons.mjs';
 // Shared Ludo Battle Royal IDs. Values are fictional arcade balance.
 export const WEAPONS = Object.freeze([
+  {id:'punch',label:'Punch',category:'melee',model:'punch',magazine:1,damage:16,interval:.42,range:1.5,reload:0,price:0,radius:0},
+  {id:'egg',label:'Eggs',category:'throwable',model:'egg',magazine:12,damage:0,interval:.7,range:24,reload:.6,price:0,radius:0},
+  {id:'tomato',label:'Tomatoes',category:'throwable',model:'tomato',magazine:12,damage:0,interval:.75,range:22,reload:.6,price:0,radius:0},
   ...UPLOADED_WEAPONS,
   {id:'combatKnife',label:'Combat Knife',category:'melee',model:'combat-knife',magazine:1,damage:35,interval:.55,range:1.65,reload:0,price:0,radius:0},
   {
@@ -437,13 +440,13 @@ export const WEAPONS = Object.freeze([
 ].map(w=>Object.freeze({...w,model: ['fpsGunAttack','glockSidearmAttack','uziSprayAttack','ak47VolleyAttack','krsvBurstAttack','smithSidearmAttack','mosinMarksmanAttack'].includes(w.id)?w.id:w.model})));
 export const WEAPON_BY_ID = new Map(WEAPONS.map(w => [w.id, w]));
 export const STARTER_WEAPON = "ak47VolleyAttack";
-export const STARTER_WEAPONS = Object.freeze([STARTER_WEAPON, 'combatKnife']);
+export const STARTER_WEAPONS = Object.freeze([STARTER_WEAPON, 'combatKnife', 'punch', 'egg', 'tomato']);
 /** Idempotent migration: preserve existing equipment and ammunition. */
 export function ensureStarterWeapons(player) {
   player.inventory ||= {};
   for (const id of STARTER_WEAPONS) {
     // A chosen three-firearm kit already satisfies the starter migration.
-    if(id===STARTER_WEAPON&&!player.inventory.fpsGunAttack&&Object.keys(player.inventory).filter(key=>WEAPON_BY_ID.get(key)?.category!=='melee'&&WEAPON_BY_ID.has(key)).length>=3)continue;
+    if(id===STARTER_WEAPON&&!player.inventory.fpsGunAttack&&Object.keys(player.inventory).filter(key=>!['melee','throwable'].includes(WEAPON_BY_ID.get(key)?.category)&&WEAPON_BY_ID.has(key)).length>=3)continue;
     const w = WEAPON_BY_ID.get(id);
     player.inventory[id] ||= {ammo:w.magazine,reserve:w.category==='melee'?0:w.magazine*3};
   }

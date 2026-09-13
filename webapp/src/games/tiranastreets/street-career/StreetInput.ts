@@ -10,7 +10,11 @@ export class StreetInput extends CityInput {
   ) {
     super(dispatch);
     window.addEventListener('keydown', this.extra);
+    window.addEventListener('blur', this.resetPointers);
+    document.addEventListener('visibilitychange', this.hidden);
   }
+  private resetPointers = () => this.releaseAll();
+  private hidden = () => { if (document.hidden) this.releaseAll(); };
   private extra = (e: KeyboardEvent) => {
     if (
       !this.active ||
@@ -46,21 +50,17 @@ export class StreetInput extends CityInput {
     if (
       !this.active ||
       this.owners.has(id) ||
-      [...this.owners.values()].some((v) => v.kind === kind)
+      (['look', 'move'].includes(kind) && [...this.owners.values()].some((v) => v.kind === kind))
     )
       return false;
     this.owners.set(id, { kind, x, y });
-    if (kind === 'fire') this.touch.fire = true;
-    if (kind === 'gas') this.touch.gas = 1;
-    if (kind === 'reverse') this.touch.gas = -1;
-    if (kind === 'brake') this.touch.brake = true;
-    if (kind === 'ascend') this.touch.fast = true;
+    this.syncHeld();
     return true;
   }
   pointerMove(id: number, x: number, y: number) {
     const owner = this.owners.get(id);
     if (!owner) return;
-    if (owner.kind === 'look' || owner.kind === 'fire')
+    if (owner.kind === 'look' || owner.kind === 'fire' && ![...this.owners.values()].some(v => v.kind === 'look'))
       this.look(x - owner.x, y - owner.y);
     owner.x = x;
     owner.y = y;
@@ -69,15 +69,7 @@ export class StreetInput extends CityInput {
     const owner = this.owners.get(id);
     if (!owner) return;
     this.owners.delete(id);
-    if (owner.kind === 'fire') this.touch.fire = false;
-    if (owner.kind === 'gas' || owner.kind === 'reverse')
-      this.touch.gas = [...this.owners.values()].some((o) => o.kind === 'gas')
-        ? 1
-        : [...this.owners.values()].some((o) => o.kind === 'reverse')
-          ? -1
-          : 0;
-    if (owner.kind === 'brake') this.touch.brake = false;
-    if (owner.kind === 'ascend') this.touch.fast = false;
+    this.syncHeld();
     if (owner.kind === 'move') {
       this.touch.x = 0;
       this.touch.y = 0;
@@ -87,11 +79,20 @@ export class StreetInput extends CityInput {
     this.owners?.clear();
     this.clear();
   }
+  private syncHeld() {
+    const held = new Set([...this.owners.values()].map(o => o.kind));
+    this.touch.fire = held.has('fire');
+    this.touch.gas = Number(held.has('gas')) - Number(held.has('reverse'));
+    this.touch.brake = held.has('brake');
+    this.touch.fast = held.has('ascend');
+  }
   readStreet(yaw: number, pitch: number, driving: boolean): StreetIntent {
     return { ...this.read(yaw, driving), pitch };
   }
   override destroy() {
     window.removeEventListener('keydown', this.extra);
+    window.removeEventListener('blur', this.resetPointers);
+    document.removeEventListener('visibilitychange', this.hidden);
     this.releaseAll();
     super.destroy();
   }

@@ -1,4 +1,5 @@
 import {steerNPC,friendlyInFiringLane} from './npcNavigation.mjs';
+import {createFootPatrols} from './patrols.mjs';
 import {vehicleSize} from './trafficSimulation.mjs';
 import { CITY_POPULATION, initCityPopulation, nearestShop, dropWeapon, collectWeapon } from './cityPopulation.mjs';
 import { WEAPON_BY_ID, STARTER_WEAPON, ensureStarterWeapons, difficultyOf } from "./weapons.mjs";
@@ -37,6 +38,7 @@ export function initCityLife(state, env, mission) {
   state.effectSeq = 0;
   state.nextDispatch = 8;
   initCityPopulation(state, env);
+  state.npcs.push(...createFootPatrols(env.world,env.spawn));
   state.npcs.push({
     ...state.shop,
     id: "dealer",
@@ -206,6 +208,7 @@ export function lifeAction(state, p, action) {
   }
   if (action.startsWith("equip:")) {
     const id = action.slice(6);
+    if(!id){p.weapon='';p.reloadAt=0;return true;}
     if (p.inventory[id] && WEAPON_BY_ID.has(id)) {
       p.weapon = id;
       p.reloadAt = 0;
@@ -531,7 +534,7 @@ export function updateCityLife(state, dt, env, mission) {
   }
   for (const n of state.npcs) {
     let npcDt=dt;
-    if(n.kind==='civilian' && !players.some(p=>(p.x-n.x)**2+(p.z-n.z)**2<180*180)){
+    if((n.kind==='civilian'||n.patrol) && !players.some(p=>(p.x-n.x)**2+(p.z-n.z)**2<180*180)){
       n.lifeAccumulator=(n.lifeAccumulator||0)+dt;
       if(n.lifeAccumulator<.4)continue;
       npcDt=n.lifeAccumulator;n.lifeAccumulator=0;
@@ -600,9 +603,11 @@ export function updateCityLife(state, dt, env, mission) {
           (n.kind === "gang" || p.wanted > 0),
       )
       .sort((a, b) => dist(a, n) - dist(b, n))[0];
+    if(actual&&env.officerAction?.(n,actual,npcDt,env))continue;
     const p = actual && env.track ? env.track(n, actual) : actual;
     if (!p) {
-      n.speed = 0;
+      if(n.patrol&&n.path?.length){walkTo(n.path[n.pathIndex],1.45);env.collide(n,.45);n.anim='walk';if(dist(n,n.path[n.pathIndex])<.6)n.pathIndex=1-n.pathIndex;}
+      else {n.speed=0;n.anim='idle';}
       continue;
     }
     const unit = n.unit && state.units.find((u) => u.id === n.unit),
@@ -633,7 +638,8 @@ export function updateCityLife(state, dt, env, mission) {
     n.motion = "walk";
     const cars=[...state.cars,...(state.traffic||[]),...state.units];
     const squad=state.npcs.filter(o=>o.health>0 && (n.squadId?o.squadId===n.squadId:o.kind===n.kind&&dist(n,o)<45));
-    const tactic=tacticalGoal(n,p,squad,cars,state.elapsed,env.clear);
+    if(!n.tacticCache||state.elapsed>=(n.tacticAt||0)){n.tacticCache=tacticalGoal(n,p,squad,cars,state.elapsed,env.clear);n.tacticAt=state.elapsed+.12;}
+    const tactic=n.tacticCache;
     n.anim=tactic.anim; n.coverId=tactic.coverId; n.speed=0;
     if(n.anim==='run'||n.anim==='walk') {
       walkTo(avoidVehicles(n,tactic.goal,cars),n.anim==='run'?3.6:1.45); env.collide(n,.45);
@@ -645,9 +651,10 @@ export function updateCityLife(state, dt, env, mission) {
         n.x+=Math.cos(a)*(.85-l)*.5;n.z+=Math.sin(a)*(.85-l)*.5;}
     }
     env.collide(n,.45);
-    if(n.anim==='aim'||n.anim==='cover') n.heading=Math.atan2(n.x-p.x,n.z-p.z);
+    if(n.anim==='aim'||n.anim==='cover'){const aim=Math.atan2(n.x-p.x,n.z-p.z);n.heading+=Math.atan2(Math.sin(aim-n.heading),Math.cos(aim-n.heading))*Math.min(1,npcDt*12);}
+    if(n.anim!=='aim')n.aimSince=undefined;else n.aimSince??=state.elapsed;
     const canShoot=n.anim==='aim' && !cars.some(c=>vehicleBlocks(n,p,c)) && !friendlyInFiringLane(n,p,state.npcs.filter(o=>o.kind===n.kind||o.kind!=='gang'&&n.kind!=='gang'));
-    if (canShoot && d < 46 && state.elapsed >= n.nextShot && env.clear(n, actual || p) && (!env.track || p === actual)) {
+    if (canShoot && !actual?.arrest && state.elapsed-(n.aimSince||0)>.18 && d < 46 && state.elapsed >= n.nextShot && env.clear(n, actual || p) && (!env.track || p === actual)) {
       if(env.fireNPC){env.fireNPC(n,actual||p,cfg.damage);continue;}
       n.nextShot =
         state.elapsed + (n.kind === "soldier" ? 0.85 : 1.6) / cfg.damage;

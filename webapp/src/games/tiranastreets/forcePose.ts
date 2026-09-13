@@ -1,48 +1,58 @@
 import * as T from 'three';
-const rest = new WeakMap<T.Object3D, Map<T.Object3D, T.Quaternion>>();
-const transitions=new WeakMap<T.Object3D,{aim:number;cover:number;ride:number}>();
-/** Private cloned rigs only. Restore before sampling clips to avoid pose accumulation. */
-export function resetForcePose(root:T.Object3D) {
-  rest.get(root)?.forEach((q,bone)=>bone.quaternion.copy(q));
+import {npcWeaponPose} from './shared/npcWeaponPose.mjs';
+type Joint={bone:T.Object3D;base:T.Quaternion;changed:boolean};
+type Pose={joints:Map<string,Joint>;carry:number;cover:number;ride:number};
+const rigs=new WeakMap<T.Object3D,Pose>();
+const shoulder=new T.Vector3(),elbow=new T.Vector3(),hand=new T.Vector3(),target=new T.Vector3();
+const axis=new T.Vector3(),pole=new T.Vector3(),bendPoint=new T.Vector3(),current=new T.Vector3(),desired=new T.Vector3();
+const rotation=new T.Quaternion(),parentRotation=new T.Quaternion(),wanted=new T.Quaternion(),angles=new T.Euler();
+function rig(root:T.Object3D){
+ let pose=rigs.get(root);
+ if(!pose){const joints=new Map<string,Joint>();root.traverse(bone=>{if(bone instanceof T.Bone)joints.set(bone.name,{bone,base:bone.quaternion.clone(),changed:false});});pose={joints,carry:0,cover:0,ride:0};rigs.set(root,pose);}
+ return pose;
 }
-export function poseForce(root:T.Object3D, anim:string, alive=true,dt=1/60) {
-  if(!alive)return;
-  const weights=transitions.get(root)||{aim:0,cover:0,ride:0};
-  const alpha=1-Math.exp(-Math.max(0,Math.min(dt,.1))*12);
-  for(const key of ['aim','cover','ride'] as const)weights[key]+=((anim===key?1:0)-weights[key])*alpha;
-  transitions.set(root,weights);
-  const bases=new Map<T.Object3D,T.Quaternion>();
-  const turn=(name:string,x:number,y=0,z=0)=>{
-    const bone=root.getObjectByName(T.PropertyBinding.sanitizeNodeName(name)); if(!bone)return;
-    bases.set(bone,bone.quaternion.clone());
-    bone.quaternion.multiply(new T.Quaternion().setFromEuler(new T.Euler(x,y,z)));
-  };
-  const total=weights.aim+weights.cover+weights.ride;
-  // Aim a chain segment in world space so local bone authoring axes do not
-  // determine the visible direction of the hands/weapon.
-  const pointBone=(boneName:string,childName:string,target:T.Vector3)=>{
-    const bone=root.getObjectByName(T.PropertyBinding.sanitizeNodeName(boneName)),child=root.getObjectByName(T.PropertyBinding.sanitizeNodeName(childName));
-    if(!bone||!child||!bone.parent)return;
-    bases.set(bone,bone.quaternion.clone());root.updateMatrixWorld(true);
-    const p=bone.getWorldPosition(new T.Vector3()),q=child.getWorldPosition(new T.Vector3());
-    const desired=root.localToWorld(target.clone()).sub(p).normalize();
-    const rotation=new T.Quaternion().setFromUnitVectors(q.sub(p).normalize(),desired);
-    const parent=bone.parent.getWorldQuaternion(new T.Quaternion());
-    const wanted=bone.quaternion.clone().premultiply(parent.clone().invert().multiply(rotation).multiply(parent));
-    bone.quaternion.slerp(wanted,Math.min(1,total));
-  };
-  if(total>.001) {
-    const y=(weights.ride*1.08+weights.aim*1.3+weights.cover*1.02)/total;
-    const z=(weights.ride*.46+weights.aim*.63+weights.cover*.38)/total;
-    pointBone('upperarm01.R','lowerarm01.R',new T.Vector3(-.19,y,z));
-    pointBone('lowerarm01.R','wrist.R',new T.Vector3(-.2,y,z));
-    pointBone('upperarm01.L','lowerarm01.L',new T.Vector3(.04,y-.04,z+.15));
-    pointBone('lowerarm01.L','wrist.L',new T.Vector3(.02,y-.04,z+.15));
-  }
-  const bend=weights.cover+weights.ride;
-  if(bend>.001) {
-    turn('upperleg01.L',-1.05*bend);turn('upperleg01.R',-1.05*bend);
-    turn('lowerleg01.L',1.3*bend);turn('lowerleg01.R',1.3*bend);turn('spine02',.15*bend);
-  }
-  rest.set(root,bases);
+export function resetForcePose(root:T.Object3D){
+ for(const j of rigs.get(root)?.joints.values()||[])if(j.changed){j.bone.quaternion.copy(j.base);j.changed=false;}
+}
+/** Two-bone arm IK uses the same grip anchors as the player and the NPC gun.
+ * Only the affected bone ancestry is updated, never the entire uniform mesh. */
+export function poseForce(root:T.Object3D,anim:string,alive=true,dt=1/60,pitch=0,weapon='ak47VolleyAttack'){
+ if(!alive)return;
+ const pose=rig(root),alpha=1-Math.exp(-Math.max(0,Math.min(dt,.15))*12);
+ pose.cover+=((anim==='cover'?1:0)-pose.cover)*alpha;
+ pose.ride+=((anim==='ride'?1:0)-pose.ride)*alpha;
+ pose.carry+=((weapon||anim==='spray'||anim==='ride'?1:0)-pose.carry)*alpha;
+ const get=(name:string)=>pose.joints.get(T.PropertyBinding.sanitizeNodeName(name));
+ const remember=(j:Joint)=>{if(!j.changed){j.base.copy(j.bone.quaternion);j.changed=true;}};
+ const turn=(name:string,x:number)=>{const j=get(name);if(j){remember(j);j.bone.quaternion.multiply(rotation.setFromEuler(angles.set(x,0,0)));}};
+ const bend=pose.cover+pose.ride;
+ if(bend>.001){turn('upperleg01.L',-1.05*bend);turn('upperleg01.R',-1.05*bend);turn('lowerleg01.L',1.3*bend);turn('lowerleg01.R',1.3*bend);turn('spine02',.15*bend);}
+ if(pose.carry<.001)return;
+ root.updateWorldMatrix(true,false);
+ const grip=npcWeaponPose({weapon,anim,aimPitch:pitch,x:0,z:0,heading:0});
+ const point=(j:Joint,child:Joint,goal:T.Vector3)=>{
+  if(!j.bone.parent)return;remember(j);
+  j.bone.getWorldPosition(current);child.bone.getWorldPosition(desired).sub(current).normalize();
+  current.multiplyScalar(-1).add(goal).normalize();rotation.setFromUnitVectors(desired,current);
+  j.bone.parent.getWorldQuaternion(parentRotation);
+  wanted.copy(parentRotation).invert().multiply(rotation).multiply(parentRotation).multiply(j.bone.quaternion);
+  j.bone.quaternion.slerp(wanted,pose.carry);
+ };
+ for(const side of ['R','L']){
+  const upper=get(`upperarm01.${side}`),lower=get(`lowerarm01.${side}`),wrist=get(`wrist.${side}`);if(!upper||!lower||!wrist)continue;
+  const g=side==='R'?grip.right:grip.left;
+  target.set(g.x,g.y,g.z);
+  if(anim==='spray')target.set(side==='R'?grip.origin.x:.16,side==='R'?grip.origin.y:1.1,side==='R'?grip.origin.z:.16);
+  if(anim==='ride')target.set(side==='R'?-.2:.2,1.08,.46);
+  target.applyMatrix4(root.matrixWorld);
+  upper.bone.getWorldPosition(shoulder);lower.bone.getWorldPosition(elbow);wrist.bone.getWorldPosition(hand);
+  const a=shoulder.distanceTo(elbow),b=elbow.distanceTo(hand),distance=shoulder.distanceTo(target);
+  if(a<.001||b<.001||distance<.001)continue;
+  const d=T.MathUtils.clamp(distance,Math.abs(a-b)+.001,a+b-.001),along=(a*a-b*b+d*d)/(2*d);
+  axis.copy(target).sub(shoulder).normalize();target.copy(shoulder).addScaledVector(axis,d);
+  pole.set(side==='R'?-.5:.5,-1,-.25).transformDirection(root.matrixWorld);
+  pole.addScaledVector(axis,-pole.dot(axis)).normalize();
+  bendPoint.copy(shoulder).addScaledVector(axis,along).addScaledVector(pole,Math.sqrt(Math.max(0,a*a-along*along)));
+  point(upper,lower,bendPoint);point(lower,wrist,target);
+ }
 }

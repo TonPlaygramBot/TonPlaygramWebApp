@@ -10,6 +10,29 @@ type Wall=(e:FacadeEdge,color:number,u:number,y:number,w:number,h:number,d:numbe
  * No per-window materials, textures, lights or animation loops. */
 export function landmarkDetails(profile:ReferenceProfile,edges:FacadeEdge[],height:number,add:Add,box:Box,wall:Wall,centre:{x:number;z:number}) {
  const style=profile.style;
+ if(style==='downtown-one'){
+  const storey=height/37,long=Math.max(...edges.map(e=>e.length));
+  // The published design's relief is interpreted at facade scale; no survey
+  // or exact apartment-by-apartment bay pattern is claimed.
+  const widths=[1,2,3,3,4,3,4,3,2,3,2,1];
+  for(const e of edges){
+   if(e.length<2)continue;
+   wall(e,0x355565,e.length/2,height/2,e.length-.12,height-.2,.08,.05);
+   const columns=Math.max(1,Math.floor(e.length/3)),bay=e.length/columns;
+   for(let floor=0;floor<37;floor++){
+    const y=(floor+.5)*storey;wall(e,profile.trim,e.length/2,(floor+1)*storey,e.length,.16,.12,.13);
+    for(let j=0;j<columns;j++){
+     const u=(j+.5)*bay;wall(e,profile.trim,j*bay,y,.1,storey,.1,.15);
+     const band=Math.floor((floor-5)/2),width=widths[band]||0;
+     if(e.length>long*.8&&Math.abs(j-(columns-1)/2)<width/2){
+      wall(e,profile.trim,u,y,bay*.92,storey*.92,1.05,.55);
+      wall(e,0x3f6370,u,y,bay*.82,storey*.76,.08,1.12);
+     }
+    }
+   }
+  }
+  return true;
+ }
  if(!['grand','mangalem','delijorgji','studenti','studenti-renovated','teg','qtu','ring','toptani','sky','sheraton','stadium','plaza','congress'].includes(style))return false;
  const glass=0x365867,white=profile.trim;
  for(const e of edges){

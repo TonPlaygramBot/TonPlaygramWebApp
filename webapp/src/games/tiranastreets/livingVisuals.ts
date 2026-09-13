@@ -1,3 +1,5 @@
+import {pocketWeapon} from './PocketWeapons';
+import {npcWeaponPose} from './shared/npcWeaponPose.mjs';
 import {IMPORTED_BY_ID} from './shared/importedAssets.mjs';
 import {UPLOADED_WEAPONS} from './shared/uploadedWeapons.mjs';
 import {calibrateWeaponModel, hideAuthoredWeaponHands} from './weaponCalibration';
@@ -56,6 +58,7 @@ export class LivingVisuals {
   private disposed = false;
   private stamp = 0;
   constructor(includeShop = true) {
+    for(const id of ['punch','egg','tomato','pepper-spray'])this.models.set(id,pocketWeapon(id));
     const geometry = new THREE.BufferGeometry();
     geometry.setAttribute(
       "position",
@@ -170,7 +173,7 @@ export class LivingVisuals {
       }
       hideAuthoredWeaponHands(source, url);
       prepared = prepareWeaponScene(source);
-      const wrapper = calibrateWeaponModel(prepared,url,.8);
+      const wrapper = calibrateWeaponModel(prepared,url,1);
       wrapper.traverse(o=>{if(o instanceof THREE.Mesh)o.castShadow=true;});
       if (prepared !== source) releaseBatchedSourceGeometry(source);
       this.models.set(name, wrapper);
@@ -193,7 +196,7 @@ export class LivingVisuals {
     if (this.disposed) return;
     const weapon = entity.weapon || "",
       config = WEAPON_BY_ID.get(weapon),
-      name = config ? weaponModelFile(config.model) : "";
+      name = 'anim' in entity && entity.anim==='spray' ? 'pepper-spray' : config ? weaponModelFile(config.model) : "";
     let holder = this.holders.get(id);
     if (!holder) {
       holder = { group: new THREE.Group(), weapon: "" };
@@ -213,17 +216,11 @@ export class LivingVisuals {
     if (name && !this.models.has(name)) void this.load(name);
     // Never display yesterday's gun using the newly selected weapon's stats.
     holder.group.visible = !!name && holder.weapon === name && entity.health > 0 && !("motion" in entity && entity.motion === "drive");
-    const shot =
-      "nextShot" in entity &&
-      typeof entity.nextShot === "number" &&
-      entity.nextShot - time > 0.01;
     const reload = "reloadAt" in entity && entity.reloadAt > time;
-    holder.group.scale.setScalar(
-      config?.category === "sidearm" ? 0.5 : config?.radius ? 0.85 : 1,
-    );
-    const aiming=!("anim" in entity) || entity.anim==="aim";
-    holder.group.position.set(-0.22, aiming?1.3:1.02, (aiming?.43:.3) - (shot ? 0.05 : 0));
-    holder.group.rotation.set(reload ? -0.65 : aiming?0:.5, 0.05, 0);
+    const pose=npcWeaponPose({...entity,anim:reload?'reload':'anim' in entity?entity.anim:'aim'});
+    holder.group.scale.setScalar(['punch','egg','tomato','pepper-spray'].includes(name)?1:pose.length);
+    holder.group.position.set(pose.origin.x,pose.origin.y,pose.origin.z);
+    holder.group.rotation.set(-pose.pitch,0,0);
     const w = actor.getObjectByName("mixamorigRightArm"),
       left = actor.getObjectByName("mixamorigLeftArm");
     // Layer an aiming pose over the locomotion mixer, never edit shared skeletons.

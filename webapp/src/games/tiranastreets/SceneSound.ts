@@ -92,6 +92,8 @@ export class SceneSound {
     voice.clean=()=>{if(!this.voices.delete(voice))return;voice.nodes.forEach(n=>n.disconnect());};source.onended=voice.clean;this.voices.add(voice);source.start(c.currentTime+space.delay);return true;
   }
   event(kind: string, at?: SoundPoint) {
+    if(kind==='pepper-spray'){this.burst(.85,1600,.14,'bandpass',at);return;}
+    if(kind==='egg-splat'||kind==='tomato-splat'){this.burst(.12,420,.12,'lowpass',at);return;}
     if (kind === 'shot') { this.burst(.12, 2200, .33, 'lowpass', at); this.tone(135, .12, .2, 42, at); }
     else if (kind === 'missile' || kind === 'launch') { if(!this.sample('launch',at)){this.burst(.7, 1100, .45, 'bandpass', at); this.tone(160, .32, .2, 55, at);} }
     else if (['blast', 'explosion', 'vehicle-explosion'].includes(kind)) {

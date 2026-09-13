@@ -51,8 +51,8 @@ test('crossing traffic uses projected width/length without stopping for an adjac
  assert.equal(trafficDecision(driver,[crossing],[],0).reason,'vehicle');
 });
 test('all 41 weapons keep their sights exactly on the camera ray at every yaw and pitch',()=>{
- assert.equal(WEAPONS.length,41);
- for(const w of WEAPONS)for(const yaw of [0,.9,Math.PI])for(const pitch of [-1,0,.8]){
+ const weapons=WEAPONS.filter(w=>!['punch','egg','tomato'].includes(w.id));assert.equal(weapons.length,41);
+ for(const w of weapons)for(const yaw of [0,.9,Math.PI])for(const pitch of [-1,0,.8]){
   const p={x:12,z:42,weapon:w.id},b={yaw,pitch,y:5,eye:1.6,aim:true,wall:2};
   const pose=weaponPose(p,b),d=direction3(yaw,pitch),eye={x:p.x,y:b.y+b.eye,z:p.z};
   const v={x:pose.sight.x-eye.x,y:pose.sight.y-eye.y,z:pose.sight.z-eye.z};

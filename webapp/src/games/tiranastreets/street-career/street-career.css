@@ -33,3 +33,4 @@
 
 .tsc.is-flying .tsc-actions{grid-template-rows:48px repeat(3,var(--action-size))}
 .tsc.is-flying .tsc-slot-crouch{grid-area:4/1/5/3;min-height:48px}
+.tsc-custody{position:absolute;inset:0;z-index:3;pointer-events:none;background:radial-gradient(ellipse at center,transparent 25%,#3c241755);display:flex;align-items:center;flex-direction:column;padding-top:calc(95px + env(safe-area-inset-top,0px));text-shadow:0 1px 4px #000}.tsc-custody span{font-size:11px;margin-top:6px}.tsc-custody progress{width:145px;height:6px;margin-top:10px;accent-color:#aec7df}.tsc-custody-spray{background:radial-gradient(ellipse at center,#c29c7233,#a64a2855)}.tsc-custody-transport{background:#071119e0;z-index:5;padding-top:40dvh}

@@ -27,7 +27,7 @@ export class ReferenceFacades {
       if(!onlyIds&&'neighbourhood' in b&&b.neighbourhood&&!NEIGHBOURHOOD_REFERENCE_PROFILES[b.id])continue;
       if(onlyIds&&!onlyIds.has(b.id))continue;
       const profile=REFERENCE_BUILDINGS[b.id];if(!profile)continue;
-      const group=new T.Group(),height=profile.height??b.h;
+      const group=new T.Group(),height=b.visualHeightSource?b.h:profile.height??b.h;
       group.name=profile.name;group.userData={osmWay:b.id,site:b.site,reference:profile.source,referenceDate:profile.date,
         geometryAccuracy:'Original interpretation on retained footprint; dimensions not surveyed'};
       const parts=new Map<number,T.BufferGeometry[]>();

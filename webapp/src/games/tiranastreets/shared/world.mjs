@@ -4,10 +4,11 @@ import {WORLD as CENTRAL_WORLD} from './centralWorld.mjs';
 import {NEIGHBOURHOOD} from '../../tirana-neighbourhood/data.mjs';
 import {extendNeighbourhood} from '../../tirana-neighbourhood/worldExtension.mjs';
 import {OBSERVED_HEIGHTS} from '../../tirana-city-source/neighbourhoodProfiles.mjs';
+import {VERIFIED_LANDMARK_HEIGHTS} from '../../tirana-city-source/verifiedLandmarkHeights.mjs';
 import {EAST} from '../../tirana-east/data.mjs';
 export const WORLD=extendNeighbourhood(extendNeighbourhood(CENTRAL_WORLD,NEIGHBOURHOOD),EAST);
 // Keep rendering and collision on the same visual height; preserve raw source
 // provenance instead of changing or inventing an OSM measured-height tag.
-WORLD.buildings=WORLD.buildings.map(b=>{const observed=OBSERVED_HEIGHTS[b.id];return observed?{...b,h:observed.height,originalHeight:b.h,heightBasis:observed.basis,visualHeightSource:observed.source}:b;});
+WORLD.buildings=WORLD.buildings.map(b=>{const observed=VERIFIED_LANDMARK_HEIGHTS[b.id]||OBSERVED_HEIGHTS[b.id];return observed?{...b,h:observed.height,originalHeight:b.h,heightBasis:observed.basis,visualHeightSource:observed.source}:b;});
 
 WORLD.buildings.push(...BUSINESS_BUILDING_PARTS);

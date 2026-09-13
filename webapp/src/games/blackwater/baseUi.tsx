@@ -1,3 +1,4 @@
+import {touchAction} from '../tiranastreets/touchActions';
 import {OpticalSight} from '../tiranastreets/OpticalSight';
 import {opticZoom} from '../tiranastreets/shared/weaponCalibration.mjs';
 'use client';
@@ -10,6 +11,7 @@ import {
   useEffect,
   useRef,
   useState,
+  type ButtonHTMLAttributes,
   type PointerEvent as ReactPointer
 } from 'react';
 import {
@@ -494,32 +496,25 @@ export function Game({
                 onSelect={id => engine.current?.switchWeapon(id as WeaponId) ?? false}/>}
               <div className="touch-controls">
                 <Joystick engine={engine.current} />
-                <button
+                <HoldButton
                   className="sprint-btn"
                   aria-label="Hold to sprint"
-                  onPointerDown={(e) => {
-                    e.preventDefault();
-                    e.currentTarget.setPointerCapture(e.pointerId);
-                    if (engine.current) engine.current.input.sprinting = true;
-                  }}
-                  onPointerUp={() => { if (engine.current) engine.current.input.sprinting = false; }}
-                  onPointerCancel={() => { if (engine.current) engine.current.input.sprinting = false; }}
-                  onLostPointerCapture={() => { if (engine.current) engine.current.input.sprinting = false; }}
+                  onHold={held=>{if(engine.current)engine.current.input.sprinting=held;}}
                 >
                   <Footprints size={22} />
                   <span>SPRINT</span>
-                </button>
+                </HoldButton>
                 <div className="bw-vehicle-context">
                   {!state.online&&(state.driving||state.nearVehicle)&&<button aria-label={state.driving?'Exit vehicle':'Enter vehicle'} onClick={()=>engine.current?.toggleVehicle()}>{state.driving?'EXIT VEHICLE':'DRIVE'}</button>}
                   {state.driving&&<button aria-label="Change driving camera view" onClick={()=>engine.current?.changeVehicleCamera()}>CAMERA · {state.vehicleView?.toUpperCase()}</button>}
                 </div>
                 {state.driving?<div className="bw-pedals"><small>{state.vehicleSpeed} km/h · steer with left stick</small>
-                  {(['reverse','brake','gas'] as const).map(pedal=><button key={pedal} aria-label={pedal} onPointerDown={e=>{e.preventDefault();e.currentTarget.setPointerCapture(e.pointerId);engine.current?.setVehiclePedal(pedal,true);}} onPointerUp={()=>{engine.current?.setVehiclePedal(pedal,false);}} onPointerCancel={()=>{engine.current?.setVehiclePedal(pedal,false);}} onLostPointerCapture={()=>{engine.current?.setVehiclePedal(pedal,false);}}>{pedal.toUpperCase()}</button>)}
+                  {(['reverse','brake','gas'] as const).map(pedal=><HoldButton key={pedal} aria-label={pedal} onHold={held=>engine.current?.setVehiclePedal(pedal,held)}>{pedal.toUpperCase()}</HoldButton>)}
                 </div>:<div className="right-controls">
                   <LookFire engine={engine.current} />
                   <button
                     className={`touch-btn ads ${state.aim ? 'active' : ''}`}
-                    onClick={() => engine.current?.toggleAim()}
+                    {...touchAction(() => { engine.current?.toggleAim(); })}
                     aria-label="Aim down sights"
                     aria-pressed={state.aim}
                   >
@@ -528,7 +523,7 @@ export function Game({
                   </button>
                   <button
                     className="touch-btn reload"
-                    onClick={() => engine.current?.reload()}
+                    {...touchAction(() => { engine.current?.reload(); })}
                     aria-label="Reload weapon"
                   >
                     <RotateCw size={22} />
@@ -536,7 +531,7 @@ export function Game({
                   </button>
                   <button
                     className={`touch-btn crouch ${state.crouch ? 'active' : ''}`}
-                    onClick={() => engine.current?.toggleCrouch()}
+                    {...touchAction(() => { engine.current?.toggleCrouch(); })}
                     aria-label="Toggle crouch"
                     aria-pressed={state.crouch}
                   >
@@ -983,6 +978,20 @@ const MiniMap = memo(function MiniMap({ state }: { state: Snapshot }) {
     </div>
   );
 });
+function HoldButton({onHold,...props}:ButtonHTMLAttributes<HTMLButtonElement>&{onHold:(held:boolean)=>void}){
+  const owners=useRef(new Set<number>()),callback=useRef(onHold);callback.current=onHold;
+  const release=(id:number)=>{if(owners.current.delete(id))callback.current(owners.current.size>0);};
+  useEffect(()=>{
+    const clear=()=>{owners.current.clear();callback.current(false);};
+    const hidden=()=>{if(document.hidden)clear();};
+    window.addEventListener('blur',clear);document.addEventListener('visibilitychange',hidden);
+    return()=>{window.removeEventListener('blur',clear);document.removeEventListener('visibilitychange',hidden);clear();};
+  },[]);
+  return <button {...props} onPointerDown={e=>{e.preventDefault();if(e.pointerType==='mouse'&&e.button!==0)return;owners.current.add(e.pointerId);e.currentTarget.setPointerCapture(e.pointerId);callback.current(true);}}
+    onPointerUp={e=>release(e.pointerId)} onPointerCancel={e=>release(e.pointerId)} onLostPointerCapture={e=>release(e.pointerId)}
+    onKeyDown={e=>{if((e.key===' '||e.key==='Enter')&&!e.repeat){e.preventDefault();owners.current.add(-1);callback.current(true);}}}
+    onKeyUp={e=>{if(e.key===' '||e.key==='Enter'){e.preventDefault();release(-1);}}}/>;
+}
 function Joystick({ engine }: { engine: GameEngine | null }) {
   const knob = useRef<HTMLSpanElement>(null),
     active = useRef<number | null>(null),
@@ -999,12 +1008,13 @@ function Joystick({ engine }: { engine: GameEngine | null }) {
     if (knob.current)
       knob.current.style.transform = `translate(${x * r}px,${y * r}px)`;
   }
-  function end() {
+  function end(e?: ReactPointer<HTMLDivElement>) {
+    if (e && active.current !== e.pointerId) return;
     active.current = null;
     if (engine) engine.input.move = { x: 0, y: 0 };
     if (knob.current) knob.current.style.transform = 'translate(0,0)';
   }
-  useEffect(() => end, [engine]);
+  useEffect(() => () => end(), [engine]);
   return (
     <div
       className="joystick"
@@ -1012,6 +1022,7 @@ function Joystick({ engine }: { engine: GameEngine | null }) {
       aria-label="Movement joystick"
       onPointerDown={(e) => {
         e.preventDefault();
+        if (active.current !== null) return;
         const r = e.currentTarget.getBoundingClientRect();
         center.current = { x: r.left + r.width / 2, y: r.top + r.height / 2 };
         active.current = e.pointerId;
@@ -1035,17 +1046,19 @@ function Joystick({ engine }: { engine: GameEngine | null }) {
 function LookFire({ engine }: { engine: GameEngine | null }) {
   const active = useRef<number | null>(null),
     last = useRef({ x: 0, y: 0 });
-  function stop() {
+  function stop(e?: ReactPointer<HTMLButtonElement>) {
+    if (e && active.current !== e.pointerId) return;
     active.current = null;
     if (engine) engine.input.firing = false;
   }
-  useEffect(() => stop, [engine]);
+  useEffect(() => () => stop(), [engine]);
   return (
     <button
       className="fire-btn"
       aria-label="Hold to fire; drag to aim"
       onPointerDown={(e) => {
         e.preventDefault();
+        if (active.current !== null) return;
         active.current = e.pointerId;
         last.current = { x: e.clientX, y: e.clientY };
         e.currentTarget.setPointerCapture(e.pointerId);

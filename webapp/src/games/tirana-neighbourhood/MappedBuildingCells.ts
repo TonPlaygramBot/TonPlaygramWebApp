@@ -4,7 +4,7 @@ import {buildingGround} from '../tirana-east/terrainCore.mjs';
 import * as T from 'three';
 import {CellWorkQueue} from './cellWorkQueue.mjs';
 import {appendBuildingShell,shellGeometry} from './buildingShell';
-import {sourceBuildingColour,firstWindowHeight} from './buildingAppearance';
+import {sourceBuildingColour,windowRows} from './buildingAppearance';
 import {EnvironmentMaterials} from '../tirana-environment/EnvironmentMaterials';
 import {surfaceGeometry} from '../tirana-environment/riverGeometry';
 import {mergeGeometries} from 'three/examples/jsm/utils/BufferGeometryUtils.js';
@@ -35,6 +35,7 @@ export class MappedBuildingCells {
  }
  build(buildings:any[],detailOnly=false){
   const group=new T.Group(),shells:T.BufferGeometry[]=[],windows:T.BufferGeometry[]=[],roofs:T.BufferGeometry[]=[];
+  const windowPositions:number[]=[],windowNormals:number[]=[],windowUvs:number[]=[];
   for(const original of buildings){
    const base=buildingGround(original),b={...original,h:original.h+base,minHeight:(original.minHeight||0)+base};
    if(!detailOnly){
@@ -63,12 +64,18 @@ export class MappedBuildingCells {
    if(housingProfile(b)||this.aged&&AGED_HOUSING_IDS.has(String(b.id)))continue;
    for(const edge of facadeEdges(b.p)){
     const columns=Math.min(24,Math.floor(edge.length/4));if(!columns)continue;
-    for(let y=firstWindowHeight(b);y<b.h-1;y+=3.2)for(let j=0;j<columns;j++){
+    for(const row of windowRows(original))for(let j=0;j<columns;j++){
      const u=(j+.5)*edge.length/columns;
-     windows.push(new T.PlaneGeometry(Math.min(1.45,edge.length/columns-.8),1.65).rotateY(Math.atan2(edge.nx,edge.nz)).translate(edge.a[0]+edge.ux*u+edge.nx*.055,y,edge.a[1]+edge.uz*u+edge.nz*.055));
+     const x=edge.a[0]+edge.ux*u+edge.nx*.055,z=edge.a[1]+edge.uz*u+edge.nz*.055,y=base+row.y,halfW=Math.min(1.45,edge.length/columns-.8)/2,halfH=row.height/2;
+     // One buffer for the cell, instead of a geometry and merge per window.
+     for(const [sx,sy,tu,tv] of [[-1,1,0,1],[-1,-1,0,0],[1,1,1,1],[-1,-1,0,0],[1,-1,1,0],[1,1,1,1]]){
+       windowPositions.push(x+edge.nz*sx*halfW,y+sy*halfH,z-edge.nx*sx*halfW);
+       windowNormals.push(edge.nx,0,edge.nz);windowUvs.push(tu,tv);
+     }
     }
    }
   }
+  if(windowPositions.length)windows.push(new T.BufferGeometry().setAttribute('position',new T.Float32BufferAttribute(windowPositions,3)).setAttribute('normal',new T.Float32BufferAttribute(windowNormals,3)).setAttribute('uv',new T.Float32BufferAttribute(windowUvs,2)));
   for(const [parts,material,detail] of [[shells,this.wall,false],[windows,this.glass,true],[roofs,this.roof,false]] as const){
    if(!parts.length)continue;const geo=mergeGeometries(parts,false);parts.forEach(g=>g.dispose());
    if(!geo)throw Error('Mapped building cell merge failed');
