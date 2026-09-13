@@ -1,5 +1,10 @@
-export const LUDO_TOKEN_COUNT = 4;
-export const LUDO_GOAL_PROGRESS = 57;
+import {
+  LUDO_TOKEN_COUNT,
+  LUDO_GOAL_PROGRESS,
+  getLudoMovableTokens,
+  getLudoCaptureVictims
+} from '../../shared/ludoBattleRules.js';
+export { LUDO_TOKEN_COUNT, LUDO_GOAL_PROGRESS };
 
 const cloneProgress = (progress) => progress.map((row) => [...row]);
 
@@ -26,11 +31,7 @@ export class LudoBattleGame {
   }
 
   movableTokens(playerIndex, roll = this.pendingRoll) {
-    if (!Number.isInteger(roll) || roll < 1 || roll > 6) return [];
-    return this.progress[playerIndex].flatMap((value, token) => {
-      if (value < 0) return roll === 6 ? [token] : [];
-      return value + roll <= LUDO_GOAL_PROGRESS ? [token] : [];
-    });
+    return getLudoMovableTokens(this.progress[playerIndex], roll);
   }
 
   roll(playerId, random = Math.random) {
@@ -60,24 +61,12 @@ export class LudoBattleGame {
     const from = this.progress[playerIndex][tokenIndex];
     const to = from < 0 ? 0 : from + roll;
     this.progress[playerIndex][tokenIndex] = to;
-    const captures = [];
-    // Main-track safe cells and home lanes cannot capture. Progress values are
-    // converted to the shared 52-cell ring using each seat's 13-cell offset.
-    if (to >= 0 && to < 52) {
-      const landingCell = (to + playerIndex * 13) % 52;
-      const safe = new Set([0, 8, 13, 21, 26, 34, 39, 47]);
-      if (!safe.has(landingCell)) {
-        this.progress.forEach((tokens, opponent) => {
-          if (opponent === playerIndex) return;
-          tokens.forEach((value, opponentToken) => {
-            if (value >= 0 && value < 52 && (value + opponent * 13) % 52 === landingCell) {
-              tokens[opponentToken] = -1;
-              captures.push({ player: opponent, token: opponentToken });
-            }
-          });
-        });
-      }
-    }
+    const captures = getLudoCaptureVictims(
+      this.progress, playerIndex, to, this.players.map((_, seat) => seat * 13)
+    );
+    captures.forEach(({ player, token: capturedToken }) => {
+      this.progress[player][capturedToken] = -1;
+    });
 
     this.pendingRoll = null;
     if (this.progress[playerIndex].every((value) => value === LUDO_GOAL_PROGRESS)) {
