@@ -12,7 +12,8 @@ import type { WeaponId } from './core';
 export const BODY_WEAPON: Record<WeaponId, string> = {
   ar: 'krsvBurstAttack', smg: 'uziSprayAttack', ak47: 'ak47VolleyAttack',
   shotgun: 'shotgunBlastAttack', mosin: 'mosinMarksmanAttack', uzi: 'uziSprayAttack',
-  sigsauer: 'sigsauerTacticalAttack', smith: 'smithSidearmAttack'
+  sigsauer: 'sigsauerTacticalAttack', smith: 'smithSidearmAttack',
+  acr:'adaptiveCombatRifleAttack', dragunov:'dragunovAttack', vityaz:'vityazAttack', ar15:'ar15Attack', makarov:'makarovAttack'
 };
 
 /** Selected uploaded human, Three.js animation mixer and shared weapon-grip IK.

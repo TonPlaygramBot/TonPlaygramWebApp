@@ -3,6 +3,7 @@ import {createRoot} from 'react-dom/client';
 import {afterEach,beforeEach,expect,it,vi} from 'vitest';
 import {PlayerPicker} from './PlayerPicker';
 import {selectedPlayerAsset} from './playerCatalog.mjs';
+import {selectedStartingLoadout} from './startingLoadout.mjs';
 
 const preview=vi.hoisted(()=>({props:null}));
 vi.mock('./PlayerPreview',()=>({PlayerPreview:props=>{preview.props=props;return <div aria-label="Model preview"/>;}}));
@@ -24,9 +25,22 @@ it('offers exactly the supplied three and waits for the selected model to render
  await act(async()=>preview.props.onState({url:preview.props.url,ready:true,message:'ready'}));
  expect(button().disabled).toBe(false);
  await act(async()=>button().click());
+ expect(start).not.toHaveBeenCalled();expect(host.querySelector('h1').textContent).toBe('Choose three weapons');
+ await act(async()=>button().click());
  expect(start).toHaveBeenCalledOnce();expect(selectedPlayerAsset().id).toBe('polish');
  await act(async()=>preview.props.onState({url:preview.props.url,ready:false,message:'3D preview interrupted'}));
  expect(button().disabled).toBe(true);
+});
+it('preserves the three-weapon loadout flow after choosing an uploaded player',async()=>{
+ await render();await act(async()=>preview.props.onState({url:preview.props.url,ready:true,message:'ready'}));
+ const click=selector=>act(async()=>host.querySelector(selector).click());
+ await click('.player-continue');
+ await click('[aria-label="Choose AR15 Rifle"]');expect(host.querySelector('.loadout-count').textContent).toContain('Remove one');
+ await click('[aria-label="Remove PP-19-01 · Vityaz"]');expect(button().disabled).toBe(true);
+ await click('[aria-label="Choose AR15 Rifle"]');expect(button().disabled).toBe(false);
+ await click('.player-back');expect(back).not.toHaveBeenCalled();
+ await click('.player-continue');await click('.player-continue');
+ expect(start).toHaveBeenCalledOnce();expect(selectedStartingLoadout()).toEqual(['adaptiveCombatRifleAttack','makarovAttack','ar15Attack']);
 });
 it('recovers a missing manifest and keeps Back usable without a model',async()=>{
  fetch.mockRejectedValueOnce(Error('offline'));

@@ -14,7 +14,9 @@ export class CityStores {
  update(state:State,p:Point){
   for(const s of state.shops||[state.shop]){
    const id=s.id||s.name;let room=this.shops.get(id);if(!room){room=this.template.group.clone(true);room.name=s.name;this.shops.set(id,room);this.group.add(room);}
-   room.position.set(s.x,0,s.z);room.visible=Math.hypot(p.x-s.x,p.z-s.z)<200;
+   const distance=Math.hypot(p.x-s.x,p.z-s.z);
+   room.position.set(s.x,0,s.z);room.visible=distance<200;
+   if(distance<55)this.template.updateDisplays(room);
   }
  }
  dispose(){this.group.removeFromParent();this.group.clear();this.shops.clear();this.template.dispose();this.signTexture.dispose();this.signMaterial.dispose();this.signGeometry.dispose();}

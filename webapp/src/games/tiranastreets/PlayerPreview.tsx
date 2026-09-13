@@ -34,7 +34,7 @@ export function PlayerPreview({url,label,onState}:{url:string|null;label:string;
       controls.minDistance=2.4;controls.maxDistance=5;controls.minPolarAngle=Math.PI*.22;controls.maxPolarAngle=Math.PI*.62;
       const resize=()=>{const width=root.clientWidth||320,height=root.clientHeight||330;camera.aspect=width/height;camera.updateProjectionMatrix();renderer?.setSize(width,height,false);};
       observer=new ResizeObserver(resize);observer.observe(root);resize();
-      const render=()=>{if(closed)return;frame=requestAnimationFrame(render);if(document.hidden)return;const dt=Math.min(.05,clock.getDelta());mixer?.update(dt);controls?.update();renderer?.render(scene,camera);};render();
+      const render=()=>{if(closed)return;frame=requestAnimationFrame(render);if(document.hidden||!root.getClientRects().length)return;const dt=Math.min(.05,clock.getDelta());mixer?.update(dt);controls?.update();renderer?.render(scene,camera);};render();
       void (async()=>{
         const response=await fetch(url,{signal:abort.signal});
         if(!response.ok)throw Error(`Character download failed (${response.status}).`);

@@ -10,6 +10,7 @@ export type Weapon = {
   reload: number;
   price: number;
   radius: number;
+  length?: number;
 };
 export const WEAPONS: readonly Weapon[];
 export const WEAPON_BY_ID: Map<string, Weapon>;

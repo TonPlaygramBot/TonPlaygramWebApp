@@ -2,6 +2,7 @@ import {FramePacer, targetFps} from '../tiranastreets/renderSettings';
 import { BattlefieldPlayer, BODY_WEAPON } from './BattlefieldPlayer';
 import {advanceBattleObjective} from './shared/missionCore.mjs';
 import {battleGround} from './shared/terrain.mjs';
+import {startingWeapons} from './startingWeapons';
 import {createWebGLRenderer} from '../tiranastreets/createWebGLRenderer';
 import { BattlefieldVehicle } from './BattlefieldVehicle';
 import { CombatEffects } from '../tiranastreets/CombatEffects';
@@ -335,6 +336,8 @@ export class GameEngine {
     this.resize();
   }
   start(weapon: WeaponId, difficulty: Difficulty, mapId: BattlefieldMapId = 'skanderbeg', battleMode:BattleMode='last-stand', operationId='') {
+    const starting=this.online?[weapon]:startingWeapons(weapon);
+    weapon=starting[0];
     this.clearActors();
     this.effects.forEach((e) => this.scene.remove(e.mesh));
     this.effects = [];
@@ -363,7 +366,8 @@ export class GameEngine {
     this.health = this.maxHealth = 100;
     this.ammo = WEAPONS[weapon].mag;
     this.reserve = WEAPONS[weapon].mag * 3;
-    this.inventory = {[weapon]:{ammo:this.ammo,reserve:this.reserve}};
+    this.inventory = Object.fromEntries(starting.map(id=>[id,{ammo:WEAPONS[id].mag,reserve:WEAPONS[id].mag*3}]));
+    if(!this.online)for(const id of starting)void this.playerVisual.rig.prepare(BODY_WEAPON[id]);
     this.medkits = 1;
     this.kills = 0;
     this.score = 0;

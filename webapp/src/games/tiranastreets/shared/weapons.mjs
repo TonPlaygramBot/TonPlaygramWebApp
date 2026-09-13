@@ -1,5 +1,7 @@
+import {UPLOADED_WEAPONS} from './uploadedWeapons.mjs';
 // Shared Ludo Battle Royal IDs. Values are fictional arcade balance.
 export const WEAPONS = Object.freeze([
+  ...UPLOADED_WEAPONS,
   {id:'combatKnife',label:'Combat Knife',category:'melee',model:'combat-knife',magazine:1,damage:35,interval:.55,range:1.65,reload:0,price:0,radius:0},
   {
     "id": "fpsGunAttack",
@@ -440,6 +442,8 @@ export const STARTER_WEAPONS = Object.freeze([STARTER_WEAPON, 'combatKnife']);
 export function ensureStarterWeapons(player) {
   player.inventory ||= {};
   for (const id of STARTER_WEAPONS) {
+    // A chosen three-firearm kit already satisfies the starter migration.
+    if(id===STARTER_WEAPON&&!player.inventory.fpsGunAttack&&Object.keys(player.inventory).filter(key=>WEAPON_BY_ID.get(key)?.category!=='melee'&&WEAPON_BY_ID.has(key)).length>=3)continue;
     const w = WEAPON_BY_ID.get(id);
     player.inventory[id] ||= {ammo:w.magazine,reserve:w.category==='melee'?0:w.magazine*3};
   }

@@ -173,5 +173,30 @@
     "id": "mrtkGunAttack",
     "source": "/assets/tirana-streets/imported/mrtkGunAttack.glb",
     "thumbnail": "mrtkGunAttack.webp"
+  },
+  {
+    "id": "adaptiveCombatRifleAttack",
+    "source": "/assets/tirana-streets/weapons/adaptiveCombatRifleAttack.glb",
+    "thumbnail": "adaptiveCombatRifleAttack.webp"
+  },
+  {
+    "id": "dragunovAttack",
+    "source": "/assets/tirana-streets/weapons/dragunovAttack.glb",
+    "thumbnail": "dragunovAttack.webp"
+  },
+  {
+    "id": "vityazAttack",
+    "source": "/assets/tirana-streets/weapons/vityazAttack.glb",
+    "thumbnail": "vityazAttack.webp"
+  },
+  {
+    "id": "ar15Attack",
+    "source": "/assets/tirana-streets/weapons/ar15Attack.glb",
+    "thumbnail": "ar15Attack.webp"
+  },
+  {
+    "id": "makarovAttack",
+    "source": "/assets/tirana-streets/weapons/makarovAttack.glb",
+    "thumbnail": "makarovAttack.webp"
   }
 ]

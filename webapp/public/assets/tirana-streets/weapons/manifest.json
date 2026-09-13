@@ -1,0 +1,85 @@
+{
+  "schemaVersion": 1,
+  "weapons": [
+    {
+      "id": "adaptiveCombatRifleAttack",
+      "file": "adaptive_combat_rifle.glb",
+      "url": "/assets/tirana-streets/weapons/adaptiveCombatRifleAttack.glb",
+      "bytes": 1760512,
+      "originalBytes": 39936540,
+      "sha256": "6c57defadb40ec1aab4bb5cb95890edc363cd24f0fe557d74f60c37102cc58d8",
+      "credits": {
+        "author": "doomsentinel (https://sketchfab.com/doomsentinel)",
+        "license": "CC-BY-4.0 (http://creativecommons.org/licenses/by/4.0/)",
+        "source": "https://sketchfab.com/3d-models/adaptive-combat-rifle-a18a8008a299430caa5f1fe05563c949",
+        "title": "Adaptive Combat Rifle",
+        "tiranaChanges": "Assembled firearm only; embedded mobile PBR textures; centered with barrel facing +Z.",
+        "originalSha256": "1f542720fd3f33662d904dfce31814b85eb758d5138961df6c0875eaa4ee3ce3"
+      }
+    },
+    {
+      "id": "dragunovAttack",
+      "file": "svd_63_-_dragunov.glb",
+      "url": "/assets/tirana-streets/weapons/dragunovAttack.glb",
+      "bytes": 1783120,
+      "originalBytes": 46439476,
+      "sha256": "5c3cd47505f3358de2caa3de8d636a5100c29cbc178bf32f7dbb9e0cf89ceffc",
+      "credits": {
+        "author": "lokeig (https://sketchfab.com/lokeig)",
+        "license": "CC-BY-NC-4.0 (http://creativecommons.org/licenses/by-nc/4.0/)",
+        "source": "https://sketchfab.com/3d-models/svd-63-dragunov-07ff1bb7af4449409e23c04539b6040e",
+        "title": "SVD 63 - Dragunov",
+        "tiranaChanges": "Assembled firearm only; embedded mobile PBR textures; centered with barrel facing +Z.",
+        "originalSha256": "6ce8c60933ae52ff07894d526293fdd83a573aa9d0f031d8bca2c23976b36916"
+      }
+    },
+    {
+      "id": "vityazAttack",
+      "file": "pp-19-01_vityaz.glb",
+      "url": "/assets/tirana-streets/weapons/vityazAttack.glb",
+      "bytes": 4090132,
+      "originalBytes": 169603384,
+      "sha256": "f1696bf56aa2e05210d8b2dd0d379070db5b5bd3928940757de68e88015cf183",
+      "credits": {
+        "author": "Mateusz Woli\u0144ski (https://sketchfab.com/jeandiz)",
+        "license": "SKETCHFAB Standard (https://sketchfab.com/licenses)",
+        "source": "https://sketchfab.com/3d-models/pp-19-01-vityaz-6d4a89d483374668b05343e71ed7da78",
+        "title": "PP-19-01 Vityaz",
+        "tiranaChanges": "Assembled firearm only; embedded mobile PBR textures; centered with barrel facing +Z.",
+        "originalSha256": "d91c47fed72016cb25357e1ae3797392b66ddcf95ace4e745a8e81ec3d8a99f2"
+      }
+    },
+    {
+      "id": "ar15Attack",
+      "file": "ar15_rifle.glb",
+      "url": "/assets/tirana-streets/weapons/ar15Attack.glb",
+      "bytes": 2526980,
+      "originalBytes": 119262628,
+      "sha256": "ef6b9f792dd4cbe9f19bbfd97c93bfc18541c4761626b339daf5d1a93aa8bff8",
+      "credits": {
+        "author": "Lokeig (https://sketchfab.com/lokeig)",
+        "license": "CC-BY-NC-4.0 (http://creativecommons.org/licenses/by-nc/4.0/)",
+        "source": "https://sketchfab.com/3d-models/ar15-rifle-8a1a6552bd4b4466ad6f0bb488b0bcb3",
+        "title": "AR15 Rifle",
+        "tiranaChanges": "Assembled firearm only; embedded mobile PBR textures; centered with barrel facing +Z.",
+        "originalSha256": "1cab85005a34c7a191dda5e58e4d0db917a1d664f62a73cb2d456c149b1d92cd"
+      }
+    },
+    {
+      "id": "makarovAttack",
+      "file": "makarov_pm.glb",
+      "url": "/assets/tirana-streets/weapons/makarovAttack.glb",
+      "bytes": 1387792,
+      "originalBytes": 54479736,
+      "sha256": "03d19471f5fdc82940f5d0fe0177e5125db20734493c34afa0df4b87ba6c0147",
+      "credits": {
+        "author": "Martin Trafas (https://sketchfab.com/Bexxie)",
+        "license": "CC-BY-4.0 (http://creativecommons.org/licenses/by/4.0/)",
+        "source": "https://sketchfab.com/3d-models/makarov-pm-dbf03ce95c834cb7b07edba799dcd46a",
+        "title": "Makarov PM",
+        "tiranaChanges": "Assembled firearm only; embedded mobile PBR textures; centered with barrel facing +Z.",
+        "originalSha256": "772fae4a0aadf33ede4e18bf41abb223307c3eef3305b5e8248063f7f7d51865"
+      }
+    }
+  ]
+}

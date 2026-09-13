@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import * as THREE from "three";
 import { GLTFLoader } from "three/examples/jsm/loaders/GLTFLoader.js";
 import { weaponModelUrl } from "./livingVisuals";
+import {UPLOADED_WEAPONS} from './shared/uploadedWeapons.mjs';
 
 const cache = new Map<string, string>();
 let queue = Promise.resolve();
@@ -40,8 +41,10 @@ async function renderThumbnail(model: string) {
 }
 
 export function WeaponThumbnail({ model, label }: { model: string; label: string }) {
+  const thumbnail=UPLOADED_WEAPONS.find(w=>w.model===model)?.thumbnail;
   const [source, setSource] = useState(() => cache.get(model) || "");
   useEffect(() => {
+    if(thumbnail)return;
     let active = true;
     queue = queue
       .then(() => renderThumbnail(model))
@@ -52,10 +55,10 @@ export function WeaponThumbnail({ model, label }: { model: string; label: string
     return () => {
       active = false;
     };
-  }, [model]);
+  }, [model,thumbnail]);
   return (
     <div className="ts-weapon-thumb" aria-hidden="true">
-      {source ? <img src={source} alt="" /> : <span>{label.slice(0, 2)}</span>}
+      {thumbnail||source ? <img src={thumbnail||source} alt="" /> : <span>{label.slice(0, 2)}</span>}
     </div>
   );
 }

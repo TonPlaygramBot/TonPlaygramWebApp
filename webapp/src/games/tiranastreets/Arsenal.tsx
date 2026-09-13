@@ -75,6 +75,7 @@ export function Arsenal({
           (w) => category === "all" || w.category === category,
         ).map((w) => {
           const owned = account?.ownedWeaponIds.includes(w.weaponId),
+            carried = !!player.inventory[w.weaponId],
             selected = player.weapon === w.weaponId;
           return (
             <div
@@ -88,7 +89,7 @@ export function Arsenal({
                   {w.category} · {w.priceTPG.toLocaleString()} TPG
                 </small>
               </div>
-              {owned && (
+              {(owned || carried) && (
                 <button
                   aria-pressed={selected}
                   disabled={selected}

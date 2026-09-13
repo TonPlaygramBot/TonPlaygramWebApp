@@ -9,6 +9,7 @@ import {
 } from '../shared/engine.mjs';
 import { WEAPONS, WEAPON_BY_ID, STARTER_WEAPON, ensureStarterWeapons } from '../shared/weapons.mjs';
 import {loadWeaponStoreAccount} from '../weaponStoreApi';
+import {applyStartingLoadout,selectedStartingLoadout} from '../startingLoadout.mjs';
 import { collideDetailPosts } from '../../tirana-street-detail/sharedRoadDetails.mjs';
 import { CityAudio } from '../audio';
 import { StreetRenderer } from './StreetRenderer';
@@ -98,6 +99,9 @@ export class StreetCareerRuntime {
     this.input.setEnabled(false);
     campaign.apply(this.state.players.local, this.profile.loadout);
     ensureStarterWeapons(this.state.players.local);
+    applyStartingLoadout(this.state.players.local,undefined,!this.profile.active&&this.profile.completed.length===0&&Object.keys(this.profile.loadout.inventory).every(id=>id===STARTER_WEAPON||id==='combatKnife'));
+    this.profile.loadout.inventory={...this.state.players.local.inventory};
+    this.profile.loadout.weapon=this.state.players.local.weapon;
     this.simulation.body.combat = 'ready';
     if (this.profile.active)
       this.newRun(this.profile.active.id, this.profile.active.difficulty, true);
@@ -114,7 +118,12 @@ export class StreetCareerRuntime {
     this.raf = requestAnimationFrame(this.loop);
   }
   async load(progress: (message: string) => void) {
-    void loadWeaponStoreAccount().then(a=>this.grantWeapons(a.ownedWeaponIds)).catch(()=>{});
+    void loadWeaponStoreAccount().then(a=>{
+      const chosen=selectedStartingLoadout();
+      // The account API includes the legacy free AK for everyone. Do not turn
+      // a new three-gun kit into four; an AK already carried in a save survives.
+      this.grantWeapons(a.ownedWeaponIds.filter(id=>id!==STARTER_WEAPON||!chosen||chosen.includes(id)||!!this.state.players.local.inventory[id]));
+    }).catch(()=>{});
     await Promise.all([this.renderer.load(progress),this.renderer.bodyRig.prepare(this.state.players.local.weapon)]);
     if (this.disposed || this.graphicsError) return;
     if (this.renderer.bodyRig.errors.length)
@@ -175,6 +184,7 @@ export class StreetCareerRuntime {
         campaign.apply
       );
     this.grantWeapons([...this.ownedWeapons]);
+    applyStartingLoadout(this.state.players.local);
     if (!restore) {
       ensureStarterWeapons(this.state.players.local);
       this.simulation.body.combat = this.state.players.local.weapon ? 'ready' : 'unarmed';
