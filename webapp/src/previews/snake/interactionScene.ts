@@ -24,7 +24,7 @@ export function createSnakeInteractionScene(assets: Record<string, object>, seat
   };
   const tableMesh = new THREE.ObjectLoader().parse(assets.table); scene.add(tableMesh);
   const outline = assets.tableOutline as unknown as number[];
-  const table = { radius: D.tableRadius, surfaceY: D.tableHeight,
+  const table = { radius: D.tableRadius, surfaceY: D.tableHeight, undersideY: Number(assets.tableUnderside),
     getOuterRadius(direction: THREE.Vector3) {
       const index = ((Math.atan2(direction.z, direction.x) / (Math.PI * 2) + 1) % 1) * outline.length;
       const lower = Math.floor(index), blend = index - lower;

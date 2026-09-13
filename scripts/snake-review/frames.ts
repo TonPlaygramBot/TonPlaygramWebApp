@@ -32,18 +32,18 @@ for(const id of ['polyAssaultRifle01Attack','polyPistol01Attack','polyShotgun01A
  await save(id+'-idle',review);
  if(id==='polyAssaultRifle01Attack') {
   for (const human of [review.human, review.receiver]) {
-   const intersections=[];
-   human.actor.traverse(o=>{
-    if(!o.isSkinnedMesh)return; o.skeleton.update();
-    for(let i=0;i<o.geometry.attributes.position.count;i++) {
+   let thighTop = -Infinity;
+   human.actor.traverse(o => {
+    if (!o.isSkinnedMesh || !o.name.includes('Bottom')) return;
+    o.skeleton.update();
+    for (let i=0; i<o.geometry.attributes.position.count; i++) {
      const p=o.getVertexPosition(i,new THREE.Vector3()).applyMatrix4(o.matrixWorld);
-     if(p.y<review.table.surfaceY-0.23||p.y>review.table.surfaceY)continue;
-     const radius=Math.hypot(p.x,p.z),limit=review.table.getOuterRadius(p.clone().setY(0).normalize());
-     if(radius<limit)intersections.push({mesh:o.name,point:p.toArray()});
+     if (Math.hypot(p.x,p.z)<review.table.getOuterRadius(p.clone().setY(0).normalize())) thighTop=Math.max(thighTop,p.y);
     }
    });
-   if (intersections.length) throw new Error('Table intersects character: '+JSON.stringify(intersections));
-   console.log('Table/character clearance verified');
+   const clearance=review.table.undersideY-thighTop;
+   if (clearance<0.02 || clearance>0.08) throw new Error('Thigh/table gap outside small-clearance range: '+clearance);
+   console.log('Original leg pose, underside clearance',clearance);
   }
  }
  review.start('dice');review.update(630);await save(id+'-pickup',review);

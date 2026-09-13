@@ -29,7 +29,7 @@ afterAll(() => { vi.unstubAllGlobals(); vi.restoreAllMocks(); });
 function fixture(count: number, shape = TABLE_SHAPE_OPTIONS[0]) {
   const scene = new THREE.Scene();
   const table = createMurlanStyleTable({ arena: scene, tableRadius: D.tableRadius, tableHeight: D.tableHeight,
-    shapeOption: shape, includeBase: false, flushPlayingSurface: true, textures: false });
+    shapeOption: shape, topThicknessScale: D.topThicknessScale, includeBase: false, flushPlayingSurface: true, textures: false });
   const root = new THREE.Group(); scene.add(root); root.position.y = D.tableHeight - 0.01;
   root.scale.set(D.footprintScale, D.boardScale, D.footprintScale);
   const board = createSnakeBoardScene(root, new THREE.Vector3(0, D.tableHeight, 0), null);
@@ -73,9 +73,14 @@ it.each(TABLE_SHAPE_OPTIONS)('supports all four flat imported firearms on $id wi
   }
 });
 
-it('lowers and narrows the table without pulling the chairs inward', () => {
+it('keeps the smaller tabletop just above the original seated thighs', () => {
   expect(D.tableRadius).toBeCloseTo(2.2875 * 0.90, 8);
-  expect(D.tableHeight).toBeCloseTo(0.65308575 * 0.88, 7);
+  expect(D.tableHeight).toBeCloseTo(0.835, 7);
+  const f = fixture(4);
+  const underside = new THREE.Box3().setFromObject(f.table.group).min.y;
+  expect(underside).toBeGreaterThan(0.735);
+  expect(underside).toBeLessThan(0.76);
+  f.table.dispose();
   expect(D.chairRadius).toBeCloseTo(2.2875 + 1.9173375 * 0.08, 8);
 });
 

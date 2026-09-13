@@ -36,6 +36,25 @@ function fixture(yaw: number) {
   return { scene, chair, human, point, board, seat, boardRoot, pickup: layout.basePositions[0] };
 }
 
+it('preserves the original seated leg rotations, size and foot positions', () => {
+  const scene = new THREE.Scene(), chair = new THREE.Group(); scene.add(chair);
+  chair.position.set(0, D.chairBaseHeight, D.chairRadius + D.seatClearance);
+  chair.rotation.y = Math.PI;
+  const { actor } = createRestoredSeatedHumanActor(template, chair, { targetHeight: 1.13, seatHeight: D.seatHeight })!;
+  const legs = ['RightUpLeg', 'RightLeg', 'RightFoot', 'LeftUpLeg', 'LeftLeg', 'LeftFoot'].map(name => actor.getObjectByName(name)!);
+  const before = legs.map(bone => ({ position: bone.position.clone(), quaternion: bone.quaternion.clone(), world: worldPoint(bone) }));
+  const scale = actor.scale.clone();
+  const human = createSnakeHumanInteraction(actor)!;
+  human.reset();
+  legs.forEach((bone, i) => {
+    expect(bone.position.equals(before[i].position)).toBe(true);
+    expect(bone.quaternion.angleTo(before[i].quaternion)).toBeLessThan(1e-7);
+    expect(worldPoint(bone).distanceTo(before[i].world)).toBeLessThan(1e-10);
+  });
+  expect(actor.scale.equals(scale)).toBe(true);
+  human.dispose();
+});
+
 it.each([0, Math.PI / 2, Math.PI, -Math.PI / 2])('reaches a stationary die, carries it and releases continuously at seat yaw %f', yaw => {
   const { scene, human, point, boardRoot, pickup } = fixture(yaw);
   // Nonuniform parent scaling is present on the production Snake board.

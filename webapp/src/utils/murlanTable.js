@@ -662,6 +662,7 @@ export function createMurlanStyleTable({
   baseOption = DEFAULT_TABLE_BASE_OPTION,
   includeBase = true,
   flushPlayingSurface = false,
+  topThicknessScale = 1,
   textures = true,
   shapeOption = TABLE_SHAPE_OPTIONS[0],
   rotationY = 0
@@ -669,11 +670,12 @@ export function createMurlanStyleTable({
   if (!arena) throw new Error('createMurlanStyleTable requires an arena group.');
 
   const scaleFactor = tableRadius / 0.9;
-  const woodDepth = 0.04 * scaleFactor;
-  const rimDepth = 0.06 * scaleFactor;
+  const topScale = Number.isFinite(topThicknessScale) ? THREE.MathUtils.clamp(topThicknessScale, 0.25, 1) : 1;
+  const woodDepth = 0.04 * scaleFactor * topScale;
+  const rimDepth = 0.06 * scaleFactor * topScale;
   const trimHeight = 0.08 * scaleFactor;
   const trimOffset = 0.06 * scaleFactor;
-  const clothRise = 0.07 * scaleFactor;
+  const clothRise = 0.07 * scaleFactor * topScale;
   let baseHeight = 0.38 * scaleFactor;
   const tableY = tableHeight - clothRise;
   const baseLift = 0.02 * scaleFactor;
@@ -794,8 +796,8 @@ export function createMurlanStyleTable({
   const rimSize = shapeOption?.id === 'grandOval' ? { width: tableRadius * 0.7, depth: tableRadius * 0.16 } : { width: tableRadius * 0.62, depth: tableRadius * 0.14 };
   const brandPlateSize = {
     // Slightly smaller footprint for a cleaner front rail read on portrait screens.
-    width: rimSize.width * 0.8,
-    depth: rimSize.depth * 0.78,
+    width: rimSize.width * 0.8 * topScale,
+    depth: Math.min(rimSize.depth * 0.78 * topScale, flushPlayingSurface ? (clothRise + woodDepth * 0.45) * 0.65 : Infinity),
     // Make the branding plate a bit thinner.
     thickness: 0.0054 * scaleFactor
   };
@@ -832,7 +834,7 @@ export function createMurlanStyleTable({
   brandPlate.rotation.x = THREE.MathUtils.degToRad(-1.4);
   if (flushPlayingSurface) {
     brandPlate.rotation.x = Math.PI / 2;
-    brandPlate.position.set(0, tableY - brandPlateSize.depth / 2, frontRadius + woodDepth * 0.45);
+    brandPlate.position.set(0, tableHeight - (clothRise + woodDepth * 0.45) / 2, frontRadius + woodDepth * 0.45);
   }
   brandPlate.castShadow = true;
   brandPlate.receiveShadow = true;
