@@ -96,9 +96,26 @@ const AVATAR_FRAME_STYLES = Object.freeze({
     'radial-gradient(circle at 30% 30%,rgba(255,255,255,.2),rgba(0,0,0,.12)),linear-gradient(135deg,#0ea5e9,#22c55e)'
 });
 
-export default function GameLiveAvatarOverlay({ gameSlug, children }) {
+export default function GameLiveAvatarOverlay({ gameSlug, children, onlineOnly = false }) {
   const { search } = useLocation();
   const params = useMemo(() => new URLSearchParams(search), [search]);
+  // Checkers practice and incomplete lobby links must never share a default call.
+  if (onlineOnly && (params.get('mode') !== 'online' || !params.get('tableId')?.trim())) {
+    return children;
+  }
+  const roomId = buildGameLiveChatRoomId(gameSlug, params);
+  // Leaving or changing matches releases media and requires a fresh opt-in.
+  return (
+    <LiveAvatarSession key={roomId} gameSlug={gameSlug} roomId={roomId}>
+      {children}
+    </LiveAvatarSession>
+  );
+}
+
+function LiveAvatarSession({ gameSlug, roomId, children }) {
+  const { search } = useLocation();
+  const isCheckers = gameSlug === 'checkersbattleroyal';
+  const usesOpponentAvatar = gameSlug === 'domino-royal' || isCheckers;
   const [liveMode, setLiveMode] = useState(false);
   const [anchorElement, setAnchorElement] = useState(null);
   const [opponentAnchorElement, setOpponentAnchorElement] = useState(null);
@@ -129,13 +146,6 @@ export default function GameLiveAvatarOverlay({ gameSlug, children }) {
       username || `${firstName || ''} ${lastName || ''}`.trim() || 'Player'
     );
   }, []);
-
-  const roomId = useMemo(() => {
-    // A live-chat room belongs to the match, not to an account. Including the
-    // local account ID here put the two online players in different signaling
-    // rooms, so their camera tracks could never be negotiated reliably.
-    return buildGameLiveChatRoomId(gameSlug, params);
-  }, [gameSlug, params]);
 
   const liveChat = useLiveVideoChat({
     roomId,
@@ -203,7 +213,9 @@ export default function GameLiveAvatarOverlay({ gameSlug, children }) {
       const seen = new Set();
       const contexts = getIframeContexts();
       for (const context of contexts) {
-        for (const selector of AVATAR_ANCHOR_SELECTORS) {
+        // Target only the photo: keep the Checkers name and turn ring visible.
+        const selectors = isCheckers ? ['[data-self-player="true"] img'] : AVATAR_ANCHOR_SELECTORS;
+        for (const selector of selectors) {
           const nodes = context.doc.querySelectorAll(selector);
           for (const candidate of nodes) {
             if (seen.has(candidate)) continue;
@@ -253,11 +265,13 @@ export default function GameLiveAvatarOverlay({ gameSlug, children }) {
         0
       );
       setAnchorElement(node);
-      if (gameSlug === 'domino-royal' || gameSlug === 'murlanroyale') {
+      if (usesOpponentAvatar || gameSlug === 'murlanroyale') {
         const opponentNodes = [];
         const opponentBoundsList = [];
         for (const context of getIframeContexts()) {
-          const selector = gameSlug === 'domino-royal'
+          const selector = isCheckers
+            ? '[data-self-player="false"] img'
+            : gameSlug === 'domino-royal'
             ? '[data-player-index]:not([data-self-player="true"]) .seat-badge-core'
             : '[data-self-player="false"] [data-player-index] img';
           context.doc.querySelectorAll(selector).forEach((candidate) => {
@@ -292,8 +306,8 @@ export default function GameLiveAvatarOverlay({ gameSlug, children }) {
             ? previous
             : opponentBoundsList
         ));
-        setOpponentAnchorElement(gameSlug === 'domino-royal' ? opponentNodes[0] || null : null);
-        setOpponentRect(gameSlug === 'domino-royal' ? opponentBoundsList[0] || null : null);
+        setOpponentAnchorElement(usesOpponentAvatar ? opponentNodes[0] || null : null);
+        setOpponentRect(usesOpponentAvatar ? opponentBoundsList[0] || null : null);
       }
       setOverlayRect((prev) => {
         if (
@@ -369,12 +383,12 @@ export default function GameLiveAvatarOverlay({ gameSlug, children }) {
       window.removeEventListener('orientationchange', scheduleApply);
       window.removeEventListener('scroll', scheduleApply, true);
     };
-  }, [gameSlug, search]);
+  }, [gameSlug, isCheckers, usesOpponentAvatar, search]);
 
   useEffect(() => {
     if (typeof window === 'undefined') return undefined;
     const hasOpenOverlay = () =>
-      BLOCKING_OVERLAY_SELECTORS.some((selector) => {
+      [...BLOCKING_OVERLAY_SELECTORS, ...(isCheckers ? ['[data-live-video-blocking="true"]'] : [])].some((selector) => {
         const node = document.querySelector(selector);
         if (!node) return false;
         if (node.id === 'rules') {
@@ -389,7 +403,7 @@ export default function GameLiveAvatarOverlay({ gameSlug, children }) {
       childList: true,
       subtree: true,
       attributes: true,
-      attributeFilter: ['class', 'style', 'aria-hidden']
+      attributeFilter: ['class', 'style', 'aria-hidden', 'data-live-video-blocking']
     });
     syncOverlayState();
     window.addEventListener('resize', syncOverlayState);
@@ -399,7 +413,7 @@ export default function GameLiveAvatarOverlay({ gameSlug, children }) {
       window.removeEventListener('resize', syncOverlayState);
       window.removeEventListener('orientationchange', syncOverlayState);
     };
-  }, []);
+  }, [isCheckers]);
 
   useEffect(() => {
     if (!anchorElement) return undefined;
@@ -422,6 +436,8 @@ export default function GameLiveAvatarOverlay({ gameSlug, children }) {
   }, [opponentAnchorElement, liveMode]);
 
   useEffect(() => {
+    // Single-opponent layouts already restore this photo in the effect above.
+    if (usesOpponentAvatar) return undefined;
     const previousVisibility = groupOpponentAnchorElements.map((element) => element.style.visibility);
     groupOpponentAnchorElements.forEach((element) => {
       if (liveMode) element.style.visibility = 'hidden';
@@ -431,7 +447,7 @@ export default function GameLiveAvatarOverlay({ gameSlug, children }) {
         element.style.visibility = previousVisibility[index] || '';
       });
     };
-  }, [groupOpponentAnchorElements, liveMode]);
+  }, [groupOpponentAnchorElements, liveMode, usesOpponentAvatar]);
 
   useEffect(() => {
     if (typeof window === 'undefined') return undefined;
@@ -453,6 +469,7 @@ export default function GameLiveAvatarOverlay({ gameSlug, children }) {
         <button
           type="button"
           aria-label="Turn on live avatar video"
+          title="Start video call"
           onClick={() => setLiveMode(true)}
           className="fixed z-[18] rounded-full bg-transparent touch-manipulation"
           style={{
@@ -460,9 +477,14 @@ export default function GameLiveAvatarOverlay({ gameSlug, children }) {
             left: `${activationRect.left}px`,
             width: `${activationRect.width}px`,
             height: `${activationRect.height}px`,
+            visibility: hasBlockingOverlay ? 'hidden' : 'visible',
             pointerEvents: hasBlockingOverlay ? 'none' : 'auto'
           }}
-        />
+        >
+          {isCheckers ? (
+            <span aria-hidden="true" className="absolute -bottom-1 -right-1 flex h-5 w-5 items-center justify-center rounded-full bg-emerald-700 text-[10px] text-white shadow">📹</span>
+          ) : null}
+        </button>
       ) : null}
       {liveMode && anchorElement ? (
         <button
@@ -475,6 +497,7 @@ export default function GameLiveAvatarOverlay({ gameSlug, children }) {
             left: `${overlayRect.left}px`,
             width: `${overlayRect.width}px`,
             height: `${overlayRect.height}px`,
+            visibility: hasBlockingOverlay ? 'hidden' : 'visible',
             pointerEvents: hasBlockingOverlay ? 'none' : 'auto',
             ...(gameSlug === 'domino-royal' ? AVATAR_FRAME_STYLES : {}),
             ...(gameSlug !== 'domino-royal'
@@ -497,7 +520,7 @@ export default function GameLiveAvatarOverlay({ gameSlug, children }) {
           />
         </button>
       ) : null}
-      {liveMode && gameSlug === 'domino-royal' && opponentRect ? (
+      {liveMode && usesOpponentAvatar && opponentRect ? (
         <div
           className="fixed z-[18] overflow-hidden pointer-events-none"
           style={{
@@ -513,7 +536,7 @@ export default function GameLiveAvatarOverlay({ gameSlug, children }) {
             <RemoteVideo peer={liveChat.remotePeers[0]} />
           ) : (
             <div className="flex h-full items-center justify-center bg-slate-950 text-center text-[8px] font-semibold text-white/70">
-              Waiting…
+              {isCheckers && liveChat.error ? 'Camera unavailable' : 'Waiting…'}
             </div>
           )}
         </div>
@@ -544,15 +567,22 @@ export default function GameLiveAvatarOverlay({ gameSlug, children }) {
         : null}
       {liveMode ? (
         <div
-          className={`fixed right-3 z-[18] flex flex-col gap-2 pointer-events-auto ${gameSlug === 'domino-royal' ? 'w-auto' : 'w-28'}`}
+          className={`fixed right-3 z-[18] flex flex-col gap-2 pointer-events-auto ${usesOpponentAvatar ? 'w-auto' : 'w-28'}`}
           style={{
             top: 'max(4.75rem, env(safe-area-inset-top))',
+            ...(isCheckers ? {
+              top: 'auto',
+              right: 'auto',
+              left: '12px',
+              bottom: 'max(80px, calc(env(safe-area-inset-bottom) + 64px))'
+            } : {}),
             opacity: hasBlockingOverlay ? 0 : 1,
+            visibility: hasBlockingOverlay ? 'hidden' : 'visible',
             pointerEvents: hasBlockingOverlay ? 'none' : 'auto'
           }}
           aria-live="polite"
         >
-          {gameSlug !== 'domino-royal' && gameSlug !== 'murlanroyale' ? <div className="h-36 w-28">
+          {!usesOpponentAvatar && gameSlug !== 'murlanroyale' ? <div className="h-36 w-28">
             {liveChat.remotePeers[0] ? (
               <RemoteVideo peer={liveChat.remotePeers[0]} />
             ) : (
@@ -561,11 +591,16 @@ export default function GameLiveAvatarOverlay({ gameSlug, children }) {
               </div>
             )}
           </div> : null}
-          <div className="flex justify-center gap-2">
+          {isCheckers && liveChat.error ? (
+            <p role="alert" className="max-w-[min(16rem,calc(100vw-24px))] rounded-xl bg-slate-950/95 p-3 text-xs text-white">
+              {liveChat.error} Turn off live video and tap your avatar to retry.
+            </p>
+          ) : null}
+          <div className={`flex justify-center gap-2 ${isCheckers ? 'flex-col items-start' : ''}`}>
             <button
               type="button"
               onClick={liveChat.toggleMicrophone}
-              className={`flex h-9 w-9 items-center justify-center rounded-full text-sm text-white shadow-lg ${liveChat.mediaState.microphone ? 'bg-emerald-600' : 'bg-rose-600'}`}
+              className={`flex ${isCheckers ? 'h-11 w-11' : 'h-9 w-9'} items-center justify-center rounded-full text-sm text-white shadow-lg ${liveChat.mediaState.microphone ? 'bg-emerald-600' : 'bg-rose-600'}`}
               aria-label={liveChat.mediaState.microphone ? 'Turn microphone off' : 'Turn microphone on'}
             >
               {liveChat.mediaState.microphone ? '🎙️' : '🔇'}
@@ -573,11 +608,21 @@ export default function GameLiveAvatarOverlay({ gameSlug, children }) {
             <button
               type="button"
               onClick={liveChat.toggleCamera}
-              className={`flex h-9 w-9 items-center justify-center rounded-full text-sm text-white shadow-lg ${liveChat.mediaState.camera ? 'bg-emerald-600' : 'bg-rose-600'}`}
+              className={`flex ${isCheckers ? 'h-11 w-11' : 'h-9 w-9'} items-center justify-center rounded-full text-sm text-white shadow-lg ${liveChat.mediaState.camera ? 'bg-emerald-600' : 'bg-rose-600'}`}
               aria-label={liveChat.mediaState.camera ? 'Turn camera off' : 'Turn camera on'}
             >
               {liveChat.mediaState.camera ? '📹' : '🚫'}
             </button>
+            {isCheckers ? (
+              <button
+                type="button"
+                onClick={() => setLiveMode(false)}
+                aria-label="End video call"
+                className="flex h-11 w-11 items-center justify-center rounded-full bg-rose-700 text-white shadow-lg"
+              >
+                ✕
+              </button>
+            ) : null}
           </div>
         </div>
       ) : null}

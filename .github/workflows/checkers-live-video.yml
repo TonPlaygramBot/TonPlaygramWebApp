@@ -1,0 +1,29 @@
+name: Checkers shared live video
+on:
+  pull_request:
+    paths:
+      - 'webapp/src/App.jsx'
+      - 'webapp/src/components/GameLiveAvatarOverlay*'
+      - 'webapp/src/components/AvatarTimer.jsx'
+      - 'webapp/src/hooks/useLiveVideoChat.js'
+      - 'webapp/src/utils/liveVideoRoom.js'
+      - 'webapp/src/pages/Games/CheckersBattleRoyal.jsx'
+      - 'webapp/vitest.video.config.mjs'
+      - '.github/workflows/checkers-live-video.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  video:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+          cache: npm
+          cache-dependency-path: webapp/package-lock.json
+      - run: npm ci --prefix webapp --ignore-scripts
+      - run: npm run test:video --prefix webapp
+      - run: node --test test/checkersLaunch.node.mjs bot/tests/checkersRealtimeState.test.js

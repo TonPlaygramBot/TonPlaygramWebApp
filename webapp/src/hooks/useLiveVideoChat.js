@@ -181,6 +181,9 @@ export default function useLiveVideoChat({ roomId, displayName, enabled, video =
 
   const stopLiveChat = useCallback(() => {
     sessionGenerationRef.current += 1;
+    // A cancelled permission sheet may still resolve later. Let a new explicit
+    // start proceed; the generation check will dispose of the old capture.
+    startPromiseRef.current = null;
     disconnectTimersRef.current.forEach((timer) => window.clearTimeout(timer));
     disconnectTimersRef.current.clear();
     peersRef.current.forEach((peer) => peer.close());
@@ -208,8 +211,11 @@ export default function useLiveVideoChat({ roomId, displayName, enabled, video =
     // simultaneous camera captures, which can terminate the Telegram WebView.
     if (startPromiseRef.current) return startPromiseRef.current;
 
-    const startPromise = (async () => {
-      const sessionGeneration = sessionGenerationRef.current;
+    const sessionGeneration = sessionGenerationRef.current;
+    // Defer execution until the promise is stored, including synchronous API
+    // failures (for example mediaDevices missing from an insecure WebView).
+    const startPromise = Promise.resolve().then(async () => {
+      if (sessionGeneration !== sessionGenerationRef.current) return;
       setError('');
       try {
         if (!navigator?.mediaDevices?.getUserMedia) {
@@ -259,13 +265,14 @@ export default function useLiveVideoChat({ roomId, displayName, enabled, video =
         });
         setIsConnected(true);
       } catch (mediaError) {
+        if (sessionGeneration !== sessionGenerationRef.current) return;
         const message = mediaError instanceof Error ? mediaError.message : 'Unable to access camera and microphone.';
         setError(message);
         console.error('live chat media init failed', mediaError);
       } finally {
-        startPromiseRef.current = null;
+        if (startPromiseRef.current === startPromise) startPromiseRef.current = null;
       }
-    })();
+    });
     startPromiseRef.current = startPromise;
     return startPromise;
   }, [displayName, enabled, isConnected, safeRoomId, video]);
