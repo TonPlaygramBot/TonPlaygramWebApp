@@ -1,3 +1,4 @@
+import {BATTLEFIELD_MAPS} from '../../games/blackwater/shared/layout.mjs';
 import { useCallback, useEffect, useState } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { Game } from '../../games/blackwater/ui';
@@ -13,7 +14,7 @@ export default function Blackwater() {
     mode = params.get('mode') === 'online' ? 'online' : 'ai',
     weaponIds = ['ar','smg','ak47','shotgun','mosin','uzi','sigsauer','smith'],
     weapon = weaponIds.includes(params.get('weapon')) ? params.get('weapon') : 'ar',
-    mapIds = ['skanderbeg','blloku','lana','pyramid','bazaar','stadium','station','park','embassy','dajti-gate'],
+    mapIds = BATTLEFIELD_MAPS.map(map=>map.id),
     battlefieldMap = mapIds.includes(params.get('map')) ? params.get('map') : 'skanderbeg',
     difficulty = params.get('difficulty') === 'veteran' ? 'veteran' : 'recruit';
   const ready = useCallback((game) => setEngine(game), []);

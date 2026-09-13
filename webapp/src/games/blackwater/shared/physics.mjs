@@ -1,3 +1,4 @@
+import {battleGround} from './terrain.mjs';
 import { footprintDistance, polygonContains } from '../../tiranastreets/shared/architecture.mjs';
 export { MAP, EXTRACTION } from './layout.mjs';
 import { MAP } from './layout.mjs';
@@ -98,6 +99,7 @@ export function moveCircle(p, dx, dz, r, obstacles) {
 /** A ray through the actual extruded polygon, including concave courtyards.
  * Rectangular props retain their oriented slab intersection. */
 export function rayBox(origin, dir, o) {
+  origin={...origin,y:origin.y-battleGround(o.x,o.z)};
   if (o.footprint) {
     const p=o.footprint;
     // Reject the broad-phase box before walking potentially long wall outlines.
@@ -162,7 +164,7 @@ export function lineClear(a, b, obstacles) {
   for (const o of candidates) if (rayBox(a,dir,o) < length-.15) return false;
   return true;
 }
-function walkClear(a, b, r, obstacles) {
+export function walkClear(a, b, r, obstacles) {
   const d = Math.hypot(b.x - a.x, b.z - a.z),
     steps = Math.max(1, Math.ceil(d / 0.3));
   for (let i = 1; i <= steps; i++)

@@ -109,11 +109,15 @@ export function trafficDecision(car,vehicles,pedestrians,time){
 export function updateTraffic(state,dt,onImpact){
   state.trafficAccumulator=(state.trafficAccumulator||0)+dt;
   if(state.trafficAccumulator<.05-1e-8)return;
-  const step=.05;state.trafficAccumulator-=step;
+  const tick=.05;state.trafficAccumulator-=tick;
   const g=roadGraph(),vehicles=new TrafficGrid([...state.cars,...state.traffic,...state.units]);
   const people=new TrafficGrid([...state.npcs,...Object.values(state.players)]);
   const viewers=Object.values(state.players);
   for(const car of state.traffic){
+    const close=!viewers.length||viewers.some(p=>(p.x-car.x)**2+(p.z-car.z)**2<320**2);
+    car.simulationAccumulator=(car.simulationAccumulator||0)+tick;
+    if(!close&&car.simulationAccumulator<.2-1e-8)continue;
+    const step=car.simulationAccumulator;car.simulationAccumulator=0;
     if(car.destroyed||car.burning){car.speed=car.vx=car.vz=0;continue;}
     if(car.service&&car.responsePhase!=='patrol')continue;
     let e=g.links[car.node]?.find(e=>e.to===car.next);
@@ -128,7 +132,6 @@ export function updateTraffic(state,dt,onImpact){
       continue;
     }
     const desired=Math.atan2(-dx,-dz);car.heading+=turn(desired-car.heading)*Math.min(1,step*(car.model==='tirana-bus'?3:6));car.heading=turn(car.heading);
-    const close=viewers.some(p=>(p.x-car.x)**2+(p.z-car.z)**2<320**2);
     const refresh=close||!car.awareness||state.elapsed>=car.awarenessAt;
     const nearbyPeople=refresh?people.near(car.x,car.z,50):[];
     if(refresh){car.awareness=trafficDecision(car,vehicles.near(car.x,car.z,55),nearbyPeople,state.elapsed);car.awarenessAt=state.elapsed+.25;}

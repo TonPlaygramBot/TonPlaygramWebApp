@@ -1,8 +1,9 @@
+import {battleGround} from './shared/terrain.mjs';
 import * as T from 'three';
 import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js';
 import { collides, moveCircle, rayBox, type Obstacle, type Vec2 } from './core';
 import { disposeObject } from '../tiranastreets/FpsCity';
-import { driverSocket } from '../tiranastreets/shared/driverView.mjs';
+import { driverEye, driverFov, driverDirection, driverUp } from '../tiranastreets/shared/driverView.mjs';
 import { DriverInterior } from '../tiranastreets/DriverInterior';
 
 /** Solo mission transport. Multiplayer positions remain server-authoritative. */
@@ -11,7 +12,7 @@ export class BattlefieldVehicle {
   readonly cabin=new DriverInterior();
   readonly car={id:'battlefield-transport',model:'sedan',x:0,z:0,heading:0,speed:0,steering:0};
   driving=false;
-  view:'cockpit'|'chase'='chase';
+  view:'cockpit'|'chase'='cockpit';
   available=false;
   private dead=false;
   constructor(scene:T.Scene){
@@ -62,22 +63,25 @@ export class BattlefieldVehicle {
     p.x=c.x;p.z=c.z;this.present();
   }
   present(){
-    this.group.position.set(this.car.x,0,this.car.z);this.group.rotation.y=this.car.heading+Math.PI;
+    const c=this.car,up=driverUp(c,battleGround),forward=driverDirection(c,c.heading,0,battleGround);
+    this.group.position.set(c.x,battleGround(c.x,c.z),c.z);this.group.up.set(up.x,up.y,up.z);
+    this.group.lookAt(c.x+forward.x,this.group.position.y+forward.y,c.z+forward.z);
     this.group.visible=this.available&&!(this.driving&&this.view==='cockpit');
-    this.cabin.update(this.driving&&this.view==='cockpit'?this.car:undefined);
-    this.cabin.group.position.y=driverSocket(this.car).y;
+    this.cabin.update(this.driving&&this.view==='cockpit'?this.car:undefined,battleGround);
   }
   camera(camera:T.PerspectiveCamera,obstacles:Obstacle[]){
     const c=this.car;
     if(this.view==='cockpit'){
-      const eye=driverSocket(c);camera.position.set(c.x+Math.cos(c.heading)*eye.x+Math.sin(c.heading)*eye.z,eye.y,c.z-Math.sin(c.heading)*eye.x+Math.cos(c.heading)*eye.z);
-      camera.rotation.set(0,c.heading,0,'YXZ');
+      const eye=driverEye(c,battleGround),d=driverDirection(c,c.heading,0,battleGround),up=driverUp(c,battleGround);
+      camera.position.set(eye.x,eye.y,eye.z);camera.up.set(up.x,up.y,up.z);camera.lookAt(eye.x+d.x,eye.y+d.y,eye.z+d.z);
+      camera.near=.035;camera.fov=driverFov(camera.aspect);camera.updateProjectionMatrix();
     }else{
-      const origin={x:c.x,y:1.1,z:c.z},direction=new T.Vector3(Math.sin(c.heading),.3,Math.cos(c.heading)).normalize();
+      camera.up.set(0,1,0);camera.near=.1;camera.fov=70;camera.updateProjectionMatrix();
+      const ground=battleGround(c.x,c.z),origin={x:c.x,y:ground+1.1,z:c.z},direction=new T.Vector3(Math.sin(c.heading),.3,Math.cos(c.heading)).normalize();
       let distance=8;
       for(const obstacle of obstacles)distance=Math.min(distance,rayBox(origin,direction,obstacle)-.35);
       distance=Math.max(.8,distance);
-      camera.position.set(c.x+Math.sin(c.heading)*distance,2+distance*.22,c.z+Math.cos(c.heading)*distance);camera.lookAt(c.x,1.1,c.z);
+      camera.position.set(c.x+Math.sin(c.heading)*distance,ground+2+distance*.22,c.z+Math.cos(c.heading)*distance);camera.lookAt(c.x,ground+1.1,c.z);
     }
   }
   dispose(){this.dead=true;this.cabin.dispose();this.group.removeFromParent();disposeObject(this.group);}

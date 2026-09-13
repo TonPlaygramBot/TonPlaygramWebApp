@@ -26,6 +26,7 @@ export class BusVisuals {
    }
    a.root.position.set(car.x,groundHeight(car.x,car.z)+.03,car.z);a.root.rotation.set(0,car.heading,0);alignVehicle(a.root,car.heading);
    if(a.rear)a.rear.rotation.y=T.MathUtils.clamp(Math.atan2(Math.sin((car.trailerHeading??car.heading)-car.heading),Math.cos((car.trailerHeading??car.heading)-car.heading)),-.5,.5);
+   a.root.visible=car.id!==firstPersonId;
    a.passengers.visible=Math.hypot(car.x-p.x,car.z-p.z)<90||car.id===firstPersonId;a.driver.visible=!car.driver;
    for(const wheel of a.wheels)wheel.rotateZ(-car.speed*dt/.51);
    for(const door of a.doors){const rest=door.userData.rest as T.Vector3;door.position.z=T.MathUtils.lerp(door.position.z,rest.z+(car.doorsUntil?door.name.endsWith('_1')?.45:-.45:0),Math.min(1,dt*5));}

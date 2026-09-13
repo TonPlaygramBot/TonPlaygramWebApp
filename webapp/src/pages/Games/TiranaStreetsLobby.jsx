@@ -3,18 +3,8 @@ import { Link, useSearchParams } from 'react-router-dom';
 import BlackwaterLobby from './BlackwaterLobby.jsx';
 import { gameModeURL } from '../../games/tirana-social/socialCore.mjs';
 import '../../games/tirana-street-detail/lobby.css';
-const MAPS = [
-  ['skanderbeg', 'Skanderbeg Square'],
-  ['blloku', 'Blloku Night Run'],
-  ['lana', 'Lana Riverfront'],
-  ['pyramid', 'Pyramid District'],
-  ['bazaar', 'New Bazaar'],
-  ['stadium', 'Air Albania'],
-  ['station', 'Railway Approach'],
-  ['park', 'Grand Park Gate'],
-  ['embassy', 'Embassy Quarter'],
-  ['dajti-gate', 'Dajti Gateway']
-];
+import {BATTLEFIELD_MAPS} from '../../games/blackwater/shared/layout.mjs';
+const MAPS = BATTLEFIELD_MAPS.map(({id,name})=>[id,name]);
 const WEAPONS = [
   ['ar', 'MK18'],
   ['smg', 'MP9'],
@@ -40,7 +30,7 @@ export default function TiranaStreetsLobby() {
         <h1>Choose Battlefield or Career.</h1>
         <div className="tsl-modes">
           <article className="tsl-card tsl-battle">
-            <span className="tsl-tag">10 MAPS · LOOT · EXTRACTION</span>
+            <span className="tsl-tag">{MAPS.length} MAPS · LOOT · EXTRACTION</span>
             <h2>Battlefield</h2>
             <p>
               Choose a Tirana district and weapon. Walk over a fallen enemy’s
