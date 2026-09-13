@@ -9,3 +9,6 @@
 #snake-camera-root button { cursor: pointer; background: #fbbf24; color: #111827; border: 0; border-radius: 14px; min-height: 48px; padding: 12px 16px; font-size: 16px; font-weight: 700; }
 #snake-camera-root button:disabled { opacity: 0.65; cursor: default; }
 #snake-camera-root button:focus-visible { outline: 3px solid #93c5fd; outline-offset: -4px; }
+
+#snake-camera-root .snake-preview-weapon { display: grid; gap: 6px; font-size: 14px; }
+#snake-camera-root select { width: 100%; min-height: 44px; padding: 10px; background: #172334; color: #f1f5f9; border: 1px solid #64748b; border-radius: 10px; font-size: 16px; }

@@ -5,13 +5,15 @@ import {
   createSnakeBoardScene, updateSnakeBoardTokens, updateSnakeBoardLadders,
   updateSnakeBoardSnakes, getDiceOrientationQuaternion, SNAKE_SCENE_DIMENSIONS as sizes
 } from './components/SnakeBoard3D';
+import { createSnakeFirearmAnimation, createSnakeFirearmFallback } from './utils/snakeFirearmAnimation';
 import { createSnakeCameraDirector } from './utils/snakeCameraDirector';
 import { createRoyalDiceMotion } from './utils/royalDiceMotion';
 import './snake-camera-preview.css';
 
 function SnakeCameraPreview() {
   const mount = useRef<HTMLDivElement>(null);
-  const play = useRef<(() => void) | null>(null);
+  const play = useRef<((firearmOnly?: boolean) => void) | null>(null);
+  const selectedWeapon = useRef('ak47VolleyAttack');
   const [busy, setBusy] = useState(false);
   const [phase, setPhase] = useState('Pamja e tabelës');
   const [error, setError] = useState(false);
@@ -41,6 +43,8 @@ function SnakeCameraPreview() {
       [{ position: 0, seatIndex: 0, color: '#fbbf24' }], board.indexToPosition, board.serpentineIndexToXZ,
       { baseLevelTop: board.baseLevelTop });
     const token = board.reserveTokensGroup.children[0];
+    const rackWeapon = createSnakeFirearmFallback();
+    rackWeapon.position.set(-0.85, 0.08, 1.8); scene.add(rackWeapon);
     board.boardTokensGroup.attach(token);
     const reserve = token.position.clone();
     const die = board.diceSet[0]; board.diceSet.slice(1).forEach(item => { item.visible = false; });
@@ -56,6 +60,7 @@ function SnakeCameraPreview() {
     const preference = matchMedia('(prefers-reduced-motion: reduce)');
     let frame = 0, alive = true, running = false, stage = 0, stageStart = 0;
     let motion: ReturnType<typeof createRoyalDiceMotion> | null = null;
+    let firearm: ReturnType<typeof createSnakeFirearmAnimation> | null = null;
     let from = reserve.clone(), to = reserve.clone();
     let curve: THREE.Curve<THREE.Vector3> | null = null;
     const stages = [
@@ -73,8 +78,7 @@ function SnakeCameraPreview() {
           startedAt: now, target: getDiceOrientationQuaternion(6), reducedMotion: preference.matches
         });
         director.start({ id: 'dice', priority: 1,
-          radius: sizes.diceSize * sizes.footprintScale, minDistance: sizes.diceSize * sizes.footprintScale * 9,
-          elevation: 56, points: () => [die.getWorldPosition(dieWorld)],
+          points: () => [die.getWorldPosition(dieWorld)],
           overview: () => [throwStart,landing].map(p => die.parent!.localToWorld(p.clone()))
         }, now, home, homeTarget);
       } else {
@@ -82,8 +86,7 @@ function SnakeCameraPreview() {
         curve = current.kind === 'ladder' ? board.laddersGroup.userData.paths.get(6).curve
           : current.kind === 'snake' ? board.snakesGroup.userData.paths.get(28).curve : null;
         const radius = sizes.tokenHeight * sizes.boardScale * 1.2;
-        director.start({ id: `step:${stage}`, priority: 2, radius,
-          minDistance: sizes.tileSize * sizes.footprintScale * 7, elevation: 68,
+        director.start({ id: `step:${stage}`, priority: 2,
           points: () => {
             token.getWorldPosition(tokenWorld); tokenWorld.y += radius * 0.4;
             board.boardTokensGroup.localToWorld(goalWorld.copy(to)); goalWorld.y += radius * 0.4;
@@ -100,7 +103,12 @@ function SnakeCameraPreview() {
     const observer = new ResizeObserver(resize); observer.observe(host); resize();
     const animate = (now: number) => {
       if (!alive) return;
-      if (running) {
+      if (firearm) {
+        if (firearm.update(now)) {
+          firearm.dispose(); firearm = null; director.finish('firearm',now,500);
+          setBusy(false); setPhase('Pamja e lojtarit · pa zoom');
+        }
+      } else if (running) {
         const current = stages[stage];
         const t = Math.min(1,(now-stageStart)/current.duration);
         const ease = t < 0.5 ? 2*t*t : 1-Math.pow(-2*t+2,2)/2;
@@ -120,13 +128,24 @@ function SnakeCameraPreview() {
       renderer.render(scene,camera);
       frame = requestAnimationFrame(animate);
     };
-    play.current = () => {
-      if (running) return;
+    play.current = (firearmOnly = false) => {
+      if (running || firearm) return;
+      if (firearmOnly) {
+        director.cancel();
+        token.position.copy(board.indexToPosition.get(9));
+        const target = token.getWorldPosition(new THREE.Vector3()).add(new THREE.Vector3(0,sizes.tokenHeight * sizes.boardScale * 0.6,0));
+        firearm = createSnakeFirearmAnimation({scene,weaponId:selectedWeapon.current,parkedWeapon:rackWeapon,
+          origin:rackWeapon.position.clone(),target,victims:[token],startedAt:performance.now(),reducedMotion:preference.matches,
+          onShot:()=>setPhase('Qitja · zmbrapsja dhe gëzhojat'),onImpact:()=>setPhase('Goditja e tokenit')});
+        const activeFirearm = firearm;
+        director.start({id:'firearm',priority:3,points:()=>[activeFirearm.focus],overview:activeFirearm.overview},performance.now(),home,homeTarget);
+        setBusy(true); setPhase('Ngritja dhe shënjestrimi i armës'); return;
+      }
       director.cancel(); token.position.copy(reserve); stage = 0; running = true; setBusy(true); startStage(performance.now());
     };
     frame = requestAnimationFrame(animate);
     return () => {
-      alive = false; play.current = null; director.cancel(); cancelAnimationFrame(frame); observer.disconnect();
+      alive = false; play.current = null; firearm?.dispose(); director.cancel(); cancelAnimationFrame(frame); observer.disconnect();
       const textures = new Set<THREE.Texture>();
       scene.traverse(object => {
         const mesh = object as THREE.Mesh;
@@ -140,12 +159,21 @@ function SnakeCameraPreview() {
   },[]);
 
   return <div className="snake-camera-review">
-    <div className="snake-camera-heading"><strong>Snake &amp; Ladder</strong><span>Kamera e lojës</span></div>
+    <div className="snake-camera-heading"><strong>Snake &amp; Ladder</strong><span>Perspektiva e lojtarit · pa zoom</span></div>
     <div ref={mount} className="snake-camera-canvas" />
     <div className="snake-camera-actions">
       <span role="status" aria-live="polite">{phase}</span>
       {error ? <span role="alert">Aktivizo WebGL për pamjen 3D.</span> :
-        <button type="button" disabled={busy} onClick={() => play.current?.()}>{busy ? 'Duke ndjekur lojën…' : 'Provo kamerën'}</button>}
+        <>
+          <button type="button" disabled={busy} onClick={() => play.current?.()}>Provo kamerën</button>
+          <label className="snake-preview-weapon">Arma
+            <select disabled={busy} defaultValue="ak47VolleyAttack" onChange={event => { selectedWeapon.current = event.target.value; }}>
+              <option value="ak47VolleyAttack">AK-47</option><option value="glockSidearmAttack">Glock</option>
+              <option value="shotgunBlastAttack">Shotgun</option><option value="sniperShotAttack">Sniper</option>
+            </select>
+          </label>
+          <button type="button" disabled={busy} onClick={() => play.current?.(true)}>Provo animacionin e armës</button>
+        </>}
     </div>
   </div>;
 }
