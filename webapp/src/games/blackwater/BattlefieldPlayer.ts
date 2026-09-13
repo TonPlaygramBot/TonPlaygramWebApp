@@ -1,3 +1,4 @@
+import {loadPlayerGltf} from '../tiranastreets/loadPlayerGltf';
 import * as T from 'three';
 import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js';
 import { FirstPersonBody } from '../tiranastreets/street-career/FirstPersonBody';
@@ -26,11 +27,8 @@ export class BattlefieldPlayer {
   readonly errors: string[] = [];
   constructor(private scene: T.Scene) { this.rig = new FirstPersonBody(scene); }
   async load() {
-    const timer = setTimeout(() => this.abort.abort(), 15000);
     try {
-      const response = await fetch('/assets/tirana-streets/living/operator.glb', {signal:this.abort.signal});
-      if (!response.ok) throw Error(`Operator HTTP ${response.status}`);
-      const gltf = await new GLTFLoader().parseAsync(await response.arrayBuffer(), '/assets/tirana-streets/living/');
+      const gltf = await loadPlayerGltf(new GLTFLoader(),this.abort.signal);
       if (this.dead) { disposeWeaponResources([gltf.scene]); return; }
       const box = new T.Box3().setFromObject(gltf.scene), size = box.getSize(new T.Vector3());
       const scale = 1.78 / size.y, center = box.getCenter(new T.Vector3());
@@ -43,7 +41,6 @@ export class BattlefieldPlayer {
       this.scene.add(group);
       await this.rig.prepare(BODY_WEAPON.ak47);
     } catch (error) { if (!this.dead) this.errors.push(String(error)); }
-    finally { clearTimeout(timer); }
   }
   update(frame: {x:number;z:number;y:number;yaw:number;pitch:number;health:number;weapon:WeaponId;speed:number;aim:boolean;crouch:boolean;recoil:number;reload:number;reloadDuration:number;cooldown:number;driving:boolean;time:number}, dt:number) {
     if (!this.actor) return;
