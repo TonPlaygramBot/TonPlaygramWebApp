@@ -1,4 +1,4 @@
-import {BATTLEFIELD_MAPS} from '../../games/blackwater/shared/layout.mjs';
+import {BATTLEFIELD_MAP_CATALOG as BATTLEFIELD_MAPS} from '../../games/blackwater/shared/mapCatalog.mjs';
 import { useCallback, useEffect, useState } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { Game } from '../../games/blackwater/ui';

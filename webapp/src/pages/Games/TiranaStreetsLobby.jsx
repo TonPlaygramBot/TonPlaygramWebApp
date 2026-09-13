@@ -3,7 +3,7 @@ import { Link, useSearchParams } from 'react-router-dom';
 import BlackwaterLobby from './BlackwaterLobby.jsx';
 import { gameModeURL } from '../../games/tirana-social/socialCore.mjs';
 import '../../games/tirana-street-detail/lobby.css';
-import {BATTLEFIELD_MAPS} from '../../games/blackwater/shared/layout.mjs';
+import {BATTLEFIELD_MAP_CATALOG as BATTLEFIELD_MAPS} from '../../games/blackwater/shared/mapCatalog.mjs';
 const MAPS = BATTLEFIELD_MAPS.map(({id,name})=>[id,name]);
 const WEAPONS = [
   ['ar', 'MK18'],

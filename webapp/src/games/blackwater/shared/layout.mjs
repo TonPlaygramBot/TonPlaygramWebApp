@@ -1,5 +1,4 @@
-import {NEIGHBOURHOOD} from '../../tirana-neighbourhood/data.mjs';
-import {EAST} from '../../tirana-east/data.mjs';
+import {BATTLEFIELD_MAP_CATALOG} from './mapCatalog.mjs';
 import {COLLECTION_PLACEMENTS} from '../../tiranastreets/shared/collectionPlacements.mjs';
 import {importedFleet} from './importedPlacements.mjs';
 import {WEAPON_BY_ID} from '../../tiranastreets/shared/weapons.mjs';
@@ -170,7 +169,4 @@ export const props = [...fleet,...smallProps,...importedFleet.filter(p=>!p.racin
 export const OBSTACLES = Object.freeze([...cityObstacles,...props]);
 // Operation maps are sectors of the one detailed, streamed Tirana world.
 const sector = (id,name,worldX,worldZ) => {const start=safeNear(worldX-ORIGIN.x,worldZ-ORIGIN.z,baseObstacles),extraction=safeNear(start.x+18,start.z+(id==='blloku'?42:-42),baseObstacles);return Object.freeze({id,name,start:Object.freeze(start),extraction:Object.freeze(extraction)});};
-export const BATTLEFIELD_MAPS = Object.freeze([
- sector('skanderbeg','Skanderbeg Square',-55,-110),sector('blloku','Blloku Night Run',-165,520),sector('lana','Lana Riverfront',40,260),sector('pyramid','Pyramid District',120,85),sector('bazaar','New Bazaar',175,-155),sector('stadium','Air Albania',285,245),sector('station','Railway Approach',-120,-340),sector('park','Grand Park Gate',35,690),sector('embassy','Embassy Quarter',-330,170),sector('dajti-gate','Dajti Gateway',360,-25),
- ...[...new Map([...NEIGHBOURHOOD.districts,...EAST.districts].map(d=>[d.id,d])).values()].filter(d=>d.name!=='Blloku').map(d=>sector(`district-${d.id.split('/').pop()}`,d.name,d.point[0],d.point[1]))
-]);
+export const BATTLEFIELD_MAPS = Object.freeze(BATTLEFIELD_MAP_CATALOG.map(({id,name,worldX,worldZ})=>sector(id,name,worldX,worldZ)));

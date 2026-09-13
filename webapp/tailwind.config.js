@@ -1,8 +1,8 @@
 export default {
-  content: [
+  content: {relative: true, files: [
     './index.html',
     './src/**/*.{js,jsx,ts,tsx}'
-  ],
+  ]},
   theme: {
       extend: {
         colors: {

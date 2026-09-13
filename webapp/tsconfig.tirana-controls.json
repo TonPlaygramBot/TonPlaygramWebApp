@@ -2,6 +2,7 @@
   "extends": "./tsconfig.json",
   "compilerOptions": {"allowJs": true, "checkJs": false, "noEmit": true},
   "include": [
+    "src/games/blackwater/ui.tsx",
     "src/games/blackwater/baseUi.tsx",
     "src/games/tiranastreets/street-career/StreetCareerGame.tsx",
     "src/games/tiranastreets/career/CareerGame.tsx"
