@@ -2,8 +2,7 @@ import {
   CAPTURE_ANIMATION_OPTIONS,
   TOKEN_PALETTE_OPTIONS,
   TOKEN_PIECE_OPTIONS,
-  TOKEN_STYLE_OPTIONS,
-  HUMAN_CHARACTER_OPTIONS
+  TOKEN_STYLE_OPTIONS
 } from './ludoBattleOptions.js';
 import { POOL_ROYALE_DEFAULT_HDRI_ID, POOL_ROYALE_HDRI_VARIANTS } from './poolRoyaleInventoryConfig.js';
 import { MURLAN_TABLE_FINISHES } from './murlanTableFinishes.js';
@@ -21,8 +20,7 @@ export const LUDO_BATTLE_DEFAULT_UNLOCKS = Object.freeze({
   tokenPalette: [TOKEN_PALETTE_OPTIONS[0]?.id],
   tokenStyle: [TOKEN_STYLE_OPTIONS[0]?.id],
   tokenPiece: [TOKEN_PIECE_OPTIONS[0]?.id],
-  captureAnimation: [CAPTURE_ANIMATION_OPTIONS[0]?.id],
-  humanCharacter: [HUMAN_CHARACTER_OPTIONS[0]?.id]
+  captureAnimation: [CAPTURE_ANIMATION_OPTIONS[0]?.id]
 });
 
 const reduceLabels = (options) =>
@@ -48,7 +46,6 @@ export const LUDO_BATTLE_OPTION_LABELS = Object.freeze({
   tokenStyle: Object.freeze(reduceLabels(TOKEN_STYLE_OPTIONS)),
   tokenPiece: Object.freeze(reduceLabels(TOKEN_PIECE_OPTIONS)),
   captureAnimation: Object.freeze(reduceLabels(CAPTURE_ANIMATION_OPTIONS)),
-  humanCharacter: Object.freeze(reduceLabels(HUMAN_CHARACTER_OPTIONS)),
   sideColor: Object.freeze(CHESS_BATTLE_OPTION_LABELS.sideColor),
   headStyle: Object.freeze(CHESS_BATTLE_OPTION_LABELS.headStyle)
 });
@@ -232,16 +229,6 @@ export const LUDO_BATTLE_STORE_ITEMS = uniqueStoreItemsByName([
       description: option.description,
       thumbnail: option.thumbnail || swatchThumbnail(['#0f172a', '#1d4ed8', '#f97316'])
     })),
-  ...HUMAN_CHARACTER_OPTIONS.slice(1).map((option, idx) => ({
-    id: `ludo-human-character-${option.id}`,
-    type: 'humanCharacter',
-    optionId: option.id,
-    name: option.label,
-    price: 1200 + idx * 90,
-    description:
-      option.description || 'Realistic seated-ready GLB avatar with preserved original texture maps.',
-    thumbnail: swatchThumbnail(['#334155', '#64748b', '#f59e0b'])
-  })),
   ...CHESS_BATTLE_STORE_ITEMS.filter((item) => ['sideColor', 'headStyle'].includes(item.type))
 ]);
 
@@ -270,10 +257,5 @@ export const LUDO_BATTLE_DEFAULT_LOADOUT = [
     type: 'captureAnimation',
     optionId: CAPTURE_ANIMATION_OPTIONS[0]?.id,
     label: CAPTURE_ANIMATION_OPTIONS[0]?.label
-  },
-  {
-    type: 'humanCharacter',
-    optionId: HUMAN_CHARACTER_OPTIONS[0]?.id,
-    label: HUMAN_CHARACTER_OPTIONS[0]?.label
   }
 ];

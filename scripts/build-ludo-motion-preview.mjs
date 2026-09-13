@@ -11,35 +11,11 @@ await mkdir(generated, { recursive: true });
 const source = await readFile(resolve(root, 'webapp/src/pages/Games/LudoBattleRoyal.jsx'), 'utf8');
 const between = (start, end) => source.slice(source.indexOf(start), source.indexOf(end));
 // Reuse the authored seated body, finger and dice poses from the game.
-const rigSource = `// Generated from the live Ludo game.
-// @ts-nocheck
-import * as THREE from 'three';
-import { clone as cloneSkeleton } from 'three/examples/jsm/utils/SkeletonUtils.js';
-import { setWorldPose } from '../../../games/ludo/characterContact';
-const clamp=THREE.MathUtils.clamp, SEATED_HUMAN_MOTION_TUNING={idleBreathAmp:0};
-` +
-  between('const BASE_ARENA_SCALE','const DEFAULT_PLAYER_COUNT') +
-  between('const SEATED_HUMAN_DOWNWARD_CONTACT_MODE_SET','const SEATED_HELPER_FORWARD_DICE_PICKUP') +
+const rigSource = `// Generated from LudoBattleRoyal.jsx by build-ludo-motion-preview.mjs.\n// @ts-nocheck\nimport * as THREE from 'three';\nconst clamp = THREE.MathUtils.clamp;\nconst SEATED_HUMAN_MOTION_TUNING = { idleBreathAmp: 0.012 };\n` +
+  between('const SEATED_HUMAN_DOWNWARD_CONTACT_MODE_SET', 'const SEATED_HELPER_FORWARD_DICE_PICKUP') +
   between('function normalizeBoneName(', 'const SEATED_HUMAN_TEXTURE_PROFILES') +
-  between('const FRONT_SIDE_Z','function alignSeatedHumanFeetToGroundPlane(') +
-  `
-export {saveBoneRig,resetBoneRig,applySeatedHumanPose};
-export function makePreviewSeat(template,scene,playerIndex): any {
-` +
-  `const angle=[Math.PI/2,0,Math.PI*1.5,Math.PI][playerIndex];
-` +
-  `const radius=AI_CHAIR_RADIUS+CHAIR_GLOBAL_PUSHBACK+(playerIndex===0?SELF_BOTTOM_CHAIR_EXTRA_PUSHBACK:0);
-` +
-  `const group=new THREE.Group();group.position.set(Math.cos(angle)*radius,CHAIR_BASE_HEIGHT,Math.sin(angle)*radius);
-` +
-  `group.lookAt(new THREE.Vector3(0,CHAIR_BASE_HEIGHT,0));scene.add(group);
-` +
-  `const chair={group,supportsArmrest:true},entry={};const createSeatedHumanActionHelpers=()=>null;
-` +
-  between('        const install = template => {','        install(defaultTemplate);') +
-  `install(template);entry.applyPose=(mode,grip)=>applySeatedHumanPose(entry.rig,mode,1,grip,{lateral:0,forward:1},{idleBreathAmp:0},true);return entry;
-}
-`;
+  between('const FRONT_SIDE_Z', 'function alignSeatedHumanFeetToGroundPlane(') +
+  '\nexport { saveBoneRig, resetBoneRig, applySeatedHumanPose };\n';
 await writeFile(resolve(generated, 'rig.ts'), rigSource);
 
 const bytes = await readFile(resolve(root, 'webapp/public/assets/table-tennis/chess-human.glb'));
@@ -92,7 +68,6 @@ const result = await build({
   target: 'es2022', write: false, define: { LUDO_PREVIEW_MODEL: JSON.stringify(modelData) },
   plugins: [{ name: 'cdn', setup(api) {
     api.onResolve({ filter: /^(three|react|react-dom)(\/.*)?$/ }, args => {
-      if (args.path.startsWith('three/')) return;
       if (args.path === 'three') return { path: 'https://cdn.jsdelivr.net/npm/three@0.164.1/build/three.module.js', external: true };
       if (args.path === 'react-dom/client') return { path: 'https://esm.sh/react-dom@18.3.1/client?deps=react@18.3.1', external: true };
       if (args.path === 'react/jsx-runtime') return { path: 'https://esm.sh/react@18.3.1/jsx-runtime', external: true };
@@ -103,7 +78,7 @@ const result = await build({
 const html = (await readFile(resolve(root, 'scripts/ludo-motion-preview.fragment.html'), 'utf8'))
   .replace('/* LUDO_PREVIEW */', () => result.outputFiles[0].text);
 if (Buffer.byteLength(html) > 1_000_000) throw new Error('Preview exceeds inline size limit.');
-const output = process.argv[2] || '/workspace/ludo-live-interactions.html';
+const output = process.argv[2] || '/workspace/ludo-restored-dice-aim.html';
 await writeFile(output, html);
 await writeFile(resolve(generated, 'bundle.js'), result.outputFiles[0].text);
 console.log(`Built ${output} (${Buffer.byteLength(html)} bytes)`);
