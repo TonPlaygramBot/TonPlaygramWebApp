@@ -1,4 +1,5 @@
 import * as T from 'three';
+import {selectedPlayerUrl} from '../tiranastreets/playerCatalog.mjs';
 import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js';
 import { FirstPersonBody } from '../tiranastreets/street-career/FirstPersonBody';
 import { createBody } from '../tiranastreets/street-career/playerCore.mjs';
@@ -28,9 +29,10 @@ export class BattlefieldPlayer {
   async load() {
     const timer = setTimeout(() => this.abort.abort(), 15000);
     try {
-      const response = await fetch('/assets/tirana-streets/living/operator.glb', {signal:this.abort.signal});
+      const url=selectedPlayerUrl()||'/assets/tirana-streets/living/operator.glb';
+      const response = await fetch(url, {signal:this.abort.signal});
       if (!response.ok) throw Error(`Operator HTTP ${response.status}`);
-      const gltf = await new GLTFLoader().parseAsync(await response.arrayBuffer(), '/assets/tirana-streets/living/');
+      const gltf = await new GLTFLoader().parseAsync(await response.arrayBuffer(), url.slice(0,url.lastIndexOf('/')+1));
       if (this.dead) { disposeWeaponResources([gltf.scene]); return; }
       const box = new T.Box3().setFromObject(gltf.scene), size = box.getSize(new T.Vector3());
       const scale = 1.78 / size.y, center = box.getCenter(new T.Vector3());

@@ -91,7 +91,7 @@ export default function GamePackManager() {
           <div className="game-pack-manager__intro">
             <div>
               <p><HardDrive size={15} /> Install once, load faster</p>
-              <span>Save game files on this device for faster loading. Online matches and accounts still need internet.</span>
+              <span>Download game files and code to this device. Tirana Streets solo play works offline after the download completes. Online matches and accounts need internet.</span>
             </div>
             <button type="button" onClick={() => void refresh({ forceCatalog: true })} aria-label="Check for game updates">
               <RefreshCw size={16} />

@@ -1,3 +1,4 @@
+import {selectedPlayerUrl} from './playerCatalog.mjs';
 import {groundHeight} from '../tirana-east/terrainCore.mjs';
 import {LandscapeVisuals} from './landscapeVisuals';
 import {CinematicAtmosphere} from '../tirana-environment/CinematicAtmosphere';
@@ -78,6 +79,8 @@ export class CityRenderer {
   private frames = 0;
   private dpr = 1.5;
   private observer: ResizeObserver;
+  private playerModel='character';
+  private playerAnimations:THREE.AnimationClip[]=[];
   private models = new Map<string, THREE.Group>();
   private actors = new Map<string, Actor>();
   private animations: THREE.AnimationClip[] = [];
@@ -644,6 +647,7 @@ export class CityRenderer {
     const pending: Promise<unknown>[] = [];
     const vehicleSources = new Map<string, ReturnType<GLTFLoader['loadAsync']>>();
     try {
+      const chosen=selectedPlayerUrl();this.playerModel=chosen?'local-player':'character';
       const files = [
         "character",
         "sedan",
@@ -663,7 +667,8 @@ export class CityRenderer {
               : ["city-car", "motorbike", "military-suv"].includes(name)
                 ? "living/" + name
                 : name;
-          const url = ASSETS + file + '.glb';
+          const isHuman=name==='character'||name==='local-player';
+          const url = name==='local-player'?chosen!:ASSETS + file + '.glb';
           let source = vehicleSources.get(url);
           if (!source) { source = loader.loadAsync(url); vehicleSources.set(url, source); }
           const original = await source;
@@ -681,7 +686,7 @@ export class CityRenderer {
             size = box.getSize(new THREE.Vector3()),
             center = box.getCenter(new THREE.Vector3());
           const scale = roadModel ? 1 :
-            name === "character"
+            isHuman
               ? 1.78 / size.y
               : name === "motorbike"
                 ? 2.1 / Math.max(size.x, size.z)
@@ -711,6 +716,7 @@ export class CityRenderer {
           });
           this.models.set(name, wrapper);
           if (name === "character") this.animations = gltf.animations;
+          if(name==='local-player')this.playerAnimations=gltf.animations;
           onProgress?.(
             name === "character"
               ? "Your character is ready"
@@ -719,7 +725,7 @@ export class CityRenderer {
       };
       // Only the player blocks entry. Nearby road vehicles stream in two lanes
       // after the core city is ready; a missing optional vehicle cannot fail play.
-      const character = loadModel('character');
+      const character = Promise.all([loadModel('character'),...(chosen?[loadModel('local-player')]:[])]);
       pending.push(character);
       if (this.disposed) return;
       onProgress?.("Adding textured city facades");
@@ -796,7 +802,7 @@ export class CityRenderer {
     const template = this.models.get(model);
     const group = (
       template
-        ? model === "character"
+        ? (model === "character"||model==='local-player')
           ? clone(template)
           : template.clone(true)
         : new THREE.Group()
@@ -807,19 +813,20 @@ export class CityRenderer {
       // do not guarantee a centred wheel pivot or the legacy spin axis.
       if (!CIVILIAN_VEHICLE_MODELS[model] && o.name.toLowerCase().includes("wheel")) actor.wheels.push(o);
     });
-    if (model === "character" && this.animations.length) {
+    const animations=model==='local-player'?this.playerAnimations:this.animations;
+    if ((model === 'character'||model==='local-player') && animations.length) {
       actor.mixer = new THREE.AnimationMixer(group);
-      actor.clips = Object.fromEntries(this.animations.map(clip => [clip.name, actor.mixer!.clipAction(clip)]));
+      actor.clips = Object.fromEntries(animations.map(clip => [clip.name, actor.mixer!.clipAction(clip)]));
       actor.idle = actor.mixer.clipAction(
-        this.animations.find((a) => a.name.toLowerCase() === "idle") ||
-          this.animations[0],
+        animations.find((a) => a.name.toLowerCase() === "idle") ||
+          animations[0],
       );
       actor.run = actor.mixer.clipAction(
-        this.animations.find((a) =>
+        animations.find((a) =>
           ["sprint", "run"].includes(a.name.toLowerCase()),
-        ) || this.animations[0],
+        ) || animations[0],
       );
-      const walk = this.animations.find((a) => a.name.toLowerCase() === "walk");
+      const walk = animations.find((a) => a.name.toLowerCase() === "walk");
       if (walk) actor.walk = actor.mixer.clipAction(walk);
       actor.idle.play();
     }
@@ -965,7 +972,7 @@ export class CityRenderer {
         this.presentVehicle(a, state, car.id, dt);
       }
       for (const pl of Object.values(state.players)) {
-        const a = this.actor("character", `player-${pl.id}`);
+        const a = this.actor(pl.id===playerId?this.playerModel:"character", `player-${pl.id}`);
         active.add(`player-${pl.id}`);
         if (pl.id === playerId && this.presentLocalPlayer(a, state, playerId, dt)) continue;
         a.group.visible = !pl.carId && !(this.firstPerson && pl.id === playerId);

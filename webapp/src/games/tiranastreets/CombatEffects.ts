@@ -1,7 +1,8 @@
 import * as T from 'three';
+import {tracerSpan} from './tracerCore.mjs';
 type Point = {x:number;y:number;z:number};
 type Event = {id:number;kind:string;x:number;y?:number;z:number;toX:number;toY?:number;toZ:number;radius?:number};
-type Particle = {p:T.Vector3;v:T.Vector3;age:number;life:number;size:number;spin:number;floor:number;kind:number};
+type Particle = {p:T.Vector3;v:T.Vector3;age:number;life:number;size:number;spin:number;floor:number;kind:number;trace?:{from:T.Vector3;distance:number};rendered?:boolean};
 type Pool = {mesh:T.InstancedMesh;alpha:T.InstancedBufferAttribute;items:Particle[];capacity:number};
 
 /** Bounded instanced effects: six draw calls, shared geometry, no per-shot meshes. */
@@ -52,7 +53,8 @@ export class CombatEffects {
   }
   shot(from:Point,to:Point,floor=0) {
     const d=new T.Vector3(to.x-from.x,to.y-from.y,to.z-from.z),length=d.length();d.normalize();
-    this.particle(4,from,{x:d.x*180,y:d.y*180,z:d.z*180},Math.min(.3,length/180),.027,floor);
+    this.particle(4,from,{x:d.x*180,y:d.y*180,z:d.z*180},Math.max(1/60,length/180),.027,floor);
+    const tracer=this.pools[4].items.at(-1)!;tracer.trace={from:new T.Vector3(from.x,from.y,from.z),distance:length};
     for(let i=0;i<3;i++)this.particle(0,from,{x:d.x*2,y:d.y*2,z:d.z*2},.055+i*.015,.2+i*.08,floor);
     this.particle(3,from,{x:d.z*2.3,y:2.1+Math.random(),z:-d.x*2.3},2.6,.055,floor);
   }
@@ -88,6 +90,7 @@ export class CombatEffects {
       if(e.kind==='shot')this.shot(p,{x:e.toX,y:e.toY??floor(e.toX,e.toZ)+1.2,z:e.toZ},floor(e.x,e.z));
       if(['blast','vehicle-explosion','explosion'].includes(e.kind))this.explosion(p,e.radius||8,floor(e.x,e.z));
       if(e.kind==='hit')for(let i=0;i<4;i++)this.particle(2,p,{x:(Math.random()-.5)*3,y:Math.random()*3,z:(Math.random()-.5)*3},.35,.035,floor(e.x,e.z));
+      if(e.kind==='crash'){this.dust(p,e.radius||2,floor(e.x,e.z));for(let i=0;i<12;i++)this.particle(3,p,{x:(Math.random()-.5)*8,y:Math.random()*4,z:(Math.random()-.5)*8},.5,.04,floor(e.x,e.z));}
       if(e.kind==='fracture')this.demolition(p,e.radius||4,floor(e.x,e.z));
     }
   }
@@ -151,23 +154,28 @@ export class CombatEffects {
     }
     for(let k=0;k<this.pools.length;k++){
       const pool=this.pools[k];
-      for(let i=pool.items.length-1;i>=0;i--){const p=pool.items[i];p.age+=dt;if(p.age>=p.life){pool.items.splice(i,1);continue;}
+      for(let i=pool.items.length-1;i>=0;i--){const p=pool.items[i];p.age+=dt;if(p.age>=p.life&&(k!==4||p.rendered)){pool.items.splice(i,1);continue;}
         if(k===2||k===3){p.v.y-=9.81*dt;p.spin+=dt*5;}
         if(k===1||k===5){p.v.x+=(.22-p.v.x)*Math.min(1,dt*.25);p.v.z+=(.12-p.v.z)*Math.min(1,dt*.25);}
         if(k===2||k===3)p.v.multiplyScalar(Math.exp(-dt*.22));
-        p.p.addScaledVector(p.v,dt);
+        if(k!==4)p.p.addScaledVector(p.v,dt);
         if((k===2||k===3)&&p.p.y<p.floor+.03){p.p.y=p.floor+.03;p.v.y=Math.abs(p.v.y)*.22;p.v.x*=.7;p.v.z*=.7;}
       }
       const count=Math.min(pool.items.length,battery?Math.ceil(pool.capacity*.55):pool.capacity);pool.mesh.count=count;
       for(let i=0;i<count;i++){
-        const p=pool.items[i],t=p.age/p.life;this.transform.position.copy(p.p);
+        const p=pool.items[i],t=Math.min(1,p.age/p.life);p.rendered=true;this.transform.position.copy(p.p);
         this.transform.quaternion.copy(camera.quaternion);
         if(k<2||k===5)this.transform.scale.setScalar(p.size*(1+t*(k===0?1.3:2.5)));
-        else if(k===4){this.transform.quaternion.setFromUnitVectors(this.trailUp,this.trailDirection.copy(p.v).normalize());this.transform.scale.set(p.size,p.size,Math.min(5,p.age*180+.3));}
+        else if(k===4){
+          const span=tracerSpan(p.trace!.distance,p.age);this.trailDirection.copy(p.v).normalize();
+          this.transform.position.copy(p.trace!.from).addScaledVector(this.trailDirection,span.center);
+          this.transform.quaternion.setFromUnitVectors(this.trailUp,this.trailDirection);
+          this.transform.scale.set(p.size,p.size,span.length);
+        }
         else{this.transform.rotation.set(p.spin,p.spin*.7,p.spin*.3);this.transform.scale.set(p.size,k===3?p.size*.45:p.size,k===3?p.size*2:p.size);}
         this.transform.updateMatrix();pool.mesh.setMatrixAt(i,this.transform.matrix);
         this.color.set(k===0?(t<.25?0xffedbc:t<.65?0xffa336:0xb13912):k===1?0x555559:k===2?0x82796b:k===3?0xc5a34a:k===5?0xa79a84:0xffd794);
-        pool.mesh.setColorAt(i,this.color);pool.alpha.setX(i,(1-t)*(k===1||k===5?.45:1));
+        pool.mesh.setColorAt(i,this.color);pool.alpha.setX(i,k===4?Math.max(.3,1-t):(1-t)*(k===1||k===5?.45:1));
       }
       pool.mesh.instanceMatrix.needsUpdate=true;if(pool.mesh.instanceColor)pool.mesh.instanceColor.needsUpdate=true;pool.alpha.needsUpdate=true;
     }

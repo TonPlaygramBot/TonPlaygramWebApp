@@ -86,32 +86,41 @@ const dispatchProgress = detail => dispatch(PROGRESS_EVENT, detail);
 
 export const getGamePackInstallations = () => ({ ...readState().packs });
 
+async function cacheIsComplete(installation,cacheNames) {
+  if(!installation?.cacheName||!cacheNames.has(installation.cacheName))return false;
+  const cache=await caches.open(installation.cacheName);
+  const marker=await cache.match(completionRequest());
+  if(!marker)return false;
+  let receipt;try{receipt=await marker.json();}catch{return false;}
+  if(receipt.version!==installation.version||!Array.isArray(receipt.assets)||receipt.assets.length!==installation.assetCount)return false;
+  // Counting entries alone can hide missing files behind stale or unrelated ones.
+  for(let i=0;i<receipt.assets.length;i+=32){
+    const valid=await Promise.all(receipt.assets.slice(i,i+32).map(async asset=>responseMatchesAsset(await cache.match(makeRequest(asset)),asset)));
+    if(valid.some(value=>!value))return false;
+  }
+  return true;
+}
 export async function reconcileGamePackInstallations() {
   const state = readState();
   if (!isGamePackStorageSupported()) return { ...state.packs };
-  let changed = false;
   const cacheNames = new Set(await caches.keys());
-  for (const [packId, installation] of Object.entries(state.packs)) {
-    if (installation?.status !== 'installed') continue;
-    if (installation.cacheName && cacheNames.has(installation.cacheName)) {
-      const cache = await caches.open(installation.cacheName);
-      const files = (await cache.keys()).filter(request => new URL(request.url).pathname !== GAME_PACK_COMPLETE_PATH);
-      if (files.length >= installation.assetCount) {
-        if (!(await cache.match(completionRequest()))) await cache.put(completionRequest(), new Response('complete'));
-        continue;
-      }
-      await cache.delete(completionRequest());
-    }
-    state.packs[packId] = {
-      ...installation,
-      status: 'partial',
-      lastError: 'Downloaded files were removed by the device. Resume the download.',
-      updatedAt: new Date().toISOString()
-    };
-    changed = true;
+  const invalid=new Set();
+  for (const [id, installation] of Object.entries(state.packs)) {
+    if(installation?.status==='installed'&&!await cacheIsComplete(installation,cacheNames))invalid.add(id);
   }
-  if (changed) writeState(state);
-  return { ...state.packs };
+  // Invalidate dependants transitively, irrespective of object iteration order.
+  let grew=true;while(grew){grew=false;for(const [id,p]of Object.entries(state.packs)){
+    if(p.status==='installed'&&!invalid.has(id)&&(p.dependencies||[]).some(dep=>invalid.has(dep)||state.packs[dep]?.status!=='installed')){invalid.add(id);grew=true;}
+  }}
+  for(const id of invalid){
+    const installation=state.packs[id];
+    // A parallel install/remove may have changed state during the cache audit.
+    const unchanged=()=>{const current=readState().packs[id];return current?.status==='installed'&&current.cacheName===installation.cacheName&&current.updatedAt===installation.updatedAt;};
+    if(!unchanged())continue;
+    if(cacheNames.has(installation.cacheName))await (await caches.open(installation.cacheName)).delete(completionRequest());
+    if(unchanged())updatePackState(id,{status:'partial',lastError:'Some game files are missing from this device. Resume the download.',updatedAt:new Date().toISOString()});
+  }
+  return {...readState().packs};
 }
 
 export const getGamePackStatus = (pack, installation = readState().packs[pack?.id]) => {
@@ -331,6 +340,14 @@ async function performInstall(packId, { catalog, concurrency = DEFAULT_CONCURREN
   const catalogPack = findGamePack(resolvedCatalog, packId);
   if (!catalogPack) throw new Error(`Unknown game pack: ${packId}`);
 
+  if(packId==='tirana-streets'&&!(catalogPack.dependencies||[]).includes('shared-game-runtime')) {
+    throw new Error('The complete offline game is not available in this build. Refresh after the game update is published.');
+  }
+  const manifest = await loadGamePackManifest(catalogPack, { fetchImpl: getNetworkFetch() });
+  if(manifest.version!==catalogPack.version||JSON.stringify([...(manifest.dependencies||[])].sort())!==JSON.stringify([...(catalogPack.dependencies||[])].sort())){
+    throw new Error('The game download changed while preparing. Refresh the game list and try again.');
+  }
+  await reconcileGamePackInstallations();
   for (const dependencyId of catalogPack.dependencies || []) {
     const dependency = findGamePack(resolvedCatalog, dependencyId);
     if (!dependency) throw new Error(`Missing download dependency: ${dependencyId}. Check for game updates.`);
@@ -350,7 +367,6 @@ async function performInstall(packId, { catalog, concurrency = DEFAULT_CONCURREN
     }
   }
 
-  const manifest = await loadGamePackManifest(catalogPack, { fetchImpl: getNetworkFetch() });
   checkCancelled(signal);
   const assets = await resolveGamePackAssets(manifest, { fetchImpl: getNetworkFetch() });
   if (!assets.length) throw new Error(`The ${catalogPack.title} pack has no downloadable assets.`);
@@ -363,6 +379,7 @@ async function performInstall(packId, { catalog, concurrency = DEFAULT_CONCURREN
   const cacheName = getPackCacheName(pack.id, pack.version);
   const cache = await caches.open(cacheName);
   const previousInstallation = readState().packs[pack.id];
+  await cache.delete(completionRequest());
   const totalBytes = assets.reduce((sum, asset) => sum + (asset.size || 0), 0);
   let completedAssets = 0;
   let downloadedBytes = 0;
@@ -442,7 +459,7 @@ async function performInstall(packId, { catalog, concurrency = DEFAULT_CONCURREN
     if (workerError) throw workerError;
     checkCancelled(signal);
 
-    await cache.put(completionRequest(), new Response('complete'));
+    await cache.put(completionRequest(), new Response(JSON.stringify({version:pack.version,assets:assets.map(({url,size,sha256})=>({url,size,sha256}))}),{headers:{'Content-Type':'application/json'}}));
     const installation = updatePackState(pack.id, {
       status: 'installed',
       version: pack.version,

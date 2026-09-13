@@ -10,7 +10,7 @@ import {chooseSharedHuman, type SharedAsset} from './sharedCastCore.mjs';
 import {SHARED_GAME_CAST} from './SharedGameCast';
 
 type Joint={bone:T.Bone;rest:T.Quaternion;name:string};
-type Actor={root:T.Group;model:T.Object3D;asset:string;role:string;joints:Joint[];mixer:T.AnimationMixer;clips:T.AnimationClip[];action?:T.AnimationAction;motion:string;label:T.Sprite};
+type Actor={root:T.Group;model:T.Object3D;asset:string;role:string;joints:Joint[];mixer:T.AnimationMixer;clips:T.AnimationClip[];action?:T.AnimationAction;motion:string;deathAt?:number;label:T.Sprite};
 const rotation=new T.Quaternion(),euler=new T.Euler();
 function disposeResources(root:T.Object3D) {
   const geometries=new Set<T.BufferGeometry>(),materials=new Set<T.Material>(),textures=new Set<T.Texture>(),skeletons=new Set<T.Skeleton>();
@@ -31,6 +31,7 @@ export class SharedHumans {
   private loader=new GLTFLoader();
   constructor(private cast:readonly SharedAsset[]=SHARED_GAME_CAST){
     this.group.name='Tirana:shared-games-human-NPCs';
+    this.primeLocalHumans();
     void this.loader.loadAsync('/assets/tirana-streets/living/motorbike.glb').then(g=>{
       if(this.dead){disposeResources(g.scene);return;}
       g.scene.rotation.y=-Math.PI/2;g.scene.updateMatrixWorld(true);
@@ -124,7 +125,7 @@ export class SharedHumans {
   }
   private pose(a:Actor,n:NPC,time:number,dt:number){
     const moving=n.speed>.15&&n.health>0,cycle=n.motion==='cycle',running=n.anim==='run'||n.speed>3;
-    const motion=moving?(running?'run':'walk'):'idle';
+    const motion=n.anim==='reload'?'reload':n.anim==='aim'?'aim':moving?(running?'run':'walk'):'idle';
     const clip=a.clips.find(c=>new RegExp(motion,'i').test(c.name));
     if(a.motion!==motion){a.action?.fadeOut(.15);a.action=clip?a.mixer.clipAction(clip).reset().fadeIn(.15).play():undefined;a.motion=motion;}
     if(clip){a.mixer.update(dt);}else{
@@ -141,14 +142,23 @@ export class SharedHumans {
         j.bone.quaternion.copy(j.rest).multiply(rotation.setFromEuler(euler.set(x,0,z)));
       }
     }
+    // Layer readable weapon recoil / magazine handling over each rig's own pose.
+    const recoil=Math.max(0,1-(time-(n.firedAt??-10))/.18);
+    const reload=n.reloadUntil&&time<n.reloadUntil?Math.sin(time*7)*.2:0;
+    for(const j of a.joints){
+      if(/(rightarm|rightupperarm|upperarmr)$/.test(j.name))j.bone.quaternion.multiply(rotation.setFromEuler(euler.set(-recoil*.14,0,reload)));
+      if(/(leftforearm|lowerarml)$/.test(j.name)&&reload)j.bone.quaternion.multiply(rotation.setFromEuler(euler.set(-.6,0,reload)));
+    }
   }
   update(npcs:readonly NPC[],viewer:Point,time:number,dt:number,battery=false){
-    if(this.dead)return;const selected=nearbyHumans(npcs,viewer,battery),keep=new Set(selected.map(n=>n.id));
+    if(this.dead)return;const selected=nearbyHumans(npcs,viewer,battery),available=typeof navigator!=='undefined'&&navigator.onLine===false?this.cast.filter(a=>a.url.startsWith('/')):this.cast,keep=new Set(selected.map(n=>n.id));
     for(const [id] of this.actors)if(!keep.has(id))this.remove(id);
-    for(const n of selected){let asset=n.kind==='civilian'||n.kind==='dealer'||n.kind==='gang' ? this.cast.find(a=>a.id===`tirana-citizen-${stableActorHash(n.id)%8}`)||chooseSharedHuman(n,this.cast) : chooseSharedHuman(n,this.cast);this.request(asset);const shown=this.actors.get(n.id);if(shown&&shown.role===actorRole(n.kind))asset=this.cast.find(a=>a.id===shown.asset)||asset;if(this.failed.has(asset.url)){const role=actorRole(n.kind);const fallback=this.cast.find(a=>a.url.startsWith('/')&&a.roles.includes(role)&&this.sources.has(a.url));if(fallback)asset=fallback;}const source=this.sources.get(asset.url);if(!source||n.motion==='cycle'&&!this.bike)continue;
+    for(const n of selected){let asset=n.kind==='civilian'||n.kind==='dealer'||n.kind==='gang' ? this.cast.find(a=>a.id===`tirana-citizen-${stableActorHash(n.id)%8}`)||chooseSharedHuman(n,available) : chooseSharedHuman(n,available);this.request(asset);const shown=this.actors.get(n.id);if(shown&&shown.role===actorRole(n.kind))asset=this.cast.find(a=>a.id===shown.asset)||asset;if(this.failed.has(asset.url)){const role=actorRole(n.kind);const fallback=this.cast.find(a=>a.url.startsWith('/')&&a.roles.includes(role)&&this.sources.has(a.url));if(fallback)asset=fallback;}const source=this.sources.get(asset.url);if(!source||n.motion==='cycle'&&!this.bike)continue;
       let a=this.actors.get(n.id);if(a&&(a.asset!==asset.id||a.role!==actorRole(n.kind))){this.remove(n.id);a=undefined;}
       a ||= this.create(n,asset,source);
-      a.root.position.set(n.x,(n.y??groundHeight(n.x,n.z))+(n.motion==='cycle'?-.18:.06),n.z);a.root.rotation.set(n.health<=0?-Math.PI/2:0,n.heading+Math.PI,0);
+      a.root.position.set(n.x,(n.y??groundHeight(n.x,n.z))+(n.motion==='cycle'?-.18:.06),n.z);if(n.health<=0)a.deathAt??=time;else a.deathAt=undefined;
+      const fall=a.deathAt===undefined?0:Math.min(1,(time-a.deathAt)/.6);
+      a.root.rotation.set(-Math.PI/2*fall*fall*(3-2*fall),n.heading+Math.PI,0);
       a.label.visible=n.health>0&&Math.hypot(n.x-viewer.x,n.z-viewer.z)<18;
       if(n.health>0)this.pose(a,n,time,dt);if(n.anim==='hit')a.root.rotation.z=Math.sin((time-(n.hitUntil||time)+.38)*18)*.13;
       this.held.pose(`shared-${n.id}`,a.root,n,time);

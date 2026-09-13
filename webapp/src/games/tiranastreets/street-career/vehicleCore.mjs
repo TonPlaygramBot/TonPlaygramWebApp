@@ -82,6 +82,12 @@ export function takeVehicle(state, p, car) {
   car.npcDriver = false;
   car.responding = false;
   car.target = null;
+  car.responseTarget = null;
+  car.responsePhase = 'patrol';
+  car.responsePath = [];
+  car.path = [];
+  car.pathIndex = 0;
+  car.arrivedAt = undefined;
   car.driver = p.id;
   car.speed = 0;
   car.vx = 0;

@@ -745,7 +745,7 @@ export function interact(state, id, action) {
     }
   }
 }
-export function movePlayer(state, p, dt) {
+export function movePlayer(state, p, dt, onCollision) {
   const input =
     state.elapsed - p.inputAt > 0.45
       ? { ...emptyInput(), brake: true }
@@ -776,25 +776,22 @@ export function movePlayer(state, p, dt) {
     c.vz += (-Math.cos(c.heading) * c.speed - c.vz) * Math.min(1, dt * grip);
     c.x += c.vx * dt;
     c.z += c.vz * dt;
+    const intended={x:c.x,z:c.z};
     let wallHit=collide(c,bus?1.3:1.35);
     if(bus){for(const offset of [-7.5,7.5]){const q={x:c.x+Math.sin(c.heading)*offset,z:c.z+Math.cos(c.heading)*offset},x=q.x,z=q.z;if(collide(q,1.3)){c.x+=q.x-x;c.z+=q.z-z;wallHit=true;}}c.trailerHeading=(c.trailerHeading??c.heading)+angle(c.heading-(c.trailerHeading??c.heading))*Math.min(1,dt*Math.max(.35,Math.abs(c.speed)/7));}
     if (wallHit) {
+      onCollision?.(c,null,{x:c.x-intended.x,z:c.z-intended.z});
       c.speed *= 0.55;
       c.vx *= 0.3;
       c.vz *= 0.3;
     }
-    for (const o of [...state.cars, ...state.traffic]) {
+    for (const o of [...state.cars, ...state.traffic, ...state.units]) {
       if (o.id === c.id) continue;
-      if(bus||o.model==='tirana-bus'){
-        const separation=vehicleSeparation(c,o);if(separation){c.x+=separation.x;c.z+=separation.z;c.speed*=.65;c.vx*=.5;c.vz*=.5;}continue;
-      }
-      const d = distance(c, o);
-      const radius=2.8;
-      if (d < radius && d > 0.01) {
-        c.x += ((c.x - o.x) / d) * (radius - d);
-        c.z += ((c.z - o.z) / d) * (radius - d);
-        c.speed *= 0.85;
-      }
+      const separation=vehicleSeparation(c,o);
+      if(!separation)continue;
+      c.x+=separation.x;c.z+=separation.z;
+      if(onCollision)onCollision(c,o,separation);
+      else {c.speed*=.65;c.vx*=.5;c.vz*=.5;}
     }
     p.x = c.x;
     p.z = c.z;
