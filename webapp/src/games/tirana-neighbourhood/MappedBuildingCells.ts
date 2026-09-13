@@ -1,5 +1,3 @@
-import {constructionGeometry} from '../tirana-construction/constructionGeometry';
-import {isConstruction} from '../tirana-construction/constructionCore.mjs';
 import {CITY_RADIUS, CITY_CACHE, runCityWork} from '../tiranastreets/renderSettings';
 import {housingProfile} from '../tirana-east/housingCore.mjs';
 import {buildingGround} from '../tirana-east/terrainCore.mjs';
@@ -38,7 +36,6 @@ export class MappedBuildingCells {
  build(buildings:any[],detailOnly=false){
   const group=new T.Group(),shells:T.BufferGeometry[]=[],windows:T.BufferGeometry[]=[],roofs:T.BufferGeometry[]=[];
   for(const original of buildings){
-   if(isConstruction(original)){const g=constructionGeometry(original,detailOnly);if(g)shells.push(g);continue;}
    const base=buildingGround(original),b={...original,h:original.h+base,minHeight:(original.minHeight||0)+base};
    if(!detailOnly){
    const shape=new T.Shape(b.p.map((p:number[])=>new T.Vector2(p[0],-p[1])));

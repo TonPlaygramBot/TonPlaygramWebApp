@@ -39,7 +39,6 @@ import {
 } from './core';
 export type Upgrade = 'damage' | 'armor' | 'reload';
 export type Snapshot = {
-  battlefieldMap?:BattlefieldMapId;
   battleMode?:BattleMode;
   objective?:string;
   objectiveProgress?:number;
@@ -1220,7 +1219,7 @@ export class GameEngine {
     return {
       phase: this.phase,
       driving:this.vehicle.driving,nearVehicle:!this.online&&this.vehicle.near(this.player),vehicleView:this.vehicle.view,vehicleSpeed:Math.round(Math.abs(this.vehicle.car.speed)*3.6),
-      battlefieldMap:this.battlefieldMap,battleMode:this.battleMode,operations:[...this.operations.completed],operationId:this.operationId,
+      battleMode:this.battleMode,operations:[...this.operations.completed],operationId:this.operationId,
       extractionPoint:this.extractionPoint,objectivePoint:this.battleMode==='hold'?this.sectorCenter:this.battleMode==='extraction'&&!this.intel?this.intelPoint:undefined,zoneCenter:this.sectorCenter,
       objectiveProgress:this.objectiveProgress,zone:zoneRadius(this.elapsed),
       objective:this.battleMode==='last-stand'?'Be the last operator alive':this.battleMode==='hold'?`Hold the beacon · ${Math.floor(this.objectiveProgress)}/45 s`:this.battleMode==='extraction'?!this.intel?'Collect intel at the beacon':'Extract with the intel':this.extraction?'Reach extraction':'Clear the district',

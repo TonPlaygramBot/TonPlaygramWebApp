@@ -70,11 +70,11 @@ test('retired FPS gun migrates once without destroying progress or other weapons
  ensureStarterWeapons(p);assert.equal(p.weapon,STARTER_WEAPON);assert.equal(p.inventory.fpsGunAttack,undefined);
  const saved=JSON.stringify(p);ensureStarterWeapons(p);assert.equal(JSON.stringify(p),saved);assert.deepEqual(p.inventory.uziSprayAttack,{ammo:3,reserve:9});
 });
-test('every ground weapon can equip at full reserve, exactly once, cancelling reload without clearing the shot cooldown',()=>{
+test('every ground weapon can equip at full reserve, exactly once, cancelling reload',()=>{
  for(const w of WEAPONS.filter(w=>w.id!=='fpsGunAttack')){
   const p={id:'local',health:100,x:0,z:0,weapon:STARTER_WEAPON,reloadAt:9,nextShot:7,inventory:{[w.id]:{ammo:0,reserve:w.magazine*8}}};
   const state={elapsed:0,pickups:[{id:'loot',weapon:w.id,x:1,z:0,ammo:w.magazine}]};
-  assert.equal(collectWeapon(state,p,'loot'),true,w.id);assert.equal(p.weapon,w.id);assert.equal(p.reloadAt,0);assert.equal(p.nextShot,7);
+  assert.equal(collectWeapon(state,p,'loot'),true,w.id);assert.equal(p.weapon,w.id);assert.equal(p.reloadAt,0);assert.equal(p.nextShot,0);
   assert.equal(p.inventory[w.id].reserve,w.magazine*8);assert.equal(collectWeapon(state,p,'loot'),false);
  }
 });

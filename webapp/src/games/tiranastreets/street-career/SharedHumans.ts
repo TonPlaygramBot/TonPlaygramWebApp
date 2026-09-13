@@ -1,4 +1,3 @@
-import {humanMotion,smoothHeading} from './humanMotion.mjs';
 import {groundHeight} from '../../tirana-east/terrainCore.mjs';
 import * as T from 'three';
 import {GLTFLoader, type GLTF} from 'three/examples/jsm/loaders/GLTFLoader.js';
@@ -11,7 +10,7 @@ import {chooseSharedHuman, type SharedAsset} from './sharedCastCore.mjs';
 import {SHARED_GAME_CAST} from './SharedGameCast';
 
 type Joint={bone:T.Bone;rest:T.Quaternion;name:string};
-type Actor={root:T.Group;model:T.Object3D;asset:string;role:string;joints:Joint[];mixer:T.AnimationMixer;clips:T.AnimationClip[];action?:T.AnimationAction;motion:string;phase:number;label:T.Sprite};
+type Actor={root:T.Group;model:T.Object3D;asset:string;role:string;joints:Joint[];mixer:T.AnimationMixer;clips:T.AnimationClip[];action?:T.AnimationAction;motion:string;label:T.Sprite};
 const rotation=new T.Quaternion(),euler=new T.Euler();
 function disposeResources(root:T.Object3D) {
   const geometries=new Set<T.BufferGeometry>(),materials=new Set<T.Material>(),textures=new Set<T.Texture>(),skeletons=new Set<T.Skeleton>();
@@ -108,7 +107,7 @@ export class SharedHumans {
     const model=clone(g.scene),root=new T.Group(),role=actorRole(n.kind);
     const box=new T.Box3().setFromObject(model),center=box.getCenter(new T.Vector3()),scale=1.76/(box.max.y-box.min.y);
     model.scale.multiplyScalar(scale);model.position.add(new T.Vector3(-center.x*scale,-box.min.y*scale,-center.z*scale));
-    root.rotation.y=n.heading+Math.PI;root.name=`shared-npc:${n.id}`;root.userData={sourceId:asset.sourceId,modelURL:asset.url,role};root.add(model);
+    root.name=`shared-npc:${n.id}`;root.userData={sourceId:asset.sourceId,modelURL:asset.url,role};root.add(model);
     if(asset.id.startsWith('tirana-citizen-')){const h=stableActorHash(n.id);root.scale.set(0.93+(h%5)*.035,.94+(h%7)*.019,1);}
     const joints:Joint[]=[];
     model.traverse(o=>{if(o instanceof T.Bone)joints.push({bone:o,rest:o.quaternion.clone(),name:o.name.toLowerCase().replace(/[^a-z0-9]/g,'')});if(o instanceof T.Mesh){o.castShadow=true;o.receiveShadow=true;}});
@@ -120,17 +119,17 @@ export class SharedHumans {
       const band=new T.Mesh(new T.BoxGeometry(.12,.11,.04),new T.MeshStandardMaterial({color,roughness:.8}));
       band.name='role-armband';band.position.set(.28,1.24,.03);root.add(band);
     }
-    const actor:Actor={root,model,asset:asset.id,role,joints,mixer:new T.AnimationMixer(model),clips:g.animations,motion:'',phase:stableActorHash(n.id)%31,label};
+    const actor:Actor={root,model,asset:asset.id,role,joints,mixer:new T.AnimationMixer(model),clips:g.animations,motion:'',label};
     this.actors.set(n.id,actor);this.group.add(root);return actor;
   }
   private pose(a:Actor,n:NPC,time:number,dt:number){
-    const {motion,clip,rate,moving,cycling:cycle}=humanMotion(n,a.clips);
-    const running=motion==='run';
-    a.phase+=Math.max(0,Math.min(.1,dt))*Math.max(0,n.speed)*4;
+    const moving=n.speed>.15&&n.health>0,cycle=n.motion==='cycle',running=n.anim==='run'||n.speed>3;
+    const motion=moving?(running?'run':'walk'):'idle';
+    const clip=a.clips.find(c=>new RegExp(motion,'i').test(c.name));
     if(a.motion!==motion){a.action?.fadeOut(.15);a.action=clip?a.mixer.clipAction(clip).reset().fadeIn(.15).play():undefined;a.motion=motion;}
-    if(clip){a.action?.setEffectiveTimeScale(rate);a.mixer.update(dt);}else{
+    if(clip){a.mixer.update(dt);}else{
       // No cross-rig Mixamo retargeting: animate each imported rig from its own rest pose.
-      const phase=a.phase,swing=moving?Math.sin(phase)*(running?.65:.35):0;
+      const phase=time*(running?10:6)+stableActorHash(n.id)%31,swing=moving?Math.sin(phase)*(running?.65:.35):0;
       for(const j of a.joints){let x=0,z=0;const name=j.name;
         if(/(leftupleg|thighl|upperlegl)$/.test(name))x=cycle?-1.15+swing*.35:swing;
         else if(/(rightupleg|thighr|upperlegr)$/.test(name))x=cycle?-1.15-swing*.35:-swing;
@@ -149,7 +148,7 @@ export class SharedHumans {
     for(const n of selected){let asset=n.kind==='civilian'||n.kind==='dealer'||n.kind==='gang' ? this.cast.find(a=>a.id===`tirana-citizen-${stableActorHash(n.id)%8}`)||chooseSharedHuman(n,this.cast) : chooseSharedHuman(n,this.cast);this.request(asset);const shown=this.actors.get(n.id);if(shown&&shown.role===actorRole(n.kind))asset=this.cast.find(a=>a.id===shown.asset)||asset;if(this.failed.has(asset.url)){const role=actorRole(n.kind);const fallback=this.cast.find(a=>a.url.startsWith('/')&&a.roles.includes(role)&&this.sources.has(a.url));if(fallback)asset=fallback;}const source=this.sources.get(asset.url);if(!source||n.motion==='cycle'&&!this.bike)continue;
       let a=this.actors.get(n.id);if(a&&(a.asset!==asset.id||a.role!==actorRole(n.kind))){this.remove(n.id);a=undefined;}
       a ||= this.create(n,asset,source);
-      a.root.position.set(n.x,(n.y??groundHeight(n.x,n.z))+(n.motion==='cycle'?-.18:.06),n.z);a.root.rotation.set(n.health<=0?-Math.PI/2:0,smoothHeading(a.root.rotation.y,n.heading+Math.PI,dt),0);
+      a.root.position.set(n.x,(n.y??groundHeight(n.x,n.z))+(n.motion==='cycle'?-.18:.06),n.z);a.root.rotation.set(n.health<=0?-Math.PI/2:0,n.heading+Math.PI,0);
       a.label.visible=n.health>0&&Math.hypot(n.x-viewer.x,n.z-viewer.z)<18;
       if(n.health>0)this.pose(a,n,time,dt);if(n.anim==='hit')a.root.rotation.z=Math.sin((time-(n.hitUntil||time)+.38)*18)*.13;
       this.held.pose(`shared-${n.id}`,a.root,n,time);
