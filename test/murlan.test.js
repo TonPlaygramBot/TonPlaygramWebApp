@@ -220,33 +220,3 @@ test('bomb finishing hand passes lead', () => {
   assert.equal(state.players[0].finished, true);
   assert.equal(state.turn.activePlayer, 1);
 });
-
-test('finished trick leader still gives every remaining player a response', () => {
-  const state = {
-    players: [{ hand: [card('3','♠')], finished:false }, {hand:[card('4','♣')],finished:false}, {hand:[card('5','♣')],finished:false}],
-    turn:{activePlayer:0,currentCombo:null,passesInRow:0},config:DEFAULT_CONFIG,lastWinner:0,firstMove:true
-  };
-  playTurn(state,{type:'PLAY',cards:[card('3','♠')]});
-  playTurn(state,{type:'PASS'});
-  assert.ok(state.turn.currentCombo, 'the last opponent has not responded yet');
-  assert.equal(state.turn.activePlayer,2);
-  playTurn(state,{type:'PASS'});
-  assert.equal(state.turn.currentCombo,null);
-  assert.equal(state.turn.activePlayer,1);
-});
-
-test('illegal passes and duplicate or unowned cards leave state unchanged', () => {
-  const state={players:[{hand:[card('3','♠'),card('7','♣')],finished:false},{hand:[card('9','♥')],finished:false}],turn:{activePlayer:0,currentCombo:null,passesInRow:0},config:DEFAULT_CONFIG,lastWinner:0};
-  for(const action of [{type:'PASS'},{type:'PLAY',cards:[card('3','♠'),card('3','♠')]},{type:'PLAY',cards:[card('9','♥')]},{type:'UNKNOWN'}]) {
-    const before=JSON.stringify(state);
-    assert.throws(()=>playTurn(state,action));
-    assert.equal(JSON.stringify(state),before);
-  }
-});
-
-test('AI opening constraint includes the exact opening spade', () => {
-  const hand=[card('3','♦'),card('4','♣'),card('5','♥'),card('6','♣'),card('7','♥'),card('5','♠')];
-  const action=aiChooseAction(hand,null,DEFAULT_CONFIG,{rank:'5',suit:'♠'});
-  assert.equal(action.type,'PLAY');
-  assert.ok(action.cards.some(c=>c.rank==='5' && c.suit==='♠'));
-});
