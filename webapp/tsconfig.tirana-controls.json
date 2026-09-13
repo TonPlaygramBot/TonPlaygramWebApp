@@ -3,6 +3,7 @@
   "compilerOptions": {"allowJs": true, "checkJs": false, "noEmit": true},
   "include": [
     "src/games/blackwater/baseUi.tsx",
+    "src/games/tirana-construction/review.tsx",
     "src/games/tiranastreets/street-career/StreetCareerGame.tsx",
     "src/games/tiranastreets/career/CareerGame.tsx"
   ]

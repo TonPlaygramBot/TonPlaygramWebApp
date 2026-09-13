@@ -1,3 +1,4 @@
+import {nearbyIndex} from '../tirana-street-life/streetModels.mjs';
 import * as T from 'three';
 import {mergeGeometries} from 'three/examples/jsm/utils/BufferGeometryUtils.js';
 import {facadeEdges} from './sourceCore.mjs';
@@ -10,10 +11,12 @@ export class AgedHousingLayer {
   readonly group=new T.Group();
   private cache=new Map<string,T.Group>();
   private last=-Infinity;
+  private near:ReturnType<typeof nearbyIndex>;
   private dead=false;
   private materials:T.MeshStandardMaterial[];
   private textures=new Set<T.Texture>();
   constructor(private buildings=AGED_HOUSING,loadTextures=true){
+    this.near=nearbyIndex(buildings,120);
     this.group.name='Tirana:aged-apartment-details';
     this.group.userData={buildings:buildings.length,classification:'Date-tagged or explicitly estimated typology',assetErrors:[]};
     const plaster=new T.MeshStandardMaterial({color:0xffffff,roughness:.96,vertexColors:true});
@@ -100,8 +103,8 @@ export class AgedHousingLayer {
   update(seconds:number,viewer?:{x:number;z:number},battery=false){
     if(this.dead||!viewer||seconds>=this.last&&seconds-this.last<.08)return;this.last=seconds;
     const radius=battery?150:260,limit=battery?12:24;
-    const near=this.buildings.map(b=>({b,d:Math.hypot(b.x-viewer.x,b.z-viewer.z)})).filter(v=>v.d<radius).sort((a,b)=>a.d-b.d).slice(0,limit);
-    const active=new Set(near.map(v=>String(v.b.id)));this.cache.forEach(g=>g.visible=false);
+    const near=this.near(viewer,radius,limit).map((b:any)=>({b}));
+    const active=new Set(near.map((v:any)=>String(v.b.id)));this.cache.forEach(g=>g.visible=false);
     let built=0;
     for(const {b} of near){let g=this.cache.get(String(b.id));if(!g){if(built++>=1)continue;g=this.build(b);this.cache.set(String(b.id),g);this.group.add(g);}g.visible=true;}
     for(const [id,g] of this.cache){if(this.cache.size<=36)break;if(active.has(id))continue;this.disposeGeometry(g);this.cache.delete(id);}

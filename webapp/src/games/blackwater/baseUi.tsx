@@ -256,7 +256,7 @@ export function Game({
           </div>
           <div className="location-stamp">
             <span>SECTOR 09</span>
-            <strong>TIRANA / BLLOKU</strong>
+            <strong>TIRANA / {BATTLEFIELD_MAPS.find(map=>map.id===battlefieldMap)?.name.toUpperCase()}</strong>
             <span>17:42 / RAINFALL</span>
           </div>
           <div className="menu-bottom">
@@ -382,7 +382,7 @@ export function Game({
                     </>
                   ) : (
                     <>
-                      {state.battleMode==='waves'?<>WAVE <b>0{state.wave}</b><span>/ 03</span></>:state.battleMode==='last-stand'?<><b>{state.remaining+(state.health>0?1:0)}</b><span>ALIVE</span></>:<><b>{Math.floor(state.objectiveProgress||0)}</b><span>{state.battleMode==='hold'?'/ 45 SEC':state.battleMode==='extraction'?'/ 3 SEC':'SECURED'}</span></>}
+                      {state.battleMode==='waves'?<>WAVE <b>0{state.wave}</b><span>/ 03</span></>:state.battleMode==='last-stand'?<><b>{state.remaining+(state.health>0?1:0)}</b><span>ALIVE</span></>:<><b>{state.battleMode==='sweep'?state.kills:Math.floor(state.objectiveProgress||0)}</b><span>{state.battleMode==='hold'?'/ 45 SEC':state.battleMode==='extraction'?'/ 3 SEC':'SECURED'}</span></>}
                     </>
                   )}
                 </div>
@@ -975,7 +975,7 @@ const MiniMap = memo(function MiniMap({ state }: { state: Snapshot }) {
           <path d="M0 -5L3.5 4L0 2L-3.5 4Z" fill="#ecf8ef" />
         </g>
       </svg>
-      <span>TIRANA / BLLOKU</span>
+      <span>TIRANA / {BATTLEFIELD_MAPS.find(map=>map.id===state.battlefieldMap)?.name.toUpperCase() || 'CITY'}</span>
     </div>
   );
 });
