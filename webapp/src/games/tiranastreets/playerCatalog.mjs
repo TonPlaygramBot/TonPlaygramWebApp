@@ -1,5 +1,7 @@
 // These are the five requested originals. A preview is never a playable model.
 export const PLAYER_CATALOG=Object.freeze([
+  {id:'human',label:'Human Soldier',author:'Adobe Mixamo',licence:'Mixamo game-use terms',source:'https://github.com/mrdoob/three.js/tree/r164/examples/models/gltf',url:'/assets/tirana-streets/living/human.glb'},
+  {id:'operator',label:'City Operator',author:'Quaternius · TonPlaygram costume',licence:'CC0-1.0',source:'https://quaternius.com/',url:'/assets/tirana-streets/living/operator.glb'},
   {
     "id": "tactical",
     "label": "Soldier Full Tactical Gear",
@@ -47,9 +49,17 @@ export const PLAYER_CATALOG=Object.freeze([
   }
 ]);
 let selected=null;
-export function selectPlayerAsset(asset){selected=asset;}
+export function selectPlayerAsset(asset){
+  if(!asset){selected=null;return;}
+  const entry=PLAYER_CATALOG.find(p=>p.id===asset.id);
+  if(!entry||asset.url!==(entry.url||`/assets/tirana-streets/players/${entry.id}.glb`))throw Error('Choose an installed character.');
+  selected=Object.freeze({...asset});
+}
+export function selectedPlayerAsset(){return selected;}
 export function selectedPlayerUrl(){return selected?.url||null;}
 export function playerAssetFor(id,manifest){
+  const builtin=PLAYER_CATALOG.find(p=>p.id===id&&p.url);
+  if(builtin)return {id,url:builtin.url};
   const entry=manifest?.players?.[id];
   if(!PLAYER_CATALOG.some(p=>p.id===id)||!entry?.rigValidated||!/^\/assets\/tirana-streets\/players\/[a-z-]+\.glb$/.test(entry.url))return null;
   return {id,url:entry.url};

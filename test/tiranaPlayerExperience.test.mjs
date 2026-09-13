@@ -6,6 +6,7 @@ import ts from '../webapp/node_modules/typescript/lib/typescript.js';
 import * as T from '../webapp/node_modules/three/build/three.module.js';
 import {GLTFLoader} from '../webapp/node_modules/three/examples/jsm/loaders/GLTFLoader.js';
 import {mergeGeometries} from '../webapp/node_modules/three/examples/jsm/utils/BufferGeometryUtils.js';
+import {UPLOADED_WEAPONS} from '../webapp/src/games/tiranastreets/shared/uploadedWeapons.mjs';
 import {IMPORTED_BY_ID} from '../webapp/src/games/tiranastreets/shared/importedAssets.mjs';
 import {WEAPONS,WEAPON_BY_ID,STARTER_WEAPON,ensureStarterWeapons} from '../webapp/src/games/tiranastreets/shared/weapons.mjs';
 import {MISSIONS,createState} from '../webapp/src/games/tiranastreets/shared/engine.mjs';
@@ -30,7 +31,7 @@ function load(path,deps={},globals={}){
 const {GameEngine}=load('webapp/src/games/blackwater/engine.ts',{'three':T,'./core':physics,'./shared/terrain.mjs':terrain});
 const {BattlefieldVehicle}=load('webapp/src/games/blackwater/BattlefieldVehicle.ts',{'three':T,'./core':physics,'./shared/terrain.mjs':terrain,'../tiranastreets/shared/driverView.mjs':driver});
 const {FirstPersonBody,maskHead}=load('webapp/src/games/tiranastreets/street-career/FirstPersonBody.ts',{'three':T,'./weaponPose.mjs':poses,'./spatialCore.mjs':spatial,'./vehicleCore.mjs':vehicles,'../shared/weapons.mjs':{WEAPON_BY_ID},'../../tirana-east/terrainCore.mjs':{groundHeight}});
-const visuals=load('webapp/src/games/tiranastreets/livingVisuals.ts',{'three':T,'./shared/importedAssets.mjs':{IMPORTED_BY_ID}});
+const visuals=load('webapp/src/games/tiranastreets/livingVisuals.ts',{'three':T,'./shared/importedAssets.mjs':{IMPORTED_BY_ID},'./shared/uploadedWeapons.mjs':{UPLOADED_WEAPONS}});
 
 test('every playable weapon resolves to a local GLB within the held-model budget',async()=>{
  const seen=new Set(),loader=new GLTFLoader();

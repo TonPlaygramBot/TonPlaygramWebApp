@@ -1,8 +1,10 @@
 import {battleGround} from './terrain.mjs';
+import {UPLOADED_WEAPONS} from '../../tiranastreets/shared/uploadedWeapons.mjs';
 import { footprintDistance, polygonContains } from '../../tiranastreets/shared/architecture.mjs';
 export { MAP, EXTRACTION } from './layout.mjs';
 import { MAP } from './layout.mjs';
 export const WEAPONS = Object.freeze({
+  ...Object.fromEntries(UPLOADED_WEAPONS.map(w=>[w.battlefieldId,Object.freeze({name:w.label,role:w.category.toUpperCase(),mag:w.magazine,damage:w.damage,interval:w.interval,reload:w.reload,spread:w.category==='marksman'?.0015:.005,recoil:w.category==='marksman'?.045:.018})])),
   ar: {
     name: 'MK18',
     role: 'ASSAULT RIFLE',

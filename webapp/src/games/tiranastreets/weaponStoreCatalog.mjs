@@ -1,8 +1,10 @@
 import {IMPORTED_BY_ID} from './shared/importedAssets.mjs';
 import {WEAPON_BY_ID} from './shared/weapons.mjs';
+import {UPLOADED_WEAPONS} from './shared/uploadedWeapons.mjs';
 /** Authoritative Tirana Streets catalog. The bot imports this exact module so
  * display models, prices and delivery ids cannot drift between client/server. */
 export const WEAPON_STORE_CATALOG = Object.freeze([
+  ...UPLOADED_WEAPONS.map(w=>[w.id,w.label,w.priceTPG,w.model,w.category]),
   ['glockSidearmAttack', 'Glock Sidearm', 0, 'glockSidearmAttack', 'sidearm'],
   ['uziSprayAttack', 'Uzi Spray', 1750, 'uzi', 'smg'],
   ['ak47VolleyAttack', 'AK-47 Volley', 2500, 'ak47', 'rifle'],
@@ -15,7 +17,7 @@ export const WEAPON_STORE_CATALOG = Object.freeze([
   weaponId,
   displayName,
   priceTPG,
-  modelUrl: IMPORTED_BY_ID.get(WEAPON_BY_ID.get(weaponId)?.model)?.localUrl || `/assets/tirana-streets/living/${model}.glb`,
+  modelUrl: UPLOADED_WEAPONS.find(w=>w.id===weaponId)?.modelUrl || IMPORTED_BY_ID.get(WEAPON_BY_ID.get(weaponId)?.model)?.localUrl || `/assets/tirana-streets/living/${model}.glb`,
   model: WEAPON_BY_ID.get(weaponId)?.model || model,
   category,
   available: true

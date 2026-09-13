@@ -1,5 +1,6 @@
 import * as T from 'three';
 import {selectedPlayerUrl} from '../tiranastreets/playerCatalog.mjs';
+import {selectedStartingLoadout} from '../tiranastreets/startingLoadout.mjs';
 import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js';
 import { FirstPersonBody } from '../tiranastreets/street-career/FirstPersonBody';
 import { createBody } from '../tiranastreets/street-career/playerCore.mjs';
@@ -11,7 +12,8 @@ import type { WeaponId } from './core';
 export const BODY_WEAPON: Record<WeaponId, string> = {
   ar: 'krsvBurstAttack', smg: 'uziSprayAttack', ak47: 'ak47VolleyAttack',
   shotgun: 'shotgunBlastAttack', mosin: 'mosinMarksmanAttack', uzi: 'uziSprayAttack',
-  sigsauer: 'sigsauerTacticalAttack', smith: 'smithSidearmAttack'
+  sigsauer: 'sigsauerTacticalAttack', smith: 'smithSidearmAttack',
+  acr:'adaptiveCombatRifleAttack', dragunov:'dragunovAttack', vityaz:'vityazAttack', ar15:'ar15Attack', makarov:'makarovAttack'
 };
 
 /** CC0 Quaternius human, Three.js animation mixer and the shared weapon-grip IK.
@@ -43,7 +45,7 @@ export class BattlefieldPlayer {
       const clips = Object.fromEntries(gltf.animations.map(clip => [clip.name, mixer.clipAction(clip)]));
       this.actor = {group, mixer, clips, idle:clips.Idle, walk:clips.Walk, run:clips.Run, wheels:[], model:'operator'};
       this.scene.add(group);
-      await this.rig.prepare(BODY_WEAPON.ak47);
+      await this.rig.prepare(selectedStartingLoadout()?.[0]||BODY_WEAPON.ak47);
     } catch (error) { if (!this.dead) this.errors.push(String(error)); }
     finally { clearTimeout(timer); }
   }

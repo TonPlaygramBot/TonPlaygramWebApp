@@ -51,7 +51,8 @@ test('NPC firearm magazines and reload deadlines use the shared weapon stats',()
  fire();assert.equal(npc.rounds,15);npc.rounds=0;sim.state.elapsed=2;fire();assert.equal(npc.reloadUntil,3.4);assert.equal(npc.anim,'reload');sim.state.elapsed=3;fire();assert.equal(npc.rounds,0);sim.state.elapsed=3.5;fire();assert.equal(npc.rounds,15);
 });
 test('preview-only originals cannot be chosen as playable rigs',()=>{
- assert.equal(PLAYER_CATALOG.length,5);for(const p of PLAYER_CATALOG)assert.equal(playerAssetFor(p.id,{players:{}}),null);
+ assert.equal(PLAYER_CATALOG.filter(p=>!p.url).length,5);for(const p of PLAYER_CATALOG.filter(p=>!p.url))assert.equal(playerAssetFor(p.id,{players:{}}),null);
+ for(const id of ['human','operator'])assert.ok(playerAssetFor(id,{players:{}}));
  assert.equal(playerAssetFor('tactical',{players:{tactical:{url:'https://example.com/fake.glb',rigValidated:true}}}),null);
  assert.deepEqual(playerAssetFor('tactical',{players:{tactical:{url:'/assets/tirana-streets/players/tactical.glb',rigValidated:true}}}),{id:'tactical',url:'/assets/tirana-streets/players/tactical.glb'});
 });

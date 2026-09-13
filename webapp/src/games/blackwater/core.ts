@@ -10,7 +10,7 @@ export type Obstacle = {
   footprint?: number[][];
 };
 export type Phase = 'menu' | 'playing' | 'paused' | 'upgrade' | 'won' | 'lost';
-export type WeaponId = 'ar' | 'smg' | 'ak47' | 'shotgun' | 'mosin' | 'uzi' | 'sigsauer' | 'smith';
+export type WeaponId = 'ar' | 'smg' | 'ak47' | 'shotgun' | 'mosin' | 'uzi' | 'sigsauer' | 'smith' | 'acr' | 'dragunov' | 'vityaz' | 'ar15' | 'makarov';
 export type BattlefieldMapId = 'skanderbeg' | 'blloku' | 'lana' | 'pyramid' | 'bazaar' | 'stadium' | 'station' | 'park' | 'embassy' | 'dajti-gate' | `district-${string}`;
 export type Difficulty = 'recruit' | 'veteran';
 export type Settings = {
