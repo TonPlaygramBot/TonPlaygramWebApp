@@ -12,6 +12,7 @@ import {MISSIONS,createState} from '../webapp/src/games/tiranastreets/shared/eng
 import {collectWeapon,dropWeapon} from '../webapp/src/games/tiranastreets/shared/cityPopulation.mjs';
 import {createCampaign} from '../webapp/src/games/tiranastreets/street-career/campaignCore.mjs';
 import {createBody} from '../webapp/src/games/tiranastreets/street-career/playerCore.mjs';
+import * as humanoidRig from '../webapp/src/games/tiranastreets/street-career/humanoidRig.mjs';
 import * as poses from '../webapp/src/games/tiranastreets/street-career/weaponPose.mjs';
 import * as spatial from '../webapp/src/games/tiranastreets/street-career/spatialCore.mjs';
 import * as vehicles from '../webapp/src/games/tiranastreets/street-career/vehicleCore.mjs';
@@ -29,7 +30,7 @@ function load(path,deps={},globals={}){
 }
 const {GameEngine}=load('webapp/src/games/blackwater/engine.ts',{'three':T,'./core':physics,'./shared/terrain.mjs':terrain});
 const {BattlefieldVehicle}=load('webapp/src/games/blackwater/BattlefieldVehicle.ts',{'three':T,'./core':physics,'./shared/terrain.mjs':terrain,'../tiranastreets/shared/driverView.mjs':driver});
-const {FirstPersonBody,maskHead}=load('webapp/src/games/tiranastreets/street-career/FirstPersonBody.ts',{'three':T,'./weaponPose.mjs':poses,'./spatialCore.mjs':spatial,'./vehicleCore.mjs':vehicles,'../shared/weapons.mjs':{WEAPON_BY_ID},'../../tirana-east/terrainCore.mjs':{groundHeight}});
+const {FirstPersonBody,maskHead}=load('webapp/src/games/tiranastreets/street-career/FirstPersonBody.ts',{'three':T,'./humanoidRig.mjs':humanoidRig,'./weaponPose.mjs':poses,'./spatialCore.mjs':spatial,'./vehicleCore.mjs':vehicles,'../shared/weapons.mjs':{WEAPON_BY_ID},'../../tirana-east/terrainCore.mjs':{groundHeight}});
 const visuals=load('webapp/src/games/tiranastreets/livingVisuals.ts',{'three':T,'./shared/importedAssets.mjs':{IMPORTED_BY_ID}});
 
 test('every playable weapon resolves to a local GLB within the held-model budget',async()=>{
@@ -48,7 +49,7 @@ test('starter readiness waits for the actual shared AK load and deduplicates req
  const resources=load('webapp/src/games/tiranastreets/weaponModelResources.ts',{'three':T,'three/examples/jsm/utils/BufferGeometryUtils.js':{mergeGeometries}});
  class HeadlessLoader extends GLTFLoader {constructor(){super();this.register(()=>({name:'HEADLESS_TEXTURES',loadTexture:async()=>new T.Texture()}));}}
  let release,requests=0;const gate=new Promise(resolve=>{release=resolve;});
- const {FirstPersonBody:Rig}=load('webapp/src/games/tiranastreets/street-career/FirstPersonBody.ts',{'three':T,'./weaponPose.mjs':poses,'../shared/weapons.mjs':{WEAPON_BY_ID},'../livingVisuals':visuals,'../weaponModelResources':resources,'three/examples/jsm/loaders/GLTFLoader.js':{GLTFLoader:HeadlessLoader}},
+ const {FirstPersonBody:Rig}=load('webapp/src/games/tiranastreets/street-career/FirstPersonBody.ts',{'three':T,'./humanoidRig.mjs':humanoidRig,'./weaponPose.mjs':poses,'../shared/weapons.mjs':{WEAPON_BY_ID},'../livingVisuals':visuals,'../weaponModelResources':resources,'three/examples/jsm/loaders/GLTFLoader.js':{GLTFLoader:HeadlessLoader}},
   {URL,AbortController,window:{location:{href:'https://example.test/'}},fetch:async url=>{requests++;await gate;const bytes=readFileSync(new URL('../webapp/public'+url.pathname,import.meta.url));return {ok:true,arrayBuffer:async()=>bytes.buffer.slice(bytes.byteOffset,bytes.byteOffset+bytes.byteLength)};}});
  const rig=new Rig(new T.Scene());let ready=false;
  const first=rig.prepare(STARTER_WEAPON),second=rig.prepare(STARTER_WEAPON).then(()=>{ready=true;});

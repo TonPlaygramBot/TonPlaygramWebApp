@@ -1,86 +1,81 @@
-# Tirana player, vehicle and offline upgrade
+# Tirana Streets: three supplied players
 
-This change is a draft. The five original Sketchfab rigs have **not** been imported,
-and the running game has **not** been visually verified in WebGL in this environment.
-The picker contains credited original preview images and disabled entries until the
-corresponding reviewed GLBs are installed. The current operator remains playable.
+This follow-up to merged PR #25934 replaces the five preview-only entries and
+default-operator bypass with exactly the three files supplied by the user.
 
-## Changes implemented
+| Choice | Source author | License |
+| --- | --- | --- |
+| Tactical Soldier | DanlyVostok | CC BY 4.0 |
+| Polish Soldier | buh | CC BY 4.0 |
+| Agent 47 | Veterock | CC BY-NC 4.0 |
 
-- A portrait-friendly player picker precedes the solo runtimes. Online rounds keep
-  their existing start timing. Available local
-  rigs use the shared first-person body and weapon solver in Career and Battlefield.
-  The local player's mesh and animations stay separate from other city actors.
-- Helicopter and jet reject moving/airborne boarding. The jet also validates vertical
-  proximity. The existing helicopter stair access remains available. Landing samples
-  the destination surface, high-speed landings cause damage, and exiting no longer
-  replenishes missiles. Non-home exits must stay on the landing surface.
-- Emergency vehicle theft clears dispatcher/path ownership. Player collisions use
-  oriented vehicle bodies, closing speed, approximate mass, contact cooldowns,
-  occupant damage, and short driving substeps. Shared damage starts existing fires
-  and single-transition explosions. This is arcade collision response, not soft-body
-  deformation or a full vehicle physics engine.
-- Player and NPC bullets share nearest cover/body ray tests. Police/military use
-  weapon magazines, reload deadlines, recovery delays, range and deterministic spread.
-  Player body hits have head/leg multipliers; muzzle obstruction retains vehicle IDs.
-- Instanced tracers are bounded by the actual impact, reach distant hits, and survive
-  a late first frame. Added crash sparks/dust, gradual death fall, reload/recoil poses,
-  damage-dependent vehicle materials and a short collision body roll.
-- Tirana downloads include shared characters plus the existing built runtime pack.
-  Completed caches store a file receipt; exact cached entries and dependencies are
-  checked after eviction. Missing files become resumable, without discarding valid
-  files. Catalog/manifest mismatches and source-only Tirana packs cannot be called
-  complete offline downloads. Local NPC fallback assets are primed for offline use.
+Source URLs, original notices, modifications, and input/output hashes are recorded
+in `webapp/public/assets/tirana-streets/players/ATTRIBUTION.txt`, the original Agent
+license, and `asset-audit.json`. Agent 47 requires permission for commercial use;
+this draft does not establish that permission. Its supplied archive has a skeleton
+but no animation clips or morph targets, despite the archive title.
 
-## Original character sources
+## Player selection and body integration
 
-All five model pages were listed as CC BY 4.0. Preserve author credit, source links,
-license and a changes notice with redistributed assets. Previews do not establish
-rig compatibility. In particular, the two terrain variants still need a rig audit.
+- The portrait player picker appears before the lobby and also guards direct game
+  routes. It renders the actual selected GLB with orbit/pinch controls. Continue is
+  enabled only after that model loads, passes rig validation, and renders.
+- Exactly Tactical Soldier, Polish Soldier and Agent 47 are selectable. Loading
+  errors have Retry and Back actions; a different actor is never substituted.
+- Career, Battlefield/online and City Stories use the selected body. City Stories
+  keeps its existing unarmed exploration. Online gameplay input stays blocked until
+  the selected body and starting weapon finish loading.
+- Audited aliases cover Character Creator, Polish numbered bones and Mixamo names.
+  Source names, transforms, skin weights, geometry and authored animations remain
+  intact. Shared body code supplies weapon grips, first-person head masking and
+  procedural footsteps for bodies without locomotion clips.
+- The Polish model's authored rifle is hidden in gameplay so it does not overlap
+  equipped weapons. Its separate uniform magazines remain visible.
+- Only one preview model/WebGL context is active at a time; selection changes and
+  leaving the picker dispose it. Context loss cannot unlock Continue.
 
-| ID | Model | Author | Source |
-| --- | --- | --- | --- |
-| tactical | Soldier Full Tactical Gear | DanlyVostok | https://sketchfab.com/3d-models/850593a8c7114c188395ba1849a66eb9 |
-| polish | Polish soldier | buh (@buh-late) | https://sketchfab.com/3d-models/fb96a663fc4a4246a57ca85de3228c00 |
-| city | City Soldier (outdated) | buh (@buh-late) | https://sketchfab.com/3d-models/636b5a7c7e0c400abda269ba382f3252 |
-| forest | Forest soldier (outdated) | buh (@buh-late) | https://sketchfab.com/3d-models/b265975196394070837366de9a0ddb7c |
-| sand | Sand soldier (outdated) | buh (@buh-late) | https://sketchfab.com/3d-models/98e1431914c1408f958d9c694352cc92 |
+## Assets and downloads
 
-Download the originals through authorized Sketchfab access, embed resources, optimize
-textures/mesh for mobile, and review humanoid bones, rest pose, weapon grips, clipping,
-walk/run, crouch, reload and first-person head masking. Once reviewed, from `webapp`:
+The three optimized GLBs embed all textures and buffers and require no special
+compression decoder. Texture derivatives reduce phone memory and download sizes;
+the original uploads remain unchanged. The existing Tirana pack includes this
+asset directory, and the production pack also includes the executable runtime and
+shared dependencies.
+
+The earlier PR's aircraft boarding/landing fixes, emergency vehicle theft,
+collision response, shared player/NPC shot tests, tracer/effect changes, and
+resumable complete-download checks remain on main. Downloads use browser/PWA
+storage; account and multiplayer services still require a network.
+
+Reproduce asset preparation using `webapp/scripts/prepare-tirana-player-assets.py`.
+After generating each GLB, update its manifest with:
 
 ```sh
-node scripts/import-tirana-player.mjs tactical /path/to/reviewed.glb --rig-reviewed
+node webapp/scripts/import-tirana-player.mjs tactical webapp/public/assets/tirana-streets/players/tactical.glb
+node webapp/scripts/import-tirana-player.mjs polish webapp/public/assets/tirana-streets/players/polish.glb
+node webapp/scripts/import-tirana-player.mjs agent-47 webapp/public/assets/tirana-streets/players/agent-47.glb
 ```
 
-Repeat for each ID. The script checks basic GLB/rig/resource structure and records
-source attribution and a digest. The flag records a **human rig review**, not an
-automated retargeting guarantee. Commit GLBs and `players/manifest.json` together,
-then rebuild the download packs. Do not set rigValidated just to enable a button.
+`rigValidated` records structural compatibility, not human visual sign-off. The
+tests additionally load the actual three GLBs and check scaling, bone mapping,
+head masking, grip error, walking/crouching and selection readiness. Static
+portraits are rendered from the actual skinned models with Mesa EGL; they are not
+screenshots of gameplay.
 
-## Validation loop and remaining gates
+## Review gates
 
-Automated checks cover existing movement, flight, vehicle ownership, ammo, saves,
-new collision and tracer boundaries, NPC reload and download eviction/recovery.
-Typecheck: `webapp/node_modules/.bin/tsc --noEmit -p webapp/tsconfig.tirana-gameplay.json`.
-New regression tests: `node --test test/tiranaPlayerVehicleUpgrade.test.mjs test/gamePackRecovery.node.mjs`.
+The PR remains a draft until commercial permission for Agent 47 and final device
+review are resolved. Inspect all three bodies, weapon switching, crouch, reload,
+head clipping, and repeated enter/exit in portrait WebGL on a physical phone.
+Measure frame time and texture memory, then install the production game pack and
+reopen offline, including after dependency eviction.
 
-Before making the PR ready:
+Live browser verification of this checkout was blocked by preview-server network
+isolation; exposing the server was rejected by environment approval policy. No
+claim of completed live-game WebGL or physical-device QA is made.
 
-1. Import and visually review all five original rigs; exercise the picker with each.
-2. Run the actual game in portrait WebGL at 390×844 and on a physical phone. Check
-   screen directions, both aircraft, service vehicle theft, crash/shot effects, long
-   flights and repeated death/respawn. Verify the emergency vehicle appearances:
-   existing service entities still use the base game's vehicle models.
-3. Inspect PBR maps and skeleton deformation, and measure frame time/texture memory.
-   No higher fidelity or phone performance claim has been verified by this patch.
-4. Install the complete **production** Tirana pack, stop the network, close/reopen the
-   app, launch Career and visit streamed areas. Verify dependency eviction → Resume.
-   Downloads are browser/PWA storage, not a standalone native executable; account and
-   multiplayer services still need a network. Devices may evict unpersisted storage.
+## Actual-model portraits
 
-Browser verification was blocked because the browser could not reach the isolated
-preview server; exposing the server was rejected by environment approval policy.
-Sketchfab's Epic sign-in inspection was rejected by automatic approval review because
-it could access private third-party authentication content. Neither blocker was bypassed.
+| Tactical Soldier | Polish Soldier | Agent 47 |
+| --- | --- | --- |
+| ![Tactical](../../webapp/public/assets/tirana-streets/players/tactical-preview.jpg) | ![Polish](../../webapp/public/assets/tirana-streets/players/polish-preview.jpg) | ![Agent 47](../../webapp/public/assets/tirana-streets/players/agent-47-preview.jpg) |

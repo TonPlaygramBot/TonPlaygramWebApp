@@ -1,5 +1,6 @@
 import { useState } from 'react';
-import { Link, useSearchParams } from 'react-router-dom';
+import {PlayerPicker} from '../../games/tiranastreets/PlayerPicker';
+import { Link, useSearchParams, useNavigate } from 'react-router-dom';
 import BlackwaterLobby from './BlackwaterLobby.jsx';
 import { gameModeURL } from '../../games/tirana-social/socialCore.mjs';
 import '../../games/tirana-street-detail/lobby.css';
@@ -19,7 +20,10 @@ export default function TiranaStreetsLobby() {
   const [params] = useSearchParams(),
     [map, setMap] = useState('skanderbeg'),
     [weapon, setWeapon] = useState('ar');
+  const navigate=useNavigate();
+  const [playerReady,setPlayerReady]=useState(false);
   const battlefield = `${gameModeURL('streets', 'battlefield')}&map=${map}&weapon=${weapon}`;
+  if(!playerReady)return <PlayerPicker onStart={()=>setPlayerReady(true)} onBack={()=>navigate('/games')}/>;
   return (
     <main className="tsl-root">
       <section className="tsl-careers">
@@ -28,6 +32,7 @@ export default function TiranaStreetsLobby() {
         </Link>
         <p className="tsl-eyebrow">TIRANA STREETS</p>
         <h1>Choose Battlefield or Career.</h1>
+        <button className="tsl-back" onClick={()=>setPlayerReady(false)}>Change player</button>
         <div className="tsl-modes">
           <article className="tsl-card tsl-battle">
             <span className="tsl-tag">{MAPS.length} MAPS · LOOT · EXTRACTION</span>

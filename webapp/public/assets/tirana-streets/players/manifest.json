@@ -1,4 +1,41 @@
 {
   "schemaVersion": 1,
-  "players": {}
+  "players": {
+    "tactical": {
+      "url": "/assets/tirana-streets/players/tactical.glb",
+      "rigValidated": true,
+      "validation": "Embedded GLB and mapped humanoid joints; visual/device QA tracked separately",
+      "sha256": "adc6efa02461bda5be2e67d5e3d65e80e58e11add3f950eaa57383d5b86116fb",
+      "size": 10678468,
+      "source": "https://sketchfab.com/3d-models/850593a8c7114c188395ba1849a66eb9",
+      "author": "DanlyVostok",
+      "licence": "CC BY 4.0",
+      "licenceUrl": "https://creativecommons.org/licenses/by/4.0/",
+      "changes": "Textures resized and re-encoded; source geometry, skin and authored transforms preserved. Gameplay uses a rig adapter."
+    },
+    "polish": {
+      "url": "/assets/tirana-streets/players/polish.glb",
+      "rigValidated": true,
+      "validation": "Embedded GLB and mapped humanoid joints; visual/device QA tracked separately",
+      "sha256": "1612cb40b04585ecd937566a92a912cc80bb4d64f26a2416beab75a6b84df6f9",
+      "size": 11654084,
+      "source": "https://sketchfab.com/3d-models/fb96a663fc4a4246a57ca85de3228c00",
+      "author": "buh",
+      "licence": "CC BY 4.0",
+      "licenceUrl": "https://creativecommons.org/licenses/by/4.0/",
+      "changes": "Textures resized and re-encoded; source geometry, skin and authored transforms preserved. Gameplay uses a rig adapter."
+    },
+    "agent-47": {
+      "url": "/assets/tirana-streets/players/agent-47.glb",
+      "rigValidated": true,
+      "validation": "Embedded GLB and mapped humanoid joints; visual/device QA tracked separately",
+      "sha256": "ae1a0a4d4a9e76d707d913b447a07fa96514d968d21c6e26022dafe7ef32ffae",
+      "size": 4878584,
+      "source": "https://sketchfab.com/3d-models/1680cad927304bb687d6a9ad5b9dd98a",
+      "author": "Veterock (@windofglass)",
+      "licence": "CC BY-NC 4.0",
+      "licenceUrl": "https://creativecommons.org/licenses/by-nc/4.0/",
+      "changes": "Textures resized and re-encoded; source geometry, skin and authored transforms preserved. Gameplay uses a rig adapter."
+    }
+  }
 }

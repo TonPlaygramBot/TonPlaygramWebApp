@@ -1,4 +1,5 @@
 import {selectedPlayerUrl} from './playerCatalog.mjs';
+import {normalizePlayableHuman, humanoidBones, HumanoidLegPose, solveHumanoidLimb, hideAuthoredPlayerWeapon} from './street-career/humanoidRig.mjs';
 import {groundHeight} from '../tirana-east/terrainCore.mjs';
 import {LandscapeVisuals} from './landscapeVisuals';
 import {CinematicAtmosphere} from '../tirana-environment/CinematicAtmosphere';
@@ -53,6 +54,7 @@ export type Actor = {
   model: string;
   walk?: THREE.AnimationAction;
   clips?: Record<string, THREE.AnimationAction>;
+  importedRig?: {bones:Map<string,THREE.Bone>;rests:Map<THREE.Bone,THREE.Quaternion>;legs:HumanoidLegPose;gait:number};
 };
 
 export class CityRenderer {
@@ -691,14 +693,13 @@ export class CityRenderer {
               : name === "motorbike"
                 ? 2.1 / Math.max(size.x, size.z)
                 : 4.25 / size.z;
-          const wrapper = new THREE.Group();
-          gltf.scene.position.set(
-            -center.x * scale,
-            -box.min.y * scale,
-            -center.z * scale,
-          );
-          gltf.scene.scale.setScalar(scale);
-          wrapper.add(gltf.scene);
+          const wrapper = name === 'local-player' ? normalizePlayableHuman(gltf.scene) : new THREE.Group();
+          if(name==='local-player')hideAuthoredPlayerWeapon(wrapper);
+          if (name !== 'local-player') {
+            gltf.scene.position.set(-center.x * scale,-box.min.y * scale,-center.z * scale);
+            gltf.scene.scale.setScalar(scale);
+            wrapper.add(gltf.scene);
+          }
           wrapper.traverse((o) => {
             if (o instanceof THREE.Mesh) {
               o.castShadow = true;
@@ -718,9 +719,9 @@ export class CityRenderer {
           if (name === "character") this.animations = gltf.animations;
           if(name==='local-player')this.playerAnimations=gltf.animations;
           onProgress?.(
-            name === "character"
+            name === "local-player" || (name === "character" && !chosen)
               ? "Your character is ready"
-              : "Loading city vehicles",
+              : "Loading city assets",
           );
       };
       // Only the player blocks entry. Nearby road vehicles stream in two lanes
@@ -821,14 +822,16 @@ export class CityRenderer {
         animations.find((a) => a.name.toLowerCase() === "idle") ||
           animations[0],
       );
-      actor.run = actor.mixer.clipAction(
-        animations.find((a) =>
-          ["sprint", "run"].includes(a.name.toLowerCase()),
-        ) || animations[0],
-      );
+      const run = animations.find((a) => ["sprint", "run"].includes(a.name.toLowerCase()));
+      if (run) actor.run = actor.mixer.clipAction(run);
       const walk = animations.find((a) => a.name.toLowerCase() === "walk");
       if (walk) actor.walk = actor.mixer.clipAction(walk);
       actor.idle.play();
+    }
+    if (model === 'local-player') {
+      const bones=humanoidBones(group),rests=new Map<THREE.Bone,THREE.Quaternion>();
+      for(const bone of bones.values())rests.set(bone,bone.quaternion.clone());
+      actor.importedRig={bones,rests,legs:new HumanoidLegPose(group,bones),gait:0};
     }
     this.scene.add(group);
     this.actors.set(id, actor);
@@ -998,6 +1001,16 @@ export class CityRenderer {
         }
         a.mixer?.update(dt * (moving ? Math.max(0.45, pl.speed / 6) : 1));
         this.living.pose(`player-${pl.id}`, a.group, pl, state.elapsed);
+        if (a.importedRig) {
+          const rig=a.importedRig;rig.gait+=dt*pl.speed*1.8;
+          if(!a.walk&&!a.run)rig.legs.update(rig.gait,moving?pl.speed:0);
+          for(const side of ['left','right'] as const) {
+            for(const part of ['arm','forearm','hand']) {
+              const bone=rig.bones.get(side+part);if(bone)bone.quaternion.copy(rig.rests.get(bone)!);
+            }
+            if(pl.weapon)solveHumanoidLimb(a.group,rig.bones,side,a.group.localToWorld(new THREE.Vector3(side==='left'?-.1:-.22,1.3,side==='left'?.64:.43)));
+          }
+        }
       }
       const citizens = [...state.npcs].sort(
         (a, b) =>

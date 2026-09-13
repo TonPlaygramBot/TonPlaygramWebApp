@@ -1,29 +1,48 @@
-import {useEffect,useState} from 'react';
-import {PLAYER_CATALOG,playerAssetFor,selectPlayerAsset} from './playerCatalog.mjs';
+import {useCallback,useEffect,useState} from 'react';
+import {PLAYER_CATALOG,playerAssetFor,selectPlayerAsset,selectedPlayerAsset} from './playerCatalog.mjs';
+import {PlayerPreview,type PreviewState} from './PlayerPreview';
 import './player-picker.css';
-export function PlayerPicker({onStart,onBack}:{onStart:()=>void;onBack:()=>void}){
-  const [manifest,setManifest]=useState<{players:Record<string,unknown>}>({players:{}});
-  const [chosen,setChosen]=useState('');
-  const [loading,setLoading]=useState(true);
-  useEffect(()=>{const abort=new AbortController();const timer=setTimeout(()=>{abort.abort();setLoading(false);},5000);
-    fetch('/assets/tirana-streets/players/manifest.json',{signal:abort.signal}).then(r=>{if(!r.ok)throw Error();return r.json();}).then(setManifest).catch(()=>{}).finally(()=>{if(!abort.signal.aborted)setLoading(false);});
-    return()=>{clearTimeout(timer);abort.abort();};
-  },[]);
-  const start=()=>{selectPlayerAsset(playerAssetFor(chosen,manifest));onStart();};
-  return <main className="tirana-player-picker">
-    <button className="player-back" onClick={onBack}>← Back</button>
-    <h1>Choose your player</h1><p>Preview the five soldiers. Choose an available character to enter Tirana.</p>
-    <div className="player-grid">{PLAYER_CATALOG.map(p=>{
-      const asset=playerAssetFor(p.id,manifest);
-      return <article key={p.id} className={chosen===p.id?'player-card selected':'player-card'}>
-        <a href={p.source} target="_blank" rel="noreferrer" aria-label={`Open 3D preview of ${p.label}`}><img src={p.preview} alt={p.label} loading="lazy" /></a>
-        <h2>{p.label}</h2><p>{p.author} · <a href="https://creativecommons.org/licenses/by/4.0/" target="_blank" rel="noreferrer">{p.licence}</a></p>
-        <a href={p.source} target="_blank" rel="noreferrer">Rotate in 3D ↗</a>
-        <button disabled={!asset||loading} aria-pressed={chosen===p.id} onClick={()=>setChosen(p.id)}>{asset?chosen===p.id?'Selected':'Choose player':'Model not installed yet'}</button>
-      </article>;
-    })}</div>
-    <div className="player-start"><p>{loading?'Checking available characters…':chosen?'Your selection will use the shared weapon and movement controls.':'The five original model files are not installed. You can play with the current operator.'}</p>
-      <button onClick={start}>{chosen?'Start with selected player':'Play with current operator'}</button>
+type Manifest={players:Record<string,unknown>};
+export function PlayerPicker({onStart,onBack}:{onStart:()=>void;onBack:()=>void}) {
+  const [manifest,setManifest]=useState<Manifest>({players:{}});
+  const [chosen,setChosen]=useState(selectedPlayerAsset()?.id||PLAYER_CATALOG[0].id);
+  const [loading,setLoading]=useState(true),[error,setError]=useState(''),[attempt,setAttempt]=useState(0);
+  const [preview,setPreview]=useState<PreviewState>({url:'',ready:false,message:''});
+  const onPreview=useCallback((state:PreviewState)=>setPreview(state),[]);
+  useEffect(()=>{
+    const abort=new AbortController();let active=true;const timer=setTimeout(()=>abort.abort(),10000);
+    setLoading(true);setError('');
+    fetch('/assets/tirana-streets/players/manifest.json',{signal:abort.signal})
+      .then(response=>{if(!response.ok)throw Error('The character list could not be loaded.');return response.json();})
+      .then(value=>{if(active)setManifest(value);})
+      .catch(()=>{if(active)setError('Could not load the characters. Check your download or connection and retry.');})
+      .finally(()=>{clearTimeout(timer);if(active)setLoading(false);});
+    return ()=>{active=false;clearTimeout(timer);abort.abort();};
+  },[attempt]);
+  const character=PLAYER_CATALOG.find(p=>p.id===chosen)!;
+  const asset=playerAssetFor(chosen,manifest);
+  const ready=!loading&&!error&&asset&&preview.url===asset.url&&preview.ready;
+  const start=()=>{if(!ready||!asset)return;selectPlayerAsset(asset);onStart();};
+  return <main className="tirana-player-picker" aria-label="Choose your Tirana player">
+    <div className="player-picker-shell">
+      <button className="player-back" onClick={onBack}>← Back</button>
+      <p className="player-eyebrow">TIRANA STREETS</p>
+      <h1>Choose your player</h1>
+      <div className="player-options" role="group" aria-label="Available players">
+        {PLAYER_CATALOG.map((p,index)=><button key={p.id} aria-pressed={chosen===p.id} onClick={()=>setChosen(p.id)}>
+          <span className="player-number">0{index+1}</span><span>{p.label}</span>
+        </button>)}
+      </div>
+      <div className="player-stage">
+        <PlayerPreview key={`${chosen}-${attempt}`} url={loading?null:asset?.url||null} label={character.label} onState={onPreview}/>
+        <span className="player-stage-label">{character.label}</span>
+      </div>
+      <p className="player-status" role="status">{loading?'Loading characters…':error||(!asset?'This character is missing from the game download.':preview.url===asset.url?preview.message:'Loading preview…')}</p>
+      {!loading&&!ready&&<button className="player-retry" onClick={()=>setAttempt(n=>n+1)}>Retry</button>}
+      <button className="player-continue" disabled={!ready} onClick={start}>Continue as {character.label}</button>
+      <details className="player-credits"><summary>Character credits</summary>
+        <p><a href={character.source} target="_blank" rel="noreferrer">{character.label}</a> by {character.author} · <a href={character.licenceUrl} target="_blank" rel="noreferrer">{character.licence}</a>. Texture sizes optimized for mobile; body rig adapted for gameplay.</p>
+      </details>
     </div>
   </main>;
 }

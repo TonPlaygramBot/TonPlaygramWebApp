@@ -237,10 +237,12 @@ export class GameEngine {
     canvas: HTMLCanvasElement,
     surface: HTMLElement,
     onState: (s: Snapshot) => void,
-    onError: (s: string) => void
+    onError: (s: string) => void,
+    initialWeapon: WeaponId = 'ak47'
   ) {
     this.callback = onState;
     this.errorCallback = onError;
+    this.weapon = initialWeapon;
     try {
       this.renderer = createWebGLRenderer(canvas);
     } catch {
@@ -271,14 +273,7 @@ export class GameEngine {
     this.settings.targetFps = targetFps(this.settings.targetFps);
     this.world = makeCityWorld(this.scene, this.camera, this.renderer);
     this.playerVisual = new BattlefieldPlayer(this.scene);
-    void this.playerVisual.load().then(() => {
-      if (this.disposed) return;
-      if (this.playerVisual.errors.length || this.playerVisual.rig.errors.length) {
-        this.errorCallback('Your character or weapon could not load. Reload to retry.');
-        return;
-      }
-      this.playerReady = true; this.emit();
-    });
+    void this.playerVisual.load(initialWeapon).then(() => this.finishPlayerLoad());
     this.combatEffects=new CombatEffects(this.scene);
     this.vehicle=new BattlefieldVehicle(this.scene);
     this.zoneRing.rotation.x=-Math.PI/2;this.zoneRing.visible=false;this.missionBeacon.visible=false;this.scene.add(this.zoneRing,this.missionBeacon);
@@ -387,7 +382,7 @@ export class GameEngine {
     this.input.clear();
     this.input.crouching = false;
     this.phase = 'playing';
-    this.input.active = true;
+    this.input.active = this.canPlay();
     this.rng = createRng(451 + Math.floor(Math.random() * 10000));
     this.audio.setVolume(this.settings.volume);
     this.audio.start();
@@ -464,9 +459,7 @@ export class GameEngine {
     if (this.phase !== 'paused') return;
     this.phase = 'playing';
     this.input.clear();
-    this.input.active =
-      !this.online ||
-      (this.onlineState?.status === 'playing' && this.health > 0);
+    this.input.active = this.canPlay();
     this.audio.start();
     this.emit();
   }
@@ -495,7 +488,7 @@ export class GameEngine {
     this.medkits = 1;
     this.reloadTimer = 0;
     this.phase = 'playing';
-    this.input.active = true;
+    this.input.active = this.canPlay();
     this.input.clear();
     this.audio.start();
     if (!this.online) this.spawnWave();
@@ -503,7 +496,7 @@ export class GameEngine {
     this.emit();
   }
   look(dx: number, dy: number) {
-    if (this.phase !== 'playing') return;
+    if (!this.canPlay()) return;
     const s =
       0.0031 * this.settings.sensitivity * (this.input.aiming ? 0.6 : 1);
     this.yaw -= dx * s;
@@ -512,17 +505,17 @@ export class GameEngine {
     this.swayY = clamp(dy * 0.0002, -0.014, 0.014);
   }
   toggleAim() {
-    if (this.phase !== 'playing') return;
+    if (!this.canPlay()) return;
     this.input.aiming = !this.input.aiming;
     this.emit();
   }
   toggleCrouch() {
-    if (this.phase !== 'playing') return;
+    if (!this.canPlay()) return;
     this.input.crouching = !this.input.crouching;
     this.emit();
   }
   beginFire() {
-    if (this.phase !== 'playing') return;
+    if (!this.canPlay()) return;
     this.input.firing = true;
     if (this.online) {
       this.sendOnlineInput();
@@ -533,6 +526,7 @@ export class GameEngine {
     this.emit();
   }
   reload() {
+    if (!this.canPlay()) return;
     if (this.online) {
       this.pendingReload = true;
       this.sendOnlineInput();
@@ -550,6 +544,7 @@ export class GameEngine {
     this.emit();
   }
   heal() {
+    if (!this.canPlay()) return;
     if (this.online) {
       this.pendingHeal = true;
       this.sendOnlineInput();
@@ -1373,8 +1368,7 @@ export class GameEngine {
         'warning',
         2
       );
-    this.input.active =
-      this.phase === 'playing' && state.status === 'playing' && me.hp > 0;
+    this.input.active = this.canPlay();
     this.emit();
   }
   private onlineControls() {
@@ -1388,15 +1382,15 @@ export class GameEngine {
       rx /= n;
       forward /= n;
     }
-    const active = this.input.active && this.phase === 'playing';
+    const active = this.input.active && this.canPlay();
     return {
       rx: active ? rx : 0,
       forward: active ? forward : 0,
       yaw: this.yaw,
       pitch: this.pitch + this.recoil,
       fire: active && (this.input.firing || k.has('KeyF')),
-      aim: this.input.aiming,
-      crouch: this.input.crouching,
+      aim: active && this.input.aiming,
+      crouch: active && this.input.crouching,
       sprint:
         active &&
         (this.input.sprinting ||
@@ -1473,6 +1467,26 @@ export class GameEngine {
       this.networkTime = 0;
       this.sendOnlineInput();
     }
+  }
+  private canPlay() {
+    return this.playerReady && this.phase === 'playing' &&
+      (!this.online || (this.onlineState?.status === 'playing' && this.health > 0));
+  }
+  private finishPlayerLoad() {
+    if (this.disposed) return;
+    this.input.clear();
+    if (this.playerVisual.errors.length || this.playerVisual.rig.errors.length) {
+      this.playerReady = false;
+      this.input.active = false;
+      this.errorCallback('Your character or weapon could not load. Reload to retry.');
+      this.emit();
+      return;
+    }
+    this.playerReady = true;
+    // Joining and rendering can proceed while assets load; gameplay begins only
+    // when both the selected rig and starting weapon are usable.
+    this.input.active = this.canPlay();
+    this.emit();
   }
   private emit() {
     this.callback(this.snapshot());

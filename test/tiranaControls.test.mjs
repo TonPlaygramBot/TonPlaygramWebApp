@@ -41,6 +41,47 @@ function armed() {
     input:{firing:true,aiming:true},playerVisual:{rig:{prepare:async()=>{}}},emit(){}});
   return g;
 }
+function joining() {
+  const errors=[];
+  const input={active:false,keys:new Set(),move:{x:0,y:0},firing:false,aiming:false,crouching:false,sprinting:false,
+    clear(){this.keys.clear();this.move={x:0,y:0};this.firing=this.aiming=this.crouching=this.sprinting=false;}};
+  const game=Object.assign(Object.create(GameEngine.prototype),{playerReady:false,disposed:false,phase:'playing',
+    online:{playerId:'local',send(){}},onlineState:null,input,player:{x:0,z:0},health:100,yaw:0,pitch:0,recoil:0,
+    playerVisual:{errors:[],rig:{errors:[]}},enemies:[],settings:{sensitivity:1},
+    audio:{start(){}},errorCallback:message=>errors.push(message),emit(){}});
+  const state={status:'playing',elapsed:0,players:[{id:'local',hp:100,x:0,z:0,weapon:'ak47',ammo:30,reserve:90,kills:0,shots:0,hits:0,medkits:1,reload:0}]};
+  return {game,errors,state};
+}
+test('authoritative online state and Resume cannot enable input before the chosen rig and weapon finish loading',()=>{
+  const {game,state}=joining();game.acceptOnlineState(state);assert.equal(game.input.active,false);
+  game.phase='paused';game.resume();assert.equal(game.phase,'playing');assert.equal(game.input.active,false);
+  game.input.active=true;game.input.keys.add('KeyW');game.input.firing=true;game.input.aiming=true;game.input.crouching=true;
+  game.pendingReload=game.pendingHeal=true;
+  const packet=game.onlineControls();
+  for(const flag of ['fire','aim','crouch','sprint','reload','heal'])assert.equal(packet[flag],false,flag);
+  assert.equal(packet.rx,0);assert.equal(packet.forward,0);
+  game.input.active=false;game.input.clear();game.pendingReload=game.pendingHeal=false;
+  game.look(20,-20);game.toggleAim();game.toggleCrouch();game.beginFire();game.reload();game.heal();
+  assert.equal(game.yaw,0);assert.equal(game.pitch,0);assert.equal(game.input.firing,false);assert.equal(game.pendingReload,false);assert.equal(game.pendingHeal,false);
+});
+test('successful asset loading enables an already playing match and discards touches made during loading',()=>{
+  const {game,state}=joining();game.acceptOnlineState(state);game.input.keys.add('KeyW');game.input.firing=true;
+  game.finishPlayerLoad();assert.equal(game.playerReady,true);assert.equal(game.input.active,true);assert.equal(game.input.keys.size,0);assert.equal(game.input.firing,false);
+  game.input.keys.add('KeyW');game.look(20,-20);assert.ok(game.onlineControls().forward>0);assert.ok(game.yaw<0&&game.pitch>0);
+});
+test('failed character or weapon loading stays blocked across later online updates and Resume',()=>{
+  for(const target of ['character','weapon']){
+    const {game,state,errors}=joining();(target==='character'?game.playerVisual.errors:game.playerVisual.rig.errors).push('download failed');
+    game.finishPlayerLoad();assert.equal(errors.length,1);assert.equal(game.playerReady,false);
+    game.acceptOnlineState(state);game.phase='paused';game.resume();assert.equal(game.input.active,false,target);
+  }
+});
+test('asset completion respects a paused, waiting or disposed game',()=>{
+  for(const patch of [{phase:'paused'},{onlineState:{status:'waiting'}},{disposed:true}]){
+    const {game,state}=joining();game.acceptOnlineState(state);Object.assign(game,patch);game.finishPlayerLoad();assert.equal(game.input.active,false);
+    if(game.disposed)assert.equal(game.playerReady,false);
+  }
+});
 test('switching and returning preserves exact magazines/reserves and cancels reload without a free refill',()=>{
   const g=armed();assert.equal(g.switchWeapon('uzi'),true);assert.equal(g.weapon,'uzi');assert.equal(g.ammo,7);assert.equal(g.reserve,21);
   assert.equal(g.reloadTimer,0);assert.equal(g.pendingReload,false);assert.equal(g.cooldown,.1);assert.equal(g.input.firing,false);
