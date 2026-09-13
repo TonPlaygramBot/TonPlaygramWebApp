@@ -1,6 +1,4 @@
-import { TABLETOP_GAMES } from '../games/tabletop/shared/catalog.mjs';
 const gamesCatalog = [
-  ...TABLETOP_GAMES.map(game => ({name:game.name,slug:game.id,route:`/games/${game.id}/lobby`,image:`/assets/tabletop/${game.id}.svg`,description:game.description,modes:['VS AI','1v1','TPG Multiplayer'],inviteFlow:'room-code',launchLabel:'Enter Lobby'})),
   {
     name: 'Royal Lanes Bowling',
     route: '/games/royallanes/lobby',

@@ -33,8 +33,7 @@
     "generate:military-vehicles": "node scripts/build-military-vehicles.mjs",
     "import:tirana-originals": "node scripts/import-tirana-originals.mjs",
     "test:snake": "vitest run --config vitest.snake.config.mjs",
-    "test:fourinrow": "vitest run --config vitest.fourinrow.config.mjs",
-    "test:tabletop": "vitest run --config vitest.tabletop.config.mjs"
+    "test:fourinrow": "vitest run --config vitest.fourinrow.config.mjs"
   },
   "type": "module",
   "dependencies": {

@@ -1,4 +1,3 @@
-import { TABLETOP_IDS } from '../games/tabletop/shared/catalog.mjs';
 const GAME_ASSET_BASE_URL =
   (import.meta.env && import.meta.env.VITE_GAME_ASSET_BASE_URL) || '/assets/game-art';
 
@@ -12,7 +11,6 @@ const withBase = (path) => {
 };
 
 export const gameThumbnails = {
-  ...Object.fromEntries(TABLETOP_IDS.map(id => [id, `/assets/tabletop/${id}.svg`])),
   royallanes: '/assets/royal-lanes/mark.svg',
   blackwater: '/assets/blackwater/mark.svg',
   tabletennisroyal: '/assets/icons/table-tennis-royal.svg',

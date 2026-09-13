@@ -1,4 +1,3 @@
-import { TABLETOP_IDS } from './games/tabletop/shared/catalog.mjs';
 import React, { Suspense, useMemo } from 'react';
 import { BrowserRouter, Routes, Route, Navigate, useLocation } from 'react-router-dom';
 import { TonConnectUIProvider } from '@tonconnect/ui-react';
@@ -107,8 +106,6 @@ const TavullBattleRoyal = React.lazy(
 const TavullBattleRoyalLobby = React.lazy(
   () => import('./pages/Games/TavullBattleRoyalLobby.jsx')
 );
-const TabletopGame = React.lazy(() => import('./games/tabletop/Game.tsx'));
-const TabletopLobby = React.lazy(() => import('./games/tabletop/Lobby.tsx'));
 const RoyalLanes = React.lazy(() => import('./pages/Games/RoyalLanes.tsx'));
 const RoyalLanesLobby = React.lazy(() => import('./pages/Games/RoyalLanesLobby.jsx'));
 const PoolRoyale = React.lazy(() => import('./pages/Games/PoolRoyale.jsx'));
@@ -251,7 +248,6 @@ export default function App() {
                 element={<GameTransactions />}
               />
               <Route path="/games/:game/lobby" element={<Lobby />} />
-              {TABLETOP_IDS.map(id => <React.Fragment key={id}><Route path={`/games/${id}/lobby`} element={<TabletopLobby key={id} gameId={id} />} /><Route path={`/games/${id}`} element={<TabletopGame key={id} gameId={id} />} /></React.Fragment>)}
               <Route path="/games/royallanes/lobby" element={<RoyalLanesLobby />} />
               <Route path="/games/royallanes" element={<RoyalLanes />} />
               <Route path="/games/blackwater/lobby" element={<LegacyTiranaRoute lobby />} />
