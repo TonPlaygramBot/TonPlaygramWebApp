@@ -1,0 +1,16 @@
+import assert from 'node:assert/strict';
+import {performance} from 'node:perf_hooks';
+import {NEIGHBOURHOOD} from '../webapp/src/games/tirana-neighbourhood/data.mjs';
+import {HEROES} from '../webapp/src/games/tirana-neighbourhood/assets.mjs';
+import {COMPLETED_BUILDINGS} from '../webapp/src/games/tirana-city-completion/buildingRegistry.mjs';
+import {AGED_HOUSING} from '../webapp/src/games/tirana-city-source/housingRegistry.mjs';
+import {nearbyIndex} from '../webapp/src/games/tirana-street-life/streetModels.mjs';
+const ids=[...HEROES,...COMPLETED_BUILDINGS].map(b=>b.id),map=new Map(NEIGHBOURHOOD.buildings.map(b=>[b.id,b]));
+const near=nearbyIndex(AGED_HOUSING,120),viewer={x:0,z:0};
+const scans=()=>ids.map(id=>NEIGHBOURHOOD.buildings.find(b=>b.id===id));
+const lookups=()=>ids.map(id=>map.get(id));
+const oldHousing=()=>AGED_HOUSING.map(b=>({b,d:Math.hypot(b.x-viewer.x,b.z-viewer.z)})).filter(v=>v.d<260).sort((a,b)=>a.d-b.d).slice(0,24).map(v=>v.b);
+const newHousing=()=>near(viewer,260,24);
+assert.deepEqual(scans(),lookups());assert.deepEqual(oldHousing(),newHousing());
+const measure=fn=>{fn();const samples=[];for(let i=0;i<30;i++){const start=performance.now();fn();samples.push(performance.now()-start);}samples.sort((a,b)=>a-b);return Number(samples[15].toFixed(3));};
+console.log(JSON.stringify({buildings:NEIGHBOURHOOD.buildings.length,heroQueries:ids.length,housing:AGED_HOUSING.length,medianMs:{heroScans:measure(scans),heroMap:measure(lookups),housingScan:measure(oldHousing),housingIndex:measure(newHousing)},note:'CPU query microbenchmark, not game FPS; outputs verified equal'},null,2));

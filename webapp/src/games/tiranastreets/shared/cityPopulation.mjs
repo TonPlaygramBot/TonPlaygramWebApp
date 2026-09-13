@@ -22,7 +22,12 @@ export function citySites(env) {
   const clearShop=p=>{
     // Whole interior footprint, plus doorway apron; never place a shop in a road/building.
     for(let x=-7;x<=7;x+=2)for(let z=-11;z<=4;z+=2){
-      const q={x:p.x+x,z:p.z+z},before={...q};env.collide(q,.8);
+      const q={x:p.x+x,z:p.z+z},before={...q};
+      // These shared store interiors have a flat, zero-datum foundation.
+      // Reject hillside plots rather than burying the room or splitting its walls
+      // across independently sampled terrain heights.
+      if(groundHeight(q.x,q.z)>.001)return false;
+      env.collide(q,.8);
       if(Math.hypot(q.x-before.x,q.z-before.z)>.05||onCarriageway(before.x,before.z,.8))return false;
     }
     return !nearBuilding(p.x,p.z).some(b=>{
@@ -80,6 +85,6 @@ export function collectWeapon(state,p,id){
   // Ammo capacity limits the transfer, never the ability to equip ground loot.
   if(inv){inv.reserve=Math.min(w.magazine*8,inv.reserve+Math.max(0,item.ammo));}
   else p.inventory[item.weapon]={ammo:Math.min(w.magazine,item.ammo),reserve:Math.max(0,item.ammo-w.magazine)};
-  item.collected=true;item.collectedBy=p.id;p.weapon=item.weapon;p.reloadAt=0;p.nextShot=0;p.shopMessage=`${w.label} picked up`;
+  item.collected=true;item.collectedBy=p.id;p.weapon=item.weapon;p.reloadAt=0;p.shopMessage=`${w.label} picked up`;
   return true;
 }

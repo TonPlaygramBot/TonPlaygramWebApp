@@ -1,8 +1,11 @@
+import {constructionGeometry} from '../tirana-construction/constructionGeometry';
+import {isConstruction} from '../tirana-construction/constructionCore.mjs';
 import {buildingGround} from '../tirana-east/terrainCore.mjs';
 import * as T from 'three';
 import {sourceBuildingColour} from './buildingAppearance';
 /** Direct footprint walls/roofs: no extrusion objects, window planes or trim boxes. */
 export function appendBuildingShell(b:any,positions:number[],colors:number[]){
+ if(isConstruction(b)){const g=constructionGeometry(b);if(g){const p=g.getAttribute('position'),c=g.getAttribute('color');for(let i=0;i<p.count;i++){positions.push(p.getX(i),p.getY(i),p.getZ(i));colors.push(c.getX(i),c.getY(i),c.getZ(i));}g.dispose();}return;}
  const outer=b.p.map((p:number[])=>new T.Vector2(p[0],p[1]));
  const holes=(b.holes||[]).map((ring:number[][])=>ring.map(p=>new T.Vector2(p[0],p[1])));
  const faces=T.ShapeUtils.triangulateShape(outer,holes);

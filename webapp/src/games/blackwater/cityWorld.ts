@@ -13,7 +13,7 @@ import { ORIGIN, OBSTACLES, START, EXTRACTION, props } from './shared/layout.mjs
 export function makeCityWorld(scene:THREE.Scene,camera:THREE.PerspectiveCamera,renderer:THREE.WebGLRenderer):World {
   const world = makeWorld(scene, camera, renderer, false);
   const webgl = renderer instanceof THREE.WebGLRenderer;
-  const sharedCity = new TiranaCityScene(webgl);
+  const sharedCity = new TiranaCityScene(webgl, undefined, webgl);
   const city = sharedCity.city;
   sharedCity.group.position.set(-ORIGIN.x, 0, -ORIGIN.z);
   scene.add(sharedCity.group);
@@ -88,7 +88,7 @@ export function makeCityWorld(scene:THREE.Scene,camera:THREE.PerspectiveCamera,r
   world.update = position => {
     const now = performance.now() / 1000;
     forces?.update(fleet, position, now, Math.min(.05, now - forceTime), !renderer.shadowMap.enabled);
-    imported.update(importedPlacements,position,!renderer.shadowMap.enabled);
+    if(webgl)imported.update(importedPlacements,position,!renderer.shadowMap.enabled);
     collection?.update(collectionCars,position,Math.min(.05,now-forceTime));
     city.group.userData.collectionErrors=collection?Object.fromEntries(collection.errors):{};
     for(const [id,fallback] of importedFallbacks)fallback.visible=!imported.has(id);
