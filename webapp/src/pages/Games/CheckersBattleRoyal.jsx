@@ -1,3 +1,4 @@
+import { fitCheckersTable } from '../../games/checkers/checkersTableFit.ts';
 import { createSeatedHumanModelLibrary } from '../../games/chess/seatedHumanModel.js';
 import { createCheckersHumanActor, updateCheckersHumanMove, idleCheckersHuman, disposeCheckersHuman, setCheckersHumanView, checkersSeatForSide, checkersPortraitFov, CHECKERS_HUMAN_CAMERA_TARGET_HEIGHT, PHYSICAL_MOVE_DURATION_MS } from '../../games/checkers/checkersHumanActors.ts';
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
@@ -119,10 +120,6 @@ const DEFAULT_HDRI_RADIUS_MULTIPLIER = 6;
 const DEFAULT_HDRI_GROUNDED_RESOLUTION = 256;
 const CHECKERS_ROOM_HALF_SPAN =
   Math.max(CHAIR_DISTANCE, BOTTOM_CHAIR_DISTANCE) + SEAT_DEPTH;
-const CHECKERS_TABLE_BASE_HEIGHT_SCALE = 1.22;
-const CHECKERS_TABLE_BASE_RADIUS_SCALE = 1.0;
-const CHECKERS_TABLE_TRIM_HEIGHT_SCALE = 0.94;
-const CHECKERS_TABLE_TRIM_RADIUS_SCALE = 0.84;
 const CHECKERS_CAMERA_FRAME_COMPENSATION = 1.06;
 const PLAYER_FACE_CAMERA_SEAT_ANGLE = Math.PI / 2;
 const PLAYER_FACE_CAMERA_RADIUS =
@@ -1217,30 +1214,8 @@ async function buildChairTemplateForOption(chairOption, renderer = null) {
   return template;
 }
 
-function fitTableModelToFootprint(model) {
-  const box = new THREE.Box3().setFromObject(model);
-  const size = box.getSize(new THREE.Vector3());
-  const targetSpan = TABLE_RADIUS * 1.98;
-  const horizontalSpan = Math.max(size.x, size.z);
-  if (horizontalSpan > 0) {
-    model.scale.multiplyScalar(targetSpan / horizontalSpan);
-  }
-  const scaledBox = new THREE.Box3().setFromObject(model);
-  const scaledSize = scaledBox.getSize(new THREE.Vector3());
-  const center = scaledBox.getCenter(new THREE.Vector3());
-  const targetTopY = TABLE_HEIGHT;
-  const currentTopY = scaledBox.max.y;
-  model.position.add(
-    new THREE.Vector3(
-      -center.x,
-      targetTopY - currentTopY,
-      -center.z
-    )
-  );
-  // Ensure very short/flat assets still visibly occupy arena volume.
-  if (scaledSize.y < BOARD_TILE_SIZE * 0.5) {
-    model.scale.multiplyScalar(1.2);
-  }
+function fitTableModelToFootprint(model, tableId) {
+  fitCheckersTable(model, { tableId, surfaceY: TABLE_HEIGHT, imported: true });
 }
 
 async function buildPolyhavenTableTemplate(assetId, renderer = null) {
@@ -1311,7 +1286,7 @@ async function buildPolyhavenTableTemplate(assetId, renderer = null) {
       mat.needsUpdate = true;
     });
   });
-  fitTableModelToFootprint(model);
+  fitTableModelToFootprint(model, assetId);
   TABLE_TEMPLATE_CACHE.set(cacheKey, model.clone(true));
   return model;
 }
@@ -1416,96 +1391,7 @@ function alignArenaGroundArtifacts({ shadowCatcher, skybox, table, board, chairs
   return floorY;
 }
 
-function reduceCheckersTableBase(tableGroup) {
-  if (!tableGroup) return;
-  const supportedShapeIds = new Set([
-    'murlan-default',
-    'ovalTable',
-    'grandOval',
-    'diamondEdge',
-    'hexagonTable'
-  ]);
-  const selectedTableId = tableGroup?.userData?.selectedTableId;
-  if (selectedTableId && !supportedShapeIds.has(selectedTableId)) return;
-  tableGroup.traverse((node) => {
-    if (!node?.isMesh || node.geometry?.type !== 'CylinderGeometry') return;
-    const isBelowTop = node.position.y < TABLE_HEIGHT - 0.06;
-    if (!isBelowTop) return;
-    const radiusTop = Number(node.geometry?.parameters?.radiusTop) || 0;
-    const radiusBottom = Number(node.geometry?.parameters?.radiusBottom) || 0;
-    const height = Number(node.geometry?.parameters?.height) || 0;
-    const avgRadius = (radiusTop + radiusBottom) / 2;
-    const isTrimRing = avgRadius > TABLE_RADIUS * 0.7;
-    const beforeBox = new THREE.Box3().setFromObject(node);
-    const heightScale = isTrimRing
-      ? CHECKERS_TABLE_TRIM_HEIGHT_SCALE
-      : CHECKERS_TABLE_BASE_HEIGHT_SCALE;
-    const radiusScale = isTrimRing
-      ? CHECKERS_TABLE_TRIM_RADIUS_SCALE
-      : CHECKERS_TABLE_BASE_RADIUS_SCALE;
-    node.scale.set(
-      node.scale.x * radiusScale,
-      node.scale.y * heightScale,
-      node.scale.z * radiusScale
-    );
-    node.updateMatrixWorld(true);
-    const afterBox = new THREE.Box3().setFromObject(node);
-    if (
-      Number.isFinite(beforeBox.min.y) &&
-      Number.isFinite(afterBox.min.y) &&
-      Math.abs(beforeBox.min.y - afterBox.min.y) > 1e-5
-    ) {
-      node.position.y += beforeBox.min.y - afterBox.min.y;
-      node.updateMatrixWorld(true);
-    }
-    if (!isTrimRing) {
-      const leveledBox = new THREE.Box3().setFromObject(node);
-      if (Number.isFinite(leveledBox.max.y) && leveledBox.max.y > 1e-5) {
-        const chairLegTarget = CHAIR_BASE_HEIGHT;
-        const levelScale = THREE.MathUtils.clamp(
-          chairLegTarget / leveledBox.max.y,
-          0.65,
-          1.45
-        );
-        node.scale.y *= levelScale;
-        node.updateMatrixWorld(true);
-        const realignedBox = new THREE.Box3().setFromObject(node);
-        if (
-          Number.isFinite(realignedBox.min.y) &&
-          Number.isFinite(beforeBox.min.y)
-        ) {
-          node.position.y += beforeBox.min.y - realignedBox.min.y;
-          node.updateMatrixWorld(true);
-        }
-      }
-      const groundedBox = new THREE.Box3().setFromObject(node);
-      if (
-        Number.isFinite(groundedBox.min.y) &&
-        Number.isFinite(groundedBox.max.y) &&
-        groundedBox.max.y - groundedBox.min.y > 1e-5 &&
-        groundedBox.min.y > CHECKERS_TABLE_BASE_FLOOR_Y
-      ) {
-        const currentHeight = groundedBox.max.y - groundedBox.min.y;
-        const targetHeight = groundedBox.max.y - CHECKERS_TABLE_BASE_FLOOR_Y;
-        const floorReachScale = THREE.MathUtils.clamp(
-          targetHeight / currentHeight,
-          1,
-          2.2
-        );
-        node.scale.y *= floorReachScale;
-        node.updateMatrixWorld(true);
-        const floorAlignedBox = new THREE.Box3().setFromObject(node);
-        if (Number.isFinite(floorAlignedBox.max.y)) {
-          node.position.y += groundedBox.max.y - floorAlignedBox.max.y;
-          node.updateMatrixWorld(true);
-        }
-      }
-    }
-    if (height < 0.001) {
-      node.visible = false;
-    }
-  });
-}
+
 
 const pickPolyHavenHdriUrl = (json, preferred = DEFAULT_HDRI_RESOLUTIONS) => {
   if (!json || typeof json !== 'object') return null;
@@ -1687,6 +1573,7 @@ export default function CheckersBattleRoyal() {
   const chairLoadRequestRef = useRef(0);
   const activeChairIdRef = useRef(null);
   const humanActorsRef = useRef([]);
+  const tableLoadRequestRef = useRef(0);
   const humanLoadRequestRef = useRef(0);
   const loadHumansRef = useRef(() => {});
   const pendingHumanInstallRef = useRef(null);
@@ -2867,6 +2754,7 @@ export default function CheckersBattleRoyal() {
       if (!onlineRef.current.enabled) setStatus(`Tap a piece, then a highlighted square. ${RULE_SUMMARY}`);
       // Decorations must never gate the board, controls, or initial move.
       void (async () => {
+        const tableRequest = ++tableLoadRequestRef.current;
         try {
           const selectedTableOption =
             CHESS_TABLE_OPTIONS.find((option) => option.id === appearance.tableId) ||
@@ -2879,7 +2767,8 @@ export default function CheckersBattleRoyal() {
               selectedTableOption.assetId,
               renderer
             );
-            if (sceneDisposed) return;
+            if (sceneDisposed || tableRequest !== tableLoadRequestRef.current) return;
+            tableRef.current?.dispose?.();
             scene.add(tableModel);
             tableRef.current = {
               group: tableModel,
@@ -2904,7 +2793,7 @@ export default function CheckersBattleRoyal() {
               renderer,
               tableRadius: TABLE_RADIUS,
               tableHeight: TABLE_HEIGHT,
-              pedestalHeightScale: 1.24,
+              pedestalHeightScale: 1.14,
               shapeOption: desiredShape
             });
             table.userData = { selectedTableId: appearance.tableId };
@@ -2922,7 +2811,8 @@ export default function CheckersBattleRoyal() {
               },
               renderer
             );
-            reduceCheckersTableBase(table.group);
+            fitCheckersTable(table.group, { tableId: appearance.tableId, surfaceY: TABLE_HEIGHT });
+            tableRef.current?.dispose?.();
             tableRef.current = table;
           }
         } catch (error) {
@@ -3061,6 +2951,7 @@ export default function CheckersBattleRoyal() {
     return () => {
       sceneDisposed = true;
       humanLoadRequestRef.current += 1;
+      tableLoadRequestRef.current += 1;
       pendingHumanInstallRef.current = null;
       humanActorsRef.current.forEach(disposeCheckersHuman);
       humanActorsRef.current = [];
@@ -3475,14 +3366,14 @@ export default function CheckersBattleRoyal() {
 
     let appearanceCancelled = false;
     const rebuildSelectedTable = async () => {
-      const currentTable = tableRef.current;
-      currentTable?.dispose?.();
+      const tableRequest = ++tableLoadRequestRef.current;
       if (selectedIsPolyhaven) {
         const tableModel = await buildPolyhavenTableTemplate(
           selectedTableOption.assetId,
           rendererRef.current
         );
-        if (appearanceCancelled || sceneRef.current !== scene) return;
+        if (appearanceCancelled || sceneRef.current !== scene || tableRequest !== tableLoadRequestRef.current) return;
+        tableRef.current?.dispose?.();
         scene.add(tableModel);
         tableRef.current = {
           group: tableModel,
@@ -3508,7 +3399,8 @@ export default function CheckersBattleRoyal() {
           shapeOption
         });
         rebuilt.userData = { selectedTableId: appearance.tableId };
-        reduceCheckersTableBase(rebuilt.group);
+        fitCheckersTable(rebuilt.group, { tableId: appearance.tableId, surfaceY: TABLE_HEIGHT });
+        tableRef.current?.dispose?.();
         tableRef.current = rebuilt;
       }
       alignArenaGroundArtifacts({
@@ -3519,8 +3411,8 @@ export default function CheckersBattleRoyal() {
         chairs: chairsRef.current
       });
     };
-    if (tableRef.current && currentShapeId !== desiredTableIdentity) {
-      void rebuildSelectedTable();
+    if (!tableRef.current || currentShapeId !== desiredTableIdentity) {
+      void rebuildSelectedTable().catch((error) => console.warn('Checkers table change failed:', error));
     }
     const finish =
       MURLAN_TABLE_FINISHES.find((f) => f.id === appearance.tableFinish) ||

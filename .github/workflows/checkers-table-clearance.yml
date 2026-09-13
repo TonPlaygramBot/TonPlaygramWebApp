@@ -1,0 +1,27 @@
+name: Checkers table clearance
+on:
+  pull_request:
+    paths:
+      - 'webapp/src/games/checkers/**'
+      - 'webapp/src/games/chess/**'
+      - 'webapp/src/pages/Games/CheckersBattleRoyal.jsx'
+      - 'webapp/src/utils/murlanTable.js'
+      - 'test/checkers*'
+      - '.github/workflows/checkers-table-clearance.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  clearance:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+          cache: npm
+          cache-dependency-path: webapp/package-lock.json
+      - run: npm ci --prefix webapp --ignore-scripts
+      - run: node --test test/checkersTableClearance.node.mjs test/checkersHumanActors.node.mjs test/chessPhysicalMove.node.mjs test/chessRules.node.mjs test/checkersLaunch.node.mjs
+      - run: node webapp/node_modules/typescript/lib/tsc.js --noEmit --allowImportingTsExtensions --allowJs --checkJs false --skipLibCheck --strict --moduleResolution bundler --module esnext --target es2022 webapp/src/games/checkers/checkersTableFit.ts
