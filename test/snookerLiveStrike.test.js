@@ -10,8 +10,6 @@ import {
   resolveCueBallContact
 } from '../webapp/src/pages/Games/poolRoyaleCueStrokeTimeline.js';
 
-const { TailugePhysics } = require('./loadTailugeEngine.cjs');
-
 // Execute the production release callback itself. Scene presentation is stubbed;
 // Three.js vectors, the slider release, stroke timing and ball impulse are real.
 const source = fs.readFileSync(
@@ -48,12 +46,7 @@ function rig() {
     spin: new THREE.Vector2(),
     pendingSpin: new THREE.Vector2()
   };
-  const snookerPhysics = new TailugePhysics(
-    { width: 1.778, length: 3.569, radius: 0.03275 },
-    [cue]
-  );
   const context = {
-    snookerPhysics,
     THREE,
     Math,
     Number,
@@ -290,9 +283,7 @@ test.each([10, 50, 100])(
     r.context.powerRef.current = 0;
     r.advance(120);
     r.advance(220);
-    expect(r.cue.vel.y).toBeCloseTo(
-      r.context.snookerPhysics.previewSpeed(power / 100)
-    );
+    expect(r.cue.vel.y).toBeCloseTo(100 * (0.1 + (0.9 * power) / 100));
     expect(r.cue.vel.x).toBeCloseTo(0);
     expect(r.context.playCueHit).toHaveBeenCalledTimes(1);
     r.advance(300);
