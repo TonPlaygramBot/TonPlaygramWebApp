@@ -1,3 +1,4 @@
+import { createLudoBlenderModel } from './ludoBlenderMeshes';
 import * as THREE from 'three';
 import { LUDO_WEAPON_DIRECTOR_BRIDGE } from '../config/ludoWeaponDirectorBridge.js';
 
@@ -182,9 +183,9 @@ export const FIREARM_CALIBER_BY_ID = Object.freeze({
   polyShotgun02Attack: { caliberLabel: '12-gauge long-shell buckshot', projectileKind: 'buckshot-pellet', bulletRadius: 0.0034, bulletLength: 0.014, shellRadius: 0.0042, shellLength: 0.025, bulletSpeed: 0.18 },
   polyShotgun03Attack: { caliberLabel: '12-gauge pump buckshot', projectileKind: 'buckshot-pellet', bulletRadius: 0.0034, bulletLength: 0.014, shellRadius: 0.0042, shellLength: 0.025, bulletSpeed: 0.18 },
   polySawedOff01Attack: { caliberLabel: '12-gauge sawed-off buckshot', projectileKind: 'buckshot-pellet', bulletRadius: 0.0036, bulletLength: 0.013, shellRadius: 0.0044, shellLength: 0.023, bulletSpeed: 0.17 },
-  grenadeBlastAttack: { caliberLabel: '40mm grenade shell', projectileKind: 'explosive-warhead', bulletRadius: 0.0062, bulletLength: 0.046, shellRadius: 0.0047, shellLength: 0.03, bulletSpeed: 0.14 },
+  grenadeBlastAttack: { caliberLabel: '40mm grenade shell', projectileKind: 'grenade-round', bulletRadius: 0.0062, bulletLength: 0.046, shellRadius: 0.0047, shellLength: 0.03, bulletSpeed: 0.14 },
   polyBazooka01Attack: { caliberLabel: '60mm rocket warhead', projectileKind: 'rocket-warhead', bulletRadius: 0.0072, bulletLength: 0.06, shellRadius: 0.0052, shellLength: 0.034, bulletSpeed: 0.13 },
-  polyGrenadeLauncher01Attack: { caliberLabel: '40mm launcher grenade', projectileKind: 'explosive-warhead', bulletRadius: 0.0068, bulletLength: 0.049, shellRadius: 0.005, shellLength: 0.032, bulletSpeed: 0.135 },
+  polyGrenadeLauncher01Attack: { caliberLabel: '40mm launcher grenade', projectileKind: 'grenade-round', bulletRadius: 0.0068, bulletLength: 0.049, shellRadius: 0.005, shellLength: 0.032, bulletSpeed: 0.135 },
   polyDynamiteBomb01Attack: { caliberLabel: 'dynamite charge', projectileKind: 'explosive-charge', bulletRadius: 0.0064, bulletLength: 0.05, shellRadius: 0.0048, shellLength: 0.03, bulletSpeed: 0.13 },
   polyMolotov01Attack: { caliberLabel: 'molotov bottle', projectileKind: 'incendiary-bottle', bulletRadius: 0.0065, bulletLength: 0.052, shellRadius: 0.0048, shellLength: 0.03, bulletSpeed: 0.128 },
   polyGasTank01Attack: { caliberLabel: 'gas-tank explosive canister', projectileKind: 'explosive-canister', bulletRadius: 0.007, bulletLength: 0.058, shellRadius: 0.0051, shellLength: 0.033, bulletSpeed: 0.125 },
@@ -227,7 +228,7 @@ export function matchProjectileDiameterToBarrel(profile: FirearmBallistics = FIR
     bulletRadius: barrelRadius,
     // The shell casing uses the same visual diameter as the visible barrel/bore so bullets,
     // ejected brass and muzzle opening read as one caliber during the close-up camera shot.
-    shellRadius: barrelRadius
+    shellRadius: Math.max(profile.shellRadius, barrelRadius * 1.06)
   };
 }
 
@@ -284,43 +285,11 @@ export function createCaliberProjectileFx(profile: FirearmBallistics = FIREARM_B
   const kind = profile.projectileKind || 'jacketed-round';
   const radius = profile.bulletRadius || 0.0036;
   const length = profile.bulletLength || radius * 9;
-  const isExplosive = kind.includes('explosive') || kind.includes('rocket') || kind.includes('grenade') || kind.includes('cannon') || kind.includes('charge') || kind.includes('bottle') || kind.includes('canister');
-  const isLongGun = kind.includes('sniper') || kind.includes('marksman') || kind.includes('rifle') || kind.includes('smg');
-  const metalMaterial = new THREE.MeshStandardMaterial({
-    color: isExplosive ? '#556b2f' : isLongGun || kind.includes('pistol') || kind.includes('revolver') ? '#b87333' : '#d9dde2',
-    metalness: kind.includes('buckshot') ? 0.72 : 0.95,
-    roughness: isExplosive ? 0.34 : 0.16
-  });
-  const root = new THREE.Group();
+  const meshKey = kind === 'incendiary-bottle' ? 'molotov-bottle' : kind;
+  const supported = new Set(['pistol-round', 'smg-round', 'revolver-round', 'rifle-round', 'marksman-round', 'sniper-round', 'jacketed-round', 'buckshot-pellet', 'rocket-warhead', 'explosive-warhead', 'cannon-shell', 'grenade-round', 'frag-grenade', 'explosive-charge', 'molotov-bottle', 'explosive-canister']);
+  const root = createLudoBlenderModel(supported.has(meshKey) ? meshKey : 'jacketed-round');
+  root.scale.set(radius, kind.includes('buckshot') ? radius * 2 : length, radius);
   root.name = `caliber-projectile-${kind}`;
-  if (kind.includes('buckshot')) {
-    const pellet = new THREE.Mesh(new THREE.SphereGeometry(radius, 14, 14), metalMaterial);
-    root.add(pellet);
-  } else if (isExplosive) {
-    const body = new THREE.Mesh(new THREE.CylinderGeometry(radius * 1.05, radius * 0.88, length * 0.62, 16), metalMaterial);
-    const nose = new THREE.Mesh(new THREE.ConeGeometry(radius * 1.1, length * 0.28, 16), metalMaterial);
-    const tail = new THREE.Mesh(new THREE.CylinderGeometry(radius * 0.72, radius * 0.92, length * 0.18, 16), metalMaterial);
-    const band = new THREE.Mesh(
-      new THREE.TorusGeometry(radius * 1.08, radius * 0.16, 6, 20),
-      new THREE.MeshStandardMaterial({ color: '#f59e0b', metalness: 0.82, roughness: 0.22 })
-    );
-    nose.position.y = length * 0.45;
-    tail.position.y = -length * 0.4;
-    band.position.y = -length * 0.12;
-    root.add(body, nose, tail, band);
-  } else {
-    const body = new THREE.Mesh(new THREE.CylinderGeometry(radius * 0.92, radius, length * 0.58, 18), metalMaterial);
-    const ogive = new THREE.Mesh(new THREE.ConeGeometry(radius * 1.01, length * (isLongGun ? 0.34 : 0.28), 18), metalMaterial);
-    const boatTail = new THREE.Mesh(new THREE.CylinderGeometry(radius * 0.62, radius * 0.9, length * 0.14, 18), metalMaterial);
-    const cannelure = new THREE.Mesh(
-      new THREE.TorusGeometry(radius * 0.92, radius * 0.075, 6, 20),
-      new THREE.MeshStandardMaterial({ color: '#f6c453', metalness: 0.92, roughness: 0.18 })
-    );
-    ogive.position.y = length * 0.44;
-    boatTail.position.y = -length * 0.36;
-    cannelure.position.y = -length * 0.18;
-    root.add(body, ogive, boatTail, cannelure);
-  }
   root.userData.dispose = () => {
     root.traverse((object) => {
       const node = object as THREE.Mesh;
@@ -339,22 +308,9 @@ export function createCaliberShellCasingFx(profile: FirearmBallistics = FIREARM_
   const radius = profile.shellRadius || 0.004;
   const length = profile.shellLength || 0.016;
   const isShotgun = kind.includes('shotgun') || kind.includes('buckshot');
-  const brassMaterial = new THREE.MeshStandardMaterial({
-    color: isShotgun ? '#b91c1c' : '#d4a64a',
-    metalness: isShotgun ? 0.42 : 0.9,
-    roughness: isShotgun ? 0.32 : 0.2
-  });
-  const darkMouthMaterial = new THREE.MeshStandardMaterial({ color: '#171717', metalness: 0.5, roughness: 0.36 });
-  const root = new THREE.Group();
-  const body = new THREE.Mesh(new THREE.CylinderGeometry(radius * 0.94, radius, length * 0.86, 16, 1, true), brassMaterial);
-  const rim = new THREE.Mesh(new THREE.CylinderGeometry(radius * 1.12, radius * 1.05, length * 0.08, 16), brassMaterial);
-  const mouth = new THREE.Mesh(new THREE.TorusGeometry(radius * 0.91, radius * 0.075, 6, 18), brassMaterial);
-  const primer = new THREE.Mesh(new THREE.CylinderGeometry(radius * 0.42, radius * 0.42, length * 0.018, 14), darkMouthMaterial);
-  body.position.y = length * 0.02;
-  rim.position.y = -length * 0.47;
-  primer.position.y = -length * 0.515;
-  mouth.position.y = length * 0.47;
-  root.add(body, rim, primer, mouth);
+  const bottleneck = /rifle|marksman|sniper/.test(kind);
+  const root = createLudoBlenderModel(isShotgun ? 'shotgun-case' : bottleneck ? 'rifle-case' : 'pistol-case');
+  root.scale.set(radius, length, radius);
   root.name = `caliber-shell-${profile.caliberLabel || 'round'}`;
   root.castShadow = true;
   root.receiveShadow = true;
@@ -422,7 +378,7 @@ export function createCaptureTargetReticleFx(size = FIREARM_TARGET_RETICLE_SIZE)
   return { root, ring, horizontal, vertical };
 }
 
-export type FirearmBallistics = { tracerSpread: number; shellDriftX: number; shellDriftZ: number; shellArc: number; bulletRadius: number; bulletLength: number; bulletSpeed: number; shellRadius: number; shellLength: number; projectileKind: string; caliberLabel: string };
+export type FirearmBallistics = { weaponId?: string; tracerSpread: number; shellDriftX: number; shellDriftZ: number; shellArc: number; bulletRadius: number; bulletLength: number; bulletSpeed: number; shellRadius: number; shellLength: number; projectileKind: string; caliberLabel: string };
 
 export function getLudoFirearmTiming(id: string) {
   const shots = FIREARM_MAGAZINE_SHOTS[id] ?? 18;
@@ -430,7 +386,7 @@ export function getLudoFirearmTiming(id: string) {
   const pickupLeadMs = 420, reloadLeadMs = 260, aimLeadMs = 340;
   const preFireLeadMs = pickupLeadMs + reloadLeadMs + aimLeadMs;
   return { shots, cadenceMs, pickupLeadMs, reloadLeadMs, aimLeadMs, preFireLeadMs,
-    durationMs: preFireLeadMs + shots * cadenceMs + 760,
+    durationMs: preFireLeadMs + shots * cadenceMs + 1100,
     pelletsPerShot: FIREARM_SCATTER_PROJECTILE_IDS.has(id) ? 14 : 1 };
 }
 
@@ -438,7 +394,8 @@ export function getLudoFirearmBallistics(id: string): FirearmBallistics {
   const weaponType = LUDO_WEAPON_DIRECTOR_BRIDGE.weaponTypeByCaptureAnimationId[id] ?? 'Rifle';
   const bias = weaponType === 'Sniper' ? { bulletSpeed: 0.3, tracerSpread: 0.009 }
     : weaponType === 'Shotgun' ? { tracerSpread: 0.026 } : weaponType === 'SMG' ? { tracerSpread: 0.022 } : {};
-  return matchProjectileDiameterToBarrel({ ...resolveFirearmBallisticsProfile(id), ...bias, ...FIREARM_CALIBER_BY_ID[id] }, id);
+  const profile = matchProjectileDiameterToBarrel({ ...resolveFirearmBallisticsProfile(id), ...bias, ...FIREARM_CALIBER_BY_ID[id] }, id);
+  return { ...profile, weaponId: id, caliberLabel: FIREARM_CALIBER_BY_ID[id]?.caliberLabel || `${id}: ${profile.caliberLabel}` };
 }
 
 export function sampleLudoFirearmVolley(elapsed: number, timing: ReturnType<typeof getLudoFirearmTiming>) {

@@ -5,8 +5,8 @@ let ludoDiceRollAudio = null;
 export const LUDO_CAPTURE_MISSILE_LAUNCH_SOUND_URL = '/assets/sounds/launch-85216.mp3';
 export const LUDO_CAPTURE_MISSILE_IMPACT_SOUND_URL = '/assets/sounds/080998_bullet-hit-39870.mp3';
 export const LUDO_CAPTURE_FIREARM_SHOT_SOUND_URL = '/assets/sounds/080998_bullet-hit-39870.mp3';
-export const LUDO_CAPTURE_FIREARM_SHELL_SOUND_URL = '/assets/sounds/cueshootsound.mp3';
-export const LUDO_CAPTURE_DRONE_SOUND_URL = '/assets/sounds/kimsa-kimsa-big-motorcycle-sound-394700.mp3';
+export const LUDO_CAPTURE_FIREARM_SHELL_SOUND_URL = '/assets/ludo/audio/shell.wav';
+export const LUDO_CAPTURE_DRONE_SOUND_URL = '/assets/ludo/audio/drone.wav';
 export const LUDO_CAPTURE_FIGHTER_SOUND_URL = '/assets/sounds/race-care-151963.mp3';
 export const LUDO_CAPTURE_HELICOPTER_SOUND_URL = '/assets/sounds/dragon-studio-helicopter-sound-8d-372463.mp3';
 
@@ -132,17 +132,34 @@ export function playLudoDiceRollSfx({ volume = 1, muted = false } = {}) {
     ludoDiceRollAudio = new Audio(LUDO_DICE_ROLL_SOUND_URL);
     ludoDiceRollAudio.preload = 'auto';
   }
-  ludoDiceRollAudio.volume = 1;
+  ludoDiceRollAudio.volume = Math.max(0, Math.min(1, volume));
   ludoDiceRollAudio.currentTime = 0;
   ludoDiceRollAudio.play().catch(() => {});
 }
 
 export function playLudoTokenStepSfx({ volume = 1, muted = false } = {}) {
   if (muted || volume <= 0) return;
-  const ctx = getAudioContext();
-  if (!ctx) return;
-  const now = ctx.currentTime + 0.004;
-  const v = Math.min(0.35, Math.max(0.06, volume * 0.22));
-  scheduleTone(ctx, { startAt: now, duration: 0.065, fromHz: 180, toHz: 120, volume: v, type: 'triangle' });
-  scheduleTone(ctx, { startAt: now + 0.024, duration: 0.055, fromHz: 240, toHz: 170, volume: v * 0.8, type: 'sine' });
+  playLudoPresentationSfx('/assets/ludo/audio/step.wav', { volume: volume * .55, muted });
+}
+
+// Local, deterministic sound assets: no third-party audio request during a shot.
+export function ludoWeaponSoundUrl(id = '') {
+  const kind = /shotgun|SawedOff/i.test(id) ? 'shotgun'
+    : /sniper|mosin|marksman/i.test(id) ? 'marksman'
+    : /uzi|smg|FlyingGun/i.test(id) ? 'smg'
+    : /glock|pistol|sidearm|sigsauer|revolver/i.test(id) ? 'pistol' : 'rifle';
+  return `/assets/ludo/audio/${kind}.wav`;
+}
+const presentationVoices = [];
+export function playLudoPresentationSfx(url, { volume = 1, muted = false } = {}) {
+  if (muted || volume <= 0 || typeof Audio === 'undefined') return false;
+  let voice = presentationVoices.find(audio => audio.paused || audio.ended);
+  if (!voice) {
+    voice = new Audio();
+    if (presentationVoices.length >= 8) { voice = presentationVoices.shift(); voice.pause(); }
+    presentationVoices.push(voice);
+  }
+  voice.src = url; voice.volume = Math.max(0, Math.min(1, volume));
+  voice.currentTime = 0; voice.play().catch(() => {});
+  return true;
 }

@@ -3,6 +3,8 @@ import { createRoot } from 'react-dom/client';
 import * as THREE from 'three';
 import { V, smooth, world, makeActor, pose, palmOrientation, solveArm, heldPose, type Weapon } from './motion';
 
+import { createLudoBlenderModel } from '../../utils/ludoBlenderMeshes';
+import { createCaliberProjectileFx, createCaliberShellCasingFx, getLudoFirearmBallistics } from '../../utils/ludoFirearmPresentation';
 declare const LUDO_PREVIEW_MODEL: string;
 const metal = new THREE.MeshStandardMaterial({ color: '#303b3e', metalness: .8, roughness: .36 });
 const polymer = new THREE.MeshStandardMaterial({ color: '#252c2c', roughness: .75 });
@@ -61,8 +63,8 @@ async function modelJson() {
   return JSON.parse(await new Response(stream).text());
 }
 function App() {
-  const canvas=useRef<HTMLDivElement>(null), controls=useRef<{ start:(kind:string)=>void; weapon:(id:string)=>void }>();
-  const [ready,setReady]=useState(false), [busy,setBusy]=useState(false), [status,setStatus]=useState('Loading character…'), [selected,setSelected]=useState('rifle');
+  const canvas=useRef<HTMLDivElement>(null), controls=useRef<{ start:(kind:string)=>void; weapon:(id:string)=>void; view:(id:string)=>void }>();
+  const [ready,setReady]=useState(false), [busy,setBusy]=useState(false), [status,setStatus]=useState('Loading character…'), [selected,setSelected]=useState('rifle'), [view,setView]=useState('hands');
   useEffect(()=>{
     let dead=false, raf=0, dispose=()=>{};
     modelJson().then(json=>{
@@ -73,7 +75,7 @@ function App() {
       host.appendChild(renderer.domElement); renderer.domElement.setAttribute('aria-label','Seated human picking up a die and aiming tabletop weapons');
       const scene=new THREE.Scene(); scene.background=new THREE.Color('#172824');
       const camera=new THREE.PerspectiveCamera(38,1,.01,20);
-      camera.position.set(-1.20,1.09,-2.10); camera.lookAt(-.10,.36,-.50);
+      camera.position.set(-1.20,1.18,-2.20); camera.lookAt(-.06,.46,-.42);
       scene.add(new THREE.HemisphereLight('#eaf3ec','#657768',2));
       const key=new THREE.DirectionalLight('#fff1d6',3);key.position.set(1.2,3,2);key.castShadow=true;key.shadow.mapSize.set(1024,1024);key.shadow.camera.left=-2;key.shadow.camera.right=2;key.shadow.camera.top=2;key.shadow.camera.bottom=-2;key.shadow.bias=-.0004;scene.add(key);
       const {actor,rig,rightPalm,leftPalm}=makeActor(json);scene.add(actor);
@@ -101,6 +103,8 @@ function App() {
       for(let i=-7;i<=7;i++)for(const j of [-1,0,1]){
         if(Math.abs(i)>1){for(const [x,z]of [[i*.041,j*.041],[j*.041,i*.041]])box(board,[.035,.003,.035],[x-.17,tableY+.019,z+.12],new THREE.MeshStandardMaterial({color:'#e8dfc9'}));}
       }
+      const movePath=board.children.filter(o=>Math.abs(o.position.z-.12)<.001&&o.position.x>-.10).sort((a,b)=>a.position.x-b.position.x) as THREE.Mesh[];
+      const movingPawn=cylinder(board,.013,.03,[-.08,tableY+.04,.12],new THREE.MeshStandardMaterial({color:'#69a275'}),false);
       const die=makeDie(); scene.add(die);
       const dieHome=V(-.20,tableY+.026,-.52);die.position.copy(dieHome);
       const landing=V(-.14,tableY+.026,-.34);
@@ -108,23 +112,57 @@ function App() {
       const target=V(.04,tableY+.08,.55);
       const targetMat=new THREE.MeshStandardMaterial({color:'#c09250',metalness:.6,roughness:.35});
       cylinder(scene,.034,.09,target.toArray(),targetMat,false);
+      let weaponId='rifle';
       let weapon=makeWeapon('rifle');scene.add(weapon.root);
       const park=V(-.30,tableY+.045,-.51),parkQ=new THREE.Quaternion().setFromEuler(new THREE.Euler(0,Math.PI*.12,Math.PI/2));
       weapon.root.position.copy(park);weapon.root.quaternion.copy(parkQ);
       let action='',start=0,releasePosition=V(),releaseQ=new THREE.Quaternion(),released=false,gripFrom=V(),leftFrom=V(),poseFrom:any[]=[],shot=-1;
-      const casings:{mesh:THREE.Mesh;origin:THREE.Vector3;velocity:THREE.Vector3;start:number}[]=[];
+      const casings:{mesh:THREE.Group;origin:THREE.Vector3;velocity:THREE.Vector3;start:number}[]=[];
       const flash=new THREE.Mesh(new THREE.ConeGeometry(.015,.08,8),new THREE.MeshBasicMaterial({color:'#ffe0a4',transparent:true,opacity:.8}));flash.rotation.x=Math.PI/2;flash.visible=false;scene.add(flash);
-      const bullet=new THREE.Mesh(new THREE.SphereGeometry(.006,8,6),brass);bullet.visible=false;scene.add(bullet);
+      const profileFor=()=>getLudoFirearmBallistics(weaponId==='pistol'?'glockSidearmAttack':weaponId==='smg'?'uziSprayAttack':'assaultRifleAttack');
+      let bullet=createCaliberProjectileFx(profileFor());bullet.visible=false;scene.add(bullet);
       let bulletFrom=V(),bulletTime=-99;
+      const showcases=new THREE.Group();scene.add(showcases);showcases.visible=false;
+      const truck=createLudoBlenderModel('truck');truck.scale.setScalar(.30);showcases.add(truck);
+      for(const z of [-.28,0,.28]){const payload=createLudoBlenderModel('missile');payload.scale.setScalar(.8);payload.position.set(-.35,.92,z);payload.rotation.z=.55;truck.add(payload);}
+      const drone=createLudoBlenderModel('drone');drone.scale.setScalar(.30);showcases.add(drone);
+      const propeller=createLudoBlenderModel('drone-propeller');propeller.position.x=-1.57;drone.add(propeller);
+      const missile=createLudoBlenderModel('missile');missile.scale.setScalar(.6);showcases.add(missile);
+      const ammo=new THREE.Group();showcases.add(ammo);
+      ['glockSidearmAttack','assaultRifleAttack','shotgunBlastAttack'].forEach((id,i)=>{
+        const profile=getLudoFirearmBallistics(id), round=createCaliberProjectileFx(profile), shell=createCaliberShellCasingFx(profile);
+        round.scale.multiplyScalar(7);shell.scale.multiplyScalar(7);round.visible=shell.visible=true;
+        round.position.set(-.28+i*.28,.13,0);shell.position.set(-.20+i*.28,.08,0);ammo.add(round,shell);
+      });
+      let currentView='hands', audioCtx:AudioContext|null=null;
+      function sound(kind:string){
+        if(typeof window==='undefined')return;
+        audioCtx??=new AudioContext();void audioCtx.resume();
+        const ctx=audioCtx, length=kind==='shell'?.22:.35, buffer=ctx.createBuffer(1,Math.floor(ctx.sampleRate*length),ctx.sampleRate), samples=buffer.getChannelData(0);
+        for(let i=0;i<samples.length;i++){const t=i/ctx.sampleRate; samples[i]=kind==='shell'?Math.sin(t*15080)*Math.exp(-t*28)*.12:(Math.random()-.5)*Math.exp(-t*40)*.35+Math.sin(t*650)*Math.exp(-t*18)*.17;}
+        const source=ctx.createBufferSource();source.buffer=buffer;source.connect(ctx.destination);source.start();
+      }
       function mark(text:string){setStatus(text);}
       function startAction(kind:string){
         if(action)return;
+        if(currentView!=='hands'&&currentView!=='player')controls.current?.view('hands');
         action=kind;start=performance.now();released=false;shot=-1;
         pose(rig);gripFrom=world(rightPalm);leftFrom=world(leftPalm);poseFrom=[];
         if(kind==='dice')pickup.copy(die.position);
         setBusy(true);mark(kind==='dice'?'Pick up':'Reach');
       }
-      controls.current={start:startAction,weapon(id){
+      controls.current={start:startAction,view(id){
+        currentView=id;setView(id);rig.head.scale.setScalar(id==='player'?.001:1);showcases.visible=id!=='hands'&&id!=='player';
+        for(const node of [truck,drone,missile,ammo])node.visible=false;
+        if(id==='hands'){camera.position.set(-1.20,1.18,-2.20);camera.lookAt(-.06,.46,-.42);mark('Ready');}
+        else if(id==='player'){camera.position.copy(world(rig.head)).add(V(0,.075,.14));camera.lookAt(-.12,tableY,.1);mark('Player perspective');}
+        else {
+          const node=id==='truck'?truck:id==='drone'?drone:id==='missile'?missile:ammo;node.visible=true;
+          showcases.position.set(3,tableY+.2,0);camera.position.set(id==='drone'?4.55:4.1,tableY+(id==='drone'?1.1:.83),id==='drone'?2.3:1.7);camera.lookAt(3,tableY+.25,0);
+          mark(id==='ammo'?'9mm · 5.56 · 12 gauge':id==='drone'?'Delta-wing drone':id==='truck'?'6×6 launcher truck':'Missile');
+        }
+      },weapon(id){
+        weaponId=id;scene.remove(bullet);bullet=createCaliberProjectileFx(profileFor());scene.add(bullet);
         scene.remove(weapon.root);weapon=makeWeapon(id);scene.add(weapon.root);weapon.root.position.copy(park);weapon.root.quaternion.copy(parkQ);
       }};
       const resize=()=>{renderer.setSize(host.clientWidth,host.clientHeight);camera.aspect=host.clientWidth/host.clientHeight;camera.updateProjectionMatrix();};
@@ -134,7 +172,13 @@ function App() {
       function frame(now:number){
         if(dead)return;
         const t=(now-start)/1000;
-        if(action==='dice'){
+        if(action==='move'){
+          const index=Math.min(movePath.length-1,Math.floor(t/.34)),phase=(t%.34)/.34;
+          const tile=movePath[index],from=index>0?movePath[index-1]:tile;
+          if(tile){movingPawn.position.copy(from.position).lerp(tile.position,phase);movingPawn.position.y+=.018+Math.sin(phase*Math.PI)*.028;}
+          movePath.forEach((tile,i)=>{const mat=tile.material as THREE.MeshStandardMaterial;mat.emissive.set('#69e98f');mat.emissiveIntensity=i===index?1.5+Math.sin(phase*Math.PI):i===index-1?.45:0;});
+          mark('Moving token');if(t>=movePath.length*.34){action='';movePath.forEach(tile=>(tile.material as THREE.MeshStandardMaterial).emissiveIntensity=0);setBusy(false);mark('Ready');}
+        }else if(action==='dice'){
           if(t<.55){
             pose(rig,'reachDice',smooth(t/.55),0);
             solveArm(rig,'right',rightPalm,gripFrom.clone().lerp(pickup,smooth(t/.55)),undefined,true);
@@ -170,7 +214,7 @@ function App() {
           weapon.root.position.copy(park).lerp(held.position,amount);weapon.root.quaternion.copy(parkQ).slerp(held.q,amount);
           if(t>=1.35&&t<2.05){
             const n=Math.floor((t-1.35)/.22);
-            if(n!==shot){shot=n;bulletFrom=weapon.root.localToWorld(weapon.muzzle.clone());bulletTime=now;const mesh=cylinder(scene,.0028,.014,[0,0,0],brass);const origin=weapon.root.localToWorld(V(.02,.03,.01));casings.push({mesh,origin,velocity:V(.36,.5,.14),start:now});}
+            if(n!==shot){shot=n;bulletFrom=weapon.root.localToWorld(weapon.muzzle.clone());bulletTime=now;sound('shot');const mesh=createCaliberShellCasingFx(profileFor());mesh.visible=true;scene.add(mesh);const origin=weapon.root.localToWorld(V(.02,.03,.01));casings.push({mesh,origin,velocity:V(.36,.5,.14),start:now});}
             const kick=Math.max(0,1-((t-1.35)%.22)/.075)*.01;weapon.root.position.addScaledVector(V(0,0,-1).applyQuaternion(held.q),kick);
           }
           const grip=weapon.root.localToWorld(weapon.grip.clone());
@@ -185,10 +229,12 @@ function App() {
         }
         const elapsed=(now-bulletTime)/1000;
         bullet.visible=elapsed>=0&&elapsed<.13;flash.visible=elapsed>=0&&elapsed<.055;
-        if(bullet.visible)bullet.position.copy(bulletFrom).lerp(target,Math.min(1,elapsed/.11));
+        if(bullet.visible){bullet.position.copy(bulletFrom).lerp(target,Math.min(1,elapsed/.11));bullet.quaternion.setFromUnitVectors(V(0,1,0),target.clone().sub(bulletFrom).normalize());}
         if(flash.visible){flash.position.copy(bulletFrom);flash.quaternion.copy(weapon.root.quaternion).multiply(new THREE.Quaternion().setFromAxisAngle(V(1,0,0),Math.PI/2));}
         casings.forEach(c=>{const age=(now-c.start)/1000;c.mesh.position.copy(c.origin).addScaledVector(c.velocity,age);c.mesh.position.y=Math.max(tableY+.004,c.origin.y+c.velocity.y*age-2.5*age*age);if(age<.65)c.mesh.rotation.set(age*12,age*7,age*9);});
-        if(casings.length>16){const old=casings.shift()!;scene.remove(old.mesh);old.mesh.geometry.dispose();}
+        if(casings.length>16){const old=casings.shift()!;scene.remove(old.mesh);old.mesh.traverse(node=>{if((node as THREE.Mesh).isMesh)(node as THREE.Mesh).geometry.dispose();});}
+        rig.head.scale.setScalar(currentView==='player'?.001:1);
+        if(currentView==='drone')propeller.rotation.x=now*.025;
         renderer.render(scene,camera);raf=requestAnimationFrame(frame);
       }
       raf=requestAnimationFrame(frame);
@@ -197,8 +243,8 @@ function App() {
     return()=>{dead=true;cancelAnimationFrame(raf);dispose();};
   },[]);
   return <div className="ludo-screen"><div className="ludo-stage" ref={canvas} role="img" aria-label="Ludo human motion review"/>
-    <div className="ludo-controls"><select aria-label="Weapon" value={selected} disabled={busy||!ready} onChange={e=>{setSelected(e.target.value);controls.current?.weapon(e.target.value);}}><option value="rifle">Rifle</option><option value="smg">Submachine gun</option><option value="pistol">Pistol</option></select>
-    <button type="button" disabled={busy||!ready} onClick={()=>controls.current?.start('fire')}>Aim &amp; fire</button><button type="button" disabled={busy||!ready} onClick={()=>controls.current?.start('dice')}>Roll dice</button></div>
+    <div className="ludo-controls"><select aria-label="View" value={view} disabled={busy||!ready} onChange={e=>controls.current?.view(e.target.value)}><option value="hands">Character &amp; chair</option><option value="player">Player perspective</option><option value="ammo">Bullets &amp; shells</option><option value="truck">Launcher truck</option><option value="drone">Delta-wing drone</option><option value="missile">Missile</option></select><select aria-label="Weapon" value={selected} disabled={busy||!ready} onChange={e=>{setSelected(e.target.value);controls.current?.weapon(e.target.value);}}><option value="rifle">Rifle</option><option value="smg">Submachine gun</option><option value="pistol">Pistol</option></select>
+    <button type="button" disabled={busy||!ready} onClick={()=>controls.current?.start('fire')}>Aim &amp; fire</button><button type="button" disabled={busy||!ready} onClick={()=>controls.current?.start('dice')}>Roll dice</button><button type="button" disabled={busy||!ready} onClick={()=>controls.current?.start('move')}>Move token</button></div>
     <div className="ludo-status" role="status" aria-live="polite">{status}</div></div>;
 }
 createRoot(document.getElementById('ludo-motion-preview')!).render(<App/>);

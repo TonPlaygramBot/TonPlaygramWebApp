@@ -25,7 +25,7 @@ function controller(name, dependencies) {
 const noop = () => {};
 
 test('portrait seated-human sizing and character selection remain wired to the restored implementation', () => {
-  assert.match(source, /const SEATED_HUMAN_ACTOR_TARGET_HEIGHT = SEATED_HUMAN_BASE_HEIGHT \* 0\.65;/);
+  assert.match(source, /const SEATED_HUMAN_ACTOR_TARGET_HEIGHT = SEATED_HUMAN_BASE_HEIGHT \* 0\.84;/);
   assert.match(source, /const SEATED_HUMAN_TARGET_HEIGHT = BACK_HEIGHT \* 2\.42;/);
   assert.match(source, /const SEATED_HUMAN_VISUAL_SCALE_MULTIPLIER = 4\.2;/);
   assert.match(source, /const SEATED_HUMAN_SEAT_Y_OFFSET = -6\.75 \* MODEL_SCALE \* STOOL_SCALE;/);
