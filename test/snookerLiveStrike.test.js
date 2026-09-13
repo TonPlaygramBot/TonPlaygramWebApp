@@ -55,6 +55,7 @@ function rig() {
     Set,
     performance: { now: () => now },
     cue,
+    table: { userData: { uploadedTable: true, loadState: 'ready' } },
     balls: [cue],
     cueStick: new THREE.Object3D(),
     resolvePoolRoyalReleasePower,
@@ -324,5 +325,13 @@ test('a disposed scene cannot receive a late cue impact', () => {
   r.context.disposed = true;
   r.advance(220);
   for (const fn of r.timers.values()) fn();
+  expect(r.cue.vel.length()).toBe(0);
+});
+
+test.each(['loading', 'error'])('the uploaded table cannot be played while %s', (state) => {
+  const r = rig();
+  r.context.table.userData.loadState = state;
+  expect(r.context.fire(0.8)).toBe(false);
+  r.advance(220);
   expect(r.cue.vel.length()).toBe(0);
 });

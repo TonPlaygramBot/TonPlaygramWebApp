@@ -60,10 +60,7 @@ describe('snooker table model selection', () => {
     assert.equal(usesProceduralSnookerTableRailDecor('unknown'), false);
   });
 
-  test('uses the Pooltool snooker_generic GLB source', () => {
-    assert.match(
-      TABLE_MODEL_OPENSOURCE_GLB_URL,
-      /pooltool\/models\/table\/snooker_generic\/snooker_generic\.glb$/
-    );
+  test('uses the prepared uploaded table from the same-origin game pack', () => {
+    assert.equal(TABLE_MODEL_OPENSOURCE_GLB_URL, '/assets/snooker-royal/mesxwi/snooker-table.glb');
   });
 });
