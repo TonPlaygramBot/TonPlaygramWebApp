@@ -30,6 +30,7 @@ twitter.env
 **/.env*
 /webapp/dist/
 /webapp/dist-kart/
+/webapp/public/assets/snake-table-review/
 # Hardhat build artifacts
 artifacts/
 cache/
