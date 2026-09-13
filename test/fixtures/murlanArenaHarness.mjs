@@ -14,12 +14,20 @@ for (const node of program.body) {
   if (node.type === 'VariableDeclaration') for (const item of node.declarations) if (item.id.type === 'Identifier') declarations.set(item.id.name, item.init);
   if (node.type === 'FunctionDeclaration') declarations.set(node.id.name, node);
 }
+const arena = program.body.find((node) => node.type === 'ExportDefaultDeclaration')?.declaration;
+const applyState = arena?.body.body.flatMap((node) => node.type === 'VariableDeclaration' ? node.declarations : [])
+  .find((node) => node.id.name === 'applyStateToScene')?.init.arguments[0];
+const handLoop = applyState?.body.body.find((node) => node.type === 'ExpressionStatement' &&
+  source.slice(node.start, node.end).startsWith('state.players.forEach('));
 export function arenaHarness(extra = {}) {
   const context = vm.createContext({ THREE, ...rules, BASE_CONFIG: rules.DEFAULT_CONFIG, ...contact, ...motion,
     console, performance, cloneSkeleton: clone, Map, Set, Math, URLSearchParams,
     HUMAN_CARD_HAND_DEBUG_HELPERS: false, preserveOriginalCharacterMaterials() {},
     enhanceMurlanCharacterMaterials() {}, shouldPreserveOriginalCharacterMaterials: () => true,
     ...extra });
+  if (handLoop) vm.runInContext(`this.applyTestHandState = function(state, selection, immediate = true) {
+    ${source.slice(applyState.body.start + 1, handLoop.end)}
+  }`, context);
   const load = (name) => {
     if (name in context) return;
     const node = declarations.get(name);
@@ -31,7 +39,19 @@ export function arenaHarness(extra = {}) {
     }
     throw Error(`Could not load ${name}`);
   };
-  return { context, load };
+  const invoke = (name, ...args) => {
+    load(name);
+    for (let attempt = 0; attempt < 100; attempt++) {
+      try { return context[name](...args); }
+      catch (error) {
+        const missing = error.message.match(/^(\w+) is not defined$/)?.[1];
+        if (!missing) throw error;
+        load(missing);
+      }
+    }
+    throw Error(`Could not invoke ${name}`);
+  };
+  return { context, load, invoke };
 }
 export async function loadArenaCharacter(seatIndex = 0) {
   const { context: c, load } = arenaHarness();

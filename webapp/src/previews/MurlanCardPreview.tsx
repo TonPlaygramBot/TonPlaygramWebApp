@@ -2,8 +2,8 @@ import React, {useEffect, useRef, useState} from 'react';
 import {createRoot} from 'react-dom/client';
 import * as THREE from 'three';
 import {GLTFLoader} from 'three/examples/jsm/loaders/GLTFLoader.js';
-import {createCharacterRig,runCharacterAction,updateCharacterCardContacts,CARD_H,CARD_W} from '#murlan-preview-rig';
-import {heldCardPose,cardScaleForHand,CARD_PICKUP_REACH_MS,CARD_CARRY_MS,CARD_RELEASE_MS,CARD_ACTION_MS} from '../games/murlan/cardContact.ts';
+import {attachSeatedCharacter,getHandCardLayout,resolveSeatHandRadius,orientMesh,runCharacterAction,updateCharacterCardContacts,CARD_H,CARD_W,TABLE_RADIUS,TABLE_HEIGHT,HUMAN_HAND_CARD_SPACING,HUMAN_HAND_CARD_MAX_SPREAD} from '#murlan-preview-rig';
+import {supportFixedCards,CARD_PICKUP_REACH_MS,CARD_CARRY_MS,CARD_RELEASE_MS,CARD_ACTION_MS} from '../games/murlan/cardContact.ts';
 declare const MURLAN_PREVIEW_MODEL: string;
 
 function MurlanCardPreview() {
@@ -24,17 +24,18 @@ function MurlanCardPreview() {
     const scene=new THREE.Scene();scene.background=new THREE.Color('#08130f');
     scene.add(new THREE.HemisphereLight(0xeaf4ff,0x303329,2.5));
     const light=new THREE.DirectionalLight(0xfff1de,2.5);light.position.set(2,5,3);light.castShadow=true;light.shadow.mapSize.set(1024,1024);light.shadow.camera.left=-2;light.shadow.camera.right=2;light.shadow.camera.top=2;light.shadow.camera.bottom=-2;light.shadow.normalBias=.008;scene.add(light);
-    const camera=new THREE.PerspectiveCamera(38,1,.01,30);camera.position.set(-.9,1.5,1.8);camera.lookAt(0,1.08,.30);
+    const camera=new THREE.PerspectiveCamera(38,1,.01,30);camera.position.set(2.5,2.4,3.4);camera.lookAt(0,1.55,2.65);
     const resize=()=>{camera.aspect=host.clientWidth/host.clientHeight;camera.updateProjectionMatrix();renderer.setSize(host.clientWidth,host.clientHeight);};
     const observer=new ResizeObserver(resize);observer.observe(host);resize();
-    const tabletop=new THREE.Mesh(new THREE.CylinderGeometry(1.05,1.05,.06,64),new THREE.MeshStandardMaterial({color:'#116044',roughness:.95}));
-    tabletop.position.set(0,.89,1.38);tabletop.receiveShadow=true;scene.add(tabletop);
-    const leg=new THREE.Mesh(new THREE.CylinderGeometry(.14,.21,.87,20),new THREE.MeshStandardMaterial({color:'#3d2820'}));leg.position.set(0,.435,1.38);scene.add(leg);
-    const cushion=new THREE.Mesh(new THREE.BoxGeometry(.7,.1,.72),new THREE.MeshStandardMaterial({color:'#322932'}));cushion.position.set(0,.5,-.12);scene.add(cushion);
+    const tabletop=new THREE.Mesh(new THREE.CylinderGeometry(TABLE_RADIUS,TABLE_RADIUS,.06,64),new THREE.MeshStandardMaterial({color:'#116044',roughness:.95}));
+    tabletop.position.set(0,TABLE_HEIGHT-.03,0);tabletop.receiveShadow=true;scene.add(tabletop);
+    const leg=new THREE.Mesh(new THREE.CylinderGeometry(.14,.21,.87,20),new THREE.MeshStandardMaterial({color:'#3d2820'}));leg.position.set(0,TABLE_HEIGHT/2,0);scene.add(leg);
+    const cushion=new THREE.Mesh(new THREE.BoxGeometry(.7,.1,.72),new THREE.MeshStandardMaterial({color:'#322932'}));cushion.position.set(0,.9,3.4);scene.add(cushion);
     const floor=new THREE.Mesh(new THREE.PlaneGeometry(12,12),new THREE.MeshStandardMaterial({color:'#14241d'}));floor.rotation.x=-Math.PI/2;floor.receiveShadow=true;scene.add(floor);
     let disposed=false,frame=0,started:number|null=null,rig:any=null;
     const cards:THREE.Mesh[]=[];
-    const store:any={scene,cardMap:new Map(),characterRigs:new Map(),characterActionAnimations:[]};
+    const store:any={scene,cardMap:new Map(),characterRigs:new Map(),characterActionAnimations:[],characterInstances:[]};
+    const seat:any={seatIndex:0,forward:new THREE.Vector3(0,0,1),right:new THREE.Vector3(-1,0,0),radius:resolveSeatHandRadius(TABLE_RADIUS,true),spacing:HUMAN_HAND_CARD_SPACING,maxSpread:HUMAN_HAND_CARD_MAX_SPREAD};
     const makeCard=(rank:string,suit:string,index:number)=>{
       const canvas=document.createElement('canvas');canvas.width=192;canvas.height=272;
       const ctx=canvas.getContext('2d')!;ctx.fillStyle='#fffdf5';ctx.fillRect(0,0,192,272);
@@ -43,19 +44,24 @@ function MurlanCardPreview() {
       const face=new THREE.MeshStandardMaterial({map:texture,roughness:1});const back=new THREE.MeshStandardMaterial({color:'#15364b',roughness:1});
       const edge=new THREE.MeshStandardMaterial({color:'#eadfcb'});
       const mesh=new THREE.Mesh(new THREE.BoxGeometry(CARD_W,CARD_H,.003),[edge,edge,edge,edge,face,back]);
-      mesh.castShadow=true;mesh.receiveShadow=true;mesh.scale.setScalar(cardScaleForHand(rig.cardContact,CARD_H,.67));mesh.userData.cardId=`card-${index}`;scene.add(mesh);cards.push(mesh);store.cardMap.set(mesh.userData.cardId,{mesh});
+      mesh.castShadow=true;mesh.receiveShadow=true;mesh.userData.cardId=`card-${index}`;scene.add(mesh);cards.push(mesh);store.cardMap.set(mesh.userData.cardId,{mesh});
     };
     const reset=()=>{
       if(!rig)return;started=null;rig.cardPlay=null;setBusy(false);setStatus('Holding');
       rig.handMeshes=cards;
       if(rig.bones.head&&rig.seatedPose.head)rig.bones.head.rotation.copy(rig.seatedPose.head);
-      cards.forEach((card,i)=>{card.userData.animation=null;const pose=heldCardPose(rig.cardContact,new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(0,1,0),Math.PI),i,cards.length,CARD_H,card.scale.x);if(pose){card.position.copy(pose.position);card.quaternion.copy(pose.quaternion);}});
+      cards.forEach((card,i)=>{
+        card.userData.animation=null;
+        const layout=getHandCardLayout(seat,cards.length,i,true,false);
+        card.position.copy(layout.position);card.scale.setScalar(layout.scale);orientMesh(card,layout.lookTarget,layout.orientation);
+      });
+      supportFixedCards(rig.cardContact,cards,CARD_H,performance.now(),false,true);
       updateCharacterCardContacts(store,performance.now());
     };
     const play=()=>{
-      if(!rig||started!==null)return;reset();const mesh=cards[2];
+      if(!rig||started!==null)return;reset();const mesh=cards[7];
       const now=performance.now();started=now;
-      const target=new THREE.Vector3(.03,.924,.85);const targetQuaternion=new THREE.Quaternion().setFromEuler(new THREE.Euler(-Math.PI/2,0,Math.PI+.05));
+      const target=new THREE.Vector3(.03,TABLE_HEIGHT+.08,.54);const targetQuaternion=new THREE.Quaternion().setFromEuler(new THREE.Euler(-Math.PI/2,0,.05));
       mesh.userData.animation={precisionContact:true,from:mesh.position.clone(),to:target,fromQuaternion:mesh.quaternion.clone(),toQuaternion:targetQuaternion,start:now+CARD_PICKUP_REACH_MS,duration:CARD_CARRY_MS};
       rig.handMeshes=cards.filter(c=>c!==mesh);
       runCharacterAction(store,rig,{type:'PLAY',playerIndex:0,cards:[{id:mesh.userData.cardId}]});setBusy(true);
@@ -66,10 +72,10 @@ function MurlanCardPreview() {
       const decoded=await new Response(new Blob([bytes]).stream().pipeThrough(new DecompressionStream('gzip'))).arrayBuffer();
       const model=(await new GLTFLoader().parseAsync(decoded,'')).scene;if(disposed)return;
       model.traverse((node:any)=>{if(node.isMesh){node.castShadow=true;node.receiveShadow=true;}});
-      const root=new THREE.Group();root.position.y=-.22;root.add(model);scene.add(root);
-      rig=createCharacterRig(model,root,{seatIndex:0}, {},{isHuman:true},0,null);
-      store.characterRigs.set(0,rig);
-      [['7','♣'],['8','♥'],['9','♠'],['10','♦'],['J','♣']].forEach(([r,s],i)=>makeCard(r,s,i));reset();setReady(true);
+      const chair=new THREE.Group();chair.position.set(0,.4,3.35);chair.lookAt(new THREE.Vector3(0,.4,0));scene.add(chair);seat.chair=chair;
+      attachSeatedCharacter({template:model,seatConfig:seat,characterTheme:{scale:1,normalizedSeatOffsetY:-.4,normalizedSeatOffsetZ:.52,preserveOriginalMaterials:true},store,player:{isHuman:true},playerIndex:0});
+      rig=seat.characterRig;
+      [['3','♠'],['4','♥'],['5','♣'],['6','♦'],['7','♣'],['8','♥'],['9','♠'],['10','♦'],['J','♣'],['Q','♥'],['K','♠'],['A','♦'],['2','♣'],['JR','♥']].forEach(([r,s],i)=>makeCard(r,s,i));reset();setReady(true);
     })().catch(()=>setStatus('Character could not load.'));
     let previousPhase='';
     const animate=(time:number)=>{
@@ -84,6 +90,6 @@ function MurlanCardPreview() {
     };frame=requestAnimationFrame(animate);
     return()=>{disposed=true;cancelAnimationFrame(frame);observer.disconnect();renderer.dispose();renderer.domElement.remove();scene.traverse((node:any)=>{node.geometry?.dispose();for(const mat of Array.isArray(node.material)?node.material:[node.material]){mat?.map?.dispose();mat?.dispose();}});};
   },[]);
-  return <div className="mcp-surface"><div className="mcp-top"><span>Card-handling review</span><span role="status">{status}</span></div><div ref={mount} className="mcp-view" aria-label="Original Murlan human character holding and playing a card"/><div className="mcp-actions"><button disabled={!ready||busy} onClick={()=>controls.current.play()}>Play card</button><button disabled={!ready} onClick={()=>controls.current.reset()}>Reset</button></div></div>;
+  return <div className="mcp-surface"><div className="mcp-top"><span>Player card pickup</span><span role="status">{status}</span></div><div ref={mount} className="mcp-view" aria-label="Murlan's original player-card layout with hands adapting to the cards"/><div className="mcp-actions"><button disabled={!ready||busy} onClick={()=>controls.current.play()}>Play card</button><button disabled={!ready} onClick={()=>controls.current.reset()}>Reset</button></div></div>;
 }
 createRoot(document.getElementById('murlan-card-review')!).render(<MurlanCardPreview/>);
