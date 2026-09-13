@@ -9,22 +9,15 @@ skeleton, textures, and materials are preserved.
 
 ## Behavior
 
-- The human player's cards retain their original size, position, spacing,
-  orientation, and selected-card lift from the morning version before PR #25892
-  (`5007896fb90fe05c8df85d0a34426b9c93f70939`). A bounded seated lean and arm solve
-  bring the supporting hand to those fixed cards without stretching arm bones.
-  AI cards retain their compact fan. The right hand picks up the opposite lower
-  corner. Ring and little fingers keep a relaxed curl. Finger lookup includes the
+- Actual hand cards form a compact fan around the left-hand pinch, sized to the
+  avatar's palm. The right hand picks up the opposite lower corner. Ring and
+  little fingers keep a relaxed curl. Finger lookup includes the
   original model's `LeftHandIndex1` / `RightHandIndex1` naming.
 - The right hand reaches for the played cards, carries the same visible meshes,
   releases them, and returns. Pairs, bombs, and straights share the pinch while
   carried and spread into their individual table slots after release.
-- Pickup blends from the current arm pose, approaches just off the card face,
-  brings the index finger to the edge before the thumb closes, and lets the
-  middle finger follow for support. The wrist turns after extracting the card.
-  The remaining cards keep their original screen transforms.
-  During the carry,
-  the card keeps its size
+- Pickup blends from the current arm pose, the fingers close at contact, and
+  the wrist turns after drawing the card from the fan. The card keeps its size
   while held; the table's larger reading scale applies only after release.
   A short contact pause, finger opening, and eased return replace the abrupt
   resets. The arm solver preserves bone lengths. The table center is beyond seated arm reach, so cards settle
@@ -48,7 +41,7 @@ cd webapp
 npx vite build
 ```
 
-The 28 targeted tests include 90 seeded complete games with two, three, and four
+The 25 targeted tests include 90 seeded complete games with two, three, and four
 players, card conservation, opening-card constraints, and parity with exhaustive
 combination enumeration. The original avatar's hand/contact math is checked
 across four seat rotations and at 30, 60, and 120 fps. Production action tests
@@ -56,11 +49,6 @@ check singles, pairs, four-card bombs, and five-card plays, including exact fina
 table transforms and absence of placeholder meshes.
 The additional transition test checks continuity at pickup, release, and return
 for both ends of an 18-card fan in every seat.
-The player-layout regression tests exercise the production scene update with a
-human rig enabled against 76 frozen morning transforms (1, 5, 14, and 18 cards,
-selected and unselected). They also check fixed-fan support, reach to every card
-in an 18-card hand, pickup continuity, unchanged unplayed cards and bone lengths,
-and index-before-thumb closure.
 
 The Vite production build passes. The full asset-download prebuild was not
 validated: the environment could not fetch unrelated Tirana assets.
@@ -77,9 +65,7 @@ Only this inline review downsamples textures. Its closer portrait camera and tab
 are separate from the production arena.
 
 CPU-rendered snapshots of the original skinned avatar were inspected at holding,
-gripping, carrying, and release poses. The fixed-layout follow-up also checks
-holding, index contact, thumb closure, and lift snapshots. The available browser
-could load the app but failed to create a WebGL context,
+gripping, carrying, and release poses. The available browser could load the app but failed to create a WebGL context,
 so the 3D game was not visually played. Before marking this ready for release,
 review on a WebGL-capable phone in portrait: initial deal, all four seats,
 single and combination pickup/release, selection, passing, and match completion.
