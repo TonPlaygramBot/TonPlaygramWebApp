@@ -12,6 +12,8 @@ export const REALISTIC_CUE_HAND_DEFAULTS = Object.freeze({
   aimGripClosure: 0.78,
   strikeGripClosure: 0.84,
   maxGripClosure: 0.9,
+  gripFromBackRatio: 0.28,
+  gripTargetBlend: 0.72,
   bridgeStyle: 'open',
   gripStyle: 'relaxed'
 });
@@ -20,6 +22,10 @@ export const REALISTIC_CUE_HAND_PRESETS = Object.freeze({
   bridge: Object.freeze(['open', 'closed', 'rail']),
   grip: Object.freeze(['relaxed', 'firm'])
 });
+
+function clamp01(value) {
+  return Math.max(0, Math.min(1, Number.isFinite(value) ? value : 0));
+}
 
 export function cueHandSmoothingAlpha(lambda, dt) {
   const safeLambda = Number.isFinite(lambda) ? Math.max(0, lambda) : 0;
@@ -58,6 +64,36 @@ function smoothVector(state, key, target, lambda, dt) {
   return value.clone();
 }
 
+export function resolveCueGripPoint(human, frameData, overrides = {}) {
+  const cueBack = frameData?.cueBack;
+  const cueTip = frameData?.cueTip;
+  if (!cueBack?.isVector3 || !cueTip?.isVector3) {
+    return frameData?.gripTarget?.isVector3 ? frameData.gripTarget.clone() : null;
+  }
+
+  const shaft = cueTip.clone().sub(cueBack);
+  const cueLength = shaft.length();
+  if (cueLength < 1e-6) {
+    return frameData?.gripTarget?.isVector3 ? frameData.gripTarget.clone() : cueBack.clone();
+  }
+
+  const tuning = tuningFor(human, overrides);
+  const ratio = THREE.MathUtils.clamp(
+    Number.isFinite(tuning.gripFromBackRatio) ? tuning.gripFromBackRatio : 0.28,
+    0.16,
+    0.5
+  );
+  const cueAlignedGrip = cueBack.clone().addScaledVector(shaft.normalize(), cueLength * ratio);
+
+  if (!frameData?.gripTarget?.isVector3) return cueAlignedGrip;
+
+  // Respect a game-supplied grip target, but pull it toward the actual cue shaft so
+  // the hand cannot visually float beside or cut through the butt of the cue.
+  return frameData.gripTarget
+    .clone()
+    .lerp(cueAlignedGrip, clamp01(tuning.gripTargetBlend));
+}
+
 export function prepareRealisticCueHandFrame(human, dt, frameData, overrides = {}) {
   if (!human || !frameData) return frameData;
   const state = ensureState(human);
@@ -69,10 +105,15 @@ export function prepareRealisticCueHandFrame(human, dt, frameData, overrides = {
 
   // Only smooth targets that belong to the hands. Cue endpoints stay untouched so
   // cue/ball contact timing and game physics remain exactly owned by the game.
-  for (const key of ['gripTarget', 'bridgeTarget', 'idleRight', 'idleLeft']) {
+  for (const key of ['bridgeTarget', 'idleRight', 'idleLeft']) {
     if (frameData[key]?.isVector3) {
       next[key] = smoothVector(state, key, frameData[key], lambda, dt);
     }
+  }
+
+  const gripTarget = resolveCueGripPoint(human, frameData, overrides);
+  if (gripTarget?.isVector3) {
+    next.gripTarget = smoothVector(state, 'gripTarget', gripTarget, lambda, dt);
   }
 
   next.bridgeStyle = frameData.bridgeStyle || tuning.bridgeStyle;
@@ -174,10 +215,6 @@ export function resolveCueFingerPose(name, mode = 'idle', weight = 1, style = 'o
     finger,
     segment
   };
-}
-
-function clamp01(value) {
-  return Math.max(0, Math.min(1, Number.isFinite(value) ? value : 0));
 }
 
 function poseFingerSet(human, fingers, mode, weight, style, dt, lambda) {
