@@ -22,17 +22,17 @@ export function playWeaponVolley(options:Options):Promise<boolean> {
   scene.add(flash.root,impact.root);
   const bullets:Array<{mesh:THREE.Object3D;start:THREE.Vector3;end:THREE.Vector3;time:number;duration:number;final:boolean}>=[];
   const casings:Array<{mesh:THREE.Object3D;origin:THREE.Vector3;velocity:THREE.Vector3;time:number}>=[];
-  let nextShot=0,impactTime=-1,lastShotTime=-1;
-  const finish=()=>{motion?.release();disposeEffect(flash.root);impact.dispose();
+  let nextShot=0,impactTime=-1,lastShotTime=-1,settled=false;
+  const finish=()=>{if(settled)return;settled=true;motion?.release();disposeEffect(flash.root);impact.dispose();
     for(const bullet of bullets){
-      // Fallback weapon materials are shared with parked instances.
-      if(isThrownWeapon(id)){bullet.mesh.traverse(o=>(o as THREE.Mesh).geometry?.dispose());bullet.mesh.removeFromParent();}
+      if(isThrownWeapon(id))disposeEffect(bullet.mesh);
       else {bullet.mesh.userData.dispose?.();bullet.mesh.removeFromParent();}
     }
     for(const casing of casings)disposeEffect(casing.mesh);
   };
   return new Promise((resolve,reject)=>{
     const frame=(time:number)=>{
+      if(settled)return;
       try {
         if(!options.isCurrent()||motion?.finished){finish();resolve(false);return;}
         const elapsed=time-start,target=options.target();motion?.update(time,target);
@@ -70,7 +70,7 @@ export function playWeaponVolley(options:Options):Promise<boolean> {
           const spin=Math.min(age,.7);casing.mesh.rotation.set(spin*14,spin*9,spin*12);
         }
         if(impactTime>=0)impact.update((elapsed-impactTime)/700);
-        if(elapsed<timing.durationMs||impactTime<0){request(frame);return;}
+        if(elapsed<timing.durationMs||impactTime<0||elapsed<impactTime+700){request(frame);return;}
         finish();resolve(true);
       }catch(error){finish();reject(error);}
     };

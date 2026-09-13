@@ -1816,6 +1816,7 @@ async function createCaptureWeaponRackFx() {
 
 async function applyCaptureWeaponDisplay(entry, captureAnimationId) {
   if (!entry?.weaponHolder) return;
+  if (entry.interacting) { entry.pendingCaptureAnimationId = captureAnimationId; return; }
   if (!FIREARM_CAPTURE_ANIMATION_IDS.has(captureAnimationId)) {
     entry.weaponDisplayRequestId = (entry.weaponDisplayRequestId ?? 0) + 1;
     entry.weaponHolder.children.forEach((child) => {
@@ -2683,6 +2684,10 @@ async function createCaptureMissileTruckFx() {
   cabin.position.set(.76,.39,0); cabin.castShadow = cabin.receiveShadow = true; root.add(cabin);
   const glass = createCaptureVehicleMaterial('truck',{color:'#203439',roughness:.18,metalness:.32});
   const windshield = addFxBox(root,[.016,.27,.74],[1.105,.51,0],'#203439'); windshield.material = glass;
+  const treads = new THREE.InstancedMesh(new THREE.BoxGeometry(.065,.028,.18),new THREE.MeshStandardMaterial({color:'#1b2020',roughness:.9}),96);
+  treads.castShadow = treads.receiveShadow = true;
+  let treadIndex = 0;
+  const treadPose = new THREE.Object3D();
   for (const side of [-1,1]) {
     const window = addFxBox(root,[.43,.27,.016],[.79,.51,side*.448],'#203439'); window.material = glass;
     addFxBox(root,[.11,.10,.045],[.98,.42,side*.53],'#303735');
@@ -2695,12 +2700,14 @@ async function createCaptureMissileTruckFx() {
       addFxBox(root,[.48,.045,.20],[x,.07,side*.48],'#536148');
       for (let tread=0;tread<16;tread++) {
         const angle=tread*Math.PI/8;
-        const block=addFxBox(root,[.065,.028,.18],[x+Math.cos(angle)*.211,-.16+Math.sin(angle)*.211,side*.49],'#1b2020');
-        block.rotation.z=angle-Math.PI/2;
+        treadPose.position.set(x+Math.cos(angle)*.211,-.16+Math.sin(angle)*.211,side*.49);
+        treadPose.rotation.z=angle-Math.PI/2;treadPose.updateMatrix();
+        treads.setMatrixAt(treadIndex++,treadPose.matrix);
       }
     }
     addFxBox(root,[.028,.07,.16],[1.11,.23,side*.30],'#dedcb1');
   }
+  root.add(treads);
   addFxBox(root,[.05,.10,.97],[1.12,-.01,0],'#353e38');
   for(let row=0;row<5;row++)addFxBox(root,[.027,.017,.40],[1.114,.23+row*.039,0],'#1b2720');
   addFxCylinder(root,.032,.032,.57,[.36,.54,-.49],[0,0,0],'#3c4642',12,.58,.6);
@@ -8165,25 +8172,12 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount, onlin
     const anchor = arena.seatAnchors[playerIndex];
     if (!anchor) return null;
     const seatPos = anchor.getWorldPosition(new THREE.Vector3());
-    const kingPos = getKingTokenPositionForPlayer(playerIndex) ?? seatPos;
-    const inward = arena.boardLookTarget.clone().sub(kingPos).setY(0).normalize();
-    if (inward.lengthSq() < 1e-6) return null;
-    const rightSide = new THREE.Vector3().crossVectors(inward, MISSILE_WORLD_UP).normalize();
-    const sideSign = CAPTURE_PARK_SIDE_SIGN_BY_TYPE[vehicleType] ?? 1;
-    const forwardOffset = CAPTURE_PARK_FORWARD_OFFSET_BY_TYPE[vehicleType] ?? 0.03;
-    const outwardOffset = CAPTURE_PARK_OUTWARD_OFFSET_BY_TYPE[vehicleType] ?? CAPTURE_PARK_OUTWARD_OFFSET;
-    const firearmSeatAdjustment =
-      vehicleType === 'firearmRack'
-        ? FIREARM_RACK_PARKING_SEAT_ADJUSTMENTS[playerIndex] || FIREARM_RACK_PARKING_SEAT_ADJUSTMENTS[0]
-        : null;
-    const sideOffsetExtra = firearmSeatAdjustment?.side ?? 0;
-    const inwardOffsetExtra = firearmSeatAdjustment?.inward ?? 0;
-    const park = kingPos
-      .clone()
-      .addScaledVector(rightSide, (CAPTURE_PARK_SIDE_OFFSET + sideOffsetExtra) * sideSign)
-      .addScaledVector(inward, forwardOffset + inwardOffsetExtra)
-      .addScaledVector(inward, -outwardOffset);
-    park.y = (arena.tableInfo?.surfaceY ?? park.y) + 0.002;
+    const outward = seatPos.clone().sub(arena.boardLookTarget).setY(0).normalize();
+    const rightSide = outward.clone().negate().cross(MISSILE_WORLD_UP);
+    const outer = arena.tableInfo?.getOuterRadius?.(outward) ?? TABLE_RADIUS*TABLE_VISUAL_SCALE;
+    const inset = vehicleType === 'fighter' ? .28 : vehicleType === 'helicopter' ? .24 : vehicleType === 'drone' ? .18 : .22;
+    const park = arena.boardLookTarget.clone().addScaledVector(outward,outer-inset).addScaledVector(rightSide,.17);
+    park.y = (arena.tableInfo?.surfaceY ?? park.y) + .002;
     return park;
   }, [getKingTokenPositionForPlayer]);
 
@@ -8206,6 +8200,7 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount, onlin
         arena.tableInfo?.surfaceY ?? 0, direction => arena.tableInfo?.getOuterRadius?.(direction) ?? TABLE_RADIUS*TABLE_VISUAL_SCALE);
     };
     parkedCaptureVehiclesRef.current.forEach((entry, playerIndex) => {
+      if (entry.interacting) { entry.pendingCaptureAnimationId = true; return; }
       const optionIndex = playerIndex > 0 ? aiLoadoutByPlayer[playerIndex]?.captureAnimationIndex ?? 0 : humanOptionIndex;
       const selectedCaptureAnimationId =
         CAPTURE_ANIMATION_OPTIONS[optionIndex]?.id ?? CAPTURE_ANIMATION_OPTIONS[0]?.id ?? 'missileJavelin';
@@ -9213,7 +9208,7 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount, onlin
     const rails = dice.userData?.railPositions;
     if (!rails || !rails[player]) return;
 
-    if (player === 0 && !immediate) {
+    if (dice.userData.railPlayer === player && !immediate) {
       // On human turns keep the dice where it landed so the seated actor can bend from the torso,
       // reach to that exact table spot, and grab it before the next throw.
       stopDiceTransition();
@@ -9221,6 +9216,7 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount, onlin
       return;
     }
 
+    dice.userData.railPlayer = player;
     const railTarget = rails[player].clone ? rails[player].clone() : new THREE.Vector3().copy(rails[player]);
     const target = railTarget;
     if (immediate) {
@@ -11112,6 +11108,7 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount, onlin
           if (!isCurrent()) { resolve(); return; }
           const weapon = parkedEntry.weaponHolder?.children[0];
           if (!weapon) { resolve(); return; }
+          parkedEntry.interacting = true;
           dynamicFirearmCameraRef.current = true;
           const getTarget = () => targetToken?.getWorldPosition?.(new THREE.Vector3())?.add(new THREE.Vector3(0,FIREARM_CAMERA_TARGET_OFFSET,0)) || targetPosition.clone();
           try {
@@ -11138,7 +11135,14 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount, onlin
               playCapture();
               seatedHumanActionRef.current = {...seatedHumanActionRef.current,capturePlayer:null,captureStartMs:0,captureEndMs:0,captureAnimationId:null};
             }
-          } finally { dynamicFirearmCameraRef.current = false; firearmCinematicCameraPoseRef.current = null; }
+          } finally {
+            parkedEntry.interacting = false;
+            dynamicFirearmCameraRef.current = false; firearmCinematicCameraPoseRef.current = null;
+            if (isCurrent() && parkedEntry.pendingCaptureAnimationId) {
+              parkedEntry.pendingCaptureAnimationId = null;
+              updateParkedCaptureVehicleVisibility();
+            }
+          }
           resolve(); return;
         }
         const parkedEntry = parkedCaptureVehiclesRef.current.get(attackerPlayer);
@@ -12927,7 +12931,7 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount, onlin
         .applyQuaternion(anchorQuat.clone().invert());
       seatAnchor.updateMatrixWorld?.(true);
       throwLateral = clamp(localDir.x * 2.1, -1, 1);
-      throwForward = clamp(-localDir.z * 1.4, -1, 1);
+      throwForward = clamp(localDir.z * 1.4, -1, 1);
     }
     beginDiceThrowPose(player, { lateral: throwLateral, forward: throwForward });
     const releasePose = await syncDiceToThrowHand(player, dice, { isCurrent: () => stateRef.current === state });
@@ -13116,7 +13120,7 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount, onlin
         const anchorQuat = seatAnchor.getWorldQuaternion(new THREE.Quaternion());
         const localDir = diceToTarget.clone().normalize().applyQuaternion(anchorQuat.clone().invert());
         throwLateral = clamp(localDir.x * 2.1, -1, 1);
-        throwForward = clamp(-localDir.z * 1.4, -1, 1);
+        throwForward = clamp(localDir.z * 1.4, -1, 1);
       }
       dice.userData.isRolling = true;
       playDiceSound();

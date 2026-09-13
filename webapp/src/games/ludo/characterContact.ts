@@ -43,7 +43,7 @@ export function solveArm(rig: Rig, side: 'right' | 'left', palm: THREE.Object3D,
   const hand = rig[side + 'Hand'] as THREE.Bone;
   const q = handQ || hand.getWorldQuaternion(Q());
   const wrist = target.clone().sub(palm.position.clone().multiply(hand.getWorldScale(V())).applyQuaternion(q));
-  if (lean) {
+  if (lean && rig.spine) {
     const length = world(upper).distanceTo(world(lower)) + world(lower).distanceTo(world(hand));
     let total = 0;
     for (let i = 0; i < 6; i++) {
