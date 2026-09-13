@@ -3,20 +3,19 @@ import {
   chooseHumanEdgePosition,
   updateHumanPose as driveStandaloneHumanPose
 } from './humanRigCore';
+import { driveHumanPoseWithRealisticHands } from './realisticCueHands';
 
 /**
  * Standalone reusable human-character controller for cue-sports avatars.
  *
  * This module intentionally does not contain billiard physics, rules, scoring,
  * table logic, camera gameplay logic, HUD logic, shot validation, or ball state.
- * It is a thin API boundary around the existing proven human rig/IK/pose solver
- * so the visual behavior, quaternion math, hand placement, bridge hand, cue grip,
- * stance, walking, and follow-through remain byte-for-byte delegated to the
- * current implementation.
+ * It keeps the existing body/stance/IK solver and adds a separate hand layer for
+ * smoother wrists, relaxed cue grip, and realistic open/closed/rail bridge poses.
  */
 export class HumanPoolPlayer {
   constructor(scene, opts = {}) {
-    this.rig = createHumanRig(scene, opts);
+    this.rig = createHumanPoolPlayer(scene, opts);
   }
 
   updateHumanPose(dt, frameData) {
@@ -49,16 +48,28 @@ export class HumanPoolPlayer {
 }
 
 export function createHumanPoolPlayer(scene, opts = {}) {
-  return createHumanRig(scene, opts);
+  return createHumanRig(scene, {
+    cueHands: {
+      bridgeStyle: 'open',
+      gripStyle: 'relaxed',
+      ...(opts.cueHands || {})
+    },
+    ...opts
+  });
 }
 
 export function updateHumanPose(human, dt, frameData) {
-  return driveStandaloneHumanPose(human, dt, frameData);
+  return driveHumanPoseWithRealisticHands(
+    driveStandaloneHumanPose,
+    human,
+    dt,
+    frameData
+  );
 }
 
-// Public cue-sports human-character API. Each function deliberately delegates to
-// the same solver entrypoint; splitting the API here isolates the human system
-// without rewriting or reinterpreting the existing pose/IK math.
+// Public cue-sports human-character API. These functions intentionally remain
+// separate so the game can drive only the subsystem it needs while every path
+// still uses the same body IK + realistic hand refinement pipeline.
 export function updateHumanMovement(human, dt, frameData) {
   return updateHumanPose(human, dt, frameData);
 }
@@ -72,11 +83,17 @@ export function updateBridgeHand(human, dt, frameData) {
 }
 
 export function updateShotPose(human, dt, frameData) {
-  return updateHumanPose(human, dt, { ...frameData, state: frameData?.state || 'striking' });
+  return updateHumanPose(human, dt, {
+    ...frameData,
+    state: frameData?.state || 'striking'
+  });
 }
 
 export function updateIdlePose(human, dt, frameData) {
-  return updateHumanPose(human, dt, { ...frameData, state: frameData?.state || 'idle' });
+  return updateHumanPose(human, dt, {
+    ...frameData,
+    state: frameData?.state || 'idle'
+  });
 }
 
 export function updateWalkCycle(human, dt, frameData) {
