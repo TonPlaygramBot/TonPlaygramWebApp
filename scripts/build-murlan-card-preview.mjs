@@ -41,24 +41,13 @@ binaryHeader.writeUInt32LE(offset, 0); binaryHeader.writeUInt32LE(0x004e4942, 4)
 const model = gzipSync(Buffer.concat([header, json, binaryHeader, ...chunks])).toString('base64');
 const arenaSource = await readFile(resolve(root, 'webapp/src/pages/Games/MurlanRoyaleArena.jsx'), 'utf8');
 const ast = parse(arenaSource, { sourceType:'module', plugins:['jsx'] }).program;
-const names = ['findBoneByHints','captureBoneRotation','applyRotationOffset','createCharacterRig','runCharacterAction','updateCharacterCardContacts','queueCharacterActionAnimation','buildPoseVariant','applyRigActionPoseLerp','applyRigActionPoseBetween','lerpBoneToPose','attachSeatedCharacter','fitCharacterModelForSeat','normalizeCharacterPivot','getHandCardLayout','calcFanCardPose','resolveSeatHandRadius','orientMesh'];
-const functions = ast.body.filter(node=>node.type==='FunctionDeclaration'&&names.includes(node.id.name)).map(node=>arenaSource.slice(node.start,node.end)).join('\n');
-const declared = new Set(ast.body.filter(node=>node.type==='VariableDeclaration').flatMap(node=>node.declarations.map(d=>d.id.name)));
-const constants = [...new Set(['CARD_H','CARD_W','TABLE_RADIUS','TABLE_HEIGHT','HUMAN_HAND_CARD_SPACING','HUMAN_HAND_CARD_MAX_SPREAD',...functions.matchAll(/\b[A-Z][A-Z0-9_]+\b/g)].map(value=>Array.isArray(value)?value[0]:value))]
-  .filter(name=>declared.has(name)&&name!=='HUMAN_CARD_HAND_DEBUG_HELPERS');
+const names = ['findBoneByHints','captureBoneRotation','applyRotationOffset','createCharacterRig','runCharacterAction','updateCharacterCardContacts','queueCharacterActionAnimation','buildPoseVariant','applyRigActionPoseLerp','applyRigActionPoseBetween','lerpBoneToPose'];
+const constants = ['MODEL_SCALE','CARD_H','CARD_W','CHARACTER_ACTION_BONE_KEYS'];
 const {context,load}=arenaHarness(); constants.forEach(load);
-const extracted = `import * as THREE from 'three';
-import {clone as cloneSkeleton} from './webapp/node_modules/three/examples/jsm/utils/SkeletonUtils.js';
-import {createCardContactRig,saveCardContactRest,poseCardHand,restoreCardHand,supportFixedCards,pinCardToHand,cardContactPoint,sampleCardTransfer,smoothCardMotion,CARD_PICKUP_REACH_MS,CARD_CARRY_MS,CARD_RELEASE_MS,CARD_RECOVER_MS} from './webapp/src/games/murlan/cardContact.ts';
-import {beginCardPlay,stepCardPlay} from './webapp/src/games/murlan/cardMotion.ts';
-const HUMAN_CARD_HAND_DEBUG_HELPERS=false;
-const applySRGBColorSpace=(texture)=>{texture.colorSpace=THREE.SRGBColorSpace;};
-// GLTFLoader already retains the original default-avatar materials in this review.
-const shouldPreserveOriginalCharacterMaterials=()=>true;
-const preserveOriginalCharacterMaterials=()=>{};
-const enhanceMurlanCharacterMaterials=()=>{};
-` + constants.map(name=>`const ${name}=${JSON.stringify(context[name])};`).join('\n')+'\n'+functions+
- '\nexport {attachSeatedCharacter,getHandCardLayout,resolveSeatHandRadius,orientMesh,runCharacterAction,updateCharacterCardContacts,CARD_H,CARD_W,TABLE_RADIUS,TABLE_HEIGHT,HUMAN_HAND_CARD_SPACING,HUMAN_HAND_CARD_MAX_SPREAD};';
+const extracted = `import * as THREE from 'three';\nimport {createCardContactRig,saveCardContactRest,poseCardHand,restoreCardHand,pinCardToHand,cardContactPoint,sampleCardTransfer,smoothCardMotion,CARD_PICKUP_REACH_MS,CARD_CARRY_MS,CARD_RELEASE_MS,CARD_RECOVER_MS} from './webapp/src/games/murlan/cardContact.ts';\nimport {beginCardPlay,stepCardPlay} from './webapp/src/games/murlan/cardMotion.ts';\nconst HUMAN_CARD_HAND_DEBUG_HELPERS=false;\n` +
+ constants.map(name=>`const ${name}=${JSON.stringify(context[name])};`).join('\n')+'\n'+
+ ast.body.filter(node=>node.type==='FunctionDeclaration'&&names.includes(node.id.name)).map(node=>arenaSource.slice(node.start,node.end)).join('\n')+
+ '\nexport {createCharacterRig,runCharacterAction,updateCharacterCardContacts,CARD_H,CARD_W};';
 const result = await build({
   entryPoints: [resolve(root, 'webapp/src/previews/MurlanCardPreview.tsx')],
   bundle: true, format: 'esm', platform: 'browser', jsx: 'automatic', minify: true,

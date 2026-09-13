@@ -14,7 +14,6 @@ type Arm = {
 export type CardContactRig = {
   root: THREE.Object3D;
   arms: Partial<Record<Side, Arm>>;
-  torso?: { bone: THREE.Bone; rest: THREE.Quaternion; axis: THREE.Vector3; basePosition: THREE.Vector3; forwardShift: number; lean: number; target: number; lastTime?: number; signature?: string };
 };
 export const CARD_PICKUP_REACH_MS = 440;
 export const CARD_CARRY_MS = 820;
@@ -45,8 +44,6 @@ export function createCardContactRig(root: THREE.Object3D): CardContactRig {
   }
   const profiles = calibrateHandRig(fingers);
   const result: CardContactRig = { root, arms: {} };
-  const spine = find('spine', 'spine1');
-  if (spine) result.torso = { bone: spine, rest: spine.quaternion.clone(), axis: new THREE.Vector3(1, 0, 0), basePosition: root.position.clone(), forwardShift: 0, lean: 0, target: 0 };
   for (const side of ['left', 'right'] as const) {
     const upper = find(`${side}arm`, `${side}upperarm`);
     const elbow = find(`${side}forearm`, `${side}lowerarm`);
@@ -78,67 +75,6 @@ export function saveCardContactRest(rig: CardContactRig) {
   for (const arm of Object.values(rig.arms)) {
     arm.rest = [arm.upper, arm.elbow, arm.hand].map((bone) => bone.quaternion.clone());
   }
-  if (rig.torso) {
-    rig.torso.rest.copy(rig.torso.bone.quaternion);
-    rig.torso.basePosition.copy(rig.root.position);
-    const arm = rig.arms.right || rig.arms.left;
-    if (arm) rig.torso.forwardShift = (worldPosition(arm.upper).distanceTo(worldPosition(arm.elbow)) +
-      worldPosition(arm.elbow).distanceTo(worldPosition(arm.hand))) * 0.18 / rig.root.getWorldScale(new THREE.Vector3()).z;
-    rig.torso.axis.set(1, 0, 0).applyQuaternion(rig.root.getWorldQuaternion(new THREE.Quaternion()))
-      .applyQuaternion(rig.torso.bone.getWorldQuaternion(new THREE.Quaternion()).invert()).normalize();
-  }
-}
-
-function applyTorsoLean(rig: CardContactRig, angle: number) {
-  const torso = rig.torso;
-  if (!torso) return;
-  // A small seated lean-in supplies reach without lengthening the arm bones.
-  rig.root.position.copy(torso.basePosition).add(new THREE.Vector3(0, 0, torso.forwardShift * angle / 0.63).applyQuaternion(rig.root.quaternion));
-  torso.bone.quaternion.copy(torso.rest).multiply(new THREE.Quaternion().setFromAxisAngle(torso.axis, angle));
-  rig.root.updateWorldMatrix(true, true);
-}
-
-// Adapt the seated upper body and arm to the existing screen layout. This
-// function never writes any card transform, including while a card is selected.
-export function supportFixedCards(rig: CardContactRig, cards: THREE.Object3D[], height: number,
-  time: number, lockTorso = false, immediate = false) {
-  if (!cards.length) { restoreCardHand(rig, 'left'); return; }
-  const support = cards[Math.floor((cards.length - 1) * 0.65)];
-  const torso = rig.torso;
-  if (torso) {
-    const targets = [cards[0], support, cards[cards.length - 1]];
-    const signature = targets.map((card) => [...card.position.toArray(), ...card.quaternion.toArray(), ...card.scale.toArray()]
-      .map((value) => value.toFixed(3)).join(',')).join('|');
-    if (!lockTorso && signature !== torso.signature) {
-      torso.signature = signature;
-      let bestAngle = 0, bestError = Infinity;
-      for (let step = 0; step <= 18; step++) {
-        const angle = step * 0.035;
-        applyTorsoLean(rig, angle);
-        let error = 0;
-        for (const side of ['left', 'right'] as const) {
-          const arm = rig.arms[side];
-          if (!arm) continue;
-          const shoulder = worldPosition(arm.upper);
-          const reach = shoulder.distanceTo(worldPosition(arm.elbow)) + worldPosition(arm.elbow).distanceTo(worldPosition(arm.hand));
-          for (const card of side === 'left' ? [support] : targets) {
-            const rotation = card.getWorldQuaternion(new THREE.Quaternion()).multiply(arm.inverseBasis);
-            const wrist = cardContactPoint(card, height, new THREE.Vector3(), side)
-              .sub(arm.pinch.anchor.clone().multiply(arm.hand.getWorldScale(new THREE.Vector3())).applyQuaternion(rotation));
-            error = Math.max(error, shoulder.distanceTo(wrist) - reach * 0.96);
-          }
-        }
-        if (error < bestError) { bestError = error; bestAngle = angle; }
-        if (error <= 0) break;
-      }
-      torso.target = bestAngle;
-    }
-    const dt = torso.lastTime == null ? 1 / 60 : THREE.MathUtils.clamp((time - torso.lastTime) / 1000, 0, 0.1);
-    torso.lastTime = time;
-    torso.lean = immediate ? torso.target : THREE.MathUtils.lerp(torso.lean, torso.target, 1 - Math.exp(-10 * dt));
-    applyTorsoLean(rig, torso.lean);
-  }
-  poseCardHand(rig, 'left', support, height, 1, 1);
 }
 
 function setWorldQuaternion(bone: THREE.Object3D, quaternion: THREE.Quaternion) {
@@ -244,25 +180,6 @@ export function applyCardGrip(rig: CardContactRig, side: Side, grip: number) {
     });
     applyFinger(finger);
   }
-}
-
-export function applyCardPickupGesture(rig: CardContactRig, progress: number) {
-  const arm = rig.arms.right;
-  if (!arm) return;
-  // The index locates the edge first; the thumb opposes it last. The middle
-  // finger supports underneath after contact instead of closing as a fist.
-  const closure = [smoothCardMotion((progress - 0.72) / 0.28),
-    smoothCardMotion((progress - 0.55) / 0.31), smoothCardMotion((progress - 0.80) / 0.20)];
-  arm.pinch.fingers.forEach(({finger, pose}, index) => {
-    finger.joints.forEach((joint, i) => {
-      const t = closure[index];
-      const relaxed = finger.thumb ? [0.10, 0.04, 0.02][i] : [0.10, 0.13, 0.08][i];
-      joint.flex = THREE.MathUtils.lerp(relaxed, pose[i].flex, t);
-      joint.spread = pose[i].spread * t;
-      joint.opposition = pose[i].opposition * t;
-    });
-    applyFinger(finger);
-  });
 }
 
 export function captureCardHandPose(rig: CardContactRig, side: Side) {

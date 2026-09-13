@@ -2,7 +2,7 @@ import * as THREE from 'three';
 import {
   type CardContactRig, CARD_PICKUP_REACH_MS, CARD_CARRY_MS, CARD_RELEASE_MS,
   CARD_RECOVER_MS, smoothCardMotion, cardContactPoint, cardGripOffset,
-  poseCardHand, pinCardToHand, restoreCardHand, applyCardGrip, applyCardPickupGesture,
+  poseCardHand, pinCardToHand, restoreCardHand, applyCardGrip,
   captureCardHandPose, blendCardHandPose, applyCardHandPose, reachableCardPosition
 } from './cardContact.ts';
 
@@ -88,11 +88,7 @@ export function stepCardPlay(rig: CardContactRig, play: CardPlayMotion, cardHeig
       mesh.position.copy(from); mesh.quaternion.copy(fromQuaternion); mesh.scale.copy(fromScale);
     });
     const progress = elapsed / CARD_PICKUP_REACH_MS;
-    const approach = 1 - smoothCardMotion(progress / 0.64);
-    const contact = cardContactPoint(play.mesh, cardHeight).add(new THREE.Vector3(0, 0.03, 0.07)
-      .multiplyScalar(cardHeight * play.mesh.scale.y * approach).applyQuaternion(play.mesh.quaternion));
-    poseCardHand(rig, 'right', play.mesh, cardHeight, 1, 0, contact);
-    applyCardPickupGesture(rig, progress);
+    poseCardHand(rig, 'right', play.mesh, cardHeight, 1, smoothCardMotion((progress - 0.68) / 0.32));
     blendCardHandPose(rig, 'right', play.pickupPose, smoothCardMotion(progress / 0.84));
     return false;
   }
