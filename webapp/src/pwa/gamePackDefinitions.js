@@ -43,7 +43,7 @@ const heavyPacks = [
     cover: '/assets/icons/pool-royale.svg',
     route: '/games/poolroyale/lobby',
     gameSlugs: ['poolroyale', 'snookerroyale'],
-    roots: ['assets/pool-royale', 'models/pool-royale'],
+    roots: ['assets/pool-royale', 'models/pool-royale', 'assets/snooker-royal'],
     files: [
       'pool-royale-bracket.html',
       'pool-royale-api.js',

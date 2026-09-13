@@ -10,6 +10,13 @@ import * as THREE from 'three';
 import polygonClipping from 'polygon-clipping';
 import * as BufferGeometryUtils from 'three/examples/jsm/utils/BufferGeometryUtils.js';
 import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js';
+import {
+  createUploadedSnookerMapping,
+  fitUploadedSnookerModel,
+  reflectUploadedSnookerCushions,
+  uploadedPocketContains,
+  uploadedBallFits
+} from './snookerUploadedTable.ts';
 import { DRACOLoader } from 'three/examples/jsm/loaders/DRACOLoader.js';
 import { KTX2Loader } from 'three/examples/jsm/loaders/KTX2Loader.js';
 import { EXRLoader } from 'three/examples/jsm/loaders/EXRLoader.js';
@@ -5144,6 +5151,7 @@ const createTripodBroadcastCamera = (() => {
 })();
 
 function spotPositions(baulkZ) {
+  if (uploadedTableMapping) return uploadedTableMapping.spots;
   const halfH = PLAY_H / 2;
   const topCushion = halfH;
   const pinkZ = (topCushion + 0) / 2;
@@ -5326,6 +5334,8 @@ const RAIL_CONTACT_RADIUS = BALL_R;
 const CUSHION_CUT_CONTACT_RADIUS = RAIL_CONTACT_RADIUS * 1.12;
 const CUSHION_CUT_NEAR_POCKET_BUFFER = BALL_R * 0.9;
 let CUSHION_SEGMENTS = [];
+let uploadedTableMapping = null;
+let uploadedTableTemplatePromise = null;
 const BREAK_VIEW = Object.freeze({
   radius: CAMERA.minR, // start the intro framing closer to the table surface
   phi: CAMERA.maxPhi - 0.01
@@ -5935,6 +5945,7 @@ let cachedPocketCenters = null;
 let cachedSidePocketCenters = null;
 let cachedPocketShift = null;
 const pocketCenters = () => {
+  if (uploadedTableMapping) return uploadedTableMapping.pockets.map(p => p.center);
   if (cachedPocketCenters && cachedPocketShift === sidePocketShift) {
     return cachedPocketCenters;
   }
@@ -5952,12 +5963,14 @@ const pocketCenters = () => {
   return cachedPocketCenters;
 };
 const getSidePocketCenters = () => {
+  if (uploadedTableMapping) return pocketCenters().slice(4);
   if (!cachedPocketCenters || cachedPocketShift !== sidePocketShift) {
     pocketCenters();
   }
   return cachedSidePocketCenters ?? [];
 };
 const resolvePocketMappedCenter = (center, index, inwardScale) => {
+  if (uploadedTableMapping) return center.clone();
   const mouthRadius = index >= 4 ? SIDE_POCKET_RADIUS : POCKET_VIS_R;
   const towardField = center.clone().multiplyScalar(-1);
   if (towardField.lengthSq() < MICRO_EPS * MICRO_EPS) {
@@ -5969,6 +5982,7 @@ const resolvePocketMappedCenter = (center, index, inwardScale) => {
 const pocketEntranceCenters = () =>
   pocketCenters().map((center, index) => resolvePocketMappedCenter(center, index, 0.6));
 const resolvePocketEntranceForTarget = (targetPos, pocketIndex) => {
+  if (uploadedTableMapping) return uploadedTableMapping.pockets[pocketIndex]?.center.clone() ?? null;
   const centers = pocketCenters();
   const pocketCenter = centers[pocketIndex];
   if (!pocketCenter) return null;
@@ -6054,6 +6068,7 @@ const formatBallLabel = (colorId) => {
   return BALL_LABELS[colorId] || colorId.charAt(0) + colorId.slice(1).toLowerCase();
 };
 const getPocketCenterById = (id) => {
+  if (uploadedTableMapping) return uploadedTableMapping.pockets[POCKET_IDS.indexOf(id)]?.center.clone() ?? null;
   switch (id) {
     case 'TL':
       return cornerPocketCenter(-1, -1);
@@ -6323,6 +6338,7 @@ function makeWoodTexture({
   return texture;
 }
 function reflectRails(ball) {
+  if (uploadedTableMapping) return reflectUploadedSnookerCushions(ball, uploadedTableMapping, CUSHION_RESTITUTION);
   const limX = RAIL_LIMIT_X;
   const limY = RAIL_LIMIT_Y;
   const railRadius = RAIL_CONTACT_RADIUS;
@@ -7077,6 +7093,7 @@ const isSnookerColourId = (colorId) => Boolean(SNOOKER_COLOR_SPOTS[colorId]);
 const resolveSnookerSpotKey = (colorId) => SNOOKER_COLOR_SPOTS[colorId] ?? null;
 const isRespotPositionClear = (pos, balls, reserved = [], ignoreId = null) => {
   if (!pos) return false;
+  if (uploadedTableMapping && !uploadedBallFits(uploadedTableMapping, { x: pos.x, y: pos.z })) return false;
   const minDistance = BALL_R * 2.02;
   const minDistanceSq = minDistance * minDistance;
   for (const ball of balls) {
@@ -7405,6 +7422,62 @@ function createAccentMesh(accent, dims) {
   return mesh;
 }
 
+function UploadedTable3D(parent, renderer, isGameplayTable) {
+  const mapping = createUploadedSnookerMapping(PLAY_W, PLAY_H, BALL_R);
+  if (isGameplayTable) {
+    uploadedTableMapping = mapping;
+    CUSHION_SEGMENTS = mapping.segments;
+    RAIL_LIMIT_X = mapping.limitX;
+    RAIL_LIMIT_Y = mapping.limitY;
+  }
+  const table = new THREE.Group();
+  table.name = 'uploaded-snooker-table';
+  table.position.y = TABLE_Y;
+  const clothY = BALL_CENTER_Y - BALL_R;
+  const clothMat = new THREE.MeshStandardMaterial();
+  const cushionMat = new THREE.MeshStandardMaterial();
+  const pockets = mapping.pockets.map(p => {
+    const marker = new THREE.Object3D();
+    marker.position.set(p.center.x, clothY, p.center.y);
+    marker.userData.captureRadius = p.radius;
+    table.add(marker);
+    return marker;
+  });
+  Object.assign(table.userData, {
+    uploadedTable: true, mapping, pockets, railMarkers: [], cushions: [],
+    cushionSegments: mapping.segments, clothPlaneLocal: clothY,
+    cushionTopLocal: clothY + mapping.cushionHeight,
+    cushionTopWorld: TABLE_Y + clothY + mapping.cushionHeight,
+    cushionLipClearance: clothY, loadState: 'loading'
+  });
+  parent.add(table);
+  if (!uploadedTableTemplatePromise) {
+    uploadedTableTemplatePromise = new GLTFLoader().loadAsync(TABLE_MODEL_OPENSOURCE_GLB_URL)
+      .catch(error => { uploadedTableTemplatePromise = null; throw error; });
+  }
+  table.userData.ready = uploadedTableTemplatePromise.then(gltf => {
+    if (!table.parent || !parent.parent) return false;
+    const model = gltf.scene.clone(true);
+    // Retain the authored texture atlas. Geometry is fitted using the bed, not
+    // the lamp, rail top or outer bounds; the playing surface stays at ball feet.
+    model.traverse(node => {
+      if (!node.isMesh) return;
+      if (node.name === 'Object_107') { clothMat.copy(node.material); node.material = clothMat; }
+      else if (node.name === 'Object_82') { cushionMat.copy(node.material); node.material = cushionMat; }
+      else node.material = node.material.clone();
+    });
+    table.add(fitUploadedSnookerModel(model, mapping, clothY, FLOOR_Y - TABLE_Y));
+    table.userData.loadState = 'ready';
+    return true;
+  }).catch(error => {
+    table.userData.loadState = 'error';
+    console.error('Snooker Royal table could not load', error);
+    return false;
+  });
+  return { centers: mapping.pockets.map(p => p.center), baulkZ: mapping.spots.brown[1],
+    group: table, clothMat, cushionMat, railMarkers: [], setBaseVariant: () => {} };
+}
+
 function Table3D(
   parent,
   finish = TABLE_FINISHES[DEFAULT_TABLE_FINISH_ID],
@@ -7412,7 +7485,8 @@ function Table3D(
   railMarkerStyle = null,
   baseVariant = null,
   renderer = null,
-  tableVisualModel = TABLE_MODEL_OPENSOURCE
+  tableVisualModel = TABLE_MODEL_OPENSOURCE,
+  isGameplayTable = false
 ) {
   const tableSizeMeta =
     tableSpecMeta && typeof tableSpecMeta === 'object' ? tableSpecMeta : null;
@@ -7421,6 +7495,10 @@ function Table3D(
     resolvedTableVisualModel
   );
   applyTablePhysicsSpec(tableSizeMeta);
+  if (resolvedTableVisualModel === TABLE_MODEL_OPENSOURCE) {
+    return UploadedTable3D(parent, renderer, isGameplayTable);
+  }
+  if (isGameplayTable) uploadedTableMapping = null;
 
   const table = new THREE.Group();
   table.userData = table.userData || {};
@@ -11862,8 +11940,10 @@ function Table3D(
 
   alignRailsToCushions(table, railsGroup, finishParts.railMeshes);
   table.updateMatrixWorld(true);
-  updateRailLimitsFromTable(table);
-  updateCushionSegmentsFromTable(table);
+  if (isGameplayTable) {
+    updateRailLimitsFromTable(table);
+    updateCushionSegmentsFromTable(table);
+  }
 
   table.position.y = TABLE_Y;
   table.userData.cushionTopLocal = cushionTopLocal;
@@ -14551,6 +14631,7 @@ const shotPowerRef = useRef(0);
   // silently sending it to a placeholder no-op.
   const fireRef = useRef(null);
   const [shotReady, setShotReady] = useState(false);
+  const [tableLoadError, setTableLoadError] = useState(false);
   const pendingShotPowerRef = useRef(null);
   const sceneRef = useRef(null);
   const updateEnvironmentRef = useRef(() => {});
@@ -20984,7 +21065,8 @@ const shotPowerRef = useRef(0);
         railMarkerStyleRef.current,
         activeTableBase,
         rendererRef.current,
-        tableModel
+        tableModel,
+        true
       );
       const SPOTS = spotPositions(baulkZ);
       snookerSpotsRef.current = SPOTS;
@@ -22111,7 +22193,10 @@ const shotPowerRef = useRef(0);
               position: new THREE.Vector3(ball.pos.x, TABLE_Y + BALL_CENTER_Y, ball.pos.y),
               radius: BALL_R
             })),
-          bridgeBounds: { halfWidth: PLAY_W / 2, halfLength: PLAY_H / 2 },
+          bridgeBounds: {
+            halfWidth: uploadedTableMapping ? uploadedTableMapping.limitX + BALL_R : PLAY_W / 2,
+            halfLength: uploadedTableMapping ? uploadedTableMapping.limitY + BALL_R : PLAY_H / 2
+          },
           hidden: Boolean(replayPlaybackRef.current || cueGalleryStateRef.current?.active)
         });
         activeHumanCueViewRef.current = referencePlayers.eyeView;
@@ -22439,6 +22524,7 @@ const shotPowerRef = useRef(0);
 
       const isSpotFree = (point, clearanceMultiplier = 2.05) => {
         if (!point) return false;
+        if (uploadedTableMapping && !uploadedBallFits(uploadedTableMapping, point)) return false;
         const clearance = BALL_R * clearanceMultiplier;
         for (const ball of balls) {
           if (!ball.active || ball === cue) continue;
@@ -22451,10 +22537,10 @@ const shotPowerRef = useRef(0);
       const clampInHandPosition = (point) => {
         if (!point) return null;
         const clamped = point.clone();
-        const limitX = PLAY_W / 2 - BALL_R;
+        const limitX = uploadedTableMapping?.limitX ?? PLAY_W / 2 - BALL_R;
         clamped.x = THREE.MathUtils.clamp(clamped.x, -limitX, limitX);
         if (allowFullTableInHand()) {
-          const limitZ = PLAY_H / 2 - BALL_R;
+          const limitZ = uploadedTableMapping?.limitY ?? PLAY_H / 2 - BALL_R;
           clamped.y = THREE.MathUtils.clamp(clamped.y, -limitZ, limitZ);
         } else {
           const maxForward = baulkZ + BALL_R * 0.1;
@@ -23043,6 +23129,7 @@ const shotPowerRef = useRef(0);
 
       // Fire (slider triggers on release)
       const fire = (committedPowerOverride = null) => {
+        if (table.userData.uploadedTable && table.userData.loadState !== 'ready') return false;
         // The slider resets as soon as the release is committed. Capture the
         // released value instead of relying on powerRef, which can already be
         // back at zero on mobile by the time this callback runs.
@@ -25353,8 +25440,14 @@ const shotPowerRef = useRef(0);
         };
 
         fireRef.current = fire;
-        setShotReady(true);
-        drainQueuedSnookerShot({ fire, pendingRef: pendingShotPowerRef });
+        const enableShots = (ready = true) => {
+          if (fireRef.current !== fire) return;
+          setTableLoadError(!ready);
+          setShotReady(ready);
+          if (ready) drainQueuedSnookerShot({ fire, pendingRef: pendingShotPowerRef });
+        };
+        if (table.userData.ready) table.userData.ready.then(enableShots);
+        else enableShots();
 
         const selectReplayBanner = (tag = 'default') => {
           const pool = REPLAY_BANNER_VARIANTS[tag] ?? REPLAY_BANNER_VARIANTS.default;
@@ -27312,7 +27405,9 @@ const shotPowerRef = useRef(0);
           for (let pocketIndex = 0; pocketIndex < captureCenters.length; pocketIndex++) {
             const c = mappedCaptureCenters[pocketIndex];
             const captureRadius = captureRadii[pocketIndex] ?? CAPTURE_R;
-            if (captureCenters[pocketIndex].some((captureCenter) => b.pos.distanceTo(captureCenter) < captureRadius)) {
+            if (uploadedTableMapping
+              ? uploadedPocketContains(uploadedTableMapping, pocketIndex, b.pos)
+              : captureCenters[pocketIndex].some((captureCenter) => b.pos.distanceTo(captureCenter) < captureRadius)) {
               const entrySpeed = b.vel.length();
               const pocketVolume = THREE.MathUtils.clamp(
                 entrySpeed / POCKET_DROP_SPEED_REFERENCE,
@@ -27392,6 +27487,11 @@ const shotPowerRef = useRef(0);
               const restY =
                 railRunStart.y - POCKET_HOLDER_REST_DROP - tiltDrop;
               const dropEntry = {
+                uploadedPocket: Boolean(uploadedTableMapping),
+                entryX: fromX,
+                entryZ: fromZ,
+                pocketX: c.x,
+                pocketZ: c.y,
                 start: dropStart,
                 fromY: BALL_CENTER_Y,
                 currentY: BALL_CENTER_Y,
@@ -27531,6 +27631,17 @@ const shotPowerRef = useRef(0);
               const { mesh } = entry;
               if (!mesh) {
                 pocketDropRef.current.delete(key);
+                return;
+              }
+              if (entry.uploadedPocket) {
+                const elapsed = Math.max(0, (now-entry.start)/1000);
+                const progress = Math.min(1, elapsed/.45);
+                mesh.position.set(
+                  THREE.MathUtils.lerp(entry.entryX, entry.pocketX, progress),
+                  entry.fromY - BALL_R*7*progress*progress,
+                  THREE.MathUtils.lerp(entry.entryZ, entry.pocketZ, progress)
+                );
+                if (progress >= 1) { mesh.visible = false; pocketDropRef.current.delete(key); }
                 return;
               }
               const targetY = entry.targetY ?? BALL_CENTER_Y - POCKET_DROP_STRAP_DEPTH;
@@ -28554,6 +28665,14 @@ const shotPowerRef = useRef(0);
     <div className="w-full h-[100dvh] bg-black text-white overflow-hidden select-none">
       {/* Canvas host now stretches full width so table reaches the slider */}
       <div ref={mountRef} className="absolute inset-0" />
+      {tableLoadError && (
+        <div className="absolute inset-0 z-[150] flex items-center justify-center bg-black/80 p-6" role="alert">
+          <div className="text-center">
+            <p>The snooker table could not load.</p>
+            <button type="button" className="mt-4 rounded bg-emerald-700 px-6 py-3" onClick={() => window.location.reload()}>Retry</button>
+          </div>
+        </div>
+      )}
 
       {replayBanner && (
         <div className="pointer-events-none absolute top-4 right-4 z-50">
