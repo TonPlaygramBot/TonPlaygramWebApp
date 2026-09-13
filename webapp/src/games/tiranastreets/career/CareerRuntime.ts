@@ -14,9 +14,10 @@ import {CHAPTERS,currentStep,advanceCareer,startChapter,loadCareer,saveCareer,ac
 import {civicSites,cablePose} from '../../tirana-expansion/geography.mjs';
 import {attachEnhancements} from '../../tirana-expansion/WorldEnhancements';
 import {ExistingHumans} from '../../tirana-expansion/ExistingHumans';
+import {CareerPlayer} from './CareerPlayer';
 
 type Point={x:number;z:number};
-export type CareerView={settings: StreetSettings;profile:Profile;player:Point&{heading:number};paused:boolean;ride:boolean;overlook:boolean;rideProgress:number;distance:number;route:Point[];routeNotice:string;storageOK:boolean;assetErrors:string[];fps:number;blocked:string[]};
+export type CareerView={settings: StreetSettings;profile:Profile;player:Point&{heading:number};playerReady:boolean;playerError:string;paused:boolean;ride:boolean;overlook:boolean;rideProgress:number;distance:number;route:Point[];routeNotice:string;storageOK:boolean;assetErrors:string[];fps:number;blocked:string[]};
 /** Solo-only runtime assembled from the same city, collision, input and audio
  * modules. The operation runtime is unmounted before this one is constructed. */
 export class CareerRuntime {
@@ -24,6 +25,7 @@ export class CareerRuntime {
  readonly scene=new T.Scene();readonly camera=new T.PerspectiveCamera(70,1,.15,18000);
  readonly renderer:T.WebGLRenderer;readonly world:ReturnType<typeof makeCityWorld>;readonly input:GameInput;
  readonly audio=new GameAudio();readonly extras:ReturnType<typeof attachEnhancements>;readonly humans:ExistingHumans;
+ readonly playerVisual:CareerPlayer;
  profile:Profile;player={...START};yaw=0;pitch=0;paused=true;ride=false;overlook=false;rideElapsed=0;
  private points=new Map<string,Point>();private talkTargets=new Map<string,Point>();private contactBodies=new Map<string,Obstacle>();private contactIds=new Set<string>();private graph=buildMapGraph(WORLD,'walk');
  private route:Point[]=[];private routeNotice='';private lastTarget='';private routeAt=0;private saveAt=0;private storageOK=true;
@@ -31,6 +33,7 @@ export class CareerRuntime {
  private marker=new T.Mesh(new T.TorusGeometry(1,.06,6,32),new T.MeshBasicMaterial({color:0xf0d398}));
  private observer:ResizeObserver;private raf=0;private last=0;private accumulator=0;private uiAt=0;private disposed=false;
  private footstepAt=0;private rideYaw=0;private fps=60;private counted=0;private countedTime=0;
+ private movementSpeed=0;private elapsed=0;
  constructor(canvas:HTMLCanvasElement,surface:HTMLElement,private publish:(v:CareerView)=>void,private storage?:Storage){
   this.profile=loadCareer(storage); this.settings=loadSettings(storage);
   try{this.renderer=createWebGLRenderer(canvas);}catch{this.renderer=new CompatibilityRenderer(canvas) as unknown as T.WebGLRenderer;}
@@ -38,6 +41,7 @@ export class CareerRuntime {
   this.renderer.setPixelRatio(Math.min(devicePixelRatio||1,1.5));this.renderer.shadowMap.enabled=true;this.renderer.shadowMap.type=T.PCFSoftShadowMap;
   this.applyGraphics();
   this.world=makeCityWorld(this.scene,this.camera,this.renderer);this.world.gun.visible=false;this.world.extraction.visible=false;
+  this.playerVisual=new CareerPlayer(this.scene);
   this.extras=attachEnhancements(this.scene,ORIGIN);
   const anchors=new Map<string,Point>(WORLD.landmarks.map(l=>[l.id,{x:l.x,z:l.z}]));
   for(const site of civicSites(WORLD))anchors.set(site.id,site);
@@ -62,7 +66,9 @@ export class CareerRuntime {
   this.observer=new ResizeObserver(()=>{const r=surface.getBoundingClientRect();this.renderer.setSize(r.width,Math.max(r.height,1),false);this.camera.aspect=r.width/Math.max(r.height,1);this.camera.updateProjectionMatrix();});this.observer.observe(surface);
   this.camera.position.set(this.player.x,1.68,this.player.z);this.persist();this.emit();
   canvas.addEventListener('webglcontextlost',this.contextLost);this.raf=requestAnimationFrame(this.loop);
+  void this.loadPlayer();
  }
+ async loadPlayer(){await this.playerVisual.load();if(!this.disposed)this.emit();}
  private applyGraphics(){
   this.camera.userData.targetFps=this.settings.targetFps;
   this.renderer.setPixelRatio(Math.min(devicePixelRatio||1,this.settings.quality==='high'?1.75:this.settings.quality==='battery'?1:1.4));
@@ -77,17 +83,19 @@ export class CareerRuntime {
  private pointForStep(){const step=currentStep(this.profile);return step?(step.action==='talk'?this.talkTargets.get(step.place):this.points.get(step.action==='ride'?'clock':step.place)):undefined;}
  private persist(){this.storageOK=saveCareer(this.storage,this.profile);}
  select(id:string){
+  if(!this.playerVisual.ready)return;
   if(!CHAPTERS.some(c=>c.id===id&&c.steps.every(s=>s.action==='ride'||this.points.has(s.place)&&(s.action!=='talk'||this.contactIds.has(s.place)))))return;
   this.overlook=false;this.ride=false;this.rideElapsed=0;this.extras.dajti.setTour(false);
   this.profile=startChapter(this.profile,id);this.lastTarget='';this.persist();this.resume();
  }
  pause(){this.paused=true;this.input.active=false;this.input.clear();this.audio.suspend();if(document.pointerLockElement)document.exitPointerLock();this.persist();this.emit();}
  freeExplore(){if(this.profile.active?.status==='failed')this.profile={...this.profile,active:null};this.resume();}
- resume(){this.paused=false;this.input.active=true;this.input.clear();this.audio.start();this.emit();}
+ resume(){if(!this.playerVisual.ready){this.emit();return;}this.paused=false;this.input.active=true;this.input.clear();this.audio.start();this.emit();}
  returnFromOverlook(){this.overlook=false;this.ride=false;this.rideElapsed=0;this.extras.dajti.setTour(false);this.pitch=0;this.persist();this.pause();}
  cancel(){this.overlook=false;this.ride=false;this.rideElapsed=0;this.extras.dajti.setTour(false);this.profile={...this.profile,active:null};this.lastTarget='';this.persist();this.pause();}
  private tick(dt:number){
   if(this.paused||this.overlook)return;
+  this.elapsed+=dt;
   if(this.ride){
    this.profile=advanceCareer(this.profile,{type:'tick',dt,paused:false});
    this.rideElapsed=Math.min(90,this.rideElapsed+dt);
@@ -99,7 +107,9 @@ export class CareerRuntime {
   let y=this.input.move.y+Number(k.has('KeyW')||k.has('ArrowUp'))-Number(k.has('KeyS')||k.has('ArrowDown'));
   const n=Math.max(1,Math.hypot(x,y));x/=n;y/=n;
   const speed=k.has('ShiftLeft')||k.has('ShiftRight')?5.4:3.2,c=Math.cos(this.yaw),s=Math.sin(this.yaw);
+  const previousX=this.player.x,previousZ=this.player.z;
   moveCircle(this.player,(x*c-y*s)*speed*dt,(-x*s-y*c)*speed*dt,.34,this.world.obstacles);
+  this.movementSpeed=Math.hypot(this.player.x-previousX,this.player.z-previousZ)/Math.max(dt,.0001);
   if(Math.hypot(x,y)>.1){this.footstepAt+=dt;if(this.footstepAt>.42){this.audio.step();this.footstepAt=0;}}
   this.profile=advanceCareer(this.profile,{type:'tick',dt,paused:false});
   if(this.profile.active?.status==='failed')this.pause();
@@ -141,6 +151,7 @@ export class CareerRuntime {
   this.counted++;
   if(this.ride||this.overlook){this.extras.dajti.journey(this.rideElapsed/90);const p=cablePose(this.extras.dajti.path,this.rideElapsed/90);this.camera.position.set(p.x-ORIGIN.x,p.y-1.6,p.z-ORIGIN.z);this.camera.rotation.set(this.pitch,p.yaw+this.rideYaw,0,'YXZ');}
   else{this.camera.position.set(this.player.x,1.68,this.player.z);this.camera.rotation.set(this.pitch,this.yaw,0,'YXZ');}
+  this.playerVisual.update({x:this.player.x,z:this.player.z,yaw:this.yaw,pitch:this.pitch,speed:this.paused?0:this.movementSpeed,time:this.elapsed,hidden:this.ride||this.overlook},this.paused?0:this.renderDelta);
   this.world.update?.(this.camera.position);this.world.sky.position.copy(this.camera.position);this.humans.update(this.paused?0:this.renderDelta,this.camera.position);
   this.updateRoute(now);this.renderer.render(this.scene,this.camera);this.renderDelta=0;
   }
@@ -148,7 +159,7 @@ export class CareerRuntime {
   if(now-this.uiAt>150){this.emit();this.uiAt=now;}this.raf=requestAnimationFrame(this.loop);
  };
  private emit(){
-  const target=this.pointForStep();this.publish({settings:{...this.settings},profile:this.profile,player:{x:this.camera.position.x+ORIGIN.x,z:this.camera.position.z+ORIGIN.z,heading:this.yaw},paused:this.paused,ride:this.ride,overlook:this.overlook,rideProgress:this.rideElapsed/90,distance:target?Math.hypot(this.player.x+ORIGIN.x-target.x,this.player.z+ORIGIN.z-target.z):Infinity,route:this.route,routeNotice:this.routeNotice,storageOK:this.storageOK,assetErrors:[...this.humans.errors,...this.extras.civic.errors,...this.extras.dajti.errors],fps:this.fps,blocked:CHAPTERS.filter(c=>c.steps.some(s=>s.action!=='ride'&&(!this.points.has(s.place)||s.action==='talk'&&!this.contactIds.has(s.place)))).map(c=>c.id)});
+  const target=this.pointForStep();this.publish({settings:{...this.settings},profile:this.profile,player:{x:this.camera.position.x+ORIGIN.x,z:this.camera.position.z+ORIGIN.z,heading:this.yaw},playerReady:this.playerVisual.ready,playerError:this.playerVisual.errors.join(' '),paused:this.paused,ride:this.ride,overlook:this.overlook,rideProgress:this.rideElapsed/90,distance:target?Math.hypot(this.player.x+ORIGIN.x-target.x,this.player.z+ORIGIN.z-target.z):Infinity,route:this.route,routeNotice:this.routeNotice,storageOK:this.storageOK,assetErrors:[...this.playerVisual.errors,...this.humans.errors,...this.extras.civic.errors,...this.extras.dajti.errors],fps:this.fps,blocked:CHAPTERS.filter(c=>c.steps.some(s=>s.action!=='ride'&&(!this.points.has(s.place)||s.action==='talk'&&!this.contactIds.has(s.place)))).map(c=>c.id)});
  }
- dispose(){if(this.disposed)return;this.disposed=true;this.persist();cancelAnimationFrame(this.raf);this.observer.disconnect();this.input.dispose();this.audio.dispose();this.humans.dispose();this.renderer.domElement.removeEventListener('webglcontextlost',this.contextLost);this.line.removeFromParent();this.line.geometry.dispose();(this.line.material as T.Material).dispose();this.marker.removeFromParent();this.marker.geometry.dispose();(this.marker.material as T.Material).dispose();this.world.dispose();this.renderer.dispose();}
+ dispose(){if(this.disposed)return;this.disposed=true;this.persist();cancelAnimationFrame(this.raf);this.observer.disconnect();this.input.dispose();this.audio.dispose();this.humans.dispose();this.playerVisual.dispose();this.renderer.domElement.removeEventListener('webglcontextlost',this.contextLost);this.line.removeFromParent();this.line.geometry.dispose();(this.line.material as T.Material).dispose();this.marker.removeFromParent();this.marker.geometry.dispose();(this.marker.material as T.Material).dispose();this.world.dispose();this.renderer.dispose();}
 }

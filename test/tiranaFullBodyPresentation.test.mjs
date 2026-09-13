@@ -4,6 +4,7 @@ import { createRequire } from 'node:module';
 import { readFileSync, mkdtempSync, rmSync } from 'node:fs';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 import { join } from 'node:path';
+import {normalizePlayableHuman,humanoidBones,hideAuthoredPlayerWeapon} from '../webapp/src/games/tiranastreets/street-career/humanoidRig.mjs';
 const webapp = fileURLToPath(new URL('../webapp/', import.meta.url)),
   require = createRequire(join(webapp, 'package.json'));
 const { build } = require('esbuild'),
@@ -217,6 +218,30 @@ test('body rig does not mutate shared source animation tracks', () => {
     gltf.animations.map((c) => c.tracks.map((t) => Array.from(t.values))),
     sourceClips
   );
+  rig.dispose();
+});
+for (const id of ['tactical','polish','agent-47']) test(`${id} supplied body walks, crouches and punches through the actual player presentation`,async()=>{
+  const data=readFileSync(join(webapp,`public/assets/tirana-streets/players/${id}.glb`)),loader=new GLTFLoader();
+  loader.register(()=>({name:'HEADLESS_TEXTURES',loadTexture:async()=>new T.Texture()}));
+  const source=await loader.parseAsync(data.buffer.slice(data.byteOffset,data.byteOffset+data.byteLength),'');
+  const group=normalizePlayableHuman(source.scene);hideAuthoredPlayerWeapon(group);
+  const mixer=new T.AnimationMixer(group),clips=Object.fromEntries(source.animations.map(clip=>[clip.name,mixer.clipAction(clip)]));
+  const actor={group,mixer,clips,idle:Object.values(clips)[0],model:'local-player',wheels:[]},scene=new T.Scene();
+  scene.add(group);
+  const rig=new FirstPersonBody(scene),body=createBody(0),p={x:0,z:0,health:100,speed:3,weapon:'',nextShot:0},bones=humanoidBones(group);
+  body.gait=Math.PI/2;rig.update(actor,p,body,0,1/60);scene.updateMatrixWorld(true);
+  const foot=bones.get('leftfoot'),forward=foot.getWorldPosition(new T.Vector3());
+  body.gait=3*Math.PI/2;rig.update(actor,p,body,.1,1/60);scene.updateMatrixWorld(true);
+  assert.ok(foot.getWorldPosition(new T.Vector3()).z>forward.z+.2,'original uploaded legs must walk');
+  p.speed=0;body.crouched=true;body.eye=.94;
+  rig.update(actor,p,body,.2,1/60);scene.updateMatrixWorld(true);
+  assert.ok(bones.get('hips').getWorldPosition(new T.Vector3()).y<.85,'uploaded pelvis lowers when crouching');
+  assert.ok(foot.getWorldPosition(new T.Vector3()).y>-.18,'crouched foot stays above the street');
+  body.crouched=false;body.eye=1.62;rig.update(actor,p,body,.3,1/60);scene.updateMatrixWorld(true);
+  const hand=bones.get('righthand'),before=hand.getWorldPosition(new T.Vector3());
+  body.action={kind:'punch',hand:1,start:0,duration:.42};rig.update(actor,p,body,.21,1/60);scene.updateMatrixWorld(true);
+  assert.ok(hand.getWorldPosition(new T.Vector3()).z<before.z-.08,'uploaded arm follows attack action');
+  if(id==='polish')assert.equal(group.getObjectByName('WZ96_Beryl_0').visible,false);
   rig.dispose();
 });
 test('two fingers can move and fire-drag, cancellation only clears its owner', () => {

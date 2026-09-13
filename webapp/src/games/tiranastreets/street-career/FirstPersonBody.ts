@@ -14,15 +14,9 @@ import {
 } from '../weaponModelResources';
 import { direction3 } from './spatialCore.mjs';
 import { carPoint, vehicleAnchors } from './vehicleCore.mjs';
+import {humanoidBones, headBoneIndices, solveHumanoidLimb, HumanoidLegPose} from './humanoidRig.mjs';
 const v = new T.Vector3(),
   q = new T.Quaternion();
-const clean = (name: string) => {
-  let n=name.toLowerCase().replace(/mixamorig|[^a-z0-9]/g,'');
-  const aliases:Record<string,string>={upperarml:'leftarm',upperarmr:'rightarm',lowerarml:'leftforearm',lowerarmr:'rightforearm',wristl:'lefthand',wristr:'righthand',upperlegl:'leftupleg',upperlegr:'rightupleg',lowerlegl:'leftleg',lowerlegr:'rightleg',footl:'leftfoot',footr:'rightfoot'};
-  const finger=n.match(/^(thumb|index|middle|ring|pinky)(\d)([lr])$/);
-  if(finger)return (finger[3]==='l'?'left':'right')+'hand'+finger[1]+finger[2];
-  return aliases[n]||n;
-};
 /** Rig-specific head masking, without scaling bones or hiding an entire skin.
  * One body + one skeleton supplies BOTH legs and arms. Original full geometry
  * draws only into the shadow map, so there are no doubled arms or body shadows. */
@@ -30,18 +24,14 @@ export function maskHead(root: T.Object3D) {
   const owned: { mesh:T.SkinnedMesh; source:T.BufferGeometry; shadow:T.SkinnedMesh; geometry: T.BufferGeometry; materials: T.Material[] }[] = [];
   const skins: T.SkinnedMesh[] = [];
   root.traverse((o) => {
-    if (o instanceof T.SkinnedMesh) skins.push(o);
+    if (o instanceof T.SkinnedMesh && o.visible) skins.push(o);
   });
   for (const mesh of skins) {
     const index = mesh.geometry.getIndex(),
       skinIndex = mesh.geometry.getAttribute('skinIndex'),
       weight = mesh.geometry.getAttribute('skinWeight');
     if (!skinIndex || !weight) continue;
-    const headBones = new Set(
-      mesh.skeleton.bones
-        .map((bone, i) => (/head|neck|eye/.test(clean(bone.name)) ? i : -1))
-        .filter((i) => i >= 0)
-    );
+    const headBones = headBoneIndices(mesh.skeleton);
     const isHead = (i: number) => {
       let total = 0;
       for (let j = 0; j < 4; j++)
@@ -106,55 +96,7 @@ export function maskHead(root: T.Object3D) {
     }
   };
 }
-const armPose = (
-  root: T.Group,
-  bones: Map<string, T.Bone>,
-  side: 'left' | 'right',
-  target: T.Vector3,
-  leg = false
-) => {
-  const upper = bones.get(side + (leg ? 'upleg' : 'arm')),
-    lower = bones.get(side + (leg ? 'leg' : 'forearm')),
-    hand = bones.get(side + (leg ? 'foot' : 'hand'));
-  if (!upper || !lower || !hand) return;
-  root.updateMatrixWorld(true);
-  const shoulder = upper.getWorldPosition(new T.Vector3()),
-    elbow = lower.getWorldPosition(new T.Vector3()),
-    wrist = hand.getWorldPosition(new T.Vector3());
-  const l1 = shoulder.distanceTo(elbow),
-    l2 = elbow.distanceTo(wrist),
-    axis = target.clone().sub(shoulder),
-    d = T.MathUtils.clamp(
-      axis.length(),
-      Math.abs(l1 - l2) + 0.01,
-      (l1 + l2) * 0.97
-    );
-  axis.normalize();
-  const bend = (
-    leg
-      ? new T.Vector3(side === 'left' ? -0.1 : 0.1, 0, -1)
-      : new T.Vector3(side === 'left' ? -0.5 : 0.5, -1, 0.3)
-  ).applyQuaternion(root.quaternion);
-  bend.addScaledVector(axis, -bend.dot(axis)).normalize();
-  const along = (l1 * l1 + d * d - l2 * l2) / (2 * d),
-    desired = shoulder
-      .clone()
-      .addScaledVector(axis, along)
-      .addScaledVector(bend, Math.sqrt(Math.max(0, l1 * l1 - along * along)));
-  const rotate = (bone: T.Bone, from: T.Vector3, to: T.Vector3) => {
-    const world = bone.getWorldQuaternion(new T.Quaternion()),
-      parent = bone.parent!.getWorldQuaternion(new T.Quaternion());
-    world.premultiply(
-      new T.Quaternion().setFromUnitVectors(from.normalize(), to.normalize())
-    );
-    bone.quaternion.copy(parent.invert().multiply(world));
-    bone.updateWorldMatrix(false, true);
-  };
-  rotate(upper, elbow.clone().sub(shoulder), desired.clone().sub(shoulder));
-  lower.getWorldPosition(elbow);
-  hand.getWorldPosition(wrist);
-  rotate(lower, wrist.sub(elbow), target.clone().sub(elbow));
-};
+const armPose = solveHumanoidLimb;
 export class FirstPersonBody {
   readonly weapon = new T.Group();
   readonly errors: string[] = [];
@@ -162,6 +104,8 @@ export class FirstPersonBody {
   private actor?: Actor;
   private bones = new Map<string, T.Bone>();
   private rests = new Map<T.Bone, T.Quaternion>();
+  private legPose?: HumanoidLegPose;
+  private hasLocomotion = false;
   private release?: () => void;
   private aborts = new Set<AbortController>();
   private failed = new Set<string>();
@@ -196,14 +140,16 @@ export class FirstPersonBody {
     }
     this.release?.();
     this.actor = actor;
-    this.bones.clear();
+    this.bones = humanoidBones(actor.group);
     this.rests.clear();
     actor.group.traverse((o) => {
       if (o instanceof T.Bone) {
-        this.bones.set(clean(o.name), o);
         this.rests.set(o, o.quaternion.clone());
       }
     });
+    this.legPose = new HumanoidLegPose(actor.group, this.bones);
+    this.hasLocomotion = Object.values(actor.clips || {Walk:actor.walk, Run:actor.run})
+      .some(action => action && /walk|run|sprint/i.test(action.getClip().name));
     this.firstPerson = firstPerson;
     this.release = firstPerson ? maskHead(actor.group) : undefined;
     this.motion = '';
@@ -341,6 +287,9 @@ export class FirstPersonBody {
       dt *
         (moving ? Math.max(0.08, p.speed / (motion.startsWith('Run') ? 5.4 : 1.45)) : 1)
     );
+    // Imported player skins may ship only a static pose: use their own bind
+    // proportions to animate feet without assuming Mixamo local joint axes.
+    if (!this.hasLocomotion) this.legPose?.update(b.gait, moving ? p.speed : 0);
     // Procedural additive fallbacks for clips absent from this audited rig.
     const set = (name: string, x: number, y = 0, z = 0) => {
       const bone = this.bones.get(name);

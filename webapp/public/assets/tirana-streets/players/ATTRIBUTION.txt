@@ -1,0 +1,36 @@
+Tirana Streets — supplied playable character assets
+
+Soldier Full Tactical Gear
+By DanlyVostok (https://sketchfab.com/1799danly)
+Source: https://sketchfab.com/3d-models/soldier-full-tactical-gear-850593a8c7114c188395ba1849a66eb9
+License: Creative Commons Attribution 4.0 International (CC BY 4.0)
+https://creativecommons.org/licenses/by/4.0/
+File: tactical.glb
+
+Polish soldier
+By buh (https://sketchfab.com/inobi_ll)
+Source: https://sketchfab.com/3d-models/polish-soldier-fb96a663fc4a4246a57ca85de3228c00
+License: Creative Commons Attribution 4.0 International (CC BY 4.0)
+https://creativecommons.org/licenses/by/4.0/
+File: polish.glb
+
+Agent 47 (rigged+face morphs)
+By Veterock (https://sketchfab.com/windofglass)
+Source: https://sketchfab.com/3d-models/agent-47-riggedface-morphs-1680cad927304bb687d6a9ad5b9dd98a
+License: Creative Commons Attribution-NonCommercial 4.0 International (CC BY-NC 4.0)
+https://creativecommons.org/licenses/by-nc/4.0/
+File: agent-47.glb
+The supplied archive prohibits commercial use. Inclusion in a draft review does
+not establish permission for a commercial release. See agent-47.license.txt for
+the original notice. The supplied glTF contains a skeleton but no animation
+clips or morph targets, despite the source title.
+
+Modifications to all three supplied models: face color textures resized to at
+most 2048px, body color maps to at most 1024px, soldier normal maps and material
+data maps to at most 512px; normal vectors renormalized after resizing; JPEG/PNG compression;
+source glTF/GLB repackaged as self-contained GLB.
+Geometry, skin weights, skeleton hierarchy, node transforms, material settings
+and animation data are preserved. Original uploads are not modified.
+
+Reproduce with webapp/scripts/prepare-tirana-player-assets.py. Exact input and
+output hashes, geometry counts and texture changes are recorded in asset-audit.json.

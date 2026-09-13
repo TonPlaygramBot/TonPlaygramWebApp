@@ -4,6 +4,7 @@ import type { Game as OperationGameType } from './operationUi';
 import '../tiranastreets/career/career.css';
 import { GameModeBoundary } from '../shared/GameModeBoundary';
 import {PlayerPicker} from '../tiranastreets/PlayerPicker';
+import {selectedPlayerAsset} from '../tiranastreets/playerCatalog.mjs';
 import { TiranaLoading } from './TiranaLoading';
 const OperationGame = lazy(() => import('./operationUi').then(m => ({default:m.Game})));
 const CareerGame = lazy(() => import('../tiranastreets/career/CareerGame').then(m => ({default:m.CareerGame})));
@@ -26,9 +27,9 @@ export function Game(props: ComponentProps<typeof OperationGameType>) {
         ? 'stories'
         : 'operation';
   });
-  const [playerReady,setPlayerReady]=useState(false);
-  // Online matchmaking may already be running when this component mounts.
-  if(!playerReady&&props.mode!=='online')return <PlayerPicker onStart={()=>setPlayerReady(true)} onBack={props.onExit}/>;
+  const [playerReady,setPlayerReady]=useState(()=>!!selectedPlayerAsset());
+  // The engine (and online join callback) mounts only after the chosen rig is ready.
+  if(!playerReady)return <PlayerPicker onStart={()=>setPlayerReady(true)} onBack={props.onExit}/>;
   const loading = <TiranaLoading onBack={props.onExit} />;
   if (props.mode === 'online') return <GameModeBoundary onBack={props.onExit}><Suspense fallback={loading}><OperationGame {...props} /></Suspense></GameModeBoundary>;
   if (activity === 'stories')

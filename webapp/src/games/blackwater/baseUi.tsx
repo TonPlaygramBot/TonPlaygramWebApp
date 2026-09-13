@@ -148,7 +148,8 @@ export function Game({
         canvas.current,
         surface.current,
         setState,
-        setError
+        setError,
+        initialWeapon
       );
       engine.current = game;
       setSettings(game.settings);
