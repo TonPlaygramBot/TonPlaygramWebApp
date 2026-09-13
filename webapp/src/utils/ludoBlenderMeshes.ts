@@ -6,7 +6,7 @@ const templates = new Map<string, THREE.Group>();
 export function createLudoBlenderModel(key: string): THREE.Group {
   let template = templates.get(key);
   if (!template) {
-    const parts = data.models[key];
+    const parts = data.models[key as keyof typeof data.models];
     if (!parts) throw new Error(`Missing Blender Ludo model: ${key}`);
     template = new THREE.Group();
     for (const [name, part] of Object.entries(parts) as [string, {positions: number[]; normals: number[]; indices: number[]}][]) {
@@ -15,7 +15,7 @@ export function createLudoBlenderModel(key: string): THREE.Group {
       geometry.setAttribute('normal', new THREE.Float32BufferAttribute(part.normals, 3));
       geometry.setIndex(part.indices);
       geometry.computeBoundingSphere();
-      const palette = data.materials[name];
+      const palette = data.materials[name as keyof typeof data.materials];
       const material = new THREE.MeshStandardMaterial({
         color: new THREE.Color().setRGB(...palette.color as [number, number, number]),
         metalness: palette.metalness, roughness: palette.roughness

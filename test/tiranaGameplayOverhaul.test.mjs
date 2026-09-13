@@ -79,13 +79,15 @@ test('missiles sweep the flight segment, fracture only the impact section and ke
  assert.equal(s.world.cast({x:0,y:floor+8,z:0},{x:0,y:0,z:-1},21).kind,'air');
  assert.equal(s.world.cast({x:0,y:floor+18,z:0},{x:0,y:0,z:-1},30).kind,'wall');
 });
-test('both aircraft board, climb, fire and refuse an airborne exit; flight checkpoints restore ownership',()=>{
- for(const kind of ['helicopter','jet']){
- const s=sim(),a=s.flight.aircraft.find(a=>a.kind===kind),access=s.flight.access(a);Object.assign(s.player,access);
+test('all four aircraft board, climb, fire and restore their own checkpoint; hover brakes smoothly',()=>{
+ const ids=sim().flight.aircraft.map(a=>a.id);assert.equal(ids.length,4);
+ for(const id of ids){
+ const s=sim(),a=s.flight.aircraft.find(a=>a.id===id),kind=a.kind,access=s.flight.access(a);Object.assign(s.player,access);
  assert.equal(s.flight.board(a.id),true,kind);s.intent.fast=true;s.flight.step(1);s.intent.fast=false;
  assert.ok(a.airborne,kind);assert.equal(s.flight.exit(),false);const old=a.missiles;s.intent.fire=true;s.flight.step(.05);assert.equal(a.missiles,old-1);
  const checkpoint=captureCheckpoint(s);assert.equal(checkpoint.aircraft.kind,kind);const next=sim();
- assert.ok(restoreCheckpoint(next,checkpoint,campaign.apply));assert.equal(next.flight.current.kind,kind);assert.equal(next.flight.current.pilot,next.player.id);
+ assert.ok(restoreCheckpoint(next,checkpoint,campaign.apply));assert.equal(next.flight.current.kind,kind);assert.equal(next.flight.current.pilot,next.player.id);assert.equal(next.flight.current.id,id);
+ a.speed=20;s.intent.fire=false;s.flight.assist('hover');assert.equal(a.speed,20);s.flight.step(.1);assert.ok(a.speed>0&&a.speed<20);
  }
 });
 test('faster car classes retain capped reverse speed and working brakes',()=>{

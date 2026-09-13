@@ -1,3 +1,4 @@
+import {rooftopHelicopterSites} from './rooftops.mjs';
 const distance = (a, b) => Math.hypot(a.x - b.x, a.z - b.z);
 const center = (polygon) => {
   const sum = polygon.reduce((v, p) => ({ x: v.x + p[0], z: v.z + p[1] }), { x: 0, z: 0 });
@@ -5,6 +6,8 @@ const center = (polygon) => {
 };
 
 export function helicopterSite(world) {
+  const fit=rooftopHelicopterSites(world,1)[0];
+  if(fit)return {...fit,roofY:fit.roofY+.7};
   const candidates = world.buildings.filter((b) => b.p?.length >= 3 && b.h >= 18);
   const building = candidates.sort((a, b) => b.h - a.h)[0] || world.buildings[0];
   const pad = center(building.p);

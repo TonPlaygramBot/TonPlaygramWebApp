@@ -1,3 +1,4 @@
+import {vehicleSize} from './trafficSimulation.mjs';
 /** Deterministic arcade squad behavior shared by the city client/server. */
 export function deployment(stars, intensity = 0) {
   const size = Math.min(20, Math.max(10, 10 + Math.floor(intensity / 40) * 2));
@@ -20,7 +21,7 @@ export function vehicleBlocks(a, b, car, margin = 0) {
   if (car.forceVehicle?.includes('bike')) return false;
   const yaw = car.heading || 0, c = Math.cos(yaw), s = Math.sin(yaw);
   const local = p => ({x: (p.x-car.x)*c-(p.z-car.z)*s, z: (p.x-car.x)*s+(p.z-car.z)*c});
-  const u=local(a), v=local(b), w=(car.w || 2)/2+margin, d=(car.d || 4.6)/2+margin;
+  const size=vehicleSize(car),u=local(a), v=local(b), w=size.width/2+margin, d=size.length/2+margin;
   let lo=0, hi=1;
   for(const [axis,extent] of [['x',w],['z',d]]) {
     const delta=v[axis]-u[axis];
@@ -33,7 +34,7 @@ export function vehicleBlocks(a, b, car, margin = 0) {
 }
 export function coverPoint(car, target, slot=0, peek=false) {
   const dx=car.x-target.x, dz=car.z-target.z, length=Math.hypot(dx,dz)||1;
-  const nx=dx/length,nz=dz/length, radius=Math.hypot(car.w||2,car.d||4.6)/2+.85;
+  const nx=dx/length,nz=dz/length, radius=Math.hypot(vehicleSize(car).width,vehicleSize(car).length)/2+.85;
   const side=(slot%2?1:-1)*(peek?radius+1:.65);
   return {x:car.x+nx*radius-nz*side,z:car.z+nz*radius+nx*side};
 }
@@ -54,7 +55,8 @@ export function tacticalGoal(n, target, squad, cars, time, clear) {
   const distance=Math.hypot(n.x-target.x,n.z-target.z);
   const underFire = n.health < (n.kind==='soldier'?150:100) || distance<27;
   let cover;
-  if(underFire) { const available=cars.filter(c=>Math.abs(c.speed||0)<1 && !c.forceVehicle?.includes('bike') && Math.hypot(c.x-n.x,c.z-n.z)<18)
+  if(underFire) { const available=cars.filter(c=>!c.burning && !c.destroyed && Math.abs(c.speed||0)<1 && !c.forceVehicle?.includes('bike') && Math.hypot(c.x-n.x,c.z-n.z)<18)
+    .filter(c=>{const point=coverPoint(c,target,index,false);return vehicleBlocks(target,point,c)&&members.filter(m=>m.id!==n.id&&m.coverId===c.id).length<2;})
     .sort((a,b)=>Math.hypot(a.x-n.x,a.z-n.z)-Math.hypot(b.x-n.x,b.z-n.z)); cover=available.find(c=>c.id===n.coverId)||available[Math.floor(index/2)%Math.max(1,available.length)]; }
   if(cover) {
     const peek=(Math.floor(time/2.4)+index)%3===0;
@@ -65,7 +67,7 @@ export function tacticalGoal(n, target, squad, cars, time, clear) {
   if(index>=2 && distance>11 && distance<42){
     const side=index%2?1:-1,yaw=Math.atan2(n.x-target.x,n.z-target.z);
     const goal={x:target.x+Math.sin(yaw+side*.65)*16,z:target.z+Math.cos(yaw+side*.65)*16};
-    if(Math.hypot(n.x-goal.x,n.z-goal.z)>3)return {goal,anim:'run'};
+    if(Math.hypot(n.x-goal.x,n.z-goal.z)>3&&clear(n,goal))return {goal,anim:'run'};
   }
   const holding=distance<20 && visible;
   if(holding) return {goal:n,anim:'aim'};
@@ -89,7 +91,7 @@ export function pursuitGoal(unit,target,convoy,time,visible) {
 export function avoidVehicles(n, goal, cars) {
   const blocker=cars.find(c=>Math.abs(c.speed||0)<1 && vehicleBlocks(n,goal,c,.5));
   if(!blocker)return goal;
-  const yaw=blocker.heading||0,c=Math.cos(yaw),s=Math.sin(yaw),w=(blocker.w||2)/2+.8,d=(blocker.d||4.6)/2+.8;
+  const yaw=blocker.heading||0,c=Math.cos(yaw),s=Math.sin(yaw),w=vehicleSize(blocker).width/2+.8,d=vehicleSize(blocker).length/2+.8;
   const corners=[[-w,-d],[-w,d],[w,-d],[w,d]].map(([x,z])=>({x:blocker.x+x*c+z*s,z:blocker.z-x*s+z*c}));
   return corners.filter(p=>!vehicleBlocks(n,p,blocker,.4)&&Math.hypot(p.x-n.x,p.z-n.z)>.4)
     .sort((a,b)=>(Math.hypot(a.x-n.x,a.z-n.z)+Math.hypot(a.x-goal.x,a.z-goal.z))-(Math.hypot(b.x-n.x,b.z-n.z)+Math.hypot(b.x-goal.x,b.z-goal.z)))[0]||n;

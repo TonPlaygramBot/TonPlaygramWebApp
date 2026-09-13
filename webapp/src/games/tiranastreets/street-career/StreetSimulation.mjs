@@ -876,8 +876,9 @@ export class StreetSimulation {
     const cars=this.cars();
     let {hit,target}=traceShot(this.world,from,direction,w.range,cars,[proxy]);
     const eye={x:n.x,y:from.y+.17,z:n.z};
-    const muzzleTravel=this.world.cast(eye,{x:from.x-eye.x,y:from.y-eye.y,z:from.z-eye.z},1,cars);
-    if(muzzleTravel.distance<1){hit=muzzleTravel;target=null;}
+    const travel={x:from.x-eye.x,y:from.y-eye.y,z:from.z-eye.z},travelLength=Math.hypot(travel.x,travel.y,travel.z);
+    const muzzleTravel=this.world.cast(eye,{x:travel.x/travelLength,y:travel.y/travelLength,z:travel.z/travelLength},travelLength,cars);
+    if(muzzleTravel.distance<travelLength-1e-5){hit=muzzleTravel;target=null;}
     n.rounds--;n.shotsFired=(n.shotsFired||0)+1;n.firedAt=now;
     n.nextShot=now+Math.max(w.interval,n.kind==='soldier'?.22:.42)/Math.max(.5,scale);
     this.combat.emit('shot',from,{toX:hit.point.x,toY:hit.point.y,toZ:hit.point.z,owner:n.id,weapon:w.id});
@@ -913,7 +914,7 @@ export class StreetSimulation {
     let d = direction3(b.yaw, b.pitch),
       max = Math.min(250, w.range),
       cars = this.cars();
-    if (this.settings.aimAssist) {
+    if (this.settings.aimAssist && !b.aim) {
       let score = 0.018,
         assist = null;
       for (const n of this.state.npcs) {
@@ -944,14 +945,11 @@ export class StreetSimulation {
     }
     let {hit,target}=traceShot(this.world,eye,d,max,cars,this.state.npcs);
     // Camera defines intent; the offset muzzle must ALSO have a clear trajectory.
-    const muzzle = weaponPose(p, b).muzzle;
-    const muzzleTravel = this.world.cast(
-      eye,
-      { x: muzzle.x - eye.x, y: muzzle.y - eye.y, z: muzzle.z - eye.z },
-      1,
-      cars
-    );
-    if (muzzleTravel.distance < 1) {
+    const {muzzle,ejection} = weaponPose(p,b);
+    const travel={x:muzzle.x-eye.x,y:muzzle.y-eye.y,z:muzzle.z-eye.z};
+    const travelLength=Math.hypot(travel.x,travel.y,travel.z);
+    const muzzleTravel=this.world.cast(eye,{x:travel.x/travelLength,y:travel.y/travelLength,z:travel.z/travelLength},travelLength,cars);
+    if (muzzleTravel.distance < travelLength-1e-5) {
       hit = muzzleTravel;
       target = null;
     } else if (!this.world.clear(muzzle, hit.point, cars)) {
@@ -973,10 +971,11 @@ export class StreetSimulation {
     state.effects.push({
       id: ++state.effectSeq,
       at: state.elapsed,
-      kind: w.radius ? 'explosion' : 'shot',
+      kind: w.radius ? 'launch' : 'shot',
       x: muzzle.x,
       y: muzzle.y,
       z: muzzle.z,
+      ejectX:ejection.x, ejectY:ejection.y, ejectZ:ejection.z,
       toX: hit.point.x,
       toY: hit.point.y,
       toZ: hit.point.z,

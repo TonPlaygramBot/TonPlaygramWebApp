@@ -22,6 +22,9 @@ import {
 import { captureCheckpoint, restoreCheckpoint } from './checkpointCore.mjs';
 import { loadSettings, type StreetSettings } from './settings';
 import {FramePacer, targetFps} from '../renderSettings';
+import {WORLD} from '../shared/world.mjs';
+import {buildMapGraph,findMapRoute} from '../map/mapCore.mjs';
+type Destination = Point & {name:string;id?:string;available?:boolean};
 import {
   createCampaign,
   type StreetProfile,
@@ -35,6 +38,8 @@ export type StreetView = {
   ready: boolean;
   graphicsError: string;
   route: Point[];
+  destination: Destination | null;
+  routeNotice: string;
   fps: number;
   storageOK: boolean;
   assetErrors: string[];
@@ -60,6 +65,31 @@ export class StreetCareerRuntime {
   ready = false;
   graphicsError = '';
   route: Point[] = [];
+  destination: Destination | null = null;
+  routeNotice = '';
+  private mapGraphs=new Map<string,ReturnType<typeof buildMapGraph>>();
+  setDestination(place: Destination | null) {
+    this.destination = place;
+    this.routeAt = -Infinity;
+    this.updateNavigation();
+    this.emit();
+  }
+  private updateNavigation() {
+    const p = this.state.players.local;
+    if(this.destination) {
+      const mode=p.carId?'drive':'walk';
+      let graph=this.mapGraphs.get(mode);if(!graph){graph=buildMapGraph(WORLD,mode);this.mapGraphs.set(mode,graph);}
+      const result = p.aircraftId?{points:[p,this.destination],message:'Direct flight to destination.'}:findMapRoute(graph,p,this.destination);
+      this.route = result.points;
+      this.routeNotice = result.message;
+    } else {
+      const mission = MISSIONS.find(m=>m.id===this.state.missionId);
+      const aircraft = mission?.aircraft && this.simulation.flight.aircraft.find(a=>a.kind===mission.aircraft);
+      this.route = aircraft && !p.aircraftId ? [p,this.simulation.flight.access(aircraft)] : navigation(this.state,'local');
+      this.routeNotice = '';
+    }
+    this.renderer.setRoute(this.route);
+  }
   private ownedWeapons = new Set<string>();
   private disposed = false;
   private raf = 0;
@@ -192,6 +222,7 @@ export class StreetCareerRuntime {
     this.simulation.settings.aimAssist = this.settings.aimAssist;
     this.renderer.simulation = this.simulation;
     this.route = [];
+    this.destination=null;this.routeNotice='';
     this.renderer.setRoute([]);
     this.renderer.yaw = this.simulation.body.yaw;
     this.renderer.pitch = 0;
@@ -305,16 +336,7 @@ export class StreetCareerRuntime {
     const car = p.carId
       ? this.state.cars.find((c) => c.id === p.carId)
       : undefined;
-    if (!p.aircraftId && collideDetailPosts(car || p, car ? 1.35 : 0.34)) {
-      if (car) {
-        car.speed *= 0.45;
-        car.vx *= 0.3;
-        car.vz *= 0.3;
-        p.x = car.x;
-        p.z = car.z;
-        p.speed = car.speed;
-      } else p.speed = 0;
-    }
+    if (!p.aircraftId && !car && collideDetailPosts(p,.34)) p.speed=0;
     for (const n of this.state.npcs)
       if (n.motion !== 'drive') collideDetailPosts(n, 0.34);
     for (const event of this.simulation.events) {
@@ -326,7 +348,7 @@ export class StreetCareerRuntime {
         this.renderer.pitch = 0;
         this.input.releaseAll();
       }
-      if (event.kind === 'shot')
+      if (event.kind === 'shot' && !this.simulation.body.aim)
         this.renderer.pitch = Math.min(
           1.3,
           this.renderer.pitch + 0.012 * this.settings.shake
@@ -371,10 +393,7 @@ export class StreetCareerRuntime {
         this.audio.city(this.state, p, dt, this.renderer.yaw, this.simulation.body.grounded, this.simulation.body.y);
       }
       if (now - this.routeAt > 750) {
-        const mission = MISSIONS.find(m=>m.id===this.state.missionId);
-        const aircraft = mission?.aircraft && this.simulation.flight.aircraft.find(a=>a.kind===mission.aircraft);
-        this.route = aircraft && !p.aircraftId ? [p,this.simulation.flight.access(aircraft)] : navigation(this.state, 'local');
-        this.renderer.setRoute(this.route);
+        this.updateNavigation();
         this.routeAt = now;
       }
     }
@@ -401,6 +420,8 @@ export class StreetCareerRuntime {
       ready: this.ready,
       graphicsError: this.graphicsError,
       route: this.route,
+      destination: this.destination,
+      routeNotice: this.routeNotice,
       fps: this.renderer.fps,
       storageOK: this.storageOK,
       assetErrors: [

@@ -9,5 +9,6 @@ export class FlightSimulation {
  canExit():boolean;
  exit():boolean;
  step(dt:number):void;
+ assist(action:string):boolean;
  objective():{title:string;detail:string;training:boolean}|null;
 }

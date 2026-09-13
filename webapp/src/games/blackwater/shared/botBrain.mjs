@@ -22,16 +22,17 @@ export function thinkBot(brain,self,opponents,now,dt,clear,objective,context={})
     const report=(context.reports||[]).filter(r=>r.lastSeen&&now-r.seenAt<5&&r.seenAt>brain.seenAt).sort((a,b)=>b.seenAt-a.seenAt)[0];
     if(report){brain.lastSeen=point(report.lastSeen);brain.seenAt=report.seenAt;}
     const noise=context.noise;
-    if(noise&&noise.at>brain.heardAt&&now-noise.at<2&&distance(self,noise)<38){brain.lastSeen=point(noise);brain.seenAt=noise.at;brain.heardAt=noise.at;}
+    if(noise&&noise.at>brain.heardAt&&noise.at>brain.seenAt&&now-noise.at<2&&distance(self,noise)<38){brain.lastSeen=point(noise);brain.seenAt=noise.at;brain.heardAt=noise.at;}
   }
-  if(brain.ammo<=0&&!brain.reload&&brain.reserve>0)brain.reload=2.2;
+  if((brain.ammo<=0||!target&&brain.ammo<=3&&now-brain.seenAt>2)&&!brain.reload&&brain.reserve>0)brain.reload=2.2;
   const fire=!!target&&!brain.reload&&brain.ammo>0&&now-brain.acquiredAt>.6;
   const result=(state,goal,priority=false,extra={})=>({target,goal:point(goal),fire,state,priority,heal:0,pickup:null,...extra});
   if(context.mode==='last-stand'&&distance(self,objective)>Math.max(1,(context.zoneRadius??110)-8)){
     brain.healTime=0;
     return result('zone',slot(objective,self.id,Math.max(0,(context.zoneRadius??110)*.35)),true);
   }
-  const covers=(context.covers||[]).filter(p=>distance(self,p)<24&&(!target||!clear(p,target)))
+  const threat=target||(now-brain.seenAt<6?brain.lastSeen:null);
+  const covers=(context.covers||[]).filter(p=>distance(self,p)<24&&(!threat||!clear(p,threat))&&(!context.canReach||context.canReach(self,p))&&!(context.allies||[]).some(a=>a.id!==self.id&&distance(a,p)<1.2))
     .sort((a,b)=>distance(self,a)-distance(self,b));
   if(brain.medkit&&self.hp<40&&!target){
     const cover=covers[0];
@@ -57,7 +58,10 @@ export function thinkBot(brain,self,opponents,now,dt,clear,objective,context={})
     :context.mode==='extraction'?slot(context.intelCollected?context.extractionPoint||objective:context.intelPoint||objective,self.id,3):null;
   if(missionGoal&&distance(self,missionGoal)>2&&(!target||distance(self,target)>12))return result('objective',missionGoal,true);
   if(target)return result(brain.reload?'reload':distance(self,target)<28?'aim':'run',target);
-  if(brain.lastSeen&&now-brain.seenAt<8&&distance(self,brain.lastSeen)>1.2)return result('search',brain.lastSeen,true);
+  if(brain.lastSeen&&now-brain.seenAt<8){
+    const goal=distance(self,brain.lastSeen)>1.2?brain.lastSeen:slot(brain.lastSeen,self.id+Math.floor((now-brain.seenAt)/2),4);
+    return result('search',goal,true,{fire:false});
+  }
   if(missionGoal)return result('guard',missionGoal,true);
   return result('patrol',context.mode?slot(objective,self.id+Math.floor(now/12),context.mode==='last-stand'?Math.min(20,(context.zoneRadius??110)*.4):14):objective,true);
 }

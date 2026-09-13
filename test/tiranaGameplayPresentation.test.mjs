@@ -38,3 +38,20 @@ test('gas, reverse and brake pointers release independently; camera changes requ
  e.setVehiclePedal('reverse',true);e.setVehiclePedal('gas',true);e.setVehiclePedal('gas',false);assert.equal(e.vehicleThrottle,-1);
  e.changeVehicleCamera();assert.equal(e.vehicle.view,'cockpit');e.vehicle.driving=false;e.changeVehicleCamera();assert.equal(e.vehicle.view,'cockpit');
 });
+
+test('a short shot is visible on its first rendered frame and the casing starts at the ejection port',()=>{
+ const scene=new T.Scene(),fx=new CombatEffects(scene),camera=new T.PerspectiveCamera();
+ fx.shot({x:0,y:1.5,z:0},{x:0,y:1.5,z:-.8},0,{x:.1,y:1.4,z:.3});fx.update(1/30,camera);
+ const meshes=fx.group.children.filter(o=>o instanceof T.InstancedMesh),matrix=new T.Matrix4();
+ meshes[4].getMatrixAt(0,matrix);const position=new T.Vector3(),scale=new T.Vector3(),rotation=new T.Quaternion();matrix.decompose(position,rotation,scale);
+ assert.ok(scale.z>.7&&scale.z<=.8+.0001);assert.ok(position.z<0&&position.z>-.8);
+ meshes[3].getMatrixAt(0,matrix);position.setFromMatrixPosition(matrix);assert.ok(position.distanceTo(new T.Vector3(.1,1.4,.3))<1e-6);
+ assert.equal(meshes[3].geometry.type,'CylinderGeometry');fx.dispose();
+});
+test('Ludo missile impact instances are bounded and fully disappear at the end of their timeline',()=>{
+ const scene=new T.Scene(),fx=new CombatEffects(scene),camera=new T.PerspectiveCamera();
+ fx.consume(Array.from({length:20},(_,i)=>({id:i+1,kind:'blast',x:i,y:3,z:0,toX:i,toY:3,toZ:0,radius:11})));
+ fx.update(1/60,camera);const impact=fx.group.getObjectByName('Ludo missile impacts');
+ const meshes=impact.children.filter(o=>o instanceof T.InstancedMesh);assert.equal(meshes.length,13);assert.ok(meshes.every(m=>m.count===4));
+ fx.update(1,camera);assert.ok(meshes.every(m=>m.count===0));fx.dispose();
+});

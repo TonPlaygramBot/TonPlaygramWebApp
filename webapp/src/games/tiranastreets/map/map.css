@@ -17,3 +17,13 @@
 .ts-map-scale i{display:block;width:70px;height:5px;margin-top:3px;border:solid currentColor;border-width:0 2px 2px;box-sizing:border-box}
 
 .ts-map-references{display:flex;flex-wrap:wrap;gap:8px;margin:8px 0}.ts-map-references a{color:#dbefa7;font:11px/1.4 system-ui;text-decoration:underline;min-height:32px;display:inline-flex;align-items:center}.ts-map-selection>small{display:block;font:11px/1.45 system-ui;margin-top:6px;color:#c5d7d6}
+
+.ts-map-layers button[aria-pressed=true]{background:#d8fa69;color:#132924;font-weight:700}
+.ts-map-tabs{gap:4px}.ts-map-tabs button{padding:8px 5px;font-size:12px;min-width:0}
+.ts-map-place-list[hidden]{display:none}.ts-map-jobs{max-height:230px;overflow:auto;overscroll-behavior:contain;display:grid;gap:8px}
+.ts-map-jobs article{padding:10px;background:#20383e;border-radius:10px}.ts-map-jobs small{display:block;color:#c6d8b4}
+.ts-map-jobs article>div{display:flex;gap:8px}.ts-map-jobs article button{flex:1}.ts-map-jobs p{font-size:12px;margin:6px 0}
+.ts-map-credit{font-size:10px;line-height:1.35;color:#c5d7d6}.ts-map-credit a{color:inherit}
+.tr-atlas-shell>.tr-tabs{display:flex;overflow:auto;gap:4px}.tr-atlas-shell>.tr-tabs button{font-size:10px;padding:6px;white-space:nowrap}
+
+.ts-map-guides{margin-top:12px}.ts-map-guides summary{min-height:44px;display:flex;align-items:center;color:#d5e5b8;cursor:pointer}

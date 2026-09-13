@@ -1,8 +1,9 @@
 export type SoundPoint = { x: number; y?: number; z: number };
+import {LUDO_CAPTURE_MISSILE_LAUNCH_SOUND_URL,LUDO_CAPTURE_MISSILE_IMPACT_SOUND_URL} from '../../utils/ludoSfx.js';
 type Voice = { source: AudioScheduledSourceNode; nodes: AudioNode[]; clean: () => void };
 type Loop = { source: OscillatorNode; gain: GainNode; filter: BiquadFilterNode };
 const clamp = (v: number, lo: number, hi: number) => Math.max(lo, Math.min(hi, v));
-/** Local synthesis: no downloads, one compressed master bus, bounded voices. */
+/** Shared Ludo missile samples and local synthesis on one bounded spatial bus. */
 export class SceneSound {
   readonly maxVoices = 24;
   private context: AudioContext | null = null;
@@ -16,6 +17,9 @@ export class SceneSound {
   private gain = 1;
   private paused = true;
   private disposed = false;
+  private sampleAbort = new AbortController();
+  private samples = new Map<string, AudioBuffer>();
+  private sampleBytes = new Map(['launch','impact'].map((key,index)=>[key,fetch([LUDO_CAPTURE_MISSILE_LAUNCH_SOUND_URL,LUDO_CAPTURE_MISSILE_IMPACT_SOUND_URL][index],{signal:this.sampleAbort.signal}).then(r=>r.ok?r.arrayBuffer():null).catch(()=>null)]));
   get activeVoices() { return this.voices.size; }
   async unlock() {
     if (this.disposed) return;
@@ -30,6 +34,7 @@ export class SceneSound {
       this.noise = c.createBuffer(1, c.sampleRate * 2, c.sampleRate);
       const data = this.noise.getChannelData(0);
       for (let i = 0; i < data.length; i++) data[i] = Math.random() * 2 - 1;
+      for(const [key,request] of this.sampleBytes)void request.then(bytes=>bytes?c.decodeAudioData(bytes):null).then(buffer=>{if(buffer&&!this.disposed)this.samples.set(key,buffer);}).catch(()=>{});
     }
     this.paused = false;
     await this.context.resume();
@@ -78,10 +83,19 @@ export class SceneSound {
   }
   burst(duration: number, frequency: number, volume: number, type: BiquadFilterType = 'lowpass', at?: SoundPoint) { this.play(duration, frequency, volume, at, false, frequency, type); }
   tone(frequency: number, duration: number, volume: number, end = frequency, at?: SoundPoint) { this.play(duration, frequency, volume, at, true, end); }
+  private sample(key:string,at?:SoundPoint) {
+    const c=this.context,buffer=this.samples.get(key),space=this.spatial(at);
+    if(!c||!this.master||!buffer||this.paused||this.disposed||!this.gain||c.state!=='running'||!space.gain||this.voices.size>=this.maxVoices)return false;
+    const source=c.createBufferSource(),gain=c.createGain(),pan=c.createStereoPanner();source.buffer=buffer;gain.gain.value=space.gain;pan.pan.value=space.pan;
+    source.connect(gain).connect(pan).connect(this.master);
+    const voice:Voice={source,nodes:[source,gain,pan],clean:()=>{}};
+    voice.clean=()=>{if(!this.voices.delete(voice))return;voice.nodes.forEach(n=>n.disconnect());};source.onended=voice.clean;this.voices.add(voice);source.start(c.currentTime+space.delay);return true;
+  }
   event(kind: string, at?: SoundPoint) {
     if (kind === 'shot') { this.burst(.12, 2200, .33, 'lowpass', at); this.tone(135, .12, .2, 42, at); }
-    else if (kind === 'missile' || kind === 'launch') { this.burst(.7, 1100, .45, 'bandpass', at); this.tone(160, .32, .2, 55, at); }
+    else if (kind === 'missile' || kind === 'launch') { if(!this.sample('launch',at)){this.burst(.7, 1100, .45, 'bandpass', at); this.tone(160, .32, .2, 55, at);} }
     else if (['blast', 'explosion', 'vehicle-explosion'].includes(kind)) {
+      if(this.sample('impact',at))return;
       this.burst(1.2, 430, .65, 'lowpass', at); this.tone(85, .65, .45, 24, at);
       this.play(.8, 1500, .18, at, false, 1500, 'lowpass', .16);
     } else if (kind === 'fracture') { this.burst(.55, 1900, .33, 'bandpass', at); this.play(1.25, 450, .3, at, false, 450, 'lowpass', .12); }
@@ -116,6 +130,7 @@ export class SceneSound {
   dispose() {
     if (this.disposed) return;
     this.suspend(); this.disposed = true;
+    this.sampleAbort.abort();this.samples.clear();this.sampleBytes.clear();
     this.loops.forEach(l => { l.source.stop(); l.source.disconnect(); l.filter.disconnect(); l.gain.disconnect(); });
     this.loops.clear(); this.master?.disconnect(); this.compressor?.disconnect();
     void this.context?.close().catch(() => {}); this.context = null; this.master = null; this.noise = null;
