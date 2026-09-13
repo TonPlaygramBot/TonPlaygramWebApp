@@ -21,11 +21,13 @@ import {
   RotateCcw,
   Cpu,
   Camera,
+  Compass,
   Wifi,
   WifiOff
 } from 'lucide-react';
 import { createHeldRaceInput } from './heldRaceInput.mjs';
-import { driftTier } from './arcadeRules.mjs';
+import { FREE_ROAM_STARTS } from './freeRoam.mjs';
+import { FreeRoamMap } from './FreeRoamMap';
 import { KartControls } from './KartControls';
 import { KartRenderer } from './renderer';
 import type { Quality, Frame, Result, CameraMode } from './renderer';
@@ -44,7 +46,7 @@ import type { Room, Session } from './network';
 import './kart-royale.css';
 import './kart-mobile.css';
 import './kart-controls.css';
-type Mode = 'ai' | 'online' | 'career';
+type Mode = 'ai' | 'online' | 'career' | 'free';
 interface Props {
   getSocket?: () => Promise<Socket>;
   onExit?: () => void;
@@ -61,6 +63,7 @@ interface Props {
 const maps = new Map(TRACKS.map((t) => [t.id, makeTrack(t.id)]));
 const modes = [
   { id: 'ai', title: 'VS AI', sub: 'Find your racing line', icon: Cpu },
+  { id: 'free', title: 'FREE ROAM', sub: 'Explore with your kart', icon: Compass },
   { id: 'online', title: 'MULTIPLAYER', sub: 'Race your friends', icon: Users },
   { id: 'career', title: 'CAREER', sub: 'Build your legacy', icon: Trophy }
 ] as const;
@@ -121,6 +124,7 @@ export default function KartRoyale({
     [error, setError] = useState(''),
     [mode, setMode] = useState<Mode>('ai'),
     [trackId, setTrackId] = useState('skanderbeg'),
+    [roamStart,setRoamStart] = useState('skanderbeg'),
     [difficulty, setDifficulty] = useState('rookie'),
     [paint, setPaint] = useState(0),
     [kartId, setKartId] = useState(() => {
@@ -180,7 +184,7 @@ export default function KartRoyale({
   careerRef.current = career;
   modalRef.current = modal;
   const track = TRACKS.find((t) => t.id === trackId)!,
-    activeTrack = mode === 'career' ? CUPS[cup].track : trackId;
+    activeTrack = mode === 'free' ? roamStart : mode === 'career' ? CUPS[cup].track : trackId;
   const finish = useRef<(r: Result) => void>(() => {});
   finish.current = (r) => {
     if (done.current) return;
@@ -590,7 +594,8 @@ export default function KartRoyale({
     setScreen('race');
     engine.current?.startLocal(
       activeTrack,
-      mode === 'career' ? CUPS[cup].difficulty : difficulty
+      mode === 'career' ? CUPS[cup].difficulty : difficulty,
+      mode === 'free'
     );
   };
   const touch = (key: 'steer'|'drift'|'boost'|'brake'|'reverse'|'recover', value: number|boolean) => {
@@ -812,6 +817,11 @@ export default function KartRoyale({
                   </div>
                 </div>
               )}
+              {mode === 'free' && <div className="kr-options kr-roam-options">
+                <label className="kr-label" htmlFor="kr-roam-start">START EXPLORING</label>
+                <select id="kr-roam-start" value={roamStart} onChange={e=>setRoamStart(e.target.value)}>{FREE_ROAM_STARTS.map(p=><option key={p.track} value={p.track}>{p.name}</option>)}</select>
+                <p>Take any road through Tirana. No opponents, laps or time limit.</p>
+              </div>}
               {mode === 'career' && (
                 <div className="kr-options">
                   <div className="kr-section-line">
@@ -1044,6 +1054,7 @@ export default function KartRoyale({
                   <span>
                     {!loaded
                       ? 'LOADING YOUR KART…'
+                      : mode === 'free' ? 'EXPLORE TIRANA'
                       : mode === 'career'
                         ? 'RACE FOR THE CUP'
                         : 'LET’S RACE'}
@@ -1089,7 +1100,7 @@ export default function KartRoyale({
               </div>
             </section>
             <div className="kr-garage-bottom">
-              <span>SIX CIRCUITS · EIGHT KARTS. ONE TIRANA.</span>
+              <span>{TRACKS.length} CIRCUITS · EIGHT KARTS. ONE TIRANA.</span>
               <span>EST. TONPLAYGRAM</span>
             </div>
           </main>
@@ -1098,23 +1109,22 @@ export default function KartRoyale({
       {screen === 'race' && (
         <div className="rr-race-ui">
           <div className="rr-race-top">
-            <div className="rr-place"><b>{hud?.position || 1}</b><span>/{hud?.racers.length || 6}<small>POSITION</small></span></div>
-            <div className="rr-lap"><span>LAP <b>{hud?.lap || 1}</b> / 3</span><time aria-label="Current lap time">{formatTime(hud?.lapTime || 0)}</time>{!!hud?.bestLap && <small>BEST {formatTime(hud.bestLap)}</small>}</div>
+            {mode==='free'?<div className="rr-roam-label"><Compass size={18}/><span>FREE ROAM</span></div>:<>
+              <div className="rr-place"><b>{hud?.position || 1}</b><span>/{hud?.racers.length || 6}<small>POSITION</small></span></div>
+              <div className="rr-lap"><span>LAP <b>{hud?.lap || 1}</b> / 3</span><time aria-label="Current lap time">{formatTime(hud?.lapTime || 0)}</time>{!!hud?.bestLap && <small>BEST {formatTime(hud.bestLap)}</small>}</div>
+            </>}
             <button className="kr-icon" aria-label="Pause menu" onClick={()=>setModal('pause')}><Pause size={22}/></button>
           </div>
-          <div className="rr-map"><CircuitMap id={trackId} frame={hud}/></div>
+          <div className="rr-map">{mode==='free'?<FreeRoamMap racer={hud?.racers[0]}/>:<CircuitMap id={trackId} frame={hud}/>}</div>
           <button className="rr-camera" aria-label={`Switch to ${cameraMode==='driver'?'chase':'driver'} camera`} onClick={()=>setCameraMode(v=>v==='driver'?'chase':'driver')}><Camera size={18}/></button>
           <button className="rr-recover" aria-label="Recover kart on track" {...touch('recover',true)}><RotateCcw size={18}/></button>
           {(hud?.countdown || 0)>0 && <div className="rr-countdown" role="status"><span>READY TO RACE</span><b>{hud!.countdown}</b><p>Hold GAS to accelerate.<br/>Slide a steering thumb up to drift.</p></div>}
           {notice && <div className="rr-notice" role="status"><WifiOff size={16}/>{notice}</div>}
-          <div className="rr-feedback" aria-live="polite">
-            {hud?.drifting ? <><strong>{['HOLD YOUR DRIFT','MINI TURBO','SUPER TURBO','ROYAL TURBO'][driftTier(hud.driftCharge)]}</strong><div className={`rr-drift-meter tier-${driftTier(hud.driftCharge)}`}><i style={{width:`${Math.min(100,hud.driftCharge/1.9*100)}%`}}/></div><span>{hud.driftCharge>=.55?'Release DRIFT to boost':'Steer + hold DRIFT'}</span></> : (hud?.turbo||0)>0 ? <strong className="rr-turbo">TURBO!</strong> : (hud?.slipstream||0)>.35 ? <strong>SLIPSTREAM</strong> : null}
-          </div>
-          <div className="rr-speed"><b>{Math.round(Math.abs(hud?.speed||0)*3.6)}</b><span>KM/H</span></div>
-          <KartControls boost={hud?.boost||0} drifting={hud?.drifting} disabled={!!modal}
+          <div className="rr-speed"><b>{hud?.reversing&&<small>R </small>}{Math.round(Math.abs(hud?.speed||0)*3.6)}</b><span>KM/H</span></div>
+          <KartControls boost={hud?.boost||0} drifting={hud?.drifting} driftCharge={hud?.driftCharge} turbo={hud?.turbo} boostEvent={hud?.boostEvent} reversing={hud?.reversing} disabled={!!modal}
             hold={(id,key,value)=>{audio.current?.unlock();heldInput.current.hold(id,key,value);if(engine.current)Object.assign(engine.current.input,heldInput.current.read());}}
             release={id=>{heldInput.current.release(id);if(engine.current)Object.assign(engine.current.input,heldInput.current.read());}}/>
-          <div className="rr-key-hint">↑ GAS · ← → STEER · SPACE DRIFT · SHIFT BOOST · ↓ BRAKE</div>
+          <div className="rr-key-hint">↑ GAS · ← → STEER · SPACE DRIFT · SHIFT BOOST · HOLD ↓ BRAKE / REVERSE</div>
         </div>
       )}
       {screen === 'results' && result && (
@@ -1390,7 +1400,7 @@ export default function KartRoyale({
                 </div>
                 <p>
                   Keyboard: arrows or A/D to steer, Space to drift, Shift to
-                  boost, down arrow to brake and R to reverse. Tap the reset arrow if you get stuck.
+                  boost, and hold the down arrow to brake, then reverse after stopping. Tap the reset arrow if you get stuck.
                 </p>
               </>
             ) : (

@@ -1,6 +1,7 @@
 import * as T from 'three';
 import { boostPads } from './arcadeRules.mjs';
 import type { Track } from './simulation.mjs';
+import {surfaceHeight} from './racingSurface.mjs';
 /** Flat event markings sit above the unchanged city road surface. */
 export function createBoostPadLayer(track:Track){
   const group=new T.Group();group.name='Race boost strips';
@@ -10,7 +11,9 @@ export function createBoostPadLayer(track:Track){
   const arrows=new T.InstancedMesh(geometry,new T.MeshBasicMaterial({color:'#72edff',toneMapped:false}),pads.length*6);
   const frame=new T.Object3D(),piece=new T.Object3D(),matrix=new T.Matrix4();
   pads.forEach((pad,i)=>{
-    frame.position.set(pad.x,.145,pad.z);frame.rotation.y=pad.yaw;frame.updateMatrix();
+    const s=Math.sin(pad.yaw),c=Math.cos(pad.yaw);
+    const slope=(surfaceHeight(track,pad.x+s*3,pad.z+c*3)-surfaceHeight(track,pad.x-s*3,pad.z-c*3))/6;
+    frame.position.set(pad.x,.145+surfaceHeight(track,pad.x,pad.z),pad.z);frame.rotation.set(-Math.atan(slope),pad.yaw,0,'YXZ');frame.updateMatrix();
     piece.position.set(0,0,0);piece.rotation.set(0,0,0);piece.scale.set(pad.width,1,pad.length);piece.updateMatrix();
     floors.setMatrixAt(i,matrix.multiplyMatrices(frame.matrix,piece.matrix));
     for(let row=0;row<3;row++)for(let side=0;side<2;side++){

@@ -34,7 +34,7 @@ export class RaceEffects {
       const s=Math.sin(r.yaw),c=Math.cos(r.yaw);
       for(let i=0;i<12;i++){
         const side=i%2?1:-1,age=((this.clock*3.7+i*.13)%1),trail=age*(turbo?3.4:1.6);
-        put(r.x+c*side*.72-s*(.9+trail),.16+Math.sin(age*Math.PI)*.22,r.z-s*side*.72-c*(.9+trail),(.065+ (turbo?.04:0))*(1-age),this.colors[turbo?1:tier]);
+        put(r.x+c*side*.72-s*(.9+trail),(r.groundY||0)+(r.jumpHeight||0)+.16+Math.sin(age*Math.PI)*.22,r.z-s*side*.72-c*(.9+trail),(.065+ (turbo?.04:0))*(1-age),this.colors[turbo?1:tier]);
       }
     }
     for(const [id,impact] of this.impacts){

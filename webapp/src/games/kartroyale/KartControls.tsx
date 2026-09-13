@@ -1,11 +1,12 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { ChevronLeft, ChevronRight, Zap } from 'lucide-react';
-type Props = { hold: (id:string,key:string,value:number|boolean)=>void; release:(id:string)=>void; boost:number; drifting?:boolean; disabled?:boolean };
+import {driftTier} from './arcadeRules.mjs';
+type Props = { hold: (id:string,key:string,value:number|boolean)=>void; release:(id:string)=>void; boost:number; drifting?:boolean; driftCharge?:number; turbo?:number; boostEvent?:number; reversing?:boolean; disabled?:boolean };
 
 /** Screen order: steering · brake · drift · gas, with boost above the pedals.
  * Each pointer owns its chord. Slide a steering thumb up for drift; slide the
  * gas thumb up for boost, so both actions work with just two thumbs. */
-export function KartControls({hold,release,boost,drifting,disabled=false}:Props) {
+export function KartControls({hold,release,boost,drifting,driftCharge=0,turbo=0,boostEvent=0,reversing=false,disabled=false}:Props) {
   const pointers = useRef(new Map<number,{key:string;value:number|boolean;startY:number}>());
   const callbacks = useRef({hold,release}); callbacks.current = {hold,release};
   const [pressed,setPressed] = useState<string[]>([]);
@@ -45,15 +46,17 @@ export function KartControls({hold,release,boost,drifting,disabled=false}:Props)
   });
   const active=(key:string,value:number|boolean=true)=>pressed.includes(key+':'+value)?' is-active':'';
   const energy=Math.round(Math.max(0,Math.min(100,boost)));
+  const label=turbo>0?'TURBO':drifting?['DRIFT','MINI','SUPER','ROYAL'][driftTier(driftCharge)]:'BOOST';
   return <div className="kart-controls" aria-label="Kart driving controls">
     <div className="kart-steer-controls">
       <button disabled={disabled} className={active('steer',-1)} {...touch('steer',-1,'drift')} aria-label="Steer left; slide up to drift"><ChevronLeft size={36}/></button>
       <button disabled={disabled} className={active('steer',1)} {...touch('steer',1,'drift')} aria-label="Steer right; slide up to drift"><ChevronRight size={36}/></button>
     </div>
-    <button disabled={disabled} className={`kart-brake kart-center-control${active('brake')}`} {...touch('brake',true)} aria-label="Hold brake">BRAKE</button>
+    <button disabled={disabled} className={`kart-brake kart-center-control${active('brake')}`} {...touch('brake',true)} aria-label="Brake; keep held after stopping to reverse">{reversing?'REV':'BRAKE'}</button>
     <div className="kart-right-controls">
-      <button disabled={disabled} className={`kart-boost${active('boost')}${energy<1?' is-empty':''}`} {...touch('boost',true)} aria-label={`Hold boost while accelerating; ${energy}% energy`}>
-        <Zap size={18}/><span>BOOST</span><i style={{width:`${energy}%`}}/>
+      <button disabled={disabled} className={`kart-boost${active('boost')}${turbo>0?' is-turbo':''}${energy<1?' is-empty':''}`} {...touch('boost',true)} aria-label={`${label}; hold while accelerating; ${energy}% energy`}>
+        <Zap size={18}/><span aria-live="polite">{label}</span><i style={{width:`${drifting?Math.min(100,driftCharge/1.9*100):energy}%`}}/>
+        {boostEvent>0&&<em key={boostEvent} className="kart-boost-pickup" aria-hidden="true"/>}
       </button>
       <div className="kart-pedal-controls">
         <button disabled={disabled} className={`kart-drift${drifting?' is-active':active('drift')}`} {...touch('drift',true)} aria-label="Hold drift while steering">DRIFT</button>

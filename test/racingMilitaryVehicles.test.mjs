@@ -36,7 +36,7 @@ function glb(url) {
   return j;
 }
 test('legacy military and city choices migrate to a kart while shared asset URLs remain available', () => {
-  assert.deepEqual(KARTS.map(k=>k.id),['apex','oobi','oodi','ooli','oopi']);
+  assert.deepEqual(KARTS.map(k=>k.id),['apex','oobi','oodi','ooli','oopi','photon','vortex','aegis']);
   for(const v of [...MILITARY_VEHICLES,...VEHICLE_COLLECTION]){
     assert.equal(normalizeKart(v.id),'apex');
     const r=equipKart(createRacer(makeTrack(),'p','Player'),v.id);
@@ -88,7 +88,7 @@ for (const v of MILITARY_VEHICLES) {
     assert(r.finished, `${v.id} failed to complete`);
     assert(Number.isFinite(r.speed) && r.gates === 13);
   });
-  test(`${v.id}: controls steer in the player's screen direction and stop`, () => {
+  test(`${v.id}: migrated controls steer, stop and then reverse on a held brake`, () => {
     const track = { ...makeTrack(), width: 1000 };
     for (const steer of [-1, 1]) {
       const r = equipKart(createRacer(track, 'you', 'You'), v.id);
@@ -112,7 +112,8 @@ for (const v of MILITARY_VEHICLES) {
     }
     const r = equipKart(createRacer(track, 'stop', 'You'), v.id);
     r.speed = 25;
-    for (let i = 0; i < 150; i++)
+    let stopped = false;
+    for (let i = 0; i < 150; i++) {
       stepRacer(
         r,
         {
@@ -127,7 +128,12 @@ for (const v of MILITARY_VEHICLES) {
         STEP,
         i * STEP
       );
-    assert.equal(r.speed, 0);
+      if (r.speed === 0) stopped = true;
+      if (r.speed < 0) assert.ok(stopped, 'must stop before reversing');
+    }
+    assert.ok(stopped);
+    assert.equal(r.speed, -7);
+    assert.equal(r.reversing, true);
   });
 }
 test('asset fitting applies one scale to the body, floor and actual left-hand seat', () => {

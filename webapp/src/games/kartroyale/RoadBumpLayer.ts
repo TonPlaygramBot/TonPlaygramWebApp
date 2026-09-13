@@ -1,6 +1,7 @@
 import * as T from 'three';
 import type { Track } from './simulation.mjs';
 import { roadBumps, roadHeight, ROAD_SURFACE_Y } from './roadFeel.mjs';
+import {surfaceHeight} from './racingSurface.mjs';
 
 /** One mesh, with the exact same height profile used by the four tyres. */
 export function createRoadBumpLayer(track: Track) {
@@ -14,7 +15,7 @@ export function createRoadBumpLayer(track: Track) {
         const u = ((along + du) / 20 - .5) * bump.length;
         const v = ((across + dv) / 16 - .5) * bump.width;
         const x = bump.x + s * u + c * v, z = bump.z + c * u - s * v;
-        positions.push(x, ROAD_SURFACE_Y + .006 + roadHeight([bump], x, z), z);
+        positions.push(x, surfaceHeight(track,x,z)+ROAD_SURFACE_Y + .006 + roadHeight([bump], x, z), z);
         colors.push(color.r, color.g, color.b);
       }
       indices.push(base, base + 1, base + 2, base + 2, base + 1, base + 3);

@@ -59,6 +59,7 @@ export class TyreSmoke {
         !r.finished &&
         !r.disconnected &&
         !(r.rollTime > 0) &&
+        !r.airborne &&
         (boosting || (r.drifting && Math.abs(r.speed) > 8) ||
           (r.acceleration < -15 && Math.abs(r.speed) > 5) ||
           r.health < 25);
@@ -74,7 +75,7 @@ export class TyreSmoke {
         const exhaust = boosting && !r.drifting && !electric;
         this.exhaust[i] = Number(exhaust);
         this.positions[k] = r.x + c * (exhaust ? .36 : side * .80) - s * (exhaust ? 1.28 : .78);
-        this.positions[k + 1] = (exhaust ? .53 : .15) + (r.suspension?.height || 0);
+        this.positions[k + 1] = (r.groundY||0)+(r.jumpHeight||0)+(exhaust ? .53 : .15) + (r.suspension?.height || 0);
         this.positions[k + 2] = r.z - s * (exhaust ? .36 : side * .80) - c * (exhaust ? 1.28 : .78);
         this.velocity[k] = -s * r.speed * 0.06 + Math.sin(i * 2.4) * 0.25;
         this.velocity[k + 1] = 0.4 + (i % 5) * 0.06;

@@ -14,14 +14,15 @@ test('production touch controls preserve two-thumb chords and release every poin
   const source=readFileSync(new URL('webapp/src/games/kartroyale/KartControls.tsx',rootUrl),'utf8');
   const code=ts.transpileModule(source,{compilerOptions:{target:ts.ScriptTarget.ES2022,module:ts.ModuleKind.ES2022,jsx:ts.JsxEmit.React}}).outputText
     .replace("'react'",JSON.stringify(new URL('webapp/node_modules/react/index.js',rootUrl).href))
-    .replace("'lucide-react'",JSON.stringify(new URL('webapp/node_modules/lucide-react/dist/cjs/lucide-react.js',rootUrl).href));
+    .replace("'lucide-react'",JSON.stringify(new URL('webapp/node_modules/lucide-react/dist/cjs/lucide-react.js',rootUrl).href))
+    .replace("'./arcadeRules.mjs'",JSON.stringify(new URL('webapp/src/games/kartroyale/arcadeRules.mjs',rootUrl).href));
   const {KartControls}=await import('data:text/javascript;base64,'+Buffer.from(code).toString('base64'));
   const dom=new JSDOM('<div id="root"></div>',{url:'https://racing.test'});
   const saved={window:globalThis.window,document:globalThis.document,IS_REACT_ACT_ENVIRONMENT:globalThis.IS_REACT_ACT_ENVIRONMENT};
   globalThis.window=dom.window;globalThis.document=dom.window.document;globalThis.IS_REACT_ACT_ENVIRONMENT=true;
   dom.window.HTMLElement.prototype.setPointerCapture=function(){};
   const held=createHeldRaceInput(),root=createRoot(document.getElementById('root'));
-  const render=async disabled=>act(()=>root.render(React.createElement(KartControls,{hold:held.hold,release:held.release,boost:0,disabled})));
+  const render=async (disabled,frame={})=>act(()=>root.render(React.createElement(KartControls,{hold:held.hold,release:held.release,boost:0,disabled,...frame})));
   const event=async(selector,type,id,y=600)=>act(()=>{
     const target=document.querySelector(selector),e=new dom.window.Event(type,{bubbles:true,cancelable:true});
     Object.assign(e,{pointerId:id,pointerType:'touch',button:0,clientY:y});target.dispatchEvent(e);
@@ -39,6 +40,13 @@ test('production touch controls preserve two-thumb chords and release every poin
     await event('.kart-brake','pointerdown',3);assert.equal(held.read().brake,true);
     await event('.kart-gas','lostpointercapture',1);assert.equal(held.read().throttle,false);assert.equal(held.read().boost,false);assert.equal(held.read().brake,true);
     await render(true);assert.equal(held.read().brake,false);assert.ok([...document.querySelectorAll('button')].every(b=>b.disabled));
+    await render(false,{boost:72,turbo:1.2,boostEvent:2,reversing:true});
+    assert.equal(document.querySelector('.kart-brake').textContent,'REV');
+    assert.equal(document.querySelector('.kart-boost span').textContent,'TURBO');
+    assert.ok(document.querySelector('.kart-boost .kart-boost-pickup'));
+    assert.equal(document.querySelector('.kart-boost i').style.width,'72%');
+    await render(false,{drifting:true,driftCharge:1.2});
+    assert.equal(document.querySelector('.kart-boost span').textContent,'SUPER');
     await render(false);await event('.kart-gas','pointerdown',4);
     await act(()=>dom.window.dispatchEvent(new dom.window.Event('blur')));assert.equal(held.read().throttle,false);
     await event('.kart-drift','pointerdown',5);await act(()=>root.unmount());assert.equal(held.read().drift,false);

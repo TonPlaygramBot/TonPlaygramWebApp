@@ -1,6 +1,7 @@
 import * as T from 'three';
 import type {Track} from './simulation.mjs';
 import {trackSurface} from './tyreBarrierCore.mjs';
+import {surfaceHeight} from './racingSurface.mjs';
 
 /** Use the same asphalt union as the tyres: inside kerbs must not keep the
  * crossed spurs left behind by a folded centreline offset at an apex. */
@@ -25,7 +26,7 @@ export function createKerbLayer(track:Track) {
   const dummy=new T.Object3D(),colors=[new T.Color(track.accent),new T.Color('#e7e6d9')];
   for(const batch of batches.values()){
     const mesh=new T.InstancedMesh(geometry,material,batch.length);
-    batch.forEach((p,i)=>{dummy.position.set(p.x,.15,p.z);dummy.rotation.y=p.yaw;dummy.scale.set(1,1,p.length+.018);dummy.updateMatrix();mesh.setMatrixAt(i,dummy.matrix);mesh.setColorAt(i,colors[p.stripe]);});
+    batch.forEach((p,i)=>{dummy.position.set(p.x,.15+surfaceHeight(track,p.x,p.z),p.z);dummy.rotation.y=p.yaw;dummy.scale.set(1,1,p.length+.018);dummy.updateMatrix();mesh.setMatrixAt(i,dummy.matrix);mesh.setColorAt(i,colors[p.stripe]);});
     mesh.receiveShadow=true;mesh.computeBoundingSphere();group.add(mesh);
   }
   return group;

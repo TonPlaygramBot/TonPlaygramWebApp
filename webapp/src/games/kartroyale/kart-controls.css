@@ -9,5 +9,11 @@
 .kart-controls .kart-gas{background:linear-gradient(145deg,#c4ff79,#8cdb4a);border-color:#d8ffa3;color:#122918;font-size:17px;box-shadow:0 4px 0 #3c672b}.kart-controls .kart-gas.is-active{background:#e0ffb1;box-shadow:0 2px 0 #3c672b}
 .kart-controls .kart-boost{position:relative;overflow:hidden;height:44px;width:100%;gap:5px;font-size:13px;color:#a4efff;background:#103b4bed}.kart-controls .kart-boost.is-empty{color:#99aeb8}.kart-boost i{position:absolute;left:0;bottom:0;height:4px;background:#5addee;transition:width .1s linear}
 .rr-remake .rr-lap small{font-size:12px;color:#c7e5d3;white-space:nowrap}
-.rr-remake .rr-speed{bottom:176px;left:50%}.rr-remake .rr-feedback{bottom:240px;left:54px;right:54px}.rr-remake .rr-key-hint{bottom:4px}
+.rr-remake .rr-speed{bottom:max(112px,calc(env(safe-area-inset-bottom) + 102px));left:50%;pointer-events:none}.rr-remake .rr-feedback{bottom:240px;left:54px;right:54px}.rr-remake .rr-key-hint{bottom:4px}
 @media(min-width:760px){.kart-controls{left:32px;right:32px;bottom:30px;grid-template-columns:1fr 68px 1fr;gap:16px}.kart-steer-controls button{width:80px;height:104px}.kart-right-controls{width:156px}.kart-controls .kart-center-control{height:72px}.kart-pedal-controls button{height:84px}.rr-remake .rr-speed{bottom:130px}.rr-remake .rr-feedback{bottom:202px;left:calc(50% - 130px);right:calc(50% - 130px)}}
+
+.kart-controls .kart-boost.is-turbo{border-color:#96f3ff;background:#136178;color:#efffff}.kart-boost-pickup{position:absolute;inset:0;border-radius:inherit;pointer-events:none;animation:kart-boost-flash .65s ease-out both}.rr-speed small{font-size:14px;color:#ffd581}.rr-roam-label{display:flex;align-items:center;gap:8px;padding:10px 12px;border-radius:14px;background:#102b30d9;color:#d9f8ec;font-size:12px;font-weight:700}.kr-roam-options select{width:100%;min-height:44px;padding:10px;border:1px solid #758d8955;border-radius:10px;background:#172c31;color:#f2faf5;font-size:16px}.kr-roam-options p{font-size:13px;line-height:1.5;color:#bdd1c6;margin:12px 0 0}
+@keyframes kart-boost-flash{from{box-shadow:inset 0 0 0 3px #c7fbff;background:#a6f2ff77}to{box-shadow:inset 0 0 0 0 #c7fbff00;background:transparent}}
+@media(prefers-reduced-motion:reduce){.kart-boost-pickup{animation:none}.kart-controls .kart-boost.is-turbo{outline:2px solid #96f3ff}}
+
+.rr-remake .kr-mode-list{grid-template-columns:repeat(2,minmax(0,1fr))}

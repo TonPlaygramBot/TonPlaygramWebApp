@@ -31,7 +31,7 @@ test('rounded courses leave building clearance and no eligible canopy intersects
  for(const config of TRACKS){
   const t=makeTrack(config.id),blocked=ribbonExclusion(t);
   assert.ok(t.turns.length>0);assert.equal(t.points.length%4,0);
-  for(const p of t.points){assert.ok(p.width>=6);assert.ok(buildingClearance(p.x,p.z)-p.width/2>=1.59,config.id);assert.ok(blocked(p.x,p.z,0));}
+  for(const p of t.points){assert.ok(p.width>=(config.terrainMode?3.2:6));assert.ok(buildingClearance(p.x,p.z)-p.width/2>=1.59,config.id);assert.ok(blocked(p.x,p.z,0));}
   for(const tree of CANOPY_TREES){
    const radius=Math.max(.8,tree.crown*.75);
    if(blocked(tree.x,tree.z,radius)){excluded++;continue;}
