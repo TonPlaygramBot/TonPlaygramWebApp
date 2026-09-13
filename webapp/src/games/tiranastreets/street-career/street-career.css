@@ -19,5 +19,17 @@
 .tsc-actions .tsc-slot-sprint{position:fixed;left:35px;bottom:calc(199px + env(safe-area-inset-bottom,0px));width:78px;height:48px;border-radius:24px}
 .tsc-actions{grid-template-rows:minmax(48px,auto) repeat(3,var(--action-size));bottom:calc(54px + env(safe-area-inset-bottom,0px))}
 .tsc-slot-context{max-height:72px}.tsc-slot-context small{line-height:1.2}.tsc-tools{flex-wrap:wrap;max-width:calc(100% - 20px)}
-.tsc.is-driving .tsc-actions,.tsc.is-flying .tsc-actions{grid-template-rows:48px repeat(2,var(--action-size))}
+.tsc.is-driving .tsc-actions{grid-template-rows:48px repeat(2,var(--action-size))}
 @media(max-width:380px){.tsc-header strong{font-size:10px}.tsc-header button{padding:6px;font-size:10px}.tsc-objective{font-size:11px}.tsc-tools{top:210px}.tsc-stick{left:12px;width:100px;height:100px}.tsc-actions{right:10px}}
+
+/* One compact top row leaves the portrait play area clear. */
+.tsc-header{grid-template-columns:minmax(0,1fr) auto auto auto;background:linear-gradient(#142933df,#14293330)}
+.tsc-header>.tsc-menu-button{min-width:58px}.tsc-header>.tsc-map-button{min-width:48px}
+.tsc-vitals{position:absolute;left:12px;top:calc(66px + env(safe-area-inset-top,0px));z-index:2;font-size:11px;text-shadow:0 1px 4px #000;pointer-events:none}
+.tsc-tools{top:calc(95px + env(safe-area-inset-top,0px))}.tsc-tools:empty{display:none}
+.tsc-notice{top:calc(140px + env(safe-area-inset-top,0px))}
+.tsc-dialog:has(.tr-atlas-shell){width:min(100vw - 12px,640px);max-height:calc(100dvh - 12px);padding:12px}
+.tsc .tsc-actions,.tsc .tsc-stick,.tsc .tsc-header,.tsc .tsc-tools,.tsc .tsc-switcher{z-index:4}
+
+.tsc.is-flying .tsc-actions{grid-template-rows:48px repeat(3,var(--action-size))}
+.tsc.is-flying .tsc-slot-crouch{grid-area:4/1/5/3;min-height:48px}

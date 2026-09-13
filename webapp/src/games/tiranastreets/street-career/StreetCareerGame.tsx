@@ -1,3 +1,5 @@
+import {OpticalSight} from '../OpticalSight';
+import {weaponAnchors} from './weaponPose.mjs';
 import {
   useEffect,
   useRef,
@@ -182,7 +184,7 @@ export function StreetCareerGame({ onExit }: { onExit: () => void }) {
   const failure = error || view?.graphicsError;
   const p = view?.state.players.local,
     flying = !!p?.aircraftId,
-    aircraft = flying ? (p?.aircraftId === view?.state.jet?.id ? view?.state.jet : view?.state.helicopter) : undefined,
+    aircraft = flying ? (p?.aircraftId === view?.state.jet?.id ? view?.state.jet : view?.state.helicopters?.find(a=>a.id===p?.aircraftId)) : undefined,
     driving = !!p?.carId,
     mission = campaign.chapters.find((m) => m.id === view?.state.missionId),
     target = mission?.stops[p?.index || 0];
@@ -208,6 +210,7 @@ export function StreetCareerGame({ onExit }: { onExit: () => void }) {
         <strong>
           TIRANA STREETS<small>STREET CAREER · SOLO</small>
         </strong>
+        <button className="tsc-map-button" aria-label="Open city map" onClick={() => open('map')}>MAP</button>
         <button className="tsc-menu-button" onClick={() => open('journal')}>MENU</button>
         <button onClick={onExit}>EXIT</button>
       </header>
@@ -221,7 +224,7 @@ export function StreetCareerGame({ onExit }: { onExit: () => void }) {
       {!view?.ready && !failure && <div className="tsc-loading" role="status">{loading}…</div>}
       {view && p && !panel && !failure && (
         <>
-          <section className="tsc-objective">
+          {mission && <section className="tsc-objective">
             <small>{mission?.title || 'FREE ROAM'}</small>
             <strong>
               {view.state.phase === 'finished'
@@ -243,12 +246,10 @@ export function StreetCareerGame({ onExit }: { onExit: () => void }) {
               mission?.type === 'combat' && (
                 <span>{view.state.objectiveRemaining} opponents remaining</span>
               )}
-          </section>
+          </section>}
+          {!mission && <div className="tsc-vitals" aria-label="Player status">♥ {Math.ceil(p.health)} · ${p.cash}{p.wanted > 0 && ` · ${'★'.repeat(wantedStars(p.wanted))}`}</div>}
           <nav className="tsc-tools">
-            <button onClick={() => open('map')}>MAP</button>
             {driving&&<button aria-label="Change driving camera view" onClick={()=>{const next=vehicleView==='cockpit'?'chase':'cockpit';setVehicleView(next);if(runtime.current)runtime.current.renderer.vehicleView=next;}}>CAMERA · {vehicleView==='cockpit'?'COCKPIT':'CHASE'}</button>}
-            <button onClick={() => open('arsenal')}>ARSENAL</button>
-            {!driving && !flying && actionButton('holster', 'holster')}
           </nav>
           {!driving && !flying && <WeaponSwitcher
             selected={p.weapon || ''}
@@ -298,19 +299,21 @@ export function StreetCareerGame({ onExit }: { onExit: () => void }) {
               ↑
             </span>
           </div>
-          <div
+          {view.body.aim && !view.body.action && view.body.wall>=.8 && !driving && !flying && weaponAnchors(p.weapon).zoom>1 ? <OpticalSight zoom={weaponAnchors(p.weapon).zoom}/> : <div
             className={'tsc-reticle' + (view.body.aim ? ' is-aim' : '')}
             aria-label="Aim reticle"
           >
             <i />
             <i />
-          </div>
+          </div>}
           <div className="tsc-actions">
             {actionButton('interact', 'context')}
             {flying ? (
               <>
                 <button className="tsc-slot-aim" aria-label="Climb" {...pointer('ascend')}>UP</button>
                 <button className="tsc-slot-secondary" aria-label="Descend and land" {...pointer('brake')}>DOWN</button>
+                <button className="tsc-slot-jump" onClick={()=>runtime.current?.simulation.flight.assist('hover')}>HOVER</button>
+                <button className="tsc-slot-crouch" onClick={()=>runtime.current?.simulation.flight.assist('land')}>LAND</button>
                 <button className="tsc-slot-primary" aria-label="Fire missile" {...pointer('fire')}>MISSILE<small>{aircraft?.missiles ?? 0}</small></button>
               </>
             ) : driving ? (
@@ -604,6 +607,12 @@ export function StreetCareerGame({ onExit }: { onExit: () => void }) {
                     state={view.state}
                     route={view.route}
                     large
+                    destination={view.destination}
+                    onDestination={place => runtime.current?.setDestination(place)}
+                    routeNotice={view.routeNotice}
+                    jobs={campaign.chapters.map(m => ({id:m.id,name:m.title,detail:m.description,available:campaign.available(view.profile,m.id),completed:view.profile.completed.includes(m.id),active:view.state.phase!=='finished'&&m.id===view.state.missionId,point:m.stops[0]}))}
+                    onStartJob={start}
+                    task={mission ? {name:view.objective.title,detail:view.objective.detail,point:target} : undefined}
                   />
                 )}
                 {!view.storageOK && (

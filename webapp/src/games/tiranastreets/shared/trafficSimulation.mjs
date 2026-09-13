@@ -16,6 +16,7 @@ export function vehicleSize(car){
   let size=sizeCache.get(car);if(size)return size;size=measureVehicle(car);sizeCache.set(car,size);return size;
 }
 function measureVehicle(car){
+  if(car.w>0&&car.d>0)return {length:car.d,width:car.w};
   if(car.model==='tirana-bus')return {length:18,width:2.55};
   const collection=roadVehicleFor(car),force=FORCE_VEHICLE_BOUNDS.find(v=>v.id===car.forceVehicle);
   if(collection)return {length:collection.length,width:collection.width};
@@ -98,7 +99,10 @@ export function trafficDecision(car,vehicles,pedestrians,time){
   const shape=vehicleSize(car),fx=-Math.sin(car.heading),fz=-Math.cos(car.heading);
   let gap=redSignalGap(car,time),reason=Number.isFinite(gap)?'signal':'';
   for(const o of vehicles){if(o.id===car.id)continue;const dx=o.x-car.x,dz=o.z-car.z,f=dx*fx+dz*fz,side=Math.abs(dx*fz-dz*fx),other=vehicleSize(o);
-    if(f>0&&side<(shape.width+other.width)*.5+.25){const d=f-(shape.length+other.length)*.5-1.8;if(d<gap){gap=d;reason='vehicle';}}
+    const angle=car.heading-o.heading;
+    const lateral=(Math.abs(Math.cos(angle))*other.width+Math.abs(Math.sin(angle))*other.length)/2;
+    const longitudinal=(Math.abs(Math.cos(angle))*other.length+Math.abs(Math.sin(angle))*other.width)/2;
+    if(f>0&&side<shape.width/2+lateral+.15){const d=f-shape.length/2-longitudinal-1.2;if(d<gap){gap=d;reason='vehicle';}}
   }
   for(const n of pedestrians){if(n.health<=0||n.carId||n.aircraftId||n.motion==='drive')continue;const dx=n.x-car.x,dz=n.z-car.z,f=dx*fx+dz*fz;
     if(f>0&&Math.abs(dx*fz-dz*fx)<shape.width*.5+.7){const d=f-shape.length*.5-.8;if(d<gap){gap=d;reason='pedestrian';}}
@@ -119,6 +123,12 @@ export function updateTraffic(state,dt,onImpact){
     if(!close&&car.simulationAccumulator<.2-1e-8)continue;
     const step=car.simulationAccumulator;car.simulationAccumulator=0;
     if(car.destroyed||car.burning){car.speed=car.vx=car.vz=0;continue;}
+    if(state.elapsed<(car.impactUntil||0)){
+      car.x+=(car.vx||0)*step;car.z+=(car.vz||0)*step;
+      car.vx*=Math.exp(-step*4);car.vz*=Math.exp(-step*4);
+      car.speed=-Math.sin(car.heading)*car.vx-Math.cos(car.heading)*car.vz;
+      car.braking=true;car.awareness=null;continue;
+    }
     if(car.service&&car.responsePhase!=='patrol')continue;
     let e=g.links[car.node]?.find(e=>e.to===car.next);
     if(!e){e=g.links[car.node]?.[0];if(!e){car.speed=0;continue;}car.next=e.to;}

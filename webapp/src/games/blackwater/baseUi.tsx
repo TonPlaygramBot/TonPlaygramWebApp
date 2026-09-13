@@ -1,3 +1,5 @@
+import {OpticalSight} from '../tiranastreets/OpticalSight';
+import {opticZoom} from '../tiranastreets/shared/weaponCalibration.mjs';
 'use client';
 import {WeaponSwitcher} from '../tiranastreets/WeaponSwitcher';
 import {FrameRateControl} from '../tiranastreets/FrameRateControl';
@@ -404,7 +406,7 @@ export function Game({
           <MiniMap state={state} />
           {playing ? (
             <>
-              <div
+              {state.aim&&!state.driving&&!state.reload&&opticZoom(state.weapon)>1?<OpticalSight zoom={opticZoom(state.weapon)}/>:<div
                 className={`crosshair ${state.aim ? 'aimed' : ''} ${state.hit > 0 ? 'hit' : ''} ${state.hit > 1 ? 'headshot' : ''}`}
               >
                 <i />
@@ -412,7 +414,7 @@ export function Game({
                 <i />
                 <i />
                 <b />
-              </div>
+              </div>}
               {state.message ? (
                 <div
                   className={`combat-message ${state.messageKind}`}

@@ -8,10 +8,12 @@ import {NEIGHBOURHOOD} from '../../tirana-neighbourhood/data.mjs';
 import type {State,Point} from '../shared/engine.mjs';
 import {fitView, constrainView, panView, zoomView, screenPoint, inBounds, readFavorites, writeFavorites, MAX_FAVORITES} from './mapCore.mjs';
 import './map.css';
+import {SatelliteLayer, SatelliteCredit} from './SatelliteLayer';
 import {expandedAtlasBounds,atlasPin} from './atlasExtent.mjs';
 import {civicSites,referenceLinks,unproject,REFERENCES,project} from '../../tirana-expansion/geography.mjs';
-type Place = Point & {id?:string; name:string; available?:boolean};
-type Props = {player?:Point & {heading:number};state:State|null;route:Point[];large?:boolean;destination?:Place|null;onDestination?:(p:Place|null)=>void;routeNotice?:string};
+export type Place = Point & {id?:string; name:string; available?:boolean};
+export type MapJob = {id:string;name:string;detail:string;available:boolean;completed:boolean;active:boolean;point?:Point};
+type Props = {jobs?:MapJob[];onStartJob?:(id:string)=>void;task?:{name:string;detail:string;point?:Point};player?:Point & {heading:number};state:State|null;route:Point[];large?:boolean;destination?:Place|null;onDestination?:(p:Place|null)=>void;routeNotice?:string};
 type View = {x:number;z:number;w:number;h:number};
 // Additional atlas extent only. The original city, physics and routing keep WORLD.bounds.
 const REGIONAL_TERMINALS = CABLE_STATIONS;
@@ -46,7 +48,7 @@ const Geometry = memo(function Geometry() {
     {Object.entries(paths.roads).map(([key,d])=><path key={key} d={d} fill="none" stroke={key.startsWith('walk')?'#78958a':'#bbc3b5'} strokeWidth={Number(key.split(':')[1])} strokeLinecap="round"/>)}</g>;
 });
 function Markers({player,state,route,scale,destination}:Props & {scale:number}) {
-  return <g>{[state?.helicopter,state?.jet].filter(Boolean).map(a=>a&&<g key={a.id} transform={`translate(${a.kind==='helicopter'&&!a.pilot?a.stairX:a.x} ${a.kind==='helicopter'&&!a.pilot?a.stairZ:a.z}) scale(${scale})`}><circle r="9" fill="#97dce4" stroke="#142a30" strokeWidth="2"/><text y="4" textAnchor="middle" fill="#142a30" fontSize="12" fontWeight="bold">{a.kind==='jet'?'J':'H'}</text><title>{a.kind==='jet'?'Fighter jet':'Helicopter access'}</title></g>)}{route.length>1&&<polyline points={route.map(p=>`${p.x},${p.z}`).join(' ')} fill="none" stroke="#d8fa69" strokeWidth={3*scale} strokeLinejoin="round"/>}
+  return <g>{[...(state?.helicopters||[state?.helicopter]),state?.jet].filter(Boolean).map(a=>a&&<g key={a.id} transform={`translate(${a.kind==='helicopter'&&!a.pilot?a.stairX:a.x} ${a.kind==='helicopter'&&!a.pilot?a.stairZ:a.z}) scale(${scale})`}><circle r="9" fill="#97dce4" stroke="#142a30" strokeWidth="2"/><text y="4" textAnchor="middle" fill="#142a30" fontSize="12" fontWeight="bold">{a.kind==='jet'?'J':'H'}</text><title>{a.kind==='jet'?'Fighter jet':'Helicopter access'}</title></g>)}{route.length>1&&<polyline points={route.map(p=>`${p.x},${p.z}`).join(' ')} fill="none" stroke="#d8fa69" strokeWidth={3*scale} strokeLinejoin="round"/>}
     {state?.cars.filter(c=>!c.driver).map(c=><rect key={c.id} x={c.x-3*scale} y={c.z-5*scale} width={6*scale} height={10*scale} fill="#80cad6"/>)}
     {state&&Object.values(state.players).map(p=><circle key={p.id} cx={p.x} cy={p.z} r={4*scale} fill="#f49268"/>)}
     {state&&<>{(state.shops||[state.shop]).map(s=><g key={s.id||s.name} transform={`translate(${s.x} ${s.z}) scale(${scale})`} aria-label={`Weapons · ${s.name}`}><circle r="11" fill="#d8fa69" stroke="#142a30" strokeWidth="1.5"/><path d="M-7 -5H7V-1H1L-1 1L-2 7H-6L-4 0H-7Z M0 0V3H3V0" fill="#142a30" stroke="#142a30" strokeWidth="1"/><title>WEAPONS · {s.name}</title></g>)}{state.traffic.filter(c=>c.model==='tirana-bus').map(c=><rect key={c.id} x={c.x-3*scale} y={c.z-6*scale} width={6*scale} height={12*scale} fill="#64cc8a"><title>{c.routeName}</title></rect>)}
@@ -63,8 +65,9 @@ export function CityMap(props:Props) {
 }
 function ExplorerMap(props:Props) {
   const {player,destination,onDestination}=props;
+  const [layer,setLayer]=useState<'map'|'satellite'>('map'),[imageryError,setImageryError]=useState(false);
   const svg=useRef<SVGSVGElement>(null), pointers=useRef(new Map<number,{x:number;y:number}>());
-  const [view,setView]=useState<View>(()=>fitView(WORLD.bounds,1)), liveView=useRef(view), measured=useRef(false);
+  const [view,setView]=useState<View>(()=>player?{x:player.x-450,z:player.z-450,w:900,h:900}:fitView(WORLD.bounds,1)), liveView=useRef(view), measured=useRef(false);
   const [width,setWidth]=useState(390),[selected,setSelected]=useState<Place|null>(destination||null),[query,setQuery]=useState(''),[tab,setTab]=useState('places');
   const [favorites,setFavorites]=useState<Place[]>(()=>readFavorites(storage(),WORLD)),[saveMessage,setSaveMessage]=useState('');
   const gesture=useRef<{view:View;points:{x:number;y:number}[];moved:boolean;multi:boolean}|null>(null);
@@ -118,12 +121,14 @@ function ExplorerMap(props:Props) {
   const fit=(bounds:readonly number[])=>{pointers.current.clear();gesture.current=null;change(fitView(bounds,view.w/view.h));};
   return <div className="ts-explorer-map">
     <div className="ts-map-search"><input type="search" value={query} maxLength={80} placeholder="Search places or favourites" aria-label="Search Tirana places" onChange={e=>setQuery(e.target.value)}/></div>
-    <div className="ts-map-tabs" role="group" aria-label="Map extent"><button onClick={()=>fit(URBAN_DATUM_BOUNDS)}>Qendra e Tiranës</button><button onClick={()=>fit(ATLAS_BOUNDS)}>E gjithë harta · Dajt</button></div>
+    <div className="ts-map-tabs ts-map-layers" role="group" aria-label="Map view"><button aria-pressed={layer==='map'} onClick={()=>setLayer('map')}>Map</button><button aria-pressed={layer==='satellite'} onClick={()=>{setImageryError(false);setLayer('satellite');}}>Satellite</button><button onClick={()=>fit(ATLAS_BOUNDS)}>Whole map</button></div>
+    <div className="ts-map-tabs" role="tablist" aria-label="Map activities">{['places','favorites','jobs','tasks'].map(t=><button key={t} role="tab" aria-selected={tab===t} onClick={()=>setTab(t)}>{t==='favorites'?`Favorites (${favorites.length})`:t[0].toUpperCase()+t.slice(1)}</button>)}</div>
     <div className="ts-map-viewport">
       <svg ref={svg} viewBox={`${view.x} ${view.z} ${view.w} ${view.h}`} preserveAspectRatio="none" role="application" aria-label="Interactive Tirana map. Drag to pan, pinch or use plus and minus to zoom. Tap to drop a pin." tabIndex={0}
         onPointerDown={down} onPointerMove={move} onPointerUp={e=>up(e)} onPointerCancel={e=>up(e,true)} onLostPointerCapture={e=>up(e,true)}
         onKeyDown={e=>{const delta=60;let next:View|undefined;if(e.key==='+'||e.key==='='){zoom(1.4);e.preventDefault();}else if(e.key==='-'){zoom(1/1.4);e.preventDefault();}else if(['ArrowLeft','ArrowRight','ArrowUp','ArrowDown'].includes(e.key)){const dx=e.key==='ArrowLeft'?-delta:e.key==='ArrowRight'?delta:0,dy=e.key==='ArrowUp'?-delta:e.key==='ArrowDown'?delta:0;next=panView(view,dx,dy,width,width*view.h/view.w,ATLAS_BOUNDS);change(next);e.preventDefault();}}}>
         <Geometry/>
+        {layer==='satellite'&&!imageryError&&<SatelliteLayer view={view} width={width} onError={()=>setImageryError(true)}/>}
         {regionVisible&&<RegionalReferences scale={scale}/>}
         {WORLD.landmarks.map(p=><g key={p.id}><circle cx={p.x} cy={p.z} r={4*scale} fill="#f49268"/>{view.w<1100&&<text x={p.x+8*scale} y={p.z-7*scale} fontSize={11*scale} fill="#fff">{p.name}</text>}</g>)}
         {favorites.filter(p=>inBounds(p,ATLAS_BOUNDS)).map(p=><text key={p.id} x={p.x} y={p.z} textAnchor="middle" fontSize={17*scale} fill="#ffe19b">★</text>)}
@@ -134,18 +139,20 @@ function ExplorerMap(props:Props) {
       <div className="ts-map-zoom"><button onClick={()=>zoom(1.5)} aria-label="Zoom in">+</button><button onClick={()=>zoom(1/1.5)} aria-label="Zoom out">−</button><button onClick={()=>{const v=liveView.current;if(player)change(constrainView({...v,x:player.x-v.w/2,z:player.z-v.h/2},ATLAS_BOUNDS));}} disabled={!player} aria-label="Centre on player">◎</button><button onClick={()=>fit(WORLD.bounds)} aria-label="Show whole city">▣</button></div>
       <span className="ts-map-scale">{Math.round(scale*70)} m<i aria-hidden="true"/></span>
     </div>
+    {layer==='satellite'&&<SatelliteCredit failed={imageryError}/>}
+    {tab==='jobs'&&<div className="ts-map-jobs" role="tabpanel" aria-label="Jobs">{props.jobs?.map(job=><article key={job.id}><strong>{job.name}</strong><small>{job.active?'In progress':job.completed?'Completed · replay available':job.available?'Available':'Complete earlier jobs to unlock'}</small><p>{job.detail}</p><div><button disabled={!job.point} onClick={()=>job.point&&select({...job.point,name:job.name,id:job.id})}>Show location</button><button disabled={!job.available||job.active||!props.onStartJob||props.jobs?.some(j=>j.active)} onClick={()=>props.onStartJob?.(job.id)}>{job.active?'Active':job.completed?'Replay':'Start job'}</button></div></article>)}{!props.jobs?.length&&<p>Jobs are available in Street Career.</p>}</div>}
+    {tab==='tasks'&&<div className="ts-map-jobs" role="tabpanel" aria-label="Tasks">{props.task?<article><strong>{props.task.name}</strong><p>{props.task.detail}</p><button disabled={!props.task.point} onClick={()=>props.task?.point&&select({...props.task.point,name:props.task.name})}>Show task</button></article>:<p>No active task. Choose a job to get started.</p>}</div>}
     {regionVisible&&<p className="ts-map-save-status" role="status">Farkë, Surrel dhe Kinostudio · Ndiq rrugët dhe shtigjet drejt Dajtit. Te stacionet e teleferikut afrohu dhe zgjidh HIP.</p>}
     {selected&&<section className="ts-map-selection" aria-label="Selected place">
       <input value={selected.name} maxLength={80} aria-label="Place name" onChange={e=>setSelected({...selected,name:e.target.value})}/>
-      <div><button disabled={!onDestination||!selected.name.trim()||selected.available===false||!player} onClick={()=>onDestination?.(selected)}>Set direction</button><button disabled={!selected.name.trim()} onClick={save}>★ Save favourite</button></div>
+      <div><button disabled={!onDestination||!selected.name.trim()||selected.available===false||!player} onClick={()=>onDestination?.(selected)}>Set destination</button><button disabled={!selected.name.trim()} onClick={save}>★ Save favourite</button></div>
       {selected.available===false&&<small>This place is outside the current playable district. You can save it, but directions are unavailable.</small>}
       <small>{unproject(WORLD.origin,selected).latitude.toFixed(7)}° N · {unproject(WORLD.origin,selected).longitude.toFixed(7)}° E</small>
       <div className="ts-map-references"><a href={referenceLinks(WORLD.origin,selected).satellite} target="_blank" rel="noopener noreferrer">Satellite reference ↗</a><a href={referenceLinks(WORLD.origin,selected).streetView} target="_blank" rel="noopener noreferrer">Street View ↗</a><a href={referenceLinks(WORLD.origin,selected).openMap} target="_blank" rel="noopener noreferrer">OSM ↗</a></div>
-      <small>Source-map position, not a survey guarantee. Reference imagery opens separately; no imagery is copied into the game.</small>
+      <small>Coordinates follow the game’s source map. Street View opens separately.</small>
     </section>}
     {destination&&<div className="ts-map-route-status"><span>To {destination.name}<small>{props.routeNotice}</small></span><button onClick={()=>onDestination?.(null)}>Clear route</button></div>}
     <p className="ts-map-save-status" role="status">{saveMessage||'Drag to pan · Pinch to zoom · Tap a place or drop a pin'}</p>
-    <div className="ts-map-tabs" role="tablist" aria-label="Place lists"><button role="tab" aria-selected={tab==='places'} onClick={()=>setTab('places')}>Places</button><button role="tab" aria-selected={tab==='favorites'} onClick={()=>setTab('favorites')}>Favourites ({favorites.length})</button></div>
-    <div className="ts-map-place-list" role="tabpanel">{found.map(p=><div key={p.id}><button onClick={()=>select(p)}>{p.name}{p.available===false&&' · Outside district'}</button>{tab==='favorites'&&<button aria-label={`Remove ${p.name} from favourites`} onClick={()=>remove(p)}>×</button>}</div>)}{!found.length&&<p>No places found.</p>}</div>
+    <div className="ts-map-place-list" hidden={tab!=='places'&&tab!=='favorites'} role="tabpanel">{found.map(p=><div key={p.id}><button onClick={()=>select(p)}>{p.name}{p.available===false&&' · Outside district'}</button>{tab==='favorites'&&<button aria-label={`Remove ${p.name} from favourites`} onClick={()=>remove(p)}>×</button>}</div>)}{!found.length&&<p>No places found.</p>}</div>
   </div>;
 }

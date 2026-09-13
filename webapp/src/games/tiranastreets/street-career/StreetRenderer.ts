@@ -1,3 +1,4 @@
+import {weaponAnchors} from './weaponPose.mjs';
 import {beginCityFrame} from '../renderSettings';
 import {alignVehicle} from '../../tirana-east/terrainTransforms';
 import {groundHeight} from '../../tirana-east/terrainCore.mjs';
@@ -75,7 +76,7 @@ export class StreetRenderer extends CityRenderer {
   }
   override orbit(dx: number, dy: number) {
     const b = this.simulation?.body,
-      scale = this.settings.sensitivity * (b?.aim ? 0.52 : 1);
+      scale = this.settings.sensitivity * (b?.aim ? .65 / weaponAnchors(this.simulation?.player.weapon || '').zoom : 1);
     // Preserve the Career sensitivity while sharing the manual-look timeout.
     super.orbit(dx*scale*2/3,dy*scale);
   }
@@ -127,7 +128,7 @@ export class StreetRenderer extends CityRenderer {
       // Camera follows the physical player's eyes. Looking down shows the body;
       // aiming never pulls the camera back behind the character.
       this.camera.position.set(p.x, b.y + b.eye, p.z);
-      const look = direction3(this.yaw, this.pitch + b.recoil * this.settings.shake);
+      const look = direction3(this.yaw, this.pitch);
       this.camera.lookAt(p.x + look.x, b.y + b.eye + look.y, p.z + look.z);
     }
     const d = car?driverDirection(car,this.yaw,this.pitch):direction3(this.yaw, this.pitch);
@@ -137,7 +138,9 @@ export class StreetRenderer extends CityRenderer {
       this.camera.position.y + d.y,
       this.camera.position.z + d.z
     );
-    const fov = car&&this.vehicleView==='cockpit'?driverFov(this.camera.aspect):this.settings.fov - (b.aim ? 17 : 0);
+    const zoom=b.aim&&!b.action&&b.wall>=.8?weaponAnchors(p.weapon).zoom:1;
+    const baseFov=this.settings.fov-(b.aim&&zoom===1?17:0);
+    const fov=car&&this.vehicleView==='cockpit'?driverFov(this.camera.aspect):2*Math.atan(Math.tan(baseFov*Math.PI/360)/zoom)*180/Math.PI;
     this.camera.fov = T.MathUtils.lerp(
       this.camera.fov,
       fov,

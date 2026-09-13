@@ -7,6 +7,7 @@ import * as T from '../webapp/node_modules/three/build/three.module.js';
 import * as driver from '../webapp/src/games/tiranastreets/shared/driverView.mjs';
 import {VEHICLE_COLLECTION} from '../webapp/src/games/tiranastreets/shared/vehicleCollection.mjs';
 import {FORCE_VEHICLE_BOUNDS} from '../webapp/src/games/tiranastreets/shared/albanianForces.mjs';
+import * as optics from '../webapp/src/games/tiranastreets/shared/weaponCalibration.mjs';
 import * as brains from '../webapp/src/games/blackwater/shared/botBrain.mjs';
 import * as missions from '../webapp/src/games/blackwater/shared/battlefield.mjs';
 import * as tactics from '../webapp/src/games/tiranastreets/shared/forceTactics.mjs';
@@ -18,7 +19,7 @@ import {CITY_POPULATION} from '../webapp/src/games/tiranastreets/shared/cityPopu
 import {nearbyHumans} from '../webapp/src/games/tiranastreets/street-career/humanRoster.mjs';
 function loadTS(file,deps){const module={exports:{}};const code=ts.transpileModule(readFileSync(new URL('../'+file,import.meta.url),'utf8'),{compilerOptions:{target:ts.ScriptTarget.ES2022,module:ts.ModuleKind.CommonJS}}).outputText;vm.runInNewContext(code,{module,exports:module.exports,require:key=>deps[key]||{},console,Math,performance},{filename:file});return module.exports;}
 const {BattlefieldVehicle}=loadTS('webapp/src/games/blackwater/BattlefieldVehicle.ts',{'three':T,'./core':physics,'./shared/terrain.mjs':terrain,'../tiranastreets/shared/driverView.mjs':driver});
-const {GameEngine}=loadTS('webapp/src/games/blackwater/engine.ts',{'three':T,'./core':physics,'./shared/terrain.mjs':terrain,'./shared/botBrain.mjs':brains,'./shared/battlefield.mjs':missions,'../tiranastreets/shared/forceTactics.mjs':tactics});
+const {GameEngine}=loadTS('webapp/src/games/blackwater/engine.ts',{'three':T,'./core':physics,'./shared/terrain.mjs':terrain,'./shared/botBrain.mjs':brains,'./shared/battlefield.mjs':missions,'../tiranastreets/shared/forceTactics.mjs':tactics,'../tiranastreets/shared/weaponCalibration.mjs':optics});
 const flat=()=>0,close=(a,b)=>assert.ok(Math.abs(a-b)<1e-6,`${a} != ${b}`);
 
 test('all collection, force, bus and generic cameras face forward from a fixed driver seat',()=>{

@@ -1,4 +1,5 @@
 import { ludoTableFrame, ludoRightDicePosition, prepareLudoParkedWeapon, parkLudoWeapon } from '../../utils/ludoTabletopLayout';
+import {createLudoMissileFx,createLudoExplosionFx,updateLudoExplosionFx} from '../../utils/ludoMissilePresentation';
 import { createLudoBlenderModel } from '../../utils/ludoBlenderMeshes';
 import { palmMarker, palmOrientation, solveArm, world as boneWorld } from '../../utils/ludoHumanMotion';
 import {
@@ -2749,31 +2750,8 @@ function createFxPolygon(points, depth, color, roughness = 0.62, metalness = 0.1
   return mesh;
 }
 
-function createCaptureMissileFx({ withTrail = true } = {}) {
-  const root = new THREE.Group();
-  root.userData.lockCaptureTexture = true;
-  root.add(createLudoBlenderModel('missile'));
-
-  const trail = [];
-  if (withTrail) {
-    for (let i = 0; i < 5; i += 1) {
-      trail.push(
-        addFxSphere(
-          root,
-          0.12 + i * 0.03,
-          [-0.84 - i * 0.19, 0, 0],
-          i < 2 ? '#f6af4b' : '#8f989d',
-          i < 2 ? 0.2 : 1,
-          0,
-          true,
-          i < 2 ? 0.8 - i * 0.15 : 0.26 - (i - 2) * 0.04
-        )
-      );
-    }
-  }
-
-  root.visible = false;
-  return { root, trail };
+function createCaptureMissileFx(options = {}) {
+  return createLudoMissileFx(options);
 }
 
 async function createCaptureMissileTruckFx() {
@@ -3075,44 +3053,7 @@ async function createCaptureHelicopterFx() {
   };
 }
 
-function createCaptureExplosionFx() {
-  const root = new THREE.Group();
-  const flash = addFxSphere(root, 0.28, [0, 0.25, 0], '#ffe29f', 0.05, 0, true, 1);
-  const fire = [];
-  const smoke = [];
-  const firePalette = ['#ffd166', '#ff8c1a', '#ff4d3d', '#d7263d', '#ff8fab', '#ffe45e'];
-  for (let i = 0; i < 6; i += 1) {
-    fire.push(
-      addFxSphere(
-        root,
-        0.21 + i * 0.05,
-        [0, 0.2 + i * 0.045, 0],
-        firePalette[i % firePalette.length],
-        0.2,
-        0,
-        true,
-        0.98 - i * 0.1
-      )
-    );
-  }
-  for (let i = 0; i < 6; i += 1) {
-    smoke.push(
-      addFxSphere(
-        root,
-        0.17 + i * 0.037,
-        [0, 0.165 + i * 0.067, 0],
-        '#646b72',
-        1,
-        0,
-        true,
-        0.34 - i * 0.035
-      )
-    );
-  }
-  root.scale.setScalar(0.27);
-  root.visible = false;
-  return { root, flash, fire, smoke };
-}
+function createCaptureExplosionFx() { return createLudoExplosionFx(); }
 
 const TOKEN_BREAK_PROFILE_BY_WEAPON = Object.freeze({
   firearm: { count: 18, sizeMin: 0.014, sizeMax: 0.034, impulse: 0.62, lingerMs: 5200, upward: 0.18 },
@@ -11818,40 +11759,7 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount, onlin
         let explosionTriggered = false;
         let helicopterMissileImpactAt = null;
 
-        const updateExplosionRig = (elapsedSinceImpact) => {
-          if (elapsedSinceImpact < 0 || elapsedSinceImpact > explosionTime / 1000) {
-            explosion.root.visible = false;
-            return;
-          }
-          explosion.root.visible = true;
-          const fireLife = clamp(1 - elapsedSinceImpact / 0.88, 0, 1);
-          const smokeLife = clamp(1 - elapsedSinceImpact / (explosionTime / 1000), 0, 1);
-          const fireGrow = 0.9 + elapsedSinceImpact * 1.75;
-          const smokeGrow = 0.82 + elapsedSinceImpact * 0.95;
-
-          explosion.flash.scale.setScalar(0.54 + elapsedSinceImpact * 1.25);
-          explosion.flash.material.opacity = clamp(fireLife * 1.08, 0, 1);
-          explosion.fire.forEach((mesh, i) => {
-            const angle = elapsedSinceImpact * 5 + i * 1.35;
-            mesh.position.set(
-              Math.cos(angle) * (0.05 + elapsedSinceImpact * 0.11),
-              0.09 + elapsedSinceImpact * 0.21 + i * 0.026,
-              Math.sin(angle) * (0.05 + elapsedSinceImpact * 0.1)
-            );
-            mesh.scale.setScalar(fireGrow * (0.78 + i * 0.13));
-            mesh.material.opacity = clamp(fireLife * (1.02 - i * 0.08), 0, 1);
-          });
-          explosion.smoke.forEach((mesh, i) => {
-            const angle = i * 1.1 + elapsedSinceImpact * 1.8;
-            mesh.position.set(
-              Math.cos(angle) * (0.05 + i * 0.018),
-              0.12 + elapsedSinceImpact * (0.16 + i * 0.036),
-              Math.sin(angle) * (0.05 + i * 0.018)
-            );
-            mesh.scale.setScalar(smokeGrow * (0.66 + i * 0.12));
-            mesh.material.opacity = smokeLife * (0.45 - i * 0.04);
-          });
-        };
+        const updateExplosionRig = (elapsedSinceImpact) => updateLudoExplosionFx(explosion,elapsedSinceImpact);
 
         const tick = () => {
           const tickNow = performance.now();

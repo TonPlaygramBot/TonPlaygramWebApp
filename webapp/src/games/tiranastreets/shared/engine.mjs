@@ -1,3 +1,4 @@
+import {vehiclePolygonContact,slideVehicle} from './vehicleContacts.mjs';
 import {drivingScale} from './drivingScale.mjs';
 import {importedFleet,IMPORTED_PLACEMENT_ORIGIN} from '../../blackwater/shared/importedPlacements.mjs';
 import {VEHICLE_COLLECTION} from './vehicleCollection.mjs';
@@ -16,7 +17,7 @@ import {
   updateAirMobility
 } from './airMobility.mjs';
 import { difficultyOf } from './weapons.mjs';
-import { populateTraffic, updateTraffic, vehicleSeparation } from './trafficSimulation.mjs';
+import { populateTraffic, updateTraffic, vehicleSeparation, vehicleSize } from './trafficSimulation.mjs';
 import { initCityPopulation, shopObstacles, shopObstaclesNear } from './cityPopulation.mjs';
 import {updateEmergencyResponse} from './emergencyResponse.mjs';
 import {footprintIndex} from '../../tirana-city-source/footprintIndex.mjs';
@@ -461,10 +462,10 @@ for (const b of collisionBuildings) {
       cells.get(key).push(b);
     }
 }
-export function collide(entity, radius) {
+export function collide(entity, radius, buildings = true) {
   let hit = false;
   const polys = [...(cells.get(`${Math.floor(entity.x / 40)},${Math.floor(entity.z / 40)}`)||[]),...shopObstaclesNear(entity.x,entity.z)];
-  for (const building of polys) {
+  for (const building of buildings ? polys : []) {
     const p=building.p,holes=building.holes??[];
     let q = null,
       d = Infinity;
@@ -535,6 +536,22 @@ export function collide(entity, radius) {
   entity.x = clamp(x, b[0] + 4, b[2] - 4);
   entity.z = clamp(z, b[1] + 4, b[3] - 4);
   return hit || x !== entity.x || z !== entity.z;
+}
+/** Query the full vehicle footprint, not just the grid cell under its center. */
+export function collideVehicle(car) {
+  const shape=vehicleSize(car),radius=Math.hypot(shape.length,shape.width)/2;
+  const polygons=new Set(shopObstaclesNear(car.x,car.z));
+  for(let x=Math.floor((car.x-radius)/40);x<=Math.floor((car.x+radius)/40);x++)
+    for(let z=Math.floor((car.z-radius)/40);z<=Math.floor((car.z+radius)/40);z++)
+      for(const building of cells.get(`${x},${z}`)||[])polygons.add(building);
+  const contacts=[];
+  for(const building of polygons){
+    const contact=vehiclePolygonContact(car,building);
+    if(contact){car.x+=contact.x;car.z+=contact.z;contacts.push(contact);}
+  }
+  const before={x:car.x,z:car.z};
+  if(collide(car,shape.width/2,false))contacts.push({x:car.x-before.x,z:car.z-before.z,kind:'bank',id:'world-boundary'});
+  return contacts;
 }
 export function sanitizeInput(raw = {}) {
   if (!raw || typeof raw !== 'object' || Array.isArray(raw)) raw = {};
@@ -776,14 +793,10 @@ export function movePlayer(state, p, dt, onCollision) {
     c.vz += (-Math.cos(c.heading) * c.speed - c.vz) * Math.min(1, dt * grip);
     c.x += c.vx * dt;
     c.z += c.vz * dt;
-    const intended={x:c.x,z:c.z};
-    let wallHit=collide(c,bus?1.3:1.35);
-    if(bus){for(const offset of [-7.5,7.5]){const q={x:c.x+Math.sin(c.heading)*offset,z:c.z+Math.cos(c.heading)*offset},x=q.x,z=q.z;if(collide(q,1.3)){c.x+=q.x-x;c.z+=q.z-z;wallHit=true;}}c.trailerHeading=(c.trailerHeading??c.heading)+angle(c.heading-(c.trailerHeading??c.heading))*Math.min(1,dt*Math.max(.35,Math.abs(c.speed)/7));}
-    if (wallHit) {
-      onCollision?.(c,null,{x:c.x-intended.x,z:c.z-intended.z});
-      c.speed *= 0.55;
-      c.vx *= 0.3;
-      c.vz *= 0.3;
+    if(bus)c.trailerHeading=(c.trailerHeading??c.heading)+angle(c.heading-(c.trailerHeading??c.heading))*Math.min(1,dt*Math.max(.35,Math.abs(c.speed)/7));
+    for(const contact of collideVehicle(c)){
+      if(onCollision)onCollision(c,null,contact);
+      else slideVehicle(c,contact);
     }
     for (const o of [...state.cars, ...state.traffic, ...state.units]) {
       if (o.id === c.id) continue;
@@ -791,7 +804,7 @@ export function movePlayer(state, p, dt, onCollision) {
       if(!separation)continue;
       c.x+=separation.x;c.z+=separation.z;
       if(onCollision)onCollision(c,o,separation);
-      else {c.speed*=.65;c.vx*=.5;c.vz*=.5;}
+      else slideVehicle(c,separation);
     }
     p.x = c.x;
     p.z = c.z;

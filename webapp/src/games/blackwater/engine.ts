@@ -1,3 +1,4 @@
+import {opticZoom} from '../tiranastreets/shared/weaponCalibration.mjs';
 import {FramePacer, targetFps} from '../tiranastreets/renderSettings';
 import { BattlefieldPlayer, BODY_WEAPON } from './BattlefieldPlayer';
 import {advanceBattleObjective} from './shared/missionCore.mjs';
@@ -502,7 +503,7 @@ export class GameEngine {
   look(dx: number, dy: number) {
     if (!this.canPlay()) return;
     const s =
-      0.0031 * this.settings.sensitivity * (this.input.aiming ? 0.6 : 1);
+      0.0031 * this.settings.sensitivity * (this.input.aiming ? 0.6/opticZoom(this.weapon) : 1);
     this.yaw -= dx * s;
     this.pitch = clamp(this.pitch - dy * s, -1.15, 1.15);
     this.swayX = clamp(dx * 0.0003, -0.018, 0.018);
@@ -957,7 +958,8 @@ export class GameEngine {
     const coverTargets=covers.map(c=>coverPoint(c,observed||brain.lastSeen||this.sectorCenter,e.id,false)).filter(c=>!collides(c.x,c.z,.5,this.battleObstacles));
     const decision=thinkBot(brain,{id:String(e.id),x:p.x,z:p.z,hp:e.hp},opponents,this.elapsed,dt,clear,this.sectorCenter,{
       mode:this.battleMode,zoneRadius:zoneRadius(this.elapsed),intelCollected:this.intel,intelPoint:this.intelPoint,extractionPoint:this.extractionPoint,
-      covers:coverTargets,reports:this.battleMode==='last-stand'?[]:this.enemies.filter(o=>o!==e&&o.hp>0&&o.brain).map(o=>o.brain!),noise:this.gunNoise,
+      covers:coverTargets,allies:teammates,canReach:(a:Vec2,b:Vec2)=>findPath(a,b,this.battleObstacles).length>0||Math.hypot(a.x-b.x,a.z-b.z)<1,
+      reports:this.battleMode==='last-stand'?[]:this.enemies.filter(o=>o!==e&&o.hp>0&&o.brain).map(o=>o.brain!),noise:this.gunNoise,
       loot:this.loot.map((l,i)=>({id:String(i),x:l.mesh.position.x,z:l.mesh.position.z,ammo:l.ammo}))
     });
     if(decision.heal)e.hp=Math.min(this.wave===3?115:100,e.hp+decision.heal);
@@ -969,7 +971,7 @@ export class GameEngine {
     }
     e.cooldown-=dt;e.repath-=dt;
     const observer={id:String(e.id),x:p.x,z:p.z,health:e.hp,kind:'police',coverId:e.coverId,lastSeen:e.lastSeen,lastSeenAt:e.lastSeenAt};
-    const tactic=decision.target&&!decision.priority?tacticalGoal(observer,decision.target,teammates,covers,this.elapsed,clear):{goal:decision.goal,anim:decision.state==='heal'?'cover':'run',coverId:undefined};
+    const tactic=decision.target&&!decision.priority?tacticalGoal(observer,decision.target,[observer,...teammates],covers,this.elapsed,clear):{goal:decision.goal,anim:decision.state==='heal'?'cover':'run',coverId:undefined};
     e.lastSeen=brain.lastSeen||undefined;e.lastSeenAt=brain.seenAt;e.coverId=tactic.coverId;
     let goal=tactic.goal;
     if(e.detour&&this.elapsed<(e.detourUntil||0)&&Math.hypot(p.x-e.detour.x,p.z-e.detour.z)>.6)goal=e.detour;
@@ -1049,13 +1051,14 @@ export class GameEngine {
     this.camera.position.y +=
       Math.sin(this.elapsed * 10) * 0.0018 * this.movement;
     this.camera.rotation.set(
-      this.pitch + this.recoil,
+      this.pitch + (this.input.aiming?0:this.recoil),
       this.yaw,
-      Math.sin(this.elapsed * 5) * 0.0015 * this.movement,
+      this.input.aiming?0:Math.sin(this.elapsed * 5) * 0.0015 * this.movement,
       'YXZ'
     );
     const portrait = this.camera.aspect < 0.85;
-    const fov = (portrait ? 78 : 70) - this.aim * 19;
+    const zoom=this.input.aiming&&!this.reloadTimer?opticZoom(this.weapon):1;
+    const fov = zoom>1?2*Math.atan(Math.tan((portrait?78:70)*Math.PI/360)/zoom)*180/Math.PI:(portrait ? 78 : 70) - this.aim * 19;
     if (Math.abs(this.camera.fov - fov) > 0.1) {
       this.camera.fov = fov;
       this.camera.updateProjectionMatrix();

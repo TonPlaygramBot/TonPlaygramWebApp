@@ -29,7 +29,7 @@ export class CityAudio {
     } else this.footstep = 0;
     const distance = state.units.reduce((best, u) => Math.min(best, Math.hypot(p.x - u.x, p.z - u.z)), Infinity);
     this.sound.loop('siren', 630 + Math.sin(state.elapsed * 7) * 190, distance < 130 ? .03 / (1 + distance * .035) : 0, 1600, 'sine');
-    const h = state.helicopter, j = state.jet;
+    const h = state.helicopters?.find(a=>a.pilot)||state.helicopter, j = state.jet;
     const helicopter = h && h.pilot && (h.health ?? 1) > 0 ? this.sound.spatial(h).gain : 0;
     const jet = j && j.pilot && (j.health ?? 1) > 0 ? this.sound.spatial(j).gain : 0;
     this.sound.loop('rotor', 25, helicopter * (.085 + Math.sin(state.elapsed * 23) * .02), 320, 'triangle');

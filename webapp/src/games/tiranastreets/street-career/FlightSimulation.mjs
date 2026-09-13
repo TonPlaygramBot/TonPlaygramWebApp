@@ -1,3 +1,4 @@
+import {rooftopHelicopterSites} from '../shared/rooftops.mjs';
 import { WORLD } from '../shared/world.mjs';
 import { groundHeight } from '../../tirana-east/terrainCore.mjs';
 import { direction3, pointAlong } from './spatialCore.mjs';
@@ -17,7 +18,10 @@ export class FlightSimulation {
     sim.state.jet = { id:'tirana-fighter-jet',kind:'jet',careerManaged:true,
       x:at[0],z:at[1],y:floor+1.3,roofY:floor,stairX:at[0]+6,stairZ:at[1],
       heading:0,speed:0,pilot:null,airborne:false,nextMissile:0,health:240,missiles:24,roll:0,pitch:0 };
-    this.aircraft = [h,sim.state.jet].filter(Boolean);
+    const sites=rooftopHelicopterSites(WORLD,6).filter(site=>String(site.buildingId)!==String(h?.buildingId)).slice(0,2);
+    const extra=sites.map((site,i)=>{const roofY=sim.world.surface(site.x,site.z);return {id:`tirana-rooftop-helicopter-${i+2}`,...site,kind:'helicopter',homeX:site.x,homeZ:site.z,roofY,y:roofY+.65,careerManaged:true,heading:Math.PI,speed:0,pilot:null,airborne:false,nextMissile:0,health:220,missiles:24,roll:0,pitch:0};});
+    sim.state.helicopters=[h,...extra].filter(Boolean);
+    this.aircraft = [...sim.state.helicopters,sim.state.jet];
   }
   get current() { return this.aircraft.find(a=>a.id===this.sim.player.aircraftId); }
   board(id) {
@@ -62,22 +66,24 @@ export class FlightSimulation {
     if(p.health<=0||p.failed){a.pilot=null;p.aircraftId=null;return;}
     const input=this.sim.intent;
     // Assisted hover/landing keeps both aircraft playable with two thumbs in portrait.
-    a.heading-=input.x*dt*(a.kind==='jet'?.85:1.25);
-    const desired=input.y*(a.kind==='jet'?70:28);
-    a.speed+=(desired-a.speed)*(1-Math.exp(-dt*1.8));
+    a.heading-=(Math.abs(input.x)<.08?0:input.x)*dt*(a.kind==='jet'?1:1.35);
+    const throttle=Math.abs(input.y)<.08?0:input.y;
+    if(input.fast||Math.abs(throttle-(this.assistThrottle||0))>.15){a.autoLand=false;a.autoHover=false;}
+    const desired=(a.autoLand||a.autoHover?0:throttle)*(a.kind==='jet'?70:28);
+    a.speed+=(desired-a.speed)*(1-Math.exp(-dt*(desired===0?4:2)));
     a.pitch+=(clamp(input.y*.12,-.15,.15)-a.pitch)*(1-Math.exp(-dt*5));
     a.roll+=(-input.x*.38-a.roll)*(1-Math.exp(-dt*5));
     const nextX=a.x-Math.sin(a.heading)*a.speed*dt,nextZ=a.z-Math.cos(a.heading)*a.speed*dt;
     const floor=this.sim.world.surface(nextX,nextZ,a.y-.25);
     const height=a.kind==='jet'?1.3:.65;
     const next={x:nextX,z:nextZ,
-      y:clamp(a.y+((input.fast?12:0)-(input.brake?9:0))*dt,floor+height,groundHeight(a.x,a.z)+650)};
+      y:clamp(a.y+((input.fast?12:0)-(input.brake||a.autoLand?Math.min(9,Math.max(1,(a.y-floor-height)*1.5)):0)+(!a.airborne&&throttle>.15&&!input.brake&&!a.autoLand?5:0))*dt,floor+height,groundHeight(a.x,a.z)+650)};
     const delta={x:next.x-a.x,y:next.y-a.y,z:next.z-a.z},length=Math.hypot(delta.x,delta.y,delta.z);
     const collision=length>0?this.sim.world.cast(a,{x:delta.x/length,y:delta.y/length,z:delta.z/length},length+1.6):null;
     if(collision && collision.kind==='wall' && collision.distance<length+1.4){
       a.health=Math.max(0,a.health-Math.abs(a.speed)*dt*5);a.speed*=.7;
       if(a.health<=0){this.sim.combat.emit('blast',a,{radius:10});this.sim.damage(p,300,p);return;}
-      b.notice='Obstacle ahead · climb or turn';
+      b.notice='Obstacle ahead · climb or turn';a.autoLand=false;
     }else{
       a.x=clamp(next.x,WORLD.bounds[0]+8,WORLD.bounds[2]-8);
       a.z=clamp(next.z,WORLD.bounds[1]+8,WORLD.bounds[3]-8);a.y=next.y;
@@ -90,14 +96,16 @@ export class FlightSimulation {
       a.speed*=.45;this.sim.event('land',{vehicleId:a.id});
       if(a.health<=0){this.sim.combat.emit('blast',a,{radius:10});this.sim.damage(p,300,p);a.pilot=null;p.aircraftId=null;return;}
     }
+    if(!a.airborne)a.autoLand=false;
     if(!a.airborne&&Math.abs(input.y)<.1)a.speed*=Math.exp(-dt*8);
     Object.assign(p,{x:a.x,z:a.z,heading:a.heading,speed:Math.abs(a.speed)});
     b.y=a.y;b.interaction='flying';b.grounded=false;b.action=null;
     if(input.fire&&a.airborne)this.sim.combat.launch(a,b.yaw,b.pitch);
   }
+  assist(action) {const a=this.current;if(!a)return false;this.assistThrottle=this.sim.intent.y;a.autoHover=true;a.autoLand=action==='land';return true;}
   objective() {
     const a=this.current;
     return a ? {title:`${a.kind==='jet'?'Fighter jet':'Helicopter'} · ${Math.round(a.y-groundHeight(a.x,a.z))} m`,
-      detail:`${a.missiles} missiles · UP climbs · DOWN lands · drag to aim`,training:false} : null;
+      detail:`${a.missiles} missiles · Stick moves · release to hover · LAND descends`,training:false} : null;
   }
 }

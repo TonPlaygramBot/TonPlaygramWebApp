@@ -52,7 +52,8 @@ test('all 26 originals remain packaged and hashed; ground weapons are no longer 
 });
 test('a real response follows its route and dismounts as a squad instead of repathing forever',()=>{
  const s=createState([{id:'p',name:'P'}],'free-roam');s.players.p.wanted=250;s.players.p.lastCrime=1e5;s.nextDispatch=0;
- for(let i=0;i<7200;i++)stepState(s);
+ // Observe deployment before subsequent combat/respawn legitimately clears the response.
+ for(let i=0;i<7200;i++){stepState(s);const squad=s.npcs.filter(n=>n.unit);if(squad.length>=10&&squad.every(n=>n.deployed))break;}
  const officers=s.npcs.filter(n=>n.unit);assert.ok(officers.length>=10);assert.ok(officers.every(n=>n.deployed));
  assert.ok(officers.some(n=>['cover','aim','run','walk'].includes(n.anim)));
 });

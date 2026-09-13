@@ -6,6 +6,7 @@ import type { Actor } from '../cityBaseRenderer';
 import type { Player, Car } from '../shared/engine.mjs';
 import type { BodyState } from './StreetSimulation.mjs';
 import { weaponModelUrl } from '../livingVisuals';
+import {calibrateWeaponModel, hideAuthoredWeaponHands} from '../weaponCalibration';
 import { WEAPON_BY_ID } from '../shared/weapons.mjs';
 import {
   prepareWeaponScene,
@@ -209,27 +210,9 @@ export class FirstPersonBody {
         disposeWeaponResources([source]);
         return;
       }
+      hideAuthoredWeaponHands(source, url.href);
       prepared = prepareWeaponScene(source);
-      const pivot = new T.Group();
-      pivot.add(prepared);
-      let box = new T.Box3().setFromObject(pivot),
-        size = box.getSize(new T.Vector3());
-      if (size.x > size.z && size.x > size.y)
-        prepared.rotation.y -= Math.PI / 2;
-      else if (size.y > size.z && size.y > size.x)
-        prepared.rotation.x += Math.PI / 2;
-      pivot.updateMatrixWorld(true);
-      box = new T.Box3().setFromObject(pivot);
-      size = box.getSize(new T.Vector3());
-      const center = box.getCenter(new T.Vector3()),
-        w = WEAPON_BY_ID.get(id)!,
-        length = weaponAnchors(id).length,
-        scale = length / Math.max(size.x, size.y, size.z);
-      pivot.scale.setScalar(scale);
-      pivot.position.copy(center.multiplyScalar(-scale));
-      const wrapper = new T.Group();
-      wrapper.add(pivot);
-      wrapper.position.z = length * 0.22;
+      const wrapper = calibrateWeaponModel(prepared, url.href, weaponAnchors(id).length);
       wrapper.traverse((o) => {
         if (o instanceof T.Mesh) {
           o.castShadow = false;
@@ -415,7 +398,7 @@ export class FirstPersonBody {
     const weaponRotation = new T.Quaternion().setFromEuler(new T.Euler(
       -pose.pitch + (reload ? swing * .6 : 0), b.yaw + Math.PI,
       reload ? swing * .25 : 0, 'YXZ'));
-    const weaponOrigin = new T.Vector3(pose.origin.x, pose.origin.y - (reload ? swing * .18 : 0) + b.recoil * .2, pose.origin.z);
+    const weaponOrigin = new T.Vector3(pose.origin.x, pose.origin.y - (reload ? swing * .18 : 0), pose.origin.z);
     if (armed && !car) {
       const socket = (point: {x:number;y:number;z:number}) => new T.Vector3(point.x, point.y, point.z).applyQuaternion(weaponRotation).add(weaponOrigin);
       r = socket(pose.anchors.rightGrip);
@@ -471,7 +454,7 @@ export class FirstPersonBody {
       reload ? swing * 0.25 : 0,
       'YXZ'
     );
-    this.weapon.position.y += b.recoil * 0.2;
+    this.weapon.position.addScaledVector(v.set(forward.x,forward.y,forward.z), -b.recoil);
     if (config?.category === 'melee') {
       this.weapon.rotation.x += a?.kind === 'punch' ? -.75 * swing : .2;
       const grip = pose.anchors.rightGrip;
@@ -485,8 +468,9 @@ export class FirstPersonBody {
     this.muzzle.visible =
       config?.category !== 'melee' &&
       time < p.nextShot &&
-      time > p.nextShot - (config?.interval || 0.1) + 0.05 &&
-      time < p.nextShot - (config?.interval || 0.1) + 0.1;
+      time >= p.nextShot - (config?.interval || 0.1) &&
+      time < p.nextShot - (config?.interval || 0.1) + 0.05;
+    if (firstPerson && b.aim && pose.anchors.zoom>1 && !reload && wall===0) this.weapon.visible=false;
     this.gait = b.gait;
   }
   syncLoot(

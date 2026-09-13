@@ -1,13 +1,16 @@
+import {WEAPON_BY_ID} from './shared/weapons.mjs';
+import {LudoImpactVisuals} from './LudoImpactVisuals';
 import * as T from 'three';
 import {tracerSpan} from './tracerCore.mjs';
 type Point = {x:number;y:number;z:number};
-type Event = {id:number;kind:string;x:number;y?:number;z:number;toX:number;toY?:number;toZ:number;radius?:number};
-type Particle = {p:T.Vector3;v:T.Vector3;age:number;life:number;size:number;spin:number;floor:number;kind:number;trace?:{from:T.Vector3;distance:number};rendered?:boolean};
+type Event = {id:number;kind:string;x:number;y?:number;z:number;toX:number;toY?:number;toZ:number;radius?:number;ejectX?:number;ejectY?:number;ejectZ?:number;weapon?:string};
+type Particle = {p:T.Vector3;v:T.Vector3;age:number;life:number;size:number;spin:number;floor:number;kind:number;trace?:{from:T.Vector3;distance:number};rendered?:boolean;caseLength?:number};
 type Pool = {mesh:T.InstancedMesh;alpha:T.InstancedBufferAttribute;items:Particle[];capacity:number};
 
 /** Bounded instanced effects: six draw calls, shared geometry, no per-shot meshes. */
 export class CombatEffects {
   readonly group = new T.Group();
+  private ludoImpact:LudoImpactVisuals;
   private pools:Pool[]=[];
   private transform=new T.Object3D();
   private color=new T.Color();
@@ -22,10 +25,10 @@ export class CombatEffects {
   private cuts=Array.from({length:12},()=>new T.Vector4(0,-10000,0,0));
   private patched=new Map<T.Material,{compile:T.Material['onBeforeCompile'];key:T.Material['customProgramCacheKey']}>();
   constructor(scene:T.Scene) {
-    this.group.name='Tirana:combat-effects';scene.add(this.group);
+    this.group.name='Tirana:combat-effects';scene.add(this.group);const impactGroup=new T.Group();impactGroup.name='Ludo missile impacts';this.group.add(impactGroup);this.ludoImpact=new LudoImpactVisuals(impactGroup);
     for(let kind=0;kind<6;kind++) {
       const capacity=kind===1?120:kind===2?160:kind===3?80:kind===4?48:64;
-      const geometry=(kind<2||kind===5)?new T.PlaneGeometry(1,1):new T.BoxGeometry(1,1,1);
+      const geometry=(kind<2||kind===5)?new T.PlaneGeometry(1,1):kind===3||kind===4?new T.CylinderGeometry(.5,.5,1,10).rotateX(Math.PI/2):new T.BoxGeometry(1,1,1);
       const material=kind===2||kind===3 ? new T.MeshStandardMaterial({roughness:kind===3?.3:.95,metalness:kind===3?.75:0,transparent:true,depthWrite:true})
         : new T.MeshBasicMaterial({transparent:true,depthWrite:false,blending:kind===0||kind===4?T.AdditiveBlending:T.NormalBlending,side:T.DoubleSide});
       material.onBeforeCompile=shader=>{
@@ -51,12 +54,16 @@ export class CombatEffects {
     const pool=this.pools[kind];if(pool.items.length>=pool.capacity)pool.items.shift();
     pool.items.push({p:new T.Vector3(at.x,at.y,at.z),v:new T.Vector3(v.x,v.y,v.z),age:0,life,size,spin:Math.random()*Math.PI*2,floor,kind});
   }
-  shot(from:Point,to:Point,floor=0) {
+  shot(from:Point,to:Point,floor=0,ejection?:Point,weapon?:string) {
     const d=new T.Vector3(to.x-from.x,to.y-from.y,to.z-from.z),length=d.length();d.normalize();
     this.particle(4,from,{x:d.x*180,y:d.y*180,z:d.z*180},Math.max(1/60,length/180),.027,floor);
     const tracer=this.pools[4].items.at(-1)!;tracer.trace={from:new T.Vector3(from.x,from.y,from.z),distance:length};
     for(let i=0;i<3;i++)this.particle(0,from,{x:d.x*2,y:d.y*2,z:d.z*2},.055+i*.015,.2+i*.08,floor);
-    this.particle(3,from,{x:d.z*2.3,y:2.1+Math.random(),z:-d.x*2.3},2.6,.055,floor);
+    const port=ejection??{x:from.x-d.x*.45,y:from.y-.045,z:from.z-d.z*.45};
+    const category=WEAPON_BY_ID.get(weapon||'')?.category;
+    const size=category==='shotgun'?.018:category==='sidearm'||category==='smg'?.009:.01;
+    this.particle(3,port,{x:-d.z*1.8,y:1.1+Math.random()*.4,z:d.x*1.8},1.6,size,floor);
+    this.pools[3].items.at(-1)!.caseLength=category==='sidearm'||category==='smg'?.022:.05;
   }
   explosion(at:Point,radius=8,floor=0) {
     for(let i=0;i<36;i++){
@@ -87,8 +94,9 @@ export class CombatEffects {
     for(const e of events){
       if(e.id<=this.lastEvent)continue;this.lastEvent=e.id;
       const p={x:e.x,y:e.y??floor(e.x,e.z)+1.3,z:e.z};
-      if(e.kind==='shot')this.shot(p,{x:e.toX,y:e.toY??floor(e.toX,e.toZ)+1.2,z:e.toZ},floor(e.x,e.z));
-      if(['blast','vehicle-explosion','explosion'].includes(e.kind))this.explosion(p,e.radius||8,floor(e.x,e.z));
+      if(e.kind==='shot')this.shot(p,{x:e.toX,y:e.toY??floor(e.toX,e.toZ)+1.2,z:e.toZ},floor(e.x,e.z),e.ejectX!==undefined?{x:e.ejectX,y:e.ejectY!,z:e.ejectZ!}:undefined,e.weapon);
+      if(e.kind==='blast'){this.ludoImpact.spawn(p,e.radius||11);this.demolition(p,Math.min(4,e.radius||4),floor(e.x,e.z));}
+      if(['vehicle-explosion','explosion'].includes(e.kind))this.explosion(p,e.radius||8,floor(e.x,e.z));
       if(e.kind==='hit')for(let i=0;i<4;i++)this.particle(2,p,{x:(Math.random()-.5)*3,y:Math.random()*3,z:(Math.random()-.5)*3},.35,.035,floor(e.x,e.z));
       if(e.kind==='crash'){this.dust(p,e.radius||2,floor(e.x,e.z));for(let i=0;i<12;i++)this.particle(3,p,{x:(Math.random()-.5)*8,y:Math.random()*4,z:(Math.random()-.5)*8},.5,.04,floor(e.x,e.z));}
       if(e.kind==='fracture')this.demolition(p,e.radius||4,floor(e.x,e.z));
@@ -131,11 +139,13 @@ export class CombatEffects {
       for(const child of o.children)visit(child);
     };visit(scene);
   }
-  update(dt:number,camera:T.Camera,fires:Point[]=[],missiles:(Point&{id?:number})[]=[],battery=false) {
+  update(dt:number,camera:T.Camera,fires:Point[]=[],missiles:(Point&{id?:number;direction?:Point})[]=[],battery=false) {
     if(!Number.isFinite(dt)||dt<=0)return;
-    for(let i=this.dustQueue.length-1;i>=0;i--){const q=this.dustQueue[i];q.delay-=dt;if(q.delay<=0){this.dust(q.at,q.radius,q.floor);this.dustQueue.splice(i,1);}}
+    for(let i=this.dustQueue.length-1;i>=0;i--){const q=this.dustQueue[i];q.delay-=dt;if(q.delay<=0){if(q.delay> -4.5)this.dust(q.at,q.radius,q.floor);this.dustQueue.splice(i,1);}}
     const ids=new Set<number>();
-    for(const [index,at]of missiles.slice(0,8).entries()){
+    for(const [index,missile]of missiles.slice(0,8).entries()){
+      const d=missile.direction??{x:0,y:0,z:0};
+      const at={...missile,x:missile.x-d.x*.84,y:missile.y-d.y*.84,z:missile.z-d.z*.84};
       const id=at.id??index;ids.add(id);const previous=this.trails.get(id);
       if(previous){
         const distance=Math.hypot(at.x-previous.x,at.y-previous.y,at.z-previous.z),count=Math.min(battery?6:14,Math.floor(distance/.7));
@@ -144,6 +154,7 @@ export class CombatEffects {
       }else this.trails.set(id,{...at});
     }
     for(const id of this.trails.keys())if(!ids.has(id))this.trails.delete(id);
+    this.ludoImpact.update(dt);
     this.emission+=dt;
     if(this.emission>.075){this.emission=0;
       for(const at of fires.slice(0,battery?4:8)){
@@ -154,11 +165,11 @@ export class CombatEffects {
     }
     for(let k=0;k<this.pools.length;k++){
       const pool=this.pools[k];
-      for(let i=pool.items.length-1;i>=0;i--){const p=pool.items[i];p.age+=dt;if(p.age>=p.life&&(k!==4||p.rendered)){pool.items.splice(i,1);continue;}
-        if(k===2||k===3){p.v.y-=9.81*dt;p.spin+=dt*5;}
+      for(let i=pool.items.length-1;i>=0;i--){const p=pool.items[i];const step=p.rendered?dt:0;p.age+=step;if(p.age>=p.life&&(k!==4||p.rendered)){pool.items.splice(i,1);continue;}
+        if(k===2||k===3){p.v.y-=9.81*step;p.spin+=step*5;}
         if(k===1||k===5){p.v.x+=(.22-p.v.x)*Math.min(1,dt*.25);p.v.z+=(.12-p.v.z)*Math.min(1,dt*.25);}
         if(k===2||k===3)p.v.multiplyScalar(Math.exp(-dt*.22));
-        if(k!==4)p.p.addScaledVector(p.v,dt);
+        if(k!==4)p.p.addScaledVector(p.v,step);
         if((k===2||k===3)&&p.p.y<p.floor+.03){p.p.y=p.floor+.03;p.v.y=Math.abs(p.v.y)*.22;p.v.x*=.7;p.v.z*=.7;}
       }
       const count=Math.min(pool.items.length,battery?Math.ceil(pool.capacity*.55):pool.capacity);pool.mesh.count=count;
@@ -167,12 +178,12 @@ export class CombatEffects {
         this.transform.quaternion.copy(camera.quaternion);
         if(k<2||k===5)this.transform.scale.setScalar(p.size*(1+t*(k===0?1.3:2.5)));
         else if(k===4){
-          const span=tracerSpan(p.trace!.distance,p.age);this.trailDirection.copy(p.v).normalize();
+          const span=tracerSpan(p.trace!.distance,Math.max(p.age,Math.min(dt,p.life,1/60)));this.trailDirection.copy(p.v).normalize();
           this.transform.position.copy(p.trace!.from).addScaledVector(this.trailDirection,span.center);
           this.transform.quaternion.setFromUnitVectors(this.trailUp,this.trailDirection);
           this.transform.scale.set(p.size,p.size,span.length);
         }
-        else{this.transform.rotation.set(p.spin,p.spin*.7,p.spin*.3);this.transform.scale.set(p.size,k===3?p.size*.45:p.size,k===3?p.size*2:p.size);}
+        else{this.transform.rotation.set(p.spin,p.spin*.7,p.spin*.3);this.transform.scale.set(p.size,p.size,k===3?p.caseLength??p.size*2.8:p.size);}
         this.transform.updateMatrix();pool.mesh.setMatrixAt(i,this.transform.matrix);
         this.color.set(k===0?(t<.25?0xffedbc:t<.65?0xffa336:0xb13912):k===1?0x555559:k===2?0x82796b:k===3?0xc5a34a:k===5?0xa79a84:0xffd794);
         pool.mesh.setColorAt(i,this.color);pool.alpha.setX(i,k===4?Math.max(.3,1-t):(1-t)*(k===1||k===5?.45:1));
@@ -186,11 +197,12 @@ export class CombatEffects {
     this.patched.clear();
   }
   reset() {
+    this.ludoImpact.reset();
     this.lastEvent=0;this.emission=0;this.trails.clear();this.dustQueue=[];
     this.pools.forEach(p=>{p.items=[];p.mesh.count=0;});this.cuts.forEach(c=>c.set(0,-10000,0,0));
     this.lightTime=[0,0];this.lights.forEach(l=>l.intensity=0);this.restoreMaterials();
   }
   dispose() {
-    this.reset();this.group.removeFromParent();for(const p of this.pools){p.mesh.geometry.dispose();(p.mesh.material as T.Material).dispose();}
+    this.reset();this.ludoImpact.dispose();this.group.removeFromParent();for(const p of this.pools){p.mesh.geometry.dispose();(p.mesh.material as T.Material).dispose();}
   }
 }

@@ -1,5 +1,6 @@
 import {IMPORTED_BY_ID} from './shared/importedAssets.mjs';
 import {UPLOADED_WEAPONS} from './shared/uploadedWeapons.mjs';
+import {calibrateWeaponModel, hideAuthoredWeaponHands} from './weaponCalibration';
 import * as THREE from "three";
 import { GLTFLoader } from "three/examples/jsm/loaders/GLTFLoader.js";
 import { clone as cloneSkeleton } from "three/examples/jsm/utils/SkeletonUtils.js";
@@ -14,7 +15,7 @@ const BASE = "/assets/tirana-streets/living/";
 // Texture-bounded derivatives of the same credited imported firearms. Original
 // sources stay available for attribution; 26–73 MB JSON models must not gate play.
 export const OPTIMIZED_WEAPON_MODELS: Record<string, string> = {
-  ak47VolleyAttack: 'ak47', krsvBurstAttack: 'krsv',
+  fpsGunAttack: 'shotgun', ak47VolleyAttack: 'ak47', krsvBurstAttack: 'krsv',
   mosinMarksmanAttack: 'mosin', smithSidearmAttack: 'smith',
   uziSprayAttack: 'uzi', glockSidearmAttack: 'sigsauer'
 };
@@ -167,29 +168,10 @@ export class LivingVisuals {
         source = undefined;
         return;
       }
+      hideAuthoredWeaponHands(source, url);
       prepared = prepareWeaponScene(source);
-      // A separate normalization frame preserves imported root transforms.
-      const result = new THREE.Group();
-      result.add(prepared);
-      result.traverse((o) => { if (o instanceof THREE.Mesh) o.castShadow = true; });
-      const box = new THREE.Box3().setFromObject(result),
-        size = box.getSize(new THREE.Vector3());
-      // Model long axis follows +Z, matching the source character's facing direction.
-      if (size.x > size.z && size.x > size.y) result.rotation.y = -Math.PI / 2;
-      else if (size.y > size.z && size.y > size.x)
-        result.rotation.x = Math.PI / 2;
-      result.updateMatrixWorld(true);
-      const rotated = new THREE.Box3().setFromObject(result),
-        center = rotated.getCenter(new THREE.Vector3()),
-        extent = rotated.getSize(new THREE.Vector3());
-      const longest = Math.max(extent.x, extent.y, extent.z);
-      if (!Number.isFinite(longest) || longest <= 0.0001)
-        throw new Error("Weapon glTF has invalid or empty bounds");
-      const scale = 0.8 / longest;
-      result.scale.setScalar(scale);
-      result.position.copy(center.multiplyScalar(-scale));
-      const wrapper = new THREE.Group();
-      wrapper.add(result);
+      const wrapper = calibrateWeaponModel(prepared,url,.8);
+      wrapper.traverse(o=>{if(o instanceof THREE.Mesh)o.castShadow=true;});
       if (prepared !== source) releaseBatchedSourceGeometry(source);
       this.models.set(name, wrapper);
       source = undefined;

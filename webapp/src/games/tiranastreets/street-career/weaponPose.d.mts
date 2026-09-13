@@ -3,6 +3,8 @@ import type { BodyState } from './StreetSimulation.mjs';
 import type { Vec3 } from './spatialCore.mjs';
 export function weaponAnchors(id: string): {
   length: number;
+  zoom: number;
+  ejection: Vec3;
   rightGrip: Vec3;
   leftSupport: Vec3;
   muzzle: Vec3;
@@ -13,6 +15,8 @@ export function weaponPose(
   b: BodyState
 ): {
   origin: Vec3;
+  ejection: Vec3;
+  sight: Vec3;
   muzzle: Vec3;
   pitch: number;
   yaw: number;

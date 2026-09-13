@@ -1,3 +1,5 @@
+import {addFxSphere} from './ludoFxGeometry';
+export {addFxSphere} from './ludoFxGeometry';
 import { createLudoBlenderModel } from './ludoBlenderMeshes';
 import * as THREE from 'three';
 import { LUDO_WEAPON_DIRECTOR_BRIDGE } from '../config/ludoWeaponDirectorBridge.js';
@@ -230,27 +232,6 @@ export function matchProjectileDiameterToBarrel(profile: FirearmBallistics = FIR
     // ejected brass and muzzle opening read as one caliber during the close-up camera shot.
     shellRadius: Math.max(profile.shellRadius, barrelRadius * 1.06)
   };
-}
-
-export function addFxSphere(
-  group,
-  radius,
-  position,
-  color,
-  roughness = 0.45,
-  metalness = 0.25,
-  transparent = false,
-  opacity = 1
-) {
-  const mesh = new THREE.Mesh(
-    new THREE.SphereGeometry(radius, 16, 16),
-    new THREE.MeshStandardMaterial({ color, roughness, metalness, transparent, opacity })
-  );
-  mesh.position.set(position[0], position[1], position[2]);
-  mesh.castShadow = true;
-  mesh.receiveShadow = true;
-  group.add(mesh);
-  return mesh;
 }
 
 export function createCaptureBulletTracerFx(color = '#ffe8a3') {

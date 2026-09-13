@@ -1,3 +1,5 @@
+import {steerNPC,friendlyInFiringLane} from './npcNavigation.mjs';
+import {vehicleSize} from './trafficSimulation.mjs';
 import { CITY_POPULATION, initCityPopulation, nearestShop, dropWeapon, collectWeapon } from './cityPopulation.mjs';
 import { WEAPON_BY_ID, STARTER_WEAPON, ensureStarterWeapons, difficultyOf } from "./weapons.mjs";
 import {forceWeaponFor} from './uploadedWeapons.mjs';
@@ -545,6 +547,13 @@ export function updateCityLife(state, dt, env, mission) {
     }
     if (n.kind === "dealer") continue;
     if (env.recovering?.(n)) { n.speed=0; n.anim='hit'; continue; }
+    const walkClear=(a,b)=>{
+      if(!env.clear(a,b))return false;
+      const probe={x:b.x,z:b.z};env.collide(probe,.45);
+      return Math.hypot(probe.x-b.x,probe.z-b.z)<.01;
+    };
+    const navigate=n.kind!=='civilian'||players.some(p=>(p.x-n.x)**2+(p.z-n.z)**2<140**2);
+    const walkTo=(goal,speed)=>env.along(n,navigate?steerNPC(n,goal,walkClear,state.elapsed):goal,speed,npcDt);
     if (n.kind === "civilian") {
       const danger = players.find(
         (p) => state.elapsed - p.lastCrime < 9 && dist(p, n) < 40,
@@ -556,29 +565,26 @@ export function updateCityLife(state, dt, env, mission) {
             x: n.x + ((n.x - danger.x) / d) * 6,
             z: n.z + ((n.z - danger.z) / d) * 6,
           };
-        env.along(n, to, n.motion === "cycle" ? 6 : 4.8, npcDt);
+        walkTo(to,n.motion === "cycle" ? 6 : 4.8);
         env.collide(n, 0.45);
       } else if (n.path?.length) {
         if (
-          env.along(
-            n,
-            n.path[n.pathIndex],
-            n.motion === "cycle" ? 4.5 : n.role === "child" ? 2.1 : 1.3,
-            npcDt,
-          )
+          (walkTo(n.path[n.pathIndex], n.motion === "cycle" ? 4.5 : n.role === "child" ? 2.1 : 1.3),
+           dist(n,n.path[n.pathIndex])<.4)
         )
           n.pathIndex = 1 - n.pathIndex;
         env.collide(n, 0.4);
       }
       n.anim = panic ? "run" : n.motion === "cycle" ? "ride" : n.role === "child" ? "run" : "walk";
       const car = state.cars.find(
-        (c) => c.driver && Math.abs(c.speed) > 6 && dist(c, n) < 1.6,
+        (c) => {const size=vehicleSize(c),dx=n.x-c.x,dz=n.z-c.z;
+          return c.driver&&Math.abs(c.speed)>6&&Math.abs(dx*Math.cos(c.heading)-dz*Math.sin(c.heading))<size.width/2+.25&&Math.abs(dx*Math.sin(c.heading)+dz*Math.cos(c.heading))<size.length/2+.3;},
       );
       if (car && state.elapsed - (n.hitAt || -10) > 2) {
         n.hitAt = state.elapsed;
         const driver = state.players[car.driver];
         if (driver) {
-          harm(state, n, 35, driver, env);
+          harm(state, n, Math.min(100,Math.abs(car.speed)*5), driver, env);
           reportCrime(state, driver, 70);
           car.speed *= 0.7;
         }
@@ -602,7 +608,7 @@ export function updateCityLife(state, dt, env, mission) {
     const unit = n.unit && state.units.find((u) => u.id === n.unit),
       d = dist(n, p);
     if(unit?.regroup && n.deployed){
-      n.anim='run';env.along(n,unit,4.5,npcDt);env.collide(n,.45);
+      n.anim='run';walkTo(unit,4.5);env.collide(n,.45);
       if(dist(n,unit)<3){n.deployed=false;n.motion='drive';}
       continue;
     }
@@ -626,11 +632,11 @@ export function updateCityLife(state, dt, env, mission) {
     }
     n.motion = "walk";
     const cars=[...state.cars,...(state.traffic||[]),...state.units];
-    const tactic = n.unit ? tacticalGoal(n,p,state.npcs.filter(o=>o.squadId===n.squadId),cars,state.elapsed,env.clear)
-      : {goal:p,anim:d>16?'run':'aim'};
+    const squad=state.npcs.filter(o=>o.health>0 && (n.squadId?o.squadId===n.squadId:o.kind===n.kind&&dist(n,o)<45));
+    const tactic=tacticalGoal(n,p,squad,cars,state.elapsed,env.clear);
     n.anim=tactic.anim; n.coverId=tactic.coverId; n.speed=0;
     if(n.anim==='run'||n.anim==='walk') {
-      env.along(n,avoidVehicles(n,tactic.goal,cars),n.anim==='run'?3.6:1.45,dt); env.collide(n,.45);
+      walkTo(avoidVehicles(n,tactic.goal,cars),n.anim==='run'?3.6:1.45); env.collide(n,.45);
     }
     // Personal space prevents overlapping squad members even while converging.
     for(const other of state.npcs) if(other!==n && other.health>0 && other.motion!=='drive') {
@@ -640,7 +646,7 @@ export function updateCityLife(state, dt, env, mission) {
     }
     env.collide(n,.45);
     if(n.anim==='aim'||n.anim==='cover') n.heading=Math.atan2(n.x-p.x,n.z-p.z);
-    const canShoot=n.anim==='aim' && !cars.some(c=>vehicleBlocks(n,p,c));
+    const canShoot=n.anim==='aim' && !cars.some(c=>vehicleBlocks(n,p,c)) && !friendlyInFiringLane(n,p,state.npcs.filter(o=>o.kind===n.kind||o.kind!=='gang'&&n.kind!=='gang'));
     if (canShoot && d < 46 && state.elapsed >= n.nextShot && env.clear(n, actual || p) && (!env.track || p === actual)) {
       if(env.fireNPC){env.fireNPC(n,actual||p,cfg.damage);continue;}
       n.nextShot =
