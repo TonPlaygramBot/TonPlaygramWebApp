@@ -6141,19 +6141,62 @@ const tableParts = {};
 const chairs = [];
 const seatedHumanActors = [];
 const LEGACY_DOMINO_HUMAN_HEIGHT = 1.13;
-const LEGACY_DOMINO_HUMAN_ACTION_MS = 760;
 
-function runSeatedHumanDominoAction(logicalSeatIndex, mode = 'placePiece') {
+function runSeatedHumanDominoAction(
+  logicalSeatIndex,
+  mode = 'placePiece',
+  intensity = 1,
+  grip = 0,
+  motionProfile = null
+) {
   const visualSeatIndex = getVisualSeatIndex(logicalSeatIndex);
   const restoredHuman = seatedHumanActors[visualSeatIndex];
   const applyPose = DOMINO_SEATED_HUMANS?.applySeatedHumanPose;
   if (!restoredHuman?.rig || !applyPose) return;
-  if (restoredHuman.actionTimer) clearTimeout(restoredHuman.actionTimer);
-  applyPose(restoredHuman.rig, mode, 1, mode === 'gripPiece' ? 1 : 0);
-  restoredHuman.actionTimer = setTimeout(() => {
-    applyPose(restoredHuman.rig, 'idle', 1, 0);
-    restoredHuman.actionTimer = null;
-  }, LEGACY_DOMINO_HUMAN_ACTION_MS);
+  applyPose(restoredHuman.rig, mode, intensity, grip, motionProfile);
+}
+
+function getDominoHumanReachProfile(anim) {
+  const chair = chairs[getVisualSeatIndex(anim.sourceSeat)];
+  if (!chair) return { forwardReach: 0.5, sideReach: 0 };
+  piecesG.updateWorldMatrix(true, false);
+  chair.updateWorldMatrix(true, false);
+  const localTarget = chair.worldToLocal(piecesG.localToWorld(anim.end.clone()));
+  return {
+    forwardReach: THREE.MathUtils.clamp((-localTarget.z - 0.25) / 1.5, 0, 1),
+    sideReach: THREE.MathUtils.clamp(localTarget.x / 1.25, -1, 1)
+  };
+}
+
+function updateSeatedHumanDominoAction(anim, t) {
+  if (!anim?.humanReachProfile) return;
+  let mode = 'reachPiece';
+  let intensity = 1;
+  let grip = 0;
+  if (t < PLACE_ANIM_PICK_HOLD) {
+    intensity = smoothPlacementStep(0, PLACE_ANIM_PICK_HOLD, t);
+    grip = intensity * 0.9;
+  } else if (t < PLACE_ANIM_LIFT_END) {
+    mode = 'gripPiece';
+    intensity = smoothPlacementStep(PLACE_ANIM_PICK_HOLD, PLACE_ANIM_LIFT_END, t);
+    grip = 1;
+  } else if (t < PLACE_ANIM_CARRY_END) {
+    mode = 'carryPiece';
+    grip = 1;
+  } else if (t < 1) {
+    mode = 'placePiece';
+    intensity = smoothPlacementStep(PLACE_ANIM_CARRY_END, 1, t);
+    grip = 1 - intensity;
+  } else {
+    mode = 'idle';
+  }
+  runSeatedHumanDominoAction(
+    anim.sourceSeat,
+    mode,
+    mode === 'idle' ? 1 : intensity,
+    grip,
+    anim.humanReachProfile
+  );
 }
 
 function centerFurnitureInHdri() {
@@ -7950,9 +7993,6 @@ function placeChairsWithOption(option, chairData, token) {
     chair.parent?.remove(chair);
     disposeChairResources(chair);
   }
-  seatedHumanActors.forEach((restoredHuman) => {
-    if (restoredHuman?.actionTimer) clearTimeout(restoredHuman.actionTimer);
-  });
   seatedHumanActors.length = 0;
 
   const seatBottomOffset = -chairTemplateBounds.min.y;
@@ -9042,7 +9082,8 @@ function spawnPlacementAnimation(
     duration: duration || PLACE_ANIM_DURATION,
     arc: PLACE_ANIM_ARC,
     segment,
-    sourceSeat
+    sourceSeat,
+    humanReachProfile: getDominoHumanReachProfile({ sourceSeat, end })
   });
 }
 
@@ -11279,6 +11320,7 @@ function updatePlacementAnimations(now) {
     const t = duration > 0 ? Math.min(1, elapsed / duration) : 1;
     const rotateT = smoothPlacementStep(PLACE_ANIM_LIFT_END, PLACE_ANIM_LOWER_END, t);
 
+    updateSeatedHumanDominoAction(anim, t);
     anim.mesh.position.copy(resolvePrecisionPlacementPosition(anim, t));
     if (anim.endQuat && anim.startQuat) {
       const quat = anim.startQuat.clone().slerp(anim.endQuat, rotateT);
