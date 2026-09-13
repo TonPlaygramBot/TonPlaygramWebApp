@@ -1,6 +1,3 @@
-import { TABLETOP_IDS } from '../webapp/src/games/tabletop/shared/catalog.mjs';
-import { attachTabletop } from './services/tabletop.js';
-import { createTabletopStakeServices, activeTabletopReservationIds } from './services/tabletopStake.js';
 import { createInitialChessBoard, normalizeChessBoard, chessBoardToFen, validateAndApplyChessMove, adjudicateChessTimeout } from './chessRules.js';
 import './loadEnv.js';
 import { validateEnv } from './env.js';
@@ -312,14 +309,8 @@ const royalLanes = attachRoyalLanes(io, {
   settleMatch: bowlingStake.settle,
   onMatchClosed: (tableId) => tableMap.delete(tableId)
 });
-const tabletopStakes = createTabletopStakeServices();
-const tabletop = attachTabletop(io, {
-  settleMatch: (gameId, tableId, outcome) => tabletopStakes[gameId].settle(tableId, outcome),
-  onMatchClosed: (tableId) => tableMap.delete(tableId)
-});
 // Expired persisted reservations are refunded even after a process restart.
 setInterval(() => {
-  for (const stake of Object.values(tabletopStakes)) stake.recoverExpired().catch((error) => console.error('Tabletop recovery:', error.message));
   bowlingStake.recoverExpired().catch((error) => console.error('Bowling recovery:', error.message));
   kartStake.recoverExpired().catch((error) => console.error('Kart recovery:', error.message));
   blackwaterStake.recoverExpired().catch((error) => console.error('Blackwater recovery:', error.message));
@@ -1561,9 +1552,9 @@ function maybeStartGame(table) {
         return;
       }
       console.log(`Table ${table.id} confirmed by all players. Starting game.`);
-      if (['kartroyale', 'blackwater', 'royallanes', ...TABLETOP_IDS].includes(table.gameType)) {
-        const stakeService = tabletopStakes[table.gameType] || (table.gameType === 'royallanes' ? bowlingStake : table.gameType === 'blackwater' ? blackwaterStake : kartStake);
-        const runtime = TABLETOP_IDS.includes(table.gameType) ? tabletop : table.gameType === 'royallanes' ? royalLanes : table.gameType === 'blackwater' ? blackwater : kartRoyale;
+      if (['kartroyale', 'blackwater', 'royallanes'].includes(table.gameType)) {
+        const stakeService = table.gameType === 'royallanes' ? bowlingStake : table.gameType === 'blackwater' ? blackwaterStake : kartStake;
+        const runtime = table.gameType === 'royallanes' ? royalLanes : table.gameType === 'blackwater' ? blackwater : kartRoyale;
         table.starting = true;
         let reserved = false;
         const roster = table.players.map((p) => String(p.id)).join('|');
@@ -1710,7 +1701,7 @@ function unseatTableSocket(accountId, tableId, socketId) {
   if (!tableId) return;
   // Once started, the game runtime owns the immutable roster and stake.
   // A late lobby cancel or disconnect must not release its account lock.
-  if (['kartroyale', 'blackwater', 'royallanes', ...TABLETOP_IDS].includes(tableMap.get(tableId)?.gameType) && tableMap.get(tableId)?.started) return;
+  if (['kartroyale', 'blackwater', 'royallanes'].includes(tableMap.get(tableId)?.gameType) && tableMap.get(tableId)?.started) return;
   const map = tableSeats.get(tableId);
   const normalizedAccountId = accountId ? String(accountId) : '';
   // A mobile WebView can reconnect before Socket.IO finishes disconnecting the
@@ -2497,8 +2488,8 @@ io.on('connection', (socket) => {
 
       const safeMeta = validation.safeMatchMeta;
 
-      if (['kartroyale', 'blackwater', 'royallanes', ...TABLETOP_IDS].includes(validation.normalizedGameType)) {
-        const stakeService = tabletopStakes[validation.normalizedGameType] || (validation.normalizedGameType === 'royallanes' ? bowlingStake : validation.normalizedGameType === 'blackwater' ? blackwaterStake : kartStake);
+      if (['kartroyale', 'blackwater', 'royallanes'].includes(validation.normalizedGameType)) {
+        const stakeService = validation.normalizedGameType === 'royallanes' ? bowlingStake : validation.normalizedGameType === 'blackwater' ? blackwaterStake : kartStake;
         try { await stakeService.canQueue(String(resolvedAccountId), validation.normalizedStake, tableId); }
         catch (error) { return cb && cb({ success: false, error: error.message }); }
         // The asynchronous balance read may complete after this phone leaves.
@@ -4153,19 +4144,9 @@ io.on('connection', (socket) => {
         if (set.size === 0) userSockets.delete(String(pid));
       }
       await removeConnection(socket.id);
-      // Protect both live and persisted tabletop reservations, including a
-      // disconnect during stake reservation or after a process restart.
-      try {
-        const persistedIds = await activeTabletopReservationIds(pid);
-        const protectedTableIds = [
-          ...persistedIds,
-          ...[...tableMap.values()].filter(t => TABLETOP_IDS.includes(t.gameType) && (t.starting || t.started)).map(t => t.id),
-          ...[...tabletop.rooms.values()].filter(r => r.status !== 'finished' || r.settlement?.status === 'pending').map(r => r.id)
-        ];
-        await User.updateOne({ accountId: pid, currentTableId: { $nin: protectedTableIds } }, { currentTableId: null });
-      } catch (error) {
-        console.warn('Disconnect account cleanup deferred:', error.message);
-      }
+      User.updateOne({ accountId: pid }, { currentTableId: null }).catch(
+        () => {}
+      );
     }
     clearSocketLobbySeats();
     for (const [id, set] of tableWatchers) {
