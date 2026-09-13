@@ -66,6 +66,12 @@ import { giftSounds } from '../../utils/giftSounds.js';
 import { playLudoDiceRollSfx, playLudoTokenStepSfx } from '../../utils/ludoSfx.js';
 import { socket } from '../../utils/socket.js';
 import { loadExactUkrainianDroneModel } from '../../utils/ukrainianDroneModel.js';
+import {
+  LUDO_GOAL_PROGRESS,
+  getLudoMovableTokens,
+  getLudoCaptureVictims,
+  canRollLudoDice
+} from '../../../../shared/ludoBattleRules.js';
 
 const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
 const FRAME_TIME_CATCH_UP_MULTIPLIER = 3;
@@ -5917,7 +5923,7 @@ const HOME_COLUMN_COORDS = Object.freeze([
 ]);
 const RING_STEPS = TRACK_COORDS.length;
 const HOME_STEPS = HOME_COLUMN_COORDS[0].length;
-const GOAL_PROGRESS = RING_STEPS + HOME_STEPS;
+const GOAL_PROGRESS = LUDO_GOAL_PROGRESS;
 const COLOR_NAMES = ['Red', 'Blue', 'Yellow', 'Green'];
 const BOARD_COLORS = Object.freeze([0xef4444, 0x3b82f6, 0xfacc15, 0x22c55e]);
 const PLAYER_COLOR_ORDER = Object.freeze([0, 1, 2, 3]);
@@ -7909,7 +7915,7 @@ async function loadSeatedHumanTemplate(renderer = null, humanOption = HUMAN_CHAR
 
 function spinDice(
   dice,
-  { duration = 900, targetPosition = new THREE.Vector3(), bounceHeight = 0.06, value = null } = {}
+  { duration = 900, targetPosition = new THREE.Vector3(), bounceHeight = 0.06, value = null, isCurrent = () => true } = {}
 ) {
   return new Promise((resolve) => {
     const start = performance.now();
@@ -7928,6 +7934,10 @@ function spinDice(
       : 1 + Math.floor(Math.random() * 6);
 
     const step = () => {
+      if (!isCurrent()) {
+        resolve(null);
+        return;
+      }
       const now = performance.now();
       const t = Math.min(1, (now - start) / Math.max(1, duration));
       const eased = easeOutCubic(t);
@@ -8156,6 +8166,7 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount, onlin
   const stateRef = useRef(null);
   const onlineContextRef = useRef(onlineContext);
   const pendingOnlineStateRef = useRef(null);
+  const onlinePresentationVersionRef = useRef(0);
   const applyOnlineStateRef = useRef(() => {});
   const uiRef = useRef(null);
   const moveSoundRef = useRef(null);
@@ -8524,7 +8535,7 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount, onlin
   const seatPositionsRef = useRef([]);
   const [ui, setUi] = useState({
     turn: 0,
-    status: 'Your turn — dice rolling soon',
+    status: 'Loading the board…',
     dice: null,
     winner: null,
     turnCycle: 0
@@ -9401,7 +9412,8 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount, onlin
   const beginHumanSelection = useCallback(
     (roll, options, { skipCameraFollow = false } = {}) => {
       const state = stateRef.current;
-      if (!state || !Array.isArray(options) || !options.length) return;
+      if (!state || state.winner != null || state.turn !== 0 || state.animation ||
+        !Array.isArray(options) || !options.length) return;
       clearHumanSelection();
       const normalized = options.map((option) => ({ token: option.token, entering: option.entering }));
       humanSelectionRef.current = { roll, options: normalized, skipCameraFollow };
@@ -9421,7 +9433,8 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount, onlin
 
   const scheduleHumanAutoRoll = useCallback(() => {
     const state = stateRef.current;
-    if (!state || state.winner || state.turn !== 0 || state.animation) return;
+    if (onlineContextRef.current?.tableId) return;
+    if (!state || state.winner != null || state.turn !== 0 || state.animation) return;
     if (humanSelectionRef.current) return;
     const diceObj = diceRef.current;
     if (!diceObj || diceObj.userData?.isRolling) return;
@@ -9473,7 +9486,7 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount, onlin
       const trackIndex = (PLAYER_START_INDEX[player] + progress) % RING_STEPS;
       return state.trackTiles?.[trackIndex] ?? null;
     }
-    if (progress < RING_STEPS + HOME_STEPS) {
+    if (progress < GOAL_PROGRESS) {
       const step = progress - RING_STEPS;
       return state.homeColumnTiles?.[player]?.[step] ?? null;
     }
@@ -10699,6 +10712,12 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount, onlin
       tokenStyleOption,
       tokenPieceByPlayer
     );
+    if (cancelled) {
+      disposeBoardGroup(boardGroup);
+      disposeChairAssets(chairTemplate, chairMaterials);
+      tableInfo.dispose?.();
+      return;
+    }
     diceRef.current = boardData.dice;
     turnIndicatorRef.current = boardData.turnIndicator;
     configureDiceAnchors({ dice: boardData.dice, boardGroup, chairs, tableInfo });
@@ -10743,6 +10762,11 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount, onlin
       animation: null
     };
 
+    setUi((current) => ({
+      ...current,
+      status: onlineContextRef.current?.tableId ? 'Connecting to the table…' : 'Your turn — dice rolling soon'
+    }));
+
     updateTokenStacks();
 
     applyRailLayout();
@@ -10785,7 +10809,7 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount, onlin
         !rollFn ||
         !state ||
         state.turn !== 0 ||
-        state.winner ||
+        state.winner != null ||
         state.animation ||
         dice.userData?.isRolling ||
         humanSelectionRef.current
@@ -10849,7 +10873,7 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount, onlin
     };
     const attemptWeaponQuickSwap = (clientX, clientY) => {
       const state = stateRef.current;
-      if (!state || state.turn !== 0 || state.animation || state.winner) return false;
+      if (!state || state.turn !== 0 || state.animation || state.winner != null) return false;
       const humanEntry = parkedCaptureVehiclesRef.current.get(0);
       const interactiveTargets = [humanEntry?.actionButtonHit, humanEntry?.weaponRackHit].filter(Boolean);
       if (!interactiveTargets.length) return false;
@@ -11307,10 +11331,17 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount, onlin
 
     };
 
-    setupScene();
+    setupScene().catch((error) => {
+      if (cancelled) return;
+      console.error('Failed to initialize Ludo board', error);
+      setUi((current) => ({ ...current, status: 'The board could not load. Open Menu to retry.' }));
+    });
 
     return () => {
       cancelled = true;
+      onlinePresentationVersionRef.current += 1;
+      clearHumanRollTimeout();
+      clearTurnAdvanceTimeout();
       clearHumanSelection();
       cancelAnimationFrame(animationId);
       if (aiTimeoutRef.current) {
@@ -13020,7 +13051,7 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount, onlin
       if (player !== 0) return false;
       if (lockUserTurnSeatViewRef.current || humanSelectionRef.current) return true;
       const state = stateRef.current;
-      if (!state || state.winner) return false;
+      if (!state || state.winner != null) return false;
       return state.turn === 0;
     },
     []
@@ -13222,7 +13253,7 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount, onlin
       const idx = (PLAYER_START_INDEX[player] + progress) % RING_STEPS;
       return state.paths[idx].clone().add(TOKEN_TRACK_LIFT.clone());
     }
-    if (progress < RING_STEPS + HOME_STEPS) {
+    if (progress < GOAL_PROGRESS) {
       const homeStep = progress - RING_STEPS;
       return state.homeColumns[player][homeStep].clone().add(TOKEN_TRACK_LIFT.clone());
     }
@@ -13354,17 +13385,7 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount, onlin
     if (targetProgress < 0 || targetProgress >= RING_STEPS) return 0;
     const landingIdx = getTrackIndexForProgress(player, targetProgress);
     if (landingIdx == null) return 0;
-    let captures = 0;
-    for (let opponent = 0; opponent < activePlayerCount; opponent += 1) {
-      if (opponent === player) continue;
-      for (let t = 0; t < 4; t += 1) {
-        const prog = state.progress[opponent][t];
-        if (prog < 0 || prog >= RING_STEPS) continue;
-        const idx = getTrackIndexForProgress(opponent, prog);
-        if (idx === landingIdx) captures += 1;
-      }
-    }
-    return captures;
+    return getLudoCaptureVictims(state.progress, player, targetProgress, PLAYER_START_INDEX).length;
   };
 
   const countOwnStacking = (state, player, targetProgress, ignoreToken) => {
@@ -13487,7 +13508,7 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount, onlin
       aiTimeoutRef.current = window.setTimeout(() => {
         aiTimeoutRef.current = null;
         const nextState = stateRef.current;
-        if (!nextState || nextState.winner) return;
+        if (!nextState || nextState.winner != null) return;
         if (nextState.turn === 0) return;
         if (nextState.animation) {
           queueAiRoll(Math.min(400, delay));
@@ -13517,62 +13538,48 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount, onlin
     }, 2000 + DICE_RESULT_EXTRA_HOLD_MS);
   }, [setUi]);
 
-  const advanceTurn = (extraTurn) => {
+  const advanceTurn = (extraTurn, reason = 'six') => {
     if (onlineContextRef.current?.tableId) return;
     clearTurnAdvanceTimeout();
     clearHumanSelection();
     cancelCameraFocusAnimation();
-    let nextTurn = 0;
-    let updated = false;
-    setUi((s) => {
-      if (s.winner) return s;
-      const playerCycle = Math.max(1, activePlayerCount);
-      nextTurn = extraTurn ? s.turn : (s.turn + playerCycle - 1) % playerCycle;
-      const state = stateRef.current;
-      if (state) state.turn = nextTurn;
-      updateTurnIndicator(nextTurn);
-      const shouldLockHumanCamera = nextTurn === 0;
-      preserveUserTurnCameraRef.current = shouldLockHumanCamera;
-      lockUserTurnSeatViewRef.current = shouldLockHumanCamera;
-      if (!shouldLockHumanCamera) {
-        setCameraViewForTurn(nextTurn);
-        setCameraFocus({ target: resolveTurnLookTarget(nextTurn), priority: 1, force: true });
-      } else {
-        setCameraViewForTurn(0, CAMERA_TURN_VIEW_DURATION_MS, { force: true });
-      }
-      if (diceRef.current && !shouldLockHumanCamera) {
-        setCameraFocus({
-          object: diceRef.current,
-          follow: true,
-          priority: 4,
-          force: true,
-          offset: CAMERA_TARGET_LIFT + 0.022
-        });
-      }
-      updated = true;
-      const status =
-        nextTurn === 0
-          ? extraTurn
-            ? 'You rolled a 6 — rolling again'
-            : 'Your turn — dice rolling soon'
-          : extraTurn
-          ? `${COLOR_NAMES[nextTurn]} rolled a 6 — rolling again`
-          : `${COLOR_NAMES[nextTurn]} to roll`;
-      return {
-        ...s,
-        turn: nextTurn,
-        turnCycle: (s.turnCycle ?? 0) + 1,
-        status
-      };
-    });
-    if (!updated) {
-      if (aiTimeoutRef.current) {
-        clearTimeout(aiTimeoutRef.current);
-        aiTimeoutRef.current = null;
-      }
-      clearHumanRollTimeout();
-      return;
+    const state = stateRef.current;
+    if (!state || state.winner != null) return;
+    // Commit the turn before scheduling work. React may defer state updaters,
+    // so timers and scene mutations must not depend on an updater running now.
+    const playerCycle = Math.max(1, activePlayerCount);
+    const nextTurn = extraTurn ? state.turn : (state.turn + playerCycle - 1) % playerCycle;
+    state.turn = nextTurn;
+    state.pendingRoll = null;
+    updateTurnIndicator(nextTurn);
+    const shouldLockHumanCamera = nextTurn === 0;
+    preserveUserTurnCameraRef.current = shouldLockHumanCamera;
+    lockUserTurnSeatViewRef.current = shouldLockHumanCamera;
+    if (!shouldLockHumanCamera) {
+      setCameraViewForTurn(nextTurn);
+      setCameraFocus({ target: resolveTurnLookTarget(nextTurn), priority: 1, force: true });
+    } else {
+      setCameraViewForTurn(0, CAMERA_TURN_VIEW_DURATION_MS, { force: true });
     }
+    if (diceRef.current && !shouldLockHumanCamera) {
+      setCameraFocus({
+        object: diceRef.current,
+        follow: true,
+        priority: 4,
+        force: true,
+        offset: CAMERA_TARGET_LIFT + 0.022
+      });
+    }
+    const actor = nextTurn === 0 ? 'You' : COLOR_NAMES[nextTurn];
+    const status = extraTurn
+      ? `${actor} ${reason === 'capture' ? 'captured a token' : 'rolled a 6'} — rolling again`
+      : nextTurn === 0 ? 'Your turn — dice rolling soon' : `${actor} to roll`;
+    setUi((current) => ({
+      ...current,
+      turn: nextTurn,
+      turnCycle: (current.turnCycle ?? 0) + 1,
+      status
+    }));
     scheduleDiceClear();
     if (nextTurn === 0) {
       clearHumanRollTimeout();
@@ -13591,20 +13598,7 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount, onlin
   const getCaptureVictims = (player, landingProgress) => {
     const state = stateRef.current;
     if (!state) return [];
-    if (landingProgress < 0 || landingProgress >= RING_STEPS) return [];
-    const landingIdx = (PLAYER_START_INDEX[player] + landingProgress) % RING_STEPS;
-    const victims = [];
-    for (let p = 0; p < activePlayerCount; p++) {
-      if (p === player) continue;
-      for (let t = 0; t < 4; t++) {
-        if (state.progress[p][t] < 0 || state.progress[p][t] >= RING_STEPS) continue;
-        const idx = (PLAYER_START_INDEX[p] + state.progress[p][t]) % RING_STEPS;
-        if (idx === landingIdx) {
-          victims.push({ player: p, token: t });
-        }
-      }
-    }
-    return victims;
+    return getLudoCaptureVictims(state.progress, player, landingProgress, PLAYER_START_INDEX);
   };
 
   const applyCaptureVictims = (victims = []) => {
@@ -13630,11 +13624,17 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount, onlin
     const allHome = state.progress[player].every((p) => p >= GOAL_PROGRESS);
     if (allHome) {
       state.winner = player;
+      state.pendingRoll = null;
+      clearTurnAdvanceTimeout();
+      if (aiTimeoutRef.current) {
+        clearTimeout(aiTimeoutRef.current);
+        aiTimeoutRef.current = null;
+      }
       clearHumanSelection();
       setUi((s) => ({
         ...s,
-        winner: COLOR_NAMES[player],
-        status: `${COLOR_NAMES[player]} wins!`
+        winner: player === 0 ? 'You' : COLOR_NAMES[player],
+        status: player === 0 ? 'You win!' : `${COLOR_NAMES[player]} wins!`
       }));
       clearHumanRollTimeout();
       playCheer();
@@ -13646,7 +13646,8 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount, onlin
 
   const moveToken = (player, tokenIndex, roll, options = {}) => {
     const state = stateRef.current;
-    if (!state) return;
+    if (!state || state.winner != null || state.animation || state.turn !== player) return;
+    if (!getLudoMovableTokens(state.progress[player], roll).includes(tokenIndex)) return;
     const online = onlineContextRef.current;
     if (online?.tableId) {
       if (player !== 0 || state.turn !== 0) return;
@@ -13689,15 +13690,17 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount, onlin
     const captureVictims = getCaptureVictims(player, target);
     const hasCapture = captureVictims.length > 0;
     const finalizeMove = () => {
+      if (stateRef.current !== state) return;
       const finalPos = getWorldForProgress(player, target, tokenIndex);
       state.progress[player][tokenIndex] = target;
       state.tokens[player][tokenIndex].position.copy(finalPos);
       applyTokenFacingRotation(state.tokens[player][tokenIndex]);
       updateTokenStacks();
       const winner = checkWin(player);
-      advanceTurn(!winner && roll === 6);
+      if (!winner) advanceTurn(roll === 6 || hasCapture, hasCapture ? 'capture' : 'six');
     };
     const applyResult = async () => {
+      if (stateRef.current !== state) return;
       applyCaptureVictims(captureVictims);
       finalizeMove();
     };
@@ -13721,6 +13724,7 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount, onlin
         targetPosition: victimPos,
         impactPosition: impactPos
       }).then(() => {
+        if (stateRef.current !== state) return;
         applyCaptureVictims(captureVictims);
         if (entering || target !== current) {
           scheduleMove(player, tokenIndex, target, finalizeMove, { skipCameraFollow, enteringMove: entering });
@@ -13728,6 +13732,7 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount, onlin
         }
         finalizeMove();
       }).catch(() => {
+        if (stateRef.current !== state) return;
         applyCaptureVictims(captureVictims);
         if (entering || target !== current) {
           scheduleMove(player, tokenIndex, target, finalizeMove, { skipCameraFollow, enteringMove: entering });
@@ -13745,17 +13750,10 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount, onlin
   const getMovableTokens = (player, roll) => {
     const state = stateRef.current;
     if (!state) return [];
-    const list = [];
-    for (let i = 0; i < 4; i++) {
-      const prog = state.progress[player][i];
-      if (prog < 0) {
-        if (roll === 6) list.push({ token: i, entering: true });
-        continue;
-      }
-      const target = prog + roll;
-      if (target <= GOAL_PROGRESS) list.push({ token: i, entering: false });
-    }
-    return list;
+    return getLudoMovableTokens(state.progress[player], roll).map((token) => ({
+      token,
+      entering: state.progress[player][token] < 0
+    }));
   };
 
   const sampleHumanActionHelperPosition = useCallback((player, helperKey, out) => {
@@ -13829,13 +13827,13 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount, onlin
 
   const rollDice = async () => {
     const state = stateRef.current;
-    clearHumanRollTimeout();
-    clearTurnAdvanceTimeout();
-    clearHumanSelection();
-    if (!state || state.winner) return;
-    if (state.animation) return;
     const dice = diceRef.current;
-    if (!dice || dice.userData?.isRolling) return;
+    if (!dice || !canRollLudoDice(state, {
+      rolling: dice.userData?.isRolling,
+      selecting: Boolean(humanSelectionRef.current),
+      resolving: Boolean(turnAdvanceTimeoutRef.current)
+    })) return;
+    clearHumanRollTimeout();
     const player = state.turn;
     const online = onlineContextRef.current;
     if (online?.tableId) {
@@ -13892,13 +13890,17 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount, onlin
     }
     beginDiceThrowPose(player, { lateral: throwLateral, forward: throwForward });
     await syncDiceToThrowHand(player, dice, { duration: 12 });
+    if (stateRef.current !== state) return;
     const landingFocus = baseTarget.clone();
     const value = await spinDice(dice, {
       duration: resolveFrameSyncedDuration(AUTO_ROLL_DURATION_MS, { min: 620, max: 1800 }),
       targetPosition: baseTarget,
-      bounceHeight: dice.userData?.bounceHeight ?? 0.06
+      bounceHeight: dice.userData?.bounceHeight ?? 0.06,
+      isCurrent: () => stateRef.current === state
     });
+    if (stateRef.current !== state) return;
     dice.userData.isRolling = false;
+    state.pendingRoll = value;
     seatedHumanActionRef.current = {
       ...seatedHumanActionRef.current,
       rollEndMs: performance.now()
@@ -13973,6 +13975,17 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount, onlin
     if (localServerIndex < 0) return;
     const remoteRevision = Number(remote.revision) || 0;
     if (Number.isFinite(state.onlineRevision) && remoteRevision < state.onlineRevision) return;
+    // Duplicate actions must not replay. A sync with the same revision can
+    // still restore input after a failed request or reconnect.
+    if (remoteRevision === state.onlineRevision && payload.action?.type !== 'sync') return;
+    const presentationVersion = ++onlinePresentationVersionRef.current;
+    const isCurrent = () => stateRef.current === state &&
+      onlinePresentationVersionRef.current === presentationVersion;
+    clearTurnAdvanceTimeout();
+    if (state.animation) {
+      clearAnimationHighlights(state.animation);
+      state.animation = null;
+    }
     const count = Math.min(activePlayerCount, remote.players.length);
     const toVisual = (serverIndex) => (localServerIndex - serverIndex + count) % count;
     const action = payload.action || {};
@@ -14027,6 +14040,9 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount, onlin
     }));
     if (diceRef.current) diceRef.current.userData.isRolling = false;
     clearHumanSelection();
+    if (action.type !== 'roll' && remote.pendingRoll != null) {
+      diceRef.current?.userData?.setValue?.(remote.pendingRoll);
+    }
     if (action.type === 'roll' && Number.isInteger(action.roll) && diceRef.current) {
       const dice = diceRef.current;
       const baseHeight = dice.userData?.baseHeight ?? DICE_BASE_HEIGHT;
@@ -14062,13 +14078,15 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount, onlin
       playDiceSound();
       beginDiceThrowPose(presentedTurn, { lateral: throwLateral, forward: throwForward });
       void syncDiceToThrowHand(presentedTurn, dice, { duration: 12 })
-        .then(() => spinDice(dice, {
+        .then(() => isCurrent() ? spinDice(dice, {
           duration: resolveFrameSyncedDuration(AUTO_ROLL_DURATION_MS, { min: 620, max: 1800 }),
           targetPosition,
           bounceHeight: dice.userData?.bounceHeight ?? 0.06,
-          value: action.roll
-        }))
+          value: action.roll,
+          isCurrent
+        }) : null)
         .finally(() => {
+          if (!isCurrent()) return;
           dice.userData.isRolling = false;
           seatedHumanActionRef.current = { ...seatedHumanActionRef.current, rollEndMs: performance.now() };
           setUi((current) => ({ ...current, dice: action.roll }));
@@ -14080,16 +14098,16 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount, onlin
             offset: CAMERA_TARGET_LIFT + 0.03,
             force: true
           });
-          if (stateRef.current?.turn === 0 && remote.pendingRoll != null) {
-            const options = getMovableTokens(0, remote.pendingRoll);
-            if (options.length) {
-              window.setTimeout(() => beginHumanSelection(remote.pendingRoll, options), DICE_RESULT_CAMERA_HOLD_MS);
+          turnAdvanceTimeoutRef.current = window.setTimeout(() => {
+            turnAdvanceTimeoutRef.current = null;
+            if (!isCurrent()) return;
+            if (state.turn === 0 && state.onlinePendingRoll != null) {
+              const options = getMovableTokens(0, state.onlinePendingRoll);
+              if (options.length) beginHumanSelection(state.onlinePendingRoll, options);
             }
-          }
-          window.setTimeout(() => {
-            if (stateRef.current?.turn !== presentedTurn) {
-              updateTurnIndicator(stateRef.current.turn, false);
-              setCameraViewForTurn(stateRef.current.turn, CAMERA_TURN_VIEW_DURATION_MS, { force: true });
+            if (state.turn !== presentedTurn) {
+              updateTurnIndicator(state.turn, false);
+              setCameraViewForTurn(state.turn, CAMERA_TURN_VIEW_DURATION_MS, { force: true });
             }
           }, DICE_RESULT_CAMERA_HOLD_MS);
         });
@@ -14107,6 +14125,7 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount, onlin
       const movingNode = state.tokens?.[movingPlayer]?.[movingToken];
       movingNode?.position.copy(getWorldForProgress(movingPlayer, previousMoveProgress, movingToken));
       scheduleMove(movingPlayer, movingToken, Number(action.to), () => {
+        if (!isCurrent()) return;
         state.progress = authoritativeProgress;
         state.progress.forEach((tokens, player) => tokens.forEach((progress, token) => {
           const node = state.tokens?.[player]?.[token];
@@ -14118,7 +14137,7 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount, onlin
       const options = getMovableTokens(0, remote.pendingRoll);
       if (options.length) beginHumanSelection(remote.pendingRoll, options);
     }
-    pendingOnlineStateRef.current = null;
+    pendingOnlineStateRef.current = { ...payload, action: { type: 'sync' } };
   };
 
   useEffect(() => {
@@ -14146,6 +14165,15 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount, onlin
       className="fixed inset-0 bg-[#0c1020] text-white touch-pan-y select-none"
     >
       <div className="absolute inset-0 pointer-events-none">
+        <div
+          role="status"
+          aria-live="polite"
+          aria-atomic="true"
+          className="absolute left-1/2 z-20 w-max max-w-[calc(100%-1.5rem)] -translate-x-1/2 rounded-xl border border-white/15 bg-black/80 px-3 py-2 text-center text-sm text-white"
+          style={{ bottom: 'max(0.75rem, env(safe-area-inset-bottom))' }}
+        >
+          {ui.status}
+        </div>
         {weaponSwapPopup && (
           <div
             className="pointer-events-auto absolute z-30 w-[min(96vw,25rem)] max-h-[68vh] overflow-hidden rounded-2xl border border-white/20 bg-black/88 p-2.5 shadow-2xl backdrop-blur"
@@ -14334,10 +14362,20 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount, onlin
                   </button>
                   <button
                     type="button"
+                    onClick={() => {
+                      setShowInfo(true);
+                      setConfigOpen(false);
+                    }}
+                    className="w-full min-h-[44px] rounded-lg bg-white/10 py-2 text-center text-sm font-semibold text-white transition hover:bg-white/20"
+                  >
+                    How to play
+                  </button>
+                  <button
+                    type="button"
                     onClick={() => window.location.reload()}
                     className="w-full rounded-lg bg-emerald-500/20 py-2 text-center text-[0.7rem] font-semibold text-emerald-200 transition hover:bg-emerald-500/30"
                   >
-                    Restart game
+                    {isOnlineMatch ? 'Reconnect to game' : 'Restart game'}
                   </button>
                 </div>
               </div>
@@ -14481,7 +14519,7 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount, onlin
           open={showInfo}
           onClose={() => setShowInfo(false)}
           title="Ludo Battle Royal"
-          info="Roll the dice to move your tokens around the track. Bring all four tokens home to win. Landing on an opponent sends them back to start."
+          info="Roll a 6 to bring a token onto the board, then tap a highlighted token to move. Rolls of 6 and captures earn another turn. Starting squares and stars are safe. Land on an opponent elsewhere to send them back to start. Bring all four tokens home with exact rolls to win."
         />
       </div>
       <div className="pointer-events-auto">
