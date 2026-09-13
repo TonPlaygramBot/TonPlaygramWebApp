@@ -16,34 +16,32 @@ import { WorldEnhancements } from '../tirana-expansion/WorldEnhancements';
 export class TiranaCityScene {
   readonly group = new T.Group();
   readonly city: FpsCity;
-  readonly enhancements?: WorldEnhancements;
-  readonly details?: UrbanDetailLayer;
+  readonly enhancements: WorldEnhancements;
+  readonly details: UrbanDetailLayer;
   private disposed = false;
-  constructor(loadAssets = true, track?: StreetDetailOptions['track'], enhanced = true) {
-    if(enhanced)this.enhancements = new WorldEnhancements({ profile: 'fps', track });
+  constructor(loadAssets = true, track?: StreetDetailOptions['track']) {
+    this.enhancements = new WorldEnhancements({ profile: 'fps', track });
     this.city = new FpsCity(loadAssets, track ? ribbonExclusion(track) : undefined);
     const excluded = new Set([...nativeReplacementIds(WORLD), ...Object.keys(BUILDING_PROFILES), ...INSTITUTION_BUILDING_IDS, ...FUEL_CANOPY_IDS]);
-    if(enhanced)this.details = new UrbanDetailLayer(WORLD, excluded, { roofsOnly: true });
+    this.details = new UrbanDetailLayer(WORLD, excluded, { roofsOnly: true });
     this.group.name = 'Shared Tirana Streets city';
     this.group.userData = this.city.group.userData;
-    this.group.add(this.city.group);
-    if(this.enhancements)this.group.add(this.enhancements.group);
-    if(this.details)this.group.add(this.details.group);
-    this.enhancements?.bindBuildings(this.city.group, [this.city.landmarks.group, this.city.referenceFacades.group]);
+    this.group.add(this.city.group, this.enhancements.group, this.details.group);
+    this.enhancements.bindBuildings(this.city.group, [this.city.landmarks.group, this.city.referenceFacades.group]);
   }
   update(viewer: T.Vector3, seconds: number, battery: boolean, camera?: T.PerspectiveCamera) {
     if (this.disposed) return;
     beginCityFrame(camera?.userData.targetFps ?? 60);
     this.city.update(viewer, seconds, battery);
-    this.enhancements?.update(seconds, camera, viewer, battery);
-    this.details?.update(viewer, battery);
+    this.enhancements.update(seconds, camera, viewer, battery);
+    this.details.update(viewer, battery);
   }
   dispose() {
     if (this.disposed) return;
     this.disposed = true;
     this.group.removeFromParent();
-    this.enhancements?.dispose();
-    this.details?.dispose();
+    this.enhancements.dispose();
+    this.details.dispose();
     this.city.dispose();
   }
 }

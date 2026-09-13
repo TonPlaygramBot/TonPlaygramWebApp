@@ -1,4 +1,3 @@
-import {DEVELOPMENT_BUILDINGS} from '../../tirana-construction/developmentBuildings.mjs';
 import {BUSINESS_BUILDING_PARTS} from '../../tirana-city-source/businessBuildingProfiles.mjs';
 // Source-backed east/south neighbourhood extension; central snapshot retained verbatim.
 import {WORLD as CENTRAL_WORLD} from './centralWorld.mjs';
@@ -12,5 +11,3 @@ export const WORLD=extendNeighbourhood(extendNeighbourhood(CENTRAL_WORLD,NEIGHBO
 WORLD.buildings=WORLD.buildings.map(b=>{const observed=OBSERVED_HEIGHTS[b.id];return observed?{...b,h:observed.height,originalHeight:b.h,heightBasis:observed.basis,visualHeightSource:observed.source}:b;});
 
 WORLD.buildings.push(...BUSINESS_BUILDING_PARTS);
-
-WORLD.buildings.push(...DEVELOPMENT_BUILDINGS);

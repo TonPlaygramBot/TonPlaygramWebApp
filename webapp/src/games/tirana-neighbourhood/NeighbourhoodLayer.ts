@@ -22,7 +22,6 @@ export class NeighbourhoodLayer {
  private parkFurniture=new ParkFurniture();
  private labels:StreetLifeLayer;
  private loader=new GLTFLoader();
- private buildingById=new Map(NEIGHBOURHOOD.buildings.map(b=>[b.id,b]));
  private near:(p:{x:number;z:number},r:number,n:number)=>Site[];
  private kits=new Map<string,T.InstancedMesh[]>();
  private heroes=new Map<string,{object:T.Object3D;x:number;z:number}>();
@@ -60,7 +59,7 @@ export class NeighbourhoodLayer {
    if(this.dead){disposeLoaded(gltf.scene);return;}
    this.own(gltf.scene);
    if(hero){
-    const b=this.buildingById.get(hero.id);if(!b)return;
+    const b=NEIGHBOURHOOD.buildings.find(b=>b.id===hero.id);if(!b)return;
     const x=b.p.reduce((s:number,p:number[])=>s+p[0]/b.p.length,0),z=b.p.reduce((s:number,p:number[])=>s+p[1]/b.p.length,0);
     gltf.scene.position.set(x,0,z);gltf.scene.name=hero.name;this.group.add(gltf.scene);this.heroes.set(hero.id,{object:gltf.scene,x,z});
     const fallback=this.mapped.heroFallbacks.get(hero.id);if(fallback)fallback.visible=false;
@@ -87,7 +86,7 @@ export class NeighbourhoodLayer {
   this.mapped.update(viewer,battery);
   if(seconds>=this.last&&seconds-this.last<.2)return;this.last=seconds;
   this.parkFurniture.update(viewer,battery);
-  for(const hero of ALL_HEROES){const b=this.buildingById.get(hero.id);if(!b)continue;const p=b.p[0];
+  for(const hero of ALL_HEROES){const b=NEIGHBOURHOOD.buildings.find(b=>b.id===hero.id);if(!b)continue;const p=b.p[0];
    if(Math.hypot(p[0]-viewer.x,p[1]-viewer.z)<(hero.asset==='grand'?(battery?200:350):COMPLETED_BUILDING_IDS.has(hero.id)?(battery?120:240):1000))this.request(hero.asset,hero);
   }
   for(const [id,h] of this.heroes){h.object.visible=Math.hypot(h.x-viewer.x,h.z-viewer.z)<(id==='548100908'?(battery?240:420):(battery?720:1100));const fallback=this.mapped.heroFallbacks.get(id);if(fallback)fallback.visible=!h.object.visible;}
