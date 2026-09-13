@@ -1,6 +1,6 @@
 # Tirana Streets gameplay update
 
-Based on `main` at `105f65e`.
+Based on `main` at `105f65e`, then merged cleanly with `38b15d4`.
 
 ## Player-facing changes
 
@@ -23,7 +23,7 @@ Game modes load separately. Core city and player assets load together; optional 
 
 ## Verification
 
-The focused eight-file gameplay regression run passed **108 tests**, including real GLTF parsing, weapon loading, save migration, ammo and pickup behavior, progression, first-person camera geometry, driving, character masking and pointer controls. The existing crowd-cap assertion was brought into agreement with the unchanged 72/28 limits already on `main`.
+The focused eight-file gameplay regression run passed **108 tests**, including real GLTF parsing, weapon loading, save migration, ammo and pickup behavior, progression, first-person camera geometry, driving, character masking and pointer controls. The final pickup/driver/original-asset run after removing decorative firearm props passed **35 tests**. The existing crowd-cap assertion was brought into agreement with the unchanged 72/28 limits already on `main`.
 
 ```sh
 node --test --test-concurrency=2 test/tiranaFullBodyCareer.test.mjs test/tiranaFullBodyPresentation.test.mjs test/tiranaStreetCareer.test.mjs test/tiranaStreetCareer.integration.test.mjs test/tiranaGameplayOverhaul.test.mjs test/tiranaGameplayPresentation.test.mjs test/tiranaDriverBattlefield.test.mjs test/tiranaPlayerExperience.test.mjs
@@ -32,8 +32,8 @@ node webapp/node_modules/typescript/bin/tsc -p webapp/tsconfig.tirana-gameplay.j
 npm run build --prefix webapp
 ```
 
-The production build, including original-asset integrity verification, and the dependency-aware Tirana typecheck passed. Vite still warns about large existing city/world chunks.
+The production build, including original-asset integrity verification, and the dependency-aware Tirana typecheck passed again after merging `38b15d4`. Vite still warns about large existing city/world chunks.
 
-The repository-wide TypeScript check has **234 diagnostics**. A TypeScript compiler-host comparison with the original `105f65e` contents produced the same 234 diagnostics and **zero new diagnostics**. This update does not suppress or remove that gate.
+The repository-wide TypeScript check has **236 diagnostics** after syncing `38b15d4`. A TypeScript compiler-host comparison produced the same 236 diagnostics on that `main` source and this branch, with **zero new diagnostics**. The earlier comparison against `105f65e` likewise had 234 diagnostics on both versions. This update does not suppress or remove that gate.
 
 Browser verification remains incomplete: the controlled browser rejected the local game URL with `ERR_BLOCKED_BY_CLIENT`; the existing Playwright test could not launch because Chromium was unavailable, and its normal installer timed out. No successful browser screenshots, physical-device performance result or end-to-end visual approval is claimed. Check weapon alignment, phone touch layout and hill/collision camera transitions in the actual game before release.

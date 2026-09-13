@@ -1,3 +1,6 @@
+import { calibrateHandRig, applyHandGrip } from '../../games/chess/anatomicalHand.ts';
+import { PHYSICAL_MOVE_DURATION_MS, samplePhysicalMove, updatePhysicalPieceMove, rotateJointToTarget, normalizeRigBoneName } from '../../games/chess/physicalPieceMove.ts';
+import { START_FEN, PROMOTIONS, parseFEN, boardToFEN, cloneBoard, boardToWireBoard, parseWireBoard, inBoard, genMoves, findKing, isSquareAttacked, applyMove, revertMove, isPlayerInCheck, generateMoves, legalMoves, anyLegal, enPassantCaptureSquare, getBoardState, setBoardState, positionKey, getGameOutcome, getTimeoutOutcome, DRAW_LABELS } from '../../games/chess/chessRules.mjs';
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import * as THREE from 'three';
@@ -88,7 +91,7 @@ import { SNAKE_FPS_GUN_MODEL_CONFIG } from '../../config/snakeWeaponCatalog.js';
  * • Minimal UI: status bar (turn, check, mate), reset
  * • Control: click to select a piece, click one of the highlighted targets to move it
  *
- * Note: for simplicity, this version omits en passant. We can add it easily.
+ * Rules are shared with the authoritative online server, including special moves and draws.
  */
 
 // ========================= Config =========================
@@ -1011,13 +1014,13 @@ const FPV_BOB_AMPLITUDE = 0.0;
 const FPV_LOOK_DRAG_SPEED = 0.0045;
 const FPV_LOOK_YAW_LIMIT = THREE.MathUtils.degToRad(18);
 const FPV_LOOK_PITCH_LIMIT = THREE.MathUtils.degToRad(12);
-const SEATED_HUMAN_MOVE_DURATION_MS = 520; // Slightly longer to keep finger contact readable during pickup/carry/place.
+const SEATED_HUMAN_MOVE_DURATION_MS = PHYSICAL_MOVE_DURATION_MS;
 const SEATED_HUMAN_PICKUP_PHASE_END = 0.24;
 const SEATED_HUMAN_CARRY_PHASE_END = 0.8;
 const SEATED_HUMAN_ATTACK_CARRY_PHASE_END = 0.93;
 const SEATED_HUMAN_HAND_GRIP_HEIGHT = 0.004;
 const SEATED_HUMAN_HAND_DROP_CLEARANCE = 0.01;
-const SEATED_HUMAN_CONTACT_HELPERS_ENABLED = true;
+const SEATED_HUMAN_CONTACT_HELPERS_ENABLED = false;
 const SEATED_HUMAN_HAND_HELPER_RADIUS = 0.018;
 const SEATED_HUMAN_PIECE_HELPER_RADIUS = 0.02;
 const SEATED_HUMAN_FINGER_HELPER_RADIUS = 0.012;
@@ -1149,7 +1152,7 @@ function detectCoarsePointer() {
 }
 
 function normalizeBoneName(name = '') {
-  return String(name).toLowerCase().replace(/[^a-z0-9]/g, '');
+  return normalizeRigBoneName(name);
 }
 
 function findBoneByNeedle(bones, ...needles) {
@@ -1176,7 +1179,7 @@ function saveBoneRig(modelRoot) {
       position: bone.position.clone()
     });
   });
-  return {
+  const rig = {
     saved,
     hips: findBoneByNeedle(bones, 'hips', 'pelvis'),
     spine: findBoneByNeedle(bones, 'spine'),
@@ -1248,6 +1251,8 @@ function saveBoneRig(modelRoot) {
       findBoneByNeedle(bones, 'rightpinky3')
     ].filter(Boolean)
   };
+  calibrateHandRig(rig);
+  return rig;
 }
 
 function resetBoneRig(rig) {
@@ -1281,62 +1286,17 @@ function smooth01(v) {
   return t * t * (3 - 2 * t);
 }
 
-function curlFingerChain(rig, chain = [], amount = 0, sideSpread = 0) {
-  const grip = clamp(amount, 0, 1);
-  const weaponFist = smooth01(Math.max(0, grip - 0.78) / 0.22);
-  chain.forEach((bone, index) => {
-    const curl = index === 0
-      ? THREE.MathUtils.lerp(-0.38, -0.52, weaponFist)
-      : THREE.MathUtils.lerp(-0.72, -0.96, weaponFist);
-    const side = index === 0 ? sideSpread : sideSpread * 0.25;
-    addBoneRot(rig, bone, curl * grip, 0.03 * grip, side * grip);
-  });
-}
-
 function applyRightHandGrip(rig, gripAmount = 0) {
-  if (!rig) return;
-  const grip = clamp(gripAmount, 0, 1);
-  const open = 1 - grip;
-  curlFingerChain(rig, rig.rightIndex, grip, -0.08 + 0.08 * open);
-  curlFingerChain(rig, rig.rightMiddle, grip, -0.02);
-  curlFingerChain(rig, rig.rightRing, grip, 0.04 - 0.04 * open);
-  curlFingerChain(rig, rig.rightPinky, grip, 0.09 - 0.06 * open);
-  (rig.rightThumb || []).forEach((bone, index) => {
-    const fold = index === 0 ? -0.28 : -0.48;
-    addBoneRot(rig, bone, fold * grip, -0.24 * grip, 0.22 * grip);
-  });
+  if (rig) applyHandGrip(rig, 'right', gripAmount);
 }
 
 function applyLeftHandSupportGrip(rig, gripAmount = 0) {
-  if (!rig) return;
-  const grip = clamp(gripAmount, 0, 1);
-  curlFingerChain(rig, rig.leftIndex, grip * 0.86, 0.08);
-  curlFingerChain(rig, rig.leftMiddle, grip * 0.9, 0.03);
-  curlFingerChain(rig, rig.leftRing, grip * 0.82, -0.02);
-  curlFingerChain(rig, rig.leftPinky, grip * 0.76, -0.06);
-  (rig.leftThumb || []).forEach((bone, index) => {
-    const fold = index === 0 ? -0.2 : -0.38;
-    addBoneRot(rig, bone, fold * grip, 0.2 * grip, -0.18 * grip);
-  });
+  if (rig) applyHandGrip(rig, 'left', gripAmount);
 }
 
 function rotateBoneTowardTarget(rig, bone, endBone, targetWorld, strength = 0.5) {
   if (!rig || !bone || !endBone || !targetWorld) return;
-  const axisFrom = endBone.getWorldPosition(new THREE.Vector3()).sub(
-    bone.getWorldPosition(new THREE.Vector3())
-  );
-  const axisTo = targetWorld.clone().sub(bone.getWorldPosition(new THREE.Vector3()));
-  if (axisFrom.lengthSq() < 1e-6 || axisTo.lengthSq() < 1e-6) return;
-  axisFrom.normalize();
-  axisTo.normalize();
-  const deltaQuat = new THREE.Quaternion().setFromUnitVectors(axisFrom, axisTo);
-  const blendQuat = new THREE.Quaternion().slerpQuaternions(
-    new THREE.Quaternion(),
-    deltaQuat,
-    THREE.MathUtils.clamp(strength, 0, 1)
-  );
-  bone.quaternion.premultiply(blendQuat);
-  bone.updateMatrixWorld(true);
+  rotateJointToTarget(bone, endBone.getWorldPosition(new THREE.Vector3()), targetWorld, strength);
 }
 
 function applyRightArmContactIK(rig, targetWorld, strength = 0.5) {
@@ -8178,328 +8138,6 @@ const BUILDERS = {
   K: buildKing
 };
 
-// ======================= Game logic ========================
-// Standard starting position with black at the top and white at the bottom.
-const START_FEN = 'rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR';
-
-function parseFEN(fen) {
-  const rows = fen.split('/');
-  const board = [];
-  for (let r = 0; r < 8; r++) {
-    const row = [];
-    let i = 0;
-    for (const ch of rows[r]) {
-      if (/[1-8]/.test(ch)) {
-        const n = parseInt(ch, 10);
-        for (let k = 0; k < n; k++) row.push(null);
-      } else {
-        const isWhite = ch === ch.toUpperCase();
-        row.push({ t: ch.toUpperCase(), w: isWhite, hasMoved: false });
-      }
-      i++;
-    }
-    board.push(row);
-  }
-  return board;
-}
-
-function boardToFEN(board, whiteToMove = true) {
-  const rows = [];
-  for (let r = 0; r < 8; r += 1) {
-    let row = '';
-    let empty = 0;
-    for (let c = 0; c < 8; c += 1) {
-      const piece = board?.[r]?.[c];
-      if (!piece) {
-        empty += 1;
-        continue;
-      }
-      if (empty) {
-        row += String(empty);
-        empty = 0;
-      }
-      const symbol = piece.t || 'P';
-      row += piece.w ? symbol.toUpperCase() : symbol.toLowerCase();
-    }
-    if (empty) row += String(empty);
-    rows.push(row || '8');
-  }
-  return `${rows.join('/')}${whiteToMove ? ' w' : ' b'} - - 0 1`;
-}
-
-function cloneBoard(b) {
-  return b.map((r) => r.map((c) => (c ? { t: c.t, w: c.w, hasMoved: Boolean(c.hasMoved) } : null)));
-}
-
-function boardToWireBoard(board) {
-  if (!Array.isArray(board)) return null;
-  return board.map((row) =>
-    Array.isArray(row)
-      ? row.map((piece) =>
-          piece
-            ? {
-                t: piece.t,
-                w: Boolean(piece.w),
-                hasMoved: Boolean(piece.hasMoved)
-              }
-            : null
-        )
-      : Array(8).fill(null)
-  );
-}
-
-function parseWireBoard(wireBoard) {
-  if (!Array.isArray(wireBoard) || wireBoard.length !== 8) return null;
-  const next = wireBoard.map((row) => {
-    if (!Array.isArray(row) || row.length !== 8) return null;
-    return row.map((piece) => {
-      if (!piece) return null;
-      const type = String(piece.t || '').toUpperCase();
-      if (!['P', 'N', 'B', 'R', 'Q', 'K'].includes(type)) return null;
-      return { t: type, w: Boolean(piece.w), hasMoved: Boolean(piece.hasMoved) };
-    });
-  });
-  return next.every(Boolean) ? next : null;
-}
-
-// Offsets
-const DIRS = {
-  N: [-1, 0],
-  S: [1, 0],
-  E: [0, 1],
-  W: [0, -1],
-  NE: [-1, 1],
-  NW: [-1, -1],
-  SE: [1, 1],
-  SW: [1, -1]
-};
-const KN = [
-  [-2, -1],
-  [-2, 1],
-  [-1, -2],
-  [-1, 2],
-  [1, -2],
-  [1, 2],
-  [2, -1],
-  [2, 1]
-];
-
-function inBoard(r, c) {
-  return r >= 0 && r < 8 && c >= 0 && c < 8;
-}
-
-function genMoves(board, r, c) {
-  const piece = board[r][c];
-  if (!piece) return [];
-  const { t, w } = piece;
-  const moves = [];
-  const push = (rr, cc) => {
-    if (!inBoard(rr, cc)) return;
-    const dst = board[rr][cc];
-    if (!dst || dst.w !== w) moves.push([rr, cc]);
-  };
-
-  if (t === 'P') {
-    const dir = w ? -1 : 1;
-    const start = w ? 6 : 1;
-    const f1 = [r + dir, c];
-    if (inBoard(...f1) && !board[f1[0]][f1[1]]) {
-      moves.push(f1);
-      const f2 = [r + dir * 2, c];
-      if (r === start && !board[f2[0]][f2[1]]) moves.push(f2);
-    }
-    for (const dc of [-1, 1]) {
-      const rr = r + dir,
-        cc = c + dc;
-      if (inBoard(rr, cc) && board[rr][cc] && board[rr][cc].w !== w)
-        moves.push([rr, cc]);
-    }
-    // (no en passant here)
-  } else if (t === 'N') {
-    for (const [dr, dc] of KN) {
-      const rr = r + dr,
-        cc = c + dc;
-      push(rr, cc);
-    }
-  } else if (t === 'B' || t === 'R' || t === 'Q') {
-    const dirs = [];
-    if (t === 'B' || t === 'Q') dirs.push(DIRS.NE, DIRS.NW, DIRS.SE, DIRS.SW);
-    if (t === 'R' || t === 'Q') dirs.push(DIRS.N, DIRS.S, DIRS.E, DIRS.W);
-    for (const [dr, dc] of dirs) {
-      let rr = r + dr,
-        cc = c + dc;
-      while (inBoard(rr, cc)) {
-        if (board[rr][cc]) {
-          if (board[rr][cc].w !== w) moves.push([rr, cc]);
-          break;
-        }
-        moves.push([rr, cc]);
-        rr += dr;
-        cc += dc;
-      }
-    }
-  } else if (t === 'K') {
-    for (let dr = -1; dr <= 1; dr++)
-      for (let dc = -1; dc <= 1; dc++) {
-        if (dr || dc) push(r + dr, c + dc);
-      }
-  }
-  return moves;
-}
-
-function findKing(board, w) {
-  for (let r = 0; r < 8; r++)
-    for (let c = 0; c < 8; c++) {
-      const p = board[r][c];
-      if (p && p.t === 'K' && p.w === w) return [r, c];
-    }
-  return null;
-}
-
-function isSquareAttacked(board, r, c, byWhite) {
-  // generate opponent pseudo-moves and see if any hits (r,c)
-  for (let rr = 0; rr < 8; rr++) {
-    for (let cc = 0; cc < 8; cc++) {
-      const p = board[rr][cc];
-      if (!p || p.w !== byWhite) continue;
-      const mv = genMoves(board, rr, cc);
-      if (mv.some(([r2, c2]) => r2 === r && c2 === c)) return true;
-    }
-  }
-  return false;
-}
-
-function applyMove(board, fromR, fromC, toR, toC) {
-  const piece = board[fromR][fromC];
-  if (piece && typeof piece.hasMoved !== 'boolean') piece.hasMoved = false;
-  const captured = board[toR][toC];
-  const isCastling = piece && piece.t === 'K' && Math.abs(toC - fromC) === 2;
-  let castleSnapshot = null;
-  const previousMovedFlag = piece?.hasMoved;
-
-  const moveRookForCastle = (rookFromC, rookToC) => {
-    const rookPiece = board[fromR][rookFromC];
-    if (!rookPiece) return;
-    if (typeof rookPiece.hasMoved !== 'boolean') rookPiece.hasMoved = false;
-    castleSnapshot = {
-      rookFromC,
-      rookToC,
-      rookPiece,
-      rookMovedFlag: rookPiece.hasMoved
-    };
-    board[fromR][rookToC] = rookPiece;
-    board[fromR][rookFromC] = null;
-    rookPiece.hasMoved = true;
-  };
-
-  if (isCastling) {
-    if (toC > fromC) moveRookForCastle(7, 5);
-    else moveRookForCastle(0, 3);
-  }
-
-  board[toR][toC] = piece;
-  board[fromR][fromC] = null;
-  if (piece) piece.hasMoved = true;
-  let promoted = false;
-  let previousType = piece ? piece.t : null;
-  if (piece && piece.t === 'P' && (toR === 0 || toR === 7)) {
-    piece.t = 'Q';
-    promoted = true;
-  }
-  return { captured, promoted, previousType, castle: castleSnapshot, pieceMovedFlag: previousMovedFlag };
-}
-
-function revertMove(board, fromR, fromC, toR, toC, snapshot) {
-  const piece = board[toR][toC];
-  if (snapshot?.castle?.rookPiece) {
-    const { rookFromC, rookToC, rookPiece, rookMovedFlag } = snapshot.castle;
-    board[fromR][rookFromC] = rookPiece;
-    board[fromR][rookToC] = null;
-    if (rookPiece) rookPiece.hasMoved = rookMovedFlag;
-  }
-  board[fromR][fromC] = piece;
-  board[toR][toC] = snapshot.captured ?? null;
-  if (snapshot.promoted && piece) {
-    piece.t = snapshot.previousType;
-  }
-  if (piece) piece.hasMoved = snapshot.pieceMovedFlag ?? piece.hasMoved;
-}
-
-function isPlayerInCheck(board, whiteTurn) {
-  const king = findKing(board, whiteTurn);
-  if (!king) return false;
-  return isSquareAttacked(board, king[0], king[1], !whiteTurn);
-}
-
-function getCastlingTargets(board, r, c, isWhiteTurn) {
-  const piece = board[r][c];
-  if (!piece || piece.t !== 'K' || piece.w !== isWhiteTurn) return [];
-  if (piece.hasMoved) return [];
-  const homeRow = isWhiteTurn ? 7 : 0;
-  if (r !== homeRow || c !== 4) return [];
-  if (isSquareAttacked(board, r, c, !isWhiteTurn)) return [];
-
-  const results = [];
-  const checkSide = (rookCol, emptyCols, transitCols, destCol) => {
-    const rook = board[homeRow][rookCol];
-    if (!rook || rook.t !== 'R' || rook.w !== isWhiteTurn || rook.hasMoved) return;
-    if (emptyCols.some((col) => board[homeRow][col])) return;
-    if (transitCols.some((col) => isSquareAttacked(board, homeRow, col, !isWhiteTurn))) return;
-    results.push([homeRow, destCol]);
-  };
-
-  checkSide(7, [5, 6], [5, 6], 6);
-  checkSide(0, [1, 2, 3], [3, 2], 2);
-  return results;
-}
-
-function generateMoves(board, whiteTurn, options = {}) {
-  const { fromR = null, fromC = null, onlyCaptures = false, limit = Infinity } = options;
-  const moves = [];
-  for (let r = 0; r < 8; r++) {
-    for (let c = 0; c < 8; c++) {
-      const piece = board[r][c];
-      if (!piece || piece.w !== whiteTurn) continue;
-      if (fromR !== null && (r !== fromR || c !== fromC)) continue;
-      const pseudo = genMoves(board, r, c);
-      if (!onlyCaptures && piece.t === 'K') {
-        pseudo.push(...getCastlingTargets(board, r, c, whiteTurn));
-      }
-      for (const [rr, cc] of pseudo) {
-        const target = board[rr][cc];
-        const promotion = piece.t === 'P' && (rr === 0 || rr === 7);
-        if (onlyCaptures && !target && !promotion) continue;
-        const snapshot = applyMove(board, r, c, rr, cc);
-        const kingSafe = !isPlayerInCheck(board, whiteTurn);
-        revertMove(board, r, c, rr, cc, snapshot);
-        if (!kingSafe) continue;
-        moves.push({
-          fromR: r,
-          fromC: c,
-          toR: rr,
-          toC: cc,
-          piece: piece.t,
-          captured: target ? target.t : null,
-          promotion,
-          isWhite: whiteTurn
-        });
-        if (moves.length >= limit) return moves;
-      }
-    }
-  }
-  return moves;
-}
-
-function legalMoves(board, r, c) {
-  const piece = board[r][c];
-  if (!piece) return [];
-  return generateMoves(board, piece.w, { fromR: r, fromC: c }).map((move) => [move.toR, move.toC]);
-}
-
-function anyLegal(board, whiteTurn) {
-  return generateMoves(board, whiteTurn, { limit: 1 }).length > 0;
-}
-
 // --------- Advanced evaluation & AI for black ---------
 const PIECE_VALUE = { P: 100, N: 320, B: 330, R: 500, Q: 950, K: 0 };
 const MG_PIECE_VALUE = { P: 82, N: 337, B: 365, R: 477, Q: 1025, K: 0 };
@@ -8648,14 +8286,7 @@ const MAX_QUIESCENCE_DEPTH = 4;
 const transpositionTable = new Map();
 
 function boardToKey(board, whiteTurn) {
-  let key = '';
-  for (let r = 0; r < 8; r++) {
-    for (let c = 0; c < 8; c++) {
-      const p = board[r][c];
-      key += p ? (p.w ? p.t : p.t.toLowerCase()) : '.';
-    }
-  }
-  return key + (whiteTurn ? 'w' : 'b');
+  return boardToFEN(board, whiteTurn);
 }
 
 function scoreMove(move) {
@@ -8689,22 +8320,23 @@ function orderMoves(moves) {
 }
 
 function quiescence(board, alpha, beta, whiteTurn, depth = 0) {
+  const checked = isPlayerInCheck(board, whiteTurn);
   const standPat = evaluate(board, whiteTurn);
-  if (whiteTurn) {
+  if (!checked && whiteTurn) {
     if (standPat >= beta) return standPat;
     if (standPat > alpha) alpha = standPat;
-  } else {
+  } else if (!checked) {
     if (standPat <= alpha) return standPat;
     if (standPat < beta) beta = standPat;
   }
   if (depth >= MAX_QUIESCENCE_DEPTH) return standPat;
-  const captures = generateMoves(board, whiteTurn, { onlyCaptures: true });
-  if (!captures.length) return standPat;
+  const captures = generateMoves(board, whiteTurn, { onlyCaptures: !checked });
+  if (!captures.length) return checked ? (whiteTurn ? -MATE_SCORE : MATE_SCORE) : standPat;
   orderMoves(captures);
   if (whiteTurn) {
-    let value = alpha;
+    let value = checked ? -Infinity : alpha;
     for (const move of captures) {
-      const snapshot = applyMove(board, move.fromR, move.fromC, move.toR, move.toC);
+      const snapshot = applyMove(board, move.fromR, move.fromC, move.toR, move.toC, move.promotion || 'Q');
       const score = quiescence(board, value, beta, false, depth + 1);
       revertMove(board, move.fromR, move.fromC, move.toR, move.toC, snapshot);
       if (score > value) value = score;
@@ -8712,9 +8344,9 @@ function quiescence(board, alpha, beta, whiteTurn, depth = 0) {
     }
     return value;
   }
-  let value = beta;
+  let value = checked ? Infinity : beta;
   for (const move of captures) {
-    const snapshot = applyMove(board, move.fromR, move.fromC, move.toR, move.toC);
+    const snapshot = applyMove(board, move.fromR, move.fromC, move.toR, move.toC, move.promotion || 'Q');
     const score = quiescence(board, alpha, value, true, depth + 1);
     revertMove(board, move.fromR, move.fromC, move.toR, move.toC, snapshot);
     if (score < value) value = score;
@@ -8884,7 +8516,7 @@ function minimax(board, depth, whiteTurn, alpha, beta, ply = 0) {
   orderMoves(moves);
   let value = whiteTurn ? -Infinity : Infinity;
   for (const move of moves) {
-    const snapshot = applyMove(board, move.fromR, move.fromC, move.toR, move.toC);
+    const snapshot = applyMove(board, move.fromR, move.fromC, move.toR, move.toC, move.promotion || 'Q');
     const score = minimax(board, depth - 1, !whiteTurn, alpha, beta, ply + 1);
     revertMove(board, move.fromR, move.fromC, move.toR, move.toC, snapshot);
 
@@ -8918,7 +8550,7 @@ function bestAIMove(board, aiPlaysWhite, depth = 4) {
   let bestMove = null;
   let bestScore = aiPlaysWhite ? -Infinity : Infinity;
   for (const move of moves) {
-    const snapshot = applyMove(board, move.fromR, move.fromC, move.toR, move.toC);
+    const snapshot = applyMove(board, move.fromR, move.fromC, move.toR, move.toC, move.promotion || 'Q');
     const score = minimax(board, searchDepth - 1, !aiPlaysWhite, -Infinity, Infinity, 1);
     revertMove(board, move.fromR, move.fromC, move.toR, move.toC, snapshot);
     if (aiPlaysWhite ? score > bestScore : score < bestScore) {
@@ -9169,11 +8801,11 @@ function Chess3D({
   const [headQuickIdx, setHeadQuickIdx] = useState(0);
   const [boardQuickIdx, setBoardQuickIdx] = useState(0);
   const [whiteTime, setWhiteTime] = useState(60);
-  const [blackTime, setBlackTime] = useState(5);
+  const [blackTime, setBlackTime] = useState(60);
   const whiteTimeRef = useRef(whiteTime);
   const blackTimeRef = useRef(blackTime);
   const initialWhiteTimeRef = useRef(60);
-  const initialBlackTimeRef = useRef(5);
+  const initialBlackTimeRef = useRef(60);
   const [configOpen, setConfigOpen] = useState(false);
   const [soundEnabled, setSoundEnabled] = useState(true);
   const [commentaryPresetId, setCommentaryPresetId] = useState(() => {
@@ -9255,6 +8887,9 @@ function Chess3D({
     winner: null
   });
   const uiRef = useRef(ui);
+  const promotionCommitRef = useRef(null);
+  const claimDrawRef = useRef(null);
+  const [canClaimDraw, setCanClaimDraw] = useState(false);
   const lastMoveRef = useRef(null);
   const replayLastMoveRef = useRef(() => {});
   const isReplayingRef = useRef(false);
@@ -9328,8 +8963,6 @@ function Chess3D({
       onlineRef.current.synced = true;
       if (onlineRef.current.status !== 'started') onlineRef.current.status = 'in-progress';
       setOnlineStatus('in-game');
-      setViewMode('2d');
-      cameraViewRef.current?.setMode('2d');
       // The authoritative snapshot often arrives while the large Three.js
       // scene is still loading. Retain it until the board adapter is ready;
       // dropping this first snapshot left one phone connected but unsynced.
@@ -10610,6 +10243,16 @@ function Chess3D({
     const host = wrapRef.current;
     if (!host) return;
     let cancelled = false;
+    const moveEffectTimers = new Set();
+    const scheduleMoveEffect = (callback, delay = 0) => {
+      const timer = setTimeout(() => {
+        moveEffectTimers.delete(timer);
+        if (!cancelled) callback();
+      }, delay);
+      moveEffectTimers.add(timer);
+      return timer;
+    };
+    const clearMoveEffects = () => { moveEffectTimers.forEach(clearTimeout); moveEffectTimers.clear(); };
     let scene = null;
     let camera = null;
     let renderer = null;
@@ -10657,6 +10300,7 @@ function Chess3D({
     let stopCameraTween = () => {};
     let onResize = null;
     let onClick = null;
+    let onPointerDown = null, onPointerMove = null, onPointerUp = null, onWheel = null;
     let captureFxGroup = null;
     const activeCaptureFx = [];
     let activeBulletCameraFollow = null;
@@ -14149,6 +13793,8 @@ function Chess3D({
 
     // Pieces — meshes + state
     board = parseFEN(START_FEN);
+    let positionCounts = { [positionKey(board, true)]: 1 };
+    let lastServerSequence = -1;
     pieceMeshes = Array.from({ length: 8 }, () => Array(8).fill(null));
     const allPieceMeshes = [];
     const getParkedCaptureAnimationForKind = (kind) => {
@@ -14384,10 +14030,39 @@ function Chess3D({
 
     const syncBoardFromState = (payload = {}) => {
       const { fen, turnWhite = true, lastMove, board: syncedBoard, players = [] } = payload;
-      if (!fen && !syncedBoard) return;
+      if ((!fen && !syncedBoard) || cancelled) return;
+      if (Number.isInteger(payload.moveSeq) && payload.moveSeq < lastServerSequence) return;
       try {
         const parsedBoard = parseWireBoard(syncedBoard);
-        board = parsedBoard || parseFEN(String(fen || START_FEN).split(' ')[0]);
+        const nextBoard = parsedBoard || parseFEN(String(fen || START_FEN));
+        setBoardState(nextBoard, payload.rules || getBoardState(parseFEN(String(fen || START_FEN))));
+        let samePosition = boardToFEN(board, uiRef.current.turnWhite) === boardToFEN(nextBoard, turnWhite);
+        if (!samePosition && lastServerSequence >= 0 && payload.moveSeq === lastServerSequence + 1 && lastMove?.from && lastMove?.to) {
+          const from = lastMove.from, to = lastMove.to;
+          const legalRemote = generateMoves(board, uiRef.current.turnWhite, { fromR: from.r, fromC: from.c })
+            .find(move => move.toR === to.r && move.toC === to.c && move.promotion === (lastMove.promotion || null));
+          if (legalRemote) {
+            selectAt(from.r, from.c, { force: true });
+            moveSelTo(to.r, to.c, { remote: true, promotion: lastMove.promotion });
+            samePosition = boardToFEN(board, uiRef.current.turnWhite) === boardToFEN(nextBoard, turnWhite);
+          }
+        }
+        if (!samePosition) {
+          clearMoveEffects();
+          seatedHumanMoveActionsRef.current.forEach(disposeSeatedHumanMoveAction);
+          seatedHumanMoveActionsRef.current.clear();
+          activePieceAnimations.splice(0);
+          board = nextBoard;
+          paintPiecesFromPrototypes(currentPiecePrototypes);
+          sel = null;
+          legal = [];
+          clearHighlights();
+          promotionCommitRef.current = null;
+        }
+        positionCounts = payload.positionCounts || { [positionKey(board, turnWhite)]: 1 };
+        lastServerSequence = Number(payload.moveSeq || 0);
+        onlineRef.current.turnDeadline = payload.turnDeadline;
+        if (payload.serverNow) onlineRef.current.serverTimeOffset = payload.serverNow - Date.now();
         if (Array.isArray(players) && players.length) {
           const me = players.find((p) => String(p.id) === String(accountId));
           const opp = players.find((p) => String(p.id) !== String(accountId));
@@ -14396,15 +14071,14 @@ function Chess3D({
           }
           if (opp) setOpponent(opp);
         }
-        paintPiecesFromPrototypes(currentPiecePrototypes);
         const statusText = payload.winner
-          ? `${payload.winner === 'white' ? 'White' : 'Black'} wins`
-          : payload.draw === 'stalemate'
-            ? 'Stalemate'
+          ? `${payload.resultReason === 'timeout' ? 'Time expired — ' : 'Checkmate — '}${payload.winner === 'white' ? 'White' : 'Black'} wins`
+          : payload.draw
+            ? (DRAW_LABELS[payload.draw] || 'Draw')
             : turnWhite
               ? 'White to move'
               : 'Black to move';
-        applyStatus(turnWhite, statusText, payload.winner || null);
+        applyStatus(turnWhite, statusText, payload.winner || null, payload.draw || null);
         if (lastMove?.from && lastMove?.to) {
           const { from, to } = lastMove;
           lastMoveRef.current = {
@@ -14421,13 +14095,6 @@ function Chess3D({
         console.warn('Chess Battle Royal: failed to sync remote board', error);
       }
     };
-    onlineRef.current.applyRemoteMove = syncBoardFromState;
-    if (onlineRef.current.pendingState) {
-      syncBoardFromState(onlineRef.current.pendingState);
-      onlineRef.current.pendingState = null;
-    }
-    onlineRef.current.requestSync?.();
-
     const paintPiecesFromPrototypes = (prototypes, styleId = currentPieceSetId) => {
       if (!prototypes) return;
       const colorKey = (p) => (p.w ? 'white' : 'black');
@@ -14742,62 +14409,65 @@ function Chess3D({
 
     function startTimer(isWhite) {
       clearInterval(timerRef.current);
-      try {
-        timerSoundRef.current?.pause();
-      } catch {}
-      if (isWhite) {
-        initialWhiteTimeRef.current = 60;
-        whiteTimeRef.current = 60;
-        setWhiteTime(60);
-        lastBeepRef.current.white = null;
-        timerRef.current = setInterval(() => {
-          setWhiteTime((t) => {
-            const next = Math.max(0, t - 1);
-            if (t <= 1) {
-              clearInterval(timerRef.current);
-              setUi((s) => ({ ...s, status: 'White ran out of time', winner: 'Black' }));
-              return 0;
-            }
-            maybePlayCountdownSound(next, true);
-            return next;
-          });
-        }, 1000);
-      } else {
-        initialBlackTimeRef.current = 5;
-        blackTimeRef.current = 5;
-        setBlackTime(5);
-        lastBeepRef.current.black = null;
-        timerRef.current = setInterval(() => {
-          setBlackTime((t) => {
-            const next = Math.max(0, t - 1);
-            if (t <= 1) {
-              clearInterval(timerRef.current);
-              setUi((s) => ({ ...s, status: 'Black ran out of time', winner: 'White' }));
-              return 0;
-            }
-            maybePlayCountdownSound(next, false);
-            return next;
-          });
-        }, 1000);
-      }
+      try { timerSoundRef.current?.pause(); } catch {}
+      const online = onlineRef.current.enabled;
+      const deadline = online ? onlineRef.current.turnDeadline : performance.now() + 60000 + getMoveLockRemainingMs();
+      const setTime = isWhite ? setWhiteTime : setBlackTime;
+      if (isWhite) initialWhiteTimeRef.current = 60;
+      else initialBlackTimeRef.current = 60;
+      if (online && !deadline) { setTime(60); return; }
+      const tick = () => {
+        if (cancelled || uiRef.current.winner || uiRef.current.draw) { clearInterval(timerRef.current); return; }
+        const seconds = Math.max(0, Math.min(60, Math.ceil((deadline - (online ? Date.now() + (onlineRef.current.serverTimeOffset || 0) : performance.now())) / 1000)));
+        setTime(seconds);
+        if (isWhite) whiteTimeRef.current = seconds; else blackTimeRef.current = seconds;
+        if (seconds === 0) {
+          clearInterval(timerRef.current);
+          if (online) onlineRef.current.requestSync?.();
+          else {
+            const outcome = getTimeoutOutcome(board, isWhite);
+            applyStatus(isWhite, outcome.draw ? DRAW_LABELS[outcome.draw] : `${isWhite ? 'White' : 'Black'} ran out of time`, outcome.winner, outcome.draw);
+          }
+          return;
+        }
+        maybePlayCountdownSound(seconds, isWhite);
+      };
+      tick();
+      timerRef.current = setInterval(tick, 200);
     }
 
     const shouldTriggerAiMove = (turnWhiteValue) =>
       !onlineRef.current.enabled &&
       ((aiPlaysWhite && turnWhiteValue) || (!aiPlaysWhite && !turnWhiteValue));
 
-    function applyStatus(nextWhite, status, winner) {
-      setUi((s) => ({ ...s, turnWhite: nextWhite, status, winner }));
-      if (winner) {
+    function applyStatus(nextWhite, status, winner, draw = null) {
+      const nextUi = { ...uiRef.current, turnWhite: nextWhite, status, winner, draw, promoting: null };
+      uiRef.current = nextUi;
+      setUi(nextUi);
+      const count = positionCounts[positionKey(board, nextWhite)] || 1;
+      setCanClaimDraw(!winner && !draw && (count >= 3 || getBoardState(board).halfmove >= 100));
+      if (winner || draw) {
         clearInterval(timerRef.current);
         return;
       }
       startTimer(nextWhite);
       if (shouldTriggerAiMove(nextWhite)) {
         const delay = Math.max(200, getMoveLockRemainingMs() + 30);
-        setTimeout(aiMove, delay);
+        scheduleMoveEffect(aiMove, delay);
       }
     }
+
+    claimDrawRef.current = () => {
+      if (isMoveInteractionLocked() || uiRef.current.winner || uiRef.current.draw) return;
+      const white = uiRef.current.turnWhite;
+      if (onlineRef.current.enabled) {
+        if ((onlineRef.current.side === 'white') !== white) return;
+        onlineRef.current.emitMove?.({ tableId: onlineRef.current.tableId, move: { claimDraw: true } });
+      } else {
+        const outcome = getGameOutcome(board, white, positionCounts[positionKey(board, white)] || 1, true);
+        if (outcome.draw) applyStatus(white, DRAW_LABELS[outcome.draw], null, outcome.draw);
+      }
+    };
 
     const maybePlayCountdownSound = (seconds, isWhiteTurn) => {
       const activeTurn = uiRef.current?.turnWhite;
@@ -14882,12 +14552,11 @@ function Chess3D({
         if (!playerSide) return false;
         return playerSide === 'white' ? piece.w : !piece.w;
       }
-      // Offline games only allow the human to control white; AI plays black
-      return piece.w;
+      return piece.w !== aiPlaysWhite;
     };
 
     const canInteractWithPiece = (piece) => {
-      if (isMoveInteractionLocked()) return false;
+      if (uiRef.current.winner || uiRef.current.draw || uiRef.current.promoting || isMoveInteractionLocked()) return false;
       if (!isPlayerPiece(piece)) return false;
       if (!uiRef.current.turnWhite && piece.w) return false;
       if (uiRef.current.turnWhite && !piece.w) return false;
@@ -14915,7 +14584,7 @@ function Chess3D({
 
       resetSelectedMeshElevation();
       sel = { r, c, p };
-      liftSelectedMesh(pieceMeshes[r]?.[c]);
+      // A highlight selects the piece; the physical hand performs the lift.
       legal = legalMoves(board, r, c);
       clearHighlights();
       highlightSelection(r, c, selectionColor);
@@ -14924,7 +14593,7 @@ function Chess3D({
       const quietSquares = [];
       legal.forEach(([rr, cc]) => {
         const target = board[rr][cc];
-        if (target && target.w !== p.w) captureSquares.push([rr, cc]);
+        if ((target && target.w !== p.w) || enPassantCaptureSquare(board, r, c, rr, cc)) captureSquares.push([rr, cc]);
         else quietSquares.push([rr, cc]);
       });
       highlightMoves(quietSquares, palette?.highlight);
@@ -14932,7 +14601,7 @@ function Chess3D({
     }
 
     function moveSelTo(rr, cc, options = {}) {
-      const { byAi = false } = options;
+      const { byAi = false, promotion = null, remote = false } = options;
       const finalizeAiMove = () => {
         if (byAi) aiMovingRef.current = false;
       };
@@ -14940,7 +14609,7 @@ function Chess3D({
         finalizeAiMove();
         return;
       }
-      if (!byAi && isMoveInteractionLocked()) {
+      if (!byAi && !remote && isMoveInteractionLocked()) {
         finalizeAiMove();
         return;
       }
@@ -14952,7 +14621,7 @@ function Chess3D({
         finalizeAiMove();
         return;
       }
-      if (onlineRef.current.enabled) {
+      if (onlineRef.current.enabled && !remote) {
         const myTurnIsWhite = onlineRef.current.side === 'white';
         if (!onlineRef.current.synced) {
           finalizeAiMove();
@@ -14969,12 +14638,27 @@ function Chess3D({
           finalizeAiMove();
           return;
         }
-      } else if (!isPlayerPiece(sel.p) && !byAi) {
+      } else if (!remote && !isPlayerPiece(sel.p) && !byAi) {
         finalizeAiMove();
         return;
       }
+      if (uiRef.current.winner || uiRef.current.draw) { finalizeAiMove(); return; }
+      const promotes = sel.p?.t === 'P' && (rr === 0 || rr === 7);
+      if (promotes && !promotion) {
+        if (byAi) { moveSelTo(rr, cc, { ...options, promotion: 'Q' }); return; }
+        promotionCommitRef.current = (choice) => {
+          if (!PROMOTIONS.includes(choice)) return;
+          setUi(s => ({ ...s, promoting: null }));
+          moveSelTo(rr, cc, { ...options, promotion: choice });
+        };
+        uiRef.current = { ...uiRef.current, promoting: { r: rr, c: cc } };
+        setUi(uiRef.current);
+        return;
+      }
       const movingPiece = board[sel.r][sel.c];
-      const capturedPiece = board[rr][cc];
+      const epSquare = enPassantCaptureSquare(board, sel.r, sel.c, rr, cc);
+      const captureR = epSquare?.[0] ?? rr, captureC = epSquare?.[1] ?? cc;
+      const capturedPiece = board[captureR][captureC];
       const movingPieceLabel = PIECE_LABELS[movingPiece?.t] || 'piece';
       const capturedPieceLabel = capturedPiece ? PIECE_LABELS[capturedPiece.t] || 'piece' : null;
       const fromSquare = resolveChessSquare(sel.r, sel.c);
@@ -14984,7 +14668,7 @@ function Chess3D({
       let moveDelayMs = 0;
       let captureResolveDelayMs = 0;
       // capture mesh if any
-      const targetMesh = pieceMeshes[rr][cc];
+      const targetMesh = pieceMeshes[captureR][captureC];
       if (targetMesh) {
         const worldPos = new THREE.Vector3();
         targetMesh.getWorldPosition(worldPos);
@@ -15007,7 +14691,7 @@ function Chess3D({
           moveDelayMs = Math.max(moveDelayMs, captureResolveDelayMs);
         }
         const moveCapturedPieceToZone = () => {
-          const capturingWhite = board[rr][cc]?.w ?? board[sel.r][sel.c].w;
+          const capturingWhite = movingPiece.w;
           const zone = capturingWhite ? capturedByWhite : capturedByBlack;
           const idx = zone.push(targetMesh) - 1;
           const row = Math.floor(idx / 8);
@@ -15028,16 +14712,15 @@ function Chess3D({
           );
         };
         if (captureResolveDelayMs > 0) {
-          setTimeout(() => moveCapturedPieceToZone(), captureResolveDelayMs);
+          scheduleMoveEffect(() => moveCapturedPieceToZone(), captureResolveDelayMs);
         } else {
           moveCapturedPieceToZone();
         }
-        pieceMeshes[rr][cc] = null;
+        pieceMeshes[captureR][captureC] = null;
       }
       // move board
       const movedPiece = movingPiece;
       if (movedPiece && typeof movedPiece.hasMoved !== 'boolean') movedPiece.hasMoved = false;
-      const movedFromPawn = movedPiece?.t === 'P';
       const isCastlingMove =
         movedPiece?.t === 'K' &&
         sel.r === rr &&
@@ -15050,19 +14733,8 @@ function Chess3D({
       if (rookPiece && typeof rookPiece.hasMoved !== 'boolean') rookPiece.hasMoved = false;
       const rookMesh =
         isCastlingMove && Number.isInteger(rookFromC) ? pieceMeshes[sel.r][rookFromC] : null;
-      board[rr][cc] = movedPiece;
-      board[sel.r][sel.c] = null;
-      if (isCastlingMove && rookPiece) {
-        board[rr][rookToC] = rookPiece;
-        board[sel.r][rookFromC] = null;
-        rookPiece.hasMoved = true;
-      }
-      if (movedPiece) movedPiece.hasMoved = true;
-      // promotion (auto to Queen)
-      const promoted = movedFromPawn && (rr === 0 || rr === 7);
-      if (promoted) {
-        board[rr][cc].t = 'Q';
-      }
+      const moveSnapshot = applyMove(board, sel.r, sel.c, rr, cc, promotion || 'Q');
+      const promoted = moveSnapshot.promoted;
       // move mesh
       let m = pieceMeshes[sel.r][sel.c];
       pieceMeshes[sel.r][sel.c] = null;
@@ -15075,15 +14747,17 @@ function Chess3D({
       syncMovedPieceMesh();
       cancelPieceAnimation(m);
       const targetPosition = toWorldPos;
-      const moverSeatIndex = movedPiece?.w ? 0 : 1;
+      const localWhite = onlineRef.current.enabled ? onlineRef.current.side === 'white' : !aiPlaysWhite;
+      const moverSeatIndex = movedPiece?.w === localWhite ? 0 : 1;
       const captureAnimationIdForAction = selectedCaptureAnimationIdRef.current;
       const isFirearmCaptureAction = Boolean(capturedPiece) && FIREARM_CAPTURE_ANIMATION_IDS.has(captureAnimationIdForAction);
       const moverActor = seatedHumanActorsRef.current.find((entry) => entry?.playerIndex === moverSeatIndex);
-      const useHumanHandMove = !!(moverActor?.rig && m && !isFirearmCaptureAction);
+      const useHumanHandMove = !!(moverActor?.rig?.rightHand && m);
       const useHumanFirearmAim = !!(moverActor?.rig && isFirearmCaptureAction);
       if (useHumanHandMove || useHumanFirearmAim) {
         const nowMs = performance.now();
-        const liveFrom = m.getWorldPosition(new THREE.Vector3());
+        const liveFrom = fromWorldPos.clone();
+        m.position.copy(liveFrom);
         const normalizedFromForwardReach = moverSeatIndex === 0 ? 1 - sel.r / 7 : sel.r / 7;
         const normalizedToForwardReach = moverSeatIndex === 0 ? 1 - rr / 7 : rr / 7;
         const forwardReach = clamp01((normalizedFromForwardReach + normalizedToForwardReach) * 0.5);
@@ -15094,7 +14768,7 @@ function Chess3D({
         }
         seatedHumanMoveActionsRef.current.set(moverSeatIndex, {
           playerIndex: moverSeatIndex,
-          mesh: useHumanHandMove ? m : null,
+          mesh: useHumanFirearmAim ? null : m,
           from: liveFrom.clone(),
           to: toWorldPos.clone(),
           toSquare: { r: rr, c: cc },
@@ -15113,12 +14787,16 @@ function Chess3D({
           durationMs: useHumanFirearmAim
             ? Math.max(SEATED_HUMAN_MOVE_DURATION_MS, moveDelayMs + 220)
             : SEATED_HUMAN_MOVE_DURATION_MS,
+          next: useHumanFirearmAim ? {
+            mesh: m, from: liveFrom.clone(), to: toWorldPos.clone(),
+            forwardReach, sideReach, durationMs: SEATED_HUMAN_MOVE_DURATION_MS
+          } : null,
           handHelper: null,
           pieceHelper: null
         });
       }
       if (moveDelayMs > 0) {
-        setTimeout(() => {
+        scheduleMoveEffect(() => {
           syncMovedPieceMesh();
           cancelPieceAnimation(m);
           if (!useHumanHandMove) {
@@ -15133,7 +14811,8 @@ function Chess3D({
         playMoveSound();
       }
       highlightMovingMesh(m, Math.max(900, moveDelayMs + 420));
-      lockMoveInteraction(Math.max(420, moveDelayMs + 360));
+      const physicalDuration = useHumanHandMove ? SEATED_HUMAN_MOVE_DURATION_MS * (isCastlingMove ? 2 : 1) : 360;
+      lockMoveInteraction(Math.max(420, moveDelayMs + physicalDuration + (useHumanFirearmAim ? 220 : 0)));
       if (isCastlingMove && Number.isInteger(rookFromC)) {
         pieceMeshes[sel.r][rookFromC] = null;
       }
@@ -15143,11 +14822,16 @@ function Chess3D({
         rookMesh.userData.c = rookToC;
         cancelPieceAnimation(rookMesh);
         const rookTarget = piecePosition(rr, rookToC, currentPieceYOffset);
-        animatePieceTo(rookMesh, rookTarget, 0.32);
+        const kingAction = seatedHumanMoveActionsRef.current.get(moverSeatIndex);
+        if (useHumanHandMove && kingAction) {
+          kingAction.next = { mesh: rookMesh, from: rookMesh.position.clone(), to: rookTarget.clone(),
+            forwardReach: 0, sideReach: kingAction.sideReach, durationMs: SEATED_HUMAN_MOVE_DURATION_MS };
+        } else animatePieceTo(rookMesh, rookTarget, 0.32);
       }
+      const completePromotion = () => {
       if (promoted && currentPiecePrototypes) {
         const color = board[rr][cc].w ? 'white' : 'black';
-        const queenProto = currentPiecePrototypes[color]?.Q;
+        const queenProto = currentPiecePrototypes[color]?.[promotion || 'Q'];
         if (queenProto) {
           const replacement = cloneWithShadows(queenProto);
           replacement.scale.copy(m.scale);
@@ -15155,7 +14839,7 @@ function Chess3D({
           replacement.position.copy(m.position);
           replacement.userData = {
             ...m.userData,
-            t: 'Q',
+            t: promotion || 'Q',
             __pieceStyleId: m.userData?.__pieceStyleId || currentPieceSetId
           };
           const activeAnim = activePieceAnimations.find((anim) => anim.mesh === m);
@@ -15180,8 +14864,12 @@ function Chess3D({
           } catch {}
           disposeObject3D(m);
           m = replacement;
+          if (lastMoveRef.current?.to?.r === rr && lastMoveRef.current?.to?.c === cc) lastMoveRef.current.pieceMesh = replacement;
         }
       }
+
+      };
+      if (promoted) scheduleMoveEffect(completePromotion, moveDelayMs + physicalDuration + (useHumanFirearmAim ? 220 : 0));
 
       lastMoveRef.current = {
         from: { r: sel.r, c: sel.c },
@@ -15215,7 +14903,11 @@ function Chess3D({
         playLaughSound();
       }
 
-      applyStatus(nextWhite, status, winner);
+      const committedKey = positionKey(board, nextWhite);
+      positionCounts[committedKey] = (positionCounts[committedKey] || 0) + 1;
+      const outcome = getGameOutcome(board, nextWhite, positionCounts[committedKey]);
+      if (outcome.draw) status = DRAW_LABELS[outcome.draw];
+      applyStatus(nextWhite, status, winner, outcome.draw);
 
       const moverIsWhite = movedPiece?.w ?? true;
       const playerName = resolveChessSideName(moverIsWhite);
@@ -15261,9 +14953,9 @@ function Chess3D({
         enqueueChessCommentaryEvent('outro', context, { priority: true });
       }
 
-      if (onlineRef.current.enabled && onlineRef.current.tableId) {
+      if (!remote && onlineRef.current.enabled && onlineRef.current.tableId) {
         const movePayload = {
-          lastMove: { from: { r: sel.r, c: sel.c }, to: { r: rr, c: cc } },
+          lastMove: { from: { r: sel.r, c: sel.c }, to: { r: rr, c: cc }, promotion },
           fen: boardToFEN(board, nextWhite),
           board: boardToWireBoard(board),
           turnWhite: nextWhite
@@ -15280,14 +14972,14 @@ function Chess3D({
       if (!sel) return false;
       const sourcePiece = board[sel.r]?.[sel.c];
       const targetPiece = board[targetR]?.[targetC];
-      if (!sourcePiece || !targetPiece || sourcePiece.w !== targetPiece.w) return false;
+      if (!sourcePiece || !targetPiece || targetR !== sel.r || sourcePiece.w !== targetPiece.w) return false;
 
       const resolveCastleTarget = (kingCol, rookCol) => {
         if (!Number.isInteger(kingCol) || !Number.isInteger(rookCol)) return null;
         if (Math.abs(kingCol - rookCol) !== 3 && Math.abs(kingCol - rookCol) !== 4) return null;
         const kingMoves = legalMoves(board, sel.r, kingCol);
-        if (kingMoves.some(([r, c]) => r === sel.r && c === 6)) return [sel.r, 6];
-        if (kingMoves.some(([r, c]) => r === sel.r && c === 2)) return [sel.r, 2];
+        const destination = rookCol > kingCol ? 6 : 2;
+        if (kingMoves.some(([r, c]) => r === sel.r && c === destination)) return [sel.r, destination];
         return null;
       };
 
@@ -15415,7 +15107,7 @@ function Chess3D({
       return null;
     };
 
-    const onPointerDown = (event) => {
+    onPointerDown = (event) => {
       if (viewModeRef.current === 'fpv') {
         firstPersonViewRef.current.activeLook = true;
         return;
@@ -15447,7 +15139,7 @@ function Chess3D({
       if (controls) controls.enabled = false;
     };
 
-    const onPointerMove = (event) => {
+    onPointerMove = (event) => {
       if (viewModeRef.current === 'fpv') {
         const fp = firstPersonViewRef.current;
         if (fp.activeLook) {
@@ -15505,7 +15197,7 @@ function Chess3D({
       dragState.mesh.position.lerp(target, 0.35);
     };
 
-    const onPointerUp = (event) => {
+    onPointerUp = (event) => {
       firstPersonViewRef.current.activeLook = false;
       const isFaceCamera3d = viewModeRef.current === '3d';
       locked3dViewRef.current.activeLook = isFaceCamera3d;
@@ -15536,7 +15228,7 @@ function Chess3D({
       sel = null;
     };
 
-    const onWheel = (event) => {
+    onWheel = (event) => {
       if (!camera || !boardLookTarget) return;
       const isMatchedSession = onlineRef.current.enabled && ['matched', 'in-game'].includes(onlineStatus);
       if (isMatchedSession || viewModeRef.current === 'fpv') return;
@@ -15561,9 +15253,9 @@ function Chess3D({
 
 
     function aiMove() {
-      if (isReplayingRef.current) return;
+      if (cancelled || uiRef.current.winner || uiRef.current.draw || isReplayingRef.current) return;
       if (isMoveInteractionLocked()) {
-        setTimeout(aiMove, Math.max(180, getMoveLockRemainingMs() + 20));
+        scheduleMoveEffect(aiMove, Math.max(180, getMoveLockRemainingMs() + 20));
         return;
       }
       const activeTurnWhite = uiRef.current?.turnWhite ?? true;
@@ -15575,7 +15267,7 @@ function Chess3D({
         return;
       }
       selectAt(mv.fromR, mv.fromC, { force: true, selectionColor: paletteRef.current?.capture });
-      setTimeout(() => moveSelTo(mv.toR, mv.toC, { byAi: true }), 300);
+      scheduleMoveEffect(() => moveSelTo(mv.toR, mv.toC, { byAi: true, promotion: mv.promotion }), 300);
     }
 
     onClick = function onClick(e) {
@@ -16627,103 +16319,20 @@ function Chess3D({
             twoHandedFirearm: action.twoHandedFirearm
           });
           if (action?.mesh) {
-            if (SEATED_HUMAN_CONTACT_HELPERS_ENABLED && !action.handHelper && !action.pieceHelper) {
-              const helpers = createSeatedHumanContactHelpers();
-              if (helpers) {
-                action.handHelper = helpers.handHelper;
-                action.pieceHelper = helpers.pieceHelper;
-                action.thumbHelper = helpers.thumbHelper;
-                action.indexHelper = helpers.indexHelper;
-                action.middleHelper = helpers.middleHelper;
-                scene.add(helpers.handHelper);
-                scene.add(helpers.pieceHelper);
-                scene.add(helpers.thumbHelper);
-                scene.add(helpers.indexHelper);
-                scene.add(helpers.middleHelper);
-                helpers.handHelper.visible = true;
-                helpers.pieceHelper.visible = true;
-                helpers.thumbHelper.visible = true;
-                helpers.indexHelper.visible = true;
-                helpers.middleHelper.visible = true;
-              }
-            }
-            const thumbTip = entry.rig.rightThumb?.[entry.rig.rightThumb.length - 1] ?? null;
-            const indexTip = entry.rig.rightIndex?.[entry.rig.rightIndex.length - 1] ?? null;
-            const middleTip = entry.rig.rightMiddle?.[entry.rig.rightMiddle.length - 1] ?? null;
-            const thumbWorld = thumbTip?.getWorldPosition?.(new THREE.Vector3()) ?? null;
-            const indexWorld = indexTip?.getWorldPosition?.(new THREE.Vector3()) ?? null;
-            const middleWorld = middleTip?.getWorldPosition?.(new THREE.Vector3()) ?? null;
-            const pinchWorld =
-              averageBoneWorldPosition([thumbTip, indexTip, middleTip].filter(Boolean)) ||
-              getThreeFingerGripWorldPosition(entry.rig) ||
-              (entry.rig.rightHand
-                ? entry.rig.rightHand.getWorldPosition(new THREE.Vector3())
-                : action.from.clone());
-            const gripWorld = pinchWorld.clone();
-            const holdWorld = gripWorld.clone();
-            holdWorld.y += SEATED_HUMAN_HAND_GRIP_HEIGHT;
-            holdWorld.z +=
-              entry.playerIndex === 0
-                ? -SEATED_HUMAN_HAND_PIECE_FORWARD
-                : SEATED_HUMAN_HAND_PIECE_FORWARD;
-            const liveFrom = action.from.clone();
-            const liveTo = action.toSquare
-              ? piecePosition(action.toSquare.r, action.toSquare.c, currentPieceYOffset)
-              : action.to.clone();
-            const liftedFrom = liveFrom.clone();
-            liftedFrom.y += SEATED_HUMAN_PICK_LIFT_HEIGHT;
-            const liftedTo = liveTo.clone();
-            liftedTo.y += SEATED_HUMAN_PICK_LIFT_HEIGHT;
-            let handTarget = liveFrom.clone();
-            if (u < SEATED_HUMAN_PICKUP_PHASE_END) {
-              const pickupT = smoothEase(clamp01(u / SEATED_HUMAN_PICKUP_PHASE_END));
-              handTarget.lerpVectors(liveFrom, liftedFrom, pickupT);
-              action.mesh.position.copy(handTarget);
-            } else if (u < 0.44) {
-              const gripT = smoothEase(
-                clamp01((u - SEATED_HUMAN_PICKUP_PHASE_END) / (0.44 - SEATED_HUMAN_PICKUP_PHASE_END))
-              );
-              const blendedGrip = liveFrom.clone().lerp(holdWorld, SEATED_HUMAN_GRIP_CONTACT_BLEND);
-              handTarget.lerpVectors(liftedFrom, blendedGrip, gripT);
-              if (gripT >= 0.82) handTarget.copy(holdWorld);
-              action.mesh.position.copy(handTarget);
-              if (!action.gripOffset && gripT >= 0.9) {
-                action.gripOffset = action.mesh.position.clone().sub(holdWorld);
-              }
-            } else if (u < carryPhaseEnd) {
-              const carryT = smoothEase(
-                clamp01((u - 0.44) / (carryPhaseEnd - 0.44))
-              );
-              const gripOffset = action.gripOffset || new THREE.Vector3();
-              const gripContact = holdWorld.clone().add(gripOffset);
-              const carryTarget = gripContact.clone().lerp(liftedTo, carryT);
-              carryTarget.y = Math.max(carryTarget.y, liftedFrom.y * (1 - carryT) + liftedTo.y * carryT);
-              if (carryT <= 0.62) {
-                handTarget.copy(holdWorld);
-                action.mesh.position.copy(holdWorld);
-              } else {
-                handTarget.copy(carryTarget);
-                action.mesh.position.copy(carryTarget);
-              }
-            } else {
-              const dropT = clamp01((u - carryPhaseEnd) / (1 - carryPhaseEnd));
-              const easedDropT = smoothEase(dropT);
-              const landing = liveTo.clone();
-              landing.y += SEATED_HUMAN_HAND_DROP_CLEARANCE;
-              handTarget.lerpVectors(liftedTo, landing, easedDropT);
-              action.mesh.position.copy(handTarget);
-            }
-            applyRightArmContactIK(entry.rig, handTarget, SEATED_HUMAN_CONTACT_IK_STRENGTH);
-            if (action.handHelper) action.handHelper.position.copy(holdWorld);
-            if (action.pieceHelper) action.pieceHelper.position.copy(action.mesh.position);
-            if (action.thumbHelper && thumbWorld) action.thumbHelper.position.copy(thumbWorld);
-            if (action.indexHelper && indexWorld) action.indexHelper.position.copy(indexWorld);
-            if (action.middleHelper && middleWorld) action.middleHelper.position.copy(middleWorld);
+            const frame = samplePhysicalMove(u, action.from, action.to, SEATED_HUMAN_PICK_LIFT_HEIGHT);
+            applySeatedHumanPose(entry.rig, 'reachPiece', frame.reach, frame.grip, {
+              forwardReach: action.forwardReach, sideReach: action.sideReach
+            });
+            updatePhysicalPieceMove(entry.rig, action, u, SEATED_HUMAN_PICK_LIFT_HEIGHT);
           }
           if (u >= 1) {
             if (action?.mesh) action.mesh.position.copy(action.to);
             disposeSeatedHumanMoveAction(action);
-            seatedHumanMoveActionsRef.current.delete(entry.playerIndex);
+            if (action.next) {
+              seatedHumanMoveActionsRef.current.set(entry.playerIndex, { ...action.next, startMs: now });
+            } else {
+              seatedHumanMoveActionsRef.current.delete(entry.playerIndex);
+            }
           }
         });
       }
@@ -16822,10 +16431,14 @@ function Chess3D({
     };
     window.addEventListener('resize', onResize);
 
-    // Start timer for the human player
-    startTimer(true);
+    onlineRef.current.applyRemoteMove = syncBoardFromState;
+    if (onlineRef.current.pendingState) {
+      syncBoardFromState(onlineRef.current.pendingState);
+      onlineRef.current.pendingState = null;
+    } else startTimer(uiRef.current.turnWhite);
+    onlineRef.current.requestSync?.();
     if (shouldTriggerAiMove(true)) {
-      setTimeout(aiMove, 220);
+      scheduleMoveEffect(aiMove, 220);
     }
   };
 
@@ -16835,6 +16448,10 @@ function Chess3D({
 
     return () => {
       cancelled = true;
+      clearMoveEffects();
+      onlineRef.current.applyRemoteMove = null;
+      promotionCommitRef.current = null;
+      claimDrawRef.current = null;
       seatedHumanActorsRef.current = [];
       seatedHumanMoveActionsRef.current.forEach((action) => disposeSeatedHumanMoveAction(action));
       seatedHumanMoveActionsRef.current.clear();
@@ -16930,6 +16547,22 @@ function Chess3D({
 
   return (
     <div ref={wrapRef} className="fixed inset-0 bg-[#0c1020] text-white touch-none select-none">
+      {ui.promoting && (
+        <div className="absolute inset-0 z-50 flex items-center justify-center bg-black/70 p-4">
+          <div role="dialog" aria-modal="true" aria-label="Promote pawn" className="w-full max-w-xs rounded-2xl bg-slate-900 p-5 shadow-xl">
+            <p className="mb-4 text-lg font-semibold">Promote pawn</p>
+            <div className="grid grid-cols-2 gap-3">
+              {PROMOTIONS.map((piece, index) => <button key={piece} type="button" autoFocus={index === 0}
+                className="min-h-[48px] rounded-lg bg-slate-700 px-3 py-3 text-base focus-visible:ring-2 focus-visible:ring-white"
+                onClick={() => promotionCommitRef.current?.(piece)}>{PIECE_LABELS[piece]}</button>)}
+            </div>
+          </div>
+        </div>
+      )}
+      {canClaimDraw && !ui.winner && !ui.draw && (
+        <button type="button" className="absolute bottom-24 left-1/2 z-40 min-h-[48px] -translate-x-1/2 rounded-xl bg-slate-800 px-5 py-3"
+          onClick={() => claimDrawRef.current?.()}>Claim draw</button>
+      )}
       <div className="absolute inset-0 pointer-events-none">
         <div className="absolute top-20 left-4 z-20 flex flex-col items-start gap-3 pointer-events-none">
           <button
