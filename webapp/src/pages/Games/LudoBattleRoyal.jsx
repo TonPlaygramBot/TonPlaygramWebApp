@@ -10315,8 +10315,43 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount, onlin
       arenaGroup.add(group);
       chairs.push({ group, anchor: avatarAnchor, supportsArmrest: chairSupportsArmrest });
     }
-    // Human spectators are intentionally omitted to keep the Ludo arena lightweight.
     seatedHumanActorsRef.current = [];
+    try {
+      const humanTemplate = await loadSeatedHumanTemplate(renderer, HUMAN_CHARACTER_OPTIONS[0]);
+      if (cancelled) return;
+
+      chairs.forEach((chair, playerIndex) => {
+        const actor = cloneSkeleton(humanTemplate);
+        const height = new THREE.Box3().setFromObject(actor).getSize(new THREE.Vector3()).y;
+        actor.scale.multiplyScalar((1.74 * 0.65) / Math.max(height, 0.01));
+        chair.group.add(actor);
+
+        const rig = saveBoneRig(actor);
+        if (!rig.rightHand || !rig.leftHand || !rig.hips) {
+          actor.removeFromParent();
+          return;
+        }
+
+        applySeatedHumanPose(rig, 'idle', 1, 0, {}, {}, chair.supportsArmrest !== false);
+        actor.updateMatrixWorld(true);
+        const seatPoint = chair.group.localToWorld(new THREE.Vector3(0, SEAT_THICKNESS * 0.65, 0));
+        const hipsWorld = rig.hips.getWorldPosition(new THREE.Vector3());
+        const actorWorld = actor.getWorldPosition(new THREE.Vector3()).add(seatPoint.sub(hipsWorld));
+        actor.position.copy(chair.group.worldToLocal(actorWorld));
+        actor.updateMatrixWorld(true);
+
+        seatedHumanActorsRef.current.push({
+          playerIndex,
+          actor,
+          rig,
+          actionHelpers: createSeatedHumanActionHelpers(actor, rig),
+          propMotion: null,
+          chairSupportsArmrest: chair.supportsArmrest !== false
+        });
+      });
+    } catch (error) {
+      console.warn('Unable to attach seated Ludo humans', error);
+    }
     controls.minDistance = CAM.minR;
     controls.maxDistance = CAM.maxR * CAMERA_ZOOM_MAX_FACTOR;
     cameraSeatLockPositionRef.current = camera.position.clone();

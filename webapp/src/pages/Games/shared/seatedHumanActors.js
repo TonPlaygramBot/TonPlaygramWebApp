@@ -1,4 +1,5 @@
 import * as THREE from 'three';
+import { clone as cloneSkeleton } from 'three/examples/jsm/utils/SkeletonUtils.js';
 import { CHESS_HUMAN_CHARACTER_OPTIONS } from '../../../config/chessBattleInventoryConfig.js';
 import { applySRGBColorSpace } from '../../../utils/colorSpace.js';
 
@@ -600,6 +601,36 @@ function measureObjectHeight(object) {
 export function computeSeatedHumanScale(actorTemplate, targetHeight) {
   const measuredHeight = measureObjectHeight(actorTemplate);
   return (targetHeight / Math.max(measuredHeight, 0.01)) * SEATED_HUMAN_VISUAL_SCALE_MULTIPLIER;
+}
+
+export function createRestoredSeatedHumanActor(
+  actorTemplate,
+  chairGroup,
+  { targetHeight = 1.13, seatHeight = 0, supportsArmrest = true } = {}
+) {
+  if (!actorTemplate?.isObject3D || !chairGroup?.isObject3D) return null;
+  const actor = cloneSkeleton(actorTemplate);
+  const measuredHeight = measureObjectHeight(actor);
+  actor.scale.multiplyScalar(targetHeight / Math.max(measuredHeight, 0.01));
+  chairGroup.add(actor);
+
+  const rig = saveSeatedHumanBoneRig(actor);
+  if (!rig.hips || !rig.leftHand || !rig.rightHand) {
+    actor.removeFromParent();
+    return null;
+  }
+
+  applySeatedHumanPose(rig, 'idle', 1, 0, {}, {}, supportsArmrest);
+  actor.updateMatrixWorld(true);
+  const seatWorld = chairGroup.localToWorld(new THREE.Vector3(0, seatHeight, 0));
+  const hipsWorld = rig.hips.getWorldPosition(new THREE.Vector3());
+  const actorWorld = actor.getWorldPosition(new THREE.Vector3()).add(seatWorld.sub(hipsWorld));
+  actor.position.copy(chairGroup.worldToLocal(actorWorld));
+  actor.rotation.y += Number(actorTemplate.userData?.seatedYawOffset) || 0;
+  actor.position.y += Number(actorTemplate.userData?.seatedYOffset) || 0;
+  actor.position.z += Number(actorTemplate.userData?.seatedZOffset) || 0;
+  actor.updateMatrixWorld(true);
+  return { actor, rig };
 }
 
 export async function loadSeatedHumanTemplate({
