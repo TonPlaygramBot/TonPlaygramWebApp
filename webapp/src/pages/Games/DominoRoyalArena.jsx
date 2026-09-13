@@ -2,10 +2,14 @@ import { useEffect } from 'react';
 
 import { DOMINO_ROYAL_INLINE_STYLE } from './dominoRoyalTemplate.js';
 import { socket } from '../../utils/socket.js';
+import {
+  createRestoredSeatedHumanActor,
+  loadSeatedHumanTemplate
+} from './shared/seatedHumanActors.js';
 
 const INLINE_STYLE_ID = 'domino-royal-inline-style';
 const GAME_SCRIPT_SELECTOR = 'script[data-domino-royal-script="true"]';
-const DOMINO_ROYAL_SCRIPT_VERSION = '2026-09-01-smaller-dominoes-v75';
+const DOMINO_ROYAL_SCRIPT_VERSION = '2026-09-13-restored-humans-v76';
 
 export default function DominoRoyalArena() {
   useEffect(() => {
@@ -33,6 +37,13 @@ export default function DominoRoyalArena() {
     }
 
     window.__DOMINO_ROYAL_SOCKET__ = socket;
+    // The arena itself is loaded as a public ES module. Bridge the shared,
+    // bundled character implementation so Domino uses the exact same restored
+    // models, scale normalization and seated pose as the other royal tables.
+    window.__DOMINO_ROYAL_SEATED_HUMANS__ = {
+      createRestoredSeatedHumanActor,
+      loadSeatedHumanTemplate
+    };
 
     const basePath = import.meta.env.BASE_URL || '/';
     const normalizedBasePath = basePath.endsWith('/') ? basePath : `${basePath}/`;
@@ -58,6 +69,7 @@ export default function DominoRoyalArena() {
       }
       script.remove();
       delete window.__DOMINO_ROYAL_SOCKET__;
+      delete window.__DOMINO_ROYAL_SEATED_HUMANS__;
       if (appRoot) {
         appRoot.replaceChildren();
       }

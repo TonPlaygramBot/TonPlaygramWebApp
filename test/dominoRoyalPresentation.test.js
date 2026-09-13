@@ -15,11 +15,19 @@ describe('Domino Royal lightweight presentation', () => {
     'utf8'
   );
 
-  test('contains no human character implementation or avatar service connections', () => {
-    expect(gameSource).not.toContain('Domino Royal seated human characters');
-    expect(gameSource).not.toContain('DOMINO_CHARACTER_THEMES');
-    expect(gameSource).not.toContain('runDominoCharacterAction');
-    expect(gameSource).not.toContain('SkeletonUtils');
+  test('restores the shared seated human characters at every occupied chair', () => {
+    expect(source).toContain('createRestoredSeatedHumanActor');
+    expect(source).toContain('loadSeatedHumanTemplate');
+    expect(source).toContain('__DOMINO_ROYAL_SEATED_HUMANS__');
+    expect(gameSource).toContain('chairs.forEach((chair) =>');
+    expect(gameSource).toContain('targetHeight: 1.13');
+    expect(gameSource).toContain('seatHeight: STOOL_HEIGHT');
+    expect(gameSource).toContain(
+      "console.warn('Unable to restore Domino Royal seated humans', error)"
+    );
+  });
+
+  test('does not connect the restored humans to external avatar services', () => {
     expect(source).not.toContain('models.readyplayer.me');
     expect(source).not.toContain('avatars.readyplayer.me');
   });
