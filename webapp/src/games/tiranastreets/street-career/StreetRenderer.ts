@@ -1,4 +1,5 @@
 import {weaponAnchors} from './weaponPose.mjs';
+import {PocketVisuals} from '../PocketVisuals';
 import {beginCityFrame} from '../renderSettings';
 import {alignVehicle} from '../../tirana-east/terrainTransforms';
 import {groundHeight} from '../../tirana-east/terrainCore.mjs';
@@ -29,6 +30,7 @@ export class StreetRenderer extends CityRenderer {
   private effectState?:State;
   private cutCount=0;
   private missileMeshes:MissileVisuals;
+  private pockets:PocketVisuals;
   private wreckMaterials=new Map<T.Mesh,{original:T.Material|T.Material[];copies:T.Material[]}>();
   private clearWrecks(){for(const [mesh,saved] of this.wreckMaterials){mesh.material=saved.original;saved.copies.forEach(m=>m.dispose());}this.wreckMaterials.clear();}
   private showWrecks(sim:StreetSimulation){
@@ -63,6 +65,7 @@ export class StreetRenderer extends CityRenderer {
     this.bodyRig = new FirstPersonBody(this.scene);
     this.combatEffects = new CombatEffects(this.scene);
     this.missileMeshes = new MissileVisuals(this.scene);
+    this.pockets = new PocketVisuals(this.scene);
     this.airMobility.authoritativeMissiles = true;
     this.camera.near = 0.035;
     this.setFirstPerson(true);
@@ -215,6 +218,7 @@ export class StreetRenderer extends CityRenderer {
       const fires=[...sim.combat.fires.values()].map(f=>({x:f.car.x,z:f.car.z,y:groundHeight(f.car.x,f.car.z)+.8}));
       this.combatEffects.update(dt,this.camera,fires,sim.combat.missiles,this.quality==='battery');
       this.missileMeshes.update(sim.combat.missiles);
+      this.pockets.update(sim);
     }
     const refreshLoot = performance.now();
     if (this.simulation && refreshLoot - this.lootAt >= 100) {
@@ -282,7 +286,7 @@ export class StreetRenderer extends CityRenderer {
   override destroy() {
     if (this.disposed) return;
     this.bodyRig.dispose();
-    this.clearWrecks();this.combatEffects.dispose();this.missileMeshes.dispose();
+    this.clearWrecks();this.combatEffects.dispose();this.missileMeshes.dispose();this.pockets.dispose();
     this.humans.dispose();
     super.destroy();
   }

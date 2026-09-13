@@ -16,3 +16,13 @@ export function firstWindowHeight(b:any){
  const education=['school','kindergarten','university','college'].includes(t.building)||['school','kindergarten','university','college'].includes(t.amenity);
  return Math.max((b.minHeight||0)+1.55,education||b.h<4.5?1.55:4.7);
 }
+/** Mapped storey counts determine spacing; terrain elevation never eats floors. */
+export function windowRows(b:any){
+ const low=Math.max(0,b.minHeight||0),height=b.h-low;
+ const levels=Number(b.tags?.['building:levels']),minimum=Number(b.tags?.['building:min_level']||0);
+ const count=Number.isInteger(levels)&&levels>minimum&&levels<=100?levels-minimum:0;
+ if(count&&height/count>=1.8&&height/count<=7){
+  const storey=height/count;return Array.from({length:count},(_,i)=>({y:low+(i+.52)*storey,height:Math.min(1.65,storey*.55)}));
+ }
+ const rows=[];for(let y=firstWindowHeight(b);y<b.h-1;y+=3.2)rows.push({y,height:1.65});return rows;
+}

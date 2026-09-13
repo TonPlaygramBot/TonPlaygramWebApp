@@ -369,3 +369,39 @@ test('real driver hands stay at the canonical cabin wheel while looking sideways
   }
   rig.dispose();
 });
+
+test('four fingers preserve move, look and duplicate fire ownership across release and blur',()=>{
+ const looks=[],input=new StreetInput(()=>{},(x,y)=>looks.push([x,y]));
+ input.pointerDown(1,'move',20,700);input.touch.x=.6;input.touch.y=.8;
+ input.pointerDown(2,'look',200,400);input.pointerDown(3,'fire',330,650);input.pointerDown(4,'fire',332,648);
+ input.pointerMove(3,350,620);input.pointerMove(2,220,380);
+ assert.deepEqual(looks,[[20,-20]],'a separate look finger prevents double camera movement');
+ input.pointerUp(3);assert.equal(input.readStreet(0,0,false).fire,true);
+ input.pointerUp(2);input.pointerMove(4,342,638);assert.deepEqual(looks.at(-1),[10,-10]);
+ input.pointerUp(4);assert.equal(input.readStreet(0,0,false).fire,false);assert.equal(input.touch.x,.6);
+ window.dispatchEvent(new dom.window.Event('blur'));assert.equal(input.pointerDown(1,'move',20,700),true);
+ input.pointerDown(5,'gas',0,0);input.pointerDown(6,'reverse',0,0);input.pointerDown(7,'brake',0,0);
+ assert.equal(input.readStreet(0,0,true).y,0);assert.equal(input.readStreet(0,0,true).brake,true);
+ input.pointerUp(6);assert.equal(input.readStreet(0,0,true).y,1);input.destroy();
+});
+
+test('battlefield look release cannot stop fire held with another finger',async()=>{
+ const out=join(dir,'battlefield-input.mjs');await build({entryPoints:[join(webapp,'src/games/blackwater/input.ts')],outfile:out,bundle:true,platform:'node',format:'esm',logLevel:'silent'});
+ const {GameInput}=await import(pathToFileURL(out)),surface=document.createElement('div');surface.setPointerCapture=()=>{};
+ const input=new GameInput(surface);input.active=true;input.firing=true;
+ const event=(type,id,x)=>{const e=new dom.window.Event(type);Object.assign(e,{pointerId:id,pointerType:'touch',clientX:x,clientY:10});surface.dispatchEvent(e);};
+ const looks=[];input.onLook=(x,y)=>looks.push([x,y]);event('pointerdown',1,20);event('pointerdown',2,50);event('pointermove',1,30);assert.deepEqual(looks,[[10,0]]);
+ event('pointerup',1,30);assert.equal(input.firing,true);input.dispose();assert.equal(input.firing,false);
+});
+
+test('mapped window storeys and batched facade normals remain correct on elevated ground',async()=>{
+ const out=join(dir,'building-windows.mjs');await build({entryPoints:[join(webapp,'src/games/tirana-neighbourhood/MappedBuildingCells.ts')],outfile:out,bundle:true,platform:'node',format:'esm',external:['three','three/*'],logLevel:'silent'});
+ const {MappedBuildingCells}=await import(pathToFileURL(out));
+ const {groundHeight,buildingGround}=await import('../webapp/src/games/tirana-east/terrainCore.mjs');
+ const material=new T.MeshStandardMaterial(),layer=new MappedBuildingCells([],material,material,false,false);
+ const b={id:'test',p:[[5000,5000],[5016,5000],[5016,5016],[5000,5016]],h:9.6,tags:{'building:levels':'3'}};
+ const group=layer.build([b],true),glass=group.children.find(m=>m.userData.windows),p=glass.geometry.getAttribute('position'),norm=glass.geometry.getAttribute('normal');
+ assert.equal(p.count,4*4*3*6);const base=buildingGround(b);assert.ok(Number.isFinite(groundHeight(5000,5000)));
+ for(let i=0;i<p.count;i+=6){const a=new T.Vector3().fromBufferAttribute(p,i),b=new T.Vector3().fromBufferAttribute(p,i+1),c=new T.Vector3().fromBufferAttribute(p,i+2);assert.ok(a.y>base&&a.y<base+9.6);assert.ok(b.sub(a).cross(c.sub(a)).dot(new T.Vector3().fromBufferAttribute(norm,i))>0);}
+ group.traverse(o=>{if(o instanceof T.Mesh)o.geometry.dispose();});layer.dispose();material.dispose();
+});

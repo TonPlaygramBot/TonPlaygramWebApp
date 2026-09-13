@@ -1,3 +1,4 @@
+import {clearRoadSegment} from './streetSafety.mjs';
 import { WORLD } from './world.mjs';
 import {footprintIndex} from '../../tirana-city-source/footprintIndex.mjs';
 import {
@@ -94,7 +95,7 @@ function addRail(a, b, river = false) {
     z = (a[1] + b[1]) / 2;
   const key = `${Math.round(x / 2)},${Math.round(z / 2)}`;
   if (
-    occupied.has(key) ||
+    occupied.has(key) || !clearRoadSegment(a,b,.32) ||
     ![a, b, [x, z]].every((p) => freeLandscape(...p)) ||
     nearBridge(x, z, 2.8)
   )
@@ -145,7 +146,7 @@ for (const r of WORLD.roads) {
   for (const side of [-1, 1]) {
     const ux = (r.b[0] - r.a[0]) / len,
       uz = (r.b[1] - r.a[1]) / len,
-      off = side * (r.w / 2 + 0.42);
+      off = side * (r.w / 2 + 0.9);
     const a = [r.a[0] + ux * 6 + uz * off, r.a[1] + uz * 6 - ux * off],
       b = [r.b[0] - ux * 6 + uz * off, r.b[1] - uz * 6 - ux * off];
     sections([a, b], false);

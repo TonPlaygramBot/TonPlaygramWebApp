@@ -85,8 +85,26 @@ test('aiming changes private arm bones and cover lowers the visible officer',asy
   const s=state();s.npcs=[{...npc('pose'),speed:0,anim:'idle'}];
   layer.update(s,{x:0,z:0},0,1/60);await settle(layer);layer.update(s,{x:0,z:0},1,1/60);
   const root=layer.getRoot('npc-pose'),bone=root.getObjectByName(T.PropertyBinding.sanitizeNodeName('upperarm01.R'));assert.ok(bone);
-  const idle=bone.quaternion.clone();s.npcs[0].anim='aim';layer.update(s,{x:0,z:0},2,1/60);assert.ok(bone.quaternion.angleTo(idle)>.1);
+  const idle=bone.quaternion.clone();s.npcs[0].anim='aim';for(let i=0;i<15;i++)layer.update(s,{x:0,z:0},2+i/60,1/60);assert.ok(bone.quaternion.angleTo(idle)>.1);
   const standing=root.position.y;s.npcs[0].anim='cover';for(let i=0;i<30;i++)layer.update(s,{x:0,z:0},3+i/60,1/60);assert.ok(root.position.y<standing-.25);
   s.npcs[0].anim='ride';s.npcs[0].motion='drive';layer.update(s,{x:0,z:0},4,1/60);assert.ok(layer.has('npc-pose'),'motorcycle passengers are rendered');
+ }finally{layer.dispose();}
+});
+
+test('original force wrists reach the same firearm grips used by the rendered weapon',async()=>{
+ const {npcWeaponPose}=await import('../webapp/src/games/tiranastreets/shared/npcWeaponPose.mjs');
+ const layer=new AlbanianForcesVisuals();
+ try{
+  const s=state();s.npcs=[{...npc('grip'),anim:'aim',weapon:'ak47VolleyAttack',aimPitch:0}];
+  layer.update(s,{x:0,z:0},0,1/60);await settle(layer);
+  for(const weapon of ['ak47VolleyAttack','glockSidearmAttack']){
+   s.npcs[0].weapon=weapon;for(let i=0;i<90;i++)layer.update(s,{x:0,z:0},i/60,1/60);
+   const root=layer.getRoot('npc-grip'),pose=npcWeaponPose(s.npcs[0]);root.updateMatrixWorld(true);
+   for(const [side,grip] of [['R',pose.right],['L',pose.left]]){
+    const actual=root.getObjectByName(T.PropertyBinding.sanitizeNodeName(`wrist.${side}`)).getWorldPosition(new T.Vector3());
+    const desired=root.localToWorld(new T.Vector3(grip.x,grip.y,grip.z));
+    assert.ok(actual.distanceTo(desired)<.035,`${weapon} ${side}: ${actual.distanceTo(desired)} metres`);
+   }
+  }
  }finally{layer.dispose();}
 });

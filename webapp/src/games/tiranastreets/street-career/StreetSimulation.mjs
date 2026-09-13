@@ -1,3 +1,6 @@
+import {ArrestSimulation} from './ArrestSimulation.mjs';
+import {npcWeaponPose} from '../shared/npcWeaponPose.mjs';
+import {ThrowableSimulation} from './ThrowableSimulation.mjs';
 import {groundHeight} from '../../tirana-east/terrainCore.mjs';
 import {CABLE_STATIONS,CABLE_DURATION,cablePoint,dismountCandidates} from '../../tirana-east/cableCore.mjs';
 import { collectWeapon } from '../shared/cityPopulation.mjs';
@@ -71,6 +74,8 @@ export class StreetSimulation {
     this.combat = new CombatSimulation(this);
     this.crashes = new CrashSimulation(this);
     this.flight = new FlightSimulation(this);
+    this.arrest = new ArrestSimulation(this);
+    this.throwables = new ThrowableSimulation(this);
     this.body.combat = this.player.weapon ? 'ready' : 'unarmed';
     this.job = {
       parcel: false,
@@ -105,6 +110,7 @@ export class StreetSimulation {
           ),
         firePlayer: () => this.fire(),
         fireNPC: (n,p,scale) => this.fireNPC(n,p,scale),
+        officerAction: (n,p,dt,env) => this.arrest.officer(n,p,dt,env),
         damageAmount: (target, amount, attacker) =>
           this.guardDamage(target, amount, attacker),
         onDamage: (target, attacker) => this.damaged(target, attacker),
@@ -186,6 +192,7 @@ export class StreetSimulation {
       movePlayer(s, p, dt);
       return;
     }
+    if (this.arrest.locked) {p.speed=0;return;}
     if (p.aircraftId) { this.flight.step(dt); return; }
     if (p.health <= 0 || p.failed || p.finished) {
       this.cableRide=null;
@@ -233,6 +240,9 @@ export class StreetSimulation {
   }
   afterLife(s, dt) {
     this.combat.step(dt);
+    this.throwables.step(dt);
+    this.arrest.step(dt);
+    if(this.arrest.locked)return;
     const p = this.player,
       b = this.body;
     if (p.health <= 0 || p.failed) return;
@@ -335,6 +345,7 @@ export class StreetSimulation {
     harm(this.state, target, amount, attacker, { ...this.hooks.life });
   }
   guardDamage(target, amount, attacker) {
+    if(target===this.player&&this.arrest.locked)return 0;
     if (target !== this.player || !this.body.guard || !attacker) return amount;
     const d = direction3(this.body.yaw, 0),
       l = dist(target, attacker);
@@ -393,6 +404,8 @@ export class StreetSimulation {
         n.id
       );
     if (clear) {
+      const toY=(p===this.player?this.body.y+this.body.eye*.72:(p.y??groundHeight(p.x,p.z))+1.15);
+      n.aimPitch=Math.atan2(toY-(groundHeight(n.x,n.z)+1.4),Math.max(.1,distance));
       if (!old || !old.visible) {
         this.body.seen[key] = {
           x: p.x,
@@ -575,7 +588,7 @@ export class StreetSimulation {
       driving = !!p.carId || !!p.aircraftId,
       dead = p.health <= 0 || p.failed || p.finished,
       busy =
-        !!b.action ||
+        this.arrest.locked || !!b.action ||
         b.interaction === 'entering' ||
         b.interaction === 'exiting' || b.interaction === 'cableway';
     const reason = dead
@@ -632,12 +645,12 @@ export class StreetSimulation {
           'toggle'
         )
       );
-      if (p.weapon) {
+      if (p.weapon && p.weapon!=='punch') {
         const w = WEAPON_BY_ID.get(p.weapon),
           inv = p.inventory[p.weapon];
         list.push(
-          a('fire', w?.category==='melee'?'SLASH':'FIRE', true, !inv?.ammo ? 'Reload first' : '', 'hold'),
-          a('aim', 'AIM', true, '', 'toggle'),
+          a('fire', p.weapon==='punch'?'PUNCH':w?.category==='melee'?'SLASH':w?.category==='throwable'?'THROW':'FIRE', true, !inv?.ammo ? 'Reload first' : '', 'hold'),
+          a('aim', w?.category==='throwable'?'AIM THROW':'AIM', w?.category!=='melee', '', 'toggle'),
           a(
             'reload',
             'RELOAD',
@@ -830,7 +843,7 @@ export class StreetSimulation {
     const p = this.player,
       b = this.body,
       d = direction3(b.yaw, b.pitch * 0.35),
-      range = a.kind === 'kick' ? 2.05 : WEAPON_BY_ID.get(p.weapon)?.category==='melee' ? 1.65 : 1.5,
+      range = a.kind === 'kick' ? 2.05 : WEAPON_BY_ID.get(p.weapon)?.range || 1.5,
       origin = { x: p.x, y: b.y + (a.kind === 'kick' ? 0.85 : 1.3), z: p.z };
     let target = null,
       best = range;
@@ -850,26 +863,28 @@ export class StreetSimulation {
       target = n;
     }
     if (target) {
-      this.damage(target, a.kind === 'kick' ? 30 : WEAPON_BY_ID.get(p.weapon)?.category==='melee' ? 35 : 16, p);
+      this.damage(target, a.kind === 'kick' ? 30 : WEAPON_BY_ID.get(p.weapon)?.damage || 16, p);
       reportCrime(this.state, p, target.kind === 'gang' ? 4 : 55);
       this.event('melee-hit');
     }
   }
   fireNPC(n,p,scale=1) {
     const now=this.state.elapsed,w=WEAPON_BY_ID.get(n.weapon);
-    if(this.paused||!w||w.category==='melee'||n.health<=0||p.health<=0||now<(n.nextShot||0)||now<(n.hitUntil||0))return;
+    if(this.paused||this.player.arrest||!w||w.category==='melee'||n.health<=0||p.health<=0||now<(n.nextShot||0)||now<(n.hitUntil||0))return;
     if(n.loadedWeapon!==w.id){n.loadedWeapon=w.id;n.rounds=w.magazine;n.reloadUntil=0;}
     if(n.reloadUntil){
       if(now<n.reloadUntil){n.anim='reload';return;}
       n.rounds=w.magazine;n.reloadUntil=0;
     }
     if(n.rounds<=0){n.reloadUntil=now+w.reload;n.anim='reload';return;}
-    const from={x:n.x-Math.sin(n.heading)*.38,y:(n.y??groundHeight(n.x,n.z)) +1.38,z:n.z-Math.cos(n.heading)*.38};
+    const from=npcWeaponPose({...n,y:n.y??groundHeight(n.x,n.z)}).worldMuzzle;
     const to={x:p.x,y:(p===this.player?this.body.y:p.y??groundHeight(p.x,p.z))+(p===this.player?this.body.eye*.72:1.15),z:p.z};
     const dx=to.x-from.x,dy=to.y-from.y,dz=to.z-from.z,length=Math.hypot(dx,dy,dz);
     if(!length||length>w.range)return;
+    const yaw=Math.atan2(-dx,-dz);
+    if(Math.abs(Math.atan2(Math.sin(yaw-n.heading),Math.cos(yaw-n.heading)))>.055)return;
     // Deterministic burst spread: moving targets and distance matter, no random frame dependence.
-    const spread=Math.sin((n.shotsFired||0)*2.399+n.x)* (n.kind==='soldier'?.012:.024);
+    const spread=Math.sin((n.shotsFired||0)*2.399+n.x)* (n.kind==='soldier'?.006:.012);
     const direction={x:dx/length+spread,y:dy/length,z:dz/length-spread};
     const norm=Math.hypot(direction.x,direction.y,direction.z);for(const axis of ['x','y','z'])direction[axis]/=norm;
     const proxy={...p,y:p===this.player?this.body.y:p.y,height:p===this.player?this.body.eye+.15:1.76};
@@ -904,6 +919,7 @@ export class StreetSimulation {
     )
       return;
     if(w.category==='melee'){this.startMelee('punch');p.nextShot=this.state.elapsed+w.interval;return;}
+    if(w.category==='throwable'){this.throwables.throw(w);return;}
     inv.ammo--;
     p.nextShot = this.state.elapsed + w.interval;
     b.combat = 'fire';
@@ -1103,6 +1119,7 @@ export class StreetSimulation {
     }
   }
   canAdvance(p, m) {
+    if(p.arrest)return false;
     if (m.type === 'flight') {
       const a = this.flight.current;
       if (!a || a.kind !== m.aircraft) return false;

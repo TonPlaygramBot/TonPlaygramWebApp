@@ -1,4 +1,5 @@
 import {groundHeight} from '../../tirana-east/terrainCore.mjs';
+import {pocketWeapon,isPocketWeapon} from '../PocketWeapons';
 import { weaponPose, weaponAnchors } from './weaponPose.mjs';
 import * as T from 'three';
 import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js';
@@ -99,6 +100,7 @@ export function maskHead(root: T.Object3D) {
 }
 const armPose = solveHumanoidLimb;
 export class FirstPersonBody {
+  private custodyDown = 0;
   readonly weapon = new T.Group();
   readonly errors: string[] = [];
   private drops = new Map<string, T.Group>();
@@ -174,6 +176,7 @@ export class FirstPersonBody {
     }
   }
   private loadWeapon(id: string, model: string) {
+    if(isPocketWeapon(id)){if(!this.models.has(id))this.models.set(id,pocketWeapon(id));return Promise.resolve();}
     const existing = this.requests.get(id);
     if (existing) return existing;
     const request = this.fetchWeapon(id, model).finally(() => this.requests.delete(id));
@@ -258,8 +261,16 @@ export class FirstPersonBody {
     root.position.set(p.x, b.y, p.z);
     root.rotation.set(0, b.yaw + Math.PI, 0);
     root.scale.setScalar(1);
+    const down=p.arrest?.phase==='down'||p.arrest?.phase==='backup',seated=p.arrest?.phase==='transport';
+    this.custodyDown+=(Number(down)-this.custodyDown)*(1-Math.exp(-dt*10));
+    if(this.custodyDown>.001){
+      root.rotateX(-Math.PI/2*this.custodyDown);
+      root.position.x-=Math.sin(b.yaw)*1.6*this.custodyDown;
+      root.position.z-=Math.cos(b.yaw)*1.6*this.custodyDown;
+      root.position.y+=.22*this.custodyDown;
+    }
     const moving = p.speed > 0.15 && !car && b.grounded,
-      motion = moving ? (p.speed > 3 ? (p.weapon ? 'Run_Shoot' : 'Run') : 'Walk') : p.weapon ? (b.aim ? 'Idle_Gun_Pointing' : 'Idle_Gun') : 'Idle';
+      motion = moving ? (p.speed > 3 ? (p.weapon && p.weapon!=='punch' ? 'Run_Shoot' : 'Run') : 'Walk') : p.weapon && p.weapon!=='punch' ? (b.aim ? 'Idle_Gun_Pointing' : 'Idle_Gun') : 'Idle';
     if (motion !== this.motion) {
       for (const a of Object.values(actor.clips || {Idle:actor.idle, Walk:actor.walk, Run:actor.run})) a?.fadeOut(0.14);
       const next = actor.clips?.[motion] || (moving ? (p.speed > 3 ? actor.run : actor.walk) : actor.idle);
@@ -284,10 +295,10 @@ export class FirstPersonBody {
     const crouch = b.crouched;
     const hips = this.bones.get('hips');
     if (hips) {
-      const shift = crouch ? -0.52 : car ? -0.52 : 0;
+      const shift = crouch || car || seated ? -0.52 : 0;
       root.position.y += shift;
     }
-    if (crouch || car) {
+    if (crouch || car || seated) {
       set('leftupleg', car ? -1.35 : -1.3);
       set('rightupleg', car ? -1.35 : -1.3);
       set('leftleg', car ? 1.65 : 2.0);
@@ -348,7 +359,7 @@ export class FirstPersonBody {
     const pose = weaponPose(p, b);
     const reload = a?.kind === 'reload',
       wall = T.MathUtils.clamp((0.8 - b.wall) / 0.6, 0, 1),
-      armed = !!p.weapon;
+      armed = !!p.weapon && p.weapon !== 'punch';
     let left = local(-0.22, -0.28, 0.31),
       r = local(0.22, -0.28, 0.31);
     if (armed) {
@@ -367,6 +378,10 @@ export class FirstPersonBody {
       const reach = 0.32 + 0.39 * swing;
       if (a.hand) r = local(0.06, -0.17, reach);
       else left = local(-0.06, -0.17, reach);
+    } else if(p.weapon==='punch') {
+      left=local(-.18,-.18,.3);r=local(.18,-.18,.3);
+    } else if(p.arrest&&p.arrest.phase!=='pursuit') {
+      left=local(-.07,-.28,.35);r=local(.07,-.28,.35);
     }
     if (a?.kind === 'entering' || a?.kind === 'interacting') {
       r = local(0.13, -0.22, 0.3 + 0.35 * swing);
@@ -410,7 +425,7 @@ export class FirstPersonBody {
       set(side + 'forearm', 0);
       set(side + 'hand', 0);
     }
-    if (WEAPON_BY_ID.get(p.weapon)?.category === 'melee') {
+    if (WEAPON_BY_ID.get(p.weapon)?.category === 'melee' && p.weapon !== 'punch') {
       left = local(-.26,-.55,.06);
       if(a?.kind==='punch')r=local(.12,-.2,.3+.42*swing);
     }
@@ -455,6 +470,12 @@ export class FirstPersonBody {
       'YXZ'
     );
     this.weapon.position.addScaledVector(v.set(forward.x,forward.y,forward.z), -b.recoil);
+    if(isPocketWeapon(p.weapon)){
+      const throwing=config?.category==='throwable';
+      const t=throwing?Math.max(0,Math.min(1,1-(p.nextShot-time)/(config?.interval||1))):1;
+      if(throwing){r=local(.19,-.3,.28+Math.sin(t*Math.PI)*.3);armPose(root,this.bones,'right',r);this.weapon.position.copy(r);}
+      this.weapon.visible=throwing&&!car&&p.health>0;
+    }
     if (config?.category === 'melee') {
       this.weapon.rotation.x += a?.kind === 'punch' ? -.75 * swing : .2;
       const grip = pose.anchors.rightGrip;
@@ -466,7 +487,7 @@ export class FirstPersonBody {
       pose.anchors.muzzle.z
     );
     this.muzzle.visible =
-      config?.category !== 'melee' &&
+      config?.category !== 'melee' && config?.category !== 'throwable' &&
       time < p.nextShot &&
       time >= p.nextShot - (config?.interval || 0.1) &&
       time < p.nextShot - (config?.interval || 0.1) + 0.05;

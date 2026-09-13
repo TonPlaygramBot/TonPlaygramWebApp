@@ -5,6 +5,10 @@ import {NEIGHBOURHOOD_REFERENCE_PROFILES} from './neighbourhoodProfiles.mjs';
 export const REFERENCE_BUILDINGS = Object.freeze({
   ...LANDMARK_PROFILES,
   ...NEIGHBOURHOOD_REFERENCE_PROFILES,
+  '1255594721': {name:'Downtown One Tirana',style:'downtown-one',color:0xc3c9c6,trim:0xe4e5de,
+    floor:140/37,window:1.65,photo:null,date:'MVRDV project reference, checked 2026-09-13',
+    source:'https://www.mvrdv.com/projects/388/downtown-one-tirana',
+    credit:'MVRDV · design reference; images not redistributed',features:'140 m, 37 storeys, glazed grid and projecting bays inspired by the Albania map relief. Bay pattern is an authored approximation.'},
   '470567580': {name:'Ambasada e Zvicrës',style:'swiss',color:0xe2dfcd,trim:0xc6c4b7,
     floor:4.5,window:1.15,photo:null,date:'2015 filename; capture date unverified',
     source:'https://www.eda.admin.ch/countries/albania/en/home/representations/embassy-tirana.html',

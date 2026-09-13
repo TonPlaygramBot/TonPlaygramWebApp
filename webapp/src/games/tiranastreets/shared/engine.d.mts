@@ -53,6 +53,7 @@ export type Player = Point &
     cash: number;
     wanted: number;
     searching?: boolean;
+    arrest?: {phase:string;at:number;started:number;officerId:string;reason:string};
     lastCrime: number;
     lastDamage: number;
     respawnAt: number;
@@ -80,7 +81,7 @@ export type Mission = {
   stops: (Point & { name: string })[];
 };
 export type NPC = Point & {
-  firedAt?:number; reloadUntil?:number; rounds?:number;
+  firedAt?:number; reloadUntil?:number; rounds?:number; aimPitch?:number; aimSince?:number; splatteredUntil?:number; splatter?:string;
   y?:number;hitUntil?:number;
   id: string;
   kind: string;
@@ -99,6 +100,7 @@ export type NPC = Point & {
   downUntil: number;
 };
 export type Effect = Point & {
+  targetId?:string;nx?:number;ny?:number;nz?:number;
   radius?:number;objectId?:string;
   y?:number;toY?:number;
   id: number;
@@ -172,6 +174,7 @@ export const WORLD: {
     h: number;
     name: string;
     special: string;
+    visualHeightSource?:string;
     neighbourhood?: boolean;
     holes?: number[][][];
     minHeight?: number;

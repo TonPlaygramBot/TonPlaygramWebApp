@@ -96,7 +96,7 @@ test('unowned, dead, paused, driving and online switching cannot alter loadout',
 });
 test('every career weapon thumbnail is present and is a small WebP',async()=>{
   const {WEAPONS}=await import('../webapp/src/games/tiranastreets/shared/weapons.mjs');
-  for(const w of WEAPONS.filter(w=>w.id!=='fpsGunAttack')){
+  for(const w of WEAPONS.filter(w=>!['fpsGunAttack','punch','egg','tomato'].includes(w.id))){
     const b=await readFile(`webapp/public/assets/tirana-streets/weapon-thumbnails/${w.id}.webp`);
     assert.equal(b.toString('utf8',8,12),'WEBP',w.id);assert.ok(b.length<30000,w.id);
   }

@@ -39,7 +39,7 @@ export function citySites(env) {
     shops.push({...p,id:`arsenal-${shops.length+1}`,name:`Arben · Arsenal ${String(shops.length+1).padStart(2,'0')}`});
   }
   if(shops.length!==CITY_POPULATION.shops)throw Error('Unable to place all 15 weapon stores safely');
-  const guns=WEAPONS.filter(w=>!w.radius&&w.id!=='fpsGunAttack');
+  const guns=WEAPONS.filter(w=>!w.radius&&w.id!=='fpsGunAttack'&&w.id!=='punch'&&w.category!=='throwable');
   const sorted=[...walks].sort((a,b)=>Math.hypot(a.a[0]-env.spawn.x,a.a[1]-env.spawn.z)-Math.hypot(b.a[0]-env.spawn.x,b.a[1]-env.spawn.z));
   for(let i=0;i<sorted.length*3&&pickups.length<CITY_POPULATION.weapons;i++){
     const r=sorted[i<90?i:(i*811)%sorted.length],t=.2+(i%7)*.1;

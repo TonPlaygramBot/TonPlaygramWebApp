@@ -1,4 +1,5 @@
 import * as T from 'three';
+import {clearRoadSegment} from '../tiranastreets/shared/streetSafety.mjs';
 import {GLTFLoader} from 'three/examples/jsm/loaders/GLTFLoader.js';
 import {WORLD} from '../tiranastreets/shared/world.mjs';
 import {RAILINGS} from '../tiranastreets/shared/landscape.mjs';
@@ -68,10 +69,13 @@ export class InfrastructureLayer {
       for(const side of [-1,1]){
         const offset=side*half;
         if(!r.walk)box(this.paving,x+nx*side*(r.w/2+.64),.19,z+nz*side*(r.w/2+.64),1.24,.1,length,yaw);
-        for(const height of [.67,1.32])box(this.steel,x+nx*offset,height,z+nz*offset,.065,.065,length,yaw);
         const count=Math.max(1,Math.ceil(length/1.6));
         for(let i=0;i<=count;i++){
           const px=r.a[0]+dx*i/count+nx*offset,pz=r.a[1]+dz*i/count+nz*offset;
+          // Short sections preserve bridge edges while leaving crossing lanes open.
+          const qx=r.a[0]+dx*Math.min(count,i+1)/count+nx*offset,qz=r.a[1]+dz*Math.min(count,i+1)/count+nz*offset;
+          if(!clearRoadSegment([px,pz],[qx,qz],.12))continue;
+          if(i<count)for(const height of [.67,1.32])box(this.steel,(px+qx)/2,height,(pz+qz)/2,.065,.065,length/count,yaw);
           box(this.steel,px,.79,pz,.075,1.08,.075,yaw);
           if(i%3===0)box(this.reflectors,px,1.05,pz,.085,.15,.045,yaw);
         }
