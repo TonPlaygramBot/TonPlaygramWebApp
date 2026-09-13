@@ -3051,7 +3051,7 @@ function pickRandomAiHumanCharacterOption(playerOption) {
   const fallback = HUMAN_CHARACTER_OPTIONS[0] ?? null;
   const playerId = playerOption?.id ?? null;
   const pool = HUMAN_CHARACTER_OPTIONS.filter(
-    (option) => option?.id && option.id !== playerId && !FAILED_HUMAN_CHARACTER_IDS.has(option.id)
+    (option) => option?.id && option.id !== playerId
   );
   if (!pool.length) return fallback;
   return pool[Math.floor(Math.random() * pool.length)] ?? fallback;
