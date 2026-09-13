@@ -45,6 +45,7 @@ import {
 } from '../../utils/telegram.js';
 import BottomLeftIcons from '../../components/BottomLeftIcons.jsx';
 import AvatarTimer from '../../components/AvatarTimer.jsx';
+import FourInRowFallback from '../../components/FourInRowFallback';
 import GiftPopup from '../../components/GiftPopup.jsx';
 import QuickMessagePopup from '../../components/QuickMessagePopup.jsx';
 import {
@@ -53,6 +54,9 @@ import {
 } from '../../utils/fourInRowInventory.js';
 import { applyRendererSRGB, applySRGBColorSpace } from '../../utils/colorSpace.js';
 import { socket } from '../../utils/socket.js';
+import { getGameVolume, isGameMuted } from '../../utils/sound.js';
+import { createBoard, cloneBoard, isFull, getDropRow, getWinningCells, chooseAiMove, mapFourInRowSnapshot } from '../../utils/fourInRowGame.js';
+import { advanceFourInRowDrop, consumeFourInRowFrame, getFourInRowDropDuration } from '../../utils/fourInRowMotion';
 
 const MODEL_SCALE = 0.75;
 const ROW_GAME_SCALE_REDUCTION = 0.25;
@@ -134,15 +138,8 @@ const CONNECT4_PANEL = '#efe9d5';
 const CONNECT4_RED = '#e3342f';
 const CONNECT4_BLUE = '#2d79d8';
 const DROP_PREVIEW_DELAY = 0.04;
-const DROP_BASE_DURATION = 0.24;
-const DROP_ROW_DURATION_STEP = 0.035;
-const CHIP_FLICK_AIR_DURATION = 0.34;
-const CHIP_FLICK_RELEASE_RATIO = 0.58;
-const CHIP_FLICK_ARC_LIFT = 0.34 * MODEL_SCALE;
-const CHIP_FLICK_FORWARD_OVERSHOOT = 0.035 * BOARD_AND_CHIPS_SCALE;
-const CHIP_DROP_GUIDE_WOBBLE = 0.004 * BOARD_AND_CHIPS_SCALE;
-const WIN_HIGHLIGHT_SCALE_BASE = 1.16;
-const WIN_HIGHLIGHT_SCALE_PULSE = 0.14;
+const WIN_HIGHLIGHT_SCALE_BASE = 1.04;
+const WIN_HIGHLIGHT_SCALE_PULSE = 0.035;
 const WIN_HIGHLIGHT_BOUNCE = 0.032 * BOARD_AND_CHIPS_SCALE;
 const DRACO_DECODER_PATH = 'https://www.gstatic.com/draco/versioned/decoders/1.5.7/';
 const BASIS_TRANSCODER_PATH = 'https://cdn.jsdelivr.net/npm/three@0.164.0/examples/jsm/libs/basis/';
@@ -201,223 +198,18 @@ let sharedKtx2Loader = null;
 const polyhavenModelUrlCache = new Map();
 const polyhavenFilesManifestCache = new Map();
 
-const createBoard = (rows, cols) =>
-  Array.from({ length: rows }, () => Array.from({ length: cols }, () => null));
-const cloneBoard = (board) => board.map((row) => [...row]);
-const isFull = (board) => board.every((row) => row.every(Boolean));
+function disposeTokenMesh(root) {
+  const geometries = new Set();
+  const materials = new Set();
+  root.traverse((node) => {
+    if (node.geometry) geometries.add(node.geometry);
+    const list = Array.isArray(node.material) ? node.material : [node.material];
+    list.filter(Boolean).forEach((material) => materials.add(material));
+  });
+  geometries.forEach((geometry) => geometry.dispose());
+  materials.forEach((material) => material.dispose());
+}
 
-const getDropRow = (board, col) => {
-  for (let r = board.length - 1; r >= 0; r -= 1) {
-    if (!board[r][col]) return r;
-  }
-  return -1;
-};
-
-const getWinningCells = (board, token) => {
-  const rows = board.length;
-  const cols = board[0].length;
-  const dirs = [
-    [0, 1],
-    [1, 0],
-    [1, 1],
-    [-1, 1]
-  ];
-  for (let r = 0; r < rows; r += 1) {
-    for (let c = 0; c < cols; c += 1) {
-      if (board[r][c] !== token) continue;
-      for (const [dr, dc] of dirs) {
-        const cells = [[r, c]];
-        let ok = true;
-        for (let i = 1; i < 4; i += 1) {
-          const nr = r + dr * i;
-          const nc = c + dc * i;
-          if (
-            nr < 0 ||
-            nr >= rows ||
-            nc < 0 ||
-            nc >= cols ||
-            board[nr][nc] !== token
-          ) {
-            ok = false;
-            break;
-          }
-          cells.push([nr, nc]);
-        }
-        if (ok) return cells;
-      }
-    }
-  }
-  return null;
-};
-
-const checkWinner = (board, token) => Boolean(getWinningCells(board, token));
-
-const evaluateWindow = (window, aiToken, playerToken) => {
-  const aiCount = window.filter((v) => v === aiToken).length;
-  const playerCount = window.filter((v) => v === playerToken).length;
-  const empty = window.filter((v) => !v).length;
-  if (aiCount === 4) return 1000;
-  if (aiCount === 3 && empty === 1) return 25;
-  if (aiCount === 2 && empty === 2) return 6;
-  if (playerCount === 3 && empty === 1) return -35;
-  return 0;
-};
-
-const scorePosition = (board, aiToken, playerToken) => {
-  const rows = board.length;
-  const cols = board[0].length;
-  let score = 0;
-  const centerCol = Math.floor(cols / 2);
-  for (let r = 0; r < rows; r += 1) {
-    if (board[r][centerCol] === aiToken) score += 3;
-  }
-  for (let r = 0; r < rows; r += 1) {
-    for (let c = 0; c < cols - 3; c += 1)
-      score += evaluateWindow(
-        [board[r][c], board[r][c + 1], board[r][c + 2], board[r][c + 3]],
-        aiToken,
-        playerToken
-      );
-  }
-  for (let c = 0; c < cols; c += 1) {
-    for (let r = 0; r < rows - 3; r += 1)
-      score += evaluateWindow(
-        [board[r][c], board[r + 1][c], board[r + 2][c], board[r + 3][c]],
-        aiToken,
-        playerToken
-      );
-  }
-  for (let r = 0; r < rows - 3; r += 1) {
-    for (let c = 0; c < cols - 3; c += 1)
-      score += evaluateWindow(
-        [
-          board[r][c],
-          board[r + 1][c + 1],
-          board[r + 2][c + 2],
-          board[r + 3][c + 3]
-        ],
-        aiToken,
-        playerToken
-      );
-  }
-  for (let r = 3; r < rows; r += 1) {
-    for (let c = 0; c < cols - 3; c += 1)
-      score += evaluateWindow(
-        [
-          board[r][c],
-          board[r - 1][c + 1],
-          board[r - 2][c + 2],
-          board[r - 3][c + 3]
-        ],
-        aiToken,
-        playerToken
-      );
-  }
-  return score;
-};
-
-const minimax = (
-  board,
-  depth,
-  alpha,
-  beta,
-  maximizing,
-  aiToken,
-  playerToken
-) => {
-  const cols = board[0].length;
-  const validCols = Array.from({ length: cols }, (_, i) => i).filter(
-    (col) => getDropRow(board, col) >= 0
-  );
-  const terminal =
-    checkWinner(board, aiToken) ||
-    checkWinner(board, playerToken) ||
-    validCols.length === 0;
-  if (depth === 0 || terminal) {
-    if (checkWinner(board, aiToken)) return { score: 1_000_000 };
-    if (checkWinner(board, playerToken)) return { score: -1_000_000 };
-    if (validCols.length === 0) return { score: 0 };
-    return { score: scorePosition(board, aiToken, playerToken) };
-  }
-
-  if (maximizing) {
-    let best = { col: validCols[0], score: -Infinity };
-    for (const col of validCols) {
-      const row = getDropRow(board, col);
-      const next = cloneBoard(board);
-      next[row][col] = aiToken;
-      const val = minimax(
-        next,
-        depth - 1,
-        alpha,
-        beta,
-        false,
-        aiToken,
-        playerToken
-      ).score;
-      if (val > best.score) best = { col, score: val };
-      alpha = Math.max(alpha, val);
-      if (alpha >= beta) break;
-    }
-    return best;
-  }
-
-  let best = { col: validCols[0], score: Infinity };
-  for (const col of validCols) {
-    const row = getDropRow(board, col);
-    const next = cloneBoard(board);
-    next[row][col] = playerToken;
-    const val = minimax(
-      next,
-      depth - 1,
-      alpha,
-      beta,
-      true,
-      aiToken,
-      playerToken
-    ).score;
-    if (val < best.score) best = { col, score: val };
-    beta = Math.min(beta, val);
-    if (alpha >= beta) break;
-  }
-  return best;
-};
-
-const chooseAiMove = (board, aiToken, playerToken, depth) => {
-  const cols = board[0].length;
-  const validCols = Array.from({ length: cols }, (_, i) => i).filter(
-    (col) => getDropRow(board, col) >= 0
-  );
-  if (!validCols.length) return null;
-
-  for (const col of validCols) {
-    const row = getDropRow(board, col);
-    const next = cloneBoard(board);
-    next[row][col] = aiToken;
-    if (checkWinner(next, aiToken)) return col;
-  }
-
-  for (const col of validCols) {
-    const row = getDropRow(board, col);
-    const next = cloneBoard(board);
-    next[row][col] = playerToken;
-    if (checkWinner(next, playerToken)) return col;
-  }
-
-  const ordered = [...validCols].sort(
-    (a, b) => Math.abs(a - cols / 2) - Math.abs(b - cols / 2)
-  );
-  const { col } = minimax(
-    board,
-    depth,
-    -Infinity,
-    Infinity,
-    true,
-    aiToken,
-    playerToken
-  );
-  return Number.isInteger(col) ? col : ordered[0];
-};
 
 async function resolveHdriUrl(variant, preferredResolutions = []) {
   const preferredStack =
@@ -925,12 +717,29 @@ export default function FourInRowRoyal() {
   const keyLightRef = useRef(null);
   const graphicsPresetRef = useRef(getGraphicsPreset(GRAPHICS_PRESETS[1]?.id || GRAPHICS_PRESETS[0].id));
   const audioCtxRef = useRef(null);
+  const soundTimersRef = useRef(new Set());
+  const clearSoundTimers = () => {
+    soundTimersRef.current.forEach((timer) => window.clearTimeout(timer));
+    soundTimersRef.current.clear();
+  };
+  const scheduleSound = (callback, delay) => {
+    const timer = window.setTimeout(() => {
+      soundTimersRef.current.delete(timer);
+      callback();
+    }, delay);
+    soundTimersRef.current.add(timer);
+  };
+  useEffect(() => () => {
+    clearSoundTimers();
+    void audioCtxRef.current?.close().catch(() => {});
+    audioCtxRef.current = null;
+  }, []);
   const [params] = useSearchParams();
   const navigate = useNavigate();
 
   const accountId = params.get('accountId') || '';
   const onlineTableId = params.get('tableId') || '';
-  const onlineMode = params.get('mode') === 'online' && Boolean(onlineTableId && accountId);
+  const onlineMode = params.get('mode') === 'online';
   const avatar = params.get('avatar') || getTelegramPhotoUrl();
   const username = params.get('username') || getTelegramUsername() || 'Player';
 
@@ -950,8 +759,9 @@ export default function FourInRowRoyal() {
     );
   }, [inventory.boardLayout, params]);
 
-  const rows = selectedLayout.rows;
-  const cols = selectedLayout.cols;
+  const [onlineSize, setOnlineSize] = useState(null);
+  const rows = onlineSize?.rows ?? selectedLayout.rows;
+  const cols = onlineSize?.cols ?? selectedLayout.cols;
   const boardWidth =
     (1.08 + cols * 0.19) * BOARD_AND_CHIPS_SCALE * BOARD_VISUAL_SIZE_BOOST;
   const boardHeight =
@@ -1000,6 +810,20 @@ export default function FourInRowRoyal() {
   }));
 
   const [board, setBoard] = useState(() => createBoard(rows, cols));
+  const boardRef = useRef(board);
+  const presentationBusyRef = useRef(false);
+  const onlineRevisionRef = useRef(-1);
+  const movePendingRef = useRef(false);
+  const roundRef = useRef(0);
+  const [isAnimating, setIsAnimating] = useState(false);
+  const [dropCell, setDropCell] = useState(null);
+  const [movePending, setMovePending] = useState(false);
+  const [connectionStatus, setConnectionStatus] = useState(onlineMode ? 'Connecting to the table…' : '');
+  const [rendererUnavailable, setRendererUnavailable] = useState(false);
+  const setPresentationBusy = (busy) => {
+    presentationBusyRef.current = busy;
+    setIsAnimating(busy);
+  };
   const [turn, setTurn] = useState('player');
   const [winner, setWinner] = useState(null);
   const [showWinnerActions, setShowWinnerActions] = useState(false);
@@ -1011,38 +835,63 @@ export default function FourInRowRoyal() {
 
   useEffect(() => {
     if (!onlineMode) return undefined;
+    if (!onlineTableId || !accountId) {
+      setConnectionStatus('Match details are missing — return to the lobby.');
+      return undefined;
+    }
+    let active = true;
+    onlineRevisionRef.current = -1;
     const handleState = (state = {}) => {
-      if (state.tableId !== onlineTableId || !Array.isArray(state.board)) return;
-      const myIndex = state.players?.findIndex((id) => String(id) === String(accountId));
-      const mappedBoard = state.board.map((cells) => cells.map((token) => (
-        token == null ? null : token === myIndex ? 'player' : 'ai'
-      )));
-      setBoard(mappedBoard);
-      setTurn(String(state.turn) === String(accountId) ? 'player' : 'ai');
-      setWinner(
-        state.winner === 'draw'
-          ? 'draw'
-          : String(state.winner) === String(accountId)
-            ? 'player'
-            : state.winner
-              ? 'ai'
-              : null
-      );
-      const winningToken = state.winner && state.winner !== 'draw'
-        ? String(state.winner) === String(accountId) ? 'player' : 'ai'
-        : null;
-      setWinningCells(winningToken ? getWinningCells(mappedBoard, winningToken) || [] : []);
+      if (!active || state.tableId !== onlineTableId) return;
+      const mapped = mapFourInRowSnapshot(state, accountId);
+      if (!mapped || mapped.revision < onlineRevisionRef.current) return;
+      setConnectionStatus('');
+      movePendingRef.current = false;
+      setMovePending(false);
+      if (mapped.revision === onlineRevisionRef.current) return;
+      onlineRevisionRef.current = mapped.revision;
+      setOnlineSize((current) => current?.rows === mapped.rows && current?.cols === mapped.cols
+        ? current : { rows: mapped.rows, cols: mapped.cols });
+      boardRef.current = mapped.board;
+      turnRef.current = mapped.turn;
+      winnerRef.current = mapped.winner;
+      setPresentationBusy(true);
+      setBoard(mapped.board);
+      setTurn(mapped.turn);
+      setWinner(mapped.winner);
+      setWinningCells(mapped.winningCells);
     };
-    socket.emit('register', {
-      tpcAccountNumber: accountId,
-      accountId,
-      playerId: accountId
-    });
+    const restoreSession = () => {
+      if (!active) return;
+      setConnectionStatus('Connecting to the table…');
+      socket.emit('register', { tpcAccountNumber: accountId, accountId, playerId: accountId }, (registered) => {
+        if (!active) return;
+        if (registered?.success === false) {
+          setConnectionStatus('Could not reconnect — return to the lobby.');
+          return;
+        }
+        socket.emit('joinFourInRow', { tableId: onlineTableId, accountId }, (joined) => {
+          if (!active) return;
+          if (joined?.success === false) {
+            setConnectionStatus('This table is unavailable — return to the lobby.');
+            return;
+          }
+          socket.emit('fourInRowSyncRequest', { tableId: onlineTableId });
+        });
+      });
+    };
+    const handleDisconnect = () => {
+      if (active) setConnectionStatus('Connection lost — reconnecting…');
+    };
     socket.on('fourInRowState', handleState);
-    socket.emit('joinFourInRow', { tableId: onlineTableId, accountId });
-    socket.emit('fourInRowSyncRequest', { tableId: onlineTableId });
+    socket.on('connect', restoreSession);
+    socket.on('disconnect', handleDisconnect);
+    if (socket.connected) restoreSession();
     return () => {
+      active = false;
       socket.off('fourInRowState', handleState);
+      socket.off('connect', restoreSession);
+      socket.off('disconnect', handleDisconnect);
       socket.emit('leaveLobby', { tableId: onlineTableId, accountId });
     };
   }, [accountId, onlineMode, onlineTableId]);
@@ -1060,24 +909,38 @@ export default function FourInRowRoyal() {
   }, [winner]);
 
   useEffect(() => {
-    if (!winner) {
+    if (!winner || isAnimating) {
       setShowWinnerActions(false);
       return undefined;
     }
-    const timer = window.setTimeout(() => setShowWinnerActions(true), 5000);
+    const timer = window.setTimeout(() => setShowWinnerActions(true), 650);
     return () => window.clearTimeout(timer);
-  }, [winner]);
+  }, [winner, isAnimating]);
 
   useEffect(() => {
-    winningCellsRef.current = winningCells;
-  }, [winningCells]);
+    winningCellsRef.current = isAnimating ? [] : winningCells;
+  }, [winningCells, isAnimating]);
   const [configOpen, setConfigOpen] = useState(false);
 
   const resetMatch = () => {
-    setBoard(createBoard(rows, cols));
+    if (onlineMode) {
+      navigate('/games/fourinrowroyale/lobby');
+      return;
+    }
+    roundRef.current += 1;
+    clearSoundTimers();
+    const empty = createBoard(rows, cols);
+    boardRef.current = empty;
+    turnRef.current = 'player';
+    winnerRef.current = null;
+    winningCellsRef.current = [];
+    setPresentationBusy(false);
+    renderPieces(empty);
+    setBoard(empty);
     setTurn('player');
     setWinner(null);
     setWinningCells([]);
+    setHoverCol(null);
   };
 
   const worldFromCell = (r, c) => [
@@ -1092,10 +955,13 @@ export default function FourInRowRoyal() {
     type = 'triangle',
     gain = 0.02
   ) => {
+    if (isGameMuted() || getGameVolume() <= 0) return;
+    gain *= getGameVolume();
     const ACtx = window.AudioContext || window.webkitAudioContext;
     if (!ACtx) return;
     if (!audioCtxRef.current) audioCtxRef.current = new ACtx();
     const ctx = audioCtxRef.current;
+    if (ctx.state === 'suspended') void ctx.resume().catch(() => {});
     const osc = ctx.createOscillator();
     const amp = ctx.createGain();
     osc.frequency.value = frequency;
@@ -1112,7 +978,8 @@ export default function FourInRowRoyal() {
 
   const playNoiseHit = (duration = 0.07, gain = 0.012) => {
     const ctx = audioCtxRef.current;
-    if (!ctx) return;
+    if (!ctx || isGameMuted() || getGameVolume() <= 0) return;
+    gain *= getGameVolume();
     const bufferSize = Math.max(1, Math.floor(ctx.sampleRate * duration));
     const noiseBuffer = ctx.createBuffer(1, bufferSize, ctx.sampleRate);
     const channel = noiseBuffer.getChannelData(0);
@@ -1141,8 +1008,8 @@ export default function FourInRowRoyal() {
     const base = token === 'player' ? 420 : 315;
     playTone(base * 0.5, 0.08, 'triangle', 0.018);
     playTone(base, 0.06, 'sine', 0.016);
-    window.setTimeout(() => playTone(base * 1.5, 0.042, 'triangle', 0.01), 18);
-    window.setTimeout(() => playNoiseHit(0.05, 0.01), 14);
+    scheduleSound(() => playTone(base * 1.5, 0.042, 'triangle', 0.01), 18);
+    scheduleSound(() => playNoiseHit(0.05, 0.01), 14);
   };
 
   const playConnectFourFx = (token) => {
@@ -1151,23 +1018,18 @@ export default function FourInRowRoyal() {
         ? [523.25, 659.25, 783.99, 1046.5]
         : [392, 493.88, 587.33, 783.99];
     line.forEach((freq, idx) => {
-      window.setTimeout(() => {
+      scheduleSound(() => {
         playTone(freq, 0.12, 'triangle', 0.024);
         playTone(freq * 2, 0.09, 'sine', 0.008);
       }, idx * 65);
     });
-    window.setTimeout(() => playNoiseHit(0.08, 0.009), 55);
+    scheduleSound(() => playNoiseHit(0.08, 0.009), 55);
   };
 
   const createTokenMesh = (token) => {
-    const playerMat = new THREE.MeshStandardMaterial({
-      color: CONNECT4_RED,
-      roughness: 0.35,
-      metalness: 0.03
-    });
-    const aiMat = new THREE.MeshStandardMaterial({
-      color: CONNECT4_BLUE,
-      roughness: 0.3,
+    const material = new THREE.MeshStandardMaterial({
+      color: token === 'player' ? CONNECT4_RED : CONNECT4_BLUE,
+      roughness: token === 'player' ? 0.35 : 0.3,
       metalness: 0.03
     });
     const rimMat = new THREE.MeshStandardMaterial({
@@ -1176,7 +1038,6 @@ export default function FourInRowRoyal() {
       metalness: 0.02
     });
     const tokenMesh = new THREE.Group();
-    const material = token === 'player' ? playerMat : aiMat;
     const highlightMaterials = [material, rimMat].filter(
       (mat) => mat && 'emissive' in mat
     );
@@ -1230,6 +1091,7 @@ export default function FourInRowRoyal() {
   const renderPieces = (boardState) => {
     const group = piecesGroupRef.current;
     if (!group) return;
+    group.children.forEach(disposeTokenMesh);
     group.clear();
     piecesMapRef.current.clear();
     fallingPiecesRef.current = [];
@@ -1246,6 +1108,7 @@ export default function FourInRowRoyal() {
       }
     }
     displayedBoardRef.current = cloneBoard(boardState);
+    setPresentationBusy(false);
   };
 
 
@@ -1311,12 +1174,18 @@ export default function FourInRowRoyal() {
   };
 
   useEffect(() => {
-    setBoard(createBoard(rows, cols));
+    if (onlineMode) return;
+    const empty = createBoard(rows, cols);
+    boardRef.current = empty;
+    turnRef.current = 'player';
+    winnerRef.current = null;
+    setPresentationBusy(false);
+    setBoard(empty);
     setTurn('player');
     setWinner(null);
     setWinningCells([]);
     displayedBoardRef.current = createBoard(rows, cols);
-  }, [rows, cols]);
+  }, [rows, cols, onlineMode]);
 
   useEffect(() => renderPieces(board), [appearance.stoneStyle, rows, cols]);
 
@@ -1333,7 +1202,17 @@ export default function FourInRowRoyal() {
     arenaYOffsetRef.current = arenaRoot.position.y;
     scene.add(arenaRoot);
 
-    const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
+    let renderer;
+    try {
+      renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
+      setRendererUnavailable(false);
+    } catch (error) {
+      console.warn('Four in Row is using its board fallback because WebGL is unavailable.', error);
+      sceneRef.current = null;
+      arenaRootRef.current = null;
+      setRendererUnavailable(true);
+      return undefined;
+    }
     applyRendererSRGB(renderer);
     renderer.shadowMap.enabled = true;
     mount.appendChild(renderer.domElement);
@@ -1790,92 +1669,40 @@ export default function FourInRowRoyal() {
     };
 
     let raf;
+    const frameClock = { pending: 0 };
     const animate = () => {
       raf = requestAnimationFrame(animate);
-      const delta = Math.min(animationClockRef.current.getDelta(), 0.1);
+      const delta = consumeFourInRowFrame(
+        frameClock, animationClockRef.current.getDelta(), graphicsPresetRef.current.fps
+      );
+      if (!delta) return;
       const elapsed = animationClockRef.current.elapsedTime;
-      const preset = graphicsPresetRef.current;
-      const frameBudget = 1 / Math.max(30, preset.fps || 60);
-      if (delta < frameBudget * 0.92) return;
-
+      const hadFallingPieces = fallingPiecesRef.current.length > 0;
       for (let i = fallingPiecesRef.current.length - 1; i >= 0; i -= 1) {
         const entry = fallingPiecesRef.current[i];
-        entry.elapsed += delta;
-        if (entry.phase === 'wait') {
-          entry.mesh.visible = false;
-          if (entry.elapsed >= entry.launchDelay) {
-            entry.phase = 'flick';
-            entry.elapsed = 0;
-            entry.mesh.visible = true;
-            entry.mesh.position.copy(entry.releaseStart);
-          }
-          continue;
-        }
-        if (entry.phase === 'preview') {
-          entry.mesh.visible = true;
-          const t = Math.min(1, entry.elapsed / entry.previewDuration);
-          const pulse = 1 + Math.sin(t * Math.PI) * 0.035;
-          entry.mesh.scale.setScalar(pulse);
-          if (t >= 1) {
-            entry.phase = 'drop';
-            entry.elapsed = 0;
-            entry.mesh.scale.setScalar(1);
-            entry.mesh.position.copy(entry.columnTop);
-          }
-          continue;
-        }
-        if (entry.phase === 'flick') {
-          const t = Math.min(1, entry.elapsed / entry.airDuration);
-          const eased = 1 - (1 - t) ** 3;
-          const oneMinus = 1 - eased;
-          entry.mesh.position
-            .copy(entry.releaseStart)
-            .multiplyScalar(oneMinus * oneMinus)
-            .add(entry.flickApex.clone().multiplyScalar(2 * oneMinus * eased))
-            .add(entry.columnTop.clone().multiplyScalar(eased * eased));
-          entry.mesh.rotation.z += delta * 14;
-          entry.mesh.rotation.x += delta * 9;
-          if (t >= 1) {
-            entry.phase = 'preview';
-            entry.elapsed = 0;
-            entry.mesh.position.copy(entry.columnTop);
-          }
-          continue;
-        }
-
-        const t = Math.min(1, entry.elapsed / entry.dropDuration);
-        const eased = 1 - (1 - t) ** 4;
-        entry.mesh.position.x = THREE.MathUtils.lerp(entry.columnTop.x, entry.target.x, eased);
-        entry.mesh.position.y = THREE.MathUtils.lerp(entry.columnTop.y, entry.target.y, eased);
-        entry.mesh.position.z = THREE.MathUtils.lerp(entry.columnTop.z, entry.target.z, eased);
-        const guideWobble = Math.sin((1 - t) * Math.PI * 2.2) * CHIP_DROP_GUIDE_WOBBLE * (1 - t);
-        entry.mesh.position.z += guideWobble;
-        entry.mesh.rotation.z += delta * (3.5 + (1 - t) * 4);
-        if (t >= 1) {
-          entry.mesh.position.copy(entry.target);
-          entry.mesh.rotation.x = Math.PI / 2;
-          if (!entry.hasLandingSound) {
-            playChipDropFx(entry.token);
-            entry.hasLandingSound = true;
-          }
+        const result = advanceFourInRowDrop(entry, delta);
+        if (result.landed) playChipDropFx(entry.token);
+        if (result.finished) {
+          entry.mesh.userData.isFalling = false;
           fallingPiecesRef.current.splice(i, 1);
         }
       }
+      if (hadFallingPieces && fallingPiecesRef.current.length === 0) setPresentationBusy(false);
 
       winningCellsRef.current.forEach(([r, c]) => {
         const token = piecesMapRef.current.get(`${r}-${c}`);
-        if (!token) return;
+        if (!token || token.userData.isFalling) return;
         token.userData.isWinning = true;
         const phase = token.userData.highlightPhase || 0;
         const pulse =
           WIN_HIGHLIGHT_SCALE_BASE +
-          Math.sin(elapsed * 11 + phase) * WIN_HIGHLIGHT_SCALE_PULSE;
+          Math.sin(elapsed * 4 + phase) * WIN_HIGHLIGHT_SCALE_PULSE;
         token.scale.setScalar(pulse);
         token.position.y =
           (token.userData.baseY ?? token.position.y) +
-          Math.max(0, Math.sin(elapsed * 12 + phase)) * WIN_HIGHLIGHT_BOUNCE;
-        token.rotation.z = Math.sin(elapsed * 10 + phase) * 0.08;
-        const glow = 0.42 + Math.max(0, Math.sin(elapsed * 18 + phase)) * 0.8;
+          Math.max(0, Math.sin(elapsed * 4 + phase)) * WIN_HIGHLIGHT_BOUNCE;
+        token.rotation.z = Math.sin(elapsed * 4 + phase) * 0.08;
+        const glow = 0.42 + Math.max(0, Math.sin(elapsed * 4 + phase)) * 0.8;
         token.userData.highlightMaterials?.forEach((mat) => {
           mat.emissive.copy(mat.color).multiplyScalar(glow);
           mat.emissiveIntensity = 0.65 + glow * 0.65;
@@ -1883,6 +1710,7 @@ export default function FourInRowRoyal() {
       });
 
       piecesMapRef.current.forEach((token) => {
+        if (token?.userData?.isFalling) return;
         if (token?.userData?.isWinning) {
           token.userData.isWinning = false;
           return;
@@ -1902,7 +1730,8 @@ export default function FourInRowRoyal() {
         markerRef.current &&
         Number.isInteger(hoverColRef.current) &&
         turnRef.current === 'player' &&
-        !winnerRef.current
+        !winnerRef.current && !presentationBusyRef.current && !movePendingRef.current &&
+        getDropRow(boardRef.current, hoverColRef.current) >= 0
       ) {
         const x = -boardWidth / 2 + (hoverColRef.current + 0.5) * xStep;
         markerRef.current.visible = true;
@@ -1921,8 +1750,20 @@ export default function FourInRowRoyal() {
       tableGroupRef.current = null;
       tablePartsRef.current = null;
       chairMeshesRef.current = [];
+      controls.dispose();
+      piecesGroupRef.current?.children.forEach(disposeTokenMesh);
+      piecesMapRef.current.clear();
+      fallingPiecesRef.current = [];
+      piecesGroupRef.current = null;
+      boardHitPlaneRef.current = null;
+      sceneRef.current = null;
+      arenaRootRef.current = null;
+      rendererRef.current = null;
+      if (envRef.current.skybox) disposeTokenMesh(envRef.current.skybox);
+      envRef.current.map?.dispose();
+      envRef.current = { map: null, skybox: null, hdriId: null, qualityKey: null };
       renderer.dispose();
-      mount.removeChild(renderer.domElement);
+      renderer.domElement.remove();
     };
   }, [
     rows,
@@ -1957,11 +1798,18 @@ export default function FourInRowRoyal() {
         ? new EXRLoader()
         : new RGBELoader();
       const envMap = await loader.loadAsync(url);
-      if (cancelled) return;
+      if (cancelled) {
+        envMap.dispose();
+        return;
+      }
+      envRef.current.map?.dispose();
       envMap.mapping = THREE.EquirectangularReflectionMapping;
       scene.environment = envMap;
       scene.background = envMap;
-      if (envRef.current.skybox) scene.remove(envRef.current.skybox);
+      if (envRef.current.skybox) {
+        scene.remove(envRef.current.skybox);
+        disposeTokenMesh(envRef.current.skybox);
+      }
       const groundedHeight = Math.max(
         variant?.cameraHeightM ?? DEFAULT_GROUNDED_CAMERA_HEIGHT,
         DEFAULT_GROUNDED_CAMERA_HEIGHT
@@ -2006,72 +1854,70 @@ export default function FourInRowRoyal() {
         qualityKey
       };
     };
-    void apply();
+    void apply().catch((error) => {
+      if (!cancelled) console.warn('Four in Row environment unavailable; keeping the lit board.', error);
+    });
     return () => {
       cancelled = true;
     };
-  }, [appearance.hdriId, appearance.graphics]);
+  }, [appearance.hdriId, appearance.graphics, rows, cols]);
 
   useEffect(() => {
-    if (!winningCells.length) return;
-    winningCells.forEach(([r, c], index) => {
-      const piece = piecesMapRef.current.get(`${r}-${c}`);
-      if (!piece) return;
-      piece.scale.setScalar(1.18);
-      setTimeout(
-        () => {
-          if (piece) piece.scale.setScalar(1);
-        },
-        300 + index * 60
-      );
-    });
-  }, [winningCells]);
+    if (!winner || isAnimating) return;
+    if (winner === 'draw') playTone(200, 0.18, 'triangle', 0.02);
+    else {
+      playConnectFourFx(winner);
+      vibrate(winner === 'player' ? [35, 45, 70] : 55);
+    }
+  }, [winner, isAnimating]);
 
   const playColumn = (col, token) => {
-    const row = getDropRow(board, col);
-    if (row < 0) {
-      playTone(180, 0.05, 'sawtooth', 0.012);
-      vibrate([18, 35, 18]);
-      return false;
-    }
-    const next = cloneBoard(board);
+    if (winnerRef.current || turnRef.current !== token || presentationBusyRef.current) return false;
+    const current = boardRef.current;
+    const row = getDropRow(current, col);
+    if (row < 0) return false;
+    const next = cloneBoard(current);
     next[row][col] = token;
+    // Lock synchronously, before React renders, for both canvas and button taps.
+    boardRef.current = next;
+    setPresentationBusy(true);
     setBoard(next);
-
     const winning = getWinningCells(next, token);
-    if (winning) {
-      setWinner(token);
-      setWinningCells(winning);
-      playConnectFourFx(token);
-      vibrate(token === 'player' ? [35, 45, 70] : 55);
-      return true;
+    const result = winning ? token : isFull(next) ? 'draw' : null;
+    winnerRef.current = result;
+    setWinner(result);
+    setWinningCells(winning || []);
+    if (!result) {
+      const nextTurn = token === 'player' ? 'ai' : 'player';
+      turnRef.current = nextTurn;
+      setTurn(nextTurn);
     }
-    if (isFull(next)) {
-      setWinner('draw');
-      setWinningCells([]);
-      playTone(200, 0.18, 'triangle', 0.02);
-      return true;
-    }
-    setTurn(token === 'player' ? 'ai' : 'player');
     vibrate(token === 'player' ? 22 : 12);
     return true;
   };
 
   const submitColumn = (col) => {
-    if (turn !== 'player' || winner || getDropRow(board, col) < 0) {
-      if (getDropRow(board, col) < 0) {
-        playTone(180, 0.05, 'sawtooth', 0.012);
-        vibrate([18, 35, 18]);
-      }
+    if (turnRef.current !== 'player' || winnerRef.current || presentationBusyRef.current || movePendingRef.current) return;
+    if (getDropRow(boardRef.current, col) < 0) {
+      playTone(180, 0.05, 'sawtooth', 0.012);
+      vibrate([18, 35, 18]);
       return;
     }
     setHoverCol(col);
     if (onlineMode) {
+      if (!socket.connected || onlineRevisionRef.current < 0) return;
+      movePendingRef.current = true;
+      setMovePending(true);
       vibrate(14);
-      socket.emit('fourInRowMove', {
-        tableId: onlineTableId,
-        accountId,
-        column: col
+      socket.timeout(5000).emit('fourInRowMove', {
+        tableId: onlineTableId, accountId, column: col, revision: onlineRevisionRef.current
+      }, (error, response) => {
+        movePendingRef.current = false;
+        setMovePending(false);
+        if (error || response?.success === false) {
+          setConnectionStatus(error ? 'Connection interrupted — syncing the board…' : 'Move was not accepted — syncing the board…');
+          socket.emit('fourInRowSyncRequest', { tableId: onlineTableId });
+        }
       });
       return;
     }
@@ -2080,61 +1926,51 @@ export default function FourInRowRoyal() {
 
   useEffect(() => {
     const group = piecesGroupRef.current;
-    if (!group) return;
     const shown = displayedBoardRef.current;
-
+    const changes = [];
+    let needsRebuild = shown.length !== rows || shown[0]?.length !== cols;
     for (let r = 0; r < rows; r += 1) {
       for (let c = 0; c < cols; c += 1) {
-        const nextCell = board[r][c];
-        const currentCell = shown[r][c];
-        if (nextCell && !currentCell) {
-          const [targetX, targetY, targetZ] = worldFromCell(r, c);
-          const dropX = -boardWidth / 2 + (c + 0.5) * xStep;
-          const columnTop = new THREE.Vector3(
-            dropX,
-            boardCenterY + boardHeight / 2 + yStep * 0.62,
-            targetZ
-          );
-          const target = new THREE.Vector3(targetX, targetY, targetZ);
-          const mesh = createTokenMesh(nextCell);
-          const releaseStart = columnTop.clone();
-          mesh.position.copy(releaseStart);
-          mesh.visible = true;
-          mesh.userData.baseY = targetY;
-          group.add(mesh);
-          piecesMapRef.current.set(`${r}-${c}`, mesh);
-          fallingPiecesRef.current.push({
-            mesh,
-            key: `${r}-${c}`,
-            token: nextCell,
-            columnTop,
-            releaseStart,
-            flickApex: columnTop.clone().add(new THREE.Vector3(0, CHIP_FLICK_ARC_LIFT, 0)),
-            target,
-            elapsed: 0,
-            launchDelay: 0,
-            airDuration: CHIP_FLICK_AIR_DURATION,
-            phase: 'preview',
-            hasLandingSound: false,
-            previewDuration: DROP_PREVIEW_DELAY,
-            dropDuration:
-              DROP_BASE_DURATION + (rows - 1 - r) * DROP_ROW_DURATION_STEP
-          });
-        } else if (!nextCell && currentCell) {
-          const key = `${r}-${c}`;
-          const mesh = piecesMapRef.current.get(key);
-          if (mesh) {
-            group.remove(mesh);
-            piecesMapRef.current.delete(key);
-          }
-          fallingPiecesRef.current = fallingPiecesRef.current.filter(
-            (entry) => entry.key !== key
-          );
-        }
-        shown[r][c] = nextCell;
+        if (board[r]?.[c] === shown[r]?.[c]) continue;
+        if (shown[r]?.[c] != null) needsRebuild = true;
+        if (board[r]?.[c] != null) changes.push([r, c]);
       }
     }
-  }, [board, rows, cols, boardWidth, boardHeight, boardCenterY, xStep, yStep]);
+    // Reconnects and resets restore whole positions; only new single moves fall.
+    if (needsRebuild || changes.length !== 1) {
+      if (group) renderPieces(board);
+      else displayedBoardRef.current = cloneBoard(board);
+      setPresentationBusy(false);
+      return;
+    }
+    const [r, c] = changes[0];
+    setDropCell([r, c]);
+    const dropDuration = getFourInRowDropDuration(r + 1.12);
+    if (!group) {
+      if (!rendererUnavailable) return;
+      displayedBoardRef.current = cloneBoard(board);
+      const timer = window.setTimeout(() => {
+        playChipDropFx(board[r][c]);
+        setPresentationBusy(false);
+      }, (DROP_PREVIEW_DELAY + dropDuration + 0.16) * 1000);
+      return () => window.clearTimeout(timer);
+    }
+    const [x, y, z] = worldFromCell(r, c);
+    const columnTop = new THREE.Vector3(x, boardCenterY + boardHeight / 2 + yStep * 0.62, z);
+    const mesh = createTokenMesh(board[r][c]);
+    mesh.position.copy(columnTop);
+    mesh.userData.baseY = y;
+    mesh.userData.isFalling = true;
+    group.add(mesh);
+    piecesMapRef.current.set(`${r}-${c}`, mesh);
+    fallingPiecesRef.current.push({
+      mesh, key: `${r}-${c}`, token: board[r][c], columnTop,
+      target: new THREE.Vector3(x, y, z), elapsed: 0,
+      phase: 'preview', previewDuration: DROP_PREVIEW_DELAY, dropDuration,
+      bounceHeight: yStep * 0.2
+    });
+    displayedBoardRef.current = cloneBoard(board);
+  }, [board, rows, cols, boardWidth, boardHeight, boardCenterY, xStep, yStep, rendererUnavailable]);
 
   useEffect(() => {
     const renderer = rendererRef.current;
@@ -2175,6 +2011,7 @@ export default function FourInRowRoyal() {
     };
 
     const onPointerDown = (event) => {
+      if (event.isPrimary === false || (event.button != null && event.button !== 0)) return;
       event.preventDefault();
       cameraLookPointerRef.current = {
         pointerId: event.pointerId,
@@ -2223,20 +2060,9 @@ export default function FourInRowRoyal() {
         dragged: false
       };
       renderer.domElement.releasePointerCapture?.(event.pointerId);
-      if (wasTap && turn === 'player' && !winner) {
+      if (wasTap) {
         const col = getColumnFromEvent(event);
-        setHoverCol(col);
-        if (Number.isInteger(col)) {
-          if (onlineMode) {
-            socket.emit('fourInRowMove', {
-              tableId: onlineTableId,
-              accountId,
-              column: col
-            });
-          } else {
-            playColumn(col, 'player');
-          }
-        }
+        if (Number.isInteger(col)) submitColumn(col);
       }
     };
 
@@ -2269,14 +2095,16 @@ export default function FourInRowRoyal() {
   }, [turn, winner, board, cols, boardWidth, onlineMode, onlineTableId, accountId]);
 
   useEffect(() => {
-    if (onlineMode || turn !== 'ai' || winner) return;
+    if (onlineMode || turn !== 'ai' || winner || isAnimating) return;
+    const round = roundRef.current;
     const t = setTimeout(() => {
+      if (roundRef.current !== round || presentationBusyRef.current || winnerRef.current || turnRef.current !== 'ai') return;
       const depth = cols >= 8 ? 5 : 6;
       const col = chooseAiMove(board, 'ai', 'player', depth);
       if (Number.isInteger(col)) playColumn(col, 'ai');
     }, 420);
     return () => clearTimeout(t);
-  }, [turn, winner, board, cols, onlineMode]);
+  }, [turn, winner, board, cols, onlineMode, isAnimating]);
 
   useEffect(() => {
     const renderer = rendererRef.current;
@@ -2294,7 +2122,7 @@ export default function FourInRowRoyal() {
     );
     renderer.setSize(width, height);
     key.shadow.mapSize.setScalar(preset.shadowMapSize);
-  }, [appearance.graphics]);
+  }, [appearance.graphics, rows, cols]);
 
   useEffect(() => {
     if (!tablePartsRef.current) return;
@@ -2302,15 +2130,15 @@ export default function FourInRowRoyal() {
       MURLAN_TABLE_FINISHES.find((f) => f.id === appearance.tableFinish) ||
       MURLAN_TABLE_FINISHES[0];
     applyTableMaterials(tablePartsRef.current, finish);
-  }, [appearance.tableFinish]);
+  }, [appearance.tableFinish, rows, cols]);
 
   useEffect(() => {
     rebuildTableScene(appearance.tableId);
-  }, [appearance.tableId]);
+  }, [appearance.tableId, rows, cols]);
 
   useEffect(() => {
     rebuildChairs(appearance.chairId);
-  }, [appearance.chairId]);
+  }, [appearance.chairId, rows, cols]);
 
   useEffect(() => {
     const { boardFaceMat, railMat, trimMat, holeRimMat } =
@@ -2375,7 +2203,9 @@ export default function FourInRowRoyal() {
     appearance.boardTheme,
     appearance.boardFinish,
     appearance.boardFrameFinish,
-    appearance.ringFinish
+    appearance.ringFinish,
+    rows,
+    cols
   ]);
 
   const optionGroups = [
@@ -2472,8 +2302,11 @@ export default function FourInRowRoyal() {
   ];
 
   return (
-    <div className="relative min-h-screen bg-[#070b16] text-white">
+    <div className="relative min-h-screen bg-[#070b16] text-white" style={{ minHeight: '100dvh' }}>
       <div ref={mountRef} className="absolute inset-0" />
+      {rendererUnavailable && (
+        <FourInRowFallback board={board} winningCells={winningCells} dropCell={dropCell} isAnimating={isAnimating} />
+      )}
 
       <div className="absolute inset-0 pointer-events-none z-20">
         <div className={`absolute ${FOUR_IN_ROW_MENU_TOP_CLASS} left-4 flex flex-col items-start gap-3 pointer-events-none`}>
@@ -2511,11 +2344,12 @@ export default function FourInRowRoyal() {
               <p className="text-[10px] uppercase tracking-[0.4em] text-sky-200/80">
                 4 in a Row Customization
               </p>
+              <button type="button" onClick={() => navigate('/games/fourinrowroyale/lobby')} className="mt-3 min-h-11 rounded-xl border border-white/30 px-4 py-2 font-semibold text-white">
+                Return to lobby
+              </button>
               <p className="mt-2 text-white/70">
                 Layout:{' '}
-                {FOUR_IN_ROW_BATTLE_OPTION_LABELS.boardLayout[
-                  selectedLayout.id
-                ] || selectedLayout.label}
+                {onlineSize ? `${cols} × ${rows}` : FOUR_IN_ROW_BATTLE_OPTION_LABELS.boardLayout[selectedLayout.id] || selectedLayout.label}
               </p>
               {optionGroups.map((group) => (
                 <div key={group.key} className="mt-4">
@@ -2527,6 +2361,7 @@ export default function FourInRowRoyal() {
                       <button
                         key={option.id}
                         type="button"
+                        disabled={isAnimating}
                         onClick={() =>
                           setAppearance((prev) => ({
                             ...prev,
@@ -2581,8 +2416,8 @@ export default function FourInRowRoyal() {
         className="pointer-events-none absolute inset-x-0 bottom-[15.5%] z-30 flex flex-col items-center gap-2 px-3"
         aria-live="polite"
       >
-        <p className="rounded-full border border-white/15 bg-black/65 px-3 py-1.5 text-center text-[11px] font-semibold tracking-wide text-white shadow-lg backdrop-blur">
-          {winner
+        <p className="rounded-full border border-white/15 bg-black/65 px-3 py-1.5 text-center text-sm font-semibold text-white shadow-lg backdrop-blur">
+          {connectionStatus || (isAnimating ? 'Chip is dropping…' : movePending ? 'Sending your move…' : winner
             ? winner === 'draw'
               ? 'Draw — no spaces remain'
               : winner === 'player'
@@ -2590,7 +2425,7 @@ export default function FourInRowRoyal() {
                 : 'Rival connected four'
             : turn === 'player'
               ? 'Your turn — choose a column'
-              : 'Rival is choosing…'}
+              : 'Rival is choosing…')}
         </p>
         <div
           className="pointer-events-auto grid w-full max-w-md gap-1.5"
@@ -2607,7 +2442,7 @@ export default function FourInRowRoyal() {
                 onClick={() => submitColumn(col)}
                 onPointerEnter={() => setHoverCol(col)}
                 onPointerLeave={() => setHoverCol(null)}
-                disabled={Boolean(winner) || turn !== 'player' || full}
+                disabled={Boolean(winner) || turn !== 'player' || full || isAnimating || movePending || (onlineMode && Boolean(connectionStatus))}
                 aria-label={`Drop piece in column ${col + 1}${full ? ', full' : ''}`}
                 className="flex min-h-11 items-center justify-center rounded-xl border border-cyan-200/35 bg-slate-950/70 text-sm font-bold text-cyan-50 shadow-lg backdrop-blur transition active:scale-95 active:bg-cyan-400/30 disabled:border-white/10 disabled:text-white/30"
               >
@@ -2618,9 +2453,9 @@ export default function FourInRowRoyal() {
         </div>
       </div>
 
-      {winner && (
+      {winner && !isAnimating && showWinnerActions && (
         <div className="pointer-events-none absolute inset-0 z-40 flex items-center justify-center">
-          <div className="relative w-[min(24rem,90vw)] rounded-3xl border border-yellow-300/30 bg-transparent px-6 pb-6 pt-10 text-center">
+          <div className="relative w-[min(24rem,90vw)] rounded-3xl border border-yellow-300/30 bg-slate-950/90 px-6 pb-6 pt-10 shadow-2xl backdrop-blur text-center">
             <div className="pointer-events-none absolute inset-0 overflow-hidden rounded-3xl">
               {Array.from({ length: 14 }).map((_, i) => {
                 const angle = (Math.PI * 2 * i) / 14;
@@ -2656,14 +2491,14 @@ export default function FourInRowRoyal() {
               )}
             </div>
             <p className="text-xs uppercase tracking-[0.26em] text-yellow-300">
-              Winner
+              {winner === 'draw' ? 'Match complete' : 'Winner'}
             </p>
             <h2 className="mt-2 text-2xl font-bold text-white">
               {winner === 'draw'
                 ? 'Draw Game'
                 : winner === 'player'
                   ? `${username} Wins!`
-                  : 'AI Rival Wins!'}
+                  : onlineMode ? 'Online Rival Wins!' : 'AI Rival Wins!'}
             </h2>
             <p className="mt-2 text-sm text-white/75">
               {winner === 'draw'
@@ -2677,7 +2512,7 @@ export default function FourInRowRoyal() {
                   onClick={resetMatch}
                   className="rounded-xl border border-cyan-300/70 bg-transparent px-4 py-2 text-sm font-semibold text-cyan-100"
                 >
-                  Play Again
+                  {onlineMode ? 'New Match' : 'Play Again'}
                 </button>
                 <button
                   type="button"
