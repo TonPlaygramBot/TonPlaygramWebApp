@@ -10,7 +10,7 @@ import {DriverInterior} from './DriverInterior';
 import {driverEye,driverFov,driverDirection,driverUp} from './shared/driverView.mjs';
 import {AgedHousingLayer} from '../tirana-city-source/AgedHousingLayer';
 import {AGED_HOUSING_IDS} from '../tirana-city-source/housingRegistry.mjs';
-import {collectionVehicleFor} from './shared/vehicleCollection.mjs';
+import {collectionVehicleFor,CIVILIAN_VEHICLE_MODELS} from './shared/vehicleCollection.mjs';
 import {ImportedAssetVisuals} from './ImportedAssetVisuals';
 import * as THREE from "three";
 import { RoomEnvironment } from "three/examples/jsm/environments/RoomEnvironment.js";
@@ -18,6 +18,7 @@ import { CityFacades, DETAIL_IDS } from "./cityVisuals";
 import { LivingVisuals } from "./livingVisuals";
 import { AlbanianForcesVisuals } from "./AlbanianForcesVisuals";
 import { GLTFLoader } from "three/examples/jsm/loaders/GLTFLoader.js";
+import { DRACOLoader } from "three/examples/jsm/loaders/DRACOLoader.js";
 import { clone } from "three/examples/jsm/utils/SkeletonUtils.js";
 import { mergeGeometries } from "three/examples/jsm/utils/BufferGeometryUtils.js";
 import {
@@ -636,121 +637,137 @@ export class CityRenderer {
     this.collectionFleet.update([...state.cars,...state.traffic],viewer,0);
   }
   async load(onProgress?: (message: string) => void) {
-    const loader = new GLTFLoader();
-    const files = [
-      "character",
-      "sedan",
-      "sedan-sports",
-      "taxi",
-      "police",
-      "city-car",
-      "motorbike",
-      "military-suv",
-    ];
-    await Promise.all(
-      files.map(async (name) => {
-        const file =
-          name === "character"
-            ? "living/suited-agent"
-            : ["city-car", "motorbike", "military-suv"].includes(name)
-              ? "living/" + name
-              : name;
-        const gltf = await loader.loadAsync(ASSETS + file + ".glb");
-        if (this.disposed) {
-          this.disposeObject(gltf.scene);
-          return;
-        }
-        if (name === "city-car" && !this.preserveVehicleInterior) this.mergeCarSurfaces(gltf.scene);
-        if (name === "motorbike") gltf.scene.rotation.y = -Math.PI / 2;
-        gltf.scene.updateMatrixWorld(true);
-        const box = new THREE.Box3().setFromObject(gltf.scene),
-          size = box.getSize(new THREE.Vector3()),
-          center = box.getCenter(new THREE.Vector3());
-        const scale =
-          name === "character"
-            ? 1.78 / size.y
-            : name === "motorbike"
-              ? 2.1 / Math.max(size.x, size.z)
-              : 4.25 / size.z;
-        const wrapper = new THREE.Group();
-        gltf.scene.position.set(
-          -center.x * scale,
-          -box.min.y * scale,
-          -center.z * scale,
-        );
-        gltf.scene.scale.setScalar(scale);
-        wrapper.add(gltf.scene);
-        wrapper.traverse((o) => {
-          if (o instanceof THREE.Mesh) {
-            o.castShadow = true;
-            o.receiveShadow = true;
-            const mats = Array.isArray(o.material) ? o.material : [o.material];
-            mats.forEach((m) => {
-              if (m instanceof THREE.MeshStandardMaterial) {
-                // Preserve the authored GLTF PBR channels and livery. Colour maps
-                // use sRGB; normal/roughness/metalness maps remain linear.
-                if (m.map) m.map.colorSpace = THREE.SRGBColorSpace;
-                if (m.emissiveMap) m.emissiveMap.colorSpace = THREE.SRGBColorSpace;
-              }
-            });
+    const draco = new DRACOLoader().setDecoderPath(ASSETS + 'imported/draco/').setWorkerLimit(1);
+    const loader = new GLTFLoader().setDRACOLoader(draco);
+    const vehicleSources = new Map<string, ReturnType<GLTFLoader['loadAsync']>>();
+    try {
+      const files = [
+        "character",
+        "sedan",
+        "sedan-sports",
+        "sport",
+        "taxi",
+        "police",
+        "city-car",
+        "motorbike",
+        "military-suv",
+      ];
+      const vehicleLoads = await Promise.allSettled(
+        files.map(async (name) => {
+          const roadModel = CIVILIAN_VEHICLE_MODELS[name];
+          const file = roadModel ? 'vehicle-collection/' + roadModel :
+            name === "character"
+              ? "living/suited-agent"
+              : ["city-car", "motorbike", "military-suv"].includes(name)
+                ? "living/" + name
+                : name;
+          const url = ASSETS + file + '.glb';
+          let source = vehicleSources.get(url);
+          if (!source) { source = loader.loadAsync(url); vehicleSources.set(url, source); }
+          const original = await source;
+          const gltf = {...original, scene: clone(original.scene)};
+          if (this.disposed) {
+            this.disposeObject(gltf.scene);
+            return;
           }
-        });
-        this.models.set(name, wrapper);
-        if (name === "character") this.animations = gltf.animations;
-        onProgress?.(
-          name === "character"
-            ? "Your character is ready"
-            : "Loading city vehicles",
-        );
-      }),
-    );
-    if (this.disposed) return;
-    onProgress?.("Adding textured city facades");
-    const city = await loader.loadAsync(ASSETS + "city.glb");
-    if (this.disposed) {
-      this.disposeObject(city.scene);
-      return;
-    }
-    this.facades = new CityFacades(city.scene);
-    this.scene.add(this.facades.group);
-    const surfaces: THREE.MeshStandardMaterial[] = [];
-    city.scene.traverse((o) => {
-      if (o instanceof THREE.Mesh)
-        for (const m of Array.isArray(o.material) ? o.material : [o.material])
-          if (
-            m instanceof THREE.MeshStandardMaterial &&
-            /RedBrick|Concrete/.test(m.name) &&
-            !surfaces.includes(m)
-          )
-            surfaces.push(m);
-    });
-    this.shellMaterials.forEach((material, i) => {
-      const surface = surfaces[i % surfaces.length];
-      if (!surface) return;
-      for (const key of ["map", "normalMap", "roughnessMap"] as const) {
-        const original = surface[key];
-        if (!original) continue;
-        const texture = original.clone();
-        texture.wrapS = texture.wrapT = THREE.RepeatWrapping;
-        texture.repeat.set(1, 1);
-        texture.anisotropy = 2;
-        texture.needsUpdate = true;
-        material[key] = texture;
-        this.worldTextures.add(texture);
+          // Authored +X nose becomes +Z for the existing road-vehicle transform.
+          // Preserve native metres, complete geometry and all PBR maps.
+          if (roadModel) gltf.scene.rotation.y = -Math.PI / 2;
+          if (name === "motorbike") gltf.scene.rotation.y = -Math.PI / 2;
+          gltf.scene.updateMatrixWorld(true);
+          const box = new THREE.Box3().setFromObject(gltf.scene),
+            size = box.getSize(new THREE.Vector3()),
+            center = box.getCenter(new THREE.Vector3());
+          const scale = roadModel ? 1 :
+            name === "character"
+              ? 1.78 / size.y
+              : name === "motorbike"
+                ? 2.1 / Math.max(size.x, size.z)
+                : 4.25 / size.z;
+          const wrapper = new THREE.Group();
+          gltf.scene.position.set(
+            -center.x * scale,
+            -box.min.y * scale,
+            -center.z * scale,
+          );
+          gltf.scene.scale.setScalar(scale);
+          wrapper.add(gltf.scene);
+          wrapper.traverse((o) => {
+            if (o instanceof THREE.Mesh) {
+              o.castShadow = true;
+              o.receiveShadow = true;
+              const mats = Array.isArray(o.material) ? o.material : [o.material];
+              mats.forEach((m) => {
+                if (m instanceof THREE.MeshStandardMaterial) {
+                  // Preserve the authored GLTF PBR channels and livery. Colour maps
+                  // use sRGB; normal/roughness/metalness maps remain linear.
+                  if (m.map) m.map.colorSpace = THREE.SRGBColorSpace;
+                  if (m.emissiveMap) m.emissiveMap.colorSpace = THREE.SRGBColorSpace;
+                }
+              });
+            }
+          });
+          this.models.set(name, wrapper);
+          if (name === "character") this.animations = gltf.animations;
+          onProgress?.(
+            name === "character"
+              ? "Your character is ready"
+              : "Loading city vehicles",
+          );
+        }),
+      );
+      const failedVehicle = vehicleLoads.find(result => result.status === 'rejected');
+      if (failedVehicle?.status === 'rejected') throw failedVehicle.reason;
+      if (this.disposed) return;
+      onProgress?.("Adding textured city facades");
+      const city = await loader.loadAsync(ASSETS + "city.glb");
+      if (this.disposed) {
+        this.disposeObject(city.scene);
+        return;
       }
-      material.normalScale.set(0.45, 0.45);
-      material.roughness = 0.85;
-      material.needsUpdate = true;
-    });
-    // Keep the shared GLB source attached invisibly so all geometries/textures are disposed.
-    city.scene.visible = false;
-    this.scene.add(city.scene);
+      this.facades = new CityFacades(city.scene);
+      this.scene.add(this.facades.group);
+      const surfaces: THREE.MeshStandardMaterial[] = [];
+      city.scene.traverse((o) => {
+        if (o instanceof THREE.Mesh)
+          for (const m of Array.isArray(o.material) ? o.material : [o.material])
+            if (
+              m instanceof THREE.MeshStandardMaterial &&
+              /RedBrick|Concrete/.test(m.name) &&
+              !surfaces.includes(m)
+            )
+              surfaces.push(m);
+      });
+      this.shellMaterials.forEach((material, i) => {
+        const surface = surfaces[i % surfaces.length];
+        if (!surface) return;
+        for (const key of ["map", "normalMap", "roughnessMap"] as const) {
+          const original = surface[key];
+          if (!original) continue;
+          const texture = original.clone();
+          texture.wrapS = texture.wrapT = THREE.RepeatWrapping;
+          texture.repeat.set(1, 1);
+          texture.anisotropy = 2;
+          texture.needsUpdate = true;
+          material[key] = texture;
+          this.worldTextures.add(texture);
+        }
+        material.normalScale.set(0.45, 0.45);
+        material.roughness = 0.85;
+        material.needsUpdate = true;
+      });
+      // Keep the shared GLB source attached invisibly so all geometries/textures are disposed.
+      city.scene.visible = false;
+      this.scene.add(city.scene);
 
-    onProgress?.("Placing GLTF pavements, trees and traffic signs");
-    await this.loadStreetFurniture(loader);
+      onProgress?.("Placing GLTF pavements, trees and traffic signs");
+      await this.loadStreetFurniture(loader);
 
-    this.ready = true;
-    onProgress?.("City ready");
+      this.ready = true;
+      onProgress?.("City ready");
+    } finally {
+      draco.dispose();
+    }
   }
   private actor(model: string, id: string): Actor {
     const existing = this.actors.get(id);
@@ -770,7 +787,9 @@ export class CityRenderer {
     ) as THREE.Group;
     const actor: Actor = { group, wheels: [], model };
     group.traverse((o) => {
-      if (o.name.toLowerCase().includes("wheel")) actor.wheels.push(o);
+      // Original road GLBs retain authored transforms; their mesh names alone
+      // do not guarantee a centred wheel pivot or the legacy spin axis.
+      if (!CIVILIAN_VEHICLE_MODELS[model] && o.name.toLowerCase().includes("wheel")) actor.wheels.push(o);
     });
     if (model === "character" && this.animations.length) {
       actor.mixer = new THREE.AnimationMixer(group);

@@ -37,7 +37,12 @@ export function StreetCareerGame({ onExit }: { onExit: () => void }) {
     [difficulty, setDifficulty] = useState('normal'),
     [stick, setStick] = useState({ x: 0, y: 0 });
   const stickId = useRef<number | null>(null);
+  const [session, setSession] = useState(0);
   useEffect(() => {
+    setError('');
+    setView(null);
+    setPanel(null);
+    setLoading('Loading Tirana');
     let g: StreetCareerRuntime | undefined,
       cancelled = false;
     try {
@@ -58,7 +63,10 @@ export function StreetCareerGame({ onExit }: { onExit: () => void }) {
             if (!cancelled) setLoading(m);
           })
           .then(() => {
-            if (!cancelled) { g?.resume(); setPanel(null); }
+            if (!cancelled) {
+              if (document.hidden) setPanel('journal');
+              else { g?.resume(); setPanel(null); }
+            }
           })
           .catch((e) => {
             if (!cancelled) setError(String(e));
@@ -72,7 +80,7 @@ export function StreetCareerGame({ onExit }: { onExit: () => void }) {
       g?.dispose();
       runtime.current = undefined;
     };
-  }, []);
+  }, [session]);
   useEffect(() => {
     const d = modal.current;
     if (panel && d && !d.open) d.showModal();
@@ -169,6 +177,7 @@ export function StreetCareerGame({ onExit }: { onExit: () => void }) {
     );
   };
   const [vehicleView,setVehicleView]=useState<'cockpit'|'chase'>('cockpit');
+  const failure = error || view?.graphicsError;
   const p = view?.state.players.local,
     flying = !!p?.aircraftId,
     aircraft = flying ? (p?.aircraftId === view?.state.jet?.id ? view?.state.jet : view?.state.helicopter) : undefined,
@@ -200,14 +209,15 @@ export function StreetCareerGame({ onExit }: { onExit: () => void }) {
         <button onClick={() => open('journal')}>JOURNAL</button>
         <button onClick={onExit}>EXIT</button>
       </header>
-      {error && (
+      {failure && (
         <div className="tsc-error" role="alert">
-          {error}
+          {failure}
+          <button onClick={() => { reset(); setVehicleView('cockpit'); setSession(s => s + 1); }}>RETRY</button>
           <button onClick={onExit}>RETURN TO GAMES</button>
         </div>
       )}
-      {!view?.ready && !error && <div className="tsc-loading" role="status">{loading}…</div>}
-      {view && p && !panel && !error && (
+      {!view?.ready && !failure && <div className="tsc-loading" role="status">{loading}…</div>}
+      {view && p && !panel && !failure && (
         <>
           <section className="tsc-objective">
             <small>{mission?.title || 'FREE ROAM'}</small>
@@ -351,7 +361,7 @@ export function StreetCareerGame({ onExit }: { onExit: () => void }) {
           </footer>
         </>
       )}
-      {panel && !error && (
+      {panel && !failure && (
         <dialog
           ref={modal}
           className="tsc-dialog"

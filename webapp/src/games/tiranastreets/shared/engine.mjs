@@ -2,7 +2,6 @@ import {drivingScale} from './drivingScale.mjs';
 import {importedFleet,IMPORTED_PLACEMENT_ORIGIN} from '../../blackwater/shared/importedPlacements.mjs';
 import {VEHICLE_COLLECTION} from './vehicleCollection.mjs';
 import {COLLECTION_PLACEMENTS} from './collectionPlacements.mjs';
-import {KARTS} from '../../kartroyale/vehicleCatalog.mjs';
 import { WORLD } from './world.mjs';
 import {FUEL_CANOPY_IDS,fuelCanopyObstacles} from '../../tirana-street-life/fuelCollision.mjs';
 import {
@@ -608,13 +607,7 @@ export function createState(
     collide(car, 1.35);
     state.cars.push(car);
   }
-  // Every Racing Royal class is an enterable city car; reuse the same catalog.
-  KARTS.forEach((kart,i)=>{
-    const n=(spawnNode+37*(i+1))%nodes.length,p=point(n),to=links[n][0]?.[0]??n;
-    const heading=Math.atan2(p.x-nodes[to][0],p.z-nodes[to][1]);
-    const car=vehicle(`royal-${kart.id}`,p.x+Math.cos(heading)*2.8,p.z-Math.sin(heading)*2.8,heading,'sport');
-    car.racingAsset=kart.id;collide(car,1.35);state.cars.push(car);
-  });
+  // Racing Royal karts belong on their circuit, not in Tirana's road fleet.
   // All ten originals are enterable parked cars in checked city locations.
   for (const placement of COLLECTION_PLACEMENTS) {
     const car=vehicle(placement.id,placement.x,placement.z,placement.heading,'sedan');

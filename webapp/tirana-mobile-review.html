@@ -1,0 +1,32 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+  <title>Tirana Streets · Mobile playtest</title>
+  <style>
+    *{box-sizing:border-box}body{margin:0;background:#10232c;color:#edf3e4;font:16px system-ui}
+    main{max-width:430px;margin:auto}nav{display:flex;flex-wrap:wrap;gap:8px;padding:12px}
+    button,select{font:inherit;min-height:44px;padding:8px;background:#24414c;color:inherit;border:1px solid #78959d;border-radius:8px}
+    iframe{display:block;margin:auto;width:100%;height:calc(100dvh - 130px);min-height:568px;border:0;background:#142a34}
+  </style>
+</head>
+<body>
+  <main>
+    <nav aria-label="Playtest controls">
+      <select id="phone" aria-label="Portrait screen width">
+        <option value="320">320 px</option><option value="360">360 px</option>
+        <option value="390" selected>390 px</option><option value="430">430 px</option>
+      </select>
+      <button id="career">Street Career</button><button id="battlefield">Battlefield</button>
+    </nav>
+    <iframe id="game" title="Tirana Streets portrait playtest" allow="fullscreen; autoplay" src="/tirana-gameplay-review.html?activity=street-career" style="max-width:390px"></iframe>
+  </main>
+  <script>
+    const frame=document.getElementById('game');
+    document.getElementById('phone').addEventListener('change',e=>frame.style.maxWidth=e.target.value+'px');
+    document.getElementById('career').addEventListener('click',()=>frame.src='/tirana-gameplay-review.html?activity=street-career');
+    document.getElementById('battlefield').addEventListener('click',()=>frame.src='/tirana-gameplay-review.html');
+  </script>
+</body>
+</html>

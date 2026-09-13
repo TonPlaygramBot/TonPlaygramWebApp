@@ -4,7 +4,6 @@ import {readFileSync} from 'node:fs';
 import {createHash} from 'node:crypto';
 import {deployment,formationSlot,vehicleBlocks,coverPoint,tacticalGoal} from '../webapp/src/games/tiranastreets/shared/forceTactics.mjs';
 import {createState,stepState,publicState} from '../webapp/src/games/tiranastreets/shared/engine.mjs';
-import {KARTS} from '../webapp/src/games/kartroyale/vehicleCatalog.mjs';
 import {IMPORTED_ASSETS} from '../webapp/src/games/tiranastreets/shared/importedAssets.mjs';
 import {props,OBSTACLES} from '../webapp/src/games/blackwater/shared/layout.mjs';
 test('Shqiponja deploys two double-crewed motorcycles and one escort together',()=>{
@@ -29,11 +28,14 @@ test('car cover blocks fire, side peeking clears it, formation slots differ',()=
  assert.equal(tacticalGoal(npc,target,[npc],[car],0,()=>true).anim,'run');
  assert.equal(vehicleBlocks({x:-5,z:0},{x:5,z:0},{...car,forceVehicle:'shqiponja_bike'}),false);
 });
-test('all 11 Racing Royal classes are enterable city cars and parked Battlefield assets',()=>{
- const s=createState([{id:'p',name:'P'}],'free-roam');assert.equal(KARTS.length,11);
- for(const kart of KARTS){assert.ok(s.cars.some(c=>c.racingAsset===kart.id&&c.driver===null));assert.ok(props.some(p=>p.racingAsset===kart.id));}
+test('Tirana uses its ten road cars without Racing Royal kart spawns or collision props',()=>{
+ const s=createState([{id:'p',name:'P'}],'free-roam');
+ assert.equal(s.cars.filter(c=>c.collectionVehicle).length,10);
+ assert.equal(s.cars.some(c=>c.racingAsset),false);
+ assert.equal(props.some(p=>p.racingAsset),false);
+ assert.equal(OBSTACLES.some(p=>p.racingAsset),false);
 });
-test('all 26 original models are packaged, hashed and represented in the game',()=>{
+test('all 26 originals remain packaged and hashed; weapon placements remain in Tirana',()=>{
  assert.equal(IMPORTED_ASSETS.length,26);assert.equal(IMPORTED_ASSETS.filter(a=>a.kind==='weapon').length,18);
  for(const item of IMPORTED_ASSETS){
   const b=readFileSync(new URL('../webapp/public'+item.localUrl,import.meta.url));assert.equal(createHash('sha256').update(b).digest('hex'),item.sha256,item.name);
@@ -42,7 +44,9 @@ test('all 26 original models are packaged, hashed and represented in the game',(
    if(image.uri?.startsWith('data:')){const bytes=Buffer.from(image.uri.split(',')[1],'base64');assert.ok(!bytes.subarray(0,50).toString().includes('git-lfs'),`${item.name}: no LFS pointer masquerading as a texture`);assert.ok(bytes[0]===137||bytes[0]===255||bytes.subarray(0,4).toString()==='RIFF',`${item.name}: valid image signature`);}}
 
   for(const buffer of json.buffers||[])assert.ok(!buffer.uri||buffer.uri.startsWith('data:'),`${item.name}: buffer must be bundled`);
-  const placement=props.find(p=>p.assetId===item.id||p.racingAsset===item.id);assert.ok(placement,item.id);assert.ok(OBSTACLES.includes(placement));
+  if(item.kind==='weapon'){
+   const placement=props.find(p=>p.assetId===item.id);assert.ok(placement,item.id);assert.ok(OBSTACLES.includes(placement));
+  }
  }
 });
 test('a real response follows its route and dismounts as a squad instead of repathing forever',()=>{

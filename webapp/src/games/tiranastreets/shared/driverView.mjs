@@ -1,5 +1,5 @@
 import {groundHeight} from '../../tirana-east/terrainCore.mjs';
-import {collectionVehicleFor} from './vehicleCollection.mjs';
+import {roadVehicleFor} from './vehicleCollection.mjs';
 import {FORCE_VEHICLE_BOUNDS,forceVehicleFor} from './albanianForces.mjs';
 
 /** Canonical car space: +X screen-right, +Y up, -Z forward. Seats are metres.
@@ -7,7 +7,7 @@ import {FORCE_VEHICLE_BOUNDS,forceVehicleFor} from './albanianForces.mjs';
  */
 export function driverSocket(car) {
   if(car.model==='tirana-bus')return {x:-.64,y:2.05,z:-7.7,width:2.55,length:18,open:false};
-  const asset=collectionVehicleFor({collectionVehicle:car.collectionVehicle||car.racingAsset});
+  const asset=roadVehicleFor({...car,collectionVehicle:car.collectionVehicle||car.racingAsset});
   if(asset) {
     const [forward,height,left]=asset.driverSeat;
     return {x:left,y:Math.min(height+.58,asset.height-.12)+.03,z:-forward,

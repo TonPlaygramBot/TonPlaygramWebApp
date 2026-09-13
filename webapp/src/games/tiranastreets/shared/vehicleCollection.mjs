@@ -152,5 +152,14 @@ export const VEHICLE_COLLECTION = Object.freeze([
   }
 ].map(c=>Object.freeze({...c,driverSeat:Object.freeze(c.driverSeat)})));
 export const COLLECTION_BY_ID = new Map(VEHICLE_COLLECTION.map(c=>[c.id,c]));
+// The ordinary fleet shares three original road models and their GPU resources.
+// Keep simulation roles (taxi, race rival) independent from visual assets.
+export const CIVILIAN_VEHICLE_MODELS = Object.freeze({
+  sedan: 'benz', 'sedan-sports': 'audi', taxi: 'benz',
+  'city-car': 'ford', sport: 'audi'
+});
 export function collectionVehicleFor(car) { return COLLECTION_BY_ID.get(car.collectionVehicle); }
+export function roadVehicleFor(car) {
+  return collectionVehicleFor(car) || (car.forceVehicle ? undefined : COLLECTION_BY_ID.get(CIVILIAN_VEHICLE_MODELS[car.model]));
+}
 export const COLLECTION_DRIVER_URL = '/assets/table-tennis/chess-human.glb';

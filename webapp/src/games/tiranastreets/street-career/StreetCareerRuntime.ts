@@ -31,6 +31,7 @@ export type StreetView = {
   state: State;
   paused: boolean;
   ready: boolean;
+  graphicsError: string;
   route: Point[];
   fps: number;
   storageOK: boolean;
@@ -53,6 +54,7 @@ export class StreetCareerRuntime {
   profile: StreetProfile;
   paused = true;
   ready = false;
+  graphicsError = '';
   route: Point[] = [];
   private ownedWeapons = new Set<string>();
   private disposed = false;
@@ -110,9 +112,10 @@ export class StreetCareerRuntime {
   async load(progress: (message: string) => void) {
     void loadWeaponStoreAccount().then(a=>this.grantWeapons(a.ownedWeaponIds)).catch(()=>{});
     await this.renderer.load(progress);
+    if (this.disposed || this.graphicsError) return;
     progress('Preparing nearby vehicles and police…');
     await this.renderer.prepareActors(this.state,this.state.players.local);
-    if (this.disposed) return;
+    if (this.disposed || this.graphicsError) return;
     this.ready = true;
     this.emit();
   }
@@ -127,9 +130,7 @@ export class StreetCareerRuntime {
     e.preventDefault();
     this.pause();
     this.ready = false;
-    this.renderer.humans.errors.push(
-      'Graphics context lost. Exit and reopen Tirana Streets.'
-    );
+    this.graphicsError = 'The graphics connection was interrupted. Retry to continue from your saved progress.';
     this.emit();
   };
   private snapshot() {
@@ -213,7 +214,7 @@ export class StreetCareerRuntime {
     this.resume();
   }
   resume() {
-    if (!this.ready || this.disposed || this.state.phase === 'finished') return;
+    if (!this.ready || this.disposed || this.graphicsError || document.hidden || this.state.phase === 'finished') return;
     this.paused = false;
     this.input.setEnabled(true);
     this.simulation.resume();
@@ -362,7 +363,8 @@ export class StreetCareerRuntime {
         this.routeAt = now;
       }
     }
-    this.renderer.render(this.state, 'local', this.paused ? 0 : dt, false);
+    if (!document.hidden && !this.graphicsError)
+      this.renderer.render(this.state, 'local', this.paused ? 0 : dt, false);
     if (now - this.saveAt > 5000) {
       this.persist();
       this.saveAt = now;
@@ -379,6 +381,7 @@ export class StreetCareerRuntime {
       state: this.state,
       paused: this.paused,
       ready: this.ready,
+      graphicsError: this.graphicsError,
       route: this.route,
       fps: this.renderer.fps,
       storageOK: this.storageOK,

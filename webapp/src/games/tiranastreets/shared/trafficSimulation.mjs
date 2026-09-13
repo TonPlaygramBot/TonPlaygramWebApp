@@ -1,6 +1,6 @@
 import {cornerSpeed} from './drivingScale.mjs';
 import { WORLD } from './world.mjs';
-import { VEHICLE_COLLECTION, collectionVehicleFor } from './vehicleCollection.mjs';
+import { VEHICLE_COLLECTION, roadVehicleFor } from './vehicleCollection.mjs';
 import { FORCE_VEHICLE_BOUNDS } from './albanianForces.mjs';
 import { CITY_POPULATION } from './cityPopulation.mjs';
 import { signalsNear, signalPhase } from './streetLayout.mjs';
@@ -17,7 +17,7 @@ export function vehicleSize(car){
 }
 function measureVehicle(car){
   if(car.model==='tirana-bus')return {length:18,width:2.55};
-  const collection=collectionVehicleFor(car),force=FORCE_VEHICLE_BOUNDS.find(v=>v.id===car.forceVehicle);
+  const collection=roadVehicleFor(car),force=FORCE_VEHICLE_BOUNDS.find(v=>v.id===car.forceVehicle);
   if(collection)return {length:collection.length,width:collection.width};
   if(force)return {length:force.d,width:force.w};
   return /bike/.test(car.model)?{length:2.25,width:.85}:{length:4.5,width:1.9};
