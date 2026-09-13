@@ -661,6 +661,8 @@ export function createMurlanStyleTable({
   clothOption = DEFAULT_TABLE_CLOTH_OPTION,
   baseOption = DEFAULT_TABLE_BASE_OPTION,
   includeBase = true,
+  flushPlayingSurface = false,
+  textures = true,
   shapeOption = TABLE_SHAPE_OPTIONS[0],
   rotationY = 0
 } = {}) {
@@ -780,7 +782,11 @@ export function createMurlanStyleTable({
   });
   rimGeometry.rotateX(-Math.PI / 2);
   const rimMesh = new ThreeNamespace.Mesh(rimGeometry, rimWoodMat);
-  rimMesh.position.y = tableY + clothRise * 0.36;
+  // Snake uses one level playing surface so dice and parked models can cross
+  // the cloth/wood boundary without floating over the cloth or sinking in the rim.
+  rimMesh.position.y = flushPlayingSurface
+    ? tableHeight - rimDepth - rimDepth * 0.32
+    : tableY + clothRise * 0.36;
   rimMesh.castShadow = true;
   rimMesh.receiveShadow = true;
   tableGroup.add(rimMesh);
@@ -799,7 +805,7 @@ export function createMurlanStyleTable({
     brandPlateSize.depth
   );
   const brandPlateMaterialTop = new ThreeNamespace.MeshStandardMaterial({
-    map: makeBrandPlateTexture(),
+    map: textures ? makeBrandPlateTexture() : null,
     color: '#ffffff',
     roughness: 0.35,
     metalness: 0.28
@@ -824,6 +830,10 @@ export function createMurlanStyleTable({
     frontRadius - brandPlateSize.depth * 1.08
   );
   brandPlate.rotation.x = THREE.MathUtils.degToRad(-1.4);
+  if (flushPlayingSurface) {
+    brandPlate.rotation.x = Math.PI / 2;
+    brandPlate.position.set(0, tableY - brandPlateSize.depth / 2, frontRadius + woodDepth * 0.45);
+  }
   brandPlate.castShadow = true;
   brandPlate.receiveShadow = true;
   tableGroup.add(brandPlate);
@@ -929,7 +939,8 @@ export function createMurlanStyleTable({
     brandPlateMaterials: [brandPlateMaterialTop, brandPlateMaterialSide]
   };
 
-  applyTableMaterials(tableParts, { woodOption, clothOption, baseOption }, renderer);
+  if (textures) applyTableMaterials(tableParts, { woodOption, clothOption, baseOption }, renderer);
+  else surfaceMat.color.set(clothOption.feltTop);
 
   const dispose = () => {
     tableParts.velvetTexture?.dispose?.();

@@ -1,6 +1,6 @@
 import { readFile, writeFile, mkdir } from 'node:fs/promises';
 import { resolve, dirname } from 'node:path';
-import { fileURLToPath } from 'node:url';
+import { fileURLToPath, pathToFileURL } from 'node:url';
 import { gzipSync } from 'node:zlib';
 import { build } from '../webapp/node_modules/esbuild/lib/main.js';
 import { BufferAttribute } from '../webapp/node_modules/three/build/three.module.js';
@@ -55,12 +55,24 @@ for (const [id, file] of Object.entries(files)) {
   });
   assets[id] = JSON.parse(JSON.stringify(model.toJSON(), (_, value) => typeof value === 'number' && !Number.isInteger(value) ? Number(value.toFixed(5)) : value));
 }
+// Embed the real table geometry, omitting runtime texture/network machinery.
+const tableModule = resolve(generated, 'table.mjs');
+await build({ entryPoints: [resolve(root, 'scripts/snake-review/table.ts')], bundle: true, platform: 'node', format: 'esm', outfile: tableModule,
+  nodePaths: [resolve(root, 'webapp/node_modules')], logLevel: 'warning' });
+Object.assign(assets, (await import(pathToFileURL(tableModule).href)).tableAssets);
 await writeFile(resolve(generated, 'assets.json'), JSON.stringify(assets));
 const packedAssets = gzipSync(JSON.stringify(assets)).toString('base64');
 const result = await build({ entryPoints: [resolve(root, 'webapp/src/previews/snake/SnakeInteractionPreview.tsx')],
   bundle: true, format: 'esm', platform: 'browser', jsx: 'automatic', minify: true, target: 'es2022', write: false,
   define: { SNAKE_PREVIEW_ASSETS: JSON.stringify(packedAssets) },
-  plugins: [{ name: 'cdn', setup(api) { api.onResolve({ filter: /^(three|react|react-dom)(\/.*)?$/ }, args => {
+  plugins: [{ name: 'review-ammunition', setup(api) {
+    api.onLoad({ filter: /ludo-presentation\.json$/ }, async ({ path }) => {
+      const data = JSON.parse(await readFile(path, 'utf8'));
+      const used = ['rifle-round', 'pistol-round', 'jacketed-round', 'buckshot-pellet', 'rifle-case', 'pistol-case', 'shotgun-case'];
+      data.models = Object.fromEntries(used.map(key => [key, data.models[key]]));
+      return { contents: JSON.stringify(data), loader: 'json' };
+    });
+  } }, { name: 'cdn', setup(api) { api.onResolve({ filter: /^(three|react|react-dom)(\/.*)?$/ }, args => {
     if (args.path === 'three') return { path: 'https://cdn.jsdelivr.net/npm/three@0.164.1/build/three.module.js', external: true };
     if (args.path === 'react-dom/client') return { path: 'https://esm.sh/react-dom@18.3.1/client?deps=react@18.3.1', external: true };
     if (args.path === 'react/jsx-runtime') return { path: 'https://esm.sh/react@18.3.1/jsx-runtime', external: true };

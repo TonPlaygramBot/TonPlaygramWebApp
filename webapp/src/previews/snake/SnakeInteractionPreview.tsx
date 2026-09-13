@@ -30,7 +30,7 @@ function App() {
       const resize = () => { const w = element.clientWidth, h = Math.min(480, Math.max(390, w * 1.22)); renderer.setSize(w, h); review.camera.aspect = w / h; review.camera.updateProjectionMatrix(); };
       const observer = new ResizeObserver(resize); observer.observe(element); resize();
       const start = (next: string) => { kind = next; total = review.start(kind); elapsed = 0; startTime = performance.now(); running = true; setPlaying(true); setProgress(0); };
-      actions.current = { start, result() {
+      actions.current = { start, table() { running = false; setPlaying(false); total = 0; setProgress(0); review.showTable(); setStatus('Table & parked weapons'); }, result() {
           kind = 'dice'; total = review.start(kind); running = false; setPlaying(false); elapsed = SNAKE_DICE_PRESENTATION_MS;
           review.update(elapsed); setProgress(elapsed / total * 100); setStatus('Rolled 6 — result between board and player');
         }, pause() { running = !running; if (running) startTime = performance.now() - elapsed; setPlaying(running); },
@@ -49,7 +49,7 @@ function App() {
         } else if (loopRef.current && total && elapsed >= total && now - pauseTime > 700) start(kind);
         renderer.render(review.scene, review.camera); raf = requestAnimationFrame(frame);
       };
-      raf = requestAnimationFrame(frame); setReady(true); setStatus('Choose dice or firearm');
+      raf = requestAnimationFrame(frame); setReady(true); setStatus('Table & parked weapons');
       cleanup = () => { observer.disconnect(); review.dispose(); renderer.dispose(); renderer.domElement.remove(); };
     }).catch(() => { if (!dead) setStatus('The 3D preview could not load on this device.'); });
     return () => { dead = true; cancelAnimationFrame(raf); actions.current = null; cleanup(); };
@@ -65,6 +65,7 @@ function App() {
       </select></label>
     </div>
     <div className="viz-row">
+      <button className="btn" disabled={!ready} onClick={() => actions.current?.table()}>Table & weapons</button>
       <button className="btn btn-primary" disabled={!ready} onClick={() => actions.current?.start('dice')}>Two turns</button>
       <button className="btn" disabled={!ready} onClick={() => actions.current?.result()}>Show result</button>
       <button className="btn" disabled={!ready} onClick={() => actions.current?.start('fire')}>Aim & fire</button>
