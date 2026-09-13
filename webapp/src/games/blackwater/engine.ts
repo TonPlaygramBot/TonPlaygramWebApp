@@ -1,10 +1,11 @@
+import {advanceBattleObjective} from './shared/missionCore.mjs';
+import {battleGround} from './shared/terrain.mjs';
 import {createWebGLRenderer} from '../tiranastreets/createWebGLRenderer';
 import { BattlefieldVehicle } from './BattlefieldVehicle';
 import { CombatEffects } from '../tiranastreets/CombatEffects';
 import { BATTLE_MODES, OPERATIONS, sectorSpawns, sectorObstacles, zoneRadius, normalizeOperations, finishOperation, type BattleMode } from './shared/battlefield.mjs';
 import { createBrain, thinkBot, type BotBrain } from './shared/botBrain.mjs';
-import { tacticalGoal } from '../tiranastreets/shared/forceTactics.mjs';
-import { props as cityCover } from './shared/layout.mjs';
+import { tacticalGoal, coverPoint } from '../tiranastreets/shared/forceTactics.mjs';
 import { BattlefieldForces } from './BattlefieldForces';
 import * as THREE from 'three';
 import { CompatibilityRenderer } from './compatibility';
@@ -13,7 +14,7 @@ import { GameInput } from './input';
 import { makeEnemy, type ActorVisual, type World } from './world';
 import { makeCityWorld } from './cityWorld';
 import { spawnPoint } from './shared/match.mjs';
-import { START, SPAWNS, BATTLEFIELD_MAPS } from './shared/layout.mjs';
+import { START, BATTLEFIELD_MAPS } from './shared/layout.mjs';
 import type { OnlineState, OnlineTransport } from './online';
 import {
   WEAPONS,
@@ -25,7 +26,6 @@ import {
   rayBox,
   findPath,
   waveCount,
-  afterWave,
   reloadAmmo,
   createRng,
   type Vec2,
@@ -90,6 +90,9 @@ type Enemy = ActorVisual & {
   lastSeen?:Vec2;
   lastSeenAt?:number;
   stuck?:number;
+  detour?:Vec2;
+  detourUntil?:number;
+  pathGoal?:Vec2;
   networkId?: string;
   networkTarget?: Vec2;
   networkYaw?: number;
@@ -144,6 +147,7 @@ export class GameEngine {
   operationId='';
   operations={completed:[] as string[]};
   private objectiveProgress=0;
+  private gunNoise:(Vec2&{at:number})|null=null;
   private intel=false;
   private sectorCenter={...START};
   private battleObstacles:import('./core').Obstacle[]=[];
@@ -323,7 +327,7 @@ export class GameEngine {
     this.battleMode=BATTLE_MODES.some(m=>m.id===battleMode)?battleMode:'last-stand';
     const operationIndex=OPERATIONS.findIndex(o=>o.id===operationId&&o.map===mapId&&o.mode===battleMode);
     this.operationId=operationIndex>=0&&operationIndex<=this.operations.completed.length?operationId:'';
-    this.objectiveProgress=0;this.intel=false;this.combatEffects.reset();
+    this.objectiveProgress=0;this.gunNoise=null;this.intel=false;this.combatEffects.reset();
     this.difficulty = difficulty;
     const sector = BATTLEFIELD_MAPS.find((map) => map.id === mapId) || BATTLEFIELD_MAPS[0];
     this.player = { ...sector.start };
@@ -337,7 +341,7 @@ export class GameEngine {
     }
     this.battleObstacles=sectorObstacles(sector.start,220,this.world.obstacles);
     this.extractionPoint = { ...sector.extraction };
-    this.world.extraction.position.set(this.extractionPoint.x, .12, this.extractionPoint.z);
+    this.world.extraction.position.set(this.extractionPoint.x, battleGround(this.extractionPoint.x,this.extractionPoint.z)+.12, this.extractionPoint.z);
     this.yaw = 0;
     this.pitch = -0.01;
     this.health = this.maxHealth = 100;
@@ -390,23 +394,12 @@ export class GameEngine {
   private spawnWave() {
     this.clearActors();
     const count=this.battleMode==='waves'?waveCount(this.wave):this.battleMode==='last-stand'?7:6;
-    const positions=sectorSpawns(this.battlefieldMap,count,this.world.obstacles);
+    const positions=sectorSpawns(this.battlefieldMap,count,this.world.obstacles,[this.player]);
     for (let i = 0; i < positions.length; i++) {
       const visual = makeEnemy();
       const {x,z}=positions[i];
-      visual.group.position.set(x,0,z);
+      visual.group.position.set(x,battleGround(x,z),z);
       moveCircle(visual.group.position, 0, 0, .4, this.world.obstacles);
-      let dist = Math.hypot(x - this.player.x, z - this.player.z);
-      if (dist < 8) {
-        const far = SPAWNS.reduce((a, b) =>
-          Math.hypot(b.x - this.player.x, b.z - this.player.z) >
-          Math.hypot(a.x - this.player.x, a.z - this.player.z)
-            ? b
-            : a
-        );
-        visual.group.position.set(far.x, 0, far.z);
-        dist = 48;
-      }
       const e: Enemy = {
         ...visual,
         id: i,
@@ -596,6 +589,7 @@ export class GameEngine {
       return;
     }
     this.ammo--;
+    this.gunNoise={...this.player,at:this.elapsed};
     this.shots++;
     this.cooldown = w.interval;
     this.recoil = Math.min(0.07, this.recoil + w.recoil * 0.55);
@@ -679,11 +673,11 @@ export class GameEngine {
     const mesh = new THREE.Group();
     const crate = new THREE.Mesh(new THREE.BoxGeometry(.75,.16,.32),new THREE.MeshStandardMaterial({color:0x29383a,metalness:.65,roughness:.3}));
     const glow = new THREE.Mesh(new THREE.RingGeometry(.55,.62,24),new THREE.MeshBasicMaterial({color:0xd8fa69,transparent:true,opacity:.72,side:THREE.DoubleSide}));
-    glow.rotation.x=-Math.PI/2;glow.position.y=.03;crate.position.y=.22;mesh.add(crate,glow);mesh.position.copy(position);mesh.position.y=0;this.scene.add(mesh);
+    glow.rotation.x=-Math.PI/2;glow.position.y=.03;crate.position.y=.22;mesh.add(crate,glow);mesh.position.copy(position);mesh.position.y=battleGround(position.x,position.z);this.scene.add(mesh);
     this.loot.push({mesh,weapon,ammo:Math.max(WEAPONS[weapon].mag,Math.round(WEAPONS[weapon].mag*1.5)),life:0});
   }
   private updateLoot(dt:number) {
-    for (let i=this.loot.length-1;i>=0;i--) {const item=this.loot[i];item.life+=dt;item.mesh.rotation.y+=dt*.8;item.mesh.position.y=.04+Math.sin(item.life*3)*.025;
+    for (let i=this.loot.length-1;i>=0;i--) {const item=this.loot[i];item.life+=dt;item.mesh.rotation.y+=dt*.8;item.mesh.position.y=battleGround(item.mesh.position.x,item.mesh.position.z)+.04+Math.sin(item.life*3)*.025;
       if(Math.hypot(this.player.x-item.mesh.position.x,this.player.z-item.mesh.position.z)<1.55){this.weapon=item.weapon;this.ammo=WEAPONS[item.weapon].mag;this.reserve+=item.ammo;this.notify(`${WEAPONS[item.weapon].name} PICKED UP  +${item.ammo} AMMO`,'good',2.4);this.scene.remove(item.mesh);item.mesh.traverse(o=>{if(o instanceof THREE.Mesh){o.geometry.dispose();(o.material as THREE.Material).dispose();}});this.loot.splice(i,1);}
       else if(item.life>45){this.scene.remove(item.mesh);this.loot.splice(i,1);}
     }
@@ -818,48 +812,18 @@ export class GameEngine {
       if(this.phase==='playing'&&this.enemies.length&&this.enemies.every(e=>e.hp<=0))this.finish(true);
       return;
     }
-    if(this.battleMode==='hold'){
-      const contested=this.enemies.some(e=>e.hp>0&&Math.hypot(e.group.position.x-this.sectorCenter.x,e.group.position.z-this.sectorCenter.z)<10);
-      if(!contested&&Math.hypot(this.player.x-this.sectorCenter.x,this.player.z-this.sectorCenter.z)<10)this.objectiveProgress+=dt;
-      if(this.objectiveProgress>=45){this.finish(true);return;}
-      if(this.enemies.every(e=>e.hp<=0)&&this.elapsed<240)this.spawnWave();
-      if(this.elapsed>300)this.finish(false);
-      return;
-    }
-    if(this.battleMode==='extraction'&&!this.intel){
-      const intelPoint=this.intelPoint;
-      if(Math.hypot(this.player.x-intelPoint.x,this.player.z-intelPoint.z)<5)this.objectiveProgress+=dt;
-      if(this.objectiveProgress>=3){this.intel=true;this.extraction=true;this.world.extraction.visible=true;this.notify('INTEL SECURED · REACH EXTRACTION','good',4);}
-    }
-    if (
-      this.enemies.length &&
-      this.enemies.every((e) => e.hp <= 0) &&
-      !this.extraction
-    ) {
-      if (this.battleMode==='sweep'||this.battleMode==='extraction'&&this.intel||this.battleMode==='waves'&&afterWave(this.wave) === 'extract') {
-        this.extraction = true;
-        this.world.extraction.visible = true;
-        this.notify('BLOCK SECURED  /  REACH NORTH GATE', 'good', 5);
-        this.audio.victory();
-      } else if(this.battleMode==='waves') {
-        this.phase = 'upgrade';
-        this.input.active = false;
-        this.input.clear();
-        if (document.pointerLockElement) document.exitPointerLock();
-        this.audio.victory();
-        this.emit();
-      }
-    }
-    if (this.extraction) {
-      const distance = Math.hypot(
-        this.player.x - this.extractionPoint.x,
-        this.player.z - this.extractionPoint.z
-      );
-      this.extractProgress =
-        distance < 2.6
-          ? Math.min(5, this.extractProgress + dt)
-          : Math.max(0, this.extractProgress - dt * 2);
-      if (this.extractProgress >= 5) this.finish(true);
+    const objective=advanceBattleObjective({progress:this.objectiveProgress,intel:this.intel,extracting:this.extraction,extraction:this.extractProgress},{
+      mode:this.battleMode,elapsed:this.elapsed,wave:this.wave,health:this.health,driving:this.vehicle.driving,lastDamage:this.lastDamage,
+      player:this.player,center:this.sectorCenter,intelPoint:this.intelPoint,extractionPoint:this.extractionPoint,
+      enemies:this.enemies.map(e=>({x:e.group.position.x,z:e.group.position.z,hp:e.hp}))
+    },dt);
+    this.objectiveProgress=objective.progress;this.intel=objective.intel;this.extraction=objective.extracting;this.extractProgress=objective.extraction;
+    if(objective.extractionOpened){this.world.extraction.visible=true;this.notify(objective.intelSecured?'INTEL SECURED · REACH EXTRACTION':'BLOCK SECURED / REACH EXTRACTION','good',4);this.audio.victory();}
+    if(objective.status==='won'||objective.status==='lost'){this.finish(objective.status==='won');return;}
+    if(objective.status==='reinforce')this.spawnWave();
+    if(objective.status==='upgrade'){
+      this.phase='upgrade';this.input.active=false;this.input.clear();
+      if(document.pointerLockElement)document.exitPointerLock();this.audio.victory();this.emit();
     }
   }
   private assist(dt: number) {
@@ -872,7 +836,7 @@ export class GameEngine {
       if (e.hp <= 0) continue;
       const target = new THREE.Vector3(
         e.group.position.x,
-        1.5,
+        e.group.position.y+1.5,
         e.group.position.z
       );
       const d = target.clone().sub(this.camera.position);
@@ -888,7 +852,7 @@ export class GameEngine {
     if (best) {
       const d = new THREE.Vector3(
         best.group.position.x,
-        1.5,
+        best.group.position.y+1.5,
         best.group.position.z
       ).sub(this.camera.position);
       const targetYaw = Math.atan2(-d.x, -d.z);
@@ -908,42 +872,58 @@ export class GameEngine {
     if(e.hp<=0){
       e.state='dead';e.anim='dead';e.deadTime+=dt;
       e.group.rotation.z=THREE.MathUtils.lerp(e.group.rotation.z,1.48,1-Math.exp(-dt*7));
-      e.group.position.y=THREE.MathUtils.lerp(e.group.position.y,-.1,1-Math.exp(-dt*3));
+      e.group.position.y=THREE.MathUtils.lerp(e.group.position.y,battleGround(e.group.position.x,e.group.position.z)-.1,1-Math.exp(-dt*3));
       if(e.deadTime>4)e.group.visible=false;return;
     }
     const p=e.group.position,brain=e.brain ||=createBrain(String(e.id));
-    const clear=(a:Vec2,b:Vec2)=>lineClear(new THREE.Vector3(a.x,1.5,a.z),new THREE.Vector3(b.x,1.5,b.z),this.battleObstacles);
+    const clear=(a:Vec2,b:Vec2)=>lineClear(new THREE.Vector3(a.x,battleGround(a.x,a.z)+1.5,a.z),new THREE.Vector3(b.x,battleGround(b.x,b.z)+1.5,b.z),this.battleObstacles);
     const opponents=[{id:'player',...this.player,hp:this.health},...(this.battleMode==='last-stand'?this.enemies.filter(o=>o!==e&&o.hp>0).map(o=>({id:String(o.id),x:o.group.position.x,z:o.group.position.z,hp:o.hp})):[])];
-    const decision=thinkBot(brain,{id:String(e.id),x:p.x,z:p.z,hp:e.hp},opponents,this.elapsed,dt,clear,this.sectorCenter);
+    const teammates=this.battleMode==='last-stand'?[]:this.enemies.filter(o=>o!==e&&o.hp>0).map(o=>({id:String(o.id),x:o.group.position.x,z:o.group.position.z,health:o.hp,lastSeen:o.brain?.lastSeen||undefined,lastSeenAt:o.brain?.seenAt}));
+    const observed=opponents.find(o=>Math.hypot(o.x-p.x,o.z-p.z)<65&&clear(p,o));
+    const covers=this.battleObstacles.filter(c=>c.h>1.1&&Math.hypot(c.x-p.x,c.z-p.z)<22).map((c,i)=>({...c,id:String(i),heading:c.rot||0,speed:0}));
+    const coverTargets=covers.map(c=>coverPoint(c,observed||brain.lastSeen||this.sectorCenter,e.id,false)).filter(c=>!collides(c.x,c.z,.5,this.battleObstacles));
+    const decision=thinkBot(brain,{id:String(e.id),x:p.x,z:p.z,hp:e.hp},opponents,this.elapsed,dt,clear,this.sectorCenter,{
+      mode:this.battleMode,zoneRadius:zoneRadius(this.elapsed),intelCollected:this.intel,intelPoint:this.intelPoint,extractionPoint:this.extractionPoint,
+      covers:coverTargets,reports:this.battleMode==='last-stand'?[]:this.enemies.filter(o=>o!==e&&o.hp>0&&o.brain).map(o=>o.brain!),noise:this.gunNoise,
+      loot:this.loot.map((l,i)=>({id:String(i),x:l.mesh.position.x,z:l.mesh.position.z,ammo:l.ammo}))
+    });
+    if(decision.heal)e.hp=Math.min(this.wave===3?115:100,e.hp+decision.heal);
+    if(decision.pickup!==null){
+      const index=Number(decision.pickup),item=this.loot[index];
+      if(item&&Math.hypot(item.mesh.position.x-p.x,item.mesh.position.z-p.z)<1.55){
+        brain.reserve+=item.ammo;this.scene.remove(item.mesh);item.mesh.traverse(o=>{if(o instanceof THREE.Mesh){o.geometry.dispose();(o.material as THREE.Material).dispose();}});this.loot.splice(index,1);
+      }
+    }
     e.cooldown-=dt;e.repath-=dt;
-    const teammates=this.battleMode==='last-stand'?[]:this.enemies.filter(o=>o.hp>0).map(o=>({id:String(o.id),x:o.group.position.x,z:o.group.position.z,health:o.hp,lastSeen:o.lastSeen,lastSeenAt:o.lastSeenAt}));
     const observer={id:String(e.id),x:p.x,z:p.z,health:e.hp,kind:'police',coverId:e.coverId,lastSeen:e.lastSeen,lastSeenAt:e.lastSeenAt};
-    const covers=cityCover.filter(c=>c.h>1.1&&Math.hypot(c.x-p.x,c.z-p.z)<22).map((c,i)=>({...c,id:String(i),heading:c.rot,speed:0}));
-    const tactic=decision.target?tacticalGoal(observer,decision.target,teammates,covers,this.elapsed,clear):{goal:decision.goal,anim:'run',coverId:undefined};
-    e.lastSeen=observer.lastSeen;e.lastSeenAt=observer.lastSeenAt;e.coverId=tactic.coverId;
+    const tactic=decision.target&&!decision.priority?tacticalGoal(observer,decision.target,teammates,covers,this.elapsed,clear):{goal:decision.goal,anim:decision.state==='heal'?'cover':'run',coverId:undefined};
+    e.lastSeen=brain.lastSeen||undefined;e.lastSeenAt=brain.seenAt;e.coverId=tactic.coverId;
     let goal=tactic.goal;
-    const zoneUrgent=this.battleMode==='last-stand'&&Math.hypot(p.x-this.sectorCenter.x,p.z-this.sectorCenter.z)>zoneRadius(this.elapsed)-5;
-    if(zoneUrgent)goal=this.sectorCenter;
+    if(e.detour&&this.elapsed<(e.detourUntil||0)&&Math.hypot(p.x-e.detour.x,p.z-e.detour.z)>.6)goal=e.detour;
+    else e.detour=undefined;
     const reloading=brain.reload>0;
-    if(reloading&&brain.medkit&&e.hp<35&&!decision.target){e.hp=Math.min(100,e.hp+35);brain.medkit=false;}
-    const movement=Math.hypot(goal.x-p.x,goal.z-p.z)>.8&&(zoneUrgent||!decision.target||tactic.anim==='run'||tactic.anim==='walk');
-    e.state=movement?'advance':reloading||tactic.anim==='cover'?'cover':'fire';
+    const movement=Math.hypot(goal.x-p.x,goal.z-p.z)>.8&&(decision.priority||!decision.target||tactic.anim==='run'||tactic.anim==='walk');
+    e.state=movement?'advance':reloading||tactic.anim==='cover'||decision.state==='heal'?'cover':'fire';
     e.anim=e.state==='advance'?'run':e.state==='cover'?'cover':'aim';
     if(movement){
-      if(e.repath<=0){e.repath=1.3+(e.id%5)*.13;e.path=findPath(p,goal,this.battleObstacles);}
+      if(e.repath<=0||!e.pathGoal||Math.hypot(goal.x-e.pathGoal.x,goal.z-e.pathGoal.z)>6){e.repath=1.3+(e.id%5)*.13;e.path=findPath(p,goal,this.battleObstacles);e.pathGoal={...goal};}
       const next=e.path[0]||goal,dx=next.x-p.x,dz=next.z-p.z,d=Math.hypot(dx,dz);
       if(d>.12){
         const before={x:p.x,z:p.z};moveCircle(p,dx/d*dt*4.1,dz/d*dt*4.1,.4,this.battleObstacles);
         const travel=Math.hypot(p.x-before.x,p.z-before.z);e.walk+=travel*2.4;
         e.stuck=travel<.003?(e.stuck||0)+dt:0;
-        if(e.stuck>1.5){e.repath=0;e.path=[];e.stuck=0;}
+        if(e.stuck>1.5){
+          for(let i=0;i<8;i++){const a=(i+e.id)*Math.PI/4,q={x:p.x+Math.sin(a)*3,z:p.z+Math.cos(a)*3};
+            if(!collides(q.x,q.z,.5,this.battleObstacles)&&findPath(p,q,this.battleObstacles).length){e.detour=q;e.detourUntil=this.elapsed+2;break;}}
+          e.repath=0;e.path=[];e.stuck=0;
+        }
         e.group.rotation.y=Math.atan2(-dx,-dz);
       }
       if(d<.6)e.path.shift();
     }
     if(decision.target&&!movement)e.group.rotation.y=Math.atan2(p.x-decision.target.x,p.z-decision.target.z);
     for(let i=0;i<2;i++)e.legs[i].rotation.x=Math.sin(e.walk+i*Math.PI)*(movement?.52:.025);
-    e.group.position.y=(e.state==='cover'?-.35:0)+(movement?Math.sin(e.walk*2)*.025:0);
+    e.group.position.y=battleGround(p.x,p.z)+(e.state==='cover'?-.35:0)+(movement?Math.sin(e.walk*2)*.025:0);
     e.group.rotation.x=e.hurt>0?-e.hurt*.5:0;
     for(const other of this.enemies)if(other!==e&&other.hp>0){const dx=p.x-other.group.position.x,dz=p.z-other.group.position.z,d=Math.hypot(dx,dz);if(d>.001&&d<.9)moveCircle(p,dx/d*(.9-d)*.4,dz/d*(.9-d)*.4,.4,this.battleObstacles);}
     if(!decision.target||!decision.fire||e.state!=='fire'||e.cooldown>0||!clear(p,decision.target))return;
@@ -953,7 +933,7 @@ export class GameEngine {
     if(blocker)return;
     brain.ammo--;e.cooldown=(this.difficulty==='recruit'?.65:.42)+this.rng()*.4;e.flashTime=.08;
     const gun=new THREE.Vector3();e.flash.getWorldPosition(gun);
-    const target=new THREE.Vector3(decision.target.x,1.25,decision.target.z);
+    const target=new THREE.Vector3(decision.target.x,battleGround(decision.target.x,decision.target.z)+1.25,decision.target.z);
     this.combatEffects.shot(gun,target);
     const accuracy=(this.difficulty==='recruit'?.42:.64)*Math.max(.35,1-length/95)*(decision.target.id==='player'&&this.movement>.3?.65:1);
     if(this.rng()<accuracy){
@@ -979,13 +959,13 @@ export class GameEngine {
   }
   private updateCamera(dt: number) {
     if(this.vehicle.driving){this.vehicle.camera(this.camera,this.world.obstacles);return;}
-    this.world.gun.visible=true;
+    this.world.gun.visible=true;this.camera.up.set(0,1,0);this.camera.near=.1;
     this.aim = THREE.MathUtils.lerp(
       this.aim,
       this.input.aiming ? 1 : 0,
       Math.min(1, dt * 13)
     );
-    const height = this.input.crouching ? 0.86 : 1.68;
+    const height = battleGround(this.player.x,this.player.z)+(this.input.crouching ? 0.86 : 1.68);
     this.camera.position.x = this.player.x;
     this.camera.position.z = this.player.z;
     this.camera.position.y = THREE.MathUtils.lerp(
@@ -1122,11 +1102,11 @@ export class GameEngine {
     this.vehicle.present();
     const showObjective=!this.online&&this.phase==='playing';
     this.zoneRing.visible=showObjective&&(this.battleMode==='last-stand'||this.battleMode==='hold');
-    this.zoneRing.position.set(this.sectorCenter.x,.15,this.sectorCenter.z);
+    this.zoneRing.position.set(this.sectorCenter.x,battleGround(this.sectorCenter.x,this.sectorCenter.z)+.15,this.sectorCenter.z);
     this.zoneRing.scale.setScalar(this.battleMode==='hold'?10:zoneRadius(this.elapsed));
     this.missionBeacon.visible=showObjective&&(this.battleMode==='hold'||this.battleMode==='extraction'&&!this.intel);
     const beacon=this.battleMode==='hold'?this.sectorCenter:this.intelPoint;
-    this.missionBeacon.position.set(beacon.x,7,beacon.z);
+    this.missionBeacon.position.set(beacon.x,battleGround(beacon.x,beacon.z)+7,beacon.z);
     this.combatEffects.update(this.phase === 'playing' ? dt : 0,this.camera,[],[],this.settings.quality==='low');
     this.world.update?.(this.camera.position);
     this.world.sky.position.set(

@@ -1,3 +1,5 @@
+import {NEIGHBOURHOOD} from '../../tirana-neighbourhood/data.mjs';
+import {EAST} from '../../tirana-east/data.mjs';
 import {COLLECTION_PLACEMENTS} from '../../tiranastreets/shared/collectionPlacements.mjs';
 import {importedFleet} from './importedPlacements.mjs';
 import { FORCE_VEHICLE_BOUNDS } from '../../tiranastreets/shared/albanianForces.mjs';
@@ -163,8 +165,9 @@ const baseObstacles=[...cityObstacles,...fleet,...smallProps];
 const collectionProps=COLLECTION_PLACEMENTS.map(p=>({collectionVehicle:p.collectionVehicle,x:p.x-ORIGIN.x,z:p.z-ORIGIN.z,w:p.w,d:p.d,h:p.h,sx:0,sz:0,rot:p.heading+Math.PI}));
 export const props = [...fleet,...smallProps,...importedFleet,...collectionProps];
 export const OBSTACLES = Object.freeze([...cityObstacles,...props]);
-// Ten operation maps are sectors of the one detailed, streamed Tirana world.
-const sector = (id,name,worldX,worldZ) => {const start=safeNear(worldX-ORIGIN.x,worldZ-ORIGIN.z,baseObstacles),extraction=safeNear(start.x+18,start.z-42,baseObstacles);return Object.freeze({id,name,start:Object.freeze(start),extraction:Object.freeze(extraction)});};
+// Operation maps are sectors of the one detailed, streamed Tirana world.
+const sector = (id,name,worldX,worldZ) => {const start=safeNear(worldX-ORIGIN.x,worldZ-ORIGIN.z,baseObstacles),extraction=safeNear(start.x+18,start.z+(id==='blloku'?42:-42),baseObstacles);return Object.freeze({id,name,start:Object.freeze(start),extraction:Object.freeze(extraction)});};
 export const BATTLEFIELD_MAPS = Object.freeze([
- sector('skanderbeg','Skanderbeg Square',-55,-110),sector('blloku','Blloku Night Run',-165,520),sector('lana','Lana Riverfront',40,260),sector('pyramid','Pyramid District',120,85),sector('bazaar','New Bazaar',175,-155),sector('stadium','Air Albania',285,245),sector('station','Railway Approach',-120,-340),sector('park','Grand Park Gate',35,690),sector('embassy','Embassy Quarter',-330,170),sector('dajti-gate','Dajti Gateway',360,-25)
+ sector('skanderbeg','Skanderbeg Square',-55,-110),sector('blloku','Blloku Night Run',-165,520),sector('lana','Lana Riverfront',40,260),sector('pyramid','Pyramid District',120,85),sector('bazaar','New Bazaar',175,-155),sector('stadium','Air Albania',285,245),sector('station','Railway Approach',-120,-340),sector('park','Grand Park Gate',35,690),sector('embassy','Embassy Quarter',-330,170),sector('dajti-gate','Dajti Gateway',360,-25),
+ ...[...new Map([...NEIGHBOURHOOD.districts,...EAST.districts].map(d=>[d.id,d])).values()].filter(d=>d.name!=='Blloku').map(d=>sector(`district-${d.id.split('/').pop()}`,d.name,d.point[0],d.point[1]))
 ]);

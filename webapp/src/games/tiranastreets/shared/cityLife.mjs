@@ -57,7 +57,7 @@ export function initCityLife(state, env, mission) {
     );
   // Populate the full city; the renderer selects only nearby pedestrians.
   for (let i = 0; i < CITY_POPULATION.pedestrians && paths.length; i++) {
-    const r = paths[i < 36 ? (i * 2) % paths.length : (i * 59) % paths.length];
+    const r = paths[i < 144 ? (i * 2) % paths.length : (i * 59) % paths.length];
     const t = (i * 0.173) % 1;
     const n = {
       id: `citizen-${i}`,
@@ -529,7 +529,7 @@ export function updateCityLife(state, dt, env, mission) {
     let npcDt=dt;
     if(n.kind==='civilian' && !players.some(p=>(p.x-n.x)**2+(p.z-n.z)**2<180*180)){
       n.lifeAccumulator=(n.lifeAccumulator||0)+dt;
-      if(n.lifeAccumulator<.2)continue;
+      if(n.lifeAccumulator<.4)continue;
       npcDt=n.lifeAccumulator;n.lifeAccumulator=0;
     }
     if (n.health <= 0) {

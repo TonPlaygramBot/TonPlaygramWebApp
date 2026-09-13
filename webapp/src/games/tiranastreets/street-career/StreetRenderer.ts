@@ -1,6 +1,6 @@
 import {alignVehicle} from '../../tirana-east/terrainTransforms';
 import {groundHeight} from '../../tirana-east/terrainCore.mjs';
-import { driverEye } from '../shared/driverView.mjs';
+import { driverEye, driverFov, driverDirection, driverUp } from '../shared/driverView.mjs';
 import * as T from 'three';
 import type { Actor } from '../cityBaseRenderer';
 import { FirstPersonBody } from './FirstPersonBody';
@@ -69,8 +69,8 @@ export class StreetRenderer extends CityRenderer {
   override orbit(dx: number, dy: number) {
     const b = this.simulation?.body,
       scale = this.settings.sensitivity * (b?.aim ? 0.52 : 1);
-    this.yaw -= dx * 0.004 * scale;
-    this.pitch = T.MathUtils.clamp(this.pitch - dy * 0.004 * scale, -1.48, 1.3);
+    // Preserve the Career sensitivity while sharing the manual-look timeout.
+    super.orbit(dx*scale*2/3,dy*scale);
   }
   protected override presentLocalPlayer(
     actor: Actor,
@@ -92,6 +92,7 @@ export class StreetRenderer extends CityRenderer {
     const p = state.players[id],
       b = sim.body,
       car = state.cars.find((c) => c.id === p.carId);
+    this.camera.up.set(0,1,0);
     const aircraft=sim.flight.current;
     if(aircraft){
       if(this.flightHeading!==undefined)this.yaw+=Math.atan2(Math.sin(aircraft.heading-this.flightHeading),Math.cos(aircraft.heading-this.flightHeading));
@@ -130,13 +131,14 @@ export class StreetRenderer extends CityRenderer {
       this.camera.position.y=Math.max(b.y+.24,groundHeight(this.camera.position.x,this.camera.position.z)+.24,this.camera.position.y);
       if(b.aim){const aim=direction3(this.yaw,this.pitch);this.camera.lookAt(p.x+aim.x*25,b.y+b.eye+aim.y*25,p.z+aim.z*25);}else this.camera.lookAt(target);
     }
-    const d = direction3(this.yaw, this.pitch);
+    const d = car?driverDirection(car,this.yaw,this.pitch):direction3(this.yaw, this.pitch);
+    if(car&&this.vehicleView==='cockpit'){const up=driverUp(car);this.camera.up.set(up.x,up.y,up.z);}
     if(car&&this.vehicleView==='cockpit')this.camera.lookAt(
       this.camera.position.x + d.x,
       this.camera.position.y + d.y,
       this.camera.position.z + d.z
     );
-    const fov = this.settings.fov - (b.aim ? 17 : 0);
+    const fov = car&&this.vehicleView==='cockpit'?driverFov(this.camera.aspect):this.settings.fov - (b.aim ? 17 : 0);
     this.camera.fov = T.MathUtils.lerp(
       this.camera.fov,
       fov,

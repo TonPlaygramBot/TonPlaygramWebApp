@@ -38,7 +38,7 @@ export class CityRenderer extends BaseCityRenderer {
     this.cityDetails.bindBuildings(this.scene,[this.nativeLandmarks.group,this.referenceFacades.group]);
   }
   override render(state:State|null,playerId:string,dt:number,lobby:boolean) {
-    if(state){const viewer=state.players[playerId];if(viewer){this.buses.update(state,viewer,dt,this.quality==='battery',viewer.carId);this.cityStores.update(state,viewer);}}
+    if(state){const viewer=state.players[playerId];if(viewer){this.buses.update(state,viewer,dt,this.quality==='battery',this.cockpitCamera&&!lobby?viewer.carId:undefined);this.cityStores.update(state,viewer);}}
     if(this.ownDetailUpdate)this.cityDetails.update(state?.elapsed||0,this.camera,state?.players[playerId],this.quality==='battery');
     super.render(state,playerId,dt,lobby);
     if(state) {
