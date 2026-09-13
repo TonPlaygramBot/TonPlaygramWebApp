@@ -6,6 +6,9 @@ import { resolveWallContact, resolveKartContact, damageRacer } from './collision
 import { resampleCircuit } from './grandRouteCore.mjs';
 import { pointAhead, cornerSpeedLimit, sampleCircuitDistance } from './circuitMetrics.mjs';
 import { roadBumps, resetSuspension, stepSuspension } from './roadFeel.mjs';
+import { drivePedals } from './drivePedals.mjs';
+import { resetJump, stepJumps } from './jumpRamps.mjs';
+import { surfaceGrip } from './racingSurface.mjs';
 export { damageRacer };
 export const STEP = 1 / 60,
   LAPS = 3;
@@ -227,6 +230,8 @@ export function createRacer(track, id, name, slot = 0, ai = false) {
   };
   equipKart(racer,kart.id);
   resetSuspension(racer);
+  resetJump(racer,track);
+  racer.brakeHold=0;racer.reversing=false;
   return racer;
 }
 export function aiInput(r, track, time, difficulty = 'street', racers = []) {
@@ -278,19 +283,20 @@ export function aiInput(r, track, time, difficulty = 'street', racers = []) {
 }
 // Positive input steers visually RIGHT in a chase camera looking along +Z.
 // Both clients and server use this fixed-step simulation; scores are never accepted.
-export function stepRacer(r, raw, track, dt, time, difficulty = 'street') {
+export function stepRacer(r, raw, track, dt, time, difficulty = 'street', drivingWorld = null) {
   if (r.finished || r.retired || r.disconnected) return;
   if (!Number.isFinite(dt) || dt <= 0) return;
   dt = Math.min(dt, STEP * 3);
-  const input = raw || {},
+  const input = drivePedals(r,raw || {},dt),
     steer = Number.isFinite(input.steer) ? clamp(input.steer, -1, 1) : 0;
   if (r.ai && Number.isFinite(input.aiLane)) r.aiLane = input.aiLane;
   if (input.recover === true && time - (r.recoveryAt ?? -10) >= 3) {
-    const point = track.points[r.index];
-    r.x = point.x; r.z = point.z; r.yaw = r.velocityYaw = point.yaw;
+    if(drivingWorld)drivingWorld.recover(r);
+    else {const point = track.points[r.index];r.x = point.x; r.z = point.z; r.yaw = r.velocityYaw = point.yaw;}
     r.speed = 0; r.yawRate = 0; r.steering = 0; r.drifting = false;
     r.driftCharge = 0; r.turbo = 0; r.recoveryAt = time;
     r.collisionSpin = 0; r.boosting = false; resetSuspension(r);
+    r.brakeHold=0;r.reversing=false;resetJump(r,track);
     // Keep index, gates, laps and progress: recovery cannot manufacture distance.
     return;
   }
@@ -310,10 +316,10 @@ export function stepRacer(r, raw, track, dt, time, difficulty = 'street') {
   r.steering =
     (r.steering || 0) +
     (steer - (r.steering || 0)) * (1 - Math.exp(-dt * (steer ? 8 : 12)));
-  const drift = stepDrift(r, input, dt),
+  const drift = stepDrift(r, r.airborne?{...input,drift:false}:input, dt),
     boost = throttle && input.boost === true && r.boost > 1 && !input.brake && !input.reverse && r.speed >= 0;
   r.boosting = throttle && !input.brake && !input.reverse && (boost || r.turbo > 0);
-  const grip = r.suspension?.grip ?? 1;
+  const grip = (r.suspension?.grip ?? 1) * surfaceGrip(track) * (r.airborne ? .18 : 1);
   const factor = r.ai
       ? ({ rookie: 0.82, street: 0.94, pro: 1 }[difficulty] || 0.94) +
         r.slot * 0.006
@@ -342,8 +348,8 @@ export function stepRacer(r, raw, track, dt, time, difficulty = 'street') {
   r.yaw += (r.yawRate * grip + r.collisionSpin) * dt;
   // Gentle edge assistance preserves screen-relative steering and never teleports.
   // Only turn toward the route when moving forward into its outside edge.
-  const guidance = nearestPoint(track, r.x, r.z, r.index);
-  if (!input.reverse && !input.brake && r.speed > 2 && guidance.distance > (guidance.width ?? track.width) * .32) {
+  const guidance = drivingWorld ? null : nearestPoint(track, r.x, r.z, r.index);
+  if (guidance && !r.airborne && !input.reverse && !input.brake && r.speed > 2 && guidance.distance > (guidance.width ?? track.width) * .32) {
     const target = pointAhead(track, guidance, Math.max(6, r.speed * .45));
     const correction = wrapAngle(Math.atan2(target.x-r.x,target.z-r.z)-r.yaw);
     if (Math.abs(correction) < 1.4) r.yaw += correction * dt * 1.8;
@@ -355,15 +361,18 @@ export function stepRacer(r, raw, track, dt, time, difficulty = 'street') {
     (1 - Math.exp(-dt * (drift ? 3.1 : input.brake ? 14 : 11) * grip));
   r.x += Math.sin(r.velocityYaw) * r.speed * dt;
   r.z += Math.cos(r.velocityYaw) * r.speed * dt;
-  const near = nearestPoint(track, r.x, r.z, r.index);
+  const near = drivingWorld ? null : nearestPoint(track, r.x, r.z, r.index);
   r.collision = Math.max(0, r.collision - dt);
-  resolveWallContact(r, near, near.width ?? track.width, dt);
+  if(drivingWorld)drivingWorld.move(r,previousX,previousZ,dt);
+  else resolveWallContact(r, near, near.width ?? track.width, dt);
   if (r.retired) return;
   r.acceleration = clamp((r.speed - previousSpeed) / dt, -45, 35);
   stepSuspension(r, track, dt);
   // Suspension absorbs a slow crossing. A fast hit sheds a little momentum.
   r.speed *= Math.exp(-dt * (r.bumpImpact || 0) * .24);
   stepBoostPads(r, track, time, previousX, previousZ);
+  stepJumps(r,track,dt,time,previousX,previousZ);
+  if(drivingWorld){r.lap=0;r.gates=0;r.progress=0;return;}
   // Sequential quarter-track gates reject shortcuts and finish-line oscillation.
   const count = track.points.length;
   const delta = ((near.index - r.index + count * 1.5) % count) - count / 2;

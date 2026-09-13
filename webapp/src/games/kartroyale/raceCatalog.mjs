@@ -1,8 +1,9 @@
 import {combineMappedLoops,resampleCircuit,routeLength} from './grandRouteCore.mjs';
-import { buildingClearance, roundRaceCourse } from './raceCourse.mjs';
+import { buildingClearance, waterClearance, courseClearance, roundRaceCourse } from './raceCourse.mjs';
+import {circuitSides} from './trackEdges.mjs';
 import { WORLD } from '../tiranastreets/shared/world.mjs';
 /** Pre-authored source-backed routes. Browser and server use identical geometry. */
-export function buildRaceCatalog(legacy,routes,districtRoutes=[]){
+export function buildRaceCatalog(legacy,routes,districtRoutes=[],ruralRoutes=[]){
  const diagnostics=[],cache=new Map();
  // District extensions retain the six map/save IDs and the shared street graph.
  // Build once per revision; geometry never changes during a running race.
@@ -23,6 +24,7 @@ export function buildRaceCatalog(legacy,routes,districtRoutes=[]){
  if(grand)tracks.push({...legacy.TRACKS.find(t=>t.id==='lana'),...grand,
   widths:widthsFor(grand),
   width:10,roadFeelVersion:1,mapVersion:'tirana-district-racing-v2',name:'Lana–Pyramid · Classic Grand'});
+ tracks.push(...ruralRoutes);
  return {tracks,cups:[...legacy.CUPS,...tracks.filter(t=>t.id.endsWith('-grand')).map(t=>({name:t.name+' Cup',track:t.id,difficulty:'street',target:2,reward:500}))],diagnostics,
   makeTrack(id='skanderbeg'){
    if(typeof id!=='string')throw Error('Choose a valid circuit');
@@ -38,9 +40,20 @@ export function buildRaceCatalog(legacy,routes,districtRoutes=[]){
    // Leave space for the outer tyre barriers, then taper width changes so the
    // rendered edges and collision corridor stay predictable through junctions.
    samples.points.forEach(p=>{p.width=Math.min(p.width,Math.max(6,2*(buildingClearance(p.x,p.z)-1.6)));});
+   // A short shore section may narrow to one kart lane; never pave the lake.
+   if(config.terrainMode)samples.points.forEach(p=>{p.width=Math.min(p.width,Math.max(4.8,2*(Math.min(waterClearance(p.x,p.z)-.5,buildingClearance(p.x,p.z)-1.8))));});
    for(let pass=0;pass<3;pass++)for(const direction of [1,-1])for(let j=0;j<count;j++){
     const i=direction===1?j:count-1-j,p=samples.points[i],q=samples.points[(i+direction+count)%count];
     p.width=Math.min(p.width,q.width+Math.hypot(p.x-q.x,p.z-q.z)*.35);
+   }
+   if(config.terrainMode)for(let pass=0;pass<12;pass++){
+    const sides=circuitSides(samples.points,config.width/2),narrow=new Set();
+    for(const side of ['left','right'])for(let i=0;i<count;i++){
+      const a=sides[side][i],b=sides[side][(i+1)%count];
+      for(const t of [0,.25,.5,.75])if(courseClearance(config,a.x+(b.x-a.x)*t,a.z+(b.z-a.z)*t)<.3){narrow.add(i);narrow.add((i+1)%count);break;}
+    }
+    if(!narrow.size)break;
+    for(const i of narrow)samples.points[i].width=Math.max(3.2,samples.points[i].width*.9);
    }
    const xs=samples.points.map(p=>p.x),zs=samples.points.map(p=>p.z);
    const bounds=[Math.min(...xs),Math.min(...zs),Math.max(...xs),Math.max(...zs)];

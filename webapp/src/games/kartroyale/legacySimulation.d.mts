@@ -11,6 +11,17 @@ export interface Input {
   fire: boolean;
 }
 export interface Racer {
+  brakeHold?:number;
+  reversing?:boolean;
+  airborne?:boolean;
+  groundY?:number;
+  jumpY?:number;
+  jumpHeight?:number;
+  jumpVelocity?:number;
+  jumpPitch?:number;
+  jumpCooldown?:number;
+  landingImpact?:number;
+  roamRecovery?:{x:number;z:number;yaw:number};
   id: string;
   name: string;
   slot: number;
@@ -83,6 +94,8 @@ export interface Racer {
   disconnected: boolean;
 }
 export interface TrackConfig {
+  surface?:'asphalt'|'gravel'|'dirt';
+  terrainMode?:'regional';
   id: string;
   name: string;
   district: string;
@@ -149,7 +162,8 @@ export function stepRacer(
   t: Track,
   dt: number,
   time: number,
-  d?: string
+  d?: string,
+  drivingWorld?:import('./freeRoamCore.mjs').DrivingWorld
 ): void;
 export function stepRace(
   r: Racer[],

@@ -30,10 +30,10 @@ const racer = (id = 'a', slot = 0) => {
 };
 const energy = (rs) => rs.reduce((s, r) => s + r.speed * r.speed, 0);
 
-test('all six circuits use closed, unique paths from Tirana Streets road segments', () => {
+test('nine circuits are available and city routes retain closed, unique mapped street paths', () => {
   assert.deepEqual(
     TRACKS.map((t) => t.id),
-    ['skanderbeg', 'blloku', 'lana', 'pyramid', 'stadium','lana-pyramid-grand']
+    ['skanderbeg', 'blloku', 'lana', 'pyramid', 'stadium','lana-pyramid-grand','farke','surrel','liqeni']
   );
   const edges = new Set(
     WORLD.roads

@@ -32,11 +32,17 @@ import { createRaceSurfaceGeometry } from './RaceSurface';
 import { createBoostPadLayer } from './BoostPadLayer';
 import { createRoadBumpLayer } from './RoadBumpLayer';
 import { createTyreBarrierLayer } from './TyreBarrierLayer';
-import { buildingClearance } from './raceCourse.mjs';
+import { courseClearance } from './raceCourse.mjs';
 import { createKerbLayer } from './KerbLayer';
+import { createJumpRampLayer } from './JumpRampLayer';
+import { surfaceHeight, surfaceColor } from './racingSurface.mjs';
+import { freeRoamWorld } from './freeRoam.mjs';
+import type { DrivingWorld } from './freeRoamCore.mjs';
 export type CameraMode = 'driver' | 'chase';
 export type Quality = 'auto' | 'high' | 'performance';
 export interface Frame {
+  freeRoam:boolean;
+  reversing:boolean;
   speed: number;
   lapTime: number;
   bestLap: number;
@@ -153,6 +159,7 @@ export class KartRenderer {
   private racers: Racer[] = [];
   private state = 'garage';
   private network = false;
+  private freeDriving:DrivingWorld|null = null;
   private me = 'you';
   private difficulty = 'street';
   private time = 0;
@@ -570,6 +577,7 @@ export class KartRenderer {
   showGarage() {
     this.state = 'garage';
     this.network = false;
+    this.freeDriving=null;
     this.paused = false;
     this.clearInput();
     this.effects?.clear();
@@ -599,12 +607,13 @@ export class KartRenderer {
     this.release(this.world, true);
     this.world.clear();
     const sampleCount = track.points.length;
+    const m = new T.Object3D();
+    if(!this.freeDriving){
     const geo = createRaceSurfaceGeometry(track);
-    const surface = new T.Mesh(geo, new T.MeshStandardMaterial({color:'#69737a',map:this.roadMaps[0],normalMap:this.roadMaps[1],roughnessMap:this.roadMaps[2],roughness:.92}));
+    const surface = new T.Mesh(geo, new T.MeshStandardMaterial({color:surfaceColor(track),map:this.roadMaps[0],normalMap:this.roadMaps[1],roughnessMap:this.roadMaps[2],roughness:.96}));
     surface.name = 'Rounded closed-event race surface'; surface.receiveShadow = true;
     this.world.add(surface);
-    const m = new T.Object3D();
-    this.world.add(createKerbLayer(track), createTyreBarrierLayer(track, buildingClearance), createBoostPadLayer(track), createRoadBumpLayer(track));
+    this.world.add(createKerbLayer(track), createTyreBarrierLayer(track, (x,z)=>courseClearance(track,x,z)));
     const start = track.points[0],
       startWidth = start.width ?? track.width,
       checker = new T.InstancedMesh(
@@ -617,7 +626,7 @@ export class KartRenderer {
         d = Math.floor(i / 15) * 1.2;
       m.position.set(
         start.x - Math.cos(start.yaw) * lane + Math.sin(start.yaw) * d,
-        0.14,
+        0.14 + surfaceHeight(track,start.x,start.z),
         start.z + Math.sin(start.yaw) * lane + Math.cos(start.yaw) * d
       );
       m.rotation.set(0, start.yaw, 0);
@@ -630,7 +639,7 @@ export class KartRenderer {
     }
     this.world.add(checker);
     const arch = new T.Group();
-    arch.position.set(start.x, 0, start.z);
+    arch.position.set(start.x, surfaceHeight(track,start.x,start.z), start.z);
     arch.rotation.y = start.yaw;
     const metal = new T.MeshStandardMaterial({
       color: '#232c31',
@@ -670,9 +679,11 @@ export class KartRenderer {
       arch.add(sign);
     }
     this.world.add(arch);
-    this.scenery = new TiranaScenery(track);
+    }
+    this.world.add(createBoostPadLayer(track),createRoadBumpLayer(track),createJumpRampLayer(track));
+    this.scenery = new TiranaScenery(track,!!this.freeDriving);
     this.world.add(this.scenery.group);
-    if (this.flagTexture) {
+    if (this.flagTexture && !this.freeDriving && !track.terrainMode) {
       this.supporters = new Supporters(
         track,
         this.flagTexture,
@@ -697,6 +708,7 @@ export class KartRenderer {
     this.skidMesh.instanceMatrix.setUsage(T.DynamicDrawUsage);
     this.world.add(this.skidMesh);
     m.scale.set(1, 1, 1);
+    if(!this.freeDriving){
     const posts = new T.InstancedMesh(
         new T.BoxGeometry(0.13, 6, 0.13),
         new T.MeshStandardMaterial({ color: '#444f52', metalness: 0.6 }),
@@ -710,15 +722,16 @@ export class KartRenderer {
     for (let i = 0; i < 24; i++) {
       const p = track.points[Math.floor(i * sampleCount / 24)],
         o = track.width / 2 + 3;
-      m.position.set(p.x - Math.cos(p.yaw) * o, 3, p.z + Math.sin(p.yaw) * o);
+      m.position.set(p.x - Math.cos(p.yaw) * o, 3+surfaceHeight(track,p.x,p.z), p.z + Math.sin(p.yaw) * o);
       m.rotation.set(0, p.yaw, 0);
       m.updateMatrix();
       posts.setMatrixAt(i, m.matrix);
-      m.position.y = 6;
+      m.position.y += 3;
       m.updateMatrix();
       lamps.setMatrixAt(i, m.matrix);
     }
     this.world.add(posts, lamps);
+    }
     this.scene.background = new T.Color(track.sky);
     this.scene.fog = new T.FogExp2('#c5d2cc', .0017);
     this.camera.far = 2800;
@@ -782,6 +795,7 @@ export class KartRenderer {
     rig.body.rotation.x =
       rig.bodyRotation.x +
       rig.motion.pitch +
+      (r.jumpPitch||0) +
       spring * rig.kickPitch;
     rig.body.position.copy(rig.bodyPosition);
     rig.body.position.y +=
@@ -808,14 +822,14 @@ export class KartRenderer {
       const x = r.x - Math.sin(r.yaw) * 1.135,
         z = r.z - Math.cos(r.yaw) * 1.135;
       const previous = this.skidPrevious.get(r.id);
-      if (previous && r.speed > 7 && (r.drifting || r.acceleration < -16)) {
+      if (previous && !r.airborne && r.speed > 7 && (r.drifting || r.acceleration < -16)) {
         const length = Math.hypot(x - previous.x, z - previous.z);
         if (length > 0.02 && length < 6)
           for (const side of [-1, 1]) {
             const m = this.transform;
             m.position.set(
               (x + previous.x) / 2 + Math.cos(r.yaw) * side * 0.85,
-              0.14,
+              0.14+(r.groundY||0),
               (z + previous.z) / 2 - Math.sin(r.yaw) * side * 0.85
             );
             m.rotation.set(0, Math.atan2(x - previous.x, z - previous.z), 0);
@@ -846,22 +860,23 @@ export class KartRenderer {
             r.id === this.me ? this.color : r.color
           );
       });
-      v.position.set(r.x, 0.13, r.z);
+      v.position.set(r.x, 0.13+(r.groundY||0)+(r.jumpHeight||0), r.z);
       v.rotation.y = r.yaw;
       this.world.add(v);
       this.visuals.set(r.id, v);
     }
   }
-  startLocal(id: string, difficulty: string) {
-    this.track = makeTrack(id);
+  startLocal(id: string, difficulty: string, freeRoam=false) {
+    this.track = freeRoam?{...makeTrack(id),terrainMode:'regional'}:makeTrack(id);
+    this.freeDriving=freeRoam?freeRoamWorld():null;
     this.difficulty = difficulty;
     this.me = 'you';
     this.network = false;
     this.time = 0;
-    this.countdown = 3;
+    this.countdown = freeRoam?0:3;
     this.accumulator = 0;
     this.paused = false;
-    this.racers = Array.from({ length: 6 }, (_, i) =>
+    this.racers = Array.from({ length: freeRoam?1:6 }, (_, i) =>
       createRacer(
         this.track,
         i === 0 ? 'you' : `ai-${i}`,
@@ -872,9 +887,15 @@ export class KartRenderer {
     );
     this.racers[0].color = this.color;
     equipKart(this.racers[0], this.kartId);
+    if(freeRoam){
+      const p=this.track.points[0],r=this.racers[0];
+      r.x=p.x;r.z=p.z;r.yaw=r.velocityYaw=p.yaw;r.index=0;
+      r.groundY=surfaceHeight(this.track,p.x,p.z);r.jumpY=r.groundY;
+      r.roamRecovery={x:p.x,z:p.z,yaw:p.yaw};
+    }
     this.createWorld(this.track);
     this.addRacers();
-    this.state = 'countdown';
+    this.state = freeRoam?'racing':'countdown';
     this.clearInput();
     this.snapCamera();
   }
@@ -886,6 +907,7 @@ export class KartRenderer {
       this.state === 'garage' ||
       (this.state === 'finished' && next.status === 'countdown');
     this.network = true;
+    this.freeDriving=null;
     this.me = id;
     this.time = next.elapsed;
     this.countdown = Math.max(0, (next.startsAt - next.serverNow) / 1000);
@@ -938,12 +960,12 @@ export class KartRenderer {
     } else {
       this.camera.position.set(
         r.x - Math.sin(r.yaw) * (driver ? 0.1 : 10),
-        driver ? 1.16 : 6,
+        (r.groundY||0)+(r.jumpHeight||0)+(driver ? 1.16 : 6),
         r.z - Math.cos(r.yaw) * (driver ? 0.1 : 10)
       );
       this.lookTarget.set(
         r.x + Math.sin(r.yaw) * 24,
-        driver ? 1 : 1.25,
+        (r.groundY||0)+(r.jumpHeight||0)+(driver ? 1 : 1.25),
         r.z + Math.cos(r.yaw) * 24
       );
     }
@@ -1013,7 +1035,9 @@ export class KartRenderer {
             this.time += STEP;
             const me = this.racers.find((r) => r.id === this.me);
             if (me) me.input = this.input;
-            if (this.network) {
+            if(this.freeDriving){
+              if(me)stepRacer(me,this.input,this.track,STEP,this.time,this.difficulty,this.freeDriving);
+            } else if (this.network) {
               if (me) stepRacer(me, this.input, this.track, STEP, this.time);
             } else
               stepRace(
@@ -1026,7 +1050,7 @@ export class KartRenderer {
             this.accumulator -= STEP;
           }
           if (
-            !this.network &&
+            !this.network && !this.freeDriving &&
             (this.racers.find((r) => r.id === this.me)?.finished ||
               this.racers.find((r) => r.id === this.me)?.retired ||
               this.time >= RACE_LIMIT)
@@ -1060,7 +1084,7 @@ export class KartRenderer {
         }
         v.visible = !r.disconnected;
         const smooth = 1 - Math.exp(-dt * (this.network ? 16 : 22));
-        this.vector.set(r.x, 0.13, r.z);
+        this.vector.set(r.x, 0.13+(r.groundY||0)+(r.jumpHeight||0), r.z);
         v.position.lerp(this.vector, smooth);
         v.rotation.y += wrapAngle(r.yaw - v.rotation.y) * smooth;
         this.animateKart(
@@ -1117,12 +1141,12 @@ export class KartRenderer {
           } else {
             this.camera.position.set(
               v.position.x - Math.sin(steerYaw) * 0.1,
-              1.16 + bob + spring * 0.028,
+              v.position.y+1.16 + bob + spring * 0.028,
               v.position.z - Math.cos(steerYaw) * 0.1
             );
             this.lookTarget.set(
               v.position.x + Math.sin(steerYaw) * 24,
-              1 + spring * (rig?.kickPitch || 0) * 3,
+              v.position.y+1 + spring * (rig?.kickPitch || 0) * 3,
               v.position.z + Math.cos(steerYaw) * 24
             );
             this.camera.near = 0.15;
@@ -1134,13 +1158,13 @@ export class KartRenderer {
           const surge=this.reducedMotion?0:(this.rigs.get(v)?.motion.boost||0);
           this.cameraTarget.set(
             v.position.x - Math.sin(yaw) * (7.8+surge*.45),
-            3.7 + Math.max(0,me.speed) * 0.009,
+            v.position.y+3.7 + Math.max(0,me.speed) * 0.009,
             v.position.z - Math.cos(yaw) * (7.8+surge*.45)
           );
           this.camera.position.lerp(this.cameraTarget, 1 - Math.exp(-dt * 5.5));
           this.vector.set(
             v.position.x + Math.sin(yaw) * 6,
-            1.25,
+            v.position.y+1.25,
             v.position.z + Math.cos(yaw) * 6
           );
           this.lookTarget.lerp(this.vector, 1 - Math.exp(-dt * 9));
@@ -1156,11 +1180,13 @@ export class KartRenderer {
           this.me,
           driver
         );
-        this.shadow.position.set(me.x + 14, 25, me.z + 12);
-        this.shadow.target.position.set(me.x, 0, me.z);
+        this.shadow.position.set(me.x + 14, (me.groundY||0)+25, me.z + 12);
+        this.shadow.target.position.set(me.x, me.groundY||0, me.z);
         if (now - this.uiAt > 90) {
           this.uiAt = now;
           this.onFrame({
+            freeRoam:!!this.freeDriving,
+            reversing:!!me.reversing || me.speed<-.1,
             speed: me.speed,
             throttle: me.throttle || 0,
             lapTime: Math.max(0, this.time - (me.lapStartedAt || 0)),

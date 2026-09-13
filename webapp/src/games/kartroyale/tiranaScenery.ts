@@ -11,16 +11,16 @@ export class TiranaScenery {
   readonly group: T.Group;
   private viewer = new T.Vector3();
   private guide: T.Group;
-  constructor(private track: Track) {
-    this.shared = new TiranaCityScene(true, track);
+  constructor(private track: Track,private freeRoam=false) {
+    this.shared = new TiranaCityScene(true, freeRoam?undefined:track);
     this.group = this.shared.group;
-    this.guide = new TurnGuideLayer(track).group;
+    this.guide = freeRoam?new T.Group():new TurnGuideLayer(track).group;
     this.group.add(this.guide);
   }
   update(x: number, z: number, battery: boolean, camera?: T.PerspectiveCamera) {
     this.viewer.set(x, 0, z);
     this.shared.update(this.viewer, performance.now() / 1000, battery, camera);
-    publishAtlas(x, z, this.track);
+    publishAtlas(x, z, this.freeRoam?{name:'Tirana · Free roam',points:[]}:this.track);
   }
   dispose() {
     this.guide.traverse(o => { if (o instanceof T.Mesh) { o.geometry.dispose(); (o.material as T.Material).dispose(); } });

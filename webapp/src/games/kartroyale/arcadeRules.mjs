@@ -41,7 +41,7 @@ export function boostPads(track) {
   return result;
 }
 export function stepBoostPads(r, track, time, previousX = r.x, previousZ = r.z) {
-  if (r.speed < 2 || r.finished || r.retired || r.disconnected) return;
+  if (r.speed < 2 || r.airborne || r.finished || r.retired || r.disconnected) return;
   for (const pad of boostPads(track)) {
     const dx = r.x - pad.x, dz = r.z - pad.z;
     const along = dx * Math.sin(pad.yaw) + dz * Math.cos(pad.yaw);

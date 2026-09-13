@@ -26,6 +26,18 @@ export function buildingClearance(x,z) {
   return result;
 }
 
+const waters=(WORLD.waterAreas||[]).flatMap(w=>w.polygons).map(p=>({p,
+  bounds:[Math.min(...p.outer.map(v=>v[0])),Math.min(...p.outer.map(v=>v[1])),Math.max(...p.outer.map(v=>v[0])),Math.max(...p.outer.map(v=>v[1]))]}));
+export function waterClearance(x,z){
+  let distance=24;
+  for(const {p,bounds:b} of waters){
+    if(x<b[0]-24||z<b[1]-24||x>b[2]+24||z>b[3]+24)continue;
+    if(inside(x,z,p.outer)&&!(p.holes||[]).some(h=>inside(x,z,h)))return 0;
+    for(const ring of [p.outer,...(p.holes||[])])for(let i=0;i<ring.length;i++)distance=Math.min(distance,segmentDistance(x,z,ring[i],ring[(i+1)%ring.length]));
+  }return distance;
+}
+export const courseClearance=(track,x,z)=>Math.min(buildingClearance(x,z),track.terrainMode?waterClearance(x,z):24);
+
 /** A race-only surface inside the existing city. Rounded junction approaches
  * share one centreline with physics, AI, kerbs, minimaps and vegetation masks. */
 export function roundRaceCourse(raw, roadWidths) {

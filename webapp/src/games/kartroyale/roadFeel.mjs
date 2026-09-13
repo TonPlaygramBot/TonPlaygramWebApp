@@ -1,5 +1,6 @@
 import { sampleCircuitDistance, cornerSpeedLimit } from './circuitMetrics.mjs';
 import { boostPads } from './arcadeRules.mjs';
+import { surfaceHeight } from './racingSurface.mjs';
 
 const clamp = (n, a, b) => Math.max(a, Math.min(b, n));
 const cache = new WeakMap();
@@ -62,10 +63,12 @@ export function stepSuspension(r, track, dt) {
   const wheelbase = (r.bodyLength || 2.7) * .67;
   const trackWidth = (r.bodyWidth || 1.72) * .83;
   const previous = state.wheels.reduce((a, b) => a + b, 0) / 4;
+  const ground=surfaceHeight(track,r.x,r.z);
   for (let i = 0; i < 4; i++) {
     const side = (i % 2 ? -1 : 1) * trackWidth / 2;
     const along = (i < 2 ? 1 : -1) * wheelbase / 2;
-    state.wheels[i] = roadHeight(bumps, r.x + s * along + c * side, r.z + c * along - s * side);
+    const x=r.x+s*along+c*side,z=r.z+c*along-s*side;
+    state.wheels[i] = roadHeight(bumps,x,z)+surfaceHeight(track,x,z)-ground;
   }
   const [fl, fr, rl, rr] = state.wheels;
   const average = (fl + fr + rl + rr) / 4;
@@ -73,8 +76,8 @@ export function stepSuspension(r, track, dt) {
   r.bumpImpact = Math.max((r.bumpImpact || 0) * Math.exp(-dt * 8), clamp(bumpRate * .16, 0, 1));
   const heavy = ['oopi', 'aegis'].includes(r.kartId);
   const spring = heavy ? 125 : 165, damping = heavy ? 17 : 21;
-  const pitch = clamp(((rl + rr) - (fl + fr)) / (2 * wheelbase) - (r.acceleration || 0) * .0026, -.14, .14);
-  const roll = clamp(((fl + rl) - (fr + rr)) / (2 * trackWidth) + (r.yawRate || 0) * r.speed * .0025, -.14, .14);
+  const pitch = clamp(((rl + rr) - (fl + fr)) / (2 * wheelbase) - (r.acceleration || 0) * .0026, -.4, .4);
+  const roll = clamp(((fl + rl) - (fr + rr)) / (2 * trackWidth) + (r.yawRate || 0) * r.speed * .0025, -.35, .35);
   const steps = Math.ceil(dt * 120), step = dt / steps;
   for (let i = 0; i < steps; i++) {
     for (const [key, velocity, target] of [['height', 'velocity', average], ['pitch', 'pitchVelocity', pitch], ['roll', 'rollVelocity', roll]]) {

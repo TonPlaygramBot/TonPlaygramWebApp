@@ -1,0 +1,92 @@
+[
+  {
+    "id": "farke",
+    "difficulty": "rookie",
+    "length": 2910,
+    "ramps": 3,
+    "finished": 6,
+    "seconds": 597.57,
+    "jumps": 54,
+    "wallFrames": 321
+  },
+  {
+    "id": "farke",
+    "difficulty": "street",
+    "length": 2910,
+    "ramps": 3,
+    "finished": 6,
+    "seconds": 550.55,
+    "jumps": 54,
+    "wallFrames": 316
+  },
+  {
+    "id": "farke",
+    "difficulty": "pro",
+    "length": 2910,
+    "ramps": 3,
+    "finished": 6,
+    "seconds": 514.43,
+    "jumps": 54,
+    "wallFrames": 340
+  },
+  {
+    "id": "surrel",
+    "difficulty": "rookie",
+    "length": 2023,
+    "ramps": 2,
+    "finished": 6,
+    "seconds": 460.52,
+    "jumps": 36,
+    "wallFrames": 447
+  },
+  {
+    "id": "surrel",
+    "difficulty": "street",
+    "length": 2023,
+    "ramps": 2,
+    "finished": 6,
+    "seconds": 423.63,
+    "jumps": 36,
+    "wallFrames": 428
+  },
+  {
+    "id": "surrel",
+    "difficulty": "pro",
+    "length": 2023,
+    "ramps": 2,
+    "finished": 6,
+    "seconds": 394.72,
+    "jumps": 36,
+    "wallFrames": 425
+  },
+  {
+    "id": "liqeni",
+    "difficulty": "rookie",
+    "length": 2479,
+    "ramps": 3,
+    "finished": 6,
+    "seconds": 577.48,
+    "jumps": 54,
+    "wallFrames": 199
+  },
+  {
+    "id": "liqeni",
+    "difficulty": "street",
+    "length": 2479,
+    "ramps": 3,
+    "finished": 6,
+    "seconds": 532.48,
+    "jumps": 54,
+    "wallFrames": 230
+  },
+  {
+    "id": "liqeni",
+    "difficulty": "pro",
+    "length": 2479,
+    "ramps": 3,
+    "finished": 6,
+    "seconds": 498.9,
+    "jumps": 54,
+    "wallFrames": 164
+  }
+]

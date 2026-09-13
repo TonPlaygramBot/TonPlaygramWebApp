@@ -1,0 +1,32 @@
+[
+  {
+    "id": "farke",
+    "tyres": 4346,
+    "asphaltInWaterM2": 0,
+    "asphaltInBuildingsM2": 0,
+    "tyresInAsphalt": 0,
+    "tyresInBuildings": 0,
+    "tyresInWater": 0,
+    "closestTyreCentersM": 1.1519
+  },
+  {
+    "id": "surrel",
+    "tyres": 3338,
+    "asphaltInWaterM2": 0,
+    "asphaltInBuildingsM2": 0,
+    "tyresInAsphalt": 0,
+    "tyresInBuildings": 0,
+    "tyresInWater": 0,
+    "closestTyreCentersM": 1.155
+  },
+  {
+    "id": "liqeni",
+    "tyres": 4138,
+    "asphaltInWaterM2": 0,
+    "asphaltInBuildingsM2": 0,
+    "tyresInAsphalt": 0,
+    "tyresInBuildings": 0,
+    "tyresInWater": 0,
+    "closestTyreCentersM": 1.1535
+  }
+]

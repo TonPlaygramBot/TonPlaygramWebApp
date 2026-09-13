@@ -70,11 +70,11 @@ test('steering reverses progressively and braking stops a kart within a controll
   const stop = createRacer(t, 'brakes', 'Driver');
   stop.speed = 25;
   const start = { x: stop.x, z: stop.z };
-  for (let i = 0; i < 66; i++)
+  for (let i = 0; i < 90 && stop.speed > 0; i++)
     stepRacer(stop, { ...input, steer: 0, brake: true }, t, STEP, i * STEP);
   const distance = Math.hypot(stop.x - start.x, stop.z - start.z);
   assert.equal(stop.speed, 0);
-  assert.ok(distance > 9 && distance < 13, `braking distance ${distance}`);
+  assert.ok(distance > 8 && distance < 10, `braking distance ${distance}`);
 });
 test('finish-line oscillation cannot earn laps; nonfinite steering and empty boost are bounded', () => {
   const t = makeTrack(),

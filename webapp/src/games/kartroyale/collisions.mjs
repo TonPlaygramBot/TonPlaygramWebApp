@@ -113,7 +113,7 @@ export function resolveKartContact(a, b) {
     a.disconnected ||
     b.disconnected ||
     a.retired ||
-    b.retired
+    b.retired || Math.abs((a.jumpHeight||0)-(b.jumpHeight||0))>1.2
   )
     return;
   let dx = b.x - a.x,
@@ -161,4 +161,15 @@ export function resolveKartContact(a, b) {
   b.collisionSpin = clamp((b.collisionSpin || 0) - sideB * closing * .025 + tangent * .12, -.85, .85);
   if (a.retired) a.speed = 0;
   if (b.retired) b.speed = 0;
+}
+
+/** Outward normal of a building/lake edge in the free-driving city. */
+export function resolveObstacleContact(r,nx,nz,depth,dt) {
+  r.x+=nx*(depth+.003);r.z+=nz*(depth+.003);
+  const v=velocity(r),closing=-(v.x*nx+v.z*nz);
+  if(closing>0){
+    applyVelocity(r,v.x+nx*closing*1.08,v.z+nz*closing*1.08);
+    impact(r,closing,-nx,-nz);
+  }
+  r.wallContact=true;
 }
