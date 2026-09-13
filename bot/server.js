@@ -1,3 +1,4 @@
+import { createInitialChessBoard, normalizeChessBoard, chessBoardToFen, validateAndApplyChessMove, adjudicateChessTimeout } from './chessRules.js';
 import './loadEnv.js';
 import { validateEnv } from './env.js';
 import express from 'express';
@@ -107,7 +108,6 @@ import { applyAuthoritativeMove, SIDES } from './utils/checkersAuthoritativeEngi
 
 validateEnv();
 
-const CHESS_START_FEN = 'rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w - - 0 1';
 const CHESS_HOUSE_FEE_BPS = Math.max(0, Math.min(10_000, Number(process.env.CHESS_HOUSE_FEE_BPS) || 500));
 const CHESS_HOUSE_ACCOUNT = String(process.env.CHESS_HOUSE_ACCOUNT || process.env.HOUSE_TPC_ACCOUNT || '').trim();
 const chessGames = new Map();
@@ -1038,246 +1038,6 @@ function cleanupSeats() {
 }
 
 
-function createInitialChessBoard() {
-  const rows = CHESS_START_FEN.split(' ')[0].split('/');
-  return rows.map((row) => {
-    const cells = [];
-    for (const ch of row) {
-      if (/\d/.test(ch)) {
-        for (let i = 0; i < Number(ch); i += 1) cells.push(null);
-      } else {
-        cells.push({ t: ch.toUpperCase(), w: ch === ch.toUpperCase(), hasMoved: false });
-      }
-    }
-    return cells;
-  });
-}
-
-function cloneChessBoard(board) {
-  return (Array.isArray(board) ? board : createInitialChessBoard()).map((row) =>
-    (Array.isArray(row) ? row : []).map((piece) =>
-      piece ? { t: piece.t, w: Boolean(piece.w), hasMoved: Boolean(piece.hasMoved) } : null
-    )
-  );
-}
-
-function normalizeChessBoard(board) {
-  if (!Array.isArray(board) || board.length !== 8) return createInitialChessBoard();
-  const normalized = board.map((row) => {
-    if (!Array.isArray(row) || row.length !== 8) return null;
-    return row.map((piece) => {
-      if (!piece) return null;
-      const type = String(piece.t || '').toUpperCase();
-      if (!['P', 'N', 'B', 'R', 'Q', 'K'].includes(type)) return null;
-      return { t: type, w: Boolean(piece.w), hasMoved: Boolean(piece.hasMoved) };
-    });
-  });
-  return normalized.every(Boolean) ? normalized : createInitialChessBoard();
-}
-
-function chessBoardToFen(board, whiteToMove = true) {
-  const rows = normalizeChessBoard(board).map((row) => {
-    let fenRow = '';
-    let empty = 0;
-    row.forEach((piece) => {
-      if (!piece) {
-        empty += 1;
-        return;
-      }
-      if (empty) {
-        fenRow += String(empty);
-        empty = 0;
-      }
-      fenRow += piece.w ? piece.t : piece.t.toLowerCase();
-    });
-    if (empty) fenRow += String(empty);
-    return fenRow || '8';
-  });
-  return `${rows.join('/')} ${whiteToMove ? 'w' : 'b'} - - 0 1`;
-}
-
-function chessInBoard(r, c) {
-  return r >= 0 && r < 8 && c >= 0 && c < 8;
-}
-
-const CHESS_KNIGHT_DELTAS = [
-  [-2, -1], [-2, 1], [-1, -2], [-1, 2],
-  [1, -2], [1, 2], [2, -1], [2, 1]
-];
-const CHESS_SLIDE_DIRS = {
-  B: [[-1, -1], [-1, 1], [1, -1], [1, 1]],
-  R: [[-1, 0], [1, 0], [0, -1], [0, 1]],
-  Q: [[-1, -1], [-1, 1], [1, -1], [1, 1], [-1, 0], [1, 0], [0, -1], [0, 1]]
-};
-
-function chessPseudoMoves(board, r, c) {
-  const piece = board?.[r]?.[c];
-  if (!piece) return [];
-  const moves = [];
-  const push = (rr, cc) => {
-    if (!chessInBoard(rr, cc)) return;
-    const target = board[rr][cc];
-    if (!target || target.w !== piece.w) moves.push([rr, cc]);
-  };
-  if (piece.t === 'P') {
-    const dir = piece.w ? -1 : 1;
-    const start = piece.w ? 6 : 1;
-    if (chessInBoard(r + dir, c) && !board[r + dir][c]) {
-      moves.push([r + dir, c]);
-      if (r === start && !board[r + dir * 2][c]) moves.push([r + dir * 2, c]);
-    }
-    [-1, 1].forEach((dc) => {
-      const rr = r + dir;
-      const cc = c + dc;
-      if (chessInBoard(rr, cc) && board[rr][cc] && board[rr][cc].w !== piece.w) moves.push([rr, cc]);
-    });
-  } else if (piece.t === 'N') {
-    CHESS_KNIGHT_DELTAS.forEach(([dr, dc]) => push(r + dr, c + dc));
-  } else if (CHESS_SLIDE_DIRS[piece.t]) {
-    CHESS_SLIDE_DIRS[piece.t].forEach(([dr, dc]) => {
-      let rr = r + dr;
-      let cc = c + dc;
-      while (chessInBoard(rr, cc)) {
-        if (board[rr][cc]) {
-          if (board[rr][cc].w !== piece.w) moves.push([rr, cc]);
-          break;
-        }
-        moves.push([rr, cc]);
-        rr += dr;
-        cc += dc;
-      }
-    });
-  } else if (piece.t === 'K') {
-    for (let dr = -1; dr <= 1; dr += 1) {
-      for (let dc = -1; dc <= 1; dc += 1) {
-        if (dr || dc) push(r + dr, c + dc);
-      }
-    }
-  }
-  return moves;
-}
-
-function findChessKing(board, white) {
-  for (let r = 0; r < 8; r += 1) {
-    for (let c = 0; c < 8; c += 1) {
-      const piece = board[r][c];
-      if (piece?.t === 'K' && piece.w === white) return [r, c];
-    }
-  }
-  return null;
-}
-
-function isChessSquareAttacked(board, r, c, byWhite) {
-  for (let rr = 0; rr < 8; rr += 1) {
-    for (let cc = 0; cc < 8; cc += 1) {
-      const piece = board[rr][cc];
-      if (!piece || piece.w !== byWhite) continue;
-      if (chessPseudoMoves(board, rr, cc).some(([r2, c2]) => r2 === r && c2 === c)) return true;
-    }
-  }
-  return false;
-}
-
-function isChessPlayerInCheck(board, white) {
-  const king = findChessKing(board, white);
-  return king ? isChessSquareAttacked(board, king[0], king[1], !white) : false;
-}
-
-function applyChessMoveOnBoard(board, fromR, fromC, toR, toC) {
-  const next = cloneChessBoard(board);
-  const piece = next[fromR][fromC];
-  if (!piece) return next;
-  const isCastling = piece.t === 'K' && Math.abs(toC - fromC) === 2;
-  if (isCastling) {
-    const rookFromC = toC > fromC ? 7 : 0;
-    const rookToC = toC > fromC ? 5 : 3;
-    const rook = next[fromR][rookFromC];
-    next[fromR][rookToC] = rook;
-    next[fromR][rookFromC] = null;
-    if (rook) rook.hasMoved = true;
-  }
-  next[toR][toC] = piece;
-  next[fromR][fromC] = null;
-  piece.hasMoved = true;
-  if (piece.t === 'P' && (toR === 0 || toR === 7)) piece.t = 'Q';
-  return next;
-}
-
-function getChessCastlingTargets(board, r, c, white) {
-  const piece = board?.[r]?.[c];
-  if (!piece || piece.t !== 'K' || piece.w !== white || piece.hasMoved) return [];
-  const homeRow = white ? 7 : 0;
-  if (r !== homeRow || c !== 4 || isChessPlayerInCheck(board, white)) return [];
-  const results = [];
-  const checkSide = (rookCol, emptyCols, transitCols, destCol) => {
-    const rook = board[homeRow][rookCol];
-    if (!rook || rook.t !== 'R' || rook.w !== white || rook.hasMoved) return;
-    if (emptyCols.some((col) => board[homeRow][col])) return;
-    if (transitCols.some((col) => isChessSquareAttacked(board, homeRow, col, !white))) return;
-    results.push([homeRow, destCol]);
-  };
-  checkSide(7, [5, 6], [5, 6], 6);
-  checkSide(0, [1, 2, 3], [3, 2], 2);
-  return results;
-}
-
-function getLegalChessMoves(board, r, c) {
-  const piece = board?.[r]?.[c];
-  if (!piece) return [];
-  const pseudo = chessPseudoMoves(board, r, c);
-  if (piece.t === 'K') pseudo.push(...getChessCastlingTargets(board, r, c, piece.w));
-  return pseudo.filter(([toR, toC]) => !isChessPlayerInCheck(applyChessMoveOnBoard(board, r, c, toR, toC), piece.w));
-}
-
-function hasAnyLegalChessMove(board, white) {
-  for (let r = 0; r < 8; r += 1) {
-    for (let c = 0; c < 8; c += 1) {
-      if (board?.[r]?.[c]?.w === white && getLegalChessMoves(board, r, c).length > 0) return true;
-    }
-  }
-  return false;
-}
-
-function validateAndApplyChessMove(state, playerId, move = {}) {
-  if (state.winner) return { ok: false, error: 'game_finished' };
-  const player = (state.players || []).find((p) => String(p.id) === String(playerId));
-  // Never infer permission from the colour of the submitted piece. A socket
-  // must own one of the two authoritative match seats before it may move.
-  if (!player?.side) return { ok: false, error: 'seat_required' };
-  const board = normalizeChessBoard(state.board);
-  const lastMove = move.lastMove || {};
-  const from = lastMove.from || {};
-  const to = lastMove.to || {};
-  const coords = [from.r, from.c, to.r, to.c].map((value) => Number(value));
-  if (!coords.every(Number.isInteger)) return { ok: false, error: 'invalid_coordinates' };
-  const [fromR, fromC, toR, toC] = coords;
-  if (!chessInBoard(fromR, fromC) || !chessInBoard(toR, toC)) return { ok: false, error: 'invalid_coordinates' };
-  const piece = board[fromR][fromC];
-  if (!piece) return { ok: false, error: 'empty_source' };
-  if (piece.w !== Boolean(state.turnWhite)) return { ok: false, error: 'wrong_turn_piece' };
-  if (player.side !== (piece.w ? 'white' : 'black')) return { ok: false, error: 'wrong_player_turn' };
-  const legal = getLegalChessMoves(board, fromR, fromC);
-  if (!legal.some(([r, c]) => r === toR && c === toC)) return { ok: false, error: 'illegal_move' };
-  const nextBoard = applyChessMoveOnBoard(board, fromR, fromC, toR, toC);
-  const turnWhite = !state.turnWhite;
-  const hasReply = hasAnyLegalChessMove(nextBoard, turnWhite);
-  const inCheck = isChessPlayerInCheck(nextBoard, turnWhite);
-  const winner = !hasReply && inCheck ? (turnWhite ? 'black' : 'white') : null;
-  const draw = !hasReply && !inCheck ? 'stalemate' : null;
-  return {
-    ok: true,
-    state: {
-      board: nextBoard,
-      fen: chessBoardToFen(nextBoard, turnWhite),
-      turnWhite,
-      lastMove: { from: { r: fromR, c: fromC }, to: { r: toR, c: toC } },
-      winner,
-      draw,
-      moveSeq: Number(state.moveSeq || 0) + 1
-    }
-  };
-}
-
 function getChessState(tableId) {
   if (!chessGames.has(tableId)) {
     const board = createInitialChessBoard();
@@ -1291,7 +1051,9 @@ function getChessState(tableId) {
       updatedAt: Date.now()
     });
   }
-  return chessGames.get(tableId);
+  const state = chessGames.get(tableId);
+  state.serverNow = Date.now();
+  return state;
 }
 
 function updateChessState(tableId, nextState = {}) {
@@ -1300,12 +1062,29 @@ function updateChessState(tableId, nextState = {}) {
     ...base,
     ...nextState,
     board: normalizeChessBoard(nextState.board || base.board),
+    serverNow: Date.now(),
     updatedAt: Date.now()
   };
   merged.fen = nextState.fen || chessBoardToFen(merged.board, merged.turnWhite);
   chessGames.set(tableId, merged);
   return merged;
 }
+
+const chessClockTimer = setInterval(() => {
+  const now = Date.now();
+  for (const [tableId, state] of chessGames) {
+    const outcome = adjudicateChessTimeout(state, now);
+    if (!outcome) continue;
+    const next = updateChessState(tableId, outcome);
+    io.to(tableId).emit('chessState', { tableId, ...next });
+    settleChessStakeContract(tableId, next).then(settlement => {
+      io.to(tableId).emit('chessSettlement', { tableId, ...settlement });
+    }).catch(error => {
+      io.to(tableId).emit('chessSettlement', { tableId, ok: false, error: error.message || 'settlement_failed' });
+    });
+  }
+}, 250);
+chessClockTimer.unref();
 
 function normalizeSidePreference(pref) {
   const normalized = String(pref || '').trim().toLowerCase();
@@ -1854,7 +1633,9 @@ function maybeStartGame(table) {
           turnWhite: true,
           lastMove: null,
           moveSeq: 0,
-          players: table.players
+          players: table.players,
+          winner: null, draw: null, positionCounts: {},
+          turnDeadline: Date.now() + 60000
         });
         io.to(table.id).emit('chessState', { tableId: table.id, ...initial });
       } else if (table.gameType === 'checkers') {
