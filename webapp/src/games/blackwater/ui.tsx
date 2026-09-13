@@ -3,6 +3,7 @@ import { lazy, Suspense, useState, type ComponentProps } from 'react';
 import type { Game as OperationGameType } from './operationUi';
 import '../tiranastreets/career/career.css';
 import { GameModeBoundary } from '../shared/GameModeBoundary';
+import { TiranaLoading } from './TiranaLoading';
 const OperationGame = lazy(() => import('./operationUi').then(m => ({default:m.Game})));
 const CareerGame = lazy(() => import('../tiranastreets/career/CareerGame').then(m => ({default:m.CareerGame})));
 const StreetCareer = lazy(() =>
@@ -24,24 +25,18 @@ export function Game(props: ComponentProps<typeof OperationGameType>) {
         ? 'stories'
         : 'operation';
   });
-  const loading = <div className="tc-game"><p className="tc-status" role="status">Loading Tirana Streets…</p></div>;
-  if (props.mode === 'online') return <Suspense fallback={loading}><OperationGame {...props} /></Suspense>;
+  const loading = <TiranaLoading onBack={props.onExit} />;
+  if (props.mode === 'online') return <GameModeBoundary onBack={props.onExit}><Suspense fallback={loading}><OperationGame {...props} /></Suspense></GameModeBoundary>;
   if (activity === 'stories')
     return (
-      <GameModeBoundary onBack={() => setActivity('operation')}>
+      <GameModeBoundary onBack={props.onExit}>
         <Suspense fallback={loading}><CareerGame onExit={() => setActivity('operation')} /></Suspense>
       </GameModeBoundary>
     );
   if (activity === 'street-career')
     return (
-      <GameModeBoundary onBack={() => setActivity('operation')}>
-        <Suspense
-          fallback={
-            <div className="tc-game">
-              <p className="tc-status">Loading street career…</p>
-            </div>
-          }
-        >
+      <GameModeBoundary onBack={props.onExit}>
+        <Suspense fallback={loading}>
           <StreetCareer onExit={() => setActivity('operation')} />
         </Suspense>
       </GameModeBoundary>
