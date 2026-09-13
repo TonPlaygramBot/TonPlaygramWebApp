@@ -4,7 +4,7 @@ export class GameInput {
   private cleanup:(()=>void)[]=[];private pointer:number|null=null;private last={x:0,y:0};
   constructor(private surface:HTMLElement){
     const on=(target:EventTarget,name:string,fn:EventListener)=>{target.addEventListener(name,fn);this.cleanup.push(()=>target.removeEventListener(name,fn));};
-    on(window,'keydown',((e:KeyboardEvent)=>{if(!this.active)return;if(['Space','ArrowUp','ArrowDown','ArrowLeft','ArrowRight'].includes(e.code))e.preventDefault();this.keys.add(e.code);if(e.repeat)return;if(e.code==='KeyF')this.onFire();if(e.code==='KeyR')this.onReload();if(e.code==='Escape'||e.code==='KeyP')this.onPause();if(e.code==='KeyC')this.crouching=!this.crouching;if(e.code==='KeyE')this.onHeal();if(e.code==='KeyQ')this.aiming=!this.aiming;}) as EventListener);
+    on(window,'keydown',((e:KeyboardEvent)=>{if(!this.active)return;if(['Space','ArrowUp','ArrowDown','ArrowLeft','ArrowRight'].includes(e.code))e.preventDefault();this.keys.add(e.code);if(e.repeat)return;if(e.code==='KeyF')this.onFire();if(e.code==='KeyR')this.onReload();if(e.code==='Escape'||e.code==='KeyP')this.onPause();if(e.code==='KeyC')this.crouching=!this.crouching;if(e.code==='KeyH')this.onHeal();if(e.code==='KeyQ')this.aiming=!this.aiming;}) as EventListener);
     on(window,'keyup',((e:KeyboardEvent)=>{this.keys.delete(e.code);if(e.code==='KeyF')this.firing=false;}) as EventListener);
     on(window,'blur',(()=>{if(this.active)this.onPause();this.clear();}) as EventListener);
     on(document,'visibilitychange',(()=>{if(document.hidden&&this.active)this.onPause();}) as EventListener);

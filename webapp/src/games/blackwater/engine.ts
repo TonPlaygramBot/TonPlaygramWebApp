@@ -1,9 +1,10 @@
+import { BattlefieldPlayer, BODY_WEAPON } from './BattlefieldPlayer';
 import {advanceBattleObjective} from './shared/missionCore.mjs';
 import {battleGround} from './shared/terrain.mjs';
 import {createWebGLRenderer} from '../tiranastreets/createWebGLRenderer';
 import { BattlefieldVehicle } from './BattlefieldVehicle';
 import { CombatEffects } from '../tiranastreets/CombatEffects';
-import { BATTLE_MODES, OPERATIONS, sectorSpawns, sectorObstacles, zoneRadius, normalizeOperations, finishOperation, type BattleMode } from './shared/battlefield.mjs';
+import { BATTLE_MODES, OPERATIONS, sectorSpawns, sectorObstacles, zoneRadius, normalizeOperations, finishOperation, operationUnlocked, type BattleMode } from './shared/battlefield.mjs';
 import { createBrain, thinkBot, type BotBrain } from './shared/botBrain.mjs';
 import { tacticalGoal, coverPoint } from '../tiranastreets/shared/forceTactics.mjs';
 import { BattlefieldForces } from './BattlefieldForces';
@@ -43,6 +44,7 @@ export type Snapshot = {
   operations?:string[];
   operationId?:string;
   zone?:number;
+  pickupWeapon?:string;
   driving?:boolean;
   nearVehicle?:boolean;
   vehicleView?:'cockpit'|'chase';
@@ -134,8 +136,11 @@ export class GameEngine {
   audio = new GameAudio();
   phase: Phase = 'menu';
   settings = { ...defaults };
-  weapon: WeaponId = 'ar';
+  weapon: WeaponId = 'ak47';
   battlefieldMap: BattlefieldMapId = 'skanderbeg';
+  readonly playerVisual:BattlefieldPlayer;
+  private playerReady=false;
+  private inventory:Partial<Record<WeaponId,{ammo:number;reserve:number}>>={};
   readonly vehicle:BattlefieldVehicle;
   private vehiclePedals=new Set<string>();
   vehicleThrottle=0;
@@ -259,6 +264,15 @@ export class GameEngine {
       /* Storage can be unavailable in private frames. */
     }
     this.world = makeCityWorld(this.scene, this.camera, this.renderer);
+    this.playerVisual = new BattlefieldPlayer(this.scene);
+    void this.playerVisual.load().then(() => {
+      if (this.disposed) return;
+      if (this.playerVisual.errors.length || this.playerVisual.rig.errors.length) {
+        this.errorCallback('Your character or weapon could not load. Reload to retry.');
+        return;
+      }
+      this.playerReady = true; this.emit();
+    });
     this.combatEffects=new CombatEffects(this.scene);
     this.vehicle=new BattlefieldVehicle(this.scene);
     this.zoneRing.rotation.x=-Math.PI/2;this.zoneRing.visible=false;this.missionBeacon.visible=false;this.scene.add(this.zoneRing,this.missionBeacon);
@@ -326,7 +340,7 @@ export class GameEngine {
     this.battlefieldMap = mapId;
     this.battleMode=BATTLE_MODES.some(m=>m.id===battleMode)?battleMode:'last-stand';
     const operationIndex=OPERATIONS.findIndex(o=>o.id===operationId&&o.map===mapId&&o.mode===battleMode);
-    this.operationId=operationIndex>=0&&operationIndex<=this.operations.completed.length?operationId:'';
+    this.operationId=operationIndex>=0&&operationUnlocked(this.operations,operationId)?operationId:'';
     this.objectiveProgress=0;this.gunNoise=null;this.intel=false;this.combatEffects.reset();
     this.difficulty = difficulty;
     const sector = BATTLEFIELD_MAPS.find((map) => map.id === mapId) || BATTLEFIELD_MAPS[0];
@@ -346,7 +360,8 @@ export class GameEngine {
     this.pitch = -0.01;
     this.health = this.maxHealth = 100;
     this.ammo = WEAPONS[weapon].mag;
-    this.reserve = 150;
+    this.reserve = WEAPONS[weapon].mag * 3;
+    this.inventory = {[weapon]:{ammo:this.ammo,reserve:this.reserve}};
     this.medkits = 1;
     this.kills = 0;
     this.score = 0;
@@ -369,7 +384,16 @@ export class GameEngine {
     this.rng = createRng(451 + Math.floor(Math.random() * 10000));
     this.audio.setVolume(this.settings.volume);
     this.audio.start();
-    if (!this.online) this.spawnWave();
+    if (!this.online) {
+      this.spawnWave();
+      // Place a small, reachable equipment cache. Every battlefield weapon can
+      // be picked up without a store, ownership check or random drop luck.
+      for (const [i,id] of (Object.keys(WEAPONS) as WeaponId[]).entries()) {
+        const x=this.player.x+Math.cos(i*Math.PI/4)*7,z=this.player.z+Math.sin(i*Math.PI/4)*7;
+        if (!collides(x,z,.5,this.world.obstacles) && lineClear({x:this.player.x,y:battleGround(this.player.x,this.player.z)+.5,z:this.player.z},{x,y:battleGround(x,z)+.5,z},this.world.obstacles))
+          this.dropLoot(new THREE.Vector3(x,battleGround(x,z),z),id);
+      }
+    }
     this.notify(BATTLE_MODES.find(m=>m.id===this.battleMode)!.name.toUpperCase(), 'wave', 4);
     this.emit();
   }
@@ -388,7 +412,7 @@ export class GameEngine {
       materials.forEach((m) => m.dispose());
     }
     this.enemies = [];
-    for (const item of this.loot) this.scene.remove(item.mesh);
+    for (const item of this.loot) this.disposeLoot(item);
     this.loot = [];
   }
   private spawnWave() {
@@ -667,19 +691,49 @@ export class GameEngine {
     if (this.ammo === 0)
       this.notify('MAGAZINE EMPTY  /  RELOAD', 'warning', 1.2);
   }
-  private dropLoot(position: THREE.Vector3) {
+  private dropLoot(position: THREE.Vector3, chosen?:WeaponId) {
     const ids = Object.keys(WEAPONS) as WeaponId[];
-    const weapon = ids[Math.floor(this.rng() * ids.length)];
+    const weapon = chosen || ids[Math.floor(this.rng() * ids.length)];
     const mesh = new THREE.Group();
-    const crate = new THREE.Mesh(new THREE.BoxGeometry(.75,.16,.32),new THREE.MeshStandardMaterial({color:0x29383a,metalness:.65,roughness:.3}));
-    const glow = new THREE.Mesh(new THREE.RingGeometry(.55,.62,24),new THREE.MeshBasicMaterial({color:0xd8fa69,transparent:true,opacity:.72,side:THREE.DoubleSide}));
-    glow.rotation.x=-Math.PI/2;glow.position.y=.03;crate.position.y=.22;mesh.add(crate,glow);mesh.position.copy(position);mesh.position.y=battleGround(position.x,position.z);this.scene.add(mesh);
-    this.loot.push({mesh,weapon,ammo:Math.max(WEAPONS[weapon].mag,Math.round(WEAPONS[weapon].mag*1.5)),life:0});
+    const glow = new THREE.Mesh(new THREE.RingGeometry(.45,.51,24),new THREE.MeshBasicMaterial({color:0xd8fa69,transparent:true,opacity:.72,side:THREE.DoubleSide}));
+    glow.rotation.x=-Math.PI/2;glow.position.y=.015;mesh.add(glow);mesh.position.copy(position);this.scene.add(mesh);
+    this.loot.push({mesh,weapon,ammo:WEAPONS[weapon].mag*2,life:0});
+  }
+  private disposeLoot(item:Loot) {
+    item.mesh.removeFromParent();
+    // Gun clones share resources owned by playerVisual.rig.
+    const ring=item.mesh.children[0] as THREE.Mesh;
+    ring.geometry.dispose();(ring.material as THREE.Material).dispose();
+  }
+  private nearestLoot() {
+    if(this.online||this.vehicle.driving||this.health<=0)return undefined;
+    return this.loot.filter(item=>Math.hypot(this.player.x-item.mesh.position.x,this.player.z-item.mesh.position.z)<3.2 &&
+      lineClear({x:this.player.x,y:battleGround(this.player.x,this.player.z)+.6,z:this.player.z},
+        {x:item.mesh.position.x,y:item.mesh.position.y+.2,z:item.mesh.position.z},this.world.obstacles))
+      .sort((a,b)=>a.mesh.position.distanceToSquared(this.camera.position)-b.mesh.position.distanceToSquared(this.camera.position))[0];
+  }
+  pickupWeapon() {
+    if(this.phase!=='playing')return false;
+    const item=this.nearestLoot();if(!item)return false;
+    this.inventory[this.weapon]={ammo:this.ammo,reserve:this.reserve};
+    const w=WEAPONS[item.weapon],own=this.inventory[item.weapon];
+    const ammo=own?{ammo:own.ammo,reserve:Math.min(w.mag*8,own.reserve+item.ammo)}:
+      {ammo:Math.min(w.mag,item.ammo),reserve:Math.max(0,item.ammo-w.mag)};
+    this.weapon=item.weapon;this.ammo=ammo.ammo;this.reserve=ammo.reserve;this.inventory[this.weapon]=ammo;
+    this.reloadTimer=0;this.pendingReload=false;this.cooldown=0;
+    this.notify(`${w.name} PICKED UP`,'good',2.4);
+    this.disposeLoot(item);this.loot.splice(this.loot.indexOf(item),1);this.emit();return true;
   }
   private updateLoot(dt:number) {
-    for (let i=this.loot.length-1;i>=0;i--) {const item=this.loot[i];item.life+=dt;item.mesh.rotation.y+=dt*.8;item.mesh.position.y=battleGround(item.mesh.position.x,item.mesh.position.z)+.04+Math.sin(item.life*3)*.025;
-      if(Math.hypot(this.player.x-item.mesh.position.x,this.player.z-item.mesh.position.z)<1.55){this.weapon=item.weapon;this.ammo=WEAPONS[item.weapon].mag;this.reserve+=item.ammo;this.notify(`${WEAPONS[item.weapon].name} PICKED UP  +${item.ammo} AMMO`,'good',2.4);this.scene.remove(item.mesh);item.mesh.traverse(o=>{if(o instanceof THREE.Mesh){o.geometry.dispose();(o.material as THREE.Material).dispose();}});this.loot.splice(i,1);}
-      else if(item.life>45){this.scene.remove(item.mesh);this.loot.splice(i,1);}
+    for (let i=this.loot.length-1;i>=0;i--) {
+      const item=this.loot[i];item.life+=dt;
+      item.mesh.position.y=battleGround(item.mesh.position.x,item.mesh.position.z)+.04;
+      if(item.mesh.children.length===1){
+        const id=BODY_WEAPON[item.weapon];void this.playerVisual.rig.prepare(id);
+        const model=this.playerVisual.rig.cloneWeapon(id);
+        if(model){model.rotation.z=Math.PI/2;model.position.y=.16;item.mesh.add(model);}
+      }
+      if(item.life>300){this.disposeLoot(item);this.loot.splice(i,1);}
     }
   }
   private tracer(start: THREE.Vector3, end: THREE.Vector3, enemy: boolean) {
@@ -749,6 +803,7 @@ export class GameEngine {
       }
     }
     const k = this.input.keys;
+    if(k.has('KeyE')){k.delete('KeyE');this.pickupWeapon();}
     if(k.has('KeyG')){k.delete('KeyG');this.toggleVehicle();}
     if(k.has('KeyV')&&this.vehicle.driving){k.delete('KeyV');this.changeVehicleCamera();}
     let rx =
@@ -891,7 +946,7 @@ export class GameEngine {
     if(decision.pickup!==null){
       const index=Number(decision.pickup),item=this.loot[index];
       if(item&&Math.hypot(item.mesh.position.x-p.x,item.mesh.position.z-p.z)<1.55){
-        brain.reserve+=item.ammo;this.scene.remove(item.mesh);item.mesh.traverse(o=>{if(o instanceof THREE.Mesh){o.geometry.dispose();(o.material as THREE.Material).dispose();}});this.loot.splice(index,1);
+        brain.reserve+=item.ammo;this.disposeLoot(item);this.loot.splice(index,1);
       }
     }
     e.cooldown-=dt;e.repath-=dt;
@@ -950,7 +1005,7 @@ export class GameEngine {
   toggleVehicle(){
     if(this.online||this.phase!=='playing')return;
     if(!this.vehicle.toggle(this.player,this.world.obstacles)){this.notify('Stop the car with space beside the door','',2);return;}
-    this.input.clear();this.vehiclePedals.clear();this.vehicleThrottle=0;this.vehicleBrake=false;this.world.gun.visible=!this.vehicle.driving;
+    this.input.clear();this.vehiclePedals.clear();this.vehicleThrottle=0;this.vehicleBrake=false;this.world.gun.visible=false;
     this.emit();
   }
   changeVehicleCamera(){
@@ -959,7 +1014,7 @@ export class GameEngine {
   }
   private updateCamera(dt: number) {
     if(this.vehicle.driving){this.vehicle.camera(this.camera,this.world.obstacles);return;}
-    this.world.gun.visible=true;this.camera.up.set(0,1,0);this.camera.near=.1;
+    this.world.gun.visible=false;this.camera.up.set(0,1,0);this.camera.near=.1;
     this.aim = THREE.MathUtils.lerp(
       this.aim,
       this.input.aiming ? 1 : 0,
@@ -1099,6 +1154,11 @@ export class GameEngine {
         }
       }
     }
+    this.playerVisual.update({x:this.player.x,z:this.player.z,y:battleGround(this.player.x,this.player.z),
+      yaw:this.yaw,pitch:this.pitch,health:this.health,weapon:this.weapon,speed:this.movement*5.2,
+      aim:this.input.aiming,crouch:this.input.crouching,recoil:this.recoil,reload:this.reloadTimer,
+      reloadDuration:WEAPONS[this.weapon].reload*this.reloadMultiplier,cooldown:this.cooldown,
+      driving:this.vehicle.driving,time:this.elapsed},this.phase==='playing'?dt:0);
     this.vehicle.present();
     const showObjective=!this.online&&this.phase==='playing';
     this.zoneRing.visible=showObjective&&(this.battleMode==='last-stand'||this.battleMode==='hold');
@@ -1173,7 +1233,8 @@ export class GameEngine {
         alive: e.hp > 0
       })),
       quality: this.quality,
-      ready: true,
+      ready: this.playerReady,
+      pickupWeapon:this.nearestLoot()?WEAPONS[this.nearestLoot()!.weapon].name:undefined,
       best: this.best,
       compatibility: this.renderer instanceof CompatibilityRenderer,
       online: this.onlineState
@@ -1400,6 +1461,7 @@ export class GameEngine {
     this.clearActors();
     this.forces?.dispose();
     this.combatEffects.dispose();this.vehicle.dispose();this.zoneRing.geometry.dispose();this.zoneRing.material.dispose();this.missionBeacon.geometry.dispose();this.missionBeacon.material.dispose();
+    this.playerVisual.dispose();
     this.world.dispose();
     this.tracerGeo.dispose();
     this.sparkGeo.dispose();

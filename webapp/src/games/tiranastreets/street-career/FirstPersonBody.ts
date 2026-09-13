@@ -27,7 +27,7 @@ const clean = (name: string) => {
  * One body + one skeleton supplies BOTH legs and arms. Original full geometry
  * draws only into the shadow map, so there are no doubled arms or body shadows. */
 export function maskHead(root: T.Object3D) {
-  const owned: { geometry: T.BufferGeometry; materials: T.Material[] }[] = [];
+  const owned: { mesh:T.SkinnedMesh; source:T.BufferGeometry; shadow:T.SkinnedMesh; geometry: T.BufferGeometry; materials: T.Material[] }[] = [];
   const skins: T.SkinnedMesh[] = [];
   root.traverse((o) => {
     if (o instanceof T.SkinnedMesh) skins.push(o);
@@ -50,17 +50,25 @@ export function maskHead(root: T.Object3D) {
       return total > 0.3;
     };
     const count = index?.count || mesh.geometry.getAttribute('position').count,
-      indices: number[] = [];
+      indices: number[] = [],
+      groups: {start:number;count:number;materialIndex:number}[] = [];
     for (let i = 0; i < count; i += 3) {
       const a = index ? index.getX(i) : i,
         b = index ? index.getX(i + 1) : i + 1,
         c = index ? index.getX(i + 2) : i + 2;
-      if (!isHead(a) && !isHead(b) && !isHead(c)) indices.push(a, b, c);
+      if (!isHead(a) && !isHead(b) && !isHead(c)) {
+        const materialIndex = mesh.geometry.groups.find(g => i >= g.start && i < g.start + g.count)?.materialIndex || 0;
+        const last = groups[groups.length - 1];
+        if (last && last.materialIndex === materialIndex) last.count += 3;
+        else groups.push({start:indices.length,count:3,materialIndex});
+        indices.push(a, b, c);
+      }
     }
     const source = mesh.geometry,
       geometry = source.clone();
     geometry.setIndex(indices);
     geometry.clearGroups();
+    groups.forEach(g => geometry.addGroup(g.start,g.count,g.materialIndex));
     mesh.geometry = geometry;
     mesh.castShadow = false;
     const materials = (
@@ -86,10 +94,13 @@ export function maskHead(root: T.Object3D) {
     shadow.frustumCulled = false;
     mesh.frustumCulled = false;
     mesh.parent?.add(shadow);
-    owned.push({ geometry, materials });
+    owned.push({ mesh, source, shadow, geometry, materials });
   }
   return () => {
     for (const r of owned) {
+      r.mesh.geometry = r.source;
+      r.mesh.castShadow = true;
+      r.shadow.removeFromParent();
       r.geometry.dispose();
       r.materials.forEach((m) => m.dispose());
     }
@@ -156,8 +167,10 @@ export class FirstPersonBody {
   private failed = new Set<string>();
   private models = new Map<string, T.Group>();
   private loading = new Set<string>();
+  private requests = new Map<string, Promise<void>>();
   private dead = false;
   private equipped = '';
+  private firstPerson = true;
   private gait = 0;
   private motion = '';
   private muzzle = new T.Mesh(
@@ -172,8 +185,15 @@ export class FirstPersonBody {
     this.muzzle.visible = false;
     this.weapon.add(this.muzzle);
   }
-  private bind(actor: Actor) {
-    if (this.actor === actor) return;
+  private bind(actor: Actor, firstPerson: boolean) {
+    if (this.actor === actor) {
+      if (this.firstPerson !== firstPerson) {
+        this.release?.();
+        this.release = firstPerson ? maskHead(actor.group) : undefined;
+        this.firstPerson = firstPerson;
+      }
+      return;
+    }
     this.release?.();
     this.actor = actor;
     this.bones.clear();
@@ -184,17 +204,21 @@ export class FirstPersonBody {
         this.rests.set(o, o.quaternion.clone());
       }
     });
-    // Third-person uses the complete skin, including the head.
-    this.release = undefined;
+    this.firstPerson = firstPerson;
+    this.release = firstPerson ? maskHead(actor.group) : undefined;
+    this.motion = '';
     // Remove horizontal root translation from private clips; physics owns all movement.
-    for (const key of ['idle', 'walk', 'run'] as const) {
-      const action = actor[key];
+    for (const [key, action] of Object.entries(actor.clips || {Idle:actor.idle, Walk:actor.walk, Run:actor.run})) {
       if (!action) continue;
       const clip = action.getClip().clone();
       action.stop();
-      actor[key] = actor.mixer?.clipAction(clip);
+      const replacement = actor.mixer?.clipAction(clip);
+      if (actor.clips && replacement) actor.clips[key] = replacement;
+      if (key === 'Idle') actor.idle = replacement;
+      if (key === 'Walk') actor.walk = replacement;
+      if (key === 'Run') actor.run = replacement;
       for (const track of clip.tracks)
-        if (/Hips.position/i.test(track.name)) {
+        if (/(?:hips|root).position/i.test(track.name)) {
           for (let i = 0; i < track.values.length; i += 3) {
             track.values[i] = track.values[0];
             track.values[i + 2] = track.values[2];
@@ -202,7 +226,14 @@ export class FirstPersonBody {
         }
     }
   }
-  private async loadWeapon(id: string, model: string) {
+  private loadWeapon(id: string, model: string) {
+    const existing = this.requests.get(id);
+    if (existing) return existing;
+    const request = this.fetchWeapon(id, model).finally(() => this.requests.delete(id));
+    this.requests.set(id, request);
+    return request;
+  }
+  private async fetchWeapon(id: string, model: string) {
     if (
       this.loading.has(id) ||
       this.models.has(id) ||
@@ -275,38 +306,40 @@ export class FirstPersonBody {
       this.loading.delete(id);
     }
   }
+  async prepare(id: string) {
+    const config = WEAPON_BY_ID.get(id);
+    if (!config) return;
+    while (!this.dead && !this.loading.has(id) && this.loading.size >= 2)
+      await Promise.race(this.requests.values());
+    await this.loadWeapon(id, config.model);
+  }
+  cloneWeapon(id: string) { return this.models.get(id)?.clone(true); }
   update(
     actor: Actor,
     p: Player,
     b: BodyState,
     time: number,
     dt: number,
-    car?: Car
+    car?: Car,
+    firstPerson = true
   ) {
-    this.bind(actor);
+    this.bind(actor, firstPerson);
     const root = actor.group;
     root.visible = p.health > 0;
     root.position.set(p.x, b.y, p.z);
     root.rotation.set(0, b.yaw + Math.PI, 0);
     root.scale.setScalar(1);
     const moving = p.speed > 0.15 && !car && b.grounded,
-      motion = moving ? (p.speed > 3 ? 'run' : 'walk') : 'idle';
+      motion = moving ? (p.speed > 3 ? (p.weapon ? 'Run_Shoot' : 'Run') : 'Walk') : p.weapon ? (b.aim ? 'Idle_Gun_Pointing' : 'Idle_Gun') : 'Idle';
     if (motion !== this.motion) {
-      for (const a of [actor.idle, actor.walk, actor.run]) a?.fadeOut(0.14);
-      (motion === 'run'
-        ? actor.run
-        : motion === 'walk'
-          ? actor.walk
-          : actor.idle
-      )
-        ?.reset()
-        .fadeIn(0.14)
-        .play();
+      for (const a of Object.values(actor.clips || {Idle:actor.idle, Walk:actor.walk, Run:actor.run})) a?.fadeOut(0.14);
+      const next = actor.clips?.[motion] || (moving ? (p.speed > 3 ? actor.run : actor.walk) : actor.idle);
+      next?.reset().fadeIn(0.14).play();
       this.motion = motion;
     }
     actor.mixer?.update(
       dt *
-        (moving ? Math.max(0.08, p.speed / (motion === 'run' ? 5.4 : 1.45)) : 1)
+        (moving ? Math.max(0.08, p.speed / (motion.startsWith('Run') ? 5.4 : 1.45)) : 1)
     );
     // Procedural additive fallbacks for clips absent from this audited rig.
     const set = (name: string, x: number, y = 0, z = 0) => {
@@ -429,6 +462,15 @@ export class FirstPersonBody {
       left.y -= 0.18 * Math.sin(turn);
       r.y += 0.18 * Math.sin(turn);
       root.rotation.y = car.heading + Math.PI;
+    }
+    const weaponRotation = new T.Quaternion().setFromEuler(new T.Euler(
+      -pose.pitch + (reload ? swing * .6 : 0), b.yaw + Math.PI,
+      reload ? swing * .25 : 0, 'YXZ'));
+    const weaponOrigin = new T.Vector3(pose.origin.x, pose.origin.y - (reload ? swing * .18 : 0) + b.recoil * .2, pose.origin.z);
+    if (armed && !car) {
+      const socket = (point: {x:number;y:number;z:number}) => new T.Vector3(point.x, point.y, point.z).applyQuaternion(weaponRotation).add(weaponOrigin);
+      r = socket(pose.anchors.rightGrip);
+      if (!reload) left = socket(pose.anchors.leftSupport);
     }
     // Arm bones return to rest before solving; the lower-body mixer stays intact.
     for (const side of ['left', 'right'] as const) {

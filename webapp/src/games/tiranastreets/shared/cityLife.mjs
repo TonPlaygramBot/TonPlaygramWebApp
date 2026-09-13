@@ -18,7 +18,8 @@ export function equipStarter(p) {
   p.lastDamage = -100;
   p.respawnAt = 0;
   p.weapon = STARTER_WEAPON;
-  p.inventory = { [STARTER_WEAPON]: { ammo: 16, reserve: 96 } };
+  const starter = WEAPON_BY_ID.get(STARTER_WEAPON);
+  p.inventory = { [STARTER_WEAPON]: { ammo: starter.magazine, reserve: starter.magazine * 3 } };
   ensureStarterWeapons(p);
   p.nextShot = 0;
   p.reloadAt = 0;

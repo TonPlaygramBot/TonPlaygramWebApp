@@ -35,7 +35,7 @@ test('Tirana uses its ten road cars without Racing Royal kart spawns or collisio
  assert.equal(props.some(p=>p.racingAsset),false);
  assert.equal(OBSTACLES.some(p=>p.racingAsset),false);
 });
-test('all 26 originals remain packaged and hashed; weapon placements remain in Tirana',()=>{
+test('all 26 originals remain packaged and hashed; ground weapons are no longer decorative obstacles',()=>{
  assert.equal(IMPORTED_ASSETS.length,26);assert.equal(IMPORTED_ASSETS.filter(a=>a.kind==='weapon').length,18);
  for(const item of IMPORTED_ASSETS){
   const b=readFileSync(new URL('../webapp/public'+item.localUrl,import.meta.url));assert.equal(createHash('sha256').update(b).digest('hex'),item.sha256,item.name);
@@ -45,7 +45,8 @@ test('all 26 originals remain packaged and hashed; weapon placements remain in T
 
   for(const buffer of json.buffers||[])assert.ok(!buffer.uri||buffer.uri.startsWith('data:'),`${item.name}: buffer must be bundled`);
   if(item.kind==='weapon'){
-   const placement=props.find(p=>p.assetId===item.id);assert.ok(placement,item.id);assert.ok(OBSTACLES.includes(placement));
+   assert.equal(props.some(p=>p.assetId===item.id),false,item.id);
+   assert.equal(OBSTACLES.some(p=>p.assetId===item.id),false,item.id);
   }
  }
 });

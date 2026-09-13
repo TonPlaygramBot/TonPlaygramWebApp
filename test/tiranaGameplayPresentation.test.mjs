@@ -26,7 +26,7 @@ test('fracture shader hooks are restored on disposal and effects reset without g
 });
 test('battlefield cockpit and chase cameras differ; boarding, brakes and blocked exits use real collision',()=>{
  const v=Object.create(BattlefieldVehicle.prototype),c={id:'test',model:'sedan',x:0,z:0,heading:0,speed:0,steering:0};
- Object.assign(v,{car:c,group:new T.Group(),cabin:{group:new T.Group(),update(){}},driving:false,available:true,view:'chase'});
+ Object.assign(v,{car:c,group:new T.Group(),cabin:{group:new T.Group(),update(){}},driving:false,loaded:true,available:true,view:'chase'});
  const p={x:2,z:0};assert.equal(v.toggle(p,[]),true);v.step(1/60,0,1,false,p,[]);assert.ok(c.speed>0);c.speed=12;
  assert.equal(v.toggle(p,[]),false);v.step(.1,0,0,true,p,[]);assert.ok(c.speed<12);
  const camera=new T.PerspectiveCamera();v.camera(camera,[]);const outside=camera.position.clone();v.view='cockpit';v.present();v.camera(camera,[]);assert.ok(outside.distanceTo(camera.position)>5);assert.equal(v.group.visible,false);

@@ -16,7 +16,7 @@ import {WeaponStoreInterior} from './WeaponStoreInterior';
  * the city's landmark layer. Base renderer also owns source-informed façades. */
 export class CityRenderer extends BaseCityRenderer {
   private imported=new ImportedAssetVisuals();
-  private cityDetails:ReturnType<typeof attachEnhancements>;
+  protected cityDetails:ReturnType<typeof attachEnhancements>;
   protected ownDetailUpdate=true;
   readonly nativeLandmarks: NativeLandmarkLayer;
   readonly airMobility: AirMobilityVisuals;

@@ -1,5 +1,5 @@
 'use client';
-import {memo,useCallback,useEffect,useMemo,useRef,useState,type ComponentProps} from 'react';
+import {memo,useCallback,useEffect,useRef,useState,type ComponentProps} from 'react';
 import * as THREE from 'three';
 import {Game as OriginalGame} from './baseUi';
 import type {GameEngine} from './engine';
@@ -23,7 +23,7 @@ export function Game(props:ComponentProps<typeof OriginalGame>){
   const [open,setOpen]=useState(false),session=useRef<{close():void}|null>(null);
   const [destination,setDestination]=useState<Place|null>(null),[route,setRoute]=useState<Point[]>([]),[notice,setNotice]=useState('');
   const dialog=useRef<HTMLDialogElement>(null),launch=useRef<HTMLButtonElement>(null);
-  const graph=useMemo(()=>buildMapGraph(WORLD,'walk'),[]);
+  const graph=useRef<ReturnType<typeof buildMapGraph>>();
   const close=()=>{setOpen(false);session.current?.close();session.current=null;launch.current?.focus();};
   useEffect(()=>{
     if(!game)return;
@@ -34,7 +34,8 @@ export function Game(props:ComponentProps<typeof OriginalGame>){
       const p=worldPlayer(game.player,game.yaw,ORIGIN);setPlayer(p);setPhase(game.phase);
       const now=performance.now();
       if(destination&&(!last||now-last>1000&&(Math.hypot(p.x-lastX,p.z-lastZ)>4||open))){
-        const result=findMapRoute(graph,p,destination);setRoute(result.points);setNotice(result.message);
+        graph.current ||= buildMapGraph(WORLD,'walk');
+        const result=findMapRoute(graph.current,p,destination);setRoute(result.points);setNotice(result.message);
         const geometry=new THREE.BufferGeometry();geometry.setAttribute('position',new THREE.Float32BufferAttribute(sceneRoute(result.points,ORIGIN),3));geometry.computeBoundingSphere();
         line.geometry.dispose();line.geometry=geometry;line.visible=result.points.length>1;
         last=now;lastX=p.x;lastZ=p.z;

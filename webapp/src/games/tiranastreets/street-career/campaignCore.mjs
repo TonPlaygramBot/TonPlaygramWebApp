@@ -37,9 +37,9 @@ export function createCampaign(missions, weapons, starter) {
       const w = arsenal.get(starter);
       inventory[starter] = {ammo: w.magazine, reserve: w.magazine * 3};
     }
-    if(arsenal.has('glockSidearmAttack')&&arsenal.has('combatKnife'))ensureStarterWeapons({inventory});
+    if(arsenal.has(starter)&&arsenal.has('combatKnife'))ensureStarterWeapons({inventory});
     return {cash: Math.floor(number(raw?.cash, 750, 10000000)), inventory,
-      weapon: raw?.weapon === '' ? '' : Object.hasOwn(inventory, raw?.weapon) ? raw.weapon : Object.keys(inventory)[0]};
+      weapon: raw?.weapon === '' ? '' : raw?.weapon === 'fpsGunAttack' ? starter : Object.hasOwn(inventory, raw?.weapon) ? raw.weapon : Object.hasOwn(inventory,starter) ? starter : Object.keys(inventory)[0]};
   }
   function fresh() { return {version: 1, completed: [], best: {}, loadout: loadout(null), active: null}; }
   function normalize(raw) {
@@ -61,7 +61,7 @@ export function createCampaign(missions, weapons, starter) {
   }
   function begin(raw, id, difficulty = 'normal') {
     const p = normalize(raw);
-    if (!available(p, id) || !difficulties.has(difficulty)) return null;
+    if (p.active || !available(p, id) || !difficulties.has(difficulty)) return null;
     // Mission starts are the durable retry checkpoint; damage/ammo are reset by the engine.
     p.active = {id, difficulty, checkpoint: loadout(p.loadout)};
     return p;

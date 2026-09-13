@@ -2068,3 +2068,9 @@
 .bw-pedals{position:absolute;right:16px;bottom:90px;display:grid;grid-template-columns:60px 60px;gap:8px;pointer-events:auto}.bw-pedals small{grid-column:1/3;font-size:10px}.bw-pedals button:last-child{grid-column:2;grid-row:2/4;background:#d4e9a6;color:#17322e}
 
 .bw-scope.phase-menu,.bw-scope .menu-layer{touch-action:pan-y}.bw-scope .menu-layer{pointer-events:auto}
+
+.bw-scope .bw-pickup{position:absolute;z-index:8;left:50%;top:59%;transform:translateX(-50%);min-height:48px;max-width:80%;padding:10px 16px;border:1px solid #d8fa69;border-radius:12px;background:#152d25ee;color:#efffc5;font-family:inherit;font-size:14px;font-weight:700;pointer-events:auto}
+.bw-scope .bw-starting-kit{font-size:14px;line-height:1.5;color:#d2dec8;margin:12px 0}
+.bw-scope.phase-menu .menu-title h1{font-size:clamp(28px,6vw,48px)}
+.bw-scope.phase-menu .menu-bottom{margin-top:0;max-width:460px}
+.bw-scope.phase-menu .battlefield-map-label{font-size:14px}

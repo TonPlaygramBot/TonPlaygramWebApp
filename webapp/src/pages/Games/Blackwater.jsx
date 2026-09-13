@@ -13,7 +13,7 @@ export default function Blackwater() {
   const tableId = params.get('tableId') || '',
     mode = params.get('mode') === 'online' ? 'online' : 'ai',
     weaponIds = ['ar','smg','ak47','shotgun','mosin','uzi','sigsauer','smith'],
-    weapon = weaponIds.includes(params.get('weapon')) ? params.get('weapon') : 'ar',
+    weapon = weaponIds.includes(params.get('weapon')) ? params.get('weapon') : 'ak47',
     mapIds = BATTLEFIELD_MAPS.map(map=>map.id),
     battlefieldMap = mapIds.includes(params.get('map')) ? params.get('map') : 'skanderbeg',
     difficulty = params.get('difficulty') === 'veteran' ? 'veteran' : 'recruit';

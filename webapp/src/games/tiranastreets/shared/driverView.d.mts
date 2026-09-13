@@ -4,3 +4,5 @@ export function driverEye(car:DriverCar,sample?:(x:number,z:number)=>number):{x:
 export function driverDirection(car:DriverCar,yaw?:number,pitch?:number,sample?:(x:number,z:number)=>number):{x:number;y:number;z:number};
 export function driverUp(car:DriverCar,sample?:(x:number,z:number)=>number):{x:number;y:number;z:number};
 export function driverFov(aspect:number):number;
+
+export function driverPoint(car:DriverCar,point:{x:number;y:number;z:number},sample?:(x:number,z:number)=>number):{x:number;y:number;z:number};

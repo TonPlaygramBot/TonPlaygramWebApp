@@ -10,6 +10,9 @@ on:
       - 'test/tiranaStreetCareer*'
       - 'test/tiranaFullBody*'
       - 'test/tiranaGameplay*'
+      - 'test/tiranaPlayerExperience*'
+      - 'test/tiranaDriverBattlefield*'
+      - 'webapp/public/assets/tirana-streets/living/operator.glb'
       - '.github/workflows/tirana-street-career.yml'
 permissions:
   contents: read
@@ -42,7 +45,7 @@ jobs:
           cache-dependency-path: webapp/package-lock.json
       - run: npm ci --prefix webapp
       - name: Real-rig and pointer-ownership tests
-        run: node --test test/tiranaFullBodyPresentation.test.mjs test/tiranaGameplayPresentation.test.mjs
+        run: node --test test/tiranaFullBodyPresentation.test.mjs test/tiranaGameplayPresentation.test.mjs test/tiranaPlayerExperience.test.mjs test/tiranaDriverBattlefield.test.mjs
       - run: npm run build --prefix webapp
       - name: Dependency-aware typecheck (no error suppression)
         working-directory: webapp

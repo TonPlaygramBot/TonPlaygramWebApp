@@ -31,7 +31,6 @@ export class SharedHumans {
   private loader=new GLTFLoader();
   constructor(private cast:readonly SharedAsset[]=SHARED_GAME_CAST){
     this.group.name='Tirana:shared-games-human-NPCs';
-    this.primeLocalHumans();
     void this.loader.loadAsync('/assets/tirana-streets/living/motorbike.glb').then(g=>{
       if(this.dead){disposeResources(g.scene);return;}
       g.scene.rotation.y=-Math.PI/2;g.scene.updateMatrixWorld(true);

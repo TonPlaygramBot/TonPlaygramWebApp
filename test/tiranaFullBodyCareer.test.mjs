@@ -446,8 +446,8 @@ test('validated vault moves the body over a low solid to a clear landing', () =>
   );
 });
 
-test('fresh loadouts include Glock and CC0 knife; knife slashes without consuming ammunition',()=>{
-  const s=run();assert.equal(s.player.weapon,'glockSidearmAttack');assert.ok(s.player.inventory.combatKnife);
+test('fresh loadouts include AK-47 and CC0 knife; knife slashes without consuming ammunition',()=>{
+  const s=run();assert.equal(s.player.weapon,'ak47VolleyAttack');assert.ok(s.player.inventory.combatKnife);
   s.player.weapon='combatKnife';s.state.npcs.push(npc('close',0,-1));
   s.intent.fire=true;s.step(1/60);s.intent.fire=false;tick(s,.35);
   assert.equal(s.state.npcs[0].health,65);assert.equal(s.player.inventory.combatKnife.ammo,1);

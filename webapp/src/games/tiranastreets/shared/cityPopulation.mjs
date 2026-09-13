@@ -1,3 +1,4 @@
+import { groundHeight } from '../../tirana-east/terrainCore.mjs';
 import { WORLD } from './world.mjs';
 import { WEAPONS, WEAPON_BY_ID } from './weapons.mjs';
 import { onCarriageway } from './streetLayout.mjs';
@@ -38,7 +39,7 @@ export function citySites(env) {
     shops.push({...p,id:`arsenal-${shops.length+1}`,name:`Arben · Arsenal ${String(shops.length+1).padStart(2,'0')}`});
   }
   if(shops.length!==CITY_POPULATION.shops)throw Error('Unable to place all 15 weapon stores safely');
-  const guns=WEAPONS.filter(w=>!w.radius);
+  const guns=WEAPONS.filter(w=>!w.radius&&w.id!=='fpsGunAttack');
   const sorted=[...walks].sort((a,b)=>Math.hypot(a.a[0]-env.spawn.x,a.a[1]-env.spawn.z)-Math.hypot(b.a[0]-env.spawn.x,b.a[1]-env.spawn.z));
   for(let i=0;i<sorted.length*3&&pickups.length<CITY_POPULATION.weapons;i++){
     const r=sorted[i<90?i:(i*811)%sorted.length],t=.2+(i%7)*.1;
@@ -46,7 +47,7 @@ export function citySites(env) {
     env.collide(p,.45);
     if(onCarriageway(p.x,p.z,.2)||!apart(pickups,p,32))continue;
     const w=guns[pickups.length%guns.length];
-    pickups.push({...p,id:`city-weapon-${pickups.length}`,weapon:w.id,ammo:w.magazine,y:.15,source:'city'});
+    pickups.push({...p,id:`city-weapon-${pickups.length}`,weapon:w.id,ammo:w.magazine,y:groundHeight(p.x,p.z)+.15,source:'city'});
   }
   if(pickups.length!==CITY_POPULATION.weapons)throw Error('Unable to place all 300 weapon pickups safely');
   // Match WeaponStoreInterior's open front, side walls, back wall and counter.
@@ -64,7 +65,7 @@ export function initCityPopulation(state,env){
 export function dropWeapon(state,n){
   const w=WEAPON_BY_ID.get(n.weapon);if(!w||n.weaponDropped||n.kind==='dealer')return;
   n.weaponDropped=true;state.pickups??=[];state.pickupSeq=(state.pickupSeq||0)+1;
-  state.pickups.push({id:`drop:${n.id}:${state.pickupSeq}`,x:n.x,z:n.z,y:.15,weapon:w.id,ammo:w.magazine,source:'npc',expiresAt:state.elapsed+300});
+  state.pickups.push({id:`drop:${n.id}:${state.pickupSeq}`,x:n.x,z:n.z,y:(n.y??groundHeight(n.x,n.z))+.15,weapon:w.id,ammo:w.magazine,source:'npc',expiresAt:state.elapsed+300});
   // Bound uncollected combat drops without deleting the city's persistent pickups.
   const drops=state.pickups.filter(p=>p.source==='npc');
   if(drops.length>128){const discard=new Set(drops.slice(0,drops.length-128).map(p=>p.id));state.pickups=state.pickups.filter(p=>!discard.has(p.id));}
@@ -75,8 +76,10 @@ export function collectWeapon(state,p,id){
   if(!item||Math.hypot(p.x-item.x,p.z-item.z)>3.2)return false;
   const w=WEAPON_BY_ID.get(item.weapon);if(!w)return false;
   const inv=p.inventory[item.weapon];
-  if(inv){if(inv.reserve>=w.magazine*8)return false;inv.reserve=Math.min(w.magazine*8,inv.reserve+item.ammo);}
+  // Switching weapons is always allowed, including a full reserve or a knife.
+  // Ammo capacity limits the transfer, never the ability to equip ground loot.
+  if(inv){inv.reserve=Math.min(w.magazine*8,inv.reserve+Math.max(0,item.ammo));}
   else p.inventory[item.weapon]={ammo:Math.min(w.magazine,item.ammo),reserve:Math.max(0,item.ammo-w.magazine)};
-  item.collected=true;item.collectedBy=p.id;p.weapon=item.weapon;p.reloadAt=0;p.shopMessage=`${w.label} picked up`;
+  item.collected=true;item.collectedBy=p.id;p.weapon=item.weapon;p.reloadAt=0;p.nextShot=0;p.shopMessage=`${w.label} picked up`;
   return true;
 }

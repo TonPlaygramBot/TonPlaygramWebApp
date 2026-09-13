@@ -15,6 +15,7 @@ export class BattlefieldVehicle {
   view:'cockpit'|'chase'='cockpit';
   available=false;
   private dead=false;
+  private loaded=false;
   constructor(scene:T.Scene){
     this.group.name='Battlefield mission car';scene.add(this.group,this.cabin.group);
     this.group.visible=false;
@@ -23,7 +24,7 @@ export class BattlefieldVehicle {
       const box=new T.Box3().setFromObject(g.scene),size=box.getSize(new T.Vector3()),scale=4.5/Math.max(size.x,size.z);
       g.scene.scale.setScalar(scale);g.scene.position.set(-(box.min.x+size.x/2)*scale,-box.min.y*scale,-(box.min.z+size.z/2)*scale);
       g.scene.traverse(o=>{if(o instanceof T.Mesh){o.castShadow=true;o.receiveShadow=true;}});
-      this.group.add(g.scene);
+      this.group.add(g.scene);this.loaded=true;
     },undefined,()=>{this.available=false;});
   }
   reset(center:Vec2,obstacles:Obstacle[]){
@@ -34,7 +35,7 @@ export class BattlefieldVehicle {
     }
     this.present();
   }
-  near(p:Vec2){return this.available&&Math.hypot(p.x-this.car.x,p.z-this.car.z)<5;}
+  near(p:Vec2){return this.loaded&&this.available&&Math.hypot(p.x-this.car.x,p.z-this.car.z)<5;}
   toggle(p:Vec2,obstacles:Obstacle[]){
     if(this.driving){
       if(Math.abs(this.car.speed)>2)return false;
@@ -44,7 +45,7 @@ export class BattlefieldVehicle {
       }
       return false;
     }
-    if(!this.near(p))return false;
+    if(!this.near(p)||!this.loaded)return false;
     this.driving=true;Object.assign(p,{x:this.car.x,z:this.car.z});this.present();return true;
   }
   step(dt:number,steer:number,throttle:number,brake:boolean,p:Vec2,obstacles:Obstacle[]){
@@ -80,8 +81,10 @@ export class BattlefieldVehicle {
       const ground=battleGround(c.x,c.z),origin={x:c.x,y:ground+1.1,z:c.z},direction=new T.Vector3(Math.sin(c.heading),.3,Math.cos(c.heading)).normalize();
       let distance=8;
       for(const obstacle of obstacles)distance=Math.min(distance,rayBox(origin,direction,obstacle)-.35);
-      distance=Math.max(.8,distance);
-      camera.position.set(c.x+Math.sin(c.heading)*distance,ground+2+distance*.22,c.z+Math.cos(c.heading)*distance);camera.lookAt(c.x,ground+1.1,c.z);
+      distance=Math.max(.15,distance);
+      camera.position.copy(new T.Vector3(origin.x,origin.y,origin.z)).addScaledVector(direction,distance);
+      camera.position.y=Math.max(battleGround(camera.position.x,camera.position.z)+.25,camera.position.y);
+      camera.lookAt(origin.x,origin.y,origin.z);
     }
   }
   dispose(){this.dead=true;this.cabin.dispose();this.group.removeFromParent();disposeObject(this.group);}

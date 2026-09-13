@@ -10,6 +10,13 @@ import { WEAPON_BY_ID } from "./shared/weapons.mjs";
 import type { State, Player, NPC } from "./shared/engine.mjs";
 
 const BASE = "/assets/tirana-streets/living/";
+// Texture-bounded derivatives of the same credited imported firearms. Original
+// sources stay available for attribution; 26–73 MB JSON models must not gate play.
+export const OPTIMIZED_WEAPON_MODELS: Record<string, string> = {
+  ak47VolleyAttack: 'ak47', krsvBurstAttack: 'krsv',
+  mosinMarksmanAttack: 'mosin', smithSidearmAttack: 'smith',
+  uziSprayAttack: 'uzi', glockSidearmAttack: 'sigsauer'
+};
 // Same Ludo IDs. Unavailable CDN models use the creator's downloadable CC0 pack.
 export const WEAPON_MODEL_VARIANTS: Record<string, string> = {
   polyPistol01Attack: "q-pistol",
@@ -31,7 +38,7 @@ export const WEAPON_MODEL_VARIANTS: Record<string, string> = {
   polyHandGrenade01Attack: "grenade",
 };
 export const weaponModelFile = (model: string) =>
-  IMPORTED_BY_ID.has(model) ? model : WEAPON_MODEL_VARIANTS[model] || model;
+  OPTIMIZED_WEAPON_MODELS[model] || (IMPORTED_BY_ID.has(model) ? model : WEAPON_MODEL_VARIANTS[model] || model);
 export const weaponModelUrl = (model:string) => IMPORTED_BY_ID.get(weaponModelFile(model))?.localUrl || BASE + weaponModelFile(model) + ".glb";
 export class LivingVisuals {
   group = new THREE.Group();
