@@ -1,0 +1,11 @@
+#snake-camera-root { max-width: 440px; margin: 0 auto; font-family: Inter, system-ui, sans-serif; }
+#snake-camera-root .snake-camera-review { color: #f1f5f9; background: #080f1d; border-radius: 20px; overflow: hidden; }
+#snake-camera-root .snake-camera-heading { padding: 18px 18px 6px; display: flex; flex-wrap: wrap; gap: 6px 18px; justify-content: space-between; }
+#snake-camera-root .snake-camera-heading span { color: #cbd5e1; font-size: 12px; }
+#snake-camera-root .snake-camera-canvas { width: 100%; }
+#snake-camera-root canvas { display: block; width: 100%; }
+#snake-camera-root .snake-camera-actions { padding: 12px 18px 18px; display: grid; gap: 12px; }
+#snake-camera-root [role=status] { color: #cbd5e1; font-size: 14px; }
+#snake-camera-root button { cursor: pointer; background: #fbbf24; color: #111827; border: 0; border-radius: 14px; min-height: 48px; padding: 12px 16px; font-size: 16px; font-weight: 700; }
+#snake-camera-root button:disabled { opacity: 0.65; cursor: default; }
+#snake-camera-root button:focus-visible { outline: 3px solid #93c5fd; outline-offset: -4px; }
