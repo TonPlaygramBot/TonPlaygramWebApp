@@ -42,7 +42,7 @@ import {
   SNAKE_TOKEN_COLOR_OPTIONS
 } from "../../config/snakeInventoryConfig.js";
 import {
-  SNAKE_CAPTURE_WEAPON_OPTIONS,
+  SNAKE_PLAYABLE_CAPTURE_WEAPON_OPTIONS,
   resolveSnakeCaptureWeaponId
 } from "../../config/snakeWeaponCatalog.js";
 // Developer accounts that receive shares of each pot
@@ -735,7 +735,7 @@ const TOKEN_SHAPE_OPTIONS = Object.freeze([
   { id: 'king', label: 'King', pieceType: 'king', source: 'ludoBattleRoyal' }
 ]);
 const CAPTURE_WEAPON_OPTIONS = Object.freeze(
-  SNAKE_CAPTURE_WEAPON_OPTIONS.map((option) => ({
+  SNAKE_PLAYABLE_CAPTURE_WEAPON_OPTIONS.map((option) => ({
     id: option.id,
     label: option.label,
     thumbnail: option.thumbnail

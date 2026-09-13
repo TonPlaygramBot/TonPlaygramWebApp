@@ -1,7 +1,7 @@
 import { expect, it, vi } from 'vitest';
 import * as THREE from 'three';
-import { createSnakeBoardScene, SNAKE_SCENE_DIMENSIONS as sizes, updateSnakeBoardTokens } from './SnakeBoard3D';
-import { frameSnakeAction } from '../utils/snakeCameraDirector';
+import { createSnakeBoardScene, SNAKE_SCENE_DIMENSIONS as sizes, updateSnakeBoardTokens, resolveSnakeFirearmAnimationId } from './SnakeBoard3D';
+import { createSnakeCameraDirector } from '../utils/snakeCameraDirector';
 
 // Stub canvas before imported material factories run; all meshes/transforms stay real.
 vi.hoisted(() => {
@@ -22,32 +22,32 @@ function scene() {
   return { board, root };
 }
 
-it('keeps the token visible above the real pyramid on all 50 tiles in portrait', () => {
+it('looks toward the actual board tiles from the same player position', () => {
   const { board, root } = scene();
   const camera = new THREE.PerspectiveCamera(52, 390/844, 0.1, 100);
-  const direction = new THREE.Vector3(0, Math.tan(68 * Math.PI / 180), 1).normalize();
-  const blocked: number[] = [];
-  const radius = sizes.tokenHeight * sizes.boardScale * 1.2;
-  const ray = new THREE.Raycaster();
+  const home = new THREE.Vector3(0,3,6), homeTarget = new THREE.Vector3(0,0.8,0);
+  camera.position.copy(home);
+  const director = createSnakeCameraDirector(camera, homeTarget.clone());
   for (const [tile, local] of board.indexToPosition) {
-    const center = root.localToWorld(local.clone()).add(new THREE.Vector3(0, sizes.tokenHeight * sizes.boardScale * 0.65, 0));
-    const frame = frameSnakeAction(camera, [center], direction, radius, sizes.tileSize * sizes.footprintScale * 7);
-    camera.position.copy(frame.position); camera.lookAt(frame.target); camera.updateMatrixWorld(true);
-    const ndc = center.clone().project(camera);
-    expect(Math.abs(ndc.x)).toBeLessThan(0.72);
-    expect(Math.abs(ndc.y)).toBeLessThan(0.55);
-    const distance = camera.position.distanceTo(center);
-    ray.set(camera.position, center.clone().sub(camera.position).normalize());
-    ray.far = distance - 0.01;
-    // Labels and transparent rails are excluded; opaque pyramid floors must not hide the token.
-    const hits = ray.intersectObjects(board.rotationRoot.children[0].children, true).filter(hit => {
-      const material = (hit.object as THREE.Mesh).material as THREE.Material;
-      return material && !material.transparent;
-    });
-    if (hits.length) blocked.push(tile);
+    const center = root.localToWorld(local.clone());
+    director.start({ id: String(tile), priority: 2, points: () => [center] }, tile * 100, home, homeTarget);
+    director.update(tile * 100 + 20, home, homeTarget, true);
+    expect(camera.position.equals(home)).toBe(true);
+    expect(center.clone().project(camera).x).toBeCloseTo(0, 5);
+    expect(center.clone().project(camera).y).toBeCloseTo(0, 5);
   }
   expect(board.indexToPosition.size).toBe(50);
-  expect(blocked).toEqual([]);
+});
+
+it.each([
+  ['slot-10-ak47-gltf', 'ak47VolleyAttack'], ['slot-11-krsv-gltf', 'krsvBurstAttack'],
+  ['slot-12-smith-gltf', 'smithSidearmAttack'], ['slot-13-mosin-gltf', 'mosinMarksmanAttack'],
+  ['slot-14-uzi-gltf', 'uziSprayAttack'], ['slot-15-sigsauer-gltf', 'sigsauerTacticalAttack'],
+  ['slot-16-awp-glb', 'sniperShotAttack'], ['slot-18-fps-gun-gltf', 'shotgunBlastAttack'],
+  ['poly-shotgun-01', 'polyShotgun01Attack'], ['glockSidearmAttack', 'glockSidearmAttack'],
+  ['droneAttack', null], ['missileJavelin', null], ['fighterJetAttack', null]
+])('routes %s to the correct firearm sequence', (id, expected) => {
+  expect(resolveSnakeFirearmAnimationId(id)).toBe(expected);
 });
 
 it('preserves the entry world position and does not reparent a moving token on React updates', () => {

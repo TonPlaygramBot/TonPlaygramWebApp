@@ -191,6 +191,13 @@ export const SNAKE_CAPTURE_WEAPON_OPTIONS = Object.freeze(
   }).filter(Boolean)
 )
 
+// Preserve the five existing store/default slots while allowing previously
+// owned firearms to remain in inventory and appear in the in-game loadout.
+export const SNAKE_PLAYABLE_CAPTURE_WEAPON_OPTIONS = Object.freeze([
+  ...SNAKE_CAPTURE_WEAPON_OPTIONS,
+  ...SNAKE_SHARED_CAPTURE_WEAPON_OPTIONS.filter((option) => !option.vehicleKind)
+])
+
 export const SNAKE_CAPTURE_WEAPON_ALIAS_MAP = Object.freeze({
   fighter: 'fighterJetAttack',
   fighterjet: 'fighterJetAttack',
@@ -205,6 +212,23 @@ export const SNAKE_CAPTURE_WEAPON_ALIAS_MAP = Object.freeze({
   supporttruck: 'supportTruckAttack',
   supporttruckattack: 'supportTruckAttack',
   truck: 'supportTruckAttack',
+  ak47volleyattack: 'slot-10-ak47-gltf',
+  krsvburstattack: 'slot-11-krsv-gltf',
+  smithsidearmattack: 'slot-12-smith-gltf',
+  mosinmarksmanattack: 'slot-13-mosin-gltf',
+  uzisprayattack: 'slot-14-uzi-gltf',
+  sigsauertacticalattack: 'slot-15-sigsauer-gltf',
+  snipershotattack: 'slot-16-awp-glb',
+  shotgunblastattack: 'slot-18-fps-gun-gltf',
+  polyshotgun01attack: 'poly-shotgun-01',
+  polyassaultrifle01attack: 'poly-assault-rifle-01',
+  polypistol01attack: 'poly-pistol-01',
+  polyrevolver01attack: 'poly-revolver-01',
+  polysawedoff01attack: 'poly-sawed-off-01',
+  polyrevolver02attack: 'poly-revolver-02',
+  polyshotgun02attack: 'poly-shotgun-02',
+  polyshotgun03attack: 'poly-shotgun-03',
+  polysmg01attack: 'poly-smg-01',
   polyrobotlargegunattack: 'poly-robot-large-gun-01',
   polyrobotflyinggunattack: 'poly-robot-flying-gun-01',
   polybazooka01attack: 'poly-bazooka-01',

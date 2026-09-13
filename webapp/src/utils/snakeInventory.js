@@ -5,7 +5,7 @@ import {
 } from '../config/snakeInventoryConfig.js';
 import {
   resolveSnakeCaptureWeaponId,
-  SNAKE_CAPTURE_WEAPON_OPTIONS
+  SNAKE_PLAYABLE_CAPTURE_WEAPON_OPTIONS
 } from '../config/snakeWeaponCatalog.js';
 
 const STORAGE_KEY = 'snakeInventoryByAccount';
@@ -42,7 +42,7 @@ const writeAllInventories = (payload) => {
 };
 
 const KNOWN_CAPTURE_WEAPON_IDS = new Set(
-  SNAKE_CAPTURE_WEAPON_OPTIONS.map((option) => resolveSnakeCaptureWeaponId(option.id)).filter(Boolean)
+  SNAKE_PLAYABLE_CAPTURE_WEAPON_OPTIONS.map((option) => resolveSnakeCaptureWeaponId(option.id)).filter(Boolean)
 );
 
 const normalizeInventoryValues = (key, values = []) => {
@@ -130,4 +130,3 @@ export const listOwnedSnakeOptions = (accountId) => {
 export const getDefaultSnakeLoadout = () => [...SNAKE_DEFAULT_LOADOUT];
 
 export const snakeAccountId = resolveAccountId;
-

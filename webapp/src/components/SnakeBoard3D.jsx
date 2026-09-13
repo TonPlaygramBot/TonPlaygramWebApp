@@ -1,10 +1,12 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import * as THREE from 'three';
+import { createSnakeFirearmAnimation } from '../utils/snakeFirearmAnimation';
+import { FIREARM_CAPTURE_ANIMATION_IDS } from '../utils/ludoFirearmPresentation';
 import { createSnakeCameraDirector } from '../utils/snakeCameraDirector';
 import { createRoyalDiceMotion, ROYAL_DICE_ROLL_MS, ROYAL_DICE_READ_MS } from '../utils/royalDiceMotion';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
-import { SNAKE_CAPTURE_WEAPON_OPTIONS } from '../config/snakeWeaponCatalog.js';
+import { SNAKE_CAPTURE_WEAPON_OPTIONS, SNAKE_SHARED_CAPTURE_WEAPON_OPTIONS } from '../config/snakeWeaponCatalog.js';
 import { DRACOLoader } from 'three/addons/loaders/DRACOLoader.js';
 import { KTX2Loader } from 'three/addons/loaders/KTX2Loader.js';
 import { RGBELoader } from 'three/addons/loaders/RGBELoader.js';
@@ -780,6 +782,17 @@ const SNAKE_CAPTURE_WEAPON_SFX_ID_MAP = Object.freeze({
   'slot-18-fps-gun-gltf': 'shotgunBlastAttack'
 });
 const resolveSnakeCaptureWeaponSfxId = (weaponType) => SNAKE_CAPTURE_WEAPON_SFX_ID_MAP[weaponType] || weaponType || 'missileJavelin';
+export function resolveSnakeFirearmAnimationId(value) {
+  const raw = typeof value === 'string' ? value.trim() : '';
+  if (FIREARM_CAPTURE_ANIMATION_IDS.has(raw)) return raw;
+  const mapped = SNAKE_CAPTURE_WEAPON_KIND_MAP[raw];
+  return FIREARM_CAPTURE_ANIMATION_IDS.has(mapped) ? mapped : null;
+}
+function findCaptureSeatWeapon(board, playerIndex, players) {
+  const seatIndex = players[playerIndex]?.seatIndex ?? playerIndex;
+  return board.weaponDisplayGroup?.userData?.byPlayer?.get(`seat-${seatIndex}`) ?? null;
+}
+
 const WEAPON_TABLE_PARKING_ROTATION_BY_POSE = Object.freeze({
   // Portrait screen: top/bottom player weapons lie flat left-to-right on the tabletop.
   horizontal: Object.freeze({ yaw: 0, preferAxis: 'x' }),
@@ -5089,7 +5102,7 @@ function updateCaptureExplosionRig(rig, elapsedSinceImpact) {
 
 
 const SNAKE_CAPTURE_WEAPON_OPTION_BY_ID = Object.freeze(
-  SNAKE_CAPTURE_WEAPON_OPTIONS.reduce((acc, option) => {
+  [...SNAKE_SHARED_CAPTURE_WEAPON_OPTIONS, ...SNAKE_CAPTURE_WEAPON_OPTIONS].reduce((acc, option) => {
     acc[option.id] = option;
     return acc;
   }, {})
@@ -5161,9 +5174,12 @@ function createPolySeatWeaponMesh(weaponType) {
 function createSeatWeaponMesh(weaponType = 'fighter', options = {}) {
   const parkingPose = options?.parkingPose === 'vertical' ? 'vertical' : 'horizontal';
   const rawWeaponType = typeof weaponType === 'string' ? weaponType.trim() : '';
-  const catalogOption = SNAKE_CAPTURE_WEAPON_OPTION_BY_ID[rawWeaponType] || null;
-  const catalogWeaponType = catalogOption ? rawWeaponType : null;
-  const normalizedWeaponType = catalogOption?.vehicleKind || normalizeSnakeCaptureWeaponKind(rawWeaponType || weaponType);
+  const firearmId = resolveSnakeFirearmAnimationId(rawWeaponType);
+  const catalogOption = SNAKE_CAPTURE_WEAPON_OPTION_BY_ID[rawWeaponType] || (firearmId
+    ? Object.values(SNAKE_CAPTURE_WEAPON_OPTION_BY_ID).find(option => resolveSnakeFirearmAnimationId(option.id) === firearmId)
+    : null);
+  const catalogWeaponType = catalogOption?.id || null;
+  const normalizedWeaponType = catalogOption?.vehicleKind || firearmId || normalizeSnakeCaptureWeaponKind(rawWeaponType || weaponType);
   const isVehicleWeapon = ['supportTruck', 'drone', 'ukrainianDrone', 'helicopter', 'fighter', 'javelin'].includes(
     normalizedWeaponType
   );
@@ -5188,6 +5204,7 @@ function createSeatWeaponMesh(weaponType = 'fighter', options = {}) {
         model.position.set(0, 0, 0);
         applyFlatTableWeaponParkingPose(model, parkingPose);
         holder.add(model);
+        holder.userData.firearmMuzzleReversed = ['slot-10-ak47-gltf', 'slot-11-krsv-gltf'].includes(catalogWeaponType);
       })
       .catch(() => {});
     return holder;
@@ -5383,6 +5400,8 @@ export default function SnakeBoard3D({
   const previousTurnRef = useRef(null);
   const headLookRef = useRef({ yaw: 0, pitch: 0 });
   const manualCameraActiveRef = useRef(false);
+  const soundEnabledRef = useRef(soundEnabled);
+  soundEnabledRef.current = soundEnabled;
   const currentTurnRef = useRef(currentTurn);
   const diceEventRef = useRef(diceEvent);
   const lastFrameTimeRef = useRef(0);
@@ -5635,6 +5654,7 @@ export default function SnakeBoard3D({
     arena.boardGroup.add(weaponDisplayGroup);
     boardRef.current = {
       ...board,
+      scene,
       boardLookTarget: arena.boardLookTarget,
       controls: arena.controls,
       seatAnchors: arena.seatAnchors ?? [],
@@ -5950,6 +5970,7 @@ export default function SnakeBoard3D({
           if (done) active.splice(i, 1);
         } catch (error) {
           console.warn('Snake animation error', error);
+          anim.dispose?.();
           active.splice(i, 1);
         }
       }
@@ -6098,6 +6119,8 @@ export default function SnakeBoard3D({
       seatCallbackRef.current?.([]);
       lastDiceAnchorRef.current = null;
       diceAnchorCallbackRef.current?.(null);
+      animationsRef.current.forEach(animation => animation?.dispose?.());
+      animationsRef.current.length = 0;
       boardRef.current?.cameraDirector?.cancel();
       boardRef.current = null;
       startCameraMinYRef.current = null;
@@ -6238,8 +6261,7 @@ export default function SnakeBoard3D({
     const goalWorld = new THREE.Vector3();
     const cameraRadius = TOKEN_HEIGHT * BOARD_SCALE * 1.2;
     board.startCameraShot?.({
-      id: cameraShotId, priority: 2, radius: cameraRadius,
-      minDistance: TILE_SIZE * BOARD_FOOTPRINT_SCALE * 7, elevation: 68,
+      id: cameraShotId, priority: 2,
       points: () => {
         token.getWorldPosition(tokenWorld);
         goalWorld.copy(endBase);
@@ -6363,8 +6385,6 @@ export default function SnakeBoard3D({
         const dieWorldPositions = active.map(() => new THREE.Vector3());
         board.startCameraShot?.({
           id: `dice:${diceEvent.id}`, priority: 1,
-          radius: DICE_SIZE * BOARD_FOOTPRINT_SCALE,
-          minDistance: DICE_SIZE * BOARD_FOOTPRINT_SCALE * 9, elevation: 56,
           until: performance.now() + ROYAL_DICE_ROLL_MS + ROYAL_DICE_READ_MS,
           points: () => active.map((die, index) => die.getWorldPosition(dieWorldPositions[index])),
           overview: () => active.flatMap((die, index) => [startPositions[index], basePositions[index]].map(point =>
@@ -6451,7 +6471,7 @@ export default function SnakeBoard3D({
     const playCaptureSfx = (stage, multiplier = 1) => {
       playLudoCaptureWeaponSfx(sfxWeaponId, stage, {
         volume: getGameVolume() * multiplier,
-        muted: !soundEnabled
+        muted: !soundEnabledRef.current
       });
     };
     const completeCaptureAnimation = () => {
@@ -6459,6 +6479,47 @@ export default function SnakeBoard3D({
       playCaptureSfx('loopStop');
       onCaptureAnimationComplete?.(captureEvent.id);
     };
+    const firearmId = resolveSnakeFirearmAnimationId(captureEvent.weaponType);
+    if (firearmId) {
+      const tokens = [...board.boardTokensGroup.children, ...board.reserveTokensGroup.children];
+      const attacker = tokens.find(token => token.userData?.playerIndex === captureEvent.attackerIndex);
+      if (!attacker) { completeCaptureAnimation(); return; }
+      const victims = tokens.filter(token => captureEvent.victimIndices?.includes(token.userData?.playerIndex));
+      const parkedWeapon = findCaptureSeatWeapon(board, captureEvent.attackerIndex, players);
+      const origin = (parkedWeapon || attacker).getWorldPosition(new THREE.Vector3());
+      const destination = board.boardTokensGroup.localToWorld(
+        (board.indexToPosition.get(captureEvent.targetCell) || board.serpentineIndexToXZ(captureEvent.targetCell)).clone()
+      );
+      const impact = destination.clone().add(new THREE.Vector3(0, TOKEN_HEIGHT * BOARD_SCALE * 0.6, 0));
+      const start = attacker.getWorldPosition(new THREE.Vector3());
+      const startedAt = performance.now();
+      const reducedMotion = window.matchMedia?.('(prefers-reduced-motion: reduce)').matches;
+      const motion = createSnakeFirearmAnimation({
+        scene: board.scene, weaponId: firearmId,
+        parkedWeapon, origin, target: impact, victims, startedAt, reducedMotion,
+        onShot: () => playCaptureSfx('shot'), onImpact: () => playCaptureSfx('impact')
+      });
+      attacker.userData.isSliding = true;
+      const shotId = `capture:${captureEvent.id}`;
+      board.startCameraShot?.({ id: shotId, priority: 3, points: () => [motion.focus], overview: motion.overview });
+      let completed = false;
+      const dispose = () => { motion.dispose(); attacker.userData.isSliding = false; };
+      animationsRef.current.push({
+        type: 'firearmCapture', dispose,
+        update: (now) => {
+          if (completed) return true;
+          if (!motion.update(now)) return false;
+          const advance = Math.min(1, (now - startedAt - motion.duration) / CAPTURE_TOKEN_ADVANCE_MS);
+          const position = start.clone().lerp(destination, easeInOut(advance));
+          if (!reducedMotion) position.y += Math.sin(advance * Math.PI) * TOKEN_HEIGHT * 1.2;
+          attacker.position.copy(attacker.parent.worldToLocal(position.clone()));
+          motion.focus.copy(position);
+          if (advance < 1) return false;
+          completed = true; dispose(); completeCaptureAnimation(); return true;
+        }
+      });
+      return;
+    }
     const vehicleKind = normalizeSnakeCaptureWeaponKind(captureEvent.weaponType || 'fighter');
     const vehicleMap = board.captureFx?.vehicles || {};
     const primaryVehicle = vehicleMap[vehicleKind] || vehicleMap.fighter || Object.values(vehicleMap)[0];
@@ -6480,9 +6541,7 @@ export default function SnakeBoard3D({
       (board.indexToPosition.get(captureEvent.targetCell) || board.serpentineIndexToXZ(captureEvent.targetCell)).clone()
     );
     const parkedHolder =
-      board.weaponDisplayGroup?.userData?.byPlayer?.get(captureEvent.attackerIndex) ||
-      board.weaponDisplayGroup?.userData?.byPlayer?.get(`seat-${captureEvent.attackerIndex}`) ||
-      null;
+      findCaptureSeatWeapon(board, captureEvent.attackerIndex, players);
     const parkedPos = parkedHolder ? parkedHolder.getWorldPosition(new THREE.Vector3()) : null;
     const launchOrigin = parkedPos || startPos;
     const launch = launchOrigin.clone().add(new THREE.Vector3(0, TOKEN_HEIGHT * 1.6, 0));
@@ -6496,9 +6555,7 @@ export default function SnakeBoard3D({
     const impactTop = impact.clone().add(new THREE.Vector3(0, CAPTURE_VERTICAL_STRIKE_LIFT, 0));
     const parkedTop = launch.clone().add(new THREE.Vector3(0, TOKEN_HEIGHT * 0.4, 0));
     const attackerHolder =
-      board.weaponDisplayGroup?.userData?.byPlayer?.get(captureEvent.attackerIndex) ||
-      board.weaponDisplayGroup?.userData?.byPlayer?.get(`seat-${captureEvent.attackerIndex}`) ||
-      null;
+      findCaptureSeatWeapon(board, captureEvent.attackerIndex, players);
     if (attackerHolder) attackerHolder.visible = false;
 
     attacker.position.copy(attacker.parent.worldToLocal(startPos.clone()));
@@ -6554,7 +6611,6 @@ export default function SnakeBoard3D({
     const advanceFocus = new THREE.Vector3();
     board.startCameraShot?.({
       id: `capture:${captureEvent.id}`, priority: 3,
-      radius: tokenHeight * 0.65, minDistance: tokenHeight * 7, elevation: 62,
       points: () => [captureFocus, impact, attacker.getWorldPosition(advanceFocus)],
       overview: () => [launch, centerStage, impactTop, impact, targetPos,
         centerStage.clone().add(new THREE.Vector3(0, TOKEN_HEIGHT * 4 * captureTuning.height, 0))]
