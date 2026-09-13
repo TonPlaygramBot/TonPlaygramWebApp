@@ -1,32 +1,26 @@
 import * as T from 'three';
 import type { Track } from './simulation.mjs';
-import { circuitSides } from './trackEdges.mjs';
-import { ROAD_SURFACE_Y, TYRE_EDGE_OFFSET } from './roadFeel.mjs';
+import { ROAD_SURFACE_Y } from './roadFeel.mjs';
+import { tyreBarrierLayout, type TyrePosition } from './tyreBarrierCore.mjs';
 
 /** Arc-length spacing prevents clumps at dense corner samples. Small shared
  * instance batches let the camera cull the rest of a long city circuit. */
-export function createTyreBarrierLayer(track: Track) {
+export function createTyreBarrierLayer(track: Track, buildingClearance?: (x:number,z:number)=>number) {
+  return createTyreBarrierMeshes(tyreBarrierLayout(track, buildingClearance).positions);
+}
+
+/** Also used by the portable preview with the exact validated placements. */
+export function createTyreBarrierMeshes(positions: TyrePosition[]) {
   const group = new T.Group(); group.name = 'Trackside tyre barriers';
-  const points = track.points.map(p => ({ ...p, width: (p.width ?? track.width) + TYRE_EDGE_OFFSET * 2 }));
-  const sides = circuitSides(points, track.width / 2 + TYRE_EDGE_OFFSET);
-  const geometry = new T.TorusGeometry(.43, .14, 4, 8);
+  const geometry = new T.TorusGeometry(.43, .14, 6, 12);
   const material = new T.MeshStandardMaterial({ roughness: .93, metalness: .02 });
   const red = new T.Color('#be302c'), white = new T.Color('#e8e2d6');
   const batches = new Map<string, { x:number; z:number; index:number }[]>();
-  for (const side of [sides.left, sides.right]) {
-    let remainder = 0, index = 0;
-    for (let i = 0; i < side.length; i++) {
-      const a = side[i], b = side[(i + 1) % side.length], length = Math.hypot(b.x - a.x, b.z - a.z);
-      if (length < 1e-6) continue;
-      let at = remainder;
-      for (; at < length; at += .94) {
-        const x = a.x + (b.x - a.x) * at / length, z = a.z + (b.z - a.z) * at / length;
-        const key = `${Math.floor(x / 64)},${Math.floor(z / 64)}`;
-        if (!batches.has(key)) batches.set(key, []);
-        batches.get(key)!.push({ x, z, index: index++ });
-      }
-      remainder = at - length;
-    }
+  for (const p of positions) {
+    const { x, z } = p;
+    const key = `${Math.floor(x / 64)},${Math.floor(z / 64)}`;
+    if (!batches.has(key)) batches.set(key, []);
+    batches.get(key)!.push(p);
   }
   const transform = new T.Object3D(); transform.rotation.x = Math.PI / 2;
   for (const batch of batches.values()) {

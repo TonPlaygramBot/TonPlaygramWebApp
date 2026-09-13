@@ -13,7 +13,10 @@ const names = [
   'Eagle Shifter',
   'Illyrian Drift',
   'Besa Endurance',
-  'Dajti Cross'
+  'Dajti Cross',
+  'Photon GT',
+  'Vortex R',
+  'Aegis XR'
 ];
 const ids = Object.keys(KART_ASSETS);
 const modes = ['Inspect', 'Drive', 'Reverse', 'Drift', 'Crash', 'Rollover'];
@@ -157,7 +160,7 @@ function Fleet() {
       controls.update();
       const mode = motion.current,
         speed = mode === 'Reverse' ? -5 : mode === 'Inspect' ? 0 : 15;
-      spin += (speed * dt) / 0.28;
+      spin += (speed * dt) / (model?.userData.wheelRadius || .235);
       if (model) {
         const body = model.getObjectByName('body')!;
         const roll = mode === 'Rollover' ? ((time % 3) / 3) * Math.PI * 2 : 0;

@@ -55,12 +55,13 @@ test('animated arms keep their lengths and both gloved hands on the steering rim
   }
  }
 });
-test('Blender full and mobile models contain wheel, aero, helmet and five harness pivots',()=>{
+test('full and mobile models contain steering, wheel, driver and harness pivots',()=>{
  const gltf=name=>{const b=readFileSync(new URL(`../webapp/public/assets/kart-royale/karts/${name}.glb`,import.meta.url));assert.equal(b.subarray(0,4).toString(),'glTF');return JSON.parse(b.subarray(20,20+b.readUInt32LE(12)).toString());};
  for(const suffix of ['','-lod']){
   for(const id of ['photon','vortex','aegis']){
    const g=gltf(id+suffix),names=new Set(g.nodes.map(n=>n.name));
-   for(const name of ['body','steering_wheel','aero_wing','steer_fl','steer_fr','wheel_fl','wheel_fr','wheel_rl','wheel_rr'])assert.ok(names.has(name),`${id}/${name}`);
+   for(const name of ['body','steering_wheel','driver_mount','steer_fl','steer_fr','wheel_fl','wheel_fr','wheel_rl','wheel_rr'])assert.ok(names.has(name),`${id}/${name}`);
+   if(id==='vortex')assert.ok(names.has('aero_wing'),'Vortex keeps its articulated low diffuser');
   }
   const names=new Set(gltf('race-driver'+suffix).nodes.map(n=>n.name));
   for(const name of ['helmet','torso','hand_l','hand_r','elbow_l','elbow_r','boot_l','boot_r','harness_shoulder_l','harness_shoulder_r','harness_lap_l','harness_lap_r','harness_crotch'])assert.ok(names.has(name),name);

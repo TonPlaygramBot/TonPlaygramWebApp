@@ -5,7 +5,7 @@ const clamp = (n, a, b) => Math.max(a, Math.min(b, n));
 const cache = new WeakMap();
 export const ROAD_SURFACE_Y = .115;
 export const TYRE_RADIUS = .57;
-export const TYRE_EDGE_OFFSET = .62;
+export const TYRE_EDGE_OFFSET = .90;
 
 /** Authored event humps, not claims about real Tirana road obstacles. The same
  * immutable profiles drive the visible mesh, every wheel and server physics. */

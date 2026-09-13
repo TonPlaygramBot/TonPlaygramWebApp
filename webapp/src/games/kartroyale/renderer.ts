@@ -28,10 +28,12 @@ import { TiranaScenery } from './tiranaScenery';
 import { Supporters } from './supporters';
 import { prepareHuman } from './supporterHuman';
 import { RaceEffects } from './raceEffects';
-import { circuitSides, segmentFrame } from './trackEdges.mjs';
+import { circuitSides } from './trackEdges.mjs';
 import { createBoostPadLayer } from './BoostPadLayer';
 import { createRoadBumpLayer } from './RoadBumpLayer';
 import { createTyreBarrierLayer } from './TyreBarrierLayer';
+import { buildingClearance } from './raceCourse.mjs';
+import { createKerbLayer } from './KerbLayer';
 export type CameraMode = 'driver' | 'chase';
 export type Quality = 'auto' | 'high' | 'performance';
 export interface Frame {
@@ -623,56 +625,8 @@ export class KartRenderer {
     const surface = new T.Mesh(geo, new T.MeshStandardMaterial({color:'#69737a',map:this.roadMaps[0],normalMap:this.roadMaps[1],roughnessMap:this.roadMaps[2],roughness:.92}));
     surface.name = 'Rounded closed-event race surface'; surface.receiveShadow = true;
     this.world.add(surface);
-    const edges = Array.from({ length: sampleCount }, (_, i) => {
-        const p = track.points[i],
-          q = track.points[(i + 1) % sampleCount],
-          centerEdge = segmentFrame(p, q, track.width / 2),
-          sideEdges = [-1, 1].map((side) => {
-            const key = side < 0 ? 'left' : 'right';
-            return segmentFrame(sides[key][i], sides[key][(i + 1) % sampleCount], 0);
-          });
-        return {
-          p,
-          edge: centerEdge,
-          sideEdges,
-        };
-      }),
-      m = new T.Object3D(),
-      curb = new T.InstancedMesh(
-        new T.BoxGeometry(0.55, 0.14, 1),
-        new T.MeshStandardMaterial({ roughness: 0.7 }),
-        sampleCount * 2
-      ),
-      marks = new T.InstancedMesh(
-        new T.BoxGeometry(0.12, 0.01, 1.8),
-        new T.MeshBasicMaterial({ color: '#e2e7d8' }),
-        Math.ceil(sampleCount / 4)
-      );
-    for (let i = 0; i < sampleCount; i++) {
-      const { p, edge, sideEdges } = edges[i];
-      [-1, 1].forEach((side, s) => {
-        const sideEdge = sideEdges[s],
-          curbPoint = sideEdge.side(side, -0.1);
-        m.position.set(curbPoint.x, 0.15, curbPoint.z);
-        m.rotation.set(0, sideEdge.yaw, 0);
-        m.scale.set(1, 1, sideEdge.length + 0.12);
-        m.updateMatrix();
-        curb.setMatrixAt(i * 2 + s, m.matrix);
-        curb.setColorAt(
-          i * 2 + s,
-          new T.Color(i % 6 < 3 ? track.accent : '#e7e6d9')
-        );
-      });
-      m.scale.set(1, 1, 1);
-      if (i % 4 === 0) {
-        m.position.set(p.x, 0.061, p.z);
-        m.rotation.set(0, p.yaw, 0);
-        m.updateMatrix();
-        marks.setMatrixAt(i / 4, m.matrix);
-      }
-    }
-    marks.geometry.dispose(); (marks.material as T.Material).dispose();
-    this.world.add(curb, createTyreBarrierLayer(track), createBoostPadLayer(track), createRoadBumpLayer(track));
+    const m = new T.Object3D();
+    this.world.add(createKerbLayer(track), createTyreBarrierLayer(track, buildingClearance), createBoostPadLayer(track), createRoadBumpLayer(track));
     const start = track.points[0],
       startWidth = start.width ?? track.width,
       checker = new T.InstancedMesh(
