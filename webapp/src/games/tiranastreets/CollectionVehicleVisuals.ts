@@ -12,7 +12,7 @@ export type CollectionCar = {
   id:string; collectionVehicle?:string; x:number; z:number; heading:number;
   driver?:string|null; npcDriver?:boolean;
 };
-type Actor = {root:T.Group; driver:T.Group; assetId:string};
+type Actor = {root:T.Group; driver?:T.Group; assetId:string};
 type Source = {root:T.Group; used:number};
 type Options = {range?:number; maxVisible?:number};
 
@@ -42,7 +42,7 @@ export class CollectionVehicleVisuals {
     this.group.name='Tirana:original-ten-car-collection';
     this.group.userData.quality='Original GLB geometry and PBR maps; no LOD reduction';
   }
-  owns(car:CollectionCar){const a=collectionVehicleFor(car);return !!a&&!this.errors.has(a.id)&&!this.errors.has('driver');}
+  owns(car:CollectionCar){const a=collectionVehicleFor(car);return !!a&&!this.errors.has(a.id);}
   has(id:string){return this.actors.has(id);}
   getRoot(id:string){return this.actors.get(id)?.root;}
   get loadedCount(){return this.actors.size;}
@@ -99,14 +99,14 @@ export class CollectionVehicleVisuals {
       const asset=collectionVehicleFor(car)!,source=this.sources.get(asset.id);
       let actor=this.actors.get(car.id);
       if(actor&&actor.assetId!==asset.id){this.remove(car.id);actor=undefined;}
-      if(!source||!this.human)continue;
+      // A failed or slow occupant download must never hide the entire car.
+      if(!source)continue;
       source.used=this.frame;
       if(!actor){
         const root=new T.Group();root.name=car.id;
         root.userData={collectionVehicle:asset.id,sourceURL:asset.url,sha256:asset.sha256};
         root.add(clone(source.root));
-        const driver=createNpcVehicleDriver(this.human,asset,car.id);root.add(driver);
-        actor={root,driver,assetId:asset.id};this.actors.set(car.id,actor);this.group.add(root);
+        actor={root,assetId:asset.id};this.actors.set(car.id,actor);this.group.add(root);
         root.position.set(car.x,groundHeight(car.x,car.z)+.03,car.z);root.rotation.y=car.heading+Math.PI/2;
       }
       actor.root.visible=true;
@@ -116,7 +116,11 @@ export class CollectionVehicleVisuals {
       alignVehicle(actor.root,car.heading+Math.PI/2);
       // Waiting NPCs yield the seat when a player takes control. Player state is
       // authoritative; no NPC remains superimposed on a player or FPS camera.
-      actor.driver.visible=car.npcDriver!==false&&!car.driver;
+      if(!actor.driver&&this.human&&!this.errors.has('driver-rig')){
+        try { actor.driver=createNpcVehicleDriver(this.human,asset,car.id);actor.root.add(actor.driver); }
+        catch(error){this.errors.set('driver-rig',String(error));}
+      }
+      if(actor.driver)actor.driver.visible=car.npcDriver!==false&&!car.driver;
     }
     this.trim();this.pump();
     this.group.userData.loadedCars=this.actors.size;

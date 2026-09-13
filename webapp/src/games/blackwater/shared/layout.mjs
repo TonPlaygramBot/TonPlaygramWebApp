@@ -163,7 +163,7 @@ for (const [index, asset] of FORCE_VEHICLE_BOUNDS.entries()) {
 }
 const baseObstacles=[...cityObstacles,...fleet,...smallProps];
 const collectionProps=COLLECTION_PLACEMENTS.map(p=>({collectionVehicle:p.collectionVehicle,x:p.x-ORIGIN.x,z:p.z-ORIGIN.z,w:p.w,d:p.d,h:p.h,sx:0,sz:0,rot:p.heading+Math.PI}));
-export const props = [...fleet,...smallProps,...importedFleet,...collectionProps];
+export const props = [...fleet,...smallProps,...importedFleet.filter(p=>!p.racingAsset),...collectionProps];
 export const OBSTACLES = Object.freeze([...cityObstacles,...props]);
 // Operation maps are sectors of the one detailed, streamed Tirana world.
 const sector = (id,name,worldX,worldZ) => {const start=safeNear(worldX-ORIGIN.x,worldZ-ORIGIN.z,baseObstacles),extraction=safeNear(start.x+18,start.z+(id==='blloku'?42:-42),baseObstacles);return Object.freeze({id,name,start:Object.freeze(start),extraction:Object.freeze(extraction)});};
