@@ -1,4 +1,5 @@
 import * as THREE from 'three';
+import { parkSnakeWeapons } from '../../utils/snakeWeaponParking';
 import { createRestoredSeatedHumanActor } from '../../pages/Games/shared/seatedHumanActors';
 import { createSnakeHumanInteraction, worldPoint } from '../../utils/snakeHumanInteraction';
 import { SNAKE_DICE_READ_MS } from '../../utils/snakeDiceInteraction';
@@ -21,14 +22,21 @@ export function createSnakeInteractionScene(assets: Record<string, object>, seat
     const object = new THREE.Mesh(geometry, new THREE.MeshStandardMaterial({ color, roughness: 0.68 }));
     object.position.copy(position); scene.add(object); return object;
   };
-  mesh(new THREE.CylinderGeometry(D.tableRadius, D.tableRadius, 0.16, 64), '#395d50', new THREE.Vector3(0, D.tableHeight - 0.08, 0));
-  mesh(new THREE.CylinderGeometry(D.tableRadius + 0.06, D.tableRadius + 0.06, 0.13, 64), '#694b32', new THREE.Vector3(0, D.tableHeight - 0.17, 0));
+  const tableMesh = new THREE.ObjectLoader().parse(assets.table); scene.add(tableMesh);
+  const outline = assets.tableOutline as unknown as number[];
+  const table = { radius: D.tableRadius, surfaceY: D.tableHeight,
+    getOuterRadius(direction: THREE.Vector3) {
+      const index = ((Math.atan2(direction.z, direction.x) / (Math.PI * 2) + 1) % 1) * outline.length;
+      const lower = Math.floor(index), blend = index - lower;
+      return outline[lower] * (1 - blend) + outline[(lower + 1) % outline.length] * blend;
+    }
+  };
   const boardGroup = new THREE.Group(); scene.add(boardGroup);
   boardGroup.scale.set(D.footprintScale, D.boardScale, D.footprintScale);
   boardGroup.position.y = D.tableHeight - 0.01;
   const board = createSnakeBoardScene(boardGroup, new THREE.Vector3(0, D.tableHeight, 0), null);
   const chair = new THREE.Group(); scene.add(chair);
-  chair.position.copy(point(0, D.chairBaseHeight, D.chairRadius + (seat === 0 ? D.bottomChairExtra : 0))); chair.rotation.y = Math.PI + yaw;
+  chair.position.copy(point(0, D.chairBaseHeight, D.chairRadius + D.seatClearance)); chair.rotation.y = Math.PI + yaw;
   const seatMesh = new THREE.Mesh(new THREE.BoxGeometry(1.2, 0.2, 1.2), new THREE.MeshStandardMaterial({ color: '#5c4230' }));
   chair.add(seatMesh);
   const template = new THREE.ObjectLoader().parse(assets.avatar);
@@ -37,23 +45,31 @@ export function createSnakeInteractionScene(assets: Record<string, object>, seat
   const anchor = new THREE.Object3D(); anchor.position.y = D.avatarAnchorHeight; chair.add(anchor);
   const nextSeat = (seat + 3) % 4, nextYaw = nextSeat * Math.PI / 2;
   const nextChair = new THREE.Group(); scene.add(nextChair);
-  nextChair.position.set(0, D.chairBaseHeight, D.chairRadius + (nextSeat === 0 ? D.bottomChairExtra : 0)).applyAxisAngle(THREE.Object3D.DEFAULT_UP, nextYaw);
+  nextChair.position.set(0, D.chairBaseHeight, D.chairRadius + D.seatClearance).applyAxisAngle(THREE.Object3D.DEFAULT_UP, nextYaw);
   nextChair.rotation.y = Math.PI + nextYaw;
   const receiver = createSnakeHumanInteraction(createRestoredSeatedHumanActor(template, nextChair, { targetHeight: 1.13, seatHeight: D.seatHeight })!.actor)!;
   const nextAnchor = new THREE.Object3D(); nextAnchor.position.y = D.avatarAnchorHeight; nextChair.add(nextAnchor);
   const anchors = []; anchors[seat] = anchor; anchors[nextSeat] = nextAnchor;
-  const nextLayout = computeDiceThrowLayout({ ...board, seatAnchors: anchors, getSeatHuman: () => receiver }, nextSeat, 1);
-  const layout = computeDiceThrowLayout({ ...board, seatAnchors: anchors, getSeatHuman: () => human }, seat, 1);
+  const nextLayout = computeDiceThrowLayout({ ...board, tableInfo: table, seatAnchors: anchors, getSeatHuman: () => receiver }, nextSeat, 1);
+  const layout = computeDiceThrowLayout({ ...board, tableInfo: table, seatAnchors: anchors, getSeatHuman: () => human }, seat, 1);
   const die = board.diceSet[0]; die.position.copy(layout.basePositions[0]);
   const dieRest = die.position.clone();
-  const weapon = prepareSnakeFirearm(new THREE.ObjectLoader().parse(assets[weaponId]), weaponId,
-    human.unit * snakeWeaponProfile(weaponId).lengthInArms);
-  weapon.rotation.x = Math.PI / 2; weapon.rotation.y = yaw;
-  weapon.position.copy(point(-0.65, 0.92, 2.05)); scene.add(weapon);
+  const allAnchors = Array.from({ length: 4 }, (_, i) => {
+    const a = new THREE.Object3D(); a.position.set(0, 1, D.chairRadius).applyAxisAngle(THREE.Object3D.DEFAULT_UP, i * Math.PI / 2); scene.add(a); return a;
+  });
+  const parkedWeapons = allAnchors.map((_, i) => {
+    const holder = new THREE.Group(); holder.userData.seatIndex = i; scene.add(holder);
+    const visual = prepareSnakeFirearm(new THREE.ObjectLoader().parse(assets[weaponId]), weaponId,
+      human.unit * snakeWeaponProfile(weaponId).lengthInArms);
+    visual.rotation.x = Math.PI / 2; holder.add(visual); return holder;
+  });
+  const parking = parkSnakeWeapons({ holders: parkedWeapons, anchors: allAnchors, center: new THREE.Vector3(), table,
+    obstacles: [board.platformGroup], diceZones: allAnchors.map((_, i) => board.root.localToWorld(computeDiceThrowLayout({ ...board, seatAnchors: allAnchors, tableInfo: table }, i, 1).basePositions[0].clone())) });
+  const weapon = parkedWeapons[seat];
   const token = mesh(new THREE.CylinderGeometry(0.07, 0.12, 0.25, 20), '#efb947', point(-0.35, 0.94, 0.5));
   const target = worldPoint(token);
   let motion: { update: (now: number) => boolean; dispose: () => void; duration?: number } | null = null;
-  const visibility = () => createSnakeDiceVisibility(camera, [die], [human.actor, receiver.actor, weapon]);
+  const visibility = () => createSnakeDiceVisibility(camera, [die], [human.actor, receiver.actor, ...parkedWeapons]);
   let sightline: ReturnType<typeof visibility> | null = null;
   let kind = 'dice', secondThrow = false;
   const secondStart = SNAKE_DICE_PRESENTATION_MS + SNAKE_DICE_READ_MS;
@@ -72,7 +88,13 @@ export function createSnakeInteractionScene(assets: Record<string, object>, seat
     motion.update(0);
     return duration();
   };
-  return { scene, camera, human, receiver, die, weapon, token, start, duration,
+  const showTable = () => {
+    motion?.dispose(); motion = null; sightline?.dispose(); sightline = null; human.reset(); receiver.reset(); nextChair.visible = true;
+    camera.position.set(4.2, 4.8, 5.4); camera.fov = 48;
+    camera.lookAt(0, D.tableHeight, 0); camera.updateProjectionMatrix();
+  };
+  showTable();
+  return { scene, camera, human, receiver, die, weapon, token, parking, parkedWeapons, table, showTable, start, duration,
     update(time: number) {
       if (kind === 'dice' && time >= secondStart && !secondThrow) {
         motion?.update(SNAKE_DICE_PRESENTATION_MS); motion?.dispose();

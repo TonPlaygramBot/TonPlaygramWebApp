@@ -33,8 +33,19 @@ export function createSnakeHumanInteraction(actor: THREE.Object3D) {
   const spine = find('spine', 'spine1');
   const hips = find('hips', 'pelvis');
   const legs = ['right', 'left'].map(side => ({
-    upper: find(`${side}upleg`, `${side}thigh`), lower: find(`${side}leg`, `${side}calf`), foot: find(`${side}foot`)
+    side, upper: find(`${side}upleg`, `${side}thigh`), lower: find(`${side}leg`, `${side}calf`), foot: find(`${side}foot`)
   })).filter(leg => leg.upper && leg.lower && leg.foot);
+  // The short Snake table sits below the hip line. A relaxed outward knee
+  // angle keeps the sloping thighs beside its edge instead of inside the slab.
+  // Yaw the complete leg chain: bone lengths and planted foot heights stay fixed.
+  if (!actor.userData.snakeTableLegClearance) {
+    legs.forEach(leg => {
+      const yaw = THREE.MathUtils.degToRad(leg.side === 'right' ? -55 : 55);
+      worldQuaternion(leg.upper!, Q().setFromAxisAngle(V(0, 1, 0), yaw).multiply(leg.upper!.getWorldQuaternion(Q())));
+      rest.get(leg.upper!)!.quaternion.copy(leg.upper!.quaternion);
+    });
+    actor.userData.snakeTableLegClearance = true;
+  }
   const arms = Object.fromEntries((['right', 'left'] as Side[]).map(side => {
     const hand = find(`${side}hand`);
     const upper = find(`${side}arm`, `${side}upperarm`);

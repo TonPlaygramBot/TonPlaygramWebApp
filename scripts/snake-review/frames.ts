@@ -30,6 +30,22 @@ async function save(name,review) {
 for(const id of ['polyAssaultRifle01Attack','polyPistol01Attack','polyShotgun01Attack']) {
  const review=createSnakeInteractionScene(assets,0,id);
  await save(id+'-idle',review);
+ if(id==='polyAssaultRifle01Attack') {
+  for (const human of [review.human, review.receiver]) {
+   const intersections=[];
+   human.actor.traverse(o=>{
+    if(!o.isSkinnedMesh)return; o.skeleton.update();
+    for(let i=0;i<o.geometry.attributes.position.count;i++) {
+     const p=o.getVertexPosition(i,new THREE.Vector3()).applyMatrix4(o.matrixWorld);
+     if(p.y<review.table.surfaceY-0.23||p.y>review.table.surfaceY)continue;
+     const radius=Math.hypot(p.x,p.z),limit=review.table.getOuterRadius(p.clone().setY(0).normalize());
+     if(radius<limit)intersections.push({mesh:o.name,point:p.toArray()});
+    }
+   });
+   if (intersections.length) throw new Error('Table intersects character: '+JSON.stringify(intersections));
+   console.log('Table/character clearance verified');
+  }
+ }
  review.start('dice');review.update(630);await save(id+'-pickup',review);
  const dieGap=worldPoint(review.human.arms.right.palm).distanceTo(worldPoint(review.die));
  if(dieGap>0.003)throw new Error('Die contact gap: '+dieGap);
@@ -57,8 +73,9 @@ for (const seat of [0,1,2,3]) {
  const meshes=[]; review.scene.traverse(o=>{ if(!o.isMesh)return;for(let p=o;p;p=p.parent)if(!p.visible)return;if(o.isSkinnedMesh)o.computeBoundingSphere();meshes.push(o); });
  const target=worldPoint(review.die); const direction=target.clone().sub(state.position);
  const ray=new THREE.Raycaster(state.position,direction.clone().normalize(),0,direction.length()-0.04);
- const blockers=ray.intersectObjects(meshes,false).filter(h=>{for(let p=h.object;p;p=p.parent)if(p===review.die)return false;const m=Array.isArray(h.object.material)?h.object.material[0]:h.object.material;return m.opacity>0.15;}).map(h=>({name:h.object.name,distance:h.distance})).slice(0,2);
+ const blockers=ray.intersectObjects(meshes,false).filter(h=>{for(let p=h.object;p;p=p.parent)if(p===review.die)return false;const m=Array.isArray(h.object.material)?h.object.material[0]:h.object.material;return m.opacity>0.15;}).map(h=>({name:h.object.name,parent:h.object.parent?.name,geometry:h.object.geometry?.type,position:worldPoint(h.object).toArray(),distance:h.distance})).slice(0,2);
+ await save('result-seat-'+seat,review);
  if(blockers.length)throw new Error('Opaque result obstruction at seat '+seat+': '+JSON.stringify(blockers));
  console.log('Portrait result visibility',seat,'clear');
- await save('result-seat-'+seat,review);review.dispose();
+ review.dispose();
 }
