@@ -4186,7 +4186,8 @@ function createAiUniqueLoadout(activePlayerCount, appearance = DEFAULT_APPEARANC
   const totalPlayers = Math.max(1, Number(activePlayerCount) || 1);
   const byPlayer = Array.from({ length: totalPlayers }, () => ({
     tokenPieceIndex: 0,
-    captureAnimationIndex: 0
+    captureAnimationIndex: 0,
+    humanCharacterIndex: 0
   }));
   const aiIndexes = Array.from({ length: Math.max(0, totalPlayers - 1) }, (_, idx) => idx + 1);
   if (!aiIndexes.length) return byPlayer;
@@ -4205,16 +4206,24 @@ function createAiUniqueLoadout(activePlayerCount, appearance = DEFAULT_APPEARANC
     0,
     Math.min(CAPTURE_ANIMATION_OPTIONS.length - 1, Number(appearance?.captureAnimation) || 0)
   );
+  const playerHumanIndex = Math.max(
+    0,
+    Math.min(HUMAN_CHARACTER_OPTIONS.length - 1, Number(appearance?.humanCharacter) || 0)
+  );
   const piecePool = shuffle(
     Array.from({ length: TOKEN_PIECE_OPTIONS.length }, (_, idx) => idx).filter((idx) => idx !== playerTokenPieceIndex)
   );
   const capturePool = shuffle(
     Array.from({ length: CAPTURE_ANIMATION_OPTIONS.length }, (_, idx) => idx).filter((idx) => idx !== playerCaptureIndex)
   );
+  const humanPool = shuffle(
+    Array.from({ length: HUMAN_CHARACTER_OPTIONS.length }, (_, idx) => idx).filter((idx) => idx !== playerHumanIndex)
+  );
   aiIndexes.forEach((playerIndex, aiIndex) => {
     byPlayer[playerIndex] = {
       tokenPieceIndex: piecePool[aiIndex % piecePool.length] ?? 0,
-      captureAnimationIndex: capturePool[aiIndex % capturePool.length] ?? 0
+      captureAnimationIndex: capturePool[aiIndex % capturePool.length] ?? 0,
+      humanCharacterIndex: humanPool[aiIndex % humanPool.length] ?? 0
     };
   });
   return byPlayer;
@@ -4241,7 +4250,8 @@ const DEFAULT_APPEARANCE = {
   tokenPalette: 0,
   tokenStyle: 0,
   tokenPiece: 0,
-  captureAnimation: 0
+  captureAnimation: 0,
+  humanCharacter: 0
 };
 
 const CUSTOMIZATION_SECTIONS = [
@@ -4253,7 +4263,8 @@ const CUSTOMIZATION_SECTIONS = [
   { key: 'tokenPalette', label: 'Token Palette', options: TOKEN_PALETTE_OPTIONS },
   { key: 'tokenStyle', label: 'Token Style', options: TOKEN_STYLE_OPTIONS },
   { key: 'tokenPiece', label: 'Token Piece', options: TOKEN_PIECE_OPTIONS },
-  { key: 'captureAnimation', label: 'Capture Animation', options: CAPTURE_ANIMATION_OPTIONS }
+  { key: 'captureAnimation', label: 'Capture Animation', options: CAPTURE_ANIMATION_OPTIONS },
+  { key: 'humanCharacter', label: 'Human Character', options: HUMAN_CHARACTER_OPTIONS }
 ];
 
 const FRAME_RATE_STORAGE_KEY = 'ludoFrameRate';
@@ -4334,7 +4345,8 @@ function normalizeAppearance(value = {}) {
     ['tokenPalette', TOKEN_PALETTE_OPTIONS.length],
     ['tokenStyle', TOKEN_STYLE_OPTIONS.length],
     ['tokenPiece', TOKEN_PIECE_OPTIONS.length],
-    ['captureAnimation', CAPTURE_ANIMATION_OPTIONS.length]
+    ['captureAnimation', CAPTURE_ANIMATION_OPTIONS.length],
+    ['humanCharacter', HUMAN_CHARACTER_OPTIONS.length]
   ];
   entries.forEach(([key, max]) => {
     const raw = Number(value?.[key]);
@@ -8094,7 +8106,8 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount, onlin
         tokenPalette: TOKEN_PALETTE_OPTIONS,
         tokenStyle: TOKEN_STYLE_OPTIONS,
         tokenPiece: TOKEN_PIECE_OPTIONS,
-        captureAnimation: CAPTURE_ANIMATION_OPTIONS
+        captureAnimation: CAPTURE_ANIMATION_OPTIONS,
+        humanCharacter: HUMAN_CHARACTER_OPTIONS
       };
       let changed = false;
       const next = { ...normalized };
@@ -9817,6 +9830,11 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount, onlin
       return TOKEN_PIECE_OPTIONS[aiTokenPieceIndex] ?? TOKEN_PIECE_OPTIONS[0];
     });
     const previousAppearance = appearanceRef.current || DEFAULT_APPEARANCE;
+    if (previousAppearance.humanCharacter !== safe.humanCharacter) {
+      seatedHumanActorsRef.current
+        .find((entry) => entry.playerIndex === 0)
+        ?.requestCharacter?.(HUMAN_CHARACTER_OPTIONS[safe.humanCharacter]);
+    }
     const previousColors = resolvePlayerColors(previousAppearance);
     const nextColors = resolvePlayerColors(safe);
     const paletteChanged = !areColorArraysEqual(previousColors, nextColors);
