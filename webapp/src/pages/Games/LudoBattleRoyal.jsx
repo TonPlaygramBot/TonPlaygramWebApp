@@ -3957,6 +3957,8 @@ const CHAIR_MODEL_URLS = [
 ];
 const SEATED_HUMAN_MODEL_URL = 'https://threejs.org/examples/models/gltf/readyplayer.me.glb';
 const SEATED_HUMAN_BASE_HEIGHT = 1.74;
+// Preserve the original actor normalization independently from the larger portrait presentation scale.
+const SEATED_HUMAN_ACTOR_TARGET_HEIGHT = SEATED_HUMAN_BASE_HEIGHT * 0.65;
 const SEATED_HUMAN_TARGET_HEIGHT = BACK_HEIGHT * 2.42;
 // Slightly upscale seated humans so they read better on portrait/mobile gameplay.
 const SEATED_HUMAN_VISUAL_SCALE_MULTIPLIER = 4.2;
@@ -10350,7 +10352,7 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount, onlin
         const install = (template) => {
           const actor = cloneSkeleton(template);
           const height = new THREE.Box3().setFromObject(actor).getSize(new THREE.Vector3()).y;
-          actor.scale.multiplyScalar((1.74 * 0.65) / Math.max(height, 0.01));
+          actor.scale.multiplyScalar(SEATED_HUMAN_ACTOR_TARGET_HEIGHT / Math.max(height, 0.01));
           chair.group.add(actor);
           const rig = saveBoneRig(actor);
           if (!rig.rightHand || !rig.leftHand || !rig.hips) {
