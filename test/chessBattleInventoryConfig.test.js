@@ -108,4 +108,15 @@ describe('chess battle inventory config', () => {
       ].sort()
     );
   });
+
+  test('selects the AI human without reading loader-private failure state', async () => {
+    const source = await readFile('webapp/src/pages/Games/ChessBattleRoyal.jsx', 'utf8');
+    const picker = source.match(
+      /function pickRandomAiHumanCharacterOption[\s\S]*?\n}\n/
+    )?.[0];
+
+    expect(picker).toBeTruthy();
+    expect(picker).not.toContain('FAILED_HUMAN_CHARACTER_IDS');
+    expect(picker).toContain('option.id !== playerId');
+  });
 });
