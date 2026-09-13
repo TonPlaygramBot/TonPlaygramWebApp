@@ -1,14 +1,6 @@
 import fs from 'node:fs';
-import vm from 'node:vm';
+import { saveBoneRig, applySeatedBoardPose } from '../webapp/src/games/chess/seatedHumanRig.ts';
 import * as THREE from '../webapp/node_modules/three/build/three.module.js';
-import {
-  calibrateHandRig,
-  applyHandGrip
-} from '../webapp/src/games/chess/anatomicalHand.ts';
-import {
-  normalizeRigBoneName,
-  rotateJointToTarget
-} from '../webapp/src/games/chess/physicalPieceMove.ts';
 export function loadRig(modelRoot = null) {
   const bytes = fs.readFileSync(
     new URL(
@@ -34,42 +26,7 @@ export function loadRig(modelRoot = null) {
   if (!modelRoot)
     json.scenes[json.scene || 0].nodes.forEach((i) => root.add(nodes[i]));
   root.updateMatrixWorld(true);
-  const source = fs.readFileSync(
-    new URL('../webapp/src/pages/Games/ChessBattleRoyal.jsx', import.meta.url),
-    'utf8'
-  );
-  const functions = source.slice(
-    source.indexOf('function normalizeBoneName('),
-    source.indexOf('function createSeatedHumanFallbackTexture(')
-  );
-  const seated = source.slice(
-    source.indexOf('function applySeatedHumanPose('),
-    source.indexOf('const seatedHumanTemplatePromiseById')
-  );
-  const context = vm.createContext({
-    root,
-    normalizeRigBoneName,
-    calibrateHandRig,
-    applyHandGrip,
-    THREE,
-    rotateJointToTarget,
-    clamp: THREE.MathUtils.clamp,
-    clamp01: (v, fallback = 0) =>
-      Number.isFinite(v) ? THREE.MathUtils.clamp(v, 0, 1) : fallback,
-    SEATED_HUMAN_REACH_FORWARD_GAIN: Number(
-      source.match(/const SEATED_HUMAN_REACH_FORWARD_GAIN = ([\d.]+)/)[1]
-    ),
-    SEATED_HUMAN_REACH_SIDE_GAIN: Number(
-      source.match(/const SEATED_HUMAN_REACH_SIDE_GAIN = ([\d.]+)/)[1]
-    ),
-    performance: { now: () => 0 },
-    CHESS_FIREARM_HOLD_PROFILE_BY_TYPE: { default: {} }
-  });
-  const rig = vm.runInContext(
-    functions + seated + '\nsaveBoneRig(root)',
-    context
-  );
-  const pose = (mode, intensity, grip, motion) =>
-    context.applySeatedHumanPose(rig, mode, intensity, grip, motion);
+  const rig = saveBoneRig(root);
+  const pose = (mode, intensity, grip, motion) => applySeatedBoardPose(rig, mode, intensity, grip, motion);
   return { root, rig, pose };
 }
