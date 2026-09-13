@@ -44,6 +44,10 @@ import { refreshSocketAuthIdentity, socket } from '../../utils/socket.js';
 import { addTransaction, getAccountBalance } from '../../utils/api.js';
 import { getTelegramId } from '../../utils/telegram.js';
 import { orderTexasHoldemStateForNetwork, orderTexasHoldemStateForViewer } from '../../utils/texasHoldemOnlineState.js';
+import {
+  createRestoredSeatedHumanActor,
+  loadSeatedHumanTemplate
+} from './shared/seatedHumanActors.js';
 
 import {
   createDeck,
@@ -4783,6 +4787,23 @@ function TexasHoldemArena({ search }) {
           }
         }
       });
+
+      try {
+        const humanTemplate = await loadSeatedHumanTemplate({
+          renderer,
+          targetHeight: 1.13,
+          createLoader: createConfiguredGLTFLoader
+        });
+        seatGroups.forEach((seat) => {
+          const restoredHuman = createRestoredSeatedHumanActor(humanTemplate, seat.group, {
+            targetHeight: 1.13,
+            seatHeight: SEAT_THICKNESS * 0.65
+          });
+          if (restoredHuman) seat.humanActor = restoredHuman;
+        });
+      } catch (error) {
+        console.warn('Unable to restore Texas Hold’em seated humans', error);
+      }
 
       const opponents = initialPlayers.filter((player) => !player.isHuman);
       const aiSeats = seatGroups.filter((seat) => !seat.isHuman);

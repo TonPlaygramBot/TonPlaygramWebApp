@@ -10315,8 +10315,70 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount, onlin
       arenaGroup.add(group);
       chairs.push({ group, anchor: avatarAnchor, supportsArmrest: chairSupportsArmrest });
     }
-    // Human spectators are intentionally omitted to keep the Ludo arena lightweight.
     seatedHumanActorsRef.current = [];
+    try {
+      const defaultTemplate = await loadSeatedHumanTemplate(renderer, HUMAN_CHARACTER_OPTIONS[0]);
+      if (cancelled) return;
+      for (let playerIndex = 0; playerIndex < chairs.length; playerIndex += 1) {
+        const chair = chairs[playerIndex];
+        const entry = {
+          playerIndex,
+          actor: null,
+          rig: null,
+          propMotion: null,
+          characterRequest: 0,
+          chairSupportsArmrest: chair.supportsArmrest !== false
+        };
+        const install = (template) => {
+          const actor = cloneSkeleton(template);
+          const height = new THREE.Box3().setFromObject(actor).getSize(new THREE.Vector3()).y;
+          actor.scale.multiplyScalar((1.74 * 0.65) / Math.max(height, 0.01));
+          chair.group.add(actor);
+          const rig = saveBoneRig(actor);
+          if (!rig.rightHand || !rig.leftHand || !rig.hips) {
+            actor.removeFromParent();
+            return;
+          }
+          applySeatedHumanPose(rig, 'idle', 1, 0, {}, {}, chair.supportsArmrest !== false);
+          actor.updateMatrixWorld(true);
+          const seatPoint = chair.group.localToWorld(new THREE.Vector3(0, SEAT_THICKNESS * 0.65, 0));
+          const hipsWorld = rig.hips.getWorldPosition(new THREE.Vector3());
+          const actorWorld = actor.getWorldPosition(new THREE.Vector3()).add(seatPoint.sub(hipsWorld));
+          actor.position.copy(chair.group.worldToLocal(actorWorld));
+          actor.updateMatrixWorld(true);
+          entry.actor?.removeFromParent();
+          Object.assign(entry, { actor, rig, actionHelpers: createSeatedHumanActionHelpers(actor, rig) });
+        };
+        install(defaultTemplate);
+        if (!entry.actor) continue;
+        entry.requestCharacter = (option) => {
+          const request = ++entry.characterRequest;
+          const promise = !option || option.id === 'rpm-current'
+            ? Promise.resolve(defaultTemplate)
+            : loadSeatedHumanTemplate(renderer, option);
+          void promise
+            .then((template) => {
+              const whenIdle = () => {
+                if (cancelled || request !== entry.characterRequest) return;
+                if (entry.propMotion || diceRef.current?.userData?.isRolling || stateRef.current?.animation) {
+                  window.setTimeout(whenIdle, 250);
+                  return;
+                }
+                install(template);
+              };
+              whenIdle();
+            })
+            .catch((error) => console.warn('Optional Ludo character could not load; keeping the original', option?.id, error));
+        };
+        seatedHumanActorsRef.current.push(entry);
+        const humanIndex = playerIndex > 0
+          ? aiLoadoutByPlayer[playerIndex]?.humanCharacterIndex ?? 0
+          : appearanceRef.current?.humanCharacter ?? 0;
+        if (humanIndex) entry.requestCharacter(HUMAN_CHARACTER_OPTIONS[humanIndex]);
+      }
+    } catch (error) {
+      console.warn('Unable to attach seated Ludo humans', error);
+    }
     controls.minDistance = CAM.minR;
     controls.maxDistance = CAM.maxR * CAMERA_ZOOM_MAX_FACTOR;
     cameraSeatLockPositionRef.current = camera.position.clone();
