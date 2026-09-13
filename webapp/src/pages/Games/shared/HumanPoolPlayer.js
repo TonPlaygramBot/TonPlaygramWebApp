@@ -49,12 +49,12 @@ export class HumanPoolPlayer {
 
 export function createHumanPoolPlayer(scene, opts = {}) {
   return createHumanRig(scene, {
+    ...opts,
     cueHands: {
       bridgeStyle: 'open',
       gripStyle: 'relaxed',
       ...(opts.cueHands || {})
-    },
-    ...opts
+    }
   });
 }
 
