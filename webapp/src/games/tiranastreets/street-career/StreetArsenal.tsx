@@ -5,6 +5,7 @@ import {wantedStars} from '../shared/cityLife.mjs';
 import {WEAPON_STORE_CATALOG} from '../weaponStoreCatalog.mjs';
 import {loadWeaponStoreAccount,purchaseWeapon,type WeaponStoreAccount} from '../weaponStoreApi';
 import type {State,Player} from '../shared/engine.mjs';
+import {UPLOADED_WEAPONS} from '../shared/uploadedWeapons.mjs';
 
 export function StreetArsenal({player:p,state,onAction,onOwned}:{player:Player;state:State;onAction:(a:string)=>void;onOwned:(ids:string[])=>void}) {
  const [filter,setFilter]=useState('all'),[account,setAccount]=useState<WeaponStoreAccount|null>(null),[message,setMessage]=useState('Loading your TPG account…'),[busy,setBusy]=useState('');
@@ -28,7 +29,7 @@ export function StreetArsenal({player:p,state,onAction,onOwned}:{player:Player;s
   <label>Category <select value={filter} onChange={e=>setFilter(e.target.value)}>{['all',...new Set(WEAPONS.map(w=>w.category))].map(c=><option key={c} value={c}>{c}</option>)}</select></label>
   <div className="tsc-chapters">{WEAPONS.filter(w=>w.id!=='fpsGunAttack'&&(p.inventory[w.id]||catalog.has(w.id))&&(filter==='all'||w.category===filter)).map(w=>{
    const own=p.inventory[w.id],item=catalog.get(w.id),ammoPrice=Math.max(30,Math.round(w.price*.2));
-   return <div key={w.id} className="tsc-weapon"><strong>{w.label}</strong><p>{w.category}{own&&w.category!=='melee'?` · ${own.ammo} loaded / ${own.reserve} reserve`:''}</p>
+   return <div key={w.id} className="tsc-weapon">{UPLOADED_WEAPONS.some(item=>item.id===w.id)&&<img width="128" height="72" src={`/assets/tirana-streets/weapon-thumbnails/${w.id}.webp`} alt="" loading="lazy"/>}<strong>{w.label}</strong><p>{w.category}{own&&w.category!=='melee'?` · ${own.ammo} loaded / ${own.reserve} reserve`:''}</p>
     {own?<><button disabled={p.weapon===w.id||p.finished||p.failed} onClick={()=>onAction(`equip:${w.id}`)}>{p.weapon===w.id?'EQUIPPED':'EQUIP'}</button>{w.category!=='melee'&&<button disabled={!canBuy||p.cash<ammoPrice||own.reserve>=w.magazine*8} onClick={()=>onAction(`buy:${w.id}`)}>AMMO ${ammoPrice}</button>}</>:
      item&&<button disabled={!canBuy||!account||!!busy||account.balanceTPG<item.priceTPG} onClick={()=>void buy(item.id)}>{busy===item.id?'PROCESSING…':`BUY · ${item.priceTPG.toLocaleString()} TPG`}</button>}
    </div>;

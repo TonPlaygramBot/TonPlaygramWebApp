@@ -1,5 +1,6 @@
 import { CITY_POPULATION, initCityPopulation, nearestShop, dropWeapon, collectWeapon } from './cityPopulation.mjs';
 import { WEAPON_BY_ID, STARTER_WEAPON, ensureStarterWeapons, difficultyOf } from "./weapons.mjs";
+import {forceWeaponFor} from './uploadedWeapons.mjs';
 import { forceDispatch, FORCE_VEHICLE_BOUNDS } from "./albanianForces.mjs";
 import { deployment, tacticalGoal, pursuitGoal, vehicleBlocks, avoidVehicles } from "./forceTactics.mjs";
 
@@ -418,7 +419,7 @@ function dispatch(state, p, stars, env) {
     for(let seat=0;seat<plan.seats[vehicleIndex];seat++,member++) state.npcs.push({
       id:`${id}-officer-${seat}`,unit:id,squadId,seat,formationIndex:member,forceCharacter:plan.character,
       kind:stars===5?'soldier':'police',motion:'drive',anim:forceVehicle.includes('bike')?'ride':'drive',x:unit.x,z:unit.z,heading,speed:0,
-      health:stars===5?150:100,weapon:stars>=2?'ak47VolleyAttack':'polyPistol01Attack',
+      health:stars===5?150:100,weapon:forceWeaponFor(plan.character,member),
       nextShot:state.elapsed+3+member*.2,downUntil:0,panicUntil:0,
     });
   });

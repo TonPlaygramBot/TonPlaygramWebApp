@@ -1,13 +1,20 @@
 import * as T from 'three';
 import { SPAWN } from './shared/engine.mjs';
 import { WEAPON_STORE_CATALOG } from './weaponStoreCatalog.mjs';
+import {UPLOADED_WEAPONS} from './shared/uploadedWeapons.mjs';
+import {GLTFLoader} from 'three/examples/jsm/loaders/GLTFLoader.js';
+import {prepareWeaponScene,releaseBatchedSourceGeometry,disposeWeaponResources} from './weaponModelResources';
 
 /** Open-front, walk-in original interior. Shared geometry/materials keep the
- * entire room and seven displays inexpensive on mobile. */
+ * entire room inexpensive on mobile. Uploaded models load once near a shop,
+ * and all fifteen interiors share their geometry, PBR maps and materials. */
 export class WeaponStoreInterior {
   readonly group = new T.Group();
   private readonly geometries: T.BufferGeometry[] = [];
   private readonly materials: T.Material[] = [];
+  private displayModels = new Map<string,T.Group>();
+  private requested = false;
+  private dead = false;
   constructor() {
     this.group.name = 'TonPlaygramWeaponStore';
     this.group.position.set(SPAWN.x + 12, 0, SPAWN.z + 2);
@@ -25,11 +32,14 @@ export class WeaponStoreInterior {
     box(8,1.05,1.1,0,.55,-7.9,wood);
     box(11,.12,2.1,0,2.35,-9.9,dark);
     WEAPON_STORE_CATALOG.forEach((item,index) => {
-      const x = -4.7 + (index % 4) * 3.15, z = index < 4 ? -9.25 : -6.9;
+      const x = -4.7 + (index % 4) * 3.15, z = -9.25 + Math.floor(index/4)*2.35;
       box(2.35,.08,.75,x,1.7,z,lime);
       const weapon = box(item.category === 'sidearm' ? .75 : 1.65,.16,.18,x,2.05,z-.42,dark);
       weapon.rotation.z = index % 2 ? .08 : -.08;
       weapon.userData.weaponStoreItemId = item.id;
+      const display=new T.Group();display.name=`display:${item.weaponId}`;
+      display.position.copy(weapon.position);display.rotation.copy(weapon.rotation);
+      weapon.position.set(0,0,0);weapon.rotation.set(0,0,0);display.add(weapon);this.group.add(display);
     });
     box(4.8,.16,.8,0,3.72,-10.15,lime);
     this.group.add(new T.HemisphereLight(0xfff1cf,0x26352f,1.1));
@@ -40,5 +50,31 @@ export class WeaponStoreInterior {
     this.materials.push(material); return material;
   }
   setBatteryMode(enabled:boolean) { this.group.traverse(o => { if (o instanceof T.Light) o.visible = !enabled; }); }
-  dispose() { this.group.removeFromParent(); this.geometries.forEach(g=>g.dispose()); this.materials.forEach(m=>m.dispose()); }
+  updateDisplays(room:T.Group=this.group) {
+    if(this.dead)return;
+    if(!this.requested){this.requested=true;void this.loadDisplays();}
+    for(const [id,model] of this.displayModels){
+      const display=room.getObjectByName(`display:${id}`);
+      if(!display||display.userData.installed)continue;
+      display.clear();display.add(model.clone(true));display.userData.installed=true;
+    }
+  }
+  private async loadDisplays() {
+    const loader=new GLTFLoader();
+    for(const w of UPLOADED_WEAPONS){
+      if(this.dead)return;
+      try{
+        const gltf=await loader.loadAsync(w.modelUrl);
+        if(this.dead){disposeWeaponResources([gltf.scene]);return;}
+        const prepared=prepareWeaponScene(gltf.scene),frame=new T.Group();frame.add(prepared);
+        frame.rotation.y=Math.PI/2;frame.updateMatrixWorld(true);
+        const box=new T.Box3().setFromObject(frame),size=box.getSize(new T.Vector3());
+        const scale=(w.category==='sidearm'?.75:1.65)/Math.max(size.x,size.y,size.z);
+        frame.scale.setScalar(scale);frame.position.copy(box.getCenter(new T.Vector3()).multiplyScalar(-scale));
+        if(prepared!==gltf.scene)releaseBatchedSourceGeometry(gltf.scene);
+        this.displayModels.set(w.id,frame);
+      }catch(error){console.warn('Weapon store display unavailable',w.id,error);}
+    }
+  }
+  dispose() { this.dead=true;this.group.removeFromParent();disposeWeaponResources([...this.displayModels.values()]);this.displayModels.clear();this.geometries.forEach(g=>g.dispose()); this.materials.forEach(m=>m.dispose()); }
 }

@@ -1,4 +1,5 @@
 import {IMPORTED_BY_ID} from './shared/importedAssets.mjs';
+import {UPLOADED_WEAPONS} from './shared/uploadedWeapons.mjs';
 import * as THREE from "three";
 import { GLTFLoader } from "three/examples/jsm/loaders/GLTFLoader.js";
 import { clone as cloneSkeleton } from "three/examples/jsm/utils/SkeletonUtils.js";
@@ -39,11 +40,12 @@ export const WEAPON_MODEL_VARIANTS: Record<string, string> = {
 };
 export const weaponModelFile = (model: string) =>
   OPTIMIZED_WEAPON_MODELS[model] || (IMPORTED_BY_ID.has(model) ? model : WEAPON_MODEL_VARIANTS[model] || model);
-export const weaponModelUrl = (model:string) => IMPORTED_BY_ID.get(weaponModelFile(model))?.localUrl || BASE + weaponModelFile(model) + ".glb";
+export const weaponModelUrl = (model:string) => UPLOADED_WEAPONS.find(w=>w.model===model)?.modelUrl || IMPORTED_BY_ID.get(weaponModelFile(model))?.localUrl || BASE + weaponModelFile(model) + ".glb";
 export class LivingVisuals {
   group = new THREE.Group();
   private models = new Map<string, THREE.Group>();
   private loading = new Set<string>();
+  private aborts = new Map<string,AbortController>();
   private failed = new Set<string>();
   private holders = new Map<string, { group: THREE.Group; weapon: string }>();
   private tracers: THREE.LineSegments;
@@ -52,7 +54,7 @@ export class LivingVisuals {
   private dealerLabel: THREE.Sprite | null = null;
   private disposed = false;
   private stamp = 0;
-  constructor() {
+  constructor(includeShop = true) {
     const geometry = new THREE.BufferGeometry();
     geometry.setAttribute(
       "position",
@@ -82,6 +84,7 @@ export class LivingVisuals {
     this.marks.count = 0;
     this.marks.frustumCulled = false;
     this.group.add(this.marks);
+    if(!includeShop)return;
     const ring = new THREE.Mesh(
       new THREE.RingGeometry(2.6, 3, 48),
       new THREE.MeshBasicMaterial({
@@ -144,15 +147,20 @@ export class LivingVisuals {
     if (
       this.models.has(name) ||
       this.loading.has(name) ||
+      this.loading.size >= 2 ||
       this.failed.has(name) ||
       this.disposed
     )
       return;
     this.loading.add(name);
+    const abort=new AbortController(),timer=setTimeout(()=>abort.abort(),20000);
+    this.aborts.set(name,abort);
     let source: THREE.Group | undefined;
     let prepared: THREE.Group | undefined;
     try {
-      const gltf = await new GLTFLoader().loadAsync(weaponModelUrl(name));
+      const url=weaponModelUrl(name),response=await fetch(url,{signal:abort.signal});
+      if(!response.ok)throw Error(`Weapon HTTP ${response.status}`);
+      const gltf = await new GLTFLoader().parseAsync(await response.arrayBuffer(),url.slice(0,url.lastIndexOf('/')+1));
       source = gltf.scene;
       if (this.disposed) {
         this.disposeModel(source);
@@ -195,6 +203,7 @@ export class LivingVisuals {
         console.warn("Tirana weapon asset unavailable:", name, error);
       }
     } finally {
+      clearTimeout(timer);this.aborts.delete(name);
       this.loading.delete(name);
     }
   }
@@ -240,6 +249,7 @@ export class LivingVisuals {
       if (w) w.rotation.set(-0.85, 0, -0.45);
       if (left) left.rotation.set(-0.7, 0, 0.65);
     }
+    return holder.group.visible;
   }
   update(state: State, target: Player | undefined) {
     if (this.disposed) return;
@@ -296,6 +306,7 @@ export class LivingVisuals {
   dispose() {
     if (this.disposed) return;
     this.disposed = true;
+    for(const abort of this.aborts.values())abort.abort();this.aborts.clear();
     for (const id of [...this.holders.keys()]) this.forget(id);
     disposeWeaponResources([this.group, ...this.models.values()]);
     this.models.clear();

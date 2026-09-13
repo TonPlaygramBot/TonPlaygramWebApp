@@ -119,7 +119,7 @@ function makeGun(){
   muzzle.visible=false;const gunLight=new THREE.PointLight(0xffcc99,0,4);
   gun.add(muzzle,gunLight);return {gun,muzzle,gunLight};
 }
-export type ActorVisual={group:THREE.Group;body:THREE.Group;legs:THREE.Group[];arms:THREE.Group[];flash:THREE.Mesh;materials:THREE.Material[]};
+export type ActorVisual={group:THREE.Group;body:THREE.Group;gun?:THREE.Group;legs:THREE.Group[];arms:THREE.Group[];flash:THREE.Mesh;materials:THREE.Material[]};
 export function makeEnemy():ActorVisual{
   const group=new THREE.Group(),body=new THREE.Group();group.add(body);const cloth=material('#50574c'),vest=material('#303a34',.85),gear=material('#777966',.6),dark=material('#1d292a',.45),visor=new THREE.MeshStandardMaterial({color:'#392e28',emissive:'#f06d44',emissiveIntensity:1.1,metalness:.4,roughness:.3});
   function box(parent:THREE.Object3D,x:number,y:number,z:number,w:number,h:number,d:number,m:THREE.Material){const mesh=new THREE.Mesh(new THREE.BoxGeometry(w,h,d),m);mesh.position.set(x,y,z);parent.add(mesh);return mesh;}
@@ -130,7 +130,8 @@ export function makeEnemy():ActorVisual{
   const legs:THREE.Group[]=[],arms:THREE.Group[]=[];
   for(const side of [-1,1]){const leg=new THREE.Group();leg.position.set(side*.16,.85,0);capsule(leg,0,-.21,0,.12,.25,cloth);capsule(leg,0,-.57,.018,.10,.26,cloth);box(leg,0,-.72,-.07,.21,.14,.36,dark);box(leg,0,-.44,-.11,.18,.2,.10,gear);body.add(leg);legs.push(leg);
     const arm=new THREE.Group();arm.position.set(side*.31,1.4,0);capsule(arm,0,-.13,-.02,.10,.2,cloth);capsule(arm,side*-.03,-.3,-.20,.08,.24,cloth).rotation.x=1.0;box(arm,-side*.06,-.29,-.33,.12,.13,.14,gear);body.add(arm);arms.push(arm);}
-  box(group,.14,1.12,-.38,.09,.13,.52,dark);box(group,.14,1.10,-.70,.04,.04,.18,dark);box(group,.14,1.20,-.39,.08,.09,.10,gear);
+  const gun=new THREE.Group();group.add(gun);
+  box(gun,.14,1.12,-.38,.09,.13,.52,dark);box(gun,.14,1.10,-.70,.04,.04,.18,dark);box(gun,.14,1.20,-.39,.08,.09,.10,gear);
   const flash=new THREE.Mesh(new THREE.OctahedronGeometry(.12),new THREE.MeshBasicMaterial({color:'#ffd293',blending:THREE.AdditiveBlending}));flash.position.set(.14,1.11,-.84);flash.visible=false;group.add(flash);
-  return{group,body,legs,arms,flash,materials:[cloth,vest,gear,dark,visor]};
+  return{group,body,gun,legs,arms,flash,materials:[cloth,vest,gear,dark,visor]};
 }

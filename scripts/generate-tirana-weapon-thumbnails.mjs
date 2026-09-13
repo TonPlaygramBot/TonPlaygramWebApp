@@ -13,8 +13,9 @@ try {
   await build({stdin: {contents: `export {weaponModelUrl} from './src/games/tiranastreets/livingVisuals'; export {WEAPONS} from './src/games/tiranastreets/shared/weapons.mjs';`, resolveDir: join(root,'webapp')}, bundle:true, platform:'node', format:'esm', outfile:join(temp,'models.mjs')});
   const {weaponModelUrl, WEAPONS} = await import(pathToFileURL(join(temp,'models.mjs')));
   const out = join(root,'webapp/public/assets/tirana-streets/weapon-thumbnails'); await mkdir(out,{recursive:true});
-  const provenance=[];
-  for (const w of WEAPONS.filter(w=>w.id!=='fpsGunAttack')) {
+  const chosen=new Set(process.argv.slice(2));
+  const provenance=chosen.size?JSON.parse(await readFile(join(out,'sources.json'),'utf8')):[];
+  for (const w of WEAPONS.filter(w=>w.id!=='fpsGunAttack'&&(!chosen.size||chosen.has(w.id)))) {
     const url = weaponModelUrl(w.model), bytes = await readFile(join(root,'webapp/public',url));
     let doc, bin;
     if (bytes.toString('utf8',0,4)==='glTF') {
@@ -55,6 +56,7 @@ try {
       return `<polygon points="${f.vertices.map(p=>{const v=project(p);return `${((v[0]-cx)*scale+128).toFixed(1)},${((v[1]-cy)*scale+72).toFixed(1)}`;}).join(' ')}" fill="rgb(${rgb.join(',')})"/>`;
     }).join('');
     await sharp(Buffer.from(`<svg xmlns="http://www.w3.org/2000/svg" width="256" height="144">${polygons}</svg>`)).webp({quality:85}).toFile(join(out,`${w.id}.webp`));
+    const previous=provenance.findIndex(p=>p.id===w.id);if(previous>=0)provenance.splice(previous,1);
     provenance.push({id:w.id,source:url,thumbnail:`${w.id}.webp`});
   }
   await writeFile(join(out,'sources.json'),JSON.stringify(provenance,null,2)+'\n');

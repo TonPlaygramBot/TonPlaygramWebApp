@@ -2,6 +2,7 @@
 import {WeaponSwitcher} from '../tiranastreets/WeaponSwitcher';
 import {FrameRateControl} from '../tiranastreets/FrameRateControl';
 import {BODY_WEAPON} from './BattlefieldPlayer';
+import {startingWeapons} from './startingWeapons';
 import {
   memo,
   useEffect,
@@ -280,7 +281,7 @@ export function Game({
               </select>
             </label>
             <p className="bw-mode-description">{BATTLE_MODES.find(m=>m.id===battleMode)?.description}</p>
-            <p className="bw-starting-kit">Start with AK-47 · Pick up weapons from the ground</p>
+            <p className="bw-starting-kit">Starting kit: {startingWeapons().map(id=>WEAPONS[id].name).join(' · ')}</p>
             <RadioGroup
               value={difficulty}
               onValueChange={(v) => setDifficulty(v as Difficulty)}

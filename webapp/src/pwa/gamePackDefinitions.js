@@ -24,7 +24,6 @@ const heavyPacks = [
     gameSlugs: ['tiranastreets'],
     roots: ['assets/tirana-streets', 'assets/tirana-detail-kit', 'assets/tirana-landmarks', 'assets/blackwater'],
     excludeRoots: ['assets/tirana-streets/vehicle-collection'],
-    excludeFiles: ['assets/tirana-streets/living/human.glb'],
     dependencies: ['shared-tirana-vehicles', 'shared-table-games']
   },
   {
