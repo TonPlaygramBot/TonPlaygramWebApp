@@ -19,7 +19,7 @@ export function humanFor(entity) {
 }
 export function nearbyHumans(entities, viewer, battery=false) {
   if (!viewer || !Number.isFinite(viewer.x) || !Number.isFinite(viewer.z)) return [];
-  const range = battery ? 85 : 180, cap = battery ? 12 : 24;
+  const range = battery ? 110 : 230, cap = battery ? 28 : 72;
   return entities.filter(n => n.motion !== 'drive' && Number.isFinite(n.x) && Number.isFinite(n.z) && Math.hypot(n.x-viewer.x,n.z-viewer.z) < range)
     .sort((a,b) => Math.hypot(a.x-viewer.x,a.z-viewer.z)-Math.hypot(b.x-viewer.x,b.z-viewer.z) || String(a.id).localeCompare(String(b.id))).slice(0,cap);
 }

@@ -31,6 +31,7 @@ export function moveCircle(
   obstacles: readonly Obstacle[]
 ): void;
 export function rayBox(origin: Vec3, dir: Vec3, o: Obstacle): number;
+export function walkClear(a: Vec2, b: Vec2, radius: number, obstacles: readonly Obstacle[]): boolean;
 export function lineClear(
   a: Vec3,
   b: Vec3,

@@ -1,6 +1,6 @@
 import * as T from 'three';
 import {GLTFLoader} from 'three/examples/jsm/loaders/GLTFLoader.js';
-import {driverEye,driverSocket,type DriverCar} from './shared/driverView.mjs';
+import {driverEye,driverSocket,driverDirection,driverUp,type DriverCar} from './shared/driverView.mjs';
 import {disposeWeaponResources} from './weaponModelResources';
 
 /** One active cockpit. Original exterior assets/materials remain untouched.
@@ -14,12 +14,13 @@ export class DriverInterior {
   private dead=false;
   private requested=false;
   constructor(){this.group.name='Tirana:driver-interior';this.group.visible=false;}
-  update(car:(DriverCar&{steering?:number;speed?:number})|undefined){
+  update(car:(DriverCar&{steering?:number;speed?:number})|undefined,sample?:(x:number,z:number)=>number){
     this.group.visible=!!car&&!driverSocket(car).open;
     if(!car||!this.group.visible)return;
     if(!this.requested){this.requested=true;void this.load();}
-    const eye=driverEye(car),seat=driverSocket(car);
-    this.group.position.set(eye.x,eye.y,eye.z);this.group.rotation.set(0,car.heading,0);
+    const eye=driverEye(car,sample),seat=driverSocket(car),up=driverUp(car,sample),forward=driverDirection(car,car.heading,0,sample);
+    this.group.position.set(eye.x,eye.y,eye.z);this.group.up.set(up.x,up.y,up.z);
+    this.group.lookAt(eye.x-forward.x,eye.y-forward.y,eye.z-forward.z);
     // Eye/wheel alignment stays fixed. Only passenger-side cabin width changes.
     if(this.model)this.model.scale.set(T.MathUtils.clamp(seat.width/2,.88,1.15),1,1);
     if(this.wheel)this.wheel.rotation.z=-(car.steering||0)*1.7;

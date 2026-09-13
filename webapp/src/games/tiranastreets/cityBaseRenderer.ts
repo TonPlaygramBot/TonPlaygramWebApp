@@ -7,7 +7,7 @@ import {createWebGLRenderer} from './createWebGLRenderer';
 import {CollectionVehicleVisuals} from './CollectionVehicleVisuals';
 import {UrbanRoadCells} from '../tirana-neighbourhood/UrbanRoadCells';
 import {DriverInterior} from './DriverInterior';
-import {driverEye,driverFov} from './shared/driverView.mjs';
+import {driverEye,driverFov,driverDirection,driverUp} from './shared/driverView.mjs';
 import {AgedHousingLayer} from '../tirana-city-source/AgedHousingLayer';
 import {AGED_HOUSING_IDS} from '../tirana-city-source/housingRegistry.mjs';
 import {collectionVehicleFor} from './shared/vehicleCollection.mjs';
@@ -871,7 +871,7 @@ export class CityRenderer {
     const drivenCar=p?.carId?state?.cars.find(c=>c.id===p.carId):undefined;
     if(this.firstPerson&&drivenCar){
       if(this.lastDriven?.id===drivenCar.id)this.yaw+=Math.atan2(Math.sin(drivenCar.heading-this.lastDriven.heading),Math.cos(drivenCar.heading-this.lastDriven.heading));
-      else this.yaw=drivenCar.heading;
+      else {this.yaw=drivenCar.heading;this.pitch=0;}
       this.lastDriven={id:drivenCar.id,heading:drivenCar.heading};
     }else this.lastDriven=undefined;
     this.driverInterior.update(this.cockpitCamera&&!lobby?drivenCar:undefined);
@@ -967,8 +967,8 @@ export class CityRenderer {
         if (
           n.motion === "drive" ||
           Math.hypot(n.x - (p?.x || 0), n.z - (p?.z || 0)) >
-            (this.quality === "battery" ? 85 : 180) ||
-          rendered++ > (this.quality === "battery" ? 14 : 32)
+            (this.quality === "battery" ? 110 : 230) ||
+          rendered++ >= (this.quality === "battery" ? 28 : 72)
         )
           continue;
         const id = `npc-${n.id}`;
@@ -1053,7 +1053,7 @@ export class CityRenderer {
       this.living.update(state, p);
       if (p) {
         target.set(p.x, p.carId ? 1.1 : 1.3, p.z);
-        if (p.carId && this.clock > this.manualUntil)
+        if (p.carId && !this.cockpitCamera && this.clock > this.manualUntil)
           this.yaw = smoothAngle(this.yaw, p.heading, Math.min(1, dt * 3));
       }
     }
@@ -1073,17 +1073,20 @@ export class CityRenderer {
     } else if (this.firstPerson && p) {
       const eye=drivenCar?driverEye(drivenCar):{x:p.x,y:1.68,z:p.z};
       this.lastTarget.set(eye.x,eye.y,eye.z);
-      if (p.carId && this.clock > this.manualUntil) this.yaw = smoothAngle(this.yaw, p.heading, Math.min(1, dt * 4));
+      if (p.carId && !this.cockpitCamera && this.clock > this.manualUntil) this.yaw = smoothAngle(this.yaw, p.heading, Math.min(1, dt * 4));
       // Seat and cabin share a transform; independent position smoothing caused
       // the eye to leave the cabin on acceleration, tight turns and entry.
       if(drivenCar)this.camera.position.copy(this.lastTarget);
       else this.camera.position.lerp(this.lastTarget,1-Math.exp(-dt*14));
-      const direction = new THREE.Vector3(-Math.sin(this.yaw) * Math.cos(this.pitch), Math.sin(this.pitch), -Math.cos(this.yaw) * Math.cos(this.pitch));
+      const view=drivenCar?driverDirection(drivenCar,this.yaw,this.pitch):{x:-Math.sin(this.yaw)*Math.cos(this.pitch),y:Math.sin(this.pitch),z:-Math.cos(this.yaw)*Math.cos(this.pitch)};
+      const up=drivenCar?driverUp(drivenCar):{x:0,y:1,z:0};this.camera.up.set(up.x,up.y,up.z);
+      const direction = new THREE.Vector3(view.x,view.y,view.z);
       this.camera.lookAt(this.camera.position.clone().add(direction));
       this.camera.near=drivenCar?.04:.15;
       this.camera.fov = drivenCar?driverFov(this.camera.aspect):74;
       this.camera.updateProjectionMatrix();
     } else {
+      this.camera.up.set(0,1,0);
       this.camera.near=.15;
       this.lastTarget.lerp(target, Math.min(1, dt * 9));
       const wanted = p?.carId

@@ -268,7 +268,7 @@ export function Game({
                 <Shield size={15} /> SOLO VS AI
               </span>
               <span>
-                5 MODES <i /> 6 OPERATIONS
+                {BATTLE_MODES.length} MODES <i /> {OPERATIONS.length} OPERATIONS
               </span>
             </div>
             <div className="bw-mode-links">
