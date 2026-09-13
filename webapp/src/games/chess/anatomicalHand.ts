@@ -178,7 +178,7 @@ export function applyHandGrip(rig: HandBoneRig, side: Side, amount = 0) {
   }
 }
 
-function applyFinger(finger: Finger) {
+export function applyFinger(finger: Finger) {
   // The distal joint follows the middle joint for a relaxed, continuous curl.
   // This excludes the sharp hooked fingertip that unconstrained CCD produced.
   if (!finger.thumb) finger.joints[2].flex = finger.joints[1].flex * 0.65;
@@ -235,9 +235,10 @@ export type PinchPose = {
 // carry prevents target axes from flipping as fingertips cross or the seat turns.
 export function createPinchPose(
   rig: HandBoneRig,
-  radiusWorld: number
+  radiusWorld: number,
+  side: Side = 'right'
 ): PinchPose | undefined {
-  const profile = profiles.get(rig)?.right;
+  const profile = profiles.get(rig)?.[side];
   if (!profile) return;
   const { hand, fingers } = profile;
   const grasp = [fingers.Thumb, fingers.Index, fingers.Middle].filter(
