@@ -112,5 +112,9 @@ test('boost emits exhaust smoke, drifting emits tyre smoke, and the fixed pool f
   r.drifting=false;r.input={};r.turbo=0;
   for(let i=0;i<20;i++)smoke.update(.1,[r]);
   assert.ok([...attributes.opacity.array].every(n=>n===0));
+  r.kartId='photon';r.boosting=true;
+  for(let i=0;i<8;i++)smoke.update(.1,[r]);
+  assert.ok([...attributes.opacity.array].some(n=>n>0),'electric boost retains tyre smoke feedback');
+  assert.ok([...attributes.opacity.array].every((n,i)=>n===0||attributes.exhaust.array[i]===0),'an electric kart has no combustion exhaust');
   assert.equal(attributes.position.count,192);smoke.dispose();
 });

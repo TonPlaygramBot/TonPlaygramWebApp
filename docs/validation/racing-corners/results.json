@@ -1,0 +1,419 @@
+{
+  "scope": "One complete fixed-step AI inspection lap per circuit; exact rendered asphalt triangles and full tyre footprints. Browser and phone QA are separate.",
+  "results": [
+    {
+      "track": "skanderbeg",
+      "length": 3125.832533874963,
+      "before": {
+        "count": 6766,
+        "asphaltIntrusions": 130,
+        "buildingIntrusions": 0,
+        "overlappingPairs": 6875,
+        "minRoadClearance": 0,
+        "minSpacing": 0.0791500422981738,
+        "examples": [
+          {
+            "x": 323.81836833496584,
+            "z": -16.385857825475355,
+            "clearance": 0.4154907316332267
+          },
+          {
+            "x": 323.675467694283,
+            "z": -15.456783336054603,
+            "clearance": 0.31419143051784953
+          },
+          {
+            "x": 323.53256705360013,
+            "z": -14.527708846633848,
+            "clearance": 0.3124336260582765
+          },
+          {
+            "x": 510.101929146018,
+            "z": 403.26734066433085,
+            "clearance": 0
+          },
+          {
+            "x": 509.9139884573985,
+            "z": 404.1855351755172,
+            "clearance": 0
+          },
+          {
+            "x": 509.7156664287161,
+            "z": 403.79975217680584,
+            "clearance": 0
+          },
+          {
+            "x": 509.4084712647952,
+            "z": 402.91331289534827,
+            "clearance": 0
+          },
+          {
+            "x": 508.80472613502474,
+            "z": 402.19283262616773,
+            "clearance": 0
+          }
+        ]
+      },
+      "after": {
+        "count": 5255,
+        "asphaltIntrusions": 0,
+        "buildingIntrusions": 0,
+        "overlappingPairs": 0,
+        "minRoadClearance": 0.8984151393458976,
+        "minSpacing": 1.1518166460416026,
+        "examples": []
+      },
+      "lap": {
+        "seconds": 134.0666666666655,
+        "gates": 5,
+        "lap": 2,
+        "wallFrames": 0
+      }
+    },
+    {
+      "track": "blloku",
+      "length": 2063.27626855854,
+      "before": {
+        "count": 4473,
+        "asphaltIntrusions": 89,
+        "buildingIntrusions": 0,
+        "overlappingPairs": 4552,
+        "minRoadClearance": 0,
+        "minSpacing": 0.15709917923499742,
+        "examples": [
+          {
+            "x": -110.93241985365916,
+            "z": 469.4011356634079,
+            "clearance": 0
+          },
+          {
+            "x": -109.992466782989,
+            "z": 469.3945029733161,
+            "clearance": 0
+          },
+          {
+            "x": -109.05247956790556,
+            "z": 469.38960037403723,
+            "clearance": 0
+          },
+          {
+            "x": -108.11249235282213,
+            "z": 469.38469777475837,
+            "clearance": 0
+          },
+          {
+            "x": -108.81269532762454,
+            "z": 469.76071306781125,
+            "clearance": 0
+          },
+          {
+            "x": -109.50410593188454,
+            "z": 470.39754222568394,
+            "clearance": 0
+          },
+          {
+            "x": -110.15802087809053,
+            "z": 471.0591869379983,
+            "clearance": 0
+          },
+          {
+            "x": -110.4739946877941,
+            "z": 471.94448945780795,
+            "clearance": 0
+          }
+        ]
+      },
+      "after": {
+        "count": 3466,
+        "asphaltIntrusions": 0,
+        "buildingIntrusions": 0,
+        "overlappingPairs": 0,
+        "minRoadClearance": 0.8986387277908321,
+        "minSpacing": 1.158215130626549,
+        "examples": []
+      },
+      "lap": {
+        "seconds": 72.76666666666382,
+        "gates": 5,
+        "lap": 2,
+        "wallFrames": 0
+      }
+    },
+    {
+      "track": "lana",
+      "length": 2614.4138086244648,
+      "before": {
+        "count": 5786,
+        "asphaltIntrusions": 289,
+        "buildingIntrusions": 0,
+        "overlappingPairs": 5970,
+        "minRoadClearance": 0,
+        "minSpacing": 0.03464697459475129,
+        "examples": [
+          {
+            "x": 74.26179439075894,
+            "z": 445.724178743151,
+            "clearance": 0.05556634741845795
+          },
+          {
+            "x": 74.243721150496,
+            "z": 444.7844082073372,
+            "clearance": 0
+          },
+          {
+            "x": 74.23148078355071,
+            "z": 443.8444879057068,
+            "clearance": 0
+          },
+          {
+            "x": 74.2192404166054,
+            "z": 442.90456760407636,
+            "clearance": 0
+          },
+          {
+            "x": 74.54802553781059,
+            "z": 443.1731978510633,
+            "clearance": 0
+          },
+          {
+            "x": 75.09243183695472,
+            "z": 443.9395018256401,
+            "clearance": 0
+          },
+          {
+            "x": 75.84991036339856,
+            "z": 444.48334581659753,
+            "clearance": 0
+          },
+          {
+            "x": 76.63896071829186,
+            "z": 444.99422695487016,
+            "clearance": 0
+          }
+        ]
+      },
+      "after": {
+        "count": 4337,
+        "asphaltIntrusions": 0,
+        "buildingIntrusions": 0,
+        "overlappingPairs": 0,
+        "minRoadClearance": 0.7455229870106888,
+        "minSpacing": 1.1540990194287493,
+        "examples": []
+      },
+      "lap": {
+        "seconds": 126.41666666666077,
+        "gates": 5,
+        "lap": 2,
+        "wallFrames": 49
+      }
+    },
+    {
+      "track": "pyramid",
+      "length": 1630.029954516312,
+      "before": {
+        "count": 3564,
+        "asphaltIntrusions": 112,
+        "buildingIntrusions": 0,
+        "overlappingPairs": 3647,
+        "minRoadClearance": 0,
+        "minSpacing": 0.1065203673086793,
+        "examples": [
+          {
+            "x": 294.9285209658198,
+            "z": 399.4261778078258,
+            "clearance": 0
+          },
+          {
+            "x": 294.0113131093898,
+            "z": 399.63191975324065,
+            "clearance": 0
+          },
+          {
+            "x": 293.0941052529598,
+            "z": 399.83766169865555,
+            "clearance": 0
+          },
+          {
+            "x": 292.1768973965298,
+            "z": 400.0434036440704,
+            "clearance": 0
+          },
+          {
+            "x": 292.4382855128088,
+            "z": 399.8956687327485,
+            "clearance": 0
+          },
+          {
+            "x": 293.1356380452244,
+            "z": 399.27204346516993,
+            "clearance": 0
+          },
+          {
+            "x": 293.8200139647135,
+            "z": 398.6276603486752,
+            "clearance": 0
+          },
+          {
+            "x": 294.3543798389933,
+            "z": 397.885947246886,
+            "clearance": 0
+          }
+        ]
+      },
+      "after": {
+        "count": 2729,
+        "asphaltIntrusions": 0,
+        "buildingIntrusions": 0,
+        "overlappingPairs": 0,
+        "minRoadClearance": 0.7157031204833212,
+        "minSpacing": 1.1578733151171638,
+        "examples": []
+      },
+      "lap": {
+        "seconds": 67.14999999999748,
+        "gates": 5,
+        "lap": 2,
+        "wallFrames": 0
+      }
+    },
+    {
+      "track": "stadium",
+      "length": 1476.1144608119607,
+      "before": {
+        "count": 3226,
+        "asphaltIntrusions": 96,
+        "buildingIntrusions": 16,
+        "overlappingPairs": 3322,
+        "minRoadClearance": 0,
+        "minSpacing": 0.15893961167138662,
+        "examples": [
+          {
+            "x": 222.8634686989642,
+            "z": 1096.1522826958653,
+            "clearance": 0.5514586119245473
+          },
+          {
+            "x": 493.07800231088453,
+            "z": 909.9267206126842,
+            "clearance": 0.21317125172069892
+          },
+          {
+            "x": 492.1563623671758,
+            "z": 909.74184277691,
+            "clearance": 0
+          },
+          {
+            "x": 491.23779990352176,
+            "z": 909.5425035450548,
+            "clearance": 0
+          },
+          {
+            "x": 490.32074196455335,
+            "z": 909.3360943965777,
+            "clearance": 0
+          },
+          {
+            "x": 489.40572719021134,
+            "z": 909.1208488989754,
+            "clearance": 0
+          },
+          {
+            "x": 488.49114309062827,
+            "z": 908.9037408042627,
+            "clearance": 0
+          },
+          {
+            "x": 487.5749360992723,
+            "z": 908.6946528775311,
+            "clearance": 0
+          }
+        ]
+      },
+      "after": {
+        "count": 2440,
+        "asphaltIntrusions": 0,
+        "buildingIntrusions": 0,
+        "overlappingPairs": 0,
+        "minRoadClearance": 0.8986247071307759,
+        "minSpacing": 1.1591719404070264,
+        "examples": []
+      },
+      "lap": {
+        "seconds": 90.43333333332949,
+        "gates": 5,
+        "lap": 2,
+        "wallFrames": 0
+      }
+    },
+    {
+      "track": "lana-pyramid-grand",
+      "length": 3496.7327824595045,
+      "before": {
+        "count": 7617,
+        "asphaltIntrusions": 199,
+        "buildingIntrusions": 1,
+        "overlappingPairs": 7774,
+        "minRoadClearance": 0,
+        "minSpacing": 0.06710079793261749,
+        "examples": [
+          {
+            "x": -105.21374769594964,
+            "z": 432.6894953897524,
+            "clearance": 0.4802795818208753
+          },
+          {
+            "x": -106.1536362769585,
+            "z": 432.7025085161276,
+            "clearance": 0
+          },
+          {
+            "x": -107.09357278270583,
+            "z": 432.71343395266246,
+            "clearance": 0
+          },
+          {
+            "x": -108.03350928845317,
+            "z": 432.7243593891974,
+            "clearance": 0
+          },
+          {
+            "x": -108.81147020139724,
+            "z": 432.70572322073014,
+            "clearance": 0
+          },
+          {
+            "x": -107.98112385669675,
+            "z": 432.2971403343594,
+            "clearance": 0
+          },
+          {
+            "x": -107.28995836109694,
+            "z": 431.6600451627467,
+            "clearance": 0
+          },
+          {
+            "x": -106.60297637062993,
+            "z": 431.0201840126962,
+            "clearance": 0
+          }
+        ]
+      },
+      "after": {
+        "count": 5854,
+        "asphaltIntrusions": 0,
+        "buildingIntrusions": 0,
+        "overlappingPairs": 0,
+        "minRoadClearance": 0.6231353279931315,
+        "minSpacing": 1.1566901489584116,
+        "examples": []
+      },
+      "lap": {
+        "seconds": 139.33333333333636,
+        "gates": 5,
+        "lap": 2,
+        "wallFrames": 0
+      }
+    }
+  ]
+}

@@ -3,11 +3,11 @@ import { COLLECTION_BY_ID } from '../tiranastreets/shared/vehicleCollection.mjs'
 export const KART_ASSETS = Object.freeze(
   Object.fromEntries(
     [
-      ['apex', 0.265],
-      ['oobi', 0.265],
-      ['oodi', 0.275],
-      ['ooli', 0.285],
-      ['oopi', 0.34], ['photon', .28], ['vortex', .28], ['aegis', .28]
+      ['apex', 0.235],
+      ['oobi', 0.235],
+      ['oodi', 0.235],
+      ['ooli', 0.235],
+      ['oopi', 0.31], ['photon', .235], ['vortex', .235], ['aegis', .235]
     ].map(([file, wheelRadius]) => [
       file,
       { file, wheelRadius, eye: [0, file === 'oopi' ? 1.30 : 1.20, -0.28] }
@@ -33,7 +33,7 @@ export function vehicleAssetUrl(id, low = false) {
     return `/assets/tirana-streets/imported/${id}.glb`;
   const config = MILITARY_ASSETS[id];
   if (KART_ASSETS[id])
-    return `/assets/kart-royale/karts/${id}${low ? '-lod' : ''}.glb`;
+    return `/assets/kart-royale/karts/${id}${low ? '-lod' : ''}.glb?v=realistic-fleet-v1`;
   return config
     ? `/assets/kart-royale/military/${config.file}${low ? '-lod' : ''}.glb`
     : `/assets/kart-royale/kenney-${id}.glb`;

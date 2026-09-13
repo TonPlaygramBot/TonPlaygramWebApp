@@ -1,5 +1,5 @@
 {
-  "generator": "Blender 4.5.3 LTS",
+  "generator": "Three.js original kart meshes; existing Blender driver assets",
   "units": "metres",
   "up": "+Y",
   "forward": "+Z",
@@ -7,45 +7,87 @@
   "assets": [
     {
       "id": "photon",
+      "name": "Photon GT",
+      "family": "electric",
+      "paint": "#24b6cf",
+      "accent": "#e8eee8",
+      "number": "60",
       "lod": false,
       "file": "photon.glb",
-      "bytes": 266284,
-      "triangles": 10932
+      "bytes": 457632,
+      "triangles": 13160,
+      "drawCalls": 37,
+      "wheelRadius": 0.235
     },
     {
       "id": "photon",
+      "name": "Photon GT",
+      "family": "electric",
+      "paint": "#24b6cf",
+      "accent": "#e8eee8",
+      "number": "60",
       "lod": true,
       "file": "photon-lod.glb",
-      "bytes": 108688,
-      "triangles": 3412
+      "bytes": 257536,
+      "triangles": 6908,
+      "drawCalls": 33,
+      "wheelRadius": 0.235
     },
     {
       "id": "vortex",
+      "name": "Vortex R",
+      "family": "electric-sport",
+      "paint": "#903d98",
+      "accent": "#eadbc5",
+      "number": "81",
       "lod": false,
       "file": "vortex.glb",
-      "bytes": 259040,
-      "triangles": 10716
+      "bytes": 461228,
+      "triangles": 13196,
+      "drawCalls": 38,
+      "wheelRadius": 0.235
     },
     {
       "id": "vortex",
+      "name": "Vortex R",
+      "family": "electric-sport",
+      "paint": "#903d98",
+      "accent": "#eadbc5",
+      "number": "81",
       "lod": true,
       "file": "vortex-lod.glb",
-      "bytes": 106272,
-      "triangles": 3324
+      "bytes": 261136,
+      "triangles": 6944,
+      "drawCalls": 34,
+      "wheelRadius": 0.235
     },
     {
       "id": "aegis",
+      "name": "Aegis XR",
+      "family": "electric-endurance",
+      "paint": "#d2a339",
+      "accent": "#e3e9df",
+      "number": "95",
       "lod": false,
       "file": "aegis.glb",
-      "bytes": 274032,
-      "triangles": 11248
+      "bytes": 473036,
+      "triangles": 13740,
+      "drawCalls": 37,
+      "wheelRadius": 0.235
     },
     {
       "id": "aegis",
+      "name": "Aegis XR",
+      "family": "electric-endurance",
+      "paint": "#d2a339",
+      "accent": "#e3e9df",
+      "number": "95",
       "lod": true,
       "file": "aegis-lod.glb",
-      "bytes": 110628,
-      "triangles": 3472
+      "bytes": 263212,
+      "triangles": 7104,
+      "drawCalls": 33,
+      "wheelRadius": 0.235
     },
     {
       "id": "race-driver",
@@ -61,5 +103,6 @@
       "bytes": 80412,
       "triangles": 1900
     }
-  ]
+  ],
+  "source": "tools/assets/modernKartModel.ts"
 }

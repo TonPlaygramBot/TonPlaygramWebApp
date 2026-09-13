@@ -70,11 +70,12 @@ export class TyreSmoke {
         const s = Math.sin(r.yaw),
           c = Math.cos(r.yaw),
           k = i * 3;
-        const exhaust = boosting && !r.drifting;
+        const electric = ['photon', 'vortex', 'aegis'].includes(r.kartId);
+        const exhaust = boosting && !r.drifting && !electric;
         this.exhaust[i] = Number(exhaust);
-        this.positions[k] = r.x + c * side * (exhaust ? .42 : .75) - s * (exhaust ? 1.35 : .8);
-        this.positions[k + 1] = (exhaust ? .38 : .15) + (r.suspension?.height || 0);
-        this.positions[k + 2] = r.z - s * side * (exhaust ? .42 : .75) - c * (exhaust ? 1.35 : .8);
+        this.positions[k] = r.x + c * (exhaust ? .36 : side * .80) - s * (exhaust ? 1.28 : .78);
+        this.positions[k + 1] = (exhaust ? .53 : .15) + (r.suspension?.height || 0);
+        this.positions[k + 2] = r.z - s * (exhaust ? .36 : side * .80) - c * (exhaust ? 1.28 : .78);
         this.velocity[k] = -s * r.speed * 0.06 + Math.sin(i * 2.4) * 0.25;
         this.velocity[k + 1] = 0.4 + (i % 5) * 0.06;
         this.velocity[k + 2] = -c * r.speed * 0.06;
