@@ -2074,3 +2074,13 @@
 .bw-scope.phase-menu .menu-title h1{font-size:clamp(28px,6vw,48px)}
 .bw-scope.phase-menu .menu-bottom{margin-top:0;max-width:460px}
 .bw-scope.phase-menu .battlefield-map-label{font-size:14px}
+
+/* Equal outer columns anchor MENU to the visual center on portrait screens. */
+:where(.bw-scope) .topbar{display:grid;grid-template-columns:minmax(0,1fr) auto minmax(0,1fr);gap:8px;padding:calc(10px + env(safe-area-inset-top,0px)) 12px 12px}
+:where(.bw-scope) .top-actions{justify-self:end;gap:5px}
+:where(.bw-scope) .bw-menu-button{pointer-events:auto;display:flex;align-items:center;justify-content:center;gap:6px;min-height:48px;padding:8px 12px;border:1px solid #78928b;border-radius:10px;background:#17313be8;color:#eef4df;font:700 13px system-ui,sans-serif}
+:where(.bw-scope) .bw-menu-button:focus-visible{outline:3px solid #e4f7af;outline-offset:3px}
+:where(.bw-scope) .brand{min-width:0;gap:8px}
+@media(max-width:600px){:where(.bw-scope) .brand-name{font-size:9px;letter-spacing:.5px}:where(.bw-scope) .brand-mark{display:none}:where(.bw-scope) .brand-name small{font-size:8px;letter-spacing:0}:where(.bw-scope) .top-actions .icon-btn{width:40px;height:48px}:where(.bw-scope) .fps-readout{min-width:30px}:where(.bw-scope) .compass{top:calc(72px + env(safe-area-inset-top,0px))}}
+
+:where(.bw-scope) .compass{top:calc(72px + env(safe-area-inset-top,0px))}

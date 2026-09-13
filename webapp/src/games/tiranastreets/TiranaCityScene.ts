@@ -1,3 +1,4 @@
+import {beginCityFrame} from './renderSettings';
 import * as T from 'three';
 import { ribbonExclusion } from '../tirana-street-detail/roadDetailCore.mjs';
 import { FpsCity } from './FpsCity';
@@ -30,6 +31,7 @@ export class TiranaCityScene {
   }
   update(viewer: T.Vector3, seconds: number, battery: boolean, camera?: T.PerspectiveCamera) {
     if (this.disposed) return;
+    beginCityFrame(camera?.userData.targetFps ?? 60);
     this.city.update(viewer, seconds, battery);
     this.enhancements.update(seconds, camera, viewer, battery);
     this.details.update(viewer, battery);

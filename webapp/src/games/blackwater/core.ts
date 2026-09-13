@@ -14,6 +14,7 @@ export type WeaponId = 'ar' | 'smg' | 'ak47' | 'shotgun' | 'mosin' | 'uzi' | 'si
 export type BattlefieldMapId = 'skanderbeg' | 'blloku' | 'lana' | 'pyramid' | 'bazaar' | 'stadium' | 'station' | 'park' | 'embassy' | 'dajti-gate' | `district-${string}`;
 export type Difficulty = 'recruit' | 'veteran';
 export type Settings = {
+  targetFps: import('../tiranastreets/renderSettings').TargetFps;
   sensitivity: number;
   volume: number;
   assist: boolean;

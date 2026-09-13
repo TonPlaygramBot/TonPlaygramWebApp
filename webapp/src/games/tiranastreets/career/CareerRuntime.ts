@@ -1,3 +1,5 @@
+import {FramePacer} from '../renderSettings';
+import {loadSettings, type StreetSettings} from '../street-career/settings';
 import {createWebGLRenderer} from '../createWebGLRenderer';
 import * as T from 'three';
 import {makeCityWorld} from '../../blackwater/cityWorld';
@@ -14,10 +16,11 @@ import {attachEnhancements} from '../../tirana-expansion/WorldEnhancements';
 import {ExistingHumans} from '../../tirana-expansion/ExistingHumans';
 
 type Point={x:number;z:number};
-export type CareerView={profile:Profile;player:Point&{heading:number};paused:boolean;ride:boolean;overlook:boolean;rideProgress:number;distance:number;route:Point[];routeNotice:string;storageOK:boolean;assetErrors:string[];fps:number;blocked:string[]};
+export type CareerView={settings: StreetSettings;profile:Profile;player:Point&{heading:number};paused:boolean;ride:boolean;overlook:boolean;rideProgress:number;distance:number;route:Point[];routeNotice:string;storageOK:boolean;assetErrors:string[];fps:number;blocked:string[]};
 /** Solo-only runtime assembled from the same city, collision, input and audio
  * modules. The operation runtime is unmounted before this one is constructed. */
 export class CareerRuntime {
+ settings: StreetSettings; private renderPacer = new FramePacer(); private renderDelta = 0;
  readonly scene=new T.Scene();readonly camera=new T.PerspectiveCamera(70,1,.15,18000);
  readonly renderer:T.WebGLRenderer;readonly world:ReturnType<typeof makeCityWorld>;readonly input:GameInput;
  readonly audio=new GameAudio();readonly extras:ReturnType<typeof attachEnhancements>;readonly humans:ExistingHumans;
@@ -29,10 +32,11 @@ export class CareerRuntime {
  private observer:ResizeObserver;private raf=0;private last=0;private accumulator=0;private uiAt=0;private disposed=false;
  private footstepAt=0;private rideYaw=0;private fps=60;private counted=0;private countedTime=0;
  constructor(canvas:HTMLCanvasElement,surface:HTMLElement,private publish:(v:CareerView)=>void,private storage?:Storage){
-  this.profile=loadCareer(storage);
+  this.profile=loadCareer(storage); this.settings=loadSettings(storage);
   try{this.renderer=createWebGLRenderer(canvas);}catch{this.renderer=new CompatibilityRenderer(canvas) as unknown as T.WebGLRenderer;}
   this.renderer.outputColorSpace=T.SRGBColorSpace;this.renderer.toneMapping=T.ACESFilmicToneMapping;this.renderer.toneMappingExposure=1.08;
   this.renderer.setPixelRatio(Math.min(devicePixelRatio||1,1.5));this.renderer.shadowMap.enabled=true;this.renderer.shadowMap.type=T.PCFSoftShadowMap;
+  this.applyGraphics();
   this.world=makeCityWorld(this.scene,this.camera,this.renderer);this.world.gun.visible=false;this.world.extraction.visible=false;
   this.extras=attachEnhancements(this.scene,ORIGIN);
   const anchors=new Map<string,Point>(WORLD.landmarks.map(l=>[l.id,{x:l.x,z:l.z}]));
@@ -58,6 +62,16 @@ export class CareerRuntime {
   this.observer=new ResizeObserver(()=>{const r=surface.getBoundingClientRect();this.renderer.setSize(r.width,Math.max(r.height,1),false);this.camera.aspect=r.width/Math.max(r.height,1);this.camera.updateProjectionMatrix();});this.observer.observe(surface);
   this.camera.position.set(this.player.x,1.68,this.player.z);this.persist();this.emit();
   canvas.addEventListener('webglcontextlost',this.contextLost);this.raf=requestAnimationFrame(this.loop);
+ }
+ private applyGraphics(){
+  this.camera.userData.targetFps=this.settings.targetFps;
+  this.renderer.setPixelRatio(Math.min(devicePixelRatio||1,this.settings.quality==='high'?1.75:this.settings.quality==='battery'?1:1.4));
+  this.renderer.shadowMap.enabled=this.settings.quality!=='battery';
+ }
+ setSettings(patch: Partial<StreetSettings>){
+  Object.assign(this.settings,patch);this.applyGraphics();
+  try{this.storage?.setItem('tirana-streets:street-settings:v1',JSON.stringify(this.settings));}catch{this.storageOK=false;}
+  this.emit();
  }
  private contextLost=(e:Event)=>{e.preventDefault();this.pause();this.extras.dajti.errors.push('Graphics context lost. Return to Games and reopen.');this.emit();};
  private pointForStep(){const step=currentStep(this.profile);return step?(step.action==='talk'?this.talkTargets.get(step.place):this.points.get(step.action==='ride'?'clock':step.place)):undefined;}
@@ -120,17 +134,21 @@ export class CareerRuntime {
  }
  private loop=(now:number)=>{
   if(this.disposed)return;const real=this.last?(now-this.last)/1000:1/60,dt=Math.min(.1,Math.max(0,real));this.last=now;
-  this.counted++;this.countedTime+=real;if(this.countedTime>=1){this.fps=Math.round(this.counted/this.countedTime);this.counted=0;this.countedTime=0;}
+  this.countedTime+=real;if(this.countedTime>=1){this.fps=Math.round(this.counted/this.countedTime);this.counted=0;this.countedTime=0;}
   if(!this.paused){this.accumulator+=dt;for(let steps=0;this.accumulator>=1/60&&steps<6;steps++){this.tick(1/60);this.accumulator-=1/60;}}else this.accumulator=0;
+  this.renderDelta=Math.min(.15,this.renderDelta+dt);
+  if(!document.hidden&&this.renderPacer.shouldRender(now,this.settings.targetFps)){
+  this.counted++;
   if(this.ride||this.overlook){this.extras.dajti.journey(this.rideElapsed/90);const p=cablePose(this.extras.dajti.path,this.rideElapsed/90);this.camera.position.set(p.x-ORIGIN.x,p.y-1.6,p.z-ORIGIN.z);this.camera.rotation.set(this.pitch,p.yaw+this.rideYaw,0,'YXZ');}
   else{this.camera.position.set(this.player.x,1.68,this.player.z);this.camera.rotation.set(this.pitch,this.yaw,0,'YXZ');}
-  this.world.update?.(this.camera.position);this.world.sky.position.copy(this.camera.position);this.humans.update(this.paused?0:dt,this.camera.position);
-  this.updateRoute(now);this.renderer.render(this.scene,this.camera);
+  this.world.update?.(this.camera.position);this.world.sky.position.copy(this.camera.position);this.humans.update(this.paused?0:this.renderDelta,this.camera.position);
+  this.updateRoute(now);this.renderer.render(this.scene,this.camera);this.renderDelta=0;
+  }
   if(now-this.saveAt>5000){this.persist();this.saveAt=now;}
   if(now-this.uiAt>150){this.emit();this.uiAt=now;}this.raf=requestAnimationFrame(this.loop);
  };
  private emit(){
-  const target=this.pointForStep();this.publish({profile:this.profile,player:{x:this.camera.position.x+ORIGIN.x,z:this.camera.position.z+ORIGIN.z,heading:this.yaw},paused:this.paused,ride:this.ride,overlook:this.overlook,rideProgress:this.rideElapsed/90,distance:target?Math.hypot(this.player.x+ORIGIN.x-target.x,this.player.z+ORIGIN.z-target.z):Infinity,route:this.route,routeNotice:this.routeNotice,storageOK:this.storageOK,assetErrors:[...this.humans.errors,...this.extras.civic.errors,...this.extras.dajti.errors],fps:this.fps,blocked:CHAPTERS.filter(c=>c.steps.some(s=>s.action!=='ride'&&(!this.points.has(s.place)||s.action==='talk'&&!this.contactIds.has(s.place)))).map(c=>c.id)});
+  const target=this.pointForStep();this.publish({settings:{...this.settings},profile:this.profile,player:{x:this.camera.position.x+ORIGIN.x,z:this.camera.position.z+ORIGIN.z,heading:this.yaw},paused:this.paused,ride:this.ride,overlook:this.overlook,rideProgress:this.rideElapsed/90,distance:target?Math.hypot(this.player.x+ORIGIN.x-target.x,this.player.z+ORIGIN.z-target.z):Infinity,route:this.route,routeNotice:this.routeNotice,storageOK:this.storageOK,assetErrors:[...this.humans.errors,...this.extras.civic.errors,...this.extras.dajti.errors],fps:this.fps,blocked:CHAPTERS.filter(c=>c.steps.some(s=>s.action!=='ride'&&(!this.points.has(s.place)||s.action==='talk'&&!this.contactIds.has(s.place)))).map(c=>c.id)});
  }
  dispose(){if(this.disposed)return;this.disposed=true;this.persist();cancelAnimationFrame(this.raf);this.observer.disconnect();this.input.dispose();this.audio.dispose();this.humans.dispose();this.renderer.domElement.removeEventListener('webglcontextlost',this.contextLost);this.line.removeFromParent();this.line.geometry.dispose();(this.line.material as T.Material).dispose();this.marker.removeFromParent();this.marker.geometry.dispose();(this.marker.material as T.Material).dispose();this.world.dispose();this.renderer.dispose();}
 }

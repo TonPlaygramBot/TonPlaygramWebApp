@@ -1,3 +1,4 @@
+import {CITY_RADIUS, CITY_CACHE, runCityWork} from '../tiranastreets/renderSettings';
 import {appendGroundTriangle,drapeGeometry} from '../tirana-east/drapeGeometry';
 import * as T from 'three';
 import {CellWorkQueue} from './cellWorkQueue.mjs';
@@ -76,7 +77,7 @@ export class UrbanRoadCells {
   if(this.battery!==battery||seconds<this.last||Math.hypot(viewer.x-this.viewer.x,viewer.z-this.viewer.z)>45||this.last===-Infinity){
    this.last=seconds;this.viewer={x:viewer.x,z:viewer.z};this.battery=battery;this.tick++;
    const tasks:{key:string;create:()=>Generator<void,void>}[]=[];
-   const radius=battery?1400:2400,selected:Cell[]=[];
+   const radius=battery?CITY_RADIUS.battery:CITY_RADIUS.high,selected:Cell[]=[];
    for(let x=Math.floor((viewer.x-radius)/240);x<=Math.floor((viewer.x+radius)/240);x++)for(let z=Math.floor((viewer.z-radius)/240);z<=Math.floor((viewer.z+radius)/240);z++){
     const c=this.cells.get(`${x}:${z}`);if(c&&Math.hypot(c.x-viewer.x,c.z-viewer.z)<radius+170)selected.push(c);
    }
@@ -88,14 +89,14 @@ export class UrbanRoadCells {
    this.jobs.sync(tasks);
    for(const c of this.cache){c.root!.visible=this.visible.has(c);if(c.paving)c.paving.visible=distance(c)<(battery?380:650)**2;}
    const stale=[...this.cache].filter(c=>!this.visible.has(c)).sort((a,b)=>(a.used||0)-(b.used||0));
-   while(this.cache.size>(battery?220:460)&&stale.length)this.release(stale.shift()!);
+   while(this.cache.size>(battery?CITY_CACHE.battery:CITY_CACHE.high)&&stale.length)this.release(stale.shift()!);
   }
-  this.jobs.run(battery?1.5:3,180);
-  if(this.cache.size>(battery?220:460)){
+  runCityWork(this.jobs, battery);
+  if(this.cache.size>(battery?CITY_CACHE.battery:CITY_CACHE.high)){
    const stale=[...this.cache].filter(c=>!this.visible.has(c)).sort((a,b)=>(a.used||0)-(b.used||0));
-   while(this.cache.size>(battery?220:460)&&stale.length)this.release(stale.shift()!);
+   while(this.cache.size>(battery?CITY_CACHE.battery:CITY_CACHE.high)&&stale.length)this.release(stale.shift()!);
   }
-  this.group.userData={cachedCells:this.cache.size,pendingJobs:this.jobs.length,radius:battery?1400:2400};
+  this.group.userData={cachedCells:this.cache.size,pendingJobs:this.jobs.length,radius:battery?CITY_RADIUS.battery:CITY_RADIUS.high};
  }
  private release(c:Cell){c.root?.traverse(o=>{if(o instanceof T.Mesh)o.geometry.dispose();});c.root?.removeFromParent();c.root=undefined;c.paving=undefined;this.cache.delete(c);}
  dispose(){if(this.dead)return;this.dead=true;this.jobs.dispose();this.materials.dispose();for(const c of this.cache)this.release(c);this.textures.forEach(t=>t.dispose());this.asphalt.dispose();this.pavement.dispose();this.group.clear();this.group.removeFromParent();}

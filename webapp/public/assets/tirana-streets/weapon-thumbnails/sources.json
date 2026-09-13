@@ -1,0 +1,177 @@
+[
+  {
+    "id": "combatKnife",
+    "source": "/assets/tirana-streets/living/combat-knife.glb",
+    "thumbnail": "combatKnife.webp"
+  },
+  {
+    "id": "glockSidearmAttack",
+    "source": "/assets/tirana-streets/living/sigsauer.glb",
+    "thumbnail": "glockSidearmAttack.webp"
+  },
+  {
+    "id": "assaultRifleAttack",
+    "source": "/assets/tirana-streets/living/ak47.glb",
+    "thumbnail": "assaultRifleAttack.webp"
+  },
+  {
+    "id": "uziSprayAttack",
+    "source": "/assets/tirana-streets/living/uzi.glb",
+    "thumbnail": "uziSprayAttack.webp"
+  },
+  {
+    "id": "ak47VolleyAttack",
+    "source": "/assets/tirana-streets/living/ak47.glb",
+    "thumbnail": "ak47VolleyAttack.webp"
+  },
+  {
+    "id": "krsvBurstAttack",
+    "source": "/assets/tirana-streets/living/krsv.glb",
+    "thumbnail": "krsvBurstAttack.webp"
+  },
+  {
+    "id": "smithSidearmAttack",
+    "source": "/assets/tirana-streets/living/smith.glb",
+    "thumbnail": "smithSidearmAttack.webp"
+  },
+  {
+    "id": "mosinMarksmanAttack",
+    "source": "/assets/tirana-streets/living/mosin.glb",
+    "thumbnail": "mosinMarksmanAttack.webp"
+  },
+  {
+    "id": "sigsauerTacticalAttack",
+    "source": "/assets/tirana-streets/living/sigsauer.glb",
+    "thumbnail": "sigsauerTacticalAttack.webp"
+  },
+  {
+    "id": "grenadeBlastAttack",
+    "source": "/assets/tirana-streets/living/grenade.glb",
+    "thumbnail": "grenadeBlastAttack.webp"
+  },
+  {
+    "id": "shotgunBlastAttack",
+    "source": "/assets/tirana-streets/living/shotgun.glb",
+    "thumbnail": "shotgunBlastAttack.webp"
+  },
+  {
+    "id": "sniperShotAttack",
+    "source": "/assets/tirana-streets/living/mosin.glb",
+    "thumbnail": "sniperShotAttack.webp"
+  },
+  {
+    "id": "smgBurstAttack",
+    "source": "/assets/tirana-streets/living/uzi.glb",
+    "thumbnail": "smgBurstAttack.webp"
+  },
+  {
+    "id": "compactCarbineAttack",
+    "source": "/assets/tirana-streets/living/ak47.glb",
+    "thumbnail": "compactCarbineAttack.webp"
+  },
+  {
+    "id": "marksmanDmrAttack",
+    "source": "/assets/tirana-streets/living/mosin.glb",
+    "thumbnail": "marksmanDmrAttack.webp"
+  },
+  {
+    "id": "polyShotgun01Attack",
+    "source": "/assets/tirana-streets/imported/polyShotgun01Attack.glb",
+    "thumbnail": "polyShotgun01Attack.webp"
+  },
+  {
+    "id": "polyAssaultRifle01Attack",
+    "source": "/assets/tirana-streets/imported/polyAssaultRifle01Attack.glb",
+    "thumbnail": "polyAssaultRifle01Attack.webp"
+  },
+  {
+    "id": "polyPistol01Attack",
+    "source": "/assets/tirana-streets/imported/polyPistol01Attack.glb",
+    "thumbnail": "polyPistol01Attack.webp"
+  },
+  {
+    "id": "polyRevolver01Attack",
+    "source": "/assets/tirana-streets/imported/polyRevolver01Attack.glb",
+    "thumbnail": "polyRevolver01Attack.webp"
+  },
+  {
+    "id": "polySawedOff01Attack",
+    "source": "/assets/tirana-streets/imported/polySawedOff01Attack.glb",
+    "thumbnail": "polySawedOff01Attack.webp"
+  },
+  {
+    "id": "polyRevolver02Attack",
+    "source": "/assets/tirana-streets/imported/polyRevolver02Attack.glb",
+    "thumbnail": "polyRevolver02Attack.webp"
+  },
+  {
+    "id": "polyShotgun02Attack",
+    "source": "/assets/tirana-streets/imported/polyShotgun02Attack.glb",
+    "thumbnail": "polyShotgun02Attack.webp"
+  },
+  {
+    "id": "polyShotgun03Attack",
+    "source": "/assets/tirana-streets/imported/polyShotgun03Attack.glb",
+    "thumbnail": "polyShotgun03Attack.webp"
+  },
+  {
+    "id": "polySmg01Attack",
+    "source": "/assets/tirana-streets/imported/polySmg01Attack.glb",
+    "thumbnail": "polySmg01Attack.webp"
+  },
+  {
+    "id": "polyRobotLargeGunAttack",
+    "source": "/assets/tirana-streets/living/q-rifle.glb",
+    "thumbnail": "polyRobotLargeGunAttack.webp"
+  },
+  {
+    "id": "polyRobotFlyingGunAttack",
+    "source": "/assets/tirana-streets/living/q-smg.glb",
+    "thumbnail": "polyRobotFlyingGunAttack.webp"
+  },
+  {
+    "id": "polyBazooka01Attack",
+    "source": "/assets/tirana-streets/living/launcher.glb",
+    "thumbnail": "polyBazooka01Attack.webp"
+  },
+  {
+    "id": "polyGrenadeLauncher01Attack",
+    "source": "/assets/tirana-streets/living/launcher.glb",
+    "thumbnail": "polyGrenadeLauncher01Attack.webp"
+  },
+  {
+    "id": "polyDynamiteBomb01Attack",
+    "source": "/assets/tirana-streets/living/grenade.glb",
+    "thumbnail": "polyDynamiteBomb01Attack.webp"
+  },
+  {
+    "id": "polyMolotov01Attack",
+    "source": "/assets/tirana-streets/living/grenade.glb",
+    "thumbnail": "polyMolotov01Attack.webp"
+  },
+  {
+    "id": "polyGasTank01Attack",
+    "source": "/assets/tirana-streets/living/grenade.glb",
+    "thumbnail": "polyGasTank01Attack.webp"
+  },
+  {
+    "id": "polyHandGrenade01Attack",
+    "source": "/assets/tirana-streets/living/grenade.glb",
+    "thumbnail": "polyHandGrenade01Attack.webp"
+  },
+  {
+    "id": "pistolSidearmAttack",
+    "source": "/assets/tirana-streets/living/smith.glb",
+    "thumbnail": "pistolSidearmAttack.webp"
+  },
+  {
+    "id": "awpSniperAttack",
+    "source": "/assets/tirana-streets/imported/awpSniperAttack.glb",
+    "thumbnail": "awpSniperAttack.webp"
+  },
+  {
+    "id": "mrtkGunAttack",
+    "source": "/assets/tirana-streets/imported/mrtkGunAttack.glb",
+    "thumbnail": "mrtkGunAttack.webp"
+  }
+]

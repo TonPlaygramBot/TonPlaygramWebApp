@@ -1,3 +1,4 @@
+import {CITY_RADIUS, CITY_CACHE, runCityWork} from '../tiranastreets/renderSettings';
 import {housingProfile} from '../tirana-east/housingCore.mjs';
 import {buildingGround} from '../tirana-east/terrainCore.mjs';
 import * as T from 'three';
@@ -99,7 +100,7 @@ export class MappedBuildingCells {
   if(this.battery!==battery||Math.hypot(viewer.x-this.viewer.x,viewer.z-this.viewer.z)>45){
    this.viewer={x:viewer.x,z:viewer.z};this.battery=battery;this.frame++;
    const tasks:{key:string;create:()=>Generator<void,void>}[]=[];
-   const radius=battery?1400:2400,selected:Bucket[]=[],distance=(b:Bucket)=>(b.x-viewer.x)**2+(b.z-viewer.z)**2;
+   const radius=battery?CITY_RADIUS.battery:CITY_RADIUS.high,selected:Bucket[]=[],distance=(b:Bucket)=>(b.x-viewer.x)**2+(b.z-viewer.z)**2;
    for(let x=Math.floor((viewer.x-radius)/240);x<=Math.floor((viewer.x+radius)/240);x++)for(let z=Math.floor((viewer.z-radius)/240);z<=Math.floor((viewer.z+radius)/240);z++){
     const b=this.lookup.get(`${x*240+120}:${z*240+120}`);if(b&&distance(b)<(radius+170)**2)selected.push(b);
    }
@@ -109,16 +110,16 @@ export class MappedBuildingCells {
    this.jobs.sync(tasks);
    for(const b of this.cached){b.root!.visible=this.selected.has(b);b.root!.children[0].castShadow=!battery&&distance(b)<240**2;if(b.detail)b.detail.visible=distance(b)<(battery?240:420)**2;}
    const stale=[...this.cached].filter(b=>!this.selected.has(b)).sort((a,b)=>a.used-b.used);
-   while(this.cached.size>(battery?220:460)&&stale.length){const b=stale.shift()!;this.release(b.root!);b.root=undefined;b.detail=undefined;this.cached.delete(b);}
+   while(this.cached.size>(battery?CITY_CACHE.battery:CITY_CACHE.high)&&stale.length){const b=stale.shift()!;this.release(b.root!);b.root=undefined;b.detail=undefined;this.cached.delete(b);}
    // Close detail has a separate cache; distant shells retain no window meshes.
    for(const b of this.cached)if(b.detail&&distance(b)>600**2){this.release(b.detail);b.detail=undefined;}
   }
-  this.jobs.run(battery?1.5:3,180);
-  if(this.cached.size>(battery?220:460)){
+  runCityWork(this.jobs, battery);
+  if(this.cached.size>(battery?CITY_CACHE.battery:CITY_CACHE.high)){
    const stale=[...this.cached].filter(b=>!this.selected.has(b)).sort((a,b)=>a.used-b.used);
-   while(this.cached.size>(battery?220:460)&&stale.length){const b=stale.shift()!;this.release(b.root!);b.root=undefined;b.detail=undefined;this.cached.delete(b);}
+   while(this.cached.size>(battery?CITY_CACHE.battery:CITY_CACHE.high)&&stale.length){const b=stale.shift()!;this.release(b.root!);b.root=undefined;b.detail=undefined;this.cached.delete(b);}
   }
-  this.group.userData={cachedCells:this.cached.size,pendingJobs:this.jobs.length,radius:battery?1400:2400};
+  this.group.userData={cachedCells:this.cached.size,pendingJobs:this.jobs.length,radius:battery?CITY_RADIUS.battery:CITY_RADIUS.high};
  }
  private release(root:T.Group){root.traverse(o=>{if(o instanceof T.Mesh)o.geometry.dispose();});root.clear();root.removeFromParent();}
  dispose(){if(this.dead)return;this.dead=true;this.jobs.dispose();this.finish.dispose();for(const b of this.buckets)if(b.root)this.release(b.root);this.buckets=[];this.group.removeFromParent();}

@@ -1,3 +1,4 @@
+import {beginCityFrame} from '../renderSettings';
 import {alignVehicle} from '../../tirana-east/terrainTransforms';
 import {groundHeight} from '../../tirana-east/terrainCore.mjs';
 import { driverEye, driverFov, driverDirection, driverUp } from '../shared/driverView.mjs';
@@ -47,6 +48,8 @@ export class StreetRenderer extends CityRenderer {
   settings: StreetSettings = { ...DEFAULT_SETTINGS };
   private streetSampleStamp = performance.now();
   private samples: number[] = [];
+  private metricFrames = 0;
+  private lootAt = -Infinity;
   metrics = { p95: 0, drawCalls: 0, triangles: 0, geometries: 0, textures: 0 };
   readonly details: ReturnType<typeof attachEnhancements>;
   constructor(root: HTMLDivElement) {
@@ -205,8 +208,11 @@ export class StreetRenderer extends CityRenderer {
       this.combatEffects.update(dt,this.camera,fires,sim.combat.missiles,this.quality==='battery');
       this.missileMeshes.update(sim.combat.missiles);
     }
-    if (this.simulation)
+    const refreshLoot = performance.now();
+    if (this.simulation && refreshLoot - this.lootAt >= 100) {
+      this.lootAt = refreshLoot;
       this.bodyRig.syncLoot(this.simulation.loot.filter(l=>!l.collected).sort((a,b)=>Math.hypot(a.x-this.simulation!.player.x,a.z-this.simulation!.player.z)-Math.hypot(b.x-this.simulation!.player.x,b.z-this.simulation!.player.z)).filter(l=>Math.hypot(l.x-this.simulation!.player.x,l.z-this.simulation!.player.z)<90).slice(0,24), this.simulation.claimed);
+    }
     const stamp = performance.now();
     if (dt > 0) {
       this.samples.push(stamp - this.streetSampleStamp);
@@ -214,7 +220,7 @@ export class StreetRenderer extends CityRenderer {
     }
     this.streetSampleStamp = stamp;
     const info = this.renderer.info;
-    if (this.samples.length % 30 === 0 && this.samples.length) {
+    if (++this.metricFrames % 30 === 0 && this.samples.length) {
       const sorted = [...this.samples].sort((a, b) => a - b);
       this.metrics = {
         p95: Math.round(sorted[Math.floor(sorted.length * 0.95)]),
@@ -227,6 +233,7 @@ export class StreetRenderer extends CityRenderer {
   }
   override render(state: State | null, id: string, dt: number, lobby: boolean) {
     if (this.disposed) return;
+    beginCityFrame(this.targetFps);
     const p = state?.players[id];
     this.details.sourceCable.setRide(this.simulation?.cableRide||undefined);
     if (state && p)

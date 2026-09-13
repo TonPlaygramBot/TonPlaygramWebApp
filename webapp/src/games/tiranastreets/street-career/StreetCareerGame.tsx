@@ -13,6 +13,8 @@ import {
 import { screenStick } from './humanRoster.mjs';
 import { CityMap } from '../map/CityMap';
 import { StreetArsenal } from './StreetArsenal';
+import {WeaponSwitcher} from '../WeaponSwitcher';
+import {FrameRateControl} from '../FrameRateControl';
 import { difficultyOf, WEAPON_BY_ID } from '../shared/weapons.mjs';
 import { wantedStars } from '../shared/cityLife.mjs';
 import { MISSION_REQUIREMENTS } from './campaignCore.mjs';
@@ -206,7 +208,7 @@ export function StreetCareerGame({ onExit }: { onExit: () => void }) {
         <strong>
           TIRANA STREETS<small>STREET CAREER · SOLO</small>
         </strong>
-        <button onClick={() => open('journal')}>MENU</button>
+        <button className="tsc-menu-button" onClick={() => open('journal')}>MENU</button>
         <button onClick={onExit}>EXIT</button>
       </header>
       {failure && (
@@ -248,6 +250,17 @@ export function StreetCareerGame({ onExit }: { onExit: () => void }) {
             <button onClick={() => open('arsenal')}>ARSENAL</button>
             {!driving && !flying && actionButton('holster', 'holster')}
           </nav>
+          {!driving && !flying && <WeaponSwitcher
+            selected={p.weapon || ''}
+            disabled={p.health <= 0 || p.finished || p.failed}
+            weapons={Object.entries(p.inventory).flatMap(([id, ammo]) => {
+              const w = WEAPON_BY_ID.get(id);
+              return w ? [{id, label: w.label, thumbnail: `/assets/tirana-streets/weapon-thumbnails/${id}.webp`,
+                ammo: w.category === 'melee' ? undefined : ammo.ammo, reserve: ammo.reserve}] : [];
+            })}
+            onOpen={() => {reset(); runtime.current?.input.releaseAll();}}
+            onSelect={id => runtime.current?.action(`equip:${id}`) ?? false}
+          />}
           <div
             className="tsc-stick"
             role="group"
@@ -400,6 +413,15 @@ export function StreetCareerGame({ onExit }: { onExit: () => void }) {
               <>
                 {panel === 'journal' ? (
                   <>
+                    <section aria-label="Graphics and performance">
+                      <h3>Graphics & performance</h3>
+                      <FrameRateControl value={view.settings.targetFps} onChange={targetFps => runtime.current?.setSettings({targetFps})}/>
+                      <label>Graphics <select aria-label="Graphics quality" value={view.settings.quality}
+                        onChange={e => runtime.current?.setSettings({quality: e.target.value as 'auto' | 'high' | 'battery'})}>
+                        <option value="auto">Automatic</option><option value="high">High</option><option value="battery">Battery saver</option>
+                      </select></label>
+                      <p>{view.fps} FPS · Wider city view with nearby detail.</p>
+                    </section>
                     <p>
                       Explore on foot, steal a ride or fly. Complete jobs to unlock
                       new contacts, harder missions and your next story.
@@ -568,21 +590,6 @@ export function StreetCareerGame({ onExit }: { onExit: () => void }) {
                         />
                       </label>
                     </details>
-                    <label>
-                      Graphics{' '}
-                      <select
-                        defaultValue="auto"
-                        onChange={(e) =>
-                          runtime.current?.renderer.setQuality(
-                            e.target.value as 'auto' | 'high' | 'battery'
-                          )
-                        }
-                      >
-                        <option value="auto">Automatic</option>
-                        <option value="high">High</option>
-                        <option value="battery">Battery saver</option>
-                      </select>
-                    </label>
                   </>
                 ) : panel === 'arsenal' ? (
                   <StreetArsenal

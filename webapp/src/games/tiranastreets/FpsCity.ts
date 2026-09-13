@@ -32,6 +32,8 @@ export class FpsCity {
   readonly agedHousing: AgedHousingLayer;
  readonly urbanRoads:UrbanRoadCells;
   private cells: Cell[] = [];
+  private cellViewer = {x: Infinity, z: Infinity};
+  private cellBattery?: boolean;
   private batches = new Map<string, Batch>();
   private materials = new Map<string, T.MeshStandardMaterial>();
   private textures = new Set<T.Texture>();
@@ -273,10 +275,14 @@ export class FpsCity {
     // Shared streamed pavements remain the sole surface owner.
   }
   update(camera: T.Vector3, time: number, battery: boolean) {
-    for (const cell of this.cells) {
-      const d = Math.hypot(camera.x - cell.x, camera.z - cell.z);
-      cell.object.visible = d < (cell.detail ? battery ? 120 : 240 : battery ? 500 : 1000);
-      if (cell.object instanceof T.Mesh) cell.object.castShadow = !battery && d < 95;
+    if (this.cellBattery !== battery || (camera.x-this.cellViewer.x)**2 + (camera.z-this.cellViewer.z)**2 > 16) {
+      this.cellViewer = {x: camera.x, z: camera.z}; this.cellBattery = battery;
+      for (const cell of this.cells) {
+        const d2 = (camera.x-cell.x)**2 + (camera.z-cell.z)**2;
+        const radius = cell.detail ? battery ? 120 : 240 : battery ? 800 : 1600;
+        cell.object.visible = d2 < radius * radius;
+        if (cell.object instanceof T.Mesh) cell.object.castShadow = !battery && d2 < 95 * 95;
+      }
     }
     this.streets?.update(camera, time, battery ? 'battery' : 'high');
     this.landscape?.update(camera, time, battery);
