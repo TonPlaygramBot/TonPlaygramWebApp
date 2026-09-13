@@ -4301,19 +4301,19 @@ io.on('connection', (socket) => {
 
   socket.on('joinFourInRow', ({ tableId, accountId } = {}, cb) => {
     const table = tableMap.get(String(tableId || ''));
-    const playerId = String(accountId || socket.data.playerId || '');
+    const playerId = String(socket.data.playerId || '');
     if (
+      !playerId || (accountId != null && String(accountId) !== playerId) ||
       !table ||
       table.gameType !== 'fourinrow' ||
+      table.players.length !== 2 ||
       !table.players.some((player) => String(player.id) === playerId)
     ) {
       return cb?.({ success: false, error: 'not_a_table_player' });
     }
     socket.join(table.id);
     if (!fourInRowStates.has(table.id)) {
-      const [cols = 7, rows = 6] = String(table.meta?.boardSize || '7x6')
-        .split('x')
-        .map(Number);
+      const [cols, rows] = table.meta?.boardSize === '8x7' ? [8, 7] : [7, 6];
       fourInRowStates.set(table.id, {
         tableId: table.id,
         board: Array.from({ length: rows }, () => Array(cols).fill(null)),
@@ -4329,17 +4329,26 @@ io.on('connection', (socket) => {
 
   socket.on('fourInRowSyncRequest', ({ tableId } = {}) => {
     const state = fourInRowStates.get(String(tableId || ''));
-    if (state) socket.emit('fourInRowState', state);
+    if (state && socket.rooms.has(state.tableId) && state.players.includes(String(socket.data.playerId || ''))) {
+      socket.emit('fourInRowState', state);
+    }
   });
 
-  socket.on('fourInRowMove', ({ tableId, accountId, column } = {}, cb) => {
+  socket.on('fourInRowMove', ({ tableId, accountId, column, revision } = {}, cb) => {
     const id = String(tableId || '');
-    const playerId = String(accountId || socket.data.playerId || '');
+    const playerId = String(socket.data.playerId || '');
     const state = fourInRowStates.get(id);
+    if (!playerId || (accountId != null && String(accountId) !== playerId) || !socket.rooms.has(id)) {
+      return cb?.({ success: false, error: 'not_a_table_player' });
+    }
     if (!state || state.winner || state.turn !== playerId) {
       return cb?.({ success: false, error: 'not_your_turn' });
     }
-    const col = Number(column);
+    // Older clients omit revision; updated clients reject delayed or replayed moves.
+    if (revision != null && revision !== state.revision) {
+      return cb?.({ success: false, error: 'stale_revision' });
+    }
+    const col = column;
     if (!Number.isInteger(col) || col < 0 || col >= state.board[0].length) {
       return cb?.({ success: false, error: 'invalid_column' });
     }
