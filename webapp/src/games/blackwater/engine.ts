@@ -1,3 +1,4 @@
+import {FramePacer, targetFps} from '../tiranastreets/renderSettings';
 import { BattlefieldPlayer, BODY_WEAPON } from './BattlefieldPlayer';
 import {advanceBattleObjective} from './shared/missionCore.mjs';
 import {battleGround} from './shared/terrain.mjs';
@@ -76,6 +77,7 @@ export type Snapshot = {
   messageKind: string;
   medkits: number;
   weapon: WeaponId;
+  weapons?: {id: WeaponId; ammo: number; reserve: number}[];
   shots: number;
   hits: number;
   x: number;
@@ -125,7 +127,8 @@ const defaults: Settings = {
   sensitivity: 1,
   volume: 0.55,
   assist: true,
-  quality: 'auto'
+  quality: 'auto',
+  targetFps: 60
 };
 export class GameEngine {
   renderer: THREE.WebGLRenderer;
@@ -207,6 +210,8 @@ export class GameEngine {
   private movement = 0;
   private footsteps = 0;
   private frame = 0;
+  private renderPacer = new FramePacer();
+  private renderDelta = 0;
   private previous = 0;
   private accumulator = 0;
   private uiTime = 0;
@@ -263,6 +268,7 @@ export class GameEngine {
     } catch {
       /* Storage can be unavailable in private frames. */
     }
+    this.settings.targetFps = targetFps(this.settings.targetFps);
     this.world = makeCityWorld(this.scene, this.camera, this.renderer);
     this.playerVisual = new BattlefieldPlayer(this.scene);
     void this.playerVisual.load().then(() => {
@@ -310,6 +316,7 @@ export class GameEngine {
   }
   setSettings(next: Partial<Settings>) {
     this.settings = { ...this.settings, ...next };
+    this.settings.targetFps = targetFps(this.settings.targetFps);
     this.audio.setVolume(this.settings.volume);
     if (next.quality) {
       this.quality = 1;
@@ -712,6 +719,18 @@ export class GameEngine {
         {x:item.mesh.position.x,y:item.mesh.position.y+.2,z:item.mesh.position.z},this.world.obstacles))
       .sort((a,b)=>a.mesh.position.distanceToSquared(this.camera.position)-b.mesh.position.distanceToSquared(this.camera.position))[0];
   }
+  switchWeapon(id: WeaponId) {
+    if (this.online || this.phase !== 'playing' || this.vehicle.driving || this.health <= 0 || !this.inventory[id]) return false;
+    if (id === this.weapon) return true;
+    this.inventory[this.weapon] = {ammo: this.ammo, reserve: this.reserve};
+    const slot = this.inventory[id]!;
+    this.weapon = id; this.ammo = slot.ammo; this.reserve = slot.reserve;
+    this.reloadTimer = 0; this.pendingReload = false;
+    // Preserve fire cooldown so switching cannot bypass the weapon fire rate.
+    this.input.firing = false; this.input.aiming = false;
+    void this.playerVisual.rig.prepare(BODY_WEAPON[id]);
+    this.emit(); return true;
+  }
   pickupWeapon() {
     if(this.phase!=='playing')return false;
     const item=this.nearestLoot();if(!item)return false;
@@ -1070,18 +1089,18 @@ export class GameEngine {
     const realDt = this.previous
       ? Math.max(0, (now - this.previous) / 1000)
       : 1 / 60;
-    const dt = Math.min(0.075, realDt);
+    let dt = Math.min(0.075, realDt);
     this.previous = now;
     this.totalTime += dt;
     this.fpsTime += realDt;
-    this.fpsFrames++;
+
     if (this.fpsTime >= 1) {
       this.fps = Math.round(this.fpsFrames / this.fpsTime);
       this.fpsTime = 0;
       this.fpsFrames = 0;
       if (this.settings.quality === 'auto' && this.totalTime > 6) {
         this.lowSamples =
-          this.fps < 34
+          this.fps < this.settings.targetFps * .8
             ? this.lowSamples + 1
             : Math.max(0, this.lowSamples - 1);
         if (this.lowSamples >= 4 && this.quality > 0.6) {
@@ -1104,6 +1123,14 @@ export class GameEngine {
         steps++;
       }
     } else this.accumulator = 0;
+    this.renderDelta = Math.min(.15, this.renderDelta + dt);
+    if (document.hidden || !this.renderPacer.shouldRender(now, this.settings.targetFps)) {
+      this.frame = requestAnimationFrame(this.loop);
+      return;
+    }
+    dt = this.renderDelta; this.renderDelta = 0;
+    this.fpsFrames++;
+    this.camera.userData.targetFps = this.settings.targetFps;
     if (this.phase === 'menu') {
       this.camera.position.set(
         START.x + 2.1 + Math.sin(this.totalTime * 0.09) * 1.4,
@@ -1128,7 +1155,7 @@ export class GameEngine {
       this.world.gunLight.intensity = 0;
     }
     if (this.phase === 'playing' || this.phase === 'menu') {
-      const a = this.world.rainData;
+      const a = this.world.rain.visible ? this.world.rainData : [];
       for (let i = 0; i < a.length; i += 6) {
         a[i + 1] -= dt * 11;
         a[i + 4] -= dt * 11;
@@ -1137,7 +1164,7 @@ export class GameEngine {
           a[i + 4] = 22.38;
         }
       }
-      (
+      if (this.world.rain.visible) (
         this.world.rain.geometry.getAttribute(
           'position'
         ) as THREE.BufferAttribute
@@ -1223,6 +1250,8 @@ export class GameEngine {
       messageKind: this.messageKind,
       medkits: this.medkits,
       weapon: this.weapon,
+      weapons: this.online ? [{id: this.weapon, ammo: this.ammo, reserve: this.reserve}] :
+        (Object.keys(this.inventory) as WeaponId[]).map(id => ({id, ...(id === this.weapon ? {ammo: this.ammo, reserve: this.reserve} : this.inventory[id]!)})),
       shots: this.shots,
       hits: this.hits,
       x: this.player.x,

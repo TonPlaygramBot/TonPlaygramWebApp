@@ -1,0 +1,20 @@
+# Tirana Streets controls and rendering
+
+Changes based on `main` at `96e912bdc490a79328b74b6419205d8dc7fff249`.
+
+- The operation settings button and both career menu buttons sit at the visual top center. Equal outer grid columns keep them centered when the brand and exit controls have different widths.
+- Operation, Street Career and City Stories expose saved 50, 60, 75, 90 and 120 FPS targets. These cap rendering through requestAnimationFrame; they do not change the display refresh rate. Movement and combat retain their existing 60 Hz simulation. Street Career also saves its graphics preset instead of resetting its select to Automatic on each menu opening.
+- Coarse mapped roads/buildings stream to 3,200 m (previously 2,400 m), or 1,800 m in battery mode (previously 1,400 m). Nearby windows/pavements keep their existing detail ranges. Spatial caches remain bounded (700/320 coarse cells). Mesh frustum culling remains enabled.
+- The two streaming systems share a cooperative generation budget capped at 4 ms at 50/60 FPS, and 2 ms at 120 FPS. A single generator step can exceed this budget; it is not a hard frame-time guarantee. Legacy direct stream consumers renew their budget on the next update. Static cell visibility updates follow movement/quality changes; hidden rain no longer updates its vertex buffer. Loot selection runs at 10 Hz and the rolling performance sample is sorted every 30 frames.
+- The WEAPONS button opens a scrollable, three-column thumbnail picker. It shows owned equipment only, marks the equipped item, supports tap/click, Escape and outside dismissal, and releases held fire/movement input when opened. Street Career keeps its existing action/vehicle restrictions. Operation switching preserves each magazine/reserve, cancels reload without refilling, and retains the existing fire cooldown. Online currently has one server-owned loadout: its picker shows that current weapon; it does not grant additional weapons or change the network protocol. The existing arsenal/purchase flow is separate.
+- Thirty-five small WebP thumbnails are derived offline from the shipped glTF geometry. Opening the picker adds no model fetches or WebGL contexts. Regenerate with `node scripts/generate-tirana-weapon-thumbnails.mjs`; `sources.json` identifies each source model. Existing source licenses and attribution continue to apply.
+
+Validation:
+
+- `node --test test/tiranaControls.test.mjs test/tiranaCanopyStreaming.test.mjs`: 29 passing tests, including all FPS/display combinations, migration, exact ammunition preservation, unavailable-state guards, wider actual shell rendering, queue cancellation, budgets and thumbnails.
+- The 36 tests in `test/tiranaFullBodyCareer.test.mjs` and `test/tiranaGameplayOverhaul.test.mjs` passed: movement, reloads, melee, checkpoints, vehicle transitions and aircraft behavior.
+- `webapp/node_modules/.bin/tsc -p webapp/tsconfig.tirana-controls.json`: passed.
+- Full application build via `npm run build --ignore-scripts`: passed. Asset preparation was performed separately, including the original asset importer and generated fixtures. Existing large-chunk warnings remain.
+- Isolated controls were checked in a 390 × 844 browser viewport using the actual components and styles: menu center error 0 px, picker bounds 12–378 px, all thumbnail images loaded, knife selection updated the equipped state, and 120 FPS selection worked. This is component-level UI verification, not a full gameplay test.
+- The browser has WebGL disabled, so actual 3D visuals and physical-phone GPU performance could not be verified. No claim of sustained 120 FPS is made.
+- The broader `scripts/verify-blackwater.mjs` suite is not green in this checkout: an existing landmark identity assertion fails; its legacy renderer harness lacks `document.createElementNS`/`ProgressEvent`; the stake test additionally lacks the bot-local `uuid` dependency. The landmark assertion and renderer harness failure were reproduced against the unchanged `main` source. These are outside this controls/rendering patch.

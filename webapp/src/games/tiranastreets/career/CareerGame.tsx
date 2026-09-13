@@ -1,3 +1,5 @@
+import {FrameRateControl} from '../FrameRateControl';
+import '../weapon-switcher.css';
 import {useEffect,useRef,useState} from 'react';
 import type {PointerEvent as PE} from 'react';
 import {CareerRuntime,type CareerView} from './CareerRuntime';
@@ -19,7 +21,7 @@ export function CareerGame({onExit}:{onExit:()=>void}){
  const step=view?currentStep(view.profile):null,active=CHAPTERS.find(c=>c.id===view?.profile.active?.id);
  return <main className="tc-game" aria-label="Tirana Streets career">
   <canvas ref={canvas}/><div ref={surface} className="tc-look" aria-label="Drag to look around"/>
-  <header className="tc-header"><strong>TIRANA STREETS<small>ORIGINAL CAREER</small></strong><button onClick={()=>runtime.current?.pause()}>JOURNAL</button><button onClick={onExit}>EXIT</button></header>
+  <header className="tc-header"><strong>TIRANA STREETS<small>ORIGINAL CAREER</small></strong><button className="tc-menu-button" onClick={()=>runtime.current?.pause()}>MENU</button><button onClick={onExit}>EXIT</button></header>
   {error?<section className="tc-journal" role="alert"><h2>Career could not start</h2><p>{error}</p><button onClick={onExit}>Back to game</button></section>:!view?<p className="tc-status">Loading the shared Tirana city…</p>:<>
    {!view.paused&&<section className="tc-objective"><small>{active?.title||'FREE EXPLORATION'}</small><strong>{step?.text||'Explore the city, or open the journal to take a job.'}</strong><span>{Number.isFinite(view.distance)?`${Math.round(view.distance)} m · `:''}{view.fps} FPS{active?.limit?` · ${Math.max(0,Math.ceil(active.limit-(view.profile.active?.elapsed||0)))}s left`:''}</span></section>}
    {!view.paused&&!view.ride&&!view.overlook&&<>
@@ -31,6 +33,12 @@ export function CareerGame({onExit}:{onExit:()=>void}){
    {view.overlook&&!view.paused&&<section className="tc-ride"><strong>PANORAMA E TIRANËS · DAJTI</strong><p>Rrëshqit për të parë qytetin dhe horizontin drejt Durrësit.</p><button onClick={()=>runtime.current?.returnFromOverlook()}>KTHEHU NË QYTET</button></section>}
    {view.ride&&<section className="tc-ride"><strong>DAJTI EKSPRES · AUTHOR-MODELED EXCURSION</strong><progress max={1} value={view.rideProgress}/><p>90-second game-time journey. Terminal map locations are sourced; relief, support positions and elevations are approximate. The transfer from the city is not a modeled road.</p><button onClick={()=>runtime.current?.cancel()}>Return to city without completing</button></section>}
    {view.paused&&!map&&<section className="tc-journal" aria-label="Career journal">
+    <section aria-label="Graphics and performance"><h2>Graphics & performance</h2>
+      <FrameRateControl value={view.settings.targetFps} onChange={targetFps=>runtime.current?.setSettings({targetFps})}/>
+      <label>Graphics <select aria-label="Graphics quality" value={view.settings.quality} onChange={e=>runtime.current?.setSettings({quality:e.target.value as 'auto'|'high'|'battery'})}>
+        <option value="auto">Balanced</option><option value="high">High</option><option value="battery">Battery saver</option>
+      </select></label>
+    </section>
     <small>FICTIONAL CONTACTS · REAL CITY FOOTPRINTS</small><h1>Your name in Tirana.</h1><p>Meet contacts, complete jobs and unlock the Dajti excursion. Progress is saved on this device.</p>
     <div className="tc-balance"><strong>{careerBalance(view.profile)}</strong> career credits · Not TPG <span>{view.profile.completed.length}/{CHAPTERS.length} chapters</span></div>
     {view.profile.active&&<p role="status">{view.profile.active.status==='failed'?view.profile.active.reason:`Checkpoint saved: ${currentStep(view.profile)?.text||active?.title}`}</p>}

@@ -65,6 +65,7 @@ export class CityRenderer {
   protected preserveVehicleInterior = false;
   fps = 60;
   quality: "auto" | "high" | "battery" = "auto";
+  targetFps = 60;
   ready = false;
   disposed = false;
   readonly landscape: LandscapeVisuals;
@@ -887,9 +888,9 @@ export class CityRenderer {
       this.fps = Math.round(this.frames / this.sampleTime);
       if (this.quality === "auto") {
         const next =
-          this.fps < 42
+          this.fps < this.targetFps * .8
             ? Math.max(0.85, this.dpr - 0.15)
-            : this.fps > 56
+            : this.fps >= this.targetFps * .95
               ? Math.min(1.65, window.devicePixelRatio || 1, this.dpr + 0.05)
               : this.dpr;
         if (Math.abs(next - this.dpr) > 0.01) {

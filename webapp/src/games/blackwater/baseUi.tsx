@@ -1,4 +1,7 @@
 'use client';
+import {WeaponSwitcher} from '../tiranastreets/WeaponSwitcher';
+import {FrameRateControl} from '../tiranastreets/FrameRateControl';
+import {BODY_WEAPON} from './BattlefieldPlayer';
 import {
   memo,
   useEffect,
@@ -133,7 +136,8 @@ export function Game({
       sensitivity: 1,
       volume: 0.55,
       assist: true,
-      quality: 'auto'
+      quality: 'auto',
+      targetFps: 60
     });
   useEffect(() => {
     if (!canvas.current || !surface.current) return;
@@ -211,6 +215,7 @@ export function Game({
             </small>
           </span>
         </div>
+        <button className="bw-menu-button" onClick={openSettings} aria-label="Game settings"><Settings2 size={18}/> MENU</button>
         <div className="top-actions">
           <span className="fps-readout">
             {state.ready ? state.fps : '—'} <small>FPS</small>
@@ -222,13 +227,6 @@ export function Game({
             aria-label="Toggle fullscreen"
           >
             <Maximize size={18} />
-          </button>
-          <button
-            className="icon-btn"
-            onClick={openSettings}
-            aria-label="Game settings"
-          >
-            <Settings2 size={19} />
           </button>
           {playing ? (
             <button
@@ -485,6 +483,11 @@ export function Game({
                 </small>
               </div>
               {state.pickupWeapon && !state.driving && <button className="bw-pickup" onClick={() => engine.current?.pickupWeapon()} aria-label={`Pick up ${state.pickupWeapon}`}>PICK UP {state.pickupWeapon}</button>}
+              {!state.driving && <WeaponSwitcher selected={state.weapon}
+                weapons={(state.weapons || []).map(w => ({...w, label: WEAPONS[w.id].name,
+                  thumbnail: `/assets/tirana-streets/weapon-thumbnails/${BODY_WEAPON[w.id]}.webp`}))}
+                onOpen={() => engine.current?.input.clear()}
+                onSelect={id => engine.current?.switchWeapon(id as WeaponId) ?? false}/>}
               <div className="touch-controls">
                 <Joystick engine={engine.current} />
                 <button
@@ -746,6 +749,7 @@ export function Game({
             Make the controls feel right for you.
           </DialogDescription>
           <div className="settings-fields">
+            <FrameRateControl value={settings.targetFps} onChange={targetFps => configure({targetFps})}/>
             <label className="slider-field">
               <span>
                 Look sensitivity <b>{settings.sensitivity.toFixed(2)}×</b>

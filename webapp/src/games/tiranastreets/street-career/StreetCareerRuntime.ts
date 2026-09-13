@@ -20,6 +20,7 @@ import {
 } from './StreetSimulation.mjs';
 import { captureCheckpoint, restoreCheckpoint } from './checkpointCore.mjs';
 import { loadSettings, type StreetSettings } from './settings';
+import {FramePacer, targetFps} from '../renderSettings';
 import {
   createCampaign,
   type StreetProfile,
@@ -45,6 +46,8 @@ export type StreetView = {
 /** Local-only career. The shared engine still owns cars, city AI and settlement;
  * its optional player adapter supplies this mode's full-body 3D rules. */
 export class StreetCareerRuntime {
+  private renderPacer = new FramePacer();
+  private renderDelta = 0;
   readonly renderer: StreetRenderer;
   readonly input: StreetInput;
   readonly audio = new CityAudio();
@@ -78,6 +81,8 @@ export class StreetCareerRuntime {
     this.audio.enabled = this.settings.volume > 0;
     this.renderer = new StreetRenderer(root);
     this.renderer.settings = this.settings;
+    this.renderer.setQuality(this.settings.quality);
+    this.renderer.targetFps = this.settings.targetFps;
     this.input = new StreetInput(
       (action) => {
         if (action === 'pause') {
@@ -232,6 +237,9 @@ export class StreetCareerRuntime {
   }
   setSettings(patch: Partial<StreetSettings>) {
     Object.assign(this.settings, patch);
+    this.settings.targetFps = targetFps(this.settings.targetFps);
+    if (patch.quality) this.renderer.setQuality(this.settings.quality);
+    this.renderer.targetFps = this.settings.targetFps;
     this.renderer.settings = this.settings;
     this.simulation.settings.aimAssist = this.settings.aimAssist;
     this.audio.enabled = this.settings.volume > 0;
@@ -360,8 +368,11 @@ export class StreetCareerRuntime {
         this.routeAt = now;
       }
     }
-    if (!document.hidden && !this.graphicsError)
-      this.renderer.render(this.state, 'local', this.paused ? 0 : dt, false);
+    this.renderDelta = Math.min(.15, this.renderDelta + dt);
+    if (!document.hidden && !this.graphicsError && this.renderPacer.shouldRender(now, this.settings.targetFps)) {
+      this.renderer.render(this.state, 'local', this.paused ? 0 : this.renderDelta, false);
+      this.renderDelta = 0;
+    }
     if (now - this.saveAt > 5000) {
       this.persist();
       this.saveAt = now;

@@ -14,7 +14,7 @@ import {CITY_COMPLETION} from '../webapp/src/games/tirana-city-completion/data.m
 import {WORLD} from '../webapp/src/games/tiranastreets/shared/world.mjs';
 const dir=await mkdtemp(join(tmpdir(),'tirana-stream-'));
 let api;
-try{const file=join(dir,'runtime.mjs');await build({stdin:{contents:`export * as T from 'three';export {UrbanRoadCells} from './src/games/tirana-neighbourhood/UrbanRoadCells';export {MappedBuildingCells} from './src/games/tirana-neighbourhood/MappedBuildingCells';export {appendBuildingShell,shellGeometry} from './src/games/tirana-neighbourhood/buildingShell';export {MatureTreeLayer} from './src/games/tirana-street-life/MatureTreeLayer';`,resolveDir:new URL('../webapp/',import.meta.url).pathname,loader:'ts'},bundle:true,format:'esm',platform:'node',outfile:file});api=await import(pathToFileURL(file));}finally{await rm(dir,{recursive:true,force:true});}
+try{const file=join(dir,'runtime.mjs');await build({stdin:{contents:`export * as T from 'three';export {beginCityFrame} from './src/games/tiranastreets/renderSettings';export {UrbanRoadCells} from './src/games/tirana-neighbourhood/UrbanRoadCells';export {MappedBuildingCells} from './src/games/tirana-neighbourhood/MappedBuildingCells';export {appendBuildingShell,shellGeometry} from './src/games/tirana-neighbourhood/buildingShell';export {MatureTreeLayer} from './src/games/tirana-street-life/MatureTreeLayer';`,resolveDir:new URL('../webapp/',import.meta.url).pathname,loader:'ts'},bundle:true,format:'esm',platform:'node',outfile:file});api=await import(pathToFileURL(file));}finally{await rm(dir,{recursive:true,force:true});}
 const {T}=api;
 const area=polygons=>polygons.reduce((sum,p)=>sum+p.reduce((v,r,i)=>v+(i?-1:1)*Math.abs(r.reduce((a,q,j)=>{const b=r[(j+1)%r.length];return a+q[0]*b[1]-q[1]*b[0];},0))/2,0),0);
 test('pavements subtract both arms of junctions, including adjacent cells and reversed ways',()=>{
@@ -56,9 +56,9 @@ test('building streaming renders beyond the previous range and disposes cancelle
  const buildings=Array.from({length:32},(_,i)=>({id:String(i),p:[[i*100,0],[i*100+20,0],[i*100+20,20],[i*100,20]],h:15}));
  const wall=new T.MeshStandardMaterial({vertexColors:true}),glass=new T.MeshStandardMaterial();
  const cells=new api.MappedBuildingCells(buildings,wall,glass,false,false);
- for(let i=0;i<100;i++)cells.update({x:0,z:0},false);
- assert.equal(cells.group.userData.pendingJobs,0);assert.equal(cells.group.userData.radius,2400);
- cells.group.updateMatrixWorld(true);const ray=new T.Raycaster(new T.Vector3(2305,30,5),new T.Vector3(0,-1,0));assert.ok(ray.intersectObject(cells.group,true).length);
+ for(let i=0;i<100;i++){api.beginCityFrame(120);cells.update({x:0,z:0},false);}
+ assert.equal(cells.group.userData.pendingJobs,0);assert.equal(cells.group.userData.radius,3200);
+ cells.group.updateMatrixWorld(true);const ray=new T.Raycaster(new T.Vector3(3005,30,5),new T.Vector3(0,-1,0));assert.ok(ray.intersectObject(cells.group,true).length);
  cells.update({x:2900,z:0},true);cells.dispose();cells.dispose();cells.update({x:0,z:0},false);assert.equal(cells.group.children.length,0);wall.dispose();glass.dispose();
 });
 test('tree LOD retains distant canopy, bounded instances and responds immediately to quality changes',()=>{
@@ -72,10 +72,10 @@ test('tree LOD retains distant canopy, bounded instances and responds immediatel
 });
 test('road streaming uses the larger radius, prioritizes nearby cells and cancels cleanly',()=>{
  const layer=new api.UrbanRoadCells(false);let maximum=0;
- for(let i=0;i<5000;i++){const start=performance.now();layer.update(i/60,{x:0,z:420},false);maximum=Math.max(maximum,performance.now()-start);if(!layer.group.userData.pendingJobs)break;}
- assert.equal(layer.group.userData.pendingJobs,0);assert.equal(layer.group.userData.radius,2400);assert.ok(layer.group.children.length>100);
+ for(let i=0;i<5000;i++){api.beginCityFrame(120);const start=performance.now();layer.update(i/60,{x:0,z:420},false);maximum=Math.max(maximum,performance.now()-start);if(!layer.group.userData.pendingJobs)break;}
+ assert.equal(layer.group.userData.pendingJobs,0);assert.equal(layer.group.userData.radius,3200);assert.ok(layer.group.children.length>100);
  layer.group.updateMatrixWorld(true);const paving=[];layer.group.traverse(o=>{if(o.name==='Pavement outside carriageways')paving.push(o);});assert.ok(paving.length>0);
  for(const mesh of paving){const p=mesh.geometry.getAttribute('position');if(!p)continue;for(let i=0;i<p.count;i++)assert.ok(Number.isFinite(p.getX(i)+p.getY(i)+p.getZ(i)));}
  console.log('road streaming maximum update ms',maximum.toFixed(2),'cells',layer.group.children.length);
- for(let i=0;i<5000;i++){layer.update(100+i/60,{x:4000,z:3000},true);if(!layer.group.userData.pendingJobs)break;}assert.ok(layer.group.userData.cachedCells<=220);layer.dispose();layer.dispose();layer.update(101,{x:0,z:420},false);assert.equal(layer.group.children.length,0);
+ for(let i=0;i<5000;i++){api.beginCityFrame(120);layer.update(100+i/60,{x:4000,z:3000},true);if(!layer.group.userData.pendingJobs)break;}assert.ok(layer.group.userData.cachedCells<=320);layer.dispose();layer.dispose();layer.update(101,{x:0,z:420},false);assert.equal(layer.group.children.length,0);
 });
