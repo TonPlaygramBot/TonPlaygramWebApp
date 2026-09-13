@@ -3624,7 +3624,10 @@ export default function CheckersBattleRoyal() {
   }
 
   return (
-    <div className="fixed inset-0 bg-[#050814] text-white">
+    <div
+      className="fixed inset-0 bg-[#050814] text-white"
+      data-live-video-blocking={configOpen || showGift || Boolean(arenaError) || Boolean(gameOver && !isAnimating) ? 'true' : 'false'}
+    >
       <div ref={mountRef} className="h-full w-full" aria-label="Checkers board" />
       <div role="status" aria-live="polite" className="pointer-events-none absolute left-1/2 z-20 w-[calc(100%-2rem)] max-w-md -translate-x-1/2 rounded-xl border border-white/10 bg-slate-950/85 px-3 py-2 text-center text-xs text-white/90" style={{ bottom: 'max(12px, env(safe-area-inset-bottom))' }}>
         <span className="font-semibold">{gameOver ? 'Match complete' : turn === playerSide ? 'Your turn' : mode === 'online' ? 'Opponent’s turn' : 'AI’s turn'}</span>
