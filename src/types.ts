@@ -47,7 +47,9 @@ export interface ShotContext {
   railContactCountAfterContact?: number;
   objectBallsToRailAfterContact?: string[];
   noCushionAfterContact?: boolean;
+  // The substitute when a free ball is used; otherwise an alias for declaredBall.
   nominatedBall?: BallColor|string;
+  // A chosen colour after red. Without a declaration, first contact nominates it.
   declaredBall?: BallColor|string;
   freeBall?: boolean;
   snookered?: boolean;

@@ -38,6 +38,7 @@ import { SnookerCareerMatch } from '../../games/snooker/SnookerCareer';
 import { resolveSnookerLaunchOptions } from '../../games/snooker/launchOptions';
 import { consumeSnookerPhysicsTime } from '../../games/snooker/physicsClock';
 import { clampBallInHand, projectPointerToSnookerTable } from '../../games/snooker/ballInHand';
+import { findSnookerRespotPosition, SNOOKER_RESPOT_ORDER } from '../../games/snooker/respot';
 import {
   isTelegramWebView,
   getTelegramUsername,
@@ -7026,99 +7027,17 @@ const toBallColorId = (id) => {
   return lower.toUpperCase();
 };
 
-const SNOOKER_COLOR_SPOTS = {
-  YELLOW: 'yellow',
-  GREEN: 'green',
-  BROWN: 'brown',
-  BLUE: 'blue',
-  PINK: 'pink',
-  BLACK: 'black'
-};
-const SNOOKER_SPOT_PRIORITY = ['BLACK', 'PINK', 'BLUE', 'BROWN', 'GREEN', 'YELLOW'];
-const isSnookerColourId = (colorId) => Boolean(SNOOKER_COLOR_SPOTS[colorId]);
-const resolveSnookerSpotKey = (colorId) => SNOOKER_COLOR_SPOTS[colorId] ?? null;
-const isRespotPositionClear = (pos, balls, reserved = [], ignoreId = null) => {
-  if (!pos) return false;
-  if (uploadedTableMapping && !uploadedBallFits(uploadedTableMapping, { x: pos.x, y: pos.z })) return false;
-  const minDistance = BALL_R * 2.02;
-  const minDistanceSq = minDistance * minDistance;
-  for (const ball of balls) {
-    if (!ball?.active) continue;
-    if (ignoreId != null && String(ball.id) === String(ignoreId)) continue;
-    const dx = ball.pos.x - pos.x;
-    const dy = ball.pos.y - pos.z;
-    if (dx * dx + dy * dy < minDistanceSq) return false;
-  }
-  for (const entry of reserved) {
-    const dx = entry.x - pos.x;
-    const dy = entry.z - pos.z;
-    if (dx * dx + dy * dy < minDistanceSq) return false;
-  }
-  return true;
-};
 const resolveSnookerRespotPosition = (colorId, spots, balls, reserved = []) => {
-  if (!spots) return null;
-  const spotKey = resolveSnookerSpotKey(colorId);
-  const spotCoords = spotKey ? spots[spotKey] : null;
-  if (!spotCoords) return null;
-  const baseSpot = { x: spotCoords[0], z: spotCoords[1] };
-  if (isRespotPositionClear(baseSpot, balls, reserved)) {
-    return baseSpot;
-  }
-  const spotCandidates = [];
-  for (const candidate of SNOOKER_SPOT_PRIORITY) {
-    if (candidate === colorId) continue;
-    const candidateKey = resolveSnookerSpotKey(candidate);
-    const coords = candidateKey ? spots[candidateKey] : null;
-    if (!coords) continue;
-    spotCandidates.push({ x: coords[0], z: coords[1] });
-  }
-  for (const candidatePos of spotCandidates) {
-    if (isRespotPositionClear(candidatePos, balls, reserved)) {
-      return candidatePos;
-    }
-  }
-  const minDistance = BALL_R * 2.02;
-  const blockers = balls.filter((ball) => {
-    if (!ball?.active) return false;
-    const dx = ball.pos.x - baseSpot.x;
-    const dz = ball.pos.y - baseSpot.z;
-    return dx * dx + dz * dz < minDistance * minDistance;
+  const position = findSnookerRespotPosition(colorId, spots, balls, {
+    radius: BALL_R,
+    limitX: uploadedTableMapping?.limitX ?? RAIL_LIMIT_X,
+    limitY: uploadedTableMapping?.limitY ?? RAIL_LIMIT_Y,
+    reserved: reserved.map((point) => ({ x: point.x, y: point.z })),
+    fits: uploadedTableMapping
+      ? (point) => uploadedBallFits(uploadedTableMapping, point)
+      : undefined
   });
-  const blocker = blockers.reduce((closest, ball) => {
-    if (!ball) return closest;
-    if (!closest) return ball;
-    const distA =
-      (ball.pos.x - baseSpot.x) * (ball.pos.x - baseSpot.x) +
-      (ball.pos.y - baseSpot.z) * (ball.pos.y - baseSpot.z);
-    const distB =
-      (closest.pos.x - baseSpot.x) * (closest.pos.x - baseSpot.x) +
-      (closest.pos.y - baseSpot.z) * (closest.pos.y - baseSpot.z);
-    return distA < distB ? ball : closest;
-  }, null);
-  const maxZ = RAIL_LIMIT_Y - BALL_R * 0.25;
-  const startZ = Math.min(
-    maxZ,
-    Math.max(baseSpot.z, blocker?.pos?.y ?? baseSpot.z) + minDistance
-  );
-  const step = BALL_R * 0.25;
-  const xCandidates = [];
-  const anchorX = blocker?.pos?.x ?? baseSpot.x;
-  xCandidates.push(anchorX);
-  xCandidates.push(baseSpot.x);
-  xCandidates.push(anchorX + BALL_R * 0.6);
-  xCandidates.push(anchorX - BALL_R * 0.6);
-  xCandidates.push(anchorX + BALL_R * 1.1);
-  xCandidates.push(anchorX - BALL_R * 1.1);
-  for (let z = startZ; z <= maxZ + 1e-6; z += step) {
-    for (const x of xCandidates) {
-      const candidatePos = { x, z };
-      if (isRespotPositionClear(candidatePos, balls, reserved)) {
-        return candidatePos;
-      }
-    }
-  }
-  return baseSpot;
+  return position ? { x: position.x, z: position.y } : null;
 };
 
 function alignRailsToCushions(table, frame, railMeshes = null) {
@@ -22110,9 +22029,9 @@ const shotPowerRef = useRef(0);
         clothY: TABLE_Y + CLOTH_TOP_LOCAL + CLOTH_LIFT - CLOTH_DROP,
         tableW: Math.max(TABLE.W, PLAY_W),
         tableL: Math.max(TABLE.H, PLAY_H),
-        // Keep the uniform, floor-anchored proportions while making both human
-        // silhouettes clearly bigger and taller on a portrait phone display.
-        targetHeight: cueLen * 1.68,
+        // Increase the current human proportions by 5%, uniformly and anchored
+        // to the floor, so both players look slightly bigger and taller.
+        targetHeight: cueLen * 1.68 * 1.05,
         onError: (error) => console.warn('Snooker Royal player characters could not load', error)
       });
       referencePlayers.setCueAppearance(cueBody, cueTipLocal, cueButtLocal);
@@ -25493,8 +25412,7 @@ const shotPowerRef = useRef(0);
           contactMade: shotContextRef.current.contactMade,
           cushionAfterContact: shotContextRef.current.cushionAfterContact,
           noCushionAfterContact,
-          variant: variantId,
-          respottedBlackStarter: Math.random() < 0.5 ? 'A' : 'B'
+          variant: variantId
         };
         let safeState = currentState;
         let shotResolved = false;
@@ -25625,47 +25543,6 @@ const shotPowerRef = useRef(0);
             [shooterSeat]: null
           };
         }
-        const shouldRespotColours =
-          (currentState?.phase ?? frameState?.phase) === 'REDS_AND_COLORS' &&
-          (currentState?.redsRemaining ?? frameState?.redsRemaining ?? 0) > 0 &&
-          !safeState?.foul &&
-          (!isTraining || trainingRulesRef.current);
-        if (shouldRespotColours && potted.length) {
-          const ballsList = ballsRef.current?.length > 0 ? ballsRef.current : balls;
-          const spots = snookerSpotsRef.current;
-          const reserved = [];
-          potted.forEach((entry) => {
-            const colorId = entry?.color ? String(entry.color).toUpperCase() : null;
-            if (!colorId || !isSnookerColourId(colorId)) return;
-            const ball = ballsList.find((candidate) => toBallColorId(candidate.id) === colorId);
-            if (!ball) return;
-            const respot = resolveSnookerRespotPosition(colorId, spots, ballsList, reserved);
-            if (!respot) return;
-            ball.active = true;
-            ball.vel.set(0, 0);
-            if (ball.spin) ball.spin.set(0, 0);
-            if (ball.pendingSpin) ball.pendingSpin.set(0, 0);
-            ball.spinMode = 'standard';
-            ball.swerveStrength = 0;
-            ball.swervePowerStrength = 0;
-            ball.impacted = false;
-            ball.launchDir = null;
-            ball.lift = 0;
-            ball.liftVel = 0;
-            ball.pos.set(respot.x, respot.z);
-            if (ball.mesh) {
-              ball.mesh.visible = true;
-              ball.mesh.scale.set(1, 1, 1);
-              ball.mesh.position.set(respot.x, BALL_CENTER_Y, respot.z);
-            }
-            if (ball.shadow) {
-              ball.shadow.visible = true;
-              ball.shadow.position.set(respot.x, BALL_SHADOW_Y, respot.z);
-            }
-            pocketDropRef.current.delete(ball.id);
-            reserved.push(respot);
-          });
-        }
         const metaState =
           safeState && typeof safeState.meta === 'object' ? safeState.meta.state : null;
         if (safeState?.foul) {
@@ -25754,33 +25631,53 @@ const shotPowerRef = useRef(0);
                 playCheer(1);
               }
             }
-            const colourNames = ['yellow', 'green', 'brown', 'blue', 'pink', 'black'];
-            colourNames.forEach((name) => {
-              const simBall = colors[name];
-              const stateBall = safeState.balls.find(
-                (b) => b.color === name.toUpperCase()
-              );
+            // A cue ball in hand cannot obstruct a colour spot.
+            if (deriveInHandFromFrame(safeState)) cue.active = false;
+            // The resolved frame owns every respot: legal colours, foul colours,
+            // the colour after the last red, and a tied final black all use the
+            // same collision-free placement, highest-value colour first.
+            const beginsDecidingBlack = safeState.meta?.respottedBlack &&
+              !currentState.meta?.respottedBlack;
+            if (beginsDecidingBlack && colors.black) colors.black.active = false;
+            const ballsList = ballsRef.current?.length > 0 ? ballsRef.current : balls;
+            SNOOKER_RESPOT_ORDER.forEach((colorId) => {
+              const simBall = colors[colorId.toLowerCase()];
+              const stateBall = safeState.balls.find((ball) => ball.color === colorId);
               if (!simBall || !stateBall) return;
-              if (stateBall.onTable) {
-                if (!simBall.active) {
-                  pocketDropRef.current.delete(simBall.id);
-                  simBall.mesh.scale.set(1, 1, 1);
-                  const [sx, sy] = SPOTS[name];
-                  simBall.active = true;
-                  simBall.mesh.visible = true;
-                  simBall.pos.set(sx, sy);
-                  simBall.mesh.position.set(sx, BALL_CENTER_Y, sy);
-                  simBall.vel.set(0, 0);
-                  simBall.spin?.set(0, 0);
-                  simBall.pendingSpin?.set(0, 0);
-                  simBall.spinMode = 'standard';
-                  simBall.swerveStrength = 0;
-                  simBall.swervePowerStrength = 0;
-                }
-              } else {
+              if (!stateBall.onTable) {
                 simBall.active = false;
                 pocketDropRef.current.delete(simBall.id);
-                simBall.mesh.visible = false;
+                if (simBall.mesh) simBall.mesh.visible = false;
+                if (simBall.shadow) simBall.shadow.visible = false;
+                return;
+              }
+              if (simBall.active) return;
+              const position = resolveSnookerRespotPosition(
+                colorId, snookerSpotsRef.current ?? SPOTS, ballsList
+              );
+              if (!position) throw new Error(`No clear spot for ${colorId}`);
+              pocketDropRef.current.delete(simBall.id);
+              simBall.pos.set(position.x, position.z);
+              simBall.vel.set(0, 0);
+              simBall.spin?.set(0, 0);
+              simBall.pendingSpin?.set(0, 0);
+              simBall.omega?.set(0, 0, 0);
+              simBall.spinMode = 'standard';
+              simBall.swerveStrength = 0;
+              simBall.swervePowerStrength = 0;
+              simBall.impacted = false;
+              simBall.launchDir = null;
+              simBall.lift = 0;
+              simBall.liftVel = 0;
+              simBall.active = true;
+              if (simBall.mesh) {
+                simBall.mesh.visible = true;
+                simBall.mesh.scale.set(1, 1, 1);
+                simBall.mesh.position.set(position.x, BALL_CENTER_Y, position.z);
+              }
+              if (simBall.shadow) {
+                simBall.shadow.visible = true;
+                simBall.shadow.position.set(position.x, BALL_SHADOW_Y, position.z);
               }
             });
             if (isTraining) {
@@ -25803,10 +25700,10 @@ const shotPowerRef = useRef(0);
                 };
               }
             }
-            if (cueBallPotted || safeState.meta?.respottedBlack && !currentState.meta?.respottedBlack) {
+            if (safeState.meta?.state?.ballInHand) {
               cue.active = false;
               pocketDropRef.current.delete(cue.id);
-              const fallback = defaultInHandPosition();
+              const fallback = resolveNearestFreeInHandSpot(defaultInHandPosition());
               if (fallback) {
                 updateCuePlacement(fallback);
               } else {

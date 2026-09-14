@@ -135,7 +135,7 @@ function SnookerCharacterPreview() {
     } }));
     new Response(stream).arrayBuffer().then(buffer => loader.parseAsync(buffer, '')).then(async gltf => {
       if (disposed) return;
-      players = [m.cueLength * 1.60, m.targetHeight].map(targetHeight => new PoolRoyalHumanPlayers(scene,
+      players = [m.cueLength * 1.68, m.targetHeight].map(targetHeight => new PoolRoyalHumanPlayers(scene,
         { floorY: m.floorY, clothY: m.clothY, tableW: m.tableW, tableL: m.tableL, targetHeight, model: gltf.scene }));
       const loaded = (await Promise.all(players.map(p => p.ready))).every(Boolean);
       if (!disposed) { setReady(loaded); setStatus(loaded ? 'Character view' : 'Character could not load.'); }
