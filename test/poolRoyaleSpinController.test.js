@@ -1,6 +1,5 @@
 import fs from 'fs';
 import { parse } from '@babel/parser';
-import { buildSync } from 'esbuild';
 import * as THREE from '../webapp/node_modules/three/build/three.cjs';
 import {
   MAX_SPIN_OFFSET, MAX_CUE_TIP_OFFSET_RATIO, normalizeSpinInput,
@@ -16,14 +15,6 @@ const energy = ({ velocity, omega }) =>
   (velocity.x ** 2 + velocity.y ** 2) / 2 +
   radius ** 2 / 5 * (omega.x ** 2 + omega.y ** 2 + omega.z ** 2);
 const cloth = (state, dt = 0.05) => stepPoolRoyalClothSpin({ ...state, radius, dt });
-// Bundle the pinned TypeScript dependency just as Vite does. Upstream's
-// extensionless modules are not native Node TypeScript entry points.
-const engineBundle = buildSync({ entryPoints: ['webapp/src/pages/Games/shared/poolRoyalPhysics.ts'],
-  bundle: true, format: 'cjs', platform: 'node', write: false });
-const bundledModule = { exports: {} };
-new Function('module', 'exports', engineBundle.outputFiles[0].text)(bundledModule, bundledModule.exports);
-const { PoolRoyalPhysics, PoolRoyalPhysicsClock } = bundledModule.exports;
-const poolPhysics = new PoolRoyalPhysics(radius);
 
 describe('Pool Royale screen spin controller', () => {
   it('keeps the center neutral through repeated UI and physics conversions', () => {
@@ -166,16 +157,15 @@ describe('Pool Royale actual shot integration', () => {
     const cue = { vel: new THREE.Vector2(), omega: new THREE.Vector3(), spin: new THREE.Vector2(),
       pendingSpin: new THREE.Vector2(), pos: new THREE.Vector2() };
     const reset = jest.fn();
-    const apply = loadGameFunction('applyShotAtImpact', { cue, THREE, poolPhysics, normalizeSpinInput,
+    const apply = loadGameFunction('applyShotAtImpact', { cue, THREE, resolvePoolRoyalCueStrike,
       BALL_R: radius, LIVE_CUE_FORWARD_DURATION_MS: 80, resetSpinRef: { current: reset },
       cueLiftRef: { current: {} }, playCueHit: () => {}, spawnCueImpactDust: () => {}, CUE_Y: radius });
     const payload = { base: new THREE.Vector2(0, 1), aimDir: new THREE.Vector2(0, 1),
       physicsSpin: { x: 0.17, y: -0.31 }, clampedPower: 1 };
     apply(payload);
-    const expected = { pos:new THREE.Vector2(), vel:new THREE.Vector2(), omega:new THREE.Vector3() };
-    poolPhysics.strike(expected,payload.aimDir,1,payload.physicsSpin);
-    expect(cue.vel.toArray()).toEqual(expected.vel.toArray());
-    expect(cue.omega.toArray()).toEqual(expected.omega.toArray());
+    const expected = strike(payload.physicsSpin);
+    expect(cue.vel.toArray()).toEqual([expected.velocity.x, expected.velocity.y]);
+    expect(cue.omega.toArray()).toEqual([expected.omega.x, expected.omega.y, expected.omega.z]);
     expect(cue.spin.toArray()).toEqual([0.17, -0.31]);
     expect(reset).toHaveBeenCalledTimes(1);
     apply(payload);
@@ -184,11 +174,11 @@ describe('Pool Royale actual shot integration', () => {
 
   it('uses incoming rail velocity even when boundary fallback already reflected the ball', () => {
     const launched = strike({ x: MAX_SPIN_OFFSET, y: 0 });
-    const ball = { pos: new THREE.Vector2(), vel: new THREE.Vector2(0, -launched.velocity.y),
+    const ball = { vel: new THREE.Vector2(0, -launched.velocity.y),
       omega: new THREE.Vector3(launched.omega.x, launched.omega.y, launched.omega.z) };
     const impact = { type: 'rail', normal: new THREE.Vector2(0, -1),
       preImpactVel: new THREE.Vector2(launched.velocity.x, launched.velocity.y) };
-    const apply = loadGameFunction('applyRailImpulse', { THREE, poolPhysics,
+    const apply = loadGameFunction('applyRailImpulse', { THREE, resolvePoolRoyalCushionSpin,
       clamp: (value, min, max) => Math.max(min, Math.min(max, value)),
       BALL_R: radius, CUSHION_RESTITUTION: 1, RAIL_FRICTION: 0.16 });
     apply(ball, impact);
@@ -203,7 +193,6 @@ describe('Pool Royale actual frame and stopping integration', () => {
   const stopSpeed = 0.0074 * 0.35;
   const scope = {
     stepPoolRoyalClothSpin, hasPoolRoyalPlanarSlip, isPoolRoyalBallMoving,
-    poolPhysics, POOL_FRAME_SECONDS: 1 / 60,
     BALL_R: radius, SPIN_FIXED_DT: 1 / 120, SPIN_KINETIC_FRICTION: 0.126,
     ROLLING_RESISTANCE: 0.0098, SPIN_GRAVITY: 9.81, SPIN_ANGULAR_DAMPING: 0.04,
     STOP_FINAL_EPS: stopSpeed, STOP_EPS: 0.0074, STOP_SOFTENING: 0.96,
@@ -211,6 +200,7 @@ describe('Pool Royale actual frame and stopping integration', () => {
     MAX_PHYSICS_SUBSTEPS: 5
   };
   const step = loadGameFunction('stepPoolRoyalBallMotion', scope);
+  const clock = loadGameFunction('resolvePoolRoyalPhysicsFrameStep', scope);
   const stopped = loadGameFunction('allStopped', scope);
 
   it.each([-1, 1])('retains post-contact draw/follow (%s) at 30, 60 and 120 Hz', (sign) => {
@@ -220,8 +210,7 @@ describe('Pool Royale actual frame and stopping integration', () => {
         omega: new THREE.Vector3(launched.omega.x, launched.omega.y, launched.omega.z) };
       // Immediately after a full collision velocity is 0, but this is not settled.
       expect(stopped([ball])).toBe(false);
-      const clock = new PoolRoyalPhysicsClock();
-      const timing = clock.advance(1000 / fps);
+      const timing = clock(1000 / fps);
       expect(timing.frameScale).toBeCloseTo(60 / fps, 12);
       for (let frame = 0; frame < fps / 10; frame++) {
         for (let substep = 0; substep < timing.physicsSubsteps; substep++) {

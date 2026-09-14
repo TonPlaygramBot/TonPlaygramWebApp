@@ -46,7 +46,6 @@ export async function readPoolRoyalMetrics() {
     floorY: value('FLOOR_Y'),
     clothY: value('TABLE_Y') + value('CLOTH_TOP_LOCAL') + value('CLOTH_LIFT') - value('CLOTH_DROP'),
     ballY: value('TABLE_Y') + value('BALL_CENTER_Y'), ballR: value('BALL_R'),
-    targetHeight: 1.78 * value('BALL_R') / 0.028575,
     tableW: Math.max(table.W, value('PLAY_W')),
     tableL: Math.max(table.H, value('PLAY_H')),
     playW: value('PLAY_W'), playL: value('PLAY_H'),

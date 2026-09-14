@@ -17,18 +17,12 @@ export class PoolRoyalShotCamera {
       return this.held;
     }
     if (shooting && this.held) {
-      // Follow the animated player's eyes during follow-through; never hold a
-      // stale world position while their head moves away from it.
-      if (eye) {
-        this.held.position.copy(eye.position);
-        this.held.target.copy(eye.target);
-      }
       const blend = 1 - THREE.MathUtils.smoothstep(now - this.lastStrokeAt, 600, 900);
       if (blend > 0) return { ...this.held, blend };
     }
     if (!shooting) this.reset();
     if (shooting || !eye) return null;
-    const weight = cueBlend <= 0.72 ? 1 : THREE.MathUtils.smoothstep(1 - cueBlend, 0.06, 0.28);
+    const weight = THREE.MathUtils.smoothstep(1 - cueBlend, 0.06, 1) * eye.blend;
     return weight > 0 ? { ...eye, blend: weight } : null;
   }
 

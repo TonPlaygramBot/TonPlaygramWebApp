@@ -130,13 +130,15 @@ test('hidden replay frames and disposal leave no stale visible or late-loading p
 });
 
 
-test('production-table calibration preserves a 1.78 metre human at the same scale as the balls', async () => {
+test('production-table calibration makes the original model smaller without changing its proportions', async () => {
   const metrics = await readPoolRoyalMetrics();
   const parent = new THREE.Scene();
   const players = new PoolRoyalHumanPlayers(parent, { ...metrics, model: await loadPoseModel() });
   await players.ready; parent.updateMatrixWorld(true);
   const height = new THREE.Box3().setFromObject(players.players[0].human.modelRoot).getSize(new THREE.Vector3()).y;
-  assert.ok(Math.abs(height * 0.028575 / metrics.ballR - 1.78) < 1e-6);
+  const oldScale = (metrics.clothY - metrics.floorY) / CFG.tableTopY;
+  assert.ok(players.referenceScale / oldScale > 0.69 && players.referenceScale / oldScale < 0.75);
+  assert.ok(Math.abs(height - metrics.tableL * 0.82) < 1e-6);
   assert.ok(height / (metrics.clothY - metrics.floorY) > 1.8);
   assert.equal(players.group.scale.x, players.group.scale.y);
   assert.equal(players.group.scale.y, players.group.scale.z);
@@ -200,7 +202,7 @@ test('a long reach equips only the active player and raises the support hand ont
   for (let i = 0; i < 90; i++) players.update(1 / 60, longFrame);
   assert.equal(players.players[0].reachEquipment.group.visible, true);
   assert.equal(players.players[1].reachEquipment.group.visible, false);
-  assert.ok(bridgeSkinBounds(players.players[0].human).min.y >= metrics.clothY, 'support hand must clear the cloth');
+  assert.ok(bridgeSkinBounds(players.players[0].human).min.y > metrics.clothY + metrics.ballR * 0.2);
   players.update(1 / 60, { ...longFrame, state: 'idle' });
   assert.equal(players.players[0].reachEquipment.group.visible, false);
   players.dispose();
@@ -216,7 +218,7 @@ test('eye camera uses the actual eyes under a transformed parent and restores bo
   const human = players.players[0].human;
   const eye = human.model.getObjectByName('LeftEye').getWorldPosition(new THREE.Vector3())
     .lerp(human.model.getObjectByName('RightEye').getWorldPosition(new THREE.Vector3()), 0.5);
-  parent.worldToLocal(eye);
+  parent.worldToLocal(eye).addScaledVector(frame.aimForward, (ball.y - metrics.clothY) * 2);
   assert.ok(eye.distanceTo(players.eyeView.position) < 1e-7);
   players.setFirstPerson(true, 'A');
   assert.ok(players.players[0].headMeshes.every(mesh => !mesh.visible));
