@@ -1,23 +1,38 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
 import vm from 'node:vm';
+import { readFile } from 'node:fs/promises';
+import { parse } from '@babel/parser';
 import * as THREE from '../webapp/node_modules/three/build/three.module.js';
 import { PoolRoyalHumanPlayers } from '../webapp/src/pages/Games/shared/PoolRoyalHumanPlayers.ts';
-import { PoolRoyalShotCamera } from '../webapp/src/pages/Games/shared/poolRoyalShotCamera.ts';
+import { SnookerRoyalShotCamera } from '../webapp/src/pages/Games/snookerRoyalShotCamera.ts';
 import { TABLE_SIZE_OPTIONS } from '../webapp/src/config/snookerClubTables.js';
 import { readSnookerViewMetrics } from '../scripts/read-snooker-view-metrics.mjs';
 import { loadPoseModel } from './fixtures/poolRoyalPoseTrace.mjs';
 
 const m = await readSnookerViewMetrics();
+const source = await readFile(new URL('../webapp/src/pages/Games/SnookerRoyal.jsx', import.meta.url), 'utf8');
+const gameAst = parse(source, { sourceType: 'module', plugins: ['jsx'] });
+const callbacks = new Map();
+const visit = node => {
+  if (!node || typeof node !== 'object') return;
+  if (node.type === 'VariableDeclarator' && node.id?.type === 'Identifier') callbacks.set(node.id.name, node.init);
+  for (const value of Object.values(node)) {
+    if (Array.isArray(value)) value.forEach(visit);
+    else if (value?.type) visit(value);
+  }
+};
+visit(gameAst);
 
 // Execute the production handoff, with the real shot-camera state machine.
 function cameraRig(world) {
   const context = {
     world,
-    humanShotCamera: new PoolRoyalShotCamera(),
+    humanShotCamera: new SnookerRoyalShotCamera(),
     activeHumanCueViewRef: { current: null },
     cueAnimating: false,
     shootingRef: { current: false },
+    shotImpactPending: false,
     cameraBlendRef: { current: 0 },
     topViewRef: { current: false },
     replayPlaybackRef: { current: false },
@@ -49,7 +64,7 @@ test('eye handoff preserves the existing safe view, target, blend and source pos
   assert.equal(position.y, m.clothY + m.ballR * 4);
 });
 
-test('shot camera preserves the established animated eye pose on both table sizes', () => {
+test('shot camera retains the player perspective while balls travel, on both table sizes', () => {
   for (const table of Object.values(TABLE_SIZE_OPTIONS)) {
     for (const scale of [table.scale, table.mobileScale, table.compactScale]) {
       const world = new THREE.Group();
@@ -61,7 +76,7 @@ test('shot camera preserves the established animated eye pose on both table size
       rig.activeHumanCueViewRef.current = eye;
       rig.cueAnimating = true;
       rig.shootingRef.current = true;
-      for (const time of [0, 200, 400, 600, 750, 899]) {
+      for (const time of [0, 200, 400, 600, 750, 900, 2000, 15000]) {
         rig.now = time;
         if (time > 0) rig.cueAnimating = false;
         const pose = rig.resolve();
@@ -70,8 +85,9 @@ test('shot camera preserves the established animated eye pose on both table size
         assert.equal(pose.position.z, 10 * world.scale.z);
         assert.equal(eye.position.y, m.clothY - 3, 'the rig and held pose are not modified');
       }
-      rig.now = 900;
-      assert.equal(rig.resolve(), null, 'original 600–900 ms handoff timing is preserved');
+      rig.shootingRef.current = false;
+      rig.activeHumanCueViewRef.current = null;
+      assert.equal(rig.resolve(), null, 'release the shot view when the next turn begins');
     }
   }
 });
@@ -85,6 +101,123 @@ test('overhead, replay and cue-gallery views retain camera ownership', () => {
     assert.equal(rig.resolve(), null);
     rig[ref].current = false;
   }
+});
+
+test('post-impact eye movement and a potted cue ball cannot move the shot view', () => {
+  const rig = cameraRig(new THREE.Group());
+  const eye = { position: new THREE.Vector3(4, 20, 30), target: new THREE.Vector3(0, 4, 0), blend: 1 };
+  rig.activeHumanCueViewRef.current = eye;
+  rig.humanShotCamera.beginShot(eye, eye);
+  rig.shootingRef.current = true;
+  rig.cueAnimating = true;
+  rig.shotImpactPending = true;
+  eye.position.y += 1;
+  const beforeImpact = rig.resolve();
+  rig.shotImpactPending = false;
+  eye.position.set(50, 2, -60);
+  eye.target.set(80, -10, -40);
+  for (const cueAnimating of [true, false]) {
+    rig.cueAnimating = cueAnimating;
+    const afterImpact = rig.resolve();
+    assert.deepEqual(afterImpact, beforeImpact, 'follow-through does not track the moving cue ball');
+    assert.equal(afterImpact.blend, 1, 'never fade into a cue-follow action or pocket camera');
+  }
+  rig.activeHumanCueViewRef.current = null;
+  assert.deepEqual(rig.resolve(), beforeImpact, 'retain the view after a scratch or rig reset');
+  rig.topViewRef.current = true;
+  assert.equal(rig.resolve(), null);
+  rig.topViewRef.current = false;
+  assert.deepEqual(rig.resolve(), beforeImpact, 'manual overview returns to the same player viewpoint');
+});
+
+test('missing character assets retain the pre-shot view instead of following the ball', () => {
+  const rig = cameraRig(new THREE.Group());
+  const fallback = { position: new THREE.Vector3(4, 20, 30), target: new THREE.Vector3(0, 4, 0), blend: 1 };
+  rig.humanShotCamera.beginShot(null, fallback);
+  rig.shootingRef.current = true;
+  const pose = rig.resolve();
+  fallback.position.set(100, 200, 300);
+  assert.deepEqual(rig.resolve(), pose);
+  rig.shootingRef.current = false;
+  assert.equal(rig.resolve(), null);
+  assert.equal(rig.humanShotCamera.isHoldingShot, false);
+});
+
+test('the live render handoff skips tracking branches and renders the held player view', () => {
+  const rig = cameraRig(new THREE.Group());
+  const eye = { position: new THREE.Vector3(4, 20, 30), target: new THREE.Vector3(0, 4, 0), blend: 1 };
+  rig.humanShotCamera.beginShot(eye, eye);
+  rig.shootingRef.current = true;
+  const camera = new THREE.PerspectiveCamera(90, 390 / 844, 0.01, 1000);
+  const statements = callbacks.get('updateCamera').body.body;
+  const index = statements.findIndex(s => s.declarations?.[0]?.id?.name === 'humanEyePose');
+  assert.ok(index >= 0);
+  const overlay = statements.find(s => s.type === 'IfStatement' && s.test?.name === 'humanEyePose');
+  const handoff = source.slice(statements[index].start, statements[index + 1].end)
+    + source.slice(overlay.start, overlay.end);
+  for (const trackedBall of [new THREE.Vector3(50, 4, -30), new THREE.Vector3(-20, -10, 60)]) {
+    camera.position.copy(trackedBall);
+    const context = vm.createContext({
+      renderCamera: camera, lookTarget: trackedBall, THREE,
+      camera, shooting: true, cueAnimating: false, broadcastArgs: {},
+      activeShotView: { mode: 'pocket', anchorType: 'side' },
+      get ballsRef() { throw new Error('player view must skip the ball-tracking branches'); },
+      resolveActiveHumanEyePose: rig.resolve, STANDING_VIEW_FOV: m.cameraFov
+    });
+    vm.runInContext(handoff, context);
+    assert.deepEqual(camera.position, eye.position);
+    assert.equal(camera.fov, m.cameraFov);
+    camera.updateMatrixWorld(true);
+    const targetScreen = eye.target.clone().project(camera);
+    assert.ok(Math.abs(targetScreen.x) < 1e-8 && Math.abs(targetScreen.y) < 1e-8);
+  }
+});
+
+test('explicit overhead bypasses legacy impact, action and pocket camera branches', () => {
+  const statements = callbacks.get('updateCamera').body.body;
+  const index = statements.findIndex(s => s.declarations?.[0]?.id?.name === 'humanEyePose');
+  const chain = statements[index + 1];
+  let genericBranch = chain;
+  while (genericBranch.type === 'IfStatement') genericBranch = genericBranch.alternate;
+  // Execute the production camera dispatch and legacy branches. Only the
+  // unchanged generic orbit/overhead renderer is replaced with a sentinel.
+  const dispatch = source.slice(chain.start, genericBranch.start) + '{ selectedOverhead = true; }';
+  for (const mode of ['impact', 'action', 'pocket']) {
+    const context = vm.createContext({
+      humanEyePose: null, shooting: true, cueAnimating: false,
+      replayPlaybackActive: false, galleryState: null,
+      topViewRef: { current: true }, cameraHoldActive: mode === 'impact',
+      cueImpactCameraRef: { current: {} }, activeShotView: { mode, anchorType: 'side' },
+      get ballsRef() { throw new Error('manual overhead must skip the ball-tracking branches'); },
+      selectedOverhead: false
+    });
+    vm.runInContext(dispatch, context);
+    assert.equal(context.selectedOverhead, true, `${mode} cannot override explicit overhead`);
+  }
+});
+
+test('starting a live shot no longer schedules an automatic overhead camera', () => {
+  const scheduled = [];
+  const c = {
+    shooting: false, shootingRef: { current: false }, shotStartedAt: 0,
+    getNow: () => 100, shotImpactPending: true, shotImpactFallbackTimer: null,
+    maxPowerLiftTriggered: false, cueImpactCameraRef: { current: null },
+    preShotTopViewRef: { current: false }, preShotTopViewLockRef: { current: false },
+    topViewRef: { current: false }, topViewLockedRef: { current: false },
+    shotCameraHoldTimeoutRef: { current: null }, SHOT_CAMERA_HOLD_MS: 2000,
+    window: { setTimeout: (callback, delay) => scheduled.push({ callback, delay }) },
+    clearTimeout() {}, enterTopView() { c.topViewRef.current = true; },
+    exitTopView() { c.topViewRef.current = false; }, setShotActive() {}
+  };
+  vm.createContext(c);
+  const node = callbacks.get('setShootingState');
+  const setShootingState = vm.runInContext(`(${source.slice(node.start, node.end)})`, c);
+  setShootingState(true);
+  assert.equal(c.shootingRef.current, true);
+  assert.equal(scheduled.length, 0, 'long shots stay in player perspective');
+  assert.equal(c.topViewRef.current, false);
+  setShootingState(false);
+  assert.equal(c.shootingRef.current, false);
 });
 
 test('the real character is clearly bigger and its original shot camera is preserved in portrait', async () => {
@@ -109,6 +242,7 @@ test('the real character is clearly bigger and its original shot camera is prese
         rig.activeHumanCueViewRef.current = players.eyeView;
         rig.cueAnimating = striking;
         rig.shootingRef.current = striking;
+        rig.shotImpactPending = striking;
         rig.now = i * 1000 / fps;
         const pose = rig.resolve();
         if (!pose) continue;

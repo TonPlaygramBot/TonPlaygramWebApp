@@ -1,3 +1,5 @@
+import { PoolBallId, PoolRuleProfile } from './poolShotInput.js';
+
 export type BcaSeat = 'A' | 'B';
 export type BcaGroup = 'SOLID' | 'STRIPE';
 
@@ -12,12 +14,13 @@ export type BcaEightBallState = {
 };
 
 export type BcaShotInput = {
-  contactOrder?: number[];
-  potted?: number[];
+  contactOrder?: PoolBallId[];
+  potted?: PoolBallId[];
   cueOffTable?: boolean;
+  foulReason?: string;
   noCushionAfterContact?: boolean;
   placedFromHand?: boolean;
-  objectBallsToRailAfterContact?: string[];
+  objectBallsToRailAfterContact?: PoolBallId[];
   railContactsAfterFirstHit?: number;
 };
 
@@ -34,7 +37,8 @@ export type BcaShotResult = {
 
 export class BcaEightBall {
   state: BcaEightBallState;
-  constructor();
+  readonly profile: PoolRuleProfile;
+  constructor(options?: { profile?: PoolRuleProfile });
   shotTaken(shot?: BcaShotInput): BcaShotResult;
 }
 

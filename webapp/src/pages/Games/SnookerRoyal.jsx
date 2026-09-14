@@ -122,7 +122,7 @@ import { resolvePocketMouthAimPoint } from './poolRoyalePocketAim.js';
 import SnookerShotCoach from './SnookerShotCoach.jsx';
 import { resolveSnookerImpactAudio } from './snookerImpactAudio.js';
 import { PoolRoyalHumanPlayers } from './shared/PoolRoyalHumanPlayers.ts';
-import { PoolRoyalShotCamera } from './shared/poolRoyalShotCamera.ts';
+import { SnookerRoyalShotCamera } from './snookerRoyalShotCamera.ts';
 import {
   buildSnookerViewerHud,
   resolveSnookerShotClockExpiry,
@@ -1533,42 +1533,9 @@ const ACTION_CAM = Object.freeze({
   followHoldMs: 900
 });
 /**
- * Pool Camera Direction
- *
- * 0–2s (Opening Pan)
- * • Camera starts high with a diagonal angle over the table (~60°).
- * • Slow pan right → left showing the whole table.
- *
- * 2–4s (Focus on Cue Ball)
- * • Camera moves toward the cue ball and cue stick.
- * • Angle drops to 20–25° above the table directly behind the cue.
- * • Light zoom / tighter framing.
- *
- * 4–6s (Strike Tracking)
- * • At impact the camera shakes lightly.
- * • Then it follows the cue ball across the table, keeping it centered.
- *
- * 6–9s (Impact & Spread)
- * • When the balls collide, the camera rises gradually (toward top-down).
- * • The FOV widens to frame all balls.
- * • Executes a quick orbital move around the table (~30° rotation).
- *
- * 9–12s (Potting Shot)
- * • Camera performs a dolly-in to the pocket where the ball drops.
- * • Follows the ball inside the pocket for ~1 second.
- * • Then fades out or returns to the full view.
- *
- * 12s+ (Reset)
- * • Camera returns to the initial overview (45° above the table).
- * • Holds a very slow pan as an idle loop until the next shot.
- *
- * 🎮 Triggers
- * • Start of game → Opening Pan.
- * • When the player prepares → Focus on Cue Ball.
- * • Moment of the hit → Strike Tracking.
- * • When the balls collide → Impact & Spread.
- * • When a ball drops into a pocket → Potting Shot.
- * • After each round → Reset.
+ * Snooker view: address from the animated player's eyes, then retain the
+ * pre-impact position and aim target until the shot settles. The player can
+ * still choose overhead; replay and cue inspection retain their own cameras.
  */
 const CAMERA_LATERAL_CLAMP = Object.freeze({
   short: PLAY_W * 0.4,
@@ -5434,7 +5401,6 @@ const AI_STROKE_VISIBLE_DURATION_MS =
   AI_CUE_PULLBACK_DURATION_MS + AI_CUE_FORWARD_DURATION_MS;
 const AI_CAMERA_POST_STROKE_HOLD_MS = 2000;
 const AI_POST_SHOT_CAMERA_HOLD_MS = AI_STROKE_VISIBLE_DURATION_MS + AI_CAMERA_POST_STROKE_HOLD_MS;
-const SHOT_CAMERA_HOLD_MS = 2000;
 const REPLAY_BANNER_VARIANTS = {
   long: ['Long pot!', 'Full-table finish!', 'Cross-table clearance!'],
   bank: ['Banked clean!', 'Rail-first beauty!', 'Cushion wizardry!'],
@@ -14186,7 +14152,6 @@ function SnookerRoyalGame({
       }),
     []
   );
-  const shotCameraHoldTimeoutRef = useRef(null);
   const [inHandPlacementMode, setInHandPlacementMode] = useState(false);
   useEffect(
     () => () => {
@@ -14280,10 +14245,6 @@ const shotPowerRef = useRef(0);
       if (ruleToastTimeoutRef.current) {
         clearTimeout(ruleToastTimeoutRef.current);
         ruleToastTimeoutRef.current = null;
-      }
-      if (shotCameraHoldTimeoutRef.current) {
-        clearTimeout(shotCameraHoldTimeoutRef.current);
-        shotCameraHoldTimeoutRef.current = null;
       }
     },
     []
@@ -15983,20 +15944,9 @@ const shotPowerRef = useRef(0);
           maxPowerLiftTriggered = false;
           cueImpactCameraRef.current = null;
         }
-        if (shotCameraHoldTimeoutRef.current) {
-          clearTimeout(shotCameraHoldTimeoutRef.current);
-          shotCameraHoldTimeoutRef.current = null;
-        }
         if (shooting) {
           preShotTopViewRef.current = topViewRef.current;
           preShotTopViewLockRef.current = topViewLockedRef.current;
-          shotCameraHoldTimeoutRef.current = window.setTimeout(() => {
-            shotCameraHoldTimeoutRef.current = null;
-            if (!shooting) return;
-            topViewRef.current = true;
-            topViewLockedRef.current = true;
-            enterTopView(true);
-          }, SHOT_CAMERA_HOLD_MS);
         } else if (!preShotTopViewRef.current) {
           exitTopView(true);
         } else {
@@ -18070,14 +18020,14 @@ const shotPowerRef = useRef(0);
           envSkyboxScaleRef.current = nextScale;
         };
 
-        const humanShotCamera = new PoolRoyalShotCamera();
+        const humanShotCamera = new SnookerRoyalShotCamera();
         const resolveActiveHumanEyePose = () => {
           const pose = humanShotCamera.resolve({
             eye: activeHumanCueViewRef.current,
             stroke: Boolean(cueAnimating),
             shooting: shootingRef.current,
+            impactPending: shotImpactPending,
             cueBlend: cameraBlendRef.current ?? 1,
-            now: performance.now(),
             excluded: Boolean(
               topViewRef.current ||
               replayPlaybackRef.current ||
@@ -18113,7 +18063,17 @@ const shotPowerRef = useRef(0);
             powerImpactHoldRef.current &&
             performance.now() < powerImpactHoldRef.current;
           const galleryState = cueGalleryStateRef.current;
-          if (replayPlaybackActive) {
+          const humanEyePose = resolveActiveHumanEyePose();
+          if (humanEyePose && (shooting || cueAnimating)) {
+            // This shot belongs to the player camera. Do not run a tracking
+            // camera first: its pocket/rail transitions can change the view or
+            // fail before the player pose reaches the renderer below.
+            camera.up.set(0, 1, 0);
+            lookTarget = humanEyePose.target.clone();
+            broadcastArgs.focusWorld = lookTarget.clone();
+            broadcastArgs.targetWorld = lookTarget.clone();
+            broadcastArgs.orbitWorld = humanEyePose.position.clone();
+          } else if (replayPlaybackActive) {
             const storedReplayCamera = replayCameraRef.current;
             const scale = Number.isFinite(worldScaleFactor) ? worldScaleFactor : WORLD_SCALE;
             const resolvedReplayCamera = resolveReplayCameraView(
@@ -18193,7 +18153,7 @@ const shotPowerRef = useRef(0);
             broadcastArgs.focusWorld = resolvedTarget.clone();
             broadcastArgs.targetWorld = resolvedTarget.clone();
             broadcastArgs.lerp = 0.08;
-          } else if (cameraHoldActive && cueImpactCameraRef.current) {
+          } else if (!topViewRef.current && cameraHoldActive && cueImpactCameraRef.current) {
             const impactState = cueImpactCameraRef.current;
             const cueBall = (ballsRef.current || []).find((b) => b.id === impactState.cueBallId);
             if (!cueBall?.active && !impactState.cueStick) {
@@ -18281,7 +18241,7 @@ const shotPowerRef = useRef(0);
               broadcastArgs.orbitWorld = impactState.smoothedPos.clone();
               broadcastArgs.lerp = 0.08;
             }
-          } else if (!cameraHoldActive && activeShotView?.mode === 'action') {
+          } else if (!topViewRef.current && !cameraHoldActive && activeShotView?.mode === 'action') {
             const ballsList = ballsRef.current || [];
             const cueBall = ballsList.find((b) => b.id === activeShotView.cueId);
             if (!cueBall?.active) {
@@ -18690,7 +18650,7 @@ const shotPowerRef = useRef(0);
                 renderCamera = camera;
               }
             }
-          } else if (!cameraHoldActive && activeShotView?.mode === 'pocket') {
+          } else if (!topViewRef.current && !cameraHoldActive && activeShotView?.mode === 'pocket') {
             const ballsList = ballsRef.current || [];
             const focusBall = ballsList.find(
               (b) => b.id === activeShotView.ballId
@@ -18702,6 +18662,7 @@ const shotPowerRef = useRef(0);
               );
             }
             const pocketCenter = activeShotView.pocketCenter;
+            const pocketCenter2D = pocketCenter.clone();
             const anchorType =
               activeShotView.anchorType ??
               (activeShotView.isSidePocket ? 'side' : 'short');
@@ -18714,6 +18675,18 @@ const shotPowerRef = useRef(0);
               activeShotView.railDir = railDir;
             } else {
               railDir = activeShotView.railDir;
+            }
+            let approachDir = activeShotView.approach
+              ? activeShotView.approach.clone()
+              : new THREE.Vector2(0, -railDir);
+            if (approachDir.lengthSq() < 1e-6) {
+              approachDir.set(0, -railDir);
+            }
+            approachDir.normalize();
+            if (activeShotView.approach) {
+              activeShotView.approach.copy(approachDir);
+            } else {
+              activeShotView.approach = approachDir.clone();
             }
             let broadcastRailDir =
               activeShotView.broadcastRailDir ?? (anchorType === 'side' ? null : railDir);
@@ -18745,18 +18718,6 @@ const shotPowerRef = useRef(0);
             };
             const heightScale =
               activeShotView.heightScale ?? POCKET_CAM.heightScale ?? 1;
-            let approachDir = activeShotView.approach
-              ? activeShotView.approach.clone()
-              : new THREE.Vector2(0, -railDir);
-            if (approachDir.lengthSq() < 1e-6) {
-              approachDir.set(0, -railDir);
-            }
-            approachDir.normalize();
-            if (activeShotView.approach) {
-              activeShotView.approach.copy(approachDir);
-            } else {
-              activeShotView.approach = approachDir.clone();
-            }
             const resolvedAnchorId = resolvePocketCameraAnchor(
               activeShotView.pocketId ?? pocketIdFromCenter(pocketCenter),
               pocketCenter,
@@ -18783,7 +18744,6 @@ const shotPowerRef = useRef(0);
             if (!pocketCamEntry) {
               pocketCamEntry = getPocketCameraEntry(anchorId) ?? null;
             }
-            const pocketCenter2D = pocketCenter.clone();
             const outward = activeShotView.anchorOutward
               ? activeShotView.anchorOutward.clone()
               : getPocketCameraOutward(anchorId) ?? pocketCenter2D.clone();
@@ -19115,11 +19075,9 @@ const shotPowerRef = useRef(0);
           broadcastArgs.lerp = 0.22;
         }
           }
-          // During address and the cue stroke, put the render camera at the
-          // shooter's animated eyes. Because the eye pose is recomputed every
-          // frame, the view follows head and body movement rather than orbiting
-          // around a stale cue-ball anchor.
-          const humanEyePose = resolveActiveHumanEyePose();
+          // Use the established animated player view up to impact, then keep
+          // that position and target while the balls move. Action/pocket camera
+          // calculations must never pull the shooter along with the cue ball.
           if (humanEyePose) {
             renderCamera.position.lerp(humanEyePose.position, humanEyePose.blend);
             lookTarget = (lookTarget ?? humanEyePose.target)
@@ -23064,6 +23022,11 @@ const shotPowerRef = useRef(0);
         characterShotShooter = frameSnapshot?.activePlayer === 'B' ? 'B' : 'A';
         characterStrokeState = 'dragging';
         shotImpactPending = ENABLE_CUE_STROKE_ANIMATION;
+        humanShotCamera.beginShot(activeHumanCueViewRef.current, {
+          position: world.worldToLocal((activeRenderCameraRef.current ?? camera).position.clone()),
+          target: world.worldToLocal(lastCameraTargetRef.current.clone()),
+          blend: 1
+        });
         setShootingState(true);
         powerImpactHoldRef.current = Math.max(
           powerImpactHoldRef.current || 0,
@@ -27557,8 +27520,9 @@ const shotPowerRef = useRef(0);
           referencePlayers.updateCameraVisibility(
             renderCamera,
             characterLookTarget,
-            activeHumanCueViewRef.current &&
-              (cueAnimating || (!shooting && (cameraBlendRef.current ?? 1) < 0.94))
+            !topViewRef.current && !replayPlaybackRef.current && !cueGalleryStateRef.current?.active &&
+              (humanShotCamera.isHoldingShot || (activeHumanCueViewRef.current &&
+                (cueAnimating || (!shooting && (cameraBlendRef.current ?? 1) < 0.94))))
               ? (shooting || cueAnimating
                   ? characterShotShooter
                   : frameRef.current?.activePlayer === 'B' ? 'B' : 'A')

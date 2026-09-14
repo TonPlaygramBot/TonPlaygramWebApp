@@ -34,13 +34,15 @@ export function recordPoolRoyalRail(context, id) {
 }
 
 /** Deterministic spotting along the long string, clear of every active ball. */
-export function findPoolRoyalSpot(balls, id, { x = 0, y, minY, maxY, radius }) {
+export function findPoolRoyalSpot(balls, id, { x = 0, y, minY, maxY, radius, footDirection = Math.sign(y) || 1 }) {
+  if (![x, y, minY, maxY, radius].every(Number.isFinite) || radius <= 0 || minY > maxY) return null;
   const clearance = radius * 2 + radius * 0.01;
   const obstacles = balls.filter(ball => ball.active && ball.id !== id);
   const clear = candidate => obstacles.every(ball =>
     Math.hypot(ball.pos.x - x, ball.pos.y - candidate) >= clearance - 1e-8);
   // Foot rail first, then toward the head rail when the foot side is full.
-  for (const sign of [-1, 1]) {
+  const towardFoot = footDirection < 0 ? -1 : 1;
+  for (const sign of [towardFoot, -towardFoot]) {
     let candidate = y;
     for (let i = 0; i <= obstacles.length; i++) {
       if (candidate < minY || candidate > maxY) break;
@@ -48,7 +50,7 @@ export function findPoolRoyalSpot(balls, id, { x = 0, y, minY, maxY, radius }) {
       const blockers = obstacles.filter(ball => Math.hypot(ball.pos.x - x, ball.pos.y - candidate) < clearance);
       candidate = blockers.reduce((next, ball) => {
         const extent = Math.sqrt(Math.max(0, clearance ** 2 - (ball.pos.x - x) ** 2));
-        const edge = ball.pos.y + sign * extent;
+        const edge = ball.pos.y + sign * (extent + radius * 1e-6);
         return sign < 0 ? Math.min(next, edge) : Math.max(next, edge);
       }, candidate);
     }

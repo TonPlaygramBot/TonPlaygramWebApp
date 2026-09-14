@@ -78,7 +78,10 @@ function rig() {
     cueAnimating: false,
     shotImpactPending: false,
     shotImpactFallbackTimer: null,
-    camera: null,
+    camera: new THREE.PerspectiveCamera(),
+    world: new THREE.Group(),
+    humanShotCamera: { beginShot: jest.fn() },
+    activeHumanCueViewRef: { current: null },
     aiOpponentEnabled: true,
     activeBroadcastSystem: null,
     activeShotView: null,
@@ -211,6 +214,7 @@ function rig() {
     shotContextRef: { current: {} },
     resetSpinRef: { current: () => {} }
   });
+  context.lastCameraTargetRef.current = new THREE.Vector3();
   for (const key of [
     'alignStandingCameraToAim',
     'setAiShotCueViewActive',
@@ -231,6 +235,7 @@ function rig() {
   for (const key of [
     'TMP_VEC3_CUE_TIP_OFFSET',
     'TMP_VEC3_CUE_BUTT_OFFSET',
+    'TMP_VEC3_CAM_DIR',
     'TMP_VEC3_BUTT'
   ])
     context[key] = new THREE.Vector3();

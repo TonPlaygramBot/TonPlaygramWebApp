@@ -8,4 +8,4 @@ export function poolRoyalBallNumber(id: unknown): number | null;
 export function poolRoyalBallsToSpot<T extends PoolBall>(balls: T[], frame: FrameState): T[];
 export function recordPoolRoyalRail(context: ShotContext, id: string | number): void;
 export function findPoolRoyalSpot(balls: (PoolBall & { pos: Point })[], id: string | number,
-  options: { x?: number; y: number; minY: number; maxY: number; radius: number }): Point | null;
+  options: { x?: number; y: number; minY: number; maxY: number; radius: number; footDirection?: number }): Point | null;

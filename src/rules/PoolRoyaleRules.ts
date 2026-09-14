@@ -2,6 +2,7 @@ import { FrameState, Player, ShotContext, ShotEvent } from '../types';
 import { UkPool } from '../../lib/poolUk8Ball.js';
 import { NineBall } from '../../lib/nineBall.js';
 import { BcaEightBall } from '../../lib/bcaEightBall.js';
+import { normalizePoolBallId, poolShotHasNoCushion, PoolRuleProfile } from '../../lib/poolShotInput.js';
 
 type PoolVariantId = '8ball' | 'uk' | '9ball';
 
@@ -60,12 +61,14 @@ type PoolMeta =
     }
   | {
       variant: '8ball';
+      ruleProfile: PoolRuleProfile;
       state: EightBallSerializedState;
       hud: HudInfo;
       breakInProgress?: boolean;
     }
   | {
       variant: '9ball';
+      ruleProfile: PoolRuleProfile;
       state: NineSerializedState;
       hud: HudInfo;
       breakInProgress?: boolean;
@@ -208,14 +211,6 @@ function isCueBallId(value: unknown): boolean {
   return value.toLowerCase() === 'cue' || value.toLowerCase() === 'cue_ball';
 }
 
-function parseNumericId(value: unknown): number | null {
-  if (typeof value === 'number') return value;
-  if (typeof value === 'string') {
-    const match = value.match(/(\d+)/);
-    if (match) return Number.parseInt(match[1], 10);
-  }
-  return null;
-}
 
 function lowestBall(balls: Iterable<number>): number | null {
   let lowest: number | null = null;
@@ -229,8 +224,10 @@ function lowestBall(balls: Iterable<number>): number | null {
 
 export class PoolRoyaleRules {
   private readonly variant: PoolVariantId;
+  private readonly ruleProfile: PoolRuleProfile;
 
-  constructor(variantKey: string | null | undefined) {
+  constructor(variantKey: string | null | undefined, ruleProfile: PoolRuleProfile = 'reference') {
+    this.ruleProfile = ruleProfile;
     const normalized = normalizeVariantId(variantKey);
     if (normalized === 'uk' || normalized === '8balluk' || normalized === 'eightballuk' || normalized === 'uk8') {
       this.variant = 'uk';
@@ -280,7 +277,7 @@ export class PoolRoyaleRules {
         return base;
       }
       case '9ball': {
-        const game = new NineBall();
+        const game = new NineBall({ profile: this.ruleProfile });
         game.state.ballInHand = true;
         const snapshot = serializeNineState(game.state);
         const lowest = lowestBall(snapshot.ballsOnTable) ?? 1;
@@ -301,6 +298,7 @@ export class PoolRoyaleRules {
         };
         base.meta = {
           variant: '9ball',
+          ruleProfile: this.ruleProfile,
           state: snapshot,
           hud,
           breakInProgress: true
@@ -309,7 +307,7 @@ export class PoolRoyaleRules {
       }
       case '8ball':
       default: {
-        const game = new BcaEightBall();
+        const game = new BcaEightBall({ profile: this.ruleProfile });
         game.state.ballInHand = true;
         const snapshot = serializeEightBallState(game.state);
         const ballOn = this.computeEightBallBallOn(snapshot);
@@ -330,6 +328,7 @@ export class PoolRoyaleRules {
         };
         base.meta = {
           variant: '8ball',
+          ruleProfile: this.ruleProfile,
           state: snapshot,
           hud,
           breakInProgress: true
@@ -340,6 +339,7 @@ export class PoolRoyaleRules {
   }
 
   applyShot(state: FrameState, events: ShotEvent[], context: ShotContext = {}): FrameState {
+    if (state.frameOver) return state;
     switch (this.variant) {
       case 'uk':
         return this.applyUkShot(state, events, context);
@@ -465,7 +465,8 @@ export class PoolRoyaleRules {
   private applyEightBallShot(state: FrameState, events: ShotEvent[], context: ShotContext): FrameState {
     const meta = state.meta as PoolMeta | undefined;
     const previous = meta && meta.variant === '8ball' && meta.state ? meta : null;
-    const game = new BcaEightBall();
+    const ruleProfile = previous?.ruleProfile ?? this.ruleProfile;
+    const game = new BcaEightBall({ profile: ruleProfile });
     if (previous) {
       applyEightBallState(game, previous.state);
     } else {
@@ -474,8 +475,8 @@ export class PoolRoyaleRules {
     const contactOrder: number[] = [];
     for (const ev of events) {
       if (ev.type !== 'HIT') continue;
-      const id = parseNumericId(ev.ballId ?? ev.firstContact);
-      if (id != null) contactOrder.push(id);
+      const id = normalizePoolBallId(ev.ballId ?? ev.firstContact);
+      contactOrder.push(id ?? 0);
     }
     const potted: number[] = [];
     for (const ev of events) {
@@ -483,20 +484,21 @@ export class PoolRoyaleRules {
       if (isCueBallId(ev.ballId ?? ev.ball)) {
         potted.push(0);
       } else {
-        const id = parseNumericId(ev.ballId ?? ev.ball);
+        const id = normalizePoolBallId(ev.ballId ?? ev.ball);
         if (id != null) potted.push(id);
       }
     }
     const result = game.shotTaken({
-      contactOrder,
+      contactOrder: context.contactMade === false ? [] : contactOrder,
+      foulReason: events.find((event) => event.type === 'FOUL')?.reason,
       potted,
       cueOffTable: Boolean(context.cueBallPotted),
       placedFromHand: Boolean(context.placedFromHand),
-      noCushionAfterContact: Boolean(context.noCushionAfterContact),
+      noCushionAfterContact: poolShotHasNoCushion(context),
       objectBallsToRailAfterContact: context.objectBallsToRailAfterContact,
       railContactsAfterFirstHit: Number(context.railContactCountAfterContact ?? 0)
     });
-    const pottedCount = potted.filter((id) => id !== 0).length;
+    const pottedCount = result.potted.filter((id) => id !== 0).length;
     const snapshot = serializeEightBallState(game.state);
     const ballOn = this.computeEightBallBallOn(snapshot);
     const scores = this.computeEightBallScores(snapshot);
@@ -536,6 +538,7 @@ export class PoolRoyaleRules {
         : undefined,
       meta: {
         variant: '8ball',
+        ruleProfile,
         state: snapshot,
         hud,
         breakInProgress
@@ -576,7 +579,8 @@ export class PoolRoyaleRules {
   private applyNineBallShot(state: FrameState, events: ShotEvent[], context: ShotContext): FrameState {
     const meta = state.meta as PoolMeta | undefined;
     const previous = meta && meta.variant === '9ball' && meta.state ? meta : null;
-    const game = new NineBall();
+    const ruleProfile = previous?.ruleProfile ?? this.ruleProfile;
+    const game = new NineBall({ profile: ruleProfile });
     if (previous) {
       applyNineState(game, previous.state);
     } else {
@@ -585,8 +589,8 @@ export class PoolRoyaleRules {
     const contactOrder: number[] = [];
     for (const ev of events) {
       if (ev.type !== 'HIT') continue;
-      const id = parseNumericId(ev.ballId ?? ev.firstContact);
-      if (id != null) contactOrder.push(id);
+      const id = normalizePoolBallId(ev.ballId ?? ev.firstContact);
+      contactOrder.push(id ?? 0);
     }
     const potted: number[] = [];
     for (const ev of events) {
@@ -594,24 +598,24 @@ export class PoolRoyaleRules {
       if (isCueBallId(ev.ballId ?? ev.ball)) {
         potted.push(0);
       } else {
-        const id = parseNumericId(ev.ballId ?? ev.ball);
+        const id = normalizePoolBallId(ev.ballId ?? ev.ball);
         if (id != null) potted.push(id);
       }
     }
     const result = game.shotTaken({
-      contactOrder,
+      contactOrder: context.contactMade === false ? [] : contactOrder,
+      foulReason: events.find((event) => event.type === 'FOUL')?.reason,
       potted,
       cueOffTable: Boolean(context.cueBallPotted),
       placedFromHand: Boolean(context.placedFromHand),
-      noCushionAfterContact: Boolean(context.noCushionAfterContact),
-      breakShot: Boolean(previous?.state?.breakInProgress),
+      noCushionAfterContact: poolShotHasNoCushion(context),
       railContactsAfterFirstHit: Number(context.railContactCountAfterContact ?? 0),
       objectBallsToRailAfterContact: context.objectBallsToRailAfterContact
     });
-    const pottedCount = potted.filter((id) => id !== 0).length;
+    const pottedCount = result.potted.filter((id) => id !== 0).length;
     const snapshot = serializeNineState(game.state);
     const lowest = lowestBall(snapshot.ballsOnTable);
-    const foulWarning = !snapshot.gameOver && snapshot.foulStreak[snapshot.currentPlayer] === 2
+    const foulWarning = ruleProfile === 'standard' && !snapshot.gameOver && snapshot.foulStreak[snapshot.currentPlayer] === 2
       ? ' · 2 fouls: next foul loses' : '';
     const hud: HudInfo = {
       next: snapshot.gameOver ? 'frame over' : (lowest != null ? `ball ${lowest}` : 'nine') + foulWarning,
@@ -640,6 +644,7 @@ export class PoolRoyaleRules {
         : undefined,
       meta: {
         variant: '9ball',
+        ruleProfile,
         state: snapshot,
         hud,
         breakInProgress: Boolean(snapshot.breakInProgress)

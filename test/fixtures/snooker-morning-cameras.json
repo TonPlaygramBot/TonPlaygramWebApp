@@ -3,8 +3,6 @@
   "functions": {
     "applyCameraBlend": "62c2c85ecddb296744689ec03f31c7851c2e8ebe4f87cc749b8fdbfb4bf94361",
     "updateBroadcastCameras": "c228145c910ca35ca73dd9daa81d3720cb4b48f5221ed85bbe463e6371d1a347",
-    "resolveActiveHumanEyePose": "3e8ffb1617b420e632eea6528ed08cf2e85236f3012cf66d03489b0e92e370fc",
-    "updateCamera": "e30986ac589aada6976c473ac323a8b6d722c2fc6d9b91a17f008e51d0552829",
     "animateCamera": "e968d03280da43afb741ffecaad48605418ce0d1d638cfa38951289f7de75b1a",
     "restoreOrbitCamera": "7c95cb484f143f0d094857d3259173abd384f2967dfc8bdb69f0ff981cc51645",
     "makeActionCameraView": "1df3508351f04d22890e867e73753bc6c339fb002c1b4e8a8e23dd4b4049ff6e",

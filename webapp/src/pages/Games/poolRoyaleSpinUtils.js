@@ -1,7 +1,7 @@
 const clamp = (value, min, max) => Math.max(min, Math.min(max, value));
 
 export const MAX_SPIN_OFFSET = 0.75;
-export const SPIN_STUN_RADIUS = 0.12;
+export const SPIN_STUN_RADIUS = 0;
 export const SPIN_RING1_RADIUS = 0.33;
 export const SPIN_RING2_RADIUS = 0.66;
 export const SPIN_RING3_RADIUS = MAX_SPIN_OFFSET;
@@ -9,9 +9,13 @@ export const SPIN_LEVEL0_MAG = 0;
 export const SPIN_LEVEL1_MAG = SPIN_RING1_RADIUS;
 export const SPIN_LEVEL2_MAG = SPIN_RING2_RADIUS;
 export const SPIN_LEVEL3_MAG = SPIN_RING3_RADIUS;
-export const STRAIGHT_SPIN_DEADZONE = 0.02;
-export const SPIN_RESPONSE_EXPONENT = 1.32;
-export const SPIN_CENTER_TOPSPIN_BIAS = 0.1;
+export const STRAIGHT_SPIN_DEADZONE = 0;
+export const SPIN_RESPONSE_EXPONENT = 1;
+export const SPIN_CENTER_TOPSPIN_BIAS = 0;
+// Controller coordinates describe the front of the cue ball on the screen.
+// The physical tip is limited to 45% of the ball radius to avoid miscues.
+export const MAX_CUE_TIP_OFFSET_RATIO = 0.45;
+const finite = (value, fallback = 0) => Number.isFinite(value) ? value : fallback;
 export const SPIN_DIRECTIONS = [
   {
     id: 'stun',
@@ -78,23 +82,19 @@ export const SPIN_DIRECTIONS = [
   }
 ];
 
-export const clampToUnitCircle = (x, y) => {
-  const length = Math.hypot(x, y);
-  if (!Number.isFinite(length) || length <= 1) {
-    return { x, y };
-  }
-  const scale = length > 1e-6 ? 1 / length : 0;
-  return { x: x * scale, y: y * scale };
+export const clampToMaxOffset = (x, y, maxOffset = MAX_SPIN_OFFSET) => {
+  x = finite(x);
+  y = finite(y);
+  const limit = Math.max(0, finite(maxOffset, MAX_SPIN_OFFSET));
+  // Scale first so even very large finite network/pointer inputs cannot overflow.
+  const largest = Math.max(Math.abs(x), Math.abs(y));
+  if (largest === 0 || limit === 0) return { x: 0, y: 0 };
+  const scaledLength = Math.hypot(x / largest, y / largest);
+  if (largest <= limit / scaledLength) return { x, y };
+  return { x: (x / largest) * limit / scaledLength, y: (y / largest) * limit / scaledLength };
 };
 
-export const clampToMaxOffset = (x, y, maxOffset = MAX_SPIN_OFFSET) => {
-  const length = Math.hypot(x, y);
-  if (!Number.isFinite(length) || length <= maxOffset) {
-    return { x, y };
-  }
-  const scale = length > 1e-6 ? maxOffset / length : 0;
-  return { x: x * scale, y: y * scale };
-};
+export const clampToUnitCircle = (x, y) => clampToMaxOffset(x, y, 1);
 
 export const computeQuantizedOffsetScaled = (
   rawX,
@@ -137,81 +137,132 @@ export const computeQuantizedOffsetScaled = (
   };
 };
 
-export const normalizeSpinInput = (spin) => {
-  let x = clamp(spin?.x ?? 0, -1, 1);
-  let y = clamp(spin?.y ?? 0, -1, 1);
+// Idempotent: passing the value through UI, preview and strike cannot reduce it.
+export const normalizeSpinInput = (spin) =>
+  clampToMaxOffset(spin?.x, spin?.y);
 
-  // Keep straight high/low and left/right shots easier to select by gently
-  // snapping near-axis drag noise to the principal axis.
-  if (Math.abs(x) <= STRAIGHT_SPIN_DEADZONE) x = 0;
-  if (Math.abs(y) <= STRAIGHT_SPIN_DEADZONE) y = 0;
+// Spin is selected on a fixed front-view dial. Camera orbit must never rotate,
+// erase or reverse a chosen left/right or top/back offset.
+export const mapUiOffsetToCueFrame = (uiX, uiY) =>
+  normalizeSpinInput({ x: uiX, y: uiY });
 
-  const clamped = clampToMaxOffset(x, y, MAX_SPIN_OFFSET);
-  const distance = Math.hypot(clamped.x, clamped.y);
-  const deadzone = Math.max(SPIN_STUN_RADIUS, STRAIGHT_SPIN_DEADZONE);
-  if (distance <= deadzone) {
-    return { x: 0, y: 0 };
-  }
+export const mapSpinForPhysics = (spin) => normalizeSpinInput(spin);
 
-  const activeSpan = Math.max(MAX_SPIN_OFFSET - deadzone, 1e-6);
-  const normalized = clamp((distance - deadzone) / activeSpan, 0, 1);
-  const shaped = normalized ** SPIN_RESPONSE_EXPONENT;
-  const magnitude = deadzone + shaped * activeSpan;
-  const scale = magnitude / Math.max(distance, 1e-6);
+export const spinFromScreenPoint = (clientX, clientY, rect) => {
+  if (!rect || !(rect.width > 0) || !(rect.height > 0)) return { x: 0, y: 0 };
+  const x = (finite(clientX, rect.left + rect.width / 2) - rect.left) / rect.width * 2 - 1;
+  const y = 1 - (finite(clientY, rect.top + rect.height / 2) - rect.top) / rect.height * 2;
+  return normalizeSpinInput({ x, y });
+};
+
+// Independently implemented solid-sphere impulse, with no initial lateral drift.
+// velocity is in the game's X/Z table plane; omega uses Three.js X/Y/Z axes.
+export const resolvePoolRoyalCueStrike = ({ spin, direction, speed, radius } = {}) => {
+  const offset = normalizeSpinInput(spin);
+  const tipScale = MAX_CUE_TIP_OFFSET_RATIO / MAX_SPIN_OFFSET;
+  const side = offset.x * tipScale;
+  const top = offset.y * tipScale;
+  const safeRadius = Math.max(1e-6, finite(radius, 1));
+  const directionX = finite(direction?.x);
+  const directionZ = finite(direction?.y);
+  const length = Math.hypot(directionX, directionZ);
+  const dx = length > 1e-8 ? directionX / length : 0;
+  const dz = length > 1e-8 ? directionZ / length : 1;
+  const launchSpeed = Math.max(0, finite(speed)) * (1 - 0.25 * (side * side + top * top));
+  const angularScale = 2.5 * launchSpeed / safeRadius;
   return {
-    x: clamped.x * scale,
-    y: clamped.y * scale
+    velocity: { x: dx * launchSpeed, y: dz * launchSpeed },
+    omega: { x: dz * top * angularScale, y: side * angularScale, z: -dx * top * angularScale },
+    offset
   };
 };
 
-export const mapUiOffsetToCueFrame = (
-  uiX,
-  uiY,
-  cameraRight,
-  cameraUp,
-  cueForward
-) => {
-  if (!cameraRight || !cameraUp || !cueForward) {
-    return { x: uiX, y: uiY };
+// Friction consumes slip at the cloth contact, then continues as natural roll.
+// Capping the impulse at slip / (1 + mR²/I) prevents small-step oscillation.
+export const stepPoolRoyalClothSpin = ({ velocity, omega, radius, dt,
+  slidingFriction = 0.126, rollingFriction = 0.0098, gravity = 9.81,
+  spinDamping = 0.04 } = {}) => {
+  const r = Math.max(1e-6, finite(radius, 1));
+  const step = Math.max(0, finite(dt));
+  let vx = finite(velocity?.x);
+  let vz = finite(velocity?.y);
+  let wx = finite(omega?.x);
+  let wz = finite(omega?.z);
+  const wy = finite(omega?.y) * Math.exp(-Math.max(0, finite(spinDamping)) * step);
+  const slipX = vx + r * wz;
+  const slipZ = vz - r * wx;
+  const slip = Math.hypot(slipX, slipZ);
+  const acceleration = Math.max(0, finite(slidingFriction) * finite(gravity));
+  let rollingTime = step;
+  if (slip > 1e-10) {
+    const delta = Math.min(acceleration * step, slip / 3.5);
+    const dvx = -slipX / slip * delta;
+    const dvz = -slipZ / slip * delta;
+    vx += dvx;
+    vz += dvz;
+    wx -= 2.5 * dvz / r;
+    wz += 2.5 * dvx / r;
+    rollingTime = acceleration > 0 && delta >= slip / 3.5 - 1e-12
+      ? Math.max(0, step - delta / acceleration) : 0;
   }
-  const right = cameraRight;
-  const up = cameraUp;
-  const forward = cueForward;
-  const offsetWorld = {
-    x: right.x * uiX + up.x * uiY,
-    y: right.y * uiX + up.y * uiY,
-    z: right.z * uiX + up.z * uiY
-  };
-  offsetWorld.y = 0;
-  const forwardPlanarLength = Math.hypot(forward.x, forward.z);
-  const forwardPlanar =
-    forwardPlanarLength > 1e-6
-      ? { x: forward.x / forwardPlanarLength, z: forward.z / forwardPlanarLength }
-      : { x: 0, z: 1 };
-  const side = { x: -forwardPlanar.z, z: forwardPlanar.x };
-  return {
-    x: -(offsetWorld.x * side.x + offsetWorld.z * side.z),
-    y: offsetWorld.x * forwardPlanar.x + offsetWorld.z * forwardPlanar.z
-  };
+  if (rollingTime > 0) {
+    const speed = Math.hypot(vx, vz);
+    const decel = Math.max(0, finite(rollingFriction) * finite(gravity)) * rollingTime;
+    const factor = speed > 1e-10 ? Math.max(0, speed - decel) / speed : 0;
+    vx *= factor;
+    vz *= factor;
+    wx = vz / r;
+    wz = -vx / r;
+  }
+  return { velocity: { x: vx, y: vz }, omega: { x: wx, y: wy, z: wz } };
 };
 
-export const mapSpinForPhysics = (spin, options = {}) => {
-  const adjusted = {
-    x: clamp(spin?.x ?? 0, -1, 1),
-    y: clamp(spin?.y ?? 0, -1, 1)
-  };
-  const quantized = normalizeSpinInput(adjusted);
-  if (Math.hypot(quantized.x, quantized.y) <= 1e-6) {
-    return { x: 0, y: SPIN_CENTER_TOPSPIN_BIAS };
+// Side spin alone cannot move a stationary ball across level cloth. Planar
+// slip can still produce follow/draw even immediately after velocity reaches 0.
+export const hasPoolRoyalPlanarSlip = (velocity, omega, radius, threshold = 1e-6) => {
+  const r = Math.max(0, finite(radius));
+  return Math.hypot(
+    finite(velocity?.x) + r * finite(omega?.z),
+    finite(velocity?.y) - r * finite(omega?.x)
+  ) > Math.max(0, finite(threshold));
+};
+
+export const isPoolRoyalBallMoving = (ball, radius, stopSpeed = 0.00259) => {
+  if (!ball || ball.active === false) return false;
+  const threshold = Math.max(0, finite(stopSpeed, 0.00259));
+  return Math.hypot(finite(ball.vel?.x), finite(ball.vel?.y)) >= threshold ||
+    hasPoolRoyalPlanarSlip(ball.vel, ball.omega, radius, threshold) ||
+    finite(ball.lift) > 1e-6 || Math.abs(finite(ball.liftVel)) > 1e-6;
+};
+
+// A cushion's normal points into the table, so contact is at -normal * R.
+// Side spin changes tangential rebound through one bounded friction impulse.
+export const resolvePoolRoyalCushionSpin = ({ velocity, omega, normal, radius,
+  restitution = 1, friction = 0.16 } = {}) => {
+  let vx = finite(velocity?.x);
+  let vz = finite(velocity?.y);
+  let wy = finite(omega?.y);
+  const wx = finite(omega?.x);
+  const wz = finite(omega?.z);
+  const r = Math.max(1e-6, finite(radius, 1));
+  const normalX = finite(normal?.x);
+  const normalZ = finite(normal?.y);
+  const length = Math.hypot(normalX, normalZ);
+  if (length > 1e-8) {
+    const nx = normalX / length;
+    const nz = normalZ / length;
+    const incoming = vx * nx + vz * nz;
+    if (incoming < 0) {
+      const normalDelta = -(1 + clamp(finite(restitution, 1), 0, 1)) * incoming;
+      const tangentSlip = -nz * vx + nx * vz + r * wy;
+      const bound = Math.max(0, finite(friction)) * normalDelta;
+      const tangentDelta = clamp(-tangentSlip / 3.5, -bound, bound);
+      vx += nx * normalDelta - nz * tangentDelta;
+      vz += nz * normalDelta + nx * tangentDelta;
+      wy += 2.5 * tangentDelta / r;
+    }
   }
-  const { cameraRight, cameraUp, cueForward } = options;
-  return mapUiOffsetToCueFrame(
-    quantized.x,
-    quantized.y,
-    cameraRight,
-    cameraUp,
-    cueForward
-  );
+  return { velocity: { x: vx, y: vz }, omega: { x: wx, y: wy, z: wz } };
 };
 
 // Smooth damp helper adapted from Unity's Mathf.SmoothDamp (MIT licensed).

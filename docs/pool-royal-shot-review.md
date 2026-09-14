@@ -1,5 +1,7 @@
 # Pool Royal shot and rules review
 
+The gameplay corrections below record the earlier standard-profile review. Live eight-ball and nine-ball now use the requested tailuge/billiards reference profile; see [Pool Royal reference rules](pool-royal-reference-rules.md) for current group assignment, early-eight respots, break rules and nine-ball foul behavior. The standard library profile remains available.
+
 ## Camera and cue
 
 The AI shot used a camera path that bypassed the avatar eye view. The eye override now runs after the final render camera is selected, covering the local and AI stroke, action view and pocket view. It holds the eyes through contact and for 600 ms after the stroke, then releases over 300 ms. Explicit top view, the cue gallery and replay keep their own cameras. Head/hat occlusion is checked against the final camera each frame, with visibility restored when the head clears the view. Shooter ownership uses the frame's A/B seat, including a local online player seated as B.
