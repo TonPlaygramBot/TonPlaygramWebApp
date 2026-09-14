@@ -9,7 +9,6 @@ import React, {
 } from 'react';
 import * as THREE from 'three';
 import { PoolRoyalHumanPlayers } from './shared/PoolRoyalHumanPlayers.ts';
-import { createModernCueArena } from './shared/createModernCueArena.js';
 import { planTailugePoolShot } from './shared/poolRoyalAi.ts';
 import { fitPoolRoyalTable } from './shared/poolRoyalTableGeometry.ts';
 import { PoolRoyalPhysics, PoolRoyalPhysicsClock, POOL_FRAME_SECONDS, resolveMappedPoolCushion, traceMappedPoolCushion } from './shared/poolRoyalPhysics.ts';
@@ -2666,10 +2665,11 @@ function getCarbonFiberTileTexture(tintHex = 0x0c0f14) {
 
 function applyLtCarbonFiberTexture(material) {
   if (!material) return;
-  material.map = null;
+  const carbonTexture = getCarbonFiberTileTexture(material.color?.getHex?.() ?? 0x0c0f14);
+  if (!carbonTexture) return;
+  material.map = carbonTexture;
   material.normalMap = null;
   material.roughnessMap = null;
-  material.bumpMap = null;
   material.needsUpdate = true;
 }
 
@@ -2753,9 +2753,10 @@ function getLtMattePlasticTextureSet(tintHex = 0x0c0f14, size = 512) {
 
 function applyMonoMattePlasticSurface(material) {
   if (!material) return;
-  material.map = null;
-  material.normalMap = null;
-  material.roughnessMap = null;
+  const matteTextures = getLtMattePlasticTextureSet(material.color?.getHex?.() ?? 0x0c0f14);
+  material.map = matteTextures?.map ?? null;
+  material.normalMap = matteTextures?.normal ?? null;
+  material.roughnessMap = matteTextures?.roughness ?? null;
   material.bumpMap = null;
   if ('metalness' in material) {
     material.metalness = 0;
@@ -16682,6 +16683,24 @@ function PoolRoyaleGame({
     activeEnvironmentVariantRef.current = activeEnvironmentHdri;
   }, [activeEnvironmentHdri, environmentHdriId]);
   useEffect(() => {
+    const queue = availableEnvironmentHdris
+      .filter((variant) => variant.id !== environmentHdriId)
+      .slice(0, 2)
+      .map((variant) => {
+        const resolved = resolvedHdriResolution ?? DEFAULT_HDRI_RESOLUTIONS[0];
+        const preferredResolutions = buildHdriResolutionChain(resolved, activeHdriPolicy);
+        return {
+          ...variant,
+          preferredResolutions: preferredResolutions.length ? preferredResolutions : DEFAULT_HDRI_RESOLUTIONS,
+          fallbackResolution:
+            activeHdriPolicy?.fallbackResolution ?? preferredResolutions[1] ?? resolved
+        };
+      });
+    queue.forEach((variant) => {
+      void prefetchHdriVariant(variant);
+    });
+  }, [activeHdriPolicy, availableEnvironmentHdris, environmentHdriId, resolvedHdriResolution]);
+  useEffect(() => {
     if (typeof updateEnvironmentRef.current === 'function') {
       updateEnvironmentRef.current(activeEnvironmentVariantRef.current);
     }
@@ -19815,13 +19834,11 @@ const shotPowerRef = useRef(0);
       const world = new THREE.Group();
       scene.add(world);
       worldRef.current = world;
-      world.add(createModernCueArena({ width: PLAY_W, depth: PLAY_H, floorY: FLOOR_Y }));
       const applyHdriEnvironment = async (variantConfig = activeEnvironmentVariantRef.current) => {
         const sceneInstance = sceneRef.current;
         if (!renderer || !sceneInstance) return;
         const activeVariant = variantConfig || activeEnvironmentVariantRef.current;
-        // Keep image-based light response without downloading or displaying an HDRI.
-        const envResult = await createFallbackHdriEnvironment(renderer);
+        const envResult = await loadPolyHavenHdriEnvironment(renderer, activeVariant);
         if (!envResult) return;
         const { envMap, skyboxMap } = envResult;
         if (!envMap) return;
@@ -34930,27 +34947,43 @@ const shotPowerRef = useRef(0);
               </div>
               <div>
                 <h3 className="text-[10px] uppercase tracking-[0.35em] text-emerald-100/70">
-                  Free Arena Lighting
+                  HDR Environment
                 </h3>
-                <p className="mt-1 text-[0.68rem] leading-snug text-white/60">
-                  Instant lighting presets — no HDR downloads or NFT unlocks.
-                </p>
-                <div className="mt-2 grid grid-cols-2 gap-2">
-                  {LIGHTING_OPTIONS.map((option) => {
-                    const active = option.id === lightingId;
+                <div className="mt-2 grid grid-cols-1 gap-2">
+                  {availableEnvironmentHdris.map((variant) => {
+                    const active = variant.id === environmentHdriId;
+                    const swatchA = variant.swatches?.[0] ?? '#0ea5e9';
+                    const swatchB = variant.swatches?.[1] ?? '#111827';
+                    const thumb = variant.thumbnail;
                     return (
                       <button
-                        key={option.id}
+                        key={variant.id}
                         type="button"
-                        onClick={() => setLightingId(option.id)}
+                        onClick={() => setEnvironmentHdriId(variant.id)}
                         aria-pressed={active}
-                        className={`rounded-2xl border px-3 py-2 text-[10px] font-semibold uppercase tracking-[0.16em] transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-300 ${
+                        className={`flex items-center justify-between gap-3 rounded-2xl border px-3 py-2 text-left text-[11px] font-semibold uppercase tracking-[0.2em] transition-colors duration-200 focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-300 ${
                           active
-                            ? 'border-emerald-300 bg-emerald-300 text-black'
+                            ? 'border-emerald-300 bg-emerald-300 text-black shadow-[0_0_18px_rgba(16,185,129,0.55)]'
                             : 'border-white/20 bg-white/10 text-white/80 hover:bg-white/20'
                         }`}
                       >
-                        {option.label}
+                        <span>{variant.name}</span>
+                        {thumb ? (
+                          <img
+                            src={thumb}
+                            alt={`${variant.name} HDRI`}
+                            className="h-6 w-10 rounded-lg border border-white/30 object-cover"
+                            loading="lazy"
+                          />
+                        ) : (
+                          <span
+                            className="h-6 w-10 rounded-lg border border-white/30"
+                            aria-hidden="true"
+                            style={{
+                              background: `linear-gradient(135deg, ${swatchA}, ${swatchB})`
+                            }}
+                          />
+                        )}
                       </button>
                     );
                   })}
