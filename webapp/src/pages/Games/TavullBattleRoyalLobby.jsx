@@ -1,3 +1,4 @@
+import { BACKGAMMON_ONLINE_READY, BACKGAMMON_ONLINE_MESSAGE } from '../../games/backgammon/readiness.js';
 import { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import RoomSelector from '../../components/RoomSelector.jsx';
@@ -153,6 +154,7 @@ export default function TavullBattleRoyalLobby() {
   const startGame = async () => {
     const isOnline = mode === 'online';
     if (matching) return;
+    if (isOnline && !BACKGAMMON_ONLINE_READY) { setMatchError(BACKGAMMON_ONLINE_MESSAGE); return; }
     let tgId;
     let trackedAccountId;
     if (isOnline) {
@@ -329,7 +331,7 @@ export default function TavullBattleRoyalLobby() {
               {
                 key: 'online',
                 label: 'Online',
-                desc: 'Stake & match',
+                desc: BACKGAMMON_ONLINE_READY ? 'Stake & match' : 'Coming soon',
                 accent: 'from-sky-400/30 via-indigo-500/10 to-transparent',
                 icon: '⚔️',
                 iconKey: 'mode-online'
@@ -341,6 +343,7 @@ export default function TavullBattleRoyalLobby() {
                   key={key}
                   type="button"
                   onClick={() => setMode(key)}
+                  disabled={key === 'online' && !BACKGAMMON_ONLINE_READY}
                   className={`lobby-option-card ${
                     active ? 'lobby-option-card-active' : 'lobby-option-card-inactive'
                   }`}
@@ -364,7 +367,7 @@ export default function TavullBattleRoyalLobby() {
             })}
           </div>
           <p className="text-xs text-white/60 text-center">
-            AI matches stay offline. Online mode uses your TPG stake and pairs you with another player.
+            {BACKGAMMON_ONLINE_READY ? 'AI matches stay offline. Online mode pairs you with another player.' : BACKGAMMON_ONLINE_MESSAGE}
           </p>
         </div>
 

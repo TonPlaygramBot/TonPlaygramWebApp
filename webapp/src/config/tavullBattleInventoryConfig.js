@@ -1,14 +1,11 @@
 import { MURLAN_STOOL_THEMES } from './murlanThemes.js';
-import { CHESS_TABLE_FINISH_OPTIONS, CHESS_TABLE_OPTIONS } from './chessBattleInventoryConfig.js';
-import { FOUR_IN_ROW_BOARD_FRAME_FINISH_OPTIONS } from './fourInRowInventoryConfig.js';
 import {
-  POOL_ROYALE_DEFAULT_HDRI_ID,
-  POOL_ROYALE_HDRI_VARIANTS
-} from './poolRoyaleInventoryConfig.js';
+  CHESS_TABLE_FINISH_OPTIONS,
+  CHESS_TABLE_OPTIONS
+} from './chessBattleInventoryConfig.js';
+import { FOUR_IN_ROW_BOARD_FRAME_FINISH_OPTIONS } from './fourInRowInventoryConfig.js';
+import { POOL_ROYALE_HDRI_VARIANTS } from './poolRoyaleInventoryConfig.js';
 import { swatchThumbnail } from './storeThumbnails.js';
-
-const DEFAULT_HDRI_ID =
-  POOL_ROYALE_DEFAULT_HDRI_ID || POOL_ROYALE_HDRI_VARIANTS[0]?.id;
 
 const BASE_CHAIR_OPTIONS = [
   {
@@ -108,7 +105,7 @@ export const TAVULL_BATTLE_DEFAULT_UNLOCKS = Object.freeze({
   boardFinish: [TAVULL_BATTLE_BOARD_FINISH_OPTIONS[0]?.id],
   frameFinish: [TAVULL_BATTLE_FRAME_FINISH_OPTIONS[0]?.id],
   triangleColor: [TAVULL_BATTLE_TRIANGLE_COLOR_OPTIONS[0]?.id],
-  environmentHdri: [DEFAULT_HDRI_ID]
+  environmentHdri: POOL_ROYALE_HDRI_VARIANTS.map((variant) => variant.id)
 });
 
 const reduceLabels = (options, labelKey = 'label') =>
