@@ -1,4 +1,5 @@
-import {UploadedMosque} from './UploadedMosque';
+import {BlenderMosque} from './BlenderMosque';
+import {ParliamentEntrance} from './ParliamentEntrance';
 import * as T from 'three';
 import { mergeGeometries } from 'three/examples/jsm/utils/BufferGeometryUtils.js';
 import { WORLD } from '../tiranastreets/shared/world.mjs';
@@ -20,7 +21,8 @@ export class ReferenceFacades {
   private entries:{group:T.Group;x:number;z:number}[]=[];
   private materials=new Map<number,T.MeshStandardMaterial>();
   private disposed=false;
-  private uploadedMosque?:UploadedMosque;
+  private mosque?:BlenderMosque;
+  private parliament?:ParliamentEntrance;
   constructor(world=WORLD, onlyIds?:ReadonlySet<string>) {
     this.group.name='Tirana:photo-referenced-institution-facades';
     for(const b of landmarkBuildings(world)){
@@ -32,6 +34,10 @@ export class ReferenceFacades {
       const group=new T.Group(),height=b.visualHeightSource?b.h:profile.height??b.h;
       group.name=profile.name;group.userData={osmWay:b.id,site:b.site,reference:profile.source,referenceDate:profile.date,
         geometryAccuracy:'Original interpretation on retained footprint; dimensions not surveyed'};
+      if(profile.style==='namazgja'){
+        this.mosque=new BlenderMosque(group,b.p);this.group.add(group);
+        this.entries.push({group,x:b.p.reduce((s,p)=>s+p[0],0)/b.p.length,z:b.p.reduce((s,p)=>s+p[1],0)/b.p.length});continue;
+      }
       const parts=new Map<number,T.BufferGeometry[]>();
       const add=(color:number,geometry:T.BufferGeometry)=>{if(!parts.has(color))parts.set(color,[]);if(geometry.index){const original=geometry;geometry=original.toNonIndexed();original.dispose();}parts.get(color)!.push(geometry);};
       const box=(color:number,x:number,y:number,z:number,w:number,h:number,d:number,yaw=0)=>{
@@ -200,10 +206,13 @@ export class ReferenceFacades {
         if(glass)material.userData.environmentWindow=true;
         const mesh=new T.Mesh(geometry,material);mesh.castShadow=true;mesh.receiveShadow=true;group.add(mesh);
       }
-      if(profile.style==='namazgja'){this.uploadedMosque=new UploadedMosque(group,b.p.reduce((s,p)=>s+p[0],0)/b.p.length,b.p.reduce((s,p)=>s+p[1],0)/b.p.length);}
+      if(profile.style==='parliament'){
+        const front=edges.filter(e=>e.length>4).sort((a,b)=>-b.nx*2+Math.log(b.length)+a.nx*2-Math.log(a.length))[0];
+        if(front){this.parliament=new ParliamentEntrance(front);group.add(this.parliament.group);}
+      }
       this.group.add(group);this.entries.push({group,x:b.p.reduce((s,p)=>s+p[0],0)/b.p.length,z:b.p.reduce((s,p)=>s+p[1],0)/b.p.length});
     }
   }
-  update(viewer?:{x:number;z:number},battery=false){if(!viewer)return;this.uploadedMosque?.update(viewer);for(const entry of this.entries)entry.group.visible=Math.hypot(entry.x-viewer.x,entry.z-viewer.z)<(battery?600:1100);}
-  dispose(){if(this.disposed)return;this.disposed=true;this.uploadedMosque?.dispose();this.group.removeFromParent();this.group.traverse(o=>{if(o instanceof T.Mesh||o instanceof T.LineSegments){o.geometry.dispose();if(o instanceof T.LineSegments)(o.material as T.Material).dispose();}});this.materials.forEach(m=>m.dispose());this.group.clear();}
+  update(viewer?:{x:number;z:number},battery=false){if(!viewer)return;this.mosque?.update(viewer,battery);for(const entry of this.entries)entry.group.visible=Math.hypot(entry.x-viewer.x,entry.z-viewer.z)<2400;}
+  dispose(){if(this.disposed)return;this.disposed=true;this.mosque?.dispose();this.parliament?.dispose();this.group.removeFromParent();this.group.traverse(o=>{if(o instanceof T.Mesh||o instanceof T.LineSegments){o.geometry.dispose();if(o instanceof T.LineSegments)(o.material as T.Material).dispose();}});this.materials.forEach(m=>m.dispose());this.group.clear();}
 }

@@ -1,3 +1,4 @@
+import {createInstitutionGuards} from './institutionGuards.mjs';
 import {createTrafficOfficers,directTraffic} from './junctionControl.mjs';
 import {initPoliceDispatch,updatePolicePatrols} from './policeDispatch.mjs';
 import {pedestrianIntent} from './pedestrianBehavior.mjs';
@@ -166,6 +167,7 @@ export function initCityLife(state, env, mission) {
       state.npcs.push(n);
     }
   }
+  state.npcs.push(...createInstitutionGuards(env.world,env));
   initPoliceDispatch(state,env);
   for (const p of Object.values(state.players))
     if (mission.stars) {
@@ -461,7 +463,7 @@ export function updateCityLife(state, dt, env, mission) {
   updatePolicePatrols(state,dt,env,{vehicles:vehicleGrid,people:peopleGrid});
   for (const n of state.npcs) {
     let npcDt=dt;
-    if((n.kind==='civilian'||n.patrol) && !players.some(p=>(p.x-n.x)**2+(p.z-n.z)**2<180*180)){
+    if((n.kind==='civilian'||n.patrol||n.guardPost) && !players.some(p=>(p.x-n.x)**2+(p.z-n.z)**2<180*180)){
       n.lifeAccumulator=(n.lifeAccumulator||0)+dt;
       if(n.lifeAccumulator<.4)continue;
       npcDt=n.lifeAccumulator;n.lifeAccumulator=0;
@@ -534,7 +536,8 @@ export function updateCityLife(state, dt, env, mission) {
     if(actual&&env.officerAction?.(n,actual,npcDt,env))continue;
     const p = actual && env.track ? env.track(n, actual) : actual;
     if (!p) {
-      if(n.patrol&&n.path?.length){walkTo(n.path[n.pathIndex],1.45);env.collide(n,.45);n.anim='walk';if(dist(n,n.path[n.pathIndex])<.6)n.pathIndex=1-n.pathIndex;}
+      if(n.guardPost){if(dist(n,n.guardPost)>1){walkTo(n.guardPost,1.45);env.collide(n,.45);n.anim='walk';}else{n.speed=0;n.anim='idle';n.heading=n.guardPost.heading;}}
+      else if(n.patrol&&n.path?.length){walkTo(n.path[n.pathIndex],1.45);env.collide(n,.45);n.anim='walk';if(dist(n,n.path[n.pathIndex])<.6)n.pathIndex=1-n.pathIndex;}
       else {n.speed=0;n.anim='idle';}
       continue;
     }

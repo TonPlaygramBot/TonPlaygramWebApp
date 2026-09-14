@@ -1,3 +1,4 @@
+import {AutomaticGraphics, GRAPHICS_PROFILES, graphicsSetting, type GraphicsPreset, type GraphicsSetting} from './graphicsQuality';
 import {BikeVisuals} from './BikeVisuals';
 import {selectedPlayerUrl} from './playerCatalog.mjs';
 import {normalizePlayableHuman, humanoidBones, HumanoidLegPose, solveHumanoidLimb, hideAuthoredPlayerWeapon} from './street-career/humanoidRig.mjs';
@@ -68,7 +69,9 @@ export class CityRenderer {
   protected get cockpitCamera(){return this.firstPerson;}
   protected preserveVehicleInterior = false;
   fps = 60;
-  quality: "auto" | "high" | "battery" = "auto";
+  quality: GraphicsPreset = 'balanced';
+  qualitySetting: GraphicsSetting = 'auto';
+  private automaticGraphics = new AutomaticGraphics();
   targetFps = 60;
   ready = false;
   disposed = false;
@@ -158,6 +161,7 @@ export class CityRenderer {
     this.observer = new ResizeObserver(() => this.resize());
     this.observer.observe(root);
     this.resize();
+    this.setQuality('auto');
   }
   private material(
     color: number | string,
@@ -871,14 +875,22 @@ export class CityRenderer {
   protected vehicleVisual(id:string){return this.bikeFleet.getRoot(id)||this.collectionFleet.getRoot(id)||this.forces.getRoot(id)||this.racingFleet.getRoot(id)||this.actors.get(id)?.group;}
   protected presentVehicle(_actor: Actor, _state: State, _carId: string, _dt: number) {}
   protected beforeDraw(_state: State | null, _id: string, _dt: number) {}
-  setQuality(quality: "auto" | "high" | "battery") {
-    this.quality = quality;
-    this.dpr = Math.min(
-      window.devicePixelRatio || 1,
-      quality === "high" ? 2 : quality === "battery" ? 1 : 1.65,
-    );
+  setQuality(quality: GraphicsSetting) {
+    this.qualitySetting = graphicsSetting(quality);
+    this.automaticGraphics.reset();
+    this.applyGraphics(this.qualitySetting === 'auto' ? this.automaticGraphics.preset : this.qualitySetting);
+  }
+  private applyGraphics(preset: GraphicsPreset) {
+    this.quality = preset;
+    const profile = GRAPHICS_PROFILES[preset];
+    this.dpr = Math.min(window.devicePixelRatio || 1, profile.pixelRatio);
     this.renderer.setPixelRatio(this.dpr);
-    this.renderer.shadowMap.enabled = quality !== "battery";
+    this.renderer.shadowMap.enabled = profile.shadows;
+    if(this.sunlight.shadow.mapSize.x !== profile.shadowSize) {
+      this.sunlight.shadow.map?.dispose(); this.sunlight.shadow.map = null;
+      this.sunlight.shadow.mapSize.setScalar(profile.shadowSize);this.sunlight.shadow.needsUpdate=true;
+    }
+    this.scene.userData.graphicsPreset = preset;
     this.resize();
   }
   private resize() {
@@ -892,23 +904,16 @@ export class CityRenderer {
     if (this.disposed || this.renderer.getContext().isContextLost()) return;
     this.clock += dt;
     const stamp = performance.now();
-    this.sampleTime += Math.max(0, (stamp - this.sampleStamp) / 1000);
+    const frameSeconds = Math.max(0, (stamp - this.sampleStamp) / 1000);
+    if (frameSeconds > .5) { this.sampleTime = 0; this.frames = 0; }
+    else this.sampleTime += frameSeconds;
     this.sampleStamp = stamp;
     this.frames++;
     if (this.sampleTime >= 2) {
       this.fps = Math.round(this.frames / this.sampleTime);
-      if (this.quality === "auto") {
-        const next =
-          this.fps < this.targetFps * .8
-            ? Math.max(0.85, this.dpr - 0.15)
-            : this.fps >= this.targetFps * .95
-              ? Math.min(1.65, window.devicePixelRatio || 1, this.dpr + 0.05)
-              : this.dpr;
-        if (Math.abs(next - this.dpr) > 0.01) {
-          this.dpr = next;
-          this.renderer.setPixelRatio(next);
-          this.resize();
-        }
+      if (this.qualitySetting === 'auto' && this.ready && state && dt>0 && !lobby && !document.hidden &&
+          this.automaticGraphics.sample(this.fps, this.targetFps)) {
+        this.applyGraphics(this.automaticGraphics.preset);
       }
       this.frames = 0;
       this.sampleTime = 0;

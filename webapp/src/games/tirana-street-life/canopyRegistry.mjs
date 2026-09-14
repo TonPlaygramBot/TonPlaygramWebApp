@@ -1,3 +1,4 @@
+import {RURAL_TREES} from '../tirana-east/ruralData.mjs';
 import {roadsidePoint} from '../tiranastreets/shared/streetSafety.mjs';
 import {MAPPED_TREES} from '../tirana-city-source/registry.mjs';
 import {STREET_LIFE} from './streetLifeData.mjs';
@@ -11,4 +12,4 @@ export const CANOPY_SOURCE_TREES=[...MAPPED_TREES.map((t,i)=>mature.get(t.id)||(
 })),...STREET_LIFE.trees.filter(t=>!MAPPED_TREES.some(p=>p.id===t.id)),...CANOPY_SUPPLEMENT.trees,...NEIGHBOURHOOD_CANOPY.trees];
 
 // Source positions remain available for attribution and single-owner suppression.
-export const CANOPY_TREES=CANOPY_SOURCE_TREES.map(t=>roadsidePoint(t,Math.max(.45,Math.min(.8,t.crown*.08)))).filter(Boolean);
+export const CANOPY_TREES=[...CANOPY_SOURCE_TREES,...RURAL_TREES].map(t=>roadsidePoint(t,Math.max(.45,Math.min(.8,t.crown*.08)))).filter(Boolean);

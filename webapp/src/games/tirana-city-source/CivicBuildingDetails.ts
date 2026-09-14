@@ -192,14 +192,7 @@ export function civicBuildingDetails(p:ReferenceProfile,edges:FacadeEdge[],heigh
    wall(e,p.trim,u,5.5,15,.5,4,1.8);
    for(const d of [-6,6])wall(e,p.trim,u+d,2.7,.5,5.4,.55,3.5);stairs(e,17,6);
   } else if(style==='parliament'){
-   const span=Math.min(18,e.length*.85);
-   wall(e,p.trim,u,4,4.2,7,.15,.17);wall(e,wood,u,3.2,3.4,6,.12,.29);
-   for(const d of [-.5,-.17,.17,.5]){
-    wall(e,0xc5d0cf,u+d*span,h*.46,.55,h*.83,.55,.5);
-    wall(e,p.trim,u+d*span,h*.87,1.25,.35,.65,.6);
-   }
-   wall(e,p.trim,u,h-.5,span+1,.45,.6,.3);pediment(e,u,h,span+1,1.1,0x99adb4);
-   for(const d of [-1,1])window(e,u+d*span*.32,3.5,2.3,3.5);stairs(e,span,3);
+   // Blender ParliamentEntrance owns all front ornament, stairs and signage.
   } else if(style==='polytechnic-tower'){
    for(let i=0;i<5;i++){
     arch(e,(i+.5)*e.length/5,h-4.1,e.length/7,3.1,wood);

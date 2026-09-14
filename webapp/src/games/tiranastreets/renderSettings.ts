@@ -42,5 +42,5 @@ export function runCityWork(queue: {run(budget: number, maxSteps: number): void}
   remaining = Math.max(0, remaining - (performance.now() - started));
 }
 
-export const CITY_RADIUS = { battery: 1800, high: 3200 } as const;
+export const CITY_RADIUS = { battery: 2200, high: 3200 } as const;
 export const CITY_CACHE = { battery: 320, high: 700 } as const;

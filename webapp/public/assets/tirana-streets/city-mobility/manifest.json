@@ -29,16 +29,6 @@
     "triangles": 8288,
     "meshes": 9
   },
-  "namazgjah": {
-    "bytes": 1497172,
-    "sha256": "4432f9445ba3ba47bc7e7d820cd87b68fd86b9212bcb34782bbc0e1d7ceee453",
-    "triangles": 200000,
-    "meshes": 1,
-    "original": "great_mosque_of_tirana_albania.glb",
-    "originalSha256": "d2cbb7b1ccb97c94eb7a7c6e89d2b90baac4483159d56d783a1b75ab33ed2876",
-    "compression": "Draco 16-bit positions; original triangle topology",
-    "ground": "Main scan plinth at the 10th vertex-height percentile; below-plinth scan fragments intersect terrain"
-  },
   "golf-gti": {
     "bytes": 7045908,
     "sha256": "a7c8b73910b22fbfa7abbe03d362db4b4565da1986f473383f719bbea6ac62b1",

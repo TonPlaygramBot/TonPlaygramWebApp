@@ -1,0 +1,27 @@
+{
+  "namazgah-near": {
+    "triangles": 102488,
+    "draws": 6,
+    "bytes": 2820532
+  },
+  "namazgah-far": {
+    "triangles": 17480,
+    "draws": 6,
+    "bytes": 487572
+  },
+  "villa-bay": {
+    "triangles": 96,
+    "draws": 3,
+    "bytes": 7984
+  },
+  "villa-balcony": {
+    "triangles": 228,
+    "draws": 2,
+    "bytes": 14360
+  },
+  "parliament-entry": {
+    "triangles": 1320,
+    "draws": 7,
+    "bytes": 78040
+  }
+}

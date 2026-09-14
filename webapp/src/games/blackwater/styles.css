@@ -2084,3 +2084,17 @@
 @media(max-width:600px){:where(.bw-scope) .brand-name{font-size:9px;letter-spacing:.5px}:where(.bw-scope) .brand-mark{display:none}:where(.bw-scope) .brand-name small{font-size:8px;letter-spacing:0}:where(.bw-scope) .top-actions .icon-btn{width:40px;height:48px}:where(.bw-scope) .fps-readout{min-width:30px}:where(.bw-scope) .compass{top:calc(72px + env(safe-area-inset-top,0px))}}
 
 :where(.bw-scope) .compass{top:calc(72px + env(safe-area-inset-top,0px))}
+
+/* Portrait HUD: menu, map and pause share the visual top centre. */
+:where(.bw-scope) .topbar{left:50%;right:auto;transform:translateX(-50%);display:flex;width:174px;max-width:100%;gap:6px;padding:8px 0;justify-content:flex-start;background:none}
+:where(.bw-scope) .topbar .brand,:where(.bw-scope) .topbar .fps-readout,:where(.bw-scope) .topbar .fullscreen{display:none}
+:where(.bw-scope) .topbar .bw-menu-button{min-width:54px;padding:6px;font-size:11px;height:48px}
+:where(.bw-scope) .topbar .top-actions{margin-left:auto;display:flex}:where(.bw-scope) .topbar .icon-btn{width:48px;height:48px}
+:where(.bw-scope) .mission-status{top:126px}:where(.bw-scope) .health-panel{display:none}
+:where(.bw-scope) .joystick .ts-joystick-sprint{pointer-events:auto;color:#f1f5e9;background:#203c45;border:1px solid #6d8d94;font-family:system-ui}
+:where(.bw-scope) .joystick{overflow:visible}
+:where(.bw-scope) .topbar .bw-menu-button{width:54px;min-width:54px;justify-content:center}
+:where(.bw-scope) .topbar .bw-menu-button svg{display:none}
+:where(.bw-scope) .topbar .icon-btn{width:54px}
+:where(.bw-scope) .ts-weapon-switcher{left:105px;bottom:calc(174px + env(safe-area-inset-bottom,0px))}
+@media(max-width:600px){:where(.bw-scope) .compass{left:auto;right:12px;transform:none;width:132px}}

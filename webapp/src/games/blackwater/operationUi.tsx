@@ -48,7 +48,7 @@ export function Game(props:ComponentProps<typeof OriginalGame>){
   const available=game&&(phase==='playing'||phase==='paused');
   return <>
     <BaseGame {...props} onEngine={capture}/>
-    {available&&<button ref={launch} className="ts-fps-map-launch" aria-label="Open Tirana city map" onClick={()=>{if(!game)return;session.current=openMapSession(game);setOpen(true);}}>◎ CITY MAP</button>}
+    {available&&<button ref={launch} className="ts-fps-map-launch" aria-label="Open Tirana city map" onClick={()=>{if(!game)return;session.current=openMapSession(game);setOpen(true);}}>MAP</button>}
     {destination&&!open&&available&&<div className="ts-fps-route-note" role="status">To {destination.name}<small>{notice}</small></div>}
     {open&&<dialog ref={dialog} className="ts-fps-map-dialog" aria-labelledby="ts-city-map-title" onCancel={e=>{e.preventDefault();close();}}>
       <header><h2 id="ts-city-map-title">TIRANA · EXPLORE</h2><button onClick={close} aria-label="Close city map">×</button></header>

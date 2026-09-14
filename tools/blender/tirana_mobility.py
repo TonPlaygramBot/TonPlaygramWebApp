@@ -174,7 +174,6 @@ def main():
     p=argparse.ArgumentParser();p.add_argument('--uploads',type=Path);p.add_argument('--bikes-only',action='store_true');opts=p.parse_args(args)
     for i,name in enumerate(['city-bicycle','mountain-bike','delivery-ebike','city-scooter','street-motorcycle']):bike(name,i)
     if opts.uploads and not opts.bikes_only:
-        prepare_upload(opts.uploads/'great_mosque_of_tirana_albania.glb','namazgjah',110,ground_quantile=.1)
         prepare_upload(opts.uploads/'volkswagen_golf_gti_2025.glb','golf-gti',4.29,-math.pi/2,1024)
     (OUT/'manifest.json').write_text(json.dumps(metrics,indent=2)+'\n')
 

@@ -1,3 +1,4 @@
+import {AutomaticGraphics, GRAPHICS_PROFILES, graphicsSetting, type GraphicsPreset} from '../tiranastreets/graphicsQuality';
 import {opticZoom} from '../tiranastreets/shared/weaponCalibration.mjs';
 import {FramePacer, targetFps} from '../tiranastreets/renderSettings';
 import { BattlefieldPlayer, BODY_WEAPON } from './BattlefieldPlayer';
@@ -135,7 +136,7 @@ const defaults: Settings = {
 export class GameEngine {
   renderer: THREE.WebGLRenderer;
   scene = new THREE.Scene();
-  camera = new THREE.PerspectiveCamera(70, 1, 0.055, 220);
+  camera = new THREE.PerspectiveCamera(70, 1, 0.055, 3600);
   world: World;
   input: GameInput;
   audio = new GameAudio();
@@ -222,7 +223,8 @@ export class GameEngine {
   private fpsFrames = 0;
   private fps = 60;
   private quality = 1;
-  private lowSamples = 0;
+  private automaticGraphics = new AutomaticGraphics();
+  graphicsPreset: GraphicsPreset = 'balanced';
   private size: ResizeObserver;
   private callback: (s: Snapshot) => void;
   private disposed = false;
@@ -317,7 +319,7 @@ export class GameEngine {
     this.audio.setVolume(this.settings.volume);
     if (next.quality) {
       this.quality = 1;
-      this.lowSamples = 0;
+      this.automaticGraphics.reset();
       this.applyQuality();
     }
     try {
@@ -326,14 +328,15 @@ export class GameEngine {
     this.emit();
   }
   private applyQuality() {
-    const q = this.settings.quality;
-    const dpr = Math.min(
-      window.devicePixelRatio || 1,
-      q === 'high' ? 1.75 : q === 'low' ? 1 : 1.4
-    );
-    this.renderer.setPixelRatio(dpr * (q === 'auto' ? this.quality : 1));
-    this.renderer.shadowMap.enabled = q !== 'low' && this.quality > 0.65;
-    this.world.rain.visible = this.world.rain.userData.enabled !== false && q !== 'low';
+    const setting = graphicsSetting(this.settings.quality);
+    this.graphicsPreset = setting === 'auto' ? this.automaticGraphics.preset : setting;
+    const profile = GRAPHICS_PROFILES[this.graphicsPreset];
+    this.quality = profile.pixelRatio / GRAPHICS_PROFILES.high.pixelRatio;
+    this.renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, profile.pixelRatio));
+    this.renderer.shadowMap.enabled = profile.shadows;
+    this.scene.traverse(o=>{if(o instanceof THREE.DirectionalLight && o.castShadow && o.shadow.mapSize.x!==profile.shadowSize){o.shadow.map?.dispose();o.shadow.map=null;o.shadow.mapSize.setScalar(profile.shadowSize);o.shadow.needsUpdate=true;}});
+    this.world.rain.visible = this.world.rain.userData.enabled !== false && this.graphicsPreset !== 'battery';
+    this.camera.userData.battery = this.graphicsPreset === 'battery';
     this.resize();
   }
   start(weapon: WeaponId, difficulty: Difficulty, mapId: BattlefieldMapId = 'skanderbeg', battleMode:BattleMode='last-stand', operationId='') {
@@ -1094,23 +1097,14 @@ export class GameEngine {
     let dt = Math.min(0.075, realDt);
     this.previous = now;
     this.totalTime += dt;
-    this.fpsTime += realDt;
+    if(realDt>.5){this.fpsTime=0;this.fpsFrames=0;}else this.fpsTime += realDt;
 
     if (this.fpsTime >= 1) {
       this.fps = Math.round(this.fpsFrames / this.fpsTime);
       this.fpsTime = 0;
       this.fpsFrames = 0;
-      if (this.settings.quality === 'auto' && this.totalTime > 6) {
-        this.lowSamples =
-          this.fps < this.settings.targetFps * .8
-            ? this.lowSamples + 1
-            : Math.max(0, this.lowSamples - 1);
-        if (this.lowSamples >= 4 && this.quality > 0.6) {
-          this.quality = Math.max(0.6, this.quality - 0.15);
-          this.lowSamples = 0;
-          this.applyQuality();
-        }
-      }
+      if (this.settings.quality === 'auto' && this.phase === 'playing' && !document.hidden && this.totalTime > 6 &&
+          this.automaticGraphics.sample(this.fps, this.settings.targetFps)) this.applyQuality();
     }
     if (this.phase === 'playing') {
       this.accumulator += dt;
@@ -1196,7 +1190,7 @@ export class GameEngine {
     this.missionBeacon.visible=showObjective&&(this.battleMode==='hold'||this.battleMode==='extraction'&&!this.intel);
     const beacon=this.battleMode==='hold'?this.sectorCenter:this.intelPoint;
     this.missionBeacon.position.set(beacon.x,battleGround(beacon.x,beacon.z)+7,beacon.z);
-    this.combatEffects.update(this.phase === 'playing' ? dt : 0,this.camera,[],[],this.settings.quality==='low');
+    this.combatEffects.update(this.phase === 'playing' ? dt : 0,this.camera,[],[],this.graphicsPreset==='battery');
     this.world.update?.(this.camera.position);
     this.world.sky.position.set(
       this.camera.position.x,
@@ -1208,7 +1202,7 @@ export class GameEngine {
       0,
       this.camera.position.z
     );
-    this.forces?.update(this.enemies, this.player, this.totalTime, dt, this.settings.quality === 'low');
+    this.forces?.update(this.enemies, this.player, this.totalTime, dt, this.graphicsPreset === 'battery');
     this.renderer.render(this.scene, this.camera);
     this.uiTime += dt;
     if (this.uiTime > 0.1) {

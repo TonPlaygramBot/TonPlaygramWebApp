@@ -46,6 +46,7 @@ export async function purchaseWeapon(itemId: string, idempotencyKey?: string) {
     },accountId) as WeaponStoreAccount & { weaponId: string; transactionId: string };
     pendingKeys.delete(storageKey);
     try { localStorage.removeItem(storageKey); } catch { /* no persistence */ }
+    window.dispatchEvent(new Event('tpgBalanceUpdated'));
     return receipt;
   } catch(error) {
     // A lost response keeps its reference across retries/reloads. A definite

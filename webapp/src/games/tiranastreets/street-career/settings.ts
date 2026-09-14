@@ -1,7 +1,8 @@
+import {graphicsSetting, type GraphicsSetting} from '../graphicsQuality';
 import {targetFps, type TargetFps} from '../renderSettings';
 export type StreetSettings = {
   targetFps: TargetFps;
-  quality: 'auto' | 'high' | 'battery';
+  quality: GraphicsSetting;
   fov: number;
   sensitivity: number;
   headBob: number;
@@ -53,7 +54,7 @@ export function loadSettings(
         s[key] = Math.max(bounds[0], Math.min(bounds[1], raw[key]));
     }
     s.targetFps = targetFps(raw.targetFps);
-    s.quality = raw.quality === 'high' || raw.quality === 'battery' ? raw.quality : 'auto';
+    s.quality = graphicsSetting(raw.quality);
     s.aimAssist = raw.aimAssist === true;
     return s;
   } catch {

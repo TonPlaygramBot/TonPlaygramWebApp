@@ -11,14 +11,16 @@ await build({entryPoints:[new URL('../webapp/src/games/tiranastreets/weaponStore
 }}]});
 const api=await import(pathToFileURL(file));
 const originals={fetch:globalThis.fetch,window:globalThis.window,localStorage:globalThis.localStorage};
-globalThis.window={Telegram:{WebApp:{initData:'signed-test-init'}}};const saved=new Map();globalThis.localStorage={getItem:k=>saved.get(k),setItem:(k,v)=>saved.set(k,v),removeItem:k=>saved.delete(k)};
+globalThis.window=Object.assign(new EventTarget(),{Telegram:{WebApp:{initData:'signed-test-init'}}});const saved=new Map();globalThis.localStorage={getItem:k=>saved.get(k),setItem:(k,v)=>saved.set(k,v),removeItem:k=>saved.delete(k)};
 test.after(()=>{Object.assign(globalThis,originals);delete globalThis.testAccount;});
 
 test('lost response retains purchase reference across module reload and uses the shared backend and auth headers',async()=>{
+ let updates=0;window.addEventListener('tpgBalanceUpdated',()=>updates++,{once:true});
  globalThis.testAccount='account-A';const calls=[];globalThis.fetch=async(url,init)=>{calls.push({url,init,body:JSON.parse(init.body)});throw Error('connection lost');};
  await assert.rejects(api.purchaseWeapon('tirana-ak47VolleyAttack'),/connection lost/);assert.equal(saved.size,1);
  const again=await import(pathToFileURL(file)+'?reload');globalThis.fetch=async(url,init)=>{calls.push({url,init,body:JSON.parse(init.body)});return new Response(JSON.stringify({balanceTPG:500,ownedWeaponIds:['ak47VolleyAttack']}),{status:200});};
  await again.purchaseWeapon('tirana-ak47VolleyAttack');assert.equal(calls[0].body.idempotencyKey,calls[1].body.idempotencyKey);assert.equal(saved.size,0);
+ assert.equal(updates,1,'only a confirmed purchase refreshes the HUD');
  assert.equal(calls[1].url,'https://api.example.test/api/tirana-store/purchase');assert.equal(calls[1].init.headers['x-tpc-account-id'],'account-A');assert.equal(calls[1].init.headers['x-telegram-init-data'],'signed-test-init');assert.equal(calls[1].init.headers['x-native-session'],'test');
 });
 test('definitive rejection clears pending purchase, while account changes cannot reuse its reference',async()=>{
