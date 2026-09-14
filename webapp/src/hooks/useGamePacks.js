@@ -28,7 +28,9 @@ export default function useGamePacks() {
       const [nextCatalog, nextStorage, nextInstallations] = await Promise.all([
         loadGamePackCatalog({ force: forceCatalog }),
         getGamePackStorageEstimate(),
-        reconcileGamePackInstallations()
+        // Check for updates also verifies every saved file. Opening Home or
+        // reconnecting only checks the completion receipt to keep startup fast.
+        reconcileGamePackInstallations({ verifyAssets: forceCatalog })
       ]);
       setCatalog(nextCatalog);
       setStorage(nextStorage);
