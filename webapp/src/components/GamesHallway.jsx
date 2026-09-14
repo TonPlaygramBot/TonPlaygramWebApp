@@ -116,14 +116,14 @@ function createConfiguredGLTFLoader(renderer = null) {
   const loader = new GLTFLoader();
   loader.setCrossOrigin('anonymous');
   const draco = new DRACOLoader();
-  draco.setDecoderPath('https://www.gstatic.com/draco/v1/decoders/');
+  draco.setDecoderPath('/vendor/three/examples/jsm/libs/draco/gltf/');
   loader.setDRACOLoader(draco);
   loader.setMeshoptDecoder(MeshoptDecoder);
 
   if (!sharedKTX2Loader) {
     sharedKTX2Loader = new KTX2Loader();
     sharedKTX2Loader.setTranscoderPath(
-      'https://cdn.jsdelivr.net/npm/three@0.164.0/examples/jsm/libs/basis/'
+      '/vendor/three/examples/jsm/libs/basis/'
     );
     if (renderer) {
       try {
@@ -601,23 +601,14 @@ export default function GamesHallway({ games, onClose }) {
     floorGlow.position.set(0, 1.2, 0);
     scene.add(floorGlow);
 
-    const woodTex = loader.load('https://cdn.jsdelivr.net/gh/mrdoob/three.js@r150/examples/textures/wood/mahogany_diffuse.jpg');
-    woodTex.colorSpace = THREE.SRGBColorSpace;
-    woodTex.wrapS = THREE.RepeatWrapping;
-    woodTex.wrapT = THREE.RepeatWrapping;
-    woodTex.anisotropy = maxAnisotropy;
-
-    const handleTex = loader.load('https://cdn.jsdelivr.net/gh/mrdoob/three.js@r150/examples/textures/metal/Brass_Albedo.jpg');
-    handleTex.colorSpace = THREE.SRGBColorSpace;
-
+    // The former mahogany/brass URLs are absent from the pinned Three release.
+    // Use the existing finish colors directly instead of attaching empty maps.
     const doorMat = new THREE.MeshStandardMaterial({
-      map: woodTex,
       color: '#7b4a1a',
       roughness: 0.3,
       metalness: 0.25
     });
     const handleMat = new THREE.MeshStandardMaterial({
-      map: handleTex,
       color: '#ffd700',
       metalness: 1,
       roughness: 0.1

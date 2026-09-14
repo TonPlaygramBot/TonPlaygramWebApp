@@ -139,9 +139,9 @@ import { computeCueDriveBoost } from './cueShotImpact.js';
 import { polyHavenThumb } from '../../config/storeThumbnails.js';
 import { createMurlanStyleTable } from '../../utils/murlanTable.js';
 import { showPoolGuideMarkings } from './shared/poolTableMarkings.js';
-const DRACO_DECODER_PATH = 'https://www.gstatic.com/draco/v1/decoders/';
+const DRACO_DECODER_PATH = '/vendor/three/examples/jsm/libs/draco/gltf/';
 const BASIS_TRANSCODER_PATH =
-  'https://cdn.jsdelivr.net/npm/three@0.164.0/examples/jsm/libs/basis/';
+  '/vendor/three/examples/jsm/libs/basis/';
 
 
 const TRAINING_MISS_ATTEMPT_COST = 1;
@@ -20879,15 +20879,9 @@ const shotPowerRef = useRef(0);
       };
 
       const CHESS_LOUNGE_SET_URLS = [
-        'https://raw.githubusercontent.com/cx20/gltf-test/master/sampleModels/Chess/glTF-Binary/Chess.glb',
-        'https://cdn.jsdelivr.net/gh/cx20/gltf-test@master/sampleModels/Chess/glTF-Binary/Chess.glb',
-        'https://raw.githubusercontent.com/quaterniusdev/ChessSet/master/Source/GLTF/ChessSet.glb',
-        'https://cdn.jsdelivr.net/gh/quaterniusdev/ChessSet@master/Source/GLTF/ChessSet.glb'
       ];
       const CHESS_LOUNGE_CHAIR_URLS = [
-        'https://raw.githubusercontent.com/KhronosGroup/glTF-Sample-Models/master/2.0/AntiqueChair/glTF-Binary/AntiqueChair.glb',
         'https://raw.githubusercontent.com/KhronosGroup/glTF-Sample-Assets/main/Models/SheenChair/glTF-Binary/SheenChair.glb',
-        'https://raw.githubusercontent.com/KhronosGroup/glTF-Sample-Assets/main/Models/AntiqueChair/glTF-Binary/AntiqueChair.glb'
       ];
       const cloneHospitalityMaterial = (mat) => {
         if (!mat) return mat;

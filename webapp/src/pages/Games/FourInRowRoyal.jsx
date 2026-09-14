@@ -140,8 +140,8 @@ const DROP_PREVIEW_DELAY = 0.04;
 const WIN_HIGHLIGHT_SCALE_BASE = 1.04;
 const WIN_HIGHLIGHT_SCALE_PULSE = 0.035;
 const WIN_HIGHLIGHT_BOUNCE = 0.032 * BOARD_AND_CHIPS_SCALE;
-const DRACO_DECODER_PATH = 'https://www.gstatic.com/draco/versioned/decoders/1.5.7/';
-const BASIS_TRANSCODER_PATH = 'https://cdn.jsdelivr.net/npm/three@0.164.0/examples/jsm/libs/basis/';
+const DRACO_DECODER_PATH = '/vendor/three/examples/jsm/libs/draco/gltf/';
+const BASIS_TRANSCODER_PATH = '/vendor/three/examples/jsm/libs/basis/';
 const TARGET_CHAIR_SIZE = new THREE.Vector3(
   1.3162499970197679 * CHAIR_SCALE,
   1.9173749900311232 * CHAIR_SCALE,

@@ -1,90 +1,40 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useSyncExternalStore } from 'react';
+import {
+  dismissInstallBanner,
+  getInstallPromptSnapshot,
+  initializeInstallPrompt,
+  openExternalInstall,
+  requestInstall,
+  subscribeInstallPrompt
+} from '../pwa/installPrompt.js';
 
-const STORAGE_KEY = 'tonplaygram-pwa-dismissed';
-
-const isStandalone = () =>
-  window.matchMedia?.('(display-mode: standalone)').matches ||
-  window.navigator.standalone === true;
-
-const isTelegramWebApp = () => Boolean(window.Telegram?.WebApp);
+// Capture install events before asynchronous bootstrap and React mounting.
+export { initializeInstallPrompt } from '../pwa/installPrompt.js';
 
 export default function usePwaInstallPrompt() {
-  const [promptEvent, setPromptEvent] = useState(null);
-  const [installed, setInstalled] = useState(isStandalone());
-  const [dismissed, setDismissed] = useState(() => localStorage.getItem(STORAGE_KEY) === '1');
-  const [telegramDetected, setTelegramDetected] = useState(() => isTelegramWebApp());
-
-  useEffect(() => {
-    const handler = event => {
-      event.preventDefault();
-      setPromptEvent(event);
-    };
-    window.addEventListener('beforeinstallprompt', handler);
-    return () => window.removeEventListener('beforeinstallprompt', handler);
-  }, []);
-
-  useEffect(() => {
-    const onInstalled = () => {
-      setInstalled(true);
-      setPromptEvent(null);
-    };
-    window.addEventListener('appinstalled', onInstalled);
-    return () => window.removeEventListener('appinstalled', onInstalled);
-  }, []);
-
-  useEffect(() => {
-    if (isTelegramWebApp()) {
-      setTelegramDetected(true);
-    }
-  }, []);
-
-  const markDismissed = () => {
-    setDismissed(true);
-    localStorage.setItem(STORAGE_KEY, '1');
-  };
-
-  const promptToInstall = async () => {
-    if (!promptEvent) return false;
-    promptEvent.prompt();
-    const result = await promptEvent.userChoice.catch(() => ({ outcome: 'dismissed' }));
-    if (result?.outcome === 'accepted') {
-      setInstalled(true);
-      setPromptEvent(null);
-      return true;
-    }
-    markDismissed();
-    return false;
-  };
-
-  const canInstall = useMemo(
-    () => !installed && !dismissed && Boolean(promptEvent),
-    [dismissed, installed, promptEvent]
+  useEffect(initializeInstallPrompt, []);
+  const state = useSyncExternalStore(
+    subscribeInstallPrompt,
+    getInstallPromptSnapshot,
+    getInstallPromptSnapshot
   );
-
-  const canShowTelegramInstall = useMemo(
-    () => !installed && !dismissed && telegramDetected && !promptEvent,
-    [dismissed, installed, promptEvent, telegramDetected]
-  );
-
-  const openExternalInstall = () => {
-    const url = window.location.href;
-    if (window.Telegram?.WebApp?.openLink) {
-      window.Telegram.WebApp.openLink(url, { try_instant_view: false });
-      return;
-    }
-    window.open(url, '_blank', 'noopener,noreferrer');
-  };
-
-  const mode = canInstall ? 'prompt' : canShowTelegramInstall ? 'telegram' : 'none';
+  const { installed, dismissed, promptEvent, telegramDetected, telegramCanAddHomeScreen } = state;
+  const canInstall = !installed && !dismissed && Boolean(promptEvent);
+  const canShowTelegramInstall = !installed && !dismissed && telegramDetected && !promptEvent;
 
   return {
+    ...state,
     canInstall,
     canShowTelegramInstall,
-    mode,
-    installed,
-    dismissed,
-    promptToInstall,
+    canPrompt: !installed && !state.installPending && Boolean(promptEvent || telegramCanAddHomeScreen),
+    mode: canInstall ? 'prompt' : canShowTelegramInstall ? 'telegram' : 'none',
+    // Preserve the old boolean API; acceptance does not confirm installation.
+    promptToInstall: async () => {
+      const result = await requestInstall();
+      return ['accepted', 'requested', 'installed'].includes(result.outcome);
+    },
+    requestInstall,
     openExternalInstall,
-    dismiss: markDismissed
+    dismiss: dismissInstallBanner
   };
 }

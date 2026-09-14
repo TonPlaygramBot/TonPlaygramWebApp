@@ -1,3 +1,4 @@
+import { reconcileGamePackInstallations } from './gamePackManager.js';
 const GAME_PACKS_REQUIRED = import.meta.env.VITE_REQUIRE_GAME_PACKS === 'true';
 const INSTALL_STATE_KEY = 'tonplaygram-game-pack-installs-v1';
 
@@ -42,12 +43,13 @@ export async function enforceRequiredGamePackRoute() {
   const packId = findRequiredPackId(window.location.pathname);
   if (!packId) return false;
 
-  const installations = readInstallations();
+  const installations = await reconcileGamePackInstallations().catch(readInstallations);
+  if (await isInstallationTreeAvailable('tonplaygram-app', installations)) return false;
   if (await isInstallationTreeAvailable(packId, installations)) return false;
 
   const returnTo = `${window.location.pathname}${window.location.search}${window.location.hash}`;
-  const target = new URL('/games', window.location.origin);
-  target.searchParams.set('downloadPack', packId);
+  const target = new URL('/', window.location.origin);
+  target.hash = 'app-download';
   target.searchParams.set('returnTo', returnTo);
   window.location.replace(target.toString());
   return true;

@@ -10,30 +10,32 @@ export const LUDO_CAPTURE_DRONE_SOUND_URL = '/assets/ludo/audio/drone.wav';
 export const LUDO_CAPTURE_FIGHTER_SOUND_URL = '/assets/sounds/race-care-151963.mp3';
 export const LUDO_CAPTURE_HELICOPTER_SOUND_URL = '/assets/sounds/dragon-studio-helicopter-sound-8d-372463.mp3';
 
-const LUDO_CAPTURE_FIREARM_SOURCE_SOUND_URL_BY_ID = Object.freeze({
-  glockSidearmAttack: 'https://cdn.freesound.org/previews/414/414888_5121236-lq.mp3',
-  smithSidearmAttack: 'https://cdn.freesound.org/previews/414/414888_5121236-lq.mp3',
-  sigsauerTacticalAttack: 'https://cdn.freesound.org/previews/414/414888_5121236-lq.mp3',
-  uziSprayAttack: 'https://cdn.freesound.org/previews/171/171104_2437358-lq.mp3',
-  smgBurstAttack: 'https://cdn.freesound.org/previews/171/171104_2437358-lq.mp3',
-  assaultRifleAttack: 'https://cdn.freesound.org/previews/212/212968_4048940-lq.mp3',
-  ak47VolleyAttack: 'https://cdn.freesound.org/previews/212/212968_4048940-lq.mp3',
-  krsvBurstAttack: 'https://cdn.freesound.org/previews/212/212968_4048940-lq.mp3',
-  compactCarbineAttack: 'https://cdn.freesound.org/previews/212/212968_4048940-lq.mp3',
-  sniperShotAttack: 'https://cdn.freesound.org/previews/533/533981_11861866-lq.mp3',
-  mosinMarksmanAttack: 'https://cdn.freesound.org/previews/533/533981_11861866-lq.mp3',
-  marksmanDmrAttack: 'https://cdn.freesound.org/previews/533/533981_11861866-lq.mp3',
-  shotgunBlastAttack: 'https://cdn.freesound.org/previews/456/456035_5121236-lq.mp3',
-  fpsGunAttack: 'https://cdn.freesound.org/previews/456/456035_5121236-lq.mp3',
-  grenadeBlastAttack: 'https://cdn.freesound.org/previews/514/514644_9960520-lq.mp3',
-  polyBazooka01Attack: 'https://cdn.freesound.org/previews/514/514644_9960520-lq.mp3',
-  polyGrenadeLauncher01Attack: 'https://cdn.freesound.org/previews/514/514644_9960520-lq.mp3',
-  polyDynamiteBomb01Attack: 'https://cdn.freesound.org/previews/514/514644_9960520-lq.mp3',
-  polyMolotov01Attack: 'https://cdn.freesound.org/previews/514/514644_9960520-lq.mp3',
-  polyGasTank01Attack: 'https://cdn.freesound.org/previews/514/514644_9960520-lq.mp3',
-  polyHandGrenade01Attack: 'https://cdn.freesound.org/previews/514/514644_9960520-lq.mp3',
-  polyTank01Attack: 'https://cdn.freesound.org/previews/514/514644_9960520-lq.mp3'
-});
+// Preserve the existing firearm/launch routing while using its already-shipped
+// shot and shell layers. The retired extra provider preview URLs return 404.
+const LUDO_CAPTURE_FIREARM_IDS = new Set([
+  'glockSidearmAttack',
+  'smithSidearmAttack',
+  'sigsauerTacticalAttack',
+  'uziSprayAttack',
+  'smgBurstAttack',
+  'assaultRifleAttack',
+  'ak47VolleyAttack',
+  'krsvBurstAttack',
+  'compactCarbineAttack',
+  'sniperShotAttack',
+  'mosinMarksmanAttack',
+  'marksmanDmrAttack',
+  'shotgunBlastAttack',
+  'fpsGunAttack',
+  'grenadeBlastAttack',
+  'polyBazooka01Attack',
+  'polyGrenadeLauncher01Attack',
+  'polyDynamiteBomb01Attack',
+  'polyMolotov01Attack',
+  'polyGasTank01Attack',
+  'polyHandGrenade01Attack',
+  'polyTank01Attack',
+]);
 
 const ludoCaptureAudioCache = new Map();
 
@@ -83,12 +85,10 @@ export function playLudoCaptureWeaponSfx(weaponId, stage = 'launch', { volume = 
   if (stage === 'shot') {
     playCachedAudio(LUDO_CAPTURE_FIREARM_SHOT_SOUND_URL, { volume: v });
     playCachedAudio(LUDO_CAPTURE_FIREARM_SHELL_SOUND_URL, { volume: v });
-    const sourceUrl = LUDO_CAPTURE_FIREARM_SOURCE_SOUND_URL_BY_ID[normalized];
-    if (sourceUrl) playCachedAudio(sourceUrl, { volume: v * 0.9 });
     return true;
   }
   if (stage === 'launch') {
-    if (LUDO_CAPTURE_FIREARM_SOURCE_SOUND_URL_BY_ID[normalized]) return playLudoCaptureWeaponSfx(normalized, 'shot', { volume: v, muted });
+    if (LUDO_CAPTURE_FIREARM_IDS.has(normalized)) return playLudoCaptureWeaponSfx(normalized, 'shot', { volume: v, muted });
     return !!playCachedAudio(LUDO_CAPTURE_MISSILE_LAUNCH_SOUND_URL, { volume: v });
   }
   return false;

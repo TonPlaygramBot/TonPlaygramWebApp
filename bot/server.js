@@ -477,12 +477,25 @@ function setWebAssetCacheHeaders(res, filePath) {
     lowerPath === 'version.json' ||
     lowerPath === 'manifest.webmanifest' ||
     lowerPath === 'pwa/app-build.js' ||
+    lowerPath === 'pwa/game-pack-service-worker.js' ||
+    lowerPath.startsWith('pwa/game-packs/') ||
+    lowerPath === 'assets/external/url-map.js' ||
+    lowerPath === 'assets/external/url-map.json' ||
+    lowerPath === 'assets/external/manifest.json' ||
     lowerPath.endsWith('.html');
 
   if (shouldNeverCache) {
     res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate');
     res.setHeader('Pragma', 'no-cache');
     res.setHeader('Expires', '0');
+    return;
+  }
+
+  // Vendor paths identify provider URLs, so a reviewed source update may change
+  // their bytes without changing the path. Completed app downloads are served
+  // by the worker; ordinary HTTP loads must revalidate these stable URLs.
+  if (lowerPath.startsWith('assets/external/')) {
+    res.setHeader('Cache-Control', 'public, max-age=0, must-revalidate');
     return;
   }
 

@@ -137,10 +137,11 @@ describe('versioned game-pack delivery', () => {
     expect(manager).toContain('X-TonPlaygram-Asset-Sha256');
     expect(workerBridge).toContain("const PACK_CACHE_PREFIX = 'tonplaygram-pack-'");
     expect(metadata).toContain("importScripts('/pwa/game-pack-service-worker.js')");
-    expect(games).toContain('<GamePackManager />');
+    expect(games).toContain('useAppDownload');
+    expect(games).toContain('/#app-download');
     expect(games).toContain('VITE_REQUIRE_GAME_PACKS');
     expect(nativeBuild).toContain('GAME_PACK_CDN_BASE_URL');
-    expect(routeGuard).toContain('downloadPack');
+    expect(routeGuard).toContain('app-download');
     expect(routeGuard).toContain('isInstallationTreeAvailable');
     expect(preload).toContain('MANAGED_GAME_ASSET_PREFIXES');
     expect(serviceWorker).toContain('MANAGED_GAME_ASSET_PREFIXES');

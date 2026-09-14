@@ -35,7 +35,7 @@ import {
 const HUMAN_URL = 'https://threejs.org/examples/models/gltf/readyplayer.me.glb';
 
 const SNOOKER_CHAMPION_TABLE_GLB_URL = TABLE_MODEL_OPENSOURCE_GLB_URL;
-const SNOOKER_CHAMPION_TABLE_FALLBACK_GLB_URL = 'https://raw.githubusercontent.com/ekiefl/pooltool/main/pooltool/models/table/snooker.glb';
+const SNOOKER_CHAMPION_TABLE_FALLBACK_GLB_URL = 'https://raw.githubusercontent.com/ekiefl/pooltool/main/pooltool/models/table/snooker_generic/snooker_generic.glb';
 const FRAME_RATE_OPTIONS = Object.freeze([
   { id: 'fhd60', label: 'Performance (60 Hz)', fps: 60, pixelRatioCap: 1.4, resolution: '2K texture pack', description: 'Snooker Royal performance preset for stable battery-friendly play.' },
   { id: 'qhd90', label: 'Smooth (90 Hz)', fps: 90, pixelRatioCap: 1.55, resolution: '4K texture pack', description: 'Snooker Royal smooth preset for sharper textures and 90 FPS timing.' },
@@ -897,10 +897,10 @@ function createUniversalGLTFLoader(renderer) {
   const loader = new GLTFLoader(manager);
   loader.setCrossOrigin('anonymous');
   const draco = new DRACOLoader(manager);
-  draco.setDecoderPath('https://www.gstatic.com/draco/versioned/decoders/1.5.7/');
+  draco.setDecoderPath('/vendor/three/examples/jsm/libs/draco/gltf/');
   loader.setDRACOLoader(draco);
   const ktx2 = new KTX2Loader(manager);
-  ktx2.setTranscoderPath('https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/libs/basis/');
+  ktx2.setTranscoderPath('/vendor/three/examples/jsm/libs/basis/');
   ktx2.detectSupport(renderer);
   loader.setKTX2Loader(ktx2);
   loader.setMeshoptDecoder(MeshoptDecoder);

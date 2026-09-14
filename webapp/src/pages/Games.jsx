@@ -1,11 +1,9 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import useTelegramBackButton from '../hooks/useTelegramBackButton.js';
 import GameTransactionsCard from '../components/GameTransactionsCard.jsx';
 import LeaderboardCard from '../components/LeaderboardCard.jsx';
-import GamePackManager from '../components/GamePackManager.jsx';
-import useGamePacks from '../hooks/useGamePacks.js';
-import { formatBytes } from '../pwa/gamePackManager.js';
+import useAppDownload from '../hooks/useAppDownload.js';
 import gamesCatalog from '../config/gamesCatalog.js';
 import { getGameThumbnail } from '../config/gameAssets.js';
 import {
@@ -27,14 +25,8 @@ const BADGE_STYLES = {
 export default function Games() {
   useTelegramBackButton();
   const [readinessMap, setReadinessMap] = useState(ONLINE_READINESS_BY_GAME);
-  const { packs: gamePacks, install: installGamePack, supported: gamePacksSupported, error: downloadError } = useGamePacks();
-  const packBySlug = useMemo(() => {
-    const map = new Map();
-    for (const pack of gamePacks) {
-      for (const slug of pack.gameSlugs || []) map.set(slug, pack);
-    }
-    return map;
-  }, [gamePacks]);
+  const { status: downloadStatus } = useAppDownload();
+  const appReady = ['installed', 'update-available'].includes(downloadStatus);
 
   useEffect(() => {
     let active = true;
@@ -52,8 +44,10 @@ export default function Games() {
       <p className="text-center text-sm text-subtext">
         Jump straight into a lobby. Tap any game to start your next match.
       </p>
-      <GamePackManager />
-      {downloadError && <p role="alert" className="text-sm text-red-300">{downloadError}</p>}
+      <Link to="/#app-download" className="block rounded-2xl border border-primary/30 bg-primary/10 p-4 text-sm leading-5 text-subtext">
+        <span className="block font-semibold text-primary">{appReady ? 'TonPlayGram downloaded · Manage on Home' : 'Download TonPlayGram on Home'}</span>
+        <span>One download includes all bundled games and app assets.</span>
+      </Link>
       <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
         {gamesCatalog.map((game) => {
           const thumbnail = getGameThumbnail(game.slug);
@@ -62,11 +56,7 @@ export default function Games() {
             : getOnlineReadiness(game.slug, readinessMap);
           const badgeTone =
             BADGE_STYLES[readiness.label] || BADGE_STYLES['Coming Soon'];
-          const gamePack = packBySlug.get(game.slug);
-          const packReady = ['installed', 'update-available'].includes(gamePack?.status);
-          const packRequired = REQUIRE_GAME_PACKS && gamePack && !packReady;
-          const packDownloading = gamePack?.status === 'downloading';
-          const packPercent = gamePack?.progress?.percent || 0;
+          const packRequired = REQUIRE_GAME_PACKS && !appReady;
           const cardClass = `group relative flex w-full flex-col overflow-hidden rounded-2xl border bg-surface/90 text-left shadow-lg transition hover:-translate-y-0.5 hover:border-primary/60 ${game.featured ? 'col-span-2 sm:col-span-1 border-lime-400/40' : 'border-border'}`;
           const cardContent = (
             <>
@@ -110,50 +100,21 @@ export default function Games() {
                   {readiness.label}
                 </span>
                 <span className="mt-2 inline-flex items-center gap-1 rounded-full bg-primary/15 px-2 py-0.5 text-[10px] font-semibold text-primary">
-                  {packRequired
-                    ? packDownloading
-                      ? `Downloading ${packPercent}%`
-                      : gamePack.status === 'partial' || gamePack.status === 'failed'
-                        ? 'Resume download'
-                        : gamePack.totalBytes
-                          ? `Download ${formatBytes(gamePack.totalBytes)}`
-                          : 'Download game'
-                    : game.launchLabel || 'Enter Lobby'}
+                  {packRequired ? 'Download app on Home' : game.launchLabel || 'Enter Lobby'}
                 </span>
               </div>
             </>
           );
 
-          if (packRequired) {
-            return (
-              <button
-                key={game.name}
-                type="button"
-                className={cardClass}
-                disabled={!gamePacksSupported || packDownloading}
-                onClick={() => void installGamePack(gamePack.id)}
-                aria-label={`Download ${gamePack.title} before playing ${game.name}`}
-              >
-                {cardContent}
-              </button>
-            );
-          }
-
           return (
-            <div key={game.name} className={cardClass}>
             <Link
-              to={game.route}
-              reloadDocument={Boolean(game.standalone)}
-              className="flex flex-1 flex-col"
+              key={game.name}
+              to={packRequired ? `/?returnTo=${encodeURIComponent(game.route)}#app-download` : game.route}
+              reloadDocument={!packRequired && Boolean(game.standalone)}
+              className={cardClass}
             >
               {cardContent}
             </Link>
-            {gamePack && <Link
-              to={`/games?downloadPack=${encodeURIComponent(gamePack.id)}&returnTo=${encodeURIComponent(game.route)}`}
-              className="flex min-h-11 items-center justify-center border-t border-border px-2 py-3 text-sm font-semibold text-primary"
-              aria-label={`Manage download for ${game.name}`}
-            >{packDownloading ? `Downloading ${packPercent}%` : packReady ? 'Manage download' : 'Download game'}</Link>}
-            </div>
           );
         })}
       </div>

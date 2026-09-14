@@ -55,6 +55,7 @@ import {
   CHESS_BATTLE_OPTION_THUMBNAILS,
   CHESS_TABLE_FINISH_OPTIONS,
   CHESS_HUMAN_CHARACTER_OPTIONS,
+  normalizeChessHumanCharacterSelection,
   CHESS_BATTLE_WEAPON_OPTIONS
 } from '../../config/chessBattleInventoryConfig.js';
 import {
@@ -195,8 +196,8 @@ const CAPTURE_PAWN_STRIKE_TARGET_LIFT = 0.14; // pawn strike lands slightly abov
 const CAPTURE_TRUCK_STRIKE_TARGET_LIFT = 0.24; // truck strike lands on a slightly higher engagement lane
 const CAPTURE_EXPLOSION_SCALE = 0.132; // smaller capture explosion
 const CAPTURE_EDGE_PATH_FACTOR = 0.52;
-const DRACO_DECODER_PATH = 'https://www.gstatic.com/draco/versioned/decoders/1.5.7/';
-const BASIS_TRANSCODER_PATH = 'https://cdn.jsdelivr.net/npm/three@0.164.0/examples/jsm/libs/basis/';
+const DRACO_DECODER_PATH = '/vendor/three/examples/jsm/libs/draco/gltf/';
+const BASIS_TRANSCODER_PATH = '/vendor/three/examples/jsm/libs/basis/';
 const SNAKE_SHARED_CAPTURE_VEHICLE_MODEL_HOSTS = Object.freeze([
   'https://cdn.jsdelivr.net/gh/srcejon/sdrangel-3d-models@main',
   'https://raw.githubusercontent.com/srcejon/sdrangel-3d-models/main',
@@ -242,10 +243,18 @@ const resolveFirearmTypeForAnimationId = (captureAnimationId) =>
 const GUNIFY_MAY_9_REF = '27232cf389a2be3f8f476c667cb293e978aaf5f9';
 const GUNIFY_RAW_BASE = `https://raw.githubusercontent.com/KrishBharadwaj5678/Gunify/${GUNIFY_MAY_9_REF}`;
 const GUNIFY_JSDELIVR_BASE = `https://cdn.jsdelivr.net/gh/KrishBharadwaj5678/Gunify@${GUNIFY_MAY_9_REF}`;
-const gunifyModelUrls = (modelName) => [
-  `${GUNIFY_RAW_BASE}/models/${modelName}/scene.gltf`,
-  `${GUNIFY_JSDELIVR_BASE}/models/${modelName}/scene.gltf`
-];
+const GUNIFY_MAY_9_MODEL_FOLDER_BY_NAME = Object.freeze({
+  Uzi: 'models2',
+  Mosin: 'models2',
+  SigSauer: 'models3'
+});
+const gunifyModelUrls = (modelName) => {
+  const modelFolder = GUNIFY_MAY_9_MODEL_FOLDER_BY_NAME[modelName] || 'models';
+  return [
+    `${GUNIFY_RAW_BASE}/${modelFolder}/${modelName}/scene.gltf`,
+    `${GUNIFY_JSDELIVR_BASE}/${modelFolder}/${modelName}/scene.gltf`
+  ];
+};
 
 const GUNIFY_SPECULAR_GLOSSINESS_EXTENSION = 'KHR_materials_pbrSpecularGlossiness';
 
@@ -293,7 +302,7 @@ async function loadGunifyOriginalGltf(loader, candidateUrl) {
   const response = await fetch(candidateUrl, { mode: 'cors' });
   if (!response.ok) throw new Error(`Gunify GLTF fetch failed: ${response.status}`);
   const gltfJson = patchGunifySpecularGlossinessMaterials(await response.json());
-  const basePath = new URL('.', candidateUrl).href;
+  const basePath = new URL('.', new URL(candidateUrl, globalThis.location?.href || import.meta.url)).href;
   loader.setPath?.(basePath);
   loader.setResourcePath?.(basePath);
   return loader.parseAsync(JSON.stringify(gltfJson), basePath);
@@ -1571,25 +1580,8 @@ const BEAUTIFUL_GAME_TOUCH_URLS = [
   'https://cdn.jsdelivr.net/gh/KhronosGroup/glTF-Sample-Assets@main/Models/ABeautifulGame/glTF/ABeautifulGame.gltf'
 ];
 
-const STAUNTON_SET_URLS = [
-  'https://raw.githubusercontent.com/cx20/gltf-test/master/sampleModels/Chess/glTF-Binary/Chess.glb',
-  'https://cdn.jsdelivr.net/gh/cx20/gltf-test@master/sampleModels/Chess/glTF-Binary/Chess.glb'
-];
-
-const KENNEY_SET_URLS = [
-  'https://raw.githubusercontent.com/KenneyNL/boardgame-kit/main/Models/GLTF/boardgame-kit.glb',
-  'https://cdn.jsdelivr.net/gh/KenneyNL/boardgame-kit@main/Models/GLTF/boardgame-kit.glb'
-];
-
-const POLYGONAL_SET_URLS = [
-  'https://raw.githubusercontent.com/quaterniusdev/ChessSet/master/Source/GLTF/ChessSet.glb',
-  'https://cdn.jsdelivr.net/gh/quaterniusdev/ChessSet@master/Source/GLTF/ChessSet.glb'
-];
-
 const CHAIR_MODEL_URLS = [
-  'https://raw.githubusercontent.com/KhronosGroup/glTF-Sample-Models/master/2.0/AntiqueChair/glTF-Binary/AntiqueChair.glb',
   'https://raw.githubusercontent.com/KhronosGroup/glTF-Sample-Assets/main/Models/SheenChair/glTF-Binary/SheenChair.glb',
-  'https://raw.githubusercontent.com/KhronosGroup/glTF-Sample-Assets/main/Models/AntiqueChair/glTF-Binary/AntiqueChair.glb'
 ];
 const POLYHAVEN_MODEL_CACHE = new Map();
 const POLYHAVEN_TEXTURE_CACHE = new Map();
@@ -1983,9 +1975,11 @@ const TARGET_CHAIR_CENTER_Z = -0.1553906416893005;
 const MOVE_SOUND_URL =
   'https://raw.githubusercontent.com/lichess-org/lila/master/public/sound/standard/Move.mp3';
 const CHECK_SOUND_URL =
-  'https://raw.githubusercontent.com/lichess-org/lila/master/public/sound/standard/Check.mp3';
+  'https://raw.githubusercontent.com/lichess-org/lila/master/public/sound/Silence.mp3';
+// The provider's standard Checkmate -> Check -> Silence chain is intentional.
+// Raw GitHub serves symlink text, so request the actual audio target directly.
 const CHECKMATE_SOUND_URL =
-  'https://raw.githubusercontent.com/lichess-org/lila/master/public/sound/standard/End.mp3';
+  'https://raw.githubusercontent.com/lichess-org/lila/master/public/sound/Silence.mp3';
 const LAUGH_SOUND_URL = '/assets/sounds/Haha.mp3';
 const DRONE_FLY_SOUND_URL = '/assets/sounds/kimsa-kimsa-big-motorcycle-sound-394700.mp3';
 const HELICOPTER_FLY_SOUND_URL = '/assets/sounds/dragon-studio-helicopter-sound-8d-372463.mp3';
@@ -1995,25 +1989,7 @@ const MISSILE_IMPACT_SOUND_URL = '/assets/sounds/080998_bullet-hit-39870.mp3';
 const LUDO_CAPTURE_FIREARM_SHOT_SOUND_URL = '/assets/sounds/080998_bullet-hit-39870.mp3';
 const LUDO_CAPTURE_FIREARM_SHELL_SOUND_URL = '/assets/sounds/cueshootsound.mp3';
 const LUDO_CAPTURE_GLASS_SHATTER_SOUND_URL = '/assets/sounds/glass-bottle-breaking-351297.mp3';
-const FIREARM_CAPTURE_SHOT_SOUND_URL_BY_ID = Object.freeze({
-  glockSidearmAttack: 'https://cdn.freesound.org/previews/414/414888_5121236-lq.mp3',
-  smithSidearmAttack: 'https://cdn.freesound.org/previews/414/414888_5121236-lq.mp3',
-  sigsauerTacticalAttack: 'https://cdn.freesound.org/previews/414/414888_5121236-lq.mp3',
-  uziSprayAttack: 'https://cdn.freesound.org/previews/171/171104_2437358-lq.mp3',
-  smgBurstAttack: 'https://cdn.freesound.org/previews/171/171104_2437358-lq.mp3',
-  assaultRifleAttack: 'https://cdn.freesound.org/previews/212/212968_4048940-lq.mp3',
-  ak47VolleyAttack: 'https://cdn.freesound.org/previews/212/212968_4048940-lq.mp3',
-  sniperShotAttack: 'https://cdn.freesound.org/previews/533/533981_11861866-lq.mp3',
-  shotgunBlastAttack: 'https://cdn.freesound.org/previews/456/456035_5121236-lq.mp3',
-  grenadeBlastAttack: 'https://cdn.freesound.org/previews/514/514644_9960520-lq.mp3',
-  polyBazooka01Attack: 'https://cdn.freesound.org/previews/514/514644_9960520-lq.mp3',
-  polyGrenadeLauncher01Attack: 'https://cdn.freesound.org/previews/514/514644_9960520-lq.mp3',
-  polyDynamiteBomb01Attack: 'https://cdn.freesound.org/previews/514/514644_9960520-lq.mp3',
-  polyMolotov01Attack: 'https://cdn.freesound.org/previews/514/514644_9960520-lq.mp3',
-  polyGasTank01Attack: 'https://cdn.freesound.org/previews/514/514644_9960520-lq.mp3',
-  polyHandGrenade01Attack: 'https://cdn.freesound.org/previews/514/514644_9960520-lq.mp3',
-  polyTank01Attack: 'https://cdn.freesound.org/previews/514/514644_9960520-lq.mp3'
-});
+
 const FIREARM_SOURCE_AUDIO_CACHE = new Map();
 const LUDO_FIREARM_BROADCAST_PROFILE = LUDO_WEAPON_DIRECTOR_BRIDGE.firearmBroadcastProfile || {};
 const LUDO_WEAPON_TYPE_BY_ANIMATION_ID = LUDO_WEAPON_DIRECTOR_BRIDGE.weaponTypeByCaptureAnimationId || {};
@@ -2388,38 +2364,32 @@ function loadTexture(url, fallbackColor = '#888888') {
   return promise;
 }
 
+// These legacy finishes already used the uniform fallback because their provider
+// URLs do not exist. Create the same textures locally without waiting for failures.
+const FALLBACK_TEXTURE_SET_CACHE = new WeakMap();
+
 const MAPLE_WOOD_TEXTURES = Object.freeze({
-  colorMap: 'https://dl.polyhaven.org/file/ph-assets/Textures/jpg/2k/Wood067/Wood067_2K_Color.jpg',
-  roughnessMap: 'https://dl.polyhaven.org/file/ph-assets/Textures/jpg/2k/Wood067/Wood067_2K_Roughness.jpg',
-  normalMap: 'https://dl.polyhaven.org/file/ph-assets/Textures/jpg/2k/Wood067/Wood067_2K_NormalGL.jpg',
+  fallbackColor: '#888888',
   repeat: 2.2
 });
 
 const WALNUT_WOOD_TEXTURES = Object.freeze({
-  colorMap: 'https://dl.polyhaven.org/file/ph-assets/Textures/jpg/2k/Wood049/Wood049_2K_Color.jpg',
-  roughnessMap: 'https://dl.polyhaven.org/file/ph-assets/Textures/jpg/2k/Wood049/Wood049_2K_Roughness.jpg',
-  normalMap: 'https://dl.polyhaven.org/file/ph-assets/Textures/jpg/2k/Wood049/Wood049_2K_NormalGL.jpg',
+  fallbackColor: '#888888',
   repeat: 2
 });
 
 const MARBLE_WHITE_TEXTURES = Object.freeze({
-  colorMap: 'https://dl.polyhaven.org/file/ph-assets/Textures/jpg/2k/Marble020/Marble020_2K_Color.jpg',
-  roughnessMap: 'https://dl.polyhaven.org/file/ph-assets/Textures/jpg/2k/Marble020/Marble020_2K_Roughness.jpg',
-  normalMap: 'https://dl.polyhaven.org/file/ph-assets/Textures/jpg/2k/Marble020/Marble020_2K_NormalGL.jpg',
+  fallbackColor: '#888888',
   repeat: 1.4
 });
 
 const MARBLE_BLACK_TEXTURES = Object.freeze({
-  colorMap: 'https://dl.polyhaven.org/file/ph-assets/Textures/jpg/2k/Marble008/Marble008_2K_Color.jpg',
-  roughnessMap: 'https://dl.polyhaven.org/file/ph-assets/Textures/jpg/2k/Marble008/Marble008_2K_Roughness.jpg',
-  normalMap: 'https://dl.polyhaven.org/file/ph-assets/Textures/jpg/2k/Marble008/Marble008_2K_NormalGL.jpg',
+  fallbackColor: '#888888',
   repeat: 1.3
 });
 
 const EBONY_POLISH_TEXTURES = Object.freeze({
-  colorMap: 'https://dl.polyhaven.org/file/ph-assets/Textures/jpg/2k/Wood059/Wood059_2K_Color.jpg',
-  roughnessMap: 'https://dl.polyhaven.org/file/ph-assets/Textures/jpg/2k/Wood059/Wood059_2K_Roughness.jpg',
-  normalMap: 'https://dl.polyhaven.org/file/ph-assets/Textures/jpg/2k/Wood059/Wood059_2K_NormalGL.jpg',
+  fallbackColor: '#888888',
   repeat: 1.8
 });
 
@@ -2483,42 +2453,6 @@ const PIECE_STYLE_OPTIONS = Object.freeze([
     },
     loader: (targetBoardSize) => resolveBeautifulGameAssets(targetBoardSize)
   })),
-  {
-    id: STAUNTON_CLASSIC_STYLE.id,
-    label: STAUNTON_CLASSIC_STYLE.label,
-    style: STAUNTON_CLASSIC_STYLE,
-    loader: (targetBoardSize) => loadPieceSetFromUrls(STAUNTON_SET_URLS, {
-      targetBoardSize,
-      styleId: STAUNTON_CLASSIC_STYLE.id,
-      pieceStyle: STAUNTON_CLASSIC_STYLE,
-      assetScale: STAUNTON_ASSET_SCALE,
-      fallbackBuilder: buildStauntonFallbackAssets
-    })
-  },
-  {
-    id: HERITAGE_WALNUT_STYLE.id,
-    label: HERITAGE_WALNUT_STYLE.label,
-    style: HERITAGE_WALNUT_STYLE,
-    loader: (targetBoardSize) => loadWalnutStauntonAssets(targetBoardSize)
-  },
-  {
-    id: MARBLE_ONYX_STYLE.id,
-    label: MARBLE_ONYX_STYLE.label,
-    style: MARBLE_ONYX_STYLE,
-    loader: (targetBoardSize) => loadMarbleOnyxStauntonAssets(targetBoardSize)
-  },
-  {
-    id: KENNEY_WOOD_STYLE.id,
-    label: KENNEY_WOOD_STYLE.label,
-    style: KENNEY_WOOD_STYLE,
-    loader: (targetBoardSize) => loadKenneyAssets(targetBoardSize)
-  },
-  {
-    id: POLYGONAL_GRAPHITE_STYLE.id,
-    label: POLYGONAL_GRAPHITE_STYLE.label,
-    style: POLYGONAL_GRAPHITE_STYLE,
-    loader: (targetBoardSize) => loadPolygonalAssets(targetBoardSize)
-  }
 ]);
 
 const BEAUTIFUL_GAME_PIECE_INDEX = Math.max(
@@ -3078,7 +3012,6 @@ function normalizeAppearance(value = {}) {
     ['tableCloth', TABLE_CLOTH_OPTIONS.length],
     ['tableFinish', TABLE_FINISH_OPTIONS.length],
     ['chairColor', CHAIR_COLOR_OPTIONS.length],
-    ['humanCharacter', HUMAN_CHARACTER_OPTIONS.length],
     ['environmentHdri', CHESS_HDRI_OPTIONS.length]
   ];
   entries.forEach(([key, max]) => {
@@ -3092,7 +3025,8 @@ function normalizeAppearance(value = {}) {
   normalized.whitePieceStyle = DEFAULT_APPEARANCE.whitePieceStyle;
   normalized.blackPieceStyle = DEFAULT_APPEARANCE.blackPieceStyle;
   normalized.headStyle = DEFAULT_APPEARANCE.headStyle;
-  if (!Number.isFinite(normalized.humanCharacter)) normalized.humanCharacter = DEFAULT_APPEARANCE.humanCharacter;
+  normalized.humanCharacter = normalizeChessHumanCharacterSelection(value);
+  normalized.humanCharacterCatalogVersion = 2;
   return normalized;
 }
 
@@ -4676,8 +4610,8 @@ function buildImageCandidates(imageUri, sourceUrl, modelUrls) {
   const normalizedUri = normalizeResourcePath(String(imageUri || ''));
   if (isAbsoluteUrl(normalizedUri) || isDataUri(normalizedUri)) return urlAlternates(normalizedUri);
   return uniqueStrings([
-    ...urlAlternates(new URL(normalizedUri, sourceUrl).href),
-    ...modelUrls.flatMap((modelUrl) => urlAlternates(new URL(normalizedUri, modelUrl).href))
+    ...urlAlternates(new URL(normalizedUri, new URL(sourceUrl, globalThis.location?.href || import.meta.url)).href),
+    ...modelUrls.flatMap((modelUrl) => urlAlternates(new URL(normalizedUri, new URL(modelUrl, globalThis.location?.href || import.meta.url)).href))
   ]);
 }
 
@@ -4954,6 +4888,17 @@ async function loadPieceSetFromUrls(urls = [], options = {}) {
 }
 
 async function resolveTextureSet(definition = {}) {
+  if (definition.fallbackColor) {
+    if (!FALLBACK_TEXTURE_SET_CACHE.has(definition)) {
+      FALLBACK_TEXTURE_SET_CACHE.set(definition, {
+        map: createFallbackTexture(definition.fallbackColor),
+        roughnessMap: createFallbackTexture(definition.fallbackColor),
+        normalMap: createFallbackTexture(definition.fallbackColor),
+        repeat: definition.repeat ?? 1
+      });
+    }
+    return FALLBACK_TEXTURE_SET_CACHE.get(definition);
+  }
   const [map, roughnessMap, normalMap] = await Promise.all([
     definition.colorMap ? loadTexture(definition.colorMap) : Promise.resolve(null),
     definition.roughnessMap ? loadTexture(definition.roughnessMap) : Promise.resolve(null),
@@ -5624,75 +5569,12 @@ function adornPiecePrototypes(piecePrototypes, tileSize = BOARD.tile) {
   });
 }
 
-async function loadWalnutStauntonAssets(targetBoardSize = RAW_BOARD_SIZE) {
-  const assets = await loadPieceSetFromUrls(STAUNTON_SET_URLS, {
-    targetBoardSize,
-    styleId: 'heritageWalnut',
-    pieceStyle: HERITAGE_WALNUT_STYLE,
-    assetScale: STAUNTON_TEXTURED_ASSET_SCALE,
-    fallbackBuilder: buildStauntonFallbackAssets
-  });
-  return applyTextureProfileToAssets(assets, {
-    white: MAPLE_WOOD_TEXTURES,
-    black: WALNUT_WOOD_TEXTURES,
-    whiteTint: '#f4ebd8',
-    blackTint: '#2b1b10'
-  });
-}
-
-async function loadMarbleOnyxStauntonAssets(targetBoardSize = RAW_BOARD_SIZE) {
-  const assets = await loadPieceSetFromUrls(STAUNTON_SET_URLS, {
-    targetBoardSize,
-    styleId: 'marbleOnyx',
-    pieceStyle: MARBLE_ONYX_STYLE,
-    assetScale: STAUNTON_TEXTURED_ASSET_SCALE,
-    fallbackBuilder: buildStauntonFallbackAssets
-  });
-  return applyTextureProfileToAssets(assets, {
-    white: MARBLE_WHITE_TEXTURES,
-    black: EBONY_POLISH_TEXTURES,
-    whiteTint: '#f5f5f5',
-    blackTint: '#0f1012'
-  });
-}
-
 async function resolveBeautifulGameBoardStrict(targetBoardSize) {
   const gltf = await loadBeautifulGameSet();
   if (!gltf?.scene) throw new Error('A Beautiful Game board failed to load');
   return extractBeautifulGameAssets(gltf.scene, targetBoardSize, {
     source: 'remote',
     assetScale: 1
-  });
-}
-
-async function loadKenneyAssets(targetBoardSize = RAW_BOARD_SIZE) {
-  const [kenneyPieces, beautifulBoard] = await Promise.all([
-    loadPieceSetFromUrlsStrict(KENNEY_SET_URLS, {
-      targetBoardSize,
-      styleId: 'kenneyWood',
-      pieceStyle: KENNEY_WOOD_STYLE,
-      assetScale: 1,
-      name: 'Kenney chess set'
-    }),
-    resolveBeautifulGameBoardStrict(targetBoardSize)
-  ]);
-
-  const boardModel = beautifulBoard?.boardModel || null;
-  if (!boardModel) throw new Error('A Beautiful Game board failed to load');
-
-  const piecePrototypes = kenneyPieces?.piecePrototypes || null;
-  if (!piecePrototypes) throw new Error('Kenney chess pieces failed to load');
-
-  return { boardModel, piecePrototypes };
-}
-
-async function loadPolygonalAssets(targetBoardSize = RAW_BOARD_SIZE) {
-  return loadPieceSetFromUrls(POLYGONAL_SET_URLS, {
-    targetBoardSize,
-    styleId: 'polygonalGraphite',
-    pieceStyle: POLYGONAL_GRAPHITE_STYLE,
-    assetScale: 0.98,
-    fallbackBuilder: buildPolygonalFallbackAssets
   });
 }
 
@@ -9833,10 +9715,6 @@ function Chess3D({
           volume: 0.8 * getGameVolume(),
           muted: !settingsRef.current.soundEnabled
         });
-        const openSourceShotUrl = FIREARM_CAPTURE_SHOT_SOUND_URL_BY_ID[captureAnimationId];
-        if (openSourceShotUrl) {
-          playWeaponSfxFromUrl(openSourceShotUrl, 0.9 * getGameVolume());
-        }
       };
       const playMoveSound = () => playAudio(moveSoundRef);
       const playCheckSound = () => playAudio(checkSoundRef);

@@ -121,16 +121,16 @@ const ARM_HEIGHT = 0.3 * MODEL_SCALE * STOOL_SCALE;
 const ARM_DEPTH = SEAT_DEPTH * 0.75;
 const BASE_COLUMN_HEIGHT = 0.5 * MODEL_SCALE * STOOL_SCALE;
 const DRACO_DECODER_PATH =
-  'https://www.gstatic.com/draco/versioned/decoders/1.5.7/';
+  '/vendor/three/examples/jsm/libs/draco/gltf/';
 const BASIS_TRANSCODER_PATH =
-  'https://cdn.jsdelivr.net/npm/three@0.164.0/examples/jsm/libs/basis/';
+  '/vendor/three/examples/jsm/libs/basis/';
 let sharedKtx2Loader = null;
 let hasDetectedKtx2Support = false;
 const CHAIR_THEMES = Object.freeze([...TAVULL_BATTLE_CHAIR_OPTIONS]);
 const QUALITY_OPTIONS = BACKGAMMON_GRAPHICS;
 const MOVE_SOUND_URL = '/assets/sounds/domino-pieces-1-32112 (mp3cut.net).mp3';
 const WIN_SOUND_URL =
-  'https://raw.githubusercontent.com/lichess-org/lila/master/public/sound/standard/End.mp3';
+  'https://raw.githubusercontent.com/lichess-org/lila/master/public/sound/standard/GenericNotify.mp3';
 const DICE_ROLL_SOUND_URL = '/assets/sounds/u_qpfzpydtro-dice-142528.mp3';
 const FALLBACK_SEAT_POSITIONS = [
   { left: '15%', top: '87%' },

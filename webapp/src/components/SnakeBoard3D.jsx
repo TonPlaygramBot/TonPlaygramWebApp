@@ -52,8 +52,8 @@ const smootherstep01 = (v) => {
   return t * t * t * (t * (t * 6 - 15) + 10);
 };
 
-const DRACO_DECODER_PATH = 'https://www.gstatic.com/draco/versioned/decoders/1.5.7/';
-const BASIS_TRANSCODER_PATH = 'https://cdn.jsdelivr.net/npm/three@0.164.0/examples/jsm/libs/basis/';
+const DRACO_DECODER_PATH = '/vendor/three/examples/jsm/libs/draco/gltf/';
+const BASIS_TRANSCODER_PATH = '/vendor/three/examples/jsm/libs/basis/';
 const DEFAULT_HDRI_RESOLUTIONS = ['4k'];
 
 const MODEL_SCALE = 0.75;
@@ -111,15 +111,12 @@ const DEFAULT_CHAIR_OPTION = Object.freeze({
 const DEFAULT_STOOL_THEME = Object.freeze({ legColor: '#1f1f1f' });
 
 const CHAIR_MODEL_URLS = [
-  'https://raw.githubusercontent.com/KhronosGroup/glTF-Sample-Models/master/2.0/AntiqueChair/glTF-Binary/AntiqueChair.glb',
   'https://raw.githubusercontent.com/KhronosGroup/glTF-Sample-Assets/main/Models/SheenChair/glTF-Binary/SheenChair.glb',
-  'https://raw.githubusercontent.com/KhronosGroup/glTF-Sample-Assets/main/Models/AntiqueChair/glTF-Binary/AntiqueChair.glb'
 ];
 const CHAIR_GROUND_Y = -0.91 * MODEL_SCALE * STOOL_SCALE;
 const WEAPON_ANCHOR_X = SEAT_WIDTH * 0.47;
 const WEAPON_ANCHOR_Z = -SEAT_DEPTH * 0.2;
 const SNAKE_TOKEN_MODEL_URLS = [
-  'https://cdn.jsdelivr.net/gh/KhronosGroup/glTF-Sample-Models@master/2.0/ABeautifulGame/glTF-Binary/ABeautifulGame.glb',
   'https://cdn.jsdelivr.net/gh/KhronosGroup/glTF-Sample-Models@master/2.0/ABeautifulGame/glTF/ABeautifulGame.gltf'
 ];
 const TARGET_CHAIR_SIZE = new THREE.Vector3(1.3162499970197679, 1.9173749900311232, 1.7001562547683715).multiplyScalar(
@@ -144,7 +141,8 @@ const SNAKE_CAPTURE_VEHICLE_MODEL_FILES = Object.freeze({
   helicopter: ['helicopter.glb'],
   fighter: ['f15.glb'],
   supportTruck: ['fire_truck.glb'],
-  javelin: ['javelin_missile.glb', 'javelin.glb', 'missile_javelin.glb', 'missile.glb']
+  // Javelin's rig already uses its procedural missile and skips model loading.
+  javelin: []
 });
 const SNAKE_CAPTURE_POLYHAVEN_TEXTURE_ASSETS = Object.freeze({
   drone: 'rusty_metal_sheet',
@@ -1677,7 +1675,7 @@ async function loadGunifyOriginalGltf(loader, candidateUrl) {
   const response = await fetch(candidateUrl, { mode: 'cors' });
   if (!response.ok) throw new Error(`Gunify GLTF fetch failed: ${response.status}`);
   const gltfJson = patchGunifySpecularGlossinessMaterials(await response.json());
-  const basePath = new URL('.', candidateUrl).href;
+  const basePath = new URL('.', new URL(candidateUrl, globalThis.location?.href || import.meta.url)).href;
   loader.setPath?.(basePath);
   loader.setResourcePath?.(basePath);
   return loader.parseAsync(JSON.stringify(gltfJson), basePath);
@@ -4374,8 +4372,8 @@ function buildImageCandidates(imageUri, sourceUrl, modelUrls) {
   const normalizedUri = normalizeResourcePath(String(imageUri || ''));
   if (isAbsoluteUrl(normalizedUri) || isDataUri(normalizedUri)) return urlAlternates(normalizedUri);
   return uniqueStrings([
-    ...urlAlternates(new URL(normalizedUri, sourceUrl).href),
-    ...modelUrls.flatMap((modelUrl) => urlAlternates(new URL(normalizedUri, modelUrl).href))
+    ...urlAlternates(new URL(normalizedUri, new URL(sourceUrl, globalThis.location?.href || import.meta.url)).href),
+    ...modelUrls.flatMap((modelUrl) => urlAlternates(new URL(normalizedUri, new URL(modelUrl, globalThis.location?.href || import.meta.url)).href))
   ]);
 }
 

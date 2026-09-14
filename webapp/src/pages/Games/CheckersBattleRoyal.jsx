@@ -186,9 +186,9 @@ const CHECKERS_GRAPHICS_PROFILES = Object.freeze([
   }
 ]);
 const DRACO_DECODER_PATH =
-  'https://www.gstatic.com/draco/versioned/decoders/1.5.7/';
+  '/vendor/three/examples/jsm/libs/draco/gltf/';
 const BASIS_TRANSCODER_PATH =
-  'https://cdn.jsdelivr.net/npm/three@0.164.0/examples/jsm/libs/basis/';
+  '/vendor/three/examples/jsm/libs/basis/';
 const BEAUTIFUL_GAME_BOARD_URLS = Object.freeze([
   'https://raw.githubusercontent.com/KhronosGroup/glTF-Sample-Models/master/2.0/ABeautifulGame/glTF/ABeautifulGame.gltf',
   'https://cdn.jsdelivr.net/gh/KhronosGroup/glTF-Sample-Models@master/2.0/ABeautifulGame/glTF/ABeautifulGame.gltf',
@@ -296,9 +296,7 @@ const CHECKERS_BOARD_THEME_OPTIONS = Object.freeze(
 const BOARD_MATERIAL_CACHE = new WeakMap();
 
 const CHAIR_MODEL_URLS = [
-  'https://raw.githubusercontent.com/KhronosGroup/glTF-Sample-Models/master/2.0/AntiqueChair/glTF-Binary/AntiqueChair.glb',
   'https://raw.githubusercontent.com/KhronosGroup/glTF-Sample-Assets/main/Models/SheenChair/glTF-Binary/SheenChair.glb',
-  'https://raw.githubusercontent.com/KhronosGroup/glTF-Sample-Assets/main/Models/AntiqueChair/glTF-Binary/AntiqueChair.glb'
 ];
 const CHAIR_GROUND_SINK = 0.44;
 // Visual tuning for portrait screens: keep the chairs modest and leave

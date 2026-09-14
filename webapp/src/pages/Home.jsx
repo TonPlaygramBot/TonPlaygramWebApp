@@ -193,6 +193,7 @@ export default function Home() {
   return (
     <div className="home-page app-theme-page space-y-4">
       <ThemePicker />
+      <PwaDownloadFrame />
       <article className="home-protest-card">
         {latestProtestPost?.attachment && (
           <Link className="home-protest-card__thumbnail" to="/wall" aria-label="Open the latest wall post">
@@ -423,7 +424,6 @@ export default function Home() {
 
       <ProjectAchievementsCard />
 
-      <PwaDownloadFrame />
       <p className="text-center text-xs text-subtext">Status: {status}</p>
       <section className="relative mt-5 overflow-hidden rounded-3xl border border-brand-gold/25 bg-gradient-to-b from-surface via-surface/95 to-background px-4 py-6 shadow-[0_18px_50px_rgba(0,0,0,0.28)]">
         <div className="pointer-events-none absolute -right-16 -top-16 h-40 w-40 rounded-full bg-brand-gold/10 blur-3xl" />
