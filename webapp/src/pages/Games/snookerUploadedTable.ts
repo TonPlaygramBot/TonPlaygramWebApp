@@ -3,7 +3,7 @@ import geometry from './snookerUploadedTableGeometry.json';
 
 type Point = { x: number; y: number };
 export const UPLOADED_SNOOKER_TABLE_URL = '/assets/snooker-royal/mesxwi/snooker-table.glb';
-export const SNOOKER_CAMERA_BASELINE = 'a560959';
+export const SNOOKER_CAMERA_BASELINE = 'b2842f3400f2031bb81bbdcac670c60dfa27b9f4';
 
 export function createUploadedSnookerMapping(playWidth: number, playLength: number, ballRadius: number) {
   const bed = geometry.bed;

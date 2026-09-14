@@ -37,6 +37,7 @@ import { useNavigate, useLocation } from 'react-router-dom';
 import { SnookerCareerMatch } from '../../games/snooker/SnookerCareer';
 import { resolveSnookerLaunchOptions } from '../../games/snooker/launchOptions';
 import { consumeSnookerPhysicsTime } from '../../games/snooker/physicsClock';
+import { clampBallInHand, projectPointerToSnookerTable } from '../../games/snooker/ballInHand';
 import {
   isTelegramWebView,
   getTelegramUsername,
@@ -105,7 +106,6 @@ import InfoPopup from '../../components/InfoPopup.jsx';
 import { chatBeep } from '../../assets/coreSoundData.js';
 import {
   clampToUnitCircle,
-  computeQuantizedOffsetScaled,
   mapSpinForPhysics,
   normalizeSpinInput,
   smoothDamp,
@@ -5634,8 +5634,6 @@ const DEFAULT_SPIN_LIMITS = Object.freeze({
   maxY: 1
 });
 const clampSpinValue = (value) => clamp(value, -1, 1);
-const SPIN_CUSHION_EPS = BALL_R * 0.5;
-const SPIN_VIEW_BLOCK_THRESHOLD = 0.12;
 const normalizeCueLift = (liftAngle = 0) => {
   if (!Number.isFinite(liftAngle) || CUE_LIFT_MAX_TILT <= 1e-6) return 0;
   return THREE.MathUtils.clamp(liftAngle / CUE_LIFT_MAX_TILT, 0, 1);
@@ -5664,37 +5662,6 @@ const computeCueViewVector = (cueBall, camera) => {
   TMP_VEC2_VIEW.set(cx, cz);
   if (TMP_VEC2_VIEW.lengthSq() < 1e-8) return null;
   return TMP_VEC2_VIEW.clone().normalize();
-};
-
-const clampSpinToVisibleHemisphere = (spinInput, aimDir, cueBall, camera) => {
-  if (!spinInput || !aimDir || !cueBall || !camera) return spinInput;
-  const viewVec = computeCueViewVector(cueBall, camera);
-  if (!viewVec) return spinInput;
-  const axes = prepareSpinAxes(aimDir);
-  TMP_VEC2_SPIN.set(0, 0);
-  TMP_VEC2_SPIN.addScaledVector(axes.perp, spinInput.x ?? 0);
-  TMP_VEC2_SPIN.addScaledVector(axes.axis, spinInput.y ?? 0);
-  if (TMP_VEC2_SPIN.lengthSq() < 1e-8) return spinInput;
-  TMP_VEC2_VIEW.set(viewVec.x, viewVec.y).normalize();
-  const viewDot = TMP_VEC2_SPIN.dot(TMP_VEC2_VIEW);
-  if (viewDot >= 0) return spinInput;
-  const dx = camera.position.x - cueBall.pos.x;
-  const dz = camera.position.z - cueBall.pos.y;
-  const planarDistance = Math.hypot(dx, dz);
-  const elevation = Math.atan2(camera.position.y ?? 0, Math.max(planarDistance, 1e-6));
-  const relax =
-    elevation <= 0
-      ? 0
-      : THREE.MathUtils.clamp(
-          (elevation - 0.35) / (0.75 - 0.35),
-          0,
-          1
-        );
-  TMP_VEC2_SPIN.addScaledVector(TMP_VEC2_VIEW, -viewDot * (1 - relax));
-  return {
-    x: TMP_VEC2_SPIN.dot(axes.perp),
-    y: TMP_VEC2_SPIN.dot(axes.axis)
-  };
 };
 
 const computeShortRailBroadcastDistance = (camera) => {
@@ -5749,48 +5716,30 @@ function checkSpinLegality2D(cueBall, spinVec, balls = [], options = {}) {
     return { blocked: false, reason: '' };
   }
   const axes = options.axes;
-  TMP_VEC2_SPIN.set(0, 0);
-  if (axes?.perp) TMP_VEC2_SPIN.addScaledVector(axes.perp, sx);
-  if (axes?.axis) TMP_VEC2_SPIN.addScaledVector(axes.axis, sy);
-  if (!axes) TMP_VEC2_SPIN.set(sx, sy);
-  if (TMP_VEC2_SPIN.lengthSq() < 1e-8) {
-    return { blocked: false, reason: '' };
-  }
-  TMP_VEC2_SPIN.normalize();
-  const view = options.view;
-  if (view) {
-    TMP_VEC2_VIEW.set(view.x ?? 0, view.y ?? 0);
-    if (TMP_VEC2_VIEW.lengthSq() > 1e-8) {
-      TMP_VEC2_VIEW.normalize();
-      const viewDot = TMP_VEC2_VIEW.dot(TMP_VEC2_SPIN);
-      if (viewDot < SPIN_VIEW_BLOCK_THRESHOLD) {
-        return { blocked: true, reason: 'Strike point not visible' };
-      }
-    }
-  }
-  const contact = cueBall.pos
-    .clone()
-    .add(TMP_VEC2_SPIN.clone().multiplyScalar(BALL_R));
-  const cushionClearX = RAIL_LIMIT_X - SPIN_CUSHION_EPS;
-  const cushionClearY = RAIL_LIMIT_Y - SPIN_CUSHION_EPS;
+  // Top/back spin is a VERTICAL strike offset, never a point in front of
+  // the ball on the cloth. Test the actual rear hemisphere in the cue frame.
+  const frame = axes || prepareSpinAxes();
+  const rear = Math.sqrt(Math.max(0, 1 - sx * sx - sy * sy));
+  const contactRadius = BALL_R + CUE_TIP_RADIUS;
+  const contact = cueBall.pos.clone()
+    .addScaledVector(frame.perp, sx * contactRadius)
+    .addScaledVector(frame.axis, -rear * contactRadius);
+  const contactHeight = BALL_R + sy * contactRadius;
+  const cushionHeight = uploadedTableMapping?.cushionHeight ?? RAIL_HEIGHT;
+  const cushionClearX = RAIL_LIMIT_X + BALL_R - CUE_TIP_RADIUS;
+  const cushionClearY = RAIL_LIMIT_Y + BALL_R - CUE_TIP_RADIUS;
   if (
-    Math.abs(contact.x) > cushionClearX ||
-    Math.abs(contact.y) > cushionClearY
+    contactHeight < cushionHeight + CUE_TIP_RADIUS &&
+    (Math.abs(contact.x) > cushionClearX || Math.abs(contact.y) > cushionClearY)
   ) {
     return { blocked: true, reason: 'Cushion blocks that strike point' };
   }
   const blockingRadius = BALL_R + CUE_TIP_RADIUS * 1.05;
   const blockingRadiusSq = blockingRadius * blockingRadius;
-  const combinedRadius = BALL_R * 2 + 0.003;
   for (const other of balls) {
     if (!other || other === cueBall || !other.active) continue;
-    const offset = other.pos.clone().sub(cueBall.pos);
-    const dist = offset.length();
-    if (dist >= combinedRadius) continue;
-    const proj = offset.dot(TMP_VEC2_SPIN);
-    if (!(proj > 0)) continue;
-    const lateralSq = Math.max(offset.lengthSq() - proj * proj, 0);
-    if (lateralSq < blockingRadiusSq) {
+    const distanceSq = other.pos.distanceToSquared(contact) + (sy * contactRadius) ** 2;
+    if (distanceSq < blockingRadiusSq) {
       return { blocked: true, reason: 'Another ball blocks that side' };
     }
   }
@@ -5885,13 +5834,10 @@ function applyAxisClearance(
 function computeSpinLimits(cueBall, aimDir, balls = [], axesInput = null) {
   if (!cueBall || !aimDir) return { ...DEFAULT_SPIN_LIMITS };
   const spinAxes = axesInput || prepareSpinAxes(aimDir);
-  const forward = spinAxes.axis;
   const lateral = spinAxes.perp;
   const axes = [
     { key: 'maxX', dir: lateral.clone(), positive: true },
-    { key: 'minX', dir: lateral.clone().multiplyScalar(-1), positive: false },
-    { key: 'minY', dir: forward.clone(), positive: false },
-    { key: 'maxY', dir: forward.clone().multiplyScalar(-1), positive: true }
+    { key: 'minX', dir: lateral.clone().multiplyScalar(-1), positive: false }
   ];
   const limits = { ...DEFAULT_SPIN_LIMITS };
   const cueCenter = new THREE.Vector2(cueBall.pos.x, cueBall.pos.y);
@@ -15836,30 +15782,47 @@ const shotPowerRef = useRef(0);
     const sph = sphRef.current;
     if (!sph || !cameraRef.current) return;
     const restore = inHandCameraRestoreRef.current;
-    if (hud.inHand) {
+    if (hud.inHand && hud.turn === 0 && !hud.over && !replayActive) {
       if (!restore) {
+        cancelCameraBlendTween();
         inHandCameraRestoreRef.current = {
           radius: sph.radius,
           phi: sph.phi,
           theta: sph.theta,
-          blend: cameraBlendRef.current ?? 0
+          blend: cameraBlendRef.current ?? 0,
+          topView: topViewRef.current,
+          topLocked: topViewLockedRef.current,
+          overheadVariant: overheadBroadcastVariantRef.current,
+          bounds: cameraBoundsRef.current,
+          radiusLimit: orbitRadiusLimitRef.current,
+          lowSlide: lowViewSlideRef.current,
+          fov: cameraRef.current.fov,
+          focus: { ballId: orbitFocusRef.current.ballId, target: orbitFocusRef.current.target.clone() },
+          target: lastCameraTargetRef.current.clone()
         };
+        topViewControlsRef.current.enter?.(true);
+        setIsTopDownView(true);
       }
-      const radiusLimit = orbitRadiusLimitRef.current ?? CAMERA.maxR;
-      const expandedRadius = Math.max(radiusLimit, CAMERA.maxR * 0.92);
-      sph.radius = THREE.MathUtils.clamp(expandedRadius, CAMERA.minR, CAMERA.maxR);
-      sph.phi = Math.max(sph.phi, STANDING_VIEW.phi);
-      cameraBlendRef.current = 1;
-      cameraUpdateRef.current?.();
     } else if (restore) {
+      topViewRef.current = restore.topView;
+      topViewLockedRef.current = restore.topLocked;
+      overheadBroadcastVariantRef.current = restore.overheadVariant;
+      cameraBoundsRef.current = restore.bounds;
+      orbitRadiusLimitRef.current = restore.radiusLimit;
+      lowViewSlideRef.current = restore.lowSlide;
+      cameraRef.current.fov = restore.fov;
+      cameraRef.current.updateProjectionMatrix();
+      setIsTopDownView(restore.topView);
       sph.radius = restore.radius;
       sph.phi = restore.phi;
       sph.theta = restore.theta;
       cameraBlendRef.current = restore.blend ?? cameraBlendRef.current;
+      orbitFocusRef.current = restore.focus;
+      lastCameraTargetRef.current.copy(restore.target);
       inHandCameraRestoreRef.current = null;
       cameraUpdateRef.current?.();
     }
-  }, [hud.inHand]);
+  }, [hud.inHand, hud.turn, hud.over, replayActive, shotReady, cancelCameraBlendTween]);
 
   useEffect(() => {
     const host = mountRef.current;
@@ -18205,9 +18168,6 @@ const shotPowerRef = useRef(0);
           return pose
             ? {
                 ...pose,
-                // Preserve the established animated-eye camera handoff exactly:
-                // the character pose, rather than a second height correction,
-                // owns the shot view.
                 position: world.localToWorld(pose.position.clone()),
                 target: world.localToWorld(pose.target.clone())
               }
@@ -20634,7 +20594,6 @@ const shotPowerRef = useRef(0);
             spinLegalityRef.current = legality;
           }
           const clampedRequest = clampSpinToLimits();
-          spinRequestRef.current = clampedRequest;
           const normalized = normalizeSpinInput(clampedRequest);
           if (
             normalized.x !== clampedRequest.x ||
@@ -22153,7 +22112,7 @@ const shotPowerRef = useRef(0);
         tableL: Math.max(TABLE.H, PLAY_H),
         // Keep the uniform, floor-anchored proportions while making both human
         // silhouettes clearly bigger and taller on a portrait phone display.
-        targetHeight: cueLen * 1.6,
+        targetHeight: cueLen * 1.68,
         onError: (error) => console.warn('Snooker Royal player characters could not load', error)
       });
       referencePlayers.setCueAppearance(cueBody, cueTipLocal, cueButtLocal);
@@ -22199,7 +22158,7 @@ const shotPowerRef = useRef(0);
           },
           hidden: Boolean(replayPlaybackRef.current || cueGalleryStateRef.current?.active)
         });
-        activeHumanCueViewRef.current = referencePlayers.eyeView;
+        activeHumanCueViewRef.current = hudRef.current?.inHand ? null : referencePlayers.eyeView;
         if (referencePlayers.players.length === 2 && state === 'idle') cueStick.visible = false;
       };
 
@@ -22408,29 +22367,12 @@ const shotPowerRef = useRef(0);
       // Pointer → XZ plane
       const pointer = new THREE.Vector2();
       const ray = new THREE.Raycaster();
-      const plane = new THREE.Plane(
-        new THREE.Vector3(0, 1, 0),
-        -TABLE_Y * worldScaleFactor
-      );
       project = (ev) => {
-        const r = dom.getBoundingClientRect();
-        const cx =
-          (((ev.clientX ?? ev.touches?.[0]?.clientX ?? 0) - r.left) / r.width) *
-            2 -
-          1;
-        const cy = -(
-          (((ev.clientY ?? ev.touches?.[0]?.clientY ?? 0) - r.top) / r.height) *
-            2 -
-          1
-        );
-        pointer.set(cx, cy);
-        const activeCamera = activeRenderCameraRef.current ?? camera;
-        ray.setFromCamera(pointer, activeCamera);
-        const pt = new THREE.Vector3();
-        ray.ray.intersectPlane(plane, pt);
-        return new THREE.Vector2(
-          pt.x / worldScaleFactor,
-          pt.z / worldScaleFactor
+        return projectPointerToSnookerTable(
+          { clientX: ev.clientX ?? ev.touches?.[0]?.clientX,
+            clientY: ev.clientY ?? ev.touches?.[0]?.clientY },
+          dom.getBoundingClientRect(), activeRenderCameraRef.current ?? camera,
+          table, BALL_CENTER_Y
         );
       };
 
@@ -22535,26 +22477,14 @@ const shotPowerRef = useRef(0);
         return true;
       };
       const clampInHandPosition = (point) => {
-        if (!point) return null;
-        const clamped = point.clone();
-        const limitX = uploadedTableMapping?.limitX ?? PLAY_W / 2 - BALL_R;
-        clamped.x = THREE.MathUtils.clamp(clamped.x, -limitX, limitX);
-        if (allowFullTableInHand()) {
-          const limitZ = uploadedTableMapping?.limitY ?? PLAY_H / 2 - BALL_R;
-          clamped.y = THREE.MathUtils.clamp(clamped.y, -limitZ, limitZ);
-        } else {
-          const maxForward = baulkZ + BALL_R * 0.1;
-          if (clamped.y > maxForward) clamped.y = maxForward;
-          const deltaY = clamped.y - baulkZ;
-          const maxRadius = Math.max(D_RADIUS - BALL_R * 0.25, BALL_R);
-          const insideSq = clamped.x * clamped.x + deltaY * deltaY;
-          if (insideSq > maxRadius * maxRadius) {
-            const angle = Math.atan2(deltaY, clamped.x);
-            clamped.x = Math.cos(angle) * maxRadius;
-            clamped.y = baulkZ + Math.sin(angle) * maxRadius;
-          }
-        }
-        return clamped;
+        const dRadius = uploadedTableMapping
+          ? Math.abs(SPOTS.green[0] - SPOTS.yellow[0]) / 2 : D_RADIUS;
+        const clamped = clampBallInHand(point, {
+          limitX: uploadedTableMapping?.limitX ?? RAIL_LIMIT_X,
+          limitY: uploadedTableMapping?.limitY ?? RAIL_LIMIT_Y,
+          baulkY: baulkZ, dRadius, fullTable: allowFullTableInHand()
+        });
+        return clamped ? new THREE.Vector2(clamped.x, clamped.y) : null;
       };
       const defaultInHandPosition = () =>
         clampInHandPosition(
@@ -22565,7 +22495,9 @@ const shotPowerRef = useRef(0);
         pointerId: null,
         lastPos: null,
         pointerTablePos: null,
-        cueOffset: null
+        cueOffset: null,
+        startPos: null,
+        valid: false
       };
       const updateCuePlacement = (pos) => {
         if (!cue || !pos) return;
@@ -22575,6 +22507,9 @@ const shotPowerRef = useRef(0);
         cue.vel.set(0, 0);
         cue.spin?.set(0, 0);
         cue.pendingSpin?.set(0, 0);
+        cue.omega?.set(0, 0, 0);
+        cue.lift = 0;
+        cue.liftVel = 0;
         cue.spinMode = 'standard';
         cue.swerveStrength = 0;
         cue.swervePowerStrength = 0;
@@ -22612,26 +22547,27 @@ const shotPowerRef = useRef(0);
       };
       const tryUpdatePlacement = (raw, commit = false) => {
         const currentHud = hudRef.current;
-        if (!(currentHud?.inHand)) return false;
+        if (!currentHud?.inHand || currentHud.turn !== 0 || currentHud.over ||
+            shooting || replayPlaybackRef.current || !allStopped(balls)) return false;
         const resolved = resolveNearestFreeInHandSpot(raw);
+        inHandDrag.valid = Boolean(resolved);
         if (!resolved) return false;
         cue.active = false;
         updateCuePlacement(resolved);
         inHandDrag.lastPos = resolved;
-      if (commit) {
-        cue.active = true;
-        inHandDrag.lastPos = null;
-        inHandDrag.pointerTablePos = null;
-        inHandDrag.cueOffset = null;
-        cueBallPlacedFromHandRef.current = true;
-        if (hudRef.current?.inHand) {
-          const nextHud = { ...hudRef.current, inHand: false };
+        if (commit) {
+          cue.active = true;
+          inHandDrag.lastPos = null;
+          inHandDrag.pointerTablePos = null;
+          inHandDrag.cueOffset = null;
+          cueBallPlacedFromHandRef.current = true;
+          inHandPlacementModeRef.current = false;
+          const nextHud = { ...currentHud, inHand: false };
           hudRef.current = nextHud;
           setHud(nextHud);
         }
-      }
-      return true;
-    };
+        return true;
+      };
       const findAiInHandPlacement = () => {
         const radius = Math.max(D_RADIUS - BALL_R * 0.25, BALL_R);
         const forwardBias = Math.max(baulkZ - BALL_R * 0.6, -PLAY_H / 2 + BALL_R);
@@ -22811,16 +22747,28 @@ const shotPowerRef = useRef(0);
       };
       const handleInHandDown = (e) => {
         const currentHud = hudRef.current;
-        if (!(currentHud?.inHand)) return;
+        if (!currentHud?.inHand || currentHud.turn !== 0 || currentHud.over ||
+            replayPlaybackRef.current || !allStopped(balls) || inHandDrag.active) return;
         if (!inHandPlacementModeRef.current) return;
         if (shooting) return;
+        if (e.isPrimary === false) return;
         if (e.button != null && e.button !== 0) return;
         const p = project(e);
         if (!p) return;
         const cuePos = cue?.pos ? new THREE.Vector2(cue.pos.x, cue.pos.y) : p.clone();
-        inHandDrag.cueOffset = cuePos.clone().sub(p);
+        inHandDrag.startPos = cuePos.clone();
+        // Grabbing the ball preserves its offset under the finger. A tap away
+        // from it places at the touched point instead of silently doing nothing.
+        const rect = dom.getBoundingClientRect();
+        const screen = cue.mesh.getWorldPosition(new THREE.Vector3())
+          .project(activeRenderCameraRef.current ?? camera);
+        const distancePx = Math.hypot(
+          e.clientX - (rect.left + (screen.x + 1) * rect.width / 2),
+          e.clientY - (rect.top + (1 - screen.y) * rect.height / 2)
+        );
+        inHandDrag.cueOffset = distancePx <= 24 ? cuePos.clone().sub(p) : new THREE.Vector2();
         inHandDrag.pointerTablePos = p.clone();
-        if (!tryUpdatePlacement(cuePos, false)) return;
+        if (!tryUpdatePlacement(p.clone().add(inHandDrag.cueOffset), false)) return;
         inHandDrag.active = true;
         inHandDrag.pointerId = e.pointerId ?? 'mouse';
         if (e.pointerId != null && dom.setPointerCapture) {
@@ -22840,6 +22788,7 @@ const shotPowerRef = useRef(0);
           return;
         }
         const p = project(e);
+        inHandDrag.valid = false;
         if (p) {
           inHandDrag.pointerTablePos = p.clone();
           const nextPos = inHandDrag.cueOffset
@@ -22858,20 +22807,32 @@ const shotPowerRef = useRef(0);
         ) {
           return;
         }
+        // A cancelled gesture, a stale turn, or a release outside the canvas
+        // never confirms a previous valid drag position.
+        const cancelled = e.type !== 'pointerup';
+        const p = cancelled ? null : project(e);
+        const finalPos = p ? p.clone().add(inHandDrag.cueOffset ?? new THREE.Vector2()) : null;
+        const committed = Boolean(finalPos && tryUpdatePlacement(finalPos, true));
+        inHandDrag.active = false;
         if (e.pointerId != null && dom.releasePointerCapture) {
           try {
             dom.releasePointerCapture(e.pointerId);
           } catch {}
         }
-        inHandDrag.active = false;
         inHandDrag.pointerTablePos = null;
         inHandDrag.cueOffset = null;
-        const pos = inHandDrag.lastPos;
-        if (pos) {
-          tryUpdatePlacement(pos, true);
+        inHandDrag.pointerId = null;
+        if (committed) {
           setInHandPlacementMode(false);
           autoAimRequestRef.current = true;
+        } else if (hudRef.current?.inHand && hudRef.current.turn === 0) {
+          if (inHandDrag.startPos) updateCuePlacement(inHandDrag.startPos);
+          cue.active = false;
+          cueBallPlacedFromHandRef.current = false;
         }
+        inHandDrag.startPos = null;
+        inHandDrag.lastPos = null;
+        inHandDrag.valid = false;
         e.preventDefault?.();
       };
       dom.addEventListener('pointerdown', handleInHandDown);
@@ -22879,13 +22840,13 @@ const shotPowerRef = useRef(0);
       window.addEventListener('pointerup', endInHandDrag);
       dom.addEventListener('pointercancel', endInHandDrag);
       window.addEventListener('pointercancel', endInHandDrag);
+      dom.addEventListener('lostpointercapture', endInHandDrag);
       if (hudRef.current?.inHand) {
-        const startPos = defaultInHandPosition();
+        const startPos = resolveNearestFreeInHandSpot(defaultInHandPosition());
         if (startPos) {
           cue.active = false;
           updateCuePlacement(startPos);
-          cue.active = true;
-          cueBallPlacedFromHandRef.current = true;
+          cueBallPlacedFromHandRef.current = false;
         }
         if (allowFullTableInHand()) {
           const focusStore = ensureOrbitFocus();
@@ -23143,23 +23104,14 @@ const shotPowerRef = useRef(0);
         const currentHud = hudRef.current;
         if (Number.isFinite(committedPowerOverride) && currentHud?.turn !== 0) return false;
         const frameSnapshot = frameRef.current ?? frameState;
-        const fullTableHandPlacement =
-          allowFullTableInHand() && Boolean(frameSnapshot?.meta?.state?.ballInHand);
-        const inHandPlacementActive = Boolean(
-          currentHud?.inHand && !fullTableHandPlacement
-        );
         if (
           !cue?.active ||
-          (inHandPlacementActive && !cueBallPlacedFromHandRef.current) ||
+          currentHud?.inHand ||
           !allStopped(ballsRef.current?.length > 0 ? ballsRef.current : balls) ||
           currentHud?.over ||
           replayPlaybackRef.current
         )
           return false;
-        if (currentHud?.inHand && (fullTableHandPlacement || inHandPlacementActive)) {
-          hudRef.current = { ...currentHud, inHand: false };
-          setHud((prev) => ({ ...prev, inHand: false }));
-        }
         if (aiOpponentEnabled && currentHud?.turn === 1) {
           aiTurnShotCountRef.current += 1;
         }
@@ -27826,6 +27778,7 @@ const shotPowerRef = useRef(0);
         pocketCamerasRef.current.clear();
         pocketDropRef.current.clear();
         pocketRestIndexRef.current.clear();
+        inHandCameraRestoreRef.current = null;
         captureBallSnapshotRef.current = null;
         applyBallSnapshotRef.current = null;
         pendingLayoutRef.current = careerMatch ? captureBallSnapshot() : null;
@@ -27861,6 +27814,7 @@ const shotPowerRef = useRef(0);
         window.removeEventListener('pointerup', endInHandDrag);
         dom.removeEventListener('pointercancel', endInHandDrag);
         window.removeEventListener('pointercancel', endInHandDrag);
+        dom.removeEventListener('lostpointercapture', endInHandDrag);
         applyBaseRef.current = () => {};
         applyFinishRef.current = () => {};
         applyTableSlotRef.current = () => {};
@@ -28112,6 +28066,7 @@ const shotPowerRef = useRef(0);
     let moved = false;
     let rafId = null;
     let lastTime = null;
+    let selectionBeforeDrag = { x: 0, y: 0 };
     const spinState = {
       current: { x: 0, y: 0 },
       target: { x: 0, y: 0 },
@@ -28134,17 +28089,7 @@ const shotPowerRef = useRef(0);
     const clampToPlayable = (nx, ny) => {
       const raw = clampToUnitCircle(nx, ny);
       const limited = clampToLimits(raw.x, raw.y);
-      const aimVec = aimDirRef.current;
-      const cueBall = cueRef.current;
-      const activeCamera = activeRenderCameraRef.current ?? cameraRef.current;
-      const viewLimited = clampSpinToVisibleHemisphere(
-        limited,
-        aimVec,
-        cueBall,
-        activeCamera
-      );
-      const reclamped = clampToLimits(viewLimited.x, viewLimited.y);
-      return clampToUnitCircle(reclamped.x, reclamped.y);
+      return normalizeSpinInput(limited);
     };
 
     const applySpin = (nx, ny, { updateRequest = true } = {}) => {
@@ -28175,16 +28120,6 @@ const shotPowerRef = useRef(0);
       );
       spinLegalityRef.current = legality;
       updateSpinDotPosition(clamped, legality.blocked);
-    };
-
-    const applySnapTarget = () => {
-      const snapped = computeQuantizedOffsetScaled(
-        spinState.target.x,
-        spinState.target.y
-      );
-      spinState.target = clampToPlayable(snapped.x, snapped.y);
-      spinRequestRef.current = { ...spinState.target };
-      startSpring();
     };
 
     const resetSpin = () => {
@@ -28221,10 +28156,11 @@ const shotPowerRef = useRef(0);
 
     const releasePointer = () => {
       if (activePointer !== null) {
-        try {
-          box.releasePointerCapture(activePointer);
-        } catch {}
+        const pointerId = activePointer;
         activePointer = null;
+        try {
+          box.releasePointerCapture(pointerId);
+        } catch {}
       }
     };
 
@@ -28283,11 +28219,14 @@ const shotPowerRef = useRef(0);
     };
 
     const handlePointerDown = (e) => {
-      if (activePointer !== null) releasePointer();
+      if (activePointer !== null || e.isPrimary === false || (e.button != null && e.button !== 0)) return;
+      selectionBeforeDrag = { ...spinRequestRef.current };
       activePointer = e.pointerId;
       moved = false;
       clearTimer();
-      scaleBox(1.35);
+      // Keep the hit area fixed while dragging: resizing it changes the value
+      // under a stationary finger on portrait screens.
+      scaleBox(1);
       updateSpin(e.clientX, e.clientY);
       box.setPointerCapture(activePointer);
       revertTimer = window.setTimeout(() => {
@@ -28310,8 +28249,12 @@ const shotPowerRef = useRef(0);
 
     const handlePointerUp = (e) => {
       if (activePointer !== e.pointerId) return;
+      updateSpin(e.clientX, e.clientY);
       finishInteraction(50);
-      applySnapTarget();
+      // Commit the exact last selection; do not jump to another ring/angle.
+      spinState.current = { ...spinState.target };
+      spinState.velocity = { x: 0, y: 0 };
+      applySpin(spinState.target.x, spinState.target.y);
     };
 
     const handlePointerCancel = (e) => {
@@ -28319,7 +28262,10 @@ const shotPowerRef = useRef(0);
       releasePointer();
       clearTimer();
       scaleBox(1);
-      applySnapTarget();
+      spinState.current = { ...selectionBeforeDrag };
+      spinState.target = { ...selectionBeforeDrag };
+      spinState.velocity = { x: 0, y: 0 };
+      applySpin(selectionBeforeDrag.x, selectionBeforeDrag.y);
     };
 
     if (showPlayerControls) {
@@ -28327,6 +28273,7 @@ const shotPowerRef = useRef(0);
       box.addEventListener('pointermove', handlePointerMove);
       box.addEventListener('pointerup', handlePointerUp);
       box.addEventListener('pointercancel', handlePointerCancel);
+      box.addEventListener('lostpointercapture', handlePointerCancel);
     }
 
     return () => {
@@ -28344,6 +28291,7 @@ const shotPowerRef = useRef(0);
       box.removeEventListener('pointermove', handlePointerMove);
       box.removeEventListener('pointerup', handlePointerUp);
       box.removeEventListener('pointercancel', handlePointerCancel);
+      box.removeEventListener('lostpointercapture', handlePointerCancel);
     };
   }, [showPlayerControls, showSpinController, updateSpinDotPosition]);
 
@@ -29858,7 +29806,7 @@ const shotPowerRef = useRef(0);
           </div>
         </div>
       )}
-      {hud?.inHand && (
+      {hud?.inHand && hud.turn === 0 && (
         <div className="pointer-events-none absolute left-1/2 top-4 z-40 flex -translate-x-1/2 flex-col items-center gap-2 px-3 text-center text-white drop-shadow-[0_2px_12px_rgba(0,0,0,0.55)]">
           <div className="flex items-center gap-2 rounded-full bg-white/90 px-4 py-2 text-sm font-semibold text-gray-900 shadow-lg ring-1 ring-white/60">
             <span className="flex h-6 w-6 items-center justify-center rounded-full bg-emerald-500 text-xs font-bold text-white">BIH</span>

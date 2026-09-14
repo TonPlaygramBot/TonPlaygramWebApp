@@ -11,7 +11,7 @@ export const SPIN_LEVEL2_MAG = SPIN_RING2_RADIUS;
 export const SPIN_LEVEL3_MAG = SPIN_RING3_RADIUS;
 export const STRAIGHT_SPIN_DEADZONE = 0.02;
 export const SPIN_RESPONSE_EXPONENT = 1.32;
-export const SPIN_CENTER_TOPSPIN_BIAS = 0.13;
+export const SPIN_CENTER_TOPSPIN_BIAS = 0;
 export const SPIN_DIRECTIONS = [
   {
     id: 'stun',
@@ -79,6 +79,8 @@ export const SPIN_DIRECTIONS = [
 ];
 
 export const clampToUnitCircle = (x, y) => {
+  x = Number.isFinite(x) ? x : 0;
+  y = Number.isFinite(y) ? y : 0;
   const length = Math.hypot(x, y);
   if (!Number.isFinite(length) || length <= 1) {
     return { x, y };
@@ -88,6 +90,8 @@ export const clampToUnitCircle = (x, y) => {
 };
 
 export const clampToMaxOffset = (x, y, maxOffset = MAX_SPIN_OFFSET) => {
+  x = Number.isFinite(x) ? x : 0;
+  y = Number.isFinite(y) ? y : 0;
   const length = Math.hypot(x, y);
   if (!Number.isFinite(length) || length <= maxOffset) {
     return { x, y };
@@ -138,8 +142,8 @@ export const computeQuantizedOffsetScaled = (
 };
 
 export const normalizeSpinInput = (spin) => {
-  let x = clamp(spin?.x ?? 0, -1, 1);
-  let y = clamp(spin?.y ?? 0, -1, 1);
+  let x = clamp(Number.isFinite(spin?.x) ? spin.x : 0, -1, 1);
+  let y = clamp(Number.isFinite(spin?.y) ? spin.y : 0, -1, 1);
 
   // Keep straight high/low and left/right shots easier to select by gently
   // snapping near-axis drag noise to the principal axis.
@@ -153,15 +157,9 @@ export const normalizeSpinInput = (spin) => {
     return { x: 0, y: 0 };
   }
 
-  const activeSpan = Math.max(MAX_SPIN_OFFSET - deadzone, 1e-6);
-  const normalized = clamp((distance - deadzone) / activeSpan, 0, 1);
-  const shaped = normalized ** SPIN_RESPONSE_EXPONENT;
-  const magnitude = deadzone + shaped * activeSpan;
-  const scale = magnitude / Math.max(distance, 1e-6);
-  return {
-    x: clamped.x * scale,
-    y: clamped.y * scale
-  };
+  // Validation is idempotent. Apply the response curve only at the physics
+  // boundary, so UI, cue, prediction and repeated frames cannot attenuate it.
+  return clamped;
 };
 
 export const mapUiOffsetToCueFrame = (
@@ -171,43 +169,22 @@ export const mapUiOffsetToCueFrame = (
   cameraUp,
   cueForward
 ) => {
-  if (!cameraRight || !cameraUp || !cueForward) {
-    return { x: uiX, y: uiY };
-  }
-  const right = cameraRight;
-  const up = cameraUp;
-  const forward = cueForward;
-  const offsetWorld = {
-    x: right.x * uiX + up.x * uiY,
-    y: right.y * uiX + up.y * uiY,
-    z: right.z * uiX + up.z * uiY
-  };
-  offsetWorld.y = 0;
-  const forwardPlanarLength = Math.hypot(forward.x, forward.z);
-  const forwardPlanar =
-    forwardPlanarLength > 1e-6
-      ? { x: forward.x / forwardPlanarLength, z: forward.z / forwardPlanarLength }
-      : { x: 0, z: 1 };
-  const side = { x: -forwardPlanar.z, z: forwardPlanar.x };
-  return {
-    x: -(offsetWorld.x * side.x + offsetWorld.z * side.z),
-    y: offsetWorld.x * forwardPlanar.x + offsetWorld.z * forwardPlanar.z
-  };
+  // This is a cue-ball face control: visually up is follow, down is draw.
+  // Orbiting the scene must never rotate, flatten or reverse its selection.
+  return { x: uiX, y: uiY };
 };
 
 export const mapSpinForPhysics = (spin, options = {}) => {
-  const adjusted = {
-    x: clamp(spin?.x ?? 0, -1, 1),
-    y: clamp(spin?.y ?? 0, -1, 1)
-  };
-  const quantized = normalizeSpinInput(adjusted);
-  if (Math.hypot(quantized.x, quantized.y) <= 1e-6) {
-    return { x: 0, y: SPIN_CENTER_TOPSPIN_BIAS };
-  }
+  const quantized = normalizeSpinInput(spin);
+  const distance = Math.hypot(quantized.x, quantized.y);
+  if (distance <= SPIN_STUN_RADIUS) return { x: 0, y: 0 };
+  const span = MAX_SPIN_OFFSET - SPIN_STUN_RADIUS;
+  const strength = ((distance - SPIN_STUN_RADIUS) / span) ** SPIN_RESPONSE_EXPONENT;
+  const scale = MAX_SPIN_OFFSET * strength / distance;
   const { cameraRight, cameraUp, cueForward } = options;
   return mapUiOffsetToCueFrame(
-    quantized.x,
-    quantized.y,
+    quantized.x * scale,
+    quantized.y * scale,
     cameraRight,
     cameraUp,
     cueForward

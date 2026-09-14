@@ -319,6 +319,16 @@ test('cancel, unrelated finger, busy state and opponent ownership never fire', (
   r.context.shootingRef.current = true;
   expect(r.context.fire(0.7)).toBe(false);
 });
+test.each([false, true])('ball-in-hand cannot be bypassed by shooting (full table: %s)', (fullTable) => {
+  const r = rig();
+  r.context.hudRef.current.inHand = true;
+  r.context.cueBallPlacedFromHandRef.current = true;
+  r.context.allowFullTableInHand = () => fullTable;
+  expect(r.context.fire(0.7)).toBe(false);
+  expect(r.context.hudRef.current.inHand).toBe(true);
+  expect(r.cue.vel.length()).toBe(0);
+});
+
 test('a disposed scene cannot receive a late cue impact', () => {
   const r = rig();
   r.context.fire(0.7);

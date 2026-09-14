@@ -92,9 +92,9 @@ test('the real character is clearly bigger and its original shot camera is prese
   const players = new PoolRoyalHumanPlayers(world, { ...m, model: await loadPoseModel() });
   assert.equal(await players.ready, true);
   world.updateMatrixWorld(true);
-  const oldHeight = m.cueLength * 1.38;
+  const oldHeight = m.cueLength * 1.60;
   const height = new THREE.Box3().setFromObject(players.players[0].human.modelRoot).getSize(new THREE.Vector3()).y;
-  assert.ok(height / oldHeight > 1.15 && height / oldHeight < 1.17);
+  assert.ok(Math.abs(height / oldHeight - 1.05) < 0.001, '5% larger than the previous main character');
   assert.equal(players.group.position.y, m.floorY, 'the character stays anchored to the floor');
   const rig = cameraRig(world);
   let cameraPoses = 0;
