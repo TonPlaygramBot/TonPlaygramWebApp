@@ -3,6 +3,7 @@ import { createRoot } from 'react-dom/client';
 import { BrowserRouter } from 'react-router-dom';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import PwaDownloadFrame from './PwaDownloadFrame.jsx';
+import { GAME_PACK_STORAGE_ERROR_MESSAGE } from '../pwa/gamePackManager.js';
 
 const mocks = vi.hoisted(() => ({ app: {}, install: {} }));
 vi.mock('../hooks/useAppDownload.js', () => ({ default: () => mocks.app }));
@@ -102,6 +103,50 @@ describe('whole-app download on Home', () => {
     await act(async () => button('Download TonPlayGram').click());
     expect(mocks.install.requestInstall).not.toHaveBeenCalled();
     expect(mocks.app.download).toHaveBeenCalledTimes(1);
+  });
+
+  it('labels available storage as a browser estimate for this app', async () => {
+    mocks.app.pack.totalBytes = 9.5 * 1024 ** 3;
+    mocks.app.storage = { usage: 792 * 1024 ** 2, quota: 792 * 1024 ** 2 + 10 * 1024 ** 3, persisted: false };
+    await render();
+    expect(container.querySelector('details').textContent).toContain('Estimated browser storage for this app: 792 MB used · 10.0 GB available.');
+    expect(button('Download TonPlayGram').disabled).toBe(false);
+    expect(container.querySelector('[role="alert"]')).toBeNull();
+  });
+
+  it.each(['saved error', 'download rejection'])('offers a browser download after a Telegram storage limit even when installed (%s)', async source => {
+    mocks.install.installed = true;
+    mocks.install.telegramDetected = true;
+    mocks.install.canPrompt = false;
+    if (source === 'saved error') {
+      mocks.app.status = 'partial';
+      mocks.app.error = GAME_PACK_STORAGE_ERROR_MESSAGE;
+    } else {
+      mocks.app.download.mockRejectedValueOnce(Object.assign(new Error(GAME_PACK_STORAGE_ERROR_MESSAGE), { name: 'QuotaExceededError' }));
+    }
+    await render();
+    if (source === 'download rejection') await act(async () => button('Download TonPlayGram').click());
+    expect(container.querySelector('[role="alert"]').textContent).toBe(GAME_PACK_STORAGE_ERROR_MESSAGE);
+    expect(container.textContent).toContain('Added to Home Screen');
+    expect(container.textContent).toContain('Downloads are stored separately in each browser');
+    expect(button('Retry download').disabled).toBe(false);
+    await act(async () => button('Open in browser to download').click());
+    expect(mocks.install.openExternalInstall).toHaveBeenCalledTimes(1);
+    expect(mocks.install.requestInstall).not.toHaveBeenCalled();
+    expect(mocks.app.remove).not.toHaveBeenCalled();
+  });
+
+  it('keeps Telegram browser storage recovery specific to storage errors', async () => {
+    mocks.install.installed = true;
+    mocks.install.telegramDetected = true;
+    mocks.install.canPrompt = false;
+    await render();
+    expect(button('Open in browser to download')).toBeUndefined();
+    mocks.app.status = 'partial';
+    mocks.app.error = 'Connection lost. Your saved files are ready to resume.';
+    await render();
+    expect(button('Open in browser to download')).toBeUndefined();
+    expect(container.textContent).not.toContain('Downloads are stored separately in each browser');
   });
 
   it('does not offer a download without storage support or follow external return URLs', async () => {

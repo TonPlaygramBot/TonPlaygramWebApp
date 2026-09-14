@@ -6,6 +6,7 @@ import { APP_BUILD } from '../webapp/src/config/buildInfo.js';
 import { GAME_PACK_COMPLETE_PATH } from '../webapp/src/pwa/gamePackCatalog.js';
 import {
   cancelGamePackInstall,
+  GAME_PACK_STORAGE_ERROR_MESSAGE,
   GAME_PACK_PROGRESS_EVENT,
   getGamePackInstallations,
   getGamePackStatus,
@@ -185,29 +186,78 @@ test('same-length corrupted asset data cannot complete a full download', async (
   assert.equal(await receiptFor(app), undefined);
 });
 
-test('storage failures explain how to recover and never publish completion', async t => {
-  await t.test('insufficient estimated space stops before downloading', async () => {
+test('browser estimates do not prevent verified downloads that storage accepts', async t => {
+  await t.test('enough space without the former ten-percent reserve', async () => {
+    const app = fixture();
+    const available = Math.ceil(app.manifest.totalBytes * 1.05);
+    assert.ok(available >= app.manifest.totalBytes && available < app.manifest.totalBytes * 1.1);
+    const network = setup({ quota: 100 + available, usage: 100 });
+    network.add(app);
+    await install(app);
+    assert.equal(getGamePackStatus(app.pack), 'installed');
+    assert.ok(await receiptFor(app));
+  });
+  await t.test('a conservative estimate cannot veto successful browser writes', async () => {
     const network = setup({ quota: 101, usage: 100 });
     const app = fixture();
     network.add(app);
-    await assert.rejects(install(app), /Not enough device storage.*Free/i);
-    assert.deepEqual(network.assetCalls(), []);
-    assert.match(getGamePackInstallations()[APP_ID].lastError, /Free.*try again/i);
-    assert.equal(await receiptFor(app), undefined);
+    await install(app);
+    assert.equal(network.assetCalls().length, app.manifest.assetCount);
+    assert.equal(getGamePackStatus(app.pack), 'installed');
+    assert.ok(await receiptFor(app));
   });
+  await t.test('unavailable storage estimates do not prevent a download', async () => {
+    const network = setup();
+    navigator.storage.estimate = async () => { throw new Error('Estimate unavailable'); };
+    const app = fixture();
+    network.add(app);
+    await install(app);
+    assert.equal(getGamePackStatus(app.pack), 'installed');
+    assert.ok(await receiptFor(app));
+  });
+});
+
+test('storage failures explain how to recover and never publish completion', async t => {
   await t.test('a browser write quota error leaves a resumable download', async () => {
     const network = setup();
     const app = fixture();
     network.add(app);
     caches.beforePut = async (name, url) => {
-      if (name === getPackCacheName(APP_ID, app.pack.version) && url.endsWith(FIRST_MODEL)) {
+      if (name === getPackCacheName(APP_ID, app.pack.version) && url.endsWith(LAST_MODEL)) {
         throw new DOMException('Storage full', 'QuotaExceededError');
       }
     };
-    await assert.rejects(install(app), { name: 'QuotaExceededError' });
+    await assert.rejects(install(app), error => {
+      assert.equal(error.name, 'QuotaExceededError');
+      assert.equal(error.message, GAME_PACK_STORAGE_ERROR_MESSAGE);
+      assert.equal(error.cause.name, 'QuotaExceededError');
+      return true;
+    });
     assert.equal(getGamePackStatus(app.pack), 'partial');
-    assert.match(getGamePackInstallations()[APP_ID].lastError, /Free space.*resume/i);
+    assert.equal(getGamePackInstallations()[APP_ID].lastError, GAME_PACK_STORAGE_ERROR_MESSAGE);
     assert.equal(await receiptFor(app), undefined);
+    assert.equal(network.calls.get(FIRST_MODEL), 1);
+    caches.beforePut = null;
+    await install(app);
+    assert.equal(getGamePackStatus(app.pack), 'installed');
+    assert.equal(network.calls.get(FIRST_MODEL), 1);
+    assert.ok(getGamePackInstallations()[APP_ID].reusedBytes > 0);
+    assert.ok(await receiptFor(app));
+  });
+  await t.test('quota failure when publishing the receipt cannot mark files complete', async () => {
+    const network = setup();
+    const app = fixture();
+    network.add(app);
+    caches.beforePut = async (name, url) => {
+      if (url.endsWith(GAME_PACK_COMPLETE_PATH)) throw new DOMException('Storage full', 'QuotaExceededError');
+    };
+    await assert.rejects(install(app), { name: 'QuotaExceededError', message: GAME_PACK_STORAGE_ERROR_MESSAGE });
+    assert.equal(getGamePackStatus(app.pack), 'partial');
+    assert.equal(await receiptFor(app), undefined);
+    caches.beforePut = null;
+    await install(app);
+    assert.equal(getGamePackStatus(app.pack), 'installed');
+    assert.ok(network.assetCalls().every(([, calls]) => calls === 1));
   });
 });
 

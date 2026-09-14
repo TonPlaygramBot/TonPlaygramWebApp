@@ -23,6 +23,8 @@ const checkCancelled = signal => {
 
 const safePackId = value => String(value || '').replace(/[^a-z0-9_-]+/gi, '-').toLowerCase();
 
+export const GAME_PACK_STORAGE_ERROR_MESSAGE = 'This browser could not save more app files. Its storage limit can differ from your device’s free space. Free space for this browser, then retry; verified files already saved will be reused.';
+
 export const formatBytes = value => {
   const bytes = Number(value) || 0;
   if (bytes <= 0) return '0 B';
@@ -501,16 +503,9 @@ async function performInstall(packId, { catalog, concurrency = DEFAULT_CONCURREN
   const previousInstallation = readState().packs[pack.id];
   await cache.delete(completionRequest());
   const totalBytes = assets.reduce((sum, asset) => sum + (asset.size || 0), 0);
-  if (packId === APP_PACK_ID) {
-    const { usage, quota } = await getGamePackStorageEstimate();
-    let remaining = 0;
-    for (const asset of assets) {
-      if (!responseMatchesAsset(await cache.match(makeRequest(asset)), asset)) remaining += asset.size;
-    }
-    if (quota && remaining * 1.1 > quota - usage) {
-      throw new Error(`Not enough device storage. Free about ${formatBytes(remaining * 1.1 - (quota - usage))} and try again.`);
-    }
-  }
+  // Browser estimates are approximate per-site allowances, not free disk space.
+  // Do not veto a download (or add a percentage reserve) from that estimate.
+  // Cache writes enforce the real limit; failures retain verified files for retry.
   let completedAssets = 0;
   let downloadedBytes = 0;
   let reusedBytes = 0;
@@ -677,10 +672,17 @@ export function installGamePack(packId, options = {}) {
     .catch(error => {
       const cancelled = error?.name === 'AbortError';
       const message = error?.name === 'QuotaExceededError'
-        ? 'Not enough device storage. Free space on this device, then resume the download.'
+        ? GAME_PACK_STORAGE_ERROR_MESSAGE
         : error?.message || 'Download failed. Try again when connected.';
       updatePackState(packId, { ...(previousInstallation?.status === 'installed' ? previousInstallation : { status: 'partial' }), lastError: cancelled ? null : message });
       dispatchProgress({ packId, phase: cancelled ? 'cancelled' : 'failed', percent: 0 });
+      if (error?.name === 'QuotaExceededError') {
+        // Hooks also surface the rejected error, so keep it consistent with the
+        // persisted message instead of leaking the browser's generic exception.
+        const storageError = new Error(message, { cause: error });
+        storageError.name = 'QuotaExceededError';
+        throw storageError;
+      }
       throw error;
     })
     .finally(() => {
