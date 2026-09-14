@@ -1,0 +1,38 @@
+name: Neverball integration workspace
+on:
+  push:
+    branches: [codex/neverball-tpg-integration]
+    paths: [.github/workflows/neverball-workspace.yml]
+permissions:
+  contents: read
+jobs:
+  sources:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          path: platform
+          persist-credentials: false
+          sparse-checkout: |
+            bot
+            webapp/src
+            webapp/scripts
+            test
+            scripts
+            docs
+            shared
+      - uses: actions/checkout@v4
+        with:
+          repository: Neverball/neverball
+          ref: f24ec32f20e70c6cf343e98132b9d14282de8991
+          path: upstream-neverball
+          persist-credentials: false
+      - name: Package source workspace (no credentials)
+        run: |
+          tar --exclude=.git --exclude=node_modules -czf neverball-workspace.tgz platform upstream-neverball
+      - uses: actions/upload-artifact@v4
+        with:
+          name: neverball-pinned-workspace
+          path: neverball-workspace.tgz
+          retention-days: 3
