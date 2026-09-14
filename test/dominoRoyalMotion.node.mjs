@@ -162,6 +162,10 @@ test('pickup holds the source until grip, lifts before carrying, and lands exact
       assert.ok(before.distanceTo(after) < 1e-5, `position jumps at phase boundary ${boundary}`);
     }
     assertPosition(c.resolvePrecisionPlacementPosition(anim, 1), end, 'incorrect final placement');
+    for (const t of [c.PLACE_ANIM_LOWER_END, 0.95, 0.99]) {
+      assertPosition(c.resolvePrecisionPlacementPosition(anim, t), end,
+        `tile moves while fingers release at ${t}`);
+    }
     assertPosition(anim.start, start, 'motion mutated the stored source');
     assertPosition(anim.end, end, 'motion mutated the stored destination');
   }
@@ -219,9 +223,10 @@ function gameHarness(playerCount = 4, seed = 412) {
     'orientDominoFlat', 'orientDominoFaceDown', 'DOMINO_FORWARD',
     'DOMINO_RIGHT', 'DOMINO_UP', 'DOMINO_BASIS',
     'getDominoHumanReachProfile', 'getDominoRackTargets', 'dominoSurfaceTarget',
+    'dominoPickupTarget', 'blendDominoHandTargetFrame', 'resolveDominoHandWithdrawalPosition',
     'spawnDrawAnimation', 'updateDrawDestination',
     'updateDrawAnimations', 'updatePlacementAnimations', 'revealPlacementFace',
-    'smoothPlacementStep', 'resolvePrecisionPlacementPosition',
+    'smoothPlacementStep', 'resolvePrecisionPlacementPosition', 'sampleDominoActionProgress', 'DOMINO_HAND_RETURN_DURATION',
     'PLACE_ANIM_PICK_HOLD', 'PLACE_ANIM_LIFT_END', 'PLACE_ANIM_CARRY_END',
     'PLACE_ANIM_LOWER_END', 'PLACE_ANIM_ARC', 'PLACE_ANIM_DURATION',
     'DRAW_ANIM_DURATION', 'OPENING_DEAL_ANIM_DURATION', 'OPENING_SHUFFLE_ANIM_DURATION',
@@ -243,6 +248,10 @@ test('rack grip targets bracket the existing tile surfaces under translated, sca
   c.piecesG.rotation.set(0.12, 0.74, -0.08);
   c.piecesG.scale.set(1.7, 1.2, 0.83);
   c.piecesG.updateMatrixWorld(true);
+  for (const view of ['3d', '2d']) {
+    c.cameraViewMode = view;
+    c.renderHands();
+    c.piecesG.updateMatrixWorld(true);
   for (let seat = 0; seat < 4; seat++) {
     const hand = c.players[seat].hand;
     const first = hand[0].mesh;
@@ -263,10 +272,22 @@ test('rack grip targets bracket the existing tile surfaces under translated, sca
     const lastTarget = seat % 2 ? targets.left : targets.right;
     const firstLocal = first.worldToLocal(firstTarget.position.clone());
     const lastLocal = last.worldToLocal(lastTarget.position.clone());
-    assert.ok(Math.abs(firstLocal.x + 0.5) < 1e-10 && Math.abs(firstLocal.z) < 1e-10,
+    assert.ok(Math.abs(Math.abs(firstLocal.x) - 0.5) < 1e-10 && Math.abs(firstLocal.z) < 1e-10,
       'hand does not meet the first tile’s outer side');
-    assert.ok(Math.abs(lastLocal.x - 0.5) < 1e-10 && Math.abs(lastLocal.z) < 1e-10,
+    assert.ok(Math.abs(Math.abs(lastLocal.x) - 0.5) < 1e-10 && Math.abs(lastLocal.z) < 1e-10,
       'hand does not meet the last tile’s outer side');
+    const firstCenter = first.getWorldPosition(new THREE.Vector3());
+    const lastCenter = last.getWorldPosition(new THREE.Vector3());
+    const row = lastCenter.clone().sub(firstCenter);
+    assert.ok(firstTarget.position.clone().sub(firstCenter).dot(row) < 0,
+      `first support faces inside the row at seat ${seat}, view ${view}`);
+    assert.ok(lastTarget.position.clone().sub(lastCenter).dot(row) > 0,
+      `last support faces inside the row at seat ${seat}, view ${view}`);
+    if (view === '2d' && seat === c.human) {
+      const down = new THREE.Vector3(0, -1, 0).transformDirection(c.piecesG.matrixWorld);
+      assert.ok(targets.left.palmNormal.dot(down) > 0.999999 && targets.right.palmNormal.dot(down) > 0.999999,
+        'flat rack support turns the palms underneath the tabletop');
+    }
     assert.ok(Math.abs(firstLocal.y) <= 1 && Math.abs(lastLocal.y) <= 1,
       'contact lies beyond a domino’s physical length');
     for (const [index, tile] of hand.entries()) {
@@ -275,6 +296,314 @@ test('rack grip targets bracket the existing tile surfaces under translated, sca
         'arm-target computation moved an existing domino');
     }
   }
+  }
+});
+
+test('pickup palms face the table for both printed-face orientations without altering the domino', () => {
+  const { context: c } = gameHarness();
+  c.piecesG.position.set(0.4, 1.2, -0.7);
+  c.piecesG.rotation.set(0.2, -0.7, 0.1);
+  c.piecesG.updateMatrixWorld(true);
+  const down = new THREE.Vector3(0, -1, 0).transformDirection(c.piecesG.matrixWorld);
+  for (const faceDown of [false, true]) for (const yaw of [0, 0.6, Math.PI / 2, Math.PI]) {
+    const mesh = new THREE.Group();
+    mesh.position.set(0.17, c.CLOTH_TOP, -0.31);
+    mesh.scale.set(0.12, 0.09, 0.12);
+    c.piecesG.add(mesh);
+    (faceDown ? c.orientDominoFaceDown : c.orientDominoFlat)(mesh, yaw);
+    mesh.updateWorldMatrix(true, false);
+    const before = mesh.matrixWorld.clone();
+    for (let edge = 0; edge < 4; edge++) {
+      const target = c.dominoPickupTarget(mesh, edge, 0.4);
+      assert.ok(target.palmNormal.dot(down) > 0.999999,
+        `palm turns under table at faceDown=${faceDown}, yaw=${yaw}, edge=${edge}`);
+      assert.equal(target.gripMode, 'pinch');
+      assert.deepEqual(target.pinchSurface.matrixWorld.elements, before.elements,
+        'finite contact solver received a stale or local tile transform');
+      assert.notEqual(target.pinchSurface.matrixWorld, mesh.matrixWorld,
+        'contact solver must not mutate the tile through its bounds transform');
+      assertPosition(target.pinchSurface.halfExtents, [0.5, 1, 0.11], 'incorrect finite domino bounds');
+      assert.deepEqual(mesh.matrixWorld.elements, before.elements);
+    }
+    mesh.removeFromParent();
+  }
+});
+
+test('wrist frames interpolate smoothly through opposite palm directions without collapsing', () => {
+  const { context: c } = gameHarness();
+  const from = { approachDirection: new THREE.Vector3(1, 0, 0), palmNormal: new THREE.Vector3(0, 0, 1) };
+  let previous;
+  for (let index = 0; index <= 100; index++) {
+    const target = { approachDirection: new THREE.Vector3(1, 0, 0), palmNormal: new THREE.Vector3(0, 0, -1) };
+    c.blendDominoHandTargetFrame(target, from, index / 100);
+    assert.ok(Math.abs(target.approachDirection.length() - 1) < 1e-10);
+    assert.ok(Math.abs(target.palmNormal.length() - 1) < 1e-10);
+    assert.ok(Math.abs(target.palmNormal.dot(target.approachDirection)) < 1e-10);
+    if (previous) assert.ok(previous.angleTo(target.palmNormal) < 0.04, 'wrist flips between consecutive samples');
+    previous = target.palmNormal;
+  }
+  assertPosition(from.palmNormal, [0, 0, 1], 'blend mutated the cached source frame');
+  assertPosition(previous, [0, 0, -1], 'blend did not reach the final palm direction');
+});
+
+test('shuffle fingers approach from the occupied dealer seat while both palms face the cloth', () => {
+  const { context: c, install, events } = gameHarness();
+  delete c.poseDominoShuffleHands;
+  install('poseDominoShuffleHands');
+  c.piecesG.position.set(1, 0.4, -2);
+  c.piecesG.rotation.set(0.15, 0.72, -0.08);
+  c.piecesG.updateMatrixWorld(true);
+  for (let dealer = 0; dealer < 4; dealer++) {
+    const [x, z] = c.layoutSeat(dealer);
+    const shoulder = new THREE.Object3D();
+    shoulder.position.copy(c.piecesG.localToWorld(new THREE.Vector3(x, c.CLOTH_TOP + 0.5, z)));
+    c.seatedHumanActors[dealer].rig = { leftUpperArm: shoulder };
+    const sequence = { dealer, palms: [new THREE.Vector3(-0.2, c.CLOTH_TOP + 0.025, 0.12), new THREE.Vector3(0.2, c.CLOTH_TOP + 0.025, -0.12)] };
+    c.poseDominoShuffleHands(sequence, 0.5);
+    const targets = events.at(-1)[2];
+    for (const side of ['left', 'right']) {
+      const target = targets[side];
+      const localTarget = c.piecesG.worldToLocal(target.position.clone());
+      const seatPlane = c.piecesG.localToWorld(new THREE.Vector3(x, localTarget.y, z));
+      const toward = target.position.clone().sub(seatPlane).normalize();
+      const down = new THREE.Vector3(0, -1, 0).transformDirection(c.piecesG.matrixWorld);
+      assert.ok(target.approachDirection.dot(toward) > 0.999999, `wrong approach at dealer ${dealer}, ${side}`);
+      assert.ok(target.palmNormal.dot(down) > 0.999999);
+      assert.equal(target.gripMode, 'palm');
+    }
+  }
+});
+
+test('shuffle palms stay in separate shoulder-aligned lanes without swapping hands at any seat', () => {
+  for (const playerCount of [2, 4]) {
+    const { context: c, install, events } = gameHarness(playerCount);
+    delete c.poseDominoShuffleHands;
+    install('poseDominoShuffleHands');
+    for (let dealer = 0; dealer < playerCount; dealer++) {
+      const visualSeat = c.getVisualSeatIndex(dealer);
+      const [x, z] = c.layoutSeat(visualSeat);
+      const outward = new THREE.Vector3(x, 0, z).normalize();
+      const lateral = new THREE.Vector3(outward.z, 0, -outward.x);
+      const left = new THREE.Object3D(), right = new THREE.Object3D();
+      left.position.set(x, c.CLOTH_TOP + 0.5, z).addScaledVector(lateral, -0.2);
+      right.position.set(x, c.CLOTH_TOP + 0.5, z).addScaledVector(lateral, 0.2);
+      c.seatedHumanActors[visualSeat].rig = { leftUpperArm: left, rightUpperArm: right };
+      const sequence = { dealer, tiles: [] };
+      let order;
+      for (let frame = 0; frame <= 200; frame++) {
+        const t = frame / 200;
+        c.updateDominoShuffleTiles(sequence, t, frame * 16);
+        c.poseDominoShuffleHands(sequence, t);
+        const span = sequence.palms[1].clone().sub(sequence.palms[0]).dot(lateral);
+        assert.ok(span >= c.DOMINO_WIDTH * 5.4 - 1e-10,
+          `palm lanes overlap at ${playerCount} players, dealer ${dealer}, phase ${t}`);
+        const targets = events.at(-1)[2];
+        assert.ok(targets.right.position.clone().sub(targets.left.position).dot(lateral) > 0,
+          `left and right hands crossed at dealer ${dealer}, phase ${t}`);
+        if (!order) order = Array.from(sequence.palmOrder);
+        assert.deepEqual(Array.from(sequence.palmOrder), order, 'hands swapped lanes during the shuffle');
+      }
+    }
+  }
+});
+
+test('draw withdrawal lifts before crossing neighboring rack tiles and settles back on the support edge', () => {
+  const { context: c } = gameHarness();
+  const start = new THREE.Vector3(0.1, 1.15, -0.4);
+  const end = new THREE.Vector3(0.7, 1.15, -0.4);
+  const up = new THREE.Vector3(0, 1, 0);
+  for (const progress of [0, 0.05, 0.1, 0.18]) {
+    const point = c.resolveDominoHandWithdrawalPosition(start, end, progress, up);
+    assert.equal(point.x, start.x, 'hand crossed neighboring dominoes before lifting');
+    assert.equal(point.z, start.z);
+  }
+  for (const progress of [0.3, 0.4, 0.5, 0.6, 0.7]) {
+    const point = c.resolveDominoHandWithdrawalPosition(start, end, progress, up);
+    assert.ok(point.y >= start.y + c.DOMINO_WIDTH * 1.39, 'fingers sweep through the rack during withdrawal');
+  }
+  assertPosition(c.resolveDominoHandWithdrawalPosition(start, end, 0, up), start.toArray(), 'withdrawal begins with a jump');
+  assertPosition(c.resolveDominoHandWithdrawalPosition(start, end, 1, up), end.toArray(), 'hand misses the support edge');
+  assertPosition(start, [0.1, 1.15, -0.4], 'withdrawal mutated the source');
+  assertPosition(end, [0.7, 1.15, -0.4], 'withdrawal mutated the destination');
+});
+
+test('every tile retains its original travel timing while the hand receives a full return interval', () => {
+  const { context: c } = gameHarness();
+  for (const duration of [c.PLACE_ANIM_DURATION, c.DRAW_ANIM_DURATION, c.OPENING_DEAL_ANIM_DURATION]) {
+    const touchdown = duration * c.PLACE_ANIM_LOWER_END;
+    const end = touchdown + c.DOMINO_HAND_RETURN_DURATION;
+    const anim = { start: new THREE.Vector3(0, 1.8, 2.5), end: new THREE.Vector3(0.3, 0.73, -0.2) };
+    for (const elapsed of [0, duration * 0.2, duration * 0.5, touchdown]) {
+      const progress = c.sampleDominoActionProgress(elapsed, duration);
+      assert.equal(progress.tileT, elapsed / duration);
+      assert.equal(progress.handT, progress.tileT, 'hand falls behind the moving tile');
+      assert.equal(progress.finished, false);
+    }
+    const middle = c.sampleDominoActionProgress(touchdown + c.DOMINO_HAND_RETURN_DURATION / 2, duration);
+    assert.ok(Math.abs(middle.handT - (1 + c.PLACE_ANIM_LOWER_END) / 2) < 1e-10);
+    assert.ok(middle.handT < middle.tileT, 'return is still compressed into the final tile frames');
+    assert.equal(c.sampleDominoActionProgress(end - 0.001, duration).finished, false);
+    assert.equal(c.sampleDominoActionProgress(end, duration).finished, true);
+    assert.equal(c.sampleDominoActionProgress(end, duration).handT, 1);
+    for (let elapsed = touchdown; elapsed <= end; elapsed += 1000 / 120) {
+      const progress = c.sampleDominoActionProgress(elapsed, duration);
+      assertPosition(c.resolvePrecisionPlacementPosition(anim, progress.tileT), anim.end.toArray(),
+        'landed tile follows the retracting fingers');
+    }
+  }
+});
+
+test('placement, stock draw and opening draw remain busy until their hand-only returns finish', () => {
+  for (const kind of ['place', 'draw', 'opening']) {
+    const { context: c, events } = gameHarness();
+    let anim;
+    let update;
+    if (kind === 'place') {
+      anim = {
+        mesh: new THREE.Group(), segment: { animating: true },
+        startTime: 0, duration: c.PLACE_ANIM_DURATION,
+        start: new THREE.Vector3(0, 1.8, 2.5), end: new THREE.Vector3(0.3, 0.73, -0.2),
+        startQuat: new THREE.Quaternion(), endQuat: new THREE.Quaternion(),
+        startScale: new THREE.Vector3(0.07, 0.09, 0.08), endScale: new THREE.Vector3(0.1, 0.1, 0.1),
+        onComplete() { events.push('action-finished'); }
+      };
+      c.piecesG.add(anim.mesh);
+      c.placementAnimations.push(anim);
+      update = c.updatePlacementAnimations;
+    } else {
+      const tile = { a: 2, b: 5 };
+      c.players[0].hand.push(tile);
+      c.spawnDrawAnimation(new THREE.Vector3(0.1, 0.73, 0.2), 0, tile, {
+        opening: kind === 'opening', onComplete() { events.push('action-finished'); }
+      });
+      anim = c.drawAnimations[0];
+      update = c.updateDrawAnimations;
+    }
+    update(0);
+    const touchdown = anim.duration * c.PLACE_ANIM_LOWER_END;
+    const end = c.sampleDominoActionProgress(0, anim.duration).totalDuration;
+    for (const now of [touchdown, anim.duration, end - 0.001]) {
+      update(now);
+      assert.equal(c.isDominoMotionBusy(), true, `${kind} released input before the fingers returned`);
+      assert.equal(events.includes('action-finished'), false);
+      assert.equal(anim.mesh.parent, c.piecesG, 'landed animation mesh was removed too early');
+      assertPosition(anim.mesh.position, anim.end.toArray(), `${kind} domino moved during hand return`);
+      if (anim.tile) assert.equal(anim.tile.inTransit, true);
+    }
+    update(end);
+    update(end + 1000);
+    assert.equal(c.isDominoMotionBusy(), false);
+    assert.equal(events.filter((event) => event === 'action-finished').length, 1);
+    if (anim.tile) assert.equal(anim.tile.inTransit, false);
+    if (anim.segment) assert.equal(anim.segment.animating, false);
+  }
+});
+
+test('active hands retain one base pose and match the rack grip and frame at both endpoints', () => {
+  for (const placement of [false, true]) {
+    const { context: c, install } = gameHarness();
+    delete c.updateSeatedHumanDominoAction;
+    install('updateSeatedHumanDominoAction');
+    const rest = {
+      position: new THREE.Vector3(0.4, 1.15, 2.5), grip: 0.4, gripMode: 'support',
+      approachDirection: new THREE.Vector3(-1, 0, 0), palmNormal: new THREE.Vector3(0, 0, 1),
+      surfaceNormal: new THREE.Vector3(1, 0, 0)
+    };
+    c.getDominoRackTargets = () => ({ right: rest });
+    c.dominoHandContacts.set(0, { right: rest });
+    const rig = { rightHand: new THREE.Object3D(), rightUpperArm: new THREE.Object3D() };
+    rig.rightHand.position.copy(rest.position);
+    rig.rightUpperArm.position.set(0.35, 1.55, 2.8);
+    c.seatedHumanActors[0].rig = rig;
+    const bases = [];
+    let target;
+    c.runSeatedHumanDominoAction = (seat, mode, intensity) => bases.push({ mode, intensity });
+    c.poseDominoHands = (seat, targets, intensity, mode) => {
+      target = targets.right;
+      bases.push({ mode, intensity });
+    };
+    const mesh = new THREE.Group();
+    mesh.scale.set(0.1, 0.09, 0.07);
+    c.piecesG.add(mesh);
+    const anim = {
+      mesh, sourceSeat: 0, humanReachProfile: { forwardReach: 0.8, sideReach: 0.1 },
+      start: new THREE.Vector3(0.1, 0.73, 0.2), end: new THREE.Vector3(-0.2, 0.73, 0.1),
+      startQuat: new THREE.Quaternion(), endQuat: new THREE.Quaternion(),
+      startScale: mesh.scale.clone(), endScale: mesh.scale.clone(),
+      segment: placement ? {} : null
+    };
+    for (const phase of [0, 0.08, c.PLACE_ANIM_PICK_HOLD, 0.3419, 0.3421, 0.7419, 0.7421, c.PLACE_ANIM_LOWER_END, 0.96, 1]) {
+      mesh.position.copy(c.resolvePrecisionPlacementPosition(anim, phase));
+      const before = mesh.position.clone();
+      c.updateSeatedHumanDominoAction(anim, phase);
+      assertPosition(mesh.position, before.toArray(), 'posing a hand changed the tile anchor');
+      assert.equal(bases.at(-1).mode, 'reachPiece');
+      if (phase === 0 || phase === 1) {
+        assert.equal(bases.at(-1).intensity, 0, 'active torso pose snaps at the idle boundary');
+        assertPosition(target.position, rest.position.toArray(), 'idle contact position snaps');
+        for (const axis of ['approachDirection', 'palmNormal', 'surfaceNormal']) {
+          assertPosition(target[axis], rest[axis].toArray(), `idle ${axis} snaps`);
+        }
+        assert.equal(target.grip, rest.grip, 'fingers pop at the idle boundary');
+        assert.equal(phase === 0 ? target.gripFromMode : target.gripMode, rest.gripMode);
+        assert.equal(target.gripModeBlend, phase);
+      }
+    }
+    assert.equal(bases.every(({ mode }) => mode === 'reachPiece'), true, 'forearm base switches at a phase boundary');
+    assert.equal(bases.some(({ intensity }) => intensity === 1), true, 'active reach never attains its intended pose');
+    let reachOptions;
+    c.DOMINO_SEATED_HUMANS = {
+      applySeatedHumanReachPose(rig, side, position, options) { reachOptions = options; },
+      applySeatedHumanHandTargets() {}
+    };
+    delete c.poseDominoHands;
+    install('poseDominoHands');
+    c.poseDominoHands(0);
+    assert.equal(reachOptions.torsoStrength, 0, 'idle rack pose retains active torso yaw');
+    for (const intensity of [0, 0.5, 1]) {
+      c.poseDominoHands(0, {}, intensity, 'reachPiece', anim.humanReachProfile);
+      assert.equal(reachOptions.torsoStrength, intensity, 'torso yaw does not follow the action endpoint fade');
+    }
+  }
+});
+
+test('knock gradually clenches from the cached rack frame and restores support after impact', () => {
+  const { context: c, events } = gameHarness();
+  const rest = {
+    position: new THREE.Vector3(0.3, 1.15, 2.5), grip: 0.4, gripMode: 'support',
+    approachDirection: new THREE.Vector3(-1, 0, 0), palmNormal: new THREE.Vector3(0, 0, 1),
+    surfaceNormal: new THREE.Vector3(1, 0, 0)
+  };
+  c.dominoHandContacts.set(0, { right: rest });
+  c.getDominoRackTargets = () => ({ right: rest });
+  c.schedulePassTurnAdvance(0);
+  c.updateKnockAnimations(0);
+  const initial = events.filter((event) => Array.isArray(event) && event[0] === 'pose').at(-1)[2].right;
+  assertPosition(initial.position, rest.position.toArray(), 'knock teleports away from rack');
+  assertPosition(initial.approachDirection, rest.approachDirection.toArray(), 'knock snaps wrist orientation');
+  assertPosition(initial.palmNormal, rest.palmNormal.toArray(), 'knock flips the palm at the start');
+  assert.equal(initial.grip, 0.4);
+  assert.equal(initial.gripFromMode, 'support');
+  assert.equal(initial.gripModeBlend, 0);
+  assert.equal(initial.surfacePaddingScale, 1);
+  let previous = initial.grip;
+  for (const phase of [0.05, 0.1, 0.15, 0.2, 0.3]) {
+    c.updateKnockAnimations(c.KNOCK_DURATION * phase);
+    const target = events.filter((event) => Array.isArray(event) && event[0] === 'pose').at(-1)[2].right;
+    assert.ok(target.grip >= previous && target.grip <= 0.9);
+    previous = target.grip;
+  }
+  c.updateKnockAnimations(c.KNOCK_DURATION * c.KNOCK_CONTACT_PHASE);
+  c.updateKnockAnimations(c.KNOCK_DURATION);
+  const final = events.filter((event) => Array.isArray(event) && event[0] === 'pose').at(-1)[2].right;
+  assertPosition(final.position, rest.position.toArray(), 'knock does not return to rack');
+  assertPosition(final.approachDirection, rest.approachDirection.toArray(), 'final wrist orientation snaps on idle');
+  assertPosition(final.palmNormal, rest.palmNormal.toArray(), 'final palm orientation snaps on idle');
+  assert.equal(final.grip, rest.grip);
+  assert.equal(final.gripMode, 'support');
+  assert.equal(final.gripModeBlend, 1);
+  assert.equal(final.surfacePaddingScale, 1);
+  assert.equal(events.filter((event) => event === 'pass-sound').length, 1);
 });
 
 test('opening keeps all 28 pieces face-down on the cloth until the shuffle finishes', () => {
@@ -320,7 +649,9 @@ test('random opening draws preserve every tile once and finish with seven per oc
       assert.equal(queue[index].source.tile, queue[index].tile, 'a draw targets the wrong physical tile');
     }
     let steps = 0;
-    for (let now = 0; now <= 30_000 && c.openingSequence; now += 34) {
+    const deadline = c.OPENING_SHUFFLE_ANIM_DURATION
+      + playerCount * 7 * (c.sampleDominoActionProgress(0, c.OPENING_DEAL_ANIM_DURATION).totalDuration + 68) + 1000;
+    for (let now = 0; now <= deadline && c.openingSequence; now += 34) {
       c.dominoMotionTime = now;
       c.updateOpeningSequence(now);
       c.updateDrawAnimations(now);

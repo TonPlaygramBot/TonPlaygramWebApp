@@ -1,7 +1,7 @@
 /**
  * Exact numeric declarations and helper bodies extracted from
  * webapp/public/domino-royal-game.js for the actual-rig motion preview.
- * Source SHA-256 at extraction: e0aa7e6702439b0125fee1b7082e11b6d2ddab1cbbcd7c91c6394353c37099a0
+ * Source SHA-256 at extraction: 0ee6e772de20577cb5dbb45fc286fa12316064f7b7befbe2dd039077f23727fc
  *
  * Preview adaptations are limited to TypeScript annotations and explicit
  * viewport/seat options in place of game globals. Four seats and human seat 0
@@ -363,6 +363,16 @@ export const HAND_Y = RAIL_TOP + TILE_UP_HALF - DOMINO_WIDTH * 0.03 + DOMINO_LIF
 
 export const CHAIN_TILE_Y = CLOTH_TOP + DOMINO_WIDTH * 0.02 + DOMINO_LIFT_OFFSET;
 
+export const BONEYARD_STACK_POSITION = new THREE.Vector3(
+  0,
+  CLOTH_TOP + 0.006,
+  CLOTH_RADIUS * 0.45
+);
+
+export const BONEYARD_STACK_STEP = DOMINO_WORLD_SCALE * 0.22 * 0.1 * 1.02;
+
+export const MAX_BONEYARD_DISPLAY = 12;
+
 export const DRAW_ANIM_DURATION = 760;
 
 export const OPENING_SHUFFLE_ANIM_DURATION = 3200;
@@ -382,6 +392,8 @@ export const PLACE_ANIM_LIFT_END = 0.34;
 export const PLACE_ANIM_CARRY_END = 0.74;
 
 export const PLACE_ANIM_LOWER_END = 0.92;
+
+export const DOMINO_HAND_RETURN_DURATION = 350;
 
 export const PLACE_ANIM_ARC = 0.075;
 
@@ -521,7 +533,6 @@ export function resolvePrecisionPlacementPosition(anim: PrecisionPlacementAnimat
   const carryStart = pickup.clone();
   const carryEnd = anim.end.clone();
   carryEnd.y += carryLift;
-  const lowerReady = anim.end.clone();
 
   if (t < PLACE_ANIM_PICK_HOLD) {
     return anim.start.clone();
@@ -540,14 +551,12 @@ export function resolvePrecisionPlacementPosition(anim: PrecisionPlacementAnimat
   }
   if (t < PLACE_ANIM_LOWER_END) {
     return carryEnd.lerp(
-      lowerReady,
+      anim.end,
       smoothPlacementStep(PLACE_ANIM_CARRY_END, PLACE_ANIM_LOWER_END, t)
     );
   }
-  return lowerReady.lerp(
-    anim.end,
-    smoothPlacementStep(PLACE_ANIM_LOWER_END, 1, t)
-  );
+  // Release and withdrawal happen only after the domino has landed.
+  return anim.end.clone();
 }
 
 export function seatBasisForAngle(angle: number, radius = CHAIR_RADIUS) {
@@ -751,6 +760,9 @@ export const PRODUCTION_MOTION_CONSTANTS = Object.freeze({
   DOMINO_LIFT_OFFSET,
   HAND_Y,
   CHAIN_TILE_Y,
+  BONEYARD_STACK_POSITION,
+  BONEYARD_STACK_STEP,
+  MAX_BONEYARD_DISPLAY,
   DRAW_ANIM_DURATION,
   OPENING_SHUFFLE_ANIM_DURATION,
   OPENING_DEAL_ANIM_DURATION,
@@ -761,5 +773,6 @@ export const PRODUCTION_MOTION_CONSTANTS = Object.freeze({
   PLACE_ANIM_LIFT_END,
   PLACE_ANIM_CARRY_END,
   PLACE_ANIM_LOWER_END,
+  DOMINO_HAND_RETURN_DURATION,
   PLACE_ANIM_ARC
 } as const);

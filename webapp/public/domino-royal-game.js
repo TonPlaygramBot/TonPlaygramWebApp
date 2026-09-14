@@ -6175,23 +6175,72 @@ function dominoSurfaceTarget(mesh, side = 1, grip = 0.4) {
   mesh.updateWorldMatrix(true, false);
   const position = mesh.localToWorld(new THREE.Vector3(side * 0.5, -0.08, 0));
   const rotation = mesh.getWorldQuaternion(new THREE.Quaternion());
+  const palmNormal = new THREE.Vector3(0, 0, 1).applyQuaternion(rotation);
+  const tableDown = new THREE.Vector3(0, -1, 0).transformDirection(piecesG.matrixWorld);
+  if (Math.abs(palmNormal.dot(tableDown)) > 0.65) palmNormal.copy(tableDown);
   return {
-    position, grip,
+    position, grip, gripMode: 'support',
     approachDirection: new THREE.Vector3(-side, 0, 0).applyQuaternion(rotation),
-    palmNormal: new THREE.Vector3(0, 0, 1).applyQuaternion(rotation)
+    palmNormal,
+    surfaceNormal: new THREE.Vector3(side, 0, 0).applyNormalMatrix(new THREE.Matrix3().getNormalMatrix(mesh.matrixWorld))
   };
 }
 
 function dominoPickupTarget(mesh, edge, grip) {
-  if (edge < 2) return dominoSurfaceTarget(mesh, edge === 0 ? -1 : 1, grip);
-  mesh.updateWorldMatrix(true, false);
-  const sign = edge === 2 ? -1 : 1;
-  const rotation = mesh.getWorldQuaternion(new THREE.Quaternion());
-  return {
-    position: mesh.localToWorld(new THREE.Vector3(0, sign, 0)), grip,
-    approachDirection: new THREE.Vector3(0, -sign, 0).applyQuaternion(rotation),
-    palmNormal: new THREE.Vector3(0, 0, 1).applyQuaternion(rotation)
+  let target;
+  if (edge < 2) target = dominoSurfaceTarget(mesh, edge === 0 ? -1 : 1, grip);
+  else {
+    mesh.updateWorldMatrix(true, false);
+    const sign = edge === 2 ? -1 : 1;
+    const rotation = mesh.getWorldQuaternion(new THREE.Quaternion());
+    target = {
+      position: mesh.localToWorld(new THREE.Vector3(0, sign, 0)), grip,
+      approachDirection: new THREE.Vector3(0, -sign, 0).applyQuaternion(rotation),
+      surfaceNormal: new THREE.Vector3(0, sign, 0).applyNormalMatrix(new THREE.Matrix3().getNormalMatrix(mesh.matrixWorld))
+    };
+  }
+  // Printed faces turn over during a draw. The hand stays above the table:
+  // its palmar surface must not flip upward with a face-up domino.
+  piecesG.updateWorldMatrix(true, false);
+  target.gripMode = 'pinch';
+  target.palmNormal = new THREE.Vector3(0, -1, 0).transformDirection(piecesG.matrixWorld);
+  target.pinchSurface = {
+    matrixWorld: mesh.matrixWorld.clone(),
+    halfExtents: new THREE.Vector3(0.5, 1, 0.11)
   };
+  return target;
+}
+
+function blendDominoHandTargetFrame(target, from, amount) {
+  if (!from?.approachDirection || !from?.palmNormal) return;
+  const frame = (value) => {
+    const forward = value.approachDirection.clone().normalize();
+    const palm = value.palmNormal.clone().addScaledVector(forward, -value.palmNormal.dot(forward));
+    if (forward.lengthSq() < 1e-10 || palm.lengthSq() < 1e-10) return null;
+    palm.normalize();
+    const across = new THREE.Vector3().crossVectors(palm, forward).normalize();
+    return new THREE.Quaternion().setFromRotationMatrix(new THREE.Matrix4().makeBasis(across, palm, forward));
+  };
+  const start = frame(from);
+  const end = frame(target);
+  if (!start || !end) return;
+  start.slerp(end, THREE.MathUtils.clamp(amount, 0, 1));
+  target.approachDirection.set(0, 0, 1).applyQuaternion(start);
+  target.palmNormal.set(0, 1, 0).applyQuaternion(start);
+  if (from.surfaceNormal && target.surfaceNormal) {
+    const normalStart = from.surfaceNormal.clone().normalize();
+    const turn = new THREE.Quaternion().setFromUnitVectors(normalStart, target.surfaceNormal.clone().normalize());
+    const blend = new THREE.Quaternion().slerp(turn, THREE.MathUtils.clamp(amount, 0, 1));
+    target.surfaceNormal.copy(normalStart).applyQuaternion(blend);
+  }
+}
+
+function resolveDominoHandWithdrawalPosition(start, end, progress, up) {
+  const lift = smoothPlacementStep(0, 0.3, progress);
+  const across = smoothPlacementStep(0.18, 0.82, progress);
+  const lower = 1 - smoothPlacementStep(0.7, 1, progress);
+  return start.clone().lerp(end, across)
+    .addScaledVector(up, DOMINO_WIDTH * 1.4 * lift * lower);
 }
 
 function getDominoRackTargets(seatIndex) {
@@ -6199,8 +6248,18 @@ function getDominoRackTargets(seatIndex) {
   const meshes = hand.map((tile) => tile.mesh).filter((mesh) => mesh?.parent && !mesh.userData?.animating);
   const rig = seatedHumanActors[getVisualSeatIndex(seatIndex)]?.rig;
   if (!meshes.length || !rig) return {};
-  const first = dominoSurfaceTarget(meshes[0], -1);
-  const last = dominoSurfaceTarget(meshes.at(-1), 1);
+  const firstMesh = meshes[0];
+  const lastMesh = meshes.at(-1);
+  const row = lastMesh.getWorldPosition(new THREE.Vector3())
+    .sub(firstMesh.getWorldPosition(new THREE.Vector3()));
+  // A tile's local width reverses at the west seat and in the flat human view.
+  // Select the two exterior faces from the rendered row, never a fixed axis.
+  const firstWidth = new THREE.Vector3().setFromMatrixColumn(firstMesh.matrixWorld, 0);
+  const lastWidth = new THREE.Vector3().setFromMatrixColumn(lastMesh.matrixWorld, 0);
+  const firstSide = row.lengthSq() < 1e-10 || firstWidth.dot(row) >= 0 ? -1 : 1;
+  const lastSide = row.lengthSq() < 1e-10 || lastWidth.dot(row) >= 0 ? 1 : -1;
+  const first = dominoSurfaceTarget(firstMesh, firstSide);
+  const last = dominoSurfaceTarget(lastMesh, lastSide);
   const leftShoulder = rig.leftUpperArm.getWorldPosition(new THREE.Vector3());
   const rightShoulder = rig.rightUpperArm.getWorldPosition(new THREE.Vector3());
   const straight = leftShoulder.distanceToSquared(first.position) + rightShoulder.distanceToSquared(last.position);
@@ -6216,6 +6275,7 @@ function poseDominoHands(seatIndex, overrides = {}, intensity = 1, mode = 'idle'
   if (targets.right) {
     DOMINO_SEATED_HUMANS?.applySeatedHumanReachPose?.(rig, 'right', targets.right.position, {
       ...targets.right,
+      torsoStrength: mode === 'idle' ? 0 : intensity,
       maxLean: THREE.MathUtils.degToRad(mode === 'idle' ? 12 : 88),
       maxArmExtension: mode === 'idle' ? 1 : (targets.right.maxArmExtension || 1.35)
     });
@@ -6242,14 +6302,24 @@ function updateDominoIdleHands() {
 function poseDominoShuffleHands(sequence, t) {
   const rig = seatedHumanActors[getVisualSeatIndex(sequence.dealer)]?.rig;
   if (!rig) return;
+  const [seatX, seatZ] = layoutSeat(getVisualSeatIndex(sequence.dealer));
+  piecesG.updateWorldMatrix(true, false);
   const targets = (sequence.palms || []).map((point) => ({
-    position: piecesG.localToWorld(point.clone()), grip: 0.12,
-    approachDirection: new THREE.Vector3(0, 0, 1), palmNormal: new THREE.Vector3(0, -1, 0)
+    position: piecesG.localToWorld(point.clone()), grip: 0.12, gripMode: 'palm',
+    approachDirection: point.clone().sub(new THREE.Vector3(seatX, point.y, seatZ)).transformDirection(piecesG.matrixWorld),
+    palmNormal: new THREE.Vector3(0, -1, 0).transformDirection(piecesG.matrixWorld)
   }));
   if (targets.length < 2) return;
-  const left = rig.leftUpperArm.getWorldPosition(new THREE.Vector3());
-  if (left.distanceToSquared(targets[0].position) > left.distanceToSquared(targets[1].position)) targets.reverse();
-  poseDominoHands(sequence.dealer, { left: targets[0], right: targets[1] }, smoothPlacementStep(0, 0.1, t), 'reachPiece');
+  if (!sequence.palmOrder) {
+    const left = rig.leftUpperArm.getWorldPosition(new THREE.Vector3());
+    const right = rig.rightUpperArm?.getWorldPosition(new THREE.Vector3()) || left;
+    const straight = left.distanceToSquared(targets[0].position) + right.distanceToSquared(targets[1].position);
+    const crossed = left.distanceToSquared(targets[1].position) + right.distanceToSquared(targets[0].position);
+    sequence.palmOrder = straight <= crossed ? [0, 1] : [1, 0];
+  }
+  poseDominoHands(sequence.dealer, {
+    left: targets[sequence.palmOrder[0]], right: targets[sequence.palmOrder[1]]
+  }, smoothPlacementStep(0, 0.1, t), 'reachPiece');
 }
 
 function updateSeatedHumanDominoAction(anim, t) {
@@ -6262,7 +6332,12 @@ function updateSeatedHumanDominoAction(anim, t) {
   else if (t < PLACE_ANIM_CARRY_END && t >= PLACE_ANIM_LIFT_END) mode = 'carryPiece';
   else if (t >= PLACE_ANIM_CARRY_END) mode = 'placePiece';
   if (t >= PLACE_ANIM_LOWER_END) grip = 0.4 * (1 - smoothPlacementStep(PLACE_ANIM_LOWER_END, 1, t));
-  runSeatedHumanDominoAction(anim.sourceSeat, mode, 1, grip, anim.humanReachProfile);
+  anim.handPhase = mode;
+  // IK supplies the phased contact and finger motion. Keep the underlying
+  // shoulder/elbow pose constant so phase boundaries cannot roll the forearm.
+  const poseIntensity = smoothPlacementStep(0, PLACE_ANIM_PICK_HOLD, t)
+    * (1 - smoothPlacementStep(PLACE_ANIM_LOWER_END, 1, t));
+  runSeatedHumanDominoAction(anim.sourceSeat, 'reachPiece', poseIntensity, grip, anim.humanReachProfile);
   anim.mesh.updateWorldMatrix(true, false);
   if (anim.contactSide == null) {
     const wrist = rig.rightHand.getWorldPosition(new THREE.Vector3());
@@ -6287,7 +6362,15 @@ function updateSeatedHumanDominoAction(anim, t) {
       return shoulder.distanceToSquared(aWrist) - shoulder.distanceToSquared(bWrist);
     });
     anim.contactSide = candidates[0].side;
-    anim.startHandContact = dominoHandContacts.get(anim.sourceSeat)?.right?.position?.clone() || wrist;
+    const previousContact = dominoHandContacts.get(anim.sourceSeat)?.right;
+    anim.startHandContact = previousContact?.position?.clone() || wrist;
+    anim.startHandFrame = previousContact?.approachDirection && previousContact?.palmNormal ? {
+      approachDirection: previousContact.approachDirection.clone(),
+      palmNormal: previousContact.palmNormal.clone(),
+      surfaceNormal: previousContact.surfaceNormal?.clone(),
+      grip: previousContact.grip,
+      gripMode: previousContact.gripMode
+    } : null;
   }
   const target = dominoPickupTarget(anim.mesh, anim.contactSide, grip);
   // The far stock is beyond normal seated reach for the opposite seat.
@@ -6296,18 +6379,34 @@ function updateSeatedHumanDominoAction(anim, t) {
   target.maxArmExtension = !anim.segment && getVisualSeatIndex(anim.sourceSeat) === 2 && anim.start.z > DOMINO_WIDTH * 2
     ? 1.65 : 1.35;
   const shoulder = rig.rightUpperArm.getWorldPosition(new THREE.Vector3());
+  const tableUp = new THREE.Vector3(0, 1, 0).transformDirection(piecesG.matrixWorld);
   target.approachDirection.copy(target.position).sub(shoulder);
-  target.approachDirection.y = 0;
+  target.approachDirection.addScaledVector(tableUp, -target.approachDirection.dot(tableUp));
   target.approachDirection.normalize();
   if (t < PLACE_ANIM_PICK_HOLD) {
-    target.position.lerpVectors(anim.startHandContact, target.position, smoothPlacementStep(0, PLACE_ANIM_PICK_HOLD, t));
+    const reach = smoothPlacementStep(0, PLACE_ANIM_PICK_HOLD, t);
+    target.position.lerpVectors(anim.startHandContact, target.position, reach);
+    blendDominoHandTargetFrame(target, anim.startHandFrame, reach);
+    target.grip = THREE.MathUtils.lerp(anim.startHandFrame?.grip ?? 0.4, 0.4, reach);
+    target.gripFromMode = anim.startHandFrame?.gripMode || 'support';
+    target.gripModeBlend = reach;
   }
   // Once the domino rests on the table, fingers release and the arm returns to the rack.
   if (t > PLACE_ANIM_LOWER_END) {
     const rest = getDominoRackTargets(anim.sourceSeat).right;
-    if (rest) target.position.lerp(rest.position, smoothPlacementStep(PLACE_ANIM_LOWER_END, 1, t));
+    if (rest) {
+      const release = smoothPlacementStep(PLACE_ANIM_LOWER_END, 1, t);
+      if (anim.segment) target.position.lerp(rest.position, release);
+      else target.position.copy(resolveDominoHandWithdrawalPosition(target.position, rest.position, release, tableUp));
+      blendDominoHandTargetFrame(target, rest, 1 - release);
+      target.grip = 0.4 * (1 - smoothPlacementStep(0, 0.25, release))
+        + rest.grip * smoothPlacementStep(0.75, 1, release);
+      target.gripMode = rest.gripMode || 'support';
+      target.gripFromMode = 'pinch';
+      target.gripModeBlend = release;
+    }
   }
-  poseDominoHands(anim.sourceSeat, { right: target }, 1, mode, anim.humanReachProfile);
+  poseDominoHands(anim.sourceSeat, { right: target }, poseIntensity, 'reachPiece', anim.humanReachProfile);
 }
 
 function centerFurnitureInHdri() {
@@ -7460,6 +7559,7 @@ const PLACE_ANIM_PICK_HOLD = 0.18;
 const PLACE_ANIM_LIFT_END = 0.34;
 const PLACE_ANIM_CARRY_END = 0.74;
 const PLACE_ANIM_LOWER_END = 0.92;
+const DOMINO_HAND_RETURN_DURATION = 350;
 const PLACE_ANIM_ARC = 0.075;
 // Placement now uses the seated character rigs directly; no procedural contact hand overlay.
 const CPU_PLAY_DELAY = 2600;
@@ -9092,14 +9192,21 @@ function updateDominoShuffleTiles(sequence, t, now) {
   const dt = Math.min(0.05, Math.max(0, (now - (sequence.lastShuffleTime ?? now)) / 1000));
   sequence.lastShuffleTime = now;
   const angle = t * Math.PI * 4;
-  const radius = DOMINO_WIDTH * 2.5;
   const envelope = Math.sin(Math.PI * t);
   const previousPalms = sequence.palms;
-  sequence.palms = [-1, 1].map((side) => new THREE.Vector3(
-    side * radius * 0.68 + Math.cos(angle + (side > 0 ? Math.PI : 0)) * radius * 0.65,
-    CLOTH_TOP + DOMINO_WIDTH * 0.25,
-    -radius * 0.6 + Math.sin(angle + (side > 0 ? Math.PI : 0)) * radius * 0.68
-  ));
+  const [seatX, seatZ] = layoutSeat(getVisualSeatIndex(sequence.dealer));
+  const outward = new THREE.Vector3(seatX, 0, seatZ).normalize();
+  const lateral = new THREE.Vector3(outward.z, 0, -outward.x);
+  // Each hand washes its own lane, aligned with the dealer's shoulders. Even
+  // at the closest point the palm centers stay 5.4 domino widths apart.
+  sequence.palms = [-1, 1].map((side) => {
+    const phase = angle + (side > 0 ? Math.PI : 0);
+    const lane = side * DOMINO_WIDTH * 3.25 + Math.cos(phase) * DOMINO_WIDTH * 0.55;
+    const reach = DOMINO_WIDTH * (2.2 + Math.sin(phase) * 1.35);
+    const point = outward.clone().multiplyScalar(reach).addScaledVector(lateral, lane);
+    point.y = CLOTH_TOP + DOMINO_WIDTH * 0.25;
+    return point;
+  });
   const palmVelocities = sequence.palms.map((point, i) => previousPalms && dt > 0
     ? point.clone().sub(previousPalms[i]).divideScalar(dt) : new THREE.Vector3());
   const footprint = Math.hypot(DOMINO_WIDTH * 0.5, DOMINO_LENGTH * 0.5) * 1.025;
@@ -11307,18 +11414,49 @@ function updateKnockAnimations(now) {
     ? Math.sin(Math.PI * smoothPlacementStep(0, KNOCK_CONTACT_PHASE, t)) * 0.085
     : Math.sin(Math.PI * smoothPlacementStep(KNOCK_CONTACT_PHASE, 1, t)) * 0.035;
   point.y += lift;
-  if (!anim.startContact) anim.startContact = dominoHandContacts.get(anim.sourceSeat)?.right?.position?.clone();
+  if (anim.startHandTarget === undefined) {
+    const previous = dominoHandContacts.get(anim.sourceSeat)?.right || getDominoRackTargets(anim.sourceSeat).right;
+    anim.startHandTarget = previous ? {
+      ...previous, position: previous.position.clone(),
+      approachDirection: previous.approachDirection.clone(),
+      palmNormal: previous.palmNormal.clone(), surfaceNormal: previous.surfaceNormal?.clone()
+    } : null;
+    anim.startContact = anim.startHandTarget?.position.clone();
+  }
+  const clench = smoothPlacementStep(0, 0.3, t);
+  const returning = smoothPlacementStep(0.76, 1, t);
   if (anim.startContact && t < 0.18) {
     const world = piecesG.localToWorld(point.clone());
     world.lerpVectors(anim.startContact, world, smoothPlacementStep(0, 0.18, t));
     point.copy(piecesG.worldToLocal(world));
   }
-  if (t > 0.76) {
-    const rest = getDominoRackTargets(anim.sourceSeat).right;
-    if (rest) point.lerp(piecesG.worldToLocal(rest.position.clone()), smoothPlacementStep(0.76, 1, t));
+  const rest = t > 0.76 ? getDominoRackTargets(anim.sourceSeat).right : null;
+  if (rest) point.lerp(piecesG.worldToLocal(rest.position.clone()), returning);
+  piecesG.updateWorldMatrix(true, false);
+  const approach = point.clone().sub(new THREE.Vector3(sx, point.y, sz)).transformDirection(piecesG.matrixWorld);
+  const target = {
+    position: piecesG.localToWorld(point),
+    grip: THREE.MathUtils.lerp(anim.startHandTarget?.grip || 0, 0.9, clench),
+    gripMode: 'fist', gripFromMode: anim.startHandTarget?.gripMode || 'support', gripModeBlend: clench,
+    approachDirection: approach,
+    palmNormal: new THREE.Vector3(0, -1, 0).transformDirection(piecesG.matrixWorld)
+  };
+  if (clench < 1 && anim.startHandTarget) {
+    blendDominoHandTargetFrame(target, anim.startHandTarget, clench);
+    if (anim.startHandTarget.surfaceNormal) {
+      target.surfaceNormal = anim.startHandTarget.surfaceNormal.clone();
+      target.surfacePaddingScale = 1 - clench;
+    }
   }
-  const approach = point.clone().sub(new THREE.Vector3(sx, point.y, sz)).normalize();
-  const target = { position: piecesG.localToWorld(point), grip: 0.9, approachDirection: approach, palmNormal: new THREE.Vector3(0, -1, 0) };
+  if (rest) {
+    blendDominoHandTargetFrame(target, rest, 1 - returning);
+    target.grip = THREE.MathUtils.lerp(0.9, rest.grip, returning);
+    target.gripMode = rest.gripMode || 'support';
+    target.gripFromMode = 'fist';
+    target.gripModeBlend = returning;
+    target.surfaceNormal = rest.surfaceNormal?.clone();
+    target.surfacePaddingScale = returning;
+  }
   poseDominoHands(anim.sourceSeat, { right: target }, Math.min(1, t / 0.18), 'reachPiece');
   if (!anim.impactPlayed && t >= KNOCK_CONTACT_PHASE) {
     anim.impactPlayed = true;
@@ -11596,15 +11734,15 @@ function updateDrawAnimations(now) {
   const anim = drawAnimations[0];
   if (!anim) return;
   if (anim.startTime == null) anim.startTime = now;
-  const t = Math.min(1, Math.max(0, (now - anim.startTime) / anim.duration));
+  const { tileT: t, handT, finished } = sampleDominoActionProgress(now - anim.startTime, anim.duration);
   updateDrawDestination(anim);
   const rotateT = smoothPlacementStep(PLACE_ANIM_LIFT_END, PLACE_ANIM_LOWER_END, t);
   anim.mesh.position.copy(resolvePrecisionPlacementPosition(anim, t));
   anim.mesh.quaternion.slerpQuaternions(anim.startQuat, anim.endQuat, rotateT);
   anim.mesh.scale.lerpVectors(anim.startScale, anim.endScale, rotateT);
-  updateSeatedHumanDominoAction(anim, t);
+  updateSeatedHumanDominoAction(anim, handT);
   if (!anim.pickupPlayed && t >= PLACE_ANIM_PICK_HOLD) { anim.pickupPlayed = true; SFX.drawTile(); }
-  if (t >= 1) {
+  if (finished) {
     disposeDominoMesh(anim.mesh);
     drawAnimations.shift();
     anim.tile.inTransit = false;
@@ -11621,6 +11759,18 @@ function smoothPlacementStep(edge0, edge1, value) {
   return t * t * (3 - 2 * t);
 }
 
+function sampleDominoActionProgress(elapsed, duration) {
+  const time = Math.max(0, elapsed);
+  const motionDuration = Math.max(1, duration);
+  const touchdown = motionDuration * PLACE_ANIM_LOWER_END;
+  const totalDuration = touchdown + DOMINO_HAND_RETURN_DURATION;
+  const tileT = THREE.MathUtils.clamp(time / motionDuration, 0, 1);
+  const returnProgress = THREE.MathUtils.clamp((time - touchdown) / DOMINO_HAND_RETURN_DURATION, 0, 1);
+  const handT = time <= touchdown ? tileT
+    : PLACE_ANIM_LOWER_END + (1 - PLACE_ANIM_LOWER_END) * returnProgress;
+  return { tileT, handT, finished: time >= totalDuration, totalDuration };
+}
+
 function resolvePrecisionPlacementPosition(anim, t) {
   const pickupLift = (anim.arc || PLACE_ANIM_ARC) * 0.85;
   const carryLift = (anim.arc || PLACE_ANIM_ARC) * 1.18;
@@ -11629,7 +11779,6 @@ function resolvePrecisionPlacementPosition(anim, t) {
   const carryStart = pickup.clone();
   const carryEnd = anim.end.clone();
   carryEnd.y += carryLift;
-  const lowerReady = anim.end.clone();
 
   if (t < PLACE_ANIM_PICK_HOLD) {
     return anim.start.clone();
@@ -11648,14 +11797,12 @@ function resolvePrecisionPlacementPosition(anim, t) {
   }
   if (t < PLACE_ANIM_LOWER_END) {
     return carryEnd.lerp(
-      lowerReady,
+      anim.end,
       smoothPlacementStep(PLACE_ANIM_CARRY_END, PLACE_ANIM_LOWER_END, t)
     );
   }
-  return lowerReady.lerp(
-    anim.end,
-    smoothPlacementStep(PLACE_ANIM_LOWER_END, 1, t)
-  );
+  // Release and withdrawal happen only after the domino has landed.
+  return anim.end.clone();
 }
 
 function revealPlacementFace(anim) {
@@ -11679,7 +11826,7 @@ function updatePlacementAnimations(now) {
     const anim = placementAnimations[i];
     const elapsed = timestamp - anim.startTime;
     const duration = anim.duration || PLACE_ANIM_DURATION;
-    const t = duration > 0 ? Math.min(1, elapsed / duration) : 1;
+    const { tileT: t, handT, finished } = sampleDominoActionProgress(elapsed, duration);
     const rotateT = smoothPlacementStep(PLACE_ANIM_LIFT_END, PLACE_ANIM_LOWER_END, t);
 
     anim.mesh.position.copy(resolvePrecisionPlacementPosition(anim, t));
@@ -11694,10 +11841,10 @@ function updatePlacementAnimations(now) {
     }
 
     if (t >= PLACE_ANIM_PICK_HOLD) revealPlacementFace(anim);
-    updateSeatedHumanDominoAction(anim, t);
+    updateSeatedHumanDominoAction(anim, handT);
     if (!anim.impactPlayed && t >= PLACE_ANIM_LOWER_END) { anim.impactPlayed = true; SFX.place(); }
 
-    if (t >= 1) {
+    if (finished) {
       if (anim.segment) {
         anim.segment.animating = false;
       }

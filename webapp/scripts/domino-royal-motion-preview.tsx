@@ -12,10 +12,13 @@ import {
   applySeatedHumanHandTargets
 } from '../src/pages/Games/shared/seatedHumanActors.js';
 import * as P from './domino-royal-motion-helpers';
+import { createProductionDominoMotion, type ProductionDominoMotionEnvironment } from './domino-royal-production-motion';
+import { fitDominoReviewCamera, type DominoReviewView } from './domino-royal-review-camera';
 
 declare const __DOMINO_REVIEW_MODEL_GZIP__: string;
-type Contact = { position: THREE.Vector3; grip: number; approachDirection: THREE.Vector3; palmNormal: THREE.Vector3; maxArmExtension?: number };
-type Engine = { count: (n: number) => void; replay: () => void; place: () => void; draw: () => void; pass: () => void; mute: () => boolean; dispose: () => void };
+type MotionKind = 'hold' | 'place' | 'draw' | 'knock' | 'opening';
+type ReviewState = { kind: MotionKind; playing: boolean; progress: number; phase: string; count: number; sound: boolean; view: DominoReviewView; ready: boolean };
+type Engine = { select: (kind: MotionKind) => void; count: (n: number) => void; togglePlay: () => void; seek: (progress: number) => void; view: (view: DominoReviewView) => void; mute: () => void; dispose: () => void };
 const V = (x = 0, y = 0, z = 0) => new THREE.Vector3(x, y, z);
 const SIZES = [7, 8, 10, 14, 21];
 
@@ -34,7 +37,10 @@ async function embeddedAvatar() {
   });
 }
 
-function buildReview(host: HTMLDivElement, status: (s: string) => void, loaded: () => void): Engine {
+function buildReview(host: HTMLDivElement, update: (state: ReviewState) => void): Engine {
+  let view: DominoReviewView = 'hands', dirty = true;
+  let kind: MotionKind = 'hold';
+  let cameraPoints: THREE.Vector3[] = [];
   const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: false });
   renderer.setPixelRatio(Math.min(devicePixelRatio || 1, 1.5));
   renderer.outputColorSpace = THREE.SRGBColorSpace;
@@ -57,25 +63,11 @@ function buildReview(host: HTMLDivElement, status: (s: string) => void, loaded: 
   const rimLight = new THREE.DirectionalLight(0x96cfc7, 1.8);
   rimLight.position.set(-4, 4, -3); scene.add(rimLight);
   const camera = new THREE.PerspectiveCamera(P.CAMERA_FOV, 1, P.CAMERA_NEAR, P.CAMERA_FAR);
-  camera.position.copy(P.computeDesiredCameraPosition({ isPortrait: true }));
-  camera.lookAt(P.CAMERA_TARGET);
   const resize = () => {
     const { width, height } = host.getBoundingClientRect();
-    renderer.setSize(width, height, false); camera.aspect = width / Math.max(1, height); camera.updateProjectionMatrix();
-    // Review-only framing: preserve every production world anchor and show the
-    // actual seated rigs that the close first-person game camera crops out.
-    const target = P.CAMERA_TARGET.clone().add(V(0, .3, .15));
-    const direction = V(.3, .62, .79).normalize();
-    const anchors: THREE.Vector3[] = [];
-    for (let seat = 0; seat < 4; seat++) {
-      const basis = P.seatBasisForIndex(seat), head = basis.position.clone().addScaledVector(basis.forward, .22); head.y = 2.28;
-      for (const side of [-1, 1]) { anchors.push(head.clone().add(V(side * .48, .36, 0))); anchors.push(P.computeHandSlotPosition(seat, side < 0 ? 0 : 6, 7)); }
-    }
-    for (const x of [-P.TABLE_OUTER_RADIUS, P.TABLE_OUTER_RADIUS]) for (const z of [-P.TABLE_OUTER_RADIUS, P.TABLE_OUTER_RADIUS]) anchors.push(V(x, P.CLOTH_TOP, z));
-    for (let distance = 5.5; distance <= 20; distance += .15) {
-      camera.position.copy(target).addScaledVector(direction, distance); camera.lookAt(target); camera.updateMatrixWorld(true);
-      if (anchors.every((point) => { const ndc = point.clone().project(camera); return Math.abs(ndc.x) <= .92 && Math.abs(ndc.y) <= .91; })) break;
-    }
+    renderer.setSize(width, height, false);
+    fitDominoReviewCamera(camera, view, width / Math.max(1, height), { kind, sourceSeat: 1, activePoints: cameraPoints });
+    dirty = true;
   };
   const resizeObserver = new ResizeObserver(resize); resizeObserver.observe(host); resize();
   const wood = new THREE.MeshStandardMaterial({ color: '#352619', roughness: 0.4, metalness: 0.12 });
@@ -124,140 +116,192 @@ function buildReview(host: HTMLDivElement, status: (s: string) => void, loaded: 
     return (faceMaterials[index] = new THREE.MeshStandardMaterial({ map: texture, roughness: .48 }));
   }
   const set: Array<[number, number]> = []; for (let a = 0; a <= 6; a++) for (let b = a; b <= 6; b++) set.push([a, b]);
-  function tile(a: number, b: number) {
+  function tile(a: number, b: number, { flat = false, faceUp = true } = {}) {
     const root = new THREE.Group(); const body = new THREE.Mesh(bodyGeometry, bodyMaterial); body.castShadow = true; body.receiveShadow = true; root.add(body);
-    const face = new THREE.Mesh(faceGeometry, faceMaterial(a, b)); face.position.z = .111; root.add(face); root.scale.copy(uprightScale); pieces.add(root); return root;
+    if (faceUp) { const face = new THREE.Mesh(faceGeometry, faceMaterial(a, b)); face.position.z = .111; root.add(face); }
+    root.scale.copy(flat ? flatScale : uprightScale); if (flat) root.rotation.x = -Math.PI / 2;
+    root.userData.val = [a, b]; pieces.add(root); return root;
   }
-  const racks: THREE.Group[][] = [[], [], [], []];
-  let count = 7, stopped = false, animation: any = null, frame = 0, sound = true;
-  let audio: AudioContext | null = null;
-  const clearPieces = () => { pieces.clear(); racks.forEach((rack) => rack.splice(0)); animation = null; };
-  const rackPosition = (seat: number, slot: number, size: number) => P.computeHandSlotPosition(seat, slot, size, { playerCount: 4, human: 0 });
-  const rackQuaternion = (seat: number) => {
-    const [x, z] = P.layoutSeat(seat);
-    return new THREE.Quaternion().setFromEuler(new THREE.Euler(0, seat === 0 ? 0 : Math.atan2(-x, -z), 0));
+  let count = 7, stopped = false, frame = 0, sound = true, ready = false;
+  let playing = false, elapsed = 0, simulated = 0, lastFrame = 0, silence = false;
+  let audio: AudioContext | null = null, currentPhase = 'Loading the original avatar…';
+  let openingSeed: Array<any> | null = null, dealCursor = 0;
+  const players = Array.from({ length: 4 }, () => ({ hand: [] as any[] }));
+  const segments: any[] = [];
+  const env: ProductionDominoMotionEnvironment = {
+    piecesG: pieces, players, chairs, seatedHumanActors: actors, N: 4, human: 0,
+    DOMINO_SEATED_HUMANS: { applySeatedHumanPose, applySeatedHumanReachPose, applySeatedHumanHandTargets },
+    makeDomino: tile, renderHands, renderChain,
+    SFX: { place: knock, pass: knock, drawTile: () => {} },
+    setStatus: () => {}, showPassBubble: () => {}, nextTurn: () => {}, flushPendingDominoState: () => {}
   };
-  function addToRack(root: THREE.Group, seat: number, index: number, size: number) {
-    root.position.copy(rackPosition(seat, index, size)); root.quaternion.copy(rackQuaternion(seat)); root.scale.copy(uprightScale).multiplyScalar(P.getDominoHandScale(seat, size));
-    root.userData.animating = false; racks[seat][index] = root;
+  const motion = createProductionDominoMotion(env);
+  const actionDuration = (travelDuration: number) => motion.sampleDominoActionProgress(0, travelDuration).totalDuration;
+  const dealDuration = () => actionDuration(P.OPENING_DEAL_ANIM_DURATION);
+  const duration = () => kind === 'hold' ? 1 : kind === 'place' ? actionDuration(P.PLACE_ANIM_DURATION) : kind === 'draw' ? actionDuration(P.DRAW_ANIM_DURATION) : kind === 'knock' ? P.KNOCK_DURATION : P.OPENING_SHUFFLE_ANIM_DURATION + 28 * dealDuration();
+  const report = () => update({ kind, playing, progress: Math.min(1, elapsed / duration()), phase: currentPhase, count, sound, view, ready });
+  function renderHands() {
+    env.activeHandMeshes!.forEach((root) => root.removeFromParent()); env.activeHandMeshes!.clear();
+    players.forEach((player, seat) => {
+      const hand = env.openingSequence?.handSlots?.[seat] || player.hand;
+      hand.forEach((held: any, index: number) => {
+        held.mesh = null; if (held.inTransit || held.openingPending) return;
+        const root = tile(held.a, held.b, { flat: false, faceUp: seat === 0 });
+        root.position.copy(P.computeHandSlotPosition(seat, index, hand.length));
+        const [x, z] = P.layoutSeat(P.getVisualSeatIndex(seat)); root.rotation.set(0, seat === 0 ? 0 : Math.atan2(-x, -z), 0);
+        root.scale.multiplyScalar(P.getDominoHandScale(seat, hand.length));
+        root.userData = { tile: held, owner: seat }; held.mesh = root; env.activeHandMeshes!.add(root);
+      });
+    });
   }
-  function fillRacks() {
-    clearPieces();
+  function renderChain() {
+    segments.forEach((segment) => {
+      segment.mesh?.removeFromParent(); if (segment.animating) return;
+      const root = tile(segment.tile.a, segment.tile.b, { flat: true, faceUp: true });
+      root.position.set(segment.x, P.CHAIN_TILE_Y, segment.z); motion.orientDominoFlat(root, segment.rot); segment.mesh = root;
+    });
+  }
+  function resetPieces() {
+    pieces.clear(); segments.splice(0); players.forEach((player) => player.hand.splice(0));
+    env.openingSequence = null; env.placementAnimations!.splice(0); env.drawAnimations!.splice(0); env.knockAnimations!.splice(0);
+    env.activeHandMeshes!.clear(); env.dominoHandContacts!.clear(); env.dominoMotionTime = 0;
     for (let seat = 0; seat < 4; seat++) {
-      const length = seat === 0 ? count : 7;
-      for (let i = 0; i < length; i++) { const value = set[(i * 3 + seat * 7) % set.length]; addToRack(tile(...value), seat, i, length); }
+      const size = seat === 0 ? count : 7;
+      for (let i = 0; i < size; i++) { const [a, b] = set[(i * 3 + seat * 7) % set.length]; players[seat].hand.push({ a, b }); }
     }
-    status(`${count} tiles · ${Math.round(P.getHumanHandCountScale(count) * 100)}% hand size`);
+    renderHands(); for (let seat = 0; seat < 4; seat++) motion.poseDominoHands(seat);
   }
-  function contact(root: THREE.Group, side: number, grip = .55): Contact {
-    root.updateWorldMatrix(true, false); const rotation = root.getWorldQuaternion(new THREE.Quaternion());
-    return { position: root.localToWorld(V(side * .5, -.08, 0)), grip, approachDirection: V(-side, 0, 0).applyQuaternion(rotation), palmNormal: V(0, 0, 1).applyQuaternion(rotation) };
+  function setupPlace() {
+    const sourceSeat = 1, held = players[sourceSeat].hand.splice(3, 1)[0], root = held.mesh;
+    env.activeHandMeshes!.delete(root); held.mesh = null;
+    const start = root.position.clone(), startQuat = root.quaternion.clone(), startScale = root.scale.clone();
+    renderHands(); root.userData.animating = true;
+    const segment = { tile: held, x: 0, z: 0, rot: 0, animating: true, mesh: null }; segments.push(segment);
+    const orient = new THREE.Object3D(); motion.orientDominoFlat(orient, segment.rot);
+    const anim: any = { mesh: root, tile: held, sourceSeat, segment, start, startQuat, startScale, end: V(segment.x, P.CHAIN_TILE_Y, segment.z), endQuat: orient.quaternion.clone(), endScale: flatScale.clone(), startTime: 0, duration: P.PLACE_ANIM_DURATION, arc: P.PLACE_ANIM_ARC };
+    anim.humanReachProfile = motion.getDominoHumanReachProfile(anim); env.placementAnimations!.push(anim);
   }
-  function pickupContact(root: THREE.Group, edge: number, grip: number): Contact {
-    if (edge < 2) return contact(root, edge === 0 ? -1 : 1, grip);
-    root.updateWorldMatrix(true, false); const sign = edge === 2 ? -1 : 1, rotation = root.getWorldQuaternion(new THREE.Quaternion());
-    return { position: root.localToWorld(V(0, sign, 0)), grip, approachDirection: V(0, -sign, 0).applyQuaternion(rotation), palmNormal: V(0, 0, 1).applyQuaternion(rotation) };
+  function setupDraw() {
+    const held = { a: 2, b: 6 }; players[1].hand.push(held);
+    const start = V(0, P.CLOTH_TOP + .006, .45 * P.CLOTH_RADIUS);
+    motion.spawnDrawAnimation(start, 1, held); env.drawAnimations![0].startTime = 0;
   }
-  function rackTargets(seat: number): { left?: Contact; right?: Contact } {
-    const visible = racks[seat].filter((root) => root?.parent && !root.userData.animating), rig = actors[seat]?.rig;
-    if (!visible.length || !rig) return {};
-    const first = contact(visible[0], -1), last = contact(visible[visible.length - 1], 1);
-    const left = rig.leftUpperArm.getWorldPosition(V()), right = rig.rightUpperArm.getWorldPosition(V());
-    return left.distanceToSquared(first.position) + right.distanceToSquared(last.position) <= left.distanceToSquared(last.position) + right.distanceToSquared(first.position) ? { left: first, right: last } : { left: last, right: first };
+  function setupOpening() {
+    pieces.clear(); env.activeHandMeshes!.clear(); players.forEach((player) => player.hand.splice(0));
+    env.boneyard = set.map(([a, b]) => ({ a, b }));
+    motion.spawnOpeningShuffleAnimation(); const sequence = env.openingSequence;
+    sequence.phase = 'shuffle'; sequence.startTime = 0; sequence.lastShuffleTime = 0;
+    if (!openingSeed) openingSeed = sequence.tiles.map((entry: any) => ({ a: entry.tile.a, b: entry.tile.b, yaw: entry.yaw, spin: entry.spin, home: entry.home.toArray() }));
+    sequence.tiles.forEach((entry: any, index: number) => {
+      const initial = openingSeed![index]; entry.tile = { a: initial.a, b: initial.b, openingPending: true }; entry.yaw = initial.yaw; entry.spin = initial.spin; entry.home.fromArray(initial.home); entry.mesh.position.copy(entry.home); entry.velocity.set(0, 0, 0); motion.orientDominoFaceDown(entry.mesh, entry.yaw);
+      players[index % 4].hand.push(entry.tile);
+    });
+    sequence.handSlots = players.map((player) => [...player.hand]); dealCursor = 0;
   }
-  function pose(seat: number, overrides: { left?: Contact; right?: Contact } = {}, mode = 'idle') {
-    const rig = actors[seat]?.rig; if (!rig) return;
-    const targets = { ...rackTargets(seat), ...overrides };
-    applySeatedHumanPose(rig, mode, 1, targets.right?.grip || 0);
-    if (targets.right) applySeatedHumanReachPose(rig, 'right', targets.right.position, { ...targets.right, maxLean: THREE.MathUtils.degToRad(mode === 'idle' ? 12 : 88), maxArmExtension: mode === 'idle' ? 1 : 1.35 });
-    if (targets.left) targets.left.maxArmExtension = mode === 'idle' ? 1 : 1.35;
-    applySeatedHumanHandTargets(rig, targets);
+  function resetMotion() {
+    elapsed = 0; simulated = 0; resetPieces();
+    if (kind === 'place') setupPlace();
+    else if (kind === 'draw') setupDraw();
+    else if (kind === 'knock') env.knockAnimations!.push({ sourceSeat: 1, startTime: 0, impactPlayed: false, remote: true });
+    else if (kind === 'opening') setupOpening();
+    evaluate(0); dirty = true;
+  }
+  function phaseAt(time: number) {
+    if (kind === 'hold') return 'Both hands supporting the rack';
+    if (kind === 'opening') return time < P.OPENING_SHUFFLE_ANIM_DURATION ? 'Mixing · palm contact and sliding tiles' : time >= duration() ? 'All players have seven dominoes' : `Random draw · ${Math.min(28, Math.floor((time - P.OPENING_SHUFFLE_ANIM_DURATION) / dealDuration()) + 1)} / 28`;
+    const t = kind === 'place' || kind === 'draw'
+      ? motion.sampleDominoActionProgress(time, kind === 'place' ? P.PLACE_ANIM_DURATION : P.DRAW_ANIM_DURATION).handT
+      : time / duration();
+    if (kind === 'knock') return t < P.KNOCK_CONTACT_PHASE ? 'Raise the right hand' : t < .76 ? 'Knock · sound at contact' : 'Return to the rack';
+    return t < P.PLACE_ANIM_PICK_HOLD ? 'Reach' : t < P.PLACE_ANIM_LIFT_END ? 'Pick up and lift' : t < P.PLACE_ANIM_CARRY_END ? 'Carry · fingers holding the sides' : t < P.PLACE_ANIM_LOWER_END ? 'Lower onto the surface' : 'Release and return';
+  }
+  function evaluate(time: number) {
+    // A scrub lands on an exact endpoint while RAF normally crosses it. Decimal
+    // deal durations can lose a few ulps during elapsed-time subtraction; sample
+    // just past that boundary so the unchanged production controller completes.
+    const sampleEnd = (anim: any) => {
+      if (!anim) return time;
+      const end = anim.startTime + actionDuration(anim.duration || P.PLACE_ANIM_DURATION);
+      return Math.abs(time - end) < 1e-7 ? time + 1e-7 : time;
+    };
+    env.dominoMotionTime = time;
+    motion.updateDominoIdleHands();
+    if (kind === 'place') motion.updatePlacementAnimations(sampleEnd(env.placementAnimations![0]));
+    else if (kind === 'draw') motion.updateDrawAnimations(sampleEnd(env.drawAnimations![0]));
+    else if (kind === 'knock') motion.updateKnockAnimations(time);
+    else if (kind === 'opening') {
+      const sequence = env.openingSequence;
+      if (sequence && time <= P.OPENING_SHUFFLE_ANIM_DURATION) {
+        const t = Math.min(1, time / P.OPENING_SHUFFLE_ANIM_DURATION); motion.updateDominoShuffleTiles(sequence, t, time); motion.poseDominoShuffleHands(sequence, t);
+      } else if (sequence) {
+        if (sequence.phase === 'shuffle') { motion.updateDominoShuffleTiles(sequence, 1, P.OPENING_SHUFFLE_ANIM_DURATION); motion.poseDominoShuffleHands(sequence, 1); }
+        sequence.phase = 'deal';
+        while (dealCursor < 28 || env.drawAnimations!.length) {
+          if (!env.drawAnimations!.length) {
+            const entry = sequence.tiles[dealCursor], seat = dealCursor % 4;
+            motion.spawnDrawAnimation(entry.mesh.getWorldPosition(V()), seat, entry.tile, { mesh: entry.mesh, opening: true });
+            env.drawAnimations![0].startTime = P.OPENING_SHUFFLE_ANIM_DURATION + dealCursor * dealDuration(); dealCursor++;
+          }
+          const active = env.drawAnimations![0]; motion.updateDrawAnimations(sampleEnd(active));
+          if (env.drawAnimations!.length || time < active.startTime + actionDuration(active.duration)) break;
+        }
+        if (dealCursor === 28 && !env.drawAnimations!.length) { env.openingSequence = null; renderHands(); for (let seat = 0; seat < 4; seat++) motion.poseDominoHands(seat); }
+      }
+    }
+    // Keep actual fingers, wrists and supporting arm in frame throughout the
+    // selected action; the complete tile travel above provides stable framing.
+    cameraPoints = [];
+    const rig = actors[1]?.rig;
+    for (const key of ['leftHand', 'rightHand', 'leftForeArm', 'rightForeArm']) {
+      const bone = rig?.[key];
+      if (!bone) continue;
+      bone.traverse((part: THREE.Object3D) => {
+        const point = part.getWorldPosition(V());
+        for (const sign of [-1, 1]) for (const axis of ['x', 'y', 'z'] as const) {
+          const padded = point.clone(); padded[axis] += sign * .08; cameraPoints.push(padded);
+        }
+      });
+    }
+    fitDominoReviewCamera(camera, view, camera.aspect, { kind, sourceSeat: 1, activePoints: cameraPoints });
+    currentPhase = phaseAt(time); simulated = time; dirty = true;
+  }
+  function seek(progress: number) {
+    const target = Math.max(0, Math.min(1, progress)) * duration(); playing = false; silence = true;
+    resetMotion();
+    if (kind === 'opening') {
+      const step = 1000 / 60, shuffleEnd = P.OPENING_SHUFFLE_ANIM_DURATION;
+      for (let time = step; time < Math.min(target, shuffleEnd); time += step) evaluate(time);
+      if (target >= shuffleEnd) {
+        evaluate(shuffleEnd);
+        // Draw transforms and IK are analytic; seed every draw at t=0, then
+        // inspect its endpoint. Only the collision shuffle needs time steps.
+        for (let index = 0; index < 28; index++) {
+          const start = shuffleEnd + index * dealDuration();
+          if (target <= start) break;
+          evaluate(Math.min(target, start + .0001));
+          evaluate(Math.min(target, start + dealDuration()));
+          if (target <= start + dealDuration()) break;
+        }
+      }
+    }
+    evaluate(target); elapsed = target; silence = false; report();
   }
   function unlockAudio() { if (!audio) audio = new AudioContext(); void audio.resume(); }
   function knock() {
-    if (!sound || !audio) return;
-    // Exact production procedural wood-knock fallback, struck on the contact frame.
+    if (!sound || !audio || silence || !playing) return;
     const buffer = audio.createBuffer(1, Math.ceil(audio.sampleRate * .36), audio.sampleRate), data = buffer.getChannelData(0);
     for (let i = 0; i < data.length; i++) { const t = i / audio.sampleRate, strike = Math.exp(-t * 72), body = Math.exp(-t * 14); data[i] = (Math.sin((i + 11) * .22) * strike * .52 + (((Math.sin(i * 12.9898) * 43758.5453) % 1) - .5) * strike * .24 + Math.sin(2 * Math.PI * 128 * t) * body * .46 + Math.sin(2 * Math.PI * 188 * t) * Math.exp(-t * 9.5) * .28 + Math.sin(2 * Math.PI * 64 * t) * Math.exp(-t * 7.5) * .32) * .88; }
     const source = audio.createBufferSource(), gain = audio.createGain(); source.buffer = buffer; gain.gain.value = .5; source.connect(gain).connect(audio.destination); source.start();
   }
-  function startTravel(root: THREE.Group, seat: number, end: THREE.Vector3, endQuat: THREE.Quaternion, endScale: THREE.Vector3, duration: number, done?: () => void) {
-    root.userData.animating = true;
-    animation = { type: 'travel', mesh: root, seat, startTime: performance.now(), duration, start: root.position.clone(), end, startQuat: root.quaternion.clone(), endQuat, startScale: root.scale.clone(), endScale, arc: P.PLACE_ANIM_ARC, handStart: rackTargets(seat).right?.position?.clone(), done };
-  }
-  function travel(anim: any, now: number) {
-    const t = Math.min(1, (now - anim.startTime) / anim.duration), rotate = P.smoothPlacementStep(P.PLACE_ANIM_PICK_HOLD, P.PLACE_ANIM_LOWER_END, t);
-    anim.mesh.position.copy(P.resolvePrecisionPlacementPosition(anim, t)); anim.mesh.quaternion.slerpQuaternions(anim.startQuat, anim.endQuat, rotate); anim.mesh.scale.lerpVectors(anim.startScale, anim.endScale, rotate);
-    const grip = .4 * (t > P.PLACE_ANIM_LOWER_END ? 1 - P.smoothPlacementStep(P.PLACE_ANIM_LOWER_END, 1, t) : P.smoothPlacementStep(0, P.PLACE_ANIM_PICK_HOLD, t));
-    const rig = actors[anim.seat]?.rig;
-    if (anim.contactSide == null && rig) {
-      const at = anim.duration === P.PLACE_ANIM_DURATION ? 'end' : 'start';
-      const reference = anim.mesh.clone(false); reference.position.copy(anim[at]); reference.quaternion.copy(anim[at + 'Quat']); reference.scale.copy(anim[at + 'Scale']); reference.parent = pieces;
-      const shoulder = rig.rightUpperArm.getWorldPosition(V());
-      anim.contactSide = [0, 1, 2, 3].map((edge) => { const target = pickupContact(reference, edge, grip); return { edge, distance: shoulder.distanceToSquared(target.position.clone().addScaledVector(target.approachDirection, -P.DOMINO_WIDTH * 1.5)) }; }).sort((a, b) => a.distance - b.distance)[0].edge;
-    }
-    const target = pickupContact(anim.mesh, anim.contactSide ?? 0, grip);
-    if (rig) { target.approachDirection.copy(target.position).sub(rig.rightUpperArm.getWorldPosition(V())); target.approachDirection.y = 0; target.approachDirection.normalize(); }
-    if (anim.handStart && t < P.PLACE_ANIM_PICK_HOLD) target.position.lerpVectors(anim.handStart, target.position, P.smoothPlacementStep(0, P.PLACE_ANIM_PICK_HOLD, t));
-    const rest = rackTargets(anim.seat).right;
-    if (rest && t > P.PLACE_ANIM_LOWER_END) target.position.lerp(rest.position, P.smoothPlacementStep(P.PLACE_ANIM_LOWER_END, 1, t));
-    pose(anim.seat, { right: target }, t < P.PLACE_ANIM_LIFT_END ? 'gripPiece' : t < P.PLACE_ANIM_CARRY_END ? 'carryPiece' : 'placePiece');
-    if (t >= 1) { animation = null; anim.mesh.userData.animating = false; anim.done?.(); }
-  }
-  function replay() {
-    clearPieces(); count = 7;
-    const shuffled = [...set];
-    for (let i = shuffled.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [shuffled[i], shuffled[j]] = [shuffled[j], shuffled[i]]; }
-    const tiles = shuffled.map((value, i) => {
-      const root = tile(...value); root.scale.copy(flatScale); root.quaternion.copy(backQuat);
-      const home = V((i % 7 - 3) * P.DOMINO_WIDTH * 1.35, P.CLOTH_TOP + flatScale.z * .11 + .003, (Math.floor(i / 7) - 1.5) * P.DOMINO_LENGTH * 1.28);
-      root.position.copy(home); return { root, home, yaw: (Math.random() - .5) * .16 };
-    });
-    animation = { type: 'shuffle', startTime: performance.now(), tiles };
-    status('Mixing 28 face-down dominoes…');
-  }
-  function deal(tiles: Array<any>, index = 0) {
-    if (index >= tiles.length) { status('Ready · try a move or change your hand size'); return; }
-    const seat = index % 4, slot = Math.floor(index / 4), root = tiles[index].root;
-    status(`Random draw · Player ${seat + 1} · ${index + 1}/28`);
-    startTravel(root, seat, rackPosition(seat, slot, 7), rackQuaternion(seat), uprightScale.clone().multiplyScalar(P.getDominoHandScale(seat, 7)), P.OPENING_DEAL_ANIM_DURATION, () => { addToRack(root, seat, slot, 7); deal(tiles, index + 1); });
-  }
-  function pickPlace() {
-    fillRacks(); const seat = 1, root = racks[seat][3];
-    status('Pick → lift → carry → place → release');
-    startTravel(root, seat, V(P.CLOTH_RADIUS * .52, P.CLOTH_TOP + flatScale.z * .11 + .004, -.1), flatQuat, flatScale.clone(), P.PLACE_ANIM_DURATION, () => { racks[seat].splice(3, 1); racks[seat].forEach((remaining, i) => addToRack(remaining, seat, i, racks[seat].length)); status('Domino placed · fingers released'); });
-  }
-  function draw() {
-    fillRacks(); const seat = 1, value = set[Math.floor(Math.random() * set.length)], root = tile(...value);
-    root.position.set(P.CLOTH_RADIUS * .52, P.CLOTH_TOP + flatScale.z * .11 + .004, .2); root.scale.copy(flatScale); root.quaternion.copy(backQuat);
-    status('Picking a domino from the table…');
-    startTravel(root, seat, rackPosition(seat, 7, 8), rackQuaternion(seat), uprightScale.clone().multiplyScalar(P.getDominoHandScale(seat, 8)), P.DRAW_ANIM_DURATION, () => { addToRack(root, seat, 7, 8); racks[seat].forEach((held, i) => addToRack(held, seat, i, 8)); status('Draw complete · domino joins the hand'); });
-  }
-  function pass() { fillRacks(); animation = { type: 'knock', startTime: performance.now(), handStart: rackTargets(1).right?.position.clone(), impact: false }; status('Pass · right-hand table knock'); }
   function animate(now: number) {
     if (stopped) return;
     frame = requestAnimationFrame(animate);
-    for (let seat = 0; seat < 4; seat++) pose(seat);
-    const active = animation;
-    if (active?.type === 'travel') travel(active, now);
-    if (active?.type === 'shuffle') {
-      const t = Math.min(1, (now - active.startTime) / P.OPENING_SHUFFLE_ANIM_DURATION), angle = P.smoothPlacementStep(0, 1, t) * Math.PI * 2;
-      active.tiles.forEach((entry: any, i: number) => { const lane = Math.floor(i / 7), sign = lane % 2 ? -1 : 1; entry.root.position.copy(entry.home); entry.root.position.x += Math.sin(angle) * P.DOMINO_WIDTH * .35 * sign; entry.root.position.z += Math.sin(angle * 2) * P.DOMINO_WIDTH * .1; entry.root.quaternion.copy(backQuat).premultiply(new THREE.Quaternion().setFromAxisAngle(V(0, 1, 0), entry.yaw + Math.sin(angle) * .08 * sign)); });
-      const targets = [active.tiles[6], active.tiles[20]].map((entry: any) => ({ position: entry.root.localToWorld(V(0, 0, -.11)), grip: .12, approachDirection: V(-1, 0, 0), palmNormal: V(0, -1, 0) }));
-      pose(1, { left: targets[0], right: targets[1] }, 'reachPiece');
-      if (t >= 1) { animation = null; deal(active.tiles); }
+    if (ready && playing) {
+      elapsed = Math.min(duration(), elapsed + Math.min(50, Math.max(0, now - lastFrame)));
+      evaluate(elapsed); if (elapsed >= duration()) playing = false; report();
     }
-    if (active?.type === 'knock') {
-      const t = Math.min(1, (now - active.startTime) / P.KNOCK_DURATION), [sx, sz] = P.layoutSeat(1), outward = V(sx, 0, sz).normalize(), right = V(outward.z, 0, -outward.x).negate();
-      const point = outward.multiplyScalar(P.CLOTH_RADIUS * .7).addScaledVector(right, P.DOMINO_WIDTH * 1.3);
-      point.y = P.CLOTH_TOP + .008 + (t < P.KNOCK_CONTACT_PHASE ? Math.sin(Math.PI * P.smoothPlacementStep(0, P.KNOCK_CONTACT_PHASE, t)) * .085 : Math.sin(Math.PI * P.smoothPlacementStep(P.KNOCK_CONTACT_PHASE, 1, t)) * .035);
-      if (active.handStart && t < .18) point.lerpVectors(active.handStart, point, P.smoothPlacementStep(0, .18, t));
-      const rest = rackTargets(1).right; if (rest && t > .76) point.lerp(rest.position, P.smoothPlacementStep(.76, 1, t));
-      pose(1, { right: { position: point, grip: .9, approachDirection: point.clone().sub(V(sx, point.y, sz)).normalize(), palmNormal: V(0, -1, 0) } }, 'reachPiece');
-      if (!active.impact && t >= P.KNOCK_CONTACT_PHASE) { active.impact = true; knock(); }
-      if (t >= 1) { animation = null; status('Passed · knock and sound share the contact frame'); }
-    }
-    renderer.render(scene, camera);
+    lastFrame = now;
+    if (dirty) { renderer.render(scene, camera); dirty = false; }
   }
   frame = requestAnimationFrame(animate);
   embeddedAvatar().then((template) => {
@@ -265,32 +309,36 @@ function buildReview(host: HTMLDivElement, status: (s: string) => void, loaded: 
     const bounds = new THREE.Box3().setFromObject(template), center = bounds.getCenter(V()); template.position.x -= center.x; template.position.z -= center.z; template.position.y -= bounds.min.y;
     template.traverse((object: any) => { if (object.isMesh) { object.castShadow = true; object.receiveShadow = true; object.frustumCulled = false; } });
     for (let seat = 0; seat < 4; seat++) actors[seat] = createRestoredSeatedHumanActor(template, chairs[seat], { targetHeight: P.LEGACY_DOMINO_HUMAN_HEIGHT, seatHeight: P.STOOL_HEIGHT, supportsArmrest: true });
-    loaded(); replay();
-  }).catch((error) => { console.error(error); status('Avatar could not load. Open the complete game preview.'); });
-  const action = (run: () => void) => () => { unlockAudio(); run(); };
+    ready = true; resetMotion(); report();
+  }).catch((error) => { console.error(error); currentPhase = 'Avatar could not load'; report(); });
   return {
-    count: (n) => { count = n; fillRacks(); }, replay: action(replay), place: action(pickPlace), draw: action(draw), pass: action(pass),
-    mute: () => { sound = !sound; if (sound) unlockAudio(); return sound; },
+    select: (next) => { kind = next; playing = false; if (kind === 'opening') { count = 7; view = 'table'; } else view = 'hands'; resetMotion(); report(); },
+    count: (next) => { count = next; kind = 'hold'; playing = false; view = 'table'; resize(); resetMotion(); report(); },
+    togglePlay: () => { if (kind === 'hold') return; unlockAudio(); if (elapsed >= duration()) resetMotion(); playing = !playing; lastFrame = performance.now(); report(); },
+    seek,
+    view: (next) => { view = next; resize(); report(); },
+    mute: () => { sound = !sound; if (sound) unlockAudio(); report(); },
     dispose: () => { stopped = true; cancelAnimationFrame(frame); resizeObserver.disconnect(); renderer.dispose(); pmrem.dispose(); environment.dispose(); void audio?.close(); scene.traverse((object: any) => { object.geometry?.dispose(); const mats = Array.isArray(object.material) ? object.material : [object.material]; mats.forEach((material: any) => { material?.map?.dispose(); material?.dispose(); }); }); renderer.domElement.remove(); }
   };
 }
 
 function MotionReview() {
   const host = useRef<HTMLDivElement>(null), engine = useRef<Engine | null>(null);
-  const [status, setStatus] = useState('Loading the original avatar…'), [ready, setReady] = useState(false), [count, setCount] = useState(7), [sound, setSound] = useState(true);
+  const [state, setState] = useState<ReviewState>({ kind: 'hold', playing: false, progress: 0, phase: 'Loading the original avatar…', count: 7, sound: true, view: 'hands', ready: false });
   useEffect(() => {
-    try { engine.current = buildReview(host.current!, setStatus, () => setReady(true)); }
-    catch (error) { console.error(error); setStatus('WebGL is unavailable in this preview.'); }
+    try { engine.current = buildReview(host.current!, setState); }
+    catch (error) { console.error(error); setState((previous) => ({ ...previous, phase: 'WebGL is unavailable in this preview' })); }
     return () => engine.current?.dispose();
   }, []);
   return <main className="motion-review">
-    <header><div><strong>DOMINO ROYAL</strong><small>Visual motion preview</small></div><button type="button" aria-label={sound ? 'Mute preview' : 'Unmute preview'} onClick={() => setSound(engine.current?.mute() ?? true)}>{sound ? 'Sound on' : 'Muted'}</button></header>
-    <div className="motion-stage" ref={host} />
+    <header><div><strong>DOMINO ROYAL</strong><small>Hands review</small></div><div className="review-top-actions"><button type="button" aria-label={state.sound ? 'Mute preview' : 'Unmute preview'} onClick={() => engine.current?.mute()}>{state.sound ? 'Sound on' : 'Muted'}</button><button type="button" aria-pressed={state.view === 'table'} onClick={() => engine.current?.view(state.view === 'hands' ? 'table' : 'hands')}>{state.view === 'hands' ? 'Table view' : 'Hands view'}</button></div></header>
+    <div className="motion-stage" ref={host} role="img" aria-label="Original Domino Royal character showing both rack supports and finger contact during the selected motion" />
     <footer>
-      <p role="status" aria-live="polite">{status}</p>
-      <div className="hand-options" role="group" aria-label="Dominoes in your hand"><span>Your hand</span>{SIZES.map((n) => <button type="button" key={n} disabled={!ready} aria-pressed={count === n} onClick={() => { setCount(n); engine.current?.count(n); }}>{n}</button>)}</div>
-      <div className="motion-actions"><button type="button" disabled={!ready} onClick={() => { setCount(7); engine.current?.replay(); }}>↻ Opening</button><button type="button" disabled={!ready} onClick={() => engine.current?.place()}>Pick + place</button><button type="button" disabled={!ready} onClick={() => engine.current?.draw()}>Draw</button><button type="button" disabled={!ready} onClick={() => engine.current?.pass()}>Pass</button></div>
+      <p role="status" aria-live="polite">{state.phase}</p>
+      <div className="motion-selection"><label htmlFor="domino-reviewed-motion">Motion</label><select id="domino-reviewed-motion" value={state.kind} disabled={!state.ready} onChange={(event) => engine.current?.select(event.target.value as MotionKind)}><option value="hold">Hold the rack</option><option value="place">Pick + place</option><option value="draw">Draw from table</option><option value="knock">Knock / pass</option><option value="opening">Opening</option></select><button type="button" disabled={!state.ready || state.kind === 'hold'} onClick={() => engine.current?.togglePlay()}>{state.playing ? 'Pause' : 'Play'}</button></div>
+      <div className="motion-scrub"><label htmlFor="domino-reviewed-progress">{Math.round(state.progress * 100)}%</label><input id="domino-reviewed-progress" type="range" min="0" max="1000" value={Math.round(state.progress * 1000)} disabled={!state.ready || state.kind === 'hold'} aria-label="Inspect animation progress" onChange={(event) => engine.current?.seek(Number(event.target.value) / 1000)} /></div>
+      <div className="hand-options" role="group" aria-label="Dominoes in your hand"><span>Your hand</span>{SIZES.map((n) => <button type="button" key={n} disabled={!state.ready} aria-pressed={state.count === n} onClick={() => engine.current?.count(n)}>{n}</button>)}</div>
     </footer>
   </main>;
 }
-createRoot(document.getElementById('domino-royal-motion-root')!).render(<MotionReview />);
+createRoot(document.getElementById('domino-royal-hands-reviewed-root')!).render(<MotionReview />);

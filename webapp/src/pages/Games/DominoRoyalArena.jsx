@@ -15,7 +15,7 @@ import {
 
 const INLINE_STYLE_ID = 'domino-royal-inline-style';
 const GAME_SCRIPT_SELECTOR = 'script[data-domino-royal-script="true"]';
-const DOMINO_ROYAL_SCRIPT_VERSION = '2026-09-14-royal-hand-animation-portrait-v80';
+const DOMINO_ROYAL_SCRIPT_VERSION = '2026-09-14-royal-hand-contact-review-v81';
 
 export default function DominoRoyalArena() {
   useEffect(() => {
