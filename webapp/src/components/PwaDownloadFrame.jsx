@@ -3,7 +3,7 @@ import { Link, useLocation } from 'react-router-dom';
 import { Check, CloudDownload, Pause, RefreshCw, Smartphone } from 'lucide-react';
 import useAppDownload from '../hooks/useAppDownload.js';
 import usePwaInstallPrompt from '../hooks/usePwaInstallPrompt.js';
-import { formatBytes } from '../pwa/gamePackManager.js';
+import { formatBytes, GAME_PACK_STORAGE_ERROR_MESSAGE } from '../pwa/gamePackManager.js';
 import gamesCatalog from '../config/gamesCatalog.js';
 
 const STATUS_LABELS = {
@@ -33,6 +33,8 @@ export default function PwaDownloadFrame() {
   } = usePwaInstallPrompt();
 
   const downloading = status === 'downloading';
+  const browserStorageLimited = error === GAME_PACK_STORAGE_ERROR_MESSAGE;
+  const offerBrowserDownload = telegramDetected && browserStorageLimited;
   const filesReady = status === 'installed' || status === 'update-available';
   const percent = Math.max(0, Math.min(100, Number(progress?.percent) || 0));
   const totalBytes = progress?.totalBytes || pack?.totalBytes || 0;
@@ -148,13 +150,20 @@ export default function PwaDownloadFrame() {
         )}
         {status === 'update-available' && safePendingRoute && <Link to={destination} reloadDocument={standaloneGame} className="flex min-h-11 items-center justify-center text-sm font-semibold text-primary">Return to game</Link>}
 
+        {offerBrowserDownload && (
+          <div className="space-y-2">
+            <button type="button" onClick={openExternalInstall} className="flex min-h-11 w-full items-center justify-center rounded-2xl border border-white/20 px-4 py-2.5 text-sm font-semibold text-white">Open in browser to download</button>
+            <p className="text-sm leading-5 text-slate-300">Chrome or Safari may have a different storage limit. Downloads are stored separately in each browser, so switching starts a separate download.</p>
+          </div>
+        )}
+
         {!installed && (
           <div className="space-y-2">
             <button type="button" onClick={addToHomeScreen} disabled={installPending} className="flex min-h-11 w-full items-center justify-center gap-2 rounded-2xl border border-white/20 px-4 py-2.5 text-sm font-semibold text-white disabled:opacity-60">
               <Smartphone size={18} aria-hidden="true" /> {installPending ? 'Installation requested' : 'Add to Home Screen'}
             </button>
             {(installMessage || !canPrompt) && <p className="text-sm leading-5 text-slate-300">{installMessage || installationGuidance}</p>}
-            {telegramDetected && !canPrompt && <button type="button" onClick={openExternalInstall} className="min-h-11 text-left text-sm font-semibold text-primary">Open in browser to install</button>}
+            {telegramDetected && !canPrompt && !offerBrowserDownload && <button type="button" onClick={openExternalInstall} className="min-h-11 text-left text-sm font-semibold text-primary">Open in browser to install</button>}
           </div>
         )}
 
@@ -162,7 +171,7 @@ export default function PwaDownloadFrame() {
         <details className="border-t border-white/10 pt-3 text-sm text-slate-400">
           <summary className="cursor-pointer py-1 text-slate-300">Download &amp; storage details</summary>
           <div className="space-y-2 pt-3">
-            {storage?.quota > 0 && <p>{formatBytes(storage.usage)} used · {formatBytes(Math.max(0, storage.quota - storage.usage))} available</p>}
+            {storage?.quota > 0 && <p>Estimated browser storage for this app: {formatBytes(storage.usage)} used · {formatBytes(Math.max(0, storage.quota - storage.usage))} available.</p>}
             <p>{storage?.persisted ? 'Your browser has protected this app’s saved files from automatic cleanup.' : 'Your browser may clear saved files when storage is low. You can download them again here.'}</p>
             <button type="button" onClick={() => void refresh({ forceCatalog: true })} disabled={loading || downloading} className="flex min-h-11 items-center gap-2 font-semibold text-primary disabled:opacity-50">
               <RefreshCw size={16} aria-hidden="true" /> {loading ? 'Checking…' : 'Check for updates'}
