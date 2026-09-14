@@ -90,13 +90,19 @@ const dispatchProgress = detail => dispatch(PROGRESS_EVENT, detail);
 
 export const getGamePackInstallations = () => ({ ...readState().packs });
 
-async function cacheIsComplete(installation,cacheNames) {
+async function cacheIsComplete(installation,cacheNames,{verifyAssets=true}={}) {
   if(!installation?.cacheName||!cacheNames.has(installation.cacheName))return false;
   const cache=await caches.open(installation.cacheName);
   const marker=await cache.match(completionRequest());
   if(!marker)return false;
   let receipt;try{receipt=await marker.json();}catch{return false;}
-  if(receipt.version!==installation.version||!Array.isArray(receipt.assets)||receipt.assets.length!==installation.assetCount)return false;
+  if(!receipt||typeof receipt.version!=='string'||!receipt.version||receipt.version!==installation.version||
+    !Number.isInteger(installation.assetCount)||installation.assetCount<=0||
+    !Array.isArray(receipt.assets)||receipt.assets.length!==installation.assetCount||
+    receipt.assets.some(asset=>!asset||typeof asset.url!=='string'||!asset.url.trim()))return false;
+  // Routine Home/route checks read the durable completion receipt, not thousands
+  // of files. Installation and explicit update checks still audit every asset.
+  if(!verifyAssets)return true;
   // Counting entries alone can hide missing files behind stale or unrelated ones.
   for(let i=0;i<receipt.assets.length;i+=32){
     const valid=await Promise.all(receipt.assets.slice(i,i+32).map(async asset=>responseMatchesAsset(await cache.match(makeRequest(asset)),asset)));
@@ -104,13 +110,13 @@ async function cacheIsComplete(installation,cacheNames) {
   }
   return true;
 }
-export async function reconcileGamePackInstallations() {
+export async function reconcileGamePackInstallations({verifyAssets=true}={}) {
   const state = readState();
   if (!isGamePackStorageSupported()) return { ...state.packs };
   const cacheNames = new Set(await caches.keys());
   const invalid=new Set();
   for (const [id, installation] of Object.entries(state.packs)) {
-    if(installation?.status==='installed'&&!await cacheIsComplete(installation,cacheNames))invalid.add(id);
+    if(installation?.status==='installed'&&!await cacheIsComplete(installation,cacheNames,{verifyAssets}))invalid.add(id);
   }
   // Invalidate dependants transitively, irrespective of object iteration order.
   let grew=true;while(grew){grew=false;for(const [id,p]of Object.entries(state.packs)){
@@ -602,7 +608,15 @@ async function performInstall(packId, { catalog, concurrency = DEFAULT_CONCURREN
     if (workerError) throw workerError;
     checkCancelled(signal);
 
-    await cache.put(completionRequest(), new Response(JSON.stringify({version:pack.version,build:manifest.build,assets:assets.map(({url,size,sha256})=>({url,size,sha256}))}),{headers:{'Content-Type':'application/json'}}));
+    await cache.put(completionRequest(), new Response(JSON.stringify({
+      version: pack.version,
+      build: manifest.build,
+      assets: assets.map(({ url, size, sha256 }) => ({ url, size, sha256 }))
+    }), { headers: {
+      'Content-Type': 'application/json',
+      // Runtime lookups need only the build, not the entire asset audit list.
+      ...(manifest.build ? { 'X-TonPlaygram-App-Build': manifest.build } : {})
+    } }));
     const installation = updatePackState(pack.id, {
       status: 'installed',
       version: pack.version,

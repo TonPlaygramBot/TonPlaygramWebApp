@@ -28,7 +28,9 @@ const requestUrl = input => new URL(typeof input === 'string' ? input : input.ur
 
 function memoryCaches() {
   const stores = new Map();
+  const stats = { markerReads: 0, receiptParses: 0 };
   return {
+    stats,
     async keys() { return [...stores.keys()]; },
     async delete(name) { return stores.delete(name); },
     async open(name) {
@@ -36,7 +38,18 @@ function memoryCaches() {
       const entries = stores.get(name);
       return {
         async put(input, response) { entries.set(requestUrl(input), response.clone()); },
-        async match(input) { return entries.get(requestUrl(input))?.clone(); },
+        async delete(input) { return entries.delete(requestUrl(input)); },
+        async match(input) {
+          const response = entries.get(requestUrl(input))?.clone();
+          if (new URL(requestUrl(input)).pathname === COMPLETE_PATH) {
+            stats.markerReads++;
+            if (response) {
+              const json = response.json.bind(response);
+              response.json = () => { stats.receiptParses++; return json(); };
+            }
+          }
+          return response;
+        },
         async keys() { return [...entries.keys()].map(url => new WorkerRequest(url)); }
       };
     },
@@ -358,4 +371,64 @@ test('activation preserves all downloads and unrelated caches while removing old
   assert.deepEqual((await worker.caches.keys()).sort(), keep.sort());
   assert.equal(worker.lifecycle.claimed, true);
   assert.equal(worker.lifecycle.navigationPreloadDisabled, true);
+});
+
+test('worker coalesces 2,467-file legacy receipt parsing across simultaneous game assets', async () => {
+  const worker = workerHarness({ offline: true });
+  await worker.seed(APP_CACHE, {
+    [COMPLETE_PATH]: JSON.stringify({ build: BUILD, assets: Array.from({ length: 2467 }, (_, index) => ({
+      url: `/assets/game-${index}.glb`, size: 45678, sha256: 'a'.repeat(64)
+    })) }),
+    '/assets/game.glb': 'downloaded model'
+  });
+  const results = await Promise.all(Array.from({ length: 50 }, () => worker.dispatch('/assets/game.glb')));
+  assert.ok((await Promise.all(results.map(({ response }) => response.text()))).every(body => body === 'downloaded model'));
+  assert.equal(worker.caches.stats.receiptParses, 1);
+  assert.equal(worker.caches.stats.markerReads, 50);
+  assert.equal(worker.networkRequests.length, 0);
+});
+
+test('worker completion headers bypass receipt parsing while keeping the build boundary', async () => {
+  for (const build of [BUILD, 'older-build']) {
+    const worker = workerHarness();
+    await worker.seed(APP_CACHE, {
+      [COMPLETE_PATH]: new Response(JSON.stringify({ build }), { headers: { 'X-TonPlaygram-App-Build': build } }),
+      '/assets/game.glb': 'downloaded model'
+    });
+    const { response } = await worker.dispatch('/assets/game.glb');
+    assert.equal(await response.text(), build === BUILD ? 'downloaded model' : 'network:/assets/game.glb');
+    assert.equal(worker.caches.stats.receiptParses, 0);
+  }
+});
+
+test('worker memoization cannot expose staging or evicted files after completion was previously read', async () => {
+  const worker = workerHarness();
+  await worker.complete(APP_CACHE, { '/assets/game.glb': 'downloaded model' });
+  assert.equal(await (await worker.dispatch('/assets/game.glb')).response.text(), 'downloaded model');
+  const cache = await worker.caches.open(APP_CACHE);
+  await cache.delete(COMPLETE_PATH);
+  assert.equal(await (await worker.dispatch('/assets/game.glb')).response.text(), 'network:/assets/game.glb');
+  await worker.complete(APP_CACHE, { build: 'older-build', '/assets/game.glb': 'old model' });
+  assert.equal(await (await worker.dispatch('/assets/game.glb')).response.text(), 'network:/assets/game.glb');
+  assert.equal(worker.caches.stats.receiptParses, 2);
+  await cache.delete(COMPLETE_PATH);
+  await worker.dispatch('/assets/game.glb');
+  await worker.complete(APP_CACHE, { '/assets/game.glb': 'downloaded model' });
+  await cache.delete('/assets/game.glb');
+  assert.equal(await (await worker.dispatch('/assets/game.glb')).response.text(), 'network:/assets/game.glb');
+});
+
+test('only the same-build full-app Domino query can use the unqueried downloaded module', async () => {
+  const worker = workerHarness();
+  await worker.complete(APP_CACHE, { '/domino-royal-game.js': 'downloaded Domino' });
+  const installed = await worker.dispatch(`/domino-royal-game.js?v=${BUILD}`, { destination: 'script' });
+  assert.equal(await installed.response.text(), 'downloaded Domino');
+  assert.equal(worker.networkRequests.length, 0);
+  for (const query of ['?v=older-build', `?v=${BUILD}&extra=1`, `?v=${BUILD}&v=${BUILD}`]) {
+    const { response } = await worker.dispatch('/domino-royal-game.js' + query, { destination: 'script' });
+    assert.equal(await response.text(), 'network:/domino-royal-game.js');
+  }
+  const legacy = workerHarness();
+  await legacy.complete('tonplaygram-pack-domino-v1', { '/domino-royal-game.js': 'old Domino' });
+  assert.equal(await (await legacy.dispatch(`/domino-royal-game.js?v=${BUILD}`)).response.text(), 'network:/domino-royal-game.js');
 });

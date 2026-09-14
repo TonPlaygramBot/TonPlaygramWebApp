@@ -83,7 +83,8 @@ test('build URL replacement preserves longest literal prefixes, query metacharac
 });
 
 test('runtime redirects mapped fetch, custom Three loaders, images and media while preserving unrelated requests', async () => {
-  const code = (await readFile('webapp/src/pwa/externalAssets.js', 'utf8')).replace(/^import .*;\n/, '').replaceAll('export function ', 'function ');
+  const code = (await readFile('webapp/src/pwa/externalAssetUrls.js', 'utf8')).replaceAll('export function ', 'function ') + '\n' +
+    (await readFile('webapp/src/pwa/externalAssets.js', 'utf8')).replace(/^import .*;\n/gm, '').replace(/^export \{[^\n]*\n/gm, '').replaceAll('export function ', 'function ');
   const calls = [];
   class Element { setAttribute(name, value) { this[name + 'Attribute'] = value; } }
   class Img extends Element { set src(value) { this.value = value; } get src() { return this.value; } }
@@ -124,7 +125,7 @@ test('runtime redirects mapped fetch, custom Three loaders, images and media whi
 test('page download interceptor preserves authenticated and verification requests without checking cached assets', async () => {
   const code = (await readFile('webapp/src/pwa/gamePackFetchInterceptor.js', 'utf8'))
     .replace(/^import .*;\n/gm, '')
-    .replace(/^export \{.*\};?\n?/gm, '')
+    .replace(/^export \{[^\n]*\n?/gm, '')
     .replace(/^export (async )?function /gm, '$1function ');
   const calls = [];
   let cacheLookups = 0;
@@ -138,7 +139,8 @@ test('page download interceptor preserves authenticated and verification request
   };
   context.window = context;
   vm.createContext(context);
-  vm.runInContext(code + '\ninstallGamePackFetchInterceptor();', context);
+  const urlResolver = (await readFile('webapp/src/pwa/externalAssetUrls.js', 'utf8')).replaceAll('export function ', 'function ');
+  vm.runInContext(urlResolver + '\n' + code + '\ninstallGamePackFetchInterceptor();', context);
   const asset = origin + target;
   const cases = [
     [asset, { headers: { Authorization: 'Bearer private-session' } }],

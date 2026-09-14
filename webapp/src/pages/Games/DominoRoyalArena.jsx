@@ -1,4 +1,5 @@
 import { useEffect } from 'react';
+import { APP_BUILD } from '../../config/buildInfo.js';
 
 import { DOMINO_ROYAL_INLINE_STYLE } from './dominoRoyalTemplate.js';
 import { socket } from '../../utils/socket.js';
@@ -11,7 +12,7 @@ import {
 
 const INLINE_STYLE_ID = 'domino-royal-inline-style';
 const GAME_SCRIPT_SELECTOR = 'script[data-domino-royal-script="true"]';
-const DOMINO_ROYAL_SCRIPT_VERSION = '2026-09-13-legacy-human-hand-contact-v79';
+const DOMINO_ROYAL_SCRIPT_VERSION = APP_BUILD;
 
 export default function DominoRoyalArena() {
   useEffect(() => {

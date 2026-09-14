@@ -43,7 +43,8 @@ export async function enforceRequiredGamePackRoute() {
   const packId = findRequiredPackId(window.location.pathname);
   if (!packId) return false;
 
-  const installations = await reconcileGamePackInstallations().catch(readInstallations);
+  // Do not scan the entire app download before the game can render.
+  const installations = await reconcileGamePackInstallations({ verifyAssets: false }).catch(readInstallations);
   if (await isInstallationTreeAvailable('tonplaygram-app', installations)) return false;
   if (await isInstallationTreeAvailable(packId, installations)) return false;
 

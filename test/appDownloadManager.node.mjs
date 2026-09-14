@@ -142,7 +142,9 @@ test('successful full download publishes its build receipt only with all verifie
   network.add(app);
   const installation = await install(app);
   assert.equal(getGamePackStatus(app.pack), 'installed');
-  const receipt = await (await receiptFor(app)).json();
+  const receiptResponse = await receiptFor(app);
+  assert.equal(receiptResponse.headers.get('X-TonPlaygram-App-Build'), APP_BUILD);
+  const receipt = await receiptResponse.json();
   assert.equal(receipt.version, app.pack.version);
   assert.equal(receipt.build, APP_BUILD);
   assert.equal(receipt.assets.length, Object.keys(app.bodies).length);
