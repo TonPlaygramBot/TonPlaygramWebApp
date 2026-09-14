@@ -44,7 +44,6 @@ import {
   getTelegramUsername
 } from '../../utils/telegram.js';
 import BottomLeftIcons from '../../components/BottomLeftIcons.jsx';
-import AvatarTimer from '../../components/AvatarTimer.jsx';
 import FourInRowFallback from '../../components/FourInRowFallback';
 import GiftPopup from '../../components/GiftPopup.jsx';
 import QuickMessagePopup from '../../components/QuickMessagePopup.jsx';
@@ -56,7 +55,13 @@ import { applyRendererSRGB, applySRGBColorSpace } from '../../utils/colorSpace.j
 import { socket } from '../../utils/socket.js';
 import { getGameVolume, isGameMuted } from '../../utils/sound.js';
 import { createBoard, cloneBoard, isFull, getDropRow, getWinningCells, chooseAiMove, mapFourInRowSnapshot } from '../../utils/fourInRowGame.js';
-import { advanceFourInRowDrop, consumeFourInRowFrame, getFourInRowDropDuration } from '../../utils/fourInRowMotion';
+import { consumeFourInRowFrame, getFourInRowDropDuration } from '../../utils/fourInRowMotion';
+
+import { createSeatedHumanModelLibrary } from '../../games/chess/seatedHumanModel.js';
+import { CHESS_HUMAN_CHARACTER_OPTIONS } from '../../config/chessBattleInventoryConfig.js';
+import { getChessBattleInventory } from '../../utils/chessBattleInventory.js';
+import { createFourInRowHuman, idleFourInRowHuman, disposeFourInRowHuman, reserveCapacity, reserveCount, reservePosition, createReserveInstances, advanceHumanPlacement, playerEyePosition, portraitBoardFov } from '../../games/fourinrow/humanPresentation';
+import '../../games/fourinrow/four-in-row.css';
 
 const MODEL_SCALE = 0.75;
 const ROW_GAME_SCALE_REDUCTION = 0.25;
@@ -70,8 +75,8 @@ const TABLE_SIZE_REDUCTION_FACTOR = 0.74;
 const TABLE_HEIGHT_REDUCTION_FACTOR = 0.88;
 const CHAIR_SIZE_BOOST_FACTOR = 1.2;
 const BOARD_AND_CHIPS_SIZE_REDUCTION_FACTOR = 0.35;
-const BOARD_VISUAL_SIZE_BOOST = 1.24;
-const TOKEN_SIZE_BOOST = 1.08;
+const BOARD_VISUAL_SIZE_BOOST = 1.9;
+const TOKEN_SIZE_BOOST = 1;
 const TABLE_BASE_SCALE = TABLE_AND_CHAIR_BASE_SCALE * ROW_GAME_SCALE_REDUCTION;
 const TABLE_SCALE =
   TABLE_BASE_SCALE *
@@ -93,10 +98,6 @@ const BOARD_AND_CHIPS_SCALE =
   BOARD_AND_CHIPS_SIZE_REDUCTION_FACTOR *
   TABLE_CHAIR_BOARD_GLOBAL_SCALE_BOOST *
   TABLE_SET_SIZE_BOOST;
-const CAMERA_FRAME_MATCH_SCALE =
-  ROW_GAME_SCALE_REDUCTION * TABLE_CHAIR_BOARD_GLOBAL_SCALE_BOOST;
-const CAMERA_CLOSER_RADIUS_FACTOR = 0.76;
-const CAMERA_HEIGHT_MATCH_BOOST = 1.3;
 const CAMERA_LOOK_YAW_LIMIT = THREE.MathUtils.degToRad(16);
 const CAMERA_LOOK_UP_LIMIT = THREE.MathUtils.degToRad(10);
 const CAMERA_LOOK_DOWN_LIMIT = THREE.MathUtils.degToRad(6);
@@ -114,8 +115,7 @@ const TABLE_HEIGHT =
   TABLE_AND_CHAIR_SIZE_MULTIPLIER *
   TABLE_SET_SIZE_BOOST;
 const DEFAULT_GROUNDED_CAMERA_HEIGHT = 1.45;
-const CHAIR_GAP = 1.08 * CHAIR_SCALE;
-const CHAIR_DISTANCE = TABLE_RADIUS + CHAIR_GAP;
+const CHAIR_DISTANCE = TABLE_RADIUS + TABLE_RADIUS * 2.4 * 0.17 + 0.025;
 const BOARD_TABLE_CLEARANCE = 0.015 * BOARD_AND_CHIPS_SCALE;
 const BOARD_VERTICAL_LIFT = 0.06 * BOARD_AND_CHIPS_SCALE;
 const BOARD_BASE_THICKNESS = 0.12 * BOARD_AND_CHIPS_SCALE;
@@ -129,9 +129,8 @@ const BOARD_TOP_RAIL_DEPTH = 0.046 * BOARD_AND_CHIPS_SCALE;
 const BOARD_FRAME_CENTER_Z = 0;
 const TOKEN_THICKNESS = BOARD_SLOT_GAP * 0.9;
 const TOKEN_DOME_RADIUS = slotRadius => slotRadius * 0.9 * TOKEN_SIZE_BOOST;
-const TOKEN_DOME_OFFSET = TOKEN_THICKNESS * 0.2;
 const TOKEN_RIM_RADIUS_FACTOR = 0.9 * TOKEN_SIZE_BOOST;
-const TOKEN_RIM_TUBE = TOKEN_THICKNESS * 0.145 * TOKEN_SIZE_BOOST;
+const TOKEN_RIM_TUBE = TOKEN_THICKNESS * 0.1 * TOKEN_SIZE_BOOST;
 const CONNECT4_WOOD = '#4b2b1f';
 const CONNECT4_WOOD_DARK = '#2d170f';
 const CONNECT4_PANEL = '#efe9d5';
@@ -150,7 +149,7 @@ const TARGET_CHAIR_SIZE = new THREE.Vector3(
 );
 
 const FOUR_IN_ROW_CHAIR_LOAD_TIMEOUT_MS = 5000;
-const FOUR_IN_ROW_MENU_TOP_CLASS = 'top-24';
+const FOUR_IN_ROW_MENU_TOP_CLASS = 'four-menu-position';
 
 const GRAPHICS_PRESETS = Object.freeze([
   {
@@ -202,6 +201,7 @@ function disposeTokenMesh(root) {
   const geometries = new Set();
   const materials = new Set();
   root.traverse((node) => {
+    if (node.isInstancedMesh) node.dispose();
     if (node.geometry) geometries.add(node.geometry);
     const list = Array.isArray(node.material) ? node.material : [node.material];
     list.filter(Boolean).forEach((material) => materials.add(material));
@@ -667,12 +667,22 @@ const vibrate = (pattern) => {
   }
 };
 
+const createHumanModels = () => createSeatedHumanModelLibrary({ createLoader: createConfiguredGLTFLoader, targetHeight: TABLE_RADIUS * 2.4, visualScaleMultiplier: 1 });
+let humanModels = createHumanModels();
+
 export default function FourInRowRoyal() {
   useTelegramBackButton();
   const mountRef = useRef(null);
   const sceneRef = useRef(null);
   const boardHitPlaneRef = useRef(null);
   const piecesGroupRef = useRef(null);
+  const humanActorsRef = useRef([]);
+  const reserveRef = useRef({});
+  const humanRequestRef = useRef(0);
+  const pendingHumansRef = useRef(null);
+  const loadHumansRef = useRef(() => {});
+  const frameCameraRef = useRef(() => {});
+  const [humanStatus, setHumanStatus] = useState('loading');
   const piecesMapRef = useRef(new Map());
   const displayedBoardRef = useRef([]);
   const fallingPiecesRef = useRef([]);
@@ -747,6 +757,8 @@ export default function FourInRowRoyal() {
     () => getFourInRowInventory(fourInRowAccountId(accountId || undefined)),
     [accountId]
   );
+  const humanInventory = useMemo(() => getChessBattleInventory(accountId || undefined), [accountId]);
+  const humanOptions = useMemo(() => CHESS_HUMAN_CHARACTER_OPTIONS.filter(option => humanInventory.humanCharacter?.includes(option.id) || option.id === CHESS_HUMAN_CHARACTER_OPTIONS[0].id), [humanInventory]);
   const selectedLayout = useMemo(() => {
     const requested = params.get('boardLayout');
     const owned = inventory.boardLayout || [];
@@ -806,6 +818,7 @@ export default function FourInRowRoyal() {
       inventory.environmentHdri?.[0] ||
       FOUR_IN_ROW_BATTLE_DEFAULT_LOADOUT.environmentHdri?.[0] ||
       POOL_ROYALE_DEFAULT_HDRI_ID,
+    humanCharacter: humanOptions[0].id,
     graphics: GRAPHICS_PRESETS[1]?.id || GRAPHICS_PRESETS[0].id
   }));
 
@@ -1033,7 +1046,7 @@ export default function FourInRowRoyal() {
       metalness: 0.03
     });
     const rimMat = new THREE.MeshStandardMaterial({
-      color: '#1f1a16',
+      color: token === 'player' ? '#ff8c78' : '#8bc8ff',
       roughness: 0.5,
       metalness: 0.02
     });
@@ -1044,8 +1057,8 @@ export default function FourInRowRoyal() {
     const domeRadius = TOKEN_DOME_RADIUS(slotRadius);
     const body = new THREE.Mesh(
       new THREE.CylinderGeometry(
-        slotRadius * 0.99 * TOKEN_SIZE_BOOST,
-        slotRadius * 0.99 * TOKEN_SIZE_BOOST,
+        slotRadius * 0.94 * TOKEN_SIZE_BOOST,
+        slotRadius * 0.94 * TOKEN_SIZE_BOOST,
         TOKEN_THICKNESS,
         42
       ),
@@ -1063,10 +1076,12 @@ export default function FourInRowRoyal() {
       ),
       material
     );
+    domeA.scale.y = TOKEN_THICKNESS * 0.035 / domeRadius;
     domeA.rotation.x = Math.PI;
-    domeA.position.y = TOKEN_DOME_OFFSET;
+    domeA.position.y = -TOKEN_THICKNESS * 0.5;
     const domeB = domeA.clone();
-    domeB.position.y = -TOKEN_DOME_OFFSET;
+    domeB.rotation.x = 0;
+    domeB.position.y = TOKEN_THICKNESS * 0.5;
     const rim = new THREE.Mesh(
       new THREE.TorusGeometry(
         slotRadius * TOKEN_RIM_RADIUS_FACTOR,
@@ -1078,6 +1093,7 @@ export default function FourInRowRoyal() {
     );
     rim.rotation.x = Math.PI / 2;
     tokenMesh.add(body, domeA, domeB, rim);
+    tokenMesh.traverse(node => { if (node.isMesh) { node.castShadow = true; node.receiveShadow = true; } });
     tokenMesh.rotation.x = Math.PI / 2;
     tokenMesh.userData = {
       baseY: 0,
@@ -1095,6 +1111,8 @@ export default function FourInRowRoyal() {
     group.clear();
     piecesMapRef.current.clear();
     fallingPiecesRef.current = [];
+    humanActorsRef.current.forEach(idleFourInRowHuman);
+    for (const token of ['player', 'ai']) reserveRef.current[token]?.setCount(reserveCount(boardState, token));
 
     for (let r = 0; r < rows; r += 1) {
       for (let c = 0; c < cols; c += 1) {
@@ -1173,6 +1191,36 @@ export default function FourInRowRoyal() {
       });
   };
 
+  loadHumansRef.current = async () => {
+    const arena = arenaRootRef.current;
+    if (!arena || !rendererRef.current) return;
+    if (humanStatus === 'error') humanModels = createHumanModels();
+    const request = ++humanRequestRef.current;
+    pendingHumansRef.current = null;
+    setHumanStatus('loading');
+    const selected = humanOptions.find(option => option.id === appearance.humanCharacter) || humanOptions[0];
+    const results = await Promise.allSettled([selected, CHESS_HUMAN_CHARACTER_OPTIONS[0]].map(option => humanModels.loadSeatedHumanTemplate(option, rendererRef.current, 2)));
+    const install = () => {
+      if (request !== humanRequestRef.current || arena !== arenaRootRef.current) return;
+      results.forEach((result, index) => {
+        if (result.status !== 'fulfilled') return;
+        const token = index === 0 ? 'player' : 'ai';
+        const actor = createFourInRowHuman(result.value, token, TABLE_RADIUS, TABLE_HEIGHT);
+        const previous = humanActorsRef.current.find(entry => entry.seat === actor.seat);
+        if (previous) disposeFourInRowHuman(previous);
+        humanActorsRef.current = [...humanActorsRef.current.filter(entry => entry.seat !== actor.seat), actor];
+        arena.add(actor.root);
+      });
+      frameCameraRef.current();
+      setHumanStatus(results.every(result => result.status === 'fulfilled') ? 'ready' : 'error');
+    };
+    if (request !== humanRequestRef.current || arena !== arenaRootRef.current) return;
+    if (fallingPiecesRef.current.length) pendingHumansRef.current = install;
+    else install();
+  };
+
+  useEffect(() => { void loadHumansRef.current(); }, [appearance.humanCharacter, rows, cols]);
+
   useEffect(() => {
     if (onlineMode) return;
     const empty = createBoard(rows, cols);
@@ -1218,35 +1266,19 @@ export default function FourInRowRoyal() {
     mount.appendChild(renderer.domElement);
     rendererRef.current = renderer;
 
-    const perspective = new THREE.PerspectiveCamera(47, 1, 0.1, 200);
-    const isPortrait = mount.clientHeight > mount.clientWidth;
-    const cameraSeatAngle = Math.PI / 2;
-    const cameraBackOffset =
-      ((isPortrait ? 1.98 : 1.36) + 0.24) * CAMERA_FRAME_MATCH_SCALE;
-    const cameraForwardOffset =
-      (isPortrait ? 0.44 : 0.5) * CAMERA_FRAME_MATCH_SCALE;
-    const cameraHeightOffset =
-      (isPortrait ? 1.08 : 0.9) *
-      CAMERA_FRAME_MATCH_SCALE *
-      TABLE_AND_CHAIR_SIZE_MULTIPLIER *
-      CAMERA_HEIGHT_MATCH_BOOST;
-    const cameraRadius =
-      (CHAIR_DISTANCE + cameraBackOffset - cameraForwardOffset) *
-      CAMERA_CLOSER_RADIUS_FACTOR;
-    perspective.position.set(
-      Math.cos(cameraSeatAngle) * cameraRadius,
-      arenaRoot.position.y + TABLE_HEIGHT + cameraHeightOffset,
-      Math.sin(cameraSeatAngle) * cameraRadius
-    );
+    const perspective = new THREE.PerspectiveCamera(52, 1, 0.015, 200);
+    const cameraRadius = TABLE_RADIUS * 1.04;
+    perspective.position.set(0, arenaRoot.position.y + TABLE_HEIGHT + TABLE_RADIUS * 0.92, cameraRadius);
     cameraLockedPositionRef.current.copy(perspective.position);
     perspectiveCameraRef.current = perspective;
 
     const controls = new OrbitControls(perspective, renderer.domElement);
     controls.enablePan = false;
+    controls.enableZoom = false;
     controls.enableRotate = false;
     controls.enableDamping = true;
     controls.dampingFactor = 0.08;
-    cameraBaseTargetRef.current.set(0, arenaRoot.position.y + TABLE_HEIGHT + 0.08, 0);
+    cameraBaseTargetRef.current.set(0, arenaRoot.position.y + boardCenterY + boardHeight * 0.14, 0);
     controls.target.copy(cameraBaseTargetRef.current);
     controls.minPolarAngle = THREE.MathUtils.degToRad(30);
     controls.maxPolarAngle =
@@ -1258,23 +1290,29 @@ export default function FourInRowRoyal() {
     renderer.domElement.style.touchAction = 'none';
     controlsRef.current = controls;
 
-    scene.add(new THREE.HemisphereLight(0xffffff, 0x223344, 0.9));
-    const key = new THREE.DirectionalLight(0xffffff, 1.05);
+    scene.background = new THREE.Color('#111c2c');
+    scene.add(new THREE.HemisphereLight(0xfff1df, 0x6484a8, 1.75));
+    const rimLight = new THREE.DirectionalLight(0x8bbfff, 1.4);
+    rimLight.position.set(-1.8, arenaRoot.position.y + 2.6, -2);
+    scene.add(rimLight);
+    renderer.toneMapping = THREE.ACESFilmicToneMapping;
+    renderer.toneMappingExposure = 1.1;
+    const key = new THREE.DirectionalLight(0xffeed9, 2.1);
     key.position.set(2.2, 4.5, 1.6);
     key.position.y += arenaRoot.position.y;
     key.castShadow = true;
+    key.shadow.camera.near = 0.1;
+    key.shadow.camera.far = 10;
+    key.shadow.camera.left = key.shadow.camera.bottom = -TABLE_RADIUS * 2.2;
+    key.shadow.camera.right = key.shadow.camera.top = TABLE_RADIUS * 2.2;
+    key.shadow.normalBias = 0.004;
     keyLightRef.current = key;
     scene.add(key);
 
     chairMeshesRef.current = [];
     const chairSeats = [
-      { id: 'front', role: 'player', position: [0, 0, -CHAIR_DISTANCE] },
-      { id: 'back', role: 'ai', position: [0, 0, CHAIR_DISTANCE] },
-      {
-        id: 'bottomUser',
-        role: 'player',
-        position: [CHAIR_DISTANCE * 0.86, 0, CHAIR_DISTANCE * 0.45]
-      }
+      { id: 'local', role: 'player', position: [0, 0, CHAIR_DISTANCE] },
+      { id: 'rival', role: 'ai', position: [0, 0, -CHAIR_DISTANCE] }
     ];
     chairSeats.forEach((seat) => {
       const [x, y, z] = seat.position;
@@ -1413,12 +1451,12 @@ export default function FourInRowRoyal() {
     boardFaceFront.position.set(
       0,
       boardCenterY,
-      BOARD_SLOT_GAP / 2 - boardThickness / 2
+      BOARD_SLOT_GAP / 2
     );
     boardFaceBack.position.set(
       0,
       boardCenterY,
-      -BOARD_SLOT_GAP / 2 - boardThickness / 2
+      -BOARD_SLOT_GAP / 2 - boardThickness
     );
     boardFaceFront.castShadow = true;
     boardFaceFront.receiveShadow = true;
@@ -1522,85 +1560,33 @@ export default function FourInRowRoyal() {
           x,
           y,
           BOARD_SLOT_GAP / 2 +
-            boardThickness / 2 +
+            boardThickness +
             0.0012 * BOARD_AND_CHIPS_SCALE
         );
         const backRim = frontRim.clone();
         backRim.position.z = -(
           BOARD_SLOT_GAP / 2 +
-          boardThickness / 2 +
+          boardThickness +
           0.0012 * BOARD_AND_CHIPS_SCALE
         );
         boardGroup.add(frontRim, backRim);
       }
     }
 
-    const createChipStack = (
-      tokenColor,
-      side = 'front',
-      xOffset = 0,
-      count = 6
-    ) => {
-      const stack = new THREE.Group();
-      const chipMat = new THREE.MeshStandardMaterial({
-        color: tokenColor,
-        roughness: 0.3,
-        metalness: 0.04
-      });
-      const topMat = new THREE.MeshStandardMaterial({
-        color: new THREE.Color(tokenColor).lerp(
-          new THREE.Color('#ffffff'),
-          0.25
-        ),
-        roughness: 0.24,
-        metalness: 0.05
-      });
-      const chipDepth = 0.024 * BOARD_AND_CHIPS_SCALE;
-      for (let i = 0; i < count; i += 1) {
-        const chip = new THREE.Mesh(
-          new THREE.CylinderGeometry(
-            slotRadius * 1.08,
-            slotRadius * 1.08,
-            chipDepth,
-            36
-          ),
-          chipMat
-        );
-        chip.position.y = i * chipDepth * 0.85;
-        stack.add(chip);
-      }
-      const topChip = new THREE.Mesh(
-        new THREE.CylinderGeometry(
-          slotRadius * 1.06,
-          slotRadius * 1.06,
-          chipDepth * 0.5,
-          36
-        ),
-        topMat
-      );
-      topChip.position.y = count * chipDepth * 0.85 + chipDepth * 0.16;
-      stack.add(topChip);
-
-      const sideSign = side === 'front' ? 1 : -1;
-      stack.position.set(
-        xOffset,
-        TABLE_HEIGHT + chipDepth / 2,
-        sideSign * (TABLE_RADIUS * 0.58)
-      );
-      stack.rotation.y = side === 'front' ? 0 : Math.PI;
-      return stack;
-    };
-
-    boardGroup.add(
-      createChipStack(CONNECT4_RED, 'front', -0.2 * BOARD_AND_CHIPS_SCALE, 7),
-      createChipStack(CONNECT4_BLUE, 'back', 0.2 * BOARD_AND_CHIPS_SCALE, 7)
-    );
+    const capacity = reserveCapacity(rows, cols);
+    for (const token of ['player', 'ai']) {
+      const prototype = createTokenMesh(token);
+      const reserve = createReserveInstances(prototype, capacity, token, slotRadius, TOKEN_THICKNESS * 1.16, TABLE_HEIGHT, TABLE_RADIUS);
+      reserve.setCount(reserveCount(boardRef.current, token));
+      reserveRef.current[token] = reserve;
+      boardGroup.add(reserve.group);
+    }
 
     const hitPlane = new THREE.Mesh(
       new THREE.PlaneGeometry(boardWidth, boardHeight + yStep * 1.65),
       new THREE.MeshBasicMaterial({ transparent: true, opacity: 0 })
     );
-    hitPlane.position.set(0, boardCenterY + yStep * 0.28, 0.2);
+    hitPlane.position.set(0, boardCenterY + yStep * 0.28, BOARD_FRAME_DEPTH / 2 + 0.002);
     boardGroup.add(hitPlane);
     boardHitPlaneRef.current = hitPlane;
 
@@ -1612,7 +1598,7 @@ export default function FourInRowRoyal() {
         opacity: 0.85
       })
     );
-    marker.position.set(0, boardCenterY + boardHeight / 2 + yStep * 0.48, 0.2);
+    marker.position.set(0, boardCenterY + boardHeight / 2 + yStep * 0.48, BOARD_SLOT_GAP / 2 + BOARD_FACE_THICKNESS + 0.003);
     marker.visible = false;
     markerRef.current = marker;
     boardGroup.add(marker);
@@ -1628,6 +1614,13 @@ export default function FourInRowRoyal() {
       const height = mount.clientHeight;
       const aspect = width / height;
       perspective.aspect = aspect;
+      const localActor = humanActorsRef.current.find(actor => actor.seat === 'bottom');
+      if (localActor) {
+        const eye = playerEyePosition(localActor, arenaRoot);
+        cameraLockedPositionRef.current.copy(arenaRoot.localToWorld(eye));
+      }
+      perspective.position.copy(cameraLockedPositionRef.current);
+      perspective.fov = portraitBoardFov(aspect, boardWidth, perspective.position.z);
       perspective.updateProjectionMatrix();
       const preset = graphicsPresetRef.current;
       renderer.setPixelRatio(
@@ -1640,7 +1633,9 @@ export default function FourInRowRoyal() {
       renderer.shadowMap.type = THREE.PCFSoftShadowMap;
       key.shadow.mapSize.setScalar(preset.shadowMapSize);
     };
+    frameCameraRef.current = onResize;
     onResize();
+    void loadHumansRef.current();
     animationClockRef.current.start();
 
     const applyCameraLookTarget = () => {
@@ -1678,16 +1673,23 @@ export default function FourInRowRoyal() {
       if (!delta) return;
       const elapsed = animationClockRef.current.elapsedTime;
       const hadFallingPieces = fallingPiecesRef.current.length > 0;
-      for (let i = fallingPiecesRef.current.length - 1; i >= 0; i -= 1) {
-        const entry = fallingPiecesRef.current[i];
-        const result = advanceFourInRowDrop(entry, delta);
+      // Online snapshots may arrive before the previous hand has withdrawn.
+      // Present those accepted moves in order, one physical pickup at a time.
+      const entry = fallingPiecesRef.current[0];
+      if (entry) {
+        const result = advanceHumanPlacement(entry, delta);
         if (result.landed) playChipDropFx(entry.token);
         if (result.finished) {
           entry.mesh.userData.isFalling = false;
-          fallingPiecesRef.current.splice(i, 1);
+          fallingPiecesRef.current.shift();
         }
       }
       if (hadFallingPieces && fallingPiecesRef.current.length === 0) setPresentationBusy(false);
+      if (!fallingPiecesRef.current.length && pendingHumansRef.current) {
+        const install = pendingHumansRef.current;
+        pendingHumansRef.current = null;
+        install();
+      }
 
       winningCellsRef.current.forEach(([r, c]) => {
         const token = piecesMapRef.current.get(`${r}-${c}`);
@@ -1743,9 +1745,19 @@ export default function FourInRowRoyal() {
     };
     animate();
 
+    const resizeObserver = new ResizeObserver(onResize);
+    resizeObserver.observe(mount);
     window.addEventListener('resize', onResize);
     return () => {
       cancelAnimationFrame(raf);
+      resizeObserver.disconnect();
+      humanRequestRef.current += 1;
+      pendingHumansRef.current = null;
+      humanActorsRef.current.forEach(disposeFourInRowHuman);
+      humanActorsRef.current = [];
+      Object.values(reserveRef.current).forEach(reserve => disposeTokenMesh(reserve.group));
+      reserveRef.current = {};
+      frameCameraRef.current = () => {};
       window.removeEventListener('resize', onResize);
       tableGroupRef.current = null;
       tablePartsRef.current = null;
@@ -1958,15 +1970,22 @@ export default function FourInRowRoyal() {
     const [x, y, z] = worldFromCell(r, c);
     const columnTop = new THREE.Vector3(x, boardCenterY + boardHeight / 2 + yStep * 0.62, z);
     const mesh = createTokenMesh(board[r][c]);
-    mesh.position.copy(columnTop);
+    const token = board[r][c];
+    const remaining = reserveCount(board, token);
+    const from = reservePosition(remaining, token, reserveCapacity(rows, cols), slotRadius, TOKEN_THICKNESS * 1.16, TABLE_HEIGHT, TABLE_RADIUS);
+    reserveRef.current[token]?.setCount(remaining);
+    mesh.position.copy(from);
+    mesh.rotation.set(0, 0, 0);
     mesh.userData.baseY = y;
     mesh.userData.isFalling = true;
     group.add(mesh);
     piecesMapRef.current.set(`${r}-${c}`, mesh);
     fallingPiecesRef.current.push({
-      mesh, key: `${r}-${c}`, token: board[r][c], columnTop,
+      mesh, key: `${r}-${c}`, token, columnTop, from, motionTime: 0,
+      chipRadius: slotRadius, chipThickness: TOKEN_THICKNESS,
+      actor: humanActorsRef.current.find(entry => entry.seat === (token === 'player' ? 'bottom' : 'top')),
       target: new THREE.Vector3(x, y, z), elapsed: 0,
-      phase: 'preview', previewDuration: DROP_PREVIEW_DELAY, dropDuration,
+      phase: 'preview', previewDuration: 0, dropDuration,
       bounceHeight: yStep * 0.2
     });
     displayedBoardRef.current = cloneBoard(board);
@@ -2302,7 +2321,7 @@ export default function FourInRowRoyal() {
   ];
 
   return (
-    <div className="relative min-h-screen bg-[#070b16] text-white" style={{ minHeight: '100dvh' }}>
+    <div className="four-in-row-game relative bg-[#070b16] text-white" data-human-status={humanStatus}>
       <div ref={mountRef} className="absolute inset-0" />
       {rendererUnavailable && (
         <FourInRowFallback board={board} winningCells={winningCells} dropCell={dropCell} isAnimating={isAnimating} />
@@ -2351,6 +2370,11 @@ export default function FourInRowRoyal() {
                 Layout:{' '}
                 {onlineSize ? `${cols} × ${rows}` : FOUR_IN_ROW_BATTLE_OPTION_LABELS.boardLayout[selectedLayout.id] || selectedLayout.label}
               </p>
+              <label className="four-character-label" htmlFor="four-human-character">Human character</label>
+              <select id="four-human-character" value={appearance.humanCharacter} disabled={isAnimating} onChange={event => setAppearance(previous => ({ ...previous, humanCharacter: event.target.value }))}>
+                {humanOptions.map(option => <option key={option.id} value={option.id}>{option.label}</option>)}
+              </select>
+              {humanStatus === 'error' && <button type="button" onClick={() => void loadHumansRef.current()}>Retry characters</button>}
               {optionGroups.map((group) => (
                 <div key={group.key} className="mt-4">
                   <p className="text-[10px] uppercase tracking-[0.35em] text-white/70">
@@ -2388,36 +2412,24 @@ export default function FourInRowRoyal() {
         </div>
       </div>
 
-      <div className="pointer-events-none absolute inset-0 z-20">
-        <div className="absolute left-1/2 top-[11%] -translate-x-1/2">
-          <AvatarTimer
-            photoUrl="🤖"
-            name={onlineMode ? 'Online Rival' : 'AI Rival'}
-            active
-            isTurn={turn === 'ai'}
-            size={0.92}
-          />
+      <header className="four-match-header">
+        <div className="four-brand"><span className="four-brand-mark" aria-hidden="true">④</span><div><h1>4 in a row</h1><span>ROYAL TABLE · {cols} × {rows}</span></div></div>
+        <div className="four-players">
+          <div className={`four-player ${turn === 'player' && !winner ? 'is-turn' : ''}`} data-self-player="true">
+            <span className="four-player-avatar"><img src={avatar || '/assets/icons/profile.svg'} alt={username} /><span className="four-chip-dot player" /></span><div><strong>{username}</strong><span>{reserveCount(board, 'player')} chips left</span></div><span className="four-player-tag">YOU</span>
+          </div>
+          <div className={`four-player ${turn === 'ai' && !winner ? 'is-turn' : ''}`}>
+            <span className="four-chip-dot rival" /><div><strong>{onlineMode ? 'Online rival' : 'AI rival'}</strong><span>{reserveCount(board, 'ai')} chips left</span></div>
+          </div>
         </div>
-        <div
-          data-self-player="true"
-          className="absolute left-1/2 top-[91.5%] -translate-x-1/2"
-        >
-          <AvatarTimer
-            photoUrl={avatar}
-            name={username}
-            active
-            isTurn={turn === 'player'}
-            size={0.92}
-          />
-        </div>
-      </div>
+      </header>
 
       <div
-        className="pointer-events-none absolute inset-x-0 bottom-[15.5%] z-30 flex flex-col items-center gap-2 px-3"
+        className="four-controls pointer-events-none absolute inset-x-0 z-30 flex flex-col items-center gap-2 px-3"
         aria-live="polite"
       >
         <p className="rounded-full border border-white/15 bg-black/65 px-3 py-1.5 text-center text-sm font-semibold text-white shadow-lg backdrop-blur">
-          {connectionStatus || (isAnimating ? 'Chip is dropping…' : movePending ? 'Sending your move…' : winner
+          {connectionStatus || (isAnimating ? (rendererUnavailable ? 'Chip is dropping…' : 'Picking up & placing…') : movePending ? 'Sending your move…' : winner
             ? winner === 'draw'
               ? 'Draw — no spaces remain'
               : winner === 'player'
@@ -2428,7 +2440,7 @@ export default function FourInRowRoyal() {
               : 'Rival is choosing…')}
         </p>
         <div
-          className="pointer-events-auto grid w-full max-w-md gap-1.5"
+          className="four-column-buttons pointer-events-auto grid w-full max-w-md gap-1.5"
           style={{ gridTemplateColumns: `repeat(${cols}, minmax(0, 1fr))` }}
           aria-label="Choose a column"
         >
