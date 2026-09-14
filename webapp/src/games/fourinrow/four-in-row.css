@@ -1,0 +1,39 @@
+.four-in-row-game { height: 100dvh; min-height: 580px; overflow: hidden; isolation: isolate; font-family: Inter, ui-sans-serif, system-ui, sans-serif; }
+.four-in-row-game::after { content: ''; position: absolute; inset: 0; pointer-events: none; background: linear-gradient(180deg, #080f20df 0%, transparent 28%, transparent 63%, #070e1ae8 100%); }
+.four-match-header { position: absolute; inset: max(18px, env(safe-area-inset-top)) 16px auto; z-index: 22; pointer-events: none; }
+.four-brand { display: flex; gap: 10px; align-items: center; }
+.four-brand-mark { color: #9bccff; font-size: 36px; line-height: 1; }
+.four-brand h1 { margin: 0; color: #f5f7ff; font-size: 23px; line-height: 1.1; font-weight: 750; letter-spacing: -.7px; }
+.four-brand div > span { display: block; margin-top: 5px; font-size: 11px; letter-spacing: .14em; color: #a6b7d1; }
+.four-players { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-top: 20px; }
+.four-player { display: flex; min-width: 0; align-items: center; gap: 9px; padding: 11px 12px; border: 1px solid #a9c5f020; border-radius: 16px; background: #111d30b8; backdrop-filter: blur(14px); }
+.four-player.is-turn { border-color: #d3e6ff80; box-shadow: inset 0 1px #d7eaff20, 0 5px 22px #0002; }
+.four-player > div { min-width: 0; }
+.four-player strong { display: block; max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: #f4f7ff; font-size: 14px; font-weight: 650; }
+.four-player div > span { display: block; color: #a8b9d3; font-size: 12px; margin-top: 3px; }
+.four-player-tag { font-size: 10px; color: #f1c1b8; margin-left: auto; letter-spacing: .08em; }
+.four-chip-dot { flex: 0 0 12px; width: 12px; height: 12px; border-radius: 50%; box-shadow: inset 0 1px 2px #ffffff75; }
+.four-chip-dot.player { background: #ed5b56; }
+.four-chip-dot.rival { background: #438eef; }
+.four-menu-position { top: max(20px, env(safe-area-inset-top)); left: auto !important; right: 16px; }
+.four-menu-position button { min-height: 44px; padding: 10px 13px; font-size: 12px; letter-spacing: .08em; background: #132039e6; }
+.four-in-row-game .top-20.right-4 { top: 150px; right: 16px; }
+.four-in-row-game .top-20.right-4 > div:has(> p) { background: #111c30f5; max-height: calc(100dvh - 190px); font-size: 14px; }
+.four-in-row-game .top-20.right-4 p { font-size: 12px; letter-spacing: .03em; }
+.four-character-label { display: block; margin: 18px 0 8px; font-size: 14px; }
+.four-in-row-game select { min-height: 44px; width: 100%; background: #1c2b43; border: 1px solid #8ba8ce55; border-radius: 10px; padding: 8px; color: white; font-size: 16px; }
+.four-controls { bottom: max(38px, calc(env(safe-area-inset-bottom) + 20px)); gap: 18px !important; }
+.four-controls > p { background: #14213ae8; border-color: #a3c4ff30; font-size: 14px; padding: 10px 18px; max-width: 100%; }
+.four-column-buttons { gap: 5px !important; }
+.four-column-buttons button { min-height: 52px; border-radius: 14px; background: linear-gradient(180deg, #2c4263, #172741); border-color: #adcdf53d; color: #f0f6ff; box-shadow: inset 0 1px #ffffff12, 0 6px 14px #0003; font-size: 17px; }
+.four-column-buttons button:enabled:hover, .four-column-buttons button:focus-visible { background: #376493; outline: 2px solid #b8dcff; outline-offset: 2px; }
+.four-column-buttons button:disabled { opacity: .48; box-shadow: none; }
+.four-in-row-game .fixed.bottom-28 { position: absolute; bottom: 164px; }
+.four-in-row-game .icon-only-button { border-radius: 14px; background: #11223cbf; border: 1px solid #aacbfc28; }
+@media (min-width: 600px) { .four-match-header { max-width: 520px; left: 24px; } .four-players { max-width: 440px; } .four-controls { bottom: 28px; } }
+@media (max-width: 360px) { .four-match-header { left: 12px; right: 12px; } .four-player { padding: 9px 8px; gap: 7px; } .four-player-tag { display: none; } .four-brand h1 { font-size: 21px; } .four-column-buttons { gap: 3px !important; } }
+@media (prefers-reduced-motion: reduce) { .four-in-row-game button { transition: none; } }
+
+.four-player-avatar { position: relative; width: 30px; height: 30px; flex: 0 0 30px; }
+.four-player-avatar img { width: 100%; height: 100%; border-radius: 50%; object-fit: cover; background: #22334d; }
+.four-player-avatar .four-chip-dot { position: absolute; right: -2px; bottom: -2px; border: 2px solid #111d30; }

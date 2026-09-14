@@ -44,7 +44,7 @@ export function advanceFourInRowDrop(entry: FourInRowDrop, delta: number) {
   if (entry.phase === 'drop') {
     const t = Math.min(1, entry.elapsed / entry.dropDuration);
     mesh.position.lerpVectors(entry.columnTop, entry.target, t * t);
-    mesh.rotation.x = Math.PI / 2 + Math.sin(t * Math.PI) * 0.055;
+    mesh.rotation.x = Math.PI / 2 + Math.sin(t * Math.PI) * 0.008;
     mesh.rotation.z = Math.sin(t * Math.PI) * 0.11;
     if (t < 1) return { landed, finished: false };
     entry.elapsed -= entry.dropDuration;
