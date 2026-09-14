@@ -1,13 +1,14 @@
 import * as T from 'three';
 import {GLTFLoader} from 'three/examples/jsm/loaders/GLTFLoader.js';
 import {disposeWeaponResources} from '../tiranastreets/weaponModelResources';
-import FAR from '../tirana-landmark-rebuild/namazgah-far.mjs';
 import {blenderGroup} from '../tirana-landmark-rebuild/geometry';
-/** Authored exterior, with an immediate Blender fallback at every distance.
- * The scan is never requested. Failed detail downloads leave the complete model. */
+import {mosqueShell} from './MosqueShell';
+/** Complete exterior masses are immediate; Blender detail is optional to entry.
+ * Failed downloads retain the shell and retry without suspending the game. */
 export class BlenderMosque {
-  private root=new T.Group();private far=blenderGroup(FAR);private near?:T.Group;
+  private root=new T.Group();private far=mosqueShell();private near?:T.Group;
   private pending=false;private dead=false;private retryAt=0;
+  private farPending=false;private farReady=false;private farRetryAt=0;
   constructor(host:T.Group,polygon:number[][]){
     const yaw=Math.atan2(-.8,-.6),c=Math.cos(yaw),s=Math.sin(yaw);
     const xs=polygon.map(p=>p[0]*c-p[1]*s),zs=polygon.map(p=>p[0]*s+p[1]*c);
@@ -19,7 +20,17 @@ export class BlenderMosque {
   }
   update(viewer:{x:number;z:number},battery=false){
     if(this.dead)return;
-    const close=!battery&&Math.hypot(viewer.x-this.root.position.x,viewer.z-this.root.position.z)<280;
+    const distance=Math.hypot(viewer.x-this.root.position.x,viewer.z-this.root.position.z);
+    if(distance<2400&&!this.farReady&&!this.farPending&&performance.now()>=this.farRetryAt){
+      this.farPending=true;
+      void import('../tirana-landmark-rebuild/namazgah-far.mjs').then(({default:data})=>{
+        if(this.dead)return;
+        const previous=this.far,next=blenderGroup(data);next.visible=previous.visible;
+        this.root.add(next);this.far=next;this.farReady=true;
+        previous.removeFromParent();disposeWeaponResources([previous]);
+      }).catch(()=>{this.farRetryAt=performance.now()+30000;}).finally(()=>{this.farPending=false;});
+    }
+    const close=!battery&&distance<280;
     this.far.visible=!close||!this.near;if(this.near)this.near.visible=close;
     if(!close||this.pending||this.near||performance.now()<this.retryAt)return;
     this.pending=true;

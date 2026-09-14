@@ -1,0 +1,50 @@
+{
+  "scope": "Production Vite code splitting with the actual Blackwater route, PlayerPicker, original GLBs and continuous software WebGL. Account responses are fixtures. No engine, simulation or renderer substitutions.",
+  "note": "Operation and Career were verified in separate runs. Times include software rendering and local test asset delivery; they are not physical-device benchmarks.",
+  "operation": {
+    "selectedMs": 4198,
+    "moduleReadyMs": 20278,
+    "settingsResponsiveMs": 49856,
+    "operationBoardVisible": true,
+    "graphicsControlUsable": true,
+    "optionalNamazgahChunkBlocked": true,
+    "pageErrors": [],
+    "revisionNote": "Captured before the later held-weapon diagnostic, PlayerPicker error-boundary and loading-status wording edits; successful gameplay logic was unchanged by those edits."
+  },
+  "streetCareer": {
+    "selectedMs": 3587,
+    "moduleReadyMs": 10837,
+    "settingsResponsiveMs": 54388,
+    "loadingIndicatorGone": true,
+    "healthAndJoystickVisible": true,
+    "readyAndResumed": true,
+    "optionalNamazgahChunkBlocked": true,
+    "pageErrors": [],
+    "optionalRequestAborts": [
+      {
+        "path": "/assets/tirana-streets/population/citizen-0.glb",
+        "error": "net::ERR_ABORTED"
+      },
+      {
+        "path": "/assets/tirana-streets/population/citizen-1.glb",
+        "error": "net::ERR_ABORTED"
+      },
+      {
+        "path": "/assets/table-tennis/athlete-female.glb",
+        "error": "net::ERR_ABORTED"
+      }
+    ]
+  },
+  "previewRecovery": {
+    "blockedChunk": "PlayerPreview-5651565b.js",
+    "errorVisible": true,
+    "backVisible": true
+  },
+  "assets": {
+    "optionalMissingFiles": "Read-only proxy to deployed public assets",
+    "account": "Fixture balance 1234.5; no purchase or account write",
+    "careerCriticalModels": "Real files from the Git checkout",
+    "operationAssets": "Actual checkout files with read-only public-asset proxy for missing files"
+  },
+  "profilingEnabled": false
+}

@@ -229,6 +229,7 @@ export class FirstPersonBody {
         [source, prepared].filter((r): r is T.Group => !!r)
       );
       if (!this.dead) {
+        console.warn('[tirana:load]', {stage:'held-weapon',id,status:'failed'}, e);
         this.failed.add(id);
         this.errors.push(`Held weapon ${id}: ${String(e)}`);
       }

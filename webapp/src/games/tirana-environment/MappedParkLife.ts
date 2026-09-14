@@ -10,7 +10,7 @@ export class MappedParkLife {
  private cache=new Map<string,T.Group>();private last=-Infinity;private dead=false;
  private materials=[new T.MeshStandardMaterial({color:0x8b6748,roughness:.88}),new T.MeshStandardMaterial({color:0x3b6961,roughness:.62}),new T.MeshStandardMaterial({color:0xd5a545,roughness:.55}),new T.MeshStandardMaterial({color:0x719299,roughness:.32,metalness:.65}),new T.MeshStandardMaterial({color:0xa66259,roughness:.96})];
  readonly sites:MappedAmenity[];
- private near:ReturnType<typeof nearbyIndex>;
+ private near:(viewer:{x:number;z:number},radius:number,limit:number)=>MappedAmenity[];
  constructor(options:StreetDetailOptions={}){
   const exclude=options.track?ribbonExclusion(options.track):()=>false;
   // Filter before indexing: streamed-in benches cannot re-enter the course.

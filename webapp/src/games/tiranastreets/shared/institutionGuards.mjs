@@ -1,8 +1,28 @@
 import {CITY_PLACES} from '../../tirana-city-source/registry.mjs';
 import {CITY_SOURCE} from '../../tirana-city-source/sourceData.mjs';
 import {frontage,segmentDistance,facadeEdges} from '../../tirana-city-source/sourceCore.mjs';
+import {spatialIndex} from '../../tirana-city-completion/placementCore.mjs';
 import {forceWeaponFor} from './uploadedWeapons.mjs';
 const layouts=new WeakMap();
+const roadIndexes=new WeakMap();
+function guardRoadIndex(roads) {
+  let near=roadIndexes.get(roads);
+  if(near)return near;
+  const bounded=[],unbounded=[];
+  for(const road of roads){
+    if(road.walk)continue;
+    const margin=road.w/2+.55;
+    const bounds=[Math.min(road.a[0],road.b[0])-margin,Math.min(road.a[1],road.b[1])-margin,
+      Math.max(road.a[0],road.b[0])+margin,Math.max(road.a[1],road.b[1])+margin];
+    if(bounds.every(Number.isFinite))bounded.push({road,bounds});else unbounded.push(road);
+  }
+  const indexed=spatialIndex(bounded,record=>record.bounds,80);
+  // Full segment bounds plus the collision margin also cover wide roads and
+  // endpoints across cell edges. The original distance test remains decisive.
+  near=(x,z)=>[...indexed(x,z).map(record=>record.road),...unbounded];
+  roadIndexes.set(roads,near);
+  return near;
+}
 const copyGuards=guards=>guards.map(n=>({...n,guardPost:{...n.guardPost}}));
 // Authored GAME difficulty tiers, not real security staffing or guard positions.
 export function institutionTier(site) {
@@ -15,6 +35,7 @@ export function createInstitutionGuards(world,env,sites=CITY_PLACES.sites) {
   const saved=layouts.get(world)?.get(env.collide);
   if(saved?.sites===sites)return copyGuards(saved.guards);
   const guards=[],seen=new Set();
+  const nearbyRoads=guardRoadIndex(world.roads);
   for(const site of sites){
     const tier=institutionTier(site);if(!tier)continue;
     const key=site.name?.trim()||site.buildingId;if(seen.has(key))continue;
@@ -29,7 +50,7 @@ export function createInstitutionGuards(world,env,sites=CITY_PLACES.sites) {
         const candidate={x:e.a[0]+e.ux*u+e.nx*offset,z:e.a[1]+e.uz*u+e.nz*offset};
         const clear={...candidate};env.collide(clear,.45);
         if(Math.hypot(clear.x-candidate.x,clear.z-candidate.z)>.15)continue;
-        if(world.roads.some(r=>!r.walk&&segmentDistance(clear.x,clear.z,r.a,r.b)<r.w/2+.55))continue;
+        if(nearbyRoads(clear.x,clear.z).some(r=>segmentDistance(clear.x,clear.z,r.a,r.b)<r.w/2+.55))continue;
         if(guards.some(n=>Math.hypot(n.x-clear.x,n.z-clear.z)<.95))continue;
         post=clear;postEdge=e;break search;
       }

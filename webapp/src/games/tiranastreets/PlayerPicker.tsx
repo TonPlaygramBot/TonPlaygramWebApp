@@ -1,9 +1,11 @@
-import {useCallback,useEffect,useState} from 'react';
+import {lazy,Suspense,useCallback,useEffect,useState} from 'react';
 import {PLAYER_CATALOG,playerAssetFor,selectPlayerAsset,selectedPlayerAsset} from './playerCatalog.mjs';
-import {PlayerPreview,type PreviewState} from './PlayerPreview';
+import type {PreviewState} from './PlayerPreview';
 import {DEFAULT_LOADOUT,STARTING_WEAPON_CHOICES,validStartingLoadout,selectedStartingLoadout,selectStartingLoadout} from './startingLoadout.mjs';
 import {WEAPON_BY_ID} from './shared/weapons.mjs';
+import {GameModeBoundary} from '../shared/GameModeBoundary';
 import './player-picker.css';
+const PlayerPreview=lazy(()=>import('./PlayerPreview').then(m=>({default:m.PlayerPreview})));
 type Manifest={players:Record<string,unknown>};
 export function PlayerPicker({onStart,onBack}:{onStart:()=>void;onBack:()=>void}) {
   const [step,setStep]=useState<'character'|'weapons'>('character');
@@ -29,7 +31,7 @@ export function PlayerPicker({onStart,onBack}:{onStart:()=>void;onBack:()=>void}
   const ready=!loading&&!error&&asset&&preview.url===asset.url&&preview.ready;
   const toggle=(id:string)=>{setMessage('');if(loadout.includes(id))setLoadout(loadout.filter(w=>w!==id));else if(loadout.length<3)setLoadout([...loadout,id]);else setMessage('Remove one selected weapon to choose another.');};
   const start=()=>{if(!ready||!asset||!validStartingLoadout(loadout))return;selectPlayerAsset(asset);selectStartingLoadout(loadout);onStart();};
-  return <main className="tirana-player-picker" aria-label="Choose your Tirana player">
+  return <GameModeBoundary onBack={onBack}><main className="tirana-player-picker" aria-label="Choose your Tirana player">
     <div className="player-picker-shell">
       <button className="player-back" onClick={step==='weapons'?()=>setStep('character'):onBack}>← Back</button>
       <p className="player-eyebrow">TIRANA STREETS</p>
@@ -41,7 +43,9 @@ export function PlayerPicker({onStart,onBack}:{onStart:()=>void;onBack:()=>void}
         </button>)}
       </div>
       <div className="player-stage">
-        <PlayerPreview key={`${chosen}-${attempt}`} url={loading?null:asset?.url||null} label={character.label} onState={onPreview}/>
+        <Suspense fallback={<p role="status">Loading character preview…</p>}>
+          <PlayerPreview key={`${chosen}-${attempt}`} url={loading?null:asset?.url||null} label={character.label} onState={onPreview}/>
+        </Suspense>
         <span className="player-stage-label">{character.label}</span>
       </div>
       <p className="player-status" role="status">{loading?'Loading characters…':error||(!asset?'This character is missing from the game download.':preview.url===asset.url?preview.message:'Loading preview…')}</p>
@@ -61,5 +65,5 @@ export function PlayerPicker({onStart,onBack}:{onStart:()=>void;onBack:()=>void}
       </section>}
       <button className="player-continue" disabled={!ready||(step==='weapons'&&!validStartingLoadout(loadout))} onClick={step==='character'?()=>setStep('weapons'):start}>{step==='character'?'Next · Choose weapons':`Continue as ${character.label} · ${loadout.length}/3`}</button>
     </div>
-  </main>;
+  </main></GameModeBoundary>;
 }
