@@ -24,10 +24,18 @@ import {
   ROYAL_DICE_ROLL_MS,
   ROYAL_DICE_READ_MS
 } from '../../utils/royalDiceMotion.ts';
+import {
+  BACKGAMMON_ARENA,
+  BACKGAMMON_PLAY_SCALE,
+  BACKGAMMON_PLAY_Y_OFFSET,
+  backgammonWorldPoint
+} from './arenaLayout.ts';
 
-export const BACKGAMMON_HUMAN_HEIGHT = 5.2;
-export const BACKGAMMON_SEAT_DISTANCE = 2.24;
-export const BACKGAMMON_SEAT_Y = 0.82;
+// Rig dimensions remain in board-local units; the root uses the same uniform
+// conversion as the board, checker meshes and dice.
+export const BACKGAMMON_HUMAN_HEIGHT = 5.6;
+export const BACKGAMMON_SEAT_Y =
+  (BACKGAMMON_ARENA.seatY - BACKGAMMON_PLAY_Y_OFFSET) / BACKGAMMON_PLAY_SCALE;
 export const BACKGAMMON_DICE_PICKUP_MS = 1340;
 export type BackgammonActor = CheckersHumanActor & {
   palm: THREE.Object3D | null;
@@ -38,10 +46,17 @@ export function createBackgammonActor(
 ): BackgammonActor {
   const entry = createCheckersHumanActor(template, {
     seat,
-    distance: BACKGAMMON_SEAT_DISTANCE,
+    distance:
+      (seat === 'bottom'
+        ? BACKGAMMON_ARENA.playerChairDistance
+        : BACKGAMMON_ARENA.opponentChairDistance) / BACKGAMMON_PLAY_SCALE,
     seatY: BACKGAMMON_SEAT_Y,
     height: BACKGAMMON_HUMAN_HEIGHT
   });
+  entry.root.position.z *= BACKGAMMON_PLAY_SCALE;
+  entry.root.position.y = BACKGAMMON_PLAY_Y_OFFSET;
+  entry.root.scale.setScalar(BACKGAMMON_PLAY_SCALE);
+  entry.root.updateMatrixWorld(true);
   entry.root.name = `backgammon-human-${seat}`;
   return { ...entry, palm: palmMarker(entry.rig, 'right') };
 }
@@ -78,10 +93,20 @@ export function createBackgammonDiceAction(
   const direction = actor?.seat === 'top' ? 1 : -1;
   const windup = pickup
     .clone()
-    .add(new THREE.Vector3(0.05 * direction, 0.4, -0.24 * direction));
+    .add(
+      new THREE.Vector3(
+        0.05 * direction,
+        0.4,
+        -0.24 * direction
+      ).multiplyScalar(BACKGAMMON_PLAY_SCALE)
+    );
   const release = pickup
     .clone()
-    .add(new THREE.Vector3(0, 0.24, 0.18 * direction));
+    .add(
+      new THREE.Vector3(0, 0.24, 0.18 * direction).multiplyScalar(
+        BACKGAMMON_PLAY_SCALE
+      )
+    );
   let attachments:
     | { position: THREE.Vector3; quaternion: THREE.Quaternion }[]
     | null = null;
@@ -161,18 +186,28 @@ export function createBackgammonDiceAction(
 export function applyBackgammonCamera(
   camera: THREE.PerspectiveCamera,
   mode: '2d' | '3d',
-  target: THREE.Vector3
+  target: THREE.Vector3,
+  surfaceY = BACKGAMMON_ARENA.tableHeight
 ) {
-  camera.position.set(0, mode === '2d' ? 7 : 3.6, mode === '2d' ? 0.001 : 2.75);
-  target.set(0, mode === '2d' ? 1.35 : 1.85, 0);
+  camera.position.copy(
+    backgammonWorldPoint(
+      0,
+      mode === '2d' ? 7 : 3.6,
+      mode === '2d' ? 0.001 : 2.75,
+      surfaceY
+    )
+  );
+  target.copy(
+    backgammonWorldPoint(0, mode === '2d' ? 1.35 : 1.85, 0, surfaceY)
+  );
   camera.lookAt(target);
   camera.updateMatrixWorld(true);
   const inverse = camera.matrixWorldInverse;
   // Include every board edge and the opponent's upper body in portrait.
   const points = [-1.42, 1.42].flatMap((x) =>
-    [-1.04, 1.04].map((z) => new THREE.Vector3(x, 1.42, z))
+    [-1.04, 1.04].map((z) => backgammonWorldPoint(x, 1.42, z, surfaceY))
   );
-  if (mode === '3d') points.push(new THREE.Vector3(0, 3.2, -1.48));
+  if (mode === '3d') points.push(backgammonWorldPoint(0, 3.2, -1.48));
   let tanHalf = Math.tan(THREE.MathUtils.degToRad(25));
   for (const p of points) {
     p.applyMatrix4(inverse);
