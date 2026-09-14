@@ -10,7 +10,16 @@ export default defineConfig({
   base: '/',
   plugins: [react()],
   build: {
-    rollupOptions: { input: { main: resolve(__dirname, 'index.html'), cityUpdate: resolve(__dirname, 'tirana-city-update-review.html'), mobileReview: resolve(__dirname, 'tirana-mobile-review.html'), gameplayReview: resolve(__dirname, 'tirana-gameplay-review.html') } },
+    rollupOptions: {
+      input: {
+        main: resolve(__dirname, 'index.html'),
+        dominoReview: resolve(__dirname, 'domino-royal-review.html'),
+        dominoStage: resolve(__dirname, 'domino-royal-stage.html'),
+        cityUpdate: resolve(__dirname, 'tirana-city-update-review.html'),
+        mobileReview: resolve(__dirname, 'tirana-mobile-review.html'),
+        gameplayReview: resolve(__dirname, 'tirana-gameplay-review.html')
+      }
+    },
     outDir: 'dist',
     emptyOutDir: true
   },

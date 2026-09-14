@@ -28,6 +28,7 @@ let DOMINO_ONLINE_MATCH = (() => {
 let dominoOnlineStateSeq = 0;
 let dominoApplyingRemoteState = false;
 let dominoOnlineHasState = false;
+let pendingRemoteDominoState = null;
 let dominoOnlineStateHandler = null;
 let dominoOnlineGameStartHandler = null;
 let dominoOnlineMatchTimeoutHandler = null;
@@ -6168,48 +6169,145 @@ function getDominoHumanReachProfile(anim) {
   };
 }
 
-function updateSeatedHumanDominoAction(anim, t) {
-  if (!anim?.humanReachProfile) return;
-  let mode = 'reachPiece';
-  let intensity = 1;
-  let grip = 0;
-  if (t < PLACE_ANIM_PICK_HOLD) {
-    intensity = smoothPlacementStep(0, PLACE_ANIM_PICK_HOLD, t);
-    grip = intensity * 0.9;
-  } else if (t < PLACE_ANIM_LIFT_END) {
-    mode = 'gripPiece';
-    intensity = smoothPlacementStep(PLACE_ANIM_PICK_HOLD, PLACE_ANIM_LIFT_END, t);
-    grip = 1;
-  } else if (t < PLACE_ANIM_CARRY_END) {
-    mode = 'carryPiece';
-    grip = 1;
-  } else if (t < 1) {
-    mode = 'placePiece';
-    intensity = smoothPlacementStep(PLACE_ANIM_CARRY_END, 1, t);
-    grip = 1 - intensity;
-  } else {
-    mode = 'idle';
-  }
-  runSeatedHumanDominoAction(
-    anim.sourceSeat,
-    mode,
-    mode === 'idle' ? 1 : intensity,
-    grip,
-    anim.humanReachProfile
-  );
+const dominoHandContacts = new Map();
 
-  // Keep the restored playing hand physically attached to the moving tile.
-  // The pose supplies the historic shoulder/elbow silhouette and the final IK
-  // pass puts the palm between the curled fingers, so the tile is visibly held
-  // from both sides throughout pickup, carry and release at every seat.
-  const applyArmIK = DOMINO_SEATED_HUMANS?.applySeatedHumanRightArmIK;
-  const restoredHuman = seatedHumanActors[getVisualSeatIndex(anim.sourceSeat)];
-  if (mode !== 'idle' && restoredHuman?.rig && applyArmIK && anim.mesh) {
-    anim.mesh.updateWorldMatrix(true, false);
-    const tileContact = anim.mesh.getWorldPosition(new THREE.Vector3());
-    const contactStrength = THREE.MathUtils.clamp(0.72 + grip * 0.24, 0, 0.96);
-    applyArmIK(restoredHuman.rig, tileContact, contactStrength);
+function dominoSurfaceTarget(mesh, side = 1, grip = 0.4) {
+  mesh.updateWorldMatrix(true, false);
+  const position = mesh.localToWorld(new THREE.Vector3(side * 0.5, -0.08, 0));
+  const rotation = mesh.getWorldQuaternion(new THREE.Quaternion());
+  return {
+    position, grip,
+    approachDirection: new THREE.Vector3(-side, 0, 0).applyQuaternion(rotation),
+    palmNormal: new THREE.Vector3(0, 0, 1).applyQuaternion(rotation)
+  };
+}
+
+function dominoPickupTarget(mesh, edge, grip) {
+  if (edge < 2) return dominoSurfaceTarget(mesh, edge === 0 ? -1 : 1, grip);
+  mesh.updateWorldMatrix(true, false);
+  const sign = edge === 2 ? -1 : 1;
+  const rotation = mesh.getWorldQuaternion(new THREE.Quaternion());
+  return {
+    position: mesh.localToWorld(new THREE.Vector3(0, sign, 0)), grip,
+    approachDirection: new THREE.Vector3(0, -sign, 0).applyQuaternion(rotation),
+    palmNormal: new THREE.Vector3(0, 0, 1).applyQuaternion(rotation)
+  };
+}
+
+function getDominoRackTargets(seatIndex) {
+  const hand = openingSequence?.handSlots?.[seatIndex] || players[seatIndex]?.hand || [];
+  const meshes = hand.map((tile) => tile.mesh).filter((mesh) => mesh?.parent && !mesh.userData?.animating);
+  const rig = seatedHumanActors[getVisualSeatIndex(seatIndex)]?.rig;
+  if (!meshes.length || !rig) return {};
+  const first = dominoSurfaceTarget(meshes[0], -1);
+  const last = dominoSurfaceTarget(meshes.at(-1), 1);
+  const leftShoulder = rig.leftUpperArm.getWorldPosition(new THREE.Vector3());
+  const rightShoulder = rig.rightUpperArm.getWorldPosition(new THREE.Vector3());
+  const straight = leftShoulder.distanceToSquared(first.position) + rightShoulder.distanceToSquared(last.position);
+  const crossed = leftShoulder.distanceToSquared(last.position) + rightShoulder.distanceToSquared(first.position);
+  return straight <= crossed ? { left: first, right: last } : { left: last, right: first };
+}
+
+function poseDominoHands(seatIndex, overrides = {}, intensity = 1, mode = 'idle', motionProfile = null) {
+  const rig = seatedHumanActors[getVisualSeatIndex(seatIndex)]?.rig;
+  if (!rig) return;
+  const targets = { ...getDominoRackTargets(seatIndex), ...overrides };
+  runSeatedHumanDominoAction(seatIndex, mode, intensity, targets.right?.grip || 0, motionProfile);
+  if (targets.right) {
+    DOMINO_SEATED_HUMANS?.applySeatedHumanReachPose?.(rig, 'right', targets.right.position, {
+      ...targets.right,
+      maxLean: THREE.MathUtils.degToRad(mode === 'idle' ? 12 : 88),
+      maxArmExtension: mode === 'idle' ? 1 : (targets.right.maxArmExtension || 1.35)
+    });
   }
+  if (targets.left) targets.left.maxArmExtension = mode === 'idle' ? 1 : 1.35;
+  DOMINO_SEATED_HUMANS?.applySeatedHumanHandTargets?.(rig, targets);
+  let contacts = dominoHandContacts.get(seatIndex);
+  if (!contacts) { contacts = {}; dominoHandContacts.set(seatIndex, contacts); }
+  for (const side of ['left', 'right']) {
+    if (targets[side]) contacts[side] = { ...targets[side], position: targets[side].position.clone() };
+  }
+}
+
+function updateDominoIdleHands() {
+  players.forEach((player, seatIndex) => {
+    const active = placementAnimations.some((anim) => anim.sourceSeat === seatIndex)
+      || drawAnimations[0]?.sourceSeat === seatIndex
+      || knockAnimations[0]?.sourceSeat === seatIndex
+      || (openingSequence?.phase === 'shuffle' && openingSequence.dealer === seatIndex);
+    if (!active) poseDominoHands(seatIndex);
+  });
+}
+
+function poseDominoShuffleHands(sequence, t) {
+  const rig = seatedHumanActors[getVisualSeatIndex(sequence.dealer)]?.rig;
+  if (!rig) return;
+  const targets = (sequence.palms || []).map((point) => ({
+    position: piecesG.localToWorld(point.clone()), grip: 0.12,
+    approachDirection: new THREE.Vector3(0, 0, 1), palmNormal: new THREE.Vector3(0, -1, 0)
+  }));
+  if (targets.length < 2) return;
+  const left = rig.leftUpperArm.getWorldPosition(new THREE.Vector3());
+  if (left.distanceToSquared(targets[0].position) > left.distanceToSquared(targets[1].position)) targets.reverse();
+  poseDominoHands(sequence.dealer, { left: targets[0], right: targets[1] }, smoothPlacementStep(0, 0.1, t), 'reachPiece');
+}
+
+function updateSeatedHumanDominoAction(anim, t) {
+  if (!anim?.humanReachProfile || !anim.mesh) return;
+  const rig = seatedHumanActors[getVisualSeatIndex(anim.sourceSeat)]?.rig;
+  if (!rig) return;
+  let mode = 'reachPiece';
+  let grip = 0.4 * smoothPlacementStep(0, PLACE_ANIM_PICK_HOLD, t);
+  if (t >= PLACE_ANIM_PICK_HOLD && t < PLACE_ANIM_LIFT_END) mode = 'gripPiece';
+  else if (t < PLACE_ANIM_CARRY_END && t >= PLACE_ANIM_LIFT_END) mode = 'carryPiece';
+  else if (t >= PLACE_ANIM_CARRY_END) mode = 'placePiece';
+  if (t >= PLACE_ANIM_LOWER_END) grip = 0.4 * (1 - smoothPlacementStep(PLACE_ANIM_LOWER_END, 1, t));
+  runSeatedHumanDominoAction(anim.sourceSeat, mode, 1, grip, anim.humanReachProfile);
+  anim.mesh.updateWorldMatrix(true, false);
+  if (anim.contactSide == null) {
+    const wrist = rig.rightHand.getWorldPosition(new THREE.Vector3());
+    const shoulder = rig.rightUpperArm.getWorldPosition(new THREE.Vector3());
+    // Keep one grip edge throughout transport. Choose on the tabletop end,
+    // where reach is longest, rather than an upright rack edge that rotates away.
+    const contactMesh = anim.mesh.clone(false);
+    if (anim.segment && anim.endQuat && anim.endScale) {
+      contactMesh.position.copy(anim.end);
+      contactMesh.quaternion.copy(anim.endQuat);
+      contactMesh.scale.copy(anim.endScale);
+    } else {
+      contactMesh.position.copy(anim.start);
+      contactMesh.quaternion.copy(anim.startQuat);
+      contactMesh.scale.copy(anim.startScale);
+    }
+    contactMesh.parent = piecesG;
+    const candidates = [0, 1, 2, 3].map((side) => ({ side, target: dominoPickupTarget(contactMesh, side, grip) }));
+    candidates.sort((a, b) => {
+      const aWrist = a.target.position.clone().addScaledVector(a.target.approachDirection, -DOMINO_WIDTH * 1.5);
+      const bWrist = b.target.position.clone().addScaledVector(b.target.approachDirection, -DOMINO_WIDTH * 1.5);
+      return shoulder.distanceToSquared(aWrist) - shoulder.distanceToSquared(bWrist);
+    });
+    anim.contactSide = candidates[0].side;
+    anim.startHandContact = dominoHandContacts.get(anim.sourceSeat)?.right?.position?.clone() || wrist;
+  }
+  const target = dominoPickupTarget(anim.mesh, anim.contactSide, grip);
+  // The far stock is beyond normal seated reach for the opposite seat.
+  // Only this draw may use extra arm retargeting; the solver uses the minimum
+  // needed and the next base pose restores the original skeleton lengths.
+  target.maxArmExtension = !anim.segment && getVisualSeatIndex(anim.sourceSeat) === 2 && anim.start.z > DOMINO_WIDTH * 2
+    ? 1.65 : 1.35;
+  const shoulder = rig.rightUpperArm.getWorldPosition(new THREE.Vector3());
+  target.approachDirection.copy(target.position).sub(shoulder);
+  target.approachDirection.y = 0;
+  target.approachDirection.normalize();
+  if (t < PLACE_ANIM_PICK_HOLD) {
+    target.position.lerpVectors(anim.startHandContact, target.position, smoothPlacementStep(0, PLACE_ANIM_PICK_HOLD, t));
+  }
+  // Once the domino rests on the table, fingers release and the arm returns to the rack.
+  if (t > PLACE_ANIM_LOWER_END) {
+    const rest = getDominoRackTargets(anim.sourceSeat).right;
+    if (rest) target.position.lerp(rest.position, smoothPlacementStep(PLACE_ANIM_LOWER_END, 1, t));
+  }
+  poseDominoHands(anim.sourceSeat, { right: target }, 1, mode, anim.humanReachProfile);
 }
 
 function centerFurnitureInHdri() {
@@ -7334,9 +7432,28 @@ let boneyardStackTopLocal = 0;
 
 const drawAnimations = [];
 const DRAW_ANIM_DURATION = 760;
-const OPENING_SHUFFLE_ANIM_DURATION = 620;
-const OPENING_DEAL_ANIM_DURATION = 560;
-const OPENING_DEAL_STEP_DELAY = 76;
+const OPENING_SHUFFLE_ANIM_DURATION = 3200;
+const OPENING_DEAL_ANIM_DURATION = 680;
+let dominoMotionTime = performance.now();
+let openingSequence = null;
+let pendingAppearanceChange = null;
+const knockAnimations = [];
+const KNOCK_DURATION = 820;
+const KNOCK_CONTACT_PHASE = 0.56;
+
+function isDominoMotionBusy() {
+  return Boolean(openingSequence || drawAnimations.length || placementAnimations.length || knockAnimations.length);
+}
+
+function getHumanHandCountScale(count) {
+  return Math.min(1, 7 / Math.max(7, Number(count) || 7));
+}
+
+function getDominoHandScale(seatIndex, count) {
+  return seatIndex === human
+    ? HUMAN_PLAYER_HAND_TILE_SCALE * getHumanHandCountScale(count)
+    : PLAYER_HAND_TILE_SCALE;
+}
 const placementAnimations = [];
 const PLACE_ANIM_DURATION = 1450;
 const PLACE_ANIM_PICK_HOLD = 0.18;
@@ -7378,6 +7495,12 @@ function disposeDominoMesh(mesh) {
 }
 
 function clearExistingDominoMeshes() {
+  dominoHandContacts.clear();
+  if (openingSequence) {
+    openingSequence.tiles.forEach(({ mesh }) => disposeDominoMesh(mesh));
+    openingSequence = null;
+  }
+  knockAnimations.length = 0;
   if (Array.isArray(players)) {
     players.forEach((player) => {
       player?.hand?.forEach((tile) => {
@@ -7436,6 +7559,10 @@ function saveAppearance() {
 }
 
 function applyAppearanceChange({ refresh = true } = {}) {
+  if (isDominoMotionBusy()) {
+    pendingAppearanceChange = { refresh: refresh || Boolean(pendingAppearanceChange?.refresh) };
+    return;
+  }
   appearance = sanitizeAppearance(appearance);
   applyEnvironmentHdri(
     ENVIRONMENT_HDRI_OPTIONS[appearance.environmentHdri] ??
@@ -8304,11 +8431,17 @@ const btnPass = document.getElementById('pass');
 const setControlEnabled = (enabled) => {
   [btnDraw, btnPass].forEach((btn) => {
     if (!btn) return;
-    btn.disabled = !enabled;
-    btn.setAttribute('aria-disabled', enabled ? 'false' : 'true');
+    const active = enabled && !isDominoMotionBusy() && current === human && !gameFinished;
+    const playable = active && canPlayAny(players[human]?.hand || []);
+    const allowed = active && !playable && (btn === btnDraw ? boneyard.length > 0 : boneyard.length === 0);
+    btn.disabled = !allowed;
+    btn.setAttribute('aria-disabled', allowed ? 'false' : 'true');
   });
 };
 setControlEnabled(false);
+function refreshDominoControls() {
+  setControlEnabled(!contextLost);
+}
 const btnRules = document.getElementById('btnRules');
 const viewToggle = document.getElementById('viewToggle');
 const panelRules = document.getElementById('rules');
@@ -8671,6 +8804,10 @@ function computeHandSlotPosition(
     const desiredSpan = gapBase * (safeCount - 1);
     const minSpan = Math.min(MIN_GAP * (safeCount - 1), MAX_SPAN);
     span = Math.min(Math.max(desiredSpan, minSpan), MAX_SPAN);
+    if (isHuman && safeCount > 7) {
+      const sevenTileSpan = Math.min(Math.max(gapBase * 6, Math.min(MIN_GAP * 6, MAX_SPAN)), MAX_SPAN);
+      span = Math.min(span, sevenTileSpan);
+    }
     gap = span / (safeCount - 1);
   }
 
@@ -8711,7 +8848,7 @@ function computeHandSlotPosition(
 
 function renderHands() {
   activeHandMeshes.forEach((mesh) => {
-    piecesG.remove(mesh);
+    disposeDominoMesh(mesh);
   });
   activeHandMeshes.clear();
   players.forEach((p) => {
@@ -8728,17 +8865,20 @@ function renderHands() {
     const isHuman = pi === human;
     const faceUp =
       revealAllHands || isHuman || (gameFinished && pi === winnerIndex);
-    const count = p.hand.length;
+    const hand = openingSequence?.handSlots?.[pi] || p.hand;
+    const count = hand.length;
     const openFlat = isTopDown && isHuman;
     const openFaceUpHand = isTopDown && isHuman;
 
-    p.hand.forEach((h, hi) => {
+    hand.forEach((h, hi) => {
+      h.mesh = null;
+      if (h.inTransit || h.openingPending) return;
       const m = makeDomino(h.a, h.b, {
         flat: openFlat,
         faceUp: faceUp || openFaceUpHand
       });
       m.scale.multiplyScalar(
-        isHuman ? HUMAN_PLAYER_HAND_TILE_SCALE : PLAYER_HAND_TILE_SCALE
+        getDominoHandScale(pi, count)
       );
       const slotPosition = computeHandSlotPosition(pi, hi, count, {
         isTopDown
@@ -8750,7 +8890,6 @@ function renderHands() {
         orientDominoFlat(m, yaw);
       } else {
         m.rotation.set(0, pi === human ? 0 : yawTowardCenter, 0);
-        m.rotation.z += Math.random() * 0.006 - 0.003;
       }
       h.mesh = m;
       activeHandMeshes.add(m);
@@ -8823,6 +8962,10 @@ function renderChain() {
 
 function renderBoneyardStack() {
   boneyardStackG.clear();
+  if (openingSequence) {
+    boneyardStackVisible = 0;
+    return;
+  }
   const available = Array.isArray(boneyard) ? boneyard.length : 0;
   const visible = Math.min(available, MAX_BONEYARD_DISPLAY);
   boneyardStackVisible = visible;
@@ -8853,92 +8996,264 @@ function getBoneyardTopWorld() {
   return boneyardStackG.localToWorld(localTop);
 }
 
-function spawnDrawAnimation(startWorld, seatIndex = human) {
-  if (!startWorld) {
-    return;
+function spawnDrawAnimation(startWorld, seatIndex = human, tile = players[seatIndex]?.hand?.at(-1), options = {}) {
+  if (!startWorld || !tile) return;
+  const start = piecesG.worldToLocal(startWorld.clone());
+  const domino = makeDomino(tile.a, tile.b, { flat: true, faceUp: seatIndex === human });
+  orientDominoFaceDown(domino, Math.PI / 2);
+  if (options.mesh) {
+    domino.quaternion.copy(options.mesh.quaternion);
+    domino.scale.copy(options.mesh.scale);
+    disposeDominoMesh(options.mesh);
   }
-  const start = startWorld.clone
-    ? startWorld.clone()
-    : new THREE.Vector3().copy(startWorld);
-  const domino = makeDomino(0, 0, { flat: true, faceUp: false });
-  const drawEndScale = domino.scale.clone().multiplyScalar(PLAYER_HAND_TILE_SCALE);
-  orientDominoFlat(domino, Math.PI / 2);
-  domino.rotation.z = Math.PI;
   domino.userData = { stockAnim: true };
   domino.position.copy(start);
   piecesG.add(domino);
-
-  const targetHand = players[seatIndex]?.hand;
-  const handCount = Math.max(1, Array.isArray(targetHand) ? targetHand.length : 1);
-  const slotIndex = handCount - 1;
-  const end = computeHandSlotPosition(seatIndex, slotIndex, handCount, {
-    isTopDown: cameraViewMode === VIEW_MODES.twoD
-  });
-  drawAnimations.push({
-    mesh: domino,
-    start,
-    end,
-    startTime: performance.now(),
-    duration: DRAW_ANIM_DURATION,
-    delay: 0,
-    arc: 0.05,
-    startScale: domino.scale.clone(),
-    endScale: drawEndScale
-  });
+  tile.inTransit = true;
+  if (tile.mesh) {
+    activeHandMeshes.delete(tile.mesh);
+    disposeDominoMesh(tile.mesh);
+    tile.mesh = null;
+  }
+  const anim = {
+    mesh: domino, tile, sourceSeat: seatIndex, start,
+    startQuat: domino.quaternion.clone(), startScale: domino.scale.clone(),
+    startTime: null, duration: options.opening ? OPENING_DEAL_ANIM_DURATION : DRAW_ANIM_DURATION,
+    arc: PLACE_ANIM_ARC, opening: Boolean(options.opening), onComplete: options.onComplete,
+    end: start.clone()
+  };
+  drawAnimations.push(anim);
+  updateDrawDestination(anim);
+  anim.humanReachProfile = getDominoHumanReachProfile(anim);
+  refreshDominoControls();
 }
 
+function updateDrawDestination(anim) {
+  const hand = openingSequence?.handSlots?.[anim.sourceSeat] || players[anim.sourceSeat]?.hand || [];
+  const count = Math.max(1, hand.length);
+  const index = Math.max(0, hand.indexOf(anim.tile));
+  const isTopDown = cameraViewMode === VIEW_MODES.twoD;
+  const openFlat = isTopDown && anim.sourceSeat === human;
+  anim.end = computeHandSlotPosition(anim.sourceSeat, index, count, { isTopDown });
+  const [x, z] = layoutSeat(getVisualSeatIndex(anim.sourceSeat));
+  const orient = new THREE.Object3D();
+  if (openFlat) orientDominoFlat(orient, Math.PI / 2);
+  else orient.rotation.set(0, anim.sourceSeat === human ? 0 : Math.atan2(-x, -z), 0);
+  anim.endQuat = orient.quaternion.clone();
+  anim.endScale = new THREE.Vector3(0.1, openFlat ? 0.016 / 0.22 : 0.1, openFlat ? 0.1 : 0.016 / 0.22)
+    .multiplyScalar(DOMINO_WORLD_SCALE * getDominoHandScale(anim.sourceSeat, count));
+}
+
+function orientDominoFaceDown(mesh, yaw = 0) {
+  orientDominoFlat(mesh, yaw);
+  // Rotate around the domino's long LOCAL axis, keeping its broad face horizontal.
+  mesh.rotateY(Math.PI);
+}
 
 function spawnOpeningShuffleAnimation() {
-  const center = getBoneyardTopWorld() || boneyardStackG.getWorldPosition(new THREE.Vector3());
-  const swirlCount = Math.min(14, Math.max(8, Math.floor((Array.isArray(boneyard) ? boneyard.length : 0) / 2)));
-  for (let i = 0; i < swirlCount; i++) {
-    const angle = (i / swirlCount) * Math.PI * 2;
-    const radius = 0.09 + Math.random() * 0.08;
-    const start = center.clone().add(
-      new THREE.Vector3(
-        Math.cos(angle) * radius,
-        0.01 + Math.random() * 0.02,
-        Math.sin(angle) * radius
-      )
-    );
-    const end = center.clone().add(
-      new THREE.Vector3(
-        (Math.random() - 0.5) * 0.02,
-        Math.random() * 0.01,
-        (Math.random() - 0.5) * 0.02
-      )
-    );
-    const domino = makeDomino(0, 0, { flat: true, faceUp: false });
-    orientDominoFlat(domino, Math.PI / 2 + (Math.random() - 0.5) * 0.7);
-    domino.rotation.z = Math.PI;
-    domino.userData = { stockAnim: true, openingShuffle: true };
-    domino.position.copy(start);
-    piecesG.add(domino);
-    drawAnimations.push({
-      mesh: domino,
-      start,
-      end,
-      startTime: performance.now() + i * 14,
-      duration: OPENING_SHUFFLE_ANIM_DURATION,
-      arc: 0.035
-    });
-  }
+  const tiles = shuffle([...boneyard]).map((tile, i) => {
+    const mesh = makeDomino(0, 0, { flat: true, faceUp: false });
+    const spacingX = Math.hypot(DOMINO_WIDTH, DOMINO_LENGTH) * 1.075;
+    const spacingZ = DOMINO_LENGTH * 1.28;
+    const home = new THREE.Vector3((i % 7 - 3) * spacingX,
+      CLOTH_TOP + mesh.scale.z * 0.11 + 0.003,
+      (Math.floor(i / 7) - 1.5) * spacingZ);
+    const yaw = Math.PI / 2 + (Math.random() - 0.5) * 0.16;
+    orientDominoFaceDown(mesh, yaw);
+    mesh.position.copy(home);
+    mesh.userData = { openingShuffle: true };
+    piecesG.add(mesh);
+    return { tile, mesh, home, yaw, velocity: new THREE.Vector3(), spin: (Math.random() - 0.5) * 1.6 };
+  });
+  openingSequence = {
+    phase: 'waiting', startTime: dominoMotionTime, tiles,
+    dealer: Math.min(1, N - 1), dealQueue: [], handSlots: [], firstPlay: null
+  };
+  renderBoneyardStack();
+  setStatus('Preparing the table…');
+  refreshDominoControls();
 }
 
 function dealOpeningHands() {
   for (let r = 0; r < 7; r++) {
     players.forEach((p, pi) => {
-      const drawStart = getBoneyardTopWorld();
       const dealt = drawTileFromStock();
-      if (!dealt) {
-        return;
-      }
+      if (!dealt) return;
       p.hand.push(dealt);
-      if (drawStart) {
-        spawnDrawAnimation(drawStart, pi);
-      }
+      dealt.openingPending = true;
+      const source = openingSequence.tiles.find((entry) => tileKey(entry.tile) === tileKey(dealt));
+      openingSequence.dealQueue.push({ tile: dealt, seat: pi, source });
     });
   }
+  openingSequence.handSlots = players.map((p) => [...p.hand]);
+}
+
+function updateDominoShuffleTiles(sequence, t, now) {
+  const dt = Math.min(0.05, Math.max(0, (now - (sequence.lastShuffleTime ?? now)) / 1000));
+  sequence.lastShuffleTime = now;
+  const angle = t * Math.PI * 4;
+  const radius = DOMINO_WIDTH * 2.5;
+  const envelope = Math.sin(Math.PI * t);
+  const previousPalms = sequence.palms;
+  sequence.palms = [-1, 1].map((side) => new THREE.Vector3(
+    side * radius * 0.68 + Math.cos(angle + (side > 0 ? Math.PI : 0)) * radius * 0.65,
+    CLOTH_TOP + DOMINO_WIDTH * 0.25,
+    -radius * 0.6 + Math.sin(angle + (side > 0 ? Math.PI : 0)) * radius * 0.68
+  ));
+  const palmVelocities = sequence.palms.map((point, i) => previousPalms && dt > 0
+    ? point.clone().sub(previousPalms[i]).divideScalar(dt) : new THREE.Vector3());
+  const footprint = Math.hypot(DOMINO_WIDTH * 0.5, DOMINO_LENGTH * 0.5) * 1.025;
+  const boundary = Math.min(CLOTH_RADIUS, Math.max(footprint * 9, CLOTH_RADIUS * 0.52));
+  sequence.tiles.forEach((entry) => {
+    const position = entry.mesh.position;
+    // Sliding friction and palm impulses wash the pieces in the tabletop plane.
+    sequence.palms.forEach((palm, i) => {
+      const distance = Math.hypot(position.x - palm.x, position.z - palm.z);
+      const influence = Math.max(0, 1 - distance / (DOMINO_WIDTH * 3));
+      entry.velocity.addScaledVector(palmVelocities[i], influence * dt * 5 * envelope);
+    });
+    entry.velocity.x += -position.z * dt * 0.9 * envelope;
+    entry.velocity.z += position.x * dt * 0.9 * envelope;
+    entry.velocity.multiplyScalar(Math.exp(-dt * 3.5));
+    position.addScaledVector(entry.velocity, dt);
+    position.y = entry.home.y;
+    entry.yaw += entry.spin * dt * envelope;
+    orientDominoFaceDown(entry.mesh, entry.yaw);
+  });
+  // Conservative circular footprints contain every rotated tile corner.
+  for (let pass = 0; pass < 4; pass++) {
+    for (let i = 0; i < sequence.tiles.length; i++) {
+      const a = sequence.tiles[i];
+      for (let j = i + 1; j < sequence.tiles.length; j++) {
+        const b = sequence.tiles[j];
+        let dx = b.mesh.position.x - a.mesh.position.x;
+        let dz = b.mesh.position.z - a.mesh.position.z;
+        let distance = Math.hypot(dx, dz);
+        if (distance >= footprint * 2) continue;
+        if (distance < 1e-8) { dx = 1e-8; dz = 0; distance = 1e-8; }
+        const push = (footprint * 2 - distance) * 0.5;
+        const nx = dx / Math.max(distance, 1e-8), nz = dz / Math.max(distance, 1e-8);
+        a.mesh.position.x -= nx * push; a.mesh.position.z -= nz * push;
+        b.mesh.position.x += nx * push; b.mesh.position.z += nz * push;
+        a.velocity.multiplyScalar(0.85); b.velocity.multiplyScalar(0.85);
+      }
+      const distance = Math.hypot(a.mesh.position.x, a.mesh.position.z);
+      if (distance > boundary - footprint) {
+        const scale = (boundary - footprint) / distance;
+        a.mesh.position.x *= scale; a.mesh.position.z *= scale;
+        a.velocity.multiplyScalar(0.6);
+      }
+    }
+  }
+}
+
+function updateOpeningSequence(now) {
+  const sequence = openingSequence;
+  if (!sequence) return;
+  const elapsed = now - sequence.startTime;
+  if (sequence.phase === 'waiting') {
+    const ready = seatedHumanActors[getVisualSeatIndex(sequence.dealer)]?.rig;
+    if (entrySequenceActive || (!ready && elapsed < 8000)) return;
+    sequence.phase = 'shuffle';
+    sequence.startTime = now;
+    setStatus('Mixing the dominoes…');
+    return;
+  }
+  if (sequence.phase === 'shuffle') {
+    const t = Math.min(1, elapsed / OPENING_SHUFFLE_ANIM_DURATION);
+    updateDominoShuffleTiles(sequence, t, now);
+    poseDominoShuffleHands(sequence, t);
+    if (t >= 1) {
+      sequence.phase = 'deal';
+      sequence.startTime = now;
+    }
+    return;
+  }
+  if (sequence.phase === 'deal') {
+    if (drawAnimations.length) return;
+    const draw = sequence.dealQueue.shift();
+    if (draw) {
+      setStatus(`Picking dominoes · Player ${draw.seat + 1}`);
+      const start = draw.source.mesh.getWorldPosition(new THREE.Vector3());
+      draw.source.claimed = true;
+      spawnDrawAnimation(start, draw.seat, draw.tile, { mesh: draw.source.mesh, opening: true });
+      return;
+    }
+    sequence.phase = 'gather';
+    sequence.startTime = now;
+    sequence.tiles.filter((entry) => !entry.claimed).forEach((entry) => { entry.gatherStart = entry.mesh.position.clone(); });
+  }
+  if (sequence.phase === 'gather') {
+    const t = smoothPlacementStep(0, 650, now - sequence.startTime);
+    const remaining = sequence.tiles.filter((entry) => !entry.claimed);
+    remaining.forEach((entry, i) => {
+      const target = piecesG.worldToLocal(boneyardStackG.localToWorld(new THREE.Vector3(0, Math.min(i, MAX_BONEYARD_DISPLAY - 1) * BONEYARD_STACK_STEP, 0)));
+      entry.mesh.position.lerpVectors(entry.gatherStart, target, t);
+    });
+    if (t < 1) return;
+    remaining.forEach(({ mesh }) => disposeDominoMesh(mesh));
+    const firstPlay = sequence.firstPlay;
+    openingSequence = null;
+    renderBoneyardStack();
+    if (firstPlay) {
+      const mesh = takeTileMeshForAnimation(firstPlay.tile);
+      spawnPlacementAnimation(firstPlay.tile, firstPlay.segment, { mesh, sourceSeat: firstPlay.seat });
+      const anim = placementAnimations.at(-1);
+      if (anim) anim.onComplete = finishOpeningTurn;
+      else finishOpeningTurn();
+    } else finishOpeningTurn();
+    renderHands();
+  }
+}
+
+function finishOpeningTurn() {
+  flushPendingDominoState();
+  updateInteractivity();
+  if (!DOMINO_ONLINE_MODE && current !== human) scheduleCpuPlay();
+}
+
+function flushPendingDominoState() {
+  if (pendingRemoteDominoState && !isDominoMotionBusy()) {
+    const pending = pendingRemoteDominoState;
+    pendingRemoteDominoState = null;
+    applyDominoOnlineState(pending.state, pending.action);
+  }
+  if (pendingAppearanceChange && !isDominoMotionBusy()) {
+    const pending = pendingAppearanceChange;
+    pendingAppearanceChange = null;
+    applyAppearanceChange(pending);
+  }
+  refreshDominoControls();
+}
+
+function replayRemoteOpening(presentation) {
+  if (!presentation || chain.length !== 1 || !Array.isArray(presentation.hands) || presentation.hands.length !== N) return false;
+  const firstSeat = presentation.firstSeat;
+  if (!Number.isInteger(firstSeat) || firstSeat < 0 || firstSeat >= N) return false;
+  const starterTile = { ...chain[0].tile };
+  const handSlots = presentation.hands.map((hand, seat) => Array.isArray(hand) ? hand.map((tile) => {
+    const key = tileKey(tile);
+    return players[seat].hand.find((entry) => tileKey(entry) === key)
+      || (seat === firstSeat && tileKey(starterTile) === key ? starterTile : null);
+  }) : []);
+  if (handSlots.some((hand) => hand.length !== 7 || hand.some((tile) => !tile))) return false;
+  const all = [...handSlots.flat(), ...boneyard];
+  if (all.length !== 28 || new Set(all.map(tileKey)).size !== 28) return false;
+  const stock = boneyard;
+  boneyard = shuffle([...all]);
+  spawnOpeningShuffleAnimation();
+  boneyard = stock;
+  openingSequence.handSlots = handSlots;
+  for (let r = 0; r < 7; r++) {
+    handSlots.forEach((hand, seat) => {
+      const tile = hand[r];
+      tile.openingPending = true;
+      openingSequence.dealQueue.push({ tile, seat, source: openingSequence.tiles.find((entry) => tileKey(entry.tile) === tileKey(tile)) });
+    });
+  }
+  chain[0].animating = true;
+  openingSequence.firstPlay = { tile: starterTile, seat: firstSeat, segment: chain[0] };
+  return true;
 }
 
 function clearWinnerHighlight() {
@@ -9035,7 +9350,7 @@ function spawnPlacementAnimation(
       flat: cameraViewMode === VIEW_MODES.twoD,
       faceUp: true
     });
-    mesh.scale.multiplyScalar(PLAYER_HAND_TILE_SCALE);
+    mesh.scale.multiplyScalar(getDominoHandScale(sourceSeat, sourceCount));
     const sourcePos = computeHandSlotPosition(sourceSeat, sourceSlot, sourceCount, {
       isTopDown: cameraViewMode === VIEW_MODES.twoD
     });
@@ -9090,8 +9405,8 @@ function spawnPlacementAnimation(
     startQuat,
     endQuat,
     startScale,
-    endScale: startScale.clone().divideScalar(PLAYER_HAND_TILE_SCALE),
-    startTime: performance.now(),
+    endScale: new THREE.Vector3(0.1, 0.016 / 0.22, 0.1).multiplyScalar(DOMINO_WORLD_SCALE),
+    startTime: dominoMotionTime,
     duration: duration || PLACE_ANIM_DURATION,
     arc: PLACE_ANIM_ARC,
     segment,
@@ -9298,9 +9613,11 @@ function scoreMove(player, move) {
 function cpuDrawUntilPlayable(player) {
   let drew = false;
   while (boneyard.length) {
+    const start = getBoneyardTopWorld();
     const tile = drawTileFromStock();
     if (!tile) break;
     player.hand.push(tile);
+    spawnDrawAnimation(start, player.id, tile);
     drew = true;
     if (!ends) break;
     const { L, R } = validSidesFor(tile);
@@ -9310,6 +9627,7 @@ function cpuDrawUntilPlayable(player) {
 }
 
 function startGame({ resetRace = true } = {}) {
+  pendingRemoteDominoState = null;
   clearMarkers();
   clearExistingDominoMeshes();
   selectedTile = null;
@@ -9348,17 +9666,8 @@ function startGame({ resetRace = true } = {}) {
   refreshSeatAvatars();
   players = Array.from({ length: N }, (_, i) => ({ id: i, hand: [] }));
   boneyard = shuffle(genSet());
-  renderBoneyardStack();
   spawnOpeningShuffleAnimation();
   dealOpeningHands();
-  players.forEach((p) => shuffle(p.hand)); // random order every game
-  drawAnimations.forEach((anim, index) => {
-    if (anim?.mesh?.userData?.openingShuffle) {
-      return;
-    }
-    anim.delay = OPENING_SHUFFLE_ANIM_DURATION * 0.45 + index * OPENING_DEAL_STEP_DELAY;
-    anim.duration = OPENING_DEAL_ANIM_DURATION;
-  });
   renderHands();
   let starter = 0,
     idx = -1,
@@ -9378,22 +9687,19 @@ function startGame({ resetRace = true } = {}) {
   const firstTile = canonTile(t) || t;
   if (!firstTile || typeof firstTile.a !== 'number' || typeof firstTile.b !== 'number') {
     console.warn('Domino start hand invalid, rebuilding round.');
-    setStatus('Rebalancing seats and reloading hand...');
-    boneyard = shuffle(genSet());
-    players = Array.from({ length: N }, (_, i) => ({ id: i, hand: [] }));
-    drawAnimations.length = 0;
-    dealOpeningHands();
-    players.forEach((p) => shuffle(p.hand));
     return startGame({ resetRace: false });
   }
+
   const firstRot = firstTile.a === firstTile.b ? Math.PI / 2 : 0;
   chain.push({
     tile: firstTile,
     x: 0,
     z: 0,
     rot: firstRot,
-    double: firstTile.a === firstTile.b
+    double: firstTile.a === firstTile.b,
+    animating: true
   });
+  openingSequence.firstPlay = { tile: t, seat: starter, segment: chain[0] };
   usedTileKeys.add(tileKey(firstTile));
   const isDoubleStart = firstTile.a === firstTile.b;
   if (!flipDir) {
@@ -9487,12 +9793,9 @@ function startGame({ resetRace = true } = {}) {
   }
   renderChain();
   current = (starter - 1 + N) % N;
-  updateInteractivity();
-  if (DOMINO_ONLINE_MODE) {
-    emitDominoOnlineState('initial');
-  } else if (current !== human) {
-    scheduleCpuPlay();
-  }
+  refreshDominoControls();
+  if (DOMINO_ONLINE_MODE) emitDominoOnlineState('initial');
+
 }
 
 /* ---------- Placement & Snake ---------- */
@@ -9661,7 +9964,7 @@ function placeOnBoard(tile, side, options = {}) {
   } else {
     renderChain();
   }
-  SFX.place();
+  if (!animate) SFX.place();
   return { success: true, segment, end: updatedEnd };
 }
 function nextCandidate(end) {
@@ -10005,7 +10308,7 @@ renderer.domElement.addEventListener('pointerdown', (ev) => {
     cameraLookPointerState.lastX = ev.clientX;
     cameraLookPointerState.lastY = ev.clientY;
   }
-  if (gameFinished) {
+  if (gameFinished || isDominoMotionBusy()) {
     return;
   }
   updateRaycasterThreshold();
@@ -10161,14 +10464,14 @@ renderer.domElement.addEventListener('pointerleave', (ev) => {
 
 if (btnDraw) {
   btnDraw.addEventListener('click', () => {
-  if (current !== human || gameFinished) return;
+  if (current !== human || gameFinished || isDominoMotionBusy() || canPlayAny(players[human].hand)) return;
   let drewTile = false;
   while (boneyard.length) {
     const startWorld = getBoneyardTopWorld();
     const t = drawTileFromStock();
     if (!t) break;
     players[human].hand.push(t);
-    spawnDrawAnimation(startWorld, human);
+    spawnDrawAnimation(startWorld, human, t);
     drewTile = true;
     const canL = t.a === ends?.L?.v || t.b === ends?.L?.v;
     const canR = t.a === ends?.R?.v || t.b === ends?.R?.v;
@@ -10178,17 +10481,15 @@ if (btnDraw) {
   selectedTile = null;
   renderHands();
   if (drewTile) {
-    SFX.drawTile();
     emitDominoOnlineState('draw');
   }
   });
 }
 if (btnPass) {
   btnPass.addEventListener('click', () => {
-  if (current === human && !gameFinished) {
+  if (current === human && !gameFinished && !isDominoMotionBusy() && !boneyard.length && !canPlayAny(players[human].hand)) {
     clearMarkers();
     selectedTile = null;
-    SFX.pass();
     schedulePassTurnAdvance(human);
   }
   });
@@ -10232,7 +10533,11 @@ function buildDominoOnlineState() {
     racePenaltyTotals,
     raceDisqualifiedPlayers,
     raceRoundNumber,
-    lastHandWinnerIndex
+    lastHandWinnerIndex,
+    openingPresentation: openingSequence?.firstPlay ? {
+      firstSeat: openingSequence.firstPlay.seat,
+      hands: openingSequence.handSlots.map((hand) => hand.map(stripRuntimeTile))
+    } : null
   };
 }
 
@@ -10263,10 +10568,26 @@ function hydrateRuntimeTile(tile) {
   return clean ? { ...clean } : null;
 }
 
-function applyDominoOnlineState(remoteState = {}) {
+function applyDominoOnlineState(remoteState = {}, action = {}) {
   if (!remoteState || typeof remoteState !== 'object') return;
   const incomingSeq = Number(remoteState.seq) || 0;
-  if (incomingSeq && incomingSeq < dominoOnlineStateSeq) return;
+  if (dominoOnlineHasState && incomingSeq <= dominoOnlineStateSeq) return;
+  if (isDominoMotionBusy() && dominoOnlineHasState) {
+    if (incomingSeq && incomingSeq <= dominoOnlineStateSeq) return;
+    if (!pendingRemoteDominoState || incomingSeq > Number(pendingRemoteDominoState.state.seq)) {
+      pendingRemoteDominoState = { state: remoteState, action };
+    }
+    return;
+  }
+  const firstSnapshot = !dominoOnlineHasState;
+  const actor = Number.isInteger(action.seat) ? action.seat : current;
+  const oldChainLength = chain.length;
+  const previousTiles = new Set((players[actor]?.hand || []).map(tileKey));
+  const lastRemoteSegment = remoteState.chain?.at(-1);
+  const playedTile = players[actor]?.hand?.find((tile) => tileKey(tile) === tileKey(lastRemoteSegment?.tile));
+  const isRemotePlay = !firstSnapshot && remoteState.chain?.length === oldChainLength + 1;
+  const sourceMesh = isRemotePlay && playedTile ? takeTileMeshForAnimation(playedTile) : null;
+  const drawStart = getBoneyardTopWorld();
   dominoApplyingRemoteState = true;
   dominoOnlineStateSeq = Math.max(dominoOnlineStateSeq, incomingSeq);
   clearMarkers();
@@ -10311,6 +10632,18 @@ function applyDominoOnlineState(remoteState = {}) {
   setControlEnabled(true);
   refreshSeatAvatars();
   renderBoneyardStack();
+  if (firstSnapshot && remoteState.openingPresentation) {
+    replayRemoteOpening(remoteState.openingPresentation);
+  } else if (isRemotePlay && sourceMesh && chain.length) {
+    const segment = chain.at(-1);
+    segment.animating = true;
+    spawnPlacementAnimation(segment.tile, segment, { mesh: sourceMesh, sourceSeat: actor });
+  } else if (!firstSnapshot && action.type === 'draw' && drawStart) {
+    (players[actor]?.hand || []).filter((tile) => !previousTiles.has(tileKey(tile)))
+      .forEach((tile) => spawnDrawAnimation(drawStart, actor, tile));
+  } else if (!firstSnapshot && action.type === 'pass') {
+    knockAnimations.push({ sourceSeat: actor, startTime: null, impactPlayed: false, remote: true });
+  }
   renderHands();
   renderChain();
   updateInteractivity();
@@ -10359,9 +10692,9 @@ function connectDominoOnlineTable() {
   if (dominoOnlineStateHandler) {
     DOMINO_ONLINE_SOCKET.off?.('dominoRoyalState', dominoOnlineStateHandler);
   }
-  dominoOnlineStateHandler = ({ tableId, state } = {}) => {
+  dominoOnlineStateHandler = ({ tableId, state, action } = {}) => {
     if (tableId !== DOMINO_ONLINE_TABLE_ID || !state) return;
-    applyDominoOnlineState(state);
+    applyDominoOnlineState(state, action);
   };
   DOMINO_ONLINE_SOCKET.on('dominoRoyalState', dominoOnlineStateHandler);
   if (dominoOnlineGameStartHandler) {
@@ -10377,9 +10710,8 @@ function connectDominoOnlineTable() {
       clearInterval(dominoOnlineWaitingTimer);
       dominoOnlineWaitingTimer = null;
     }
-    if (!dominoOnlineHasState && human === 0) {
+    if (!dominoOnlineHasState && !openingSequence && human === 0) {
       startGame();
-      emitDominoOnlineState('initial');
     }
     setControlEnabled(true);
     setStatus('Opponent found. Match started.');
@@ -10486,20 +10818,15 @@ function scheduleCpuPlay(delay = CPU_PLAY_DELAY) {
   }, safeDelay);
 }
 
-function scheduleTurnAdvanceAfterPlacement(segment, delayMs = TURN_ADVANCE_AFTER_PLACEMENT_MS) {
+function scheduleTurnAdvanceAfterPlacement(segment) {
   queueDominoCameraFocus(segment);
-  if (pendingTurnAdvanceTimeout) {
-    clearTimeout(pendingTurnAdvanceTimeout);
-    pendingTurnAdvanceTimeout = null;
-  }
-  const safeDelay = Math.max(0, Number.isFinite(delayMs) ? delayMs : TURN_ADVANCE_AFTER_PLACEMENT_MS);
-  pendingTurnAdvanceTimeout = setTimeout(() => {
-    pendingTurnAdvanceTimeout = null;
-    if (!gameFinished) {
-      nextTurn();
-      emitDominoOnlineState('turn-advance');
-    }
-  }, safeDelay);
+  const complete = () => {
+    if (!gameFinished) nextTurn('turn-advance');
+  };
+  const anim = placementAnimations.find((entry) => entry.segment === segment);
+  if (anim) anim.onComplete = complete;
+  else complete();
+  refreshDominoControls();
 }
 
 function finishGame({ winner = null, reason = '', revealAll = false } = {}) {
@@ -10622,17 +10949,19 @@ function checkForBlockedGame() {
 }
 
 function updateInteractivity() {
+  refreshDominoControls();
+  if (openingSequence) return;
   if (gameFinished) {
     renderHands();
     renderChain();
     return;
   }
-  setStatus(`Turn: Player ${current + 1}`);
+  setStatus(current === human ? 'Your turn · Choose a domino' : `Player ${current + 1} is playing`);
   clearAllPassBubbles();
   renderHands();
   renderChain();
 }
-function nextTurn() {
+function nextTurn(action = 'turn') {
   if (gameFinished) {
     return;
   }
@@ -10655,12 +10984,13 @@ function nextTurn() {
   if (gameFinished) {
     return;
   }
-  emitDominoOnlineState('turn');
+  emitDominoOnlineState(action);
   if (!DOMINO_ONLINE_MODE && current !== human) {
     scheduleCpuPlay();
   }
 }
 function cpuPlay() {
+  if (isDominoMotionBusy()) { scheduleCpuPlay(180); return; }
   if (gameFinished) {
     return;
   }
@@ -10680,16 +11010,13 @@ function cpuPlay() {
     const drew = cpuDrawUntilPlayable(player);
     if (drew) {
       renderHands();
-      SFX.drawTile();
       if (canPlayAny(player.hand)) {
         scheduleCpuPlay();
       } else {
-        SFX.pass();
-        schedulePassTurnAdvance(current);
+            schedulePassTurnAdvance(current);
       }
     } else {
-      SFX.pass();
-      schedulePassTurnAdvance(current);
+        schedulePassTurnAdvance(current);
     }
     return;
   }
@@ -10702,13 +11029,6 @@ function cpuPlay() {
     if (placement.success) {
       runSeatedHumanDominoAction(current, 'placePiece');
       renderHands();
-      if (player.hand.length === 0) {
-        concludeHand({
-          winner: current,
-          reason: current === human ? 'You won!' : `Player ${current + 1} won!`
-        });
-        return;
-      }
       scheduleTurnAdvanceAfterPlacement(placement.segment);
       return;
     }
@@ -10719,15 +11039,12 @@ function cpuPlay() {
   const drew = cpuDrawUntilPlayable(player);
   if (drew) {
     renderHands();
-    SFX.drawTile();
     if (canPlayAny(player.hand)) {
       scheduleCpuPlay();
     } else {
-      SFX.pass();
-      schedulePassTurnAdvance(current);
+        schedulePassTurnAdvance(current);
     }
   } else {
-    SFX.pass();
     schedulePassTurnAdvance(current);
   }
 }
@@ -10968,26 +11285,51 @@ function showPassBubble(seatIndex = current) {
   passBubbleTimers.set(seatIndex, timeout);
 }
 
-function schedulePassTurnAdvance(
-  playerIndex = current,
-  delayMs = PASS_TURN_ADVANCE_DELAY_MS
-) {
-  showPassBubble(playerIndex);
-  if (pendingTurnAdvanceTimeout) {
-    clearTimeout(pendingTurnAdvanceTimeout);
-    pendingTurnAdvanceTimeout = null;
+function schedulePassTurnAdvance(playerIndex = current) {
+  if (knockAnimations.some((anim) => anim.sourceSeat === playerIndex)) return;
+  // Draws finish before the same hand knocks.
+  knockAnimations.push({ sourceSeat: playerIndex, startTime: null, impactPlayed: false });
+  refreshDominoControls();
+}
+
+function updateKnockAnimations(now) {
+  if (drawAnimations.length || openingSequence || placementAnimations.length) return;
+  const anim = knockAnimations[0];
+  if (!anim) return;
+  if (anim.startTime == null) anim.startTime = now;
+  const t = Math.min(1, (now - anim.startTime) / KNOCK_DURATION);
+  const [sx, sz] = layoutSeat(getVisualSeatIndex(anim.sourceSeat));
+  const outward = new THREE.Vector3(sx, 0, sz).normalize();
+  const right = new THREE.Vector3(outward.z, 0, -outward.x).negate();
+  const point = outward.multiplyScalar(CLOTH_RADIUS * 0.7).addScaledVector(right, DOMINO_WIDTH * 1.3);
+  point.y = CLOTH_TOP + 0.008;
+  const lift = t < KNOCK_CONTACT_PHASE
+    ? Math.sin(Math.PI * smoothPlacementStep(0, KNOCK_CONTACT_PHASE, t)) * 0.085
+    : Math.sin(Math.PI * smoothPlacementStep(KNOCK_CONTACT_PHASE, 1, t)) * 0.035;
+  point.y += lift;
+  if (!anim.startContact) anim.startContact = dominoHandContacts.get(anim.sourceSeat)?.right?.position?.clone();
+  if (anim.startContact && t < 0.18) {
+    const world = piecesG.localToWorld(point.clone());
+    world.lerpVectors(anim.startContact, world, smoothPlacementStep(0, 0.18, t));
+    point.copy(piecesG.worldToLocal(world));
   }
-  const safeDelay = Math.max(
-    0,
-    Number.isFinite(delayMs) ? delayMs : PASS_TURN_ADVANCE_DELAY_MS
-  );
-  pendingTurnAdvanceTimeout = setTimeout(() => {
-    pendingTurnAdvanceTimeout = null;
-    if (!gameFinished) {
-      nextTurn();
-      emitDominoOnlineState('pass');
-    }
-  }, safeDelay);
+  if (t > 0.76) {
+    const rest = getDominoRackTargets(anim.sourceSeat).right;
+    if (rest) point.lerp(piecesG.worldToLocal(rest.position.clone()), smoothPlacementStep(0.76, 1, t));
+  }
+  const approach = point.clone().sub(new THREE.Vector3(sx, point.y, sz)).normalize();
+  const target = { position: piecesG.localToWorld(point), grip: 0.9, approachDirection: approach, palmNormal: new THREE.Vector3(0, -1, 0) };
+  poseDominoHands(anim.sourceSeat, { right: target }, Math.min(1, t / 0.18), 'reachPiece');
+  if (!anim.impactPlayed && t >= KNOCK_CONTACT_PHASE) {
+    anim.impactPlayed = true;
+    SFX.pass();
+    showPassBubble(anim.sourceSeat);
+  }
+  if (t >= 1) {
+    knockAnimations.shift();
+    if (!gameFinished && !anim.remote) nextTurn('pass');
+    flushPendingDominoState();
+  }
 }
 
 function animateGift(fromIndex, toIndex, gift) {
@@ -11251,29 +11593,25 @@ console.assert(
 })();
 
 function updateDrawAnimations(now) {
-  const timestamp = Number.isFinite(now) ? now : performance.now();
-  for (let i = drawAnimations.length - 1; i >= 0; i--) {
-    const anim = drawAnimations[i];
-    const delay = anim.delay || 0;
-    const elapsed = timestamp - anim.startTime - delay;
-    if (elapsed < 0) {
-      continue;
-    }
-    const t = Math.min(1, elapsed / (anim.duration || DRAW_ANIM_DURATION));
-    const ease = 1 - Math.pow(1 - t, 3);
-    const pos = anim.start.clone();
-    pos.lerp(anim.end, ease);
-    if (anim.arc) {
-      pos.y += Math.sin(Math.PI * ease) * anim.arc;
-    }
-    anim.mesh.position.copy(pos);
-    if (anim.endScale && anim.startScale) {
-      anim.mesh.scale.copy(anim.startScale.clone().lerp(anim.endScale, ease));
-    }
-    if (t >= 1) {
-      piecesG.remove(anim.mesh);
-      drawAnimations.splice(i, 1);
-    }
+  const anim = drawAnimations[0];
+  if (!anim) return;
+  if (anim.startTime == null) anim.startTime = now;
+  const t = Math.min(1, Math.max(0, (now - anim.startTime) / anim.duration));
+  updateDrawDestination(anim);
+  const rotateT = smoothPlacementStep(PLACE_ANIM_LIFT_END, PLACE_ANIM_LOWER_END, t);
+  anim.mesh.position.copy(resolvePrecisionPlacementPosition(anim, t));
+  anim.mesh.quaternion.slerpQuaternions(anim.startQuat, anim.endQuat, rotateT);
+  anim.mesh.scale.lerpVectors(anim.startScale, anim.endScale, rotateT);
+  updateSeatedHumanDominoAction(anim, t);
+  if (!anim.pickupPlayed && t >= PLACE_ANIM_PICK_HOLD) { anim.pickupPlayed = true; SFX.drawTile(); }
+  if (t >= 1) {
+    disposeDominoMesh(anim.mesh);
+    drawAnimations.shift();
+    anim.tile.inTransit = false;
+    anim.tile.openingPending = false;
+    renderHands();
+    anim.onComplete?.();
+    flushPendingDominoState();
   }
 }
 
@@ -11292,13 +11630,9 @@ function resolvePrecisionPlacementPosition(anim, t) {
   const carryEnd = anim.end.clone();
   carryEnd.y += carryLift;
   const lowerReady = anim.end.clone();
-  lowerReady.y += 0.012;
 
   if (t < PLACE_ANIM_PICK_HOLD) {
-    const press = smoothPlacementStep(0, PLACE_ANIM_PICK_HOLD, t);
-    const pos = anim.start.clone();
-    pos.y -= Math.sin(press * Math.PI) * 0.004;
-    return pos;
+    return anim.start.clone();
   }
   if (t < PLACE_ANIM_LIFT_END) {
     return anim.start.clone().lerp(
@@ -11324,6 +11658,21 @@ function resolvePrecisionPlacementPosition(anim, t) {
   );
 }
 
+function revealPlacementFace(anim) {
+  if (anim.faceRevealed || !anim.segment?.tile) return;
+  anim.faceRevealed = true;
+  const { a, b } = anim.segment.tile;
+  const visible = makeDomino(a, b, { flat: true, faceUp: true, preserveOrder: true });
+  visible.position.copy(anim.mesh.position);
+  visible.quaternion.copy(anim.mesh.quaternion);
+  visible.scale.copy(anim.mesh.scale);
+  visible.userData = { animating: true };
+  visible.traverse((child) => { child.renderOrder = 6; });
+  disposeDominoMesh(anim.mesh);
+  piecesG.add(visible);
+  anim.mesh = visible;
+}
+
 function updatePlacementAnimations(now) {
   const timestamp = Number.isFinite(now) ? now : performance.now();
   for (let i = placementAnimations.length - 1; i >= 0; i--) {
@@ -11344,7 +11693,9 @@ function updatePlacementAnimations(now) {
       anim.mesh.scale.copy(scale);
     }
 
+    if (t >= PLACE_ANIM_PICK_HOLD) revealPlacementFace(anim);
     updateSeatedHumanDominoAction(anim, t);
+    if (!anim.impactPlayed && t >= PLACE_ANIM_LOWER_END) { anim.impactPlayed = true; SFX.place(); }
 
     if (t >= 1) {
       if (anim.segment) {
@@ -11353,6 +11704,8 @@ function updatePlacementAnimations(now) {
       disposeDominoMesh(anim.mesh);
       placementAnimations.splice(i, 1);
       renderChain();
+      anim.onComplete?.();
+      flushPendingDominoState();
     }
   }
 }
@@ -11494,6 +11847,9 @@ function shutdownDominoRoyal(reason = 'unknown') {
     if (typeof animationFrameId === 'number') {
       cancelAnimationFrame(animationFrameId);
     }
+    clearExistingDominoMeshes();
+    if (cpuMoveTimeout) clearTimeout(cpuMoveTimeout);
+    if (pendingTurnAdvanceTimeout) clearTimeout(pendingTurnAdvanceTimeout);
     detachRuntimeListeners();
     selfVideoObserver?.disconnect?.();
     selfVideoObserver = null;
@@ -11565,8 +11921,12 @@ function tick(now) {
 
   try {
     updateEntrySequence(current);
-    updateDrawAnimations(current);
-    updatePlacementAnimations(current);
+    dominoMotionTime += Math.min(step, 50);
+    updateDominoIdleHands();
+    updateOpeningSequence(dominoMotionTime);
+    updateDrawAnimations(dominoMotionTime);
+    updatePlacementAnimations(dominoMotionTime);
+    updateKnockAnimations(dominoMotionTime);
     updateWinnerHighlight(current);
     updateSeatBadgePositions();
     updateCameraLookRecentering();
