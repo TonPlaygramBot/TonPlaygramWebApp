@@ -1,0 +1,43 @@
+name: Racing clearance verification
+on:
+  push:
+    branches: [fix/racing-kart-scale-clearance-20260914]
+permissions:
+  contents: read
+jobs:
+  inspect:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          sparse-checkout: |
+            webapp/src/games
+            webapp/public/assets/kart-royale/karts
+            webapp/package.json
+            webapp/package-lock.json
+            test
+            tools
+          sparse-checkout-cone-mode: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Install existing webapp dependencies without lifecycle scripts
+        run: npm ci --prefix webapp --ignore-scripts --no-audit --no-fund
+      - name: Collect isolated verification inputs
+        run: |
+          mkdir -p racing-verification
+          tar -czf racing-verification/racing-source.tgz webapp/src/games webapp/public/assets/kart-royale/karts webapp/package.json webapp/package-lock.json test tools
+          node --input-type=module - <<'JS' > racing-verification/baseline-widths.json
+          import { TRACKS, makeTrack } from './webapp/src/games/kartroyale/simulation.mjs';
+          console.log(JSON.stringify(TRACKS.map(t => { const track = makeTrack(t.id); const widths=track.points.map(p=>p.width??track.width); return {id:t.id,name:t.name,samples:widths.length,minimumWidth:Math.min(...widths),maximumWidth:Math.max(...widths),underTwoLaneMinimum:widths.filter(w=>w<4.8).length}; }), null, 2));
+          JS
+      - name: Run clearance regression when present
+        run: |
+          if [ -f test/racingClearance.test.mjs ]; then node --test test/racingClearance.test.mjs; fi
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: racing-clearance-verification
+          path: racing-verification/
+          retention-days: 3
