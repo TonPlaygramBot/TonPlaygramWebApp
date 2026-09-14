@@ -77,6 +77,22 @@ test('ball-in-hand stays inside the complete baulk semicircle and table bounds',
   assert.equal(clampBallInHand({ x: NaN, y: 0 }, bounds), null);
 });
 
+test('ball-in-hand preserves every legal point on the snooker D boundary', () => {
+  const boundary = [
+    { x: -bounds.dRadius, y: bounds.baulkY },
+    { x: 0, y: bounds.baulkY - bounds.dRadius },
+    { x: bounds.dRadius, y: bounds.baulkY }
+  ];
+  for (const point of boundary) {
+    assert.deepEqual(clampBallInHand(point, bounds), point);
+  }
+  assert.deepEqual(
+    clampBallInHand({ x: 0, y: bounds.baulkY + 1 }, bounds),
+    { x: 0, y: bounds.baulkY },
+    'a touch visually above the baulk line clamps to the line, not outside the D'
+  );
+});
+
 function projectionRig(scale = .65) {
   const world = new THREE.Group(); world.scale.setScalar(scale); world.position.set(3, -12, 7);
   const table = new THREE.Group(); table.position.y = 24; world.add(table);
