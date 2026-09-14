@@ -641,15 +641,6 @@ export const SNOOKER_ROYALE_STORE_ITEMS = [
     description: variant.description,
     thumbnail: BASE_VARIANT_THUMBNAILS[variant.id]
   })),
-  ...SNOOKER_ROYALE_HDRI_VARIANTS.map((variant) => ({
-    id: `hdri-${variant.id}`,
-    type: 'environmentHdri',
-    optionId: variant.id,
-    name: `${variant.name} HDRI`,
-    price: variant.price,
-    description: variant.description,
-    thumbnail: variant.thumbnail
-  }))
 ];
 
 export const SNOOKER_ROYALE_DEFAULT_LOADOUT = [
@@ -671,10 +662,5 @@ export const SNOOKER_ROYALE_DEFAULT_LOADOUT = [
     type: 'tableBase',
     optionId: SNOOKER_ROYALE_BASE_VARIANTS[0].id,
     label: SNOOKER_ROYALE_BASE_VARIANTS[0].name
-  },
-  {
-    type: 'environmentHdri',
-    optionId: SNOOKER_ROYALE_DEFAULT_HDRI_ID,
-    label: SNOOKER_ROYALE_OPTION_LABELS.environmentHdri[SNOOKER_ROYALE_DEFAULT_HDRI_ID]
   }
 ];

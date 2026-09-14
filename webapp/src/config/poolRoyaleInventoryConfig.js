@@ -1224,15 +1224,6 @@ export const POOL_ROYALE_STORE_ITEMS = [
     description: variant.description,
     thumbnail: BASE_VARIANT_THUMBNAILS[variant.id]
   })),
-  ...POOL_ROYALE_HDRI_VARIANTS.map((variant) => ({
-    id: `hdri-${variant.id}`,
-    type: 'environmentHdri',
-    optionId: variant.id,
-    name: `${variant.name} HDRI`,
-    price: variant.price,
-    description: variant.description,
-    thumbnail: variant.thumbnail
-  }))
 ];
 
 export const POOL_ROYALE_DEFAULT_LOADOUT = [
@@ -1262,10 +1253,5 @@ export const POOL_ROYALE_DEFAULT_LOADOUT = [
     type: 'tableBase',
     optionId: POOL_ROYALE_BASE_VARIANTS[0].id,
     label: POOL_ROYALE_BASE_VARIANTS[0].name
-  },
-  {
-    type: 'environmentHdri',
-    optionId: POOL_ROYALE_DEFAULT_HDRI_ID,
-    label: POOL_ROYALE_OPTION_LABELS.environmentHdri[POOL_ROYALE_DEFAULT_HDRI_ID]
   }
 ];

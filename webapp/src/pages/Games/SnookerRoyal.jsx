@@ -7,6 +7,7 @@ import React, {
   useState
 } from 'react';
 import * as THREE from 'three';
+import { createModernCueArena } from './shared/createModernCueArena.js';
 import polygonClipping from 'polygon-clipping';
 import * as BufferGeometryUtils from 'three/examples/jsm/utils/BufferGeometryUtils.js';
 import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js';
@@ -15725,6 +15726,7 @@ const shotPowerRef = useRef(0);
       const world = new THREE.Group();
       scene.add(world);
       worldRef.current = world;
+      world.add(createModernCueArena({ width: PLAY_W, depth: PLAY_H, floorY: FLOOR_Y }));
       const applyEnvironmentMaps = (envMap, skyboxMap, activeVariant) => {
         const sceneInstance = sceneRef.current;
         if (!envMap || !sceneInstance) return;
@@ -15846,7 +15848,8 @@ const shotPowerRef = useRef(0);
               applyEnvironmentMaps(fallbackEnv.envMap, fallbackEnv.skyboxMap, activeVariant);
             }
           }
-          const envResult = await loadPolyHavenHdriEnvironment(renderer, activeVariant);
+          // Preserve neutral image-based reflections without loading an HDR panorama.
+          const envResult = await createFallbackHdriEnvironment(renderer);
           if (!envResult) return;
           const { envMap, skyboxMap } = envResult;
           if (!envMap) return;
@@ -20769,7 +20772,7 @@ const shotPowerRef = useRef(0);
 
       // Lights
       const addMobileLighting = () => {
-        const useHdriOnly = true;
+        const useHdriOnly = false;
         if (useHdriOnly) {
           lightingRigRef.current = null;
           return;
@@ -28905,43 +28908,27 @@ const shotPowerRef = useRef(0);
               </div>
               <div className="rounded-xl border border-white/10 bg-white/5 p-3">
                 <h3 className="text-[10px] uppercase tracking-[0.35em] text-emerald-100/70">
-                  HDR Environment
+                  Free Arena Lighting
                 </h3>
-                <div className="mt-2 grid grid-cols-1 gap-2">
-                  {availableEnvironmentHdris.map((variant) => {
-                    const active = variant.id === environmentHdriId;
-                    const swatchA = variant.swatches?.[0] ?? '#0ea5e9';
-                    const swatchB = variant.swatches?.[1] ?? '#111827';
-                    const thumb = variant.thumbnail;
+                <p className="mt-1 text-[0.68rem] leading-snug text-white/60">
+                  Instant lighting presets — no HDR downloads or NFT unlocks.
+                </p>
+                <div className="mt-2 grid grid-cols-2 gap-2">
+                  {LIGHTING_OPTIONS.map((option) => {
+                    const active = option.id === lightingId;
                     return (
                       <button
-                        key={variant.id}
+                        key={option.id}
                         type="button"
-                        onClick={() => setEnvironmentHdriId(variant.id)}
+                        onClick={() => setLightingId(option.id)}
                         aria-pressed={active}
-                        className={`flex items-center justify-between gap-3 rounded-2xl border px-3 py-2 text-left text-[11px] font-semibold uppercase tracking-[0.2em] transition-colors duration-200 focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-300 ${
+                        className={`rounded-2xl border px-3 py-2 text-[10px] font-semibold uppercase tracking-[0.16em] transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-300 ${
                           active
-                            ? 'border-emerald-300 bg-emerald-300 text-black shadow-[0_0_18px_rgba(16,185,129,0.55)]'
+                            ? 'border-emerald-300 bg-emerald-300 text-black'
                             : 'border-white/20 bg-white/10 text-white/80 hover:bg-white/20'
                         }`}
                       >
-                        <span>{variant.name}</span>
-                        {thumb ? (
-                          <img
-                            src={thumb}
-                            alt={`${variant.name} HDRI`}
-                            className="h-14 w-20 rounded-xl border border-white/30 object-cover"
-                            loading="lazy"
-                          />
-                        ) : (
-                          <span
-                            className="h-14 w-20 rounded-xl border border-white/30"
-                            aria-hidden="true"
-                            style={{
-                              background: `linear-gradient(135deg, ${swatchA}, ${swatchB})`
-                            }}
-                          />
-                        )}
+                        {option.label}
                       </button>
                     );
                   })}
