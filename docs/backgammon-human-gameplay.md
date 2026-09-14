@@ -61,7 +61,34 @@ Performance 60 Hz / 2K, Smooth 90 Hz / 4K and Ultra 120 Hz / 8K targets as Murla
 These are caps, not guarantees of device frame rate. The renderer and asset
 resolution order both change with the profile. Smaller asset resolutions are
 fallbacks. Asset failures retain current furniture/lighting; superseded loads
-are disposed. Imported table geometry is fitted to the fixed board/seat height.
+are disposed.
+
+### Matching Chess arena sizes
+
+`arenaLayout.ts` copies the sizing and fitting rules from
+`ChessBattleRoyal.jsx` on `main` (reviewed at `394a9c3`). Poly Haven tables
+use the Coffee Table 01 reference: a 1.46335728-unit footprint in both
+directions and a 0.627177853-unit height. The procedural table uses Chess's
+shape and short-pedestal factors, then rests on the same floor. The board,
+checker and dice groups follow the resulting tabletop height, including the
+lower procedural surface.
+
+All chairs use Chess's maximum-dimension normalization, footprint centering,
+0.570486 overall scale, 1.14 horizontal factor, seat distances and floor
+alignment. The existing Backgammon board geometry uses one uniform conversion
+to the new arena units; raycast coordinates, hand contact and camera framing
+use that same conversion. Table replacements wait for an active move to finish.
+
+HDRIs now use `GroundedSkybox` with Chess's 1.5-unit default camera height,
+0.9 minimum height, 24-unit minimum radius, 6× room-span radius and 256 default
+resolution. Every environment retains its catalogue overrides. The floor and
+skybox stay fixed when changing view or resizing the phone.
+
+Direct comparisons against the Chess JSX fitting functions passed for three
+table fixtures, six seated chair fixtures and all 33 catalogue HDRIs plus
+three default/custom configurations. Portrait touch-coordinate round trips
+passed at both table heights. The existing real-skeleton interaction and
+camera tests now cover both surfaces.
 
 ## Online availability
 
@@ -89,8 +116,9 @@ check, and the webapp Vite production build passed.
 
 `webapp/backgammon-preview.html` runs the actual production component through
 Vite. The generated in-chat preview runs the same component and game controller,
-with the actual character mesh/skeleton and simplified local furniture and
-lighting. It omits account chat/gifts and remote furniture/HDRI selection.
+with the actual character mesh/skeleton, procedural table geometry and the
+same chair fitting. It uses simplified local lighting and omits account
+chat/gifts and remote furniture/HDRI selection.
 
 Live browser verification was blocked by this environment's
 `ERR_BLOCKED_BY_CLIENT` policy. Automated projection/contact tests do not verify

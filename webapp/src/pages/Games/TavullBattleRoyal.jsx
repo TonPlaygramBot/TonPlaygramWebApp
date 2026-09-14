@@ -67,19 +67,21 @@ import {
   createBackgammonDiceAction,
   applyBackgammonCamera,
   BACKGAMMON_HUMAN_HEIGHT,
-  BACKGAMMON_SEAT_DISTANCE,
-  BACKGAMMON_SEAT_Y,
   PHYSICAL_MOVE_DURATION_MS
 } from '../../games/backgammon/presentation.ts';
 import {
   createBackgammonEnvironment,
   disposeBackgammonObject
 } from '../../games/backgammon/environment.ts';
+import {
+  BACKGAMMON_ARENA,
+  BACKGAMMON_PLAY_SCALE,
+  createBackgammonPlaySpace,
+  backgammonPlayYOffset
+} from '../../games/backgammon/arenaLayout.ts';
 
-const TABLE_RADIUS = 1.72;
-const TABLE_HEIGHT = 1.16;
-const CHAIR_DISTANCE = BACKGAMMON_SEAT_DISTANCE;
-const BOARD_Y = TABLE_HEIGHT + 0.08;
+// Board-local geometry is fitted to the Chess-sized arena as one play space.
+const BOARD_Y = 1.16 + 0.08;
 const BOARD_HALF_X = 1.28;
 const BOARD_HALF_Z = 0.98;
 const BOARD_EDGE_MARGIN_X = 0.092;
@@ -887,10 +889,12 @@ export function BackgammonGame({ preview = false, localSide = WHITE } = {}) {
     let action = null;
     let renderedBoard = null;
     let boardWaiters = [];
+    let idleWaiters = [];
+    let tableSurfaceY = BACKGAMMON_ARENA.tableHeight;
     const cameraTarget = new THREE.Vector3();
     const applyViewMode = (mode) => {
       currentMode = mode;
-      applyBackgammonCamera(camera, mode, cameraTarget);
+      applyBackgammonCamera(camera, mode, cameraTarget, tableSurfaceY);
       actors.forEach((actor) => setBackgammonView(actor, mode));
     };
     applyViewMode(viewMode);
@@ -944,17 +948,28 @@ export function BackgammonGame({ preview = false, localSide = WHITE } = {}) {
       renderer,
       createLoader: createConfiguredGLTFLoader,
       fallbackChair: createArenaChairFallback,
-      tableRadius: TABLE_RADIUS,
-      tableHeight: TABLE_HEIGHT,
-      chairDistance: CHAIR_DISTANCE,
-      seatY: BACKGAMMON_SEAT_Y,
+      waitUntilIdle: () =>
+        action
+          ? new Promise((resolve) => idleWaiters.push(resolve))
+          : Promise.resolve(!disposed),
+      onTableSurfaceChange: (surfaceY) => {
+        tableSurfaceY = surfaceY;
+        playSpace.position.y = backgammonPlayYOffset(surfaceY);
+        playSpace.updateMatrixWorld(true);
+        boardPlane
+          .set(new THREE.Vector3(0, 1, 0), -(BOARD_Y + 0.16))
+          .applyMatrix4(playSpace.matrixWorld);
+        applyViewMode(currentMode);
+      },
       status: (text) => {
         if (!disposed) setAssetStatus(text);
       }
     });
 
+    const playSpace = createBackgammonPlaySpace();
+    scene.add(playSpace);
     const boardRoot = new THREE.Group();
-    scene.add(boardRoot);
+    playSpace.add(boardRoot);
 
     const createCanvasTexture = (drawFn, repeat = [1, 1]) => {
       const canvas = document.createElement('canvas');
@@ -1180,11 +1195,11 @@ export function BackgammonGame({ preview = false, localSide = WHITE } = {}) {
       boardRoot.add(tray);
     }
     const chipGroup = new THREE.Group();
-    scene.add(chipGroup);
+    playSpace.add(chipGroup);
     const diceGroup = new THREE.Group();
-    scene.add(diceGroup);
+    playSpace.add(diceGroup);
     const markerGroup = new THREE.Group();
-    scene.add(markerGroup);
+    playSpace.add(markerGroup);
     const maxDice = 2;
 
     const diceMeshes = Array.from({ length: maxDice }, () => {
@@ -1198,7 +1213,7 @@ export function BackgammonGame({ preview = false, localSide = WHITE } = {}) {
     const boardPlane = new THREE.Plane(
       new THREE.Vector3(0, 1, 0),
       -(BOARD_Y + 0.16)
-    );
+    ).applyMatrix4(playSpace.matrixWorld);
     const hitPoint = new THREE.Vector3();
     const resolveNearestPoint = (x, z) => {
       if (Math.abs(z) > BOARD_HALF_Z + 0.12) return null;
@@ -1250,8 +1265,10 @@ export function BackgammonGame({ preview = false, localSide = WHITE } = {}) {
       if (
         nearest === undefined &&
         raycaster.ray.intersectPlane(boardPlane, hitPoint)
-      )
+      ) {
+        playSpace.worldToLocal(hitPoint);
         nearest = resolveNearestPoint(hitPoint.x, hitPoint.z);
+      }
       if (nearest == null) return;
       window.dispatchEvent(
         new CustomEvent('tavullPointTap', { detail: { point: nearest } })
@@ -1286,6 +1303,7 @@ export function BackgammonGame({ preview = false, localSide = WHITE } = {}) {
       action?.resolve(false);
       action = null;
       boardWaiters.splice(0).forEach((waiter) => waiter.resolve(false));
+      idleWaiters.splice(0).forEach((resolve) => resolve(false));
       actors.forEach(idleBackgammonActor);
     };
     let raf = 0,
@@ -1302,6 +1320,7 @@ export function BackgammonGame({ preview = false, localSide = WHITE } = {}) {
         install();
       }
       if (!action) actors.forEach(idleBackgammonActor);
+      if (!action) idleWaiters.splice(0).forEach((resolve) => resolve(true));
       const interval = 1000 / activeQuality.fps;
       if (now - lastRender >= interval - 0.2) {
         renderer.render(scene, camera);
@@ -1354,7 +1373,7 @@ export function BackgammonGame({ preview = false, localSide = WHITE } = {}) {
           from,
           to,
           gripHeight: CHIP_HEIGHT * 0.6,
-          gripRadius: CHIP_RADIUS * 0.9,
+          gripRadius: CHIP_RADIUS * 0.9 * BACKGAMMON_PLAY_SCALE,
           fromCell: {
             r: (from.z / BOARD_HALF_Z + 1) * 3.5,
             c: (from.x / BOARD_HALF_X + 1) * 3.5
@@ -1410,7 +1429,7 @@ export function BackgammonGame({ preview = false, localSide = WHITE } = {}) {
             from,
             to,
             gripHeight: BACKGAMMON_DIE_SIZE * 0.3,
-            gripRadius: BACKGAMMON_DIE_SIZE * 0.46,
+            gripRadius: BACKGAMMON_DIE_SIZE * 0.46 * BACKGAMMON_PLAY_SCALE,
             fromCell: { r: 3.5, c: 3.5 },
             toCell: { r: 3.5, c: 3.5 }
           };
@@ -1495,6 +1514,7 @@ export function BackgammonGame({ preview = false, localSide = WHITE } = {}) {
       [boardRoot, chipGroup, markerGroup, diceGroup].forEach(
         disposeBackgammonObject
       );
+      playSpace.removeFromParent();
       renderer.dispose();
       renderer.domElement.removeEventListener('pointerdown', onPointerDown);
       renderer.domElement.removeEventListener('pointerup', onBoardTap);
@@ -2220,7 +2240,11 @@ export function BackgammonGame({ preview = false, localSide = WHITE } = {}) {
           const id = Date.now();
           setChatBubbles((bubbles) => [
             ...bubbles,
-            { id, text, photoUrl: playerAvatar || '/assets/icons/profile.svg' }
+            {
+              id,
+              text,
+              photoUrl: playerAvatar || '/assets/icons/profile.svg'
+            }
           ]);
           setTimeout(
             () =>

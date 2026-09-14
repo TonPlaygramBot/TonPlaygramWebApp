@@ -2,9 +2,19 @@ import * as THREE from 'three';
 import { RGBELoader } from 'three/examples/jsm/loaders/RGBELoader.js';
 import {
   createMurlanStyleTable,
-  applyTableMaterials
+  applyTableMaterials,
+  TABLE_SHAPE_OPTIONS
 } from '../../utils/murlanTable.js';
 import { backgammonHdriUrls } from './graphics.ts';
+import {
+  BACKGAMMON_ARENA,
+  fitBackgammonTable,
+  fitBackgammonChair,
+  createBackgammonChairGroup,
+  createBackgammonSkybox,
+  groundBackgammonTable,
+  backgammonPedestalScale
+} from './arenaLayout.ts';
 
 export function disposeBackgammonObject(root: THREE.Object3D) {
   const geometries = new Set<THREE.BufferGeometry>(),
@@ -69,10 +79,8 @@ export function createBackgammonEnvironment({
   renderer,
   createLoader,
   fallbackChair,
-  tableRadius,
-  tableHeight,
-  chairDistance,
-  seatY,
+  onTableSurfaceChange = (_height: number) => {},
+  waitUntilIdle = () => Promise.resolve(true),
   status
 }: any) {
   let disposed = false,
@@ -82,14 +90,21 @@ export function createBackgammonEnvironment({
   const tableSettings = {
     arena: scene,
     renderer,
-    tableRadius,
-    tableHeight,
+    tableRadius: BACKGAMMON_ARENA.tableRadius,
+    tableHeight: BACKGAMMON_ARENA.tableHeight,
     includeBase: true
   };
   let table: any = null;
   let chairs: THREE.Group[] = [];
   let environment: THREE.WebGLRenderTarget | null = null,
     background: THREE.Texture | null = null;
+  let skybox: ReturnType<typeof createBackgammonSkybox> | null = null;
+  const clearSkybox = () => {
+    skybox?.removeFromParent();
+    skybox?.geometry.dispose();
+    skybox?.material.dispose();
+    skybox = null;
+  };
   const pmrem = new THREE.PMREMGenerator(renderer);
   const model = async (option: any, resolutions: string[]) => {
     const candidates: {
@@ -167,11 +182,21 @@ export function createBackgammonEnvironment({
     async table(option: any, finish: any, resolutions: string[]) {
       const request = ++tableRequest;
       if (option.source !== 'polyhaven') {
+        if (!(await waitUntilIdle()) || disposed || request !== tableRequest)
+          return;
+        const shape =
+          TABLE_SHAPE_OPTIONS.find(
+            (shape: any) => shape.id === option.proceduralShapeId
+          ) ?? TABLE_SHAPE_OPTIONS[0];
         clearTable();
         table = createMurlanStyleTable({
           ...tableSettings,
+          shapeOption: shape,
+          pedestalHeightScale: backgammonPedestalScale(shape.id),
           woodOption: finish?.woodOption
         });
+        table.surfaceY = groundBackgammonTable(table.group, table.surfaceY);
+        onTableSurfaceChange(table.surfaceY);
         applyTableMaterials(
           table.materials,
           {
@@ -187,27 +212,15 @@ export function createBackgammonEnvironment({
       status(`Loading ${option.label}…`);
       try {
         const root = await model(option, resolutions);
-        if (disposed || request !== tableRequest) {
+        if (!(await waitUntilIdle()) || disposed || request !== tableRequest) {
           disposeBackgammonObject(root);
           return;
         }
-        const box = new THREE.Box3().setFromObject(root),
-          size = box.getSize(new THREE.Vector3());
-        // Fit both board lanes and off trays. Keep feet on the floor and the
-        // tabletop at the same fixed height for every character and camera.
-        root.scale.multiply(
-          new THREE.Vector3(
-            3.25 / Math.max(size.x, 0.01),
-            tableHeight / Math.max(size.y, 0.01),
-            2.72 / Math.max(size.z, 0.01)
-          )
-        );
-        const fit = new THREE.Box3().setFromObject(root),
-          center = fit.getCenter(new THREE.Vector3());
-        root.position.add(new THREE.Vector3(-center.x, -fit.min.y, -center.z));
+        fitBackgammonTable(root);
         clearTable();
         scene.add(root);
         table = { group: root };
+        onTableSurfaceChange(BACKGAMMON_ARENA.tableHeight);
         status('');
       } catch {
         if (!disposed && request === tableRequest)
@@ -246,26 +259,12 @@ export function createBackgammonEnvironment({
         disposeBackgammonObject(root);
         return;
       }
-      const bounds = new THREE.Box3().setFromObject(root),
-        size = bounds.getSize(new THREE.Vector3());
-      if (option.source === 'polyhaven' || option.source === 'gltf') {
-        root.scale.multiplyScalar(1.7 / Math.max(size.y, 0.01));
-        const fit = new THREE.Box3().setFromObject(root),
-          center = fit.getCenter(new THREE.Vector3());
-        // Seat is approximately halfway up these chair models, as in Murlan.
-        root.position.add(
-          new THREE.Vector3(
-            -center.x,
-            seatY - (fit.min.y + (fit.max.y - fit.min.y) * 0.48),
-            -center.z
-          )
-        );
-      } else root.position.y = seatY;
+      fitBackgammonChair(root);
       const next = [0, 1].map((seat) => {
-        const group = new THREE.Group();
-        group.add(seat ? root.clone(true) : root);
-        group.position.z = seat ? -chairDistance : chairDistance;
-        group.rotation.y = seat ? 0 : Math.PI;
+        const group = createBackgammonChairGroup(
+          seat ? root.clone(true) : root,
+          seat
+        );
         scene.add(group);
         return group;
       });
@@ -289,9 +288,23 @@ export function createBackgammonEnvironment({
           }
           texture.mapping = THREE.EquirectangularReflectionMapping;
           const next = pmrem.fromEquirectangular(texture);
+          let nextSkybox: ReturnType<typeof createBackgammonSkybox> | null =
+            null;
+          try {
+            nextSkybox = createBackgammonSkybox(texture, variant);
+          } catch {
+            // Preserve the loaded lighting when ground projection is unavailable.
+          }
+          clearSkybox();
+          skybox = nextSkybox;
           scene.environment = next.texture;
-          scene.background = texture;
-          scene.backgroundBlurriness = 0.12;
+          scene.background = skybox ? null : texture;
+          scene.backgroundBlurriness = 0;
+          if (skybox) scene.add(skybox);
+          scene.environmentIntensity = variant.environmentIntensity ?? 1;
+          scene.backgroundIntensity = variant.backgroundIntensity ?? 1;
+          renderer.toneMappingExposure =
+            variant.exposure ?? renderer.toneMappingExposure;
           environment?.dispose();
           background?.dispose();
           environment = next;
@@ -313,6 +326,7 @@ export function createBackgammonEnvironment({
       clearTable();
       if (chairs[0]) disposeBackgammonObject(chairs[0]);
       chairs[1]?.removeFromParent();
+      clearSkybox();
       environment?.dispose();
       background?.dispose();
       pmrem.dispose();
