@@ -24,6 +24,7 @@ const SEATED_HUMAN_HEAD_REACH_GAIN = 0.08;
 const seatedHumanTemplatePromiseById = new Map();
 const chessDominoCharacterTextureCache = new Map();
 let chessDominoCharacterTextureLoader = null;
+const seatedHumanArmIKStates = new WeakMap();
 
 function normalizePbrTexture(texture, maxAnisotropy = 1) {
   if (!texture) return;
@@ -48,6 +49,12 @@ function findBoneByNeedle(bones, ...needles) {
   return null;
 }
 
+function findFingerChain(bones, side, finger) {
+  return [1, 2, 3].map((joint) => findBoneByNeedle(
+    bones, `${side}${finger}${joint}`, `${side}hand${finger}${joint}`
+  )).filter(Boolean);
+}
+
 export function saveSeatedHumanBoneRig(modelRoot) {
   const bones = [];
   modelRoot?.traverse?.((obj) => {
@@ -60,7 +67,7 @@ export function saveSeatedHumanBoneRig(modelRoot) {
       position: bone.position.clone()
     });
   });
-  return {
+  const rig = {
     saved,
     hips: findBoneByNeedle(bones, 'hips', 'pelvis'),
     spine: findBoneByNeedle(bones, 'spine'),
@@ -79,32 +86,28 @@ export function saveSeatedHumanBoneRig(modelRoot) {
     rightUpperArm: findBoneByNeedle(bones, 'rightarm', 'rightupperarm'),
     rightForeArm: findBoneByNeedle(bones, 'rightforearm', 'rightlowerarm'),
     rightHand: findBoneByNeedle(bones, 'righthand'),
-    rightThumb: [
-      findBoneByNeedle(bones, 'rightthumb1'),
-      findBoneByNeedle(bones, 'rightthumb2'),
-      findBoneByNeedle(bones, 'rightthumb3')
-    ].filter(Boolean),
-    rightIndex: [
-      findBoneByNeedle(bones, 'rightindex1'),
-      findBoneByNeedle(bones, 'rightindex2'),
-      findBoneByNeedle(bones, 'rightindex3')
-    ].filter(Boolean),
-    rightMiddle: [
-      findBoneByNeedle(bones, 'rightmiddle1'),
-      findBoneByNeedle(bones, 'rightmiddle2'),
-      findBoneByNeedle(bones, 'rightmiddle3')
-    ].filter(Boolean),
-    rightRing: [
-      findBoneByNeedle(bones, 'rightring1'),
-      findBoneByNeedle(bones, 'rightring2'),
-      findBoneByNeedle(bones, 'rightring3')
-    ].filter(Boolean),
-    rightPinky: [
-      findBoneByNeedle(bones, 'rightpinky1'),
-      findBoneByNeedle(bones, 'rightpinky2'),
-      findBoneByNeedle(bones, 'rightpinky3')
-    ].filter(Boolean)
+    leftThumb: findFingerChain(bones, 'left', 'thumb'),
+    leftIndex: findFingerChain(bones, 'left', 'index'),
+    leftMiddle: findFingerChain(bones, 'left', 'middle'),
+    leftRing: findFingerChain(bones, 'left', 'ring'),
+    leftPinky: findFingerChain(bones, 'left', 'pinky'),
+    rightThumb: findFingerChain(bones, 'right', 'thumb'),
+    rightIndex: findFingerChain(bones, 'right', 'index'),
+    rightMiddle: findFingerChain(bones, 'right', 'middle'),
+    rightRing: findFingerChain(bones, 'right', 'ring'),
+    rightPinky: findFingerChain(bones, 'right', 'pinky'),
+    leftContactTips: ['thumb', 'index', 'middle'].map((finger) => findBoneByNeedle(
+      bones, `lefthand${finger}4`, `left${finger}4`, `lefthand${finger}end`, `left${finger}end`
+    )),
+    rightContactTips: ['thumb', 'index', 'middle'].map((finger) => findBoneByNeedle(
+      bones, `righthand${finger}4`, `right${finger}4`, `righthand${finger}end`, `right${finger}end`
+    ))
   };
+  // Capture anatomical hand axes before the seated pose changes the skeleton.
+  modelRoot?.updateWorldMatrix?.(true, true);
+  getArmIKState(rig, 'left');
+  getArmIKState(rig, 'right');
+  return rig;
 }
 
 function resetBoneRig(rig) {
@@ -156,12 +159,12 @@ function applyRightHandGrip(rig, gripAmount = 0) {
   });
 }
 
-export function getSeatedHumanGripWorldPosition(rig) {
+export function getSeatedHumanGripWorldPosition(rig, side = 'right') {
   if (!rig) return null;
   const tips = [
-    rig.rightThumb?.[rig.rightThumb.length - 1],
-    rig.rightIndex?.[rig.rightIndex.length - 1],
-    rig.rightMiddle?.[rig.rightMiddle.length - 1]
+    rig[`${side}Thumb`]?.at(-1),
+    rig[`${side}Index`]?.at(-1),
+    rig[`${side}Middle`]?.at(-1)
   ].filter(Boolean);
   if (!tips.length) return null;
   const sum = new THREE.Vector3();
@@ -199,6 +202,308 @@ export function applySeatedHumanRightArmIK(rig, targetWorld, strength = 0.5) {
     targetWorld,
     strength * 0.4
   );
+}
+
+function getArmIKState(rig, side) {
+  if (!rig || (side !== 'left' && side !== 'right')) return null;
+  let states = seatedHumanArmIKStates.get(rig);
+  if (!states) {
+    states = {};
+    seatedHumanArmIKStates.set(rig, states);
+  }
+  if (states[side]) return states[side];
+  const upper = rig[`${side}UpperArm`];
+  const lower = rig[`${side}ForeArm`];
+  const hand = rig[`${side}Hand`];
+  if (!upper || !lower || !hand) return null;
+  hand.updateWorldMatrix(true, true);
+  const forward = new THREE.Vector3();
+  const across = new THREE.Vector3();
+  const normal = new THREE.Vector3();
+  const fingerBases = ['Index', 'Middle', 'Ring'].map((name) => rig[`${side}${name}`]?.[0]).filter(Boolean);
+  fingerBases.forEach((bone) => forward.add(hand.worldToLocal(bone.getWorldPosition(new THREE.Vector3()))));
+  if (forward.lengthSq() < 1e-10) {
+    forward.copy(hand.worldToLocal(lower.getWorldPosition(new THREE.Vector3()))).negate();
+  }
+  if (forward.lengthSq() < 1e-10) forward.set(0, 0, 1);
+  forward.normalize();
+  const index = rig[`${side}Index`]?.[0];
+  const pinky = rig[`${side}Pinky`]?.[0];
+  if (index && pinky) {
+    across.copy(hand.worldToLocal(index.getWorldPosition(new THREE.Vector3())))
+      .sub(hand.worldToLocal(pinky.getWorldPosition(new THREE.Vector3())));
+    normal.crossVectors(forward, across).multiplyScalar(side === 'left' ? -1 : 1);
+  }
+  if (normal.lengthSq() < 1e-10) {
+    normal.set(0, 1, 0).addScaledVector(forward, -forward.y);
+    if (normal.lengthSq() < 1e-10) normal.set(1, 0, 0).addScaledVector(forward, -forward.x);
+  }
+  normal.normalize();
+  across.crossVectors(normal, forward).normalize();
+  normal.crossVectors(forward, across).normalize();
+  const localBasisInverse = new THREE.Quaternion()
+    .setFromRotationMatrix(new THREE.Matrix4().makeBasis(across, normal, forward)).invert();
+  const state = {
+    upper, lower, hand, forward, normal, localBasisInverse,
+    tips: ['Thumb', 'Index', 'Middle'].map((name, index) =>
+      rig[`${side}ContactTips`]?.[index] || rig[`${side}${name}`]?.at(-1)
+    ).filter(Boolean),
+    // Per-arm scratch objects keep this per-frame operation allocation-free.
+    vectors: Array.from({ length: 17 }, () => new THREE.Vector3()),
+    quaternions: Array.from({ length: 8 }, () => new THREE.Quaternion()),
+    requestedWristTarget: new THREE.Vector3(),
+    matrix: new THREE.Matrix4(),
+    result: { applied: false, reachable: false, error: Infinity }
+  };
+  states[side] = state;
+  return state;
+}
+
+function applySeatedHumanHandGrip(rig, side, amount) {
+  if (side === 'right') {
+    applyRightHandGrip(rig, amount);
+    return;
+  }
+  const grip = clamp01(amount);
+  // Mirror the lateral spread, while flexion stays in each bone's local frame.
+  curlFingerChain(rig, rig.leftIndex, grip, 0.08 * grip);
+  curlFingerChain(rig, rig.leftMiddle, grip, 0.02);
+  curlFingerChain(rig, rig.leftRing, grip, -0.04 * grip);
+  curlFingerChain(rig, rig.leftPinky, grip, -0.03 - 0.06 * grip);
+  (rig.leftThumb || []).forEach((bone, index) => {
+    addBoneRot(rig, bone, (index === 0 ? -0.28 : -0.48) * grip, 0.24 * grip, -0.22 * grip);
+  });
+}
+
+function isFiniteVector(value) {
+  return value && Number.isFinite(value.x) && Number.isFinite(value.y) && Number.isFinite(value.z);
+}
+
+function rotateArmBoneInWorld(bone, endpoint, target, state) {
+  const origin = state.vectors[14];
+  const from = state.vectors[15];
+  const to = state.vectors[16];
+  const parentRotation = state.quaternions[5];
+  const delta = state.quaternions[6];
+  const worldRotation = state.quaternions[7];
+  bone.getWorldPosition(origin);
+  endpoint.getWorldPosition(from).sub(origin);
+  to.copy(target).sub(origin);
+  if (from.lengthSq() < 1e-12 || to.lengthSq() < 1e-12) return;
+  delta.setFromUnitVectors(from.normalize(), to.normalize());
+  bone.getWorldQuaternion(worldRotation).premultiply(delta);
+  if (bone.parent) {
+    bone.parent.getWorldQuaternion(parentRotation).invert();
+    worldRotation.premultiply(parentRotation);
+  }
+  bone.quaternion.copy(worldRotation).normalize();
+  bone.updateWorldMatrix(false, true);
+}
+
+/**
+ * Rotate an arm to a world-space surface contact without moving any scene root.
+ * Bone lengths stay unchanged unless maxArmExtension is explicitly enabled.
+ * Call after applySeatedHumanPose each frame.
+ *
+ * `targetWorld` is the contact on the domino/table, not its centre. Options:
+ * - grip: finger closure (0..1); strength: pose blend (0..1, default 1).
+ * - approachDirection: world direction from wrist toward fingers.
+ * - palmNormal: world direction the palm faces (orthogonalized to approach).
+ * - contactOffset: optional contact point in hand-local MODEL units; otherwise
+ *   the current thumb/index/middle tips determine the actual grip centre.
+ * - poleTarget: optional world elbow guide; otherwise preserve the pose's bend.
+ * - maxArmExtension: opt-in length adjustment, capped at 1.65 of saved lengths;
+ *   omitted/default 1 keeps the current bone translations unchanged.
+ * Unreachable targets clamp to the arm's natural reach. The returned diagnostic
+ * object is reused for this arm; copy it if a persistent snapshot is needed.
+ */
+export function applySeatedHumanArmIK(rig, side, targetWorld, options = {}) {
+  const state = getArmIKState(rig, side);
+  if (!state || !isFiniteVector(targetWorld)) return null;
+  const strength = clamp01(options.strength, 1);
+  if (strength === 0) return null;
+  const { upper, lower, hand, vectors: v, quaternions: q } = state;
+  const [shoulder, elbow, wrist, contactLocal, temp, handScale, approach, palm, lateral,
+    wristTarget, direction, bend, elbowTarget, contactWorld] = v;
+  const [oldUpper, oldLower, oldHand, handRotation, parentRotation] = q;
+  oldUpper.copy(upper.quaternion);
+  oldLower.copy(lower.quaternion);
+  oldHand.copy(hand.quaternion);
+  if (Number.isFinite(options.grip)) applySeatedHumanHandGrip(rig, side, options.grip);
+  upper.updateWorldMatrix(true, true);
+  upper.getWorldPosition(shoulder);
+  lower.getWorldPosition(elbow);
+  hand.getWorldPosition(wrist);
+  hand.getWorldQuaternion(handRotation);
+  hand.getWorldScale(handScale);
+  contactLocal.set(0, 0, 0);
+  if (isFiniteVector(options.contactOffset)) {
+    contactLocal.copy(options.contactOffset);
+  } else if (state.tips.length) {
+    state.tips.forEach((bone) => contactLocal.add(hand.worldToLocal(bone.getWorldPosition(temp))));
+    contactLocal.multiplyScalar(1 / state.tips.length);
+  } else {
+    // Fingerless rigs still aim the palm, rather than embedding the wrist.
+    contactLocal.copy(state.forward).multiplyScalar(wrist.distanceTo(elbow) / Math.max(1e-6, handScale.length() / Math.sqrt(3)) * 0.28);
+  }
+  if (isFiniteVector(options.approachDirection) && approach.copy(options.approachDirection).lengthSq() > 1e-10) {
+    approach.normalize();
+    if (isFiniteVector(options.palmNormal)) palm.copy(options.palmNormal);
+    else palm.copy(state.normal).applyQuaternion(handRotation);
+    palm.addScaledVector(approach, -palm.dot(approach));
+    if (palm.lengthSq() < 1e-10) {
+      palm.set(0, 1, 0).addScaledVector(approach, -approach.y);
+      if (palm.lengthSq() < 1e-10) palm.set(1, 0, 0).addScaledVector(approach, -approach.x);
+    }
+    palm.normalize();
+    lateral.crossVectors(palm, approach).normalize();
+    palm.crossVectors(approach, lateral).normalize();
+    handRotation.setFromRotationMatrix(state.matrix.makeBasis(lateral, palm, approach))
+      .multiply(state.localBasisInverse).normalize();
+  }
+  wristTarget.copy(targetWorld).sub(temp.copy(contactLocal).multiply(handScale).applyQuaternion(handRotation));
+  state.requestedWristTarget.copy(wristTarget);
+  let upperLength = shoulder.distanceTo(elbow);
+  let lowerLength = elbow.distanceTo(wrist);
+  if (upperLength < 1e-8 || lowerLength < 1e-8) return null;
+  const extensionCap = clamp(Number.isFinite(options.maxArmExtension) ? options.maxArmExtension : 1, 1, 1.65);
+  const savedLower = rig.saved?.get(lower)?.position;
+  const savedHand = rig.saved?.get(hand)?.position;
+  if (extensionCap > 1 && savedLower?.lengthSq() > 1e-12 && savedHand?.lengthSq() > 1e-12) {
+    const upperRatio = lower.position.length() / savedLower.length();
+    const lowerRatio = hand.position.length() / savedHand.length();
+    const naturalReach = upperLength / upperRatio + lowerLength / lowerRatio;
+    const requiredRatio = shoulder.distanceTo(wristTarget) / naturalReach + 1e-6;
+    const extension = Math.min(extensionCap, Math.max(1, requiredRatio));
+    // Always start from the saved lengths: repeated solves cannot compound a
+    // torso helper's prior adjustment beyond the absolute per-arm cap.
+    lower.position.copy(savedLower).multiplyScalar(extension);
+    hand.position.copy(savedHand).multiplyScalar(extension);
+    upper.updateWorldMatrix(false, true);
+    lower.getWorldPosition(elbow);
+    hand.getWorldPosition(wrist);
+    upperLength = shoulder.distanceTo(elbow);
+    lowerLength = elbow.distanceTo(wrist);
+  }
+  direction.copy(wristTarget).sub(shoulder);
+  const requestedDistance = direction.length();
+  if (requestedDistance < 1e-8) direction.copy(wrist).sub(shoulder);
+  if (direction.lengthSq() < 1e-12) direction.set(0, 0, 1);
+  direction.normalize();
+  const minReach = Math.abs(upperLength - lowerLength) + 1e-7;
+  const maxReach = upperLength + lowerLength - 1e-7;
+  const distance = clamp(requestedDistance, minReach, maxReach);
+  wristTarget.copy(shoulder).addScaledVector(direction, distance);
+  if (isFiniteVector(options.poleTarget)) bend.copy(options.poleTarget).sub(shoulder);
+  else bend.copy(elbow).sub(shoulder);
+  bend.addScaledVector(direction, -bend.dot(direction));
+  if (bend.lengthSq() < 1e-10) {
+    bend.set(0, -1, 0).addScaledVector(direction, direction.y);
+    if (bend.lengthSq() < 1e-10) bend.set(side === 'left' ? -1 : 1, 0, 0).addScaledVector(direction, -direction.x * (side === 'left' ? -1 : 1));
+  }
+  bend.normalize();
+  const along = (upperLength * upperLength - lowerLength * lowerLength + distance * distance) / (2 * distance);
+  const height = Math.sqrt(Math.max(0, upperLength * upperLength - along * along));
+  elbowTarget.copy(shoulder).addScaledVector(direction, along).addScaledVector(bend, height);
+  rotateArmBoneInWorld(upper, lower, elbowTarget, state);
+  rotateArmBoneInWorld(lower, hand, wristTarget, state);
+  hand.parent.getWorldQuaternion(parentRotation).invert();
+  hand.quaternion.copy(parentRotation).multiply(handRotation).normalize();
+  if (strength < 1) {
+    upper.quaternion.slerpQuaternions(oldUpper, upper.quaternion, strength);
+    lower.quaternion.slerpQuaternions(oldLower, lower.quaternion, strength);
+    hand.quaternion.slerpQuaternions(oldHand, hand.quaternion, strength);
+  }
+  upper.updateWorldMatrix(false, true);
+  contactWorld.copy(contactLocal);
+  hand.localToWorld(contactWorld);
+  state.result.applied = true;
+  state.result.reachable = requestedDistance >= minReach && requestedDistance <= maxReach;
+  state.result.error = contactWorld.distanceTo(targetWorld);
+  return state.result;
+}
+
+/** Apply independent left/right contacts; either omitted side keeps its pose. */
+export function applySeatedHumanHandTargets(rig, targets = {}) {
+  if (targets.left) applySeatedHumanArmIK(rig, 'left', targets.left.position, targets.left);
+  if (targets.right) applySeatedHumanArmIK(rig, 'right', targets.right.position, targets.right);
+}
+
+/**
+ * Optional active-action reach: lean at the waist before solving the hand.
+ * Call after the base seated pose and before independent rack-hand targets.
+ * Hips, actor roots and objects stay fixed. Arm extension is opt-in and capped;
+ * a new base pose restores the original bone translations on the next frame.
+ * Options include the ArmIK contact options plus maxLean (radians, default 65°)
+ * and maxArmExtension (length multiplier, default 1: no stretching).
+ */
+export function applySeatedHumanReachPose(rig, side, targetWorld, options = {}) {
+  const state = getArmIKState(rig, side);
+  if (!state || !rig.spine || !isFiniteVector(targetWorld)) return null;
+  // Prefer a natural torso lean before using this action's optional arm cap.
+  const solveOptions = { ...options, maxArmExtension: 1 };
+  const firstResult = applySeatedHumanArmIK(rig, side, targetWorld, solveOptions);
+  if (!firstResult) return null;
+  const savedArmLength = rig.saved?.get(state.lower)?.position.length() || state.lower.position.length();
+  const result = { ...firstResult, leanRadians: 0, armExtension: state.lower.position.length() / savedArmLength };
+  if (firstResult.reachable || firstResult.error < 1e-4) return result;
+  const spine = rig.spine;
+  const pivot = spine.getWorldPosition(new THREE.Vector3());
+  const shoulder = state.upper.getWorldPosition(new THREE.Vector3());
+  const upperLength = shoulder.distanceTo(state.lower.getWorldPosition(new THREE.Vector3()));
+  const lowerLength = state.lower.getWorldPosition(new THREE.Vector3()).distanceTo(state.hand.getWorldPosition(new THREE.Vector3()));
+  const maxReach = upperLength + lowerLength - 1e-6;
+  const wristTarget = state.requestedWristTarget.clone();
+  const torso = shoulder.clone().sub(pivot);
+  // Use the middle of both shoulders to bend forward without tilting sideways.
+  const otherShoulder = rig[side === 'right' ? 'leftUpperArm' : 'rightUpperArm'];
+  if (otherShoulder) torso.add(otherShoulder.getWorldPosition(new THREE.Vector3()).sub(pivot)).multiplyScalar(0.5);
+  const towardContact = wristTarget.clone().sub(pivot);
+  const axis = new THREE.Vector3().crossVectors(torso, towardContact);
+  if (axis.lengthSq() < 1e-10) return result;
+  axis.normalize();
+  const maxLean = clamp(Number.isFinite(options.maxLean) ? options.maxLean : THREE.MathUtils.degToRad(65), 0, THREE.MathUtils.degToRad(88));
+  const shoulderOffset = shoulder.clone().sub(pivot);
+  const candidate = new THREE.Vector3();
+  const rotation = new THREE.Quaternion();
+  const distanceAt = (angle) => candidate.copy(shoulderOffset)
+    .applyQuaternion(rotation.setFromAxisAngle(axis, angle)).add(pivot).distanceTo(wristTarget);
+  let bestAngle = 0;
+  let bestDistance = distanceAt(0);
+  for (let step = 1; step <= 12; step += 1) {
+    const angle = maxLean * step / 12;
+    const distance = distanceAt(angle);
+    if (distance < bestDistance) { bestDistance = distance; bestAngle = angle; }
+    if (distance <= maxReach) {
+      let low = maxLean * (step - 1) / 12;
+      let high = angle;
+      for (let i = 0; i < 7; i += 1) {
+        const mid = (low + high) * 0.5;
+        if (distanceAt(mid) <= maxReach) high = mid;
+        else low = mid;
+      }
+      bestAngle = high;
+      break;
+    }
+  }
+  if (bestAngle > 0) {
+    const spineWorld = spine.getWorldQuaternion(new THREE.Quaternion());
+    const parentInverse = spine.parent.getWorldQuaternion(new THREE.Quaternion()).invert();
+    rotation.setFromAxisAngle(axis, bestAngle);
+    spine.quaternion.copy(parentInverse).multiply(rotation).multiply(spineWorld).normalize();
+    spine.updateWorldMatrix(false, true);
+    result.leanRadians = bestAngle;
+  }
+  let solved = applySeatedHumanArmIK(rig, side, targetWorld, solveOptions);
+  const allowedExtension = clamp(Number.isFinite(options.maxArmExtension) ? options.maxArmExtension : 1, 1, 1.65);
+  if (!solved.reachable && allowedExtension > 1) {
+    solved = applySeatedHumanArmIK(rig, side, targetWorld, { ...options, maxArmExtension: allowedExtension });
+    result.armExtension = state.lower.position.length() / savedArmLength;
+  }
+  result.applied = solved.applied;
+  result.reachable = solved.reachable;
+  result.error = solved.error;
+  return result;
 }
 
 export function applySeatedHumanPose(rig, mode = 'idle', intensity = 1, handGrip = 0, motionProfile = null) {
