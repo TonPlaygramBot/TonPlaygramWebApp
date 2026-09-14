@@ -25,11 +25,11 @@ Kenney Impact Sounds remain embedded; their CC0 license is in `shared/tennis`. C
 
 ## Player camera and swipe controls
 
-The low third-person camera sits behind the player at 4.8 m elevation, with 64° vertical field of view and smooth lateral/depth following. It keeps the player's body visible on 320–480 px phones and preserves screen axes for either online seat. The near fence is hidden so it cannot obstruct this closer camera.
+The first-person camera matches Table Tennis Royal's 1.62 m eye height, short 0.32 m player offset and 0.06 m near plane. Its 58° minimum field of view expands vertically in portrait, and its downward ready angle matches table tennis on the larger court. It follows the displayed player's position directly without extra chase lag or head bob. The local athlete shows real skinned forearms, hands and the attached racket, with head, hair and torso hidden; the opponent keeps the full model. The ready racket points inward and forward so its head stays in view. Camera up, lens and position reset after line reviews, and the near fence remains hidden.
 
 Power and direction come from the last 120 ms of pointer movement, measured in court-screen widths per second. CSS coordinates and timestamp interpolation make equivalent gestures consistent across phone widths, pixel ratios and sparse/coalesced events. A stationary tap/hold is 10% power; a fast flick reaches 100%. Holding does not charge power. The stroke badge separately selects drive, topspin, slice or lob.
 
-The camera projection converts the finger's movement vector into a unit court direction. Starting or releasing on a different part of the screen does not change that direction. Diagonal and sideways gestures retain their angle; a backwards gesture is not forced toward the opponent. Swipe toward the opponent and angle left/right to steer. A tap without direction makes a soft central return or a diagonal serve. Assisted movement follows the interception point, so swiping no longer drags the player away from the ball. Manual movement remains available through the existing input contract.
+The camera projection converts the finger's movement vector into a unit court direction. Its anchor follows the same displayed player as the camera so online interpolation cannot put the anchor behind the eye and invert directions. Starting or releasing on a different part of the screen does not change that direction. Diagonal and sideways gestures retain their angle; a backwards gesture is not forced toward the opponent. Swipe toward the opponent and angle left/right to steer. A tap without direction makes a soft central return or a diagonal serve. Assisted movement follows the interception point, so swiping no longer drags the player away from the ball. Manual movement remains available through the existing input contract.
 
 The engine snapshots each queued shot's direction, power and spin, including serves, so subsequent input does not overwrite a released shot. Invalid/nonfinite directions are discarded and valid directions normalized on the server. Human placement has no random error. Power changes actual ball pace and depth; arcs retain net clearance for soft returns. Canceled/lost pointers, extra touches, pause and backgrounding do not release a shot.
 
@@ -60,6 +60,12 @@ Online snapshots carry the same review for both seats. The authoritative clock p
 `node scripts/buildTennisPreview.mjs /workspace/tennis-bounce-fixed.html` builds a playable conversation fragment from the actual game, renderer and engine. It embeds the existing reduced Quaternius meshes and uses in-memory AI/career services. The full app retains its full meshes and account/online services.
 
 ## Validation
+
+### Player-eye camera update
+
+All 17 targeted tests passed with `node --test test/tennisFirstPerson.test.mjs test/tennisPlayerView.test.mjs test/tennisSwipe.test.mjs test/tableTennisPlayerArena.test.mjs`, along with `tsc -p tsconfig.tennis.json` and conversation bundling. Tests check both seats, portrait court/opponent framing, real reduced athlete rigs and hand/racket projection, body restoration, cropped geometry disposal, movement/review camera reset, online projection during retreat, and all eight swipe directions. Texture decoding is stubbed in the geometry test; it does not validate GPU rendering. Table tennis's shared swipe projection regression also passes.
+
+`node scripts/buildTennisPreview.mjs /workspace/tennis-player-eyes.html` builds the updated playable conversation preview. Browser visual QA remains blocked by the cloud browser URL security policy; no browser or physical-phone pass is claimed. Before merging, play the preview/app in portrait and check serving, returns, net approaches, line-review resumption and both online seats.
 
 ### Portrait play and feedback update
 

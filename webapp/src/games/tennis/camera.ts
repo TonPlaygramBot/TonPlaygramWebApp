@@ -1,24 +1,34 @@
 import * as THREE from 'three';
 import { side, type Seat } from './engine';
 
-/** Low third-person view. Translation follows the player without reversing the
- * screen axes or shaking the view as they take individual steps. */
+/** Match Table Tennis Royal's eye-level lens and short player offset. Widen the
+ * vertical lens on portrait screens; never pull the camera up or away to fit.
+ * Follow the displayed player's position directly so the hands cannot drift
+ * through the camera during movement or online interpolation. */
 export function playerCamera(
   camera: THREE.PerspectiveCamera,
   seat: Seat,
-  player: { x: number; z: number },
-  dt = 1
+  player: { x: number; z: number }
 ) {
   camera.up.set(0, 1, 0);
-  camera.fov = 64;
-  const sign = side(seat);
-  const target = new THREE.Vector3(
-    player.x * 0.55,
-    4.8,
-    sign * (Math.max(8.5, Math.min(13.3, Math.abs(player.z))) + 8.2)
+  camera.fov = THREE.MathUtils.radToDeg(
+    2 *
+      Math.atan(
+        Math.tan(THREE.MathUtils.degToRad(58 / 2)) / Math.min(1, camera.aspect)
+      )
   );
-  camera.position.lerp(target, 1 - Math.exp(-dt * 4.5));
-  camera.lookAt(camera.position.x, 1, camera.position.z - sign * 22);
+  camera.near = 0.06;
+  const sign = side(seat);
+  camera.position.set(player.x, 1.62, player.z + sign * 0.32);
+  // Table tennis looks down 0.70 m over 2.42 m in its ready stance. Preserve
+  // that viewing angle on the larger court, keeping the hands at the bottom.
+  const gazeX = player.x * 0.22;
+  const gazeZ = -sign * 0.4;
+  const gazeDistance = Math.hypot(
+    gazeX - camera.position.x,
+    gazeZ - camera.position.z
+  );
+  camera.lookAt(gazeX, 1.62 - gazeDistance * (0.7 / 2.42), gazeZ);
   camera.updateProjectionMatrix();
   camera.updateMatrixWorld();
 }
