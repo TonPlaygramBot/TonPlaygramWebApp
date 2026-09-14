@@ -4,7 +4,8 @@ import {attachEnhancements} from '../tirana-expansion/WorldEnhancements';
 import {BusVisuals} from './population/BusVisuals';
 import {CityStores} from './population/CityStores';
 import {ImportedAssetVisuals} from './ImportedAssetVisuals';
-import {props,ORIGIN} from '../blackwater/shared/layout.mjs';
+import {importedFleet,IMPORTED_PLACEMENT_ORIGIN as ORIGIN} from '../blackwater/shared/importedPlacements.mjs';
+import {WEAPON_BY_ID} from './shared/weapons.mjs';
 import {CityRenderer as BaseCityRenderer} from './cityBaseRenderer';
 import {WORLD} from './shared/world.mjs';
 import {resolveNativeLandmarks} from '../tirana-landmarks/nativeLocations.mjs';
@@ -13,6 +14,9 @@ import {replaceLegacyCityLandmarks} from '../tirana-landmarks/legacyReplacement'
 import {AirMobilityVisuals} from './AirMobilityVisuals';
 import type {State} from './shared/engine.mjs';
 import {WeaponStoreInterior} from './WeaponStoreInterior';
+
+// Career needs six baked visual placements, not battlefield sector generation.
+const props=importedFleet.filter(v=>v.assetId&&!v.racingAsset&&!WEAPON_BY_ID.has(v.assetId));
 
 /** Preserve input, loading, gameplay and camera implementation while replacing
  * the city's landmark layer. Base renderer also owns source-informed façades. */

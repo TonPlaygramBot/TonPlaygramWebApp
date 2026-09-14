@@ -1,6 +1,8 @@
 import { WORLD } from './world.mjs';
 import {BUS_STOPS} from '../../tirana-street-life/transitData.mjs';
 import {CITY_COMPLETION} from '../../tirana-city-completion/data.mjs';
+import {spatialIndex} from '../../tirana-city-completion/placementCore.mjs';
+import {pointSpacing} from './pointSpacing.mjs';
 import {
   SIGNALS,
   SHOP,
@@ -13,6 +15,13 @@ import { RIVER_SEGMENTS, freeLandscape, nearBridge } from './landscape.mjs';
 // Original city dressing, not a claim that each fixture exists at this OSM location.
 // The same footprints are consumed by the scene and the authoritative simulation.
 export const STREET_PROPS = [];
+const placedProps = pointSpacing();
+const addProp = p => { STREET_PROPS.push(p); placedProps.add(p); };
+// Keep the exact water-width test; eliminate full river scans per footprint sample.
+const riversNear = spatialIndex(RIVER_SEGMENTS, r => [
+  Math.min(r.a[0], r.b[0]) - r.width / 2 - 1, Math.min(r.a[1], r.b[1]) - r.width / 2 - 1,
+  Math.max(r.a[0], r.b[0]) + r.width / 2 + 1, Math.max(r.a[1], r.b[1]) + r.width / 2 + 1
+], 80);
 const dimensions = {
   bus_shelter: [2.14, 0.9],
   bicycle_rack: [0.98, 0.37],
@@ -33,10 +42,7 @@ function fits(p) {
   )
     return false;
   if (
-    STREET_PROPS.some(
-      (q) =>
-        Math.hypot(q.x - p.x, q.z - p.z) < (p.name === 'bus_shelter' ? 9 : 5)
-    )
+    placedProps.occupied(p.x, p.z, p.name === 'bus_shelter' ? 9 : 5)
   )
     return false;
   return [
@@ -50,7 +56,7 @@ function fits(p) {
     return (
       freeLandscape(q.x, q.z) &&
       pavementHeight(q.x, q.z) > 0.2 &&
-      !RIVER_SEGMENTS.some(
+      !riversNear(q.x, q.z).some(
         (r) => segmentDistance(q.x, q.z, r.a, r.b) < r.width / 2 + 1
       )
     );
@@ -79,12 +85,12 @@ for (const [i, r] of WORLD.roads.entries()) {
       scale: 1
     };
     if (fits(p)) {
-      STREET_PROPS.push(p);
+      addProp(p);
 
     }
   }
   if (i % 11 === 0 && len > 36)
-    STREET_PROPS.push({
+    addProp({
       name: 'manhole_cover',
       x: r.a[0] + dx * 0.42,
       z: r.a[1] + dz * 0.42,
@@ -108,7 +114,7 @@ for (const s of SIGNALS)
       scale: 1
     };
     if (!onCarriageway(p.x, p.z, 0.08) && freeLandscape(p.x, p.z))
-      STREET_PROPS.push(p);
+      addProp(p);
   }
 export const STREET_SOLIDS = [];
 for (const p of STREET_PROPS) {

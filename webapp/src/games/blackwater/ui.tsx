@@ -6,13 +6,14 @@ import { GameModeBoundary } from '../shared/GameModeBoundary';
 import {PlayerPicker} from '../tiranastreets/PlayerPicker';
 import {selectedPlayerAsset} from '../tiranastreets/playerCatalog.mjs';
 import { TiranaLoading } from './TiranaLoading';
-const OperationGame = lazy(() => import('./operationUi').then(m => ({default:m.Game})));
-const CareerGame = lazy(() => import('../tiranastreets/career/CareerGame').then(m => ({default:m.CareerGame})));
-const StreetCareer = lazy(() =>
+import {loadGameMode} from './loadGameMode';
+const OperationGame = lazy(() => loadGameMode('operation',()=>import('./operationUi').then(m => ({default:m.Game}))));
+const CareerGame = lazy(() => loadGameMode('stories',()=>import('../tiranastreets/career/CareerGame').then(m => ({default:m.CareerGame}))));
+const StreetCareer = lazy(() => loadGameMode('street-career',()=>
   import('../tiranastreets/street-career/StreetCareerGame').then((m) => ({
     default: m.StreetCareerGame
   }))
-);
+));
 /** Mutually exclusive runtimes. Online never mounts or imports the solo campaign.
  * Existing ?activity=career keeps opening the courier/Dajti City Stories. */
 export function Game(props: ComponentProps<typeof OperationGameType>) {
