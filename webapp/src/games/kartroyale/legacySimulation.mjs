@@ -1,3 +1,4 @@
+import {KART_LENGTH, KART_WIDTH, kartPassingRoom} from './racingDimensions.mjs';
 import { stepDrift, stepBoostPads, stepSlipstream } from './arcadeRules.mjs';
 import {KARTS} from './vehicleCatalog.mjs';
 export {KARTS};
@@ -25,8 +26,8 @@ export const normalizeKart = (id) =>
   KARTS.some((k) => k.id === id) ? id : 'apex';
 export function equipKart(r, id) {
   const kartId=normalizeKart(id), kart=KARTS.find(k=>k.id===kartId);
-  r.bodyLength=2.7;
-  r.bodyWidth=1.72;
+  r.bodyLength=KART_LENGTH;
+  r.bodyWidth=KART_WIDTH;
   r.kartId=kartId; r.shieldMax=kart.shield; r.shield=kart.shield;
   r.ammunition=kart.ammunition; r.fireCooldown=0;
   return r;
@@ -238,16 +239,17 @@ export function aiInput(r, track, time, difficulty = 'street', racers = []) {
   const n = nearestPoint(track, r.x, r.z, r.index);
   const look = clamp(5 + r.speed * 0.34, 6, 17);
   const p = pointAhead(track, n, look);
-  const room = Math.max(0, Math.min(2.2, (n.width ?? track.width) / 2 - 2.4));
+  const room = kartPassingRoom(n.width ?? track.width, r.bodyWidth);
   const s = Math.sin(r.yaw), c = Math.cos(r.yaw);
-  let lane = (r.slot % 2 ? 1 : -1) * Math.min(room, .55), blocked = false;
+  let lane = (r.slot % 2 ? 1 : -1) * Math.min(room, .9), blocked = false;
   for (const other of racers) {
     if (other === r || other.finished || other.retired || other.disconnected) continue;
     const dx = other.x - r.x, dz = other.z - r.z;
     const ahead = dx * s + dz * c, across = dx * -c + dz * s;
-    if (ahead > 0 && ahead < 22 && Math.abs(across) < 2.6 && other.speed < r.speed + 2) {
-      lane = clamp(n.lane + (across > 0 ? -2.4 : 2.4), -room, room);
-      if (ahead < 4.5 && Math.abs(across) < 1.6) blocked = true;
+    const separation = ((r.bodyWidth || KART_WIDTH) + (other.bodyWidth || KART_WIDTH)) / 2 + .45;
+    if (ahead > 0 && ahead < 22 && Math.abs(across) < separation && other.speed < r.speed + 2) {
+      lane = clamp(n.lane + (across > 0 ? -separation : separation), -room, room);
+      if (ahead < ((r.bodyLength || KART_LENGTH) + (other.bodyLength || KART_LENGTH)) / 2 + .9 && Math.abs(across) < separation - .25) blocked = true;
       break;
     }
   }

@@ -1,4 +1,6 @@
 import * as THREE from 'three';
+import {ribbonExclusion} from '../tirana-street-detail/roadDetailCore.mjs';
+import type {StreetDetailOptions} from '../tirana-street-detail/StreetDetailLayer';
 import {footprintIndex} from '../tirana-city-source/footprintIndex.mjs';
 const buildingsNear=footprintIndex(WORLD.buildings);
 import { WORLD } from '../tiranastreets/shared/world.mjs';
@@ -53,10 +55,13 @@ export class UrbanLifeLayer {
   private materials: THREE.Material[] = [];
   private disposed = false;
 
-  constructor() {
+  constructor(options:StreetDetailOptions={}) {
+    const exclude=options.track?ribbonExclusion(options.track):()=>false;
     this.group.name = 'Tirana:batched-urban-life';
     for (let i = 0; i < 5; i++) { const district = new THREE.Group(); district.name = `urban-life-district-${i}`; this.districts.push(district); this.group.add(district); }
-    const sites = amenitySites();
+    // Include the furthest planter, not just the table centre.
+    const sites = amenitySites().filter(site=>!exclude(site.x,site.z,4));
+    const riverBins=RIVER_TREES.filter((_,i)=>i%11===0).slice(0,55).map(p=>({x:p.x+1.7,z:p.z-1.7})).filter(p=>!exclude(p.x,p.z,.35));
     this.districtCenters = this.districts.map((_, district) => {
       const members = sites.filter((site) => site.district === district);
       return members.length ? { x: members.reduce((sum, site) => sum + site.x, 0) / members.length, z: members.reduce((sum, site) => sum + site.z, 0) / members.length } : { x: 0, z: 0 };
@@ -74,7 +79,7 @@ export class UrbanLifeLayer {
       return meshes;
     };
     const tops = batches(tableTop, wood, sites.length), legs = batches(pole, metal, sites.length * 5), seats = batches(chair, wood, sites.length * 4);
-    const bins = batches(bin, metal, sites.length), planters = batches(planter, stone, sites.length * 2);
+    const bins = batches(bin, metal, sites.length + riverBins.length), planters = batches(planter, stone, sites.length * 2);
     const put = (mesh: THREE.InstancedMesh, x: number, y: number, z: number, yaw = 0, sx = 1, sy = 1, sz = 1) => {
       dummy.position.set(x, y, z); dummy.rotation.set(0, yaw, 0); dummy.scale.set(sx, sy, sz); dummy.updateMatrix(); mesh.setMatrixAt(mesh.count++, dummy.matrix);
     };
@@ -89,7 +94,7 @@ export class UrbanLifeLayer {
       for (const side of [-1, 1]) put(planters[d], site.x + c * 2.9 + s * side * 1.6, 0.28, site.z - s * 2.9 + c * side * 1.6);
     });
     // Extra small bins follow the river-tree rhythm instead of arbitrary grids.
-    RIVER_TREES.filter((_, i) => i % 11 === 0).slice(0, 55).forEach((p, i) => put(bins[i % 5], p.x + 1.7, 0.45, p.z - 1.7, i));
+    riverBins.forEach((p,i)=>put(bins[i%5],p.x,.45,p.z,i));
     [...tops, ...legs, ...seats, ...bins, ...planters].forEach((mesh) => { mesh.instanceMatrix.needsUpdate = true; mesh.computeBoundingSphere(); });
   }
 

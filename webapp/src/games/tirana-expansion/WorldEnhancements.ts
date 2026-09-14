@@ -45,8 +45,8 @@ export class WorldEnhancements extends ExistingEnhancements {
   readonly housing=new HousingDetails();
   readonly eastern=new EasternDistricts();
   readonly sourceCable=new DajtiCableway();
-  readonly tradeDetails=new StreetLifeLayer({storefronts:NEIGHBOURHOOD.storefronts.filter(s=>['hairdresser','bakery','cafe','fast_food'].includes(s.shop||s.kind)||/barber|berber|hair/i.test(s.name)),stops:[],fuel:[],advertising:[]} as any,{},false,true);
-  readonly fuelBrands=new StreetLifeLayer({storefronts:LOCAL_FUEL,stops:[],fuel:[],advertising:[]} as any,{});
+  readonly tradeDetails:StreetLifeLayer;
+  readonly fuelBrands:StreetLifeLayer;
   readonly panorama = new RegionalPanorama();
   private panoramaViewer = new T.Vector3();
   readonly shopfronts = new ShopfrontDetails(
@@ -58,8 +58,8 @@ export class WorldEnhancements extends ExistingEnhancements {
   readonly buildingBrands = new BuildingBrandLayer();
   readonly streets: StreetDetailLayer;
   readonly ground: GroundDetailLayer;
-  readonly attractions = new ParkAttractions(WORLD);
-  readonly urbanLife = new UrbanLifeLayer();
+  readonly attractions:ParkAttractions;
+  readonly urbanLife:UrbanLifeLayer;
   readonly streetLife: StreetLifeLayer;
   readonly matureTrees: MatureTreeLayer;
   readonly neighbourhood: NeighbourhoodLayer;
@@ -67,6 +67,10 @@ export class WorldEnhancements extends ExistingEnhancements {
   readonly facadeCompletion: FacadeCompletionLayer;
   constructor(options: StreetDetailOptions = {}) {
     super();
+    this.tradeDetails=new StreetLifeLayer({storefronts:NEIGHBOURHOOD.storefronts.filter(s=>['hairdresser','bakery','cafe','fast_food'].includes(s.shop||s.kind)||/barber|berber|hair/i.test(s.name)),stops:[],fuel:[],advertising:[]} as any,options,false,true);
+    this.fuelBrands=new StreetLifeLayer({storefronts:LOCAL_FUEL,stops:[],fuel:[],advertising:[]} as any,options);
+    this.attractions=new ParkAttractions(WORLD,options);
+    this.urbanLife=new UrbanLifeLayer(options);
     this.dajti.retire();this.dajti.group.visible=false;
     this.group.add(this.dimensionalSigns.group,this.regionalArchitecture.group,this.terrain.group,this.housing.group,this.eastern.group,this.sourceCable.group);
     this.cityCompletion=new CityCompletionLayer(options);

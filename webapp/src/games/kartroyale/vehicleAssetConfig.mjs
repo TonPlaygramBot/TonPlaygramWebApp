@@ -1,3 +1,4 @@
+import {KART_LENGTH} from './racingDimensions.mjs';
 import { COLLECTION_BY_ID } from '../tiranastreets/shared/vehicleCollection.mjs';
 
 export const KART_ASSETS = Object.freeze(
@@ -39,8 +40,8 @@ export function vehicleAssetUrl(id, low = false) {
     : `/assets/kart-royale/kenney-${id}.glb`;
 }
 // All road and vehicle dimensions are metres. Collection cars retain their
-// authored dimensions; karts use their physical 2.7 m footprint.
-export function normaliseVehicleDimensions({ min, max }, targetLength = 2.7) {
+// authored dimensions; karts use their shared, smaller physical footprint.
+export function normaliseVehicleDimensions({ min, max }, targetLength = KART_LENGTH) {
   const length = max[2] - min[2];
   if (
     ![...min, ...max, targetLength].every(Number.isFinite) ||
