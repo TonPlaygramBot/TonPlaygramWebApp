@@ -1,10 +1,12 @@
 import assert from 'node:assert/strict';
 import { createServer } from 'node:http';
-import { mkdtemp, readFile, rm, writeFile } from 'node:fs/promises';
+import { mkdir, mkdtemp, readFile, rm, writeFile } from 'node:fs/promises';
 import os from 'node:os';
 import path from 'node:path';
+import { fileURLToPath } from 'node:url';
 import test from 'node:test';
 import { fetchAsset, findDependencies, localAssetUrl, rewriteDependencies, sha256, vendorInventory, verifyManifest } from './downloader.mjs';
+import { collectVerifiedLocalAssets } from './local-aliases.mjs';
 
 async function fixture(t, routes) {
   let requests = 0;
@@ -233,4 +235,138 @@ test('refreshes the pinned document when a dependency alias changes its local ta
   Object.assign(entry, { sha256: sha256(stale), size: stale.length });
   await writeFile(path.join(outputDir, 'manifest.json'), JSON.stringify(second));
   assert.ok((await verifyManifest(outputDir)).errors.some((error) => /Dependency URI does not point/.test(error)));
+});
+
+async function bundledOriginalFixture(t, document = { asset: { version: '2.0' } }) {
+  const repoRoot = await mkdtemp(path.join(os.tmpdir(), 'tonplaygram-originals-'));
+  t.after(() => rm(repoRoot, { recursive: true, force: true }));
+  const publicRoot = path.join(repoRoot, 'webapp/public');
+  const sourceUrl = 'https://static.poly.pizza/fixture.glb';
+  const json = Buffer.from(JSON.stringify(document));
+  const paddedJson = Buffer.concat([json, Buffer.alloc((4 - json.length % 4) % 4, 32)]);
+  const header = Buffer.alloc(20);
+  header.write('glTF'); header.writeUInt32LE(2, 4); header.writeUInt32LE(20 + paddedJson.length, 8);
+  header.writeUInt32LE(paddedJson.length, 12); header.writeUInt32LE(0x4e4f534a, 16);
+  const bytes = Buffer.concat([header, paddedJson]);
+  const asset = { sourceUrl, url: '/assets/vendor-originals/fixture.glb', size: bytes.length, sha256: sha256(bytes), required: true, provenance: 'assets/vendor-originals/README.md' };
+  const files = {
+    'assets/vendor-originals/fixture.glb': bytes,
+    'assets/vendor-originals/manifest.json': JSON.stringify({ schemaVersion: 1, assets: [asset] }),
+    'assets/tirana-streets/imported/manifest.json': '[]',
+    'assets/tirana-streets/materials/street-surfaces-sources.json': '[]',
+    'assets/pool-royale/README.md': '',
+    'assets/royal-lanes/asset-manifest.json': '{"files":[]}'
+  };
+  for (const [relative, body] of Object.entries(files)) {
+    const filename = path.join(publicRoot, relative);
+    await mkdir(path.dirname(filename), { recursive: true });
+    await writeFile(filename, body);
+  }
+  const localInventory = async () => ({
+    groups: [{ id: 'required-model', candidates: [sourceUrl] }],
+    localAssets: (await collectVerifiedLocalAssets({ repoRoot })).map(entry => ({ ...entry, filename: path.join(publicRoot, entry.url.slice(1)) }))
+  });
+  return { repoRoot, publicRoot, sourceUrl, asset, bytes, localInventory, outputDir: path.join(publicRoot, 'assets/external') };
+}
+
+test('cold frozen imports use committed originals with the network unavailable', async (t) => {
+  const { localInventory, outputDir, publicRoot, sourceUrl, asset } = await bundledOriginalFixture(t);
+  const inventory = await localInventory();
+  let requests = 0;
+  const sourcePins = { [sourceUrl]: asset.sha256 };
+  const manifest = await vendorInventory(inventory, {
+    outputDir, publicRoot, sourcePins, frozenLockfile: true, retries: 0,
+    fetchImpl: async () => { requests += 1; throw new Error('Provider access is unavailable'); }
+  });
+  assert.equal(requests, 0);
+  assert.equal(manifest.complete, true);
+  assert.equal(manifest.assets[0].url, asset.url);
+  assert.equal(manifest.assets[0].providedLocal, true);
+  assert.equal(manifest.assets[0].sourceSha256, sourcePins[sourceUrl]);
+  assert.equal(manifest.urlMap[sourceUrl], asset.url);
+  assert.equal((await verifyManifest(outputDir, { inventory, publicRoot, sourcePins })).ok, true);
+});
+
+test('warm imports migrate an existing external cache to its committed original', async (t) => {
+  const { localInventory, outputDir, publicRoot, sourceUrl, asset, bytes } = await bundledOriginalFixture(t);
+  const sourcePins = { [sourceUrl]: asset.sha256 };
+  const first = await vendorInventory({ groups: [{ id: 'required-model', candidates: [sourceUrl] }] }, {
+    outputDir, publicRoot, sourcePins, frozenLockfile: true,
+    fetchImpl: async () => new Response(bytes)
+  });
+  assert.match(first.assets[0].url, /^\/assets\/external\//);
+  const inventory = await localInventory();
+  const next = await vendorInventory(inventory, {
+    outputDir, publicRoot, sourcePins, frozenLockfile: true,
+    fetchImpl: async () => { throw new Error('Migration must use the committed original'); }
+  });
+  assert.equal(next.complete, true);
+  assert.equal(next.assets[0].url, asset.url);
+  assert.equal(next.assets[0].providedLocal, true);
+  assert.equal(next.assets[0].provenance, asset.provenance);
+  assert.equal(next.urlMap[sourceUrl], asset.url);
+  assert.equal((await verifyManifest(outputDir, { inventory, publicRoot, sourcePins })).ok, true);
+});
+
+test('a matching bundled manifest cannot override a different or missing frozen source pin', async (t) => {
+  const { localInventory, outputDir, publicRoot, sourceUrl } = await bundledOriginalFixture(t);
+  const inventory = await localInventory();
+  let requests = 0;
+  for (const sourcePins of [{ [sourceUrl]: sha256('unreviewed different bytes') }, {}]) {
+    const manifest = await vendorInventory(inventory, {
+      outputDir, publicRoot, sourcePins, frozenLockfile: true, retries: 0,
+      fetchImpl: async () => { requests += 1; throw new Error('No network fallback permitted'); }
+    });
+    assert.equal(manifest.complete, false);
+    assert.equal(manifest.assets.length, 0);
+    assert.match(manifest.failures[0].error, /Local original checksum differs from source pin|Source is not in the frozen lockfile/);
+  }
+  assert.equal(requests, 0);
+});
+
+test('required original collection fails for missing or tampered files instead of falling back to the provider', async (t) => {
+  const { repoRoot, publicRoot, asset, bytes } = await bundledOriginalFixture(t);
+  const filename = path.join(publicRoot, asset.url.slice(1));
+  await rm(filename);
+  await assert.rejects(collectVerifiedLocalAssets({ repoRoot }), /Required bundled original is missing/);
+  await writeFile(filename, Buffer.alloc(bytes.length));
+  await assert.rejects(collectVerifiedLocalAssets({ repoRoot }), /Bundled original checksum mismatch/);
+});
+
+test('required original collection rejects a model that still needs remote dependencies', async (t) => {
+  const { repoRoot } = await bundledOriginalFixture(t, { asset: { version: '2.0' }, buffers: [{ uri: 'missing.bin', byteLength: 4 }] });
+  await assert.rejects(collectVerifiedLocalAssets({ repoRoot }), /Required bundled original has external dependencies/);
+});
+
+test('every shipped vendor original imports from an empty output with zero provider requests', async (t) => {
+  const repoRoot = fileURLToPath(new URL('../../../', import.meta.url));
+  const publicRoot = path.join(repoRoot, 'webapp/public');
+  const vendor = JSON.parse(await readFile(path.join(publicRoot, 'assets/vendor-originals/manifest.json'), 'utf8'));
+  const { sourcePins } = JSON.parse(await readFile(new URL('./source-lock.json', import.meta.url), 'utf8'));
+  const expected = new Map(vendor.assets.map(asset => [asset.sourceUrl, asset]));
+  assert.equal(expected.size, 28, 'All 28 original deployment failures must stay covered');
+  const localAssets = (await collectVerifiedLocalAssets({ repoRoot }))
+    .filter(asset => expected.has(asset.sourceUrl))
+    .map(asset => ({ ...asset, filename: path.join(publicRoot, asset.url.slice(1)) }));
+  assert.equal(localAssets.length, expected.size);
+  const inventory = { groups: localAssets.map(asset => ({ id: asset.sourceUrl, candidates: [asset.sourceUrl] })), localAssets };
+  const outputDir = await mkdtemp(path.join(os.tmpdir(), 'tonplaygram-shipped-originals-'));
+  t.after(() => rm(outputDir, { recursive: true, force: true }));
+  let requests = 0;
+  const manifest = await vendorInventory(inventory, {
+    outputDir, publicRoot, sourcePins, frozenLockfile: true, retries: 0,
+    fetchImpl: async () => { requests += 1; throw new Error('Provider access is unavailable'); }
+  });
+  assert.equal(requests, 0);
+  assert.equal(manifest.complete, true);
+  assert.equal(manifest.assets.length, expected.size);
+  for (const asset of manifest.assets) {
+    assert.equal(asset.sourceSha256, sourcePins[asset.sourceUrl]);
+    assert.equal(asset.sha256, sourcePins[asset.sourceUrl]);
+    assert.equal(asset.size, expected.get(asset.sourceUrl).size);
+    assert.equal(asset.url, expected.get(asset.sourceUrl).url);
+    assert.equal(asset.providedLocal, true);
+    assert.deepEqual(asset.dependencies, []);
+  }
+  assert.equal((await verifyManifest(outputDir, { inventory, publicRoot, sourcePins })).ok, true);
 });

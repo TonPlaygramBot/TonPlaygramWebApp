@@ -1,0 +1,229 @@
+{
+  "schemaVersion": 1,
+  "assets": [
+    {
+      "sourceUrl": "https://cdn.polyhaven.com/asset_img/thumbs/autumn_park.png?width=256&height=256",
+      "url": "/assets/vendor-originals/autumn_park-256.png",
+      "size": 77037,
+      "sha256": "e78813ab89578fc3975fc10281141a5f0c6a993c30a73e3d6796d872cb551d3c",
+      "required": true,
+      "provenance": "assets/vendor-originals/README.md"
+    },
+    {
+      "sourceUrl": "https://static.poly.pizza/032e6589-3188-41bc-b92b-e25528344275.webp",
+      "url": "/assets/vendor-originals/032e6589-3188-41bc-b92b-e25528344275.webp",
+      "size": 12906,
+      "sha256": "2c36f134a6a7af6beedc5543320c7dcfbbef908348f33a89b39390782218a6fb",
+      "required": true,
+      "provenance": "assets/vendor-originals/README.md"
+    },
+    {
+      "sourceUrl": "https://static.poly.pizza/03fa7f5b-4df5-45d6-86fb-87e8590f28d7.glb",
+      "url": "/assets/vendor-originals/03fa7f5b-4df5-45d6-86fb-87e8590f28d7.glb",
+      "size": 87952,
+      "sha256": "1eb6c9f693a0519d8366dc11d39f6d6812b43ec59ababbb1d22bc53a0890700c",
+      "required": true,
+      "provenance": "assets/vendor-originals/README.md"
+    },
+    {
+      "sourceUrl": "https://static.poly.pizza/03fa7f5b-4df5-45d6-86fb-87e8590f28d7.webp",
+      "url": "/assets/vendor-originals/03fa7f5b-4df5-45d6-86fb-87e8590f28d7.webp",
+      "size": 20972,
+      "sha256": "9fac59dabeb3976dc42f4a061a66a5c3c755d6760a036ab6c9545af7374afd03",
+      "required": true,
+      "provenance": "assets/vendor-originals/README.md"
+    },
+    {
+      "sourceUrl": "https://static.poly.pizza/08f27141-8e64-425a-9161-1bbd6956dfca.webp",
+      "url": "/assets/vendor-originals/08f27141-8e64-425a-9161-1bbd6956dfca.webp",
+      "size": 13756,
+      "sha256": "fdc595e0a39d458cfab83486ea1b7ab381ab86ea7e12431de9ffc9ce61ec4e31",
+      "required": true,
+      "provenance": "assets/vendor-originals/README.md"
+    },
+    {
+      "sourceUrl": "https://static.poly.pizza/38e858db-325f-4dce-9680-da62c20c5c31.glb",
+      "url": "/assets/vendor-originals/38e858db-325f-4dce-9680-da62c20c5c31.glb",
+      "size": 106360,
+      "sha256": "0aa73758675df406e96f3c1ec6a9982e903a841c183b96125aa773e24b977941",
+      "required": true,
+      "provenance": "assets/vendor-originals/README.md"
+    },
+    {
+      "sourceUrl": "https://static.poly.pizza/38e858db-325f-4dce-9680-da62c20c5c31.webp",
+      "url": "/assets/vendor-originals/38e858db-325f-4dce-9680-da62c20c5c31.webp",
+      "size": 27522,
+      "sha256": "b832c12464fd3c24bb5c1967c54aee326233feff018634a50dc1a8e9bed51f2e",
+      "required": true,
+      "provenance": "assets/vendor-originals/README.md"
+    },
+    {
+      "sourceUrl": "https://static.poly.pizza/3b53f0fe-f86e-451c-816d-6ab9bd265cdc.webp",
+      "url": "/assets/vendor-originals/3b53f0fe-f86e-451c-816d-6ab9bd265cdc.webp",
+      "size": 14456,
+      "sha256": "14692ad3ce9d4e634f540b3d28d96484455b1e6e074a1048e501dd49f99a64e9",
+      "required": true,
+      "provenance": "assets/vendor-originals/README.md"
+    },
+    {
+      "sourceUrl": "https://static.poly.pizza/503bb2c5-4a69-404b-9b82-13e85e8f8467.glb",
+      "url": "/assets/vendor-originals/503bb2c5-4a69-404b-9b82-13e85e8f8467.glb",
+      "size": 140788,
+      "sha256": "75f79f6c401f49f3a05b00ee561a1585b1dddd201c73476b3b024ea7c0f1eae7",
+      "required": true,
+      "provenance": "assets/vendor-originals/README.md"
+    },
+    {
+      "sourceUrl": "https://static.poly.pizza/503bb2c5-4a69-404b-9b82-13e85e8f8467.webp",
+      "url": "/assets/vendor-originals/503bb2c5-4a69-404b-9b82-13e85e8f8467.webp",
+      "size": 13652,
+      "sha256": "25eb98eaf69b62053581e5342e879637a3f1e813d35d7c5ca75a3db869d797a1",
+      "required": true,
+      "provenance": "assets/vendor-originals/README.md"
+    },
+    {
+      "sourceUrl": "https://static.poly.pizza/58c387b2-636f-49dc-a900-13b0852717d6.glb",
+      "url": "/assets/vendor-originals/58c387b2-636f-49dc-a900-13b0852717d6.glb",
+      "size": 890776,
+      "sha256": "1763818d11cb5cef32dcbe9cf52af108710310c034591e9bdf4555847e73e979",
+      "required": true,
+      "provenance": "assets/vendor-originals/README.md"
+    },
+    {
+      "sourceUrl": "https://static.poly.pizza/58c387b2-636f-49dc-a900-13b0852717d6.webp",
+      "url": "/assets/vendor-originals/58c387b2-636f-49dc-a900-13b0852717d6.webp",
+      "size": 29612,
+      "sha256": "eee872a941782d0f1aed006071c565f7320477ed5d7f185d3d8da2432b414a80",
+      "required": true,
+      "provenance": "assets/vendor-originals/README.md"
+    },
+    {
+      "sourceUrl": "https://static.poly.pizza/613e3b1b-d07c-496b-94a1-7c85b507bac4.glb",
+      "url": "/assets/vendor-originals/613e3b1b-d07c-496b-94a1-7c85b507bac4.glb",
+      "size": 147668,
+      "sha256": "812aef31db0dd6920be57f39513a28f59ee4e109c76f4ab3a50ba9a9398023a0",
+      "required": true,
+      "provenance": "assets/vendor-originals/README.md"
+    },
+    {
+      "sourceUrl": "https://static.poly.pizza/613e3b1b-d07c-496b-94a1-7c85b507bac4.webp",
+      "url": "/assets/vendor-originals/613e3b1b-d07c-496b-94a1-7c85b507bac4.webp",
+      "size": 11612,
+      "sha256": "4379fd16222d4022eca4202802c70a9606aa7ed21656173858b4ee676df65bf9",
+      "required": true,
+      "provenance": "assets/vendor-originals/README.md"
+    },
+    {
+      "sourceUrl": "https://static.poly.pizza/6d0889f1-0c3f-4f98-b011-fbcf6c79a93b.glb",
+      "url": "/assets/vendor-originals/6d0889f1-0c3f-4f98-b011-fbcf6c79a93b.glb",
+      "size": 324204,
+      "sha256": "af82b5b458530b31ce9694cf0461649839e1e822a922203faa16f4c32c21e595",
+      "required": true,
+      "provenance": "assets/vendor-originals/README.md"
+    },
+    {
+      "sourceUrl": "https://static.poly.pizza/6d0889f1-0c3f-4f98-b011-fbcf6c79a93b.webp",
+      "url": "/assets/vendor-originals/6d0889f1-0c3f-4f98-b011-fbcf6c79a93b.webp",
+      "size": 19856,
+      "sha256": "a751a2b5d0c93872fb8247a8917e486fa4c14b8db0ba911c1f4419f16bd60a65",
+      "required": true,
+      "provenance": "assets/vendor-originals/README.md"
+    },
+    {
+      "sourceUrl": "https://static.poly.pizza/78e23275-cb6a-4ba3-ae5e-48a9b4ee2e65.glb",
+      "url": "/assets/vendor-originals/78e23275-cb6a-4ba3-ae5e-48a9b4ee2e65.glb",
+      "size": 711592,
+      "sha256": "5c5f5b28c002592f590b23503c2cb98bf230293b165e56496d650bd6eeaafd9e",
+      "required": true,
+      "provenance": "assets/vendor-originals/README.md"
+    },
+    {
+      "sourceUrl": "https://static.poly.pizza/78e23275-cb6a-4ba3-ae5e-48a9b4ee2e65.webp",
+      "url": "/assets/vendor-originals/78e23275-cb6a-4ba3-ae5e-48a9b4ee2e65.webp",
+      "size": 22894,
+      "sha256": "e5d36337a40f5427c0831ac327a96c2519da2f3e895c96683a9dda851a8f0bfa",
+      "required": true,
+      "provenance": "assets/vendor-originals/README.md"
+    },
+    {
+      "sourceUrl": "https://static.poly.pizza/7951b3b9-d3a5-4ec8-81b7-11111f1c8e88.webp",
+      "url": "/assets/vendor-originals/7951b3b9-d3a5-4ec8-81b7-11111f1c8e88.webp",
+      "size": 13928,
+      "sha256": "b0776ec0735dbe025d400ce796502f60cb87dbe08966cb4966578c1646354ddb",
+      "required": true,
+      "provenance": "assets/vendor-originals/README.md"
+    },
+    {
+      "sourceUrl": "https://static.poly.pizza/9a6ee0ee-068b-4774-8b0f-679c3cef0b6e.webp",
+      "url": "/assets/vendor-originals/9a6ee0ee-068b-4774-8b0f-679c3cef0b6e.webp",
+      "size": 13656,
+      "sha256": "50e8c29d903492f1915fa0834679f87e1b596344b6730f1e0e576010af1db732",
+      "required": true,
+      "provenance": "assets/vendor-originals/README.md"
+    },
+    {
+      "sourceUrl": "https://static.poly.pizza/9c4d2ac5-114b-4da2-a26a-8049e2b1ba04.glb",
+      "url": "/assets/vendor-originals/9c4d2ac5-114b-4da2-a26a-8049e2b1ba04.glb",
+      "size": 75724,
+      "sha256": "381102a3b3439ba4922b432fbec005526623ca4e8e065b3583967f259185d103",
+      "required": true,
+      "provenance": "assets/vendor-originals/README.md"
+    },
+    {
+      "sourceUrl": "https://static.poly.pizza/9c4d2ac5-114b-4da2-a26a-8049e2b1ba04.webp",
+      "url": "/assets/vendor-originals/9c4d2ac5-114b-4da2-a26a-8049e2b1ba04.webp",
+      "size": 24096,
+      "sha256": "72589a2fa819341c0a2abfecef9f0e9719458c09d928635f2ad5c7a6efe4c99b",
+      "required": true,
+      "provenance": "assets/vendor-originals/README.md"
+    },
+    {
+      "sourceUrl": "https://static.poly.pizza/9e728565-67a3-44db-9567-982320abff09.webp",
+      "url": "/assets/vendor-originals/9e728565-67a3-44db-9567-982320abff09.webp",
+      "size": 15480,
+      "sha256": "b0adf0e4f19764f7bd8d2165ed9c9fbf14f34bcc0bab9b27acb76f787bb9d5c8",
+      "required": true,
+      "provenance": "assets/vendor-originals/README.md"
+    },
+    {
+      "sourceUrl": "https://static.poly.pizza/b3e6be61-0299-4866-a227-58f5f3fe610b.webp",
+      "url": "/assets/vendor-originals/b3e6be61-0299-4866-a227-58f5f3fe610b.webp",
+      "size": 14440,
+      "sha256": "0d9ba71d866a4fb29c3114f093e8f4e6da095d4b1e734617b94e2a82d25ca6fa",
+      "required": true,
+      "provenance": "assets/vendor-originals/README.md"
+    },
+    {
+      "sourceUrl": "https://static.poly.pizza/d7bb0b50-09af-49f8-b1f9-dbdb0c707d40.glb",
+      "url": "/assets/vendor-originals/d7bb0b50-09af-49f8-b1f9-dbdb0c707d40.glb",
+      "size": 56396,
+      "sha256": "018c725a134151a00474240d253bcdc196e1e980f313c8a0ac3b37efdf0b94c1",
+      "required": true,
+      "provenance": "assets/vendor-originals/README.md"
+    },
+    {
+      "sourceUrl": "https://static.poly.pizza/d7bb0b50-09af-49f8-b1f9-dbdb0c707d40.webp",
+      "url": "/assets/vendor-originals/d7bb0b50-09af-49f8-b1f9-dbdb0c707d40.webp",
+      "size": 16160,
+      "sha256": "7d6a79d384497dc445082bc07dd3730774b03c37d8d7ffd68d8b3f87442da655",
+      "required": true,
+      "provenance": "assets/vendor-originals/README.md"
+    },
+    {
+      "sourceUrl": "https://static.poly.pizza/f71d6771-f512-4374-bd23-ba00b564db68.webp",
+      "url": "/assets/vendor-originals/f71d6771-f512-4374-bd23-ba00b564db68.webp",
+      "size": 12704,
+      "sha256": "a2359b3276a2ee53f6ccae8f95374510ac6bc591025426a02fc016b8a029d730",
+      "required": true,
+      "provenance": "assets/vendor-originals/README.md"
+    },
+    {
+      "sourceUrl": "https://static.poly.pizza/fb8ae707-d5b9-4eb8-ab8c-1c78d3c1f710.webp",
+      "url": "/assets/vendor-originals/fb8ae707-d5b9-4eb8-ab8c-1c78d3c1f710.webp",
+      "size": 15212,
+      "sha256": "7b72da7ebab775b4afd7c5de68e5e1b4c824c012ee423f558bbad88af69e1c40",
+      "required": true,
+      "provenance": "assets/vendor-originals/README.md"
+    }
+  ]
+}

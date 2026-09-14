@@ -1,0 +1,125 @@
+{
+  "commit": "1593eb3a819d9d142ce1d85aa452336de1ce85ab",
+  "deployId": "dep-dajvbsdg1s2s73cas6h0",
+  "service": "tonplaygram-bot",
+  "failures": [
+    {
+      "timestamp": "2026-09-14T13:28:15.178747036Z",
+      "message": "[failed] poly-pizza-03fa7f5b-4df5-45d6-86fb-87e8590f28d7-glb: https://static.poly.pizza/03fa7f5b-4df5-45d6-86fb-87e8590f28d7.glb: HTTP 403 Forbidden"
+    },
+    {
+      "timestamp": "2026-09-14T13:28:15.182279596Z",
+      "message": "[failed] poly-pizza-032e6589-3188-41bc-b92b-e25528344275-webp: https://static.poly.pizza/032e6589-3188-41bc-b92b-e25528344275.webp: HTTP 403 Forbidden"
+    },
+    {
+      "timestamp": "2026-09-14T13:28:15.184167419Z",
+      "message": "[failed] poly-pizza-03fa7f5b-4df5-45d6-86fb-87e8590f28d7-webp: https://static.poly.pizza/03fa7f5b-4df5-45d6-86fb-87e8590f28d7.webp: HTTP 403 Forbidden"
+    },
+    {
+      "timestamp": "2026-09-14T13:28:15.206001854Z",
+      "message": "[failed] poly-pizza-08f27141-8e64-425a-9161-1bbd6956dfca-webp: https://static.poly.pizza/08f27141-8e64-425a-9161-1bbd6956dfca.webp: HTTP 403 Forbidden"
+    },
+    {
+      "timestamp": "2026-09-14T13:28:15.208188932Z",
+      "message": "[failed] poly-pizza-38e858db-325f-4dce-9680-da62c20c5c31-webp: https://static.poly.pizza/38e858db-325f-4dce-9680-da62c20c5c31.webp: HTTP 403 Forbidden"
+    },
+    {
+      "timestamp": "2026-09-14T13:28:15.209954623Z",
+      "message": "[failed] poly-pizza-38e858db-325f-4dce-9680-da62c20c5c31-glb: https://static.poly.pizza/38e858db-325f-4dce-9680-da62c20c5c31.glb: HTTP 403 Forbidden"
+    },
+    {
+      "timestamp": "2026-09-14T13:28:15.231620615Z",
+      "message": "[failed] poly-pizza-3b53f0fe-f86e-451c-816d-6ab9bd265cdc-webp: https://static.poly.pizza/3b53f0fe-f86e-451c-816d-6ab9bd265cdc.webp: HTTP 403 Forbidden"
+    },
+    {
+      "timestamp": "2026-09-14T13:28:15.235308876Z",
+      "message": "[failed] poly-pizza-503bb2c5-4a69-404b-9b82-13e85e8f8467-glb: https://static.poly.pizza/503bb2c5-4a69-404b-9b82-13e85e8f8467.glb: HTTP 403 Forbidden"
+    },
+    {
+      "timestamp": "2026-09-14T13:28:15.236016342Z",
+      "message": "[failed] poly-pizza-503bb2c5-4a69-404b-9b82-13e85e8f8467-webp: https://static.poly.pizza/503bb2c5-4a69-404b-9b82-13e85e8f8467.webp: HTTP 403 Forbidden"
+    },
+    {
+      "timestamp": "2026-09-14T13:28:15.254759887Z",
+      "message": "[failed] poly-pizza-58c387b2-636f-49dc-a900-13b0852717d6-glb: https://static.poly.pizza/58c387b2-636f-49dc-a900-13b0852717d6.glb: HTTP 403 Forbidden"
+    },
+    {
+      "timestamp": "2026-09-14T13:28:15.262403633Z",
+      "message": "[failed] poly-pizza-613e3b1b-d07c-496b-94a1-7c85b507bac4-glb: https://static.poly.pizza/613e3b1b-d07c-496b-94a1-7c85b507bac4.glb: HTTP 403 Forbidden"
+    },
+    {
+      "timestamp": "2026-09-14T13:28:15.264109345Z",
+      "message": "[failed] poly-pizza-58c387b2-636f-49dc-a900-13b0852717d6-webp: https://static.poly.pizza/58c387b2-636f-49dc-a900-13b0852717d6.webp: HTTP 403 Forbidden"
+    },
+    {
+      "timestamp": "2026-09-14T13:28:15.28148404Z",
+      "message": "[failed] poly-pizza-613e3b1b-d07c-496b-94a1-7c85b507bac4-webp: https://static.poly.pizza/613e3b1b-d07c-496b-94a1-7c85b507bac4.webp: HTTP 403 Forbidden"
+    },
+    {
+      "timestamp": "2026-09-14T13:28:15.289829405Z",
+      "message": "[failed] poly-pizza-6d0889f1-0c3f-4f98-b011-fbcf6c79a93b-webp: https://static.poly.pizza/6d0889f1-0c3f-4f98-b011-fbcf6c79a93b.webp: HTTP 403 Forbidden"
+    },
+    {
+      "timestamp": "2026-09-14T13:28:15.296673203Z",
+      "message": "[failed] poly-pizza-6d0889f1-0c3f-4f98-b011-fbcf6c79a93b-glb: https://static.poly.pizza/6d0889f1-0c3f-4f98-b011-fbcf6c79a93b.glb: HTTP 403 Forbidden"
+    },
+    {
+      "timestamp": "2026-09-14T13:28:15.307708289Z",
+      "message": "[failed] poly-pizza-78e23275-cb6a-4ba3-ae5e-48a9b4ee2e65-glb: https://static.poly.pizza/78e23275-cb6a-4ba3-ae5e-48a9b4ee2e65.glb: HTTP 403 Forbidden"
+    },
+    {
+      "timestamp": "2026-09-14T13:28:15.315079239Z",
+      "message": "[failed] poly-pizza-78e23275-cb6a-4ba3-ae5e-48a9b4ee2e65-webp: https://static.poly.pizza/78e23275-cb6a-4ba3-ae5e-48a9b4ee2e65.webp: HTTP 403 Forbidden"
+    },
+    {
+      "timestamp": "2026-09-14T13:28:15.321009083Z",
+      "message": "[failed] poly-pizza-7951b3b9-d3a5-4ec8-81b7-11111f1c8e88-webp: https://static.poly.pizza/7951b3b9-d3a5-4ec8-81b7-11111f1c8e88.webp: HTTP 403 Forbidden"
+    },
+    {
+      "timestamp": "2026-09-14T13:28:15.333148642Z",
+      "message": "[failed] poly-pizza-9a6ee0ee-068b-4774-8b0f-679c3cef0b6e-webp: https://static.poly.pizza/9a6ee0ee-068b-4774-8b0f-679c3cef0b6e.webp: HTTP 403 Forbidden"
+    },
+    {
+      "timestamp": "2026-09-14T13:28:15.342943031Z",
+      "message": "[failed] poly-pizza-9c4d2ac5-114b-4da2-a26a-8049e2b1ba04-glb: https://static.poly.pizza/9c4d2ac5-114b-4da2-a26a-8049e2b1ba04.glb: HTTP 403 Forbidden"
+    },
+    {
+      "timestamp": "2026-09-14T13:28:15.352422146Z",
+      "message": "[failed] poly-pizza-9c4d2ac5-114b-4da2-a26a-8049e2b1ba04-webp: https://static.poly.pizza/9c4d2ac5-114b-4da2-a26a-8049e2b1ba04.webp: HTTP 403 Forbidden"
+    },
+    {
+      "timestamp": "2026-09-14T13:28:15.361972198Z",
+      "message": "[failed] poly-pizza-9e728565-67a3-44db-9567-982320abff09-webp: https://static.poly.pizza/9e728565-67a3-44db-9567-982320abff09.webp: HTTP 403 Forbidden"
+    },
+    {
+      "timestamp": "2026-09-14T13:28:15.381122947Z",
+      "message": "[failed] poly-pizza-b3e6be61-0299-4866-a227-58f5f3fe610b-webp: https://static.poly.pizza/b3e6be61-0299-4866-a227-58f5f3fe610b.webp: HTTP 403 Forbidden"
+    },
+    {
+      "timestamp": "2026-09-14T13:28:15.384500421Z",
+      "message": "[failed] poly-pizza-d7bb0b50-09af-49f8-b1f9-dbdb0c707d40-glb: https://static.poly.pizza/d7bb0b50-09af-49f8-b1f9-dbdb0c707d40.glb: HTTP 403 Forbidden"
+    },
+    {
+      "timestamp": "2026-09-14T13:28:15.388409306Z",
+      "message": "[failed] poly-pizza-d7bb0b50-09af-49f8-b1f9-dbdb0c707d40-webp: https://static.poly.pizza/d7bb0b50-09af-49f8-b1f9-dbdb0c707d40.webp: HTTP 403 Forbidden"
+    },
+    {
+      "timestamp": "2026-09-14T13:28:15.409660726Z",
+      "message": "[failed] poly-pizza-f71d6771-f512-4374-bd23-ba00b564db68-webp: https://static.poly.pizza/f71d6771-f512-4374-bd23-ba00b564db68.webp: HTTP 403 Forbidden"
+    },
+    {
+      "timestamp": "2026-09-14T13:28:15.413190368Z",
+      "message": "[failed] poly-pizza-fb8ae707-d5b9-4eb8-ab8c-1c78d3c1f710-webp: https://static.poly.pizza/fb8ae707-d5b9-4eb8-ab8c-1c78d3c1f710.webp: HTTP 403 Forbidden"
+    },
+    {
+      "timestamp": "2026-09-14T13:28:12.281597353Z",
+      "message": "[failed] polyhaven:thumbnail:https://cdn.polyhaven.com/asset_img/thumbs/autumn_park.png?width=256&height=256: https://cdn.polyhaven.com/asset_img/thumbs/autumn_park.png?width=256&height=256: Invalid PNG signature"
+    }
+  ],
+  "summary": {
+    "assets": 1351,
+    "bytes": 9724174515,
+    "failures": 28,
+    "complete": false
+  }
+}

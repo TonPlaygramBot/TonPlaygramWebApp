@@ -45,13 +45,16 @@ function modelJson(bytes, url) {
 export async function collectVerifiedLocalAssets({ repoRoot = DEFAULT_REPO_ROOT } = {}) {
   const publicRoot = path.join(repoRoot, 'webapp/public');
   const entries = [];
-  const verify = async ({ sourceUrl, url, sha256, size, provenance }) => {
+  const verify = async ({ sourceUrl, url, sha256, size, provenance, required = false }) => {
     if (!/^https:\/\//.test(sourceUrl || '') || !/^[a-f0-9]{64}$/.test(sha256 || '')) return;
     const filename = path.resolve(publicRoot, url.replace(/^\//, ''));
     if (!filename.startsWith(`${publicRoot}${path.sep}`)) throw new Error(`Invalid local original path: ${url}`);
     let bytes;
     try { bytes = await readFile(filename); } catch (error) {
-      if (error.code === 'ENOENT') return;
+      if (error.code === 'ENOENT') {
+        if (required) throw new Error(`Required bundled original is missing: ${url}`);
+        return;
+      }
       throw error;
     }
     const actual = createHash('sha256').update(bytes).digest('hex');
@@ -61,10 +64,43 @@ export async function collectVerifiedLocalAssets({ repoRoot = DEFAULT_REPO_ROOT 
     const document = modelJson(bytes, url);
     if (document && [...(document.buffers || []), ...(document.images || [])].some(resource => resource.uri && !resource.uri.startsWith('data:'))) {
       // A standalone alias must not strand dependencies at the old host.
+      if (required) throw new Error(`Required bundled original has external dependencies: ${url}`);
       return;
     }
     entries.push({ sourceUrl, url, size: bytes.length, sha256, aliases: exactSourceAliases(sourceUrl), provenance });
   };
+
+  // Keep provider originals needed by clean builds in source control. These
+  // records are required inputs, so a missing file must not silently fall back
+  // to the same unreliable provider. The importer also checks their original
+  // bytes against source-lock.json before publishing any runtime aliases.
+  const vendorProvenance = 'assets/vendor-originals/manifest.json';
+  const vendor = JSON.parse(await readFile(path.join(publicRoot, vendorProvenance), 'utf8'));
+  if (vendor.schemaVersion !== 1 || !Array.isArray(vendor.assets)) {
+    throw new Error(`Invalid bundled originals manifest: ${vendorProvenance}`);
+  }
+  const vendorSources = new Set();
+  const vendorPaths = new Set();
+  for (const asset of vendor.assets) {
+    let source;
+    try { source = new URL(asset?.sourceUrl); } catch { /* Invalid records fail below. */ }
+    if (source?.protocol !== 'https:' || source.href !== asset.sourceUrl || source.hash ||
+      !/^\/assets\/vendor-originals\/[^?#]+$/.test(asset.url || '') ||
+      !/^[a-f0-9]{64}$/.test(asset.sha256 || '') || !Number.isSafeInteger(asset.size) || asset.size <= 0 ||
+      asset.required !== true || typeof asset.provenance !== 'string' || !asset.provenance.trim()) {
+      throw new Error(`Invalid required bundled original: ${asset?.sourceUrl || '(missing source URL)'}`);
+    }
+    const filename = path.resolve(publicRoot, asset.url.slice(1));
+    if (!filename.startsWith(`${path.join(publicRoot, 'assets/vendor-originals')}${path.sep}`)) {
+      throw new Error(`Invalid bundled original path: ${asset.url}`);
+    }
+    if (vendorSources.has(asset.sourceUrl) || vendorPaths.has(asset.url)) {
+      throw new Error(`Duplicate bundled original: ${asset.sourceUrl}`);
+    }
+    vendorSources.add(asset.sourceUrl);
+    vendorPaths.add(asset.url);
+    await verify(asset);
+  }
 
   const originalsPath = 'assets/tirana-streets/imported/manifest.json';
   const originals = JSON.parse(await readFile(path.join(publicRoot, originalsPath), 'utf8'));
