@@ -43,6 +43,10 @@ test('four tyres traverse the visible hump; faster crossings unload grip and set
       assert.ok(r.suspension.wheels.every(Number.isFinite));
     }
     assert.ok(height>.025);assert.ok(grip<.995&&grip>=.72);
+    // More frequent humps can occur farther along this ray. Settle just beyond
+    // the tested hump instead of accidentally ending on the next one.
+    r.x=bump.x+s*12;r.z=bump.z+c*12;
+    for(let i=0;i<120;i++)stepSuspension(r,track,STEP);
     assert.ok(Math.abs(r.suspension.height)<.005,'damped settlement');peaks.push(impact);
     assert.ok(Math.abs(roadHeight([bump],bump.x,bump.z)-bump.height)<1e-8);
     assert.equal(roadHeight([bump],bump.x+s*bump.length,bump.z+c*bump.length),0);

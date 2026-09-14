@@ -1,12 +1,12 @@
-import { resolveObstacleContact } from './collisions.mjs';
+import { footprintRadius, resolveObstacleContact } from './collisions.mjs';
 const clamp=(n,a,b)=>Math.max(a,Math.min(b,n));
 const inside=(x,z,p)=>{let yes=false;for(let i=0,j=p.length-1;i<p.length;j=i++){const a=p[i],b=p[j];if((a[1]>z)!==(b[1]>z)&&x<(b[0]-a[0])*(z-a[1])/(b[1]-a[1])+a[0])yes=!yes;}return yes;};
 function closest(x,z,a,b){const dx=b[0]-a[0],dz=b[1]-a[1],t=clamp(((x-a[0])*dx+(z-a[1])*dz)/(dx*dx+dz*dz||1),0,1);return {x:a[0]+dx*t,z:a[1]+dz*t,yaw:Math.atan2(dx,dz)};}
 
-/** Free driving owns an indexed city collision world. A race never receives
- * this context, so input packets cannot disable gates or track boundaries. */
+/** Shared, deterministic static collision world. Asset positions come from the
+ * same registries as rendering; no GPU readbacks or scene traversal per step. */
 export function createDrivingWorld(world) {
-  const size=64,roads=new Map(),solids=new Map();
+  const size=64,roads=new Map(),solids=new Map(),bridges=new Map();
   const index=(grid,item,points,pad=0)=>{
     const xs=points.map(p=>p[0]),zs=points.map(p=>p[1]);
     for(let x=Math.floor((Math.min(...xs)-pad)/size);x<=Math.floor((Math.max(...xs)+pad)/size);x++)
@@ -17,46 +17,83 @@ export function createDrivingWorld(world) {
   const query=(grid,x,z,radius)=>{
     const found=new Set();for(let a=Math.floor((x-radius)/size);a<=Math.floor((x+radius)/size);a++)for(let b=Math.floor((z-radius)/size);b<=Math.floor((z+radius)/size);b++)for(const item of grid.get(a+':'+b)||[])found.add(item);return [...found];
   };
-  for(const r of world.roads)if(!r.tunnel&&!r.bridge&&!r.layer&&r.highway!=='steps'&&r.w>=2.4)index(roads,r,[r.a,r.b]);
-  for(const b of world.buildings)index(solids,{outer:b.p,holes:[]},b.p,2);
-  for(const water of world.waterAreas||[])for(const p of water.polygons)index(solids,p,p.outer,2);
-  const near=(x,z,radius=96)=>{
+  for(const road of world.roads)if(!road.tunnel&&road.highway!=='steps'&&road.w>=2.4){
+    index(roads,road,[road.a,road.b],road.w/2);
+    if(road.bridge)index(bridges,road,[road.a,road.b],road.w/2+1.25);
+  }
+  for(const b of world.buildings)if(!(b.minHeight>1.5))index(solids,{outer:b.p,holes:b.holes||[],material:'concrete',height:b.h||20},b.p);
+  for(const water of world.waterAreas||[])for(const p of water.polygons)index(solids,{...p,material:'water'},p.outer);
+  for(const p of world.waterPolygons||[])index(solids,{...p,material:'water'},p.outer);
+  for(const t of world.trees||[]){
+    const radius=t.radius??.3;
+    index(solids,{x:t.x,z:t.z,radius,material:'tree',height:t.height||t.h||8},[[t.x,t.z]],radius);
+  }
+  for(const o of world.obstacles||[])index(solids,o,o.outer||(o.a?[o.a,o.b]:[[o.x,o.z]]),o.radius||0);
+  const near=(x,z,radius=96,predicate=()=>true)=>{
     let best=null;
     for(const road of query(roads,x,z,radius)){
       const p=closest(x,z,road.a,road.b),distance=Math.hypot(x-p.x,z-p.z);
-      if(!best||distance<best.distance)best={...p,distance,width:road.w,name:road.name||''};
+      if((!best||distance<best.distance)&&predicate(p,road))best={...p,distance,width:road.w,name:road.name||''};
     }return best;
   };
-  const contact=(r,p,dt)=>{
-    const ring=p.outer;
-    // Holes are dry islands, not solid water.
-    if(p.holes?.some(h=>inside(r.x,r.z,h)))return;
-    const within=inside(r.x,r.z,ring);let point=null,distance=Infinity;
-    for(let i=0;i<ring.length;i++){const n=closest(r.x,r.z,ring[i],ring[(i+1)%ring.length]),d=Math.hypot(r.x-n.x,r.z-n.z);if(d<distance){distance=d;point=n;}}
-    const radius=Math.max(1.08,(r.bodyWidth||1.72)*.65);
-    if(!within&&distance>=radius)return;
+  const onBridge=(r,x=r.x,z=r.z)=>query(bridges,x,z,4).some(road=>{
+    const p=closest(x,z,road.a,road.b),dx=road.b[0]-road.a[0],dz=road.b[1]-road.a[1],length=Math.hypot(dx,dz);
+    const along=((x-road.a[0])*dx+(z-road.a[1])*dz)/length;
+    return along>=-.1&&along<=length+.1&&Math.hypot(x-p.x,z-p.z)+footprintRadius(r,dz/length,-dx/length)<=road.w/2+1.2;
+  });
+  const contact=(r,o,dt)=>{
+    if(o.material==='water'&&(onBridge(r)||(r.airborne&&r.jumpHeight>.35)))return;
+    if(o.material!=='water'&&(r.jumpHeight||0)>(o.height??Infinity))return;
+    let point,distance,within=false;
+    if(o.outer){
+      // Dry islands/courtyards are free space, but their edges still collide.
+      within=inside(r.x,r.z,o.outer)&&!(o.holes||[]).some(h=>inside(r.x,r.z,h));
+      distance=Infinity;
+      for(const ring of [o.outer,...(o.holes||[])])for(let i=0;i<ring.length;i++){
+        const p=closest(r.x,r.z,ring[i],ring[(i+1)%ring.length]),d=Math.hypot(r.x-p.x,r.z-p.z);
+        if(d<distance){distance=d;point=p;}
+      }
+    }else{
+      point=o.a?closest(r.x,r.z,o.a,o.b):{x:o.x,z:o.z,yaw:0};
+      distance=Math.hypot(r.x-point.x,r.z-point.z);
+    }
+    if(!point)return;
     let nx=(r.x-point.x)/Math.max(distance,.0001),nz=(r.z-point.z)/Math.max(distance,.0001);
     if(within){nx=-nx;nz=-nz;}
-    if(distance<.0001){nx=Math.cos(point.yaw);nz=-Math.sin(point.yaw);}
-    resolveObstacleContact(r,nx,nz,within?radius+distance:radius-distance,dt);
+    if(distance<.0001){nx=-Math.sin(r.velocityYaw);nz=-Math.cos(r.velocityYaw);}
+    const radius=footprintRadius(r,nx,nz)+(o.radius||0);
+    if(!within&&distance>=radius)return;
+    resolveObstacleContact(r,nx,nz,within?radius+distance:radius-distance,dt,o.material||'concrete');
+  };
+  const clear=(r,p)=>{
+    const probe={...r,x:p.x,z:p.z,yaw:p.yaw,velocityYaw:p.yaw,speed:0,waterRecovery:0,airborne:false,jumpHeight:0,wallContact:false};
+    for(const o of query(solids,p.x,p.z,Math.max(4,r.bodyLength||0)))contact(probe,o,0);
+    return !probe.wallContact;
   };
   return {
-    mode:'free-roam',bounds:world.bounds,
-    nearestRoad:near,
-    nearbyRoads(x,z,radius=240){return query(roads,x,z,radius).filter(r=>Math.min(Math.hypot(r.a[0]-x,r.a[1]-z),Math.hypot(r.b[0]-x,r.b[1]-z))<radius+80);},
-    recover(r){const p=r.roamRecovery||near(r.x,r.z,256);if(p){r.x=p.x;r.z=p.z;r.yaw=r.velocityYaw=p.yaw;}},
+    mode:'free-roam',bounds:world.bounds,nearestRoad:near,
+    nearbyRoads(x,z,radius=240){return query(roads,x,z,radius).filter(r=>{const p=closest(x,z,r.a,r.b);return Math.hypot(x-p.x,z-p.z)<radius;});},
+    recover(r){
+      const saved=r.roamRecovery,p=saved&&clear(r,saved)?saved:near(r.x,r.z,512,q=>clear(r,q));
+      if(p){r.x=p.x;r.z=p.z;r.yaw=r.velocityYaw=p.yaw;r.roamRecovery={x:p.x,z:p.z,yaw:p.yaw};}
+      r.speed=0;r.waterRecovery=0;r.wallContact=false;
+    },
     move(r,oldX,oldZ,dt){
-      const dx=r.x-oldX,dz=r.z-oldZ,steps=Math.max(1,Math.ceil(Math.hypot(dx,dz)/.45));
+      const dx=r.x-oldX,dz=r.z-oldZ,steps=Math.max(1,Math.ceil(Math.hypot(dx,dz)/.3)),step=dt/steps;
+      let mx=dx/steps,mz=dz/steps;
       r.x=oldX;r.z=oldZ;r.wallContact=false;
       for(let i=0;i<steps;i++){
-        r.x+=dx/steps;r.z+=dz/steps;
-        for(let pass=0;pass<2;pass++)for(const p of query(solids,r.x,r.z,2))contact(r,p,dt/steps);
+        r.x+=mx;r.z+=mz;
+        for(let pass=0;pass<3;pass++)for(const o of query(solids,r.x,r.z,Math.max(4,r.bodyLength||0)))contact(r,o,step);
         const [x0,z0,x1,z1]=world.bounds;
         const x=clamp(r.x,x0+2,x1-2),z=clamp(r.z,z0+2,z1-2);
-        if(x!==r.x||z!==r.z){r.x=x;r.z=z;r.speed=0;}
+        if(x!==r.x||z!==r.z){r.x=x;r.z=z;r.speed=0;r.wallContact=true;}
+        if(r.waterRecovery>0)break;
+        // Finish the sweep using the post-impact velocity.
+        if(r.wallContact){mx=Math.sin(r.velocityYaw)*r.speed*step;mz=Math.cos(r.velocityYaw)*r.speed*step;}
       }
       const p=near(r.x,r.z);
-      if(p&&p.distance<Math.max(1,p.width/2-1.3)&&!r.wallContact)r.roamRecovery={x:p.x,z:p.z,yaw:p.yaw};
+      if(p&&p.distance<Math.max(.1,p.width/2-1.3)&&!r.wallContact&&clear(r,p))r.roamRecovery={x:p.x,z:p.z,yaw:p.yaw};
       return p;
     }
   };

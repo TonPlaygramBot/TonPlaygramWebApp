@@ -3,7 +3,7 @@
 const clamp = (v, lo, hi) => Math.max(lo, Math.min(hi, v));
 export const KART_RADIUS = 1.05;
 // Elliptical plan footprint keeps metre-scale cars from interpenetrating.
-function footprintRadius(r,nx,nz){
+export function footprintRadius(r,nx,nz){
   if(!r.bodyLength||!r.bodyWidth)return KART_RADIUS;
   const forward=Math.sin(r.yaw)*nx+Math.cos(r.yaw)*nz;
   const side=Math.cos(r.yaw)*nx-Math.sin(r.yaw)*nz;
@@ -40,17 +40,18 @@ function applyVelocity(r, x, z) {
   r.speed = Math.hypot(x, z) * sign;
   if (Math.abs(r.speed) > 0.01) r.velocityYaw = Math.atan2(x * sign, z * sign);
 }
-function impact(r, normalSpeed, nx, nz) {
+function impact(r, normalSpeed, nx, nz, material = 'kart', severity = 1) {
   // Feedback stays punchy, but ordinary racing contacts must not end a race.
   // One physical collision can span several contacts/steps: charge it once.
   if ((r.impactCooldown || 0) > 0) return;
   const damage = damageRacer(
     r,
-    Math.min(14, Math.max(0, normalSpeed - 3.5) ** 2 * 0.018)
+    Math.min(material === 'kart' ? 14 : 18, Math.max(0, normalSpeed - 3.5) ** 2 * 0.018 * severity)
   );
   r.hop = Math.max(r.hop || 0, .12);
   if (normalSpeed > 1.5) {
     r.impactId = (r.impactId || 0) + 1;
+    r.impactMaterial = material;
     r.impact = clamp(normalSpeed / 28, 0.08, 1);
     r.impactNx = nx;
     r.impactNz = nz;
@@ -163,13 +164,42 @@ export function resolveKartContact(a, b) {
   if (b.retired) b.speed = 0;
 }
 
-/** Outward normal of a building/lake edge in the free-driving city. */
-export function resolveObstacleContact(r,nx,nz,depth,dt) {
+// Normal impulse and tangential friction are independent: a scrape can slide
+// along steel, while a direct trunk/wall impact absorbs most of the momentum.
+export const IMPACT_MATERIALS = Object.freeze({
+  concrete: { restitution: .035, friction: .28, damage: 1.25 },
+  tree: { restitution: .055, friction: .42, damage: 1.05 },
+  metal: { restitution: .12, friction: .12, damage: .9 },
+  wood: { restitution: .07, friction: .36, damage: .65 },
+  water: { restitution: 0, friction: 1, damage: .35 }
+});
+/** Outward normal of a static asset. Correction never depends on cooldown. */
+export function resolveObstacleContact(r,nx,nz,depth,dt,material='concrete') {
+  const profile=IMPACT_MATERIALS[material]||IMPACT_MATERIALS.concrete;
   r.x+=nx*(depth+.003);r.z+=nz*(depth+.003);
   const v=velocity(r),closing=-(v.x*nx+v.z*nz);
   if(closing>0){
-    applyVelocity(r,v.x+nx*closing*1.08,v.z+nz*closing*1.08);
-    impact(r,closing,-nx,-nz);
+    const tx=v.x+nx*closing,tz=v.z+nz*closing;
+    const tangent=Math.hypot(tx,tz),friction=Math.max(0,1-profile.friction*closing/Math.max(.001,tangent));
+    applyVelocity(r,tx*friction+nx*closing*profile.restitution,tz*friction+nz*closing*profile.restitution);
+    impact(r,closing,-nx,-nz,material,profile.damage);
+    const spin=(Math.sin(r.yaw)*nz-Math.cos(r.yaw)*nx)*closing*.03;
+    r.collisionSpin=clamp((r.collisionSpin||0)+spin,-.9,.9);
+    r.yawRate=clamp((r.yawRate||0)+spin,-1.2,1.2);
+    r.drifting=false;r.driftCharge=0;r.turbo=0;
+  }
+  if(material==='water'){
+    // A water entry stalls the kart and requests recovery from the last dry
+    // road. It never behaves like asphalt or an elastic invisible wall.
+    if(!(r.waterRecovery>0)){
+      if(r.impactMaterial!=='water'||!r.impactCooldown){
+        r.impactId=(r.impactId||0)+1;r.impactMaterial='water';
+        r.impact=clamp(Math.hypot(v.x,v.z)/28,.2,1);
+        r.impactNx=-nx;r.impactNz=-nz;r.impactCooldown=.3;
+      }
+      r.waterRecovery=.9;
+    }
+    r.speed=0;r.boosting=false;r.throttle=0;r.drifting=false;r.turbo=0;
   }
   r.wallContact=true;
 }

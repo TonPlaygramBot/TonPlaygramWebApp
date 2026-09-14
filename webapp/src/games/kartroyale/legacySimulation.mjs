@@ -287,6 +287,13 @@ export function stepRacer(r, raw, track, dt, time, difficulty = 'street', drivin
   if (r.finished || r.retired || r.disconnected) return;
   if (!Number.isFinite(dt) || dt <= 0) return;
   dt = Math.min(dt, STEP * 3);
+  if(drivingWorld&&(r.waterRecovery||0)>0){
+    r.waterRecovery=Math.max(0,r.waterRecovery-dt);
+    r.speed=0;r.throttle=0;r.boosting=false;r.drifting=false;r.yawRate=0;
+    r.impactCooldown=Math.max(0,(r.impactCooldown||0)-dt);
+    if(!r.waterRecovery){drivingWorld.recover(r);resetJump(r,track);resetSuspension(r);r.collisionSpin=0;}
+    r.lap=0;r.gates=0;r.progress=0;return;
+  }
   const input = drivePedals(r,raw || {},dt),
     steer = Number.isFinite(input.steer) ? clamp(input.steer, -1, 1) : 0;
   if (r.ai && Number.isFinite(input.aiLane)) r.aiLane = input.aiLane;
@@ -368,6 +375,9 @@ export function stepRacer(r, raw, track, dt, time, difficulty = 'street', drivin
   if(drivingWorld)drivingWorld.move(r,previousX,previousZ,dt);
   else resolveWallContact(r, near, near.width ?? track.width, dt);
   if (r.retired) return;
+  if(drivingWorld&&(r.waterRecovery||0)>0){
+    resetJump(r,track);resetSuspension(r);r.lap=0;r.gates=0;r.progress=0;return;
+  }
   r.acceleration = clamp((r.speed - previousSpeed) / dt, -45, 35);
   stepSuspension(r, track, dt);
   // Suspension absorbs a slow crossing. A fast hit sheds a little momentum.

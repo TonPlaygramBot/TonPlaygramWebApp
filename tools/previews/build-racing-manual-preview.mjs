@@ -7,23 +7,26 @@ import {makeTrack,TRACKS} from '../../webapp/src/games/kartroyale/simulation.mjs
 import {tyreBarrierLayout} from '../../webapp/src/games/kartroyale/tyreBarrierCore.mjs';
 import {courseClearance} from '../../webapp/src/games/kartroyale/raceCourse.mjs';
 import {WORLD} from '../../webapp/src/games/tiranastreets/shared/world.mjs';
-import {CANOPY_TREES} from '../../webapp/src/games/tirana-street-life/canopyRegistry.mjs';
+import {drivingWorldData} from '../../webapp/src/games/kartroyale/roamObstacles.mjs';
 import {ribbonExclusion} from '../../webapp/src/games/tirana-street-detail/roadDetailCore.mjs';
 import {TERRAIN} from '../../webapp/src/games/tirana-east/terrainData.mjs';
 const here=dirname(fileURLToPath(import.meta.url)),root=resolve(here,'../..');
 const models={};
 models.driver=(await readFile(resolve(root,'webapp/public/assets/kart-royale/karts/race-driver-lod.glb'))).toString('base64');
-const previewIds=['skanderbeg','farke','surrel','liqeni'];
+const source=drivingWorldData();
+const previewIds=['lana','farke','surrel'];
 const courses=previewIds.map(id=>{
 const track=makeTrack(id),near=ribbonExclusion(track);
-const bounds=track.bounds.map((n,i)=>n+(i<2?-260:260));
+const bounds=track.bounds.map((n,i)=>n+(i<2?-180:180));
 const contains=p=>p[0]>=bounds[0]&&p[1]>=bounds[1]&&p[0]<=bounds[2]&&p[1]<=bounds[3];
-const buildings=WORLD.buildings.filter(b=>b.p.some(contains)).map((b,i)=>({p:b.p,h:b.h,color:['#ccbab1','#d3d8d3','#b4c5d0','#d7c99a','#bba7a0'][i%5]}));
-const roads=WORLD.roads.filter(r=>[r.a,r.b].some(contains)&&!r.tunnel&&!r.bridge&&!r.layer&&r.highway!=='steps').map(r=>({a:r.a,b:r.b,w:r.w,walk:r.walk}));
+const buildings=source.buildings.filter(b=>b.p.some(contains)).map((b,i)=>({p:b.p,h:b.h,color:['#ccbab1','#d3d8d3','#b4c5d0','#d7c99a','#bba7a0'][i%5]}));
+const roads=WORLD.roads.filter(r=>[r.a,r.b].some(contains)&&!r.tunnel&&r.highway!=='steps').map(r=>({a:r.a,b:r.b,w:r.w,walk:r.walk,bridge:r.bridge}));
 const waterAreas=WORLD.waterAreas.filter(w=>w.polygons.some(p=>p.outer.some(contains)));
-const trees=CANOPY_TREES.filter(t=>!near(t.x,t.z,Math.max(.8,t.crown*.75))&&near(t.x,t.z,60)).map(t=>({x:t.x,z:t.z,h:t.height,c:t.crown}));
+const trees=source.trees.filter(t=>contains([t.x,t.z])&&near(t.x,t.z,90)).map(t=>({x:t.x,z:t.z,h:t.height||8,c:t.crown||4,radius:t.radius}));
+const waterPolygons=source.waterPolygons.filter(p=>p.outer.some(contains));
+const obstacles=source.obstacles.filter(o=>o.outer?o.outer.some(contains):o.a?[o.a,o.b].some(contains):contains([o.x,o.z]));
 // A millimetre of presentation precision retains the validated footprint margin.
-return {track,buildings,trees,roads,waterAreas,bounds,tyres:tyreBarrierLayout(track,(x,z)=>courseClearance(track,x,z)).positions.map(p=>[+p.x.toFixed(3),+p.z.toFixed(3),p.index])};
+return {track,buildings,trees,roads,waterAreas,waterPolygons,obstacles,bounds,tyres:tyreBarrierLayout(track,(x,z)=>courseClearance(track,x,z)).positions.map(p=>[+p.x.toFixed(3),+p.z.toFixed(3),p.index])};
 });
 if(process.argv.includes('--stats'))console.log(JSON.stringify(courses.map(c=>({id:c.track.id,parts:Object.fromEntries(Object.entries(c).map(([k,v])=>[k,{count:Array.isArray(v)?v.length:undefined,gzip:gzipSync(JSON.stringify(v)).length}]))}))));
 // Typed DEM arrays must be encoded as arrays, not millions of numeric keys.

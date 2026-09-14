@@ -56,7 +56,7 @@ export class FpsCity {
     this.group.userData = { source: WORLD.source, attribution: WORLD.attribution,
       buildings: WORLD.buildings.length, roads: WORLD.roads.length, assetErrors: [] as string[] };
     this.surfaceMaterials = new EnvironmentMaterials(loadAssets);
-    this.landscape = new LandscapeVisuals(loadAssets);
+    this.landscape = new LandscapeVisuals(loadAssets, this.raceClearance);
     this.group.add(this.landscape.group);
     this.surfaces(loadAssets);
     this.buildings();

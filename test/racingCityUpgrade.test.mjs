@@ -18,7 +18,7 @@ test('archived city routes retain mapped edges while active races use rounded di
   route.points.forEach((a,i)=>{const edge=edges.get(key(a,route.points[(i+1)%route.points.length]));assert.ok(edge,route.id+' disconnected edge');assert.ok(route.widths[i]<=edge.w+.001);});
   const track=makeTrack(route.id);assert.ok(track.length>=1400&&track.length<4400);assert.ok(track.turns.length>0);
   assert.equal(track.points.length%4,0);
-  for(const p of track.points){const near=nearestPoint(track,p.x,p.z);assert.ok(near.distance<1e-7);assert.ok(near.width>=6&&near.width<=22);}
+  for(const p of track.points){const near=nearestPoint(track,p.x,p.z);assert.ok(near.distance<1e-7);assert.ok(near.width>=1.8&&near.width<=track.width);}
  }
 });
 test('street cameras retain source seats while stale racing car IDs migrate to kart footprints',()=>{

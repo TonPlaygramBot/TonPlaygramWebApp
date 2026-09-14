@@ -1,0 +1,1 @@
+export function bridgeRailSections(road:{a:number[];b:number[];w:number;walk?:boolean;bridge?:boolean;tunnel?:boolean},clear?:(a:number[],b:number[],pad:number)=>boolean):{a:number[];b:number[];yaw:number;length:number;index:number}[];

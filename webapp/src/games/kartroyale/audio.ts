@@ -103,7 +103,7 @@ export class KartAudio {
       0.08
     );
     if (frame.impactId !== this.lastImpact) {
-      if (running && frame.impactId > this.lastImpact) this.crash(frame.impact);
+      if (running && frame.impactId > this.lastImpact) this.crash(frame.impact,frame.impactMaterial);
       this.lastImpact = frame.impactId;
     }
     if (frame.boostEvent !== this.lastBoost) {
@@ -146,13 +146,15 @@ export class KartAudio {
       g.disconnect();
     };
   }
-  private crash(strength: number) {
+  private crash(strength: number,material:Frame['impactMaterial']='kart') {
+    if(material==='water'){this.burst(.48,.14+strength*.2,850);return;}
+    const frequency=material==='metal'?2600:material==='tree'||material==='wood'?380:950;
     this.burst(
       0.12 + strength * 0.24,
       0.12 + strength * 0.25,
-      600 + strength * 2000
+      frequency + strength * 700
     );
-    this.beep(62 + strength * 30, 0.1);
+    this.beep(material==='metal'?180+strength*160:62+strength*30,material==='metal'?.18:.1);
   }
   beep(f = 550, d = 0.13) {
     if (this.muted || !this.context || !this.master) return;

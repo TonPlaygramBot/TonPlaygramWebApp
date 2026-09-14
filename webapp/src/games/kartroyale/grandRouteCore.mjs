@@ -44,7 +44,7 @@ export function extendMappedRoute(route,graph,{ratio=1.4,maxRatio=2.6,candidates
 }
 export function resampleCircuit(raw,count=360,widths){
   if(!Array.isArray(raw)||raw.length<3||!Number.isInteger(count)||count<3||raw.some(p=>!Array.isArray(p)||p.length!==2||p.some(n=>!Number.isFinite(n))))throw Error('Invalid route');
-  if(widths && (widths.length!==raw.length || widths.some(w=>!Number.isFinite(w)||w<6)))throw Error('Invalid road widths');
+  if(widths && (widths.length!==raw.length || widths.some(w=>!Number.isFinite(w)||w<=0)))throw Error('Invalid road widths');
   const corners=widths?raw:raw.filter((p,i)=>{const a=raw[(i+raw.length-1)%raw.length],b=raw[(i+1)%raw.length],cross=(p[0]-a[0])*(b[1]-p[1])-(p[1]-a[1])*(b[0]-p[0]);return Math.abs(cross)>1e-7||dist(a,b)<.01;});
   if(corners.length<3||corners.length>count)throw Error('Circuit needs a higher-resolution simulation; not silently simplified');
   const lengths=corners.map((p,i)=>dist(p,corners[(i+1)%corners.length]));if(lengths.some(n=>n<.001))throw Error('Degenerate circuit');

@@ -1,4 +1,4 @@
-import {WORLD} from '../tiranastreets/shared/world.mjs';
+import {drivingWorldData} from './roamObstacles.mjs';
 import {createDrivingWorld} from './freeRoamCore.mjs';
 let environment;
 export const FREE_ROAM_STARTS=[
@@ -8,4 +8,4 @@ export const FREE_ROAM_STARTS=[
   {track:'farke',name:'Farkë'},
   {track:'surrel',name:'Surrel'}
 ];
-export function freeRoamWorld(){return environment ||= createDrivingWorld(WORLD);}
+export function freeRoamWorld(){return environment ||= createDrivingWorld(drivingWorldData());}

@@ -63,6 +63,7 @@ export interface Frame {
   ammunition: number;
   impactId: number;
   impact: number;
+  impactMaterial?:Racer['impactMaterial'];
   retired: boolean;
   turbo: number;
   boostEvent: number;
@@ -1209,6 +1210,7 @@ export class KartRenderer {
             ammunition: me.ammunition ?? 0,
             impactId: me.impactId ?? 0,
             impact: me.impact ?? 0,
+            impactMaterial: me.impactMaterial,
             retired: me.retired ?? false,
             turbo: me.turbo,
             boostEvent: me.boostEvent || 0,

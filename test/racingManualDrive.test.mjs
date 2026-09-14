@@ -26,12 +26,12 @@ test('gas, slide drift and steering have independent ownership and clear on susp
  assert.equal(input.read().throttle,true);input.release('slide');assert.equal(input.read().throttle,true);assert.equal(input.read().steer,-1);
  input.release('gas');assert.equal(input.read().throttle,false);assert.equal(input.read().steer,-1);input.clear();assert.equal(input.read().steer,0);
 });
-test('rounded courses leave building clearance and no eligible canopy intersects the widened ribbon',()=>{
+test('rounded courses leave building clearance and no eligible canopy intersects the road-width ribbon',()=>{
  let excluded=0;
  for(const config of TRACKS){
   const t=makeTrack(config.id),blocked=ribbonExclusion(t);
   assert.ok(t.turns.length>0);assert.equal(t.points.length%4,0);
-  for(const p of t.points){assert.ok(p.width>=(config.terrainMode?3.2:6));assert.ok(buildingClearance(p.x,p.z)-p.width/2>=1.59,config.id);assert.ok(blocked(p.x,p.z,0));}
+  for(const p of t.points){assert.ok(p.width>=1.8&&p.width<=t.width);assert.ok(buildingClearance(p.x,p.z)-p.width/2>=1.59,config.id);assert.ok(blocked(p.x,p.z,0));}
   for(const tree of CANOPY_TREES){
    const radius=Math.max(.8,tree.crown*.75);
    if(blocked(tree.x,tree.z,radius)){excluded++;continue;}

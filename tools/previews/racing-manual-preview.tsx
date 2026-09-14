@@ -21,9 +21,9 @@ import DATA from 'preview-data';
 const choices=KART_DESIGNS.map(k=>[k.id,k.name]);
 function App(){
  const host=useRef<HTMLDivElement>(null),controller=useRef<any>(null),input=useRef(createHeldRaceInput());
- const [course,setCourse]=useState(1),[difficulty,setDifficulty]=useState('street'),[mode,setMode]=useState('race');
+ const [course,setCourse]=useState(0),[difficulty,setDifficulty]=useState('street'),[mode,setMode]=useState('free');
  const [kart,setKart]=useState('apex'),[ready,setReady]=useState(false),[racing,setRacing]=useState(false),[paused,setPaused]=useState(false),[error,setError]=useState('');
- const [hud,setHud]=useState({speed:0,boost:45,lap:1,position:1,drifting:false,time:0,finished:false,turbo:0,driftCharge:0,slipstream:0,bump:0,impact:0,boostEvent:0,reversing:false});
+ const [hud,setHud]=useState({speed:0,boost:45,lap:1,position:1,drifting:false,time:0,finished:false,turbo:0,driftCharge:0,slipstream:0,bump:0,impact:0,boostEvent:0,reversing:false,impactMaterial:'',waterRecovery:0,airborne:false,impactCooldown:0});
  useEffect(()=>{
   let alive=true,raf=0;const el=host.current!;setReady(false);setRacing(false);setError('');input.current.clear();
   let renderer:T.WebGLRenderer;
@@ -69,7 +69,7 @@ function App(){
    world.visible=run;showroom.visible=!run;if(run)effects.update(pause||racers[0].finished?0:dt,racers,effectVisuals,'0',false);
    if(run){const r=racers[0],target=new T.Vector3(r.x-Math.sin(r.yaw)*7,3.5+(r.groundY||0)+(r.jumpHeight||0),r.z-Math.cos(r.yaw)*7);camera.position.lerp(target,1-Math.exp(-dt*7));camera.lookAt(r.x+Math.sin(r.yaw)*3,1.1+(r.groundY||0)+(r.jumpHeight||0),r.z+Math.cos(r.yaw)*3);camera.fov+=(60+(matchMedia('(prefers-reduced-motion: reduce)').matches?0:r.speed*.12)-camera.fov)*(1-Math.exp(-dt*5));camera.updateProjectionMatrix();}
    else{orbitControls.update();}
-   if(run&&now-ui>100){ui=now;const r=racers[0];setHud({speed:r.speed,boost:r.boost,lap:Math.max(1,Math.min(3,r.lap)),position:standings(racers).findIndex(r=>r.id==='0')+1,drifting:r.drifting,time,finished:r.finished,turbo:r.turbo,driftCharge:r.driftCharge,slipstream:r.slipstream,bump:r.bumpImpact||0,impact:r.hitFlash||0,boostEvent:r.boostEvent||0,reversing:r.reversing||r.speed<-.1});}
+   if(run&&now-ui>100){ui=now;const r=racers[0];setHud({speed:r.speed,boost:r.boost,lap:Math.max(1,Math.min(3,r.lap)),position:standings(racers).findIndex(r=>r.id==='0')+1,drifting:r.drifting,time,finished:r.finished,turbo:r.turbo,driftCharge:r.driftCharge,slipstream:r.slipstream,bump:r.bumpImpact||0,impact:r.hitFlash||0,boostEvent:r.boostEvent||0,reversing:r.reversing||r.speed<-.1,impactMaterial:r.impactMaterial||'',waterRecovery:r.waterRecovery||0,airborne:!!r.airborne,impactCooldown:r.impactCooldown||0});}
    renderer.render(scene,camera);raf=requestAnimationFrame(animate);
   };
   parse(DATA.models.driver).then(asset=>{
@@ -84,6 +84,7 @@ function App(){
   <header><span><b>RACING ROYAL</b><small>{DATA.courses[course].track.name} · {(DATA.courses[course].track.length/1000).toFixed(2)} km</small></span>{racing?<button onClick={()=>controller.current?.pause()}>{paused?'RESUME':'PAUSE'}</button>:<span className="rr-preview-tag">KART SERIES</span>}</header>
   {!racing&&<div className="rr-preview-garage"><div className="rr-preview-picks" aria-label="Driving mode"><button aria-pressed={mode==='race'} onClick={()=>setMode('race')}>RACE</button><button aria-pressed={mode==='free'} onClick={()=>setMode('free')}>FREE ROAM</button></div><label className="rr-kart-choice">KART<select aria-label="Kart model" value={kart} onChange={e=>setKart(e.target.value)}>{choices.map(([id,name])=><option key={id} value={id}>{name}</option>)}</select></label><div className="rr-preview-options"><label>CIRCUIT<select aria-label="Preview circuit" value={course} onChange={e=>setCourse(Number(e.target.value))}>{DATA.courses.map((c,i)=><option key={c.track.id} value={i}>{c.track.name}</option>)}</select></label>{mode==='race'&&<label>RIVALS<select aria-label="Rival difficulty" value={difficulty} onChange={e=>setDifficulty(e.target.value)}><option value="street">Street</option><option value="pro">Pro</option></select></label>}</div><button className="rr-preview-start" disabled={!ready} onClick={()=>controller.current?.begin()}>{ready?(mode==='free'?'EXPLORE TIRANA':'START RACE'):'LOADING KARTS…'}</button></div>}
   {racing&&<><div className="rr-preview-stats">{mode==='free'?<span>FREE ROAM</span>:<><b>{hud.position}/6</b><span>LAP {hud.lap}/3</span><time>{Math.floor(hud.time/60)}:{(hud.time%60).toFixed(1).padStart(4,'0')}</time></>}</div><div className="rr-speed"><b>{hud.reversing&&<small>R </small>}{Math.round(Math.abs(hud.speed)*3.6)}</b><span>KM/H</span></div>
+   <div className="rr-preview-feedback" aria-live="polite">{hud.waterRecovery>0?'WATER · RECOVERING':hud.impactCooldown>0&&hud.impactMaterial?hud.impactMaterial.toUpperCase()+' IMPACT':hud.airborne?'AIRBORNE':''}</div>
    <KartControls boost={hud.boost} drifting={hud.drifting} driftCharge={hud.driftCharge} turbo={hud.turbo} boostEvent={hud.boostEvent} reversing={hud.reversing} disabled={paused||hud.finished} hold={(id,key,value)=>input.current.hold(id,key,value)} release={id=>input.current.release(id)}/>
    {(paused||hud.finished)&&<div className="rr-preview-overlay"><b>{hud.finished?'FINISH':'PAUSED'}</b><button onClick={()=>hud.finished?controller.current?.begin():controller.current?.pause()}>{hud.finished?'RACE AGAIN':'RESUME'}</button><button onClick={()=>controller.current?.garage()}>GARAGE</button></div>}
   </>}

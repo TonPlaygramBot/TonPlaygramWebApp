@@ -11,12 +11,13 @@ export class RaceEffects {
   private transform = new T.Object3D();
   private colors = ['#c9f3ff','#38d8ff','#ffbe43','#d575ff'].map(c=>new T.Color(c));
   private clock = 0;
-  private impacts = new Map<string,{x:number;z:number;nx:number;nz:number;strength:number;age:number}>();
+  private materialColors = {tree:new T.Color('#94704b'),wood:new T.Color('#b89160'),concrete:new T.Color('#c8c8bd'),metal:new T.Color('#ffd985'),water:new T.Color('#9ee3ef'),kart:new T.Color('#ffbe43')};
+  private impacts = new Map<string,{x:number;y:number;z:number;nx:number;nz:number;strength:number;age:number;material:keyof RaceEffects['materialColors']}>();
   constructor(_camera: T.PerspectiveCamera) {
     this.sparks.count=0;this.sparks.frustumCulled=false;this.sparks.instanceMatrix.setUsage(T.DynamicDrawUsage);
     this.group.add(this.smoke.mesh,this.sparks);
   }
-  crash(racer:Racer){this.impacts.set(racer.id,{x:racer.x,z:racer.z,nx:racer.impactNx,nz:racer.impactNz,strength:racer.impact,age:0});}
+  crash(racer:Racer){this.impacts.set(racer.id,{x:racer.x,y:racer.groundY||0,z:racer.z,nx:racer.impactNx,nz:racer.impactNz,strength:racer.impact,age:0,material:racer.impactMaterial||'kart'});}
   update(dt:number,racers:Racer[],_visuals:Map<string,T.Group>,_me:string,_driver:boolean){
     if(dt<=0)return;
     this.clock+=dt;this.smoke.update(dt,racers);
@@ -43,8 +44,8 @@ export class RaceEffects {
       for(let i=0;i<8;i++){
         const a=i*Math.PI/4,d=impact.age*(2+impact.strength*4);
         put(impact.x+Math.cos(a)*d-impact.nx*d*.5,
-          .16+Math.max(0,impact.age*2.8-impact.age*impact.age*5),
-          impact.z+Math.sin(a)*d-impact.nz*d*.5,.05*(1-impact.age*2),this.colors[2]);
+          impact.y+.16+Math.max(0,impact.age*(impact.material==='water'?4:2.8)-impact.age*impact.age*5),
+          impact.z+Math.sin(a)*d-impact.nz*d*.5,(impact.material==='water'?.12:.05)*(1-impact.age*2),this.materialColors[impact.material]);
       }
     }
     this.sparks.count=n;this.sparks.instanceMatrix.needsUpdate=true;if(this.sparks.instanceColor)this.sparks.instanceColor.needsUpdate=true;

@@ -8,6 +8,22 @@ export const ROAD_SURFACE_Y = .115;
 export const TYRE_RADIUS = .57;
 export const TYRE_EDGE_OFFSET = .90;
 
+function fitsRoad(track,bump){
+  const s=Math.sin(bump.yaw),c=Math.cos(bump.yaw);
+  for(const u of [-.5,0,.5])for(const v of [-.5,0,.5]){
+    const x=bump.x+s*u*bump.length+c*v*bump.width,z=bump.z+c*u*bump.length-s*v*bump.width;
+    let onRoad=false;
+    for(let i=0;i<track.points.length;i++){
+      const a=track.points[i],b=track.points[(i+1)%track.points.length],dx=b.x-a.x,dz=b.z-a.z;
+      const t=clamp(((x-a.x)*dx+(z-a.z)*dz)/(dx*dx+dz*dz||1),0,1);
+      const width=(a.width??track.width)*(1-t)+(b.width??track.width)*t;
+      if(Math.hypot(x-a.x-dx*t,z-a.z-dz*t)<width/2-.12){onRoad=true;break;}
+    }
+    if(!onRoad)return false;
+  }
+  return true;
+}
+
 /** Authored event humps, not claims about real Tirana road obstacles. The same
  * immutable profiles drive the visible mesh, every wheel and server physics. */
 export function roadBumps(track) {
@@ -15,21 +31,31 @@ export function roadBumps(track) {
   const bumps = [];
   // Keep simple synthetic/test tracks and the original API free of obstacles.
   if (track.roadFeelVersion === 1) {
-    const count = clamp(Math.floor(track.length / 340), 3, 8);
+    const count = clamp(Math.floor(track.length / 145), 6, 22);
     const pads = boostPads(track);
-    for (let i = 0; i < count; i++) {
-      for (let attempt = 0; attempt < 16; attempt++) {
-        const p = sampleCircuitDistance(track, track.length * (i + .45) / count + attempt * 9);
+    const add=(at,cornerOnly=false)=>{
+        const p = sampleCircuitDistance(track,at);
+        const before=sampleCircuitDistance(track,at-6),after=sampleCircuitDistance(track,at+6);
+        const turn=Math.abs(Math.atan2(Math.sin(after.yaw-before.yaw),Math.cos(after.yaw-before.yaw)));
+        const corner=turn>.055;
         const width = track.points[p.index].width ?? track.width;
-        if (p.distance < 65 || track.length - p.distance < 65 || width < 8 ||
-            cornerSpeedLimit(track, p, 30) < 24 ||
+        if (p.distance < 65 || track.length - p.distance < 65 || width < 2.1 || turn>1.8 || (cornerOnly&&!corner)||
+            cornerSpeedLimit(track, p, 4) < 11 ||
             pads.some(b => Math.hypot(b.x - p.x, b.z - p.z) < 23) ||
-            bumps.some(b => Math.hypot(b.x - p.x, b.z - p.z) < 130)) continue;
-        bumps.push({ ...p, id: i, width: width - 1.2, length: 4.4,
-          height: .10 + (i % 3) * .025 });
-        break;
-      }
+            bumps.some(b => Math.hypot(b.x - p.x, b.z - p.z) < 65)) return false;
+        const narrow=width<3.5;
+        const bump={...p,id:bumps.length,width:width-(narrow?.3:.8),length:narrow?2.8:corner?3.6:4.2,
+          height:narrow?(corner?.11:.14):corner?.17:.22+(bumps.length%3)*.025,corner};
+        while(bump.width>=1.4&&!fitsRoad(track,bump))bump.width-=.15;
+        if(bump.width<1.4)return false;
+        bumps.push(bump);return true;
+    };
+    // Reserve a third for turn approaches/apexes; do not reject every bend.
+    for(let at=80;at<track.length-65&&bumps.length<Math.ceil(count/3);at+=9)add(at,true);
+    for(let i=0;i<count&&bumps.length<count;i++){
+      for(let attempt=0;attempt<14;attempt++)if(add(track.length*(i+.45)/count+attempt*7))break;
     }
+    bumps.sort((a,b)=>a.distance-b.distance);
   }
   cache.set(track, bumps);
   return bumps;

@@ -11,6 +11,8 @@ export interface Input {
   fire: boolean;
 }
 export interface Racer {
+  waterRecovery?:number;
+  impactMaterial?:'kart'|'concrete'|'tree'|'metal'|'wood'|'water';
   brakeHold?:number;
   reversing?:boolean;
   airborne?:boolean;
@@ -20,6 +22,7 @@ export interface Racer {
   jumpVelocity?:number;
   jumpPitch?:number;
   jumpCooldown?:number;
+  bumpJumpCooldown?:number;
   landingImpact?:number;
   roamRecovery?:{x:number;z:number;yaw:number};
   id: string;

@@ -1,13 +1,9 @@
 import {NEIGHBOURHOOD} from '../tirana-neighbourhood/data.mjs';
 import {BUSINESS_SIGNS} from '../tirana-city-source/businessSignRegistry.mjs';
 import * as T from 'three';
-import {WORLD} from '../tiranastreets/shared/world.mjs';
-import {streetLampPlacements} from './urbanLightingCore.mjs';
 import {nearbyIndex} from '../tirana-street-life/streetModels.mjs';
 import {STREET_LIFE} from '../tirana-street-life/registry.mjs';
-import {onCarriageway,SHOP} from '../tiranastreets/shared/streetLayout.mjs';
-
-const LAMPS=streetLampPlacements(WORLD).filter(p=>!onCarriageway(p.x,p.z,.25)&&Math.hypot(p.x-SHOP.x,p.z-SHOP.z)>12);
+import {LAMPS} from './urbanLampRegistry.mjs';
 /** A fixed light pool bounds shader cost. Lamps and bulbs are instanced; only
  * nearby fixtures illuminate surfaces, with no per-lamp shadow maps. */
 export class UrbanLighting {
@@ -22,7 +18,8 @@ export class UrbanLighting {
  private lights=Array.from({length:8},()=>new T.PointLight(0xffdfb1,0,24,2));
  private shopLights=Array.from({length:2},()=>new T.PointLight(0xffdda9,0,9,2));
  private dummy=new T.Object3D();private last=-Infinity;private dead=false;
- constructor(){
+ constructor(blocked?: (x:number,z:number,pad:number)=>boolean){
+  if(blocked)this.near=nearbyIndex(LAMPS.filter(p=>!blocked(p.x,p.z,.15)));
   this.group.name='Tirana:street-and-business-lighting';
   this.group.userData={lampCount:LAMPS.length,placement:'Authored on mapped roads',maxLocalLights:10};
   this.bulb.userData.environmentLight='street';this.bulb.userData.nightIntensity=3.2;

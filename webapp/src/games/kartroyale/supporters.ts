@@ -3,6 +3,8 @@ import type { Track, Racer } from './simulation.mjs';
 import { occupied } from './baseTiranaScenery';
 import { cloneHuman, bakeHuman, poseHuman, type Human } from './supporterHuman';
 import { FLAG_RATIOS } from '../tirana-city-source/flagRatios.mjs';
+import {trackSurface} from './tyreBarrierCore.mjs';
+import {surfaceHeight} from './racingSurface.mjs';
 type Fan = { x: number; z: number; yaw: number; seed: number; scale: number; variant: number };
 type Actor = { human: Human; fan?: Fan };
 /** Animated nearby spectators and instanced distant spectators. No projectiles. */
@@ -20,11 +22,13 @@ export class Supporters {
   private hand = new T.Vector3();
   private clock = { value: 0 };
   constructor(track: Track, flagTexture: T.Texture, templates: T.Group[]) {
+    this.track=track;
+    const surface=trackSurface(track);
     const stride = Math.max(2, Math.round(12 / (track.length / track.points.length)));
     for (let i = 10; i < track.points.length - 15; i += stride) for (const side of [-1, 1]) {
       const p = track.points[i], offset = (p.width ?? track.width) / 2 + 2.3;
       const x = p.x - Math.cos(p.yaw) * offset * side, z = p.z + Math.sin(p.yaw) * offset * side;
-      if (occupied(x, z)) continue;
+      if (occupied(x, z)||surface.clearance(x,z,2)<1.5) continue;
       const seed = i * 2 + (side + 1) / 2;
       this.fans.push({ x, z, yaw: Math.atan2(p.x-x,p.z-z), seed, scale: .96 + (seed % 5) * .02, variant: seed % templates.length });
     }
@@ -60,6 +64,7 @@ export class Supporters {
       mesh.frustumCulled=false; mesh.count=0; mesh.instanceMatrix.setUsage(T.DynamicDrawUsage); this.group.add(mesh);
     }
   }
+  private track:Track;
   update(time: number, me: Racer, battery: boolean) {
     this.clock.value=time;
     const near=this.fans.filter(f=>Math.hypot(f.x-me.x,f.z-me.z)<(battery?85:130));
@@ -72,7 +77,7 @@ export class Supporters {
     let flagIndex=0;
     for(const fan of near){
       const m=this.transform,actor=assignments.get(fan);
-      m.position.set(fan.x,.04,fan.z);m.rotation.set(0,fan.yaw,0);m.scale.setScalar(fan.scale);m.updateMatrix();
+      m.position.set(fan.x,surfaceHeight(this.track,fan.x,fan.z)+.04,fan.z);m.rotation.set(0,fan.yaw,0);m.scale.setScalar(fan.scale);m.updateMatrix();
       if(actor){
         actor.human.root.position.copy(m.position);actor.human.root.rotation.copy(m.rotation);actor.human.root.scale.copy(m.scale);
         poseHuman(actor.human,time+fan.seed,-1,true);

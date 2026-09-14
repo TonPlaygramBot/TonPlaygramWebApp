@@ -1,5 +1,7 @@
 import { WORLD } from '../tiranastreets/shared/world.mjs';
 import { segmentDistance } from '../tirana-street-detail/roadDetailCore.mjs';
+import clipping from 'polygon-clipping';
+import {circuitSides} from './trackEdges.mjs';
 
 const grid = new Map(), cell = 48;
 for (const building of WORLD.buildings) {
@@ -38,14 +40,37 @@ export function waterClearance(x,z){
 }
 export const courseClearance=(track,x,z)=>Math.min(buildingClearance(x,z),track.terrainMode?waterClearance(x,z):24);
 
-/** A race-only surface inside the existing city. Rounded junction approaches
- * share one centreline with physics, AI, kerbs, minimaps and vegetation masks. */
-export function roundRaceCourse(raw, roadWidths) {
+/** The source road ribbon bounds any race-only corner smoothing. */
+export function courseRoadSurface(raw,roadWidths){
+  // Join the mapped road widths at their shared nodes. Raw rectangular road
+  // tiles leave pinholes on the outside of bends; a bounded miter closes that
+  // junction without adding lanes or widening either adjoining road.
+  const points=raw.map((p,i)=>({x:p[0],z:p[1],width:Math.min(roadWidths[i],roadWidths[(i+raw.length-1)%raw.length])}));
+  const {left,right}=circuitSides(points,Math.max(...roadWidths)/2),pieces=[];
+  const xy=p=>[Math.round(p.x*1000)/1000,Math.round(p.z*1000)/1000];
+  for(let i=0;i<points.length;i++){
+    const j=(i+1)%points.length;
+    for(const triangle of [[left[i],left[j],right[i]],[right[i],left[j],right[j]]]){
+      const ring=triangle.map(xy);pieces.push([[...ring,ring[0]]]);
+    }
+  }
+  const polygons=clipping.union(...pieces);
+  return {polygons,contains(x,z){return polygons.some(p=>inside(x,z,p[0])&&!p.slice(1).some(h=>inside(x,z,h)));},
+    clearance(x,z){
+      if(!this.contains(x,z))return 0;
+      let d=32;for(const polygon of polygons)for(const ring of polygon)for(let i=1;i<ring.length;i++)d=Math.min(d,segmentDistance(x,z,ring[i-1],ring[i]));
+      return d;
+    }};
+}
+
+/** Rounded junction approaches share one centreline with physics, AI, kerbs,
+ * minimaps and vegetation masks. */
+export function roundRaceCourse(raw, roadWidths, roadSurface=courseRoadSurface(raw,roadWidths)) {
   const points=[],widths=[],turns=[];
   const add=(p,w)=>{
     const previous=points.at(-1);if(previous&&Math.hypot(previous[0]-p[0],previous[1]-p[1])<.01)return;
-    const available=Math.max(6,2*(buildingClearance(...p)-.85));
-    points.push(p);widths.push(Math.max(6,Math.min(22,w+6,available)));
+    const available=2*(buildingClearance(...p)-.85);
+    points.push(p);widths.push(Math.max(.5,Math.min(w,available)));
   };
   for(let i=0;i<raw.length;i++) {
     const p=raw[i],a=raw[(i+raw.length-1)%raw.length],b=raw[(i+1)%raw.length];
@@ -54,14 +79,17 @@ export function roundRaceCourse(raw, roadWidths) {
     const angle=Math.acos(Math.max(-1,Math.min(1,incoming[0]*outgoing[0]+incoming[1]*outgoing[1])));
     const width=Math.min(roadWidths[i],roadWidths[(i+raw.length-1)%raw.length]);
     if(angle<.12||angle>2.8){add([...p],width);continue;}
-    let trim=Math.min(24,li*.42,lo*.42),curve=[];
+    let trim=Math.min(12,width*.1,li*.42,lo*.42),curve=[],bestCurve,bestTrim=trim,bestClearance=-1;
     for(let attempt=0;attempt<7;attempt++) {
       const entry=[p[0]-incoming[0]*trim,p[1]-incoming[1]*trim],exit=[p[0]+outgoing[0]*trim,p[1]+outgoing[1]*trim];
       const steps=Math.max(4,Math.ceil(trim*1.1));
       curve=Array.from({length:steps+1},(_,j)=>{const t=j/steps,u=1-t;return [u*u*entry[0]+2*u*t*p[0]+t*t*exit[0],u*u*entry[1]+2*u*t*p[1]+t*t*exit[1]];});
-      if(curve.every(q=>buildingClearance(...q)>=Math.min(4.4,buildingClearance(...p))))break;
+      const clearance=Math.min(...curve.map(q=>Math.min(buildingClearance(...q)-.85,roadSurface.clearance(...q))));
+      if(clearance>bestClearance){bestClearance=clearance;bestCurve=curve;bestTrim=trim;}
+      if(clearance>=width*.4)break;
       trim*=.65;
     }
+    curve=bestCurve;trim=bestTrim;
     for(const q of curve)add(q,width);
     turns.push({x:p[0],z:p[1],trim,angle});
   }

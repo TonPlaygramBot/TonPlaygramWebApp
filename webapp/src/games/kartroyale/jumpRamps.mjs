@@ -1,6 +1,7 @@
 import { boostPads } from './arcadeRules.mjs';
 import { sampleCircuitDistance, cornerSpeedLimit } from './circuitMetrics.mjs';
 import { surfaceHeight } from './racingSurface.mjs';
+import {roadBumps} from './roadFeel.mjs';
 const cache = new WeakMap();
 const clamp = (n,a,b) => Math.max(a,Math.min(b,n));
 
@@ -20,7 +21,7 @@ export function jumpRamps(track) {
         Math.abs(surfaceHeight(track,p.x,p.z)-surfaceHeight(track,pad.x,pad.z))<d*.13;
     });
     if(!clear)continue;
-    ramps.push({...pad,id:ramps.length,length:10,width:Math.min(5.6,(track.points[pad.index].width??track.width)-2),height:.95});
+    ramps.push({...pad,id:ramps.length,length:10,width:Math.min(5.6,(track.points[pad.index].width??track.width)-.35),height:.95});
     if(ramps.length>=4)break;
   }
   cache.set(track,ramps);return ramps;
@@ -30,6 +31,7 @@ export function resetJump(r,track) {
   r.airborne=false;r.jumpHeight=0;r.jumpVelocity=0;r.jumpPitch=0;
   r.groundY=surfaceHeight(track,r.x,r.z);r.jumpY=r.groundY;
   r.jumpCooldown=0;r.landingImpact=0;
+  r.bumpJumpCooldown=0;
 }
 
 export function stepJumps(r,track,dt,time,previousX,previousZ) {
@@ -66,5 +68,23 @@ export function stepJumps(r,track,dt,time,previousX,previousZ) {
       r.boost=Math.min(100,r.boost+18);r.boostEvent=(r.boostEvent||0)+1;
       r.drifting=false;r.driftCharge=0;break;
     }
+  }
+  if(r.airborne||r.jumpHeight>0||time<(r.bumpJumpCooldown||0))return;
+  for(const bump of roadBumps(track)){
+    const s=Math.sin(bump.yaw),c=Math.cos(bump.yaw);
+    const old=(previousX-bump.x)*s+(previousZ-bump.z)*c;
+    const along=(r.x-bump.x)*s+(r.z-bump.z)*c;
+    if(old===along||old*along>0)continue;
+    const t=-old/(along-old),x=previousX+(r.x-previousX)*t,z=previousZ+(r.z-previousZ)*t;
+    const across=Math.abs((x-bump.x)*c-(z-bump.z)*s);
+    const normalSpeed=Math.abs(r.speed*Math.cos(r.velocityYaw-bump.yaw));
+    if(across>bump.width/2-(r.bodyWidth||1.72)*.3||normalSpeed<(bump.corner?12:15))continue;
+    // Crossing the crest releases the suspension into a small ballistic hop.
+    // No bonus nitro: a hump cannot be farmed like a dedicated jump ramp.
+    r.airborne=true;r.jumpVelocity=clamp(normalSpeed*bump.height*Math.PI/bump.length*.65,1.2,bump.corner?2.15:3.1);
+    r.jumpY=ground+bump.height;r.jumpHeight=bump.height;
+    r.jumpPitch=-Math.atan2(r.jumpVelocity,Math.max(8,Math.abs(r.speed)))*.65;
+    r.bumpJumpCooldown=time+.65;r.drifting=false;r.driftCharge=0;
+    break;
   }
 }

@@ -1,3 +1,4 @@
+import {bridgeRailSections} from './infrastructureCore.mjs';
 import * as T from 'three';
 import {clearRoadSegment} from '../tiranastreets/shared/streetSafety.mjs';
 import {GLTFLoader} from 'three/examples/jsm/loaders/GLTFLoader.js';
@@ -26,7 +27,7 @@ export class InfrastructureLayer {
   private railGeometry:T.BufferGeometry;
   private dead=false;private last=-Infinity;private tick=0;
   private railBins=new Map<string,typeof RAILINGS>();
-  constructor(loadAssets=true){
+  constructor(loadAssets=true, private blocked?: (x:number,z:number,pad:number)=>boolean){
     this.group.name='Tirana:mapped-bridges-and-roadside-ironwork';
     this.surfaces=new EnvironmentMaterials(loadAssets);
     this.concrete=this.surfaces.create('rough_concrete',0xb7b9b0);
@@ -48,7 +49,7 @@ export class InfrastructureLayer {
     }
     this.railGeometry=new T.BufferGeometry().setAttribute('position',new T.Float32BufferAttribute(positions,3));this.railGeometry.computeVertexNormals();
     this.rails=new T.InstancedMesh(this.railGeometry,this.steel,900);this.rails.count=0;this.rails.frustumCulled=false;this.rails.receiveShadow=true;this.rails.name='Roadside iron railings';this.group.add(this.rails);
-    for(const r of RAILINGS){const key=`${Math.floor(r.x/64)}:${Math.floor(r.z/64)}`;if(!this.railBins.has(key))this.railBins.set(key,[]);this.railBins.get(key)!.push(r);}
+    for(const r of RAILINGS){if(blocked?.(r.x,r.z,r.length/2+.08))continue;const key=`${Math.floor(r.x/64)}:${Math.floor(r.z/64)}`;if(!this.railBins.has(key))this.railBins.set(key,[]);this.railBins.get(key)!.push(r);}
     if(loadAssets)new GLTFLoader().load('/assets/tirana-streets/environment/roadside-rail.glb',g=>{
       const mesh=g.scene.getObjectByName('roadside-rail') as T.Mesh|undefined;
       if(!this.dead&&mesh?.isMesh){this.railGeometry.dispose();this.railGeometry=mesh.geometry;this.rails.geometry=mesh.geometry;}
@@ -67,18 +68,14 @@ export class InfrastructureLayer {
       box(this.concrete,x,-.16,z,half*2,.6,length+.06,yaw);
       if(r.walk)box((r as any).tags?.surface==='wood'?this.wood:this.paving,x,.155,z,r.w,.03,length,yaw);
       for(const side of [-1,1]){
-        const offset=side*half;
         if(!r.walk)box(this.paving,x+nx*side*(r.w/2+.64),.19,z+nz*side*(r.w/2+.64),1.24,.1,length,yaw);
-        const count=Math.max(1,Math.ceil(length/1.6));
-        for(let i=0;i<=count;i++){
-          const px=r.a[0]+dx*i/count+nx*offset,pz=r.a[1]+dz*i/count+nz*offset;
-          // Short sections preserve bridge edges while leaving crossing lanes open.
-          const qx=r.a[0]+dx*Math.min(count,i+1)/count+nx*offset,qz=r.a[1]+dz*Math.min(count,i+1)/count+nz*offset;
-          if(!clearRoadSegment([px,pz],[qx,qz],.12))continue;
-          if(i<count)for(const height of [.67,1.32])box(this.steel,(px+qx)/2,height,(pz+qz)/2,.065,.065,length/count,yaw);
-          box(this.steel,px,.79,pz,.075,1.08,.075,yaw);
-          if(i%3===0)box(this.reflectors,px,1.05,pz,.085,.15,.045,yaw);
-        }
+      }
+      for(const rail of bridgeRailSections(r,clearRoadSegment)){
+        const [px,pz]=rail.a,[qx,qz]=rail.b;
+        if(this.blocked?.((px+qx)/2,(pz+qz)/2,rail.length/2+.08))continue;
+        for(const height of [.67,1.32])box(this.steel,(px+qx)/2,height,(pz+qz)/2,.065,.065,rail.length,rail.yaw);
+        for(const [x,z] of [rail.a,rail.b])box(this.steel,x,.79,z,.075,1.08,.075,rail.yaw);
+        if(rail.index%3===0)box(this.reflectors,px,1.05,pz,.085,.15,.045,rail.yaw);
       }
       const river=WATER_PATHS.find(p=>p.line.slice(1).some((b,i)=>segmentDistance(x,z,p.line[i],b)<p.width/2+8));
       if(river){

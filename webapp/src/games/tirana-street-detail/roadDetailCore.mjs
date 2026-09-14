@@ -1,3 +1,4 @@
+import {trackSurface} from '../kartroyale/tyreBarrierCore.mjs';
 /** Decoration in the unchanged city metre frame. Dimensions are authored,
  * not surveyed Tirana infrastructure. No road is moved or widened. */
 export const POST_RADIUS=.17, POST_HEIGHT=.78;
@@ -49,7 +50,9 @@ export function ribbonExclusion(track){
   const points=track.points.map(p=>Array.isArray(p)?[p[0],p[1]]:[p.x,p.z]);if(!points.every(point))throw Error('Invalid race point');
   const segments=points.map((a,i)=>({a,b:points[(i+1)%points.length],width:Math.max(track.points[i].width||track.width,track.points[(i+1)%points.length].width||track.width)})),width=track.width;
   const near=gridIndex(segments,s=>[Math.min(s.a[0],s.b[0])-width/2,Math.min(s.a[1],s.b[1])-width/2,Math.max(s.a[0],s.b[0])+width/2,Math.max(s.a[1],s.b[1])+width/2]);
-  return (x,z,pad=0)=>{if(![x,z,pad].every(finite)||pad<0)return true;return near(x,z,pad+1).some(s=>segmentDistance(x,z,s.a,s.b)<s.width/2+pad+1);};
+  const normalized=Array.isArray(track.points[0])?{...track,points:points.map(p=>({x:p[0],z:p[1]}))}:track;
+  const surface=points.length>=3?trackSurface(normalized):null;
+  return (x,z,pad=0)=>{if(![x,z,pad].every(finite)||pad<0)return true;return near(x,z,pad+1).some(s=>segmentDistance(x,z,s.a,s.b)<s.width/2+pad+1)||!!surface&&surface.clearance(x,z,pad+1.01)<pad+1;};
 }
 export function buildRoadDetails(world,{signals=[],river=[],exclude=()=>false,includeCycling=true,includePosts=true}={}){
   const roads=(world.roads||[]).filter(r=>point(r.a)&&point(r.b)&&finite(r.w)&&r.w>0&&r.w<=80&&Math.hypot(r.b[0]-r.a[0],r.b[1]-r.a[1])<10000);

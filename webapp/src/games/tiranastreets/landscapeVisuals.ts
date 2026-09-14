@@ -14,12 +14,12 @@ export class LandscapeVisuals {
   readonly group = new T.Group();
   readonly materials: EnvironmentMaterials;
   readonly infrastructure: InfrastructureLayer;
-  readonly lighting = new UrbanLighting();
+  readonly lighting: UrbanLighting;
   readonly aprons: PavementAprons;
   private dead = false;
   private time = {value:0};
   private water: T.MeshPhysicalMaterial;
-  constructor(loadTextures = true) {
+  constructor(loadTextures = true, blocked?: (x:number,z:number,pad:number)=>boolean) {
     this.group.name = 'Tirana:recessed-Lana-and-continuous-terrain';
     this.group.userData.waterLevel = WATER_LEVEL;
     this.materials = new EnvironmentMaterials(loadTextures);
@@ -57,7 +57,8 @@ export class LandscapeVisuals {
     this.addMerged(slopes,concrete,'Concrete channel slopes');
     this.addMerged(banks,grass,'Planted river embankments');
     this.addMerged(surfaces,this.water,'Recessed water');
-    this.infrastructure=new InfrastructureLayer(loadTextures);
+    this.infrastructure=new InfrastructureLayer(loadTextures,blocked);
+    this.lighting=new UrbanLighting(blocked);
     this.group.add(this.infrastructure.group,this.lighting.group);
   }
   private addMerged(parts:T.BufferGeometry[],material:T.Material,name:string){
