@@ -91,21 +91,6 @@ const SHOWOOD_TABLE_FINISH_TEXTURES = Object.freeze([
   { id: 'woodTable001', label: 'Wood Table 001', color: '#a4724f', textureId: 'wood_table_001' },
   { id: 'darkWood', label: 'Dark Wood', color: '#3d2f2a', textureId: 'dark_wood' },
   { id: 'rosewoodVeneer01', label: 'Rosewood Veneer 01', color: '#6f3a2f', textureId: 'rosewood_veneer_01' },
-  { id: 'carbonFiberChalk', label: 'LT Black', color: '#2a313d', textureId: 'fabric_083' },
-  { id: 'carbonFiberChalkGrey', label: 'LT Grey', color: '#c8d0da', textureId: 'fabric_083' },
-  { id: 'carbonFiberChalkBeige', label: 'LT Dark Grey', color: '#727d8b', textureId: 'fabric_083' },
-  { id: 'carbonFiberChalkDarkBlue', label: 'LT Burgundy', color: '#c17276', textureId: 'fabric_083' },
-  { id: 'carbonFiberChalkWhite', label: 'LT Milk Cream', color: '#f8eedf', textureId: 'fabric_083' },
-  { id: 'carbonFiberChalkDarkGreen', label: 'LT Dark Green', color: '#548460', textureId: 'fabric_083' },
-  { id: 'carbonFiberChalkDarkYellow', label: 'LT Dark Yellow', color: '#d1a652', textureId: 'fabric_083' },
-  { id: 'carbonFiberChalkDarkBrown', label: 'LT Dark Brown', color: '#956b4f', textureId: 'fabric_083' },
-  { id: 'carbonFiberChalkDarkRed', label: 'LT Dark Red', color: '#aa5151', textureId: 'fabric_083' },
-  { id: 'carbonFiberAlligatorOlive', label: 'LT Olive Fabric', color: '#687047', textureId: 'fabric_083' },
-  { id: 'carbonFiberAlligatorSwamp', label: 'LT Swamp Fabric', color: '#52623f', textureId: 'fabric_083' },
-  { id: 'carbonFiberAlligatorClay', label: 'LT Clay Fabric', color: '#6f5b45', textureId: 'fabric_083' },
-  { id: 'carbonFiberAlligatorSand', label: 'LT Sand Fabric', color: '#8a7b5e', textureId: 'fabric_083' },
-  { id: 'carbonFiberAlligatorMoss', label: 'LT Moss Fabric', color: '#4f6048', textureId: 'fabric_083' },
-  { id: 'carbonFiberAlligatorNight', label: 'LT Night Fabric', color: '#2f3c32', textureId: 'fabric_083' }
 ])
 
 const buildShowoodFinishOptions = () =>
