@@ -1,4 +1,6 @@
 import * as T from 'three';
+import {ribbonExclusion} from '../tirana-street-detail/roadDetailCore.mjs';
+import type {StreetDetailOptions} from '../tirana-street-detail/StreetDetailLayer';
 import {mergeGeometries} from 'three/examples/jsm/utils/BufferGeometryUtils.js';
 import {MAPPED_PARKS,type MappedAmenity} from './mappedAmenitiesCore.mjs';
 import {nearbyIndex} from '../tirana-street-life/streetModels.mjs';
@@ -7,9 +9,14 @@ export class MappedParkLife {
  readonly group=new T.Group();
  private cache=new Map<string,T.Group>();private last=-Infinity;private dead=false;
  private materials=[new T.MeshStandardMaterial({color:0x8b6748,roughness:.88}),new T.MeshStandardMaterial({color:0x3b6961,roughness:.62}),new T.MeshStandardMaterial({color:0xd5a545,roughness:.55}),new T.MeshStandardMaterial({color:0x719299,roughness:.32,metalness:.65}),new T.MeshStandardMaterial({color:0xa66259,roughness:.96})];
- readonly sites:MappedAmenity[]=MAPPED_PARKS.filter(s=>s.furnishingAnchor).map(s=>({...s,...s.furnishingAnchor!}));
- private near=nearbyIndex(this.sites);
- constructor(){this.group.name='Tirana:mapped-parks-and-playgrounds';this.group.userData={source:'OpenStreetMap',municipalReference:'https://tirana.al/artikull/kende-lojerash-ne-cdo-lagje',equipment:'Estimated arrangement within mapped boundaries',sites:this.sites.length};}
+ readonly sites:MappedAmenity[];
+ private near:ReturnType<typeof nearbyIndex>;
+ constructor(options:StreetDetailOptions={}){
+  const exclude=options.track?ribbonExclusion(options.track):()=>false;
+  // Filter before indexing: streamed-in benches cannot re-enter the course.
+  this.sites=MAPPED_PARKS.filter(s=>s.furnishingAnchor).map(s=>({...s,...s.furnishingAnchor!})).filter(s=>!exclude(s.x,s.z,s.category==='playground'?3.2:1.1));
+  this.near=nearbyIndex(this.sites);
+this.group.name='Tirana:mapped-parks-and-playgrounds';this.group.userData={source:'OpenStreetMap',municipalReference:'https://tirana.al/artikull/kende-lojerash-ne-cdo-lagje',equipment:'Estimated arrangement within mapped boundaries',sites:this.sites.length};}
  private build(s:any){
   const root=new T.Group(),parts:T.BufferGeometry[][]=this.materials.map(()=>[]);
   const box=(m:number,x:number,y:number,z:number,w:number,h:number,d:number,tilt=0)=>parts[m].push(new T.BoxGeometry(w,h,d).rotateX(tilt).translate(x,y,z));

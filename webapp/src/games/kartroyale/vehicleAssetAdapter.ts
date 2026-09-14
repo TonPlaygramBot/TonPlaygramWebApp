@@ -1,4 +1,5 @@
 import * as T from 'three';
+import {KART_LENGTH} from './racingDimensions.mjs';
 import {
   MILITARY_ASSETS,
   KART_ASSETS,
@@ -24,7 +25,7 @@ export function prepareVehicleAsset(
     normaliseVehicleDimensions({
       min: bounds.min.toArray(),
       max: bounds.max.toArray()
-    }, collectionVehicle ? collectionVehicle.length : VEHICLE_LENGTHS[id] || 2.7);
+    }, collectionVehicle ? collectionVehicle.length : VEHICLE_LENGTHS[id] || KART_LENGTH);
   // Existing Kenney karts retain their original horizontal authoring origin.
   const config = MILITARY_ASSETS[id] || KART_ASSETS[id];
   if (!config && !['ferrari', 'buggy'].includes(id))

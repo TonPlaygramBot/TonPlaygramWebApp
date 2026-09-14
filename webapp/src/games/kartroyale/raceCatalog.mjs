@@ -1,5 +1,7 @@
 import {combineMappedLoops,resampleCircuit,routeLength} from './grandRouteCore.mjs';
 import { buildingClearance, waterClearance, courseClearance, courseRoadSurface, roundRaceCourse } from './raceCourse.mjs';
+import {widenPassingSections} from './passingClearance.mjs';
+import {RACING_CLEARANCE_VERSION} from './racingDimensions.mjs';
 import {circuitSides} from './trackEdges.mjs';
 import { WORLD } from '../tiranastreets/shared/world.mjs';
 /** Pre-authored source-backed routes. Browser and server use identical geometry. */
@@ -74,6 +76,14 @@ export function buildRaceCatalog(legacy,routes,districtRoutes=[],ruralRoutes=[])
    const xs=samples.points.map(p=>p.x),zs=samples.points.map(p=>p.z);
    const bounds=[Math.min(...xs),Math.min(...zs),Math.max(...xs),Math.max(...zs)];
    const track={...config,...samples,width:Math.max(...samples.points.map(p=>p.width)),turns:course.turns,bounds,center:{x:(bounds[0]+bounds[2])/2,z:(bounds[1]+bounds[3])/2},x:(bounds[2]-bounds[0])/2,z:(bounds[3]-bounds[1])/2,bend:0};
+   // Event-only shoulder widening: city coordinates/buildings stay untouched.
+   // Insufficient building or shoreline clearance is reported, never bulldozed.
+   track.passingAudit=widenPassingSections(track,{
+    clearance:(x,z)=>Math.min(buildingClearance(x,z)-1.8,waterClearance(x,z)-.5),
+    sides:points=>circuitSides(points,track.width/2)
+   });
+   track.mapVersion=RACING_CLEARANCE_VERSION;
+   if(track.passingAudit.unresolved.length)diagnostics.push({id,kind:'passing-clearance',...track.passingAudit});
    cache.set(id,track);return track;
   }};
 }
