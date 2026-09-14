@@ -9,6 +9,9 @@ import React, {
 } from 'react';
 import * as THREE from 'three';
 import { PoolRoyalHumanPlayers } from './shared/PoolRoyalHumanPlayers.ts';
+import { planTailugePoolShot } from './shared/poolRoyalAi.ts';
+import { fitPoolRoyalTable } from './shared/poolRoyalTableGeometry.ts';
+import { PoolRoyalPhysics, PoolRoyalPhysicsClock, POOL_FRAME_SECONDS, resolveMappedPoolCushion, traceMappedPoolCushion } from './shared/poolRoyalPhysics.ts';
 import polygonClipping from 'polygon-clipping';
 import * as BufferGeometryUtils from 'three/examples/jsm/utils/BufferGeometryUtils.js';
 import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js';
@@ -1438,11 +1441,13 @@ const CURRENT_RATIO = innerLong / Math.max(1e-6, innerShort);
     Math.abs(CURRENT_RATIO - TARGET_RATIO) < 1e-4,
     'Pool table inner ratio must match the official 2:1 target after scaling.'
   );
-const MM_TO_UNITS = (innerLong / WIDTH_REF) / TABLE_SURFACE_COMPENSATION;
-const BALL_SIZE_SCALE = 1.04; // make balls just a tiny bit smaller while every helper stays tied to BALL_R/BALL_DIAMETER
+const SHOWOOD_PLAY_LENGTH_MM = 1981.5062284469604; // Measured cushion noses in the pinned GLB.
+const MM_TO_UNITS = innerLong / SHOWOOD_PLAY_LENGTH_MM;
+const BALL_SIZE_SCALE = 1; // One physical radius for rendering, collisions and aiming.
 const BALL_DIAMETER = BALL_D_REF * MM_TO_UNITS * BALL_SIZE_SCALE;
 const BALL_SCALE = BALL_DIAMETER / 4;
 const BALL_R = BALL_DIAMETER / 2;
+const poolPhysics = new PoolRoyalPhysics(BALL_R);
 const RACK_VERTICAL_SCREEN_LIFT = BALL_R * 0.86; // nudge the rack farther upward on screen so object balls sit visibly higher
 const ENABLE_BALL_FLOOR_SHADOWS = true;
 const ENABLE_CUE_CLOTH_SHADOW = true;
@@ -1535,7 +1540,7 @@ const CLOTH_REFLECTIONS_DISABLED = true;
 const POCKET_HOLE_R =
   POCKET_VIS_R * POCKET_CUT_EXPANSION * POCKET_VISUAL_EXPANSION; // cloth cutout radius now matches the interior pocket rim
 const CORNER_POCKET_CLOTH_CUT_SCALE = 1; // keep corner field cutouts matched to the visible pocket rim
-const BALL_CENTER_LIFT = BALL_R * 0.045; // lift balls a touch more so they sit exactly on top of the cloth surface
+const BALL_CENTER_LIFT = 0; // The visible sphere rests exactly on the cloth.
 const BALL_CENTER_Y =
   CLOTH_TOP_LOCAL + CLOTH_LIFT + BALL_R - CLOTH_DROP + BALL_CENTER_LIFT; // rest balls directly on the lowered cloth plane
 const BALL_SHADOW_Y = BALL_CENTER_Y - BALL_R + BALL_SHADOW_LIFT + MICRO_EPS;
@@ -1586,8 +1591,8 @@ const SPIN_ANGULAR_DAMPING = 0.04;
 const SPIN_GRAVITY = 9.81;
 const ROLLING_RESISTANCE = 0.0098;
 const BALL_BALL_FRICTION = 0.105;
-const BALL_CONTACT_EPS = BALL_R * 0.012; // broaden contact tolerance slightly so grazing touches resolve instead of tunneling
-const BALL_COLLISION_SLOP = BALL_R * 0.001; // tighter tolerance so visible ball overlap is corrected faster
+const BALL_CONTACT_EPS = 1e-7; // Numerical tolerance only; contact uses the visible 2R diameter.
+const BALL_COLLISION_SLOP = 0;
 const BALL_SEPARATION_ITERATIONS = 5; // solve dense clusters fully after impulses without adding duplicate impacts
 const RAIL_FRICTION = 0.16;
 const STOP_EPS = 0.0074;
@@ -1925,7 +1930,7 @@ const BASE_TABLE_Y = -2 + (TABLE_H - 0.75) + TABLE_H + TABLE_LIFT - TABLE_DROP;
 const TABLE_HEIGHT_DROP = (TABLE_H + TABLE.THICK) * 0.24; // lower the full table assembly a bit more so portal leg bottoms sit down onto their chrome levelers
 const TABLE_Y = BASE_TABLE_Y + LEG_ELEVATION_DELTA - TABLE_HEIGHT_DROP;
 const LEG_BASE_DROP = LEG_ROOM_HEIGHT * 0.3;
-const FLOOR_Y = TABLE_Y - TABLE.THICK - LEG_ROOM_HEIGHT - LEG_BASE_DROP + 0.3;
+const FLOOR_Y = TABLE_Y + CLOTH_TOP_LOCAL + CLOTH_LIFT - CLOTH_DROP - 0.7082182839512825 * (PLAY_H / 1.9815062284469604);
 const ORBIT_FOCUS_BASE_Y = TABLE_Y + 0.07;
 const CAMERA_CUE_SURFACE_MARGIN = BALL_R * 0.42; // keep orbit height aligned with the cue while leaving a safe buffer above
 const CUE_TIP_CLEARANCE = BALL_R * 0.24; // widen the visible air gap so the cue sits a little farther from the cue ball
@@ -2416,8 +2421,8 @@ const CLOTH_SOFT_BLEND = 0.34;
 
 const CLOTH_QUALITY = (() => {
   const defaults = {
-    textureSize: 6144,
-    anisotropy: 72,
+    textureSize: 4096,
+    anisotropy: 16,
     generateMipmaps: true,
     bumpScaleMultiplier: 1.16,
     sheen: 0.95,
@@ -2428,7 +2433,7 @@ const CLOTH_QUALITY = (() => {
     return {
       ...defaults,
       textureSize: 2560,
-      anisotropy: 20,
+      anisotropy: 16,
       bumpScaleMultiplier: 1,
       sheen: 0.9,
       sheenRoughness: 0.72
@@ -2449,7 +2454,7 @@ const CLOTH_QUALITY = (() => {
     const highDensity = dpr >= 3;
     return {
       textureSize: highDensity ? 3072 : 2048,
-      anisotropy: highDensity ? 28 : 24,
+      anisotropy: 16,
       generateMipmaps: true,
       bumpScaleMultiplier: highDensity ? 1.02 : 0.94,
       sheen: 0.78,
@@ -2459,8 +2464,8 @@ const CLOTH_QUALITY = (() => {
 
   if (hardwareConcurrency <= 6 || dpr < 1.75) {
     return {
-      textureSize: 5120,
-      anisotropy: 48,
+      textureSize: 4096,
+      anisotropy: 16,
       generateMipmaps: true,
       bumpScaleMultiplier: 1.12,
       sheen: 0.9,
@@ -3960,8 +3965,8 @@ const FRAME_RATE_OPTIONS = Object.freeze([
     fps: 120,
     renderScale: 1.3,
     pixelRatioCap: 1.85,
-    resolution: 'Desktop: 8K / Mobile: 4K • 120 FPS',
-    description: 'Desktop uses Poly Haven 8K (4K fallback); mobile uses 4K (2K fallback) at 120 FPS target.'
+    resolution: '4K texture pack • 120 FPS',
+    description: '4K assets with a 120 FPS target.'
   }
 ]);
 const DEFAULT_FRAME_RATE_ID = 'qhd90';
@@ -3990,15 +3995,6 @@ const GRAPHICS_RESOLUTION_BY_FPS = Object.freeze([
 ]);
 const resolveGraphicsResolutionTier = (fps) => {
   const safeFps = Number.isFinite(fps) ? fps : 60;
-  if (safeFps >= 120 && !isLikelyMobileDevice()) {
-    return {
-      minFps: 120,
-      key: '8k',
-      textureSize: 8192,
-      preferredResolutions: Object.freeze(['8k', '4k', '2k']),
-      fallbackResolution: '2k'
-    };
-  }
   return (
     GRAPHICS_RESOLUTION_BY_FPS.find((tier) => safeFps >= tier.minFps) ??
     GRAPHICS_RESOLUTION_BY_FPS[GRAPHICS_RESOLUTION_BY_FPS.length - 1]
@@ -4028,9 +4024,9 @@ let runtimeTextureProfile = Object.freeze({
 const updateRuntimeTextureProfile = ({ fps } = {}) => {
   const tier = resolveGraphicsResolutionTier(fps);
   const textureSize = tier.textureSize;
-  const anisotropyRatio = textureSize / 6144;
-  const anisotropy = Math.max(16, Math.round(CLOTH_QUALITY.anisotropy * anisotropyRatio));
-  const ballAnisotropy = Math.max(6, Math.min(12, Math.round(12 * (textureSize / 8192))));
+  const anisotropyRatio = textureSize / 4096;
+  const anisotropy = Math.min(16, Math.max(4, Math.round(CLOTH_QUALITY.anisotropy * anisotropyRatio)));
+  const ballAnisotropy = Math.max(6, Math.min(12, Math.round(12 * (textureSize / 4096))));
   setBallMaterialAnisotropy(ballAnisotropy);
   runtimeTextureProfile = Object.freeze({
     textureSize,
@@ -4059,7 +4055,7 @@ const enforceHighFpsTableTextureSize = (size) => {
   const minSize = getRuntimeTextureProfile().enforceTableFinishTextureSize;
   if (!Number.isFinite(minSize) || minSize <= 0) return size;
   if (!Number.isFinite(size) || size <= 0) return minSize;
-  return Math.max(size, minSize);
+  return Math.min(4096, Math.max(size, minSize));
 };
 
 const BROADCAST_SYSTEM_STORAGE_KEY = 'poolBroadcastSystem';
@@ -4219,7 +4215,7 @@ const POLYHAVEN_PATTERN_REPEAT_SCALE = 1;
 const EXTERNAL_TABLE_CLOTH_REPEAT_SCALE = 2.35; // base normalization for external GLB cloth UV spans
 const POLYHAVEN_ANISOTROPY_BOOST = 9;
 const POLYHAVEN_TEXTURE_RESOLUTION =
-  CLOTH_QUALITY.textureSize >= 4096 ? '8k' : '4k';
+  '4k';
 const CLOTH_NORMAL_SCALE = new THREE.Vector2(1.9, 0.9);
 const POLYHAVEN_NORMAL_SCALE = new THREE.Vector2(1.7, 1.7);
 const CLOTH_ROUGHNESS_BASE = 0.82;
@@ -4341,6 +4337,7 @@ const collectPolyHavenUrls = (apiJson) => {
 const pickPolyHavenTextureUrlsFromList = (urls) => {
   const scoreAndPick = (keywords) => {
     const scored = urls
+      .filter((u) => !/(?:\/|_)(?:8|16|32)k(?:\/|_|\.)/i.test(u))
       .filter((u) => keywords.some((kw) => u.toLowerCase().includes(kw)))
       .map((u) => {
         const lower = u.toLowerCase();
@@ -5522,7 +5519,7 @@ const HDRI_CAMERA_SCALE_LERP = 0.18;
 const HDRI_URL_CACHE = new Map();
 const HDRI_PREFETCH_CACHE = new Map();
 const HDRI_RESOLUTION_POLICY_BY_FPS = Object.freeze([
-  { minFps: 120, preferredResolutions: Object.freeze(['8k', '4k']), fallbackResolution: '4k', desktopOnly: true },
+  { minFps: 120, preferredResolutions: Object.freeze(['4k']), fallbackResolution: '4k', desktopOnly: true },
   { minFps: 120, preferredResolutions: Object.freeze(['4k', '2k']), fallbackResolution: '2k' },
   { minFps: 90, preferredResolutions: Object.freeze(['4k', '2k']), fallbackResolution: '2k' },
   { minFps: 0, preferredResolutions: Object.freeze(['2k', '1k']), fallbackResolution: '1k' }
@@ -5544,7 +5541,7 @@ function resolveHdriResolutionForTable() {
 
 function buildHdriResolutionChain(primaryResolution, policy = null) {
   const base = Array.isArray(policy?.preferredResolutions) ? policy.preferredResolutions : [];
-  const fallbackLadder = ['8k', '4k', '2k', '1k'];
+  const fallbackLadder = ['4k', '2k', '1k'];
   const ordered = [
     primaryResolution,
     ...base,
@@ -5558,7 +5555,8 @@ function pickPolyHavenHdriUrl(apiJson, preferredResolutions = []) {
   const walk = (value) => {
     if (!value) return;
     if (typeof value === 'string') {
-      if (value.startsWith('http') && value.toLowerCase().includes('.hdr')) {
+      if (value.startsWith('http') && value.toLowerCase().includes('.hdr') &&
+          !/(?:\/|_)(?:8|16|32)k(?:\/|_|\.)/i.test(value)) {
         urls.push(value);
       }
       return;
@@ -6057,7 +6055,7 @@ function applySnookerScaling({
     }
   }
   if (Array.isArray(balls)) {
-    const expectedRadius = BALL_D_REF * mmToUnits * BALL_SIZE_SCALE * 0.5;
+    const expectedRadius = BALL_R;
     balls.forEach((ball) => {
       if (!ball) return;
       ball.colliderRadius = expectedRadius;
@@ -6151,11 +6149,12 @@ const DEFAULT_RAIL_LIMIT_X = PLAY_W / 2 - BALL_R - CUSHION_FACE_INSET_LONG;
 const DEFAULT_RAIL_LIMIT_Y = PLAY_H / 2 - BALL_R - CUSHION_FACE_INSET_SHORT;
 let RAIL_LIMIT_X = DEFAULT_RAIL_LIMIT_X;
 let RAIL_LIMIT_Y = DEFAULT_RAIL_LIMIT_Y;
-const RAIL_LIMIT_PADDING = BALL_R * 0.12;
+const RAIL_LIMIT_PADDING = 0;
 const RAIL_CONTACT_RADIUS = BALL_R;
-const CUSHION_CUT_CONTACT_RADIUS = RAIL_CONTACT_RADIUS * 1.12;
+const CUSHION_CUT_CONTACT_RADIUS = RAIL_CONTACT_RADIUS;
 const CUSHION_CUT_NEAR_POCKET_BUFFER = BALL_R * 0.9;
 let CUSHION_SEGMENTS = [];
+let activePoolTableCalibration = null;
 const BREAK_VIEW = Object.freeze({
   radius: CAMERA.minR, // start the intro framing closer to the table surface
   phi: CAMERA.maxPhi - 0.01
@@ -6755,6 +6754,7 @@ let cachedPocketCenters = null;
 let cachedSidePocketCenters = null;
 let cachedPocketShift = null;
 const pocketCenters = () => {
+  if (activePoolTableCalibration) return activePoolTableCalibration.pockets.map(p => p.center);
   if (cachedPocketCenters && cachedPocketShift === sidePocketShift) {
     return cachedPocketCenters;
   }
@@ -6775,11 +6775,11 @@ const getSidePocketCenters = () => {
   if (!cachedPocketCenters || cachedPocketShift !== sidePocketShift) {
     pocketCenters();
   }
-  return cachedSidePocketCenters ?? [];
+  return activePoolTableCalibration ? pocketCenters().slice(4) : cachedSidePocketCenters ?? [];
 };
 const pocketEntranceCenters = () =>
   pocketCenters().map((center, index) => {
-    const mouthRadius = index >= 4 ? SIDE_POCKET_RADIUS : POCKET_VIS_R;
+    const mouthRadius = activePoolTableCalibration?.pockets[index]?.radius ?? (index >= 4 ? SIDE_POCKET_RADIUS : POCKET_VIS_R);
     const towardField = center.clone().multiplyScalar(-1);
     if (towardField.lengthSq() < MICRO_EPS * MICRO_EPS) {
       return center.clone();
@@ -6793,7 +6793,7 @@ const resolvePocketEntranceForTarget = (targetPos, pocketIndex) => {
   const pocketCenter = centers[pocketIndex];
   if (!pocketCenter) return null;
 
-  const baseRadius = pocketIndex >= 4 ? SIDE_POCKET_RADIUS : POCKET_VIS_R;
+  const baseRadius = activePoolTableCalibration?.pockets[pocketIndex]?.radius ?? (pocketIndex >= 4 ? SIDE_POCKET_RADIUS : POCKET_VIS_R);
   const mouthWidth = pocketIndex >= 4 ? POCKET_SIDE_MOUTH : POCKET_CORNER_MOUTH;
   const entry = resolvePocketMouthAimPoint({
     pocketCenter,
@@ -7176,6 +7176,11 @@ function makeWoodTexture({
   return texture;
 }
 function reflectRails(ball) {
+  if (activePoolTableCalibration) {
+    const impact = resolveMappedPoolCushion(ball, activePoolTableCalibration.segments, BALL_R);
+    if (impact) { ball.lastRailHitAt = performance.now(); ball.lastRailHitType = impact.type; }
+    return impact;
+  }
   const limX = RAIL_LIMIT_X;
   const limY = RAIL_LIMIT_Y;
   const railRadius = RAIL_CONTACT_RADIUS;
@@ -7267,9 +7272,13 @@ function reflectRails(ball) {
     let bestPenetration = 0;
     for (const segment of CUSHION_SEGMENTS) {
       if (!segment?.normal || !segment?.start || !segment?.end) continue;
+      if (ball.pos.x < Math.min(segment.start.x, segment.end.x) - BALL_R ||
+          ball.pos.x > Math.max(segment.start.x, segment.end.x) + BALL_R ||
+          ball.pos.y < Math.min(segment.start.y, segment.end.y) - BALL_R ||
+          ball.pos.y > Math.max(segment.start.y, segment.end.y) + BALL_R) continue;
       // Keep rail segments active near pockets too; disabling these created
       // tiny escape corridors where balls could visually cross jaw/cut mapping.
-      if (inCaptureZone && inGuardZone && segment.type === 'cut') continue;
+      if (!activePoolTableCalibration && inCaptureZone && inGuardZone && segment.type === 'cut') continue;
       if (segment.type === 'jaw' && segment.center && segment.captureRadius != null) {
         if (ball.pos.distanceTo(segment.center) <= segment.captureRadius) continue;
       }
@@ -7322,6 +7331,7 @@ function reflectRails(ball) {
       ball.lastRailHitType = bestImpact.type;
       return { ...bestImpact, preImpactVel };
     }
+    if (activePoolTableCalibration) return null;
     for (let i = 0; i < centers.length; i++) {
       const center = centers[i];
       if (!center) continue;
@@ -7449,76 +7459,14 @@ function resolvePoolRoyalPhysicsFrameStep(elapsedMs) {
 }
 
 function stepPoolRoyalBallMotion(ball, stepScale, airborne = false) {
-  if (!airborne && ball.omega) {
-    const response = stepPoolRoyalClothSpin({
-      velocity: ball.vel,
-      omega: ball.omega,
-      radius: BALL_R,
-      dt: SPIN_FIXED_DT * stepScale,
-      slidingFriction: SPIN_KINETIC_FRICTION,
-      rollingFriction: ROLLING_RESISTANCE,
-      gravity: SPIN_GRAVITY,
-      spinDamping: SPIN_ANGULAR_DAMPING
-    });
-    ball.vel.set(response.velocity.x, response.velocity.y);
-    ball.omega.set(response.omega.x, response.omega.y, response.omega.z);
-  }
-  ball.pos.addScaledVector(ball.vel, stepScale);
-  // Compare velocity, not this frame's travel. At high refresh rates the first
-  // follow/draw step is small while stored angular momentum can still move it.
-  const recoveringSpin = hasPoolRoyalPlanarSlip(ball.vel, ball.omega, BALL_R, STOP_FINAL_EPS);
-  if (!airborne && !recoveringSpin) {
-    let speed = ball.vel.length();
-    if (speed < STOP_EPS) {
-      const softening = Math.pow(STOP_SOFTENING, stepScale);
-      ball.vel.multiplyScalar(softening);
-      if (ball.omega) {
-        ball.omega.x *= softening;
-        ball.omega.z *= softening;
-      }
-      speed = ball.vel.length();
-    }
-    if (speed < STOP_FINAL_EPS) {
-      ball.vel.set(0, 0);
-      if (ball.omega) {
-        ball.omega.x = 0;
-        ball.omega.z = 0;
-      }
-      ball.spin?.set(0, 0);
-      ball.pendingSpin?.set(0, 0);
-      if (ball.id === 'cue') {
-        ball.impacted = false;
-        ball.spinMode = 'standard';
-        ball.swerveStrength = 0;
-        ball.swervePowerStrength = 0;
-      }
-      ball.launchDir = null;
-    }
-  }
+  if (airborne) ball.pos.addScaledVector(ball.vel, stepScale);
+  else poolPhysics.step(ball, stepScale * POOL_FRAME_SECONDS);
 }
 
 function applyRailImpulse(ball, impact) {
   if (!ball?.omega || !impact?.normal) return;
-  const incoming = impact.preImpactVel ?? ball.vel;
-  const impactSpeed = incoming.length();
-  const isCutImpact = impact.type === 'corner' || impact.type === 'cut';
-  const impactFactor = impactSpeed > 1e-6
-    ? clamp(Math.abs(incoming.dot(impact.normal)) / impactSpeed, 0, 1) : 0;
-  const restitutionScale = isCutImpact
-    ? CUSHION_CUT_RESTITUTION_SCALE * THREE.MathUtils.lerp(0.72, 1, impactFactor) : 1;
-  const response = resolvePoolRoyalCushionSpin({
-    velocity: incoming,
-    omega: ball.omega,
-    normal: impact.normal,
-    radius: BALL_R,
-    restitution: CUSHION_RESTITUTION * restitutionScale,
-    friction: RAIL_FRICTION * (isCutImpact ? CUSHION_CUT_FRICTION_SCALE : 1)
-  });
-  ball.vel.set(response.velocity.x, response.velocity.y);
-  ball.omega.set(response.omega.x, response.omega.y, response.omega.z);
-  if (Number.isFinite(ball.maxRailSpeed) && ball.vel.length() > Math.max(0, ball.maxRailSpeed)) {
-    ball.vel.setLength(Math.max(0, ball.maxRailSpeed));
-  }
+  if (impact.preImpactVel) ball.vel.copy(impact.preImpactVel);
+  poolPhysics.cushion(ball, impact.normal);
 }
 
 function resolveSwerveAimDir(
@@ -7778,7 +7726,10 @@ function calcTarget(cue, dir, balls) {
     return t;
   };
 
-  if (segmentList.length > 0) {
+  if (activePoolTableCalibration) {
+    const contact = traceMappedPoolCushion(cuePos, dirNorm, activePoolTableCalibration.segments, BALL_R);
+    if (contact) checkRail(contact.distance, contact.normal);
+  } else if (segmentList.length > 0) {
     segmentList.forEach((segment) => {
       if (!segment?.start || !segment?.end || !segment?.normal) return;
       const segType = segment.type ?? 'rail';
@@ -8006,6 +7957,7 @@ function updateRailLimitsFromTable(table) {
 }
 
 function updateCushionSegmentsFromTable(table) {
+  if (table?.userData?.poolRoyalCalibration) return;
   if (!table?.userData?.cushions?.length) {
     CUSHION_SEGMENTS = [];
     return;
@@ -13333,6 +13285,9 @@ function subtlyExpandPoolRoyaleShowoodRailSightsAndAprons(model, tableModel, dim
 
 function fitPoolRoyaleExternalTableModel(model, tableModel, dims) {
   if (!model || !dims) return;
+  if (tableModel?.useReferenceShowoodMapping) {
+    return fitPoolRoyalTable(model, PLAY_W, PLAY_H, CLOTH_TOP_LOCAL + CLOTH_LIFT - CLOTH_DROP);
+  }
   model.position.set(0, 0, 0);
   model.rotation.set(0, 0, 0);
   model.scale.setScalar(1);
@@ -13434,28 +13389,46 @@ function mountPoolRoyaleExternalTableModel({
     tableModelId: tableModel.id
   };
   table.add(externalRoot);
-  setGeneratedVisualsVisible?.(false);
+  setGeneratedVisualsVisible?.(true);
   let disposed = false;
 
-  loadPoolRoyaleExternalTableTemplate(tableModel, renderer)
+  const ready = loadPoolRoyaleExternalTableTemplate(tableModel, renderer)
     .then((template) => {
       if (disposed || !template) return;
       const model = clonePoolRoyaleExternalTableTemplate(template, tableModel, finishInfo);
-      fitPoolRoyaleExternalTableModel(model, tableModel, dims);
+      const calibration = fitPoolRoyaleExternalTableModel(model, tableModel, dims);
+      if (calibration) {
+        table.userData.poolRoyalCalibration = calibration;
+        table.userData.cushions = calibration.cushionMeshes;
+        calibration.pockets.forEach((pocket, index) => {
+          const marker = table.userData.pockets?.[index];
+          if (marker) {
+            marker.position.set(pocket.center.x, calibration.clothY, pocket.center.y);
+            marker.userData.captureRadius = pocket.radius;
+          }
+        });
+        if (dims.primary) {
+          activePoolTableCalibration = calibration;
+          CUSHION_SEGMENTS = calibration.segments;
+          RAIL_LIMIT_X = Math.min(-calibration.min.x, calibration.max.x) - BALL_R;
+          RAIL_LIMIT_Y = Math.min(-calibration.min.y, calibration.max.y) - BALL_R;
+        }
+      }
       externalRoot.clear();
       externalRoot.add(model);
       setGeneratedVisualsVisible?.(false);
     })
     .catch((error) => {
-      console.warn('Pool Royale Showood GLB table failed to load; generated placeholder table remains hidden', {
+      console.warn('Pool Royale Showood table failed to load; using the playable fallback', {
         tableModelId: tableModel.id,
         error
       });
-      if (!disposed) setGeneratedVisualsVisible?.(false);
+      if (!disposed) setGeneratedVisualsVisible?.(true);
     });
 
   return {
     group: externalRoot,
+    ready,
     dispose: () => {
       disposed = true;
       if (externalRoot.parent) externalRoot.parent.remove(externalRoot);
@@ -14230,6 +14203,7 @@ function mountPoolRoyaleExternalTableModel({
           tableModel: externalTableModelForMount,
           renderer,
           dims: {
+            primary: resolvedTableOptions?.primary === true,
             targetWidth: generatedVisualBounds.isEmpty() ? TABLE.W : generatedVisualSize.x,
             targetLength: generatedVisualBounds.isEmpty() ? TABLE.H : generatedVisualSize.z,
             targetHeight: generatedVisualBounds.isEmpty() ? TABLE.THICK + LEG_ROOM_HEIGHT : generatedVisualSize.y,
@@ -20084,6 +20058,7 @@ const shotPowerRef = useRef(0);
       let shotPrediction = null;
       let lastShotPower = 0;
       let prevCollisions = new Set();
+      const physicsClock = new PoolRoyalPhysicsClock();
       let cueAnimating = false; // forward stroke animation state
       let maxPowerLiftTriggered = false;
       const DYNAMIC_TEXTURE_MIN_INTERVAL = 1 / 45;
@@ -25329,6 +25304,7 @@ const shotPowerRef = useRef(0);
 
       pocketRestIndexRef.current.clear();
 
+      activePoolTableCalibration = null;
       // Table
       const finishForScene = tableFinishRef.current;
       const tableSizeMeta = tableSizeRef.current;
@@ -25347,7 +25323,7 @@ const shotPowerRef = useRef(0);
         railMarkerStyleRef.current,
         activeTableBase,
         rendererRef.current,
-        { tableModel: activeTableModel, chromePlateStyle: activeChromePlateStyle }
+        { tableModel: activeTableModel, chromePlateStyle: activeChromePlateStyle, primary: true }
       );
       const SPOTS = spotPositions(baulkZ);
 
@@ -25355,7 +25331,9 @@ const shotPowerRef = useRef(0);
       breakDiceMeshesRef.current = { ai: null, user: null };
       breakDiceAnchorsRef.current = null;
       rollBreakDie3DRef.current = async () => 1;
-      markBreakRollLoadReady('table', true);
+      Promise.resolve(table.userData.externalTable?.ready).then(() => {
+        markBreakRollLoadReady('table', true);
+      });
       const longestSide = Math.max(PLAY_W, PLAY_H);
       const secondarySpacingBase =
         Math.max(longestSide * 2.4, Math.max(TABLE.W, TABLE.H) * 2.6) * TABLE_DISPLAY_SCALE;
@@ -25798,6 +25776,7 @@ const shotPowerRef = useRef(0);
           clothY: TABLE_Y + CLOTH_TOP_LOCAL + CLOTH_LIFT - CLOTH_DROP,
           tableW: Math.max(TABLE.W, PLAY_W),
           tableL: Math.max(TABLE.H, PLAY_H),
+          targetHeight: 1.78 / poolPhysics.metresPerUnit,
           onError: (error) => console.warn('Pool Royal reference players could not load', error)
         });
         activeHumanPlayersRef.current = referencePlayers;
@@ -27508,22 +27487,15 @@ const shotPowerRef = useRef(0);
           aimDir,
           physicsSpin,
           clampedPower,
-          liftStrength,
+          liftStrength = 0,
           pullDistance = 0,
           contactAdvance = 0,
           strikeDuration = LIVE_CUE_FORWARD_DURATION_MS
         } = payload;
         const launchSpeed = base?.length?.() ??
           SHOT_BASE_SPEED * (SHOT_MIN_FACTOR + SHOT_POWER_RANGE * clampedPower);
-        const strike = resolvePoolRoyalCueStrike({
-          spin: physicsSpin,
-          direction: aimDir,
-          speed: launchSpeed,
-          radius: BALL_R
-        });
-        cue.vel.set(strike.velocity.x, strike.velocity.y);
-        cue.omega?.set(strike.omega.x, strike.omega.y, strike.omega.z);
-        cue.spin?.set(strike.offset.x, strike.offset.y);
+        poolPhysics.strike(cue, aimDir, launchSpeed, normalizeSpinInput(physicsSpin), liftStrength * Math.PI / 6);
+        cue.spin?.set(physicsSpin.x, physicsSpin.y);
         cue.pendingSpin?.set(0, 0);
         cue.spinMode = 'standard';
         cue.swerveStrength = 0;
@@ -29494,39 +29466,28 @@ const shotPowerRef = useRef(0);
         };
 
         const evaluateShotOptions = () => {
-          try {
-            const baseline = evaluateShotOptionsBaseline();
-            const variantId = activeVariantRef.current?.id ?? variantKey;
-            const liveCue = cueRef.current ?? cue;
-            const liveBalls =
-              ballsRef.current?.length > 0 ? ballsRef.current : balls;
-            if (variantId !== 'uk' || !liveCue?.active) return baseline;
-            const stateSnapshot = frameRef.current ?? frameState;
-            const advancedPlan = computeUkAdvancedPlan(
-              liveBalls,
-              liveCue,
-              stateSnapshot
-            );
-            if (!advancedPlan) return baseline;
-            const result = { ...baseline };
-            if (advancedPlan.type === 'pot') {
-              result.bestPot = advancedPlan;
-              if (!result.bestSafety) result.bestSafety = baseline.bestSafety;
-            } else {
-              if (!result.bestPot) result.bestPot = baseline.bestPot;
-              result.bestSafety = advancedPlan;
-            }
-            if (!result.bestPot && baseline.bestPot) {
-              result.bestPot = baseline.bestPot;
-            }
-            return result;
-          } catch (err) {
-            console.warn('AI evaluation fallback', err);
-            return evaluateShotOptionsBaseline();
+          const liveCue = cueRef.current ?? cue;
+          const liveBalls = ballsRef.current?.length ? ballsRef.current : balls;
+          if (!liveCue?.active || !activePoolTableCalibration) return { bestPot: null, bestSafety: null };
+          const state = frameRef.current ?? frameState;
+          const variant = activeVariantRef.current?.id ?? variantKey;
+          const order = resolveTargetPriorities(state, variant, liveBalls.filter(b => b.active));
+          const targets = state?.ballOn?.length ? state.ballOn : order;
+          const legal = liveBalls.filter(b => b.active && b !== liveCue && targets.some(id => matchesTargetId(b, id)));
+          const key = JSON.stringify([state.activePlayer, targets,
+            liveBalls.map(b => [b.id, b.active, b.pos.x, b.pos.y]), activeTableModel?.id]);
+          let plan = aiPlanCacheRef.current?.key === key ? aiPlanCacheRef.current.plan : undefined;
+          if (plan === undefined) {
+            const result = planTailugePoolShot({ balls: liveBalls, cue: liveCue, legal,
+              physics: poolPhysics, mapping: activePoolTableCalibration, maxSpeed: SHOT_BASE_SPEED });
+            plan = result ? { ...result, target: toBallColorId(result.targetBall.id),
+              pocketId: result.pocketIndex >= 0 ? POCKET_IDS[result.pocketIndex] : 'SAFETY' } : null;
+            aiPlanCacheRef.current = { key, plan };
           }
+          return { bestPot: plan?.type === 'pot' ? plan : null, bestSafety: plan?.type === 'safety' ? plan : null };
         };
         const normalizeAiPlanAim = (plan) => {
-          if (!plan || !cue?.active) return plan;
+          if (!plan || !cue?.active || plan.aiMeta?.source?.startsWith('tailuge-')) return plan;
           const cueBall = cue;
           const activeBalls =
             ballsRef.current?.length > 0 ? ballsRef.current : balls;
@@ -30278,7 +30239,7 @@ const shotPowerRef = useRef(0);
             cancelAiShotPreview();
             aiCueViewBlendRef.current = AI_CAMERA_DROP_BLEND;
             const options = evaluateShotOptions();
-            let plan = normalizeAiPlanAim(options.bestPot ?? null);
+            let plan = normalizeAiPlanAim(options.bestPot ?? options.bestSafety ?? null);
             if (!plan) {
               const liveBalls = ballsList.filter(
                 (ball) => ball?.active && String(ball.id).toLowerCase() !== 'cue'
@@ -30510,7 +30471,7 @@ const shotPowerRef = useRef(0);
           }
         };
         const refineAiPotAimLine = (plan) => {
-          if (!plan || plan.type !== 'pot' || !cue?.active) return plan;
+          if (!plan || plan.type !== 'pot' || !cue?.active || plan.aiMeta?.source?.startsWith('tailuge-')) return plan;
           if (!plan.targetBall?.pos || !plan.pocketCenter) return plan;
           const baseAim =
             plan.aimDir?.clone?.()?.normalize?.() ??
@@ -31313,12 +31274,16 @@ const shotPowerRef = useRef(0);
           entry.update(elapsed);
         });
         const { frameScale, physicsSubsteps, subStepScale } =
-          resolvePoolRoyalPhysicsFrameStep(appliedDeltaMs);
+          physicsClock.advance(rawDelta);
         lastStepTime = now;
         if (topViewRef.current && topViewLockedRef.current) {
           const fallbackAim = aimDirRef.current.clone();
           if (fallbackAim.lengthSq() < 1e-6) fallbackAim.set(0, 1);
           tmpAim.copy(fallbackAim.normalize());
+        } else if (activeHumanCueViewRef.current && (cameraBlendRef.current ?? 1) < 0.94) {
+          // Input controls own aim. Reading back the eye camera's slightly
+          // lateral line of sight would feed head movement into the next aim.
+          tmpAim.set(-Math.sin(sph.theta), -Math.cos(sph.theta));
         } else {
           camera.getWorldDirection(camFwd);
           tmpAim.set(camFwd.x, camFwd.z);
@@ -32355,6 +32320,7 @@ const shotPowerRef = useRef(0);
           const stepScale = subStepScale;
           balls.forEach((b) => {
             if (!b.active) return;
+            if (b.pendingPocketIndex != null) return;
             const isCue = b.id === 'cue';
             const hasLift = (b.lift ?? 0) > 1e-6 || Math.abs(b.liftVel ?? 0) > 1e-6;
             if (hasLift) {
@@ -32385,6 +32351,15 @@ const shotPowerRef = useRef(0);
               }
             }
             stepPoolRoyalBallMotion(b, stepScale, hasLift);
+            if (activePoolTableCalibration && !hasLift) {
+              const index = activePoolTableCalibration.pockets.findIndex(p => b.pos.distanceToSquared(p.center) < p.radius * p.radius);
+              if (index >= 0) {
+                b.pendingPocketIndex = index;
+                b.vel.set(0, 0);
+                b.omega.set(0, 0, 0);
+                return;
+              }
+            }
             const railImpact = reflectRails(b);
             if (railImpact && b.id === 'cue') b.impacted = true;
             if (railImpact && shotContextRef.current.contactMade) {
@@ -32417,11 +32392,10 @@ const shotPowerRef = useRef(0);
             }
             const liftAmount = b.lift ?? 0;
             b.mesh.position.set(b.pos.x, BALL_CENTER_Y + liftAmount, b.pos.y);
-            const scaledSpeed = b.vel.length() * stepScale;
-            if (scaledSpeed > 0) {
-              const axis = new THREE.Vector3(b.vel.y, 0, -b.vel.x).normalize();
-              const angle = scaledSpeed / BALL_R;
-              b.mesh.rotateOnWorldAxis(axis, angle);
+            const angularSpeed = b.omega?.length() ?? 0;
+            if (angularSpeed > 0) {
+              const axis = TMP_VEC3_A.copy(b.omega).divideScalar(angularSpeed);
+              b.mesh.rotateOnWorldAxis(axis, angularSpeed * stepScale);
             }
             if (b.shadow) {
               const droppingShadow = pocketDropRef.current.has(b.id);
@@ -32439,7 +32413,7 @@ const shotPowerRef = useRef(0);
             for (let j = i + 1; j < balls.length; j++) {
               const a = balls[i],
                 b = balls[j];
-              if (!a.active || !b.active) continue;
+              if (!a.active || !b.active || a.pendingPocketIndex != null || b.pendingPocketIndex != null) continue;
               const dx = b.pos.x - a.pos.x,
                 dy = b.pos.y - a.pos.y;
               const d2 = dx * dx + dy * dy;
@@ -32465,7 +32439,7 @@ const shotPowerRef = useRef(0);
                   }
                   d = 0;
                 }
-                const penetration = Math.max(0, minDist - d);
+                const penetration = Math.max(0, targetDist - d);
                 const overlap =
                   penetration > BALL_COLLISION_SLOP
                     ? (penetration - BALL_COLLISION_SLOP) / 2
@@ -32478,63 +32452,14 @@ const shotPowerRef = useRef(0);
                 newCollisions.add(pairKey);
                 const wasColliding = prevCollisions.has(pairKey);
                 const isNewImpact = firstPairCollision && !wasColliding;
+                const impulse = poolPhysics.collide(a, b);
                 if (overlap > 0) {
                   a.pos.x -= nx * overlap;
                   a.pos.y -= ny * overlap;
                   b.pos.x += nx * overlap;
                   b.pos.y += ny * overlap;
                 }
-                TMP_VEC3_A.set(nx, 0, ny);
-                TMP_VEC3_B.copy(TMP_VEC3_A).multiplyScalar(BALL_R);
-                TMP_VEC3_C.copy(TMP_VEC3_A).multiplyScalar(-BALL_R);
-                TMP_VEC3_D.set(a.vel.x, 0, a.vel.y);
-                TMP_VEC3_E.set(b.vel.x, 0, b.vel.y);
-                const omegaA = a.omega ?? TMP_VEC3_F.set(0, 0, 0);
-                const omegaB = b.omega ?? TMP_VEC3_G.set(0, 0, 0);
-                TMP_VEC3_H.copy(omegaA).cross(TMP_VEC3_B).add(TMP_VEC3_D);
-                TMP_VEC3_F.copy(omegaB).cross(TMP_VEC3_C).add(TMP_VEC3_E);
-                TMP_VEC3_F.sub(TMP_VEC3_H);
-                const relNormal = TMP_VEC3_F.dot(TMP_VEC3_A);
-                let impulse = 0;
-                if (relNormal < 0) {
-                  const normalImpulseMag =
-                    (-(1 + PHYSICS_PROFILE.restitution) * relNormal * BALL_MASS) / 2;
-                  impulse = Math.abs(normalImpulseMag);
-                  TMP_VEC3_H.copy(TMP_VEC3_A).multiplyScalar(normalImpulseMag);
-                  TMP_VEC3_D.addScaledVector(TMP_VEC3_H, -1 / BALL_MASS);
-                  TMP_VEC3_E.addScaledVector(TMP_VEC3_H, 1 / BALL_MASS);
-                  TMP_VEC3_G.copy(TMP_VEC3_F).sub(
-                    TMP_VEC3_H.copy(TMP_VEC3_A).multiplyScalar(relNormal)
-                  );
-                  const tangentialSpeed = TMP_VEC3_G.length();
-                  if (tangentialSpeed > 1e-8) {
-                    TMP_VEC3_G.multiplyScalar(1 / tangentialSpeed);
-                    const raCrossT = TMP_VEC3_H.copy(TMP_VEC3_B).cross(TMP_VEC3_G).lengthSq();
-                    const rbCrossT = TMP_VEC3_A.copy(TMP_VEC3_C).cross(TMP_VEC3_G).lengthSq();
-                    const denom =
-                      2 / BALL_MASS + (raCrossT + rbCrossT) / BALL_INERTIA;
-                    const jt = -tangentialSpeed / Math.max(denom, 1e-6);
-                    const maxFriction = BALL_BALL_FRICTION * Math.abs(normalImpulseMag);
-                    const clampedJt = clamp(jt, -maxFriction, maxFriction);
-                    TMP_VEC3_G.multiplyScalar(clampedJt);
-                    TMP_VEC3_D.addScaledVector(TMP_VEC3_G, -1 / BALL_MASS);
-                    TMP_VEC3_E.addScaledVector(TMP_VEC3_G, 1 / BALL_MASS);
-                    if (a.omega) {
-                      a.omega.addScaledVector(
-                        TMP_VEC3_H.copy(TMP_VEC3_B).cross(TMP_VEC3_G),
-                        -1 / BALL_INERTIA
-                      );
-                    }
-                    if (b.omega) {
-                      b.omega.addScaledVector(
-                        TMP_VEC3_A.copy(TMP_VEC3_C).cross(TMP_VEC3_G),
-                        1 / BALL_INERTIA
-                      );
-                    }
-                  }
-                  a.vel.set(TMP_VEC3_D.x, TMP_VEC3_D.z);
-                  b.vel.set(TMP_VEC3_E.x, TMP_VEC3_E.z);
-                }
+                if (impulse <= 0) continue;
                 if (isNewImpact) {
                   const shotScale = 0.4 + 0.6 * lastShotPower;
                   const volume = clamp(
@@ -32590,7 +32515,7 @@ const shotPowerRef = useRef(0);
           // Pair impulses above intentionally run once. A separate iterative
           // position constraint then removes residual penetration in clusters,
           // including balls that have already slowed below the stop threshold.
-          if (separatePoolBalls(balls, BALL_R * 2, BALL_SEPARATION_ITERATIONS)) {
+          if (separatePoolBalls(balls.filter(ball => ball.pendingPocketIndex == null), BALL_R * 2, BALL_SEPARATION_ITERATIONS)) {
             balls.forEach((ball) => {
               if (!ball.active || !ball.mesh) return;
               ball.mesh.position.x = ball.pos.x;
@@ -32886,7 +32811,8 @@ const shotPowerRef = useRef(0);
           for (let pocketIndex = 0; pocketIndex < captureCenters.length; pocketIndex++) {
             const c = captureCenters[pocketIndex];
             const captureRadius = captureRadii[pocketIndex] ?? CAPTURE_R;
-            if (b.pos.distanceTo(c) < captureRadius) {
+            if (b.pendingPocketIndex === pocketIndex || b.pos.distanceTo(c) < captureRadius) {
+              b.pendingPocketIndex = null;
               const isCueBall = b.id === 'cue';
               const inHandActive = Boolean(hudRef.current?.inHand);
               const pocketId = POCKET_IDS[pocketIndex] ?? 'TM';

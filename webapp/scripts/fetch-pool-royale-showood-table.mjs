@@ -9,7 +9,7 @@ const target = join(
   'public/models/pool-royale/showood-seven-foot/seven_foot_showood.glb'
 );
 const source =
-  'https://cdn.jsdelivr.net/gh/ekiefl/pooltool@main/pooltool/models/table/seven_foot_showood/seven_foot_showood.glb';
+  'https://cdn.jsdelivr.net/gh/ekiefl/pooltool@da37d9a4cc507c9dba59ffbf3dc4ec77f57c5d55/pooltool/models/table/seven_foot_showood/seven_foot_showood.glb';
 
 const response = await fetch(source);
 if (!response.ok) {
@@ -29,3 +29,5 @@ await writeFile(target, bytes);
 console.log(
   `Installed Showood 7 ft GLB (${bytes.byteLength} bytes) at ${target}`
 );
+
+await import('./optimize-pool-royal-assets.mjs');

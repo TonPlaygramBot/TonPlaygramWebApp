@@ -368,7 +368,7 @@ export class PoolRoyalHumanPlayers {
       player.state = state;
     }
     const shooter = this.players.find(player => player.seat === frame.activeSeat);
-    this.eyeView = shooter && frame.state !== 'idle'
+    this.eyeView = shooter
       ? poolRoyalEyeView(shooter.human, this.group, frame.cueBall, forward,
         Math.max(0.01, frame.cueBall.y - this.options.clothY)) : null;
   }
