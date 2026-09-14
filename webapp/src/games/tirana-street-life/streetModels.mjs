@@ -22,11 +22,14 @@ export function buildStreetModel(site,type){
   const accent=mulliri?C.red:food?0x4d4d3b:0x566365;
   // Shallow external bays keep the mapped footprint and entrances intact.
   box(C.metal,0,1.5,.015,w,2.9,.075);
-  box(C.glass,-w*.17,1.45,.075,w*.56,2.65,.045);
-  box(0x233434,w*.3,1.4,.07,w*.27,2.6,.045);
-  for(const x of [-w/2+.06,w*.14,w/2-.06])box(C.light,x,1.5,.105,.07,2.9,.08);
+  box(C.glass,-w*.17,1.45,.265,w*.56,2.65,.026);
+  box(C.glass,w*.3,1.4,.265,w*.27,2.6,.026);
+  for(const x of [-w/2+.06,w*.14,w/2-.06])box(C.light,x,1.5,.31,.07,2.9,.08);
   box(C.light,0,.1,.14,w,.13,.23);box(C.metal,0,2.92,.13,w,.14,.17);
-  pole(w*.19,1.02,.16,.56,.016,C.light);
+  pole(w*.19,1.02,.34,.56,.016,C.light);
+  box(C.light,0,1.08,.286,w-.18,.035,.012);
+  for(let j=0;j<3;j++){box(C.wood,-w*.32+j*w*.18,.65,.145,w*.13,.06,.15);box(j%2?0xcbb58c:0x597064,-w*.32+j*w*.18,.85,.145,w*.08,.3,.12);}
+  box(0xffe1b0,0,2.72,.17,w-.22,.045,.08);
   box(accent,0,3.21,.11,w+.05,.48,.2);
   sign(site.name,0,3.21,.218,w-.15,.36,mulliri?'#45372f':sophie?'#ded7c7':food?'#303d36':'#536061',mulliri?'#f26558':sophie?'#333735':'#fff6dd');
   const tradeStart=parts.length;

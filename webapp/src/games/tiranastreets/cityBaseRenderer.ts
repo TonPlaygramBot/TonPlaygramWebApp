@@ -1,3 +1,4 @@
+import {BikeVisuals} from './BikeVisuals';
 import {selectedPlayerUrl} from './playerCatalog.mjs';
 import {normalizePlayableHuman, humanoidBones, HumanoidLegPose, solveHumanoidLimb, hideAuthoredPlayerWeapon} from './street-career/humanoidRig.mjs';
 import {groundHeight} from '../tirana-east/terrainCore.mjs';
@@ -107,6 +108,7 @@ export class CityRenderer {
   readonly agedHousing = new AgedHousingLayer();
   private treePoints: Point[] = [];
   private mappedTreeCells: {group: THREE.Group; x:number; z:number}[] = [];
+  readonly bikeFleet=new BikeVisuals();
   constructor(root: HTMLDivElement) {
     this.root = root;
     this.renderer = createWebGLRenderer();
@@ -658,7 +660,6 @@ export class CityRenderer {
         "taxi",
         "police",
         "city-car",
-        "motorbike",
         "military-suv",
       ];
       const loadModel = async (name: string) => {
@@ -867,7 +868,7 @@ export class CityRenderer {
   protected presentLocalPlayer(_actor: Actor, _state: State, _id: string, _dt: number) { return false; }
   protected presentFirstPerson(_state: State, _id: string, _dt: number) { return false; }
   protected presentDrivenCar(_actor: Actor, _state: State, _id: string) {}
-  protected vehicleVisual(id:string){return this.collectionFleet.getRoot(id)||this.forces.getRoot(id)||this.racingFleet.getRoot(id)||this.actors.get(id)?.group;}
+  protected vehicleVisual(id:string){return this.bikeFleet.getRoot(id)||this.collectionFleet.getRoot(id)||this.forces.getRoot(id)||this.racingFleet.getRoot(id)||this.actors.get(id)?.group;}
   protected presentVehicle(_actor: Actor, _state: State, _carId: string, _dt: number) {}
   protected beforeDraw(_state: State | null, _id: string, _dt: number) {}
   setQuality(quality: "auto" | "high" | "battery") {
@@ -923,6 +924,8 @@ export class CityRenderer {
     this.driverInterior.update(this.cockpitCamera&&!lobby?drivenCar:undefined);
     if (this.ready && state) {
       const active = new Set<string>();
+      if(!this.bikeFleet.group.parent)this.scene.add(this.bikeFleet.group);
+      this.bikeFleet.update([...state.cars,...state.traffic,...state.npcs.filter(n=>n.motion==='cycle'&&n.health>0)],p||SPAWN,dt,this.quality==='battery');
       this.collectionFleet.update([...state.cars,...state.traffic],p||SPAWN,dt,p?.carId);
       this.racingFleet.update(state.cars.filter(c=>c.racingAsset),p||SPAWN,this.quality==="battery");
       this.forces.update(state, p || SPAWN, state.elapsed, dt, this.quality === "battery");
@@ -939,7 +942,7 @@ export class CityRenderer {
         ...state.units,
         ...(state.rival ? [state.rival] : []),
       ]) {
-        if(car.model==='tirana-bus' || this.collectionFleet.owns(car) || this.forces.ownsVehicle(car))continue;
+        if(car.model==='tirana-bus' || this.bikeFleet.owns(car) || this.collectionFleet.owns(car) || this.forces.ownsVehicle(car))continue;
         if(p && Math.hypot(car.x-p.x,car.z-p.z)>(this.quality==='battery'?140:260))continue;
         const detail = car.model;
         const a = this.actor(detail, car.id);
@@ -1065,13 +1068,6 @@ export class CityRenderer {
           dog.mixer?.update(dt * 1.6);
         }
         if (n.motion === "cycle" && n.health > 0) {
-          const bikeId = `bike-${n.id}`,
-            bike = this.actor("motorbike", bikeId);
-          active.add(bikeId);
-          bike.group.visible = true;
-          bike.group.position.copy(a.group.position);
-          bike.group.position.y = 0;
-          bike.group.rotation.y = n.heading + Math.PI;
           this.seated(a.group, state.elapsed, true);
         }
       }
@@ -1083,10 +1079,10 @@ export class CityRenderer {
           a = this.actor("character", id);
         active.add(id);
         a.group.visible = true;
-        a.group.position.set(car.x, -0.25, car.z);
+        a.group.position.set(car.x, groundHeight(car.x,car.z)+(this.bikeFleet.owns(car)?.16:-.25), car.z);
         a.group.rotation.set(0, car.heading + Math.PI, 0);
         a.mixer?.update(dt);
-        this.seated(a.group, state.elapsed, false);
+        this.seated(a.group, state.elapsed, this.bikeFleet.owns(car));
         a.group.scale.setScalar(0.83);
       }
       for (const [id, a] of this.actors) {
@@ -1296,6 +1292,7 @@ export class CityRenderer {
     textures.forEach((t) => t.dispose());
   }
   destroy() {
+    this.bikeFleet.dispose();
     this.disposed = true;
     this.referenceFacades.dispose();
     this.agedHousing.dispose();

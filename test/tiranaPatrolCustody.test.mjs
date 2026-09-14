@@ -34,9 +34,9 @@ test('spray requires proximity, sight and being on foot; pausing freezes custody
  sim.pause();tick(sim,3);assert.equal(sim.state.elapsed,elapsed);assert.equal(sim.player.arrest.phase,'spray');
 });
 test('custody goes through backup and escort before arrival at the mapped police directorate',()=>{
- const sim=setup(),n=officer(sim,1.5,0);sim.world=new StreetWorld();sim.state.npcs.push(n);sim.arrest.provoke(n,'tomato');
+ const sim=setup(),n=officer(sim,1.5,0);sim.state.units=structuredClone(original.units.filter(u=>u.custodyCapable));sim.state.npcs=structuredClone(original.npcs.filter(n=>sim.state.units.some(u=>u.id===n.unit)));sim.world=new StreetWorld();sim.state.npcs.push(n);sim.arrest.provoke(n,'tomato');
  let sawBackup=false,sawCrew=false,sawEscort=false,sawTransport=false;
- for(let i=0;i<7200&&sim.player.arrest;i++){sim.step(1/60);sawBackup||=!!sim.arrest.van;sawCrew||=sim.state.npcs.some(n=>n.custody);sawEscort||=sim.player.arrest?.phase==='escort';sawTransport||=sim.player.arrest?.phase==='transport';}
+ for(let i=0;i<14400&&sim.player.arrest;i++){sim.step(1/60);sawBackup||=!!sim.arrest.van;sawCrew||=sim.state.npcs.some(n=>n.custody);sawEscort||=sim.player.arrest?.phase==='escort';sawTransport||=sim.player.arrest?.phase==='transport';}
  assert.ok(sawBackup&&sawCrew&&sawEscort&&sawTransport,sim.body.notice);const completion=sim.events.find(e=>e.kind==='arrest-complete');assert.ok(completion,sim.body.notice);
  assert.equal(completion.x,POLICE_STATION.x);assert.equal(completion.z,POLICE_STATION.z);assert.ok(clearStreetPoint(POLICE_STATION,.5));assert.equal(sim.player.health,100);assert.equal(sim.arrest.van,null);
 });

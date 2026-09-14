@@ -1,3 +1,6 @@
+import {roundaboutGap} from './junctionControl.mjs';
+import {BUS_STOPS} from '../../tirana-street-life/transitData.mjs';
+import {bikeFor,BIKE_TYPES} from './bikeCatalog.mjs';
 import {cornerSpeed} from './drivingScale.mjs';
 import { WORLD } from './world.mjs';
 import { VEHICLE_COLLECTION, roadVehicleFor } from './vehicleCollection.mjs';
@@ -22,6 +25,7 @@ export function vehicleSize(car){
   let size=sizeCache.get(car);if(size)return size;size=measureVehicle(car);sizeCache.set(car,size);return size;
 }
 function measureVehicle(car){
+  const bike=bikeFor(car);if(bike)return {length:bike.length,width:bike.width};
   if(car.w>0&&car.d>0)return {length:car.d,width:car.w};
   if(car.model==='tirana-bus')return {length:18,width:2.55};
   const collection=roadVehicleFor(car),force=FORCE_VEHICLE_BOUNDS.find(v=>v.id===car.forceVehicle);
@@ -55,7 +59,7 @@ function roadGraph(){
     const add=(from,to)=>{const e={from,to,w,len,lane:direction?0:Math.min(1.65,Math.max(.5,w*.24))};links[from].push(e);if(len>18&&w>=5.5)edges.push(e);};
     if(direction!==-1)add(a,b);if(direction!==1)add(b,a);
   });
-  return graph={nodes,links,edges};
+  return graph={nodes,links,edges,at};
 }
 export function lanePoint(e,t=1){const {nodes}=roadGraph(),a=nodes[e.from],b=nodes[e.to],dx=(b[0]-a[0])/e.len,dz=(b[1]-a[1])/e.len;return {x:a[0]+(b[0]-a[0])*t-dz*e.lane,z:a[1]+(b[1]-a[1])*t+dx*e.lane};}
 /** Emergency routes use the same right-hand lanes and one-way rules as traffic. */
@@ -63,6 +67,11 @@ export function trafficLaneRoute(ids){
  const g=roadGraph(),edges=ids.slice(1).map((to,i)=>g.links[ids[i]]?.find(e=>e.to===to));
  return ids.map((id,i)=>{const a=edges[i-1]&&lanePoint(edges[i-1]),b=edges[i]&&lanePoint(edges[i],0);
   return a&&b?{x:(a.x+b.x)/2,z:(a.z+b.z)/2}:a||b||{x:g.nodes[id][0],z:g.nodes[id][1]};});
+}
+export function trafficLanePoints(points){
+ const g=roadGraph();
+ const ids=points.map(p=>g.at.get(`${p.x.toFixed(2)},${p.z.toFixed(2)}`));
+ return ids.every(id=>id!==undefined)?trafficLaneRoute(ids):[];
 }
 const nextRandom=c=>c.seed=(Math.imul(c.seed,1664525)+1013904223)>>>0;
 export function populateTraffic(state,spawn){
@@ -84,8 +93,9 @@ export function populateTraffic(state,spawn){
     }
     if(!p)throw Error(`No safe traffic spawn for ${id}`);
     const heading=Math.atan2(g.nodes[edge.from][0]-g.nodes[edge.to][0],g.nodes[edge.from][1]-g.nodes[edge.to][1]);
-    const model=bus?'tirana-bus':i%17===0?'motorbike':i%19===0?'police':i%23===0?'military-suv':i%5===0?'taxi':i%7===0?'sedan-sports':'sedan';
+    const model=bus?'tirana-bus':i%8===0?'motorbike':(i<96?i%19===0:i%211===0)?'police':i%5===0?'taxi':i%7===0?'sedan-sports':i%11===0?'city-car':'sedan';
     const c={id,...p,heading,model,speed:0,vx:0,vz:0,steering:0,driver:null,npcDriver:true,node:edge.from,next:edge.to,seed:11+i*29,cruise:bus?7:5+(i%6),lane:edge.lane,edgeWidth:edge.w};
+    if(model==='motorbike'){const bike=BIKE_TYPES[Math.floor(i/8)%5];c.bikeType=bike.id;c.cruise=bike.speed;c.w=bike.width;c.d=bike.length;}
     if(['sedan','sedan-sports','taxi'].includes(model)&&i%10===1)c.collectionVehicle=VEHICLE_COLLECTION[Math.floor(i/10)%VEHICLE_COLLECTION.length].id;
     if(model==='police'){c.forceVehicle=i%2?'traffic_bike':'patrol_sedan';c.forceCharacter=i%2?'traffic_officer':'patrol_officer';}
     if(bus){c.passengers=Array.from({length:12+i%9},(_,seat)=>({seat,face:(i+seat*3)%8,shirt:(i+seat)%6}));c.routeName=['UNAZA','KOMBINAT – KINOSTUDIO','TIRANË – KAMËZ'][i%3];c.livery=i%3;c.busStopAt=20+i*3;c.trailerHeading=heading;}
@@ -110,6 +120,7 @@ export function redSignalGap(car,time){
 export function trafficDecision(car,vehicles,pedestrians,time){
   const shape=vehicleSize(car),fx=-Math.sin(car.heading),fz=-Math.cos(car.heading);
   let gap=redSignalGap(car,time),reason=Number.isFinite(gap)?'signal':'';
+  const roundabout=roundaboutGap(car,time);if(roundabout<gap){gap=roundabout;reason='traffic-officer';}
   for(const o of vehicles){if(o.id===car.id)continue;const dx=o.x-car.x,dz=o.z-car.z,f=dx*fx+dz*fz,side=Math.abs(dx*fz-dz*fx),other=vehicleSize(o);
     const angle=car.heading-o.heading;
     const lateral=(Math.abs(Math.cos(angle))*other.width+Math.abs(Math.sin(angle))*other.length)/2;
@@ -129,6 +140,8 @@ export function updateTraffic(state,dt,onImpact){
   const g=roadGraph(),vehicles=new TrafficGrid([...state.cars,...state.traffic,...state.units]);
   const people=new TrafficGrid([...state.npcs,...Object.values(state.players)]);
   const viewers=Object.values(state.players);
+  state.junctionReservations??={};
+  for(const [id,reservation] of Object.entries(state.junctionReservations))if(state.elapsed>reservation.until)delete state.junctionReservations[id];
   for(const car of state.traffic){
     const close=!viewers.length||viewers.some(p=>(p.x-car.x)**2+(p.z-car.z)**2<320**2);
     car.simulationAccumulator=(car.simulationAccumulator||0)+tick;
@@ -141,11 +154,12 @@ export function updateTraffic(state,dt,onImpact){
       car.speed=-Math.sin(car.heading)*car.vx-Math.cos(car.heading)*car.vz;
       car.braking=true;car.awareness=null;continue;
     }
-    if(car.service&&car.responsePhase!=='patrol')continue;
+    if(car.service&&car.responsePhase&&car.responsePhase!=='patrol')continue;
     let e=g.links[car.node]?.find(e=>e.to===car.next);
     if(!e){e=g.links[car.node]?.[0];if(!e){car.speed=0;continue;}car.next=e.to;}
     const goal=lanePoint(e),dx=goal.x-car.x,dz=goal.z-car.z,d=Math.hypot(dx,dz);
     if(d<.35){
+      const reserved=state.junctionReservations[car.next];if(reserved?.id===car.id)delete state.junctionReservations[car.next];
       const old=car.node;car.node=car.next;
       let options=g.links[car.node].filter(e=>e.to!==old&&(car.model!=='tirana-bus'||e.w>=6.5));
       if(!options.length)options=g.links[car.node].filter(e=>car.model!=='tirana-bus'||e.w>=6.5);
@@ -158,12 +172,22 @@ export function updateTraffic(state,dt,onImpact){
     const nearbyPeople=refresh?people.near(car.x,car.z,50):[];
     if(refresh){car.awareness=trafficDecision(car,vehicles.near(car.x,car.z,55),nearbyPeople,state.elapsed);car.awarenessAt=state.elapsed+.25;}
     const decision=car.awareness;
-    let target=cornerSpeed(turn(desired-car.heading),decision.target);
+    let target=cornerSpeed(turn(desired-car.heading),decision.target),junctionGap=Infinity;
+    if(d<16&&g.links[car.next]?.length>2){
+      let reservation=state.junctionReservations[car.next];
+      if(!reservation){reservation={id:car.id,until:state.elapsed+8};state.junctionReservations[car.next]=reservation;}
+      if(reservation.id!==car.id){junctionGap=Math.max(0,d-6);target=Math.min(target,Math.sqrt(junctionGap*4));}
+    }
     // Slow before the current edge ends, so the next lane is reached without
     // high-speed right-angle slides. Long buses need a gentler approach.
     if(d<12)target=Math.min(target,Math.sqrt(2.4*d+4));
     if(car.model==='tirana-bus'){
-      if(state.elapsed>=car.busStopAt&&car.speed<.25&&decision.reason==='signal'&&!car.doorsUntil){car.doorsUntil=state.elapsed+3;car.busStopAt=state.elapsed+55;}
+      if(state.elapsed>=car.busStopAt&&!car.stopTarget)car.stopTarget=BUS_STOPS.find(s=>Math.hypot(s.x-car.x,s.z-car.z)<18&&Math.abs((s.x-car.x)*Math.cos(car.heading)-(s.z-car.z)*Math.sin(car.heading))<9);
+      if(car.stopTarget){const dx=car.stopTarget.x-car.x,dz=car.stopTarget.z-car.z,ahead=-dx*Math.sin(car.heading)-dz*Math.cos(car.heading);
+        if(ahead>0)target=Math.min(target,Math.sqrt(Math.max(0,ahead-2)*3));
+        if(Math.abs(ahead)<3&&car.speed<.5&&!car.doorsUntil){car.doorsUntil=state.elapsed+5;car.busStopAt=state.elapsed+45;car.stopTarget=null;}
+        else if(ahead<-4){car.stopTarget=null;car.busStopAt=state.elapsed+10;}
+      }
       if(state.elapsed<(car.doorsUntil||0))target=0;else car.doorsUntil=0;
       car.trailerHeading=(car.trailerHeading??car.heading)+turn(car.heading-(car.trailerHeading??car.heading))*Math.min(1,step*Math.max(.35,car.speed/7));
     }
@@ -172,6 +196,7 @@ export function updateTraffic(state,dt,onImpact){
     car.braking=car.speed<before-.01;car.trafficReason=target<.1?decision.reason:'';
     // Cars cannot drive through a stopped queue or the red stop line.
     if((decision.reason!=='pedestrian'||decision.gap>=0)&&decision.gap<car.speed*step)car.speed=Math.max(0,decision.gap/step);
+    if(junctionGap<car.speed*step){car.speed=junctionGap/step;car.trafficReason='junction';}
     const oldX=car.x,oldZ=car.z,move=Math.min(d,car.speed*step);
     decision.gap-=move;
     car.x+=dx/d*move;car.z+=dz/d*move;car.vx=(car.x-oldX)/step;car.vz=(car.z-oldZ)/step;

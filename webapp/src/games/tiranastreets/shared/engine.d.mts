@@ -27,6 +27,7 @@ export type Car = Point & {
   model: string;
   passengers?:{seat:number;face:number;shirt:number}[];
   routeName?:string;livery?:number;trailerHeading?:number;doorsUntil?:number;braking?:boolean;
+  bikeType?:string;
   collectionVehicle?: string;
   npcDriver?: boolean;
   racingAsset?: string;
@@ -81,6 +82,7 @@ export type Mission = {
   stops: (Point & { name: string })[];
 };
 export type NPC = Point & {
+  bikeType?:string;role?:string;behavior?:string;
   firedAt?:number; reloadUntil?:number; rounds?:number; aimPitch?:number; aimSince?:number; splatteredUntil?:number; splatter?:string;
   y?:number;hitUntil?:number;
   id: string;

@@ -1,3 +1,4 @@
+import {UploadedMosque} from './UploadedMosque';
 import * as T from 'three';
 import { mergeGeometries } from 'three/examples/jsm/utils/BufferGeometryUtils.js';
 import { WORLD } from '../tiranastreets/shared/world.mjs';
@@ -19,6 +20,7 @@ export class ReferenceFacades {
   private entries:{group:T.Group;x:number;z:number}[]=[];
   private materials=new Map<number,T.MeshStandardMaterial>();
   private disposed=false;
+  private uploadedMosque?:UploadedMosque;
   constructor(world=WORLD, onlyIds?:ReadonlySet<string>) {
     this.group.name='Tirana:photo-referenced-institution-facades';
     for(const b of landmarkBuildings(world)){
@@ -198,9 +200,10 @@ export class ReferenceFacades {
         if(glass)material.userData.environmentWindow=true;
         const mesh=new T.Mesh(geometry,material);mesh.castShadow=true;mesh.receiveShadow=true;group.add(mesh);
       }
+      if(profile.style==='namazgja'){this.uploadedMosque=new UploadedMosque(group,b.p.reduce((s,p)=>s+p[0],0)/b.p.length,b.p.reduce((s,p)=>s+p[1],0)/b.p.length);}
       this.group.add(group);this.entries.push({group,x:b.p.reduce((s,p)=>s+p[0],0)/b.p.length,z:b.p.reduce((s,p)=>s+p[1],0)/b.p.length});
     }
   }
-  update(viewer?:{x:number;z:number},battery=false){if(!viewer)return;for(const entry of this.entries)entry.group.visible=Math.hypot(entry.x-viewer.x,entry.z-viewer.z)<(battery?600:1100);}
-  dispose(){if(this.disposed)return;this.disposed=true;this.group.removeFromParent();this.group.traverse(o=>{if(o instanceof T.Mesh||o instanceof T.LineSegments){o.geometry.dispose();if(o instanceof T.LineSegments)(o.material as T.Material).dispose();}});this.materials.forEach(m=>m.dispose());this.group.clear();}
+  update(viewer?:{x:number;z:number},battery=false){if(!viewer)return;this.uploadedMosque?.update(viewer);for(const entry of this.entries)entry.group.visible=Math.hypot(entry.x-viewer.x,entry.z-viewer.z)<(battery?600:1100);}
+  dispose(){if(this.disposed)return;this.disposed=true;this.uploadedMosque?.dispose();this.group.removeFromParent();this.group.traverse(o=>{if(o instanceof T.Mesh||o instanceof T.LineSegments){o.geometry.dispose();if(o instanceof T.LineSegments)(o.material as T.Material).dispose();}});this.materials.forEach(m=>m.dispose());this.group.clear();}
 }

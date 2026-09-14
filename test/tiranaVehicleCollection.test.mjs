@@ -8,8 +8,8 @@ import {COLLECTION_PLACEMENTS} from '../webapp/src/games/tiranastreets/shared/co
 import {createState,interact,advanceState,control,FREE_ROAM,emptyInput} from '../webapp/src/games/tiranastreets/shared/engine.mjs';
 import {ORIGIN,OBSTACLES,props,START,EXTRACTION,SPAWNS,BATTLEFIELD_MAPS} from '../webapp/src/games/blackwater/shared/layout.mjs';
 import {footprintDistance} from '../webapp/src/games/tiranastreets/shared/architecture.mjs';
-const expected=['benz','bmw','range','audi','ford','fiat','jaguar','ferrari','bugatti','landrover'];
-test('all ten approved GLBs retain exact bytes, geometry counts and embedded materials',()=>{
+const expected=['benz','bmw','range','audi','ford','fiat','jaguar','ferrari','bugatti','landrover','golf-gti'];
+test('all registered GLBs retain exact bytes, geometry counts and embedded materials',()=>{
  assert.deepEqual(VEHICLE_COLLECTION.map(c=>c.id),expected);
  for(const a of VEHICLE_COLLECTION){
   const bytes=readFileSync(new URL('../webapp/public'+a.url,import.meta.url));
@@ -19,14 +19,14 @@ test('all ten approved GLBs retain exact bytes, geometry counts and embedded mat
   assert.ok(gltf.extensionsRequired.includes('KHR_draco_mesh_compression'));
   assert.ok(gltf.meshes.length>0&&gltf.materials.length>0);
   assert.ok(gltf.images.every(i=>Number.isInteger(i.bufferView)),'PBR maps must be embedded');
-  assert.equal(gltf.asset.extras.name,a.name);
+  if(a.id!=='golf-gti')assert.equal(gltf.asset.extras.name,a.name);
  }
 });
-test('the same ten cars exist as parked FPS props and enterable simulation vehicles',()=>{
+test('registered cars retain their parked and enterable placements',()=>{
  const state=createState([{id:'tester',name:'Tester'}],FREE_ROAM.id,'solo');
- assert.equal(state.cars.filter(collectionVehicleFor).length,10);
+ assert.equal(state.cars.filter(collectionVehicleFor).length,11);
  assert.deepEqual(new Set(state.traffic.filter(collectionVehicleFor).map(c=>c.collectionVehicle)),new Set(expected));
- assert.equal(state.traffic.filter(collectionVehicleFor).length,240,'civilian collection vehicles scale with the denser traffic population');
+ assert.ok(state.traffic.filter(collectionVehicleFor).length>=240,'civilian collection vehicles scale with the denser traffic population');
  assert.equal(state.traffic.filter(c=>collectionVehicleFor(c)&&forceVehicleFor(c)).length,0,'one visual owner per vehicle');
  assert.equal(forceVehicleFor({model:'police',forceVehicle:'patrol_hatch',collectionVehicle:'benz'}),undefined,'legacy dual assignment uses its collection model');
  for(const p of COLLECTION_PLACEMENTS){

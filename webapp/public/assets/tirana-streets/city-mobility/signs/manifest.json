@@ -1,0 +1,74 @@
+{
+  "conad": {
+    "width": 6.142857142857143,
+    "height": 1,
+    "bytes": 165316,
+    "method": "Blender silhouette extrusion and official artwork face"
+  },
+  "mulliri": {
+    "width": 3.282051282051282,
+    "height": 1,
+    "bytes": 365664,
+    "method": "Blender silhouette extrusion and official artwork face"
+  },
+  "spar": {
+    "width": 6.047244094488189,
+    "height": 1,
+    "bytes": 146916,
+    "method": "Blender silhouette extrusion and official artwork face"
+  },
+  "bkt": {
+    "width": 2.032258064516129,
+    "height": 1,
+    "bytes": 148808,
+    "method": "Blender silhouette extrusion and official artwork face"
+  },
+  "credins": {
+    "width": 3.48,
+    "height": 1,
+    "bytes": 10104,
+    "method": "Blender silhouette extrusion and official artwork face"
+  },
+  "raiffeisen": {
+    "width": 3.7714285714285714,
+    "height": 1,
+    "bytes": 125412,
+    "method": "Blender silhouette extrusion and official artwork face"
+  },
+  "plaza": {
+    "width": 1.342281879194631,
+    "height": 1,
+    "bytes": 199312,
+    "method": "Blender silhouette extrusion and official artwork face"
+  },
+  "rogner": {
+    "width": 2.230769230769231,
+    "height": 1,
+    "bytes": 127688,
+    "method": "Blender silhouette extrusion and official artwork face"
+  },
+  "vodafone": {
+    "width": 1.0,
+    "height": 1,
+    "bytes": 30236,
+    "method": "Blender silhouette extrusion and official artwork face"
+  },
+  "one": {
+    "width": 2.0,
+    "height": 1,
+    "bytes": 54292,
+    "method": "Blender silhouette extrusion and official artwork face"
+  },
+  "big-market": {
+    "width": 1.0,
+    "height": 1,
+    "bytes": 59260,
+    "method": "Blender silhouette extrusion and official artwork face"
+  },
+  "university-tirana": {
+    "width": 1.03,
+    "height": 1,
+    "bytes": 43508,
+    "method": "Blender silhouette extrusion and official artwork face"
+  }
+}

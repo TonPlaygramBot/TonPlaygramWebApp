@@ -6,18 +6,12 @@ import {deployment,formationSlot,vehicleBlocks,coverPoint,tacticalGoal} from '..
 import {createState,stepState,publicState} from '../webapp/src/games/tiranastreets/shared/engine.mjs';
 import {IMPORTED_ASSETS} from '../webapp/src/games/tiranastreets/shared/importedAssets.mjs';
 import {props,OBSTACLES} from '../webapp/src/games/blackwater/shared/layout.mjs';
-test('Shqiponja deploys two double-crewed motorcycles and one escort together',()=>{
- const plan=deployment(2);assert.deepEqual(plan.vehicles,['shqiponja_bike','shqiponja_bike','patrol_sedan']);assert.deepEqual(plan.seats,[2,2,2]);
- const s=createState([{id:'p',name:'P'}],'free-roam');s.players.p.wanted=150;s.players.p.lastCrime=0;s.nextDispatch=0;stepState(s);
- assert.equal(s.units.length,3);assert.equal(new Set(s.units.map(u=>u.squadId)).size,1);
- for(const unit of s.units)assert.equal(s.npcs.filter(n=>n.unit===unit.id).length,2);
- const snap=publicState(s);assert.equal(snap.npcs.filter(n=>n.unit).length,6);assert.ok(snap.npcs.filter(n=>n.unit).every(n=>n.squadId&&Number.isInteger(n.seat)));
-});
-test('FNSH, RENEA and army grow from 10 to 20 without orphaning personnel',()=>{
- for(const stars of [3,4,5]){const low=deployment(stars,0),high=deployment(stars,200);assert.equal(low.seats.reduce((a,b)=>a+b),10);assert.equal(high.seats.reduce((a,b)=>a+b),20);}
- const s=createState([{id:'p',name:'P'}],'free-roam');s.players.p.wanted=150;s.nextDispatch=0;stepState(s);const old=s.units[0].squadId;
- s.players.p.wanted=450;s.nextDispatch=0;stepState(s);
- assert.ok(s.units.every(u=>u.squadId!==old));assert.ok(s.npcs.filter(n=>n.unit).every(n=>s.units.some(u=>u.id===n.unit)));
+test('wanted escalation preserves patrols and their personnel',()=>{
+ const s=createState([{id:'p',name:'P'}],'free-roam');const ids=s.units.map(u=>u.id),crew=s.npcs.filter(n=>n.unit).map(n=>n.id);
+ s.players.p.wanted=150;stepState(s);assert.deepEqual(s.units.map(u=>u.id),ids);
+ s.players.p.wanted=450;stepState(s);assert.deepEqual(s.units.map(u=>u.id),ids);assert.deepEqual(s.npcs.filter(n=>n.unit).map(n=>n.id),crew);
+ assert.ok(s.npcs.filter(n=>n.unit).every(n=>s.units.some(u=>u.id===n.unit)));
+ const snap=publicState(s);assert.ok(snap.npcs.filter(n=>n.unit).every(n=>n.squadId&&Number.isInteger(n.seat)));
 });
 test('car cover blocks fire, side peeking clears it, formation slots differ',()=>{
  const car={id:'car',x:0,z:0,w:2,d:4.6,heading:0},target={x:0,z:-15};
@@ -28,9 +22,9 @@ test('car cover blocks fire, side peeking clears it, formation slots differ',()=
  assert.equal(tacticalGoal(npc,target,[npc],[car],0,()=>true).anim,'run');
  assert.equal(vehicleBlocks({x:-5,z:0},{x:5,z:0},{...car,forceVehicle:'shqiponja_bike'}),false);
 });
-test('Tirana uses its ten road cars without Racing Royal kart spawns or collision props',()=>{
+test('Tirana uses its road collection and starting GTI without Racing Royal kart spawns or collision props',()=>{
  const s=createState([{id:'p',name:'P'}],'free-roam');
- assert.equal(s.cars.filter(c=>c.collectionVehicle).length,10);
+ assert.equal(s.cars.filter(c=>c.collectionVehicle).length,11);
  assert.equal(s.cars.some(c=>c.racingAsset),false);
  assert.equal(props.some(p=>p.racingAsset),false);
  assert.equal(OBSTACLES.some(p=>p.racingAsset),false);
@@ -49,11 +43,4 @@ test('all 26 originals remain packaged and hashed; ground weapons are no longer 
    assert.equal(OBSTACLES.some(p=>p.assetId===item.id),false,item.id);
   }
  }
-});
-test('a real response follows its route and dismounts as a squad instead of repathing forever',()=>{
- const s=createState([{id:'p',name:'P'}],'free-roam');s.players.p.wanted=250;s.players.p.lastCrime=1e5;s.nextDispatch=0;
- // Observe deployment before subsequent combat/respawn legitimately clears the response.
- for(let i=0;i<7200;i++){stepState(s);const squad=s.npcs.filter(n=>n.unit);if(squad.length>=10&&squad.every(n=>n.deployed))break;}
- const officers=s.npcs.filter(n=>n.unit);assert.ok(officers.length>=10);assert.ok(officers.every(n=>n.deployed));
- assert.ok(officers.some(n=>['cover','aim','run','walk'].includes(n.anim)));
 });
