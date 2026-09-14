@@ -1,3 +1,6 @@
+import {LiveHud} from '../tiranastreets/LiveHud';
+import {GraphicsControl} from '../tiranastreets/GraphicsControl';
+import {graphicsSetting} from '../tiranastreets/graphicsQuality';
 import {touchAction} from '../tiranastreets/touchActions';
 import {OpticalSight} from '../tiranastreets/OpticalSight';
 import {opticZoom} from '../tiranastreets/shared/weaponCalibration.mjs';
@@ -245,6 +248,7 @@ export function Game({
           ) : null}
         </div>
       </header>
+      {playing && <LiveHud health={state.health} maxHealth={state.maxHealth} />}
       {state.phase === 'menu' && mode === 'ai' ? (
         <div className="menu-layer">
           <div className="menu-title">
@@ -492,18 +496,10 @@ export function Game({
               {!state.driving && <WeaponSwitcher selected={state.weapon}
                 weapons={(state.weapons || []).map(w => ({...w, label: WEAPONS[w.id].name,
                   thumbnail: `/assets/tirana-streets/weapon-thumbnails/${BODY_WEAPON[w.id]}.webp`}))}
-                onOpen={() => engine.current?.input.clear()}
                 onSelect={id => engine.current?.switchWeapon(id as WeaponId) ?? false}/>}
               <div className="touch-controls">
                 <Joystick engine={engine.current} />
-                <HoldButton
-                  className="sprint-btn"
-                  aria-label="Hold to sprint"
-                  onHold={held=>{if(engine.current)engine.current.input.sprinting=held;}}
-                >
-                  <Footprints size={22} />
-                  <span>SPRINT</span>
-                </HoldButton>
+
                 <div className="bw-vehicle-context">
                   {!state.online&&(state.driving||state.nearVehicle)&&<button aria-label={state.driving?'Exit vehicle':'Enter vehicle'} onClick={()=>engine.current?.toggleVehicle()}>{state.driving?'EXIT VEHICLE':'DRIVE'}</button>}
                   {state.driving&&<button aria-label="Change driving camera view" onClick={()=>engine.current?.changeVehicleCamera()}>CAMERA · {state.vehicleView?.toUpperCase()}</button>}
@@ -789,30 +785,7 @@ export function Game({
             </label>
             <div className="quality-field">
               <span>Graphics</span>
-              <RadioGroup
-                value={settings.quality}
-                onValueChange={(v) =>
-                  configure({ quality: v as Settings['quality'] })
-                }
-                className="quality-options"
-                aria-label="Graphics quality"
-              >
-                {(['auto', 'high', 'low'] as const).map((q) => (
-                  <label key={q}>
-                    <RadioGroupItem value={q} />
-                    {q === 'auto'
-                      ? 'Adaptive'
-                      : q === 'high'
-                        ? 'High'
-                        : 'Battery'}
-                  </label>
-                ))}
-              </RadioGroup>
-              <small>
-                {state.compatibility
-                  ? 'Compatibility mode is active: lower detail because 3D acceleration is unavailable in this browser.'
-                  : 'Adaptive adjusts resolution to keep movement smooth.'}
-              </small>
+              <GraphicsControl value={graphicsSetting(settings.quality)} resolved={engine.current?.graphicsPreset} onChange={quality=>configure({quality})} />
             </div>
           </div>
           <button
@@ -993,6 +966,7 @@ function HoldButton({onHold,...props}:ButtonHTMLAttributes<HTMLButtonElement>&{o
     onKeyUp={e=>{if(e.key===' '||e.key==='Enter'){e.preventDefault();release(-1);}}}/>;
 }
 function Joystick({ engine }: { engine: GameEngine | null }) {
+  const [,setSprint]=useState(false);
   const knob = useRef<HTMLSpanElement>(null),
     active = useRef<number | null>(null),
     center = useRef({ x: 0, y: 0 });
@@ -1039,7 +1013,8 @@ function Joystick({ engine }: { engine: GameEngine | null }) {
           <Move size={23} />
         </span>
       </div>
-      <small>MOVE / SPRINT</small>
+      <button className="ts-joystick-sprint" aria-label="Toggle sprint" aria-pressed={engine?.input.sprinting||false}
+        {...touchAction(()=>{if(engine){engine.input.sprinting=!engine.input.sprinting;setSprint(engine.input.sprinting);}})}>SPRINT {engine?.input.sprinting?'ON':'OFF'}</button>
     </div>
   );
 }

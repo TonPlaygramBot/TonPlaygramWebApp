@@ -39,7 +39,7 @@ export class NativeLandmarkLayer {
       }
       // Tall silhouettes survive farther than small monuments. LOD updates are
       // performed by THREE.WebGLRenderer for the active game camera.
-      lod.addLevel(new THREE.Group(), l.id === 'eyes' ? 1800 : 1100, .08);
+      lod.addLevel(new THREE.Group(), 2400, .08);
       this.group.add(lod);
       this.lods.push(lod);
     }

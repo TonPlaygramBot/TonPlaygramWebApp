@@ -18,7 +18,7 @@ export type Settings = {
   sensitivity: number;
   volume: number;
   assist: boolean;
-  quality: 'auto' | 'high' | 'low';
+  quality: import('../tiranastreets/graphicsQuality').GraphicsSetting | 'low';
 };
 export {
   WEAPONS,

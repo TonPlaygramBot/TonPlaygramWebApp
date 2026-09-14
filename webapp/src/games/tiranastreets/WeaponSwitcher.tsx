@@ -1,41 +1,33 @@
-import {useEffect, useId, useRef, useState} from 'react';
+import {useEffect, useRef, useState} from 'react';
 import './weapon-switcher.css';
 export type WeaponSlot = {id:string;label:string;thumbnail?:string;icon?:string;category?:string;ammo?:number;reserve?:number};
-const pocket=new Set(['','punch','egg','tomato']);
-/** The four everyday actions stay at the thumb end of a searchable sheet. */
-export function WeaponSwitcher({weapons,selected,disabled=false,onSelect,onOpen}:{
-  weapons:WeaponSlot[];selected:string;disabled?:boolean;onSelect:(id:string)=>boolean;onOpen:()=>void;
+/** Tap swaps the last two weapons; swipe cycles the complete owned inventory.
+ * No modal and no global input reset: other fingers keep moving/aiming/firing. */
+export function WeaponSwitcher({weapons,selected,disabled=false,onSelect}: {
+  weapons:WeaponSlot[];selected:string;disabled?:boolean;onSelect:(id:string)=>boolean;onOpen?:()=>void;
 }) {
-  const [open,setOpen]=useState(false),[notice,setNotice]=useState(''),[query,setQuery]=useState('');
-  const root=useRef<HTMLDivElement>(null),trigger=useRef<HTMLButtonElement>(null),id=useId();
+  const previous=useRef<string|null>(null),currentId=useRef(selected);
+  const pointer=useRef<{id:number;x:number}|null>(null),[notice,setNotice]=useState('');
+  useEffect(()=>{if(currentId.current!==selected){previous.current=currentId.current;currentId.current=selected;}},[selected]);
   const current=weapons.find(w=>w.id===selected);
-  const close=()=>{setOpen(false);trigger.current?.focus();};
-  useEffect(()=>{
-    if(!open)return;
-    root.current?.querySelector<HTMLButtonElement>('[aria-pressed="true"]')?.focus();
-    const outside=(e:PointerEvent)=>{if(!root.current?.contains(e.target as Node))setOpen(false);};
-    const escape=(e:KeyboardEvent)=>{if(e.key==='Escape'){e.preventDefault();e.stopImmediatePropagation();close();}};
-    document.addEventListener('pointerdown',outside);window.addEventListener('keydown',escape,true);
-    return()=>{document.removeEventListener('pointerdown',outside);window.removeEventListener('keydown',escape,true);};
-  },[open]);
-  useEffect(()=>{if(disabled)setOpen(false);},[disabled]);
-  const tile=(w:WeaponSlot)=><button key={w.id} aria-label={`Equip ${w.label}`} aria-pressed={selected===w.id}
-    onClick={()=>{if(selected===w.id||onSelect(w.id))close();else setNotice('Finish your current action before switching.');}}>
-    {w.icon?<span className="ts-weapon-icon" aria-hidden="true">{w.icon}</span>:w.thumbnail?<img src={w.thumbnail} width="128" height="72" alt="" loading="lazy" decoding="async"/>:null}
-    <span>{w.label}</span><small>{selected===w.id?'EQUIPPED':w.ammo===undefined?(w.id?'MELEE':'HANDS FREE'):`${w.ammo} / ${w.reserve??0}`}</small>
-  </button>;
-  const quick=weapons.filter(w=>pocket.has(w.id)),rest=weapons.filter(w=>!pocket.has(w.id)&&w.label.toLowerCase().includes(query.trim().toLowerCase()));
-  return <div ref={root} className="ts-weapon-switcher" onPointerDown={e=>e.stopPropagation()} onKeyDown={e=>{if(open)e.stopPropagation();}}>
-    <button ref={trigger} className="ts-weapon-trigger" aria-label="Switch weapon" aria-expanded={open} aria-controls={id} disabled={disabled}
-      onClick={()=>{if(open)close();else{onOpen();setNotice('');setQuery('');setOpen(true);}}}>
-      <span aria-hidden="true">⇄</span><span>WEAPONS<small>{current?.label||'No weapon'}</small></span>
-    </button>
-    {open&&<section id={id} className="ts-weapon-picker" aria-label="Available weapons">
-      <header><strong>CHOOSE EQUIPMENT</strong><button aria-label="Close weapon selector" onClick={close}>×</button></header>
-      <label className="ts-weapon-search"><span>Find a weapon</span><input type="search" value={query} onChange={e=>setQuery(e.target.value)} placeholder="Search your weapons"/></label>
-      <div className="ts-weapon-scroll"><div className="ts-weapon-thumbnails">{rest.map(tile)}</div>{!rest.length&&<p>No matching weapons.</p>}</div>
-      {!!quick.length&&<div className="ts-weapon-quick" aria-label="Hands and throwables">{quick.map(tile)}</div>}
-      {notice&&<p role="status">{notice}</p>}
-    </section>}
+  const choose=(direction=0)=>{
+    if(disabled||weapons.length<2)return;
+    const index=Math.max(0,weapons.findIndex(w=>w.id===currentId.current));
+    const target=direction===0&&previous.current!==null&&weapons.some(w=>w.id===previous.current)&&previous.current!==currentId.current
+      ? previous.current : weapons[(index+(direction||1)+weapons.length)%weapons.length].id;
+    if(onSelect(target)){previous.current=currentId.current;currentId.current=target;setNotice('');}
+    else setNotice('Finish your current action to switch.');
+  };
+  useEffect(()=>{if(!notice)return;const t=setTimeout(()=>setNotice(''),1800);return()=>clearTimeout(t);},[notice]);
+  return <div className="ts-weapon-switcher">
+    <button className="ts-weapon-trigger" aria-label={`Quick swap weapon: ${current?.label||'No weapon'}. Swipe to cycle weapons.`} disabled={disabled}
+      onPointerDown={e=>{e.preventDefault();e.stopPropagation();if(pointer.current||e.pointerType==='mouse'&&e.button!==0)return;pointer.current={id:e.pointerId,x:e.clientX};e.currentTarget.setPointerCapture(e.pointerId);}}
+      onPointerUp={e=>{if(pointer.current?.id!==e.pointerId)return;const dx=e.clientX-pointer.current.x;pointer.current=null;choose(Math.abs(dx)>24?(dx<0?1:-1):0);}}
+      onPointerCancel={e=>{if(pointer.current?.id===e.pointerId)pointer.current=null;}}
+      onLostPointerCapture={e=>{if(pointer.current?.id===e.pointerId)pointer.current=null;}}
+      onClick={e=>{if(e.detail===0)choose();}}
+      onKeyDown={e=>{if(e.key==='ArrowRight'||e.key==='ArrowLeft'){e.preventDefault();choose(e.key==='ArrowRight'?1:-1);}}}>
+      <span aria-hidden="true">⇄</span><small>{current?.label||'Hands'}</small>
+    </button>{notice&&<span className="ts-weapon-notice" role="status">{notice}</span>}
   </div>;
 }

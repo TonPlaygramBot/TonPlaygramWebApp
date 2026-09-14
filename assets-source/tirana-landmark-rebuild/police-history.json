@@ -1,0 +1,76 @@
+{
+  "sourceCommit": "90814025c2b38eb242e9e450fe2e1364fe40b9f9",
+  "note": "Restored September 11 and retained September 12; already identical in the September 14 baseline. No binary replacement was necessary.",
+  "assets": [
+    {
+      "asset": "army_soldier.glb",
+      "sha256": "1631c6966f564b3f608a47f071994ba08ff9dbee9c0af184b9aefd174474bfe7",
+      "matchesSeptember12": true
+    },
+    {
+      "asset": "fnsh_armored_van.glb",
+      "sha256": "97ba47103d40e7cf9e08117dbbaf89ac1fb5460a846fbba9d100290cd27ce4ae",
+      "matchesSeptember12": true
+    },
+    {
+      "asset": "fnsh_officer.glb",
+      "sha256": "b6ebaf814d3fd9eb14d5d12e6798e00e2076f610c760e9f2fb42141d344510da",
+      "matchesSeptember12": true
+    },
+    {
+      "asset": "patrol_hatch.glb",
+      "sha256": "6114abbb0794214560296ad75f04765f8f449b16efd7b5b537bee8677e5cad00",
+      "matchesSeptember12": true
+    },
+    {
+      "asset": "patrol_officer.glb",
+      "sha256": "e608829201cd77d4b5dd3177e6f21dc0495261a11a111138075b77e8b0fa3422",
+      "matchesSeptember12": true
+    },
+    {
+      "asset": "patrol_sedan.glb",
+      "sha256": "f4e14c792ff09e6904259ecde614a59e2142ca375dd52f707a3df1d987192c19",
+      "matchesSeptember12": true
+    },
+    {
+      "asset": "police_van.glb",
+      "sha256": "dc26bca7a3ddec825a47ae643d3ca7d35290149f3d2cac1abedbb88919edec3d",
+      "matchesSeptember12": true
+    },
+    {
+      "asset": "renea_armored_van.glb",
+      "sha256": "ea8506bda4c3a4758129034eeb43486539564f13df206049a68c5a0ac51c8982",
+      "matchesSeptember12": true
+    },
+    {
+      "asset": "renea_officer.glb",
+      "sha256": "7dd1c5117608ae3a9fa7a85483536a0d72ac3d8df9bf39976c9e21c6bd00aaba",
+      "matchesSeptember12": true
+    },
+    {
+      "asset": "shqiponja_bike.glb",
+      "sha256": "568726633ab93bfe39c61b1fb2ab45dd123debb58611d1cb87a877e11f3345db",
+      "matchesSeptember12": true
+    },
+    {
+      "asset": "shqiponja_compact.glb",
+      "sha256": "bc718d1216ae72e2d29afd2094223c4376f48c705d3319a707e4ab9e319accb7",
+      "matchesSeptember12": true
+    },
+    {
+      "asset": "shqiponja_officer.glb",
+      "sha256": "f2b39d68dfc0dc725153ee62ca10077ffaf5ef40c9a79f72bdc12c6a437b9878",
+      "matchesSeptember12": true
+    },
+    {
+      "asset": "traffic_bike.glb",
+      "sha256": "29f03bb622ff2608a794cfe124f8fd9469162242bb2c35079c4b26566df7874b",
+      "matchesSeptember12": true
+    },
+    {
+      "asset": "traffic_officer.glb",
+      "sha256": "1c3d2a02b501de86c09ecb9f0f02e945333dca189e33a0ed22a38cd6442320da",
+      "matchesSeptember12": true
+    }
+  ]
+}

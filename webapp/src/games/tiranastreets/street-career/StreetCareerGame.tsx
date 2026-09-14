@@ -1,3 +1,5 @@
+import {GraphicsControl} from '../GraphicsControl';
+import {LiveHud} from '../LiveHud';
 import {OpticalSight} from '../OpticalSight';
 import {touchAction} from '../touchActions';
 import {weaponAnchors} from './weaponPose.mjs';
@@ -208,13 +210,12 @@ export function StreetCareerGame({ onExit }: { onExit: () => void }) {
         onContextMenu={(e) => e.preventDefault()}
       />
       <header className="tsc-header">
-        <strong>
-          TIRANA STREETS<small>STREET CAREER · SOLO</small>
-        </strong>
+
         <button className="tsc-map-button" aria-label="Open city map" onClick={() => open('map')}>MAP</button>
         <button className="tsc-menu-button" onClick={() => open('journal')}>MENU</button>
         <button onClick={onExit}>EXIT</button>
       </header>
+      {p && <LiveHud health={p.health} />}
       {failure && (
         <div className="tsc-error" role="alert">
           {failure}
@@ -260,7 +261,6 @@ export function StreetCareerGame({ onExit }: { onExit: () => void }) {
               return w ? [{id, label: w.label, icon:({punch:'✊',egg:'🥚',tomato:'🍅'} as Record<string,string>)[id], category:w.category, thumbnail: `/assets/tirana-streets/weapon-thumbnails/${id}.webp`,
                 ammo: w.category === 'melee' ? undefined : ammo.ammo, reserve: ammo.reserve}] : [];
             })]}
-            onOpen={() => {reset(); runtime.current?.input.releaseAll();}}
             onSelect={id => runtime.current?.action(`equip:${id}`) ?? false}
           />}
           <div
@@ -299,6 +299,8 @@ export function StreetCareerGame({ onExit }: { onExit: () => void }) {
             <span style={{ transform: `translate(${stick.x}px,${stick.y}px)` }}>
               ↑
             </span>
+            {!driving && !flying && <button className="ts-joystick-sprint" aria-label="Toggle sprint" aria-pressed={view.body.sprint}
+              {...touchAction(()=>{runtime.current?.action('sprint');})}>SPRINT {view.body.sprint?'ON':'OFF'}</button>}
           </div>
           {view.body.aim && !view.body.action && view.body.wall>=.8 && !driving && !flying && weaponAnchors(p.weapon).zoom>1 ? <OpticalSight zoom={weaponAnchors(p.weapon).zoom}/> : <div
             className={'tsc-reticle' + (view.body.aim ? ' is-aim' : '')}
@@ -354,7 +356,7 @@ export function StreetCareerGame({ onExit }: { onExit: () => void }) {
                   </button>
                 )}
                 {actionButton('crouch', 'crouch')}
-                {actionButton('sprint', 'sprint')}
+
                 {actionButton('vault', 'vault')}
               </>
             )}
@@ -424,10 +426,7 @@ export function StreetCareerGame({ onExit }: { onExit: () => void }) {
                     <section aria-label="Graphics and performance">
                       <h3>Graphics & performance</h3>
                       <FrameRateControl value={view.settings.targetFps} onChange={targetFps => runtime.current?.setSettings({targetFps})}/>
-                      <label>Graphics <select aria-label="Graphics quality" value={view.settings.quality}
-                        onChange={e => runtime.current?.setSettings({quality: e.target.value as 'auto' | 'high' | 'battery'})}>
-                        <option value="auto">Automatic</option><option value="high">High</option><option value="battery">Battery saver</option>
-                      </select></label>
+                      <GraphicsControl value={view.settings.quality} resolved={runtime.current?.renderer.quality} onChange={quality=>runtime.current?.setSettings({quality})} />
                       <p>{view.fps} FPS · Wider city view with nearby detail.</p>
                     </section>
                     <p>

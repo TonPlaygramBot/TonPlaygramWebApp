@@ -1,3 +1,4 @@
+import type {GraphicsSetting, GraphicsPreset} from './graphicsQuality';
 import {beginCityFrame} from './renderSettings';
 import {attachEnhancements} from '../tirana-expansion/WorldEnhancements';
 import {BusVisuals} from './population/BusVisuals';
@@ -16,6 +17,7 @@ import {WeaponStoreInterior} from './WeaponStoreInterior';
 /** Preserve input, loading, gameplay and camera implementation while replacing
  * the city's landmark layer. Base renderer also owns source-informed façades. */
 export class CityRenderer extends BaseCityRenderer {
+  private detailQuality?:GraphicsPreset;
   private imported=new ImportedAssetVisuals();
   protected cityDetails:ReturnType<typeof attachEnhancements>;
   protected ownDetailUpdate=true;
@@ -43,15 +45,19 @@ export class CityRenderer extends BaseCityRenderer {
     if(state){const viewer=state.players[playerId];if(viewer){this.buses.update(state,viewer,dt,this.quality==='battery',this.cockpitCamera&&!lobby?viewer.carId:undefined);this.cityStores.update(state,viewer);}}
     if(this.ownDetailUpdate)this.cityDetails.update(state?.elapsed||0,this.camera,state?.players[playerId],this.quality==='battery');
     super.render(state,playerId,dt,lobby);
+    if(this.detailQuality!==this.quality){this.detailQuality=this.quality;
+      this.nativeLandmarks.setBatteryMode(this.quality==='battery');
+      this.weaponStore.setBatteryMode(this.quality==='battery');
+    }
     if(state) {
       this.airMobility.update(state,dt);
       const p=state.players[playerId];if(p)this.imported.update(props.filter(v=>v.assetId).map((v,i)=>({id:`original-${i}`,assetId:v.assetId,x:v.x+ORIGIN.x,z:v.z+ORIGIN.z})),p,this.quality==='battery');
     }
   }
-  override setQuality(quality:'auto'|'high'|'battery') {
+  override setQuality(quality:GraphicsSetting) {
     super.setQuality(quality);
-    this.nativeLandmarks?.setBatteryMode(quality==='battery');
-    this.weaponStore?.setBatteryMode(quality==='battery');
+    this.nativeLandmarks?.setBatteryMode(this.quality==='battery');
+    this.weaponStore?.setBatteryMode(this.quality==='battery');
   }
   override destroy() {
     if(this.disposed)return;

@@ -8,7 +8,7 @@ import {RoomEnvironment} from 'three/examples/jsm/environments/RoomEnvironment.j
 import {createWebGLRenderer} from '../createWebGLRenderer';
 import {BIKE_TYPES} from '../shared/bikeCatalog.mjs';
 import {disposeWeaponResources} from '../weaponModelResources';
-const assets=[{id:'golf-gti',name:'Volkswagen Golf GTI 2025'},{id:'namazgjah',name:'Great Mosque of Tirana'},...BIKE_TYPES,...['conad','mulliri','spar','bkt','credins','raiffeisen','plaza','rogner','vodafone','one','big-market','university-tirana'].map(id=>({id:`signs/${id}`,name:`Raised sign · ${id}`}))];
+const assets=[{id:'golf-gti',name:'Volkswagen Golf GTI 2025'},{id:'namazgah-near',name:'Namazgah · Blender exterior'},...BIKE_TYPES,...['conad','mulliri','spar','bkt','credins','raiffeisen','plaza','rogner','vodafone','one','big-market','university-tirana'].map(id=>({id:`signs/${id}`,name:`Raised sign · ${id}`}))];
 function Model({id}:{id:string}){
  const host=useRef<HTMLDivElement>(null),[status,setStatus]=useState('Loading model…'),[error,setError]=useState('');
  useEffect(()=>{
@@ -23,7 +23,7 @@ function Model({id}:{id:string}){
   const resize=()=>{camera.aspect=element.clientWidth/element.clientHeight;camera.updateProjectionMatrix();renderer.setSize(element.clientWidth,element.clientHeight);};const observer=new ResizeObserver(resize);observer.observe(element);resize();
   const decoder=new DRACOLoader().setDecoderPath('/assets/tirana-streets/imported/draco/').setWorkerLimit(1);
   let dead=false,model:T.Group|undefined,frame=0;
-  void new GLTFLoader().setDRACOLoader(decoder).loadAsync(`/assets/tirana-streets/city-mobility/${id}.glb`).then(({scene:root})=>{
+  void new GLTFLoader().setDRACOLoader(decoder).loadAsync(`/assets/tirana-streets/${id==='namazgah-near'?'landmark-rebuild':'city-mobility'}/${id}.glb`).then(({scene:root})=>{
    if(dead){disposeWeaponResources([root]);return;}model=root;
    const box=new T.Box3().setFromObject(root),size=box.getSize(new T.Vector3()),centre=box.getCenter(new T.Vector3());root.position.sub(centre);scene.add(root);
    const span=Math.max(size.x,size.y,size.z),distance=span*2.15;
@@ -34,10 +34,10 @@ function Model({id}:{id:string}){
   const draw=()=>{if(dead)return;controls.update();renderer.render(scene,camera);frame=requestAnimationFrame(draw);};draw();
   return()=>{dead=true;cancelAnimationFrame(frame);observer.disconnect();controls.dispose();decoder.dispose();if(model)disposeWeaponResources([model]);environment.dispose();pmrem.dispose();renderer.dispose();renderer.domElement.remove();};
  },[id]);
- return <div className="stage" ref={host}>{error&&<img style={{width:'100%',height:'100%',objectFit:'contain'}} src={`/assets/tirana-streets/city-mobility/previews/${id.replace('/','-')}.jpg`} alt={`Blender render of ${assets.find(a=>a.id===id)?.name}`} onError={e=>{e.currentTarget.style.display='none';}}/>}<p role={error?'alert':'status'}>{error?'WebGL is unavailable here. Showing the actual model rendered in Blender.':status}</p></div>;
+ return <div className="stage" ref={host}>{error&&<img style={{width:'100%',height:'100%',objectFit:'contain'}} src={id==='namazgah-near'?'/assets/tirana-streets/landmark-rebuild/namazgah-preview.jpg':`/assets/tirana-streets/city-mobility/previews/${id.replace('/','-')}.jpg`} alt={`Blender render of ${assets.find(a=>a.id===id)?.name}`} onError={e=>{e.currentTarget.style.display='none';}}/>}<p role={error?'alert':'status'}>{error?'WebGL is unavailable here. Showing the actual model rendered in Blender.':status}</p></div>;
 }
 function Review(){
  const [id,setId]=useState('golf-gti');
- return <main><header><small>TIRANA STREETS</small><h1>City update</h1><p>Explore the uploaded landmarks, five new bikes, and Blender signs.</p><label htmlFor="asset">Model</label><select id="asset" value={id} onChange={e=>setId(e.target.value)}>{assets.map(a=><option key={a.id} value={a.id}>{a.name}</option>)}</select></header><Model id={id}/><footer><p>Portrait asset review. The game includes connected pedestrian routes, persistent police patrols and station dispatch.</p><a href="/tirana-mobile-review.html">Open portrait gameplay review</a><p><a href="/assets/tirana-streets/city-mobility/ATTRIBUTION.md">Asset credits and licences</a></p></footer></main>;
+ return <main><header><small>TIRANA STREETS</small><h1>City update</h1><p>Explore the Blender Namazgah exterior, five new bikes, and Blender signs.</p><label htmlFor="asset">Model</label><select id="asset" value={id} onChange={e=>setId(e.target.value)}>{assets.map(a=><option key={a.id} value={a.id}>{a.name}</option>)}</select></header><Model id={id}/><footer><p>Portrait asset review. The game includes connected pedestrian routes, persistent police patrols and station dispatch.</p><a href="/tirana-mobile-review.html">Open portrait gameplay review</a><p><a href="/assets/tirana-streets/city-mobility/ATTRIBUTION.md">Asset credits and licences</a></p></footer></main>;
 }
 createRoot(document.getElementById('root')!).render(<Review/>);

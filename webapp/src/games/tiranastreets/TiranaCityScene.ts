@@ -31,6 +31,7 @@ export class TiranaCityScene {
   }
   update(viewer: T.Vector3, seconds: number, battery: boolean, camera?: T.PerspectiveCamera) {
     if (this.disposed) return;
+    battery = camera?.userData.battery ?? battery;
     beginCityFrame(camera?.userData.targetFps ?? 60);
     this.city.update(viewer, seconds, battery);
     this.enhancements.update(seconds, camera, viewer, battery);

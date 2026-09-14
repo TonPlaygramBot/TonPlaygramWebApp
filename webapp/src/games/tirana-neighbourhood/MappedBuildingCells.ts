@@ -12,13 +12,13 @@ import {facadeEdges} from '../tirana-city-source/sourceCore.mjs';
 import {AGED_HOUSING_IDS} from '../tirana-city-source/housingRegistry.mjs';
 type Bucket={x:number;z:number;buildings:any[];root?:T.Group;detail?:T.Group;used:number};
 
-/** Build a bounded number of nearby cells, not tens of thousands of buildings
- * on the first frame. CPU and GPU geometry are both evicted from the cache.
- */
+/** Complete material-batched shells are resident before the first frame.
+ * Nearby facade detail is queued and evicted independently of block visibility. */
 export class MappedBuildingCells {
  readonly group=new T.Group();
  private buckets:Bucket[]=[];
  private frame=0;
+ private silhouettes:{mesh:T.Mesh;bounds:number[]}[]=[];
  private lookup=new Map<string,Bucket>();private cached=new Set<Bucket>();private selected=new Set<Bucket>();
  private jobs=new CellWorkQueue();private viewer={x:Infinity,z:Infinity};private battery?:boolean;private dead=false;
  private finish:EnvironmentMaterials;
@@ -30,6 +30,19 @@ export class MappedBuildingCells {
    const x=Math.floor(b.p.reduce((s:number,p:number[])=>s+p[0]/b.p.length,0)/240)*240+120;
    const z=Math.floor(b.p.reduce((s:number,p:number[])=>s+p[1]/b.p.length,0)/240)*240+120,key=`${x}:${z}`;
    if(!map.has(key))map.set(key,{x,z,buildings:[],used:0});map.get(key)!.buildings.push(b);
+  }
+  const districts=new Map<string,{positions:number[];colors:number[];bounds:number[]}>();
+  for(const b of buildings){
+   const x=b.p.reduce((sum:number,p:number[])=>sum+p[0]/b.p.length,0),z=b.p.reduce((sum:number,p:number[])=>sum+p[1]/b.p.length,0);
+   const key=`${Math.floor(x/960)}:${Math.floor(z/960)}`;
+   if(!districts.has(key))districts.set(key,{positions:[],colors:[],bounds:[Infinity,Infinity,-Infinity,-Infinity]});
+   const d=districts.get(key)!;
+   for(const p of b.p){d.bounds[0]=Math.min(d.bounds[0],p[0]);d.bounds[1]=Math.min(d.bounds[1],p[1]);d.bounds[2]=Math.max(d.bounds[2],p[0]);d.bounds[3]=Math.max(d.bounds[3],p[1]);}
+   appendBuildingShell(b,d.positions,d.colors);
+  }
+  for(const [key,d] of districts){
+   const mesh=new T.Mesh(shellGeometry(d.positions,d.colors),this.wall);mesh.name=`Complete block silhouettes ${key}`;mesh.receiveShadow=true;
+   this.silhouettes.push({mesh,bounds:d.bounds});this.group.add(mesh);
   }
   this.lookup=map;this.buckets=[...map.values()];this.group.name='Tirana:streamed-building-cells';
  }
@@ -84,10 +97,7 @@ export class MappedBuildingCells {
   return group;
  }
  private *coarse(bucket:Bucket):Generator<void,void>{
-  const positions:number[]=[],colors:number[]=[];
-  for(const building of bucket.buildings){appendBuildingShell(building,positions,colors);yield;}
-  const mesh=new T.Mesh(shellGeometry(positions,colors),this.wall);mesh.receiveShadow=true;
-  const root=new T.Group();root.name=`Building shells ${bucket.x}:${bucket.z}`;root.add(mesh);bucket.root=root;
+  const root=new T.Group();root.name=`Building details ${bucket.x}:${bucket.z}`;bucket.root=root;
   this.group.add(root);this.cached.add(bucket);root.visible=this.selected.has(bucket);
  }
  private *details(bucket:Bucket):Generator<void,void>{
@@ -112,14 +122,19 @@ export class MappedBuildingCells {
     const b=this.lookup.get(`${x*240+120}:${z*240+120}`);if(b&&distance(b)<(radius+170)**2)selected.push(b);
    }
    selected.sort((a,b)=>distance(a)-distance(b));this.selected=new Set(selected);
-   for(const b of selected){b.used=this.frame;if(!b.root)tasks.push({key:b.x+":"+b.z,create:()=>this.coarse(b)});}
-   for(const b of selected)if(!b.detail&&distance(b)<(battery?150:330)**2)tasks.push({key:b.x+":"+b.z+":detail",create:()=>this.details(b)});
+   for(const b of selected){b.used=this.frame;if(!b.root&&distance(b)<(battery?240:420)**2)this.coarse(b).next();}
+   for(const b of selected)if(b.root&&!b.detail&&distance(b)<(battery?150:330)**2)tasks.push({key:b.x+":"+b.z+":detail",create:()=>this.details(b)});
    this.jobs.sync(tasks);
-   for(const b of this.cached){b.root!.visible=this.selected.has(b);b.root!.children[0].castShadow=!battery&&distance(b)<240**2;if(b.detail)b.detail.visible=distance(b)<(battery?240:420)**2;}
+   for(const b of this.cached){b.root!.visible=this.selected.has(b);if(b.detail)b.detail.traverse(o=>{if(o instanceof T.Mesh)o.castShadow=!battery&&distance(b)<240**2;});if(b.detail)b.detail.visible=distance(b)<(battery?240:420)**2;}
    const stale=[...this.cached].filter(b=>!this.selected.has(b)).sort((a,b)=>a.used-b.used);
    while(this.cached.size>(battery?CITY_CACHE.battery:CITY_CACHE.high)&&stale.length){const b=stale.shift()!;this.release(b.root!);b.root=undefined;b.detail=undefined;this.cached.delete(b);}
    // Close detail has a separate cache; distant shells retain no window meshes.
    for(const b of this.cached)if(b.detail&&distance(b)>600**2){this.release(b.detail);b.detail=undefined;}
+  }
+  const radius=battery?CITY_RADIUS.battery:CITY_RADIUS.high;
+  for(const {mesh,bounds:b} of this.silhouettes){
+   const dx=Math.max(b[0]-viewer.x,0,viewer.x-b[2]),dz=Math.max(b[1]-viewer.z,0,viewer.z-b[3]);
+   mesh.visible=dx*dx+dz*dz<=radius*radius;
   }
   runCityWork(this.jobs, battery);
   if(this.cached.size>(battery?CITY_CACHE.battery:CITY_CACHE.high)){
@@ -129,5 +144,5 @@ export class MappedBuildingCells {
   this.group.userData={cachedCells:this.cached.size,pendingJobs:this.jobs.length,radius:battery?CITY_RADIUS.battery:CITY_RADIUS.high};
  }
  private release(root:T.Group){root.traverse(o=>{if(o instanceof T.Mesh)o.geometry.dispose();});root.clear();root.removeFromParent();}
- dispose(){if(this.dead)return;this.dead=true;this.jobs.dispose();this.finish.dispose();for(const b of this.buckets)if(b.root)this.release(b.root);this.buckets=[];this.group.removeFromParent();}
+ dispose(){if(this.dead)return;this.dead=true;this.jobs.dispose();this.finish.dispose();for(const s of this.silhouettes)s.mesh.geometry.dispose();this.silhouettes=[];for(const b of this.buckets)if(b.root)this.release(b.root);this.buckets=[];this.group.removeFromParent();}
 }

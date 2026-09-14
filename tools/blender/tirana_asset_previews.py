@@ -5,14 +5,13 @@ from pathlib import Path
 from tirana_mobility import ROOT,reset,mat
 OUT=ROOT/'webapp/public/assets/tirana-streets/city-mobility/previews'
 OUT.mkdir(exist_ok=True)
-for name in ['city-bicycle','mountain-bike','delivery-ebike','city-scooter','street-motorcycle','golf-gti','namazgjah',*[f'signs/{b}' for b in ['conad','mulliri','spar','bkt','credins','raiffeisen','plaza','rogner','vodafone','one','big-market','university-tirana']]]:
+for name in ['city-bicycle','mountain-bike','delivery-ebike','city-scooter','street-motorcycle','golf-gti',*[f'signs/{b}' for b in ['conad','mulliri','spar','bkt','credins','raiffeisen','plaza','rogner','vodafone','one','big-market','university-tirana']]]:
  reset()
  bpy.ops.import_scene.gltf(filepath=str(ROOT/f'webapp/public/assets/tirana-streets/city-mobility/{name}.glb'))
  objects=[o for o in bpy.context.scene.objects if o.type=='MESH']
  corners=[o.matrix_world@Vector(p) for o in objects for p in o.bound_box]
  lo=Vector([min(p[i] for p in corners) for i in range(3)]);hi=Vector([max(p[i] for p in corners) for i in range(3)])
  centre=(lo+hi)/2;span=max(hi-lo)
- if name=='namazgjah':lo.z=0
  for o in bpy.context.scene.objects:
   if o.parent is None:o.location-=Vector((centre.x,centre.y,lo.z))
  bpy.context.view_layer.update()

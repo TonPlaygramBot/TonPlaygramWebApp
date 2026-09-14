@@ -1,0 +1,63 @@
+{
+  "scope": "Real React route and input; mocked account balance; frozen simulation for input isolation; on-demand software WebGL, not phone performance",
+  "multitouch": {
+    "held": {
+      "x": 0,
+      "y": 0.6818181818181818,
+      "gas": 0,
+      "fast": false,
+      "brake": false,
+      "fire": true
+    },
+    "swap": {
+      "input": {
+        "x": 0,
+        "y": 0.6818181818181818,
+        "gas": 0,
+        "fast": false,
+        "brake": false,
+        "fire": true
+      },
+      "weapon": "vityazAttack"
+    },
+    "releaseIsolation": true,
+    "sprintToggle": true
+  },
+  "viewportChecks": [
+    {
+      "width": 390,
+      "height": 844
+    },
+    {
+      "width": 320,
+      "height": 740
+    }
+  ],
+  "errors": [],
+  "requests": [
+    {
+      "url": "/assets/tirana-streets/references/kuvendi-emblem.svg",
+      "status": 200
+    },
+    {
+      "url": "/assets/tirana-streets/albanian-forces/glb/patrol_sedan.glb",
+      "status": 200
+    },
+    {
+      "url": "/assets/tirana-streets/albanian-forces/glb/traffic_bike.glb",
+      "status": 200
+    },
+    {
+      "url": "/assets/tirana-streets/albanian-forces/glb/patrol_officer.glb",
+      "status": 200
+    },
+    {
+      "url": "/assets/tirana-streets/albanian-forces/glb/traffic_officer.glb",
+      "status": 200
+    },
+    {
+      "url": "/assets/tirana-streets/landmark-rebuild/namazgah-near.glb",
+      "status": 200
+    }
+  ]
+}

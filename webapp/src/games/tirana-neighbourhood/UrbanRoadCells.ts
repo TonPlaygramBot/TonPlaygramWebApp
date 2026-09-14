@@ -17,6 +17,7 @@ export class UrbanRoadCells {
  private materials:EnvironmentMaterials;
  private cells:Map<string,Cell>;
  private visible=new Set<Cell>();private cache=new Set<Cell>();
+ private surfaces:{mesh:T.Mesh;bounds:number[]}[]=[];
  private tick=0;private last=-Infinity;private dead=false;
  private viewer={x:Infinity,z:Infinity};private battery?:boolean;
  private jobs=new CellWorkQueue();
@@ -27,6 +28,28 @@ export class UrbanRoadCells {
   this.materials=new EnvironmentMaterials(loadTextures);this.materials.apply(this.pavement,'concrete_pavement');this.asphalt.userData.environmentSurface=true;
   prepareRoadSurfaceIndex();
   this.cells=splitRoadCells(WORLD.roads);this.group.name='Tirana:streamed-road-cells';
+  // Complete ground surfaces are resident before gameplay. Only pavement detail
+  // is queued, so driving or teleporting cannot outrun the road network.
+  const districts=new Map<string,{positions:number[];bounds:number[];walk:boolean}>();
+  for(const r of WORLD.roads){
+   const ring=roadRing(r);if(!ring)continue;
+   const key=`${Math.floor((r.a[0]+r.b[0])/1920)}:${Math.floor((r.a[1]+r.b[1])/1920)}:${!!r.walk}`;
+   if(!districts.has(key))districts.set(key,{positions:[],bounds:[Infinity,Infinity,-Infinity,-Infinity],walk:!!r.walk});
+   const d=districts.get(key)!;
+   for(const p of ring){d.bounds[0]=Math.min(d.bounds[0],p[0]);d.bounds[1]=Math.min(d.bounds[1],p[1]);d.bounds[2]=Math.max(d.bounds[2],p[0]);d.bounds[3]=Math.max(d.bounds[3],p[1]);}
+   const y=r.bridge?.16:r.walk?.071:.09;
+   for(let i=1;i<ring.length-1;i++){
+    const [a,b,c]=[ring[0],ring[i],ring[i+1]],face=(b[0]-a[0])*(c[1]-a[1])-(b[1]-a[1])*(c[0]-a[0])>0?[a,c,b]:[a,b,c];
+    appendGroundTriangle(d.positions,face[0],face[1],face[2],y);
+   }
+  }
+  for(const [key,d] of districts){
+   const g=new T.BufferGeometry(),uv=new Float32Array(d.positions.length/3*2);
+   for(let i=0;i<d.positions.length/3;i++){uv[i*2]=d.positions[i*3]/5;uv[i*2+1]=d.positions[i*3+2]/5;}
+   g.setAttribute('position',new T.Float32BufferAttribute(d.positions,3));g.setAttribute('uv',new T.BufferAttribute(uv,2));g.computeVertexNormals();g.computeBoundingSphere();
+   const mesh=new T.Mesh(g,d.walk?this.pavement:this.asphalt);mesh.name=`Complete road surfaces ${key}`;mesh.receiveShadow=true;
+   this.surfaces.push({mesh,bounds:d.bounds});this.group.add(mesh);
+  }
   if(loadTextures)for(const [file,key] of [['diff','map'],['nor_gl','normalMap'],['rough','roughnessMap']] as const){
    new T.TextureLoader().load('/assets/tirana-streets/asphalt-'+file+'.jpg',t=>{
     if(this.dead){t.dispose();return;}t.wrapS=t.wrapT=T.RepeatWrapping;t.anisotropy=4;if(key==='map')t.colorSpace=T.SRGBColorSpace;
@@ -35,21 +58,7 @@ export class UrbanRoadCells {
   }
  }
  private *buildRoad(cell:Cell):Generator<void,void>{
-  const positions:number[]=[];
-  for(const r of cell.roads){
-   if(!r.walk){const ring=roadRing(r);if(ring){const clipped=clipRingToBounds(ring,cell.bounds),y=r.bridge?.16:.09;
-    for(let i=1;i<clipped.length-1;i++){const a=clipped[0],b=clipped[i],c=clipped[i+1];
-     const face=(b[0]-a[0])*(c[1]-a[1])-(b[1]-a[1])*(c[0]-a[0])>0?[a,c,b]:[a,b,c];appendGroundTriangle(positions,face[0],face[1],face[2],y);
-    }
-   }}
-   yield;
-  }
-  const root=new T.Group();root.name=`Road cell ${cell.key}`;
-  if(positions.length){const geo=new T.BufferGeometry(),normals=new Float32Array(positions.length),uv=new Float32Array(positions.length/3*2);
-   for(let i=0;i<positions.length/3;i++){normals[i*3+1]=1;uv[i*2]=positions[i*3]/5;uv[i*2+1]=positions[i*3+2]/5;}
-   geo.setAttribute('position',new T.Float32BufferAttribute(positions,3));geo.setAttribute('normal',new T.BufferAttribute(normals,3));geo.setAttribute('uv',new T.BufferAttribute(uv,2));geo.computeVertexNormals();geo.computeBoundingSphere();
-   const mesh=new T.Mesh(geo,this.asphalt);mesh.receiveShadow=true;root.add(mesh);
-  }
+  const root=new T.Group();root.name=`Pavement detail ${cell.key}`;
   cell.root=root;this.group.add(root);this.cache.add(cell);root.visible=this.visible.has(cell);
  }
  private clip(ring:number[][],cell:Cell){
@@ -84,13 +93,15 @@ export class UrbanRoadCells {
    const distance=(c:Cell)=>(c.x-viewer.x)**2+(c.z-viewer.z)**2;
    selected.sort((a,b)=>distance(a)-distance(b));this.visible=new Set(selected);
    // All roads first; costly close detail never delays the wider road network.
-   for(const c of selected){c.used=this.tick;if(!c.root)tasks.push({key:c.key,create:()=>this.buildRoad(c)});}
-   for(const c of selected)if(!c.paving&&distance(c)<(battery?300:520)**2)tasks.push({key:c.key+":paving",create:()=>this.buildPaving(c)});
+   for(const c of selected){c.used=this.tick;if(!c.root&&distance(c)<(battery?300:520)**2)this.buildRoad(c).next();}
+   for(const c of selected)if(c.root&&!c.paving&&distance(c)<(battery?300:520)**2)tasks.push({key:c.key+":paving",create:()=>this.buildPaving(c)});
    this.jobs.sync(tasks);
    for(const c of this.cache){c.root!.visible=this.visible.has(c);if(c.paving)c.paving.visible=distance(c)<(battery?380:650)**2;}
    const stale=[...this.cache].filter(c=>!this.visible.has(c)).sort((a,b)=>(a.used||0)-(b.used||0));
    while(this.cache.size>(battery?CITY_CACHE.battery:CITY_CACHE.high)&&stale.length)this.release(stale.shift()!);
   }
+  const radius=battery?CITY_RADIUS.battery:CITY_RADIUS.high;
+  for(const {mesh,bounds:b} of this.surfaces){const dx=Math.max(b[0]-viewer.x,0,viewer.x-b[2]),dz=Math.max(b[1]-viewer.z,0,viewer.z-b[3]);mesh.visible=dx*dx+dz*dz<=radius*radius;}
   runCityWork(this.jobs, battery);
   if(this.cache.size>(battery?CITY_CACHE.battery:CITY_CACHE.high)){
    const stale=[...this.cache].filter(c=>!this.visible.has(c)).sort((a,b)=>(a.used||0)-(b.used||0));
@@ -99,5 +110,5 @@ export class UrbanRoadCells {
   this.group.userData={cachedCells:this.cache.size,pendingJobs:this.jobs.length,radius:battery?CITY_RADIUS.battery:CITY_RADIUS.high};
  }
  private release(c:Cell){c.root?.traverse(o=>{if(o instanceof T.Mesh)o.geometry.dispose();});c.root?.removeFromParent();c.root=undefined;c.paving=undefined;this.cache.delete(c);}
- dispose(){if(this.dead)return;this.dead=true;this.jobs.dispose();this.materials.dispose();for(const c of this.cache)this.release(c);this.textures.forEach(t=>t.dispose());this.asphalt.dispose();this.pavement.dispose();this.group.clear();this.group.removeFromParent();}
+ dispose(){if(this.dead)return;this.dead=true;this.jobs.dispose();this.materials.dispose();for(const s of this.surfaces)s.mesh.geometry.dispose();this.surfaces=[];for(const c of this.cache)this.release(c);this.textures.forEach(t=>t.dispose());this.asphalt.dispose();this.pavement.dispose();this.group.clear();this.group.removeFromParent();}
 }

@@ -25,8 +25,8 @@ export function makeCityWorld(scene:THREE.Scene,camera:THREE.PerspectiveCamera,r
   const skyMaterial = world.sky.material as THREE.ShaderMaterial;
   skyMaterial.uniforms.top.value.set('#6c9cb9');
   skyMaterial.uniforms.bottom.value.set('#d1d8cc');
-  scene.fog = new THREE.FogExp2('#c5d2cc', .0017);
-  camera.far = 2800;
+  scene.fog = new THREE.FogExp2('#c5d2cc', .00065);
+  camera.far = 3600;
   camera.updateProjectionMatrix();
   world.rain.userData.enabled = false;
   world.rain.visible = false;

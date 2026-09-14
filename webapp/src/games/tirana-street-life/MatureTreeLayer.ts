@@ -1,10 +1,11 @@
+import {groundHeight} from '../tirana-east/terrainCore.mjs';
 import * as T from 'three';
 import {mergeGeometries} from 'three/examples/jsm/utils/BufferGeometryUtils.js';
 import {CANOPY_TREES} from './canopyRegistry.mjs';
 import {nearbyIndex} from './streetModels.mjs';
 import {ribbonExclusion} from '../tirana-street-detail/roadDetailCore.mjs';
 import type {StreetDetailOptions} from '../tirana-street-detail/StreetDetailLayer';
-type Tree={id:string;x:number;z:number;shape:string;height:number;crown:number;seed:number;zone:string};
+type Tree={y?:number;id:string;x:number;z:number;shape:string;height:number;crown:number;seed:number;zone:string};
 const hash=(n:number)=>{const x=Math.sin(n*127.1+311.7)*43758.5453;return x-Math.floor(x);};
 type Batch={shape:string;lod:number;wood:T.InstancedMesh;leaves:T.InstancedMesh};
 
@@ -19,7 +20,7 @@ export class MatureTreeLayer {
  constructor(trees:Tree[]=CANOPY_TREES,options:StreetDetailOptions={}){
   this.group.name='Tirana:mature-boulevard-and-square-trees';
   const blocked=options.track?ribbonExclusion(options.track):null;
-  const eligible=trees.filter(t=>!blocked||!blocked(t.x,t.z,Math.max(.8,t.crown*.75)));this.near=nearbyIndex(eligible);
+  const eligible=trees.filter(t=>!blocked||!blocked(t.x,t.z,Math.max(.8,t.crown*.75)));this.near=nearbyIndex(eligible.map(t=>({...t,y:groundHeight(t.x,t.z)+.12})));
   this.group.userData={mappedTrunks:eligible.filter(t=>t.zone!=='estimated-area-canopy').length,estimatedAreaTrunks:eligible.filter(t=>t.zone==='estimated-area-canopy').length,accuracy:'Mapped trunks, interpolated rows and estimated canopy within mapped green spaces; not satellite verified'};
   // Original clustered leaf cutout. Repeated small cards leave daylight gaps;
   // opacity is tested instead of sorted transparency on mobile.
@@ -44,7 +45,7 @@ export class MatureTreeLayer {
   if(this.dead||!viewer)return;
   if(!force&&this.battery===battery&&seconds>=this.last&&(seconds-this.last<.2||Math.hypot(viewer.x-this.viewer.x,viewer.z-this.viewer.z)<12))return;
   this.last=seconds;this.viewer={x:viewer.x,z:viewer.z};this.battery=battery;
-  const trees=this.near(viewer,battery?850:1400,battery?2600:6000);let detailed=0,medium=0;
+  const trees=this.near(viewer,2200,6000);let detailed=0,medium=0;
   this.batches.forEach(b=>{b.wood.count=0;b.leaves.count=0;});
   for(const t of trees){
    const distance=Math.hypot(t.x-viewer.x,t.z-viewer.z);
@@ -52,11 +53,11 @@ export class MatureTreeLayer {
    if(lod===0)detailed++;if(lod===1)medium++;
    const b=this.batches.find(b=>b.shape===t.shape&&b.lod===lod)??this.batches.find(b=>b.shape==='upright'&&b.lod===lod)!;
    if(b.wood.count>=b.wood.instanceMatrix.count)continue;
-   this.dummy.position.set(t.x,.12,t.z);this.dummy.scale.set(t.crown,t.height,t.crown);this.dummy.rotation.set(0,t.seed*2.399,0);this.dummy.updateMatrix();
+   this.dummy.position.set(t.x,t.y??.12,t.z);this.dummy.scale.set(t.crown,t.height,t.crown);this.dummy.rotation.set(0,t.seed*2.399,0);this.dummy.updateMatrix();
    b.wood.setMatrixAt(b.wood.count++,this.dummy.matrix);b.leaves.setMatrixAt(b.leaves.count,this.dummy.matrix);
    this.color.setHSL(.235+(t.seed%5)*.008,.2+(t.seed%4)*.02,.62+(t.seed%6)*.025);b.leaves.setColorAt(b.leaves.count++,this.color);
   }
-  this.group.userData.visibleTrunks=trees.length;this.group.userData.radius=battery?850:1400;
+  this.group.userData.visibleTrunks=trees.length;this.group.userData.radius=2200;
   this.batches.forEach(b=>{b.wood.instanceMatrix.needsUpdate=true;b.leaves.instanceMatrix.needsUpdate=true;if(b.leaves.instanceColor)b.leaves.instanceColor.needsUpdate=true;});
  }
  retire(){this.dead=true;}

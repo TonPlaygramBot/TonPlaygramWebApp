@@ -28,17 +28,19 @@ export function terrainGeometry(bounds:number[],step:number,skipFine=false){
  const g=new T.BufferGeometry();g.setAttribute('position',new T.Float32BufferAttribute(p,3));g.setAttribute('color',new T.Float32BufferAttribute(col,3));g.setIndex(index);g.computeVertexNormals();g.computeBoundingSphere();return g;
 }
 /** Two terrain draws. 60 m playable mesh samples archived 30 m DEM; 300 m
- * skyline spans Krujë and Krrabë. Dense canopy instances only within 700 m. */
+ * skyline spans Krujë and Krrabë. Near trees transition to sparse crowns at 2 km. */
 export class TerrainLayer{
- readonly group=new T.Group();private material=new T.MeshStandardMaterial({vertexColors:true,roughness:1});private trees:T.InstancedMesh;private trunks:T.InstancedMesh;private stamp={x:Infinity,z:Infinity};private dead=false;
+ readonly group=new T.Group();private material=new T.MeshStandardMaterial({vertexColors:true,roughness:1});private trees:T.InstancedMesh;private trunks:T.InstancedMesh;private stamp={x:Infinity,z:Infinity};private dead=false;private battery?:boolean;private farTrees:T.InstancedMesh;
  constructor(){
   this.group.name='Tirana:DEM-Dajti-Kruje-Krrabe';
   for(const [bounds,step,skip] of [[FINE,TERRAIN_STEP,false],[[-16200,-26100,18600,19500],300,true]] as const){const m=new T.Mesh(terrainGeometry([...bounds],step,skip),this.material);m.receiveShadow=true;this.group.add(m);}
   this.trees=new T.InstancedMesh(new T.IcosahedronGeometry(1,1),new T.MeshStandardMaterial({color:0x385829,roughness:1}),3200);
   this.trunks=new T.InstancedMesh(new T.CylinderGeometry(.12,.24,1,5),new T.MeshStandardMaterial({color:0x67513a,roughness:1}),3200);
+  this.farTrees=new T.InstancedMesh(new T.IcosahedronGeometry(1,0),new T.MeshStandardMaterial({color:0x385829,roughness:1}),3200);
+  this.farTrees.frustumCulled=false;this.farTrees.count=0;this.group.add(this.farTrees);
   this.trees.count=this.trunks.count=0;this.trees.frustumCulled=this.trunks.frustumCulled=false;this.group.add(this.trees,this.trunks);
  }
- update(viewer?:{x:number;z:number},battery=false){if(!viewer||this.dead||Math.hypot(viewer.x-this.stamp.x,viewer.z-this.stamp.z)<80)return;this.stamp={...viewer};
+ update(viewer?:{x:number;z:number},battery=false){if(!viewer||this.dead||(this.battery===battery&&Math.hypot(viewer.x-this.stamp.x,viewer.z-this.stamp.z)<80))return;this.stamp={...viewer};this.battery=battery;
   const d=new T.Object3D(),radius=battery?420:700,spacing=24;let count=0;
   for(let x=Math.floor((viewer.x-radius)/spacing)*spacing;x<viewer.x+radius;x+=spacing)for(let z=Math.floor((viewer.z-radius)/spacing)*spacing;z<viewer.z+radius;z+=spacing){
    const px=x+Math.sin(x*.071+z*.092)*7,pz=z+Math.cos(x*.034-z*.083)*7;if(Math.hypot(px-viewer.x,pz-viewer.z)>radius||urbanDistance(px,pz)<10||!forestAt(px,pz)||!clearForestRoad(px,pz))continue;
@@ -48,6 +50,18 @@ export class TerrainLayer{
    d.position.set(px,y+h*.62,pz);d.scale.set(h*.4,h*.55,h*.4);d.rotation.set(0,px*.03,0);d.updateMatrix();this.trees.setMatrixAt(count,d.matrix);
    d.position.y=y+h*.3;d.scale.set(1,h*.6,1);d.updateMatrix();this.trunks.setMatrixAt(count++,d.matrix);
   }
+  let farCount=0;
+  // Sparse authored crowns stay inside sourced forest polygons. These are
+  // vegetation LODs, not a claim that individual trunks were surveyed.
+  const farRadius=2200,farSpacing=72;
+  for(let x=Math.floor((viewer.x-farRadius)/farSpacing)*farSpacing;x<viewer.x+farRadius;x+=farSpacing)for(let z=Math.floor((viewer.z-farRadius)/farSpacing)*farSpacing;z<viewer.z+farRadius;z+=farSpacing){
+   const px=x+Math.sin(x*.071+z*.092)*7,pz=z+Math.cos(x*.034-z*.083)*7,distance=Math.hypot(px-viewer.x,pz-viewer.z);
+   if(distance<radius+16||distance>farRadius||urbanDistance(px,pz)<10||!forestAt(px,pz)||!clearForestRoad(px,pz)||farCount>=3200)continue;
+   const y=groundHeight(px,pz),h=8+3*Math.abs(Math.sin(px*.053+pz*.072));
+   d.position.set(px,y+h*.65,pz);d.scale.set(h*.5,h*.65,h*.5);d.rotation.set(0,px*.03,0);d.updateMatrix();this.farTrees.setMatrixAt(farCount++,d.matrix);
+  }
+  this.farTrees.count=farCount;this.farTrees.instanceMatrix.needsUpdate=true;
+  this.group.userData.forestRadius=farRadius;this.group.userData.authoredForestCrowns=count+farCount;
   this.trees.count=this.trunks.count=count;this.trees.instanceMatrix.needsUpdate=this.trunks.instanceMatrix.needsUpdate=true;
  }
  dispose(){this.dead=true;this.group.traverse(o=>{if(o instanceof T.Mesh){o.geometry.dispose();(o.material as T.Material).dispose();}});this.group.clear();this.group.removeFromParent();}

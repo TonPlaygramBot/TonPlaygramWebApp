@@ -4,6 +4,7 @@ import {facadeEdges} from '../tirana-city-source/sourceCore.mjs';
 import {WORLD} from '../tiranastreets/shared/world.mjs';
 import {CellWorkQueue} from '../tirana-neighbourhood/cellWorkQueue.mjs';
 import {housingProfile} from './housingCore.mjs';
+import {RURAL_HOUSE_IDS} from './ruralData.mjs';
 import {buildingGround} from './terrainCore.mjs';
 import {modelGeometry,ROOFS} from './blenderModels';
 export function housingGeometry(b:any){
@@ -21,6 +22,8 @@ export function housingGeometry(b:any){
    if(j===0&&i===Math.floor(cols/2)&&edge===front)continue;
    const bay=profile.colourful?['campus-yellow-bay','campus-red-bay','campus-green-bay'][(i+j)%3]:profile.bay;
    place(bay,edge.a[0]+edge.ux*u+edge.nx*.04,y,edge.a[1]+edge.uz*u+edge.nz*.04,Math.atan2(edge.nx,edge.nz));
+   if(RURAL_HOUSE_IDS.has(String(b.id))&&edge===front&&j===1&&i%2===0&&edge.length/cols>3.2)
+    place('villa-balcony',edge.a[0]+edge.ux*u,j*floor,edge.a[1]+edge.uz*u,Math.atan2(edge.nx,edge.nz));
   }
  }
  if(front){const u=front.length*.5;place(profile.kind==='campus'?'campus-entry':'house-door',front.a[0]+front.ux*u,0,front.a[1]+front.uz*u,Math.atan2(front.nx,front.nz));}
