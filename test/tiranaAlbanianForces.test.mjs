@@ -1,4 +1,4 @@
-import {deployment} from '../webapp/src/games/tiranastreets/shared/forceTactics.mjs';
+import {initPoliceDispatch} from '../webapp/src/games/tiranastreets/shared/policeDispatch.mjs';
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {readFileSync} from 'node:fs';
@@ -54,19 +54,29 @@ test('actual wanted responses retain matching uniforms through public snapshots'
   for (let stars = 1; stars <= 5; stars++) {
     const state = createState([{id: 'p', name: 'Player'}], 'free-roam');
     const p = state.players.p; p.wanted = stars * 100; p.lastCrime = 0;
-    state.nextDispatch = 0; stepState(state);
-    const plan=deployment(stars,100);
-    assert.equal(state.units.length, plan.vehicles.length);
-    assert.equal(state.npcs.filter(n=>n.unit).length,plan.seats.reduce((a,b)=>a+b,0));
-    const snapshot = publicState(state), unit = snapshot.units[0];
+    const standing=new Map(state.units.map(u=>[u.id,{character:u.forceCharacter,vehicle:u.forceVehicle}]));
+    // Dispatch now assigns one existing nearby squad per response interval.
+    // No units or uniforms are spawned by the retired deployment() planner.
+    state.dispatchQueue.p={at:0};stepState(state);
+    const dispatched=state.units.filter(u=>u.target===p.id);
+    assert.equal(dispatched.length,1,'exactly one original squad receives the first dispatch');
+    assert.equal(state.units.length,standing.size,'dispatch retains the standing fleet');
+    const snapshot = publicState(state), unit = snapshot.units.find(u=>u.id===dispatched[0].id);
     const officers = snapshot.npcs.filter(n => n.unit === unit.id);
-    assert.ok(officers.length > 0);
-    assert.equal(unit.forceVehicle, plan.vehicles[0]);
-    assert.ok(officers.every(n => n.forceCharacter === plan.character));
-    assert.equal(unit.model, stars === 5 ? 'military-suv' : 'police');
-    assert.ok(officers.every(n => n.kind === (stars === 5 ? 'soldier' : 'police')));
+    assert.equal(officers.length,['patrol','shqiponja'].includes(dispatched[0].role)?2:4,'the complete assigned crew survives the snapshot');
+    assert.equal(unit.forceVehicle,standing.get(unit.id).vehicle);
+    assert.ok(officers.every(n => n.forceCharacter === standing.get(unit.id).character));
+    assert.ok(officers.every(n => n.kind === (dispatched[0].role === 'army' ? 'soldier' : 'police')));
     assert.ok(!('path' in unit));
-    assert.ok(state.traffic.some(c => c.forceVehicle === 'patrol_sedan'));
+    assert.ok(state.units.some(c => c.forceVehicle === 'patrol_sedan'));
+  }
+});
+test('initial patrol assignment retains an explicitly authored traffic or special-force uniform',()=>{
+  for(const character of ['traffic_officer','shqiponja_officer','fnsh_officer','renea_officer']){
+    const state={cars:[],traffic:[],units:[{id:'original',x:0,z:0,model:'police',forceVehicle:'traffic_bike',forceCharacter:character}],npcs:[]};
+    initPoliceDispatch(state,{world:{buildings:[],roads:[]}});
+    assert.equal(state.units[0].forceCharacter,character);
+    assert.equal(state.npcs.length,2);assert.ok(state.npcs.every(n=>n.forceCharacter===character));
   }
 });
 test('legacy units get local models and civilians cannot inherit uniforms', () => {

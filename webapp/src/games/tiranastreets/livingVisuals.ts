@@ -224,7 +224,7 @@ export class LivingVisuals {
     const w = actor.getObjectByName("mixamorigRightArm"),
       left = actor.getObjectByName("mixamorigLeftArm");
     // Layer an aiming pose over the locomotion mixer, never edit shared skeletons.
-    if (name && entity.health > 0) {
+    if (name && entity.health > 0 && !actor.userData.rigPoseOwner) {
       if (w) w.rotation.set(-0.85, 0, -0.45);
       if (left) left.rotation.set(-0.7, 0, 0.65);
     }

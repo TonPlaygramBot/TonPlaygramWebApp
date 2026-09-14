@@ -1,0 +1,4 @@
+export const ROCK_REPLACEMENT_IDS: ReadonlySet<string>;
+export const SKANDERBEG_BUILDING: Readonly<{id:string;name:string;headId:string;podiumId:string;height:number;floors:number;yaw:number;groundY:number;nearDistance:number;batteryNearDistance:number;source:string;mapSource:string;accuracy:string}>;
+export function resolveSkanderbegBuilding(world:{buildings:readonly {id:string|number;p:readonly (readonly number[])[]}[]}): (typeof SKANDERBEG_BUILDING & {x:number;z:number;headFootprint:readonly (readonly number[])[];podiumFootprint:readonly (readonly number[])[]}) | null;
+export function skanderbegBuildingSolids(world:Parameters<typeof resolveSkanderbegBuilding>[0]):{id:string;landmarkId:string;minY:number;minHeight:number;h:number;p:number[][];holes?:number[][][];collisionSource:string}[];

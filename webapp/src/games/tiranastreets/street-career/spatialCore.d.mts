@@ -23,7 +23,7 @@ export class StreetWorld {
     max?: number,
     cars?: Car[],
     ignoreCar?: string
-  ): { distance: number; point: Vec3; objectId: string; kind: string };
+  ): { distance: number; point: Vec3; objectId: string; kind: string; normal?: Vec3 };
   clear(a: Vec3, b: Vec3, cars?: Car[], ignore?: string): boolean;
   vault(p: Vec3, yaw: number, height: number): Vec3 | null;
 }

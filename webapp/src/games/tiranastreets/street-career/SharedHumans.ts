@@ -8,10 +8,10 @@ import {nearbyHumans, actorRole, stableActorHash, type HumanAsset} from './human
 
 import {chooseSharedHuman, type SharedAsset} from './sharedCastCore.mjs';
 import {SHARED_GAME_CAST} from './SharedGameCast';
+import {HumanoidAnimation} from './humanoidAnimation.mjs';
+import {humanoidBones} from './humanoidRig.mjs';
 
-type Joint={bone:T.Bone;rest:T.Quaternion;name:string};
-type Actor={root:T.Group;model:T.Object3D;asset:string;role:string;joints:Joint[];mixer:T.AnimationMixer;clips:T.AnimationClip[];action?:T.AnimationAction;motion:string;deathAt?:number;label:T.Sprite};
-const rotation=new T.Quaternion(),euler=new T.Euler();
+type Actor={root:T.Group;model:T.Object3D;asset:string;role:string;animation:HumanoidAnimation;gaitSpeed:number;poseTime:number;placed:boolean;deathAt?:number;label:T.Sprite};
 function disposeResources(root:T.Object3D) {
   const geometries=new Set<T.BufferGeometry>(),materials=new Set<T.Material>(),textures=new Set<T.Texture>(),skeletons=new Set<T.Skeleton>();
   root.traverse(o=>{if(o instanceof T.SkinnedMesh)skeletons.add(o.skeleton);if(o instanceof T.Mesh||o instanceof T.Sprite){if(o instanceof T.Mesh)geometries.add(o.geometry);for(const m of Array.isArray(o.material)?o.material:[o.material]){materials.add(m);for(const t of Object.values(m))if(t instanceof T.Texture)textures.add(t);}}});
@@ -97,12 +97,18 @@ export class SharedHumans {
   }
   private create(n:NPC,asset:HumanAsset,g:GLTF){
     const model=clone(g.scene),root=new T.Group(),role=actorRole(n.kind);
-    const box=new T.Box3().setFromObject(model),center=box.getCenter(new T.Vector3()),scale=1.76/(box.max.y-box.min.y);
-    model.scale.multiplyScalar(scale);model.position.add(new T.Vector3(-center.x*scale,-box.min.y*scale,-center.z*scale));
-    root.name=`shared-npc:${n.id}`;root.userData={sourceId:asset.sourceId,modelURL:asset.url,role};root.add(model);
-    if(asset.id.startsWith('tirana-citizen-')){const h=stableActorHash(n.id);root.scale.set(0.93+(h%5)*.035,.94+(h%7)*.019,1);}
-    const joints:Joint[]=[];
-    model.traverse(o=>{if(o instanceof T.Bone)joints.push({bone:o,rest:o.quaternion.clone(),name:o.name.toLowerCase().replace(/[^a-z0-9]/g,'')});if(o instanceof T.Mesh){o.castShadow=true;o.receiveShadow=true;}});
+    const facing=new T.Group();facing.add(model);facing.updateMatrixWorld(true);
+    const bones=humanoidBones(model),left=bones.get('leftarm'),right=bones.get('rightarm');
+    // Mixamo's bundled soldier faces the opposite way from the RPM citizens.
+    // Align anatomical left/right once; preserve the source rig and its clips.
+    if(left&&right&&left.getWorldPosition(new T.Vector3()).x<right.getWorldPosition(new T.Vector3()).x)facing.rotation.y=Math.PI;
+    const box=new T.Box3().setFromObject(facing),center=box.getCenter(new T.Vector3()),scale=1.76/(box.max.y-box.min.y);
+    // Keep the imported scene transform intact; animation may target it.
+    const normalizer=new T.Group();normalizer.add(facing);normalizer.scale.setScalar(scale);
+    normalizer.position.set(-center.x*scale,-box.min.y*scale,-center.z*scale);
+    root.name=`shared-npc:${n.id}`;root.userData={sourceId:asset.sourceId,modelURL:asset.url,role,rigPoseOwner:'shared-human'};root.add(normalizer);
+    if(asset.id.startsWith('tirana-citizen-')){const h=stableActorHash(n.id);root.scale.setScalar(.94+(h%7)*.019);}
+    model.traverse(o=>{if(o instanceof T.Mesh){o.castShadow=true;o.receiveShadow=true;}});
     const label=new T.Sprite(this.sign(role==='police'?'POLICE':role==='soldier'?'MILITARY':role==='dealer'?'ARBEN':asset.label.toUpperCase()));
     label.position.y=2.05;label.scale.set(.95,.238,1);root.add(label);
     // Role markings are separate authored accessories; never recolour skin/PBR maps.
@@ -111,54 +117,51 @@ export class SharedHumans {
       const band=new T.Mesh(new T.BoxGeometry(.12,.11,.04),new T.MeshStandardMaterial({color,roughness:.8}));
       band.name='role-armband';band.position.set(.28,1.24,.03);root.add(band);
     }
-    const actor:Actor={root,model,asset:asset.id,role,joints,mixer:new T.AnimationMixer(model),clips:g.animations,motion:'',label};
+    const actor:Actor={root,model,asset:asset.id,role,animation:new HumanoidAnimation(root,model,g.animations),gaitSpeed:0,poseTime:0,placed:false,label};
     this.actors.set(n.id,actor);this.group.add(root);return actor;
   }
   private pose(a:Actor,n:NPC,time:number,dt:number){
-    const moving=n.speed>.15&&n.health>0,cycle=n.motion==='cycle',running=n.anim==='run'||n.speed>3;
-    const motion=n.anim==='reload'?'reload':n.anim==='aim'?'aim':moving?(running?'run':'walk'):'idle';
-    const clip=a.clips.find(c=>new RegExp(motion,'i').test(c.name));
-    if(a.motion!==motion){a.action?.fadeOut(.15);a.action=clip?a.mixer.clipAction(clip).reset().fadeIn(.15).play():undefined;a.motion=motion;}
-    if(clip){a.mixer.update(dt);}else{
-      // No cross-rig Mixamo retargeting: animate each imported rig from its own rest pose.
-      const phase=time*(running?10:6)+stableActorHash(n.id)%31,swing=moving?Math.sin(phase)*(running?.65:.35):0;
-      for(const j of a.joints){let x=0,z=0;const name=j.name;
-        if(/(leftupleg|thighl|upperlegl)$/.test(name))x=cycle?-1.15+swing*.35:swing;
-        else if(/(rightupleg|thighr|upperlegr)$/.test(name))x=cycle?-1.15-swing*.35:-swing;
-        else if(/(leftleg|calfl|lowerlegl)$/.test(name))x=cycle?1.3:Math.max(0,-swing)*.75;
-        else if(/(rightleg|calfr|lowerlegr)$/.test(name))x=cycle?1.3:Math.max(0,swing)*.75;
-        else if(/(leftarm|leftupperarm|upperarml)$/.test(name)){z=-1.0;x=n.weapon?-.9:-swing;}
-        else if(/(rightarm|rightupperarm|upperarmr)$/.test(name)){z=1.0;x=n.weapon?-.9:swing;}
-        else if(/(leftforearm|rightforearm|lowerarm[lr])$/.test(name))x=n.weapon?-.45:-.1;
-        j.bone.quaternion.copy(j.rest).multiply(rotation.setFromEuler(euler.set(x,0,z)));
-      }
-    }
-    // Layer readable weapon recoil / magazine handling over each rig's own pose.
-    const recoil=Math.max(0,1-(time-(n.firedAt??-10))/.18);
-    const reload=n.reloadUntil&&time<n.reloadUntil?Math.sin(time*7)*.2:0;
-    for(const j of a.joints){
-      if(/(rightarm|rightupperarm|upperarmr)$/.test(j.name))j.bone.quaternion.multiply(rotation.setFromEuler(euler.set(-recoil*.14,0,reload)));
-      if(/(leftforearm|lowerarml)$/.test(j.name)&&reload)j.bone.quaternion.multiply(rotation.setFromEuler(euler.set(-.6,0,reload)));
-    }
+    a.animation.update(n,time,dt,a.gaitSpeed);
   }
   update(npcs:readonly NPC[],viewer:Point,time:number,dt:number,battery=false){
     if(this.dead)return;const selected=nearbyHumans(npcs,viewer,battery),available=typeof navigator!=='undefined'&&navigator.onLine===false?this.cast.filter(a=>a.url.startsWith('/')):this.cast,keep=new Set(selected.map(n=>n.id));
     for(const [id] of this.actors)if(!keep.has(id))this.remove(id);
-    for(const n of selected){let asset=n.kind==='civilian'||n.kind==='dealer'||n.kind==='gang' ? this.cast.find(a=>a.id===`tirana-citizen-${stableActorHash(n.id)%8}`)||chooseSharedHuman(n,available) : chooseSharedHuman(n,available);this.request(asset);const shown=this.actors.get(n.id);if(shown&&shown.role===actorRole(n.kind))asset=this.cast.find(a=>a.id===shown.asset)||asset;if(this.failed.has(asset.url)){const role=actorRole(n.kind);const fallback=this.cast.find(a=>a.url.startsWith('/')&&a.roles.includes(role)&&this.sources.has(a.url));if(fallback)asset=fallback;}const source=this.sources.get(asset.url);if(!source)continue;
+    for(const n of selected){
+      const role=actorRole(n.kind);
+      let asset=n.kind==='civilian'||n.kind==='dealer'||n.kind==='gang'
+        ? this.cast.find(a=>a.id===`tirana-citizen-${stableActorHash(n.id)%8}`)||chooseSharedHuman(n,available)
+        : chooseSharedHuman(n,available);
+      this.request(asset);
+      const shown=this.actors.get(n.id);
+      // Keep a loaded actor during a slow request, but allow the requested
+      // original to replace a temporary fallback as soon as it is available.
+      if(!this.sources.has(asset.url)){
+        const fallback=shown&&shown.role===role?this.cast.find(a=>a.id===shown.asset):undefined;
+        if(fallback)asset=fallback;
+        else if(this.failed.has(asset.url))asset=this.cast.find(a=>a.url.startsWith('/')&&a.roles.includes(role)&&this.sources.has(a.url))||asset;
+      }
+      const source=this.sources.get(asset.url);if(!source)continue;
       let a=this.actors.get(n.id);if(a&&(a.asset!==asset.id||a.role!==actorRole(n.kind))){this.remove(n.id);a=undefined;}
       a ||= this.create(n,asset,source);
-      a.root.position.set(n.x,(n.y??groundHeight(n.x,n.z))+(n.motion==='cycle'?-.18:.06),n.z);if(n.health<=0)a.deathAt??=time;else a.deathAt=undefined;
+      const first=!a.placed,distance=Math.hypot(n.x-viewer.x,n.z-viewer.z);
+      const measured=!a.placed||dt<=0?0:Math.min(10,Math.hypot(n.x-a.root.position.x,n.z-a.root.position.z)/dt);
+      a.gaitSpeed+=(measured-a.gaitSpeed)*(1-Math.exp(-Math.max(0,dt)*12));a.placed=true;
+      a.root.position.set(n.x,(n.y??groundHeight(n.x,n.z))+(n.motion==='cycle'?-.18:n.anim==='cover'||n.anim==='crouch'?-.24:.06),n.z);if(n.health<=0)a.deathAt??=time;else a.deathAt=undefined;
       const fall=a.deathAt===undefined?0:Math.min(1,(time-a.deathAt)/.6);
       a.root.rotation.set(-Math.PI/2*fall*fall*(3-2*fall),n.heading+Math.PI,0);
-      a.label.visible=n.health>0&&Math.hypot(n.x-viewer.x,n.z-viewer.z)<18;
-      if(n.health>0)this.pose(a,n,time,dt);if(n.anim==='hit')a.root.rotation.z=Math.sin((time-(n.hitUntil||time)+.38)*18)*.13;
+      a.label.visible=n.health>0&&distance<18;
+      a.poseTime+=Math.max(0,dt);
+      // Keep motion and interactions immediate near the player; sample distant
+      // skeletons less often while preserving every original mesh and texture.
+      if(n.health>0&&(first||distance<35||a.poseTime>=(distance<90?.05:.1))){this.pose(a,n,time,a.poseTime);a.poseTime=0;}
+      if(n.anim==='hit')a.root.rotation.z=Math.sin((time-(n.hitUntil||time)+.38)*18)*.13;
       this.held.pose(`shared-${n.id}`,a.root,n,time);
 
     }
   }
   private remove(id:string){
     const a=this.actors.get(id);if(!a)return;
-    this.held.forget(`shared-${id}`);a.mixer.stopAllAction();a.mixer.uncacheRoot(a.model);
+    this.held.forget(`shared-${id}`);a.animation.dispose();
     const skeletons=new Set<T.Skeleton>();a.model.traverse(o=>{if(o instanceof T.SkinnedMesh)skeletons.add(o.skeleton);});skeletons.forEach(s=>s.dispose());
     const band=a.root.getObjectByName('role-armband');if(band)disposeResources(band);
     a.root.removeFromParent();this.actors.delete(id);

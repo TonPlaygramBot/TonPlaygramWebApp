@@ -98,7 +98,7 @@ export class CombatEffects {
       if(e.kind==='blast'){this.ludoImpact.spawn(p,e.radius||11);this.demolition(p,Math.min(4,e.radius||4),floor(e.x,e.z));}
       if(['vehicle-explosion','explosion'].includes(e.kind))this.explosion(p,e.radius||8,floor(e.x,e.z));
       if(e.kind==='hit')for(let i=0;i<4;i++)this.particle(2,p,{x:(Math.random()-.5)*3,y:Math.random()*3,z:(Math.random()-.5)*3},.35,.035,floor(e.x,e.z));
-      if(e.kind==='crash'){this.dust(p,e.radius||2,floor(e.x,e.z));for(let i=0;i<12;i++)this.particle(3,p,{x:(Math.random()-.5)*8,y:Math.random()*4,z:(Math.random()-.5)*8},.5,.04,floor(e.x,e.z));}
+      if(e.kind==='crash'){this.dust(p,e.radius||2,floor(e.x,e.z));for(let i=0;i<12;i++)this.particle(2,p,{x:(Math.random()-.5)*6,y:Math.random()*3,z:(Math.random()-.5)*6},.65,.03,floor(e.x,e.z));}
       if(e.kind==='fracture')this.demolition(p,e.radius||4,floor(e.x,e.z));
     }
   }

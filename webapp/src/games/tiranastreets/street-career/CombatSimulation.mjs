@@ -29,13 +29,17 @@ export class CombatSimulation {
     this.emit('launch', from, { weapon: aircraft.kind + 'Missile' });
     return true;
   }
-  damageVehicle(car, amount, owner = this.sim.player) {
+  damageVehicle(car, amount, owner = this.sim.player, cause = 'collision') {
     if (car.destroyed || !Number.isFinite(amount) || amount <= 0) return;
-    if (owner === this.sim.player && car.driver !== owner.id) reportCrime(this.sim.state, owner, car.forceVehicle ? 70 : 25);
+    // A health bar measures mechanical condition, not a fuel-tank fuse. Small
+    // arms damage panels/components; only a substantial explosive hit adds heat.
+    if (cause === 'bullet') amount *= /armored|military|tank/.test(car.forceVehicle || car.model) ? .08 : .18;
+    if (owner === this.sim.player && car.driver !== owner.id && cause !== 'heat') reportCrime(this.sim.state, owner, car.forceVehicle ? 70 : 25);
     car.health = Math.max(0, (car.health ?? 140) - amount);
-    if (car.health <= 55 && !this.fires.has(car.id)) {
+    car.damageCause = cause;
+    if (cause === 'explosive' && amount >= 65 && car.health <= 50 && !this.fires.has(car.id)) {
       car.burning = true;
-      this.fires.set(car.id, { car, owner, until: this.sim.state.elapsed + 25, tick: 0 });
+      this.fires.set(car.id, { car, owner, started: this.sim.state.elapsed, until: this.sim.state.elapsed + 25, tick: 0 });
       this.emit('ignite', { ...car, y: groundHeight(car.x, car.z) + .8 });
     }
     if (car.health > 0) return;
@@ -43,19 +47,28 @@ export class CombatSimulation {
     car.speed = car.vx = car.vz = 0;
     const driver = this.sim.state.players[car.driver];
     if (driver) {
-      this.sim.damage(driver, 100, owner);driver.carId=null;
+      // Collision impulses and blast exposure already injure occupants. Engine
+      // failure alone must not kill them or add a second impact injury.
+      driver.carId=null;
       const exit=exitPoint(this.sim.state,car,this.sim.world);
       if(exit){driver.x=exit.x;driver.z=exit.z;}
       if(driver===this.sim.player)Object.assign(this.sim.body,{interaction:driver.health>0?'free':'dead',action:null,y:groundHeight(driver.x,driver.z)+.08,vx:0,vy:0,vz:0});
     }
     car.driver = null;
+    const fire = this.fires.get(car.id);
+    const explosiveFailure = cause === 'explosive' && amount >= 100 || cause === 'heat' && fire && this.sim.state.elapsed - fire.started >= 10;
+    if (!explosiveFailure) {
+      this.emit('vehicle-disabled', { ...car, y: groundHeight(car.x, car.z) + .8 });
+      return;
+    }
+    car.exploded = true;
     this.emit('vehicle-explosion', { ...car, y: groundHeight(car.x, car.z) + .8 }, { radius: 7 });
     // A single transition produces one blast. Wrecks cannot explode repeatedly.
     this.blast({ x: car.x, y: groundHeight(car.x, car.z) + .8, z: car.z }, 7, 70, owner, car.id);
   }
   impact(hit, amount = 32, explosive = false) {
     const car = this.sim.cars().find(c => c.id === hit.objectId);
-    if (car) this.damageVehicle(car, amount);
+    if (car) this.damageVehicle(car, amount, this.sim.player, explosive ? 'explosive' : 'bullet');
     if (!explosive) return;
     this.emit('blast', hit.point, { radius: 11 });
     if (hit.kind === 'wall') {
@@ -76,7 +89,7 @@ export class CombatSimulation {
       if (car.id === ignoreCar || car.destroyed) continue;
       const target = { x: car.x, y: groundHeight(car.x,car.z)+.9, z: car.z };
       const d = Math.hypot(car.x-point.x,target.y-point.y,car.z-point.z);
-      if (d < radius && sim.world.clear(point,target)) this.damageVehicle(car, amount*(1-d/(radius*1.2)), owner);
+      if (d < radius && sim.world.clear(point,target)) this.damageVehicle(car, amount*(1-d/(radius*1.2)), owner, 'explosive');
     }
   }
   step(dt) {
@@ -98,7 +111,7 @@ export class CombatSimulation {
       fire.tick += dt;
       if (fire.tick >= .5) {
         fire.tick -= .5;
-        this.damageVehicle(fire.car, 5, fire.owner);
+        this.damageVehicle(fire.car, 2.5, fire.owner, 'heat');
         const p = this.sim.player;
         if (p.health > 0 && !p.aircraftId && Math.hypot(p.x-fire.car.x,p.z-fire.car.z)<3.2)
           this.sim.damage(p, 3, fire.owner);

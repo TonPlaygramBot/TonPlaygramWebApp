@@ -1,0 +1,12 @@
+{
+  "near": {
+    "triangles": 59924,
+    "drawCalls": 8,
+    "bytes": 3663892
+  },
+  "far": {
+    "triangles": 3068,
+    "drawCalls": 2,
+    "bytes": 197904
+  }
+}

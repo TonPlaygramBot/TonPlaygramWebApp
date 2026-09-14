@@ -407,7 +407,9 @@ export class StreetCareerRuntime {
       }
     }
     this.renderDelta = Math.min(.15, this.renderDelta + dt);
-    if (!document.hidden && !this.graphicsError && this.renderPacer.shouldRender(now, this.settings.targetFps)) {
+    // The loading overlay covers the scene. Drawing it early starts optional NPC,
+    // vehicle and landmark work before the selected body/weapon can finish loading.
+    if (this.ready && !document.hidden && !this.graphicsError && this.renderPacer.shouldRender(now, this.settings.targetFps)) {
       this.renderer.render(this.state, 'local', this.paused ? 0 : this.renderDelta, false);
       this.renderDelta = 0;
     }

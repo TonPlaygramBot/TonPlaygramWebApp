@@ -1,0 +1,45 @@
+{
+  "scope": "Vite production split route; actual player/models and continuous software WebGL; account fixture; optional Namazgah downloads blocked. Not a physical-device FPS benchmark.",
+  "build": {
+    "durationMs": 35091,
+    "scriptCount": 18,
+    "optionalChunk": "namazgah-far-1afe31f1.js"
+  },
+  "modes": [
+    {
+      "mode": "street-career",
+      "selectedMs": 4855,
+      "responsiveMs": 90455,
+      "readyAndResumed": true,
+      "loadEvents": [
+        {
+          "stage": "module",
+          "mode": "street-career",
+          "status": "started"
+        },
+        {
+          "stage": "module",
+          "mode": "street-career",
+          "status": "ready",
+          "elapsedMs": 12047
+        }
+      ],
+      "blocked": [
+        "far"
+      ],
+      "errors": [],
+      "failures": [],
+      "heartbeat": {
+        "ticks": 220,
+        "maxGapMs": 26682.199999999255,
+        "last": 99419.10000000149
+      }
+    }
+  ],
+  "assets": [],
+  "previewRecovery": {
+    "blockedChunk": "PlayerPreview-613d9f98.js",
+    "errorVisible": true,
+    "backVisible": true
+  }
+}

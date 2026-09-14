@@ -1,5 +1,6 @@
 import type {StreetSimulation} from './StreetSimulation.mjs';
 import type {Aircraft,Point} from '../shared/engine.mjs';
+export const SQUARE_AIRCRAFT_PADS:Readonly<{jet:Point;helicopter:Point}>;
 export class FlightSimulation {
  constructor(sim:StreetSimulation);
  aircraft:Aircraft[];

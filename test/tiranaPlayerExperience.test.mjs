@@ -23,34 +23,46 @@ import * as physics from '../webapp/src/games/blackwater/shared/physics.mjs';
 import * as battle from '../webapp/src/games/blackwater/shared/battlefield.mjs';
 import {props} from '../webapp/src/games/blackwater/shared/layout.mjs';
 import {groundHeight} from '../webapp/src/games/tirana-east/terrainCore.mjs';
+import * as weaponCalibrations from '../webapp/src/games/tiranastreets/shared/weaponCalibration.mjs';
 const campaign=createCampaign(MISSIONS,WEAPONS,STARTER_WEAPON);
 function load(path,deps={},globals={}){
  const module={exports:{}};
  const output=ts.transpileModule(readFileSync(new URL('../'+path,import.meta.url),'utf8'),{compilerOptions:{target:ts.ScriptTarget.ES2022,module:ts.ModuleKind.CommonJS}}).outputText;
  vm.runInNewContext(output,{module,exports:module.exports,require:key=>deps[key]||{},console,setTimeout,clearTimeout,...globals});return module.exports;
 }
+const pockets=load('webapp/src/games/tiranastreets/PocketWeapons.ts',{'three':T});
+const calibration=load('webapp/src/games/tiranastreets/weaponCalibration.ts',{'three':T,'./shared/weaponCalibration.mjs':weaponCalibrations});
 const {GameEngine}=load('webapp/src/games/blackwater/engine.ts',{'three':T,'./core':physics,'./shared/terrain.mjs':terrain});
 const {BattlefieldVehicle}=load('webapp/src/games/blackwater/BattlefieldVehicle.ts',{'three':T,'./core':physics,'./shared/terrain.mjs':terrain,'../tiranastreets/shared/driverView.mjs':driver});
-const {FirstPersonBody,maskHead}=load('webapp/src/games/tiranastreets/street-career/FirstPersonBody.ts',{'three':T,'./humanoidRig.mjs':humanoidRig,'./weaponPose.mjs':poses,'./spatialCore.mjs':spatial,'./vehicleCore.mjs':vehicles,'../shared/weapons.mjs':{WEAPON_BY_ID},'../../tirana-east/terrainCore.mjs':{groundHeight}});
+const {FirstPersonBody,maskHead}=load('webapp/src/games/tiranastreets/street-career/FirstPersonBody.ts',{'../PocketWeapons':pockets,'../weaponCalibration':calibration,'three':T,'./humanoidRig.mjs':humanoidRig,'./weaponPose.mjs':poses,'./spatialCore.mjs':spatial,'./vehicleCore.mjs':vehicles,'../shared/weapons.mjs':{WEAPON_BY_ID},'../../tirana-east/terrainCore.mjs':{groundHeight}});
 const visuals=load('webapp/src/games/tiranastreets/livingVisuals.ts',{'three':T,'./shared/importedAssets.mjs':{IMPORTED_BY_ID},'./shared/uploadedWeapons.mjs':{UPLOADED_WEAPONS}});
 
-test('every playable weapon resolves to a local GLB within the held-model budget',async()=>{
- const seen=new Set(),loader=new GLTFLoader();
+test('every playable weapon supplies its procedural prop or a valid local GLB within the held-model budget',async()=>{
+ const seen=new Set(),procedural=new Set(),loader=new GLTFLoader();
  loader.register(()=>({name:'HEADLESS_TEXTURES',loadTexture:async()=>new T.Texture()}));
  for(const weapon of WEAPONS.filter(w=>w.id!=='fpsGunAttack')){
+  if(pockets.isPocketWeapon(weapon.id)){
+   procedural.add(weapon.id);const prop=pockets.pocketWeapon(weapon.id);assert.ok(prop instanceof T.Group,weapon.id);
+   if(weapon.id==='punch')assert.equal(prop.children.length,0,'unarmed punching uses the player body without a downloaded prop');
+   else assert.ok(!new T.Box3().setFromObject(prop).isEmpty(),weapon.id+' must have visible procedural geometry');
+   prop.traverse(o=>{if(o instanceof T.Mesh){o.geometry.dispose();for(const m of Array.isArray(o.material)?o.material:[o.material])m.dispose();}});
+   continue;
+  }
   const url=visuals.weaponModelUrl(weapon.model);if(seen.has(url))continue;seen.add(url);
   const bytes=readFileSync(new URL('../webapp/public'+url,import.meta.url));
   assert.ok(bytes.length<5*1024*1024,weapon.id+' exceeds mobile weapon budget');
   const gltf=await loader.parseAsync(bytes.buffer.slice(bytes.byteOffset,bytes.byteOffset+bytes.byteLength),'');
   assert.ok(!new T.Box3().setFromObject(gltf.scene).isEmpty(),weapon.id);
  }
+ assert.deepEqual(procedural,new Set(['punch','egg','tomato']));
+ assert.ok(seen.size>10,'all distinct downloaded weapon models remain covered');
  assert.equal(visuals.weaponModelUrl(WEAPON_BY_ID.get(STARTER_WEAPON).model),'/assets/tirana-streets/living/ak47.glb');
 });
 test('starter readiness waits for the actual shared AK load and deduplicates requests',async()=>{
  const resources=load('webapp/src/games/tiranastreets/weaponModelResources.ts',{'three':T,'three/examples/jsm/utils/BufferGeometryUtils.js':{mergeGeometries}});
  class HeadlessLoader extends GLTFLoader {constructor(){super();this.register(()=>({name:'HEADLESS_TEXTURES',loadTexture:async()=>new T.Texture()}));}}
  let release,requests=0;const gate=new Promise(resolve=>{release=resolve;});
- const {FirstPersonBody:Rig}=load('webapp/src/games/tiranastreets/street-career/FirstPersonBody.ts',{'three':T,'./humanoidRig.mjs':humanoidRig,'./weaponPose.mjs':poses,'../shared/weapons.mjs':{WEAPON_BY_ID},'../livingVisuals':visuals,'../weaponModelResources':resources,'three/examples/jsm/loaders/GLTFLoader.js':{GLTFLoader:HeadlessLoader}},
+ const {FirstPersonBody:Rig}=load('webapp/src/games/tiranastreets/street-career/FirstPersonBody.ts',{'../PocketWeapons':pockets,'../weaponCalibration':calibration,'three':T,'./humanoidRig.mjs':humanoidRig,'./weaponPose.mjs':poses,'../shared/weapons.mjs':{WEAPON_BY_ID},'../livingVisuals':visuals,'../weaponModelResources':resources,'three/examples/jsm/loaders/GLTFLoader.js':{GLTFLoader:HeadlessLoader}},
   {URL,AbortController,window:{location:{href:'https://example.test/'}},fetch:async url=>{requests++;await gate;const bytes=readFileSync(new URL('../webapp/public'+url.pathname,import.meta.url));return {ok:true,arrayBuffer:async()=>bytes.buffer.slice(bytes.byteOffset,bytes.byteOffset+bytes.byteLength)};}});
  const rig=new Rig(new T.Scene());let ready=false;
  const first=rig.prepare(STARTER_WEAPON),second=rig.prepare(STARTER_WEAPON).then(()=>{ready=true;});

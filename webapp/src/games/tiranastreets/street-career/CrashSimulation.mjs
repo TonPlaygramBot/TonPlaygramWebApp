@@ -12,7 +12,9 @@ export function crashResponse(a,b,normal){
   const restitution=b?.destroyed?.02:b?.08:normal.kind==='bank'?0:.04;
   const impulse=closing*(1+restitution)/(1/ma+1/mb);
   const deltaA=impulse/ma,deltaB=Number.isFinite(mb)?impulse/mb:0;
-  const damage=delta=>Math.min(150,Math.max(0,delta-2.5)**2*.38);
+  // Speed is m/s. Parking bumps and glancing scrapes stay cosmetic; mechanical
+  // failure requires a severe change in velocity, not the closing speed alone.
+  const damage=delta=>Math.min(150,Math.max(0,delta-5.5)**2*.2);
   return {closing,deltaA,deltaB,damageA:damage(deltaA),damageB:damage(deltaB),
     a:{x:av.x+deltaA*nx,z:av.z+deltaA*nz},b:{x:bv.x-deltaB*nx,z:bv.z-deltaB*nz}};
 }
@@ -30,13 +32,13 @@ export class CrashSimulation{
     if(response.closing<3||now<(this.contacts.get(key)||0))return;
     this.contacts.set(key,now+.45);
     for(const [id,until]of this.contacts)if(until<now)this.contacts.delete(id);
-    this.sim.combat.damageVehicle(a,response.damageA);
-    if(b&&!b.destroyed)this.sim.combat.damageVehicle(b,response.damageB);
+    const occupants=[a,b].map(car=>car?this.sim.state.players[car.driver]:null);
+    this.sim.combat.damageVehicle(a,response.damageA,this.sim.player,'collision');
+    if(b&&!b.destroyed)this.sim.combat.damageVehicle(b,response.damageB,this.sim.player,'collision');
     const point={x:normal.point?.x??a.x,y:groundHeight(a.x,a.z)+.65,z:normal.point?.z??a.z};
     this.sim.combat.emit('crash',point,{radius:Math.min(6,response.closing/5),severity:response.closing});
-    for(const [car,delta]of [[a,response.deltaA],[b,response.deltaB]])if(car){
+    for(const [car,delta,occupant]of [[a,response.deltaA,occupants[0]],[b,response.deltaB,occupants[1]]])if(car){
       car.crashUntil=now+Math.min(.6,delta*.035);
-      const occupant=this.sim.state.players[car.driver];
       if(occupant&&delta>10)this.sim.damage(occupant,Math.min(60,(delta-10)*2),this.sim.player);
     }
     this.sim.event('collision',{severity:response.closing});

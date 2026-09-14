@@ -1,5 +1,8 @@
+import {SkanderbegBuildingLayer} from '../tirana-landmarks/SkanderbegBuildingLayer';
+import {ROCK_REPLACEMENT_IDS} from '../tirana-landmarks/skanderbegBuilding.mjs';
 import {AutomaticGraphics, GRAPHICS_PROFILES, graphicsSetting, type GraphicsPreset, type GraphicsSetting} from './graphicsQuality';
 import {BikeVisuals} from './BikeVisuals';
+import {prepareModelWheels,prepareLegacyWheels,collectRollingWheels,rollWheels,type RollingWheel} from './rollingWheels';
 import {selectedPlayerUrl} from './playerCatalog.mjs';
 import {normalizePlayableHuman, humanoidBones, HumanoidLegPose, solveHumanoidLimb, hideAuthoredPlayerWeapon} from './street-career/humanoidRig.mjs';
 import {groundHeight} from '../tirana-east/terrainCore.mjs';
@@ -52,7 +55,7 @@ export type Actor = {
   idle?: THREE.AnimationAction;
   run?: THREE.AnimationAction;
   moving?: boolean;
-  wheels: THREE.Object3D[];
+  wheels: RollingWheel[];
   model: string;
   walk?: THREE.AnimationAction;
   clips?: Record<string, THREE.AnimationAction>;
@@ -96,6 +99,7 @@ export class CityRenderer {
   private cityChunks: THREE.Group[] = [];
   private shellMaterials: THREE.MeshStandardMaterial[] = [];
   private facades: CityFacades | null = null;
+  private skanderbegBuilding=new SkanderbegBuildingLayer();
   private living: LivingVisuals;
   private forces = new AlbanianForcesVisuals();
   private racingFleet = new ImportedAssetVisuals();
@@ -154,7 +158,7 @@ export class CityRenderer {
     this.scene.add(this.forces.group,this.racingFleet.group,this.collectionFleet.group,this.driverInterior.group,this.urbanRoads.group);
     this.buildStreets();
     this.buildBlocks();
-    this.scene.add(this.referenceFacades.group);
+    this.scene.add(this.referenceFacades.group,this.skanderbegBuilding.group);
     this.scene.add(this.agedHousing.group);
     this.buildLandmarks();
     this.buildBeacon();
@@ -322,7 +326,7 @@ export class CityRenderer {
     const windowGeos: THREE.BufferGeometry[] = [];
     for (const b of WORLD.buildings) {
       if(b.neighbourhood)continue; // Shared Blender/mapped-neighbourhood layer.
-      if (b.special || REFERENCE_BUILDINGS[b.id] || LANDMARK_REPLACED_IDS.has(String(b.id)) || FUEL_CANOPY_IDS.has(String(b.id))) continue;
+      if (ROCK_REPLACEMENT_IDS.has(String(b.id)) || b.special || REFERENCE_BUILDINGS[b.id] || LANDMARK_REPLACED_IDS.has(String(b.id)) || FUEL_CANOPY_IDS.has(String(b.id))) continue;
       const cx = b.p.reduce((s, p) => s + p[0], 0) / b.p.length,
         cz = b.p.reduce((s, p) => s + p[1], 0) / b.p.length;
       // Eight city shell draws are cheaper on phones than hundreds of tiny chunks.
@@ -686,7 +690,7 @@ export class CityRenderer {
           }
           // Authored +X nose becomes +Z for the existing road-vehicle transform.
           // Preserve native metres, complete geometry and all PBR maps.
-          if (roadModel) gltf.scene.rotation.y = -Math.PI / 2;
+          if (roadModel) {prepareModelWheels(gltf.scene,roadModel);gltf.scene.rotation.y = -Math.PI / 2;}
           if (name === "motorbike") gltf.scene.rotation.y = -Math.PI / 2;
           gltf.scene.updateMatrixWorld(true);
           const box = new THREE.Box3().setFromObject(gltf.scene),
@@ -813,12 +817,7 @@ export class CityRenderer {
           : template.clone(true)
         : new THREE.Group()
     ) as THREE.Group;
-    const actor: Actor = { group, wheels: [], model };
-    group.traverse((o) => {
-      // Original road GLBs retain authored transforms; their mesh names alone
-      // do not guarantee a centred wheel pivot or the legacy spin axis.
-      if (!CIVILIAN_VEHICLE_MODELS[model] && o.name.toLowerCase().includes("wheel")) actor.wheels.push(o);
-    });
+    const actor: Actor = { group, wheels: CIVILIAN_VEHICLE_MODELS[model]?collectRollingWheels(group):prepareLegacyWheels(group), model };
     const animations=model==='local-player'?this.playerAnimations:this.animations;
     if ((model === 'character'||model==='local-player') && animations.length) {
       actor.mixer = new THREE.AnimationMixer(group);
@@ -975,10 +974,8 @@ export class CityRenderer {
           -car.steering * car.speed * 0.0018,
           Math.min(1, dt * 6),
         );
-        for (const w of a.wheels) {
-          w.rotation.x += car.speed * dt * 2;
-          if (w.name.includes("front")) w.rotation.y = -car.steering * 0.32;
-        }
+        rollWheels(a.wheels,car.speed,dt);
+        for (const w of a.wheels) if(w.steer)w.steer.rotation.y=-car.steering*.32;
         if (p?.carId === car.id) this.presentDrivenCar(a, state, playerId);
         this.presentVehicle(a, state, car.id, dt);
       }
@@ -1173,7 +1170,7 @@ export class CityRenderer {
       this.camera.fov = 52 + (p?.carId ? Math.abs(p.speed) * 0.28 : 0);
       this.camera.updateProjectionMatrix();
     }
-    this.facades?.update(target, dt, this.quality === "battery");
+    this.facades?.update(target, dt, this.quality === "battery", this.camera);
     this.landscape.update(target,this.clock,this.quality === "battery");
     this.atmosphere.update(this.clock,this.camera,this.quality === "battery");
     for (const chunk of this.cityChunks) chunk.visible = true;
@@ -1198,6 +1195,7 @@ export class CityRenderer {
       }
     }
     this.referenceFacades.update(this.camera.position, this.quality === "battery");
+    this.skanderbegBuilding.update(this.camera.position,this.quality === "battery");
     this.agedHousing.update(this.clock, this.camera.position, this.quality === "battery");
     this.urbanRoads.update(this.clock,this.camera.position,this.quality === "battery");
     for (const cell of this.mappedTreeCells) cell.group.visible =
@@ -1300,6 +1298,7 @@ export class CityRenderer {
     this.bikeFleet.dispose();
     this.disposed = true;
     this.referenceFacades.dispose();
+    this.skanderbegBuilding.dispose();
     this.agedHousing.dispose();
     this.living.dispose();
     this.forces.dispose();

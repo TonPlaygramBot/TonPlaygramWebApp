@@ -75,7 +75,7 @@ const source=p=>path.join(sourceRoot,'webapp/src/games',p);
 function sharedHarness(){
   const cast=['rpm-current','athlete-male','athlete-female'].map((id,i)=>({id,url:'/human-'+i+'.glb',label:id,roles:['civilian']}));
   const {SharedHumans}=loadTS(source('tiranastreets/street-career/SharedHumans.ts'),{
-    '../livingVisuals':{LivingVisuals:class{}},'./humanRoster.mjs':{},'./sharedCastCore.mjs':{},'./SharedGameCast':{SHARED_GAME_CAST:cast},
+    '../livingVisuals':{LivingVisuals:class{}},'./humanRoster.mjs':{},'./humanoidAnimation.mjs':{},'./humanoidRig.mjs':{},'./sharedCastCore.mjs':{},'./SharedGameCast':{SHARED_GAME_CAST:cast},
     'three/examples/jsm/loaders/GLTFLoader.js':{GLTFLoader:class{}}
   });
   const h=Object.create(SharedHumans.prototype);

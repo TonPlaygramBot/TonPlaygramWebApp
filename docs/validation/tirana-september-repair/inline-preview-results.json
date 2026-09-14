@@ -1,0 +1,42 @@
+{
+  "scope": "In-chat HTML fragment only; embedded Blender preview geometry; installed React/Three importmap mirror; software WebGL. This is separate from real-game verification.",
+  "input": "/workspace/tirana-realism-repairs.html",
+  "portraits": [
+    {
+      "width": 320,
+      "height": 844,
+      "canvas": {
+        "x": 12,
+        "y": 28,
+        "width": 296,
+        "height": 550
+      },
+      "details": true,
+      "distant": true,
+      "orbit": true,
+      "zoom": true,
+      "overflow": false
+    },
+    {
+      "width": 390,
+      "height": 844,
+      "canvas": {
+        "x": 12,
+        "y": 28,
+        "width": 366,
+        "height": 550
+      },
+      "details": true,
+      "distant": true,
+      "orbit": true,
+      "zoom": true,
+      "overflow": false
+    }
+  ],
+  "errors": [],
+  "consoleErrors": [],
+  "failures": [],
+  "pass": true,
+  "bytes": 948252,
+  "sha256": "e79a1493f4af3858f34f99f4d9d7af44b0e7dce919129c46cfbcd9589b6efbc7"
+}

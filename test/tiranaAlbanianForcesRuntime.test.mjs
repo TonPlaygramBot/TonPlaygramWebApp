@@ -82,7 +82,7 @@ test('failed downloads retain fallback availability and dispose prevents late sc
 test('aiming changes private arm bones and cover lowers the visible officer',async()=>{
  const layer=new AlbanianForcesVisuals();
  try{
-  const s=state();s.npcs=[{...npc('pose'),speed:0,anim:'idle'}];
+  const s=state();s.npcs=[{...npc('pose'),speed:0,anim:'idle',weapon:'ak47VolleyAttack'}];
   layer.update(s,{x:0,z:0},0,1/60);await settle(layer);layer.update(s,{x:0,z:0},1,1/60);
   const root=layer.getRoot('npc-pose'),bone=root.getObjectByName(T.PropertyBinding.sanitizeNodeName('upperarm01.R'));assert.ok(bone);
   const idle=bone.quaternion.clone();s.npcs[0].anim='aim';for(let i=0;i<15;i++)layer.update(s,{x:0,z:0},2+i/60,1/60);assert.ok(bone.quaternion.angleTo(idle)>.1);
@@ -104,7 +104,63 @@ test('original force wrists reach the same firearm grips used by the rendered we
     const actual=root.getObjectByName(T.PropertyBinding.sanitizeNodeName(`wrist.${side}`)).getWorldPosition(new T.Vector3());
     const desired=root.localToWorld(new T.Vector3(grip.x,grip.y,grip.z));
     assert.ok(actual.distanceTo(desired)<.035,`${weapon} ${side}: ${actual.distanceTo(desired)} metres`);
+    const original=layer.sources.get('patrol_officer').frame,openWrist=original.getObjectByName(T.PropertyBinding.sanitizeNodeName(`wrist.${side}`)).getWorldPosition(new T.Vector3());
+    let openSpan=0,gripSpan=0;
+    for(const finger of [2,3,4,5]){
+      const name=T.PropertyBinding.sanitizeNodeName(`finger${finger}-3.${side}`);
+      openSpan+=original.getObjectByName(name).getWorldPosition(new T.Vector3()).distanceTo(openWrist);
+      gripSpan+=root.getObjectByName(name).getWorldPosition(new T.Vector3()).distanceTo(actual);
+    }
+    assert.ok(gripSpan<openSpan*.95,`${side}: fingers curl around the grip rather than remaining splayed`);
    }
   }
  }finally{layer.dispose();}
+});
+
+test('an unarmed officer retains the original relaxed walking arms',async()=>{
+ const layer=new AlbanianForcesVisuals();
+ try{
+  const s=state();s.npcs=[{...npc('unarmed'),weapon:'',anim:'idle',speed:0}];
+  layer.update(s,{x:0,z:0},0,1/60);await settle(layer);
+  for(let i=0;i<30;i++)layer.update(s,{x:0,z:0},i/60,1/60);
+  const root=layer.getRoot('npc-unarmed');root.updateMatrixWorld(true);
+  for(const side of ['L','R']){
+    const hand=root.worldToLocal(root.getObjectByName(T.PropertyBinding.sanitizeNodeName(`wrist.${side}`)).getWorldPosition(new T.Vector3()));
+    assert.ok(hand.y<1.2,'no phantom firearm pose when the NPC has no weapon');
+  }
+ }finally{layer.dispose();}
+});
+
+test('RENEA, FNSH and Shqiponja load their full original uniform meshes and maps',async()=>{
+ const manifest=JSON.parse(readFileSync(new URL('../webapp/public/assets/tirana-streets/albanian-forces/manifest.json',import.meta.url)));
+ const layer=new AlbanianForcesVisuals();
+ try{
+  const s=state();s.npcs=['renea_officer','fnsh_officer','shqiponja_officer'].map((id,i)=>({...npc(id,i*2),forceCharacter:id,anim:'idle'}));
+  layer.update(s,{x:0,z:0},0,1/60);await settle(layer);layer.update(s,{x:0,z:0},1,1/60);
+  for(const n of s.npcs){
+   const root=layer.getRoot('npc-'+n.id);assert.ok(root);let triangles=0,maps=0,joints=0;
+   root.traverse(o=>{if(o.isMesh){triangles+=(o.geometry.index?.count??o.geometry.attributes.position.count)/3;for(const material of Array.isArray(o.material)?o.material:[o.material]){if(material.map)maps++;if(material.normalMap)maps++;}}if(o.isBone)joints++;});
+   assert.equal(triangles,manifest.find(a=>a.id===n.id).sourceTriangles,`${n.id}: original geometry, never the reduced substitute`);
+   assert.ok(maps>=4&&joints>=160,`${n.id}: textured uniform and original rig`);
+   const hips=root.getObjectByName('root'),head=root.getObjectByName('head');assert.ok(hips&&head);
+   assert.ok(head.getWorldPosition(new T.Vector3()).y>hips.getWorldPosition(new T.Vector3()).y+.4);
+  }
+ }finally{layer.dispose();}
+});
+
+test('a transient uniform download failure automatically returns to the original without a reload',async()=>{
+ const layer=new AlbanianForcesVisuals(),goodFetch=globalThis.fetch,warn=console.warn;let attempts=0,retryCache;
+ try{
+  console.warn=()=>{};globalThis.fetch=async(url,options)=>{
+   if(String(url).startsWith('blob:'))return goodFetch(url,options);
+   attempts++;if(attempts===1)return new Response('',{status:503});retryCache=options.cache;return goodFetch(url,options);
+  };
+  const s=state();s.npcs=[{...npc('retry'),forceCharacter:'renea_officer'}];
+  layer.update(s,{x:0,z:0},0,1/60);await layer.whenIdle();
+  assert.equal(layer.errors.size,1);assert.equal(layer.ownsPerson(s.npcs[0]),false);
+  for(let i=0;i<10;i++)layer.update(s,{x:0,z:0},i*.25,.25);
+  await settle(layer);layer.update(s,{x:0,z:0},3,1/60);
+  assert.equal(attempts,2);assert.equal(retryCache,'reload','a cached broken response is bypassed');
+  assert.equal(layer.errors.size,0);assert.equal(layer.ownsPerson(s.npcs[0]),true);assert.ok(layer.getRoot('npc-retry').getObjectByName('renea_officer'));
+ }finally{globalThis.fetch=goodFetch;console.warn=warn;layer.dispose();}
 });

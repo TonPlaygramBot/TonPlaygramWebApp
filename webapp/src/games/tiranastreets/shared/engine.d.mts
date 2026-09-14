@@ -17,7 +17,8 @@ export type Career = {
 };
 export type Member = { id: string; name: string };
 export type Car = Point & {
-  health?:number; destroyed?:boolean; burning?:boolean; crashUntil?:number;
+  health?:number; destroyed?:boolean; burning?:boolean; exploded?:boolean; crashUntil?:number;
+  damageCause?:'collision'|'bullet'|'explosive'|'heat';
   id: string;
   heading: number;
   speed: number;
@@ -82,6 +83,7 @@ export type Mission = {
   stops: (Point & { name: string })[];
 };
 export type NPC = Point & {
+  defenseAttackerId?:string|null;defenseUntil?:number;defenseStartedAt?:number;nextCounterAt?:number;punchedAt?:number;
   bikeType?:string;role?:string;behavior?:string;
   firedAt?:number; reloadUntil?:number; rounds?:number; aimPitch?:number; aimSince?:number; splatteredUntil?:number; splatter?:string;
   y?:number;hitUntil?:number;
@@ -103,7 +105,7 @@ export type NPC = Point & {
 };
 export type Effect = Point & {
   targetId?:string;nx?:number;ny?:number;nz?:number;
-  radius?:number;objectId?:string;
+  radius?:number;objectId?:string;hitKind?:string;
   y?:number;toY?:number;
   id: number;
   at: number;
@@ -113,7 +115,7 @@ export type Effect = Point & {
   owner: string;
   weapon: string;
 };
-export type Aircraft = Point & {id:string;kind?:'helicopter'|'jet';careerManaged?:boolean;y:number;roofY:number;stairX:number;stairZ:number;heading:number;speed:number;pilot:string|null;airborne:boolean;nextMissile:number;autoLand?:boolean;homeX?:number;homeZ?:number;buildingId?:string;name?:string;health?:number;missiles?:number;roll?:number;pitch?:number};
+export type Aircraft = Point & {id:string;kind?:'helicopter'|'jet';careerManaged?:boolean;verticalSpeed?:number;takeoffY?:number;roofAccess?:boolean;autoHover?:boolean;y:number;roofY:number;stairX:number;stairZ:number;heading:number;speed:number;pilot:string|null;airborne:boolean;nextMissile:number;autoLand?:boolean;homeX?:number;homeZ?:number;buildingId?:string;name?:string;health?:number;missiles?:number;roll?:number;pitch?:number};
 export type State = {
   worldVersion?:string;
   helicopter?: Aircraft;

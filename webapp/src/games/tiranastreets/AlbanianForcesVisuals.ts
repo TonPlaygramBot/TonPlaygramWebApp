@@ -5,6 +5,7 @@ import {resetForcePose,poseForce} from './forcePose';
 import {GLTFLoader, type GLTF} from 'three/examples/jsm/loaders/GLTFLoader.js';
 import {clone} from 'three/examples/jsm/utils/SkeletonUtils.js';
 import {clearWeaponInstance, disposeWeaponResources} from './weaponModelResources';
+import {authoredRollingWheels,rollWheels,type RollingWheel} from './rollingWheels';
 import {forceVehicleFor, forceCharacterFor, type ForceAsset} from './shared/albanianForces.mjs';
 import type {Point, NPC, Car} from './shared/engine.mjs';
 
@@ -14,7 +15,7 @@ export type ForceFrame = {cars: ForceCar[]; traffic: ForceCar[]; units: ForceCar
 type Candidate = {key: string; asset: ForceAsset; entity: ForceCar | ForceNPC; distance: number; flashing: boolean};
 type Source = {gltf: GLTF; frame: T.Group; used: number};
 type Actor = {
-  root: T.Group; asset: ForceAsset; wheels: T.Object3D[]; steering: T.Object3D[];
+  root: T.Group; asset: ForceAsset; wheels: RollingWheel[]; steering: T.Object3D[];
   lamps: {material: T.MeshStandardMaterial; base: number}[];
   mixer?: T.AnimationMixer; idle?: T.AnimationAction; walk?: T.AnimationAction;
   moving?: boolean;
@@ -32,9 +33,11 @@ export class AlbanianForcesVisuals {
   private sources = new Map<string, Source>();
   private actors = new Map<string, Actor>();
   private pending = new Map<string, AbortController>();
+  private retries = new Map<string, {attempt:number; after:number}>();
   private desired = new Map<string, ForceAsset>();
   private dead = false;
   private frame = 0;
+  private elapsed = 0;
   private waiters: (()=>void)[]=[];
   whenIdle(){return this.pending.size?new Promise<void>(resolve=>this.waiters.push(resolve)):Promise.resolve();}
   private settleWaiters(){if(!this.pending.size)for(const resolve of this.waiters.splice(0))resolve();}
@@ -50,17 +53,18 @@ export class AlbanianForcesVisuals {
     if (this.dead) return;
     for (const asset of this.desired.values()) {
       if (this.pending.size >= 2) break;
-      if (this.sources.has(asset.id) || this.pending.has(asset.id) || this.errors.has(asset.id)) continue;
+      if (this.sources.has(asset.id) || this.pending.has(asset.id) || (this.retries.get(asset.id)?.after??0)>this.elapsed) continue;
       const abort = new AbortController();
       this.pending.set(asset.id, abort);
       void this.load(asset, abort);
     }
   }
   private async load(asset: ForceAsset, abort: AbortController) {
-    const timer = setTimeout(() => abort.abort(), 20000);
+    // Original uniform GLBs are 6–7 MB; allow a normal mobile download to finish.
+    const timer = setTimeout(() => abort.abort(), 45000);
     let gltf: GLTF | undefined;
     try {
-      const response = await fetch(asset.url, {signal: abort.signal});
+      const response = await fetch(asset.url, {signal: abort.signal,cache:this.retries.has(asset.id)?'reload':'default'});
       if (!response.ok) throw Error(`HTTP ${response.status}`);
       const bytes = await response.arrayBuffer();
       if (this.dead) return;
@@ -68,12 +72,15 @@ export class AlbanianForcesVisuals {
       if (this.dead) { disposeWeaponResources([gltf.scene]); return; }
       const frame = prepareForceModel(gltf.scene, asset);
       this.sources.set(asset.id, {gltf, frame, used: this.frame});
+      this.errors.delete(asset.id);this.retries.delete(asset.id);
       gltf = undefined;
       this.trim();
     } catch (error) {
       if (gltf) disposeWeaponResources([gltf.scene]);
       if (!this.dead) {
         this.errors.set(asset.id, String(error));
+        const attempt=(this.retries.get(asset.id)?.attempt??0)+1;
+        this.retries.set(asset.id,{attempt,after:this.elapsed+Math.min(30,2**attempt)});
         console.warn('Albanian Forces model unavailable; existing unit retained:', asset.id, error);
       }
     } finally {
@@ -85,10 +92,9 @@ export class AlbanianForcesVisuals {
 
   private create(key: string, asset: ForceAsset, source: Source): Actor {
     const root = clone(source.frame) as T.Group;
-    const actor: Actor = {root, asset, wheels: [], steering: [], lamps: []};
+    const actor: Actor = {root, asset, wheels: asset.category==='vehicle'?authoredRollingWheels(root,asset.wheelRadius):[], steering: [], lamps: []};
     root.name = key;
     root.traverse(o => {
-      if (o.name.startsWith('Wheel_')) actor.wheels.push(o);
       if (o.name.startsWith('Steer_')) actor.steering.push(o);
       if (o instanceof T.Mesh) {
         // Only the emergency lenses need private materials for flashing.
@@ -117,6 +123,7 @@ export class AlbanianForcesVisuals {
   update(state: ForceFrame, viewer: Point, time: number, dt: number, battery = false) {
     if (this.dead) return;
     this.frame++;
+    this.elapsed+=Math.max(0,Math.min(dt,.25));
     const distance = (e: Point) => Math.hypot(e.x - viewer.x, e.z - viewer.z);
     const vehicles: Candidate[] = [];
     for (const car of [...state.cars, ...state.traffic, ...state.units]) {
@@ -138,7 +145,8 @@ export class AlbanianForcesVisuals {
     const selected = [...vehicles.sort(nearest).slice(0, cap), ...people.sort(nearest).slice(0, battery ? 8 : 16)];
     const keep = new Set(selected.map(c => c.key));
     for (const key of this.actors.keys()) if (!keep.has(key)) this.remove(key);
-    this.desired = new Map(selected.map(c => [c.asset.id, c.asset]));
+    // Queue the closest original uniforms before the larger vehicle files.
+    this.desired = new Map([...selected].sort((a,b)=>Number(b.asset.category==='person')-Number(a.asset.category==='person')||nearest(a,b)).map(c => [c.asset.id, c.asset]));
     for (const c of selected) {
       if(c.distance>(c.asset.category==='person'?(battery?85:180):(battery?140:260))){const old=this.actors.get(c.key);if(old)old.root.visible=false;continue;}
       const source = this.sources.get(c.asset.id);
@@ -183,7 +191,7 @@ export class AlbanianForcesVisuals {
         }
       } else {
         const car = e as ForceCar;
-        for (const wheel of actor.wheels) wheel.rotation.z -= car.speed * dt / actor.asset.wheelRadius;
+        rollWheels(actor.wheels,car.speed,dt);
         for (const steer of actor.steering) steer.rotation.y = -car.steering * .32;
         actor.lamps.forEach((lamp, i) => {
           lamp.material.emissiveIntensity = c.flashing && Math.sin(time * 18 + i * Math.PI) > 0 ? 4 : lamp.base;
@@ -194,12 +202,14 @@ export class AlbanianForcesVisuals {
     this.pump();
   }
 
-  retryFailed() { this.errors.clear(); this.pump(); }
+  retryFailed() { this.errors.clear();this.retries.clear(); this.pump(); }
   private remove(key: string) {
     const actor = this.actors.get(key);
     if (!actor) return;
     actor.mixer?.stopAllAction();
     actor.mixer?.uncacheRoot(actor.root);
+    const skeletons=new Set<T.Skeleton>();actor.root.traverse(o=>{if(o instanceof T.SkinnedMesh)skeletons.add(o.skeleton);});
+    skeletons.forEach(s=>s.dispose());
     actor.lamps.forEach(lamp => lamp.material.dispose());
     clearWeaponInstance(actor.root);
     actor.root.removeFromParent();
@@ -220,7 +230,7 @@ export class AlbanianForcesVisuals {
     for (const abort of this.pending.values()) abort.abort();
     for (const key of this.actors.keys()) this.remove(key);
     for (const source of this.sources.values()) disposeWeaponResources([source.frame]);
-    this.sources.clear(); this.desired.clear(); this.errors.clear();
+    this.sources.clear(); this.desired.clear(); this.errors.clear();this.retries.clear();
     for(const resolve of this.waiters.splice(0))resolve();
     this.group.removeFromParent();
   }

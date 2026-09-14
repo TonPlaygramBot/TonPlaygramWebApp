@@ -3,6 +3,7 @@ import {GLTFLoader,type GLTF} from 'three/examples/jsm/loaders/GLTFLoader.js';
 import {clone as cloneSkeleton} from 'three/examples/jsm/utils/SkeletonUtils.js';
 import {mergeGeometries} from 'three/examples/jsm/utils/BufferGeometryUtils.js';
 import {CityLifeCore,BUDGETS,type NPC,type Point,type LifeEvent} from './CityLifeCore';
+import {authoredRollingWheels,rollWheels,type RollingWheel} from '../rollingWheels';
 const BASE='/assets/tirana-citylife/v1/';
 type Actor={root:T.Object3D;mixer:T.AnimationMixer;clip:string;actions:Map<string,T.AnimationAction>;asset:string;gun?:T.Object3D};
 /** Scene-owned resource cache. Clones share mesh/texture resources; skeletons do not. */
@@ -11,6 +12,7 @@ export class CityLifeLayer{
  private failed=new Set<string>();private cache=new Map<string,Promise<GLTF>>();private sources=new Set<GLTF>();private actors=new Map<string,Actor>();private pending=new Set<string>();
  private far=new Map<string,T.InstancedMesh>();private farPending=new Set<string>();private vehicles=new Map<number,T.Object3D>();private vehiclePending=new Set<number>();
  private fire=new Map<number,T.Mesh>();private effects:{object:T.Object3D;ttl:number}[]=[];private dead=false;
+ private vehicleWheels=new Map<number,RollingWheel[]>();
  private frustum=new T.Frustum();private projection=new T.Matrix4();private dummy=new T.Object3D();private clock={value:0};
  private gunGeo=new T.BoxGeometry(.035,.075,.16);private gunMat=new T.MeshStandardMaterial({color:0x242a30,roughness:.45,metalness:.55});
  constructor(readonly core:CityLifeCore,readonly scene:T.Scene){scene.add(this.group);this.group.name='Tirana CityLife v1';}
@@ -68,10 +70,16 @@ export class CityLifeLayer{
   }
   for(const [asset,inst]of this.far){inst.count=farCounts.get(asset)||0;inst.instanceMatrix.needsUpdate=true;inst.geometry.getAttribute('crowdMoving').needsUpdate=true;inst.geometry.getAttribute('crowdPhase').needsUpdate=true;}
   for(const u of this.core.units.values()){
-   this.vehicle(u.id,u.kind==='medical'?'albanian_ambulance_lod1':'albanian_fire_engine');const v=this.vehicles.get(u.id);if(v){v.position.set(u.p.x,0,u.p.z);v.rotation.y=u.heading-Math.PI/2;v.traverse(o=>{if(o.name.startsWith('Wheel_'))o.rotation.z-=(u.state==='working'?0:dt*(u.kind==='medical'?9/.375:7/.51));if(o.name.startsWith('Beacon_Blue'))o.visible=(Math.floor(this.core.time*8)+(o.userData.flashGroup||0))%2===0;});}
+   this.vehicle(u.id,u.kind==='medical'?'albanian_ambulance_lod1':'albanian_fire_engine');const v=this.vehicles.get(u.id);if(v){
+    let wheels=this.vehicleWheels.get(u.id);if(!wheels){wheels=authoredRollingWheels(v,u.kind==='medical'?.375:.51);this.vehicleWheels.set(u.id,wheels);}
+    const speed=v.userData.wheelsPlaced&&dt>0?((u.p.x-v.position.x)*Math.sin(u.heading)+(u.p.z-v.position.z)*Math.cos(u.heading))/dt:0;
+    if(Math.abs(speed)<40)rollWheels(wheels,speed,dt);
+    v.position.set(u.p.x,0,u.p.z);v.rotation.y=u.heading-Math.PI/2;v.userData.wheelsPlaced=true;
+    v.traverse(o=>{if(o.name.startsWith('Beacon_Blue'))o.visible=(Math.floor(this.core.time*8)+(o.userData.flashGroup||0))%2===0;});
+   }
    u.crew.forEach((c,index)=>{const key=`crew:${u.id}:${index}`;keep.add(key);const asset=u.kind==='medical'?(index?'paramedic_navy':'paramedic_red'):(index?'firefighter_operator':'firefighter_rescue');const a=this.actor(key,asset);if(a)this.pose(a,c.p,c.heading,c.state==='walk'?'Walk':'Idle',dt);});
   }
-  for(const [id,v]of this.vehicles)if(!this.core.units.has(id)){v.removeFromParent();this.vehicles.delete(id);}
+  for(const [id,v]of this.vehicles)if(!this.core.units.has(id)){v.removeFromParent();this.vehicles.delete(id);this.vehicleWheels.delete(id);}
   for(const [key]of this.actors)if(!keep.has(key))this.release(key);
   for(const i of this.core.incidents.values()){
    if(i.kind!=='fire'||i.intensity<=0||i.status==='resolved')continue;let flame=this.fire.get(i.id);if(!flame){flame=new T.Mesh(new T.ConeGeometry(.9,2.2,7),new T.MeshBasicMaterial({color:0xff8422,transparent:true,opacity:.65,depthWrite:false}));this.fire.set(i.id,flame);this.group.add(flame);}flame.position.set(i.p.x,i.intensity*.9,i.p.z);flame.scale.setScalar(i.intensity*(.94+Math.sin(this.core.time*13)*.08));
@@ -80,5 +88,5 @@ export class CityLifeLayer{
   for(const e of this.effects){e.ttl-=dt;if(e.ttl<=0){e.object.removeFromParent();const l=e.object as T.Line;l.geometry.dispose();(l.material as T.Material).dispose();}}this.effects=this.effects.filter(e=>e.ttl>0);
  }
  private disposeSource(g:GLTF){const geometries=new Set<T.BufferGeometry>(),materials=new Set<T.Material>(),textures=new Set<T.Texture>();g.scene.traverse(o=>{const m=o as T.Mesh;if(!m.isMesh)return;geometries.add(m.geometry);for(const mat of Array.isArray(m.material)?m.material:[m.material]){materials.add(mat);for(const value of Object.values(mat))if(value instanceof T.Texture)textures.add(value);}});geometries.forEach(g=>g.dispose());materials.forEach(m=>m.dispose());textures.forEach(t=>t.dispose());}
- dispose(){if(this.dead)return;this.dead=true;for(const key of this.actors.keys())this.release(key);for(const i of this.far.values()){i.geometry.dispose();(i.material as T.Material).dispose();}for(const g of this.sources)this.disposeSource(g);for(const f of this.fire.values()){f.geometry.dispose();(f.material as T.Material).dispose();}for(const e of this.effects){const o=e.object as T.Line;o.geometry.dispose();(o.material as T.Material).dispose();}this.gunGeo.dispose();this.gunMat.dispose();this.group.removeFromParent();this.group.clear();this.cache.clear();this.sources.clear();this.far.clear();this.vehicles.clear();}
+ dispose(){if(this.dead)return;this.dead=true;for(const key of this.actors.keys())this.release(key);for(const i of this.far.values()){i.geometry.dispose();(i.material as T.Material).dispose();}for(const g of this.sources)this.disposeSource(g);for(const f of this.fire.values()){f.geometry.dispose();(f.material as T.Material).dispose();}for(const e of this.effects){const o=e.object as T.Line;o.geometry.dispose();(o.material as T.Material).dispose();}this.gunGeo.dispose();this.gunMat.dispose();this.group.removeFromParent();this.group.clear();this.cache.clear();this.sources.clear();this.far.clear();this.vehicles.clear();this.vehicleWheels.clear();}
 }
