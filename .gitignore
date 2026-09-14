@@ -75,3 +75,6 @@ webapp/public/pwa/game-packs/
 tools/blender/__pycache__/
 assets-source/tirana-city-mobility/**/*.blend1
 assets-source/tirana-city-mobility/*.blend1
+
+# Keep the compact production Showood asset; retain the rebuild input locally only.
+webapp/public/models/pool-royale/showood-seven-foot/seven_foot_showood.glb

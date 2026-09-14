@@ -22,7 +22,7 @@ describe('Pool Royale table models', () => {
     );
   });
 
-  test('Showood uses original GLB surface layout with a slightly larger fit scale', () => {
+  test('Showood uses the committed optimized GLB and an undistorted source layout', () => {
     const showood = POOL_ROYALE_TABLE_MODEL_OPTIONS.find(
       (option) => option.id === 'showood-seven-foot'
     );
@@ -40,7 +40,9 @@ describe('Pool Royale table models', () => {
       'pocket'
     ]);
     assert.equal(showood.forceGeneratedChromePlates, false);
-    assert.equal(showood.fitScale, 1.04);
+    assert.equal(showood.fitScale, 1);
+    assert.equal(showood.horizontalFitScale, 1);
+    assert.deepEqual(showood.assetUrls, ['/models/pool-royale/showood-seven-foot/showood-4k.glb']);
     assert.equal(showood.upperFrameHeightScale, 1);
     assert.equal(showood.cornerRimHeightScale, 1);
     assert.equal(showood.accentBottomTrimOffset, 0);

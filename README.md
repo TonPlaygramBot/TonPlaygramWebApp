@@ -460,3 +460,8 @@ Run `npm run reset-db` to drop the existing MongoDB database and start with a cl
 ## License
 
 This project is licensed under the [MIT License](LICENSE).
+
+Pool Royal's imported billiards engine and derived physics/AI adapter are
+GPL-3.0; see [the third-party notice](webapp/src/vendor/tailuge/NOTICE.md) and its
+bundled license. The MIT notice does not override those terms. Distribution of
+the combined Pool Royal game must comply with GPL-3.0.
