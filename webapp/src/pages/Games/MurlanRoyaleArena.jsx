@@ -6,6 +6,7 @@ import React, {
   useState
 } from 'react';
 import * as THREE from 'three';
+import { MurlanHandController, resolveMurlanArm } from './shared/MurlanHandController.ts';
 import { renderToStaticMarkup } from 'react-dom/server';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 import * as OpenSourceDeck from '@letele/playing-cards';
@@ -40,7 +41,7 @@ import {
 } from '../../../../lib/murlan.js';
 import { FLAG_EMOJIS } from '../../utils/flagEmojis.js';
 import AvatarTimer from '../../components/AvatarTimer.jsx';
-import BottomLeftIcons from '../../components/BottomLeftIcons.jsx';
+import MurlanGameControls from '../../components/MurlanGameControls';
 import InfoPopup from '../../components/InfoPopup.jsx';
 import QuickMessagePopup from '../../components/QuickMessagePopup.jsx';
 import GiftPopup from '../../components/GiftPopup.jsx';
@@ -55,7 +56,7 @@ import {
 import { MURLAN_CHARACTER_THEMES } from '../../config/murlanCharacterThemes.js';
 import { giftSounds } from '../../utils/giftSounds.js';
 import { getAvatarUrl } from '../../utils/avatarUtils.js';
-import { getGameVolume, isGameMuted } from '../../utils/sound.js';
+import { getGameVolume, isGameMuted, toggleGameMuted } from '../../utils/sound.js';
 import {
   getSpeechSupport,
   getSpeechSynthesis,
@@ -2400,13 +2401,15 @@ function computeHeldCardsPose({ resolvedSeatIndex = 0 } = {}) {
 }
 
 function createCharacterRig(instance, seatRoot, seatConfig, characterTheme, player, playerIndex, cardTheme, cardTextureSize = null) {
+  const rightArmChain = resolveMurlanArm(instance, 'right');
+  const leftArmChain = resolveMurlanArm(instance, 'left');
   const hips = findBoneByHints(instance, ['hips', 'pelvis', 'pelvisjoint', 'hip_joint']);
   const spine = findBoneByHints(instance, ['spine', 'chest', 'torso']);
   const head = findBoneByHints(instance, ['head', 'neck', 'headjoint', 'head_joint']);
-  const rightUpperArm = findBoneByHints(instance, ['rightarm', 'arm.r', 'r_upperarm', 'rightshoulder', 'armjointr', 'arm_joint_r_1', 'arm_joint_r', 'shoulderr']);
+  const rightUpperArm = rightArmChain?.upper ?? findBoneByHints(instance, ['rightarm', 'arm.r', 'r_upperarm', 'armjointr', 'arm_joint_r_1']);
   const rightForeArm = findBoneByHints(instance, ['rightforearm', 'r_forearm', 'rightlowerarm', 'forearmr', 'elbowr', 'arm_joint_r_2', 'arm_joint_r_3']);
   const rightHand = findBoneByHints(instance, ['righthand', 'hand.r', 'r_hand', 'handjointr', 'hand_joint_r']);
-  const leftUpperArm = findBoneByHints(instance, ['leftarm', 'arm.l', 'l_upperarm', 'leftshoulder', 'armjointl', 'arm_joint_l_1', 'arm_joint_l', 'shoulderl']);
+  const leftUpperArm = leftArmChain?.upper ?? findBoneByHints(instance, ['leftarm', 'arm.l', 'l_upperarm', 'armjointl', 'arm_joint_l_1']);
   const leftForeArm = findBoneByHints(instance, ['leftforearm', 'l_forearm', 'leftlowerarm', 'forearml', 'elbowl', 'arm_joint_l_2', 'arm_joint_l_3']);
   const leftHand = findBoneByHints(instance, ['lefthand', 'hand.l', 'l_hand', 'handjointl', 'hand_joint_l']);
   const rightIndexFinger = findBoneByHints(instance, ['rightindex', 'index.r', 'index_01_r', 'r_index']);
@@ -2599,70 +2602,6 @@ function refreshRigHeldCards(rig, handCardsInput, playerColor, cardTheme, cardTe
   rig.heldCards = nextCards;
 }
 
-function lerpBoneToPose(bone, from, to, t) {
-  if (!bone || !from || !to) return;
-  bone.rotation.x = THREE.MathUtils.lerp(from.x, to.x, t);
-  bone.rotation.y = THREE.MathUtils.lerp(from.y, to.y, t);
-  bone.rotation.z = THREE.MathUtils.lerp(from.z, to.z, t);
-}
-
-const CHARACTER_ACTION_BONE_KEYS = Object.freeze([
-  'rightUpperArm',
-  'rightForeArm',
-  'rightHand',
-  'rightIndexFinger',
-  'rightThumbFinger',
-  'rightMiddleFinger'
-]);
-
-function applyRigActionPoseBetween(rig, fromPose, targetPose, alpha = 1) {
-  if (!rig || !targetPose) return;
-  const seated = rig.seatedPose || {};
-  CHARACTER_ACTION_BONE_KEYS.forEach((key) => {
-    const bone = rig.bones?.[key];
-    if (!bone) return;
-    const from = fromPose?.[key] || seated[key] || rig.defaults?.[key];
-    const to = targetPose[key] || seated[key] || from;
-    if (!from || !to) return;
-    lerpBoneToPose(bone, from, to, alpha);
-  });
-}
-
-function applyRigActionPoseLerp(rig, targetPose, alpha = 1) {
-  applyRigActionPoseBetween(rig, rig?.seatedPose, targetPose, alpha);
-}
-
-function queueCharacterActionAnimation(list, rig, animation) {
-  list.push({ rig, ...animation });
-}
-
-function buildPoseVariant(basePose, overrides = {}) {
-  const out = { ...basePose };
-  Object.entries(overrides).forEach(([key, delta]) => {
-    const base = basePose?.[key];
-    if (!base) return;
-    out[key] = new THREE.Euler(base.x + (delta.x || 0), base.y + (delta.y || 0), base.z + (delta.z || 0));
-  });
-  return out;
-}
-
-function createThrownCardMesh(color = '#f8fafc') {
-  const geometry = new THREE.PlaneGeometry(0.2 * MODEL_SCALE, 0.3 * MODEL_SCALE);
-  const material = new THREE.MeshStandardMaterial({
-    color: new THREE.Color(color),
-    roughness: 0.34,
-    metalness: 0.06,
-    side: THREE.DoubleSide
-  });
-  const card = new THREE.Mesh(geometry, material);
-  card.castShadow = true;
-  card.receiveShadow = true;
-  card.userData.dispose = () => {
-    geometry.dispose();
-    material.dispose();
-  };
-  return card;
-}
 
 function attachSeatedCharacter({ template, seatConfig, characterTheme, store, player = null, playerIndex = 0, cardTheme, cardTextureSize = null }) {
   if (!template || !seatConfig?.chair) return;
@@ -2730,168 +2669,19 @@ function attachSeatedCharacter({ template, seatConfig, characterTheme, store, pl
 
 
 
-function resolveCharacterActionAnimationProfile(styleId) {
-  switch (styleId) {
-    case 'lowArcDeal':
-      return { reach: 0.72, pinch: 0.72, hold: 0.34, carry: 0.78, hover: 0.56, place: 0.62, release: 0.52, recover: 0.72, pickupLift: 0.014, carryLift: 0.026, tableHover: 0.01, carryBlend: 0.58, wristFlip: 0.006, spring: 0 };
-    case 'straightSlide':
-      return { reach: 0.66, pinch: 0.68, hold: 0.32, carry: 0.72, hover: 0.52, place: 0.58, release: 0.5, recover: 0.68, pickupLift: 0.012, carryLift: 0.022, tableHover: 0.008, carryBlend: 0.6, wristFlip: 0.003, spring: 0 };
-    case 'flipSettle':
-      return { reach: 0.76, pinch: 0.76, hold: 0.36, carry: 0.82, hover: 0.6, place: 0.64, release: 0.54, recover: 0.74, pickupLift: 0.015, carryLift: 0.028, tableHover: 0.01, carryBlend: 0.56, wristFlip: 0.008, spring: 0 };
-    case 'springSnap':
-      return { reach: 0.62, pinch: 0.64, hold: 0.3, carry: 0.68, hover: 0.48, place: 0.54, release: 0.48, recover: 0.66, pickupLift: 0.01, carryLift: 0.02, tableHover: 0.007, carryBlend: 0.62, wristFlip: 0.002, spring: 0 };
-    case 'precisionLift':
-    default:
-      return { reach: 0.8, pinch: 0.8, hold: 0.38, carry: 0.86, hover: 0.64, place: 0.68, release: 0.56, recover: 0.78, pickupLift: 0.016, carryLift: 0.03, tableHover: 0.011, carryBlend: 0.55, wristFlip: 0.004, spring: 0 };
-  }
-}
-
-function orientThrownActionCard(card, styleId, progress = 0, finalYaw = 0) {
-  if (!card) return;
-  const profile = resolveCharacterActionAnimationProfile(styleId);
-  const flip = Math.sin(THREE.MathUtils.clamp(progress, 0, 1) * Math.PI) * profile.wristFlip;
-  card.rotation.set(-Math.PI / 2 + COMMUNITY_CARD_TOP_TILT * 0.35 + flip, finalYaw, 0);
-}
-
-function runCharacterAction(store, rig, action) {
+function runCharacterAction(store, rig, action, onImpact) {
   if (!store || !rig || !action) return;
-  const now = performance.now();
-  const existingAnimations = store.characterActionAnimations || [];
-  existingAnimations.forEach((anim) => {
-    if (anim?.rig === rig) anim.complete?.();
-  });
-  const list = existingAnimations.filter((anim) => anim?.rig !== rig);
-  store.characterActionAnimations = list;
-  const basePose = rig.seatedPose;
-  const cardsColor = PLAYER_COLORS[action.playerIndex % PLAYER_COLORS.length] ?? '#f8fafc';
-  const actionAnimationStyle = DEFAULT_CARD_ACTION_ANIMATION_ID;
-
-  if (action.type === 'PASS') {
-    const loosePassFingers = {
-      rightIndexFinger: { x: THREE.MathUtils.degToRad(18), y: THREE.MathUtils.degToRad(-2), z: THREE.MathUtils.degToRad(-1) },
-      rightThumbFinger: { x: THREE.MathUtils.degToRad(-8), y: THREE.MathUtils.degToRad(3), z: THREE.MathUtils.degToRad(7) },
-      rightMiddleFinger: { x: THREE.MathUtils.degToRad(16), y: THREE.MathUtils.degToRad(-1), z: THREE.MathUtils.degToRad(-1) }
-    };
-    const passHandDownGesture = buildPoseVariant(basePose, {
-      rightUpperArm: { x: THREE.MathUtils.degToRad(-24), y: THREE.MathUtils.degToRad(-6), z: THREE.MathUtils.degToRad(-7) },
-      rightForeArm: { x: THREE.MathUtils.degToRad(-38), y: THREE.MathUtils.degToRad(-2), z: THREE.MathUtils.degToRad(-1) },
-      rightHand: { x: THREE.MathUtils.degToRad(-18), y: THREE.MathUtils.degToRad(-4), z: THREE.MathUtils.degToRad(-3) },
-      ...loosePassFingers
-    });
-    const passTinyLiftGesture = buildPoseVariant(basePose, {
-      rightUpperArm: { x: THREE.MathUtils.degToRad(-17), y: THREE.MathUtils.degToRad(-6), z: THREE.MathUtils.degToRad(-7) },
-      rightForeArm: { x: THREE.MathUtils.degToRad(-30), y: THREE.MathUtils.degToRad(-2), z: THREE.MathUtils.degToRad(-1) },
-      rightHand: { x: THREE.MathUtils.degToRad(-12), y: THREE.MathUtils.degToRad(-4), z: THREE.MathUtils.degToRad(-3) },
-      ...loosePassFingers
-    });
-
-    queueCharacterActionAnimation(list, rig, {
-      start: now,
-      duration: 240,
-      update: (t) => applyRigActionPoseLerp(rig, passHandDownGesture, t)
-    });
-    queueCharacterActionAnimation(list, rig, {
-      start: now + 240,
-      duration: 140,
-      update: (t) => applyRigActionPoseBetween(rig, passHandDownGesture, passTinyLiftGesture, t)
-    });
-    queueCharacterActionAnimation(list, rig, {
-      start: now + 380,
-      duration: 140,
-      update: (t) => applyRigActionPoseBetween(rig, passTinyLiftGesture, passHandDownGesture, t)
-    });
-    queueCharacterActionAnimation(list, rig, {
-      start: now + 520,
-      duration: 260,
-      update: (t) => applyRigActionPoseBetween(rig, passHandDownGesture, basePose, t)
-    });
-    return;
-  }
-
-  if (action.type === 'PLAY') {
-    const releaseFingers = {
-      rightIndexFinger: { x: THREE.MathUtils.degToRad(-5), y: THREE.MathUtils.degToRad(2) },
-      rightThumbFinger: { x: THREE.MathUtils.degToRad(8), z: THREE.MathUtils.degToRad(-6) },
-      rightMiddleFinger: { x: THREE.MathUtils.degToRad(-4), y: THREE.MathUtils.degToRad(1) }
-    };
-    const singlePlaceGesture = buildPoseVariant(basePose, {
-      rightUpperArm: { x: THREE.MathUtils.degToRad(-20), y: THREE.MathUtils.degToRad(-18), z: THREE.MathUtils.degToRad(-14) },
-      rightForeArm: { x: THREE.MathUtils.degToRad(-24), y: THREE.MathUtils.degToRad(-1) },
-      rightHand: { x: THREE.MathUtils.degToRad(-14), y: THREE.MathUtils.degToRad(-5), z: THREE.MathUtils.degToRad(-1) },
-      ...releaseFingers
-    });
-
-    const thrown = createThrownCardMesh(cardsColor);
-    store.scene?.add(thrown);
-
-    const handPos = new THREE.Vector3();
-    if (rig.bones?.rightHand) {
-      rig.bones.rightHand.getWorldPosition(handPos);
-    } else {
-      rig.seatRoot.getWorldPosition(handPos);
-      handPos.add(rig.seatConfig?.forward?.clone().multiplyScalar(0.16 * MODEL_SCALE) ?? new THREE.Vector3());
-      handPos.y += 0.18 * MODEL_SCALE;
-    }
-    const primaryPlayedCardId = action.cardId || action.cards?.[0]?.id;
-    const selectedCardMesh = primaryPlayedCardId ? store.cardMap?.get(primaryPlayedCardId)?.mesh : null;
-    const pickupPos = handPos.clone();
-    if (selectedCardMesh) {
-      selectedCardMesh.getWorldPosition(pickupPos);
-      pickupPos.y += 0.012 * MODEL_SCALE;
-    }
-
-    const target = (store.tableAnchor || new THREE.Vector3()).clone();
-    target.y += 0.08 * MODEL_SCALE;
-    target.add((rig.seatConfig?.right || new THREE.Vector3(1, 0, 0)).clone().multiplyScalar(0.04 * MODEL_SCALE));
-    const tableContactPos = target.clone().add(new THREE.Vector3(0, 0.012 * MODEL_SCALE, 0));
-    const pickupHoverPos = pickupPos.clone();
-    const travelArcLift = 0.006 * MODEL_SCALE;
-    thrown.position.copy(pickupPos);
-    const finalCardYaw = Math.atan2(rig.seatConfig?.forward?.x ?? 0, rig.seatConfig?.forward?.z ?? 1);
-    orientThrownActionCard(thrown, actionAnimationStyle, 0, finalCardYaw);
-
-    queueCharacterActionAnimation(list, rig, {
-      start: now,
-      duration: 560,
-      update: (t) => {
-        applyRigActionPoseLerp(rig, singlePlaceGesture, t);
-        const eased = easeInOutCubic(t);
-        thrown.position.lerpVectors(pickupHoverPos, tableContactPos, eased);
-        thrown.position.y += Math.sin(eased * Math.PI) * travelArcLift;
-        orientThrownActionCard(thrown, actionAnimationStyle, eased, finalCardYaw);
-      },
-      complete: () => {
-        thrown.userData?.dispose?.();
-        store.scene?.remove(thrown);
-      }
-    });
-    queueCharacterActionAnimation(list, rig, {
-      start: now + 560,
-      duration: 300,
-      update: (t) => applyRigActionPoseBetween(rig, singlePlaceGesture, basePose, t)
-    });
-  }
+  const controller = rig.handController ||= new MurlanHandController(rig);
+  const cardId = action.cardId || action.cards?.[0]?.id;
+  const card = cardId ? store.cardMap?.get(cardId)?.mesh : undefined;
+  controller.start(action.type, performance.now(), card,
+    store.tableInfo?.surfaceY ?? TABLE_HEIGHT, onImpact, store.tableInfo?.radius ?? TABLE_RADIUS);
 }
 
 function stepCharacterActions(store, time) {
-  const list = store.characterActionAnimations;
-  if (!list?.length) return;
-  store.characterActionAnimations = list.filter((anim) => {
-    const elapsed = time - anim.start;
-    if (elapsed < 0) return true;
-    const progress = Math.min(1, elapsed / Math.max(anim.duration || 1, 1));
-    const eased = easeInOutCubic(progress);
-    try {
-      anim.update?.(eased);
-    } catch (error) {
-      console.warn('Character action animation failed', error);
-      return false;
-    }
-    if (progress >= 1) {
-      anim.complete?.();
-      return false;
-    }
-    return true;
+  store.characterRigs?.forEach((rig, index) => {
+    const controller = rig.handController ||= new MurlanHandController(rig);
+    controller.update(time, store.handCardMeshes?.[index] || []);
   });
 }
 
@@ -3600,7 +3390,7 @@ function resolveCardTextureSize(frameOption) {
 const GAME_CONFIG = { ...BASE_CONFIG };
 const DEFAULT_START_CARD = { rank: '3', suit: '♠' };
 
-export default function MurlanRoyaleArena({ search }) {
+export default function MurlanRoyaleArena({ search, onSceneReady }) {
   const mountRef = useRef(null);
   const onlineContext = useMemo(() => resolveMurlanOnlineContext(search), [search]);
   const players = useMemo(() => buildPlayers(search, onlineContext), [search, onlineContext]);
@@ -4693,6 +4483,9 @@ export default function MurlanRoyaleArena({ search }) {
 
     const seatConfigs = three.seatConfigs;
     const cardMap = three.cardMap;
+    three.handCardMeshes = state.players.map((player) =>
+      player.hand.map((card) => cardMap.get(card.id)?.mesh).filter(Boolean)
+    );
     const humanTurn = state.status === 'PLAYING' && state.players[state.activePlayer]?.isHuman;
     const isInitialDealAnimation = !previous && (state.lastActionId ?? 0) === 0;
     humanTurnRef.current = humanTurn;
@@ -5556,20 +5349,14 @@ export default function MurlanRoyaleArena({ search }) {
   }, []);
 
   useEffect(() => {
-    prevStateRef.current = gameState;
     gameStateRef.current = gameState;
+    selectedRef.current = selectedIds;
     setUiState(computeUiState(gameState));
     if (!threeReady) return;
 
-    applyStateToScene(gameState, selectedRef.current);
-  }, [gameState, threeReady, applyStateToScene]);
-
-  useEffect(() => {
-    selectedRef.current = selectedIds;
-    if (threeReady) {
-      applyStateToScene(gameStateRef.current, selectedIds);
-    }
-  }, [selectedIds, threeReady, applyStateToScene]);
+    applyStateToScene(gameState, selectedIds);
+    prevStateRef.current = gameState;
+  }, [gameState, selectedIds, threeReady, applyStateToScene]);
 
 
   useEffect(() => {
@@ -5622,7 +5409,7 @@ export default function MurlanRoyaleArena({ search }) {
   useEffect(() => {
     if (typeof window === 'undefined' || typeof Audio === 'undefined') return undefined;
     const card = new Audio('/assets/sounds/flipcard-91468.mp3');
-    const turn = new Audio('/assets/sounds/wooden-door-knock-102902.mp3');
+    const turn = new Audio('/assets/sounds/murlan-table-knock.mp3');
     card.preload = 'auto';
     turn.preload = 'auto';
     const baseVolume = getGameVolume();
@@ -5685,30 +5472,6 @@ export default function MurlanRoyaleArena({ search }) {
           void cardSound.play();
         } catch (error) {
           // ignore playback errors (autoplay restrictions)
-        }
-      }
-    }
-    const activeChanged = prev.initialized && prev.activePlayer !== gameState.activePlayer;
-    const activePlayer = Number.isInteger(gameState.activePlayer)
-      ? gameState.players[gameState.activePlayer]
-      : null;
-    if (activeChanged && gameState.status === 'PLAYING' && activePlayer?.isHuman) {
-      if (muted) {
-        audioStateRef.current = {
-          tableIds,
-          activePlayer: gameState.activePlayer,
-          status: gameState.status,
-          initialized: true
-        };
-        return;
-      }
-      const turnSound = soundsRef.current.turn;
-      if (turnSound) {
-        try {
-          turnSound.currentTime = 0;
-          void turnSound.play();
-        } catch (error) {
-          // ignore playback errors
         }
       }
     }
@@ -5888,7 +5651,12 @@ export default function MurlanRoyaleArena({ search }) {
   useEffect(() => {
     if (!threeReady) return;
     const lastActionId = gameState?.lastActionId ?? 0;
-    if (!lastActionId || characterActionRef.current.lastActionId === lastActionId) return;
+    if (!lastActionId) {
+      characterActionRef.current.lastActionId = 0;
+      threeStateRef.current.characterRigs?.forEach((rig) => rig.handController?.cancel());
+      return;
+    }
+    if (characterActionRef.current.lastActionId === lastActionId) return;
     characterActionRef.current.lastActionId = lastActionId;
 
     const action = gameState?.lastAction;
@@ -5896,7 +5664,13 @@ export default function MurlanRoyaleArena({ search }) {
     const store = threeStateRef.current;
     const rig = store.characterRigs?.get(action.playerIndex);
     if (!rig) return;
-    runCharacterAction(store, rig, action);
+    runCharacterAction(store, rig, action, () => {
+      if (isGameMuted()) return;
+      const knock = soundsRef.current.turn;
+      if (!knock) return;
+      knock.currentTime = 0;
+      void knock.play()?.catch(() => {});
+    });
   }, [gameState?.lastAction, gameState?.lastActionId, threeReady]);
 
   useEffect(() => {
@@ -6487,6 +6261,7 @@ export default function MurlanRoyaleArena({ search }) {
       ensureCardMeshes(gameStateRef.current);
       applyStateToScene(gameStateRef.current, selectedRef.current, false);
       updateSeatAnchors();
+      onSceneReady?.(threeStateRef.current);
       setThreeReady(true);
 
       handlePointerDown = (event) => {
@@ -6797,7 +6572,7 @@ export default function MurlanRoyaleArena({ search }) {
   }, [humanPlayerIndex, players, seatAnchorMap]);
 
   return (
-    <div className="absolute inset-0">
+    <div className="absolute inset-0 overflow-hidden">
       <div ref={mountRef} className="absolute inset-0" />
       <div className="absolute inset-0 pointer-events-none flex h-full flex-col">
         {uiState.scoreboard?.length ? (
@@ -6905,54 +6680,28 @@ export default function MurlanRoyaleArena({ search }) {
             );
           })}
         </div>
-        <div
-          className="absolute z-30 pointer-events-auto"
-          style={{
-            top: 'calc(5.9rem + env(safe-area-inset-top, 0px))',
-            left: 'calc(0.35rem + env(safe-area-inset-left, 0px))'
-          }}
+        <MurlanGameControls
+          humanTurn={uiState.humanTurn}
+          activePlayerName={gameState.players[gameState.activePlayer]?.name}
+          selectedCount={selectedIds.length}
+          cardsLeft={humanPlayer?.hand.length ?? 0}
+          canPass={!!gameState.tableCombo}
+          message={uiState.message}
+          tableSummary={uiState.tableSummary}
+          actionError={actionError}
+          muted={muted}
+          configOpen={configOpen}
+          onConfigChange={setConfigOpen}
+          onChat={() => setShowChat(true)}
+          onGift={() => setShowGift(true)}
+          onInfo={() => setShowInfo(true)}
+          onToggleMute={toggleGameMuted}
+          onPass={handlePass}
+          onClear={handleClear}
+          onPlay={handlePlay}
         >
-          <div className="relative">
-            <button
-              type="button"
-              onClick={() => setConfigOpen((prev) => !prev)}
-              aria-label={configOpen ? 'Close game settings menu' : 'Open game settings menu'}
-              aria-expanded={configOpen}
-              className={`flex items-center gap-2 rounded-full border border-white/15 bg-black/60 px-3 py-2 text-xs font-semibold uppercase tracking-[0.3em] text-gray-100 shadow-[0_6px_18px_rgba(2,6,23,0.45)] transition hover:border-white/30 hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/70 ${
-                configOpen ? 'border-white/30 text-white' : ''
-              }`}
-            >
-              <span className="text-base leading-none">☰</span>
-              <span className="leading-none">Menu</span>
-            </button>
-            {configOpen && (
-              <div className="absolute left-0 pointer-events-auto mt-2 w-72 max-w-[80vw] max-h-[80vh] overflow-y-auto rounded-2xl border border-white/15 bg-black/80 p-4 text-xs text-white shadow-2xl backdrop-blur pr-1">
-                <div className="flex items-center justify-between gap-3">
-                  <div>
-                    <p className="text-[10px] uppercase tracking-[0.4em] text-sky-200/80">Table Setup</p>
-                    <p className="mt-1 text-[0.7rem] text-white/70">
-                      Personalize the Murlan Royale table, chairs, and cards.
-                    </p>
-                  </div>
-                  <button
-                    type="button"
-                    onClick={() => setConfigOpen(false)}
-                    className="rounded-full p-1 text-white/70 transition hover:text-white focus:outline-none focus-visible:ring-2 focus-visible:ring-sky-300"
-                    aria-label="Close customization"
-                  >
-                    <svg
-                      xmlns="http://www.w3.org/2000/svg"
-                      viewBox="0 0 24 24"
-                      fill="none"
-                      stroke="currentColor"
-                      strokeWidth="1.8"
-                      className="h-4 w-4"
-                    >
-                      <path strokeLinecap="round" strokeLinejoin="round" d="m6 6 12 12M18 6 6 18" />
-                    </svg>
-                  </button>
-                </div>
-                <div className="mt-4 space-y-3">
+          {configOpen ? (
+                <div className="space-y-3">
                   <div className="rounded-xl border border-white/10 bg-white/5 p-3">
                     <div>
                       <p className="text-[10px] uppercase tracking-[0.35em] text-white/70">Personalize Arena</p>
@@ -7026,70 +6775,8 @@ export default function MurlanRoyaleArena({ search }) {
                     </div>
                   </div>
                 </div>
-              </div>
-            )}
-          </div>
-        </div>
-        <div className="pointer-events-auto">
-          <BottomLeftIcons
-            className="fixed right-4 top-[4.9rem] z-20"
-            buttonClassName="flex flex-col items-center bg-transparent p-1 text-white hover:bg-transparent focus-visible:ring-2 focus-visible:ring-sky-300"
-            order={['mute']}
-            showChat={false}
-            showGift={false}
-            showInfo={false}
-          />
-          <BottomLeftIcons
-            className="fixed left-4 bottom-[4.8rem] z-20"
-            buttonClassName="flex flex-col items-center bg-transparent p-1 text-white hover:bg-transparent focus-visible:ring-2 focus-visible:ring-sky-300"
-            iconClassName="text-2xl"
-            order={['chat']}
-            showGift={false}
-            showInfo={false}
-            showMute={false}
-            onChat={() => setShowChat(true)}
-          />
-          <BottomLeftIcons
-            className="fixed right-4 bottom-[4.8rem] z-20"
-            buttonClassName="flex flex-col items-center bg-transparent p-1 text-white hover:bg-transparent focus-visible:ring-2 focus-visible:ring-sky-300"
-            iconClassName="text-2xl"
-            order={['gift']}
-            showChat={false}
-            showInfo={false}
-            showMute={false}
-            onGift={() => setShowGift(true)}
-          />
-        </div>
-        <div className="mt-auto px-3 pb-2 pointer-events-none">
-          <div className="mx-auto w-full max-w-2xl pointer-events-auto">
-            <div className="fixed bottom-[8.8rem] left-1/2 z-20 flex -translate-x-1/2 flex-nowrap items-center justify-center gap-2 pointer-events-auto">
-              <button
-                type="button"
-                onClick={handlePass}
-                className="rounded-lg bg-gradient-to-r from-red-600 to-red-500 px-4 py-2 text-xs font-semibold uppercase tracking-wide text-white shadow-lg transition hover:shadow-xl disabled:cursor-not-allowed disabled:from-red-900/70 disabled:to-red-800/70 disabled:opacity-60 disabled:shadow-none"
-                disabled={!uiState.humanTurn || !gameState.tableCombo}
-              >
-                Pass
-              </button>
-              <button
-                type="button"
-                onClick={handleClear}
-                className="rounded-lg bg-gradient-to-r from-amber-300 to-amber-400 px-4 py-2 text-xs font-semibold uppercase tracking-wide text-black shadow-lg transition hover:shadow-xl disabled:cursor-not-allowed disabled:from-amber-300/60 disabled:to-amber-400/60 disabled:text-black/60 disabled:shadow-none"
-                disabled={!selectedIds.length}
-              >
-                Undo
-              </button>
-              <button
-                type="button"
-                onClick={handlePlay}
-                className="rounded-lg bg-gradient-to-r from-green-500 to-green-600 px-5 py-2 text-xs font-bold uppercase tracking-wide text-white shadow-lg transition hover:shadow-xl disabled:cursor-not-allowed disabled:from-green-800/60 disabled:to-green-700/60 disabled:opacity-60 disabled:shadow-none"
-                disabled={!uiState.humanTurn || !selectedIds.length}
-              >
-                Play
-              </button>
-            </div>
-          </div>
-        </div>
+          ) : null}
+        </MurlanGameControls>
       </div>
       {gameState.status === 'ENDED' ? (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/72 px-5 backdrop-blur-sm">
@@ -7838,6 +7525,11 @@ function setMeshPosition(mesh, target, lookTarget, orientation, immediate, anima
     orientMesh(mesh, orientTarget, orientOptions);
     return;
   }
+
+  // A selection update must not restart another card's in-flight placement.
+  const running = mesh.userData?.animation;
+  if (running && !running.cancelled && running.to.distanceToSquared(target) < 1e-10 &&
+      JSON.stringify(running.orientation) === JSON.stringify(orientOptions)) return;
 
   const current = mesh.position.clone();
   if (current.distanceToSquared(target) < 1e-6) {
