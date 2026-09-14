@@ -15,6 +15,7 @@ on:
       - 'webapp/src/**'
       - 'webapp/public/service-worker.js'
       - 'webapp/public/pwa/**'
+      - 'webapp/public/assets/vendor-originals/**'
 
 permissions:
   contents: read

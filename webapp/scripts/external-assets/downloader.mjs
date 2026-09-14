@@ -394,7 +394,9 @@ export async function vendorInventory(inventory, options) {
             }
             // Aliases are rebuilt from the current inventory. Retired or corrected
             // mappings must not survive merely because their payload was cached.
-            const record = { ...old, aliases: [],
+            const { providedLocal, provenance, ...cached } = old;
+            const record = { ...cached, url, aliases: [],
+              ...(local ? { providedLocal: true, provenance: local.provenance } : {}),
               dependencies: [...dependencies.values()], dependencySchemaVersion: DEPENDENCY_SCHEMA_VERSION, resumed: true };
             records.set(sourceUrl, record);
             urlMap[sourceUrl] = url;

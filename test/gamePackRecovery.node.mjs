@@ -61,14 +61,45 @@ test('rejects an HTML fallback instead of installing it as a game asset',async()
 });
 test('a failed worker settles before Resume and valid downloaded files are reused',async()=>{
   setup();const p=pack('demo');const files={'/first.glb':'first','/second.glb':'second','/slow.glb':'slow'};serve([p],{demo:files});const native=routeFetch;
-  let failures=0,firstFetches=0,slowSettled=false;
+  const deferred=()=>{let resolve;const promise=new Promise(r=>{resolve=r;});return {promise,resolve};};
+  const firstCommitted=deferred(),slowStarted=deferred(),slowAborted=deferred(),releaseSlow=deferred();
+  const open=caches.open.bind(caches),observed=new WeakSet();
+  caches.open=async name=>{
+    const cache=await open(name);
+    if(!observed.has(cache)){
+      observed.add(cache);const put=cache.put.bind(cache);
+      cache.put=async(request,response)=>{await put(request,response);if(cache.key(request)===origin+'/first.glb')firstCommitted.resolve();};
+    }
+    return cache;
+  };
+  let failures=0,firstFetches=0,slowFetches=0,slowSettled=false,installSettled=false;
   routeFetch=async(input,init)=>{
     if(String(input).endsWith('/first.glb'))firstFetches++;
-    if(String(input).endsWith('/second.glb')&&failures++===0){await new Promise(r=>setTimeout(r,15));return new Response('down',{status:503});}
-    if(String(input).endsWith('/slow.glb')){await new Promise((resolve,reject)=>{const timer=setTimeout(resolve,30);init.signal.addEventListener('abort',()=>{clearTimeout(timer);slowSettled=true;reject(new DOMException('cancelled','AbortError'));},{once:true});});slowSettled=true;}
+    if(String(input).endsWith('/second.glb')&&failures++===0){
+      // Fail only after a verified file is durable and another worker is active.
+      await Promise.all([firstCommitted.promise,slowStarted.promise]);
+      return new Response('down',{status:503});
+    }
+    if(String(input).endsWith('/slow.glb')&&slowFetches++===0){
+      try{
+        await new Promise((resolve,reject)=>{
+          init.signal.addEventListener('abort',()=>{slowAborted.resolve();reject(new DOMException('cancelled','AbortError'));},{once:true});
+          slowStarted.resolve();
+        });
+      }finally{
+        await releaseSlow.promise;
+        slowSettled=true;
+      }
+    }
     return native(input,init);
   };
-  await assert.rejects(installGamePack(p.id,{catalog:{packs:[p]}}),/503/);assert.equal(slowSettled,true);
+  const pending=installGamePack(p.id,{catalog:{packs:[p]},concurrency:3}).finally(()=>{installSettled=true;});
+  const rejected=assert.rejects(pending,/503/);
+  await slowAborted.promise;
+  // Let all queued continuations run while worker cleanup remains blocked.
+  await new Promise(setImmediate);
+  try{assert.equal(installSettled,false);}finally{releaseSlow.resolve();}
+  await rejected;assert.equal(slowSettled,true);
   await installGamePack(p.id,{catalog:{packs:[p]}});assert.equal(getGamePackStatus(p),'installed');assert.equal(firstFetches,1);
 });
 test('dependency errors settle the parent and pre-aborted downloads never fetch',async()=>{

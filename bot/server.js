@@ -494,7 +494,7 @@ function setWebAssetCacheHeaders(res, filePath) {
   // Vendor paths identify provider URLs, so a reviewed source update may change
   // their bytes without changing the path. Completed app downloads are served
   // by the worker; ordinary HTTP loads must revalidate these stable URLs.
-  if (lowerPath.startsWith('assets/external/')) {
+  if (lowerPath.startsWith('assets/external/') || lowerPath.startsWith('assets/vendor-originals/')) {
     res.setHeader('Cache-Control', 'public, max-age=0, must-revalidate');
     return;
   }
