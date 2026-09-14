@@ -325,7 +325,9 @@ export function stepRacer(r, raw, track, dt, time, difficulty = 'street', drivin
         r.slot * 0.006
       : 1,
     damageFactor = 1,
-    max = (boost || r.turbo > 0 ? 53 : 39) * kart.speed * factor * damageFactor;
+    // Keep the mobile race readable: trim both cruise and turbo top speeds
+    // slightly without changing acceleration, braking, or kart-to-kart balance.
+    max = (boost || r.turbo > 0 ? 50 : 37) * kart.speed * factor * damageFactor;
   const drag = .9 + .17 * Math.abs(r.speed) + .006 * r.speed * r.speed;
   const drive = (boost || r.turbo > 0 ? 31 : (kart.id === 'oopi' || kart.id === 'aegis' ? 23 : 21)) * kart.speed * factor;
   const acceleration = input.reverse === true ? (r.speed > 0 ? -36 * kart.brake : -7)
