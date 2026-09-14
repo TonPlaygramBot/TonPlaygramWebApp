@@ -5,6 +5,7 @@
 self.__TONPLAYGRAM_APP_BUILD__ = self.__TONPLAYGRAM_APP_BUILD__ || 'dev';
 try {
   importScripts('/pwa/app-build.js');
+  importScripts('/assets/external/url-map.js');
 } catch (err) {
   // Best-effort: fall back to the bundled default when the marker is missing.
 }
@@ -176,7 +177,7 @@ const warmHallwayAssets = async ({ forceReload = false } = {}) => {
 
 self.addEventListener('install', event => {
   event.waitUntil(
-    Promise.all([precache(), prewarmRuntimeCache(), warmGltfAssets(), warmHallwayAssets(), enableNavigationPreload()]).catch(() => {})
+    precache().catch(() => {})
   );
   self.skipWaiting();
 });
@@ -184,7 +185,7 @@ self.addEventListener('install', event => {
 const cleanupCaches = async () => {
   const cacheNames = await caches.keys();
   const deletions = cacheNames
-    .filter(name => ![STATIC_CACHE, RUNTIME_CACHE].includes(name))
+    .filter(name => /^tonplaygram-(?:static|runtime)-/.test(name) && ![STATIC_CACHE, RUNTIME_CACHE].includes(name))
     .map(name => caches.delete(name));
   await Promise.all(deletions);
 };
@@ -194,9 +195,7 @@ self.addEventListener('activate', event => {
     Promise.all([
       cleanupCaches(),
       self.clients.claim(),
-      warmGltfAssets({ forceReload: true }),
-      warmHallwayAssets({ forceReload: true }),
-      enableNavigationPreload()
+      self.registration?.navigationPreload?.disable()
     ]).catch(() => {})
   );
 });
@@ -241,9 +240,9 @@ const networkFirst = async (event, request) => {
     return freshResponse.clone();
   } catch (err) {
     const cached =
-      (await caches.match(request)) ||
-      (await caches.match('/index.html')) ||
-      (await caches.match(OFFLINE_FALLBACK));
+      (await (await caches.open(RUNTIME_CACHE)).match(request)) ||
+      (await (await caches.open(STATIC_CACHE)).match('/index.html')) ||
+      (await (await caches.open(STATIC_CACHE)).match(OFFLINE_FALLBACK));
     if (cached) return cached;
     throw err;
   }
@@ -286,46 +285,113 @@ const handleNavigationRequest = event => {
   );
 };
 
+async function downloadedResponse(request) {
+  const response = await self.matchTonPlaygramDownload?.(request, { navigation: request.mode === 'navigate' });
+  if (!response || !request.headers.has('range')) return response;
+  // HTML media elements use Range requests. CacheStorage stores full bodies.
+  const range = /^bytes=(\d*)-(\d*)$/.exec(request.headers.get('range'));
+  if (!range) return null;
+  const buffer = await response.arrayBuffer();
+  const length = buffer.byteLength;
+  const start = range[1] ? Number(range[1]) : Math.max(0, length - Number(range[2]));
+  const end = range[1] && range[2] ? Math.min(Number(range[2]), length - 1) : length - 1;
+  if ((!range[1] && !range[2]) || start > end || start >= length) {
+    return new Response(null, { status: 416, headers: { 'Content-Range': `bytes */${length}` } });
+  }
+  const headers = new Headers(response.headers);
+  headers.set('Content-Range', `bytes ${start}-${end}/${length}`);
+  headers.set('Content-Length', String(end - start + 1));
+  headers.set('Accept-Ranges', 'bytes');
+  return new Response(buffer.slice(start, end + 1), { status: 206, headers });
+}
+
+const LIVE_SERVICE_PATH = /^\/(?:api|auth|socket\.io|colyseus)(?:\/|$)/;
+const LOCAL_PUBLIC_ASSET_PATH = /^\/(?:assets|models|vendor|lib|game-preloads)\//;
+const VENDORED_PUBLIC_TARGETS = new Set(Object.values(self.__TONPLAYGRAM_EXTERNAL_ASSETS__ || {}).flatMap(value => {
+  if (typeof value !== 'string') return [];
+  try {
+    const url = new URL(value, self.location.origin);
+    return url.origin === self.location.origin && LOCAL_PUBLIC_ASSET_PATH.test(url.pathname) ? [url.href] : [];
+  } catch { return []; }
+}));
+
+function mappedPublicRequest(request, url) {
+  const map = self.__TONPLAYGRAM_EXTERNAL_ASSETS__;
+  if (!map) return null;
+  const key = url.href.replace(/#.*$/, '');
+  // Page-side mapping may have already rewritten the provider URL. The same
+  // immutable public file must remain usable offline through that direct URL.
+  if (VENDORED_PUBLIC_TARGETS.has(key)) return request;
+  // Standalone glTF loaders may prepend their original provider origin to a
+  // root-relative rewritten sidecar URI. Accept only a known bundled target.
+  const rootedTarget = new URL(url.pathname, self.location.origin).href;
+  const mapped = Object.prototype.hasOwnProperty.call(map, key) ? map[key]
+    : url.pathname.startsWith('/assets/external/') && !url.search && VENDORED_PUBLIC_TARGETS.has(rootedTarget) ? rootedTarget : null;
+  if (typeof mapped !== 'string') return null;
+  let localUrl;
+  try { localUrl = new URL(mapped, self.location.origin); } catch { return null; }
+  if (localUrl.origin !== self.location.origin || !LOCAL_PUBLIC_ASSET_PATH.test(localUrl.pathname)) return null;
+  return new Request(localUrl, {
+    method: 'GET',
+    headers: request.headers,
+    credentials: 'same-origin',
+    mode: 'same-origin',
+    cache: request.cache,
+    redirect: request.redirect
+  });
+}
+
+async function serveMappedPublicRequest(request) {
+  // Provider metadata is immutable once bundled into this app build. Runtime
+  // no-store/reload requests can use its verified download offline; the explicit
+  // installer verification header below is the authority for fresh server bytes.
+  // Preserve Range while bypassing the legacy helper's generic no-store guard.
+  try {
+    const downloaded = await downloadedResponse(new Request(request, { cache: 'default' }));
+    if (downloaded) return downloaded;
+  } catch { /* Storage eviction must still fall back to the local deployment. */ }
+  // Cache misses retain the requested cache policy at the local deployment.
+  return fetch(request);
+}
+
 self.addEventListener('fetch', event => {
   const { request } = event;
-
   if (request.method !== 'GET') return;
-
-  // Installer integrity checks require the exact current server bytes. Returning
-  // the stale runtime response here defeats the pack worker's network bypass.
-  if (request.cache === 'no-store' || request.cache === 'reload') {
+  const url = new URL(request.url);
+  // Never rewrite personalized traffic, even if an invalid mapping was added.
+  if (LIVE_SERVICE_PATH.test(url.pathname) || request.headers.has('authorization')) return;
+  if (request.headers.get('X-TonPlaygram-Verify') === '1') {
     event.respondWith(fetch(request));
     return;
   }
 
-  const url = new URL(request.url);
-  if (VERSION_ASSETS.includes(url.pathname)) {
-    event.respondWith(networkFirst(event, request));
+  // Resolve public provider URLs before no-store/reload bypasses. In particular,
+  // a no-store Poly Haven metadata request must not escape back to its provider.
+  // Direct local requests need no map scan: the normal download lookup handles
+  // them, avoiding Object.values(map) work on every game asset request.
+  const mappedRequest = mappedPublicRequest(request, url);
+  if (mappedRequest) {
+    event.respondWith(serveMappedPublicRequest(mappedRequest).catch(() => Response.error()));
     return;
   }
-
-  if (request.mode === 'navigate') {
-    handleNavigationRequest(event);
+  // Update metadata and installer requests always reach the current deployment.
+  if (['no-store', 'reload'].includes(request.cache) || VERSION_ASSETS.includes(url.pathname) || url.pathname.startsWith('/pwa/game-packs/')) {
+    event.respondWith(fetch(request));
     return;
   }
-
   const isSameOrigin = url.origin === self.location.origin;
-  const destination = request.destination;
-  const cacheableDestinations = ['script', 'style', 'font', 'image', 'audio', 'video', 'model'];
-  const shouldCacheGltf = GLTF_EXTENSIONS.test(url.pathname);
 
-  if (isSameOrigin && (cacheableDestinations.includes(destination) || shouldCacheGltf)) {
-    event.respondWith(staleWhileRevalidate(request));
-    return;
-  }
-
-  if (
-    !isSameOrigin &&
-    (REMOTE_CACHEABLE_DESTINATIONS.includes(destination) || shouldCacheGltf || REMOTE_CACHEABLE_HOSTS.has(url.host))
-  ) {
-    event.respondWith(staleWhileRevalidate(request));
-    return;
-  }
-
-  event.respondWith(fetch(request));
+  event.respondWith((async () => {
+    try {
+      const downloaded = await downloadedResponse(request);
+      if (downloaded) return downloaded;
+    } catch { /* Fall back normally when the browser has evicted storage. */ }
+    if (request.mode === 'navigate') return networkFirst(event, request);
+    const destinations = ['script', 'style', 'font', 'image', 'audio', 'video', 'model'];
+    if ((isSameOrigin && (destinations.includes(request.destination) || GLTF_EXTENSIONS.test(url.pathname))) ||
+        (!isSameOrigin && (REMOTE_CACHEABLE_DESTINATIONS.includes(request.destination) || REMOTE_CACHEABLE_HOSTS.has(url.host)))) {
+      return staleWhileRevalidate(request);
+    }
+    return fetch(request);
+  })().catch(() => Response.error()));
 });

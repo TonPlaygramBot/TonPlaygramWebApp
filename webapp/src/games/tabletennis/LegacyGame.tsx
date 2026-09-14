@@ -118,7 +118,7 @@ type ControlState = {
 
 const TABLE_GLTF_URL = "";
 const DEFAULT_HDRI_URLS = [
-  "https://threejs.org/examples/textures/equirectangular/royal_esplanade_1k.hdr",
+  "https://raw.githubusercontent.com/mrdoob/three.js/r150/examples/textures/equirectangular/royal_esplanade_1k.hdr",
   "https://threejs.org/examples/textures/equirectangular/venice_sunset_1k.hdr"
 ];
 
@@ -428,8 +428,8 @@ function buildRealisticTableTennisTable() {
 
 function createConfiguredGltfLoader(renderer: THREE.WebGLRenderer) {
   const loader = new GLTFLoader().setCrossOrigin("anonymous");
-  const dracoLoader = new DRACOLoader().setDecoderPath("https://www.gstatic.com/draco/v1/decoders/");
-  const ktx2Loader = new KTX2Loader().setTranscoderPath("https://cdn.jsdelivr.net/npm/three@0.181.1/examples/jsm/libs/basis/");
+  const dracoLoader = new DRACOLoader().setDecoderPath("/vendor/three/examples/jsm/libs/draco/gltf/");
+  const ktx2Loader = new KTX2Loader().setTranscoderPath("/vendor/three/examples/jsm/libs/basis/");
   ktx2Loader.detectSupport(renderer);
   loader.setDRACOLoader(dracoLoader);
   loader.setMeshoptDecoder?.(MeshoptDecoder);

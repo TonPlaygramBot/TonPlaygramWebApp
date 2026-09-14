@@ -1,5 +1,6 @@
 import { Capacitor } from '@capacitor/core';
 import { APP_BUILD } from '../config/buildInfo.js';
+import { isGamePackDownloadActive, GAME_PACK_CHANGE_EVENT } from './gamePackManager.js';
 
 const TELEGRAM_ONLY = false;
 const REFRESH_FLAG_KEY = 'tonplaygram-sw-refreshed';
@@ -27,6 +28,7 @@ function hasRefreshedAlready() {
 }
 
 function isGameActive() {
+  if (isGamePackDownloadActive('tonplaygram-app')) return true;
   try {
     return localStorage.getItem(GAME_ACTIVE_KEY) === 'true';
   } catch {
@@ -50,6 +52,11 @@ function attachGameEndListener() {
   if (gameEndListenerAttached) return;
   gameEndListenerAttached = true;
   window.addEventListener('tonplaygram-game-ended', () => {
+    if (!hasPendingUpdate() || isGameActive()) return;
+    clearPendingUpdate();
+    forceReloadOnceReady();
+  });
+  window.addEventListener(GAME_PACK_CHANGE_EVENT, () => {
     if (!hasPendingUpdate() || isGameActive()) return;
     clearPendingUpdate();
     forceReloadOnceReady();

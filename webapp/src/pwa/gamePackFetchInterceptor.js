@@ -1,18 +1,29 @@
+import { APP_BUILD } from '../config/buildInfo.js';
 import { GAME_PACK_CACHE_PREFIX, GAME_PACK_COMPLETE_PATH } from './gamePackCatalog.js';
 
 const NETWORK_FETCH_SYMBOL = Symbol.for('tonplaygram.network-fetch');
-const CACHEABLE_PATH = /^\/(?:assets|models|game-preloads|lib)\//;
-const CACHEABLE_EXTENSION = /\.(?:glb|gltf|bin|ktx2|basis|dds|hdr|exr|png|jpe?g|webp|avif|svg|mp3|ogg|wav|m4a|json|css|js|html|txt)$/i;
+const CACHEABLE_PATH = /^\/(?:assets|models|game-preloads|lib|vendor)\//;
+const CACHEABLE_EXTENSION = /\.(?:glb|gltf|bin|wasm|woff2?|ttf|otf|mp4|webm|ktx2|basis|dds|hdr|exr|png|jpe?g|webp|avif|svg|mp3|ogg|wav|m4a|json|css|js|html|txt)$/i;
 let installed = false;
 
 const canReadPackCaches = () => typeof caches !== 'undefined' && typeof caches.keys === 'function';
 
 async function matchGamePackCache(request) {
   if (!canReadPackCaches()) return null;
-  const names = (await caches.keys()).filter(name => name.startsWith(GAME_PACK_CACHE_PREFIX)).reverse();
+  const fullAppPrefix = `${GAME_PACK_CACHE_PREFIX}tonplaygram-app-`;
+  const names = (await caches.keys()).filter(name => name.startsWith(GAME_PACK_CACHE_PREFIX));
+  names.sort((a, b) => Number(b.startsWith(fullAppPrefix)) - Number(a.startsWith(fullAppPrefix)));
   for (const name of names) {
+    const pathname = new URL(request.url).pathname;
+    if (!name.startsWith(fullAppPrefix) && !CACHEABLE_PATH.test(pathname) && !CACHEABLE_EXTENSION.test(pathname)) continue;
     const cache = await caches.open(name);
-    if (!(await cache.match(new URL(GAME_PACK_COMPLETE_PATH, window.location.origin).href))) continue;
+    const marker = await cache.match(new URL(GAME_PACK_COMPLETE_PATH, window.location.origin).href);
+    if (!marker) continue;
+    if (name.startsWith(fullAppPrefix)) {
+      let receipt;
+      try { receipt = await marker.json(); } catch { continue; }
+      if (receipt.build !== APP_BUILD) continue;
+    }
     const response = await cache.match(request, { ignoreVary: true });
     if (response) return response;
   }
@@ -28,8 +39,10 @@ const shouldCheckPackCache = (input, init) => {
   try {
     const rawUrl = input instanceof Request ? input.url : String(input);
     const url = new URL(rawUrl, window.location.href);
-    if (url.origin !== window.location.origin) return null;
-    if (!CACHEABLE_PATH.test(url.pathname) && !CACHEABLE_EXTENSION.test(url.pathname)) return null;
+    if (url.origin !== window.location.origin || /^\/(?:api|auth|socket\.io|colyseus)(?:\/|$)/.test(url.pathname)) return null;
+    if (['/version.json', '/service-worker.js', '/pwa/app-build.js', '/pwa/game-pack-service-worker.js'].includes(url.pathname) || url.pathname.startsWith('/pwa/game-packs/')) return null;
+    const headers = new Headers(init?.headers || (input instanceof Request ? input.headers : undefined));
+    if (headers.has('range') || headers.has('authorization') || headers.get('X-TonPlaygram-Verify') === '1') return null;
     return new Request(url.toString(), { method: 'GET', credentials: 'same-origin' });
   } catch {
     return null;

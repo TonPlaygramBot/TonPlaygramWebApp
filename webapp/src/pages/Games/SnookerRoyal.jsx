@@ -129,9 +129,9 @@ import {
   resolveSnookerViewerScores
 } from './snookerRoyalMatchQuality.js';
 
-const DRACO_DECODER_PATH = 'https://www.gstatic.com/draco/versioned/decoders/1.5.7/';
+const DRACO_DECODER_PATH = '/vendor/three/examples/jsm/libs/draco/gltf/';
 const BASIS_TRANSCODER_PATH =
-  'https://cdn.jsdelivr.net/npm/three@0.164.0/examples/jsm/libs/basis/';
+  '/vendor/three/examples/jsm/libs/basis/';
 
 function safePolygonUnion(...parts) {
   const valid = parts.filter(Boolean);
@@ -10727,7 +10727,7 @@ function Table3D(
   };
 
 
-  const POOLTOOL_SNOOKER_TABLE_URL = 'https://raw.githubusercontent.com/ekiefl/pooltool/main/pooltool/models/table/snooker.glb';
+  const POOLTOOL_SNOOKER_TABLE_URL = 'https://raw.githubusercontent.com/ekiefl/pooltool/main/pooltool/models/table/snooker_generic/snooker_generic.glb';
   const externalBaseTemplates = new Map();
   const externalBasePromises = new Map();
 
@@ -16980,15 +16980,9 @@ const shotPowerRef = useRef(0);
       };
 
       const CHESS_LOUNGE_SET_URLS = [
-        'https://raw.githubusercontent.com/cx20/gltf-test/master/sampleModels/Chess/glTF-Binary/Chess.glb',
-        'https://cdn.jsdelivr.net/gh/cx20/gltf-test@master/sampleModels/Chess/glTF-Binary/Chess.glb',
-        'https://raw.githubusercontent.com/quaterniusdev/ChessSet/master/Source/GLTF/ChessSet.glb',
-        'https://cdn.jsdelivr.net/gh/quaterniusdev/ChessSet@master/Source/GLTF/ChessSet.glb'
       ];
       const CHESS_LOUNGE_CHAIR_URLS = [
-        'https://raw.githubusercontent.com/KhronosGroup/glTF-Sample-Models/master/2.0/AntiqueChair/glTF-Binary/AntiqueChair.glb',
         'https://raw.githubusercontent.com/KhronosGroup/glTF-Sample-Assets/main/Models/SheenChair/glTF-Binary/SheenChair.glb',
-        'https://raw.githubusercontent.com/KhronosGroup/glTF-Sample-Assets/main/Models/AntiqueChair/glTF-Binary/AntiqueChair.glb'
       ];
       const cloneHospitalityMaterial = (mat) => {
         if (!mat) return mat;

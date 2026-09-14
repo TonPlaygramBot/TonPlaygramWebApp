@@ -39,7 +39,7 @@ function isAbsoluteOrDataUrl (url) {
 }
 
 function parentFolder (url) {
-  return url.slice(0, url.lastIndexOf('/') + 1)
+  return new URL('.', new URL(url, globalThis.location?.href || import.meta.url)).href
 }
 
 function normalizeResourcePath (resourceUrl) {
@@ -251,7 +251,7 @@ async function inlineExternalGlbTextures (sourceUrl) {
 function getSharedKtx2Loader (renderer) {
   if (!sharedKtx2Loader) {
     sharedKtx2Loader = new KTX2Loader()
-    sharedKtx2Loader.setTranscoderPath('https://threejs.org/examples/jsm/libs/basis/')
+    sharedKtx2Loader.setTranscoderPath('/vendor/three/examples/jsm/libs/basis/')
   }
   if (renderer) {
     try {
@@ -277,7 +277,7 @@ function createTextureAwareLoader (modelUrl, renderer = null) {
   loader.setResourcePath(baseFolder)
   loader.setMeshoptDecoder(MeshoptDecoder)
   const draco = new DRACOLoader()
-  draco.setDecoderPath('https://www.gstatic.com/draco/versioned/decoders/1.5.7/')
+  draco.setDecoderPath('/vendor/three/examples/jsm/libs/draco/gltf/')
   loader.setDRACOLoader(draco)
   loader.setKTX2Loader(getSharedKtx2Loader(renderer))
   return loader

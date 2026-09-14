@@ -1,0 +1,154 @@
+{
+  "origin": "http://127.0.0.1:4173",
+  "viewport": {
+    "width": 390,
+    "height": 844
+  },
+  "errors": [],
+  "home": "TonPlayGram, one download\n\nThe whole app and every game, including textures, models and audio, saved to this device.\n\n9.5 GB total\n2,461 files\n\nUse Wi-Fi for this download.\n\nApp files not downloaded\nHome Screen installation not confirmed\nDownload TonPlayGram\nAdd to Home Screen\n\nOpen your browser menu and choose Install app or Add to Home Screen, then confirm.\n\nSaved files reduce repeat loading. Game performance depends on your device. Online matches, accounts and live content still need internet.\n\nDownload & storage details",
+  "homeOverflow": {
+    "viewport": 390,
+    "document": 390
+  },
+  "storage": {
+    "quota": 4295580545,
+    "usage": 613249,
+    "usageDetails": {
+      "caches": 11330,
+      "serviceWorkerRegistrations": 601919
+    }
+  },
+  "localAssets": {
+    "mappedUrls": 2851,
+    "probes": [
+      {
+        "kind": "texture",
+        "remote": "https://cdn.jsdelivr.net/gh/KhronosGroup/glTF-Sample-Assets@main/Models/ClearCoatCarPaint/screenshot/screenshot.jpg",
+        "local": "/assets/external/raw.githubusercontent.com/KhronosGroup/glTF-Sample-Assets/main/Models/ClearCoatCarPaint/screenshot/screenshot.jpg",
+        "status": 200,
+        "servedLocally": true,
+        "length": "36533"
+      },
+      {
+        "kind": "model",
+        "remote": "https://api.readyplayer.me/v1/avatars/67d411b30787acbf58ce58ac.glb",
+        "local": "/assets/external/raw.githubusercontent.com/digitalworlds/UPose/f0aeefe6a34a8ce71e47519a11a2bc67203c082f/UPose/Assets/StreamingAssets/67d411b30787acbf58ce58ac.glb",
+        "status": 200,
+        "servedLocally": true,
+        "length": "11535460"
+      },
+      {
+        "kind": "audio",
+        "remote": "https://raw.githubusercontent.com/lichess-org/lila/master/public/sound/Silence.mp3",
+        "local": "/assets/external/raw.githubusercontent.com/lichess-org/lila/master/public/sound/Silence.mp3",
+        "status": 200,
+        "servedLocally": true,
+        "length": "1670"
+      }
+    ]
+  },
+  "download": {
+    "result": "visible-error-after-start",
+    "pauseRequested": true,
+    "error": "Not enough device storage. Free about 6.5 GB and try again.",
+    "text": "TonPlayGram, one download\n\nThe whole app and every game, including textures, models and audio, saved to this device.\n\n9.5 GB total\n2,461 files\n\nUse Wi-Fi for this download.\n\nDownload paused · resume anytime\nHome Screen installation not confirmed\n\nPreparing app files… · 0 B of 9.5 GB\n\nNot enough device storage. Free about 6.5 GB and try again.\n\nRetry download\nAdd to Home Screen\n\nOpen your browser menu and choose Install app or Add to Home Screen, then confirm.\n\nSaved files reduce repeat loading. Game performance depends on your device. Online matches, accounts and live content still need internet.\n\nDownload & storage details"
+  },
+  "games": {
+    "homeLink": "Download TonPlayGram on Home\nOne download includes all bundled games and app assets.",
+    "perGameDownloadButtons": 0,
+    "overflow": {
+      "viewport": 390,
+      "document": 390
+    }
+  },
+  "homeLinkTarget": {
+    "url": "http://127.0.0.1:4173/#app-download",
+    "top": 16
+  },
+  "offlineFixture": {
+    "type": "explicit partial test fixture",
+    "completeAppDownloadTested": false,
+    "offlineGameplayTested": false,
+    "build": "69bc6dd",
+    "version": "b0b0febdcb058c2f",
+    "completeInventoryBytes": 10233933543,
+    "completeInventoryFiles": 2461,
+    "totalBytes": 15322,
+    "assets": [
+      {
+        "kind": "texture",
+        "url": "/assets/external/cdn.jsdelivr.net/gh/mrdoob/three.js_40r150/examples/textures/checker.png",
+        "remote": "https://cdn.jsdelivr.net/gh/mrdoob/three.js@r150/examples/textures/checker.png",
+        "size": 1017,
+        "sha256": "3314f7bd9d9bd7d3c3bc48a8e3d1e73778afafd2923b7b4052af501fa39e6617"
+      },
+      {
+        "kind": "model",
+        "url": "/assets/external/dl.polyhaven.org/file/ph-assets/Models/gltf/1k/ArmChair_01/ArmChair_01_1k.gltf",
+        "remote": "https://dl.polyhaven.org/file/ph-assets/Models/gltf/1k/armchair_01/armchair_01_1k.gltf",
+        "size": 2918,
+        "sha256": "838c73ce41780fd6b24927f301584d9c50a14c9895cb824bab233f7b859d356e"
+      },
+      {
+        "kind": "audio",
+        "url": "/assets/external/raw.githubusercontent.com/lichess-org/lila/master/public/sound/Silence.mp3",
+        "remote": "https://raw.githubusercontent.com/lichess-org/lila/master/public/sound/Silence.mp3",
+        "size": 1670,
+        "sha256": "d2ce7d50df5bfcc7b4be3d49b2809687315b709d5f4d6b001ad7f93e6505a663"
+      },
+      {
+        "kind": "shell",
+        "url": "/index.html",
+        "size": 4471,
+        "sha256": "0c0e5435759aa321c141fd0e97aebea623be98d38075ed0b4403aba26b5172a0"
+      },
+      {
+        "kind": "unvisited-game-chunk",
+        "url": "/assets/TennisRoyalLobby-ee1b6423.js",
+        "size": 5246,
+        "sha256": "b0047834542bc7c9d7caa0e05e79b4376546e62e1164fecd0e8badb0ae347780"
+      }
+    ],
+    "controller": "http://127.0.0.1:4173/service-worker.js?v=69bc6dd"
+  },
+  "offlineDelivery": {
+    "files": [
+      {
+        "kind": "texture",
+        "status": 200,
+        "exactBytes": true,
+        "originalRemoteUrl": true
+      },
+      {
+        "kind": "model",
+        "status": 200,
+        "exactBytes": true,
+        "originalRemoteUrl": true
+      },
+      {
+        "kind": "audio",
+        "status": 200,
+        "exactBytes": true,
+        "originalRemoteUrl": true
+      },
+      {
+        "kind": "unvisited-game-chunk",
+        "status": 200,
+        "exactBytes": true,
+        "originalRemoteUrl": false
+      }
+    ],
+    "audioRange": {
+      "status": 206,
+      "exactBytes": true,
+      "contentRange": "bytes 0-127/1670"
+    },
+    "liveApiFailedOffline": true
+  },
+  "offlineNavigation": {
+    "status": 200,
+    "fromServiceWorker": true,
+    "exactShellBytes": true,
+    "path": "/games/airhockey/lobby"
+  }
+}

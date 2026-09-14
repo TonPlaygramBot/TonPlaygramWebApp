@@ -494,7 +494,7 @@ function isAbsoluteOrDataUrl(url = '') {
 }
 
 function parentFolder(url = '') {
-  return `${url}`.slice(0, `${url}`.lastIndexOf('/') + 1);
+  return new URL('.', new URL(url, globalThis.location?.href || import.meta.url)).href;
 }
 
 function normalizeResourcePath(resourceUrl = '') {
@@ -635,7 +635,7 @@ async function loadGunifyOriginalGltf(loader, candidateUrl) {
   const response = await fetch(candidateUrl, { mode: 'cors' });
   if (!response.ok) throw new Error(`Gunify GLTF fetch failed: ${response.status}`);
   const gltfJson = patchGunifySpecularGlossinessMaterials(await response.json());
-  const basePath = new URL('.', candidateUrl).href;
+  const basePath = new URL('.', new URL(candidateUrl, globalThis.location?.href || import.meta.url)).href;
   loader.setPath?.(basePath);
   loader.setResourcePath?.(basePath);
   return loader.parseAsync(JSON.stringify(gltfJson), basePath);
@@ -829,25 +829,7 @@ function preserveCaptureWeaponSourceMaterial(material, texturePolicy = 'preserve
   material.needsUpdate = true;
 }
 
-const FIREARM_CAPTURE_SHOT_SOUND_URL_BY_ID = Object.freeze({
-  glockSidearmAttack: 'https://cdn.freesound.org/previews/414/414888_5121236-lq.mp3',
-  smithSidearmAttack: 'https://cdn.freesound.org/previews/414/414888_5121236-lq.mp3',
-  sigsauerTacticalAttack: 'https://cdn.freesound.org/previews/414/414888_5121236-lq.mp3',
-  uziSprayAttack: 'https://cdn.freesound.org/previews/171/171104_2437358-lq.mp3',
-  smgBurstAttack: 'https://cdn.freesound.org/previews/171/171104_2437358-lq.mp3',
-  assaultRifleAttack: 'https://cdn.freesound.org/previews/212/212968_4048940-lq.mp3',
-  ak47VolleyAttack: 'https://cdn.freesound.org/previews/212/212968_4048940-lq.mp3',
-  sniperShotAttack: 'https://cdn.freesound.org/previews/533/533981_11861866-lq.mp3',
-  shotgunBlastAttack: 'https://cdn.freesound.org/previews/456/456035_5121236-lq.mp3',
-  grenadeBlastAttack: 'https://cdn.freesound.org/previews/514/514644_9960520-lq.mp3',
-  polyBazooka01Attack: 'https://cdn.freesound.org/previews/514/514644_9960520-lq.mp3',
-  polyGrenadeLauncher01Attack: 'https://cdn.freesound.org/previews/514/514644_9960520-lq.mp3',
-  polyDynamiteBomb01Attack: 'https://cdn.freesound.org/previews/514/514644_9960520-lq.mp3',
-  polyMolotov01Attack: 'https://cdn.freesound.org/previews/514/514644_9960520-lq.mp3',
-  polyGasTank01Attack: 'https://cdn.freesound.org/previews/514/514644_9960520-lq.mp3',
-  polyHandGrenade01Attack: 'https://cdn.freesound.org/previews/514/514644_9960520-lq.mp3',
-  polyTank01Attack: 'https://cdn.freesound.org/previews/514/514644_9960520-lq.mp3'
-});
+
 const FIREARM_HAND_ATTACH_TUNING = Object.freeze({
   default: {
     position: [0.018, -0.002, 0.086],
@@ -1509,7 +1491,7 @@ async function loadCaptureWeaponModel(captureAnimationId) {
         // embedded images, and KTX2/PNG/JPEG color-space metadata stay intact.
         // eslint-disable-next-line no-await-in-loop
         try {
-          const basePath = new URL('.', candidateUrl).href;
+          const basePath = new URL('.', new URL(candidateUrl, globalThis.location?.href || import.meta.url)).href;
           loader.setPath?.(basePath);
           loader.setResourcePath?.(basePath);
         } catch {
@@ -2156,8 +2138,8 @@ function buildImageCandidates(imageUri, sourceUrl, modelUrls) {
   if (isAbsoluteUrl(imageUri)) return uniqueStrings(urlAlternates(imageUri));
   return uniqueStrings([
     imageUri,
-    new URL(imageUri, sourceUrl).href,
-    ...modelUrls.map((modelUrl) => new URL(imageUri, modelUrl).href)
+    new URL(imageUri, new URL(sourceUrl, globalThis.location?.href || import.meta.url)).href,
+    ...modelUrls.map((modelUrl) => new URL(imageUri, new URL(modelUrl, globalThis.location?.href || import.meta.url)).href)
   ].flatMap((candidate) => (isAbsoluteUrl(candidate) ? urlAlternates(candidate) : [candidate])));
 }
 
@@ -3628,7 +3610,6 @@ function isLikelyMobileDevice() {
 }
 
 const ABG_MODEL_URLS = Object.freeze([
-  'https://cdn.jsdelivr.net/gh/KhronosGroup/glTF-Sample-Models@master/2.0/ABeautifulGame/glTF-Binary/ABeautifulGame.glb',
   'https://cdn.jsdelivr.net/gh/KhronosGroup/glTF-Sample-Models@master/2.0/ABeautifulGame/glTF/ABeautifulGame.gltf'
 ]);
 const ABG_TYPES = Object.freeze(['p', 'r', 'n', 'b', 'q', 'k']);
@@ -3720,9 +3701,7 @@ const MAX_ANIMATION_SPEED_MULTIPLIER = 1.2;
 const AVATAR_ANCHOR_HEIGHT = SEAT_THICKNESS / 2 + BACK_HEIGHT * 0.85;
 const CHAIR_SIZE_SCALE = CHAIR_GLOBAL_SCALE;
 const CHAIR_MODEL_URLS = [
-  'https://raw.githubusercontent.com/KhronosGroup/glTF-Sample-Models/master/2.0/AntiqueChair/glTF-Binary/AntiqueChair.glb',
   'https://raw.githubusercontent.com/KhronosGroup/glTF-Sample-Assets/main/Models/SheenChair/glTF-Binary/SheenChair.glb',
-  'https://raw.githubusercontent.com/KhronosGroup/glTF-Sample-Assets/main/Models/AntiqueChair/glTF-Binary/AntiqueChair.glb'
 ];
 const SEATED_HUMAN_MODEL_URL = 'https://threejs.org/examples/models/gltf/readyplayer.me.glb';
 const SEATED_HUMAN_BASE_HEIGHT = 1.74;
@@ -4001,8 +3980,8 @@ function createAiUniqueLoadout(activePlayerCount, appearance = DEFAULT_APPEARANC
 }
 const TABLE_MODEL_TARGET_HEIGHT = TABLE_HEIGHT;
 const TABLE_LEG_EXTENSION_FACTOR = 1.22;
-const BASIS_TRANSCODER_PATH = 'https://cdn.jsdelivr.net/npm/three@0.164.0/examples/jsm/libs/basis/';
-const DRACO_DECODER_PATH = 'https://www.gstatic.com/draco/versioned/decoders/1.5.7/';
+const BASIS_TRANSCODER_PATH = '/vendor/three/examples/jsm/libs/basis/';
+const DRACO_DECODER_PATH = '/vendor/three/examples/jsm/libs/draco/gltf/';
 const PREFERRED_TEXTURE_SIZES = ['4k', '2k', '1k'];
 const POLYHAVEN_MODEL_CACHE = new Map();
 const resolveHdriVariant = (index) => {

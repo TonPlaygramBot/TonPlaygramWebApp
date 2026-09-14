@@ -592,7 +592,7 @@ function statsFor(entry: WeaponEntry) {
 }
 
 function parentFolder(url: string) {
-  return url.slice(0, url.lastIndexOf('/') + 1);
+  return new URL('.', new URL(url, globalThis.location?.href || import.meta.url)).href;
 }
 
 function isAbsoluteOrDataUrl(url: string) {
@@ -621,12 +621,12 @@ function configureGltfTextureAdapters(renderer: THREE.WebGLRenderer) {
 
   dracoLoaderAdapter = new DRACOLoader();
   dracoLoaderAdapter.setDecoderPath(
-    'https://www.gstatic.com/draco/v1/decoders/'
+    '/vendor/three/examples/jsm/libs/draco/gltf/'
   );
 
   ktx2LoaderAdapter = new KTX2Loader();
   ktx2LoaderAdapter.setTranscoderPath(
-    'https://cdn.jsdelivr.net/npm/three@0.164.0/examples/jsm/libs/basis/'
+    '/vendor/three/examples/jsm/libs/basis/'
   );
   ktx2LoaderAdapter.detectSupport(renderer);
 }

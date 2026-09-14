@@ -668,14 +668,12 @@ function detectPreferredFrameRateId() {
 }
 
 const CHAIR_MODEL_URLS = [
-  'https://raw.githubusercontent.com/KhronosGroup/glTF-Sample-Models/master/2.0/AntiqueChair/glTF-Binary/AntiqueChair.glb',
   'https://raw.githubusercontent.com/KhronosGroup/glTF-Sample-Assets/main/Models/SheenChair/glTF-Binary/SheenChair.glb',
-  'https://raw.githubusercontent.com/KhronosGroup/glTF-Sample-Assets/main/Models/AntiqueChair/glTF-Binary/AntiqueChair.glb'
 ];
 const PREFERRED_TEXTURE_SIZES = ['2k', '1k'];
 const POLYHAVEN_MODEL_CACHE = new Map();
-const BASIS_TRANSCODER_PATH = 'https://cdn.jsdelivr.net/npm/three@0.164.0/examples/jsm/libs/basis/';
-const DRACO_DECODER_PATH = 'https://www.gstatic.com/draco/versioned/decoders/1.5.7/';
+const BASIS_TRANSCODER_PATH = '/vendor/three/examples/jsm/libs/basis/';
+const DRACO_DECODER_PATH = '/vendor/three/examples/jsm/libs/draco/gltf/';
 
 let sharedKtx2Loader = null;
 

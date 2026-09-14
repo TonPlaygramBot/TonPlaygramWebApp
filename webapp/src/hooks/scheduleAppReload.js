@@ -2,12 +2,14 @@ import {
   hasWallTransfers,
   WALL_TRANSFER_ACTIVITY
 } from '../features/flamingo/wallTransferActivity.js';
+import { isGamePackDownloadActive, GAME_PACK_CHANGE_EVENT } from '../pwa/gamePackManager.js';
 
 export function createAppReloadScheduler({ onReload, onUpdating }) {
   let pending = false;
   let disposed = false;
   let timer;
   const blocked = () => {
+    if (isGamePackDownloadActive('tonplaygram-app')) return true;
     if (hasWallTransfers()) return true;
     try {
       return localStorage.getItem('tonplaygram-game-active') === 'true';
@@ -40,6 +42,7 @@ export function createAppReloadScheduler({ onReload, onUpdating }) {
     }, 750);
   };
   window.addEventListener(WALL_TRANSFER_ACTIVITY, reconcile);
+  window.addEventListener(GAME_PACK_CHANGE_EVENT, reconcile);
   window.addEventListener('tonplaygram-game-ended', reconcile);
   return {
     request() {
@@ -53,6 +56,7 @@ export function createAppReloadScheduler({ onReload, onUpdating }) {
       disposed = true;
       clearTimeout(timer);
       window.removeEventListener(WALL_TRANSFER_ACTIVITY, reconcile);
+      window.removeEventListener(GAME_PACK_CHANGE_EVENT, reconcile);
       window.removeEventListener('tonplaygram-game-ended', reconcile);
     }
   };

@@ -4,10 +4,14 @@ import { Capacitor } from '@capacitor/core';
 import App from './App.jsx';
 import './index.css';
 import { registerTelegramServiceWorker } from './pwa/registerServiceWorker.js';
-import { warmGameCaches } from './pwa/preloadGames.js';
+import { installExternalAssetResolver } from './pwa/externalAssets.js';
+import { initializeInstallPrompt } from './pwa/installPrompt.js';
 import { installGamePackFetchInterceptor } from './pwa/gamePackFetchInterceptor.js';
 import { enforceRequiredGamePackRoute } from './pwa/gamePackRouteGuard.js';
 import { initNativeBridge } from './utils/nativeBridge.ts';
+
+initializeInstallPrompt();
+installExternalAssetResolver();
 
 async function bootstrap() {
   const isNative = Capacitor.isNativePlatform();
@@ -28,7 +32,7 @@ async function bootstrap() {
 
   if (!isNative) {
     // Register a Telegram-friendly service worker for instant updates
-    void registerTelegramServiceWorker().finally(warmGameCaches);
+    void registerTelegramServiceWorker();
   }
 
   ReactDOM.createRoot(document.getElementById('root')).render(

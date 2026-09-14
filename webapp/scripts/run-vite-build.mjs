@@ -2,6 +2,8 @@ import { spawn } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
 import { dirname, join } from 'node:path';
 import { generateBuiltGamePacks } from './generate-game-pack-manifests.mjs';
+import { localizeBuiltExternalAssets } from './localize-external-assets.mjs';
+import { generateBuiltAppPack } from './generate-app-pack-manifest.mjs';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const webappRoot = join(__dirname, '..');
@@ -30,8 +32,10 @@ child.on('exit', async (code, signal) => {
 
   if (code === 0) {
     try {
+      await localizeBuiltExternalAssets(join(webappRoot, 'dist'));
       await generateBuiltGamePacks(join(webappRoot, 'dist'));
-      console.log('[build] Versioned game downloads include executable runtime chunks.');
+      const { manifest } = await generateBuiltAppPack(join(webappRoot, 'dist'));
+      console.log(`[build] Complete application download includes ${manifest.assetCount} files (${manifest.totalBytes.toLocaleString()} bytes).`);
     } catch (error) {
       console.error('[build] Game download generation failed:', error);
       process.exit(1);

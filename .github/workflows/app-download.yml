@@ -1,0 +1,35 @@
+name: Complete app download
+
+on:
+  pull_request:
+    paths:
+      - '.github/workflows/app-download.yml'
+      - 'package.json'
+      - 'bot/server.js'
+      - 'scripts/external-assets/**'
+      - 'test/**'
+      - 'webapp/index.html'
+      - 'webapp/package*.json'
+      - 'webapp/vite.config.js'
+      - 'webapp/scripts/**'
+      - 'webapp/src/**'
+      - 'webapp/public/service-worker.js'
+      - 'webapp/public/pwa/**'
+
+permissions:
+  contents: read
+
+jobs:
+  download:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: webapp/package-lock.json
+      - run: npm ci --prefix webapp --ignore-scripts
+      # HTTP fixtures exercise imports without downloading the full collection.
+      - run: npm run test:app-download

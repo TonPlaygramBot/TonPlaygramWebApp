@@ -75,3 +75,11 @@ webapp/public/pwa/game-packs/
 tools/blender/__pycache__/
 assets-source/tirana-city-mobility/**/*.blend1
 assets-source/tirana-city-mobility/*.blend1
+
+# Copied from the lockfile-pinned Three.js package during dev/build.
+webapp/public/vendor/three/examples/jsm/libs/draco/
+webapp/public/vendor/three/examples/jsm/libs/basis/
+
+# Reproducibly materialized from scripts/external-assets/source-lock.json.
+/webapp/public/assets/external/
+/webapp/.cache/

@@ -13,7 +13,9 @@ const CHANGE_EVENT = 'tonplaygram-game-packs-changed';
 const PROGRESS_EVENT = 'tonplaygram-game-pack-progress';
 const MAX_HASH_BYTES = 24 * 1024 * 1024;
 const DEFAULT_CONCURRENCY = 3;
+const DOWNLOAD_INACTIVITY_MS = 120000;
 const activeInstalls = new Map();
+const APP_PACK_ID = 'tonplaygram-app';
 const completionRequest = () => new Request(new URL(GAME_PACK_COMPLETE_PATH, window.location.origin));
 const checkCancelled = signal => {
   if (signal?.aborted) throw new DOMException('Download cancelled.', 'AbortError');
@@ -198,19 +200,85 @@ const digestSha256 = async buffer => {
   return [...new Uint8Array(digest)].map(value => value.toString(16).padStart(2, '0')).join('');
 };
 
-async function consumeStream(stream, onChunk) {
+async function consumeStream(stream, onChunk, signal) {
   if (!stream?.getReader) return 0;
   const reader = stream.getReader();
+  // Cancelling the reader also wakes a pending read if a transport does not
+  // propagate the fetch signal to its response body.
+  const abort = () => { void reader.cancel().catch(() => {}); };
+  signal?.addEventListener('abort', abort, { once: true });
   let total = 0;
-  while (true) {
-    const { done, value } = await reader.read();
-    if (done) break;
-    const size = value?.byteLength || 0;
-    total += size;
-    onChunk?.(size);
+  try {
+    while (true) {
+      checkCancelled(signal);
+      const { done, value } = await reader.read();
+      checkCancelled(signal);
+      if (done) break;
+      total += value?.byteLength || 0;
+      onChunk?.(value);
+    }
+    return total;
+  } catch (error) {
+    abort();
+    throw error;
+  } finally {
+    signal?.removeEventListener('abort', abort);
+    reader.releaseLock();
   }
-  return total;
 }
+
+async function readDownloadBuffer(response, { asset, expectedSize, signal, onBytes, onActivity, onNetworkComplete }) {
+  if (!response.body?.getReader) {
+    const buffer = await response.arrayBuffer();
+    onNetworkComplete();
+    checkCancelled(signal);
+    onBytes?.(buffer.byteLength);
+    return buffer;
+  }
+  // Full-app manifests provide every decoded size. Allocate once instead of
+  // retaining hundreds of megabytes of chunks and then copying them together.
+  const bytes = expectedSize === undefined ? null : new Uint8Array(expectedSize);
+  const chunks = bytes ? null : [];
+  let offset = 0;
+  try {
+    await consumeStream(response.body, chunk => {
+      const size = chunk?.byteLength || 0;
+      if (!size) return;
+      onActivity();
+      if (bytes) {
+        if (offset + size > bytes.byteLength) throw new Error(`Size mismatch for ${asset.url}.`);
+        bytes.set(chunk, offset);
+      } else {
+        chunks.push(chunk);
+      }
+      offset += size;
+      onBytes?.(size);
+    }, signal);
+  } finally {
+    // Hashing and writing a large file are local work, not stalled networking.
+    onNetworkComplete();
+  }
+  if (bytes) {
+    if (offset !== bytes.byteLength) throw new Error(`Size mismatch for ${asset.url}.`);
+    return bytes;
+  }
+  const result = new Uint8Array(offset);
+  let cursor = 0;
+  for (const chunk of chunks) { result.set(chunk, cursor); cursor += chunk.byteLength; }
+  return result;
+}
+
+const responseFromBuffer = (buffer, init) => new Response(
+  // Response(ArrayBuffer) copies its input. Feed the verified bytes directly to
+  // Cache Storage so a large texture does not need another whole JS buffer.
+  typeof ReadableStream === 'function' ? new ReadableStream({
+    start(controller) {
+      controller.enqueue(buffer instanceof Uint8Array ? buffer : new Uint8Array(buffer));
+      controller.close();
+    }
+  }) : buffer,
+  init
+);
 
 async function findReusableResponse(request, asset, targetCacheName) {
   const cacheNames = await caches.keys();
@@ -223,7 +291,37 @@ async function findReusableResponse(request, asset, targetCacheName) {
   return null;
 }
 
-async function downloadAsset({ pack, asset, cache, cacheName, signal, onBytes }) {
+async function downloadAsset(options) {
+  const controller = new AbortController();
+  const abort = () => controller.abort();
+  let timedOut = false;
+  let timer;
+  const clearInactivityTimer = () => clearTimeout(timer);
+  const recordActivity = () => {
+    clearInactivityTimer();
+    timer = setTimeout(() => { timedOut = true; controller.abort(); }, DOWNLOAD_INACTIVITY_MS);
+  };
+  options.signal?.addEventListener('abort', abort, { once: true });
+  if (options.signal?.aborted) abort();
+  try {
+    return await downloadAssetBytes({
+      ...options,
+      signal: controller.signal,
+      onActivity: recordActivity,
+      onNetworkComplete: clearInactivityTimer
+    });
+  } catch (error) {
+    controller.abort();
+    if (timedOut) throw new Error('The connection stopped responding. Resume the download to keep the files already saved.');
+    throw error;
+  } finally {
+    clearInactivityTimer();
+    options.signal?.removeEventListener('abort', abort);
+  }
+}
+
+async function downloadAssetBytes({ pack, asset, cache, cacheName, signal, onBytes, onActivity, onNetworkComplete }) {
+  checkCancelled(signal);
   const request = makeRequest(asset);
   const existing = await cache.match(request, { ignoreVary: true });
   if (responseMatchesAsset(existing, asset)) {
@@ -239,16 +337,26 @@ async function downloadAsset({ pack, asset, cache, cacheName, signal, onBytes })
   const networkFetch = getNetworkFetch();
   if (!networkFetch) throw new Error('Network downloads are unavailable.');
   const base = typeof window !== 'undefined' ? window.location.origin : 'http://localhost';
-  const sourceUrl = new URL(asset.sourceUrl || asset.url, base).toString();
+  const originalSource = new URL(asset.sourceUrl || asset.url, base).toString();
+  const externalAssets = globalThis.__TONPLAYGRAM_EXTERNAL_ASSETS__ || {};
+  // Fetch also maps imported CDN assets to local files. Classify the resolved
+  // target first so verification requests bypass the worker's local caches.
+  const mappedSource = externalAssets[originalSource] || externalAssets[originalSource.replace(/#.*$/, '')];
+  const sourceUrl = new URL(mappedSource || originalSource, base).toString();
   const sameOrigin = new URL(sourceUrl).origin === new URL(base).origin;
+  checkCancelled(signal);
+  onActivity();
   const response = await networkFetch(sourceUrl, {
     method: 'GET',
     cache: 'no-store',
     credentials: sameOrigin ? 'same-origin' : 'omit',
     mode: sameOrigin ? 'same-origin' : 'cors',
+    ...(sameOrigin ? { headers: { 'X-TonPlaygram-Verify': '1' } } : {}),
     signal
   });
 
+  checkCancelled(signal);
+  onActivity();
   if (!response.ok) throw new Error(`Download failed for ${asset.url} (${response.status}).`);
   if (/text\/html/i.test(response.headers.get('content-type') || '') && !/\.html(?:[?#]|$)/i.test(asset.url)) {
     throw new Error(`The server returned a page instead of ${asset.url}. Please check for game updates.`);
@@ -260,32 +368,37 @@ async function downloadAsset({ pack, asset, cache, cacheName, signal, onBytes })
   }
 
   const expectedSize = asset.size || (!contentEncoding ? contentLength : 0);
-  if (asset.sha256 && expectedSize > 0 && expectedSize <= MAX_HASH_BYTES) {
-    const buffer = await response.arrayBuffer();
+  if (asset.sha256 && (pack.id === APP_PACK_ID || (expectedSize > 0 && expectedSize <= MAX_HASH_BYTES))) {
+    const buffer = await readDownloadBuffer(response, {
+      asset, expectedSize: pack.id === APP_PACK_ID ? asset.size : expectedSize || undefined,
+      signal, onBytes, onActivity, onNetworkComplete
+    });
+    checkCancelled(signal);
     const actualHash = await digestSha256(buffer);
-    if (actualHash && actualHash !== asset.sha256) {
+    checkCancelled(signal);
+    if ((!actualHash && pack.id === APP_PACK_ID) || (actualHash && actualHash !== asset.sha256)) {
       throw new Error(`Integrity check failed for ${asset.url}.`);
     }
     if (asset.size && buffer.byteLength !== asset.size) {
       throw new Error(`Size mismatch for ${asset.url}.`);
     }
-    onBytes?.(buffer.byteLength);
     const headers = withPackHeaders(response.headers, pack, asset, buffer.byteLength);
     await cache.put(
       request,
-      new Response(buffer, { status: response.status, statusText: response.statusText, headers })
+      responseFromBuffer(buffer, { status: response.status, statusText: response.statusText, headers })
     );
     return { bytes: buffer.byteLength, reused: false };
   }
 
   if (!response.body?.tee) {
-    const buffer = await response.arrayBuffer();
+    const buffer = await readDownloadBuffer(response, {
+      asset, expectedSize: expectedSize || undefined, signal, onBytes, onActivity, onNetworkComplete
+    });
     if (asset.size && buffer.byteLength !== asset.size) throw new Error(`Size mismatch for ${asset.url}.`);
-    onBytes?.(buffer.byteLength);
     const headers = withPackHeaders(response.headers, pack, asset, buffer.byteLength);
     await cache.put(
       request,
-      new Response(buffer, { status: response.status, statusText: response.statusText, headers })
+      responseFromBuffer(buffer, { status: response.status, statusText: response.statusText, headers })
     );
     return { bytes: buffer.byteLength, reused: false };
   }
@@ -298,7 +411,9 @@ async function downloadAsset({ pack, asset, cache, cacheName, signal, onBytes })
     headers
   });
   const [actualSize] = await Promise.all([
-    consumeStream(progressBody, onBytes),
+    consumeStream(progressBody, chunk => {
+      if (chunk?.byteLength) { onActivity(); onBytes?.(chunk.byteLength); }
+    }, signal).finally(onNetworkComplete),
     cache.put(request, cacheResponse)
   ]);
   if (asset.size && actualSize !== asset.size) {
@@ -370,6 +485,11 @@ async function performInstall(packId, { catalog, concurrency = DEFAULT_CONCURREN
   checkCancelled(signal);
   const assets = await resolveGamePackAssets(manifest, { fetchImpl: getNetworkFetch() });
   if (!assets.length) throw new Error(`The ${catalogPack.title} pack has no downloadable assets.`);
+  if (packId === APP_PACK_ID && (!manifest.build || manifest.build !== catalogPack.build ||
+      assets.length !== manifest.assetCount || assets.some(asset => !Number.isFinite(asset.size) || asset.size < 0 || !/^[a-f0-9]{64}$/.test(asset.sha256 || '')) ||
+      !assets.some(asset => asset.url === '/index.html') || !assets.some(asset => /^\/assets\/.+\.js$/.test(asset.url)))) {
+    throw new Error('The full app download is incomplete. Refresh after the app update is published.');
+  }
 
   const pack = {
     ...catalogPack,
@@ -381,6 +501,16 @@ async function performInstall(packId, { catalog, concurrency = DEFAULT_CONCURREN
   const previousInstallation = readState().packs[pack.id];
   await cache.delete(completionRequest());
   const totalBytes = assets.reduce((sum, asset) => sum + (asset.size || 0), 0);
+  if (packId === APP_PACK_ID) {
+    const { usage, quota } = await getGamePackStorageEstimate();
+    let remaining = 0;
+    for (const asset of assets) {
+      if (!responseMatchesAsset(await cache.match(makeRequest(asset)), asset)) remaining += asset.size;
+    }
+    if (quota && remaining * 1.1 > quota - usage) {
+      throw new Error(`Not enough device storage. Free about ${formatBytes(remaining * 1.1 - (quota - usage))} and try again.`);
+    }
+  }
   let completedAssets = 0;
   let downloadedBytes = 0;
   let reusedBytes = 0;
@@ -418,6 +548,13 @@ async function performInstall(packId, { catalog, concurrency = DEFAULT_CONCURREN
   dispatchChanged({ packId: pack.id, status: 'partial' });
   emitProgress('preparing', null, true);
 
+  // Keep the app shell and smaller files parallel. Serialize large files so
+  // Web Crypto never holds several original-resolution textures at once.
+  const downloadAssets = pack.id === APP_PACK_ID ? [
+    ...assets.filter(asset => asset.size <= MAX_HASH_BYTES),
+    ...assets.filter(asset => asset.size > MAX_HASH_BYTES)
+  ] : assets;
+  let largeAssetTail = Promise.resolve();
   let cursor = 0;
   let workerError;
   const workersController = new AbortController();
@@ -425,30 +562,41 @@ async function performInstall(packId, { catalog, concurrency = DEFAULT_CONCURREN
   signal?.addEventListener('abort', abortWorkers, { once: true });
   if (signal?.aborted) abortWorkers();
   const worker = async () => {
-    while (cursor < assets.length) {
+    while (cursor < downloadAssets.length) {
       checkCancelled(workersController.signal);
-      const index = cursor++;
-      const asset = assets[index];
-      emitProgress('downloading', asset.url, true);
-      const result = await downloadAsset({
-        pack,
-        asset,
-        cache,
-        cacheName,
-        signal: workersController.signal,
-        onBytes: size => {
-          downloadedBytes += size;
-          emitProgress('downloading', asset.url);
-        }
-      });
-      if (result.reused) reusedBytes += result.bytes || 0;
-      completedAssets += 1;
-      emitProgress('downloading', asset.url, true);
+      const asset = downloadAssets[cursor++];
+      let releaseLargeAsset;
+      if (pack.id === APP_PACK_ID && asset.size > MAX_HASH_BYTES) {
+        const previousLargeAsset = largeAssetTail;
+        largeAssetTail = new Promise(resolve => { releaseLargeAsset = resolve; });
+        await previousLargeAsset;
+      }
+      try {
+        checkCancelled(workersController.signal);
+        emitProgress('downloading', asset.url, true);
+        const result = await downloadAsset({
+          pack,
+          asset,
+          cache,
+          cacheName,
+          signal: workersController.signal,
+          onBytes: size => {
+            downloadedBytes += size;
+            emitProgress('downloading', asset.url);
+          }
+        });
+        if (result.reused) reusedBytes += result.bytes || 0;
+        completedAssets += 1;
+        emitProgress('downloading', asset.url, true);
+      } finally {
+        releaseLargeAsset?.();
+      }
     }
   };
 
   try {
-    const workerCount = Math.max(1, Math.min(Number(concurrency) || DEFAULT_CONCURRENCY, assets.length));
+    const workerCount = Math.max(1, Math.min(Number(concurrency) || DEFAULT_CONCURRENCY, assets.length,
+      pack.id === APP_PACK_ID ? DEFAULT_CONCURRENCY : Infinity));
     // Settle every writer before exposing Resume or removing a partial cache.
     // Otherwise a late worker can overwrite a subsequent attempt's result.
     await Promise.allSettled(Array.from({ length: workerCount }, () => worker().catch(error => {
@@ -459,7 +607,7 @@ async function performInstall(packId, { catalog, concurrency = DEFAULT_CONCURREN
     if (workerError) throw workerError;
     checkCancelled(signal);
 
-    await cache.put(completionRequest(), new Response(JSON.stringify({version:pack.version,assets:assets.map(({url,size,sha256})=>({url,size,sha256}))}),{headers:{'Content-Type':'application/json'}}));
+    await cache.put(completionRequest(), new Response(JSON.stringify({version:pack.version,build:manifest.build,assets:assets.map(({url,size,sha256})=>({url,size,sha256}))}),{headers:{'Content-Type':'application/json'}}));
     const installation = updatePackState(pack.id, {
       status: 'installed',
       version: pack.version,
@@ -477,6 +625,15 @@ async function performInstall(packId, { catalog, concurrency = DEFAULT_CONCURREN
     // Successful activation must not be undone by best-effort cache cleanup.
     await deleteOldPackCaches(pack.id, cacheName).catch(() => {});
     await clearRuntimeCopies(assets).catch(() => {});
+    if (pack.id === APP_PACK_ID) {
+      // Migrate old separate downloads only after the complete app is durable.
+      const superseded = (await caches.keys()).filter(name => name.startsWith(GAME_PACK_CACHE_PREFIX) &&
+        name !== cacheName && !name.includes('metadata-'));
+      for (const name of superseded) await caches.delete(name).catch(() => {});
+      const state = readState();
+      state.packs = { [APP_PACK_ID]: state.packs[APP_PACK_ID] };
+      writeState(state);
+    }
     emitProgress('complete', null, true);
     dispatchChanged({ packId: pack.id, status: 'installed', installation });
     return installation;
@@ -520,7 +677,7 @@ export function installGamePack(packId, options = {}) {
     .catch(error => {
       const cancelled = error?.name === 'AbortError';
       const message = error?.name === 'QuotaExceededError'
-        ? 'Not enough device storage. Remove a downloaded game or free space, then resume.'
+        ? 'Not enough device storage. Free space on this device, then resume the download.'
         : error?.message || 'Download failed. Try again when connected.';
       updatePackState(packId, { ...(previousInstallation?.status === 'installed' ? previousInstallation : { status: 'partial' }), lastError: cancelled ? null : message });
       dispatchProgress({ packId, phase: cancelled ? 'cancelled' : 'failed', percent: 0 });

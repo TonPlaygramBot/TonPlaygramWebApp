@@ -101,52 +101,6 @@ export const CHESS_HUMAN_CHARACTER_OPTIONS = Object.freeze([
     ...DOMINO_READY_PLAYER_ME_SOURCE
   },
   {
-    id: 'mixamo-aj',
-    label: 'AJ',
-    modelUrls: ['https://raw.githubusercontent.com/mrdoob/three.js/dev/examples/models/gltf/Aj.glb'],
-    thumbnail: swatchThumbnail(['#2a4365', '#1f2937', '#d4a373']),
-    ...CHESS_HUMAN_CHARACTER_SOURCE
-  },
-  {
-    id: 'mixamo-jane',
-    label: 'Jane',
-    modelUrls: ['https://raw.githubusercontent.com/mrdoob/three.js/dev/examples/models/gltf/Jane.glb'],
-    thumbnail: swatchThumbnail(['#6b21a8', '#1f2937', '#f5c2a0']),
-    ...CHESS_HUMAN_CHARACTER_SOURCE
-  },
-  {
-    id: 'mixamo-eva',
-    label: 'Eva',
-    modelUrls: ['https://raw.githubusercontent.com/mrdoob/three.js/dev/examples/models/gltf/Eva.glb'],
-    thumbnail: swatchThumbnail(['#0f766e', '#164e63', '#f2c89b']),
-    ...CHESS_HUMAN_CHARACTER_SOURCE
-  },
-  {
-    id: 'mixamo-joe',
-    label: 'Joe',
-    modelUrls: ['https://raw.githubusercontent.com/mrdoob/three.js/dev/examples/models/gltf/Joe.glb'],
-    thumbnail: swatchThumbnail(['#6b7280', '#1f2937', '#c58f63']),
-    ...CHESS_HUMAN_CHARACTER_SOURCE
-  },
-  {
-    id: 'mixamo-kaya',
-    label: 'Kaya',
-    modelUrls: ['https://raw.githubusercontent.com/mrdoob/three.js/dev/examples/models/gltf/Kaya.glb'],
-    thumbnail: swatchThumbnail(['#1d4ed8', '#111827', '#d8b08c']),
-    ...CHESS_HUMAN_CHARACTER_SOURCE
-  },
-  {
-    id: 'mixamo-ybot',
-    label: 'Y-Bot',
-    modelUrls: ['https://raw.githubusercontent.com/mrdoob/three.js/dev/examples/models/gltf/YBot.glb'],
-    thumbnail: swatchThumbnail(['#1f2937', '#0f172a', '#9ca3af']),
-    seatedAdapter: {
-      seatedScaleMultiplier: 0.95,
-      seatedYawOffset: Math.PI
-    },
-    ...CHESS_HUMAN_CHARACTER_SOURCE
-  },
-  {
     id: 'mixamo-xbot',
     label: 'X-Bot',
     modelUrls: ['https://raw.githubusercontent.com/mrdoob/three.js/dev/examples/models/gltf/Xbot.glb'],
@@ -167,55 +121,6 @@ export const CHESS_HUMAN_CHARACTER_OPTIONS = Object.freeze([
       seatedYawOffset: Math.PI,
       seatedYOffset: -0.01
     },
-    ...CHESS_HUMAN_CHARACTER_SOURCE
-  },
-  {
-    id: 'mixamo-remy',
-    label: 'Remy',
-    modelUrls: ['https://raw.githubusercontent.com/mrdoob/three.js/dev/examples/models/gltf/Remy.glb'],
-    thumbnail: swatchThumbnail(['#7c2d12', '#111827', '#d6a77b']),
-    ...CHESS_HUMAN_CHARACTER_SOURCE
-  },
-  {
-    id: 'mixamo-priya',
-    label: 'Priya',
-    modelUrls: ['https://raw.githubusercontent.com/mrdoob/three.js/dev/examples/models/gltf/Priya.glb'],
-    thumbnail: swatchThumbnail(['#c026d3', '#312e81', '#e6b58f']),
-    ...CHESS_HUMAN_CHARACTER_SOURCE
-  },
-  {
-    id: 'mixamo-noah',
-    label: 'Noah',
-    modelUrls: ['https://raw.githubusercontent.com/mrdoob/three.js/dev/examples/models/gltf/Noah.glb'],
-    thumbnail: swatchThumbnail(['#0891b2', '#0f172a', '#c79b76']),
-    ...CHESS_HUMAN_CHARACTER_SOURCE
-  },
-  {
-    id: 'mixamo-martha',
-    label: 'Martha',
-    modelUrls: ['https://raw.githubusercontent.com/mrdoob/three.js/dev/examples/models/gltf/Martha.glb'],
-    thumbnail: swatchThumbnail(['#7e22ce', '#1f2937', '#f0c4a3']),
-    ...CHESS_HUMAN_CHARACTER_SOURCE
-  },
-  {
-    id: 'mixamo-lewis',
-    label: 'Lewis',
-    modelUrls: ['https://raw.githubusercontent.com/mrdoob/three.js/dev/examples/models/gltf/Lewis.glb'],
-    thumbnail: swatchThumbnail(['#0f766e', '#064e3b', '#cb9d75']),
-    ...CHESS_HUMAN_CHARACTER_SOURCE
-  },
-  {
-    id: 'mixamo-kiara',
-    label: 'Kiara',
-    modelUrls: ['https://raw.githubusercontent.com/mrdoob/three.js/dev/examples/models/gltf/Kiara.glb'],
-    thumbnail: swatchThumbnail(['#be123c', '#1f2937', '#e7be98']),
-    ...CHESS_HUMAN_CHARACTER_SOURCE
-  },
-  {
-    id: 'mixamo-josh',
-    label: 'Josh',
-    modelUrls: ['https://raw.githubusercontent.com/mrdoob/three.js/dev/examples/models/gltf/Josh.glb'],
-    thumbnail: swatchThumbnail(['#1d4ed8', '#1f2937', '#c49368']),
     ...CHESS_HUMAN_CHARACTER_SOURCE
   },
   {
@@ -276,6 +181,45 @@ export const CHESS_HUMAN_CHARACTER_OPTIONS = Object.freeze([
     author: 'Surbh77'
   }
 ]);
+
+// Saved appearances used numeric indices before unavailable source models were retired.
+// Keep this order only for migration; retired characters are never loading candidates.
+const LEGACY_CHESS_HUMAN_CHARACTER_IDS = Object.freeze([
+  'rpm-current',
+  'rpm-67d411-domino',
+  'rpm-67f433-domino',
+  'rpm-67e1b5-domino',
+  'mixamo-aj',
+  'mixamo-jane',
+  'mixamo-eva',
+  'mixamo-joe',
+  'mixamo-kaya',
+  'mixamo-ybot',
+  'mixamo-xbot',
+  'mixamo-soldier',
+  'mixamo-remy',
+  'mixamo-priya',
+  'mixamo-noah',
+  'mixamo-martha',
+  'mixamo-lewis',
+  'mixamo-kiara',
+  'mixamo-josh',
+  'webgl-vietnam-human',
+  'webgl-human-body-a',
+  'webgl-human-body-b',
+  'webgl-ai-teacher',
+  'webgl-ai-teacher-1',
+]);
+
+export function normalizeChessHumanCharacterSelection(value = {}) {
+  const index = Math.round(Number(value.humanCharacter));
+  if (!Number.isInteger(index) || index < 0) return 0;
+  if (value.humanCharacterCatalogVersion === 2) {
+    return index < CHESS_HUMAN_CHARACTER_OPTIONS.length ? index : 0;
+  }
+  const previousId = LEGACY_CHESS_HUMAN_CHARACTER_IDS[index];
+  return Math.max(0, CHESS_HUMAN_CHARACTER_OPTIONS.findIndex((option) => option.id === previousId));
+}
 
 const CHESS_STORE_HUMAN_CHARACTER_IDS = Object.freeze([
   'webgl-vietnam-human',

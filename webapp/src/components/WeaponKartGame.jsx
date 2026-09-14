@@ -286,7 +286,7 @@ function normalizeLoadedModel(obj) {
 }
 
 function makeLoader() {
-  const dracoDecoderPath = "https://www.gstatic.com/draco/versioned/decoders/1.5.7/";
+  const dracoDecoderPath = "/vendor/three/examples/jsm/libs/draco/gltf/";
   return { dracoDecoderPath };
 }
 

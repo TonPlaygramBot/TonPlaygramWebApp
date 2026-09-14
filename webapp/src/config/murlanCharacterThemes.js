@@ -1,5 +1,3 @@
-import { khronosThumb } from './storeThumbnails.js';
-
 const CHARACTER_THEME_CATALOG = Object.freeze([
   {
     id: 'rpm-current',
@@ -10,7 +8,6 @@ const CHARACTER_THEME_CATALOG = Object.freeze([
     description: 'Ready Player Me seated avatar with full PBR texture maps.',
     url: 'https://threejs.org/examples/models/gltf/readyplayer.me.glb',
     modelUrls: ['https://threejs.org/examples/models/gltf/readyplayer.me.glb'],
-    thumbnail: khronosThumb('ReadyPlayerMe'),
     scale: 1.0,
     seatOffsetY: -0.84,
     seatOffsetZ: -0.22,
@@ -37,7 +34,6 @@ const CHARACTER_THEME_CATALOG = Object.freeze([
       'https://api.readyplayer.me/v1/avatars/67d411b30787acbf58ce58ac.glb',
       'https://avatars.readyplayer.me/67d411b30787acbf58ce58ac.glb'
     ],
-    thumbnail: khronosThumb('ReadyPlayerMe67d411'),
     scale: 1.0,
     seatOffsetY: -0.84,
     seatOffsetZ: -0.22,
@@ -64,7 +60,6 @@ const CHARACTER_THEME_CATALOG = Object.freeze([
       'https://api.readyplayer.me/v1/avatars/67f433b69dc08cf26d2cf585.glb',
       'https://avatars.readyplayer.me/67f433b69dc08cf26d2cf585.glb'
     ],
-    thumbnail: khronosThumb('ReadyPlayerMe67f433'),
     scale: 1.0,
     seatOffsetY: -0.84,
     seatOffsetZ: -0.22,
@@ -91,7 +86,6 @@ const CHARACTER_THEME_CATALOG = Object.freeze([
       'https://api.readyplayer.me/v1/avatars/67e1b51ae11c93725e4395c9.glb',
       'https://avatars.readyplayer.me/67e1b51ae11c93725e4395c9.glb'
     ],
-    thumbnail: khronosThumb('ReadyPlayerMe67e1b5'),
     scale: 1.0,
     seatOffsetY: -0.84,
     seatOffsetZ: -0.22,
@@ -113,7 +107,6 @@ const CHARACTER_THEME_CATALOG = Object.freeze([
     price: 480,
     description: 'Open WebGL GLB humanoid seated with the same Ludo scale/orientation/motion rig.',
     url: 'https://raw.githubusercontent.com/hmthanh/3d-human-model/main/TranThiNgocTham.glb',
-    thumbnail: khronosThumb('VietnamHuman'),
     scale: 1.0,
     seatOffsetY: -0.84,
     seatOffsetZ: -0.22,
@@ -135,7 +128,6 @@ const CHARACTER_THEME_CATALOG = Object.freeze([
     price: 510,
     description: 'Open-source AI Teacher avatar adapted to the default seated pose pipeline.',
     url: 'https://raw.githubusercontent.com/Surbh77/AI-teacher/main/avatar.glb',
-    thumbnail: khronosThumb('AiTeacher'),
     scale: 1.0,
     seatOffsetY: -0.84,
     seatOffsetZ: -0.22,
@@ -157,7 +149,6 @@ const CHARACTER_THEME_CATALOG = Object.freeze([
     price: 540,
     description: 'Second AI Teacher avatar using the same seated helpers and interaction logic.',
     url: 'https://raw.githubusercontent.com/Surbh77/AI-teacher/main/avatar1.glb',
-    thumbnail: khronosThumb('AiTeacher1'),
     scale: 1.0,
     seatOffsetY: -0.84,
     seatOffsetZ: -0.22,
@@ -179,7 +170,6 @@ const CHARACTER_THEME_CATALOG = Object.freeze([
     price: 560,
     description: 'Distinct full-body WebGL humanoid model used as a non-Soldier Pool Royale shooter option.',
     url: 'https://raw.githubusercontent.com/hmthanh/3d-human-model/main/Thanh.glb',
-    thumbnail: khronosThumb('ThanhHuman'),
     scale: 1.0,
     seatOffsetY: -0.84,
     seatOffsetZ: -0.22,
@@ -195,6 +185,7 @@ const CHARACTER_THEME_CATALOG = Object.freeze([
   },
   {
     id: 'sketchfab-agent-47',
+    available: false,
     label: 'Agent 47',
     source: 'Sketchfab: Agent 47 (rigged+face morphs) by Veterock (@windofglass)',
     license: 'CC BY-NC 4.0; attribution required; non-commercial use only',
@@ -224,6 +215,7 @@ const CHARACTER_THEME_CATALOG = Object.freeze([
   },
   {
     id: 'sketchfab-leather-jacket-portrait',
+    available: false,
     label: 'Leather Jacket Portrait',
     source: 'Sketchfab: Leather Jacket Portrait by restore50',
     license: 'CC BY 4.0; attribution required; commercial use allowed',
@@ -253,6 +245,7 @@ const CHARACTER_THEME_CATALOG = Object.freeze([
   },
   {
     id: 'sketchfab-suede-gentleman',
+    available: false,
     label: 'Suede Gentleman',
     source: 'Sketchfab: Seated Gentleman in Suede Jacket by restore50',
     license: 'CC BY 4.0; attribution required; commercial use allowed',
@@ -282,6 +275,7 @@ const CHARACTER_THEME_CATALOG = Object.freeze([
   },
   {
     id: 'sketchfab-red-hibiscus-hair',
+    available: false,
     label: 'Red Hibiscus Hair',
     source: 'Sketchfab: Red Hibiscus in the Hair by restore50',
     license: 'CC BY 4.0; attribution required; commercial use allowed',
@@ -311,6 +305,7 @@ const CHARACTER_THEME_CATALOG = Object.freeze([
   },
   {
     id: 'sketchfab-casual-confidence',
+    available: false,
     label: 'Casual Confidence',
     source: 'Sketchfab: Casual Confidence by restore50',
     license: 'CC BY 4.0; attribution required; commercial use allowed',
@@ -346,7 +341,6 @@ const CHARACTER_THEME_CATALOG = Object.freeze([
     price: 580,
     description: 'Full-body Xbot humanoid from the three.js examples, used as a second new non-Soldier Pool Royale character.',
     url: 'https://threejs.org/examples/models/gltf/Xbot.glb',
-    thumbnail: khronosThumb('XbotHuman'),
     scale: 1.0,
     seatOffsetY: -0.84,
     seatOffsetZ: -0.22,
@@ -388,4 +382,8 @@ export const MURLAN_CHARACTER_THEMES = Object.freeze(
   )
 );
 
-export const POOL_ROYALE_CHARACTER_THEMES = CHARACTER_THEME_CATALOG;
+// The five Sketchfab packages have no installed original files in this build.
+// Re-enable an entry only after importing and validating its authentic package.
+export const POOL_ROYALE_CHARACTER_THEMES = Object.freeze(
+  CHARACTER_THEME_CATALOG.filter((theme) => theme.available !== false)
+);
