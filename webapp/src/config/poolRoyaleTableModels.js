@@ -3,7 +3,16 @@ import { polyHavenThumb, swatchThumbnail } from './storeThumbnails.js'
 
 export const POOL_ROYALE_TABLE_MODEL_STORAGE_KEY = 'poolRoyaleTableModel'
 
-const SHOWOOD_TABLE_LOCAL_URL = '/models/pool-royale/showood-seven-foot/showood-4k.glb'
+const POOLTOOL_RAW_BASE =
+  'https://raw.githubusercontent.com/ekiefl/pooltool/main/pooltool/models/table'
+
+const SHOWOOD_TABLE_LOCAL_URL =
+  '/models/pool-royale/showood-seven-foot/seven_foot_showood.glb'
+const SHOWOOD_TABLE_CDN_URL =
+  'https://cdn.jsdelivr.net/gh/ekiefl/pooltool@main/pooltool/models/table/seven_foot_showood/seven_foot_showood.glb'
+const SHOWOOD_TABLE_FASTLY_URL =
+  'https://fastly.jsdelivr.net/gh/ekiefl/pooltool@main/pooltool/models/table/seven_foot_showood/seven_foot_showood.glb'
+const SHOWOOD_TABLE_RAW_URL = `${POOLTOOL_RAW_BASE}/seven_foot_showood/seven_foot_showood.glb`
 
 export const POOL_ROYALE_TABLE_MODEL_OPTIONS = Object.freeze([
   {
@@ -13,11 +22,16 @@ export const POOL_ROYALE_TABLE_MODEL_OPTIONS = Object.freeze([
       'Open-source Pooltool Showood showroom table shown at its native 7 ft source layout while preserving Pool Royale finish textures.',
     tableSizeId: '7ft',
     assetUrl: SHOWOOD_TABLE_LOCAL_URL,
-    assetUrls: Object.freeze([SHOWOOD_TABLE_LOCAL_URL]),
+    assetUrls: Object.freeze([
+      SHOWOOD_TABLE_LOCAL_URL,
+      SHOWOOD_TABLE_CDN_URL,
+      SHOWOOD_TABLE_FASTLY_URL,
+      SHOWOOD_TABLE_RAW_URL
+    ]),
     icon: '🟫',
     kind: 'gltf',
-    fitScale: 1,
-    horizontalFitScale: 1,
+    fitScale: 1.04,
+    horizontalFitScale: 1.065,
     upperFrameHeightScale: 1,
     cornerRimHeightScale: 1,
     trimCornerRimsToTopRailBottom: false,
