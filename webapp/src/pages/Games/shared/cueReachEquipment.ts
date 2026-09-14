@@ -1,4 +1,5 @@
 import * as THREE from 'three';
+import meshData from './cueReachMeshes.ts';
 
 const UP = new THREE.Vector3(0, 1, 0);
 
@@ -16,12 +17,15 @@ export type CueReachEquipment = {
   extension: THREE.Group;
   rest: THREE.Group;
   extensionShaft: THREE.Mesh;
+  extensionInner: THREE.Mesh;
+  extensionLock: THREE.Mesh;
   extensionFrontCollar: THREE.Mesh;
   extensionRearCollar: THREE.Mesh;
   extensionCap: THREE.Mesh;
   restPole: THREE.Mesh;
-  restCrossbar: THREE.Mesh;
-  restProngs: THREE.Mesh[];
+  restHead: THREE.Mesh;
+  restSocket: THREE.Mesh;
+  restFeet: THREE.Mesh[];
 };
 
 export type CueReachPose = {
@@ -114,14 +118,52 @@ function segment(mesh: THREE.Mesh, start: THREE.Vector3, end: THREE.Vector3, rad
   mesh.scale.set(radius, length, radius);
 }
 
-function unitCylinder(material: THREE.Material, radialSegments = 24) {
-  const mesh = new THREE.Mesh(new THREE.CylinderGeometry(1, 1, 1, radialSegments, 1), material);
+type PartName = keyof typeof meshData.meshes;
+
+function blenderPart(name: PartName, material: THREE.Material): THREE.Mesh {
+  const data = meshData.meshes[name];
+  const geometry = new THREE.BufferGeometry();
+  geometry.setAttribute('position', new THREE.Float32BufferAttribute(data.position, 3));
+  geometry.setAttribute('normal', new THREE.Float32BufferAttribute(data.normal, 3));
+  geometry.setIndex(data.index);
+  const uv: number[] = [];
+  for (let i = 0; i < data.position.length; i += 3) {
+    uv.push(Math.atan2(data.position[i + 2], data.position[i]) / (2 * Math.PI) + .5,
+      data.position[i + 1] + .5);
+  }
+  geometry.setAttribute('uv', new THREE.Float32BufferAttribute(uv, 2));
+  geometry.computeBoundingSphere();
+  const mesh = new THREE.Mesh(geometry, material);
+  mesh.name = `BlenderCueReach_${name}`;
   mesh.castShadow = true;
   mesh.receiveShadow = true;
   return mesh;
 }
 
-/** Original procedural model: telescopic butt extension plus brass cross-head rest. */
+/** Small deterministic grain/weave maps; no network assets or large textures. */
+function surfaceTexture(wood: boolean): THREE.DataTexture {
+  const width = 64, height = 256;
+  const data = new Uint8Array(width * height * 4);
+  for (let y = 0; y < height; y++) for (let x = 0; x < width; x++) {
+    const i = (y * width + x) * 4;
+    const grain = Math.sin(x * 1.8 + Math.sin(y * .028) * 1.6);
+    const weave = ((Math.floor(x / 4) + Math.floor(y / 8)) % 2) * 8 +
+      Math.sin((x + y) * 1.5) * 2;
+    const rgb = wood ? [181 + grain * 15, 133 + grain * 14, 78 + grain * 10]
+      : [20 + weave, 23 + weave, 26 + weave];
+    data.set([...rgb.map(Math.round), 255], i);
+  }
+  const texture = new THREE.DataTexture(data, width, height);
+  texture.colorSpace = THREE.SRGBColorSpace;
+  texture.wrapS = texture.wrapT = THREE.RepeatWrapping;
+  texture.magFilter = THREE.LinearFilter;
+  texture.minFilter = THREE.LinearMipmapLinearFilter;
+  texture.generateMipmaps = true;
+  texture.needsUpdate = true;
+  return texture;
+}
+
+/** Blender-authored, bevelled telescopic extension and cast cross-head rest. */
 export function createCueReachEquipment(): CueReachEquipment {
   const group = new THREE.Group();
   group.name = 'CueReachEquipment';
@@ -130,52 +172,37 @@ export function createCueReachEquipment(): CueReachEquipment {
   const rest = new THREE.Group();
   rest.name = 'MechanicalCueRest';
   group.add(extension, rest);
-
   const carbon = new THREE.MeshPhysicalMaterial({
-    color: 0x111827,
-    roughness: 0.28,
-    metalness: 0.35,
-    clearcoat: 0.72,
-    clearcoatRoughness: 0.18
+    color: 0xffffff, map: surfaceTexture(false), roughness: .34, metalness: .16,
+    clearcoat: .36, clearcoatRoughness: .28
+  });
+  const anodised = new THREE.MeshPhysicalMaterial({
+    color: 0x30343a, roughness: .32, metalness: .65, clearcoat: .2
   });
   const brass = new THREE.MeshPhysicalMaterial({
-    color: 0xc99a35,
-    roughness: 0.2,
-    metalness: 0.92,
-    clearcoat: 0.35
+    color: 0xcba458, roughness: .26, metalness: .82, clearcoat: .24
   });
-  const rubber = new THREE.MeshStandardMaterial({ color: 0x151515, roughness: 0.88 });
+  const rubber = new THREE.MeshStandardMaterial({ color: 0x191b1c, roughness: .94 });
   const ash = new THREE.MeshPhysicalMaterial({
-    color: 0xc79862,
-    roughness: 0.48,
-    metalness: 0.02,
-    clearcoat: 0.3
+    color: 0xffffff, map: surfaceTexture(true), roughness: .43, clearcoat: .25
   });
-
-  const extensionShaft = unitCylinder(carbon, 32);
-  const extensionFrontCollar = unitCylinder(brass, 32);
-  const extensionRearCollar = unitCylinder(brass, 32);
-  const extensionCap = new THREE.Mesh(new THREE.SphereGeometry(1, 24, 12), rubber);
-  extensionCap.castShadow = true;
-  extension.add(extensionShaft, extensionFrontCollar, extensionRearCollar, extensionCap);
-
-  const restPole = unitCylinder(ash, 24);
-  const restCrossbar = unitCylinder(brass, 28);
-  const restProngs = Array.from({ length: 4 }, () => unitCylinder(brass, 20));
-  rest.add(restPole, restCrossbar, ...restProngs);
+  const extensionShaft = blenderPart('tube', carbon);
+  const extensionInner = blenderPart('inner', anodised);
+  const extensionLock = blenderPart('lock', rubber);
+  const extensionFrontCollar = blenderPart('collar', brass);
+  const extensionRearCollar = blenderPart('collar', anodised);
+  const extensionCap = blenderPart('cap', rubber);
+  extension.add(extensionShaft, extensionInner, extensionLock,
+    extensionFrontCollar, extensionRearCollar, extensionCap);
+  const restPole = blenderPart('handle', ash);
+  const restHead = blenderPart('head', brass);
+  const restSocket = blenderPart('collar', brass);
+  const restFeet = [blenderPart('foot', rubber), blenderPart('foot', rubber)];
+  rest.add(restPole, restHead, restSocket, ...restFeet);
   group.visible = false;
-  return {
-    group,
-    extension,
-    rest,
-    extensionShaft,
-    extensionFrontCollar,
-    extensionRearCollar,
-    extensionCap,
-    restPole,
-    restCrossbar,
-    restProngs
-  };
+  return { group, extension, rest, extensionShaft, extensionInner, extensionLock,
+    extensionFrontCollar, extensionRearCollar, extensionCap,
+    restPole, restHead, restSocket, restFeet };
 }
 
 export function poseCueReachEquipment(
@@ -213,52 +240,54 @@ export function poseCueReachEquipment(
   const side = new THREE.Vector3(forward.z, 0, -forward.x).normalize();
   const unitScale = finitePositive(scale, 1);
 
-  const extensionFront = cueBack.clone().addScaledVector(cueAxis, 0.018 * unitScale);
   const extensionRear = cueBack.clone().addScaledVector(cueAxis, -profile.extensionLength);
-  segment(equipment.extensionShaft, extensionRear, extensionFront, 0.019 * unitScale);
-  segment(
-    equipment.extensionFrontCollar,
-    cueBack.clone().addScaledVector(cueAxis, -0.035 * unitScale),
-    cueBack.clone().addScaledVector(cueAxis, 0.025 * unitScale),
-    0.026 * unitScale
-  );
-  segment(
-    equipment.extensionRearCollar,
-    extensionRear.clone().addScaledVector(cueAxis, -0.012 * unitScale),
-    extensionRear.clone().addScaledVector(cueAxis, 0.045 * unitScale),
-    0.023 * unitScale
-  );
-  equipment.extensionCap.position.copy(extensionRear).addScaledVector(cueAxis, -0.014 * unitScale);
-  equipment.extensionCap.scale.set(0.023, 0.023, 0.023).multiplyScalar(unitScale);
+  const sleeveEnd = extensionRear.clone().addScaledVector(cueAxis, profile.extensionLength * .60);
+  const axisSegment = (mesh: THREE.Mesh, center: THREE.Vector3, length: number, radius: number) =>
+    segment(mesh, center.clone().addScaledVector(cueAxis, -length / 2),
+      center.clone().addScaledVector(cueAxis, length / 2), radius);
+  segment(equipment.extensionShaft, extensionRear, sleeveEnd, .018 * unitScale);
+  segment(equipment.extensionInner,
+    sleeveEnd.clone().addScaledVector(cueAxis, -.035 * unitScale), cueBack, .0135 * unitScale);
+  axisSegment(equipment.extensionLock, sleeveEnd, .034 * unitScale, .0205 * unitScale);
+  axisSegment(equipment.extensionFrontCollar, cueBack, .022 * unitScale, .019 * unitScale);
+  axisSegment(equipment.extensionRearCollar, extensionRear, .014 * unitScale, .0185 * unitScale);
+  axisSegment(equipment.extensionCap,
+    extensionRear.clone().addScaledVector(cueAxis, -.010 * unitScale),
+    .012 * unitScale, .018 * unitScale);
 
-  const restHead = cueBall.clone().addScaledVector(cueAxis, -0.24 * unitScale);
-  restHead.y = Math.max(clothY + 0.038 * unitScale, cueTip.y - 0.052 * unitScale);
-  const restGrip = rootTarget.clone().addScaledVector(forward, 0.52 * unitScale)
-    .addScaledVector(side, -0.08 * unitScale);
-  restGrip.y = clothY + 0.13 * unitScale;
-  const restHandle = rootTarget.clone().addScaledVector(forward, 0.2 * unitScale)
-    .addScaledVector(side, -0.08 * unitScale);
-  restHandle.y = clothY + 0.115 * unitScale;
-  segment(equipment.restPole, restHandle, restHead, 0.011 * unitScale);
-
-  const crossHalf = 0.095 * unitScale;
-  segment(
-    equipment.restCrossbar,
-    restHead.clone().addScaledVector(side, -crossHalf),
-    restHead.clone().addScaledVector(side, crossHalf),
-    0.012 * unitScale
-  );
-  const prongOffsets = [-0.085, -0.035, 0.035, 0.085];
-  equipment.restProngs.forEach((prong, index) => {
-    const base = restHead.clone().addScaledVector(side, prongOffsets[index] * unitScale);
-    const outward = Math.sign(prongOffsets[index]) || (index < 2 ? -1 : 1);
-    const top = base.clone()
-      .addScaledVector(UP, 0.075 * unitScale)
-      .addScaledVector(side, outward * 0.016 * unitScale);
-    segment(prong, base, top, 0.009 * unitScale);
+  // The rest stays on the cloth while the cue slides along its actual axis.
+  const support = cueBall.clone().addScaledVector(forward, -.24 * unitScale);
+  const horizontalAxisSq = cueAxis.x * cueAxis.x + cueAxis.z * cueAxis.z;
+  const along = ((support.x - cueTip.x) * cueAxis.x +
+    (support.z - cueTip.z) * cueAxis.z) / Math.max(horizontalAxisSq, 1e-8);
+  const shaftY = cueTip.y + cueAxis.y * along;
+  const footHeight = .006 * unitScale;
+  const shaftRadius = .007 * unitScale;
+  const headScale = Math.max(.15 * unitScale,
+    (shaftY - shaftRadius - clothY - footHeight) / (meshData.head.cradleY - meshData.head.footY));
+  const headCenter = support.clone();
+  headCenter.y = clothY + footHeight - meshData.head.footY * headScale;
+  equipment.restHead.position.copy(headCenter);
+  equipment.restHead.quaternion.setFromRotationMatrix(new THREE.Matrix4().makeBasis(side, UP, forward));
+  equipment.restHead.scale.setScalar(headScale);
+  equipment.restFeet.forEach((foot, index) => {
+    foot.position.copy(headCenter).addScaledVector(side, (index === 0 ? -1 : 1) * .052 * headScale);
+    foot.position.y = clothY + footHeight / 2;
+    foot.quaternion.identity();
+    foot.scale.set(.012 * headScale, footHeight, .011 * headScale);
   });
+  const socket = headCenter.clone();
+  socket.y += meshData.head.socketY * headScale;
+  const restHandle = rootTarget.clone().addScaledVector(forward, .2 * unitScale)
+    .addScaledVector(side, -.08 * unitScale);
+  restHandle.y = clothY + .16 * unitScale;
+  const restDirection = socket.clone().sub(restHandle).normalize();
+  segment(equipment.restPole, restHandle, socket, .011 * unitScale);
+  segment(equipment.restSocket, socket.clone().addScaledVector(restDirection, -.040 * unitScale),
+    socket, .012 * unitScale);
+  // Solve the hand directly on the tapered handle, rather than beside it.
+  const restGrip = restHandle.clone().lerp(socket, Math.min(.32 * unitScale / restHandle.distanceTo(socket), .4));
 
-  const restDirection = restHead.clone().sub(restHandle).normalize();
   return { restGrip, restDirection };
 }
 

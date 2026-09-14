@@ -122,7 +122,7 @@ import { resolvePocketMouthAimPoint } from './poolRoyalePocketAim.js';
 import SnookerShotCoach from './SnookerShotCoach.jsx';
 import { resolveSnookerImpactAudio } from './snookerImpactAudio.js';
 import { PoolRoyalHumanPlayers } from './shared/PoolRoyalHumanPlayers.ts';
-import { SnookerRoyalShotCamera } from './snookerRoyalShotCamera.ts';
+import { SnookerRoyalShotCamera, SNOOKER_PLAYER_FOLLOW_THROUGH_MS, snookerRoyalFallbackEye } from './snookerRoyalShotCamera.ts';
 import {
   buildSnookerViewerHud,
   resolveSnookerShotClockExpiry,
@@ -14174,7 +14174,7 @@ function SnookerRoyalGame({
   const startUserSuggestionRef = useRef(() => {});
   const autoAimRequestRef = useRef(false);
   const aiTelemetryRef = useRef({ key: null, countdown: 0 });
-  const inHandCameraRestoreRef = useRef(null);
+  const prepareInHandViewRef = useRef(null);
 const initialHudInHand = useMemo(
   () => deriveInHandFromFrame(initialFrame),
   [initialFrame]
@@ -14312,6 +14312,8 @@ const shotPowerRef = useRef(0);
     setInHandPlacementMode(placing);
     if (placing) {
       cueBallPlacedFromHandRef.current = false;
+      inHandPlacementModeRef.current = true;
+      prepareInHandViewRef.current?.();
     }
   }, [hud.inHand, hud.turn]);
   const [shotActive, setShotActive] = useState(false);
@@ -15657,52 +15659,11 @@ const shotPowerRef = useRef(0);
       startAiThinkingRef.current?.();
     }
   }, [aiOpponentEnabled, frameState, hud.turn, hud.over]);
-
   useEffect(() => {
-    const sph = sphRef.current;
-    if (!sph || !cameraRef.current) return;
-    const restore = inHandCameraRestoreRef.current;
-    if (hud.inHand && hud.turn === 0 && !hud.over && !replayActive) {
-      if (!restore) {
-        cancelCameraBlendTween();
-        inHandCameraRestoreRef.current = {
-          radius: sph.radius,
-          phi: sph.phi,
-          theta: sph.theta,
-          blend: cameraBlendRef.current ?? 0,
-          topView: topViewRef.current,
-          topLocked: topViewLockedRef.current,
-          overheadVariant: overheadBroadcastVariantRef.current,
-          bounds: cameraBoundsRef.current,
-          radiusLimit: orbitRadiusLimitRef.current,
-          lowSlide: lowViewSlideRef.current,
-          fov: cameraRef.current.fov,
-          focus: { ballId: orbitFocusRef.current.ballId, target: orbitFocusRef.current.target.clone() },
-          target: lastCameraTargetRef.current.clone()
-        };
-        topViewControlsRef.current.enter?.(true);
-        setIsTopDownView(true);
-      }
-    } else if (restore) {
-      topViewRef.current = restore.topView;
-      topViewLockedRef.current = restore.topLocked;
-      overheadBroadcastVariantRef.current = restore.overheadVariant;
-      cameraBoundsRef.current = restore.bounds;
-      orbitRadiusLimitRef.current = restore.radiusLimit;
-      lowViewSlideRef.current = restore.lowSlide;
-      cameraRef.current.fov = restore.fov;
-      cameraRef.current.updateProjectionMatrix();
-      setIsTopDownView(restore.topView);
-      sph.radius = restore.radius;
-      sph.phi = restore.phi;
-      sph.theta = restore.theta;
-      cameraBlendRef.current = restore.blend ?? cameraBlendRef.current;
-      orbitFocusRef.current = restore.focus;
-      lastCameraTargetRef.current.copy(restore.target);
-      inHandCameraRestoreRef.current = null;
-      cameraUpdateRef.current?.();
+    if (hud.inHand && hud.turn === 0 && !hud.over && !replayActive && shotReady) {
+      prepareInHandViewRef.current?.();
     }
-  }, [hud.inHand, hud.turn, hud.over, replayActive, shotReady, cancelCameraBlendTween]);
+  }, [hud.inHand, hud.turn, hud.over, replayActive, shotReady]);
 
   useEffect(() => {
     const host = mountRef.current;
@@ -18028,6 +17989,7 @@ const shotPowerRef = useRef(0);
             shooting: shootingRef.current,
             impactPending: shotImpactPending,
             cueBlend: cameraBlendRef.current ?? 1,
+            now: performance.now(),
             excluded: Boolean(
               topViewRef.current ||
               replayPlaybackRef.current ||
@@ -18153,6 +18115,22 @@ const shotPowerRef = useRef(0);
             broadcastArgs.focusWorld = resolvedTarget.clone();
             broadcastArgs.targetWorld = resolvedTarget.clone();
             broadcastArgs.lerp = 0.08;
+          } else if (!topViewRef.current && humanShotCamera.isBroadcasting &&
+              (!activeShotView || (activeShotView.mode === 'action' && !cue?.active))) {
+            const coverage = resolveRailOverheadReplayCamera({
+              focusOverride: broadcastCamerasRef.current?.defaultFocusWorld,
+              minTargetY: baseSurfaceWorldY + BALL_R * worldScaleFactor
+            });
+            if (coverage?.position && coverage?.target) {
+              camera.up.set(0, 1, 0);
+              camera.position.copy(coverage.position);
+              camera.fov = coverage.fov;
+              camera.updateProjectionMatrix();
+              camera.lookAt(coverage.target);
+              lookTarget = coverage.target;
+              broadcastArgs.focusWorld = lookTarget.clone();
+              broadcastArgs.orbitWorld = coverage.position.clone();
+            }
           } else if (!topViewRef.current && cameraHoldActive && cueImpactCameraRef.current) {
             const impactState = cueImpactCameraRef.current;
             const cueBall = (ballsRef.current || []).find((b) => b.id === impactState.cueBallId);
@@ -18840,7 +18818,7 @@ const shotPowerRef = useRef(0);
             lookTarget = activeShotView.smoothedTarget;
           } else {
             const aimFocus =
-              !shooting && cue?.active ? aimFocusRef.current : null;
+              !shooting && !hudRef.current?.inHand && cue?.active ? aimFocusRef.current : null;
             let focusTarget;
             if (
               aimFocus &&
@@ -18849,7 +18827,7 @@ const shotPowerRef = useRef(0);
               Number.isFinite(aimFocus.z)
             ) {
               focusTarget = aimFocus.clone();
-            } else if (cue?.active && !shooting) {
+            } else if (cue?.active && !shooting && !hudRef.current?.inHand) {
               aimFocusRef.current = null;
               focusTarget = new THREE.Vector3(
                 cue.pos.x,
@@ -19076,8 +19054,8 @@ const shotPowerRef = useRef(0);
         }
           }
           // Use the established animated player view up to impact, then keep
-          // that position and target while the balls move. Action/pocket camera
-          // calculations must never pull the shooter along with the cue ball.
+          // that position and target through follow-through. Broadcast cameras
+          // take over only after the shot-camera owner releases the anchor.
           if (humanEyePose) {
             renderCamera.position.lerp(humanEyePose.position, humanEyePose.blend);
             lookTarget = (lookTarget ?? humanEyePose.target)
@@ -21978,6 +21956,7 @@ const shotPowerRef = useRef(0);
       let characterShotShooter = frameRef.current?.activePlayer === 'B' ? 'B' : 'A';
       let characterStrokeState = 'idle';
       const characterCueBall = new THREE.Vector3();
+      const characterShotCueBall = new THREE.Vector3();
       const characterAim = new THREE.Vector3();
       const characterCueBack = new THREE.Vector3();
       const characterCueTip = new THREE.Vector3();
@@ -22017,7 +21996,9 @@ const shotPowerRef = useRef(0);
         referencePlayers.update(dtSeconds, {
           activeSeat,
           state,
-          cueBall: characterCueBall.set(cue.pos.x, TABLE_Y + BALL_CENTER_Y, cue.pos.y),
+          cueBall: shooting || cueAnimating
+            ? characterShotCueBall
+            : characterCueBall.set(cue.pos.x, TABLE_Y + BALL_CENTER_Y, cue.pos.y),
           aimForward: characterAim.set(aimDirRef.current.x, 0, aimDirRef.current.y),
           power: state === 'striking' ? shotPowerRef.current : powerRef.current,
           nowMs,
@@ -22622,6 +22603,21 @@ const shotPowerRef = useRef(0);
         setHud((prev) => ({ ...prev, inHand: false }));
         return true;
       };
+      prepareInHandViewRef.current = () => {
+        cancelCameraBlendTween();
+        activeHumanCueViewRef.current = null;
+        aimFocusRef.current = null;
+        const focus = ensureOrbitFocus();
+        focus.ballId = null;
+        focus.target.set(0, TABLE_Y + BALL_CENTER_Y, baulkZ * 0.5);
+        // Preserve an explicitly selected overhead view; otherwise stay in 3D.
+        if (!topViewRef.current) {
+          applyCameraBlend(1);
+          sph.theta = Math.PI;
+          sph.phi = STANDING_VIEW_PHI;
+        }
+        updateCamera();
+      };
       const handleInHandDown = (e) => {
         const currentHud = hudRef.current;
         if (!currentHud?.inHand || currentHud.turn !== 0 || currentHud.over ||
@@ -22719,6 +22715,7 @@ const shotPowerRef = useRef(0);
       window.addEventListener('pointercancel', endInHandDrag);
       dom.addEventListener('lostpointercapture', endInHandDrag);
       if (hudRef.current?.inHand) {
+        prepareInHandViewRef.current?.();
         const startPos = resolveNearestFreeInHandSpot(defaultInHandPosition());
         if (startPos) {
           cue.active = false;
@@ -23000,6 +22997,7 @@ const shotPowerRef = useRef(0);
         cancelCameraBlendTween();
         const forcedCueBlend = aiCueViewBlendRef.current ?? AI_CAMERA_DROP_BLEND;
         applyCameraBlend(forcedCueView ? forcedCueBlend : 0);
+        updatePlayerCharacters(shotStartTime, 1 / 60);
         updateCamera();
         let placedFromHand = false;
         const meta = frameSnapshot?.meta;
@@ -23020,13 +23018,14 @@ const shotPowerRef = useRef(0);
           cushionAfterContact: false
         };
         characterShotShooter = frameSnapshot?.activePlayer === 'B' ? 'B' : 'A';
+        characterShotCueBall.set(cue.pos.x, TABLE_Y + BALL_CENTER_Y, cue.pos.y);
         characterStrokeState = 'dragging';
         shotImpactPending = ENABLE_CUE_STROKE_ANIMATION;
-        humanShotCamera.beginShot(activeHumanCueViewRef.current, {
-          position: world.worldToLocal((activeRenderCameraRef.current ?? camera).position.clone()),
-          target: world.worldToLocal(lastCameraTargetRef.current.clone()),
-          blend: 1
-        });
+        humanShotCamera.beginShot(activeHumanCueViewRef.current, snookerRoyalFallbackEye(
+          world.worldToLocal(cue.mesh.getWorldPosition(new THREE.Vector3())),
+          new THREE.Vector3(aimDirRef.current.x, 0, aimDirRef.current.y),
+          cueLen, BALL_R
+        ));
         setShootingState(true);
         powerImpactHoldRef.current = Math.max(
           powerImpactHoldRef.current || 0,
@@ -23279,6 +23278,8 @@ const shotPowerRef = useRef(0);
           const applyCueBallImpact = () => {
             if (shotImpactApplied) return;
             shotImpactApplied = true;
+            humanShotCamera.markImpact(performance.now(), activeHumanCueViewRef.current);
+            powerImpactHoldRef.current = performance.now() + SNOOKER_PLAYER_FOLLOW_THROUGH_MS;
             shotImpactPending = false;
             if (shotImpactFallbackTimer) {
               clearTimeout(shotImpactFallbackTimer);
@@ -27639,7 +27640,7 @@ const shotPowerRef = useRef(0);
         pocketCamerasRef.current.clear();
         pocketDropRef.current.clear();
         pocketRestIndexRef.current.clear();
-        inHandCameraRestoreRef.current = null;
+        prepareInHandViewRef.current = null;
         captureBallSnapshotRef.current = null;
         applyBallSnapshotRef.current = null;
         pendingLayoutRef.current = careerMatch ? captureBallSnapshot() : null;
@@ -27902,6 +27903,18 @@ const shotPowerRef = useRef(0);
   const showPlayerControls = isPlayerTurn && !hud.over && !replayActive;
   const showSpinController =
     !hud.over && !replayActive && !shotActive && !pocketCameraActive && (isPlayerTurn || aiTakingShot);
+
+  const canRepositionCueBall = showPlayerControls && !shotActive &&
+    deriveInHandFromFrame(frameState);
+  const handleCueBallReposition = useCallback(() => {
+    if (!canRepositionCueBall || shootingRef.current) return;
+    cueBallPlacedFromHandRef.current = false;
+    inHandPlacementModeRef.current = true;
+    hudRef.current = { ...hudRef.current, inHand: true };
+    setHud((prev) => ({ ...prev, inHand: true }));
+    setInHandPlacementMode(true);
+    prepareInHandViewRef.current?.();
+  }, [canRepositionCueBall]);
 
   // Spin controller interactions
   useEffect(() => {
@@ -29676,9 +29689,18 @@ const shotPowerRef = useRef(0);
             </span>
           </div>
           <span className="text-[11px] font-semibold uppercase tracking-[0.18em] text-white/85">
-            Tap and hold, then slide to place
+            Tap or drag to place · Move again before shooting
           </span>
         </div>
+      )}
+      {canRepositionCueBall && !hud.inHand && (
+        <button
+          type="button"
+          onClick={handleCueBallReposition}
+          className="absolute left-1/2 top-4 z-40 min-h-[44px] -translate-x-1/2 rounded-full border border-emerald-200/60 bg-emerald-950/95 px-4 py-2 text-sm font-semibold text-white shadow-lg"
+        >
+          Move cue ball
+        </button>
       )}
       {/* Power Slider */}
       {showPowerSlider && !replayActive && (

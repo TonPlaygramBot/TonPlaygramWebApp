@@ -46,6 +46,7 @@ function rig() {
     spin: new THREE.Vector2(),
     pendingSpin: new THREE.Vector2()
   };
+  cue.mesh = new THREE.Object3D();
   const context = {
     THREE,
     Math,
@@ -80,7 +81,13 @@ function rig() {
     shotImpactFallbackTimer: null,
     camera: new THREE.PerspectiveCamera(),
     world: new THREE.Group(),
-    humanShotCamera: { beginShot: jest.fn() },
+    humanShotCamera: { beginShot: jest.fn(), markImpact: jest.fn() },
+    snookerRoyalFallbackEye: (ball) => ({ position: ball.clone(), target: ball.clone(), blend: 1 }),
+    SNOOKER_PLAYER_FOLLOW_THROUGH_MS: 900,
+    TABLE_Y: 0,
+    BALL_CENTER_Y: 1,
+    characterShotCueBall: new THREE.Vector3(),
+    updatePlayerCharacters: jest.fn(),
     activeHumanCueViewRef: { current: null },
     aiOpponentEnabled: true,
     activeBroadcastSystem: null,

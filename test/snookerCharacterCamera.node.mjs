@@ -5,7 +5,7 @@ import { readFile } from 'node:fs/promises';
 import { parse } from '@babel/parser';
 import * as THREE from '../webapp/node_modules/three/build/three.module.js';
 import { PoolRoyalHumanPlayers } from '../webapp/src/pages/Games/shared/PoolRoyalHumanPlayers.ts';
-import { SnookerRoyalShotCamera } from '../webapp/src/pages/Games/snookerRoyalShotCamera.ts';
+import { SnookerRoyalShotCamera, snookerRoyalFallbackEye } from '../webapp/src/pages/Games/snookerRoyalShotCamera.ts';
 import { TABLE_SIZE_OPTIONS } from '../webapp/src/config/snookerClubTables.js';
 import { readSnookerViewMetrics } from '../scripts/read-snooker-view-metrics.mjs';
 import { loadPoseModel } from './fixtures/poolRoyalPoseTrace.mjs';
@@ -64,7 +64,7 @@ test('eye handoff preserves the existing safe view, target, blend and source pos
   assert.equal(position.y, m.clothY + m.ballR * 4);
 });
 
-test('shot camera retains the player perspective while balls travel, on both table sizes', () => {
+test('shot camera holds through follow-through then yields to broadcast, on both table sizes', () => {
   for (const table of Object.values(TABLE_SIZE_OPTIONS)) {
     for (const scale of [table.scale, table.mobileScale, table.compactScale]) {
       const world = new THREE.Group();
@@ -76,7 +76,7 @@ test('shot camera retains the player perspective while balls travel, on both tab
       rig.activeHumanCueViewRef.current = eye;
       rig.cueAnimating = true;
       rig.shootingRef.current = true;
-      for (const time of [0, 200, 400, 600, 750, 900, 2000, 15000]) {
+      for (const time of [0, 200, 400, 600, 750, 899]) {
         rig.now = time;
         if (time > 0) rig.cueAnimating = false;
         const pose = rig.resolve();
@@ -84,6 +84,12 @@ test('shot camera retains the player perspective while balls travel, on both tab
         assert.equal(pose.position.x, 4 * world.scale.x);
         assert.equal(pose.position.z, 10 * world.scale.z);
         assert.equal(eye.position.y, m.clothY - 3, 'the rig and held pose are not modified');
+      }
+      for (const time of [900, 2000, 15000]) {
+        rig.now = time;
+        assert.equal(rig.resolve(), null, 'broadcast owns the rest of the shot');
+        assert.equal(rig.humanShotCamera.isBroadcasting, true);
+        assert.equal(rig.humanShotCamera.isHoldingShot, false);
       }
       rig.shootingRef.current = false;
       rig.activeHumanCueViewRef.current = null;
@@ -120,7 +126,7 @@ test('post-impact eye movement and a potted cue ball cannot move the shot view',
     rig.cueAnimating = cueAnimating;
     const afterImpact = rig.resolve();
     assert.deepEqual(afterImpact, beforeImpact, 'follow-through does not track the moving cue ball');
-    assert.equal(afterImpact.blend, 1, 'never fade into a cue-follow action or pocket camera');
+    assert.equal(afterImpact.blend, 1, 'follow-through stays fully at the player viewpoint');
   }
   rig.activeHumanCueViewRef.current = null;
   assert.deepEqual(rig.resolve(), beforeImpact, 'retain the view after a scratch or rig reset');
@@ -128,6 +134,23 @@ test('post-impact eye movement and a potted cue ball cannot move the shot view',
   assert.equal(rig.resolve(), null);
   rig.topViewRef.current = false;
   assert.deepEqual(rig.resolve(), beforeImpact, 'manual overview returns to the same player viewpoint');
+});
+
+test('an unsettled character has a fixed address view above the actual ball plane', () => {
+  for (const yaw of [0, Math.PI / 2, Math.PI, -Math.PI / 2]) {
+    const ball = new THREE.Vector3(4, 8, -35);
+    const direction = new THREE.Vector3(Math.sin(yaw), 0, Math.cos(yaw));
+    const eye = snookerRoyalFallbackEye(ball, direction, 30, 1);
+    assert.ok(eye.position.y > ball.y + 1, 'camera clears the ball and cloth');
+    assert.ok(eye.position.clone().sub(ball).dot(direction) < -1, 'view stays behind the shot');
+    const camera = new THREE.PerspectiveCamera(m.cameraFov, 390 / 844, .01, 500);
+    camera.position.copy(eye.position);
+    camera.lookAt(eye.target);
+    camera.updateMatrixWorld(true);
+    const projected = ball.clone().project(camera);
+    assert.ok(Math.abs(projected.x) < 1 && Math.abs(projected.y) < 1, 'ball is visible in portrait');
+    assert.deepEqual(ball.toArray(), [4, 8, -35], 'snapshot does not mutate the cue ball');
+  }
 });
 
 test('missing character assets retain the pre-shot view instead of following the ball', () => {
@@ -214,7 +237,7 @@ test('starting a live shot no longer schedules an automatic overhead camera', ()
   const setShootingState = vm.runInContext(`(${source.slice(node.start, node.end)})`, c);
   setShootingState(true);
   assert.equal(c.shootingRef.current, true);
-  assert.equal(scheduled.length, 0, 'long shots stay in player perspective');
+  assert.equal(scheduled.length, 0, 'the shot-camera owner controls the broadcast handoff');
   assert.equal(c.topViewRef.current, false);
   setShootingState(false);
   assert.equal(c.shootingRef.current, false);
@@ -262,4 +285,29 @@ test('the real character is clearly bigger and its original shot camera is prese
   }
   assert.ok(cameraPoses > 0, 'exercise the actual pose-driven camera, not only a synthetic eye');
   players.dispose();
+});
+
+test('contact clock advances through manual view changes, and the next shot resets it', () => {
+  const rig = cameraRig(new THREE.Group());
+  const eye = { position: new THREE.Vector3(1, 5, 9), target: new THREE.Vector3(), blend: 1 };
+  rig.humanShotCamera.beginShot(eye, eye);
+  rig.shootingRef.current = true;
+  rig.shotImpactPending = true;
+  rig.now = 4000;
+  assert.ok(rig.resolve(), 'a slow backswing does not start broadcast');
+  rig.humanShotCamera.markImpact(4000, eye);
+  rig.shotImpactPending = false;
+  rig.cueAnimating = true;
+  rig.now = 4901;
+  assert.ok(rig.resolve(), 'never interrupt an unfinished follow-through');
+  rig.topViewRef.current = true;
+  rig.cueAnimating = false;
+  assert.equal(rig.resolve(), null);
+  assert.equal(rig.humanShotCamera.isBroadcasting, true);
+  rig.topViewRef.current = false;
+  assert.equal(rig.resolve(), null, 'returning from overhead cannot reacquire the player');
+  rig.humanShotCamera.beginShot(eye, eye);
+  rig.shotImpactPending = true;
+  assert.ok(rig.resolve());
+  assert.equal(rig.humanShotCamera.isBroadcasting, false);
 });
