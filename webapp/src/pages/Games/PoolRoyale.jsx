@@ -3340,26 +3340,11 @@ const POLYHAVEN_WOOD_TEXTURE_REPEAT_SCALE = Object.freeze({
   dark_wood: 2,
   rosewood_veneer_01: 2.4
 });
-const LT_TABLE_WOOD_TEXTURE_ID = 'fabric_083';
-const LT_TABLE_WOOD_REPEAT_SCALE = 1;
-
 function applyFinishWoodTint(material, finish) {
   if (!material?.color || !finish?.preserveFinishTintOnWood) return;
   const tintHex = material.userData?.baseTintHex;
   if (typeof tintHex !== 'number') return;
   material.color.setHex(tintHex);
-  const isLtFinish = typeof finish?.label === 'string' && finish.label.startsWith('LT ');
-  if (isLtFinish) {
-    const hsl = { h: 0, s: 0, l: 0 };
-    material.color.getHSL(hsl);
-    const saturationBoost = finish.label.includes('Milk Cream') ? 0.04 : 0.12;
-    const lightnessOffset = finish.label.includes('Black') || finish.label.includes('Night') ? -0.03 : 0.02;
-    material.color.setHSL(
-      hsl.h,
-      THREE.MathUtils.clamp(hsl.s + saturationBoost, 0, 1),
-      THREE.MathUtils.clamp(hsl.l + lightnessOffset, 0, 1)
-    );
-  }
   material.needsUpdate = true;
 }
 
@@ -3408,232 +3393,18 @@ const TABLE_FINISHES = Object.freeze({
     trim: 0x9b5a44,
     woodTextureId: 'rosewood_veneer_01',
     woodRepeatScale: POLYHAVEN_WOOD_TEXTURE_REPEAT_SCALE.rosewood_veneer_01
-  }),
-  carbonFiberChalk: createStandardWoodFinish({
-    id: 'carbonFiberChalk',
-    label: 'LT Black',
-    rail: 0x2a313d,
-    base: 0x2a313d,
-    trim: 0x2a313d,
-    woodTextureId: LT_TABLE_WOOD_TEXTURE_ID,
-    woodRepeatScale: LT_TABLE_WOOD_REPEAT_SCALE,
-    disableWoodPattern: false,
-    surfaceStyle: 'matte',
-    preserveFinishTintOnWood: true,
-    useBrandCarbonTexture: false
-  }),
-  carbonFiberChalkGrey: createStandardWoodFinish({
-    id: 'carbonFiberChalkGrey',
-    label: 'LT Grey',
-    rail: 0xc8d0da,
-    base: 0xc8d0da,
-    trim: 0xc8d0da,
-    woodTextureId: LT_TABLE_WOOD_TEXTURE_ID,
-    woodRepeatScale: LT_TABLE_WOOD_REPEAT_SCALE,
-    disableWoodPattern: false,
-    surfaceStyle: 'matte',
-    preserveFinishTintOnWood: true,
-    useBrandCarbonTexture: false
-  }),
-  carbonFiberChalkBeige: createStandardWoodFinish({
-    id: 'carbonFiberChalkBeige',
-    label: 'LT Dark Grey',
-    rail: 0x727d8b,
-    base: 0x727d8b,
-    trim: 0x727d8b,
-    woodTextureId: LT_TABLE_WOOD_TEXTURE_ID,
-    woodRepeatScale: LT_TABLE_WOOD_REPEAT_SCALE,
-    disableWoodPattern: false,
-    surfaceStyle: 'matte',
-    preserveFinishTintOnWood: true,
-    useBrandCarbonTexture: false
-  }),
-  carbonFiberChalkDarkBlue: createStandardWoodFinish({
-    id: 'carbonFiberChalkDarkBlue',
-    label: 'LT Burgundy',
-    rail: 0xc17276,
-    base: 0xc17276,
-    trim: 0xc17276,
-    woodTextureId: LT_TABLE_WOOD_TEXTURE_ID,
-    woodRepeatScale: LT_TABLE_WOOD_REPEAT_SCALE,
-    disableWoodPattern: false,
-    surfaceStyle: 'matte',
-    preserveFinishTintOnWood: true,
-    useBrandCarbonTexture: false
-  }),
-  carbonFiberChalkWhite: createStandardWoodFinish({
-    id: 'carbonFiberChalkWhite',
-    label: 'LT Milk Cream',
-    rail: 0xf8eedf,
-    base: 0xf8eedf,
-    trim: 0xf8eedf,
-    woodTextureId: LT_TABLE_WOOD_TEXTURE_ID,
-    woodRepeatScale: LT_TABLE_WOOD_REPEAT_SCALE,
-    disableWoodPattern: false,
-    surfaceStyle: 'matte',
-    preserveFinishTintOnWood: true,
-    useBrandCarbonTexture: false
-  }),
-  carbonFiberChalkDarkGreen: createStandardWoodFinish({
-    id: 'carbonFiberChalkDarkGreen',
-    label: 'LT Dark Green',
-    rail: 0x548460,
-    base: 0x548460,
-    trim: 0x548460,
-    woodTextureId: LT_TABLE_WOOD_TEXTURE_ID,
-    woodRepeatScale: LT_TABLE_WOOD_REPEAT_SCALE,
-    disableWoodPattern: false,
-    surfaceStyle: 'matte',
-    preserveFinishTintOnWood: true,
-    useBrandCarbonTexture: false
-  }),
-  carbonFiberChalkDarkYellow: createStandardWoodFinish({
-    id: 'carbonFiberChalkDarkYellow',
-    label: 'LT Dark Yellow',
-    rail: 0xd1a652,
-    base: 0xd1a652,
-    trim: 0xd1a652,
-    woodTextureId: LT_TABLE_WOOD_TEXTURE_ID,
-    woodRepeatScale: LT_TABLE_WOOD_REPEAT_SCALE,
-    disableWoodPattern: false,
-    surfaceStyle: 'matte',
-    preserveFinishTintOnWood: true,
-    useBrandCarbonTexture: false
-  }),
-  carbonFiberChalkDarkBrown: createStandardWoodFinish({
-    id: 'carbonFiberChalkDarkBrown',
-    label: 'LT Dark Brown',
-    rail: 0x956b4f,
-    base: 0x956b4f,
-    trim: 0x956b4f,
-    woodTextureId: LT_TABLE_WOOD_TEXTURE_ID,
-    woodRepeatScale: LT_TABLE_WOOD_REPEAT_SCALE,
-    disableWoodPattern: false,
-    surfaceStyle: 'matte',
-    preserveFinishTintOnWood: true,
-    useBrandCarbonTexture: false
-  }),
-  carbonFiberChalkDarkRed: createStandardWoodFinish({
-    id: 'carbonFiberChalkDarkRed',
-    label: 'LT Dark Red',
-    rail: 0xaa5151,
-    base: 0xaa5151,
-    trim: 0xaa5151,
-    woodTextureId: LT_TABLE_WOOD_TEXTURE_ID,
-    woodRepeatScale: LT_TABLE_WOOD_REPEAT_SCALE,
-    disableWoodPattern: false,
-    surfaceStyle: 'matte',
-    preserveFinishTintOnWood: true,
-    useBrandCarbonTexture: false
-  }),
-  carbonFiberAlligatorOlive: createStandardWoodFinish({
-    id: 'carbonFiberAlligatorOlive',
-    label: 'LT Olive Fabric',
-    rail: 0x556b3f,
-    base: 0x556b3f,
-    trim: 0x556b3f,
-    woodTextureId: LT_TABLE_WOOD_TEXTURE_ID,
-    woodRepeatScale: LT_TABLE_WOOD_REPEAT_SCALE,
-    disableWoodPattern: false,
-    surfaceStyle: 'matte',
-    preserveFinishTintOnWood: true,
-    useBrandCarbonTexture: false
-  }),
-  carbonFiberAlligatorSwamp: createStandardWoodFinish({
-    id: 'carbonFiberAlligatorSwamp',
-    label: 'LT Swamp Fabric',
-    rail: 0x3f5a3c,
-    base: 0x3f5a3c,
-    trim: 0x3f5a3c,
-    woodTextureId: LT_TABLE_WOOD_TEXTURE_ID,
-    woodRepeatScale: LT_TABLE_WOOD_REPEAT_SCALE,
-    disableWoodPattern: false,
-    surfaceStyle: 'matte',
-    preserveFinishTintOnWood: true,
-    useBrandCarbonTexture: false
-  }),
-  carbonFiberAlligatorClay: createStandardWoodFinish({
-    id: 'carbonFiberAlligatorClay',
-    label: 'LT Clay Fabric',
-    rail: 0x6f5b45,
-    base: 0x6f5b45,
-    trim: 0x6f5b45,
-    woodTextureId: LT_TABLE_WOOD_TEXTURE_ID,
-    woodRepeatScale: LT_TABLE_WOOD_REPEAT_SCALE,
-    disableWoodPattern: false,
-    surfaceStyle: 'matte',
-    preserveFinishTintOnWood: true,
-    useBrandCarbonTexture: false
-  }),
-  carbonFiberAlligatorSand: createStandardWoodFinish({
-    id: 'carbonFiberAlligatorSand',
-    label: 'LT Sand Fabric',
-    rail: 0x8a7b5e,
-    base: 0x8a7b5e,
-    trim: 0x8a7b5e,
-    woodTextureId: LT_TABLE_WOOD_TEXTURE_ID,
-    woodRepeatScale: LT_TABLE_WOOD_REPEAT_SCALE,
-    disableWoodPattern: false,
-    surfaceStyle: 'matte',
-    preserveFinishTintOnWood: true,
-    useBrandCarbonTexture: false
-  }),
-  carbonFiberAlligatorMoss: createStandardWoodFinish({
-    id: 'carbonFiberAlligatorMoss',
-    label: 'LT Moss Fabric',
-    rail: 0x4f6048,
-    base: 0x4f6048,
-    trim: 0x4f6048,
-    woodTextureId: LT_TABLE_WOOD_TEXTURE_ID,
-    woodRepeatScale: LT_TABLE_WOOD_REPEAT_SCALE,
-    disableWoodPattern: false,
-    surfaceStyle: 'matte',
-    preserveFinishTintOnWood: true,
-    useBrandCarbonTexture: false
-  }),
-  carbonFiberAlligatorNight: createStandardWoodFinish({
-    id: 'carbonFiberAlligatorNight',
-    label: 'LT Night Fabric',
-    rail: 0x2f3c32,
-    base: 0x2f3c32,
-    trim: 0x2f3c32,
-    woodTextureId: LT_TABLE_WOOD_TEXTURE_ID,
-    woodRepeatScale: LT_TABLE_WOOD_REPEAT_SCALE,
-    disableWoodPattern: false,
-    surfaceStyle: 'matte',
-    preserveFinishTintOnWood: true,
-    useBrandCarbonTexture: false
   })
 });
 
-const TABLE_FINISH_OPTIONS = Object.freeze(
-  [
-    TABLE_FINISHES.peelingPaintWeathered,
-    TABLE_FINISHES.oakVeneer01,
-    TABLE_FINISHES.woodTable001,
-    TABLE_FINISHES.darkWood,
-    TABLE_FINISHES.rosewoodVeneer01,
-    TABLE_FINISHES.carbonFiberChalk,
-    TABLE_FINISHES.carbonFiberChalkGrey,
-    TABLE_FINISHES.carbonFiberChalkBeige,
-    TABLE_FINISHES.carbonFiberChalkDarkBlue,
-    TABLE_FINISHES.carbonFiberChalkWhite,
-    TABLE_FINISHES.carbonFiberChalkDarkGreen,
-    TABLE_FINISHES.carbonFiberChalkDarkYellow,
-    TABLE_FINISHES.carbonFiberChalkDarkBrown,
-    TABLE_FINISHES.carbonFiberChalkDarkRed,
-    TABLE_FINISHES.carbonFiberAlligatorOlive,
-    TABLE_FINISHES.carbonFiberAlligatorSwamp,
-    TABLE_FINISHES.carbonFiberAlligatorClay,
-    TABLE_FINISHES.carbonFiberAlligatorSand,
-    TABLE_FINISHES.carbonFiberAlligatorMoss,
-    TABLE_FINISHES.carbonFiberAlligatorNight
-  ].filter(Boolean)
-);
+const TABLE_FINISH_OPTIONS = Object.freeze([
+  TABLE_FINISHES.peelingPaintWeathered,
+  TABLE_FINISHES.oakVeneer01,
+  TABLE_FINISHES.woodTable001,
+  TABLE_FINISHES.darkWood,
+  TABLE_FINISHES.rosewoodVeneer01
+]);
 
-const CUE_FINISH_OPTIONS = Object.freeze(
-  TABLE_FINISH_OPTIONS.filter((finish) => !(typeof finish?.label === 'string' && finish.label.startsWith('LT ')))
-);
+const CUE_FINISH_OPTIONS = TABLE_FINISH_OPTIONS;
 const CUE_FINISH_PALETTE = Object.freeze(
   CUE_FINISH_OPTIONS.map(
     (finish) => finish?.colors?.rail ?? finish?.colors?.base ?? 0xdeb887

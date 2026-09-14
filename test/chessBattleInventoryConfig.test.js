@@ -27,16 +27,13 @@ describe('chess battle inventory config', () => {
     expect(tableIds.has('grandOval')).toBe(true);
   });
 
-  test('includes LT table finishes in both options and store purchasables', () => {
-    const finishIds = new Set(CHESS_TABLE_FINISH_OPTIONS.map((option) => option.id));
-    const storeFinishIds = new Set(
-      CHESS_BATTLE_ROYAL_STORE_ITEMS.filter((item) => item.type === 'tableFinish').map((item) => item.optionId)
-    );
+  test('excludes retired LT table finishes from options and store purchasables', () => {
+    const finishIds = CHESS_TABLE_FINISH_OPTIONS.map((option) => option.id);
+    const storeFinishIds = CHESS_BATTLE_ROYAL_STORE_ITEMS
+      .filter((item) => item.type === 'tableFinish')
+      .map((item) => item.optionId);
 
-    ['carbonFiberChalk', 'carbonFiberSnakeChalk', 'carbonFiberAlligatorNight'].forEach((id) => {
-      expect(finishIds.has(id)).toBe(true);
-      expect(storeFinishIds.has(id)).toBe(true);
-    });
+    expect([...finishIds, ...storeFinishIds].some((id) => String(id).startsWith('carbonFiber'))).toBe(false);
   });
 
   test('offers exactly the four requested Chess Battle Royal weapons', () => {

@@ -77,7 +77,6 @@ const SNOOKER_ROYAL_PARITY_MENU_THUMBNAILS = Object.freeze([
 ]);
 const SNOOKER_TEXTURE_OPTIONS = Object.freeze([
   { id: 'showood', label: 'Showood Walnut', rail: 0x4d2f1f, trim: 0xd4af37 },
-  { id: 'carbon', label: 'LT Carbon Black', rail: 0x090b10, trim: 0x8fb3ff },
   { id: 'rosewood', label: 'Rosewood Gloss', rail: 0x5a1f16, trim: 0xf4c76b },
   { id: 'oak', label: 'Oak Tournament', rail: 0x76512f, trim: 0xd9dde7 }
 ]);

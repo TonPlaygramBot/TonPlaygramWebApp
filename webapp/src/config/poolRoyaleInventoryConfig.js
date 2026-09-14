@@ -616,30 +616,12 @@ export const POOL_ROYALE_HDRI_VARIANTS = Object.freeze(
   }))
 );
 
-const FABRIC_083_THUMBNAIL =
-  'https://acg-media.struffelproductions.com/file/ambientCG-Web/media/thumbnail/2048-WEBP/Fabric083.webp';
-
 const TABLE_FINISH_THUMBNAILS = Object.freeze({
   peelingPaintWeathered: polyHavenThumb('wood_peeling_paint_weathered'),
   oakVeneer01: polyHavenThumb('oak_veneer_01'),
   woodTable001: polyHavenThumb('wood_table_001'),
   darkWood: polyHavenThumb('dark_wood'),
-  rosewoodVeneer01: polyHavenThumb('rosewood_veneer_01'),
-  carbonFiberChalk: FABRIC_083_THUMBNAIL,
-  carbonFiberChalkGrey: FABRIC_083_THUMBNAIL,
-  carbonFiberChalkBeige: FABRIC_083_THUMBNAIL,
-  carbonFiberChalkDarkBlue: FABRIC_083_THUMBNAIL,
-  carbonFiberChalkWhite: FABRIC_083_THUMBNAIL,
-  carbonFiberChalkDarkGreen: FABRIC_083_THUMBNAIL,
-  carbonFiberChalkDarkYellow: FABRIC_083_THUMBNAIL,
-  carbonFiberChalkDarkBrown: FABRIC_083_THUMBNAIL,
-  carbonFiberChalkDarkRed: FABRIC_083_THUMBNAIL,
-  carbonFiberAlligatorOlive: FABRIC_083_THUMBNAIL,
-  carbonFiberAlligatorSwamp: FABRIC_083_THUMBNAIL,
-  carbonFiberAlligatorClay: FABRIC_083_THUMBNAIL,
-  carbonFiberAlligatorSand: FABRIC_083_THUMBNAIL,
-  carbonFiberAlligatorMoss: FABRIC_083_THUMBNAIL,
-  carbonFiberAlligatorNight: FABRIC_083_THUMBNAIL
+  rosewoodVeneer01: polyHavenThumb('rosewood_veneer_01')
 });
 
 const POCKET_LINER_THUMBNAILS = Object.freeze({
@@ -749,21 +731,6 @@ export const POOL_ROYALE_OPTION_LABELS = Object.freeze({
     woodTable001: 'Wood Table 001',
     darkWood: 'Dark Wood',
     rosewoodVeneer01: 'Rosewood Veneer 01',
-    carbonFiberChalk: 'LT Black',
-    carbonFiberChalkGrey: 'LT Grey',
-    carbonFiberChalkBeige: 'LT Dark Grey',
-    carbonFiberChalkDarkBlue: 'LT Burgundy',
-    carbonFiberChalkWhite: 'LT Milk Cream',
-    carbonFiberChalkDarkGreen: 'LT Dark Green',
-    carbonFiberChalkDarkYellow: 'LT Dark Yellow',
-    carbonFiberChalkDarkBrown: 'LT Dark Brown',
-    carbonFiberChalkDarkRed: 'LT Dark Red',
-    carbonFiberAlligatorOlive: 'LT Olive Fabric',
-    carbonFiberAlligatorSwamp: 'LT Swamp Fabric',
-    carbonFiberAlligatorClay: 'LT Clay Fabric',
-    carbonFiberAlligatorSand: 'LT Sand Fabric',
-    carbonFiberAlligatorMoss: 'LT Moss Fabric',
-    carbonFiberAlligatorNight: 'LT Night Fabric'
   }),
   chromeColor: Object.freeze({
     chrome: 'Chrome',
@@ -862,141 +829,6 @@ export const POOL_ROYALE_STORE_ITEMS = [
     price: 1020,
     description: 'Rosewood veneer rails with rich, reddish undertones.',
     thumbnail: TABLE_FINISH_THUMBNAILS.rosewoodVeneer01
-  },
-  {
-    id: 'finish-carbonFiberChalk',
-    type: 'tableFinish',
-    optionId: 'carbonFiberChalk',
-    name: 'LT Black Finish',
-    price: 1160,
-    description: 'Black LT finish using the Fabric 083 woven textile texture.',
-    thumbnail: TABLE_FINISH_THUMBNAILS.carbonFiberChalk
-  },
-  {
-    id: 'finish-carbonFiberChalkGrey',
-    type: 'tableFinish',
-    optionId: 'carbonFiberChalkGrey',
-    name: 'LT Grey Finish',
-    price: 1170,
-    description: 'Grey LT finish using the Fabric 083 woven textile texture.',
-    thumbnail: TABLE_FINISH_THUMBNAILS.carbonFiberChalkGrey
-  },
-  {
-    id: 'finish-carbonFiberChalkBeige',
-    type: 'tableFinish',
-    optionId: 'carbonFiberChalkBeige',
-    name: 'LT Dark Grey Finish',
-    price: 1180,
-    description: 'Dark-grey LT finish using the Fabric 083 woven textile texture.',
-    thumbnail: TABLE_FINISH_THUMBNAILS.carbonFiberChalkBeige
-  },
-  {
-    id: 'finish-carbonFiberChalkDarkBlue',
-    type: 'tableFinish',
-    optionId: 'carbonFiberChalkDarkBlue',
-    name: 'LT Burgundy Finish',
-    price: 1190,
-    description: 'Burgundy LT finish using the Fabric 083 woven textile texture.',
-    thumbnail: TABLE_FINISH_THUMBNAILS.carbonFiberChalkDarkBlue
-  },
-  {
-    id: 'finish-carbonFiberChalkWhite',
-    type: 'tableFinish',
-    optionId: 'carbonFiberChalkWhite',
-    name: 'LT Milk Cream Finish',
-    price: 1200,
-    description: 'Milk-cream LT finish using the Fabric 083 woven textile texture.',
-    thumbnail: TABLE_FINISH_THUMBNAILS.carbonFiberChalkWhite
-  },
-  {
-    id: 'finish-carbonFiberChalkDarkGreen',
-    type: 'tableFinish',
-    optionId: 'carbonFiberChalkDarkGreen',
-    name: 'LT Dark Green Finish',
-    price: 1210,
-    description: 'Dark-green LT finish using the Fabric 083 woven textile texture.',
-    thumbnail: TABLE_FINISH_THUMBNAILS.carbonFiberChalkDarkGreen
-  },
-  {
-    id: 'finish-carbonFiberChalkDarkYellow',
-    type: 'tableFinish',
-    optionId: 'carbonFiberChalkDarkYellow',
-    name: 'LT Dark Yellow Finish',
-    price: 1220,
-    description: 'Dark-yellow LT finish using the Fabric 083 woven textile texture.',
-    thumbnail: TABLE_FINISH_THUMBNAILS.carbonFiberChalkDarkYellow
-  },
-  {
-    id: 'finish-carbonFiberChalkDarkBrown',
-    type: 'tableFinish',
-    optionId: 'carbonFiberChalkDarkBrown',
-    name: 'LT Dark Brown Finish',
-    price: 1230,
-    description: 'Dark-brown LT finish using the Fabric 083 woven textile texture.',
-    thumbnail: TABLE_FINISH_THUMBNAILS.carbonFiberChalkDarkBrown
-  },
-  {
-    id: 'finish-carbonFiberChalkDarkRed',
-    type: 'tableFinish',
-    optionId: 'carbonFiberChalkDarkRed',
-    name: 'LT Dark Red Finish',
-    price: 1240,
-    description: 'Dark-red LT finish using the Fabric 083 woven textile texture.',
-    thumbnail: TABLE_FINISH_THUMBNAILS.carbonFiberChalkDarkRed
-  },
-  {
-    id: 'finish-carbonFiberAlligatorOlive',
-    type: 'tableFinish',
-    optionId: 'carbonFiberAlligatorOlive',
-    name: 'LT Olive Fabric Finish',
-    price: 1310,
-    description: 'Olive LT finish using the Fabric 083 woven textile texture.',
-    thumbnail: TABLE_FINISH_THUMBNAILS.carbonFiberAlligatorOlive
-  },
-  {
-    id: 'finish-carbonFiberAlligatorSwamp',
-    type: 'tableFinish',
-    optionId: 'carbonFiberAlligatorSwamp',
-    name: 'LT Swamp Fabric Finish',
-    price: 1320,
-    description: 'Swamp-green LT finish using the Fabric 083 woven textile texture.',
-    thumbnail: TABLE_FINISH_THUMBNAILS.carbonFiberAlligatorSwamp
-  },
-  {
-    id: 'finish-carbonFiberAlligatorClay',
-    type: 'tableFinish',
-    optionId: 'carbonFiberAlligatorClay',
-    name: 'LT Clay Fabric Finish',
-    price: 1330,
-    description: 'Clay-brown LT finish using the Fabric 083 woven textile texture.',
-    thumbnail: TABLE_FINISH_THUMBNAILS.carbonFiberAlligatorClay
-  },
-  {
-    id: 'finish-carbonFiberAlligatorSand',
-    type: 'tableFinish',
-    optionId: 'carbonFiberAlligatorSand',
-    name: 'LT Sand Fabric Finish',
-    price: 1340,
-    description: 'Sand LT finish using the Fabric 083 woven textile texture.',
-    thumbnail: TABLE_FINISH_THUMBNAILS.carbonFiberAlligatorSand
-  },
-  {
-    id: 'finish-carbonFiberAlligatorMoss',
-    type: 'tableFinish',
-    optionId: 'carbonFiberAlligatorMoss',
-    name: 'LT Moss Fabric Finish',
-    price: 1350,
-    description: 'Moss LT finish using the Fabric 083 woven textile texture.',
-    thumbnail: TABLE_FINISH_THUMBNAILS.carbonFiberAlligatorMoss
-  },
-  {
-    id: 'finish-carbonFiberAlligatorNight',
-    type: 'tableFinish',
-    optionId: 'carbonFiberAlligatorNight',
-    name: 'LT Night Fabric Finish',
-    price: 1360,
-    description: 'Night LT finish using the Fabric 083 woven textile texture.',
-    thumbnail: TABLE_FINISH_THUMBNAILS.carbonFiberAlligatorNight
   },
   {
     id: 'chrome-chrome',

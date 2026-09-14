@@ -3,8 +3,7 @@ import { CAPTURE_ANIMATION_OPTIONS } from './ludoBattleOptions.js';
 import { MURLAN_TABLE_FINISHES } from './murlanTableFinishes.js';
 import {
   POOL_ROYALE_DEFAULT_HDRI_ID,
-  POOL_ROYALE_HDRI_VARIANTS,
-  POOL_ROYALE_STORE_ITEMS
+  POOL_ROYALE_HDRI_VARIANTS
 } from './poolRoyaleInventoryConfig.js';
 import { swatchThumbnail } from './storeThumbnails.js';
 
@@ -404,71 +403,7 @@ export const CHESS_BATTLE_TABLE_OPTIONS = Object.freeze(
     })
 );
 
-const POOL_ROYALE_LT_TABLE_FINISH_IDS = new Set([
-  'carbonFiberChalk',
-  'carbonFiberChalkGrey',
-  'carbonFiberChalkBeige',
-  'carbonFiberChalkDarkBlue',
-  'carbonFiberChalkWhite',
-  'carbonFiberChalkDarkGreen',
-  'carbonFiberChalkDarkYellow',
-  'carbonFiberChalkDarkBrown',
-  'carbonFiberChalkDarkRed',
-  'carbonFiberSnakeChalk',
-  'carbonFiberSnakeChalkGrey',
-  'carbonFiberSnakeChalkBeige',
-  'carbonFiberSnakeChalkDarkBlue',
-  'carbonFiberSnakeChalkWhite',
-  'carbonFiberSnakeChalkDarkGreen',
-  'carbonFiberAlligatorOlive',
-  'carbonFiberAlligatorSwamp',
-  'carbonFiberAlligatorClay',
-  'carbonFiberAlligatorSand',
-  'carbonFiberAlligatorMoss',
-  'carbonFiberAlligatorNight'
-]);
-
-const CHESS_LT_TABLE_FINISH_FALLBACKS = Object.freeze([
-  {
-    optionId: 'carbonFiberSnakeChalk',
-    name: 'Carbon Fiber Snake Chalk Finish',
-    description: 'Snake-scale carbon fiber LT finish adapted for the chess battle table.',
-    price: 1630,
-    swatches: ['#050816', '#14532d', '#94a3b8'],
-    thumbnail: swatchThumbnail(['#050816', '#14532d', '#94a3b8'])
-  }
-]);
-
-const CHESS_LT_TABLE_FINISH_SOURCE_ITEMS = Object.freeze([
-  ...POOL_ROYALE_STORE_ITEMS.filter(
-    (item) => item.type === 'tableFinish' && POOL_ROYALE_LT_TABLE_FINISH_IDS.has(item.optionId)
-  ),
-  ...CHESS_LT_TABLE_FINISH_FALLBACKS.filter(
-    (fallback) => !POOL_ROYALE_STORE_ITEMS.some((item) => item.type === 'tableFinish' && item.optionId === fallback.optionId)
-  )
-]);
-
-const CHESS_LT_TABLE_FINISHES = Object.freeze(
-  CHESS_LT_TABLE_FINISH_SOURCE_ITEMS.map((item) => ({
-    id: item.optionId,
-    label: item.name.replace(/\s*Finish$/i, ''),
-    description: item.description,
-    price: item.price,
-    swatches: item.swatches,
-    thumbnail: item.thumbnail,
-    woodOption: Object.freeze({
-      id: item.optionId,
-      label: item.name.replace(/\s*Finish$/i, ''),
-      presetId: 'smokedOak',
-      grainId: 'dark_wood'
-    })
-  }))
-);
-
-export const CHESS_TABLE_FINISH_OPTIONS = Object.freeze([
-  ...MURLAN_TABLE_FINISHES,
-  ...CHESS_LT_TABLE_FINISHES
-]);
+export const CHESS_TABLE_FINISH_OPTIONS = Object.freeze([...MURLAN_TABLE_FINISHES]);
 
 export const CHESS_BATTLE_DEFAULT_UNLOCKS = Object.freeze({
   chairColor: [CHESS_CHAIR_OPTIONS[0]?.id],
