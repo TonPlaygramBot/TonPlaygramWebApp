@@ -9,16 +9,14 @@ import { normalizeSpinInput, mapSpinForPhysics } from '../webapp/src/pages/Games
 
 const source = await readFile(new URL('../webapp/src/pages/Games/SnookerRoyal.jsx', import.meta.url), 'utf8');
 const definitions = new Map();
-let placementCameraEffect;
+let preparePlacementView;
 function walk(node) {
   if (!node || typeof node !== 'object') return;
   if (node.type === 'VariableDeclarator' && node.id?.name && node.init)
     definitions.set(node.id.name, source.slice(node.init.start, node.init.end));
   if (node.type === 'FunctionDeclaration') definitions.set(node.id.name, source.slice(node.start, node.end));
-  if (node.type === 'CallExpression' && node.callee.name === 'useEffect' && node.arguments[0]?.type === 'ArrowFunctionExpression') {
-    const effect = source.slice(node.arguments[0].start, node.arguments[0].end);
-    if (effect.includes('inHandCameraRestoreRef.current = {')) placementCameraEffect = effect;
-  }
+  if (node.type === 'AssignmentExpression' && node.left.object?.name === 'prepareInHandViewRef' && node.right.type === 'ArrowFunctionExpression')
+    preparePlacementView = source.slice(node.right.start, node.right.end);
   for (const child of Object.values(node)) {
     if (Array.isArray(child)) child.forEach(walk);
     else if (child?.type) walk(child);
@@ -175,39 +173,46 @@ test('placement cannot overlap an object ball', () => {
   assert.ok(cue.pos.distanceTo(object.pos) > 2);
 });
 
-test('placement overview returns the exact prior camera bounds, focus and view mode', () => {
+test('placement keeps the selected 3D or overhead view and clears a moving aim target', () => {
   for (const top of [false, true]) {
-    const camera = new THREE.PerspectiveCamera(66);
-    const c = { hud: { inHand: true, turn: 0, over: false }, replayActive: false,
-      sphRef: { current: { radius: 42, phi: 1.1, theta: .4 } },
-      cameraRef: { current: camera }, inHandCameraRestoreRef: { current: null },
-      cameraBlendRef: { current: .35 }, topViewRef: { current: top }, topViewLockedRef: { current: top },
-      overheadBroadcastVariantRef: { current: 'rail' },
-      cameraBoundsRef: { current: { standing: { phi: 1, radius: 90 }, cueShot: { phi: 1.2, radius: 20 } } },
-      orbitRadiusLimitRef: { current: 92 }, lowViewSlideRef: { current: 4 },
-      orbitFocusRef: { current: { ballId: 'cue', target: new THREE.Vector3(1, 2, 3) } },
-      lastCameraTargetRef: { current: new THREE.Vector3(4, 5, 6) },
-      cancelCameraBlendTween() {}, setIsTopDownView(v) { c.topUi = v; }, cameraUpdateRef: { current() {} },
-      topViewControlsRef: { current: { enter() {
-        c.topViewRef.current = true; c.topViewLockedRef.current = true;
-        c.sphRef.current.radius = 200; c.sphRef.current.theta = Math.PI;
-        c.cameraBlendRef.current = 1; c.cameraBoundsRef.current = null;
-        c.orbitRadiusLimitRef.current = 222; c.lowViewSlideRef.current = 0;
-        c.lastCameraTargetRef.current.set(0, 0, 0);
-      } } }
-    };
-    const oldBounds = c.cameraBoundsRef.current;
-    vm.createContext(c); const effect = vm.runInContext(`(${placementCameraEffect})`, c);
-    effect(); assert.equal(c.topUi, true);
-    c.hud.inHand = false; effect();
-    assert.equal(c.topViewRef.current, top); assert.equal(c.topUi, top);
-    assert.deepEqual(c.sphRef.current, { radius: 42, phi: 1.1, theta: .4 });
-    assert.equal(c.cameraBoundsRef.current, oldBounds);
-    assert.equal(c.orbitRadiusLimitRef.current, 92);
-    assert.equal(c.lowViewSlideRef.current, 4);
-    assert.equal(c.cameraBlendRef.current, .35);
-    assert.deepEqual(c.orbitFocusRef.current.target.toArray(), [1, 2, 3]);
-    assert.deepEqual(c.lastCameraTargetRef.current.toArray(), [4, 5, 6]);
-    assert.equal(c.inHandCameraRestoreRef.current, null);
+    const focus = { ballId: 'cue', target: new THREE.Vector3() };
+    const c = { activeHumanCueViewRef: { current: {} }, aimFocusRef: { current: {} },
+      topViewRef: { current: top }, TABLE_Y: 0, BALL_CENTER_Y: 1, baulkZ: -55,
+      ensureOrbitFocus: () => focus, cancelCameraBlendTween() {},
+      sph: { theta: 0, phi: 0 }, STANDING_VIEW_PHI: 1.04,
+      applyCameraBlend: value => c.blend = value, updateCamera() {} };
+    vm.createContext(c);
+    vm.runInContext(`(${preparePlacementView})`, c)();
+    assert.equal(c.topViewRef.current, top);
+    assert.equal(c.blend, top ? undefined : 1);
+    assert.equal(focus.ballId, null);
+    assert.equal(c.activeHumanCueViewRef.current, null);
   }
+});
+
+test('Pool-style frame entitlement permits repeated placement before a shot', () => {
+  const { c, cue, event } = placementRig();
+  c.canRepositionCueBall = true;
+  c.shootingRef = { current: false };
+  c.prepareInHandViewRef = { current() {} };
+  c.setHud = value => { c.hudRef.current = typeof value === 'function' ? value(c.hudRef.current) : value; };
+  // The production callback is stored as useCallback(callback, deps).
+  const callback = definitions.get('handleCueBallReposition');
+  c.useCallback = fn => fn;
+  c.handleCueBallReposition = vm.runInContext(callback, c);
+  for (const x of [-12, 0, 12]) {
+    c.handleCueBallReposition();
+    c.handleInHandDown(event(cue.pos));
+    c.handleInHandMove(event({ x, y: -60 }, 'pointermove'));
+    c.endInHandDrag(event({ x, y: -60 }, 'pointerup'));
+    assert.equal(c.hudRef.current.inHand, false);
+    assert.equal(c.cueBallPlacedFromHandRef.current, true);
+    assert.ok(Math.abs(cue.pos.x - x) < 1e-8);
+  }
+  c.shootingRef.current = true;
+  c.handleCueBallReposition();
+  assert.equal(c.hudRef.current.inHand, false, 'shooting closes placement');
+  c.shootingRef.current = false; c.canRepositionCueBall = false;
+  c.handleCueBallReposition();
+  assert.equal(c.hudRef.current.inHand, false, 'no entitlement on an ordinary turn');
 });

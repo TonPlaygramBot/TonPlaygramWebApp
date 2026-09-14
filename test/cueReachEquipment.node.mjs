@@ -47,7 +47,7 @@ test('short-rail logic follows the actual long axis on a rotated table', () => {
   assert.equal(profile.rearRailDistance, 7.5);
 });
 
-test('the procedural extension and four-prong rest follow the cue and return a hand grip', () => {
+test('the Blender extension and cross rest follow the cue and return a hand grip', () => {
   const equipment = createCueReachEquipment();
   const profile = resolveCueReachProfile({
     cueBall: new THREE.Vector3(0, 1, -3),
@@ -68,7 +68,7 @@ test('the procedural extension and four-prong rest follow the cue and return a h
 
   assert.ok(pose);
   assert.equal(equipment.group.visible, true);
-  assert.equal(equipment.restProngs.length, 4);
+  assert.equal(equipment.restFeet.length, 2);
   assert.ok(equipment.extensionShaft.scale.y > 0);
   assert.ok(equipment.restPole.scale.y > 0);
   assert.ok(pose.restGrip.y > 0.9);
@@ -103,7 +103,30 @@ test('Snooker Royal starts physics at rendered tip contact and waits before shot
   assert.ok(contact > 0 && snap > contact && impact > snap);
   assert.match(source, /if \(shooting && !shotImpactPending\)/);
   assert.match(source, /resolvePoolRoyalReleasePower\(\{/);
-  assert.match(source, /fireRef\.current\?\.\(committedValue \/ 100\)/);
+  assert.match(source, /deliverOrQueueSnookerShot\(\{/);
   assert.match(source, /shotImpactFallbackTimer = window\.setTimeout/);
   assert.match(source, /new PoolRoyalHumanPlayers\(world,/);
+});
+
+test('rest feet touch the cloth and the grip lies on the shaft at different reach lengths', () => {
+  const equipment = createCueReachEquipment();
+  for (const yaw of [0, .8, 2.4]) for (const length of [.4, .9, 1.4]) {
+    const axis = new THREE.Vector3(Math.sin(yaw), 0, Math.cos(yaw));
+    const cueBall = axis.clone().multiplyScalar(3).setY(1);
+    const tip = cueBall.clone().addScaledVector(axis, -.04);
+    const back = tip.clone().addScaledVector(axis, -1.8);
+    const pose = poseCueReachEquipment(equipment, { cueBall, cueTip: tip, cueBack: back,
+      aimForward: axis, rootTarget: axis.clone().multiplyScalar(-3), clothY: .94, scale: 1,
+      profile: { needsExtension: true, extensionLength: length } });
+    equipment.group.updateMatrixWorld(true);
+    for (const foot of equipment.restFeet) {
+      const bounds = new THREE.Box3().setFromObject(foot);
+      assert.ok(Math.abs(bounds.min.y - .94) < 1e-6, 'feet sit on the cloth');
+    }
+    const gripLocal = equipment.restPole.worldToLocal(pose.restGrip.clone());
+    assert.ok(Math.hypot(gripLocal.x, gripLocal.z) < 1e-7, 'support hand is on the handle axis');
+    assert.ok(equipment.extensionInner.scale.y > 0 && equipment.extensionShaft.scale.y > 0);
+    const collarLength = equipment.extensionFrontCollar.scale.y;
+    assert.ok(Math.abs(collarLength - .022) < 1e-8, 'coupling is not stretched with the extension');
+  }
 });
