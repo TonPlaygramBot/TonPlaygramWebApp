@@ -27,6 +27,7 @@ export function poseForce(root:T.Object3D,anim:string,alive=true,dt=1/60,pitch=0
  const turn=(name:string,x:number)=>{const j=get(name);if(j){remember(j);j.bone.quaternion.multiply(rotation.setFromEuler(angles.set(x,0,0)));}};
  const bend=pose.cover+pose.ride;
  if(bend>.001){turn('upperleg01.L',-1.05*bend);turn('upperleg01.R',-1.05*bend);turn('lowerleg01.L',1.3*bend);turn('lowerleg01.R',1.3*bend);turn('spine02',.15*bend);}
+ if(anim==='direct'){for(const side of ['L','R']){const j=get(`upperarm01.${side}`);if(j){remember(j);j.bone.quaternion.multiply(rotation.setFromEuler(angles.set(-.25,0,side==='L'?1.25:-1.25)));}}return;}
  if(pose.carry<.001)return;
  root.updateWorldMatrix(true,false);
  const grip=npcWeaponPose({weapon,anim,aimPitch:pitch,x:0,z:0,heading:0});

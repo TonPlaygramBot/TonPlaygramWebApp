@@ -15,7 +15,7 @@ export const BUSINESS_SIGN_REFERENCES=[
  logo('procredit',/^procredit(?: bank)?$/i,banks),
  logo('uba',/^(?:uba|united bank of albania|banka e bashkuar e shqiperise)$/i,banks),
  logo('big-market',/^big market$/i,'https://bigmarket.al/'),
- logo('conad',/^conad$/i,'https://www.conadalbania.al/'),
+ logo('conad',/^conad$/i,'https://www.conad.al/'),
  logo('eco-market',/^eco market$/i,'https://ecomarket.al/'),
  logo('sophie',/^sophie(?: caffe(?: & snacks)?)?$/i,'https://www.sophiecaffe.com/'),
  logo('kfc',/^kfc$/i,'https://toptani.com.al/en/content/100-kfc'),

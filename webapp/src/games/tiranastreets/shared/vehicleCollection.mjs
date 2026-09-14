@@ -150,6 +150,8 @@ export const VEHICLE_COLLECTION = Object.freeze([
       -0.43
     ]
   }
+,
+  {"id":"golf-gti","name":"Volkswagen Golf GTI 2025","url":"/assets/tirana-streets/city-mobility/golf-gti.glb","sha256":"a7c8b73910b22fbfa7abbe03d362db4b4565da1986f473383f719bbea6ac62b1","bytes":7045908,"length":4.29,"width":2.103,"height":1.488,"driverSeat":[0.28,0.52,-0.39]}
 ].map(c=>Object.freeze({...c,driverSeat:Object.freeze(c.driverSeat)})));
 export const COLLECTION_BY_ID = new Map(VEHICLE_COLLECTION.map(c=>[c.id,c]));
 // The ordinary fleet shares three original road models and their GPU resources.

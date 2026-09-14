@@ -1,10 +1,11 @@
 import {WORLD,nearestNode,route,emptyInput} from '../shared/engine.mjs';
 import {roadsidePoint} from '../shared/streetSafety.mjs';
 import {groundHeight} from '../../tirana-east/terrainCore.mjs';
+import {exitPoint} from './vehicleCore.mjs';
 import {cancelActions,MOTOR} from './playerCore.mjs';
 import {steerNPC} from '../shared/npcNavigation.mjs';
-import {forceWeaponFor} from '../shared/uploadedWeapons.mjs';
-import {trafficLaneRoute,vehicleSeparation} from '../shared/trafficSimulation.mjs';
+import {nearestAvailableUnit} from '../shared/policeDispatch.mjs';
+import {trafficLanePoints,vehicleSeparation,trafficDecision} from '../shared/trafficSimulation.mjs';
 const distance=(a,b)=>Math.hypot(a.x-b.x,a.z-b.z);
 const station=WORLD.buildings.find(b=>String(b.id)==='361451879');
 const centre=station?{x:station.p.reduce((n,p)=>n+p[0],0)/station.p.length,z:station.p.reduce((n,p)=>n+p[1],0)/station.p.length}:{x:-320,z:365};
@@ -49,44 +50,47 @@ export class ArrestSimulation {
     return true;
   }
   dispatch(){
-    const sim=this.sim,p=sim.player,target=nearestNode(p.x,p.z);
-    let chosen=[],cost=Infinity;
-    for(const [dx,dz] of [[50,0],[-50,0],[0,50],[0,-50],[40,40],[-40,40],[40,-40],[-40,-40]]){
-      const start=nearestNode(p.x+dx,p.z+dz),candidate=route(start,target);
-      const length=candidate.slice(1).reduce((sum,q,i)=>sum+distance(q,candidate[i]),0);
-      if(candidate.length>1&&distance(candidate[0],p)>25&&length<cost){chosen=candidate;cost=length;}
-    }
-    if(!chosen.length)return false;
-    chosen=trafficLaneRoute(chosen.map(q=>nearestNode(q.x,q.z)));
-    const a=chosen[0];
-    this.van={id:'custody-van',model:'police',forceVehicle:'police_van',forceCharacter:'patrol_officer',...a,heading:0,speed:0,vx:0,vz:0,steering:0,driver:'custody',health:180,responding:true,custody:true};
-    sim.state.cars.push(this.van);this.path=chosen;this.pathIndex=1;this.arrivalLimit=Math.min(90,Math.max(35,cost/9+30));return true;
+    const sim=this.sim,p=sim.player;
+    const chosen=nearestAvailableUnit(sim.state.units.filter(u=>u.custodyCapable),p,{nearestNode,route},0);
+    if(!chosen)return false;
+    this.van=chosen.unit;
+    Object.assign(this.van,{driver:'custody',duty:'custody',target:null,responding:true,custody:true});
+    for(const n of sim.state.npcs.filter(n=>n.unit===this.van.id))n.custody=true;
+    this.path=trafficLanePoints(chosen.route);this.pathIndex=0;
+    while(this.path[this.pathIndex]&&distance(this.van,this.path[this.pathIndex])<3)this.pathIndex++;
+    this.arrivalLimit=Math.min(180,Math.max(45,chosen.cost/5+30));return true;
   }
+
   drive(dt){
     const van=this.van,goal=this.path[this.pathIndex];if(!van||!goal){if(van)van.speed=0;return true;}
-    const d=distance(van,goal),travel=Math.min(d,9*dt),dx=goal.x-van.x,dz=goal.z-van.z;
+    const d=distance(van,goal),dx=goal.x-van.x,dz=goal.z-van.z;
+    van.heading=Math.atan2(-dx,-dz);van.cruise=9;
+    const decision=trafficDecision(van,this.sim.cars().filter(c=>distance(c,van)<45),this.sim.state.npcs.filter(n=>!n.custody&&distance(n,van)<25),this.sim.state.elapsed);
+    van.speed=Math.max(0,(van.speed||0)+Math.max(-6*dt,Math.min(2.4*dt,decision.target-(van.speed||0))));
+    const travel=Math.min(d,van.speed*dt,Math.max(0,decision.gap));
     // Respect traffic ahead instead of driving the backup van through a stopped car.
     const proposed={...van,heading:Math.atan2(-dx,-dz),x:van.x+(d?dx/d*travel:0),z:van.z+(d?dz/d*travel:0)};
     const blocked=this.sim.cars().some(c=>c!==van&&distance(c,van)<18&&vehicleSeparation(proposed,c));
     if(blocked){van.speed=0;return false;}
     van.heading=Math.atan2(-dx,-dz);van.speed=travel/Math.max(dt,.001);
     if(d){van.vx=dx/d*van.speed;van.vz=dz/d*van.speed;van.x+=dx/d*travel;van.z+=dz/d*travel;}
+    for(const n of this.sim.state.npcs.filter(n=>n.custody&&n.unit===van.id&&!n.deployed))Object.assign(n,{x:van.x,z:van.z,heading:van.heading,speed:van.speed,motion:'drive'});
     if(d<=travel+.05)this.pathIndex++;
     return this.pathIndex>=this.path.length;
   }
   backupOfficers(){
     if(!this.van)return;
-    for(const side of [-1,1]){
-      const point=roadsidePoint({x:this.van.x+Math.cos(this.van.heading)*side*2,z:this.van.z-Math.sin(this.van.heading)*side*2},.45,true);
-      if(!point)continue;
-      this.sim.state.npcs.push({id:`custody-backup-${side}`,kind:'police',forceCharacter:'patrol_officer',weapon:forceWeaponFor('patrol_officer',side+1),...point,heading:this.van.heading,speed:0,motion:'walk',health:100,anim:'idle',nextShot:0,downUntil:0,custody:true});
+    for(const [i,n] of this.sim.state.npcs.filter(n=>n.unit===this.van.id&&n.health>0).entries()){
+      const side=i%2?1:-1,point=roadsidePoint({x:this.van.x+Math.cos(this.van.heading)*side*2,z:this.van.z-Math.sin(this.van.heading)*side*2},.45,true);
+      if(point)Object.assign(n,point,{heading:this.van.heading,speed:0,motion:'walk',anim:'idle',deployed:true,custody:true});
     }
   }
+
   release(message){
     const sim=this.sim,p=sim.player;
     delete p.arrest;sim.body.interaction='free';sim.body.notice=message;sim.body.eye=MOTOR.eye;
-    if(this.van)sim.state.cars=sim.state.cars.filter(c=>c!==this.van);
-    sim.state.npcs=sim.state.npcs.filter(n=>!n.custody);
+    if(this.van)Object.assign(this.van,{driver:'npc',duty:'returning',target:null,responding:false,custody:false,regroup:true,path:[],pathIndex:0,nextRoute:0});
+    for(const n of sim.state.npcs)if(n.custody)n.custody=false;
     this.van=null;this.escort=null;
   }
   step(dt){
@@ -103,20 +107,26 @@ export class ArrestSimulation {
     if(c.phase==='spray'&&t>1.2)this.phase('down');
     else if(c.phase==='down'&&t>1.6){if(this.dispatch())this.phase('backup');else this.release('Përforcimet nuk arritën · Je liruar');}
     else if(c.phase==='backup'){
-      if(this.drive(dt)&&t>1.5){this.backupOfficers();this.phase('escort');}
+      if(this.drive(dt)&&t>1.5){this.boarding=exitPoint(sim.state,this.van,sim.world);if(!this.boarding){this.release('Rruga e mbyllur · Je liruar');return;}this.backupOfficers();this.phase('escort');}
       else if(t>this.arrivalLimit)this.release('Rruga e bllokuar · Je liruar');
     }else if(c.phase==='escort'&&this.van){
-      const van=this.van,target={x:van.x+Math.cos(van.heading)*1.9,z:van.z-Math.sin(van.heading)*1.9};
+      const van=this.van,target=this.boarding;
       const goal=steerNPC(p,target,(a,b)=>sim.world.clear({...a,y:sim.body.y+1},{...b,y:sim.body.y+1},sim.cars()),now);
       const d=distance(p,goal),step=Math.min(d,dt*1.6),q={x:p.x,y:sim.body.y,z:p.z};
       if(d)sim.world.move(q,(goal.x-p.x)/d*step,(goal.z-p.z)/d*step,sim.body.height,0);
       p.x=q.x;p.z=q.z;p.speed=step/Math.max(dt,.001);
       if(this.escort){this.escort.x=p.x+.75;this.escort.z=p.z;this.escort.speed=p.speed;}
-      if(distance(p,target)<.65)this.phase('transport');
+      if(distance(p,target)<.65){
+        this.path=trafficLanePoints(route(nearestNode(van.x,van.z),nearestNode(POLICE_STATION.x,POLICE_STATION.z)));this.pathIndex=0;
+        if(!this.path.length){this.release('Rruga e mbyllur · Je liruar');return;}
+        if(this.escort)Object.assign(this.escort,{unit:van.id,squadId:van.squadId,seat:2,custody:true});
+        for(const n of sim.state.npcs.filter(n=>n.unit===van.id))Object.assign(n,{deployed:false,motion:'drive'});
+        this.phase('transport');
+      }
       else if(t>45)this.release('Rruga e mbyllur · Je liruar');
     }else if(c.phase==='transport'){
       if(this.van){p.x=this.van.x;p.z=this.van.z;sim.body.y=groundHeight(p.x,p.z)+.45;}
-      if(t>3){sim.event('arrest-complete',{x:POLICE_STATION.x,z:POLICE_STATION.z});this.release('Drejtoria e Policisë Tiranë');}
+      if(this.drive(dt)){sim.event('arrest-complete',{x:POLICE_STATION.x,z:POLICE_STATION.z});p.wanted=0;this.release('Drejtoria e Policisë Tiranë');}
     }
   }
 }

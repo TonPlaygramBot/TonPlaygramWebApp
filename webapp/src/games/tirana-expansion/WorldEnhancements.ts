@@ -1,3 +1,4 @@
+import {DimensionalSigns} from '../tirana-street-life/DimensionalSigns';
 import {RegionalArchitecture} from '../tirana-regional-detail/RegionalArchitecture';
 import {TerrainLayer} from '../tirana-east/TerrainLayer';
 import {HousingDetails} from '../tirana-east/HousingDetails';
@@ -38,6 +39,7 @@ export {
 } from './BaseWorldEnhancements';
 /** One shared street-detail integration, using the unchanged city metre frame. */
 export class WorldEnhancements extends ExistingEnhancements {
+  readonly dimensionalSigns=new DimensionalSigns();
   readonly regionalArchitecture=new RegionalArchitecture();
   readonly terrain=new TerrainLayer();
   readonly housing=new HousingDetails();
@@ -66,7 +68,7 @@ export class WorldEnhancements extends ExistingEnhancements {
   constructor(options: StreetDetailOptions = {}) {
     super();
     this.dajti.retire();this.dajti.group.visible=false;
-    this.group.add(this.regionalArchitecture.group,this.terrain.group,this.housing.group,this.eastern.group,this.sourceCable.group);
+    this.group.add(this.dimensionalSigns.group,this.regionalArchitecture.group,this.terrain.group,this.housing.group,this.eastern.group,this.sourceCable.group);
     this.cityCompletion=new CityCompletionLayer(options);
     this.facadeCompletion=new FacadeCompletionLayer();
     this.group.add(this.cityCompletion.group,this.facadeCompletion.group);
@@ -127,6 +129,7 @@ export class WorldEnhancements extends ExistingEnhancements {
     this.fuelBrands.update(seconds,viewer,battery);
     this.institutions.update(seconds, viewer, battery);
     this.buildingBrands.update(seconds, viewer, battery);
+    this.dimensionalSigns.update(seconds,viewer,battery);
     this.shopfronts.update(seconds, viewer, battery);
     this.streets.update(seconds, viewer, battery);
     this.ground.update(viewer, battery);
@@ -167,6 +170,7 @@ export class WorldEnhancements extends ExistingEnhancements {
     this.attractions.dispose();
     this.ground.dispose();
     this.streets.dispose();
+    this.dimensionalSigns.dispose();
     this.shopfronts.dispose();
     this.urbanLife.dispose();
     this.streetLife.dispose();

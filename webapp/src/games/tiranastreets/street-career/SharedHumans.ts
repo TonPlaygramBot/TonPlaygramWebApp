@@ -21,7 +21,6 @@ function disposeResources(root:T.Object3D) {
  * Skeletons are private; original PBR geometry/textures are shared per source. */
 export class SharedHumans {
   readonly group=new T.Group(); readonly errors:string[]=[];
-  private bike?:T.Group;private bikes=new Map<string,T.Group>();
   private sources=new Map<string,GLTF>(); private requested=new Set<string>();
   private failed=new Set<string>();
   private actors=new Map<string,Actor>(); private queue:SharedAsset[]=[];private loading=0;
@@ -32,14 +31,6 @@ export class SharedHumans {
   constructor(private cast:readonly SharedAsset[]=SHARED_GAME_CAST){
     this.group.name='Tirana:shared-games-human-NPCs';
     this.primeLocalHumans();
-    void this.loader.loadAsync('/assets/tirana-streets/living/motorbike.glb').then(g=>{
-      if(this.dead){disposeResources(g.scene);return;}
-      g.scene.rotation.y=-Math.PI/2;g.scene.updateMatrixWorld(true);
-      const b=new T.Box3().setFromObject(g.scene),size=b.getSize(new T.Vector3()),c=b.getCenter(new T.Vector3()),scale=2.1/Math.max(size.x,size.z);
-      if(!Number.isFinite(scale)||scale<=0){disposeResources(g.scene);throw Error('Invalid two-wheeler');}
-      g.scene.scale.setScalar(scale);g.scene.position.set(-c.x*scale,-b.min.y*scale,-c.z*scale);
-      this.bike=new T.Group();this.bike.add(g.scene);
-    }).catch(e=>{if(!this.dead)this.errors.push(`Existing two-wheeler: ${String(e)}`);});
   }
   private primeLocalHumans(){
     const priority=['tirana-citizen-0','tirana-citizen-1','rpm-current','chess-human','athlete-male','athlete-female','mixamo-soldier'];
@@ -153,7 +144,7 @@ export class SharedHumans {
   update(npcs:readonly NPC[],viewer:Point,time:number,dt:number,battery=false){
     if(this.dead)return;const selected=nearbyHumans(npcs,viewer,battery),available=typeof navigator!=='undefined'&&navigator.onLine===false?this.cast.filter(a=>a.url.startsWith('/')):this.cast,keep=new Set(selected.map(n=>n.id));
     for(const [id] of this.actors)if(!keep.has(id))this.remove(id);
-    for(const n of selected){let asset=n.kind==='civilian'||n.kind==='dealer'||n.kind==='gang' ? this.cast.find(a=>a.id===`tirana-citizen-${stableActorHash(n.id)%8}`)||chooseSharedHuman(n,available) : chooseSharedHuman(n,available);this.request(asset);const shown=this.actors.get(n.id);if(shown&&shown.role===actorRole(n.kind))asset=this.cast.find(a=>a.id===shown.asset)||asset;if(this.failed.has(asset.url)){const role=actorRole(n.kind);const fallback=this.cast.find(a=>a.url.startsWith('/')&&a.roles.includes(role)&&this.sources.has(a.url));if(fallback)asset=fallback;}const source=this.sources.get(asset.url);if(!source||n.motion==='cycle'&&!this.bike)continue;
+    for(const n of selected){let asset=n.kind==='civilian'||n.kind==='dealer'||n.kind==='gang' ? this.cast.find(a=>a.id===`tirana-citizen-${stableActorHash(n.id)%8}`)||chooseSharedHuman(n,available) : chooseSharedHuman(n,available);this.request(asset);const shown=this.actors.get(n.id);if(shown&&shown.role===actorRole(n.kind))asset=this.cast.find(a=>a.id===shown.asset)||asset;if(this.failed.has(asset.url)){const role=actorRole(n.kind);const fallback=this.cast.find(a=>a.url.startsWith('/')&&a.roles.includes(role)&&this.sources.has(a.url));if(fallback)asset=fallback;}const source=this.sources.get(asset.url);if(!source)continue;
       let a=this.actors.get(n.id);if(a&&(a.asset!==asset.id||a.role!==actorRole(n.kind))){this.remove(n.id);a=undefined;}
       a ||= this.create(n,asset,source);
       a.root.position.set(n.x,(n.y??groundHeight(n.x,n.z))+(n.motion==='cycle'?-.18:.06),n.z);if(n.health<=0)a.deathAt??=time;else a.deathAt=undefined;
@@ -162,13 +153,12 @@ export class SharedHumans {
       a.label.visible=n.health>0&&Math.hypot(n.x-viewer.x,n.z-viewer.z)<18;
       if(n.health>0)this.pose(a,n,time,dt);if(n.anim==='hit')a.root.rotation.z=Math.sin((time-(n.hitUntil||time)+.38)*18)*.13;
       this.held.pose(`shared-${n.id}`,a.root,n,time);
-      if(n.motion==='cycle'&&this.bike&&n.health>0){let bike=this.bikes.get(n.id);if(!bike){bike=this.bike.clone(true);this.bikes.set(n.id,bike);this.group.add(bike);}bike.position.set(n.x,groundHeight(n.x,n.z),n.z);bike.rotation.y=n.heading+Math.PI;}
-      else{this.bikes.get(n.id)?.removeFromParent();this.bikes.delete(n.id);}
+
     }
   }
   private remove(id:string){
     const a=this.actors.get(id);if(!a)return;
-    this.bikes.get(id)?.removeFromParent();this.bikes.delete(id);this.held.forget(`shared-${id}`);a.mixer.stopAllAction();a.mixer.uncacheRoot(a.model);
+    this.held.forget(`shared-${id}`);a.mixer.stopAllAction();a.mixer.uncacheRoot(a.model);
     const skeletons=new Set<T.Skeleton>();a.model.traverse(o=>{if(o instanceof T.SkinnedMesh)skeletons.add(o.skeleton);});skeletons.forEach(s=>s.dispose());
     const band=a.root.getObjectByName('role-armband');if(band)disposeResources(band);
     a.root.removeFromParent();this.actors.delete(id);
@@ -176,7 +166,7 @@ export class SharedHumans {
   dispose(){
     if(this.dead)return;this.dead=true;this.queue=[];for(const abort of this.aborts)abort.abort();this.aborts.clear();
     for(const id of [...this.actors.keys()])this.remove(id);
-    this.held.dispose();if(this.bike)disposeResources(this.bike);for(const g of this.sources.values())disposeResources(g.scene);this.sources.clear();
+    this.held.dispose();for(const g of this.sources.values())disposeResources(g.scene);this.sources.clear();
     for(const m of this.signs.values()){m.map?.dispose();m.dispose();}this.signs.clear();this.failed.clear();this.requested.clear();this.group.removeFromParent();
   }
 }

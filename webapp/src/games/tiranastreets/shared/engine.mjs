@@ -1,3 +1,4 @@
+import {initPoliceDispatch} from './policeDispatch.mjs';
 import {vehiclePolygonContact,slideVehicle} from './vehicleContacts.mjs';
 import {drivingScale} from './drivingScale.mjs';
 import {importedFleet,IMPORTED_PLACEMENT_ORIGIN} from '../../blackwater/shared/importedPlacements.mjs';
@@ -676,6 +677,7 @@ export function addPlayer(
     initialHeading,
     sport ? 'sedan-sports' : 'sedan'
   );
+  if(slot===0){c.collectionVehicle='golf-gti';c.npcDriver=false;}
   collide(c, 1.4);
   state.cars.push(c);
   const p = {
@@ -974,6 +976,7 @@ export function upgradeState(state) {
     state.worldVersion=WORLD.regionalSource?.sha256;
   }
   if (state.lifeVersion === 2) {
+    if(!state.policeVersion)initPoliceDispatch(state,lifeEnvironment);
     if(!state.populationVersion){initCityPopulation(state,lifeEnvironment);populateTraffic(state,SPAWN);}
     return state;
   }

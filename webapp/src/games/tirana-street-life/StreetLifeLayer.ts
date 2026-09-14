@@ -66,7 +66,7 @@ export class StreetLifeLayer {
    });});
   }
   this.material=new T.MeshStandardMaterial({color:0xffffff,roughness:.66,metalness:.15});
-  this.glassMaterial=new T.MeshStandardMaterial({color:0xffffff,roughness:.23,metalness:.48});
+  this.glassMaterial=new T.MeshStandardMaterial({color:0xffffff,roughness:.12,metalness:.18,transparent:true,opacity:.43,depthWrite:false});
   this.glassMaterial.userData.environmentLight='business';
   this.glassMaterial.userData.nightIntensity=.42;
   // 96 selected models x a tested maximum of 70 parts, with independent budgets.

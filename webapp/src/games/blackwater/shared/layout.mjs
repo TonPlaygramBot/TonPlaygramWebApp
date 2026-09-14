@@ -163,6 +163,8 @@ for (const [index, asset] of FORCE_VEHICLE_BOUNDS.entries()) {
 }
 const baseObstacles=[...cityObstacles,...fleet,...smallProps];
 const collectionProps=COLLECTION_PLACEMENTS.map(p=>({collectionVehicle:p.collectionVehicle,x:p.x-ORIGIN.x,z:p.z-ORIGIN.z,w:p.w,d:p.d,h:p.h,sx:0,sz:0,rot:p.heading+Math.PI}));
+// The uploaded GTI is parked nine metres from the operation entrance.
+collectionProps.push({collectionVehicle:'golf-gti',x:-55-ORIGIN.x,z:-101-ORIGIN.z,w:2.103,d:4.29,h:1.488,sx:0,sz:0,rot:Math.PI});
 // Ground firearms belong to the pickup systems. Decorative duplicates could
 // not be collected and also streamed the large original firearm textures.
 export const props = [...fleet,...smallProps,...importedFleet.filter(p=>!p.racingAsset&&!WEAPON_BY_ID.has(p.assetId)),...collectionProps];
