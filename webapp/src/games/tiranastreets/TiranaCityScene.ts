@@ -10,6 +10,7 @@ import { FUEL_CANOPY_IDS } from '../tirana-street-life/fuelCollision.mjs';
 import { UrbanDetailLayer } from '../tirana-detail-kit/UrbanDetailLayer';
 import type { StreetDetailOptions } from '../tirana-street-detail/StreetDetailLayer';
 import { WorldEnhancements } from '../tirana-expansion/WorldEnhancements';
+import {ROCK_REPLACEMENT_IDS} from '../tirana-landmarks/skanderbegBuilding.mjs';
 
 /** Static Tirana, in WORLD metres. Both games instantiate this exact assembly.
  * Game actors, race markers, cameras and collision rules belong to the host. */
@@ -22,7 +23,7 @@ export class TiranaCityScene {
   constructor(loadAssets = true, track?: StreetDetailOptions['track']) {
     this.enhancements = new WorldEnhancements({ profile: 'fps', track });
     this.city = new FpsCity(loadAssets, track ? ribbonExclusion(track) : undefined);
-    const excluded = new Set([...nativeReplacementIds(WORLD), ...Object.keys(BUILDING_PROFILES), ...INSTITUTION_BUILDING_IDS, ...FUEL_CANOPY_IDS]);
+    const excluded = new Set([...nativeReplacementIds(WORLD), ...Object.keys(BUILDING_PROFILES), ...INSTITUTION_BUILDING_IDS, ...FUEL_CANOPY_IDS, ...ROCK_REPLACEMENT_IDS]);
     this.details = new UrbanDetailLayer(WORLD, excluded, { roofsOnly: true });
     this.group.name = 'Shared Tirana Streets city';
     this.group.userData = this.city.group.userData;
@@ -33,7 +34,7 @@ export class TiranaCityScene {
     if (this.disposed) return;
     battery = camera?.userData.battery ?? battery;
     beginCityFrame(camera?.userData.targetFps ?? 60);
-    this.city.update(viewer, seconds, battery);
+    this.city.update(viewer, seconds, battery, camera);
     this.enhancements.update(seconds, camera, viewer, battery);
     this.details.update(viewer, battery);
   }

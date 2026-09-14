@@ -63,10 +63,10 @@ test('police bikes and armored vans transfer ownership only once and cannot be s
  }
  p.carId=null;const c={...car('burning',p.x+3,p.z),burning:true};s.state.cars.push(c);assert.equal(takeVehicle(s.state,p,c),false);
 });
-test('vehicle burning emits numeric ordered events and one explosion per wreck',()=>{
+test('a direct explosive hit emits numeric ordered events and one explosion per wreck',()=>{
  const s=sim(),c=car('target',s.player.x+40,s.player.z);s.state.cars.push(c);
  c.driver=s.player.id;s.player.carId=c.id;s.player.armor=100;
- s.combat.damageVehicle(c,100);assert.equal(c.burning,true);s.combat.damageVehicle(c,100);s.combat.damageVehicle(c,100);
+ s.combat.damageVehicle(c,100,s.player,'explosive');assert.equal(c.burning,true);s.combat.damageVehicle(c,100,s.player,'explosive');s.combat.damageVehicle(c,100,s.player,'explosive');
  assert.equal(c.destroyed,true);assert.equal(s.player.carId,null);assert.notEqual(s.body.interaction,'driving');assert.equal(s.state.effects.filter(e=>e.kind==='vehicle-explosion').length,1);
  assert.ok(s.state.effects.every(e=>Number.isInteger(e.id)));assert.equal(new Set(s.state.effects.map(e=>e.id)).size,s.state.effects.length);
 });

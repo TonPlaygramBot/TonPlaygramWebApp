@@ -19,8 +19,10 @@ async function fleetFixture() {
   const catalog = await import('../webapp/src/games/tiranastreets/shared/vehicleCollection.mjs');
   class Draco {setDecoderPath(){return this;}setWorkerLimit(){return this;}dispose(){}}
   class Loader {setDRACOLoader(){return this;}}
+  const wheels = load('webapp/src/games/tiranastreets/rollingWheels.ts',{three:T,'./shared/rollingWheelRigs.mjs':await import('../webapp/src/games/tiranastreets/shared/rollingWheelRigs.mjs')});
   const {CollectionVehicleVisuals} = load('webapp/src/games/tiranastreets/CollectionVehicleVisuals.ts',{
     three:T,
+    './rollingWheels':wheels,
     'three/examples/jsm/loaders/GLTFLoader.js':{GLTFLoader:Loader},
     'three/examples/jsm/loaders/DRACOLoader.js':{DRACOLoader:Draco},
     'three/examples/jsm/utils/SkeletonUtils.js':{clone:o=>o.clone(true)},
@@ -74,7 +76,10 @@ test('Tirana contains no Racing Royal karts or invisible kart collision props',a
   assert.equal(state.cars.some(c=>c.racingAsset||c.id.startsWith('royal-')),false);
   assert.equal(props.some(c=>c.racingAsset),false);
   assert.equal(OBSTACLES.some(c=>c.racingAsset),false);
-  assert.equal(state.cars.filter(c=>c.collectionVehicle).length,10);
+  const {VEHICLE_COLLECTION}=await import('../webapp/src/games/tiranastreets/shared/vehicleCollection.mjs');
+  const ids=state.cars.filter(c=>c.collectionVehicle).map(c=>c.collectionVehicle);
+  assert.deepEqual(new Set(ids),new Set(VEHICLE_COLLECTION.map(c=>c.id)));
+  assert.ok(ids.includes('golf-gti'),'the starter GTI remains alongside the parked originals');
 });
 function runtimeFixture(hidden=false){
   const document={hidden};

@@ -104,10 +104,11 @@ function humanFixture(){
  const soldier={id:'mixamo-soldier',url:'/assets/tirana-streets/living/human.glb',roles:['soldier']};
  const {SharedHumans}=load('webapp/src/games/tiranastreets/street-career/SharedHumans.ts',{
    three:{Quaternion:class{},Euler:class{}},
-   './humanRoster.mjs':{nearbyHumans:n=>n,actorRole:kind=>kind},
+   '../../tirana-east/terrainCore.mjs':{groundHeight:()=>0},
+   './humanRoster.mjs':{nearbyHumans:n=>n,actorRole:kind=>kind,stableActorHash:()=>0},
    './sharedCastCore.mjs':{chooseSharedHuman:()=>remote}
  });
- const humans=Object.create(SharedHumans.prototype);humans.dead=false;humans.cast=[remote,chess,male,female,soldier];humans.sources=new Map();humans.actors=new Map();humans.bikes=new Map();humans.held={pose(){}};
+ const humans=Object.create(SharedHumans.prototype);humans.dead=false;humans.cast=[remote,chess,male,female,soldier];humans.sources=new Map();humans.failed=new Set([remote.url]);humans.actors=new Map();humans.bikes=new Map();humans.held={pose(){}};
  const requested=[];humans.request=a=>requested.push(a);humans.pose=()=>{};humans.create=(n,asset)=>{const a={asset:asset.id,role:n.kind,root:{position:{set(){}},rotation:{set(){}}},label:{}};humans.actors.set(n.id,a);return a;};
  return {humans,requested,chess,male,female,soldier};
 }

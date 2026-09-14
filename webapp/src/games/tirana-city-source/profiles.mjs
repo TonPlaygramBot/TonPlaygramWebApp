@@ -5,6 +5,11 @@ import {NEIGHBOURHOOD_REFERENCE_PROFILES} from './neighbourhoodProfiles.mjs';
 export const REFERENCE_BUILDINGS = Object.freeze({
   ...LANDMARK_PROFILES,
   ...NEIGHBOURHOOD_REFERENCE_PROFILES,
+  '885643062': {name:'InterContinental Hotel Tower',style:'intercontinental',site:'intercontinental',color:0x3c4143,trim:0xb58e45,
+    floor:135/33,window:1.7,photo:null,date:'Primary engineer and contractor references checked 2026-09-14',
+    source:'https://ales.al/construction/projects/new-hotel-tirana-international/',
+    credit:'Ales Construction / Bolles+Wilson; design reference only, source images not redistributed',
+    features:'135 m engineer-published height, 33 storeys; gold and black cuboid volumes. Facade bay spacing and colour distribution are authored interpretations on the existing footprint.'},
   '1255594721': {name:'Downtown One Tirana',style:'downtown-one',color:0xc3c9c6,trim:0xe4e5de,
     floor:140/37,window:1.65,photo:null,date:'MVRDV project reference, checked 2026-09-13',
     source:'https://www.mvrdv.com/projects/388/downtown-one-tirana',

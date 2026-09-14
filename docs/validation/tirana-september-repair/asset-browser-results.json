@@ -1,0 +1,1918 @@
+{
+  "scope": "Actual production visual layers and original local assets, on-demand software WebGL. This is not a physical-phone frame-rate benchmark.",
+  "viewport": {
+    "width": 390,
+    "height": 844
+  },
+  "models": [
+    {
+      "id": "renea_officer",
+      "initial": {
+        "kind": "force",
+        "sourceURL": "/assets/tirana-streets/albanian-forces/glb/renea_officer.glb?v=original-v2",
+        "ready": true,
+        "weaponReady": true,
+        "triangles": 140600,
+        "meshes": 8,
+        "skinned": 7,
+        "bones": 163,
+        "textures": 8,
+        "finite": true,
+        "size": [
+          1.1936461261357338,
+          1.9438209342579025,
+          0.9285673825270053
+        ],
+        "boundsMin": [
+          -0.596823063067867,
+          0.06000000181475441,
+          -0.6604240343517236
+        ],
+        "drawCalls": 11,
+        "renderer": "WebKit WebGL"
+      },
+      "poses": [
+        {
+          "action": "walk",
+          "ready": true,
+          "weaponReady": true,
+          "finite": true,
+          "warnings": [],
+          "errors": {},
+          "size": [
+            0.5518968195445868,
+            1.9563792956603765,
+            1.0823328018079887
+          ]
+        },
+        {
+          "action": "run",
+          "ready": true,
+          "weaponReady": true,
+          "finite": true,
+          "warnings": [],
+          "errors": {},
+          "size": [
+            0.5518967416907983,
+            1.9575240781647174,
+            1.0289682653922143
+          ]
+        },
+        {
+          "action": "aim",
+          "ready": true,
+          "weaponReady": true,
+          "finite": true,
+          "warnings": [],
+          "errors": {},
+          "size": [
+            0.6064914296447157,
+            1.9563967383268757,
+            1.0032500792986159
+          ]
+        }
+      ],
+      "sourceSha256": "7dd1c5117608ae3a9fa7a85483536a0d72ac3d8df9bf39976c9e21c6bd00aaba",
+      "sourceBytes": 6356064
+    },
+    {
+      "id": "fnsh_officer",
+      "initial": {
+        "kind": "force",
+        "sourceURL": "/assets/tirana-streets/albanian-forces/glb/fnsh_officer.glb?v=original-v2",
+        "ready": true,
+        "weaponReady": true,
+        "triangles": 140688,
+        "meshes": 8,
+        "skinned": 7,
+        "bones": 163,
+        "textures": 9,
+        "finite": true,
+        "size": [
+          1.1936461261357338,
+          1.880496316512341,
+          0.9265892853360723
+        ],
+        "boundsMin": [
+          -0.596823063067867,
+          0.06000000181475441,
+          -0.6604240343517236
+        ],
+        "drawCalls": 11,
+        "renderer": "WebKit WebGL"
+      },
+      "poses": [
+        {
+          "action": "walk",
+          "ready": true,
+          "weaponReady": true,
+          "finite": true,
+          "warnings": [],
+          "errors": {},
+          "size": [
+            0.5518968195445868,
+            1.8930546877803827,
+            1.084310897562284
+          ]
+        },
+        {
+          "action": "run",
+          "ready": true,
+          "weaponReady": true,
+          "finite": true,
+          "warnings": [],
+          "errors": {},
+          "size": [
+            0.5518967416907983,
+            1.8941994702847236,
+            1.0309463611263596
+          ]
+        },
+        {
+          "action": "aim",
+          "ready": true,
+          "weaponReady": true,
+          "finite": true,
+          "warnings": [],
+          "errors": {},
+          "size": [
+            0.6058607812516333,
+            1.8930721304468818,
+            1.0052281750529104
+          ]
+        }
+      ],
+      "sourceSha256": "b6ebaf814d3fd9eb14d5d12e6798e00e2076f610c760e9f2fb42141d344510da",
+      "sourceBytes": 6554412
+    },
+    {
+      "id": "shqiponja_officer",
+      "initial": {
+        "kind": "force",
+        "sourceURL": "/assets/tirana-streets/albanian-forces/glb/shqiponja_officer.glb?v=original-v2",
+        "ready": true,
+        "weaponReady": true,
+        "triangles": 143312,
+        "meshes": 10,
+        "skinned": 9,
+        "bones": 163,
+        "textures": 9,
+        "finite": true,
+        "size": [
+          1.1936461261357338,
+          1.880496316512341,
+          0.9265892853360723
+        ],
+        "boundsMin": [
+          -0.596823063067867,
+          0.06000000181475441,
+          -0.6604240343517236
+        ],
+        "drawCalls": 13,
+        "renderer": "WebKit WebGL"
+      },
+      "poses": [
+        {
+          "action": "walk",
+          "ready": true,
+          "weaponReady": true,
+          "finite": true,
+          "warnings": [],
+          "errors": {},
+          "size": [
+            0.5518968195445868,
+            1.8930546877803827,
+            1.084310897562284
+          ]
+        },
+        {
+          "action": "run",
+          "ready": true,
+          "weaponReady": true,
+          "finite": true,
+          "warnings": [],
+          "errors": {},
+          "size": [
+            0.5518967416907983,
+            1.8941994702847236,
+            1.0309463611263596
+          ]
+        },
+        {
+          "action": "aim",
+          "ready": true,
+          "weaponReady": true,
+          "finite": true,
+          "warnings": [],
+          "errors": {},
+          "size": [
+            0.6058607812516333,
+            1.8930721304468818,
+            1.0052281750529104
+          ]
+        }
+      ],
+      "sourceSha256": "f2b39d68dfc0dc725153ee62ca10077ffaf5ef40c9a79f72bdc12c6a437b9878",
+      "sourceBytes": 6739612
+    },
+    {
+      "id": "tirana-citizen-0",
+      "initial": {
+        "kind": "human",
+        "sourceURL": "/assets/tirana-streets/population/citizen-0.glb",
+        "ready": true,
+        "weaponReady": true,
+        "triangles": 13083,
+        "meshes": 8,
+        "skinned": 8,
+        "bones": 67,
+        "textures": 5,
+        "finite": true,
+        "size": [
+          0.9652,
+          2.2038644132228455,
+          0.4356107045384371
+        ],
+        "boundsMin": [
+          -0.4826,
+          0.11983958677715414,
+          -0.17888426016874384
+        ],
+        "drawCalls": 11,
+        "renderer": "WebKit WebGL"
+      },
+      "poses": [
+        {
+          "action": "walk",
+          "ready": true,
+          "weaponReady": true,
+          "finite": true,
+          "warnings": [],
+          "errors": [],
+          "size": [
+            0.9652,
+            2.21394811186182,
+            0.5055055506522698
+          ]
+        },
+        {
+          "action": "run",
+          "ready": true,
+          "weaponReady": true,
+          "finite": true,
+          "warnings": [],
+          "errors": [],
+          "size": [
+            0.9960066354901249,
+            2.1782758554231965,
+            1.0566180009939412
+          ]
+        },
+        {
+          "action": "aim",
+          "ready": true,
+          "weaponReady": true,
+          "finite": true,
+          "warnings": [],
+          "errors": [],
+          "size": [
+            0.9652,
+            2.2038644132228455,
+            0.7725377137114355
+          ]
+        },
+        {
+          "action": "fight",
+          "ready": true,
+          "weaponReady": true,
+          "finite": true,
+          "warnings": [],
+          "errors": [],
+          "size": [
+            0.9652,
+            2.2038644132228455,
+            0.7503613101711757
+          ]
+        }
+      ],
+      "sourceSha256": "08a52a9a92bcd85b5dbcd175946e1d8bca9ea68961b9b379842a82daea3597f6",
+      "sourceBytes": 744420
+    },
+    {
+      "id": "tirana-citizen-1",
+      "initial": {
+        "kind": "human",
+        "sourceURL": "/assets/tirana-streets/population/citizen-1.glb",
+        "ready": true,
+        "weaponReady": true,
+        "triangles": 13319,
+        "meshes": 9,
+        "skinned": 9,
+        "bones": 67,
+        "textures": 5,
+        "finite": true,
+        "size": [
+          0.9652,
+          2.2038644132228336,
+          0.4356107045335815
+        ],
+        "boundsMin": [
+          -0.4826,
+          0.11983958677716618,
+          -0.17888426015572637
+        ],
+        "drawCalls": 12,
+        "renderer": "WebKit WebGL"
+      },
+      "poses": [
+        {
+          "action": "walk",
+          "ready": true,
+          "weaponReady": true,
+          "finite": true,
+          "warnings": [],
+          "errors": [],
+          "size": [
+            0.9652,
+            2.213948111861543,
+            0.5055055506262084
+          ]
+        },
+        {
+          "action": "run",
+          "ready": true,
+          "weaponReady": true,
+          "finite": true,
+          "warnings": [],
+          "errors": [],
+          "size": [
+            0.9960066355752057,
+            2.1782758554236867,
+            1.0566180009879669
+          ]
+        },
+        {
+          "action": "aim",
+          "ready": true,
+          "weaponReady": true,
+          "finite": true,
+          "warnings": [],
+          "errors": [],
+          "size": [
+            0.9652,
+            2.2038644132228336,
+            0.7725377136761606
+          ]
+        },
+        {
+          "action": "fight",
+          "ready": true,
+          "weaponReady": true,
+          "finite": true,
+          "warnings": [],
+          "errors": [],
+          "size": [
+            0.9652,
+            2.2038644132228336,
+            0.7503613101656788
+          ]
+        }
+      ],
+      "sourceSha256": "f2805ad70344f0625ac5dbb5f67a24fa514c7d7fb027fd4168b295363e7ceed9",
+      "sourceBytes": 754628
+    },
+    {
+      "id": "athlete-female",
+      "initial": {
+        "kind": "human",
+        "sourceURL": "/assets/table-tennis/athlete-female.glb",
+        "ready": true,
+        "weaponReady": true,
+        "triangles": 18344,
+        "meshes": 4,
+        "skinned": 4,
+        "bones": 130,
+        "textures": 3,
+        "finite": true,
+        "size": [
+          0.95,
+          2.1689999212479814,
+          0.40096337392392895
+        ],
+        "boundsMin": [
+          -0.475,
+          0.12000007875201826,
+          -0.14897026986001072
+        ],
+        "drawCalls": 7,
+        "renderer": "WebKit WebGL"
+      },
+      "poses": [
+        {
+          "action": "walk",
+          "ready": true,
+          "weaponReady": true,
+          "finite": true,
+          "warnings": [],
+          "errors": [],
+          "size": [
+            0.95,
+            2.1744068652208624,
+            0.41860614051177314
+          ]
+        },
+        {
+          "action": "run",
+          "ready": true,
+          "weaponReady": true,
+          "finite": true,
+          "warnings": [],
+          "errors": [],
+          "size": [
+            0.9584681104842934,
+            2.140712654817238,
+            0.9634770338605692
+          ]
+        },
+        {
+          "action": "aim",
+          "ready": true,
+          "weaponReady": true,
+          "finite": true,
+          "warnings": [],
+          "errors": [],
+          "size": [
+            0.95,
+            2.1689999212479814,
+            0.7313291073716024
+          ]
+        },
+        {
+          "action": "fight",
+          "ready": true,
+          "weaponReady": true,
+          "finite": true,
+          "warnings": [],
+          "errors": [],
+          "size": [
+            0.95,
+            2.1689999212479814,
+            0.7135283793066738
+          ]
+        }
+      ],
+      "sourceSha256": "043b37546801f6d5b32438c1dc29adf3819bef99c3b18073c28ed72486ccde9a",
+      "sourceBytes": 619580
+    },
+    {
+      "id": "mixamo-soldier",
+      "initial": {
+        "kind": "human",
+        "sourceURL": "/assets/tirana-streets/living/human.glb",
+        "ready": true,
+        "weaponReady": true,
+        "triangles": 11376,
+        "meshes": 2,
+        "skinned": 2,
+        "bones": 49,
+        "textures": 2,
+        "finite": true,
+        "size": [
+          1.7751232023772978,
+          2.168999993760283,
+          0.4263713987785177
+        ],
+        "boundsMin": [
+          -0.887561601188649,
+          0.12000000623971664,
+          -0.2131857063312599
+        ],
+        "drawCalls": 5,
+        "renderer": "WebKit WebGL"
+      },
+      "poses": [
+        {
+          "action": "walk",
+          "ready": true,
+          "weaponReady": true,
+          "finite": true,
+          "warnings": [],
+          "errors": [],
+          "size": [
+            0.95,
+            2.1730102899749175,
+            1.0850730702637053
+          ]
+        },
+        {
+          "action": "run",
+          "ready": true,
+          "weaponReady": true,
+          "finite": true,
+          "warnings": [],
+          "errors": [],
+          "size": [
+            0.95,
+            2.171216877231871,
+            0.6617041343149168
+          ]
+        },
+        {
+          "action": "aim",
+          "ready": true,
+          "weaponReady": true,
+          "finite": true,
+          "warnings": [],
+          "errors": [],
+          "size": [
+            0.95,
+            2.1689999937602833,
+            0.7955446020359007
+          ]
+        },
+        {
+          "action": "fight",
+          "ready": true,
+          "weaponReady": true,
+          "finite": true,
+          "warnings": [],
+          "errors": [],
+          "size": [
+            0.95,
+            2.16971972387355,
+            0.953640933360794
+          ]
+        }
+      ],
+      "sourceSha256": "be253a17d58178a39ac3171e9ae2813d03575fb59b863bd2c9debb00527e6d2a",
+      "sourceBytes": 1815408
+    },
+    {
+      "id": "city-bicycle",
+      "initial": {
+        "kind": "bike",
+        "sourceURL": "/assets/tirana-streets/city-mobility/city-bicycle.glb",
+        "ready": true,
+        "weaponReady": true,
+        "triangles": 7688,
+        "meshes": 13,
+        "skinned": 0,
+        "bones": 0,
+        "textures": 0,
+        "finite": true,
+        "size": [
+          0.7489802273647691,
+          1.1000001333964078,
+          1.7800000309944153
+        ],
+        "boundsMin": [
+          -0.3744901021154062,
+          0.03499995089320407,
+          -0.8900000154972076
+        ],
+        "drawCalls": 15,
+        "renderer": "WebKit WebGL"
+      },
+      "poses": [
+        {
+          "action": "idle",
+          "ready": true,
+          "weaponReady": true,
+          "finite": true,
+          "warnings": [],
+          "errors": {},
+          "size": [
+            0.7489802273647691,
+            1.0995963173619445,
+            1.7791923655271773
+          ]
+        },
+        {
+          "action": "idle",
+          "ready": true,
+          "weaponReady": true,
+          "finite": true,
+          "warnings": [],
+          "errors": {},
+          "size": [
+            0.7489802273647691,
+            1.1000001333964078,
+            1.7800000309944153
+          ]
+        }
+      ],
+      "wheelChecks": [
+        {
+          "name": "Rolling-wheel-0",
+          "forwardAngle": 0.3636362958873824,
+          "reverseResidual": -2.0816681711721685e-17,
+          "contactForwardDot": -0.33000006148221184
+        },
+        {
+          "name": "Rolling-wheel-1",
+          "forwardAngle": 0.3636362958873824,
+          "reverseResidual": -2.0816681711721685e-17,
+          "contactForwardDot": -0.33000006148221184
+        }
+      ],
+      "sourceSha256": "31342ce356fc4453ee70591d8389865d512c8fecf0c1fde9e25f79c901d04b83",
+      "sourceBytes": 239476
+    },
+    {
+      "id": "mountain-bike",
+      "initial": {
+        "kind": "bike",
+        "sourceURL": "/assets/tirana-streets/city-mobility/mountain-bike.glb",
+        "ready": true,
+        "weaponReady": true,
+        "triangles": 13204,
+        "meshes": 13,
+        "skinned": 0,
+        "bones": 0,
+        "textures": 0,
+        "finite": true,
+        "size": [
+          0.7489802273647691,
+          1.1140001630567302,
+          1.8160000347974474
+        ],
+        "boundsMin": [
+          -0.3744901021154062,
+          0.03000007297088736,
+          -0.9080000546315783
+        ],
+        "drawCalls": 15,
+        "renderer": "WebKit WebGL"
+      },
+      "poses": [
+        {
+          "action": "idle",
+          "ready": true,
+          "weaponReady": true,
+          "finite": true,
+          "warnings": [],
+          "errors": {},
+          "size": [
+            0.7489802273647691,
+            1.1140001630567302,
+            1.8160000347974476
+          ]
+        },
+        {
+          "action": "idle",
+          "ready": true,
+          "weaponReady": true,
+          "finite": true,
+          "warnings": [],
+          "errors": {},
+          "size": [
+            0.7489802273647691,
+            1.1140001630567302,
+            1.8160000347974474
+          ]
+        }
+      ],
+      "wheelChecks": [
+        {
+          "name": "Rolling-wheel-0",
+          "forwardAngle": 0.3636362958873824,
+          "reverseResidual": -2.0816681711721685e-17,
+          "contactForwardDot": -0.33000006148221184
+        },
+        {
+          "name": "Rolling-wheel-1",
+          "forwardAngle": 0.3636362958873824,
+          "reverseResidual": -2.0816681711721685e-17,
+          "contactForwardDot": -0.33000006148221184
+        }
+      ],
+      "sourceSha256": "39765366459a5270eb82c74feb84e05a4d24cc2659d19623029fb77e7f07b6ce",
+      "sourceBytes": 383048
+    },
+    {
+      "id": "delivery-ebike",
+      "initial": {
+        "kind": "bike",
+        "sourceURL": "/assets/tirana-streets/city-mobility/delivery-ebike.glb",
+        "ready": true,
+        "weaponReady": true,
+        "triangles": 7624,
+        "meshes": 13,
+        "skinned": 0,
+        "bones": 0,
+        "textures": 0,
+        "finite": true,
+        "size": [
+          0.7489802273647691,
+          1.165000057773963,
+          1.7800000309944153
+        ],
+        "boundsMin": [
+          -0.3744901021154062,
+          0.03499995089320407,
+          -0.8900000154972076
+        ],
+        "drawCalls": 15,
+        "renderer": "WebKit WebGL"
+      },
+      "poses": [
+        {
+          "action": "idle",
+          "ready": true,
+          "weaponReady": true,
+          "finite": true,
+          "warnings": [],
+          "errors": {},
+          "size": [
+            0.7489802273647691,
+            1.1645962417394995,
+            1.7791923655271773
+          ]
+        },
+        {
+          "action": "idle",
+          "ready": true,
+          "weaponReady": true,
+          "finite": true,
+          "warnings": [],
+          "errors": {},
+          "size": [
+            0.7489802273647691,
+            1.165000057773963,
+            1.7800000309944153
+          ]
+        }
+      ],
+      "wheelChecks": [
+        {
+          "name": "Rolling-wheel-0",
+          "forwardAngle": 0.3636362958873824,
+          "reverseResidual": -2.0816681711721685e-17,
+          "contactForwardDot": -0.33000006148221184
+        },
+        {
+          "name": "Rolling-wheel-1",
+          "forwardAngle": 0.3636362958873824,
+          "reverseResidual": -2.0816681711721685e-17,
+          "contactForwardDot": -0.33000006148221184
+        }
+      ],
+      "sourceSha256": "84f86e135fac29107a249fda99c4e9ae66c3256005a5a2affa1e9209a093adb9",
+      "sourceBytes": 231088
+    },
+    {
+      "id": "city-scooter",
+      "initial": {
+        "kind": "bike",
+        "sourceURL": "/assets/tirana-streets/city-mobility/city-scooter.glb",
+        "ready": true,
+        "weaponReady": true,
+        "triangles": 9044,
+        "meshes": 13,
+        "skinned": 0,
+        "bones": 0,
+        "textures": 0,
+        "finite": true,
+        "size": [
+          0.9440000355243683,
+          1.3319998677784834,
+          1.9600000381469727
+        ],
+        "boundsMin": [
+          -0.4720000103116035,
+          0.030000008733325312,
+          -0.9800000190734863
+        ],
+        "drawCalls": 15,
+        "renderer": "WebKit WebGL"
+      },
+      "poses": [
+        {
+          "action": "idle",
+          "ready": true,
+          "weaponReady": true,
+          "finite": true,
+          "warnings": [],
+          "errors": {},
+          "size": [
+            0.9440000355243683,
+            1.331407793128972,
+            1.9588159120851119
+          ]
+        },
+        {
+          "action": "idle",
+          "ready": true,
+          "weaponReady": true,
+          "finite": true,
+          "warnings": [],
+          "errors": {},
+          "size": [
+            0.9440000355243683,
+            1.3319998677784834,
+            1.9600000381469727
+          ]
+        }
+      ],
+      "wheelChecks": [
+        {
+          "name": "Rolling-wheel-0",
+          "forwardAngle": 0.3749999477629747,
+          "reverseResidual": -4.85722573273506e-17,
+          "contactForwardDot": -0.32000004457560105
+        },
+        {
+          "name": "Rolling-wheel-1",
+          "forwardAngle": 0.3749999477629747,
+          "reverseResidual": -4.85722573273506e-17,
+          "contactForwardDot": -0.32000004457560105
+        }
+      ],
+      "sourceSha256": "f76d2b84a506898fb6caa1160d99abd8a16ce760ba88d0152391aff1c4ea8fba",
+      "sourceBytes": 257832
+    },
+    {
+      "id": "street-motorcycle",
+      "initial": {
+        "kind": "bike",
+        "sourceURL": "/assets/tirana-streets/city-mobility/street-motorcycle.glb",
+        "ready": true,
+        "weaponReady": true,
+        "triangles": 8288,
+        "meshes": 13,
+        "skinned": 0,
+        "bones": 0,
+        "textures": 0,
+        "finite": true,
+        "size": [
+          0.9440000355243683,
+          1.3319998677784834,
+          1.9600000381469727
+        ],
+        "boundsMin": [
+          -0.4720000103116035,
+          0.030000008733325312,
+          -0.9800000190734863
+        ],
+        "drawCalls": 15,
+        "renderer": "WebKit WebGL"
+      },
+      "poses": [
+        {
+          "action": "idle",
+          "ready": true,
+          "weaponReady": true,
+          "finite": true,
+          "warnings": [],
+          "errors": {},
+          "size": [
+            0.9440000355243683,
+            1.331407793128972,
+            1.9588159120851119
+          ]
+        },
+        {
+          "action": "idle",
+          "ready": true,
+          "weaponReady": true,
+          "finite": true,
+          "warnings": [],
+          "errors": {},
+          "size": [
+            0.9440000355243683,
+            1.3319998677784834,
+            1.9600000381469727
+          ]
+        }
+      ],
+      "wheelChecks": [
+        {
+          "name": "Rolling-wheel-0",
+          "forwardAngle": 0.3749999477629747,
+          "reverseResidual": -4.85722573273506e-17,
+          "contactForwardDot": -0.32000004457560105
+        },
+        {
+          "name": "Rolling-wheel-1",
+          "forwardAngle": 0.3749999477629747,
+          "reverseResidual": -4.85722573273506e-17,
+          "contactForwardDot": -0.32000004457560105
+        }
+      ],
+      "sourceSha256": "4fb626649621110a03bb94389e8115e462da0e31ef3098a2db160c90f45a819b",
+      "sourceBytes": 239020
+    },
+    {
+      "id": "articulated-bus",
+      "initial": {
+        "kind": "bus",
+        "sourceURL": "/assets/tirana-streets/population/tirana-articulated-bus.glb",
+        "ready": true,
+        "weaponReady": true,
+        "triangles": 16852,
+        "meshes": 89,
+        "skinned": 0,
+        "bones": 0,
+        "textures": 0,
+        "finite": true,
+        "size": [
+          3.2300000190734863,
+          3.47000005633884,
+          18.21000023558736
+        ],
+        "boundsMin": [
+          -1.6150000095367432,
+          0.039999903130001346,
+          -9.105000421404839
+        ],
+        "drawCalls": 99,
+        "renderer": "WebKit WebGL"
+      },
+      "poses": [
+        {
+          "action": "idle",
+          "ready": true,
+          "weaponReady": true,
+          "finite": true,
+          "warnings": [],
+          "errors": [],
+          "size": [
+            3.2300000190734863,
+            3.4698209203119275,
+            18.21000023558736
+          ]
+        },
+        {
+          "action": "idle",
+          "ready": true,
+          "weaponReady": true,
+          "finite": true,
+          "warnings": [],
+          "errors": [],
+          "size": [
+            3.2300000190734863,
+            3.47000005633884,
+            18.21000023558736
+          ]
+        }
+      ],
+      "wheelChecks": [
+        {
+          "name": "Rolling-Wheel002",
+          "forwardAngle": 0.23529411764705876,
+          "reverseResidual": 1.3877787807814457e-17,
+          "contactForwardDot": -0.51
+        },
+        {
+          "name": "Rolling-Wheel005",
+          "forwardAngle": 0.23529411764705876,
+          "reverseResidual": 1.3877787807814457e-17,
+          "contactForwardDot": -0.51
+        },
+        {
+          "name": "Rolling-Wheel",
+          "forwardAngle": 0.23529411764705876,
+          "reverseResidual": 1.3877787807814457e-17,
+          "contactForwardDot": -0.51
+        },
+        {
+          "name": "Rolling-Wheel001",
+          "forwardAngle": 0.23529411764705876,
+          "reverseResidual": 1.3877787807814457e-17,
+          "contactForwardDot": -0.51
+        },
+        {
+          "name": "Rolling-Wheel003",
+          "forwardAngle": 0.23529411764705876,
+          "reverseResidual": 1.3877787807814457e-17,
+          "contactForwardDot": -0.51
+        },
+        {
+          "name": "Rolling-Wheel004",
+          "forwardAngle": 0.23529411764705876,
+          "reverseResidual": 1.3877787807814457e-17,
+          "contactForwardDot": -0.51
+        }
+      ],
+      "sourceSha256": "2a1eaee6d58ae08befa4206d12911ea18828c37b0ff16073eaaa55c4e14a115c",
+      "sourceBytes": 1024732
+    },
+    {
+      "id": "benz",
+      "initial": {
+        "kind": "collection",
+        "sourceURL": "/assets/tirana-streets/vehicle-collection/benz.glb",
+        "ready": true,
+        "weaponReady": true,
+        "triangles": 276999,
+        "meshes": 64,
+        "skinned": 10,
+        "bones": 67,
+        "textures": 37,
+        "finite": true,
+        "size": [
+          2.1137242317199707,
+          1.5063536167144775,
+          5.2200000286102295
+        ],
+        "boundsMin": [
+          -1.0568706989288328,
+          0.03,
+          -2.6100001335144043
+        ],
+        "drawCalls": 81,
+        "renderer": "WebKit WebGL"
+      },
+      "poses": [
+        {
+          "action": "idle",
+          "ready": true,
+          "weaponReady": true,
+          "finite": true,
+          "warnings": [],
+          "errors": {},
+          "size": [
+            2.1137242317199707,
+            1.5069140215511898,
+            5.2200000286102295
+          ]
+        },
+        {
+          "action": "idle",
+          "ready": true,
+          "weaponReady": true,
+          "finite": true,
+          "warnings": [],
+          "errors": {},
+          "size": [
+            2.1137242317199707,
+            1.5063536167144775,
+            5.2200000286102295
+          ]
+        }
+      ],
+      "wheelChecks": [
+        {
+          "name": "Rolling-wheel-0",
+          "forwardAngle": 0.34291516890486395,
+          "reverseResidual": -2.0816681711721685e-17,
+          "contactForwardDot": -0.3499381493481006
+        },
+        {
+          "name": "Rolling-wheel-1",
+          "forwardAngle": 0.34645305155878436,
+          "reverseResidual": -3.469446951953614e-17,
+          "contactForwardDot": -0.34636726071419344
+        },
+        {
+          "name": "Rolling-wheel-2",
+          "forwardAngle": 0.34271364471132704,
+          "reverseResidual": 6.9388939039072276e-18,
+          "contactForwardDot": -0.35014380842058324
+        },
+        {
+          "name": "Rolling-wheel-3",
+          "forwardAngle": 0.3463660629355081,
+          "reverseResidual": -2.0816681711721685e-17,
+          "contactForwardDot": -0.3464542536103467
+        }
+      ],
+      "sourceSha256": "e648902e335047042efad448ea7fd1c658dfd4dc2d2ae58b076e2294aec9ad80",
+      "sourceBytes": 5001948
+    },
+    {
+      "id": "bmw",
+      "initial": {
+        "kind": "collection",
+        "sourceURL": "/assets/tirana-streets/vehicle-collection/bmw.glb",
+        "ready": true,
+        "weaponReady": true,
+        "triangles": 44372,
+        "meshes": 18,
+        "skinned": 10,
+        "bones": 67,
+        "textures": 13,
+        "finite": true,
+        "size": [
+          1.9764989614486694,
+          1.382672667503357,
+          4.75
+        ],
+        "boundsMin": [
+          -0.9882620573043822,
+          0.030000000000000027,
+          -2.375
+        ],
+        "drawCalls": 10,
+        "renderer": "WebKit WebGL"
+      },
+      "poses": [
+        {
+          "action": "idle",
+          "ready": true,
+          "weaponReady": true,
+          "finite": true,
+          "warnings": [],
+          "errors": {},
+          "size": [
+            1.9764989614486694,
+            1.3825280890976241,
+            4.75
+          ]
+        },
+        {
+          "action": "idle",
+          "ready": true,
+          "weaponReady": true,
+          "finite": true,
+          "warnings": [],
+          "errors": {},
+          "size": [
+            1.9764989614486694,
+            1.382672667503357,
+            4.75
+          ]
+        }
+      ],
+      "wheelChecks": [
+        {
+          "name": "Rolling-wheel-0",
+          "forwardAngle": 0.36294067315588835,
+          "reverseResidual": 6.9388939039072276e-18,
+          "contactForwardDot": -0.330632489672334
+        },
+        {
+          "name": "Rolling-wheel-1",
+          "forwardAngle": 0.36294067315588835,
+          "reverseResidual": 6.9388939039072276e-18,
+          "contactForwardDot": -0.330632489672334
+        },
+        {
+          "name": "Rolling-wheel-2",
+          "forwardAngle": 0.362940742238343,
+          "reverseResidual": -3.469446951953615e-17,
+          "contactForwardDot": -0.33063242670243836
+        },
+        {
+          "name": "Rolling-wheel-3",
+          "forwardAngle": 0.362940742238343,
+          "reverseResidual": -3.469446951953615e-17,
+          "contactForwardDot": -0.33063242670243836
+        }
+      ],
+      "sourceSha256": "4d73b3d7896e48933c4647946704ec7fc9d83d3c6b7dc8b923ef9d5f9ae25bd5",
+      "sourceBytes": 3610124
+    },
+    {
+      "id": "range",
+      "initial": {
+        "kind": "collection",
+        "sourceURL": "/assets/tirana-streets/vehicle-collection/range.glb",
+        "ready": true,
+        "weaponReady": true,
+        "triangles": 539537,
+        "meshes": 36,
+        "skinned": 10,
+        "bones": 67,
+        "textures": 18,
+        "finite": true,
+        "size": [
+          2.172074794769287,
+          1.8073440790176392,
+          4.870000123977661
+        ],
+        "boundsMin": [
+          -1.0860373973846436,
+          0.030000000000000027,
+          -2.43500018119812
+        ],
+        "drawCalls": 29,
+        "renderer": "WebKit WebGL"
+      },
+      "poses": [
+        {
+          "action": "idle",
+          "ready": true,
+          "weaponReady": true,
+          "finite": true,
+          "warnings": [],
+          "errors": {},
+          "size": [
+            2.172074794769287,
+            1.8073820320030687,
+            4.870000123977661
+          ]
+        },
+        {
+          "action": "idle",
+          "ready": true,
+          "weaponReady": true,
+          "finite": true,
+          "warnings": [],
+          "errors": {},
+          "size": [
+            2.172074794769287,
+            1.8073440790176392,
+            4.870000123977661
+          ]
+        }
+      ],
+      "wheelChecks": [
+        {
+          "name": "Rolling-wheel-0",
+          "forwardAngle": 0.29182186182740255,
+          "reverseResidual": -2.775557561562892e-17,
+          "contactForwardDot": -0.4112088984331369
+        },
+        {
+          "name": "Rolling-wheel-1",
+          "forwardAngle": 0.29182516857680285,
+          "reverseResidual": -2.0816681711721688e-17,
+          "contactForwardDot": -0.4112042424592874
+        },
+        {
+          "name": "Rolling-wheel-2",
+          "forwardAngle": 0.29182336206223014,
+          "reverseResidual": -6.93889390390723e-18,
+          "contactForwardDot": -0.4112067855734282
+        },
+        {
+          "name": "Rolling-wheel-3",
+          "forwardAngle": 0.29182336131818465,
+          "reverseResidual": -2.0816681711721682e-17,
+          "contactForwardDot": -0.4112067886322215
+        }
+      ],
+      "sourceSha256": "25dbd07c141712c57bd011aebe51702b32246cc83c6783ec11c52b24e74edd45",
+      "sourceBytes": 7551144
+    },
+    {
+      "id": "audi",
+      "initial": {
+        "kind": "collection",
+        "sourceURL": "/assets/tirana-streets/vehicle-collection/audi.glb",
+        "ready": true,
+        "weaponReady": true,
+        "triangles": 790699,
+        "meshes": 65,
+        "skinned": 10,
+        "bones": 67,
+        "textures": 20,
+        "finite": true,
+        "size": [
+          2.145932674407959,
+          1.4879658222198486,
+          5.1700005531311035
+        ],
+        "boundsMin": [
+          -1.072978615760803,
+          0.030000000000000027,
+          -2.5850002765655518
+        ],
+        "drawCalls": 60,
+        "renderer": "WebKit WebGL"
+      },
+      "poses": [
+        {
+          "action": "idle",
+          "ready": true,
+          "weaponReady": true,
+          "finite": true,
+          "warnings": [],
+          "errors": {},
+          "size": [
+            2.145932674407959,
+            1.4884371494075643,
+            5.1700005531311035
+          ]
+        },
+        {
+          "action": "idle",
+          "ready": true,
+          "weaponReady": true,
+          "finite": true,
+          "warnings": [],
+          "errors": {},
+          "size": [
+            2.145932674407959,
+            1.4879658222198486,
+            5.1700005531311035
+          ]
+        }
+      ],
+      "wheelChecks": [
+        {
+          "name": "Rolling-wheel-0",
+          "forwardAngle": 0.3287889083090932,
+          "reverseResidual": 4.85722573273506e-17,
+          "contactForwardDot": -0.36497581445012883
+        },
+        {
+          "name": "Rolling-wheel-1",
+          "forwardAngle": 0.3287889298350332,
+          "reverseResidual": -4.8572257327350605e-17,
+          "contactForwardDot": -0.3649757900468119
+        },
+        {
+          "name": "Rolling-wheel-2",
+          "forwardAngle": 0.3287890614946037,
+          "reverseResidual": 3.469446951953615e-17,
+          "contactForwardDot": -0.3649756405691074
+        },
+        {
+          "name": "Rolling-wheel-3",
+          "forwardAngle": 0.3287890078150348,
+          "reverseResidual": -3.469446951953615e-17,
+          "contactForwardDot": -0.36497570035169147
+        }
+      ],
+      "sourceSha256": "fdb03e19a9a3598b06dcffc6a2ac894766b9c765f435efb08f50a1389f56cb96",
+      "sourceBytes": 6959904
+    },
+    {
+      "id": "ford",
+      "initial": {
+        "kind": "collection",
+        "sourceURL": "/assets/tirana-streets/vehicle-collection/ford.glb",
+        "ready": true,
+        "weaponReady": true,
+        "triangles": 63501,
+        "meshes": 20,
+        "skinned": 10,
+        "bones": 67,
+        "textures": 13,
+        "finite": true,
+        "size": [
+          1.8267680406570435,
+          1.5723116397857666,
+          4.059999942779541
+        ],
+        "boundsMin": [
+          -0.9133974909782409,
+          0.030000000000000027,
+          -2.0299999713897705
+        ],
+        "drawCalls": 12,
+        "renderer": "WebKit WebGL"
+      },
+      "poses": [
+        {
+          "action": "idle",
+          "ready": true,
+          "weaponReady": true,
+          "finite": true,
+          "warnings": [],
+          "errors": {},
+          "size": [
+            1.8267680406570435,
+            1.5721689810769772,
+            4.059999942779541
+          ]
+        },
+        {
+          "action": "idle",
+          "ready": true,
+          "weaponReady": true,
+          "finite": true,
+          "warnings": [],
+          "errors": {},
+          "size": [
+            1.8267680406570435,
+            1.5723116397857666,
+            4.059999942779541
+          ]
+        }
+      ],
+      "wheelChecks": [
+        {
+          "name": "Rolling-wheel-0",
+          "forwardAngle": 0.3631290420323521,
+          "reverseResidual": 2.0816681711721682e-17,
+          "contactForwardDot": -0.33046097798209173
+        },
+        {
+          "name": "Rolling-wheel-1",
+          "forwardAngle": 0.3631290420323521,
+          "reverseResidual": 2.0816681711721682e-17,
+          "contactForwardDot": -0.33046097798209173
+        },
+        {
+          "name": "Rolling-wheel-2",
+          "forwardAngle": 0.3631290825164452,
+          "reverseResidual": -6.9388939039072276e-18,
+          "contactForwardDot": -0.3304609411340007
+        },
+        {
+          "name": "Rolling-wheel-3",
+          "forwardAngle": 0.3631290825164452,
+          "reverseResidual": -6.9388939039072276e-18,
+          "contactForwardDot": -0.3304609411340007
+        }
+      ],
+      "sourceSha256": "e48610296f748220ff77ef254934734b07a77e1db12f1ee03c87070aecb4cdcb",
+      "sourceBytes": 3476592
+    },
+    {
+      "id": "fiat",
+      "initial": {
+        "kind": "collection",
+        "sourceURL": "/assets/tirana-streets/vehicle-collection/fiat.glb",
+        "ready": true,
+        "weaponReady": true,
+        "triangles": 51355,
+        "meshes": 25,
+        "skinned": 10,
+        "bones": 67,
+        "textures": 34,
+        "finite": true,
+        "size": [
+          1.9221243858337402,
+          1.736274003982544,
+          3.759999990463257
+        ],
+        "boundsMin": [
+          -0.9610602259635924,
+          0.030000000000000027,
+          -1.8799999952316284
+        ],
+        "drawCalls": 17,
+        "renderer": "WebKit WebGL"
+      },
+      "poses": [
+        {
+          "action": "idle",
+          "ready": true,
+          "weaponReady": true,
+          "finite": true,
+          "warnings": [],
+          "errors": {},
+          "size": [
+            1.9221243858337402,
+            1.7486490978384686,
+            3.759999990463257
+          ]
+        },
+        {
+          "action": "idle",
+          "ready": true,
+          "weaponReady": true,
+          "finite": true,
+          "warnings": [],
+          "errors": {},
+          "size": [
+            1.9221243858337402,
+            1.736274003982544,
+            3.759999990463257
+          ]
+        }
+      ],
+      "wheelChecks": [
+        {
+          "name": "Rolling-wheel-0",
+          "forwardAngle": 0.4063846988560887,
+          "reverseResidual": 4.1633363423443376e-17,
+          "contactForwardDot": -0.29528670822936487
+        },
+        {
+          "name": "Rolling-wheel-1",
+          "forwardAngle": 0.406603942222118,
+          "reverseResidual": 4.163336342344337e-17,
+          "contactForwardDot": -0.29512748780592707
+        },
+        {
+          "name": "Rolling-wheel-2",
+          "forwardAngle": 0.40444152534840533,
+          "reverseResidual": 0,
+          "contactForwardDot": -0.26836492474717033
+        },
+        {
+          "name": "Rolling-wheel-3",
+          "forwardAngle": 0.4053556866702963,
+          "reverseResidual": 0,
+          "contactForwardDot": -0.2825554037059416
+        }
+      ],
+      "sourceSha256": "1e831d44bc6b3ff253d5e8496a226d2e422068efb9d45022e3f155ddac5c9bcb",
+      "sourceBytes": 16341268
+    },
+    {
+      "id": "jaguar",
+      "initial": {
+        "kind": "collection",
+        "sourceURL": "/assets/tirana-streets/vehicle-collection/jaguar.glb",
+        "ready": true,
+        "weaponReady": true,
+        "triangles": 290631,
+        "meshes": 68,
+        "skinned": 10,
+        "bones": 67,
+        "textures": 9,
+        "finite": true,
+        "size": [
+          2.0794875621795654,
+          1.603256106376648,
+          4.680000305175781
+        ],
+        "boundsMin": [
+          -1.039734363555908,
+          0.030000000000000027,
+          -2.3400001525878906
+        ],
+        "drawCalls": 66,
+        "renderer": "WebKit WebGL"
+      },
+      "poses": [
+        {
+          "action": "idle",
+          "ready": true,
+          "weaponReady": true,
+          "finite": true,
+          "warnings": [],
+          "errors": {},
+          "size": [
+            2.0794875621795654,
+            1.6036322210203395,
+            4.680000305175781
+          ]
+        },
+        {
+          "action": "idle",
+          "ready": true,
+          "weaponReady": true,
+          "finite": true,
+          "warnings": [],
+          "errors": {},
+          "size": [
+            2.0794875621795654,
+            1.603256106376648,
+            4.680000305175781
+          ]
+        }
+      ],
+      "wheelChecks": [
+        {
+          "name": "Rolling-wheel-0",
+          "forwardAngle": 0.287054674992647,
+          "reverseResidual": -4.85722573273506e-17,
+          "contactForwardDot": -0.4180388283279958
+        },
+        {
+          "name": "Rolling-wheel-1",
+          "forwardAngle": 0.28705467438183574,
+          "reverseResidual": 2.775557561562891e-17,
+          "contactForwardDot": -0.4180388292175159
+        },
+        {
+          "name": "Rolling-wheel-2",
+          "forwardAngle": 0.287054683663118,
+          "reverseResidual": -4.85722573273506e-17,
+          "contactForwardDot": -0.4180388157011519
+        },
+        {
+          "name": "Rolling-wheel-3",
+          "forwardAngle": 0.2870546839390953,
+          "reverseResidual": 0,
+          "contactForwardDot": -0.4180388152992481
+        }
+      ],
+      "sourceSha256": "332470befbafc6e443905fb713e50ab9304d25a67e1a2f5c8d259c871b10b5a0",
+      "sourceBytes": 3621176
+    },
+    {
+      "id": "ferrari",
+      "initial": {
+        "kind": "collection",
+        "sourceURL": "/assets/tirana-streets/vehicle-collection/ferrari.glb",
+        "ready": true,
+        "weaponReady": true,
+        "triangles": 374605,
+        "meshes": 43,
+        "skinned": 10,
+        "bones": 67,
+        "textures": 9,
+        "finite": true,
+        "size": [
+          2.255302667617798,
+          1.2349332571029663,
+          4.5299999713897705
+        ],
+        "boundsMin": [
+          -1.1276683807373047,
+          0.030000000000000027,
+          -2.2649998664855957
+        ],
+        "drawCalls": 69,
+        "renderer": "WebKit WebGL"
+      },
+      "poses": [
+        {
+          "action": "idle",
+          "ready": true,
+          "weaponReady": true,
+          "finite": true,
+          "warnings": [],
+          "errors": {},
+          "size": [
+            2.255302667617798,
+            1.2346537118467413,
+            4.5299999713897705
+          ]
+        },
+        {
+          "action": "idle",
+          "ready": true,
+          "weaponReady": true,
+          "finite": true,
+          "warnings": [],
+          "errors": {},
+          "size": [
+            2.255302667617798,
+            1.2349332571029663,
+            4.5299999713897705
+          ]
+        }
+      ],
+      "wheelChecks": [
+        {
+          "name": "Rolling-wheel-0",
+          "forwardAngle": 0.33539531401140515,
+          "reverseResidual": 1.3877787807814457e-17,
+          "contactForwardDot": -0.3577867518921693
+        },
+        {
+          "name": "Rolling-wheel-1",
+          "forwardAngle": 0.33539639052360987,
+          "reverseResidual": -3.469446951953614e-17,
+          "contactForwardDot": -0.35778560351417993
+        },
+        {
+          "name": "Rolling-wheel-2",
+          "forwardAngle": 0.3353957129256279,
+          "reverseResidual": 2.0816681711721682e-17,
+          "contactForwardDot": -0.3577863263178268
+        },
+        {
+          "name": "Rolling-wheel-3",
+          "forwardAngle": 0.3353965089581054,
+          "reverseResidual": 6.938893903907228e-18,
+          "contactForwardDot": -0.35778547717378384
+        }
+      ],
+      "sourceSha256": "f61dd84634a03205ba59cc839006489757f3579f26dfda1c76fb55492036c5ac",
+      "sourceBytes": 3967680
+    },
+    {
+      "id": "bugatti",
+      "initial": {
+        "kind": "collection",
+        "sourceURL": "/assets/tirana-streets/vehicle-collection/bugatti.glb",
+        "ready": true,
+        "weaponReady": true,
+        "triangles": 255997,
+        "meshes": 33,
+        "skinned": 10,
+        "bones": 67,
+        "textures": 23,
+        "finite": true,
+        "size": [
+          2.0161733627319336,
+          1.1739773870938985,
+          4.539999961853027
+        ],
+        "boundsMin": [
+          -1.0080920457839966,
+          -0.007595164918300479,
+          -2.2699999809265137
+        ],
+        "drawCalls": 52,
+        "renderer": "WebKit WebGL"
+      },
+      "poses": [
+        {
+          "action": "idle",
+          "ready": true,
+          "weaponReady": true,
+          "finite": true,
+          "warnings": [],
+          "errors": {},
+          "size": [
+            2.0161733627319336,
+            1.1739773870938985,
+            4.539999961853027
+          ]
+        },
+        {
+          "action": "idle",
+          "ready": true,
+          "weaponReady": true,
+          "finite": true,
+          "warnings": [],
+          "errors": {},
+          "size": [
+            2.0161733627319336,
+            1.1739773870938985,
+            4.539999961853027
+          ]
+        }
+      ],
+      "wheelChecks": [
+        {
+          "name": "Rolling-wheel-0",
+          "forwardAngle": 0.33072335426583926,
+          "reverseResidual": -6.938893903907228e-18,
+          "contactForwardDot": -0.36284035096896444
+        },
+        {
+          "name": "Rolling-wheel-1",
+          "forwardAngle": 0.33073679257334027,
+          "reverseResidual": 4.857225732735059e-17,
+          "contactForwardDot": -0.36282626976606486
+        },
+        {
+          "name": "Rolling-wheel-2",
+          "forwardAngle": 0.352326554198694,
+          "reverseResidual": -6.93889390390723e-18,
+          "contactForwardDot": -0.3405930802485975
+        },
+        {
+          "name": "Rolling-wheel-3",
+          "forwardAngle": 0.35232656787892824,
+          "reverseResidual": -2.7755575615628914e-17,
+          "contactForwardDot": -0.34059306725312066
+        }
+      ],
+      "sourceSha256": "03adf35a5462c92d3dbecbd7cc433a5983751c7d924966f3bba996c50ce84e99",
+      "sourceBytes": 4784968
+    },
+    {
+      "id": "landrover",
+      "initial": {
+        "kind": "collection",
+        "sourceURL": "/assets/tirana-streets/vehicle-collection/landrover.glb",
+        "ready": true,
+        "weaponReady": true,
+        "triangles": 653096,
+        "meshes": 39,
+        "skinned": 10,
+        "bones": 67,
+        "textures": 11,
+        "finite": true,
+        "size": [
+          2.1208813190460205,
+          2.0360703468322754,
+          5.019999980926514
+        ],
+        "boundsMin": [
+          -1.0604418516159055,
+          0.030000000000000027,
+          -2.510000228881836
+        ],
+        "drawCalls": 62,
+        "renderer": "WebKit WebGL"
+      },
+      "poses": [
+        {
+          "action": "idle",
+          "ready": true,
+          "weaponReady": true,
+          "finite": true,
+          "warnings": [],
+          "errors": {},
+          "size": [
+            2.1208813190460205,
+            2.03585215090094,
+            5.019999980926514
+          ]
+        },
+        {
+          "action": "idle",
+          "ready": true,
+          "weaponReady": true,
+          "finite": true,
+          "warnings": [],
+          "errors": {},
+          "size": [
+            2.1208813190460205,
+            2.0360703468322754,
+            5.019999980926514
+          ]
+        }
+      ],
+      "wheelChecks": [
+        {
+          "name": "Rolling-wheel-0",
+          "forwardAngle": 0.28377523753590356,
+          "reverseResidual": 3.469446951953614e-17,
+          "contactForwardDot": -0.42286987773137696
+        },
+        {
+          "name": "Rolling-wheel-1",
+          "forwardAngle": 0.28377529584957134,
+          "reverseResidual": -4.85722573273506e-17,
+          "contactForwardDot": -0.4228697908348292
+        },
+        {
+          "name": "Rolling-wheel-2",
+          "forwardAngle": 0.2837713595073352,
+          "reverseResidual": -4.85722573273506e-17,
+          "contactForwardDot": -0.42287565668479005
+        },
+        {
+          "name": "Rolling-wheel-3",
+          "forwardAngle": 0.28377394170383846,
+          "reverseResidual": -4.85722573273506e-17,
+          "contactForwardDot": -0.4228718087344269
+        }
+      ],
+      "sourceSha256": "90753148ceedd1087ed6a388def51b1809d0b00623589860e29c6f49bc73b2e2",
+      "sourceBytes": 5733524
+    },
+    {
+      "id": "golf-gti",
+      "initial": {
+        "kind": "collection",
+        "sourceURL": "/assets/tirana-streets/city-mobility/golf-gti.glb",
+        "ready": true,
+        "weaponReady": true,
+        "triangles": 387446,
+        "meshes": 72,
+        "skinned": 10,
+        "bones": 67,
+        "textures": 69,
+        "finite": true,
+        "size": [
+          2.095953941345215,
+          1.4880783557891846,
+          4.2900002002716064
+        ],
+        "boundsMin": [
+          -1.047975778579712,
+          0.030000000000000027,
+          -2.1450002193450928
+        ],
+        "drawCalls": 64,
+        "renderer": "WebKit WebGL"
+      },
+      "poses": [
+        {
+          "action": "idle",
+          "ready": true,
+          "weaponReady": true,
+          "finite": true,
+          "warnings": [],
+          "errors": {},
+          "size": [
+            2.095953941345215,
+            1.4880863994582891,
+            4.2900002002716064
+          ]
+        },
+        {
+          "action": "idle",
+          "ready": true,
+          "weaponReady": true,
+          "finite": true,
+          "warnings": [],
+          "errors": {},
+          "size": [
+            2.095953941345215,
+            1.4880783557891846,
+            4.2900002002716064
+          ]
+        }
+      ],
+      "wheelChecks": [
+        {
+          "name": "Rolling-wheel-0",
+          "forwardAngle": 0.3658005310469234,
+          "reverseResidual": -4.85722573273506e-17,
+          "contactForwardDot": -0.32804763748299276
+        },
+        {
+          "name": "Rolling-wheel-1",
+          "forwardAngle": 0.3657946588733427,
+          "reverseResidual": -6.938893903907228e-18,
+          "contactForwardDot": -0.32805290369611245
+        },
+        {
+          "name": "Rolling-wheel-2",
+          "forwardAngle": 0.3657945805099836,
+          "reverseResidual": 6.938893903907228e-18,
+          "contactForwardDot": -0.3280529739741529
+        },
+        {
+          "name": "Rolling-wheel-3",
+          "forwardAngle": 0.3658005307492954,
+          "reverseResidual": 1.3877787807814455e-17,
+          "contactForwardDot": -0.3280476377498966
+        }
+      ],
+      "sourceSha256": "a7c8b73910b22fbfa7abbe03d362db4b4565da1986f473383f719bbea6ac62b1",
+      "sourceBytes": 7045908
+    }
+  ],
+  "errors": [],
+  "failures": [],
+  "pass": true,
+  "recordFormat": "Summary of the successful harness output; full per-bone matrices can be regenerated with test/tiranaRealismAssets.browser.mjs."
+}

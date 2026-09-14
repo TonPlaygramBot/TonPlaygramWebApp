@@ -1,4 +1,4 @@
-import { FORCE_VEHICLE_BOUNDS } from './albanianForces.mjs';
+import { FORCE_VEHICLE_BOUNDS,FORCE_ASSET_BY_ID } from './albanianForces.mjs';
 import { forceWeaponFor } from './uploadedWeapons.mjs';
 import { TrafficGrid, trafficDecision, trafficLanePoints } from './trafficSimulation.mjs';
 
@@ -24,11 +24,12 @@ export function initPoliceDispatch(state,env) {
   const legacyUnits=state.units;state.units=[];
   const add=(car,role='patrol',station=null,reserve=false)=>{
     const bounds=FORCE_VEHICLE_BOUNDS.find(b=>b.id===car.forceVehicle);
+    const originalCharacter=FORCE_ASSET_BY_ID.get(car.forceCharacter);
     Object.assign(car,bounds?{w:bounds.w,d:bounds.d,h:bounds.h}:{}, {
       role,kind:role==='army'?'military':'patrol',squadId:`patrol-${car.id}`,
       duty:reserve?'standby':'patrol',home:{x:car.x,z:car.z},stationId:station?.id,
       target:null,path:[],pathIndex:0,nextRoute:0,cruise:8,driver:'npc',responding:false,
-      forceCharacter:role==='army'?'army_soldier':`${role}_officer`,patrolIndex:0
+      forceCharacter:originalCharacter?.category==='person'?originalCharacter.id:role==='army'?'army_soldier':`${role}_officer`,patrolIndex:0
     });
     state.units.push(car);
     if(state.npcs.some(n=>n.unit===car.id))return;

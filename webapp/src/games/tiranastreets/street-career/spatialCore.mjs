@@ -188,7 +188,7 @@ export class StreetWorld {
   cast(a, d, max = 100, cars = [], ignoreCar = '') {
     let best = max,
       objectId = '',
-      kind = 'air';
+      kind = 'air', normal;
     const end = pointAlong(a, d, max),
       seen = new Set();
     // Grid traversal is bounded by the weapon range, not the number of city meshes.
@@ -231,12 +231,12 @@ export class StreetWorld {
         if (t === null) continue;
         const candidates = [];
         if (solidAt(b, a.x, a.z) && a.y >= b.minY && a.y <= b.h)
-          candidates.push(0);
+          candidates.push({t:0,normal:undefined});
         if (Math.abs(d.y) > 1e-8)
           for (const y of [b.minY, b.h]) {
             const u = (y - a.y) / d.y;
             if (u >= 0 && u <= best && solidAt(b, a.x + d.x * u, a.z + d.z * u))
-              candidates.push(u);
+              candidates.push({t:u,normal:{x:0,y:y===b.h?1:-1,z:0}});
           }
         for (const ring of [b.p, ...(b.holes || [])])
           for (let i = 0; i < ring.length; i++) {
@@ -257,11 +257,16 @@ export class StreetWorld {
               y >= b.minY &&
               y <= b.h
             )
-              candidates.push(u);
+            {
+              const length=Math.hypot(sx,sz),sign=(sz*d.x-sx*d.z)>0?-1:1;
+              candidates.push({t:u,normal:{x:sign*sz/length,y:0,z:-sign*sx/length}});
+            }
           }
-        const intact=candidates.filter(t=>!this.broken(b,a.x+d.x*t,a.y+d.y*t,a.z+d.z*t));
-        if (intact.length) {
-          best = Math.min(best, ...intact);
+        const intact=candidates.filter(({t})=>!this.broken(b,a.x+d.x*t,a.y+d.y*t,a.z+d.z*t));
+        const nearestHit=intact.reduce((first,next)=>!first||next.t<first.t?next:first,null);
+        if (nearestHit && nearestHit.t <= best) {
+          best = nearestHit.t;
+          normal = nearestHit.normal;
           objectId = String(b.id);
           kind = 'wall';
         }
@@ -286,11 +291,23 @@ export class StreetWorld {
         best = t;
         objectId = car.id;
         kind = 'car';
+        const p=pointAlong(a,d,t),px=(p.x-car.x)*c-(p.z-car.z)*s,pz=(p.x-car.x)*s+(p.z-car.z)*c;
+        const py=p.y-groundHeight(car.x,car.z),height=car.model==='tirana-bus'?3.5:1.5;
+        const faces=[{gap:Math.abs(Math.abs(px)-size.width/2),x:Math.sign(px),y:0,z:0},
+          {gap:Math.min(Math.abs(py),Math.abs(py-height)),x:0,y:py>height/2?1:-1,z:0},
+          {gap:Math.abs(Math.abs(pz)-size.length/2),x:0,y:0,z:Math.sign(pz)}];
+        const face=faces.reduce((a,b)=>a.gap<b.gap?a:b);
+        normal={x:face.x*c+face.z*s,y:face.y,z:-face.x*s+face.z*c};
       }
     }
     const terrainHit=terrainRay(a,d,best);
-    if(terrainHit!==null&&terrainHit<best){best=terrainHit;objectId='ground';kind='ground';}
-    return { distance: best, point: pointAlong(a, d, best), objectId, kind };
+    if(terrainHit!==null&&terrainHit<best){
+      best=terrainHit;objectId='ground';kind='ground';
+      const p=pointAlong(a,d,best),eps=.2;
+      const x=groundHeight(p.x-eps,p.z)-groundHeight(p.x+eps,p.z),z=groundHeight(p.x,p.z-eps)-groundHeight(p.x,p.z+eps),length=Math.hypot(x,2*eps,z);
+      normal={x:x/length,y:2*eps/length,z:z/length};
+    }
+    return { distance: best, point: pointAlong(a, d, best), objectId, kind, normal };
   }
   clear(a, b, cars = [], ignore = '') {
     const v = { x: b.x - a.x, y: b.y - a.y, z: b.z - a.z },

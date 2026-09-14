@@ -4,23 +4,30 @@ import { readFileSync, readdirSync, existsSync } from 'node:fs';
 import { createState, emptyInput, stepState, publicState, MISSIONS, SPAWN, advanceState, interact, control, WORLD, lineOfSight, upgradeState } from '../webapp/src/games/tiranastreets/shared/engine.mjs';
 import { equipStarter, lifeAction, updateCityLife, reportCrime, wantedStars } from '../webapp/src/games/tiranastreets/shared/cityLife.mjs';
 import { WEAPONS, WEAPON_BY_ID, difficultyOf } from '../webapp/src/games/tiranastreets/shared/weapons.mjs';
+import { UPLOADED_WEAPONS } from '../webapp/src/games/tiranastreets/shared/uploadedWeapons.mjs';
+import { CITY_POPULATION } from '../webapp/src/games/tiranastreets/shared/cityPopulation.mjs';
+import { POLICE_RESPONSE_DELAY } from '../webapp/src/games/tiranastreets/shared/policeDispatch.mjs';
 import { makeRoom, applyRoom } from '../webapp/src/games/tiranastreets/shared/rooms.mjs';
 
-const player=()=>{const p={id:'p',name:'P',x:0,z:0,heading:0,speed:0,carId:null,finished:false,failed:false,input:emptyInput(),inputAt:0};equipStarter(p);return p;};
-const scene=()=>({elapsed:1,phase:'active',missionId:'free-roam',difficulty:'normal',mode:'solo',players:{p:player()},npcs:[],units:[],cars:[],effects:[],effectSeq:0,nextDispatch:100,shop:{x:0,z:0}});
-const env={emptyInput,spawn:{x:0,z:0},collide:()=>false,clear:()=>true,nearestNode:()=>0,roadPoint:(x,z)=>({x,z}),route:()=>[],along:(a,b,speed,dt)=>{const d=Math.hypot(b.x-a.x,b.z-a.z)||1;a.x+=(b.x-a.x)/d*Math.min(d,speed*dt);a.z+=(b.z-a.z)/d*Math.min(d,speed*dt);a.speed=speed;return d<=speed*dt;}};
+// Keep the 16-round/24-damage cadence fixture explicit; the default starter is now an AK.
+const player=()=>{const p={id:'p',name:'P',x:0,z:0,heading:0,speed:0,carId:null,finished:false,failed:false,input:emptyInput(),inputAt:0};equipStarter(p);p.weapon='glockSidearmAttack';p.inventory[p.weapon]={ammo:16,reserve:48};return p;};
+const scene=()=>({elapsed:1,phase:'active',missionId:'free-roam',difficulty:'normal',mode:'solo',players:{p:player()},npcs:[],units:[],cars:[],traffic:[],effects:[],effectSeq:0,nextDispatch:100,shop:{x:0,z:0}});
+const env={emptyInput,world:{buildings:[],roads:[{walk:true,a:[0,0],b:[0,-100]}],graph:{nodes:[[0,0],[0,-100]],edges:[[0,1]]}},spawn:{x:0,z:0},collide:()=>false,clear:()=>true,nearestNode:()=>0,roadPoint:(x,z)=>({x,z}),route:()=>[],along:(a,b,speed,dt)=>{const d=Math.hypot(b.x-a.x,b.z-a.z)||1;a.x+=(b.x-a.x)/d*Math.min(d,speed*dt);a.z+=(b.z-a.z)/d*Math.min(d,speed*dt);a.speed=speed;return d<=speed*dt;}};
 const tick=(s,seconds,custom=env)=>{for(let t=0;t<seconds;t+=1/60){s.elapsed+=1/60;updateCityLife(s,1/60,custom,{type:'free'});}};
-const target=(kind='gang')=>({id:'target',kind,motion:'walk',health:100,x:0,z:-10,heading:0,speed:0,weapon:null,nextShot:Infinity,downUntil:0});
+const target=(kind='gang')=>({id:'target',kind,motion:'walk',health:100,x:0,z:-10,heading:0,speed:0,weapon:null,nextShot:Infinity,downUntil:0,path:[{x:0,z:-10},{x:0,z:-100}],pathIndex:1});
 
 test('all Ludo firearm/ordnance entries are represented with unique balanced IDs',()=>{
  const source=readFileSync(new URL('../webapp/src/config/ludoBattleOptions.js',import.meta.url),'utf8').split('export const CAPTURE_ANIMATION_OPTIONS')[1].split('export const')[0];
  const ids=[...source.matchAll(/id: '([^']+)'/g)].map(m=>m[1]).filter(id=>!['missileJavelin','droneAttack','ukrainianDroneAttack','fighterJetAttack','helicopterAttack','polyTank01Attack'].includes(id));
  for(const id of ids)assert.ok(WEAPON_BY_ID.has(id),id);
- assert.equal(new Set(WEAPONS.map(w=>w.id)).size,WEAPONS.length);assert.equal(WEAPONS.length,35);
- for(const w of WEAPONS){assert.ok(w.interval>=.08);assert.ok(w.magazine>0);assert.ok(w.price>0);}
+ const freeIds=['punch','egg','tomato','combatKnife'];
+ const expectedIds=new Set([...ids,...UPLOADED_WEAPONS.map(w=>w.id),...freeIds,'awpSniperAttack','mrtkGunAttack','pistolSidearmAttack']);
+ assert.equal(new Set(WEAPONS.map(w=>w.id)).size,WEAPONS.length);
+ assert.deepEqual(WEAPONS.map(w=>w.id).sort(),[...expectedIds].sort());
+ for(const w of WEAPONS){assert.ok(w.interval>=.08);assert.ok(w.magazine>0);assert.ok(freeIds.includes(w.id)?w.price===0:w.price>0,w.id);}
 });
 test('dealer enforces proximity, wanted status, funds and ammo capacity',()=>{
- const s=scene(),p=s.players.p,w=WEAPON_BY_ID.get('ak47VolleyAttack');p.x=99;
+ const s=scene(),p=s.players.p,w=WEAPON_BY_ID.get('assaultRifleAttack');p.x=99;
  lifeAction(s,p,'buy:'+w.id);assert.equal(p.cash,750);assert.equal(p.inventory[w.id],undefined);
  p.x=0;p.wanted=1;lifeAction(s,p,'buy:'+w.id);assert.equal(p.cash,750);
  p.wanted=0;p.cash=w.price-1;lifeAction(s,p,'buy:'+w.id);assert.equal(p.inventory[w.id],undefined);
@@ -44,10 +51,15 @@ test('reload transfers existing reserve only and switching cancels pending reloa
 });
 test('innocent NPCs flee and five-star pursuit dispatches armed military with a bounded population',()=>{
  const s=scene(),p=s.players.p;s.npcs=[target('civilian')];p.input={...emptyInput(),fire:true};p.inputAt=s.elapsed;
+ // Current dispatch reassigns an existing fleet after a response delay; it does not spawn units.
+ s.units=Array.from({length:8},(_,i)=>({id:`reserve-${i}`,role:i===0?'army':'patrol',model:'police',x:100+i*20,z:100,heading:0,speed:0}));
  tick(s,.02);assert.ok(s.npcs[0].panicUntil>s.elapsed);assert.ok(p.wanted>0);assert.ok(s.npcs[0].z<-10);
  reportCrime(s,p,1000);assert.equal(wantedStars(p.wanted),5);s.nextDispatch=0;p.lastCrime=1000;
- tick(s,.1);assert.ok(s.units.some(u=>u.kind==='military'));assert.ok(s.npcs.some(n=>n.kind==='soldier'&&n.weapon));
- tick(s,60);assert.ok(s.units.length<=6);assert.ok(s.npcs.length<=21);
+ const dispatchEnv={...env,route:()=>[{x:0,z:0},{x:0,z:-100}]};
+ tick(s,.1,dispatchEnv);assert.ok(s.units.every(u=>u.target!==p.id));
+ tick(s,POLICE_RESPONSE_DELAY+.1,dispatchEnv);assert.ok(s.units.some(u=>u.kind==='military'&&u.target===p.id));assert.ok(s.npcs.some(n=>n.kind==='soldier'&&n.weapon));
+ const unitIds=s.units.map(u=>u.id).sort(),npcIds=s.npcs.map(n=>n.id).sort();
+ tick(s,60,dispatchEnv);assert.deepEqual(s.units.map(u=>u.id).sort(),unitIds);assert.deepEqual(s.npcs.map(n=>n.id).sort(),npcIds);assert.ok(s.units.filter(u=>u.target===p.id).length<=6);
 });
 test('wanted levels decay out of sight and free roam recovers after defeat',()=>{
  const s=scene(),p=s.players.p;p.wanted=80;p.lastCrime=-50;tick(s,12);assert.equal(p.wanted,0);
@@ -70,7 +82,14 @@ test('connected action replay does not repeat purchases',()=>{
  applyRoom(r,member,'input',action,130);assert.equal(r.state.players.p.cash,cash);
 });
 test('city contains server-owned walkers, riders, traffic and dealer; public snapshots omit NPC paths',()=>{
- const s=createState([{id:'p',name:'P'}],'free-roam');assert.ok(s.npcs.length>=43);assert.equal(s.traffic.length,2030);assert.ok(s.npcs.some(n=>n.motion==='cycle'));
+ const s=createState([{id:'p',name:'P'}],'free-roam');assert.ok(s.npcs.length>=CITY_POPULATION.pedestrians);assert.ok(s.npcs.some(n=>n.motion==='cycle'));
+ // Police dispatch promotes traffic actors into units; count across their authoritative owners.
+ const vehicles=[...s.cars,...s.traffic,...s.units];
+ assert.equal(new Set(vehicles.map(c=>c.id)).size,vehicles.length);
+ assert.equal(vehicles.filter(c=>/^traffic-\d+$/.test(c.id)).length,CITY_POPULATION.vehicles-3);
+ assert.equal(vehicles.filter(c=>/^tirana-bus-\d+$/.test(c.id)).length,CITY_POPULATION.buses);
+ assert.deepEqual(vehicles.filter(c=>c.id.startsWith('service-')).map(c=>c.id).sort(),['service-ambulance','service-fire-brigade','service-police-patrol']);
+ assert.equal(s.players.p.weapon,'ak47VolleyAttack');assert.equal(s.players.p.inventory.ak47VolleyAttack.ammo,30);
  const citizen=s.npcs.find(n=>n.id==='citizen-0');const before=citizen.x+','+citizen.z;advanceState(s,.5);assert.notEqual(citizen.x+','+citizen.z,before);
  const pub=publicState(s);assert.ok(!('path' in pub.npcs[1]));assert.ok(!('input' in pub.players.p));
 });

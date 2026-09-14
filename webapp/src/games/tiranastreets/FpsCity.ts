@@ -1,4 +1,8 @@
 import * as T from 'three';
+import {CITY_RADIUS} from './renderSettings';
+import {SkanderbegBuildingLayer} from '../tirana-landmarks/SkanderbegBuildingLayer';
+import {ROCK_REPLACEMENT_IDS} from '../tirana-landmarks/skanderbegBuilding.mjs';
+import {VisibilityIndex,selectVisibilityBands} from './shared/visibilityIndex.mjs';
 import {cutChannels, surfaceGeometry} from '../tirana-environment/riverGeometry';
 import {EnvironmentMaterials} from '../tirana-environment/EnvironmentMaterials';
 import {UrbanRoadCells} from '../tirana-neighbourhood/UrbanRoadCells';
@@ -22,18 +26,32 @@ import { resolveNativeLandmarks } from '../tirana-landmarks/nativeLocations.mjs'
 type Batch = { geometry: T.BufferGeometry; material: T.Material; matrices: T.Matrix4[]; x: number; z: number };
 type Cell = { object: T.Object3D; x: number; z: number; detail: boolean };
 const BASE = '/assets/tirana-streets/';
+export const CITY_DETAIL_VISIBILITY = {
+  battery: [{radius:180,count:18},{radius:320,count:4},{radius:480,count:2}],
+  high: [{radius:300,count:54},{radius:600,count:12},{radius:900,count:6}]
+} as const;
 
 /** A city layer, not a second game or renderer. Every static coordinate is in
  * Tirana WORLD metres; the FPS adapter translates this group exactly once. */
 export class FpsCity {
   readonly group = new T.Group();
   readonly landmarks = new NativeLandmarkLayer(resolveNativeLandmarks(WORLD).landmarks);
+  readonly skanderbegBuilding: SkanderbegBuildingLayer;
   readonly referenceFacades = new ReferenceFacades();
   readonly agedHousing: AgedHousingLayer;
  readonly urbanRoads:UrbanRoadCells;
   private cells: Cell[] = [];
   private cellViewer = {x: Infinity, z: Infinity};
   private cellBattery?: boolean;
+  private detailIndex = new VisibilityIndex<Cell>([]);
+  private cellDirection = new T.Vector3();
+  private lastCellDirection = new T.Vector3();
+  private cellCameraPosition = new T.Vector3(Infinity,Infinity,Infinity);
+  private cellProjectionWidth = 0;
+  private cellProjectionHeight = 0;
+  private cellFrustum = new T.Frustum();
+  private cellProjection = new T.Matrix4();
+  private cellBounds = new T.Sphere();
   private batches = new Map<string, Batch>();
   private materials = new Map<string, T.MeshStandardMaterial>();
   private textures = new Set<T.Texture>();
@@ -49,6 +67,7 @@ export class FpsCity {
   readonly ready: Promise<void>;
 
   constructor(private loadAssets = true, private raceClearance?: (x:number,z:number,pad:number)=>boolean) {
+    this.skanderbegBuilding = new SkanderbegBuildingLayer(loadAssets);
     this.agedHousing = new AgedHousingLayer(undefined, loadAssets);
     this.urbanRoads=new UrbanRoadCells(loadAssets);this.group.add(this.urbanRoads.group);
     this.group.add(this.agedHousing.group);
@@ -62,7 +81,8 @@ export class FpsCity {
     this.buildings();
     this.square();
     this.flush();
-    this.group.add(this.landmarks.group, this.referenceFacades.group);
+    this.detailIndex = new VisibilityIndex(this.cells.filter(cell=>cell.detail));
+    this.group.add(this.landmarks.group, this.referenceFacades.group, this.skanderbegBuilding.group);
     this.ready = loadAssets ? this.loadFixtures() : Promise.resolve();
   }
 
@@ -168,7 +188,7 @@ export class FpsCity {
     const glass = this.material(0x355560, true), dark = this.material(0x4e514b), shutters = this.material(0x64776a);
     for (const b of WORLD.buildings) {
       if(b.neighbourhood)continue; // Shared Blender/mapped-neighbourhood layer.
-      if (replaced.has(String(b.id)) || REFERENCE_BUILDINGS[b.id] || LANDMARK_REPLACED_IDS.has(String(b.id)) || FUEL_CANOPY_IDS.has(String(b.id))) continue;
+      if (replaced.has(String(b.id)) || ROCK_REPLACEMENT_IDS.has(String(b.id)) || REFERENCE_BUILDINGS[b.id] || LANDMARK_REPLACED_IDS.has(String(b.id)) || FUEL_CANOPY_IDS.has(String(b.id))) continue;
       const p = buildingProfile(b), height = p.height ?? b.h;
       const cx = b.p.reduce((s, v) => s + v[0], 0) / b.p.length, cz = b.p.reduce((s, v) => s + v[1], 0) / b.p.length;
       const key = `${Math.floor(cx / 140)}:${Math.floor(cz / 140)}:${p.color}`;
@@ -274,19 +294,44 @@ export class FpsCity {
     this.group.add(this.streets.group);
     // Shared streamed pavements remain the sole surface owner.
   }
-  update(camera: T.Vector3, time: number, battery: boolean) {
-    if (this.cellBattery !== battery || (camera.x-this.cellViewer.x)**2 + (camera.z-this.cellViewer.z)**2 > 16) {
+  update(camera: T.Vector3, time: number, battery: boolean, viewCamera?: T.PerspectiveCamera) {
+    if(viewCamera)viewCamera.getWorldDirection(this.cellDirection);
+    const viewChanged=!!viewCamera&&(this.cellDirection.distanceToSquared(this.lastCellDirection)>.0025||
+      viewCamera.position.distanceToSquared(this.cellCameraPosition)>16||viewCamera.projectionMatrix.elements[0]!==this.cellProjectionWidth||viewCamera.projectionMatrix.elements[5]!==this.cellProjectionHeight);
+    if (viewChanged || this.cellBattery !== battery || (camera.x-this.cellViewer.x)**2 + (camera.z-this.cellViewer.z)**2 > 16) {
       this.cellViewer = {x: camera.x, z: camera.z}; this.cellBattery = battery;
+      if(viewCamera){
+        this.lastCellDirection.copy(this.cellDirection);this.cellCameraPosition.copy(viewCamera.position);
+        this.cellProjectionWidth=viewCamera.projectionMatrix.elements[0];this.cellProjectionHeight=viewCamera.projectionMatrix.elements[5];
+        viewCamera.updateMatrixWorld();this.group.updateWorldMatrix(true,false);
+        this.cellProjection.multiplyMatrices(viewCamera.projectionMatrix,viewCamera.matrixWorldInverse);
+        // Cells are authored in WORLD coordinates. Transform the frustum into
+        // this layer once, including the FPS host's city-origin translation.
+        this.cellProjection.multiply(this.group.matrixWorld);
+        this.cellFrustum.setFromProjectionMatrix(this.cellProjection);
+      }
+      const bands=CITY_DETAIL_VISIBILITY[battery?'battery':'high'];
+      const detailed=new Set(selectVisibilityBands(this.detailIndex.query(camera,bands[bands.length-1].radius,cell=>{
+        if(!viewCamera)return true;
+        const mesh=cell.object as T.InstancedMesh;
+        this.cellBounds.copy(mesh.boundingSphere!).applyMatrix4(mesh.matrix);
+        return this.cellFrustum.intersectsSphere(this.cellBounds);
+      }),bands).map(candidate=>candidate.item));
       for (const cell of this.cells) {
         const d2 = (camera.x-cell.x)**2 + (camera.z-cell.z)**2;
-        const radius = cell.detail ? battery ? 120 : 240 : battery ? 800 : 1600;
-        cell.object.visible = d2 < radius * radius;
+        // Keep cheap, already-batched landmark masses as far as the streamed
+        // city. Small ornaments and shadows retain their local budgets.
+        const radius = battery ? CITY_RADIUS.battery : CITY_RADIUS.high;
+        cell.object.visible = cell.detail ? detailed.has(cell) : d2 < radius * radius;
         if (cell.object instanceof T.Mesh) cell.object.castShadow = !battery && d2 < 95 * 95;
       }
+      this.group.userData.visibleDetailCells=detailed.size;
+      this.group.userData.detailRadius=bands[bands.length-1].radius;
     }
     this.streets?.update(camera, time, battery ? 'battery' : 'high');
     this.landscape?.update(camera, time, battery);
     this.landmarks.setBatteryMode(battery);
+    this.skanderbegBuilding.update(camera,battery);
     this.referenceFacades.update(camera, battery);
     this.agedHousing.update(time, camera, battery);this.urbanRoads.update(time,camera,battery);
   }
@@ -297,7 +342,7 @@ export class FpsCity {
     this.referenceFacades.dispose();
     this.agedHousing.dispose();this.urbanRoads.dispose();
     this.draco?.dispose();
-    this.streets?.dispose(); this.landscape?.dispose(); this.landmarks.dispose();
+    this.streets?.dispose(); this.landscape?.dispose(); this.landmarks.dispose();this.skanderbegBuilding.dispose();
     disposeObject(this.group);
     this.textures.forEach(t => t.dispose()); this.box.dispose();
     this.group.removeFromParent(); this.group.clear();

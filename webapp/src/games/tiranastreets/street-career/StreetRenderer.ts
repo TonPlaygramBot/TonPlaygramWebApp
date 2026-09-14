@@ -17,6 +17,8 @@ import { SharedHumans } from './SharedHumans';
 import { nearbyHumans } from './humanRoster.mjs';
 import { forceCharacterFor } from '../shared/albanianForces.mjs';
 import { CombatEffects } from '../CombatEffects';
+import { SurfaceImpactMarks } from '../SurfaceImpactMarks';
+import { vehicleDamageAppearance } from './vehicleDamageAppearance.mjs';
 import { MissileVisuals } from '../MissileVisuals';
 /** Local career only. Reuses the original driving renderer and the newer shared
  * city details without editing map coordinates, physics or paid-match actors. */
@@ -27,6 +29,7 @@ export class StreetRenderer extends CityRenderer {
   readonly humans = new SharedHumans();
   readonly bodyRig: FirstPersonBody;
   readonly combatEffects: CombatEffects;
+  private impactMarks=new SurfaceImpactMarks();
   private effectState?:State;
   private cutCount=0;
   private missileMeshes:MissileVisuals;
@@ -39,10 +42,10 @@ export class StreetRenderer extends CityRenderer {
       this.vehicleVisual(car.id)?.traverse(o=>{
         if(!(o instanceof T.Mesh))return;active.add(o);const existing=this.wreckMaterials.get(o);if(existing){
           const originals=Array.isArray(existing.original)?existing.original:[existing.original];
-          existing.copies.forEach((copy,i)=>{const original=originals[i];if(copy instanceof T.MeshStandardMaterial&&original instanceof T.MeshStandardMaterial){const damage=car.destroyed?1:1-(car.health??140)/140;copy.color.copy(original.color).multiplyScalar(1-damage*.78);copy.roughness=Math.max(original.roughness,damage*.95);}});return;
+          existing.copies.forEach((copy,i)=>{const original=originals[i];if(copy instanceof T.MeshStandardMaterial&&original instanceof T.MeshStandardMaterial){const damage=vehicleDamageAppearance(car);copy.color.copy(original.color).multiplyScalar(damage.brightness);copy.roughness=Math.max(original.roughness,damage.roughness);copy.metalness=damage.charred?.15:original.metalness;copy.emissive.copy(original.emissive);if(damage.charred)copy.emissive.set(0);}});return;
         }
         const original=o.material,copies=(Array.isArray(original)?original:[original]).map(m=>{
-          const copy=m.clone();if(copy instanceof T.MeshStandardMaterial){const damage=car.destroyed?1:1-(car.health??140)/140;copy.color.multiplyScalar(1-damage*.78);copy.roughness=Math.max(copy.roughness,damage*.95);if(car.destroyed){copy.metalness=.15;copy.emissive.set(0);}}
+          const copy=m.clone();if(copy instanceof T.MeshStandardMaterial){const damage=vehicleDamageAppearance(car);copy.color.multiplyScalar(damage.brightness);copy.roughness=Math.max(copy.roughness,damage.roughness);if(damage.charred){copy.metalness=.15;copy.emissive.set(0);}}
           return copy;
         });
         this.wreckMaterials.set(o,{original,copies});o.material=Array.isArray(original)?copies:copies[0];
@@ -64,6 +67,7 @@ export class StreetRenderer extends CityRenderer {
     this.ownDetailUpdate=false;
     this.bodyRig = new FirstPersonBody(this.scene);
     this.combatEffects = new CombatEffects(this.scene);
+    this.scene.add(this.impactMarks.mesh);
     this.missileMeshes = new MissileVisuals(this.scene);
     this.pockets = new PocketVisuals(this.scene);
     this.airMobility.authoritativeMissiles = true;
@@ -209,8 +213,9 @@ export class StreetRenderer extends CityRenderer {
   protected override beforeDraw(_state: State | null, _id: string, dt: number) {
     const sim=this.simulation;
     if(sim){
-      if(this.effectState!==sim.state){this.combatEffects.reset();this.clearWrecks();this.effectState=sim.state;this.cutCount=0;}
+      if(this.effectState!==sim.state){this.combatEffects.reset();this.impactMarks.reset();this.clearWrecks();this.effectState=sim.state;this.cutCount=0;}
       this.combatEffects.consume(sim.state.effects,groundHeight);this.showWrecks(sim);
+      this.impactMarks.update(sim.state.effects,sim.state.elapsed,id=>this.vehicleVisual(id),this.vehicleView==='cockpit'?sim.player.carId||undefined:undefined);
       if(this.cutCount!==sim.world.fractures.length){
         this.cutCount=sim.world.fractures.length;
         this.combatEffects.fracture(this.scene,sim.world.fractures,[this.humans.group,this.bodyRig.weapon,this.airMobility.group,this.collectionFleet.group]);
@@ -286,7 +291,7 @@ export class StreetRenderer extends CityRenderer {
   override destroy() {
     if (this.disposed) return;
     this.bodyRig.dispose();
-    this.clearWrecks();this.combatEffects.dispose();this.missileMeshes.dispose();this.pockets.dispose();
+    this.clearWrecks();this.impactMarks.dispose();this.combatEffects.dispose();this.missileMeshes.dispose();this.pockets.dispose();
     this.humans.dispose();
     super.destroy();
   }

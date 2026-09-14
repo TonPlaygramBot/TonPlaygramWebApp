@@ -10,6 +10,28 @@ type Wall=(e:FacadeEdge,color:number,u:number,y:number,w:number,h:number,d:numbe
  * No per-window materials, textures, lights or animation loops. */
 export function landmarkDetails(profile:ReferenceProfile,edges:FacadeEdge[],height:number,add:Add,box:Box,wall:Wall,centre:{x:number;z:number}) {
  const style=profile.style;
+ if(style==='intercontinental'){
+  const storey=height/33,podium=storey*3;
+  for(const e of edges){
+   if(e.length<.5)continue;
+   // Contractor's south-facing gold / dark return composition; the actual
+   // mapped outline is retained. Thin cladding is batched by four colours.
+   const gold=e.nz>.25||e.nx<-.65,metal=gold?0xb58e45:0x303638;
+   wall(e,metal,e.length/2,(height+podium)/2,e.length,height-podium,.08,.04);
+   wall(e,0x293c47,e.length/2,podium*.47,e.length-.16,podium*.9,.08,.13);
+   const columns=Math.max(1,Math.floor(e.length/2.7)),bay=e.length/columns;
+   for(let floor=3;floor<33;floor++){
+    const y=(floor+.5)*storey;
+    for(let i=0;i<columns;i++){
+     wall(e,0x293c47,(i+.5)*bay,y,bay*.68,storey*.66,.065,.14);
+     wall(e,gold?0xd0ac64:0x515a5d,(i+.12)*bay,y,.065,storey*.75,.045,.2);
+    }
+   }
+   for(let floor=3;floor<=33;floor++)wall(e,metal,e.length/2,floor*storey-.045,e.length,.09,.07,.18);
+   wall(e,0x515a5d,e.length/2,podium,e.length,.22,.18,.12);
+  }
+  return true;
+ }
  if(style==='downtown-one'){
   const storey=height/37,long=Math.max(...edges.map(e=>e.length));
   // The published design's relief is interpreted at facade scale; no survey

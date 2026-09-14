@@ -1,7 +1,9 @@
 import * as THREE from "three";
+import {VisibilityIndex,selectVisibilityBands} from './shared/visibilityIndex.mjs';
 import {AGED_HOUSING_IDS} from '../tirana-city-source/housingRegistry.mjs';
 import { WORLD, insidePolygon, type Point } from "./shared/engine.mjs";
 import { nativeReplacementIds } from "../tirana-landmarks/nativeLocations.mjs";
+import {ROCK_REPLACEMENT_IDS} from '../tirana-landmarks/skanderbegBuilding.mjs';
 
 import { INSTITUTION_BUILDING_IDS } from '../tirana-city-source/registry.mjs';
 import {REAL_STOREFRONT_BUILDING_IDS,FUEL_CANOPY_IDS} from '../tirana-street-life/registry.mjs';
@@ -11,7 +13,7 @@ type Placement = {
   height: number; variant: number; yaw: number;
 };
 export const CITY_DETAILS: Placement[] = WORLD.buildings.flatMap((b, i) => {
-  if(AGED_HOUSING_IDS.has(String(b.id)))return [];
+  if(AGED_HOUSING_IDS.has(String(b.id))||ROCK_REPLACEMENT_IDS.has(String(b.id)))return [];
   if(b.neighbourhood)return []; // Source shells/Blender assets own these footprints.
   if (INSTITUTION_BUILDING_IDS.has(String(b.id)) || REAL_STOREFRONT_BUILDING_IDS.has(String(b.id)) || FUEL_CANOPY_IDS.has(String(b.id)) || replacedLandmarkIds.has(String(b.id)) || b.special || b.h < 6 || b.h > 60) return [];
   let longest = 0, angle = 0;
@@ -37,6 +39,13 @@ export const CITY_DETAILS: Placement[] = WORLD.buildings.flatMap((b, i) => {
   return [];
 });
 export const DETAIL_IDS = new Set(CITY_DETAILS.map((b) => b.id));
+const detailIndex = new VisibilityIndex(CITY_DETAILS);
+// Preserve the existing 35/100-building limit. Distant silhouettes receive the
+// cheap authored LOD; expensive near detail still has ten slots per variant.
+export const FACADE_VISIBILITY = {
+  battery: [{radius:180,count:25},{radius:400,count:6},{radius:640,count:4}],
+  high: [{radius:340,count:75},{radius:750,count:15},{radius:1100,count:10}]
+} as const;
 type Batch = {mesh: THREE.InstancedMesh; local: THREE.Matrix4; variant: number; lod: boolean; size: THREE.Vector3; min: THREE.Vector3;};
 export class CityFacades {
   group = new THREE.Group();
@@ -44,6 +53,16 @@ export class CityFacades {
   private time = 0;
   private matrix = new THREE.Matrix4();
   private object = new THREE.Object3D();
+  private viewer = new THREE.Vector3(Infinity, 0, Infinity);
+  private direction = new THREE.Vector3();
+  private lastDirection = new THREE.Vector3();
+  private cameraPosition = new THREE.Vector3(Infinity,Infinity,Infinity);
+  private projectionWidth = 0;
+  private projectionHeight = 0;
+  private battery?: boolean;
+  private frustum = new THREE.Frustum();
+  private projection = new THREE.Matrix4();
+  private sphere = new THREE.Sphere();
   constructor(source: THREE.Group) {
     const names = ["brick_block", "corner_block"];
     for (const [variant, name] of names.entries()) for (const lod of [false, true]) {
@@ -59,24 +78,38 @@ export class CityFacades {
           mesh.instanceMatrix.setUsage(THREE.DynamicDrawUsage);
           mesh.castShadow = !lod;
           mesh.receiveShadow = true;
-          // Active matrices move each update; source-centred bounds would cull the city.
-          mesh.frustumCulled = false;
+          // Recompute the aggregate bounds whenever active matrices change.
+          mesh.frustumCulled = true;
           this.group.add(mesh);
           this.batches.push({mesh, local: o.matrixWorld.clone(), variant, lod, size, min: box.min.clone()});
         }
       });
     }
   }
-  update(target: Point, dt: number, battery: boolean) {
+  update(target: Point, dt: number, battery: boolean, camera?: THREE.PerspectiveCamera) {
     this.time -= dt;
-    if (this.time > 0) return;
-    this.time = 0.4;
-    const near = CITY_DETAILS.map((p) => ({p, d: Math.hypot(p.x - target.x, p.z - target.z)}))
-      .filter((v) => v.d < (battery ? 180 : 340)).sort((a, b) => a.d - b.d).slice(0, battery ? 35 : 100);
+    if(camera) camera.getWorldDirection(this.direction);
+    const changed = this.battery !== battery || (target.x-this.viewer.x)**2+(target.z-this.viewer.z)**2 > 4 ||
+      !!camera && (this.direction.distanceToSquared(this.lastDirection) > .0025 ||
+        camera.position.distanceToSquared(this.cameraPosition)>4 || camera.projectionMatrix.elements[0]!==this.projectionWidth || camera.projectionMatrix.elements[5]!==this.projectionHeight);
+    if (!changed || this.time > 0) return;
+    this.time = .15;
+    this.viewer.set(target.x, 0, target.z);this.battery=battery;this.lastDirection.copy(this.direction);
+    if(camera){this.cameraPosition.copy(camera.position);this.projectionWidth=camera.projectionMatrix.elements[0];this.projectionHeight=camera.projectionMatrix.elements[5];camera.updateMatrixWorld();this.projection.multiplyMatrices(camera.projectionMatrix,camera.matrixWorldInverse);this.frustum.setFromProjectionMatrix(this.projection);}
+    const bands=FACADE_VISIBILITY[battery?'battery':'high'];
+    const near=selectVisibilityBands(detailIndex.query(target,bands[bands.length-1].radius,p=>{
+      if(!camera)return true;
+      this.sphere.center.set(p.x,p.height/2,p.z);this.sphere.radius=Math.hypot(p.width,p.depth,p.height)/2;
+      return this.frustum.intersectsSphere(this.sphere);
+    }),bands);
+    // A crowded near band must overflow into the available LOD slots, rather
+    // than silently disappearing when its full-detail batch reaches capacity.
+    const fullIds=new Set<string>(),fullCounts=[0,0];
+    for(const {item:p,distanceSq} of near)if(!battery&&distanceSq<70**2&&fullCounts[p.variant]<10){fullIds.add(p.id);fullCounts[p.variant]++;}
     for (const batch of this.batches) {
       let count = 0;
-      for (const { p, d } of near) {
-        const full = !battery && d < 70;
+      for (const { item:p } of near) {
+        const full = fullIds.has(p.id);
         if (p.variant !== batch.variant || batch.lod === full || count >= batch.mesh.instanceMatrix.count) continue;
         this.object.scale.set(p.width / batch.size.x, p.height / batch.size.y, p.depth / batch.size.z);
         this.object.rotation.set(0, p.yaw, 0);
@@ -90,6 +123,10 @@ export class CityFacades {
       }
       batch.mesh.count = count;
       batch.mesh.instanceMatrix.needsUpdate = true;
+      batch.mesh.computeBoundingSphere();
+      batch.mesh.visible=count>0;
     }
+    this.group.userData.visibleBuildings=near.length;
+    this.group.userData.detailRadius=bands[bands.length-1].radius;
   }
 }

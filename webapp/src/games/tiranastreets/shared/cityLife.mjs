@@ -2,6 +2,7 @@ import {createInstitutionGuards} from './institutionGuards.mjs';
 import {createTrafficOfficers,directTraffic} from './junctionControl.mjs';
 import {initPoliceDispatch,updatePolicePatrols} from './policeDispatch.mjs';
 import {pedestrianIntent} from './pedestrianBehavior.mjs';
+import {registerPedestrianDefense,pedestrianDefenseIntent} from './pedestrianDefense.mjs';
 import {steerNPC,friendlyInFiringLane} from './npcNavigation.mjs';
 import {createFootPatrols} from './patrols.mjs';
 import {vehicleSize,TrafficGrid} from './trafficSimulation.mjs';
@@ -286,6 +287,7 @@ export function harm(state, target, amount, attacker, env) {
   if (target.kind) {
     target.health = Math.max(0, target.health - amount);
     target.panicUntil = state.elapsed + 12;
+    registerPedestrianDefense(target,attacker,amount,state.elapsed);
     if (!target.health) {
       dropWeapon(state,target);
       target.downUntil = state.elapsed + (target.kind === "gang" ? 3600 : 35);
@@ -488,6 +490,13 @@ export function updateCityLife(state, dt, env, mission) {
     const navigate=n.kind!=='civilian'||players.some(p=>(p.x-n.x)**2+(p.z-n.z)**2<140**2);
     const walkTo=(goal,speed)=>env.along(n,navigate?steerNPC(n,goal,walkClear,state.elapsed):goal,speed,npcDt);
     if (n.kind === "civilian") {
+      const defense=pedestrianDefenseIntent(n,state,env.clear);
+      if(defense){
+        n.speed=0;n.anim='fight';n.behavior='defend';
+        n.heading=Math.atan2(n.x-defense.target.x,n.z-defense.target.z);
+        if(defense.strike)harm(state,defense.target,6,n,env);
+        continue;
+      }
       const intent=pedestrianIntent(n,state,vehicleGrid.near(n.x,n.z,25),peopleGrid.near(n.x,n.z,3),env.world);
       n.speed=0;
       if(intent.speed>0){walkTo(intent.goal,intent.speed);env.collide(n,.4);}

@@ -23,6 +23,12 @@ test('city population includes children, dog walkers and emergency services',()=
   const state=createState([{id:'p',name:'P'}],'free-roam');
   assert.ok(state.npcs.some(n=>n.role==='child'));
   assert.ok(state.npcs.some(n=>n.role==='dog-walker'));
-  for(const service of ['ambulance','fire-brigade','police-patrol'])
+  for(const service of ['ambulance','fire-brigade'])
     assert.ok(state.traffic.some(v=>v.service===service));
+  // Police dispatch promotes its original traffic car into the persistent
+  // unit fleet and removes the generic emergency-service controller.
+  const patrol=state.units.find(v=>v.id==='service-police-patrol');
+  assert.equal(patrol?.role,'patrol');
+  assert.equal(patrol?.driver,'npc');
+  assert.ok(!state.traffic.some(v=>v.id===patrol.id));
 });

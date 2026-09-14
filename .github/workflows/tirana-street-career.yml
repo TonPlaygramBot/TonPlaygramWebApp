@@ -3,16 +3,15 @@ on:
   pull_request:
     paths:
       - 'webapp/src/games/tiranastreets/**'
+      - 'webapp/src/games/tirana-landmarks/**'
+      - 'webapp/src/games/tirana-city-source/**'
       - 'webapp/src/games/blackwater/**'
       - 'bot/services/blackwater.js'
       - 'webapp/src/games/tabletennis/options.ts'
       - 'webapp/src/config/chessBattleInventoryConfig.js'
-      - 'test/tiranaStreetCareer*'
-      - 'test/tiranaFullBody*'
-      - 'test/tiranaGameplay*'
-      - 'test/tiranaPlayerExperience*'
-      - 'test/tiranaDriverBattlefield*'
+      - 'test/tirana*'
       - 'webapp/public/assets/tirana-streets/living/operator.glb'
+      - 'webapp/public/assets/tirana-streets/skanderbeg-building/**'
       - '.github/workflows/tirana-street-career.yml'
 permissions:
   contents: read
@@ -46,6 +45,19 @@ jobs:
       - run: npm ci --prefix webapp
       - name: Real-rig and pointer-ownership tests
         run: node --test test/tiranaFullBodyPresentation.test.mjs test/tiranaGameplayPresentation.test.mjs test/tiranaPlayerExperience.test.mjs test/tiranaDriverBattlefield.test.mjs
+      - name: Character, vehicle, landmark and streaming regressions
+        run: >-
+          node --test --test-concurrency=2
+          test/tiranaCareerLoadingFlightInput.test.cjs
+          test/tiranaHeldWeaponLoading.test.mjs
+          test/tiranaHumanAnimation.test.mjs
+          test/tiranaImpactPresentation.test.mjs
+          test/tiranaPedestrianDefense.test.mjs
+          test/tiranaPedestrianDefenseGameplay.test.mjs
+          test/tiranaRollingWheels.test.mjs
+          test/tiranaSkanderbegBuilding.test.mjs
+          test/tiranaVehicleDamageFlight.test.mjs
+          test/tiranaVisibilityBudget.test.cjs
       - run: npm run build --prefix webapp
       - name: Dependency-aware typecheck (no error suppression)
         working-directory: webapp

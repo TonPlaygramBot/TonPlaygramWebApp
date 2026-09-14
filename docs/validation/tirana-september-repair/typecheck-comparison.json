@@ -1,0 +1,13 @@
+{
+  "baseline_ref": "69bc6dd2334476eb1feb5abcf40be925916c621a",
+  "command": "npx --no-install tsc --noEmit --pretty false",
+  "cwd": "webapp",
+  "normalization": "Diagnostic multisets compared after normalizing checkout roots and line/column positions; source paths, codes and complete messages retained.",
+  "baseline_diagnostics": 412,
+  "branch_diagnostics": 412,
+  "unchanged": 412,
+  "introduced_count": 0,
+  "resolved_count": 0,
+  "introduced": [],
+  "resolved": []
+}

@@ -112,6 +112,8 @@ export class FirstPersonBody {
   private release?: () => void;
   private aborts = new Set<AbortController>();
   private failed = new Set<string>();
+  private retryAt = new Map<string,number>();
+  private attempts = new Map<string,number>();
   private models = new Map<string, T.Group>();
   private loading = new Set<string>();
   private requests = new Map<string, Promise<void>>();
@@ -175,33 +177,41 @@ export class FirstPersonBody {
         }
     }
   }
-  private loadWeapon(id: string, model: string) {
+  private loadWeapon(id: string, model: string, priority=false) {
     if(isPocketWeapon(id)){if(!this.models.has(id))this.models.set(id,pocketWeapon(id));return Promise.resolve();}
     const existing = this.requests.get(id);
     if (existing) return existing;
-    const request = this.fetchWeapon(id, model).finally(() => this.requests.delete(id));
+    const operation = this.fetchWeapon(id, model,priority);
+    // Rejected optional work is not an in-flight request. A selection made in
+    // this same frame must be able to use the reserved transfer slot.
+    if (!this.loading.has(id)) return operation;
+    const request = operation.finally(() => {
+      if (this.requests.get(id) === request) this.requests.delete(id);
+    });
     this.requests.set(id, request);
     return request;
   }
-  private async fetchWeapon(id: string, model: string) {
+  private async fetchWeapon(id: string, model: string, priority=false) {
     if (
       this.loading.has(id) ||
       this.models.has(id) ||
-      this.failed.has(id) ||
-      this.loading.size >= 2 ||
+      (this.failed.has(id) && Date.now() < (this.retryAt.get(id) || Infinity)) ||
+      // Keep one transfer slot available for the weapon the player selects.
+      this.loading.size >= (priority?2:1) ||
       this.dead
     )
       return;
-    this.loading.add(id);
+    this.loading.add(id);this.failed.delete(id);
     let source: T.Group | undefined, prepared: T.Group | undefined;
     const abort = new AbortController();
     this.aborts.add(abort);
-    const timer = setTimeout(() => abort.abort(), 15000);
+    const timer = setTimeout(() => abort.abort(), 45000);
     try {
       const url = new URL(weaponModelUrl(model), window.location.href),
-        response = await fetch(url, { signal: abort.signal });
+        response = await fetch(url, { signal: abort.signal,cache:this.attempts.has(id)?'reload':'default' });
       if (!response.ok) throw Error('HTTP ' + response.status);
       const bytes = await response.arrayBuffer();
+      clearTimeout(timer); // CPU/GPU decoding is not a failed network transfer.
       if (bytes.byteLength > 20 * 1024 * 1024)
         throw Error('Weapon exceeds 20 MB budget');
       const g = await new GLTFLoader().parseAsync(
@@ -224,6 +234,8 @@ export class FirstPersonBody {
       });
       if (source !== prepared) releaseBatchedSourceGeometry(source);
       this.models.set(id, wrapper);
+      this.retryAt.delete(id);this.attempts.delete(id);
+      for(let i=this.errors.length-1;i>=0;i--)if(this.errors[i].startsWith(`Held weapon ${id}:`))this.errors.splice(i,1);
     } catch (e) {
       disposeWeaponResources(
         [source, prepared].filter((r): r is T.Group => !!r)
@@ -231,7 +243,9 @@ export class FirstPersonBody {
       if (!this.dead) {
         console.warn('[tirana:load]', {stage:'held-weapon',id,status:'failed'}, e);
         this.failed.add(id);
-        this.errors.push(`Held weapon ${id}: ${String(e)}`);
+        const attempt=(this.attempts.get(id)||0)+1;this.attempts.set(id,attempt);
+        this.retryAt.set(id,Date.now()+Math.min(30000,1000*2**Math.min(attempt,5)));
+        if(!this.errors.some(message=>message.startsWith(`Held weapon ${id}:`)))this.errors.push(`Held weapon ${id}: ${String(e)}`);
       }
     } finally {
       clearTimeout(timer);
@@ -244,7 +258,7 @@ export class FirstPersonBody {
     if (!config) return;
     while (!this.dead && !this.loading.has(id) && this.loading.size >= 2)
       await Promise.race(this.requests.values());
-    await this.loadWeapon(id, config.model);
+    await this.loadWeapon(id, config.model,true);
   }
   cloneWeapon(id: string) { return this.models.get(id)?.clone(true); }
   update(
@@ -446,7 +460,7 @@ export class FirstPersonBody {
           .multiply(q.setFromEuler(new T.Euler(curl, 0, 0)));
       }
     const config = WEAPON_BY_ID.get(p.weapon);
-    if (config) void this.loadWeapon(p.weapon, config.model);
+    if (config) void this.loadWeapon(p.weapon, config.model,true);
     if (
       (this.equipped !== p.weapon && this.models.has(p.weapon)) ||
       (!p.weapon && this.equipped)
@@ -510,6 +524,7 @@ export class FirstPersonBody {
         root.removeFromParent();
         this.drops.delete(id);
       }
+    let attached=0;
     for (const drop of loot) {
       if (!wanted.has(drop.id) || this.drops.has(drop.id)) continue;
       const w = WEAPON_BY_ID.get(drop.weapon);
@@ -523,6 +538,7 @@ export class FirstPersonBody {
       root.rotation.set(0, 1.1, Math.PI / 2);
       this.scene.add(root);
       this.drops.set(drop.id, root);
+      if(++attached>=2)break;
     }
   }
   dispose() {

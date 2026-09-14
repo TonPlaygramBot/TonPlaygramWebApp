@@ -898,7 +898,7 @@ export class StreetSimulation {
     n.nextShot=now+Math.max(w.interval,n.kind==='soldier'?.22:.42)/Math.max(.5,scale);
     this.combat.emit('shot',from,{toX:hit.point.x,toY:hit.point.y,toZ:hit.point.z,owner:n.id,weapon:w.id});
     if(target&&now-p.lastDamage>.35)this.damage(p,Math.min(w.damage,n.kind==='soldier'?8:5)*scale,n);
-    else if(hit.kind!=='air'){this.combat.emit('hit',hit.point);const car=cars.find(c=>c.id===hit.objectId);if(car)this.combat.damageVehicle(car,w.damage*.5,n);}
+    else if(hit.kind!=='air'){this.combat.emit('hit',hit.point,{objectId:hit.objectId,hitKind:hit.kind,nx:hit.normal?.x,ny:hit.normal?.y,nz:hit.normal?.z,weapon:w.id,owner:n.id});const car=cars.find(c=>c.id===hit.objectId);if(car)this.combat.damageVehicle(car,w.damage,n,'bullet');}
   }
   fire() {
     const p = this.player,
@@ -1006,6 +1006,11 @@ export class StreetSimulation {
         id: ++state.effectSeq,
         at: state.elapsed,
         kind: 'hit',
+        objectId:hit.objectId,
+        hitKind:hit.kind,
+        nx:hit.normal?.x,
+        ny:hit.normal?.y,
+        nz:hit.normal?.z,
         x: hit.point.x,
         y: hit.point.y,
         z: hit.point.z,

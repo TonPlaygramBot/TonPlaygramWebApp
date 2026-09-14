@@ -40,7 +40,7 @@ export function airAction(state, player, action) {
   const helicopter = state.helicopter;
   if (!helicopter || action !== "helicopter") return false;
   if (player.aircraftId === helicopter.id) {
-    if (helicopter.y > helicopter.roofY + 1.2 || helicopter.speed > 1.5) return true;
+    if (helicopter.y > helicopter.roofY + 1.2 || Math.abs(helicopter.speed) > 1.5) return true;
     helicopter.pilot = null;
     helicopter.airborne = false;
     player.aircraftId = null;
@@ -96,7 +96,9 @@ export function updateAirMobility(state, dt) {
   }
   const input = state.elapsed - p.inputAt < 0.45 ? p.input : { x: 0, y: 0, fast: false, brake: false, fire: false };
   h.heading += -input.x * dt * 1.25;
-  h.y = Math.max(h.roofY + 0.65, Math.min(105, h.y + (input.fast ? 8 : 0) * dt - (input.brake ? 7 : 0) * dt));
+  // Modern mapped rooftops can already exceed the old absolute 105 m ceiling.
+  // Leave usable climb clearance above the launch pad on every building.
+  h.y = Math.max(h.roofY + 0.65, Math.min(h.roofY + 650, h.y + (input.fast ? 8 : 0) * dt - (input.brake ? 7 : 0) * dt));
   h.airborne = h.y > h.roofY + 1.1;
   const desired = h.airborne ? input.y * 28 : 0;
   h.speed += (desired - h.speed) * Math.min(1, dt * 2.2);

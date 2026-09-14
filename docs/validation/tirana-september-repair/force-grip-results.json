@@ -1,0 +1,223 @@
+{
+  "scope": "Actual production visual layers and original local assets, on-demand software WebGL. This is not a physical-phone frame-rate benchmark.",
+  "viewport": {
+    "width": 390,
+    "height": 844
+  },
+  "models": [
+    {
+      "id": "renea_officer",
+      "sourceSha256": "7dd1c5117608ae3a9fa7a85483536a0d72ac3d8df9bf39976c9e21c6bd00aaba",
+      "sourceBytes": 6356064,
+      "initial": {
+        "kind": "force",
+        "sourceURL": "/assets/tirana-streets/albanian-forces/glb/renea_officer.glb?v=original-v2",
+        "ready": true,
+        "weaponReady": true,
+        "triangles": 140600,
+        "meshes": 8,
+        "skinned": 7,
+        "bones": 163,
+        "textures": 8,
+        "finite": true,
+        "size": [
+          1.1936461261357338,
+          1.9438209342579025,
+          0.9285673825270053
+        ],
+        "boundsMin": [
+          -0.596823063067867,
+          0.06000000181475441,
+          -0.6604240343517236
+        ],
+        "drawCalls": 11,
+        "renderer": "WebKit WebGL"
+      },
+      "poses": [
+        {
+          "action": "walk",
+          "ready": true,
+          "weaponReady": true,
+          "finite": true,
+          "warnings": [],
+          "errors": {},
+          "size": [
+            0.5518968195445868,
+            1.9563792956603765,
+            1.0823328018079887
+          ]
+        },
+        {
+          "action": "run",
+          "ready": true,
+          "weaponReady": true,
+          "finite": true,
+          "warnings": [],
+          "errors": {},
+          "size": [
+            0.5518967416907983,
+            1.9575240781647174,
+            1.0289682653922143
+          ]
+        },
+        {
+          "action": "aim",
+          "ready": true,
+          "weaponReady": true,
+          "finite": true,
+          "warnings": [],
+          "errors": {},
+          "size": [
+            0.6064914296447157,
+            1.9563967383268757,
+            1.0032500792986159
+          ]
+        }
+      ]
+    },
+    {
+      "id": "fnsh_officer",
+      "sourceSha256": "b6ebaf814d3fd9eb14d5d12e6798e00e2076f610c760e9f2fb42141d344510da",
+      "sourceBytes": 6554412,
+      "initial": {
+        "kind": "force",
+        "sourceURL": "/assets/tirana-streets/albanian-forces/glb/fnsh_officer.glb?v=original-v2",
+        "ready": true,
+        "weaponReady": true,
+        "triangles": 140688,
+        "meshes": 8,
+        "skinned": 7,
+        "bones": 163,
+        "textures": 9,
+        "finite": true,
+        "size": [
+          1.1936461261357338,
+          1.880496316512341,
+          0.9265892853360723
+        ],
+        "boundsMin": [
+          -0.596823063067867,
+          0.06000000181475441,
+          -0.6604240343517236
+        ],
+        "drawCalls": 11,
+        "renderer": "WebKit WebGL"
+      },
+      "poses": [
+        {
+          "action": "walk",
+          "ready": true,
+          "weaponReady": true,
+          "finite": true,
+          "warnings": [],
+          "errors": {},
+          "size": [
+            0.5518968195445868,
+            1.8930546877803827,
+            1.084310897562284
+          ]
+        },
+        {
+          "action": "run",
+          "ready": true,
+          "weaponReady": true,
+          "finite": true,
+          "warnings": [],
+          "errors": {},
+          "size": [
+            0.5518967416907983,
+            1.8941994702847236,
+            1.0309463611263596
+          ]
+        },
+        {
+          "action": "aim",
+          "ready": true,
+          "weaponReady": true,
+          "finite": true,
+          "warnings": [],
+          "errors": {},
+          "size": [
+            0.6058607812516333,
+            1.8930721304468818,
+            1.0052281750529104
+          ]
+        }
+      ]
+    },
+    {
+      "id": "shqiponja_officer",
+      "sourceSha256": "f2b39d68dfc0dc725153ee62ca10077ffaf5ef40c9a79f72bdc12c6a437b9878",
+      "sourceBytes": 6739612,
+      "initial": {
+        "kind": "force",
+        "sourceURL": "/assets/tirana-streets/albanian-forces/glb/shqiponja_officer.glb?v=original-v2",
+        "ready": true,
+        "weaponReady": true,
+        "triangles": 143312,
+        "meshes": 10,
+        "skinned": 9,
+        "bones": 163,
+        "textures": 9,
+        "finite": true,
+        "size": [
+          1.1936461261357338,
+          1.880496316512341,
+          0.9265892853360723
+        ],
+        "boundsMin": [
+          -0.596823063067867,
+          0.06000000181475441,
+          -0.6604240343517236
+        ],
+        "drawCalls": 13,
+        "renderer": "WebKit WebGL"
+      },
+      "poses": [
+        {
+          "action": "walk",
+          "ready": true,
+          "weaponReady": true,
+          "finite": true,
+          "warnings": [],
+          "errors": {},
+          "size": [
+            0.5518968195445868,
+            1.8930546877803827,
+            1.084310897562284
+          ]
+        },
+        {
+          "action": "run",
+          "ready": true,
+          "weaponReady": true,
+          "finite": true,
+          "warnings": [],
+          "errors": {},
+          "size": [
+            0.5518967416907983,
+            1.8941994702847236,
+            1.0309463611263596
+          ]
+        },
+        {
+          "action": "aim",
+          "ready": true,
+          "weaponReady": true,
+          "finite": true,
+          "warnings": [],
+          "errors": {},
+          "size": [
+            0.6058607812516333,
+            1.8930721304468818,
+            1.0052281750529104
+          ]
+        }
+      ]
+    }
+  ],
+  "errors": [],
+  "failures": [],
+  "pass": true,
+  "recordFormat": "Summary of the successful harness output; full per-bone matrices can be regenerated with test/tiranaRealismAssets.browser.mjs."
+}

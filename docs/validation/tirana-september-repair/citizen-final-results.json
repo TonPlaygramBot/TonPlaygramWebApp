@@ -1,0 +1,171 @@
+{
+  "scope": "Actual production visual layers and original local assets, on-demand software WebGL. This is not a physical-phone frame-rate benchmark.",
+  "viewport": {
+    "width": 390,
+    "height": 844
+  },
+  "models": [
+    {
+      "id": "tirana-citizen-1",
+      "sourceSha256": "f2805ad70344f0625ac5dbb5f67a24fa514c7d7fb027fd4168b295363e7ceed9",
+      "sourceBytes": 754628,
+      "initial": {
+        "id": "tirana-citizen-1",
+        "kind": "human",
+        "action": "idle",
+        "ready": true,
+        "weaponReady": true,
+        "revision": 2,
+        "sourceURL": "/assets/tirana-streets/population/citizen-1.glb",
+        "triangles": 13319,
+        "meshes": 9,
+        "skinned": 9,
+        "bones": 67,
+        "textures": 5,
+        "finite": true,
+        "warnings": [],
+        "size": [
+          0.9652,
+          2.2038644132228336,
+          0.4356107045335815
+        ],
+        "boundsMin": [
+          -0.4826,
+          0.11983958677716618,
+          -0.17888426015572637
+        ],
+        "errors": [],
+        "drawCalls": 12,
+        "renderTriangles": 13323,
+        "renderer": "WebKit WebGL"
+      },
+      "poses": [
+        {
+          "id": "tirana-citizen-1",
+          "kind": "human",
+          "action": "walk",
+          "ready": true,
+          "weaponReady": true,
+          "revision": 3,
+          "sourceURL": "/assets/tirana-streets/population/citizen-1.glb",
+          "triangles": 13319,
+          "meshes": 9,
+          "skinned": 9,
+          "bones": 67,
+          "textures": 5,
+          "finite": true,
+          "warnings": [],
+          "size": [
+            0.9652,
+            2.213948111861543,
+            0.5055055506262084
+          ],
+          "boundsMin": [
+            -0.4826,
+            0.10975588813845698,
+            -0.7842502976964179
+          ],
+          "errors": [],
+          "drawCalls": 12,
+          "renderTriangles": 13323,
+          "renderer": "WebKit WebGL"
+        },
+        {
+          "id": "tirana-citizen-1",
+          "kind": "human",
+          "action": "run",
+          "ready": true,
+          "weaponReady": true,
+          "revision": 4,
+          "sourceURL": "/assets/tirana-streets/population/citizen-1.glb",
+          "triangles": 13319,
+          "meshes": 9,
+          "skinned": 9,
+          "bones": 67,
+          "textures": 5,
+          "finite": true,
+          "warnings": [],
+          "size": [
+            0.9652,
+            2.1782758554236867,
+            1.0566141898186876
+          ],
+          "boundsMin": [
+            -0.4826,
+            0.14542814457631306,
+            -2.8342468735117663
+          ],
+          "errors": [],
+          "drawCalls": 12,
+          "renderTriangles": 13323,
+          "renderer": "WebKit WebGL"
+        },
+        {
+          "id": "tirana-citizen-1",
+          "kind": "human",
+          "action": "aim",
+          "ready": true,
+          "weaponReady": true,
+          "revision": 5,
+          "sourceURL": "/assets/tirana-streets/population/citizen-1.glb",
+          "triangles": 23203,
+          "meshes": 10,
+          "skinned": 9,
+          "bones": 67,
+          "textures": 8,
+          "finite": true,
+          "warnings": [],
+          "size": [
+            0.9652,
+            2.2038644132228336,
+            0.7725377136761606
+          ],
+          "boundsMin": [
+            -0.4826,
+            0.11983958677716605,
+            -2.9516765806832437
+          ],
+          "errors": [],
+          "drawCalls": 13,
+          "renderTriangles": 23207,
+          "renderer": "WebKit WebGL"
+        },
+        {
+          "id": "tirana-citizen-1",
+          "kind": "human",
+          "action": "fight",
+          "ready": true,
+          "weaponReady": true,
+          "revision": 6,
+          "sourceURL": "/assets/tirana-streets/population/citizen-1.glb",
+          "triangles": 13319,
+          "meshes": 9,
+          "skinned": 9,
+          "bones": 67,
+          "textures": 5,
+          "finite": true,
+          "warnings": [],
+          "size": [
+            0.9652,
+            2.2038644132228336,
+            0.7530638479848593
+          ],
+          "boundsMin": [
+            -0.4826,
+            0.11983958677716605,
+            -2.9341779239149437
+          ],
+          "errors": [],
+          "drawCalls": 12,
+          "renderTriangles": 13323,
+          "renderer": "WebKit WebGL"
+        }
+      ]
+    }
+  ],
+  "errors": [],
+  "consoleErrors": [],
+  "failures": [],
+  "pass": true,
+  "recordFormat": "Successful final citizen recheck; per-bone matrices omitted from this summary."
+}

@@ -16,8 +16,11 @@ for (const [side, offset] of [['left',0],['right',23]]) {
 }
 const SIMPLE = {
   upperarml:'leftarm',upperarmr:'rightarm',lowerarml:'leftforearm',lowerarmr:'rightforearm',
-  wristl:'lefthand',wristr:'righthand',upperlegl:'leftupleg',upperlegr:'rightupleg',
-  lowerlegl:'leftleg',lowerlegr:'rightleg',footl:'leftfoot',footr:'rightfoot'
+  wristl:'lefthand',wristr:'righthand',handl:'lefthand',handr:'righthand',
+  upperlegl:'leftupleg',upperlegr:'rightupleg',thighl:'leftupleg',thighr:'rightupleg',
+  lowerlegl:'leftleg',lowerlegr:'rightleg',calfl:'leftleg',calfr:'rightleg',footl:'leftfoot',footr:'rightfoot',
+  pelvis:'hips',spine01:'spine',spine02:'spine1',spine03:'spine2',neck01:'neck',
+  claviclel:'leftshoulder',clavicler:'rightshoulder',balll:'lefttoebase',ballr:'righttoebase'
 };
 const CC = {hip:'hips',pelvis:'pelvis',waist:'spine',spine01:'spine1',spine02:'spine2',necktwist01:'neck',necktwist02:'neck1',head:'head',clavicle:'shoulder',upperarm:'arm',forearm:'forearm',hand:'hand',thigh:'upleg',calf:'leg',foot:'foot',toebase:'toebase'};
 
@@ -25,7 +28,9 @@ export function canonicalHumanoidBone(name) {
   const polish=name.match(/^Bone[._]?(\d+)?_base_soldier1$/i);
   if (polish) return POLISH[Number(polish[1]||0)] || `polishbone${Number(polish[1]||0)}`;
   // Sketchfab appends _00, _01 ... to both Mixamo and Character Creator joints.
-  let n=name.replace(/_0\d+$/,'').toLowerCase().replace(/mixamorig\d*|[^a-z0-9]/g,'');
+  // Quaternius uses spine_01 / neck_01 as anatomy names, not export suffixes.
+  const original=/^(mixamorig|cc[_ ]?base)/i.test(name)?name.replace(/_0\d+$/,''):name;
+  let n=original.toLowerCase().replace(/mixamorig\d*|[^a-z0-9]/g,'');
   if(n.startsWith('ccbase')) {
     n=n.slice(6);
     const side=/^[lr]/.test(n)?(n[0]==='l'?'left':'right'):'';
@@ -34,7 +39,7 @@ export function canonicalHumanoidBone(name) {
     if(finger)return side+'hand'+(finger[1]==='mid'?'middle':finger[1])+finger[2];
     return side+(CC[part]||part);
   }
-  const finger=n.match(/^(thumb|index|middle|ring|pinky)(\d)([lr])$/);
+  const finger=n.match(/^(thumb|index|middle|ring|pinky)0?(\d)([lr])$/);
   if(finger)return (finger[3]==='l'?'left':'right')+'hand'+finger[1]+finger[2];
   return SIMPLE[n]||n;
 }
@@ -43,6 +48,19 @@ export function humanoidBones(root) {
   const bones=new Map();
   root.traverse(o=>{if(o.isBone)bones.set(canonicalHumanoidBone(o.name),o);});
   return bones;
+}
+
+/** Some bundled avatars have a second armature for their hair. Animate each
+ * actual skeleton once, rather than letting the last duplicate bone name win. */
+export function humanoidBoneGroups(root) {
+  const groups=[],seen=new Set();
+  root.traverse(mesh=>{
+    if(!mesh.isSkinnedMesh)return;
+    const bones=new Map(mesh.skeleton.bones.map(bone=>[canonicalHumanoidBone(bone.name),bone]));
+    const hips=bones.get('hips');
+    if(hips&&!seen.has(hips)){seen.add(hips);groups.push(bones);}
+  });
+  return groups.length?groups:[humanoidBones(root)];
 }
 export function inspectHumanoidRig(root) {
   const bones=humanoidBones(root), missing=[];
@@ -86,7 +104,7 @@ export function solveHumanoidLimb(root,bones,side,target,leg=false) {
     lower=bones.get(side+(leg?'leg':'forearm')),
     end=bones.get(side+(leg?'foot':'hand'));
   if(!upper||!lower||!end||!upper.parent||!lower.parent)return false;
-  root.updateMatrixWorld(true);
+  root.updateWorldMatrix(true,false);
   const start=upper.getWorldPosition(new T.Vector3()),middle=lower.getWorldPosition(new T.Vector3()),tip=end.getWorldPosition(new T.Vector3());
   const a=start.distanceTo(middle),b=middle.distanceTo(tip),axis=target.clone().sub(start);
   if(a<1e-5||b<1e-5||!Number.isFinite(axis.lengthSq()))return false;

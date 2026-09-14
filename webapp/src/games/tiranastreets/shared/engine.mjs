@@ -5,6 +5,7 @@ import {importedFleet,IMPORTED_PLACEMENT_ORIGIN} from '../../blackwater/shared/i
 import {VEHICLE_COLLECTION} from './vehicleCollection.mjs';
 import {COLLECTION_PLACEMENTS} from './collectionPlacements.mjs';
 import { WORLD } from './world.mjs';
+import {ROCK_REPLACEMENT_IDS,skanderbegBuildingSolids} from '../../tirana-landmarks/skanderbegBuilding.mjs';
 import {FUEL_CANOPY_IDS,fuelCanopyObstacles} from '../../tirana-street-life/fuelCollision.mjs';
 import {
   equipStarter,
@@ -357,7 +358,7 @@ for(const water of waterSegments){const margin=water.width/2+6;
   for(let z=Math.floor((Math.min(water.a[1],water.b[1])-margin)/40);z<=Math.floor((Math.max(water.a[1],water.b[1])+margin)/40);z++){const key=`${x},${z}`;if(!waterCells.has(key))waterCells.set(key,[]);waterCells.get(key).push(water);}
 }
 const importedSolids=importedFleet.filter(a=>a.assetId).map(a=>{const x=a.x+IMPORTED_PLACEMENT_ORIGIN.x,z=a.z+IMPORTED_PLACEMENT_ORIGIN.z;return {id:'imported-'+a.assetId,h:a.h,p:[[x-a.w/2,z-a.d/2],[x+a.w/2,z-a.d/2],[x+a.w/2,z+a.d/2],[x-a.w/2,z+a.d/2]]};});
-const collisionBuildings = [...importedSolids,...WORLD.buildings.filter(b=>!FUEL_CANOPY_IDS.has(b.id)),...fuelCanopyObstacles().filter(b=>b.minY===0)];
+const collisionBuildings = [...importedSolids,...WORLD.buildings.filter(b=>!FUEL_CANOPY_IDS.has(b.id)&&!ROCK_REPLACEMENT_IDS.has(String(b.id))),...skanderbegBuildingSolids(WORLD),...fuelCanopyObstacles().filter(b=>b.minY===0)];
 // Read-only geometry contract for the optional local 3D player system.
 export const collisionSolids = [...collisionBuildings, ...fuelCanopyObstacles().filter(b=>b.minY>0)];
 const cameraBuildings = collisionBuildings.map((b) => ({
