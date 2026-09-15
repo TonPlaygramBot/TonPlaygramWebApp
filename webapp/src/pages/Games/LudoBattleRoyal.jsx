@@ -3706,7 +3706,6 @@ const CHAIR_MODEL_URLS = [
 const SEATED_HUMAN_MODEL_URL = 'https://threejs.org/examples/models/gltf/readyplayer.me.glb';
 const SEATED_HUMAN_BASE_HEIGHT = 1.74;
 // Preserve the original actor normalization independently from the larger portrait presentation scale.
-const SEATED_HUMAN_ACTOR_TARGET_HEIGHT = SEATED_HUMAN_BASE_HEIGHT * 0.84;
 const SEATED_HUMAN_TARGET_HEIGHT = BACK_HEIGHT * 2.42;
 // Slightly upscale seated humans so they read better on portrait/mobile gameplay.
 const SEATED_HUMAN_VISUAL_SCALE_MULTIPLIER = 4.2;
@@ -9576,11 +9575,6 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount, onlin
       return TOKEN_PIECE_OPTIONS[aiTokenPieceIndex] ?? TOKEN_PIECE_OPTIONS[0];
     });
     const previousAppearance = appearanceRef.current || DEFAULT_APPEARANCE;
-    if (previousAppearance.humanCharacter !== safe.humanCharacter) {
-      seatedHumanActorsRef.current
-        .find((entry) => entry.playerIndex === 0)
-        ?.requestCharacter?.(HUMAN_CHARACTER_OPTIONS[safe.humanCharacter]);
-    }
     const previousColors = resolvePlayerColors(previousAppearance);
     const nextColors = resolvePlayerColors(safe);
     const paletteChanged = !areColorArraysEqual(previousColors, nextColors);
@@ -10081,67 +10075,43 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount, onlin
     }
     seatedHumanActorsRef.current = [];
     try {
-      const defaultTemplate = await loadSeatedHumanTemplate(renderer, HUMAN_CHARACTER_OPTIONS[0]);
-      if (cancelled) return;
+      const baseScale =
+        (SEATED_HUMAN_TARGET_HEIGHT / Math.max(SEATED_HUMAN_BASE_HEIGHT, 0.01)) * SEATED_HUMAN_VISUAL_SCALE_MULTIPLIER;
       for (let playerIndex = 0; playerIndex < chairs.length; playerIndex += 1) {
         const chair = chairs[playerIndex];
-        const entry = {
+        const humanIndex =
+          playerIndex > 0 ? aiLoadoutByPlayer[playerIndex]?.humanCharacterIndex ?? 0 : appearanceRef.current?.humanCharacter ?? 0;
+        const humanOption = HUMAN_CHARACTER_OPTIONS[humanIndex] ?? HUMAN_CHARACTER_OPTIONS[0];
+        let humanTemplate = null;
+        try {
+          // eslint-disable-next-line no-await-in-loop
+          humanTemplate = await loadSeatedHumanTemplate(renderer, humanOption);
+        } catch (error) {
+          console.warn('AI/human seat model failed, falling back to default seated avatar', playerIndex, humanOption?.id, error);
+          // eslint-disable-next-line no-await-in-loop
+          humanTemplate = await loadSeatedHumanTemplate(renderer, HUMAN_CHARACTER_OPTIONS[0]);
+        }
+        if (!humanTemplate) continue;
+        const actor = cloneSkeleton(humanTemplate);
+        actor.scale.setScalar(baseScale);
+        const seatZOffset = SEATED_HUMAN_SEAT_Z_OFFSET + (playerIndex === 0 ? SELF_BOTTOM_HUMAN_EXTRA_Z_OFFSET : 0);
+        actor.position.set(0, SEATED_HUMAN_SEAT_Y_OFFSET, seatZOffset);
+        actor.rotation.set(0, SEATED_HUMAN_FACING_Y, 0);
+        chair.group.add(actor);
+        const rig = saveBoneRig(actor);
+        applySeatedHumanPose(rig, 'idle', 1, 0, {}, {}, chair.supportsArmrest !== false);
+        alignSeatedHumanFeetToGroundPlane(actor, rig);
+        const actionHelpers = createSeatedHumanActionHelpers(actor, rig);
+        seatedHumanActorsRef.current.push({
           playerIndex,
-          actor: null,
-          rig: null,
-          propMotion: null,
-          characterRequest: 0,
+          actor,
+          rig,
+          actionHelpers,
           chairSupportsArmrest: chair.supportsArmrest !== false
-        };
-        const install = (template) => {
-          const actor = cloneSkeleton(template);
-          const height = new THREE.Box3().setFromObject(actor).getSize(new THREE.Vector3()).y;
-          actor.scale.multiplyScalar(SEATED_HUMAN_ACTOR_TARGET_HEIGHT / Math.max(height, 0.01));
-          chair.group.add(actor);
-          const rig = saveBoneRig(actor);
-          if (!rig.rightHand || !rig.leftHand || !rig.hips) {
-            actor.removeFromParent();
-            return;
-          }
-          applySeatedHumanPose(rig, 'idle', 1, 0, {}, {}, chair.supportsArmrest !== false);
-          actor.updateMatrixWorld(true);
-          const seatPoint = chair.group.localToWorld(new THREE.Vector3(0, SEAT_THICKNESS * 0.65, 0));
-          const hipsWorld = rig.hips.getWorldPosition(new THREE.Vector3());
-          const actorWorld = actor.getWorldPosition(new THREE.Vector3()).add(seatPoint.sub(hipsWorld));
-          actor.position.copy(chair.group.worldToLocal(actorWorld));
-          actor.updateMatrixWorld(true);
-          entry.actor?.removeFromParent();
-          Object.assign(entry, { actor, rig, headScale: rig.head?.scale.clone(), rightPalm: palmMarker(rig, 'right'), leftPalm: palmMarker(rig, 'left'), actionHelpers: createSeatedHumanActionHelpers(actor, rig) });
-        };
-        install(defaultTemplate);
-        if (!entry.actor) continue;
-        entry.requestCharacter = (option) => {
-          const request = ++entry.characterRequest;
-          const promise = !option || option.id === 'rpm-current'
-            ? Promise.resolve(defaultTemplate)
-            : loadSeatedHumanTemplate(renderer, option);
-          void promise
-            .then((template) => {
-              const whenIdle = () => {
-                if (cancelled || request !== entry.characterRequest) return;
-                if (entry.propMotion || diceRef.current?.userData?.isRolling || stateRef.current?.animation) {
-                  window.setTimeout(whenIdle, 250);
-                  return;
-                }
-                install(template);
-              };
-              whenIdle();
-            })
-            .catch((error) => console.warn('Optional Ludo character could not load; keeping the original', option?.id, error));
-        };
-        seatedHumanActorsRef.current.push(entry);
-        const humanIndex = playerIndex > 0
-          ? aiLoadoutByPlayer[playerIndex]?.humanCharacterIndex ?? 0
-          : appearanceRef.current?.humanCharacter ?? 0;
-        if (humanIndex) entry.requestCharacter(HUMAN_CHARACTER_OPTIONS[humanIndex]);
+        });
       }
     } catch (error) {
-      console.warn('Unable to attach seated Ludo humans', error);
+      console.warn('Unable to attach seated human actors for Ludo chairs', error);
     }
     controls.minDistance = CAM.minR;
     controls.maxDistance = CAM.maxR * CAMERA_ZOOM_MAX_FACTOR;
@@ -13210,79 +13180,51 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount, onlin
     return true;
   }, []);
 
-  // Keep the die unchanged on the table until the palm reaches it. The rig owns
-  // contact, windup and release; spinDice still owns the flight and result.
-  const syncDiceToThrowHand = useCallback((player, dice, { isCurrent = () => true } = {}) => {
-    const entry = seatedHumanActorsRef.current?.find((actor) => actor.playerIndex === player);
-    if (!entry?.rightPalm || !dice?.parent) return Promise.resolve();
-    const { actor, rig, rightPalm } = entry;
+  const syncDiceToThrowHand = useCallback((player, dice, { duration = 28 } = {}) => {
+    if (!dice?.isObject3D || !dice.parent?.isObject3D) return Promise.resolve();
     const parent = dice.parent;
-    const pickup = dice.getWorldPosition(new THREE.Vector3());
-    const originalQ = dice.getWorldQuaternion(new THREE.Quaternion());
-    const startPalm = boneWorld(rightPalm);
+    const worldTarget = new THREE.Vector3();
+    const localTarget = new THREE.Vector3();
     const start = performance.now();
-    const poseAt = (mode, amount, grip) => {
-      applySeatedHumanPose(rig, mode, amount, grip, {}, { idleBreathAmp: 0 }, entry.chairSupportsArmrest !== false);
-      actor.updateMatrixWorld(true);
+
+    const snapToHand = (blend = 1) => {
+      const sampledHold =
+        sampleHumanActionHelperPosition(player, 'diceHold', worldTarget) ||
+        sampleHumanActionHelperPosition(player, 'dicePickup', worldTarget);
+      if (!sampledHold && !sampleSeatedContactEffectorPosition(player, worldTarget)) return false;
+      worldTarget.y -= DICE_SIZE * SEATED_DICE_THROW_VERTICAL_NUDGE;
+      localTarget.copy(worldTarget);
+      parent.worldToLocal(localTarget);
+      if (blend >= 1) {
+        dice.position.copy(localTarget);
+      } else {
+        dice.position.lerp(localTarget, clamp(blend, 0, 1));
+      }
+      return true;
     };
-    const snapshot = () => rig.bones.map((bone) => bone.quaternion.clone());
-    const blend = (from, amount) => rig.bones.forEach((bone, index) => {
-      bone.quaternion.slerpQuaternions(from[index], bone.quaternion, smooth01(amount));
-    });
-    let contactPose = null;
-    let palmOffsetQ = null;
-    const owner = {};
-    entry.propMotion = owner;
-    seatedHumanActionRef.current = { ...seatedHumanActionRef.current, holdPlayer: null, throwPlayer: null };
+
+    // Remove visible pickup lag: snap into the hand immediately on fist motion.
+    snapToHand(1);
+
     return new Promise((resolve) => {
       const step = () => {
-        if (!isCurrent() || entry.actor !== actor || entry.propMotion !== owner || !actor.parent || !dice.parent) {
-          if (entry.propMotion === owner) entry.propMotion = null;
+        if (!dice?.isObject3D || !parent?.isObject3D) {
           resolve();
           return;
         }
-        const t = performance.now() - start;
-        if (t < 550) {
-          poseAt('reachDice', smooth01(t / 550), 0);
-          solveArm(rig, 'right', rightPalm, startPalm.clone().lerp(pickup, smooth01(t / 550)), undefined, true);
+        const elapsed = performance.now() - start;
+        const phase = clamp(elapsed / Math.max(1, duration), 0, 1);
+        const blend = 0.92 + (1 - Math.pow(1 - phase, 2)) * 0.08;
+        snapToHand(blend);
+        if (phase < 1) {
+          requestAnimationFrame(step);
         } else {
-          if (!contactPose) {
-            poseAt('gripDice', 1, .8);
-            solveArm(rig, 'right', rightPalm, pickup, undefined, true);
-            contactPose = snapshot();
-            palmOffsetQ = rightPalm.getWorldQuaternion(new THREE.Quaternion()).invert().multiply(originalQ);
-          }
-          if (t < 720) {
-            poseAt('gripDice', 1, smooth01((t - 550) / 170) * .8);
-            solveArm(rig, 'right', rightPalm, pickup, undefined, true);
-          } else if (t < 1080) {
-            poseAt('windUp', 1, .8);
-            blend(contactPose, (t - 720) / 360);
-          } else {
-            poseAt('windUp', 1, .8);
-            const windup = snapshot();
-            poseAt('release', 1, 1 - smooth01((t - 1080) / 260));
-            blend(windup, (t - 1080) / 260);
-          }
-          actor.updateMatrixWorld(true);
-          // Store the grip transform once, retaining the die's orientation at contact.
-          if (t >= 720) {
-            dice.position.copy(parent.worldToLocal(boneWorld(rightPalm)));
-            const q = rightPalm.getWorldQuaternion(new THREE.Quaternion()).multiply(palmOffsetQ);
-            dice.quaternion.copy(parent.getWorldQuaternion(new THREE.Quaternion()).invert().multiply(q));
-          }
-        }
-        if (t < 1340) requestAnimationFrame(step);
-        else {
-          entry.propMotion = null;
-          seatedHumanActionRef.current = { ...seatedHumanActionRef.current, holdPlayer: null,
-            throwPlayer: player, throwStartMs: performance.now() - SEATED_HUMAN_DICE_PHASES.windupMs - SEATED_HUMAN_DICE_PHASES.releaseMs };
           resolve();
         }
       };
       requestAnimationFrame(step);
     });
-  }, []);
+  }, [sampleHumanActionHelperPosition, sampleSeatedContactEffectorPosition]);
 
   const rollDice = async () => {
     const state = stateRef.current;
@@ -13347,7 +13289,7 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount, onlin
       throwForward = clamp(-localDir.z * 1.4, -1, 1);
     }
     beginDiceThrowPose(player, { lateral: throwLateral, forward: throwForward });
-    await syncDiceToThrowHand(player, dice, { isCurrent: () => stateRef.current === state });
+    await syncDiceToThrowHand(player, dice, { duration: 12 });
     if (stateRef.current !== state) return;
     const landingFocus = baseTarget.clone();
     playDiceSound();

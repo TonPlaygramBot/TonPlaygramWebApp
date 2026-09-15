@@ -25,17 +25,18 @@ function controller(name, dependencies) {
 const noop = () => {};
 
 test('portrait seated-human sizing and character selection remain wired to the restored implementation', () => {
-  assert.match(source, /const SEATED_HUMAN_ACTOR_TARGET_HEIGHT = SEATED_HUMAN_BASE_HEIGHT \* 0\.84;/);
   assert.match(source, /const SEATED_HUMAN_TARGET_HEIGHT = BACK_HEIGHT \* 2\.42;/);
   assert.match(source, /const SEATED_HUMAN_VISUAL_SCALE_MULTIPLIER = 4\.2;/);
   assert.match(source, /const SEATED_HUMAN_SEAT_Y_OFFSET = -6\.75 \* MODEL_SCALE \* STOOL_SCALE;/);
   assert.match(source, /const SEATED_HUMAN_SEAT_Z_OFFSET = -SEAT_DEPTH \* 0\.42;/);
   assert.match(source, /const SELF_BOTTOM_HUMAN_EXTRA_Z_OFFSET = SEAT_DEPTH \* 0\.12;/);
   assert.match(source, /const SEATED_HUMAN_FOOT_GROUND_CLEARANCE = -1\.55 \* MODEL_SCALE \* STOOL_SCALE;/);
-  assert.match(source, /actor\.scale\.multiplyScalar\(SEATED_HUMAN_ACTOR_TARGET_HEIGHT \/ Math\.max\(height, 0\.01\)\);/);
+  assert.match(source, /const humanOption = HUMAN_CHARACTER_OPTIONS\[humanIndex\] \?\? HUMAN_CHARACTER_OPTIONS\[0\];/);
+  assert.match(source, /humanTemplate = await loadSeatedHumanTemplate\(renderer, humanOption\);/);
+  assert.match(source, /actor\.scale\.setScalar\(baseScale\);/);
+  assert.match(source, /actor\.position\.set\(0, SEATED_HUMAN_SEAT_Y_OFFSET, seatZOffset\);/);
   assert.match(source, /humanCharacterIndex: humanPool\[aiIndex % humanPool\.length\] \?\? 0/);
   assert.match(source, /\{ key: 'humanCharacter', label: 'Human Character', options: HUMAN_CHARACTER_OPTIONS \}/);
-  assert.match(source, /requestCharacter\?\.\(HUMAN_CHARACTER_OPTIONS\[safe\.humanCharacter\]\)/);
 });
 
 test('human dice pickup and landing positions remain on the restored choreography', () => {
@@ -44,6 +45,9 @@ test('human dice pickup and landing positions remain on the restored choreograph
   assert.match(source, /diceObj\.userData\.railPositions = rails;/);
   assert.match(source, /diceObj\.userData\.homeLandingTargets/);
   assert.doesNotMatch(source, /tabletopDiceLane/);
+  assert.match(source, /const syncDiceToThrowHand = useCallback\(\(player, dice, \{ duration = 28 \} = \{\}\)/);
+  assert.match(source, /await syncDiceToThrowHand\(player, dice, \{ duration: 12 \}\);/);
+  assert.match(source, /worldTarget\.y -= DICE_SIZE \* SEATED_DICE_THROW_VERTICAL_NUDGE;/);
 });
 
 test('rapid taps cannot clear the pending move or turn timer', async () => {
