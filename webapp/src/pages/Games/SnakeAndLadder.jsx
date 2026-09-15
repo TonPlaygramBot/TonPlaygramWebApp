@@ -1,12 +1,6 @@
 import { useState, useEffect, useRef, useCallback, useMemo } from "react";
 import coinConfetti from "../../utils/coinConfetti";
-import { snakeDiceReceiver } from '../../utils/snakeDiceReceiver';
-import { SNAKE_DICE_PRESENTATION_MS } from '../../utils/snakeDiceInteraction';
-import { SNAKE_DICE_READ_MS } from '../../utils/snakeDiceInteraction';
-import { createSnakePresentationQueue } from '../../utils/snakePresentationQueue.js';
-import './SnakeAndLadder.css';
 import DiceRoller from "../../components/DiceRoller.jsx";
-import SnakeTurnPanel from "../../components/SnakeTurnPanel";
 import SnakeBoard3D from "../../components/SnakeBoard3D.jsx";
 import { FINAL_TILE as BOARD_FINAL_TILE } from "../../components/SnakeBoard.jsx";
 import {
@@ -31,7 +25,6 @@ import {
   getProfileByAccount,
   depositAccount,
   getSnakeBoard,
-  getSnakeLobby,
   pingOnline,
   addTransaction,
   unseatTable
@@ -44,7 +37,7 @@ import {
   SNAKE_TOKEN_COLOR_OPTIONS
 } from "../../config/snakeInventoryConfig.js";
 import {
-  SNAKE_PLAYABLE_CAPTURE_WEAPON_OPTIONS,
+  SNAKE_CAPTURE_WEAPON_OPTIONS,
   resolveSnakeCaptureWeaponId
 } from "../../config/snakeWeaponCatalog.js";
 // Developer accounts that receive shares of each pot
@@ -183,14 +176,20 @@ const FINAL_TILE = BOARD_FINAL_TILE;
 const PENULTIMATE_TILE = FINAL_TILE - 1;
 const TURN_TIME = 15;
 const AI_ROLL_DELAY_MS = 1300;
+const AI_EXTRA_ROLL_DELAY_MS = 850;
 const TURN_ADVANCE_AFTER_DICE_MS = 0;
-const DICE_RESULT_HOLD_MS = SNAKE_DICE_READ_MS;
+const DICE_RESULT_HOLD_MS = 2000;
+// Match the 3D Ludo/Pool dice: a server-authoritative value should only
+// replace the rolling face after the physical throw has had time to land.
+// The Ludo-style physical roll lasts 900 ms. Reveal just after landing so the
+// authoritative face is visible before any token movement can begin.
+const DICE_BOARD_ROLL_REVEAL_DELAY_MS = 930;
 const DICE_SFX_MIN_INTERVAL_MS = 850;
 const DEFAULT_CAPACITY = 4;
 const SEAT_LAYOUTS = {
   1: [0],
-  2: [0, 1],
-  3: [0, 1, 2],
+  2: [3, 1],
+  3: [0, 1, 3],
   4: [0, 1, 2, 3]
 };
 
@@ -737,7 +736,7 @@ const TOKEN_SHAPE_OPTIONS = Object.freeze([
   { id: 'king', label: 'King', pieceType: 'king', source: 'ludoBattleRoyal' }
 ]);
 const CAPTURE_WEAPON_OPTIONS = Object.freeze(
-  SNAKE_PLAYABLE_CAPTURE_WEAPON_OPTIONS.map((option) => ({
+  SNAKE_CAPTURE_WEAPON_OPTIONS.map((option) => ({
     id: option.id,
     label: option.label,
     thumbnail: option.thumbnail
@@ -1207,7 +1206,7 @@ export default function SnakeAndLadder() {
   const [snakeOffsets, setSnakeOffsets] = useState({});
   const [ladderOffsets, setLadderOffsets] = useState({});
   const [offsetPopup, setOffsetPopup] = useState(null); // { cell, type, amount }
-  const [rollResult, setRollResult] = useState(null);
+  const [, setRollResult] = useState(null);
   const [diceCells, setDiceCells] = useState({});
   const [bonusDice, setBonusDice] = useState(0);
   const [rewardDice, setRewardDice] = useState(0);
@@ -1357,27 +1356,6 @@ export default function SnakeAndLadder() {
   const [showWatchWelcome, setShowWatchWelcome] = useState(false);
 
   const diceRollerDivRef = useRef(null);
-  const rollRequestRef = useRef(false);
-  const mountedRef = useRef(true);
-  const scheduledRef = useRef(new Set());
-  const scheduleTimeout = useCallback((callback, delay) => {
-    const id = window.setTimeout(() => {
-      scheduledRef.current.delete(id);
-      if (mountedRef.current) callback();
-    }, delay);
-    scheduledRef.current.add(id);
-    return id;
-  }, []);
-  useEffect(() => {
-    mountedRef.current = true;
-    return () => {
-      mountedRef.current = false;
-      scheduledRef.current.forEach(clearTimeout);
-      scheduledRef.current.clear();
-      slideStateRef.current = null;
-      captureFxStateRef.current = null;
-    };
-  }, []);
   const activeDiceBoardRollRef = useRef(null);
   const slideStateRef = useRef(null);
   const slideIdRef = useRef(0);
@@ -1388,6 +1366,7 @@ export default function SnakeAndLadder() {
   const captureFxIdRef = useRef(0);
   const [captureEvent, setCaptureEvent] = useState(null);
   const [seatAnchors, setSeatAnchors] = useState([]);
+  const [diceAnchor, setDiceAnchor] = useState(null);
   useEffect(() => {
     if (isMultiplayer) {
       setAiWeaponLoadout([]);
@@ -1430,15 +1409,14 @@ export default function SnakeAndLadder() {
   );
 
   const handleSlideComplete = useCallback((id) => {
-    const current = slideStateRef.current;
-    if (!current || current.id !== id) return;
-    slideStateRef.current = null;
-    setSlideAnimation(null);
-    current.onComplete?.();
+    setSlideAnimation((current) => {
+      if (!current || current.id !== id) return current;
+      const finalize = current.onComplete;
+      slideStateRef.current = null;
+      if (typeof finalize === 'function') finalize();
+      return null;
+    });
   }, []);
-
-  const diceReceiverBoardRef = useRef({ snakes, ladders, diceCells });
-  diceReceiverBoardRef.current = { snakes, ladders, diceCells };
 
   const startDiceBoardAnimation = useCallback((phase) => {
     setDiceBoardEvent(phase);
@@ -1486,11 +1464,13 @@ export default function SnakeAndLadder() {
   );
 
   const handleCaptureAnimationComplete = useCallback((id) => {
-    const current = captureFxStateRef.current;
-    if (!current || current.id !== id) return;
-    captureFxStateRef.current = null;
-    setCaptureEvent(null);
-    current.onComplete?.();
+    setCaptureEvent((current) => {
+      if (!current || current.id !== id) return current;
+      const finalize = current.onComplete;
+      captureFxStateRef.current = null;
+      if (typeof finalize === 'function') finalize();
+      return null;
+    });
   }, []);
 
 
@@ -1527,7 +1507,7 @@ export default function SnakeAndLadder() {
 
   const getPlayerName = useCallback(
     (idx) => {
-      if (!isMultiplayer && idx === 0) return myName;
+      if (idx === 0) return myName;
       if (isMultiplayer) {
         return mpPlayers[idx]?.name || `Player ${idx + 1}`;
       }
@@ -1543,7 +1523,7 @@ export default function SnakeAndLadder() {
   );
 
   const getPlayerAvatar = (idx) => {
-    if (!isMultiplayer && idx === 0) return photoUrl;
+    if (idx === 0) return photoUrl;
     if (isMultiplayer) {
       return mpPlayers[idx]?.photoUrl || '';
     }
@@ -1569,10 +1549,10 @@ export default function SnakeAndLadder() {
           bombSoundRef.current.play().catch(() => {});
         }
         if (cell <= 4 && !muted) {
-          scheduleTimeout(() => {
+          setTimeout(() => {
             hahaSoundRef.current.currentTime = 0;
             hahaSoundRef.current.play().catch(() => {});
-            scheduleTimeout(() => {
+            setTimeout(() => {
               hahaSoundRef.current.pause();
             }, 6000);
           }, 300);
@@ -1817,14 +1797,12 @@ export default function SnakeAndLadder() {
         }
       }
     }
-    const boardPromise = tableParam && !aiParam
+    const boardPromise = isMultiplayer
       ? getSnakeBoard(table)
       : Promise.resolve(generateBoardLocal());
     boardPromise
       .then(({ snakes: snakesObj = {}, ladders: laddersObj = {}, diceCells: diceCellsObj = {} }) => {
-        const { snakes: snakesLim, ladders: laddersLim } = tableParam && !aiParam
-          ? { snakes: snakesObj, ladders: laddersObj }
-          : sanitizeJumpMaps(snakesObj, laddersObj);
+        const { snakes: snakesLim, ladders: laddersLim } = sanitizeJumpMaps(snakesObj, laddersObj);
         setSnakes(snakesLim);
         setLadders(laddersLim);
         const snk = {};
@@ -1897,23 +1875,6 @@ export default function SnakeAndLadder() {
       }
     };
 
-    const presentation = createSnakePresentationQueue(() => {
-      setMoving(false);
-      setRollingIndex(null);
-      rollRequestRef.current = false;
-      socket.emit('snakeSyncRequest', { tableId, accountId: myAccountId });
-    });
-    const orderedEvents = new Set(['diceRolled', 'movePlayer', 'snakeOrLadder', 'playerReset', 'turnChanged', 'turnUpdate', 'gameWon', 'snakeState', 'diceCellsUpdate']);
-    const subscriptions = [];
-    const listen = (event, handler) => {
-      const listener = orderedEvents.has(event)
-        ? (payload) => presentation.enqueue(() => handler(payload))
-        : handler;
-      subscriptions.push([event, listener]);
-      socket.on(event, listener);
-    };
-    const waitForPresentation = (ms) => new Promise((resolve) => scheduleTimeout(resolve, ms));
-
     const onJoined = ({ playerId, name: joinedName, avatar, maxPlayers }) => {
       handleCapacity(maxPlayers);
       const name = joinedName || `Player`;
@@ -1940,56 +1901,77 @@ export default function SnakeAndLadder() {
             setLeftWinner(leaving.name);
           } else if (tableCapacityRef.current > 2) {
             setDisconnectMsg(`${leaving.name} forfeited`);
-            scheduleTimeout(() => setDisconnectMsg(null), 3000);
+            setTimeout(() => setDisconnectMsg(null), 3000);
           }
         }
         return arr;
       }, maxPlayers);
     };
-    const onMove = ({ playerId, from = 0, to }) => new Promise((resolve) => {
-      const playerIndex = playersRef.current.findIndex((p) => p.id === playerId);
-      if (playerIndex < 0 || !Number.isFinite(to) || to < from) return resolve();
-      setMoving(true);
-      setTurnMessage(`${playersRef.current[playerIndex]?.name || 'Player'} moves to ${to}`);
-      const updatePosition = (position) => {
-        updateMpPlayers((players) => players.map((p) => p.id === playerId ? { ...p, position } : p));
-        if (playerId === myAccountId) setPos(position);
+    const onMove = ({ playerId, from = 0, to }) => {
+      const updatePosition = (pos) => {
+        updateMpPlayers((p) => p.map((pl) => (pl.id === playerId ? { ...pl, position: pos } : pl)));
+        if (playerId === myAccountId) setPos(pos);
       };
       const ctx = {
-        updatePosition, setHighlight, setTrail, muted: isGameMuted(),
-        currentPosition: from, playerIndex, stepDurationMs: 260,
-        isCancelled: () => !mountedRef.current,
-        onStepSfx: () => playLudoTokenStepSfx({ muted: isGameMuted(), volume: getGameVolume() }),
-        startStepAnimation: (step) => requestSlideAnimation({ ...step, playerIndex })
+        updatePosition,
+        setHighlight,
+        setTrail,
+        moveSoundRef,
+        hahaSoundRef,
+        snakes,
+        ladders,
+        setOffsetPopup,
+        snakeSoundRef,
+        oldSnakeSoundRef,
+        ladderSoundRef,
+        badLuckSoundRef,
+        muted,
+        FINAL_TILE,
       };
-      const seq = Array.from({ length: Math.max(0, to - from) }, (_, i) => from + i + 1);
-      moveSeq(seq, 'normal', ctx, () => {
-        updatePosition(to);
+      const finalizeMove = (finalPos, type) => {
+        updatePosition(finalPos);
+        setHighlight({ cell: finalPos, type, color: playerColors[0] });
         setTrail([]);
-        setHighlight({ cell: to, type: 'normal' });
+        setTimeout(() => setHighlight(null), 2300);
         setMoving(false);
-        resolve();
-      });
-    });
-    const onSnakeOrLadder = ({ playerId, from, to }) => new Promise((resolve) => {
-      const playerIndex = playersRef.current.findIndex((p) => p.id === playerId);
-      if (playerIndex < 0) return resolve();
-      const type = to > from ? 'ladder' : 'snake';
-      setMoving(true);
-      setTurnMessage(type === 'ladder' ? `Ladder! ${from} → ${to}` : `Snake! ${from} → ${to}`);
-      setHighlight({ cell: from, type });
-      const sound = type === 'ladder' ? ladderSoundRef.current : snakeSoundRef.current;
-      if (sound && !isGameMuted()) { sound.currentTime = 0; sound.play().catch(() => {}); }
-      const finish = () => {
-        updateMpPlayers((players) => players.map((p) => p.id === playerId ? { ...p, position: to } : p));
-        if (playerId === myAccountId) setPos(to);
-        setHighlight({ cell: to, type });
-        setMoving(false);
-        resolve();
       };
-      if (!requestSlideAnimation({ playerIndex, from, to, type, onComplete: finish })) finish();
-    });
-    const onReset = async ({ playerId }) => {
+      const seq = [];
+      for (let i = from + 1; i <= to; i++) seq.push(i);
+      setMoving(true);
+      moveSeq(seq, 'normal', ctx, () => finalizeMove(to, 'normal'), 'forward');
+    };
+    const onSnakeOrLadder = ({ playerId, from, to }) => {
+      const updatePosition = (pos) => {
+        updateMpPlayers((p) => p.map((pl) => (pl.id === playerId ? { ...pl, position: pos } : pl)));
+        if (playerId === myAccountId) setPos(pos);
+      };
+      const ctx = {
+        updatePosition,
+        setHighlight,
+        setTrail,
+        moveSoundRef,
+        hahaSoundRef,
+        snakes,
+        ladders,
+        setOffsetPopup,
+        snakeSoundRef,
+        oldSnakeSoundRef,
+        ladderSoundRef,
+        badLuckSoundRef,
+        muted,
+        FINAL_TILE,
+      };
+      const finalizeMove = (finalPos, type) => {
+        updatePosition(finalPos);
+        setHighlight({ cell: finalPos, type, color: playerColors[0] });
+        setTrail([]);
+        setTimeout(() => setHighlight(null), 2300);
+        setMoving(false);
+      };
+      setMoving(true);
+      applyEffectHelper(from, ctx, finalizeMove);
+    };
+    const onReset = ({ playerId }) => {
       const idx = playersRef.current.findIndex((pl) => pl.id === playerId);
       if (idx === -1) return;
       setBurning((b) => [...b, idx]);
@@ -1999,13 +1981,11 @@ export default function SnakeAndLadder() {
         hahaSoundRef.current.currentTime = 0;
         hahaSoundRef.current.play().catch(() => {});
       }
-      await waitForPresentation(700);
-      if (!mountedRef.current) return;
-      {
+      setTimeout(() => {
         setBurning((b) => b.filter((v) => v !== idx));
         updateMpPlayers((p) => p.map((pl) => (pl.id === playerId ? { ...pl, position: 0 } : pl)));
         if (playerId === myAccountId) setPos(0);
-      }
+      }, 1000);
     };
     const resolveTurnIndex = ({ playerId, seatIndex, currentTurn: currentTurnPayload }) => {
       const players = playersRef.current;
@@ -2051,15 +2031,18 @@ export default function SnakeAndLadder() {
     const onTurn = ({ playerId, seatIndex, currentTurn: currentTurnPayload }) => {
       const idx = resolveTurnIndex({ playerId, seatIndex, currentTurn: currentTurnPayload });
       if (idx < 0) return;
+
       setCurrentTurn(idx);
-      setDiceCount(1);
-      setMoving(false);
-      setRollingIndex(null);
-      setPlayerAutoRolling(false);
-      rollRequestRef.current = false;
-      setPendingExtraRoll(false);
-      setRollCooldown(0);
-      setTurnMessage(playersRef.current[idx]?.id === myAccountId ? 'Your turn' : `${playersRef.current[idx]?.name || 'Opponent'}’s turn`);
+      setDiceCount(playerDiceCounts[idx] ?? 1);
+      const turnBelongsToMe = playersRef.current[idx]?.id === myAccountId;
+      if (turnBelongsToMe) {
+        // Keep roll CTA visible for immediate extra turns.
+        setRollCooldown(0);
+        // Safety: if movement state got stuck, never block the local extra-roll CTA.
+        setMoving(false);
+      } else {
+        setPendingExtraRoll(false);
+      }
     };
     const onStarted = () => {
       setSetupPhase(false);
@@ -2068,36 +2051,51 @@ export default function SnakeAndLadder() {
         unseatTable(myAccountId, tableId).catch(() => {});
       }
     };
-    const onRolled = async ({ value, dice, playerId, accountId: rollerAccountId, nextPlayerId }) => {
-      const serverValues = normalizeAuthoritativeDiceValues(dice ?? value, 1);
-      if (!serverValues.length) return;
-      const rollerIndex = resolveTurnIndex({ playerId: playerId ?? rollerAccountId });
-      const seatIndex = Math.max(0, rollerIndex);
-      const rollId = ++diceRollIdRef.current;
-      rollRequestRef.current = true;
-      setRollingIndex(seatIndex);
-      setMoving(true);
-      setTurnMessage(`${playersRef.current[seatIndex]?.name || 'Player'} rolling…`);
-      activeDiceBoardRollRef.current = { id: rollId, seatIndex, phase: 'start' };
-      const assignments = computeSeatAssignments(playersRef.current, myAccountId);
-      const visualSeat = assignments.get(seatIndex) ?? seatIndex;
-      const announcedReceiver = playersRef.current.findIndex(p => String(p.id) === String(nextPlayerId));
-      const receiver = announcedReceiver >= 0 ? announcedReceiver : snakeDiceReceiver({
-        roller: seatIndex, positions: playersRef.current.map(p => p.position || 0), values: serverValues,
-        ...diceReceiverBoardRef.current, online: true
-      });
-      const receiverSeatIndex = assignments.get(receiver) ?? receiver;
-      startDiceBoardAnimation({ id: rollId, phase: 'start', count: 1, values: serverValues, seatIndex: visualSeat, receiverSeatIndex });
-      playDiceRollSound(`online:${rollId}`);
-      await waitForPresentation(SNAKE_DICE_PRESENTATION_MS);
-      if (!mountedRef.current) return;
-      startDiceBoardAnimation({ id: rollId, phase: 'end', values: serverValues, seatIndex: visualSeat });
-      activeDiceBoardRollRef.current = { id: rollId, seatIndex, phase: 'end' };
-      setRollResult(serverValues.reduce((sum, face) => sum + face, 0));
-      playGameHaptic('diceLand');
-      setRollingIndex(null);
-      await waitForPresentation(SNAKE_DICE_READ_MS);
-      // The queued move/turn/state events release the input lock.
+    const onRolled = ({ value, dice, playerId, accountId }) => {
+      const authoritativeValue = dice ?? value;
+      const serverValues = normalizeAuthoritativeDiceValues(authoritativeValue, diceCount);
+      const resultTotal = serverValues.reduce((sum, face) => sum + face, 0);
+      const rollerId = playerId ?? accountId ?? playersRef.current[currentTurn]?.id;
+      const rollerIndex = resolveTurnIndex({ playerId: rollerId, currentTurn });
+      const seatIndex = rollerIndex >= 0 ? rollerIndex : currentTurn ?? 0;
+      const activeRoll = activeDiceBoardRollRef.current;
+      const canReuseActiveRoll =
+        activeRoll &&
+        activeRoll.seatIndex === seatIndex &&
+        activeRoll.phase === 'start';
+      const rollId = canReuseActiveRoll ? activeRoll.id : diceRollIdRef.current + 1;
+
+      if (!canReuseActiveRoll) {
+        diceRollIdRef.current = rollId;
+        activeDiceBoardRollRef.current = { id: rollId, seatIndex, phase: 'start' };
+        startDiceBoardAnimation({
+          id: rollId,
+          phase: 'start',
+          count: serverValues.length || 1,
+          seatIndex
+        });
+      }
+
+      window.setTimeout(() => {
+        startDiceBoardAnimation({
+          id: rollId,
+          phase: 'end',
+          values: serverValues,
+          seatIndex
+        });
+        activeDiceBoardRollRef.current = { id: rollId, seatIndex, phase: 'end' };
+        // The server normally answers before the first rendered frame. Do not
+        // cancel that physical throw: Ludo Battle Royal always completes its
+        // 900 ms spin before resolving the authoritative face.
+      }, DICE_BOARD_ROLL_REVEAL_DELAY_MS);
+
+      setRollResult(resultTotal);
+      setTimeout(() => setRollResult(null), DICE_RESULT_HOLD_MS);
+      playDiceRollSound(`${rollerId ?? 'turn'}:${resultTotal}`);
+      if (rollerId === myAccountId && serverValues.some((face) => Number(face) === 6)) {
+        setPendingExtraRoll(true);
+        setRollCooldown(0);
+      }
     };
     const onWon = ({ playerId }) => {
       setGameOver(true);
@@ -2167,7 +2165,7 @@ export default function SnakeAndLadder() {
       if (state.roomId && String(state.roomId) !== String(tableId)) return;
       handleCapacity(state.maxPlayers);
       if (state.snakes && state.ladders) {
-        const board = { snakes: state.snakes, ladders: state.ladders };
+        const board = sanitizeJumpMaps(state.snakes, state.ladders);
         setSnakes(board.snakes);
         setLadders(board.ladders);
       }
@@ -2193,9 +2191,6 @@ export default function SnakeAndLadder() {
       }
       if (state.status === 'finished' || state.finished) setGameOver(true);
       setConnectionLost(false);
-      setMoving(false);
-      setRollingIndex(null);
-      rollRequestRef.current = false;
     };
 
     const restoreSession = () => {
@@ -2216,39 +2211,39 @@ export default function SnakeAndLadder() {
       });
     };
 
-    listen('playerJoined', onJoined);
-    listen('playerLeft', onLeft);
-    listen('playerDisconnected', ({ playerId, maxPlayers }) => {
+    socket.on('playerJoined', onJoined);
+    socket.on('playerLeft', onLeft);
+    socket.on('playerDisconnected', ({ playerId, maxPlayers }) => {
       handleCapacity(maxPlayers);
       if (playerId === myAccountId) {
         setConnectionLost(true);
       } else if (tableCapacityRef.current > 2) {
         const name = playersRef.current.find((p) => p.id === playerId)?.name || playerId;
         setDisconnectMsg(`${name} disconnected`);
-        scheduleTimeout(() => setDisconnectMsg(null), 3000);
+        setTimeout(() => setDisconnectMsg(null), 3000);
       }
     });
-    listen('playerRejoined', ({ playerId, maxPlayers }) => {
+    socket.on('playerRejoined', ({ playerId, maxPlayers }) => {
       handleCapacity(maxPlayers);
       if (playerId === myAccountId) {
         setConnectionLost(false);
       } else if (tableCapacityRef.current > 2) {
         const name = playersRef.current.find((p) => p.id === playerId)?.name || playerId;
         setDisconnectMsg(`${name} rejoined`);
-        scheduleTimeout(() => setDisconnectMsg(null), 3000);
+        setTimeout(() => setDisconnectMsg(null), 3000);
       }
     });
-    listen('cheatWarning', ({ reason, count }) => {
+    socket.on('cheatWarning', ({ reason, count }) => {
       setCheatMsg(`Cheating detected: ${reason} (${count}/3)`);
     });
-    listen('movePlayer', onMove);
-    listen('snakeOrLadder', onSnakeOrLadder);
-    listen('playerReset', onReset);
-    listen('turnChanged', onTurn);
-    listen('turnUpdate', ({ currentTurn, playerId, seatIndex }) =>
+    socket.on('movePlayer', onMove);
+    socket.on('snakeOrLadder', onSnakeOrLadder);
+    socket.on('playerReset', onReset);
+    socket.on('turnChanged', onTurn);
+    socket.on('turnUpdate', ({ currentTurn, playerId, seatIndex }) =>
       onTurn({ currentTurn, playerId, seatIndex })
     );
-    listen('lobbyUpdate', ({ players: list, maxPlayers }) => {
+    socket.on('lobbyUpdate', ({ players: list, maxPlayers }) => {
       handleCapacity(maxPlayers);
       if (!Array.isArray(list)) return;
       const arr = list.map((p) => ({
@@ -2259,16 +2254,15 @@ export default function SnakeAndLadder() {
       }));
       updateMpPlayers(arr, maxPlayers);
     });
-    listen('gameStart', onStarted);
-    listen('gameStarted', onStarted);
-    listen('diceRolled', onRolled);
-    listen('gameWon', onWon);
-    listen('currentPlayers', onCurrentPlayers);
-    listen('snakeState', onSnakeState);
-    listen('connect', restoreSession);
-    listen('boardData', ({ snakes: sn, ladders: lad, diceCells: diceObj }) => {
-      const snakesLim = sn || {};
-      const laddersLim = lad || {};
+    socket.on('gameStart', onStarted);
+    socket.on('gameStarted', onStarted);
+    socket.on('diceRolled', onRolled);
+    socket.on('gameWon', onWon);
+    socket.on('currentPlayers', onCurrentPlayers);
+    socket.on('snakeState', onSnakeState);
+    socket.on('connect', restoreSession);
+    socket.on('boardData', ({ snakes: sn, ladders: lad, diceCells: diceObj }) => {
+      const { snakes: snakesLim, ladders: laddersLim } = sanitizeJumpMaps(sn || {}, lad || {});
       setSnakes(snakesLim);
       setLadders(laddersLim);
       const snk = {};
@@ -2286,7 +2280,7 @@ export default function SnakeAndLadder() {
         setDiceCells(normalizeDiceCells(diceObj));
       }
     });
-    listen('diceCellsUpdate', ({ diceCells: updated }) => {
+    socket.on('diceCellsUpdate', ({ diceCells: updated }) => {
       setDiceCells(normalizeDiceCells(updated || {}));
     });
 
@@ -2314,8 +2308,26 @@ export default function SnakeAndLadder() {
 
 
     return () => {
-      presentation.dispose();
-      subscriptions.forEach(([event, listener]) => socket.off(event, listener));
+      socket.off('playerJoined', onJoined);
+      socket.off('playerLeft', onLeft);
+      socket.off('playerDisconnected');
+      socket.off('playerRejoined');
+      socket.off('cheatWarning');
+      socket.off('movePlayer', onMove);
+      socket.off('snakeOrLadder', onSnakeOrLadder);
+      socket.off('playerReset', onReset);
+      socket.off('turnChanged', onTurn);
+      socket.off('turnUpdate');
+      socket.off('lobbyUpdate');
+      socket.off('gameStart', onStarted);
+      socket.off('gameStarted', onStarted);
+      socket.off('diceRolled', onRolled);
+      socket.off('gameWon', onWon);
+      socket.off('currentPlayers', onCurrentPlayers);
+      socket.off('snakeState', onSnakeState);
+      socket.off('connect', restoreSession);
+      socket.off('boardData');
+      socket.off('diceCellsUpdate');
       if (watchOnly) {
         socket.emit('leaveWatch', { roomId: tableId });
       } else {
@@ -2494,14 +2506,14 @@ export default function SnakeAndLadder() {
 
     setRollResult(value);
     playGameHaptic('diceLand');
-
+    playDiceRollSound(`local:${currentTurn}:${value}`);
     if (willCapture && preview > 4 && !muted) {
       hahaSoundRef.current.currentTime = 0;
       hahaSoundRef.current.play().catch(() => {});
     }
+    setTimeout(() => setRollResult(null), DICE_RESULT_HOLD_MS);
 
-
-    scheduleTimeout(() => {
+    setTimeout(() => {
       setDiceVisible(false);
       setOffsetPopup(null);
       setTrail([]);
@@ -2518,14 +2530,12 @@ export default function SnakeAndLadder() {
           setMessage("Need a 1 to win!");
           setTurnMessage("");
           setDiceVisible(false);
-          const next = rolledSix ? currentTurn : getPreviousTurn(currentTurn);
-          setPendingExtraRoll(rolledSix);
-          if (rolledSix) setRollCooldown(0);
-          scheduleTimeout(() => {
+          const next = getPreviousTurn(currentTurn);
+          setTimeout(() => {
             setCurrentTurn(next);
             setDiceCount(playerDiceCounts[next] ?? 1);
           }, TURN_ADVANCE_AFTER_DICE_MS);
-          scheduleTimeout(() => setMoving(false), TURN_ADVANCE_AFTER_DICE_MS);
+          setTimeout(() => setMoving(false), TURN_ADVANCE_AFTER_DICE_MS);
           return;
         }
       } else if (current === 0) {
@@ -2537,30 +2547,27 @@ export default function SnakeAndLadder() {
           setMessage("");
           setTurnMessage("");
           setDiceVisible(false);
-          const next = rolledSix ? currentTurn : getPreviousTurn(currentTurn);
-          setPendingExtraRoll(rolledSix);
-          if (rolledSix) setRollCooldown(0);
-          scheduleTimeout(() => {
+          const next = getPreviousTurn(currentTurn);
+          setTimeout(() => {
             setCurrentTurn(next);
             setDiceCount(playerDiceCounts[next] ?? 1);
           }, TURN_ADVANCE_AFTER_DICE_MS);
-          scheduleTimeout(() => setMoving(false), TURN_ADVANCE_AFTER_DICE_MS);
+          setTimeout(() => setMoving(false), TURN_ADVANCE_AFTER_DICE_MS);
           return;
         }
       } else if (current + value <= FINAL_TILE) {
         target = current + value;
       } else {
-        setMessage(`Need ${FINAL_TILE - current} to finish`);
+        setMessage("Need exact roll!");
+        setShowExactHelp(true);
         setTurnMessage("");
         setDiceVisible(false);
-        const next = rolledSix ? currentTurn : getPreviousTurn(currentTurn);
-          setPendingExtraRoll(rolledSix);
-          if (rolledSix) setRollCooldown(0);
-        scheduleTimeout(() => {
+        const next = getPreviousTurn(currentTurn);
+        setTimeout(() => {
           setCurrentTurn(next);
           setDiceCount(playerDiceCounts[next] ?? 1);
         }, TURN_ADVANCE_AFTER_DICE_MS);
-        scheduleTimeout(() => setMoving(false), TURN_ADVANCE_AFTER_DICE_MS);
+        setTimeout(() => setMoving(false), TURN_ADVANCE_AFTER_DICE_MS);
         return;
       }
 
@@ -2576,7 +2583,6 @@ export default function SnakeAndLadder() {
 
         setHighlight(null);
       const ctx = {
-        isCancelled: () => !mountedRef.current,
         updatePosition: (p) => setPos(p),
         setHighlight,
         setTrail,
@@ -2598,7 +2604,7 @@ export default function SnakeAndLadder() {
         FINAL_TILE,
         playerIndex: 0,
         currentPosition: current,
-        stepDurationMs: 260,
+        stepDurationMs: 430,
         startStepAnimation: ({ from, to, type, duration, onComplete }) =>
           requestSlideAnimation({
             playerIndex: 0,
@@ -2627,7 +2633,7 @@ export default function SnakeAndLadder() {
         setHighlight({ cell: finalPos, type, color: playerColors[0] });
         setTrail([]);
         setTokenType(type);
-        scheduleTimeout(() => setHighlight(null), 2300);
+        setTimeout(() => setHighlight(null), 2300);
         const victims = capturePieces(finalPos, 0, { attackerFrom: current });
         if (victims.length) {
           playGameHaptic('capture');
@@ -2661,7 +2667,7 @@ export default function SnakeAndLadder() {
           if (!muted) winSoundRef.current?.play().catch(() => {});
           coinConfetti();
           setCelebrate(true);
-          scheduleTimeout(() => {
+          setTimeout(() => {
             setCelebrate(false);
             setDiceCount(1);
           }, 2000);
@@ -2682,7 +2688,7 @@ export default function SnakeAndLadder() {
             diceRewardSoundRef.current?.play().catch(() => {});
             yabbaSoundRef.current?.play().catch(() => {});
           }
-          scheduleTimeout(() => setRewardDice(0), 1000);
+          setTimeout(() => setRewardDice(0), 1000);
         } else if (rolledSix) {
           setTurnMessage('Six! Roll again');
           setBonusDice(0);
@@ -2746,13 +2752,13 @@ export default function SnakeAndLadder() {
 
     setTurnMessage(<>{playerName(index)} rolled {value}</>);
     setRollResult(value);
-
+    playDiceRollSound(`ai:${index}:${value}`);
     if (capture && preview > 4 && !muted) {
       hahaSoundRef.current.currentTime = 0;
       hahaSoundRef.current.play().catch(() => {});
     }
-
-    scheduleTimeout(() => {
+    setTimeout(() => setRollResult(null), DICE_RESULT_HOLD_MS);
+    setTimeout(() => {
       setDiceVisible(false);
     let positions = [...aiPositions];
     let current = positions[index - 1];
@@ -2769,11 +2775,11 @@ export default function SnakeAndLadder() {
         setTurnMessage('');
         setDiceVisible(false);
         const next = getPreviousTurn(currentTurn);
-        scheduleTimeout(() => {
+        setTimeout(() => {
           setCurrentTurn(next);
           setDiceCount(playerDiceCounts[next] ?? 1);
         }, TURN_ADVANCE_AFTER_DICE_MS);
-        scheduleTimeout(() => setMoving(false), TURN_ADVANCE_AFTER_DICE_MS);
+        setTimeout(() => setMoving(false), TURN_ADVANCE_AFTER_DICE_MS);
         return;
       }
     } else if (current + value <= FINAL_TILE) {
@@ -2792,7 +2798,6 @@ export default function SnakeAndLadder() {
 
       setHighlight(null);
     const ctx = {
-      isCancelled: () => !mountedRef.current,
       updatePosition: (p) => {
         positions[index - 1] = p;
         setAiPositions([...positions]);
@@ -2812,7 +2817,7 @@ export default function SnakeAndLadder() {
       FINAL_TILE,
       playerIndex: index,
       currentPosition: current,
-      stepDurationMs: 260,
+      stepDurationMs: 430,
       startStepAnimation: ({ from, to, type, duration, onComplete }) =>
         requestSlideAnimation({
           playerIndex: index,
@@ -2846,7 +2851,7 @@ export default function SnakeAndLadder() {
       }
       if (type === 'snake') {
       }
-      scheduleTimeout(() => setHighlight(null), 2300);
+      setTimeout(() => setHighlight(null), 2300);
       if (finalPos === FINAL_TILE && !ranking.some((r) => r.name === getPlayerName(index))) {
         const first = ranking.length === 0;
         const name = getPlayerName(index);
@@ -2878,7 +2883,7 @@ export default function SnakeAndLadder() {
           diceRewardSoundRef.current?.play().catch(() => {});
           yabbaSoundRef.current?.play().catch(() => {});
         }
-        scheduleTimeout(() => setRewardDice(0), 1000);
+        setTimeout(() => setRewardDice(0), 1000);
       } else if (rolledSix) {
         extraTurn = true;
       }
@@ -2888,7 +2893,9 @@ export default function SnakeAndLadder() {
       setDiceCount(playerDiceCounts[next] ?? 1);
       setDiceVisible(true);
       setMoving(false);
-
+      if (extraTurn && next === index) {
+        setTimeout(() => triggerAIRoll(index), AI_EXTRA_ROLL_DELAY_MS);
+      }
     };
 
     const applyEffect = (startPos) =>
@@ -2931,7 +2938,7 @@ export default function SnakeAndLadder() {
             . {getPlayerName(first.index)} start first.
           </>
         );
-        scheduleTimeout(() => {
+        setTimeout(() => {
           setSetupPhase(false);
           setDiceVisible(true);
           setCurrentTurn(first.index);
@@ -2943,22 +2950,31 @@ export default function SnakeAndLadder() {
       const roll = Math.floor(Math.random() * 6) + 1;
       results.push({ index: idxPlayer, roll });
       setTurnMessage(<>{playerName(idxPlayer)} rolled {roll}</>);
-      scheduleTimeout(() => rollNext(idx + 1), 1000);
+      setTimeout(() => rollNext(idx + 1), 1000);
     };
     rollNext(0);
   }, [ai, aiPositions, setupPhase]);
 
 
   useEffect(() => {
-    if (!isMultiplayer && !setupPhase && currentTurn === 0 && !gameOver && !moving && rollingIndex == null && !pendingExtraRoll) {
+    if (!setupPhase && currentTurn === 0 && !gameOver) {
       setTurnMessage('Your turn');
     }
-  }, [currentTurn, setupPhase, gameOver, moving, rollingIndex, pendingExtraRoll, isMultiplayer]);
+  }, [currentTurn, setupPhase, gameOver, refreshTick, moving]);
 
-
+  // Failsafe: ensure AI roll proceeds even if dice animation doesn't start
+  useEffect(() => {
+    if (aiRollingIndex != null) {
+      if (aiRollTimeoutRef.current) clearTimeout(aiRollTimeoutRef.current);
+      aiRollTimeoutRef.current = setTimeout(() => {
+        setAiRollTrigger((t) => t + 1);
+      }, AI_EXTRA_ROLL_DELAY_MS);
+      return () => clearTimeout(aiRollTimeoutRef.current);
+    }
+  }, [aiRollingIndex]);
 
   useEffect(() => {
-    if (setupPhase || gameOver || moving || rollingIndex != null || waitingForPlayers || watchOnly) return;
+    if (setupPhase || gameOver || moving) return;
 
     const myIndex = isMultiplayer
       ? mpPlayers.findIndex((p) => p.id === accountId)
@@ -3018,11 +3034,9 @@ export default function SnakeAndLadder() {
       if (next <= 0) {
         timerSoundRef.current?.pause();
         clearInterval(timerRef.current);
-        if (!isMultiplayer) {
-          setPlayerAutoRolling(true);
-          setTurnMessage('Rolling...');
-          setPlayerRollTrigger((r) => r + 1);
-        }
+        setPlayerAutoRolling(true);
+        setTurnMessage('Rolling...');
+        setPlayerRollTrigger((r) => r + 1);
       }
       prevTimeLeftRef.current = next;
       setTimeLeft(next);
@@ -3031,7 +3045,7 @@ export default function SnakeAndLadder() {
       clearInterval(timerRef.current);
       timerSoundRef.current?.pause();
     };
-  }, [currentTurn, setupPhase, gameOver, moving, rollingIndex, isMultiplayer, accountId, waitingForPlayers, watchOnly, muted]);
+  }, [currentTurn, setupPhase, gameOver, moving, isMultiplayer, mpPlayers, muted]);
 
   // Periodically refresh the component state to avoid freezes
   useEffect(() => {
@@ -3096,16 +3110,14 @@ export default function SnakeAndLadder() {
   const myPlayerIndex = computedIndex >= 0 ? computedIndex : null;
   const hasLocalExtraRoll = pendingExtraRoll;
   const isMyTurnForRoll =
-    myPlayerIndex !== null && (currentTurn === myPlayerIndex || (!isMultiplayer && hasLocalExtraRoll));
+    myPlayerIndex !== null && (currentTurn === myPlayerIndex || hasLocalExtraRoll);
   const rollReady = isMultiplayer
     ? true
     : hasLocalExtraRoll || rollCooldown === 0;
-  const movementBlocksRoll = moving || rollingIndex != null;
+  const movementBlocksRoll = !isMultiplayer && moving;
   const canRoll =
     isMyTurnForRoll &&
     !movementBlocksRoll &&
-    !setupPhase &&
-    (!isMultiplayer || !connectionLost) &&
     rollReady &&
     !gameOver &&
     !waitingForPlayers &&
@@ -3124,24 +3136,10 @@ export default function SnakeAndLadder() {
 
 
   const handleRollButtonClick = useCallback(() => {
-    if (!canRoll || rollRequestRef.current) return;
+    if (!canRoll) return;
     playGameHaptic('press');
-    if (isMultiplayer) {
-      rollRequestRef.current = true;
-      setRollingIndex(myPlayerIndex);
-      setTurnMessage('Waiting for the die…');
-      if (timerRef.current) clearInterval(timerRef.current);
-      activeDiceBoardRollRef.current = null;
-      socket.emit('rollDice');
-      scheduleTimeout(() => {
-        if (rollRequestRef.current && !activeDiceBoardRollRef.current?.id) {
-          setTurnMessage('Reconnecting…');
-          setConnectionLost(true);
-          socket.emit('snakeSyncRequest', { tableId, accountId });
-        }
-      }, 8000);
-    } else diceRollerDivRef.current?.click();
-  }, [canRoll, isMultiplayer, myPlayerIndex, scheduleTimeout, tableId, accountId]);
+    diceRollerDivRef.current?.click();
+  }, [canRoll]);
 
   const renderPreview = (key, option) => {
     switch (key) {
@@ -3378,6 +3376,7 @@ export default function SnakeAndLadder() {
           captureEvent={captureEvent}
           onCaptureAnimationComplete={handleCaptureAnimationComplete}
           onSeatPositionsChange={setSeatAnchors}
+          onDiceAnchorChange={setDiceAnchor}
           appearance={resolvedAppearance}
           appearanceKey={appearanceKey}
           frameRate={frameRateValue}
@@ -3736,7 +3735,7 @@ export default function SnakeAndLadder() {
             a.volume = getGameVolume();
             a.play().catch(() => {});
           }
-          scheduleTimeout(
+          setTimeout(
             () => setChatBubbles((b) => b.filter((bb) => bb.id !== id)),
             3000,
           );
@@ -3785,7 +3784,7 @@ export default function SnakeAndLadder() {
                   bombSoundRef.current.play().catch(() => {});
                   hahaSoundRef.current.currentTime = 0;
                   hahaSoundRef.current.play().catch(() => {});
-                  scheduleTimeout(() => {
+                  setTimeout(() => {
                     hahaSoundRef.current.pause();
                   }, 5000);
                 } else if (gift.id === 'coffee_boost' && !muted) {
@@ -3793,7 +3792,7 @@ export default function SnakeAndLadder() {
                   a.volume = getGameVolume();
                   a.currentTime = 4;
                   a.play().catch(() => {});
-                  scheduleTimeout(() => {
+                  setTimeout(() => {
                     a.pause();
                   }, 4000);
                 } else if (gift.id === 'baby_chick' && !muted) {
@@ -3804,27 +3803,27 @@ export default function SnakeAndLadder() {
                   const a = new Audio(giftSound);
                   a.volume = getGameVolume();
                   a.play().catch(() => {});
-                  scheduleTimeout(() => {
+                  setTimeout(() => {
                     a.pause();
                   }, 4000);
                 } else if (gift.id === 'fireworks' && !muted) {
                   const a = new Audio(giftSound);
                   a.volume = getGameVolume();
                   a.play().catch(() => {});
-                  scheduleTimeout(() => {
+                  setTimeout(() => {
                     a.pause();
                   }, 6000);
                 } else if (gift.id === 'surprise_box' && !muted) {
                   const a = new Audio(giftSound);
                   a.volume = getGameVolume();
                   a.play().catch(() => {});
-                  scheduleTimeout(() => {
+                  setTimeout(() => {
                     a.pause();
                   }, 5000);
                 } else if (gift.id === 'bullseye' && !muted) {
                   const a = new Audio(giftSound);
                   a.volume = getGameVolume();
-                  scheduleTimeout(() => {
+                  setTimeout(() => {
                     a.play().catch(() => {});
                   }, 2500);
                 } else if (giftSound) {
@@ -3888,7 +3887,7 @@ export default function SnakeAndLadder() {
                 seatIndex: aiRollingIndex ?? 0,
                 phase: 'end'
               };
-              if (aiRollingIndex != null) {
+              if (aiRollingIndex) {
                 handleAIRoll(aiRollingIndex, vals);
                 setAiRollingIndex(null);
               } else {
@@ -3898,7 +3897,7 @@ export default function SnakeAndLadder() {
               setRollingIndex(null);
               setPlayerAutoRolling(false);
             }}
-            onRollStart={(values) => {
+            onRollStart={() => {
               diceRollIdRef.current += 1;
               activeDiceBoardRollRef.current = {
                 id: diceRollIdRef.current,
@@ -3908,15 +3907,10 @@ export default function SnakeAndLadder() {
               startDiceBoardAnimation({
                 id: diceRollIdRef.current,
                 phase: 'start',
-                values,
                 count: diceCount,
-                receiverSeatIndex: snakeDiceReceiver({ roller: aiRollingIndex ?? 0, positions: [pos, ...aiPositions], values, snakes, ladders, diceCells }),
                 seatIndex: aiRollingIndex ?? 0
               });
               setPendingExtraRoll(false);
-              setMoving(true);
-              setRollResult(null);
-              playDiceRollSound(`local:${diceRollIdRef.current}`);
               if (timerRef.current) clearInterval(timerRef.current);
               timerSoundRef.current?.pause();
               setRollingIndex(aiRollingIndex || 0);
@@ -3931,10 +3925,7 @@ export default function SnakeAndLadder() {
               currentTurn === 0 &&
               !moving
             }
-            numDice={1}
-            durationMs={SNAKE_DICE_PRESENTATION_MS}
-            triggerDelayMs={0}
-            renderVisual={false}
+            numDice={diceCount}
             trigger={aiRollingIndex != null ? aiRollTrigger : playerAutoRolling ? playerRollTrigger : undefined}
             showButton={false}
             muted
@@ -3942,21 +3933,80 @@ export default function SnakeAndLadder() {
           />
         </div>
       )}
-      {!watchOnly && !gameOver && (
-        <SnakeTurnPanel
-          canRoll={canRoll}
-          rolling={rollingIndex != null || playerAutoRolling}
-          moving={moving}
-          waiting={waitingForPlayers || setupPhase}
-          message={displayedTurnMessage}
-          result={rollResult}
-          position={players[myPlayerIndex ?? 0]?.position ?? 0}
-          finalTile={FINAL_TILE}
-          seconds={timeLeft}
-          playerName={getPlayerName(currentTurn)}
-          onRoll={handleRollButtonClick}
-        />
+      {isMultiplayer && myPlayerIndex !== null && (
+        <div className="sr-only" aria-hidden="true">
+          {isMyTurnForRoll ? (
+            <DiceRoller
+              clickable
+              showButton={false}
+              muted
+              fixedSoundVolume={1}
+              emitRollEvent
+              divRef={diceRollerDivRef}
+              onRollStart={() => {
+                diceRollIdRef.current += 1;
+                activeDiceBoardRollRef.current = {
+                  id: diceRollIdRef.current,
+                  seatIndex: currentTurn,
+                  phase: 'start'
+                };
+                startDiceBoardAnimation({
+                  id: diceRollIdRef.current,
+                  phase: 'start',
+                  count: diceCount,
+                  seatIndex: currentTurn
+                });
+                setPendingExtraRoll(false);
+              }}
+              onRollEnd={() => {
+                // Multiplayer rolls are server-authoritative. The dice face and
+                // token movement are completed from the diceRolled socket event
+                // so the board never displays a local random value that differs
+                // from the value used to move the token.
+              }}
+            />
+          ) : null}
+        </div>
       )}
+      {!watchOnly && (
+        <div className="fixed bottom-10 inset-x-0 flex flex-col items-center z-30 pointer-events-none space-y-3">
+          {displayedTurnMessage && (
+            <div className="pointer-events-auto flex items-center gap-2 px-4 py-2 rounded-full bg-[rgba(7,10,18,0.7)] border border-[rgba(255,215,0,0.25)] text-white text-sm font-semibold backdrop-blur">
+              <span>{displayedTurnMessage}</span>
+              {canRoll ? (
+                <button
+                  type="button"
+                  onClick={handleRollButtonClick}
+                  className="inline-flex h-7 w-7 items-center justify-center rounded-full border border-[rgba(255,215,0,0.5)] bg-[rgba(255,215,0,0.14)] text-base leading-none text-[#f7e7a4] shadow-[0_0_10px_rgba(250,204,21,0.28)]"
+                  aria-label="Roll dice"
+                >
+                  🎲
+                </button>
+              ) : null}
+            </div>
+          )}
+        </div>
+      )}
+      {canRoll && diceAnchor ? (
+        <button
+          type="button"
+          onClick={handleRollButtonClick}
+          className="fixed z-30 pointer-events-auto rounded-full flex items-center justify-center text-2xl text-[#f7e7a4]"
+          style={{
+            left: `${diceAnchor.x}%`,
+            top: `${diceAnchor.y}%`,
+            width: '5.4rem',
+            height: '5.4rem',
+            transform: 'translate(-50%, -50%)',
+            background: 'radial-gradient(circle, rgba(250,204,21,0.22), rgba(250,204,21,0) 68%)',
+            border: '1px solid rgba(250,204,21,0.35)',
+            boxShadow: '0 0 18px rgba(250,204,21,0.24)'
+          }}
+          aria-label="Roll dice"
+        >
+          🎲
+        </button>
+      ) : null}
       {!watchOnly && (
         <div className="pointer-events-auto">
           <InfoPopup
