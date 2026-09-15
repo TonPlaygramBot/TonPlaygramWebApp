@@ -38,6 +38,14 @@ test('portrait seated-human sizing and character selection remain wired to the r
   assert.match(source, /requestCharacter\?\.\(HUMAN_CHARACTER_OPTIONS\[safe\.humanCharacter\]\)/);
 });
 
+test('human dice pickup and landing positions remain on the restored choreography', () => {
+  assert.match(source, /if \(player === 0 && !immediate\) \{[\s\S]*beginDiceHoldPose\(player, \{ startMs: performance\.now\(\) - 220 \}\);[\s\S]*return;/);
+  assert.match(source, /const target = resolveDiceHoldContactTarget\(player, railTarget\) \?\? railTarget;/);
+  assert.match(source, /diceObj\.userData\.railPositions = rails;/);
+  assert.match(source, /diceObj\.userData\.homeLandingTargets/);
+  assert.doesNotMatch(source, /tabletopDiceLane/);
+});
+
 test('rapid taps cannot clear the pending move or turn timer', async () => {
   for (const patch of [{ pendingRoll: 6 }, { onlinePendingRoll: 3 }, { winner: 0 }, { animation: {} }]) {
     const roll = controller('rollDice', {
