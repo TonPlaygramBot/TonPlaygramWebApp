@@ -243,14 +243,14 @@ test('starting a live shot no longer schedules an automatic overhead camera', ()
   assert.equal(c.shootingRef.current, false);
 });
 
-test('the real character is clearly bigger and its original shot camera is preserved in portrait', async () => {
+test('the real character is subtly trimmed and its original shot camera is preserved in portrait', async () => {
   const world = new THREE.Group();
   const players = new PoolRoyalHumanPlayers(world, { ...m, model: await loadPoseModel() });
   assert.equal(await players.ready, true);
   world.updateMatrixWorld(true);
   const oldHeight = m.cueLength * 1.68;
   const height = new THREE.Box3().setFromObject(players.players[0].human.modelRoot).getSize(new THREE.Vector3()).y;
-  assert.ok(Math.abs(height / oldHeight - 1.05) < 0.001, '5% larger than the previous main character');
+  assert.ok(Math.abs(height / oldHeight - 1.14) < 0.001, '14% above the original baseline and smaller than the prior silhouette');
   assert.equal(players.group.position.y, m.floorY, 'the character stays anchored to the floor');
   const rig = cameraRig(world);
   let cameraPoses = 0;
