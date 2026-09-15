@@ -4552,6 +4552,8 @@ const HDRI_RESOLUTION_STORAGE_KEY = 'snookerHdriResolution';
 const DEFAULT_HDRI_RESOLUTION_MODE = '4k';
 const HDRI_RESOLUTION_OPTIONS = Object.freeze([
   { id: 'auto', label: 'Match Table' },
+  { id: '8k', label: '8K' },
+  { id: '6k', label: '6K' },
   { id: '4k', label: '4K' },
   { id: '2k', label: '2K' }
 ]);
@@ -4571,9 +4573,10 @@ const HDRI_CAMERA_SCALE_MAX = 1.32;
 const HDRI_CAMERA_SCALE_LERP = 0.18;
 
 function resolveHdriResolutionForTable(tableSizeMeta) {
-  // Keep automatic mode within the same mobile-friendly ceiling as the
-  // explicit menu. Large tables affect framing, not texture download size.
-  void tableSizeMeta;
+  const widthMm = tableSizeMeta?.playfield?.widthMm;
+  if (Number.isFinite(widthMm) && widthMm >= 2540) {
+    return '8k';
+  }
   return '4k';
 }
 
@@ -21957,9 +21960,9 @@ const shotPowerRef = useRef(0);
         clothY: TABLE_Y + CLOTH_TOP_LOCAL + CLOTH_LIFT - CLOTH_DROP,
         tableW: Math.max(TABLE.W, PLAY_W),
         tableL: Math.max(TABLE.H, PLAY_H),
-        // Keep both players floor-anchored while trimming the silhouette a
-        // little so it does not overpower the table in portrait framing.
-        targetHeight: cueLen * 1.68 * 1.14,
+        // Keep both players floor-anchored while giving them a clearly taller,
+        // larger silhouette against the full-size snooker table.
+        targetHeight: cueLen * 1.68 * 1.2,
         onError: (error) => console.warn('Snooker Royal player characters could not load', error)
       });
       referencePlayers.setCueAppearance(cueBody, cueTipLocal, cueButtLocal);
@@ -23909,11 +23912,10 @@ const shotPowerRef = useRef(0);
             ballsRef.current?.length > 0 ? ballsRef.current : balls;
           const state = frameRef.current ?? frameState;
           const activeVariantId = activeVariantRef.current?.id ?? variantKey;
-          // Position play matters on the opening shot of a visit too. Waiting
-          // until the second shot made the AI choose an easy pot that often
-          // stranded the cue ball with no useful continuation.
           const shouldAnalyzeLeave =
-            aiOpponentEnabled && hudRef.current?.turn === 1;
+            aiOpponentEnabled &&
+            hudRef.current?.turn === 1 &&
+            aiTurnShotCountRef.current > 0;
           const isRotationVariant =
             activeVariantId === 'american' || activeVariantId === '9ball';
           const activeBalls = ballsList.filter((b) => b.active);
@@ -23980,16 +23982,10 @@ const shotPowerRef = useRef(0);
             if (!shouldAnalyzeLeave) return 0;
             const cueAfter = estimateCueAfterPot(plan);
             if (!cueAfter) return 0;
-            const plannedTarget = normalizeTargetId(plan.target);
-            const nextLegalTargets = activeVariantId === 'snooker'
-              ? plannedTarget === 'RED'
-                ? ['YELLOW', 'GREEN', 'BROWN', 'BLUE', 'PINK', 'BLACK']
-                : ['RED']
-              : Array.from(legalTargets);
             const remainingTargets = activeBalls.filter((ball) => {
               if (!ball.active || ball === cueBall || ball === plan.targetBall) return false;
-              if (nextLegalTargets.length === 0) return true;
-              return nextLegalTargets.some((entry) => matchesTargetId(ball, entry));
+              if (legalTargets.size === 0) return true;
+              return Array.from(legalTargets).some((entry) => matchesTargetId(ball, entry));
             });
             if (remainingTargets.length === 0) return 0.15;
             let bestScore = -Infinity;
@@ -24465,9 +24461,7 @@ const shotPowerRef = useRef(0);
                 : 0;
             const laneBonus = Math.max(0, Math.min((laneClearance - 0.6) / 0.8, 1));
             const leaveScore = scoreNextShotPosition(plan);
-            // A good cue-ball leave is a core part of strong snooker play, so
-            // let it break ties between similarly safe potting routes.
-            const leaveWeight = shouldAnalyzeLeave ? 0.2 : 0;
+            const leaveWeight = shouldAnalyzeLeave ? 0.12 : 0;
             return (
               quality * 0.48 +
               difficultyEase * 0.18 +
