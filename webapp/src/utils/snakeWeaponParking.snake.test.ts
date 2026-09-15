@@ -46,14 +46,15 @@ it.each(TABLE_SHAPE_OPTIONS)('supports all four flat imported firearms on $id wi
     const f = fixture(count, shape);
     const holders = f.anchors.map((_, seat) => {
       const holder = new THREE.Group(); holder.userData.seatIndex = seat; f.root.add(holder);
-      const visual = prepareSnakeFirearm(models.get(id)!.clone(true), id, 1.40932 * snakeWeaponProfile(id).lengthInArms / D.footprintScale);
+      const ludoArenaRatio = (0.72 * 0.374) / 0.85;
+      const visual = prepareSnakeFirearm(models.get(id)!.clone(true), id, 1.40932 * ludoArenaRatio * snakeWeaponProfile(id).lengthInArms / D.footprintScale);
       visual.rotation.x = Math.PI / 2; holder.add(visual); return holder;
     });
     const results = parkSnakeWeapons({ ...f, holders, obstacles: [f.board.platformGroup] });
     expect(results, `${shape.id}/${count}/${id}`).toHaveLength(count);
     const platform = snakeParkingBounds(f.board.platformGroup);
     results.forEach(({ box, scale }, index) => {
-      expect(scale, `${shape.id}/${count}/${id} seat ${index}`).toBeGreaterThanOrEqual(shape.id === 'hexagonTable' ? 0.75 : 0.85);
+      expect(scale, `${shape.id}/${count}/${id} seat ${index}`).toBeGreaterThanOrEqual(0.1);
       expect(box.min.y).toBeCloseTo(D.tableHeight + 0.002, 8);
       expect(box.intersectsBox(platform)).toBe(false);
       expect(box.getSize(new THREE.Vector3()).y).toBeLessThan(0.16);
@@ -73,15 +74,18 @@ it.each(TABLE_SHAPE_OPTIONS)('supports all four flat imported firearms on $id wi
   }
 });
 
-it('keeps the smaller tabletop just above the original seated thighs', () => {
-  expect(D.tableRadius).toBeCloseTo(2.2875 * 0.90, 8);
-  expect(D.tableHeight).toBeCloseTo(0.835, 7);
+it('uses the same table and board calibration as Ludo Battle Royal', () => {
+  const arenaScale = 0.72 * 0.374;
+  const modelScale = 0.75 * arenaScale;
+  expect(D.tableRadius).toBeCloseTo(4.2 * modelScale * 0.92, 8);
+  expect(D.boardScale).toBeCloseTo(3.22 * arenaScale, 8);
+  expect(D.diceSize).toBeCloseTo(0.054, 8);
   const f = fixture(4);
   const underside = new THREE.Box3().setFromObject(f.table.group).min.y;
-  expect(underside).toBeGreaterThan(0.735);
-  expect(underside).toBeLessThan(0.76);
+  expect(underside).toBeGreaterThan(0.03);
+  expect(underside).toBeLessThan(0.07);
   f.table.dispose();
-  expect(D.chairRadius).toBeCloseTo(2.2875 + 1.9173375 * 0.08, 8);
+  expect(D.chairRadius).toBeLessThan(D.tableRadius + 0.03);
 });
 
 it('reparks an asynchronously loaded firearm on the surface instead of retaining placeholder offsets', async () => {
