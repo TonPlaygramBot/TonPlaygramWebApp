@@ -10043,6 +10043,7 @@ renderer.domElement.addEventListener('pointerdown', (ev) => {
         showMarkersFor(selectedTile);
         return;
       }
+      runSeatedHumanDominoAction(human, 'placePiece');
       playedPlacement = placement;
       emitDominoOnlineState('play');
     }
@@ -10699,6 +10700,7 @@ function cpuPlay() {
     const picked = player.hand.splice(move.index, 1)[0];
     const placement = placeOnBoard(picked, move.side, { animate: true });
     if (placement.success) {
+      runSeatedHumanDominoAction(current, 'placePiece');
       renderHands();
       if (player.hand.length === 0) {
         concludeHand({
