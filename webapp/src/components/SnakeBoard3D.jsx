@@ -54,13 +54,23 @@ const smootherstep01 = (v) => {
 
 const DRACO_DECODER_PATH = '/vendor/three/examples/jsm/libs/draco/gltf/';
 const BASIS_TRANSCODER_PATH = '/vendor/three/examples/jsm/libs/basis/';
-const DEFAULT_HDRI_RESOLUTIONS = ['4k'];
-
-const MODEL_SCALE = 0.75;
-const CHAIR_SIZE_SCALE = 1.38;
-const SEATING_TABLE_RADIUS = 3.05 * MODEL_SCALE;
-const TABLE_RADIUS = SEATING_TABLE_RADIUS * 0.90;
-const BASE_TABLE_HEIGHT = 0.94 * MODEL_SCALE;
+// Keep the complete Snake tabletop on the same world-space calibration as
+// Ludo Battle Royal.  Sharing these authored measurements makes switching
+// games feel like the board changed on the same table, rather than moving the
+// player into a differently scaled room.
+const DEFAULT_HDRI_RESOLUTIONS = ['2k'];
+const BASE_ARENA_SCALE = 0.85;
+const LUDO_ARENA_SHRINK_FACTOR = 0.374;
+const ARENA_SCALE = 0.72 * LUDO_ARENA_SHRINK_FACTOR;
+const ARENA_SCALE_RATIO = ARENA_SCALE / BASE_ARENA_SCALE;
+const MODEL_SCALE = 0.75 * ARENA_SCALE;
+const TABLE_SIDE_SHRINK_FACTOR = 0.92;
+const TABLE_VISUAL_SCALE = 0.9;
+const TABLE_RADIUS = 4.2 * MODEL_SCALE * TABLE_SIDE_SHRINK_FACTOR;
+const SEATING_TABLE_RADIUS = TABLE_RADIUS;
+const TABLE_HEIGHT_SCALE = 0.56;
+const BASE_TABLE_HEIGHT = 1.03 * MODEL_SCALE * TABLE_HEIGHT_SCALE;
+const CHAIR_SIZE_SCALE = 0.66;
 const STOOL_SCALE = 1.5 * 1.3 * CHAIR_SIZE_SCALE;
 const SEAT_WIDTH = 0.9 * MODEL_SCALE * STOOL_SCALE;
 const SEAT_DEPTH = 0.95 * MODEL_SCALE * STOOL_SCALE;
@@ -70,21 +80,27 @@ const BACK_THICKNESS = 0.08 * MODEL_SCALE * STOOL_SCALE;
 const ARM_THICKNESS = 0.125 * MODEL_SCALE * STOOL_SCALE;
 const ARM_HEIGHT = 0.3 * MODEL_SCALE * STOOL_SCALE;
 const ARM_DEPTH = SEAT_DEPTH * 0.75;
-const BASE_COLUMN_HEIGHT = 0.5 * MODEL_SCALE * STOOL_SCALE;
+const CHAIR_LEG_TRIM_FACTOR = 0.64;
+const BASE_COLUMN_HEIGHT = 0.5 * MODEL_SCALE * STOOL_SCALE * CHAIR_LEG_TRIM_FACTOR;
 const CARD_SCALE = 0.95;
 const CARD_W = 0.4 * MODEL_SCALE * CARD_SCALE;
 const SEAT_ROTATION_OFFSET = Math.PI / 8;
 const AI_CHAIR_GAP = CARD_W * 0.74;
 const CHAIR_BASE_HEIGHT = BASE_TABLE_HEIGHT - SEAT_THICKNESS * 1.1;
 const STOOL_HEIGHT = CHAIR_BASE_HEIGHT + SEAT_THICKNESS;
-// Portrait calibration: keep the chair ring close to the table.
-const CHAIR_GLOBAL_PUSHBACK = 0.18 * MODEL_SCALE;
-const CHAIR_TABLE_CLEARANCE = 0.22 * MODEL_SCALE;
-// The original seated thighs peak near 0.715. A thin top leaves a small
-// underside gap above them instead of forcing the knees around the table.
-const TABLE_HEIGHT = 0.835;
+const TABLE_EDGE_INSET = TABLE_RADIUS * (1 - TABLE_VISUAL_SCALE);
+const CHAIR_OUTWARD_OFFSET = 0.31 * MODEL_SCALE;
+const CHAIR_INWARD_PULL = 0.22 * MODEL_SCALE;
+const CHAIR_GLOBAL_PUSHBACK = 0.68 * MODEL_SCALE;
+const SELF_BOTTOM_CHAIR_EXTRA_PUSHBACK = -0.18 * MODEL_SCALE;
+const CHAIR_TABLE_CLEARANCE =
+  0.19 * MODEL_SCALE + CHAIR_OUTWARD_OFFSET - TABLE_EDGE_INSET - CHAIR_INWARD_PULL;
+const TABLE_VERTICAL_LOWERING = 0.198 * MODEL_SCALE;
+const TABLE_EXTRA_LOWERING = 0.048 * MODEL_SCALE;
+const TABLE_HEIGHT_LIFT = 0.025 * MODEL_SCALE - TABLE_VERTICAL_LOWERING - TABLE_EXTRA_LOWERING;
+const TABLE_HEIGHT = STOOL_HEIGHT + TABLE_HEIGHT_LIFT;
 const TABLE_TOP_THICKNESS_SCALE = 0.4;
-const TABLE_MODEL_TARGET_DIAMETER = TABLE_RADIUS * 2;
+const TABLE_MODEL_TARGET_DIAMETER = TABLE_RADIUS * 2 * TABLE_VISUAL_SCALE;
 const TABLE_MODEL_TARGET_HEIGHT = TABLE_HEIGHT;
 
 const DEFAULT_PLAYER_COUNT = 4;
@@ -170,8 +186,9 @@ const LEVEL_TILE_COUNTS = (() => {
 const BASE_LEVEL_TILES = PYRAMID_LEVELS[0];
 const TOTAL_BOARD_TILES = LEVEL_TILE_COUNTS.reduce((sum, count) => sum + count, 0);
 const RAW_BOARD_SIZE = 1.125;
-const BOARD_SCALE = 2.7 * 0.68 * 1.15 * 1.06 * 0.68; // keep the previous vertical/table-height calibration
-const BOARD_FOOTPRINT_SCALE = BOARD_SCALE * 1.16; // widen the board in portrait while preserving the existing height
+// Ludo uses this exact 3.22 × arena scale for its 1.125-unit square board.
+const BOARD_SCALE = 3.22 * ARENA_SCALE;
+const BOARD_FOOTPRINT_SCALE = BOARD_SCALE;
 const BOARD_DISPLAY_SIZE = RAW_BOARD_SIZE * BOARD_FOOTPRINT_SCALE;
 const BOARD_RADIUS = BOARD_DISPLAY_SIZE / 2;
 
@@ -179,7 +196,7 @@ const TILE_GAP = 0.015;
 const TILE_SIZE = RAW_BOARD_SIZE / BASE_LEVEL_TILES;
 const PYRAMID_HEIGHT_MULTIPLIER = 0.92; // portrait calibration: shorter, lower pyramid tiers
 const MAX_DICE = 1;
-const DICE_SIZE = TILE_SIZE * 0.61 * 0.8;
+const DICE_SIZE = 0.054;
 const DICE_CORNER_RADIUS = DICE_SIZE * 0.18;
 const DICE_PIP_RADIUS = DICE_SIZE * 0.093;
 const DICE_PIP_DEPTH = DICE_SIZE * 0.018;
@@ -250,8 +267,8 @@ function getSeatAngle(seatIndex, activePlayerCount = DEFAULT_PLAYER_COUNT) {
   return CUSTOM_CHAIR_ANGLES[seatIndex] ?? fallbackAngle;
 }
 
-function getSeatRadius(baseChairRadius) {
-  return baseChairRadius + CHAIR_TABLE_CLEARANCE;
+function getSeatRadius(baseChairRadius, seatIndex = 0) {
+  return baseChairRadius + CHAIR_TABLE_CLEARANCE + (seatIndex === 0 ? SELF_BOTTOM_CHAIR_EXTRA_PUSHBACK : 0);
 }
 
 function measureMinYRelativeToParent(object) {
@@ -2562,12 +2579,15 @@ function resetTileAppearance(tile) {
   if (topMaterial && baseColor) {
     topMaterial.color.copy(baseColor);
     topMaterial.emissive?.setRGB(0, 0, 0);
+    topMaterial.emissiveIntensity = tile.userData.baseTopEmissiveIntensity ?? 0.28;
   }
   if (sideMaterial) {
     sideMaterial.emissive?.setRGB(0, 0, 0);
+    sideMaterial.emissiveIntensity = tile.userData.baseSideEmissiveIntensity ?? 0.14;
   }
   if (bottomMaterial) {
     bottomMaterial.emissive?.setRGB(0, 0, 0);
+    bottomMaterial.emissiveIntensity = tile.userData.baseBottomEmissiveIntensity ?? 0.1;
   }
   if (!topMaterial && tile.material?.color && baseColor) {
     tile.material.color.copy(baseColor);
@@ -2579,16 +2599,19 @@ function applyTileHighlight(tile, color, intensity = 1) {
   const { topMaterial, sideMaterial, bottomMaterial } = tile.userData ?? {};
   if (topMaterial?.emissive) {
     topMaterial.emissive.copy(color).multiplyScalar(intensity);
+    topMaterial.emissiveIntensity = 1.35;
   }
   if (sideMaterial?.emissive) {
     sideMaterial.emissive
       .copy(color)
       .multiplyScalar(intensity * TILE_SIDE_EMISSIVE_SCALE);
+    sideMaterial.emissiveIntensity = 0.9;
   }
   if (bottomMaterial?.emissive) {
     bottomMaterial.emissive
       .copy(color)
       .multiplyScalar(intensity * TILE_BOTTOM_EMISSIVE_SCALE);
+    bottomMaterial.emissiveIntensity = 0.55;
   }
   if (!topMaterial && tile.material?.emissive) {
     tile.material.emissive.copy(color).multiplyScalar(intensity);
@@ -3085,14 +3108,14 @@ function buildArena(
   loadSeatedHumanTemplate({
     option: { ...CHESS_HUMAN_CHARACTER_OPTIONS[0], modelUrls: ['/assets/pool-royale/readyplayer.me.glb', ...CHESS_HUMAN_CHARACTER_OPTIONS[0].modelUrls] },
     renderer,
-    targetHeight: 1.13,
+    targetHeight: 1.74 * 0.84,
     createLoader: createConfiguredGLTFLoader
   })
     .then((humanTemplate) => {
       if (disposed) return;
       chairs.forEach((chair) => {
         const restoredHuman = createRestoredSeatedHumanActor(humanTemplate, chair.group, {
-          targetHeight: 1.13,
+          targetHeight: 1.74 * 0.84,
           seatHeight: SEAT_THICKNESS * 0.65
         });
         if (restoredHuman) {
@@ -3302,6 +3325,9 @@ function buildSnakeBoard(
     tile.userData.sideMaterial = materialSet.sideMaterial;
     tile.userData.bottomMaterial = materialSet.bottomMaterial;
     tile.userData.baseColor = materialSet.topMaterial.color.clone();
+    tile.userData.baseTopEmissiveIntensity = materialSet.topMaterial.emissiveIntensity;
+    tile.userData.baseSideEmissiveIntensity = materialSet.sideMaterial.emissiveIntensity;
+    tile.userData.baseBottomEmissiveIntensity = materialSet.bottomMaterial.emissiveIntensity;
     tileGroup.add(tile);
     tileMeshes.set(tileSpec.id, tile);
     const topPosition = new THREE.Vector3(tileSpec.x, tileSpec.y + tileHeight / 2, tileSpec.z);
@@ -3516,7 +3542,7 @@ function buildSnakeBoard(
   };
 }
 
-function updateTilesHighlight(tileMeshes, highlight, trail, highlightColors = DEFAULT_HIGHLIGHT_COLORS) {
+function updateTilesHighlight(tileMeshes, highlight, trail, highlightColors = DEFAULT_HIGHLIGHT_COLORS, occupiedCells = []) {
   if (!tileMeshes) return;
   const colors = highlightColors || DEFAULT_HIGHLIGHT_COLORS;
   tileMeshes.forEach((tile) => {
@@ -3530,6 +3556,13 @@ function updateTilesHighlight(tileMeshes, highlight, trail, highlightColors = DE
       applyTileHighlight(tile, color, 0.35);
     });
   }
+  // A token standing on a tile leaves that tile clearly illuminated. This is
+  // applied after the travel trail so the occupied destination is always the
+  // strongest, most readable glow on a portrait screen.
+  occupiedCells.forEach((cell) => {
+    const tile = tileMeshes.get(cell);
+    if (tile) applyTileHighlight(tile, colors.normal, 1.15);
+  });
   if (highlight) {
     const tile = tileMeshes.get(highlight.cell);
     if (tile) {
@@ -4990,7 +5023,7 @@ function updateSeatWeaponDisplays(board, players = []) {
     const firearmId = resolveSnakeFirearmAnimationId(parkedWeaponType);
     const human = board.getSeatHuman?.(seatIndex);
     const parentScale = board.weaponDisplayGroup.getWorldScale(new THREE.Vector3());
-    const firearmLength = firearmId && snakeWeaponProfile(parkedWeaponType).handheld ? (human?.unit ?? 1.6) * snakeWeaponProfile(firearmId).lengthInArms /
+    const firearmLength = firearmId && snakeWeaponProfile(parkedWeaponType).handheld ? (human?.unit ?? 1.6) * ARENA_SCALE_RATIO * snakeWeaponProfile(firearmId).lengthInArms /
       parentScale.x : 0;
     if (holder.userData.weaponType !== parkedWeaponType || holder.userData.firearmLength !== firearmLength) {
       holder.clear();
@@ -5799,7 +5832,10 @@ export default function SnakeBoard3D({
     if (!boardRef.current) return;
     const board = boardRef.current;
     const colors = board.highlightColors || DEFAULT_HIGHLIGHT_COLORS;
-    updateTilesHighlight(board.tileMeshes, highlight, trail, colors);
+    const occupiedCells = players
+      .map((player) => Math.floor(Number(player?.position) || 0))
+      .filter((cell) => cell >= 1 && cell <= TOTAL_BOARD_TILES);
+    updateTilesHighlight(board.tileMeshes, highlight, trail, colors, occupiedCells);
     if (offsetPopup) {
       const tile = board.tileMeshes.get(offsetPopup.cell);
       if (tile) {
@@ -5807,7 +5843,7 @@ export default function SnakeBoard3D({
         applyTileHighlight(tile, color);
       }
     }
-  }, [highlight, trail, offsetPopup, keyForEffect]);
+  }, [highlight, trail, offsetPopup, players, keyForEffect]);
 
   useEffect(() => {
     if (!boardRef.current) return;
