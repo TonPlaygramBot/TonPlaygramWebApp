@@ -2605,6 +2605,9 @@ function lerpBoneToPose(bone, from, to, t) {
 }
 
 const CHARACTER_ACTION_BONE_KEYS = Object.freeze([
+  'leftUpperArm',
+  'leftForeArm',
+  'leftHand',
   'rightUpperArm',
   'rightForeArm',
   'rightHand',
@@ -2807,15 +2810,47 @@ function runCharacterAction(store, rig, action) {
   }
 
   if (action.type === 'PLAY') {
+    const supportHandGesture = {
+      leftUpperArm: { x: THREE.MathUtils.degToRad(-3), y: THREE.MathUtils.degToRad(-2), z: THREE.MathUtils.degToRad(-2) },
+      leftForeArm: { x: THREE.MathUtils.degToRad(5), y: THREE.MathUtils.degToRad(2), z: THREE.MathUtils.degToRad(2) },
+      leftHand: { x: THREE.MathUtils.degToRad(4), y: THREE.MathUtils.degToRad(-2), z: THREE.MathUtils.degToRad(-2) }
+    };
+    const pinchFingers = {
+      rightIndexFinger: { x: THREE.MathUtils.degToRad(7), y: THREE.MathUtils.degToRad(-2) },
+      rightThumbFinger: { x: THREE.MathUtils.degToRad(-7), y: THREE.MathUtils.degToRad(2), z: THREE.MathUtils.degToRad(5) },
+      rightMiddleFinger: { x: THREE.MathUtils.degToRad(6), y: THREE.MathUtils.degToRad(-1) }
+    };
     const releaseFingers = {
       rightIndexFinger: { x: THREE.MathUtils.degToRad(-5), y: THREE.MathUtils.degToRad(2) },
       rightThumbFinger: { x: THREE.MathUtils.degToRad(8), z: THREE.MathUtils.degToRad(-6) },
       rightMiddleFinger: { x: THREE.MathUtils.degToRad(-4), y: THREE.MathUtils.degToRad(1) }
     };
+    const pickupGesture = buildPoseVariant(basePose, {
+      ...supportHandGesture,
+      rightUpperArm: { x: THREE.MathUtils.degToRad(-9), y: THREE.MathUtils.degToRad(-9), z: THREE.MathUtils.degToRad(-7) },
+      rightForeArm: { x: THREE.MathUtils.degToRad(-12), y: THREE.MathUtils.degToRad(-2) },
+      rightHand: { x: THREE.MathUtils.degToRad(-7), y: THREE.MathUtils.degToRad(-4), z: THREE.MathUtils.degToRad(-2) },
+      ...pinchFingers
+    });
+    const carryGesture = buildPoseVariant(basePose, {
+      ...supportHandGesture,
+      rightUpperArm: { x: THREE.MathUtils.degToRad(-16), y: THREE.MathUtils.degToRad(-15), z: THREE.MathUtils.degToRad(-12) },
+      rightForeArm: { x: THREE.MathUtils.degToRad(-19), y: THREE.MathUtils.degToRad(-2) },
+      rightHand: { x: THREE.MathUtils.degToRad(-10), y: THREE.MathUtils.degToRad(-5), z: THREE.MathUtils.degToRad(-2) },
+      ...pinchFingers
+    });
     const singlePlaceGesture = buildPoseVariant(basePose, {
+      ...supportHandGesture,
       rightUpperArm: { x: THREE.MathUtils.degToRad(-20), y: THREE.MathUtils.degToRad(-18), z: THREE.MathUtils.degToRad(-14) },
       rightForeArm: { x: THREE.MathUtils.degToRad(-24), y: THREE.MathUtils.degToRad(-1) },
       rightHand: { x: THREE.MathUtils.degToRad(-14), y: THREE.MathUtils.degToRad(-5), z: THREE.MathUtils.degToRad(-1) },
+      ...pinchFingers
+    });
+    const releaseGesture = buildPoseVariant(basePose, {
+      ...supportHandGesture,
+      rightUpperArm: { x: THREE.MathUtils.degToRad(-20), y: THREE.MathUtils.degToRad(-18), z: THREE.MathUtils.degToRad(-14) },
+      rightForeArm: { x: THREE.MathUtils.degToRad(-24), y: THREE.MathUtils.degToRad(-1) },
+      rightHand: { x: THREE.MathUtils.degToRad(-12), y: THREE.MathUtils.degToRad(-4), z: THREE.MathUtils.degToRad(-1) },
       ...releaseFingers
     });
 
@@ -2848,25 +2883,54 @@ function runCharacterAction(store, rig, action) {
     const finalCardYaw = Math.atan2(rig.seatConfig?.forward?.x ?? 0, rig.seatConfig?.forward?.z ?? 1);
     orientThrownActionCard(thrown, actionAnimationStyle, 0, finalCardYaw);
 
+    // A deliberate reach, pinch, carry, place and release keeps the acting hand
+    // attached to the card instead of making both jump directly to the table.
+    // The other hand tightens slightly around the remaining fan throughout.
     queueCharacterActionAnimation(list, rig, {
       start: now,
-      duration: 560,
+      duration: 220,
+      update: (t) => applyRigActionPoseLerp(rig, pickupGesture, t)
+    });
+    queueCharacterActionAnimation(list, rig, {
+      start: now + 220,
+      duration: 110,
+      update: (t) => applyRigActionPoseBetween(rig, pickupGesture, pickupGesture, t)
+    });
+    queueCharacterActionAnimation(list, rig, {
+      start: now + 330,
+      duration: 250,
       update: (t) => {
-        applyRigActionPoseLerp(rig, singlePlaceGesture, t);
+        applyRigActionPoseBetween(rig, pickupGesture, carryGesture, t);
         const eased = easeInOutCubic(t);
-        thrown.position.lerpVectors(pickupHoverPos, tableContactPos, eased);
+        thrown.position.lerpVectors(pickupHoverPos, tableContactPos, eased * 0.72);
         thrown.position.y += Math.sin(eased * Math.PI) * travelArcLift;
-        orientThrownActionCard(thrown, actionAnimationStyle, eased, finalCardYaw);
-      },
+        orientThrownActionCard(thrown, actionAnimationStyle, eased * 0.72, finalCardYaw);
+      }
+    });
+    queueCharacterActionAnimation(list, rig, {
+      start: now + 580,
+      duration: 190,
+      update: (t) => {
+        applyRigActionPoseBetween(rig, carryGesture, singlePlaceGesture, t);
+        const eased = easeInOutCubic(t);
+        thrown.position.lerpVectors(pickupHoverPos, tableContactPos, 0.72 + eased * 0.28);
+        thrown.position.y += Math.sin((0.72 + eased * 0.28) * Math.PI) * travelArcLift;
+        orientThrownActionCard(thrown, actionAnimationStyle, 0.72 + eased * 0.28, finalCardYaw);
+      }
+    });
+    queueCharacterActionAnimation(list, rig, {
+      start: now + 770,
+      duration: 110,
+      update: (t) => applyRigActionPoseBetween(rig, singlePlaceGesture, releaseGesture, t),
       complete: () => {
         thrown.userData?.dispose?.();
         store.scene?.remove(thrown);
       }
     });
     queueCharacterActionAnimation(list, rig, {
-      start: now + 560,
-      duration: 300,
-      update: (t) => applyRigActionPoseBetween(rig, singlePlaceGesture, basePose, t)
+      start: now + 880,
+      duration: 320,
+      update: (t) => applyRigActionPoseBetween(rig, releaseGesture, basePose, t)
     });
   }
 }
