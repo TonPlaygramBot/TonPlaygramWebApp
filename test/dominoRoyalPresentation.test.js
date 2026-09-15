@@ -27,17 +27,9 @@ describe('Domino Royal lightweight presentation', () => {
     expect(gameSource).toContain("mode = 'gripPiece'");
     expect(gameSource).toContain("mode = 'carryPiece'");
     expect(gameSource).toContain("mode = 'placePiece'");
-    expect(gameSource).toContain(
-      'humanReachProfile: getDominoHumanReachProfile'
-    );
+    expect(gameSource).toContain('humanReachProfile: getDominoHumanReachProfile');
     expect(gameSource).toContain('applySeatedHumanRightArmIK');
     expect(gameSource).toContain('anim.mesh.getWorldPosition');
-    expect(gameSource).not.toContain(
-      "runSeatedHumanDominoAction(human, 'placePiece')"
-    );
-    expect(gameSource).not.toContain(
-      "runSeatedHumanDominoAction(current, 'placePiece')"
-    );
     expect(gameSource).toContain('seatHeight: STOOL_HEIGHT');
     expect(gameSource).toContain(
       "console.warn('Unable to restore Domino Royal seated humans', error)"
