@@ -18,20 +18,26 @@ describe('Domino Royal lightweight presentation', () => {
   test('restores the shared seated human characters at every occupied chair', () => {
     expect(source).toContain('createRestoredSeatedHumanActor');
     expect(source).toContain('applySeatedHumanPose');
+    expect(source).toContain('applySeatedHumanRightArmIK');
     expect(source).toContain('loadSeatedHumanTemplate');
     expect(source).toContain('__DOMINO_ROYAL_SEATED_HUMANS__');
     expect(gameSource).toContain('chairs.forEach((chair, visualSeatIndex) =>');
     expect(gameSource).toContain('LEGACY_DOMINO_HUMAN_HEIGHT = 1.13');
-    expect(gameSource).toContain('LEGACY_DOMINO_HUMAN_ACTION_MS = 760');
+    expect(gameSource).toContain('updateSeatedHumanDominoAction(anim, t)');
+    expect(gameSource).toContain("mode = 'gripPiece'");
+    expect(gameSource).toContain("mode = 'carryPiece'");
+    expect(gameSource).toContain("mode = 'placePiece'");
     expect(gameSource).toContain(
+      'humanReachProfile: getDominoHumanReachProfile'
+    );
+    expect(gameSource).toContain('applySeatedHumanRightArmIK');
+    expect(gameSource).toContain('anim.mesh.getWorldPosition');
+    expect(gameSource).not.toContain(
       "runSeatedHumanDominoAction(human, 'placePiece')"
     );
-    expect(gameSource).toContain(
+    expect(gameSource).not.toContain(
       "runSeatedHumanDominoAction(current, 'placePiece')"
     );
-    expect(gameSource).toContain("applyPose(restoredHuman.rig, 'idle', 1, 0)");
-    expect(gameSource).not.toContain('updateSeatedHumanDominoAction(anim, t)');
-    expect(gameSource).not.toContain('applySeatedHumanRightArmIK');
     expect(gameSource).toContain('seatHeight: STOOL_HEIGHT');
     expect(gameSource).toContain(
       "console.warn('Unable to restore Domino Royal seated humans', error)"
