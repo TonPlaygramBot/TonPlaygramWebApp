@@ -21960,9 +21960,9 @@ const shotPowerRef = useRef(0);
         clothY: TABLE_Y + CLOTH_TOP_LOCAL + CLOTH_LIFT - CLOTH_DROP,
         tableW: Math.max(TABLE.W, PLAY_W),
         tableL: Math.max(TABLE.H, PLAY_H),
-        // Increase the current human proportions by 5%, uniformly and anchored
-        // to the floor, so both players look slightly bigger and taller.
-        targetHeight: cueLen * 1.68 * 1.05,
+        // Keep both players floor-anchored while giving them a clearly taller,
+        // larger silhouette against the full-size snooker table.
+        targetHeight: cueLen * 1.68 * 1.2,
         onError: (error) => console.warn('Snooker Royal player characters could not load', error)
       });
       referencePlayers.setCueAppearance(cueBody, cueTipLocal, cueButtLocal);
