@@ -5,7 +5,6 @@ import { DOMINO_ROYAL_INLINE_STYLE } from './dominoRoyalTemplate.js';
 import { socket } from '../../utils/socket.js';
 import {
   createRestoredSeatedHumanActor,
-  applySeatedHumanRightArmIK,
   applySeatedHumanPose,
   loadSeatedHumanTemplate
 } from './shared/seatedHumanActors.js';
@@ -45,7 +44,6 @@ export default function DominoRoyalArena() {
     // models, scale normalization and seated pose as the other royal tables.
     window.__DOMINO_ROYAL_SEATED_HUMANS__ = {
       createRestoredSeatedHumanActor,
-      applySeatedHumanRightArmIK,
       applySeatedHumanPose,
       loadSeatedHumanTemplate
     };
