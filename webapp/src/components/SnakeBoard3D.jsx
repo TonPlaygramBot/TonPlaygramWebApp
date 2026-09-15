@@ -1,8 +1,18 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import * as THREE from 'three';
+import { createSnakeHumanInteraction } from '../utils/snakeHumanInteraction';
+import { createSnakeDiceInteraction, SNAKE_DICE_PRESENTATION_MS } from '../utils/snakeDiceInteraction';
+import { parkSnakeWeapons, snakeParkingBounds } from '../utils/snakeWeaponParking';
+import { prepareSnakeFirearm, snakeWeaponProfile } from '../utils/snakeWeaponGrip';
+import { createSnakeFirearmAnimation } from '../utils/snakeFirearmAnimation';
+import { FIREARM_CAPTURE_ANIMATION_IDS } from '../utils/ludoFirearmPresentation';
+import { createSnakeCameraDirector } from '../utils/snakeCameraDirector';
+import { createSnakeDiceVisibility } from '../utils/snakeDiceVisibility';
+import { SNAKE_DICE_READ_MS } from '../utils/snakeDiceInteraction';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
-import { SNAKE_CAPTURE_WEAPON_OPTIONS } from '../config/snakeWeaponCatalog.js';
+import { CHESS_HUMAN_CHARACTER_OPTIONS } from '../config/chessBattleInventoryConfig.js';
+import { SNAKE_CAPTURE_WEAPON_OPTIONS, SNAKE_SHARED_CAPTURE_WEAPON_OPTIONS } from '../config/snakeWeaponCatalog.js';
 import { DRACOLoader } from 'three/addons/loaders/DRACOLoader.js';
 import { KTX2Loader } from 'three/addons/loaders/KTX2Loader.js';
 import { RGBELoader } from 'three/addons/loaders/RGBELoader.js';
@@ -31,7 +41,10 @@ import {
 import { applyRendererSRGB, applySRGBColorSpace } from '../utils/colorSpace.js';
 import { getGameVolume } from '../utils/sound.js';
 import { playLudoCaptureWeaponSfx } from '../utils/ludoSfx.js';
-import { LUDO_WEAPON_DIRECTOR_BRIDGE } from '../config/ludoWeaponDirectorBridge.js';
+import {
+  createRestoredSeatedHumanActor,
+  loadSeatedHumanTemplate
+} from '../pages/Games/shared/seatedHumanActors.js';
 const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
 const clamp01 = (v) => clamp(v, 0, 1);
 const smootherstep01 = (v) => {
@@ -39,14 +52,25 @@ const smootherstep01 = (v) => {
   return t * t * t * (t * (t * 6 - 15) + 10);
 };
 
-const DRACO_DECODER_PATH = 'https://www.gstatic.com/draco/versioned/decoders/1.5.7/';
-const BASIS_TRANSCODER_PATH = 'https://cdn.jsdelivr.net/npm/three@0.164.0/examples/jsm/libs/basis/';
-const DEFAULT_HDRI_RESOLUTIONS = ['4k'];
-
-const MODEL_SCALE = 0.75;
-const CHAIR_SIZE_SCALE = 1.38;
-const TABLE_RADIUS = 3.05 * MODEL_SCALE;
-const BASE_TABLE_HEIGHT = 0.94 * MODEL_SCALE;
+const DRACO_DECODER_PATH = '/vendor/three/examples/jsm/libs/draco/gltf/';
+const BASIS_TRANSCODER_PATH = '/vendor/three/examples/jsm/libs/basis/';
+// Keep the complete Snake tabletop on the same world-space calibration as
+// Ludo Battle Royal.  Sharing these authored measurements makes switching
+// games feel like the board changed on the same table, rather than moving the
+// player into a differently scaled room.
+const DEFAULT_HDRI_RESOLUTIONS = ['2k'];
+const BASE_ARENA_SCALE = 0.85;
+const LUDO_ARENA_SHRINK_FACTOR = 0.374;
+const ARENA_SCALE = 0.72 * LUDO_ARENA_SHRINK_FACTOR;
+const ARENA_SCALE_RATIO = ARENA_SCALE / BASE_ARENA_SCALE;
+const MODEL_SCALE = 0.75 * ARENA_SCALE;
+const TABLE_SIDE_SHRINK_FACTOR = 0.92;
+const TABLE_VISUAL_SCALE = 0.9;
+const TABLE_RADIUS = 4.2 * MODEL_SCALE * TABLE_SIDE_SHRINK_FACTOR;
+const SEATING_TABLE_RADIUS = TABLE_RADIUS;
+const TABLE_HEIGHT_SCALE = 0.56;
+const BASE_TABLE_HEIGHT = 1.03 * MODEL_SCALE * TABLE_HEIGHT_SCALE;
+const CHAIR_SIZE_SCALE = 0.66;
 const STOOL_SCALE = 1.5 * 1.3 * CHAIR_SIZE_SCALE;
 const SEAT_WIDTH = 0.9 * MODEL_SCALE * STOOL_SCALE;
 const SEAT_DEPTH = 0.95 * MODEL_SCALE * STOOL_SCALE;
@@ -56,19 +80,27 @@ const BACK_THICKNESS = 0.08 * MODEL_SCALE * STOOL_SCALE;
 const ARM_THICKNESS = 0.125 * MODEL_SCALE * STOOL_SCALE;
 const ARM_HEIGHT = 0.3 * MODEL_SCALE * STOOL_SCALE;
 const ARM_DEPTH = SEAT_DEPTH * 0.75;
-const BASE_COLUMN_HEIGHT = 0.5 * MODEL_SCALE * STOOL_SCALE;
+const CHAIR_LEG_TRIM_FACTOR = 0.64;
+const BASE_COLUMN_HEIGHT = 0.5 * MODEL_SCALE * STOOL_SCALE * CHAIR_LEG_TRIM_FACTOR;
 const CARD_SCALE = 0.95;
 const CARD_W = 0.4 * MODEL_SCALE * CARD_SCALE;
 const SEAT_ROTATION_OFFSET = Math.PI / 8;
 const AI_CHAIR_GAP = CARD_W * 0.74;
 const CHAIR_BASE_HEIGHT = BASE_TABLE_HEIGHT - SEAT_THICKNESS * 1.1;
 const STOOL_HEIGHT = CHAIR_BASE_HEIGHT + SEAT_THICKNESS;
-// Portrait calibration: keep the chair ring close to the table.
-const CHAIR_GLOBAL_PUSHBACK = 0.18 * MODEL_SCALE;
-const SELF_BOTTOM_CHAIR_EXTRA_PUSHBACK = 0.22 * MODEL_SCALE;
-const TABLE_HEIGHT_LIFT = -0.045 * MODEL_SCALE;
+const TABLE_EDGE_INSET = TABLE_RADIUS * (1 - TABLE_VISUAL_SCALE);
+const CHAIR_OUTWARD_OFFSET = 0.31 * MODEL_SCALE;
+const CHAIR_INWARD_PULL = 0.22 * MODEL_SCALE;
+const CHAIR_GLOBAL_PUSHBACK = 0.68 * MODEL_SCALE;
+const SELF_BOTTOM_CHAIR_EXTRA_PUSHBACK = -0.18 * MODEL_SCALE;
+const CHAIR_TABLE_CLEARANCE =
+  0.19 * MODEL_SCALE + CHAIR_OUTWARD_OFFSET - TABLE_EDGE_INSET - CHAIR_INWARD_PULL;
+const TABLE_VERTICAL_LOWERING = 0.198 * MODEL_SCALE;
+const TABLE_EXTRA_LOWERING = 0.048 * MODEL_SCALE;
+const TABLE_HEIGHT_LIFT = 0.025 * MODEL_SCALE - TABLE_VERTICAL_LOWERING - TABLE_EXTRA_LOWERING;
 const TABLE_HEIGHT = STOOL_HEIGHT + TABLE_HEIGHT_LIFT;
-const TABLE_MODEL_TARGET_DIAMETER = TABLE_RADIUS * 2;
+const TABLE_TOP_THICKNESS_SCALE = 0.4;
+const TABLE_MODEL_TARGET_DIAMETER = TABLE_RADIUS * 2 * TABLE_VISUAL_SCALE;
 const TABLE_MODEL_TARGET_HEIGHT = TABLE_HEIGHT;
 
 const DEFAULT_PLAYER_COUNT = 4;
@@ -95,15 +127,12 @@ const DEFAULT_CHAIR_OPTION = Object.freeze({
 const DEFAULT_STOOL_THEME = Object.freeze({ legColor: '#1f1f1f' });
 
 const CHAIR_MODEL_URLS = [
-  'https://raw.githubusercontent.com/KhronosGroup/glTF-Sample-Models/master/2.0/AntiqueChair/glTF-Binary/AntiqueChair.glb',
   'https://raw.githubusercontent.com/KhronosGroup/glTF-Sample-Assets/main/Models/SheenChair/glTF-Binary/SheenChair.glb',
-  'https://raw.githubusercontent.com/KhronosGroup/glTF-Sample-Assets/main/Models/AntiqueChair/glTF-Binary/AntiqueChair.glb'
 ];
 const CHAIR_GROUND_Y = -0.91 * MODEL_SCALE * STOOL_SCALE;
 const WEAPON_ANCHOR_X = SEAT_WIDTH * 0.47;
 const WEAPON_ANCHOR_Z = -SEAT_DEPTH * 0.2;
 const SNAKE_TOKEN_MODEL_URLS = [
-  'https://cdn.jsdelivr.net/gh/KhronosGroup/glTF-Sample-Models@master/2.0/ABeautifulGame/glTF-Binary/ABeautifulGame.glb',
   'https://cdn.jsdelivr.net/gh/KhronosGroup/glTF-Sample-Models@master/2.0/ABeautifulGame/glTF/ABeautifulGame.gltf'
 ];
 const TARGET_CHAIR_SIZE = new THREE.Vector3(1.3162499970197679, 1.9173749900311232, 1.7001562547683715).multiplyScalar(
@@ -128,7 +157,8 @@ const SNAKE_CAPTURE_VEHICLE_MODEL_FILES = Object.freeze({
   helicopter: ['helicopter.glb'],
   fighter: ['f15.glb'],
   supportTruck: ['fire_truck.glb'],
-  javelin: ['javelin_missile.glb', 'javelin.glb', 'missile_javelin.glb', 'missile.glb']
+  // Javelin's rig already uses its procedural missile and skips model loading.
+  javelin: []
 });
 const SNAKE_CAPTURE_POLYHAVEN_TEXTURE_ASSETS = Object.freeze({
   drone: 'rusty_metal_sheet',
@@ -156,8 +186,9 @@ const LEVEL_TILE_COUNTS = (() => {
 const BASE_LEVEL_TILES = PYRAMID_LEVELS[0];
 const TOTAL_BOARD_TILES = LEVEL_TILE_COUNTS.reduce((sum, count) => sum + count, 0);
 const RAW_BOARD_SIZE = 1.125;
-const BOARD_SCALE = 2.7 * 0.68 * 1.15 * 1.06 * 0.68; // keep the previous vertical/table-height calibration
-const BOARD_FOOTPRINT_SCALE = BOARD_SCALE * 1.16; // widen the board in portrait while preserving the existing height
+// Ludo uses this exact 3.22 × arena scale for its 1.125-unit square board.
+const BOARD_SCALE = 3.22 * ARENA_SCALE;
+const BOARD_FOOTPRINT_SCALE = BOARD_SCALE;
 const BOARD_DISPLAY_SIZE = RAW_BOARD_SIZE * BOARD_FOOTPRINT_SCALE;
 const BOARD_RADIUS = BOARD_DISPLAY_SIZE / 2;
 
@@ -165,7 +196,7 @@ const TILE_GAP = 0.015;
 const TILE_SIZE = RAW_BOARD_SIZE / BASE_LEVEL_TILES;
 const PYRAMID_HEIGHT_MULTIPLIER = 0.92; // portrait calibration: shorter, lower pyramid tiers
 const MAX_DICE = 1;
-const DICE_SIZE = TILE_SIZE * 0.61 * 0.8;
+const DICE_SIZE = 0.054;
 const DICE_CORNER_RADIUS = DICE_SIZE * 0.18;
 const DICE_PIP_RADIUS = DICE_SIZE * 0.093;
 const DICE_PIP_DEPTH = DICE_SIZE * 0.018;
@@ -174,21 +205,9 @@ const DICE_PIP_RIM_OUTER = DICE_PIP_RADIUS * 1.08;
 const DICE_PIP_RIM_OFFSET = DICE_SIZE * 0.0048;
 const DICE_PIP_SPREAD = DICE_SIZE * 0.3;
 const DICE_FACE_INSET = DICE_SIZE * 0.064;
-// Keep Snake dice motion aligned with Ludo Battle Royal's frame-synced single-arc spinDice roll.
-// Ludo Battle Royal's spinDice defaults to a 900 ms physical throw. Keep the
-// same duration here so the hidden result generator cannot stop the 3D roll
-// before the cube has completed its arc.
-const DICE_ROLL_DURATION = 900;
-const DICE_SETTLE_DURATION = 220;
-const DICE_RESULT_HOLD_DURATION = 720;
-// Ludo Battle Royal's spinDice uses a 0.06-world-unit bounce by default.
-// Keep the same throw configuration rather than scaling the arc with the
-// Snake board tile size, which made the roll look flatter on portrait phones.
+const DICE_SETTLE_DURATION = 160;
 const DICE_BOUNCE_HEIGHT = 0.06;
 const DICE_THROW_LANDING_MARGIN = TILE_SIZE * 1.8;
-const DICE_THROW_START_EXTRA = TILE_SIZE * 3.6;
-const DICE_THROW_HEIGHT = DICE_SIZE * 0.78;
-const BOARD_EDGE_BUFFER = TILE_SIZE * 0.2;
 const DICE_RETREAT_EXTRA = DICE_SIZE * 0.95;
 const BOARD_BASE_EXTRA = RAW_BOARD_SIZE * (0.36 / 3.4);
 const BOARD_BASE_HEIGHT = RAW_BOARD_SIZE * (0.24 / 3.4);
@@ -202,10 +221,7 @@ const CAMERA_TARGET_LIFT = 0.08 * MODEL_SCALE;
 // not above the table, so the Snake board center projects to the exact phone center.
 const BOARD_SURFACE_CENTER_LIFT = BOARD_SCALE * (((0.07 + 0.26) * RAW_BOARD_SIZE) / 10.2) - 0.01;
 const CAMERA_TARGET_EXTRA = 0.055 * MODEL_SCALE;
-const CAMERA_SIDE_LOOK_EXTRA = 0.82 * MODEL_SCALE;
-const CAMERA_TURN_PLAYER_LERP = 0.5;
-const CAMERA_BROADCAST_TARGET_BLEND = 0.5;
-const CAMERA_BASE_RADIUS = Math.max(TABLE_RADIUS, BOARD_RADIUS);
+const CAMERA_BASE_RADIUS = Math.max(SEATING_TABLE_RADIUS, BOARD_RADIUS);
 const CAM = {
   fov: CAMERA_FOV,
   near: CAMERA_NEAR,
@@ -241,8 +257,6 @@ const PYRAMID_WALL_ACCENT = new THREE.Color('#22d3ee');
 const PYRAMID_PLATFORM_THICKNESS = TILE_SIZE * 0.48 * PYRAMID_HEIGHT_MULTIPLIER;
 const PYRAMID_LEVEL_GAP = TILE_SIZE * 0.12 * PYRAMID_HEIGHT_MULTIPLIER;
 
-const CAMERA_FOLLOW_MIN_TILE = Infinity;
-const CAMERA_FOLLOW_BACK_TILES = 5;
 
 
 function getSeatAngle(seatIndex, activePlayerCount = DEFAULT_PLAYER_COUNT) {
@@ -253,8 +267,8 @@ function getSeatAngle(seatIndex, activePlayerCount = DEFAULT_PLAYER_COUNT) {
   return CUSTOM_CHAIR_ANGLES[seatIndex] ?? fallbackAngle;
 }
 
-function getSeatRadius(baseChairRadius, seatIndex) {
-  return baseChairRadius + (seatIndex === 0 ? SELF_BOTTOM_CHAIR_EXTRA_PUSHBACK : 0);
+function getSeatRadius(baseChairRadius, seatIndex = 0) {
+  return baseChairRadius + CHAIR_TABLE_CLEARANCE + (seatIndex === 0 ? SELF_BOTTOM_CHAIR_EXTRA_PUSHBACK : 0);
 }
 
 function measureMinYRelativeToParent(object) {
@@ -262,7 +276,7 @@ function measureMinYRelativeToParent(object) {
   if (!object?.isObject3D || !parent?.isObject3D) return null;
   parent.updateMatrixWorld(true);
   object.updateMatrixWorld(true);
-  const box = new THREE.Box3().setFromObject(object);
+  const box = snakeParkingBounds(object);
   if (!Number.isFinite(box.min.y)) return null;
   return box.min.y - parent.getWorldPosition(new THREE.Vector3()).y;
 }
@@ -277,13 +291,6 @@ function alignChairLegsToGround(chair) {
 }
 
 
-const TURN_CAMERA_TURN_IN_DURATION = 620;
-const DICE_CAMERA_LOOK_IN_DURATION = 220;
-const DICE_CAMERA_LOOK_HOLD_DURATION = 460;
-const DICE_CAMERA_LOOK_OUT_DURATION = 220;
-const BOARD_AUTO_ROTATE_IN_DURATION = 520;
-const BOARD_AUTO_ROTATE_HOLD_DURATION = 0;
-const BOARD_AUTO_ROTATE_OUT_DURATION = 520;
 
 const BOARD_TILE_HEIGHT = TILE_SIZE * 0.14 * PYRAMID_HEIGHT_MULTIPLIER;
 const TILE_SIDE_COLOR = new THREE.Color('#334155');
@@ -314,15 +321,7 @@ const TOKEN_MULTI_OCCUPANT_RADIUS = TILE_SIZE * 0.24 * TOKEN_RADIUS_SCALE * TOKE
 const DICE_PLAYER_EXTRA_OFFSET = TILE_SIZE * 1.8;
 const TOP_TILE_EXTRA_LEVELS = 1;
 const TOP_SEAT_TOKEN_REST_RAIL_INSET = TILE_SIZE * 0.02;
-// Keep parked weapons on explicit side parking slots around the board.
-const TOP_SEAT_WEAPON_REST_RAIL_INSET = -TILE_SIZE * 0.08;
 const TOKEN_REST_RAIL_INSET_BY_SEAT = Object.freeze(new Array(DEFAULT_PLAYER_COUNT).fill(TOP_SEAT_TOKEN_REST_RAIL_INSET));
-const WEAPON_REST_RAIL_INSET_BY_SEAT = Object.freeze([
-  TOP_SEAT_WEAPON_REST_RAIL_INSET,
-  TOP_SEAT_WEAPON_REST_RAIL_INSET,
-  TOP_SEAT_WEAPON_REST_RAIL_INSET,
-  TOP_SEAT_WEAPON_REST_RAIL_INSET
-]);
 const TOKEN_REST_MIN_RADIUS = BOARD_RADIUS + TILE_SIZE * 2.08;
 const TOKEN_REST_LATERAL_BY_SEAT = Object.freeze(new Array(DEFAULT_PLAYER_COUNT).fill(0));
 // Seat order: 0=bottom, 1=right, 2=top, 3=left (portrait screen orientation).
@@ -338,79 +337,15 @@ const SEAT_RAIL_SLOT_OFFSET = SEAT_RAIL_DICE_GAP * 0.16;
 const SEAT_RAIL_FORWARD_BIAS = TILE_SIZE * 0.08;
 // Seat-aware slot signs (portrait): 0=bottom, 1=right, 2=top, 3=left.
 const TOKEN_SLOT_SIDE_SIGN_BY_SEAT = Object.freeze([-1, 1, -1, 1]);
-const WEAPON_SLOT_SIDE_SIGN_BY_SEAT = Object.freeze([-1, 1, -1, 1]);
 const TOKEN_SLOT_LATERAL_NUDGE_BY_SEAT = Object.freeze([
   TILE_SIZE * 0.08,
   TILE_SIZE * 0.08,
   TILE_SIZE * 0.08,
   TILE_SIZE * 0.08
 ]);
-const WEAPON_SLOT_LATERAL_NUDGE_BY_SEAT = Object.freeze([
-  // Bottom/self player: trim side spacing so the weapon parks closer to the token cluster.
-  TILE_SIZE * 0.12,
-  TILE_SIZE * 0.22,
-  TILE_SIZE * 0.22,
-  TILE_SIZE * 0.22
-]);
 // Slightly enlarge parked/capture weapon displays while per-model overrides keep AK47/FPS guns smaller.
 const WEAPON_DISPLAY_SIZE_MULTIPLIER = 1.72;
-const FIREARM_DISPLAY_SIZE_MULTIPLIER = 0.86;
-const FIREARM_MODEL_SCALE_BY_ID = Object.freeze({
-  // Keep AK47 GLTF smaller than the shared firearm baseline.
-  'slot-10-ak47-gltf': 0.014,
-  // Match SigSauer GLTF visual size with Glock-sized sidearms.
-  'slot-15-sigsauer-gltf': 0.12,
-  // Keep FPS Gun GLTF smaller than the shared firearm baseline.
-  'slot-18-fps-gun-gltf': 0.03,
-  // Keep the GLB sniper close to AK-47 visual size, only slightly bigger.
-  'slot-16-awp-glb': 0.018,
-  // Keep Gunify Mosin using the larger Ludo marksman silhouette.
-  'slot-13-mosin-gltf': 3,
-  'poly-shotgun-01': 1,
-  'poly-assault-rifle-01': 1.02,
-  'poly-pistol-01': 0.6,
-  'poly-revolver-01': 0.64,
-  'poly-sawed-off-01': 0.85,
-  'poly-revolver-02': 0.64,
-  'poly-shotgun-02': 1.05,
-  'poly-shotgun-03': 1.03,
-  'poly-smg-01': 0.84,
-  'poly-robot-large-gun-01': 0.83,
-  'poly-robot-flying-gun-01': 0.78,
-  'poly-bazooka-01': 1.08,
-  'poly-grenade-launcher-01': 0.98,
-  'poly-dynamite-bomb-01': 0.58,
-  'poly-molotov-01': 0.46,
-  'poly-gas-tank-01': 0.62,
-  'poly-hand-grenade-01': 0.36,
-  'poly-tank-01': 0.7
-});
-const WEAPON_PARKING_OUTWARD_OFFSET = TILE_SIZE * 0.52;
-const WEAPON_FROM_TOKEN_CENTER_OFFSET = TOKEN_RADIUS * 0.58;
-const WEAPON_PARKING_OUTWARD_OFFSET_BY_SEAT = Object.freeze([
-  // Bottom/self player: pull the parked weapon inward so it sits closer to the reserve token.
-  -TILE_SIZE * 0.26,
-  0,
-  0,
-  0
-]);
-const WEAPON_TOKEN_GAP = TILE_SIZE * 0.004;
-const WEAPON_PARKED_Y_DROP_BY_KIND = Object.freeze({
-  // Lift parked weapons higher so they sit at bishop-token visual height on portrait screens.
-  fighter: -TOKEN_HEIGHT * 0.22,
-  helicopter: -TOKEN_HEIGHT * 0.2,
-  drone: -TOKEN_HEIGHT * 0.23,
-  supportTruck: -TOKEN_HEIGHT * 0.2,
-  javelin: -TOKEN_HEIGHT * 0.22
-});
-const WEAPON_REST_HEIGHT_OFFSET = -TOKEN_HEIGHT * 0.72;
-const WEAPON_SLOT_CLUSTER_SCALE = 0.3;
-const WEAPON_REST_HEIGHT_OFFSET_BY_SEAT = Object.freeze([
-  TILE_SIZE * 0.12,
-  TILE_SIZE * 0.11,
-  TILE_SIZE * 0.14,
-  TILE_SIZE * 0.11
-]);
+
 // Portrait phone calibration (seat order: 0=bottom, 1=right, 2=top, 3=left).
 // Positive radial moves items visually toward each chair/edge on screen.
 const TOKEN_PORTRAIT_SCREEN_SHIFT_BY_SEAT = Object.freeze([
@@ -423,13 +358,6 @@ const TOKEN_PORTRAIT_SCREEN_SHIFT_BY_SEAT = Object.freeze([
   // Left seat (yellow): upper marker above side-center.
   Object.freeze({ radial: TILE_SIZE * 0.08, lateral: TILE_SIZE * 0.7, y: TILE_SIZE * 0.5 })
 ]);
-const WEAPON_PORTRAIT_SCREEN_SHIFT_BY_SEAT = Object.freeze([
-  // Keep weapons parked on dedicated parking slots (helicopter/jet/drone/truck pads).
-  Object.freeze({ radial: 0, lateral: 0, y: 0 }),
-  Object.freeze({ radial: 0, lateral: 0, y: 0 }),
-  Object.freeze({ radial: 0, lateral: 0, y: 0 }),
-  Object.freeze({ radial: 0, lateral: 0, y: 0 })
-]);
 // Portrait phone calibration: visually move only parked items for selected
 // seats higher on the screen without changing the side players' slots.
 const TOKEN_TOP_SCREEN_SHIFT_BY_SEAT = Object.freeze([
@@ -439,21 +367,8 @@ const TOKEN_TOP_SCREEN_SHIFT_BY_SEAT = Object.freeze([
   0,
   0
 ]);
-const WEAPON_TOP_SCREEN_SHIFT_BY_SEAT = Object.freeze([
-  // Bottom/self player: move the weapon farther toward the top of the portrait screen.
-  TILE_SIZE * 2.36,
-  0,
-  // Top player: move the weapon cluster farther toward the top of the portrait screen too.
-  TILE_SIZE * 1.46,
-  0
-]);
-const WEAPON_TABLE_SURFACE_Y_OFFSET = TILE_SIZE * 0.38;
-const WEAPON_PARKING_SIDE_EXTRA_RADIUS = -TILE_SIZE * 0.08;
-const WEAPON_PARKING_Y_FROM_GROUND_FLOOR = TOKEN_HEIGHT * 1.02;
 const PARKING_TOP_SCREEN_WORLD_SHIFT = TILE_SIZE * 0.78;
 const PARKING_VERTICAL_LIFT = TILE_SIZE * 0.08;
-const WEAPON_MIN_BOARD_CLEARANCE = TILE_SIZE * 0.52;
-const WEAPON_RIGHT_HAND_SIDE_OFFSET = TOKEN_RADIUS * 0.85;
 
 const PAVEMENT_EXTRA_SCALE = 1.18;
 const PAVEMENT_THICKNESS = TILE_SIZE * 0.4;
@@ -518,86 +433,9 @@ const TEMP_SEAT_VECTOR = new THREE.Vector3();
 const TEMP_NDC_VECTOR = new THREE.Vector3();
 const DICE_CENTER_VECTOR = new THREE.Vector3();
 const BOARD_FRONT_VECTOR = new THREE.Vector3(0, 0, 1);
-const BOARD_SIDE_VECTOR = new THREE.Vector3(1, 0, 0);
 
-const SIDE_SEAT_THROW_START_EXTRA = 0;
-const SIDE_SEAT_THROW_BOUNCE_EXTRA = 0;
-const SIDE_SEAT_THROW_SETTLE_EXTRA = 0;
 
-const DICE_SEAT_ADJUSTMENTS = [
-  {
-    front: {
-      start: -TILE_SIZE * 0.08,
-      bounce: -TILE_SIZE * 0.06,
-      base: -TILE_SIZE * 0.14
-    },
-    side: {
-      start: -TILE_SIZE * 0.03,
-      bounce: -TILE_SIZE * 0.04,
-      base: -TILE_SIZE * 0.08
-    },
-    forward: {
-      // Blue (turn anchor): near bottom-center. Purple (result): slightly inward.
-      start: -TILE_SIZE * 1.2,
-      bounce: -TILE_SIZE * 0.92,
-      base: -TILE_SIZE * 0.62
-    }
-  },
-  {
-    front: {
-      start: TILE_SIZE * 0.04,
-      bounce: TILE_SIZE * 0.03,
-      base: TILE_SIZE * 0.06
-    },
-    side: {
-      start: TILE_SIZE * 0.12,
-      bounce: TILE_SIZE * 0.08,
-      base: TILE_SIZE * 0.04
-    },
-    forward: {
-      // Blue (turn anchor): right side. Purple (result): inside-right edge.
-      start: -TILE_SIZE * 1.28,
-      bounce: -TILE_SIZE * 1.0,
-      base: -TILE_SIZE * 0.66
-    }
-  },
-  {
-    front: {
-      start: TILE_SIZE * 0.18,
-      bounce: TILE_SIZE * 0.12,
-      base: TILE_SIZE * 0.18
-    },
-    side: {
-      start: TILE_SIZE * 0.03,
-      bounce: TILE_SIZE * 0.02,
-      base: TILE_SIZE * 0.04
-    },
-    forward: {
-      // Blue (turn anchor): top-center. Purple (result): inward toward board center.
-      start: -TILE_SIZE * 1.28,
-      bounce: -TILE_SIZE * 1.0,
-      base: -TILE_SIZE * 0.68
-    }
-  },
-  {
-    front: {
-      start: TILE_SIZE * 0.04,
-      bounce: TILE_SIZE * 0.03,
-      base: TILE_SIZE * 0.06
-    },
-    side: {
-      start: -TILE_SIZE * 0.12,
-      bounce: -TILE_SIZE * 0.08,
-      base: -TILE_SIZE * 0.04
-    },
-    forward: {
-      // Blue (turn anchor): left side. Purple (result): inside-left edge.
-      start: -TILE_SIZE * 1.28,
-      bounce: -TILE_SIZE * 1.0,
-      base: -TILE_SIZE * 0.66
-    }
-  }
-];
+
 
 const DEFAULT_COLORS = ['#f97316', '#22d3ee', '#22c55e', '#a855f7'];
 
@@ -655,22 +493,6 @@ const LUDO_CAPTURE_ATTACK_TUNING_BY_WEAPON = Object.freeze({
   // Pawn javelin and support-truck rockets intentionally match drone speed/altitude profile.
   javelin: Object.freeze({ speed: 0.86, height: 0.92, inward: 0.94, takeoff: 0.22, landing: 0.26 }),
   supportTruck: Object.freeze({ speed: 0.86, height: 0.92, inward: 0.94, takeoff: 0.22, landing: 0.26 })
-});
-const WEAPON_PARKED_PITCH_BY_KIND = Object.freeze({
-  fighter: 0,
-  helicopter: 0,
-  drone: 0,
-  supportTruck: 0,
-  ukrainianDrone: 0,
-  javelin: 0
-});
-const WEAPON_PARKED_ROLL_BY_KIND = Object.freeze({
-  fighter: 0,
-  helicopter: 0,
-  drone: 0,
-  supportTruck: 0,
-  ukrainianDrone: 0,
-  javelin: 0
 });
 const SNAKE_CAPTURE_WEAPON_KIND_MAP = Object.freeze({
   missileJavelin: 'javelin',
@@ -797,6 +619,17 @@ const SNAKE_CAPTURE_WEAPON_SFX_ID_MAP = Object.freeze({
   'slot-18-fps-gun-gltf': 'shotgunBlastAttack'
 });
 const resolveSnakeCaptureWeaponSfxId = (weaponType) => SNAKE_CAPTURE_WEAPON_SFX_ID_MAP[weaponType] || weaponType || 'missileJavelin';
+export function resolveSnakeFirearmAnimationId(value) {
+  const raw = typeof value === 'string' ? value.trim() : '';
+  if (FIREARM_CAPTURE_ANIMATION_IDS.has(raw)) return raw;
+  const mapped = SNAKE_CAPTURE_WEAPON_KIND_MAP[raw];
+  return FIREARM_CAPTURE_ANIMATION_IDS.has(mapped) ? mapped : null;
+}
+function findCaptureSeatWeapon(board, playerIndex, players) {
+  const seatIndex = players[playerIndex]?.seatIndex ?? playerIndex;
+  return board.weaponDisplayGroup?.userData?.byPlayer?.get(`seat-${seatIndex}`) ?? null;
+}
+
 const WEAPON_TABLE_PARKING_ROTATION_BY_POSE = Object.freeze({
   // Portrait screen: top/bottom player weapons lie flat left-to-right on the tabletop.
   horizontal: Object.freeze({ yaw: 0, preferAxis: 'x' }),
@@ -816,14 +649,10 @@ const WEAPON_FLAT_TABLE_CORRECTION_CANDIDATES = Object.freeze([
   Object.freeze({ x: Math.PI, z: 0 }),
   Object.freeze({ x: 0, z: Math.PI })
 ]);
-function getSeatWeaponParkingPose(seatIndex) {
-  // Seat order: 0=bottom, 1=right, 2=top, 3=left in portrait.
-  return seatIndex === 1 || seatIndex === 3 ? 'vertical' : 'horizontal';
-}
 
 function measureWeaponFlatnessScore(object, preferAxis = 'x') {
   object.updateMatrixWorld(true);
-  const box = new THREE.Box3().setFromObject(object);
+  const box = snakeParkingBounds(object);
   if (!Number.isFinite(box.min.y) || !Number.isFinite(box.max.y)) return Number.POSITIVE_INFINITY;
   const size = box.getSize(new THREE.Vector3());
   const footprint = Math.max(size.x, size.z, 1e-6);
@@ -840,12 +669,14 @@ function applyFlatTableWeaponParkingPose(object, parkingPose = 'horizontal') {
   const yaw = Number.isFinite(pose.yaw) ? pose.yaw : 0;
   const preferAxis = pose.preferAxis || 'x';
   const originalPosition = object.position.clone();
+  // Measure in model space even when an async asset replaces an attached rig.
+  const probe = object.clone(true);
   let best = WEAPON_FLAT_TABLE_CORRECTION_CANDIDATES[0];
   let bestScore = Number.POSITIVE_INFINITY;
 
   WEAPON_FLAT_TABLE_CORRECTION_CANDIDATES.forEach((candidate) => {
-    object.rotation.set(candidate.x, yaw, candidate.z);
-    const score = measureWeaponFlatnessScore(object, preferAxis);
+    probe.rotation.set(candidate.x, yaw, candidate.z);
+    const score = measureWeaponFlatnessScore(probe, preferAxis);
     if (score < bestScore) {
       bestScore = score;
       best = candidate;
@@ -854,8 +685,8 @@ function applyFlatTableWeaponParkingPose(object, parkingPose = 'horizontal') {
 
   object.position.copy(originalPosition);
   object.rotation.set(best.x, yaw, best.z);
-  object.updateMatrixWorld(true);
-  const box = new THREE.Box3().setFromObject(object);
+  probe.rotation.copy(object.rotation);
+  const box = snakeParkingBounds(probe);
   if (Number.isFinite(box.min.y)) {
     object.position.y += -box.min.y;
     object.updateMatrixWorld(true);
@@ -1861,7 +1692,7 @@ async function loadGunifyOriginalGltf(loader, candidateUrl) {
   const response = await fetch(candidateUrl, { mode: 'cors' });
   if (!response.ok) throw new Error(`Gunify GLTF fetch failed: ${response.status}`);
   const gltfJson = patchGunifySpecularGlossinessMaterials(await response.json());
-  const basePath = new URL('.', candidateUrl).href;
+  const basePath = new URL('.', new URL(candidateUrl, globalThis.location?.href || import.meta.url)).href;
   loader.setPath?.(basePath);
   loader.setResourcePath?.(basePath);
   return loader.parseAsync(JSON.stringify(gltfJson), basePath);
@@ -2070,7 +1901,14 @@ function fitTableModelToArena(model) {
   );
   return {
     surfaceY: targetHeight,
-    radius
+    radius,
+    getOuterRadius: (direction) => {
+      // Keep slots inside the fitted model's inscribed ellipse, including
+      // rectangular/oval imports whose short axis is smaller than radius.
+      const halfX = (recenteredBox.max.x - recenteredBox.min.x) / 2;
+      const halfZ = (recenteredBox.max.z - recenteredBox.min.z) / 2;
+      return 1 / Math.hypot(direction.x / Math.max(halfX, 0.001), direction.z / Math.max(halfZ, 0.001));
+    }
   };
 }
 
@@ -2339,246 +2177,8 @@ function remapTakeoffLandingProgress(progress, takeoff = 0.2, landing = 0.24) {
 function removeAnimationsByType(list, type) {
   if (!Array.isArray(list) || !type) return;
   for (let i = list.length - 1; i >= 0; i -= 1) {
-    if (list[i]?.type === type) list.splice(i, 1);
+    if (list[i]?.type === type) { list[i].dispose?.(); list.splice(i, 1); }
   }
-}
-
-function createCameraTransitionAnimation(
-  camera,
-  controls,
-  {
-    toPosition,
-    toTarget,
-    durationIn = 480,
-    durationOut = 480,
-    hold = 420,
-    type,
-    onComplete,
-    returnPosition,
-    returnTarget,
-    lockPosition = false
-  }
-) {
-  if (!camera || !controls || !toPosition || !toTarget) return null;
-  const startPosition = camera.position.clone();
-  const startTarget = controls?.target ? controls.target.clone() : new THREE.Vector3();
-  const goalPosition = toPosition.clone();
-  const goalTarget = toTarget.clone();
-  const finalPosition = returnPosition ? returnPosition.clone() : startPosition.clone();
-  const finalTarget = returnTarget ? returnTarget.clone() : startTarget.clone();
-  const tempPosition = new THREE.Vector3();
-  const tempTarget = new THREE.Vector3();
-  const start = performance.now();
-  const total = durationIn + hold + durationOut;
-  const lockedPosition = startPosition.clone();
-
-  const applyFrame = (pos, target) => {
-    camera.position.copy(lockPosition ? lockedPosition : pos);
-    if (controls?.target) controls.target.copy(target);
-    camera.lookAt(target);
-    controls?.update?.();
-  };
-
-  return {
-    type,
-    lockPosition,
-    update: (now) => {
-      const elapsed = now - start;
-      if (elapsed <= durationIn) {
-        const t = durationIn > 0 ? easeInOut(Math.min(Math.max(elapsed / durationIn, 0), 1)) : 1;
-        tempPosition.copy(startPosition).lerp(goalPosition, t);
-        tempTarget.copy(startTarget).lerp(goalTarget, t);
-        applyFrame(tempPosition, tempTarget);
-        return false;
-      }
-      if (elapsed <= durationIn + hold) {
-        applyFrame(goalPosition, goalTarget);
-        return false;
-      }
-      if (elapsed <= total) {
-        const t = durationOut > 0
-          ? easeInOut(Math.min(Math.max((elapsed - durationIn - hold) / durationOut, 0), 1))
-          : 1;
-        tempPosition.copy(goalPosition).lerp(finalPosition, t);
-        tempTarget.copy(goalTarget).lerp(finalTarget, t);
-        applyFrame(tempPosition, tempTarget);
-        return false;
-      }
-      applyFrame(finalPosition, finalTarget);
-      if (typeof onComplete === 'function') onComplete();
-      return true;
-    }
-  };
-}
-
-function shouldFollowTileChange(_fromIndex, toIndex) {
-  const to = Number(toIndex);
-  if (!Number.isFinite(to)) return false;
-  return to >= CAMERA_FOLLOW_MIN_TILE;
-}
-
-function normalizeAngle(value) {
-  let angle = value;
-  while (angle <= -Math.PI) angle += Math.PI * 2;
-  while (angle > Math.PI) angle -= Math.PI * 2;
-  return angle;
-}
-
-function createBoardRotationAnimation(board, toRotationY, { onComplete } = {}) {
-  const rotationRoot = board?.rotationRoot;
-  if (!rotationRoot || !Number.isFinite(toRotationY)) return null;
-  const fromRotation = rotationRoot.rotation.y;
-  const targetRotation = fromRotation + normalizeAngle(toRotationY - fromRotation);
-  const start = performance.now();
-  const total = BOARD_AUTO_ROTATE_IN_DURATION + BOARD_AUTO_ROTATE_HOLD_DURATION + BOARD_AUTO_ROTATE_OUT_DURATION;
-
-  return {
-    type: 'boardAutoRotate',
-    update: (now) => {
-      const elapsed = now - start;
-      if (elapsed <= BOARD_AUTO_ROTATE_IN_DURATION) {
-        const t = easeInOut(Math.min(Math.max(elapsed / BOARD_AUTO_ROTATE_IN_DURATION, 0), 1));
-        rotationRoot.rotation.y = THREE.MathUtils.lerp(fromRotation, targetRotation, t);
-        return false;
-      }
-      if (elapsed <= BOARD_AUTO_ROTATE_IN_DURATION + BOARD_AUTO_ROTATE_HOLD_DURATION) {
-        rotationRoot.rotation.y = targetRotation;
-        return false;
-      }
-      if (elapsed <= total) {
-        const t = BOARD_AUTO_ROTATE_OUT_DURATION > 0
-          ? easeInOut(Math.min(Math.max((elapsed - BOARD_AUTO_ROTATE_IN_DURATION - BOARD_AUTO_ROTATE_HOLD_DURATION) / BOARD_AUTO_ROTATE_OUT_DURATION, 0), 1))
-          : 1;
-        rotationRoot.rotation.y = THREE.MathUtils.lerp(targetRotation, fromRotation, t);
-        return false;
-      }
-      rotationRoot.rotation.y = fromRotation;
-      if (typeof onComplete === 'function') onComplete();
-      return true;
-    }
-  };
-}
-
-function computeBoardFacingRotation(board, camera, tileIndex) {
-  if (!board || !camera || tileIndex == null) return null;
-  const tile = board.indexToPosition.get(tileIndex) || board.serpentineIndexToXZ(tileIndex);
-  const boardLookTarget = board.boardLookTarget;
-  if (!tile || !boardLookTarget) return null;
-  const localDir = tile.clone().setY(0);
-  if (localDir.lengthSq() < 1e-6) return null;
-  const cameraDir = camera.position.clone().sub(boardLookTarget).setY(0);
-  if (cameraDir.lengthSq() < 1e-6) return null;
-  const tileAngle = Math.atan2(localDir.x, localDir.z);
-  const cameraAngle = Math.atan2(cameraDir.x, cameraDir.z);
-  return normalizeAngle(cameraAngle - tileAngle);
-}
-
-function computeTurnCameraFocusState(board, camera, turnIndex, players = []) {
-  if (!board || !camera) return null;
-  const anchors = Array.isArray(board.seatAnchors) ? board.seatAnchors : [];
-  const player = Array.isArray(players) ? players[turnIndex] : null;
-  const rawSeatIndex = Number.isFinite(player?.seatIndex)
-    ? Number(player.seatIndex)
-    : Number.isInteger(turnIndex)
-    ? turnIndex
-    : Number(turnIndex);
-  const seatIndex = Math.trunc(rawSeatIndex);
-  if (!Number.isFinite(seatIndex) || seatIndex < 0 || seatIndex >= anchors.length) return null;
-  const anchor = anchors[seatIndex];
-  const boardLookTarget = board.boardLookTarget;
-  if (!anchor || !boardLookTarget) return null;
-
-  const seatWorld = new THREE.Vector3();
-  anchor.getWorldPosition(seatWorld);
-  const target = boardLookTarget
-    .clone()
-    .lerp(seatWorld, CAMERA_TURN_PLAYER_LERP * CAMERA_BROADCAST_TARGET_BLEND);
-  target.y = boardLookTarget.y;
-
-  const direction = seatWorld.clone().sub(boardLookTarget).setY(0);
-  if (direction.lengthSq() < 1e-6) return null;
-  direction.normalize();
-
-  // Match Ludo Battle Royal turn broadcasting.
-  // player first, then keeps a little board context so the portrait camera visibly
-  // hands off from player -> dice -> moving token.
-  target.addScaledVector(direction, TILE_SIZE * 0.28);
-  if (Math.abs(direction.x) > Math.abs(direction.z)) {
-    target.x += direction.x * CAMERA_SIDE_LOOK_EXTRA;
-    target.z += TILE_SIZE * 0.18;
-  } else {
-    target.z += direction.z * TILE_SIZE * 0.42;
-    target.y += TILE_SIZE * 0.06;
-  }
-  const boardToCamera = camera.position.clone().sub(boardLookTarget).setY(0);
-  if (boardToCamera.lengthSq() > 1e-6) {
-    boardToCamera.normalize();
-    if (direction.dot(boardToCamera) >= 0.82) return null;
-  }
-
-  // Keep the camera exactly where the player left it (including manual zoom distance)
-  // and only rotate the look target for turn-focus cues.
-  const position = camera.position.clone();
-
-  return { position, target };
-}
-
-function computeDiceCameraFocusState(board, camera) {
-  if (!board || !camera) return null;
-  const diceSet = Array.isArray(board.diceSet) ? board.diceSet.filter((die) => die?.visible) : [];
-  if (!diceSet.length) return null;
-  const boardLookTarget = board.boardLookTarget;
-  if (!boardLookTarget) return null;
-
-  const diceCenter = new THREE.Vector3();
-  diceSet.forEach((die) => diceCenter.add(die.position));
-  diceCenter.multiplyScalar(1 / diceSet.length);
-
-  const target = diceCenter.clone();
-  target.y += DICE_SIZE * 0.45;
-  const position = camera.position.clone();
-  return { position, target };
-}
-
-function computeTokenFollowCameraState(board, camera, fromIndex, toIndex) {
-  if (!board || !camera) return null;
-  const boardLookTarget = board.boardLookTarget;
-  if (!boardLookTarget) return null;
-  const toPos = (board.indexToPosition.get(toIndex) || board.serpentineIndexToXZ(toIndex))?.clone();
-  if (!toPos) return null;
-  const fromPos = (board.indexToPosition.get(fromIndex) || board.serpentineIndexToXZ(fromIndex))?.clone();
-  const pathDir = fromPos
-    ? toPos.clone().sub(fromPos).setY(0)
-    : toPos.clone().sub(boardLookTarget).setY(0);
-  if (pathDir.lengthSq() < 1e-6) {
-    pathDir.copy(toPos.clone().sub(boardLookTarget).setY(0));
-  }
-  if (pathDir.lengthSq() < 1e-6) return null;
-  pathDir.normalize();
-
-  const target = toPos.clone();
-  target.y += TILE_SIZE * 0.24;
-  const position = camera.position.clone();
-  const inTopHalf = toPos.z < boardLookTarget.z - TILE_SIZE * 0.18;
-  const onTopSideLane = inTopHalf && Math.abs(toPos.x - boardLookTarget.x) > TILE_SIZE * 0.55;
-  if (onTopSideLane) {
-    position.y += TILE_SIZE * 0.36;
-    const towardTarget = target.clone().sub(position).setY(0);
-    if (towardTarget.lengthSq() > 1e-6) {
-      towardTarget.normalize();
-      position.addScaledVector(towardTarget, TILE_SIZE * 0.2);
-    }
-    target.y += TILE_SIZE * 0.12;
-  }
-  return { position, target };
-}
-
-function captureCameraState(camera, controls) {
-  if (!camera || !controls) return null;
-  return {
-    position: camera.position.clone(),
-    target: controls?.target ? controls.target.clone() : new THREE.Vector3()
-  };
 }
 
 function getDiceOrientationQuaternion(val) {
@@ -2753,211 +2353,69 @@ function makeDice(theme = {}) {
       dice.userData.appliedQuaternion = setDiceOrientation(dice, val, target);
     }
   };
+  dice.userData.gripHalfExtent = DICE_SIZE * 0.5;
   dice.userData.currentValue = 1;
   dice.userData.setValue(1, { immediate: true });
   return dice;
 }
 
-function computeDiceThrowLayout(board, seatIndex, count) {
-  const result = {
-    basePositions: [],
-    startPositions: [],
-    travelVectors: [],
-    bouncePoints: [],
-    retreatVectors: [],
-    edgeNormals: []
-  };
-  if (!board?.root || !Array.isArray(board?.seatAnchors)) return result;
-  if (typeof seatIndex !== 'number' || seatIndex < 0) return result;
-  const anchor = board.seatAnchors[seatIndex];
-  if (!anchor) return result;
-
-  board.root.updateMatrixWorld(true);
-  anchor.updateMatrixWorld?.(true);
-
-  const seatWorld = new THREE.Vector3();
-  anchor.getWorldPosition(seatWorld);
-
-  const diceBaseY = board.diceBaseY ?? 0;
-  const centerLocal = new THREE.Vector3(0, diceBaseY, 0);
-  const seatLocal = seatWorld.clone();
-  board.root.worldToLocal(seatLocal);
-
-  const direction = centerLocal.clone().sub(seatLocal).setY(0);
-  if (direction.lengthSq() < 1e-6) direction.set(0, 0, 1);
-  direction.normalize();
-  const awayFromBoard = direction.clone().multiplyScalar(-1);
-
-  const lateral = new THREE.Vector3(-direction.z, 0, direction.x);
-  if (lateral.lengthSq() < 1e-6) lateral.set(1, 0, 0);
-  lateral.normalize();
-
-  const boardHalf = (BASE_LEVEL_TILES * TILE_SIZE) / 2;
-  const boardEdgeDistance = boardHalf + BOARD_EDGE_BUFFER;
-  const baseStartDistance = boardHalf + DICE_THROW_START_EXTRA;
-  const settleBaseDistance =
-    boardHalf + DICE_THROW_LANDING_MARGIN * 0.52 + DICE_RETREAT_EXTRA * 0.12;
-
-  const seatAdjust = DICE_SEAT_ADJUSTMENTS[seatIndex] ?? {};
-  const forwardAdjust = seatAdjust.forward ?? {};
-  const frontAdjust = seatAdjust.front ?? {};
-  const sideAdjust = seatAdjust.side ?? {};
-
-  const isSideSeat = seatIndex === 1 || seatIndex === 3;
-  const sideStartBoost = isSideSeat ? SIDE_SEAT_THROW_START_EXTRA : 0;
-  const sideBounceBoost = isSideSeat ? SIDE_SEAT_THROW_BOUNCE_EXTRA : 0;
-  const sideSettleBoost = isSideSeat ? SIDE_SEAT_THROW_SETTLE_EXTRA : 0;
-
-  const startBaseDistance = baseStartDistance + (forwardAdjust.start ?? 0) + sideStartBoost;
-  const bounceBaseDistance = boardEdgeDistance + (forwardAdjust.bounce ?? 0) + sideBounceBoost;
-  const settleDistanceBase = settleBaseDistance + (forwardAdjust.base ?? 0) + sideSettleBoost;
-
-  const applyAxisOffsets = (vec, phase) => {
-    const front = frontAdjust?.[phase];
-    if (typeof front === 'number' && Number.isFinite(front) && front !== 0) {
-      vec.addScaledVector(BOARD_FRONT_VECTOR, front);
-    }
-    const side = sideAdjust?.[phase];
-    if (typeof side === 'number' && Number.isFinite(side) && side !== 0) {
-      vec.addScaledVector(BOARD_SIDE_VECTOR, side);
-    }
-  };
-
-  const spacing = DICE_SIZE * 1.35;
-  const centerOffset = (count - 1) / 2;
-
-  for (let i = 0; i < count; i += 1) {
-    const offset = (i - centerOffset) * spacing;
-    const lateralJitter = (Math.random() - 0.5) * DICE_SIZE * 0.38;
-    const bounceJitter = (Math.random() - 0.5) * DICE_SIZE * 0.2;
-    const retreatExtra = Math.random() * DICE_SIZE * 0.22;
-    const outwardJitter = Math.random() * DICE_SIZE * 0.18;
-
-    const startDistance = startBaseDistance + Math.random() * DICE_SIZE * 0.7;
-    const bounceDistance = bounceBaseDistance + (Math.random() - 0.5) * DICE_SIZE * 0.08;
-    const settleDistance = Math.max(
-      bounceDistance + DICE_SIZE * 0.22,
-      settleDistanceBase + (Math.random() - 0.1) * DICE_SIZE * 0.3
-    );
-
-    const start = centerLocal
-      .clone()
-      .addScaledVector(awayFromBoard, startDistance)
-      .addScaledVector(lateral, offset * 0.9 + lateralJitter);
-    start.y = diceBaseY + DICE_THROW_HEIGHT + Math.random() * (DICE_THROW_HEIGHT * 0.25);
-    applyAxisOffsets(start, 'start');
-
-    const bounce = centerLocal
-      .clone()
-      .addScaledVector(awayFromBoard, bounceDistance)
-      .addScaledVector(lateral, offset * 0.35 + bounceJitter);
-    bounce.y = diceBaseY + DICE_SIZE * (0.12 + Math.random() * 0.12);
-    applyAxisOffsets(bounce, 'bounce');
-
-    const base = centerLocal
-      .clone()
-      .addScaledVector(awayFromBoard, settleDistance + retreatExtra)
-      .addScaledVector(lateral, offset + lateralJitter * 0.45);
-    base.addScaledVector(awayFromBoard, outwardJitter);
-    base.y = diceBaseY;
-    applyAxisOffsets(base, 'base');
-
-    const bouncePoint = bounce.clone();
-
-    result.startPositions.push(start);
-    result.bouncePoints.push(bouncePoint);
-    result.basePositions.push(base);
-    const approach = bouncePoint.clone().sub(start);
-    const retreat = base.clone().sub(bouncePoint);
-    result.travelVectors.push(approach);
-    result.retreatVectors.push(retreat);
-    result.edgeNormals.push(awayFromBoard.clone());
+export function computeDiceThrowLayout(board, seatIndex, count) {
+  const result = { basePositions: [], startPositions: [], travelVectors: [], bouncePoints: [], retreatVectors: [], edgeNormals: [] };
+  const anchor = board?.seatAnchors?.[seatIndex];
+  if (!board?.root || !anchor) return result;
+  board.root.updateWorldMatrix(true, true);
+  const center = board.root.getWorldPosition(new THREE.Vector3());
+  const seat = anchor.getWorldPosition(new THREE.Vector3());
+  const outward = seat.clone().sub(center).setY(0).normalize();
+  const lateral = new THREE.Vector3(-outward.z, 0, outward.x);
+  const tableRadius = board.tableInfo?.radius ?? TABLE_RADIUS;
+  // The result belongs in the open strip directly between the board and the
+  // receiving player's torso. Keep it away from hands resting on the rim.
+  const worldScale = board.root.getWorldScale(new THREE.Vector3());
+  const edgeRadius = board.tableInfo?.getOuterRadius?.(outward) ?? tableRadius;
+  const dieMargin = DICE_SIZE * Math.max(worldScale.x, worldScale.z) * 0.5 + 0.008;
+  const radius = Math.min(SEATING_TABLE_RADIUS * 0.83, tableRadius - 0.16, edgeRadius - dieMargin);
+  const surfaceY = board.tableInfo?.surfaceY ?? TABLE_HEIGHT;
+  for (let i = 0; i < count; i++) {
+    const offset = (i - (count - 1) / 2) * DICE_SIZE * worldScale.x * 1.35;
+    const radial = Math.sqrt(Math.max(0, radius * radius - offset * offset));
+    const world = center.clone().addScaledVector(outward, radial).addScaledVector(lateral, offset);
+    world.y = surfaceY + DICE_SIZE * worldScale.y * 0.5 + 0.002;
+    const base = board.root.worldToLocal(world);
+    result.basePositions.push(base); result.startPositions.push(base.clone());
+    result.bouncePoints.push(base.clone()); result.travelVectors.push(new THREE.Vector3());
+    result.retreatVectors.push(new THREE.Vector3()); result.edgeNormals.push(outward.clone());
   }
-
-  result.direction = direction;
-  result.lateral = lateral;
-  result.seatIndex = seatIndex;
   return result;
 }
 
-function createDiceRollAnimation(
-  diceArray,
-  {
-    basePositions,
-    baseY,
-    startPositions = [],
-    rollId = null
-  }
-) {
-  const start = performance.now();
-  const startQuaternions = diceArray.map((die) => die.quaternion.clone());
-  const spinVectors = diceArray.map(() =>
-    new THREE.Vector3(
-      1.2 + Math.random() * 0.7,
-      1.35 + Math.random() * 0.65,
-      1.05 + Math.random() * 0.75
-    )
-  );
-  const wobbleVectors = diceArray.map(
-    () => new THREE.Vector3((Math.random() - 0.5) * 0.16, 0, (Math.random() - 0.5) * 0.16)
-  );
-  let targetValues = diceArray.map(() => 1 + Math.floor(Math.random() * 6));
-
+function createDiceRollAnimation(diceArray, { basePositions, baseY, values = [], rollId = null, human = null, visibility = null }) {
+  const startedAt = performance.now();
+  let targetValues = values;
+  const reducedMotion = window.matchMedia?.('(prefers-reduced-motion: reduce)').matches;
+  const motions = diceArray.map((die, index) => createSnakeDiceInteraction(
+    die, basePositions[index].clone(),
+    { human, startedAt, height: DICE_BOUNCE_HEIGHT, reducedMotion,
+      target: values[index] ? getDiceOrientationQuaternion(values[index]) : null }
+  ));
   return {
     type: 'diceRoll',
     rollId,
-    // The online result commonly arrives while the cube is still airborne.
-    // Keep the physical Ludo-style throw running and only change the face that
-    // is applied when it reaches the table.
-    setTargetValues(values = []) {
-      if (!Array.isArray(values) || !values.length) return;
-      targetValues = diceArray.map((_, index) => values[index] ?? values[values.length - 1] ?? 1);
+    dispose() { motions.forEach(motion => motion.dispose()); visibility?.dispose(); },
+    setTargetValues(next = []) {
+      if (!next.length) return;
+      targetValues = next;
+      motions.forEach((motion, index) => motion.setTarget(getDiceOrientationQuaternion(next[index] ?? next[0])));
     },
-    update: (now) => {
-      const t = Math.min((now - start) / Math.max(1, DICE_ROLL_DURATION), 1);
-      const eased = easeOutCubic(t);
-      diceArray.forEach((die, index) => {
-        const base = basePositions[index];
-        if (!base) return;
-        const startPos = startPositions[index] ?? base;
-        const endPos = new THREE.Vector3(base.x, baseY, base.z);
-        // Deliberately mirror Ludo Battle Royal's spinDice path: one eased
-        // translation, one decaying sine bounce, and the same wobble curve.
-        const position = startPos.clone().lerp(endPos, eased);
-        const wobbleStrength = Math.sin(eased * Math.PI);
-        position.addScaledVector(wobbleVectors[index], wobbleStrength * 0.45);
-        const bounce = Math.sin(Math.min(1, eased * 1.25) * Math.PI)
-          * DICE_BOUNCE_HEIGHT
-          * (1 - eased * 0.45);
-        position.y = THREE.MathUtils.lerp(startPos.y, endPos.y, eased) + bounce;
-        die.position.copy(position);
-
-        // Derive rotation from elapsed progress instead of adding once per
-        // rendered frame. This gives 30/60/90 Hz phones the same complete roll.
-        const spinProgress = eased * (1 - eased * 0.14);
-        const spin = new THREE.Quaternion().setFromEuler(new THREE.Euler(
-          spinVectors[index].x * spinProgress * Math.PI * 2.4,
-          spinVectors[index].y * spinProgress * Math.PI * 2.4,
-          spinVectors[index].z * spinProgress * Math.PI * 2.4
-        ));
-        die.quaternion.copy(startQuaternions[index]).multiply(spin);
-      });
-      if (t >= 1) {
-        diceArray.forEach((die, index) => {
-          const base = basePositions[index];
-          if (!base) return;
-          const targetValue = targetValues[index] ?? 1;
-          if (typeof die.userData?.setValue === 'function') {
-            die.userData.setValue(targetValue);
-          } else {
-            setDiceOrientation(die, targetValue);
-          }
-          die.position.copy(base);
-          die.position.y = baseY;
-        });
-        return true;
+    update(now) {
+      const finished = motions.map((motion) => motion.update(now)).every(Boolean);
+      visibility?.update(now);
+      if (finished && targetValues.length) {
+        diceArray.forEach((die, index) => die.userData.setValue?.(targetValues[index] ?? targetValues[0]));
       }
-      return false;
+      const done = finished && now - startedAt >= SNAKE_DICE_PRESENTATION_MS + SNAKE_DICE_READ_MS;
+      if (done) visibility?.dispose();
+      return done;
     }
   };
 }
@@ -3014,42 +2472,6 @@ function createDiceSettleAnimation(diceArray, { basePositions, baseY, startState
   };
 }
 
-function createDiceHandoffAnimation(
-  diceArray,
-  { basePositions, baseY, duration = TURN_CAMERA_TURN_IN_DURATION, delay = DICE_RESULT_HOLD_DURATION }
-) {
-  if (!Array.isArray(diceArray) || !diceArray.length || !Array.isArray(basePositions) || !basePositions.length) {
-    return null;
-  }
-  const startPositions = diceArray.map((die) => die.position.clone());
-  return {
-    type: 'diceHandoff',
-    start: performance.now(),
-    update(now) {
-      const elapsed = now - this.start;
-      if (elapsed < delay) return false;
-      const t = clamp01((elapsed - delay) / duration);
-      const eased = easeInOutCubic(t);
-      diceArray.forEach((die, index) => {
-        const from = startPositions[index] || die.position;
-        const to = basePositions[index] || die.position;
-        die.position.copy(from.clone().lerp(to, eased));
-        die.position.y = baseY;
-      });
-      if (t >= 1) {
-        diceArray.forEach((die, index) => {
-          const to = basePositions[index];
-          if (to) {
-            die.position.copy(to);
-            die.position.y = baseY;
-          }
-        });
-        return true;
-      }
-      return false;
-    }
-  };
-}
 
 function createTileLabel(number) {
   const size = 256;
@@ -3157,12 +2579,15 @@ function resetTileAppearance(tile) {
   if (topMaterial && baseColor) {
     topMaterial.color.copy(baseColor);
     topMaterial.emissive?.setRGB(0, 0, 0);
+    topMaterial.emissiveIntensity = tile.userData.baseTopEmissiveIntensity ?? 0.28;
   }
   if (sideMaterial) {
     sideMaterial.emissive?.setRGB(0, 0, 0);
+    sideMaterial.emissiveIntensity = tile.userData.baseSideEmissiveIntensity ?? 0.14;
   }
   if (bottomMaterial) {
     bottomMaterial.emissive?.setRGB(0, 0, 0);
+    bottomMaterial.emissiveIntensity = tile.userData.baseBottomEmissiveIntensity ?? 0.1;
   }
   if (!topMaterial && tile.material?.color && baseColor) {
     tile.material.color.copy(baseColor);
@@ -3174,16 +2599,19 @@ function applyTileHighlight(tile, color, intensity = 1) {
   const { topMaterial, sideMaterial, bottomMaterial } = tile.userData ?? {};
   if (topMaterial?.emissive) {
     topMaterial.emissive.copy(color).multiplyScalar(intensity);
+    topMaterial.emissiveIntensity = 1.35;
   }
   if (sideMaterial?.emissive) {
     sideMaterial.emissive
       .copy(color)
       .multiplyScalar(intensity * TILE_SIDE_EMISSIVE_SCALE);
+    sideMaterial.emissiveIntensity = 0.9;
   }
   if (bottomMaterial?.emissive) {
     bottomMaterial.emissive
       .copy(color)
       .multiplyScalar(intensity * TILE_BOTTOM_EMISSIVE_SCALE);
+    bottomMaterial.emissiveIntensity = 0.55;
   }
   if (!topMaterial && tile.material?.emissive) {
     tile.material.emissive.copy(color).multiplyScalar(intensity);
@@ -3485,6 +2913,8 @@ function buildArena(
     clothOption,
     baseOption,
     includeBase: false,
+    flushPlayingSurface: true,
+    topThicknessScale: TABLE_TOP_THICKNESS_SCALE,
     shapeOption,
     rotationY: 0
   });
@@ -3511,6 +2941,7 @@ function buildArena(
     boardGroup.position.set(0, info.surfaceY - 0.01, 0);
     boardLookTarget.set(0, info.surfaceY + targetLift + CAMERA_TARGET_EXTRA, 0);
     group.add(boardGroup);
+    boardGroup.userData.onTableChanged?.();
   };
   attachBoard(tableInfo, activeTableGroup);
 
@@ -3532,7 +2963,7 @@ function buildArena(
   }
 
   const chairRadius =
-    (tableInfo.radius ?? TABLE_RADIUS) +
+    SEATING_TABLE_RADIUS +
     SEAT_DEPTH / 2 +
     AI_CHAIR_GAP +
     CHAIR_GLOBAL_PUSHBACK;
@@ -3581,13 +3012,14 @@ function buildArena(
     target: boardLookTarget.clone()
   };
 
-  const fit = () => {
+  const fit = (initial = false) => {
     const w = host.clientWidth;
     const h = host.clientHeight;
     renderer.setSize(w, h, false);
     camera.aspect = w / h || 1;
     camera.updateProjectionMatrix();
-    const tableSpan = (tableInfo.radius ?? TABLE_RADIUS) * 2.6;
+    if (!initial) return;
+    const tableSpan = SEATING_TABLE_RADIUS * 2.6;
     const boardSpan = RAW_BOARD_SIZE * BOARD_SCALE * 1.6;
     const span = Math.max(tableSpan, boardSpan);
     const needed = span / (2 * Math.tan(THREE.MathUtils.degToRad(CAM.fov) / 2));
@@ -3600,7 +3032,8 @@ function buildArena(
     controls.update();
   };
 
-  fit();
+  fit(true);
+  startCameraState.position.copy(camera.position);
   cameraRef.current = camera;
 
   const chairTheme = {
@@ -3634,7 +3067,7 @@ function buildArena(
   for (let i = 0; i < activePlayerCount; i += 1) {
     const angle = getSeatAngle(i, activePlayerCount);
     const forward = new THREE.Vector3(Math.cos(angle), 0, Math.sin(angle));
-    const seatRadius = getSeatRadius(chairRadius, i);
+    const seatRadius = getSeatRadius(SEATING_TABLE_RADIUS + SEAT_DEPTH * 0.08, i);
     const seatPos = forward.clone().multiplyScalar(seatRadius);
     seatPos.y = CHAIR_BASE_HEIGHT;
     const group = new THREE.Group();
@@ -3672,6 +3105,27 @@ function buildArena(
     })
     .catch(() => {});
 
+  loadSeatedHumanTemplate({
+    option: { ...CHESS_HUMAN_CHARACTER_OPTIONS[0], modelUrls: ['/assets/pool-royale/readyplayer.me.glb', ...CHESS_HUMAN_CHARACTER_OPTIONS[0].modelUrls] },
+    renderer,
+    targetHeight: 1.74 * 0.84,
+    createLoader: createConfiguredGLTFLoader
+  })
+    .then((humanTemplate) => {
+      if (disposed) return;
+      chairs.forEach((chair) => {
+        const restoredHuman = createRestoredSeatedHumanActor(humanTemplate, chair.group, {
+          targetHeight: 1.74 * 0.84,
+          seatHeight: SEAT_THICKNESS * 0.65
+        });
+        if (restoredHuman) {
+          chair.humanActor = restoredHuman;
+          chair.interaction = createSnakeHumanInteraction(restoredHuman.actor);
+        }
+      });
+    })
+    .catch((error) => console.warn('Unable to restore Snake & Ladder seated humans', error));
+
   const updateCameraTarget = () => {
     const radius = camera.position.distanceTo(boardLookTarget);
     const dir = camera.position.clone().sub(boardLookTarget).normalize();
@@ -3683,7 +3137,8 @@ function buildArena(
     disposed = true;
     controls.dispose();
     disposeChairMaterials(chairMaterials);
-    chairs.forEach(({ group }) => {
+    chairs.forEach(({ group, interaction }) => {
+      interaction?.dispose();
       group.parent?.remove(group);
     });
     if (tableInfo?.dispose) tableInfo.dispose();
@@ -3698,7 +3153,8 @@ function buildArena(
     updateCameraTarget,
     updateHdriZoom,
     controls,
-    tableInfo,
+    get tableInfo() { return tableInfo; },
+    getSeatHuman: (seat) => chairs[seat]?.interaction ?? null,
     seatAnchors: chairs.map(({ anchor }) => anchor),
     weaponAnchors: chairs.map(({ weaponAnchor }) => weaponAnchor),
     startCameraState
@@ -3869,6 +3325,9 @@ function buildSnakeBoard(
     tile.userData.sideMaterial = materialSet.sideMaterial;
     tile.userData.bottomMaterial = materialSet.bottomMaterial;
     tile.userData.baseColor = materialSet.topMaterial.color.clone();
+    tile.userData.baseTopEmissiveIntensity = materialSet.topMaterial.emissiveIntensity;
+    tile.userData.baseSideEmissiveIntensity = materialSet.sideMaterial.emissiveIntensity;
+    tile.userData.baseBottomEmissiveIntensity = materialSet.bottomMaterial.emissiveIntensity;
     tileGroup.add(tile);
     tileMeshes.set(tileSpec.id, tile);
     const topPosition = new THREE.Vector3(tileSpec.x, tileSpec.y + tileHeight / 2, tileSpec.z);
@@ -4063,6 +3522,7 @@ function buildSnakeBoard(
     root: boardRoot,
     rotationRoot: boardRotationRoot,
     staticRoot: boardStaticRoot,
+    platformGroup,
     tileMeshes,
     indexToPosition,
     laddersGroup,
@@ -4082,7 +3542,7 @@ function buildSnakeBoard(
   };
 }
 
-function updateTilesHighlight(tileMeshes, highlight, trail, highlightColors = DEFAULT_HIGHLIGHT_COLORS) {
+function updateTilesHighlight(tileMeshes, highlight, trail, highlightColors = DEFAULT_HIGHLIGHT_COLORS, occupiedCells = []) {
   if (!tileMeshes) return;
   const colors = highlightColors || DEFAULT_HIGHLIGHT_COLORS;
   tileMeshes.forEach((tile) => {
@@ -4096,6 +3556,13 @@ function updateTilesHighlight(tileMeshes, highlight, trail, highlightColors = DE
       applyTileHighlight(tile, color, 0.35);
     });
   }
+  // A token standing on a tile leaves that tile clearly illuminated. This is
+  // applied after the travel trail so the occupied destination is always the
+  // strongest, most readable glow on a portrait screen.
+  occupiedCells.forEach((cell) => {
+    const tile = tileMeshes.get(cell);
+    if (tile) applyTileHighlight(tile, colors.normal, 1.15);
+  });
   if (highlight) {
     const tile = tileMeshes.get(highlight.cell);
     if (tile) {
@@ -4150,33 +3617,6 @@ function getSeatRailLayout(board, seatIndex, fallbackRadiusOffset = 0, customIns
   const railHeightY = TOKEN_HEIGHT * 0.28;
   railLocal.y = railHeightY;
   return { railLocal, railHeightY, seatDirection, lateral };
-}
-
-function getSeatSideParkingLayout(board, seatIndex, targetGroup = null) {
-  const boardLookTarget = board?.boardLookTarget;
-  if (!boardLookTarget) return null;
-  const seatDirections = [
-    new THREE.Vector3(0, 0, 1), // 0 bottom
-    new THREE.Vector3(1, 0, 0), // 1 right
-    new THREE.Vector3(0, 0, -1), // 2 top
-    new THREE.Vector3(-1, 0, 0) // 3 left
-  ];
-  const seatDirection = seatDirections[seatIndex];
-  if (!seatDirection) return null;
-  const lateral = new THREE.Vector3(-seatDirection.z, 0, seatDirection.x);
-  const sideBaseRadius = BOARD_RADIUS + TILE_SIZE * 1.02 + WEAPON_PARKING_SIDE_EXTRA_RADIUS;
-  const tableSurfaceY = Number.isFinite(board?.tableInfo?.surfaceY)
-    ? board.tableInfo.surfaceY
-    : (board.baseLevelTop ?? 0) + WEAPON_PARKING_Y_FROM_GROUND_FLOOR;
-  const world = boardLookTarget.clone().addScaledVector(seatDirection, sideBaseRadius);
-  world.y = tableSurfaceY + WEAPON_TABLE_SURFACE_Y_OFFSET;
-  const local = world.clone();
-  if (targetGroup?.parent) {
-    targetGroup.parent.worldToLocal(local);
-  } else if (board?.boardRoot) {
-    board.boardRoot.worldToLocal(local);
-  }
-  return { railLocal: local, seatDirection, lateral };
 }
 
 function updateTokens(
@@ -4489,7 +3929,7 @@ function updateTokens(
     }
 
     const targetGroup = hasBoardPosition ? boardTokensGroup : reserveTokensGroup;
-    if (token.parent !== targetGroup) {
+    if (!token.userData.isSliding && token.parent !== targetGroup) {
       targetGroup.add(token);
     }
 
@@ -4965,8 +4405,8 @@ function buildImageCandidates(imageUri, sourceUrl, modelUrls) {
   const normalizedUri = normalizeResourcePath(String(imageUri || ''));
   if (isAbsoluteUrl(normalizedUri) || isDataUri(normalizedUri)) return urlAlternates(normalizedUri);
   return uniqueStrings([
-    ...urlAlternates(new URL(normalizedUri, sourceUrl).href),
-    ...modelUrls.flatMap((modelUrl) => urlAlternates(new URL(normalizedUri, modelUrl).href))
+    ...urlAlternates(new URL(normalizedUri, new URL(sourceUrl, globalThis.location?.href || import.meta.url)).href),
+    ...modelUrls.flatMap((modelUrl) => urlAlternates(new URL(normalizedUri, new URL(modelUrl, globalThis.location?.href || import.meta.url)).href))
   ]);
 }
 
@@ -5272,6 +4712,7 @@ function createCaptureVehicleRig(kind = 'fighter') {
         root.userData.rotorNodes = rotors.all;
         root.userData.topRotor = rotors.topRotor;
         root.userData.tailRotor = rotors.tailRotor;
+        root.userData.onParkedModelReady?.();
         root.traverse((obj) => {
           if (obj?.userData?.trailPuff) return;
           if (obj.isMesh) {
@@ -5390,7 +4831,7 @@ function updateCaptureExplosionRig(rig, elapsedSinceImpact) {
 
 
 const SNAKE_CAPTURE_WEAPON_OPTION_BY_ID = Object.freeze(
-  SNAKE_CAPTURE_WEAPON_OPTIONS.reduce((acc, option) => {
+  [...SNAKE_SHARED_CAPTURE_WEAPON_OPTIONS, ...SNAKE_CAPTURE_WEAPON_OPTIONS].reduce((acc, option) => {
     acc[option.id] = option;
     return acc;
   }, {})
@@ -5460,45 +4901,49 @@ function createPolySeatWeaponMesh(weaponType) {
   return group;
 }
 function createSeatWeaponMesh(weaponType = 'fighter', options = {}) {
-  const parkingPose = options?.parkingPose === 'vertical' ? 'vertical' : 'horizontal';
+  const parkingPose = 'horizontal';
   const rawWeaponType = typeof weaponType === 'string' ? weaponType.trim() : '';
-  const catalogOption = SNAKE_CAPTURE_WEAPON_OPTION_BY_ID[rawWeaponType] || null;
-  const catalogWeaponType = catalogOption ? rawWeaponType : null;
-  const normalizedWeaponType = catalogOption?.vehicleKind || normalizeSnakeCaptureWeaponKind(rawWeaponType || weaponType);
+  const firearmId = resolveSnakeFirearmAnimationId(rawWeaponType);
+  const catalogOption = SNAKE_CAPTURE_WEAPON_OPTION_BY_ID[rawWeaponType] || (firearmId
+    ? Object.values(SNAKE_CAPTURE_WEAPON_OPTION_BY_ID).find(option => resolveSnakeFirearmAnimationId(option.id) === firearmId)
+    : null);
+  const catalogWeaponType = catalogOption?.id || null;
+  const normalizedWeaponType = catalogOption?.vehicleKind || firearmId || normalizeSnakeCaptureWeaponKind(rawWeaponType || weaponType);
   const isVehicleWeapon = ['supportTruck', 'drone', 'ukrainianDrone', 'helicopter', 'fighter', 'javelin'].includes(
     normalizedWeaponType
   );
-  const firearmScale = isVehicleWeapon ? 1 : FIREARM_DISPLAY_SIZE_MULTIPLIER;
-  const firearmModelScaleById = catalogWeaponType
-    ? catalogOption?.modelScale ?? FIREARM_MODEL_SCALE_BY_ID[catalogWeaponType] ?? 1
-    : 1;
-  if (catalogWeaponType && !catalogOption?.vehicleKind) {
+  if (firearmId && snakeWeaponProfile(rawWeaponType).handheld && !isVehicleWeapon) {
+    const length = options.firearmLength ?? 0.75;
     const holder = new THREE.Group();
-    const fallback = createPolySeatWeaponMesh(normalizedWeaponType);
-    fallback.scale.multiplyScalar(firearmScale);
-    fallback.position.set(0, 0, 0);
-    applyFlatTableWeaponParkingPose(fallback, parkingPose);
-    holder.add(fallback);
-    loadCaptureWeaponCatalogModel(catalogWeaponType)
-      .then((model) => {
-        if (!model || !holder.parent) return;
-        while (holder.children.length) holder.remove(holder.children[0]);
-        model.scale.setScalar(
-          TOKEN_HEIGHT * 1.22 * WEAPON_DISPLAY_SIZE_MULTIPLIER * firearmScale * firearmModelScaleById
-        );
-        model.position.set(0, 0, 0);
-        applyFlatTableWeaponParkingPose(model, parkingPose);
-        holder.add(model);
-      })
-      .catch(() => {});
+    const install = (model, reversed = false) => {
+      const visual = prepareSnakeFirearm(model, firearmId, length, reversed);
+      applyFlatTableWeaponParkingPose(visual, parkingPose);
+      holder.clear(); holder.add(visual);
+      options.onModelReady?.();
+    };
+    const fallback = createPolySeatWeaponMesh(firearmId);
+    fallback.rotation.set(0, 0, 0); fallback.position.set(0, 0, 0);
+    install(fallback);
+    if (catalogWeaponType) loadCaptureWeaponCatalogModel(catalogWeaponType).then(model => {
+      if (!model || !holder.parent) return;
+      install(model, ['slot-10-ak47-gltf', 'slot-11-krsv-gltf'].includes(catalogWeaponType));
+    }).catch(() => {});
     return holder;
   }
-  if (/^poly[A-Za-z0-9]+Attack$/.test(normalizedWeaponType)) {
-    const polyMesh = createPolySeatWeaponMesh(normalizedWeaponType);
-    polyMesh.scale.multiplyScalar(firearmScale);
-    polyMesh.position.set(0, 0, 0);
-    applyFlatTableWeaponParkingPose(polyMesh, parkingPose);
-    return polyMesh;
+  if (catalogWeaponType && !catalogOption?.vehicleKind) {
+    // Ludo's autonomous robots, tanks and thrown explosives retain their display
+    // scale and effects; they do not acquire a shoulder/trigger-hand pose.
+    const holder = new THREE.Group();
+    const fallback = createPolySeatWeaponMesh(normalizedWeaponType);
+    fallback.scale.multiplyScalar(0.86); fallback.position.set(0, 0, 0);
+    applyFlatTableWeaponParkingPose(fallback, parkingPose); holder.add(fallback);
+    loadCaptureWeaponCatalogModel(catalogWeaponType).then(model => {
+      if (!model || !holder.parent) return;
+      holder.clear(); model.scale.setScalar(TOKEN_HEIGHT * 1.22 * WEAPON_DISPLAY_SIZE_MULTIPLIER * 0.86 * (catalogOption.modelScale ?? 1));
+      model.position.set(0, 0, 0); applyFlatTableWeaponParkingPose(model, parkingPose); holder.add(model);
+      options.onModelReady?.();
+    }).catch(() => {});
+    return holder;
   }
   const rig = createCaptureVehicleRig(normalizedWeaponType);
   const group = rig.root;
@@ -5510,12 +4955,16 @@ function createSeatWeaponMesh(weaponType = 'fighter', options = {}) {
       ? TOKEN_HEIGHT * 0.75
       : TOKEN_HEIGHT * 0.85;
   group.scale.setScalar(displayScale * 1.5 * WEAPON_DISPLAY_SIZE_MULTIPLIER);
-  group.position.y -= WEAPON_PARKED_Y_DROP_BY_KIND[normalizedWeaponType] ?? TOKEN_HEIGHT * 1.48;
-  applyFlatTableWeaponParkingPose(group, parkingPose);
+  group.userData.onParkedModelReady = () => {
+    if (!group.parent) return;
+    applyFlatTableWeaponParkingPose(group, parkingPose);
+    options.onModelReady?.();
+  };
   rig.trail?.forEach((puff) => {
     if (!puff?.material) return;
     puff.visible = false;
   });
+  applyFlatTableWeaponParkingPose(group, parkingPose);
   group.traverse((obj) => {
     if (obj.isMesh) {
       obj.castShadow = true;
@@ -5523,6 +4972,21 @@ function createSeatWeaponMesh(weaponType = 'fighter', options = {}) {
     }
   });
   return group;
+}
+
+function layoutSeatWeapons(board) {
+  const table = board.tableInfo ?? { radius: TABLE_RADIUS, surfaceY: TABLE_HEIGHT };
+  const diceZones = board.seatAnchors.flatMap((anchor, seat) => {
+    if (!anchor) return [];
+    const layout = computeDiceThrowLayout(board, seat, 1);
+    return layout.basePositions.map(p => board.root.localToWorld(p.clone()));
+  });
+  return parkSnakeWeapons({
+    holders: [...(board.weaponDisplayGroup.userData.byPlayer?.values() ?? [])],
+    anchors: board.seatAnchors, center: board.root.getWorldPosition(new THREE.Vector3()),
+    table: { ...table, radius: table.radius ?? TABLE_RADIUS, surfaceY: table.surfaceY ?? TABLE_HEIGHT },
+    obstacles: [board.platformGroup, ...(board.reserveTokensGroup?.children ?? [])].filter(Boolean), diceZones
+  });
 }
 
 function updateSeatWeaponDisplays(board, players = []) {
@@ -5556,69 +5020,21 @@ function updateSeatWeaponDisplays(board, players = []) {
     }
     const configuredWeaponType = typeof player?.weaponType === 'string' ? player.weaponType.trim() : '';
     const parkedWeaponType = configuredWeaponType || fallbackOrder[seatIndex % fallbackOrder.length];
-    if (holder.userData.weaponType !== parkedWeaponType) {
-      while (holder.children.length) {
-        const child = holder.children.pop();
-        if (child) holder.remove(child);
-      }
-      holder.add(createSeatWeaponMesh(parkedWeaponType, { parkingPose: getSeatWeaponParkingPose(seatIndex) }));
+    const firearmId = resolveSnakeFirearmAnimationId(parkedWeaponType);
+    const human = board.getSeatHuman?.(seatIndex);
+    const parentScale = board.weaponDisplayGroup.getWorldScale(new THREE.Vector3());
+    const firearmLength = firearmId && snakeWeaponProfile(parkedWeaponType).handheld ? (human?.unit ?? 1.6) * ARENA_SCALE_RATIO * snakeWeaponProfile(firearmId).lengthInArms /
+      parentScale.x : 0;
+    if (holder.userData.weaponType !== parkedWeaponType || holder.userData.firearmLength !== firearmLength) {
+      holder.clear();
+      holder.add(createSeatWeaponMesh(parkedWeaponType, { firearmLength,
+        onModelReady: () => { if (holder.parent) layoutSeatWeapons(board); }
+      }));
+      holder.userData.firearmLength = firearmLength;
       holder.userData.weaponType = parkedWeaponType;
     }
-    // Park every weapon back on the shared table-side slots instead of drifting to the chair/hand anchors.
-    const railLayout = getSeatSideParkingLayout(board, seatIndex, board.weaponDisplayGroup);
-    if (railLayout) {
-      const sideSign = WEAPON_SLOT_SIDE_SIGN_BY_SEAT[seatIndex] ?? (seatIndex % 2 === 0 ? -1 : 1);
-      const lateralNudge = WEAPON_SLOT_LATERAL_NUDGE_BY_SEAT[seatIndex] ?? 0;
-      const portraitShift = WEAPON_PORTRAIT_SCREEN_SHIFT_BY_SEAT[seatIndex] ?? null;
-      holder.position
-        .copy(railLayout.railLocal)
-        .addScaledVector(
-          railLayout.lateral,
-          sideSign * (SEAT_RAIL_SLOT_OFFSET * WEAPON_SLOT_CLUSTER_SCALE + WEAPON_RIGHT_HAND_SIDE_OFFSET) +
-            lateralNudge
-        )
-        .addScaledVector(
-          railLayout.seatDirection,
-          WEAPON_PARKING_OUTWARD_OFFSET + (WEAPON_PARKING_OUTWARD_OFFSET_BY_SEAT[seatIndex] ?? 0)
-        );
-      if (portraitShift) {
-        holder.position
-          .addScaledVector(railLayout.seatDirection, portraitShift.radial ?? 0)
-          .addScaledVector(railLayout.lateral, portraitShift.lateral ?? 0);
-      }
-      holder.position.addScaledVector(
-        BOARD_FRONT_VECTOR,
-        -(PARKING_TOP_SCREEN_WORLD_SHIFT + (WEAPON_TOP_SCREEN_SHIFT_BY_SEAT[seatIndex] ?? 0))
-      );
-      holder.position.y += PARKING_VERTICAL_LIFT;
-      const radialFromCenter = holder.position.clone().sub(boardLookTarget).setY(0);
-      const minClearance = BOARD_RADIUS + WEAPON_MIN_BOARD_CLEARANCE;
-      if (radialFromCenter.length() < minClearance) {
-        radialFromCenter.normalize().multiplyScalar(minClearance);
-        holder.position.x = boardLookTarget.x + radialFromCenter.x;
-        holder.position.z = boardLookTarget.z + radialFromCenter.z;
-      }
-    } else {
-      const seatWorld = new THREE.Vector3();
-      anchor.getWorldPosition(seatWorld);
-      const seatDirection = seatWorld.clone().sub(boardLookTarget).setY(0);
-      if (seatDirection.lengthSq() < 1e-6) continue;
-      seatDirection.normalize();
-      const lateral = new THREE.Vector3(-seatDirection.z, 0, seatDirection.x);
-      const radius = TOKEN_REST_MIN_RADIUS + TILE_SIZE * 0.16;
-      const markerPos = boardLookTarget
-        .clone()
-        .addScaledVector(seatDirection, radius)
-        .addScaledVector(lateral, (seatIndex % 2 === 0 ? 1 : -1) * TOKEN_RADIUS * 0.22);
-      holder.position.copy(markerPos);
-      holder.position.addScaledVector(
-        BOARD_FRONT_VECTOR,
-        -(PARKING_TOP_SCREEN_WORLD_SHIFT + (WEAPON_TOP_SCREEN_SHIFT_BY_SEAT[seatIndex] ?? 0))
-      );
-      holder.position.y = (board.baseLevelTop ?? 0) + WEAPON_PARKING_Y_FROM_GROUND_FLOOR + PARKING_VERTICAL_LIFT;
-    }
-    // Child meshes carry the tabletop horizontal/vertical orientation so triggers stay beside
-    holder.rotation.set(0, 0, 0);
+    holder.userData.seatIndex = seatIndex;
+
   }
 
   const byPlayer = board.weaponDisplayGroup.userData.byPlayer;
@@ -5629,6 +5045,7 @@ function updateSeatWeaponDisplays(board, players = []) {
       byPlayer.delete(key);
     }
   });
+  layoutSeatWeapons(board);
 }
 
 export default function SnakeBoard3D({
@@ -5673,18 +5090,20 @@ export default function SnakeBoard3D({
   const snakeTextureRef = useRef(null);
   const animationsRef = useRef([]);
   const diceStateRef = useRef({ currentId: null, basePositions: [], baseY: 0, count: 0 });
+  const playersRef = useRef(players);
+  playersRef.current = players;
   const seatCallbackRef = useRef(null);
   const diceAnchorCallbackRef = useRef(null);
   const diceTapCallbackRef = useRef(null);
   const lastSeatPositionsRef = useRef([]);
   const lastDiceAnchorRef = useRef(null);
-  const prevPlayerPositionsRef = useRef([]);
   const cameraRestoreRef = useRef(null);
-  const turnCameraStateRef = useRef(null);
   const startCameraMinYRef = useRef(null);
   const fixedSeatCameraPositionRef = useRef(null);
-  const previousTurnRef = useRef(null);
   const headLookRef = useRef({ yaw: 0, pitch: 0 });
+  const manualCameraActiveRef = useRef(false);
+  const soundEnabledRef = useRef(soundEnabled);
+  soundEnabledRef.current = soundEnabled;
   const currentTurnRef = useRef(currentTurn);
   const diceEventRef = useRef(diceEvent);
   const lastFrameTimeRef = useRef(0);
@@ -5723,68 +5142,10 @@ export default function SnakeBoard3D({
     const board = boardRef.current;
     const camera = cameraRef.current;
     const controls = board?.controls;
-    if (!board || !camera || !controls || cameraViewMode === '2d') return;
-    if (!Number.isInteger(currentTurn) || currentTurn < 0) return;
-    if (previousTurnRef.current === currentTurn) return;
-    previousTurnRef.current = currentTurn;
-
-    const focusState = computeTurnCameraFocusState(board, camera, currentTurn, players);
-    if (!focusState) return;
-    turnCameraStateRef.current = {
-      position: focusState.position.clone(),
-      target: focusState.target.clone()
-    };
-
-    removeAnimationsByType(animationsRef.current, 'cameraTurnFocus');
-    removeAnimationsByType(animationsRef.current, 'cameraDiceZoom');
-    const turnAnimation = createCameraTransitionAnimation(camera, controls, {
-      toPosition: focusState.position,
-      toTarget: focusState.target,
-      durationIn: TURN_CAMERA_TURN_IN_DURATION,
-      hold: 0,
-      durationOut: 0,
-      type: 'cameraTurnFocus',
-      lockPosition: true,
-      returnPosition: focusState.position,
-      returnTarget: focusState.target
-    });
-    if (turnAnimation) animationsRef.current.push(turnAnimation);
-
-    // Keep dice handoff synchronized with turn camera focus so both move together.
-    if (diceStateRef.current?.currentId == null) {
-      const seatCount = Array.isArray(board.seatAnchors) ? board.seatAnchors.length : 0;
-      if (seatCount > 0) {
-        const seatIndex = Math.max(0, Math.min(seatCount - 1, currentTurn));
-        const visibleDice = Array.isArray(board.diceSet) ? board.diceSet.filter((die) => die?.visible) : [];
-        if (visibleDice.length) {
-          const layout = computeDiceThrowLayout(board, seatIndex, visibleDice.length);
-          const basePositions = Array.isArray(layout.basePositions) ? layout.basePositions : [];
-          if (basePositions.length) {
-            removeAnimationsByType(animationsRef.current, 'diceHandoff');
-            const handoffAnimation = createDiceHandoffAnimation(visibleDice, {
-              basePositions,
-              baseY: board.diceBaseY ?? 0,
-              duration: TURN_CAMERA_TURN_IN_DURATION,
-              delay: 0
-            });
-            if (handoffAnimation) animationsRef.current.push(handoffAnimation);
-            diceStateRef.current = {
-              ...(diceStateRef.current || {}),
-              lastSeatIndex: seatIndex
-            };
-          }
-        }
-      }
-    }
-  }, [currentTurn, cameraViewMode, players]);
-
-  useEffect(() => {
-    const board = boardRef.current;
-    const camera = cameraRef.current;
-    const controls = board?.controls;
     const boardLookTarget = board?.boardLookTarget;
     if (!board || !camera || !controls || !boardLookTarget) return;
 
+    board.cameraDirector?.cancel();
     if (cameraViewMode === '2d') {
       if (!cameraRestoreRef.current) {
         cameraRestoreRef.current = {
@@ -5935,6 +5296,7 @@ export default function SnakeBoard3D({
     const handlers = disposeHandlers.current;
     handlers.length = 0;
 
+    diceStateRef.current = { currentId: null, initialized: false };
     const arena = buildArena(
       scene,
       renderer,
@@ -5958,14 +5320,17 @@ export default function SnakeBoard3D({
     arena.boardGroup.add(weaponDisplayGroup);
     boardRef.current = {
       ...board,
+      scene,
       boardLookTarget: arena.boardLookTarget,
       controls: arena.controls,
+      getSeatHuman: arena.getSeatHuman,
       seatAnchors: arena.seatAnchors ?? [],
       weaponAnchors: arena.weaponAnchors ?? [],
       startCameraState: arena.startCameraState ?? null,
-      tableInfo: arena.tableInfo ?? null,
+      get tableInfo() { return arena.tableInfo ?? null; },
       weaponDisplayGroup
     };
+    arena.boardGroup.userData.onTableChanged = () => updateSeatWeaponDisplays(boardRef.current, playersRef.current);
     const captureVehicles = {
       fighter: createCaptureVehicleRig('fighter'),
       helicopter: createCaptureVehicleRig('helicopter'),
@@ -5980,6 +5345,18 @@ export default function SnakeBoard3D({
     boardRef.current.captureFx = { vehicles: captureVehicles, explosion: captureExplosion };
     startCameraMinYRef.current = arena.startCameraState?.position?.y ?? null;
     fixedSeatCameraPositionRef.current = arena.startCameraState?.position?.clone?.() ?? null;
+    boardRef.current.cameraHomeTarget = arena.boardLookTarget.clone();
+    boardRef.current.cameraDirector = createSnakeCameraDirector(cameraRef.current, arena.controls.target);
+    boardRef.current.startCameraShot = (shot) => {
+      if (cameraViewModeRef.current === '2d' || manualCameraActiveRef.current) return;
+      const activeBoard = boardRef.current;
+      const started = activeBoard?.cameraDirector.start(
+        shot, performance.now(), fixedSeatCameraPositionRef.current, activeBoard.cameraHomeTarget
+      );
+      if (started) headLookRef.current = { yaw: 0, pitch: 0 };
+    };
+    const motionPreference = window.matchMedia?.('(prefers-reduced-motion: reduce)');
+
     const getCameraConstraints = () => {
       if (cameraViewModeRef.current === '2d') {
         return {
@@ -6049,6 +5426,7 @@ export default function SnakeBoard3D({
       dragState.startX = event.clientX;
       dragState.startY = event.clientY;
       dragState.startTime = performance.now();
+      dragState.manualCamera = false;
       renderer.domElement.setPointerCapture?.(event.pointerId);
     };
     const onPointerMove = (event) => {
@@ -6065,6 +5443,14 @@ export default function SnakeBoard3D({
         return;
       }
 
+      if (Math.hypot(event.clientX - dragState.startX, event.clientY - dragState.startY) <= POINTER_TAP_MAX_DISTANCE) return;
+      if (!dragState.manualCamera) {
+        boardRef.current?.cameraDirector?.cancel();
+        fixedSeatCameraPositionRef.current?.copy(cameraRef.current.position);
+        boardRef.current?.cameraHomeTarget?.copy(boardRef.current.controls.target);
+        dragState.manualCamera = true;
+        manualCameraActiveRef.current = true;
+      }
       const look = headLookRef.current;
       look.yaw = clamp(
         look.yaw + deltaX * CAMERA_LOOK_YAW_DRAG_FACTOR,
@@ -6131,6 +5517,7 @@ export default function SnakeBoard3D({
       if (dragState.pointerId !== event.pointerId) return;
       renderer.domElement.releasePointerCapture?.(event.pointerId);
       dragState.pointerId = null;
+      manualCameraActiveRef.current = false;
       pinchState.pointers.delete(event.pointerId);
       pinchState.distance = null;
       pinchState.mode = null;
@@ -6239,6 +5626,19 @@ export default function SnakeBoard3D({
       frameAccumulatorRef.current = Math.max(0, carry - targetMs);
       lastFrameTimeRef.current = now;
       const deltaSeconds = Math.min(0.2, Math.max(0, effectiveMs / 1000));
+      const humanCount = arena.seatAnchors.filter((_, seat) => arena.getSeatHuman(seat)).length;
+      if (boardRef.current && boardRef.current.humanCount !== humanCount) {
+        boardRef.current.humanCount = humanCount;
+        updateSeatWeaponDisplays(boardRef.current, playersRef.current);
+        if (humanCount > 0 && !diceStateRef.current.initialized && diceStateRef.current.currentId == null) {
+          const seat = playersRef.current[currentTurnRef.current]?.seatIndex ?? currentTurnRef.current ?? 0;
+          const layout = computeDiceThrowLayout(boardRef.current, seat, 1);
+          if (layout.basePositions[0]) {
+            boardRef.current.diceSet[0].position.copy(layout.basePositions[0]);
+            diceStateRef.current.initialized = true;
+          }
+        }
+      }
       const active = animationsRef.current;
       for (let i = active.length - 1; i >= 0; i -= 1) {
         const anim = active[i];
@@ -6251,6 +5651,7 @@ export default function SnakeBoard3D({
           if (done) active.splice(i, 1);
         } catch (error) {
           console.warn('Snake animation error', error);
+          anim.dispose?.();
           active.splice(i, 1);
         }
       }
@@ -6270,18 +5671,19 @@ export default function SnakeBoard3D({
         });
       }
       let hasDiceCenter = false;
-      if (board?.diceLights && board?.diceSet?.length) {
+      if (board?.diceSet?.length) {
         DICE_CENTER_VECTOR.set(0, 0, 0);
         let visibleCount = 0;
         board.diceSet.forEach((die) => {
           if (!die.visible) return;
-          DICE_CENTER_VECTOR.add(die.position);
+          die.getWorldPosition(TEMP_SEAT_VECTOR);
+          DICE_CENTER_VECTOR.add(TEMP_SEAT_VECTOR);
           visibleCount += 1;
         });
         if (visibleCount > 0) {
           DICE_CENTER_VECTOR.multiplyScalar(1 / visibleCount);
           hasDiceCenter = true;
-          const { accent, fill, target } = board.diceLights;
+          const { accent, fill, target } = board.diceLights || {};
           if (target) target.position.copy(DICE_CENTER_VECTOR);
           if (accent?.userData?.offset) {
             accent.position.copy(DICE_CENTER_VECTOR).add(accent.userData.offset);
@@ -6291,19 +5693,14 @@ export default function SnakeBoard3D({
           }
         }
       }
-      arena.controls?.update?.();
+      const followingAction = cameraViewModeRef.current !== '2d' && board?.cameraDirector?.update(
+        now, fixedSeatCameraPositionRef.current, board.cameraHomeTarget, motionPreference?.matches
+      );
+      if (!followingAction) arena.controls?.update?.();
       const camera = cameraRef.current;
       if (camera) {
-        const activeCameraFreeMove = animationsRef.current.some(
-          (anim) => anim?.type === 'cameraCaptureFocus' && anim.lockPosition === false
-        );
-        if (cameraViewModeRef.current !== '2d' && fixedSeatCameraPositionRef.current && !activeCameraFreeMove) {
+        if (cameraViewModeRef.current !== '2d' && fixedSeatCameraPositionRef.current && !followingAction) {
           camera.position.copy(fixedSeatCameraPositionRef.current);
-        }
-        const minCameraY = startCameraMinYRef.current;
-        if (Number.isFinite(minCameraY) && camera.position.y < minCameraY) {
-          camera.position.y = minCameraY;
-          arena.controls?.update?.();
         }
         if (arena.updateHdriZoom) {
           const target = board?.boardLookTarget ?? arena.boardLookTarget;
@@ -6312,6 +5709,28 @@ export default function SnakeBoard3D({
         if (board?.potGroup) {
           board.potGroup.rotation.y += deltaSeconds * COIN_SPIN_SPEED;
         }
+        if (cameraViewModeRef.current !== '2d' && !followingAction) {
+          const look = headLookRef.current;
+          const baseTarget = board?.controls?.target || board?.boardLookTarget || arena.boardLookTarget;
+          if (baseTarget) {
+            const forward = baseTarget.clone().sub(camera.position);
+            const focusDistance = forward.length();
+            if (focusDistance > 1e-6) {
+              forward.normalize();
+              const right = new THREE.Vector3().crossVectors(forward, WORLD_UP);
+              if (right.lengthSq() > 1e-6) {
+                right.normalize();
+                const up = new THREE.Vector3().crossVectors(right, forward).normalize();
+                const lookTarget = baseTarget
+                  .clone()
+                  .addScaledVector(right, look.yaw * focusDistance * 0.52)
+                  .addScaledVector(up, look.pitch * focusDistance * 0.4);
+                camera.lookAt(lookTarget);
+              }
+            }
+          }
+        }
+        camera.updateMatrixWorld(true);
         if (board?.seatAnchors?.length && seatCallbackRef.current) {
           const positions = board.seatAnchors.map((anchor, index) => {
             anchor.getWorldPosition(TEMP_SEAT_VECTOR);
@@ -6366,27 +5785,6 @@ export default function SnakeBoard3D({
             diceAnchorCallbackRef.current(null);
           }
         }
-        if (cameraViewModeRef.current !== '2d') {
-          const look = headLookRef.current;
-          const baseTarget = board?.controls?.target || board?.boardLookTarget || arena.boardLookTarget;
-          if (baseTarget) {
-            const forward = baseTarget.clone().sub(camera.position);
-            const focusDistance = forward.length();
-            if (focusDistance > 1e-6) {
-              forward.normalize();
-              const right = new THREE.Vector3().crossVectors(forward, WORLD_UP);
-              if (right.lengthSq() > 1e-6) {
-                right.normalize();
-                const up = new THREE.Vector3().crossVectors(right, forward).normalize();
-                const lookTarget = baseTarget
-                  .clone()
-                  .addScaledVector(right, look.yaw * focusDistance * 0.52)
-                  .addScaledVector(up, look.pitch * focusDistance * 0.4);
-                camera.lookAt(lookTarget);
-              }
-            }
-          }
-        }
         renderer.render(scene, camera);
       }
     });
@@ -6402,9 +5800,13 @@ export default function SnakeBoard3D({
       seatCallbackRef.current?.([]);
       lastDiceAnchorRef.current = null;
       diceAnchorCallbackRef.current?.(null);
+      animationsRef.current.forEach(animation => animation?.dispose?.());
+      animationsRef.current.length = 0;
+      boardRef.current?.cameraDirector?.cancel();
       boardRef.current = null;
       startCameraMinYRef.current = null;
       fixedSeatCameraPositionRef.current = null;
+      manualCameraActiveRef.current = false;
       if (renderer.domElement.parentElement === mount) {
         mount.removeChild(renderer.domElement);
       }
@@ -6430,7 +5832,10 @@ export default function SnakeBoard3D({
     if (!boardRef.current) return;
     const board = boardRef.current;
     const colors = board.highlightColors || DEFAULT_HIGHLIGHT_COLORS;
-    updateTilesHighlight(board.tileMeshes, highlight, trail, colors);
+    const occupiedCells = players
+      .map((player) => Math.floor(Number(player?.position) || 0))
+      .filter((cell) => cell >= 1 && cell <= TOTAL_BOARD_TILES);
+    updateTilesHighlight(board.tileMeshes, highlight, trail, colors, occupiedCells);
     if (offsetPopup) {
       const tile = board.tileMeshes.get(offsetPopup.cell);
       if (tile) {
@@ -6438,7 +5843,7 @@ export default function SnakeBoard3D({
         applyTileHighlight(tile, color);
       }
     }
-  }, [highlight, trail, offsetPopup, keyForEffect]);
+  }, [highlight, trail, offsetPopup, players, keyForEffect]);
 
   useEffect(() => {
     if (!boardRef.current) return;
@@ -6458,53 +5863,6 @@ export default function SnakeBoard3D({
     });
     updateSeatWeaponDisplays(board, players);
 
-    const sanitizedPositions = players.map((player) => {
-      const raw = Number(player?.position);
-      return Number.isFinite(raw) ? raw : null;
-    });
-    const previous = prevPlayerPositionsRef.current;
-    let movement = null;
-    if (Array.isArray(previous) && previous.length === sanitizedPositions.length) {
-      const movements = [];
-      sanitizedPositions.forEach((pos, index) => {
-        const prev = previous[index];
-        if (prev == null || pos == null) return;
-        if (prev !== pos) movements.push({ index, from: prev, to: pos });
-      });
-      if (movements.length) {
-        movement =
-          movements.find((m) => m.index === rollingIndex) ||
-          movements.find((m) => m.index === currentTurn) ||
-          movements[0];
-      }
-    }
-    prevPlayerPositionsRef.current = sanitizedPositions;
-
-    if (cameraViewMode !== '2d' && movement && shouldFollowTileChange(movement.from, movement.to)) {
-      const camera = cameraRef.current;
-      const controls = board.controls;
-      const facingRotation = computeBoardFacingRotation(board, camera, movement.to);
-      if (camera && controls && Number.isFinite(facingRotation)) {
-        removeAnimationsByType(animationsRef.current, 'cameraDiceZoom');
-        removeAnimationsByType(animationsRef.current, 'cameraTokenFollow');
-        removeAnimationsByType(animationsRef.current, 'boardAutoRotate');
-        const rotateAnimation = createBoardRotationAnimation(board, facingRotation);
-        if (rotateAnimation) animationsRef.current.push(rotateAnimation);
-        const followState = computeTokenFollowCameraState(board, camera, movement.from, movement.to);
-        if (followState) {
-          const followAnimation = createCameraTransitionAnimation(camera, controls, {
-            toPosition: followState.position,
-            toTarget: followState.target,
-            durationIn: 320,
-            hold: 0,
-            durationOut: 0,
-            type: 'cameraTokenFollow',
-            lockPosition: true
-          });
-          if (followAnimation) animationsRef.current.push(followAnimation);
-        }
-      }
-    }
   }, [
     players,
     burning,
@@ -6553,10 +5911,16 @@ export default function SnakeBoard3D({
       onSlideComplete?.(slide.id, false);
       return;
     }
+    if (token.userData.activeSlideId === slide.id) return;
+    token.userData.activeSlideId = slide.id;
+    if (token.parent !== board.boardTokensGroup) {
+      board.boardTokensGroup.attach(token);
+    }
+
     const pathMap =
       slide.type === 'ladder'
         ? board.laddersGroup?.userData?.paths
-        : board.snakesGroup?.userData?.paths;
+        : slide.type === 'snake' ? board.snakesGroup?.userData?.paths : null;
     const startBase = token.position.clone();
     const endBase = (board.indexToPosition.get(slide.to) || board.serpentineIndexToXZ(slide.to)).clone();
     startBase.y = startBase.y ?? token.parent?.position?.y ?? 0;
@@ -6568,39 +5932,43 @@ export default function SnakeBoard3D({
     }
     const curve = pathInfo.curve;
     token.userData.isSliding = true;
-    const duration = Number.isFinite(slide.duration) ? slide.duration : 1100;
+    const reducedMotion = window.matchMedia?.('(prefers-reduced-motion: reduce)').matches;
+    const requestedDuration = Number.isFinite(slide.duration) ? slide.duration : 1100;
+    // Entry travels from the seat rail; give the camera and player time to follow it.
+    const duration = reducedMotion ? 120 : slide.from < 1 ? Math.max(700, requestedDuration) : requestedDuration;
+    const isStep = !['snake', 'ladder'].includes(slide.type);
+    const originalScale = token.scale.clone();
     const startTime = performance.now();
     const lift = TOKEN_HEIGHT * 0.6;
-    const camera = cameraRef.current;
-    const controls = board.controls;
-    if (cameraViewMode !== '2d' && camera && controls && shouldFollowTileChange(slide.from, slide.to)) {
-      const facingRotation = computeBoardFacingRotation(board, camera, slide.to);
-      removeAnimationsByType(animationsRef.current, 'cameraDiceZoom');
-      removeAnimationsByType(animationsRef.current, 'cameraTokenFollow');
-      removeAnimationsByType(animationsRef.current, 'boardAutoRotate');
-      if (Number.isFinite(facingRotation)) {
-        const rotateAnimation = createBoardRotationAnimation(board, facingRotation);
-        if (rotateAnimation) animationsRef.current.push(rotateAnimation);
-      }
-      const followState = computeTokenFollowCameraState(board, camera, slide.from, slide.to);
-      if (followState) {
-        const followAnimation = createCameraTransitionAnimation(camera, controls, {
-          toPosition: followState.position,
-          toTarget: followState.target,
-          durationIn: 320,
-          hold: 0,
-          durationOut: 0,
-          type: 'cameraTokenFollow',
-          lockPosition: true
-        });
-        if (followAnimation) animationsRef.current.push(followAnimation);
-      }
-    }
+    const cameraShotId = `slide:${slide.id}`;
+    const tokenWorld = new THREE.Vector3();
+    const goalWorld = new THREE.Vector3();
+    const cameraRadius = TOKEN_HEIGHT * BOARD_SCALE * 1.2;
+    board.startCameraShot?.({
+      id: cameraShotId, priority: 2,
+      points: () => {
+        token.getWorldPosition(tokenWorld);
+        goalWorld.copy(endBase);
+        board.boardTokensGroup.localToWorld(goalWorld);
+        tokenWorld.y += cameraRadius * 0.4;
+        goalWorld.y += cameraRadius * 0.4;
+        return [tokenWorld, goalWorld];
+      },
+      overview: () => [startBase, ...curve.getPoints(16), endBase].map(point =>
+        board.boardTokensGroup.localToWorld(point.clone()).add(new THREE.Vector3(0, cameraRadius, 0)))
+    });
     animationsRef.current.push({
       update: (now) => {
         const t = Math.min((now - startTime) / duration, 1);
         let pos;
-        if (t < 0.18) {
+        if (isStep || reducedMotion) {
+          pos = startBase.clone().lerp(endBase, easeInOut(t));
+          if (!reducedMotion) {
+            const hop = Math.sin(Math.PI * t);
+            pos.y += hop * TOKEN_HEIGHT * 0.55;
+            token.scale.set(originalScale.x * (1 - hop * 0.055), originalScale.y * (1 + hop * 0.09), originalScale.z * (1 - hop * 0.055));
+          }
+        } else if (t < 0.18) {
           const local = easeInOut(t / 0.18);
           const target = curve.getPoint(0).clone().add(new THREE.Vector3(0, lift, 0));
           pos = startBase.clone().lerp(target, local);
@@ -6615,7 +5983,9 @@ export default function SnakeBoard3D({
         token.position.copy(pos);
         if (t >= 1) {
           token.userData.isSliding = false;
+          token.scale.copy(originalScale);
           token.position.copy(endBase);
+          board.cameraDirector?.finish(cameraShotId, now, 900);
           onSlideComplete?.(slide.id, true);
           return true;
         }
@@ -6629,12 +5999,17 @@ export default function SnakeBoard3D({
     const board = boardRef.current;
     const diceSet = board.diceSet || [];
     if (!diceSet.length) return;
+    // Seat anchors and the countdown update React during a throw. Consume each
+    // event once per board so those renders cannot restart the dice mid-air.
+    const eventKey = `${diceEvent.id}:${diceEvent.phase}`;
+    if (board.lastDiceEventKey === eventKey) return;
+    board.lastDiceEventKey = eventKey;
     const diceBaseY = board.diceBaseY ?? 0;
     const diceAnchorZ = board.diceAnchorZ ?? 0;
     if (diceEvent.phase === 'start') {
-      removeAnimationsByType(animationsRef.current, 'cameraDiceZoom');
+      if (diceStateRef.current.currentId === diceEvent.id) return;
       removeAnimationsByType(animationsRef.current, 'diceRoll');
-      removeAnimationsByType(animationsRef.current, 'diceHandoff');
+      removeAnimationsByType(animationsRef.current, 'diceSettle');
       const count = Math.max(1, Math.min(diceEvent.count ?? diceSet.length, diceSet.length));
       const prevState = diceStateRef.current || {};
       const rawSeatIndex = Number.isInteger(diceEvent.seatIndex)
@@ -6648,7 +6023,8 @@ export default function SnakeBoard3D({
         : 0;
       const seatCount = Array.isArray(board.seatAnchors) ? board.seatAnchors.length : 0;
       const seatIndex = seatCount > 0 ? Math.max(0, Math.min(seatCount - 1, rawSeatIndex)) : Math.max(0, rawSeatIndex);
-      const layout = computeDiceThrowLayout(board, seatIndex, count);
+      const receiverSeatIndex = Number.isInteger(diceEvent.receiverSeatIndex) ? Math.max(0, Math.min(seatCount - 1, diceEvent.receiverSeatIndex)) : seatIndex;
+      const layout = computeDiceThrowLayout(board, receiverSeatIndex, count);
       const spacing = DICE_SIZE * 1.35;
       const centerOffset = (count - 1) / 2;
       const basePositions = [];
@@ -6671,10 +6047,9 @@ export default function SnakeBoard3D({
         const normal = layout.edgeNormals?.[visibleIndex]
           ? layout.edgeNormals[visibleIndex].clone()
           : new THREE.Vector3(0, 0, 0);
-        die.position.copy(start);
-        die.rotation.set(Math.random() * Math.PI, Math.random() * Math.PI, Math.random() * Math.PI);
+        // Keep the real resting transform; the hand reaches this die before lifting it.
         basePositions.push(base.clone());
-        startPositions.push(start.clone());
+        startPositions.push(die.position.clone());
         travelVectors.push(travel.clone());
         bouncePoints.push(bounce.clone());
         retreatVectors.push(retreat.clone());
@@ -6682,41 +6057,37 @@ export default function SnakeBoard3D({
         visibleIndex += 1;
       });
       diceStateRef.current = {
+        initialized: true,
         currentId: diceEvent.id,
         basePositions: basePositions.map((vec) => vec.clone()),
         baseY: diceBaseY,
         count,
         seatIndex,
-        lastSeatIndex: seatIndex
+        lastSeatIndex: receiverSeatIndex
       };
       const active = diceSet.filter((_, idx) => idx < count);
       if (active.length) {
-        const camera = cameraRef.current;
-        const controls = board.controls;
-        const diceCameraState = computeDiceCameraFocusState(board, camera);
-        if (camera && controls && diceCameraState && cameraViewMode !== '2d') {
-          removeAnimationsByType(animationsRef.current, 'cameraTurnFocus');
-          const restoreState = turnCameraStateRef.current || captureCameraState(camera, controls);
-          const diceCameraAnimation = createCameraTransitionAnimation(camera, controls, {
-            toPosition: camera.position.clone(),
-            toTarget: diceCameraState.target,
-            durationIn: DICE_CAMERA_LOOK_IN_DURATION,
-            hold: DICE_CAMERA_LOOK_HOLD_DURATION,
-            durationOut: DICE_CAMERA_LOOK_OUT_DURATION,
-            type: 'cameraDiceZoom',
-            lockPosition: true,
-            returnPosition: restoreState?.position,
-            returnTarget: restoreState?.target
-          });
-          if (diceCameraAnimation) animationsRef.current.push(diceCameraAnimation);
-        }
+        const dieWorldPositions = active.map(() => new THREE.Vector3());
+        board.startCameraShot?.({
+          id: `dice:${diceEvent.id}`, priority: 1,
+          until: performance.now() + SNAKE_DICE_PRESENTATION_MS + SNAKE_DICE_READ_MS,
+          points: () => active.map((die, index) => die.getWorldPosition(dieWorldPositions[index])),
+          overview: () => active.flatMap((die, index) => [startPositions[index], basePositions[index]].map(point =>
+            die.parent.localToWorld(point.clone()).add(new THREE.Vector3(0, DICE_BOUNCE_HEIGHT, 0))))
+        });
 
         const rollAnimation = createDiceRollAnimation(active, {
           basePositions,
           baseY: diceBaseY,
           startPositions,
           bouncePoints,
-          rollId: diceEvent.id
+          values: diceEvent.values || [],
+          rollId: diceEvent.id,
+          human: board.getSeatHuman?.(seatIndex),
+          visibility: createSnakeDiceVisibility(cameraRef.current, active, [
+            ...board.seatAnchors.map((_, seat) => board.getSeatHuman?.(seat)?.actor).filter(Boolean),
+            board.weaponDisplayGroup
+          ].filter(Boolean))
         });
         if (rollAnimation) animationsRef.current.push(rollAnimation);
       }
@@ -6745,54 +6116,19 @@ export default function SnakeBoard3D({
         // If the result arrived before landing, the active roll now owns the
         // authoritative final face. Starting a settle animation here would
         // fight it and visually freeze the die in mid-air.
-        if (!activeRoll) {
+        if (!activeRoll && active.some((die, i) => die.quaternion.angleTo(getDiceOrientationQuaternion(values[i] ?? values[0] ?? 1)) > 0.001)) {
           const settleAnimation = createDiceSettleAnimation(active, {
             basePositions,
-            baseY: diceBaseY,
+            baseY: active[0].position.y,
             startStates
           });
           if (settleAnimation) animationsRef.current.push(settleAnimation);
         }
 
-        const seatCount = Array.isArray(board.seatAnchors) ? board.seatAnchors.length : 0;
-        if (seatCount > 0) {
-          const seatIndex = Math.max(0, Math.min(seatCount - 1, currentTurn || 0));
-          const handoffLayout = computeDiceThrowLayout(board, seatIndex, active.length);
-          const handoffBases = Array.isArray(handoffLayout.basePositions) ? handoffLayout.basePositions : [];
-          if (handoffBases.length) {
-            removeAnimationsByType(animationsRef.current, 'diceHandoff');
-            const handoffAnimation = createDiceHandoffAnimation(active, {
-              basePositions: handoffBases,
-              baseY: board.diceBaseY ?? 0,
-              duration: TURN_CAMERA_TURN_IN_DURATION
-            });
-            if (handoffAnimation) animationsRef.current.push(handoffAnimation);
-            const camera = cameraRef.current;
-            const controls = board?.controls;
-            if (camera && controls && cameraViewMode !== '2d') {
-              const focusState = computeTurnCameraFocusState(board, camera, seatIndex, players);
-              if (focusState) {
-                removeAnimationsByType(animationsRef.current, 'cameraTurnFocus');
-                removeAnimationsByType(animationsRef.current, 'cameraDiceZoom');
-                const turnAnimation = createCameraTransitionAnimation(camera, controls, {
-                  toPosition: focusState.position,
-                  toTarget: focusState.target,
-                  durationIn: TURN_CAMERA_TURN_IN_DURATION,
-                  hold: 0,
-                  durationOut: 0,
-                  type: 'cameraTurnFocus',
-                  lockPosition: true,
-                  returnPosition: focusState.position,
-                  returnTarget: focusState.target
-                });
-                if (turnAnimation) animationsRef.current.push(turnAnimation);
-              }
-            }
-          }
-        }
       }
       const lastSeatIndex = diceStateRef.current.lastSeatIndex;
       diceStateRef.current = {
+        initialized: true,
         currentId: null,
         basePositions: [],
         baseY: diceBaseY,
@@ -6811,13 +6147,56 @@ export default function SnakeBoard3D({
     const playCaptureSfx = (stage, multiplier = 1) => {
       playLudoCaptureWeaponSfx(sfxWeaponId, stage, {
         volume: getGameVolume() * multiplier,
-        muted: !soundEnabled
+        muted: !soundEnabledRef.current
       });
     };
     const completeCaptureAnimation = () => {
+      board.cameraDirector?.finish(`capture:${captureEvent.id}`, performance.now(), 450);
       playCaptureSfx('loopStop');
       onCaptureAnimationComplete?.(captureEvent.id);
     };
+    const firearmId = resolveSnakeFirearmAnimationId(captureEvent.weaponType);
+    if (firearmId) {
+      const tokens = [...board.boardTokensGroup.children, ...board.reserveTokensGroup.children];
+      const attacker = tokens.find(token => token.userData?.playerIndex === captureEvent.attackerIndex);
+      if (!attacker) { completeCaptureAnimation(); return; }
+      const victims = tokens.filter(token => captureEvent.victimIndices?.includes(token.userData?.playerIndex));
+      const parkedWeapon = findCaptureSeatWeapon(board, captureEvent.attackerIndex, players);
+      const origin = (parkedWeapon || attacker).getWorldPosition(new THREE.Vector3());
+      const destination = board.boardTokensGroup.localToWorld(
+        (board.indexToPosition.get(captureEvent.targetCell) || board.serpentineIndexToXZ(captureEvent.targetCell)).clone()
+      );
+      const impact = destination.clone().add(new THREE.Vector3(0, TOKEN_HEIGHT * BOARD_SCALE * 0.6, 0));
+      const start = attacker.getWorldPosition(new THREE.Vector3());
+      const startedAt = performance.now();
+      const reducedMotion = window.matchMedia?.('(prefers-reduced-motion: reduce)').matches;
+      const motion = createSnakeFirearmAnimation({
+        scene: board.scene, weaponId: firearmId,
+        parkedWeapon, origin, target: impact, victims, startedAt, reducedMotion,
+        human: snakeWeaponProfile(captureEvent.weaponType || firearmId).handheld ? board.getSeatHuman?.(players[captureEvent.attackerIndex]?.seatIndex ?? captureEvent.attackerIndex) : null,
+        onShot: () => playCaptureSfx('shot'), onImpact: () => playCaptureSfx('impact')
+      });
+      attacker.userData.isSliding = true;
+      const shotId = `capture:${captureEvent.id}`;
+      board.startCameraShot?.({ id: shotId, priority: 3, points: () => [motion.focus], overview: motion.overview });
+      let completed = false;
+      const dispose = () => { motion.dispose(); attacker.userData.isSliding = false; };
+      animationsRef.current.push({
+        type: 'firearmCapture', dispose,
+        update: (now) => {
+          if (completed) return true;
+          if (!motion.update(now)) return false;
+          const advance = Math.min(1, (now - startedAt - motion.duration) / CAPTURE_TOKEN_ADVANCE_MS);
+          const position = start.clone().lerp(destination, easeInOut(advance));
+          if (!reducedMotion) position.y += Math.sin(advance * Math.PI) * TOKEN_HEIGHT * 1.2;
+          attacker.position.copy(attacker.parent.worldToLocal(position.clone()));
+          motion.focus.copy(position);
+          if (advance < 1) return false;
+          completed = true; dispose(); completeCaptureAnimation(); return true;
+        }
+      });
+      return;
+    }
     const vehicleKind = normalizeSnakeCaptureWeaponKind(captureEvent.weaponType || 'fighter');
     const vehicleMap = board.captureFx?.vehicles || {};
     const primaryVehicle = vehicleMap[vehicleKind] || vehicleMap.fighter || Object.values(vehicleMap)[0];
@@ -6834,14 +6213,13 @@ export default function SnakeBoard3D({
       completeCaptureAnimation();
       return;
     }
-    const startPos = (board.indexToPosition.get(captureEvent.fromCell) || board.serpentineIndexToXZ(captureEvent.fromCell)).clone();
-    const targetPos = (board.indexToPosition.get(captureEvent.targetCell) || board.serpentineIndexToXZ(captureEvent.targetCell)).clone();
-    startPos.y = targetPos.y = board.baseLevelTop + TOKEN_HEIGHT * 0.85;
+    const startPos = attacker.getWorldPosition(new THREE.Vector3());
+    const targetPos = board.boardTokensGroup.localToWorld(
+      (board.indexToPosition.get(captureEvent.targetCell) || board.serpentineIndexToXZ(captureEvent.targetCell)).clone()
+    );
     const parkedHolder =
-      board.weaponDisplayGroup?.userData?.byPlayer?.get(captureEvent.attackerIndex) ||
-      board.weaponDisplayGroup?.userData?.byPlayer?.get(`seat-${captureEvent.attackerIndex}`) ||
-      null;
-    const parkedPos = parkedHolder ? parkedHolder.position.clone() : null;
+      findCaptureSeatWeapon(board, captureEvent.attackerIndex, players);
+    const parkedPos = parkedHolder ? parkedHolder.getWorldPosition(new THREE.Vector3()) : null;
     const launchOrigin = parkedPos || startPos;
     const launch = launchOrigin.clone().add(new THREE.Vector3(0, TOKEN_HEIGHT * 1.6, 0));
     const captureTuning =
@@ -6854,12 +6232,10 @@ export default function SnakeBoard3D({
     const impactTop = impact.clone().add(new THREE.Vector3(0, CAPTURE_VERTICAL_STRIKE_LIFT, 0));
     const parkedTop = launch.clone().add(new THREE.Vector3(0, TOKEN_HEIGHT * 0.4, 0));
     const attackerHolder =
-      board.weaponDisplayGroup?.userData?.byPlayer?.get(captureEvent.attackerIndex) ||
-      board.weaponDisplayGroup?.userData?.byPlayer?.get(`seat-${captureEvent.attackerIndex}`) ||
-      null;
+      findCaptureSeatWeapon(board, captureEvent.attackerIndex, players);
     if (attackerHolder) attackerHolder.visible = false;
 
-    attacker.position.copy(startPos);
+    attacker.position.copy(attacker.parent.worldToLocal(startPos.clone()));
     attacker.userData.isSliding = true;
     Object.values(vehicleMap).forEach((vehicle) => {
       if (vehicle?.root) vehicle.root.visible = false;
@@ -6908,50 +6284,14 @@ export default function SnakeBoard3D({
       impactSfxPlayed = true;
       playCaptureSfx('impact');
     };
-    const camera = cameraRef.current;
-    const controls = board.controls;
-    if (cameraViewMode !== '2d' && camera && controls) {
-      removeAnimationsByType(animationsRef.current, 'cameraTurnFocus');
-      removeAnimationsByType(animationsRef.current, 'cameraDiceZoom');
-      removeAnimationsByType(animationsRef.current, 'cameraTokenFollow');
-      removeAnimationsByType(animationsRef.current, 'cameraCaptureFocus');
-      const attackerSeatWorld = launch.clone();
-      const weaponDirectorProfile = LUDO_WEAPON_DIRECTOR_BRIDGE.firearmBroadcastProfile;
-      const isFirearmDirectorShot = Boolean(
-        LUDO_WEAPON_DIRECTOR_BRIDGE.weaponTypeByCaptureAnimationId[captureEvent.weaponType]
-      );
-      const aimTarget = isFirearmDirectorShot
-        ? attackerSeatWorld
-            .clone()
-            .lerp(impact, weaponDirectorProfile.bulletTargetBlend)
-            .add(new THREE.Vector3(0, TOKEN_HEIGHT * 1.55 + weaponDirectorProfile.aimLift, 0))
-        : launch.clone().lerp(centerStage, 0.6).add(new THREE.Vector3(0, TOKEN_HEIGHT * 1.8, 0));
-      const currentOffset = camera.position.clone().sub(controls.target);
-      const cinematicOffset = currentOffset
-        .clone()
-        .multiplyScalar(isFirearmDirectorShot ? 0.72 : 1)
-        .add(new THREE.Vector3(0, isFirearmDirectorShot ? TOKEN_HEIGHT * 2.1 : 0, 0));
-      if (isFirearmDirectorShot) {
-        const rear = attackerSeatWorld.clone().sub(impact).setY(0);
-        if (rear.lengthSq() > 1e-6) {
-          rear.normalize();
-          cinematicOffset.addScaledVector(rear, weaponDirectorProfile.aimRearPullback + TOKEN_HEIGHT * 2.2);
-        }
-      }
-      const desiredPosition = aimTarget.clone().add(cinematicOffset);
-      const captureCameraAnimation = createCameraTransitionAnimation(camera, controls, {
-        toPosition: desiredPosition,
-        toTarget: aimTarget,
-        durationIn: isFirearmDirectorShot ? 240 : 180,
-        hold: Math.max(isFirearmDirectorShot ? 520 : 140, stageFlightDuration - 220),
-        durationOut: 200,
-        type: 'cameraCaptureFocus',
-        lockPosition: false,
-        returnPosition: turnCameraStateRef.current?.position,
-        returnTarget: turnCameraStateRef.current?.target
-      });
-      if (captureCameraAnimation) animationsRef.current.push(captureCameraAnimation);
-    }
+    const captureFocus = launch.clone();
+    const advanceFocus = new THREE.Vector3();
+    board.startCameraShot?.({
+      id: `capture:${captureEvent.id}`, priority: 3,
+      points: () => [captureFocus, impact, attacker.getWorldPosition(advanceFocus)],
+      overview: () => [launch, centerStage, impactTop, impact, targetPos,
+        centerStage.clone().add(new THREE.Vector3(0, TOKEN_HEIGHT * 4 * captureTuning.height, 0))]
+    });
     const carrierPathAt = (uRaw) => {
       const u = clamp01(uRaw);
       const carrierControl = launch.clone().lerp(centerStage, 0.5);
@@ -6993,13 +6333,7 @@ export default function SnakeBoard3D({
       update: (now) => {
         const elapsed = now - startTime;
         const setCameraTrack = (focus) => {
-          if (cameraViewMode === '2d' || !camera || !controls || !focus) return;
-          const trackOffset = new THREE.Vector3(TOKEN_HEIGHT * 11, TOKEN_HEIGHT * 7.2, TOKEN_HEIGHT * 11);
-          const targetPos = focus.clone().add(new THREE.Vector3(0, TOKEN_HEIGHT * 1.35, 0));
-          const desiredPos = targetPos.clone().add(trackOffset);
-          controls.target.lerp(targetPos, 0.22);
-          camera.position.lerp(desiredPos, 0.18);
-          controls.update();
+          if (focus) captureFocus.copy(focus);
         };
 
         if (elapsed <= stageFlightDuration) {
@@ -7107,10 +6441,11 @@ export default function SnakeBoard3D({
           const arc = Math.sin(t * Math.PI) * lift;
           const nextPos = startPos.clone().lerp(targetPos, easeInOut(t));
           nextPos.y += arc;
-          attacker.position.copy(nextPos);
+          attacker.position.copy(attacker.parent.worldToLocal(nextPos.clone()));
+          setCameraTrack(nextPos);
           if (t >= 1) {
             attacker.userData.isSliding = false;
-            attacker.position.copy(targetPos);
+            attacker.position.copy(attacker.parent.worldToLocal(targetPos.clone()));
             primaryVehicle.root.visible = false;
             missileProjectile.root.visible = false;
             if (attackerHolder) attackerHolder.visible = true;
@@ -7175,10 +6510,11 @@ export default function SnakeBoard3D({
         const arc = Math.sin(t * Math.PI) * lift;
         const nextPos = startPos.clone().lerp(targetPos, easeInOut(t));
         nextPos.y += arc;
-        attacker.position.copy(nextPos);
+        attacker.position.copy(attacker.parent.worldToLocal(nextPos.clone()));
+        setCameraTrack(nextPos);
         if (t >= 1) {
           attacker.userData.isSliding = false;
-          attacker.position.copy(targetPos);
+          attacker.position.copy(attacker.parent.worldToLocal(targetPos.clone()));
           primaryVehicle.root.visible = false;
           missileProjectile.root.visible = false;
           if (attackerHolder) attackerHolder.visible = true;
@@ -7212,3 +6548,32 @@ export default function SnakeBoard3D({
     </div>
   );
 }
+
+// Standalone reviews and geometry tests use the same board and pieces as gameplay.
+export {
+  makeDice as createSnakeDie, getDiceOrientationQuaternion,
+  buildSnakeBoard as createSnakeBoardScene,
+  updateTokens as updateSnakeBoardTokens,
+  updateSeatWeaponDisplays as updateSnakeSeatWeapons,
+  updateLadders as updateSnakeBoardLadders,
+  updateSnakes as updateSnakeBoardSnakes
+};
+// Shared review data from the production portrait camera configuration.
+export function getSnakePortraitCameraState() {
+  const target = new THREE.Vector3(0, TABLE_HEIGHT + PORTRAIT_CAMERA_TUNING.targetLift + CAMERA_TARGET_EXTRA, 0);
+  const chairRadius = SEATING_TABLE_RADIUS + SEAT_DEPTH / 2 + AI_CHAIR_GAP + CHAIR_GLOBAL_PUSHBACK;
+  const z = chairRadius + PORTRAIT_CAMERA_TUNING.backOffset - PORTRAIT_CAMERA_TUNING.forwardOffset;
+  const y = TABLE_HEIGHT + PORTRAIT_CAMERA_TUNING.heightOffset + CAMERA_EXTRA_LIFT;
+  const polar = clamp(Math.atan2(z, y - target.y), CAM.phiMin, CAM.phiMax);
+  const span = Math.max(SEATING_TABLE_RADIUS * 2.6, RAW_BOARD_SIZE * BOARD_SCALE * 1.6);
+  const radius = clamp(Math.max(span / (2 * Math.tan(THREE.MathUtils.degToRad(CAM.fov) / 2)), CAM.maxR * PORTRAIT_INITIAL_CAMERA_DISTANCE_FACTOR), CAM.minR, CAM.maxR);
+  return { position: target.clone().add(new THREE.Vector3(0, Math.cos(polar) * radius, Math.sin(polar) * radius)), target, fov: CAM.fov };
+}
+export const SNAKE_SCENE_DIMENSIONS = Object.freeze({
+  boardScale: BOARD_SCALE, footprintScale: BOARD_FOOTPRINT_SCALE,
+  tileSize: TILE_SIZE, tokenHeight: TOKEN_HEIGHT, diceSize: DICE_SIZE,
+  tableHeight: TABLE_HEIGHT, tableRadius: TABLE_RADIUS, topThicknessScale: TABLE_TOP_THICKNESS_SCALE,
+  chairRadius: SEATING_TABLE_RADIUS + SEAT_DEPTH * 0.08,
+  bottomChairExtra: CHAIR_TABLE_CLEARANCE, seatClearance: CHAIR_TABLE_CLEARANCE, chairBaseHeight: CHAIR_BASE_HEIGHT,
+  seatHeight: SEAT_THICKNESS * 0.65, avatarAnchorHeight: AVATAR_ANCHOR_HEIGHT
+});
