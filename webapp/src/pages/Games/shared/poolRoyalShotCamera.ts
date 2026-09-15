@@ -17,11 +17,6 @@ export class PoolRoyalShotCamera {
       return this.held;
     }
     if (shooting && this.held) {
-      // Track the animated eyes through follow-through instead of freezing in world space.
-      if (eye) {
-        this.held.position.copy(eye.position);
-        this.held.target.copy(eye.target);
-      }
       const blend = 1 - THREE.MathUtils.smoothstep(now - this.lastStrokeAt, 600, 900);
       if (blend > 0) return { ...this.held, blend };
     }
