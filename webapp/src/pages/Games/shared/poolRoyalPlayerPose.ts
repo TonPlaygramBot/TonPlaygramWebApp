@@ -158,13 +158,11 @@ export function poolRoyalEyeView(human: HumanRig, group: THREE.Group, ball: THRE
   forward: THREE.Vector3, ballRadius: number): HumanEyeView | null {
   const left = human.model?.getObjectByName('LeftEye');
   const right = human.model?.getObjectByName('RightEye');
-  if (!left || !right || human.poseT < 0.2) return null;
+  if (!left || !right) return null;
   group.updateWorldMatrix(true, true);
   const eye = point(left).lerp(point(right), 0.5);
   group.parent!.worldToLocal(eye);
-  // A small forward nudge clears the face and brings the table closer while
-  // retaining the height of the actual eyes and the shooter's handedness.
-  eye.addScaledVector(forward, ballRadius * 2);
+  // Use the exact animated eye midpoint; first-person visibility hides the shooter's head.
   const target = ball.clone().addScaledVector(forward, ballRadius * 5);
-  return { position: eye, target, blend: THREE.MathUtils.smoothstep(human.poseT, 0.2, 0.95) };
+  return { position: eye, target, blend: 1 };
 }

@@ -9,6 +9,7 @@ import React, {
 } from 'react';
 import * as THREE from 'three';
 import { PoolRoyalHumanPlayers } from './shared/PoolRoyalHumanPlayers.ts';
+import { fitPoolRoyalTable } from './shared/poolRoyalTableGeometry.ts';
 import polygonClipping from 'polygon-clipping';
 import * as BufferGeometryUtils from 'three/examples/jsm/utils/BufferGeometryUtils.js';
 import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js';
@@ -5927,6 +5928,7 @@ const RAIL_CONTACT_RADIUS = BALL_R;
 const CUSHION_CUT_CONTACT_RADIUS = RAIL_CONTACT_RADIUS * 1.12;
 const CUSHION_CUT_NEAR_POCKET_BUFFER = BALL_R * 0.9;
 let CUSHION_SEGMENTS = [];
+let activePoolTableCalibration = null;
 const BREAK_VIEW = Object.freeze({
   radius: CAMERA.minR, // start the intro framing closer to the table surface
   phi: CAMERA.maxPhi - 0.01
@@ -6526,6 +6528,7 @@ let cachedPocketCenters = null;
 let cachedSidePocketCenters = null;
 let cachedPocketShift = null;
 const pocketCenters = () => {
+  if (activePoolTableCalibration) return activePoolTableCalibration.pockets.map((pocket) => pocket.center);
   if (cachedPocketCenters && cachedPocketShift === sidePocketShift) {
     return cachedPocketCenters;
   }
@@ -6546,11 +6549,12 @@ const getSidePocketCenters = () => {
   if (!cachedPocketCenters || cachedPocketShift !== sidePocketShift) {
     pocketCenters();
   }
-  return cachedSidePocketCenters ?? [];
+  return activePoolTableCalibration ? pocketCenters().slice(4) : cachedSidePocketCenters ?? [];
 };
 const pocketEntranceCenters = () =>
   pocketCenters().map((center, index) => {
-    const mouthRadius = index >= 4 ? SIDE_POCKET_RADIUS : POCKET_VIS_R;
+    const mouthRadius = activePoolTableCalibration?.pockets[index]?.radius ??
+      (index >= 4 ? SIDE_POCKET_RADIUS : POCKET_VIS_R);
     const towardField = center.clone().multiplyScalar(-1);
     if (towardField.lengthSq() < MICRO_EPS * MICRO_EPS) {
       return center.clone();
@@ -7777,6 +7781,7 @@ function updateRailLimitsFromTable(table) {
 }
 
 function updateCushionSegmentsFromTable(table) {
+  if (table?.userData?.poolRoyalCalibration) return;
   if (!table?.userData?.cushions?.length) {
     CUSHION_SEGMENTS = [];
     return;
@@ -13104,6 +13109,9 @@ function subtlyExpandPoolRoyaleShowoodRailSightsAndAprons(model, tableModel, dim
 
 function fitPoolRoyaleExternalTableModel(model, tableModel, dims) {
   if (!model || !dims) return;
+  if (tableModel?.useReferenceShowoodMapping) {
+    return fitPoolRoyalTable(model, PLAY_W, PLAY_H, CLOTH_TOP_LOCAL + CLOTH_LIFT - CLOTH_DROP);
+  }
   model.position.set(0, 0, 0);
   model.rotation.set(0, 0, 0);
   model.scale.setScalar(1);
@@ -13212,7 +13220,17 @@ function mountPoolRoyaleExternalTableModel({
     .then((template) => {
       if (disposed || !template) return;
       const model = clonePoolRoyaleExternalTableTemplate(template, tableModel, finishInfo);
-      fitPoolRoyaleExternalTableModel(model, tableModel, dims);
+      const calibration = fitPoolRoyaleExternalTableModel(model, tableModel, dims);
+      if (calibration) {
+        table.userData.poolRoyalCalibration = calibration;
+        table.userData.cushions = calibration.cushionMeshes;
+        if (dims.primary) {
+          activePoolTableCalibration = calibration;
+          CUSHION_SEGMENTS = calibration.segments;
+          RAIL_LIMIT_X = Math.min(-calibration.min.x, calibration.max.x) - BALL_R;
+          RAIL_LIMIT_Y = Math.min(-calibration.min.y, calibration.max.y) - BALL_R;
+        }
+      }
       externalRoot.clear();
       externalRoot.add(model);
       setGeneratedVisualsVisible?.(false);
@@ -25094,6 +25112,7 @@ const shotPowerRef = useRef(0);
 
       pocketRestIndexRef.current.clear();
 
+      activePoolTableCalibration = null;
       // Table
       const finishForScene = tableFinishRef.current;
       const tableSizeMeta = tableSizeRef.current;

@@ -12,9 +12,11 @@ test('AI and human strokes override broadcast camera ownership and retain the ey
     const eye = { position: new THREE.Vector3(0, 5, 9), target: new THREE.Vector3(0, 4, 0), blend: 0.9 };
     const shot = camera.resolve({ eye, stroke: true, shooting: true, cueBlend, now: 100 });
     assert.equal(shot.blend, 1); assert.deepEqual(shot.position, eye.position);
-    eye.position.x = 100; // held camera must not follow the standing animation after the shot
+    eye.position.x = 100;
+    const followed = camera.resolve({ eye, stroke: false, shooting: true, cueBlend, now: 400 });
+    assert.equal(followed.position.x, 100, 'camera follows the current eye bones during follow-through');
     const held = camera.resolve({ eye: null, stroke: false, shooting: true, cueBlend, now: 500 });
-    assert.equal(held.position.x, 0); assert.equal(held.blend, 1);
+    assert.equal(held.position.x, 100); assert.equal(held.blend, 1);
     assert.ok(camera.resolve({ eye: null, stroke: false, shooting: true, cueBlend, now: 850 }).blend < 1);
     assert.equal(camera.resolve({ eye, stroke: false, shooting: true, cueBlend, now: 1100 }), null);
     assert.equal(camera.resolve({ eye, stroke: true, shooting: true, cueBlend, now: 1200, excluded: true }), null);
