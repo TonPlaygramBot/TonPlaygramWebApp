@@ -553,6 +553,7 @@ export default function MediaWall({
   const [openReactions, setOpenReactions] = useState<string>();
   const [editingPost, setEditingPost] = useState<string>();
   const [editText, setEditText] = useState('');
+  const [editPrice, setEditPrice] = useState('');
   const [fullscreenPost, setFullscreenPost] = useState<string>();
   const [favorites, setFavorites] = useState<Record<string, boolean>>(() => {
     try {
@@ -862,23 +863,48 @@ export default function MediaWall({
   }
   async function updatePost(post: Post) {
     const value = editText.trim();
+    const hasPrice = Boolean(post.attachment?.premium);
+    const price = Number(editPrice);
+    if (
+      hasPrice &&
+      (!Number.isInteger(price) || price < 1 || price > 1_000_000)
+    ) {
+      return setNotice('Enter a whole price from 1 to 1,000,000 TPG.');
+    }
+    const body: { text: string; priceTpg?: number } = { text: value };
+    if (hasPrice) body.priceTpg = price;
     const response = await fetch(
       `${API_BASE_URL}/api/flamingo-wall/posts/${post.id}`,
       {
         method: 'PATCH',
         headers: identityHeaders({ 'Content-Type': 'application/json' }),
-        body: JSON.stringify({ text: value })
+        body: JSON.stringify(body)
       }
     );
     const payload = await response.json();
     if (!response.ok) return setNotice(payload.error || 'Update failed.');
     setPosts((items) =>
-      items.map((item) =>
-        item.id === post.id ? { ...item, text: value } : item
-      )
+      items.map((item) => {
+        if (item.id !== post.id) return item;
+        const nextAttachment = payload.post?.attachment;
+        return {
+          ...item,
+          text: payload.post?.text ?? value,
+          ...(item.attachment && nextAttachment
+            ? {
+                attachment: {
+                  ...item.attachment,
+                  ...nextAttachment,
+                  src: item.attachment.src
+                }
+              }
+            : {})
+        };
+      })
     );
     setEditingPost(undefined);
-    setNotice('Description saved.');
+    setEditPrice('');
+    setNotice(hasPrice ? 'Description and TPG price saved.' : 'Description saved.');
   }
   async function deletePost(post: Post) {
     if (!window.confirm('Delete this post permanently?')) return;
@@ -1085,6 +1111,11 @@ export default function MediaWall({
                         onClick={() => {
                           setEditingPost(post.id);
                           setEditText(post.text);
+                          setEditPrice(
+                            post.attachment?.premium
+                              ? String(post.attachment.priceTpg ?? '')
+                              : ''
+                          );
                         }}
                         aria-label="Edit description"
                       >
@@ -1121,10 +1152,28 @@ export default function MediaWall({
                       maxLength={post.title ? 8000 : 1200}
                       aria-label={post.title ? 'Article body' : 'Post caption'}
                     />
+                    {post.attachment?.premium && (
+                      <label className="wall-field">
+                        Price in TPG
+                        <input
+                          type="number"
+                          inputMode="numeric"
+                          min={1}
+                          max={1_000_000}
+                          step={1}
+                          value={editPrice}
+                          onChange={(event) => setEditPrice(event.target.value)}
+                          aria-label="Price in TPG"
+                        />
+                      </label>
+                    )}
                     <div>
                       <button
                         type="button"
-                        onClick={() => setEditingPost(undefined)}
+                        onClick={() => {
+                          setEditingPost(undefined);
+                          setEditPrice('');
+                        }}
                       >
                         <X /> Cancel
                       </button>

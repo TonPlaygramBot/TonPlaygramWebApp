@@ -967,6 +967,15 @@ router.patch('/posts/:id', express.json({ limit: '64kb' }), async (req, res) => 
   const post = await FlamingoPost.findById(req.params.id).select('+ownerTokenHash');
   if (!post) return res.status(404).json({ error: 'Post not found.' });
   if (!ownsPost(post, ownerToken(req))) return res.status(403).json({ error: 'Only the author can edit this post.' });
+  const hasPriceUpdate = Object.prototype.hasOwnProperty.call(req.body || {}, 'priceTpg');
+  if (hasPriceUpdate) {
+    if (!post.attachment?.premium) return res.status(400).json({ error: 'Only premium media has an editable TPG price.' });
+    const price = Number(req.body.priceTpg);
+    if (!Number.isInteger(price) || price < 1 || price > 1_000_000) {
+      return res.status(400).json({ error: 'Enter a whole price from 1 to 1,000,000 TPG.' });
+    }
+    post.attachment.priceTpg = price;
+  }
   post.text = String(req.body?.text || '').trim().slice(0, post.title ? 8000 : 1200);
   await post.save();
   publishWallEvent('updated', String(post._id));
