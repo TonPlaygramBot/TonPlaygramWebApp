@@ -143,6 +143,7 @@ const StoreThumbnailStudioPoolRoyale = React.lazy(
 const CommunityWallApp = React.lazy(
   () => import('./features/flamingo/CommunityWallApp.tsx')
 );
+const CreatorStudio = React.lazy(() => import('./features/creator/CreatorStudio.tsx'));
 const SocialProfilePage = React.lazy(() => import('./features/flamingo/SocialProfilePage.tsx'));
 
 export default function App() {
@@ -233,6 +234,7 @@ export default function App() {
               <Route path="/roadmap" element={<EcosystemTopic topic="roadmap" />} />
               <Route path="/tokenomics" element={<Tokenomics />} />
               <Route path="/wall" element={<CommunityWallApp />} />
+              <Route path="/creator-studio" element={<CreatorStudio />} />
               <Route path="/wall/profile/:accountId" element={<SocialProfilePage />} />
               <Route path="/flamingo/*" element={<Navigate to="/wall" replace />} />
               <Route path="/earn" element={<Earn />} />
