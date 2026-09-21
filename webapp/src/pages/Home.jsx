@@ -193,7 +193,6 @@ export default function Home() {
   return (
     <div className="home-page app-theme-page space-y-4">
       <ThemePicker />
-      <PwaDownloadFrame />
       <article className="home-protest-card">
         {latestProtestPost?.attachment && (
           <Link className="home-protest-card__thumbnail" to="/wall" aria-label="Open the latest wall post">
@@ -518,6 +517,7 @@ export default function Home() {
         </a>
       </div>
       <PlatformHelpAgentCard />
+      <PwaDownloadFrame />
     </div>
   );
 }

@@ -827,6 +827,7 @@ export function createAccount(telegramId, googleProfile, accountId, walletAddres
     ) {
       localStorage.setItem('accountId', response.accountId);
       localStorage.setItem('accountOwnerKey', ownerKey);
+      window.dispatchEvent(new Event('accountUpdated'));
     }
     return response;
   });

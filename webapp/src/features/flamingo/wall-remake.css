@@ -785,3 +785,7 @@
   }
 }
 .wall-restore-file { overflow-wrap: anywhere; }
+
+.fr-fullscreen-author { display: flex; align-items: center; gap: 10px; }
+.fr-fullscreen-author .fr-author-avatar { display: grid; place-items: center; width: 36px; height: 36px; border-radius: 50%; background: #4b2835; }
+.fr-social-post { scroll-margin-top: 84px; }

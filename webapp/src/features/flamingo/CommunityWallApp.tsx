@@ -2,6 +2,7 @@ import { ArrowLeft, PenLine } from 'lucide-react';
 import { Link } from 'react-router-dom';
 
 import MediaWall from './MediaWall';
+import WallNotifications from './WallNotifications';
 import './community-wall.css';
 
 export default function CommunityWallApp() {
@@ -18,6 +19,7 @@ export default function CommunityWallApp() {
           </span>
         </div>
         <div className="community-wall-header-actions">
+          <WallNotifications />
           <button
             type="button"
             className="wall-header-compose"

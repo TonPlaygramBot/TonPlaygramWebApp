@@ -1,4 +1,4 @@
-import { copyFile, link, mkdir, readdir } from 'node:fs/promises';
+import { copyFile, link, mkdir, readdir, rm } from 'node:fs/promises';
 import path from 'node:path';
 
 // External game assets are immutable build inputs. Hard links avoid keeping two
@@ -24,6 +24,14 @@ export async function copyPublicAssets(publicDir, outDir, emittedFiles = []) {
         if (source.startsWith(externalRoot)) {
           try { await link(source, target); continue; }
           catch (error) {
+            if (error.code === 'EEXIST') {
+              // A repeated output pass may already contain a public copy. Unlink
+              // that destination before replacing it: copying over a hard link
+              // could otherwise overwrite the immutable source itself.
+              await rm(target, { force: true });
+              try { await link(source, target); continue; }
+              catch (retryError) { error = retryError; }
+            }
             if (!['EXDEV', 'EPERM', 'ENOTSUP', 'EACCES'].includes(error.code)) throw error;
           }
         }
