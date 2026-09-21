@@ -32,3 +32,14 @@ The names below are retained from `webapp/src/config/snakeWeaponCatalog.js`, whi
 | `58c387b2-636f-49dc-a900-13b0852717d6` | Quaternius Battle Tank | Quaternius |
 
 The `autumn_park-256.png` file is the original 256 × 256 preview from [Poly Haven Autumn Park](https://polyhaven.com/a/autumn_park), with its exact query URL retained in the manifest. Poly Haven's source and attribution remain applicable.
+
+## Additional build recovery on 2026-09-21
+
+Two more existing images are bundled because their providers changed automatic format negotiation and blocked the Render prebuild. Both files match the already committed source-lock SHA-256 exactly; no source pins, image content, dimensions or game references were changed.
+
+| File | Recovery | SHA-256 |
+| --- | --- | --- |
+| `old_wood_floor-256.png` | The existing Poly Haven URL returned WebP despite its `.png` extension. Requesting the same URL with `&format=png` recovered the original 256 × 256 PNG (106,288 bytes). | `6fa9d96cf8bcb032536a3438898bee5195fd93ccf293f572bfb576ad35bc0654` |
+| `domino-room-background.jpg` | The existing Unsplash URL returned a different automatically encoded JPEG. Adding `&fm=jpg` recovered the original 1600 × 1200 JPEG (286,221 bytes). | `a8c4f267291c290ef6310ef0e8d3e1b5a8e2e3c585e0f54633212e00d0a102a2` |
+
+The exact original source URLs remain in `manifest.json`. The existing provider attribution and licensing continue to apply. These copies use the same required-file and checksum verification as the earlier bundled originals, so clean builds no longer depend on the two format-negotiating endpoints.

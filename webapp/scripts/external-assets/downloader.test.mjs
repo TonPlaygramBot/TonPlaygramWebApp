@@ -344,7 +344,7 @@ test('every shipped vendor original imports from an empty output with zero provi
   const vendor = JSON.parse(await readFile(path.join(publicRoot, 'assets/vendor-originals/manifest.json'), 'utf8'));
   const { sourcePins } = JSON.parse(await readFile(new URL('./source-lock.json', import.meta.url), 'utf8'));
   const expected = new Map(vendor.assets.map(asset => [asset.sourceUrl, asset]));
-  assert.equal(expected.size, 28, 'All 28 original deployment failures must stay covered');
+  assert.equal(expected.size, 30, 'All 30 original deployment failures must stay covered');
   const localAssets = (await collectVerifiedLocalAssets({ repoRoot }))
     .filter(asset => expected.has(asset.sourceUrl))
     .map(asset => ({ ...asset, filename: path.join(publicRoot, asset.url.slice(1)) }));
