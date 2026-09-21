@@ -254,7 +254,7 @@ router.post('/create', optionalAuthenticate, async (req, res) => {
           user.lastName = lastName;
           updated = true;
         }
-        if (photo && user.photo !== photo) {
+        if (photo && !user.photoCustom && user.photo !== photo) {
           user.photo = photo;
           updated = true;
         }

@@ -3,12 +3,14 @@ import { Bell, BellRing, X } from 'lucide-react';
 import { API_BASE_URL } from '../../utils/api.js';
 import { wallAccountHeaders } from './wallIdentity';
 import './wall-notifications.css';
+import './wall-social.css';
 
 type Settings = {
   accountId: string;
   publicKey: string;
   telegramAvailable: boolean;
   telegramEnabled: boolean;
+  telegramScope?: 'all' | 'following';
 };
 const endpoint = `${API_BASE_URL}/api/flamingo-wall/notifications`;
 export const browserPushSupported = () =>
@@ -57,6 +59,17 @@ export default function WallNotifications() {
   const [browserEnabled, setBrowserEnabled] = useState(false);
   const [busy, setBusy] = useState(false);
   const [notice, setNotice] = useState('');
+  const [scope, setScope] = useState<'all' | 'following'>('all');
+  const fromFollow = useRef(false);
+  useEffect(() => {
+    const show = () => {
+      fromFollow.current = true;
+      setScope('following');
+      setOpen(true);
+    };
+    window.addEventListener('wall-notifications-open', show);
+    return () => window.removeEventListener('wall-notifications-open', show);
+  }, []);
   const panel = useRef<HTMLDivElement>(null);
   const button = useRef<HTMLButtonElement>(null);
   const supported = browserPushSupported();
@@ -72,6 +85,13 @@ export default function WallNotifications() {
         const next = await request();
         if (!active) return;
         setSettings(next);
+        setScope(
+          next.telegramEnabled
+            ? next.telegramScope || 'all'
+            : fromFollow.current
+              ? 'following'
+              : 'all'
+        );
         if (supported && Notification.permission === 'granted') {
           const registration =
             await navigator.serviceWorker.getRegistration('/');
@@ -81,7 +101,10 @@ export default function WallNotifications() {
             const status = await request('/browser/status', 'POST', {
               endpoint: subscription.endpoint
             });
-            if (active) setBrowserEnabled(status.enabled);
+            if (active) {
+              setBrowserEnabled(status.enabled);
+              if (status.enabled) setScope(status.scope || 'all');
+            }
           }
         }
       } catch (error) {
@@ -117,7 +140,8 @@ export default function WallNotifications() {
     setNotice('');
     try {
       const result = await request('/telegram', 'PUT', {
-        enabled: !settings.telegramEnabled
+        enabled: !settings.telegramEnabled,
+        scope
       });
       setSettings({ ...settings, telegramEnabled: result.enabled });
       setNotice(
@@ -157,6 +181,7 @@ export default function WallNotifications() {
       if (subscription) {
         await request('/browser', 'PUT', {
           enabled: !browserEnabled,
+          scope,
           subscription: subscription.toJSON()
         });
         if (browserEnabled) await subscription.unsubscribe().catch(() => false);
@@ -195,7 +220,10 @@ export default function WallNotifications() {
         aria-label="Wall notifications"
         aria-expanded={open}
         aria-controls="wall-notification-settings"
-        onClick={() => setOpen((value) => !value)}
+        onClick={() => {
+          fromFollow.current = false;
+          setOpen((value) => !value);
+        }}
       >
         {enabled ? <BellRing /> : <Bell />}
       </button>
@@ -225,6 +253,44 @@ export default function WallNotifications() {
             Get notified when someone shares a new video or post. You can turn
             these off anytime.
           </p>
+          {settings && (
+            <label className="wall-alert-scope">
+              Notify me about
+              <select
+                aria-label="Whose posts to notify"
+                value={scope}
+                disabled={busy}
+                onChange={async (event) => {
+                  const next = event.target.value as 'all' | 'following';
+                  if (!enabled) {
+                    setScope(next);
+                    return;
+                  }
+                  setBusy(true);
+                  try {
+                    await request('/scope', 'PUT', { scope: next });
+                    setScope(next);
+                    setNotice('Notification choices saved.');
+                  } catch (error) {
+                    setNotice((error as Error).message);
+                  } finally {
+                    setBusy(false);
+                  }
+                }}
+              >
+                <option value="all">All wall posts</option>
+                <option value="following">
+                  Creators I follow · Every post enabled
+                </option>
+              </select>
+            </label>
+          )}
+          {fromFollow.current && (
+            <p>
+              Your creator choice is saved. Enable a channel below to receive
+              alerts. Creators set to “No notifications” stay muted.
+            </p>
+          )}
           {settings?.telegramAvailable && (
             <button
               type="button"

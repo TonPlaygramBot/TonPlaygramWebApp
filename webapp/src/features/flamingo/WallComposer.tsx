@@ -1,4 +1,9 @@
 import {
+  enqueueWallUploads,
+  getWallUploads,
+  subscribeWallUploads
+} from './wallUploadQueue.js';
+import {
   useEffect,
   useImperativeHandle,
   useRef,
@@ -136,6 +141,26 @@ export default function WallComposer({
     count: number;
     phase: string;
   }>();
+  const retainedPickers = useRef(new Map<string, string>());
+  const [queueRevision, setQueueRevision] = useState(0);
+  useEffect(
+    () =>
+      subscribeWallUploads(() => {
+        const active = new Set(
+          getWallUploads()
+            .filter((job) => job.status !== 'complete')
+            .map((job) => job.id)
+        );
+        let changed = false;
+        for (const [id] of retainedPickers.current)
+          if (!active.has(id)) {
+            retainedPickers.current.delete(id);
+            changed = true;
+          }
+        if (changed) setQueueRevision((value) => value + 1);
+      }),
+    []
+  );
   const files = useRef<HTMLInputElement>(null);
   const controller = useRef<AbortController>();
   const selectionRef = useRef(selected);
@@ -167,14 +192,17 @@ export default function WallComposer({
   useEffect(() => {
     // Keep each native selection connected until its last attachment is
     // removed or published. A fresh input handles the next picker visit.
-    const retained = new Set(selected.map((item) => item.pickerId));
+    const retained = new Set([
+      ...selected.map((item) => item.pickerId),
+      ...retainedPickers.current.values()
+    ]);
     setPickers((current) => {
       const next = current.filter(
         (picker, index) => index === current.length - 1 || retained.has(picker)
       );
       return next.length === current.length ? current : next;
     });
-  }, [selected]);
+  }, [selected, queueRevision]);
   useEffect(() => {
     const show = () => {
       setOpen(true);
@@ -229,14 +257,10 @@ export default function WallComposer({
     };
     if (incoming.some((file) => !file.size))
       return reject('Empty files cannot be uploaded. Choose another file.');
-    if (
-      remaining.reduce((sum, item) => sum + item.file.size, 0) +
-        incoming.reduce((sum, file) => sum + file.size, 0) >
-      MAX_BYTES
-    )
-      return reject('Select up to 5 GB of files in total.');
-    if (remaining.length + incoming.length > 20)
-      return reject('Select up to 20 files at a time.');
+    if (incoming.some((file) => file.size > MAX_BYTES))
+      return reject('Each file can be up to 5 GB.');
+    if (remaining.length + incoming.length > 30)
+      return reject('Select up to 30 files at a time.');
     if (
       kind === 'article' &&
       (remaining.length + incoming.length > 1 ||
@@ -257,7 +281,7 @@ export default function WallComposer({
           pickerId: input.dataset.wallPicker!,
           file,
           src: URL.createObjectURL(file),
-          duration: await videoDuration(file)
+          duration: incoming.length > 1 ? 0 : await videoDuration(file)
         });
       }
       selected
@@ -308,6 +332,46 @@ export default function WallComposer({
         Number(price) > 1_000_000)
     )
       return setError('Enter a whole premium price from 1 to 1,000,000 TPG.');
+    if (selected.length && typeof indexedDB !== 'undefined') {
+      setBusy(true);
+      setError('');
+      try {
+        const queued = await enqueueWallUploads(
+          selected.map((item) => ({ ...item, type: fileType(item.file) })),
+          {
+            baseUrl: apiBase,
+            headers: headers(),
+            text: text.trim(),
+            title: kind === 'article' ? title.trim() : undefined,
+            premium,
+            priceTpg: premium ? Number(price) : 0
+          }
+        );
+        selected.forEach((item) => {
+          retainedPickers.current.set(item.id, item.pickerId);
+          URL.revokeObjectURL(item.src);
+        });
+        setSelected([]);
+        setText('');
+        setTitle('');
+        setPremium(false);
+        setPrice('');
+        setKind('post');
+        setOpen(false);
+        setTransferPhase('idle');
+        onNotice(
+          queued.persistent
+            ? `${selected.length} files queued. Up to five upload at a time.`
+            : 'Files queued. Device storage is limited: keep the app open or choose the original files again after reopening.'
+        );
+      } catch (failure) {
+        selected.forEach((item) => retainedPickers.current.delete(item.id));
+        setError((failure as Error).message);
+      } finally {
+        setBusy(false);
+      }
+      return;
+    }
     const abort = new AbortController();
     controller.current = abort;
     // Preserve the original owner for every file and every retry in a batch.
@@ -661,7 +725,7 @@ export default function WallComposer({
                 {formatUploadBytes(
                   selected.reduce((sum, item) => sum + item.file.size, 0)
                 )}{' '}
-                selected · 5 GB maximum
+                selected · Up to 30 files · 5 GB each · 5 at a time
               </small>
             </>
           )}
@@ -697,7 +761,8 @@ export default function WallComposer({
             <details className="wall-premium">
               <summary>Download settings</summary>
               <p className="wall-compose-help">
-                Downloads are free at any video length unless you select Premium.
+                Downloads are free at any video length unless you select
+                Premium.
               </p>
               <label>
                 <input

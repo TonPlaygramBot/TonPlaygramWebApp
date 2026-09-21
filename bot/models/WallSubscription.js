@@ -7,6 +7,7 @@ const schema = new mongoose.Schema(
     accountId: { type: String, required: true },
     channel: { type: String, enum: ['telegram', 'browser'], required: true },
     enabled: { type: Boolean, default: false },
+    scope: { type: String, enum: ['all', 'following'], default: 'all' },
     telegramId: Number,
     subscription: { endpoint: String, keys: { p256dh: String, auth: String } },
     // A durable cursor also covers posts imported from Telegram. Edits and upload

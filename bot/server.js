@@ -47,6 +47,7 @@ import snookerRoyaleRoutes from './routes/snookerRoyal.js';
 import exchangeRoutes from './routes/exchange.js';
 import tiranaStoreRoutes from './routes/tiranaStore.js';
 import pushRoutes from './routes/push.js';
+import wallProfileRoutes from './routes/wallProfiles.js';
 import wallNotificationRoutes from './routes/wallNotifications.js';
 import { startWallNotifications } from './services/wallNotifications.js';
 import matchmakingRoutes from './routes/matchmaking.js';
@@ -343,6 +344,7 @@ bot.action(/^reject_invite:(.+)/, async (ctx) => {
 app.use(helmet({ contentSecurityPolicy }));
 app.use(compression());
 app.use('/api/protest-videos', protestVideoRoutes);
+app.use('/api/flamingo-wall/social', wallProfileRoutes);
 app.use('/api/flamingo-wall/notifications', wallNotificationRoutes);
 app.use('/api/flamingo-wall', flamingoWallRoutes);
 // Increase JSON body limit to handle large photo uploads

@@ -95,6 +95,7 @@ const userSchema = new mongoose.Schema({
   lastName: { type: String, default: '' },
 
   photo: { type: String, default: '' },
+  photoCustom: { type: Boolean, default: false },
 
   bio: { type: String, default: '' },
 

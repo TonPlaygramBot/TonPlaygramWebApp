@@ -1,3 +1,4 @@
+import WallFollowButton from './WallFollowButton';
 import { useEffect, useRef, useState, type FormEvent } from 'react';
 import { createPortal } from 'react-dom';
 import { Link, useLocation } from 'react-router-dom';
@@ -751,6 +752,8 @@ export default function MediaWall({
     events.onopen = () => {
       if (loadedOnce) setFeedState('live');
     };
+    window.addEventListener('wall-upload-published', refreshNow);
+    window.addEventListener('profilePhotoUpdated', refreshNow);
     window.addEventListener('online', refreshNow);
     window.addEventListener('focus', refreshNow);
     const refresh = window.setInterval(refreshNow, 15_000);
@@ -758,6 +761,8 @@ export default function MediaWall({
       active = false;
       events.close();
       window.clearInterval(refresh);
+      window.removeEventListener('wall-upload-published', refreshNow);
+      window.removeEventListener('profilePhotoUpdated', refreshNow);
       window.removeEventListener('online', refreshNow);
       window.removeEventListener('focus', refreshNow);
     };
@@ -1153,23 +1158,34 @@ export default function MediaWall({
                 key={post.id}
               >
                 <header>
-                  <Link
-                    className="fr-author-link"
-                    to={
-                      post.authorAccountId
-                        ? `/wall/profile/${encodeURIComponent(post.authorAccountId)}`
-                        : '/wall'
-                    }
-                    aria-label={`View ${post.author} profile`}
-                  >
-                    <WallAvatar name={post.author} src={post.authorAvatar} />
+                  <div className="fr-author-link">
+                    <Link
+                      className="wall-avatar-link"
+                      to={
+                        post.authorAccountId
+                          ? `/wall/profile/${encodeURIComponent(post.authorAccountId)}`
+                          : '/wall'
+                      }
+                      aria-label={`View ${post.author} profile`}
+                    >
+                      <WallAvatar name={post.author} src={post.authorAvatar} />
+                    </Link>
                     <div>
-                      <div className="fr-fullscreen-author">
-                        <WallAvatar
+                      <div className="wall-author-name">
+                        <Link
+                          to={
+                            post.authorAccountId
+                              ? `/wall/profile/${encodeURIComponent(post.authorAccountId)}`
+                              : '/wall'
+                          }
+                        >
+                          <strong>{post.author}</strong>
+                        </Link>
+                        <WallFollowButton
+                          accountId={post.authorAccountId}
                           name={post.author}
-                          src={post.authorAvatar}
+                          compact
                         />
-                        <strong>{post.author}</strong>
                       </div>
                       <small>
                         <time title={new Date(post.createdAt).toLocaleString()}>
@@ -1178,7 +1194,7 @@ export default function MediaWall({
                         · Public
                       </small>
                     </div>
-                  </Link>
+                  </div>
                   {post.canManage && (
                     <div className="fr-owner-actions">
                       <button

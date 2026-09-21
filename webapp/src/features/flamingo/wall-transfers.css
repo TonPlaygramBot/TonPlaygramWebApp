@@ -91,3 +91,17 @@
   background: #222933;
   color: inherit;
 }
+
+.wall-transfer-reselect {
+  display: block;
+  max-width: 100%;
+  font-size: 12px;
+}
+.wall-transfer-reselect input {
+  display: block;
+  width: 100%;
+  margin-top: 6px;
+}
+.wall-transfer-item strong {
+  overflow-wrap: anywhere;
+}

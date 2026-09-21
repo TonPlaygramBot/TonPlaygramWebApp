@@ -332,7 +332,7 @@ test(
       await service.warm(posts[0]);
       await started;
       const working = (await service.status(posts[0])).qualities.find(
-        (item) => item.quality === '360p'
+        (item) => item.quality === '480p'
       );
       assert.equal(working.progress, 50);
       assert.equal(working.remainingSeconds, 1);
@@ -352,13 +352,13 @@ test(
       assert.equal(interrupted, true);
       assert.equal(maximum, 1);
       assert.match(calls[1], /^viewer:240p/);
-      assert.match(calls[2], /^background:360p/);
+      assert.match(calls[2], /^background:480p/);
       assert.equal((await service.file(posts[1], '240p')).quality, '240p');
       const warmed = (await service.status(posts[0])).qualities;
       assert.ok(warmed.every((item) => item.status === 'ready'));
       assert.equal(
-        (await service.file(posts[0], '240p')).sourceQuality,
-        '360p'
+        (await service.file(posts[0], '360p')).sourceQuality,
+        '480p'
       );
     } finally {
       await Promise.all(posts.map((post) => service.remove(post._id)));
