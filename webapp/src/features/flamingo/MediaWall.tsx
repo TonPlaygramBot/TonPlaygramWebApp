@@ -1325,11 +1325,9 @@ export default function MediaWall({
                     onClick={() => requestDownload(post)}
                   >
                     <Download /> {post.attachment.type.startsWith('video/') ? 'Download video' : 'Download original'}
-                    {post.attachment.premium
+                    {post.attachment.premium === true
                       ? ` · Premium ${post.attachment.priceTpg} TPG`
-                      : post.attachment.type.startsWith('video/')
-                        ? ` · ${post.attachment.duration && post.attachment.duration >= 20 ? (post.attachment.duration > 40 ? 300 : 200) : 0} TPG`
-                        : ''}{' '}
+                      : ' · Free'}{' '}
                     <small>{formatBytes(post.attachment.size)}</small>
                   </button>
                 )}

@@ -232,13 +232,14 @@ describe('wall video resolution controls', () => {
       root.render(
         <WallVideoDownload
           {...props}
+          file={{ ...file, premium: true, priceTpg: 25 }}
           onClose={onClose}
           onDownload={onDownload}
         />
       )
     );
     expect(document.querySelector('[role="dialog"]')?.textContent).toContain(
-      '200 TPG will be charged'
+      '25 TPG will be charged'
     );
     await click('[role="radio"]:last-of-type');
     expect(onDownload).not.toHaveBeenCalled();
@@ -252,6 +253,36 @@ describe('wall video resolution controls', () => {
     );
     expect(onClose).toHaveBeenCalledTimes(1);
   });
+  it.each([19, 20, 40, 41, 3600])(
+    'shows a free download for a non-premium %s-second video',
+    async (duration) => {
+      const onDownload = vi.fn(async () => {});
+      await act(async () =>
+        root.render(
+          <WallVideoDownload
+            {...props}
+            file={{ ...file, duration, priceTpg: 300 }}
+            onClose={() => {}}
+            onDownload={onDownload}
+          />
+        )
+      );
+      expect(document.querySelector('.wall-download-price')?.textContent).toBe(
+        'Free download'
+      );
+      expect(
+        document.querySelector('.wall-download-confirm')?.textContent
+      ).not.toContain('TPG');
+      await click('[role="radio"]:last-of-type');
+      expect(document.querySelector('.wall-download-price')?.textContent).toBe(
+        'Free download'
+      );
+      await click('.wall-download-confirm');
+      expect(onDownload).toHaveBeenCalledWith(
+        expect.objectContaining({ quality: '720p' })
+      );
+    }
+  );
   it('prevents downloading an unready rendition while the original remains selectable', async () => {
     vi.mocked(fetch).mockImplementation(
       async () =>

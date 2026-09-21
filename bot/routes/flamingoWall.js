@@ -161,12 +161,10 @@ export const startFlamingoWallMaintenance = () => {
   timer.unref();
   return () => clearInterval(timer);
 };
-const videoPrice = duration => duration > 40 ? 300 : duration >= 20 ? 200 : 0;
 const premiumPrice = value => Math.min(1_000_000, Math.max(0, Math.floor(Number(value) || 0)));
-export const attachmentDownloadPrice = attachment => {
-  const type = mediaType(attachment?.type, attachment?.name);
-  return attachment?.premium ? premiumPrice(attachment.priceTpg) : type.startsWith('video/') ? videoPrice(attachment?.duration) : 0;
-};
+// Duration and legacy price values never opt a creator into paid downloads.
+export const attachmentDownloadPrice = attachment =>
+  attachment?.premium === true ? premiumPrice(attachment.priceTpg) : 0;
 
 // Mobile browsers depend on byte ranges to read video metadata and to seek.
 // Keep this parser independent from Express so both playback and download
@@ -1009,11 +1007,12 @@ router.post('/posts/:id/download', express.json({ limit: '1kb' }), async (req, r
   // substitute the original after they selected a smaller resolution.
   if (quality !== 'original' && !rendition) return res.status(409).json({ error: 'This resolution is not ready. Prepare it before downloading.' });
   let price = attachmentDownloadPrice(post.attachment);
-  const selector = userSelector(req);
-  if (price && !selector) return res.status(401).json({ error: 'Sign in to download the video.' });
-  let user = selector ? await User.findOne(selector) : null;
-  if (selector && !user) return res.status(404).json({ error: 'Account not found.' });
+  let user;
   if (price) {
+    const selector = userSelector(req);
+    if (!selector) return res.status(401).json({ error: 'Sign in to download the video.' });
+    user = await User.findOne(selector);
+    if (!user) return res.status(404).json({ error: 'Account not found.' });
     // A phone may lose the response after payment, or need a fresh signed URL.
     // Scope retry IDs to owner, original media and quality. This also respects
     // the global unique transaction index and cannot unlock another video.
@@ -1089,7 +1088,7 @@ router.get('/files/:name', async (req, res) => {
   const name = path.basename(req.params.name);
   const post = await FlamingoPost.findOne(wallMediaPostQuery(name)).lean();
   if (req.query.download === '1') {
-    if (post?.attachment?.type?.startsWith('video/') || post?.attachment?.premium) {
+    if (attachmentDownloadPrice(post?.attachment) > 0) {
       return res.status(403).json({ error: 'Use the download button so the TPG payment can be applied.' });
     }
   }
