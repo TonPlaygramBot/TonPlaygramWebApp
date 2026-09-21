@@ -1,0 +1,10 @@
+.wall-notifications { position: relative; }
+.wall-notifications .wall-notification-panel { position: absolute; top: 50px; right: -48px; width: min(350px, calc(100vw - 32px)); padding: 16px; border: 1px solid #343b46; border-radius: 18px; background: #151a21; box-shadow: 0 16px 50px #0009; color: #f5f6f7; }
+.wall-notification-title { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+.wall-notification-panel p { margin: 12px 0; font-size: 13px; line-height: 1.5; color: #c2cbd6; }
+.wall-notifications .wall-notification-choice { display: flex; justify-content: space-between; width: 100%; height: auto; min-height: 64px; padding: 12px; margin-top: 10px; border-radius: 12px; text-align: left; gap: 12px; }
+.wall-notification-choice span { gap: 4px; }
+.wall-notification-choice b { color: #aab5c5; font-size: 13px; }
+.wall-notification-choice[aria-checked="true"] b { color: #82dda5; }
+.wall-notification-choice:disabled { opacity: .6; cursor: default; }
+.wall-notification-panel button:focus-visible { outline: 2px solid #91baff; outline-offset: 3px; }

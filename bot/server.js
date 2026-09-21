@@ -47,6 +47,8 @@ import snookerRoyaleRoutes from './routes/snookerRoyal.js';
 import exchangeRoutes from './routes/exchange.js';
 import tiranaStoreRoutes from './routes/tiranaStore.js';
 import pushRoutes from './routes/push.js';
+import wallNotificationRoutes from './routes/wallNotifications.js';
+import { startWallNotifications } from './services/wallNotifications.js';
 import matchmakingRoutes from './routes/matchmaking.js';
 import protestVideoRoutes from './routes/protestVideos.js';
 import flamingoWallRoutes, { backfillFlamingoWallMedia, startFlamingoWallMaintenance } from './routes/flamingoWall.js';
@@ -341,6 +343,7 @@ bot.action(/^reject_invite:(.+)/, async (ctx) => {
 app.use(helmet({ contentSecurityPolicy }));
 app.use(compression());
 app.use('/api/protest-videos', protestVideoRoutes);
+app.use('/api/flamingo-wall/notifications', wallNotificationRoutes);
 app.use('/api/flamingo-wall', flamingoWallRoutes);
 // Increase JSON body limit to handle large photo uploads
 app.use(express.json({ limit: '10mb' }));
@@ -2313,6 +2316,7 @@ mongoose.connection.once('open', async () => {
     console.error('Requested wall post removal stopped:', error.message);
   }
   startFlamingoWallMaintenance();
+  startWallNotifications(bot.telegram);
   for (const model of models) {
     try {
       await model.syncIndexes();

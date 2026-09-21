@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState, type FormEvent } from 'react';
 import { createPortal } from 'react-dom';
-import { Link } from 'react-router-dom';
+import { Link, useLocation } from 'react-router-dom';
 import {
   ChevronDown,
   Download,
@@ -24,8 +24,18 @@ import './media-social.css';
 import './wall-remake.css';
 import { WallComposerSlot as WallComposer } from './WallTransfers';
 import { startWallDownload } from './wallDownloads';
+import WallAvatar from './WallAvatar';
 import WallMediaRecovery from './WallMediaRecovery';
-import WallVideo, { WallVideoDownload, lockWallVideoScroll, type VideoQuality } from './WallVideo';
+import WallVideo, {
+  WallVideoDownload,
+  lockWallVideoScroll,
+  type VideoQuality
+} from './WallVideo';
+import {
+  wallAccountHeaders,
+  wallAvatarUrl,
+  wallProfileEvents
+} from './wallIdentity';
 import { API_BASE_URL } from '../../utils/api.js';
 import { resolveWallMediaUrl } from './mediaUrl.js';
 import { reconcileWallPosts } from './wallFeed.js';
@@ -143,28 +153,31 @@ function postId() {
   );
 }
 function identityHeaders(extra: Record<string, string> = {}) {
-  const headers = { ...extra, 'X-Wall-Owner-Token': OWNER_TOKEN };
-  const account = localStorage.getItem('accountId');
-  const google = localStorage.getItem('googleId');
-  const initData = (window as any).Telegram?.WebApp?.initData;
-  if (account) headers['X-Tpc-Account-Id'] = account;
-  if (google) headers['X-Google-Id'] = google;
-  if (initData) headers['X-Telegram-Init-Data'] = initData;
-  return headers;
+  return wallAccountHeaders({ ...extra, 'X-Wall-Owner-Token': OWNER_TOKEN });
 }
 const OWNER_TOKEN = localStorage.getItem(OWNER_TOKEN_KEY) || postId();
 localStorage.setItem(OWNER_TOKEN_KEY, OWNER_TOKEN);
-async function downloadAttachment(file: Attachment, postIdValue?: string, choice?: VideoQuality) {
-  const requiresGrant = postIdValue && /^[a-f\d]{24}$/i.test(postIdValue) &&
+async function downloadAttachment(
+  file: Attachment,
+  postIdValue?: string,
+  choice?: VideoQuality
+) {
+  const requiresGrant =
+    postIdValue &&
+    /^[a-f\d]{24}$/i.test(postIdValue) &&
     (file.type.startsWith('video/') || file.premium);
   startWallDownload({
     url: downloadUrl(file),
     name: choice?.name || file.name,
-    ...(requiresGrant ? { grant: {
-      url: `${API_BASE_URL}/api/flamingo-wall/posts/${postIdValue}/download`,
-      headers: identityHeaders(),
-      quality: choice?.quality || 'original'
-    } } : {})
+    ...(requiresGrant
+      ? {
+          grant: {
+            url: `${API_BASE_URL}/api/flamingo-wall/posts/${postIdValue}/download`,
+            headers: identityHeaders(),
+            quality: choice?.quality || 'original'
+          }
+        }
+      : {})
   });
 }
 
@@ -410,7 +423,10 @@ function FullscreenVideoFeed({
               <strong>{file.name}</strong>
             </header>
             <div className="fr-fullscreen-copy">
-              <strong>{post.author}</strong>
+              <div className="fr-fullscreen-author">
+                <WallAvatar name={post.author} src={post.authorAvatar} />
+                <strong>{post.author}</strong>
+              </div>
               {post.text && (
                 <PostBody text={post.text} article={Boolean(post.title)} />
               )}
@@ -481,7 +497,10 @@ function FullscreenVideoFeed({
                   ))}
                 </div>
                 <form onSubmit={(event) => onComment(event, post.id)}>
-                  <span>{identity.author.slice(0, 2).toUpperCase()}</span>
+                  <WallAvatar
+                    name={identity.author}
+                    src={identity.authorAvatar}
+                  />
                   <input
                     autoFocus
                     value={commentDrafts[post.id] || ''}
@@ -524,8 +543,54 @@ export default function MediaWall({
   const [nextCursor, setNextCursor] = useState<string>();
   const [hasMore, setHasMore] = useState(false);
   const [loadingOlder, setLoadingOlder] = useState(false);
+  const wallLocation = useLocation();
+  const [linkedPost, setLinkedPost] = useState<Post>();
+  useEffect(() => {
+    const id = /^#post-([a-f\d]{24})$/i.exec(wallLocation.hash)?.[1];
+    setLinkedPost(undefined);
+    if (!id || profileAccountId) return;
+    const controller = new AbortController();
+    void fetch(`${API_BASE_URL}/api/flamingo-wall/posts/${id}`, {
+      headers: identityHeaders(),
+      signal: controller.signal,
+      cache: 'no-store'
+    })
+      .then(async (response) => {
+        const body = await response.json();
+        if (!response.ok) throw new Error(body.error);
+        return body.post;
+      })
+      .then((post) => {
+        if (controller.signal.aborted) return;
+        const normalized = {
+          ...post,
+          id: post._id || post.id,
+          attachment: post.attachment
+            ? {
+                ...post.attachment,
+                src: resolveWallMediaUrl(
+                  API_BASE_URL,
+                  post.attachment.url,
+                  post.attachment.size
+                )
+              }
+            : undefined
+        };
+        setLinkedPost(normalized);
+        requestAnimationFrame(() =>
+          document
+            .getElementById(`post-${id}`)
+            ?.scrollIntoView({ block: 'start' })
+        );
+      })
+      .catch((error) => {
+        if (!controller.signal.aborted)
+          setNotice(error.message || 'This post is no longer available.');
+      });
+    return () => controller.abort();
+  }, [wallLocation.hash, profileAccountId]);
   const [identity, setIdentity] = useState<WallIdentity>({
-    author: 'Community member',
+    author: 'Guest',
     authorAvatar: ''
   });
   const [notice, setNotice] = useState('');
@@ -566,12 +631,42 @@ export default function MediaWall({
   const latestFeedRequest = useRef(0);
   const loadedOlderPosts = useRef(false);
   useEffect(() => {
-    fetch(`${API_BASE_URL}/api/flamingo-wall/identity`, {
-      headers: identityHeaders()
-    })
-      .then((response) => (response.ok ? response.json() : Promise.reject()))
-      .then(setIdentity)
-      .catch(() => {});
+    let active = true;
+    let controller: AbortController;
+    const refreshIdentity = () => {
+      controller?.abort();
+      controller = new AbortController();
+      const request = controller;
+      fetch(`${API_BASE_URL}/api/flamingo-wall/identity`, {
+        headers: identityHeaders(),
+        cache: 'no-store',
+        signal: request.signal
+      })
+        .then((response) => (response.ok ? response.json() : Promise.reject()))
+        .then((profile) => {
+          if (active && !request.signal.aborted)
+            setIdentity({
+              ...profile,
+              authorAvatar:
+                wallAvatarUrl(profile.authorAvatar, API_BASE_URL) || ''
+            });
+        })
+        .catch(() => {});
+    };
+    refreshIdentity();
+    wallProfileEvents.forEach((event) =>
+      window.addEventListener(event, refreshIdentity)
+    );
+    // Account creation/linking may finish after the wall first mounts.
+    const timer = window.setInterval(refreshIdentity, 15_000);
+    return () => {
+      active = false;
+      window.clearInterval(timer);
+      controller?.abort();
+      wallProfileEvents.forEach((event) =>
+        window.removeEventListener(event, refreshIdentity)
+      );
+    };
   }, []);
   useEffect(() => {
     let active = true;
@@ -891,6 +986,7 @@ export default function MediaWall({
       return setNotice(payload.error || 'Delete failed.');
     }
     setPosts((items) => items.filter((item) => item.id !== post.id));
+    if (linkedPost?.id === post.id) setLinkedPost(undefined);
     setNotice('Post deleted.');
   }
   function openFullscreen(postIdValue: string) {
@@ -899,10 +995,17 @@ export default function MediaWall({
   }
   function requestDownload(post: Post) {
     if (post.attachment?.type.startsWith('video/')) setDownloadPost(post);
-    else if (post.attachment) void downloadAttachment(post.attachment, post.id).catch(error => setNotice(error.message));
+    else if (post.attachment)
+      void downloadAttachment(post.attachment, post.id).catch((error) =>
+        setNotice(error.message)
+      );
   }
 
-  const videoPosts = posts.filter((post) =>
+  const displayPosts =
+    linkedPost && !posts.some((post) => post.id === linkedPost.id)
+      ? [linkedPost, ...posts]
+      : posts;
+  const videoPosts = displayPosts.filter((post) =>
     post.attachment?.type.startsWith('video/')
   );
   return (
@@ -1027,7 +1130,7 @@ export default function MediaWall({
         aria-label="Media Wall posts"
         aria-live="polite"
       >
-        {posts
+        {displayPosts
           .filter(
             (post) =>
               filter === 'all' ||
@@ -1059,17 +1162,15 @@ export default function MediaWall({
                     }
                     aria-label={`View ${post.author} profile`}
                   >
-                    {post.authorAvatar ? (
-                      <img
-                        className="fr-author-avatar"
-                        src={post.authorAvatar}
-                        alt=""
-                      />
-                    ) : (
-                      <span>{post.author.slice(0, 2).toUpperCase()}</span>
-                    )}
+                    <WallAvatar name={post.author} src={post.authorAvatar} />
                     <div>
-                      <strong>{post.author}</strong>
+                      <div className="fr-fullscreen-author">
+                        <WallAvatar
+                          name={post.author}
+                          src={post.authorAvatar}
+                        />
+                        <strong>{post.author}</strong>
+                      </div>
                       <small>
                         <time title={new Date(post.createdAt).toLocaleString()}>
                           {postTime(post.createdAt)}
@@ -1299,7 +1400,10 @@ export default function MediaWall({
                     </div>
                   ))}
                   <form onSubmit={(event) => addComment(event, post.id)}>
-                    <span>{identity.author.slice(0, 2).toUpperCase()}</span>
+                    <WallAvatar
+                      name={identity.author}
+                      src={identity.authorAvatar}
+                    />
                     <input
                       id={`comment-${post.id}`}
                       value={commentDrafts[post.id] || ''}
@@ -1324,7 +1428,10 @@ export default function MediaWall({
                     className="fr-post-download"
                     onClick={() => requestDownload(post)}
                   >
-                    <Download /> {post.attachment.type.startsWith('video/') ? 'Download video' : 'Download original'}
+                    <Download />{' '}
+                    {post.attachment.type.startsWith('video/')
+                      ? 'Download video'
+                      : 'Download original'}
                     {post.attachment.premium === true
                       ? ` · Premium ${post.attachment.priceTpg} TPG`
                       : ' · Free'}{' '}
@@ -1335,15 +1442,23 @@ export default function MediaWall({
             );
           })}
       </div>
-      {downloadPost?.attachment && <WallVideoDownload
-        key={downloadPost.id}
-        file={downloadPost.attachment}
-        postId={downloadPost.id}
-        apiBase={API_BASE_URL}
-        headers={identityHeaders}
-        onClose={() => setDownloadPost(undefined)}
-        onDownload={choice => downloadAttachment(downloadPost.attachment!, downloadPost.id, choice)}
-      />}
+      {downloadPost?.attachment && (
+        <WallVideoDownload
+          key={downloadPost.id}
+          file={downloadPost.attachment}
+          postId={downloadPost.id}
+          apiBase={API_BASE_URL}
+          headers={identityHeaders}
+          onClose={() => setDownloadPost(undefined)}
+          onDownload={(choice) =>
+            downloadAttachment(
+              downloadPost.attachment!,
+              downloadPost.id,
+              choice
+            )
+          }
+        />
+      )}
       {hasMore && (
         <button
           type="button"
