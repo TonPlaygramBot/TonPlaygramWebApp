@@ -12,6 +12,7 @@ import { Readable, Transform } from 'stream';
 import mongoose from 'mongoose';
 import FlamingoPost from '../models/FlamingoPost.js';
 import User from '../models/User.js';
+import WallFollow from '../models/WallFollow.js';
 import { wallUserSelector, resolveWallUser as resolveUser, wallDisplayName as displayName, publicWallAvatar, privateTelegramPhoto, hydrateWallAuthors } from '../utils/wallIdentity.js';
 export { publicWallAvatar } from '../utils/wallIdentity.js';
 import { withProxy } from '../utils/proxyAgent.js';
@@ -662,6 +663,10 @@ router.get('/identity', async (req, res) => {
 router.get('/profiles/:accountId/avatar', async (req, res) => {
   try {
     const user = await User.findOne({ accountId: req.params.accountId }).select('photo').lean();
+    if (/^data:image\/webp;base64,/.test(user?.photo || '')) {
+      res.setHeader('Cache-Control', 'public, max-age=3600');
+      return res.type('image/webp').send(Buffer.from(user.photo.split(',')[1], 'base64'));
+    }
     const match = privateTelegramPhoto(user?.photo);
     if (!match || !process.env.BOT_TOKEN) return res.sendStatus(404);
     const response = await fetch(`https://api.telegram.org/file/bot${process.env.BOT_TOKEN}/${match[1]}`, withProxy({ signal: AbortSignal.timeout(8000), redirect: 'error' }));
@@ -673,27 +678,43 @@ router.get('/profiles/:accountId/avatar', async (req, res) => {
 });
 
 router.get('/profiles/:accountId', async (req, res) => {
-  const accountId = String(req.params.accountId || '').trim();
-  if (!accountId || accountId.length > 120) return res.status(400).json({ error: 'Invalid profile.' });
-  const [user, postCount, mediaCount] = await Promise.all([
-    User.findOne({ accountId }).select('accountId nickname firstName lastName photo bio createdAt').lean(),
-    FlamingoPost.countDocuments({ authorAccountId: accountId }),
-    FlamingoPost.countDocuments({ authorAccountId: accountId, attachment: { $exists: true } })
-  ]);
-  if (!user && !postCount) return res.status(404).json({ error: 'Profile not found.' });
-  res.setHeader('Cache-Control', 'no-store');
-  res.json({
-    profile: {
-      accountId,
-      name: user ? displayName(user) : 'Former member',
-      avatar: publicWallAvatar(user?.photo || '', user?.accountId),
-      bio: user?.bio || '',
-      joinedAt: user?.createdAt,
-      postCount,
-      mediaCount
-    }
-  });
+  try {
+    const accountId = String(req.params.accountId || '').trim();
+    if (!accountId || accountId.length > 120)
+      return res.status(400).json({ error: 'Invalid profile.' });
+    const [user, postCount, mediaCount, followers, following] = await Promise.all(
+      [
+        User.findOne({ accountId })
+          .select('accountId nickname firstName lastName photo bio createdAt')
+          .lean(),
+        FlamingoPost.countDocuments({ authorAccountId: accountId }),
+        FlamingoPost.countDocuments({
+          authorAccountId: accountId,
+          attachment: { $exists: true }
+        }),
+        WallFollow.countDocuments({ authorAccountId: accountId }),
+        WallFollow.countDocuments({ followerAccountId: accountId })
+      ]
+    );
+    if (!user && !postCount)
+      return res.status(404).json({ error: 'Profile not found.' });
+    res.setHeader('Cache-Control', 'no-store');
+    res.json({
+      profile: {
+        accountId,
+        name: user ? displayName(user) : 'Former member',
+        avatar: publicWallAvatar(user?.photo || '', user?.accountId),
+        bio: user?.bio || '',
+        joinedAt: user?.createdAt,
+        postCount,
+        mediaCount,
+        followers,
+        following
+      }
+    });
+  } catch { res.status(503).json({ error: 'This profile is temporarily unavailable.' }); }
 });
+
 
 router.get('/health', async (_req, res) => {
   res.setHeader('Cache-Control', 'no-store');

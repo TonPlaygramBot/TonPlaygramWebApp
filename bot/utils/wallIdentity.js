@@ -1,3 +1,4 @@
+import { createHash } from 'node:crypto';
 import User from '../models/User.js';
 
 // Signed Telegram identity and the active Google login precede a cached guest
@@ -27,13 +28,15 @@ export const privateTelegramPhoto = (value) =>
     String(value || '')
   );
 export const publicWallAvatar = (value, accountId) =>
-  privateTelegramPhoto(value)
-    ? accountId
-      ? `/api/flamingo-wall/profiles/${encodeURIComponent(accountId)}/avatar`
-      : ''
-    : /https?:\/\/api\.telegram\.org\/file\/bot/i.test(String(value || ''))
-      ? ''
-      : value || '';
+  /^data:image\/webp;base64,/.test(String(value || '')) && accountId
+    ? `/api/flamingo-wall/profiles/${encodeURIComponent(accountId)}/avatar?v=${createHash('sha256').update(value).digest('hex').slice(0, 16)}`
+    : privateTelegramPhoto(value)
+      ? accountId
+        ? `/api/flamingo-wall/profiles/${encodeURIComponent(accountId)}/avatar`
+        : ''
+      : /https?:\/\/api\.telegram\.org\/file\/bot/i.test(String(value || ''))
+        ? ''
+        : value || '';
 export async function hydrateWallAuthors(posts) {
   const ids = [
     ...new Set(posts.map((post) => post.authorAccountId).filter(Boolean))

@@ -571,7 +571,7 @@ export function createVideoRenditions({
           enqueue(post, 'probe', { background: true, warm: true });
         return;
       }
-      for (const target of [360, 240, 144, 480, 720, 1080]) {
+      for (const target of [480, 360, 240, 144, 720, 1080]) {
         if (target >= Math.min(info.width, info.height)) continue;
         const quality = `${target}p`;
         if (await file(post, quality)) continue;

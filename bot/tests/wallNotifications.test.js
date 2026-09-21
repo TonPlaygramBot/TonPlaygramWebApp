@@ -1,12 +1,13 @@
 import { test, before, after, mock } from 'node:test';
 import assert from 'node:assert/strict';
 import mongoose from 'mongoose';
-import sift from 'sift';
+import { memoryModel } from './helpers/wallMemoryModel.js';
 import express from 'express';
 import webPush from 'web-push';
 import User from '../models/User.js';
 import FlamingoPost from '../models/FlamingoPost.js';
 import WallSubscription from '../models/WallSubscription.js';
+import WallFollow from '../models/WallFollow.js';
 import router from '../routes/wallNotifications.js';
 import {
   wallUserSelector,
@@ -25,94 +26,6 @@ import {
 let server, base;
 // In-memory repository doubles let delivery/restart/consent behavior run without
 // a MongoDB daemon or any outbound Telegram/browser messages.
-function memoryModel(Model) {
-  const rows = [];
-  const matches = (query) => (sift.default ? sift.default(query) : sift(query));
-  const clone = (value) => (value == null ? value : structuredClone(value));
-  const sorted = (rows, sort = {}) =>
-    [...rows].sort((a, b) => {
-      for (const [field, direction] of Object.entries(sort)) {
-        const result = a[field] > b[field] ? 1 : a[field] < b[field] ? -1 : 0;
-        if (result) return result * direction;
-      }
-      return 0;
-    });
-  const query = (read) => {
-    let sort, selected;
-    const value = () => {
-      const result = clone(read(sort));
-      if (
-        Model.modelName === 'WallPushKey' &&
-        selected !== '+privateKey' &&
-        result
-      )
-        delete result.privateKey;
-      return result;
-    };
-    const cursor = {
-      select: (field) => {
-        selected = field;
-        return cursor;
-      },
-      sort: (order) => {
-        sort = order;
-        return cursor;
-      },
-      lean: async () => value(),
-      then: (resolve, reject) => Promise.resolve(value()).then(resolve, reject)
-    };
-    return cursor;
-  };
-  const update = (row, changes) => {
-    Object.assign(row, clone(changes.$set || {}));
-    for (const [field, amount] of Object.entries(changes.$inc || {}))
-      row[field] = (row[field] || 0) + amount;
-  };
-  const create = async (content) => {
-    const document = new Model(content);
-    await document.validate();
-    const row = document.toObject();
-    // ObjectIds are compared as ordered strings by this repository double.
-    if (typeof row._id !== 'string') row._id = String(row._id);
-    rows.push(row);
-    return clone(row);
-  };
-  mock.method(Model, 'create', create);
-  mock.method(Model, 'findById', (id) =>
-    query(() => rows.find((row) => String(row._id) === String(id)) || null)
-  );
-  mock.method(Model, 'find', (criteria) =>
-    query((order) => sorted(rows.filter(matches(criteria)), order))
-  );
-  mock.method(Model, 'findOne', (criteria) =>
-    query((order) => sorted(rows.filter(matches(criteria)), order)[0] || null)
-  );
-  mock.method(Model, 'exists', async (criteria) =>
-    rows.some(matches(criteria))
-  );
-  mock.method(Model, 'updateMany', async (criteria, changes) =>
-    rows.filter(matches(criteria)).forEach((row) => update(row, changes))
-  );
-  mock.method(Model, 'updateOne', async (criteria, changes, options = {}) => {
-    let row = rows.find(matches(criteria));
-    if (!row && options.upsert) {
-      await create({ ...criteria, ...changes.$setOnInsert, ...changes.$set });
-      return;
-    }
-    if (row) update(row, changes);
-  });
-  mock.method(Model, 'findOneAndUpdate', (criteria, changes, options = {}) =>
-    query(() => {
-      let row = sorted(rows.filter(matches(criteria)), options.sort)[0];
-      if (!row && options.upsert) {
-        row = { ...criteria, ...clone(changes.$setOnInsert) };
-        rows.push(row);
-      }
-      if (row) update(row, changes);
-      return row || null;
-    })
-  );
-}
 const originalToken = process.env.BOT_TOKEN;
 const subscription = {
   endpoint: 'https://fcm.googleapis.com/fcm/send/test-device',
@@ -131,9 +44,13 @@ const call = (path = '', method = 'GET', body, accountId = 'wall-reader') =>
     ...(body ? { body: JSON.stringify(body) } : {})
   });
 before(async () => {
-  [User, FlamingoPost, WallSubscription, mongoose.model('WallPushKey')].forEach(
-    memoryModel
-  );
+  [
+    User,
+    FlamingoPost,
+    WallFollow,
+    WallSubscription,
+    mongoose.model('WallPushKey')
+  ].forEach(memoryModel);
   mongoose.connection._readyState = 1;
   await User.create({
     accountId: 'wall-reader',

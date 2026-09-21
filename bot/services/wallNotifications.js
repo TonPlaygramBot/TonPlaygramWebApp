@@ -3,6 +3,7 @@ import mongoose from 'mongoose';
 import webPush from 'web-push';
 import FlamingoPost from '../models/FlamingoPost.js';
 import WallSubscription from '../models/WallSubscription.js';
+import WallFollow from '../models/WallFollow.js';
 import { hydrateWallAuthors } from '../utils/wallIdentity.js';
 
 const keySchema = new mongoose.Schema({
@@ -85,7 +86,11 @@ export function validateBrowserSubscription(value) {
     return null;
   return { endpoint: url.href, keys: { p256dh, auth } };
 }
-export function notificationPostQuery(subscription, now = new Date()) {
+export function notificationPostQuery(
+  subscription,
+  now = new Date(),
+  following = []
+) {
   const floor = new Date(
     Math.max(
       new Date(subscription.since).getTime(),
@@ -94,6 +99,31 @@ export function notificationPostQuery(subscription, now = new Date()) {
   );
   return {
     authorAccountId: { $ne: subscription.accountId },
+    ...(subscription.scope === 'following'
+      ? {
+          $and: [
+            {
+              $or: following
+                .filter((row) => row.notify)
+                .map((row) => ({
+                  authorAccountId: row.authorAccountId,
+                  createdAt: { $gte: row.notifySince }
+                }))
+                .concat([{ authorAccountId: { $in: [] } }])
+            }
+          ]
+        }
+      : {
+          $and: [
+            {
+              authorAccountId: {
+                $nin: following
+                  .filter((row) => !row.notify)
+                  .map((row) => row.authorAccountId)
+              }
+            }
+          ]
+        }),
     $or: [
       { createdAt: { $gt: floor, $lte: now } },
       ...(subscription.lastPostId && +floor === +new Date(subscription.since)
@@ -202,8 +232,11 @@ export function createWallNotificationWorker(
           since: subscription.since
         };
         try {
+          const following = await WallFollow.find({
+            followerAccountId: subscription.accountId
+          }).lean();
           const post = await FlamingoPost.findOne(
-            notificationPostQuery(subscription, now)
+            notificationPostQuery(subscription, now, following)
           )
             .sort({ createdAt: 1, _id: 1 })
             .lean();

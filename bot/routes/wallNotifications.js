@@ -39,7 +39,7 @@ router.get('/', async (req, res) => {
   try {
     const user = req.wallUser;
     const [telegram, keys] = await Promise.all([
-      WallSubscription.exists({
+      WallSubscription.findOne({
         _id: `telegram:${user.accountId}`,
         enabled: true
       }),
@@ -49,6 +49,7 @@ router.get('/', async (req, res) => {
       accountId: user.accountId,
       telegramAvailable: Boolean(user.telegramId && process.env.BOT_TOKEN),
       telegramEnabled: Boolean(telegram),
+      telegramScope: telegram?.scope || 'all',
       publicKey: keys.publicKey
     });
   } catch {
@@ -62,25 +63,40 @@ router.post('/browser/status', async (req, res) => {
     const endpoint = req.body?.endpoint;
     if (typeof endpoint !== 'string' || endpoint.length > 2048)
       return res.status(400).json({ error: 'Invalid subscription.' });
-    const enabled = await WallSubscription.exists({
+    const enabled = await WallSubscription.findOne({
       _id: browserSubscriptionId(endpoint),
       accountId: req.wallUser.accountId,
       enabled: true
     });
-    res.json({ enabled: Boolean(enabled) });
+    res.json({ enabled: Boolean(enabled), scope: enabled?.scope || 'all' });
   } catch {
     res
       .status(503)
       .json({ error: 'Notification settings are temporarily unavailable.' });
   }
 });
+router.put('/scope', async (req, res) => {
+  const { scope } = req.body || {};
+  if (!['all', 'following'].includes(scope))
+    return res.status(400).json({ error: 'Choose whose posts to receive.' });
+  try {
+    await WallSubscription.updateMany(
+      { accountId: req.wallUser.accountId },
+      { $set: { scope } }
+    );
+    res.json({ scope });
+  } catch {
+    res.status(503).json({ error: 'Could not save notification settings.' });
+  }
+});
 router.put('/:channel', async (req, res) => {
   try {
     const { channel } = req.params;
-    const { enabled } = req.body || {};
+    const { enabled, scope = 'all' } = req.body || {};
     if (
       !['browser', 'telegram'].includes(channel) ||
-      typeof enabled !== 'boolean'
+      typeof enabled !== 'boolean' ||
+      !['all', 'following'].includes(scope)
     )
       return res.status(400).json({ error: 'Choose a notification option.' });
     const user = req.wallUser;
@@ -117,6 +133,7 @@ router.put('/:channel', async (req, res) => {
             accountId: user.accountId,
             channel,
             enabled: true,
+            scope,
             ...details,
             ...(fresh
               ? {

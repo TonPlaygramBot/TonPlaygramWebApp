@@ -102,27 +102,27 @@ describe('wall video resolution controls', () => {
     expect(video.play).toHaveBeenCalledTimes(1);
     expect(document.querySelector('[role="menu"]')).toBeNull();
   });
-  it('selects ready 360p before loading original bytes and respects a later manual selection', async () => {
-    const low = { ...ready, quality: '360p', label: '360p', url: '/360p.mp4' };
+  it('selects ready 480p before loading original bytes and respects a later manual selection', async () => {
+    const low = { ...ready, quality: '480p', label: '480p', url: '/480p.mp4' };
     vi.mocked(fetch).mockResolvedValue({
       ok: true,
       json: async () => ({ qualities: [original, ready, low] })
     } as Response);
     await act(async () => root.render(<WallVideo {...props} />));
     const video = container.querySelector('video')!;
-    expect(video.getAttribute('src')).toBe('https://api.example.test/360p.mp4');
+    expect(video.getAttribute('src')).toBe('https://api.example.test/480p.mp4');
     await click('[aria-label="Video options"]');
     expect(
       container.querySelector('[aria-checked="true"]')?.textContent
-    ).toContain('360p');
+    ).toContain('480p');
     await click('[role="menuitemradio"]');
     expect(video.getAttribute('src')).toBe('/original.mp4');
     await click('[aria-label="Video options"]');
     expect(video.getAttribute('src')).toBe('/original.mp4');
   });
-  it('requests the default 360p copy and switches when it finishes', async () => {
+  it('requests the default 480p copy and switches when it finishes', async () => {
     vi.useFakeTimers();
-    let ready360 = false;
+    let ready480 = false;
     vi.mocked(fetch).mockImplementation(
       async (_url, init) =>
         ({
@@ -132,17 +132,17 @@ describe('wall video resolution controls', () => {
               original,
               {
                 ...ready,
-                quality: '360p',
-                label: '360p',
-                url: '/360p.mp4',
-                status: ready360
+                quality: '480p',
+                label: '480p',
+                url: '/480p.mp4',
+                status: ready480
                   ? 'ready'
                   : init?.method === 'POST'
                     ? 'processing'
                     : 'available'
               }
             ],
-            processing: !ready360
+            processing: !ready480
           })
         }) as Response
     );
@@ -153,13 +153,13 @@ describe('wall video resolution controls', () => {
         .mock.calls.some(
           ([, init]) =>
             init?.method === 'POST' &&
-            init.body === JSON.stringify({ quality: '360p' })
+            init.body === JSON.stringify({ quality: '480p' })
         )
     ).toBe(true);
-    ready360 = true;
+    ready480 = true;
     await act(async () => vi.advanceTimersByTimeAsync(2000));
     expect(container.querySelector('video')?.getAttribute('src')).toBe(
-      'https://api.example.test/360p.mp4'
+      'https://api.example.test/480p.mp4'
     );
   });
   it('leaves the original playable if the quality API fails', async () => {

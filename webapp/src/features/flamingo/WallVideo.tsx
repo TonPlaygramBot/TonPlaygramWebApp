@@ -277,7 +277,7 @@ export default function WallVideo(
   useEffect(() => {
     if (!qualities.loaded || manualChoice.current || automaticDone) return;
     const preferred = qualities.qualities.find(
-      (item) => item.quality === '360p'
+      (item) => item.quality === '480p'
     );
     if (preferred?.status === 'ready') {
       choose(preferred, true);
@@ -285,8 +285,8 @@ export default function WallVideo(
       setAutomaticDone(true);
       return;
     }
-    // Original files at 360p or below need no conversion. While a new upload
-    // is preparing, keep it playable and switch once its 360p copy is ready.
+    // Original files at 480p or below need no conversion. While a new upload
+    // is preparing, keep it playable and switch once its 480p copy is ready.
     setInitialResolved(true);
     if (
       qualities.error ||
@@ -296,7 +296,7 @@ export default function WallVideo(
       setAutomaticDone(true);
     } else if (preferred?.status === 'available' && !requestedDefault.current) {
       requestedDefault.current = true;
-      void qualities.prepare('360p').catch(() => setAutomaticDone(true));
+      void qualities.prepare('480p').catch(() => setAutomaticDone(true));
     }
   }, [
     qualities.loaded,

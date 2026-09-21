@@ -62,10 +62,10 @@ describe('complete wall rendering', () => {
                 url: '/original.mp4'
               },
               {
-                quality: '360p',
+                quality: '480p',
                 status: 'ready',
-                label: '360p',
-                url: '/360p.mp4'
+                label: '480p',
+                url: '/480p.mp4'
               }
             ]
           };
@@ -104,7 +104,7 @@ describe('complete wall rendering', () => {
       )
     );
   };
-  it('renders the real author photo/name, composer identity, default 360p, and notification control together', async () => {
+  it('renders the real author photo/name, composer identity, default 480p, and notification control together', async () => {
     await render();
     expect(container.querySelector('.fr-author-link strong')?.textContent).toBe(
       'Alice Reader'
@@ -113,7 +113,7 @@ describe('complete wall rendering', () => {
       container.querySelector('.fr-author-avatar')?.getAttribute('src')
     ).toContain('/api/flamingo-wall/profiles/alice/avatar');
     expect(container.querySelector('video')?.getAttribute('src')).toContain(
-      '/360p.mp4'
+      '/480p.mp4'
     );
     expect(container.textContent).not.toContain('Community member');
     expect(container.textContent).toContain('Share something, Signed-in');
