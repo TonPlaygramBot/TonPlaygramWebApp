@@ -451,13 +451,7 @@ export function WallVideoDownload(
   const closeRef = useRef(onClose);
   closeRef.current = onClose;
   const choice = qualities.qualities.find((item) => item.quality === selected);
-  const price = file.premium
-    ? file.priceTpg || 0
-    : file.duration && file.duration >= 20
-      ? file.duration > 40
-        ? 300
-        : 200
-      : 0;
+  const price = file.premium === true ? file.priceTpg || 0 : 0;
   useEffect(() => {
     const previous = document.activeElement as HTMLElement | null;
     const release = lockWallVideoScroll();

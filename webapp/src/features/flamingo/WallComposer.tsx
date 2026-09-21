@@ -346,7 +346,7 @@ export default function WallComposer({
             title: kind === 'article' ? title.trim() : undefined,
             duration: item.duration,
             premium,
-            priceTpg: Number(price) || 0,
+            priceTpg: premium ? Number(price) || 0 : 0,
             signal: abort.signal,
             onProgress: (bytes: number, phase: string) =>
               setProgress({
@@ -696,6 +696,9 @@ export default function WallComposer({
           ) && (
             <details className="wall-premium">
               <summary>Download settings</summary>
+              <p className="wall-compose-help">
+                Downloads are free at any video length unless you select Premium.
+              </p>
               <label>
                 <input
                   type="checkbox"

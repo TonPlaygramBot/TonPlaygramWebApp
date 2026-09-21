@@ -116,6 +116,11 @@ describe('video resolution playback and download routes', () => {
   }, 15000);
   beforeEach(() => {
     mockCharge.mockClear();
+    Object.assign(mockPost.attachment, {
+      duration: 2,
+      premium: true,
+      priceTpg: 25
+    });
     mockUsers = Object.fromEntries(
       ['viewer', 'viewer-two'].map((id) => [
         id,
@@ -219,6 +224,55 @@ describe('video resolution playback and download routes', () => {
     expect(Buffer.from(await media.arrayBuffer())).toEqual(
       await readFile(path.join(directory, 'source.mp4'))
     );
+  });
+
+  test.each([19, 20, 40, 41, 3600])(
+    'downloads a non-premium %s-second video for free at every ready resolution',
+    async (duration) => {
+      Object.assign(mockPost.attachment, {
+        duration,
+        premium: false,
+        priceTpg: 300
+      });
+      for (const quality of ['original', '240p']) {
+        const response = await download(quality);
+        expect(response.status).toBe(200);
+        const grant = await response.json();
+        expect(grant).toMatchObject({ price: 0, quality });
+        const media = await fetch(`${base}${grant.downloadUrl}`, {
+          headers: { Range: 'bytes=0-15' }
+        });
+        expect(media.status).toBe(206);
+        expect((await media.arrayBuffer()).byteLength).toBe(16);
+      }
+      expect(mockCharge).not.toHaveBeenCalled();
+      expect(mockUsers.viewer.balance).toBe(1000);
+      expect(mockUsers.viewer.transactions).toHaveLength(0);
+    }
+  );
+
+  test('keeps legacy videos without a premium selection free even with stale account details', async () => {
+    delete mockPost.attachment.premium;
+    mockPost.attachment.duration = 3600;
+    mockPost.attachment.priceTpg = 300;
+    const response = await download('original', 'missing-account');
+    expect(response.status).toBe(200);
+    expect(await response.json()).toMatchObject({ price: 0 });
+    expect(mockCharge).not.toHaveBeenCalled();
+  });
+
+  test('allows direct free video downloads while protecting premium downloads', async () => {
+    const url = `${base}${mockPost.attachment.url}?download=1`;
+    expect((await fetch(url)).status).toBe(403);
+    mockPost.attachment.premium = false;
+    mockPost.attachment.duration = 3600;
+    const response = await fetch(url, { headers: { Range: 'bytes=0-15' } });
+    expect(response.status).toBe(206);
+    expect(response.headers.get('content-disposition')).toContain(
+      'attachment;'
+    );
+    expect((await response.arrayBuffer()).byteLength).toBe(16);
+    expect(mockCharge).not.toHaveBeenCalled();
   });
 
   test('renews grants for the same request without charging twice, including concurrent retries', async () => {

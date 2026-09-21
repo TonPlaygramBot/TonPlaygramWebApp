@@ -233,10 +233,10 @@ describe('direct object media uploads over HTTP', () => {
       size: file.size,
       objectBucket: 'private-wall'
     });
-    expect(mockDirectRequests.map((request) => request.size)).toEqual([
-      5 * 1024 ** 2,
-      8
-    ]);
+    // Multipart requests run concurrently; the smaller part may arrive first.
+    expect(
+      mockDirectRequests.map((request) => request.size).sort((a, b) => a - b)
+    ).toEqual([8, 5 * 1024 ** 2]);
     for (const request of mockDirectRequests) {
       expect(request.headers['x-wall-owner-token']).toBeUndefined();
       expect(request.headers.authorization).toBeUndefined();
@@ -290,9 +290,15 @@ describe('direct object media uploads over HTTP', () => {
 
   test('download grants and author deletion resolve the exact private object', async () => {
     const post = (await publish(makeFile(5))).post;
+    const storedPost = mockPosts.find((item) => item._id === post._id);
+    Object.assign(storedPost.attachment, { premium: true, priceTpg: 25 });
     expect(
       (await fetch(mockBase + post.attachment.url + '?download=1')).status
     ).toBe(403);
+    storedPost.attachment.premium = false;
+    expect(
+      (await fetch(mockBase + post.attachment.url + '?download=1')).status
+    ).toBe(200);
     const grant = await (
       await fetch(`${base}/posts/${post._id}/download`, { method: 'POST' })
     ).json();
@@ -389,10 +395,8 @@ describe('direct object media uploads over HTTP', () => {
       file.size
     );
     expect((await fetch(mockBase + post.attachment.url)).status).toBe(200);
-    expect(mockDirectRequests.map((request) => request.size)).toEqual([
-      5,
-      5 * 1024 ** 2,
-      8
-    ]);
+    expect(
+      mockDirectRequests.map((request) => request.size).sort((a, b) => a - b)
+    ).toEqual([5, 8, 5 * 1024 ** 2]);
   });
 });

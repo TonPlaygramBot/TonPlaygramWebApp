@@ -134,11 +134,55 @@ describe('wall composer picker files', () => {
       expect(request.file).toBe(file);
       expect(request.type).toBe('video/mp4');
       expect(request.duration).toBe(42);
+      expect(request.premium).toBe(false);
+      expect(request.priceTpg).toBe(0);
       expect(request.file.type).toBe(type);
       expect(wallRequest).not.toHaveBeenCalled();
       expect(onPublished).toHaveBeenCalledWith({ _id: 'uploaded-post' });
     }
   );
+
+  it('publishes for free after Premium is deselected and resets the next post to free', async () => {
+    await clickButton('Video');
+    await chooseFile(new File(['video'], 'free.mp4', { type: 'video/mp4' }));
+    const checkbox = container.querySelector<HTMLInputElement>(
+      'input[type="checkbox"]'
+    )!;
+    expect(checkbox.checked).toBe(false);
+    await act(async () => checkbox.click());
+    await fill('input[type="number"]', '25');
+    await act(async () => checkbox.click());
+    await publish();
+    expect(uploadWallFile).toHaveBeenLastCalledWith(
+      expect.objectContaining({ premium: false, priceTpg: 0 })
+    );
+
+    await clickButton('Video');
+    await chooseFile(new File(['video'], 'premium.mp4', { type: 'video/mp4' }));
+    await act(async () =>
+      container
+        .querySelector<HTMLInputElement>('input[type="checkbox"]')!
+        .click()
+    );
+    await fill('input[type="number"]', '25');
+    await publish();
+    expect(uploadWallFile).toHaveBeenLastCalledWith(
+      expect.objectContaining({ premium: true, priceTpg: 25 })
+    );
+
+    await clickButton('Video');
+    await chooseFile(
+      new File(['video'], 'next-free.mp4', { type: 'video/mp4' })
+    );
+    expect(
+      container.querySelector<HTMLInputElement>('input[type="checkbox"]')!
+        .checked
+    ).toBe(false);
+    await publish();
+    expect(uploadWallFile).toHaveBeenLastCalledWith(
+      expect.objectContaining({ premium: false, priceTpg: 0 })
+    );
+  });
 
   it('keeps the same picker file and upload ID when publication is retried', async () => {
     const file = new File(['phone video bytes'], 'retry.mp4', { type: '' });
