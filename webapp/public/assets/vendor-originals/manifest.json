@@ -224,6 +224,22 @@
       "sha256": "7b72da7ebab775b4afd7c5de68e5e1b4c824c012ee423f558bbad88af69e1c40",
       "required": true,
       "provenance": "assets/vendor-originals/README.md"
+    },
+    {
+      "sourceUrl": "https://cdn.polyhaven.com/asset_img/thumbs/old_wood_floor.png?width=256&height=256",
+      "url": "/assets/vendor-originals/old_wood_floor-256.png",
+      "size": 106288,
+      "sha256": "6fa9d96cf8bcb032536a3438898bee5195fd93ccf293f572bfb576ad35bc0654",
+      "required": true,
+      "provenance": "assets/vendor-originals/README.md"
+    },
+    {
+      "sourceUrl": "https://images.unsplash.com/photo-1549187774-b4e9b0445b41?auto=format&fit=crop&w=1600&q=80",
+      "url": "/assets/vendor-originals/domino-room-background.jpg",
+      "size": 286221,
+      "sha256": "a8c4f267291c290ef6310ef0e8d3e1b5a8e2e3c585e0f54633212e00d0a102a2",
+      "required": true,
+      "provenance": "assets/vendor-originals/README.md"
     }
   ]
 }
