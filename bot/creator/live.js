@@ -53,13 +53,19 @@ async function prepareDestination(connection, options, checkpoint) {
   }
   throw problem(400, 'This account does not support automatic live streaming.');
 }
-async function endDestination(connection, remote) {
+export async function endDestination(connection, remote) {
   const token = await accessToken(connection);
   if (connection.platform === 'youtube' && remote.broadcast) {
-    try { await request(`https://www.googleapis.com/youtube/v3/liveBroadcasts/transition?part=id&broadcastStatus=complete&id=${encodeURIComponent(remote.broadcast)}`, json('POST', token, {})); }
-    catch {
+    const result = await request(`https://www.googleapis.com/youtube/v3/liveBroadcasts?part=status&id=${encodeURIComponent(remote.broadcast)}`, json('GET', token));
+    const lifecycle = result.items?.[0]?.status?.lifeCycleStatus;
+    if (['live', 'testing'].includes(lifecycle)) {
+      await request(`https://www.googleapis.com/youtube/v3/liveBroadcasts/transition?part=id&broadcastStatus=complete&id=${encodeURIComponent(remote.broadcast)}`, json('POST', token, {}));
+    } else if (['created', 'ready'].includes(lifecycle)) {
+      // Only discard a broadcast that never went live. Preserve completed archives.
       const result = await fetch(`https://www.googleapis.com/youtube/v3/liveBroadcasts?id=${encodeURIComponent(remote.broadcast)}`, { ...json('DELETE', token), signal: AbortSignal.timeout(15000) });
       if (!result.ok && result.status !== 404) throw problem(502, 'End this broadcast in YouTube Studio.');
+    } else if (lifecycle && lifecycle !== 'complete' && lifecycle !== 'revoked') {
+      throw problem(502, 'YouTube is changing broadcast state. Studio will check again shortly.');
     }
     if (remote.stream) await fetch(`https://www.googleapis.com/youtube/v3/liveStreams?id=${encodeURIComponent(remote.stream)}`, { ...json('DELETE', token), signal: AbortSignal.timeout(15000) });
   }

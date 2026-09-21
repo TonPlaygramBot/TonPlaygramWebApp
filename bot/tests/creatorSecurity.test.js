@@ -2,7 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { randomBytes } from 'node:crypto';
 import { seal, unseal, configured, session, issueSession, sign, csrf } from '../creator/security.js';
-import { validIngest, encoderArgs } from '../creator/live.js';
+import { validIngest, encoderArgs, endDestination } from '../creator/live.js';
 import { verifyMediaLink } from '../creator/media.js';
 import { summarize } from '../creator/queue.js';
 import { validateContent } from '../creator/publishers.js';
@@ -47,4 +47,18 @@ test('platform validation catches incompatible media and missing audience consen
   const info = { privacy_level_options: ['SELF_ONLY'], max_video_post_duration_sec: 60 };
   assert.throws(() => validateContent({caption:'Hi',settings:{tiktok:{}}}, {platform:'tiktok',status:'connected'}, {mime:'video/mp4',duration:10},info));
   assert.equal(summarize([{status:'published'},{status:'attention'}]),'partial');
+});
+test('ending a YouTube broadcast preserves completed archives and never deletes after a failed transition', async () => {
+  const original = globalThis.fetch;
+  const account = { _id: 'test-youtube', owner: 'google:one', status: 'connected', platform: 'youtube', credentials: seal({ access_token: 'test' }, 'google:one') };
+  const calls = [];
+  try {
+    globalThis.fetch = async (url, options) => { calls.push(options.method); return new Response(JSON.stringify({ items: [{ status: { lifeCycleStatus: 'complete' } }] })); };
+    await endDestination(account, { broadcast: 'completed-video' });
+    assert.deepEqual(calls, ['GET']);
+    calls.length = 0;
+    globalThis.fetch = async (url, options) => { calls.push(options.method); if (options.method === 'POST') return new Response('{}', { status: 503 }); return new Response(JSON.stringify({ items: [{ status: { lifeCycleStatus: 'live' } }] })); };
+    await assert.rejects(() => endDestination(account, { broadcast: 'live-video' }));
+    assert.deepEqual(calls, ['GET', 'POST']);
+  } finally { globalThis.fetch = original; }
 });
