@@ -38,8 +38,8 @@ test('signed media cannot be extended, redirected or reused for a different file
 test('live ingest allowlist excludes local and unrelated hosts', () => {
   for (const url of ['rtmp://127.0.0.1/app/a','rtmp://youtube.com.attacker.test/a','file:///etc/passwd']) assert.equal(validIngest(url, 'youtube'), false);
   assert.equal(validIngest('rtmps://a.rtmps.youtube.com/live2/a', 'youtube'), true);
-  assert.equal(validIngest('rtmp://sfo.contribute.live-video.net/app/a', 'twitch'), true);
-  assert.ok(encoderArgs('rtmp://live.twitch.tv/app/a', true, '720').includes('scale=720:1280:force_original_aspect_ratio=decrease,pad=720:1280:(ow-iw)/2:(oh-ih)/2,setsar=1'));
+  assert.equal(validIngest('rtmp://sfo.contribute.live-video.net/app/a', 'twitch'), false);
+  assert.ok(encoderArgs('rtmps://a.rtmps.youtube.com/live2/a', true, '720').includes('scale=720:1280:force_original_aspect_ratio=decrease,pad=720:1280:(ow-iw)/2:(oh-ih)/2,setsar=1'));
 });
 test('platform validation catches incompatible media and missing audience consent', () => {
   assert.throws(() => validateContent({caption:'hello'}, {platform:'x', status:'connected'}, {mime:'video/mp4'}));

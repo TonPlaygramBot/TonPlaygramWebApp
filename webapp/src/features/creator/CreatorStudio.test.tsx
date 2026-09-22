@@ -3,8 +3,8 @@ import { createRoot, Root } from 'react-dom/client';
 import { MemoryRouter } from 'react-router-dom';
 import { afterEach, beforeEach, expect, it, vi } from 'vitest';
 import CreatorStudio from './CreatorStudio';
-import { creatorApi } from './api';
-vi.mock('./api', () => ({ creatorApi: vi.fn(), uploadMedia: vi.fn() }));
+import { creatorApi, openCreatorAuthorization } from './api';
+vi.mock('./api', () => ({ creatorApi: vi.fn(), uploadMedia: vi.fn(), openCreatorAuthorization: vi.fn() }));
 vi.mock('../../utils/api.js', () => ({ API_BASE_URL: 'https://studio.example' }));
 vi.mock('socket.io-client', () => ({ io: vi.fn() }));
 globalThis.IS_REACT_ACT_ENVIRONMENT = true;
@@ -65,7 +65,7 @@ it('keeps an existing broadcast visible across tabs and protects its sign-in ses
   expect(node.querySelector('.cs-broadcast-banner')?.textContent).toContain('broadcast session is open');
   await click('Accounts');
   expect(button('Sign out').disabled).toBe(true);
-  expect(button('Connect / reconnect').disabled).toBe(true);
+  expect(button('Reconnect Facebook').disabled).toBe(true);
   expect(api.mock.calls.some(([path]) => path.includes('/stop'))).toBe(false);
   await click('Return to live studio');
   expect(node.querySelector('.cs-broadcast-banner')).toBe(null);
@@ -81,7 +81,36 @@ it('explains missing Google setup instead of offering a disabled sign-in button'
     return implementation(path, method, body);
   });
   await act(async () => root.render(<MemoryRouter><CreatorStudio key="missing-google-config" /></MemoryRouter>));
+  await click('Use an existing Google or Telegram Studio');
   expect(node.querySelector('.cs-signin [role="status"]')?.textContent).toContain('enabled by the app owner');
   expect(node.querySelector('.cs-signin')?.textContent).not.toContain('setup pending');
   expect(button('Continue with Google')).toBeUndefined();
+});
+
+it('guests connect through official authorization without signing into Google first', async () => {
+  const implementation = api.getMockImplementation()!;
+  api.mockImplementation(async (path, method, body) => {
+    if (path === '/session') return { signedIn: false };
+    if (path === '/accounts/facebook/connect') return { url: 'https://www.facebook.com/v25.0/dialog/oauth?state=bound' };
+    return implementation(path, method, body);
+  });
+  await act(async () => root.render(<MemoryRouter><CreatorStudio key="guest-connect" /></MemoryRouter>));
+  expect(button('Connect Facebook').disabled).toBe(false);
+  expect(node.querySelector('input[type="password"]')).toBeNull();
+  await click('Connect Facebook');
+  expect(api).toHaveBeenCalledWith('/accounts/facebook/connect', 'POST', {});
+  expect(openCreatorAuthorization).toHaveBeenCalledWith('https://www.facebook.com/v25.0/dialog/oauth?state=bound');
+  expect(api.mock.calls.some(([p]) => p === '/login/google' || p === '/session/google')).toBe(false);
+});
+it('missing platform configuration cannot simulate a successful connection', async () => {
+  const implementation = api.getMockImplementation()!;
+  api.mockImplementation(async (path, method, body) => {
+    if (path === '/catalog') return { platforms: [{ ...facebook, available: false }], googleLogin: false };
+    if (path === '/session') return { signedIn: false };
+    return implementation(path, method, body);
+  });
+  await act(async () => root.render(<MemoryRouter><CreatorStudio key="unavailable-provider" /></MemoryRouter>));
+  expect(button('Connect Facebook').disabled).toBe(true);
+  expect(node.textContent).toContain('TonPlayGram needs to enable this connection');
+  expect(openCreatorAuthorization).not.toHaveBeenCalled();
 });

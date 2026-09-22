@@ -2614,3 +2614,15 @@ img[alt="TPG"] {
 }
 
 @media(max-width:420px){.home-protest-card__support{max-width:185px}.home-protest-card__support b{font-size:7px}.home-protest-card__thumbnail{height:164px}.home-protest-card__body{margin-top:18px}}
+
+/* Creator Studio is the next Home card immediately below the social wall. */
+.home-creator-card{display:block;padding:20px;border:1px solid #3a706e;border-radius:20px;background:#14272d;color:#f4fffe;text-align:left}
+.home-creator-card,.home-creator-card *{-webkit-text-stroke-width:0;text-shadow:none}
+.home-creator-card__heading{display:flex;align-items:center;justify-content:space-between;gap:12px;color:#8fe8df;font-size:11px;font-weight:700;letter-spacing:.1em}
+.home-creator-card__heading>span,.home-creator-card>strong{display:flex;align-items:center;gap:8px}
+.home-creator-card svg{width:18px;height:18px;flex-shrink:0}
+.home-creator-card h2{margin:14px 0 8px;color:#f4fffe;font-size:23px;line-height:1.25;letter-spacing:-.035em}
+.home-creator-card p{margin:0;color:#c2d8da;font-size:14px;line-height:1.6}
+.home-creator-card__platforms{display:flex;flex-wrap:wrap;gap:8px 14px;margin:14px 0;color:#c2d8da;font-size:12px}
+.home-creator-card>strong{min-height:44px;color:#8fe8df;font-size:14px}
+.home-creator-card:focus-visible{outline:2px solid #8fe8df;outline-offset:3px}

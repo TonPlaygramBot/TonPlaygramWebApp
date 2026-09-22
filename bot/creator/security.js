@@ -47,7 +47,7 @@ export function session(req) {
     const [data, signature] = String(cookies(req).tpg_creator || '').split('.');
     if (!data || !matches(sign(data), signature)) return null;
     const user = JSON.parse(Buffer.from(data, 'base64url'));
-    return user.exp > Date.now() && /^(telegram|google):[a-zA-Z0-9_-]+$/.test(user.owner) ? user : null;
+    return user.exp > Date.now() && /^(telegram|google|facebook|instagram|tiktok):[a-zA-Z0-9_-]+$/.test(user.owner) ? user : null;
   } catch { return null; }
 }
 export function requireSession(req, _res, next) {

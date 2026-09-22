@@ -1,4 +1,5 @@
 import { API_BASE_URL } from '../../utils/api.js';
+export const openCreatorAuthorization = (url: string) => window.location.assign(url);
 export const base = `${API_BASE_URL}/api/creator`;
 export async function creatorApi(path: string, method = 'GET', body?: unknown, extra: Record<string, string> = {}) {
   const raw = body instanceof Blob;

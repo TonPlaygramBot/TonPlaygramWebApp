@@ -52,12 +52,16 @@ router.post('/session/logout', (req, res) => { setCookie(res, 'tpg_creator', '',
 router.post('/login/google', database, wrap(async (req, res) => res.json({ url: await beginOAuth(req, res, 'google') })));
 router.post('/login/google/identity', database, wrap(async (req, res) => res.json(await beginGoogleSignIn(req, res))));
 router.post('/session/google', database, wrap(async (req, res) => res.json(await finishGoogleSignIn(req, res))));
-router.use(requireSession, database);
-router.get('/accounts', wrap(async (req, res) => res.json({ accounts: (await Connection.find({ owner: req.creator.owner, status: { $ne: 'disconnected' } }).sort({ createdAt: 1 })).map(safeConnection) })));
-router.post('/accounts/:platform/connect', wrap(async (req, res) => {
-  if (!PROVIDERS[req.params.platform]) throw problem(400, 'Unsupported platform.');
+// Guests can authorize a platform directly. The verified callback creates the
+// Studio session; existing signed-in users link into their current workspace.
+router.post('/accounts/:platform/connect', database, wrap(async (req, res) => {
+  if (!Object.hasOwn(PROVIDERS, req.params.platform)) throw problem(400, 'Unsupported platform.');
+  req.creator = session(req);
+  if (req.creator && currentLive(req.creator.owner)) throw problem(409, 'End your broadcast before connecting another account.');
   res.json({ url: await beginOAuth(req, res, req.params.platform) });
 }));
+router.use(requireSession, database);
+router.get('/accounts', wrap(async (req, res) => res.json({ accounts: (await Connection.find({ owner: req.creator.owner, platform: { $in: Object.keys(PROVIDERS) }, status: { $ne: 'disconnected' } }).sort({ createdAt: 1 })).map(safeConnection) })));
 router.delete('/accounts/:id', wrap(async (req, res) => {
   const key = id(req.params.id), owner = req.creator.owner;
   if (currentLive(owner)) throw problem(409, 'End your broadcast before disconnecting accounts.');

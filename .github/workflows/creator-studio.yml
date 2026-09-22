@@ -6,6 +6,8 @@ on:
       - 'bot/tests/creator*'
       - 'webapp/src/features/creator/**'
       - 'webapp/src/App.jsx'
+      - 'webapp/src/pages/Home.jsx'
+      - 'webapp/src/index.css'
       - 'webapp/src/components/Layout.jsx'
       - 'webapp/scripts/*creator-auth*'
       - 'webapp/scripts/write-build-metadata.mjs'
@@ -36,7 +38,7 @@ jobs:
             webapp/package-lock.json
       - run: npm ci --prefix bot --ignore-scripts --no-audit --no-fund
       - run: sudo apt-get update && sudo apt-get install -y ffmpeg
-      - run: node --test bot/tests/creatorSecurity.test.js bot/tests/creatorMedia.test.js bot/tests/creatorStudio.test.js bot/tests/creatorGoogle.test.js bot/tests/creatorKey.test.js
+      - run: node --test bot/tests/creatorSecurity.test.js bot/tests/creatorMedia.test.js bot/tests/creatorStudio.test.js bot/tests/creatorGoogle.test.js bot/tests/creatorKey.test.js bot/tests/creatorOAuth.test.js
         env:
           CREATOR_TEST_MONGO_URI: mongodb://127.0.0.1:27017/creator_studio_ci
       - run: npm ci --prefix webapp --ignore-scripts --no-audit --no-fund
