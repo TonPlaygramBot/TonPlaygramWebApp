@@ -5,14 +5,37 @@ export const PROVIDERS = {
   instagram: { name: 'Instagram', color: '#fa6aab', post: ['image/jpeg', 'video/mp4'], live: false, limit: 2200, note: 'Business or Creator account. Photos and Reels; live is not available here.', env: 'INSTAGRAM' },
   tiktok: { name: 'TikTok', color: '#54e5df', post: ['video/mp4'], live: false, limit: 2200, note: 'Original videos. Choose your audience and interactions before posting.', env: 'TIKTOK' }
 };
-export function credentials(platform) {
+const sharedCredentialKeys = {
+  GOOGLE: ['GOOGLE_CLIENT_ID', 'GOOGLE_CLIENT_SECRET'], META: ['FACEBOOK_APP_ID', 'FACEBOOK_APP_SECRET'],
+  INSTAGRAM: ['INSTAGRAM_APP_ID', 'INSTAGRAM_APP_SECRET'], TIKTOK: ['TIKTOK_CLIENT_KEY', 'TIKTOK_CLIENT_SECRET']
+};
+function credentialSelection(platform) {
   const p = platform === 'google' ? { env: 'GOOGLE' } : Object.hasOwn(PROVIDERS, platform) ? PROVIDERS[platform] : null;
   if (!p) return null;
-  const id = process.env[`CREATOR_${p.env}_CLIENT_ID`], secret = process.env[`CREATOR_${p.env}_CLIENT_SECRET`];
+  const dedicatedKeys = [`CREATOR_${p.env}_CLIENT_ID`, `CREATOR_${p.env}_CLIENT_SECRET`];
+  const sharedKeys = sharedCredentialKeys[p.env];
+  const dedicated = dedicatedKeys.some(key => Boolean(process.env[key]));
+  return { keys: dedicated ? dedicatedKeys : sharedKeys, dedicatedKeys, sharedKeys, source: dedicated ? 'dedicated' : 'shared' };
+}
+export function credentials(platform) {
+  const selection = credentialSelection(platform);
+  if (!selection) return null;
   // Use a complete app credential pair. Never mix secrets from different apps.
-  if (id || secret) return { id, secret };
-  const shared = { GOOGLE: ['GOOGLE_CLIENT_ID', 'GOOGLE_CLIENT_SECRET'], META: ['FACEBOOK_APP_ID', 'FACEBOOK_APP_SECRET'], INSTAGRAM: ['INSTAGRAM_APP_ID', 'INSTAGRAM_APP_SECRET'], TIKTOK: ['TIKTOK_CLIENT_KEY', 'TIKTOK_CLIENT_SECRET'] }[p.env];
-  return { id: process.env[shared[0]], secret: process.env[shared[1]] };
+  return { id: process.env[selection.keys[0]], secret: process.env[selection.keys[1]] };
+}
+// Operator diagnostics contain key names and presence checks only, never values.
+export function credentialConfiguration(platform) {
+  const selection = credentialSelection(platform);
+  if (!selection) return null;
+  const present = selection.keys.map(key => Boolean(process.env[key]));
+  return {
+    source: selection.source,
+    clientIdConfigured: present[0], clientSecretConfigured: present[1],
+    activeEnvironmentVariables: selection.keys,
+    missingEnvironmentVariables: selection.keys.filter((_key, index) => !present[index]),
+    dedicatedEnvironmentVariables: selection.dedicatedKeys,
+    incompleteOverrideBlocksSharedPair: selection.source === 'dedicated' && present.some(value => !value) && selection.sharedKeys.every(key => Boolean(process.env[key]))
+  };
 }
 export function connectionStatus(platform) {
   const c = credentials(platform);

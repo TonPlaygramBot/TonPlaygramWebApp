@@ -26,7 +26,9 @@ beforeEach(t => {
   t.mock.method(globalThis, 'fetch', async (url, options) => {
     const u = new URL(url); calls.push({ url: u, options });
     let body;
-    if (u.pathname.endsWith('/token') || u.pathname.endsWith('/token/') || u.pathname.endsWith('/access_token')) body = { access_token: 'verified-access', refresh_token: 'verified-refresh', expires_in: 3600 };
+    if (u.hostname === 'oauth2.googleapis.com' && u.pathname === '/token') body = { access_token: 'verified-access', refresh_token: 'verified-refresh', expires_in: 3600, token_type: 'Bearer', scope: 'openid https://www.googleapis.com/auth/userinfo.profile https://www.googleapis.com/auth/youtube.force-ssl https://www.googleapis.com/auth/youtube.upload' };
+    else if (u.hostname === 'open.tiktokapis.com' && u.pathname === '/v2/oauth/token/') body = { access_token: 'verified-access', refresh_token: 'verified-refresh', expires_in: 86400, refresh_expires_in: 31536000, open_id: 'tt-account-one', token_type: 'Bearer', scope: 'user.info.basic,video.publish' };
+    else if (u.pathname.endsWith('/access_token')) body = { access_token: 'verified-access', expires_in: 3600 };
     else if (u.hostname === 'openidconnect.googleapis.com') body = { sub: 'google-subject', name: 'Google Creator' };
     else if (u.pathname === '/youtube/v3/channels') body = { items: [{ id: 'channel-one', snippet: { title: 'My Channel' } }] };
     else if (u.hostname === 'graph.facebook.com' && u.pathname.endsWith('/me/accounts')) body = { data: [{ id: 'page-one', name: 'My Page', access_token: 'page-access', tasks: ['CREATE_CONTENT'] }] };
@@ -72,6 +74,54 @@ test('linking another platform keeps the current Studio owner and never switches
   const { req } = await start('instagram', 'google:existing-owner');
   await finishOAuth(req, res, 'instagram');
   assert.equal(connections[0].owner, 'google:existing-owner'); assert.equal(cookies.tpg_creator, undefined);
+});
+for (const platform of ['youtube', 'tiktok']) test(`${platform}: a partial grant cannot create an account or replace an existing connection, even with forged callback scopes`, async t => {
+  const existing = { owner: 'google:existing-owner', platform, credentials: 'existing-encrypted-access', status: 'connected' };
+  connections.push(existing);
+  t.mock.method(Connection, 'findOne', () => assert.fail('A partial grant must be rejected before reading an existing connection'));
+  t.mock.method(Connection, 'findOneAndUpdate', () => assert.fail('A partial grant must not overwrite an existing connection'));
+  t.mock.method(globalThis, 'fetch', async url => {
+    assert.ok(new URL(url).pathname.startsWith(platform === 'youtube' ? '/token' : '/v2/oauth/token/'));
+    return new Response(JSON.stringify({ access_token: 'partial-access', scope: platform === 'youtube' ? 'openid https://www.googleapis.com/auth/youtube.upload' : 'user.info.basic' }));
+  });
+  for (const owner of [undefined, existing.owner]) {
+    const { req } = await start(platform, owner);
+    req.query.scope = 'openid https://www.googleapis.com/auth/youtube.force-ssl';
+    req.query.scopes = 'user.info.basic,video.publish';
+    await assert.rejects(() => finishOAuth(req, res, platform), error => error.status === 403 && error.publicMessage.includes('permissions needed for publishing'));
+    assert.deepEqual(connections, [existing]); assert.equal(cookies.tpg_creator, undefined);
+    assert.equal(states.length, 0);
+  }
+});
+for (const platform of ['youtube', 'tiktok']) test(`${platform}: missing, malformed and lookalike token scopes fail closed`, async t => {
+  const valid = platform === 'youtube' ? 'https://www.googleapis.com/auth/youtube.force-ssl' : 'user.info.basic,video.publish';
+  for (const scope of [undefined, null, '', [valid], `${valid}.other`, platform === 'youtube' ? valid.toUpperCase() : 'video.publish']) {
+    t.mock.method(globalThis, 'fetch', async () => new Response(JSON.stringify({ access_token: 'access-without-required-grant', scope })));
+    const { req } = await start(platform);
+    await assert.rejects(() => finishOAuth(req, res, platform), { status: 403 });
+    assert.equal(connections.length, 0); assert.equal(cookies.tpg_creator, undefined);
+  }
+});
+test('either documented YouTube upload-and-live scope is sufficient without requiring redundant upload permission', async t => {
+  const providerFetch = globalThis.fetch;
+  for (const scope of ['https://www.googleapis.com/auth/youtube.force-ssl', 'https://www.googleapis.com/auth/youtube']) {
+    t.mock.method(globalThis, 'fetch', async (url, options) => new URL(url).hostname === 'oauth2.googleapis.com'
+      ? new Response(JSON.stringify({ access_token: 'verified-access', expires_in: 3600, scope }))
+      : providerFetch(url, options));
+    const { req } = await start('youtube', 'google:existing-owner');
+    await finishOAuth(req, res, 'youtube');
+  }
+  assert.equal(connections.length, 2); assert.equal(cookies.tpg_creator, undefined);
+});
+test('basic Google sign-in does not require publishing permissions or save a publishing account', async t => {
+  const providerFetch = globalThis.fetch;
+  t.mock.method(globalThis, 'fetch', async (url, options) => new URL(url).hostname === 'oauth2.googleapis.com'
+    ? new Response(JSON.stringify({ access_token: 'verified-access', expires_in: 3600, scope: 'openid https://www.googleapis.com/auth/userinfo.profile' }))
+    : providerFetch(url, options));
+  const { req } = await start('google');
+  await finishOAuth(req, res, 'google');
+  assert.equal(session({ headers: { cookie: `tpg_creator=${cookies.tpg_creator}` } }).owner, 'google:google-subject');
+  assert.equal(connections.length, 0);
 });
 test('wrong browser, changed session, expired state and cancellation cannot create an account', async () => {
   let flow = await start('facebook');

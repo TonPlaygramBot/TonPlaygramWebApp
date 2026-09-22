@@ -3,6 +3,8 @@ on:
   pull_request:
     paths:
       - 'bot/creator/**'
+      - 'bot/server.js'
+      - 'bot/scripts/checkCreatorConnections.js'
       - 'shared/socialApp.js'
       - 'bot/tests/creator*'
       - 'webapp/src/features/creator/**'
@@ -39,7 +41,7 @@ jobs:
             webapp/package-lock.json
       - run: npm ci --prefix bot --ignore-scripts --no-audit --no-fund
       - run: sudo apt-get update && sudo apt-get install -y ffmpeg
-      - run: node --test bot/tests/creatorSecurity.test.js bot/tests/creatorMedia.test.js bot/tests/creatorStudio.test.js bot/tests/creatorGoogle.test.js bot/tests/creatorKey.test.js bot/tests/creatorOAuth.test.js bot/tests/creatorSocialReturn.test.js
+      - run: node --test bot/tests/creatorSecurity.test.js bot/tests/creatorMedia.test.js bot/tests/creatorStudio.test.js bot/tests/creatorGoogle.test.js bot/tests/creatorKey.test.js bot/tests/creatorOAuth.test.js bot/tests/creatorSocialReturn.test.js bot/tests/creatorConfiguration.test.js
         env:
           CREATOR_TEST_MONGO_URI: mongodb://127.0.0.1:27017/creator_studio_ci
       - run: npm ci --prefix webapp --ignore-scripts --no-audit --no-fund
