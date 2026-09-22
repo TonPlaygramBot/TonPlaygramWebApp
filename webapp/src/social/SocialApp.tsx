@@ -13,7 +13,6 @@ import './social-app.css';
 const CommunityWallApp = lazy(() => import('../features/flamingo/CommunityWallApp'));
 const SocialProfilePage = lazy(() => import('../features/flamingo/SocialProfilePage'));
 const Messages = lazy(() => import('../pages/Social.jsx'));
-const CreatorStudio = lazy(() => import('../features/creator/CreatorStudio'));
 const LoginOptions = lazy(() => import('../components/LoginOptions.jsx'));
 const LegalPage = lazy(() => import('../pages/LegalPage.jsx'));
 
@@ -24,11 +23,7 @@ function MyProfile() {
 
 export function SocialShell() {
   const location = useLocation();
-  const studioActive = location.pathname === '/creator-studio';
-  const [studioVisited, setStudioVisited] = useState(studioActive);
-  const [broadcastState, setBroadcastState] = useState<'idle' | 'preparing' | 'active'>('idle');
   const [online, setOnline] = useState(() => navigator.onLine);
-  useEffect(() => { if (studioActive) setStudioVisited(true); }, [studioActive]);
   useEffect(() => {
     const refresh = () => setOnline(navigator.onLine);
     window.addEventListener('online', refresh); window.addEventListener('offline', refresh);
@@ -40,20 +35,16 @@ export function SocialShell() {
       <div><Link to="/install" aria-label="Install TonPlayGram Social"><Download size={19} /><span>Get app</span></Link><a href="/" aria-label="Open main TonPlayGram app"><ArrowUpRight size={21} /></a></div>
     </header>
     {!online && <p className="social-offline" role="status">You’re offline. Saved wall uploads will resume when you reconnect.</p>}
-    {!studioActive && broadcastState !== 'idle' && <div className="social-broadcast" role="status"><span>{broadcastState === 'active' ? 'Your live broadcast is still running.' : 'Your broadcast is being prepared.'}</span><Link to="/creator-studio">Return to Studio</Link></div>}
     <div className="social-app-content">
       <Suspense fallback={<p className="social-loading" role="status">Opening Social…</p>}>
-        {/* Studio stays mounted after its first visit so switching to chats or
-            the wall doesn't discard its composer, upload, or live session. */}
-        {(studioActive || studioVisited) && <div hidden={!studioActive}><CreatorStudio active={studioActive} onBroadcastStateChange={setBroadcastState} /></div>}
         <Routes>
           <Route path="/" element={<Navigate replace to="/wall" />} />
           <Route path="/wall" element={<CommunityWallApp />} />
           <Route path="/wall/profile/:accountId" element={<SocialProfilePage />} />
-          <Route path="/hub" element={<div className="social-hub"><Link to="/creator-studio" className="social-studio-card"><span><small>CREATE. CONNECT. GO LIVE.</small><strong>Creator Studio</strong><span>One post. All your audiences.</span></span><ArrowUpRight /></Link><Messages /></div>} />
+          <Route path="/hub" element={<div className="social-hub"><Messages /></div>} />
           <Route path="/social" element={<Navigate replace to="/hub" />} />
           <Route path="/messages" element={<Navigate replace to="/hub" />} />
-          <Route path="/creator-studio" element={null} />
+          <Route path="/creator-studio" element={<Navigate replace to="/wall" />} />
           <Route path="/me" element={<MyProfile />} />
           <Route path="/install" element={<SocialInstallPage />} />
           <Route path="/privacy" element={<LegalPage type="privacy" />} />

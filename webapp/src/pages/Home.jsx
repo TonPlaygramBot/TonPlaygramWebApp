@@ -4,7 +4,6 @@ import ProjectAchievementsCard from '../components/ProjectAchievementsCard.jsx';
 import PwaDownloadFrame from '../components/PwaDownloadFrame.jsx';
 import ThemePicker from '../components/ThemePicker.jsx';
 import HomeIntroduction from '../components/HomeIntroduction.jsx';
-import CreatorHomeCard from '../features/creator/CreatorHomeCard';
 import PlatformHelpAgentCard from '../components/PlatformHelpAgentCard.jsx';
 
 import { FaArrowUp, FaArrowDown, FaWallet } from 'react-icons/fa';
@@ -14,6 +13,7 @@ import {
   BrainCircuit,
   ArrowUpRight,
   CheckCircle2,
+  Download,
   Heart,
   Megaphone,
   Radio,
@@ -231,9 +231,9 @@ export default function Home() {
         <div className="home-protest-card__buttons">
           <Link to="/wall#wall-composer"><Megaphone /> Publish now</Link>
           <Link to="/wall">Open wall <ArrowUpRight /></Link>
+          <Link to="/social-app/install" className="home-protest-card__download"><Download /> Download TonPlayGram Social</Link>
         </div>
       </article>
-      <CreatorHomeCard />
       <HomeIntroduction />
       <div className="flex flex-col items-center">
         {photoUrl && (
@@ -519,7 +519,7 @@ export default function Home() {
         </a>
       </div>
       <a href="/social-app/install" className="flex items-center justify-between gap-3 rounded-2xl border border-teal-300/30 bg-slate-900 p-5 text-left">
-        <div><h2 className="text-lg font-bold text-teal-200">Get TonPlayGram Social</h2><p className="mt-1 text-sm text-slate-300">The wall, social hub and Creator Studio. Install your social app.</p></div>
+        <div><h2 className="text-lg font-bold text-teal-200">Get TonPlayGram Social</h2><p className="mt-1 text-sm text-slate-300">The social wall, friends and chats in one app.</p></div>
         <span className="text-teal-200" aria-hidden="true">↗</span>
       </a>
       <PlatformHelpAgentCard />

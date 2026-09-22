@@ -11,7 +11,6 @@ vi.mock('../features/flamingo/wallFollowing', () => ({ useWallFollowing: () => (
 vi.mock('../features/flamingo/CommunityWallApp', () => ({ default: () => <p>Shared wall</p> }));
 vi.mock('../features/flamingo/SocialProfilePage', () => ({ default: () => <p>Shared profile</p> }));
 vi.mock('../pages/Social.jsx', () => ({ default: () => <p>Shared chats and friends</p> }));
-vi.mock('../features/creator/CreatorStudio', () => ({ default: ({ active, onBroadcastStateChange }: any) => <div data-studio-active={active}><label>Draft caption<input defaultValue="" /></label><button onClick={() => onBroadcastStateChange('active')}>Start test broadcast</button></div> }));
 let root: Root, container: HTMLDivElement;
 beforeEach(() => { container = document.createElement('div'); document.body.append(container); root = createRoot(container); });
 afterEach(async () => { await act(async () => root.unmount()); container.remove(); });
@@ -28,22 +27,15 @@ it('keeps wall, hub, profiles and installation links in the Social app', async (
   await act(async () => container.querySelector<HTMLAnchorElement>('nav a[href="/social-app/hub"]')!.click());
   await act(async () => { await new Promise(resolve => setTimeout(resolve, 20)); });
   expect(container.textContent).toContain('Shared chats and friends');
-  expect(container.querySelector('a[href="/social-app/creator-studio"]')).not.toBeNull();
+  expect(container.querySelector('a[href="/social-app/creator-studio"]')).toBeNull();
 });
 it('opens the existing user profile from its own app route', async () => {
   await render('/social-app/me');
   expect(container.textContent).toContain('Shared profile');
 });
-it('keeps the Studio composer mounted when navigating to the wall and back', async () => {
+it('redirects the removed Creator Studio route to the social wall', async () => {
   await render('/social-app/creator-studio');
-  const input = container.querySelector<HTMLInputElement>('input')!;
-  input.value = 'My pending post';
-  await act(async () => container.querySelector<HTMLButtonElement>('[data-studio-active] button')!.click());
-  await act(async () => container.querySelector<HTMLAnchorElement>('nav a[href="/social-app/wall"]')!.click());
-  expect(input.isConnected).toBe(true);
-  expect(container.querySelector('.social-broadcast')?.textContent).toContain('Your live broadcast is still running.');
-  expect(input.closest('[hidden]')).not.toBeNull();
-  expect(container.querySelector('[data-studio-active="false"]')).not.toBeNull();
+  expect(container.textContent).toContain('Shared wall');
 });
 it('offers installation with clear browser steps and a main-platform account link', async () => {
   await render('/social-app/install');

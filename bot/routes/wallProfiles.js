@@ -50,6 +50,28 @@ export async function prepareWallAvatar(photo) {
     .toBuffer();
   return `data:image/webp;base64,${resized.toString('base64')}`;
 }
+function socialIdentity(user) {
+  return user?.telegramId ?? user?.accountId;
+}
+async function syncWallFriendship(follower, author, following) {
+  const followerId = socialIdentity(follower);
+  const authorId = socialIdentity(author);
+  if (following) {
+    await Promise.all([
+      User.updateOne({ accountId: follower.accountId }, { $addToSet: { friends: authorId } }),
+      User.updateOne({ accountId: author.accountId }, { $addToSet: { friends: followerId } })
+    ]);
+    return;
+  }
+  const reverseFollow = await WallFollow.exists({
+    followerAccountId: author.accountId,
+    authorAccountId: follower.accountId
+  });
+  if (!reverseFollow) await Promise.all([
+    User.updateOne({ accountId: follower.accountId }, { $pull: { friends: authorId } }),
+    User.updateOne({ accountId: author.accountId }, { $pull: { friends: followerId } })
+  ]);
+}
 router.patch('/profile', express.json({ limit: '3mb' }), async (req, res) => {
   try {
     const name = typeof req.body?.name === 'string' ? req.body.name.trim() : '';
@@ -116,7 +138,10 @@ router.put(
         return res.status(400).json({ error: 'Choose a follow option.' });
       if (authorAccountId === req.wallUser.accountId)
         return res.status(400).json({ error: 'This is your own profile.' });
-      if (!(await User.exists({ accountId: authorAccountId })))
+      const author = await User.findOne({ accountId: authorAccountId })
+        .select('accountId telegramId')
+        .lean();
+      if (!author)
         return res
           .status(404)
           .json({ error: 'This profile is no longer available.' });
@@ -139,7 +164,8 @@ router.put(
           { upsert: true }
         );
       }
-      res.json({ authorAccountId, following, notify: following && notify });
+      await syncWallFriendship(req.wallUser, author, following);
+      res.json({ authorAccountId, following, notify: following && notify, friends: following });
     } catch {
       res.status(503).json({
         error: 'Your follow choice could not be saved. Please retry.'

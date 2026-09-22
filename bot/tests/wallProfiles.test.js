@@ -44,7 +44,7 @@ test('requires a signed-in account and rejects self/missing profiles', async () 
     404
   );
 });
-test('follows with notifications off by default, saves every-post choice, and unfollows only the current user', async () => {
+test('following uses the same friendship in Social Hub and unfollowing removes it', async () => {
   assert.equal(
     (await call('/following/creator', 'PUT', { following: true })).status,
     200
@@ -53,6 +53,8 @@ test('follows with notifications off by default, saves every-post choice, and un
   assert.equal(saved.accountId, 'reader');
   assert.equal(saved.following.length, 1);
   assert.equal(saved.following[0].notify, false);
+  assert.deepEqual((await User.findOne({ accountId: 'reader' })).friends, ['creator']);
+  assert.deepEqual((await User.findOne({ accountId: 'creator' })).friends, ['reader']);
   await call('/following/creator', 'PUT', { following: true, notify: true });
   const follow = await WallFollow.findOne({
     followerAccountId: 'reader',
@@ -62,6 +64,16 @@ test('follows with notifications off by default, saves every-post choice, and un
   assert.ok(follow.notifySince);
   await call('/following/creator', 'PUT', { following: false });
   assert.deepEqual((await (await call('/following')).json()).following, []);
+  assert.deepEqual((await User.findOne({ accountId: 'reader' })).friends, []);
+  assert.deepEqual((await User.findOne({ accountId: 'creator' })).friends, []);
+});
+test('a reverse follow keeps the shared friendship when only one person unfollows', async () => {
+  await call('/following/creator', 'PUT', { following: true }, 'reader');
+  await call('/following/reader', 'PUT', { following: true }, 'creator');
+  await call('/following/creator', 'PUT', { following: false }, 'reader');
+  assert.deepEqual((await User.findOne({ accountId: 'reader' })).friends, ['creator']);
+  assert.deepEqual((await User.findOne({ accountId: 'creator' })).friends, ['reader']);
+  await call('/following/reader', 'PUT', { following: false }, 'creator');
 });
 test('changes only the current account name and validates names before writing', async () => {
   const response = await call('/profile', 'PATCH', {
