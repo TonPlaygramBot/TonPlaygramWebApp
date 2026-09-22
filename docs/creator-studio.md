@@ -11,11 +11,11 @@ A user-facing page at `/creator-studio`, linked from Home. It is independent of 
 - Shared composer, editable platform captions, preview, validated JPG/PNG/H.264 MP4 upload, a reusable media library, server-saved/editable drafts, local-time scheduling (stored as UTC), per-destination progress and explicit retry after checking the platform.
 - Resumable 1 MB upload parts, 250 MB per-file limit and 1 GB per-owner allowance. Media stays on the existing persistent disk. Provider retrieval uses signed links that expire after 24 hours and are created when a queued job runs, not when it is scheduled. No arbitrary user-provided fetch URLs.
 - Durable MongoDB publication records, atomic delivery claims, per-platform dispatch (up to three simultaneously per post), asynchronous media processing checks. Crashed or ambiguous writes require review instead of automatic duplicate publishing. Draft submission is idempotent. Schedules survive a server restart.
-- Portrait-first live studio, 720p/1080p, front/back camera, microphone/video toggles, screen sharing where the browser supports it, wake lock where supported, and per-destination live confirmation. Browser capture is sent once; FFmpeg relays to up to three platforms. Keys are obtained via APIs. Bounded queues terminate a stalled uplink instead of growing memory without limit. Ending, navigation, disconnect and inactivity clean up processes and remote broadcasts. Interrupted sessions retain cleanup records.
+- Portrait-first live studio, 720p/1080p, front/back camera, microphone/video toggles, screen sharing where the browser supports it, wake lock where supported, and per-destination live confirmation. Browser capture is sent once; FFmpeg relays to up to three platforms. Keys are obtained via APIs. Bounded queues terminate a stalled uplink instead of growing memory without limit. Ending, navigation, disconnect and inactivity clean up processes and remote broadcasts. Interrupted sessions retain cleanup records. A persistent session banner lets users return to live controls from other Studio tabs; sign-out and new OAuth redirects are disabled while a broadcast is open. Leaving a private preview releases the camera/microphone, including delayed permission results.
 
 ## Platform coverage and research
 
-Research checked 21 September 2026. API permission approval is separate from implementing an adapter. The links below are official platform documentation or Meta's own Postman workspace.
+Research checked 21 September 2026; TikTok posting and Twitch broadcast requirements rechecked 22 September 2026. API permission approval is separate from implementing an adapter. The links below are official platform documentation or Meta's own Postman workspace.
 
 | Platform | Posting adapter | Live adapter | Requirements / limits |
 |---|---|---|---|
@@ -79,3 +79,7 @@ The integration suite uses a disposable MongoMemoryServer by default. CI supplie
 The supplied preview is an interface demonstration with explicit demo data and no external publishing. It must never be used as evidence of a real connection or successful broadcast.
 
 External OAuth consent, public posting, quota behavior and end-to-end broadcasts require approved provider applications and test accounts. They cannot be verified without those credentials. No public post, real broadcast, Render deployment, or merge to main is performed by this PR. Guests, unified live chat, engagement analytics, recording/replay storage, carousel/Story editing, LinkedIn and X media uploads are not included in this version.
+
+## Review refresh — 22 September 2026
+
+Merged current main through `167317a` into the existing feature branch, preserving the newer social-wall follows, profiles, notifications and queued uploads. Nine backend/media tests and eight UI tests pass. The new UI checks cover broadcast visibility across tabs, protected sign-out, private camera cleanup, delayed camera permission and stale session responses. Focused TypeScript compilation also passes. The database integration suite and approved-provider end-to-end tests remain separate launch gates; no workflow run has been reported by GitHub.

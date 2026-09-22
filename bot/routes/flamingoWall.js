@@ -12,6 +12,10 @@ import { Readable, Transform } from 'stream';
 import mongoose from 'mongoose';
 import FlamingoPost from '../models/FlamingoPost.js';
 import User from '../models/User.js';
+import WallFollow from '../models/WallFollow.js';
+import { wallUserSelector, resolveWallUser as resolveUser, wallDisplayName as displayName, publicWallAvatar, privateTelegramPhoto, hydrateWallAuthors } from '../utils/wallIdentity.js';
+export { publicWallAvatar } from '../utils/wallIdentity.js';
+import { withProxy } from '../utils/proxyAgent.js';
 import { optionalAuthenticate } from '../middleware/auth.js';
 import { mediaType } from '../utils/mediaType.js';
 import { setFlamingoMediaResponseHeaders } from '../utils/flamingoMediaResponse.js';
@@ -76,10 +80,9 @@ router.use(optionalAuthenticate);
 const safeName = (name) => path.basename(String(name || 'file'))
   .normalize('NFKD').replace(/[^a-zA-Z0-9._-]+/g, '-').slice(-160) || 'file';
 
-export const publicWallAvatar = value => /https?:\/\/api\.telegram\.org\/file\/bot[^/]+\//i.test(String(value || '')) ? '' : value;
 const normalizedPost = post => post ? {
   ...post,
-  ...(post.authorAvatar ? { authorAvatar: publicWallAvatar(post.authorAvatar) } : {}),
+  ...(post.authorAvatar ? { authorAvatar: publicWallAvatar(post.authorAvatar, post.authorAccountId) } : {}),
   ...(post.attachment ? { attachment: { ...post.attachment, type: mediaType(post.attachment.type, post.attachment.name) } } : {})
 } : post;
 
@@ -94,16 +97,7 @@ const sessionPaths = (id) => ({
 });
 const tokenHash = token => createHash('sha256').update(String(token || '')).digest('hex');
 const ownerToken = req => req.get('x-wall-owner-token') || '';
-const userSelector = req => req.auth?.accountId
-  ? { accountId: req.auth.accountId }
-  : req.auth?.telegramId
-    ? { telegramId: req.auth.telegramId }
-    : req.auth?.googleId ? { googleId: req.auth.googleId } : null;
-const displayName = user => user?.nickname || [user?.firstName, user?.lastName].filter(Boolean).join(' ') || 'Community member';
-const resolveUser = req => {
-  const selector = userSelector(req);
-  return selector ? User.findOne(selector) : null;
-};
+const userSelector = req => wallUserSelector(req.auth);
 const withUploadLock = (id, task) => {
   const previous = uploadLocks.get(id) || Promise.resolve();
   const current = previous.catch(() => {}).then(task);
@@ -657,32 +651,70 @@ router.post('/uploads/:id/parts/:number/ack', express.json({ limit: '2kb' }), as
 });
 
 router.get('/identity', async (req, res) => {
-  const user = await resolveUser(req);
-  res.json({ author: displayName(user), authorAvatar: publicWallAvatar(user?.photo || ''), accountId: user?.accountId || '' });
+  try {
+    const user = await resolveUser(req);
+    res.setHeader('Cache-Control', 'no-store');
+    res.json({ author: displayName(user), authorAvatar: publicWallAvatar(user?.photo || '', user?.accountId), accountId: user?.accountId || '' });
+  } catch { res.status(503).json({ error: 'Your profile is temporarily unavailable.' }); }
+});
+
+// Telegram file links contain the bot token. Serve only a stored user's photo,
+// never an arbitrary URL, and never return the upstream location to clients.
+router.get('/profiles/:accountId/avatar', async (req, res) => {
+  try {
+    const user = await User.findOne({ accountId: req.params.accountId }).select('photo').lean();
+    if (/^data:image\/webp;base64,/.test(user?.photo || '')) {
+      res.setHeader('Cache-Control', 'public, max-age=3600');
+      return res.type('image/webp').send(Buffer.from(user.photo.split(',')[1], 'base64'));
+    }
+    const match = privateTelegramPhoto(user?.photo);
+    if (!match || !process.env.BOT_TOKEN) return res.sendStatus(404);
+    const response = await fetch(`https://api.telegram.org/file/bot${process.env.BOT_TOKEN}/${match[1]}`, withProxy({ signal: AbortSignal.timeout(8000), redirect: 'error' }));
+    if (!response.ok || !response.headers.get('content-type')?.startsWith('image/')) return res.sendStatus(404);
+    res.setHeader('Content-Type', response.headers.get('content-type'));
+    res.setHeader('Cache-Control', 'public, max-age=3600');
+    await pipeline(Readable.fromWeb(response.body), res);
+  } catch { if (!res.headersSent) res.sendStatus(503); else res.destroy(); }
 });
 
 router.get('/profiles/:accountId', async (req, res) => {
-  const accountId = String(req.params.accountId || '').trim();
-  if (!accountId || accountId.length > 120) return res.status(400).json({ error: 'Invalid profile.' });
-  const [user, postCount, mediaCount] = await Promise.all([
-    User.findOne({ accountId }).select('accountId nickname firstName lastName photo bio createdAt').lean(),
-    FlamingoPost.countDocuments({ authorAccountId: accountId }),
-    FlamingoPost.countDocuments({ authorAccountId: accountId, attachment: { $exists: true } })
-  ]);
-  if (!user && !postCount) return res.status(404).json({ error: 'Profile not found.' });
-  res.setHeader('Cache-Control', 'no-store');
-  res.json({
-    profile: {
-      accountId,
-      name: user ? displayName(user) : 'Community member',
-      avatar: publicWallAvatar(user?.photo || ''),
-      bio: user?.bio || '',
-      joinedAt: user?.createdAt,
-      postCount,
-      mediaCount
-    }
-  });
+  try {
+    const accountId = String(req.params.accountId || '').trim();
+    if (!accountId || accountId.length > 120)
+      return res.status(400).json({ error: 'Invalid profile.' });
+    const [user, postCount, mediaCount, followers, following] = await Promise.all(
+      [
+        User.findOne({ accountId })
+          .select('accountId nickname firstName lastName photo bio createdAt')
+          .lean(),
+        FlamingoPost.countDocuments({ authorAccountId: accountId }),
+        FlamingoPost.countDocuments({
+          authorAccountId: accountId,
+          attachment: { $exists: true }
+        }),
+        WallFollow.countDocuments({ authorAccountId: accountId }),
+        WallFollow.countDocuments({ followerAccountId: accountId })
+      ]
+    );
+    if (!user && !postCount)
+      return res.status(404).json({ error: 'Profile not found.' });
+    res.setHeader('Cache-Control', 'no-store');
+    res.json({
+      profile: {
+        accountId,
+        name: user ? displayName(user) : 'Former member',
+        avatar: publicWallAvatar(user?.photo || '', user?.accountId),
+        bio: user?.bio || '',
+        joinedAt: user?.createdAt,
+        postCount,
+        mediaCount,
+        followers,
+        following
+      }
+    });
+  } catch { res.status(503).json({ error: 'This profile is temporarily unavailable.' }); }
 });
+
 
 router.get('/health', async (_req, res) => {
   res.setHeader('Cache-Control', 'no-store');
@@ -746,7 +778,7 @@ router.post('/uploads/:id/complete', async (req, res) => {
         });
         const user = await resolveUser(req);
         const content = { clientId: id, text: metadata.text, title: metadata.title, author: displayName(user),
-          authorAvatar: publicWallAvatar(user?.photo || ''), authorAccountId: user?.accountId || '',
+          authorAvatar: publicWallAvatar(user?.photo || '', user?.accountId), authorAccountId: user?.accountId || '',
           ownerTokenHash: session.ownerTokenHash, attachment: objectAttachment(session) };
         let created;
         try {
@@ -797,7 +829,7 @@ router.post('/uploads/:id/complete', async (req, res) => {
       const databaseFile = await persistDatabaseMedia(diskPath, storedName, { contentType: metadata.type, originalName: metadata.name, size: metadata.size });
       const user = await resolveUser(req);
       const attachment = { name: metadata.name, size: metadata.size, type: metadata.type, duration: metadata.duration, premium: metadata.premium && metadata.priceTpg > 0, priceTpg: metadata.premium ? metadata.priceTpg : 0, url: `/api/flamingo-wall/files/${storedName}`, ...(databaseFile?._id ? { databaseFileId: databaseFile._id } : {}) };
-      const created = await FlamingoPost.create({ text: metadata.text, title: metadata.title, author: displayName(user), authorAvatar: publicWallAvatar(user?.photo || ''), authorAccountId: user?.accountId || '', attachment, ownerTokenHash: metadata.ownerTokenHash });
+      const created = await FlamingoPost.create({ text: metadata.text, title: metadata.title, author: displayName(user), authorAvatar: publicWallAvatar(user?.photo || '', user?.accountId), authorAccountId: user?.accountId || '', attachment, ownerTokenHash: metadata.ownerTokenHash });
       metadata.postId = String(created._id); metadata.completedAt = Date.now();
       await writeUploadMetadata(paths, metadata);
       publishWallEvent('created', String(created._id));
@@ -843,13 +875,23 @@ router.get('/posts', async (req, res) => {
   // The wall is a shared live feed. Never let a browser/proxy reuse an old
   // response while another community member is publishing.
   res.setHeader('Cache-Control', 'no-store');
-  res.json({ posts: serializeWallPosts(posts, token), hasMore, nextCursor: hasMore ? encodeFlamingoWallCursor(posts.at(-1)) : null });
+  res.json({ posts: serializeWallPosts(await hydrateWallAuthors(posts), token), hasMore, nextCursor: hasMore ? encodeFlamingoWallCursor(posts.at(-1)) : null });
 });
 
 router.get('/latest-post', async (req, res) => {
   const post = await FlamingoPost.findOne().sort({ createdAt: -1 }).lean();
   res.setHeader('Cache-Control', 'no-store');
   res.json({ post: latestWallPost(post) });
+});
+
+router.get('/posts/:id', async (req, res) => {
+  try {
+    if (!mongoose.isValidObjectId(req.params.id)) return res.status(400).json({ error: 'Invalid post.' });
+    const post = await FlamingoPost.findById(req.params.id).select('+ownerTokenHash').lean();
+    if (!post) return res.status(404).json({ error: 'This post is no longer available.' });
+    res.setHeader('Cache-Control', 'no-store');
+    res.json({ post: serializeWallPosts(await hydrateWallAuthors([post]), ownerToken(req))[0] });
+  } catch { res.status(503).json({ error: 'The post could not be loaded. Please retry.' }); }
 });
 
 router.get('/posts/:id/media-status', async (req, res) => {
@@ -879,7 +921,7 @@ router.post('/posts/content', express.json({ limit: '64kb' }), async (req, res) 
     const content = {
       text: text.slice(0, title ? 8000 : 1200), title: title ? title.slice(0, 120) : undefined,
       poll: question && options.length >= 2 ? { question: question.slice(0, 300), options: options.map(option => option.slice(0, 160)), votes: options.map(() => 0) } : undefined,
-      author: displayName(user).slice(0, 120), authorAvatar: publicWallAvatar(user?.photo || ''), authorAccountId: user?.accountId || '',
+      author: displayName(user).slice(0, 120), authorAvatar: publicWallAvatar(user?.photo || '', user?.accountId), authorAccountId: user?.accountId || '',
       ownerTokenHash: tokenHash(ownerToken(req)), ...(clientId ? { clientId } : {})
     };
     const query = { clientId, ownerTokenHash: content.ownerTokenHash };
@@ -949,7 +991,7 @@ router.post('/posts', async (req, res) => {
         });
       }
       const attachment = upload ? { name: upload.originalName, size: upload.size, type: upload.type, url: `/api/flamingo-wall/files/${upload.storedName}`, ...(upload.databaseFile?._id ? { databaseFileId: upload.databaseFile._id } : {}) } : undefined;
-      const post = await FlamingoPost.create({ text: text.slice(0, 1200), author, authorAvatar: publicWallAvatar(user?.photo || ''), authorAccountId: user?.accountId || '', attachment, ownerTokenHash: tokenHash(ownerToken(req)) });
+      const post = await FlamingoPost.create({ text: text.slice(0, 1200), author, authorAvatar: publicWallAvatar(user?.photo || '', user?.accountId), authorAccountId: user?.accountId || '', attachment, ownerTokenHash: tokenHash(ownerToken(req)) });
       completed = true;
       publishWallEvent('created', String(post._id));
       res.status(201).json({ post: serializeWallPosts([post.toObject?.() || post], ownerToken(req))[0] });

@@ -58,3 +58,17 @@ it('API failures are visible and never become publishing success', async () => {
   expect(node.querySelector('[role="alert"]')?.textContent).toContain('Temporarily offline');
   expect(api.mock.calls.some(([path]) => path.includes('/submit'))).toBe(false);
 });
+it('keeps an existing broadcast visible across tabs and protects its sign-in session', async () => {
+  const implementation = api.getMockImplementation()!;
+  api.mockImplementation(async (path, method, body) => path === '/live' ? { live: { id: 'broadcast-one', destinations: [{ id: account.id, name: account.name, status: 'sending' }] } } : implementation(path, method, body));
+  await act(async () => root.render(<MemoryRouter><CreatorStudio key="active-broadcast" /></MemoryRouter>));
+  expect(node.querySelector('.cs-broadcast-banner')?.textContent).toContain('broadcast session is open');
+  await click('Accounts');
+  expect(button('Sign out').disabled).toBe(true);
+  expect(button('Connect / reconnect').disabled).toBe(true);
+  expect(api.mock.calls.some(([path]) => path.includes('/stop'))).toBe(false);
+  await click('Return to live studio');
+  expect(node.querySelector('.cs-broadcast-banner')).toBe(null);
+  expect(button('End broadcast everywhere')).toBeDefined();
+  expect(api.mock.calls.some(([path]) => path.includes('/stop'))).toBe(false);
+});

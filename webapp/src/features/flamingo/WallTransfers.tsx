@@ -1,4 +1,12 @@
 import {
+  dismissWallUpload,
+  getWallUploads,
+  reselectWallUpload,
+  setWallUploadStatus,
+  startWallUploadQueue,
+  subscribeWallUploads
+} from './wallUploadQueue.js';
+import {
   createContext,
   useCallback,
   useContext,
@@ -79,6 +87,15 @@ export function WallTransfersProvider({ children }: { children: ReactNode }) {
   const activeSlot = useRef<Slot>();
   const controls = useRef<UploadControls>(null);
   const [upload, setUpload] = useState<UploadTransfer>();
+  const uploads = useSyncExternalStore(
+    subscribeWallUploads,
+    getWallUploads,
+    getWallUploads
+  );
+  const [queueError, setQueueError] = useState('');
+  useEffect(() => {
+    startWallUploadQueue();
+  }, []);
   const downloads = useSyncExternalStore(
     subscribeWallDownloads,
     getWallDownloads,
@@ -108,8 +125,16 @@ export function WallTransfersProvider({ children }: { children: ReactNode }) {
   const previousCount = useRef(0);
   useEffect(() => {
     const open = () => setExpanded(true);
+    const published = (event: Event) => {
+      if ((event as CustomEvent).detail)
+        onPublished((event as CustomEvent).detail);
+    };
+    window.addEventListener('wall-upload-published', published);
     window.addEventListener(OPEN_WALL_TRANSFERS, open);
-    return () => window.removeEventListener(OPEN_WALL_TRANSFERS, open);
+    return () => {
+      window.removeEventListener(OPEN_WALL_TRANSFERS, open);
+      window.removeEventListener('wall-upload-published', published);
+    };
   }, []);
   useEffect(() => {
     if (downloads.length > previousCount.current) setExpanded(true);
@@ -124,7 +149,7 @@ export function WallTransfersProvider({ children }: { children: ReactNode }) {
     return () => window.removeEventListener('keydown', close);
   }, [expanded]);
   const visibleUpload = upload && upload.phase !== 'idle';
-  const count = (visibleUpload ? 1 : 0) + downloads.length;
+  const count = (visibleUpload ? 1 : 0) + downloads.length + uploads.length;
   return (
     <SlotContext.Provider value={register}>
       {children}
@@ -159,9 +184,105 @@ export function WallTransfersProvider({ children }: { children: ReactNode }) {
           {expanded && (
             <section id="wall-transfer-list" className="wall-transfer-list">
               <p>
-                You can browse while transfers continue. Keep TonPlayGram open
-                for uploads.
+                Up to five files upload at a time. Saved uploads resume when you
+                reopen the app. Background progress while closed depends on your
+                browser.
               </p>
+              {queueError && <p role="alert">{queueError}</p>}
+              {uploads.map((job) => (
+                <article
+                  className="wall-transfer-item"
+                  key={job.id}
+                  aria-label={`Upload ${job.name}`}
+                >
+                  <strong>{job.name}</strong>
+                  <span role="status">
+                    {job.status === 'complete'
+                      ? 'Published'
+                      : job.status === 'uploading'
+                        ? job.phase === 'publishing'
+                          ? 'Publishing…'
+                          : `Uploading · ${Math.round((100 * job.bytes) / job.size)}%`
+                        : job.status === 'pending'
+                          ? 'Queued'
+                          : job.status === 'paused'
+                            ? 'Paused'
+                            : job.status === 'staging'
+                              ? 'Saving to device…'
+                              : 'Needs attention'}
+                  </span>
+                  {job.status === 'uploading' && (
+                    <progress
+                      value={job.bytes}
+                      max={job.size}
+                      aria-label={`Upload progress for ${job.name}`}
+                    />
+                  )}
+                  {!job.persistent && job.status !== 'complete' && (
+                    <small>
+                      Not saved on this device. Keep the app open, or choose
+                      this file again after reopening.
+                    </small>
+                  )}
+                  {job.error && <small role="alert">{job.error}</small>}
+                  <div className="wall-transfer-actions">
+                    {['uploading', 'pending'].includes(job.status) && (
+                      <button
+                        onClick={() =>
+                          void setWallUploadStatus(job.id, 'paused').catch(
+                            (error) => setQueueError(error.message)
+                          )
+                        }
+                      >
+                        <Pause />
+                        Pause
+                      </button>
+                    )}
+                    {['paused', 'error', 'staging'].includes(job.status) && (
+                      <button
+                        onClick={() =>
+                          void setWallUploadStatus(job.id, 'pending').catch(
+                            (error) => setQueueError(error.message)
+                          )
+                        }
+                      >
+                        <Play />
+                        Resume
+                      </button>
+                    )}
+                    {job.status === 'needs-file' && (
+                      <label className="wall-transfer-reselect">
+                        Choose original file
+                        <input
+                          type="file"
+                          aria-label={`Choose original ${job.name}`}
+                          onChange={async (event) => {
+                            const file = event.target.files?.[0];
+                            if (!file) return;
+                            setQueueError('');
+                            try {
+                              await reselectWallUpload(job.id, file);
+                            } catch (error) {
+                              setQueueError((error as Error).message);
+                            }
+                          }}
+                        />
+                      </label>
+                    )}
+                    <button
+                      aria-label={`${job.status === 'complete' ? 'Dismiss' : 'Cancel'} upload ${job.name}`}
+                      onClick={() =>
+                        void dismissWallUpload(job.id).catch((error) =>
+                          setQueueError(error.message)
+                        )
+                      }
+                    >
+                      <X />
+                      {job.status === 'complete' ? 'Dismiss' : 'Cancel'}
+                    </button>
+                  </div>
+                </article>
+              ))}
               {visibleUpload && (
                 <article
                   className="wall-transfer-item"

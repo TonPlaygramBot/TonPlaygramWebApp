@@ -3,17 +3,18 @@ import { io, Socket } from 'socket.io-client';
 import { Camera, FlipHorizontal, Mic, MicOff, Monitor, Radio, Square, Video, VideoOff } from 'lucide-react';
 import { API_BASE_URL } from '../../utils/api.js';
 import { Account, creatorApi, Platform } from './api';
-export default function LiveStudio({ accounts, platforms, enabled, signedIn, onError }: { accounts: Account[]; platforms: Platform[]; enabled: boolean; signedIn: boolean; onError: (text: string) => void }) {
+export default function LiveStudio({ accounts, platforms, enabled, signedIn, onError, visible = true, onBroadcastStateChange }: { accounts: Account[]; platforms: Platform[]; enabled: boolean; signedIn: boolean; onError: (text: string) => void; visible?: boolean; onBroadcastStateChange?: (state: 'idle' | 'preparing' | 'active') => void }) {
   const video = useRef<HTMLVideoElement>(null), stream = useRef<MediaStream | null>(null), recorder = useRef<MediaRecorder | null>(null), socket = useRef<Socket | null>(null);
   const current = useRef<any>(null), mounted = useRef(true), capturing = useRef(false), stopping = useRef(false);
-  const [preview, setPreview] = useState(false), [busy, setBusy] = useState(false), [live, setLive] = useState<any>(null);
+  const [preview, setPreview] = useState(false), [busy, setBusy] = useState(false), [live, setLive] = useState<any>(null), [starting, setStarting] = useState(false);
+  const captureRequest = useRef(0);
   const [title, setTitle] = useState(''), [targets, setTargets] = useState<string[]>([]), [muted, setMuted] = useState(false), [cameraOff, setCameraOff] = useState(false);
   const [facing, setFacing] = useState<'user' | 'environment'>('user'), [portrait, setPortrait] = useState(true), [quality, setQuality] = useState('720');
   const [privacy, setPrivacy] = useState('unlisted'), [kids, setKids] = useState(''), [source, setSource] = useState('camera');
   const [elapsed, setElapsed] = useState(0), [wakeNotice, setWakeNotice] = useState('');
   const wake = useRef<any>(null);
   const eligible = accounts.filter(a => a.status === 'connected' && platforms.find(p => p.id === a.platform)?.live);
-  function releaseCamera() { stream.current?.getTracks().forEach(t => t.stop()); stream.current = null; if (video.current) video.current.srcObject = null; if (mounted.current) setPreview(false); }
+  function releaseCamera() { captureRequest.current++; stream.current?.getTracks().forEach(t => t.stop()); stream.current = null; if (video.current) video.current.srcObject = null; if (mounted.current) setPreview(false); }
   async function stop() {
     if (stopping.current) return;
     stopping.current = true;
@@ -28,12 +29,15 @@ export default function LiveStudio({ accounts, platforms, enabled, signedIn, onE
   }
   useEffect(() => {
     mounted.current = true;
-    if (signedIn) creatorApi('/live').then(r => { if (mounted.current && r.live) { current.current = r.live; setLive(r.live); } }).catch(() => {});
+    let cancelled = false;
+    if (signedIn) creatorApi('/live').then(r => { if (!cancelled && r.live) { current.current = r.live; setLive(r.live); } }).catch(() => {});
     const leaving = (event: BeforeUnloadEvent) => { if (current.current) { event.preventDefault(); event.returnValue = ''; } };
     const hidden = () => { if (document.hidden && current.current) setWakeNotice('Keep Studio open. Your phone may pause the camera in the background.'); };
     window.addEventListener('beforeunload', leaving); document.addEventListener('visibilitychange', hidden);
-    return () => { mounted.current = false; void stop(); releaseCamera(); window.removeEventListener('beforeunload', leaving); document.removeEventListener('visibilitychange', hidden); };
+    return () => { cancelled = true; mounted.current = false; void stop(); releaseCamera(); window.removeEventListener('beforeunload', leaving); document.removeEventListener('visibilitychange', hidden); };
   }, [signedIn]);
+  useEffect(() => { onBroadcastStateChange?.(starting ? 'preparing' : live ? 'active' : 'idle'); }, [starting, Boolean(live), onBroadcastStateChange]);
+  useEffect(() => { if (!visible && !live && !starting) releaseCamera(); }, [visible, Boolean(live), starting]);
   useEffect(() => { if (!live) { setElapsed(0); return; } const timer = setInterval(() => setElapsed(x => x + 1), 1000); return () => clearInterval(timer); }, [Boolean(live)]);
   async function openCamera(nextFacing = facing, nextSource = source) {
     if (capturing.current || live) return;
@@ -41,6 +45,7 @@ export default function LiveStudio({ accounts, platforms, enabled, signedIn, onE
     try {
       if (!navigator.mediaDevices?.getUserMedia) throw new Error('Camera access needs a secure browser. Open Studio in Chrome or Safari.');
       releaseCamera();
+      const request = captureRequest.current;
       let media: MediaStream;
       if (nextSource === 'screen') {
         if (!navigator.mediaDevices.getDisplayMedia) throw new Error('Screen sharing is not available in this browser. Use your camera.');
@@ -53,7 +58,7 @@ export default function LiveStudio({ accounts, platforms, enabled, signedIn, onE
         const w = quality === '1080' ? 1080 : 720, h = quality === '1080' ? 1920 : 1280;
         media = await navigator.mediaDevices.getUserMedia({ video: { facingMode: { ideal: nextFacing }, width: { ideal: portrait ? w : h }, height: { ideal: portrait ? h : w }, frameRate: { ideal: 30, max: 30 } }, audio: { echoCancellation: true, noiseSuppression: true } });
       }
-      if (!mounted.current) { media.getTracks().forEach(t => t.stop()); return; }
+      if (!mounted.current || request !== captureRequest.current) { media.getTracks().forEach(t => t.stop()); return; }
       stream.current = media; setMuted(false); setCameraOff(false); setFacing(nextFacing); setSource(nextSource); setPreview(true);
       if (video.current) { video.current.srcObject = media; await video.current.play().catch(() => {}); }
       media.getVideoTracks()[0]?.addEventListener('ended', () => { void stop(); releaseCamera(); });
@@ -62,7 +67,7 @@ export default function LiveStudio({ accounts, platforms, enabled, signedIn, onE
   }
   async function goLive() {
     if (!stream.current || busy || current.current) return;
-    setBusy(true); onError('');
+    setBusy(true); setStarting(true); onError('');
     try {
       if (typeof MediaRecorder === 'undefined') throw new Error('This browser cannot broadcast. Try the latest Chrome or Safari.');
       const mimeType = ['video/webm;codecs=vp8,opus', 'video/webm', 'video/mp4'].find(m => MediaRecorder.isTypeSupported(m));
@@ -97,7 +102,7 @@ export default function LiveStudio({ accounts, platforms, enabled, signedIn, onE
       recorder.current = recording; recording.start(400);
       try { wake.current = await (navigator as any).wakeLock?.request('screen'); } catch { setWakeNotice('Keep your screen awake while broadcasting.'); }
     } catch (e: any) { onError(e.message); await stop(); }
-    finally { if (mounted.current) setBusy(false); }
+    finally { if (mounted.current) { setBusy(false); setStarting(false); } }
   }
   return <section className="cs-live-grid">
     <div className="cs-panel cs-camera-panel">

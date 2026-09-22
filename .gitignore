@@ -83,3 +83,6 @@ webapp/public/vendor/three/examples/jsm/libs/basis/
 # Reproducibly materialized from scripts/external-assets/source-lock.json.
 /webapp/public/assets/external/
 /webapp/.cache/
+
+# Generated shared upload runner for the classic service worker.
+/webapp/public/pwa/wall-upload-worker.js

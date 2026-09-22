@@ -93,6 +93,7 @@ function useVideoQualities(
     qualities: [original(file)]
   });
   const [error, setError] = useState('');
+  const [loaded, setLoaded] = useState(false);
   const [revision, refresh] = useState(0);
   const headersRef = useRef(headers);
   const requests = useRef(new Set<AbortController>());
@@ -102,6 +103,7 @@ function useVideoQualities(
   useEffect(() => {
     setManifest({ qualities: [original(file)] });
     setError('');
+    setLoaded(false);
     return () => {
       requests.current.forEach((controller) => controller.abort());
       requests.current.clear();
@@ -111,6 +113,13 @@ function useVideoQualities(
     if (!enabled || !remote) return;
     const controller = new AbortController();
     let timer: ReturnType<typeof setTimeout>;
+    const deadline = setTimeout(() => {
+      controller.abort();
+      setLoaded(true);
+      setError(
+        'Video resolutions took too long to load. You can use the original.'
+      );
+    }, 5000);
     const load = async () => {
       try {
         const response = await fetch(endpoint, {
@@ -121,10 +130,14 @@ function useVideoQualities(
         if (!response.ok)
           throw new Error(next.error || 'Could not load video resolutions.');
         if (controller.signal.aborted) return;
+        clearTimeout(deadline);
+        setLoaded(true);
         setManifest(next);
         setError('');
         if (next.processing) timer = setTimeout(load, 2000);
       } catch (failure) {
+        clearTimeout(deadline);
+        setLoaded(true);
         if (!controller.signal.aborted)
           setError(
             failure instanceof Error
@@ -137,6 +150,7 @@ function useVideoQualities(
     return () => {
       controller.abort();
       clearTimeout(timer);
+      clearTimeout(deadline);
     };
   }, [enabled, endpoint, remote, revision]);
   const prepare = async (quality: string) => {
@@ -165,6 +179,7 @@ function useVideoQualities(
   };
   return {
     ...manifest,
+    loaded: loaded || !remote,
     error: error || manifest.error,
     prepare,
     retry: () => prepare('probe'),
@@ -195,6 +210,13 @@ export default function WallVideo(
   const menuButton = useRef<HTMLButtonElement>(null);
   const menu = useRef<HTMLDivElement>(null);
   const [open, setOpen] = useState(false);
+  const [visible, setVisible] = useState(
+    typeof IntersectionObserver === 'undefined'
+  );
+  const [initialResolved, setInitialResolved] = useState(false);
+  const [automaticDone, setAutomaticDone] = useState(false);
+  const manualChoice = useRef(false);
+  const requestedDefault = useRef(false);
   const [choice, setChoice] = useState<VideoQuality>(() => original(file));
   const [pending, setPending] = useState<string>();
   const [notice, setNotice] = useState('');
@@ -206,8 +228,11 @@ export default function WallVideo(
     muted: boolean;
     volume: number;
   }>();
-  const qualities = useVideoQualities(props, open || Boolean(pending));
-  const choose = (next: VideoQuality) => {
+  const qualities = useVideoQualities(
+    props,
+    (visible && !automaticDone) || open || Boolean(pending)
+  );
+  const choose = (next: VideoQuality, automatic = false) => {
     if (next.quality !== choice.quality && video.current && !resume.current) {
       const current = video.current;
       resume.current = {
@@ -221,14 +246,65 @@ export default function WallVideo(
     setChoice(next);
     setPending(undefined);
     setNotice('');
-    setOpen(false);
-    menuButton.current?.focus();
+    if (!automatic) {
+      setOpen(false);
+      menuButton.current?.focus();
+    }
   };
   useEffect(() => {
     setChoice(original(file));
     setPending(undefined);
+    setInitialResolved(false);
+    setAutomaticDone(false);
+    manualChoice.current = false;
+    requestedDefault.current = false;
     resume.current = undefined;
   }, [postId, file.src]);
+  useEffect(() => {
+    if (typeof IntersectionObserver === 'undefined' || !video.current) return;
+    const observer = new IntersectionObserver(
+      (entries) => {
+        if (entries.some((entry) => entry.isIntersecting)) {
+          setVisible(true);
+          observer.disconnect();
+        }
+      },
+      { rootMargin: '250px' }
+    );
+    observer.observe(video.current);
+    return () => observer.disconnect();
+  }, [postId]);
+  useEffect(() => {
+    if (!qualities.loaded || manualChoice.current || automaticDone) return;
+    const preferred = qualities.qualities.find(
+      (item) => item.quality === '480p'
+    );
+    if (preferred?.status === 'ready') {
+      choose(preferred, true);
+      setInitialResolved(true);
+      setAutomaticDone(true);
+      return;
+    }
+    // Original files at 480p or below need no conversion. While a new upload
+    // is preparing, keep it playable and switch once its 480p copy is ready.
+    setInitialResolved(true);
+    if (
+      qualities.error ||
+      preferred?.status === 'failed' ||
+      (!preferred && !qualities.processing)
+    ) {
+      setAutomaticDone(true);
+    } else if (preferred?.status === 'available' && !requestedDefault.current) {
+      requestedDefault.current = true;
+      void qualities.prepare('480p').catch(() => setAutomaticDone(true));
+    }
+  }, [
+    qualities.loaded,
+    qualities.qualities,
+    qualities.processing,
+    qualities.error,
+    automaticDone
+  ]);
   useEffect(() => {
     if (!open) return;
     menu.current
@@ -253,6 +329,9 @@ export default function WallVideo(
     }
   }, [pending, qualities.qualities, qualities.error]);
   const select = async (next: VideoQuality) => {
+    manualChoice.current = true;
+    setAutomaticDone(true);
+    setInitialResolved(true);
     if (next.status === 'ready') return choose(next);
     setPending(next.quality);
     setNotice('');
@@ -274,7 +353,7 @@ export default function WallVideo(
     <div className={`wall-video-player ${className}`}>
       <video
         ref={video}
-        src={qualities.resolve(choice)}
+        src={initialResolved ? qualities.resolve(choice) : undefined}
         controls
         controlsList="nodownload noremoteplayback nofullscreen noplaybackrate"
         disablePictureInPicture
@@ -298,6 +377,8 @@ export default function WallVideo(
           if (saved.playing) void current.play().catch(() => {});
         }}
         onError={() => {
+          manualChoice.current = true;
+          setAutomaticDone(true);
           if (choice.quality !== 'original') {
             setChoice(original(file));
             setNotice(

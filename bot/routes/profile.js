@@ -125,7 +125,7 @@ router.post('/get', async (req, res) => {
       update.$set = {
         firstName: info.firstName,
         lastName: info.lastName,
-        photo: info.photoUrl
+        photo: user?.photoCustom ? user.photo : info.photoUrl
       };
       filledFromTelegram = true;
     }
@@ -194,7 +194,7 @@ router.post('/update', authenticate, async (req, res) => {
 
   const update = {};
   if (nickname !== undefined) update.nickname = nickname;
-  if (photo !== undefined) update.photo = photo;
+  if (photo !== undefined) { update.photo = photo; update.photoCustom = true; }
   if (bio !== undefined) update.bio = bio;
   if (firstName !== undefined) update.firstName = firstName;
   if (lastName !== undefined) update.lastName = lastName;
@@ -275,7 +275,8 @@ router.post('/link-google', authenticate, async (req, res) => {
 
   if (firstName !== undefined) update.firstName = firstName;
   if (lastName !== undefined) update.lastName = lastName;
-  if (photo !== undefined) update.photo = photo;
+  const existing = await User.findOne({ telegramId }).select('photoCustom').lean();
+  if (photo !== undefined && !existing?.photoCustom) update.photo = photo;
 
   const user = await User.findOneAndUpdate(
     { telegramId },

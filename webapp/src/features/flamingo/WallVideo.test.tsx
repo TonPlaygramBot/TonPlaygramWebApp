@@ -68,7 +68,7 @@ describe('wall video resolution controls', () => {
 
   it('loads choices from the three-dot menu and preserves time, sound and play state on a source switch', async () => {
     await act(async () => root.render(<WallVideo {...props} />));
-    expect(fetch).not.toHaveBeenCalled();
+    expect(fetch).toHaveBeenCalledTimes(1);
     const video = container.querySelector('video')!;
     Object.defineProperty(video, 'playbackRate', {
       configurable: true,
@@ -101,6 +101,73 @@ describe('wall video resolution controls', () => {
     expect(video.muted).toBe(true);
     expect(video.play).toHaveBeenCalledTimes(1);
     expect(document.querySelector('[role="menu"]')).toBeNull();
+  });
+  it('selects ready 480p before loading original bytes and respects a later manual selection', async () => {
+    const low = { ...ready, quality: '480p', label: '480p', url: '/480p.mp4' };
+    vi.mocked(fetch).mockResolvedValue({
+      ok: true,
+      json: async () => ({ qualities: [original, ready, low] })
+    } as Response);
+    await act(async () => root.render(<WallVideo {...props} />));
+    const video = container.querySelector('video')!;
+    expect(video.getAttribute('src')).toBe('https://api.example.test/480p.mp4');
+    await click('[aria-label="Video options"]');
+    expect(
+      container.querySelector('[aria-checked="true"]')?.textContent
+    ).toContain('480p');
+    await click('[role="menuitemradio"]');
+    expect(video.getAttribute('src')).toBe('/original.mp4');
+    await click('[aria-label="Video options"]');
+    expect(video.getAttribute('src')).toBe('/original.mp4');
+  });
+  it('requests the default 480p copy and switches when it finishes', async () => {
+    vi.useFakeTimers();
+    let ready480 = false;
+    vi.mocked(fetch).mockImplementation(
+      async (_url, init) =>
+        ({
+          ok: true,
+          json: async () => ({
+            qualities: [
+              original,
+              {
+                ...ready,
+                quality: '480p',
+                label: '480p',
+                url: '/480p.mp4',
+                status: ready480
+                  ? 'ready'
+                  : init?.method === 'POST'
+                    ? 'processing'
+                    : 'available'
+              }
+            ],
+            processing: !ready480
+          })
+        }) as Response
+    );
+    await act(async () => root.render(<WallVideo {...props} />));
+    expect(
+      vi
+        .mocked(fetch)
+        .mock.calls.some(
+          ([, init]) =>
+            init?.method === 'POST' &&
+            init.body === JSON.stringify({ quality: '480p' })
+        )
+    ).toBe(true);
+    ready480 = true;
+    await act(async () => vi.advanceTimersByTimeAsync(2000));
+    expect(container.querySelector('video')?.getAttribute('src')).toBe(
+      'https://api.example.test/480p.mp4'
+    );
+  });
+  it('leaves the original playable if the quality API fails', async () => {
+    vi.mocked(fetch).mockRejectedValue(new Error('offline'));
+    await act(async () => root.render(<WallVideo {...props} />));
+    expect(container.querySelector('video')?.getAttribute('src')).toBe(
+      '/original.mp4'
+    );
   });
   it('keeps the current video playing while a requested resolution is being prepared', async () => {
     vi.mocked(fetch).mockImplementation(
