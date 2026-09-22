@@ -29,7 +29,7 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: '22'
-      - run: node --test test/tiranaFullBodyCareer.test.mjs test/tiranaStreetCareer.test.mjs test/tiranaStreetCareer.integration.test.mjs test/tiranaCityLife.test.mjs test/tiranaCareerExpansion.test.mjs test/tiranaGameplayOverhaul.test.mjs test/tiranaMobileRuntime.test.mjs
+      - run: node --test test/tiranaFullBodyCareer.test.mjs test/tiranaStreetCareer.test.mjs test/tiranaStreetCareer.integration.test.mjs test/tiranaCityLife.test.mjs test/tiranaCareerExpansion.test.mjs test/tiranaGameplayOverhaul.test.mjs test/tiranaMobileRuntime.test.mjs test/tiranaNpcMotion.test.mjs
   application:
     runs-on: ubuntu-latest
     timeout-minutes: 25

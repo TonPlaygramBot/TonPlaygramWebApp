@@ -44,7 +44,8 @@ export class TrafficGrid {
 const trafficGrids=new WeakMap();
 /** Broad phase is refreshed at 20 Hz. Three metres of extra cell coverage
  * covers 60 m/s between rebuilds; narrow-phase tests always use live poses.
- * Array membership changes and time rewinds invalidate immediately. */
+ * Population-count changes, actor-array replacements and time rewinds
+ * invalidate immediately. In-place replacements refresh on the next tick. */
 export function citySpatialGrids(state){
   let grids=trafficGrids.get(state);
   if(!grids){grids={vehicles:new TrafficGrid([],3),people:new TrafficGrid([],3),time:-Infinity,count:0};trafficGrids.set(state,grids);}

@@ -65,3 +65,18 @@ test('fleeing citizens continue through safe connected paths and forget an unsee
   s.players.p.x=-100;s.elapsed=11;pedestrianIntent(n,s,[],[],world);assert.equal(n.behavior,'flee');
   s.elapsed=14;pedestrianIntent(n,s,[],[],world);assert.equal(n.behavior,'walk');assert.equal(n.fleeMemory,undefined);
 });
+test('fleeing citizens reach walking-path corners before turning onto the next segment',()=>{
+  const world={roads:[{walk:true,a:[0,0],b:[10,0]},{walk:true,a:[10,0],b:[10,10]},{walk:true,a:[10,10],b:[20,10]}]};
+  const n={id:'turning-citizen',x:5,z:0,health:100,kind:'civilian',motion:'walk',panicUntil:20,path:[{x:0,z:0},{x:10,z:0}],pathIndex:0};
+  const s={elapsed:10,players:{p:{x:0,z:0,health:100,lastCrime:10}}};
+  assert.deepEqual(pedestrianIntent(n,s,[],[],world).goal,{x:10,z:0},'stay on the current sidewalk segment');
+  assert.equal(n.pathIndex,1,'the selected escape endpoint becomes the current route target');
+  n.x=10;
+  assert.deepEqual(pedestrianIntent(n,s,[],[],world).goal,{x:10,z:10});
+  assert.deepEqual(n.path,[{x:10,z:0},{x:10,z:10}]);
+  n.z=5;
+  assert.deepEqual(pedestrianIntent(n,s,[],[],world).goal,{x:10,z:10},'do not skip the following corner');
+  n.z=10;
+  assert.deepEqual(pedestrianIntent(n,s,[],[],world).goal,{x:20,z:10});
+  assert.deepEqual(n.path,[{x:10,z:10},{x:20,z:10}]);
+});

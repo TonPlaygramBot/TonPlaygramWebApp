@@ -110,5 +110,40 @@
       "maxMs": 21.449562999999216,
       "over16ms": 2
     }
+  ],
+  "initialRevisedCommit": "63db9ff79b86fbb46fd23db31a48d580bd58ddac",
+  "postReviewRuns": [
+    {
+      "node": "v24.19.0",
+      "scenario": "Stationary player at free-roam spawn, full city population, 60 Hz simulation",
+      "warmup": 120,
+      "frames": 600,
+      "npcs": 2802,
+      "traffic": 5601,
+      "policeUnits": 41,
+      "startupMs": 1348.78845,
+      "meanMs": 9.90077644000002,
+      "medianMs": 8.262398000000758,
+      "p95Ms": 17.756492999998954,
+      "p99Ms": 46.30114799999865,
+      "maxMs": 116.56482099999994,
+      "over16ms": 33
+    },
+    {
+      "node": "v24.19.0",
+      "scenario": "Stationary player at free-roam spawn, full city population, 60 Hz simulation",
+      "warmup": 120,
+      "frames": 600,
+      "npcs": 2802,
+      "traffic": 5601,
+      "policeUnits": 41,
+      "startupMs": 1341.8160850000004,
+      "meanMs": 8.014847626666645,
+      "medianMs": 7.759510000000773,
+      "p95Ms": 11.18283799999881,
+      "p99Ms": 12.993195999999443,
+      "maxMs": 15.538504999998622,
+      "over16ms": 0
+    }
   ]
 }

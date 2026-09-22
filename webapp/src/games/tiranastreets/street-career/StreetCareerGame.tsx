@@ -319,8 +319,8 @@ export function StreetCareerGame({ onExit }: { onExit: () => void }) {
           </output>}
           <footer>
             {flying ? `${aircraft?.kind === 'jet' ? 'Fighter jet' : 'Helicopter'} · ${Math.round(aircraft?.y || 0)} m · ${Math.round(p.speed * 3.6)} km/h` : driving
-              ? 'Steer: left stick · Pedals: right'
-              : 'Move: left stick · Look: right drag'}
+              ? `Steer: ${view.settings.leftHanded?'right':'left'} stick · Pedals: ${view.settings.leftHanded?'left':'right'}`
+              : `Move: ${view.settings.leftHanded?'right':'left'} stick · Look: drag the view`}
             {!driving && !flying && p.weapon && (
               <small>
                 {WEAPON_BY_ID.get(p.weapon)?.label} ·{' '}
@@ -484,7 +484,7 @@ export function StreetCareerGame({ onExit }: { onExit: () => void }) {
                         WASD / arrows · Mouse drag to look · F fire · Space jump
                         · C crouch · Shift sprint · Z aim · V kick · B guard · E
                         interact · R reload · H draw / holster · Esc pause.
-                        Aircraft: left stick steers and controls speed; UP climbs,
+                        Aircraft: steering stick controls direction and speed; UP climbs,
                         DOWN descends. Land and stop to exit and rearm. Drag to aim missiles.
                       </p>
                       <label>Control layout <select aria-label="Control layout" value={view.settings.leftHanded?'left':'standard'} onChange={e=>runtime.current?.setSettings({leftHanded:e.target.value==='left'})}>

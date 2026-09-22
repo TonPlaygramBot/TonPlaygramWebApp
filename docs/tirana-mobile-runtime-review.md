@@ -1,7 +1,8 @@
 # Tirana Streets mobile runtime review
 
 Based on `main` at `1ec545d3ba04be976e9d7c6c32d2ad8d70f81bbf`.
-Review branch: `codex/tirana-mobile-runtime`. No PR or production deployment.
+Review branch: `codex/tirana-mobile-runtime`, prepared for a PR against `main`.
+No production deployment.
 
 The full city was doing expensive traffic and crowd work in synchronized bursts.
 The revised runtime spreads that work across simulation steps, shares pooled
@@ -22,10 +23,12 @@ The map, population targets, original models, textures and motion data are uncha
   now applies its look sensitivity and has working automatic graphics selection.
 - Imported walking/running clips accept common name aliases, keep stride phase
   across blends and use separate run entry/exit thresholds to prevent flicker.
-  Crowd roots and headings interpolate, and gait speed follows the simulation.
+  Crowd roots and headings interpolate, and gait speed follows actual movement
+  after collision resolution so blocked pedestrians stop walking in place.
   Offscreen skeletons skip expensive posing while remaining in the scene.
-- Frightened pedestrians remember a recently seen threat briefly and continue
-  through connected escape paths. Police patrol movement and traffic still obey
+- Frightened pedestrians remember a recently seen threat briefly and reach each
+  sidewalk corner before continuing through connected escape paths. Police patrol
+  movement and traffic still obey
   nearby collision/yielding rules; active police responses retain full-rate updates.
 - All three runtimes bound the framebuffer to two million pixels and render
   paused menus at 15 FPS. Paused/hidden frames do not lower automatic quality.
@@ -47,7 +50,8 @@ Character geometry and textures retain their existing, separate licenses.
 Three alternating fresh processes per revision, Node v24.19.0, stationary player
 at the free-roam spawn, 120 warmup steps followed by 600 measured steps at 60 Hz.
 Every run retained 2,802 NPCs, 5,601 traffic vehicles and 41 police units.
-Values below are medians of the three per-run statistics.
+Values below are medians of the three per-run statistics from the initial runtime
+revision `63db9ff`, before the follow-up sidewalk and blocked-gait fixes.
 
 | CPU time per simulation step | Main | Revised |
 | --- | ---: | ---: |
@@ -63,6 +67,9 @@ Measured steps over 16.67 ms fell from 78–85 of 600 to 0–2 of 600.
 This measures simulation CPU time on this executor. It excludes rendering, GPU
 time, input latency, asset loading and phone thermal behavior. It does not establish
 a device frame rate. The 60 FPS frame budget is 16.67 ms for **all** frame work.
+Two additional runs after the follow-up fixes measured p95 of 17.76 and 11.18 ms
+(maximum 116.56 and 15.54 ms), showing that occasional CPU stalls remain possible.
+Both results are retained in `postReviewRuns` in the raw data.
 
 Raw runs: [`tirana-mobile-runtime-benchmark.json`](tirana-mobile-runtime-benchmark.json).
 Reproduce against two source checkouts with:
@@ -74,11 +81,12 @@ node scripts/benchmark-tirana-runtime.mjs --source-root /path/to/revised
 
 ## Verification
 
-- 141 Node tests passed across the simulation, animation, combat, controls,
+- 146 Node tests passed across the simulation, animation, combat, controls,
   infrastructure, city life, patrol/custody, full-body career, gameplay, campaign
   integration and map suites. These include six actual shipped character rigs,
   clip-phase continuity, scheduling/time conservation, traffic yielding,
-  close/distant NPC behavior, mission settlement, vehicles, aircraft and map routes.
+  close/distant NPC behavior, blocked/sliding movement, sidewalk corner routing,
+  mission settlement, vehicles, aircraft and map routes.
 - Five React/input tests passed for simultaneous move/look/fire ownership,
   secondary-finger/sprint isolation, cancellation and pause cleanup, settings
   migration and framebuffer limits.
@@ -100,12 +108,12 @@ node scripts/benchmark-tirana-runtime.mjs --source-root /path/to/revised
 - An earlier broader run also found 18 failures in the existing Racing Royal
   repair-driving suite (track counts, AI finishes and legacy hashes). That suite
   and its kart implementation are unchanged by this branch. They are not included
-  in the 146 passing focused checks above.
+  in the 151 passing focused checks above.
 
 Commands for the passing focused checks:
 
 ```sh
-node --test test/tiranaHumanAnimation.test.mjs test/tiranaControls.test.mjs test/tiranaMobileCombat.test.mjs test/tiranaMobileRuntime.test.mjs test/tiranaCityInfrastructure.test.mjs test/tiranaCityLife.test.mjs test/tiranaPatrolCustody.test.mjs
+node --test test/tiranaHumanAnimation.test.mjs test/tiranaControls.test.mjs test/tiranaMobileCombat.test.mjs test/tiranaMobileRuntime.test.mjs test/tiranaNpcMotion.test.mjs test/tiranaCityInfrastructure.test.mjs test/tiranaCityLife.test.mjs test/tiranaPatrolCustody.test.mjs
 node --test test/tiranaFullBodyCareer.test.mjs test/tiranaGameplayOverhaul.test.mjs test/tiranaStreetCareer.integration.test.mjs test/tiranaMap.test.mjs
 npm run test:navigation --prefix webapp -- src/games/tiranastreets/MovementStick.navigation.test.jsx --maxWorkers=1 --minWorkers=1
 webapp/node_modules/.bin/tsc -p webapp/tsconfig.tirana-gameplay.json --pretty false
@@ -116,7 +124,7 @@ node --max-old-space-size=3072 node_modules/vite/bin/vite.js build
 The existing Tirana workflow now includes the new simulation and mobile-input
 checks so future changes exercise these regressions.
 
-## Gameplay review before a PR
+## Remaining gameplay validation
 
 The authenticated browser could not reach this executor's local preview server.
 No physical-phone, WebGL image, GPU, touch-latency or thermal results are claimed.
@@ -138,4 +146,4 @@ and both control layouts. Inspect walk/run transitions, feet on sloped terrain,
 held weapons and newly revealed NPCs after turning the camera. Measure crowded
 junctions, pursuits and combat after warmup and during a sustained session using
 both Automatic and High graphics. Repeat the profile → repair → regression-test
-loop for any observed stalls or visual faults before opening a PR.
+loop for any observed stalls or visual faults before merging the PR.

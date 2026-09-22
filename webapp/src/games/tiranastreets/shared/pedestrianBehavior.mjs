@@ -27,8 +27,10 @@ export function pedestrianIntent(n,state,nearVehicles,nearPeople,world){
   const panic=time<n.panicUntil&&danger;
   let goal=n.path[n.pathIndex]||n.path[0];
   if(panic){
-    const options=n.path.concat(walkJunctions(world).get(`${Math.round(goal.x)}:${Math.round(goal.z)}`)||[]);
-    goal=options.reduce((best,p)=>distance(p,danger)>distance(best,danger)?p:best,goal);
+    // Finish the current walking segment before considering the next one.
+    // Selecting a neighbor of its endpoint early cuts diagonally across corners.
+    goal=n.path.reduce((best,p)=>distance(p,danger)>distance(best,danger)?p:best,goal);
+    n.pathIndex=n.path.indexOf(goal);
     n.behavior='flee';n.restUntil=0;
     // Reaching a safe waypoint continues along its connected escape route.
     // Without this, fleeing citizens can remain pinned at one path endpoint.

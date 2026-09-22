@@ -29,7 +29,7 @@ export function CareerGame({onExit}:{onExit:()=>void}){
     <MovementStick className="tc-stick" label="Movement joystick" disabled={view.paused||view.ride||view.overlook} deadzone={view.settings.joystickDeadzone}
       claim={()=>!!runtime.current?.input.active} release={reset} move={(x,y)=>{if(runtime.current)runtime.current.input.move={x,y};}}/>
     <button className="tc-interact" disabled={!step||view.distance>4} onClick={()=>runtime.current?.interact()}>{step?.action==='ride'?'TRAVEL TO DAJTI':step?.action==='inspect'?'OBSERVE':step?.action==='deliver'?'DELIVER':'TALK'}</button>
-    <p className="tc-controls">Move: left stick / WASD · Look: drag · Interact: E</p>
+    <p className="tc-controls">Move: movement stick / WASD · Look: drag · Interact: E</p>
    </>}
    {view.overlook&&!view.paused&&<section className="tc-ride"><strong>PANORAMA E TIRANËS · DAJTI</strong><p>Rrëshqit për të parë qytetin dhe horizontin drejt Durrësit.</p><button onClick={()=>runtime.current?.returnFromOverlook()}>KTHEHU NË QYTET</button></section>}
    {view.ride&&<section className="tc-ride"><strong>DAJTI EKSPRES · AUTHOR-MODELED EXCURSION</strong><progress max={1} value={view.rideProgress}/><p>90-second game-time journey. Terminal map locations are sourced; relief, support positions and elevations are approximate. The transfer from the city is not a modeled road.</p><button onClick={()=>runtime.current?.cancel()}>Return to city without completing</button></section>}
