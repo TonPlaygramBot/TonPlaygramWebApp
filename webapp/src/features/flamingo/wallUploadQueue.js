@@ -2,7 +2,8 @@ import {
   createUploadRepository,
   createUploadRunner,
   validateUploadBatch,
-  UPLOAD_SYNC_TAG
+  UPLOAD_SYNC_TAG,
+  UPLOAD_WAKE_MESSAGE
 } from './wallUploadQueueCore.js';
 import { retainWallTransfer } from './wallTransferActivity.js';
 const repository = createUploadRepository();
@@ -12,8 +13,11 @@ let snapshot = [];
 let channel;
 let started = false;
 let refreshing = false;
+let workerRegistration;
+let handingOff = false;
 const runner = createUploadRunner({
   repository,
+  memoryOnly: () => handingOff,
   fileFor: (job) => retained.get(job.id) || repository.file(job.id),
   changed: () => {
     void refresh();
@@ -50,10 +54,36 @@ async function refresh() {
 async function backgroundSync() {
   try {
     const registration = await navigator.serviceWorker?.getRegistration('/');
+    workerRegistration = registration;
     await registration?.sync?.register(UPLOAD_SYNC_TAG);
   } catch {
     /* Unsupported WebViews still resume on the next app visit. */
   }
+}
+function handoff() {
+  const worker = workerRegistration?.active;
+  // Without a worker, keep the in-page upload alive for as long as the WebView
+  // allows. Never abort simply because pagehide fired.
+  if (!worker) {
+    void backgroundSync();
+    return;
+  }
+  try {
+    worker.postMessage({ type: UPLOAD_WAKE_MESSAGE });
+  } catch {
+    void backgroundSync();
+    return;
+  }
+  handingOff = true;
+  void runner
+    .releaseSaved()
+    .catch(() => {})
+    .finally(() => {
+      try {
+        worker.postMessage({ type: UPLOAD_WAKE_MESSAGE });
+      } catch {}
+      void backgroundSync();
+    });
 }
 function kick() {
   void runner
@@ -74,13 +104,31 @@ export function startWallUploadQueue() {
   }
   const restore = () => {
     void refresh();
+    if (
+      handingOff &&
+      snapshot.some((job) => ['pending', 'uploading'].includes(job.status))
+    )
+      handoff();
     kick();
   };
   window.addEventListener('online', restore);
-  window.addEventListener('pageshow', restore);
-  window.addEventListener('pagehide', () => {
-    runner.stop();
-    void backgroundSync();
+  window.addEventListener('pageshow', () => {
+    handingOff = false;
+    restore();
+  });
+  window.addEventListener('pagehide', handoff);
+  document.addEventListener('visibilitychange', () => {
+    if (document.visibilityState === 'hidden') handoff();
+    else {
+      handingOff = false;
+      restore();
+      void backgroundSync();
+    }
+  });
+  navigator.serviceWorker?.addEventListener('controllerchange', () => {
+    void backgroundSync().then(() => {
+      if (document.visibilityState === 'hidden') handoff();
+    });
   });
   navigator.serviceWorker?.addEventListener('message', (event) => {
     if (event.data?.type === 'wall-upload-update') {
@@ -92,9 +140,26 @@ export function startWallUploadQueue() {
   // Polling also observes service worker progress and expired leases after a
   // browser process was killed. No network request is made for an empty queue.
   setInterval(restore, 5000);
-  void recoverStaging().finally(restore);
+  void backgroundSync();
+  void recoverStaging()
+    .catch(() => {})
+    .finally(restore);
 }
 async function recoverStaging() {
+  // The previous release made reservation pressure a permanent failure. Retry
+  // those saved jobs once using the new server admission policy.
+  for (const job of await repository.list()) {
+    if (
+      job.status === 'error' &&
+      job.error ===
+        'There is not enough media storage for this upload. Your selection is kept; storage needs to be freed before retrying.'
+    )
+      await repository.change(job.id, (current) =>
+        current.status === 'error'
+          ? { ...current, status: 'pending', retryAt: 0, error: '' }
+          : undefined
+      );
+  }
   if (!navigator.locks) return;
   await navigator.locks
     .request('wall-upload-staging', async () => {
@@ -184,11 +249,24 @@ export async function setWallUploadStatus(id, status) {
   }
 }
 export async function dismissWallUpload(id) {
-  await repository.remove(id);
+  const job = (await repository.list()).find((item) => item.id === id);
+  if (!job) return;
+  if (job.status === 'complete') await repository.remove(id);
+  else
+    await repository.change(id, (current) => ({
+      ...current,
+      operation: 'cancel',
+      status: 'pending',
+      retryAt: 0,
+      error: ''
+    }));
   runner.abort(id);
+  if (job.status !== 'complete') await repository.removeFile(id);
   retained.delete(id);
   await refresh();
   channel?.postMessage('changed');
+  void backgroundSync();
+  kick();
 }
 export async function reselectWallUpload(id, file) {
   const job = (await repository.list()).find((job) => job.id === id);

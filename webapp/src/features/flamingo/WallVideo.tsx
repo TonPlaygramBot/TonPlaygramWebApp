@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { Check, Download, MoreVertical, X } from 'lucide-react';
+import { registerWallVideo } from './wallVideoPlayback';
 import './wall-video.css';
 
 export type VideoFile = {
@@ -232,6 +233,12 @@ export default function WallVideo(
     props,
     (visible && !automaticDone) || open || Boolean(pending)
   );
+  useEffect(() => {
+    if (!video.current) return;
+    return registerWallVideo(video.current, () => {
+      if (resume.current) resume.current.playing = false;
+    });
+  }, []);
   const choose = (next: VideoQuality, automatic = false) => {
     if (next.quality !== choice.quality && video.current && !resume.current) {
       const current = video.current;

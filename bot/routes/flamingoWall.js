@@ -23,7 +23,7 @@ import { commitFlamingoMedia, findFlamingoDatabaseMedia, findFlamingoMedia, flam
 import { assertFlamingoDurability, flamingoUploadDirectory, flamingoLocalDirectory, inspectFlamingoDurability } from '../utils/flamingoDurability.js';
 import { objectStorageEnabled, flamingoObjectStorage, objectAttachment } from '../utils/flamingoObjectStorage.js';
 import { objectUploads } from '../services/flamingoObjectUploads.js';
-import { createFlamingoUploadStorage, validFlamingoUploadId } from '../utils/flamingoUploadStorage.js';
+import { createFlamingoUploadStorage, uploadReservationMs, validFlamingoUploadId } from '../utils/flamingoUploadStorage.js';
 import { flamingoUploadFailure } from '../utils/flamingoUploadErrors.js';
 import { wallMediaPostQuery } from '../utils/flamingoPostLookup.js';
 import { createFlamingoDownloadGrant, readFlamingoDownloadGrant } from '../utils/flamingoDownloadGrant.js';
@@ -424,6 +424,7 @@ const assertUploadOwner = (metadata, req) => {
   if (!ownerToken(req) || metadata.ownerTokenHash !== tokenHash(ownerToken(req))) {
     throw Object.assign(new Error('This upload belongs to another session.'), { status: 403 });
   }
+  if (metadata.cancelled) throw Object.assign(new Error('This upload was cancelled. Select the file again to start a new upload.'), { status: 410 });
 };
 router.post('/uploads', express.json({ limit: '64kb' }), async (req, res) => {
   const size = Number(req.body?.size ?? req.get('x-upload-size'));
@@ -484,7 +485,7 @@ router.post('/uploads', express.json({ limit: '64kb' }), async (req, res) => {
           if (post) return res.json({ ...uploadResponse(existing), post: serializeWallPosts([post], ownerToken(req))[0] });
           return res.status(410).json({ error: 'This post was deleted. Select the file again to create a new post.' });
         }
-        await uploadStorage.assertCapacity();
+        await uploadStorage.assertCapacity(0, { includeUploadId: id });
         Object.assign(existing, { text: metadata.text, title: metadata.title, premium: metadata.premium, priceTpg: metadata.priceTpg });
         await writeUploadMetadata(paths, existing);
         return res.json(uploadResponse(existing));
@@ -506,6 +507,40 @@ router.post('/uploads', express.json({ limit: '64kb' }), async (req, res) => {
   } catch (error) { sendUploadFailure(res, error); }
 });
 
+router.delete('/uploads/:id', async (req, res) => {
+  const id = String(req.params.id || '');
+  if (!validUploadId(id)) return res.status(404).json({ error: 'Upload session not found.' });
+  if (!ownerToken(req)) return res.status(403).json({ error: 'An upload owner token is required.' });
+  try {
+    // The native gate stops new range writes; drain current ones before
+    // removing partial files. Publication and admission share the session lock.
+    await withUploadLock(`${id}:native`, async () => {
+      await Promise.allSettled([...uploadLocks.entries()]
+        .filter(([key]) => key.startsWith(`${id}:`) && key !== `${id}:native`)
+        .map(([, task]) => task));
+      await withUploadLock('$storage', () => withUploadLock(id, async () => {
+        if (objectStorageEnabled()) {
+          await objectUploads.cancel(id, tokenHash(ownerToken(req)));
+          return;
+        }
+        const paths = sessionPaths(id);
+        let metadata;
+        try { metadata = JSON.parse(await readFile(paths.meta, 'utf8')); }
+        catch (error) { if (error.code === 'ENOENT') return; throw error; }
+        if (metadata.ownerTokenHash !== tokenHash(ownerToken(req)))
+          throw Object.assign(new Error('This upload belongs to another session.'), { status: 403 });
+        // A late Cancel may race a successful completion. Never delete posts
+        // or completed originals here, including a failed publication's file.
+        if (metadata.postId) return;
+        await writeUploadMetadata(paths, { ...metadata, cancelled: true, nativeUploadSize: 0 });
+        await rm(paths.data, { force: true });
+        await rm(paths.native, { force: true });
+      }));
+    });
+    res.json({ cancelled: true });
+  } catch (error) { sendUploadFailure(res, error); }
+});
+
 router.put('/uploads/:id', async (req, res) => {
   if (objectStorageEnabled()) { req.resume(); return res.status(409).json({ error: 'Refresh the wall to use direct media uploads.', retryable: false }); }
   const id = String(req.params.id || '');
@@ -519,7 +554,17 @@ router.put('/uploads/:id', async (req, res) => {
     if (uploadLocks.has(`${id}:native`)) { req.resume(); return res.status(409).json({ error: 'The original file is already uploading. Wait for it to finish.' }); }
     // Serialize retries of the same range, while distinct ranges stream in parallel.
     const result = await withUploadLock(`${id}:${offset}`, async () => {
-      const metadata = await withUploadLock(id, async () => JSON.parse(await readFile(paths.meta, 'utf8')));
+      const metadata = await withUploadLock('$storage', () => withUploadLock(id, async () => {
+        const current = JSON.parse(await readFile(paths.meta, 'utf8'));
+        assertUploadOwner(current, req);
+        // An old tab can send a range without restarting its session. Re-admit
+        // its remaining bytes before writing after its reservation expired.
+        if (Date.now() - Number(current.updatedAt || current.createdAt || 0) >= uploadReservationMs) {
+          await uploadStorage.assertCapacity(0, { includeUploadId: id });
+          await writeUploadMetadata(paths, current);
+        }
+        return current;
+      }));
       assertUploadOwner(metadata, req);
       const chunkBytes = metadata.chunkBytes || maxChunkBytes;
       const expectedLength = Math.min(chunkBytes, metadata.size - offset);

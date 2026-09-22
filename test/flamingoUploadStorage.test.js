@@ -13,7 +13,8 @@ import {
 } from 'node:fs/promises';
 import {
   createFlamingoUploadStorage,
-  uploadExpiryMs
+  uploadExpiryMs,
+  uploadReservationMs
 } from '../bot/utils/flamingoUploadStorage.js';
 import { flamingoUploadFailure } from '../bot/utils/flamingoUploadErrors.js';
 
@@ -54,7 +55,7 @@ describe('wall storage admission and expiry', () => {
     return { id, part, meta };
   }
   test('reserves unwritten sparse bytes and preserves filesystem headroom', async () => {
-    const file = await session({ size: 1024 ** 2 });
+    const file = await session({ age: new Date(now), size: 1024 ** 2 });
     const allocated = Math.min(
       (await lstat(file.part)).blocks * 512,
       1024 ** 2
@@ -108,11 +109,58 @@ describe('wall storage admission and expiry', () => {
     const allocated =
       (await lstat(file.part)).blocks * 512 +
       (await lstat(native)).blocks * 512;
-    expect((await storage().inspect()).reservedBytes).toBe(
-      2 * size - allocated
-    );
+    expect(
+      (await storage({ isBusy: () => true }).inspect()).reservedBytes
+    ).toBe(2 * size - allocated);
     expect((await storage().sweep()).removed).toBe(1);
     await expect(lstat(native)).rejects.toMatchObject({ code: 'ENOENT' });
+  });
+  test('releases idle reservations without deleting resumable bytes and rechecks capacity on resume', async () => {
+    const size = 1024 ** 3;
+    const idle = await session({
+      age: new Date(now - uploadReservationMs - 1000),
+      size
+    });
+    const capacity = storage({
+      reserveBytes: 100,
+      filesystem: async () => ({ bavail: size / 2, blocks: size * 2, bsize: 1 })
+    });
+    const before = await readFile(idle.meta, 'utf8');
+    expect(await capacity.inspect()).toMatchObject({
+      reservedBytes: 0,
+      availableBytes: size / 2 - 100
+    });
+    expect((await capacity.inspect()).idleReservedBytes).toBeGreaterThan(
+      size - 8192
+    );
+    await expect(capacity.assertCapacity(1024)).resolves.toBeDefined();
+    await expect(
+      capacity.assertCapacity(0, { includeUploadId: idle.id })
+    ).rejects.toMatchObject({ code: 'WALL_DISK_FULL' });
+    expect(await readFile(idle.meta, 'utf8')).toBe(before);
+    expect((await lstat(idle.part)).size).toBe(size);
+    expect((await capacity.sweep()).removed).toBe(0);
+  });
+  test('retains reservations for a slow active writer and labels contention as retryable', async () => {
+    const size = 1024 ** 2;
+    const idle = await session({ size });
+    const capacity = storage({
+      reserveBytes: 100,
+      isBusy: (id) => id === idle.id,
+      filesystem: async () => ({
+        bavail: size + 100,
+        blocks: size * 2,
+        bsize: 1
+      })
+    });
+    expect((await capacity.inspect()).reservedBytes).toBeGreaterThan(
+      size - 8192
+    );
+    await expect(capacity.assertCapacity(size)).rejects.toMatchObject({
+      status: 503,
+      code: 'WALL_STORAGE_BUSY',
+      retryable: true
+    });
   });
 
   test('cleans old orphan native staging files without touching an active transfer', async () => {

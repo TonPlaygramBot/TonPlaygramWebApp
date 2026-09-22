@@ -1,8 +1,9 @@
-import { uploadWallFile } from './wallUpload.js';
+import { cancelWallUpload, uploadWallFile } from './wallUpload.js';
 export const MAX_UPLOAD_FILES = 30;
 export const MAX_UPLOAD_BYTES = 5 * 1024 ** 3;
 export const UPLOAD_CONCURRENCY = 5;
 export const UPLOAD_SYNC_TAG = 'tonplaygram-wall-uploads';
+export const UPLOAD_WAKE_MESSAGE = 'wall-upload-run';
 const LEASE_MS = 45_000;
 export function validateUploadBatch(files) {
   if (!files.length || files.length > MAX_UPLOAD_FILES)
@@ -104,7 +105,12 @@ export function createUploadRepository(indexedDB = globalThis.indexedDB) {
         if (next) store.put(next);
         return next;
       }),
-    claim: (owner, now = Date.now(), persistentOnly = false) =>
+    claim: (
+      owner,
+      now = Date.now(),
+      persistentOnly = false,
+      memoryOnly = false
+    ) =>
       jobs('readwrite', async (store) => {
         const rows = await requestValue(store.getAll());
         // This count and claim happen in one read/write transaction across tabs
@@ -119,7 +125,11 @@ export function createUploadRepository(indexedDB = globalThis.indexedDB) {
           .find(
             (job) =>
               ['pending', 'uploading'].includes(job.status) &&
-              (!persistentOnly || job.persistent) &&
+              (!persistentOnly ||
+                job.persistent ||
+                job.operation === 'cancel') &&
+              (!memoryOnly ||
+                (!job.persistent && job.operation !== 'cancel')) &&
               !(job.retryAt > now) &&
               !(job.leaseUntil > now)
           );
@@ -142,10 +152,12 @@ export function createUploadRepository(indexedDB = globalThis.indexedDB) {
 export function createUploadRunner({
   repository,
   upload = uploadWallFile,
+  cancel = (options) => cancelWallUpload(options),
   fileFor = (job) => repository.file(job.id),
   changed = () => {},
   published = () => {},
-  background = false
+  background = false,
+  memoryOnly = () => false
 }) {
   const owner =
     globalThis.crypto?.randomUUID?.() ||
@@ -155,7 +167,10 @@ export function createUploadRunner({
   let stopping = false;
   async function process(job) {
     const controller = new AbortController();
-    controllers.set(job.id, controller);
+    controllers.set(job.id, {
+      controller,
+      persistent: job.persistent || job.operation === 'cancel'
+    });
     let bytes = job.bytes || 0,
       phase = 'uploading';
     let beatBusy = false;
@@ -185,6 +200,18 @@ export function createUploadRunner({
     };
     const timer = setInterval(heartbeat, 2000);
     try {
+      if (job.operation === 'cancel') {
+        await cancel({
+          ...job.options,
+          uploadId: job.id,
+          signal: controller.signal
+        });
+        const current = (await repository.list()).find(
+          (item) => item.id === job.id
+        );
+        if (current?.leaseOwner === owner) await repository.remove(job.id);
+        return;
+      }
       const stored = await fileFor(job);
       if (!stored)
         throw Object.assign(
@@ -233,7 +260,11 @@ export function createUploadRunner({
         if (current.leaseOwner !== owner) return;
         const interrupted = controller.signal.aborted;
         const unreadable = error.code === 'WALL_FILE_UNREADABLE';
-        const retry = !unreadable && !error.status && error.retryable !== false;
+        const retry =
+          !unreadable &&
+          error.retryable !== false &&
+          (!error.status ||
+            [408, 429, 500, 502, 503, 504].includes(error.status));
         return {
           ...current,
           leaseUntil: 0,
@@ -248,7 +279,8 @@ export function createUploadRunner({
           retryAt: interrupted ? 0 : Date.now() + 30_000,
           error: interrupted
             ? ''
-            : error.message || 'Upload interrupted. Please resume.'
+            : error.message || 'Upload interrupted. Please resume.',
+          errorCode: error.code || ''
         };
       });
     } finally {
@@ -258,10 +290,31 @@ export function createUploadRunner({
     }
   }
   return {
-    abort: (id) => controllers.get(id)?.abort(),
+    abort: (id) => controllers.get(id)?.controller.abort(),
+    releaseSaved: async () => {
+      await Promise.all(
+        [...controllers.entries()].map(async ([id, entry]) => {
+          if (!entry.persistent) return;
+          entry.controller.abort();
+          await repository.change(id, (current) =>
+            current.leaseOwner === owner
+              ? {
+                  ...current,
+                  status:
+                    current.status === 'uploading' ? 'pending' : current.status,
+                  leaseOwner: '',
+                  leaseUntil: 0,
+                  retryAt: 0,
+                  error: ''
+                }
+              : undefined
+          );
+        })
+      );
+    },
     stop: () => {
       stopping = true;
-      controllers.forEach((controller) => controller.abort());
+      controllers.forEach(({ controller }) => controller.abort());
     },
     run: ({ deadline = Infinity } = {}) => {
       if (running) return running;
@@ -273,7 +326,12 @@ export function createUploadRunner({
             Date.now() < deadline &&
             globalThis.navigator?.onLine !== false
           ) {
-            const job = await repository.claim(owner, Date.now(), background);
+            const job = await repository.claim(
+              owner,
+              Date.now(),
+              background,
+              memoryOnly()
+            );
             if (!job) break;
             changed();
             await process(job);

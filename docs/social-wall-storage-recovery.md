@@ -1,5 +1,52 @@
 # Social wall storage recovery
 
+## September 22: saved batches reserve almost all free media space
+
+The live wall health response during this investigation reported 48,637,681,664
+free bytes, 48,557,382,711 reserved bytes and only 13,190,089 available bytes after
+64 MiB headroom. The screenshot matches the server's `WALL_DISK_FULL` response;
+this is not a measurement of free space on the uploader's phone. These aggregate
+figures do not establish which individual sessions are still active.
+
+Reservations now lapse after five idle minutes while acknowledged data retains
+the existing 48-hour recovery window. Active writers keep their reservation.
+Resuming a session, including a direct chunk from an old tab, rechecks its
+remaining allocation under the storage lock before writing. Health additionally
+reports `idleReservedBytes`. This reclaims promises of unused space, without
+deleting published media or resetting acknowledged chunks. Truly full physical
+storage still needs operator attention; reservation contention returns retryable
+`WALL_STORAGE_BUSY` and the saved queue retries temporary failures automatically.
+
+Cancel is now a durable queue operation which reaches an owner-checked DELETE
+endpoint. Disk cancellation drains active writes, removes partial files and
+keeps a short-lived cancellation receipt to reject late writes. Object storage
+cancellation aborts unfinished multipart data. Neither path deletes a published
+post or completed original. The queue also retries saved errors containing the
+previous release's exact storage-full message once after startup.
+
+Leaving the page no longer unconditionally aborts uploads. Saved jobs can hand
+their leases to the service worker on visibility/page lifecycle events; a page
+message starts work even without SyncManager. The worker allows a bounded
+four-minute window instead of aborting at 25 seconds, preserves resumable state,
+and requests another sync when available. Unsaved files keep the foreground
+fallback. Browser/OS termination and Telegram WebView restrictions still apply;
+this web implementation cannot guarantee native-app background execution after
+closure. Background Sync has limited browser support and bounded execution:
+https://developer.mozilla.org/en-US/docs/Web/Progressive_web_apps/Guides/Offline_and_background_operation
+
+Feed and fullscreen `WallVideo` instances share playback ownership. A new play
+event pauses other players and invalidates their pending quality-switch resume,
+so an older player cannot restart when its metadata finishes loading.
+
+Validation covers real HTTP upload/cancel/ownership/resume paths, disk reservation
+expiry and re-admission, object multipart cancellation, IndexedDB restart/handoff,
+temporary errors, slow worker uploads, and exclusive playback. The generated
+worker and Vite production JavaScript compilation build successfully. This sparse
+checkout excludes the Tirana imported asset manifest, so the complete asset
+vendoring prebuild was not validated locally. Local preview navigation was blocked
+by the browser URL policy; no live uploads, media deletion or production deployment
+were performed during verification.
+
 The September 6 report showed a 555.2 MB video failing with a storage-full
 message. The previous API used that message for both disk exhaustion and MongoDB
 quota errors. Its health check tested directory access without measuring space.

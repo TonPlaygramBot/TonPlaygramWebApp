@@ -13,6 +13,7 @@ const schema = new mongoose.Schema(
     chunkBytes: { type: Number, required: true },
     parts: { type: mongoose.Schema.Types.Mixed, default: () => ({}) },
     postId: { type: mongoose.Schema.Types.ObjectId, default: undefined },
+    cancelled: { type: Boolean, default: false },
     expiresAt: { type: Date, default: undefined }
   },
   { timestamps: true, minimize: false }

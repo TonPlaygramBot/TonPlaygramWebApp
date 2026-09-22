@@ -66,6 +66,35 @@ describe('wall video resolution controls', () => {
     );
   };
 
+  it('pauses the other wall players when any feed/fullscreen video starts, and blocks stale quality resumes', async () => {
+    await act(async () =>
+      root.render(
+        <>
+          <WallVideo {...props} />
+          <WallVideo {...props} postId="000000000000000000000002" autoPlay />
+        </>
+      )
+    );
+    const [first, second] = container.querySelectorAll('video');
+    Object.defineProperty(first, 'paused', {
+      configurable: true,
+      value: false
+    });
+    Object.defineProperty(first, 'duration', { configurable: true, value: 60 });
+    first.currentTime = 12;
+    await click('[aria-label="Video options"]');
+    await click('[role="menuitemradio"]:last-of-type');
+    vi.mocked(first.pause).mockClear();
+    await act(async () => second.dispatchEvent(new Event('play')));
+    expect(first.pause).toHaveBeenCalledTimes(1);
+    await act(async () => first.dispatchEvent(new Event('loadedmetadata')));
+    expect(first.play).not.toHaveBeenCalled();
+    expect(first.currentTime).toBe(12);
+    vi.mocked(second.pause).mockClear();
+    await act(async () => first.dispatchEvent(new Event('play')));
+    expect(second.pause).toHaveBeenCalledTimes(1);
+  });
+
   it('loads choices from the three-dot menu and preserves time, sound and play state on a source switch', async () => {
     await act(async () => root.render(<WallVideo {...props} />));
     expect(fetch).toHaveBeenCalledTimes(1);

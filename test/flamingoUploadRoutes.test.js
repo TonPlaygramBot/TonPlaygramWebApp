@@ -1,5 +1,12 @@
 import express from 'express';
-import { mkdtemp, readFile, readdir, rm } from 'node:fs/promises';
+import {
+  mkdtemp,
+  readFile,
+  readdir,
+  rm,
+  writeFile,
+  utimes
+} from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { createHash, randomUUID } from 'node:crypto';
@@ -134,6 +141,84 @@ describe('wall HTTP upload and publication', () => {
       },
       body
     });
+
+  test('cancels only the owned pending session and rejects late writes without deleting a published original', async () => {
+    const id = randomUUID();
+    const metadata = { name: 'phone.mp4', size: 8, type: 'video/mp4' };
+    await start(id, metadata);
+    const cancel = (headers = owner) =>
+      fetch(`${base}/uploads/${id}`, { method: 'DELETE', headers });
+    expect(
+      (await cancel({ 'X-Wall-Owner-Token': 'another-phone' })).status
+    ).toBe(403);
+    expect((await put(id, 0, Buffer.alloc(8, 1))).status).toBe(200);
+    expect((await cancel()).status).toBe(200);
+    await expect(
+      readFile(path.join(directory, '.pending', `${id}.part`))
+    ).rejects.toMatchObject({ code: 'ENOENT' });
+    expect((await start(id, metadata)).status).toBe(410);
+    expect((await put(id, 0, Buffer.alloc(8))).status).toBe(410);
+    expect((await cancel()).status).toBe(200);
+    const publishedId = randomUUID();
+    await start(publishedId, metadata);
+    await put(publishedId, 0, Buffer.alloc(8, 3));
+    expect(
+      (
+        await fetch(`${base}/uploads/${publishedId}/complete`, {
+          method: 'POST',
+          headers: owner
+        })
+      ).status
+    ).toBe(201);
+    expect(
+      (
+        await fetch(`${base}/uploads/${publishedId}`, {
+          method: 'DELETE',
+          headers: owner
+        })
+      ).status
+    ).toBe(200);
+    expect(
+      await readFile(path.join(directory, `${publishedId}-phone.mp4`))
+    ).toEqual(Buffer.alloc(8, 3));
+  });
+
+  test('re-admits expired reservations on a direct chunk resume instead of overcommitting disk', async () => {
+    const id = randomUUID();
+    const size = 1024 ** 2;
+    await start(id, { name: 'phone.mp4', size, type: 'video/mp4' });
+    const metaPath = path.join(directory, '.pending', `${id}.json`);
+    const partPath = path.join(directory, '.pending', `${id}.part`);
+    const metadata = JSON.parse(await readFile(metaPath, 'utf8'));
+    const old = new Date(Date.now() - 6 * 60_000);
+    await writeFile(
+      metaPath,
+      JSON.stringify({
+        ...metadata,
+        updatedAt: old.getTime(),
+        createdAt: old.getTime()
+      })
+    );
+    await utimes(metaPath, old, old);
+    await utimes(partPath, old, old);
+    mockFilesystem.mockResolvedValue({
+      bavail: 64 * 1024 ** 2 + size / 2,
+      blocks: 100 * 1024 ** 3,
+      bsize: 1
+    });
+    const denied = await put(id, 0, Buffer.alloc(size, 5));
+    expect(denied.status).toBe(507);
+    expect(await denied.json()).toMatchObject({
+      code: 'WALL_DISK_FULL',
+      retryable: false
+    });
+    expect(JSON.parse(await readFile(metaPath, 'utf8')).received).toBe(0);
+    mockFilesystem.mockImplementation(
+      jest.requireActual('node:fs/promises').statfs
+    );
+    expect((await put(id, 0, Buffer.alloc(size, 5))).status).toBe(200);
+    expect(await readFile(partPath)).toEqual(Buffer.alloc(size, 5));
+  });
 
   const native = (id, bytes, { name = 'phone.mp4', headers = owner } = {}) => {
     const body = new FormData();

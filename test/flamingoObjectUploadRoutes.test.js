@@ -224,6 +224,53 @@ describe('direct object media uploads over HTTP', () => {
       ...extra
     });
 
+  test('cancels only the owned unfinished multipart and preserves completed originals', async () => {
+    const id = randomUUID();
+    const metadata = { name: 'phone.mp4', size: 8, type: 'video/mp4' };
+    const start = () =>
+      fetch(`${base}/uploads`, {
+        method: 'POST',
+        headers: {
+          ...owner,
+          'X-Upload-Id': id,
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify(metadata)
+      });
+    expect((await start()).status).toBe(201);
+    expect(
+      (
+        await fetch(`${base}/uploads/${id}`, {
+          method: 'DELETE',
+          headers: { 'X-Wall-Owner-Token': 'someone-else' }
+        })
+      ).status
+    ).toBe(403);
+    expect(mockMultiparts.size).toBe(1);
+    expect(
+      (
+        await fetch(`${base}/uploads/${id}`, {
+          method: 'DELETE',
+          headers: owner
+        })
+      ).status
+    ).toBe(200);
+    expect(mockMultiparts.size).toBe(0);
+    expect((await start()).status).toBe(410);
+    const completedId = randomUUID();
+    const { post } = await publish(makeFile(8), completedId);
+    expect(
+      (
+        await fetch(`${base}/uploads/${completedId}`, {
+          method: 'DELETE',
+          headers: owner
+        })
+      ).status
+    ).toBe(200);
+    expect(mockObjects.has(post.attachment.objectKey)).toBe(true);
+    expect(mockStore.remove).not.toHaveBeenCalled();
+  });
+
   test('publishes through direct multipart requests, preserves original bytes and redirects seeking to the bucket', async () => {
     const file = makeFile(5 * 1024 ** 2 + 8);
     const { post } = await publish(file);

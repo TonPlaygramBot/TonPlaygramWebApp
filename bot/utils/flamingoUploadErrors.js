@@ -4,6 +4,13 @@ export const isDatabaseQuotaError = (error) =>
   );
 
 export function flamingoUploadFailure(error) {
+  if (error?.code === 'WALL_STORAGE_BUSY')
+    return {
+      status: 503,
+      code: error.code,
+      retryable: true,
+      error: error.message
+    };
   if (String(error?.code || '').startsWith('WALL_OBJECT_STORAGE_'))
     return {
       status: error.status || 503,
@@ -32,7 +39,7 @@ export function flamingoUploadFailure(error) {
       code: 'WALL_DISK_FULL',
       retryable: false,
       error:
-        'There is not enough media storage for this upload. Your selection is kept; storage needs to be freed before retrying.'
+        'The server media storage is full. Your video is kept; server storage must be freed or expanded before retrying.'
     };
   if (['EACCES', 'EROFS'].includes(error?.code))
     return {
