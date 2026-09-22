@@ -75,8 +75,8 @@ export class StreetWorld {
     this.legacyBounds = legacyBounds;
     this.solids = solids.map((b) => ({
       ...b,
-      minY: (b.minY ?? b.minHeight ?? 0)+buildingGround(b),
-      h:b.h+buildingGround(b),
+      minY: (b.minY ?? b.minHeight ?? 0)+(b.baseY??buildingGround(b)),
+      h:b.h+(b.baseY??buildingGround(b)),
       minX: Math.min(...b.p.map((p) => p[0])),
       maxX: Math.max(...b.p.map((p) => p[0])),
       minZ: Math.min(...b.p.map((p) => p[1])),
@@ -154,7 +154,7 @@ export class StreetWorld {
         if (!this.clearance(q, height)) {
           const top = this.surface(q.x, q.z, p.y + step);
           if (
-            top > p.y &&
+            top >= p.y &&
             top - p.y <= step &&
             this.clearance({ ...q, y: top }, height)
           )

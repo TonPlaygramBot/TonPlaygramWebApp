@@ -1,3 +1,4 @@
+import {MissionReadout} from '../tiranastreets/MissionReadout';
 import {LiveHud} from '../tiranastreets/LiveHud';
 import {GraphicsControl} from '../tiranastreets/GraphicsControl';
 import {graphicsSetting} from '../tiranastreets/graphicsQuality';
@@ -110,6 +111,14 @@ const clock = (s: number) =>
   `${Math.floor(s / 60)
     .toString()
     .padStart(2, '0')}:${(s % 60).toString().padStart(2, '0')}`;
+type InterfaceSettings = {leftHanded: boolean; showPerformance: boolean; compactHud: boolean};
+const INTERFACE_KEY = 'tirana-streets:battlefield-interface:v1';
+function loadInterfaceSettings(): InterfaceSettings {
+  try {
+    const raw = JSON.parse(window.localStorage.getItem(INTERFACE_KEY) || '{}');
+    return {leftHanded: raw?.leftHanded === true, showPerformance: raw?.showPerformance === true, compactHud: raw?.compactHud === true};
+  } catch { return {leftHanded: false, showPerformance: false, compactHud: false}; }
+}
 export function Game({
   mode = 'ai',
   initialWeapon = 'ak47',
@@ -145,7 +154,8 @@ export function Game({
       volume: 0.55,
       assist: true,
       quality: 'auto',
-      targetFps: 60
+      targetFps: 60,
+      bloodEffects: true
     });
   useEffect(() => {
     if (!canvas.current || !surface.current) return;
@@ -174,6 +184,11 @@ export function Game({
       engine.current = null;
     };
   }, [mode, initialWeapon, initialDifficulty, initialMap, onEngine]);
+  const [interfaceSettings, setInterfaceSettings] = useState(loadInterfaceSettings);
+  useEffect(() => {
+    try { window.localStorage.setItem(INTERFACE_KEY, JSON.stringify(interfaceSettings)); } catch { /* Session preferences still work. */ }
+  }, [interfaceSettings]);
+  const selectedOperation = OPERATIONS.find(op => op.id === operationId);
   const playing = state.phase === 'playing',
     hud = state.phase !== 'menu',
     ended = state.phase === 'won' || state.phase === 'lost';
@@ -193,7 +208,7 @@ export function Game({
   }
   return (
     <div
-      className={`bw-scope game-root phase-${state.phase}`}
+      className={`bw-scope game-root phase-${state.phase}${interfaceSettings.leftHanded ? ' is-left-handed' : ''}${interfaceSettings.compactHud ? ' is-compact' : ''}${state.driving ? ' is-driving' : ''}`}
       data-game-phase={state.phase}
     >
       <div className="scene-stage">
@@ -261,7 +276,8 @@ export function Game({
               YOUR <em>MISSION.</em>
             </h1>
             <p>
-              Complete three operations, one objective at a time.
+              Recover intelligence, secure districts and survive extraction.
+              Your next operation starts here.
             </p>
           </div>
           <div className="location-stamp">
@@ -279,7 +295,8 @@ export function Game({
               </span>
             </div>
             <div className="bw-mode-links">
-              {onCareer && <button onClick={onCareer}>STREET CAREER · FREE ROAM</button>}
+              {onCareer && <button onClick={onCareer}>STREET CAREER</button>}
+              {onStories && <button onClick={onStories}>CITY STORIES</button>}
             </div>
             <label className="battlefield-map-label">OPERATION
               <select aria-label="Operation" value={operationId} onChange={e=>{
@@ -289,7 +306,14 @@ export function Game({
                 {OPERATIONS.map(op=><option key={op.id} value={op.id} disabled={!operationUnlocked({completed:state.operations||[]},op.id)}>{state.operations?.includes(op.id)?'✓ ':''}{op.title}{!operationUnlocked({completed:state.operations||[]},op.id)?' · Locked':''}</option>)}
               </select>
             </label>
-            <p className="bw-mode-description">{BATTLE_MODES.find(m=>m.id===battleMode)?.description}</p>
+            <section className="bw-operation-briefing" aria-label="Operation briefing">
+              <div><small>{BATTLEFIELD_MAPS.find(map => map.id === battlefieldMap)?.name}</small><span>{state.operations?.includes(operationId) ? 'COMPLETED · REPLAY' : 'NEXT OBJECTIVE'}</span></div>
+              <h2>{selectedOperation?.title}</h2>
+              <p className="bw-mode-description">{BATTLE_MODES.find(m => m.id === battleMode)?.description}</p>
+              <ol>
+                {(battleMode === 'hold' ? ['Reach the capture beacon', 'Clear nearby opposition and defend your checkpoints', 'Secure 45 seconds of capture to finish the operation'] : battleMode === 'extraction' ? ['Reach the intelligence beacon', 'Secure the area and collect the intelligence', 'Carry the intelligence to extraction'] : battleMode === 'waves' ? ['Survive three enemy waves', 'Choose an upgrade between waves', 'Reach extraction and hold your position'] : battleMode === 'last-stand' ? ['Stay inside the shrinking combat zone', 'Use cover and collect supplies', 'Be the last operator standing'] : ['Find and eliminate the hostile squad', 'Keep ammunition and a medkit for the return', 'Reach extraction and secure your exit']).map(text => <li key={text}>{text}</li>)}
+              </ol>
+            </section>
             <p className="bw-starting-kit">Starting kit: {startingWeapons().map(id=>WEAPONS[id].name).join(' · ')}</p>
             <RadioGroup
               value={difficulty}
@@ -380,36 +404,16 @@ export function Game({
               </>
             ) : (
               <>
-                <div className="mission-kicker">
-                  {state.extract ? 'EXTRACTION OPEN' : BATTLE_MODES.find(m=>m.id===state.battleMode)?.name.toUpperCase()}
-                </div>
-                <div className="wave-number">
-                  {state.extract ? (
-                    <>
-                      <MapPin size={21} />
-                      {state.distance}
-                      <span>METERS</span>
-                    </>
-                  ) : (
-                    <>
-                      {state.battleMode==='waves'?<>WAVE <b>0{state.wave}</b><span>/ 03</span></>:state.battleMode==='last-stand'?<><b>{state.remaining+(state.health>0?1:0)}</b><span>ALIVE</span></>:<><b>{Math.floor(state.objectiveProgress||0)}</b><span>{state.battleMode==='hold'?'/ 45 SEC':state.battleMode==='extraction'?'/ 3 SEC':'SECURED'}</span></>}
-                    </>
-                  )}
-                </div>
-                <p>
-                  {state.extract ? (
-                    'Reach the green ring at extraction point'
-                  ) : (
-                    <>
-                      <span className="enemy-dot" />
-                      {state.objective}
-                    </>
-                  )}
-                </p>
+                <MissionReadout label="Operation" eyebrow={state.extract ? 'EXTRACTION OPEN' : BATTLE_MODES.find(m => m.id === state.battleMode)?.name.toUpperCase() || 'BATTLEFIELD'}
+                  title={state.objectiveContested ? 'CONTESTED' : (state.objectiveStage || 'ACTIVE').toUpperCase()}
+                  detail={state.objective} progress={state.objectiveRatio} remaining={state.objectiveTimeRemaining}
+                  contested={state.objectiveContested} hint={state.objectiveHint}
+                  meta={[state.extract ? `${state.distance} m to extraction` : state.battleMode === 'waves' ? `Wave ${state.wave} / 3` : state.battleMode === 'last-stand' ? `${state.remaining + (state.health > 0 ? 1 : 0)} alive` : `${state.remaining} hostiles`]}/>
               </>
             )}
           </div>
-          <MiniMap state={state} />
+          {!interfaceSettings.compactHud && <MiniMap state={state} />}
+          {interfaceSettings.showPerformance && <output className="bw-performance" aria-label="Performance statistics">{state.fps} FPS{state.drawCalls !== undefined && <><br/>{state.drawCalls} draws · {Math.round((state.triangles || 0) / 1000)}k triangles</>}</output>}
           {playing ? (
             <>
               {state.aim&&!state.driving&&!state.reload&&opticZoom(state.weapon)>1?<OpticalSight zoom={opticZoom(state.weapon)}/>:<div
@@ -478,10 +482,8 @@ export function Game({
                 </div>
                 <small>{state.health < 30 ? 'FIND COVER' : 'VITALS'}</small>
               </div>
-              <div className="ammo-panel">
-                <span>
-                  {WEAPONS[state.weapon].name} <i /> AUTO
-                </span>
+              <div className="ammo-panel" aria-label="Ammunition">
+                <span>{WEAPONS[state.weapon].name}</span>
                 <div>
                   <strong className={state.ammo < 6 ? 'low' : ''}>
                     {state.ammo.toString().padStart(2, '0')}
@@ -489,7 +491,7 @@ export function Game({
                   <span>/ {state.reserve}</span>
                 </div>
                 <small>
-                  {state.reload > 0 ? 'RELOADING' : WEAPONS[state.weapon].role}
+                  {state.reload > 0 ? 'RELOADING' : state.ammo === 0 ? state.reserve > 0 ? 'RELOAD NOW' : 'FIND AMMUNITION' : WEAPONS[state.weapon].role}
                 </small>
               </div>
               {state.pickupWeapon && !state.driving && <button className="bw-pickup" onClick={() => engine.current?.pickupWeapon()} aria-label={`Pick up ${state.pickupWeapon}`}>PICK UP {state.pickupWeapon}</button>}
@@ -504,7 +506,7 @@ export function Game({
                   {!state.online&&(state.driving||state.nearVehicle)&&<button aria-label={state.driving?'Exit vehicle':'Enter vehicle'} onClick={()=>engine.current?.toggleVehicle()}>{state.driving?'EXIT VEHICLE':'DRIVE'}</button>}
                   {state.driving&&<button aria-label="Change driving camera view" onClick={()=>engine.current?.changeVehicleCamera()}>CAMERA · {state.vehicleView?.toUpperCase()}</button>}
                 </div>
-                {state.driving?<div className="bw-pedals"><small>{state.vehicleSpeed} km/h · steer with left stick</small>
+                {state.driving?<div className="bw-pedals"><small>{state.vehicleSpeed} km/h · {interfaceSettings.leftHanded ? 'right' : 'left'} stick steers</small>
                   {(['reverse','brake','gas'] as const).map(pedal=><HoldButton key={pedal} aria-label={pedal} onHold={held=>engine.current?.setVehiclePedal(pedal,held)}>{pedal.toUpperCase()}</HoldButton>)}
                 </div>:<div className="right-controls">
                   <LookFire engine={engine.current} />
@@ -569,7 +571,7 @@ export function Game({
               {state.time < 9 ? (
                 <div className="touch-tip">
                   <Move size={14} />
-                  <span>Left thumb moves · Drag right to aim</span>
+                  <span>{interfaceSettings.leftHanded ? 'Right' : 'Left'} thumb moves · Drag the view to aim</span>
                 </div>
               ) : null}
             </>
@@ -744,6 +746,11 @@ export function Game({
             Make the controls feel right for you.
           </DialogDescription>
           <div className="settings-fields">
+            <fieldset className="bw-interface-settings"><legend>HUD & thumb controls</legend>
+              <label><span>Left-handed controls<small>Move with the right thumb; actions on the left.</small></span><Switch aria-label="Left-handed controls" checked={interfaceSettings.leftHanded} onCheckedChange={leftHanded => setInterfaceSettings(s => ({...s,leftHanded}))}/></label>
+              <label><span>Clear view<small>Hide the minimap and compass.</small></span><Switch aria-label="Clear view" checked={interfaceSettings.compactHud} onCheckedChange={compactHud => setInterfaceSettings(s => ({...s,compactHud}))}/></label>
+              <label><span>Performance statistics<small>Show frame rate and rendering work.</small></span><Switch aria-label="Performance statistics" checked={interfaceSettings.showPerformance} onCheckedChange={showPerformance => setInterfaceSettings(s => ({...s,showPerformance}))}/></label>
+            </fieldset>
             <FrameRateControl value={settings.targetFps} onChange={targetFps => configure({targetFps})}/>
             <label className="slider-field">
               <span>
@@ -771,6 +778,10 @@ export function Game({
                 max={1}
                 step={0.05}
               />
+            </label>
+            <label className="switch-field">
+              <div><strong>Blood traces</strong><small>Show blood impact marks and traces.</small></div>
+              <Switch checked={settings.bloodEffects} onCheckedChange={bloodEffects => configure({bloodEffects})} aria-label="Blood traces"/>
             </label>
             <label className="switch-field">
               <div>
@@ -804,47 +815,38 @@ export function Game({
         <DialogContent className="game-dialog">
           <DialogTitle className="dialog-title">GET IN. GET OUT.</DialogTitle>
           <DialogDescription>Your first operation in Tirana.</DialogDescription>
-          <p>Last operator standing: one life, bots fight each other, stay inside the amber zone. District missions: follow the blue beacon, then the green extraction ring. Hold missions need 45 uncontested seconds.</p>
+          <p>Follow the blue objective beacon, then the green extraction ring. Enemies contest objectives: clear nearby threats before capturing or collecting intelligence. Watch the objective card for the current stage and instructions.</p>
           <ol className="briefing-list">
             <li>
               <span>01</span>
               <div>
-                <strong>Clear the street</strong>
-                <p>
-                  Eliminate every hostile. Red marks on the map show their
-                  positions.
-                </p>
+                <strong>Read the objective</strong>
+                <p>Follow the beacon and the live mission card. District sweeps, intelligence recovery and defense require different tactics.</p>
               </div>
             </li>
             <li>
               <span>02</span>
               <div>
-                <strong>Build your advantage</strong>
-                <p>
-                  Pick an upgrade after each wave. Your health and ammunition
-                  refill.
-                </p>
+                <strong>Control the fight</strong>
+                <p>Use cover, watch your ammunition and keep a medkit for emergencies. In wave survival, choose an upgrade between waves.</p>
               </div>
             </li>
             <li>
               <span>03</span>
               <div>
-                <strong>Reach extraction</strong>
-                <p>
-                  After wave 3, move to the green ring at extraction point. Hold
-                  for 5 seconds.
-                </p>
+                <strong>Finish the operation</strong>
+                <p>When extraction opens, reach the green ring and follow the hold timer. Last operator standing ends when only one operator remains.</p>
               </div>
             </li>
           </ol>
           <div className="help-controls">
             <p>
-              <b>On your phone</b> Move with the left stick. Drag on the right
+              <b>On your phone</b> Move with the {interfaceSettings.leftHanded ? 'right' : 'left'} stick. Drag the view
               to look. Hold and drag FIRE to shoot and aim together.
             </p>
             <p>
               <b>On a computer</b> WASD to move. Drag to look; hold to fire. Q
-              to aim, R to reload, C to crouch, E to heal. Arrow keys also aim;
+              to aim, R to reload, C to crouch, H to heal, E to pick up weapons. Arrow keys also aim;
               F fires.
             </p>
           </div>

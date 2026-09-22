@@ -98,35 +98,41 @@ export function normalizePlayableHuman(root,height=1.78) {
   return wrapper;
 }
 
-/** World-space two-bone IK works with the three different authored joint axes. */
+const limbScratch=new WeakMap();
+function rotateIkBone(bone,from,to,scratch){
+  if(from.lengthSq()<1e-10||to.lengthSq()<1e-10)return;
+  bone.getWorldQuaternion(scratch.world);bone.parent.getWorldQuaternion(scratch.parent);
+  scratch.world.premultiply(scratch.delta.setFromUnitVectors(from.normalize(),to.normalize()));
+  bone.quaternion.copy(scratch.parent.invert().multiply(scratch.world));bone.updateWorldMatrix(false,true);
+}
+
+/** World-space two-bone IK works with the three different authored joint axes.
+ * Scratch belongs to the rig root: posing a crowd allocates no per-limb vectors
+ * or quaternions and removing a rig releases its workspace automatically. */
 export function solveHumanoidLimb(root,bones,side,target,leg=false) {
   const upper=bones.get(side+(leg?'upleg':'arm')),
     lower=bones.get(side+(leg?'leg':'forearm')),
     end=bones.get(side+(leg?'foot':'hand'));
   if(!upper||!lower||!end||!upper.parent||!lower.parent)return false;
+  let scratch=limbScratch.get(root);
+  if(!scratch){scratch={start:new T.Vector3(),middle:new T.Vector3(),tip:new T.Vector3(),axis:new T.Vector3(),pole:new T.Vector3(),bend:new T.Vector3(),reachable:new T.Vector3(),from:new T.Vector3(),rotation:new T.Quaternion(),world:new T.Quaternion(),parent:new T.Quaternion(),delta:new T.Quaternion()};limbScratch.set(root,scratch);}
   root.updateWorldMatrix(true,false);
-  const start=upper.getWorldPosition(new T.Vector3()),middle=lower.getWorldPosition(new T.Vector3()),tip=end.getWorldPosition(new T.Vector3());
-  const a=start.distanceTo(middle),b=middle.distanceTo(tip),axis=target.clone().sub(start);
+  const start=upper.getWorldPosition(scratch.start),middle=lower.getWorldPosition(scratch.middle),tip=end.getWorldPosition(scratch.tip);
+  const a=start.distanceTo(middle),b=middle.distanceTo(tip),axis=scratch.axis.copy(target).sub(start);
   if(a<1e-5||b<1e-5||!Number.isFinite(axis.lengthSq()))return false;
   const length=T.MathUtils.clamp(axis.length(),Math.abs(a-b)+.0001,(a+b)*.999);
   if(axis.lengthSq()<1e-10)axis.set(0,-1,0);else axis.normalize();
-  const rotation=root.getWorldQuaternion(new T.Quaternion());
-  const pole=(leg?new T.Vector3(0,0,1):new T.Vector3(side==='left'?.5:-.5,-1,-.2)).applyQuaternion(rotation);
+  const rotation=root.getWorldQuaternion(scratch.rotation);
+  const pole=(leg?scratch.pole.set(0,0,1):scratch.pole.set(side==='left'?.5:-.5,-1,-.2)).applyQuaternion(rotation);
   pole.addScaledVector(axis,-pole.dot(axis));
   if(pole.lengthSq()<1e-8){pole.set(1,0,0).applyQuaternion(rotation);pole.addScaledVector(axis,-pole.dot(axis));}
   pole.normalize();
   const along=(a*a+length*length-b*b)/(2*length),
-    bend=start.clone().addScaledVector(axis,along).addScaledVector(pole,Math.sqrt(Math.max(0,a*a-along*along))),
-    reachable=start.clone().addScaledVector(axis,length);
-  const rotate=(bone,from,to)=>{
-    if(from.lengthSq()<1e-10||to.lengthSq()<1e-10)return;
-    const world=bone.getWorldQuaternion(new T.Quaternion()),parent=bone.parent.getWorldQuaternion(new T.Quaternion());
-    world.premultiply(new T.Quaternion().setFromUnitVectors(from.normalize(),to.normalize()));
-    bone.quaternion.copy(parent.invert().multiply(world));bone.updateWorldMatrix(false,true);
-  };
-  rotate(upper,middle.clone().sub(start),bend.sub(start));
+    bend=scratch.bend.copy(start).addScaledVector(axis,along).addScaledVector(pole,Math.sqrt(Math.max(0,a*a-along*along))),
+    reachable=scratch.reachable.copy(start).addScaledVector(axis,length);
+  rotateIkBone(upper,scratch.from.copy(middle).sub(start),bend.sub(start),scratch);
   lower.getWorldPosition(middle);end.getWorldPosition(tip);
-  rotate(lower,tip.sub(middle),reachable.sub(middle));
+  rotateIkBone(lower,tip.sub(middle),reachable.sub(middle),scratch);
   return true;
 }
 

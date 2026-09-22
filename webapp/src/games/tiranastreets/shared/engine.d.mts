@@ -1,4 +1,4 @@
-export type Shop = {x:number;z:number;id?:string;name:string};
+export type Shop = {x:number;y?:number;z:number;id?:string;name:string};
 export type Pickup = {id:string;x:number;y:number;z:number;weapon:string;ammo:number;source?:string;collected?:boolean;expiresAt?:number};
 export type Point = { x: number; z: number };
 export type Input = {

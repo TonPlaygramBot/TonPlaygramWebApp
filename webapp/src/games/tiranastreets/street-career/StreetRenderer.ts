@@ -14,7 +14,6 @@ import { CityRenderer } from '../renderer';
 import type { State } from '../shared/engine.mjs';
 import type { attachEnhancements } from '../../tirana-expansion/WorldEnhancements';
 import { SharedHumans } from './SharedHumans';
-import { nearbyHumans } from './humanRoster.mjs';
 import { forceCharacterFor } from '../shared/albanianForces.mjs';
 import { CombatEffects } from '../CombatEffects';
 import { SurfaceImpactMarks } from '../SurfaceImpactMarks';
@@ -214,8 +213,9 @@ export class StreetRenderer extends CityRenderer {
     const sim=this.simulation;
     if(sim){
       if(this.effectState!==sim.state){this.combatEffects.reset();this.impactMarks.reset();this.clearWrecks();this.effectState=sim.state;this.cutCount=0;}
+      this.combatEffects.setBloodEnabled(this.settings.bloodEffects);
       this.combatEffects.consume(sim.state.effects,groundHeight);this.showWrecks(sim);
-      this.impactMarks.update(sim.state.effects,sim.state.elapsed,id=>this.vehicleVisual(id),this.vehicleView==='cockpit'?sim.player.carId||undefined:undefined);
+      this.impactMarks.update(sim.state.effects,sim.state.elapsed,id=>this.vehicleVisual(id),this.vehicleView==='cockpit'?sim.player.carId||undefined:undefined,this.camera.position,this.quality==='battery');
       if(this.cutCount!==sim.world.fractures.length){
         this.cutCount=sim.world.fractures.length;
         this.combatEffects.fracture(this.scene,sim.world.fractures,[this.humans.group,this.bodyRig.weapon,this.airMobility.group,this.collectionFleet.group]);
@@ -253,9 +253,13 @@ export class StreetRenderer extends CityRenderer {
     beginCityFrame(this.targetFps);
     const p = state?.players[id];
     this.details.sourceCable.setRide(this.simulation?.cableRide||undefined);
+    // Classify once. SharedHumans selects its own nearest civilian budget;
+    // selecting it again for a force-only render list did duplicate sorting.
+    const civilians:State['npcs']=[],forces:State['npcs']=[];
+    if(state)for(const npc of state.npcs)(forceCharacterFor(npc)?forces:civilians).push(npc);
     if (state && p)
       this.humans.update(
-        state.npcs.filter((n) => !forceCharacterFor(n)),
+        civilians,
         p,
         state.elapsed,
         dt,
@@ -268,24 +272,12 @@ export class StreetRenderer extends CityRenderer {
       p,
       this.quality === 'battery'
     );
-    // Renderer-only view: authoritative/local simulation retains every real NPC.
-    const visible =
-      state && p
-        ? [
-            ...state.npcs.filter((n) => forceCharacterFor(n)),
-            ...nearbyHumans(
-              state.npcs.filter((n) => !forceCharacterFor(n)),
-              p,
-              this.quality === 'battery'
-            )
-          ]
-        : [];
     // Filter once for all fleet renderers. The simulation keeps the entire
     // population; this 500 m radius exceeds every fleet's visual/prefetch range.
     const traffic=state&&p?state.traffic.filter(c=>(c.x-p.x)**2+(c.z-p.z)**2<500**2):state?.traffic;
     super.render(
       state
-        ? { ...state, traffic:traffic!, npcs: visible.filter((n) => forceCharacterFor(n)) }
+        ? { ...state, traffic:traffic!, npcs: forces }
         : null,
       id,
       dt,

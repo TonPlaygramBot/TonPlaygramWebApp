@@ -2098,3 +2098,90 @@
 :where(.bw-scope) .topbar .icon-btn{width:54px}
 :where(.bw-scope) .ts-weapon-switcher{left:105px;bottom:calc(174px + env(safe-area-inset-bottom,0px))}
 @media(max-width:600px){:where(.bw-scope) .compass{left:auto;right:12px;transform:none;width:132px}}
+
+/* Portrait combat separates navigation, tactical information and thumb actions. */
+.bw-scope .topbar{left:0;right:0;transform:none;width:auto;padding:calc(8px + env(safe-area-inset-top,0px)) 12px 8px;gap:8px;justify-content:space-between}
+.bw-scope .topbar .brand{display:flex;flex:1;min-width:0}
+.bw-scope .brand-name{font-size:11px;letter-spacing:.04em}
+.bw-scope .brand-name small{font-size:9px;letter-spacing:0;line-height:1.4}
+.bw-scope .topbar .brand-mark{display:none}
+.bw-scope .topbar .top-actions{margin-left:0;flex:none}
+.bw-scope .topbar .bw-menu-button{width:auto;min-width:54px;border-radius:12px}
+.bw-scope .compass{top:calc(76px + env(safe-area-inset-top,0px));left:auto;right:12px;transform:none;width:132px}
+.bw-scope .mission-status{left:12px;top:calc(116px + env(safe-area-inset-top,0px));max-width:none;width:calc(100% - 124px);max-width:340px;padding:10px 11px;background:linear-gradient(110deg,#102933ee,#10293388);border-left:3px solid #d1e59c;border-radius:0 12px 12px 0}
+.bw-scope .mission-kicker{padding:0;border:0;font-size:9px;line-height:1.4;letter-spacing:.05em;color:#ccdac7}
+.bw-scope .mission-status p{display:block;max-width:none;font:12px/1.4 system-ui,sans-serif;letter-spacing:0;margin:6px 0;color:#f1f4e6}
+.bw-scope .bw-objective-line{display:flex;align-items:center;justify-content:space-between;gap:8px;margin-top:5px}
+.bw-scope .bw-objective-line strong{font-size:12px;letter-spacing:.03em;color:#ddebba}
+.bw-scope .bw-objective-line span{font:11px/1.3 ui-monospace,monospace;color:#d0dfcb;white-space:nowrap}
+.bw-scope .mission-status progress{display:block;width:100%;height:5px;accent-color:#d1e59c;margin:7px 0}
+.bw-scope .mission-status progress.is-contested{accent-color:#ffb493}
+.bw-scope .bw-objective-hint{display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;color:#d3dfce;font:10px/1.4 system-ui,sans-serif}
+.bw-scope .minimap{top:calc(130px + env(safe-area-inset-top,0px));right:12px;width:92px;height:110px;padding:5px 5px 16px;border-radius:10px;background:#102933cc}
+.bw-scope .map-north{font-size:9px;top:-15px}
+.bw-scope .minimap>span{font-size:8px}
+.bw-scope.is-compact .mission-status{width:calc(100% - 24px);max-width:380px}
+.bw-scope.is-compact .compass{display:none}
+.bw-scope .bw-performance{position:absolute;right:12px;top:calc(256px + env(safe-area-inset-top,0px));padding:5px 7px;border-radius:8px;background:#10232edb;color:#e5f3ef;font:10px/1.4 ui-monospace,monospace;font-variant-numeric:tabular-nums;pointer-events:none;text-align:right}
+.bw-scope .bw-operation-briefing{border:1px solid #78978266;background:#142e33db;border-radius:14px;padding:16px;margin:14px 0}
+.bw-scope .bw-operation-briefing>div{display:flex;align-items:center;justify-content:space-between;gap:8px;color:#c8d8bd;font:10px/1.4 system-ui,sans-serif}
+.bw-scope .bw-operation-briefing h2{font-size:20px;letter-spacing:-.03em;margin:8px 0}
+.bw-scope .bw-operation-briefing p{font:13px/1.5 system-ui,sans-serif;margin:8px 0}
+.bw-scope .bw-operation-briefing ol{font:12px/1.6 system-ui,sans-serif;padding-left:20px;margin:12px 0 0;color:#d5e0ce}
+.bw-scope .bw-operation-briefing li{padding:3px 0}
+.bw-scope .bw-interface-settings{border:1px solid #8a9e8444;border-radius:12px;padding:14px;min-width:0}
+.bw-scope .bw-interface-settings legend{font-size:14px;padding:0 5px;color:#e2edb4}
+.bw-scope .bw-interface-settings label{display:flex;align-items:center;justify-content:space-between;gap:14px;min-height:64px;font-size:14px}
+.bw-scope .bw-interface-settings small{display:block;font:12px/1.4 system-ui,sans-serif;color:#b9cbbc;margin-top:4px}
+.bw-scope .game-dialog{border-radius:16px!important}
+@media(max-width:760px),(pointer:coarse){
+  .bw-scope .joystick{left:16px;right:auto;bottom:calc(65px + env(safe-area-inset-bottom,0px));width:112px;height:112px}
+  .bw-scope .stick-ring{width:108px;height:108px}
+  .bw-scope .stick-ring>span{width:52px;height:52px}
+  .bw-scope .right-controls{right:14px;left:auto;bottom:calc(65px + env(safe-area-inset-bottom,0px));width:128px;height:128px;display:grid;grid-template-columns:60px 60px;grid-template-rows:60px 60px;gap:8px}
+  .bw-scope .right-controls .touch-btn,.bw-scope .right-controls .fire-btn{position:relative;inset:auto;width:60px;height:60px;min-height:48px;display:flex;flex-direction:column;gap:2px;border-radius:16px;background:#17313bdb}
+  .bw-scope .right-controls .fire-btn{grid-area:2/2;border-radius:50%;background:#d1e5a3ed;color:#153239;border-color:#e2edc7;box-shadow:0 0 0 4px #d5ebac22}
+  .bw-scope .right-controls .ads{grid-area:1/1}
+  .bw-scope .right-controls .reload{grid-area:1/2}
+  .bw-scope .right-controls .crouch{grid-area:2/1}
+  .bw-scope .right-controls .touch-btn>span,.bw-scope .right-controls .fire-btn>span{position:static;font-size:9px;color:inherit;letter-spacing:.03em}
+  .bw-scope .right-controls .touch-btn.active{background:#466249;color:#edffc5;border-color:#dfefab}
+  .bw-scope .ts-weapon-switcher{left:28px;right:auto;bottom:calc(207px + env(safe-area-inset-bottom,0px))}
+  .bw-scope .medkit-btn{left:113px;right:auto;bottom:calc(207px + env(safe-area-inset-bottom,0px));width:48px;height:48px;border-radius:14px;background:#17313bdb}
+  .bw-scope .ammo-panel{right:14px;left:auto;bottom:calc(213px + env(safe-area-inset-bottom,0px));max-width:126px}
+  .bw-scope .ammo-panel>span{font-size:10px;letter-spacing:.03em}
+  .bw-scope .ammo-panel strong{font-size:28px;line-height:1}
+  .bw-scope .ammo-panel>div>span{font-size:13px}
+  .bw-scope .ammo-panel small{font-size:9px;letter-spacing:.02em;margin-top:5px}
+  .bw-scope .bw-vehicle-context{right:14px;left:auto;bottom:calc(211px + env(safe-area-inset-bottom,0px))}
+  .bw-scope .bw-pedals{right:14px;left:auto;bottom:calc(65px + env(safe-area-inset-bottom,0px))}
+  .bw-scope.is-driving .ammo-panel,.bw-scope.is-driving .medkit-btn{display:none}
+  .bw-scope .touch-tip{bottom:calc(280px + env(safe-area-inset-bottom,0px));font:10px/1.4 system-ui,sans-serif;width:max-content;max-width:calc(100% - 32px)}
+  .bw-scope .bw-pickup{top:auto;bottom:calc(282px + env(safe-area-inset-bottom,0px));font-size:12px;min-height:48px}
+  .bw-scope .combat-message,.bw-scope .combat-message.wave,.bw-scope .combat-message.good{top:43%;max-width:85%;font-size:12px}
+  .bw-scope .extract-status{top:calc(50% + 38px);width:150px}
+  .bw-scope .match-footer{bottom:calc(10px + env(safe-area-inset-bottom,0px));gap:14px;font-size:9px;letter-spacing:0}
+  .bw-scope.is-left-handed .joystick{left:auto;right:16px}
+  .bw-scope.is-left-handed .right-controls{right:auto;left:14px}
+  .bw-scope.is-left-handed .ts-weapon-switcher{left:auto;right:28px}
+  .bw-scope.is-left-handed .medkit-btn{left:auto;right:113px}
+  .bw-scope.is-left-handed .ammo-panel{right:auto;left:14px;text-align:left}
+  .bw-scope.is-left-handed .bw-vehicle-context,.bw-scope.is-left-handed .bw-pedals{left:14px;right:auto}
+}
+@media(max-width:380px){
+  .bw-scope .topbar{padding-inline:8px;gap:6px}
+  .bw-scope .brand-name{font-size:9px}
+  .bw-scope .brand-name small{font-size:8px}
+  .bw-scope .mission-status{width:calc(100% - 115px);padding:8px}
+  .bw-scope .mission-status p{font-size:11px}
+  .bw-scope .minimap{width:83px;height:104px}
+  .bw-scope .medkit-btn{left:104px}
+  .bw-scope.is-left-handed .medkit-btn{left:auto;right:104px}
+}
+@media(max-height:650px){
+  .bw-scope .mission-status p{display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
+  .bw-scope .bw-objective-hint{-webkit-line-clamp:1}
+  .bw-scope .touch-tip{display:none}
+}
+
+.bw-scope.is-left-handed .ts-weapon-notice{left:auto;right:0}

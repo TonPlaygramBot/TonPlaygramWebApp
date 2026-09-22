@@ -14,24 +14,29 @@ export class SurfaceImpactMarks {
   private point=new T.Vector3();
   private orientation=new T.Quaternion();
   private ray=new T.Raycaster();
+  private alpha:T.InstancedBufferAttribute;
   constructor(private capacity=96){
     const material=new T.MeshBasicMaterial({color:0x282724,transparent:true,opacity:.78,
       depthWrite:false,polygonOffset:true,polygonOffsetFactor:-2,side:T.DoubleSide});
     material.defines={USE_UV:''};
     material.onBeforeCompile=shader=>{
+      shader.vertexShader='attribute float markAlpha;varying float vMarkAlpha;\n'+shader.vertexShader;
+      shader.vertexShader=shader.vertexShader.replace('#include <begin_vertex>','#include <begin_vertex>\nvMarkAlpha=markAlpha;');
+      shader.fragmentShader='varying float vMarkAlpha;\n'+shader.fragmentShader;
       shader.fragmentShader=shader.fragmentShader.replace('#include <color_fragment>',`#include <color_fragment>
         vec2 p=vUv*2.-1.;float radius=length(p);
         float edge=.84+.09*sin(atan(p.y,p.x)*7.);
-        diffuseColor.a*=1.-smoothstep(edge-.2,edge,radius);
+        diffuseColor.a*=vMarkAlpha*(1.-smoothstep(edge-.2,edge,radius));
         diffuseColor.rgb*=mix(.3,1.,smoothstep(.15,.72,radius));
         if(diffuseColor.a<.015)discard;`);
     };
-    material.customProgramCacheKey=()=> 'tirana-surface-impact-v1';
+    material.customProgramCacheKey=()=> 'tirana-surface-impact-v2';
     this.mesh=new T.InstancedMesh(new T.PlaneGeometry(1,1),material,capacity);
+    this.alpha=new T.InstancedBufferAttribute(new Float32Array(capacity),1);this.mesh.geometry.setAttribute('markAlpha',this.alpha);
     this.mesh.name='Tirana:surface-impact-marks';this.mesh.count=0;this.mesh.frustumCulled=false;
     this.mesh.instanceMatrix.setUsage(T.DynamicDrawUsage);this.mesh.renderOrder=2;
   }
-  update(events:Effect[],now:number,vehicle:(id:string)=>T.Object3D|undefined,hiddenVehicleId?:string){
+  update(events:Effect[],now:number,vehicle:(id:string)=>T.Object3D|undefined,hiddenVehicleId?:string,viewer?:{x:number;y?:number;z:number},battery=false){
     for(const event of events){
       if(event.id<=this.lastEvent)continue;this.lastEvent=event.id;
       if(event.kind!=='hit'||!['wall','ground','car'].includes(event.hitKind||''))continue;
@@ -61,10 +66,13 @@ export class SurfaceImpactMarks {
       if(mark.anchor&&(mark.vehicleId===hiddenVehicleId||!this.visible(mark.anchor)))continue;
       this.point.copy(mark.position);this.normal.copy(mark.normal);
       if(mark.anchor){mark.anchor.updateWorldMatrix(true,false);this.point.applyMatrix4(mark.anchor.matrixWorld);mark.anchor.getWorldQuaternion(this.orientation);this.normal.applyQuaternion(this.orientation);}
+      const range=battery?50:90;
+      if(count>=(battery?Math.ceil(this.capacity*.6):this.capacity)||viewer&&(this.point.x-viewer.x)**2+(this.point.z-viewer.z)**2>range*range)continue;
       this.transform.position.copy(this.point);this.transform.quaternion.setFromUnitVectors(this.forward,this.normal);
-      this.transform.scale.setScalar(mark.size);this.transform.updateMatrix();this.mesh.setMatrixAt(count++,this.transform.matrix);
+      this.transform.scale.setScalar(mark.size);this.transform.updateMatrix();this.mesh.setMatrixAt(count,this.transform.matrix);
+      this.alpha.setX(count++,Math.max(0,Math.min(1,(90-(now-mark.at))/15)));
     }
-    this.mesh.count=count;this.mesh.instanceMatrix.needsUpdate=true;
+    this.mesh.count=count;this.mesh.instanceMatrix.needsUpdate=true;this.alpha.needsUpdate=true;
   }
   private visible(object:T.Object3D):boolean{for(let o:T.Object3D|null=object;o;o=o.parent)if(!o.visible)return false;return true;}
   reset(){this.marks=[];this.lastEvent=0;this.mesh.count=0;}

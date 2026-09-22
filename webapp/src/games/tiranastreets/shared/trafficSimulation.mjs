@@ -111,6 +111,23 @@ export function trafficLanePoints(points){
  return ids.every(id=>id!==undefined)?trafficLaneRoute(ids):[];
 }
 const nextRandom=c=>c.seed=(Math.imul(c.seed,1664525)+1013904223)>>>0;
+/** Estimate only the entrance of a legal outgoing lane. Moving traffic is
+ * cheaper than a stationary queue; wrecks discourage repeatedly taking a
+ * blocked street. No global pathfinding or full-city scan is required. */
+export function trafficRouteCost(car,start,end,vehicles){
+  const dx=end.x-start.x,dz=end.z-start.z,length=Math.hypot(dx,dz);
+  if(length<.01)return Infinity;
+  const ux=dx/length,uz=dz/length;
+  let cost=0;
+  for(const other of vehicles){
+    if(other===car||other.id===car.id)continue;
+    const x=other.x-start.x,z=other.z-start.z,forward=x*ux+z*uz;
+    const size=vehicleSize(other);
+    if(forward<-.5||forward>Math.min(28,length)||Math.abs(x*uz-z*ux)>size.width*.5+1.1)continue;
+    cost+=(other.destroyed||other.burning?12:Math.abs(other.speed||0)<1?2.5:1)*(1-forward/40)*(size.length>10?2:1);
+  }
+  return cost;
+}
 export function populateTraffic(state,spawn){
   const g=roadGraph(),occupied=new TrafficGrid([...state.cars,...state.traffic]);
   const local=[...g.edges].sort((a,b)=>Math.hypot(g.nodes[a.from][0]-spawn.x,g.nodes[a.from][1]-spawn.z)-Math.hypot(g.nodes[b.from][0]-spawn.x,g.nodes[b.from][1]-spawn.z));
@@ -195,7 +212,13 @@ export function updateTraffic(state,dt,onImpact){
       const old=car.node;car.node=car.next;
       let options=g.links[car.node].filter(e=>e.to!==old&&(car.model!=='tirana-bus'||e.w>=6.5));
       if(!options.length)options=g.links[car.node].filter(e=>car.model!=='tirana-bus'||e.w>=6.5);
-      const next=options[nextRandom(car)%Math.max(1,options.length)];
+      const offset=nextRandom(car)%Math.max(1,options.length),local=vehicles.near(car.x,car.z,36);
+      let next,cost=Infinity;
+      for(let i=0;i<options.length;i++){
+        const option=options[(offset+i)%options.length];
+        const candidate=trafficRouteCost(car,lanePoint(option,0),lanePoint(option),local)+i*.025;
+        if(candidate<cost){next=option;cost=candidate;}
+      }
       if(next){car.next=next.to;car.lane=next.lane;car.edgeWidth=next.w;}else{car.next=old;car.speed=0;}
       continue;
     }

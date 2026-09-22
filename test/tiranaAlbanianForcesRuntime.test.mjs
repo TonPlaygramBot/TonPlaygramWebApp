@@ -131,6 +131,24 @@ test('an unarmed officer retains the original relaxed walking arms',async()=>{
  }finally{layer.dispose();}
 });
 
+test('original force uniforms layer a magazine reach and flinch over native locomotion',async()=>{
+ const layer=new AlbanianForcesVisuals();
+ try{
+  const s=state();s.npcs=[{...npc('actions'),weapon:'ak47VolleyAttack',anim:'aim',speed:0}];
+  layer.update(s,{x:0,z:0},0,1/60);await settle(layer);
+  for(let i=0;i<60;i++)layer.update(s,{x:0,z:0},i/60,1/60);
+  const root=layer.getRoot('npc-actions'),wrist=root.getObjectByName(T.PropertyBinding.sanitizeNodeName('wrist.L')),spine=root.getObjectByName('spine03');
+  const before=root.worldToLocal(wrist.getWorldPosition(new T.Vector3())),restSpine=spine.quaternion.clone();
+  s.npcs[0].anim='reload';for(let i=0;i<30;i++)layer.update(s,{x:0,z:0},1+i/60,1/60);
+  const reach=root.worldToLocal(wrist.getWorldPosition(new T.Vector3()));assert.ok(reach.y<before.y-.08,'support hand reaches the magazine');
+  s.npcs[0].anim='hit';s.npcs[0].hitUntil=2.28;layer.update(s,{x:0,z:0},2,1/60);
+  assert.ok(spine.quaternion.angleTo(restSpine)>.06,'confirmed hit bends the upper torso');
+  s.npcs[0].anim='aim';for(let i=0;i<60;i++)layer.update(s,{x:0,z:0},3+i/60,1/60);
+  const recovered=root.worldToLocal(wrist.getWorldPosition(new T.Vector3()));assert.ok(recovered.distanceTo(before)<.04,'after the action the support hand returns to the same firearm grip');
+  root.traverse(o=>{if(o.isBone)assert.ok(o.quaternion.toArray().every(Number.isFinite));});
+ }finally{layer.dispose();}
+});
+
 test('RENEA, FNSH and Shqiponja load their full original uniform meshes and maps',async()=>{
  const manifest=JSON.parse(readFileSync(new URL('../webapp/public/assets/tirana-streets/albanian-forces/manifest.json',import.meta.url)));
  const layer=new AlbanianForcesVisuals();

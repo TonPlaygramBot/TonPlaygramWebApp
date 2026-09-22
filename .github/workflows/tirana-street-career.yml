@@ -29,7 +29,7 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: '22'
-      - run: node --test test/tiranaFullBodyCareer.test.mjs test/tiranaStreetCareer.test.mjs test/tiranaStreetCareer.integration.test.mjs test/tiranaCityLife.test.mjs test/tiranaCareerExpansion.test.mjs test/tiranaGameplayOverhaul.test.mjs test/tiranaMobileRuntime.test.mjs test/tiranaNpcMotion.test.mjs
+      - run: node --test test/tiranaFullBodyCareer.test.mjs test/tiranaStreetCareer.test.mjs test/tiranaStreetCareer.integration.test.mjs test/tiranaCityLife.test.mjs test/tiranaCareerExpansion.test.mjs test/tiranaGameplayOverhaul.test.mjs test/tiranaMobileRuntime.test.mjs test/tiranaNpcMotion.test.mjs test/tiranaBattlefieldTactics.test.mjs test/tiranaBattlefieldSurface.test.mjs test/tiranaMissionDirector.test.mjs test/tiranaCrowdResponse.test.mjs
   application:
     runs-on: ubuntu-latest
     timeout-minutes: 25
@@ -44,7 +44,7 @@ jobs:
           cache-dependency-path: webapp/package-lock.json
       - run: npm ci --prefix webapp
       - name: Mobile pointer ownership and framebuffer budget
-        run: npm run test:navigation --prefix webapp -- src/games/tiranastreets/MovementStick.navigation.test.jsx --maxWorkers=1 --minWorkers=1
+        run: npm run test:navigation --prefix webapp -- src/games/tiranastreets/MovementStick.navigation.test.jsx src/games/tiranastreets/TiranaHud.navigation.test.jsx src/games/tiranastreets/MissionReview.navigation.test.jsx --maxWorkers=1 --minWorkers=1
       - name: Real-rig and pointer-ownership tests
         run: node --test test/tiranaFullBodyPresentation.test.mjs test/tiranaGameplayPresentation.test.mjs test/tiranaPlayerExperience.test.mjs test/tiranaDriverBattlefield.test.mjs
       - name: Character, vehicle, landmark and streaming regressions
@@ -54,12 +54,20 @@ jobs:
           test/tiranaHeldWeaponLoading.test.mjs
           test/tiranaHumanAnimation.test.mjs
           test/tiranaImpactPresentation.test.mjs
+          test/tiranaCombatFeedback.test.mjs
+          test/tiranaAlbanianForcesRuntime.test.mjs
+          test/tiranaBattlefieldCombatLoop.test.mjs
+          test/tiranaPopulation.test.mjs
+          test/tiranaShopTerrain.test.mjs
           test/tiranaPedestrianDefense.test.mjs
           test/tiranaPedestrianDefenseGameplay.test.mjs
           test/tiranaRollingWheels.test.mjs
           test/tiranaSkanderbegBuilding.test.mjs
           test/tiranaVehicleDamageFlight.test.mjs
           test/tiranaVisibilityBudget.test.cjs
+      - name: Focused Tirana typecheck
+        working-directory: webapp
+        run: npx --no-install tsc -p tsconfig.tirana-gameplay.json --pretty false
       - run: npm run build --prefix webapp
       - name: Dependency-aware typecheck (no error suppression)
         working-directory: webapp

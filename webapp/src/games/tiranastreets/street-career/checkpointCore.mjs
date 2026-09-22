@@ -1,4 +1,5 @@
 import {groundHeight} from '../../tirana-east/terrainCore.mjs';
+import {createMissionDirector} from './missionDirectorCore.mjs';
 /** Versioned phase checkpoints inside the existing v1 profile/key. Old profiles
  * remain readable and old mission-start checkpoints remain the safe fallback. */
 const finite = (v, a, b, f) =>
@@ -44,6 +45,7 @@ export function normalizeCheckpoint(raw, loadout, stops = 0) {
             x: car.x,
             z: car.z,
             heading: car.heading,
+            health: finite(car.health, 1, 10000, 140),
             collectionVehicle:
               typeof car.collectionVehicle === 'string'
                 ? car.collectionVehicle
@@ -57,7 +59,11 @@ export function normalizeCheckpoint(raw, loadout, stops = 0) {
       defend: finite(raw.job?.defend, 0, 12, 0),
       tutorial: Array.isArray(raw.job?.tutorial)
         ? raw.job.tutorial.filter((x) => typeof x === 'string').slice(0, 20)
-        : []
+        : [],
+      director: createMissionDirector(raw.job?.director || {
+        delivered: Math.max(0,raw.index-1),
+        lastHealth: finite(q.health,1,100,100)
+      })
     },
     defeated: Array.isArray(raw.defeated)
       ? raw.defeated
@@ -83,7 +89,7 @@ export function captureCheckpoint(sim) {
     player: JSON.parse(JSON.stringify(p)),
     car: car ? { ...car } : null,
     aircraft: sim.flight?.current ? {...sim.flight.current} : null,
-    job: { ...sim.job },
+    job: { ...sim.job, tutorial:[...sim.job.tutorial], director:createMissionDirector(sim.job.director) },
     defeated: sim.state.npcs
       .filter((n) => n.kind === 'gang' && n.health <= 0)
       .map((n) => n.id),
@@ -113,6 +119,12 @@ export function restoreCheckpoint(sim, checkpoint, apply) {
   sim.intent.yaw = p.heading;
   sim.body.tutorial = [...checkpoint.job.tutorial];
   Object.assign(sim.job, checkpoint.job, { stage: p.index });
+  sim.job.director = createMissionDirector(checkpoint.job.director);
+  sim.job.director.lastHealth = p.health;
+  sim.job.director.lastDamageAt = p.lastDamage;
+  sim.job.director.failure = '';
+  sim.state.streetMission = {id: sim.mission.id, director: sim.job.director};
+  if (sim.job.director.extracting) sim.approved = p.index;
   for (const n of sim.state.npcs)
     if (checkpoint.defeated.includes(n.id)) {
       n.health = 0;

@@ -3,6 +3,7 @@ import { WORLD } from './world.mjs';
 import { WEAPONS, WEAPON_BY_ID } from './weapons.mjs';
 import { onCarriageway } from './streetLayout.mjs';
 import { footprintIndex } from '../../tirana-city-source/footprintIndex.mjs';
+import {shopLayout} from './shopLayout.mjs';
 export const CITY_POPULATION = Object.freeze({ vehicles: 5600, buses: 30, weapons: 300, shops: 15, pedestrians: 2400 });
 export const nearestShop = (state, p) => (state.shops?.length ? state.shops : [state.shop]).filter(Boolean)
   .reduce((best, s) => !best || Math.hypot(s.x-p.x,s.z-p.z)<Math.hypot(best.x-p.x,best.z-p.z) ? s : best, null);
@@ -50,9 +51,7 @@ export function citySites(env) {
     pickups.push({...p,id:`city-weapon-${pickups.length}`,weapon:w.id,ammo:w.magazine,y:groundHeight(p.x,p.z)+.15,source:'city'});
   }
   if(pickups.length!==CITY_POPULATION.weapons)throw Error('Unable to place all 300 weapon pickups safely');
-  // Match WeaponStoreInterior's open front, side walls, back wall and counter.
-  const boxes=[[-6.5,-10.51,6.5,-10.29,4],[-6.51,-10.5,-6.29,2.5,4],[6.29,-10.5,6.51,2.5,4],[-4,-8.45,4,-7.35,1.075],[-6.5,-10.5,6.5,2.5,.18]];
-  shopGeometry=shops.flatMap(s=>boxes.map(([a,b,c,d,h],i)=>({id:`${s.id}-solid-${i}`,h,minY:0,minX:s.x+a,maxX:s.x+c,minZ:s.z+b,maxZ:s.z+d,p:[[s.x+a,s.z+b],[s.x+c,s.z+b],[s.x+c,s.z+d],[s.x+a,s.z+d]]})));
+  shopGeometry=shops.flatMap(shop=>{const layout=shopLayout(shop);shop.y=layout.standingY;return layout.solids;});
   for(const b of shopGeometry)if(b.h>.3)for(let x=Math.floor((b.minX-3)/40);x<=Math.floor((b.maxX+3)/40);x++)for(let z=Math.floor((b.minZ-3)/40);z<=Math.floor((b.maxZ+3)/40);z++){const k=`${x},${z}`;if(!shopCells.has(k))shopCells.set(k,[]);shopCells.get(k).push(b);}
   sites={shops,pickups};return sites;
 }

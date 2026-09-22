@@ -37,14 +37,17 @@ export class HumanoidAnimation {
           const bone=bones.get(`${side}hand${finger}${segment}`);if(bone)gripJoints.set(`finger${i+1}-${segment}.${letter}`,{bone});
         }
       }
-      return {bones,hips,feet,hands,handTargets:new Map(),gripJoint:name=>gripJoints.get(name)};
+      return {bones,hips,feet,hands,handTargets:new Map(),footTarget:new T.Vector3(),handTarget:new T.Vector3(),offset:new T.Vector3(),hipTarget:new T.Vector3(),gripJoint:name=>gripJoints.get(name)};
     });
   }
 
   reset(){for(const [bone,rest] of this.rests){bone.quaternion.copy(rest.q);bone.position.copy(rest.p);bone.scale.copy(rest.s);}}
 
   update(n,time,dt,speed=Math.abs(n.speed||0)) {
-    dt=clamp(Number.isFinite(dt)?dt:0,0,.1);
+    // Animation LOD accumulates elapsed render time; clipping a 10 Hz update to
+    // 100 ms loses every fractional frame and makes distant people slow down.
+    // Keep the full accumulated step (the host resets its clock after pauses).
+    dt=clamp(Number.isFinite(dt)?dt:0,0,.5);
     speed=clamp(Number.isFinite(speed)?speed:0,0,10);
     const cycle=n.motion==='cycle',cover=n.anim==='cover'||n.anim==='crouch',moving=speed>.12&&!cycle;
     // Hysteresis avoids rapid walk/run restarts near the transition speed.
@@ -81,13 +84,13 @@ export class HumanoidAnimation {
     for(const rig of this.rigs){
       if(clip&&rig.hips){
         // Root motion belongs to the simulation, not to an imported walk track.
-        const hips=rig.bones.get('hips'),at=this.root.worldToLocal(hips.getWorldPosition(new T.Vector3()));
+        const hips=rig.bones.get('hips'),at=this.root.worldToLocal(hips.getWorldPosition(rig.hipTarget));
         at.x=rig.hips.x;at.z=rig.hips.z;
         hips.position.copy(hips.parent.worldToLocal(this.root.localToWorld(at)));
       }
       if(!clip)for(const side of ['left','right']){
         const rest=rig.feet.get(side);if(!rest)continue;
-        const foot=rest.clone(),offset=new T.Vector3();
+        const foot=rig.footTarget.copy(rest),offset=rig.offset;
         if(cycle){const pedal=this.gait+(side==='left'?0:Math.PI);foot.y+=.42+Math.cos(pedal)*.12;foot.z+=.25+Math.sin(pedal)*.14;}
         else if((moving||cover)&&sampleHumanoidMotion(authored,phase,side+'foot',offset,true)){
           // Scale stride to the target gait, retaining the authored heel lift.
@@ -101,7 +104,7 @@ export class HumanoidAnimation {
       if(clip&&!grips&&!cycle&&!['fight','punch','hit'].includes(n.anim))continue;
       for(const side of ['left','right']){
         const arm=rig.hands.get(side);if(!arm)continue;
-        const swing=this.gait+(side==='left'?Math.PI:0),hand=arm.shoulder.clone();
+        const swing=this.gait+(side==='left'?Math.PI:0),hand=rig.handTarget.copy(arm.shoulder);
         hand.y-=arm.length*.92;hand.z+=.06+Math.sin(swing)*stride*.7;
         hand.x+=(side==='left'?1:-1)*.025;
         sampleHumanoidMotion(authored,moving?phase:time/2.5,side+'hand',hand);

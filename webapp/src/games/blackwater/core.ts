@@ -18,6 +18,7 @@ export type Settings = {
   sensitivity: number;
   volume: number;
   assist: boolean;
+  bloodEffects: boolean;
   quality: import('../tiranastreets/graphicsQuality').GraphicsSetting | 'low';
 };
 export {

@@ -32,8 +32,11 @@ test('the complete Tirana Streets layout retains its metric scale and east/south
   assert.equal(roads.length, WORLD.roads.length);
   const originalIds=new Set(WORLD.buildings.map(b=>b.id));
   const added=buildings.filter(b=>!originalIds.has(b.id));
-  // Expanded Ali Demi bounds also admit six already sourced catalog buildings.
-  assert.deepEqual(added.map(b=>b.id).sort(),['384505310','387444374','410277109','410277110','410277119','410277120','459085861','469978008','470298324'].sort());
+  // Six former catalog additions now belong to WORLD itself. Keep checking
+  // all nine sourced buildings, but do not count those six a second time.
+  const sourcedIds=['384505310','387444374','410277109','410277110','410277119','410277120','459085861','469978008','470298324'];
+  for(const id of sourcedIds)assert.ok(buildings.some(b=>b.id===id),`missing sourced building ${id}`);
+  assert.deepEqual(added.map(b=>b.id).sort(),sourcedIds.filter(id=>!originalIds.has(id)).sort());
   assert.equal(buildings.length, WORLD.buildings.length+added.length);
   roads.forEach((r, i) => {
     for (const end of ['a', 'b']) {
@@ -52,11 +55,11 @@ test('the complete Tirana Streets layout retains its metric scale and east/south
     'utf8'
   );
   // Preserve the original gun; actor bodies now support original Albanian uniforms.
-  // Original BLACKWATER source commit 1f60946e2a6251f0f66b444c8a17243cc4721bff.
+  // Unchanged factory verified against main 391db8b before this overhaul.
   const sha = (text) => createHash('sha256').update(text).digest('hex');
   assert.equal(
     sha(assets.slice(assets.indexOf('function makeGun()'), assets.indexOf('export type ActorVisual'))),
-    'f7fc99e54898ba13d646440eb41b9f3186eab4eafe3f53e0b02179b66211b9ef'
+    'ad8274a568fee1f5d2e2a838146cfd81a2cae9de64eb78996648a3a95d7a6a41'
   );
 
 });

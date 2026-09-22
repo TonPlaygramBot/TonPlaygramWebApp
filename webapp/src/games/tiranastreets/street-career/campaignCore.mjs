@@ -1,4 +1,5 @@
 import {normalizeCheckpoint} from './checkpointCore.mjs';
+import {createMissionDirector, missionGrade} from './missionDirectorCore.mjs';
 import {ensureStarterWeapons} from '../shared/weapons.mjs';
 /** Local, fictional street economy. No account, TPG or room APIs belong here. */
 export const STREET_SAVE_KEY = 'tirana-streets:street-career:v1';
@@ -41,7 +42,7 @@ export function createCampaign(missions, weapons, starter) {
     return {cash: Math.floor(number(raw?.cash, 750, 10000000)), inventory,
       weapon: raw?.weapon === '' ? '' : raw?.weapon === 'fpsGunAttack' ? starter : Object.hasOwn(inventory, raw?.weapon) ? raw.weapon : Object.hasOwn(inventory,starter) ? starter : Object.keys(inventory)[0]};
   }
-  function fresh() { return {version: 1, completed: [], best: {}, loadout: loadout(null), active: null}; }
+  function fresh() { return {version: 1, completed: [], best: {}, records: {}, loadout: loadout(null), active: null}; }
   function normalize(raw) {
     const p = fresh();
     if (!plain(raw) || raw.version !== 1) return p;
@@ -50,6 +51,9 @@ export function createCampaign(missions, weapons, starter) {
       if (!Array.isArray(raw.completed) || !raw.completed.includes(id) || !available(p,id)) continue;
       p.completed.push(id);
       if (Number.isFinite(raw.best?.[id]) && raw.best[id] >= 0) p.best[id] = Math.min(86400, raw.best[id]);
+      const record = raw.records?.[id];
+      if (plain(record) && ['gold','silver','bronze'].includes(record.grade))
+        p.records[id] = {grade:record.grade,runs:Math.floor(number(record.runs,1,100000)),integrity:number(record.integrity,100,100)};
     }
     p.loadout = loadout(raw.loadout);
     const a = raw.active;
@@ -72,6 +76,13 @@ export function createCampaign(missions, weapons, starter) {
     const first = !p.completed.includes(a.id);
     if (first) p.completed.push(a.id);
     p.best[a.id] = Math.min(p.best[a.id] ?? Infinity, player.finishTime);
+    if (state.streetMission?.id === a.id && state.streetMission.director?.version === 1) {
+      const director = createMissionDirector(state.streetMission.director);
+      const grade = missionGrade(director,player.finishTime,byId.get(a.id).time || 600);
+      const previous = p.records[a.id], ranks = {gold:3,silver:2,bronze:1};
+      p.records[a.id] = {grade:previous && ranks[previous.grade]>ranks[grade]?previous.grade:grade,
+        runs:Math.min(100000,(previous?.runs || 0)+1),integrity:Math.max(previous?.integrity || 0,director.integrity)};
+    }
     p.loadout = loadout(player);
     if (first) p.loadout.cash = Math.min(10000000, p.loadout.cash + Math.round(byId.get(a.id).reward * rewardScale[a.difficulty]));
     p.active = null;

@@ -107,6 +107,7 @@ export class StreetSimulation {
     vehicleId: string | null;
     defend: number;
     tutorial: string[];
+    director: import('./missionDirectorCore.mjs').MissionDirector;
   };
   readonly player: Player;
   setIntent(raw: StreetIntent): void;
@@ -117,6 +118,6 @@ export class StreetSimulation {
   cars(): import('../shared/engine.mjs').Car[];
   resolve(): StreetAction[];
   execute(id: string, targetId?: string | null): boolean;
-  objective(): { title: string; detail: string; training: boolean };
+  objective(): { title: string; detail: string; training: boolean; phase?:string;progress?:number;remaining?:number;integrity?:number;optionalObjective?:string };
 }
 export const TUTORIAL: readonly (readonly string[])[];
