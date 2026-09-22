@@ -2,6 +2,7 @@ import { createInitialChessBoard, normalizeChessBoard, chessBoardToFen, validate
 import './loadEnv.js';
 import { validateEnv } from './env.js';
 import express from 'express';
+import { webappEntry } from '../shared/socialApp.js';
 import cors from 'cors';
 import bot from './bot.js';
 import { getInviteUrl, sendInviteNotification } from './utils/notifications.js';
@@ -490,6 +491,9 @@ function setWebAssetCacheHeaders(res, filePath) {
     lowerPath === 'service-worker.js' ||
     lowerPath === 'version.json' ||
     lowerPath === 'manifest.webmanifest' ||
+    lowerPath === 'social-app/manifest.webmanifest' ||
+    lowerPath === 'social-app/service-worker.js' ||
+    lowerPath.startsWith('pwa/wall-') ||
     lowerPath === 'pwa/app-build.js' ||
     lowerPath === 'pwa/game-pack-service-worker.js' ||
     lowerPath.startsWith('pwa/game-packs/') ||
@@ -523,12 +527,14 @@ app.use(
   })
 );
 
-function sendIndex(res) {
+function sendIndex(res, pathname = '/') {
   if (ensureWebappBuilt()) {
     res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate');
     res.setHeader('Pragma', 'no-cache');
     res.setHeader('Expires', '0');
-    res.sendFile(path.join(webappPath, 'index.html'));
+    const entry = path.join(webappPath, webappEntry(pathname));
+    if (existsSync(entry)) res.sendFile(entry);
+    else res.status(503).send('Webapp build not available');
   } else {
     res.status(503).send('Webapp build not available');
   }
@@ -2275,7 +2281,9 @@ app.get('/api/snake/results', async (req, res) => {
 });
 app.get('*', (req, res) => {
   if (req.path.startsWith('/api/')) return res.status(404).end();
-  sendIndex(res);
+  if (req.path === '/social-app') return res.redirect(308, `/social-app/${req.url.includes('?') ? '?' + req.url.split('?').slice(1).join('?') : ''}`);
+  if (req.path.startsWith('/social-app/') && /\.[a-z0-9]+$/i.test(req.path) && !req.path.endsWith('.html')) return res.status(404).end();
+  sendIndex(res, req.path);
 });
 
 // MongoDB Connection

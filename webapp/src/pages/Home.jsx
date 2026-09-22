@@ -518,6 +518,10 @@ export default function Home() {
           <IoLogoTiktok className="text-pink-500 w-6 h-6" />
         </a>
       </div>
+      <a href="/social-app/install" className="flex items-center justify-between gap-3 rounded-2xl border border-teal-300/30 bg-slate-900 p-5 text-left">
+        <div><h2 className="text-lg font-bold text-teal-200">Get TonPlayGram Social</h2><p className="mt-1 text-sm text-slate-300">The wall, social hub and Creator Studio. Install your social app.</p></div>
+        <span className="text-teal-200" aria-hidden="true">↗</span>
+      </a>
       <PlatformHelpAgentCard />
       <PwaDownloadFrame />
     </div>

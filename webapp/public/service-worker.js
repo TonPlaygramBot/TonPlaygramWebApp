@@ -361,6 +361,9 @@ self.addEventListener('fetch', event => {
   const { request } = event;
   if (request.method !== 'GET') return;
   const url = new URL(request.url);
+  // A social install has its own shell. The main game download must never
+  // substitute index.html while the social worker is taking control.
+  if (url.origin === self.location.origin && (url.pathname === '/social-app' || url.pathname.startsWith('/social-app/'))) return;
   // Never rewrite personalized traffic, even if an invalid mapping was added.
   if (LIVE_SERVICE_PATH.test(url.pathname) || request.headers.has('authorization')) return;
   if (request.headers.get('X-TonPlaygram-Verify') === '1') {

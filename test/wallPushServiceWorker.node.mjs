@@ -6,7 +6,7 @@ const source = await readFile(
   new URL('../webapp/public/pwa/wall-push.js', import.meta.url),
   'utf8'
 );
-function worker(clients = {}) {
+function worker(clients = {}, scope = 'https://wall.example/') {
   const listeners = {},
     notifications = [];
   vm.runInNewContext(source, {
@@ -15,6 +15,7 @@ function worker(clients = {}) {
       location: { origin: 'https://wall.example' },
       addEventListener: (name, handler) => (listeners[name] = handler),
       registration: {
+        scope,
         showNotification: async (...args) => notifications.push(args)
       },
       clients
@@ -38,6 +39,16 @@ test('push displays while the page is closed and rejects outside navigation payl
   await task;
   assert.equal(notifications[0][0], 'New post');
   assert.equal(notifications[0][1].data.url, '/wall');
+});
+test('Social notifications open Social without replacing an open main app', async () => {
+  let opened, task;
+  const { listeners } = worker({
+    matchAll: async () => [{ url: 'https://wall.example/wallet', navigate: async () => assert.fail('Main app must stay open') }],
+    openWindow: async url => { opened = url; }
+  }, 'https://wall.example/social-app/');
+  listeners.notificationclick({ notification: { data: { url: '/wall#post-000000000000000000000001' }, close() {} }, waitUntil(promise) { task = promise; } });
+  await task;
+  assert.equal(opened, 'https://wall.example/social-app/wall#post-000000000000000000000001');
 });
 test('a notification click navigates and focuses an existing app window', async () => {
   const id = '000000000000000000000001';

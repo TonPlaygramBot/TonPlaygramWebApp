@@ -14,10 +14,15 @@ self.addEventListener('push', event => {
 self.addEventListener('notificationclick', event => {
   event.notification.close();
   const path = event.notification.data?.url;
-  const target = new URL(/^\/wall(?:#post-[a-f\d]{24})?$/i.test(path || '') ? path : '/wall', self.location.origin).href;
+  const social = new URL(self.registration.scope || '/', self.location.origin).pathname === '/social-app/';
+  const wallPath = /^\/wall(?:#post-[a-f\d]{24})?$/i.test(path || '') ? path : '/wall';
+  const target = new URL(`${social ? '/social-app' : ''}${wallPath}`, self.location.origin).href;
   event.waitUntil((async () => {
     const windows = await self.clients.matchAll({ type: 'window', includeUncontrolled: true });
-    const existing = windows.find(client => new URL(client.url).origin === self.location.origin);
+    const existing = windows.find(client => {
+      const url = new URL(client.url);
+      return url.origin === self.location.origin && url.pathname.startsWith('/social-app/') === social;
+    });
     if (existing) {
       const navigated = await existing.navigate(target);
       if (navigated) return navigated.focus();

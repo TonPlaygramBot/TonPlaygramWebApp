@@ -16,6 +16,7 @@ function button(text: string) { return [...node.querySelectorAll('button')].find
 async function click(text: string) { await act(async () => button(text).click()); }
 beforeEach(async () => {
   vi.clearAllMocks();
+  history.replaceState({}, '', '/creator-studio');
   HTMLDialogElement.prototype.showModal = function () { this.open = true; };
   HTMLDialogElement.prototype.close = function () { this.open = false; };
   api.mockImplementation(async (path, method, body: any) => {
@@ -87,7 +88,8 @@ it('explains missing Google setup instead of offering a disabled sign-in button'
   expect(button('Continue with Google')).toBeUndefined();
 });
 
-it('guests connect through official authorization without signing into Google first', async () => {
+it.each(['/creator-studio', '/social-app/creator-studio'])('guests connect through official authorization from %s without signing into Google first', async returnTo => {
+  history.replaceState({}, '', returnTo);
   const implementation = api.getMockImplementation()!;
   api.mockImplementation(async (path, method, body) => {
     if (path === '/session') return { signedIn: false };
@@ -98,7 +100,7 @@ it('guests connect through official authorization without signing into Google fi
   expect(button('Connect Facebook').disabled).toBe(false);
   expect(node.querySelector('input[type="password"]')).toBeNull();
   await click('Connect Facebook');
-  expect(api).toHaveBeenCalledWith('/accounts/facebook/connect', 'POST', {});
+  expect(api).toHaveBeenCalledWith('/accounts/facebook/connect', 'POST', { returnTo });
   expect(openCreatorAuthorization).toHaveBeenCalledWith('https://www.facebook.com/v25.0/dialog/oauth?state=bound');
   expect(api.mock.calls.some(([p]) => p === '/login/google' || p === '/session/google')).toBe(false);
 });

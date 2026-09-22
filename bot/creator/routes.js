@@ -1,4 +1,5 @@
 import express from 'express';
+import { creatorReturnPath } from '../../shared/socialApp.js';
 import rateLimit from 'express-rate-limit';
 import mongoose from 'mongoose';
 import { verifyTelegramInitData } from '../middleware/auth.js';
@@ -26,7 +27,7 @@ router.get('/oauth/:platform/callback', database, wrap(async (req, res) => {
   let result = 'connected';
   try { await finishOAuth(req, res, req.params.platform); }
   catch { result = req.query.error ? 'cancelled' : 'failed'; }
-  res.redirect(303, `${publicOrigin()}/creator-studio?connection=${result}`);
+  res.redirect(303, `${publicOrigin()}${creatorReturnPath(res.locals.creatorReturnTo)}?connection=${result}`);
 }));
 router.get('/media-file/:id', database, wrap(async (req, res) => {
   if (!verifyMediaLink(req.params.id, req.query.expires, req.query.signature)) throw problem(403, 'This media link has expired.');

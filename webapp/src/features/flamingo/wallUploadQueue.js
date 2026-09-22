@@ -53,7 +53,7 @@ async function refresh() {
 }
 async function backgroundSync() {
   try {
-    const registration = await navigator.serviceWorker?.getRegistration('/');
+    const registration = await navigator.serviceWorker?.getRegistration(window.location.href);
     workerRegistration = registration;
     await registration?.sync?.register(UPLOAD_SYNC_TAG);
   } catch {

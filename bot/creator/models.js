@@ -8,7 +8,7 @@ const connection = new Schema({
 }, { timestamps: true });
 connection.index({ owner: 1, platform: 1, providerId: 1 }, { unique: true });
 export const Connection = model('CreatorConnection', connection);
-const oauth = new Schema({ stateHash: { type: String, unique: true }, binding: String, owner: String, platform: String, verifier: String, expiresAt: Date });
+const oauth = new Schema({ stateHash: { type: String, unique: true }, binding: String, owner: String, platform: String, verifier: String, returnTo: String, expiresAt: Date });
 oauth.index({ expiresAt: 1 }, { expireAfterSeconds: 0 });
 export const OAuth = model('CreatorOAuth', oauth);
 export const Media = model('CreatorMedia', new Schema({ owner: { type: String, index: true }, name: String, size: Number, mime: String, offset: { type: Number, default: 0 }, ready: { type: Boolean, default: false }, duration: Number, width: Number, height: Number }, { timestamps: true }));

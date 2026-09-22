@@ -2,6 +2,7 @@ import { defineConfig } from 'vite';
 import react from '@vitejs/plugin-react';
 import { localizeExternalAssetPlugin } from './scripts/localize-external-assets.mjs';
 import { copyPublicAssetsPlugin } from './scripts/copy-public-assets.mjs';
+import { socialAppPlugin } from './scripts/social-app-plugin.mjs';
 import { dirname, resolve } from 'path';
 import { fileURLToPath } from 'url';
 
@@ -10,10 +11,10 @@ const __dirname = dirname(fileURLToPath(import.meta.url));
 // https://vitejs.dev/config/
 export default defineConfig({
   base: '/',
-  plugins: [localizeExternalAssetPlugin(), react(), copyPublicAssetsPlugin()],
+  plugins: [localizeExternalAssetPlugin(), react(), socialAppPlugin(), copyPublicAssetsPlugin()],
   build: {
     copyPublicDir: false,
-    rollupOptions: { input: { main: resolve(__dirname, 'index.html'), cityUpdate: resolve(__dirname, 'tirana-city-update-review.html'), mobileReview: resolve(__dirname, 'tirana-mobile-review.html'), gameplayReview: resolve(__dirname, 'tirana-gameplay-review.html') } },
+    rollupOptions: { input: { main: resolve(__dirname, 'index.html'), social: resolve(__dirname, 'social-app/index.html'), cityUpdate: resolve(__dirname, 'tirana-city-update-review.html'), mobileReview: resolve(__dirname, 'tirana-mobile-review.html'), gameplayReview: resolve(__dirname, 'tirana-gameplay-review.html') } },
     outDir: 'dist',
     emptyOutDir: true
   },
