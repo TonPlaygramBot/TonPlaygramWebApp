@@ -516,6 +516,10 @@ export default function Home() {
           <IoLogoTiktok className="text-pink-500 w-6 h-6" />
         </a>
       </div>
+      <Link to="/creator-studio" className="flex items-center justify-between gap-3 rounded-2xl border border-cyan-300/30 bg-slate-900 p-5 text-left">
+        <div><h2 className="text-lg font-bold text-cyan-200">TPG Creator Studio</h2><p className="mt-1 text-sm text-slate-300">Connect your accounts. Post together. Go live.</p></div>
+        <span className="text-cyan-200" aria-hidden="true">↗</span>
+      </Link>
       <PlatformHelpAgentCard />
       <PwaDownloadFrame />
     </div>

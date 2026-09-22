@@ -357,12 +357,13 @@ export default function Layout({ children }) {
   );
 
   const isCommunityWall = location.pathname === '/wall';
+  const isCreatorStudio = location.pathname === '/creator-studio';
 
   const isLobby = location.pathname.includes('/lobby');
 
-  const showFooter = !location.pathname.startsWith('/games/') && !isCommunityWall;
+  const showFooter = !location.pathname.startsWith('/games/') && !isCommunityWall && !isCreatorStudio;
   const showHeader =
-    !isCommunityWall && (!location.pathname.startsWith('/games/') || isLobby);
+    !isCommunityWall && !isCreatorStudio && (!location.pathname.startsWith('/games/') || isLobby);
 
   useEffect(() => {
     if (location.pathname === '/mining') {
@@ -403,7 +404,7 @@ export default function Layout({ children }) {
     }
   }, [location.pathname]);
 
-  const showPwaBanner = showNavbar && (canInstall || canShowTelegramInstall);
+  const showPwaBanner = showNavbar && !isCreatorStudio && (canInstall || canShowTelegramInstall);
 
   return (
     <div
@@ -421,7 +422,7 @@ export default function Layout({ children }) {
       )}
       <main
         className={`flex-grow ${
-          showNavbar && !isCommunityWall
+          showNavbar && !isCommunityWall && !isCreatorStudio
             ? isLobby
               ? 'w-full p-4 pb-28'
               : 'container mx-auto p-4 pb-28'
@@ -433,7 +434,7 @@ export default function Layout({ children }) {
 
       {/* Fixed Bottom Navbar */}
 
-      {showNavbar && !isCommunityWall && (
+      {showNavbar && !isCommunityWall && !isCreatorStudio && (
         <div className="fixed bottom-0 inset-x-0 z-50">
           <Navbar />
         </div>

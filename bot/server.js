@@ -35,6 +35,9 @@ import airdropRoutes from './routes/airdrop.js';
 import checkinRoutes from './routes/checkin.js';
 import socialRoutes from './routes/social.js';
 import socialAdminRoutes from './routes/socialAdmin.js';
+import creatorRoutes from './creator/routes.js';
+import { startQueue as startCreatorQueue } from './creator/queue.js';
+import { attachLive as attachCreatorLive } from './creator/live.js';
 import { queueDueSocialPosts } from './services/socialPublishing.js';
 import { sendPushNotifications } from './services/pushNotificationService.js';
 import broadcastRoutes from './routes/broadcast.js';
@@ -319,6 +322,9 @@ setInterval(() => {
   blackwaterStake.recoverExpired().catch((error) => console.error('Blackwater recovery:', error.message));
 }, 60_000).unref();
 
+attachCreatorLive(io);
+startCreatorQueue();
+
 // Expose socket.io instance and userSockets map for routes
 app.set('io', io);
 
@@ -395,6 +401,7 @@ app.use('/api/airdrop', airdropRoutes);
 app.use('/api/checkin', checkinRoutes);
 app.use('/api/social', socialRoutes);
 app.use('/api/admin/social', socialAdminRoutes);
+app.use('/api/creator', creatorRoutes);
 app.use('/api/broadcast', broadcastRoutes);
 app.use('/api/store', storeRoutes);
 app.use('/api/online', onlineRoutes);
