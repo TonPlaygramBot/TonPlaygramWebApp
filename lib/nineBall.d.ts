@@ -9,10 +9,14 @@ export type NineBallState = {
   winner: NineBallSeat | null;
   foulStreak: { A: number; B: number };
   breakInProgress: boolean;
+  pushOutAvailable?: boolean;
+  pushOutPending?: { shooter: NineBallSeat; chooser: NineBallSeat } | null;
 };
 export type NineBallShot = {
   contactOrder?: PoolBallId[];
   potted?: PoolBallId[];
+  offTable?: PoolBallId[];
+  pushOut?: boolean;
   cueOffTable?: boolean;
   foulReason?: string;
   placedFromHand?: boolean;
@@ -35,5 +39,6 @@ export class NineBall {
   readonly profile: PoolRuleProfile;
   state: NineBallState;
   shotTaken(shot?: NineBallShot): NineBallResult;
+  resolvePushOut(choice: 'accept' | 'return'): boolean;
 }
 export default NineBall;

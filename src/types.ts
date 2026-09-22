@@ -56,4 +56,9 @@ export interface ShotContext {
   variant?: string;
   simulated?: boolean;
   respottedBlackStarter?: 'A' | 'B';
+  calledBallId?: string | number;
+  calledPocket?: PocketId;
+  safety?: boolean;
+  pushOut?: boolean;
+  offTableBallIds?: Array<string | number>;
 }

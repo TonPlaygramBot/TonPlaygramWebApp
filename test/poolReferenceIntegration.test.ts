@@ -23,7 +23,7 @@ test('a full foot side falls back toward the head and never overlaps the blockin
 });
 
 test.each(['8ball', '9ball'])('live %s respots its special ball after lifting the cue in hand', variant => {
-  const rules = new PoolRoyaleRules(variant);
+  const rules = new PoolRoyaleRules(variant, 'reference');
   const state = rules.getInitialFrame('A', 'B');
   const number = variant === '8ball' ? 8 : 9;
   const safeState = rules.applyShot(state, [

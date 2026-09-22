@@ -1,4 +1,4 @@
-// Minimal billiards AI planner
+// Deterministic billiards planner with bounded search and legal-contact safeties.
 
 /** @typedef {'AMERICAN_BILLIARDS'|'NINE_BALL'|'EIGHT_POOL_UK'} GameType */
 
@@ -40,11 +40,12 @@
  * @property {{x:number,y:number}} [suggestedAimPoint]
  */
 
-const LOOKAHEAD_DEPTH = 6
-const LOOKAHEAD_CANDIDATES = 14
-const MONTE_CARLO_BASE_SAMPLES = 128
+const LOOKAHEAD_DEPTH = 2
+const LOOKAHEAD_CANDIDATES = 2
+const MONTE_CARLO_BASE_SAMPLES = 48
 const POWER_SCALE = 0.8
 const DEFAULT_REST_SPEED_EPSILON = 0.03
+const MIN_COMPETITIVE_QUALITY = 0.16
 
 function createRng (seed) {
   let state = (seed ?? 0) >>> 0
@@ -54,6 +55,48 @@ function createRng (seed) {
     t ^= t + Math.imul(t ^ (t >>> 7), t | 61)
     return ((t ^ (t >>> 14)) >>> 0) / 4294967296
   }
+}
+
+function mixHash32 (hash, value) {
+  hash ^= value >>> 0
+  hash = Math.imul(hash, 16777619) >>> 0
+  return hash
+}
+
+function quantizeCoord (value, scale = 10) {
+  if (!Number.isFinite(value)) return 0
+  return Math.round(value * scale)
+}
+
+function deterministicSeedFromState (req) {
+  const state = req?.state || {}
+  let hash = 2166136261
+  const gameCode = String(req?.game || '')
+  for (let i = 0; i < gameCode.length; i++) {
+    hash = mixHash32(hash, gameCode.charCodeAt(i))
+  }
+
+  hash = mixHash32(hash, quantizeCoord(state.width, 1))
+  hash = mixHash32(hash, quantizeCoord(state.height, 1))
+  hash = mixHash32(hash, quantizeCoord(state.ballRadius, 100))
+
+  const balls = Array.isArray(state.balls) ? state.balls : []
+  for (const ball of balls) {
+    hash = mixHash32(hash, quantizeCoord(ball?.id, 1))
+    hash = mixHash32(hash, quantizeCoord(ball?.x))
+    hash = mixHash32(hash, quantizeCoord(ball?.y))
+    hash = mixHash32(hash, ball?.pocketed ? 1 : 0)
+  }
+
+  const pockets = Array.isArray(state.pockets) ? state.pockets : []
+  for (const pocket of pockets) {
+    hash = mixHash32(hash, quantizeCoord(pocket?.x))
+    hash = mixHash32(hash, quantizeCoord(pocket?.y))
+  }
+
+  hash = mixHash32(hash, state.ballInHand ? 1 : 0)
+  hash = mixHash32(hash, state.breakInProgress ? 1 : 0)
+  return hash >>> 0
 }
 
 function dist (a, b) {
@@ -67,8 +110,9 @@ function lineIntersectsBall (a, b, ball, radius) {
   const apy = ball.y - a.y
   const abx = b.x - a.x
   const aby = b.y - a.y
-  const t = (apx * abx + apy * aby) / (abx * abx + aby * aby)
-  if (t <= 0 || t >= 1) return false
+  const lengthSq = abx * abx + aby * aby
+  if (lengthSq <= 1e-12) return dist(a, ball) < radius * 2
+  const t = Math.max(0, Math.min(1, (apx * abx + apy * aby) / lengthSq))
   const closest = { x: a.x + abx * t, y: a.y + aby * t }
   return dist(closest, ball) < radius * 2
 }
@@ -118,236 +162,121 @@ function scratchRiskAlongLine (cue, aimPoint, pockets, radius) {
 }
 
 function pocketNormal (pocket, width, height) {
+  const tolerance = Math.min(width, height) * 0.045
+  const nearLeft = Math.abs(pocket.x) <= tolerance
+  const nearRight = Math.abs(pocket.x - width) <= tolerance
+  const nearTop = Math.abs(pocket.y) <= tolerance
+  const nearBottom = Math.abs(pocket.y - height) <= tolerance
+  if ((nearLeft || nearRight) && (nearTop || nearBottom)) {
+    return { x: (nearLeft ? 1 : -1) / Math.SQRT2, y: (nearTop ? 1 : -1) / Math.SQRT2 }
+  }
+  if (nearLeft || nearRight) return { x: nearLeft ? 1 : -1, y: 0 }
+  if (nearTop || nearBottom) return { x: 0, y: nearTop ? 1 : -1 }
   const center = { x: width / 2, y: height / 2 }
   const dir = { x: center.x - pocket.x, y: center.y - pocket.y }
   const len = Math.hypot(dir.x, dir.y) || 1
   return { x: dir.x / len, y: dir.y / len }
 }
 
-function pocketMouthCenter (pocket, radius, width, height) {
-  if (
-    pocket?.mouth &&
-    Number.isFinite(pocket.mouth.x) &&
-    Number.isFinite(pocket.mouth.y)
-  ) {
-    return { x: pocket.mouth.x, y: pocket.mouth.y }
-  }
-  if (
-    pocket?.mouthCenter &&
-    Number.isFinite(pocket.mouthCenter.x) &&
-    Number.isFinite(pocket.mouthCenter.y)
-  ) {
-    return { x: pocket.mouthCenter.x, y: pocket.mouthCenter.y }
-  }
-  const edgeTol = Math.max(radius * 3.5, Math.min(width, height) * 0.06)
-  const nearLeft = pocket.x <= edgeTol
-  const nearRight = pocket.x >= width - edgeTol
-  const nearTop = pocket.y <= edgeTol
-  const nearBottom = pocket.y >= height - edgeTol
+function classifyPocket (pocket, width, height, tolerance = Math.min(width, height) * 0.045) {
+  const isLeft = Math.abs(pocket.x) <= tolerance
+  const isRight = Math.abs(pocket.x - width) <= tolerance
+  const isTop = Math.abs(pocket.y) <= tolerance
+  const isBottom = Math.abs(pocket.y - height) <= tolerance
 
-  // Corner pockets: mouth center is between the two angled jaw cuts.
-  if ((nearLeft || nearRight) && (nearTop || nearBottom)) {
-    const jawInset = radius * 1.8
-    return {
-      x: nearLeft ? jawInset * 0.5 : width - jawInset * 0.5,
-      y: nearTop ? jawInset * 0.5 : height - jawInset * 0.5
-    }
-  }
-
-  // Side pockets: mouth center is between the two jaw points on that rail.
-  if (nearLeft || nearRight) {
-    const jawSpan = radius * 2.5
-    return {
-      x: nearLeft ? radius * 0.55 : width - radius * 0.55,
-      y: Math.max(jawSpan, Math.min(height - jawSpan, pocket.y))
-    }
-  }
-
-  return {
-    x: Math.max(radius * 0.55, Math.min(width - radius * 0.55, pocket.x)),
-    y: nearTop ? radius * 0.55 : nearBottom ? height - radius * 0.55 : pocket.y
-  }
+  if ((isLeft || isRight) && (isTop || isBottom)) return 'corner'
+  if (isTop || isBottom || isLeft || isRight) return 'side'
+  return 'unknown'
 }
 
-function pocketMouthProfile (pocket, radius, width, height) {
-  if (
-    pocket?.jawA &&
-    pocket?.jawB &&
-    Number.isFinite(pocket.jawA.x) &&
-    Number.isFinite(pocket.jawA.y) &&
-    Number.isFinite(pocket.jawB.x) &&
-    Number.isFinite(pocket.jawB.y)
-  ) {
-    const mouth = pocketMouthCenter(pocket, radius, width, height)
-    const lateralRaw = { x: pocket.jawB.x - pocket.jawA.x, y: pocket.jawB.y - pocket.jawA.y }
-    const lateralLen = Math.hypot(lateralRaw.x, lateralRaw.y) || 1
-    return {
-      mouth,
-      jawA: { x: pocket.jawA.x, y: pocket.jawA.y },
-      jawB: { x: pocket.jawB.x, y: pocket.jawB.y },
-      lateral: { x: lateralRaw.x / lateralLen, y: lateralRaw.y / lateralLen },
-      halfSpan: lateralLen * 0.5
-    }
-  }
-  const edgeTol = Math.max(radius * 3.5, Math.min(width, height) * 0.06)
-  const nearLeft = pocket.x <= edgeTol
-  const nearRight = pocket.x >= width - edgeTol
-  const nearTop = pocket.y <= edgeTol
-  const nearBottom = pocket.y >= height - edgeTol
-  const mouth = pocketMouthCenter(pocket, radius, width, height)
+function pocketMouthGeometry (pocket, radius, width, height, target = null) {
+  const normal = pocketNormal(pocket, width, height)
+  const pocketType = classifyPocket(pocket, width, height)
+  const explicitJaws = pocket.jawA && pocket.jawB &&
+    [pocket.jawA.x, pocket.jawA.y, pocket.jawB.x, pocket.jawB.y].every(Number.isFinite)
+  const jawDistance = explicitJaws ? dist(pocket.jawA, pocket.jawB) : 0
+  const axis = jawDistance > 1e-6
+    ? { x: (pocket.jawB.x - pocket.jawA.x) / jawDistance, y: (pocket.jawB.y - pocket.jawA.y) / jawDistance }
+    : { x: -normal.y, y: normal.x }
+  const mouthHalfWidth = jawDistance > 1e-6 ? jawDistance / 2 : radius * (pocketType === 'side' ? 2.95 : 2.55)
+  const playableHalfWidth = Math.max(0, mouthHalfWidth - radius * 1.08)
+  const suppliedMouth = pocket.mouth || pocket.mouthCenter
+  const mouthCenter = suppliedMouth && Number.isFinite(suppliedMouth.x) && Number.isFinite(suppliedMouth.y)
+    ? { x: suppliedMouth.x, y: suppliedMouth.y }
+    : explicitJaws
+      ? { x: (pocket.jawA.x + pocket.jawB.x) / 2, y: (pocket.jawA.y + pocket.jawB.y) / 2 }
+      : { x: pocket.x + normal.x * radius * 1.55, y: pocket.y + normal.y * radius * 1.55 }
 
-  // Approximate jaw-tip locations at the cushion cuts for each pocket type.
-  let jawA
-  let jawB
-  if ((nearLeft || nearRight) && (nearTop || nearBottom)) {
-    const jawInset = radius * 1.8
-    jawA = {
-      x: nearLeft ? jawInset : width - jawInset,
-      y: mouth.y
-    }
-    jawB = {
-      x: mouth.x,
-      y: nearTop ? jawInset : height - jawInset
-    }
-  } else if (nearLeft || nearRight) {
-    const x = nearLeft ? radius * 0.55 : width - radius * 0.55
-    const jawSpan = radius * 2.5
-    jawA = { x, y: Math.max(radius, mouth.y - jawSpan) }
-    jawB = { x, y: Math.min(height - radius, mouth.y + jawSpan) }
-  } else {
-    const y = nearTop ? radius * 0.55 : nearBottom ? height - radius * 0.55 : mouth.y
-    const jawSpan = radius * 2.5
-    jawA = { x: Math.max(radius, mouth.x - jawSpan), y }
-    jawB = { x: Math.min(width - radius, mouth.x + jawSpan), y }
-  }
-
-  const lateral = { x: jawB.x - jawA.x, y: jawB.y - jawA.y }
-  const lateralLen = Math.hypot(lateral.x, lateral.y) || 1
-  return {
-    mouth,
-    jawA,
-    jawB,
-    lateral: { x: lateral.x / lateralLen, y: lateral.y / lateralLen },
-    halfSpan: lateralLen * 0.5
-  }
-}
-
-function pocketEntry (pocket, radius, width, height, target, options = null) {
-  const profile = pocketMouthProfile(pocket, radius, width, height)
-  const mouth = profile.mouth
-  const normal = pocketNormal(mouth, width, height)
-  const safeHalfGap = Math.max(0, profile.halfSpan - radius * 1.05)
-  let lateralOffset = 0
-  let dir = normal
-
+  let lateralBias = 0
   if (target) {
-    const targetDir = { x: mouth.x - target.x, y: mouth.y - target.y }
-    const len = Math.hypot(targetDir.x, targetDir.y) || 1
-    const unitTargetDir = { x: targetDir.x / len, y: targetDir.y / len }
-    const cue = options?.cue || null
-    const incomingDir = cue
-      ? { x: target.x - cue.x, y: target.y - cue.y }
-      : unitTargetDir
-    const incomingLen = Math.hypot(incomingDir.x, incomingDir.y) || 1
-    const unitIncomingDir = { x: incomingDir.x / incomingLen, y: incomingDir.y / incomingLen }
-    dir = {
-      x: unitTargetDir.x * 0.72 + normal.x * 0.28,
-      y: unitTargetDir.y * 0.72 + normal.y * 0.28
-    }
-    const blendedLen = Math.hypot(dir.x, dir.y) || 1
-    dir = { x: dir.x / blendedLen, y: dir.y / blendedLen }
-
-    // Use cushion jaw cuts as a guide:
-    // choose the far jaw side (opposite the first jaw) on cut shots.
-    const pocketCutness = 1 - Math.max(0, unitTargetDir.x * normal.x + unitTargetDir.y * normal.y)
-    const collisionCutness = 1 - Math.max(0, unitIncomingDir.x * unitTargetDir.x + unitIncomingDir.y * unitTargetDir.y)
-    const cutness = Math.max(pocketCutness, collisionCutness * 0.92)
-    if (cutness > 0.05 && safeHalfGap > 0) {
-      const approachAlongMouth = unitIncomingDir.x * profile.lateral.x + unitIncomingDir.y * profile.lateral.y
-      const farSide = approachAlongMouth >= 0 ? 1 : -1
-      const desired = safeHalfGap * Math.min(cutness * 0.78, 0.72)
-      lateralOffset = farSide * desired
-
-      const balls = Array.isArray(options?.balls) ? options.balls : null
-      if (balls?.length) {
-        const ignoreBallIds = new Set(options?.ignoreBallIds || [])
-        let nearCrowd = 0
-        let farCrowd = 0
-        for (const b of balls) {
-          if (!b || b.pocketed || ignoreBallIds.has(b.id)) continue
-          const relX = b.x - mouth.x
-          const relY = b.y - mouth.y
-          const lateral = relX * profile.lateral.x + relY * profile.lateral.y
-          const depth = relX * normal.x + relY * normal.y
-          if (Math.abs(lateral) > profile.halfSpan + radius * 1.5) continue
-          if (depth < -radius * 1.2 || depth > radius * 3.25) continue
-          const proximity = 1 / (0.35 + Math.abs(depth) / radius + Math.abs(Math.abs(lateral) - safeHalfGap) / Math.max(radius * 0.75, 1))
-          if (Math.sign(lateral || 1) === farSide) farCrowd += proximity
-          else nearCrowd += proximity
-        }
-
-        const crowdDelta = nearCrowd - farCrowd
-        if (crowdDelta > 0.18) {
-          const boost = Math.min(0.22, crowdDelta * 0.11)
-          lateralOffset = farSide * Math.min(safeHalfGap * 0.92, Math.abs(lateralOffset) + safeHalfGap * boost)
-        } else if (crowdDelta < -0.12) {
-          // If far side is actually tighter, pull back toward the center lane.
-          lateralOffset *= 0.6
-        }
-      }
-    }
+    const approach = { x: pocket.x - target.x, y: pocket.y - target.y }
+    const len = Math.hypot(approach.x, approach.y) || 1
+    const approachUnit = { x: approach.x / len, y: approach.y / len }
+    const sideProjection = approachUnit.x * axis.x + approachUnit.y * axis.y
+    // Move away from the first/near jaw and bias toward the far jaw lane.
+    // This helps steep cuts avoid clipping the first cushion cut.
+    const jawDirection = sideProjection >= 0 ? -1 : 1
+    lateralBias = jawDirection * playableHalfWidth * Math.min(0.35, Math.abs(sideProjection) * 0.45)
   }
 
-  const offset = Math.max(radius * 0.34, Math.min(radius * 0.48, radius * 0.38 + safeHalfGap * 0.08))
   return {
-    x: mouth.x + profile.lateral.x * lateralOffset - dir.x * offset,
-    y: mouth.y + profile.lateral.y * lateralOffset - dir.y * offset
+    normal,
+    axis,
+    mouthCenter,
+    playableHalfWidth,
+    preferredEntry: {
+      x: mouthCenter.x + axis.x * lateralBias,
+      y: mouthCenter.y + axis.y * lateralBias
+    }
   }
 }
 
-function pocketEntryOptionsForTarget (req, target) {
-  if (!req?.state || !target) return null
-  const cueBallId = resolveCueBallId(req.state)
-  const cue = req.state.balls.find(b => b.id === cueBallId)
-  return {
-    cue,
-    balls: req.state.balls,
-    ignoreBallIds: [cueBallId, target.id]
-  }
+function cornerPocketRailClearance (pocket, point, width, height) {
+  const tolerance = 1e-3
+  const nearLeft = Math.abs(pocket.x) <= tolerance
+  const nearRight = Math.abs(pocket.x - width) <= tolerance
+  const nearTop = Math.abs(pocket.y) <= tolerance
+  const nearBottom = Math.abs(pocket.y - height) <= tolerance
+
+  const xRailGap = nearLeft
+    ? point.x
+    : nearRight
+      ? width - point.x
+      : Infinity
+  const yRailGap = nearTop
+    ? point.y
+    : nearBottom
+      ? height - point.y
+      : Infinity
+
+  return Math.min(xRailGap, yRailGap)
 }
 
-function targetPocketLaneBlocked (target, pocket, entry, req, balls) {
-  if (!target || !pocket || !entry || !req?.state) return true
-  const r = req.state.ballRadius
-  const cueBallId = resolveCueBallId(req.state)
-  const tableBalls = balls || req.state.balls || []
-  const ignore = [cueBallId, target.id]
+function cornerPocketLaneSafety (target, entry, pocket, req) {
+  if (!target || !entry || !pocket || !req?.state) return 1
+  if (classifyPocket(pocket, req.state.width, req.state.height) !== 'corner') return 1
+  const radius = req.state.ballRadius || 0
+  const startGap = cornerPocketRailClearance(pocket, target, req.state.width, req.state.height)
+  const endGap = cornerPocketRailClearance(pocket, entry, req.state.width, req.state.height)
+  const laneGap = Math.min(startGap, endGap)
+  const safeGap = radius * 1.45
+  const hardFailGap = radius * 0.82
+  if (laneGap <= hardFailGap) return 0
+  return Math.max(0, Math.min((laneGap - hardFailGap) / Math.max(safeGap - hardFailGap, 1e-6), 1))
+}
 
-  // Object ball path must be clear up to the pocket entry and through the mouth center.
-  const mouth = pocketMouthCenter(pocket, r, req.state.width, req.state.height)
-  if (pathBlocked(target, entry, tableBalls, ignore, r, 1.02)) return true
-  if (pathBlocked(entry, mouth, tableBalls, ignore, r, 0.96)) return true
+function pocketEntry (pocket, radius, width, height, target) {
+  const mouth = pocketMouthGeometry(pocket, radius, width, height, target)
+  const entry = { ...mouth.preferredEntry }
+  if (classifyPocket(pocket, width, height) !== 'corner') return entry
 
-  // Also verify a clear corridor around the pocket lane (not just line-center).
-  const laneLen = Math.max(dist(target, entry), 1e-6)
-  const laneDir = { x: (entry.x - target.x) / laneLen, y: (entry.y - target.y) / laneLen }
-  const laneHalfWidth = r * 1.06
-  for (const b of tableBalls) {
-    if (!b || b.pocketed || ignore.includes(b.id)) continue
-    const relX = b.x - target.x
-    const relY = b.y - target.y
-    const along = relX * laneDir.x + relY * laneDir.y
-    if (along <= r * 0.2 || along >= laneLen + r * 1.15) continue
-    const lateral = Math.abs(relX * laneDir.y - relY * laneDir.x)
-    if (lateral < laneHalfWidth * 2) return true
-  }
-
-  for (const b of tableBalls) {
-    if (!b || b.pocketed || ignore.includes(b.id)) continue
-    if (dist(b, entry) < r * 1.1 || dist(b, mouth) < r * 1.02) return true
-  }
-
-  return false
+  const minRailGap = radius * 0.95
+  const tolerance = 1e-3
+  if (Math.abs(pocket.x) <= tolerance) entry.x = Math.max(entry.x, minRailGap)
+  if (Math.abs(pocket.x - width) <= tolerance) entry.x = Math.min(entry.x, width - minRailGap)
+  if (Math.abs(pocket.y) <= tolerance) entry.y = Math.max(entry.y, minRailGap)
+  if (Math.abs(pocket.y - height) <= tolerance) entry.y = Math.min(entry.y, height - minRailGap)
+  return entry
 }
 
 function pocketAlignment (pocket, target, width, height) {
@@ -355,30 +284,19 @@ function pocketAlignment (pocket, target, width, height) {
   const approach = { x: pocket.x - target.x, y: pocket.y - target.y }
   const len = Math.hypot(approach.x, approach.y) || 1
   const normal = pocketNormal(pocket, width, height)
-  return Math.max(0, (approach.x / len) * normal.x + (approach.y / len) * normal.y)
+  // The approach points OUT of the playing area; the mouth normal points IN.
+  return Math.max(0, -(approach.x / len) * normal.x - (approach.y / len) * normal.y)
 }
 
 function pocketEntranceOpenness (target, pocket, req) {
   if (!target || !pocket || !req?.state) return 0
   const r = req.state.ballRadius
-  const profile = pocketMouthProfile(pocket, r, req.state.width, req.state.height)
-  const minJawClearance = Math.max(0, profile.halfSpan - r * 1.05)
-  if (minJawClearance <= 0) return 0
-  const entry = pocketEntry(
-    pocket,
-    r,
-    req.state.width,
-    req.state.height,
-    target,
-    pocketEntryOptionsForTarget(req, target)
-  )
-  const dx = entry.x - profile.mouth.x
-  const dy = entry.y - profile.mouth.y
-  const entryLateral = Math.abs(dx * profile.lateral.x + dy * profile.lateral.y)
-  const jawClearanceScore = Math.max(0, 1 - entryLateral / (minJawClearance + 1e-6))
+  const mouth = pocketMouthGeometry(pocket, r, req.state.width, req.state.height, target)
+  const entry = pocketEntry(pocket, r, req.state.width, req.state.height, target)
   const laneLen = Math.max(dist(target, entry), r * 2)
   const laneDir = { x: (entry.x - target.x) / laneLen, y: (entry.y - target.y) / laneLen }
   let minEdge = Infinity
+  let jawLaneBlockers = 0
   for (const b of req.state.balls || []) {
     if (!b || b.pocketed || b.id === target.id) continue
     const relX = b.x - target.x
@@ -388,25 +306,27 @@ function pocketEntranceOpenness (target, pocket, req) {
     const lateral = Math.abs(relX * laneDir.y - relY * laneDir.x)
     const edgeGap = lateral - r * 2
     if (edgeGap < minEdge) minEdge = edgeGap
+
+    const toMouthX = b.x - mouth.mouthCenter.x
+    const toMouthY = b.y - mouth.mouthCenter.y
+    const jawDepth = toMouthX * mouth.normal.x + toMouthY * mouth.normal.y
+    const jawSide = Math.abs(toMouthX * mouth.axis.x + toMouthY * mouth.axis.y)
+    if (jawDepth > -r * 0.6 && jawDepth < r * 2.6 && jawSide < mouth.playableHalfWidth + r * 0.5) {
+      jawLaneBlockers++
+    }
   }
   const clearance = Number.isFinite(minEdge)
     ? Math.max(0, Math.min((minEdge + r * 0.9) / (r * 2.2), 1))
     : 1
+  const jawPenalty = Math.max(0, 1 - jawLaneBlockers * 0.28)
   const alignment = pocketAlignment(pocket, target, req.state.width, req.state.height)
   const straightness = Math.max(0, Math.min((alignment - 0.2) / 0.8, 1))
-  return Math.min(1, clearance * 0.5 + straightness * 0.2 + jawClearanceScore * 0.3)
+  return Math.min(1, (clearance * 0.65 + straightness * 0.35) * jawPenalty)
 }
 
 function ghostPointForTargetPocket (target, pocket, req) {
   const r = req.state.ballRadius
-  const entry = pocketEntry(
-    pocket,
-    r,
-    req.state.width,
-    req.state.height,
-    target,
-    pocketEntryOptionsForTarget(req, target)
-  )
+  const entry = pocketEntry(pocket, r, req.state.width, req.state.height, target)
   const dt = dist(target, entry)
   if (dt <= 1e-6) return null
   const ghost = {
@@ -488,12 +408,13 @@ function normaliseAimRequest (req) {
   const state = req?.state || {}
   const indexByColour = { red: 0, yellow: 0 }
   let fallbackId = 20
-  const balls = (state.balls || []).map(ball => {
+  const balls = (Array.isArray(state.balls) ? state.balls : []).filter(Boolean).map(ball => {
     const id = resolveBallId(ball, fallbackId++, indexByColour)
     return { ...ball, id }
   })
 
-  const cueBall = balls.find(b => b?.isCue === true || b?.colour === 'cue' || b?.color === 'cue' || b?.id === 0)
+  const cueBall = balls.find(b => b?.id === state.cueBallId) ||
+    balls.find(b => b?.isCue === true || b?.colour === 'cue' || b?.color === 'cue' || b?.id === 0)
   const cueBallId = cueBall ? cueBall.id : resolveCueBallId({ ...state, balls })
 
   return {
@@ -501,6 +422,8 @@ function normaliseAimRequest (req) {
     state: {
       ...state,
       balls,
+      pockets: (Array.isArray(state.pockets) ? state.pockets : []).filter(pocket =>
+        pocket && Number.isFinite(pocket.x) && Number.isFinite(pocket.y)),
       cueBallId
     }
   }
@@ -515,7 +438,6 @@ function ballsAreFullyStopped (state, restSpeedEpsilon = DEFAULT_REST_SPEED_EPSI
   return balls.every(ball => ball?.pocketed || ballSpeed(ball) <= restSpeedEpsilon)
 }
 
-
 function resolveLegalTargetIds (req) {
   const state = req?.state || {}
   const balls = Array.isArray(state.balls) ? state.balls : []
@@ -525,6 +447,9 @@ function resolveLegalTargetIds (req) {
       .map(value => Number(value))
       .filter(Number.isFinite)
   )
+  // The rules engine's explicit set is authoritative, including an empty set.
+  // A UI suggestion can never add an illegal object ball to that set.
+  if (Array.isArray(state.legalBallIds)) return Array.from(legalIds)
 
   const hints = []
   if (Array.isArray(state.legalTargetSuggestions)) hints.push(...state.legalTargetSuggestions)
@@ -576,8 +501,17 @@ function chooseTargets (req) {
   const cueBallId = resolveCueBallId(req.state)
   const balls = req.state.balls.filter(b => !b.pocketed && b.id !== cueBallId)
   const legalBallIds = resolveLegalTargetIds(req)
+  if (Array.isArray(req.state.legalBallIds)) {
+    return balls.filter(ball => legalBallIds.includes(ball.id))
+  }
   if (legalBallIds.length > 0) {
+    const withoutHints = {
+      ...req,
+      state: { ...req.state, legalTargetSuggestions: undefined, legalTargetSuggestion: undefined }
+    }
+    const ruleLegalIds = new Set(chooseTargets(withoutHints).map(ball => ball.id))
     const legalTargets = balls.filter(ball => legalBallIds.includes(ball.id))
+      .filter(ball => ruleLegalIds.has(ball.id))
     if (legalTargets.length > 0) return legalTargets
   }
   if (req.game === 'NINE_BALL') {
@@ -599,7 +533,8 @@ function chooseTargets (req) {
       if (eight) return [eight]
       return []
     }
-    return balls
+    const openTargets = balls.filter(b => b.id !== 8)
+    return openTargets.length > 0 ? openTargets : eight ? [eight] : []
   }
   if (req.game === 'EIGHT_POOL_UK') {
     const solids = balls.filter(b => b.id >= 1 && b.id <= 7)
@@ -627,67 +562,24 @@ function chooseTargets (req) {
 }
 
 function nextTargetsAfter (targetId, req) {
-  const cueBallId = resolveCueBallId(req.state)
-  const cloned = req.state.balls.filter(b => !b.pocketed && b.id !== targetId && b.id !== cueBallId)
-  const legalBallIds = resolveLegalTargetIds(req)
-    .filter(id => id !== targetId)
-  if (legalBallIds.length > 0) {
-    const legalTargets = cloned.filter(ball => legalBallIds.includes(ball.id))
-    if (legalTargets.length > 0) return legalTargets
+  // Current-turn hints and rotation-ball lists expire after a successful pot.
+  // Recompute the next legal group/lowest number from the projected table.
+  let group = currentGroup(req.state)
+  if (!group && req.game !== 'NINE_BALL') {
+    if (targetId >= 1 && targetId <= 7) group = 'SOLIDS'
+    else if (targetId >= 9 && targetId <= 15) group = 'STRIPES'
   }
-  if (req.game === 'NINE_BALL') {
-    if (cloned.length === 0) return []
-    const lowest = cloned.reduce((m, b) => (b.id < m.id ? b : m), cloned[0])
-    return lowest ? [lowest] : []
-  }
-  if (req.game === 'AMERICAN_BILLIARDS') {
-    const solids = cloned.filter(b => b.id >= 1 && b.id <= 7)
-    const stripes = cloned.filter(b => b.id >= 9 && b.id <= 15)
-    const eight = cloned.find(b => b.id === 8)
-    let group = currentGroup(req.state)
-    if (!group || group === 'UNASSIGNED') {
-      if (targetId >= 1 && targetId <= 7) group = 'SOLIDS'
-      else if (targetId >= 9 && targetId <= 15) group = 'STRIPES'
+  return chooseTargets({
+    ...req,
+    state: {
+      ...req.state,
+      myGroup: group,
+      balls: req.state.balls.map(ball => ball.id === targetId ? { ...ball, pocketed: true } : ball),
+      legalBallIds: undefined,
+      legalTargetSuggestions: undefined,
+      legalTargetSuggestion: undefined
     }
-    if (group === 'SOLIDS') {
-      if (solids.length > 0) return solids
-      if (eight) return [eight]
-      return []
-    }
-    if (group === 'STRIPES') {
-      if (stripes.length > 0) return stripes
-      if (eight) return [eight]
-      return []
-    }
-    return cloned
-  }
-  if (req.game === 'EIGHT_POOL_UK') {
-    const solids = cloned.filter(b => b.id >= 1 && b.id <= 7)
-    const stripes = cloned.filter(b => b.id >= 9 && b.id <= 15)
-    const eight = cloned.find(b => b.id === 8)
-    let group = currentGroup(req.state)
-    if (!group || group === 'UNASSIGNED') {
-      if (targetId >= 1 && targetId <= 7) group = 'SOLIDS'
-      else if (targetId >= 9 && targetId <= 15) group = 'STRIPES'
-    }
-    if (group === 'SOLIDS') {
-      if (solids.length > 0) return solids
-      if (eight) return [eight]
-      return []
-    }
-    if (group === 'STRIPES') {
-      if (stripes.length > 0) return stripes
-      if (eight) return [eight]
-      return []
-    }
-    const openTargets = cloned.filter(b => b.id !== 8)
-    if (openTargets.length === 0) {
-      const eight = cloned.find(b => b.id === 8)
-      return eight ? [eight] : []
-    }
-    return openTargets
-  }
-  return cloned
+  })
 }
 
 // Identify target/pocket pairs that satisfy core aiming criteria:
@@ -699,20 +591,13 @@ function clearShotCandidates (req) {
   const cue = req.state.balls.find(b => b.id === cueBallId)
   const targets = chooseTargets(req)
   const pockets = req.state.pockets
-  const maxCut = req.maxCutAngle ?? Math.PI / 4.15
-  const minView = req.minViewScore ?? 0.42
+  const maxCut = req.maxCutAngle ?? Math.PI / 2.6
+  const minView = req.minViewScore ?? 0.015
   const candidates = []
 
   for (const target of targets) {
     for (const pocket of pockets) {
-      const entry = pocketEntry(
-        pocket,
-        r,
-        req.state.width,
-        req.state.height,
-        target,
-        pocketEntryOptionsForTarget(req, target)
-      )
+      const entry = pocketEntry(pocket, r, req.state.width, req.state.height, target)
       const ghost = ghostPointForTargetPocket(target, pocket, req)
       if (!ghost) continue
 
@@ -727,14 +612,17 @@ function clearShotCandidates (req) {
       }
 
       // check paths from cue->ghost and target->pocket are unobstructed
-      if (pathBlocked(cue, ghost, req.state.balls, [cueBallId, target.id], r, 1.1)) {
-        continue
-      }
-      if (targetPocketLaneBlocked(target, pocket, entry, req, req.state.balls)) {
+      if (
+        pathBlocked(cue, ghost, req.state.balls, [cueBallId, target.id], r, 1.1) ||
+        pathBlocked(target, entry, req.state.balls, [cueBallId, target.id], r) ||
+        req.state.balls.some(
+          b => b.id !== cueBallId && b.id !== target.id && !b.pocketed && dist(b, entry) < r * 1.1
+        )
+      ) {
         continue
       }
 
-      const shotVec = { x: target.x - cue.x, y: target.y - cue.y }
+      const shotVec = { x: ghost.x - cue.x, y: ghost.y - cue.y }
       const potVec = { x: entry.x - target.x, y: entry.y - target.y }
       let cut = Math.abs(Math.atan2(potVec.y, potVec.x) - Math.atan2(shotVec.y, shotVec.x))
       if (cut > Math.PI) cut = Math.abs(cut - Math.PI * 2)
@@ -745,6 +633,7 @@ function clearShotCandidates (req) {
       const weightedView = viewScore * (0.7 + 0.3 * entryAlignment)
       const entranceOpenness = pocketEntranceOpenness(target, pocket, req)
       const pocketView = weightedView * (0.68 + 0.32 * entranceOpenness)
+      const cornerLaneSafety = cornerPocketLaneSafety(target, entry, pocket, req)
       const approachStraightness = 1 - Math.min(cut / (Math.PI / 2), 1)
       const cueToTarget = cue ? dist(cue, target) : 0
       const distanceScore = cue ? Math.max(0, 1 - cueToTarget / (r * 60)) : 0
@@ -753,11 +642,12 @@ function clearShotCandidates (req) {
         pocketView * 0.52 +
         approachStraightness * 0.31 +
         distanceScore * 0.08 +
+        cornerLaneSafety * 0.19 +
         entranceOpenness * 0.17 -
         pocketTravelPenalty * 0.08
 
       // require fairly central hit and open pocket view
-      if (cut <= maxCut && pocketView >= minView) {
+      if (cut <= maxCut && pocketView >= minView && cornerLaneSafety >= 0.3) {
         candidates.push({ target, pocket, cut, view: pocketView, rank })
       }
     }
@@ -790,46 +680,175 @@ function findSuggestedTarget (req, primaryTargetId = null) {
   return null
 }
 
+function cueTravelAfterShot (cue, target, pocket, power, spin, table) {
+  const radius = Number.isFinite(table?.ballRadius) ? table.ballRadius : 10
+  const objectLength = dist(target, pocket) || 1
+  const normal = { x: (pocket.x - target.x) / objectLength, y: (pocket.y - target.y) / objectLength }
+  const contact = { x: target.x - normal.x * radius * 2, y: target.y - normal.y * radius * 2 }
+  const shotLength = dist(cue, contact) || 1
+  const incoming = { x: (contact.x - cue.x) / shotLength, y: (contact.y - cue.y) / shotLength }
+  const transfer = Math.max(0, incoming.x * normal.x + incoming.y * normal.y)
+  // Equal masses: remove only the component along the collision normal. The
+  // old normalized (incoming - normal) sent every cut the same travel distance.
+  const tangent = { x: incoming.x - transfer * normal.x, y: incoming.y - transfer * normal.y }
+  const follow = Math.max(0, Math.min(1, spin?.top || 0))
+  const draw = Math.max(0, Math.min(1, spin?.back || 0))
+  const travel = Math.max(0, power) * radius * 20
+  const vector = {
+    x: travel * (tangent.x + normal.x * follow * transfer * 0.9 - incoming.x * draw * 0.8),
+    y: travel * (tangent.y + normal.y * follow * transfer * 0.9 - incoming.y * draw * 0.8)
+  }
+  const segments = []
+  let position = clampPointToTable(contact, { ...table, ballRadius: radius })
+  let remaining = Math.hypot(vector.x, vector.y)
+  let direction = remaining > 1e-8 ? { x: vector.x / remaining, y: vector.y / remaining } : { x: 0, y: 0 }
+  for (let bounce = 0; remaining > 1e-8 && bounce < 4; bounce++) {
+    const tx = Math.abs(direction.x) < 1e-8 ? Infinity
+      : ((direction.x > 0 ? table.width - radius : radius) - position.x) / direction.x
+    const ty = Math.abs(direction.y) < 1e-8 ? Infinity
+      : ((direction.y > 0 ? table.height - radius : radius) - position.y) / direction.y
+    const railDistance = Math.max(0, Math.min(tx, ty))
+    const step = Math.min(remaining, railDistance)
+    const next = { x: position.x + direction.x * step, y: position.y + direction.y * step }
+    segments.push({ from: position, to: next })
+    position = next
+    remaining -= step
+    if (remaining <= 1e-8) break
+    if (tx <= ty + 1e-7) direction.x *= -1
+    if (ty <= tx + 1e-7) direction.y *= -1
+    // Side spin changes cushion departure, not a straight stun's resting point.
+    const side = Math.max(-1, Math.min(1, spin?.side || 0)) * 0.12
+    const cos = Math.cos(side)
+    const sin = Math.sin(side)
+    direction = { x: direction.x * cos - direction.y * sin, y: direction.x * sin + direction.y * cos }
+    // Keep the rebound inside both playable rails even at grazing incidence.
+    if (position.x <= radius + 1e-6) direction.x = Math.abs(direction.x)
+    if (position.x >= table.width - radius - 1e-6) direction.x = -Math.abs(direction.x)
+    if (position.y <= radius + 1e-6) direction.y = Math.abs(direction.y)
+    if (position.y >= table.height - radius - 1e-6) direction.y = -Math.abs(direction.y)
+    remaining *= 0.72
+  }
+  return { point: clampPointToTable(position, { ...table, ballRadius: radius }), segments }
+}
+
 export function estimateCueAfterShot (cue, target, pocket, power, spin, table) {
-  const toTarget = { x: target.x - cue.x, y: target.y - cue.y }
-  const toPocket = { x: pocket.x - target.x, y: pocket.y - target.y }
-  const shotLen = Math.hypot(toTarget.x, toTarget.y) || 1
-  const objectLen = Math.hypot(toPocket.x, toPocket.y) || 1
-  const shotDir = { x: toTarget.x / shotLen, y: toTarget.y / shotLen }
-  const objectDir = { x: toPocket.x / objectLen, y: toPocket.y / objectLen }
-  const stunDirRaw = { x: shotDir.x - objectDir.x, y: shotDir.y - objectDir.y }
-  const stunLen = Math.hypot(stunDirRaw.x, stunDirRaw.y) || 1
-  const stunDir = { x: stunDirRaw.x / stunLen, y: stunDirRaw.y / stunLen }
+  return cueTravelAfterShot(cue, target, pocket, power, spin, table).point
+}
 
-  const cutDot = Math.max(-1, Math.min(1, shotDir.x * objectDir.x + shotDir.y * objectDir.y))
-  const cutSeverity = Math.sqrt(Math.max(0, 1 - cutDot * cutDot))
-  const tableRadius = Number.isFinite(table?.ballRadius) ? table.ballRadius : 10
-  const baseTravel = Math.max(tableRadius * 3, power * tableRadius * (18 - 3.6 * cutSeverity))
+function recommendedPowerForPot (cue, target, entry, cutAngle, req, options = {}) {
+  const r = Math.max(req?.state?.ballRadius || 0, 1)
+  const tableDiag = Math.hypot(req.state.width, req.state.height) || 1
+  const cueToTarget = dist(cue, target)
+  const targetToPocket = dist(target, entry)
+  const travelNorm = Math.min((cueToTarget * 0.6 + targetToPocket * 0.85) / (tableDiag * 0.72), 1)
+  const cutSeverity = Math.min(Math.abs(cutAngle) / (Math.PI / 2), 1)
+  const base = 0.37 + travelNorm * 0.35 + cutSeverity * 0.16
+  const pocketTightness = Math.min(targetToPocket / (r * 30), 1)
+  const controlOffset = pocketTightness * 0.06
+  let recommended = Math.max(0.36, Math.min(0.92, base + controlOffset))
 
-  // Stun component (natural tangent line), then follow/draw layered on top.
-  const followAmount = Math.max(0, spin.top || 0)
-  const drawAmount = Math.max(0, spin.back || 0)
-  const travelScale = 1 + followAmount * 0.62 - drawAmount * (0.55 + cutSeverity * 0.25)
-  const result = {
-    x: target.x + stunDir.x * baseTravel * travelScale,
-    y: target.y + stunDir.y * baseTravel * travelScale
+  const desiredCueAfter = options?.desiredCueAfter
+  if (desiredCueAfter && Number.isFinite(desiredCueAfter.x) && Number.isFinite(desiredCueAfter.y)) {
+    const neutralCueAfter = estimateCueAfterShot(
+      cue,
+      target,
+      entry,
+      recommended * POWER_SCALE,
+      options?.spin || { top: 0, side: 0, back: 0 },
+      req.state
+    )
+    const currentError = dist(neutralCueAfter, desiredCueAfter)
+    const normalizer = Math.max(Math.hypot(req.state.width, req.state.height) * 0.36, r * 24)
+    const errorRatio = Math.min(currentError / normalizer, 1)
+    if (errorRatio > 0.2) {
+      recommended += Math.min(0.12, errorRatio * 0.18)
+    } else {
+      recommended -= Math.min(0.08, (0.2 - errorRatio) * 0.22)
+    }
   }
+  return Math.max(0.34, Math.min(0.95, recommended)) * POWER_SCALE
+}
 
-  if (drawAmount > 1e-4) {
-    const drawTravel = baseTravel * drawAmount * (0.42 + 0.48 * (1 - cutSeverity))
-    result.x -= shotDir.x * drawTravel
-    result.y -= shotDir.y * drawTravel
+function projectedScratchRisk (cueAfter, req) {
+  const r = req.state.ballRadius
+  const closeToPocket = (req.state.pockets || []).some(p => dist(cueAfter, p) < r * 1.35)
+  if (closeToPocket) return 1
+  let worst = 0
+  for (const pocket of (req.state.pockets || [])) {
+    const d = dist(cueAfter, pocket)
+    const score = Math.max(0, 1 - d / (r * 14))
+    if (score > worst) worst = score
   }
+  return Math.min(worst, 1)
+}
 
-  // Side spin keeps existing sign convention while scaling with power and cut.
-  const sideUnit = { x: -stunDir.y, y: stunDir.x }
-  const tableScale = Math.max(table.width, table.height) * 0.045
-  const sideFactor = (1 - cutSeverity) * 0.3 + 0.7
-  const sideOffset = (spin.side || 0) * power * tableScale * sideFactor
-  result.x += sideUnit.x * sideOffset
-  result.y += sideUnit.y * sideOffset
+function mirrorPointAcrossRail (point, rail, state) {
+  const r = state.ballRadius
+  switch (rail) {
+    case 'left': return { x: r * 2 - point.x, y: point.y }
+    case 'right': return { x: (state.width - r) * 2 - point.x, y: point.y }
+    case 'top': return { x: point.x, y: r * 2 - point.y }
+    case 'bottom': return { x: point.x, y: (state.height - r) * 2 - point.y }
+    default: return null
+  }
+}
 
-  return result
+function firstRailContact (cue, mirroredTarget, rail, state) {
+  const dx = mirroredTarget.x - cue.x
+  const dy = mirroredTarget.y - cue.y
+  if (Math.abs(dx) < 1e-6 && Math.abs(dy) < 1e-6) return null
+  if (rail === 'left' || rail === 'right') {
+    const xRail = rail === 'left' ? state.ballRadius : state.width - state.ballRadius
+    if (Math.abs(dx) < 1e-6) return null
+    const t = (xRail - cue.x) / dx
+    if (t <= 0 || t >= 1) return null
+    const y = cue.y + dy * t
+    if (y <= state.ballRadius || y >= state.height - state.ballRadius) return null
+    return { x: xRail, y }
+  }
+  const yRail = rail === 'top' ? state.ballRadius : state.height - state.ballRadius
+  if (Math.abs(dy) < 1e-6) return null
+  const t = (yRail - cue.y) / dy
+  if (t <= 0 || t >= 1) return null
+  const x = cue.x + dx * t
+  if (x <= state.ballRadius || x >= state.width - state.ballRadius) return null
+  return { x, y: yRail }
+}
+
+function oneCushionKickShot (req) {
+  const cueBallId = resolveCueBallId(req.state)
+  const cue = req.state.balls.find(b => b.id === cueBallId)
+  if (!cue) return null
+  const legalTargets = chooseTargets(req)
+  if (!legalTargets.length) return null
+  const rails = ['left', 'right', 'top', 'bottom']
+  let best = null
+  for (const target of legalTargets) {
+    for (const rail of rails) {
+      const mirrored = mirrorPointAcrossRail(target, rail, req.state)
+      if (!mirrored) continue
+      const cushion = firstRailContact(cue, mirrored, rail, req.state)
+      if (!cushion) continue
+      if (req.state.pockets.some(pocket => dist(cushion, pocket) < req.state.ballRadius * 3.2)) continue
+      if (scratchRiskAlongLine(cue, cushion, req.state.pockets, req.state.ballRadius * 1.5)) continue
+      if (pathBlocked(cue, cushion, req.state.balls, [cueBallId], req.state.ballRadius, 1.05)) continue
+      if (pathBlocked(cushion, target, req.state.balls, [cueBallId, target.id], req.state.ballRadius, 1.05)) continue
+      const distance = dist(cue, cushion) + dist(cushion, target)
+      const tableDiag = Math.hypot(req.state.width, req.state.height) || 1
+      const difficulty = Math.min(distance / (tableDiag * 1.2), 1)
+      const candidate = {
+        angleRad: Math.atan2(cushion.y - cue.y, cushion.x - cue.x),
+        power: Math.max(0.48 * POWER_SCALE, Math.min(0.84 * POWER_SCALE, (0.46 + difficulty * 0.36) * POWER_SCALE)),
+        spin: { top: 0, side: 0, back: 0.08 },
+        targetBallId: target.id,
+        aimPoint: cushion,
+        quality: 0.28 - difficulty * 0.18,
+        rationale: `one-cushion-kick rail=${rail} target=${target.id}`
+      }
+      if (!best || candidate.quality > best.quality) best = candidate
+    }
+  }
+  return best
 }
 
 function clampPointToTable (point, table, margin = 1) {
@@ -861,14 +880,14 @@ function cloneBallsForNextShot (balls, cueAfter, targetId, state) {
 // Rough Monte Carlo estimate of potting probability by jittering the cue
 // aim slightly and checking if paths remain clear. This models human
 // imprecision and rewards shorter, straighter shots.
-function monteCarloPotChance (req, cue, target, pocket, entry, ghost, balls, samples = 20, rng = Math.random) {
+function monteCarloPotChance (req, cue, target, entry, ghost, balls, samples = 20, rng = Math.random) {
   const r = req.state.ballRadius
   const cueBallId = resolveCueBallId(req.state)
   const baseAngle = Math.atan2(ghost.y - cue.y, ghost.x - cue.x)
   const distCG = dist(cue, ghost)
   const shotLength = dist(cue, target)
   const distanceFactor = Math.min(shotLength / (r * 20 || 1), 2)
-  const sampleCount = Math.max(samples, Math.round(MONTE_CARLO_BASE_SAMPLES * (1 + distanceFactor * 1.2)))
+  const sampleCount = Math.max(16, Math.min(96, samples))
   const jitterScale = 0.008 + 0.015 * distanceFactor
   let success = 0
   for (let i = 0; i < sampleCount; i++) {
@@ -881,7 +900,7 @@ function monteCarloPotChance (req, cue, target, pocket, entry, ghost, balls, sam
       g.y > req.state.height - r
     ) continue
     if (pathBlocked(cue, g, balls, [cueBallId, target.id], r, 1.1)) continue
-    if (targetPocketLaneBlocked(target, pocket, entry, req, balls)) continue
+    if (pathBlocked(target, entry, balls, [cueBallId, target.id], r)) continue
     // if jitter deviates too far from ideal contact, treat as miss
     if (dist(g, ghost) > r * 0.42) continue
     success++
@@ -890,16 +909,18 @@ function monteCarloPotChance (req, cue, target, pocket, entry, ghost, balls, sam
 }
 
 function estimateRunoutPotential (req, cueAfter, targetId, balls, depth = 1, rng = Math.random) {
-  if (!req?.state || depth <= 0) return 0
+  if (!req?.state || depth <= 0 || Date.now() >= req.searchDeadline) return 0
   const cueBallId = resolveCueBallId(req.state)
   const nextBalls = cloneBallsForNextShot(balls, cueAfter, targetId, req.state)
-  const nextReq = { ...req, state: { ...req.state, balls: nextBalls, ballInHand: false } }
+  const nextLegalIds = nextTargetsAfter(targetId, req).map(ball => ball.id)
+  const nextReq = { ...req, state: { ...req.state, balls: nextBalls, ballInHand: false, legalBallIds: nextLegalIds } }
   const cue = nextBalls.find(b => b.id === cueBallId)
   if (!cue) return 0
   const candidates = clearShotCandidates(nextReq)
   if (!candidates.length) return 0
   let best = 0
   for (const { target, pocket } of candidates.slice(0, LOOKAHEAD_CANDIDATES)) {
+    if (Date.now() >= req.searchDeadline) break
     const preview = evaluate(
       nextReq,
       cue,
@@ -914,14 +935,7 @@ function estimateRunoutPotential (req, cueAfter, targetId, balls, depth = 1, rng
     if (!preview) continue
     let score = preview.quality
     if (depth > 1) {
-      const entry = pocketEntry(
-        pocket,
-        req.state.ballRadius,
-        req.state.width,
-        req.state.height,
-        target,
-        pocketEntryOptionsForTarget(req, target)
-      )
+      const entry = pocketEntry(pocket, req.state.ballRadius, req.state.width, req.state.height, target)
       const nextCueAfter = estimateCueAfterShot(
         cue,
         target,
@@ -938,6 +952,45 @@ function estimateRunoutPotential (req, cueAfter, targetId, balls, depth = 1, rng
   return best
 }
 
+function resolveDesiredCueAfter (req, target, cueAfterBase) {
+  const nextTargets = nextTargetsAfter(target.id, req)
+  if (!nextTargets.length) return null
+  const next = nextTargets
+    .slice()
+    .sort((a, b) => dist(a, cueAfterBase) - dist(b, cueAfterBase))[0]
+  if (!next) return null
+  return { x: next.x, y: next.y, id: next.id }
+}
+
+function positionalErrorForNextShot (req, target, cueAfter) {
+  const nextTargets = nextTargetsAfter(target.id, req)
+  if (!nextTargets.length) return 0
+  const d = nextTargets.reduce((min, b) => Math.min(min, dist(cueAfter, b)), Infinity)
+  const scale = Math.max(Math.hypot(req.state.width, req.state.height) * 0.26, req.state.ballRadius * 18)
+  return Math.min(d / scale, 1)
+}
+
+function calibrateSpinSideForNextBall (req, cue, target, pocket, spin, power) {
+  const entry = pocketEntry(pocket, req.state.ballRadius, req.state.width, req.state.height, target)
+  const nextNeutral = estimateCueAfterShot(cue, target, entry, power, { ...spin, side: 0 }, req.state)
+  const desiredCueAfter = resolveDesiredCueAfter(req, target, nextNeutral)
+  if (!desiredCueAfter) return spin
+
+  const sideAmplitude = Math.abs(spin.side || 0)
+  if (sideAmplitude < 0.04) return spin
+  const sideSigns = [Math.sign(spin.side || 0) || 1, -1]
+  let best = { spin, error: Infinity, scratch: Infinity }
+  for (const sign of sideSigns) {
+    const trialSpin = { ...spin, side: sideAmplitude * sign }
+    const cueAfter = estimateCueAfterShot(cue, target, entry, power, trialSpin, req.state)
+    const error = dist(cueAfter, desiredCueAfter)
+    const scratch = projectedScratchRisk(cueAfter, req)
+    if (error + scratch * req.state.ballRadius * 24 < best.error + best.scratch * req.state.ballRadius * 24) {
+      best = { spin: trialSpin, error, scratch }
+    }
+  }
+  return best.spin
+}
 
 function buildSpinCandidates (cue, target, pocket, req) {
   const base = [
@@ -950,14 +1003,7 @@ function buildSpinCandidates (cue, target, pocket, req) {
   const nextTargets = nextTargetsAfter(target.id, req)
   if (!nextTargets.length) return base
 
-  const entry = pocketEntry(
-    pocket,
-    req.state.ballRadius,
-    req.state.width,
-    req.state.height,
-    target,
-    pocketEntryOptionsForTarget(req, target)
-  )
+  const entry = pocketEntry(pocket, req.state.ballRadius, req.state.width, req.state.height, target)
   const naturalCueAfter = estimateCueAfterShot(cue, target, entry, 0.7, { top: 0, side: 0, back: 0 }, req.state)
   const next = nextTargets
     .slice()
@@ -977,8 +1023,9 @@ function buildSpinCandidates (cue, target, pocket, req) {
     side: Math.max(-0.35, Math.min(0.35, sideProjection))
   }
   adaptive.top = Math.max(0, adaptive.top - adaptive.back)
+  const calibratedAdaptive = calibrateSpinSideForNextBall(req, cue, target, pocket, adaptive, 0.68 * POWER_SCALE)
 
-  return [adaptive, ...base]
+  return [calibratedAdaptive, adaptive, ...base]
 }
 
 function evaluate (req, cue, target, pocket, power, spin, ballsOverride, strict = false, options = {}) {
@@ -986,16 +1033,18 @@ function evaluate (req, cue, target, pocket, power, spin, ballsOverride, strict 
   const cueBallId = resolveCueBallId(req.state)
   const rng = options.rng ?? Math.random
   const balls = ballsOverride || req.state.balls
-  const entry = pocketEntry(
-    pocket,
-    r,
-    req.state.width,
-    req.state.height,
-    target,
-    pocketEntryOptionsForTarget(req, target)
-  )
+  const entry = pocketEntry(pocket, r, req.state.width, req.state.height, target)
   const ghost = ghostPointForTargetPocket(target, pocket, req)
   if (!ghost) return null
+  const mouth = pocketMouthGeometry(pocket, r, req.state.width, req.state.height, target)
+  if (mouth.playableHalfWidth <= 0) return null
+  const shotVec = { x: ghost.x - cue.x, y: ghost.y - cue.y }
+  const potVec = { x: entry.x - target.x, y: entry.y - target.y }
+  const transfer = (shotVec.x * potVec.x + shotVec.y * potVec.y) /
+    Math.max(Math.hypot(shotVec.x, shotVec.y) * Math.hypot(potVec.x, potVec.y), 1e-9)
+  // A ghost point on the back side of the target cannot be reached through it.
+  if (transfer <= 0.09) return null
+  const cutAngle = Math.acos(Math.max(-1, Math.min(1, transfer)))
   // if ghost lies outside playable area, shot is impossible
   if (
     ghost.x < r ||
@@ -1012,69 +1061,85 @@ function evaluate (req, cue, target, pocket, power, spin, ballsOverride, strict 
   if (scratchRiskAlongLine(cue, ghost, req.state.pockets || [], r)) {
     return null
   }
-  if (pathBlocked(cue, ghost, balls, [cueBallId, target.id], r, 1.1)) {
+  if (
+    pathBlocked(cue, ghost, balls, [cueBallId, target.id], r, 1.1) ||
+    pathBlocked(target, entry, balls, [cueBallId, target.id], r) ||
+    balls.some(b => b.id !== cueBallId && b.id !== target.id && !b.pocketed && dist(b, entry) < r * 1.1)
+  ) {
     return null
   }
-  if (targetPocketLaneBlocked(target, pocket, entry, req, balls)) {
-    return null
-  }
-  const maxD = Math.hypot(req.state.width, req.state.height)
-  const liveMappingOnly = options.liveMappingOnly !== false
   const mcSamples = Number.isFinite(options.mcSamples)
     ? Math.max(24, Math.round(options.mcSamples))
     : 20
-  const potChance = monteCarloPotChance(req, cue, target, pocket, entry, ghost, balls, mcSamples, rng)
+  const potChance = monteCarloPotChance(req, cue, target, entry, ghost, balls, mcSamples, rng)
   const minPotChance = strict ? 0.2 : 0.1
   if (potChance < minPotChance) return null
-  const cueAfter = estimateCueAfterShot(cue, target, entry, power, spin, req.state)
-  const scratchAfterImpact = scratchRiskAlongLine(target, cueAfter, req.state.pockets || [], r)
-  if (strict && scratchAfterImpact) {
+  const trajectory = cueTravelAfterShot(cue, target, entry, power, spin, req.state)
+  const cueAfter = trajectory.point
+  const scratchAfterImpact = trajectory.segments.some(segment =>
+    scratchRiskAlongLine(segment.from, segment.to, req.state.pockets, r * 1.5) ||
+    req.state.pockets.some(pocket => dist(segment.to, pocket) < r * 1.5))
+  if (scratchAfterImpact) {
     return null
   }
   let nextScore = 0
   let hasNext = false
-  if (!liveMappingOnly) {
+  {
     const nextTargets = nextTargetsAfter(target.id, { ...req, state: { ...req.state, balls } })
     if (nextTargets.length > 0) {
       hasNext = true
       let bestShape = 0
       for (const next of nextTargets.slice(0, 4)) {
-        const cueDistanceScore = 1 - Math.min(dist(cueAfter, next) / maxD, 1)
-        let nextPocketAlign = 0
         for (const nextPocket of req.state.pockets) {
-          nextPocketAlign = Math.max(nextPocketAlign, pocketAlignment(nextPocket, next, req.state.width, req.state.height))
+          const nextGhost = ghostPointForTargetPocket(next, nextPocket, req)
+          if (!nextGhost) continue
+          const ignored = [cueBallId, target.id, next.id]
+          if (pathBlocked(cueAfter, nextGhost, balls, ignored, r, 1.05) ||
+              pathBlocked(next, nextPocket, balls, ignored, r)) continue
+          const nextShot = { x: nextGhost.x - cueAfter.x, y: nextGhost.y - cueAfter.y }
+          const nextObject = { x: next.x - nextGhost.x, y: next.y - nextGhost.y }
+          const nextTransfer = (nextShot.x * nextObject.x + nextShot.y * nextObject.y) /
+            Math.max(Math.hypot(nextShot.x, nextShot.y) * Math.hypot(nextObject.x, nextObject.y), 1e-9)
+          if (nextTransfer <= 0.2) continue
+          const distanceEase = 1 - Math.min((dist(cueAfter, next) + dist(next, nextPocket)) /
+            Math.hypot(req.state.width, req.state.height), 1)
+          bestShape = Math.max(bestShape, 0.65 * nextTransfer + 0.35 * distanceEase)
         }
-        const shape = 0.56 * cueDistanceScore + 0.44 * nextPocketAlign
-        if (shape > bestShape) bestShape = shape
       }
       nextScore = bestShape
     }
-  } else {
-    hasNext = true
   }
   const risk = req.state.pockets.some(p => dist(cueAfter, p) < r * 1.2) ? 1 : 0
-  const shotVec = { x: target.x - cue.x, y: target.y - cue.y }
-  const potVec = { x: entry.x - target.x, y: entry.y - target.y }
-  let cutAngle = Math.abs(Math.atan2(potVec.y, potVec.x) - Math.atan2(shotVec.y, shotVec.x))
-  if (cutAngle > Math.PI) cutAngle = Math.abs(cutAngle - Math.PI * 2)
   const centerAlign = 1 - Math.min(cutAngle / (Math.PI / 2), 1)
   const nearHole = 1 - Math.min(dist(target, entry) / (r * 20), 1)
   const viewAngle = Math.atan2(r * 2, dist(target, entry))
   const viewScore = Math.min(viewAngle / (Math.PI / 2), 1)
   const entryAlignment = pocketAlignment(pocket, target, req.state.width, req.state.height)
   const pocketOpen = viewScore * (0.7 + 0.3 * entryAlignment)
+  const cornerLaneSafety = cornerPocketLaneSafety(target, entry, pocket, req)
+  if (cornerLaneSafety <= 0.1) {
+    return null
+  }
   const cueToTarget = dist(cue, target)
   const shotLengthFactor = Math.min(cueToTarget / (r * 40), 2)
   const cutSeverity = Math.min(cutAngle / (Math.PI / 2), 1)
+  const desiredCueAfter = resolveDesiredCueAfter(req, target, cueAfter)
+  const recommendedPower = recommendedPowerForPot(cue, target, entry, cutAngle, req, {
+    desiredCueAfter,
+    spin
+  })
+  const powerDeviation = Math.abs(power - recommendedPower) / Math.max(0.25 * POWER_SCALE, 1e-6)
   const pocketTightness = 1 - pocketOpen
   const difficultyPenalty = 0.25 * (0.5 * cutSeverity + 0.3 * shotLengthFactor + 0.2 * pocketTightness)
   const spinPenalty =
     Math.abs(spin.side || 0) * 0.06 +
     Math.max(0, spin.back || 0) * 0.12 +
     Math.max(0, spin.top || 0) * 0.04
-  const powerControlPenalty = Math.max(0, power - (0.5 * POWER_SCALE)) * 0.35
+  const powerControlPenalty =
+    Math.max(0, power - (0.5 * POWER_SCALE)) * 0.24 +
+    Math.max(0, powerDeviation - 0.12) * 0.2
   const clearanceScore = Math.max(0, Math.min((laneClearance - 0.5) / 0.7, 1))
-  if (strict && (centerAlign < 0.5 || pocketOpen < 0.3)) {
+  if (strict && (centerAlign < 0.35 || pocketOpen < 0.015)) {
     return null
   }
   const lookaheadDepth = Number.isFinite(options.lookaheadDepth)
@@ -1083,6 +1148,8 @@ function evaluate (req, cue, target, pocket, power, spin, ballsOverride, strict 
   const runoutPotential = options.skipLookahead
     ? 0
     : estimateRunoutPotential(req, cueAfter, target.id, balls, lookaheadDepth, rng)
+  const scratchProjection = projectedScratchRisk(cueAfter, req)
+  const positionalError = positionalErrorForNextShot(req, target, cueAfter)
   const quality = Math.max(
     0,
     Math.min(
@@ -1090,11 +1157,14 @@ function evaluate (req, cue, target, pocket, power, spin, ballsOverride, strict 
       0.46 * potChance +
         0.15 * pocketOpen +
         0.13 * centerAlign +
+        0.1 * cornerLaneSafety +
         0.06 * nextScore +
         0.03 * nearHole +
         0.14 * runoutPotential +
         0.11 * clearanceScore -
+        positionalError * 0.1 -
         0.21 * risk -
+        scratchProjection * 0.18 -
         (scratchAfterImpact ? 0.2 : 0) -
         spinPenalty -
         powerControlPenalty -
@@ -1110,88 +1180,112 @@ function evaluate (req, cue, target, pocket, power, spin, ballsOverride, strict 
     targetPocket: entry,
     aimPoint: ghost,
     quality,
-    rationale: `target=${target.id} pocket=(${pocket.x.toFixed(0)},${pocket.y.toFixed(0)}) angle=${angle.toFixed(2)} power=${power.toFixed(2)} spin=${spin.top.toFixed(2)},${spin.side.toFixed(2)},${spin.back.toFixed(2)} pc=${potChance.toFixed(2)} ca=${centerAlign.toFixed(2)} nh=${nearHole.toFixed(2)} np=${nextScore.toFixed(2)} r=${risk.toFixed(2)}`,
+    rationale: `target=${target.id} pocket=(${pocket.x.toFixed(0)},${pocket.y.toFixed(0)}) angle=${angle.toFixed(2)} power=${power.toFixed(2)} spin=${spin.top.toFixed(2)},${spin.side.toFixed(2)},${spin.back.toFixed(2)} pc=${potChance.toFixed(2)} ca=${centerAlign.toFixed(2)} nh=${nearHole.toFixed(2)} np=${nextScore.toFixed(2)} pe=${positionalError.toFixed(2)} r=${risk.toFixed(2)}`,
     nextScore,
     hasNext
   }
 }
 
+function emptyDecision (rationale) {
+  return { angleRad: 0, power: 0, spin: { top: 0, side: 0, back: 0 }, quality: 0, rationale }
+}
+
 function safetyShot (req) {
   const cueBallId = resolveCueBallId(req.state)
   const cue = req.state.balls.find(b => b.id === cueBallId)
-  const corners = [
-    { x: 0, y: 0 },
-    { x: req.state.width, y: 0 },
-    { x: 0, y: req.state.height },
-    { x: req.state.width, y: req.state.height }
-  ]
-  const target = corners.reduce((best, c) => (dist(cue, c) > dist(cue, best) ? c : best), corners[0])
-  const angle = Math.atan2(target.y - cue.y, target.x - cue.x)
-  return {
-    angleRad: angle,
-    power: 0.5 * POWER_SCALE,
-    spin: { top: 0, side: 0, back: 0 },
-    quality: 0,
-    rationale: 'safety'
+  const radius = req.state.ballRadius
+  let best = null
+  // Contact the legal ball first and give it enough travel to reach a cushion.
+  // A straight stun leaves the cue at contact instead of aiming into a corner.
+  for (const target of chooseTargets(req)) {
+    const distance = dist(cue, target)
+    if (distance <= radius * 2) continue
+    if (pathBlocked(cue, target, req.state.balls, [cueBallId, target.id], radius, 1.03)) continue
+    if (scratchRiskAlongLine(cue, target, req.state.pockets, radius * 1.5)) continue
+    const angle = Math.atan2(target.y - cue.y, target.x - cue.x)
+    const direction = { x: Math.cos(angle), y: Math.sin(angle) }
+    const xRail = Math.abs(direction.x) > 1e-8
+      ? ((direction.x > 0 ? req.state.width - radius : radius) - target.x) / direction.x : Infinity
+    const yRail = Math.abs(direction.y) > 1e-8
+      ? ((direction.y > 0 ? req.state.height - radius : radius) - target.y) / direction.y : Infinity
+    const railDistance = Math.max(0, Math.min(xRail, yRail))
+    const railPoint = { x: target.x + direction.x * railDistance, y: target.y + direction.y * railDistance }
+    if (pathBlocked(target, railPoint, req.state.balls, [cueBallId, target.id], radius)) continue
+    const difficulty = Math.min((distance + railDistance) / Math.hypot(req.state.width, req.state.height), 1)
+    const candidate = {
+      angleRad: angle,
+      aimPoint: { x: target.x - direction.x * radius * 2, y: target.y - direction.y * radius * 2 },
+      targetBallId: target.id,
+      power: (0.48 + difficulty * 0.28) * POWER_SCALE,
+      spin: { top: 0, side: 0, back: 0 },
+      quality: 0.27 - difficulty * 0.1,
+      rationale: `safety-legal-contact target=${target.id}`
+    }
+    if (!best || candidate.quality > best.quality) best = candidate
   }
+  return best || oneCushionKickShot(req) || emptyDecision('no-legal-contact-route')
 }
 
 function fallbackAimAtTarget (req) {
   const cueBallId = resolveCueBallId(req.state)
   const cue = req.state.balls.find(b => b.id === cueBallId)
   const targets = chooseTargets(req)
+  const r = req.state.ballRadius
   if (!cue || targets.length === 0) return null
 
   let best = null
   for (const target of targets) {
-    let bestPocket = null
-    let bestAlign = -Infinity
     for (const pocket of req.state.pockets) {
+      const entry = pocketEntry(pocket, r, req.state.width, req.state.height, target)
+      const ghost = ghostPointForTargetPocket(target, pocket, req)
+      if (!ghost) continue
+      if (pocketMouthGeometry(pocket, r, req.state.width, req.state.height, target).playableHalfWidth <= 0) continue
+
+      const blocked = pathBlocked(cue, ghost, req.state.balls, [cueBallId, target.id], r, 1.1) ||
+        pathBlocked(target, entry, req.state.balls, [cueBallId, target.id], r) ||
+        req.state.balls.some(
+          b => b.id !== cueBallId && b.id !== target.id && !b.pocketed && dist(b, entry) < r * 1.1
+        )
+      if (blocked) continue
+
+      const shotVec = { x: ghost.x - cue.x, y: ghost.y - cue.y }
+      const potVec = { x: entry.x - target.x, y: entry.y - target.y }
+      let cut = Math.abs(Math.atan2(potVec.y, potVec.x) - Math.atan2(shotVec.y, shotVec.x))
+      if (cut > Math.PI) cut = Math.abs(cut - Math.PI * 2)
+      if (cut >= Math.PI * 0.45 || scratchRiskAlongLine(cue, ghost, req.state.pockets, r * 1.5)) continue
+      const cutScore = 1 - Math.min(cut / (Math.PI / 2), 1)
       const align = pocketAlignment(pocket, target, req.state.width, req.state.height)
-      if (align > bestAlign) {
-        bestAlign = align
-        bestPocket = pocket
+      const openness = pocketEntranceOpenness(target, pocket, req)
+      const laneClearance = Math.max(0, clearanceMargin(cue, target, req.state.balls, [cueBallId, target.id], r, 1.2))
+      const clearanceScore = Math.max(0, Math.min((laneClearance - 0.35) / 0.9, 1))
+      const cueDistance = dist(cue, target)
+      const distanceScore = Math.max(0, 1 - cueDistance / Math.max(r * 52, 1))
+      const score =
+        cutScore * 0.42 +
+        align * 0.23 +
+        openness * 0.2 +
+        clearanceScore * 0.1 +
+        distanceScore * 0.05
+
+      const angle = Math.atan2(ghost.y - cue.y, ghost.x - cue.x)
+      const candidate = {
+        angleRad: angle,
+        power: recommendedPowerForPot(cue, target, entry, cut, req),
+        spin: { top: 0, side: 0, back: 0 },
+        targetBallId: target.id,
+        targetPocket: entry,
+        aimPoint: ghost,
+        quality: Math.max(0, Math.min(score * 0.55, 0.38)),
+        rationale: 'fallback-aim-consistent'
       }
-    }
-    if (!bestPocket) continue
-    const entry = pocketEntry(
-      bestPocket,
-      req.state.ballRadius,
-      req.state.width,
-      req.state.height,
-      target,
-      pocketEntryOptionsForTarget(req, target)
-    )
-    const ghost = {
-      x: target.x - (entry.x - target.x) * (req.state.ballRadius * 2 / dist(target, entry)),
-      y: target.y - (entry.y - target.y) * (req.state.ballRadius * 2 / dist(target, entry))
-    }
-    if (
-      ghost.x < req.state.ballRadius ||
-      ghost.x > req.state.width - req.state.ballRadius ||
-      ghost.y < req.state.ballRadius ||
-      ghost.y > req.state.height - req.state.ballRadius
-    ) {
-      continue
-    }
-    const angle = Math.atan2(ghost.y - cue.y, ghost.x - cue.x)
-    const candidate = {
-      angleRad: angle,
-      power: 0.65 * POWER_SCALE,
-      spin: { top: 0, side: 0, back: 0 },
-      targetBallId: target.id,
-      targetPocket: bestPocket,
-      aimPoint: ghost,
-      quality: 0,
-      rationale: 'fallback-aim'
-    }
-    if (!best || bestAlign > best.align) {
-      best = { ...candidate, align: bestAlign }
+      if (!best || score > best.score) {
+        best = { ...candidate, score }
+      }
     }
   }
 
   if (!best) return null
-  const { align: _align, ...rest } = best
+  const { score: _score, ...rest } = best
   return rest
 }
 
@@ -1213,8 +1307,7 @@ function isBetterShotCandidate (candidate, currentBest) {
  * @param {AimRequest} req
  * @returns {ShotDecision}
  */
-export function planShot (req) {
-  req = normaliseAimRequest(req)
+function planShotInternal (req) {
   const restSpeedEpsilon = Number.isFinite(req?.state?.restSpeedEpsilon)
     ? Math.max(0, req.state.restSpeedEpsilon)
     : DEFAULT_REST_SPEED_EPSILON
@@ -1231,14 +1324,16 @@ export function planShot (req) {
   const r = req.state.ballRadius
   const cueBallId = resolveCueBallId(req.state)
   const start = Date.now()
-  const deadline = req.timeBudgetMs ? start + req.timeBudgetMs : Infinity
-  const thinkingBudget = Number.isFinite(req.timeBudgetMs) ? Math.max(120, req.timeBudgetMs) : 700
+  const thinkingBudget = Number.isFinite(req.timeBudgetMs) ? Math.max(1, Math.min(700, req.timeBudgetMs)) : 120
+  const deadline = start + thinkingBudget
+  req = { ...req, searchDeadline: deadline }
   const budgetScale = Math.min(2.4, Math.max(0.7, thinkingBudget / 700))
   const lookaheadDepth = liveMappingOnly
     ? 0
-    : Math.max(4, Math.min(8, Math.round(LOOKAHEAD_DEPTH * budgetScale)))
-  const mcSamples = Math.max(48, Math.min(220, Math.round(MONTE_CARLO_BASE_SAMPLES * budgetScale)))
-  const rng = Number.isFinite(req.rngSeed) ? createRng(req.rngSeed) : Math.random
+    : LOOKAHEAD_DEPTH
+  const mcSamples = Math.max(24, Math.min(96, Math.round(MONTE_CARLO_BASE_SAMPLES * budgetScale)))
+  const seededRng = createRng(Number.isFinite(req.rngSeed) ? req.rngSeed : deterministicSeedFromState(req))
+  const rng = seededRng
   let best = null
   let fallback = null
   let hasViableShot = false
@@ -1269,14 +1364,8 @@ export function planShot (req) {
 
   for (const strict of [true, false]) {
     for (const { target, pocket } of candidatePairs) {
-      const entry = pocketEntry(
-        pocket,
-        r,
-        req.state.width,
-        req.state.height,
-        target,
-        pocketEntryOptionsForTarget(req, target)
-      )
+      if (Date.now() >= deadline) return best || fallbackAimAtTarget(req) || safetyShot(req)
+      const entry = pocketEntry(pocket, r, req.state.width, req.state.height, target)
       // ball in hand: sample cue placements along pocket-target line
       const placements = []
       if (req.state.ballInHand) {
@@ -1298,29 +1387,18 @@ export function planShot (req) {
           ) {
             continue
           }
-          const breakPlacementRestricted = Boolean(
-            req.state.breakPlacementRestricted ?? req.state.breakInProgress
-          )
-          if (
-            req.state.mustPlayFromBaulk &&
-            breakPlacementRestricted &&
-            typeof req.state.baulkLineY === 'number' &&
-            cand.y < req.state.baulkLineY
-          ) {
-            continue
-          }
-          const overlap = req.state.balls.some(
-            b => b.id !== cueBallId && !b.pocketed && dist(cand, b) < r * 2
-          )
-          if (overlap) continue
+          if (!isLegalCuePlacement(cand, req)) continue
           placements.push(cand)
         }
+        const currentCue = req.state.balls.find(ball => ball.id === cueBallId)
+        if (isLegalCuePlacement(currentCue, req)) placements.push({ x: currentCue.x, y: currentCue.y })
       } else {
         const cue = req.state.balls.find(b => b.id === cueBallId)
         placements.push({ x: cue.x, y: cue.y })
       }
 
       for (const cuePos of placements) {
+        if (Date.now() >= deadline) return best || fallbackAimAtTarget(req) || safetyShot(req)
         const balls = req.state.balls.map(b =>
           b.id === cueBallId ? { ...b, x: cuePos.x, y: cuePos.y } : b
         )
@@ -1350,10 +1428,10 @@ export function planShot (req) {
 
         const spins = liveMappingOnly ? defaultSpins : buildSpinCandidates(cuePos, target, pocket, req)
         for (const power of powers) {
-          for (const spin of spins.concat(defaultSpins)) {
+          for (const spin of spins) {
             if (power === powers[0] && spin === spins[0]) continue
             if (Date.now() > deadline) {
-              return best && best.quality >= 0.1 ? best : fallbackAimAtTarget(req) || safetyShot(req)
+              return best && best.quality >= MIN_COMPETITIVE_QUALITY ? best : fallbackAimAtTarget(req) || safetyShot(req)
             }
             const cand = evaluate(
               req,
@@ -1385,8 +1463,14 @@ export function planShot (req) {
       Math.abs(best.spin?.top || 0) < 1e-6 &&
       Math.abs(best.spin?.side || 0) < 1e-6 &&
       Math.abs(best.spin?.back || 0) < 1e-6
-    if (neutralSpin && best.power > 0.5 * POWER_SCALE && best.quality >= 0.45) {
-      best.power = 0.5 * POWER_SCALE
+    if (neutralSpin && !req.state?.breakInProgress) {
+      if (best.power > 0.5 * POWER_SCALE && best.quality >= 0.45) {
+        best.power = 0.5 * POWER_SCALE
+      } else if (best.power > 0.66 * POWER_SCALE && best.quality >= 0.3) {
+        // Keep routine pots on a repeatable "pro rhythm":
+        // moderate speed improves consistency across consecutive visits.
+        best.power = 0.66 * POWER_SCALE
+      }
     }
     if (!liveMappingOnly) {
       const suggestion = findSuggestedTarget(req, best.targetBallId)
@@ -1395,13 +1479,61 @@ export function planShot (req) {
         best.suggestedAimPoint = suggestion.suggestedAimPoint
       }
     }
-    if (best.quality >= 0.1) return best
+    if (best.quality >= MIN_COMPETITIVE_QUALITY) return best
     if (hasViableShot) return best
   }
-  if (!hasViableShot) return safetyShot(req)
+  if (!hasViableShot) {
+    fallback = fallbackAimAtTarget(req)
+    if (fallback) return fallback
+    return safetyShot(req)
+  }
   fallback = fallbackAimAtTarget(req)
   if (fallback) return fallback
   return safetyShot(req)
+}
+
+function isLegalCuePlacement (position, req) {
+  if (!position || !Number.isFinite(position.x) || !Number.isFinite(position.y)) return false
+  const { width, height, ballRadius: r } = req.state
+  if (position.x < r || position.x > width - r || position.y < r || position.y > height - r) return false
+  const restricted = req.state.breakPlacementRestricted ??
+    (req.state.mustPlayFromBaulk && (req.state.breakInProgress || req.game === 'EIGHT_POOL_UK'))
+  const line = Number.isFinite(req.state.baulkLineY) ? req.state.baulkLineY : height * 0.75
+  if (restricted && position.y < line) return false
+  const cueBallId = resolveCueBallId(req.state)
+  if (req.state.balls.some(ball => ball.id !== cueBallId && !ball.pocketed && dist(position, ball) < r * 2.05)) return false
+  return !req.state.pockets.some(pocket => dist(position, pocket) < r * 2)
+}
+
+/** Plan from a complete stopped snapshot; return power zero when no legal shot exists. */
+export function planShot (request) {
+  let req = normaliseAimRequest(request)
+  const { width, height, ballRadius: radius } = req.state
+  if (![width, height, radius].every(Number.isFinite) || radius <= 0 || width <= radius * 2 || height <= radius * 2 ||
+      req.state.balls.some(ball => !ball.pocketed && (!Number.isFinite(ball.x) || !Number.isFinite(ball.y)))) {
+    return emptyDecision('invalid-table-snapshot')
+  }
+  const cueBallId = resolveCueBallId(req.state)
+  let cue = req.state.balls.find(ball => ball.id === cueBallId)
+  if (!cue || (cue.pocketed && !req.state.ballInHand)) return emptyDecision('awaiting-cue-ball')
+  if (!chooseTargets(req).length) return emptyDecision('no-legal-targets')
+  if (req.state.ballInHand) {
+    let placement = isLegalCuePlacement(cue, req) ? { x: cue.x, y: cue.y } : null
+    for (let y = 0; !placement && y <= 12; y++) {
+      for (let x = 0; !placement && x <= 12; x++) {
+        const point = { x: radius + (width - radius * 2) * x / 12, y: radius + (height - radius * 2) * y / 12 }
+        if (isLegalCuePlacement(point, req)) placement = point
+      }
+    }
+    if (!placement) return emptyDecision('no-legal-cue-placement')
+    cue = { ...cue, ...placement, pocketed: false }
+    req = { ...req, state: { ...req.state, balls: req.state.balls.map(ball => ball.id === cueBallId ? cue : ball) } }
+  }
+  const decision = planShotInternal(req)
+  if (req.state.ballInHand && decision.power > 0 && !decision.cueBallPosition) {
+    decision.cueBallPosition = { x: cue.x, y: cue.y }
+  }
+  return decision
 }
 
 export default planShot

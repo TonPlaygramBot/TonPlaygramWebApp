@@ -8,6 +8,8 @@ type HudInfo = {
 
 type SnookerMeta = {
   variant: 'snooker';
+  ruleProfile?: 'standard' | 'reference';
+  foulChoice?: { offender: 'A' | 'B'; colorOnAfterRed: boolean };
   respottedBlack?: boolean;
   colorsRemaining: BallColor[];
   freeBall: boolean;
@@ -110,7 +112,11 @@ function isBallState(value: unknown): value is Ball {
 }
 
 export class SnookerRoyalRules {
-  constructor(_variant?: string | null) {}
+  private readonly ruleProfile: 'standard' | 'reference';
+
+  constructor(_variant?: string | null, ruleProfile: 'standard' | 'reference' = 'standard') {
+    this.ruleProfile = ruleProfile;
+  }
 
   getInitialFrame(playerA: string, playerB: string): FrameState {
     const base: FrameState = {
@@ -128,6 +134,7 @@ export class SnookerRoyalRules {
     const scores = { A: 0, B: 0 };
     base.meta = {
       variant: 'snooker',
+      ruleProfile: this.ruleProfile,
       colorsRemaining: [...COLOR_ORDER],
       freeBall: false,
       hud: buildHud(base, scores, base.ballOn),
@@ -136,6 +143,45 @@ export class SnookerRoyalRules {
       }
     } satisfies SnookerMeta;
     return base;
+  }
+
+  /** WPBSA 3.13: the incoming player can require the offender to play again. */
+  resolveFoulChoice(state: FrameState, choice: 'play' | 'return'): FrameState {
+    const meta = state.meta as SnookerMeta | undefined;
+    if (state.frameOver || !meta?.foulChoice || (choice !== 'play' && choice !== 'return')) return state;
+    const offender = meta.foulChoice.offender;
+    const colorOnAfterRed = choice === 'return' ? meta.foulChoice.colorOnAfterRed : Boolean(state.colorOnAfterRed);
+    const phase = colorOnAfterRed ? 'REDS_AND_COLORS' : state.phase;
+    const next = {
+      ...state,
+      activePlayer: choice === 'return' ? offender : state.activePlayer,
+      currentBreak: 0,
+      colorOnAfterRed,
+      phase,
+      freeBall: choice === 'return' ? false : state.freeBall
+    } as FrameState;
+    next.ballOn = resolveBallOn(next, meta.colorsRemaining);
+    next.meta = {
+      ...meta,
+      foulChoice: undefined,
+      freeBall: Boolean(next.freeBall),
+      hud: buildHud(next, { A: next.players.A.score, B: next.players.B.score }, next.ballOn)
+    };
+    return next;
+  }
+
+  /** Called only after the renderer has finished respotting all colours. */
+  setSnookeredAfterFoul(state: FrameState, snookered: boolean): FrameState {
+    const meta = state.meta as SnookerMeta | undefined;
+    if (state.frameOver || !state.foul || !meta?.foulChoice) return state;
+    const freeBall = Boolean(snookered);
+    const next = { ...state, freeBall };
+    next.meta = {
+      ...meta,
+      freeBall,
+      hud: buildHud(next, { A: state.players.A.score, B: state.players.B.score }, state.ballOn)
+    };
+    return next;
   }
 
   applyShot(state: FrameState, events: ShotEvent[], context: ShotContext = {}): FrameState {
@@ -260,8 +306,12 @@ export class SnookerRoyalRules {
       color === freeBallColor && ballOnColor ? ballOnColor : color;
     const involved = [firstContact, ...explicitFouls.map(event => normalizeColor(event.ball)),
       ...pottedObjects.map(ball => ball.color)].map(foulValueColor).filter(Boolean) as BallColor[];
+    const ruleProfile = meta?.ruleProfile ?? this.ruleProfile;
+    // WPBSA 3.11(d)(vi): a foul after a red before any colour has been
+    // nominated is seven. Keep the prior automatic-minimum profile explicit.
+    const unNominatedColourFoul = ruleProfile === 'standard' && onColorAfterRed && !ballOnColor;
     const foulPoints = foulReason
-      ? calculateFoulPoints(ballOnColor ? [ballOnColor] : [], involved)
+      ? unNominatedColourFoul ? 7 : calculateFoulPoints(ballOnColor ? [ballOnColor] : [], involved)
       : 0;
     const freeBallPotted = freeBallColor !== null && pottedObjects.some(ball => ball.color === freeBallColor);
     const targetPotted = ballOnColor !== null && pottedObjects.some(ball => ball.color === ballOnColor);
@@ -333,6 +383,10 @@ export class SnookerRoyalRules {
       meta: {
         ...meta,
         variant: 'snooker',
+        ruleProfile,
+        foulChoice: foulReason && !frameOver && !tiedFinalBlack
+          ? { offender: state.activePlayer, colorOnAfterRed: onColorAfterRed }
+          : undefined,
         respottedBlack: tiedFinalBlack || Boolean(meta?.respottedBlack),
         colorsRemaining,
         freeBall: nextFreeBall,

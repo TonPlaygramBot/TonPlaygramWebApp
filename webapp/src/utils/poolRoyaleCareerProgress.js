@@ -54,7 +54,7 @@ const CAREER_PHASE_DETAILS = [
     id: 2,
     title: 'City Circuit',
     summary:
-      'Face stronger league rivals, keep streaks alive, and qualify for larger events.'
+      'Face stronger rivals, complete longer matches, and qualify for larger events.'
   },
   {
     id: 3,
@@ -174,8 +174,8 @@ const buildStage = (level) => {
       titleBase: FRIENDLY_TITLES[(level - 1) % FRIENDLY_TITLES.length],
       icon: '🤝',
       objective: 'Win a tactical friendly against an adaptive AI rival.',
-      detailBrief: 'Single fixture designed to test shot selection under moderate pressure.',
-      winCondition: 'Reach the target score before your opponent.',
+      detailBrief: 'A race-to-two fixture designed to test shot selection under moderate pressure.',
+      winCondition: 'Win two racks before your opponent.',
       players: null,
       eventType: 'match',
       roundTarget: 1,
@@ -184,9 +184,9 @@ const buildStage = (level) => {
     league: {
       titleBase: 'League Fixture',
       icon: '🗓️',
-      objective: 'Win the scheduled league match to keep your table ranking alive.',
-      detailBrief: 'Season ladder match where consistency matters more than fast clears.',
-      winCondition: 'Win the frame and avoid foul-heavy play.',
+      objective: 'Win a race-to-three fixture against your next circuit rival.',
+      detailBrief: 'A multi-rack fixture where consistency matters more than fast clears.',
+      winCondition: 'Win three racks before your rival; every foul can change the match.',
       players: null,
       eventType: 'league',
       roundTarget: 1,
@@ -197,7 +197,7 @@ const buildStage = (level) => {
       icon: '⚡',
       objective: 'Defeat the featured rival in a high-pressure race-to-win set.',
       detailBrief: 'Headliner duel with tighter miss tolerance and stronger rival AI.',
-      winCondition: 'Win the race set with clean finishes and no collapse rounds.',
+      winCondition: 'Win five racks before your featured rival.',
       players: 2,
       eventType: 'match',
       roundTarget: 1,

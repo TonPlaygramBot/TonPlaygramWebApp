@@ -68,6 +68,8 @@ import {
   setBallMaterialAnisotropy
 } from '../../utils/ballMaterialFactory.js';
 import { selectShot as selectUkAiShot } from '../../../../lib/poolUkAdvancedAi.js';
+import { selectBilliardsAiPlans, createBilliardsPlanCache } from '../../../../lib/billiardsAiSelection.js';
+import { findBilliardsAiEscape } from './shared/billiardsAiEscape.js';
 import { createCueRackDisplay } from '../../utils/createCueRackDisplay.js';
 import { socket } from '../../utils/socket.js';
 import {
@@ -131,6 +133,11 @@ import {
 } from './poolRoyaleAimSuggestion.js';
 import { advancePoolRoyalCueStroke, POOL_ROYAL_STROKE, referenceCuePull, referenceCueFeather, resolveCueBallContact } from './poolRoyaleCueStrokeTimeline.js';
 import { PoolRoyalShotCamera } from './shared/poolRoyalShotCamera.ts';
+import { clipGuideTravel } from './shared/billiardsGuideGeometry.js';
+import { poolCueGuideResponse } from './poolRoyaleGuideResponse.js';
+import { PoolCompetitionMatch } from '../../games/pool/PoolCompetitionMatch.jsx';
+import { PoolMatchHud } from './PoolMatchHud.jsx';
+import { poolCalledBallOptions, positionPocketCallButton, restorePendingBilliardsLayout } from './shared/billiardsPresentationState.js';
 import { createPoolRoyalCue } from './shared/createPoolRoyalCue.ts';
 import { isPoolRoyalBreak, poolRoyalBallInHand, recordPoolRoyalRail, findPoolRoyalSpot, poolRoyalBallsToSpot } from './poolRoyaleShotLifecycle.js';
 import { resolvePocketMouthAimPoint } from './poolRoyalePocketAim.js';
@@ -6026,7 +6033,7 @@ const RAIL_OVERHEAD_AIM_ZOOM = 1; // no extra zoom while tracking; rotate/look d
 const RAIL_OVERHEAD_AIM_PHI_LIFT = 0.014; // keep rail-overhead aim view marginally more downward while preserving depth
 const RAIL_OVERHEAD_REPLAY_FOV = STANDING_VIEW_FOV + 6; // widen rail-overhead lens a bit more so both bottom pockets stay visible on portrait screens
 const ENABLE_SHOT_REPLAY = true;
-const PORTRAIT_TOP_ACTION_BAR_DROP_REM = 1.05; // move portrait gift/chat/menu controls a bit lower from the top edge
+const PORTRAIT_TOP_ACTION_BAR_DROP_REM = 8.4; // move portrait gift/chat/menu controls a bit lower from the top edge
 const BACKSPIN_DIRECTION_PREVIEW = 1; // show draw/backswing direction on cue-ball follow line
 const AIM_SPIN_PREVIEW_SIDE = 1;
 const AIM_SPIN_PREVIEW_FORWARD = 0.18;
@@ -7388,96 +7395,31 @@ function resolveTargetSpinDeflection(
   return dir;
 }
 
-function resolveCueFollowPreview({
-  cueDir,
-  aimDir,
-  spin,
-  powerStrength,
-  cuePowerStrength,
-  liftStrength = 0
-}) {
-  const normalizedSpin = normalizeSpinInput(spin);
-  const clampedPower = THREE.MathUtils.clamp(powerStrength ?? 0, 0, 1);
-  const clampedCuePower = Number.isFinite(cuePowerStrength)
-    ? THREE.MathUtils.clamp(cuePowerStrength ?? 0, 0, 1)
-    : clampedPower;
-  const impactPower = clampedCuePower;
-  const baseDir = cueDir ? cueDir.clone() : null;
-  if (!baseDir || baseDir.lengthSq() < 1e-8) {
-    baseDir?.set(0, 0, 1);
-  } else {
-    baseDir.normalize();
-  }
-  const aimVec = aimDir ? aimDir.clone() : baseDir ? baseDir.clone() : new THREE.Vector3(0, 0, 1);
-  if (aimVec.lengthSq() < 1e-8) {
-    aimVec.set(0, 0, 1);
-  } else {
-    aimVec.normalize();
-  }
-  const spinAdjusted =
-    resolveTargetSpinDeflection(
-      baseDir ?? aimVec,
-      aimVec,
-      normalizedSpin,
-      impactPower,
-      liftStrength
-    ) ?? baseDir ?? aimVec;
-  const spinX = normalizedSpin?.x ?? 0;
-  const spinY = normalizedSpin?.y ?? 0;
-  const spinMagnitude = Math.hypot(spinX, spinY);
-  const backspinWeight = Math.max(0, -spinY);
-  const topspinWeight = Math.max(0, spinY);
-  const backspinLerp = resolveBackspinPreviewLerp(backspinWeight);
-  const topspinLerp = Math.min(0.35, Math.pow(topspinWeight, 0.6) * 0.35);
-  const previewDir = spinAdjusted.clone();
-  const backwards = aimVec.clone().multiplyScalar(-1);
-  const cutAlignment = THREE.MathUtils.clamp(previewDir.dot(aimVec), -1, 1);
-  const cutPenalty = Math.sqrt(Math.max(0, 1 - Math.abs(cutAlignment)));
-  if (BACKSPIN_DIRECTION_PREVIEW > 0 && backspinLerp > 1e-4) {
-    const drawBlend = THREE.MathUtils.clamp(
-      backspinLerp * BACKSPIN_DIRECTION_PREVIEW * (0.7 + 0.3 * impactPower),
-      0,
-      1
-    );
-    previewDir.lerp(backwards, drawBlend);
-  } else if (topspinLerp > 1e-4) {
-    const followBlend = THREE.MathUtils.clamp(
-      topspinLerp * (0.75 + impactPower * 0.35) * (1 - cutPenalty * 0.45),
-      0,
-      1
-    );
-    previewDir.lerp(aimVec, followBlend);
-  }
-  const sideInfluence =
-    Math.min(Math.abs(spinX), 1) *
-    (0.18 + impactPower * 0.22) *
-    (1 - cutPenalty * 0.3);
-  if (sideInfluence > 1e-4) {
-    const perp = new THREE.Vector3(-previewDir.z, 0, previewDir.x);
-    if (perp.lengthSq() > 1e-8) {
-      perp.normalize();
-      previewDir.add(perp.multiplyScalar(spinX * sideInfluence));
-    }
-  }
-  if (previewDir.lengthSq() > 1e-8) previewDir.normalize();
-  const power = clampedPower;
-  const cuePower = clampedCuePower;
-  const stunShot = spinMagnitude <= SPIN_STUN_RADIUS + 1e-4;
-  const basePower = Math.max(cuePower, power * 0.2);
-  let length = BALL_R * (stunShot ? 4.5 : 7);
-  length += BALL_R * 24 * basePower;
-  if (backspinWeight > 1e-4) {
-    const backBoost = 0.4 + 0.6 * power;
-    length *= 1 + backspinWeight * backBoost;
-  }
-  if (topspinWeight > 1e-4) {
-    length *= 1 + topspinWeight * 0.15 * power;
-  }
+function resolveCueFollowPreview({ cueDir, aimDir, spin, powerStrength, cuePowerStrength, ballImpact = false }) {
+  const transfer = powerStrength > 1e-5 ? cuePowerStrength / powerStrength : (cueDir ? 1 : 0);
+  const response = poolCueGuideResponse({
+    incoming: { x: aimDir.x, y: aimDir.z },
+    tangent: cueDir ? { x: cueDir.x, y: cueDir.z } : null,
+    transfer,
+    spinY: normalizeSpinInput(spin)?.y ?? 0,
+    ballImpact
+  });
+  const dir = new THREE.Vector3(response.direction.x, 0, response.direction.y);
   return {
-    dir: previewDir,
-    length,
-    backwards: previewDir.dot(aimVec) < 0
+    dir,
+    length: response.strength > 1e-5 ? BALL_R * (5 + 23 * Math.max(0, powerStrength)) * response.strength : 0,
+    backwards: dir.dot(aimDir) < 0
   };
+}
+
+function clipPoolGuideEnd(start, direction, maxDistance, balls, ignoreIds) {
+  const distance = clipGuideTravel({
+    origin: { x: start.x, y: start.z },
+    direction: { x: direction.x, y: direction.z },
+    balls, ignoreIds, radius: BALL_R, maxDistance,
+    halfWidth: RAIL_LIMIT_X, halfLength: RAIL_LIMIT_Y
+  });
+  return start.clone().addScaledVector(direction, distance);
 }
 
 // calculate impact point and post-collision direction for aiming guide
@@ -7557,8 +7499,10 @@ function calcTarget(cue, dir, balls) {
       const normal = segment.normal.clone();
       if (normal.lengthSq() < 1e-8) return;
       normal.normalize();
-      const start = segment.start.clone().sub(normal.clone().multiplyScalar(BALL_R));
-      const end = segment.end.clone().sub(normal.clone().multiplyScalar(BALL_R));
+      // Cushion normals face into the cloth, as in the live collision solver.
+      if (dirNorm.dot(normal) >= -1e-8) return;
+      const start = segment.start.clone().addScaledVector(normal, BALL_R);
+      const end = segment.end.clone().addScaledVector(normal, BALL_R);
       const t = intersectRayWithSegment(cuePos, dirNorm, start, end);
       if (t == null) return;
       checkRail(t, normal);
@@ -7587,8 +7531,8 @@ function calcTarget(cue, dir, balls) {
     const perp2 = v.lengthSq() - proj * proj;
     if (perp2 > contactRadius2) return;
     const thc = Math.sqrt(contactRadius2 - perp2);
-    const t = proj - thc;
-    if (t >= 0 && t < tHit) {
+    const t = Math.max(0, proj - thc);
+    if (t < tHit) {
       tHit = t;
       targetBall = b;
       railNormal = null;
@@ -7596,10 +7540,7 @@ function calcTarget(cue, dir, balls) {
   });
 
   const fallbackDistance = Math.sqrt(PLAY_W * PLAY_W + PLAY_H * PLAY_H);
-  let travel = Number.isFinite(tHit) ? tHit : fallbackDistance;
-  if (travel <= 0) {
-    travel = fallbackDistance;
-  }
+  const travel = Number.isFinite(tHit) ? Math.max(0, tHit) : fallbackDistance;
   const impact = cuePos.clone().add(dirNorm.clone().multiplyScalar(travel));
   let targetDir = null;
   let cueDir = null;
@@ -8858,13 +8799,6 @@ export function Table3D(
     mesh.receiveShadow = false;
     mesh.userData.externalTablePocketHardwareHidden = true;
     return mesh;
-  };
-  const removePocketDropEntry = (ballId) => {
-    const entry = pocketDropRef.current.get(ballId);
-    if (entry) {
-      clearPocketGlow(entry);
-    }
-    pocketDropRef.current.delete(ballId);
   };
   const resolvePocketFieldCutRadius = (index) =>
     Math.max(
@@ -14471,7 +14405,12 @@ function PoolRoyaleGame({
   playerAvatar,
   opponentName,
   opponentAvatar,
-  initialTrainingLevel = null
+  initialTrainingLevel = null,
+  competitionMatch = null,
+  savedFrame = null,
+  onCompetitionCheckpoint,
+  onCompetitionFrameComplete,
+  onCompetitionRewards
 }) {
   const navigate = useNavigate();
   const location = useLocation();
@@ -14575,12 +14514,12 @@ function PoolRoyaleGame({
   );
   const infoText = useMemo(() => {
     if (activeVariant?.id === '9ball') {
-      return 'Hit the lowest numbered ball first. A legal 9-ball pot wins, including a combination. Fouls give ball in hand; a fouled 9 is respotted.';
+      return 'Hit the lowest ball first. A legal 9 wins, including a combination. After a legal break you may declare push out; your opponent then plays or returns the shot. Fouls give ball in hand, a fouled 9 is spotted, and three consecutive fouls lose the rack.';
     }
     if (activeVariant?.id === 'uk') {
       return 'Pocket your assigned group, then sink the 8-ball to win. Fouls give your opponent ball in hand.';
     }
-    return 'A legal pot of one group assigns solids or stripes, including on the break. Clear your group to win on the 8. A legal early 8 is respotted with ball in hand for your opponent.';
+    return 'The table stays open after the break. A legal called pot assigns solids or stripes. Clear your group, then call the 8 and its pocket. An early 8, wrong-pocket 8, or scratch with the 8 loses the rack. The 8 on the break is spotted. Use Safety to pass after a legal defensive shot.';
   }, [activeVariant]);
   const isUkAmericanSet = useMemo(
     () => activeVariant?.id === 'uk' && activeVariant?.ballSet === 'american',
@@ -16699,30 +16638,50 @@ function PoolRoyaleGame({
   }, [location.search]);
   const localSeat = useMemo(() => {
     const params = new URLSearchParams(location.search);
-    return params.get('seat') === 'B' ? 'B' : 'A';
-  }, [location.search]);
+    return !competitionMatch && params.get('seat') === 'B' ? 'B' : 'A';
+  }, [location.search, competitionMatch]);
   const randomStarterSeatRef = useRef(Math.random() < 0.5 ? 'A' : 'B');
   const starterSeat = useMemo(() => {
     const params = new URLSearchParams(location.search);
+    if (competitionMatch) return competitionMatch.frameNumber % 2 === 0 ? 'B' : 'A';
     const explicitStarter = params.get('starter');
     if (explicitStarter === 'B' || explicitStarter === 'A') return explicitStarter;
     return mode === 'online' || playType === 'training' ? 'A' : randomStarterSeatRef.current;
-  }, [location.search, mode, playType]);
+  }, [location.search, mode, playType, competitionMatch]);
   const isOnlineMatch = mode === 'online';
   const aiOpponentEnabled = !isOnlineMatch && !isTraining;
   const framePlayerAName = localSeat === 'A' ? playerLabel : opponentLabel;
   const framePlayerBName = localSeat === 'A' ? opponentLabel : playerLabel;
   const initialFrame = useMemo(() => {
+    if (savedFrame?.frame && !savedFrame.frame.frameOver) return savedFrame.frame;
     const baseFrame = rules.getInitialFrame(framePlayerAName, framePlayerBName);
     const desiredStarter = starterSeat === 'B' ? 'B' : 'A';
     if (baseFrame.activePlayer === desiredStarter) return baseFrame;
-    return { ...baseFrame, activePlayer: desiredStarter };
-  }, [framePlayerAName, framePlayerBName, rules, starterSeat]);
+    return { ...baseFrame, activePlayer: desiredStarter, meta: { ...baseFrame.meta, state: { ...baseFrame.meta?.state, currentPlayer: desiredStarter } } };
+  }, [framePlayerAName, framePlayerBName, rules, starterSeat, savedFrame]);
   const [frameState, setFrameState] = useState(initialFrame);
   useEffect(() => {
     setFrameState(initialFrame);
   }, [initialFrame, isTraining]);
   const frameRef = useRef(frameState);
+  const [shotDeclaration, setShotDeclaration] = useState({ ballId: null, pocket: null, safety: false, pushOut: false });
+  const shotDeclarationRef = useRef(shotDeclaration);
+  const [automaticCall, setAutomaticCall] = useState({ ballId: null, pocket: null });
+  const automaticCallRef = useRef(automaticCall);
+  const [callPocketOpen, setCallPocketOpen] = useState(false);
+  const callPocketOpenRef = useRef(false);
+  const callPocketButtonsRef = useRef(new Map());
+  const updateShotDeclaration = useCallback((patch) => {
+    const next = { ...shotDeclarationRef.current, ...patch };
+    shotDeclarationRef.current = next;
+    setShotDeclaration(next);
+  }, []);
+  const toggleCallPockets = useCallback(() => {
+    callPocketOpenRef.current = !callPocketOpenRef.current;
+    setCallPocketOpen(callPocketOpenRef.current);
+  }, []);
+  const pendingPushOut = frameState.meta?.state?.pushOutPending;
+
   useEffect(() => {
     frameRef.current = frameState;
   }, [frameState]);
@@ -17001,8 +16960,8 @@ const shotPowerRef = useRef(0);
     cueBallPlacedFromHandRef.current = !nextInHand;
     setPottedBySeat({ A: [], B: [] });
     perfectRunTrackerRef.current = {
-      A: { missedShot: false, foulShot: false },
-      B: { missedShot: false, foulShot: false }
+      A: { missedShot: Boolean(savedFrame?.frame), foulShot: false },
+      B: { missedShot: Boolean(savedFrame?.frame), foulShot: false }
     };
     lastAssignmentsRef.current = { A: null, B: null };
     lastShotReminderRef.current = { A: 0, B: 0 };
@@ -17011,7 +16970,7 @@ const shotPowerRef = useRef(0);
     breakRollBusyRef.current = false;
     breakWinnerSeatRef.current = null;
     setBreakDiceValues({ ai: null, user: null });
-    setBreakRollState(isTraining ? 'done' : 'pending-random');
+    setBreakRollState(isTraining || competitionMatch ? 'done' : 'pending-random');
     setBreakRollMessage(isTraining ? '' : 'Randomly selecting the breaker...');
     const anchors = breakDiceAnchorsRef.current;
     const meshes = breakDiceMeshesRef.current;
@@ -17027,7 +16986,7 @@ const shotPowerRef = useRef(0);
       ...prev,
       A: 0,
       B: 0,
-      turn: 0,
+      turn: competitionMatch && initialFrame.activePlayer === 'B' ? 1 : 0,
       phase: 'reds',
       next: 'red',
       inHand: nextInHand,
@@ -17657,7 +17616,7 @@ const shotPowerRef = useRef(0);
   const captureBallSnapshotRef = useRef(null);
   const applyBallSnapshotRef = useRef(null);
   const initialLayoutRef = useRef(null);
-  const pendingLayoutRef = useRef(null);
+  const pendingLayoutRef = useRef(savedFrame?.layout ?? null);
   const audioContextRef = useRef(null);
   const audioBuffersRef = useRef({
     cue: null,
@@ -18962,6 +18921,26 @@ const shotPowerRef = useRef(0);
     }
     if (gameOverHandledRef.current) return;
     gameOverHandledRef.current = true;
+    if (onCompetitionFrameComplete) {
+      setHud((prev) => ({ ...prev, over: true }));
+      const receipt = onCompetitionFrameComplete(frameState);
+      if (receipt?.accepted) {
+        const perfectRunReward = resolvePerfectRunReward({ winnerSeat: frameState.winner, userSeat: 'A' });
+        const award = async () => {
+          let unlocks = [];
+          let nftReward = perfectRunReward;
+          if (receipt.status === 'champion' && receipt.isTournament) {
+            unlocks = await awardTournamentLoot();
+            const titleReward = aiOpponentEnabled ? pickPoolRoyaleRewardNft() : null;
+            if (titleReward) persistRewardNft(titleReward);
+            nftReward = perfectRunReward || titleReward;
+          }
+          onCompetitionRewards?.({ unlocks, nftReward });
+        };
+        award().catch(error => console.warn('Pool competition reward failed', error));
+      }
+      return;
+    }
     if (isTraining) {
       setHud((prev) => ({ ...prev, over: false }));
       return undefined;
@@ -19049,6 +19028,11 @@ const shotPowerRef = useRef(0);
   }, [
     frameState.frameOver,
     frameState.winner,
+    onCompetitionFrameComplete,
+    onCompetitionRewards,
+    awardTournamentLoot,
+    aiOpponentEnabled,
+    persistRewardNft,
     handleTournamentResult,
     isTraining,
     localSeat,
@@ -19369,6 +19353,22 @@ const shotPowerRef = useRef(0);
     };
   }, []);
   const aiShoot = useRef(() => {});
+  const choosePushOut = useCallback((decision) => {
+    if (!frameRef.current?.meta?.state?.pushOutPending || shootingRef.current) return;
+    const next = rules.resolvePushOut(frameRef.current, decision);
+    frameRef.current = next;
+    setFrameState(next);
+    setTurnCycle(value => value + 1);
+    const layout = captureBallSnapshotRef.current?.() ?? [];
+    onCompetitionCheckpoint?.(next, layout);
+    if (isOnlineMatch && tableId) socket.emit('poolShot', { tableId, state: next, layout });
+  }, [rules, isOnlineMatch, tableId, onCompetitionCheckpoint]);
+  useEffect(() => {
+    if (!pendingPushOut || !aiOpponentEnabled || pendingPushOut.chooser === localSeat) return;
+    const timeout = window.setTimeout(() => choosePushOut('accept'), 900);
+    return () => window.clearTimeout(timeout);
+  }, [pendingPushOut, aiOpponentEnabled, localSeat, choosePushOut]);
+
 
   const drawHudPanel = (ctx, logo, avatarImg, name, score, t, emoji) => {
     const c = ctx.canvas;
@@ -19445,7 +19445,7 @@ const shotPowerRef = useRef(0);
 
   useEffect(() => {
     const isSoloTraining = isTraining && trainingModeState === 'solo';
-    if (hud.over || isSoloTraining) return undefined;
+    if (hud.over || isSoloTraining || pendingPushOut) return undefined;
     if (!aiOpponentEnabled && hud.turn === 1) {
       // In online matches, the remote player drives turn changes; skip AI countdowns.
       return undefined;
@@ -19469,9 +19469,9 @@ const shotPowerRef = useRef(0);
         }
         if (next === 0) {
           clearInterval(timerRef.current);
-          if (playerTurn === 0) {
-            setHud((s) => ({ ...s, turn: 1 - s.turn }));
-          } else if (aiOpponentEnabled) {
+          // This display clock is not an adjudicated shot clock. Changing only
+          // the HUD turn let the AI shoot on the human's rules-engine visit.
+          if (playerTurn !== 0 && aiOpponentEnabled) {
             aiShoot.current();
           }
           return 0;
@@ -19480,7 +19480,7 @@ const shotPowerRef = useRef(0);
       });
     }, 1000);
     return () => clearInterval(timerRef.current);
-  }, [aiOpponentEnabled, hud.turn, hud.over, playTurnKnock, isTraining, trainingModeState, turnCycle]);
+  }, [aiOpponentEnabled, hud.turn, hud.over, playTurnKnock, isTraining, trainingModeState, turnCycle, pendingPushOut]);
 
   useEffect(() => {
     if (hud.over) {
@@ -21080,7 +21080,8 @@ const shotPowerRef = useRef(0);
                 ? child.material
                 : [child.material];
               const fixedMaterials = sourceMaterials.map((material) => {
-                const fixed = normalizeLoadedGltfMaterial(material);
+                const fixed = cloneHospitalityMaterial(material);
+                if (!fixed) return fixed;
                 fixed.skinning = material?.skinning ?? fixed.skinning;
                 return fixed;
               });
@@ -23746,10 +23747,6 @@ const shotPowerRef = useRef(0);
         applyBallSnapshotRef.current = (snapshot) => {
           applyBallSnapshot(snapshot);
         };
-        if (pendingLayoutRef.current) {
-          applyBallSnapshotRef.current(pendingLayoutRef.current);
-          pendingLayoutRef.current = null;
-        }
 
         const recordReplayFrame = (timestamp) => {
           if (!shotRecording) return;
@@ -25848,6 +25845,7 @@ const shotPowerRef = useRef(0);
 
       cueRef.current = cue;
       ballsRef.current = balls;
+      restorePendingBilliardsLayout(pendingLayoutRef, balls, applyBallSnapshotRef.current);
       if (!initialLayoutRef.current && captureBallSnapshot) {
         initialLayoutRef.current = captureBallSnapshot();
       }
@@ -26001,9 +25999,9 @@ const shotPowerRef = useRef(0);
       replayTrail.visible = false;
       replayTrail.renderOrder = 5;
       table.add(replayTrail);
-      const impactRingEnabled = false;
+      const impactRingEnabled = true;
       const impactRing = new THREE.Mesh(
-        new THREE.RingGeometry(BALL_R * 0.7, BALL_R * 1.02, 48),
+        new THREE.RingGeometry(BALL_R * 0.94, BALL_R * 1.02, 48),
         new THREE.MeshBasicMaterial({
           color: 0xffffff,
           transparent: true,
@@ -27309,6 +27307,163 @@ const shotPowerRef = useRef(0);
         });
       };
 
+        function resolveCueObstruction(
+          dirVec3,
+          pullDistance = cuePullTargetRef.current ?? 0,
+          viewCamera = null,
+          cueOffset = null
+        ) {
+          if (!cue?.pos || !dirVec3 || !Number.isFinite(cue?.pos?.x) || !Number.isFinite(cue?.pos?.y)) return 0;
+          if (viewCamera?.getWorldDirection) {
+            viewCamera.getWorldDirection(TMP_VEC3_CAM_DIR);
+            TMP_VEC3_CAM_DIR.y = 0;
+            if (TMP_VEC3_CAM_DIR.lengthSq() > 1e-8) {
+              TMP_VEC3_CAM_DIR.normalize();
+              if (TMP_VEC3_CAM_DIR.dot(dirVec3) < -0.15) {
+                return 0;
+              }
+            }
+          }
+          const backward = new THREE.Vector2(-dirVec3.x, -dirVec3.z);
+          if (backward.lengthSq() < 1e-8) return 0;
+          backward.normalize();
+          const origin = TMP_VEC2_OBSTRUCTION_OFFSET.set(cue.pos.x, cue.pos.y);
+          if (cueOffset) {
+            const offsetX = cueOffset.x ?? 0;
+            const offsetY = cueOffset.z ?? cueOffset.y ?? 0;
+            const offsetMagSq = offsetX * offsetX + offsetY * offsetY;
+            if (offsetMagSq > 1e-8) {
+              origin.add(TMP_VEC2_OBSTRUCTION_DELTA.set(offsetX, offsetY));
+            }
+          }
+          const reach = cueLen + pullDistance + CUE_TIP_GAP;
+          if (!Number.isFinite(reach) || reach <= 1e-6) return 0;
+          const clearanceSq = CUE_OBSTRUCTION_CLEARANCE * CUE_OBSTRUCTION_CLEARANCE;
+          let strength = 0;
+          const applyRailObstruction = (railPos, axis) => {
+            const axisPos = axis === 'x' ? origin.x : origin.y;
+            const axisDir = axis === 'x' ? backward.x : backward.y;
+            let closestT = 0;
+            let distance = Math.abs(axisPos - railPos);
+            if (Math.abs(axisDir) > 1e-6) {
+              const tAtRail = (railPos - axisPos) / axisDir;
+              closestT = THREE.MathUtils.clamp(tAtRail, 0, reach);
+              const closestPos = axisPos + axisDir * closestT;
+              distance = Math.abs(closestPos - railPos);
+            }
+            if (distance > CUE_OBSTRUCTION_RAIL_CLEARANCE) return;
+            const depth = THREE.MathUtils.clamp(1 - closestT / reach, 0, 1);
+            const proximity = THREE.MathUtils.clamp(
+              1 - distance / CUE_OBSTRUCTION_RAIL_CLEARANCE,
+              0,
+              1
+            );
+            const influence = Math.max(proximity, 0.6 * proximity + 0.4 * depth);
+            strength = Math.max(strength, influence * CUE_OBSTRUCTION_RAIL_INFLUENCE);
+          };
+          applyRailObstruction(RAIL_LIMIT_X, 'x');
+          applyRailObstruction(-RAIL_LIMIT_X, 'x');
+          applyRailObstruction(RAIL_LIMIT_Y, 'y');
+          applyRailObstruction(-RAIL_LIMIT_Y, 'y');
+          balls.forEach((b) => {
+            if (
+              !b?.active ||
+              b === cue ||
+              !b?.pos ||
+              !Number.isFinite(b.pos.x) ||
+              !Number.isFinite(b.pos.y)
+            ) return;
+            const delta = b.pos.clone().sub(origin);
+            const along = delta.dot(backward);
+            if (along < 0 || along > reach) return;
+            const lateralSq = delta.lengthSq() - along * along;
+            if (lateralSq > clearanceSq) return;
+            const lateral = Math.sqrt(Math.max(lateralSq, 0));
+            const proximity = THREE.MathUtils.clamp(
+              1 - lateral / CUE_OBSTRUCTION_CLEARANCE,
+              0,
+              1
+            );
+            const depth = THREE.MathUtils.clamp(1 - along / reach, 0, 1);
+            const influence = Math.max(proximity, 0.6 * proximity + 0.4 * depth);
+            strength = Math.max(strength, influence);
+          });
+          const topspinLift = Math.max(0, cueOffset?.y ?? 0);
+          if (strength > 0 && topspinLift > 0) {
+            const topspinRatio = THREE.MathUtils.clamp(
+              topspinLift / Math.max(MAX_SPIN_VERTICAL, 1e-6),
+              0,
+              1
+            );
+            strength = Math.min(1, strength + topspinRatio * 0.25);
+          }
+          const cueSpinOffset = cueOffset
+            ? TMP_VEC3_CUE_SAMPLE_POINT.set(
+                cueOffset.x ?? 0,
+                cueOffset.y ?? 0,
+                cueOffset.z ?? cueOffset.y ?? 0
+              )
+            : TMP_VEC3_CUE_SAMPLE_POINT.set(0, 0, 0);
+          const segmentLength = cueLen + pullDistance;
+          const sampleCount = clamp(
+            Math.ceil(segmentLength / CUE_OBSTRUCTION_SAMPLE_STEP),
+            CUE_OBSTRUCTION_SAMPLE_MIN,
+            CUE_OBSTRUCTION_SAMPLE_MAX
+          );
+          const tipTarget = resolveCueTipTarget(
+            dirVec3,
+            pullDistance,
+            cueSpinOffset
+          );
+          if (
+            !tipTarget ||
+            !Number.isFinite(tipTarget.x) ||
+            !Number.isFinite(tipTarget.y) ||
+            !Number.isFinite(tipTarget.z)
+          ) {
+            return strength;
+          }
+          TMP_VEC3_CUE_SAMPLE_START.copy(tipTarget);
+          TMP_VEC3_CUE_SAMPLE_END
+            .copy(tipTarget)
+            .addScaledVector(dirVec3, -(cueLen + Math.max(pullDistance, 0)));
+          const cushionBoxes = table?.userData?.cueObstructionBoxes ?? [];
+          let minDistance = Infinity;
+          for (let i = 0; i < sampleCount; i += 1) {
+            const t = sampleCount === 1 ? 0 : i / (sampleCount - 1);
+            const point = CUE_OBSTRUCTION_SAMPLE_POINTS[i];
+            point.lerpVectors(TMP_VEC3_CUE_SAMPLE_START, TMP_VEC3_CUE_SAMPLE_END, t);
+            for (const b of balls) {
+              if (
+                !b?.active ||
+                b === cue ||
+                !b?.pos ||
+                !Number.isFinite(b.pos.x) ||
+                !Number.isFinite(b.pos.y)
+              ) continue;
+              TMP_VEC3_OBSTRUCTION_TARGET.set(b.pos.x, BALL_CENTER_Y, b.pos.y);
+              const gap =
+                point.distanceTo(TMP_VEC3_OBSTRUCTION_TARGET) -
+                (BALL_R + CUE_OBSTRUCTION_POINT_RADIUS);
+              if (gap < minDistance) minDistance = gap;
+            }
+            for (const box of cushionBoxes) {
+              if (!box || typeof box.distanceToPoint !== 'function') continue;
+              const gap = box.distanceToPoint(point) - CUE_OBSTRUCTION_POINT_RADIUS;
+              if (gap < minDistance) minDistance = gap;
+            }
+          }
+          if (Number.isFinite(minDistance) && minDistance < CUE_OBSTRUCTION_CLEARANCE) {
+            const obstructionStrength = THREE.MathUtils.clamp(
+              1 - minDistance / CUE_OBSTRUCTION_CLEARANCE,
+              0,
+              1
+            );
+            strength = Math.max(strength, obstructionStrength);
+          }
+          return strength;
+        }
+
       // Fire (slider triggers on release)
       const fire = (committedPowerOverride = null) => {
         const clampedPower = resolvePoolRoyalReleasePower({
@@ -27319,6 +27474,7 @@ const shotPowerRef = useRef(0);
         if (clampedPower === null) return;
         const currentHud = hudRef.current;
         const frameSnapshot = frameRef.current ?? frameState;
+        if (frameSnapshot?.meta?.state?.pushOutPending) return;
         const fullTableHandPlacement =
           allowFullTableInHand() && Boolean(frameSnapshot?.meta?.state?.ballInHand);
         const inHandPlacementActive = Boolean(
@@ -27445,6 +27601,16 @@ const shotPowerRef = useRef(0);
         // use the retained angular velocity throughout the shot.
         const shotAimDir = aimDir.clone();
         const prediction = calcTarget(cue, shotAimDir.clone(), balls);
+        const isAiDeclaration = aiOpponentEnabled && currentHud?.turn === 1;
+        const planDeclaration = isAiDeclaration ? aiPlanRef.current : null;
+        const declared = isAiDeclaration ? {} : shotDeclarationRef.current;
+        const predictedPocket = resolveLikelyPocketIntent({ ball: prediction.targetBall, direction: prediction.targetDir });
+        shotContextRef.current.calledBallId = declared.ballId ?? planDeclaration?.targetBall?.id ?? prediction.targetBall?.id;
+        shotContextRef.current.calledPocket = declared.pocket ?? planDeclaration?.pocketId ?? predictedPocket?.pocketId;
+        shotContextRef.current.safety = Boolean(declared.safety || planDeclaration?.type === 'safety');
+        shotContextRef.current.pushOut = Boolean(declared.pushOut && frameSnapshot?.meta?.state?.pushOutAvailable);
+        callPocketOpenRef.current = false;
+        setCallPocketOpen(false);
         const predictedTravelRaw = prediction.targetBall
           ? cue.pos.distanceTo(prediction.targetBall.pos)
           : prediction.tHit;
@@ -28438,11 +28604,15 @@ const shotPowerRef = useRef(0);
           };
           const isFirstContactLegal = (plan) => {
             if (!plan?.aimDir) return false;
+            if (plan.targetBall && !Array.from(legalTargets).some(target => matchesTargetId(plan.targetBall, target))) return false;
             if (plan.viaCushion) {
-              if (!plan.cushionPoint) return false;
-              const ignore = new Set([cueBall.id]);
-              if (plan.targetBall?.id != null) ignore.add(plan.targetBall.id);
-              return isPathClear(cuePos, plan.cushionPoint, ignore);
+              const direction = plan.aimDir.clone().normalize();
+              const first = calcTarget(cueBall, direction, activeBalls);
+              if (first.targetBall || !first.railNormal || !plan.targetBall) return false;
+              const reflected = direction.clone().addScaledVector(first.railNormal, -2 * direction.dot(first.railNormal)).normalize();
+              const origin = first.impact.clone().addScaledVector(first.railNormal, BALL_R * 0.01);
+              const second = calcTarget({ pos: origin, active: true }, reflected, activeBalls.filter(ball => ball !== cueBall));
+              return Boolean(second.targetBall && String(second.targetBall.id) === String(plan.targetBall.id));
             }
             const contact = calcTarget(cueBall, plan.aimDir, activeBalls);
             const hitBall = contact?.targetBall ?? null;
@@ -28580,7 +28750,7 @@ const shotPowerRef = useRef(0);
                 }
               });
               const pocketMouth = i >= 4 ? POCKET_SIDE_MOUTH : POCKET_CORNER_MOUTH;
-              const idealEntryDir = pocketCenter.clone().normalize().multiplyScalar(-1);
+              const idealEntryDir = pocketCenter.clone().normalize();
               const entryAlignment = Math.max(
                 0.1,
                 toPocketDir.clone().normalize().dot(idealEntryDir)
@@ -28806,7 +28976,7 @@ const shotPowerRef = useRef(0);
                   toPocketDir
                     .clone()
                     .normalize()
-                    .dot(pocketCenter.clone().normalize().multiplyScalar(-1))
+                    .dot(pocketCenter.clone().normalize())
                 );
                 const cutCos = THREE.MathUtils.clamp(
                   targetBall.pos.clone().sub(ghost).normalize().dot(aimDir),
@@ -28965,41 +29135,12 @@ const shotPowerRef = useRef(0);
               (b.quality ?? 0) - (a.quality ?? 0) ||
               a.difficulty - b.difficulty
           );
-          const playableCushionPots = scoredPots.filter(
-            (entry) => entry.plan && isPlayablePlan(entry.plan, { allowCushion: true })
-          );
-          const easyAttackPot =
-            scoredPots.find((entry) => {
-              const plan = entry?.plan;
-              if (!plan || plan.viaCushion) return false;
-              if (!isFirstContactLegal(plan)) return false;
-              if (detectScratchRisk(plan)) return false;
-              if (isAimLaneBlocked(plan)) return false;
-              const laneClearance = measureLaneClearance(plan);
-              const potChance = Number.isFinite(plan.potChance) ? plan.potChance : 0;
-              const quality = Number.isFinite(plan.quality) ? plan.quality : 0;
-              return (
-                laneClearance >= 0.72 &&
-                potChance >= AI_EASY_POT_CHANCE_THRESHOLD &&
-                quality >= AI_EASY_POT_QUALITY_THRESHOLD
-              );
-            })?.plan ?? null;
-          const relaxedPot =
-            scoredPots.find((entry) => entry?.plan && isFirstContactLegal(entry.plan))?.plan ??
-            scoredPots[0]?.plan ??
-            null;
-          const bestPot = easyAttackPot ?? playableCushionPots[0]?.plan ?? relaxedPot;
-          const bestSafetyCandidate =
-            safetyShots.find((plan) => isPlayablePlan(plan, { allowCushion: true })) ?? null;
-          const bestSafety = bestPot ? null : bestSafetyCandidate;
-          const relaxedSafety =
-            !bestPot && !bestSafety
-              ? safetyShots.find((plan) => plan && isFirstContactLegal(plan)) ?? safetyShots[0] ?? null
-              : null;
-          return {
-            bestPot,
-            bestSafety: bestSafety ?? relaxedSafety
-          };
+          const rating = competitionMatch?.difficulty ?? 0.8;
+          return selectBilliardsAiPlans({
+            scoredPots, safetyShots,
+            difficulty: rating < 0.45 ? 'beginner' : rating < 0.65 ? 'club' : rating < 0.85 ? 'expert' : 'champion',
+            isPlayablePlan, isFirstContactLegal
+          });
         };
 
         const mapBallIdToUkAiColour = (colorId) => {
@@ -29258,7 +29399,7 @@ const shotPowerRef = useRef(0);
           }
         };
 
-        const evaluateShotOptions = () => {
+        const evaluateUncachedShotOptions = () => {
           try {
             const baseline = evaluateShotOptionsBaseline();
             const variantId = activeVariantRef.current?.id ?? variantKey;
@@ -29289,6 +29430,23 @@ const shotPowerRef = useRef(0);
             console.warn('AI evaluation fallback', err);
             return evaluateShotOptionsBaseline();
           }
+        };
+        const cachedPlanning = createBilliardsPlanCache();
+        const planningEntityIds = new WeakMap();
+        let planningEntitySequence = 0;
+        const planningEntityId = (ball) => {
+          if (!planningEntityIds.has(ball)) planningEntityIds.set(ball, ++planningEntitySequence);
+          return planningEntityIds.get(ball);
+        };
+        const evaluateShotOptions = () => {
+          const liveBalls = ballsRef.current?.length ? ballsRef.current : balls;
+          return cachedPlanning({
+            variant: activeVariantRef.current?.id ?? variantKey,
+            frame: frameRef.current ?? frameState,
+            aiTurn: hudRef.current?.turn,
+            visitShots: aiTurnShotCountRef.current,
+            balls: liveBalls.map(ball => [planningEntityId(ball), ball.id, ball.active, ball.pos?.x, ball.pos?.y])
+          }, evaluateUncachedShotOptions);
         };
         const normalizeAiPlanAim = (plan) => {
           if (!plan || !cue?.active) return plan;
@@ -30005,7 +30163,7 @@ const shotPowerRef = useRef(0);
         };
 
         aiShoot.current = () => {
-          if (!aiOpponentEnabled) return;
+          if (!aiOpponentEnabled || frameRef.current?.meta?.state?.pushOutPending) return;
           if (aiRetryTimeoutRef.current) {
             clearTimeout(aiRetryTimeoutRef.current);
             aiRetryTimeoutRef.current = null;
@@ -30043,73 +30201,21 @@ const shotPowerRef = useRef(0);
             cancelAiShotPreview();
             aiCueViewBlendRef.current = AI_CAMERA_DROP_BLEND;
             const options = evaluateShotOptions();
-            let plan = normalizeAiPlanAim(options.bestPot ?? null);
+            let plan = normalizeAiPlanAim(options.bestPot ?? options.bestSafety ?? null);
             if (!plan) {
-              const liveBalls = ballsList.filter(
-                (ball) => ball?.active && String(ball.id).toLowerCase() !== 'cue'
-              );
-              const frameSnapshot = frameRef.current ?? frameState;
-              const activeVariantId = activeVariantRef.current?.id ?? variantKey;
-              const targetOrder = resolveTargetPriorities(
-                frameSnapshot,
-                activeVariantId,
-                liveBalls
-              );
-              const legalTargets = targetOrder.length > 0 ? targetOrder : ['RED'];
-              const cuePos = cue?.pos ? cue.pos.clone() : null;
-              const targetBall = cuePos
-                ? pickPreferredBall(legalTargets, liveBalls, cuePos, () => true)
-                : null;
-              if (targetBall && cuePos) {
-                const candidatePockets = pocketEntranceCenters()
-                  .map((center, idx) => ({
-                    id: POCKET_IDS[idx] ?? `P${idx}`,
-                    center: center.clone(),
-                    distance: targetBall.pos.distanceTo(center)
-                  }))
-                  .sort((a, b) => a.distance - b.distance);
-                const chosenPocket = candidatePockets[0] ?? null;
-                // Even the emergency route must aim the cue-ball centre at the
-                // 2R ghost-ball contact point. Aiming at the object-ball centre
-                // only works for a perfectly straight pot and caused the AI's
-                // most visible cut-shot misses.
-                const pocketDirection = chosenPocket
-                  ? chosenPocket.center.clone().sub(targetBall.pos)
-                  : null;
-                if (pocketDirection?.lengthSq() > 1e-6) pocketDirection.normalize();
-                const ghost = pocketDirection
-                  ? targetBall.pos
-                      .clone()
-                      .sub(pocketDirection.multiplyScalar(BALL_R * 2))
-                  : targetBall.pos.clone();
-                const rawAim = ghost.clone().sub(cuePos);
-                const aimDir = rawAim.lengthSq() > 1e-6 ? rawAim.normalize() : new THREE.Vector2(0, 1);
-                plan = {
-                  type: 'pot',
-                  aimDir,
-                  power: computePowerFromDistance(
-                    cuePos.distanceTo(targetBall.pos) +
-                      (chosenPocket ? targetBall.pos.distanceTo(chosenPocket.center) : BALL_R * 14)
-                  ),
-                  target: toBallColorId(targetBall.id) ?? 'fallback',
-                  targetBall,
-                  pocketId: chosenPocket?.id ?? 'TL',
-                  pocketCenter: chosenPocket?.center ?? null,
-                  spin: { x: 0, y: -0.08 }
-                };
+              const legalTargets = (frameRef.current ?? frameState)?.ballOn ?? [];
+              plan = findBilliardsAiEscape({ cue, balls: ballsList,
+                legal: ball => legalTargets.some(target => matchesTargetId(ball, target)),
+                trace: calcTarget, radius: BALL_R, limitX: RAIL_LIMIT_X, limitY: RAIL_LIMIT_Y,
+                powerFromDistance: computePowerFromDistance
+              });
+              if (plan) plan.target = toBallColorId(plan.targetBall.id);
+              else {
+                const target = ballsList.filter(ball => ball.active && legalTargets.some(id => matchesTargetId(ball, id)))
+                  .sort((a, b) => a.pos.distanceToSquared(cue.pos) - b.pos.distanceToSquared(cue.pos))[0];
+                plan = { type: 'escape', aimDir: target ? target.pos.clone().sub(cue.pos).normalize() : new THREE.Vector2(0, 1),
+                  power: computePowerFromDistance(BALL_R * 30), target: target ? toBallColorId(target.id) : 'escape', spin: { x: 0, y: 0 } };
               }
-            }
-            if (!plan) {
-              const cuePos = cue?.pos ? cue.pos.clone() : null;
-              if (!cuePos) return;
-              const fallbackDir = new THREE.Vector2(0, 1);
-              plan = {
-                type: 'pot',
-                aimDir: fallbackDir,
-                power: computePowerFromDistance(BALL_R * 20),
-                target: 'fallback',
-                spin: { x: 0, y: -0.08 }
-              };
             }
             plan = refineAiPotAimLine(plan);
             const frameSnapshot = frameRef.current ?? frameState;
@@ -30188,6 +30294,11 @@ const shotPowerRef = useRef(0);
             stopAiThinking();
             setAiPlanning(null);
             const dir = plan.aimDir.clone().normalize();
+            if (competitionMatch) {
+              const skill = THREE.MathUtils.clamp(competitionMatch.difficulty ?? 0.5, 0, 1);
+              const spread = 0.001 + (1 - skill) * 0.012;
+              dir.rotateAround(new THREE.Vector2(), (Math.random() - Math.random()) * spread);
+            }
             aimDirRef.current.copy(dir);
             topViewRef.current = false;
             topViewLockedRef.current = false;
@@ -30275,7 +30386,7 @@ const shotPowerRef = useRef(0);
           }
         };
         const refineAiPotAimLine = (plan) => {
-          if (!plan || plan.type !== 'pot' || !cue?.active) return plan;
+          if (!plan || plan.type !== 'pot' || plan.viaCushion || !cue?.active) return plan;
           if (!plan.targetBall?.pos || !plan.pocketCenter) return plan;
           const baseAim =
             plan.aimDir?.clone?.()?.normalize?.() ??
@@ -30403,6 +30514,10 @@ const shotPowerRef = useRef(0);
           pottedObjectCount === 0;
         const shotContext = {
           placedFromHand: shotContextRef.current.placedFromHand,
+          calledBallId: shotContextRef.current.calledBallId,
+          calledPocket: shotContextRef.current.calledPocket,
+          safety: shotContextRef.current.safety,
+          pushOut: shotContextRef.current.pushOut,
           cueBallPotted,
           contactMade: shotContextRef.current.contactMade,
           cushionAfterContact: shotContextRef.current.cushionAfterContact,
@@ -30810,6 +30925,8 @@ const shotPowerRef = useRef(0);
         } finally {
           frameRef.current = safeState;
           setFrameState(safeState);
+          onCompetitionCheckpoint?.(safeState, captureBallSnapshot());
+          updateShotDeclaration({ ballId: null, pocket: null, safety: false, pushOut: false });
           setTurnCycle((value) => value + 1);
           setHud((prev) => ({
             ...prev,
@@ -30997,7 +31114,7 @@ const shotPowerRef = useRef(0);
             if (cueStick?.visible) {
                 }
             if (referencePlayers) referencePlayers.group.visible = false;
-            renderer.render(scene, frameCamera ?? camera);
+          renderer.render(scene, frameCamera ?? camera);
             const finished = elapsed >= duration || elapsed - duration >= REPLAY_TIMEOUT_GRACE_MS;
             if (finished) {
               finishReplayPlayback(playback);
@@ -31215,162 +31332,6 @@ const shotPowerRef = useRef(0);
           isOnlineMatch &&
           currentHud?.turn === 1 &&
           remoteAimFresh;
-        function resolveCueObstruction(
-          dirVec3,
-          pullDistance = cuePullTargetRef.current ?? 0,
-          viewCamera = null,
-          cueOffset = null
-        ) {
-          if (!cue?.pos || !dirVec3 || !Number.isFinite(cue?.pos?.x) || !Number.isFinite(cue?.pos?.y)) return 0;
-          if (viewCamera?.getWorldDirection) {
-            viewCamera.getWorldDirection(TMP_VEC3_CAM_DIR);
-            TMP_VEC3_CAM_DIR.y = 0;
-            if (TMP_VEC3_CAM_DIR.lengthSq() > 1e-8) {
-              TMP_VEC3_CAM_DIR.normalize();
-              if (TMP_VEC3_CAM_DIR.dot(dirVec3) < -0.15) {
-                return 0;
-              }
-            }
-          }
-          const backward = new THREE.Vector2(-dirVec3.x, -dirVec3.z);
-          if (backward.lengthSq() < 1e-8) return 0;
-          backward.normalize();
-          const origin = TMP_VEC2_OBSTRUCTION_OFFSET.set(cue.pos.x, cue.pos.y);
-          if (cueOffset) {
-            const offsetX = cueOffset.x ?? 0;
-            const offsetY = cueOffset.z ?? cueOffset.y ?? 0;
-            const offsetMagSq = offsetX * offsetX + offsetY * offsetY;
-            if (offsetMagSq > 1e-8) {
-              origin.add(TMP_VEC2_OBSTRUCTION_DELTA.set(offsetX, offsetY));
-            }
-          }
-          const reach = cueLen + pullDistance + CUE_TIP_GAP;
-          if (!Number.isFinite(reach) || reach <= 1e-6) return 0;
-          const clearanceSq = CUE_OBSTRUCTION_CLEARANCE * CUE_OBSTRUCTION_CLEARANCE;
-          let strength = 0;
-          const applyRailObstruction = (railPos, axis) => {
-            const axisPos = axis === 'x' ? origin.x : origin.y;
-            const axisDir = axis === 'x' ? backward.x : backward.y;
-            let closestT = 0;
-            let distance = Math.abs(axisPos - railPos);
-            if (Math.abs(axisDir) > 1e-6) {
-              const tAtRail = (railPos - axisPos) / axisDir;
-              closestT = THREE.MathUtils.clamp(tAtRail, 0, reach);
-              const closestPos = axisPos + axisDir * closestT;
-              distance = Math.abs(closestPos - railPos);
-            }
-            if (distance > CUE_OBSTRUCTION_RAIL_CLEARANCE) return;
-            const depth = THREE.MathUtils.clamp(1 - closestT / reach, 0, 1);
-            const proximity = THREE.MathUtils.clamp(
-              1 - distance / CUE_OBSTRUCTION_RAIL_CLEARANCE,
-              0,
-              1
-            );
-            const influence = Math.max(proximity, 0.6 * proximity + 0.4 * depth);
-            strength = Math.max(strength, influence * CUE_OBSTRUCTION_RAIL_INFLUENCE);
-          };
-          applyRailObstruction(RAIL_LIMIT_X, 'x');
-          applyRailObstruction(-RAIL_LIMIT_X, 'x');
-          applyRailObstruction(RAIL_LIMIT_Y, 'y');
-          applyRailObstruction(-RAIL_LIMIT_Y, 'y');
-          balls.forEach((b) => {
-            if (
-              !b?.active ||
-              b === cue ||
-              !b?.pos ||
-              !Number.isFinite(b.pos.x) ||
-              !Number.isFinite(b.pos.y)
-            ) return;
-            const delta = b.pos.clone().sub(origin);
-            const along = delta.dot(backward);
-            if (along < 0 || along > reach) return;
-            const lateralSq = delta.lengthSq() - along * along;
-            if (lateralSq > clearanceSq) return;
-            const lateral = Math.sqrt(Math.max(lateralSq, 0));
-            const proximity = THREE.MathUtils.clamp(
-              1 - lateral / CUE_OBSTRUCTION_CLEARANCE,
-              0,
-              1
-            );
-            const depth = THREE.MathUtils.clamp(1 - along / reach, 0, 1);
-            const influence = Math.max(proximity, 0.6 * proximity + 0.4 * depth);
-            strength = Math.max(strength, influence);
-          });
-          const topspinLift = Math.max(0, cueOffset?.y ?? 0);
-          if (strength > 0 && topspinLift > 0) {
-            const topspinRatio = THREE.MathUtils.clamp(
-              topspinLift / Math.max(MAX_SPIN_VERTICAL, 1e-6),
-              0,
-              1
-            );
-            strength = Math.min(1, strength + topspinRatio * 0.25);
-          }
-          const cueSpinOffset = cueOffset
-            ? TMP_VEC3_CUE_SAMPLE_POINT.set(
-                cueOffset.x ?? 0,
-                cueOffset.y ?? 0,
-                cueOffset.z ?? cueOffset.y ?? 0
-              )
-            : TMP_VEC3_CUE_SAMPLE_POINT.set(0, 0, 0);
-          const segmentLength = cueLen + pullDistance;
-          const sampleCount = clamp(
-            Math.ceil(segmentLength / CUE_OBSTRUCTION_SAMPLE_STEP),
-            CUE_OBSTRUCTION_SAMPLE_MIN,
-            CUE_OBSTRUCTION_SAMPLE_MAX
-          );
-          const tipTarget = resolveCueTipTarget(
-            dirVec3,
-            pullDistance,
-            cueSpinOffset
-          );
-          if (
-            !tipTarget ||
-            !Number.isFinite(tipTarget.x) ||
-            !Number.isFinite(tipTarget.y) ||
-            !Number.isFinite(tipTarget.z)
-          ) {
-            return strength;
-          }
-          TMP_VEC3_CUE_SAMPLE_START.copy(tipTarget);
-          TMP_VEC3_CUE_SAMPLE_END
-            .copy(tipTarget)
-            .addScaledVector(dirVec3, -(cueLen + Math.max(pullDistance, 0)));
-          const cushionBoxes = table?.userData?.cueObstructionBoxes ?? [];
-          let minDistance = Infinity;
-          for (let i = 0; i < sampleCount; i += 1) {
-            const t = sampleCount === 1 ? 0 : i / (sampleCount - 1);
-            const point = CUE_OBSTRUCTION_SAMPLE_POINTS[i];
-            point.lerpVectors(TMP_VEC3_CUE_SAMPLE_START, TMP_VEC3_CUE_SAMPLE_END, t);
-            for (const b of balls) {
-              if (
-                !b?.active ||
-                b === cue ||
-                !b?.pos ||
-                !Number.isFinite(b.pos.x) ||
-                !Number.isFinite(b.pos.y)
-              ) continue;
-              TMP_VEC3_OBSTRUCTION_TARGET.set(b.pos.x, BALL_CENTER_Y, b.pos.y);
-              const gap =
-                point.distanceTo(TMP_VEC3_OBSTRUCTION_TARGET) -
-                (BALL_R + CUE_OBSTRUCTION_POINT_RADIUS);
-              if (gap < minDistance) minDistance = gap;
-            }
-            for (const box of cushionBoxes) {
-              if (!box || typeof box.distanceToPoint !== 'function') continue;
-              const gap = box.distanceToPoint(point) - CUE_OBSTRUCTION_POINT_RADIUS;
-              if (gap < minDistance) minDistance = gap;
-            }
-          }
-          if (Number.isFinite(minDistance) && minDistance < CUE_OBSTRUCTION_CLEARANCE) {
-            const obstructionStrength = THREE.MathUtils.clamp(
-              1 - minDistance / CUE_OBSTRUCTION_CLEARANCE,
-              0,
-              1
-            );
-            strength = Math.max(strength, obstructionStrength);
-          }
-          return strength;
-        }
 
         sidePocketAimRef.current = false;
         if (canShowCue && (isPlayerTurn || previewingAiShot || aiCueViewActive)) {
@@ -31398,6 +31359,14 @@ const shotPowerRef = useRef(0);
             guideAimDir2D,
             balls
           );
+          if (isPlayerTurn && !shooting) {
+            const pocket = resolveLikelyPocketIntent({ ball: targetBall, direction: targetDir })?.pocketId ?? null;
+            const ballId = targetBall?.id ?? null;
+            if (automaticCallRef.current.ballId !== ballId || automaticCallRef.current.pocket !== pocket) {
+              automaticCallRef.current = { ballId, pocket };
+              setAutomaticCall({ ballId, pocket });
+            }
+          }
           const impactDir =
             targetDir && (targetDir.x || targetDir.y)
               ? TMP_VEC3_IMPACT.set(targetDir.x, 0, targetDir.y)
@@ -31418,9 +31387,7 @@ const shotPowerRef = useRef(0);
           let end = new THREE.Vector3(impact.x, BALL_CENTER_Y, impact.y);
           const guideDir3 = new THREE.Vector3(guideAimDir2D.x, 0, guideAimDir2D.y);
           const dir = guideDir3.lengthSq() > 1e-8 ? guideDir3.normalize() : baseAimDir.clone();
-          if (start.distanceTo(end) < 1e-4) {
-            end = start.clone().add(dir.clone().multiplyScalar(BALL_R));
-          }
+
           const perp = new THREE.Vector3(-dir.z, 0, dir.x);
           if (perp.lengthSq() > 1e-8) perp.normalize();
           const aimPoints = buildSwerveAimLinePoints(
@@ -31511,13 +31478,7 @@ const shotPowerRef = useRef(0);
             targetBallColor &&
             legalTargets.length > 0 &&
             !legalTargetHit;
-          const primaryColor = isTraining
-            ? 0xffd166
-            : aimingWrong
-              ? 0xff3333
-              : targetBall && !railNormal
-                ? 0xffd166
-                : 0x7ce7ff;
+          const primaryColor = aimingWrong ? 0xff5c66 : 0xf1fff9;
           aim.material.color.set(primaryColor);
           aim.material.opacity = 0.55 + 0.35 * powerStrength;
           tickGeom.setFromPoints([
@@ -31536,28 +31497,24 @@ const shotPowerRef = useRef(0);
           }
           const cueFollowDir = cueDir
             ? new THREE.Vector3(cueDir.x, 0, cueDir.y).normalize()
-            : dir.clone();
+            : null;
           const cueFollowPreview = resolveCueFollowPreview({
             cueDir: cueFollowDir,
             aimDir: dir,
             spin: aimPreviewSpin,
             powerStrength,
             cuePowerStrength,
+            ballImpact: Boolean(targetBall),
             liftStrength
           });
-          const cueFollowLength = Math.max(
-            cueFollowPreview.length ?? 0,
-            BALL_R * 6
-          );
-          const followEnd = end
-            .clone()
-            .add(cueFollowPreview.dir.clone().multiplyScalar(cueFollowLength));
+          const cueFollowLength = cueFollowPreview.length ?? 0;
+          const followEnd = clipPoolGuideEnd(end, cueFollowPreview.dir, cueFollowLength, balls, [cue.id, targetBall?.id]);
           cueAfterGeom.setFromPoints([end, followEnd]);
           cueAfterGeom.computeBoundingSphere();
-          cueAfter.visible = true;
+          cueAfter.visible = cueFollowLength > 1e-5 && end.distanceToSquared(followEnd) > 1e-8;
           cueAfterPower.material.color.copy(resolvePowerLineColor(cuePowerStrength));
           cueAfterPower.material.opacity = 0.35 + 0.45 * cuePowerStrength;
-          cueAfterPower.visible = updatePowerLinePoints(
+          cueAfterPower.visible = cueAfter.visible && updatePowerLinePoints(
             cueAfterPowerGeom,
             end,
             followEnd,
@@ -31567,11 +31524,11 @@ const shotPowerRef = useRef(0);
           cueAfter.material.color.setHex(cueBackwards ? 0xff3b3b : 0x7ce7ff);
           cueAfter.material.opacity = 0.35 + 0.35 * cuePowerStrength;
           cueAfter.computeLineDistances();
-          if (impactRingEnabled) {
+          if (impactRingEnabled && targetBall) {
             impactRing.visible = true;
             impactRing.position.set(end.x, tableSurfaceY + 0.002, end.z);
-            const impactScale = 0.9 + powerStrength * 0.45;
-            impactRing.scale.set(impactScale, impactScale, impactScale);
+            impactRing.scale.setScalar(1);
+            impactRing.material.color.setHex(aimingWrong ? 0xff5c66 : 0xffffff);
             if (impactRing.material) {
               impactRing.material.opacity = THREE.MathUtils.lerp(0.35, 0.85, powerStrength);
               impactRing.material.needsUpdate = true;
@@ -31725,9 +31682,7 @@ const shotPowerRef = useRef(0);
               targetBall.pos.y
             );
             const distanceScale = travelScale;
-            const tEnd = targetStart
-              .clone()
-              .add(tDir.clone().multiplyScalar(distanceScale));
+            const tEnd = clipPoolGuideEnd(targetStart, tDir, distanceScale, balls, [cue.id, targetBall.id]);
             targetGeom.setFromPoints([targetStart, tEnd]);
             targetGeom.computeBoundingSphere();
             target.material.color.setHex(0xffd166);
@@ -31747,9 +31702,7 @@ const shotPowerRef = useRef(0);
               ? cueFollowPreview.dir.clone().normalize()
               : new THREE.Vector3(cueDir.x, 0, cueDir.y).normalize();
             const bounceLength = BALL_R * (12 + powerStrength * 18);
-            const bounceEnd = end
-              .clone()
-              .add(bounceDir.clone().multiplyScalar(bounceLength));
+            const bounceEnd = clipPoolGuideEnd(end, bounceDir, bounceLength, balls, [cue.id]);
             targetGeom.setFromPoints([end, bounceEnd]);
             targetGeom.computeBoundingSphere();
             target.material.color.setHex(0x7ce7ff);
@@ -31771,7 +31724,7 @@ const shotPowerRef = useRef(0);
             targetGeom.computeBoundingSphere();
             target.material.color.setHex(0x9fd8ff);
             target.material.opacity = 0.35 + 0.22 * powerStrength;
-            target.visible = true;
+            target.visible = false;
             targetPower.visible = false;
             target.computeLineDistances();
           }
@@ -31865,28 +31818,24 @@ const shotPowerRef = useRef(0);
           tick.visible = true;
           const cueFollowDir = cueDir
             ? new THREE.Vector3(cueDir.x, 0, cueDir.y).normalize()
-            : baseDir.clone();
+            : null;
           const cueFollowPreview = resolveCueFollowPreview({
             cueDir: cueFollowDir,
             aimDir: remoteGuideDir,
             spin: aimPreviewSpin,
             powerStrength,
             cuePowerStrength,
+            ballImpact: Boolean(targetBall),
             liftStrength: 0
           });
-          const cueFollowLength = Math.max(
-            cueFollowPreview.length ?? 0,
-            BALL_R * 6
-          );
-          const followEnd = end
-            .clone()
-            .add(cueFollowPreview.dir.clone().multiplyScalar(cueFollowLength));
+          const cueFollowLength = cueFollowPreview.length ?? 0;
+          const followEnd = clipPoolGuideEnd(end, cueFollowPreview.dir, cueFollowLength, balls, [cue.id, targetBall?.id]);
           cueAfterGeom.setFromPoints([end, followEnd]);
           cueAfterGeom.computeBoundingSphere();
-          cueAfter.visible = true;
+          cueAfter.visible = cueFollowLength > 1e-5 && end.distanceToSquared(followEnd) > 1e-8;
           cueAfterPower.material.color.copy(resolvePowerLineColor(cuePowerStrength));
           cueAfterPower.material.opacity = 0.35 + 0.45 * cuePowerStrength;
-          cueAfterPower.visible = updatePowerLinePoints(
+          cueAfterPower.visible = cueAfter.visible && updatePowerLinePoints(
             cueAfterPowerGeom,
             end,
             followEnd,
@@ -31949,9 +31898,7 @@ const shotPowerRef = useRef(0);
               targetBall.pos.y
             );
             const distanceScale = travelScale;
-            const tEnd = targetStart
-              .clone()
-              .add(tDir.clone().multiplyScalar(distanceScale));
+            const tEnd = clipPoolGuideEnd(targetStart, tDir, distanceScale, balls, [cue.id, targetBall.id]);
             targetGeom.setFromPoints([targetStart, tEnd]);
             targetGeom.computeBoundingSphere();
             target.material.color.setHex(0xffd166);
@@ -31971,9 +31918,7 @@ const shotPowerRef = useRef(0);
               ? cueFollowPreview.dir.clone().normalize()
               : new THREE.Vector3(cueDir.x, 0, cueDir.y).normalize();
             const bounceLength = BALL_R * (12 + powerStrength * 18);
-            const bounceEnd = end
-              .clone()
-              .add(bounceDir.clone().multiplyScalar(bounceLength));
+            const bounceEnd = clipPoolGuideEnd(end, bounceDir, bounceLength, balls, [cue.id]);
             targetGeom.setFromPoints([end, bounceEnd]);
             targetGeom.computeBoundingSphere();
             target.material.color.setHex(0x7ce7ff);
@@ -31997,7 +31942,7 @@ const shotPowerRef = useRef(0);
             targetGeom.computeBoundingSphere();
             target.material.color.setHex(0x9fd8ff);
             target.material.opacity = 0.35 + 0.22 * powerStrength;
-            target.visible = true;
+            target.visible = false;
             targetPower.visible = false;
             target.computeLineDistances();
           }
@@ -33303,6 +33248,15 @@ const shotPowerRef = useRef(0);
               handIconEl.style.transform = `translate(${clampedX}px, ${clampedY}px) translate(-50%, -50%)`;
             }
           }
+          if (callPocketOpenRef.current && callPocketButtonsRef.current.size) {
+            const rect = renderer.domElement.getBoundingClientRect();
+            pocketEntranceCenters().forEach((center, index) => {
+              const point = new THREE.Vector3(center.x, BALL_CENTER_Y, center.y);
+              table.localToWorld(point);
+              point.project(frameCamera ?? camera);
+              positionPocketCallButton(callPocketButtonsRef.current.get(POCKET_IDS[index]), point, rect);
+            });
+          }
           renderer.render(scene, frameCamera ?? camera);
           const errorState = renderLoopErrorRef.current;
           if (errorState.count > 0 || errorState.lastAt > 0) {
@@ -33439,7 +33393,7 @@ const shotPowerRef = useRef(0);
         pocketPopupPendingRef.current = [];
         captureBallSnapshotRef.current = null;
         applyBallSnapshotRef.current = null;
-        pendingLayoutRef.current = null;
+        pendingLayoutRef.current = competitionMatch ? captureBallSnapshot() : null;
         captureReplayCameraSnapshotRef.current = null;
         skipReplayRef.current = () => {};
         pendingRemoteReplayRef.current = null;
@@ -33627,7 +33581,7 @@ const shotPowerRef = useRef(0);
   // NEW Big Pull Slider (right side): drag DOWN to set power, releases → fire()
   // --------------------------------------------------
   const sliderRef = useRef(null);
-  const showPowerSlider = hud.turn === 0 && !hud.over && !replayActive && !shotActive;
+  const showPowerSlider = hud.turn === 0 && !hud.over && !replayActive && !shotActive && !pendingPushOut;
   useEffect(() => {
     if (!showPowerSlider) {
       return undefined;
@@ -34258,6 +34212,35 @@ const shotPowerRef = useRef(0);
     <div className="w-full h-[100vh] bg-black text-white overflow-hidden select-none">
       {/* Canvas host now stretches full width so table reaches the slider */}
       <div ref={mountRef} className="absolute inset-0" />
+      {!replayActive && !hud.over && !hideNonEssentialHud && <PoolMatchHud
+        player={player.name || 'You'} opponent={opponentDisplayName || 'Opponent'} turn={hud.turn}
+        target={hud.next} busy={shotActive} inHand={hud.inHand} timer={timer}
+        variant={activeVariant?.label || variantKey} competition={competitionMatch}
+        declaration={shotDeclaration} automaticCall={automaticCall}
+        canCall={!isTraining && ['8ball', 'american'].includes(frameState.meta?.variant) && !isPoolRoyalBreak(frameState)}
+        canPushOut={Boolean(frameState.meta?.state?.pushOutAvailable)}
+        interactive={hud.turn === 0 && !pendingPushOut} callOpen={callPocketOpen}
+        onToggleCall={toggleCallPockets} onDeclaration={updateShotDeclaration}
+        availableBalls={poolCalledBallOptions(frameState)}
+      />}
+      {callPocketOpen && !shotActive && hud.turn === 0 && POCKET_IDS.map((id, index) => (
+        <button key={id} type="button" className="pool-call-pocket"
+          ref={node => { if (node) callPocketButtonsRef.current.set(id, node); else callPocketButtonsRef.current.delete(id); }}
+          aria-label={`Call pocket ${index + 1}`} aria-pressed={shotDeclaration.pocket === id}
+          onClick={() => { updateShotDeclaration({ pocket: id, safety: false }); toggleCallPockets(); }}
+        >{index + 1}</button>
+      ))}
+      {pendingPushOut && !shotActive && !replayActive && <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/35 px-5">
+        <div className="w-full max-w-sm rounded-2xl border border-amber-200/40 bg-slate-950/95 p-5 text-white shadow-2xl">
+          <p className="text-lg font-semibold">Push-out decision</p>
+          <p className="my-3 text-sm text-white/75">{hud.turn === 0 ? 'Play from this position, or ask your opponent to play again.' : 'Your opponent is choosing whether to play or return the shot.'}</p>
+          {hud.turn === 0 && <div className="flex gap-3">
+            <button type="button" className="min-h-11 flex-1 rounded-xl bg-emerald-300 px-3 text-sm font-semibold text-slate-950" onClick={() => choosePushOut('accept')}>Play here</button>
+            <button type="button" className="min-h-11 flex-1 rounded-xl border border-white/30 px-3 text-sm" onClick={() => choosePushOut('return')}>Return shot</button>
+          </div>}
+        </div>
+      </div>}
+
 
       {!isTraining && breakRollState !== 'done' && !hud.over && (
         <div className="pointer-events-none absolute inset-0 z-[95] flex items-center justify-center">
@@ -34619,7 +34602,7 @@ const shotPowerRef = useRef(0);
         className={`${isPortrait ? 'fixed left-1/2 -translate-x-1/2 items-center' : 'absolute items-start'} z-50 flex flex-col gap-2 transition-opacity duration-200 ${replayActive ? 'opacity-0' : 'opacity-100'}`}
         style={{
           top: isPortrait
-            ? `calc(env(safe-area-inset-top, 0px) + ${PORTRAIT_TOP_ACTION_BAR_DROP_REM}rem + 3.9rem)`
+            ? `calc(env(safe-area-inset-top, 0px) + ${PORTRAIT_TOP_ACTION_BAR_DROP_REM + (competitionMatch ? 4 : 0)}rem + 3.9rem)`
             : `calc(${topControlsOffset} + ${menuButtonTopNudgePx}px)`,
           left: isPortrait ? '50%' : `calc(50% + ${menuButtonCenterNudgePx}px)`,
           bottom: undefined,
@@ -35662,10 +35645,10 @@ const shotPowerRef = useRef(0);
         </div>
       )}
 
-      {isPortrait && !replayActive && !hideNonEssentialHud && (
+      {isPortrait && !replayActive && !hideNonEssentialHud && !callPocketOpen && (
         <div
           className="pointer-events-auto fixed left-1/2 z-50 flex -translate-x-1/2 items-center gap-4"
-          style={{ top: `calc(env(safe-area-inset-top, 0px) + ${PORTRAIT_TOP_ACTION_BAR_DROP_REM}rem)` }}
+          style={{ top: `calc(env(safe-area-inset-top, 0px) + ${PORTRAIT_TOP_ACTION_BAR_DROP_REM + (competitionMatch ? 4 : 0)}rem)` }}
         >
           {!isFreePractice && (
             <button
@@ -35711,7 +35694,7 @@ const shotPowerRef = useRef(0);
         </div>
       )}
 
-      {bottomHudVisible && (
+      {bottomHudVisible && !isPortrait && (
         <div
           className={`absolute flex ${bottomHudLayoutClass} pointer-events-none z-50 transition-opacity duration-200 ${pocketCameraActive || replayActive ? 'opacity-0' : 'opacity-100'}`}
           aria-hidden={pocketCameraActive || replayActive}
@@ -36346,6 +36329,13 @@ export default function PoolRoyale() {
     const params = new URLSearchParams(location.search);
     return params.get('opponentAvatar') || '';
   }, [location.search]);
+  const competitionParams = new URLSearchParams(location.search);
+  if (mode !== 'online' && (competitionParams.get('competition') === '1' ||
+    (competitionParams.get('career') === '1' && playType !== 'training'))) {
+    return <PoolRoyaleErrorBoundary><PoolCompetitionMatch Game={PoolRoyaleGame}
+      options={{ variantKey, ballSetKey, tableSizeKey, tableModelKey, accountId, tgId, playerName, playerAvatar }}
+    /></PoolRoyaleErrorBoundary>;
+  }
   return (
     <PoolRoyaleErrorBoundary>
       <PoolRoyaleGame

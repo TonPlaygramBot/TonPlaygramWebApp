@@ -34,7 +34,7 @@ import {
 import { PoolRoyalePowerSlider } from '../../../../pool-royale-power-slider.js';
 import '../../../../pool-royale-power-slider.css';
 import { useNavigate, useLocation } from 'react-router-dom';
-import { SnookerCareerMatch } from '../../games/snooker/SnookerCareer';
+import { SnookerCareerMatch, SnookerTournamentMatch } from '../../games/snooker/SnookerCareer';
 import { resolveSnookerLaunchOptions } from '../../games/snooker/launchOptions';
 import { consumeSnookerPhysicsTime } from '../../games/snooker/physicsClock';
 import { clampBallInHand, projectPointerToSnookerTable } from '../../games/snooker/ballInHand';
@@ -62,6 +62,9 @@ import {
   getBallMaterial as getBilliardBallMaterial
 } from '../../utils/ballMaterialFactory.js';
 import { selectShot as selectUkAiShot } from '../../../../lib/poolUkAdvancedAi.js';
+import { selectBilliardsAiPlans, createBilliardsPlanCache } from '../../../../lib/billiardsAiSelection.js';
+import { findBilliardsAiEscape } from './shared/billiardsAiEscape.js';
+import { restorePendingBilliardsLayout } from './shared/billiardsPresentationState.js';
 import { createCueRackDisplay } from '../../utils/createCueRackDisplay.js';
 import { socket } from '../../utils/socket.js';
 import {
@@ -120,6 +123,9 @@ import {
 } from './snookerShotRelease.js';
 import { resolvePocketMouthAimPoint } from './poolRoyalePocketAim.js';
 import SnookerShotCoach from './SnookerShotCoach.jsx';
+import SnookerMatchHud from './SnookerMatchHud.tsx';
+import { clipGuideTravel } from './shared/billiardsGuideGeometry.js';
+import { isSnookerObstructed } from '../../utils/snookerVisibility.js';
 import { resolveSnookerImpactAudio } from './snookerImpactAudio.js';
 import { PoolRoyalHumanPlayers } from './shared/PoolRoyalHumanPlayers.ts';
 import { SnookerRoyalShotCamera, SNOOKER_PLAYER_FOLLOW_THROUGH_MS, snookerRoyalFallbackEye } from './snookerRoyalShotCamera.ts';
@@ -5728,16 +5734,16 @@ function distanceToTableEdge(pos, dir) {
   return minT;
 }
 
-function guideEndAtTableEdge(start, dir, fallbackDistance = BALL_R * 2) {
+function guideEndAtTableEdge(start, dir, maxDistance = BALL_R * 2, balls = [], ignoreIds = []) {
   const guideDir = dir.clone();
   if (guideDir.lengthSq() < 1e-8) return start.clone();
   guideDir.normalize();
   const dir2 = new THREE.Vector2(guideDir.x, guideDir.z);
   const start2 = new THREE.Vector2(start.x, start.z);
-  const edgeDistance = distanceToTableEdge(start2, dir2);
-  const travel = Number.isFinite(edgeDistance)
-    ? edgeDistance
-    : Math.max(fallbackDistance, 0);
+  const travel = clipGuideTravel({
+    origin: start2, direction: dir2, balls, ignoreIds, radius: BALL_R,
+    maxDistance, halfWidth: RAIL_LIMIT_X, halfLength: RAIL_LIMIT_Y
+  });
   const end = start.clone().add(guideDir.multiplyScalar(Math.max(travel, 0)));
   end.x = THREE.MathUtils.clamp(end.x, -RAIL_LIMIT_X, RAIL_LIMIT_X);
   end.z = THREE.MathUtils.clamp(end.z, -RAIL_LIMIT_Y, RAIL_LIMIT_Y);
@@ -6885,8 +6891,8 @@ function calcTarget(cue, dir, balls) {
     const perp2 = v.lengthSq() - proj * proj;
     if (perp2 > contactRadius2) return;
     const thc = Math.sqrt(contactRadius2 - perp2);
-    const t = proj - thc;
-    if (t >= 0 && t < tHit) {
+    const t = Math.max(0, proj - thc);
+    if (t < tHit) {
       tHit = t;
       targetBall = b;
       railNormal = null;
@@ -6895,9 +6901,8 @@ function calcTarget(cue, dir, balls) {
 
   const fallbackDistance = Math.sqrt(PLAY_W * PLAY_W + PLAY_H * PLAY_H);
   let travel = Number.isFinite(tHit) ? tHit : fallbackDistance;
-  if (travel <= 0) {
-    travel = fallbackDistance;
-  }
+  // A touching object or cushion is a valid zero-distance contact.
+  travel = Math.max(0, travel);
   const impact = cuePos.clone().add(dirNorm.clone().multiplyScalar(travel));
   let targetDir = null;
   let cueDir = null;
@@ -12167,7 +12172,8 @@ function SnookerRoyalGame({
   careerMatch = null,
   savedFrame = null,
   onCareerCheckpoint,
-  onCareerFrameComplete
+  onCareerFrameComplete,
+  onCareerRewards
 }) {
   const navigate = useNavigate();
   const mountRef = useRef(null);
@@ -13004,8 +13010,8 @@ function SnookerRoyalGame({
   const portraitViewport = typeof window === 'undefined' ? true : window.innerHeight >= window.innerWidth;
   const sharedHudLiftPx = portraitViewport ? 20 : 30;
   const spinControllerLiftPx = portraitViewport ? 8 : 14;
-  const topControlsOffset = 'calc(6.15rem + env(safe-area-inset-top, 0px))';
-  const menuButtonTopNudgePx = -14;
+  const topControlsOffset = 'calc(8.5rem + env(safe-area-inset-top, 0px))';
+  const menuButtonTopNudgePx = 0;
   const menuButtonCenterNudgePx = 0;
   const sideActionButtonsLiftPx = 10;
   const sideActionButtonsDropPx = 18;
@@ -13086,12 +13092,6 @@ function SnookerRoyalGame({
     }
   }, [isTopDownView, isRailOverheadView]);
 
-  useEffect(() => {
-    if (!isPortrait && isTopDownView) {
-      setIsTopDownView(false);
-      setIsRailOverheadView(false);
-    }
-  }, [isPortrait, isTopDownView]);
   const [activeChalkIndex, setActiveChalkIndex] = useState(null);
   const activeChalkIndexRef = useRef(null);
   const chalkAssistEnabledRef = useRef(false);
@@ -14190,6 +14190,15 @@ const [hud, setHud] = useState({
   over: false
 });
 const [turnCycle, setTurnCycle] = useState(0);
+const [freeBallNomination, setFreeBallNomination] = useState(null);
+const freeBallNominationRef = useRef(null);
+useEffect(() => {
+  freeBallNominationRef.current = freeBallNomination;
+}, [freeBallNomination]);
+useEffect(() => {
+  setFreeBallNomination(null);
+  freeBallNominationRef.current = null;
+}, [frameState.activePlayer, frameState.freeBall]);
 useEffect(() => {
   if (lastTurnRef.current !== hud.turn) {
     aiTurnShotCountRef.current = 0;
@@ -15195,7 +15204,11 @@ const shotPowerRef = useRef(0);
     }
     setHud((prev) => ({ ...prev, over: true }));
     if (onCareerFrameComplete) {
-      onCareerFrameComplete(frameState);
+      const receipt = onCareerFrameComplete(frameState);
+      if (receipt?.accepted && receipt.status === 'champion' && receipt.isTournament) {
+        awardTournamentLoot().then(unlocks => onCareerRewards?.({ unlocks }))
+          .catch(error => console.warn('Snooker tournament reward failed', error));
+      }
       return undefined;
     }
     const currentFrame = frameRef.current || frameState;
@@ -15246,6 +15259,8 @@ const shotPowerRef = useRef(0);
     frameState.frameOver,
     frameState.winner,
     onCareerFrameComplete,
+    onCareerRewards,
+    awardTournamentLoot,
     goToLobby,
     handleTournamentResult,
     isTraining,
@@ -19713,10 +19728,6 @@ const shotPowerRef = useRef(0);
         applyBallSnapshotRef.current = (snapshot) => {
           applyBallSnapshot(snapshot);
         };
-        if (pendingLayoutRef.current) {
-          applyBallSnapshotRef.current(pendingLayoutRef.current);
-          pendingLayoutRef.current = null;
-        }
 
         const recordReplayFrame = (timestamp) => {
           if (!shotRecording) return;
@@ -21511,6 +21522,7 @@ const shotPowerRef = useRef(0);
 
       cueRef.current = cue;
       ballsRef.current = balls;
+      restorePendingBilliardsLayout(pendingLayoutRef, balls, applyBallSnapshotRef.current);
 
       // Aiming visuals
       const aimMat = new THREE.LineBasicMaterial({
@@ -21536,9 +21548,11 @@ const shotPowerRef = useRef(0);
       ]);
       const cueAfter = new THREE.Line(
         cueAfterGeom,
-        new THREE.LineBasicMaterial({
+        new THREE.LineDashedMaterial({
           color: 0x7ce7ff,
           linewidth: AIM_LINE_WIDTH,
+          dashSize: BALL_R * 0.9,
+          gapSize: BALL_R * 0.55,
           transparent: true,
           opacity: 0.68,
           depthTest: false,
@@ -21600,9 +21614,9 @@ const shotPowerRef = useRef(0);
       replayTrail.visible = false;
       replayTrail.renderOrder = 5;
       table.add(replayTrail);
-      const impactRingEnabled = false;
+      const impactRingEnabled = true;
       const impactRing = new THREE.Mesh(
-        new THREE.RingGeometry(BALL_R * 0.7, BALL_R * 1.02, 48),
+        new THREE.RingGeometry(BALL_R * 0.94, BALL_R * 1.02, 48),
         new THREE.MeshBasicMaterial({
           color: 0xffffff,
           transparent: true,
@@ -23006,10 +23020,18 @@ const shotPowerRef = useRef(0);
             placedFromHand = Boolean(meta.state.ballInHand);
           }
         }
+        const previewContact = calcTarget(cue, aimDirRef.current, balls);
+        const previewColour = previewContact.targetBall
+          ? toBallColorId(previewContact.targetBall.id) : null;
+        const declaredColour = frameSnapshot?.colorOnAfterRed &&
+          frameSnapshot.ballOn?.includes(previewColour) ? previewColour : undefined;
         shotContextRef.current = {
           placedFromHand,
           contactMade: false,
-          cushionAfterContact: false
+          cushionAfterContact: false,
+          declaredBall: declaredColour,
+          nominatedBall: frameSnapshot?.freeBall && frameSnapshot.activePlayer === localSeatRef.current
+            ? freeBallNominationRef.current || undefined : undefined
         };
         characterShotShooter = frameSnapshot?.activePlayer === 'B' ? 'B' : 'A';
         characterShotCueBall.set(cue.pos.x, TABLE_Y + BALL_CENTER_Y, cue.pos.y);
@@ -24067,7 +24089,16 @@ const shotPowerRef = useRef(0);
           };
           const isFirstContactLegal = (plan) => {
             if (!plan?.aimDir) return false;
-            if (plan.viaCushion) return true;
+            if (plan.targetBall && !Array.from(legalTargets).some(target => matchesTargetId(plan.targetBall, target))) return false;
+            if (plan.viaCushion) {
+              const direction = plan.aimDir.clone().normalize();
+              const first = calcTarget(cueBall, direction, activeBalls);
+              if (first.targetBall || !first.railNormal || !plan.targetBall) return false;
+              const reflected = direction.clone().addScaledVector(first.railNormal, -2 * direction.dot(first.railNormal)).normalize();
+              const origin = first.impact.clone().addScaledVector(first.railNormal, BALL_R * 0.01);
+              const second = calcTarget({ pos: origin, active: true }, reflected, activeBalls.filter(ball => ball !== cueBall));
+              return Boolean(second.targetBall && String(second.targetBall.id) === String(plan.targetBall.id));
+            }
             const contact = calcTarget(cueBall, plan.aimDir, activeBalls);
             const hitBall = contact?.targetBall ?? null;
             if (!hitBall) return false;
@@ -24189,7 +24220,7 @@ const shotPowerRef = useRef(0);
               const toPocketDir = toPocket.clone().divideScalar(toPocketLen);
               if (!isPathClear(targetBall.pos, pocketCenter, ignore)) continue;
               const pocketMouth = i >= 4 ? POCKET_SIDE_MOUTH : POCKET_CORNER_MOUTH;
-              const idealEntryDir = pocketCenter.clone().normalize().multiplyScalar(-1);
+              const idealEntryDir = pocketCenter.clone().normalize();
               const entryAlignment = Math.max(
                 0.1,
                 toPocketDir.clone().normalize().dot(idealEntryDir)
@@ -24349,7 +24380,7 @@ const shotPowerRef = useRef(0);
                   toPocketDir
                     .clone()
                     .normalize()
-                    .dot(pocketCenter.clone().normalize().multiplyScalar(-1))
+                    .dot(pocketCenter.clone().normalize())
                 );
                 const cutCos = THREE.MathUtils.clamp(
                   targetBall.pos.clone().sub(ghost).normalize().dot(aimDir),
@@ -24487,24 +24518,12 @@ const shotPowerRef = useRef(0);
               (b.quality ?? 0) - (a.quality ?? 0) ||
               a.difficulty - b.difficulty
           );
-          const playableDirectPots = scoredPots.filter(
-            (entry) => entry.plan && isPlayablePlan(entry.plan, { allowCushion: false })
-          );
-          const playableCushionPots = scoredPots.filter(
-            (entry) => entry.plan && isPlayablePlan(entry.plan, { allowCushion: true })
-          );
-          const bestDirectPot = playableDirectPots[0]?.plan ?? null;
-          const bestCushionPot =
-            playableCushionPots.find((entry) => entry.plan?.viaCushion)?.plan ?? null;
-          const bestPot = bestDirectPot ?? bestCushionPot ?? playableCushionPots[0]?.plan ?? null;
-          const bestSafetyCandidate =
-            safetyShots.find((plan) => isPlayablePlan(plan, { allowCushion: true })) ?? null;
-          const bestSafety =
-            activeVariantId === 'uk' && bestPot ? null : bestSafetyCandidate;
-          return {
-            bestPot,
-            bestSafety
-          };
+          const rating = careerMatch?.opponentRating ?? 0.8;
+          return selectBilliardsAiPlans({
+            scoredPots, safetyShots,
+            difficulty: rating < 0.45 ? 'beginner' : rating < 0.65 ? 'club' : rating < 0.85 ? 'expert' : 'champion',
+            isPlayablePlan, isFirstContactLegal
+          });
         };
 
         const mapBallIdToUkAiColour = (colorId) => {
@@ -24718,7 +24737,7 @@ const shotPowerRef = useRef(0);
           }
         };
 
-        const evaluateShotOptions = () => {
+        const evaluateUncachedShotOptions = () => {
           try {
             const baseline = evaluateShotOptionsBaseline();
             const variantId = activeVariantRef.current?.id ?? variantKey;
@@ -24739,6 +24758,23 @@ const shotPowerRef = useRef(0);
             console.warn('AI evaluation fallback', err);
             return evaluateShotOptionsBaseline();
           }
+        };
+        const cachedPlanning = createBilliardsPlanCache();
+        const planningEntityIds = new WeakMap();
+        let planningEntitySequence = 0;
+        const planningEntityId = (ball) => {
+          if (!planningEntityIds.has(ball)) planningEntityIds.set(ball, ++planningEntitySequence);
+          return planningEntityIds.get(ball);
+        };
+        const evaluateShotOptions = () => {
+          const liveBalls = ballsRef.current?.length ? ballsRef.current : balls;
+          return cachedPlanning({
+            variant: activeVariantRef.current?.id ?? variantKey,
+            frame: frameRef.current ?? frameState,
+            aiTurn: hudRef.current?.turn,
+            visitShots: aiTurnShotCountRef.current,
+            balls: liveBalls.map(ball => [planningEntityId(ball), ball.id, ball.active, ball.pos?.x, ball.pos?.y])
+          }, evaluateUncachedShotOptions);
         };
         const normalizeAiPlanAim = (plan) => {
           if (!plan || !cue?.active) return plan;
@@ -24791,42 +24827,20 @@ const shotPowerRef = useRef(0);
           }
           return plan;
         };
-        const resolveAiFallbackAim = () => {
-          let fallbackDir = resolveAutoAimDirection();
-          if (!fallbackDir && cue?.pos) {
-            const ballsList =
-              ballsRef.current?.length > 0 ? ballsRef.current : balls;
-            const nearestBall = ballsList
-              .filter((b) => b?.active && String(b.id) !== 'cue')
-              .reduce((best, ball) => {
-                if (!ball?.pos) return best;
-                if (!best) return ball;
-                const bestDist = cue.pos.distanceToSquared(best.pos);
-                const dist = cue.pos.distanceToSquared(ball.pos);
-                return dist < bestDist ? ball : best;
-              }, null);
-            if (nearestBall?.pos) {
-              fallbackDir = new THREE.Vector2(
-                nearestBall.pos.x - cue.pos.x,
-                nearestBall.pos.y - cue.pos.y
-              );
-            }
-          }
-          if (!fallbackDir && cue?.pos) {
-            fallbackDir = new THREE.Vector2(-cue.pos.x, -cue.pos.y);
-          }
-          if (!fallbackDir || fallbackDir.lengthSq() < 1e-6) {
-            fallbackDir = new THREE.Vector2(0, 1);
-          }
-          return fallbackDir.normalize();
+        const buildAiFallbackPlan = () => {
+          const liveBalls = ballsRef.current?.length ? ballsRef.current : balls;
+          const legalTargets = (frameRef.current ?? frameState)?.ballOn ?? [];
+          const plan = findBilliardsAiEscape({ cue, balls: liveBalls,
+            legal: ball => legalTargets.some(target => matchesTargetId(ball, target)),
+            trace: calcTarget, radius: BALL_R, limitX: RAIL_LIMIT_X, limitY: RAIL_LIMIT_Y,
+            powerFromDistance: computePowerFromDistance
+          });
+          if (plan) return { ...plan, target: toBallColorId(plan.targetBall.id) };
+          const target = liveBalls.filter(ball => ball.active && legalTargets.some(id => matchesTargetId(ball, id)))
+            .sort((a, b) => a.pos.distanceToSquared(cue.pos) - b.pos.distanceToSquared(cue.pos))[0];
+          return { type: 'escape', aimDir: target ? target.pos.clone().sub(cue.pos).normalize() : new THREE.Vector2(0, 1),
+            power: computePowerFromDistance(BALL_R * 18), target: target ? toBallColorId(target.id) : 'escape', spin: { x: 0, y: 0 } };
         };
-        const buildAiFallbackPlan = () => ({
-          type: 'safety',
-          aimDir: resolveAiFallbackAim(),
-          power: computePowerFromDistance(BALL_R * 18),
-          target: 'fallback',
-          spin: { x: 0, y: 0 }
-        });
         const updateAiPlanningState = (plan, options, countdownSeconds) => {
           const summary = summarizePlan(plan);
           const potSummary = summarizePlan(options?.bestPot ?? null);
@@ -25200,6 +25214,12 @@ const shotPowerRef = useRef(0);
             stopAiThinking();
             setAiPlanning(null);
             const dir = plan.aimDir.clone().normalize();
+            // Apply execution skill once per stroke, after planning. The table
+            // physics and pocket acceptance stay identical for every opponent.
+            const executionError = careerMatch?.aimError?.() ?? 0;
+            if (Number.isFinite(executionError) && executionError) {
+              dir.rotateAround(new THREE.Vector2(), THREE.MathUtils.clamp(executionError, -0.035, 0.035));
+            }
             aimDirRef.current.copy(dir);
             topViewRef.current = false;
             topViewLockedRef.current = false;
@@ -25369,6 +25389,8 @@ const shotPowerRef = useRef(0);
           cueBallPotted,
           contactMade: shotContextRef.current.contactMade,
           cushionAfterContact: shotContextRef.current.cushionAfterContact,
+          declaredBall: shotContextRef.current.declaredBall,
+          nominatedBall: shotContextRef.current.nominatedBall,
           noCushionAfterContact,
           variant: variantId
         };
@@ -25638,6 +25660,12 @@ const shotPowerRef = useRef(0);
                 simBall.shadow.position.set(position.x, BALL_SHADOW_Y, position.z);
               }
             });
+            if (safeState.foul && !safeState.frameOver) {
+              safeState = rules.setSnookeredAfterFoul(safeState, isSnookerObstructed({
+                cue, balls: ballsList, ballOn: safeState.ballOn, ballRadius: BALL_R,
+                ballInHand: Boolean(safeState.meta?.state?.ballInHand)
+              }));
+            }
             if (isTraining) {
               const remainingObjectBalls = balls.filter(
                 (ball) => ball && ball.active && String(ball.id).toLowerCase() !== 'cue'
@@ -25949,7 +25977,9 @@ const shotPowerRef = useRef(0);
           ? Math.min(baseAimLerp, CHALK_AIM_LERP_SLOW)
           : baseAimLerp;
         if (!lookModeRef.current) {
-          aimDir.lerp(tmpAim, aimLerpFactor);
+          const timeAdjustedAimLerp = 1 - Math.pow(1 - aimLerpFactor, Math.min(deltaSeconds, 0.05) * 60);
+          aimDir.lerp(tmpAim, timeAdjustedAimLerp);
+          if (aimDir.lengthSq() > 1e-8) aimDir.normalize();
         }
         const appliedSpin = applySpinConstraints(aimDir, true);
         const liftStrength = normalizeCueLift(resolveUserCueLift());
@@ -26026,9 +26056,6 @@ const shotPowerRef = useRef(0);
           const start = new THREE.Vector3(cue.pos.x, BALL_CENTER_Y, cue.pos.y);
           let end = new THREE.Vector3(impact.x, BALL_CENTER_Y, impact.y);
           const dir = baseAimDir.clone();
-          if (start.distanceTo(end) < 1e-4) {
-            end = start.clone().add(dir.clone().multiplyScalar(BALL_R));
-          }
           const perp = new THREE.Vector3(-dir.z, 0, dir.x);
           if (perp.lengthSq() > 1e-8) perp.normalize();
           const aimPoints = buildSwerveAimLinePoints(
@@ -26089,12 +26116,9 @@ const shotPowerRef = useRef(0);
             !railNormal &&
             targetBallColor &&
             legalTargets.length > 0 &&
-            !legalTargets.includes(targetBallColor);
-          const primaryColor = aimingWrong
-            ? 0xff3333
-            : targetBall && !railNormal
-              ? 0xffd166
-              : 0x7ce7ff;
+            !legalTargets.includes(targetBallColor) &&
+            !(frameRef.current?.freeBall && freeBallNominationRef.current === targetBallColor);
+          const primaryColor = aimingWrong ? 0xff5555 : 0xf8fafc;
           aim.material.color.set(primaryColor);
           aim.material.opacity = 0.55 + 0.35 * powerStrength;
           tickGeom.setFromPoints([
@@ -26124,20 +26148,19 @@ const shotPowerRef = useRef(0);
           const spinVerticalInfluence = (physicsSpin.y || 0) * 0.68;
           const cueFollowLength =
             BALL_R * (12 + powerStrength * 18) * (1 + spinVerticalInfluence * 0.4);
-          const followEnd = guideEndAtTableEdge(end, cueFollowDirSpinAdjusted, cueFollowLength);
+          const followEnd = guideEndAtTableEdge(end, cueFollowDirSpinAdjusted, cueFollowLength, balls, ['cue', targetBall?.id].filter((id) => id != null));
           cueAfterGeom.setFromPoints([end, followEnd]);
-          cueAfter.visible = Boolean(cueDir || hasSpinDrivenCueFollow);
-          const cueBackwards = cueFollowDirSpinAdjusted.dot(dir) < 0;
-          cueAfter.material.color.setHex(cueBackwards ? 0xff3b3b : 0x7ce7ff);
+          cueAfter.visible = Boolean(cueDir || hasSpinDrivenCueFollow) && end.distanceToSquared(followEnd) > 1e-8;
+          cueAfter.material.color.setHex(0x7ce7ff);
           cueAfter.material.opacity = 0.35 + 0.35 * powerStrength;
           cueAfter.computeLineDistances();
-          if (impactRingEnabled) {
+          if (impactRingEnabled && targetBall) {
             impactRing.visible = true;
             impactRing.position.set(end.x, tableSurfaceY + 0.002, end.z);
-            const impactScale = 0.9 + powerStrength * 0.45;
-            impactRing.scale.set(impactScale, impactScale, impactScale);
+            impactRing.scale.setScalar(1);
             if (impactRing.material) {
-              impactRing.material.opacity = THREE.MathUtils.lerp(0.35, 0.85, powerStrength);
+              impactRing.material.color.setHex(aimingWrong ? 0xff5555 : 0xffffff);
+              impactRing.material.opacity = 0.7;
               impactRing.material.needsUpdate = true;
             }
           } else {
@@ -26286,30 +26309,14 @@ const shotPowerRef = useRef(0);
               BALL_CENTER_Y,
               targetBall.pos.y
             );
-            const tEnd = guideEndAtTableEdge(targetStart, tDir, travelScale);
+            const tEnd = guideEndAtTableEdge(targetStart, tDir, travelScale, balls, ['cue', targetBall.id]);
             targetGeom.setFromPoints([targetStart, tEnd]);
             target.material.color.setHex(0xffd166);
             target.material.opacity = 0.65 + 0.3 * powerStrength;
-            target.visible = true;
-            target.computeLineDistances();
-          } else if (railNormal && cueDir) {
-            const bounceDir = new THREE.Vector3(cueDir.x, 0, cueDir.y).normalize();
-            const bounceLength = BALL_R * (12 + powerStrength * 18);
-            const bounceEnd = guideEndAtTableEdge(end, bounceDir, bounceLength);
-            targetGeom.setFromPoints([end, bounceEnd]);
-            target.material.color.setHex(0x7ce7ff);
-            target.material.opacity = 0.35 + 0.25 * powerStrength;
-            target.visible = true;
+            target.visible = targetStart.distanceToSquared(tEnd) > 1e-8;
             target.computeLineDistances();
           } else {
-            const fallbackLength = Math.max(BALL_R * 10, BALL_R * (7 + powerStrength * 8));
-            const fallbackEnd = end.clone().add(dir.clone().multiplyScalar(fallbackLength));
-            targetGeom.setFromPoints([end, fallbackEnd]);
-            targetGeom.computeBoundingSphere();
-            target.material.color.setHex(0x9fd8ff);
-            target.material.opacity = 0.35 + 0.22 * powerStrength;
-            target.visible = true;
-            target.computeLineDistances();
+            target.visible = false;
           }
         } else if (showingRemoteAim) {
           aimFocusRef.current = null;
@@ -26342,9 +26349,6 @@ const shotPowerRef = useRef(0);
           );
           const start = new THREE.Vector3(cue.pos.x, BALL_CENTER_Y, cue.pos.y);
           let end = new THREE.Vector3(impact.x, BALL_CENTER_Y, impact.y);
-          if (start.distanceTo(end) < 1e-4) {
-            end = start.clone().add(baseDir.clone().multiplyScalar(BALL_R));
-          }
           const aimPoints = buildSwerveAimLinePoints(
             aimCurvePointsRef.current,
             aimCurveControlRef.current,
@@ -26379,11 +26383,10 @@ const shotPowerRef = useRef(0);
           const spinVerticalInfluence = (remotePhysicsSpin.y || 0) * 0.68;
           const cueFollowLength =
             BALL_R * (12 + powerStrength * 18) * (1 + spinVerticalInfluence * 0.4);
-          const followEnd = guideEndAtTableEdge(end, cueFollowDirSpinAdjusted, cueFollowLength);
+          const followEnd = guideEndAtTableEdge(end, cueFollowDirSpinAdjusted, cueFollowLength, balls, ['cue', targetBall?.id].filter((id) => id != null));
           cueAfterGeom.setFromPoints([end, followEnd]);
-          cueAfter.visible = Boolean(cueDir || hasSpinDrivenCueFollow);
-          const cueBackwards = cueFollowDirSpinAdjusted.dot(baseDir) < 0;
-          cueAfter.material.color.setHex(cueBackwards ? 0xff3b3b : 0x7ce7ff);
+          cueAfter.visible = Boolean(cueDir || hasSpinDrivenCueFollow) && end.distanceToSquared(followEnd) > 1e-8;
+          cueAfter.material.color.setHex(0x7ce7ff);
           cueAfter.material.opacity = 0.35 + 0.35 * powerStrength;
           cueAfter.computeLineDistances();
           impactRing.visible = false;
@@ -26446,7 +26449,7 @@ const shotPowerRef = useRef(0);
             targetGeom.setFromPoints([targetStart, tEnd]);
             target.material.color.setHex(0xffd166);
             target.material.opacity = 0.65 + 0.3 * powerStrength;
-            target.visible = true;
+            target.visible = targetStart.distanceToSquared(tEnd) > 1e-8;
             target.computeLineDistances();
           } else if (railNormal && cueDir) {
             const bounceDir = new THREE.Vector3(cueDir.x, 0, cueDir.y).normalize();
@@ -27893,6 +27896,26 @@ const shotPowerRef = useRef(0);
   }, [applyPower, hud.over, hud.turn, shotActive]);
 
   const isPlayerTurn = hud.turn === 0;
+  const resolveRefereeChoice = (choice) => {
+    if (shotActive || !isPlayerTurn || hud.over) return;
+    const current = frameRef.current;
+    if (!current?.meta?.foulChoice) return;
+    const next = rules.resolveFoulChoice(current, choice);
+    if (next === current) return;
+    const nextHud = buildSnookerViewerHud(next, hudRef.current, localSeatRef.current);
+    frameRef.current = next;
+    hudRef.current = nextHud;
+    setFrameState(next);
+    setHud(nextHud);
+    setTurnCycle((value) => value + 1);
+    if (isOnlineMatch && tableId) {
+      socket.emit('snookerShot', {
+        tableId, accountId: accountIdRef.current || accountId || '',
+        state: next, hud: nextHud,
+        layout: captureBallSnapshotRef.current?.() ?? null
+      });
+    }
+  };
   const isOpponentTurn = hud.turn === 1;
   const showPlayerControls = isPlayerTurn && !hud.over && !replayActive;
   const showSpinController =
@@ -29422,7 +29445,6 @@ const shotPowerRef = useRef(0);
             type="button"
             aria-pressed={!isTopDownView}
             onClick={() => {
-              if (!isPortrait) return;
               setIsRailOverheadView(false);
               setIsTopDownView(false);
             }}
@@ -29439,7 +29461,6 @@ const shotPowerRef = useRef(0);
             type="button"
             aria-pressed={isTopDownView && !isRailOverheadView}
             onClick={() => {
-              if (!isPortrait) return;
               setIsRailOverheadView(false);
               setIsTopDownView(true);
             }}
@@ -29456,7 +29477,6 @@ const shotPowerRef = useRef(0);
             type="button"
             aria-pressed={isTopDownView && isRailOverheadView}
             onClick={() => {
-              if (!isPortrait) return;
               const isActiveRailView = isTopDownView && isRailOverheadView;
               setIsRailOverheadView(true);
               setIsTopDownView(true);
@@ -29508,121 +29528,19 @@ const shotPowerRef = useRef(0);
         </div>
       )}
 
-      {bottomHudVisible && (
-        <div
-          className={`absolute flex ${bottomHudLayoutClass} pointer-events-none z-50 transition-opacity duration-200 ${pocketCameraActive || replayActive ? 'opacity-0' : 'opacity-100'}`}
-          aria-hidden={pocketCameraActive || replayActive}
-          style={{
-            bottom: `${10 + chromeUiLiftPx + sharedBottomControlsDropPx}px`,
-            left: isPortrait ? `calc(${hudInsets.left} + ${bottomHudLeftPx}px)` : hudInsets.left,
-            right: hudInsets.right,
-            transform: isPortrait ? `translateX(${bottomHudOffset}px)` : undefined
-          }}
-        >
-          <div
-            className={`pointer-events-auto flex min-h-[3rem] max-w-full items-center justify-center ${hudGapClass} rounded-full border border-emerald-400/40 bg-black/70 ${isPortrait ? 'pl-6 pr-8 py-2' : 'pl-7 pr-9 py-2.5'} text-white shadow-[0_12px_32px_rgba(0,0,0,0.45)] backdrop-blur`}
-            style={{
-              transform: `scale(${bottomHudScale})`,
-              transformOrigin: 'bottom center',
-              maxWidth: isPortrait ? 'min(34rem, 100%)' : 'min(40rem, 100%)'
-            }}
-          >
-            <div
-              className={playerPanelClass}
-              style={playerPanelStyle}
-              data-snooker-player="0"
-            >
-              {isOnlineMatch ? (
-                <img
-                  src={player.avatar || '/assets/icons/profile.svg'}
-                  alt="You"
-                  data-self-player="true"
-                  className={`${avatarSizeClass} rounded-full border-2 object-cover transition-all duration-150 ${
-                    isPlayerTurn
-                      ? 'border-emerald-200 shadow-[0_0_16px_rgba(16,185,129,0.55)]'
-                      : 'border-white/50 shadow-[0_4px_10px_rgba(0,0,0,0.45)]'
-                  }`}
-                />
-              ) : (
-                <img
-                  src={resolvedPlayerAvatar || '/assets/icons/profile.svg'}
-                  alt="player avatar"
-                  className={`${avatarSizeClass} rounded-full border-2 object-cover transition-all duration-150 ${
-                    isPlayerTurn
-                      ? 'border-emerald-200 shadow-[0_0_16px_rgba(16,185,129,0.55)]'
-                      : 'border-white/50 shadow-[0_4px_10px_rgba(0,0,0,0.45)]'
-                  }`}
-                />
-              )}
-              <div className="flex min-w-0 flex-col">
-                <span className={`${nameWidthClass} truncate ${nameTextClass} font-semibold tracking-wide`}>
-                  {player.name}
-                </span>
-                <div className="mt-1">
-                  {renderPottedRow(playerPotted, lastPlayerPotId, lastPotGlow)}
-                </div>
-              </div>
-            </div>
-            <div
-              className={`flex items-center gap-2 ${isPortrait ? 'text-sm' : 'text-base'} font-semibold`}
-            >
-              <span className="text-amber-300">{playerScore}</span>
-              <span className="text-white/50">-</span>
-              <span>{opponentScore}</span>
-            </div>
-            <div
-              className={`${opponentPanelClass} ${isPortrait ? 'text-xs' : 'text-sm'}`}
-              style={opponentPanelStyle}
-              data-snooker-player="1"
-            >
-              {isOnlineMatch ? (
-                <>
-                  <img
-                    src={opponentDisplayAvatar}
-                    alt="opponent avatar"
-                    className={`${avatarSizeClass} rounded-full border-2 object-cover transition-all duration-150 ${
-                      isOpponentTurn
-                        ? 'border-emerald-200 shadow-[0_0_16px_rgba(16,185,129,0.55)]'
-                        : 'border-white/50 shadow-[0_4px_10px_rgba(0,0,0,0.45)]'
-                    }`}
-                  />
-                  <div className="flex min-w-0 flex-col">
-                    <span className={`${nameWidthClass} truncate ${nameTextClass} font-semibold tracking-wide`}>
-                      {opponentDisplayName}
-                    </span>
-                    <div className="mt-1">
-                      {renderPottedRow(opponentPotted, lastOpponentPotId, lastPotGlow)}
-                    </div>
-                  </div>
-                </>
-              ) : (
-                <>
-                  <div className="flex items-center gap-3">
-                    <img
-                      src={opponentDisplayAvatar || '/assets/icons/profile.svg'}
-                      alt="opponent avatar"
-                      className={`${avatarSizeClass} rounded-full border-2 object-cover transition-all duration-150 ${
-                        isOpponentTurn
-                          ? 'border-emerald-200 shadow-[0_0_16px_rgba(16,185,129,0.55)]'
-                          : 'border-white/50 shadow-[0_4px_10px_rgba(0,0,0,0.45)]'
-                      }`}
-                    />
-                    <div className="flex min-w-0 flex-col">
-                      <div className="flex items-center gap-2">
-                        <span className="text-[11px] font-semibold uppercase tracking-[0.32em]">
-                          {aiFlagLabel}
-                        </span>
-                      </div>
-                      <div className="mt-1">
-                        {renderPottedRow(opponentPotted, lastOpponentPotId, lastPotGlow)}
-                      </div>
-                    </div>
-                  </div>
-                </>
-              )}
-            </div>
-          </div>
-        </div>
+      {!replayActive && !loadingActive && !tableLoadError && (
+        <SnookerMatchHud
+          player={{ name: player.name, avatar: resolvedPlayerAvatar, score: playerScore }}
+          opponent={{ name: opponentDisplayName || aiFlagLabel, avatar: opponentDisplayAvatar, score: opponentScore }}
+          playerTurn={isPlayerTurn}
+          shooting={shotActive}
+          finished={hud.over}
+          inHand={hud.inHand}
+          next={hud.next}
+          currentBreak={frameState.currentBreak || 0}
+          timer={timer}
+          mode={careerMatch ? careerMatch.competition === 'tournament' ? 'Tournament' : 'Career' : tournamentMode ? 'Tournament' : isOnlineMatch ? 'Online match' : isTraining ? 'Practice' : 'Snooker Royal'}
+        />
       )}
 
       {loadingActive && !err && (
@@ -29674,8 +29592,30 @@ const shotPowerRef = useRef(0);
           </div>
         </div>
       )}
+      {isPlayerTurn && !shotActive && !replayActive && !hud.over && frameState.meta?.foulChoice && (
+        <div className="absolute bottom-24 left-3 z-40 max-w-[min(21rem,calc(100vw-6rem))] rounded-2xl border border-amber-200/25 bg-slate-950/95 p-3 text-white shadow-xl">
+          <p className="text-xs font-semibold text-amber-200">Foul · {frameState.foul?.points || 4} points awarded</p>
+          <p className="mt-1 text-[11px] text-white/65">Play from here or ask your opponent to play again.</p>
+          <div className="mt-2 flex gap-2">
+            <button type="button" onClick={() => resolveRefereeChoice('play')} className="min-h-[44px] flex-1 rounded-xl bg-emerald-500 px-3 text-xs font-bold text-slate-950">Play here</button>
+            <button type="button" onClick={() => resolveRefereeChoice('return')} className="min-h-[44px] flex-1 rounded-xl border border-white/20 px-3 text-xs font-semibold">Opponent again</button>
+          </div>
+        </div>
+      )}
+      {frameState.freeBall && isPlayerTurn && !shotActive && !replayActive && !hud.over && !frameState.meta?.foulChoice && (
+        <div className="absolute bottom-24 left-3 z-40 max-w-[min(21rem,calc(100vw-6rem))] rounded-2xl border border-cyan-200/25 bg-slate-950/95 p-3 shadow-xl">
+          <p className="text-xs font-semibold text-cyan-200">Free ball · nominate a substitute</p>
+          <div className="mt-2 flex flex-wrap gap-1.5">
+            {[...new Set(frameState.balls.filter((ball) => ball.onTable && ball.color !== 'CUE' && !frameState.ballOn.includes(ball.color)).map((ball) => ball.color))].map((colour) => (
+              <button key={colour} type="button" aria-pressed={freeBallNomination === colour} onClick={() => setFreeBallNomination(colour)}
+                className={`min-h-[44px] rounded-xl border px-3 text-[11px] font-semibold capitalize ${freeBallNomination === colour ? 'border-cyan-200 bg-cyan-300 text-slate-950' : 'border-white/20 text-white'}`}>{colour.toLowerCase()}</button>
+            ))}
+            {freeBallNomination && <button type="button" onClick={() => setFreeBallNomination(null)} className="min-h-[44px] rounded-xl px-3 text-[11px] text-white/70">Clear</button>}
+          </div>
+        </div>
+      )}
       {hud?.inHand && hud.turn === 0 && (
-        <div className="pointer-events-none absolute left-1/2 top-4 z-40 flex -translate-x-1/2 flex-col items-center gap-2 px-3 text-center text-white drop-shadow-[0_2px_12px_rgba(0,0,0,0.55)]">
+        <div style={{ bottom: careerMatch ? 60 : 24 }} className="pointer-events-none absolute left-1/2 z-40 flex w-[min(24rem,94vw)] -translate-x-1/2 flex-col items-center gap-2 px-3 text-center text-white drop-shadow-[0_2px_12px_rgba(0,0,0,0.55)]">
           <div className="flex items-center gap-2 rounded-full bg-white/90 px-4 py-2 text-sm font-semibold text-gray-900 shadow-lg ring-1 ring-white/60">
             <span className="flex h-6 w-6 items-center justify-center rounded-full bg-emerald-500 text-xs font-bold text-white">BIH</span>
             <span className="text-left leading-tight">
@@ -29691,7 +29631,8 @@ const shotPowerRef = useRef(0);
         <button
           type="button"
           onClick={handleCueBallReposition}
-          className="absolute left-1/2 top-4 z-40 min-h-[44px] -translate-x-1/2 rounded-full border border-emerald-200/60 bg-emerald-950/95 px-4 py-2 text-sm font-semibold text-white shadow-lg"
+          style={{ bottom: careerMatch ? 60 : 24 }}
+          className="absolute left-1/2 z-40 min-h-[44px] -translate-x-1/2 rounded-full border border-emerald-200/60 bg-emerald-950/95 px-4 py-2 text-sm font-semibold text-white shadow-lg"
         >
           Move cue ball
         </button>
@@ -29840,5 +29781,6 @@ export default function SnookerRoyal() {
   const { search } = useLocation();
   const options = resolveSnookerLaunchOptions(search);
   if (options.mode === 'career') return <SnookerCareerMatch Game={SnookerRoyalGame} />;
+  if (options.mode === 'tournament') return <SnookerTournamentMatch Game={SnookerRoyalGame} />;
   return <SnookerRoyalGame {...options} />;
 }

@@ -1,286 +1,69 @@
-import { useMemo } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import useTelegramBackButton from '../../hooks/useTelegramBackButton.js';
-import {
-  CAREER_LEVEL_COUNT,
-  getCareerRoadmap,
-  getNextCareerStage,
-  loadCareerProgress
-} from '../../utils/poolRoyaleCareerProgress.js';
-import { loadTrainingProgress } from '../../utils/poolRoyaleTrainingProgress.js';
+import { CAREER_LEVEL_COUNT, getCareerRoadmap, loadCareerProgress } from '../../utils/poolRoyaleCareerProgress.js';
+import { getTelegramId } from '../../utils/telegram.js';
+import { loadPoolCompetition, poolCompetitionKey, poolCompetitionScope, poolOpponent, poolRaceTo, poolStageFormat } from '../../games/pool/competition.js';
+import { PoolBracket } from '../../games/pool/PoolCompetitionMatch.jsx';
+import '../../games/pool/competition.css';
 
-const TPC_ICON_SRC = '/assets/icons/file_00000000362481f7978631c42572193f.png';
-
-const stageTypeLabel = (type) => {
-  if (type === 'training') return '🎯 Task drill';
-  if (type === 'friendly') return '🤝 Match';
-  if (type === 'league') return '🗓️ League';
-  if (type === 'showdown') return '⚡ Showdown';
-  return '🏆 Tournament';
-};
-
-const fallbackThumb = (type) => {
-  if (type === 'training') return 'https://placehold.co/160x96/0f172a/f8fafc?text=TASK';
-  if (type === 'tournament') return 'https://placehold.co/160x96/1f2937/fbbf24?text=CUP';
-  if (type === 'showdown') return 'https://placehold.co/160x96/111827/f87171?text=DUEL';
-  if (type === 'league') return 'https://placehold.co/160x96/1e293b/67e8f9?text=LEAGUE';
-  return 'https://placehold.co/160x96/0f172a/86efac?text=MATCH';
-};
+const labels = { training: 'Academy drill', friendly: 'Friendly match', league: 'League fixture', showdown: 'Rival showdown', tournament: 'Knockout tournament' };
 
 export default function PoolRoyaleCareer() {
   useTelegramBackButton('/games/poolroyale/lobby?type=career');
   const navigate = useNavigate();
-
-  const trainingProgress = useMemo(() => loadTrainingProgress(), []);
-  const careerProgress = useMemo(() => loadCareerProgress(), []);
-  const roadmap = useMemo(
-    () => getCareerRoadmap(trainingProgress, careerProgress),
-    [trainingProgress, careerProgress]
-  );
-  const nextStage = useMemo(
-    () => getNextCareerStage(trainingProgress, careerProgress),
-    [trainingProgress, careerProgress]
-  );
-
-  const completedCount = roadmap.filter((stage) => stage.completed).length;
-  const giftStages = roadmap.filter((stage) => stage.hasGift && stage.giftThumbnail);
-
-  const sections = useMemo(
-    () => [
-      {
-        key: 'task',
-        title: 'Tasks',
-        subtitle: 'Skill drills and guided objectives',
-        icon: '🎯',
-        items: roadmap.filter((stage) => stage.eventType === 'task')
-      },
-      {
-        key: 'cup',
-        title: 'Cups',
-        subtitle: 'Knockout cup brackets',
-        icon: '🏅',
-        items: roadmap.filter((stage) => stage.eventType === 'cup')
-      },
-      {
-        key: 'tournament',
-        title: 'Tournaments',
-        subtitle: 'Full-field competitive brackets',
-        icon: '🏆',
-        items: roadmap.filter((stage) => stage.eventType === 'tournament')
-      },
-      {
-        key: 'league',
-        title: 'Leagues',
-        subtitle: 'Season rounds and ranking control',
-        icon: '🗓️',
-        items: roadmap.filter((stage) => stage.eventType === 'league')
-      },
-      {
-        key: 'match',
-        title: 'Matches',
-        subtitle: 'Friendlies and showdown battles',
-        icon: '🤝',
-        items: roadmap.filter((stage) => stage.eventType === 'match')
-      }
-    ],
-    [roadmap]
-  );
-
-  const launchStage = (stage = nextStage) => {
-    if (!stage) return;
-    const params = new URLSearchParams();
-    params.set('type', stage.type);
-    params.set('mode', 'ai');
-    params.set('career', '1');
-    params.set('careerStageId', stage.id);
-    if (stage.title) params.set('careerStageTitle', stage.title);
-    if (stage.type === 'training' && stage.trainingLevel) {
-      params.set('trainingLevel', String(stage.trainingLevel));
-    }
-    if (stage.type === 'tournament' && stage.players) {
-      params.set('players', String(stage.players));
-    }
+  const [progress, setProgress] = useState(loadCareerProgress);
+  const roadmap = useMemo(() => getCareerRoadmap(undefined, progress), [progress]);
+  const nextStage = roadmap.find((stage) => stage.playable);
+  const [phase, setPhase] = useState(() => nextStage?.phase || 1);
+  const [variant, setVariant] = useState('american');
+  const completed = roadmap.filter((stage) => stage.completed).length;
+  const scope = poolCompetitionScope(getTelegramId());
+  const activeEvent = nextStage ? loadPoolCompetition(poolCompetitionKey(scope, nextStage.id, variant)) : null;
+  useEffect(() => {
+    const refresh = () => setProgress(loadCareerProgress());
+    window.addEventListener('focus', refresh);
+    window.addEventListener('storage', refresh);
+    return () => { window.removeEventListener('focus', refresh); window.removeEventListener('storage', refresh); };
+  }, []);
+  const launch = (stage) => {
+    if (!stage || stage.locked) return;
+    const params = new URLSearchParams({ mode: 'ai', career: '1', careerStageId: stage.id, careerStageTitle: stage.title, variant: stage.type === 'training' ? 'uk' : variant, type: stage.type === 'training' ? 'training' : 'regular' });
+    if (stage.type === 'training') params.set('trainingLevel', String(stage.trainingLevel));
+    else params.set('competition', '1');
+    if (stage.players) params.set('players', String(stage.players));
+    const tgId = getTelegramId();
+    if (tgId) params.set('tgId', String(tgId));
     navigate(`/games/poolroyale?${params.toString()}`);
   };
-
-  return (
-    <section className="mx-auto w-full max-w-4xl space-y-4 px-3 pb-24 pt-3 text-white sm:px-4">
-      <div className="overflow-hidden rounded-3xl border border-amber-200/40 bg-gradient-to-br from-[#32204a] via-[#121632] to-[#0d2f35] p-4 shadow-[0_24px_65px_rgba(0,0,0,0.52)]">
-        <div className="flex items-start justify-between gap-3">
-          <div>
-            <p className="text-[11px] uppercase tracking-[0.28em] text-amber-200">Pool Royale Career</p>
-            <h1 className="bg-gradient-to-r from-amber-100 via-white to-cyan-100 bg-clip-text text-xl font-bold text-transparent">
-              Roadmap Command Center
-            </h1>
-            <p className="mt-1 text-xs text-white/70">
-              Stylish full-career view with mixed tasks, matches, tournaments, and gift milestones.
-            </p>
-          </div>
-          <button
-            type="button"
-            onClick={() => navigate('/games/poolroyale/lobby?type=career')}
-            className="rounded-xl border border-white/20 bg-black/35 px-3 py-1.5 text-xs font-semibold text-white/90"
-          >
-            Lobby
-          </button>
-        </div>
-
-        <div className="mt-3 grid grid-cols-3 gap-2 text-center text-[11px] sm:text-xs">
-          <div className="rounded-xl border border-white/10 bg-black/30 p-2.5">
-            <p className="text-white/60">Progress</p>
-            <p className="mt-0.5 text-sm font-semibold">{completedCount}/{CAREER_LEVEL_COUNT}</p>
-          </div>
-          <div className="rounded-xl border border-white/10 bg-black/30 p-2.5">
-            <p className="text-white/60">Next phase</p>
-            <p className="mt-0.5 text-sm font-semibold">{nextStage?.phaseTitle || 'Legend complete'}</p>
-          </div>
-          <div className="rounded-xl border border-white/10 bg-black/30 p-2.5">
-            <p className="text-white/60">Gift milestones</p>
-            <p className="mt-0.5 text-sm font-semibold">{giftStages.length}</p>
-          </div>
-        </div>
-
-        {nextStage ? (
-          <div className="mt-3 rounded-2xl border border-amber-200/50 bg-black/35 p-3">
-            <p className="text-[10px] uppercase tracking-[0.18em] text-amber-100">Next up</p>
-            <div className="mt-1 flex items-start gap-3">
-              <img
-                src={nextStage.giftThumbnail || fallbackThumb(nextStage.type)}
-                alt={nextStage.title}
-                className="h-14 w-20 rounded-lg border border-white/20 object-cover"
-                loading="lazy"
-              />
-              <div className="min-w-0 flex-1">
-                <p className="truncate text-sm font-semibold text-white">{nextStage.icon} {nextStage.title}</p>
-                <p className="mt-0.5 line-clamp-2 text-[11px] text-white/70">{nextStage.objective}</p>
-                <div className="mt-1.5 inline-flex items-center gap-1 rounded-full border border-emerald-200/40 bg-emerald-300/10 px-2 py-0.5 text-[10px] font-semibold text-emerald-100">
-                  <img src={TPC_ICON_SRC} alt="TPG" className="h-3.5 w-3.5" />
-                  {Number(nextStage.rewardTpc || 0).toLocaleString('en-US')} TPG
-                </div>
-              </div>
-            </div>
-            <button
-              type="button"
-              onClick={() => launchStage(nextStage)}
-              className="mt-2.5 w-full rounded-xl bg-amber-300 px-4 py-2.5 text-sm font-semibold text-black"
-            >
-              Launch {nextStage.title}
-            </button>
-          </div>
-        ) : null}
+  const shownStages = roadmap.filter((stage) => stage.phase === phase);
+  const phaseInfo = shownStages[0];
+  return <main className="pr-tour">
+    <header className="flex items-center justify-between gap-3"><button className="pr-back" onClick={() => navigate('/games/poolroyale/lobby?type=career')}>‹ Lobby</button><p className="pr-eyebrow">Pool Royal · Career</p></header>
+    <p className="pr-eyebrow">From the academy to the final table</p>
+    <h1>Build your game.<br /><span style={{ color: '#dfc48b' }}>Earn your place.</span></h1>
+    <p className="pr-muted">A hundred stages of cue control, match play and knockout competition. Every match has a rival. Every title has a path.</p>
+    <div className="pr-stat-grid"><div><strong>{completed}<small style={{ fontSize: 14, color: '#8ba393' }}> / {CAREER_LEVEL_COUNT}</small></strong><span>Stages completed</span></div><div><strong>{roadmap.filter((stage) => stage.completed && stage.type === 'tournament').length}</strong><span>Tournament titles</span></div><div><strong>{nextStage?.difficulty || 'Legend'}</strong><span>Current circuit</span></div></div>
+    <div className="pr-progress" role="progressbar" aria-label="Career progress" aria-valuenow={completed} aria-valuemin={0} aria-valuemax={CAREER_LEVEL_COUNT}><span style={{ width: `${completed}%` }} /></div>
+    {nextStage ? <section className="pr-feature">
+      <p className="pr-eyebrow">{activeEvent?.status === 'active' ? 'Event in progress' : 'Your next challenge'} · Stage {String(nextStage.level).padStart(2, '0')}</p>
+      <h2 style={{ marginTop: 8 }}>{nextStage.title}</h2><p className="pr-muted">{nextStage.objective}</p>
+      <span className="pr-chip">{labels[nextStage.type]}</span><span className="pr-chip">{poolStageFormat(nextStage).label}</span>{nextStage.players > 2 && <span className="pr-chip">{nextStage.players} players</span>}
+      {activeEvent?.status === 'active' && <p className="pr-muted">{activeEvent.frames[0]} — {activeEvent.frames[1]} vs {poolOpponent(activeEvent)?.name} · Race to {poolRaceTo(activeEvent)}</p>}
+      {nextStage.type !== 'training' && !activeEvent && <div className="pr-filter" aria-label="Career pool rules" style={{ marginTop: 12 }}>{[['american', '8-ball'], ['9ball', '9-ball'], ['uk', 'UK pool']].map(([value, label]) => <button key={value} aria-pressed={variant === value} onClick={() => setVariant(value)}>{label}</button>)}</div>}
+      <button className="pr-primary" onClick={() => launch(nextStage)}>{activeEvent?.status === 'active' ? 'Resume event' : 'Play next stage'} <span>→</span></button>
+      {nextStage.type !== 'training' && <p className="pr-mini">Alternate break · Progress saves after settled shots</p>}
+      {activeEvent?.draw && activeEvent.totalRounds > 1 && <details><summary>View your tournament draw</summary><PoolBracket event={activeEvent} /></details>}
+    </section> : <section className="pr-feature"><h2>Legend circuit complete.</h2><p className="pr-muted">All 100 stages cleared. Return to the lobby to start another Royal tournament.</p><button className="pr-primary" onClick={() => navigate('/games/poolroyale/lobby?type=tournament')}>Enter a tournament →</button></section>}
+    <h2>Your career route</h2>
+    <div className="pr-filter" aria-label="Career phase">{Array.from({ length: 5 }, (_, index) => <button key={index} aria-pressed={phase === index + 1} onClick={() => setPhase(index + 1)}>Phase {index + 1}</button>)}</div>
+    <div className="pr-phase-note"><h2 style={{ marginTop: 0 }}>{phaseInfo?.phaseTitle}</h2><p>{phaseInfo?.phaseSummary}</p></div>
+    {shownStages.map((stage) => <article className="pr-stage" key={stage.id} data-locked={stage.locked} data-complete={stage.completed} aria-current={stage.playable ? 'step' : undefined}>
+      <span aria-label={stage.completed ? 'Completed' : stage.locked ? 'Locked' : 'Next stage'}>{stage.completed ? '✓' : String(stage.level).padStart(2, '0')}</span>
+      <div><h3>{stage.title}</h3><p>{labels[stage.type]} · {poolStageFormat(stage).label}{stage.players > 2 ? ` · ${stage.players} players` : ''}</p><p>{stage.objective}</p>
+        {stage.playable && <button className="pr-primary" onClick={() => launch(stage)}>Play this stage <span>→</span></button>}
+        {!stage.locked && <details><summary>Stage details</summary><p>{stage.detailBrief}</p><p>{stage.type === 'training' ? stage.winCondition : stage.type === 'tournament' ? 'Win every match, then the final. A match loss eliminates you from this event.' : `Win ${poolStageFormat(stage).raceTo} racks before your rival to complete this stage.`}</p><p>Stage reward: {stage.reward}</p>{stage.type === 'training' && <p>Career drills use the existing heart allowance. Missed attempts deduct hearts; practice remains unlimited.</p>}</details>}
       </div>
-
-      <div className="rounded-2xl border border-white/10 bg-gradient-to-br from-black/35 via-[#131b2f]/85 to-black/20 p-4">
-        <h2 className="text-sm font-semibold text-white">Gift thumbnails on roadmap</h2>
-        <div className="mt-2 grid grid-cols-3 gap-2 sm:grid-cols-4">
-          {giftStages.slice(0, 12).map((stage) => (
-            <div key={stage.id} className="rounded-xl border border-amber-200/40 bg-amber-100/5 p-1.5">
-              <img src={stage.giftThumbnail} alt={stage.title} className="h-16 w-full rounded object-cover" loading="lazy" />
-              <p className="mt-1 truncate text-[10px] text-amber-100">Stage {stage.level}</p>
-            </div>
-          ))}
-        </div>
-      </div>
-
-      <div className="rounded-2xl border border-white/10 bg-black/30 p-4">
-        <h2 className="text-sm font-semibold text-white">Career sections</h2>
-        <p className="mt-1 text-[11px] text-white/65">
-          Each round gives 3 ❤️ attempts one time only. When attempts reach 0, buy heart bundles to continue.
-        </p>
-        <div className="mt-2 space-y-2">
-          {sections.map((section) => {
-            const playable = section.items.find((item) => item.playable) || null;
-            return (
-              <div key={section.key} className="rounded-xl border border-white/10 bg-white/[0.03] p-2.5">
-                <div className="flex items-center justify-between gap-2">
-                  <div>
-                    <p className="text-xs font-semibold text-white">{section.icon} {section.title}</p>
-                    <p className="text-[10px] text-white/60">{section.subtitle}</p>
-                  </div>
-                  <span className="rounded-full border border-white/15 bg-black/30 px-2 py-0.5 text-[10px] text-white/80">
-                    {section.items.filter((s) => s.completed).length}/{section.items.length}
-                  </span>
-                </div>
-                {playable ? (
-                  <div className="mt-2 flex items-center justify-between gap-2 rounded-lg border border-amber-200/35 bg-amber-200/10 p-2">
-                    <p className="min-w-0 truncate text-[11px] text-amber-50">Next: {playable.title} · Rounds {playable.roundTarget || 1}</p>
-                    <button
-                      type="button"
-                      onClick={() => launchStage(playable)}
-                      className="shrink-0 rounded-md bg-amber-300 px-2 py-1 text-[10px] font-semibold text-black"
-                    >
-                      Play
-                    </button>
-                  </div>
-                ) : (
-                  <p className="mt-2 text-[10px] text-white/45">No unlocked stage in this section yet.</p>
-                )}
-              </div>
-            );
-          })}
-        </div>
-      </div>
-
-      <div className="space-y-2.5">
-        {roadmap.map((stage) => (
-          <article
-            key={stage.id}
-            className={`rounded-2xl border p-3 shadow-[0_12px_30px_rgba(0,0,0,0.28)] ${stage.playable ? 'border-amber-300/55 bg-gradient-to-br from-amber-300/18 to-orange-300/8' : stage.completed ? 'border-emerald-300/50 bg-gradient-to-br from-emerald-300/16 to-emerald-500/8' : 'border-white/10 bg-white/[0.03]'}`}
-          >
-            <div className="flex items-start gap-3">
-              <img
-                src={stage.hasGift && stage.giftThumbnail ? stage.giftThumbnail : fallbackThumb(stage.type)}
-                alt={stage.title}
-                className="h-16 w-24 shrink-0 rounded-xl border border-white/20 object-cover"
-                loading="lazy"
-              />
-
-              <div className="min-w-0 flex-1">
-                <div className="flex items-start justify-between gap-2">
-                  <div className="min-w-0">
-                    <p className="truncate text-xs font-semibold text-white">
-                      Stage {String(stage.level).padStart(3, '0')} · {stage.icon} {stage.title}
-                    </p>
-                    <p className="text-[10px] text-white/60">
-                      {stage.phaseTitle} · {stage.competitionLabel || stage.type} · Rounds {stage.roundTarget || 1} · {stage.difficulty}
-                    </p>
-                  </div>
-                  <span className="shrink-0 rounded-full border border-white/20 bg-black/30 px-2 py-0.5 text-[10px] uppercase tracking-[0.16em] text-white/75">
-                    {stage.statusLabel}
-                  </span>
-                </div>
-
-                <p className="mt-1 line-clamp-2 text-[11px] text-white/80">{stage.objective}</p>
-                <p className="mt-1 line-clamp-2 text-[10px] text-white/65">{stage.detailBrief}</p>
-
-                <div className="mt-1.5 flex flex-wrap items-center gap-1.5 text-[10px]">
-                  <span className="rounded-full border border-white/20 bg-white/10 px-2 py-0.5">{stageTypeLabel(stage.type)}</span>
-                  <span className="inline-flex items-center gap-1 rounded-full border border-emerald-200/40 bg-emerald-300/10 px-2 py-0.5 font-semibold text-emerald-100">
-                    <img src={TPC_ICON_SRC} alt="TPG" className="h-3.5 w-3.5" />
-                    {Number(stage.rewardTpc || 0).toLocaleString('en-US')} TPG
-                  </span>
-                  {stage.hasGift && stage.giftThumbnail ? (
-                    <span className="rounded-full border border-amber-200/45 bg-amber-300/15 px-2 py-0.5 text-amber-100">
-                      🎁 Gift unlocked
-                    </span>
-                  ) : null}
-                </div>
-              </div>
-            </div>
-
-            <p className="mt-2 text-[10px] text-cyan-100/80">Win condition: {stage.winCondition}</p>
-            {stage.playable ? (
-              <button
-                type="button"
-                onClick={() => launchStage(stage)}
-                className="mt-2.5 w-full rounded-lg bg-amber-300 px-3 py-2 text-xs font-semibold text-black"
-              >
-                Play this stage
-              </button>
-            ) : null}
-          </article>
-        ))}
-      </div>
-    </section>
-  );
+    </article>)}
+  </main>;
 }

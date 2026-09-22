@@ -55,7 +55,6 @@ export default function SnookerRoyalLobby() {
   const [playerFlagIndex, setPlayerFlagIndex] = useState(null);
   const [aiFlagIndex, setAiFlagIndex] = useState(null);
   const [playType, setPlayType] = useState(initialPlayType);
-  const [players, setPlayers] = useState(8);
   const tableSize = resolveTableSize(searchParams.get('tableSize')).id;
   const tableModel = TABLE_MODEL_OPENSOURCE;
   const [onlinePlayers, setOnlinePlayers] = useState([]);
@@ -172,6 +171,10 @@ export default function SnookerRoyalLobby() {
   };
 
   const startGame = async () => {
+    if (playType === 'tournament') {
+      navigate('/games/snookerroyale/tournament');
+      return;
+    }
     const isOnlineMatch = mode === 'online' && playType === 'regular';
     if (matching) return;
     await cleanupRef.current?.();
@@ -228,7 +231,6 @@ export default function SnookerRoyalLobby() {
       if (stake.token) params.set('token', stake.token);
       if (stake.amount) params.set('amount', stake.amount);
     }
-    if (playType === 'tournament') params.set('players', players);
     const initData = window.Telegram?.WebApp?.initData;
     if (avatar) params.set('avatar', avatar);
     if (tgId) params.set('tgId', tgId);
@@ -246,7 +248,7 @@ export default function SnookerRoyalLobby() {
     if (initData) params.set('init', encodeURIComponent(initData));
 
     if (playType === 'tournament') {
-      window.location.href = `/snooker-royale-bracket.html?${params.toString()}`;
+      navigate('/games/snookerroyale/tournament');
       return;
     }
 
@@ -538,46 +540,13 @@ export default function SnookerRoyalLobby() {
         </div>
 
         {playType === 'tournament' && (
-          <div className="space-y-3 rounded-2xl border border-white/10 bg-white/5 p-4 shadow">
-            <div className="flex items-center gap-3">
-              <div className="h-12 w-12 rounded-2xl bg-gradient-to-br from-purple-400/40 to-indigo-500/40 p-[1px]">
-                <div className="flex h-full w-full items-center justify-center rounded-[18px] bg-[#0b1220] text-xl">
-                  🧩
-                </div>
-              </div>
-              <div>
-                <h3 className="font-semibold text-white">Tournament Seats</h3>
-                <p className="text-xs text-white/60">Choose the bracket size before launching.</p>
-              </div>
-            </div>
-            <div className="mt-3 grid grid-cols-3 gap-3">
-              {[8, 16, 24].map((p) => {
-                const active = players === p;
-                return (
-                  <button
-                    key={p}
-                    type="button"
-                    onClick={() => setPlayers(p)}
-                    className={`lobby-option-card ${
-                      active ? 'lobby-option-card-active' : 'lobby-option-card-inactive'
-                    }`}
-                  >
-                    <div className="lobby-option-thumb bg-gradient-to-br from-purple-400/30 via-indigo-500/10 to-transparent">
-                      <div className="lobby-option-thumb-inner">
-                        <span className="text-2xl font-semibold">{p}</span>
-                      </div>
-                    </div>
-                    <div className="text-center">
-                      <p className="lobby-option-label">{p} Players</p>
-                    </div>
-                  </button>
-                );
-              })}
-            </div>
-            <p className="text-xs text-white/60">
-              Winner takes the pot minus a 10% developer fee.
-            </p>
-          </div>
+          <section className="space-y-3 rounded-2xl border border-amber-300/30 bg-emerald-950/70 p-5 text-white">
+            <p className="text-[11px] uppercase tracking-[0.18em] text-amber-200">The Royal Open</p>
+            <h3 className="text-xl font-semibold">A title takes more than one frame.</h3>
+            <p className="text-sm text-white/70">Eight players. Three knockout rounds. Choose your match length and opponent level on the tournament screen.</p>
+            <p className="text-xs text-white/60">Your draw, match score and settled shots save on this device. Resume the same match whenever you return.</p>
+            <button className="min-h-[48px] w-full rounded-xl bg-amber-200 px-4 py-3 font-semibold text-emerald-950" onClick={() => navigate('/games/snookerroyale/tournament')}>Open tournament →</button>
+          </section>
         )}
 
         {mode === 'online' && playType === 'regular' && (

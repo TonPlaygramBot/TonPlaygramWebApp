@@ -8,6 +8,7 @@ export type BcaEightBallState = {
   currentPlayer: BcaSeat;
   assignments: { A: BcaGroup | null; B: BcaGroup | null };
   ballInHand: boolean;
+  mustPlayFromBaulk?: boolean;
   frameOver: boolean;
   winner: BcaSeat | null;
   breakInProgress: boolean;
@@ -16,6 +17,11 @@ export type BcaEightBallState = {
 export type BcaShotInput = {
   contactOrder?: PoolBallId[];
   potted?: PoolBallId[];
+  offTable?: PoolBallId[];
+  calledBallId?: PoolBallId;
+  calledPocket?: string;
+  pottedPockets?: Record<number, string>;
+  safety?: boolean;
   cueOffTable?: boolean;
   foulReason?: string;
   noCushionAfterContact?: boolean;
