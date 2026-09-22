@@ -1,12 +1,12 @@
 import crypto from 'node:crypto';
+import { creatorKey } from './keyStore.js';
 
 export const problem = (status, message) => Object.assign(new Error(message), { status, publicMessage: message });
 export const digest = value => crypto.createHash('sha256').update(String(value)).digest('hex');
 export const random = () => crypto.randomBytes(32).toString('base64url');
 export function secret() {
-  const key = Buffer.from(process.env.CREATOR_ENCRYPTION_KEY || '', 'base64');
-  if (key.length !== 32) throw problem(503, 'Creator Studio account connections are being prepared. Please try again later.');
-  return key;
+  try { return creatorKey(); }
+  catch { throw problem(503, 'Creator Studio secure storage is unavailable. Please contact TonPlayGram support.'); }
 }
 export function configured() { try { secret(); return Boolean(publicOrigin()); } catch { return false; } }
 export function publicOrigin() {

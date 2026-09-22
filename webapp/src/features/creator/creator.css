@@ -5,3 +5,14 @@
 @media(prefers-reduced-motion:reduce){.cs-root *{animation:none!important;scroll-behavior:auto!important}}
 
 .cs-root .cs-broadcast-banner{display:flex;align-items:center;flex-wrap:wrap;gap:12px;margin:16px auto;max-width:1100px;padding:16px;background:#142e30;color:#bdf9e3;border:1px solid #2d5c52;border-radius:16px}.cs-root .cs-broadcast-banner>span{flex:1;min-width:160px}.cs-root .cs-broadcast-banner button{min-height:44px}
+
+/* Keep the dedicated Studio readable under the app's inherited outlined text. */
+.cs-root,.cs-root *{-webkit-text-stroke-width:0;text-shadow:none}
+.cs-root{color:#f5f7ff;color-scheme:dark}
+.cs-root p{color:var(--cs-muted)}
+.cs-root :is(h1,h2,h3,label,strong){color:#f5f7ff}
+.cs-root .cs-secondary{color:#f5f7ff}
+.cs-root .cs-secondary:disabled{opacity:1;color:#a6b2c9;background:#192235}
+.cs-root .cs-google-signin{width:100%;min-width:0}
+.cs-root .cs-google-button{display:flex;justify-content:center;min-height:44px;width:100%}
+.cs-root .cs-google-signin p{font-size:14px;line-height:1.6}

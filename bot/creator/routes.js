@@ -6,6 +6,7 @@ import { Connection, Media, Post } from './models.js';
 import { catalog, available, PROVIDERS } from './catalog.js';
 import { session, requireSession, csrf, issueSession, setCookie, problem, safeConnection, publicOrigin } from './security.js';
 import { beginOAuth, finishOAuth } from './oauth.js';
+import { googleSignInStatus, beginGoogleSignIn, finishGoogleSignIn } from './googleSignIn.js';
 import { reserveMedia, appendMedia, CHUNK, publicMedia, mediaPath, verifyMediaLink, removeMedia } from './media.js';
 import { validateContent, creatorInfo } from './publishers.js';
 import { createLive, stopLive, currentLive, liveSummary, liveEnabled } from './live.js';
@@ -14,7 +15,11 @@ const wrap = fn => (req, res, next) => Promise.resolve(fn(req, res)).catch(next)
 const id = value => { if (!/^[a-f0-9]{24}$/.test(String(value))) throw problem(400, 'Invalid item.'); return value; };
 const database = (_req, _res, next) => mongoose.connection.readyState === 1 ? next() : next(problem(503, 'Studio is temporarily unavailable. Please try again shortly.'));
 router.use((_req, res, next) => { res.set('Cache-Control', 'no-store'); res.set('Referrer-Policy', 'no-referrer'); next(); });
-router.get('/catalog', (_req, res) => res.json({ platforms: catalog(), googleLogin: available('google'), liveEnabled: liveEnabled(), maxUploadBytes: 250 * 1024 ** 2 }));
+router.get('/catalog', (_req, res) => {
+  const google = googleSignInStatus();
+  const redirectLogin = available('google');
+  res.json({ platforms: catalog(), googleLogin: redirectLogin || google.available, googleLoginMethod: redirectLogin ? 'oauth' : 'identity', googleLoginReason: redirectLogin ? null : google.reason, liveEnabled: liveEnabled(), maxUploadBytes: 250 * 1024 ** 2 });
+});
 router.get('/session', (req, res) => { const user = session(req); res.json(user ? { signedIn: true, name: user.name, method: user.owner.split(':')[0] } : { signedIn: false }); });
 router.get('/oauth/:platform/callback', database, wrap(async (req, res) => {
   req.creator = session(req);
@@ -45,6 +50,8 @@ router.post('/session/telegram', database, wrap(async (req, res) => {
 }));
 router.post('/session/logout', (req, res) => { setCookie(res, 'tpg_creator', '', 0); res.json({ ok: true }); });
 router.post('/login/google', database, wrap(async (req, res) => res.json({ url: await beginOAuth(req, res, 'google') })));
+router.post('/login/google/identity', database, wrap(async (req, res) => res.json(await beginGoogleSignIn(req, res))));
+router.post('/session/google', database, wrap(async (req, res) => res.json(await finishGoogleSignIn(req, res))));
 router.use(requireSession, database);
 router.get('/accounts', wrap(async (req, res) => res.json({ accounts: (await Connection.find({ owner: req.creator.owner, status: { $ne: 'disconnected' } }).sort({ createdAt: 1 })).map(safeConnection) })));
 router.post('/accounts/:platform/connect', wrap(async (req, res) => {

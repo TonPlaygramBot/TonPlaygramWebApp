@@ -86,3 +86,6 @@ webapp/public/vendor/three/examples/jsm/libs/basis/
 
 # Generated shared upload runner for the classic service worker.
 /webapp/public/pwa/wall-upload-worker.js
+
+# Generated public Google client ID, never a client secret.
+/webapp/public/creator-auth-config.json

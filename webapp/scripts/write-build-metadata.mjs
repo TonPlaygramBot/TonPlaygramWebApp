@@ -2,6 +2,7 @@ import { promises as fs } from 'fs';
 import path from 'path';
 import { fileURLToPath } from 'url';
 import { execSync } from 'child_process';
+import { writeCreatorAuthConfig } from './write-creator-auth-config.mjs';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -79,7 +80,8 @@ async function main() {
   const [versionPath, markerPath, configPath] = await Promise.all([
     writeVersionJson(buildId, generatedAt),
     writeServiceWorkerMarker(buildId),
-    writeRuntimeConfig(buildId, generatedAt)
+    writeRuntimeConfig(buildId, generatedAt),
+    writeCreatorAuthConfig(projectRoot)
   ]);
   console.log(`Wrote build metadata (${buildId}) to:`);
   console.log(`- ${versionPath}`);

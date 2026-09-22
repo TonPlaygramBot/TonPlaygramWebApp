@@ -72,3 +72,16 @@ it('keeps an existing broadcast visible across tabs and protects its sign-in ses
   expect(button('End broadcast everywhere')).toBeDefined();
   expect(api.mock.calls.some(([path]) => path.includes('/stop'))).toBe(false);
 });
+
+it('explains missing Google setup instead of offering a disabled sign-in button', async () => {
+  const implementation = api.getMockImplementation()!;
+  api.mockImplementation(async (path, method, body) => {
+    if (path === '/catalog') return { platforms: [facebook], googleLogin: false, googleLoginReason: 'client_id', liveEnabled: false };
+    if (path === '/session') return { signedIn: false };
+    return implementation(path, method, body);
+  });
+  await act(async () => root.render(<MemoryRouter><CreatorStudio key="missing-google-config" /></MemoryRouter>));
+  expect(node.querySelector('.cs-signin [role="status"]')?.textContent).toContain('enabled by the app owner');
+  expect(node.querySelector('.cs-signin')?.textContent).not.toContain('setup pending');
+  expect(button('Continue with Google')).toBeUndefined();
+});
