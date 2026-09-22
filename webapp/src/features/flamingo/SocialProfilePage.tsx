@@ -14,6 +14,7 @@ import { useEffect, useState } from 'react';
 import { API_BASE_URL } from '../../utils/api.js';
 import WallAvatar from './WallAvatar';
 import MediaWall from './MediaWall';
+import ProfileLayoutSwitcher, { useProfileColumns } from './ProfileLayoutSwitcher';
 import './community-wall.css';
 
 type Profile = {
@@ -33,6 +34,7 @@ export default function SocialProfilePage() {
   const [profile, setProfile] = useState<Profile>();
   const [error, setError] = useState('');
   const [revision, setRevision] = useState(0);
+  const [columns, setColumns] = useProfileColumns();
   const viewer = useWallFollowing();
   const isFollowing = viewer.following.some(
     (row) => row.authorAccountId === accountId
@@ -143,7 +145,8 @@ export default function SocialProfilePage() {
                 </span>
               </div>
             </section>
-            <MediaWall profileAccountId={profile.accountId} hideComposer />
+            <ProfileLayoutSwitcher columns={columns} onChange={setColumns} />
+            <MediaWall key={profile.accountId} profileAccountId={profile.accountId} profileColumns={columns} hideComposer />
           </>
         )}
       </main>

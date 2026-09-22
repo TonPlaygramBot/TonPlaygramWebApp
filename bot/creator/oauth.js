@@ -1,4 +1,5 @@
 import { OAuth, Connection } from './models.js';
+import { creatorReturnPath } from '../../shared/socialApp.js';
 import { available, credentials, PROVIDERS } from './catalog.js';
 import { random, digest, seal, unseal, cookies, setCookie, publicOrigin, issueSession, problem } from './security.js';
 import { request, form, json, fb, metaVersion } from './http.js';
@@ -14,7 +15,7 @@ export const callback = p => `${publicOrigin()}/api/creator/oauth/${p}/callback`
 export async function beginOAuth(req, res, platform) {
   if (!available(platform) || !configs[platform]) throw problem(503, 'TonPlayGram has not enabled this platform connection yet. The app owner must finish setup; you do not need to enter codes or keys.');
   const state = random(), binding = random(), verifier = random();
-  await OAuth.create({ stateHash: digest(state), binding: digest(binding), platform, owner: req.creator?.owner, verifier, expiresAt: new Date(Date.now() + 600000) });
+  await OAuth.create({ stateHash: digest(state), binding: digest(binding), platform, owner: req.creator?.owner, verifier, returnTo: creatorReturnPath(req.body?.returnTo), expiresAt: new Date(Date.now() + 600000) });
   setCookie(res, 'tpg_creator_oauth', binding, 600000);
   const url = new URL(configs[platform][0]);
   const args = { [platform === 'tiktok' ? 'client_key' : 'client_id']: credentials(platform).id, redirect_uri: callback(platform), response_type: 'code', scope: configs[platform][2], state };
@@ -52,6 +53,8 @@ export async function finishOAuth(req, res, platform) {
   setCookie(res, 'tpg_creator_oauth', '', 0);
   if (!pending) throw problem(400, 'The connection expired. Please connect again.');
   if (pending.owner !== req.creator?.owner) throw problem(401, 'Sign in with the same Studio account and try again.');
+  res.locals ||= {};
+  res.locals.creatorReturnTo = creatorReturnPath(pending.returnTo);
   if (req.query.error || typeof req.query.code !== 'string') throw problem(400, 'Connection cancelled. No new account was added.');
   const token = await exchange(platform, req.query.code, pending.verifier);
   const get = url => request(url, json('GET', token.access_token));

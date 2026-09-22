@@ -1,5 +1,5 @@
 import WallFollowButton from './WallFollowButton';
-import { useEffect, useRef, useState, type FormEvent } from 'react';
+import { useEffect, useRef, useState, type FormEvent, type CSSProperties } from 'react';
 import { createPortal } from 'react-dom';
 import { Link, useLocation } from 'react-router-dom';
 import {
@@ -40,6 +40,9 @@ import {
 import { API_BASE_URL } from '../../utils/api.js';
 import { resolveWallMediaUrl } from './mediaUrl.js';
 import { reconcileWallPosts } from './wallFeed.js';
+import ProfilePostTile from './ProfilePostTile';
+import type { ProfileColumns } from './ProfileLayoutSwitcher';
+import './profile-layouts.css';
 
 type Attachment = {
   name: string;
@@ -530,10 +533,12 @@ function FullscreenVideoFeed({
 export default function MediaWall({
   compact = false,
   profileAccountId = '',
+  profileColumns = 1,
   hideComposer = false
 }: {
   compact?: boolean;
   profileAccountId?: string;
+  profileColumns?: ProfileColumns;
   hideComposer?: boolean;
 }) {
   const [filter, setFilter] = useState('all');
@@ -724,7 +729,7 @@ export default function MediaWall({
         savedPosts()
           .then((items) => {
             if (!active || !items.length) return;
-            const hydrated = items.map((post) =>
+            const hydrated = items.filter(post => !profileAccountId || post.authorAccountId === profileAccountId).map((post) =>
               post.attachment?.blob
                 ? {
                     ...post,
@@ -1131,7 +1136,9 @@ export default function MediaWall({
           </div>
         )}
       <div
-        className="fr-social-feed"
+        className={`fr-social-feed${profileAccountId && profileColumns > 1 ? ' wall-profile-grid' : ''}`}
+        data-columns={profileAccountId ? profileColumns : undefined}
+        style={{ '--profile-columns': profileColumns } as CSSProperties}
         aria-label="Media Wall posts"
         aria-live="polite"
       >
@@ -1146,6 +1153,7 @@ export default function MediaWall({
                   : post.attachment?.type.startsWith('video/'))
           )
           .map((post) => {
+            if (profileAccountId && profileColumns > 1) return <ProfilePostTile key={post.id} post={post} />;
             const data = engagement[post.id] || blankEngagement();
             const totalReactions = Object.values(data.counts).reduce(
               (sum, count) => sum + count,

@@ -49,7 +49,7 @@ async function request(path = '', method = 'GET', body?: unknown) {
   }
 }
 async function activeRegistration() {
-  const registration = await navigator.serviceWorker.getRegistration('/');
+  const registration = await navigator.serviceWorker.getRegistration(window.location.href);
   if (registration?.active) return registration;
   throw new Error('The app is still getting ready. Reload and try again.');
 }
@@ -94,7 +94,7 @@ export default function WallNotifications() {
         );
         if (supported && Notification.permission === 'granted') {
           const registration =
-            await navigator.serviceWorker.getRegistration('/');
+            await navigator.serviceWorker.getRegistration(window.location.href);
           const subscription =
             await registration?.pushManager.getSubscription();
           if (subscription) {

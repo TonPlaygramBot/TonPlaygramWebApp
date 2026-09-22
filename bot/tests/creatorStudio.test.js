@@ -77,6 +77,25 @@ test('OAuth includes PKCE, expires, and binds state to the browser', async () =>
   await assert.rejects(() => finishOAuth({ query: { state, error: 'access_denied' }, headers: { cookie: `tpg_creator_oauth=${binding}` }, creator: { owner } }, res, 'youtube'));
   assert.equal(await OAuth.countDocuments({ platform: 'youtube' }), 0);
 });
+test('OAuth returns to the initiating app after success or cancellation and rejects arbitrary redirects', async () => {
+  try {
+    globalThis.fetch = async url => new Response(JSON.stringify(String(url).includes('/token') ? { access_token: 'provider-test-token' } : { sub: 'creator_one', name: 'Creator' }), { status: 200 });
+    for (const [returnTo, cancelled, expected] of [
+      ['/social-app/creator-studio', false, '/social-app/creator-studio?connection=connected'],
+      ['/social-app/creator-studio', true, '/social-app/creator-studio?connection=cancelled'],
+      ['https://evil.example/', false, '/creator-studio?connection=connected']
+    ]) {
+      let binding;
+      const url = new URL(await beginOAuth({ body: { returnTo } }, { cookie(name, value) { if (name === 'tpg_creator_oauth') binding = value; } }, 'google'));
+      const params = new URLSearchParams({ state: url.searchParams.get('state'), ...(cancelled ? { error: 'access_denied' } : { code: 'test-code' }) });
+      const response = await originalFetch(`${origin}/api/creator/oauth/google/callback?${params}`, { redirect: 'manual', headers: { cookie: `tpg_creator_oauth=${binding}` } });
+      assert.equal(response.status, 303);
+      assert.equal(response.headers.get('location'), process.env.CREATOR_PUBLIC_URL + expected);
+      const replay = await originalFetch(`${origin}/api/creator/oauth/google/callback?${params}`, { redirect: 'manual', headers: { cookie: `tpg_creator_oauth=${binding}` } });
+      assert.equal(replay.headers.get('location'), process.env.CREATOR_PUBLIC_URL + `/creator-studio?connection=${cancelled ? 'cancelled' : 'failed'}`);
+    }
+  } finally { globalThis.fetch = originalFetch; }
+});
 test('draft creation is idempotent and rejects another owner’s destinations', async () => {
   const body = { title: '', caption: 'One post', targets: [String(ownConnection._id)], requestId: crypto.randomUUID() };
   const [a,b] = await Promise.all([call('/posts', { method: 'POST', body }), call('/posts', { method: 'POST', body })]); assert.equal(a.data._id, b.data._id);

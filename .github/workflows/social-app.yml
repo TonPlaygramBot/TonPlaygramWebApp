@@ -1,0 +1,48 @@
+name: Social app
+on:
+  pull_request:
+    paths:
+      - 'webapp/src/social/**'
+      - 'webapp/src/features/flamingo/**'
+      - 'webapp/src/features/creator/**'
+      - 'webapp/src/pages/Social.jsx'
+      - 'webapp/src/pages/Messages.jsx'
+      - 'webapp/src/pages/messages.css'
+      - 'bot/server.js'
+      - 'webapp/social-app/**'
+      - 'webapp/public/social-app/**'
+      - 'webapp/public/pwa/wall-*'
+      - 'webapp/public/service-worker.js'
+      - 'webapp/scripts/social-app*'
+      - 'webapp/scripts/verify-social-app-build.mjs'
+      - 'webapp/scripts/build-wall-upload-worker.mjs'
+      - 'webapp/vite.config.js'
+      - 'webapp/vitest.social.config.mjs'
+      - 'webapp/package*.json'
+      - 'shared/socialApp.js'
+      - 'test/socialApp*'
+      - 'test/wallPushServiceWorker.node.mjs'
+      - '.github/workflows/social-app.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  social-app:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: webapp/package-lock.json
+      - run: npm ci --prefix webapp --ignore-scripts --no-audit --no-fund
+      - run: npm run test:wall -- --maxWorkers=2
+        working-directory: webapp
+      - run: npm run test:social -- --maxWorkers=2
+        working-directory: webapp
+      - run: node --test test/socialAppWorker.node.mjs test/wallPushServiceWorker.node.mjs
+      - run: node --max-old-space-size=3072 node_modules/vite/bin/vite.js build
+        working-directory: webapp
+      - run: node webapp/scripts/verify-social-app-build.mjs webapp/dist
