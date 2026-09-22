@@ -79,6 +79,7 @@ export type StreetEvent = {
 export class StreetSimulation {
   constructor(state: State, world?: import('./spatialCore.mjs').StreetWorld);
   state: State;
+  access: import('./BuildingAccessSimulation.mjs').BuildingAccessSimulation;
   combat: import('./CombatSimulation.mjs').CombatSimulation;
   flight: import('./FlightSimulation.mjs').FlightSimulation;
   arrest: import('./ArrestSimulation.mjs').ArrestSimulation;

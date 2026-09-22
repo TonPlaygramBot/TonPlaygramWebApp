@@ -1,3 +1,4 @@
+import {DEDICATED_ACCESS_BUILDING_IDS,ROOFTOP_HEIGHT_ESTIMATES} from '../tiranastreets/shared/rooftopSiteConfig.mjs';
 import {CITY_RADIUS, CITY_CACHE, runCityWork} from '../tiranastreets/renderSettings';
 import {housingProfile} from '../tirana-east/housingCore.mjs';
 import {buildingGround} from '../tirana-east/terrainCore.mjs';
@@ -29,14 +30,17 @@ export class MappedBuildingCells {
  private roof:T.MeshStandardMaterial;
  constructor(buildings:any[],private wall:T.MeshStandardMaterial,private glass:T.MeshStandardMaterial,private aged:boolean,loadTextures=true){
   this.finish=new EnvironmentMaterials(loadTextures);this.roof=this.finish.create('rough_concrete',0xa5a396);
+  buildings=buildings.map(b=>{const estimate=ROOFTOP_HEIGHT_ESTIMATES[b.id as keyof typeof ROOFTOP_HEIGHT_ESTIMATES];return estimate?{...b,h:estimate.height,visualHeightSource:estimate.source,heightBasis:estimate.basis}:b;});
+  const mapped=buildings.filter(b=>!DEDICATED_ACCESS_BUILDING_IDS.has(String(b.id)));
+  for(const b of buildings)if(DEDICATED_ACCESS_BUILDING_IDS.has(String(b.id))){const accessShell=this.build([b]);accessShell.userData.osmWay=String(b.id);accessShell.name='Accessible mapped shell: '+b.id;this.group.add(accessShell);}
   const map=new Map<string,Bucket>();
-  for(const b of buildings){
+  for(const b of mapped){
    const x=Math.floor(b.p.reduce((s:number,p:number[])=>s+p[0]/b.p.length,0)/240)*240+120;
    const z=Math.floor(b.p.reduce((s:number,p:number[])=>s+p[1]/b.p.length,0)/240)*240+120,key=`${x}:${z}`;
    if(!map.has(key))map.set(key,{x,z,buildings:[],used:0});map.get(key)!.buildings.push(b);
   }
   const districts=new Map<string,District>();
-  for(const b of buildings){
+  for(const b of mapped){
    const x=b.p.reduce((sum:number,p:number[])=>sum+p[0]/b.p.length,0),z=b.p.reduce((sum:number,p:number[])=>sum+p[1]/b.p.length,0);
    const key=`${Math.floor(x/960)}:${Math.floor(z/960)}`;
    if(!districts.has(key))districts.set(key,{key,buildings:[],used:0,bounds:[Infinity,Infinity,-Infinity,-Infinity]});

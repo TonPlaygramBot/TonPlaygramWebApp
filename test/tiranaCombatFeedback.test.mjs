@@ -111,3 +111,21 @@ test('reused IK workspaces preserve targets and isolate differently transformed 
     }
   }
 });
+
+test('glass fragments reuse angular pooled geometry and expire outside the battery visibility range',()=>{
+  const fx=new CombatEffects(new T.Scene()),camera=new T.PerspectiveCamera(),pool=fx.pools[7];
+  const slots=new Set(pool.free);
+  for(let i=0;i<100;i++)fx.surfaceHit({x:1000,y:15,z:0},{x:0,y:0,z:1},'glass',12);
+  assert.equal(pool.items.length,72);assert.equal(pool.mesh.geometry.getAttribute('position').count,3);
+  assert.ok(pool.items.every(p=>slots.has(p)&&p.floor===12));
+  assert.equal(fx.pools[2].items.length,0,'glass fragments do not emit masonry cubes');
+  fx.update(1/60,camera,[],[],true);assert.equal(pool.mesh.count,0);
+  fx.update(2,camera,[],[],true);assert.equal(pool.items.length,0);assert.equal(pool.free.length,72);fx.dispose();
+});
+
+test('precisely classified impact integration does not also emit generic wall debris',()=>{
+  const fx=new CombatEffects(new T.Scene()),event={id:1,kind:'hit',hitKind:'wall',x:0,y:1,z:0,nx:0,ny:0,nz:1};
+  fx.consume([event],()=>0,false);assert.ok(fx.pools.every(p=>p.items.length===0));
+  fx.surfaceHit({x:0,y:1,z:0},{x:0,y:0,z:1},'glass',0);assert.equal(fx.pools[7].items.length,9);
+  fx.consume([event],()=>0);assert.equal(fx.pools[2].items.length,0,'event consumption remains idempotent');fx.dispose();
+});

@@ -2,6 +2,8 @@ import {groundHeight,buildingGround,terrainRay} from '../../tirana-east/terrainC
 import { detailPostObstacles } from '../../tirana-street-detail/sharedRoadDetails.mjs';
 import {shopObstacles} from '../shared/cityPopulation.mjs';
 import {vehicleSize} from '../shared/trafficSimulation.mjs';
+import {accessCollisionSolids} from '../shared/buildingAccess.mjs';
+import {tabakeveBridgeHeight} from '../../tirana-tabakeve/quarterCore.mjs';
 /** Headless 3D queries over the SAME city footprints as the shared simulation.
  * No scene objects or renderer callbacks can affect a hit or clearance result. */
 import {
@@ -51,9 +53,15 @@ const nearest = (x, z, a, b) => {
 const solidAt = (b, x, z) =>
   insidePolygon(x, z, b.p) &&
   !(b.holes || []).some((h) => insidePolygon(x, z, h));
+// A carved entrance can extend beyond the original footprint. Such a hole edge
+// is not a wall unless material exists on one of its sides.
+const edgeHasMaterial=(b,a,c,q)=>{
+ const dx=c[0]-a[0],dz=c[1]-a[1],l=Math.hypot(dx,dz)||1,nx=-dz/l*.004,nz=dx/l*.004;
+ return solidAt(b,q[0]+nx,q[1]+nz)||solidAt(b,q[0]-nx,q[1]-nz);
+};
 export class StreetWorld {
   constructor(
-    solids = [
+    solids = accessCollisionSolids([
       ...collisionSolids,
       ...shopObstacles(),
       ...detailPostObstacles().map((p, i) => ({
@@ -67,7 +75,7 @@ export class StreetWorld {
           [p.x - p.w / 2, p.z + p.d / 2]
         ]
       }))
-    ],
+    ]),
     legacyBounds = true
   ) {
     this.cells = new Map();
@@ -112,6 +120,7 @@ export class StreetWorld {
   }
   surface(x, z, below = Infinity) {
     let y = groundHeight(x,z)+0.08;
+    const bridge=tabakeveBridgeHeight(x,z);if(bridge!==undefined&&bridge<=below)y=Math.max(y,bridge);
     for (const b of this.nearby(x, z)) {
       if (b.h > below) continue;
       let support = solidAt(b, x, z);
@@ -119,7 +128,7 @@ export class StreetWorld {
         for (const ring of [b.p, ...(b.holes || [])])
           for (let i = 0; i < ring.length; i++) {
             const q = nearest(x, z, ring[i], ring[(i + 1) % ring.length]);
-            if (Math.hypot(x - q[0], z - q[1]) <= 0.34) support = true;
+            if (Math.hypot(x - q[0], z - q[1]) <= 0.34 && edgeHasMaterial(b,ring[i],ring[(i+1)%ring.length],q)) support = true;
           }
       if (support) y = Math.max(y, b.h);
     }
@@ -133,7 +142,7 @@ export class StreetWorld {
       for (const ring of [b.p, ...(b.holes || [])])
         for (let i = 0; i < ring.length; i++) {
           const q = nearest(p.x, p.z, ring[i], ring[(i + 1) % ring.length]);
-          if (Math.hypot(p.x - q[0], p.z - q[1]) < radius) return false;
+          if (Math.hypot(p.x - q[0], p.z - q[1]) < radius && edgeHasMaterial(b,ring[i],ring[(i+1)%ring.length],q)) return false;
         }
     }
     return true;
@@ -148,7 +157,8 @@ export class StreetWorld {
         [0, dz / n]
       ]) {
         const q = { x: p.x + x, z: p.z + z, y: p.y };
-        const floor=groundHeight(q.x,q.z)+.08;
+        const bridge=tabakeveBridgeHeight(q.x,q.z);
+        const floor=Math.max(groundHeight(q.x,q.z)+.08,bridge!==undefined&&bridge<=p.y+Math.max(step,.14)?bridge:-Infinity);
         if(floor>p.y){if(floor-p.y>Math.max(step,.14)){hit=true;continue;}q.y=floor;}
         else if(step>0&&p.y-floor<.3)q.y=floor;
         if (!this.clearance(q, height)) {
@@ -172,8 +182,9 @@ export class StreetWorld {
       // Preserve river-bank and city-boundary handling. Ignore the legacy horizontal
       // building correction only where the 3D capsule has valid vertical clearance.
       const q = { x: p.x, z: p.z };
+      const bridge=tabakeveBridgeHeight(p.x,p.z),onBridge=bridge!==undefined&&p.y>=bridge-.16;
       if (
-        collide(q, 0.34) &&
+        !onBridge && collide(q, 0.34) &&
         !this.nearby(p.x, p.z).some((b) => solidAt(b, p.x, p.z))
       ) {
         p.x = q.x;
@@ -255,7 +266,7 @@ export class StreetWorld {
               q >= 0 &&
               q <= 1 &&
               y >= b.minY &&
-              y <= b.h
+              y <= b.h && edgeHasMaterial(b,v,w,[a.x+d.x*u,a.z+d.z*u])
             )
             {
               const length=Math.hypot(sx,sz),sign=(sz*d.x-sx*d.z)>0?-1:1;

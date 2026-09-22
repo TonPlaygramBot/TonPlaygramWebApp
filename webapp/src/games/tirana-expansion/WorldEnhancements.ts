@@ -1,3 +1,4 @@
+import {TabakeveQuarterLayer} from '../tirana-tabakeve/TabakeveQuarterLayer';
 import {DimensionalSigns} from '../tirana-street-life/DimensionalSigns';
 import {RegionalArchitecture} from '../tirana-regional-detail/RegionalArchitecture';
 import {TerrainLayer} from '../tirana-east/TerrainLayer';
@@ -65,6 +66,7 @@ export class WorldEnhancements extends ExistingEnhancements {
   readonly neighbourhood: NeighbourhoodLayer;
   readonly cityCompletion: CityCompletionLayer;
   readonly facadeCompletion: FacadeCompletionLayer;
+  readonly tabakeve: TabakeveQuarterLayer;
   constructor(options: StreetDetailOptions = {}) {
     super();
     this.tradeDetails=new StreetLifeLayer({storefronts:NEIGHBOURHOOD.storefronts.filter(s=>['hairdresser','bakery','cafe','fast_food'].includes(s.shop||s.kind)||/barber|berber|hair/i.test(s.name)),stops:[],fuel:[],advertising:[]} as any,options,false,true);
@@ -75,6 +77,8 @@ export class WorldEnhancements extends ExistingEnhancements {
     this.group.add(this.dimensionalSigns.group,this.regionalArchitecture.group,this.terrain.group,this.housing.group,this.eastern.group,this.sourceCable.group);
     this.cityCompletion=new CityCompletionLayer(options);
     this.facadeCompletion=new FacadeCompletionLayer();
+    this.tabakeve=new TabakeveQuarterLayer(options);
+    this.group.add(this.tabakeve.group);
     this.group.add(this.cityCompletion.group,this.facadeCompletion.group);
     this.neighbourhood=new NeighbourhoodLayer(options);
     this.streetLife=new StreetLifeLayer(undefined,options);
@@ -144,6 +148,7 @@ export class WorldEnhancements extends ExistingEnhancements {
     this.neighbourhood.update(seconds,viewer,battery);
     this.cityCompletion.update(seconds,viewer,battery);
     this.facadeCompletion.update(seconds,viewer,battery);
+    this.tabakeve.update(seconds,viewer,battery);
   }
   override retire() {
     this.regionalArchitecture.retire();
@@ -161,6 +166,7 @@ export class WorldEnhancements extends ExistingEnhancements {
     this.neighbourhood.retire();
     this.cityCompletion.retire();
     this.facadeCompletion.retire();
+    this.tabakeve.retire();
     super.retire();
   }
   override dispose() {
@@ -182,6 +188,7 @@ export class WorldEnhancements extends ExistingEnhancements {
     this.neighbourhood.dispose();
     this.cityCompletion.dispose();
     this.facadeCompletion.dispose();
+    this.tabakeve.dispose();
     super.dispose();
   }
 }

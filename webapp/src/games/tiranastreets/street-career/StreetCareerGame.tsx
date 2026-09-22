@@ -25,6 +25,8 @@ import {FrameRateControl} from '../FrameRateControl';
 import { difficultyOf, WEAPON_BY_ID } from '../shared/weapons.mjs';
 import { wantedStars } from '../shared/cityLife.mjs';
 import { MISSION_REQUIREMENTS } from './campaignCore.mjs';
+import {PoliceCareerPanel} from './PoliceCareerPanel';
+import {AccessEquipmentControls} from './AccessEquipmentControls';
 import '../city.css';
 import './street-career.css';
 const storage = () => {
@@ -45,7 +47,7 @@ export function StreetCareerGame({ onExit }: { onExit: () => void }) {
     [loading, setLoading] = useState('Loading Tirana'),
     [difficulty, setDifficulty] = useState('normal');
   const [session, setSession] = useState(0);
-  const [journalPage, setJournalPage] = useState<'jobs' | 'settings'>('jobs');
+  const [journalPage, setJournalPage] = useState<'jobs' | 'police' | 'settings'>('jobs');
   useEffect(() => {
     setError('');
     setView(null);
@@ -62,7 +64,7 @@ export function StreetCareerGame({ onExit }: { onExit: () => void }) {
           },
           storage(),
           (p) => {
-            if (!cancelled) setPanel(p);
+            if (!cancelled) { setPanel(p); if(g?.policeProfile.lastResult)setJournalPage('police'); }
           }
         );
         runtime.current = g;
@@ -101,7 +103,7 @@ export function StreetCareerGame({ onExit }: { onExit: () => void }) {
   const open = (p: Panel) => {
     runtime.current?.pause();
     reset();
-    if (p === 'journal') setJournalPage('jobs');
+    if (p === 'journal') setJournalPage(view?.police?'police':'jobs');
     setPanel(p);
   };
   const resume = () => {
@@ -169,7 +171,7 @@ export function StreetCareerGame({ onExit }: { onExit: () => void }) {
     target = mission?.stops[p?.index || 0];
   return (
     <main
-      className={`tsc ${driving?'is-driving':flying?'is-flying':'is-on-foot'}${view?.settings.leftHanded?' is-left-handed':''}${mission?' has-mission':''}`}
+      className={`tsc ${driving?'is-driving':flying?'is-flying':'is-on-foot'}${view?.settings.leftHanded?' is-left-handed':''}${mission||view?.police?' has-mission':''}`}
       style={
         {
           '--action-size': `${view?.settings.buttonSize || 54}px`,
@@ -186,7 +188,7 @@ export function StreetCareerGame({ onExit }: { onExit: () => void }) {
         onContextMenu={(e) => e.preventDefault()}
       />
       <header className="tsc-header">
-        <strong>TIRANA STREETS<small>STREET CAREER</small></strong>
+        <strong>TIRANA STREETS<small>{view?.police?`${view.police.unit.name} · NË DETYRË`:'STREET CAREER'}</small></strong>
         <button className="tsc-map-button" aria-label="Open city map" onClick={() => open('map')}>MAP</button>
         <button className="tsc-menu-button" onClick={() => open('journal')}>MENU</button>
         <button onClick={onExit}>EXIT</button>
@@ -207,6 +209,13 @@ export function StreetCareerGame({ onExit }: { onExit: () => void }) {
             <span className={p.wanted > 0 ? 'is-wanted' : ''}>{'★'.repeat(wantedStars(p.wanted)) || 'NO PURSUIT'}</span>
           </div>
           <div className="tsc-overview">
+            {view.police && <section className="tsc-objective tsc-police-objective">
+              <MissionReadout label="Operacioni policor" eyebrow={`${view.police.unit.name} · ${view.police.mission.title}`}
+                title={view.objective.title} detail={view.objective.detail}
+                remaining={Math.max(0,view.police.mission.time-view.police.run.elapsed)} progress={view.objective.progress}
+                meta={[`Faza ${Math.min(view.police.run.stage+1,view.police.mission.steps.length)} / ${view.police.mission.steps.length}`,
+                  ...(view.police.run.channel?[`${Math.ceil(view.objective.remaining||0)}s`]:['Mbro civilët'])]}/>
+            </section>}
             {mission && <section className="tsc-objective">
               <MissionReadout label="Current mission" eyebrow={mission.title}
                 title={view.state.phase === 'finished' ? view.state.message : view.objective.title}
@@ -225,6 +234,7 @@ export function StreetCareerGame({ onExit }: { onExit: () => void }) {
           <nav className="tsc-tools" aria-label="Vehicle controls">
             {driving && <button aria-label="Change driving camera view" onClick={()=>{const next=vehicleView==='cockpit'?'chase':'cockpit';setVehicleView(next);if(runtime.current)runtime.current.renderer.vehicleView=next;}}>CAMERA · {vehicleView==='cockpit'?'COCKPIT':'CHASE'}</button>}
           </nav>
+          {!driving&&!flying&&<AccessEquipmentControls actions={view.actions} onAction={id=>{runtime.current?.action(id);}}/>}
           {!driving && !flying && <WeaponSwitcher
             selected={p.weapon || ''}
             disabled={p.health <= 0 || p.finished || p.failed || !!p.arrest && p.arrest.phase!=='pursuit'}
@@ -360,8 +370,13 @@ export function StreetCareerGame({ onExit }: { onExit: () => void }) {
                   <>
                     <nav className="tsc-journal-tabs" aria-label="Career menu">
                       <button aria-pressed={journalPage === 'jobs'} onClick={() => setJournalPage('jobs')}>JOBS & PROGRESS</button>
+                      <button aria-pressed={journalPage === 'police'} onClick={() => setJournalPage('police')}>POLICIA</button>
                       <button aria-pressed={journalPage === 'settings'} onClick={() => setJournalPage('settings')}>SETTINGS</button>
                     </nav>
+                    {journalPage === 'police' && <PoliceCareerPanel profile={view.policeProfile} duty={view.police} streetBusy={!!view.profile.active}
+                      onUnit={id=>{runtime.current?.selectPoliceUnit(id);}}
+                      onStart={id=>{if(runtime.current?.startPolice(id))setPanel(null);}}
+                      onResume={resume} onEnd={()=>{runtime.current?.explore();setPanel(null);}}/>}
                     {journalPage === 'settings' && <section aria-label="Graphics and performance">
                       <h3>Graphics & performance</h3>
                       <FrameRateControl value={view.settings.targetFps} onChange={targetFps => runtime.current?.setSettings({targetFps})}/>
@@ -441,7 +456,7 @@ export function StreetCareerGame({ onExit }: { onExit: () => void }) {
                         <option value="hard">Veteran</option>
                       </select>
                     </label>
-                    {!view.profile.active && <section aria-label="Available jobs">
+                    {!view.profile.active && !view.policeProfile.active && <section aria-label="Available jobs">
                       <h3>Next jobs</h3>
                       <div className="tsc-chapters">
                         {campaign.chapters.filter(m=>campaign.available(view.profile,m.id)&&!view.profile.completed.includes(m.id)).slice(0,3).map(m=><button key={m.id} onClick={()=>start(m.id)}>
@@ -451,13 +466,13 @@ export function StreetCareerGame({ onExit }: { onExit: () => void }) {
                         {view.profile.completed.length===campaign.chapters.length&&<p>All jobs completed. Explore freely or replay a chapter below.</p>}
                       </div>
                     </section>}
-                    {view.profile.active&&<p>Finish your current job or end it to choose another.</p>}
+                    {(view.profile.active||view.policeProfile.active)&&<p>Finish your current job or end duty to choose another.</p>}
                     <details><summary>All chapters & replays</summary>
                     <div className="tsc-chapters">
                       {campaign.chapters.map((m, i) => (
                         <button
                           key={m.id}
-                          disabled={!!view.profile.active || !campaign.available(view.profile,m.id)}
+                          disabled={!!view.profile.active || !!view.policeProfile.active || !campaign.available(view.profile,m.id)}
                           onClick={() => start(m.id)}
                         >
                           <strong>
@@ -579,7 +594,7 @@ export function StreetCareerGame({ onExit }: { onExit: () => void }) {
                     routeNotice={view.routeNotice}
                     jobs={campaign.chapters.map(m => ({id:m.id,name:m.title,detail:m.description,available:campaign.available(view.profile,m.id),completed:view.profile.completed.includes(m.id),active:view.state.phase!=='finished'&&m.id===view.state.missionId,point:m.stops[0]}))}
                     onStartJob={start}
-                    task={mission ? {name:view.objective.title,detail:view.objective.detail,point:target} : undefined}
+                    task={view.police?.target?{name:view.objective.title,detail:view.objective.detail,point:view.police.target}:mission ? {name:view.objective.title,detail:view.objective.detail,point:target} : undefined}
                   />
                 )}
                 {!view.storageOK && (

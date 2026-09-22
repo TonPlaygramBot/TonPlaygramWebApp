@@ -54,3 +54,51 @@ test('mechanically disabled paint stays recognizable; fire damage is charred',()
   assert.equal(burnt.charred,true);assert.ok(burnt.brightness<.3);
   assert.equal(vehicleDamageAppearance({health:140}).brightness,1);
 });
+
+test('actual glazing gets cracks and shards while nearby wall hits retain masonry feedback',()=>{
+  const scene=new T.Scene(),pane=new T.Mesh(new T.PlaneGeometry(1,1),new T.MeshStandardMaterial());
+  pane.userData.windows=true;pane.position.set(0,1,.055);scene.add(pane);scene.updateMatrixWorld(true);
+  const calls=[],marks=new SurfaceImpactMarks();scene.add(marks.mesh);
+  marks.bindEnvironment(scene,(point,normal,material)=>calls.push({point:point.clone(),normal:normal.clone(),material}));
+  marks.update([hit(1),hit(2,{x:2})],0,()=>undefined);
+  assert.deepEqual(calls.map(c=>c.material),['glass','wall']);assert.ok(Math.abs(calls[0].point.z-.055)<1e-6);
+  assert.equal(marks.mesh.count,2);assert.equal(marks.mesh.geometry.getAttribute('markStyle').getX(0),3);
+  const matrix=new T.Matrix4();pane.position.x=3;
+  marks.update([],1,()=>undefined);marks.mesh.getMatrixAt(0,matrix);
+  assert.ok(Math.abs(new T.Vector3().setFromMatrixPosition(matrix).x-3)<1e-6,'rotating café glazing keeps its own impact anchored');
+  marks.update([],91,()=>undefined);assert.equal(marks.mesh.count,0);marks.dispose();
+});
+
+test('glazing lookup ignores hidden panes, excluded props, actor accessories and unrelated distant windows',()=>{
+  for(const excluded of ['hidden','prop','actor','distant']){
+    const scene=new T.Scene(),root=new T.Group(),pane=new T.Mesh(new T.PlaneGeometry(1,1),new T.MeshStandardMaterial({name:'glass'}));
+    root.add(pane);scene.add(root);pane.position.set(0,1,excluded==='distant'?1:.055);
+    if(excluded==='hidden')root.visible=false;
+    if(excluded==='prop')root.userData.surfaceImpactExclude=true;
+    if(excluded==='actor')root.userData.rigPoseOwner='shared-human';
+    const materials=[],marks=new SurfaceImpactMarks();marks.bindEnvironment(scene,(_p,_n,m)=>materials.push(m));
+    marks.update([hit(1)],0,()=>undefined);assert.deepEqual(materials,['wall'],excluded);marks.dispose();
+  }
+});
+
+test('vehicle glass impacts stay attached and glass coalesces without duplicate event feedback',()=>{
+  const scene=new T.Scene(),car=new T.Group();scene.add(car);
+  car.add(new T.Mesh(new T.BoxGeometry(2,2,4),new T.MeshStandardMaterial({name:'windscreen_glass'})));
+  const materials=[],marks=new SurfaceImpactMarks();marks.bindEnvironment(scene,(_p,_n,m)=>materials.push(m));
+  const event=hit(1,{hitKind:'car',objectId:'car',x:1.1,y:0,z:0,nx:1,ny:0,nz:0});
+  marks.update([event,event,{...event,id:2}],0,()=>car);
+  assert.deepEqual(materials,['glass','glass']);assert.equal(marks.mesh.count,1);
+  car.position.set(4,0,5);car.rotation.y=Math.PI/2;marks.update([],1,()=>car);
+  const matrix=new T.Matrix4();marks.mesh.getMatrixAt(0,matrix);
+  assert.ok(new T.Vector3().setFromMatrixPosition(matrix).distanceTo(new T.Vector3(4,0,3.988))<.001);
+  marks.update([],1,()=>car,'car');assert.equal(marks.mesh.count,0);marks.dispose();
+});
+
+test('material feedback and marks respect the mobile burst and distance budget',()=>{
+  const scene=new T.Scene(),calls=[],marks=new SurfaceImpactMarks(96);marks.bindEnvironment(scene,(_p,_n,m)=>calls.push(m));
+  const events=Array.from({length:200},(_,i)=>hit(i+1,{x:i%10}));
+  marks.update(events,0,()=>undefined,undefined,{x:0,z:0},true);
+  assert.equal(calls.length,8);assert.ok(marks.marks.length<=96);assert.ok(marks.mesh.count<=58);
+  marks.update([hit(201,{x:1000})],1,()=>undefined,undefined,{x:0,z:0},true);assert.equal(calls.length,8);
+  marks.update([],91,()=>undefined);assert.equal(marks.mesh.count,0);marks.dispose();
+});
