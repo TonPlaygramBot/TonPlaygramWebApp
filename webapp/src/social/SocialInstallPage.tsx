@@ -11,7 +11,7 @@ export default function SocialInstallPage() {
       <img src="/social-app/icon.svg" alt="" width="88" height="88" />
       <span className="social-eyebrow">YOUR COMMUNITY, IN YOUR POCKET</span>
       <h1>TonPlayGram<br /><em>Social.</em></h1>
-      <p>The wall, your friends, and your chats.<br />One app, with its own home screen icon.</p>
+      <p>The wall, your people, your studio.<br />One app, with its own home screen icon.</p>
       <button className="social-primary" disabled={state.pending || state.installed} onClick={async () => {
         const outcome = await installSocial();
         setNotice(outcome === 'accepted' ? 'Finish the installation on your device, then open the Social icon.' : outcome === 'dismissed' ? 'No problem. You can install whenever you’re ready.' : 'Follow the steps below to add Social to your home screen.');
@@ -19,7 +19,7 @@ export default function SocialInstallPage() {
       {(notice || state.error) && <p className="social-install-notice" role="status">{state.error || notice}</p>}
       <Link className="social-text-link" to="/wall">Continue to the wall <ArrowUpRight size={16} /></Link>
     </div>
-    <div className="social-install-features"><span>Videos & posts</span><span>Chats & friends</span><span>One social profile</span></div>
+    <div className="social-install-features"><span>Videos & posts</span><span>Chats & friends</span><span>Creator Studio</span></div>
     <section className="social-install-steps" aria-label="Installation instructions">
       <h2><Smartphone size={20} /> Add to your home screen</h2>
       <div><strong>iPhone or iPad</strong><p>Open this page in Safari. Tap Share → Add to Home Screen → Add.</p></div>
@@ -27,6 +27,6 @@ export default function SocialInstallPage() {
       <button className="social-secondary" onClick={openSocialInBrowser}>Open in browser <ArrowUpRight size={17} /></button>
       <p className="social-muted">Already have the main TonPlayGram app? Your browser may show the menu option instead of an install popup. Choose the icon named “TPG Social”.</p>
     </section>
-    <section className="social-install-steps"><h2>Still your TonPlayGram</h2><p>Your wall, profile, friends, and conversations use the same platform. In a different browser, sign in with your existing account.</p><a className="social-text-link" href="/account">Account settings <ArrowUpRight size={16} /></a></section>
+    <section className="social-install-steps"><h2>Still your TonPlayGram</h2><p>Your wall, profile, conversations, and connected Studio accounts use the same platform. In a different browser, sign in with your existing account.</p><a className="social-text-link" href="/account">Account settings <ArrowUpRight size={16} /></a></section>
   </main>;
 }
