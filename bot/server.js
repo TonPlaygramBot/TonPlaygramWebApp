@@ -347,7 +347,9 @@ bot.action(/^reject_invite:(.+)/, async (ctx) => {
 });
 
 // Middleware and routes
-app.use(helmet({ contentSecurityPolicy }));
+// Google sign-in also opens after client-side navigation from Home, so the
+// initial app document must retain its sign-in popup's opener relationship.
+app.use(helmet({ contentSecurityPolicy, crossOriginOpenerPolicy: { policy: 'same-origin-allow-popups' } }));
 app.use(compression());
 app.use('/api/protest-videos', protestVideoRoutes);
 app.use('/api/flamingo-wall/social', wallProfileRoutes);
