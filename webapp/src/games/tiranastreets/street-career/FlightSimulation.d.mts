@@ -5,7 +5,7 @@ export class FlightSimulation {
  constructor(sim:StreetSimulation);
  aircraft:Aircraft[];
  readonly current:Aircraft|undefined;
- access(a:Aircraft):Point;
+ access(a:Aircraft):Point&{y:number};
  board(id:string):boolean;
  canExit():boolean;
  exit():boolean;

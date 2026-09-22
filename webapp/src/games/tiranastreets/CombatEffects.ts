@@ -30,10 +30,12 @@ export class CombatEffects {
   private patched=new Map<T.Material,{compile:T.Material['onBeforeCompile'];key:T.Material['customProgramCacheKey']}>();
   constructor(scene:T.Scene) {
     this.group.name='Tirana:combat-effects';scene.add(this.group);const impactGroup=new T.Group();impactGroup.name='Ludo missile impacts';this.group.add(impactGroup);this.ludoImpact=new LudoImpactVisuals(impactGroup);
-    for(let kind=0;kind<7;kind++) {
-      const capacity=kind===1?120:kind===2?160:kind===3?80:kind===4?48:64;
-      const geometry=(kind<2||kind>=5)?new T.PlaneGeometry(1,1):kind===3||kind===4?new T.CylinderGeometry(.5,.5,1,10).rotateX(Math.PI/2):new T.BoxGeometry(1,1,1);
-      const material=kind===2||kind===3 ? new T.MeshStandardMaterial({roughness:kind===3?.3:.95,metalness:kind===3?.75:0,transparent:true,depthWrite:true})
+    for(let kind=0;kind<8;kind++) {
+      const capacity=kind===7?72:kind===1?120:kind===2?160:kind===3?80:kind===4?48:64;
+      const billboard=kind<2||kind===5||kind===6;
+      const geometry=kind===7?new T.BufferGeometry().setAttribute('position',new T.Float32BufferAttribute([-.5,-.4,0,.5,-.2,0,-.1,.6,0],3)):billboard?new T.PlaneGeometry(1,1):kind===3||kind===4?new T.CylinderGeometry(.5,.5,1,10).rotateX(Math.PI/2):new T.BoxGeometry(1,1,1);
+      if(kind===7)geometry.computeVertexNormals();
+      const material=kind===2||kind===3||kind===7 ? new T.MeshStandardMaterial({roughness:kind===7?.12:kind===3?.3:.95,metalness:kind===3?.75:0,transparent:true,depthWrite:kind!==7,side:kind===7?T.DoubleSide:T.FrontSide})
         : new T.MeshBasicMaterial({transparent:true,depthWrite:false,blending:kind===0||kind===4?T.AdditiveBlending:T.NormalBlending,side:T.DoubleSide});
       material.onBeforeCompile=shader=>{
         shader.vertexShader='attribute float particleAlpha; varying float vParticleAlpha;\n'+shader.vertexShader;
@@ -41,10 +43,10 @@ export class CombatEffects {
         shader.fragmentShader='varying float vParticleAlpha;\n'+shader.fragmentShader;
         shader.fragmentShader=shader.fragmentShader.replace('#include <color_fragment>',`#include <color_fragment>
           diffuseColor.a *= vParticleAlpha;
-          ${kind<2||kind>=5?'float r=length(vUv-.5)*2.; diffuseColor.a*=(1.-smoothstep(.25,1.,r)); if(diffuseColor.a<.015)discard;':''}`);
+          ${billboard?'float r=length(vUv-.5)*2.; diffuseColor.a*=(1.-smoothstep(.25,1.,r)); if(diffuseColor.a<.015)discard;':''}`);
       };
       // Billboard smoke and flame use UVs even without a texture map.
-      if(kind<2||kind>=5)material.defines={USE_UV:''};
+      if(billboard)material.defines={USE_UV:''};
       material.customProgramCacheKey=()=>`tirana-particle-${kind}`;
       const mesh=new T.InstancedMesh(geometry,material,capacity);
       const alpha=new T.InstancedBufferAttribute(new Float32Array(capacity),1);
@@ -76,6 +78,11 @@ export class CombatEffects {
   surfaceHit(at:Point,normal:Point={x:0,y:1,z:0},kind='wall',floor=0){
     if(![at.x,at.y,at.z,normal.x,normal.y,normal.z,floor].every(Number.isFinite))return;
     const length=Math.hypot(normal.x,normal.y,normal.z)||1;
+    if(kind==='glass'){
+      // Angular lightweight shards fall and bounce; no new geometry per hit.
+      for(let i=0;i<9;i++)this.particle(7,at,{x:normal.x/length*(.7+Math.random()*1.5)+(Math.random()-.5)*1.1,y:normal.y/length*1.2+.4+Math.random()*1.1,z:normal.z/length*(.7+Math.random()*1.5)+(Math.random()-.5)*1.1},.55+Math.random()*.85,.025+Math.random()*.055,floor);
+      return;
+    }
     for(let i=0;i<4;i++)this.particle(2,at,{x:normal.x/length*(.7+Math.random())+(Math.random()-.5),y:normal.y/length*1.4+Math.random(),z:normal.z/length*(.7+Math.random())+(Math.random()-.5)},.25+Math.random()*.15,kind==='car'?.017:.03,floor);
     if(kind==='car')this.particle(0,at,{x:normal.x*.2,y:normal.y*.2,z:normal.z*.2},.06,.12,floor);
     else this.particle(5,at,{x:normal.x*.2,y:.3+Math.max(0,normal.y)*.2,z:normal.z*.2},.45,.17,floor);
@@ -116,14 +123,14 @@ export class CombatEffects {
       {x:(Math.random()-.5)*4,y:Math.random()*3,z:(Math.random()-.5)*4},2+Math.random()*3,.12+Math.random()*.38,floor);
     this.dust(at,radius,floor);
   }
-  consume(events:Event[],floor:(x:number,z:number)=>number=()=>0) {
+  consume(events:Event[],floor:(x:number,z:number)=>number=()=>0,surfaceFeedback=true) {
     for(const e of events){
       if(e.id<=this.lastEvent)continue;this.lastEvent=e.id;
       const p={x:e.x,y:e.y??floor(e.x,e.z)+1.3,z:e.z};
       if(e.kind==='shot')this.shot(p,{x:e.toX,y:e.toY??floor(e.toX,e.toZ)+1.2,z:e.toZ},floor(e.x,e.z),e.ejectX!==undefined?{x:e.ejectX,y:e.ejectY!,z:e.ejectZ!}:undefined,e.weapon);
       if(e.kind==='blast'){this.ludoImpact.spawn(p,e.radius||11);this.demolition(p,Math.min(4,e.radius||4),floor(e.x,e.z));}
       if(['vehicle-explosion','explosion'].includes(e.kind))this.explosion(p,e.radius||8,floor(e.x,e.z));
-      if(e.kind==='hit')this.surfaceHit(p,{x:e.nx??0,y:e.ny??1,z:e.nz??0},e.hitKind,floor(e.x,e.z));
+      if(e.kind==='hit'&&surfaceFeedback)this.surfaceHit(p,{x:e.nx??0,y:e.ny??1,z:e.nz??0},e.hitKind,floor(e.x,e.z));
       if(e.kind==='blood')this.blood(p,{x:e.toX,y:e.toY??.15,z:e.toZ},Number.isFinite(e.floorY)?e.floorY!:floor(e.x,e.z));
       if(e.kind==='crash'){this.dust(p,e.radius||2,floor(e.x,e.z));for(let i=0;i<12;i++)this.particle(2,p,{x:(Math.random()-.5)*6,y:Math.random()*3,z:(Math.random()-.5)*6},.65,.03,floor(e.x,e.z));}
       if(e.kind==='fracture')this.demolition(p,e.radius||4,floor(e.x,e.z));
@@ -198,12 +205,12 @@ export class CombatEffects {
         p.rendered=true;
         if(p.age>=p.life){pool.items.splice(i,1);pool.free.push(p);continue;}
         if(k===1||k===5){const blend=1-Math.exp(-step*.25);p.v.x+=(.22-p.v.x)*blend;p.v.z+=(.12-p.v.z)*blend;}
-        if(k!==4){p.p.addScaledVector(p.v,step);if(k===2||k===3||k===6){p.p.y-=4.905*step*step;p.v.y-=9.81*step;p.spin+=step*5;}}
-        if(k===2||k===3)p.v.multiplyScalar(Math.exp(-step*.22));
+        if(k!==4){p.p.addScaledVector(p.v,step);if(k===2||k===3||k===6||k===7){p.p.y-=4.905*step*step;p.v.y-=9.81*step;p.spin+=step*5;}}
+        if(k===2||k===3||k===7)p.v.multiplyScalar(Math.exp(-step*.22));
         if(k===6&&p.p.y<=p.floor+.02){this.bloodMarks.add(p.p.x,p.floor,p.p.z,p.size*2.5);pool.items.splice(i,1);pool.free.push(p);continue;}
-        if((k===2||k===3)&&p.p.y<p.floor+.03){p.p.y=p.floor+.03;p.v.y=Math.abs(p.v.y)*.22;p.v.x*=.7;p.v.z*=.7;}
+        if((k===2||k===3||k===7)&&p.p.y<p.floor+.03){p.p.y=p.floor+.03;p.v.y=Math.abs(p.v.y)*.22;p.v.x*=.7;p.v.z*=.7;}
       }
-      const budget=battery?Math.ceil(pool.capacity*.55):pool.capacity,range=k===6?(battery?40:75):k===3?(battery?35:65):(battery?160:300);
+      const budget=battery?Math.ceil(pool.capacity*.55):pool.capacity,range=k===7?(battery?40:75):k===6?(battery?40:75):k===3?(battery?35:65):(battery?160:300);
       let count=0;
       for(let i=pool.items.length-1;i>=0&&count<budget;i--){
         const p=pool.items[i],t=Math.min(1,p.age/p.life);
@@ -218,10 +225,10 @@ export class CombatEffects {
           this.transform.quaternion.setFromUnitVectors(this.trailUp,this.trailDirection);
           this.transform.scale.set(p.size,p.size,span.length);
         }
-        else{this.transform.rotation.set(p.spin,p.spin*.7,p.spin*.3);this.transform.scale.set(p.size,p.size,k===3?p.caseLength??p.size*2.8:p.size);}
+        else{this.transform.rotation.set(p.spin,p.spin*.7,p.spin*.3);this.transform.scale.set(p.size,p.size,k===3?p.caseLength??p.size*2.8:k===7?p.size*.6:p.size);}
         this.transform.updateMatrix();pool.mesh.setMatrixAt(count,this.transform.matrix);
-        this.color.set(k===0?(t<.25?0xffedbc:t<.65?0xffa336:0xb13912):k===1?0x555559:k===2?0x82796b:k===3?0xc5a34a:k===5?0xa79a84:k===6?0x741e1b:0xffd794);
-        pool.mesh.setColorAt(count,this.color);pool.alpha.setX(count,k===4?Math.max(.3,1-t):(1-t)*(k===1||k===5?.45:1));count++;
+        this.color.set(k===0?(t<.25?0xffedbc:t<.65?0xffa336:0xb13912):k===1?0x555559:k===2?0x82796b:k===3?0xc5a34a:k===5?0xa79a84:k===6?0x741e1b:k===7?0xc3e6ee:0xffd794);
+        pool.mesh.setColorAt(count,this.color);pool.alpha.setX(count,k===4?Math.max(.3,1-t):(1-t)*(k===1||k===5?.45:k===7?.78:1));count++;
       }
       pool.mesh.count=count;
       pool.mesh.instanceMatrix.needsUpdate=true;if(pool.mesh.instanceColor)pool.mesh.instanceColor.needsUpdate=true;pool.alpha.needsUpdate=true;

@@ -5,6 +5,7 @@ import {AutomaticGraphics, GRAPHICS_PROFILES, graphicsSetting, type GraphicsPres
 import {BikeVisuals} from './BikeVisuals';
 import {prepareModelWheels,prepareLegacyWheels,collectRollingWheels,rollWheels,type RollingWheel} from './rollingWheels';
 import {selectedPlayerUrl} from './playerCatalog.mjs';
+import {FORCE_ASSET_BY_ID} from './shared/albanianForces.mjs';
 import {normalizePlayableHuman, humanoidBones, HumanoidLegPose, solveHumanoidLimb, hideAuthoredPlayerWeapon} from './street-career/humanoidRig.mjs';
 import {groundHeight} from '../tirana-east/terrainCore.mjs';
 import {LandscapeVisuals} from './landscapeVisuals';
@@ -46,6 +47,62 @@ import { MAPPED_TREES } from '../tirana-city-source/registry.mjs';
 import {MATURE_TREE_IDS,FUEL_CANOPY_IDS} from '../tirana-street-life/registry.mjs';
 
 const ASSETS = "/assets/tirana-streets/";
+// Only these three catalog entries can become the local career uniform. This
+// also bounds the optional source/animation cache to three human models.
+const DUTY_UNIFORMS = new Set(['shqiponja_officer', 'fnsh_officer', 'renea_officer']);
+
+/** The original uniforms use MakeHuman joints. Adapt only this private player
+ * template; NPC skeletons and the authored force clips remain unchanged. */
+export function prepareDutyPlayerModel(scene: THREE.Group, animations: THREE.AnimationClip[]) {
+  const renamed = new Map<string, string>();
+  const names = new Map<string, string>();
+  if (scene.getObjectByName(THREE.PropertyBinding.sanitizeNodeName('upperarm01.L'))) {
+    for (const [source, target] of Object.entries({root:'hips', spine05:'spine', spine04:'spine1', spine03:'spine2', spine02:'spine3', spine01:'spine4', neck01:'neck', neck02:'neck1', neck03:'neck2'})) names.set(source, target);
+    for (const [suffix, side] of [['L', 'left'], ['R', 'right']]) {
+      for (const [source, target] of Object.entries({clavicle:'shoulder', upperarm01:'arm', lowerarm01:'forearm', wrist:'hand', upperleg01:'upleg', lowerleg01:'leg', foot:'foot'})) {
+        names.set(THREE.PropertyBinding.sanitizeNodeName(`${source}.${suffix}`), side + target);
+      }
+      for (const [index, finger] of ['thumb', 'index', 'middle', 'ring', 'pinky'].entries()) for (let joint = 1; joint <= 3; joint++) {
+        names.set(THREE.PropertyBinding.sanitizeNodeName(`finger${index + 1}-${joint}.${suffix}`), `${side}hand${finger}${joint}`);
+      }
+    }
+    scene.traverse(node => {
+      const name = node instanceof THREE.Bone ? names.get(node.name) : undefined;
+      if (name) { renamed.set(node.name, name); node.name = name; }
+    });
+  }
+  const clips = animations.map(source => {
+    const clip = source.clone();
+    for (const track of clip.tracks) {
+      const node = THREE.PropertyBinding.parseTrackName(track.name).nodeName;
+      const name = renamed.get(node);
+      if (name) track.name = track.name.replace(node + '.', name + '.');
+    }
+    return clip;
+  });
+  // The force pack ships Idle/Walk only. A private faster walk supplies the
+  // existing body controller's Run fallback while its own arm IK handles aim.
+  if (!clips.some(clip => /^(run|sprint)$/i.test(clip.name))) {
+    const walk = clips.find(clip => /^walk$/i.test(clip.name));
+    if (walk) {
+      const run = walk.clone(); run.name = 'Run'; run.duration /= 2;
+      for (const track of run.tracks) track.scale(.5);
+      clips.push(run);
+    }
+  }
+  const model = normalizePlayableHuman(scene);
+  hideAuthoredPlayerWeapon(model);
+  model.traverse(node => {
+    if (!(node instanceof THREE.Mesh)) return;
+    node.castShadow = true; node.receiveShadow = true;
+    for (const material of Array.isArray(node.material) ? node.material : [node.material]) {
+      if (!(material instanceof THREE.MeshStandardMaterial)) continue;
+      if (material.map) material.map.colorSpace = THREE.SRGBColorSpace;
+      if (material.emissiveMap) material.emissiveMap.colorSpace = THREE.SRGBColorSpace;
+    }
+  });
+  return {model, clips};
+}
 const Y = new THREE.Vector3(0, 1, 0);
 const tmp = new THREE.Object3D();
 const smoothAngle = (a: number, b: number, t: number) =>
@@ -91,6 +148,10 @@ export class CityRenderer {
   private observer: ResizeObserver;
   private playerModel='character';
   private playerAnimations:THREE.AnimationClip[]=[];
+  private dutyAnimations = new Map<string, THREE.AnimationClip[]>();
+  private dutyPending = new Map<string, AbortController>();
+  private dutyRetryAt = new Map<string, number>();
+  private dutyLoader?: GLTFLoader;
   private models = new Map<string, THREE.Group>();
   private actors = new Map<string, Actor>();
   private animations: THREE.AnimationClip[] = [];
@@ -802,25 +863,75 @@ export class CityRenderer {
       void Promise.allSettled(pending).then(() => draco.dispose());
     }
   }
+  private localPlayerModel(player: {id: string; forceCharacter?: string}) {
+    const id = player.forceCharacter;
+    if (!id || !DUTY_UNIFORMS.has(id)) return this.playerModel;
+    const key = `duty-player:${id}`;
+    if (this.models.has(key)) return key;
+    void this.loadDutyPlayer(id);
+    // A network request never replaces a visible player with an empty group.
+    const current = this.actors.get(`player-${player.id}`);
+    return current?.group.children.length ? current.model : this.playerModel;
+  }
+  private async loadDutyPlayer(id: string) {
+    const asset = DUTY_UNIFORMS.has(id) ? FORCE_ASSET_BY_ID.get(id) : undefined;
+    const key = `duty-player:${id}`;
+    if (this.disposed || asset?.category !== 'person' || this.models.has(key) ||
+        this.dutyPending.size || (this.dutyRetryAt.get(id) || 0) > this.clock) return;
+    const abort = new AbortController();
+    this.dutyPending.set(id, abort);
+    const timer = setTimeout(() => abort.abort(), 45000);
+    let source: THREE.Group | undefined;
+    try {
+      const response = await fetch(asset.url, {signal: abort.signal});
+      if (!response.ok) throw Error(`Uniform HTTP ${response.status}`);
+      const bytes = await response.arrayBuffer();
+      if (this.disposed) return;
+      this.dutyLoader ||= new GLTFLoader();
+      const gltf = await this.dutyLoader.parseAsync(bytes, asset.url.slice(0, asset.url.lastIndexOf('/') + 1));
+      source = gltf.scene;
+      if (this.disposed) return;
+      const {model, clips} = prepareDutyPlayerModel(source, gltf.animations);
+      this.models.set(key, model);
+      this.dutyAnimations.set(key, clips);
+      this.dutyRetryAt.delete(id);
+      source = undefined;
+    } catch (error) {
+      if (!this.disposed) {
+        this.dutyRetryAt.set(id, this.clock + 30);
+        console.warn('Career uniform unavailable; current player retained', id, error);
+      }
+    } finally {
+      if (source) this.disposeObject(source);
+      clearTimeout(timer);
+      this.dutyPending.delete(id);
+    }
+  }
   private actor(model: string, id: string): Actor {
     const existing = this.actors.get(id);
     if (existing && existing.model === model && (existing.group.children.length || !this.models.has(model))) return existing;
     if (existing) {
       existing.mixer?.stopAllAction();
+      existing.mixer?.uncacheRoot(existing.group);
+      const skeletons = new Set<THREE.Skeleton>();
+      existing.group.traverse(node => { if (node instanceof THREE.SkinnedMesh) skeletons.add(node.skeleton); });
+      skeletons.forEach(skeleton => skeleton.dispose());
       existing.group.removeFromParent();
       this.actors.delete(id);
     }
     const template = this.models.get(model);
+    const dutyAnimations = this.dutyAnimations.get(model);
+    const human = model === 'character' || model === 'local-player' || !!dutyAnimations;
     const group = (
       template
-        ? (model === "character"||model==='local-player')
+        ? human
           ? clone(template)
           : template.clone(true)
         : new THREE.Group()
     ) as THREE.Group;
     const actor: Actor = { group, wheels: CIVILIAN_VEHICLE_MODELS[model]?collectRollingWheels(group):prepareLegacyWheels(group), model };
-    const animations=model==='local-player'?this.playerAnimations:this.animations;
-    if ((model === 'character'||model==='local-player') && animations.length) {
+    const animations = dutyAnimations || (model==='local-player'?this.playerAnimations:this.animations);
+    if (human && animations.length) {
       actor.mixer = new THREE.AnimationMixer(group);
       actor.clips = Object.fromEntries(animations.map(clip => [clip.name, actor.mixer!.clipAction(clip)]));
       actor.idle = actor.mixer.clipAction(
@@ -833,7 +944,7 @@ export class CityRenderer {
       if (walk) actor.walk = actor.mixer.clipAction(walk);
       actor.idle.play();
     }
-    if (model === 'local-player') {
+    if (model === 'local-player' || dutyAnimations) {
       const bones=humanoidBones(group),rests=new Map<THREE.Bone,THREE.Quaternion>();
       for(const bone of bones.values())rests.set(bone,bone.quaternion.clone());
       actor.importedRig={bones,rests,legs:new HumanoidLegPose(group,bones),gait:0};
@@ -980,7 +1091,7 @@ export class CityRenderer {
         this.presentVehicle(a, state, car.id, dt);
       }
       for (const pl of Object.values(state.players)) {
-        const a = this.actor(pl.id===playerId?this.playerModel:"character", `player-${pl.id}`);
+        const a = this.actor(pl.id===playerId?this.localPlayerModel(pl):"character", `player-${pl.id}`);
         active.add(`player-${pl.id}`);
         if (pl.id === playerId && this.presentLocalPlayer(a, state, playerId, dt)) continue;
         a.group.visible = !pl.carId && !(this.firstPerson && pl.id === playerId);
@@ -1297,6 +1408,9 @@ export class CityRenderer {
   destroy() {
     this.bikeFleet.dispose();
     this.disposed = true;
+    for (const abort of this.dutyPending.values()) abort.abort();
+    this.dutyAnimations.clear();
+    this.dutyRetryAt.clear();
     this.referenceFacades.dispose();
     this.skanderbegBuilding.dispose();
     this.agedHousing.dispose();

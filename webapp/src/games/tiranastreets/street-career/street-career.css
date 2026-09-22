@@ -67,7 +67,7 @@
 .tsc-dialog h2 { font-size:21px; line-height:1.15; margin:8px 0; }
 .tsc-dialog h3 { font-size:16px; }
 .tsc-dialog p { font-size:13px; line-height:1.6; color:#d2ded3; }
-.tsc-journal-tabs { display:grid; grid-template-columns:1fr 1fr; gap:6px; position:sticky; top:-16px; z-index:1; padding:10px 0; background:#102831; border-bottom:1px solid #52716f66; }
+.tsc-journal-tabs { display:grid; grid-template-columns:1fr 1fr 1fr; gap:6px; position:sticky; top:-16px; z-index:1; padding:10px 0; background:#102831; border-bottom:1px solid #52716f66; }
 .tsc-journal-tabs button { font-size:12px; }
 .tsc-journal-tabs button[aria-pressed=true] { background:#cee0a0; border-color:#deecb9; color:#153239; font-weight:700; }
 .tsc-briefing { margin-top:16px; padding:14px; border:1px solid #718969; border-radius:12px; background:#1b393b; }
@@ -121,3 +121,16 @@
 @media(min-width:650px) { .tsc-overview { right:auto; width:380px; } }
 
 .tsc.is-left-handed .ts-weapon-notice { left:auto; right:0; }
+.tsc-police-objective { border-left-color:#8ac8f0; }
+.tsc-police-career h3 { font-size:23px; margin-bottom:4px; }
+.tsc-police-career .tsc-police-kicker { font-size:10px; letter-spacing:.12em; color:#a4d2ee; margin-top:18px; }
+.tsc-police-units { display:grid; gap:8px; margin:16px 0; }
+.tsc-police-units button { display:grid; grid-template-columns:92px 1fr; gap:10px; align-items:center; text-align:left; }
+.tsc-police-units button span { font-size:11px; line-height:1.5; }
+.tsc-police-units button[aria-pressed=true] { background:#214d65; border-color:#95d1f4; }
+.tsc-police-result { padding:12px; border-radius:10px; background:#522f32; }
+.tsc-police-result.is-success { background:#264f40; }
+.tsc-police-career .tsc-briefing button { margin-right:6px; }
+.tsc-access-tools { position:absolute; z-index:5; right:14px; bottom:calc(150px + var(--action-size)*3 + env(safe-area-inset-bottom,0px)); display:grid; gap:6px; width:calc(var(--action-size)*2 + 8px); }
+.tsc-access-tools button { font-size:11px; font-weight:700; background:#1d4e63ed; border-color:#a3d7e7; }
+.tsc.is-left-handed .tsc-access-tools { left:14px; right:auto; }

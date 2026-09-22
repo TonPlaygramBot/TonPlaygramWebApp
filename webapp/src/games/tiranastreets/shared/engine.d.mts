@@ -115,7 +115,7 @@ export type Effect = Point & {
   owner: string;
   weapon: string;
 };
-export type Aircraft = Point & {id:string;kind?:'helicopter'|'jet';careerManaged?:boolean;verticalSpeed?:number;takeoffY?:number;roofAccess?:boolean;autoHover?:boolean;y:number;roofY:number;stairX:number;stairZ:number;heading:number;speed:number;pilot:string|null;airborne:boolean;nextMissile:number;autoLand?:boolean;homeX?:number;homeZ?:number;buildingId?:string;name?:string;health?:number;missiles?:number;roll?:number;pitch?:number};
+export type Aircraft = Point & {id:string;kind?:'helicopter'|'jet';civilian?:boolean;careerManaged?:boolean;verticalSpeed?:number;takeoffY?:number;roofAccess?:boolean;autoHover?:boolean;y:number;roofY:number;stairX:number;stairZ:number;heading:number;speed:number;pilot:string|null;airborne:boolean;nextMissile:number;autoLand?:boolean;homeX?:number;homeZ?:number;buildingId?:string;name?:string;health?:number;missiles?:number;roll?:number;pitch?:number};
 export type State = {
   worldVersion?:string;
   helicopter?: Aircraft;

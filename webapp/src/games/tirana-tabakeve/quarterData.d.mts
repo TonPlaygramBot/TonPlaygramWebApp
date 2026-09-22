@@ -1,0 +1,2 @@
+import type {CanopyTree} from '../tirana-street-life/canopyRegistry.mjs';
+export const QUARTER:{version:number;area:string;accuracy:string;sources:string[];buildings:any[];trees:(CanopyTree&{side:number;source:string})[];overrides:{id:string;height:number;crown:number;shape:string}[];shops:{id:string;name:string;buildingId:string;x:number;z:number;y:number;yaw:number;width:number;kind:string;source:string;placementAccuracy:string}[];storefronts:any[]};

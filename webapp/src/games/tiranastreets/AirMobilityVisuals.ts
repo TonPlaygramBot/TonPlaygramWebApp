@@ -40,7 +40,7 @@ export class AirMobilityVisuals {
   private missiles: { x:number;y:number;z:number; born:number; from:THREE.Vector3; to:THREE.Vector3; direction:THREE.Vector3 }[] = [];
   private elapsed = 0;
   private rooftops:RooftopVisuals;
-  private extraHelicopters=new Map<string,{root:THREE.Group;rotors:THREE.Object3D[]}>();
+  private extraHelicopters=new Map<string,{root:THREE.Group;rotors:THREE.Object3D[];paint:THREE.Material[]}>();
   private pads=new Map<string,THREE.Group>();
   private seen = new Set<number>();
 
@@ -98,6 +98,42 @@ export class AirMobilityVisuals {
     this.group.add(this.helicopter);
   }
 
+  private paintCommercialHelicopter(root:THREE.Group){
+    const owned:THREE.Material[]=[];
+    root.traverse(object=>{
+      if(!(object instanceof THREE.Mesh))return;
+      let part:THREE.Object3D|null=object;
+      while(part&&part!==root){if(/rotor|propell?ar|propeller|glass|window|canopy|cockpit|blade|wheel/i.test(part.name))return;part=part.parent;}
+      const repaint=(material:THREE.Material)=>{
+        if(!(material instanceof THREE.MeshStandardMaterial)||material.transparent||material.opacity<.99)return material;
+        const {r,g,b}=material.color,olive=g>=r*.96&&g>b*1.06&&Math.max(r,g,b)<.85;
+        if(!olive&&!/body|hull|fuselage|paint|boom/i.test(material.name+' '+object.name))return material;
+        const copy=material.clone();copy.name='Civilian pearl / blue · '+material.name;
+        // Hull diffuse paint is replaced; glazing, rotors, normal/roughness
+        // textures and the shared source model retain their original ownership.
+        copy.map=null;copy.color.set(0xe7eef0);copy.metalness=.3;copy.roughness=.38;
+        if(object.geometry.hasAttribute('uv')){
+          const previous=material.onBeforeCompile;
+          copy.onBeforeCompile=(shader,renderer)=>{
+            previous.call(copy,shader,renderer);
+            shader.vertexShader='varying vec2 vCivilianUV;\n'+shader.vertexShader;
+            shader.vertexShader=shader.vertexShader.replace('#include <begin_vertex>','#include <begin_vertex>\nvCivilianUV=uv;');
+            shader.fragmentShader='varying vec2 vCivilianUV;\n'+shader.fragmentShader;
+            shader.fragmentShader=shader.fragmentShader.replace('#include <color_fragment>','#include <color_fragment>\ndiffuseColor.rgb=mix(diffuseColor.rgb,vec3(0.025,0.21,0.39),step(0.455,vCivilianUV.y)*step(vCivilianUV.y,0.505));');
+          };
+          copy.customProgramCacheKey=()=>material.customProgramCacheKey()+':civilian-blue-stripe';
+        }
+        owned.push(copy);return copy;
+      };
+      object.material=Array.isArray(object.material)?object.material.map(repaint):repaint(object.material);
+    });
+    return owned;
+  }
+  private clearExtraHelicopters(){
+    for(const entry of this.extraHelicopters.values()){entry.root.removeFromParent();entry.paint.forEach(m=>m.dispose());}
+    this.extraHelicopters.clear();
+  }
+
   private async loadSharedHelicopter() {
     const loader = new GLTFLoader();
     for (const url of HELICOPTER_URLS) {
@@ -113,7 +149,7 @@ export class AirMobilityVisuals {
         const c = fitted.getCenter(new THREE.Vector3());
         model.position.sub(c);
         this.blur.removeFromParent();this.release(this.helicopter);this.helicopter.clear();
-        this.extraHelicopters.forEach(h=>h.root.removeFromParent());this.extraHelicopters.clear();
+        this.clearExtraHelicopters();
         this.helicopter.add(model);
         const parts:THREE.Mesh[]=[];
         model.traverse(o=>{if(o instanceof THREE.Mesh && /rotor|propell?ar|propeller/i.test(o.name))parts.push(o);});
@@ -129,7 +165,7 @@ export class AirMobilityVisuals {
 
   private buildStairs(state: State) {
     for(const a of state.helicopters||[state.helicopter]){
-      if(!a||this.group.getObjectByName(`emergency-stairs:${a.id}`))continue;
+      if(!a||a.careerManaged||this.group.getObjectByName(`emergency-stairs:${a.id}`))continue;
       const stairs=new THREE.Group();stairs.name=`emergency-stairs:${a.id}`;
       const mat=new THREE.MeshStandardMaterial({color:0x383e40,metalness:.8,roughness:.35});
       const ground=groundHeight(a.stairX,a.stairZ),height=Math.max(3,a.roofY-ground),levels=Math.ceil(height/3),rise=height/levels;
@@ -147,7 +183,7 @@ export class AirMobilityVisuals {
     this.rooftops.update(state.elapsed);
     const fleet=state.helicopters||[h].filter(Boolean);
     const active=new Set(fleet.map(a=>a!.id));
-    for(const [id,entry]of this.extraHelicopters)if(!active.has(id)){entry.root.removeFromParent();this.extraHelicopters.delete(id);}
+    for(const [id,entry]of this.extraHelicopters)if(!active.has(id)){entry.root.removeFromParent();entry.paint.forEach(m=>m.dispose());this.extraHelicopters.delete(id);}
     for(const a of fleet){if(!a)continue;
       if(!this.pads.has(a.id)){
         const pad=new THREE.Group(),ring=new THREE.Mesh(new THREE.RingGeometry(4.7,5,48),new THREE.MeshBasicMaterial({color:0xd6e4b1,side:THREE.DoubleSide}));ring.rotation.x=-Math.PI/2;pad.add(ring);
@@ -156,7 +192,7 @@ export class AirMobilityVisuals {
       }
       if(a.id===h?.id)continue;
       let entry=this.extraHelicopters.get(a.id);
-      if(!entry){const root=this.helicopter.clone(true),rotors:THREE.Object3D[]=[];root.traverse(o=>{if(o.name==='rotor-pivot')rotors.push(o);});entry={root,rotors};this.extraHelicopters.set(a.id,entry);this.group.add(root);}
+      if(!entry){const root=this.helicopter.clone(true),rotors:THREE.Object3D[]=[];root.traverse(o=>{if(o.name==='rotor-pivot')rotors.push(o);});entry={root,rotors,paint:a.civilian?this.paintCommercialHelicopter(root):[]};this.extraHelicopters.set(a.id,entry);this.group.add(root);}
       entry.root.visible=(a.health??1)>0;entry.root.position.set(a.x,a.y,a.z);entry.root.rotation.set(a.pitch||0,a.heading,a.roll||0,'YXZ');
       if(a.pilot)for(const rotor of entry.rotors)rotor.rotateOnAxis(new THREE.Vector3().fromArray(rotor.userData.spinAxis||[0,1,0]),dt*34);
     }
@@ -201,6 +237,7 @@ export class AirMobilityVisuals {
 
   dispose() {
     this.disposed=true;this.rooftops.dispose();
+    this.clearExtraHelicopters();
     this.missileVisuals.dispose();
     this.release(this.group);
     this.group.removeFromParent();

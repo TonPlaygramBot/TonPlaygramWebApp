@@ -1,0 +1,11 @@
+export const QUARTER_BOUNDS:readonly number[];
+export const QUARTER_ROADS:RegExp;
+export const BRIDGE:{x:number;z:number;yaw:number;length:number;width:number;rise:number;source:string};
+export function bridgeDeckHeight(along:number):number;
+export function tabakeveBridgeHeight(x:number,z:number):number|undefined;
+export function inQuarter(x:number,z:number):boolean;
+export function selectQuarterBuildings(world:any,excluded?:Set<string>,institutions?:any[]):any[];
+export function generateQuarterTrees(roads:any[],paths:any[],existing:any[],safe:(x:number,z:number)=>boolean):any[];
+export function wallPoint(edge:any,u:number,offset?:number):{x:number;z:number};
+export function roofAnchor(b:any):{x:number;z:number}|null;
+export function quarterFacadeParts(b:any):{x:number;z:number;y:number;w:number;h:number;d:number;color:number;yaw:number;model:string;buildingId:string}[];

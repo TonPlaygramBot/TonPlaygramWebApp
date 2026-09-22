@@ -19,6 +19,7 @@ import { CombatEffects } from '../CombatEffects';
 import { SurfaceImpactMarks } from '../SurfaceImpactMarks';
 import { vehicleDamageAppearance } from './vehicleDamageAppearance.mjs';
 import { MissileVisuals } from '../MissileVisuals';
+import { BuildingAccessVisuals } from './BuildingAccessVisuals';
 /** Local career only. Reuses the original driving renderer and the newer shared
  * city details without editing map coordinates, physics or paid-match actors. */
 export class StreetRenderer extends CityRenderer {
@@ -33,6 +34,7 @@ export class StreetRenderer extends CityRenderer {
   private cutCount=0;
   private missileMeshes:MissileVisuals;
   private pockets:PocketVisuals;
+  private buildingAccess:BuildingAccessVisuals;
   private wreckMaterials=new Map<T.Mesh,{original:T.Material|T.Material[];copies:T.Material[]}>();
   private clearWrecks(){for(const [mesh,saved] of this.wreckMaterials){mesh.material=saved.original;saved.copies.forEach(m=>m.dispose());}this.wreckMaterials.clear();}
   private showWrecks(sim:StreetSimulation){
@@ -66,9 +68,13 @@ export class StreetRenderer extends CityRenderer {
     this.ownDetailUpdate=false;
     this.bodyRig = new FirstPersonBody(this.scene);
     this.combatEffects = new CombatEffects(this.scene);
+    this.impactMarks.bindEnvironment(this.scene, (point, normal, material) =>
+      this.combatEffects.surfaceHit(point, normal, material,
+        this.simulation?.world.surface(point.x, point.z, point.y) ?? groundHeight(point.x, point.z)));
     this.scene.add(this.impactMarks.mesh);
     this.missileMeshes = new MissileVisuals(this.scene);
     this.pockets = new PocketVisuals(this.scene);
+    this.buildingAccess = new BuildingAccessVisuals(this.scene);
     this.airMobility.authoritativeMissiles = true;
     this.camera.near = 0.035;
     this.setFirstPerson(true);
@@ -144,7 +150,9 @@ export class StreetRenderer extends CityRenderer {
       this.camera.position.y + d.y,
       this.camera.position.z + d.z
     );
-    const zoom=b.aim&&!b.action&&b.wall>=.8?weaponAnchors(p.weapon).zoom:1;
+    const binoculars=sim.access.binoculars&&!car&&!aircraft;
+    if(binoculars||sim.access.parachute.open)this.bodyRig.weapon.visible=false;
+    const zoom=binoculars?5:b.aim&&!b.action&&b.wall>=.8?weaponAnchors(p.weapon).zoom:1;
     const baseFov=this.settings.fov-(b.aim&&zoom===1?17:0);
     const fov=car&&this.vehicleView==='cockpit'?driverFov(this.camera.aspect):2*Math.atan(Math.tan(baseFov*Math.PI/360)/zoom)*180/Math.PI;
     this.camera.fov = T.MathUtils.lerp(
@@ -212,9 +220,10 @@ export class StreetRenderer extends CityRenderer {
   protected override beforeDraw(_state: State | null, _id: string, dt: number) {
     const sim=this.simulation;
     if(sim){
+      this.buildingAccess.update(sim.state.elapsed,sim);
       if(this.effectState!==sim.state){this.combatEffects.reset();this.impactMarks.reset();this.clearWrecks();this.effectState=sim.state;this.cutCount=0;}
       this.combatEffects.setBloodEnabled(this.settings.bloodEffects);
-      this.combatEffects.consume(sim.state.effects,groundHeight);this.showWrecks(sim);
+      this.combatEffects.consume(sim.state.effects,groundHeight,false);this.showWrecks(sim);
       this.impactMarks.update(sim.state.effects,sim.state.elapsed,id=>this.vehicleVisual(id),this.vehicleView==='cockpit'?sim.player.carId||undefined:undefined,this.camera.position,this.quality==='battery');
       if(this.cutCount!==sim.world.fractures.length){
         this.cutCount=sim.world.fractures.length;
@@ -287,6 +296,7 @@ export class StreetRenderer extends CityRenderer {
   override destroy() {
     if (this.disposed) return;
     this.bodyRig.dispose();
+    this.buildingAccess.dispose();
     this.clearWrecks();this.impactMarks.dispose();this.combatEffects.dispose();this.missileMeshes.dispose();this.pockets.dispose();
     this.humans.dispose();
     super.destroy();

@@ -1,3 +1,4 @@
+import {BuildingAccessSimulation} from './BuildingAccessSimulation.mjs';
 import {ArrestSimulation} from './ArrestSimulation.mjs';
 import {createMissionDirector, extractionSeconds, updateMissionDirector} from './missionDirectorCore.mjs';
 import {npcWeaponPose} from '../shared/npcWeaponPose.mjs';
@@ -75,6 +76,7 @@ export class StreetSimulation {
     this.combat = new CombatSimulation(this);
     this.crashes = new CrashSimulation(this);
     this.flight = new FlightSimulation(this);
+    this.access = new BuildingAccessSimulation(this);
     this.arrest = new ArrestSimulation(this);
     this.throwables = new ThrowableSimulation(this);
     this.body.combat = this.player.weapon ? 'ready' : 'unarmed';
@@ -202,6 +204,7 @@ export class StreetSimulation {
     if (p.aircraftId) { this.flight.step(dt); return; }
     if (p.health <= 0 || p.failed || p.finished) {
       this.cableRide=null;
+      this.access.reset();
       if (b.interaction !== 'dead') {
         cancelActions(p, b);
         b.interaction = 'dead';
@@ -217,6 +220,7 @@ export class StreetSimulation {
       b.grounded = true;
       this.event('respawn');
     }
+    if (this.access.step(dt)) return;
     if(this.cableRide){
       const ride=this.cableRide;ride.fraction=Math.min(1,ride.fraction+dt/CABLE_DURATION);const at=cablePoint(ride.fraction,ride.returning);
       p.x=at.x;p.z=at.z;p.speed=0;b.y=at.y+.1;b.vy=0;b.interaction='cableway';
@@ -482,7 +486,7 @@ export class StreetSimulation {
       b = this.body,
       eye = this.eye(),
       forward = direction3(b.yaw, b.pitch),
-      out = [];
+      out = this.access.candidates();
     const add = (id, label, target, range, priority, kind, extra = {}) => {
       const point = { x: target.x, y: target.y ?? 1, z: target.z },
         l = Math.hypot(point.x - eye.x, point.y - eye.y, point.z - eye.z),
@@ -570,8 +574,8 @@ export class StreetSimulation {
     for (const aircraft of this.flight.aircraft) {
       if (aircraft.pilot || aircraft.health <= 0) continue;
       const access = this.flight.access(aircraft);
-      add(aircraft.id, aircraft.kind === 'jet' ? 'FLY JET' : 'FLY HELI',
-        {...access,y:groundHeight(access.x,access.z)+1},10,75,'aircraft');
+      add(aircraft.id, aircraft.kind === 'jet' ? 'FLY JET' : aircraft.civilian ? 'HELIKOPTER CIVIL' : 'FLY HELI',
+        {...access,y:access.y+1},10,75,'aircraft');
     }
     for (const car of this.cars()) {
       if (car.destroyed || car.burning) continue;
@@ -622,7 +626,7 @@ export class StreetSimulation {
       busy =
         this.arrest.locked || !!b.action ||
         b.interaction === 'entering' ||
-        b.interaction === 'exiting' || b.interaction === 'cableway';
+        b.interaction === 'exiting' || b.interaction === 'cableway' || !!this.access.travel;
     const reason = dead
       ? 'Run ended'
       : this.paused
@@ -714,6 +718,7 @@ export class StreetSimulation {
       if (vault)
         list.push(a('vault', 'VAULT', true, !b.grounded ? 'Land first' : ''));
     }
+    list.push(...this.access.actions().map(action=>({...action,enabled:!reason,disabledReason:reason})));
     const focus = this.focus();
     if (focus)
       list.push({
@@ -738,6 +743,7 @@ export class StreetSimulation {
       b = this.body,
       now = this.state.elapsed;
     b.notice = '';
+    if (descriptor.kind?.startsWith('access-')) return this.access.execute(descriptor);
     if (descriptor.kind === 'aircraft') return this.flight.board(descriptor.targetId);
     if (descriptor.kind === 'air-exit') return this.flight.exit();
     if (id === 'jump') {
@@ -938,7 +944,7 @@ export class StreetSimulation {
       w = WEAPON_BY_ID.get(p.weapon),
       inv = p.inventory[p.weapon];
     if (
-      this.paused ||
+      this.paused || this.access.binoculars || this.access.parachute.open ||
       !w ||
       !inv ||
       p.health <= 0 ||
@@ -1183,6 +1189,7 @@ export class StreetSimulation {
     return true;
   }
   objective() {
+    const accessObjective=this.access.objective();if(accessObjective)return accessObjective;
     if(this.cableRide)return {title:'Dajti Ekspres',detail:`${Math.round(this.cableRide.fraction*100)}% · ${this.cableRide.returning?'drejt Linzës':'drejt Dajtit'}`,training:false};
     const p = this.player;
     if (this.mission.type === 'flight') {

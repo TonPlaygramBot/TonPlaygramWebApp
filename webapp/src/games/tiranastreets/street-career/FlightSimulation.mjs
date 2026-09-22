@@ -17,7 +17,6 @@ export class FlightSimulation {
   constructor(sim) {
     this.sim = sim;
     const h = sim.state.helicopter;
-    const originalRoof=h?.buildingId;
     if (h) {
       Object.assign(h,squarePad(sim,'helicopter'));
       Object.assign(h,{kind:'helicopter',buildingId:undefined,name:'Skanderbeg Square helicopter',roofAccess:false,
@@ -28,8 +27,8 @@ export class FlightSimulation {
     sim.state.jet = { id:'tirana-fighter-jet',kind:'jet',careerManaged:true,
       ...pad,y:pad.roofY+1.3,stairX:pad.x+7,stairZ:pad.z,name:'Skanderbeg Square fighter jet',
       heading:0,speed:0,verticalSpeed:0,pilot:null,airborne:false,nextMissile:0,health:240,missiles:24,roll:0,pitch:0 };
-    const sites=rooftopHelicopterSites(WORLD,6).filter(site=>String(site.buildingId)!==String(originalRoof)).slice(0,2);
-    const extra=sites.map((site,i)=>{const roofY=sim.world.surface(site.x,site.z);return {id:`tirana-rooftop-helicopter-${i+2}`,...site,kind:'helicopter',roofAccess:true,homeX:site.x,homeZ:site.z,roofY,y:roofY+.65,careerManaged:true,heading:Math.PI,speed:0,verticalSpeed:0,pilot:null,airborne:false,nextMissile:0,health:220,missiles:24,roll:0,pitch:0};});
+    const sites=rooftopHelicopterSites(WORLD,2);
+    const extra=sites.map((site,i)=>{const roofY=sim.world.surface(site.x,site.z);return {id:`tirana-rooftop-helicopter-${i+2}`,...site,kind:'helicopter',roofAccess:true,homeX:site.x,homeZ:site.z,roofY,y:roofY+.65,careerManaged:true,heading:Math.PI,speed:0,verticalSpeed:0,pilot:null,airborne:false,nextMissile:0,health:220,missiles:0,civilian:true,roll:0,pitch:0};});
     sim.state.helicopters=[h,...extra].filter(Boolean);
     this.aircraft = [...sim.state.helicopters,sim.state.jet];
   }
@@ -39,16 +38,14 @@ export class FlightSimulation {
     if (!a || a.pilot || a.airborne || Math.abs(a.speed)>2 || a.health<=0 || p.carId || p.aircraftId || p.health<=0) return false;
     const access=this.access(a);
     if (Math.hypot(p.x-access.x,p.z-access.z)>10) return false;
-    const homeStairs=a.roofAccess&&Math.hypot(a.x-a.homeX,a.z-a.homeZ)<4;
-    if(!homeStairs&&Math.abs(b.y-(a.y-(a.kind==='jet'?1.3:.65)))>2.5)return false;
+    if(Math.abs(b.y-(a.y-gearHeight(a)))>2.5)return false;
     a.pilot=p.id;p.aircraftId=a.id;p.x=a.x;p.z=a.z;p.speed=0;
     a.autoLand=false;a.autoHover=false;a.takeoffY=null;a.verticalSpeed=0;
     b.y=a.y;b.yaw=a.heading;b.pitch=0;b.interaction='flying';b.action=null;b.aim=false;
     this.sim.event('enter',{vehicleId:a.id});return true;
   }
   access(a) {
-    const home = a.roofAccess && Math.hypot(a.x-a.homeX,a.z-a.homeZ)<4 && a.y>=a.roofY;
-    return home ? {x:a.stairX,z:a.stairZ} : {x:a.x+Math.cos(a.heading)*7,z:a.z-Math.sin(a.heading)*7};
+    return {x:a.x+Math.cos(a.heading)*(a.kind==='jet'?7:4.2),z:a.z-Math.sin(a.heading)*(a.kind==='jet'?7:4.2),y:a.y-gearHeight(a)};
   }
   canExit() {
     const a=this.current;
@@ -63,7 +60,7 @@ export class FlightSimulation {
       const x=access.x+Math.cos(n*Math.PI/4)*r,z=access.z+Math.sin(n*Math.PI/4)*r;
       const floor=this.sim.world.surface(x,z,a.y);
       const q={x,z,y:floor+.08};
-      if(!(a.roofAccess&&Math.hypot(a.x-a.homeX,a.z-a.homeZ)<4)&&Math.abs(floor-(a.y-gearHeight(a)))>1.5)continue;
+      if(Math.abs(floor-(a.y-gearHeight(a)))>1.5)continue;
       if(this.sim.world.clearance(q,1.78)){safe=q;break;}
     }
     if(!safe)return false;
@@ -140,12 +137,12 @@ export class FlightSimulation {
     if(!a.airborne&&Math.abs(input.y)<.1)a.speed*=Math.exp(-dt*8);
     Object.assign(p,{x:a.x,z:a.z,heading:a.heading,speed:Math.abs(a.speed)});
     b.y=a.y;b.interaction='flying';b.grounded=false;b.action=null;
-    if(input.fire&&a.airborne)this.sim.combat.launch(a,b.yaw,b.pitch);
+    if(input.fire&&a.airborne&&!a.civilian)this.sim.combat.launch(a,b.yaw,b.pitch);
   }
   assist(action) {const a=this.current;if(!a)return false;this.assistThrottle=this.sim.intent.y;a.autoHover=true;a.autoLand=action==='land';return true;}
   objective() {
     const a=this.current;
     return a ? {title:`${a.kind==='jet'?'Fighter jet':'Helicopter'} · ${Math.round(a.y-groundHeight(a.x,a.z))} m`,
-      detail:`${a.missiles} missiles · Stick takes off and moves · UP climbs · LAND stops and descends`,training:false} : null;
+      detail:`${a.civilian?'Commercial helicopter':a.missiles+' missiles'} · Stick takes off and moves · UP climbs · LAND stops and descends`,training:false} : null;
   }
 }
