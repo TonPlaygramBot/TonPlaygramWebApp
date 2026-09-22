@@ -80,11 +80,13 @@ test('striking freezes the root and yaw even when the aim and ball move', async 
   players.update(1 / 60, { ...frame, state: 'striking' });
   const human = players.players[0].human;
   const start = human.root.position.clone();
+  const eyeTarget = players.eyeView.target.clone();
   const yaw = human.yaw;
   for (let i = 0; i < 7; i++) players.update(1 / 60, { ...frame, state: 'striking',
     cueBall: new THREE.Vector3(12, 4.3, -8), aimForward: new THREE.Vector3(1, 0, 0) });
   assert.ok(human.root.position.distanceTo(start) < 1e-10);
   assert.equal(human.yaw, yaw);
+  assert.ok(players.eyeView.target.distanceTo(eyeTarget) < 1e-8, 'the eye target stays on the pre-shot line while the ball moves');
   players.dispose();
 });
 
@@ -265,5 +267,32 @@ test('the live cue axis clears the bridge skin at address', async () => {
     }
   });
   assert.ok(checked > 100, 'check the actual skinned hand triangles');
+  players.dispose();
+});
+
+
+test('live bridge pose keeps the obstacle correction after cue alignment', async () => {
+  const metrics = await readPoolRoyalMetrics();
+  const parent = new THREE.Scene();
+  const players = new PoolRoyalHumanPlayers(parent, { ...metrics, model: await loadPoseModel() });
+  await players.ready;
+  const cueBall = new THREE.Vector3(0, metrics.ballY, metrics.tableL * 0.31);
+  const safeFrame = { ...frame, cueBall, bridgeBounds: { halfWidth: metrics.tableW / 2, halfLength: metrics.tableL / 2 } };
+  for (let i = 0; i < 90; i++) players.update(1 / 60, safeFrame);
+  parent.updateMatrixWorld(true);
+  const hand = players.players[0].human.bones.leftHand;
+  const clearHand = hand.getWorldPosition(new THREE.Vector3());
+  const crowdedAnchor = resolvePoolRoyalBridgeAnchor({
+    cueBall: players.toReference(cueBall), aimForward: frame.aimForward,
+    clothY: (metrics.clothY - metrics.floorY) / players.referenceScale
+  }).multiplyScalar(players.referenceScale).add(new THREE.Vector3(0, metrics.floorY, 0));
+  for (let i = 0; i < 90; i++) players.update(1 / 60, {
+    ...safeFrame, bridgeObstacles: [{ position: crowdedAnchor, radius: metrics.ballR }]
+  });
+  parent.updateMatrixWorld(true);
+  const correctedHand = hand.getWorldPosition(new THREE.Vector3());
+  assert.ok(clearHand.distanceTo(correctedHand) > metrics.ballR,
+    'an object ball under the bridge must change the actual posed wrist, not only an unused target');
+  assert.ok(Number.isFinite(correctedHand.y));
   players.dispose();
 });

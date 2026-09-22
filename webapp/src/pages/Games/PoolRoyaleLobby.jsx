@@ -34,6 +34,8 @@ import {
   getNextCareerStage,
   loadCareerProgress
 } from '../../utils/poolRoyaleCareerProgress.js';
+import { loadPoolCompetition, poolCompetitionKey, poolCompetitionScope } from '../../games/pool/competition.js';
+import { PoolBracket } from '../../games/pool/PoolCompetitionMatch.jsx';
 
 const PLAYER_FLAG_STORAGE_KEY = 'poolRoyalePlayerFlag';
 const AI_FLAG_STORAGE_KEY = 'poolRoyaleAiFlag';
@@ -378,6 +380,7 @@ export default function PoolRoyaleLobby() {
     params.set('mode', mode);
     if (playType === 'career') {
       params.set('career', '1');
+      if (nextCareerStage?.type !== 'training') params.set('competition', '1');
       if (nextCareerStage?.id) params.set('careerStageId', nextCareerStage.id);
       if (nextCareerStage?.title)
         params.set('careerStageTitle', nextCareerStage.title);
@@ -422,7 +425,8 @@ export default function PoolRoyaleLobby() {
     if (initData) params.set('init', encodeURIComponent(initData));
 
     if (effectivePlayType === 'tournament') {
-      window.location.href = `/pool-royale-bracket.html?${params.toString()}`;
+      params.set('competition', '1');
+      navigate(`/games/poolroyale?${params.toString()}`);
       return;
     }
 
@@ -552,6 +556,7 @@ export default function PoolRoyaleLobby() {
   const tournamentKey = getTelegramId() || 'anon';
   const tournamentStateKey = `poolRoyaleTournamentState_${tournamentKey}`;
   const tournamentOppKey = `poolRoyaleTournamentOpponent_${tournamentKey}`;
+  const royalCompetitionKey = poolCompetitionKey(poolCompetitionScope(getTelegramId()), '', variant);
   const hasActiveTournament =
     playType === 'tournament' && Boolean(activeTournament);
 
@@ -561,6 +566,11 @@ export default function PoolRoyaleLobby() {
       return;
     }
     try {
+      const royalEvent = loadPoolCompetition(royalCompetitionKey);
+      if (royalEvent?.status === 'active') {
+        setActiveTournament({ ...royalEvent, N: royalEvent.entrants.length, royalCompetition: true });
+        return;
+      }
       const raw = window.localStorage.getItem(tournamentStateKey);
       if (!raw) {
         setActiveTournament(null);
@@ -584,7 +594,7 @@ export default function PoolRoyaleLobby() {
       console.warn('Pool Royale active tournament load failed', err);
       setActiveTournament(null);
     }
-  }, [playType, tournamentStateKey]);
+  }, [playType, royalCompetitionKey, tournamentStateKey]);
 
   const winnerParam = searchParams.get('winner');
 
@@ -1136,7 +1146,7 @@ export default function PoolRoyaleLobby() {
               ))}
             </div>
             <p className="text-xs text-white/50">
-              Winner takes pot minus 10% developer fee.
+              Knockout matches are race to 2; the final is race to 3. Your bracket and settled shots save on this device.
             </p>
           </div>
         )}
@@ -1155,16 +1165,22 @@ export default function PoolRoyaleLobby() {
               </span>
             </div>
             <div className="overflow-hidden rounded-xl border border-white/10 bg-black/30">
-              <iframe
+              {activeTournament.royalCompetition ? <div className="p-3"><PoolBracket event={activeTournament} /></div> : <iframe
                 title="Active tournament bracket"
                 src={`/pool-royale-bracket.html?type=tournament&players=${activeTournament?.N || 8}&tgId=${encodeURIComponent(tournamentKey)}&embed=1`}
                 className="h-[420px] w-full"
-              />
+              />}
             </div>
             <div className="grid grid-cols-2 gap-3">
               <button
                 type="button"
                 onClick={() => {
+                  if (activeTournament.royalCompetition) {
+                    const params = new URLSearchParams({ competition: '1', type: 'tournament', mode: 'ai', variant: activeTournament.variant, players: String(activeTournament.N) });
+                    if (tournamentKey !== 'anon') params.set('tgId', tournamentKey);
+                    navigate(`/games/poolroyale?${params.toString()}`);
+                    return;
+                  }
                   const params = new URLSearchParams();
                   params.set('type', 'tournament');
                   params.set('players', String(activeTournament?.N || 8));
@@ -1178,6 +1194,7 @@ export default function PoolRoyaleLobby() {
               <button
                 type="button"
                 onClick={() => {
+                  if (activeTournament.royalCompetition) window.localStorage.removeItem(royalCompetitionKey);
                   window.localStorage.removeItem(tournamentStateKey);
                   window.localStorage.removeItem(tournamentOppKey);
                   setActiveTournament(null);

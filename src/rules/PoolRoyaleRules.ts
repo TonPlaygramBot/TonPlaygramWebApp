@@ -37,6 +37,7 @@ type EightBallSerializedState = {
   currentPlayer: 'A' | 'B';
   assignments: { A: 'SOLID' | 'STRIPE' | null; B: 'SOLID' | 'STRIPE' | null };
   ballInHand: boolean;
+  mustPlayFromBaulk?: boolean;
   frameOver: boolean;
   winner: 'A' | 'B' | null;
   breakInProgress: boolean;
@@ -50,6 +51,8 @@ type NineSerializedState = {
   gameOver: boolean;
   winner: 'A' | 'B' | null;
   breakInProgress: boolean;
+  pushOutAvailable?: boolean;
+  pushOutPending?: { shooter: 'A' | 'B'; chooser: 'A' | 'B' } | null;
 };
 
 type PoolMeta =
@@ -140,6 +143,7 @@ function serializeEightBallState(state: BcaEightBall['state']): EightBallSeriali
       B: state.assignments?.B ?? null
     },
     ballInHand: state.ballInHand,
+    mustPlayFromBaulk: Boolean(state.mustPlayFromBaulk),
     frameOver: state.frameOver,
     winner: state.winner,
     breakInProgress: state.breakInProgress
@@ -155,6 +159,7 @@ function applyEightBallState(game: BcaEightBall, snapshot: EightBallSerializedSt
       B: snapshot.assignments?.B ?? null
     },
     ballInHand: snapshot.ballInHand,
+    mustPlayFromBaulk: Boolean(snapshot.mustPlayFromBaulk),
     frameOver: snapshot.frameOver,
     winner: snapshot.winner,
     breakInProgress: snapshot.breakInProgress
@@ -169,7 +174,9 @@ function serializeNineState(state: NineBall['state']): NineSerializedState {
     foulStreak: { ...state.foulStreak },
     gameOver: state.gameOver,
     winner: state.winner,
-    breakInProgress: state.breakInProgress
+    breakInProgress: state.breakInProgress,
+    pushOutAvailable: Boolean(state.pushOutAvailable),
+    pushOutPending: state.pushOutPending ? { ...state.pushOutPending } : null
   };
 }
 
@@ -181,7 +188,9 @@ function applyNineState(game: NineBall, snapshot: NineSerializedState) {
     foulStreak: { ...snapshot.foulStreak },
     gameOver: snapshot.gameOver,
     winner: snapshot.winner,
-    breakInProgress: snapshot.breakInProgress
+    breakInProgress: snapshot.breakInProgress,
+    pushOutAvailable: Boolean(snapshot.pushOutAvailable),
+    pushOutPending: snapshot.pushOutPending ? { ...snapshot.pushOutPending } : null
   };
 }
 
@@ -226,7 +235,7 @@ export class PoolRoyaleRules {
   private readonly variant: PoolVariantId;
   private readonly ruleProfile: PoolRuleProfile;
 
-  constructor(variantKey: string | null | undefined, ruleProfile: PoolRuleProfile = 'reference') {
+  constructor(variantKey: string | null | undefined, ruleProfile: PoolRuleProfile = 'standard') {
     this.ruleProfile = ruleProfile;
     const normalized = normalizeVariantId(variantKey);
     if (normalized === 'uk' || normalized === '8balluk' || normalized === 'eightballuk' || normalized === 'uk8') {
@@ -340,6 +349,8 @@ export class PoolRoyaleRules {
 
   applyShot(state: FrameState, events: ShotEvent[], context: ShotContext = {}): FrameState {
     if (state.frameOver) return state;
+    const meta = state.meta as PoolMeta | undefined;
+    if (meta?.variant === '9ball' && meta.state?.pushOutPending) return state;
     switch (this.variant) {
       case 'uk':
         return this.applyUkShot(state, events, context);
@@ -349,6 +360,23 @@ export class PoolRoyaleRules {
       default:
         return this.applyEightBallShot(state, events, context);
     }
+  }
+
+  resolvePushOut(state: FrameState, choice: 'accept' | 'return'): FrameState {
+    const meta = state.meta as PoolMeta | undefined;
+    if (state.frameOver || meta?.variant !== '9ball') return state;
+    const game = new NineBall({ profile: meta.ruleProfile });
+    applyNineState(game, meta.state);
+    if (!game.resolvePushOut(choice)) return state;
+    const snapshot = serializeNineState(game.state);
+    const warning = meta.ruleProfile === 'standard' && snapshot.foulStreak[snapshot.currentPlayer] === 2
+      ? ' · 2 fouls: next foul loses' : '';
+    return {
+      ...state,
+      activePlayer: snapshot.currentPlayer,
+      currentBreak: 0,
+      meta: { ...meta, state: snapshot, hud: { ...meta.hud, next: `ball ${lowestBall(snapshot.ballsOnTable) ?? 9}${warning}` } }
+    };
   }
 
   private applyUkShot(state: FrameState, events: ShotEvent[], context: ShotContext): FrameState {
@@ -492,6 +520,12 @@ export class PoolRoyaleRules {
       contactOrder: context.contactMade === false ? [] : contactOrder,
       foulReason: events.find((event) => event.type === 'FOUL')?.reason,
       potted,
+      offTable: context.offTableBallIds,
+      calledBallId: context.calledBallId,
+      calledPocket: context.calledPocket,
+      safety: context.safety,
+      pottedPockets: Object.fromEntries(events.filter((event): event is Extract<ShotEvent, { type: 'POTTED' }> =>
+        event.type === 'POTTED').map(event => [normalizePoolBallId(event.ballId ?? event.ball), event.pocket])),
       cueOffTable: Boolean(context.cueBallPotted),
       placedFromHand: Boolean(context.placedFromHand),
       noCushionAfterContact: poolShotHasNoCushion(context),
@@ -500,7 +534,7 @@ export class PoolRoyaleRules {
     });
     const pottedCount = result.potted.filter((id) => id !== 0).length;
     const snapshot = serializeEightBallState(game.state);
-    const ballOn = this.computeEightBallBallOn(snapshot);
+    const ballOn = this.computeEightBallBallOn(snapshot, ruleProfile);
     const scores = this.computeEightBallScores(snapshot);
     const frameOver = snapshot.frameOver;
     const nextLabel =
@@ -556,7 +590,7 @@ export class PoolRoyaleRules {
     };
   }
 
-  private computeEightBallBallOn(state: EightBallSerializedState): string[] {
+  private computeEightBallBallOn(state: EightBallSerializedState, profile = this.ruleProfile): string[] {
     if (state.frameOver) return [];
     const seat = state.currentPlayer;
     const assignment = state.assignments?.[seat] ?? null;
@@ -564,8 +598,9 @@ export class PoolRoyaleRules {
       const hasSolid = state.ballsOnTable.some((id) => id >= 1 && id <= 7);
       const hasStripe = state.ballsOnTable.some((id) => id >= 9 && id <= 15);
       if (hasSolid && hasStripe) return ['SOLID', 'STRIPE'];
-      if (hasSolid) return ['SOLID'];
-      if (hasStripe) return ['STRIPE'];
+      const canClaimClearedGroup = profile === 'standard' && !state.breakInProgress && state.ballsOnTable.includes(8);
+      if (hasSolid) return canClaimClearedGroup ? ['SOLID', 'BLACK'] : ['SOLID'];
+      if (hasStripe) return canClaimClearedGroup ? ['STRIPE', 'BLACK'] : ['STRIPE'];
       return state.ballsOnTable.includes(8) ? ['BLACK'] : [];
     }
     if (assignment === 'SOLID') {
@@ -606,6 +641,8 @@ export class PoolRoyaleRules {
       contactOrder: context.contactMade === false ? [] : contactOrder,
       foulReason: events.find((event) => event.type === 'FOUL')?.reason,
       potted,
+      offTable: context.offTableBallIds,
+      pushOut: context.pushOut,
       cueOffTable: Boolean(context.cueBallPotted),
       placedFromHand: Boolean(context.placedFromHand),
       noCushionAfterContact: poolShotHasNoCushion(context),
@@ -618,7 +655,8 @@ export class PoolRoyaleRules {
     const foulWarning = ruleProfile === 'standard' && !snapshot.gameOver && snapshot.foulStreak[snapshot.currentPlayer] === 2
       ? ' · 2 fouls: next foul loses' : '';
     const hud: HudInfo = {
-      next: snapshot.gameOver ? 'frame over' : (lowest != null ? `ball ${lowest}` : 'nine') + foulWarning,
+      next: snapshot.gameOver ? 'frame over' : snapshot.pushOutPending ? 'push out · accept or return'
+        : (lowest != null ? `ball ${lowest}` : 'nine') + foulWarning,
       phase: snapshot.gameOver ? 'complete' : 'run',
       scores: { A: 0, B: 0 }
     };

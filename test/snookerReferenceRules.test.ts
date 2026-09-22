@@ -1,7 +1,7 @@
 import { SnookerRoyalRules } from '../src/rules/SnookerRoyalRules';
 import { BallColor, FrameState, ShotEvent } from '../src/types';
 
-const rules = new SnookerRoyalRules();
+const rules = new SnookerRoyalRules(undefined, 'reference');
 const colors: BallColor[] = ['YELLOW', 'GREEN', 'BROWN', 'BLUE', 'PINK', 'BLACK'];
 const hit = (firstContact: string): ShotEvent => ({ type: 'HIT', firstContact });
 const pot = (ball: string, ballId?: string): ShotEvent => ({ type: 'POTTED', ball, ballId, pocket: 'TL' });

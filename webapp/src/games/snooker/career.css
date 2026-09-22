@@ -256,3 +256,236 @@
     }
   }
 }
+.sc-tabs {
+  display: flex;
+  gap: 6px;
+  padding: 5px;
+  border-radius: 13px;
+  background: #0d2d25;
+  margin-bottom: 26px;
+}
+.sc-tabs button {
+  flex: 1;
+  min-height: 44px;
+  border: 0;
+  border-radius: 9px;
+  background: transparent;
+  color: #b4c9bd;
+  font: 600 14px system-ui;
+}
+.sc-tabs button[aria-current='page'] {
+  background: #214c3e;
+  color: #f6e3b5;
+}
+.sc-field {
+  display: grid;
+  gap: 7px;
+  margin: 15px 0;
+  color: #cad7cc;
+  font-size: 12px;
+  min-width: 0;
+}
+.sc-field input,
+.sc-field select {
+  box-sizing: border-box;
+  width: 100%;
+  min-width: 0;
+  min-height: 46px;
+  padding: 10px;
+  border: 1px solid #547563;
+  border-radius: 9px;
+  background: #09271f;
+  color: #f2efdf;
+  font: 16px system-ui;
+  color-scheme: dark;
+}
+.sc-field input:focus-visible,
+.sc-field select:focus-visible,
+.sc-tabs button:focus-visible,
+.sc-leave:focus-visible {
+  outline: 3px solid #f0df9f;
+  outline-offset: 3px;
+}
+.sc-settings {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+}
+.sc-rival {
+  display: flex;
+  gap: 12px;
+  align-items: center;
+  padding: 14px 0;
+}
+.sc-rival strong,
+.sc-rival small {
+  display: block;
+}
+.sc-rival small {
+  color: #acc5b6;
+  font-size: 12px;
+  margin-top: 4px;
+}
+.sc-avatar {
+  width: 42px;
+  height: 42px;
+  flex: 0 0 42px;
+  display: grid;
+  place-items: center;
+  border-radius: 50%;
+  background: #d9bd7e;
+  color: #123729;
+  font-size: 13px;
+  font-weight: 700;
+}
+.sc-section-heading {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: 10px;
+  margin-top: 12px;
+}
+.sc-section-heading > span {
+  color: #a9beb1;
+  font-size: 11px;
+}
+.sc-progress {
+  width: 100%;
+  height: 5px;
+  border: 0;
+  border-radius: 5px;
+  background: #234237;
+  accent-color: #ddbe7e;
+}
+.sc-progress::-webkit-progress-bar {
+  background: #234237;
+  border-radius: 5px;
+}
+.sc-progress::-webkit-progress-value {
+  background: #ddbe7e;
+  border-radius: 5px;
+}
+.sc-bracket {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 12px;
+}
+.sc-bracket h3 {
+  font-size: 11px;
+  letter-spacing: 0.11em;
+  text-transform: uppercase;
+  color: #b5c7b8;
+  margin: 4px 0 10px;
+}
+.sc-pair {
+  background: #0d2c24;
+  border: 1px solid #2f5040;
+  border-radius: 10px;
+  margin-bottom: 8px;
+  padding: 3px 12px;
+}
+.sc-pair[data-active='true'] {
+  border-color: #d0b577;
+}
+.sc-pair > div {
+  display: flex;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 7px 0;
+  font-size: 13px;
+}
+.sc-pair > div + div {
+  border-top: 1px solid #244336;
+}
+.sc-pair > div[data-winner='true'] {
+  color: #ead099;
+  font-weight: 600;
+}
+.sc-pair span {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+.sc-pair b {
+  font-variant-numeric: tabular-nums;
+}
+.sc-result {
+  background: #193a2b;
+  border-left: 3px solid #d5b575;
+  padding: 14px 16px;
+  margin-top: 18px;
+  border-radius: 6px;
+}
+.sc-result strong {
+  font-size: 16px;
+  color: #ebd395;
+}
+.sc-result p {
+  margin: 6px 0 0;
+}
+.sc-frame-score {
+  display: flex;
+  align-items: flex-start;
+  justify-content: center;
+  gap: 16px;
+  margin: 24px 0;
+  text-align: center;
+}
+.sc-frame-score > span {
+  flex: 1;
+  min-width: 0;
+  color: #ecd6a2;
+  font-size: 38px;
+  font-variant-numeric: tabular-nums;
+  line-height: 1.1;
+}
+.sc-frame-score small {
+  display: block;
+  color: #bacabd;
+  font-size: 12px;
+  margin-top: 9px;
+  overflow-wrap: anywhere;
+}
+.sc-frame-score b {
+  padding-top: 5px;
+  font-weight: 400;
+}
+.sc-frame-overlay {
+  overflow-y: auto;
+}
+.sc-frame-overlay section {
+  box-sizing: border-box;
+}
+.sc-match-strip {
+  top: auto;
+  bottom: max(10px, calc(env(safe-area-inset-bottom) + 10px));
+  max-width: calc(100vw - 110px);
+}
+.sc-leave {
+  top: auto;
+  bottom: max(10px, calc(env(safe-area-inset-bottom) + 10px));
+}
+@media (min-width: 650px) {
+  .sc-bracket {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+  .sc-pair > div {
+    font-size: 12px;
+  }
+}
+@media (max-width: 350px) {
+  .snooker-career {
+    padding-left: 12px;
+    padding-right: 12px;
+  }
+  .sc-feature {
+    padding: 16px;
+  }
+  .sc-settings {
+    grid-template-columns: 1fr;
+    gap: 0;
+  }
+  .sc-section-heading {
+    display: block;
+    margin-bottom: 10px;
+  }
+}

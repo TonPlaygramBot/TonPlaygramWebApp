@@ -3,11 +3,11 @@ import { createRoot } from 'react-dom/client';
 import * as THREE from 'three';
 import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js';
 import { PoolRoyalHumanPlayers, type PlayerSeat } from '../pages/Games/shared/PoolRoyalHumanPlayers.ts';
-import { CFG, type ShotState } from '../pages/Games/shared/poolRoyalReferenceHuman.ts';
+import { type ShotState } from '../pages/Games/shared/poolRoyalReferenceHuman.ts';
 import { createPoolRoyalCue, posePoolRoyalCue } from '../pages/Games/shared/createPoolRoyalCue.ts';
 import { PoolRoyalShotCamera } from '../pages/Games/shared/poolRoyalShotCamera.ts';
 import { advancePoolRoyalCueStroke, referenceCuePull, referenceCueFeather, resolveCueBallContact } from '../pages/Games/poolRoyaleCueStrokeTimeline.js';
-import { SoftwareRenderer } from '../games/tennis/software.ts';
+import { clipGuideTravel } from '../pages/Games/shared/billiardsGuideGeometry.js';
 
 declare const POOL_PREVIEW_MODEL: string;
 declare const POOL_PREVIEW_TABLE: { floorY: number; clothY: number; ballY: number; ballR: number; tableW: number; tableL: number; playW: number; playL: number; railH: number; thickness: number; cueLength: number; cueRadius: number; cueGap: number; cuePull: number; cueButtLift: number };
@@ -40,19 +40,17 @@ function CharacterPreview() {
 
   useEffect(() => {
     const host = stage.current!;
-    let renderer: THREE.WebGLRenderer | SoftwareRenderer;
+    let renderer: THREE.WebGLRenderer;
     try {
       const canvas = document.createElement('canvas');
       const context = canvas.getContext('webgl2') || canvas.getContext('webgl');
-      renderer = context
-        ? new THREE.WebGLRenderer({ canvas, context, antialias: true, alpha: true })
-        : new SoftwareRenderer();
+      if (!context) throw new Error('WebGL unavailable');
+      renderer = new THREE.WebGLRenderer({ canvas, context, antialias: true, alpha: true });
     } catch {
       setStatus('This preview needs WebGL to display the players.');
       return;
     }
     renderer.setPixelRatio(Math.min(window.devicePixelRatio, 1.5));
-    if (renderer instanceof SoftwareRenderer) renderer.fillTriangleSeams = true;
     renderer.outputColorSpace = THREE.SRGBColorSpace;
     renderer.toneMapping = THREE.ACESFilmicToneMapping;
     renderer.shadowMap.enabled = true;
@@ -78,7 +76,6 @@ function CharacterPreview() {
     const floor = new THREE.Mesh(new THREE.PlaneGeometry(120, 120),
       new THREE.ShadowMaterial({ opacity: 0.25 }));
     floor.rotation.x = -Math.PI / 2; floor.receiveShadow = true;
-    floor.visible = !(renderer instanceof SoftwareRenderer);
     scene.add(floor);
     const box = (size: number[], position: number[], color: number) => {
       const mesh = new THREE.Mesh(new THREE.BoxGeometry(size[0], size[1], size[2], size[0] > 2 ? 16 : 1, 1, size[2] > 2 ? 32 : 1),
@@ -89,9 +86,6 @@ function CharacterPreview() {
     const w = METRICS.tableW;
     const l = METRICS.tableL;
     const tableBase = box([w + 0.5, 0.65, l + 0.5], [0, METRICS.clothY - 0.45, 0], 0x36271f);
-    // The software preview has no depth buffer. Omit the covered base volume
-    // so its hidden top faces cannot sort over the cloth and obscure the hands.
-    tableBase.visible = !(renderer instanceof SoftwareRenderer);
     box([w, 0.16, l], [0, METRICS.clothY - 0.08, 0], 0x1f6f43);
     for (const sign of [-1, 1]) {
       box([0.28, 0.2, l], [sign * w / 2, METRICS.clothY + 0.1, 0], 0x174c31);
@@ -104,15 +98,22 @@ function CharacterPreview() {
     const cueBall = new THREE.Mesh(ballGeometry, new THREE.MeshStandardMaterial({ color: 0xf8fafc, roughness: 0.16 }));
     cueBall.position.copy(ballPosition); cueBall.castShadow = true; scene.add(cueBall);
     let ballNumber = 0;
+    const objectBalls: { id: number; active: boolean; pos: THREE.Vector2; mesh: THREE.Mesh }[] = [];
     for (let row = 0; row < 5; row++) for (let col = 0; col <= row; col++) {
       const ball = new THREE.Mesh(ballGeometry, new THREE.MeshStandardMaterial({
         color: [0xe0ac27, 0x296ba6, 0xba302a, 0x744596, 0xd86d22, 0x286945, 0x873232, 0x151515][ballNumber++ % 8], roughness: 0.23
       }));
       ball.position.set((col - row / 2) * METRICS.ballR * 2.05, ballPosition.y,
         -METRICS.tableL * 0.18 - row * METRICS.ballR * 1.88); ball.castShadow = true; scene.add(ball);
+      objectBalls.push({ id: ballNumber, active: true, pos: new THREE.Vector2(ball.position.x, ball.position.z), mesh: ball });
     }
     const aimLine = new THREE.LineSegments(new THREE.BufferGeometry(), new THREE.LineBasicMaterial({ color: 0xb7d9c9, transparent: true, opacity: 0.65 }));
     scene.add(aimLine);
+    const objectGuide = new THREE.Line(new THREE.BufferGeometry(), new THREE.LineBasicMaterial({ color: 0xf4c66c }));
+    const cueGuide = new THREE.Line(new THREE.BufferGeometry(), new THREE.LineBasicMaterial({ color: 0x76d9f4 }));
+    const ghost = new THREE.Mesh(new THREE.RingGeometry(METRICS.ballR * 0.94, METRICS.ballR * 1.06, 40), new THREE.MeshBasicMaterial({ color: 0xffffff, side: THREE.DoubleSide }));
+    ghost.rotation.x = -Math.PI / 2;
+    scene.add(objectGuide, cueGuide, ghost);
     const liveCue = createPoolRoyalCue({ ballRadius: METRICS.ballR, length: METRICS.cueLength, tipRadius: METRICS.cueRadius });
     liveCue.shaftMaterial.color.setHex(0xdeb887);
     scene.add(liveCue.body);
@@ -199,7 +200,30 @@ function CharacterPreview() {
       }
       if (current.inspectContact) { current.inspectContact = false; current.paused = true; setPaused(true); cueBall.position.copy(ballPosition); needsRender = true; }
       if (displayPhase !== lastPhase) { lastPhase = displayPhase; setPhase(displayPhase); }
-      aimLine.geometry.setFromPoints([ballPosition, ballPosition.clone().addScaledVector(forward, 2.1 * CFG.scale)]);
+      const origin = new THREE.Vector2(ballPosition.x, ballPosition.z);
+      const direction = new THREE.Vector2(forward.x, forward.z);
+      const guideBounds = { halfWidth: METRICS.playW / 2 - METRICS.ballR, halfLength: METRICS.playL / 2 - METRICS.ballR };
+      const travelToContact = clipGuideTravel({ origin, direction, balls: objectBalls, radius: METRICS.ballR, maxDistance: METRICS.playL * 2, ...guideBounds });
+      const contact = origin.clone().addScaledVector(direction, travelToContact);
+      const atHeight = (point: THREE.Vector2) => new THREE.Vector3(point.x, METRICS.ballY, point.y);
+      aimLine.geometry.setFromPoints([ballPosition, atHeight(contact)]);
+      aimLine.visible = current.state === 'dragging';
+      ghost.visible = aimLine.visible;
+      ghost.position.set(contact.x, METRICS.clothY + 0.014, contact.y);
+      const hit = objectBalls.find(ball => Math.abs(ball.pos.distanceTo(contact) - 2 * METRICS.ballR) < METRICS.ballR * 0.01);
+      objectGuide.visible = cueGuide.visible = Boolean(hit && aimLine.visible);
+      if (hit) {
+        const normal = hit.pos.clone().sub(contact).normalize();
+        const cueExit = direction.clone().addScaledVector(normal, -direction.dot(normal));
+        const objectLength = clipGuideTravel({ origin: hit.pos, direction: normal, balls: objectBalls, ignoreIds: [hit.id], radius: METRICS.ballR, maxDistance: METRICS.ballR * 16, ...guideBounds });
+        objectGuide.geometry.setFromPoints([atHeight(hit.pos), atHeight(hit.pos.clone().addScaledVector(normal, objectLength))]);
+        cueGuide.visible = aimLine.visible && cueExit.lengthSq() > 1e-6;
+        if (cueGuide.visible) {
+          cueExit.normalize();
+          const cueLength = clipGuideTravel({ origin: contact, direction: cueExit, balls: objectBalls, ignoreIds: [hit.id], radius: METRICS.ballR, maxDistance: METRICS.ballR * 12, ...guideBounds });
+          cueGuide.geometry.setFromPoints([atHeight(contact), atHeight(contact.clone().addScaledVector(cueExit, cueLength))]);
+        }
+      }
       const eye = shotCamera.resolve({ eye: players?.eyeView ?? null, stroke: Boolean(stroke && shotTip.visible),
         shooting: Boolean(stroke), cueBlend: 0, now: simulationTime, excluded: current.view !== 'player' });
       const fov = current.view === 'player' && eye ? 66 : 46;
@@ -233,10 +257,7 @@ function CharacterPreview() {
         camera.position.copy(focus).addScaledVector(offset, distance * 1.06);
         camera.lookAt(focus);
       }
-      if (!(renderer instanceof SoftwareRenderer) || needsRender || now - renderer.last > 100) {
-        if (needsRender && renderer instanceof SoftwareRenderer) renderer.last = 0;
-        renderer.render(scene, camera); needsRender = false; lastView = current.view;
-      }
+      renderer.render(scene, camera); needsRender = false; lastView = current.view;
       raf = requestAnimationFrame(draw);
     };
     raf = requestAnimationFrame(draw);
@@ -275,7 +296,7 @@ function CharacterPreview() {
   }, []);
 
   return <div className="pool-preview">
-    <div className="viz-row"><span>Pool Royal · Shot inspection</span>
+    <div className="viz-row"><span>Pool Royal · Shot mechanics preview</span>
       <select className="form-select" aria-label="Active player" value={seat} onChange={event => {
         const next = event.target.value as PlayerSeat; setSeat(next); live.current.seat = next; changeState('dragging');
       }}><option value="A">Player 1</option><option value="B">AI player</option></select>

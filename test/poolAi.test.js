@@ -144,7 +144,7 @@ test('ball in hand baulk restriction only applies during break placement', () =>
   }
 });
 
-test('open-table targeting can select any object ball', () => {
+test('open-table targeting selects a colour and never the 8-ball', () => {
   const req = {
     game: 'AMERICAN_BILLIARDS',
     state: {
@@ -164,7 +164,7 @@ test('open-table targeting can select any object ball', () => {
     rngSeed: 3
   };
   const decision = planShot(req);
-  assert([1, 2, 8].includes(decision.targetBallId));
+  assert([1, 2].includes(decision.targetBallId));
 });
 
 test('supports non-zero cueBallId mappings', () => {
@@ -383,7 +383,7 @@ test('uses hidden helper numbers/colours when ids are missing', () => {
   assert.equal(decision.targetBallId, 3)
 })
 
-test('prioritises clearer pocket entrance when one lane is cluttered', () => {
+test('does not attempt an impossible right-angle cut just because a pocket lane is clear', () => {
   const decision = planShot({
     game: 'AMERICAN_BILLIARDS',
     state: {
@@ -408,11 +408,11 @@ test('prioritises clearer pocket entrance when one lane is cluttered', () => {
   });
 
   assert.equal(decision.targetBallId, 1);
-  assert(decision.targetPocket);
-  assert(decision.targetPocket.y > 300, 'should prefer the clearer bottom-pocket lane');
+  assert.equal(decision.targetPocket, undefined);
+  assert.match(decision.rationale, /safety-legal-contact/);
 });
 
-test('biases pocket entry toward far jaw lane when near jaw is crowded', () => {
+test('keeps a straight open pocket lane centered when the neighboring jaw is crowded', () => {
   const decision = planShot({
     game: 'AMERICAN_BILLIARDS',
     state: {
@@ -437,7 +437,8 @@ test('biases pocket entry toward far jaw lane when near jaw is crowded', () => {
 
   assert.equal(decision.targetBallId, 3)
   assert(decision.targetPocket, 'expected a selected pocket entry')
-  assert(decision.targetPocket.x > 500, 'entry should shift to the far/right jaw lane')
+  assert(Math.abs(decision.targetPocket.x - 500) < 1, 'a clear straight lane must not acquire an arbitrary lateral cut')
+  assert(decision.targetPocket.y > 0, 'entry must be on the playable side of the pocket')
 })
 
 

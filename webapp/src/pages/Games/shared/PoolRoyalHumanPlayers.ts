@@ -277,23 +277,6 @@ export class PoolRoyalHumanPlayers {
       }
       let bridge = resolvePoolRoyalBridgeAnchor({ cueBall, aimForward: aim, clothY });
       let bridgeStyle: 'open' | 'compact' | 'raised' = 'open';
-      if (active && state !== 'idle' && frame.bridgeBounds) {
-        const safety = resolveSafeBridgeAnchor(
-          bridge,
-          aim,
-          (frame.bridgeObstacles ?? []).map(obstacle => ({
-            position: this.toReference(obstacle.position),
-            radius: obstacle.radius / this.referenceScale
-          })),
-          {
-            halfWidth: frame.bridgeBounds.halfWidth / this.referenceScale,
-            halfLength: frame.bridgeBounds.halfLength / this.referenceScale
-          },
-          CFG.humanScale * 0.12
-        );
-        bridge = safety.anchor;
-        bridgeStyle = safety.style;
-      }
       const idleRight = rootTarget.clone().add(new THREE.Vector3(
         CFG.idleRightHandX, CFG.idleRightHandY, CFG.idleRightHandZ
       ).applyAxisAngle(THREE.Object3D.DEFAULT_UP, yaw));
@@ -326,6 +309,23 @@ export class PoolRoyalHumanPlayers {
         }
       }
       bridge = resolvePoolRoyalBridgeAnchor({ cueBall, aimForward: aim, cueTip: tip, clothY });
+      if (active && state !== 'idle' && frame.bridgeBounds) {
+        const safety = resolveSafeBridgeAnchor(
+          bridge,
+          aim,
+          (frame.bridgeObstacles ?? []).map(obstacle => ({
+            position: this.toReference(obstacle.position),
+            radius: obstacle.radius / this.referenceScale
+          })),
+          {
+            halfWidth: frame.bridgeBounds.halfWidth / this.referenceScale,
+            halfLength: frame.bridgeBounds.halfLength / this.referenceScale
+          },
+          CFG.humanScale * 0.12
+        );
+        bridge = safety.anchor;
+        bridgeStyle = safety.style;
+      }
       const reachProfile = resolveCueReachProfile({
         cueBall,
         aimForward: aim,
@@ -369,7 +369,11 @@ export class PoolRoyalHumanPlayers {
     }
     const shooter = this.players.find(player => player.seat === frame.activeSeat);
     this.eyeView = shooter && frame.state !== 'idle'
-      ? poolRoyalEyeView(shooter.human, this.group, frame.cueBall, forward,
+      ? poolRoyalEyeView(shooter.human, this.group,
+        frame.state === 'striking'
+          ? shooter.shotBall.clone().multiplyScalar(this.referenceScale).add(new THREE.Vector3(0, this.options.floorY, 0))
+          : frame.cueBall,
+        frame.state === 'striking' ? shooter.shotAim : forward,
         Math.max(0.01, frame.cueBall.y - this.options.clothY)) : null;
   }
 

@@ -46,7 +46,7 @@ describe('PoolRoyaleRules', () => {
   });
 
   test('Legacy american variant key is remapped to 8-ball rules', () => {
-    const rules = new PoolRoyaleRules('american');
+    const rules = new PoolRoyaleRules('american', 'reference');
     const initialFrame = rules.getInitialFrame('Breaker', 'Opponent');
     const initialMeta = initialFrame.meta as any;
 
@@ -144,7 +144,7 @@ describe('PoolRoyaleRules', () => {
   });
 
   test('reference 9-ball accepts a dry opening shot with contact and one rail', () => {
-    const rules = new PoolRoyaleRules('9ball');
+    const rules = new PoolRoyaleRules('9ball', 'reference');
     const initialFrame = rules.getInitialFrame('Breaker', 'Opponent');
     const illegalBreak = rules.applyShot(
       initialFrame,
@@ -236,7 +236,7 @@ test('standard nine-ball HUD warns the returning player before a third consecuti
 });
 
 test('reference early eight survives serialization and requests an actual physical respot', () => {
-  const rules = new PoolRoyaleRules('8ball');
+  const rules = new PoolRoyaleRules('8ball', 'reference');
   const initial = rules.getInitialFrame('Shooter', 'Opponent');
   const assigned = rules.applyShot(initial, [
     { type: 'HIT', firstContact: 'SOLID', ballId: 'ball_1' },
@@ -290,7 +290,7 @@ test.each(['8ball', '9ball'])('%s respects explicit foul and no-contact evidence
 });
 
 test('reference nine-ball does not warn or end the rack after three consecutive fouls', () => {
-  const rules = new PoolRoyaleRules('9ball');
+  const rules = new PoolRoyaleRules('9ball', 'reference');
   let frame = rules.getInitialFrame('Shooter', 'Opponent');
   for (let count = 0; count < 3; count++) {
     frame = rules.applyShot(frame, [{ type: 'HIT', firstContact: 2, ballId: 'ball_2' }]);

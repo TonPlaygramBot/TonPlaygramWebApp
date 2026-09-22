@@ -11,11 +11,14 @@ export class PoolRoyalShotCamera {
     cueBlend: number; now: number; excluded?: boolean;
   }): HumanEyeView | null {
     if (excluded) { this.reset(); return null; }
-    if (stroke && eye) {
+    if (stroke && eye && !this.held) {
       this.held = { position: eye.position.clone(), target: eye.target.clone(), blend: 1 };
       this.lastStrokeAt = now;
       return this.held;
     }
+    // Freeze the address pose for the complete stroke, including its follow-through.
+    // Refreshing the pose here made the eyes chase the cue ball after contact.
+    if (stroke && this.held) return this.held;
     if (shooting && this.held) {
       const blend = 1 - THREE.MathUtils.smoothstep(now - this.lastStrokeAt, 600, 900);
       if (blend > 0) return { ...this.held, blend };

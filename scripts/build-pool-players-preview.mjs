@@ -21,8 +21,8 @@ for (let i = 0; i < gltf.bufferViews.length; i++) {
   const view = gltf.bufferViews[i];
   let bytes = binary.subarray(view.byteOffset || 0, (view.byteOffset || 0) + view.byteLength);
   const image = images.get(i);
-  if (image) bytes = await sharp(bytes).resize({ width: 256, height: 256, fit: 'inside', withoutEnlargement: true })
-    .toFormat(image.mimeType === 'image/png' ? 'png' : 'jpeg', { quality: 82 }).toBuffer();
+  if (image) bytes = await sharp(bytes).resize({ width: 96, height: 96, fit: 'inside', withoutEnlargement: true })
+    .toFormat(image.mimeType === 'image/png' ? 'png' : 'jpeg', { quality: 72 }).toBuffer();
   view.byteOffset = offset; view.byteLength = bytes.length;
   chunks.push(bytes); offset += bytes.length;
   const padding = (4 - offset % 4) % 4;
@@ -37,7 +37,7 @@ header.writeUInt32LE(28 + json.length + offset, 8);
 header.writeUInt32LE(json.length, 12); header.writeUInt32LE(0x4e4f534a, 16);
 const binaryHeader = Buffer.alloc(8);
 binaryHeader.writeUInt32LE(offset, 0); binaryHeader.writeUInt32LE(0x004e4942, 4);
-const model = gzipSync(Buffer.concat([header, json, binaryHeader, ...chunks])).toString('base64');
+const model = gzipSync(Buffer.concat([header, json, binaryHeader, ...chunks]), { level: 9 }).toString('base64');
 const result = await build({
   entryPoints: [resolve(root, 'webapp/src/previews/PoolRoyalPlayersPreview.tsx')],
   bundle: true, format: 'esm', platform: 'browser', jsx: 'automatic', minify: true,
@@ -54,6 +54,6 @@ const result = await build({
 });
 const fragment = (await readFile(resolve(root, 'scripts/pool-players-preview.fragment.html'), 'utf8'))
   .replace('/* POOL_PLAYERS_PREVIEW */', () => result.outputFiles[0].text);
-if (Buffer.byteLength(fragment) > 1_000_000) throw new Error('Inline preview exceeds 1 MB.');
+if (Buffer.byteLength(fragment) > 1_000_000) throw new Error(`Inline preview exceeds 1 MB (${Buffer.byteLength(fragment)} bytes, model ${model.length}).`);
 await writeFile(output, fragment);
 console.log(`Character preview written: ${output} (${Buffer.byteLength(fragment)} bytes)`);

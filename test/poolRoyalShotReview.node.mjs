@@ -13,6 +13,8 @@ test('AI and human strokes override broadcast camera ownership and retain the ey
     const shot = camera.resolve({ eye, stroke: true, shooting: true, cueBlend, now: 100 });
     assert.equal(shot.blend, 1); assert.deepEqual(shot.position, eye.position);
     eye.position.x = 100; // held camera must not follow the standing animation after the shot
+    const duringStroke = camera.resolve({ eye, stroke: true, shooting: true, cueBlend, now: 250 });
+    assert.equal(duringStroke.position.x, 0, 'the eye pose stays frozen while the cue follows through');
     const held = camera.resolve({ eye: null, stroke: false, shooting: true, cueBlend, now: 500 });
     assert.equal(held.position.x, 0); assert.equal(held.blend, 1);
     assert.ok(camera.resolve({ eye: null, stroke: false, shooting: true, cueBlend, now: 850 }).blend < 1);

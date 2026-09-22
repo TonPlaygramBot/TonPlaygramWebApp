@@ -21,6 +21,7 @@ export class SnookerRoyalShotCamera {
   private held: HumanEyeView | null = null;
   private impactAt: number | null = null;
   private broadcast = false;
+  private strokeAnchored = false;
 
   get isHoldingShot(): boolean { return this.held !== null; }
   get isBroadcasting(): boolean { return this.broadcast; }
@@ -28,12 +29,13 @@ export class SnookerRoyalShotCamera {
   beginShot(eye: HumanEyeView | null, fallback: HumanEyeView): void {
     this.reset();
     this.hold(eye ?? fallback);
+    this.strokeAnchored = true;
   }
 
   /** Called at visible tip contact, before ball physics or the rig can move. */
   markImpact(now: number, eye: HumanEyeView | null = null): void {
     if (this.impactAt !== null || this.broadcast) return;
-    if (eye) this.hold(eye);
+    if (eye && !this.strokeAnchored) this.hold(eye);
     this.impactAt = now;
   }
 
@@ -56,7 +58,9 @@ export class SnookerRoyalShotCamera {
       if (this.broadcast) return null;
       if (this.impactAt === null) {
         if (impactPending) {
-          if (eye) this.hold(eye);
+          // A stroke starts from a snapshot of the settled address view. The
+          // character's backswing must not pull the player's head backwards.
+          if (eye && !this.strokeAnchored) this.hold(eye);
         } else {
           // Also support a missing rig or a shot without stroke animation.
           if (!this.held && eye) this.hold(eye);
@@ -77,5 +81,10 @@ export class SnookerRoyalShotCamera {
     return blend > 0 ? { ...eye, blend } : null;
   }
 
-  reset(): void { this.held = null; this.impactAt = null; this.broadcast = false; }
+  reset(): void {
+    this.held = null;
+    this.impactAt = null;
+    this.broadcast = false;
+    this.strokeAnchored = false;
+  }
 }

@@ -1,5 +1,6 @@
 import { findSnookerRespotPosition, SNOOKER_RESPOT_ORDER } from '../webapp/src/games/snooker/respot';
 import { SnookerRoyalRules } from '../src/rules/SnookerRoyalRules';
+import { isSnookerObstructed } from '../webapp/src/utils/snookerVisibility.js';
 import fs from 'node:fs';
 import path from 'node:path';
 
@@ -82,6 +83,7 @@ test.each([false, true])('live deciding black respots after a tying foul or pot 
   expect(start).toBeGreaterThan(0);
   expect(end).toBeGreaterThan(start);
   const environment = {
+    rules, isSnookerObstructed, BALL_R: options.radius,
     safeState, currentState, cue, colors: { black }, balls, ballsRef: { current: balls },
     snookerSpotsRef: { current: spots }, SPOTS: spots, SNOOKER_RESPOT_ORDER,
     BALL_CENTER_Y: 0.5, BALL_SHADOW_Y: 0, pocketDropRef: { current: new Set(['black']) },

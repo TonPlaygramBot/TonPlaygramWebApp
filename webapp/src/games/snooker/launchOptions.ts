@@ -7,6 +7,8 @@ export function resolveSnookerLaunchOptions(search: string) {
         ? 'online'
         : params.get('mode') === 'career'
           ? 'career'
+          : params.get('mode') === 'tournament'
+            ? 'tournament'
           : 'ai',
     playType: params.get('type') === 'tournament' ? 'tournament' : 'regular',
     tableSizeKey: params.get('tableSize') === '10ft' ? '10ft' : '12ft',
