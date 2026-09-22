@@ -1,7 +1,7 @@
 import React from 'react';
 import './poolMatchHud.css';
 
-export function PoolMatchHud({ player, opponent, turn, target, busy, inHand, timer, variant,
+export function PoolMatchHud({ player, opponent, turn, target, busy, preparing = false, inHand, timer, variant,
   competition, declaration, automaticCall, canCall, canPushOut, interactive, callOpen,
   onToggleCall, onDeclaration, availableBalls }) {
   const callBall = declaration.ballId ?? automaticCall.ballId;
@@ -10,7 +10,7 @@ export function PoolMatchHud({ player, opponent, turn, target, busy, inHand, tim
   return <section className="pool-match-hud" data-competition={Boolean(competition)} aria-label="Pool match scoreboard">
     <div className="pool-match-hud__meta">
       <span>{competition ? `Round ${(competition.round ?? 0) + 1} · Race to ${competition.raceTo}` : `${variant} · Pool Royal`}</span>
-      <span>{busy ? 'Balls in play' : inHand ? 'Ball in hand' : turn === 0 ? 'Your visit' : 'Opponent visit'}</span>
+      <span aria-live="polite">{preparing ? 'Taking position…' : busy ? 'Balls in play' : inHand ? 'Ball in hand' : turn === 0 ? 'Your visit' : 'Opponent visit'}</span>
     </div>
     <div className="pool-match-hud__players">
       <span className={turn === 0 ? 'is-active' : ''}>{player}</span>
@@ -18,8 +18,8 @@ export function PoolMatchHud({ player, opponent, turn, target, busy, inHand, tim
       <span className={turn === 1 ? 'is-active' : ''}>{opponent}</span>
     </div>
     <div className="pool-match-hud__target">
-      <span><i /> {inHand ? 'Place cue ball, then aim' : `Ball on: ${target}`}</span>
-      <span>{busy ? 'Watching shot' : `${Math.max(0, timer)}s`}</span>
+      <span><i /> {preparing ? 'Planting feet and lining up' : inHand ? 'Place cue ball, then aim' : `Ball on: ${target}`}</span>
+      <span>{preparing ? 'Shot queued' : busy ? 'Watching shot' : `${Math.max(0, timer)}s`}</span>
     </div>
     {!busy && interactive && (canCall || canPushOut) && <div className="pool-match-hud__actions">
       {canCall && <>

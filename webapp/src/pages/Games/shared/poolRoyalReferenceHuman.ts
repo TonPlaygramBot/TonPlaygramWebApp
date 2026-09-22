@@ -3,6 +3,14 @@
 import * as THREE from 'three';
 
 export type ShotState = "idle" | "dragging" | "striking";
+/** Opt-in host movement; the original reference/Snooker solver remains unchanged. */
+export type HumanMotionFrame = {
+  root: THREE.Vector3;
+  yaw: number;
+  distance: number;
+  speed: number;
+  pelvisDrop?: number;
+};
 type BoneKey =
   | "hips" | "spine" | "chest" | "neck" | "head"
   | "leftUpperArm" | "leftLowerArm" | "leftHand"
@@ -408,7 +416,7 @@ function driveHuman(human: HumanRig, frame: HumanFrame) {
   twistBone(b.rightUpperLeg, frame.forward, 0.03 * ik);
   setHandBasis(b.rightFoot, frame.side, frame.up, frame.forward, 0.02 * ik, CFG.footLockStrength * ik);
 }
-export function updateHumanPose(human: HumanRig, dt: number, state: ShotState, rootTarget: THREE.Vector3, aimForward: THREE.Vector3, bridgeTarget: THREE.Vector3, idleRight: THREE.Vector3, idleLeft: THREE.Vector3, cueBack: THREE.Vector3, cueTip: THREE.Vector3, power: number, clothY = CFG.tableTopY, supportMode: "hand" | "mechanical-rest" = "hand", supportDirection?: THREE.Vector3, rearGripOffset = 0, rearGripTarget?: THREE.Vector3) {
+export function updateHumanPose(human: HumanRig, dt: number, state: ShotState, rootTarget: THREE.Vector3, aimForward: THREE.Vector3, bridgeTarget: THREE.Vector3, idleRight: THREE.Vector3, idleLeft: THREE.Vector3, cueBack: THREE.Vector3, cueTip: THREE.Vector3, power: number, clothY = CFG.tableTopY, supportMode: "hand" | "mechanical-rest" = "hand", supportDirection?: THREE.Vector3, rearGripOffset = 0, rearGripTarget?: THREE.Vector3, motion?: HumanMotionFrame) {
   human.poseT = dampScalar(human.poseT, state === "idle" ? 0 : 1, CFG.poseLambda, dt);
   human.breathT += dt * (state === "idle" ? 1.05 : 0.5);
   human.settleT = dampScalar(human.settleT, state === "dragging" ? 1 : 0, 5.5, dt);
@@ -417,22 +425,23 @@ export function updateHumanPose(human: HumanRig, dt: number, state: ShotState, r
     human.strikeClock += dt;
   } else human.strikeClock = 0;
   const rootGoal = state === "striking" ? human.strikeRoot : rootTarget;
-  dampVector(human.root.position, rootGoal, state === "striking" ? 12 : CFG.moveLambda, dt);
+  if (motion) human.root.position.copy(motion.root);
+  else dampVector(human.root.position, rootGoal, state === "striking" ? 12 : CFG.moveLambda, dt);
   const moveAmountRaw = human.root.position.distanceTo(rootGoal);
-  human.walkT += dt * (2 + Math.min(7, moveAmountRaw * 10 / CFG.scale));
-  human.yaw = dampScalar(human.yaw, state === "striking" ? human.strikeYaw : yawFromForward(aimForward), CFG.rotLambda, dt);
+  human.walkT += motion ? motion.distance / (0.8 * CFG.humanScale) : dt * (2 + Math.min(7, moveAmountRaw * 10 / CFG.scale));
+  human.yaw = motion ? motion.yaw : dampScalar(human.yaw, state === "striking" ? human.strikeYaw : yawFromForward(aimForward), CFG.rotLambda, dt);
   const t = easeInOut(human.poseT), idle = 1 - t;
   const breath = Math.sin(human.breathT * Math.PI * 2) * ((0.006 + idle * 0.004) * CFG.scale);
   const walk = Math.sin(human.walkT * 6.2) * Math.min(1, moveAmountRaw * 12 / CFG.scale);
-  const walkAmount = clamp01(moveAmountRaw * 18 / CFG.scale) * idle;
+  const walkAmount = (motion ? clamp01(motion.speed / (1.1 * CFG.scale)) : clamp01(moveAmountRaw * 18 / CFG.scale)) * idle;
   const dragStroke = state === "dragging" ? Math.sin(performance.now() * 0.011) * (0.25 + power * 0.75) : 0;
   const strikeFollow = state === "striking" ? Math.sin(clamp01(human.strikeClock / (CFG.strikeTime + CFG.holdTime)) * Math.PI) : 0;
   const forward = new THREE.Vector3(0, 0, -1).applyAxisAngle(Y_AXIS, human.yaw).normalize();
   const side = new THREE.Vector3(forward.z, 0, -forward.x).normalize();
   const local = (v: THREE.Vector3) => v.clone().applyAxisAngle(Y_AXIS, human.yaw).add(human.root.position);
   const powerLean = power * t;
-  const rootWorld = human.root.position.clone().addScaledVector(forward, (0.018 * powerLean + 0.026 * strikeFollow) * CFG.scale);
-  rootWorld.y = 0;
+  const rootWorld = human.root.position.clone().addScaledVector(forward, motion ? 0 : (0.018 * powerLean + 0.026 * strikeFollow) * CFG.scale);
+  rootWorld.y = motion ? -(motion.pelvisDrop ?? 0) * t : 0;
   const torso = local(new THREE.Vector3(0, lerp(1.3, 1.14, t) * CFG.scale + breath, (lerp(0.02, -0.16, t) - 0.014 * powerLean) * CFG.scale));
   const chest = local(new THREE.Vector3(0, lerp(1.52, 1.24, t) * CFG.scale + breath, (lerp(0.02, -0.42, t) - 0.024 * powerLean) * CFG.scale));
   const neck = local(new THREE.Vector3(0, lerp(1.68, 1.28, t) * CFG.scale + breath, (lerp(0.02, -0.61, t) - 0.028 * powerLean) * CFG.scale));

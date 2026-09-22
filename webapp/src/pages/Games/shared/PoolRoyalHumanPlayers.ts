@@ -16,6 +16,11 @@ import {
   type CueReachEquipment
 } from './cueReachEquipment.ts';
 import { resolveSafeBridgeAnchor, type BridgeBounds, type BridgeObstacle } from './poolRoyalBridgeSafety.ts';
+import {
+  advancePoolRoyalMovement, createPoolRoyalMovement, createPoolRoyalFeet,
+  plantPoolRoyalFeet, settlePoolRoyalRearGrip, relaxPoolRoyalFreeArm,
+  type PoolRoyalMovement, type PoolRoyalFeet
+} from './poolRoyalHumanMovement.ts';
 
 export type PlayerSeat = 'A' | 'B';
 export type PlayerFrame = {
@@ -42,6 +47,10 @@ type Player = {
   headMeshes: THREE.Object3D[];
   reachEquipment: CueReachEquipment;
   cueModel?: THREE.Object3D;
+  movement?: PoolRoyalMovement;
+  feet?: PoolRoyalFeet;
+  planted: boolean;
+  strokePose?: { position: THREE.Vector3; bones: Map<THREE.Bone, THREE.Quaternion> };
 };
 type Options = {
   floorY: number;
@@ -54,6 +63,8 @@ type Options = {
   targetHeight?: number;
   modelUrl?: string;
   model?: THREE.Object3D;
+  /** Pool opts in; other games retain their existing timing and character pose. */
+  realisticMovement?: boolean;
   onError?: (error: unknown) => void;
 };
 
@@ -145,6 +156,9 @@ export class PoolRoyalHumanPlayers {
   readonly ready: Promise<boolean>;
   readonly humanHeight: number;
   eyeView: HumanEyeView | null = null;
+  /** Hosts can queue the shot until the player has reached and planted the stance. */
+  readyToShoot = false;
+  walking = false;
   private scale = 1;
   get referenceScale() { return this.scale; }
   private readonly solverScene = new THREE.Scene();
@@ -190,9 +204,10 @@ export class PoolRoyalHumanPlayers {
         human.model!.traverse(object => {
           if ((object as THREE.Mesh).isMesh && /^(EyeLeft|EyeRight|Wolf3D_(Head|Teeth|Beard|Headwear))$/.test(object.name)) headMeshes.push(object);
         });
+        const feet = options.realisticMovement ? createPoolRoyalFeet(human) : undefined;
         this.group.add(human.modelRoot, cue.group, reachEquipment.group);
         this.players.push({ seat, human, cue, initialized: false, state: 'idle',
-          shotBall: new THREE.Vector3(), shotAim: new THREE.Vector3(), headMeshes, reachEquipment });
+          shotBall: new THREE.Vector3(), shotAim: new THREE.Vector3(), headMeshes, reachEquipment, feet, planted: true });
       }
       if (this.cueAppearance) this.setCueAppearance(this.cueAppearance.body, this.cueAppearance.tip, this.cueAppearance.butt);
       return true;
@@ -243,10 +258,10 @@ export class PoolRoyalHumanPlayers {
   update(dt: number, frame: PlayerFrame) {
     if (this.disposed || !Number.isFinite(dt) || dt < 0) return;
     this.group.visible = !frame.hidden;
-    if (frame.hidden) { this.eyeView = null; return; }
+    if (frame.hidden) { this.eyeView = null; this.readyToShoot = false; this.walking = false; return; }
     const ball = this.toReference(frame.cueBall);
     const forward = frame.aimForward.clone().setY(0);
-    if (!Number.isFinite(forward.lengthSq()) || forward.lengthSq() < 1e-8) return;
+    if (!Number.isFinite(forward.lengthSq()) || forward.lengthSq() < 1e-8) { this.readyToShoot = false; return; }
     forward.normalize();
     const tableW = this.options.tableW / this.referenceScale;
     const tableL = this.options.tableL / this.referenceScale;
@@ -254,12 +269,20 @@ export class PoolRoyalHumanPlayers {
     const power = THREE.MathUtils.clamp(frame.power, 0, 1);
     for (const player of this.players) {
       const active = player.seat === frame.activeSeat;
-      const state = active ? frame.state : 'idle';
+      let state = active ? frame.state : 'idle';
       const human = player.human;
       if (state === 'striking' && player.state !== 'striking') {
         player.shotBall.copy(ball);
         player.shotAim.copy(forward);
+        if (this.options.realisticMovement) {
+          const bones = new Map<THREE.Bone, THREE.Quaternion>();
+          human.modelRoot.traverse(object => {
+            if ((object as THREE.Bone).isBone && !/right(arm|forearm|hand)/i.test(object.name)) bones.set(object as THREE.Bone, object.quaternion.clone());
+          });
+          player.strokePose = { position: human.modelRoot.position.clone(), bones };
+        }
       }
+      if (state !== 'striking') player.strokePose = undefined;
       const aim = state === 'striking' ? player.shotAim.clone() : forward.clone();
       const cueBall = state === 'striking' ? player.shotBall : ball;
       const rootTarget = active
@@ -274,17 +297,25 @@ export class PoolRoyalHumanPlayers {
         human.root.position.copy(rootTarget);
         human.yaw = yaw;
         player.initialized = true;
+        if (this.options.realisticMovement) player.movement = createPoolRoyalMovement(rootTarget, yaw);
       }
+      // A moving ball must not drag the standing shooter around the perimeter.
+      if (player.movement && active && state === 'idle') rootTarget.copy(player.movement.root);
+      const motion = player.movement ? advancePoolRoyalMovement(player.movement, rootTarget, yaw,
+        tableW, tableL, dt, human.poseT, state === 'striking') : undefined;
+      if (player.movement && state === 'dragging' && !player.movement.settled) state = 'idle';
+      const handRoot = motion?.root ?? rootTarget;
+      const handYaw = motion?.yaw ?? yaw;
       let bridge = resolvePoolRoyalBridgeAnchor({ cueBall, aimForward: aim, clothY });
       let bridgeStyle: 'open' | 'compact' | 'raised' = 'open';
-      const idleRight = rootTarget.clone().add(new THREE.Vector3(
+      const idleRight = handRoot.clone().add(new THREE.Vector3(
         CFG.idleRightHandX, CFG.idleRightHandY, CFG.idleRightHandZ
-      ).applyAxisAngle(THREE.Object3D.DEFAULT_UP, yaw));
-      const idleLeft = rootTarget.clone().add(new THREE.Vector3(
+      ).applyAxisAngle(THREE.Object3D.DEFAULT_UP, handYaw));
+      const idleLeft = handRoot.clone().add(new THREE.Vector3(
         -0.18 * CFG.scale, 1.08 * CFG.scale, 0.03 * CFG.scale
-      ).applyAxisAngle(THREE.Object3D.DEFAULT_UP, yaw));
+      ).applyAxisAngle(THREE.Object3D.DEFAULT_UP, handYaw));
       const idleCue = cuePoseFromGrip(idleRight,
-        CFG.idleCueDir.clone().applyAxisAngle(THREE.Object3D.DEFAULT_UP, yaw),
+        CFG.idleCueDir.clone().applyAxisAngle(THREE.Object3D.DEFAULT_UP, handYaw),
         CFG.idleCueGripFromBack, this.cueAppearance
           ? this.cueAppearance.tip.distanceTo(this.cueAppearance.butt) / this.referenceScale : CFG.cueLength);
       let back = idleCue.back;
@@ -353,8 +384,21 @@ export class PoolRoyalHumanPlayers {
       this.solverScene.updateMatrixWorld(true);
       updateHumanPose(human, Math.min(dt, 0.033), state, rootTarget, aim, bridge,
         idleRight, idleLeft, back, tip, active ? power : 0, clothY, supportMode,
-        reachPose?.restDirection, rearGripOffset, rearGrip);
-      if (!reachPose) refinePoolRoyalBridge(human, bridge, aim, clothY, bridgeStyle);
+        reachPose?.restDirection, rearGripOffset, rearGrip, motion);
+      if (player.strokePose) {
+        human.modelRoot.position.copy(player.strokePose.position);
+        player.strokePose.bones.forEach((rotation, bone) => bone.quaternion.copy(rotation));
+        human.modelRoot.updateMatrixWorld(true);
+      } else {
+        if (!reachPose) refinePoolRoyalBridge(human, bridge, aim, clothY, bridgeStyle);
+        if (player.feet && player.movement) player.planted = plantPoolRoyalFeet(human, player.feet, player.movement, dt, false);
+        if (player.movement) relaxPoolRoyalFreeArm(human, player.movement);
+      }
+      if (motion && ((rearGrip && human.poseT > 0.9) || human.poseT < 0.05)) {
+        const wristRotation = human.bones.rightHand!.getWorldQuaternion(new THREE.Quaternion()).normalize();
+        const wrist = (rearGrip ?? idleRight).clone().sub(CFG.rightHandCueSocketLocal.clone().applyQuaternion(wristRotation));
+        settlePoolRoyalRearGrip(human, wrist, aim);
+      }
       this.group.add(human.modelRoot);
       setCuePose(player.cue, back, tip);
       // While aiming, the gameplay cue is the visible cue; the parked player
@@ -368,6 +412,9 @@ export class PoolRoyalHumanPlayers {
       player.state = state;
     }
     const shooter = this.players.find(player => player.seat === frame.activeSeat);
+    this.walking = Boolean(shooter?.movement && !shooter.movement.settled);
+    this.readyToShoot = Boolean(shooter && (!this.options.realisticMovement ||
+      (shooter.movement?.settled && shooter.planted && shooter.human.poseT > 0.98)));
     this.eyeView = shooter && frame.state !== 'idle'
       ? poolRoyalEyeView(shooter.human, this.group,
         frame.state === 'striking'
@@ -381,6 +428,8 @@ export class PoolRoyalHumanPlayers {
     if (this.disposed) return;
     this.disposed = true;
     this.eyeView = null;
+    this.readyToShoot = false;
+    this.walking = false;
     // The gameplay cue owns shared geometry/materials; do not dispose its copies here.
     for (const player of this.players) player.cueModel?.removeFromParent();
     this.cueAppearance = null;

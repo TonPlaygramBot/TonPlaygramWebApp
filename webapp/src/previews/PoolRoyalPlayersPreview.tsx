@@ -8,20 +8,22 @@ import { createPoolRoyalCue, posePoolRoyalCue } from '../pages/Games/shared/crea
 import { PoolRoyalShotCamera } from '../pages/Games/shared/poolRoyalShotCamera.ts';
 import { advancePoolRoyalCueStroke, referenceCuePull, referenceCueFeather, resolveCueBallContact } from '../pages/Games/poolRoyaleCueStrokeTimeline.js';
 import { clipGuideTravel } from '../pages/Games/shared/billiardsGuideGeometry.js';
+import { createShowoodTableGeometry, groundShowoodTableLegs, raycastPoolCushions } from '../pages/Games/shared/poolRoyaleShowoodGeometry.js';
 
 declare const POOL_PREVIEW_MODEL: string;
+declare const POOL_PREVIEW_SHOWOOD: string;
 declare const POOL_PREVIEW_TABLE: { floorY: number; clothY: number; ballY: number; ballR: number; tableW: number; tableL: number; playW: number; playL: number; railH: number; thickness: number; cueLength: number; cueRadius: number; cueGap: number; cuePull: number; cueButtLift: number };
 const METRICS = Object.fromEntries(Object.entries(POOL_PREVIEW_TABLE).map(([key, value]) => [key,
   (value - (['clothY', 'ballY', 'floorY'].includes(key) ? POOL_PREVIEW_TABLE.floorY : 0)) / 12
 ])) as typeof POOL_PREVIEW_TABLE;
-type View = 'player' | 'table' | 'bridge';
+type View = 'player' | 'table' | 'bridge' | 'geometry';
 
 function CharacterPreview() {
   const stage = useRef<HTMLDivElement>(null);
-  const live = useRef({ state: 'dragging' as ShotState, view: 'player' as View, paused: false, power: 0.25, yaw: 0, seat: 'A' as PlayerSeat, strikeAt: 0, shotId: 0, resetId: 0, elapsed: 0, slow: false, ai: false, inspectContact: false });
+  const live = useRef({ state: 'dragging' as ShotState, view: 'table' as View, paused: false, power: 0.25, yaw: 0, seat: 'A' as PlayerSeat, strikeAt: 0, shotId: 0, resetId: 0, elapsed: 0, slow: false, ai: false, inspectContact: false, station: 0 });
   const [state, setState] = useState<ShotState>('dragging');
   const [paused, setPaused] = useState(false);
-  const [view, setView] = useState<View>('player');
+  const [view, setView] = useState<View>('table');
   const [seat, setSeat] = useState<PlayerSeat>('A');
   const [power, setPower] = useState(25);
   const [direction, setDirection] = useState(0);
@@ -29,6 +31,7 @@ function CharacterPreview() {
   const [ready, setReady] = useState(false);
   const [slow, setSlow] = useState(false);
   const [phase, setPhase] = useState('Aiming');
+  const [canShoot, setCanShoot] = useState(false);
   const changeState = (next: ShotState) => {
     live.current.paused = false; setPaused(false);
     live.current.state = next;
@@ -77,22 +80,43 @@ function CharacterPreview() {
       new THREE.ShadowMaterial({ opacity: 0.25 }));
     floor.rotation.x = -Math.PI / 2; floor.receiveShadow = true;
     scene.add(floor);
-    const box = (size: number[], position: number[], color: number) => {
-      const mesh = new THREE.Mesh(new THREE.BoxGeometry(size[0], size[1], size[2], size[0] > 2 ? 16 : 1, 1, size[2] > 2 ? 32 : 1),
-        new THREE.MeshStandardMaterial({ color, roughness: 0.78 }));
-      mesh.position.fromArray(position); mesh.castShadow = true; mesh.receiveShadow = true;
-      scene.add(mesh); return mesh;
-    };
     const w = METRICS.tableW;
     const l = METRICS.tableL;
-    const tableBase = box([w + 0.5, 0.65, l + 0.5], [0, METRICS.clothY - 0.45, 0], 0x36271f);
-    box([w, 0.16, l], [0, METRICS.clothY - 0.08, 0], 0x1f6f43);
-    for (const sign of [-1, 1]) {
-      box([0.28, 0.2, l], [sign * w / 2, METRICS.clothY + 0.1, 0], 0x174c31);
-      box([w, 0.2, 0.28], [0, METRICS.clothY + 0.1, sign * l / 2], 0x174c31);
-      for (const end of [-1, 1]) box([0.48, METRICS.clothY - 0.65, 0.48],
-        [sign * (w / 2 - 0.6), (METRICS.clothY - 0.65) / 2, end * (l / 2 - 0.7)], 0x36271f);
+    const tableGeometry = createShowoodTableGeometry({ playWidth: METRICS.playW,
+      playLength: METRICS.playL, ballRadius: METRICS.ballR, clothHeight: METRICS.clothY });
+    const collisionOverlay = new THREE.Group(); scene.add(collisionOverlay);
+    const contourMaterial = new THREE.LineBasicMaterial({ color: 0xffda7a, depthTest: false });
+    // This is the same measured nose/jaw contour used by Pool Royal collision.
+    for (const polygon of tableGeometry.cushionPolygons) {
+      const contour = new THREE.LineLoop(new THREE.BufferGeometry().setFromPoints(
+        polygon.points.map((point: { x: number; y: number }) => new THREE.Vector3(point.x, METRICS.ballY, point.y))
+      ), contourMaterial);
+      contour.renderOrder = 10; collisionOverlay.add(contour);
     }
+    collisionOverlay.visible = false;
+    const unpack = (encoded: string) => {
+      const bytes = Uint8Array.from(atob(encoded), c => c.charCodeAt(0));
+      return new Response(new Blob([bytes]).stream().pipeThrough(new DecompressionStream('gzip'))).arrayBuffer();
+    };
+    let loadedTable: THREE.Group | null = null;
+    unpack(POOL_PREVIEW_SHOWOOD).then(buffer => new GLTFLoader().parseAsync(buffer, '')).then(gltf => {
+      if (disposed) return;
+      loadedTable = gltf.scene;
+      loadedTable.scale.set(tableGeometry.fit.scale.x, tableGeometry.fit.scale.y, tableGeometry.fit.scale.z);
+      loadedTable.position.set(tableGeometry.fit.position.x, tableGeometry.fit.position.y, tableGeometry.fit.position.z);
+      loadedTable.updateMatrixWorld(true);
+      groundShowoodTableLegs(loadedTable, METRICS.floorY);
+      loadedTable.traverse(object => {
+        const mesh = object as THREE.Mesh;
+        if (!mesh.isMesh) return;
+        mesh.geometry.computeVertexNormals(); mesh.castShadow = true; mesh.receiveShadow = true;
+        for (const material of (Array.isArray(mesh.material) ? mesh.material : [mesh.material])) {
+          const surface = material as THREE.MeshStandardMaterial;
+          surface.color.setHex(/cloth/.test(surface.name) ? 0x206e49 : /pocket|plastic/.test(surface.name) ? 0x17191a : 0x734a2d);
+        }
+      });
+      scene.add(loadedTable);
+    }).catch(() => { if (!disposed) setStatus('Showood table could not load.'); });
     const ballPosition = new THREE.Vector3(0, METRICS.ballY, METRICS.tableL * 0.31);
     const ballGeometry = new THREE.SphereGeometry(METRICS.ballR, 24, 16);
     const cueBall = new THREE.Mesh(ballGeometry, new THREE.MeshStandardMaterial({ color: 0xf8fafc, roughness: 0.16 }));
@@ -107,6 +131,11 @@ function CharacterPreview() {
         -METRICS.tableL * 0.18 - row * METRICS.ballR * 1.88); ball.castShadow = true; scene.add(ball);
       objectBalls.push({ id: ballNumber, active: true, pos: new THREE.Vector2(ball.position.x, ball.position.z), mesh: ball });
     }
+    const guideTravel = (origin: THREE.Vector2, direction: THREE.Vector2, maxDistance: number, ignoreIds: number[] = []) => {
+      const cushion = raycastPoolCushions(origin, direction, METRICS.ballR, tableGeometry.segments, maxDistance);
+      return clipGuideTravel({ origin, direction, balls: objectBalls, ignoreIds, radius: METRICS.ballR,
+        maxDistance: Math.min(maxDistance, cushion?.distance ?? maxDistance) });
+    };
     const aimLine = new THREE.LineSegments(new THREE.BufferGeometry(), new THREE.LineBasicMaterial({ color: 0xb7d9c9, transparent: true, opacity: 0.65 }));
     scene.add(aimLine);
     const objectGuide = new THREE.Line(new THREE.BufferGeometry(), new THREE.LineBasicMaterial({ color: 0xf4c66c }));
@@ -120,7 +149,7 @@ function CharacterPreview() {
     const shotCamera = new PoolRoyalShotCamera();
     const shotTip = { position: new THREE.Vector3(), visible: true };
     let stroke: any = null;
-    let seenShot = 0, seenReset = 0, simulationTime = 0, lastPhase = '';
+    let seenShot = 0, seenReset = 0, seenStation = 0, simulationTime = 0, lastPhase = '', lastCanShoot = false;
     const shotAnchor = ballPosition.clone();
     const shotDirection = new THREE.Vector3();
     let travel = 0;
@@ -129,15 +158,15 @@ function CharacterPreview() {
     let disposed = false;
     let raf = 0;
     let last = performance.now();
-    const packed = Uint8Array.from(atob(POOL_PREVIEW_MODEL), c => c.charCodeAt(0));
-    const stream = new Blob([packed]).stream().pipeThrough(new DecompressionStream('gzip'));
-    new Response(stream).arrayBuffer().then(buffer => new GLTFLoader().parseAsync(buffer, '')).then(async gltf => {
+    unpack(POOL_PREVIEW_MODEL).then(buffer => new GLTFLoader().parseAsync(buffer, '')).then(async gltf => {
       if (disposed) return;
       players = new PoolRoyalHumanPlayers(scene, { floorY: 0, clothY: METRICS.clothY,
-        tableW: METRICS.tableW, tableL: METRICS.tableL, model: gltf.scene });
+        tableW: tableGeometry.footprint.width, tableL: tableGeometry.footprint.length,
+        targetHeight: Math.max(Math.max(METRICS.tableW, METRICS.tableL) * 0.82, (METRICS.clothY - METRICS.floorY) * 1.8),
+        model: gltf.scene, realisticMovement: true });
       players.setCueAppearance(liveCue.body, liveCue.tipLocal, liveCue.buttLocal);
       const loaded = await players.ready;
-      if (!disposed) { setReady(loaded); setStatus(loaded ? 'Drag the scene to aim' : 'Players could not load.'); }
+      if (!disposed) { setReady(loaded); setStatus(loaded ? 'Showood geometry · simplified materials' : 'Players could not load.'); }
     }).catch(() => { if (!disposed) setStatus('Players could not load.'); });
     let needsRender = true;
     let lastView = live.current.view;
@@ -159,6 +188,13 @@ function CharacterPreview() {
       const stepMs = Math.min(100, (now - (current.strikeAt || now))) * (current.slow ? 0.2 : 1);
       current.strikeAt = now;
       if (!current.paused) { current.elapsed += stepMs; simulationTime += stepMs; }
+      if (seenStation !== current.station) {
+        seenStation = current.station;
+        const position = [
+          [0, METRICS.tableL * 0.31], [METRICS.playW * 0.3, METRICS.playL * 0.07], [0, -METRICS.playL * 0.37]
+        ][current.station % 3];
+        ballPosition.set(position[0], METRICS.ballY, position[1]);
+      }
       const forward = new THREE.Vector3(0, 0, -1).applyAxisAngle(THREE.Object3D.DEFAULT_UP, current.yaw);
       const axis = forward.clone().addScaledVector(THREE.Object3D.DEFAULT_UP, -METRICS.cueButtLift / cueLength).normalize();
       if (seenReset !== current.resetId) {
@@ -188,26 +224,32 @@ function CharacterPreview() {
       const cueTip = stroke ? shotTip.position.clone() : aimingTip;
       const cueBack = cueTip.clone().addScaledVector(axis, -cueLength);
       posePoolRoyalCue(liveCue.body, cueBack, cueTip, liveCue.tipLocal, liveCue.buttLocal);
-      liveCue.body.visible = stroke ? shotTip.visible : current.state !== 'idle';
+      liveCue.body.visible = (stroke ? shotTip.visible : current.state !== 'idle') && !players?.walking;
       if (current.inspectContact) for (let i = 0; i < 65; i++) players?.update(1 / 60, { activeSeat: current.seat, state: 'dragging', power: current.power, cueBall: ballPosition, aimForward: forward, nowMs: simulationTime, cueBack, cueTip });
-      if (!current.paused) players?.update(dt, { activeSeat: current.seat, state: characterState, power: current.power,
-        cueBall: shotAnchor.copy(ballPosition), aimForward: forward, nowMs: simulationTime, cueBack, cueTip });
+      if (!current.paused) players?.update(dt * (current.slow ? 0.2 : 1), { activeSeat: current.seat, state: characterState, power: current.power,
+        cueBall: shotAnchor.copy(ballPosition), aimForward: forward, nowMs: simulationTime, cueBack, cueTip,
+        bridgeBounds: { halfWidth: METRICS.playW / 2, halfLength: METRICS.playL / 2 },
+        bridgeObstacles: objectBalls.map(ball => ({ position: ball.mesh.position, radius: METRICS.ballR })) });
+      if (players?.readyToShoot !== lastCanShoot) { lastCanShoot = Boolean(players?.readyToShoot); setCanShoot(lastCanShoot); }
+      if (players?.walking && !stroke) displayPhase = 'Walking to position';
+      else if (!lastCanShoot && !stroke && current.state !== 'idle') displayPhase = 'Settling stance';
       // Inspection motion begins only at the production stroke's impact callback.
       // Ball collisions/rules are verified separately against the game modules.
       if (travel > 0 && !current.paused && !current.inspectContact) {
-        travel = Math.min(travel + stepMs * METRICS.ballR * (0.02 + current.power * 0.055), METRICS.ballR * 22);
+        const stop = guideTravel(new THREE.Vector2(ballPosition.x, ballPosition.z),
+          new THREE.Vector2(shotDirection.x, shotDirection.z), METRICS.ballR * 22);
+        travel = Math.min(travel + stepMs * METRICS.ballR * (0.02 + current.power * 0.055), Math.max(0, stop - 1e-5));
         cueBall.position.copy(ballPosition).addScaledVector(shotDirection, travel);
       }
       if (current.inspectContact) { current.inspectContact = false; current.paused = true; setPaused(true); cueBall.position.copy(ballPosition); needsRender = true; }
       if (displayPhase !== lastPhase) { lastPhase = displayPhase; setPhase(displayPhase); }
       const origin = new THREE.Vector2(ballPosition.x, ballPosition.z);
       const direction = new THREE.Vector2(forward.x, forward.z);
-      const guideBounds = { halfWidth: METRICS.playW / 2 - METRICS.ballR, halfLength: METRICS.playL / 2 - METRICS.ballR };
-      const travelToContact = clipGuideTravel({ origin, direction, balls: objectBalls, radius: METRICS.ballR, maxDistance: METRICS.playL * 2, ...guideBounds });
+      const travelToContact = guideTravel(origin, direction, METRICS.playL * 2);
       const contact = origin.clone().addScaledVector(direction, travelToContact);
       const atHeight = (point: THREE.Vector2) => new THREE.Vector3(point.x, METRICS.ballY, point.y);
       aimLine.geometry.setFromPoints([ballPosition, atHeight(contact)]);
-      aimLine.visible = current.state === 'dragging';
+      aimLine.visible = current.state === 'dragging' && !players?.walking;
       ghost.visible = aimLine.visible;
       ghost.position.set(contact.x, METRICS.clothY + 0.014, contact.y);
       const hit = objectBalls.find(ball => Math.abs(ball.pos.distanceTo(contact) - 2 * METRICS.ballR) < METRICS.ballR * 0.01);
@@ -215,12 +257,12 @@ function CharacterPreview() {
       if (hit) {
         const normal = hit.pos.clone().sub(contact).normalize();
         const cueExit = direction.clone().addScaledVector(normal, -direction.dot(normal));
-        const objectLength = clipGuideTravel({ origin: hit.pos, direction: normal, balls: objectBalls, ignoreIds: [hit.id], radius: METRICS.ballR, maxDistance: METRICS.ballR * 16, ...guideBounds });
+        const objectLength = guideTravel(hit.pos, normal, METRICS.ballR * 16, [hit.id]);
         objectGuide.geometry.setFromPoints([atHeight(hit.pos), atHeight(hit.pos.clone().addScaledVector(normal, objectLength))]);
         cueGuide.visible = aimLine.visible && cueExit.lengthSq() > 1e-6;
         if (cueGuide.visible) {
           cueExit.normalize();
-          const cueLength = clipGuideTravel({ origin: contact, direction: cueExit, balls: objectBalls, ignoreIds: [hit.id], radius: METRICS.ballR, maxDistance: METRICS.ballR * 12, ...guideBounds });
+          const cueLength = guideTravel(contact, cueExit, METRICS.ballR * 12, [hit.id]);
           cueGuide.geometry.setFromPoints([atHeight(contact), atHeight(contact.clone().addScaledVector(cueExit, cueLength))]);
         }
       }
@@ -229,8 +271,14 @@ function CharacterPreview() {
       const fov = current.view === 'player' && eye ? 66 : 46;
       if (camera.fov !== fov) { camera.fov = fov; camera.updateProjectionMatrix(); }
       players?.setFirstPerson(current.view === 'player' && Boolean(eye), current.seat);
+      collisionOverlay.visible = current.view === 'geometry';
       if (current.view === 'player' && eye) {
         camera.position.copy(eye.position); camera.lookAt(eye.target);
+      } else if (current.view === 'geometry') {
+        const distance = Math.max(METRICS.playL * 0.6, METRICS.playW * 0.64 / camera.aspect) /
+          Math.tan(THREE.MathUtils.degToRad(camera.fov / 2));
+        camera.position.set(0, METRICS.clothY + distance, 0.001);
+        camera.lookAt(0, METRICS.clothY, 0);
       } else if (current.view === 'bridge') {
         const side = new THREE.Vector3(forward.z, 0, -forward.x);
         camera.position.copy(ballPosition).addScaledVector(forward, -METRICS.ballR * 14)
@@ -296,23 +344,27 @@ function CharacterPreview() {
   }, []);
 
   return <div className="pool-preview">
-    <div className="viz-row"><span>Pool Royal · Shot mechanics preview</span>
+    <div className="viz-row"><span>Pool Royal · Showood precision</span>
       <select className="form-select" aria-label="Active player" value={seat} onChange={event => {
         const next = event.target.value as PlayerSeat; setSeat(next); live.current.seat = next; changeState('dragging');
       }}><option value="A">Player 1</option><option value="B">AI player</option></select>
     </div>
-    <div ref={stage} className="pool-preview-stage" role="img" aria-label="Pool Royal players at calibrated table scale, with eye-level and bridge views" />
+    <div ref={stage} className="pool-preview-stage" role="img" aria-label="Pool Royal players walking around the Showood table, with player, bridge and measured collision views" />
     <div className="viz-controls" aria-label="Camera view">
-      {(['player', 'table', 'bridge'] as View[]).map(value => <button key={value} className="btn" aria-pressed={view === value}
+      {(['player', 'table', 'bridge', 'geometry'] as View[]).map(value => <button key={value} className="btn" aria-pressed={view === value}
         onClick={() => { setView(value); live.current.view = value;  }}>
-        {{ player: 'Player view', table: 'Table view', bridge: 'Bridge hand' }[value]}</button>)}
+        {{ player: 'Player view', table: 'Table view', bridge: 'Bridge hand', geometry: 'Cushion mapping' }[value]}</button>)}
     </div>
     <div className="viz-controls">
       <button className="btn" disabled={!ready} aria-pressed={state === 'idle'} onClick={() => changeState('idle')}>Stand</button>
       <button className="btn" disabled={!ready} aria-pressed={state === 'dragging'} onClick={() => changeState('dragging')}>Aim</button>
-      <button className="btn btn-primary" disabled={!ready || state !== 'dragging'} onClick={() => { live.current.ai = false; changeState('striking'); }}>Strike</button>
-      <button className="btn" disabled={!ready || state === 'striking'} onClick={() => { live.current.seat = 'B'; setSeat('B'); live.current.ai = true; changeState('striking'); }}>AI shot</button>
-      <button className="btn" disabled={!ready} onClick={() => { live.current.ai = false; changeState('striking'); live.current.inspectContact = true; }}>Inspect contact</button>
+      <button className="btn btn-primary" disabled={!ready || !canShoot || state !== 'dragging'} onClick={() => { live.current.ai = false; changeState('striking'); }}>Strike</button>
+      <button className="btn" disabled={!ready || state === 'striking'} onClick={() => {
+        live.current.station++; live.current.yaw = [0, Math.PI / 2, Math.PI][live.current.station % 3];
+        setDirection(Math.round(-live.current.yaw * 180 / Math.PI)); changeState('dragging');
+        setView('table'); live.current.view = 'table';
+      }}>Walk to next shot</button>
+      <button className="btn" disabled={!ready || !canShoot} onClick={() => { live.current.ai = false; changeState('striking'); live.current.inspectContact = true; }}>Inspect contact</button>
       <button className="btn" onClick={() => { live.current.paused = !paused; setPaused(!paused); }}>{paused ? 'Resume motion' : 'Pause motion'}</button>
     </div>
     <div className="viz-controls"><label className="form-check"><input className="form-check-input" type="checkbox" checked={slow} onChange={e => { setSlow(e.target.checked); live.current.slow = e.target.checked; }} /><span className="form-check-label">Slow motion</span></label><span role="status">{phase}</span></div>
