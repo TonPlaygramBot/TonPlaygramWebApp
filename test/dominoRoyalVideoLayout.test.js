@@ -24,7 +24,7 @@ test('Domino Royal builds only occupied Murlan-style chair and character seats',
   expect(script).toContain('(_, logicalSeatIndex) => getVisualSeatIndex(logicalSeatIndex)');
   expect(script).toContain('activeVisualSeatIndices.forEach((index) => {');
   expect(script).toContain('chairs[index] = wrapper;');
-  expect(script).toContain('const availableChairCount = chairs.filter(Boolean).length;');
+  expect(script).toContain('Math.min(N, CHAIR_SEAT_ANGLES.length)');
 });
 
 test('Domino Royal centers the opponent at the top in a two-player match', () => {

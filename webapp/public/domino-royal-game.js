@@ -8,6 +8,7 @@ import { DRACOLoader } from '/vendor/three/examples/jsm/loaders/DRACOLoader.js';
 import { KTX2Loader } from '/vendor/three/examples/jsm/loaders/KTX2Loader.js';
 import { MeshoptDecoder } from '/vendor/three/examples/jsm/libs/meshopt_decoder.module.js';
 import './flag-emojis.js';
+import { DOMINO_REFERENCE_LAYOUT, createReferenceChair, createReferenceTable, fitReferenceTableCamera } from './domino-royal-layout.js';
 
 const urlParams = new URLSearchParams(window.location.search);
 const DOMINO_ONLINE_MODE = (urlParams.get('mode') || '').toLowerCase() === 'online';
@@ -1075,7 +1076,7 @@ const CAMERA_INITIAL_PHI = THREE.MathUtils.lerp(
 );
 const CAMERA_BASE_RADIUS = CAMERA_REFERENCE_TABLE_RADIUS;
 const CAMERA_MIN_RADIUS = CAMERA_BASE_RADIUS * 0.45;
-const CAMERA_MAX_RADIUS = CAMERA_BASE_RADIUS * 3.2;
+const CAMERA_MAX_RADIUS = 24;
 const CAMERA_DEFAULT_AZIMUTH =
   CHAIR_SEAT_ANGLES[HUMAN_SEAT_INDEX] ?? Math.PI / 2;
 const CAMERA_LATERAL_OFFSET = {
@@ -1412,6 +1413,9 @@ function applyCameraZoomScale(zoomScale = 1) {
   camera.position.copy(clampCameraPosition(nextPosition, activeTarget));
   controls.target.copy(activeTarget);
   turnFocusTarget.copy(activeTarget);
+  if (cameraViewMode === VIEW_MODES.threeD) {
+    seatedCameraLockedPosition.copy(camera.position);
+  }
   controls.update();
 }
 
@@ -1443,29 +1447,8 @@ function getViewportMetrics() {
 }
 
 function computeDesiredCameraPosition() {
-  const { isPortrait } = getViewportMetrics();
-
-  const seat = seatBasisForIndex(HUMAN_SEAT_INDEX);
-  const seatHeight = CHAIR_BASE_HEIGHT + SEAT_THICKNESS;
-  const seatAnchor = seat.position.clone();
-  seatAnchor.y = seatHeight;
-
-  const retreat = isPortrait
-    ? CAMERA_REAR_OFFSET.portrait
-    : CAMERA_REAR_OFFSET.landscape;
-  const lateral = isPortrait
-    ? CAMERA_LATERAL_OFFSET.portrait
-    : CAMERA_LATERAL_OFFSET.landscape;
-  const elevation = isPortrait
-    ? CAMERA_HEIGHT_BOOST.portrait
-    : CAMERA_HEIGHT_BOOST.landscape;
-
-  const desiredPosition = seatAnchor
-    .clone()
-    .addScaledVector(seat.forward, -retreat)
-    .addScaledVector(seat.right, lateral);
-  desiredPosition.y = seatHeight + elevation;
-  return desiredPosition;
+  const seatIndices = Array.from({ length: N }, (_, index) => getVisualSeatIndex(index));
+  return fitReferenceTableCamera(THREE, camera, { seatIndices }).position;
 }
 
 function getTopDownFramingOffset() {
@@ -1481,7 +1464,7 @@ function getActiveCameraTarget() {
   if (cameraViewMode === VIEW_MODES.twoD) {
     return CAMERA_TARGET.clone().add(getTopDownFramingOffset());
   }
-  return CAMERA_TARGET.clone();
+  return new THREE.Vector3(...DOMINO_REFERENCE_LAYOUT.CAMERA_TARGET);
 }
 
 function computeTopDownCameraPosition(target = CAMERA_TARGET) {
@@ -1576,7 +1559,7 @@ function positionCameraForViewport({ force = false } = {}) {
   const desiredPosition = getDesiredCameraPosition(target);
   const clampedDesired = clampCameraPosition(desiredPosition, target);
   if (cameraViewMode === VIEW_MODES.threeD) {
-    if (force || seatedCameraLockedPosition.lengthSq() === 0) {
+    if (force || !cameraHasUserControl || seatedCameraLockedPosition.lengthSq() === 0) {
       seatedCameraLockedPosition.copy(clampedDesired);
     }
     camera.position.copy(seatedCameraLockedPosition);
@@ -1612,30 +1595,9 @@ function updateTurnCameraFocus() {
     return;
   }
 
-  if (!Number.isInteger(current)) {
-    turnFocusTarget.copy(getActiveCameraTarget());
-    controls.target.lerp(turnFocusTarget, CAMERA_TURN_FOCUS_LERP);
-    applySeatedCameraLookAtTarget(controls.target);
-    return;
-  }
-
-  const focusSeat = seatBasisForIndex(getVisualSeatIndex(current));
-  const focusCenter = getActiveCameraTarget();
-  const isSideSeat = Math.abs(focusSeat.position.x) > Math.abs(focusSeat.position.z);
-  const seatWeight = CAMERA_TURN_SEAT_WEIGHT + (isSideSeat ? CAMERA_TURN_SIDE_SEAT_EXTRA_WEIGHT : 0);
-  turnSeatTarget.copy(focusCenter).lerp(focusSeat.position, seatWeight);
-  if (isSideSeat) {
-    turnSeatTarget.x +=
-      Math.sign(focusSeat.position.x || 0) * CAMERA_TURN_SIDE_SEAT_SCREEN_OFFSET;
-  }
-  turnSeatTarget.y = TABLE_HEIGHT + CAMERA_TARGET_LIFT + CAMERA_TARGET_EXTRA * 0.5;
-
-  const now = performance.now();
-  if (now < turnDominoFocusUntil) {
-    turnFocusTarget.copy(turnDominoTarget);
-  } else {
-    turnFocusTarget.copy(turnSeatTarget);
-  }
+  // Keep the whole reference layout steady while turns change. Dragging can
+  // still look around, and 2D view remains available for a closer board view.
+  turnFocusTarget.copy(getActiveCameraTarget());
 
   if (cameraViewMode === VIEW_MODES.threeD && Math.abs(cameraLookYaw) > 0.0001) {
     const toTarget = turnFocusTarget.clone().sub(camera.position);
@@ -2415,60 +2377,21 @@ let chairBuildToken = 0;
 const chairTemplateCache = new Map();
 
 function buildProceduralChairTemplate() {
-  const chair = new THREE.Group();
   const seatMaterial = new THREE.MeshStandardMaterial({
-    color: DEFAULT_CHAIR_THEME.seatColor,
-    roughness: 0.7,
-    metalness: 0.08
+    color: DEFAULT_CHAIR_THEME.seatColor, roughness: 0.7, metalness: 0.08
   });
   const legMaterial = new THREE.MeshStandardMaterial({
-    color: DEFAULT_CHAIR_THEME.legColor,
-    roughness: 0.45,
-    metalness: 0.35
+    color: DEFAULT_CHAIR_THEME.legColor, roughness: 0.45, metalness: 0.35
   });
-
-  const seat = new THREE.Mesh(
-    new RoundedBoxGeometry(1.26, 0.22, 1.12, 8, 0.09),
-    seatMaterial
-  );
-  seat.position.set(0, 0.58, 0.06);
-  seat.castShadow = true;
-  seat.receiveShadow = true;
-  chair.add(seat);
-
-  const back = new THREE.Mesh(
-    new RoundedBoxGeometry(1.08, 1.18, 0.2, 8, 0.08),
-    seatMaterial
-  );
-  back.position.set(0, 1.18, -0.42);
-  back.castShadow = true;
-  back.receiveShadow = true;
-  chair.add(back);
-
-  const legGeometry = new THREE.CylinderGeometry(0.05, 0.055, 0.62, 12);
-  const legOffsets = [
-    [0.5, 0.25, 0.48],
-    [-0.5, 0.25, 0.48],
-    [0.5, 0.25, -0.35],
-    [-0.5, 0.25, -0.35]
-  ];
-  legOffsets.forEach(([x, y, z]) => {
-    const leg = new THREE.Mesh(legGeometry, legMaterial);
-    leg.position.set(x, y, z);
-    leg.castShadow = true;
-    leg.receiveShadow = true;
-    chair.add(leg);
+  const chair = createReferenceChair(THREE, RoundedBoxGeometry, {
+    fabric: seatMaterial, metal: legMaterial
   });
-
-  fitChairModelToFootprint(chair);
   chairTemplateBounds = new THREE.Box3().setFromObject(chair);
   return {
     chairTemplate: chair,
     materials: {
-      seat: seatMaterial,
-      leg: legMaterial,
-      upholstery: [seatMaterial],
-      metal: [legMaterial]
+      seat: seatMaterial, leg: legMaterial,
+      upholstery: [seatMaterial], metal: [legMaterial]
     },
     preserveMaterials: false
   };
@@ -4188,7 +4111,7 @@ const DOMINO_OPTIONS_BY_KEY = Object.freeze({
 
 const LUDO_MATCH_DEFAULT_TABLE_THEME_ID = 'murlan-default';
 const LUDO_MATCH_DEFAULT_TABLE_CLOTH_ID = 'emerald';
-const LUDO_MATCH_DEFAULT_CHAIR_THEME_ID = 'dining_chair_02';
+const DOMINO_REFERENCE_CHAIR_THEME_ID = 'ruby';
 
 function resolveDefaultOptionId(key, options = []) {
   if (!Array.isArray(options) || options.length === 0) return null;
@@ -4208,7 +4131,7 @@ function resolveDefaultOptionId(key, options = []) {
   }
   if (key === 'chairTheme') {
     return (
-      options.find((option) => option?.id === LUDO_MATCH_DEFAULT_CHAIR_THEME_ID)?.id ||
+      options.find((option) => option?.id === DOMINO_REFERENCE_CHAIR_THEME_ID)?.id ||
       options[0]?.id ||
       null
     );
@@ -4320,6 +4243,7 @@ const DEFAULT_DOMINO_COLOR_CUSTOMIZATION = Object.freeze({
 const APPEARANCE_STORAGE_KEY = 'dominoRoyalArenaAppearanceV3';
 const LEGACY_APPEARANCE_KEYS = ['dominoRoyalArenaAppearanceV2', 'dominoRoyalArenaAppearance'];
 const DEFAULT_TABLE_MIGRATION_KEY = 'dominoRoyalMurlanDefaultTableMigrationV3';
+const REFERENCE_LAYOUT_MIGRATION_KEY = 'dominoRoyalReferenceLayoutV1';
 let appearance = { ...DEFAULT_APPEARANCE };
 let dominoInventory = getDominoInventory();
 
@@ -4349,22 +4273,6 @@ function normalizeAppearance(raw) {
       );
     }
   });
-
-  const selectedTableTheme = TABLE_THEME_OPTIONS[normalized.tableTheme];
-  if (selectedTableTheme?.source === 'procedural' && selectedTableTheme?.id === 'murlan-default') {
-    normalized.tableTheme = findDominoOptionIndex(
-      'tableTheme',
-      LUDO_MATCH_DEFAULT_TABLE_THEME_ID
-    );
-  }
-
-  const selectedChairTheme = CHAIR_THEME_OPTIONS[normalized.chairTheme];
-  if (selectedChairTheme?.source !== 'polyhaven') {
-    normalized.chairTheme = findDominoOptionIndex(
-      'chairTheme',
-      LUDO_MATCH_DEFAULT_CHAIR_THEME_ID
-    );
-  }
 
   const parseOptionalHex = (value) => {
     if (typeof value !== 'string') return null;
@@ -4730,6 +4638,14 @@ try {
     window.localStorage?.setItem(DEFAULT_TABLE_MIGRATION_KEY, '1');
   }
 
+  // Replace the old forced default once; preserve other saved furniture themes.
+  if (window.localStorage?.getItem(REFERENCE_LAYOUT_MIGRATION_KEY) !== '1') {
+    if (CHAIR_THEME_OPTIONS[appearance.chairTheme]?.id === 'dining_chair_02') {
+      appearance.chairTheme = findDominoOptionIndex('chairTheme', DOMINO_REFERENCE_CHAIR_THEME_ID);
+    }
+    window.localStorage?.setItem(REFERENCE_LAYOUT_MIGRATION_KEY, '1');
+    window.localStorage?.setItem(APPEARANCE_STORAGE_KEY, JSON.stringify(appearance));
+  }
   appearance = sanitizeAppearance(appearance);
 } catch (error) {
   console.warn('Failed to load Domino Royal appearance', error);
@@ -5152,8 +5068,7 @@ const tableG = new THREE.Group();
 arenaG.add(tableG);
 tableG.rotation.y = 0;
 const proceduralTableG = new THREE.Group();
-proceduralTableG.rotation.y = TABLE_OCTAGON_ROTATION;
-proceduralTableG.scale.x = TABLE_LEFT_RIGHT_SHRINK_FACTOR;
+// Reference meshes carry their own rotation and horizontal scale.
 tableG.add(proceduralTableG);
 const piecesG = new THREE.Group();
 tableG.add(piecesG);
@@ -6765,90 +6680,15 @@ const CLOTH_TOP = TABLE_HEIGHT;
 const RAIL_TOP = CLOTH_TOP + 0.04 * MODEL_SCALE;
 
 (function buildTable() {
-  const sides = 8;
-  const topShape = createRegularPolygonShape(sides, TABLE_OUTER_RADIUS);
-  const feltShape = createRegularPolygonShape(sides, CLOTH_RADIUS);
-  const rimInnerShape = createRegularPolygonShape(sides, TABLE_INNER_RADIUS);
-
-  const topShapeWithHole = topShape.clone();
-  topShapeWithHole.holes.push(feltShape);
-  const topGeo = new THREE.ExtrudeGeometry(topShapeWithHole, {
-    depth: TABLE_TOP_DEPTH,
-    bevelEnabled: true,
-    bevelThickness: TABLE_TOP_DEPTH * 0.55,
-    bevelSize: TABLE_TOP_DEPTH * 0.5,
-    bevelSegments: 8
+  const table = createReferenceTable(THREE, {
+    wood: tableMaterials.top, cloth: tableMaterials.felt, metal: tableMaterials.rim
   });
-  topGeo.rotateX(-Math.PI / 2);
-  const topMesh = new THREE.Mesh(topGeo, tableMaterials.top);
-  topMesh.position.y = TABLE_BASE_Y;
-  topMesh.castShadow = true;
-  topMesh.receiveShadow = true;
-  proceduralTableG.add(topMesh);
-  tableParts.top = topMesh;
-  proceduralTableParts.push(topMesh);
-
-  const feltGeo = new THREE.ExtrudeGeometry(feltShape, {
-    depth: 0.01,
-    bevelEnabled: false
+  proceduralTableG.add(table);
+  Object.assign(tableParts, {
+    top: table.parts.top, felt: table.parts.felt,
+    rim: table.parts.rail, column: table.parts.pedestal
   });
-  feltGeo.rotateX(-Math.PI / 2);
-  const feltMesh = new THREE.Mesh(feltGeo, tableMaterials.felt);
-  feltMesh.position.y = CLOTH_TOP + 0.0025;
-  feltMesh.receiveShadow = true;
-  proceduralTableG.add(feltMesh);
-  tableParts.felt = feltMesh;
-  proceduralTableParts.push(feltMesh);
-
-  const rimShape = topShape.clone();
-  rimShape.holes.push(rimInnerShape);
-  const rimGeo = new THREE.ExtrudeGeometry(rimShape, {
-    depth: RIM_THICK,
-    bevelEnabled: true,
-    bevelThickness: RIM_THICK * 0.45,
-    bevelSize: RIM_THICK * 0.42,
-    bevelSegments: 6
-  });
-  rimGeo.rotateX(-Math.PI / 2);
-  const rimMesh = new THREE.Mesh(rimGeo, tableMaterials.rim);
-  rimMesh.position.y = TABLE_BASE_Y + TABLE_TOP_DEPTH * 0.55;
-  rimMesh.castShadow = true;
-  rimMesh.receiveShadow = true;
-  proceduralTableG.add(rimMesh);
-  tableParts.rim = rimMesh;
-  proceduralTableParts.push(rimMesh);
-
-  const accentShape = rimInnerShape.clone();
-  accentShape.holes.push(feltShape);
-  const accentGeo = new THREE.ExtrudeGeometry(accentShape, {
-    depth: 0.012,
-    bevelEnabled: false
-  });
-  accentGeo.rotateX(-Math.PI / 2);
-  const accentMesh = new THREE.Mesh(accentGeo, tableMaterials.accent);
-  accentMesh.position.y = CLOTH_TOP - 0.003;
-  proceduralTableG.add(accentMesh);
-  tableParts.accent = accentMesh;
-  proceduralTableParts.push(accentMesh);
-
-  const columnHeight = TABLE_HEIGHT * 0.58;
-  const column = new THREE.Mesh(
-    new THREE.CylinderGeometry(
-      TABLE_OUTER_RADIUS * 0.34,
-      TABLE_OUTER_RADIUS * 0.48,
-      columnHeight,
-      48
-    ),
-    tableMaterials.column
-  );
-  column.position.y = TABLE_BASE_Y - columnHeight / 2;
-  column.castShadow = true;
-  column.receiveShadow = true;
-  proceduralTableG.add(column);
-  tableParts.column = column;
-  proceduralTableParts.push(column);
-
-  // Base and trim intentionally omitted to remove the oversized pedestal.
+  proceduralTableParts.push(...table.children);
 })();
 
 const SCALE = MODEL_SCALE * 0.92;
@@ -8008,9 +7848,10 @@ function placeChairsWithOption(option, chairData, token) {
   }
   seatedHumanActors.length = 0;
 
-  const seatBottomOffset = -chairTemplateBounds.min.y;
-  const labelHeight = seatBottomOffset + chairTemplateBounds.max.y + 0.12;
-  const labelDepth = -chairTemplateBounds.getSize(new THREE.Vector3()).z * 0.35;
+  const referenceChair = chairData.chairTemplate.userData.dominoReferenceLayout === true;
+  const templateBounds = new THREE.Box3().setFromObject(chairData.chairTemplate);
+  const labelHeight = templateBounds.max.y + 0.12;
+  const labelDepth = -templateBounds.getSize(new THREE.Vector3()).z * 0.35;
 
   const seatAvatarSources = buildSeatAvatarSources(N);
 
@@ -8031,8 +7872,11 @@ function placeChairsWithOption(option, chairData, token) {
     wrapper.lookAt(new THREE.Vector3(0, wrapper.position.y, 0));
 
     const chair = cloneChairWithTheme(chairData, option);
-    chair.scale.multiplyScalar(CHAIR_VISUAL_SCALE);
-    chair.position.y = -seatBottomOffset - CHAIR_VERTICAL_DROP;
+    // Reference geometry already meets the human hip anchor at STOOL_HEIGHT.
+    if (!referenceChair) {
+      chair.scale.multiplyScalar(CHAIR_VISUAL_SCALE);
+      chair.position.y -= CHAIR_VERTICAL_DROP;
+    }
     wrapper.add(chair);
 
     wrapper.updateWorldMatrix(true, true);
