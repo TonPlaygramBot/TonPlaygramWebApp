@@ -2,7 +2,7 @@
   "id": "/com.tonplaygram.social",
   "name": "TonPlayGram Social",
   "short_name": "TPG Social",
-  "description": "Share videos, connect with friends and publish with Creator Studio.",
+  "description": "Share videos, connect with friends and chat in one social app.",
   "start_url": "/social-app/?launch=social",
   "scope": "/social-app/",
   "display": "standalone",
@@ -17,7 +17,6 @@
   "shortcuts": [
     { "name": "Social wall", "url": "/social-app/wall" },
     { "name": "Social hub", "url": "/social-app/hub" },
-    { "name": "Creator Studio", "url": "/social-app/creator-studio" },
     { "name": "My profile", "url": "/social-app/me" }
   ]
 }

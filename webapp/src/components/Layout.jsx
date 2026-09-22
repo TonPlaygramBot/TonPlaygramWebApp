@@ -357,13 +357,12 @@ export default function Layout({ children }) {
   );
 
   const isCommunityWall = location.pathname === '/wall';
-  const isCreatorStudio = location.pathname === '/creator-studio';
 
   const isLobby = location.pathname.includes('/lobby');
 
-  const showFooter = !location.pathname.startsWith('/games/') && !isCommunityWall && !isCreatorStudio;
+  const showFooter = !location.pathname.startsWith('/games/') && !isCommunityWall;
   const showHeader =
-    !isCommunityWall && !isCreatorStudio && (!location.pathname.startsWith('/games/') || isLobby);
+    !isCommunityWall && (!location.pathname.startsWith('/games/') || isLobby);
 
   useEffect(() => {
     if (location.pathname === '/mining') {
@@ -434,7 +433,7 @@ export default function Layout({ children }) {
 
       {/* Fixed Bottom Navbar */}
 
-      {showNavbar && !isCommunityWall && !isCreatorStudio && (
+      {showNavbar && !isCommunityWall && (
         <div className="fixed bottom-0 inset-x-0 z-50">
           <Navbar />
         </div>
