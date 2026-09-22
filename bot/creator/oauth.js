@@ -1,6 +1,6 @@
 import { OAuth, Connection } from './models.js';
 import { creatorReturnPath } from '../../shared/socialApp.js';
-import { available, credentials, PROVIDERS } from './catalog.js';
+import { connectionStatus, credentials, PROVIDERS } from './catalog.js';
 import { random, digest, seal, unseal, cookies, setCookie, publicOrigin, issueSession, problem } from './security.js';
 import { request, form, json, fb, metaVersion } from './http.js';
 
@@ -13,7 +13,8 @@ const configs = {
 };
 export const callback = p => `${publicOrigin()}/api/creator/oauth/${p}/callback`;
 export async function beginOAuth(req, res, platform) {
-  if (!available(platform) || !configs[platform]) throw problem(503, 'TonPlayGram has not enabled this platform connection yet. The app owner must finish setup; you do not need to enter codes or keys.');
+  const status = connectionStatus(platform);
+  if (!status.available || !configs[platform]) throw problem(503, status.setupMessage || 'This platform is unavailable.');
   const state = random(), binding = random(), verifier = random();
   await OAuth.create({ stateHash: digest(state), binding: digest(binding), platform, owner: req.creator?.owner, verifier, returnTo: creatorReturnPath(req.body?.returnTo), expiresAt: new Date(Date.now() + 600000) });
   setCookie(res, 'tpg_creator_oauth', binding, 600000);
