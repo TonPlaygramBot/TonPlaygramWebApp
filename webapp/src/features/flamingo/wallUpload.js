@@ -2,6 +2,21 @@
 // skips acknowledged ranges, and never publishes the same file twice.
 import { uploadNativeWallFile } from './wallNativeUpload.js';
 
+export async function cancelWallUpload({ baseUrl, headers, uploadId, signal }) {
+  try {
+    return await wallRequest(
+      `${baseUrl}/api/flamingo-wall/uploads/${uploadId}`,
+      {
+        method: 'DELETE',
+        headers
+      },
+      { signal }
+    );
+  } catch (error) {
+    if (![404, 410].includes(error.status)) throw error;
+  }
+}
+
 const nativeFiles = new WeakSet();
 export async function wallRequest(
   url,

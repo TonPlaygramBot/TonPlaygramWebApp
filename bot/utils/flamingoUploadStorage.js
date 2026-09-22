@@ -4,6 +4,9 @@ import { lstat, mkdir, readFile, readdir, rm, statfs } from 'node:fs/promises';
 export const validFlamingoUploadId = (value) =>
   /^[0-9a-f]{8}(?:-[0-9a-f]{4}){3}-[0-9a-f]{12}$/i.test(value);
 export const uploadExpiryMs = 48 * 60 * 60 * 1000;
+// Keep resumable bytes for 48 hours, but do not let a closed phone reserve
+// gigabytes of unwritten space for that entire period. Resumes re-admit below.
+export const uploadReservationMs = 5 * 60 * 1000;
 const allocatedBytes = (details) =>
   Math.min(details.size, details.blocks * 512);
 const fileDetails = async (filename) => {
@@ -21,6 +24,7 @@ export function createFlamingoUploadStorage({
   directory,
   reserveBytes = 64 * 1024 ** 2,
   expiryMs = uploadExpiryMs,
+  reservationMs = uploadReservationMs,
   filesystem = statfs,
   now = Date.now,
   isBusy = () => false,
@@ -58,27 +62,41 @@ export function createFlamingoUploadStorage({
       throw error;
     }
   }
-  async function inspect() {
+  async function inspect({ includeUploadId } = {}) {
     const names = await entries();
     let reservedBytes = 0;
+    let idleReservedBytes = 0;
+    let requestedReservationBytes = 0;
     for (const name of names) {
       const id = name.slice(0, -5);
       if (!name.endsWith('.json') || !validFlamingoUploadId(id)) continue;
       const record = await manifest(id);
       if (!record || record.metadata.postId) continue;
       const part = await fileDetails(record.locations.data);
+      let remaining = 0;
       if (part?.isFile())
-        reservedBytes += Math.max(
-          0,
-          record.metadata.size - allocatedBytes(part)
-        );
+        remaining += Math.max(0, record.metadata.size - allocatedBytes(part));
+      const native = await fileDetails(record.locations.native);
       if (record.metadata.nativeUploadSize === record.metadata.size) {
-        const native = await fileDetails(record.locations.native);
-        reservedBytes += Math.max(
+        remaining += Math.max(
           0,
           record.metadata.size - (native?.isFile() ? allocatedBytes(native) : 0)
         );
       }
+      const lastActivity = Math.max(
+        record.details.mtimeMs,
+        part?.mtimeMs || 0,
+        native?.mtimeMs || 0,
+        Number(record.metadata.updatedAt || record.metadata.createdAt) || 0
+      );
+      if (id === includeUploadId) requestedReservationBytes = remaining;
+      if (
+        id === includeUploadId ||
+        isBusy(id) ||
+        lastActivity > now() - reservationMs
+      )
+        reservedBytes += remaining;
+      else idleReservedBytes += remaining;
     }
     const space = await filesystem(directory);
     const freeBytes = Number(space.bavail) * Number(space.bsize);
@@ -86,24 +104,32 @@ export function createFlamingoUploadStorage({
       capacityBytes: Number(space.blocks) * Number(space.bsize),
       freeBytes,
       reservedBytes,
+      idleReservedBytes,
+      ...(includeUploadId ? { requestedReservationBytes } : {}),
       reserveBytes,
       availableBytes: Math.max(0, freeBytes - reservedBytes - reserveBytes)
     };
   }
-  async function assertCapacity(bytes = 0) {
-    const space = await inspect();
+  async function assertCapacity(bytes = 0, options) {
+    const space = await inspect(options);
     if (
       bytes > space.availableBytes ||
       space.freeBytes < space.reservedBytes + reserveBytes
     ) {
+      const ownReservation = space.requestedReservationBytes || 0;
+      const busy =
+        space.reservedBytes > ownReservation &&
+        bytes + ownReservation + reserveBytes <= space.freeBytes;
       throw Object.assign(
         new Error(
-          'There is not enough media storage for this upload. Your selection is kept; storage needs to be freed before retrying.'
+          busy
+            ? 'Other uploads have reserved the available server space. Your video is saved and will retry automatically.'
+            : 'The server media storage is full. Your video is kept; server storage must be freed or expanded before retrying.'
         ),
         {
-          status: 507,
-          code: 'WALL_DISK_FULL',
-          retryable: false
+          status: busy ? 503 : 507,
+          code: busy ? 'WALL_STORAGE_BUSY' : 'WALL_DISK_FULL',
+          retryable: busy
         }
       );
     }

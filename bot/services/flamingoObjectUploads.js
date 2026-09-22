@@ -18,6 +18,8 @@ export function createObjectUploads({
       throw failure('Upload session expired. Select the file again.', 410);
     if (session.ownerTokenHash !== hash)
       throw failure('This upload belongs to another session.', 403);
+    if (session.cancelled)
+      throw failure('This upload was cancelled. Select the file again.', 410);
     return session;
   }
   const length = (session, number) => {
@@ -43,6 +45,11 @@ export function createObjectUploads({
       if (session) {
         if (session.ownerTokenHash !== ownerTokenHash)
           throw failure('This upload belongs to another session.', 403);
+        if (session.cancelled)
+          throw failure(
+            'This upload was cancelled. Select the file again.',
+            410
+          );
         if (
           session.details.name !== metadata.name ||
           session.details.size !== metadata.size ||
@@ -185,6 +192,29 @@ export function createObjectUploads({
       await sessions.updateOne(
         { _id: session._id, ownerTokenHash: session.ownerTokenHash },
         { $set: { postId, expiresAt: new Date(Date.now() + 7 * 86400000) } }
+      );
+    },
+    async cancel(id, hash) {
+      const session = await sessions
+        .findById(id)
+        .select('+ownerTokenHash')
+        .lean();
+      if (!session) return;
+      if (session.ownerTokenHash !== hash)
+        throw failure('This upload belongs to another session.', 403);
+      if (session.postId || session.cancelled) return;
+      // A completed original may already have been published before the
+      // receipt was saved. Only abort unfinished multipart data.
+      if (await storage().head(session.key, session.bucket)) return;
+      await storage().abort(session);
+      await sessions.updateOne(
+        { _id: id, ownerTokenHash: hash },
+        {
+          $set: {
+            cancelled: true,
+            expiresAt: new Date(Date.now() + 48 * 3600000)
+          }
+        }
       );
     },
     async recover({ isBusy, withLock, referenced }) {

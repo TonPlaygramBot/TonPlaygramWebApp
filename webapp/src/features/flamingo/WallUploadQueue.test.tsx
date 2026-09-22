@@ -191,4 +191,93 @@ describe('durable wall upload queue', () => {
     expect(await repository.list()).toEqual([]);
     expect(await repository.file('job-0')).toBeUndefined();
   });
+  it('retries reservation pressure and temporary HTTP failures without losing the file', async () => {
+    for (const status of [408, 429, 500, 502, 503, 504]) {
+      const { repository } = await setup();
+      const upload = vi.fn(async () => {
+        throw Object.assign(new Error('Temporarily busy'), {
+          status,
+          retryable: true
+        });
+      });
+      await createUploadRunner({ repository, upload }).run();
+      expect((await repository.list())[0]).toMatchObject({ status: 'pending' });
+      expect((await repository.list())[0].retryAt).toBeGreaterThan(Date.now());
+      expect(await repository.file('job-0')).toBeDefined();
+    }
+    const { repository } = await setup();
+    await createUploadRunner({
+      repository,
+      upload: async () => {
+        throw Object.assign(new Error('Server full'), {
+          status: 507,
+          code: 'WALL_DISK_FULL',
+          retryable: false
+        });
+      }
+    }).run();
+    expect((await repository.list())[0]).toMatchObject({
+      status: 'error',
+      errorCode: 'WALL_DISK_FULL'
+    });
+  });
+  it('hands saved work to a worker immediately, preserving acknowledged progress and owner headers', async () => {
+    const { repository } = await setup();
+    const started = deferred();
+    let hidden = false;
+    const foreground = createUploadRunner({
+      repository,
+      memoryOnly: () => hidden,
+      upload: async ({ signal, onProgress }) => {
+        onProgress(3, 'uploading');
+        started.resolve();
+        await new Promise((_, reject) =>
+          signal.addEventListener('abort', () =>
+            reject(new DOMException('Handoff', 'AbortError'))
+          )
+        );
+      }
+    });
+    const work = foreground.run();
+    await started.promise;
+    hidden = true;
+    await foreground.releaseSaved();
+    const upload = vi.fn(async ({ uploadId, headers }) => {
+      expect(headers['X-Wall-Owner-Token']).toBe('original-owner');
+      return { post: { _id: uploadId } };
+    });
+    await createUploadRunner({ repository, upload, background: true }).run();
+    await work;
+    expect(upload).toHaveBeenCalledTimes(1);
+    expect((await repository.list())[0].status).toBe('complete');
+  });
+  it('delivers a saved cancellation without needing the video bytes, also after a connection failure', async () => {
+    const { repository } = await setup();
+    await repository.change('job-0', (job) => ({
+      ...job,
+      operation: 'cancel'
+    }));
+    await repository.removeFile('job-0');
+    const upload = vi.fn();
+    const cancel = vi
+      .fn()
+      .mockRejectedValueOnce(new Error('offline'))
+      .mockResolvedValue({ cancelled: true });
+    const runner = createUploadRunner({
+      repository,
+      upload,
+      cancel,
+      background: true
+    });
+    await runner.run();
+    expect((await repository.list())[0]).toMatchObject({
+      status: 'pending',
+      operation: 'cancel'
+    });
+    await repository.change('job-0', (job) => ({ ...job, retryAt: 0 }));
+    await runner.run();
+    expect(cancel).toHaveBeenCalledTimes(2);
+    expect(upload).not.toHaveBeenCalled();
+    expect(await repository.list()).toEqual([]);
+  });
 });

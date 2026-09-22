@@ -184,9 +184,9 @@ export function WallTransfersProvider({ children }: { children: ReactNode }) {
           {expanded && (
             <section id="wall-transfer-list" className="wall-transfer-list">
               <p>
-                Up to five files upload at a time. Saved uploads resume when you
-                reopen the app. Background progress while closed depends on your
-                browser.
+                Up to five files upload at a time. You can keep using the app.
+                Saved uploads continue in the background where supported and
+                resume automatically if your browser pauses them.
               </p>
               {queueError && <p role="alert">{queueError}</p>}
               {uploads.map((job) => (
@@ -197,19 +197,25 @@ export function WallTransfersProvider({ children }: { children: ReactNode }) {
                 >
                   <strong>{job.name}</strong>
                   <span role="status">
-                    {job.status === 'complete'
-                      ? 'Published'
-                      : job.status === 'uploading'
-                        ? job.phase === 'publishing'
-                          ? 'Publishing…'
-                          : `Uploading · ${Math.round((100 * job.bytes) / job.size)}%`
-                        : job.status === 'pending'
-                          ? 'Queued'
-                          : job.status === 'paused'
-                            ? 'Paused'
-                            : job.status === 'staging'
-                              ? 'Saving to device…'
-                              : 'Needs attention'}
+                    {job.operation === 'cancel'
+                      ? job.status === 'error'
+                        ? 'Cancellation needs attention'
+                        : 'Cancelling…'
+                      : job.status === 'complete'
+                        ? 'Published'
+                        : job.status === 'uploading'
+                          ? job.phase === 'publishing'
+                            ? 'Publishing…'
+                            : `Uploading · ${Math.round((100 * job.bytes) / job.size)}%`
+                          : job.status === 'pending'
+                            ? job.retryAt > Date.now()
+                              ? 'Waiting to retry automatically…'
+                              : 'Queued'
+                            : job.status === 'paused'
+                              ? 'Paused'
+                              : job.status === 'staging'
+                                ? 'Saving to device…'
+                                : 'Needs attention'}
                   </span>
                   {job.status === 'uploading' && (
                     <progress
@@ -226,18 +232,19 @@ export function WallTransfersProvider({ children }: { children: ReactNode }) {
                   )}
                   {job.error && <small role="alert">{job.error}</small>}
                   <div className="wall-transfer-actions">
-                    {['uploading', 'pending'].includes(job.status) && (
-                      <button
-                        onClick={() =>
-                          void setWallUploadStatus(job.id, 'paused').catch(
-                            (error) => setQueueError(error.message)
-                          )
-                        }
-                      >
-                        <Pause />
-                        Pause
-                      </button>
-                    )}
+                    {job.operation !== 'cancel' &&
+                      ['uploading', 'pending'].includes(job.status) && (
+                        <button
+                          onClick={() =>
+                            void setWallUploadStatus(job.id, 'paused').catch(
+                              (error) => setQueueError(error.message)
+                            )
+                          }
+                        >
+                          <Pause />
+                          Pause
+                        </button>
+                      )}
                     {['paused', 'error', 'staging'].includes(job.status) && (
                       <button
                         onClick={() =>
