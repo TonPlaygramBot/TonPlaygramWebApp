@@ -10,11 +10,20 @@ export class CombatSimulation {
     this.missiles = [];
     this.fires = new Map();
     this.serial = 0;
+    this.injuryFeedback = new WeakMap();
   }
   emit(kind, point, extra = {}) {
     const s = this.sim.state;
     s.effects.push({ id: ++s.effectSeq, at: s.elapsed, kind, x: point.x, y: point.y, z: point.z,
       toX: point.x, toY: point.y, toZ: point.z, owner: 'local', weapon: '', ...extra });
+  }
+  actorHit(target, attacker) {
+    const now=this.sim.state.elapsed,previous=this.injuryFeedback.get(target);
+    if(previous!==undefined&&now>=previous&&now-previous<.12)return;
+    this.injuryFeedback.set(target,now);
+    const floor=target===this.sim.player?this.sim.body.y:target.y??groundHeight(target.x,target.z);
+    this.emit('blood',{x:target.x,y:floor+.95,z:target.z},{floorY:floor,
+      toX:target.x-(attacker?.x??target.x),toY:.15,toZ:target.z-(attacker?.z??target.z)});
   }
   launch(aircraft, yaw, pitch) {
     const now = this.sim.state.elapsed;

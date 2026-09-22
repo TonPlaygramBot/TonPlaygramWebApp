@@ -1,5 +1,7 @@
+import {chooseCrowdExit,crowdNeighbors,crowdSteering} from './crowdBehavior.mjs';
 const distance=(a,b)=>Math.hypot(a.x-b.x,a.z-b.z);
-const hash=id=>[...String(id)].reduce((v,c)=>(Math.imul(v,31)+c.charCodeAt(0))>>>0,0);
+const identities=new WeakMap();
+const hash=n=>{let value=identities.get(n);if(value===undefined){value=0;for(const c of String(n.id))value=(Math.imul(value,31)+c.charCodeAt(0))>>>0;identities.set(n,value);}return value;};
 const junctions=new WeakMap();
 function walkJunctions(world){
   if(junctions.has(world))return junctions.get(world);
@@ -11,12 +13,12 @@ function walkJunctions(world){
 }
 /** Stay on connected walking paths; crossing vehicles get right of way before
  * stepping off a kerb. A threat changes the route goal, not world position. */
-export function pedestrianIntent(n,state,nearVehicles,nearPeople,world){
+export function pedestrianIntent(n,state,nearVehicles,nearPeople,world,neighbors=crowdNeighbors(n,nearPeople),players=Object.values(state.players)){
   const time=state.elapsed;
   if(!n.path?.length)return {goal:n,speed:0,anim:'idle'};
   if(n.role==='cafe-guest'&&time>=n.panicUntil)return {goal:n,speed:0,anim:'idle'};
   let danger,nearest=42;
-  for(const p of Object.values(state.players))if(p.health>0&&time-p.lastCrime<10){
+  for(const p of players)if(p.health>0&&time-p.lastCrime<10){
     const d=distance(n,p);if(d<nearest){nearest=d;danger=p;}
   }
   // A frightened pedestrian keeps escaping the last observed threat for a
@@ -44,16 +46,17 @@ export function pedestrianIntent(n,state,nearVehicles,nearPeople,world){
       n.visits=(n.visits||0)+1;
       const exits=(walkJunctions(world).get(`${Math.round(goal.x)}:${Math.round(goal.z)}`)||[])
         .filter(p=>distance(p,n.path[1-n.pathIndex]||n)>1);
-      if(exits.length){const to=exits[(hash(n.id)+n.visits)%exits.length];n.path=[{...goal},{...to}];n.pathIndex=1;}
+      if(exits.length){const to=chooseCrowdExit(n,exits,nearPeople,hash(n)+n.visits);n.path=[{...goal},{...to}];n.pathIndex=1;}
       else n.pathIndex=1-n.pathIndex;
       goal=n.path[n.pathIndex];
-      if(n.motion!=='cycle'&&(hash(n.id)+n.visits)%4===0)n.restUntil=time+1.5+(hash(n.id)%30)/10;
+      // Rest away from a busy crossing so one idle person cannot dam the path.
+      if(n.motion!=='cycle'&&neighbors.length<3&&(hash(n)+n.visits)%4===0)n.restUntil=time+1.5+(hash(n)%30)/10;
     }
     if(time<(n.restUntil||0)){n.behavior='rest';return {goal:n,speed:0,anim:'idle'};}
     n.behavior='walk';
   }
   const dx=goal.x-n.x,dz=goal.z-n.z,len=Math.hypot(dx,dz)||1,ux=dx/len,uz=dz/len;
-  let speed=panic?3.8:n.motion==='cycle'?4.2:n.role==='child'?1.9:1.05+(hash(n.id)%5)*.12;
+  let speed=panic?3.8:n.motion==='cycle'?4.2:n.role==='child'?1.9:1.05+(hash(n)%5)*.12;
   for(const c of nearVehicles){
     const vx=c.vx||0,vz=c.vz||0;
     // Predict the next 1.8 seconds of lane occupancy before crossing.
@@ -63,14 +66,6 @@ export function pedestrianIntent(n,state,nearVehicles,nearPeople,world){
       if(side<(c.w||1.9)/2+.6&&ahead<(c.d||(c.model==='tirana-bus'?18:4.5))/2+.8){speed=0;n.behavior='yield';break;}
     }
   }
-  for(const other of nearPeople){
-    if(other===n||other.health<=0||other.motion==='drive')continue;
-    const x=other.x-n.x,z=other.z-n.z,forward=x*ux+z*uz,lateral=Math.abs(x*uz-z*ux);
-    if(forward>0&&forward<1.3&&lateral<.55){
-      // Consistent passing side prevents both pedestrians dodging into each other.
-      goal={x:goal.x-uz*.7,z:goal.z+ux*.7};speed=Math.min(speed,.8);
-      if(forward<.6)speed=0;
-    }
-  }
+  ({goal,speed}=crowdSteering(n,goal,speed,neighbors));
   return {goal,speed,anim:speed===0?'idle':n.motion==='cycle'?'ride':panic?'run':'walk'};
 }

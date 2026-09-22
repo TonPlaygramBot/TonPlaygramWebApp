@@ -34,6 +34,7 @@ export const WEAPONS = Object.freeze({
 });
 export const clamp = (v, min, max) => Math.max(min, Math.min(max, v));
 const indices = new WeakMap();
+export {nearby as nearbyObstacles};
 function nearby(x, z, r, obstacles) {
   let grid = indices.get(obstacles);
   if (!grid) {

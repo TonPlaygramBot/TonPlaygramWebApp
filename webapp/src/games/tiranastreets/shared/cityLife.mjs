@@ -3,6 +3,8 @@ import {scheduledActorStep} from './actorSchedule.mjs';
 import {createTrafficOfficers,directTraffic} from './junctionControl.mjs';
 import {initPoliceDispatch,updatePolicePatrols} from './policeDispatch.mjs';
 import {pedestrianIntent} from './pedestrianBehavior.mjs';
+import {crowdNeighbors,separateCrowd} from './crowdBehavior.mjs';
+import {shopLayout} from './shopLayout.mjs';
 import {registerPedestrianDefense,pedestrianDefenseIntent} from './pedestrianDefense.mjs';
 import {steerNPC,friendlyInFiringLane} from './npcNavigation.mjs';
 import {createFootPatrols} from './patrols.mjs';
@@ -446,9 +448,9 @@ export function updateCityLife(state, dt, env, mission) {
     if (!p.aircraftId && state.elapsed - p.inputAt < 0.45 && p.input.fire) (env.firePlayer || fire)(state, p, env);
     if (state.elapsed - p.lastDamage > 18 && p.health < 100)
       p.health = Math.min(100, p.health + dt * 1.5);
-    const visible = state.npcs.some(
+    const visible = citySpatialGrids(state).people.near(p.x,p.z,60).some(
       (n) =>
-        ["police", "soldier"].includes(n.kind) &&
+        (n.kind === 'police' || n.kind === 'soldier') &&
         n.health > 0 &&
         dist(n, p) < 60 &&
         env.clear(n, p),
@@ -463,6 +465,9 @@ export function updateCityLife(state, dt, env, mission) {
   }
   const {vehicles:vehicleGrid,people:peopleGrid}=citySpatialGrids(state);
   updatePolicePatrols(state,dt,env,{vehicles:vehicleGrid,people:peopleGrid});
+  const unitsById=new Map(),squadLeaders=new Map(),squads=new Map();
+  for(const unit of state.units){unitsById.set(unit.id,unit);if(!squadLeaders.has(unit.squadId))squadLeaders.set(unit.squadId,unit);}
+  for(const npc of state.npcs)if(npc.squadId&&npc.health>0){let squad=squads.get(npc.squadId);if(!squad)squads.set(npc.squadId,squad=[]);squad.push(npc);}
   for (const n of state.npcs) {
     const distant=(n.kind==='civilian'||n.patrol||n.guardPost) && !players.some(p=>(p.x-n.x)**2+(p.z-n.z)**2<180*180);
     const npcDt=scheduledActorStep(n,state.elapsed,dt,distant?.4:0);
@@ -476,7 +481,8 @@ export function updateCityLife(state, dt, env, mission) {
       }
       continue;
     }
-    if (n.kind === "dealer" || n.custody) continue;
+    if(n.kind==='dealer'){n.y??=shopLayout(n).standingY;continue;}
+    if (n.custody) continue;
     if(n.role==='traffic-controller'){directTraffic(n,state.elapsed);continue;}
     if (env.recovering?.(n)) { n.speed=0; n.anim='hit'; continue; }
     const walkClear=(a,b)=>{
@@ -502,9 +508,11 @@ export function updateCityLife(state, dt, env, mission) {
         if(defense.strike)harm(state,defense.target,6,n,env);
         continue;
       }
-      const intent=pedestrianIntent(n,state,vehicleGrid.near(n.x,n.z,25),peopleGrid.near(n.x,n.z,3),env.world);
+      const nearbyPeople=peopleGrid.near(n.x,n.z,10),neighbors=crowdNeighbors(n,nearbyPeople);
+      const intent=pedestrianIntent(n,state,vehicleGrid.near(n.x,n.z,25),nearbyPeople,env.world,neighbors,players);
       n.speed=0;
       if(intent.speed>0)walkTo(intent.goal,intent.speed,.4);
+      if(separateCrowd(n,neighbors,npcDt))env.collide(n,.4);
       n.anim=intent.anim;
       const car = state.cars.find(
         (c) => {const size=vehicleSize(c),dx=n.x-c.x,dz=n.z-c.z;
@@ -521,7 +529,7 @@ export function updateCityLife(state, dt, env, mission) {
       }
       continue;
     }
-    const assignedUnit=n.unit&&state.units.find(u=>u.id===n.unit);
+    const assignedUnit=n.unit&&unitsById.get(n.unit);
     if(assignedUnit){
       if((assignedUnit.destroyed||assignedUnit.burning)&&!n.deployed){
         n.deployed=true;n.motion='walk';n.x+=Math.cos(n.heading)*(n.seat%2?2:-2);n.z-=Math.sin(n.heading)*(n.seat%2?2:-2);env.collide(n,.45);
@@ -538,15 +546,13 @@ export function updateCityLife(state, dt, env, mission) {
         n.motion='drive';n.anim=assignedUnit.forceVehicle?.includes('bike')?'ride':'drive';continue;
       }
     }
-    const actual = players
-      .filter(
-        (p) =>
-          p.health > 0 &&
-          !p.failed &&
-          !p.finished &&
-          (n.kind === "gang" || p.wanted > 0 && (assignedUnit ? assignedUnit.target===p.id : dist(n,p)<70 && env.clear(n,p))),
-      )
-      .sort((a, b) => dist(a, n) - dist(b, n))[0];
+    let actual,nearest=Infinity;
+    for(const candidate of players){
+      if(candidate.health<=0||candidate.failed||candidate.finished)continue;
+      const distance=dist(n,candidate);
+      if(distance>=nearest||!(n.kind==='gang'||candidate.wanted>0&&(assignedUnit?assignedUnit.target===candidate.id:distance<70&&env.clear(n,candidate))))continue;
+      actual=candidate;nearest=distance;
+    }
     if(actual&&env.officerAction?.(n,actual,npcDt,env))continue;
     const p = actual && env.track ? env.track(n, actual) : actual;
     if (!p) {
@@ -555,10 +561,10 @@ export function updateCityLife(state, dt, env, mission) {
       else {n.speed=0;n.anim='idle';}
       continue;
     }
-    const unit = n.unit && state.units.find((u) => u.id === n.unit),
+    const unit = assignedUnit,
       d = dist(n, p);
     if(unit?.destroyed && !n.deployed){n.deployed=true;n.motion='walk';n.x+=2;n.z+=1;}
-    const squadLead=unit && state.units.find(u=>u.squadId===unit.squadId);
+    const squadLead=unit && squadLeaders.get(unit.squadId);
     if (unit && !n.deployed && (dist(squadLead||unit, p) > 23 || Math.abs(unit.speed)>.5)) {
       n.motion = "drive";
       const seatOffset = n.seat%2 ? .38 : -.32, back=Math.floor((n.seat||0)/2)*.7;
@@ -576,25 +582,29 @@ export function updateCityLife(state, dt, env, mission) {
       env.collide(n,.45);
     }
     n.motion = "walk";
-    const cars=[...state.cars,...(state.traffic||[]),...state.units];
-    const squad=state.npcs.filter(o=>o.health>0 && (n.squadId?o.squadId===n.squadId:o.kind===n.kind&&dist(n,o)<45));
-    if(!n.tacticCache||state.elapsed>=(n.tacticAt||0)){n.tacticCache=tacticalGoal(n,p,squad,cars,state.elapsed,env.clear);n.tacticAt=state.elapsed+.12;}
+    // Cover is within 18 m and firing within 46 m. Broad-phase cells include
+    // body extents and moving actors; avoid copying the entire city per officer.
+    const cars=vehicleGrid.near(n.x,n.z,60),localPeople=peopleGrid.near(n.x,n.z,50);
+    if(!n.tacticCache||state.elapsed>=(n.tacticAt||0)){
+      const squad=n.squadId?squads.get(n.squadId)||[n]:localPeople.filter(o=>o.health>0&&o.kind===n.kind&&dist(n,o)<45);
+      n.tacticCache=tacticalGoal(n,p,squad,cars,state.elapsed,env.clear);n.tacticAt=state.elapsed+.12;
+    }
     const tactic=n.tacticCache;
     n.anim=tactic.anim; n.coverId=tactic.coverId; n.speed=0;
     if(n.anim==='run'||n.anim==='walk') {
       walkTo(avoidVehicles(n,tactic.goal,cars),n.anim==='run'?3.6:1.45);
     }
     // Personal space prevents overlapping squad members even while converging.
-    for(const other of peopleGrid.near(n.x,n.z,3)) if(other!==n && other.health>0 && other.motion!=='drive') {
-      const dx=n.x-other.x,dz=n.z-other.z,l=Math.hypot(dx,dz);
-      if(l<.85){const a=l>.001?Math.atan2(dz,dx):n.id.localeCompare(other.id)<0?0:Math.PI;
-        n.x+=Math.cos(a)*(.85-l)*.5;n.z+=Math.sin(a)*(.85-l)*.5;}
-    }
+    separateCrowd(n,crowdNeighbors(n,localPeople),npcDt,.85);
     env.collide(n,.45);
     if(n.anim==='aim'||n.anim==='cover'){const aim=Math.atan2(n.x-p.x,n.z-p.z);n.heading+=Math.atan2(Math.sin(aim-n.heading),Math.cos(aim-n.heading))*Math.min(1,npcDt*12);}
     if(n.anim!=='aim')n.aimSince=undefined;else n.aimSince??=state.elapsed;
-    const canShoot=n.anim==='aim' && !cars.some(c=>vehicleBlocks(n,p,c)) && !friendlyInFiringLane(n,p,state.npcs.filter(o=>o.kind===n.kind||o.kind!=='gang'&&n.kind!=='gang'));
-    if (canShoot && !actual?.arrest && state.elapsed-(n.aimSince||0)>.18 && d < 46 && state.elapsed >= n.nextShot && env.clear(n, actual || p) && (!env.track || p === actual)) {
+    // Geometry cannot authorize a shot while its timer/aim state forbids it.
+    // Check those gates first instead of allocating allies and tracing every
+    // render tick throughout the much longer weapon cooldown.
+    const readyToShoot=d<46&&n.anim==='aim'&&!actual?.arrest&&state.elapsed-(n.aimSince||0)>.18&&state.elapsed>=n.nextShot&&(!env.track||p===actual);
+    const canShoot=readyToShoot&&!cars.some(c=>vehicleBlocks(n,p,c))&&!friendlyInFiringLane(n,p,localPeople.filter(o=>o.kind===n.kind||o.kind!=='gang'&&n.kind!=='gang'));
+    if (canShoot && env.clear(n, actual || p)) {
       if(env.fireNPC){env.fireNPC(n,actual||p,cfg.damage);continue;}
       n.nextShot =
         state.elapsed + (n.kind === "soldier" ? 0.85 : 1.6) / cfg.damage;

@@ -1,4 +1,5 @@
 import {ArrestSimulation} from './ArrestSimulation.mjs';
+import {createMissionDirector, extractionSeconds, updateMissionDirector} from './missionDirectorCore.mjs';
 import {npcWeaponPose} from '../shared/npcWeaponPose.mjs';
 import {ThrowableSimulation} from './ThrowableSimulation.mjs';
 import {groundHeight} from '../../tirana-east/terrainCore.mjs';
@@ -82,8 +83,12 @@ export class StreetSimulation {
       vehicleId: null,
       defend: 0,
       stage: 0,
-      tutorial: []
+      tutorial: [],
+      director: createMissionDirector({lastHealth: this.player.health,lastDamageAt:this.player.lastDamage})
     };
+    // This is a local-only report consumed by campaign settlement. Keep the
+    // reference in sync after checkpoint restoration, without touching payouts.
+    this.state.streetMission = {id: this.mission.id, director: this.job.director};
     this.hooks = {
       movePlayer: (s, p, dt) => this.move(s, p, dt),
       afterLife: (s, dt) => this.afterLife(s, dt),
@@ -127,6 +132,7 @@ export class StreetSimulation {
     return [...this.state.cars, ...this.state.traffic, ...this.state.units];
   }
   event(kind, data = {}) {
+    if (kind === 'shot') this.job.director.shotsFired++;
     this.events.push({
       id: ++this.eventSeq,
       at: this.state.elapsed,
@@ -328,18 +334,43 @@ export class StreetSimulation {
       this.cars(),
       p.carId || ''
     ).distance;
-    if (
-      this.mission.id === 'boulevard-defense' &&
-      dist(p, this.mission.stops[0]) < 22 &&
-      p.health > 0
-    )
-      this.job.defend = Math.min(12, this.job.defend + dt);
+    this.updateObjective(dt);
     if (this.job.stage !== p.index) {
       this.job.stage = p.index;
       this.approved = -1;
       this.event('checkpoint', { stage: p.index });
     }
     this.body.lastHealth = p.health;
+  }
+  updateObjective(dt) {
+    const p = this.player, m = this.mission, d = this.job.director;
+    if (m.type === 'free' || p.finished || p.failed || p.health <= 0) return;
+    const car = p.carId ? this.state.cars.find(c => c.id === p.carId) : null;
+    const previousCar = this.job.vehicleId ? this.state.cars.find(c => c.id === this.job.vehicleId) : null;
+    const observedCar = car || (d.wasDriving && previousCar?.destroyed ? previousCar : null);
+    const aircraft = this.flight.current;
+    updateMissionDirector(d, m, {
+      health: p.health, damageAt: p.lastDamage, parcel: this.job.parcel,
+      vehicleId: observedCar?.id, vehicleHealth: observedCar ? observedCar.health ?? 140 : undefined,
+      // Checkpoints do not recreate abandoned wrecks. An active recovery
+      // deadline therefore survives independently until a replacement is driven.
+      vehicleDestroyed: !!previousCar?.destroyed || d.recovery > 0,
+      remaining: this.state.objectiveRemaining ?? m.enemies,
+      distance: m.stops[p.index] ? dist(p, m.stops[p.index]) : Infinity,
+      driving: !!car, onFoot: !p.carId && !p.aircraftId && !this.cableRide,
+      grounded: this.body.grounded, speed: p.speed, wanted: p.wanted,
+      final: p.index === m.stops.length - 1, firing: this.intent.fire,
+      correctAircraft: aircraft?.kind === m.aircraft,
+      airborne: aircraft?.airborne, verticalSpeed: aircraft?.verticalSpeed ?? 0
+    }, dt);
+    this.job.defend = m.id === 'boulevard-defense' ? d.hold : this.job.defend;
+    if (d.failure) {
+      p.failed = true;
+      this.state.message = d.failure;
+      cancelActions(p, this.body);
+      this.body.notice = d.failure;
+      this.event('mission-failed');
+    }
   }
   damage(target, amount, attacker) {
     harm(this.state, target, amount, attacker, { ...this.hooks.life });
@@ -361,6 +392,7 @@ export class StreetSimulation {
     return amount * 0.25;
   }
   damaged(target, attacker) {
+    this.combat.actorHit(target, attacker);
     if (target === this.player) {
       if (this.body.action || target.health <= 0) {
         cancelActions(target, this.body);
@@ -1110,14 +1142,21 @@ export class StreetSimulation {
           return;
         }
         this.job.parcel = true;
+        // An action can be delivered more than once by stale input; only a
+        // newly accepted stage may consume one entry in the manifest.
+        if (this.player.index > 0 && this.approved !== this.player.index)
+          this.job.director.delivered++;
       }
       if (
         this.mission.type === 'combat' &&
-        (this.state.objectiveRemaining > 0 ||
-          (this.mission.id === 'boulevard-defense' && this.job.defend < 12))
+        this.state.objectiveRemaining > 0
       ) {
         this.body.notice = 'Secure the area first';
         return;
+      }
+      if (this.mission.type === 'combat') {
+        this.job.director.extracting = true;
+        this.body.notice = 'Hold the extraction area. Damage or movement interrupts the countdown.';
       }
       this.approved = this.player.index;
       this.event('objective', { stage: this.player.index });
@@ -1128,16 +1167,18 @@ export class StreetSimulation {
     if (m.type === 'flight') {
       const a = this.flight.current;
       if (!a || a.kind !== m.aircraft) return false;
-      return p.index === m.stops.length-1 ? !a.airborne && Math.abs(a.speed)<2 : a.y-groundHeight(a.x,a.z)>20;
+      return p.index === m.stops.length-1 ? this.job.director.hold >= 2 - 1e-7 : a.y-groundHeight(a.x,a.z)>20;
     }
-    if (m.type === 'delivery' || m.type === 'combat')
+    if (m.type === 'combat')
+      return this.approved === p.index && this.job.director.hold >= extractionSeconds(m) - 1e-7;
+    if (m.type === 'delivery')
       return this.approved === p.index;
     if (m.type === 'race') return !!p.carId && p.carId === this.job.vehicleId;
     if (m.type === 'pursuit')
       return (
         !!p.carId &&
         p.carId === this.job.vehicleId &&
-        (p.index < m.stops.length - 1 || p.wanted === 0)
+        (p.index < m.stops.length - 1 || this.job.director.hold >= 3 - 1e-7)
       );
     return true;
   }
@@ -1148,7 +1189,10 @@ export class StreetSimulation {
       const a=this.flight.aircraft.find(a=>a.kind===this.mission.aircraft);
       const stop=this.mission.stops[p.index];
       return {title:p.aircraftId?`${p.index===this.mission.stops.length-1?'Land at':'Fly above'} ${stop?.name||'beacon'}`:`Board the ${this.mission.aircraft}`,
-        detail:p.aircraftId?'Pass markers above 20 m. Land and stop at the final beacon.':`${Math.round(dist(p,this.flight.access(a)))} m to aircraft · follow the route`,training:false};
+        detail:p.aircraftId?'Pass markers above 20 m. Land and hold still for 2 seconds at the final beacon.':`${Math.round(dist(p,this.flight.access(a)))} m to aircraft · follow the route`,training:false,
+        phase:p.index===this.mission.stops.length-1?'land':'approach',
+        progress:p.index===this.mission.stops.length-1?this.job.director.hold/2:p.index/this.mission.stops.length,
+        remaining:p.index===this.mission.stops.length-1?Math.max(0,2-this.job.director.hold):undefined};
     }
     if (this.flight.current) return this.flight.objective();
     if (this.mission.id === 'first-shift') {
@@ -1161,13 +1205,27 @@ export class StreetSimulation {
         };
     }
     const stop = this.mission.stops[p.index];
+    const d = this.job.director;
+    if (this.mission.type === 'combat') {
+      const remaining = this.state.objectiveRemaining ?? this.mission.enemies;
+      const duration = extractionSeconds(this.mission);
+      return {title:remaining ? `Secure ${stop?.name || 'the area'}` : d.extracting ? 'Hold the extraction area' : 'Signal extraction',
+        detail:remaining ? `${remaining} opponents remaining · use cover and control the approach` : d.extracting ? `${Math.ceil(Math.max(0,duration-d.hold))} s · stay on foot and still; damage interrupts` : 'Look at the cleared marker and tap INTERACT',
+        training:false,phase:remaining?'secure':'extract',progress:remaining?1-remaining/this.mission.enemies:d.hold/duration,
+        remaining:remaining?undefined:Math.max(0,duration-d.hold),optionalObjective:'Clean operation: take no more than 20 damage'};
+    }
+    if (d.recovery>0)
+      return {title:'Find a replacement vehicle',detail:'Your vehicle is destroyed. Enter another car to continue the route.',training:false,phase:'recover',progress:1-d.recovery/20,remaining:Math.max(0,20-d.recovery)};
+    if (this.mission.type === 'pursuit' && p.index === this.mission.stops.length - 1)
+      return {title:p.wanted>0?'Break contact with the patrol':'Park at the safe point',detail:p.wanted>0?'Lose your wanted level before approaching the hideout':'Stop inside the marker for 3 seconds without firing',training:false,
+        phase:p.wanted>0?'escape':'hideout',progress:d.hold/3,remaining:Math.max(0,3-d.hold)};
     return {
       title: stop
         ? `${this.mission.type === 'delivery' ? (p.index ? 'Deliver at' : 'Collect at') : this.mission.type === 'combat' ? 'Secure' : 'Reach'} ${stop.name}`
         : 'Explore Tirana',
       detail:
         this.mission.type === 'delivery'
-          ? 'Stop, look at the marker and tap INTERACT'
+          ? `${p.index ? `${Math.max(0,this.mission.stops.length-1-d.delivered)} deliveries remaining · ` : ''}Stop, look at the marker and tap INTERACT`
           : this.mission.type === 'pursuit'
             ? 'Lose the pursuit before the final checkpoint'
             : this.mission.type === 'race'
@@ -1175,7 +1233,11 @@ export class StreetSimulation {
               : this.mission.type === 'combat'
                 ? `${this.state.objectiveRemaining ?? this.mission.enemies} opponents · secure extraction`
                 : 'Walk, drive, meet Arben',
-      training: false
+      training: false,
+      phase:this.mission.type==='delivery'?(p.index?'deliver':'collect'):this.mission.type==='race'?'race':'travel',
+      progress:this.mission.stops.length?p.index/this.mission.stops.length:0,
+      integrity:this.mission.type==='delivery'&&this.mission.id!=='first-shift'&&this.job.parcel?d.integrity:undefined,
+      optionalObjective:this.mission.type==='delivery'?'Keep the cargo intact and avoid collisions':this.mission.type==='race'?'Finish with minimal vehicle damage':undefined
     };
   }
 }

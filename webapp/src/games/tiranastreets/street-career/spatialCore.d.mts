@@ -10,6 +10,7 @@ export class StreetWorld {
       id?: string;
       minY?: number;
       minHeight?: number;
+      baseY?: number;
       holes?: number[][][];
     }[],
     legacyBounds?: boolean

@@ -11,7 +11,7 @@ import {SHARED_GAME_CAST} from './SharedGameCast';
 import {HumanoidAnimation} from './humanoidAnimation.mjs';
 import {humanoidBones} from './humanoidRig.mjs';
 
-type Actor={root:T.Group;model:T.Object3D;asset:string;role:string;animation:HumanoidAnimation;gaitSpeed:number;poseTime:number;placed:boolean;deathAt?:number;label:T.Sprite};
+type Actor={root:T.Group;model:T.Object3D;asset:string;role:string;animation:HumanoidAnimation;gaitSpeed:number;poseTime:number;placed:boolean;shadow:boolean;deathAt?:number;label:T.Sprite};
 function disposeResources(root:T.Object3D) {
   const geometries=new Set<T.BufferGeometry>(),materials=new Set<T.Material>(),textures=new Set<T.Texture>(),skeletons=new Set<T.Skeleton>();
   root.traverse(o=>{if(o instanceof T.SkinnedMesh)skeletons.add(o.skeleton);if(o instanceof T.Mesh||o instanceof T.Sprite){if(o instanceof T.Mesh)geometries.add(o.geometry);for(const m of Array.isArray(o.material)?o.material:[o.material]){materials.add(m);for(const t of Object.values(m))if(t instanceof T.Texture)textures.add(t);}}});
@@ -120,7 +120,7 @@ export class SharedHumans {
       const band=new T.Mesh(new T.BoxGeometry(.12,.11,.04),new T.MeshStandardMaterial({color,roughness:.8}));
       band.name='role-armband';band.position.set(.28,1.24,.03);root.add(band);
     }
-    const actor:Actor={root,model,asset:asset.id,role,animation:new HumanoidAnimation(root,model,g.animations),gaitSpeed:0,poseTime:0,placed:false,label};
+    const actor:Actor={root,model,asset:asset.id,role,animation:new HumanoidAnimation(root,model,g.animations),gaitSpeed:0,poseTime:0,placed:false,shadow:true,label};
     this.actors.set(n.id,actor);this.group.add(root);return actor;
   }
   private pose(a:Actor,n:NPC,time:number,dt:number){
@@ -148,6 +148,8 @@ export class SharedHumans {
       let a=this.actors.get(n.id);if(a&&(a.asset!==asset.id||a.role!==actorRole(n.kind))){this.remove(n.id);a=undefined;}
       a ||= this.create(n,asset,source);
       const first=!a.placed,distance=Math.hypot(n.x-viewer.x,n.z-viewer.z);
+      const shadow=distance<(battery?24:48);
+      if(a.shadow!==shadow){a.shadow=shadow;a.model.traverse(o=>{if(o instanceof T.Mesh)o.castShadow=shadow;});}
       const measured=n.health<=0?0:Math.min(10,Math.abs(n.speed||0));
       a.gaitSpeed+=(measured-a.gaitSpeed)*(1-Math.exp(-Math.max(0,dt)*12));a.placed=true;
       const alpha=first||dt<=0||Math.hypot(n.x-a.root.position.x,n.z-a.root.position.z)>12?1:1-Math.exp(-dt*18);
@@ -162,7 +164,7 @@ export class SharedHumans {
       // The host updates the eye camera later in this frame. Use its previous
       // frustum only to budget animation, never to hide a newly revealed person.
       const onScreen=!camera||distance<4||this.frustum.intersectsSphere(this.bounds);
-      a.poseTime=Math.min(.15,a.poseTime+Math.max(0,dt));
+      a.poseTime=Math.min(.5,a.poseTime+Math.max(0,dt));
       // Keep motion and interactions immediate near the player; sample distant
       // skeletons less often while preserving every original mesh and texture.
       if(n.health>0&&(first||onScreen&&(distance<35||a.poseTime>=(distance<90?.05:.1)))){this.pose(a,n,time,a.poseTime);a.poseTime=0;}

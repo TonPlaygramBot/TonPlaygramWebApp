@@ -8,9 +8,12 @@ import {startingWeapons} from './startingWeapons';
 import {createWebGLRenderer} from '../tiranastreets/createWebGLRenderer';
 import { BattlefieldVehicle } from './BattlefieldVehicle';
 import { CombatEffects } from '../tiranastreets/CombatEffects';
+import { SurfaceImpactMarks } from '../tiranastreets/SurfaceImpactMarks';
+import {traceBattleSurface} from './shared/shotFeedback.mjs';
+import type {Effect as CityEffect} from '../tiranastreets/shared/engine.mjs';
 import { BATTLE_MODES, OPERATIONS, sectorSpawns, sectorObstacles, zoneRadius, normalizeOperations, finishOperation, operationUnlocked, type BattleMode } from './shared/battlefield.mjs';
 import { createBrain, thinkBot, type BotBrain } from './shared/botBrain.mjs';
-import { tacticalGoal, coverPoint } from '../tiranastreets/shared/forceTactics.mjs';
+import { coverPoint } from '../tiranastreets/shared/forceTactics.mjs';
 import { BattlefieldForces } from './BattlefieldForces';
 import * as THREE from 'three';
 import { CompatibilityRenderer } from './compatibility';
@@ -28,7 +31,6 @@ import {
   collides,
   moveCircle,
   lineClear,
-  rayBox,
   findPath,
   waveCount,
   reloadAmmo,
@@ -45,6 +47,13 @@ export type Snapshot = {
   battleMode?:BattleMode;
   objective?:string;
   objectiveProgress?:number;
+  objectiveStage?:string;
+  objectiveHint?:string;
+  objectiveContested?:boolean;
+  objectiveRatio?:number;
+  objectiveTimeRemaining?:number|null;
+  drawCalls?:number;
+  triangles?:number;
   operations?:string[];
   operationId?:string;
   zone?:number;
@@ -94,6 +103,7 @@ export type Snapshot = {
 };
 type Enemy = ActorVisual & {
   brain?:BotBrain;
+  coverScan?:{at:number;from:Vec2;threat:Vec2;goals:Vec2[]};
   lastSeen?:Vec2;
   lastSeenAt?:number;
   stuck?:number;
@@ -119,17 +129,12 @@ type Enemy = ActorVisual & {
   walk: number;
   hurt: number;
 };
-type Effect = {
-  mesh: THREE.Mesh;
-  life: number;
-  max: number;
-  velocity: THREE.Vector3;
-};
 type Loot = { mesh: THREE.Group; weapon: WeaponId; ammo: number; life: number };
 const defaults: Settings = {
   sensitivity: 1,
   volume: 0.55,
   assist: true,
+  bloodEffects: true,
   quality: 'auto',
   targetFps: 60
 };
@@ -158,6 +163,10 @@ export class GameEngine {
   operationId='';
   operations={completed:[] as string[]};
   private objectiveProgress=0;
+  private objectiveState?:ReturnType<typeof advanceBattleObjective>;
+  private impactMarks=new SurfaceImpactMarks();
+  private impactEvents:CityEffect[]=[];
+  private impactSerial=0;
   private gunNoise:(Vec2&{at:number})|null=null;
   private intel=false;
   private sectorCenter={...START};
@@ -188,7 +197,6 @@ export class GameEngine {
   private remoteTarget: Vec2 | null = null;
   private enemies: Enemy[] = [];
   private forces?: BattlefieldForces;
-  private effects: Effect[] = [];
   private loot: Loot[] = [];
   private extractionPoint = { ...EXTRACTION };
   private rng = createRng(451);
@@ -229,14 +237,6 @@ export class GameEngine {
   private callback: (s: Snapshot) => void;
   private disposed = false;
   private errorCallback: (s: string) => void;
-  private tracerGeo = new THREE.CylinderGeometry(0.012, 0.012, 1, 4);
-  private sparkGeo = new THREE.IcosahedronGeometry(0.025, 0);
-  private tracerMat = new THREE.MeshBasicMaterial({
-    color: '#ffdda0',
-    transparent: true,
-    opacity: 0.8
-  });
-  private sparkMat = new THREE.MeshBasicMaterial({ color: '#ffb36c' });
   constructor(
     canvas: HTMLCanvasElement,
     surface: HTMLElement,
@@ -279,6 +279,7 @@ export class GameEngine {
     this.playerVisual = new BattlefieldPlayer(this.scene);
     void this.playerVisual.load(initialWeapon).then(() => this.finishPlayerLoad());
     this.combatEffects=new CombatEffects(this.scene);
+    this.scene.add(this.impactMarks.mesh);
     this.vehicle=new BattlefieldVehicle(this.scene);
     this.zoneRing.rotation.x=-Math.PI/2;this.zoneRing.visible=false;this.missionBeacon.visible=false;this.scene.add(this.zoneRing,this.missionBeacon);
     try{this.operations=normalizeOperations(JSON.parse(localStorage.getItem('tirana:operations:v1')||'null'));}catch{}
@@ -343,8 +344,7 @@ export class GameEngine {
     const starting=this.online?[weapon]:startingWeapons(weapon);
     weapon=starting[0];
     this.clearActors();
-    this.effects.forEach((e) => this.scene.remove(e.mesh));
-    this.effects = [];
+    this.impactMarks.reset();this.impactEvents=[];this.impactSerial=0;this.objectiveState=undefined;
     this.weapon = weapon;
     this.battlefieldMap = mapId;
     this.battleMode=BATTLE_MODES.some(m=>m.id===battleMode)?battleMode:'last-stand';
@@ -638,9 +638,8 @@ export class GameEngine {
     dir.x += (this.rng() - 0.5) * spread;
     dir.y += (this.rng() - 0.5) * spread;
     dir.normalize();
-    let nearest = 80;
-    for (const o of this.world.obstacles)
-      nearest = Math.min(nearest, rayBox(origin, dir, o));
+    const surface=traceBattleSurface(origin,dir,80,this.world.obstacles);
+    let nearest = surface.distance;
     let victim: Enemy | undefined,
       head = false;
     for (const e of this.enemies) {
@@ -682,7 +681,7 @@ export class GameEngine {
       victim.hp -= w.damage * this.damageMultiplier * (head ? 3.35 : 1);
       victim.hurt = 0.14;
       this.audio.hit();
-      this.sparks(end, 4);
+      this.combatEffects.blood(end,dir,battleGround(end.x,end.z));
       if (victim.hp <= 0) {
         victim.state = 'dead';
         victim.deadTime = 0;
@@ -697,7 +696,13 @@ export class GameEngine {
           head ? 'head' : 'kill'
         );
       }
-    } else if (nearest < 80) this.sparks(end, 3);
+    } else if (surface.kind!=='air' && surface.normal) {
+      this.combatEffects.surfaceHit(end,surface.normal,surface.kind,battleGround(end.x,end.z));
+      this.impactEvents.push({id:++this.impactSerial,at:this.elapsed,kind:'hit',x:end.x,y:end.y,z:end.z,
+        toX:end.x,toZ:end.z,nx:surface.normal.x,ny:surface.normal.y,nz:surface.normal.z,
+        hitKind:surface.kind,owner:'player',weapon:this.weapon});
+      if(this.impactEvents.length>96)this.impactEvents.shift();
+    }
     if (this.ammo === 0)
       this.notify('MAGAZINE EMPTY  /  RELOAD', 'warning', 1.2);
   }
@@ -756,43 +761,6 @@ export class GameEngine {
         if(model){model.rotation.z=Math.PI/2;model.position.y=.16;item.mesh.add(model);}
       }
       if(item.life>300){this.disposeLoot(item);this.loot.splice(i,1);}
-    }
-  }
-  private tracer(start: THREE.Vector3, end: THREE.Vector3, enemy: boolean) {
-    if (this.effects.length > 65) return;
-    const delta = end.clone().sub(start);
-    const length = Math.min(delta.length(), enemy ? 9 : 15),
-      mesh = new THREE.Mesh(this.tracerGeo, this.tracerMat);
-    mesh.position.copy(start).lerp(end, 0.5);
-    mesh.scale.set(1, length, 1);
-    mesh.quaternion.setFromUnitVectors(
-      new THREE.Vector3(0, 1, 0),
-      delta.normalize()
-    );
-    this.scene.add(mesh);
-    this.effects.push({
-      mesh,
-      life: 0.06,
-      max: 0.06,
-      velocity: new THREE.Vector3()
-    });
-  }
-  private sparks(p: THREE.Vector3, count: number) {
-    if (this.effects.length > 65) return;
-    for (let i = 0; i < count; i++) {
-      const mesh = new THREE.Mesh(this.sparkGeo, this.sparkMat);
-      mesh.position.copy(p);
-      this.scene.add(mesh);
-      this.effects.push({
-        mesh,
-        life: 0.15 + this.rng() * 0.13,
-        max: 0.28,
-        velocity: new THREE.Vector3(
-          (this.rng() - 0.5) * 3,
-          this.rng() * 3,
-          (this.rng() - 0.5) * 3
-        )
-      });
     }
   }
   private physics(dt: number) {
@@ -886,14 +854,15 @@ export class GameEngine {
       const radius=zoneRadius(this.elapsed);
       if(Math.hypot(this.player.x-this.sectorCenter.x,this.player.z-this.sectorCenter.z)>radius)this.damage(dt*9);
       for(const e of this.enemies)if(e.hp>0&&Math.hypot(e.group.position.x-this.sectorCenter.x,e.group.position.z-this.sectorCenter.z)>radius)e.hp=Math.max(0,e.hp-dt*9);
-      if(this.phase==='playing'&&this.enemies.length&&this.enemies.every(e=>e.hp<=0))this.finish(true);
-      return;
+
     }
+    if(this.phase!=='playing')return;
     const objective=advanceBattleObjective({progress:this.objectiveProgress,intel:this.intel,extracting:this.extraction,extraction:this.extractProgress},{
       mode:this.battleMode,elapsed:this.elapsed,wave:this.wave,health:this.health,driving:this.vehicle.driving,lastDamage:this.lastDamage,
       player:this.player,center:this.sectorCenter,intelPoint:this.intelPoint,extractionPoint:this.extractionPoint,
       enemies:this.enemies.map(e=>({x:e.group.position.x,z:e.group.position.z,hp:e.hp}))
     },dt);
+    this.objectiveState=objective;
     this.objectiveProgress=objective.progress;this.intel=objective.intel;this.extraction=objective.extracting;this.extractProgress=objective.extraction;
     if(objective.extractionOpened){this.world.extraction.visible=true;this.notify(objective.intelSecured?'INTEL SECURED · REACH EXTRACTION':'BLOCK SECURED / REACH EXTRACTION','good',4);this.audio.victory();}
     if(objective.status==='won'||objective.status==='lost'){this.finish(objective.status==='won');return;}
@@ -956,10 +925,15 @@ export class GameEngine {
     const clear=(a:Vec2,b:Vec2)=>lineClear(new THREE.Vector3(a.x,battleGround(a.x,a.z)+1.5,a.z),new THREE.Vector3(b.x,battleGround(b.x,b.z)+1.5,b.z),this.battleObstacles);
     const opponents=[{id:'player',...this.player,hp:this.health},...(this.battleMode==='last-stand'?this.enemies.filter(o=>o!==e&&o.hp>0).map(o=>({id:String(o.id),x:o.group.position.x,z:o.group.position.z,hp:o.hp})):[])];
     const teammates=this.battleMode==='last-stand'?[]:this.enemies.filter(o=>o!==e&&o.hp>0).map(o=>({id:String(o.id),x:o.group.position.x,z:o.group.position.z,health:o.hp,lastSeen:o.brain?.lastSeen||undefined,lastSeenAt:o.brain?.seenAt}));
-    const observed=opponents.find(o=>Math.hypot(o.x-p.x,o.z-p.z)<65&&clear(p,o));
-    const covers=this.battleObstacles.filter(c=>c.h>1.1&&Math.hypot(c.x-p.x,c.z-p.z)<22).map((c,i)=>({...c,id:String(i),heading:c.rot||0,speed:0}));
-    const coverTargets=covers.map(c=>coverPoint(c,observed||brain.lastSeen||this.sectorCenter,e.id,false)).filter(c=>!collides(c.x,c.z,.5,this.battleObstacles));
-    const decision=thinkBot(brain,{id:String(e.id),x:p.x,z:p.z,hp:e.hp},opponents,this.elapsed,dt,clear,this.sectorCenter,{
+    const threat=brain.lastSeen||this.sectorCenter;
+    if(!e.coverScan||this.elapsed-e.coverScan.at>.4+(e.id%5)*.04||Math.hypot(p.x-e.coverScan.from.x,p.z-e.coverScan.from.z)>4||Math.hypot(threat.x-e.coverScan.threat.x,threat.z-e.coverScan.threat.z)>5){
+      const goals=this.battleObstacles.filter(c=>c.h>1.1&&Math.hypot(c.x-p.x,c.z-p.z)<22)
+        .map((c,i)=>coverPoint({...c,id:String(i),heading:c.rot||0,speed:0},threat,e.id,false))
+        .filter(c=>!collides(c.x,c.z,.5,this.battleObstacles));
+      e.coverScan={at:this.elapsed,from:{x:p.x,z:p.z},threat:{...threat},goals};
+    }
+    const coverTargets=e.coverScan.goals;
+    const decision=thinkBot(brain,{id:String(e.id),x:p.x,z:p.z,hp:e.hp,yaw:e.group.rotation.y},opponents,this.elapsed,dt,clear,this.sectorCenter,{
       mode:this.battleMode,zoneRadius:zoneRadius(this.elapsed),intelCollected:this.intel,intelPoint:this.intelPoint,extractionPoint:this.extractionPoint,
       covers:coverTargets,allies:teammates,canReach:(a:Vec2,b:Vec2)=>findPath(a,b,this.battleObstacles).length>0||Math.hypot(a.x-b.x,a.z-b.z)<1,
       reports:this.battleMode==='last-stand'?[]:this.enemies.filter(o=>o!==e&&o.hp>0&&o.brain).map(o=>o.brain!),noise:this.gunNoise,
@@ -973,21 +947,19 @@ export class GameEngine {
       }
     }
     e.cooldown-=dt;e.repath-=dt;
-    const observer={id:String(e.id),x:p.x,z:p.z,health:e.hp,kind:'police',coverId:e.coverId,lastSeen:e.lastSeen,lastSeenAt:e.lastSeenAt};
-    const tactic=decision.target&&!decision.priority?tacticalGoal(observer,decision.target,[observer,...teammates],covers,this.elapsed,clear):{goal:decision.goal,anim:decision.state==='heal'?'cover':'run',coverId:undefined};
-    e.lastSeen=brain.lastSeen||undefined;e.lastSeenAt=brain.seenAt;e.coverId=tactic.coverId;
-    let goal=tactic.goal;
+    e.lastSeen=brain.lastSeen||undefined;e.lastSeenAt=brain.seenAt;
+    let goal=decision.goal;
     if(e.detour&&this.elapsed<(e.detourUntil||0)&&Math.hypot(p.x-e.detour.x,p.z-e.detour.z)>.6)goal=e.detour;
     else e.detour=undefined;
     const reloading=brain.reload>0;
-    const movement=Math.hypot(goal.x-p.x,goal.z-p.z)>.8&&(decision.priority||!decision.target||tactic.anim==='run'||tactic.anim==='walk');
-    e.state=movement?'advance':reloading||tactic.anim==='cover'||decision.state==='heal'?'cover':'fire';
-    e.anim=e.state==='advance'?'run':e.state==='cover'?'cover':'aim';
+    const movement=decision.moveSpeed>0&&Math.hypot(goal.x-p.x,goal.z-p.z)>.8;
+    e.state=movement?'advance':reloading||decision.anim==='cover'||decision.state==='heal'?'cover':'fire';
+    e.anim=reloading?'reload':e.hurt>0?'hit':movement?(decision.moveSpeed>3.2?'run':'walk'):decision.anim==='cover'?'cover':'aim';
     if(movement){
       if(e.repath<=0||!e.pathGoal||Math.hypot(goal.x-e.pathGoal.x,goal.z-e.pathGoal.z)>6){e.repath=1.3+(e.id%5)*.13;e.path=findPath(p,goal,this.battleObstacles);e.pathGoal={...goal};}
       const next=e.path[0]||goal,dx=next.x-p.x,dz=next.z-p.z,d=Math.hypot(dx,dz);
       if(d>.12){
-        const before={x:p.x,z:p.z};moveCircle(p,dx/d*dt*4.1,dz/d*dt*4.1,.4,this.battleObstacles);
+        const before={x:p.x,z:p.z};moveCircle(p,dx/d*dt*decision.moveSpeed,dz/d*dt*decision.moveSpeed,.4,this.battleObstacles);
         const travel=Math.hypot(p.x-before.x,p.z-before.z);e.walk+=travel*2.4;
         e.stuck=travel<.003?(e.stuck||0)+dt:0;
         if(e.stuck>1.5){
@@ -1016,7 +988,7 @@ export class GameEngine {
     const accuracy=(this.difficulty==='recruit'?.42:.64)*Math.max(.35,1-length/95)*(decision.target.id==='player'&&this.movement>.3?.65:1);
     if(this.rng()<accuracy){
       if(decision.target.id==='player')this.damage(this.difficulty==='recruit'?8:11);
-      else{const victim=this.enemies.find(o=>String(o.id)===decision.target!.id);if(victim){victim.hp=Math.max(0,victim.hp-18);victim.hurt=.25;}}
+      else{const victim=this.enemies.find(o=>String(o.id)===decision.target!.id);if(victim){victim.hp=Math.max(0,victim.hp-18);victim.hurt=.25;this.combatEffects.blood(target,{x:tx/(length||1),y:0,z:tz/(length||1)},battleGround(target.x,target.z));}}
     }
   }
   setVehiclePedal(pedal:'gas'|'reverse'|'brake',pressed:boolean){
@@ -1165,17 +1137,6 @@ export class GameEngine {
           'position'
         ) as THREE.BufferAttribute
       ).needsUpdate = true;
-      for (let i = this.effects.length - 1; i >= 0; i--) {
-        const e = this.effects[i];
-        e.life -= dt;
-        if (e.life <= 0) {
-          this.scene.remove(e.mesh);
-          this.effects.splice(i, 1);
-        } else {
-          e.mesh.position.addScaledVector(e.velocity, dt);
-          e.velocity.y -= dt * 6;
-        }
-      }
     }
     this.playerVisual.update({x:this.player.x,z:this.player.z,y:battleGround(this.player.x,this.player.z),
       yaw:this.yaw,pitch:this.pitch,health:this.health,weapon:this.weapon,speed:this.movement*5.2,
@@ -1190,7 +1151,9 @@ export class GameEngine {
     this.missionBeacon.visible=showObjective&&(this.battleMode==='hold'||this.battleMode==='extraction'&&!this.intel);
     const beacon=this.battleMode==='hold'?this.sectorCenter:this.intelPoint;
     this.missionBeacon.position.set(beacon.x,battleGround(beacon.x,beacon.z)+7,beacon.z);
+    this.combatEffects.setBloodEnabled(this.settings.bloodEffects!==false);
     this.combatEffects.update(this.phase === 'playing' ? dt : 0,this.camera,[],[],this.graphicsPreset==='battery');
+    this.impactMarks.update(this.impactEvents,this.elapsed,()=>undefined,undefined,this.camera.position,this.graphicsPreset==='battery');this.impactEvents.length=0;
     this.world.update?.(this.camera.position);
     this.world.sky.position.set(
       this.camera.position.x,
@@ -1216,8 +1179,12 @@ export class GameEngine {
       phase: this.phase,
       driving:this.vehicle.driving,nearVehicle:!this.online&&this.vehicle.near(this.player),vehicleView:this.vehicle.view,vehicleSpeed:Math.round(Math.abs(this.vehicle.car.speed)*3.6),
       battleMode:this.battleMode,operations:[...this.operations.completed],operationId:this.operationId,
-      extractionPoint:this.extractionPoint,objectivePoint:this.battleMode==='hold'?this.sectorCenter:this.battleMode==='extraction'&&!this.intel?this.intelPoint:undefined,zoneCenter:this.sectorCenter,
+      extractionPoint:this.extractionPoint,objectivePoint:this.objectiveState?.objectivePosition||(this.battleMode==='hold'?this.sectorCenter:this.battleMode==='extraction'&&!this.intel?this.intelPoint:undefined),zoneCenter:this.sectorCenter,
       objectiveProgress:this.objectiveProgress,zone:zoneRadius(this.elapsed),
+      objectiveStage:this.objectiveState?.stage,objectiveHint:this.objectiveState?.hint,
+      objectiveContested:this.objectiveState?.contested,objectiveRatio:this.objectiveState?.progressRatio,
+      objectiveTimeRemaining:this.objectiveState?.timeRemaining,
+      drawCalls:this.renderer.info?.render?.calls??0,triangles:this.renderer.info?.render?.triangles??0,
       objective:this.battleMode==='last-stand'?'Be the last operator alive':this.battleMode==='hold'?`Hold the beacon · ${Math.floor(this.objectiveProgress)}/45 s`:this.battleMode==='extraction'?!this.intel?'Collect intel at the beacon':'Extract with the intel':this.extraction?'Reach extraction':'Clear the district',
       health: Math.ceil(this.health),
       maxHealth: this.maxHealth,
@@ -1504,13 +1471,9 @@ export class GameEngine {
     );
     this.clearActors();
     this.forces?.dispose();
-    this.combatEffects.dispose();this.vehicle.dispose();this.zoneRing.geometry.dispose();this.zoneRing.material.dispose();this.missionBeacon.geometry.dispose();this.missionBeacon.material.dispose();
+    this.impactMarks.dispose();this.combatEffects.dispose();this.vehicle.dispose();this.zoneRing.geometry.dispose();this.zoneRing.material.dispose();this.missionBeacon.geometry.dispose();this.missionBeacon.material.dispose();
     this.playerVisual.dispose();
     this.world.dispose();
-    this.tracerGeo.dispose();
-    this.sparkGeo.dispose();
-    this.tracerMat.dispose();
-    this.sparkMat.dispose();
     this.renderer.dispose();
   }
 }

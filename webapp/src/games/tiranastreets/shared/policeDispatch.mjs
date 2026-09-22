@@ -2,12 +2,26 @@ import { FORCE_VEHICLE_BOUNDS,FORCE_ASSET_BY_ID } from './albanianForces.mjs';
 import {scheduledActorStep} from './actorSchedule.mjs';
 import { forceWeaponFor } from './uploadedWeapons.mjs';
 import { TrafficGrid, trafficDecision, trafficLanePoints } from './trafficSimulation.mjs';
+import {pursuitGoal} from './forceTactics.mjs';
 
 const distance = (a,b) => Math.hypot(a.x-b.x,a.z-b.z);
 const level = role => ({patrol:1,shqiponja:2,fnsh:3,renea:4,army:5}[role] || 1);
 const stars = p => Math.min(5,Math.ceil((p?.wanted || 0)/100));
 const available = u => !u.destroyed && !u.burning && u.driver==='npc' && ['patrol','standby'].includes(u.duty);
 export const POLICE_RESPONSE_DELAY = 3.5;
+const patrolNeighborhoods=new WeakMap();
+function patrolNeighborhood(unit,world){
+  let cached=patrolNeighborhoods.get(unit);
+  if(!cached||cached.world!==world||cached.x!==unit.home.x||cached.z!==unit.home.z){
+    const points=[];
+    for(let i=0;i<world.graph.nodes.length;i++){
+      const p=world.graph.nodes[i],d=(p[0]-unit.home.x)**2+(p[1]-unit.home.z)**2;
+      if(d>70**2&&d<380**2)points.push({x:p[0],z:p[1],i});
+    }
+    cached={world,x:unit.home.x,z:unit.home.z,points};patrolNeighborhoods.set(unit,cached);
+  }
+  return cached.points;
+}
 
 /** Real mapped facilities; staging bays are authored road access points. */
 export function policeStations(world,env) {
@@ -82,9 +96,12 @@ export function initPoliceDispatch(state,env) {
 /** Rank by traversable road distance, so a closer car behind a barrier loses. */
 export function nearestAvailableUnit(units,target,env,wanted=stars(target)) {
   let best=null;
-  for(const unit of units.filter(u=>available(u)&&(!u.custodyCapable||wanted===0)&&level(u.role)<=Math.max(1,wanted))
-    .sort((a,b)=>distance(a,target)-distance(b,target)).slice(0,12)){
-    const route=env.route(env.nearestNode(unit.x,unit.z),env.nearestNode(target.x,target.z));
+  const candidates=units.filter(u=>available(u)&&(!u.custodyCapable||wanted===0)&&level(u.role)<=Math.max(1,wanted))
+    .sort((a,b)=>distance(a,target)-distance(b,target)).slice(0,12);
+  if(!candidates.length)return null;
+  const targetNode=env.nearestNode(target.x,target.z);
+  for(const unit of candidates){
+    const route=env.route(env.nearestNode(unit.x,unit.z),targetNode);
     if(!route.length)continue;
     let cost=distance(unit,route[0]);for(let i=1;i<route.length;i++)cost+=distance(route[i-1],route[i]);
     cost+=unit.duty==='standby'?35:0;
@@ -123,7 +140,8 @@ export function updatePolicePatrols(state,dt,env,grids) {
   dispatchPolice(state,env);
   const vehicles=grids?.vehicles||new TrafficGrid([...state.cars,...state.traffic,...state.units]);
   const people=grids?.people||new TrafficGrid(state.npcs.filter(n=>n.motion!=='drive'&&n.health>0));
-  const crewByUnit=new Map(),players=Object.values(state.players);
+  const crewByUnit=new Map(),convoys=new Map(),players=Object.values(state.players);
+  for(const unit of state.units)if(unit.target&&!unit.destroyed&&!unit.burning){let convoy=convoys.get(unit.target);if(!convoy)convoys.set(unit.target,convoy=[]);convoy.push(unit);}
   for(const n of state.npcs)if(n.unit&&n.health>0){
     let crew=crewByUnit.get(n.unit);if(!crew)crewByUnit.set(n.unit,crew=[]);crew.push(n);
   }
@@ -137,16 +155,19 @@ export function updatePolicePatrols(state,dt,env,grids) {
     if(!stepDt)continue;
     const actual=state.players[u.target];
     const seen=actual&&distance(u,actual)<85&&env.clear(u,actual);
-    if(seen){u.lastSeen={x:actual.x,z:actual.z};u.lastSeenAt=state.elapsed;u.duty='responding';}
+    if(seen){u.lastSeen={x:actual.x,z:actual.z,heading:actual.heading||0,speed:Math.abs(actual.speed||0)};u.lastSeenAt=state.elapsed;u.duty='responding';}
     else if(u.target&&state.elapsed-u.lastSeenAt>18){u.duty='search';}
     if(u.duty==='search'&&state.elapsed-u.lastSeenAt>35){u.target=null;u.duty='returning';u.responding=false;u.path=[];}
     if(u.duty==='standby'){u.speed=0;continue;}
     let goal=u.target?u.lastSeen:u.home;
+    if(actual&&u.target){
+      const order=pursuitGoal(u,actual,convoys.get(u.target)||[u],state.elapsed,seen);
+      goal=order.goal;u.pursuitRole=order.role;
+    }else u.pursuitRole=null;
     if(u.duty==='patrol'){
       if(!u.patrolGoal||distance(u,u.patrolGoal)<8){
         u.patrolIndex=(u.patrolIndex||0)+1;
-        const nodes=env.world.graph.nodes,base=env.nearestNode(u.home.x,u.home.z);
-        const nearby=nodes.map((p,i)=>({x:p[0],z:p[1],i})).filter(p=>distance(p,u.home)>70&&distance(p,u.home)<380);
+        const base=env.nearestNode(u.home.x,u.home.z),nearby=patrolNeighborhood(u,env.world);
         u.patrolGoal=nearby[(base+u.patrolIndex*17)%Math.max(1,nearby.length)]||u.home;
       }
       goal=u.patrolGoal;

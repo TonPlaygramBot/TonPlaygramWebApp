@@ -6,7 +6,7 @@ import {AlbanianForcesVisuals, type ForceFrame} from '../tiranastreets/AlbanianF
 import {FORCE_ASSETS} from '../tiranastreets/shared/albanianForces.mjs';
 import type {ActorVisual} from './world';
 
-type Combatant = ActorVisual & {id: number; networkId?: string; hp: number; anim?: string; forceCharacter?: string};
+type Combatant = ActorVisual & {id: number; networkId?: string; hp: number; hurt?:number; anim?: string; forceCharacter?: string};
 const uniforms = FORCE_ASSETS.filter(a => a.category === 'person');
 const empty = (): ForceFrame => ({cars: [], traffic: [], units: [], npcs: []});
 
@@ -29,7 +29,7 @@ export class BattlefieldForces {
       this.previous.set(id, {x: p.x, z: p.z});
       if (!e.group.visible) continue;
       frame.npcs.push({id, x: p.x, z: p.z, heading: e.group.rotation.y,
-        speed, health: e.hp, anim:e.anim || (speed>2?'run':speed>.15?'walk':'aim'), kind: 'soldier', motion: speed > .15 ? 'walk' : 'idle',
+        speed, health: e.hp, hitUntil:time+(e.hurt||0), anim:e.anim || (speed>2?'run':speed>.15?'walk':'aim'), kind: 'soldier', motion: speed > .15 ? 'walk' : 'idle',
         forceCharacter: e.forceCharacter || uniforms[e.id % uniforms.length].id});
     }
     for (const id of this.previous.keys()) if (!present.has(id)) {this.previous.delete(id);this.weapons.forget(id);this.mounts.get(id)?.removeFromParent();this.mounts.delete(id);}

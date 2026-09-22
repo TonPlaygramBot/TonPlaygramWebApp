@@ -15,6 +15,7 @@ export type StreetSettings = {
   joystickDeadzone: number;
   leftHanded: boolean;
   showPerformance: boolean;
+  bloodEffects: boolean;
 };
 export const DEFAULT_SETTINGS: StreetSettings = {
   targetFps: 60,
@@ -30,7 +31,8 @@ export const DEFAULT_SETTINGS: StreetSettings = {
   aimSensitivity: .65,
   joystickDeadzone: .08,
   leftHanded: false,
-  showPerformance: false
+  showPerformance: false,
+  bloodEffects: true
 };
 export function loadSettings(
   storage?: Pick<Storage, 'getItem'>
@@ -70,6 +72,7 @@ export function loadSettings(
     s.aimAssist = raw.aimAssist === true;
     s.leftHanded = raw.leftHanded === true;
     s.showPerformance = raw.showPerformance === true;
+    s.bloodEffects = raw.bloodEffects !== false;
     return s;
   } catch {
     return { ...DEFAULT_SETTINGS };

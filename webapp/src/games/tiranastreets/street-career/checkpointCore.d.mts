@@ -17,13 +17,14 @@ export type PhaseCheckpoint = {
   car: null | {
     id: string;
     model: string;
+    health?: number;
     x: number;
     z: number;
     heading: number;
     collectionVehicle?: string;
     racingAsset?: string;
   };
-  job: { parcel: boolean; defend: number; tutorial: string[] };
+  job: { parcel: boolean; defend: number; tutorial: string[]; director?:import('./missionDirectorCore.mjs').MissionDirector };
   defeated: string[];
   claimed: string[];
 };

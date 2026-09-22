@@ -1,0 +1,12 @@
+.ts-mission-readout { font:12px/1.4 system-ui,sans-serif; color:#f1f4e6; font-variant-numeric:tabular-nums; }
+.ts-mission-readout .ts-mission-heading { display:flex; align-items:center; justify-content:space-between; gap:8px; }
+.ts-mission-readout .ts-mission-heading small { color:#c6d7c6; font-size:11px; letter-spacing:.04em; overflow:hidden; white-space:nowrap; text-overflow:ellipsis; }
+.ts-mission-readout .ts-mission-heading time { font-size:12px; font-weight:600; color:#e0edbd; white-space:nowrap; }
+.ts-mission-readout>strong { display:block; margin:4px 0; font-size:14px; line-height:1.3; }
+.ts-mission-readout>p { display:-webkit-box; -webkit-line-clamp:2; -webkit-box-orient:vertical; overflow:hidden; margin:4px 0; color:#d5e0d6; font:11px/1.4 system-ui,sans-serif; }
+.ts-mission-readout>progress { display:block; width:100%; height:5px; accent-color:#d1e59c; margin:8px 0; border:0; }
+.ts-mission-readout.is-contested>progress { accent-color:#ffb493; }
+.ts-mission-readout.is-contested>strong { color:#ffc4a6; }
+.ts-mission-readout .ts-mission-meta { display:flex; flex-wrap:wrap; align-items:center; justify-content:space-between; gap:4px 8px; color:#d0ddc9; font-size:11px; }
+.ts-mission-readout .ts-mission-hint { display:-webkit-box; -webkit-line-clamp:2; -webkit-box-orient:vertical; overflow:hidden; margin-top:5px; color:#d3dfce; font:11px/1.4 system-ui,sans-serif; }
+@media(max-height:650px) { .ts-mission-readout>strong { font-size:12px; } .ts-mission-readout>progress { margin:5px 0; } .ts-mission-readout .ts-mission-hint { -webkit-line-clamp:1; } }

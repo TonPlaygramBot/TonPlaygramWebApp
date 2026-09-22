@@ -59,7 +59,7 @@ test('bus interaction commits at the front door and collisions include the full 
 test('all shop walls block movement and sight while their entrances remain open',async()=>{
  const {StreetWorld}=await import('../webapp/src/games/tiranastreets/street-career/spatialCore.mjs');const {shopObstacles}=await import('../webapp/src/games/tiranastreets/shared/cityPopulation.mjs');
  const s=state(),world=new StreetWorld(shopObstacles(),false);
- for(const shop of s.shops){assert.equal(world.clearance({x:shop.x+6.4,y:.18,z:shop.z-3},1.78),false);assert.equal(world.clearance({x:shop.x,y:.18,z:shop.z+1},1.78),true);assert.equal(world.clear({x:shop.x+8,y:1.7,z:shop.z-3},{x:shop.x,y:1.7,z:shop.z-3}),false);}
+ for(const shop of s.shops){const base=world.solids.find(b=>b.id===`${shop.id}-solid-2`).minY;assert.equal(world.clearance({x:shop.x+6.4,y:base+.18,z:shop.z-3},1.78),false);assert.equal(world.clearance({x:shop.x,y:base+.18,z:shop.z+1},1.78),true);assert.equal(world.clear({x:shop.x+8,y:base+1.7,z:shop.z-3},{x:shop.x,y:base+1.7,z:shop.z-3}),false);}
 });
 test('a sudden pedestrian incursion can cause an impact instead of an instant impossible stop',()=>{
  const s=state(),car=s.traffic.find(c=>c.model==='sedan'),fx=-Math.sin(car.heading),fz=-Math.cos(car.heading);

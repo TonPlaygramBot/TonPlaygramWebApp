@@ -47,7 +47,7 @@ export type StreetView = {
   assetErrors: string[];
   actions: StreetAction[];
   body: BodyState;
-  objective: { title: string; detail: string; training: boolean };
+  objective: ReturnType<StreetSimulation['objective']>;
   settings: StreetSettings;
   metrics: StreetRenderer['metrics'];
 };

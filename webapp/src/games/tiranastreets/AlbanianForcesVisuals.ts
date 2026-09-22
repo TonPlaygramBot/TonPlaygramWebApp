@@ -10,7 +10,7 @@ import {forceVehicleFor, forceCharacterFor, type ForceAsset} from './shared/alba
 import type {Point, NPC, Car} from './shared/engine.mjs';
 
 export type ForceCar = Pick<Car, 'id' | 'x' | 'z' | 'heading' | 'speed' | 'steering' | 'model' | 'forceVehicle' | 'responding'>;
-export type ForceNPC = Pick<NPC, 'id' | 'x' | 'z' | 'heading' | 'speed' | 'kind' | 'motion' | 'health' | 'forceCharacter' | 'anim'> & Partial<Pick<NPC,'weapon'|'aimPitch'>>;
+export type ForceNPC = Pick<NPC, 'id' | 'x' | 'z' | 'heading' | 'speed' | 'kind' | 'motion' | 'health' | 'forceCharacter' | 'anim'> & Partial<Pick<NPC,'weapon'|'aimPitch'|'hitUntil'>>;
 export type ForceFrame = {cars: ForceCar[]; traffic: ForceCar[]; units: ForceCar[]; npcs: ForceNPC[]};
 type Candidate = {key: string; asset: ForceAsset; entity: ForceCar | ForceNPC; distance: number; flashing: boolean};
 type Source = {gltf: GLTF; frame: T.Group; used: number};
@@ -159,12 +159,12 @@ export class AlbanianForcesVisuals {
       const e = c.entity, person = c.asset.category === 'person';
       const first = !actor.root.userData.placed;
       const oldX=actor.root.position.x,oldZ=actor.root.position.z;
-      const alpha = first ? 1 : Math.min(1, dt * (person ? 12 : 18));
+      const alpha = first ? 1 : 1-Math.exp(-Math.max(0,dt)*(person?12:18));
       const ground=groundHeight(e.x,e.z);
       actor.root.position.x+=(e.x-actor.root.position.x)*alpha;
       actor.root.position.z+=(e.z-actor.root.position.z)*alpha;
       actor.root.position.y=ground+(person?.06:.03);
-      actor.root.rotation.y += Math.atan2(Math.sin(e.heading + Math.PI - actor.root.rotation.y), Math.cos(e.heading + Math.PI - actor.root.rotation.y)) * (first ? 1 : Math.min(1, dt * 14));
+      actor.root.rotation.y += Math.atan2(Math.sin(e.heading + Math.PI - actor.root.rotation.y), Math.cos(e.heading + Math.PI - actor.root.rotation.y)) * (first ? 1 : 1-Math.exp(-Math.max(0,dt)*14));
       if(!person)alignVehicle(actor.root,e.heading+Math.PI);
       actor.root.userData.placed = true;
       if (person) {
@@ -187,7 +187,7 @@ export class AlbanianForcesVisuals {
         if(first||c.distance<35||actor.poseTime>=(c.distance<85?.05:.1)){
           const poseDt=actor.poseTime;actor.poseTime=0;resetForcePose(actor.root);
           if(npc.health>0)actor.mixer?.update(poseDt*(moving?Math.min(2.8,Math.max(.15,actor.gaitSpeed/1.4)):1));
-          poseForce(actor.root,npc.anim||(moving?'walk':'idle'),npc.health>0,poseDt,npc.aimPitch||0,npc.weapon??undefined);
+          poseForce(actor.root,npc.anim||(moving?'walk':'idle'),npc.health>0,poseDt,npc.aimPitch||0,npc.weapon??undefined,time,npc.hitUntil);
         }
       } else {
         const car = e as ForceCar;
