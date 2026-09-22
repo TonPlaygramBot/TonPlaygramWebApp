@@ -1,3 +1,5 @@
+import { createHash } from 'node:crypto';
+import { POOL_ROYALE_SHOWOOD_PROFILE } from '../src/config/poolRoyaleShowoodProfile.js';
 import { mkdir, rm, writeFile } from 'node:fs/promises';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -9,7 +11,7 @@ const target = join(
   'public/models/pool-royale/showood-seven-foot/seven_foot_showood.glb'
 );
 const source =
-  'https://cdn.jsdelivr.net/gh/ekiefl/pooltool@main/pooltool/models/table/seven_foot_showood/seven_foot_showood.glb';
+  `https://cdn.jsdelivr.net/gh/ekiefl/pooltool@${POOL_ROYALE_SHOWOOD_PROFILE.sourceCommit}/pooltool/models/table/seven_foot_showood/seven_foot_showood.glb`;
 
 const response = await fetch(source);
 if (!response.ok) {
@@ -21,6 +23,11 @@ if (bytes.byteLength < 100_000) {
   throw new Error(
     `Downloaded Showood GLB is unexpectedly small (${bytes.byteLength} bytes).`
   );
+}
+
+const digest = createHash('sha256').update(bytes).digest('hex');
+if (digest !== POOL_ROYALE_SHOWOOD_PROFILE.sha256) {
+  throw new Error('Showood asset does not match its measured collision profile.');
 }
 
 await mkdir(dirname(target), { recursive: true });

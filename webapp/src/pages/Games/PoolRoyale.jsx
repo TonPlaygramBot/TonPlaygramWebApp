@@ -9,6 +9,7 @@ import React, {
 } from 'react';
 import * as THREE from 'three';
 import { PoolRoyalHumanPlayers } from './shared/PoolRoyalHumanPlayers.ts';
+import { createShowoodTableGeometry, closestPointOnPoolCushion, raycastPoolCushions, projectPoolBallFromCushions, groundShowoodTableLegs } from './shared/poolRoyaleShowoodGeometry.js';
 import polygonClipping from 'polygon-clipping';
 import * as BufferGeometryUtils from 'three/examples/jsm/utils/BufferGeometryUtils.js';
 import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js';
@@ -91,7 +92,7 @@ import {
   POOL_ROYALE_OPTION_LABELS
 } from '../../config/poolRoyaleInventoryConfig.js';
 import { BILARDO_MIN_RELEASE_POWER } from './shared/bilardoShotModel';
-import { separatePoolBalls } from './poolRoyaleBallSeparation.js';
+import { separatePoolBalls, findClearPoolBallPosition } from './poolRoyaleBallSeparation.js';
 import { POOL_ROYALE_CLOTH_VARIANTS } from '../../config/poolRoyaleClothPresets.js';
 import {
   getCachedPoolRoyalInventory,
@@ -307,7 +308,7 @@ function applyTablePhysicsSpec(meta) {
   const restitution = Number.isFinite(meta?.cushionRestitution)
     ? meta.cushionRestitution
     : DEFAULT_CUSHION_RESTITUTION;
-  CUSHION_RESTITUTION = restitution;
+  CUSHION_RESTITUTION = clamp(restitution, 0, 1);
 }
 
 function detectCoarsePointer() {
@@ -1450,6 +1451,7 @@ const BALL_SIZE_SCALE = 1.04; // make balls just a tiny bit smaller while every 
 const BALL_DIAMETER = BALL_D_REF * MM_TO_UNITS * BALL_SIZE_SCALE;
 const BALL_SCALE = BALL_DIAMETER / 4;
 const BALL_R = BALL_DIAMETER / 2;
+const SHOWOOD_GEOMETRY = createShowoodTableGeometry({ playWidth: PLAY_W, playLength: PLAY_H, ballRadius: BALL_R });
 const RACK_VERTICAL_SCREEN_LIFT = BALL_R * 0.86; // nudge the rack farther upward on screen so object balls sit visibly higher
 const ENABLE_BALL_FLOOR_SHADOWS = true;
 const ENABLE_CUE_CLOTH_SHADOW = true;
@@ -1542,7 +1544,7 @@ const CLOTH_REFLECTIONS_DISABLED = true;
 const POCKET_HOLE_R =
   POCKET_VIS_R * POCKET_CUT_EXPANSION * POCKET_VISUAL_EXPANSION; // cloth cutout radius now matches the interior pocket rim
 const CORNER_POCKET_CLOTH_CUT_SCALE = 1; // keep corner field cutouts matched to the visible pocket rim
-const BALL_CENTER_LIFT = BALL_R * 0.045; // lift balls a touch more so they sit exactly on top of the cloth surface
+const BALL_CENTER_LIFT = 0; // sphere bottom rests on the visible cloth datum
 const BALL_CENTER_Y =
   CLOTH_TOP_LOCAL + CLOTH_LIFT + BALL_R - CLOTH_DROP + BALL_CENTER_LIFT; // rest balls directly on the lowered cloth plane
 const BALL_SHADOW_Y = BALL_CENTER_Y - BALL_R + BALL_SHADOW_LIFT + MICRO_EPS;
@@ -1581,9 +1583,8 @@ const PHYSICS_PROFILE = Object.freeze({
 });
 const PHYSICS_BASE_STEP = 1 / 60;
 const FRICTION = 0.9962;
-// Cushions use a slightly higher restitution than ball-ball impacts so rail
-// rebounds feel livelier without making direct ball collisions over-energetic.
-const DEFAULT_CUSHION_RESTITUTION = 1.012;
+// Slightly softer than the previous effectively elastic rail response.
+const DEFAULT_CUSHION_RESTITUTION = 0.96;
 let CUSHION_RESTITUTION = DEFAULT_CUSHION_RESTITUTION;
 const BALL_MASS = 0.17;
 const BALL_INERTIA = (2 / 5) * BALL_MASS * BALL_R * BALL_R;
@@ -1593,9 +1594,9 @@ const SPIN_ANGULAR_DAMPING = 0.04;
 const SPIN_GRAVITY = 9.81;
 const ROLLING_RESISTANCE = 0.0098;
 const BALL_BALL_FRICTION = 0.105;
-const BALL_CONTACT_EPS = BALL_R * 0.012; // broaden contact tolerance slightly so grazing touches resolve instead of tunneling
+const BALL_CONTACT_EPS = BALL_R * 0.0001; // numerical contact tolerance, not an enlarged invisible ball
 const BALL_COLLISION_SLOP = BALL_R * 0.001; // tighter tolerance so visible ball overlap is corrected faster
-const BALL_SEPARATION_ITERATIONS = 5; // solve dense clusters fully after impulses without adding duplicate impacts
+const BALL_SEPARATION_ITERATIONS = 256; // bounded constraint solve with early exit for already separated balls
 const RAIL_FRICTION = 0.16;
 const STOP_EPS = 0.0074;
 const STOP_SOFTENING = 0.96; // ease balls into a stop instead of hard-braking at the speed threshold
@@ -1603,7 +1604,7 @@ const STOP_FINAL_EPS = STOP_EPS * 0.35;
 const FRAME_TIME_CATCH_UP_MULTIPLIER = 3; // allow up to 3 frames of catch-up when recovering from slow frames
 const MIN_FRAME_SCALE = 1e-6; // prevent zero-length frames from collapsing physics updates
 const MAX_FRAME_SCALE = 2.4; // clamp slow-frame recovery so physics catch-up cannot stall the render loop
-const MAX_PHYSICS_SUBSTEPS = 5; // keep catch-up updates smooth without exploding work per frame
+const MAX_PHYSICS_SUBSTEPS = 24; // speed-aware contact budget; stationary frames still take only 1–3 steps
 const STUCK_SHOT_TIMEOUT_MS = 4500; // auto-resolve shots if motion stops but the turn never clears
 const MAX_POWER_BOUNCE_THRESHOLD = 0.995; // treat slider max as the hard cap threshold
 const MAX_POWER_BOUNCE_IMPULSE = BALL_R * 1.9; // push full-power launches higher so cue-ball jumps read stronger
@@ -1620,10 +1621,8 @@ const POCKET_INTERIOR_CAPTURE_R =
   POCKET_VIS_R * POCKET_INTERIOR_TOP_SCALE * POCKET_VISUAL_EXPANSION; // match capture radius directly to the pocket bowl opening
 const SIDE_POCKET_INTERIOR_CAPTURE_R =
   SIDE_POCKET_RADIUS * POCKET_INTERIOR_TOP_SCALE * POCKET_VISUAL_EXPANSION; // keep middle-pocket capture identical to its bowl radius
-const CAPTURE_R =
-  POCKET_INTERIOR_CAPTURE_R + BALL_R * 0.22; // match corner-pocket capture gain to middle pockets so both jaw types accept shots the same way
-const SIDE_CAPTURE_R =
-  SIDE_POCKET_INTERIOR_CAPTURE_R + BALL_R * 0.22; // give middle pockets a touch more capture so shots don't hang in the jaws
+const CAPTURE_R = SHOWOOD_GEOMETRY.pockets[0].radius; // measured slate aperture; no capture outside the visible hole
+const SIDE_CAPTURE_R = SHOWOOD_GEOMETRY.pockets[4].radius;
 const POCKET_GUARD_RADIUS =
   CAPTURE_R - BALL_R * 0.12; // mirror the middle-pocket guard inset so corner jaws reject/accept on the same threshold
 const POCKET_GUARD_CLEARANCE = Math.max(
@@ -1638,7 +1637,7 @@ const SIDE_POCKET_GUARD_CLEARANCE = Math.max(
   0,
   SIDE_POCKET_GUARD_RADIUS - BALL_R * 0.04
 );
-const CUSHION_CUT_RESTITUTION_SCALE = 1.025; // make cut-angle rebounds a bit more lively without adding excess speed
+const CUSHION_CUT_RESTITUTION_SCALE = 1; // jaws share the rail's energy loss; oblique hits can lose more
 const CUSHION_CUT_FRICTION_SCALE = 0.985; // reduce cut-line grab slightly so added bounce reads naturally
 const SIDE_POCKET_DEPTH_LIMIT =
   SIDE_POCKET_RADIUS * 1.6 * POCKET_VISUAL_EXPANSION; // align side-pocket rail limits with the visible mouth depth
@@ -1859,7 +1858,7 @@ const SHOT_POWER_MULTIPLIER = 2.109375;
 const SHOT_POWER_INCREASE = 1.5; // match Snooker Royale standard shot lift
 const SHOT_POWER_ADJUSTMENT = 0.72; // reduce overall Pool Royale power by an additional 20%
 const SHOT_POWER_BOOST = 1.5; // preserve legacy cue response before the final mobile comfort trim
-const SHOT_GLOBAL_POWER_SCALE = 0.93; // add a bit more Pool Royale shot power while keeping the selected shot-power curve
+const SHOT_GLOBAL_POWER_SCALE = 0.98; // +5.38% launch speed, preserving the slider curve and break ratio
 const SHOT_FORCE_BOOST =
   1.5 *
   0.75 *
@@ -5796,20 +5795,9 @@ function applySnookerScaling({
     Math.abs(ratio - TARGET_RATIO) < 1e-4,
     'applySnookerScaling: table aspect ratio must remain 2:1.'
   );
-  const expectedCornerMouth =
-    CORNER_MOUTH_REF * mmToUnits * POCKET_CORNER_MOUTH_SCALE;
-  const expectedSideMouth =
-    SIDE_MOUTH_REF * mmToUnits * POCKET_SIDE_MOUTH_SCALE;
-  const actualCornerMouth = POCKET_VIS_R * 2;
-  const actualSideMouth = SIDE_POCKET_RADIUS * 2;
-  console.assert(
-    Math.abs(actualCornerMouth - expectedCornerMouth) <= POCKET_MOUTH_TOLERANCE,
-    'applySnookerScaling: corner pocket mouth mismatch.'
-  );
-  console.assert(
-    Math.abs(actualSideMouth - expectedSideMouth) <= POCKET_MOUTH_TOLERANCE,
-    'applySnookerScaling: side pocket mouth mismatch.'
-  );
+  // The Showood mouth widths describe the distance between jaws; they are not
+  // the diameter of the circular slate apertures. Geometry calibration validates
+  // both from the source asset instead of comparing hidden procedural shapes.
   if (Array.isArray(pockets)) {
     pockets.forEach((pocket, index) => {
       if (pocket?.userData) {
@@ -5835,7 +5823,10 @@ function applySnookerScaling({
     }
   }
   if (Array.isArray(balls)) {
-    const expectedRadius = BALL_D_REF * mmToUnits * BALL_SIZE_SCALE * 0.5;
+    // Rendering, ball-ball contact, jaws, placement and guides share one radius.
+    // Re-deriving it from width here omitted TABLE_SURFACE_COMPENSATION and
+    // enlarged the visible balls by 17.86% after the rack was built.
+    const expectedRadius = BALL_R;
     balls.forEach((ball) => {
       if (!ball) return;
       ball.colliderRadius = expectedRadius;
@@ -5925,8 +5916,8 @@ const STANDING_VIEW_COT = (() => {
   const sinPhi = Math.sin(STANDING_VIEW_PHI);
   return sinPhi > 1e-6 ? Math.cos(STANDING_VIEW_PHI) / sinPhi : 0;
 })();
-const DEFAULT_RAIL_LIMIT_X = PLAY_W / 2 - BALL_R - CUSHION_FACE_INSET_LONG;
-const DEFAULT_RAIL_LIMIT_Y = PLAY_H / 2 - BALL_R - CUSHION_FACE_INSET_SHORT;
+const DEFAULT_RAIL_LIMIT_X = SHOWOOD_GEOMETRY.railLimits.x;
+const DEFAULT_RAIL_LIMIT_Y = SHOWOOD_GEOMETRY.railLimits.y;
 let RAIL_LIMIT_X = DEFAULT_RAIL_LIMIT_X;
 let RAIL_LIMIT_Y = DEFAULT_RAIL_LIMIT_Y;
 const RAIL_LIMIT_PADDING = BALL_R * 0.12;
@@ -6536,16 +6527,8 @@ const pocketCenters = () => {
   if (cachedPocketCenters && cachedPocketShift === sidePocketShift) {
     return cachedPocketCenters;
   }
-  const sidePocketCenterX = PLAY_W / 2 + sidePocketShift;
   cachedPocketShift = sidePocketShift;
-  cachedPocketCenters = [
-    cornerPocketCenter(-1, -1),
-    cornerPocketCenter(1, -1),
-    cornerPocketCenter(-1, 1),
-    cornerPocketCenter(1, 1),
-    new THREE.Vector2(-sidePocketCenterX, 0),
-    new THREE.Vector2(sidePocketCenterX, 0)
-  ];
+  cachedPocketCenters = SHOWOOD_GEOMETRY.pockets.map(({ x, y }) => new THREE.Vector2(x, y));
   cachedSidePocketCenters = cachedPocketCenters.slice(4);
   return cachedPocketCenters;
 };
@@ -6557,7 +6540,7 @@ const getSidePocketCenters = () => {
 };
 const pocketEntranceCenters = () =>
   pocketCenters().map((center, index) => {
-    const mouthRadius = index >= 4 ? SIDE_POCKET_RADIUS : POCKET_VIS_R;
+    const mouthRadius = SHOWOOD_GEOMETRY.pockets[index].radius;
     const towardField = center.clone().multiplyScalar(-1);
     if (towardField.lengthSq() < MICRO_EPS * MICRO_EPS) {
       return center.clone();
@@ -6571,8 +6554,9 @@ const resolvePocketEntranceForTarget = (targetPos, pocketIndex) => {
   const pocketCenter = centers[pocketIndex];
   if (!pocketCenter) return null;
 
-  const baseRadius = pocketIndex >= 4 ? SIDE_POCKET_RADIUS : POCKET_VIS_R;
-  const mouthWidth = pocketIndex >= 4 ? POCKET_SIDE_MOUTH : POCKET_CORNER_MOUTH;
+  const baseRadius = SHOWOOD_GEOMETRY.pockets[pocketIndex].radius;
+  const mouthWidth = (pocketIndex >= 4 ? 0.137 : 0.118) *
+    Math.min(SHOWOOD_GEOMETRY.fit.scale.x, SHOWOOD_GEOMETRY.fit.scale.z);
   const entry = resolvePocketMouthAimPoint({
     pocketCenter,
     targetPos,
@@ -6954,6 +6938,32 @@ function makeWoodTexture({
   return texture;
 }
 function reflectRails(ball) {
+  if (CUSHION_SEGMENTS[0]?.mapped) {
+    // The rounded jaw mesh is a finite solid, not a full circle around a pocket.
+    // Keep every throat open and use the same full ball radius as aim capsules.
+    let best = null;
+    for (const segment of CUSHION_SEGMENTS) {
+      const nearest = closestPointOnPoolCushion(ball.pos, segment);
+      const dx = ball.pos.x - nearest.x;
+      const dy = ball.pos.y - nearest.y;
+      const distance = Math.hypot(dx, dy);
+      if (distance >= BALL_R) continue;
+      const signed = dx * segment.normal.x + dy * segment.normal.y;
+      const normal = distance > 1e-10 && signed >= 0
+        ? new THREE.Vector2(dx / distance, dy / distance)
+        : segment.normal.clone();
+      if (ball.vel.dot(normal) >= 0) continue;
+      const penetration = signed >= 0 ? BALL_R - distance : BALL_R + distance;
+      if (!best || distance < best.distance) best = { segment, normal, penetration, distance };
+    }
+    if (!best) return null;
+    const preImpactVel = ball.vel.clone();
+    ball.pos.addScaledVector(best.normal, best.penetration);
+    ball.lastRailHitAt = typeof performance !== 'undefined' && performance.now ? performance.now() : Date.now();
+    ball.lastRailHitType = best.segment.type;
+    return { type: best.segment.type, normal: best.normal,
+      tangent: new THREE.Vector2(-best.normal.y, best.normal.x), preImpactVel };
+  }
   const limX = RAIL_LIMIT_X;
   const limY = RAIL_LIMIT_Y;
   const railRadius = RAIL_CONTACT_RADIUS;
@@ -7216,13 +7226,26 @@ function reflectRails(ball) {
   return null;
 }
 
-function resolvePoolRoyalPhysicsFrameStep(elapsedMs) {
+function resolvePoolRoyalPhysicsFrameStep(elapsedMs, activeBalls = []) {
   // Render quality changes presentation cadence, never simulation speed.
   const frameScale = Math.min(
     MAX_FRAME_SCALE,
     Math.max(elapsedMs / (PHYSICS_BASE_STEP * 1000), MIN_FRAME_SCALE)
   );
-  const physicsSubsteps = Math.min(MAX_PHYSICS_SUBSTEPS, Math.max(1, Math.ceil(frameScale)));
+  let fastest = 0;
+  let secondFastest = 0;
+  for (const ball of activeBalls) {
+    if (!ball?.active || !ball.vel) continue;
+    const speed = Math.hypot(ball.vel.x, ball.vel.y);
+    if (!Number.isFinite(speed)) continue;
+    if (speed > fastest) { secondFastest = fastest; fastest = speed; }
+    else if (speed > secondFastest) secondFastest = speed;
+  }
+  // Bound pair-relative travel as well as elapsed time. Fast breaks must not
+  // skip ball contacts or the narrow cushion/jaw faces on a slower phone.
+  const contactSteps = Math.ceil((fastest + secondFastest) * frameScale / (BALL_R * 0.25));
+  const physicsSubsteps = Math.min(MAX_PHYSICS_SUBSTEPS,
+    Math.max(1, Math.ceil(frameScale), contactSteps));
   return { frameScale, physicsSubsteps, subStepScale: frameScale / physicsSubsteps };
 }
 
@@ -7413,12 +7436,31 @@ function resolveCueFollowPreview({ cueDir, aimDir, spin, powerStrength, cuePower
 }
 
 function clipPoolGuideEnd(start, direction, maxDistance, balls, ignoreIds) {
-  const distance = clipGuideTravel({
+  const mapped = CUSHION_SEGMENTS[0]?.mapped;
+  let distance = clipGuideTravel({
     origin: { x: start.x, y: start.z },
     direction: { x: direction.x, y: direction.z },
     balls, ignoreIds, radius: BALL_R, maxDistance,
-    halfWidth: RAIL_LIMIT_X, halfLength: RAIL_LIMIT_Y
+    halfWidth: mapped ? Infinity : RAIL_LIMIT_X, halfLength: mapped ? Infinity : RAIL_LIMIT_Y
   });
+  if (mapped) {
+    const origin = { x: start.x, y: start.z };
+    const aim = { x: direction.x, y: direction.z };
+    const contact = raycastPoolCushions(origin, aim, BALL_R, CUSHION_SEGMENTS, distance);
+    if (contact) distance = Math.min(distance, contact.distance);
+    const magnitude = Math.hypot(aim.x, aim.y);
+    if (magnitude > 1e-8) {
+      for (const pocket of SHOWOOD_GEOMETRY.pockets) {
+        const ox = origin.x - pocket.x;
+        const oy = origin.y - pocket.y;
+        const projected = (ox * aim.x + oy * aim.y) / magnitude;
+        const discriminant = projected * projected - (ox * ox + oy * oy - pocket.radius * pocket.radius);
+        if (discriminant < 0) continue;
+        const capture = -projected - Math.sqrt(discriminant);
+        if (capture >= 0) distance = Math.min(distance, capture);
+      }
+    }
+  }
   return start.clone().addScaledVector(direction, distance);
 }
 
@@ -7491,7 +7533,24 @@ function calcTarget(cue, dir, balls) {
     return t;
   };
 
-  if (segmentList.length > 0) {
+  if (segmentList[0]?.mapped) {
+    const hit = raycastPoolCushions(cuePos, dirNorm, BALL_R, segmentList);
+    if (hit) checkRail(hit.distance, new THREE.Vector2(hit.normal.x, hit.normal.y));
+    // An unobstructed pocket path ends at the visible drop aperture, not outside
+    // the table. This also gives the AI a finite, jaw-checked pot corridor.
+    for (const pocket of SHOWOOD_GEOMETRY.pockets) {
+      const ox = cuePos.x - pocket.x;
+      const oy = cuePos.y - pocket.y;
+      const projected = ox * dirNorm.x + oy * dirNorm.y;
+      const discriminant = projected * projected - (ox * ox + oy * oy - pocket.radius * pocket.radius);
+      if (discriminant < 0) continue;
+      const distance = -projected - Math.sqrt(discriminant);
+      if (distance >= 0 && distance < tHit) {
+        tHit = distance;
+        railNormal = null;
+      }
+    }
+  } else if (segmentList.length > 0) {
     segmentList.forEach((segment) => {
       if (!segment?.start || !segment?.end || !segment?.normal) return;
       const segType = segment.type ?? 'rail';
@@ -7685,6 +7744,11 @@ function alignRailsToCushions(table, frame, railMeshes = null) {
 }
 
 function updateRailLimitsFromTable(table) {
+  if (table?.userData?.showoodMapped) {
+    RAIL_LIMIT_X = SHOWOOD_GEOMETRY.railLimits.x;
+    RAIL_LIMIT_Y = SHOWOOD_GEOMETRY.railLimits.y;
+    return;
+  }
   if (!table?.userData?.cushions?.length) return;
   table.updateMatrixWorld(true);
   RAIL_LIMIT_X = DEFAULT_RAIL_LIMIT_X;
@@ -7718,6 +7782,27 @@ function updateRailLimitsFromTable(table) {
 }
 
 function updateCushionSegmentsFromTable(table) {
+  if (table?.userData?.showoodMapped) {
+    CUSHION_SEGMENTS = SHOWOOD_GEOMETRY.segments.map((segment) => ({
+      ...segment,
+      start: new THREE.Vector2(segment.start.x, segment.start.y),
+      end: new THREE.Vector2(segment.end.x, segment.end.y),
+      normal: new THREE.Vector2(segment.normal.x, segment.normal.y)
+    }));
+    table.userData.cushionSegments = CUSHION_SEGMENTS;
+    // Cue clearance follows the same six source cushions, not hidden generated rails.
+    const clothY = BALL_CENTER_Y - BALL_R;
+    const topY = clothY + 0.04161 * SHOWOOD_GEOMETRY.fit.scale.y;
+    table.userData.cueObstructionBoxes = SHOWOOD_GEOMETRY.cushionPolygons.map(({ points }) => {
+      const box = new THREE.Box3();
+      points.forEach(({ x, y }) => {
+        box.expandByPoint(new THREE.Vector3(x, clothY, y));
+        box.expandByPoint(new THREE.Vector3(x, topY, y));
+      });
+      return box.expandByScalar(CUE_OBSTRUCTION_POINT_RADIUS + CUE_CUSHION_HELPER_EXTRA_CLEARANCE);
+    });
+    return;
+  }
   if (!table?.userData?.cushions?.length) {
     CUSHION_SEGMENTS = [];
     return;
@@ -7976,6 +8061,7 @@ export function Table3D(
   table.userData.pocketJaws = [];
   table.userData.playfieldVisualLift = externalPlayfieldVisualLift;
   table.userData.componentPreset = tableSizeMeta?.componentPreset || 'pool';
+  table.userData.showoodMapped = resolvedTableOptions?.tableModel?.useReferenceShowoodMapping === true;
 
   const finishParts = {
     frameMeshes: [],
@@ -13038,6 +13124,20 @@ function subtlyExpandPoolRoyaleShowoodRailSightsAndAprons(model, tableModel, dim
 
 function fitPoolRoyaleExternalTableModel(model, tableModel, dims) {
   if (!model || !dims) return;
+  if (tableModel?.useReferenceShowoodMapping) {
+    const { scale, position } = SHOWOOD_GEOMETRY.fit;
+    model.rotation.set(0, 0, 0);
+    model.scale.set(scale.x, scale.y, scale.z);
+    model.position.set(position.x, position.y + BALL_CENTER_Y - BALL_R, position.z);
+    model.updateMatrixWorld(true);
+    groundShowoodTableLegs(model, FLOOR_Y - TABLE_Y);
+    model.userData = {
+      ...(model.userData || {}), poolRoyaleExternalTable: true, tableModelId: tableModel.id,
+      fittedToPlayfield: { width: PLAY_W, length: PLAY_H, sourceSha256: SHOWOOD_GEOMETRY.sourceSha256,
+        physics: 'Measured Showood cushion contours and slate pocket apertures' }
+    };
+    return;
+  }
   model.position.set(0, 0, 0);
   model.rotation.set(0, 0, 0);
   model.scale.setScalar(1);
@@ -13578,6 +13678,9 @@ function mountPoolRoyaleExternalTableModel({
       cushionTopLocal = Math.max(cushionTopLocal, box.max.y);
     });
   }
+  if (table.userData.showoodMapped) {
+    cushionTopLocal = BALL_CENTER_Y - BALL_R + 0.04161 * SHOWOOD_GEOMETRY.fit.scale.y;
+  }
   const clothPlaneWorld = cloth.position.y;
 
   table.userData.pockets = [];
@@ -13768,7 +13871,7 @@ function mountPoolRoyaleExternalTableModel({
   table.userData.cushionTopLocal = cushionTopLocal;
   table.userData.cushionTopWorld = cushionTopLocal + TABLE_Y;
   table.userData.cushionLipClearance = clothPlaneWorld;
-  table.userData.clothPlaneLocal = clothPlaneLocal;
+  table.userData.clothPlaneLocal = table.userData.showoodMapped ? BALL_CENTER_Y - BALL_R : clothPlaneLocal;
   table.userData.finish = finishInfo;
   table.userData.tableModelId = resolvedTableOptions?.tableModel?.id || 'showood-seven-foot';
 
@@ -17198,6 +17301,8 @@ const shotPowerRef = useRef(0);
     }
   }, [hud.inHand, hud.turn]);
   const [shotActive, setShotActive] = useState(false);
+  const [shotPreparing, setShotPreparing] = useState(false);
+  const shotPreparationRef = useRef(null);
   const shootingRef = useRef(shotActive);
   useEffect(() => {
     shootingRef.current = shotActive;
@@ -25557,9 +25662,13 @@ const shotPowerRef = useRef(0);
         if (disposed) return;
         referencePlayers = new PoolRoyalHumanPlayers(world, {
           floorY,
+          realisticMovement: true,
           clothY: TABLE_Y + CLOTH_TOP_LOCAL + CLOTH_LIFT - CLOTH_DROP,
-          tableW: Math.max(TABLE.W, PLAY_W),
-          tableL: Math.max(TABLE.H, PLAY_H),
+          tableW: SHOWOOD_GEOMETRY.footprint.width,
+          tableL: SHOWOOD_GEOMETRY.footprint.length,
+          // Stance and walking clear the actual outer frame without resizing people.
+          targetHeight: Math.max(Math.max(TABLE.W, TABLE.H, PLAY_W, PLAY_H) * 0.82,
+            (TABLE_Y + CLOTH_TOP_LOCAL + CLOTH_LIFT - CLOTH_DROP - floorY) * 1.8),
           onError: (error) => console.warn('Pool Royal reference players could not load', error)
         });
         activeHumanPlayersRef.current = referencePlayers;
@@ -25576,6 +25685,8 @@ const shotPowerRef = useRef(0);
         let state = 'idle';
         if (stroke) {
           state = stroke.phase === 'pullback' ? 'dragging' : 'striking';
+        } else if (shotPreparationRef.current) {
+          state = 'dragging';
         } else if (!ballsMoving && !hudRef.current?.over && !hudRef.current?.inHand && (
           sliderInstanceRef.current?.dragging ||
           (powerRef.current ?? 0) > 0.01 ||
@@ -25596,14 +25707,19 @@ const shotPowerRef = useRef(0);
           state,
           cueBall: new THREE.Vector3(cueRef.current.pos.x, TABLE_Y + BALL_CENTER_Y, cueRef.current.pos.y),
           aimForward: new THREE.Vector3(aimDirRef.current.x, 0, aimDirRef.current.y),
-          power: state === 'striking' ? shotPowerRef.current : powerRef.current,
+          power: shotPreparationRef.current?.power ?? (state === 'striking' ? shotPowerRef.current : powerRef.current),
           nowMs,
           cueBack,
           cueTip,
+          bridgeBounds: { halfWidth: PLAY_W / 2, halfLength: PLAY_H / 2 },
+          bridgeObstacles: ballsRef.current.filter(ball => ball?.active).map(ball => ({
+            position: new THREE.Vector3(ball.pos.x, TABLE_Y + BALL_CENTER_Y, ball.pos.y),
+            radius: BALL_R
+          })),
           hidden: Boolean(replayPlaybackRef.current)
         });
         activeHumanCueViewRef.current = referencePlayers.eyeView;
-        if (referencePlayers.players.length === 2 && state === 'idle' && !replayPlaybackRef.current) {
+        if (referencePlayers.players.length === 2 && (state === 'idle' || referencePlayers.walking) && !replayPlaybackRef.current) {
           // The standing shooter already holds a copy of the selected game cue.
           // Keep the extra aiming cue out of the rendered idle frame.
           cueStick.visible = false;
@@ -25812,7 +25928,7 @@ const shotPowerRef = useRef(0);
         for (let rid = 0; rid < rackColors.length; rid++) {
           const pos = rackPositions[rid] || rackPositions[rackPositions.length - 1] || {
             x: 0,
-            z: rackStartZ + rid * BALL_R * 1.9
+            z: rackStartZ + rid * BALL_R * 2.02
           };
           const color = getPoolBallColor(variantConfig, rid);
           const number = getPoolBallNumber(variantConfig, rid);
@@ -26541,9 +26657,16 @@ const shotPowerRef = useRef(0);
         return true;
       };
 
+      const isPointClearOfCushions = (point) => {
+        if (!point || !Number.isFinite(point.x) || !Number.isFinite(point.y)) return false;
+        if (!CUSHION_SEGMENTS.some(segment => segment.mapped)) return true;
+        const projected = { x: point.x, y: point.y };
+        projectPoolBallFromCushions(projected, BALL_R, CUSHION_SEGMENTS);
+        return Math.hypot(projected.x - point.x, projected.y - point.y) <= BALL_R * 1e-7;
+      };
       const isSpotFree = (point, clearanceMultiplier = 2.05) => {
-        if (!point) return false;
-        const clearance = BALL_R * clearanceMultiplier;
+        if (!isPointClearOfCushions(point)) return false;
+        const clearance = BALL_R * Math.max(2, clearanceMultiplier);
         for (const ball of balls) {
           if (!ball.active || ball === cue) continue;
           if (point.distanceTo(ball.pos) <= clearance) {
@@ -26570,40 +26693,18 @@ const shotPowerRef = useRef(0);
         point,
         { clearanceMultiplier = 2.05, maxRadius = BALL_R * 3.2 } = {}
       ) => {
-        const clamped = clampInHandPosition(point);
-        if (!clamped) return null;
-        if (isSpotFree(clamped, clearanceMultiplier)) return clamped;
-        const step = Math.max(BALL_R * 0.35, 0.002);
-        const ringCount = Math.max(1, Math.ceil(maxRadius / step));
-        const angleSteps = 16;
-        let best = null;
-        let bestClearance = -Infinity;
-        for (let ring = 1; ring <= ringCount; ring += 1) {
-          const radius = step * ring;
-          for (let i = 0; i < angleSteps; i += 1) {
-            const angle = (Math.PI * 2 * i) / angleSteps;
-            TMP_VEC2_A.set(
-              clamped.x + Math.cos(angle) * radius,
-              clamped.y + Math.sin(angle) * radius
-            );
-            const candidate = clampInHandPosition(TMP_VEC2_A);
-            if (!candidate) continue;
-            if (isSpotFree(candidate, clearanceMultiplier)) {
-              return candidate;
-            }
-            let minDist = Infinity;
-            for (const ball of balls) {
-              if (!ball.active || ball === cue) continue;
-              const dist = candidate.distanceTo(ball.pos);
-              if (dist < minDist) minDist = dist;
-            }
-            if (minDist > bestClearance) {
-              bestClearance = minDist;
-              best = candidate.clone();
-            }
-          }
-        }
-        return best;
+        const limitX = PLAY_W / 2 - BALL_R;
+        const limitZ = PLAY_H / 2 - BALL_R;
+        const resolved = findClearPoolBallPosition(balls, point, {
+          radius: BALL_R,
+          bounds: { minX: -limitX, maxX: limitX, minY: -limitZ,
+            maxY: allowFullTableInHand() ? limitZ : baulkZ },
+          excludeId: cue.id,
+          clearanceMultiplier,
+          maxRadius,
+          acceptPosition: isPointClearOfCushions
+        });
+        return resolved ? new THREE.Vector2(resolved.x, resolved.y) : null;
       };
       const defaultInHandPosition = ({ forceBaulk = false, forceCenter = false } = {}) => {
         const restrictToBaulk = forceBaulk || (!forceCenter && !allowFullTableInHand());
@@ -26639,9 +26740,8 @@ const shotPowerRef = useRef(0);
           resolveInHandPlacement(preferredSpawn, {
             clearanceMultiplier: preferCenter ? 2.2 : 2.05,
             maxRadius: BALL_R * (preferCenter ? 7 : 6)
-          }) ||
-          defaultInHandPosition({ forceCenter: preferCenter }) ||
-          new THREE.Vector2(0, baulkZ);
+          });
+        if (!spawnPoint) return false;
         cue.active = true;
         updateCuePlacement(spawnPoint);
         cue.impacted = false;
@@ -26872,7 +26972,7 @@ const shotPowerRef = useRef(0);
           allowFullTableInHand()
             ? new THREE.Vector2(0, 0)
             : new THREE.Vector2(0, baulkZ),
-          { clearanceMultiplier: 1.7, maxRadius: BALL_R * 5 }
+          { clearanceMultiplier: 2.05, maxRadius: BALL_R * 5 }
         );
       };
       const autoPlaceAiCueBall = () => {
@@ -26881,10 +26981,8 @@ const shotPowerRef = useRef(0);
         if (currentHud.turn !== 1 || !currentHud.inHand) return false;
         if (!cue) return false;
         if (!allStopped(balls)) return false;
-        const fallbackTarget = defaultInHandPosition();
-        const fallbackClamped = fallbackTarget ? clampInHandPosition(fallbackTarget) : null;
-        const pos = findAiInHandPlacement() || fallbackClamped;
-        if (!pos) return false;
+        const pos = findAiInHandPlacement();
+        if (!pos || !isSpotFree(pos, 2)) return false;
         cue.active = false;
         updateCuePlacement(pos);
         cue.active = true;
@@ -27465,9 +27563,15 @@ const shotPowerRef = useRef(0);
         }
 
       // Fire (slider triggers on release)
+      const isHumanReadyForShot = () => {
+        if (!referencePlayers || referencePlayers.players.length !== 2) return true;
+        const seat = frameRef.current?.activePlayer === 'B' ? 'B' : 'A';
+        return referencePlayers.readyToShoot && referencePlayers.players.some(player =>
+          player.seat === seat && player.state === 'dragging');
+      };
       const fire = (committedPowerOverride = null) => {
         const clampedPower = resolvePoolRoyalReleasePower({
-          busy: Boolean(shootingRef.current || cueStrokeStateRef.current || pendingImpactRef.current),
+          busy: Boolean(shootingRef.current || cueStrokeStateRef.current || pendingImpactRef.current || shotPreparationRef.current),
           committedPower: committedPowerOverride, currentPower: powerRef.current,
           minPower: MIN_SHOT_POWER_TO_FIRE
         });
@@ -27495,6 +27599,19 @@ const shotPowerRef = useRef(0);
           replayPlaybackRef.current
         )
           return;
+        if (!isHumanReadyForShot()) {
+          shotPreparationRef.current = {
+            power: clampedPower,
+            aim: aimDirRef.current.clone(),
+            spin: { ...(spinRequestRef.current ?? spinRef.current ?? { x: 0, y: 0 }) },
+            seat: frameSnapshot?.activePlayer === 'B' ? 'B' : 'A',
+            cuePosition: cue.pos.clone()
+          };
+          setShotPreparing(true);
+          setInHandPlacementMode(false);
+          clearInterval(timerRef.current);
+          return;
+        }
         if (breakWinnerSeatRef.current === 'A') {
           breakWinnerSeatRef.current = null;
         }
@@ -30164,6 +30281,7 @@ const shotPowerRef = useRef(0);
 
         aiShoot.current = () => {
           if (!aiOpponentEnabled || frameRef.current?.meta?.state?.pushOutPending) return;
+          if (shotPreparationRef.current) return;
           if (aiRetryTimeoutRef.current) {
             clearTimeout(aiRetryTimeoutRef.current);
             aiRetryTimeoutRef.current = null;
@@ -30416,6 +30534,26 @@ const shotPowerRef = useRef(0);
           };
         };
 
+        const processPreparedShot = () => {
+          const prepared = shotPreparationRef.current;
+          if (!prepared) return;
+          const seat = frameRef.current?.activePlayer === 'B' ? 'B' : 'A';
+          const invalid = disposed || hudRef.current?.over || seat !== prepared.seat ||
+            shootingRef.current || replayPlaybackRef.current || !cue?.active ||
+            !allStopped(ballsRef.current?.length > 0 ? ballsRef.current : balls) ||
+            cue.pos.distanceToSquared(prepared.cuePosition) > BALL_R * BALL_R * 1e-6;
+          if (invalid || isHumanReadyForShot()) {
+            shotPreparationRef.current = null;
+            setShotPreparing(false);
+            if (!invalid) {
+              aimDirRef.current.copy(prepared.aim);
+              spinRequestRef.current = { ...prepared.spin };
+              spinRef.current = { ...prepared.spin };
+              powerRef.current = prepared.power;
+              fire(prepared.power);
+            }
+          }
+        };
         fireRef.current = fire;
 
         const selectReplayBanner = (tag = 'default') => {
@@ -31195,7 +31333,7 @@ const shotPowerRef = useRef(0);
           entry.update(elapsed);
         });
         const { frameScale, physicsSubsteps, subStepScale } =
-          resolvePoolRoyalPhysicsFrameStep(appliedDeltaMs);
+          resolvePoolRoyalPhysicsFrameStep(appliedDeltaMs, balls);
         lastStepTime = now;
         if (topViewRef.current && topViewLockedRef.current) {
           const fallbackAim = aimDirRef.current.clone();
@@ -31248,7 +31386,12 @@ const shotPowerRef = useRef(0);
           : shouldAutoAimAi
             ? resolveAutoAimDirection({ turnOwner: 'ai', cycleToNext: false })
             : null;
-        if (!lookModeRef.current) {
+        if (shotPreparationRef.current) {
+          aimDir.copy(shotPreparationRef.current.aim);
+          powerRef.current = shotPreparationRef.current.power;
+          spinRequestRef.current = { ...shotPreparationRef.current.spin };
+          spinRef.current = { ...shotPreparationRef.current.spin };
+        } else if (!lookModeRef.current) {
           if (shouldLockAiAim) {
             aimDir.copy(activeAiPlan.aimDir);
             if (aimDir.lengthSq() > 1e-6) {
@@ -32175,7 +32318,7 @@ const shotPowerRef = useRef(0);
                   }
                   d = 0;
                 }
-                const penetration = Math.max(0, minDist - d);
+                const penetration = Math.max(0, targetDist - d);
                 const overlap =
                   penetration > BALL_COLLISION_SLOP
                     ? (penetration - BALL_COLLISION_SLOP) / 2
@@ -32254,6 +32397,9 @@ const shotPowerRef = useRef(0);
                   );
                   if (volume > 0) playBallHit(volume);
                 }
+                // Positional repair and separating/touching balls are not a
+                // new shot contact. Only an applied closing impulse counts.
+                if (impulse <= 1e-10) continue;
                 const cueBall = a.id === 'cue' ? a : b.id === 'cue' ? b : null;
                 if (!firstHit) {
                   if (a.id === 'cue' && b.id !== 'cue') firstHit = b.id;
@@ -32300,7 +32446,15 @@ const shotPowerRef = useRef(0);
           // Pair impulses above intentionally run once. A separate iterative
           // position constraint then removes residual penetration in clusters,
           // including balls that have already slowed below the stop threshold.
-          if (separatePoolBalls(balls, BALL_R * 2, BALL_SEPARATION_ITERATIONS)) {
+          if (separatePoolBalls(balls, BALL_R * 2, {
+            iterations: BALL_SEPARATION_ITERATIONS,
+            tolerance: BALL_R * 2e-7,
+            projectBall: (ball, radius) => {
+              if (CUSHION_SEGMENTS.some(segment => segment.mapped)) {
+                projectPoolBallFromCushions(ball.pos, radius, CUSHION_SEGMENTS);
+              }
+            }
+          })) {
             balls.forEach((ball) => {
               if (!ball.active || !ball.mesh) return;
               ball.mesh.position.x = ball.pos.x;
@@ -33210,6 +33364,7 @@ const shotPowerRef = useRef(0);
             fit(1 + edge * 0.08);
           }
           updatePlayerCharacters(now, deltaSeconds);
+          processPreparedShot();
           syncCueShadow();
           const frameCamera = updateCamera();
           const handIconEl = inHandIconRef.current;
@@ -33364,6 +33519,8 @@ const shotPowerRef = useRef(0);
 
       return () => {
         disposed = true;
+        shotPreparationRef.current = null;
+        setShotPreparing(false);
         cancelCameraBlendTween();
         applyWorldScaleRef.current = () => {};
         topViewControlsRef.current = { enter: () => {}, exit: () => {} };
@@ -33581,7 +33738,7 @@ const shotPowerRef = useRef(0);
   // NEW Big Pull Slider (right side): drag DOWN to set power, releases → fire()
   // --------------------------------------------------
   const sliderRef = useRef(null);
-  const showPowerSlider = hud.turn === 0 && !hud.over && !replayActive && !shotActive && !pendingPushOut;
+  const showPowerSlider = hud.turn === 0 && !hud.over && !replayActive && !shotActive && !shotPreparing && !pendingPushOut;
   useEffect(() => {
     if (!showPowerSlider) {
       return undefined;
@@ -33640,9 +33797,9 @@ const shotPowerRef = useRef(0);
   const shotBroadcastActive = shotActive || pocketCameraActive;
   const topDownMinimalUi = isTopDownView;
   const hideNonEssentialHud = shotBroadcastActive || topDownMinimalUi;
-  const showPlayerControls = isPlayerTurn && !hud.over && !replayActive;
+  const showPlayerControls = isPlayerTurn && !hud.over && !replayActive && !shotPreparing;
   const showSpinController =
-    !hud.over && !replayActive && !shotBroadcastActive && (isPlayerTurn || aiTakingShot);
+    !hud.over && !replayActive && !shotBroadcastActive && !shotPreparing && (isPlayerTurn || aiTakingShot);
   const canRepositionCueBall = useMemo(
     () => showPlayerControls && deriveInHandFromFrame(frameState),
     [frameState, showPlayerControls]
@@ -34214,16 +34371,16 @@ const shotPowerRef = useRef(0);
       <div ref={mountRef} className="absolute inset-0" />
       {!replayActive && !hud.over && !hideNonEssentialHud && <PoolMatchHud
         player={player.name || 'You'} opponent={opponentDisplayName || 'Opponent'} turn={hud.turn}
-        target={hud.next} busy={shotActive} inHand={hud.inHand} timer={timer}
+        target={hud.next} busy={shotActive || shotPreparing} preparing={shotPreparing} inHand={hud.inHand} timer={timer}
         variant={activeVariant?.label || variantKey} competition={competitionMatch}
         declaration={shotDeclaration} automaticCall={automaticCall}
         canCall={!isTraining && ['8ball', 'american'].includes(frameState.meta?.variant) && !isPoolRoyalBreak(frameState)}
         canPushOut={Boolean(frameState.meta?.state?.pushOutAvailable)}
-        interactive={hud.turn === 0 && !pendingPushOut} callOpen={callPocketOpen}
+        interactive={hud.turn === 0 && !pendingPushOut && !shotPreparing} callOpen={callPocketOpen}
         onToggleCall={toggleCallPockets} onDeclaration={updateShotDeclaration}
         availableBalls={poolCalledBallOptions(frameState)}
       />}
-      {callPocketOpen && !shotActive && hud.turn === 0 && POCKET_IDS.map((id, index) => (
+      {callPocketOpen && !shotActive && !shotPreparing && hud.turn === 0 && POCKET_IDS.map((id, index) => (
         <button key={id} type="button" className="pool-call-pocket"
           ref={node => { if (node) callPocketButtonsRef.current.set(id, node); else callPocketButtonsRef.current.delete(id); }}
           aria-label={`Call pocket ${index + 1}`} aria-pressed={shotDeclaration.pocket === id}

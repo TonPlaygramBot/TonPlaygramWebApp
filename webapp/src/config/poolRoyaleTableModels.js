@@ -1,17 +1,18 @@
+import { POOL_ROYALE_SHOWOOD_PROFILE } from './poolRoyaleShowoodProfile.js'
 import { POOL_ROYALE_CLOTH_VARIANTS } from './poolRoyaleClothPresets.js'
 import { polyHavenThumb, swatchThumbnail } from './storeThumbnails.js'
 
 export const POOL_ROYALE_TABLE_MODEL_STORAGE_KEY = 'poolRoyaleTableModel'
 
 const POOLTOOL_RAW_BASE =
-  'https://raw.githubusercontent.com/ekiefl/pooltool/main/pooltool/models/table'
+  `https://raw.githubusercontent.com/ekiefl/pooltool/${POOL_ROYALE_SHOWOOD_PROFILE.sourceCommit}/pooltool/models/table`
 
 const SHOWOOD_TABLE_LOCAL_URL =
   '/models/pool-royale/showood-seven-foot/seven_foot_showood.glb'
 const SHOWOOD_TABLE_CDN_URL =
-  'https://cdn.jsdelivr.net/gh/ekiefl/pooltool@main/pooltool/models/table/seven_foot_showood/seven_foot_showood.glb'
+  `https://cdn.jsdelivr.net/gh/ekiefl/pooltool@${POOL_ROYALE_SHOWOOD_PROFILE.sourceCommit}/pooltool/models/table/seven_foot_showood/seven_foot_showood.glb`
 const SHOWOOD_TABLE_FASTLY_URL =
-  'https://fastly.jsdelivr.net/gh/ekiefl/pooltool@main/pooltool/models/table/seven_foot_showood/seven_foot_showood.glb'
+  `https://fastly.jsdelivr.net/gh/ekiefl/pooltool@${POOL_ROYALE_SHOWOOD_PROFILE.sourceCommit}/pooltool/models/table/seven_foot_showood/seven_foot_showood.glb`
 const SHOWOOD_TABLE_RAW_URL = `${POOLTOOL_RAW_BASE}/seven_foot_showood/seven_foot_showood.glb`
 
 export const POOL_ROYALE_TABLE_MODEL_OPTIONS = Object.freeze([
@@ -30,8 +31,8 @@ export const POOL_ROYALE_TABLE_MODEL_OPTIONS = Object.freeze([
     ]),
     icon: '🟫',
     kind: 'gltf',
-    fitScale: 1.04,
-    horizontalFitScale: 1.065,
+    fitScale: 1,
+    horizontalFitScale: 1,
     upperFrameHeightScale: 1,
     cornerRimHeightScale: 1,
     trimCornerRimsToTopRailBottom: false,
@@ -52,7 +53,7 @@ export const POOL_ROYALE_TABLE_MODEL_OPTIONS = Object.freeze([
     sideApronOutwardOffset: 0,
     clothRepeatScale: 5.25,
     fitStrategy: 'exact',
-    fitReference: 'upperTabletop',
+    fitReference: 'measuredCushionNoses',
     matchNativeHeight: true,
     matchNativeUpperComponentHeight: true,
     useOriginalLayoutSurfaces: true,

@@ -28,8 +28,8 @@ const TABLE_PHYSICAL_SPECS = Object.freeze({
     playfield: Object.freeze({ widthMm: 1981.2, heightMm: 990.6 }), // BCA/WPA 7 ft 78" × 39" playing surface used by the Showood GLB source
     ballDiameterMm: 57.15,
     pocketMouthMm: Object.freeze({
-      corner: 114.3,
-      side: 127
+      corner: 118,
+      side: 137
     }),
     cushionCutAngleDeg: 32,
     sideCushionCutAngleDeg: 32,
