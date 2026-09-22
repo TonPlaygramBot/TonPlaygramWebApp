@@ -1,10 +1,11 @@
 import { createReadStream } from 'node:fs';
-import { credentials, PROVIDERS } from './catalog.js';
+import { PROVIDERS } from './catalog.js';
 import { accessToken } from './oauth.js';
 import { request, json, form, fb, metaVersion } from './http.js';
 import { mediaUrl, mediaPath } from './media.js';
 import { problem } from './security.js';
 export async function creatorInfo(connection) {
+  if (!Object.hasOwn(PROVIDERS, connection.platform)) throw problem(400, 'This platform is no longer supported in Creator Studio.');
   const token = await accessToken(connection);
   const result = await request('https://open.tiktokapis.com/v2/post/publish/creator_info/query/', json('POST', token, {}));
   if (!result.data?.privacy_level_options?.length) throw problem(400, 'TikTok is not accepting posts from this account right now.');
@@ -38,17 +39,13 @@ export function validateContent(post, connection, media, info) {
 }
 export async function publishStep(post, delivery, connection, media) {
   const p = connection.platform;
+  if (!Object.hasOwn(PROVIDERS, p)) throw problem(400, 'This platform is no longer supported in Creator Studio.');
   const info = p === 'tiktok' && !delivery.externalId ? await creatorInfo(connection) : null;
   const caption = delivery.externalId ? (post.overrides?.get?.(p) ?? post.caption) : validateContent(post, connection, media, info);
   const token = await accessToken(connection);
   const url = media ? mediaUrl(media) : null;
   const wait = (externalId, stage) => ({ status: 'processing', externalId, stage, nextAt: new Date(Date.now() + 15000) });
   const done = (externalId, link) => ({ status: 'published', externalId: String(externalId), url: link || '', message: 'Published' });
-  if (p === 'x') {
-    const data = await request('https://api.x.com/2/tweets', json('POST', token, { text: caption }));
-    if (!data.data?.id) throw problem(502, 'X did not confirm this post. Check your profile before trying again.');
-    return done(data.data.id, `https://x.com/i/status/${data.data.id}`);
-  }
   if (p === 'facebook') {
     if (!delivery.externalId) {
       const endpoint = media ? media.mime.startsWith('video/') ? 'videos' : 'photos' : 'feed';
@@ -62,16 +59,16 @@ export async function publishStep(post, delivery, connection, media) {
     if (data.status?.video_status === 'error') throw problem(400, 'Facebook could not process this video.');
     return data.status?.video_status === 'ready' ? done(delivery.externalId, data.permalink_url) : wait(delivery.externalId, 'video');
   }
-  if (p === 'instagram' || p === 'threads') {
-    const base = p === 'instagram' ? `https://graph.instagram.com/${metaVersion()}` : 'https://graph.threads.net/v1.0';
-    const edge = p === 'instagram' ? 'media' : 'threads';
+  if (p === 'instagram') {
+    const base = `https://graph.instagram.com/${metaVersion()}`;
+    const edge = 'media';
     if (!delivery.externalId) {
-      const body = p === 'instagram' ? { caption, ...(media.mime.startsWith('video/') ? { media_type: 'REELS', video_url: url } : { image_url: url }) } : { text: caption, media_type: !media ? 'TEXT' : media.mime.startsWith('video/') ? 'VIDEO' : 'IMAGE', ...(media ? { [media.mime.startsWith('video/') ? 'video_url' : 'image_url']: url } : {}) };
+      const body = { caption, ...(media.mime.startsWith('video/') ? { media_type: 'REELS', video_url: url } : { image_url: url }) };
       const data = await request(`${base}/${connection.providerId}/${edge}`, json('POST', token, body));
       if (!data.id) throw problem(502, 'The platform did not confirm this upload.');
       return wait(data.id, 'container');
     }
-    const result = await request(`${base}/${delivery.externalId}?fields=${p === 'instagram' ? 'status_code' : 'status'}`, json('GET', token));
+    const result = await request(`${base}/${delivery.externalId}?fields=status_code`, json('GET', token));
     const status = result.status_code || result.status;
     if (['ERROR', 'EXPIRED'].includes(status)) throw problem(400, 'The platform could not process this media. Check its format.');
     if (status !== 'FINISHED') return wait(delivery.externalId, 'container');

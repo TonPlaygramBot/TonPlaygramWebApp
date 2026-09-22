@@ -2,7 +2,6 @@ import { spawn, execFile } from 'node:child_process';
 import { promisify } from 'node:util';
 import { Connection, Live } from './models.js';
 import { accessToken } from './oauth.js';
-import { credentials } from './catalog.js';
 import { request, json, fb } from './http.js';
 import { problem, seal, unseal, publicOrigin } from './security.js';
 const exec = promisify(execFile);
@@ -18,7 +17,7 @@ export function encoderArgs(target, portrait, quality) {
 export function validIngest(target, platform) {
   try {
     const url = new URL(target);
-    const suffixes = platform === 'youtube' ? ['.youtube.com'] : platform === 'facebook' ? ['.facebook.com'] : ['.twitch.tv', '.contribute.live-video.net'];
+    const suffixes = platform === 'youtube' ? ['.youtube.com'] : platform === 'facebook' ? ['.facebook.com'] : [];
     return ['rtmp:', 'rtmps:'].includes(url.protocol) && suffixes.some(suffix => url.hostname.endsWith(suffix)) && !url.username && !url.password;
   } catch { return false; }
 }
@@ -38,18 +37,6 @@ async function prepareDestination(connection, options, checkpoint) {
     const data = await request(`${fb()}/${connection.providerId}/live_videos`, json('POST', token, { title: options.title, status: 'LIVE_NOW' }));
     remote.broadcast = data.id; await checkpoint(remote);
     return { remote, target: data.secure_stream_url || data.stream_url };
-  }
-  if (p === 'twitch') {
-    const headers = { 'Client-Id': credentials(p).id };
-    // Title update returns 204, unlike the JSON read APIs.
-    const updated = await fetch(`https://api.twitch.tv/helix/channels?broadcaster_id=${connection.providerId}`, { ...json('PATCH', token, { title: options.title }, headers), signal: AbortSignal.timeout(25000) });
-    if (!updated.ok) throw problem(502, 'Twitch could not update the stream title.');
-    const data = await request(`https://api.twitch.tv/helix/streams/key?broadcaster_id=${connection.providerId}`, json('GET', token, undefined, headers));
-    if (!data.data?.[0]?.stream_key) throw problem(400, 'Twitch live access is not available on this account.');
-    const servers = await request('https://ingest.twitch.tv/ingests');
-    const template = servers.ingests?.find(s => s.default)?.url_template || servers.ingests?.[0]?.url_template;
-    if (!template?.includes('{stream_key}')) throw problem(502, 'Twitch could not find a broadcast server.');
-    return { remote, target: template.replace('{stream_key}', data.data[0].stream_key) };
   }
   throw problem(400, 'This account does not support automatic live streaming.');
 }
@@ -80,8 +67,7 @@ async function confirmed(connection, remote) {
   if (connection.platform === 'facebook') {
     const r = await request(`${fb()}/${remote.broadcast}?fields=status`, json('GET', token)); return r.status === 'LIVE';
   }
-  const r = await request(`https://api.twitch.tv/helix/streams?user_id=${connection.providerId}`, json('GET', token, undefined, { 'Client-Id': credentials('twitch').id }));
-  return Boolean(r.data?.some(x => x.type === 'live'));
+  return false;
 }
 export function liveSummary(state) {
   return { id: state.id, title: state.title, status: state.stopping ? 'ending' : 'on-air', destinations: state.destinations.map(d => ({ id: d.connectionId, name: d.name, platform: d.platform, status: d.status })) };
@@ -91,13 +77,13 @@ export async function createLive(owner, options) {
   if (!liveEnabled()) throw problem(503, 'Live broadcasting is being prepared. You can still test your camera.');
   if (currentLive(owner) || reservations.has(owner)) throw problem(409, 'You already have an active broadcast. End it before starting another.');
   if (active.size + reservations.size >= maxStreams()) throw problem(503, 'The live studio is busy. Please try again shortly.');
-  if (!options.title?.trim() || options.title.length > 100 || !Array.isArray(options.targets) || options.targets.length < 1 || options.targets.length > 3 || options.targets.some(x => !/^[a-f0-9]{24}$/.test(x)) || new Set(options.targets).size !== options.targets.length) throw problem(400, 'Add a title and choose up to three live accounts.');
+  if (!options.title?.trim() || options.title.length > 100 || !Array.isArray(options.targets) || options.targets.length < 1 || options.targets.length > 2 || options.targets.some(x => !/^[a-f0-9]{24}$/.test(x)) || new Set(options.targets).size !== options.targets.length) throw problem(400, 'Add a title and choose a YouTube channel and/or Facebook Page.');
   if (!['private', 'unlisted', 'public'].includes(options.privacy) || typeof options.madeForKids !== 'boolean' || !['720', '1080'].includes(options.quality)) throw problem(400, 'Choose the broadcast quality, YouTube visibility and audience.');
   reservations.add(owner);
   let state;
   try {
     await exec('ffmpeg', ['-version'], { timeout: 5000, maxBuffer: 65536 });
-    const connections = await Connection.find({ _id: { $in: options.targets }, owner, status: 'connected', platform: { $in: ['youtube', 'facebook', 'twitch'] } }).select('+credentials');
+    const connections = await Connection.find({ _id: { $in: options.targets }, owner, status: 'connected', platform: { $in: ['youtube', 'facebook'] } }).select('+credentials');
     if (connections.length !== options.targets.length) throw problem(400, 'Reconnect the selected live accounts.');
     if (new Set(connections.map(c => c.platform)).size !== connections.length) throw problem(400, 'Choose one account per platform for this broadcast.');
     const doc = await Live.create({ owner, title: options.title.trim(), status: 'starting', heartbeat: new Date(), destinations: connections.map(c => ({ connectionId: String(c._id), platform: c.platform, remote: {} })) });

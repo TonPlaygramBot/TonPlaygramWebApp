@@ -23,7 +23,7 @@ async function call(path, options = {}) {
 before(async () => {
   process.env.CREATOR_ENCRYPTION_KEY = crypto.randomBytes(32).toString('base64');
   process.env.CREATOR_PUBLIC_URL = 'http://localhost:3000';
-  process.env.CREATOR_X_CLIENT_ID = 'test-id'; process.env.CREATOR_X_CLIENT_SECRET = 'test-secret';
+  process.env.CREATOR_META_CLIENT_ID = 'test-id'; process.env.CREATOR_META_CLIENT_SECRET = 'test-secret';
   process.env.CREATOR_GOOGLE_CLIENT_ID = 'google-id'; process.env.CREATOR_GOOGLE_CLIENT_SECRET = 'google-secret';
   if (!process.env.CREATOR_TEST_MONGO_URI) mongo = await MongoMemoryServer.create();
   await mongoose.connect(process.env.CREATOR_TEST_MONGO_URI || mongo.getUri());
@@ -61,21 +61,21 @@ test('expired and forged Telegram init data cannot start a session', async () =>
 });
 let ownConnection, foreignConnection;
 test('accounts are scoped and never serialize credentials', async () => {
-  ownConnection = await Connection.create({ owner, platform: 'x', providerId: '100', name: 'My account', credentials: seal({ access_token: 'private-access-token' }, owner) });
-  foreignConnection = await Connection.create({ owner: other, platform: 'x', providerId: '200', name: 'Other account', credentials: seal({ access_token: 'foreign-token' }, other) });
+  ownConnection = await Connection.create({ owner, platform: 'facebook', providerId: '100', name: 'My account', credentials: seal({ access_token: 'private-access-token' }, owner) });
+  foreignConnection = await Connection.create({ owner: other, platform: 'facebook', providerId: '200', name: 'Other account', credentials: seal({ access_token: 'foreign-token' }, other) });
   const r = await call('/accounts'); assert.equal(r.status, 200); assert.equal(r.data.accounts.length, 1); assert.equal(r.data.accounts[0].name, 'My account'); assert.ok(!JSON.stringify(r.data).includes('credentials')); assert.ok(!JSON.stringify(r.data).includes('token'));
   await call(`/accounts/${foreignConnection._id}`, { method: 'DELETE' }); assert.equal((await Connection.findById(foreignConnection._id)).status, 'connected');
 });
 test('OAuth includes PKCE, expires, and binds state to the browser', async () => {
   let binding;
   const req = { creator: { owner } }; const res = { cookie(name, value) { if (name === 'tpg_creator_oauth') binding = value; } };
-  const url = new URL(await beginOAuth(req, res, 'x')); assert.equal(url.searchParams.get('code_challenge_method'), 'S256'); assert.ok(url.searchParams.get('code_challenge'));
+  const url = new URL(await beginOAuth(req, res, 'youtube')); assert.equal(url.searchParams.get('code_challenge_method'), 'S256'); assert.ok(url.searchParams.get('code_challenge'));
   const state = url.searchParams.get('state');
-  await assert.rejects(() => finishOAuth({ query: { state, code: 'unused' }, headers: { cookie: 'tpg_creator_oauth=wrong' }, creator: { owner } }, res, 'x'));
-  const record = await OAuth.findOne({ platform: 'x' }); assert.ok(record);
+  await assert.rejects(() => finishOAuth({ query: { state, code: 'unused' }, headers: { cookie: 'tpg_creator_oauth=wrong' }, creator: { owner } }, res, 'youtube'));
+  const record = await OAuth.findOne({ platform: 'youtube' }); assert.ok(record);
   // Cancel consumes the matching state; replay cannot exchange it.
-  await assert.rejects(() => finishOAuth({ query: { state, error: 'access_denied' }, headers: { cookie: `tpg_creator_oauth=${binding}` }, creator: { owner } }, res, 'x'));
-  assert.equal(await OAuth.countDocuments({ platform: 'x' }), 0);
+  await assert.rejects(() => finishOAuth({ query: { state, error: 'access_denied' }, headers: { cookie: `tpg_creator_oauth=${binding}` }, creator: { owner } }, res, 'youtube'));
+  assert.equal(await OAuth.countDocuments({ platform: 'youtube' }), 0);
 });
 test('draft creation is idempotent and rejects another owner’s destinations', async () => {
   const body = { title: '', caption: 'One post', targets: [String(ownConnection._id)], requestId: crypto.randomUUID() };
@@ -83,7 +83,7 @@ test('draft creation is idempotent and rejects another owner’s destinations', 
   const bad = await call('/posts', { method: 'POST', body: { ...body, targets: [String(foreignConnection._id)], requestId: crypto.randomUUID() } }); assert.equal(bad.status, 400);
 });
 test('submission validates all destinations before enqueue and is idempotent', async () => {
-  const post = await Post.create({ owner, requestId: crypto.randomUUID(), title: '', caption: 'x'.repeat(281), targets: [String(ownConnection._id)] });
+  const post = await Post.create({ owner, requestId: crypto.randomUUID(), title: '', caption: 'x'.repeat(63207), targets: [String(ownConnection._id)] });
   assert.equal((await call(`/posts/${post._id}/submit`, { method: 'POST', body: {} })).status, 400);
   assert.equal((await Post.findById(post._id)).deliveries.length, 0);
   await Post.updateOne({ _id: post._id }, { caption: 'A short original post' });
@@ -94,14 +94,14 @@ test('submission validates all destinations before enqueue and is idempotent', a
 });
 test('atomic delivery claim prevents duplicate provider calls', async () => {
   let calls = 0;
-  globalThis.fetch = async (url) => { assert.equal(String(url), 'https://api.x.com/2/tweets'); calls++; return new Response(JSON.stringify({ data: { id: '555' } }), { status: 201 }); };
-  const post = await Post.create({ owner, requestId: crypto.randomUUID(), caption: 'Test post', status: 'queued', scheduledAt: new Date(), deliveries: [{ connectionId: String(ownConnection._id), platform: 'x', name: 'My account', nextAt: new Date(), status: 'queued' }] });
+  globalThis.fetch = async (url) => { assert.equal(String(url), 'https://graph.facebook.com/v25.0/100/feed'); calls++; return new Response(JSON.stringify({ id: '555' }), { status: 201 }); };
+  const post = await Post.create({ owner, requestId: crypto.randomUUID(), caption: 'Test post', status: 'queued', scheduledAt: new Date(), deliveries: [{ connectionId: String(ownConnection._id), platform: 'facebook', name: 'My account', nextAt: new Date(), status: 'queued' }] });
   await Promise.all([runDelivery(post, post.deliveries[0]), runDelivery(post, post.deliveries[0])]);
   assert.equal(calls, 1); assert.equal((await Post.findById(post._id)).deliveries[0].status, 'published'); globalThis.fetch = originalFetch;
 });
 test('uncertain publication is flagged and not automatically resent', async () => {
   let calls = 0; globalThis.fetch = async () => { calls++; throw new Error('network lost private-access-token'); };
-  const post = await Post.create({ owner, requestId: crypto.randomUUID(), caption: 'Uncertain', status: 'queued', scheduledAt: new Date(), deliveries: [{ connectionId: String(ownConnection._id), platform: 'x', name: 'My account', nextAt: new Date(), status: 'queued' }] });
+  const post = await Post.create({ owner, requestId: crypto.randomUUID(), caption: 'Uncertain', status: 'queued', scheduledAt: new Date(), deliveries: [{ connectionId: String(ownConnection._id), platform: 'facebook', name: 'My account', nextAt: new Date(), status: 'queued' }] });
   await runDelivery(post, post.deliveries[0]); const saved = await Post.findById(post._id); assert.equal(saved.deliveries[0].status, 'attention'); assert.ok(!saved.deliveries[0].message.includes('private-access-token'));
   await runDelivery(post, post.deliveries[0]); assert.equal(calls, 1); globalThis.fetch = originalFetch;
   assert.equal((await call(`/posts/${post._id}/retry/${post.deliveries[0]._id}`, { method: 'POST', body: {} })).status, 400);
@@ -128,6 +128,13 @@ test('media links are signed, expiring and cannot change IDs', () => {
 test('live output allowlist and encoder never accept arbitrary shell URLs', () => {
   assert.equal(validIngest('rtmps://a.rtmps.youtube.com/live2/secret', 'youtube'), true);
   assert.equal(validIngest('rtmp://localhost/secret', 'youtube'), false); assert.equal(validIngest('rtmp://youtube.com.evil.test/x', 'youtube'), false);
-  const args = encoderArgs('rtmp://live.twitch.tv/app/key', true, '720'); assert.ok(args.includes('scale=720:1280:force_original_aspect_ratio=decrease,pad=720:1280:(ow-iw)/2:(oh-ih)/2,setsar=1')); assert.equal(args.at(-1), 'rtmp://live.twitch.tv/app/key');
+  const args = encoderArgs('rtmps://a.rtmps.youtube.com/live2/key', true, '720'); assert.ok(args.includes('scale=720:1280:force_original_aspect_ratio=decrease,pad=720:1280:(ow-iw)/2:(oh-ih)/2,setsar=1')); assert.equal(args.at(-1), 'rtmps://a.rtmps.youtube.com/live2/key');
 });
 test('publication summary represents partial success accurately', () => { assert.equal(summarize([{ status: 'published' }, { status: 'failed' }]), 'partial'); assert.equal(summarize([{ status: 'processing' }]), 'queued'); });
+
+test('guests can begin the four-platform flow but cannot access private Studio data', async () => {
+  const response = await call('/accounts/facebook/connect', { method: 'POST', headers: { cookie: '' }, body: {} });
+  assert.equal(response.status, 200); assert.equal(new URL(response.data.url).hostname, 'www.facebook.com');
+  assert.equal((await call('/accounts', { headers: { cookie: '' } })).status, 401);
+  assert.equal((await call('/accounts/x/connect', { method: 'POST', headers: { cookie: '' }, body: {} })).status, 400);
+});
