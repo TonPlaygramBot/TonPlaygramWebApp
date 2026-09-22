@@ -11,6 +11,10 @@ export type StreetSettings = {
   opacity: number;
   volume: number;
   aimAssist: boolean;
+  aimSensitivity: number;
+  joystickDeadzone: number;
+  leftHanded: boolean;
+  showPerformance: boolean;
 };
 export const DEFAULT_SETTINGS: StreetSettings = {
   targetFps: 60,
@@ -22,7 +26,11 @@ export const DEFAULT_SETTINGS: StreetSettings = {
   buttonSize: 54,
   opacity: 0.85,
   volume: 0.6,
-  aimAssist: false
+  aimAssist: false,
+  aimSensitivity: .65,
+  joystickDeadzone: .08,
+  leftHanded: false,
+  showPerformance: false
 };
 export function loadSettings(
   storage?: Pick<Storage, 'getItem'>
@@ -39,7 +47,9 @@ export function loadSettings(
       'shake',
       'buttonSize',
       'opacity',
-      'volume'
+      'volume',
+      'aimSensitivity',
+      'joystickDeadzone'
     ] as const) {
       const bounds = {
         fov: [60, 90],
@@ -48,7 +58,9 @@ export function loadSettings(
         shake: [0, 1],
         buttonSize: [48, 64],
         opacity: [0.3, 1],
-        volume: [0, 1]
+        volume: [0, 1],
+        aimSensitivity: [.2, 1.2],
+        joystickDeadzone: [0, .25]
       }[key];
       if (Number.isFinite(raw[key]))
         s[key] = Math.max(bounds[0], Math.min(bounds[1], raw[key]));
@@ -56,6 +68,8 @@ export function loadSettings(
     s.targetFps = targetFps(raw.targetFps);
     s.quality = graphicsSetting(raw.quality);
     s.aimAssist = raw.aimAssist === true;
+    s.leftHanded = raw.leftHanded === true;
+    s.showPerformance = raw.showPerformance === true;
     return s;
   } catch {
     return { ...DEFAULT_SETTINGS };

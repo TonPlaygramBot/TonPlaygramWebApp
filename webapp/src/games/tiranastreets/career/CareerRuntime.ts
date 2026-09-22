@@ -1,4 +1,5 @@
-import {FramePacer} from '../renderSettings';
+import {AutomaticGraphics,GRAPHICS_PROFILES} from '../graphicsQuality';
+import {FramePacer,renderPixelRatio} from '../renderSettings';
 import {loadSettings, type StreetSettings} from '../street-career/settings';
 import {createWebGLRenderer} from '../createWebGLRenderer';
 import * as T from 'three';
@@ -21,6 +22,7 @@ export type CareerView={settings: StreetSettings;profile:Profile;player:Point&{h
 /** Solo-only runtime assembled from the same city, collision, input and audio
  * modules. The operation runtime is unmounted before this one is constructed. */
 export class CareerRuntime {
+ private automaticGraphics=new AutomaticGraphics();
  settings: StreetSettings; private renderPacer = new FramePacer(); private renderDelta = 0;
  readonly scene=new T.Scene();readonly camera=new T.PerspectiveCamera(70,1,.15,18000);
  readonly renderer:T.WebGLRenderer;readonly world:ReturnType<typeof makeCityWorld>;readonly input:GameInput;
@@ -60,10 +62,10 @@ export class CareerRuntime {
   for(const p of contacts){this.talkTargets.set(p.id,{x:p.x+ORIGIN.x,z:p.z+ORIGIN.z});this.contactBodies.set(p.id,{x:p.x,z:p.z,w:.65,d:.65,h:1.8});}
   // Collision indexing caches by array identity: do not mutate the indexed array.
   this.world.obstacles=[...this.world.obstacles,...this.contactBodies.values()];
-  this.input=new GameInput(surface);this.input.onLook=(dx,dy)=>{if(this.paused)return;if(this.ride||this.overlook)this.rideYaw-=dx*.003;else this.yaw-=dx*.003;this.pitch=T.MathUtils.clamp(this.pitch-dy*.003,-.9,.8);};
+  this.input=new GameInput(surface);this.input.onLook=(dx,dy)=>{if(this.paused)return;const scale=.003*this.settings.sensitivity;if(this.ride||this.overlook)this.rideYaw-=dx*scale;else this.yaw-=dx*scale;this.pitch=T.MathUtils.clamp(this.pitch-dy*scale,-.9,.8);};
   this.input.onPause=()=>this.pause();this.input.onHeal=()=>this.interact();
   this.marker.rotation.x=-Math.PI/2;this.marker.visible=false;this.scene.add(this.line,this.marker);
-  this.observer=new ResizeObserver(()=>{const r=surface.getBoundingClientRect();this.renderer.setSize(r.width,Math.max(r.height,1),false);this.camera.aspect=r.width/Math.max(r.height,1);this.camera.updateProjectionMatrix();});this.observer.observe(surface);
+  this.observer=new ResizeObserver(()=>{const r=surface.getBoundingClientRect();this.renderer.setSize(r.width,Math.max(r.height,1),false);this.applyGraphics();this.camera.aspect=r.width/Math.max(r.height,1);this.camera.updateProjectionMatrix();});this.observer.observe(surface);
   this.camera.position.set(this.player.x,1.68,this.player.z);this.persist();this.emit();
   canvas.addEventListener('webglcontextlost',this.contextLost);this.raf=requestAnimationFrame(this.loop);
   void this.loadPlayer();
@@ -71,11 +73,13 @@ export class CareerRuntime {
  async loadPlayer(){await this.playerVisual.load();if(!this.disposed)this.emit();}
  private applyGraphics(){
   this.camera.userData.targetFps=this.settings.targetFps;
-  this.renderer.setPixelRatio(Math.min(devicePixelRatio||1,this.settings.quality==='high'?1.75:this.settings.quality==='battery'?1:1.4));
-  this.renderer.shadowMap.enabled=this.settings.quality!=='battery';
+  const preset=this.settings.quality==='auto'?this.automaticGraphics.preset:this.settings.quality,profile=GRAPHICS_PROFILES[preset];
+  const rect=this.renderer.domElement.parentElement?.getBoundingClientRect();
+  this.renderer.setPixelRatio(renderPixelRatio(rect?.width||390,rect?.height||844,devicePixelRatio||1,profile.pixelRatio));
+  this.renderer.shadowMap.enabled=profile.shadows;this.camera.userData.battery=preset==='battery';
  }
  setSettings(patch: Partial<StreetSettings>){
-  Object.assign(this.settings,patch);this.applyGraphics();
+  this.settings=loadSettings({getItem:()=>JSON.stringify({...this.settings,...patch})});if(patch.quality)this.automaticGraphics.reset();this.applyGraphics();
   try{this.storage?.setItem('tirana-streets:street-settings:v1',JSON.stringify(this.settings));}catch{this.storageOK=false;}
   this.emit();
  }
@@ -90,7 +94,7 @@ export class CareerRuntime {
  }
  pause(){this.paused=true;this.input.active=false;this.input.clear();this.audio.suspend();if(document.pointerLockElement)document.exitPointerLock();this.persist();this.emit();}
  freeExplore(){if(this.profile.active?.status==='failed')this.profile={...this.profile,active:null};this.resume();}
- resume(){if(!this.playerVisual.ready){this.emit();return;}this.paused=false;this.input.active=true;this.input.clear();this.audio.start();this.emit();}
+ resume(){if(document.hidden||!this.playerVisual.ready){this.emit();return;}this.paused=false;this.input.active=true;this.input.clear();this.audio.start();this.emit();}
  returnFromOverlook(){this.overlook=false;this.ride=false;this.rideElapsed=0;this.extras.dajti.setTour(false);this.pitch=0;this.persist();this.pause();}
  cancel(){this.overlook=false;this.ride=false;this.rideElapsed=0;this.extras.dajti.setTour(false);this.profile={...this.profile,active:null};this.lastTarget='';this.persist();this.pause();}
  private tick(dt:number){
@@ -144,11 +148,12 @@ export class CareerRuntime {
  }
  private loop=(now:number)=>{
   if(this.disposed)return;const real=this.last?(now-this.last)/1000:1/60,dt=Math.min(.1,Math.max(0,real));this.last=now;
-  this.countedTime+=real;if(this.countedTime>=1){this.fps=Math.round(this.counted/this.countedTime);this.counted=0;this.countedTime=0;}
+  if(this.paused||document.hidden||real>.5){this.countedTime=0;this.counted=0;}else this.countedTime+=real;
+  if(this.countedTime>=1){this.fps=Math.round(this.counted/this.countedTime);if(this.elapsed>6&&this.settings.quality==='auto'&&this.automaticGraphics.sample(this.fps,this.settings.targetFps))this.applyGraphics();this.counted=0;this.countedTime=0;}
   if(!this.paused){this.accumulator+=dt;for(let steps=0;this.accumulator>=1/60&&steps<6;steps++){this.tick(1/60);this.accumulator-=1/60;}}else this.accumulator=0;
   this.renderDelta=Math.min(.15,this.renderDelta+dt);
-  if(!document.hidden&&this.renderPacer.shouldRender(now,this.settings.targetFps)){
-  this.counted++;
+  if(!document.hidden&&this.renderPacer.shouldRender(now,this.paused?15:this.settings.targetFps)){
+  if(!this.paused)this.counted++;
   if(this.ride||this.overlook){this.extras.dajti.journey(this.rideElapsed/90);const p=cablePose(this.extras.dajti.path,this.rideElapsed/90);this.camera.position.set(p.x-ORIGIN.x,p.y-1.6,p.z-ORIGIN.z);this.camera.rotation.set(this.pitch,p.yaw+this.rideYaw,0,'YXZ');}
   else{this.camera.position.set(this.player.x,1.68,this.player.z);this.camera.rotation.set(this.pitch,this.yaw,0,'YXZ');}
   this.playerVisual.update({x:this.player.x,z:this.player.z,yaw:this.yaw,pitch:this.pitch,speed:this.paused?0:this.movementSpeed,time:this.elapsed,hidden:this.ride||this.overlook},this.paused?0:this.renderDelta);

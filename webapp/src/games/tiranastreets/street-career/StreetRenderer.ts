@@ -83,7 +83,7 @@ export class StreetRenderer extends CityRenderer {
   }
   override orbit(dx: number, dy: number) {
     const b = this.simulation?.body,
-      scale = this.settings.sensitivity * (b?.aim ? .65 / weaponAnchors(this.simulation?.player.weapon || '').zoom : 1);
+      scale = this.settings.sensitivity * (b?.aim ? this.settings.aimSensitivity / weaponAnchors(this.simulation?.player.weapon || '').zoom : 1);
     // Preserve the Career sensitivity while sharing the manual-look timeout.
     super.orbit(dx*scale*2/3,dy*scale);
   }
@@ -259,7 +259,8 @@ export class StreetRenderer extends CityRenderer {
         p,
         state.elapsed,
         dt,
-        this.quality === 'battery'
+        this.quality === 'battery',
+        this.camera
       );
     this.details.update(
       state?.elapsed || 0,
@@ -279,9 +280,12 @@ export class StreetRenderer extends CityRenderer {
             )
           ]
         : [];
+    // Filter once for all fleet renderers. The simulation keeps the entire
+    // population; this 500 m radius exceeds every fleet's visual/prefetch range.
+    const traffic=state&&p?state.traffic.filter(c=>(c.x-p.x)**2+(c.z-p.z)**2<500**2):state?.traffic;
     super.render(
       state
-        ? { ...state, npcs: visible.filter((n) => forceCharacterFor(n)) }
+        ? { ...state, traffic:traffic!, npcs: visible.filter((n) => forceCharacterFor(n)) }
         : null,
       id,
       dt,

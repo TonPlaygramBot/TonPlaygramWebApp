@@ -8,6 +8,7 @@ import * as T from '../webapp/node_modules/three/build/three.module.js';
 import {GLTFLoader} from '../webapp/node_modules/three/examples/jsm/loaders/GLTFLoader.js';
 import {canonicalHumanoidBone,humanoidBoneGroups} from '../webapp/src/games/tiranastreets/street-career/humanoidRig.mjs';
 import {npcWeaponPose} from '../webapp/src/games/tiranastreets/shared/npcWeaponPose.mjs';
+import {HumanoidAnimation,locomotionClips} from '../webapp/src/games/tiranastreets/street-career/humanoidAnimation.mjs';
 
 const webapp=fileURLToPath(new URL('../webapp/',import.meta.url)),dir=await mkdtemp(join(webapp,'.human-animation-test-'));
 after(()=>rm(dir,{recursive:true,force:true}));
@@ -27,6 +28,22 @@ const point=(root,bone)=>root.worldToLocal(bone.getWorldPosition(new T.Vector3()
 
 test('anatomy aliases preserve Quaternius spine segments and resolve hand/leg chains',()=>{
   for(const [from,to] of [['spine_01','spine'],['spine_02','spine1'],['spine_03','spine2'],['neck_01','neck'],['hand_l','lefthand'],['thigh_r','rightupleg'],['calf_r','rightleg'],['CC_Base_R_Upperarm_074','rightarm']])assert.equal(canonicalHumanoidBone(from),to);
+});
+
+test('native locomotion aliases preserve stride phase and resist walk/run threshold jitter',()=>{
+  const root=new T.Group(),model=new T.Group();root.add(model);
+  const clips=[['Armature|Standing Idle',2],['Walking',1],['Jogging',.6]].map(([name,duration])=>
+    new T.AnimationClip(name,duration,[new T.NumberKeyframeTrack('.rotation[x]',[0,duration],[0,.05])]));
+  const chosen=locomotionClips(clips);assert.equal(chosen.idle,clips[0]);assert.equal(chosen.walk,clips[1]);assert.equal(chosen.run,clips[2]);
+  const animation=new HumanoidAnimation(root,model,clips),n={motion:'walk',anim:'walk'};
+  for(let i=0;i<23;i++)animation.update(n,i/60,1/60,1.4);
+  const phase=animation.action.time/clips[1].duration;
+  animation.update(n,1,0,3.4);assert.equal(animation.action.getClip(),clips[2]);
+  assert.ok(Math.abs(animation.action.time/clips[2].duration-phase)<1e-9,'run starts on the matching stride phase');
+  for(const speed of [3.05,2.95,3.1,2.8]){animation.update(n,1.1,.01,speed);assert.equal(animation.action.getClip(),clips[2]);}
+  animation.update(n,2,.01,2.5);assert.equal(animation.action.getClip(),clips[1]);
+  animation.update(n,3,.01,0);assert.equal(animation.action.getClip(),clips[0]);
+  assert.ok(model.quaternion.toArray().every(Number.isFinite));animation.dispose();
 });
 
 for(const file of ['tirana-streets/population/citizen-0.glb','tirana-streets/population/citizen-7.glb','table-tennis/chess-human.glb','table-tennis/athlete-male.glb','table-tennis/athlete-female.glb','tirana-streets/living/human.glb'])test(`${file}: actual rig walks upright and transitions between run, aim, reload and idle`,async()=>{

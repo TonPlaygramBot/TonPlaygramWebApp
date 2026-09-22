@@ -1,4 +1,6 @@
 import {GraphicsControl} from '../GraphicsControl';
+import {MovementStick} from '../MovementStick';
+import {DEFAULT_SETTINGS} from './settings';
 import {LiveHud} from '../LiveHud';
 import {OpticalSight} from '../OpticalSight';
 import {touchAction} from '../touchActions';
@@ -15,8 +17,7 @@ import {
   campaign,
   type StreetView
 } from './StreetCareerRuntime';
-import { screenStick } from './humanRoster.mjs';
-import { CityMap } from '../map/CityMap';
+import { CityMap } from '../map/MapPanel';
 import { StreetArsenal } from './StreetArsenal';
 import {WeaponSwitcher} from '../WeaponSwitcher';
 import {FrameRateControl} from '../FrameRateControl';
@@ -41,9 +42,7 @@ export function StreetCareerGame({ onExit }: { onExit: () => void }) {
     [panel, setPanel] = useState<Panel>(null),
     [error, setError] = useState(''),
     [loading, setLoading] = useState('Loading Tirana'),
-    [difficulty, setDifficulty] = useState('normal'),
-    [stick, setStick] = useState({ x: 0, y: 0 });
-  const stickId = useRef<number | null>(null);
+    [difficulty, setDifficulty] = useState('normal');
   const [session, setSession] = useState(0);
   useEffect(() => {
     setError('');
@@ -96,16 +95,7 @@ export function StreetCareerGame({ onExit }: { onExit: () => void }) {
       d?.close();
     };
   }, [panel]);
-  const reset = () => {
-    if (stickId.current !== null)
-      runtime.current?.input.pointerUp(stickId.current);
-    stickId.current = null;
-    setStick({ x: 0, y: 0 });
-    if (runtime.current) {
-      runtime.current.input.touch.x = 0;
-      runtime.current.input.touch.y = 0;
-    }
-  };
+  const reset = () => runtime.current?.input.releaseAll();
   const open = (p: Panel) => {
     runtime.current?.pause();
     reset();
@@ -120,23 +110,6 @@ export function StreetCareerGame({ onExit }: { onExit: () => void }) {
   const start = (id: string) => {
     if (runtime.current?.start(id, difficulty)) setPanel(null);
   };
-  const drag = (e: PE<HTMLDivElement>) => {
-    if (!runtime.current || view?.paused) return;
-    const b = e.currentTarget.getBoundingClientRect(),
-      s = screenStick(
-        e.clientX - b.left - b.width / 2,
-        e.clientY - b.top - b.height / 2
-      );
-    runtime.current.input.touch.x = s.x;
-    runtime.current.input.touch.y = s.y;
-    setStick({ x: s.x * 35, y: -s.y * 35 });
-  };
-  useEffect(() => {
-    if (view?.paused) {
-      stickId.current = null;
-      setStick({ x: 0, y: 0 });
-    }
-  }, [view?.paused]);
   const pointer = (kind: string) => ({
     onPointerDown: (e: PE<HTMLElement>) => {
       e.preventDefault();
@@ -193,7 +166,7 @@ export function StreetCareerGame({ onExit }: { onExit: () => void }) {
     target = mission?.stops[p?.index || 0];
   return (
     <main
-      className={`tsc ${driving?'is-driving':flying?'is-flying':'is-on-foot'}`}
+      className={`tsc ${driving?'is-driving':flying?'is-flying':'is-on-foot'}${view?.settings.leftHanded?' is-left-handed':''}`}
       style={
         {
           '--action-size': `${view?.settings.buttonSize || 54}px`,
@@ -224,7 +197,7 @@ export function StreetCareerGame({ onExit }: { onExit: () => void }) {
         </div>
       )}
       {!view?.ready && !failure && <div className="tsc-loading" role="status">{loading}…</div>}
-      {view && p && !panel && !failure && (
+      {view?.ready && p && !panel && !failure && (
         <>
           {mission && <section className="tsc-objective">
             <small>{mission?.title || 'FREE ROAM'}</small>
@@ -263,45 +236,16 @@ export function StreetCareerGame({ onExit }: { onExit: () => void }) {
             })]}
             onSelect={id => runtime.current?.action(`equip:${id}`) ?? false}
           />}
-          <div
-            className="tsc-stick"
-            role="group"
-            aria-label={flying ? 'Aircraft steering and throttle' : driving ? 'Steer left or right' : 'Movement joystick'}
-            onPointerDown={(e) => {
-              if (stickId.current !== null) return;
-              e.preventDefault();
-              if (
-                !runtime.current?.input.pointerDown(
-                  e.pointerId,
-                  'move',
-                  e.clientX,
-                  e.clientY
-                )
-              )
-                return;
-              stickId.current = e.pointerId;
-              e.currentTarget.setPointerCapture(e.pointerId);
-              drag(e);
-            }}
-            onPointerMove={(e) => {
-              if (stickId.current === e.pointerId) drag(e);
-            }}
-            onPointerUp={(e) => {
-              if (stickId.current === e.pointerId) reset();
-            }}
-            onPointerCancel={(e) => {
-              if (stickId.current === e.pointerId) reset();
-            }}
-            onLostPointerCapture={(e) => {
-              if (stickId.current === e.pointerId) reset();
-            }}
-          >
-            <span style={{ transform: `translate(${stick.x}px,${stick.y}px)` }}>
-              ↑
-            </span>
+          <MovementStick className="tsc-stick"
+            label={flying ? 'Aircraft steering and throttle' : driving ? 'Steer left or right' : 'Movement joystick'}
+            disabled={view.paused || !view.ready || !!failure}
+            deadzone={view.settings.joystickDeadzone}
+            claim={(id,x,y)=>runtime.current?.input.pointerDown(id,'move',x,y) ?? false}
+            release={id=>runtime.current?.input.pointerUp(id)}
+            move={(x,y)=>{if(runtime.current){runtime.current.input.touch.x=x;runtime.current.input.touch.y=y;}}}>
             {!driving && !flying && <button className="ts-joystick-sprint" aria-label="Toggle sprint" aria-pressed={view.body.sprint}
               {...touchAction(()=>{runtime.current?.action('sprint');})}>SPRINT {view.body.sprint?'ON':'OFF'}</button>}
-          </div>
+          </MovementStick>
           {view.body.aim && !view.body.action && view.body.wall>=.8 && !driving && !flying && weaponAnchors(p.weapon).zoom>1 ? <OpticalSight zoom={weaponAnchors(p.weapon).zoom}/> : <div
             className={'tsc-reticle' + (view.body.aim ? ' is-aim' : '')}
             aria-label="Aim reticle"
@@ -370,10 +314,13 @@ export function StreetCareerGame({ onExit }: { onExit: () => void }) {
                 view.actions.find((a) => a.id === 'interact')?.disabledReason}
             </p>
           )}
+          {view.settings.showPerformance && <output className="tsc-performance" aria-label="Performance statistics">
+            {view.fps} FPS · p95 {view.metrics.p95} ms<br/>{view.metrics.drawCalls} draws · {Math.round(view.metrics.triangles/1000)}k triangles
+          </output>}
           <footer>
             {flying ? `${aircraft?.kind === 'jet' ? 'Fighter jet' : 'Helicopter'} · ${Math.round(aircraft?.y || 0)} m · ${Math.round(p.speed * 3.6)} km/h` : driving
-              ? 'Steer: left stick · Pedals: right'
-              : 'Move: left stick · Look: right drag'}
+              ? `Steer: ${view.settings.leftHanded?'right':'left'} stick · Pedals: ${view.settings.leftHanded?'left':'right'}`
+              : `Move: ${view.settings.leftHanded?'right':'left'} stick · Look: drag the view`}
             {!driving && !flying && p.weapon && (
               <small>
                 {WEAPON_BY_ID.get(p.weapon)?.label} ·{' '}
@@ -427,7 +374,8 @@ export function StreetCareerGame({ onExit }: { onExit: () => void }) {
                       <h3>Graphics & performance</h3>
                       <FrameRateControl value={view.settings.targetFps} onChange={targetFps => runtime.current?.setSettings({targetFps})}/>
                       <GraphicsControl value={view.settings.quality} resolved={runtime.current?.renderer.quality} onChange={quality=>runtime.current?.setSettings({quality})} />
-                      <p>{view.fps} FPS · Wider city view with nearby detail.</p>
+                      <p>{view.fps} FPS · {view.metrics.p95} ms frame time (95th percentile)</p>
+                      <label>Show performance <input type="checkbox" checked={view.settings.showPerformance} onChange={e=>runtime.current?.setSettings({showPerformance:e.target.checked})}/></label>
                     </section>
                     <p>
                       Explore on foot, steal a ride or fly. Complete jobs to unlock
@@ -536,20 +484,30 @@ export function StreetCareerGame({ onExit }: { onExit: () => void }) {
                         WASD / arrows · Mouse drag to look · F fire · Space jump
                         · C crouch · Shift sprint · Z aim · V kick · B guard · E
                         interact · R reload · H draw / holster · Esc pause.
-                        Aircraft: left stick steers and controls speed; UP climbs,
+                        Aircraft: steering stick controls direction and speed; UP climbs,
                         DOWN descends. Land and stop to exit and rearm. Drag to aim missiles.
                       </p>
+                      <label>Control layout <select aria-label="Control layout" value={view.settings.leftHanded?'left':'standard'} onChange={e=>runtime.current?.setSettings({leftHanded:e.target.value==='left'})}>
+                        <option value="standard">Move left · Actions right</option><option value="left">Move right · Actions left</option>
+                      </select></label>
+                      <button onClick={()=>runtime.current?.setSettings({...DEFAULT_SETTINGS})}>Reset settings</button>
                       {(
                         [
                           'fov',
                           'sensitivity',
+                          'aimSensitivity',
+                          'joystickDeadzone',
                           'buttonSize',
+                          'opacity',
+                          'shake',
                           'volume'
                         ] as const
                       ).map((key) => {
                         const names = {
                           fov: 'Field of view',
                           sensitivity: 'Look sensitivity',
+                          aimSensitivity: 'Aim sensitivity',
+                          joystickDeadzone: 'Joystick dead zone',
                           headBob: 'Head bob',
                           shake: 'Camera shake',
                           buttonSize: 'Button size',
@@ -559,6 +517,8 @@ export function StreetCareerGame({ onExit }: { onExit: () => void }) {
                         const bounds = {
                           fov: [60, 90, 1],
                           sensitivity: [0.4, 2, 0.1],
+                          aimSensitivity: [0.2, 1.2, 0.05],
+                          joystickDeadzone: [0, 0.25, 0.01],
                           headBob: [0, 1, 0.1],
                           shake: [0, 1, 0.1],
                           buttonSize: [48, 64, 2],

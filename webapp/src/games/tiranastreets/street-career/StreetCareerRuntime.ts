@@ -23,7 +23,7 @@ import {
 } from './StreetSimulation.mjs';
 import { captureCheckpoint, restoreCheckpoint } from './checkpointCore.mjs';
 import { loadSettings, type StreetSettings } from './settings';
-import {FramePacer, targetFps} from '../renderSettings';
+import {FramePacer} from '../renderSettings';
 import {WORLD} from '../shared/world.mjs';
 import {buildMapGraph,findMapRoute} from '../map/mapCore.mjs';
 type Destination = Point & {name:string;id?:string;available?:boolean};
@@ -279,8 +279,7 @@ export class StreetCareerRuntime {
     this.emit();
   }
   setSettings(patch: Partial<StreetSettings>) {
-    Object.assign(this.settings, patch);
-    this.settings.targetFps = targetFps(this.settings.targetFps);
+    this.settings = loadSettings({getItem:()=>JSON.stringify({...this.settings,...patch})});
     if (patch.quality) this.renderer.setQuality(this.settings.quality);
     this.renderer.targetFps = this.settings.targetFps;
     this.renderer.settings = this.settings;
@@ -409,7 +408,7 @@ export class StreetCareerRuntime {
     this.renderDelta = Math.min(.15, this.renderDelta + dt);
     // The loading overlay covers the scene. Drawing it early starts optional NPC,
     // vehicle and landmark work before the selected body/weapon can finish loading.
-    if (this.ready && !document.hidden && !this.graphicsError && this.renderPacer.shouldRender(now, this.settings.targetFps)) {
+    if (this.ready && !document.hidden && !this.graphicsError && this.renderPacer.shouldRender(now, this.paused ? 15 : this.settings.targetFps)) {
       this.renderer.render(this.state, 'local', this.paused ? 0 : this.renderDelta, false);
       this.renderDelta = 0;
     }

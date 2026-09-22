@@ -28,6 +28,9 @@ export class SharedHumans {
   private dead=false;private held=new LivingVisuals();
   private signs=new Map<string,T.SpriteMaterial>();
   private loader=new GLTFLoader();
+  private frustum=new T.Frustum();
+  private projection=new T.Matrix4();
+  private bounds=new T.Sphere(new T.Vector3(),2.4);
   constructor(private cast:readonly SharedAsset[]=SHARED_GAME_CAST){
     this.group.name='Tirana:shared-games-human-NPCs';
     this.primeLocalHumans();
@@ -123,8 +126,9 @@ export class SharedHumans {
   private pose(a:Actor,n:NPC,time:number,dt:number){
     a.animation.update(n,time,dt,a.gaitSpeed);
   }
-  update(npcs:readonly NPC[],viewer:Point,time:number,dt:number,battery=false){
+  update(npcs:readonly NPC[],viewer:Point,time:number,dt:number,battery=false,camera?:T.Camera){
     if(this.dead)return;const selected=nearbyHumans(npcs,viewer,battery),available=typeof navigator!=='undefined'&&navigator.onLine===false?this.cast.filter(a=>a.url.startsWith('/')):this.cast,keep=new Set(selected.map(n=>n.id));
+    if(camera){camera.updateMatrixWorld();this.projection.multiplyMatrices(camera.projectionMatrix,camera.matrixWorldInverse);this.frustum.setFromProjectionMatrix(this.projection);}
     for(const [id] of this.actors)if(!keep.has(id))this.remove(id);
     for(const n of selected){
       const role=actorRole(n.kind);
@@ -144,18 +148,26 @@ export class SharedHumans {
       let a=this.actors.get(n.id);if(a&&(a.asset!==asset.id||a.role!==actorRole(n.kind))){this.remove(n.id);a=undefined;}
       a ||= this.create(n,asset,source);
       const first=!a.placed,distance=Math.hypot(n.x-viewer.x,n.z-viewer.z);
-      const measured=!a.placed||dt<=0?0:Math.min(10,Math.hypot(n.x-a.root.position.x,n.z-a.root.position.z)/dt);
+      const measured=n.health<=0?0:Math.min(10,Math.abs(n.speed||0));
       a.gaitSpeed+=(measured-a.gaitSpeed)*(1-Math.exp(-Math.max(0,dt)*12));a.placed=true;
-      a.root.position.set(n.x,(n.y??groundHeight(n.x,n.z))+(n.motion==='cycle'?-.18:n.anim==='cover'||n.anim==='crouch'?-.24:.06),n.z);if(n.health<=0)a.deathAt??=time;else a.deathAt=undefined;
+      const alpha=first||dt<=0||Math.hypot(n.x-a.root.position.x,n.z-a.root.position.z)>12?1:1-Math.exp(-dt*18);
+      a.root.position.x+=(n.x-a.root.position.x)*alpha;a.root.position.z+=(n.z-a.root.position.z)*alpha;
+      a.root.position.y=(n.y??groundHeight(a.root.position.x,a.root.position.z))+(n.motion==='cycle'?-.18:n.anim==='cover'||n.anim==='crouch'?-.24:.06);
+      if(n.health<=0)a.deathAt??=time;else a.deathAt=undefined;
       const fall=a.deathAt===undefined?0:Math.min(1,(time-a.deathAt)/.6);
-      a.root.rotation.set(-Math.PI/2*fall*fall*(3-2*fall),n.heading+Math.PI,0);
+      const yaw=first?n.heading+Math.PI:a.root.rotation.y+Math.atan2(Math.sin(n.heading+Math.PI-a.root.rotation.y),Math.cos(n.heading+Math.PI-a.root.rotation.y))*alpha;
+      a.root.rotation.set(-Math.PI/2*fall*fall*(3-2*fall),yaw,0);
       a.label.visible=n.health>0&&distance<18;
-      a.poseTime+=Math.max(0,dt);
+      this.bounds.center.copy(a.root.position);this.bounds.center.y+=1;
+      // The host updates the eye camera later in this frame. Use its previous
+      // frustum only to budget animation, never to hide a newly revealed person.
+      const onScreen=!camera||distance<4||this.frustum.intersectsSphere(this.bounds);
+      a.poseTime=Math.min(.15,a.poseTime+Math.max(0,dt));
       // Keep motion and interactions immediate near the player; sample distant
       // skeletons less often while preserving every original mesh and texture.
-      if(n.health>0&&(first||distance<35||a.poseTime>=(distance<90?.05:.1))){this.pose(a,n,time,a.poseTime);a.poseTime=0;}
+      if(n.health>0&&(first||onScreen&&(distance<35||a.poseTime>=(distance<90?.05:.1)))){this.pose(a,n,time,a.poseTime);a.poseTime=0;}
       if(n.anim==='hit')a.root.rotation.z=Math.sin((time-(n.hitUntil||time)+.38)*18)*.13;
-      this.held.pose(`shared-${n.id}`,a.root,n,time);
+      if(first||onScreen)this.held.pose(`shared-${n.id}`,a.root,n,time);
 
     }
   }

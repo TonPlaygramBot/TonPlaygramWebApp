@@ -1,4 +1,5 @@
 import { FORCE_VEHICLE_BOUNDS,FORCE_ASSET_BY_ID } from './albanianForces.mjs';
+import {scheduledActorStep} from './actorSchedule.mjs';
 import { forceWeaponFor } from './uploadedWeapons.mjs';
 import { TrafficGrid, trafficDecision, trafficLanePoints } from './trafficSimulation.mjs';
 
@@ -122,11 +123,18 @@ export function updatePolicePatrols(state,dt,env,grids) {
   dispatchPolice(state,env);
   const vehicles=grids?.vehicles||new TrafficGrid([...state.cars,...state.traffic,...state.units]);
   const people=grids?.people||new TrafficGrid(state.npcs.filter(n=>n.motion!=='drive'&&n.health>0));
+  const crewByUnit=new Map(),players=Object.values(state.players);
+  for(const n of state.npcs)if(n.unit&&n.health>0){
+    let crew=crewByUnit.get(n.unit);if(!crew)crewByUnit.set(n.unit,crew=[]);crew.push(n);
+  }
   for(const u of state.units){
     if(u.driver!=='npc')continue;
     if(u.destroyed||u.burning){u.speed=0;continue;}
-    const crew=state.npcs.filter(n=>n.unit===u.id&&n.health>0);
+    const crew=crewByUnit.get(u.id)||[];
     if(!crew.length){u.speed=0;u.responding=false;continue;}
+    const close=!!u.target||players.some(p=>(p.x-u.x)**2+(p.z-u.z)**2<320**2);
+    const stepDt=scheduledActorStep(u,state.elapsed,dt,close?0:.2);
+    if(!stepDt)continue;
     const actual=state.players[u.target];
     const seen=actual&&distance(u,actual)<85&&env.clear(u,actual);
     if(seen){u.lastSeen={x:actual.x,z:actual.z};u.lastSeenAt=state.elapsed;u.duty='responding';}
@@ -159,13 +167,13 @@ export function updatePolicePatrols(state,dt,env,grids) {
     const dx=goalPoint.x-u.x,dz=goalPoint.z-u.z,d=Math.hypot(dx,dz);
     if(d<.3){u.pathIndex++;continue;}
     const desired=Math.atan2(-dx,-dz);
-    u.heading+=Math.atan2(Math.sin(desired-u.heading),Math.cos(desired-u.heading))*Math.min(1,dt*4);
+    u.heading+=Math.atan2(Math.sin(desired-u.heading),Math.cos(desired-u.heading))*Math.min(1,stepDt*4);
     u.cruise=u.target?12:7;
     const decision=trafficDecision(u,vehicles.near(u.x,u.z,45),people.near(u.x,u.z,30),state.elapsed);
     const before=u.speed||0,target=Math.min(decision.target,Math.sqrt(2.8*d+3));
-    u.speed=Math.max(0,before+Math.max(-6*dt,Math.min(2.4*dt,target-before)));
-    const step=Math.min(d,u.speed*dt,Math.max(0,decision.gap));
-    u.vx=dx/d*step/dt;u.vz=dz/d*step/dt;u.x+=dx/d*step;u.z+=dz/d*step;
+    u.speed=Math.max(0,before+Math.max(-6*stepDt,Math.min(2.4*stepDt,target-before)));
+    const step=Math.min(d,u.speed*stepDt,Math.max(0,decision.gap));
+    u.vx=dx/d*step/stepDt;u.vz=dz/d*step/stepDt;u.x+=dx/d*step;u.z+=dz/d*step;
     u.braking=u.speed<before;u.trafficReason=decision.reason;
     if(step>=d-.05)u.pathIndex++;
   }

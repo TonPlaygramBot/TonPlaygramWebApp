@@ -6,13 +6,19 @@ import {poseHumanoidHandGrip} from './humanoidHands.mjs';
 
 const clamp=T.MathUtils.clamp;
 const alreadyReset=()=>{};
+const clipNames={idle:/^(idle|standingidle|breathingidle)$/,walk:/^(walk|walking|walkforward)$/,run:/^(run|running|jog|jogging|runforward)$/};
+export function locomotionClips(clips){
+  const result={};
+  for(const kind of ['idle','walk','run'])result[kind]=clips.find(c=>clipNames[kind].test(c.name.toLowerCase().split('|').at(-1).replace(/[^a-z]/g,'')));
+  return result;
+}
 
 /** Keep authored clips on their own skeleton. Unanimated avatars use measured
  * limb lengths and world-space IK, never guessed local bone rotation axes. */
 export class HumanoidAnimation {
   constructor(root,model,clips=[]) {
     this.root=root;this.model=model;this.clips=clips;this.mixer=new T.AnimationMixer(model);
-    this.motion='';this.action=undefined;this.gait=0;
+    this.motion='';this.action=undefined;this.gait=0;this.locomotion=locomotionClips(clips);this.running=false;
     this.rests=new Map();
     model.traverse(bone=>{if(bone.isBone)this.rests.set(bone,{q:bone.quaternion.clone(),p:bone.position.clone(),s:bone.scale.clone()});});
     root.updateMatrixWorld(true);
@@ -40,14 +46,23 @@ export class HumanoidAnimation {
   update(n,time,dt,speed=Math.abs(n.speed||0)) {
     dt=clamp(Number.isFinite(dt)?dt:0,0,.1);
     speed=clamp(Number.isFinite(speed)?speed:0,0,10);
-    const cycle=n.motion==='cycle',cover=n.anim==='cover'||n.anim==='crouch',moving=speed>.12&&!cycle,
-      running=moving&&(n.anim==='run'||speed>3),base=moving?(running?'run':'walk'):'idle';
+    const cycle=n.motion==='cycle',cover=n.anim==='cover'||n.anim==='crouch',moving=speed>.12&&!cycle;
+    // Hysteresis avoids rapid walk/run restarts near the transition speed.
+    this.running=moving&&(n.anim==='run'||speed>(this.running?2.6:3.2));
+    const running=this.running,base=moving?(running?'run':'walk'):'idle';
     // Aim, reload and hit are upper-body layers; locomotion continues underneath.
-    const clip=!cycle&&!cover&&(this.clips.find(c=>c.name.toLowerCase()===base)||
-      (running?this.clips.find(c=>c.name.toLowerCase()==='walk'):undefined));
+    const clip=!cycle&&!cover&&(this.locomotion[base]||(running?this.locomotion.walk:undefined));
     const motion=clip?clip.name:'procedural';
     if(this.motion!==motion){
-      if(clip){this.action?.fadeOut(.16);this.action=this.mixer.clipAction(clip).reset().fadeIn(.16).play();}
+      if(clip){
+        const previous=this.action,phase=previous&&moving?previous.time/previous.getClip().duration:0;
+        previous?.fadeOut(.2);
+        this.action=this.mixer.clipAction(clip).reset();
+        // Retain the planted foot through walk/run blends instead of resetting
+        // both legs to the first frame every time speed crosses a threshold.
+        this.action.time=(phase%1)*clip.duration;
+        this.action.fadeIn(.2).play();
+      }
       else {this.mixer.stopAllAction();this.action=undefined;}
       this.motion=motion;
     }
@@ -55,7 +70,7 @@ export class HumanoidAnimation {
     // last frame's weapon pose and animation transitions gradually twist them.
     this.reset();
     if(this.action){
-      this.action.setEffectiveTimeScale(moving?clamp(speed/(running&&clip.name.toLowerCase()==='run'?4.5:1.4),.4,2.2):1);
+      this.action.setEffectiveTimeScale(moving?clamp(speed/(clip===this.locomotion.run?4.5:1.4),.4,2.2):1);
       this.mixer.update(dt);
     }
     this.gait+=dt*(cycle?7:clamp(speed*3.6,0,13));

@@ -1,11 +1,12 @@
 import {createInstitutionGuards} from './institutionGuards.mjs';
+import {scheduledActorStep} from './actorSchedule.mjs';
 import {createTrafficOfficers,directTraffic} from './junctionControl.mjs';
 import {initPoliceDispatch,updatePolicePatrols} from './policeDispatch.mjs';
 import {pedestrianIntent} from './pedestrianBehavior.mjs';
 import {registerPedestrianDefense,pedestrianDefenseIntent} from './pedestrianDefense.mjs';
 import {steerNPC,friendlyInFiringLane} from './npcNavigation.mjs';
 import {createFootPatrols} from './patrols.mjs';
-import {vehicleSize,TrafficGrid} from './trafficSimulation.mjs';
+import {vehicleSize,citySpatialGrids} from './trafficSimulation.mjs';
 import { CITY_POPULATION, initCityPopulation, nearestShop, dropWeapon, collectWeapon } from './cityPopulation.mjs';
 import { WEAPON_BY_ID, STARTER_WEAPON, ensureStarterWeapons, difficultyOf } from "./weapons.mjs";
 import {forceWeaponFor} from './uploadedWeapons.mjs';
@@ -460,16 +461,12 @@ export function updateCityLife(state, dt, env, mission) {
     p.searching = p.wanted > 0 && !visible;
     p.heat = wantedStars(p.wanted) / 5;
   }
-  const vehicleGrid=new TrafficGrid([...state.cars,...state.traffic,...state.units]);
-  const peopleGrid=new TrafficGrid(state.npcs.filter(n=>n.health>0&&n.motion!=='drive'));
+  const {vehicles:vehicleGrid,people:peopleGrid}=citySpatialGrids(state);
   updatePolicePatrols(state,dt,env,{vehicles:vehicleGrid,people:peopleGrid});
   for (const n of state.npcs) {
-    let npcDt=dt;
-    if((n.kind==='civilian'||n.patrol||n.guardPost) && !players.some(p=>(p.x-n.x)**2+(p.z-n.z)**2<180*180)){
-      n.lifeAccumulator=(n.lifeAccumulator||0)+dt;
-      if(n.lifeAccumulator<.4)continue;
-      npcDt=n.lifeAccumulator;n.lifeAccumulator=0;
-    }
+    const distant=(n.kind==='civilian'||n.patrol||n.guardPost) && !players.some(p=>(p.x-n.x)**2+(p.z-n.z)**2<180*180);
+    const npcDt=scheduledActorStep(n,state.elapsed,dt,distant?.4:0);
+    if(!npcDt)continue;
     if (n.health <= 0) {
       n.speed = 0;
       if (n.kind === "civilian" && state.elapsed > n.downUntil) {
@@ -488,7 +485,15 @@ export function updateCityLife(state, dt, env, mission) {
       return Math.hypot(probe.x-b.x,probe.z-b.z)<.01;
     };
     const navigate=n.kind!=='civilian'||players.some(p=>(p.x-n.x)**2+(p.z-n.z)**2<140**2);
-    const walkTo=(goal,speed)=>env.along(n,navigate?steerNPC(n,goal,walkClear,state.elapsed):goal,speed,npcDt);
+    const walkTo=(goal,speed,radius=.45)=>{
+      const x=n.x,z=n.z,arrived=env.along(n,navigate?steerNPC(n,goal,walkClear,state.elapsed):goal,speed,npcDt);
+      env.collide(n,radius);
+      // Rendered gait follows movement after collision, including scheduled
+      // distant steps. Depenetration cannot accelerate the intended stride.
+      const measured=Math.hypot(n.x-x,n.z-z)/npcDt;
+      n.speed=Number.isFinite(measured)?Math.min(speed,measured):0;
+      return arrived;
+    };
     if (n.kind === "civilian") {
       const defense=pedestrianDefenseIntent(n,state,env.clear);
       if(defense){
@@ -499,7 +504,7 @@ export function updateCityLife(state, dt, env, mission) {
       }
       const intent=pedestrianIntent(n,state,vehicleGrid.near(n.x,n.z,25),peopleGrid.near(n.x,n.z,3),env.world);
       n.speed=0;
-      if(intent.speed>0){walkTo(intent.goal,intent.speed);env.collide(n,.4);}
+      if(intent.speed>0)walkTo(intent.goal,intent.speed,.4);
       n.anim=intent.anim;
       const car = state.cars.find(
         (c) => {const size=vehicleSize(c),dx=n.x-c.x,dz=n.z-c.z;
@@ -524,7 +529,7 @@ export function updateCityLife(state, dt, env, mission) {
       const incident=state.players[assignedUnit.target];
       const mustRide=!n.deployed&&(!incident||dist(assignedUnit,incident)>23||Math.abs(assignedUnit.speed)>.5);
       if(assignedUnit.regroup&&n.deployed&&!assignedUnit.destroyed&&!assignedUnit.burning){
-        n.speed=0;walkTo(assignedUnit,3.2);env.collide(n,.45);n.anim='run';
+        n.speed=0;walkTo(assignedUnit,3.2);n.anim='run';
         if(dist(n,assignedUnit)<3){n.deployed=false;n.motion='drive';}
         continue;
       }
@@ -545,8 +550,8 @@ export function updateCityLife(state, dt, env, mission) {
     if(actual&&env.officerAction?.(n,actual,npcDt,env))continue;
     const p = actual && env.track ? env.track(n, actual) : actual;
     if (!p) {
-      if(n.guardPost){if(dist(n,n.guardPost)>1){walkTo(n.guardPost,1.45);env.collide(n,.45);n.anim='walk';}else{n.speed=0;n.anim='idle';n.heading=n.guardPost.heading;}}
-      else if(n.patrol&&n.path?.length){walkTo(n.path[n.pathIndex],1.45);env.collide(n,.45);n.anim='walk';if(dist(n,n.path[n.pathIndex])<.6)n.pathIndex=1-n.pathIndex;}
+      if(n.guardPost){if(dist(n,n.guardPost)>1){walkTo(n.guardPost,1.45);n.anim='walk';}else{n.speed=0;n.anim='idle';n.heading=n.guardPost.heading;}}
+      else if(n.patrol&&n.path?.length){walkTo(n.path[n.pathIndex],1.45);n.anim='walk';if(dist(n,n.path[n.pathIndex])<.6)n.pathIndex=1-n.pathIndex;}
       else {n.speed=0;n.anim='idle';}
       continue;
     }
@@ -577,7 +582,7 @@ export function updateCityLife(state, dt, env, mission) {
     const tactic=n.tacticCache;
     n.anim=tactic.anim; n.coverId=tactic.coverId; n.speed=0;
     if(n.anim==='run'||n.anim==='walk') {
-      walkTo(avoidVehicles(n,tactic.goal,cars),n.anim==='run'?3.6:1.45); env.collide(n,.45);
+      walkTo(avoidVehicles(n,tactic.goal,cars),n.anim==='run'?3.6:1.45);
     }
     // Personal space prevents overlapping squad members even while converging.
     for(const other of peopleGrid.near(n.x,n.z,3)) if(other!==n && other.health>0 && other.motion!=='drive') {
