@@ -1,3 +1,4 @@
+import {renderPixelRatio} from './renderSettings';
 import {SkanderbegBuildingLayer} from '../tirana-landmarks/SkanderbegBuildingLayer';
 import {ROCK_REPLACEMENT_IDS} from '../tirana-landmarks/skanderbegBuilding.mjs';
 import {AutomaticGraphics, GRAPHICS_PROFILES, graphicsSetting, type GraphicsPreset, type GraphicsSetting} from './graphicsQuality';
@@ -882,8 +883,6 @@ export class CityRenderer {
   private applyGraphics(preset: GraphicsPreset) {
     this.quality = preset;
     const profile = GRAPHICS_PROFILES[preset];
-    this.dpr = Math.min(window.devicePixelRatio || 1, profile.pixelRatio);
-    this.renderer.setPixelRatio(this.dpr);
     this.renderer.shadowMap.enabled = profile.shadows;
     if(this.sunlight.shadow.mapSize.x !== profile.shadowSize) {
       this.sunlight.shadow.map?.dispose(); this.sunlight.shadow.map = null;
@@ -897,6 +896,8 @@ export class CityRenderer {
       h = this.root.clientHeight || 800;
     this.camera.aspect = w / h;
     this.camera.updateProjectionMatrix();
+    this.dpr=renderPixelRatio(w,h,window.devicePixelRatio||1,GRAPHICS_PROFILES[this.quality].pixelRatio);
+    this.renderer.setPixelRatio(this.dpr);
     this.renderer.setSize(w, h, false);
   }
   render(state: State | null, playerId: string, dt: number, lobby: boolean) {
@@ -904,10 +905,9 @@ export class CityRenderer {
     this.clock += dt;
     const stamp = performance.now();
     const frameSeconds = Math.max(0, (stamp - this.sampleStamp) / 1000);
-    if (frameSeconds > .5) { this.sampleTime = 0; this.frames = 0; }
-    else this.sampleTime += frameSeconds;
+    if (frameSeconds > .5 || dt<=0 || !state || lobby || document.hidden) { this.sampleTime = 0; this.frames = 0; }
+    else { this.sampleTime += frameSeconds; this.frames++; }
     this.sampleStamp = stamp;
-    this.frames++;
     if (this.sampleTime >= 2) {
       this.fps = Math.round(this.frames / this.sampleTime);
       if (this.qualitySetting === 'auto' && this.ready && state && dt>0 && !lobby && !document.hidden &&

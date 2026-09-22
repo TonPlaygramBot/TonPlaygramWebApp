@@ -29,7 +29,7 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: '22'
-      - run: node --test test/tiranaFullBodyCareer.test.mjs test/tiranaStreetCareer.test.mjs test/tiranaStreetCareer.integration.test.mjs test/tiranaCityLife.test.mjs test/tiranaCareerExpansion.test.mjs test/tiranaGameplayOverhaul.test.mjs
+      - run: node --test test/tiranaFullBodyCareer.test.mjs test/tiranaStreetCareer.test.mjs test/tiranaStreetCareer.integration.test.mjs test/tiranaCityLife.test.mjs test/tiranaCareerExpansion.test.mjs test/tiranaGameplayOverhaul.test.mjs test/tiranaMobileRuntime.test.mjs
   application:
     runs-on: ubuntu-latest
     timeout-minutes: 25
@@ -43,6 +43,8 @@ jobs:
           cache: npm
           cache-dependency-path: webapp/package-lock.json
       - run: npm ci --prefix webapp
+      - name: Mobile pointer ownership and framebuffer budget
+        run: npm run test:navigation --prefix webapp -- src/games/tiranastreets/MovementStick.navigation.test.jsx --maxWorkers=1 --minWorkers=1
       - name: Real-rig and pointer-ownership tests
         run: node --test test/tiranaFullBodyPresentation.test.mjs test/tiranaGameplayPresentation.test.mjs test/tiranaPlayerExperience.test.mjs test/tiranaDriverBattlefield.test.mjs
       - name: Character, vehicle, landmark and streaming regressions

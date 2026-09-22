@@ -5,4 +5,4 @@ export function stableActorHash(id:string):number;
 export function actorRole(kind:string):string;
 export function humanFor(entity:Pick<NPC,'id'|'kind'>):HumanAsset;
 export function nearbyHumans(entities:readonly NPC[],viewer:Point,battery?:boolean):NPC[];
-export function screenStick(dx:number,dy:number,radius?:number):{x:number;y:number};
+export function screenStick(dx:number,dy:number,radius?:number,deadzone?:number):{x:number;y:number};

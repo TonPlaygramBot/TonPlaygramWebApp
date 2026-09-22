@@ -15,14 +15,28 @@ export function pedestrianIntent(n,state,nearVehicles,nearPeople,world){
   const time=state.elapsed;
   if(!n.path?.length)return {goal:n,speed:0,anim:'idle'};
   if(n.role==='cafe-guest'&&time>=n.panicUntil)return {goal:n,speed:0,anim:'idle'};
-  const danger=Object.values(state.players).filter(p=>p.health>0&&time-p.lastCrime<10&&distance(n,p)<42)
-    .sort((a,b)=>distance(n,a)-distance(n,b))[0];
+  let danger,nearest=42;
+  for(const p of Object.values(state.players))if(p.health>0&&time-p.lastCrime<10){
+    const d=distance(n,p);if(d<nearest){nearest=d;danger=p;}
+  }
+  // A frightened pedestrian keeps escaping the last observed threat for a
+  // short time instead of instantly turning back when it leaves awareness.
+  if(danger&&time<n.panicUntil)n.fleeMemory={x:danger.x,z:danger.z,until:Math.min(n.panicUntil,time+3)};
+  if(!danger&&n.fleeMemory?.until>time)danger=n.fleeMemory;
+  if(n.fleeMemory&&n.fleeMemory.until<=time)delete n.fleeMemory;
   const panic=time<n.panicUntil&&danger;
   let goal=n.path[n.pathIndex]||n.path[0];
   if(panic){
     const options=n.path.concat(walkJunctions(world).get(`${Math.round(goal.x)}:${Math.round(goal.z)}`)||[]);
     goal=options.reduce((best,p)=>distance(p,danger)>distance(best,danger)?p:best,goal);
     n.behavior='flee';n.restUntil=0;
+    // Reaching a safe waypoint continues along its connected escape route.
+    // Without this, fleeing citizens can remain pinned at one path endpoint.
+    if(distance(n,goal)<.55){
+      const exits=walkJunctions(world).get(`${Math.round(goal.x)}:${Math.round(goal.z)}`)||[];
+      const safer=exits.filter(p=>distance(p,danger)>distance(n,danger)+.5);
+      if(safer.length){const next=safer.reduce((a,b)=>distance(a,danger)>distance(b,danger)?a:b);n.path=[{...goal},{...next}];n.pathIndex=1;goal=next;}
+    }
   }else{
     if(distance(n,goal)<.55){
       n.visits=(n.visits||0)+1;

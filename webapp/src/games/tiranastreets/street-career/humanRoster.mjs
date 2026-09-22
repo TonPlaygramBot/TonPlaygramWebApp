@@ -24,7 +24,11 @@ export function nearbyHumans(entities, viewer, battery=false) {
     .sort((a,b) => Math.hypot(a.x-viewer.x,a.z-viewer.z)-Math.hypot(b.x-viewer.x,b.z-viewer.z) || String(a.id).localeCompare(String(b.id))).slice(0,cap);
 }
 /** Screen-coordinate joystick: right is right; upward displacement is forward. */
-export function screenStick(dx, dy, radius=44) {
+export function screenStick(dx, dy, radius=44, deadzone=0) {
   if (![dx,dy,radius].every(Number.isFinite) || radius <= 0) return {x:0,y:0};
-  const n=Math.max(radius,Math.hypot(dx,dy)); return {x:dx/n,y:-dy/n};
+  const length=Math.hypot(dx,dy),zone=Number.isFinite(deadzone)?Math.max(0,Math.min(.3,deadzone)):0;
+  const amount=Math.min(1,length/radius);
+  if(amount<=zone)return {x:0,y:0};
+  const scaled=(amount-zone)/(1-zone);
+  return {x:dx/length*scaled,y:-dy/length*scaled};
 }

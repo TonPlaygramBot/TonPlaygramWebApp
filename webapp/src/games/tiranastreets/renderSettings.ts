@@ -4,6 +4,14 @@ export function targetFps(value: unknown): TargetFps {
   return FRAME_RATES.includes(value as TargetFps) ? value as TargetFps : 60;
 }
 
+/** Bound the actual framebuffer, not texture quality or city visibility. This
+ * avoids allocating multi-megapixel buffers on large/high-DPI displays. */
+export function renderPixelRatio(width:number,height:number,deviceRatio:number,requestedRatio:number,pixels=2_000_000){
+  const valid=(n:number,fallback:number)=>Number.isFinite(n)&&n>0?n:fallback;
+  return Math.min(valid(deviceRatio,1),valid(requestedRatio,1),
+    Math.sqrt(valid(pixels,2_000_000)/(valid(width,1)*valid(height,1))));
+}
+
 /** Render deadlines retain their remainder on 60/90/120 Hz displays. Physics
  * runs independently; late frames never cause a burst of catch-up renders. */
 export class FramePacer {

@@ -5,7 +5,7 @@ import {Game as OriginalGame} from './baseUi';
 import type {GameEngine} from './engine';
 import {ORIGIN} from './shared/layout.mjs';
 import {WORLD} from '../tiranastreets/shared/world.mjs';
-import {CityMap} from '../tiranastreets/map/CityMap';
+import {CityMap} from '../tiranastreets/map/MapPanel';
 import {buildMapGraph,findMapRoute,type Point} from '../tiranastreets/map/mapCore.mjs';
 import {worldPlayer,sceneRoute,openMapSession} from '../tiranastreets/map/fpsMapBridge.mjs';
 import './cityMapOverlay.css';

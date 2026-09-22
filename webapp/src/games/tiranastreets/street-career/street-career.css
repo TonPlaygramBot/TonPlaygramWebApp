@@ -38,3 +38,15 @@
 .tsc .tsc-header{left:50%;right:auto;transform:translateX(-50%);width:max-content;max-width:100%;display:flex;justify-content:center;gap:6px;background:none;padding:8px 0}
 .tsc-header button{min-width:48px!important;font-size:12px!important}.tsc-objective{top:calc(116px + env(safe-area-inset-top,0px))}.tsc-vitals{display:none}.tsc-tools{top:calc(114px + env(safe-area-inset-top,0px))}
 .tsc-notice{top:calc(172px + env(safe-area-inset-top,0px))}
+
+/* Portrait comfort options preserve screen directions in either control layout. */
+.tsc.is-left-handed .tsc-stick{left:auto;right:18px}
+.tsc.is-left-handed .tsc-actions{right:auto;left:14px}
+.tsc-performance{position:absolute;z-index:3;top:calc(114px + env(safe-area-inset-top,0px));right:10px;padding:6px 9px;border-radius:8px;background:#10232ee8;color:#e5f3ef;font-size:12px;line-height:1.5;font-variant-numeric:tabular-nums;pointer-events:none}
+.tsc-stick>span{will-change:transform;pointer-events:none}
+.tsc-dialog label{flex-wrap:wrap;font-size:14px}
+.tsc-dialog label select{max-width:100%}
+.tsc-dialog input[type=checkbox]{width:24px;height:24px;accent-color:#c4d797}
+.tsc-actions button{font-size:12px}
+.tsc-actions small{font-size:10px}
+@media(max-width:380px){.tsc.is-left-handed .tsc-stick{right:12px}.tsc.is-left-handed .tsc-actions{left:10px}}

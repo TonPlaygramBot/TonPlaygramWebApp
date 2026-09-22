@@ -1,6 +1,6 @@
 import {AutomaticGraphics, GRAPHICS_PROFILES, graphicsSetting, type GraphicsPreset} from '../tiranastreets/graphicsQuality';
 import {opticZoom} from '../tiranastreets/shared/weaponCalibration.mjs';
-import {FramePacer, targetFps} from '../tiranastreets/renderSettings';
+import {FramePacer, targetFps, renderPixelRatio} from '../tiranastreets/renderSettings';
 import { BattlefieldPlayer, BODY_WEAPON } from './BattlefieldPlayer';
 import {advanceBattleObjective} from './shared/missionCore.mjs';
 import {battleGround} from './shared/terrain.mjs';
@@ -309,6 +309,7 @@ export class GameEngine {
     const el = this.renderer.domElement.parentElement!;
     const w = el.clientWidth,
       h = el.clientHeight;
+    this.renderer.setPixelRatio(renderPixelRatio(w,h,window.devicePixelRatio||1,GRAPHICS_PROFILES[this.graphicsPreset].pixelRatio));
     this.renderer.setSize(w, h, false);
     this.camera.aspect = w / Math.max(1, h);
     this.camera.updateProjectionMatrix();
@@ -332,7 +333,6 @@ export class GameEngine {
     this.graphicsPreset = setting === 'auto' ? this.automaticGraphics.preset : setting;
     const profile = GRAPHICS_PROFILES[this.graphicsPreset];
     this.quality = profile.pixelRatio / GRAPHICS_PROFILES.high.pixelRatio;
-    this.renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, profile.pixelRatio));
     this.renderer.shadowMap.enabled = profile.shadows;
     this.scene.traverse(o=>{if(o instanceof THREE.DirectionalLight && o.castShadow && o.shadow.mapSize.x!==profile.shadowSize){o.shadow.map?.dispose();o.shadow.map=null;o.shadow.mapSize.setScalar(profile.shadowSize);o.shadow.needsUpdate=true;}});
     this.world.rain.visible = this.world.rain.userData.enabled !== false && this.graphicsPreset !== 'battery';
@@ -1097,7 +1097,7 @@ export class GameEngine {
     let dt = Math.min(0.075, realDt);
     this.previous = now;
     this.totalTime += dt;
-    if(realDt>.5){this.fpsTime=0;this.fpsFrames=0;}else this.fpsTime += realDt;
+    if(realDt>.5||this.phase!=='playing'||document.hidden){this.fpsTime=0;this.fpsFrames=0;}else this.fpsTime += realDt;
 
     if (this.fpsTime >= 1) {
       this.fps = Math.round(this.fpsFrames / this.fpsTime);
@@ -1120,12 +1120,12 @@ export class GameEngine {
       }
     } else this.accumulator = 0;
     this.renderDelta = Math.min(.15, this.renderDelta + dt);
-    if (document.hidden || !this.renderPacer.shouldRender(now, this.settings.targetFps)) {
+    if (document.hidden || !this.renderPacer.shouldRender(now, this.phase === 'playing' ? this.settings.targetFps : 15)) {
       this.frame = requestAnimationFrame(this.loop);
       return;
     }
     dt = this.renderDelta; this.renderDelta = 0;
-    this.fpsFrames++;
+    if(this.phase==='playing')this.fpsFrames++;
     this.camera.userData.targetFps = this.settings.targetFps;
     if (this.phase === 'menu') {
       this.camera.position.set(

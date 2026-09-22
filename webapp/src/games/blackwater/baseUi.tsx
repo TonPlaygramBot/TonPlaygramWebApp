@@ -988,13 +988,18 @@ function Joystick({ engine }: { engine: GameEngine | null }) {
     if (engine) engine.input.move = { x: 0, y: 0 };
     if (knob.current) knob.current.style.transform = 'translate(0,0)';
   }
-  useEffect(() => () => end(), [engine]);
+  useEffect(() => {
+    const reset=()=>end(),hidden=()=>{if(document.hidden)end();};
+    window.addEventListener('blur',reset);document.addEventListener('visibilitychange',hidden);
+    return()=>{window.removeEventListener('blur',reset);document.removeEventListener('visibilitychange',hidden);end();};
+  }, [engine]);
   return (
     <div
       className="joystick"
       role="group"
       aria-label="Movement joystick"
       onPointerDown={(e) => {
+        if (!engine?.input.active || (e.target as HTMLElement).closest('button')) return;
         e.preventDefault();
         if (active.current !== null) return;
         const r = e.currentTarget.getBoundingClientRect();

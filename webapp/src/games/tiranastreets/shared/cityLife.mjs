@@ -1,11 +1,12 @@
 import {createInstitutionGuards} from './institutionGuards.mjs';
+import {scheduledActorStep} from './actorSchedule.mjs';
 import {createTrafficOfficers,directTraffic} from './junctionControl.mjs';
 import {initPoliceDispatch,updatePolicePatrols} from './policeDispatch.mjs';
 import {pedestrianIntent} from './pedestrianBehavior.mjs';
 import {registerPedestrianDefense,pedestrianDefenseIntent} from './pedestrianDefense.mjs';
 import {steerNPC,friendlyInFiringLane} from './npcNavigation.mjs';
 import {createFootPatrols} from './patrols.mjs';
-import {vehicleSize,TrafficGrid} from './trafficSimulation.mjs';
+import {vehicleSize,citySpatialGrids} from './trafficSimulation.mjs';
 import { CITY_POPULATION, initCityPopulation, nearestShop, dropWeapon, collectWeapon } from './cityPopulation.mjs';
 import { WEAPON_BY_ID, STARTER_WEAPON, ensureStarterWeapons, difficultyOf } from "./weapons.mjs";
 import {forceWeaponFor} from './uploadedWeapons.mjs';
@@ -460,16 +461,12 @@ export function updateCityLife(state, dt, env, mission) {
     p.searching = p.wanted > 0 && !visible;
     p.heat = wantedStars(p.wanted) / 5;
   }
-  const vehicleGrid=new TrafficGrid([...state.cars,...state.traffic,...state.units]);
-  const peopleGrid=new TrafficGrid(state.npcs.filter(n=>n.health>0&&n.motion!=='drive'));
+  const {vehicles:vehicleGrid,people:peopleGrid}=citySpatialGrids(state);
   updatePolicePatrols(state,dt,env,{vehicles:vehicleGrid,people:peopleGrid});
   for (const n of state.npcs) {
-    let npcDt=dt;
-    if((n.kind==='civilian'||n.patrol||n.guardPost) && !players.some(p=>(p.x-n.x)**2+(p.z-n.z)**2<180*180)){
-      n.lifeAccumulator=(n.lifeAccumulator||0)+dt;
-      if(n.lifeAccumulator<.4)continue;
-      npcDt=n.lifeAccumulator;n.lifeAccumulator=0;
-    }
+    const distant=(n.kind==='civilian'||n.patrol||n.guardPost) && !players.some(p=>(p.x-n.x)**2+(p.z-n.z)**2<180*180);
+    const npcDt=scheduledActorStep(n,state.elapsed,dt,distant?.4:0);
+    if(!npcDt)continue;
     if (n.health <= 0) {
       n.speed = 0;
       if (n.kind === "civilian" && state.elapsed > n.downUntil) {

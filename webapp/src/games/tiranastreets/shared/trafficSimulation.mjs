@@ -1,4 +1,5 @@
 import {roundaboutGap} from './junctionControl.mjs';
+import {scheduledActorStep} from './actorSchedule.mjs';
 import {BUS_STOPS} from '../../tirana-street-life/transitData.mjs';
 import {bikeFor,BIKE_TYPES} from './bikeCatalog.mjs';
 import {cornerSpeed} from './drivingScale.mjs';
@@ -8,17 +9,52 @@ import { FORCE_VEHICLE_BOUNDS } from './albanianForces.mjs';
 import { CITY_POPULATION } from './cityPopulation.mjs';
 import { signalsNear, signalPhase } from './streetLayout.mjs';
 const turn=a=>Math.atan2(Math.sin(a),Math.cos(a));
-const key=(x,z)=>`${Math.floor(x/32)},${Math.floor(z/32)}`;
+const cellKey=(x,z)=>x>=-32768&&x<32768&&z>=-32768&&z<32768?x*65536+z:`${x},${z}`;
+const key=(x,z)=>cellKey(Math.floor(x/32),Math.floor(z/32));
 export class TrafficGrid {
   cells=new Map();
   queries=new Map();
-  constructor(actors=[]){for(const a of actors){const k=key(a.x,a.z);let c=this.cells.get(k);if(!c)this.cells.set(k,c=[]);c.push(a);}}
+  cellPool=[];
+  queryPool=[];
+  constructor(actors=[],padding=0){this.padding=padding;this.reset(actors);}
+  reset(...groups){
+    for(const cell of this.cells.values())cell.length=0;
+    for(const query of this.queries.values()){query.length=0;this.queryPool.push(query);}
+    this.queries.clear();
+    for(const actors of groups)for(const a of actors){
+      if(!Number.isFinite(a.x)||!Number.isFinite(a.z))continue;
+      const k=key(a.x,a.z);let cell=this.cells.get(k);
+      if(!cell)this.cells.set(k,cell=this.cellPool.pop()||[]);
+      cell.push(a);
+    }
+    for(const [k,cell] of this.cells)if(!cell.length){this.cells.delete(k);this.cellPool.push(cell);}
+    // Bound idle capacity after a crowded district is left.
+    this.cellPool.length=Math.min(this.cellPool.length,512);
+    this.queryPool.length=Math.min(this.queryPool.length,512);
+    return this;
+  }
   near(x,z,r=48){
+    r+=this.padding;
     const minX=Math.floor((x-r)/32),maxX=Math.floor((x+r)/32),minZ=Math.floor((z-r)/32),maxZ=Math.floor((z+r)/32),query=`${minX}:${maxX}:${minZ}:${maxZ}`;
     const cached=this.queries.get(query);if(cached)return cached;
-    const result=[];for(let ix=minX;ix<=maxX;ix++)for(let iz=minZ;iz<=maxZ;iz++){const c=this.cells.get(`${ix},${iz}`);if(c)for(const a of c)result.push(a);}
+    const result=this.queryPool.pop()||[];for(let ix=minX;ix<=maxX;ix++)for(let iz=minZ;iz<=maxZ;iz++){const c=this.cells.get(cellKey(ix,iz));if(c)for(const a of c)result.push(a);}
     this.queries.set(query,result);return result;
   }
+}
+const trafficGrids=new WeakMap();
+/** Broad phase is refreshed at 20 Hz. Three metres of extra cell coverage
+ * covers 60 m/s between rebuilds; narrow-phase tests always use live poses.
+ * Array membership changes and time rewinds invalidate immediately. */
+export function citySpatialGrids(state){
+  let grids=trafficGrids.get(state);
+  if(!grids){grids={vehicles:new TrafficGrid([],3),people:new TrafficGrid([],3),time:-Infinity,count:0};trafficGrids.set(state,grids);}
+  const count=state.cars.length+state.traffic.length+state.units.length+state.npcs.length+Object.keys(state.players).length;
+  if(state.elapsed-grids.time>=.05-1e-8||state.elapsed<grids.time||count!==grids.count||grids.cars!==state.cars||grids.traffic!==state.traffic||grids.npcs!==state.npcs||grids.units!==state.units){
+    grids.vehicles.reset(state.cars,state.traffic,state.units);
+    grids.people.reset(state.npcs,Object.values(state.players));
+    grids.time=state.elapsed;grids.count=count;grids.cars=state.cars;grids.traffic=state.traffic;grids.npcs=state.npcs;grids.units=state.units;
+  }
+  return grids;
 }
 const sizeCache=new WeakMap();
 export function vehicleSize(car){
@@ -132,21 +168,16 @@ export function trafficDecision(car,vehicles,pedestrians,time){
   }
   return {gap,reason,target:Math.min(car.cruise,Math.sqrt(Math.max(0,gap)*6))};
 }
-/** 20 Hz fixed traffic integration. World actors persist; expensive render rigs do not. */
+/** Staggered 20 Hz nearby / 5 Hz distant traffic. All actors persist. */
 export function updateTraffic(state,dt,onImpact){
-  state.trafficAccumulator=(state.trafficAccumulator||0)+dt;
-  if(state.trafficAccumulator<.05-1e-8)return;
-  const tick=.05;state.trafficAccumulator-=tick;
-  const g=roadGraph(),vehicles=new TrafficGrid([...state.cars,...state.traffic,...state.units]);
-  const people=new TrafficGrid([...state.npcs,...Object.values(state.players)]);
+  const {vehicles,people}=citySpatialGrids(state),g=roadGraph();
   const viewers=Object.values(state.players);
   state.junctionReservations??={};
   for(const [id,reservation] of Object.entries(state.junctionReservations))if(state.elapsed>reservation.until)delete state.junctionReservations[id];
   for(const car of state.traffic){
     const close=!viewers.length||viewers.some(p=>(p.x-car.x)**2+(p.z-car.z)**2<320**2);
-    car.simulationAccumulator=(car.simulationAccumulator||0)+tick;
-    if(!close&&car.simulationAccumulator<.2-1e-8)continue;
-    const step=car.simulationAccumulator;car.simulationAccumulator=0;
+    const step=scheduledActorStep(car,state.elapsed,dt,close?.05:.2);
+    if(!step)continue;
     if(car.destroyed||car.burning){car.speed=car.vx=car.vz=0;continue;}
     if(state.elapsed<(car.impactUntil||0)){
       car.x+=(car.vx||0)*step;car.z+=(car.vz||0)*step;
