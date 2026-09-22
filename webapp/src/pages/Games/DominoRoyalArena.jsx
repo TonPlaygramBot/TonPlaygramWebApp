@@ -1,18 +1,17 @@
 import { useEffect } from 'react';
-import { APP_BUILD } from '../../config/buildInfo.js';
 
 import { DOMINO_ROYAL_INLINE_STYLE } from './dominoRoyalTemplate.js';
 import { socket } from '../../utils/socket.js';
-import {
-  createRestoredSeatedHumanActor,
-  applySeatedHumanRightArmIK,
-  applySeatedHumanPose,
-  loadSeatedHumanTemplate
-} from './shared/seatedHumanActors.js';
 
 const INLINE_STYLE_ID = 'domino-royal-inline-style';
 const GAME_SCRIPT_SELECTOR = 'script[data-domino-royal-script="true"]';
-const DOMINO_ROYAL_SCRIPT_VERSION = APP_BUILD;
+const DOMINO_ROYAL_SCRIPT_VERSION = '2026-06-07-online-sync-v66';
+const DOMINO_CHARACTER_PRECONNECT_URLS = Object.freeze([
+  'https://threejs.org',
+  'https://models.readyplayer.me',
+  'https://api.readyplayer.me',
+  'https://avatars.readyplayer.me'
+]);
 
 export default function DominoRoyalArena() {
   useEffect(() => {
@@ -39,16 +38,17 @@ export default function DominoRoyalArena() {
       existingScript.remove();
     }
 
+    window.__DOMINO_ROYAL_ENABLE_SEATED_HUMANS = true;
     window.__DOMINO_ROYAL_SOCKET__ = socket;
-    // The arena itself is loaded as a public ES module. Bridge the shared,
-    // bundled character implementation so Domino uses the exact same restored
-    // models, scale normalization and seated pose as the other royal tables.
-    window.__DOMINO_ROYAL_SEATED_HUMANS__ = {
-      createRestoredSeatedHumanActor,
-      applySeatedHumanRightArmIK,
-      applySeatedHumanPose,
-      loadSeatedHumanTemplate
-    };
+    const characterPreconnectLinks = DOMINO_CHARACTER_PRECONNECT_URLS.map((href) => {
+      const link = document.createElement('link');
+      link.rel = 'preconnect';
+      link.href = href;
+      link.crossOrigin = 'anonymous';
+      link.dataset.dominoRoyalCharacterPreconnect = 'true';
+      document.head.appendChild(link);
+      return link;
+    });
 
     const basePath = import.meta.env.BASE_URL || '/';
     const normalizedBasePath = basePath.endsWith('/') ? basePath : `${basePath}/`;
@@ -56,6 +56,7 @@ export default function DominoRoyalArena() {
     script.type = 'module';
     script.src = `${normalizedBasePath}domino-royal-game.js?v=${DOMINO_ROYAL_SCRIPT_VERSION}`;
     script.dataset.dominoRoyalScript = 'true';
+    script.dataset.dominoRoyalSeatedHumans = 'true';
     script.onload = () => {
       if (statusNode) {
         statusNode.textContent = 'Ready';
@@ -73,8 +74,9 @@ export default function DominoRoyalArena() {
         window.__dominoRoyalCleanup('react-unmount');
       }
       script.remove();
+      characterPreconnectLinks.forEach((link) => link.remove());
+      delete window.__DOMINO_ROYAL_ENABLE_SEATED_HUMANS;
       delete window.__DOMINO_ROYAL_SOCKET__;
-      delete window.__DOMINO_ROYAL_SEATED_HUMANS__;
       if (appRoot) {
         appRoot.replaceChildren();
       }
@@ -101,6 +103,10 @@ export default function DominoRoyalArena() {
         <div id="configSections" />
       </div>
       <style>{`
+        #app {
+          transform: scale(0.97);
+          transform-origin: center center;
+        }
         #viewToggle {
           position: fixed !important;
           right: calc(0.38rem + env(safe-area-inset-right, 0px)) !important;
@@ -187,8 +193,6 @@ export default function DominoRoyalArena() {
         }
         .seat-badge.is-self .seat-badge-avatar,
         .seat-badge.is-self .seat-badge-core {
-          width: 3.5rem !important;
-          height: 3.5rem !important;
           transform: none !important;
         }
         .seat-badge-name {
@@ -336,7 +340,7 @@ export default function DominoRoyalArena() {
           <div className="gift-cost">
             <span>Cost:</span>
             <span id="giftCost">0</span>
-            <img src="/assets/icons/file_00000000362481f7978631c42572193f.png" alt="TPG" />
+            <img src="/assets/icons/ezgif-54c96d8a9b9236.webp" alt="TPC" />
           </div>
           <button className="modal-primary" id="giftSend" type="button">Send Gift</button>
           <p className="gift-note">10% charge and the amount of the gift will be deducted from your balance.</p>

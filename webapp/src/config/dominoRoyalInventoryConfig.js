@@ -125,7 +125,7 @@ const DOMINO_DEFAULT_IDS = Object.freeze({
   tableTheme: 'murlan-default',
   tableWood: 'peelingPaintWeathered',
   tableCloth: 'emerald',
-  chairTheme: 'ruby'
+  chairTheme: 'dining_chair_02'
 });
 
 const getDefaultOptionId = (options) => options?.[0]?.id;
