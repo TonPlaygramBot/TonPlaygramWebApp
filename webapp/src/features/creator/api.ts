@@ -1,9 +1,9 @@
 import { API_BASE_URL } from '../../utils/api.js';
 export const openCreatorAuthorization = (url: string) => window.location.assign(url);
 export const base = `${API_BASE_URL}/api/creator`;
-export async function creatorApi(path: string, method = 'GET', body?: unknown, extra: Record<string, string> = {}) {
+export async function creatorApi(path: string, method = 'GET', body?: unknown, extra: Record<string, string> = {}, signal?: AbortSignal) {
   const raw = body instanceof Blob;
-  const res = await fetch(`${base}${path}`, { method, credentials: 'include', headers: { 'X-Creator-Request': '1', ...(body !== undefined ? { 'Content-Type': raw ? 'application/octet-stream' : 'application/json' } : {}), ...extra }, ...(body !== undefined ? { body: raw ? body : JSON.stringify(body) } : {}) });
+  const res = await fetch(`${base}${path}`, { method, signal, credentials: 'include', headers: { 'X-Creator-Request': '1', ...(body !== undefined ? { 'Content-Type': raw ? 'application/octet-stream' : 'application/json' } : {}), ...extra }, ...(body !== undefined ? { body: raw ? body : JSON.stringify(body) } : {}) });
   let result; try { result = await res.json(); } catch { throw new Error('Studio is temporarily unavailable. Please try again.'); }
   if (!res.ok) throw new Error(result.error || 'The request could not be completed.');
   return result;

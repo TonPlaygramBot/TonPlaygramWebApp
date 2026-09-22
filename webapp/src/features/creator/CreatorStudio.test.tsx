@@ -100,19 +100,36 @@ it.each(['/creator-studio', '/social-app/creator-studio'])('guests connect throu
   expect(button('Connect Facebook').disabled).toBe(false);
   expect(node.querySelector('input[type="password"]')).toBeNull();
   await click('Connect Facebook');
-  expect(api).toHaveBeenCalledWith('/accounts/facebook/connect', 'POST', { returnTo });
+  expect(api).toHaveBeenCalledWith('/accounts/facebook/connect', 'POST', { returnTo }, {}, expect.any(AbortSignal));
   expect(openCreatorAuthorization).toHaveBeenCalledWith('https://www.facebook.com/v25.0/dialog/oauth?state=bound');
   expect(api.mock.calls.some(([p]) => p === '/login/google' || p === '/session/google')).toBe(false);
 });
-it('missing platform configuration cannot simulate a successful connection', async () => {
+it('missing platform configuration leaves Connect tappable and explains the failure beside the button', async () => {
   const implementation = api.getMockImplementation()!;
   api.mockImplementation(async (path, method, body) => {
     if (path === '/catalog') return { platforms: [{ ...facebook, available: false }], googleLogin: false };
     if (path === '/session') return { signedIn: false };
+    if (path === '/accounts/facebook/connect') throw new Error('Facebook connections have not been enabled by TonPlayGram yet.');
     return implementation(path, method, body);
   });
   await act(async () => root.render(<MemoryRouter><CreatorStudio key="unavailable-provider" /></MemoryRouter>));
-  expect(button('Connect Facebook').disabled).toBe(true);
-  expect(node.textContent).toContain('TonPlayGram needs to enable this connection');
+  expect(button('Connect Facebook').disabled).toBe(false);
+  await click('Connect Facebook');
+  expect(node.querySelector('.cs-platform-card [role="alert"]')?.textContent).toContain('Facebook connections have not been enabled');
+  expect(button('Connect Facebook').disabled).toBe(false);
+  expect(node.textContent).toContain('0 connected');
   expect(openCreatorAuthorization).not.toHaveBeenCalled();
+});
+it('a stale unavailable catalog does not block a newly configured official sign-in', async () => {
+  const implementation = api.getMockImplementation()!;
+  api.mockImplementation(async (path, method, body) => {
+    if (path === '/catalog') return { platforms: [{ ...facebook, available: false }], googleLogin: false };
+    if (path === '/session') return { signedIn: false };
+    if (path === '/accounts/facebook/connect') return { url: 'https://www.facebook.com/v25.0/dialog/oauth?state=fresh' };
+    return implementation(path, method, body);
+  });
+  await act(async () => root.render(<MemoryRouter><CreatorStudio key="newly-configured" /></MemoryRouter>));
+  await click('Connect Facebook');
+  expect(openCreatorAuthorization).toHaveBeenCalledWith('https://www.facebook.com/v25.0/dialog/oauth?state=fresh');
+  expect(node.textContent).toContain('0 connected');
 });

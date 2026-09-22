@@ -16,3 +16,11 @@
 .cs-root .cs-google-signin{width:100%;min-width:0}
 .cs-root .cs-google-button{display:flex;justify-content:center;min-height:44px;width:100%}
 .cs-root .cs-google-signin p{font-size:14px;line-height:1.6}
+
+.cs-root .cs-connect-action{width:100%;min-width:0}
+.cs-root .cs-connect-action>.cs-secondary{width:100%;font-size:14px}
+.cs-root .cs-connect-feedback{margin-top:12px;border:1px solid #40566d;border-radius:12px;padding:12px;background:#112132;overflow-wrap:anywhere}
+.cs-root .cs-connect-feedback p{color:#d3e6f7;font-size:14px;line-height:1.6}
+.cs-root .cs-connect-feedback-error{border-color:#8b5a4c;background:#33231f}
+.cs-root .cs-connect-feedback-error p{color:#ffdcc9}
+.cs-root .cs-connect-feedback a{margin-top:10px;min-height:44px;text-align:center;justify-content:center}

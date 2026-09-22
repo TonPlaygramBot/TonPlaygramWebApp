@@ -14,10 +14,16 @@ export function credentials(platform) {
   const shared = { GOOGLE: ['GOOGLE_CLIENT_ID', 'GOOGLE_CLIENT_SECRET'], META: ['FACEBOOK_APP_ID', 'FACEBOOK_APP_SECRET'], INSTAGRAM: ['INSTAGRAM_APP_ID', 'INSTAGRAM_APP_SECRET'], TIKTOK: ['TIKTOK_CLIENT_KEY', 'TIKTOK_CLIENT_SECRET'] }[p.env];
   return { id: process.env[shared[0]], secret: process.env[shared[1]] };
 }
-export function available(platform) {
+export function connectionStatus(platform) {
   const c = credentials(platform);
-  return configured() && Boolean(c?.id && c?.secret) && (platform !== 'tiktok' || process.env.CREATOR_TIKTOK_APPROVED === 'true');
+  const name = platform === 'google' ? 'Google' : Object.hasOwn(PROVIDERS, platform) ? PROVIDERS[platform].name : 'This platform';
+  if (!c) return { available: false, setupReason: 'unsupported', setupMessage: 'This platform is not supported in Creator Studio.' };
+  if (!configured()) return { available: false, setupReason: 'secure_storage', setupMessage: 'TonPlayGram account connections are temporarily unavailable. Please try again later.' };
+  if (!c.id || !c.secret) return { available: false, setupReason: 'app_credentials', setupMessage: `${name} connections have not been enabled by TonPlayGram yet. The app owner must complete the platform setup. You do not need to enter passwords, codes or keys here.` };
+  if (platform === 'tiktok' && process.env.CREATOR_TIKTOK_APPROVED !== 'true') return { available: false, setupReason: 'platform_approval', setupMessage: 'TonPlayGram has not enabled TikTok publishing approval yet. The app owner must finish this setup before TikTok can connect.' };
+  return { available: true, setupReason: null, setupMessage: null };
 }
+export function available(platform) { return connectionStatus(platform).available; }
 export function catalog() {
-  return Object.entries(PROVIDERS).map(([id, p]) => ({ id, ...p, env: undefined, available: available(id) }));
+  return Object.entries(PROVIDERS).map(([id, p]) => ({ id, ...p, env: undefined, ...connectionStatus(id) }));
 }

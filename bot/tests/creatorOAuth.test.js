@@ -2,7 +2,7 @@ import test, { beforeEach, afterEach } from 'node:test';
 import assert from 'node:assert/strict';
 import crypto from 'node:crypto';
 import { OAuth, Connection } from '../creator/models.js';
-import { catalog, credentials, available } from '../creator/catalog.js';
+import { catalog, credentials, available, connectionStatus } from '../creator/catalog.js';
 import { beginOAuth, finishOAuth } from '../creator/oauth.js';
 import { session, unseal, digest } from '../creator/security.js';
 import { publishStep } from '../creator/publishers.js';
@@ -101,4 +101,17 @@ test('a provider response without an eligible account cannot create a signed ses
   t.mock.method(globalThis, 'fetch', async url => new Response(JSON.stringify(String(url).includes('/me?') ? {} : { access_token: 'verified-access' })));
   await assert.rejects(() => finishOAuth(req, res, 'instagram'));
   assert.equal(connections.length, 0); assert.equal(cookies.tpg_creator, undefined);
+});
+test('unconfigured connections explain the missing setup without creating OAuth state or exposing credentials', async () => {
+  delete process.env.CREATOR_META_CLIENT_SECRET;
+  assert.equal(connectionStatus('facebook').setupReason, 'app_credentials');
+  await assert.rejects(() => beginOAuth({}, res, 'facebook'), error => error.status === 503 && error.message.includes('Facebook connections have not been enabled'));
+  process.env.CREATOR_TIKTOK_APPROVED = 'false';
+  assert.equal(connectionStatus('tiktok').setupReason, 'platform_approval');
+  await assert.rejects(() => beginOAuth({}, res, 'tiktok'), error => error.status === 503 && error.message.includes('TikTok publishing approval'));
+  delete process.env.CREATOR_ENCRYPTION_KEY;
+  assert.equal(connectionStatus('youtube').setupReason, 'secure_storage');
+  await assert.rejects(() => beginOAuth({}, res, 'youtube'), error => error.status === 503 && error.message.includes('temporarily unavailable'));
+  assert.equal(states.length, 0); assert.equal(calls.length, 0); assert.deepEqual(cookies, {});
+  assert.ok(!JSON.stringify(catalog()).includes('server-only-secret'));
 });
