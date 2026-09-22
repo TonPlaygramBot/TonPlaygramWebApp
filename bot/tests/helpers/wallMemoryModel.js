@@ -42,12 +42,6 @@ export function memoryModel(Model) {
     Object.assign(row, clone(changes.$set || {}));
     for (const [field, amount] of Object.entries(changes.$inc || {}))
       row[field] = (row[field] || 0) + amount;
-    for (const [field, value] of Object.entries(changes.$addToSet || {})) {
-      row[field] ||= [];
-      if (!row[field].some((item) => String(item) === String(value))) row[field].push(clone(value));
-    }
-    for (const [field, value] of Object.entries(changes.$pull || {}))
-      row[field] = (row[field] || []).filter((item) => String(item) !== String(value));
   };
   const create = async (content) => {
     const document = new Model(content);
