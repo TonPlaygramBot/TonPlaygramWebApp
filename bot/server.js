@@ -39,6 +39,7 @@ import socialAdminRoutes from './routes/socialAdmin.js';
 import creatorRoutes from './creator/routes.js';
 import { startQueue as startCreatorQueue } from './creator/queue.js';
 import { attachLive as attachCreatorLive } from './creator/live.js';
+import { logCreatorConfiguration } from './creator/configuration.js';
 import { queueDueSocialPosts } from './services/socialPublishing.js';
 import { sendPushNotifications } from './services/pushNotificationService.js';
 import broadcastRoutes from './routes/broadcast.js';
@@ -4198,6 +4199,7 @@ io.on('connection', (socket) => {
 // Start the server
 httpServer.listen(PORT, async () => {
   console.log(`Server running on port ${PORT}`);
+  logCreatorConfiguration();
   if (!process.env.BOT_TOKEN || process.env.BOT_TOKEN === 'dummy') {
     console.log('BOT_TOKEN not configured. Bot may fail to connect.');
   }

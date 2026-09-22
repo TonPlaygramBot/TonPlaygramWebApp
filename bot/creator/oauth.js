@@ -45,6 +45,20 @@ async function exchange(platform, code, verifier) {
   if (!token.access_token) throw problem(502, 'The platform did not return a connection.');
   return token;
 }
+function requirePublishingGrant(platform, token) {
+  if (!['youtube', 'tiktok'].includes(platform)) return;
+  // Only trust grants returned by the provider's token endpoint, never callback
+  // query parameters or the permissions we asked the user to approve.
+  const scopes = new Set(typeof token.scope === 'string'
+    ? token.scope.split(platform === 'tiktok' ? ',' : /\s+/).map(value => value.trim()).filter(Boolean)
+    : []);
+  // Both scopes authorize uploads and live broadcasts; youtube.upload alone
+  // cannot support the Post + live account offered by Studio.
+  const approved = platform === 'youtube'
+    ? ['https://www.googleapis.com/auth/youtube.force-ssl', 'https://www.googleapis.com/auth/youtube'].some(scope => scopes.has(scope))
+    : ['user.info.basic', 'video.publish'].every(scope => scopes.has(scope));
+  if (!approved) throw problem(403, `${PROVIDERS[platform].name} did not grant the permissions needed for publishing. Connect again and approve the requested permissions. Your existing connections have not been changed.`);
+}
 export async function finishOAuth(req, res, platform) {
   if (platform !== 'google' && !Object.hasOwn(PROVIDERS, platform)) throw problem(400, 'This platform is not supported in Creator Studio.');
   const state = typeof req.query.state === 'string' ? req.query.state : '';
@@ -58,6 +72,7 @@ export async function finishOAuth(req, res, platform) {
   res.locals.creatorReturnTo = creatorReturnPath(pending.returnTo);
   if (req.query.error || typeof req.query.code !== 'string') throw problem(400, 'Connection cancelled. No new account was added.');
   const token = await exchange(platform, req.query.code, pending.verifier);
+  requirePublishingGrant(platform, token);
   const get = url => request(url, json('GET', token.access_token));
   if (platform === 'google') {
     const user = await get('https://openidconnect.googleapis.com/v1/userinfo');
