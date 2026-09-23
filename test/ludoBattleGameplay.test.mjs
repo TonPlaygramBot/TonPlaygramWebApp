@@ -3,6 +3,7 @@ import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { createRequire } from 'node:module';
 import { canRollLudoDice } from '../shared/ludoBattleRules.js';
+import { createFallbackLudoToken, hasVisibleLudoToken, setLudoTileHighlight, updateLudoTileGlow } from '../webapp/src/utils/ludoTokenPresentation.ts';
 
 const requireWebapp = createRequire(new URL('../webapp/package.json', import.meta.url));
 const { parse } = requireWebapp('@babel/parser');
@@ -10,6 +11,79 @@ const THREE = requireWebapp('three');
 const source = readFileSync(new URL('../webapp/src/pages/Games/LudoBattleRoyal.jsx', import.meta.url), 'utf8');
 const ast = parse(source, { sourceType: 'module', plugins: ['jsx'] });
 const component = ast.program.body.find((node) => node.type === 'FunctionDeclaration' && node.id.name === 'Ludo3D');
+
+test('the shipped token builder creates all 16 selectable pieces when remote assets are missing', () => {
+  const build = ast.program.body.find((node) => node.type === 'FunctionDeclaration' && node.id.name === 'buildLudoBoard');
+  const tokens = build.body.body.find((node) => node.declarations?.some((declaration) => declaration.id.name === 'tokens'));
+  const scene = new THREE.Group(), colors = [0xef4444, 0x3b82f6, 0xfacc15, 0x22c55e];
+  const dependencies = {
+    THREE, scene, playerColors: colors, playerCount: 4,
+    tokenPieceByPlayer: [{ type: 'p' }, { type: 'r' }, { type: 'n' }, { type: 'k' }],
+    defaultTokenTypeSequence: ['p'], shouldUseAbgTokens: false, abgPrototypes: null,
+    createFallbackLudoToken, hasVisibleLudoToken, measureProceduralTokenHeight: () => .09,
+    STANDARD_TOKEN_FOOTPRINT: { x: .054, z: .054 }, TOKEN_SIZE_MULTIPLIER: 1.24,
+    TOKEN_TYPE_SCALE_PROFILE: {}, TOKEN_THINNESS_SCALE: .76, TOKEN_HEIGHT_SCALE: 1.1,
+    createTokenCountLabel: () => null, colorNumberToHex: (color) => `#${new THREE.Color(color).getHexString()}`,
+    applyTokenFacingRotation: () => {}, getTokenRailHeight: () => .025,
+    startPads: colors.map((_, player) => Array.from({ length: 4 }, (_, index) => new THREE.Vector3(player * .15, 0, index * .08)))
+  };
+  const result = Function(...Object.keys(dependencies), `${source.slice(tokens.start, tokens.end)}; return tokens;`)(...Object.values(dependencies));
+  const highlightNode = ast.program.body.find((node) => node.type === 'FunctionDeclaration' && node.id.name === 'setTokenHighlight');
+  const select = Function('THREE', 'TOKEN_SELECTION_SCALE', `return (${source.slice(highlightNode.start, highlightNode.end)});`)(THREE, 1.08);
+  assert.equal(scene.children.length, 16);
+  result.forEach((pieces, player) => pieces.forEach((piece, index) => {
+    assert.ok(hasVisibleLudoToken(piece));
+    assert.equal(piece.userData.playerIndex, player);
+    assert.equal(piece.userData.tokenIndex, index);
+    assert.equal(new THREE.Color(piece.userData.tokenColor).getHex(), colors[player]);
+    piece.traverse((child) => assert.equal(child.userData.tokenGroup, piece, 'fallback lost its selection target'));
+    const scale = piece.scale.clone();
+    select(piece, true); select(piece, false);
+    assert.ok(piece.scale.equals(scale));
+    piece.traverse((child) => {
+      if (child.isMesh) {
+        assert.equal(child.material.emissive.getHex(), colors[player]);
+        assert.equal(child.material.emissiveIntensity, .12, 'selection left a shared material highlighted');
+      }
+    });
+  }));
+});
+
+test('the real movement frame lights a tile on landing, then fades after completion in the token color', () => {
+  const tile = new THREE.Mesh(new THREE.BoxGeometry(.069, .018, .069), new THREE.MeshStandardMaterial({ color: 0xf4e3bd }));
+  tile.userData.boardTile = { baseColor: tile.material.color.clone() };
+  const base = tile.material.color.clone();
+  const token = new THREE.Object3D(); token.userData.tokenColor = '#ad52f1';
+  let completions = 0, sounds = 0;
+  const animation = { token, player: 0, active: true, segment: 0, elapsed: 0,
+    segments: [{ from: new THREE.Vector3(), to: new THREE.Vector3(.075, 0, 0), duration: .34 }],
+    highlightTiles: [tile], activeHighlightTiles: [], highlightIndex: -1, onComplete: () => completions++ };
+  const stateRef = { current: { animation, trackTiles: [tile], homeColumnTiles: [] } };
+  const useCallback = (callback) => callback;
+  const clear = controller('clearAnimationHighlights', { useCallback, setTileHighlight: setLudoTileHighlight });
+  const highlight = controller('updateAnimationHighlight', { useCallback, clearAnimationHighlights: clear,
+    setTileHighlight: setLudoTileHighlight, playerColorsRef: { current: [0x3b82f6] }, DEFAULT_PLAYER_COLORS: [0xef4444], THREE });
+  const begin = source.indexOf('// Pulses outlive the movement');
+  const end = source.indexOf('const actorState = seatedHumanActionRef.current;', begin);
+  const dependencies = { stateRef, THREE, updateLudoTileGlow, updateAnimationHighlight: highlight,
+    clearAnimationHighlights: clear, playTokenStepSound: () => sounds++, updateTokenStacks: () => {},
+    animTemp: new THREE.Vector3(), animDir: new THREE.Vector3(), animLook: new THREE.Vector3(),
+    TOKEN_STEP_JUMP_PHASE: .2, TOKEN_STEP_JUMP_HEIGHT: .03 };
+  const frame = Function(...Object.keys(dependencies), `return (delta) => { const state = stateRef.current; ${source.slice(begin, end)} };`)(...Object.values(dependencies));
+  frame(.17);
+  assert.ok(tile.material.color.equals(base), 'destination lit before the token landed');
+  assert.equal(sounds, 0);
+  frame(.17);
+  assert.equal(tile.material.color.getHex(), 0xad52f1, 'glow used a default player color');
+  assert.equal(completions, 1); assert.equal(sounds, 1);
+  assert.equal(stateRef.current.animation, null);
+  assert.ok(tile.userData.boardTile.isHighlighted, 'completion erased the last landing');
+  frame(.4);
+  assert.ok(tile.userData.boardTile.isHighlighted);
+  frame(.5);
+  assert.ok(tile.material.color.equals(base));
+  assert.equal(tile.userData.boardTile.isHighlighted, false);
+});
 
 // Exercise the shipped controller closures with controlled scene objects and
 // deferred React updates. No duplicate implementation or production test hook.

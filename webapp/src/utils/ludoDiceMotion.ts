@@ -65,20 +65,22 @@ export function createLudoDiceContact(binding: LudoDiceHand, dice: THREE.Object3
   const gripQ = restQ.clone();
   const profile = calibrateHandRig(rig).right;
   if (profile && binding.pinch) {
-    const lateral = profile.pinchAxis.clone().normalize();
-    const fingers = profile.forward.clone().projectOnPlane(lateral).normalize();
+    // A pinch axis runs from index tip to thumb tip, NOT across the knuckles.
+    // Using it as the palm's lateral axis reversed this model's wrist. Build an
+    // anatomical palm frame instead: fingers toward the die, palm toward table.
+    const fingers = profile.forward.clone().normalize();
+    const lateral = profile.radial.clone().projectOnPlane(fingers).normalize();
     const local = Q().setFromRotationMatrix(new THREE.Matrix4().makeBasis(lateral, fingers, lateral.clone().cross(fingers)));
-    // Align the opposed pads with a real die face, keeping fingers downward.
-    const dieQ = dice.getWorldQuaternion(Q());
-    const sideways = profile.radial.clone().applyQuaternion(restQ).setY(0).normalize();
-    const axes = [new THREE.Vector3(1, 0, 0), new THREE.Vector3(0, 1, 0), new THREE.Vector3(0, 0, 1)]
-      .map((axis) => axis.applyQuaternion(dieQ))
-      .filter((axis) => Math.abs(axis.y) < 0.5);
-    const right = axes.sort((a, b) => Math.abs(b.dot(sideways)) - Math.abs(a.dot(sideways)))[0] || new THREE.Vector3(1, 0, 0);
-    if (right.dot(sideways) < 0) right.negate();
-    right.setY(0).normalize();
-    const down = new THREE.Vector3(0, -1, 0);
-    gripQ.setFromRotationMatrix(new THREE.Matrix4().makeBasis(right, down, right.clone().cross(down))).multiply(local.invert()).normalize();
+    const forward = dice.getWorldPosition(V()).sub(rig.rightUpperArm.getWorldPosition(V())).setY(0);
+    if (forward.lengthSq() < 1e-8) forward.copy(fingers).applyQuaternion(restQ).setY(0);
+    if (forward.lengthSq() < 1e-8) forward.set(0, 0, 1);
+    forward.normalize();
+    const right = forward.clone().cross(new THREE.Vector3(0, -1, 0)).normalize();
+    // A slight downward pitch keeps the wrist relaxed as the pads close.
+    forward.y = -0.2;
+    forward.normalize();
+    gripQ.setFromRotationMatrix(new THREE.Matrix4().makeBasis(right, forward, right.clone().cross(forward)))
+      .multiply(local.invert()).normalize();
   }
   return { binding, anchor, rest: hand.localToWorld(anchor.clone()), restQ, gripQ, size: worldSize };
 }

@@ -3,12 +3,13 @@ import { createRoot } from 'react-dom/client';
 import * as THREE from 'three';
 import { saveBoneRig, applySeatedHumanPose } from './generated/rig';
 import { createLudoDiceHand, createLudoDiceContact, createLudoDiceThrow, updateLudoDiceThrow, LUDO_DICE_TIMING } from '../../utils/ludoDiceMotion.ts';
+import { createFallbackLudoToken, setLudoTileHighlight, updateLudoTileGlow } from '../../utils/ludoTokenPresentation.ts';
 
 declare const LUDO_PREVIEW_MODEL: string;
 const V = (x = 0, y = 0, z = 0) => new THREE.Vector3(x, y, z);
 function App() {
   const host = useRef<HTMLDivElement>(null);
-  const control = useRef<{ roll: () => void; inspect: (ms: number) => void; view: (id: string) => void }>();
+  const control = useRef<{ roll: () => void; inspect: (ms: number) => void; view: (id: string) => void; move: () => void }>();
   const [ready, setReady] = useState(false), [status, setStatus] = useState('Loading character…');
   const [view, setView] = useState('table');
   useEffect(() => {
@@ -40,14 +41,26 @@ function App() {
       box([0.4, 0.05, 0.4], [0, 0.28, -0.74], '#65432e');
       box([0.43, 0.4, 0.04], [0, 0.48, -0.96], '#65432e');
       box([0.58, 0.016, 0.58], [-0.12, tableY + 0.008, 0.22], '#dfd4b1');
-      ['#c76258', '#d7b24c', '#539ccc', '#63a06c'].forEach((color, i) => {
+      const tokenColors = ['#ef4444', '#3b82f6', '#facc15', '#22c55e'];
+      tokenColors.forEach((color, i) => {
         const x = -0.12 + (i % 2 ? 1 : -1) * 0.18, z = 0.22 + (i < 2 ? -1 : 1) * 0.18;
         box([0.16, 0.005, 0.16], [x, tableY + 0.019, z], color);
         for (let j = 0; j < 4; j++) {
-          const token = new THREE.Mesh(new THREE.CylinderGeometry(0.012, 0.017, 0.025, 12), new THREE.MeshStandardMaterial({ color }));
-          token.position.set(x + (j % 2 ? 1 : -1) * 0.035, tableY + 0.035, z + (j < 2 ? -1 : 1) * 0.035); scene.add(token);
+          const token = createFallbackLudoToken(['p', 'r', 'n', 'k'][i], color, .045, .027);
+          token.position.set(x + (j % 2 ? 1 : -1) * 0.035, tableY + 0.022, z + (j < 2 ? -1 : 1) * 0.035); scene.add(token);
         }
       });
+      const tiles = Array.from({ length: 6 }, (_, i) => {
+        const tile = box([.067, .008, .067], [-.32 + i * .08, tableY + .025, .22], '#f4e3bd');
+        tile.userData.boardTile = { baseColor: tile.material.color.clone() };
+        return tile;
+      });
+      const steppingTokens = tokenColors.map((color, i) => {
+        const token = createFallbackLudoToken(['p', 'r', 'n', 'k'][i], color, .045, .027);
+        token.visible = false; scene.add(token); return token;
+      });
+      let tokenStarted = 0, tokenMoving = false, tokenPlayer = -1, landedStep = 0;
+      const stepPosition = (index: number) => tiles[index].position.clone().add(V(0, .0045, 0));
       const dice = new THREE.Group(); scene.add(dice);
       const shell = box([0.054, 0.054, 0.054], [0, 0, 0], '#f5eee0'); scene.remove(shell); dice.add(shell);
       const normals = [V(0, 1, 0), V(0, 0, 1), V(1, 0, 0), V(-1, 0, 0), V(0, 0, -1), V(0, -1, 0)];
@@ -82,24 +95,48 @@ function App() {
         rig.head.scale.setScalar(id === 'player' ? 0.001 : 1);
         if (id === 'player') { camera.position.copy(rig.head.getWorldPosition(V())).add(V(0, 0.035, 0.13)); camera.lookAt(pickup.clone().lerp(landing, 0.5)); }
         else if (id === 'grip') { camera.position.copy(pickup).add(V(-0.20, 0.20, 0.31)); camera.lookAt(pickup.clone().add(V(0, 0.05, 0))); }
+        else if (id === 'tokens') { camera.position.set(-.12, tableY + .7, .9); camera.lookAt(-.12, tableY, .22); }
         else { camera.position.set(-1.12, 1.1, 1.36); camera.lookAt(-0.03, 0.5, -0.45); }
         renderer.render(scene, camera);
       }
       control.current = {
-        roll() { restart(); started = performance.now(); playing = true; },
+        roll() { tokenMoving = false; restart(); started = performance.now(); playing = true; },
         inspect(ms) { playing = false; restart(); draw(ms); setStatus(label(ms)); },
-        view(id) { setCamera(id); }
+        view(id) { setCamera(id); },
+        move() {
+          playing = false; restart(); draw(0);
+          tokenPlayer = (tokenPlayer + 1) % tokenColors.length;
+          steppingTokens.forEach((token, i) => { token.visible = i === tokenPlayer; });
+          tiles.forEach((tile) => setLudoTileHighlight(tile, false));
+          steppingTokens[tokenPlayer].position.copy(stepPosition(0));
+          landedStep = 0; tokenStarted = performance.now(); tokenMoving = true;
+          setView('tokens'); setCamera('tokens');
+          setStatus(`${['Red', 'Blue', 'Yellow', 'Green'][tokenPlayer]} token`);
+        }
       };
       host.current!.appendChild(renderer.domElement);
       const resize = () => { renderer.setSize(host.current!.clientWidth, host.current!.clientHeight); camera.aspect = host.current!.clientWidth / host.current!.clientHeight; camera.updateProjectionMatrix(); renderer.render(scene, camera); };
       const observer = new ResizeObserver(resize); observer.observe(host.current!); setCamera('table'); resize();
       setReady(true); setStatus('Ready');
+      let previous = performance.now();
       function frame(now: number) {
         if (disposed) return;
+        const delta = Math.min(.1, (now - previous) / 1000); previous = now;
+        tiles.forEach((tile) => updateLudoTileGlow(tile, delta));
+        if (tokenMoving) {
+          const progress = Math.min(5, (now - tokenStarted) / 500);
+          const landed = Math.floor(progress);
+          while (landedStep < landed) setLudoTileHighlight(tiles[++landedStep], true, tokenColors[tokenPlayer]);
+          const token = steppingTokens[tokenPlayer], t = progress - landed;
+          token.position.copy(stepPosition(landed)).lerp(stepPosition(Math.min(5, landed + 1)), t);
+          token.position.y += Math.sin(t * Math.PI) * .015;
+          if (progress >= 5) tokenMoving = false;
+        }
         if (playing) {
           const ms = (now - started) * 0.6; // Slower review of the production motion.
           draw(ms); setStatus(label(ms)); if (ms > 1950) playing = false;
         }
+        renderer.render(scene, camera);
         raf = requestAnimationFrame(frame);
       }
       raf = requestAnimationFrame(frame);
@@ -110,12 +147,13 @@ function App() {
   return <div className="ludo-screen">
     <div className="ludo-stage" ref={host} role="img" aria-label="Ludo dice pickup and throwing animation" />
     <div className="ludo-controls">
-      <select aria-label="View" disabled={!ready} value={view} onChange={(e) => { setView(e.target.value); control.current?.view(e.target.value); }}>
-        <option value="table">Character &amp; table</option><option value="grip">Hand close-up</option><option value="player">Player perspective</option>
+      <select className="cursor-interaction" aria-label="View" disabled={!ready} value={view} onChange={(e) => { setView(e.target.value); control.current?.view(e.target.value); }}>
+        <option value="table">Character &amp; table</option><option value="grip">Hand close-up</option><option value="player">Player perspective</option><option value="tokens">Tokens &amp; landing glow</option>
       </select>
       <button type="button" className="cursor-interaction" disabled={!ready} onClick={() => control.current?.roll()}>Roll dice</button>
       <button type="button" className="cursor-interaction" disabled={!ready} onClick={() => control.current?.inspect(440)}>Check grip</button>
       <button type="button" className="cursor-interaction" disabled={!ready} onClick={() => control.current?.inspect(1040)}>Check release</button>
+      <button type="button" className="cursor-interaction" disabled={!ready} onClick={() => control.current?.move()}>Move token</button>
     </div>
     <div className="ludo-status" role="status" aria-live="polite">{status}</div>
   </div>;
