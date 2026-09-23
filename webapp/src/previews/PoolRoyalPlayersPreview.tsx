@@ -5,7 +5,6 @@ import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js';
 import { PoolRoyalHumanPlayers, type PlayerSeat } from '../pages/Games/shared/PoolRoyalHumanPlayers.ts';
 import { type ShotState } from '../pages/Games/shared/poolRoyalReferenceHuman.ts';
 import { createPoolRoyalCue, posePoolRoyalCue } from '../pages/Games/shared/createPoolRoyalCue.ts';
-import { PoolRoyalShotCamera } from '../pages/Games/shared/poolRoyalShotCamera.ts';
 import { PoolRoyalPocketLights } from '../pages/Games/shared/poolRoyalPocketLights.ts';
 import { poolRoyalHudLayout, POOL_AVATAR_SIZE_PX, POOL_SPIN_DIAMETER_PX } from '../pages/Games/poolRoyalHudLayout.js';
 import { spinFromScreenPoint, normalizeSpinInput } from '../pages/Games/poolRoyaleSpinUtils.js';
@@ -165,7 +164,6 @@ function CharacterPreview() {
     const liveCue = createPoolRoyalCue({ ballRadius: METRICS.ballR, length: METRICS.cueLength, tipRadius: METRICS.cueRadius });
     liveCue.shaftMaterial.color.setHex(0xdeb887);
     scene.add(liveCue.body);
-    const shotCamera = new PoolRoyalShotCamera(0.55);
     const shotTip = { position: new THREE.Vector3(), visible: true };
     let stroke: any = null;
     let seenShot = 0, seenReset = 0, seenStation = 0, simulationTime = 0, lastPhase = '', lastCanShoot = false;
@@ -222,7 +220,7 @@ function CharacterPreview() {
       const forward = new THREE.Vector3(0, 0, -1).applyAxisAngle(THREE.Object3D.DEFAULT_UP, current.yaw);
       const axis = forward.clone().addScaledVector(THREE.Object3D.DEFAULT_UP, -METRICS.cueButtLift / cueLength).normalize();
       if (seenReset !== current.resetId) {
-        seenReset = current.resetId; stroke = null; travel = 0; cueBall.position.copy(ballPosition); shotCamera.reset();
+        seenReset = current.resetId; stroke = null; travel = 0; cueBall.position.copy(ballPosition);
       }
       const pull = referenceCuePull(current.power, METRICS.ballR) + referenceCueFeather(current.power, METRICS.ballR, simulationTime);
       const idleTip = ballPosition.clone().addScaledVector(forward, -METRICS.cueGap)
@@ -297,11 +295,11 @@ function CharacterPreview() {
           cueGuide.geometry.setFromPoints([atHeight(contact), atHeight(contact.clone().addScaledVector(cueExit, cueLength))]);
         }
       }
-      const eye = shotCamera.resolve({ eye: players?.eyeView ?? null, stroke: Boolean(stroke && shotTip.visible),
-        shooting: Boolean(stroke), aiming: current.state === 'dragging', cueBlend: 1, now: simulationTime, excluded: current.view !== 'player' });
+      const eye = current.view === 'player' ? players?.getEyeView('A') ?? null : null;
       const fov = current.view === 'player' && eye ? 66 : 46;
       if (camera.fov !== fov) { camera.fov = fov; camera.updateProjectionMatrix(); }
       collisionOverlay.visible = current.view === 'geometry';
+      camera.up.copy(eye?.up ?? THREE.Object3D.DEFAULT_UP);
       if (current.view === 'player' && eye) {
         camera.position.copy(eye.position); camera.lookAt(eye.target);
       } else if (current.view === 'pocket') {
@@ -338,7 +336,7 @@ function CharacterPreview() {
         camera.position.copy(focus).addScaledVector(offset, distance * 1.06);
         camera.lookAt(focus);
       }
-      players?.updateCameraVisibility(camera, eye?.target ?? focus, eye ? current.seat : undefined);
+      players?.updateCameraVisibility(camera, eye?.target ?? focus, eye ? 'A' : undefined);
       renderer.render(scene, camera); needsRender = false; lastView = current.view;
       raf = requestAnimationFrame(draw);
     };
@@ -378,10 +376,10 @@ function CharacterPreview() {
   }, []);
 
   return <div className="pool-preview">
-    <div className="viz-row"><span>Pool Royal · Player view</span>
-      <select className="form-select" aria-label="Active player" value={seat} onChange={event => {
+    <div className="viz-row"><span>Pool Royal · Your eyes</span>
+      <select className="form-select" aria-label="Active turn" value={seat} onChange={event => {
         const next = event.target.value as PlayerSeat; setSeat(next); live.current.seat = next; changeState('dragging');
-      }}><option value="A">Player 1</option><option value="B">AI player</option></select>
+      }}><option value="A">Your turn</option><option value="B">Opponent turn</option></select>
     </div>
     <div ref={stage} className="pool-preview-stage" aria-label="Pool Royal portrait inspection">
       <div className="pool-preview-avatar-lane" style={controls.avatars}>

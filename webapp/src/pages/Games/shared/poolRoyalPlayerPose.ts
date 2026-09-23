@@ -228,7 +228,29 @@ export function refinePoolRoyalBridge(human: HumanRig, bridgeTarget: THREE.Vecto
   human.modelRoot.updateMatrixWorld(true);
 }
 
-export type HumanEyeView = { position: THREE.Vector3; target: THREE.Vector3; blend: number };
+export type HumanEyeView = { position: THREE.Vector3; target: THREE.Vector3; up?: THREE.Vector3; blend: number };
+
+/** A rigid eye camera for one person, independent of the cue ball and turn owner.
+ * The eye baseline and head up vector define the face's actual viewing basis. */
+export function poolRoyalHeadEyeView(human: HumanRig, group: THREE.Group): HumanEyeView | null {
+  const left = human.model?.getObjectByName('LeftEye');
+  const right = human.model?.getObjectByName('RightEye');
+  const head = human.bones.head;
+  const parent = group.parent;
+  if (!left || !right || !head || !parent) return null;
+  group.updateWorldMatrix(true, true);
+  const leftEye = point(left), rightEye = point(right);
+  const position = leftEye.clone().lerp(rightEye, 0.5);
+  const rightAxis = rightEye.sub(leftEye).normalize();
+  const up = new THREE.Vector3(0, 1, 0).applyQuaternion(head.getWorldQuaternion(new THREE.Quaternion()));
+  const forward = up.clone().cross(rightAxis).normalize();
+  if (forward.lengthSq() < 0.5) return null;
+  up.crossVectors(rightAxis, forward).normalize();
+  const target = position.clone().add(forward);
+  const inverseParent = new THREE.Matrix4().copy(parent.matrixWorld).invert();
+  return { position: parent.worldToLocal(position), target: parent.worldToLocal(target),
+    up: up.transformDirection(inverseParent), blend: 1 };
+}
 
 /** Eyes and target are in the controller parent's coordinates, including floor and scale. */
 export function poolRoyalEyeView(human: HumanRig, group: THREE.Group, ball: THREE.Vector3,
