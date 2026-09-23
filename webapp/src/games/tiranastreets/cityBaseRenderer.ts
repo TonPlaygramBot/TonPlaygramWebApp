@@ -1,4 +1,6 @@
+import {updateNavigationLine,navigationLineEnd} from './NavigationLine';
 import {renderPixelRatio} from './renderSettings';
+import {nearestActors} from './shared/frameBudget.mjs';
 import {SkanderbegBuildingLayer} from '../tirana-landmarks/SkanderbegBuildingLayer';
 import {ROCK_REPLACEMENT_IDS} from '../tirana-landmarks/skanderbegBuilding.mjs';
 import {AutomaticGraphics, DynamicResolution, GRAPHICS_PROFILES, graphicsSetting, type GraphicsPreset, type GraphicsSetting} from './graphicsQuality';
@@ -854,24 +856,8 @@ export class CityRenderer {
     return actor;
   }
   setRoute(points: Point[]) {
-    if (this.routeLine) {
-      this.scene.remove(this.routeLine);
-      this.routeLine.geometry.dispose();
-      (this.routeLine.material as THREE.Material).dispose();
-      this.routeLine = null;
-    }
-    if (points.length < 2) return;
-    this.routeLine = new THREE.Line(
-      new THREE.BufferGeometry().setFromPoints(
-        points.map((p) => new THREE.Vector3(p.x, 0.24, p.z)),
-      ),
-      new THREE.LineBasicMaterial({
-        color: 0xddf67d,
-        transparent: true,
-        opacity: 0.85,
-      }),
-    );
-    this.scene.add(this.routeLine);
+    this.routeLine=updateNavigationLine(this.routeLine,points,groundHeight);
+    if(this.routeLine&&!this.routeLine.parent)this.scene.add(this.routeLine);
   }
   orbit(dx: number, dy: number) {
     this.yaw -= dx * 0.006;
@@ -1045,11 +1031,9 @@ export class CityRenderer {
           }
         }
       }
-      const citizens = [...state.npcs].sort(
-        (a, b) =>
-          Math.hypot(a.x - (p?.x || 0), a.z - (p?.z || 0)) -
-          Math.hypot(b.x - (p?.x || 0), b.z - (p?.z || 0)),
-      );
+      const citizens = nearestActors(state.npcs,p||SPAWN,
+        this.quality==='battery'?110:230,this.quality==='battery'?28:72,
+        (n:NPC)=>n.motion!=='drive'&&!this.forces.ownsPerson(n));
       let rendered = 0;
       for (const n of citizens) {
         const role = (n as NPC & { role?: string }).role;
@@ -1210,12 +1194,13 @@ export class CityRenderer {
       state.missionId !== "free-roam";
     if (this.beacon.visible && p && state) {
       const mission = state.missionId;
-      const end = this.routeLine?.geometry.getAttribute("position");
-      if (end?.count) {
+      const end = navigationLineEnd(this.routeLine);
+      this.beacon.visible=!!end;
+      if (end) {
         this.beacon.position.set(
-          end.getX(end.count - 1),
-          0,
-          end.getZ(end.count - 1),
+          end.x,
+          end.y-.24,
+          end.z,
         );
         this.beacon.children[1].position.y = 6 + Math.sin(this.clock * 2) * 0.7;
         this.beacon.children[1].rotation.y = this.clock;

@@ -3,7 +3,7 @@ import {mergeGeometries} from 'three/examples/jsm/utils/BufferGeometryUtils.js';
 import {URBAN_MONUMENTS} from './urbanMonuments.mjs';
 
 type V=[number,number,number];
-/** Two original sculptural approximations from publicly documented silhouettes.
+/** Original sculptural approximations from publicly documented silhouettes.
  * Static material batches; no new lights, remote textures or per-frame meshes. */
 export class UrbanMonumentLayer{
  readonly group=new T.Group();
@@ -33,6 +33,26 @@ export class UrbanMonumentLayer{
     limb([.24,h+1.57,-.29],[.32,h+.86,-.23],.045);
     // Low clipped hedge around this low base, as in the 2026 reference.
     for(let i=0;i<22;i++){const a=i*Math.PI*2/22;add(new T.IcosahedronGeometry(1,0),[Math.cos(a)*1.25,.32,Math.sin(a)*1.25],[.33,.32,.3],3);}
+   }else if(site.id==='ismail-qemali'){
+    // Standing statesman: buttoned long jacket, lapels, straight trousers,
+    // beard and tall pale slab visible in Ivan Ruggiero's June 2024 reference.
+    box([0,1.8,.63],[2.2,3.6,.3],1);
+    box([0,h+.045,0],[1.08,.09,1.08],2);
+    const y=h+.09;
+    box([-.22,y+.06,-.12],[.27,.12,.48]);box([.22,y+.06,-.12],[.27,.12,.48]);
+    limb([-.2,y+.14,0],[-.2,y+1.1,0],.15);limb([.2,y+.14,0],[.2,y+1.1,0],.15);
+    ball([0,y+1.42,0],[.41,.57,.23]);
+    const coat=new T.LatheGeometry([new T.Vector2(.39,0),new T.Vector2(.33,.55),new T.Vector2(.44,1.04)],24);
+    add(coat,[0,y+.68,0],[1,1,.57]);
+    limb([-.36,y+1.62,0],[-.43,y+1.03,-.04],.125);limb([.36,y+1.62,0],[.43,y+1.03,-.04],.125);
+    ball([-.44,y+.9,-.04],[.09,.16,.08]);ball([.44,y+.9,-.04],[.09,.16,.08]);
+    ball([0,y+1.98,0],[.19,.25,.18]);ball([0,y+1.89,-.14],[.145,.15,.07]);
+    ball([0,y+2.01,-.18],[.055,.07,.07]);
+    for(const side of [-1,1]){
+     limb([side*.3,y+1.71,-.13],[side*.06,y+1.33,-.24],.025);
+     limb([side*.13,y+1.8,-.14],[side*.24,y+1.57,-.21],.027);
+    }
+    for(let i=0;i<3;i++)ball([0,y+1.13+i*.15,-.244],[.023,.023,.016]);
    }else{
     // Forward stride with the right arm raised holding the sculpted pistol.
     const y=h;ball([0,y+1.45,0],[.4,.55,.29]);ball([.09,y+2.08,-.09],[.22,.29,.2]);

@@ -1,3 +1,4 @@
+import {PARLIAMENT_GARDEN_TREES} from './parliamentGarden.mjs';
 import {QUARTER} from '../tirana-tabakeve/quarterData.mjs';
 import {pointInUrbanBounds} from '../tiranastreets/shared/urbanBounds.mjs';
 import {roadsidePoint} from '../tiranastreets/shared/streetSafety.mjs';
@@ -10,7 +11,7 @@ const mature=new Map(STREET_LIFE.trees.map(t=>[t.id,t]));
 // Existing photo-informed dimensions take precedence; raw coordinates are retained below.
 export const CANOPY_SOURCE_TREES=[...MAPPED_TREES.map((t,i)=>mature.get(t.id)||({
  id:t.id,x:t.x,z:t.z,shape:t.model==='tree_cypress'?'column':'upright',height:t.height||9,crown:t.crown||5.5,seed:i,zone:'mapped-trunk',accuracy:'Mapped trunk; unmeasured dimensions estimated'
-})),...STREET_LIFE.trees.filter(t=>!MAPPED_TREES.some(p=>p.id===t.id)),...CANOPY_SUPPLEMENT.trees,...NEIGHBOURHOOD_CANOPY.trees].filter(t=>pointInUrbanBounds(t));
+})),...STREET_LIFE.trees.filter(t=>!MAPPED_TREES.some(p=>p.id===t.id)),...CANOPY_SUPPLEMENT.trees,...NEIGHBOURHOOD_CANOPY.trees,...PARLIAMENT_GARDEN_TREES].filter(t=>pointInUrbanBounds(t));
 
 // Source positions remain available for attribution and single-owner suppression.
 const quarterDimensions=new Map(QUARTER.overrides.map(t=>[t.id,t]));

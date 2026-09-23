@@ -1,3 +1,4 @@
+import {parliamentPalms} from './ParliamentPalms';
 import * as T from 'three';
 import DATA from '../tirana-landmark-rebuild/parliament-entry.mjs';
 import {blenderGroup} from '../tirana-landmark-rebuild/geometry';
@@ -7,6 +8,7 @@ export class ParliamentEntrance {
   readonly group=blenderGroup(DATA);private dead=false;
   constructor(front:FacadeEdge){
     this.group.name='Kuvendi: public plenary entrance';
+    this.group.add(parliamentPalms());
     this.group.position.set((front.a[0]+front.b[0])/2+front.nx*.1,0,(front.a[1]+front.b[1])/2+front.nz*.1);
     this.group.rotation.y=Math.atan2(front.nx,front.nz);this.group.scale.x=Math.min(1,front.length/23);
     const canvas=document.createElement('canvas');canvas.width=2048;canvas.height=96;

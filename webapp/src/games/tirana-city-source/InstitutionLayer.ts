@@ -1,3 +1,4 @@
+import {groundHeight} from '../tirana-east/terrainCore.mjs';
 import * as T from 'three';
 import { FLAG_RATIOS } from './flagRatios.mjs';
 import { FLAG_ARTWORK } from './flagArtwork.mjs';
@@ -6,6 +7,8 @@ import { CITY_SOURCE } from './sourceData.mjs';
 import { CITY_PLACES } from './registry.mjs';
 import { frontage, type CitySite } from './sourceCore.mjs';
 import {BUSINESS_SIGN_BUILDING_IDS} from './businessSignRegistry.mjs';
+import {raisedInstitutionName} from './RaisedInstitutionName';
+import {disposeWeaponResources} from '../tiranastreets/weaponModelResources';
 
 const flagBase = '/assets/tirana-streets/flags/';
 type SignItem = {site:CitySite;edge:NonNullable<ReturnType<typeof frontage>>};
@@ -20,7 +23,7 @@ export class InstitutionLayer {
   private disposed=false;
   private time={value:0};
   private last=-Infinity;
-  private entries:{group:T.Group;x:number;z:number}[]=[];
+  private entries:{group:T.Group;x:number;z:number;sign?:T.Mesh;site:CitySite;relief?:T.Group}[]=[];
   private textures=new Set<T.Texture>();
   private materials=new Set<T.Material>();
   private geometries=new Set<T.BufferGeometry>();
@@ -44,8 +47,9 @@ export class InstitutionLayer {
     const flagReady=new Map<string,Promise<void>>();
     const load:Promise<void>[]=[];
     items.forEach(({site,edge},i)=>{
+      let nameSign:T.Mesh|undefined;
       const group=new T.Group();group.name=site.name||site.category;group.userData={...site};
-      group.position.set(edge.x+edge.nx*.26,0,edge.z+edge.nz*.26);group.rotation.y=edge.yaw;
+      group.position.set(edge.x+edge.nx*.26,groundHeight(edge.x,edge.z),edge.z+edge.nz*.26);group.rotation.y=edge.yaw;
       if(site.name&&!businessOwnsName(site)){
         const width=Math.min(edge.length-.6,4.6),height=width/4;
         const geometry=new T.PlaneGeometry(width,height),uv=geometry.getAttribute('uv');
@@ -53,6 +57,7 @@ export class InstitutionLayer {
         for(let v=0;v<uv.count;v++)uv.setXY(v,(col+uv.getX(v))/8,1-(row+1-uv.getY(v))/rows);
         this.geometries.add(geometry);
         const sign=new T.Mesh(geometry,signMaterial);sign.name='Institution name';
+        nameSign=sign;
         sign.position.set(0,Math.min(site.height-.6,3.35),.04);group.add(sign);
       }
       if(site.country){
@@ -90,7 +95,8 @@ export class InstitutionLayer {
         // Never show an untextured white rectangle as a country's flag.
         void flagReady.get(country)!.then(()=>{if(!this.dead)cloth.visible=Boolean((cloth.material as T.MeshStandardMaterial).map);});
       }
-      this.group.add(group);this.entries.push({group,x:edge.x,z:edge.z});group.visible=false;
+      group.traverse(o=>{o.updateMatrix();o.matrixAutoUpdate=false;});
+      this.group.add(group);this.entries.push({group,x:edge.x,z:edge.z,site,sign:nameSign});group.visible=false;
     });
     this.ready=Promise.all(load).then(()=>{});
   }
@@ -117,9 +123,28 @@ export class InstitutionLayer {
     this.time.value=seconds;
     if(!viewer||seconds>=this.last&&seconds-this.last<.25)return;this.last=seconds;
     const radius=battery?180:420;
-    for(const entry of this.entries)entry.group.visible=Math.hypot(entry.x-viewer.x,entry.z-viewer.z)<radius;
+    const nearby=this.entries.map(entry=>({entry,distance:(entry.x-viewer.x)**2+(entry.z-viewer.z)**2}));
+    const detailed=new Set(nearby.filter(({entry,distance})=>entry.sign&&entry.site.name&&
+      ['school','university','government','police','townhall','college'].includes(entry.site.category)&&distance<(battery?55:100)**2)
+      .sort((a,b)=>a.distance-b.distance).slice(0,battery?4:10).map(v=>v.entry));
+    let built=0;
+    for(const {entry,distance} of nearby){
+      entry.group.visible=distance<radius*radius;
+      if(detailed.has(entry)){
+        if(!entry.relief&&built<1){
+          const parameters=(entry.sign!.geometry as T.PlaneGeometry).parameters;
+          entry.relief=raisedInstitutionName(entry.site.name,parameters.width,parameters.height);
+          entry.relief.position.copy(entry.sign!.position);entry.relief.position.z+=.055;entry.relief.updateMatrix();
+          entry.group.add(entry.relief);built++;
+        }
+        if(entry.relief)entry.sign!.visible=false;
+      }else if(entry.relief){
+        entry.relief.removeFromParent();disposeWeaponResources([entry.relief]);entry.relief=undefined;entry.sign!.visible=true;
+      }
+    }
   }
   retire(){this.dead=true;}
   dispose(){if(this.disposed)return;this.disposed=true;this.retire();this.group.removeFromParent();
+    for(const entry of this.entries)if(entry.relief)disposeWeaponResources([entry.relief]);
     this.textures.forEach(t=>t.dispose());this.materials.forEach(m=>m.dispose());this.geometries.forEach(g=>g.dispose());this.group.clear();}
 }

@@ -1,0 +1,194 @@
+{
+  "version": 1,
+  "coordinateSystem": "glTF Y-up, metres",
+  "method": "Authored geometry; original operator artwork",
+  "models": {
+    "intesa": {
+      "file": "intesa.glb",
+      "bytes": 120100,
+      "triangles": 1114,
+      "drawCalls": 4,
+      "source": "https://aab.al/en/",
+      "kind": "operator-sign"
+    },
+    "otp": {
+      "file": "otp.glb",
+      "bytes": 134344,
+      "triangles": 1290,
+      "drawCalls": 4,
+      "source": "https://aab.al/en/",
+      "kind": "operator-sign"
+    },
+    "union": {
+      "file": "union.glb",
+      "bytes": 98300,
+      "triangles": 898,
+      "drawCalls": 4,
+      "source": "https://aab.al/en/",
+      "kind": "operator-sign"
+    },
+    "abi": {
+      "file": "abi.glb",
+      "bytes": 191760,
+      "triangles": 1838,
+      "drawCalls": 4,
+      "source": "https://aab.al/en/",
+      "kind": "operator-sign"
+    },
+    "tirana-bank": {
+      "file": "tirana-bank.glb",
+      "bytes": 102824,
+      "triangles": 970,
+      "drawCalls": 4,
+      "source": "https://aab.al/en/",
+      "kind": "operator-sign"
+    },
+    "fibank": {
+      "file": "fibank.glb",
+      "bytes": 137240,
+      "triangles": 1276,
+      "drawCalls": 4,
+      "source": "https://aab.al/en/",
+      "kind": "operator-sign"
+    },
+    "procredit": {
+      "file": "procredit.glb",
+      "bytes": 109148,
+      "triangles": 986,
+      "drawCalls": 4,
+      "source": "https://aab.al/en/",
+      "kind": "operator-sign"
+    },
+    "uba": {
+      "file": "uba.glb",
+      "bytes": 86820,
+      "triangles": 766,
+      "drawCalls": 4,
+      "source": "https://aab.al/en/",
+      "kind": "operator-sign"
+    },
+    "eco-market": {
+      "file": "eco-market.glb",
+      "bytes": 276248,
+      "triangles": 2198,
+      "drawCalls": 4,
+      "source": "https://ecomarket.al/",
+      "kind": "operator-sign"
+    },
+    "sophie": {
+      "file": "sophie.glb",
+      "bytes": 316796,
+      "triangles": 2502,
+      "drawCalls": 4,
+      "source": "https://www.sophiecaffe.com/",
+      "kind": "operator-sign"
+    },
+    "kfc": {
+      "file": "kfc.glb",
+      "bytes": 189232,
+      "triangles": 1836,
+      "drawCalls": 4,
+      "source": "https://toptani.com.al/en/content/100-kfc",
+      "kind": "operator-sign"
+    },
+    "burger-king": {
+      "file": "burger-king.glb",
+      "bytes": 189500,
+      "triangles": 1870,
+      "drawCalls": 4,
+      "source": "https://toptani.com.al/en/",
+      "kind": "operator-sign"
+    },
+    "tirana-international": {
+      "file": "tirana-international.glb",
+      "bytes": 149040,
+      "triangles": 1410,
+      "drawCalls": 4,
+      "source": "https://tiranainternational.com/",
+      "kind": "operator-sign"
+    },
+    "teg": {
+      "file": "teg.glb",
+      "bytes": 168560,
+      "triangles": 1680,
+      "drawCalls": 4,
+      "source": "https://www.teg.al/",
+      "kind": "operator-sign"
+    },
+    "qtu": {
+      "file": "qtu.glb",
+      "bytes": 144120,
+      "triangles": 1436,
+      "drawCalls": 4,
+      "source": "https://www.qtu.al/",
+      "kind": "operator-sign"
+    },
+    "rossmann-lala": {
+      "file": "rossmann-lala.glb",
+      "bytes": 177984,
+      "triangles": 1774,
+      "drawCalls": 4,
+      "source": "https://www.rossmann-lala.al/",
+      "kind": "operator-sign"
+    },
+    "neranxi": {
+      "file": "neranxi.glb",
+      "bytes": 161064,
+      "triangles": 1602,
+      "drawCalls": 4,
+      "source": "https://neranxi.al/",
+      "kind": "operator-sign"
+    },
+    "pizzahut": {
+      "file": "pizzahut.glb",
+      "bytes": 271292,
+      "triangles": 2740,
+      "drawCalls": 4,
+      "source": "https://www.pizzahut.al/",
+      "kind": "operator-sign"
+    },
+    "marriott": {
+      "file": "marriott.glb",
+      "bytes": 192536,
+      "triangles": 1930,
+      "drawCalls": 4,
+      "source": "https://www.marriott.com/en-us/hotels/tiamc-tirana-marriott/overview/",
+      "kind": "operator-sign"
+    },
+    "parliament-palms": {
+      "file": "parliament-palms.glb",
+      "bytes": 71192,
+      "triangles": 712,
+      "drawCalls": 3,
+      "kind": "entrance-landscaping",
+      "source": "Packaged city-parliament.jpg; authored dimensions"
+    },
+    "monument-sulejman-pasha": {
+      "file": "monument-sulejman-pasha.glb",
+      "bytes": 299920,
+      "triangles": 2372,
+      "drawCalls": 3,
+      "kind": "monument",
+      "source": "https://tirana.al/pika-interesi/shtatorja-e-sulejman-pashes",
+      "accuracy": "Original photo-informed approximation; dimensions and facing estimated"
+    },
+    "monument-unknown-partisan": {
+      "file": "monument-unknown-partisan.glb",
+      "bytes": 329952,
+      "triangles": 2532,
+      "drawCalls": 3,
+      "kind": "monument",
+      "source": "https://tirana.al/pika-interesi/monumenti-i-partizanit-te-panjohur",
+      "accuracy": "Original photo-informed approximation; dimensions and facing estimated"
+    },
+    "monument-ismail-qemali": {
+      "file": "monument-ismail-qemali.glb",
+      "bytes": 264188,
+      "triangles": 1988,
+      "drawCalls": 3,
+      "kind": "monument",
+      "source": "https://commons.wikimedia.org/wiki/File:Ismail_Qemal_Vlora_statue.jpg",
+      "accuracy": "Original photo-informed approximation; dimensions and facing estimated"
+    }
+  }
+}

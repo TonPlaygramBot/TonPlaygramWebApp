@@ -1,0 +1,16 @@
+{
+  "node": "v24.19.0",
+  "scenario": "Stationary player at free-roam spawn, full city population, 60 Hz simulation",
+  "warmup": 60,
+  "frames": 240,
+  "npcs": 1764,
+  "traffic": 2408,
+  "policeUnits": 26,
+  "startupMs": 915.1762899999999,
+  "meanMs": 4.93802757499997,
+  "medianMs": 4.683280999999624,
+  "p95Ms": 7.11523600000055,
+  "p99Ms": 9.053194000000076,
+  "maxMs": 10.239652000000206,
+  "over16ms": 0
+}

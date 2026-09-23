@@ -1,4 +1,6 @@
+import {applyForceLOD,loadForceLOD,type ForceLOD} from './forceLOD';
 import {alignVehicle} from '../tirana-east/terrainTransforms';
+import {forcePersonBudget,forcePoseInterval} from './shared/parliamentCordon.mjs';
 import {groundHeight} from '../tirana-east/terrainCore.mjs';
 import * as T from 'three';
 import {resetForcePose,poseForce} from './forcePose';
@@ -11,10 +13,10 @@ import {forceVehicleFor, forceCharacterFor, type ForceAsset} from './shared/alba
 import type {Point, NPC, Car} from './shared/engine.mjs';
 
 export type ForceCar = Pick<Car, 'id' | 'x' | 'z' | 'heading' | 'speed' | 'steering' | 'steerAngle' | 'model' | 'forceVehicle' | 'responding'>;
-export type ForceNPC = Pick<NPC, 'id' | 'x' | 'z' | 'heading' | 'speed' | 'kind' | 'motion' | 'health' | 'forceCharacter' | 'anim'> & Partial<Pick<NPC,'weapon'|'aimPitch'|'hitUntil'>>;
+export type ForceNPC = Pick<NPC, 'id' | 'x' | 'z' | 'heading' | 'speed' | 'kind' | 'motion' | 'health' | 'forceCharacter' | 'anim'> & Partial<Pick<NPC,'weapon'|'aimPitch'|'hitUntil'>> & {cordon?:string};
 export type ForceFrame = {cars: ForceCar[]; traffic: ForceCar[]; units: ForceCar[]; npcs: ForceNPC[]};
 type Candidate = {key: string; asset: ForceAsset; entity: ForceCar | ForceNPC; distance: number; flashing: boolean};
-type Source = {gltf: GLTF; frame: T.Group; used: number};
+type Source = {gltf: GLTF; frame: T.Group; used: number; lod?:ForceLOD};
 type Actor = {
   root: T.Group; asset: ForceAsset; wheels: RollingWheel[]; steering: T.Object3D[];
   lamps: {material: T.MeshStandardMaterial; base: number}[];
@@ -23,6 +25,7 @@ type Actor = {
   height?:number;
   gaitSpeed?:number;
   poseTime?:number;
+  lod?:boolean;
 };
 
 /** Prefetch final models outside their visible range. Generic role models are
@@ -64,6 +67,7 @@ export class AlbanianForcesVisuals {
     // Original uniform GLBs are 6–7 MB; allow a normal mobile download to finish.
     const timer = setTimeout(() => abort.abort(), 45000);
     let gltf: GLTF | undefined;
+    let lod:ForceLOD|undefined;
     try {
       const response = await fetch(asset.url, {signal: abort.signal,cache:this.retries.has(asset.id)?'reload':'default'});
       if (!response.ok) throw Error(`HTTP ${response.status}`);
@@ -71,13 +75,16 @@ export class AlbanianForcesVisuals {
       if (this.dead) return;
       gltf = await this.loader.parseAsync(bytes, '/assets/tirana-streets/albanian-forces/glb/');
       if (this.dead) { disposeWeaponResources([gltf.scene]); return; }
+      try{lod=await loadForceLOD(gltf,asset.id,bytes,abort.signal);this.errors.delete(asset.id+'/lod');}
+      catch(error){if(!this.dead)this.errors.set(asset.id+'/lod',String(error));}
+      if(this.dead){disposeWeaponResources([gltf.scene]);lod?.forEach(g=>g.dispose());gltf=undefined;lod=undefined;return;}
       const frame = prepareForceModel(gltf.scene, asset);
-      this.sources.set(asset.id, {gltf, frame, used: this.frame});
+      this.sources.set(asset.id, {gltf, frame, used: this.frame,lod});
       this.errors.delete(asset.id);this.retries.delete(asset.id);
-      gltf = undefined;
+      gltf = undefined;lod=undefined;
       this.trim();
     } catch (error) {
-      if (gltf) disposeWeaponResources([gltf.scene]);
+      if (gltf) disposeWeaponResources([gltf.scene]);lod?.forEach(g=>g.dispose());
       if (!this.dead) {
         this.errors.set(asset.id, String(error));
         const attempt=(this.retries.get(asset.id)?.attempt??0)+1;
@@ -143,11 +150,13 @@ export class AlbanianForcesVisuals {
     }
     const nearest = (a: Candidate, b: Candidate) => a.distance - b.distance || a.key.localeCompare(b.key);
     const cap = battery ? 5 : 12;
-    const selected = [...vehicles.sort(nearest).slice(0, cap), ...people.sort(nearest).slice(0, battery ? 8 : 16)];
+    const cordonLODReady=people.filter(c=>(c.entity as ForceNPC).cordon).every(c=>this.sources.get(c.asset.id)?.lod);
+    const selected = [...vehicles.sort(nearest).slice(0, cap), ...people.sort(nearest).slice(0, forcePersonBudget(people,battery,cordonLODReady))];
     const keep = new Set(selected.map(c => c.key));
     for (const key of this.actors.keys()) if (!keep.has(key)) this.remove(key);
     // Queue the closest original uniforms before the larger vehicle files.
-    this.desired = new Map([...selected].sort((a,b)=>Number(b.asset.category==='person')-Number(a.asset.category==='person')||nearest(a,b)).map(c => [c.asset.id, c.asset]));
+    this.desired = new Map([...selected,...people.filter(c=>(c.entity as ForceNPC).cordon&&c.distance<95)].sort((a,b)=>Number(b.asset.category==='person')-Number(a.asset.category==='person')||nearest(a,b)).map(c => [c.asset.id, c.asset]));
+    let detailedCordon=0;
     for (const c of selected) {
       if(c.distance>(c.asset.category==='person'?(battery?85:180):(battery?140:260))){const old=this.actors.get(c.key);if(old)old.root.visible=false;continue;}
       const source = this.sources.get(c.asset.id);
@@ -156,6 +165,13 @@ export class AlbanianForcesVisuals {
       let actor = this.actors.get(c.key);
       if (actor && actor.asset.id !== c.asset.id) { this.remove(c.key); actor = undefined; }
       actor ||= this.create(c.key, c.asset, source);
+      if((c.entity as ForceNPC).cordon&&source.lod){
+        // Four nearby hero uniforms at most; battery uses the same rig at LOD.
+        // Hysteresis avoids changing topology repeatedly at the distance edge.
+        const detailed=!battery&&c.distance<(actor.lod?14:20)&&detailedCordon<4;
+        if(detailed)detailedCordon++;
+        if(actor.lod!==!detailed){applyForceLOD(actor.root,source.lod,!detailed);actor.lod=!detailed;}
+      }
       actor.root.visible=true;
       const e = c.entity, person = c.asset.category === 'person';
       const first = !actor.root.userData.placed;
@@ -184,8 +200,8 @@ export class AlbanianForcesVisuals {
         }
         actor.poseTime=(actor.poseTime||0)+dt;
         // Nearby combat stays at render rate; distant original uniforms retain
-        // all detail with 20/10 Hz skeletal sampling and smooth root movement.
-        if(first||c.distance<35||actor.poseTime>=(c.distance<85?.05:.1)){
+        // their rigs with 20/10 Hz skeletal sampling and smooth root movement.
+        if(first||actor.poseTime>=forcePoseInterval(c.distance,npc.anim||'idle',moving,npc.cordon)){
           const poseDt=actor.poseTime;actor.poseTime=0;resetForcePose(actor.root);
           if(npc.health>0)actor.mixer?.update(poseDt*(moving?Math.min(2.8,Math.max(.15,actor.gaitSpeed/1.4)):1));
           poseForce(actor.root,npc.anim||(moving?'walk':'idle'),npc.health>0,poseDt,npc.aimPitch||0,npc.weapon??undefined,time,npc.hitUntil);
@@ -203,7 +219,14 @@ export class AlbanianForcesVisuals {
     this.pump();
   }
 
-  retryFailed() { this.errors.clear();this.retries.clear(); this.pump(); }
+  retryFailed() {
+    for(const key of this.errors.keys())if(key.endsWith('/lod')){
+      const id=key.slice(0,-4),source=this.sources.get(id);if(!source)continue;
+      for(const [actorId,actor]of this.actors)if(actor.asset.id===id)this.remove(actorId);
+      disposeWeaponResources([source.frame]);source.lod?.forEach(g=>g.dispose());this.sources.delete(id);
+    }
+    this.errors.clear();this.retries.clear();this.pump();
+  }
   private remove(key: string) {
     const actor = this.actors.get(key);
     if (!actor) return;
@@ -221,7 +244,7 @@ export class AlbanianForcesVisuals {
     for (const [id, source] of [...this.sources].sort((a, b) => a[1].used - b[1].used)) {
       if (this.sources.size <= 8) break;
       if (live.has(id) || this.desired.has(id)) continue;
-      disposeWeaponResources([source.frame]);
+      disposeWeaponResources([source.frame]);source.lod?.forEach(g=>g.dispose());
       this.sources.delete(id);
     }
   }
@@ -230,7 +253,7 @@ export class AlbanianForcesVisuals {
     this.dead = true;
     for (const abort of this.pending.values()) abort.abort();
     for (const key of this.actors.keys()) this.remove(key);
-    for (const source of this.sources.values()) disposeWeaponResources([source.frame]);
+    for (const source of this.sources.values()){disposeWeaponResources([source.frame]);source.lod?.forEach(g=>g.dispose());}
     this.sources.clear(); this.desired.clear(); this.errors.clear();this.retries.clear();
     for(const resolve of this.waiters.splice(0))resolve();
     this.group.removeFromParent();

@@ -1,3 +1,4 @@
+import {nearestActors} from '../shared/frameBudget.mjs';
 /** Same bundled GLBs used by Table Tennis/Chess/Tirana. No copied model binaries. */
 export const HUMAN_ROSTER = Object.freeze([
   {id:'chess-human', label:'Chess veteran', sourceId:'rpm-current', url:'/assets/table-tennis/chess-human.glb', roles:['civilian','dealer','gang'], licence:'Existing Ready Player Me permission; not CC0'},
@@ -20,8 +21,7 @@ export function humanFor(entity) {
 export function nearbyHumans(entities, viewer, battery=false) {
   if (!viewer || !Number.isFinite(viewer.x) || !Number.isFinite(viewer.z)) return [];
   const range = battery ? 110 : 230, cap = battery ? 28 : 72;
-  return entities.filter(n => n.motion !== 'drive' && Number.isFinite(n.x) && Number.isFinite(n.z) && Math.hypot(n.x-viewer.x,n.z-viewer.z) < range)
-    .sort((a,b) => Math.hypot(a.x-viewer.x,a.z-viewer.z)-Math.hypot(b.x-viewer.x,b.z-viewer.z) || String(a.id).localeCompare(String(b.id))).slice(0,cap);
+  return nearestActors(entities, viewer, range, cap, n => n.motion !== 'drive');
 }
 /** Screen-coordinate joystick: right is right; upward displacement is forward. */
 export function screenStick(dx, dy, radius=44, deadzone=0) {

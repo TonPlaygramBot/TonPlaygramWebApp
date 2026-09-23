@@ -24,6 +24,7 @@ import {
 import { captureCheckpoint, restoreCheckpoint } from './checkpointCore.mjs';
 import { loadSettings, type StreetSettings } from './settings';
 import {FramePacer} from '../renderSettings';
+import {fixedStepBudget} from '../shared/frameBudget.mjs';
 import {WORLD} from '../shared/world.mjs';
 import {buildMapGraph,findMapRoute} from '../map/mapCore.mjs';
 type Destination = Point & {name:string;id?:string;available?:boolean};
@@ -400,11 +401,10 @@ export class StreetCareerRuntime {
       this.simulation.setIntent(
         this.input.readStreet(this.renderer.yaw, this.renderer.pitch, !!p.carId)
       );
-      this.accumulator = Math.min(0.1, this.accumulator + dt);
-      while (this.accumulator >= 1 / 60 && !this.paused) {
-        this.stepSimulation(1 / 60);
-        this.accumulator -= 1 / 60;
-      }
+      const budget = fixedStepBudget(this.accumulator, dt);
+      this.accumulator = budget.remainder;
+      for (let step = 0; step < budget.steps && !this.paused; step++)
+        this.stepSimulation(budget.step);
       if (this.state.phase === 'finished') {
         const complete = campaign.resolve(this.profile, this.state, 'local');
         if (complete) {
