@@ -235,7 +235,7 @@ export function poolRoyalEyeView(human: HumanRig, group: THREE.Group, ball: THRE
   forward: THREE.Vector3, ballRadius: number, exactEyes = false): HumanEyeView | null {
   const left = human.model?.getObjectByName('LeftEye');
   const right = human.model?.getObjectByName('RightEye');
-  if (!left || !right || human.poseT < 0.2) return null;
+  if (!left || !right || (!exactEyes && human.poseT < 0.2)) return null;
   group.updateWorldMatrix(true, true);
   const eye = point(left).lerp(point(right), 0.5);
   group.parent!.worldToLocal(eye);
@@ -243,5 +243,8 @@ export function poolRoyalEyeView(human: HumanRig, group: THREE.Group, ball: THRE
   // camera-specific face suppression handles self-occlusion without moving it.
   if (!exactEyes) eye.addScaledVector(forward, ballRadius * 2);
   const target = ball.clone().addScaledVector(forward, ballRadius * 5);
-  return { position: eye, target, blend: THREE.MathUtils.smoothstep(human.poseT, 0.2, 0.95) };
+  // The player lens follows the real eyes while standing, walking and bending
+  // into the shot. Blending with the orbit camera puts the lens outside the
+  // head during every aim adjustment and can look straight through the face.
+  return { position: eye, target, blend: exactEyes ? 1 : THREE.MathUtils.smoothstep(human.poseT, 0.2, 0.95) };
 }

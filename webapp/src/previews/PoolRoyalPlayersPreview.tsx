@@ -7,6 +7,8 @@ import { type ShotState } from '../pages/Games/shared/poolRoyalReferenceHuman.ts
 import { createPoolRoyalCue, posePoolRoyalCue } from '../pages/Games/shared/createPoolRoyalCue.ts';
 import { PoolRoyalShotCamera } from '../pages/Games/shared/poolRoyalShotCamera.ts';
 import { PoolRoyalPocketLights } from '../pages/Games/shared/poolRoyalPocketLights.ts';
+import { poolRoyalHudLayout, POOL_AVATAR_SIZE_PX, POOL_SPIN_DIAMETER_PX } from '../pages/Games/poolRoyalHudLayout.js';
+import { spinFromScreenPoint, normalizeSpinInput } from '../pages/Games/poolRoyaleSpinUtils.js';
 import { advancePoolRoyalCueStroke, referenceCuePull, referenceCueFeather, resolveCueBallContact } from '../pages/Games/poolRoyaleCueStrokeTimeline.js';
 import { clipGuideTravel } from '../pages/Games/shared/billiardsGuideGeometry.js';
 import { createShowoodTableGeometry, groundShowoodTableLegs, raycastPoolCushions } from '../pages/Games/shared/poolRoyaleShowoodGeometry.js';
@@ -21,7 +23,7 @@ type View = 'player' | 'table' | 'bridge' | 'geometry' | 'pocket';
 
 function CharacterPreview() {
   const stage = useRef<HTMLDivElement>(null);
-  const live = useRef({ state: 'dragging' as ShotState, view: 'player' as View, paused: false, power: 0, yaw: 0, seat: 'A' as PlayerSeat, strikeAt: 0, shotId: 0, resetId: 0, elapsed: 0, slow: false, ai: false, inspectContact: false, station: 0, pocketPulse: 0 });
+  const live = useRef({ state: 'dragging' as ShotState, view: 'player' as View, paused: false, power: 0, yaw: 0, seat: 'A' as PlayerSeat, strikeAt: 0, shotId: 0, resetId: 0, elapsed: 0, slow: false, ai: false, inspectContact: false, station: 0, pocketPulse: 0, spin: { x: 0, y: 0 } });
   const [state, setState] = useState<ShotState>('dragging');
   const [paused, setPaused] = useState(false);
   const [view, setView] = useState<View>('player');
@@ -33,6 +35,14 @@ function CharacterPreview() {
   const [slow, setSlow] = useState(false);
   const [phase, setPhase] = useState('Aiming');
   const [canShoot, setCanShoot] = useState(false);
+  const [spin, setSpin] = useState({ x: 0, y: 0 });
+  const controls = poolRoyalHudLayout({ uiScale: .728, portrait: true, bottom: 56 });
+  const updateSpin = (value: { x: number; y: number }) => {
+    live.current.spin = normalizeSpinInput(value); setSpin(live.current.spin);
+  };
+  const dragSpin = (event: React.PointerEvent<HTMLButtonElement>) => {
+    updateSpin(spinFromScreenPoint(event.clientX, event.clientY, event.currentTarget.getBoundingClientRect()));
+  };
   const changeState = (next: ShotState) => {
     live.current.paused = false; setPaused(false);
     live.current.state = next;
@@ -215,7 +225,9 @@ function CharacterPreview() {
         seenReset = current.resetId; stroke = null; travel = 0; cueBall.position.copy(ballPosition); shotCamera.reset();
       }
       const pull = referenceCuePull(current.power, METRICS.ballR) + referenceCueFeather(current.power, METRICS.ballR, simulationTime);
-      const idleTip = ballPosition.clone().addScaledVector(forward, -METRICS.cueGap).addScaledVector(THREE.Object3D.DEFAULT_UP, -METRICS.ballR * 0.34);
+      const idleTip = ballPosition.clone().addScaledVector(forward, -METRICS.cueGap)
+        .addScaledVector(THREE.Object3D.DEFAULT_UP, METRICS.ballR * (-0.34 + current.spin.y * 0.6))
+        .addScaledVector(new THREE.Vector3(-forward.z, 0, forward.x), METRICS.ballR * current.spin.x * 0.6);
       const aimingTip = idleTip.clone().addScaledVector(forward, -pull);
       if (seenShot !== current.shotId) {
         seenShot = current.shotId; travel = 0; shotAnchor.copy(ballPosition); cueBall.position.copy(ballPosition); shotDirection.copy(forward);
@@ -371,7 +383,36 @@ function CharacterPreview() {
         const next = event.target.value as PlayerSeat; setSeat(next); live.current.seat = next; changeState('dragging');
       }}><option value="A">Player 1</option><option value="B">AI player</option></select>
     </div>
-    <div ref={stage} className="pool-preview-stage" role="img" aria-label="Pool Royal players walking around the Showood table, with player, bridge and measured collision views" />
+    <div ref={stage} className="pool-preview-stage" aria-label="Pool Royal portrait inspection">
+      <div className="pool-preview-avatar-lane" style={controls.avatars}>
+        <div className="pool-preview-avatar-frame">
+          {(['A', 'B'] as PlayerSeat[]).map(value => <div className="pool-preview-player" key={value}>
+            <span className="pool-preview-avatar" style={{ width: POOL_AVATAR_SIZE_PX, height: POOL_AVATAR_SIZE_PX }}
+              role="img" aria-label={value === 'A' ? 'Player avatar placeholder' : 'Opponent avatar placeholder'}>{value}</span>
+            <span>{value === 'A' ? 'You' : 'AI'}</span>
+          </div>)}
+        </div>
+      </div>
+      <div className="pool-preview-spin-lane" style={controls.spin}>
+        <button type="button" className="pool-preview-spin cursor-interaction" aria-label="Cue ball spin"
+          style={{ width: POOL_SPIN_DIAMETER_PX, height: POOL_SPIN_DIAMETER_PX }}
+          onPointerDown={event => { event.stopPropagation(); event.currentTarget.setPointerCapture(event.pointerId); dragSpin(event); }}
+          onPointerMove={event => { if (event.currentTarget.hasPointerCapture(event.pointerId)) dragSpin(event); }}
+          onPointerUp={event => event.currentTarget.releasePointerCapture(event.pointerId)}
+          onKeyDown={event => {
+            const step = .05;
+            if (event.key === 'Home') updateSpin({ x: 0, y: 0 });
+            else if (event.key === 'ArrowRight') updateSpin({ ...spin, x: spin.x + step });
+            else if (event.key === 'ArrowLeft') updateSpin({ ...spin, x: spin.x - step });
+            else if (event.key === 'ArrowUp') updateSpin({ ...spin, y: spin.y + step });
+            else if (event.key === 'ArrowDown') updateSpin({ ...spin, y: spin.y - step });
+            else return;
+            event.preventDefault();
+          }}>
+          <span className="pool-preview-spin-dot" style={{ left: `${50 + spin.x * 50}%`, top: `${50 - spin.y * 50}%` }} />
+        </button>
+      </div>
+    </div>
     <div className="viz-controls" aria-label="Camera view">
       {(['player', 'table', 'bridge', 'geometry'] as View[]).map(value => <button key={value} className="btn" aria-pressed={view === value}
         onClick={() => { setView(value); live.current.view = value;  }}>
