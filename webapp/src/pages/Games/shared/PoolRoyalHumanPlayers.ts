@@ -6,7 +6,7 @@ import {
   cuePoseFromGrip, setCuePose, updateHumanPose,
   type HumanRig, type ShotState
 } from './poolRoyalReferenceHuman.ts';
-import { refinePoolRoyalBridge, poolRoyalEyeView, poolRoyalHeadEyeView, bridgeCueClearance, type HumanEyeView } from './poolRoyalPlayerPose.ts';
+import { refinePoolRoyalBridge, poolRoyalEyeView, bridgeCueClearance, type HumanEyeView } from './poolRoyalPlayerPose.ts';
 import { posePoolRoyalCue } from './createPoolRoyalCue.ts';
 import { addPoolRoyalHandDetails } from './poolRoyalHandDetails.ts';
 import { PoolRoyalFirstPerson } from './poolRoyalFirstPerson.ts';
@@ -237,13 +237,6 @@ export class PoolRoyalHumanPlayers {
       .divideScalar(this.referenceScale);
   }
 
-  /** Resolve the viewer's eyes after animation, even while idle or the other seat shoots. */
-  getEyeView(seat: PlayerSeat): HumanEyeView | null {
-    if (this.disposed || !this.group.visible) return null;
-    const player = this.players.find(player => player.seat === seat);
-    return player?.initialized ? poolRoyalHeadEyeView(player.human, this.group) : null;
-  }
-
   setFirstPerson(enabled: boolean, seat: PlayerSeat) {
     for (const player of this.players) for (const mesh of player.headMeshes) {
       mesh.visible = !(enabled && player.seat === seat);
@@ -267,8 +260,8 @@ export class PoolRoyalHumanPlayers {
     const targetDistance = ray.length(); ray.normalize();
     for (const player of this.players) {
       if (player.firstPerson) {
-        // Suppress only the viewer's own face, including while the other seat
-        // shoots. The opponent's head and every broadcast view stay intact.
+        // Only the local shooter's face is suppressed, and only while this
+        // camera is entering/leaving the eye position. Other heads stay intact.
         const eye = player.human.model!.getObjectByName('LeftEye')!.getWorldPosition(new THREE.Vector3());
         const faceRadius = CFG.humanScale * 0.19 * this.group.getWorldScale(new THREE.Vector3()).x;
         player.firstPerson.setCamera(camera, player.seat === firstPersonSeat && cameraPos.distanceTo(eye) < faceRadius);
