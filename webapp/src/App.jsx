@@ -1,7 +1,6 @@
 import React, { Suspense, useMemo } from 'react';
 import { BrowserRouter, Routes, Route, Navigate, useLocation } from 'react-router-dom';
 import { TonConnectUIProvider } from '@tonconnect/ui-react';
-import { WallTransfersProvider } from './features/flamingo/WallTransfers';
 
 import Home from './pages/Home.jsx';
 import Earn from './pages/Earn.jsx';
@@ -141,11 +140,7 @@ const UnderrunArena = React.lazy(() => import('./pages/Games/UnderrunArena.jsx')
 const StoreThumbnailStudioPoolRoyale = React.lazy(
   () => import('./pages/Tools/StoreThumbnailStudioPoolRoyale.jsx')
 );
-const CommunityWallApp = React.lazy(
-  () => import('./features/flamingo/CommunityWallApp.tsx')
-);
 const CreatorStudio = React.lazy(() => import('./features/creator/CreatorStudio.tsx'));
-const SocialProfilePage = React.lazy(() => import('./features/flamingo/SocialProfilePage.tsx'));
 
 export default function App() {
   // Enforce canonical origin for wallet connection flows.
@@ -221,7 +216,6 @@ export default function App() {
         actionsConfiguration={actionsConfiguration}
       >
         <TonConnectSync />
-        <WallTransfersProvider>
         <Layout>
           <Suspense
             fallback={
@@ -234,10 +228,9 @@ export default function App() {
               <Route path="/achievements" element={<EcosystemTopic topic="achievements" />} />
               <Route path="/roadmap" element={<EcosystemTopic topic="roadmap" />} />
               <Route path="/tokenomics" element={<Tokenomics />} />
-              <Route path="/wall" element={<CommunityWallApp />} />
+              <Route path="/wall/*" element={<Navigate to="/social" replace />} />
               <Route path="/creator-studio" element={<CreatorStudio />} />
-              <Route path="/wall/profile/:accountId" element={<SocialProfilePage />} />
-              <Route path="/flamingo/*" element={<Navigate to="/wall" replace />} />
+              <Route path="/flamingo/*" element={<Navigate to="/social" replace />} />
               <Route path="/earn" element={<Earn />} />
               <Route path="/social" element={<Social />} />
               <Route path="/mining" element={<Navigate to="/earn#mining" replace />} />
@@ -553,7 +546,6 @@ export default function App() {
             </Routes>
           </Suspense>
         </Layout>
-        </WallTransfersProvider>
       </TonConnectUIProvider>
       </BackNavigationProvider>
     </BrowserRouter>

@@ -21,8 +21,8 @@ const worker = await read('social-app/service-worker.js');
 assert.ok(!worker.includes('__SOCIAL_VERSION__'));
 const assets = JSON.parse(worker.match(/const SOCIAL_ASSETS = (\[.*?\]);/s)[1]);
 assert.ok(assets.includes('/social-app/index.html'));
-assert.ok(assets.some(path => /\/CommunityWallApp-.*\.js$/.test(path)));
-assert.ok(assets.some(path => /\/SocialProfilePage-.*\.js$/.test(path)));
+assert.ok(!assets.some(path => /\/CommunityWallApp-.*\.js$/.test(path)), 'Retired wall must not be bundled');
+assert.ok(!assets.some(path => /\/SocialProfilePage-.*\.js$/.test(path)), 'Retired wall profiles must not be bundled');
 assert.ok(assets.some(path => /\/CreatorStudio-.*\.js$/.test(path)));
 assert.ok(!assets.includes('/index.html') && !assets.includes('/manifest.webmanifest'));
 assert.ok(!assets.some(path => /(?:game-packs|CityMap-|TiranaStreets-|SnakeAndLadder-|PoolRoyale-)/.test(path)));
@@ -32,5 +32,9 @@ for (const size of [192, 512]) {
   const image = await sharp(resolve(directory, `social-app/icon-${size}.png`)).metadata();
   assert.equal(image.width, size); assert.equal(image.height, size); assert.equal(image.format, 'png');
 }
-for (const path of ['pwa/wall-push.js', 'pwa/wall-upload-worker.js']) assert.ok((await stat(resolve(directory, path))).size > 0);
+assert.ok(!worker.includes('wall-upload-worker') && !worker.includes('wall-push'));
+const retiredUploadWorker = await read('pwa/wall-upload-worker.js');
+assert.ok(retiredUploadWorker.includes('__TONPLAYGRAM_WALL_RETIRED__'));
+assert.ok(!retiredUploadWorker.includes('fetch(') && !retiredUploadWorker.includes('addEventListener'));
+assert.ok(!assets.some(path => path.startsWith('/ProtestVideo/')));
 console.log(`Social build verified: separate manifest, routes, icons and ${assets.length} cached files (${bytes.toLocaleString()} bytes).`);
