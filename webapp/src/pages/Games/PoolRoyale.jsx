@@ -135,7 +135,6 @@ import {
   shouldApplyPoolSuggestion
 } from './poolRoyaleAimSuggestion.js';
 import { advancePoolRoyalCueStroke, POOL_ROYAL_STROKE, referenceCuePull, referenceCueFeather, resolveCueBallContact } from './poolRoyaleCueStrokeTimeline.js';
-import { PoolRoyalShotCamera } from './shared/poolRoyalShotCamera.ts';
 import { clipGuideTravel } from './shared/billiardsGuideGeometry.js';
 import { poolCueGuideResponse } from './poolRoyaleGuideResponse.js';
 import { PoolCompetitionMatch } from '../../games/pool/PoolCompetitionMatch.jsx';
@@ -16018,6 +16017,9 @@ function PoolRoyaleGame({
   const usePortraitHudLayout = true;
   const [isLookMode, setIsLookMode] = useState(false);
   const lookModeRef = useRef(false);
+  // Only explicit view controls change ownership. Shot/AI/pocket camera flags
+  // must never move this viewer into another person's head or towards a ball.
+  const playerEyeViewEnabledRef = useRef(true);
   const railOverheadSideRef = useRef('back');
   useEffect(() => {
     if (typeof window === 'undefined') {
@@ -16080,6 +16082,9 @@ function PoolRoyaleGame({
 
   useEffect(() => {
     if (!isPortrait && isTopDownView) {
+      playerEyeViewEnabledRef.current = true;
+      lookModeRef.current = false;
+      setIsLookMode(false);
       setIsTopDownView(false);
       setIsRailOverheadView(false);
     }
@@ -16715,7 +16720,6 @@ function PoolRoyaleGame({
   const decorativeTablesRef = useRef([]);
   const hospitalityGroupsRef = useRef([]);
   const spawnPlayerCharactersRef = useRef(() => {});
-  const activeHumanCueViewRef = useRef(null);
   const activeHumanPlayersRef = useRef(null);
   const characterShotStartedAtRef = useRef(0);
   const characterShotShooterRef = useRef('A');
@@ -19694,6 +19698,7 @@ const shotPowerRef = useRef(0);
     const renderLoopErrorThreshold = 3;
     try {
       const updatePocketCameraState = (active) => {
+        active = Boolean(active && !playerEyeViewEnabledRef.current);
         if (pocketCameraStateRef.current === active) return;
         pocketCameraStateRef.current = active;
         setPocketCameraActive(active);
@@ -19903,7 +19908,7 @@ const shotPowerRef = useRef(0);
           preShotTopViewLockRef.current = topViewLockedRef.current;
           shotCameraHoldTimeoutRef.current = window.setTimeout(() => {
             shotCameraHoldTimeoutRef.current = null;
-            if (!shooting) return;
+            if (!shooting || playerEyeViewEnabledRef.current) return;
             topViewRef.current = true;
             topViewLockedRef.current = true;
             enterTopView(true, { variant: 'rail' });
@@ -21866,18 +21871,13 @@ const shotPowerRef = useRef(0);
           return vec;
         };
 
-        const humanShotCamera = new PoolRoyalShotCamera(0.55);
-        const humanEyeCamera = camera.clone();
-        const resolveActiveHumanEyePose = () => {
-          const pose = humanShotCamera.resolve({
-            eye: activeHumanCueViewRef.current,
-            stroke: Boolean(cueStrokeStateRef.current), shooting: shootingRef.current,
-            cueBlend: cameraBlendRef.current ?? 1, now: performance.now(),
-            aiming: Boolean(activeHumanCueViewRef.current && !shootingRef.current),
-            excluded: Boolean(topViewRef.current || lookModeRef.current || replayPlaybackRef.current || cueGalleryStateRef.current?.active)
-          });
+        const humanEyeCamera = new THREE.PerspectiveCamera(STANDING_VIEW_FOV, camera.aspect, CAMERA.near, CAMERA.far);
+        const resolveLocalHumanEyePose = () => {
+          if (!playerEyeViewEnabledRef.current || replayPlaybackRef.current || cueGalleryStateRef.current?.active) return null;
+          const pose = activeHumanPlayersRef.current?.getEyeView(localSeatRef.current);
           return pose ? { ...pose, position: world.localToWorld(pose.position.clone()),
-            target: world.localToWorld(pose.target.clone()) } : null;
+            target: world.localToWorld(pose.target.clone()),
+            up: pose.up.clone().transformDirection(world.matrixWorld) } : null;
         };
 
 
@@ -23113,26 +23113,22 @@ const shotPowerRef = useRef(0);
           broadcastArgs.lerp = 0.22;
         }
           }
-          // Apply after choosing the actual render camera, including AI/action/pocket views.
-          const humanEyePose = resolveActiveHumanEyePose();
+          // The local viewer owns the final lens through aim, strike, recovery
+          // and opponent turns. Never inherit a close-up lens, zoom, or shot fade.
+          const humanEyePose = resolveLocalHumanEyePose();
           if (humanEyePose) {
-            // Blend into a separate camera. Mutating a pocket/broadcast camera
-            // here left the next view inside the face after a camera handoff.
-            humanEyeCamera.copy(renderCamera, false);
             renderCamera = humanEyeCamera;
-            renderCamera.up.set(0, 1, 0);
-            renderCamera.position.lerp(humanEyePose.position, humanEyePose.blend);
-            lookTarget = (lookTarget ?? humanEyePose.target).clone().lerp(humanEyePose.target, humanEyePose.blend);
+            renderCamera.position.copy(humanEyePose.position);
+            renderCamera.up.copy(humanEyePose.up);
+            lookTarget = humanEyePose.target;
             renderCamera.lookAt(lookTarget);
-            if (renderCamera.isPerspectiveCamera) {
-              renderCamera.fov = THREE.MathUtils.lerp(renderCamera.fov, STANDING_VIEW_FOV, humanEyePose.blend);
-              renderCamera.zoom = THREE.MathUtils.lerp(renderCamera.zoom, 1, humanEyePose.blend);
+            if (renderCamera.aspect !== camera.aspect) {
+              renderCamera.aspect = camera.aspect;
               renderCamera.updateProjectionMatrix();
             }
           }
           if (!replayPlaybackActive && lookTarget) activeHumanPlayersRef.current?.updateCameraVisibility(
-            renderCamera, lookTarget, humanEyePose?.blend > 0
-              ? (shootingRef.current ? characterShotShooterRef.current : frameRef.current?.activePlayer === 'B' ? 'B' : 'A') : undefined
+            renderCamera, lookTarget, humanEyePose ? localSeatRef.current : undefined
           );
           if (lookTarget) {
             lastCameraTargetRef.current.copy(lookTarget);
@@ -24626,6 +24622,12 @@ const shotPowerRef = useRef(0);
         };
 
         const startShotReplay = (postShotSnapshot) => {
+          if (playerEyeViewEnabledRef.current) {
+            shotReplayRef.current = null;
+            shotRecording = null;
+            setReplaySlate(null);
+            return;
+          }
           if (replayPlaybackRef.current) return;
           if (!shotRecording) return;
           const hasCapturedFrames =
@@ -24770,6 +24772,7 @@ const shotPowerRef = useRef(0);
         skipReplayRef.current = skipReplay;
 
         const enterTopView = (immediate = false, { variant = 'rail' } = {}) => {
+          if (playerEyeViewEnabledRef.current) return;
           topViewRef.current = true;
           topViewLockedRef.current = true;
           overheadBroadcastVariantRef.current = variant;
@@ -25669,7 +25672,6 @@ const shotPowerRef = useRef(0);
         referencePlayers?.dispose();
         activeHumanPlayersRef.current = null;
         referencePlayers = null;
-        activeHumanCueViewRef.current = null;
       };
       const spawnPlayerCharacters = () => {
         disposePlayerCharacters();
@@ -25729,7 +25731,6 @@ const shotPowerRef = useRef(0);
           })),
           hidden: Boolean(replayPlaybackRef.current)
         });
-        activeHumanCueViewRef.current = referencePlayers.eyeView;
         if (referencePlayers.players.length === 2 && (state === 'idle' || referencePlayers.walking) && !replayPlaybackRef.current) {
           // The standing shooter already holds a copy of the selected game cue.
           // Keep the extra aiming cue out of the rendered idle frame.
@@ -30342,6 +30343,7 @@ const shotPowerRef = useRef(0);
           let shouldStartReplay =
             ENABLE_SHOT_REPLAY &&
             autoReplayEnabledRef.current &&
+            !playerEyeViewEnabledRef.current &&
             Boolean(replayDecision?.shouldReplay) &&
             hasReplayFrames;
           let replayBannerText = replayDecision?.banner ?? selectReplayBanner('default');
@@ -30512,7 +30514,7 @@ const shotPowerRef = useRef(0);
           replayAccent = replayDecision.primaryTag ?? 'final';
           shouldStartReplay =
             ENABLE_SHOT_REPLAY &&
-            autoReplayEnabledRef.current;
+            autoReplayEnabledRef.current && !playerEyeViewEnabledRef.current;
         }
         if (replayDecision && shotRecording) {
           shotRecording.replayTags = replayDecision.tags;
@@ -30521,6 +30523,7 @@ const shotPowerRef = useRef(0);
         shouldStartReplay =
           ENABLE_SHOT_REPLAY &&
           autoReplayEnabledRef.current &&
+          !playerEyeViewEnabledRef.current &&
           Boolean(replayDecision?.shouldReplay) &&
           hasReplayFrames;
         const shooterSeat = currentState?.activePlayer === 'B' ? 'B' : 'A';
@@ -30819,6 +30822,11 @@ const shotPowerRef = useRef(0);
             const launchReplay = () => {
               replayBannerTimeoutRef.current = null;
               setReplayBanner(null);
+              if (playerEyeViewEnabledRef.current) {
+                if (shotRecording === recordingForReplay) shotRecording = null;
+                if (shotReplayRef.current === recordingForReplay) shotReplayRef.current = null;
+                return;
+              }
               const slateLead = triggerReplaySlate(replayBannerText, { accent: replayAccent });
               const beginReplay = () => {
                 shotRecording = recordingForReplay;
@@ -31014,6 +31022,7 @@ const shotPowerRef = useRef(0);
           if (
             ENABLE_SHOT_REPLAY &&
             autoReplayEnabledRef.current &&
+            !playerEyeViewEnabledRef.current &&
             pending?.frames?.length > 1
           ) {
             shotRecording = {
@@ -35348,7 +35357,13 @@ const shotPowerRef = useRef(0);
         <button
           type="button"
           aria-pressed={isLookMode}
-          onClick={() => setIsLookMode((prev) => !prev)}
+          onClick={() => {
+            const next = !isLookMode;
+            playerEyeViewEnabledRef.current = !next;
+            lookModeRef.current = next;
+            setIsLookMode(next);
+            cameraUpdateRef.current?.();
+          }}
           className={`pointer-events-auto flex h-14 w-14 items-center justify-center rounded-full border text-xl font-semibold shadow-[0_12px_32px_rgba(0,0,0,0.45)] backdrop-blur transition ${
             isLookMode
               ? 'border-emerald-300 bg-emerald-300/20 text-emerald-100'
@@ -35364,6 +35379,8 @@ const shotPowerRef = useRef(0);
             type="button"
             aria-pressed={!isTopDownView && !isLookMode}
             onClick={() => {
+              playerEyeViewEnabledRef.current = true;
+              skipReplayRef.current?.();
               lookModeRef.current = false;
               setIsLookMode(false);
               setIsRailOverheadView(false);
@@ -35385,6 +35402,9 @@ const shotPowerRef = useRef(0);
             aria-pressed={isTopDownView && !isRailOverheadView}
             onClick={() => {
               if (!isPortrait) return;
+              playerEyeViewEnabledRef.current = false;
+              lookModeRef.current = false;
+              setIsLookMode(false);
               setIsRailOverheadView(false);
               setIsTopDownView(true);
             }}
@@ -35402,6 +35422,9 @@ const shotPowerRef = useRef(0);
             aria-pressed={isTopDownView && isRailOverheadView}
             onClick={() => {
               if (!isPortrait) return;
+              playerEyeViewEnabledRef.current = false;
+              lookModeRef.current = false;
+              setIsLookMode(false);
               const isActiveRailView = isTopDownView && isRailOverheadView;
               setIsRailOverheadView(true);
               setIsTopDownView(true);
