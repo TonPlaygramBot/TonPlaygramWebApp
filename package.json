@@ -27,7 +27,6 @@
     "help:ingest": "node --loader ts-node/esm packages/ingestion-public/src/cli.ts",
     "help:api": "node --loader ts-node/esm/transpile-only packages/api/src/server.ts",
     "help:test": "jest test/platformHelpAgent --runInBand",
-    "reset-social-wall": "node bot/scripts/resetSocialWall.js",
     "test:backgammon": "node --test test/backgammonMatch.node.mjs test/backgammonPresentation.node.mjs test/tavullEngine.test.js && npm run test:backgammon --prefix webapp",
     "test:app-download": "node --test test/gamePackRecovery.node.mjs test/appDownloadManager.node.mjs test/appDownloadWorker.node.mjs test/pageDownloadCache.node.mjs test/appPackManifest.node.mjs test/externalAssetInventory.node.mjs test/externalAssetsRuntime.node.mjs test/chessCharacterAssetAvailability.test.mjs test/captureAudioAvailability.test.mjs test/polyhavenInventory.node.mjs webapp/scripts/external-assets/downloader.test.mjs && npm run test:navigation --prefix webapp -- src/components/PwaDownloadFrame.navigation.test.jsx src/hooks/useGamePacks.navigation.test.jsx"
   },

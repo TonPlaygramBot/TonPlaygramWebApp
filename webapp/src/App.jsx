@@ -140,7 +140,6 @@ const UnderrunArena = React.lazy(() => import('./pages/Games/UnderrunArena.jsx')
 const StoreThumbnailStudioPoolRoyale = React.lazy(
   () => import('./pages/Tools/StoreThumbnailStudioPoolRoyale.jsx')
 );
-const CreatorStudio = React.lazy(() => import('./features/creator/CreatorStudio.tsx'));
 
 export default function App() {
   // Enforce canonical origin for wallet connection flows.
@@ -228,9 +227,6 @@ export default function App() {
               <Route path="/achievements" element={<EcosystemTopic topic="achievements" />} />
               <Route path="/roadmap" element={<EcosystemTopic topic="roadmap" />} />
               <Route path="/tokenomics" element={<Tokenomics />} />
-              <Route path="/wall/*" element={<Navigate to="/social" replace />} />
-              <Route path="/creator-studio" element={<CreatorStudio />} />
-              <Route path="/flamingo/*" element={<Navigate to="/social" replace />} />
               <Route path="/earn" element={<Earn />} />
               <Route path="/social" element={<Social />} />
               <Route path="/mining" element={<Navigate to="/earn#mining" replace />} />
