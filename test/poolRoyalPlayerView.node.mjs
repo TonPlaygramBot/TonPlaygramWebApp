@@ -7,6 +7,7 @@ import * as THREE from '../webapp/node_modules/three/build/three.module.js';
 import { resolvePoolRoyalAddressState } from '../webapp/src/pages/Games/shared/poolRoyalAddress.ts';
 import { PoolRoyalHumanPlayers } from '../webapp/src/pages/Games/shared/PoolRoyalHumanPlayers.ts';
 import { SnookerRoyalShotCamera } from '../webapp/src/pages/Games/snookerRoyalShotCamera.ts';
+import { PoolRoyalPlayerCamera, applyPoolRoyalPlayerView } from '../webapp/src/pages/Games/shared/poolRoyalPlayerCamera.ts';
 import { poolRoyalHudLayout, POOL_SPIN_DIAMETER_PX, POOL_AVATAR_SIZE_PX } from '../webapp/src/pages/Games/poolRoyalHudLayout.js';
 import { normalizeSpinInput, spinFromScreenPoint, smoothDamp } from '../webapp/src/pages/Games/poolRoyaleSpinUtils.js';
 import { loadPoseModel } from './fixtures/poolRoyalPoseTrace.mjs';
@@ -81,7 +82,7 @@ test('the final JSX render camera stays between the real eyes throughout address
   assert.ok(await players.ready);
   const eyeRef = ref(null), topViewRef = ref(false);
   const resolveEye = evaluate(variable('resolveActiveHumanEyePose').init, {
-    humanShotCamera: new SnookerRoyalShotCamera(), activeHumanCueViewRef: eyeRef,
+    humanShotCamera: new PoolRoyalPlayerCamera(), activeHumanCueViewRef: eyeRef,
     cueAnimating: false, shotImpactPending: false, shootingRef: ref(false), cameraBlendRef: ref(0),
     performance: { now: () => 1000 }, topViewRef, lookModeRef: ref(false),
     replayPlaybackRef: ref(null), cueGalleryStateRef: ref(null), world
@@ -93,7 +94,7 @@ test('the final JSX render camera stays between the real eyes throughout address
     const humanEyePose = resolveActiveHumanEyePose();
     ${text(overlay)}
     return { renderCamera, lookTarget };
-  }`, { THREE, humanEyeCamera: new THREE.PerspectiveCamera(), resolveActiveHumanEyePose: resolveEye, STANDING_VIEW_FOV: 66 });
+  }`, { THREE, humanEyeCamera: new THREE.PerspectiveCamera(), resolveActiveHumanEyePose: resolveEye, applyPoolRoyalPlayerView });
   let movingFrames = 0;
   for (const activeSeat of ['A', 'B']) for (let frame = 0; frame < 180; frame++) {
     const forward = new THREE.Vector3(0, 0, -1).applyAxisAngle(THREE.Object3D.DEFAULT_UP, frame > 90 ? .3 : 0);
@@ -126,7 +127,7 @@ test('the final JSX render camera stays between the real eyes throughout address
 function cameraContext() {
   const world = new THREE.Group();
   world.scale.setScalar(.23); world.position.y = -2;
-  const context = { THREE, world, humanShotCamera: new SnookerRoyalShotCamera(),
+  const context = { THREE, world, humanShotCamera: new PoolRoyalPlayerCamera(), applyPoolRoyalPlayerView,
     activeHumanCueViewRef: ref({ position: new THREE.Vector3(3, 9, 14), target: new THREE.Vector3(0, 2, -4), blend: 1 }),
     cueAnimating: false, shooting: false, shootingRef: ref(false), shotImpactPending: false,
     cameraBlendRef: ref(0), topViewRef: ref(false), lookModeRef: ref(false),
@@ -136,12 +137,12 @@ function cameraContext() {
   return context;
 }
 
-test('Pool uses Snooker’s aim blend and preserves all explicit camera views', () => {
+test('Pool matches the preview regardless of orbit blend and preserves explicit views', () => {
   const c = cameraContext();
   for (const blend of [0, .2, .55, .94, 1]) {
     c.cameraBlendRef.current = blend;
     const expected = new SnookerRoyalShotCamera().resolve({ eye: c.activeHumanCueViewRef.current,
-      stroke: false, shooting: false, impactPending: false, cueBlend: blend, now: 0 });
+      stroke: false, shooting: false, impactPending: false, cueBlend: 0, now: 0 });
     const actual = c.resolveActiveHumanEyePose();
     assert.equal(actual?.blend, expected?.blend);
     if (actual) assert.ok(actual.position.distanceTo(c.world.localToWorld(expected.position.clone())) < 1e-9);
