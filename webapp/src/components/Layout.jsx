@@ -356,13 +356,11 @@ export default function Layout({ children }) {
     !location.pathname.includes('/lobby')
   );
 
-  const isCreatorStudio = location.pathname === '/creator-studio';
-
   const isLobby = location.pathname.includes('/lobby');
 
-  const showFooter = !location.pathname.startsWith('/games/') && !isCreatorStudio;
+  const showFooter = !location.pathname.startsWith('/games/');
   const showHeader =
-    !isCreatorStudio && (!location.pathname.startsWith('/games/') || isLobby);
+    (!location.pathname.startsWith('/games/') || isLobby);
 
   useEffect(() => {
     if (location.pathname === '/mining') {
@@ -403,7 +401,7 @@ export default function Layout({ children }) {
     }
   }, [location.pathname]);
 
-  const showPwaBanner = showNavbar && !isCreatorStudio && (canInstall || canShowTelegramInstall);
+  const showPwaBanner = showNavbar && (canInstall || canShowTelegramInstall);
 
   return (
     <div
@@ -421,7 +419,7 @@ export default function Layout({ children }) {
       )}
       <main
         className={`flex-grow ${
-          showNavbar && !isCreatorStudio
+          showNavbar
             ? isLobby
               ? 'w-full p-4 pb-28'
               : 'container mx-auto p-4 pb-28'
@@ -433,7 +431,7 @@ export default function Layout({ children }) {
 
       {/* Fixed Bottom Navbar */}
 
-      {showNavbar && !isCreatorStudio && (
+      {showNavbar && (
         <div className="fixed bottom-0 inset-x-0 z-50">
           <Navbar />
         </div>

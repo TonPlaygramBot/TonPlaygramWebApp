@@ -1,6 +1,6 @@
 # Main app and chess on one Render service
 
-`tonplaygram-bot` serves the web app, API, Socket.IO, social wall media and chess
+`tonplaygram-bot` serves the web app, API, Socket.IO and chess
 matchmaking. The existing `protest-media` disk remains mounted at
 `/var/data/tonplaygram`; this change does not resize or replace it.
 
@@ -25,7 +25,7 @@ chess entrypoint, or use `http://localhost:3000` as the API base for integrated 
 ## Deployment and retirement
 
 1. Deploy the main branch to the existing `tonplaygram-bot` service.
-2. Verify `/api/health`, `/api/flamingo-wall/health`, and `/colyseus/health`.
+2. Verify `/api/health` and `/colyseus/health`.
 3. Verify chess HTTP and WebSocket traffic uses the main hostname, and Socket.IO
    continues to connect. Allow any matches on the previous deployment to finish.
 4. Delete only `tonplaygram-chess-matchmaking` from Render after verification.

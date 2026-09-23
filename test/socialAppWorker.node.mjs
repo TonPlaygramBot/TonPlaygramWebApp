@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import vm from 'node:vm';
 import { readFile } from 'node:fs/promises';
 import { socialAppAssets } from '../webapp/scripts/social-app-plugin.mjs';
-import { webappEntry, creatorReturnPath } from '../shared/socialApp.js';
+import { webappEntry } from '../shared/socialApp.js';
 
 test('a social build caches only its own dependency graph, including lazy pages', () => {
   const chunk = (fileName, imports = [], dynamicImports = []) => ({ type: 'chunk', fileName, imports, dynamicImports, viteMetadata: { importedCss: new Set([fileName + '.css']) } });
@@ -16,13 +16,10 @@ test('a social build caches only its own dependency graph, including lazy pages'
   assert.ok(!assets.includes('/game.js') && !assets.includes('/index.html'));
   assert.equal(assets.filter(path => path === '/shared.js').length, 1);
 });
-test('profile deep links select the social HTML and OAuth returns accept only exact local app paths', () => {
+test('social deep links select the social HTML', () => {
   assert.equal(webappEntry('/social-app/wall/profile/ada'), 'social-app/index.html');
-  assert.equal(webappEntry('/social-app/creator-studio'), 'social-app/index.html');
   assert.equal(webappEntry('/social'), 'index.html');
   assert.equal(webappEntry('/social-app-lookalike/'), 'index.html');
-  assert.equal(creatorReturnPath('/social-app/creator-studio'), '/social-app/creator-studio');
-  for (const path of ['//evil.test', 'https://evil.test', '/social-app/creator-studio?next=evil', '/social-app/../account', undefined]) assert.equal(creatorReturnPath(path), '/creator-studio');
 });
 async function worker() {
   const events = {}, stores = new Map(), fetched = [];
@@ -53,7 +50,7 @@ test('social installation survives offline deep links and never deletes the main
 });
 test('worker leaves private APIs, video bytes, other apps and non-GET requests to the network', async () => {
   const { events } = await worker();
-  for (const path of ['/api/flamingo-wall/posts', '/api/creator/session', '/api/flamingo-wall/media/clip', '/wall', '/assets/game.js']) {
+  for (const path of ['/api/social/messages', '/api/account', '/wall', '/assets/game.js']) {
     events.fetch({ request: { method: 'GET', url: 'https://tpg.test' + path, mode: 'cors', headers: new Headers() }, respondWith() { assert.fail('Private/unrelated request intercepted: ' + path); } });
   }
   events.fetch({ request: { method: 'POST', url: 'https://tpg.test/social-app/wall' }, respondWith() { assert.fail('Mutation intercepted'); } });

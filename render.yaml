@@ -60,22 +60,5 @@ services:
         sync: false
       - key: DEV_ACCOUNT_ID
         sync: false
-      # Community photos and videos must outlive API restarts and deployments.
-      - key: FLAMINGO_UPLOAD_DIR
-        value: /var/data/tonplaygram/flamingo-uploads
-      - key: FLAMINGO_PERSISTENT_MOUNT_PATH
-        value: /var/data/tonplaygram
-      # One-megabyte resumable requests survive slow portrait-phone cellular
-      # uplinks without hitting the proxy/browser request timeout.
-      - key: FLAMINGO_UPLOAD_CHUNK_BYTES
-        value: 1048576
-      # The mounted Render disk is the durable source for wall media. Keeping
-      # a second copy in MongoDB GridFS exhausts the database quota and blocks
-      # otherwise valid video posts even though the media disk has space.
-      - key: FLAMINGO_GRIDFS_BACKUP
-        value: "false"
-      # For scalable direct media uploads, configure FLAMINGO_MEDIA_STORAGE=s3
-      # and the bucket credentials in the service environment after following
-      # docs/social-wall-object-storage.md. Credentials must remain server-only.
       - key: SOCIAL_PROVIDER_MODE
         value: disabled
