@@ -135,8 +135,7 @@ import {
   shouldApplyPoolSuggestion
 } from './poolRoyaleAimSuggestion.js';
 import { advancePoolRoyalCueStroke, POOL_ROYAL_STROKE, referenceCuePull, referenceCueFeather, resolveCueBallContact } from './poolRoyaleCueStrokeTimeline.js';
-import { SNOOKER_PLAYER_FOLLOW_THROUGH_MS, snookerRoyalFallbackEye } from './snookerRoyalShotCamera.ts';
-import { PoolRoyalPlayerCamera, applyPoolRoyalPlayerView } from './shared/poolRoyalPlayerCamera.ts';
+import { SnookerRoyalShotCamera, SNOOKER_PLAYER_FOLLOW_THROUGH_MS, snookerRoyalFallbackEye } from './snookerRoyalShotCamera.ts';
 import { clipGuideTravel } from './shared/billiardsGuideGeometry.js';
 import { poolCueGuideResponse } from './poolRoyaleGuideResponse.js';
 import { PoolCompetitionMatch } from '../../games/pool/PoolCompetitionMatch.jsx';
@@ -21853,15 +21852,15 @@ const shotPowerRef = useRef(0);
           return vec;
         };
 
-        // Use the preview's exact eye view with Snooker's follow-through ownership.
-        const humanShotCamera = new PoolRoyalPlayerCamera();
+        // Share Snooker's address → fixed follow-through → broadcast ownership.
+        const humanShotCamera = new SnookerRoyalShotCamera();
         const humanEyeCamera = camera.clone();
         const resolveActiveHumanEyePose = () => {
           const pose = humanShotCamera.resolve({
             eye: activeHumanCueViewRef.current,
             stroke: Boolean(cueAnimating), shooting: shootingRef.current,
             impactPending: shotImpactPending,
-            now: performance.now(),
+            cueBlend: cameraBlendRef.current ?? 1, now: performance.now(),
             excluded: Boolean(topViewRef.current || lookModeRef.current || replayPlaybackRef.current || cueGalleryStateRef.current?.active)
           });
           return pose ? { ...pose, position: world.localToWorld(pose.position.clone()),
@@ -23126,13 +23125,21 @@ const shotPowerRef = useRef(0);
           broadcastArgs.lerp = 0.22;
         }
           }
-          // Match the playable preview exactly. Orbit math still runs above for
-          // drag aiming, but must never blend the rendered lens away from the eyes.
+          // Apply Snooker's eye blend after choosing the render camera.
           if (humanEyePose) {
-            // Keep pocket/broadcast camera transforms available for the handoff.
+            // Blend into a separate camera. Mutating a pocket/broadcast camera
+            // here left the next view inside the face after a camera handoff.
             humanEyeCamera.copy(renderCamera, false);
             renderCamera = humanEyeCamera;
-            lookTarget = applyPoolRoyalPlayerView(renderCamera, humanEyePose);
+            renderCamera.up.set(0, 1, 0);
+            renderCamera.position.lerp(humanEyePose.position, humanEyePose.blend);
+            lookTarget = (lookTarget ?? humanEyePose.target).clone().lerp(humanEyePose.target, humanEyePose.blend);
+            renderCamera.lookAt(lookTarget);
+            if (renderCamera.isPerspectiveCamera) {
+              renderCamera.fov = THREE.MathUtils.lerp(renderCamera.fov, STANDING_VIEW_FOV, humanEyePose.blend);
+              renderCamera.zoom = THREE.MathUtils.lerp(renderCamera.zoom, 1, humanEyePose.blend);
+              renderCamera.updateProjectionMatrix();
+            }
           }
           if (!replayPlaybackActive && lookTarget) activeHumanPlayersRef.current?.updateCameraVisibility(
             renderCamera, lookTarget, humanEyePose?.blend > 0
