@@ -39,15 +39,12 @@ test('portrait seated-human sizing and character selection remain wired to the r
   assert.match(source, /\{ key: 'humanCharacter', label: 'Human Character', options: HUMAN_CHARACTER_OPTIONS \}/);
 });
 
-test('human dice pickup and landing positions remain on the restored choreography', () => {
-  assert.match(source, /if \(player === 0 && !immediate\) \{[\s\S]*beginDiceHoldPose\(player, \{ startMs: performance\.now\(\) - 220 \}\);[\s\S]*return;/);
+test('human dice resting and landing positions remain on the restored layout', () => {
+  assert.match(source, /if \(player === 0 && !immediate\) \{[\s\S]*beginDiceHoldPose\(player\);[\s\S]*return;/);
   assert.match(source, /const target = resolveDiceHoldContactTarget\(player, railTarget\) \?\? railTarget;/);
   assert.match(source, /diceObj\.userData\.railPositions = rails;/);
   assert.match(source, /diceObj\.userData\.homeLandingTargets/);
   assert.doesNotMatch(source, /tabletopDiceLane/);
-  assert.match(source, /const syncDiceToThrowHand = useCallback\(\(player, dice, \{ duration = 28 \} = \{\}\)/);
-  assert.match(source, /await syncDiceToThrowHand\(player, dice, \{ duration: 12 \}\);/);
-  assert.match(source, /worldTarget\.y -= DICE_SIZE \* SEATED_DICE_THROW_VERTICAL_NUDGE;/);
 });
 
 test('rapid taps cannot clear the pending move or turn timer', async () => {
@@ -139,10 +136,61 @@ test('a superseded dice animation stops before touching the die', async () => {
   const spinNode = ast.program.body.find((node) => node.type === 'FunctionDeclaration' && node.id.name === 'spinDice');
   const frames = [];
   const spin = Function('THREE', 'requestAnimationFrame', `return (${source.slice(spinNode.start, spinNode.end)});`)(THREE, (frame) => frames.push(frame));
-  const die = { position: new THREE.Vector3(1, 2, 3) };
+  const die = new THREE.Object3D();
+  die.position.set(1, 2, 3);
   const result = spin(die, { isCurrent: () => false });
   frames.shift()();
   assert.equal(await result, null);
   assert.deepEqual(die.position.toArray(), [1, 2, 3]);
   assert.equal(frames.length, 0);
+});
+
+
+test('starting a throw preserves the die position until the animation releases it', async () => {
+  const dice = new THREE.Object3D(); new THREE.Group().add(dice);
+  dice.position.set(0.1, 0.2, 0.3);
+  const contact = {};
+  const entry = { playerIndex: 0, diceHand: {}, diceReach: { contact }, diceGrip: 1 };
+  const state = { current: { holdPlayer: 0, holdStartMs: 1 } };
+  const sync = controller('syncDiceToThrowHand', {
+    useCallback: (fn) => fn,
+    seatedHumanActorsRef: { current: [entry] }, seatedHumanActionRef: state,
+    createLudoDiceThrow: (received, die, destination) => {
+      assert.equal(received, contact); assert.equal(die, dice);
+      assert.deepEqual(destination.toArray(), [0.5, 0.2, 0.5]); return {};
+    }
+  });
+  const pending = sync(0, dice, { targetPosition: new THREE.Vector3(0.5, 0.2, 0.5) });
+  assert.deepEqual(dice.position.toArray(), [0.1, 0.2, 0.3]);
+  assert.equal(state.current.holdPlayer, null);
+  assert.ok(entry.diceMotion);
+  entry.diceMotion.resolve(false); // Same completion used by reset/unmount.
+  assert.equal(await pending, false);
+  assert.equal(await sync(0, dice, { isCurrent: () => false }), false);
+  assert.deepEqual(dice.position.toArray(), [0.1, 0.2, 0.3]);
+});
+
+test('dice flight agrees at 30, 60 and 120 Hz and keeps the authoritative face', async () => {
+  const spinNode = ast.program.body.find((node) => node.type === 'FunctionDeclaration' && node.id.name === 'spinDice');
+  const rotations = [];
+  for (const hz of [30, 60, 120]) {
+    let now = 0;
+    const frames = [];
+    const spin = Function('THREE', 'requestAnimationFrame', 'performance', 'Math', 'easeOutCubic',
+      `return (${source.slice(spinNode.start, spinNode.end)});`)(THREE, (frame) => frames.push(frame),
+      { now: () => now }, Object.assign(Object.create(Math), { random: () => 0.5 }), (t) => 1 - (1 - t) ** 3);
+    const die = new THREE.Object3D();
+    let resultFace = null;
+    die.userData.setValue = (face) => { resultFace = face; };
+    const target = new THREE.Vector3(0.3, 0.1, 0.2);
+    const result = spin(die, { duration: 1000, targetPosition: target, value: 5 });
+    for (let frame = 1; frame <= hz; frame++) {
+      now = frame / hz * 1000; frames.shift()();
+      if (frame === hz / 2) rotations.push(die.quaternion.clone());
+    }
+    assert.equal(await result, 5); assert.equal(resultFace, 5);
+    assert.ok(die.position.equals(target)); assert.equal(frames.length, 0);
+  }
+  assert.ok(rotations[0].angleTo(rotations[1]) < 1e-7);
+  assert.ok(rotations[1].angleTo(rotations[2]) < 1e-7);
 });

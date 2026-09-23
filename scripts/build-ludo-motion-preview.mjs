@@ -63,7 +63,7 @@ const objectJson = JSON.stringify(model.scene.toJSON());
 await writeFile(resolve(generated, 'avatar.json'), objectJson);
 const modelData = gzipSync(objectJson).toString('base64');
 const result = await build({
-  entryPoints: [resolve(root, 'webapp/src/previews/ludo/LudoMotionPreview.tsx')],
+  entryPoints: [resolve(root, process.argv.includes('--dice') ? 'webapp/src/previews/ludo/LudoDicePreview.tsx' : 'webapp/src/previews/ludo/LudoMotionPreview.tsx')],
   bundle: true, format: 'esm', platform: 'browser', jsx: 'automatic', minify: true,
   target: 'es2022', write: false, define: { LUDO_PREVIEW_MODEL: JSON.stringify(modelData) },
   plugins: [{ name: 'blender-inline', setup(api) {
@@ -85,5 +85,6 @@ const html = (await readFile(resolve(root, 'scripts/ludo-motion-preview.fragment
 if (Buffer.byteLength(html) > 1_000_000) throw new Error('Preview exceeds inline size limit.');
 const output = process.argv[2] || '/workspace/ludo-restored-dice-aim.html';
 await writeFile(output, html);
-await writeFile(resolve(generated, 'bundle.js'), result.outputFiles[0].text);
+// Keep the compressed in-chat model out of Tailwind's JS source scan.
+await writeFile(resolve(generated, process.argv.includes('--dice') ? 'dice-bundle.txt' : 'bundle.js'), result.outputFiles[0].text);
 console.log(`Built ${output} (${Buffer.byteLength(html)} bytes)`);

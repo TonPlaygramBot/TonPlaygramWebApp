@@ -2,6 +2,7 @@ import { ludoTableFrame, prepareLudoParkedWeapon, parkLudoWeapon } from '../../u
 import {createLudoMissileFx,createLudoExplosionFx,updateLudoExplosionFx} from '../../utils/ludoMissilePresentation';
 import { createLudoBlenderModel } from '../../utils/ludoBlenderMeshes';
 import { palmMarker, palmOrientation, solveArm, world as boneWorld } from '../../utils/ludoHumanMotion';
+import { createLudoDiceHand, createLudoDiceContact, createLudoDiceThrow, updateLudoDiceThrow, poseLudoDiceContact, LUDO_DICE_TIMING } from '../../utils/ludoDiceMotion.ts';
 import {
   FIREARM_CAPTURE_ANIMATION_IDS,
   FIREARM_MARKSMAN_IDS,
@@ -3754,7 +3755,6 @@ const SEATED_HELPER_UP_DICE_RELEASE = 0.018 * MODEL_SCALE;
 const SEATED_HELPER_FORWARD_DICE_HOLD = 0.064 * MODEL_SCALE;
 const SEATED_HELPER_UP_DICE_HOLD = 0.007 * MODEL_SCALE;
 const SEATED_DICE_HOLD_VERTICAL_NUDGE = 0.012;
-const SEATED_DICE_THROW_VERTICAL_NUDGE = -0.01;
 const SEATED_HELPER_FORWARD_TOKEN_PICKUP = 0.076 * MODEL_SCALE;
 const SEATED_HELPER_FORWARD_TOKEN_PLACE = 0.114 * MODEL_SCALE;
 const SEATED_HELPER_RIGHT_TOKEN = -0.012 * MODEL_SCALE;
@@ -7301,6 +7301,7 @@ function spinDice(
   return new Promise((resolve) => {
     const start = performance.now();
     const startPos = dice.position.clone();
+    const startRotation = dice.rotation.clone();
     const endPos = targetPosition.clone();
     const spinVec = new THREE.Vector3(
       1.2 + Math.random() * 0.7,
@@ -7329,10 +7330,10 @@ function spinDice(
       position.y = THREE.MathUtils.lerp(startPos.y, endPos.y, eased) + bounce;
       dice.position.copy(position);
 
-      const spinFactor = 1 - eased * 0.28;
-      dice.rotation.x += spinVec.x * spinFactor * 0.22;
-      dice.rotation.y += spinVec.y * spinFactor * 0.22;
-      dice.rotation.z += spinVec.z * spinFactor * 0.22;
+      // Integrate the original 60 Hz spin curve by elapsed time. High refresh
+      // phones must not rotate the die twice as fast as a 60 Hz device.
+      const spin = 0.22 * 60 * (duration / 1000) * (0.72 * t + 0.07 * (1 - (1 - t) ** 4));
+      dice.rotation.set(startRotation.x + spinVec.x * spin, startRotation.y + spinVec.y * spin, startRotation.z + spinVec.z * spin);
 
       if (t < 1) {
         requestAnimationFrame(step);
@@ -9107,19 +9108,6 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount, onlin
     };
   };
 
-  const beginDiceThrowPose = (player, throwBias = {}) => {
-    seatedHumanActionRef.current = {
-      ...seatedHumanActionRef.current,
-      holdPlayer: null,
-      holdStartMs: 0,
-      throwPlayer: player,
-      throwStartMs: performance.now(),
-      rollEndMs: 0,
-      throwLateral: clamp(throwBias?.lateral ?? 0, -1, 1),
-      throwForward: clamp(throwBias?.forward ?? 1, -1, 1)
-    };
-  };
-
   const animateDicePosition = (dice, destination, { duration = 450, lift = 0.04, onComplete = null } = {}) => {
     if (!dice || !destination) return;
     const target = destination.clone ? destination.clone() : new THREE.Vector3().copy(destination);
@@ -9193,7 +9181,7 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount, onlin
       // On human turns keep the dice where it landed so the seated actor can bend from the torso,
       // reach to that exact table spot, and grab it before the next throw.
       stopDiceTransition();
-      beginDiceHoldPose(player, { startMs: performance.now() - 220 });
+      beginDiceHoldPose(player);
       return;
     }
 
@@ -9205,7 +9193,7 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount, onlin
       beginDiceHoldPose(player);
       return;
     }
-    beginDiceHoldPose(player, { startMs: performance.now() - 220 });
+    beginDiceHoldPose(player);
     animateDicePosition(dice, target, {
       duration: 260,
       lift: 0.03,
@@ -10099,6 +10087,7 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount, onlin
         actor.rotation.set(0, SEATED_HUMAN_FACING_Y, 0);
         chair.group.add(actor);
         const rig = saveBoneRig(actor);
+        const diceHand = createLudoDiceHand(rig);
         applySeatedHumanPose(rig, 'idle', 1, 0, {}, {}, chair.supportsArmrest !== false);
         alignSeatedHumanFeetToGroundPlane(actor, rig);
         const actionHelpers = createSeatedHumanActionHelpers(actor, rig);
@@ -10106,6 +10095,7 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount, onlin
           playerIndex,
           actor,
           rig,
+          diceHand,
           actionHelpers,
           chairSupportsArmrest: chair.supportsArmrest !== false
         });
@@ -10544,6 +10534,38 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount, onlin
         actors.forEach((entry) => {
           const { rig, playerIndex } = entry;
           if (!rig || entry.propMotion) return;
+          const diceMotion = entry.diceMotion;
+          if (diceMotion) {
+            if (!diceMotion.isCurrent()) {
+              diceMotion.resolve(false);
+              entry.diceMotion = null;
+            } else {
+              applySeatedHumanPose(rig, 'idle', 1, 0, {}, { idleBreathAmp: 0 }, entry.chairSupportsArmrest !== false);
+              const frame = updateLudoDiceThrow(diceMotion.action, now - diceMotion.startMs);
+              if (frame.released) diceMotion.resolve(true);
+              if (frame.done) entry.diceMotion = null;
+              return;
+            }
+          }
+          if (actorState?.holdPlayer === playerIndex && diceRef.current && entry.diceHand) {
+            // Reach to the die's existing location; never move it into a socket.
+            if (entry.diceReach?.startMs !== actorState.holdStartMs) {
+              entry.diceReach = {
+                startMs: actorState.holdStartMs,
+                contact: createLudoDiceContact(entry.diceHand, diceRef.current, DICE_SIZE)
+              };
+            }
+            const contact = entry.diceReach.contact;
+            if (contact) {
+              applySeatedHumanPose(rig, 'idle', 1, 0, {}, { idleBreathAmp: 0 }, entry.chairSupportsArmrest !== false);
+              const elapsed = now - entry.diceReach.startMs;
+              const reach = smoother01(elapsed / LUDO_DICE_TIMING.reach);
+              const grip = smoother01((elapsed - LUDO_DICE_TIMING.reach) / (LUDO_DICE_TIMING.close - LUDO_DICE_TIMING.reach));
+              entry.diceGrip = grip;
+              poseLudoDiceContact(contact, diceRef.current.getWorldPosition(handContactTarget), reach, grip);
+              return;
+            }
+          }
           const pose = resolveSeatedHumanActionPose(actorState, state, playerIndex, now);
           const throwBias = {
             lateral: actorState?.throwLateral ?? 0,
@@ -10774,6 +10796,7 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount, onlin
         aiTimeoutRef.current = null;
       }
       seatPositionsRef.current = [];
+      seatedHumanActorsRef.current.forEach((entry) => entry.diceMotion?.resolve(false));
       seatedHumanActorsRef.current = [];
       seatedHumanActionRef.current = {
         holdPlayer: null,
@@ -13157,74 +13180,25 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount, onlin
     }));
   };
 
-  const sampleHumanActionHelperPosition = useCallback((player, helperKey, out) => {
-    if (!out?.isVector3) return false;
-    const actorEntry = seatedHumanActorsRef.current?.find((entry) => entry?.playerIndex === player);
-    return sampleSeatedActionHelper(actorEntry, helperKey, out);
-  }, []);
-
-  const sampleSeatedContactEffectorPosition = useCallback((player, out) => {
-    if (!out?.isVector3) return false;
-    const actorEntry = seatedHumanActorsRef.current?.find((entry) => entry?.playerIndex === player);
-    if (!actorEntry) return false;
-    const effector = actorEntry?.actionHelpers?.contactEffector;
-    if (effector?.isObject3D) {
-      effector.updateMatrixWorld?.(true);
-      effector.getWorldPosition(out);
-      return true;
-    }
-    const rightHand = actorEntry?.rig?.rightHand;
-    if (!rightHand?.isBone) return false;
-    rightHand.updateMatrixWorld?.(true);
-    rightHand.getWorldPosition(out);
-    return true;
-  }, []);
-
-  const syncDiceToThrowHand = useCallback((player, dice, { duration = 28 } = {}) => {
-    if (!dice?.isObject3D || !dice.parent?.isObject3D) return Promise.resolve();
-    const parent = dice.parent;
-    const worldTarget = new THREE.Vector3();
-    const localTarget = new THREE.Vector3();
-    const start = performance.now();
-
-    const snapToHand = (blend = 1) => {
-      const sampledHold =
-        sampleHumanActionHelperPosition(player, 'diceHold', worldTarget) ||
-        sampleHumanActionHelperPosition(player, 'dicePickup', worldTarget);
-      if (!sampledHold && !sampleSeatedContactEffectorPosition(player, worldTarget)) return false;
-      worldTarget.y -= DICE_SIZE * SEATED_DICE_THROW_VERTICAL_NUDGE;
-      localTarget.copy(worldTarget);
-      parent.worldToLocal(localTarget);
-      if (blend >= 1) {
-        dice.position.copy(localTarget);
-      } else {
-        dice.position.lerp(localTarget, clamp(blend, 0, 1));
-      }
-      return true;
+  const syncDiceToThrowHand = useCallback((player, dice, { targetPosition, isCurrent = () => true } = {}) => {
+    if (!dice?.parent || !isCurrent()) return Promise.resolve(false);
+    seatedHumanActionRef.current = {
+      ...seatedHumanActionRef.current,
+      holdPlayer: null, holdStartMs: 0, throwPlayer: null, throwStartMs: 0
     };
-
-    // Remove visible pickup lag: snap into the hand immediately on fist motion.
-    snapToHand(1);
-
+    const entry = seatedHumanActorsRef.current?.find((actor) => actor.playerIndex === player);
+    if (!entry?.diceHand) return Promise.resolve(true);
+    entry.diceMotion?.resolve(false);
+    const contact = entry.diceReach?.contact || createLudoDiceContact(entry.diceHand, dice, DICE_SIZE);
+    if (!contact) return Promise.resolve(true);
+    const action = createLudoDiceThrow(contact, dice, targetPosition || dice.position, entry.diceGrip || 0);
+    entry.diceReach = null;
+    // The render loop owns both the hand and held die until the release sample.
+    // Reset/unmount/superseded online snapshots resolve this without a stale RAF.
     return new Promise((resolve) => {
-      const step = () => {
-        if (!dice?.isObject3D || !parent?.isObject3D) {
-          resolve();
-          return;
-        }
-        const elapsed = performance.now() - start;
-        const phase = clamp(elapsed / Math.max(1, duration), 0, 1);
-        const blend = 0.92 + (1 - Math.pow(1 - phase, 2)) * 0.08;
-        snapToHand(blend);
-        if (phase < 1) {
-          requestAnimationFrame(step);
-        } else {
-          resolve();
-        }
-      };
-      requestAnimationFrame(step);
+      entry.diceMotion = { action, startMs: performance.now(), isCurrent, resolve };
     });
-  }, [sampleHumanActionHelperPosition, sampleSeatedContactEffectorPosition]);
+  }, []);
 
   const rollDice = async () => {
     const state = stateRef.current;
@@ -13274,23 +13248,11 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount, onlin
     } else {
       preserveUserTurnCameraRef.current = true;
     }
-    const diceToTarget = baseTarget.clone().sub(dice.position);
-    let throwLateral = 0;
-    let throwForward = 1;
-    const seatAnchor = arenaRef.current?.seatAnchors?.[player];
-    if (seatAnchor?.isObject3D && diceToTarget.lengthSq() > 1e-7) {
-      const anchorQuat = seatAnchor.getWorldQuaternion(new THREE.Quaternion());
-      const localDir = diceToTarget
-        .clone()
-        .normalize()
-        .applyQuaternion(anchorQuat.clone().invert());
-      seatAnchor.updateMatrixWorld?.(true);
-      throwLateral = clamp(localDir.x * 2.1, -1, 1);
-      throwForward = clamp(-localDir.z * 1.4, -1, 1);
-    }
-    beginDiceThrowPose(player, { lateral: throwLateral, forward: throwForward });
-    await syncDiceToThrowHand(player, dice, { duration: 12 });
-    if (stateRef.current !== state) return;
+    const released = await syncDiceToThrowHand(player, dice, {
+      targetPosition: baseTarget,
+      isCurrent: () => stateRef.current === state && diceRef.current === dice
+    });
+    if (!released || stateRef.current !== state) return;
     const landingFocus = baseTarget.clone();
     playDiceSound();
     const value = await spinDice(dice, {
@@ -13465,21 +13427,11 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount, onlin
       } else {
         preserveUserTurnCameraRef.current = true;
       }
-      const diceToTarget = targetPosition.clone().sub(dice.position);
-      let throwLateral = 0;
-      let throwForward = 1;
-      const seatAnchor = arenaRef.current?.seatAnchors?.[presentedTurn];
-      if (seatAnchor?.isObject3D && diceToTarget.lengthSq() > 1e-7) {
-        const anchorQuat = seatAnchor.getWorldQuaternion(new THREE.Quaternion());
-        const localDir = diceToTarget.clone().normalize().applyQuaternion(anchorQuat.clone().invert());
-        throwLateral = clamp(localDir.x * 2.1, -1, 1);
-        throwForward = clamp(-localDir.z * 1.4, -1, 1);
-      }
       dice.userData.isRolling = true;
-      beginDiceThrowPose(presentedTurn, { lateral: throwLateral, forward: throwForward });
-      void syncDiceToThrowHand(presentedTurn, dice, { isCurrent })
-        .then(() => {
-          if (!isCurrent()) return null;
+      stopDiceTransition();
+      void syncDiceToThrowHand(presentedTurn, dice, { targetPosition, isCurrent })
+        .then((released) => {
+          if (!released || !isCurrent()) return null;
           playDiceSound();
           return spinDice(dice, {
           duration: resolveFrameSyncedDuration(AUTO_ROLL_DURATION_MS, { min: 620, max: 1800 }),
