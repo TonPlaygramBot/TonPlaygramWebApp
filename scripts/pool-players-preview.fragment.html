@@ -1,8 +1,15 @@
 <div id="pool-royal-players"></div>
 <style>
 #pool-royal-players .pool-preview { width: 100%; }
-#pool-royal-players .pool-preview-stage { width: 100%; max-width: 440px; margin: 0 auto; height: clamp(440px, 146vw, 640px); }
+#pool-royal-players .pool-preview-stage { position: relative; width: 100%; max-width: 440px; margin: 0 auto; height: clamp(440px, 146vw, 640px); }
 #pool-royal-players canvas { display: block; touch-action: none; }
+#pool-royal-players .pool-preview-avatar-lane { position: absolute; display: flex; justify-content: center; z-index: 2; pointer-events: none; }
+#pool-royal-players .pool-preview-avatar-frame { display: flex; box-sizing: border-box; width: 100%; min-width: 0; gap: 8px; padding: 6px 8px; border-radius: 40px; border: 1px solid #366f59; background: #111a18; color: #fff; }
+#pool-royal-players .pool-preview-player { display: flex; align-items: center; gap: 6px; min-width: 0; flex: 1; font: 11px system-ui; }
+#pool-royal-players .pool-preview-avatar { display: grid; place-items: center; box-sizing: border-box; flex-shrink: 0; border-radius: 50%; background: #244b3d; border: 2px solid #86d9b1; font: 16px system-ui; }
+#pool-royal-players .pool-preview-spin-lane { position: absolute; z-index: 3; }
+#pool-royal-players .pool-preview-spin { display: block; position: relative; box-sizing: border-box; padding: 0; border: 1px solid #ced5dc; border-radius: 50%; background: #fff; touch-action: none; }
+#pool-royal-players .pool-preview-spin-dot { position: absolute; width: 16px; height: 16px; border-radius: 50%; background: #dc2626; transform: translate(-50%, -50%); pointer-events: none; }
 </style>
 <script type="module">
 /* POOL_PLAYERS_PREVIEW */

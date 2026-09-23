@@ -2,7 +2,6 @@ import React, {
   Component,
   useCallback,
   useEffect,
-  useLayoutEffect,
   useMemo,
   useRef,
   useState
@@ -10,6 +9,7 @@ import React, {
 import * as THREE from 'three';
 import { PoolRoyalHumanPlayers } from './shared/PoolRoyalHumanPlayers.ts';
 import { resolvePoolRoyalAddressState } from './shared/poolRoyalAddress.ts';
+import { poolRoyalHudLayout, POOL_SPIN_DIAMETER_PX, POOL_AVATAR_SIZE_PX } from './poolRoyalHudLayout.js';
 import { PoolRoyalPocketLights } from './shared/poolRoyalPocketLights.ts';
 import { createShowoodTableGeometry, closestPointOnPoolCushion, raycastPoolCushions, projectPoolBallFromCushions, groundShowoodTableLegs } from './shared/poolRoyaleShowoodGeometry.js';
 import polygonClipping from 'polygon-clipping';
@@ -2049,7 +2049,7 @@ const MAX_SPIN_VERTICAL = MAX_SPIN_CONTACT_OFFSET;
 const MAX_SPIN_VISUAL_LIFT = MAX_SPIN_VERTICAL; // cap vertical spin offsets so the cue stays just above the ball surface
 const SPIN_RING_RATIO = 1;
 const CUE_CLEARANCE_PADDING = BALL_R * 0.05;
-const SPIN_CONTROL_DIAMETER_PX = 124;
+const SPIN_CONTROL_DIAMETER_PX = POOL_SPIN_DIAMETER_PX;
 const SPIN_DOT_DIAMETER_PX = 16;
 // angle for cushion cuts guiding balls into corner pockets
 const DEFAULT_CUSHION_CUT_ANGLE = 33;
@@ -6127,7 +6127,6 @@ const CUEBALL_CAMERA_SWITCH_MIN_SPEED = BALL_R * 3.8;
 const RAIL_OVERHEAD_OPPOSITE_DIRECTION_DOT = 0.45;
 const RAIL_OVERHEAD_CROWD_RADIUS = BALL_DIAMETER * 1.8;
 const RAIL_OVERHEAD_CROWD_BALL_THRESHOLD = 3;
-const PORTRAIT_HUD_HORIZONTAL_NUDGE_PX = 34;
 const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
 const ensureCueStrokeForwardMotion = ({
   pullPos,
@@ -16004,8 +16003,6 @@ function PoolRoyaleGame({
   const bottomLeftChatGiftLiftPx = 12;
   const sideActionButtonStepPx = 60;
   const rightHudShiftPx = portraitViewport ? 30 : 12;
-  const spinControllerRightOffsetPx = portraitViewport ? 2 : 4;
-  const bottomHudLeftPx = -64;
   const viewButtonsOffsetPx = 32;
   const viewToggleButtonDropPx = 0;
   const sideControlsBottomPx =
@@ -16957,8 +16954,6 @@ const [ruleToast, setRuleToast] = useState(null);
 const ruleToastTimeoutRef = useRef(null);
 const [replayActive, setReplayActive] = useState(false);
 const [replayFoul, setReplayFoul] = useState(null);
-  const [hudInsets, setHudInsets] = useState({ left: '0px', right: '0px' });
-  const [bottomHudOffset, setBottomHudOffset] = useState(0);
   const inHandTopViewRef = useRef(false);
 const leftControlsRef = useRef(null);
 const spinBoxRef = useRef(null);
@@ -23125,11 +23120,13 @@ const shotPowerRef = useRef(0);
             // here left the next view inside the face after a camera handoff.
             humanEyeCamera.copy(renderCamera, false);
             renderCamera = humanEyeCamera;
+            renderCamera.up.set(0, 1, 0);
             renderCamera.position.lerp(humanEyePose.position, humanEyePose.blend);
             lookTarget = (lookTarget ?? humanEyePose.target).clone().lerp(humanEyePose.target, humanEyePose.blend);
             renderCamera.lookAt(lookTarget);
             if (renderCamera.isPerspectiveCamera) {
               renderCamera.fov = THREE.MathUtils.lerp(renderCamera.fov, STANDING_VIEW_FOV, humanEyePose.blend);
+              renderCamera.zoom = THREE.MathUtils.lerp(renderCamera.zoom, 1, humanEyePose.blend);
               renderCamera.updateProjectionMatrix();
             }
           }
@@ -25701,7 +25698,10 @@ const shotPowerRef = useRef(0);
           : frameRef.current?.activePlayer === 'B' ? 'B' : 'A';
         const state = resolvePoolRoyalAddressState({
           stroke, ballsMoving, gameOver: Boolean(hudRef.current?.over),
-          ballInHand: Boolean(hudRef.current?.inHand), breakReady: breakRollStateRef.current === 'done'
+          ballInHand: Boolean(hudRef.current?.inHand),
+          cueBallPlaced: cueBallPlacedFromHandRef.current,
+          placingCueBall: inHandPlacementModeRef.current || inHandDragRef.current.active,
+          breakReady: breakRollStateRef.current === 'done'
         });
         // Read the rendered endpoints after the existing cue timeline has run.
         // This controller never advances physics or repositions the gameplay cue.
@@ -26783,6 +26783,8 @@ const shotPowerRef = useRef(0);
           inHandDrag.lastPos = null;
           inHandDrag.smoothedPos = null;
           cueBallPlacedFromHandRef.current = true;
+          inHandPlacementModeRef.current = false;
+          setInHandPlacementMode(false);
         }
         return true;
       };
@@ -27610,6 +27612,14 @@ const shotPowerRef = useRef(0);
           replayPlaybackRef.current
         )
           return;
+        // Full-table ball-in-hand permits accepting the current spot on release.
+        // Commit placement before waiting for the address pose; keeping placement
+        // active here leaves the character idle and the queued shot waiting forever.
+        if (fullTableHandPlacement && currentHud?.inHand) {
+          cueBallPlacedFromHandRef.current = true;
+          inHandPlacementModeRef.current = false;
+          setInHandPlacementMode(false);
+        }
         if (!isHumanReadyForShot()) {
           shotPreparationRef.current = {
             power: clampedPower,
@@ -33398,59 +33408,6 @@ const shotPowerRef = useRef(0);
     updateHospitalityLayoutRef.current?.(environmentHdriId);
   }, [environmentHdriId]);
 
-  useLayoutEffect(() => {
-    const computeInsets = () => {
-      if (!usePortraitHudLayout) {
-      const left = uiScale * 150;
-      const right = uiScale * (SPIN_CONTROL_DIAMETER_PX + 150);
-      setHudInsets({
-        left: `${left}px`,
-        right: `${right}px`
-      });
-      setBottomHudOffset(0);
-      return;
-      }
-      const leftBox = leftControlsRef.current?.getBoundingClientRect();
-      const spinBox = spinBoxRef.current?.getBoundingClientRect();
-      const viewportWidth =
-      typeof window !== 'undefined'
-        ? window.innerWidth || document.documentElement?.clientWidth || 0
-        : 0;
-      const fallbackLeftWidth = uiScale * 120;
-      const fallbackSpinWidth = uiScale * (SPIN_CONTROL_DIAMETER_PX + 64);
-      const leftBoxIsLeft =
-        viewportWidth > 0 ? (leftBox?.left ?? 0) < viewportWidth * 0.5 : true;
-      const leftInset = leftBoxIsLeft
-      ? (leftBox?.width ?? fallbackLeftWidth) + 12
-      : uiScale * 24;
-      const rightInset =
-      (spinBox?.width ?? fallbackSpinWidth) +
-      uiScale * 44 +
-      12;
-      setHudInsets({
-      left: `${leftInset}px`,
-      right: `${rightInset}px`
-      });
-      if (viewportWidth > 0) {
-      const sideMargin = 16;
-      const leftCenter =
-        leftBox && leftBoxIsLeft
-          ? leftBox.left + leftBox.width / 2
-          : leftInset / 2 + sideMargin;
-      const spinWidth = spinBox?.width ?? fallbackSpinWidth;
-      const spinLeft = spinBox?.left ?? viewportWidth - (spinWidth + sideMargin);
-      const spinCenter = spinLeft + spinWidth / 2;
-      const desiredCenter = (leftCenter + spinCenter) / 2;
-      const screenCenter = viewportWidth / 2;
-      setBottomHudOffset(desiredCenter - screenCenter - PORTRAIT_HUD_HORIZONTAL_NUDGE_PX);
-      } else {
-      setBottomHudOffset(0);
-      }
-    };
-    computeInsets();
-    window.addEventListener('resize', computeInsets);
-    return () => window.removeEventListener('resize', computeInsets);
-  }, [uiScale, usePortraitHudLayout]);
 
   // --------------------------------------------------
   // NEW Big Pull Slider (right side): drag DOWN to set power, releases → fire()
@@ -33525,6 +33482,7 @@ const shotPowerRef = useRef(0);
   const handleCueBallReposition = useCallback(() => {
     if (!canRepositionCueBall || shootingRef.current) return;
     cueBallPlacedFromHandRef.current = false;
+    inHandPlacementModeRef.current = true;
     setHud((prev) => ({ ...prev, inHand: true }));
     setInHandPlacementMode(true);
   }, [canRepositionCueBall]);
@@ -33610,13 +33568,9 @@ const shotPowerRef = useRef(0);
     if (!box || !dot) return;
     spinDotElRef.current = dot;
 
-    box.style.transition = 'transform 0.18s ease';
-    box.style.transformOrigin = '50% 50%';
     box.style.touchAction = 'none';
 
-    let revertTimer = null;
     let activePointer = null;
-    let moved = false;
     let rafId = null;
     let lastTime = null;
     const spinState = {
@@ -33658,18 +33612,6 @@ const shotPowerRef = useRef(0);
       spinState.target = spinFromScreenPoint(clientX, clientY, box.getBoundingClientRect());
       spinRequestRef.current = { ...spinState.target };
       startSpring();
-    };
-
-    const scaleBox = (value) => {
-      box.style.transform = `scale(${value})`;
-    };
-    scaleBox(1);
-
-    const clearTimer = () => {
-      if (revertTimer) {
-        clearTimeout(revertTimer);
-        revertTimer = null;
-      }
     };
 
     const releasePointer = () => {
@@ -33740,40 +33682,27 @@ const shotPowerRef = useRef(0);
       e.preventDefault();
       e.stopPropagation();
       activePointer = e.pointerId;
-      moved = false;
-      clearTimer();
-      scaleBox(1.35);
+      // Keep the dial's bounds fixed while dragging: enlarging it here both
+      // overlapped the avatars and changed the screen-to-spin mapping mid-drag.
       updateSpin(e.clientX, e.clientY);
       box.setPointerCapture(activePointer);
-      revertTimer = window.setTimeout(() => {
-        if (!moved) scaleBox(1);
-      }, 1500);
     };
 
     const handlePointerMove = (e) => {
       if (activePointer !== e.pointerId) return;
       if (e.pointerType === 'mouse' && e.buttons === 0) return;
       updateSpin(e.clientX, e.clientY);
-      moved = true;
-    };
-
-    const finishInteraction = (restoreDelay = 60) => {
-      releasePointer();
-      clearTimer();
-      revertTimer = window.setTimeout(() => scaleBox(1), restoreDelay);
     };
 
     const handlePointerUp = (e) => {
       if (activePointer !== e.pointerId) return;
-      finishInteraction(50);
+      releasePointer();
       commitTarget();
     };
 
     const handlePointerCancel = (e) => {
       if (activePointer !== e.pointerId) return;
       releasePointer();
-      clearTimer();
-      scaleBox(1);
       commitTarget();
     };
 
@@ -33787,7 +33716,6 @@ const shotPowerRef = useRef(0);
     return () => {
       spinDotElRef.current = null;
       releasePointer();
-      clearTimer();
       if (rafId) {
         cancelAnimationFrame(rafId);
         rafId = null;
@@ -33852,15 +33780,15 @@ const shotPowerRef = useRef(0);
     },
     [ballPreviewCache]
   );
-  const pottedTokenSize = isPortrait ? 26 : 28;
+  const pottedTokenSize = isPortrait ? 20 : 28;
   const pottedNumberBadgeSize = Math.max(10, Math.round(pottedTokenSize * 0.48));
-  const pottedGap = isPortrait ? 8 : 10;
+  const pottedGap = isPortrait ? 4 : 10;
   const renderPottedRow = useCallback(
     (entries = [], highlightId = null, glowColor = null) => {
       if (!entries.length) {
         return (
           <div
-            className="flex items-center opacity-70"
+            className="flex min-w-0 items-center overflow-hidden opacity-70"
             style={{ gap: `${Math.max(2, pottedGap * 0.5)}px` }}
           >
             {Array.from({ length: 4 }).map((_, idx) => (
@@ -34013,12 +33941,14 @@ const shotPowerRef = useRef(0);
       : null;
   const bottomHudVisible =
     hud.turn != null && !hud.over && !replayActive;
-  const bottomHudScale = usePortraitHudLayout ? uiScale * 1.08 : uiScale * 1.12;
-  const avatarSizeClass = usePortraitHudLayout ? 'h-[2.9rem] w-[2.9rem]' : 'h-[3.7rem] w-[3.7rem]';
+  const controlLayout = poolRoyalHudLayout({ uiScale, portrait: isPortrait,
+    bottom: 12 + chromeUiLiftPx + sharedHudLiftPx + spinControllerLiftPx - sharedBottomControlsDropPx });
+  const avatarStyle = { width: POOL_AVATAR_SIZE_PX, height: POOL_AVATAR_SIZE_PX };
+  const avatarSizeClass = 'h-10 w-10';
   const nameWidthClass = usePortraitHudLayout ? 'max-w-[10.5rem]' : 'max-w-[13rem]';
-  const nameTextClass = usePortraitHudLayout ? 'text-[0.95rem]' : 'text-[1.05rem]';
+  const nameTextClass = isPortrait ? 'text-[11px]' : 'text-[0.95rem]';
   const hudGapClass = usePortraitHudLayout ? 'gap-5' : 'gap-7';
-  const bottomHudLayoutClass = usePortraitHudLayout ? 'justify-center px-4 w-full' : 'justify-center';
+  const bottomHudLayoutClass = 'justify-center';
   const chatGiftOverlayClass =
     'fixed inset-0 z-50 flex items-center justify-center bg-black/70';
   const chatGiftPanelClass =
@@ -35432,14 +35362,17 @@ const shotPowerRef = useRef(0);
         <div className="pointer-events-auto mt-1 flex flex-col gap-2" style={{ marginTop: `${viewToggleButtonDropPx}px` }}>
           <button
             type="button"
-            aria-pressed={!isTopDownView}
+            aria-pressed={!isTopDownView && !isLookMode}
             onClick={() => {
-              if (!isPortrait) return;
+              lookModeRef.current = false;
+              setIsLookMode(false);
               setIsRailOverheadView(false);
               setIsTopDownView(false);
+              topViewControlsRef.current.exit?.(true);
+              cameraUpdateRef.current?.();
             }}
             className={`flex h-12 w-12 items-center justify-center rounded-full border text-[11px] font-semibold uppercase tracking-[0.2em] shadow-[0_12px_32px_rgba(0,0,0,0.45)] backdrop-blur transition ${
-              !isTopDownView
+              !isTopDownView && !isLookMode
                 ? 'border-emerald-300 bg-emerald-300/20 text-emerald-100'
                 : 'border-white/30 bg-black/70 text-white hover:bg-black/60'
             }`}
@@ -35576,21 +35509,15 @@ const shotPowerRef = useRef(0);
 
       {bottomHudVisible && (
         <div
+          data-pool-avatar-hud
           className={`absolute flex ${bottomHudLayoutClass} pointer-events-none z-50 transition-opacity duration-200 ${pocketCameraActive || replayActive ? 'opacity-0' : 'opacity-100'}`}
           aria-hidden={pocketCameraActive || replayActive}
-          style={{
-            bottom: `${12 + chromeUiLiftPx + sharedHudLiftPx + spinControllerLiftPx - sharedBottomControlsDropPx}px`,
-            left: isPortrait ? '8px' : hudInsets.left,
-            right: isPortrait ? `${SPIN_CONTROL_DIAMETER_PX * uiScale + 18}px` : hudInsets.right,
-            transform: !isPortrait && usePortraitHudLayout ? `translateX(${bottomHudOffset + bottomHudLeftPx}px)` : undefined
-          }}
+          style={controlLayout.avatars}
         >
             <div
-              className={`pointer-events-auto flex min-h-[3.35rem] max-w-full items-center justify-center ${isFreePractice ? '' : isPortrait ? 'gap-2' : hudGapClass} rounded-full border border-emerald-400/40 bg-black/70 ${isPortrait ? 'px-2 py-2 w-full' : usePortraitHudLayout ? 'pl-7 pr-9 py-2.5' : 'pl-8 pr-10 py-3'} text-white shadow-[0_12px_32px_rgba(0,0,0,0.45)] backdrop-blur`}
+              className={`pointer-events-none flex min-w-0 max-w-full items-center justify-center ${isFreePractice ? '' : isPortrait ? 'gap-2' : hudGapClass} rounded-full border border-emerald-400/40 bg-black/70 ${isPortrait ? 'px-2 py-1.5 w-full' : 'px-4 py-1.5'} text-white shadow-[0_12px_32px_rgba(0,0,0,0.45)] backdrop-blur`}
               style={{
-                transform: isPortrait ? undefined : `scale(${bottomHudScale})`,
-                transformOrigin: 'bottom center',
-                maxWidth: usePortraitHudLayout ? 'min(34rem, 100%)' : 'min(40rem, 100%)'
+                maxWidth: 'min(26rem, 100%)'
               }}
             >
             <div
@@ -35599,13 +35526,14 @@ const shotPowerRef = useRef(0);
               data-player-index="0"
               data-self-player="true"
             >
-              <div className="flex min-w-0 flex-col">
-                <div className="flex min-w-0 items-center gap-2.5">
+              <div className="flex min-w-0 w-full flex-col">
+                <div className="flex min-w-0 items-center gap-1.5">
                   {isOnlineMatch ? (
                     <img
                       src={player.avatar || '/assets/icons/profile.svg'}
                       alt="You"
                       data-pool-avatar="self"
+                      style={avatarStyle}
                       data-self-player="true"
                       className={`${avatarSizeClass} shrink-0 rounded-full object-cover transition-all duration-150 ${
                         isPlayerTurn
@@ -35618,6 +35546,7 @@ const shotPowerRef = useRef(0);
                       src={resolvedPlayerAvatar || '/assets/icons/profile.svg'}
                       alt="player avatar"
                       data-pool-avatar="self"
+                      style={avatarStyle}
                       className={`${avatarSizeClass} shrink-0 rounded-full object-cover transition-all duration-150 ${
                         isPlayerTurn
                           ? 'ring-2 ring-emerald-200 shadow-[0_0_16px_rgba(16,185,129,0.55)]'
@@ -35645,12 +35574,13 @@ const shotPowerRef = useRef(0);
                   data-self-player="false"
                 >
                   {isOnlineMatch ? (
-                    <div className="flex min-w-0 flex-col">
-                      <div className="flex min-w-0 items-center gap-2.5">
+                    <div className="flex min-w-0 w-full flex-col">
+                      <div className="flex min-w-0 items-center gap-1.5">
                         <img
                           src={opponentDisplayAvatar}
                           alt="opponent avatar"
                           data-pool-avatar="opponent"
+                          style={avatarStyle}
                           className={`${avatarSizeClass} shrink-0 rounded-full object-cover transition-all duration-150 ${
                             isOpponentTurn
                               ? 'ring-2 ring-emerald-200 shadow-[0_0_16px_rgba(16,185,129,0.55)]'
@@ -35666,12 +35596,13 @@ const shotPowerRef = useRef(0);
                       </div>
                     </div>
                   ) : (
-                    <div className="flex min-w-0 flex-col">
-                      <div className="flex min-w-0 items-center gap-2.5">
+                    <div className="flex min-w-0 w-full flex-col">
+                      <div className="flex min-w-0 items-center gap-1.5">
                         <img
                           src={opponentDisplayAvatar || '/assets/icons/profile.svg'}
                           alt="opponent avatar"
                           data-pool-avatar="opponent"
+                          style={avatarStyle}
                           className={`${avatarSizeClass} shrink-0 rounded-full object-cover transition-all duration-150 ${
                             isOpponentTurn
                               ? 'ring-2 ring-emerald-200 shadow-[0_0_16px_rgba(16,185,129,0.55)]'
@@ -35947,25 +35878,13 @@ const shotPowerRef = useRef(0);
       {showSpinController && !replayActive && (
         <div
           ref={spinBoxRef}
-          className={`absolute ${showPlayerControls ? '' : 'pointer-events-none'}`}
-          style={isTopDownView
-            ? {
-                left: '50%',
-                right: 'auto',
-                top: 'auto',
-                bottom: `${12 + chromeUiLiftPx + sharedHudLiftPx + spinControllerLiftPx - sharedBottomControlsDropPx}px`,
-                transform: `translateX(-50%) scale(${uiScale * 0.88})`,
-                transformOrigin: 'bottom center'
-              }
-            : {
-                right: `${spinControllerRightOffsetPx}px`,
-                bottom: `${12 + chromeUiLiftPx + sharedHudLiftPx + spinControllerLiftPx - sharedBottomControlsDropPx}px`,
-                transform: `scale(${uiScale * 0.88})`,
-                transformOrigin: 'bottom right'
-              }}
+          className={`absolute z-40 ${showPlayerControls ? '' : 'pointer-events-none'}`}
+          style={controlLayout.spin}
         >
           <div
             id="spinBox"
+            role="group"
+            aria-label="Cue ball spin"
             className={`relative rounded-full border border-white/70 shadow-[0_18px_34px_rgba(0,0,0,0.45)] ${showPlayerControls ? 'pointer-events-auto' : 'pointer-events-none opacity-80'}`}
             style={{
               width: `${SPIN_CONTROL_DIAMETER_PX}px`,
@@ -35988,11 +35907,11 @@ const shotPowerRef = useRef(0);
             <button
               type="button"
               onClick={handleCueBallReposition}
-              disabled={hud.inHand}
+              disabled={inHandPlacementMode}
               aria-label="Reposition cue ball"
               title="Reposition cue ball"
-              className={`absolute -left-11 top-1/2 flex h-9 w-9 -translate-y-1/2 items-center justify-center rounded-full border border-white/50 bg-slate-900/80 text-lg shadow-lg transition ${
-                hud.inHand ? 'cursor-not-allowed opacity-60' : 'hover:scale-105'
+              className={`absolute left-1/2 -bottom-11 flex h-9 w-9 -translate-x-1/2 items-center justify-center rounded-full border border-white/50 bg-slate-900/80 text-lg shadow-lg transition ${
+                inHandPlacementMode ? 'cursor-not-allowed opacity-60' : 'hover:scale-105'
               }`}
             >
               <span aria-hidden="true">✋️</span>
