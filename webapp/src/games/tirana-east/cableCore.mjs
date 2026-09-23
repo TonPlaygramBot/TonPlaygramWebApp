@@ -1,6 +1,6 @@
-import {EAST} from './data.mjs';
+import {CABLE_SOURCE_DATA} from './cableSourceData.mjs';
 import {groundHeight} from './terrainCore.mjs';
-const raw=EAST.cable.find(c=>c.id==='way/103710384');
+const raw=CABLE_SOURCE_DATA.find(c=>c.id==='way/103710384');
 if(!raw||raw.points.length<2)throw Error('Dajti Ekspres source line missing');
 export const CABLE_SOURCE='https://www.openstreetmap.org/way/103710384';
 export const CABLE_DURATION=900; // operator: approximately fifteen minutes.

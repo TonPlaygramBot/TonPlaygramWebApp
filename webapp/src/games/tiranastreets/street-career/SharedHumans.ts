@@ -10,6 +10,7 @@ import {chooseSharedHuman, type SharedAsset} from './sharedCastCore.mjs';
 import {SHARED_GAME_CAST} from './SharedGameCast';
 import {HumanoidAnimation} from './humanoidAnimation.mjs';
 import {humanoidBones} from './humanoidRig.mjs';
+import {prepareHumanMaterials} from './humanMaterials.mjs';
 
 type Actor={root:T.Group;model:T.Object3D;asset:string;role:string;animation:HumanoidAnimation;gaitSpeed:number;poseTime:number;placed:boolean;shadow:boolean;deathAt?:number;label:T.Sprite};
 function disposeResources(root:T.Object3D) {
@@ -22,6 +23,7 @@ function disposeResources(root:T.Object3D) {
 export class SharedHumans {
   readonly group=new T.Group(); readonly errors:string[]=[];
   private sources=new Map<string,GLTF>(); private requested=new Set<string>();
+  private sourceMaterials=new Map<string,()=>void>();
   private failed=new Set<string>();
   private actors=new Map<string,Actor>(); private queue:SharedAsset[]=[];private loading=0;
   private aborts=new Set<AbortController>();
@@ -61,6 +63,7 @@ export class SharedHumans {
         const box=new T.Box3().setFromObject(g.scene),height=box.max.y-box.min.y;
         let skinned=false;g.scene.traverse(o=>{if(o instanceof T.SkinnedMesh)skinned=true;});
         if(!skinned||!Number.isFinite(height)||height<.01){disposeResources(g.scene);throw Error('Not a usable rigged full-body human');}
+        this.sourceMaterials.set(asset.url,prepareHumanMaterials(g.scene));
         this.failed.delete(asset.url);this.sources.set(asset.url,g);
       }).catch(e=>{if(!this.dead){this.failed.add(asset.url);this.errors.push(`${asset.label}: ${String(e)}. Compatible loaded human or existing actor is retained.`);}}).finally(()=>{this.loading--;this.pump();});
     }
@@ -150,11 +153,17 @@ export class SharedHumans {
       const first=!a.placed,distance=Math.hypot(n.x-viewer.x,n.z-viewer.z);
       const shadow=distance<(battery?24:48);
       if(a.shadow!==shadow){a.shadow=shadow;a.model.traverse(o=>{if(o instanceof T.Mesh)o.castShadow=shadow;});}
-      const measured=n.health<=0?0:Math.min(10,Math.abs(n.speed||0));
-      a.gaitSpeed+=(measured-a.gaitSpeed)*(1-Math.exp(-Math.max(0,dt)*12));a.placed=true;
-      const alpha=first||dt<=0||Math.hypot(n.x-a.root.position.x,n.z-a.root.position.z)>12?1:1-Math.exp(-dt*18);
+      const elapsed=Number.isFinite(dt)?Math.max(0,dt):0;
+      const previousX=a.root.position.x,previousZ=a.root.position.z;
+      const discontinuity=first||elapsed>.25||Math.hypot(n.x-previousX,n.z-previousZ)>12;
+      const alpha=discontinuity||elapsed<=0?1:1-Math.exp(-elapsed*18);
       a.root.position.x+=(n.x-a.root.position.x)*alpha;a.root.position.z+=(n.z-a.root.position.z)*alpha;
-      a.root.position.y=(n.y??groundHeight(a.root.position.x,a.root.position.z))+(n.motion==='cycle'?-.18:n.anim==='cover'||n.anim==='crouch'?-.24:.06);
+      // Animate the displacement actually shown, including stops at obstacles.
+      // A teleport/resume is placement, never a half-second sprint animation.
+      const measured=n.health<=0?0:discontinuity?Math.min(10,Math.abs(n.speed||0)):elapsed>0?Math.min(10,Math.hypot(a.root.position.x-previousX,a.root.position.z-previousZ)/elapsed):a.gaitSpeed;
+      a.gaitSpeed+=(measured-a.gaitSpeed)*(discontinuity?1:1-Math.exp(-elapsed*18));a.placed=true;
+      const height=(n.y??groundHeight(a.root.position.x,a.root.position.z))+(n.motion==='cycle'?-.18:n.anim==='cover'||n.anim==='crouch'?-.24:.06);
+      a.root.position.y+=(height-a.root.position.y)*(discontinuity?1:1-Math.exp(-elapsed*18));
       if(n.health<=0)a.deathAt??=time;else a.deathAt=undefined;
       const fall=a.deathAt===undefined?0:Math.min(1,(time-a.deathAt)/.6);
       const yaw=first?n.heading+Math.PI:a.root.rotation.y+Math.atan2(Math.sin(n.heading+Math.PI-a.root.rotation.y),Math.cos(n.heading+Math.PI-a.root.rotation.y))*alpha;
@@ -164,7 +173,7 @@ export class SharedHumans {
       // The host updates the eye camera later in this frame. Use its previous
       // frustum only to budget animation, never to hide a newly revealed person.
       const onScreen=!camera||distance<4||this.frustum.intersectsSphere(this.bounds);
-      a.poseTime=Math.min(.5,a.poseTime+Math.max(0,dt));
+      a.poseTime=discontinuity?Math.min(elapsed,1/30):Math.min(.5,a.poseTime+elapsed);
       // Keep motion and interactions immediate near the player; sample distant
       // skeletons less often while preserving every original mesh and texture.
       if(n.health>0&&(first||onScreen&&(distance<35||a.poseTime>=(distance<90?.05:.1)))){this.pose(a,n,time,a.poseTime);a.poseTime=0;}
@@ -183,7 +192,8 @@ export class SharedHumans {
   dispose(){
     if(this.dead)return;this.dead=true;this.queue=[];for(const abort of this.aborts)abort.abort();this.aborts.clear();
     for(const id of [...this.actors.keys()])this.remove(id);
-    this.held.dispose();for(const g of this.sources.values())disposeResources(g.scene);this.sources.clear();
+    this.held.dispose();this.sourceMaterials.forEach(release=>release());this.sourceMaterials.clear();
+    for(const g of this.sources.values())disposeResources(g.scene);this.sources.clear();
     for(const m of this.signs.values()){m.map?.dispose();m.dispose();}this.signs.clear();this.failed.clear();this.requested.clear();this.group.removeFromParent();
   }
 }

@@ -77,19 +77,18 @@ test('pursuit engine does not award a drive-through at the final hideout',()=>{
   tick(sim,1);assert.equal(p.finished,false);assert.ok(sim.job.director.hold>0);
   tick(sim,2.1);assert.equal(p.finished,true);assert.equal(sim.state.phase,'finished');
 });
-test('combat extraction resets when airborne, boarding an aircraft or riding the cableway',()=>{
+test('combat extraction resets when airborne or boarding an aircraft',()=>{
   const sim=simulation('boulevard-defense'),stop=sim.mission.stops[0];
   Object.assign(sim.player,{x:stop.x,z:stop.z,speed:0});sim.state.objectiveRemaining=0;
   sim.job.director.extracting=true;sim.approved=0;
-  for(const kind of ['jump','aircraft','cableway']){
-    sim.body.grounded=true;sim.player.aircraftId=null;sim.cableRide=null;
+  for(const kind of ['jump','aircraft']){
+    sim.body.grounded=true;sim.player.aircraftId=null;
     sim.job.director.hold=4;
     if(kind==='jump')sim.body.grounded=false;
     if(kind==='aircraft')sim.player.aircraftId=sim.flight.aircraft[0].id;
-    if(kind==='cableway')sim.cableRide={fraction:.5,returning:false};
     sim.updateObjective(1/60);assert.equal(sim.job.director.hold,0,kind);assert.equal(sim.canAdvance(sim.player,sim.mission),false,kind);
   }
-  sim.body.grounded=true;sim.player.aircraftId=null;sim.cableRide=null;
+  sim.body.grounded=true;sim.player.aircraftId=null;
   sim.updateObjective(1/60);assert.ok(sim.job.director.hold>0,'grounded on-foot extraction resumes normally');
 });
 test('vehicle recovery deadline survives save/reload without recreating its wreck and resets on replacement',()=>{

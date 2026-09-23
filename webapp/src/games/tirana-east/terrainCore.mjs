@@ -1,8 +1,9 @@
 import {TERRAIN} from './terrainData.mjs';
+import {URBAN_BOUNDS} from '../tiranastreets/shared/urbanBounds.mjs';
 // Retain the existing city's flat datum. Only the 900 m seam outside it is
 // blended; eastern relief and the skyline use real DEM samples, not peaks added by hand.
 export const URBAN_DATUM_BOUNDS=Object.freeze([-5624.88,-5322.32,4983.39,4774.98]);
-export const TRAVEL_BOUNDS=Object.freeze([-5624.88,-8620,12650,6960]);
+export const TRAVEL_BOUNDS=URBAN_BOUNDS;
 export const TERRAIN_STEP=60;
 const clamp=(n,a,b)=>Math.max(a,Math.min(b,n));
 export function gridHeight(g,x,z){

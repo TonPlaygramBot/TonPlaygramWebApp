@@ -25,6 +25,7 @@ export type Car = Point & {
   vx: number;
   vz: number;
   steering: number;
+  steerAngle?:number;yawRate?:number;slip?:number;acceleration?:number;gear?:number;rpm?:number;handbraking?:boolean;
   model: string;
   passengers?:{seat:number;face:number;shirt:number}[];
   routeName?:string;livery?:number;trailerHeading?:number;doorsUntil?:number;braking?:boolean;
@@ -79,6 +80,9 @@ export type Mission = {
   reward: number;
   stars?: number;
   enemies?: number;
+  operation?:boolean;
+  combatZone?:Point & {name:string};
+  extractionHold?:number;
   aircraft?: 'helicopter' | 'jet';
   stops: (Point & { name: string })[];
 };
@@ -134,6 +138,7 @@ export type State = {
   nextDispatch: number;
   objectiveRemaining?: number;
   elapsed: number;
+  missionStartedAt?:number;
   phase: string;
   missionId: string;
   mode: string;
@@ -252,3 +257,6 @@ export type SimulationSystems={
  life?:Record<string,unknown>;
 };
 export const collisionSolids:{id:string;p:number[][];h:number;minHeight?:number;minY?:number;holes?:number[][][]}[];
+
+export function missionElapsed(state:State):number;
+export function startSessionMission(state:State,id:string,difficulty?:string):boolean;

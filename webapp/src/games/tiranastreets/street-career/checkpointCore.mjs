@@ -1,3 +1,5 @@
+import {pointInUrbanBounds} from '../shared/urbanBounds.mjs';
+import {vehicleSize} from '../shared/trafficSimulation.mjs';
 import {groundHeight} from '../../tirana-east/terrainCore.mjs';
 import {createMissionDirector} from './missionDirectorCore.mjs';
 /** Versioned phase checkpoints inside the existing v1 profile/key. Old profiles
@@ -20,6 +22,7 @@ export function normalizeCheckpoint(raw, loadout, stops = 0) {
     version: 2,
     index: raw.index,
     elapsed: finite(raw.elapsed, 0, 86400, 0),
+    missionStartedAt: finite(raw.missionStartedAt,0,finite(raw.elapsed,0,86400,0),0),
     player: {
       x: finite(q.x, -100000, 100000, 0),
       z: finite(q.z, -100000, 100000, 0),
@@ -86,6 +89,7 @@ export function captureCheckpoint(sim) {
     version: 2,
     index: p.index,
     elapsed: sim.state.elapsed,
+    missionStartedAt:sim.state.missionStartedAt || 0,
     player: JSON.parse(JSON.stringify(p)),
     car: car ? { ...car } : null,
     aircraft: sim.flight?.current ? {...sim.flight.current} : null,
@@ -97,7 +101,17 @@ export function captureCheckpoint(sim) {
   };
 }
 export function restoreCheckpoint(sim, checkpoint, apply) {
-  if (!checkpoint) return false;
+  if (!checkpoint || !pointInUrbanBounds(checkpoint.player,.5) || checkpoint.aircraft&&!pointInUrbanBounds(checkpoint.aircraft,2) || checkpoint.car&&!pointInUrbanBounds(checkpoint.car,3)) return false;
+  // Old regional saves fall back to a safe city spawn; a stored car must share
+  // the player's location and fit its full footprint before either is applied.
+  if(checkpoint.car&&!checkpoint.aircraft){
+    const car=checkpoint.car,size=vehicleSize(car),c=Math.cos(car.heading),s=Math.sin(car.heading);
+    if(Math.hypot(car.x-checkpoint.player.x,car.z-checkpoint.player.z)>4)return false;
+    for(const x of [-size.width*.5,0,size.width*.5])for(const z of [-size.length*.5,0,size.length*.5]){
+      const q={x:car.x+x*c+z*s,z:car.z-x*s+z*c};q.y=groundHeight(q.x,q.z)+.12;
+      if(!sim.world.clearance(q,car.model==='tirana-bus'?3:1.4,.15))return false;
+    }
+  }
   const p = sim.player,
     q = { ...checkpoint.player, y: groundHeight(checkpoint.player.x,checkpoint.player.z)+0.08 };
   const aircraft=checkpoint.aircraft && sim.flight?.aircraft.find(a=>checkpoint.aircraft.id?a.id===checkpoint.aircraft.id:a.kind===checkpoint.aircraft.kind);
@@ -114,6 +128,7 @@ export function restoreCheckpoint(sim, checkpoint, apply) {
     index: checkpoint.index
   });
   sim.state.elapsed = checkpoint.elapsed;
+  sim.state.missionStartedAt = checkpoint.missionStartedAt || 0;
   sim.body.y = q.y;
   sim.body.yaw = p.heading;
   sim.intent.yaw = p.heading;

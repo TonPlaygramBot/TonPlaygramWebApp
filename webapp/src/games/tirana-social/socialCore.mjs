@@ -16,7 +16,7 @@ export function gameModeURL(game,mode) {
   const path=game==='streets'?'/games/tiranastreets':'/games/kartroyale';
   if(mode==='explore')return `${path}?mode=ai&activity=explore`;
   if(mode==='career')return `${path}?mode=ai&activity=${game==='streets'?'street-career':'racing-career'}`;
-  if(mode==='battlefield'&&game==='streets')return `${path}?mode=ai`;
+  if(mode==='battlefield'&&game==='streets')return `${path}?mode=ai&activity=street-career`;
   if(mode==='multiplayer'&&game==='racing')return `${path}?mode=online`;
   throw Error('Unsupported game mode');
 }

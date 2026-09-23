@@ -8,10 +8,11 @@ import {COLLECTION_DRIVER_URL, collectionVehicleFor, type CollectionVehicle} fro
 import {createNpcVehicleDriver} from './NpcVehicleDriver';
 import {clearWeaponInstance, disposeWeaponResources} from './weaponModelResources';
 import {prepareModelWheels,collectRollingWheels,rollWheels,type RollingWheel} from './rollingWheels';
+import {prepareVehicleMaterials} from './vehicleMaterials';
 
 export type CollectionCar = {
   id:string; collectionVehicle?:string; x:number; z:number; heading:number;
-  driver?:string|null; npcDriver?:boolean; speed?:number;
+  driver?:string|null; npcDriver?:boolean; speed?:number;steering?:number;steerAngle?:number;
 };
 type Actor = {root:T.Group; driver?:T.Group; assetId:string; wheels:RollingWheel[]};
 type Source = {root:T.Group; used:number};
@@ -71,7 +72,7 @@ export class CollectionVehicleVisuals {
       if(id==='driver')this.human=root;
       else {
         prepareModelWheels(root,id);
-        root.traverse(o=>{if(o instanceof T.Mesh){o.castShadow=true;o.receiveShadow=true;}});
+        prepareVehicleMaterials(root);
         this.sources.set(id,{root,used:this.frame});
       }
       root=undefined;
@@ -112,11 +113,12 @@ export class CollectionVehicleVisuals {
         root.position.set(car.x,groundHeight(car.x,car.z)+.03,car.z);root.rotation.y=car.heading+Math.PI/2;
       }
       actor.root.visible=true;
-      const alpha=1-Math.exp(-Math.max(0,dt)*18);
+      const alpha=car.id===playerCarId?1:1-Math.exp(-Math.max(0,dt)*18);
       actor.root.position.lerp(new T.Vector3(car.x,groundHeight(car.x,car.z)+.03,car.z),alpha);
       actor.root.rotation.y+=Math.atan2(Math.sin(car.heading+Math.PI/2-actor.root.rotation.y),Math.cos(car.heading+Math.PI/2-actor.root.rotation.y))*alpha;
       alignVehicle(actor.root,car.heading+Math.PI/2);
       rollWheels(actor.wheels,car.speed??0,dt);
+      for(const wheel of actor.wheels)if(wheel.steer)wheel.steer.rotation.y=-(car.steerAngle??(car.steering||0)*.32);
       // Waiting NPCs yield the seat when a player takes control. Player state is
       // authoritative; no NPC remains superimposed on a player or FPS camera.
       if(!actor.driver&&this.human&&!this.errors.has('driver-rig')){

@@ -91,7 +91,15 @@ export function prepareModelWheels(root:T.Object3D,assetId:string){
  for(const [name,partition]of Object.entries(layout.meshes)){
   const mesh=meshes.get(name);if(!mesh||(mesh.geometry.index?.count??mesh.geometry.getAttribute('position').count)!==partition.triangles*3){root.userData.wheelRigWarning=`Wheel geometry changed: ${name}`;return;}
  }
- const pivots=layout.wheels.map((wheel,i)=>{const pivot=new T.Group();pivot.name=`Rolling-wheel-${i}`;pivot.position.fromArray(wheel.center);pivot.userData.rollingWheel={axis:wheel.axis??layout.axis,radius:wheel.radius};root.add(pivot);return pivot;});
+ const axleMid=(Math.min(...layout.wheels.map(w=>w.center[0]))+Math.max(...layout.wheels.map(w=>w.center[0])))/2;
+ const pivots=layout.wheels.map((wheel,i)=>{
+  const pivot=new T.Group();pivot.name=`Rolling-wheel-${i}`;
+  const front=layout.wheels.length===4&&wheel.center[0]>axleMid;
+  pivot.userData.rollingWheel={axis:wheel.axis??layout.axis,radius:wheel.radius,front};
+  if(front){const steer=new T.Group();steer.name=`Steering-wheel-${i}`;steer.position.fromArray(wheel.center);root.add(steer);steer.add(pivot);}
+  else{pivot.position.fromArray(wheel.center);root.add(pivot);}
+  return pivot;
+ });
  root.updateMatrixWorld(true);
  for(const [name,partition]of Object.entries(layout.meshes)){
   const mesh=meshes.get(name)!,original=mesh.geometry,index=original.index,groups=new Map<number,number[]>();

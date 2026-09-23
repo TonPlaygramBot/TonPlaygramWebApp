@@ -77,6 +77,7 @@ export type StreetEvent = {
   weapon?: string;
 };
 export class StreetSimulation {
+  beginMission(id:string,difficulty?:string):boolean;
   constructor(state: State, world?: import('./spatialCore.mjs').StreetWorld);
   state: State;
   access: import('./BuildingAccessSimulation.mjs').BuildingAccessSimulation;
@@ -88,7 +89,6 @@ export class StreetSimulation {
   body: BodyState;
   intent: StreetIntent;
   paused: boolean;
-  cableRide: null|{fraction:number;returning:boolean};
   events: StreetEvent[];
   eventSeq: number;
   hooks: SimulationSystems;

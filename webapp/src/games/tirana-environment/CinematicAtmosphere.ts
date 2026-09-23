@@ -1,4 +1,5 @@
-import {groundHeight} from '../tirana-east/terrainCore.mjs';
+import {EnvironmentMaterialRegistry} from './EnvironmentMaterialRegistry';
+import {shadowAnchor} from './shadowAnchor';
 import {RainPuddles} from './RainPuddles';
 import * as T from 'three';
 import {urbanLightLevel} from './urbanLightingCore.mjs';
@@ -18,13 +19,20 @@ export class CinematicAtmosphere {
   private sky:T.Mesh<T.SphereGeometry,T.ShaderMaterial>;
   private rain:T.LineSegments<T.BufferGeometry,T.ShaderMaterial>;
   private surfaces=new Map<T.MeshStandardMaterial,{roughness:number;color:T.Color;emissive:T.Color;intensity:number;window:boolean}>();
-  private emitters=new Set<T.MeshStandardMaterial>();
-  private localLights=new Set<T.PointLight>();
-  private scanAt=-Infinity;private shadowAt=-Infinity;private dead=false;
+  private registry:EnvironmentMaterialRegistry;
+  private surfaceAt=-Infinity;private shadowAt=-Infinity;private dead=false;
   private top=new T.Color();private horizon=new T.Color();private temp=new T.Color();
   private direction=new T.Vector3();
+  private shadowDirection=new T.Vector3();
   constructor(private scene:T.Scene,private renderer:T.WebGLRenderer,seed=environmentSeed()){
     this.seed=seed;this.current=environmentAt(seed);
+    this.registry=new EnvironmentMaterialRegistry(scene,m=>{
+      if(m.userData.environmentWindow)applyWindowLighting(m);
+      if(m.userData.environmentSurface||m.userData.environmentWindow)this.surfaces.set(m,{
+        roughness:m.roughness,color:m.color.clone(),emissive:m.emissive.clone(),
+        intensity:m.emissiveIntensity,window:!!m.userData.environmentWindow
+      });
+    });
     this.sun=scene.children.find(o=>o instanceof T.DirectionalLight) as T.DirectionalLight;
     if(!this.sun){this.sun=new T.DirectionalLight();this.ownSun=true;scene.add(this.sun,this.sun.target);}
     this.hemisphere=scene.children.find(o=>o instanceof T.HemisphereLight) as T.HemisphereLight;
@@ -81,40 +89,43 @@ export class CinematicAtmosphere {
     const u=this.sky.material.uniforms;u.cloud.value=p.cloud;u.night.value=p.night;u.time.value=seconds;
     const fog=this.scene.fog as T.FogExp2;fog.color.copy(this.horizon);fog.density=p.fog*(.85+p.night*.2)*Math.max(.09,1-Math.max(0,camera.position.y-100)/650);
     this.hemisphere.color.copy(this.top).lerp(this.temp.set('#eef2ee'),.55);
-    this.hemisphere.groundColor.set('#696b50').lerp(this.temp.set('#293240'),p.night);
+    this.hemisphere.groundColor.set('#6c6a60').lerp(this.temp.set('#293240'),p.night);
     this.hemisphere.intensity=.65+p.daylight*(1.05+p.cloud*.3);
-    this.sun.color.set('#fff0d4').lerp(this.temp.set('#ffd097'),p.golden).lerp(this.temp.set('#91afe0'),p.night);
-    this.sun.intensity=.12+p.daylight*3.2*(1-p.cloud*.8);
-    this.renderer.toneMappingExposure=1.02+p.golden*.08+p.night*.12;
+    this.sun.color.set('#fff5e7').lerp(this.temp.set('#ffd097'),p.golden).lerp(this.temp.set('#91afe0'),p.night);
+    this.sun.intensity=.12+p.daylight*2.85*(1-p.cloud*.8);
+    this.renderer.toneMappingExposure=1+p.golden*.06+p.night*.12;
     this.scene.environmentIntensity=.22+p.daylight*.58;
     this.puddles.update(seconds,camera.position,p.wetness,p.rain,battery);
     this.rain.visible=p.rain>.015;this.rain.position.set(camera.position.x,camera.position.y-8,camera.position.z);
     this.rain.geometry.setDrawRange(0,battery?360:1440);this.rain.material.uniforms.time.value=seconds;this.rain.material.uniforms.opacity.value=p.rain*.36;this.rain.material.uniforms.wind.value.set(p.windX,p.windZ);
-    // Snap the moving shadow box to its texel grid; limit map rendering on phones.
+    // The light frustum follows the current level (street or roof), preserving
+    // shadow precision near the viewer while refreshes stay bounded on phones.
     if(seconds<this.shadowAt||seconds-this.shadowAt>(battery?.25:.075)){
-      const texel=120/this.sun.shadow.mapSize.x;
-      this.sun.target.position.set(Math.round(camera.position.x/texel)*texel,groundHeight(camera.position.x,camera.position.z),Math.round(camera.position.z/texel)*texel);
-      const lightDirection=this.direction.clone();if(lightDirection.y<.12)lightDirection.set(-lightDirection.x,.3,-lightDirection.z).normalize();
-      this.sun.position.copy(this.sun.target.position).addScaledVector(lightDirection,200);
+      this.shadowDirection.copy(this.direction);
+      if(this.shadowDirection.y<.12)this.shadowDirection.set(-this.shadowDirection.x,.3,-this.shadowDirection.z).normalize();
+      const span=this.sun.shadow.camera.right-this.sun.shadow.camera.left;
+      const anchor=shadowAnchor({x:camera.position.x,y:camera.position.y-1.6,z:camera.position.z},this.shadowDirection,span,this.sun.shadow.mapSize.x);
+      this.sun.target.position.set(anchor.x,anchor.y,anchor.z);
+      this.sun.position.copy(this.sun.target.position).addScaledVector(this.shadowDirection,200);
       this.sun.shadow.needsUpdate=true;this.shadowAt=seconds;
     }
-    if(seconds<this.scanAt||seconds-this.scanAt>2){
-      const found=new Set<T.MeshStandardMaterial>();this.emitters.clear();this.localLights.clear();
-      this.scene.traverse(o=>{if(o instanceof T.PointLight&&o.userData.environmentLight)this.localLights.add(o);if(!(o instanceof T.Mesh))return;for(const m of Array.isArray(o.material)?o.material:[o.material]){
-        if(!(m instanceof T.MeshStandardMaterial))continue;
-        if(m.userData.environmentLight)this.emitters.add(m);
-        if(!m.userData.environmentSurface&&!m.userData.environmentWindow)continue;
-        if(m.userData.environmentWindow)applyWindowLighting(m);
-        found.add(m);if(!this.surfaces.has(m))this.surfaces.set(m,{roughness:m.roughness,color:m.color.clone(),emissive:m.emissive.clone(),intensity:m.emissiveIntensity,window:!!m.userData.environmentWindow});
-      }});
-      for(const m of this.surfaces.keys())if(!found.has(m))this.surfaces.delete(m);
-      this.scanAt=seconds;
+    this.registry.update(seconds,battery?192:384);
+    // Weather changes over minutes; updating every material every video frame
+    // only repeated identical work. Point emitters and wet surfaces use 10 Hz.
+    if(seconds>=this.surfaceAt && seconds-this.surfaceAt<.1)return;
+    this.surfaceAt=seconds;
+    for(const [m,dry] of this.surfaces)if(!this.registry.materials.has(m)){
+      // Pooled district materials can return later; keep their original dry
+      // values instead of recording an already wet/darkened base on re-entry.
+      m.roughness=dry.roughness;m.color.copy(dry.color);m.emissive.copy(dry.emissive);m.emissiveIntensity=dry.intensity;
+      this.surfaces.delete(m);
     }
-    for(const light of this.localLights){
-      if(!light.parent){this.localLights.delete(light);continue;}
+    for(const light of this.registry.lights){
+      if(!light.parent){this.registry.lights.delete(light);continue;}
       light.intensity=light.userData.lightAvailable===false?0:urbanLightLevel(p,light.userData.environmentLight)*light.userData.nightIntensity;
     }
-    for(const m of this.emitters){
+    for(const m of this.registry.materials){
+      if(!m.userData.environmentLight)continue;
       if(!m.emissiveMap)m.emissive.set('#ffe2b4');
       m.emissiveIntensity=urbanLightLevel(p,m.userData.environmentLight)*(m.userData.nightIntensity||1);
     }
@@ -128,7 +139,7 @@ export class CinematicAtmosphere {
     for(const [m,dry] of this.surfaces){m.roughness=dry.roughness;m.color.copy(dry.color);m.emissive.copy(dry.emissive);m.emissiveIntensity=dry.intensity;}this.surfaces.clear();
     this.puddles.dispose();
     this.sky.geometry.dispose();this.sky.material.dispose();this.rain.geometry.dispose();this.rain.material.dispose();
-    this.emitters.clear();this.localLights.clear();this.group.removeFromParent();this.group.clear();
+    this.registry.dispose();this.group.removeFromParent();this.group.clear();
     if(this.ownSun){this.sun.removeFromParent();this.sun.target.removeFromParent();this.sun.dispose();}
     if(this.ownHemisphere)this.hemisphere.removeFromParent();
   }

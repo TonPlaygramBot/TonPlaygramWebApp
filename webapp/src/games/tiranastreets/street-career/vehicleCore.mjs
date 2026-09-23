@@ -1,6 +1,6 @@
 import {groundHeight} from '../../tirana-east/terrainCore.mjs';
 import { vehicleSize } from '../shared/trafficSimulation.mjs';
-import { driverSocket, driverPoint } from '../shared/driverView.mjs';
+import { driverSocket, driverPoint, driverWheel } from '../shared/driverView.mjs';
 /** Anchors in metres, forward = -Z, right = +X, relative to the simulation car.
  * The existing city-car GLB has seats/dashboard/steering; generic models use a
  * documented authored basic cabin, not a claimed detailed original interior. */
@@ -23,7 +23,7 @@ export const vehicleAnchors = (car) => {
     doors: car.model==='tirana-bus' ? [{x:-1.9,y:0,z:-7.2},{x:1.9,y:0,z:-7.2}] : [-1,1].map(side=>({x:side*(vehicleSize(car).width/2+.65),y:0,z:car.forceVehicle?.includes('van')?-1.2:.15})),
     eye: { x: eye.x, y: eye.y, z: eye.z },
     seat: { x: eye.x, y: eye.y - 0.55, z: eye.z - 0.02 },
-    wheel: { x: eye.x, y: eye.y - 0.4, z: eye.z - 0.39 }
+    wheel: driverWheel(car)
   };
 };
 export const carPoint = (car, p) => driverPoint(car, p);
@@ -92,6 +92,9 @@ export function takeVehicle(state, p, car) {
   car.speed = 0;
   car.vx = 0;
   car.vz = 0;
+  car.yawRate = car.steering = car.steerAngle = 0;
+  car.slip = 0;
+  car.braking = car.handbraking = false;
   p.carId = car.id;
   p.x = car.x;
   p.z = car.z;

@@ -6,10 +6,11 @@ import {GLTFLoader, type GLTF} from 'three/examples/jsm/loaders/GLTFLoader.js';
 import {clone} from 'three/examples/jsm/utils/SkeletonUtils.js';
 import {clearWeaponInstance, disposeWeaponResources} from './weaponModelResources';
 import {authoredRollingWheels,rollWheels,type RollingWheel} from './rollingWheels';
+import {prepareVehicleMaterials} from './vehicleMaterials';
 import {forceVehicleFor, forceCharacterFor, type ForceAsset} from './shared/albanianForces.mjs';
 import type {Point, NPC, Car} from './shared/engine.mjs';
 
-export type ForceCar = Pick<Car, 'id' | 'x' | 'z' | 'heading' | 'speed' | 'steering' | 'model' | 'forceVehicle' | 'responding'>;
+export type ForceCar = Pick<Car, 'id' | 'x' | 'z' | 'heading' | 'speed' | 'steering' | 'steerAngle' | 'model' | 'forceVehicle' | 'responding'>;
 export type ForceNPC = Pick<NPC, 'id' | 'x' | 'z' | 'heading' | 'speed' | 'kind' | 'motion' | 'health' | 'forceCharacter' | 'anim'> & Partial<Pick<NPC,'weapon'|'aimPitch'|'hitUntil'>>;
 export type ForceFrame = {cars: ForceCar[]; traffic: ForceCar[]; units: ForceCar[]; npcs: ForceNPC[]};
 type Candidate = {key: string; asset: ForceAsset; entity: ForceCar | ForceNPC; distance: number; flashing: boolean};
@@ -192,7 +193,7 @@ export class AlbanianForcesVisuals {
       } else {
         const car = e as ForceCar;
         rollWheels(actor.wheels,car.speed,dt);
-        for (const steer of actor.steering) steer.rotation.y = -car.steering * .32;
+        for (const steer of actor.steering) steer.rotation.y = -(car.steerAngle??car.steering*.32);
         actor.lamps.forEach((lamp, i) => {
           lamp.material.emissiveIntensity = c.flashing && Math.sin(time * 18 + i * Math.PI) > 0 ? 4 : lamp.base;
         });
@@ -238,6 +239,7 @@ export class AlbanianForcesVisuals {
 
 /** Preserve metres, PBR maps, rig tracks, and wheel pivots from the pack. */
 export function prepareForceModel(scene: T.Group, asset: ForceAsset): T.Group {
+  if(asset.category==='vehicle')prepareVehicleMaterials(scene);
   const facing = new T.Group();
   facing.add(scene);
   // Pack vehicles face +X. Existing game actor models face +Z before heading.

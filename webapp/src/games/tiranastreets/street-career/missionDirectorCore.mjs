@@ -20,7 +20,7 @@ export function createMissionDirector(raw) {
     failure: typeof raw?.failure === 'string' ? raw.failure.slice(0, 160) : ''
   };
 }
-export function extractionSeconds(mission) { return mission.id === 'boulevard-defense' ? 12 : 3; }
+export function extractionSeconds(mission) { return Number.isFinite(mission.extractionHold) ? Math.max(3,Math.min(12,mission.extractionHold)) : mission.id === 'boulevard-defense' ? 12 : 3; }
 export function updateMissionDirector(director, mission, frame, seconds) {
   if (!Number.isFinite(seconds) || seconds <= 0 || frame.paused || director.failure) return director;
   const dt = Math.min(seconds, .1);

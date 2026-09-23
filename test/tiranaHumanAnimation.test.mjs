@@ -98,6 +98,24 @@ test('same-state recoil does not accumulate and clones never share animated bone
   layer.remove(npc.id);layer.remove('second');
 });
 
+test('rendered NPC displacement stops foot cycling at obstacles and resumed frames stay bounded',async()=>{
+  const {actor,npc,layer,source}=await fixture('tirana-streets/population/citizen-0.glb');
+  const asset={id:'fixture',label:'fixture',url:'/fixture.glb',roles:['civilian']};
+  Object.assign(layer,{cast:[asset],sources:new Map([[asset.url,source]]),failed:new Set(),request(){},bounds:new T.Sphere(new T.Vector3(),2.4),held:{pose(){},forget(){}}});
+  const viewer={x:0,z:0};
+  for(let frame=0;frame<40;frame++){npc.x+=1.4/60;layer.update([npc],viewer,frame/60,1/60);}
+  assert.ok(actor.gaitSpeed>1.2,'moving visual drives a walking cadence');
+  // Navigation can still request walking while collision has stopped movement.
+  npc.speed=1.4;
+  for(let frame=0;frame<70;frame++)layer.update([npc],viewer,1+frame/60,1/60);
+  assert.ok(actor.gaitSpeed<.02,'stationary actor stops stepping despite desired navigation speed');
+  const gait=actor.animation.gait;npc.x+=8;
+  layer.update([npc],viewer,10,3);
+  assert.ok(actor.animation.gait-gait<.2,'long resume/teleport does not animate a catch-up sprint');
+  assert.ok(Math.abs(actor.root.position.x-npc.x)<1e-8,'placement still reaches the new simulation state');
+  layer.remove(npc.id);
+});
+
 test('the actual held-weapon pass cannot overwrite corrected Mixamo aiming with legacy Euler angles',async()=>{
   const {actor,npc,layer,bones}=await fixture('tirana-streets/living/human.glb');
   npc.anim='aim';npc.weapon='ak47VolleyAttack';

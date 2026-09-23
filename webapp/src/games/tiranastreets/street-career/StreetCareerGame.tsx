@@ -25,7 +25,9 @@ import {FrameRateControl} from '../FrameRateControl';
 import { difficultyOf, WEAPON_BY_ID } from '../shared/weapons.mjs';
 import { wantedStars } from '../shared/cityLife.mjs';
 import { MISSION_REQUIREMENTS } from './campaignCore.mjs';
-import {PoliceCareerPanel} from './PoliceCareerPanel';
+import {missionElapsed} from '../shared/engine.mjs';
+import {LegacyStoryHistory} from './LegacyStoryHistory';
+import {loadLegacyStoryHistory} from './legacyStoryHistory.mjs';
 import {AccessEquipmentControls} from './AccessEquipmentControls';
 import '../city.css';
 import './street-career.css';
@@ -37,7 +39,7 @@ const storage = () => {
   }
 };
 type Panel = 'journal' | 'arsenal' | 'map' | null;
-export function StreetCareerGame({ onExit }: { onExit: () => void }) {
+export function StreetCareerGame({ onExit, initialOperation, initialDifficulty='normal' }: { onExit: () => void; initialOperation?:string; initialDifficulty?:string }) {
   const root = useRef<HTMLDivElement>(null),
     runtime = useRef<StreetCareerRuntime>(),
     modal = useRef<HTMLDialogElement>(null);
@@ -45,9 +47,10 @@ export function StreetCareerGame({ onExit }: { onExit: () => void }) {
     [panel, setPanel] = useState<Panel>(null),
     [error, setError] = useState(''),
     [loading, setLoading] = useState('Loading Tirana'),
-    [difficulty, setDifficulty] = useState('normal');
+    [difficulty, setDifficulty] = useState(initialDifficulty);
+  const [legacyHistory]=useState(()=>loadLegacyStoryHistory(storage()));
   const [session, setSession] = useState(0);
-  const [journalPage, setJournalPage] = useState<'jobs' | 'police' | 'settings'>('jobs');
+  const [journalPage, setJournalPage] = useState<'jobs' | 'operations' | 'settings'>('jobs');
   useEffect(() => {
     setError('');
     setView(null);
@@ -64,7 +67,7 @@ export function StreetCareerGame({ onExit }: { onExit: () => void }) {
           },
           storage(),
           (p) => {
-            if (!cancelled) { setPanel(p); if(g?.policeProfile.lastResult)setJournalPage('police'); }
+            if (!cancelled) setPanel(p);
           }
         );
         runtime.current = g;
@@ -75,7 +78,7 @@ export function StreetCareerGame({ onExit }: { onExit: () => void }) {
           .then(() => {
             if (!cancelled) {
               if (document.hidden) setPanel('journal');
-              else { g?.resume(); setPanel(null); }
+              else { if(initialOperation && !g?.profile.active)g?.start(initialOperation,initialDifficulty);g?.resume();setPanel(null); }
             }
           })
           .catch((e) => {
@@ -90,7 +93,7 @@ export function StreetCareerGame({ onExit }: { onExit: () => void }) {
       g?.dispose();
       runtime.current = undefined;
     };
-  }, [session]);
+  }, [session,initialOperation,initialDifficulty]);
   useEffect(() => {
     const d = modal.current;
     if (panel && d && !d.open) d.showModal();
@@ -103,7 +106,7 @@ export function StreetCareerGame({ onExit }: { onExit: () => void }) {
   const open = (p: Panel) => {
     runtime.current?.pause();
     reset();
-    if (p === 'journal') setJournalPage(view?.police?'police':'jobs');
+    if (p === 'journal') setJournalPage('jobs');
     setPanel(p);
   };
   const resume = () => {
@@ -138,6 +141,7 @@ export function StreetCareerGame({ onExit }: { onExit: () => void }) {
     onLostPointerCapture: (e: PE<HTMLElement>) =>
       runtime.current?.input.pointerUp(e.pointerId)
   });
+  const context = view?.actions.find(a=>a.id==='interact'&&a.visible);
   const primary = view?.actions.find(
     (a) => a.id === 'fire' || a.id === 'punch'
   );
@@ -157,9 +161,7 @@ export function StreetCareerGame({ onExit }: { onExit: () => void }) {
         {a.label}
         {!a.enabled && a.disabledReason && <small>{a.disabledReason}</small>}
       </button>
-    ) : (
-      <span key={slot} className={'tsc-slot-' + slot} />
-    );
+    ) : null;
   };
   const [vehicleView,setVehicleView]=useState<'cockpit'|'chase'>('cockpit');
   const failure = error || view?.graphicsError;
@@ -168,17 +170,17 @@ export function StreetCareerGame({ onExit }: { onExit: () => void }) {
     aircraft = flying ? (p?.aircraftId === view?.state.jet?.id ? view?.state.jet : view?.state.helicopters?.find(a=>a.id===p?.aircraftId)) : undefined,
     driving = !!p?.carId,
     mission = campaign.chapters.find((m) => m.id === view?.state.missionId),
-    target = mission?.stops[p?.index || 0];
+    target = mission?.combatZone && (view?.state.objectiveRemaining??mission.enemies??0)>0 ? mission.combatZone : mission?.stops[p?.index || 0];
   return (
     <main
-      className={`tsc ${driving?'is-driving':flying?'is-flying':'is-on-foot'}${view?.settings.leftHanded?' is-left-handed':''}${mission||view?.police?' has-mission':''}`}
+      className={`tsc ${driving?'is-driving':flying?'is-flying':'is-on-foot'}${view?.settings.leftHanded?' is-left-handed':''}${mission?' has-mission':''}`}
       style={
         {
           '--action-size': `${view?.settings.buttonSize || 54}px`,
           '--control-opacity': view?.settings.opacity || 0.85
         } as CSSProperties
       }
-      aria-label="Tirana Streets solo career"
+      aria-label="Tirana Streets city campaign"
     >
       <div ref={root} className="tsc-world" />
       <div
@@ -188,10 +190,9 @@ export function StreetCareerGame({ onExit }: { onExit: () => void }) {
         onContextMenu={(e) => e.preventDefault()}
       />
       <header className="tsc-header">
-        <strong>TIRANA STREETS<small>{view?.police?`${view.police.unit.name} · NË DETYRË`:'STREET CAREER'}</small></strong>
+        <strong>TIRANA STREETS<small>{mission?.operation?'CITY OPERATION':'CITY CAMPAIGN'}</small></strong>
         <button className="tsc-map-button" aria-label="Open city map" onClick={() => open('map')}>MAP</button>
         <button className="tsc-menu-button" onClick={() => open('journal')}>MENU</button>
-        <button onClick={onExit}>EXIT</button>
       </header>
       {p && <LiveHud health={p.health} />}
       {failure && (
@@ -209,18 +210,11 @@ export function StreetCareerGame({ onExit }: { onExit: () => void }) {
             <span className={p.wanted > 0 ? 'is-wanted' : ''}>{'★'.repeat(wantedStars(p.wanted)) || 'NO PURSUIT'}</span>
           </div>
           <div className="tsc-overview">
-            {view.police && <section className="tsc-objective tsc-police-objective">
-              <MissionReadout label="Operacioni policor" eyebrow={`${view.police.unit.name} · ${view.police.mission.title}`}
-                title={view.objective.title} detail={view.objective.detail}
-                remaining={Math.max(0,view.police.mission.time-view.police.run.elapsed)} progress={view.objective.progress}
-                meta={[`Faza ${Math.min(view.police.run.stage+1,view.police.mission.steps.length)} / ${view.police.mission.steps.length}`,
-                  ...(view.police.run.channel?[`${Math.ceil(view.objective.remaining||0)}s`]:['Mbro civilët'])]}/>
-            </section>}
             {mission && <section className="tsc-objective">
               <MissionReadout label="Current mission" eyebrow={mission.title}
                 title={view.state.phase === 'finished' ? view.state.message : view.objective.title}
                 detail={view.objective.detail}
-                remaining={Math.max(0, mission.time * difficultyOf(view.state.difficulty).time - view.state.elapsed)}
+                remaining={Math.max(0, mission.time * difficultyOf(view.state.difficulty).time - missionElapsed(view.state))}
                 progress={view.objective.progress ?? p.index / Math.max(1, mission.stops.length)}
                 meta={[`Stage ${Math.min(p.index + 1, mission.stops.length)} / ${mission.stops.length}`,
                   ...(view.objective.integrity !== undefined ? [`Condition ${Math.ceil(view.objective.integrity)}%`] : []),
@@ -231,6 +225,7 @@ export function StreetCareerGame({ onExit }: { onExit: () => void }) {
               {view.body.notice || view.actions.find(a => a.id === 'interact')?.disabledReason}
             </p>}
           </div>
+          {driving && <output className="tsc-speedometer" aria-label="Vehicle speed"><strong>{Math.round(Math.abs(p.speed)*3.6)}</strong><span>km/h</span><small>{p.speed<-.5?'R':Math.abs(p.speed)<.5?'N':'D'}</small></output>}
           <nav className="tsc-tools" aria-label="Vehicle controls">
             {driving && <button aria-label="Change driving camera view" onClick={()=>{const next=vehicleView==='cockpit'?'chase':'cockpit';setVehicleView(next);if(runtime.current)runtime.current.renderer.vehicleView=next;}}>CAMERA · {vehicleView==='cockpit'?'COCKPIT':'CHASE'}</button>}
           </nav>
@@ -266,15 +261,15 @@ export function StreetCareerGame({ onExit }: { onExit: () => void }) {
             <strong>{view.body.notice}</strong><span>Drejtoria e Policisë Tiranë · pranë Myslym Shyrit</span>
             <progress aria-label="Arrest sequence" max="5" value={['spray','down','backup','escort','transport'].indexOf(p.arrest.phase)+1}/>
           </div>}
-          <div className="tsc-actions">
-            {actionButton('interact', 'context')}
+          {context && <div className="tsc-context-action">{actionButton('interact','context')}</div>}
+          <div className="tsc-actions" aria-label={driving?'Driving pedals':flying?'Flight controls':'Combat and movement controls'}>
             {flying ? (
               <>
                 <button className="tsc-slot-aim" aria-label="Climb" {...pointer('ascend')}>UP</button>
                 <button className="tsc-slot-secondary" aria-label="Descend and land" {...pointer('brake')}>DOWN</button>
                 <button className="tsc-slot-jump" onClick={()=>runtime.current?.simulation.flight.assist('hover')}>HOVER</button>
                 <button className="tsc-slot-crouch" onClick={()=>runtime.current?.simulation.flight.assist('land')}>LAND</button>
-                <button className="tsc-slot-primary" aria-label="Fire missile" {...pointer('fire')}>MISSILE<small>{aircraft?.missiles ?? 0}</small></button>
+                {!aircraft?.civilian && <button className="tsc-slot-primary" aria-label="Fire missile" {...pointer('fire')}>MISSILE<small>{aircraft?.missiles ?? 0}</small></button>}
               </>
             ) : driving ? (
               <>
@@ -370,13 +365,9 @@ export function StreetCareerGame({ onExit }: { onExit: () => void }) {
                   <>
                     <nav className="tsc-journal-tabs" aria-label="Career menu">
                       <button aria-pressed={journalPage === 'jobs'} onClick={() => setJournalPage('jobs')}>JOBS & PROGRESS</button>
-                      <button aria-pressed={journalPage === 'police'} onClick={() => setJournalPage('police')}>POLICIA</button>
+                      <button aria-pressed={journalPage === 'operations'} onClick={() => setJournalPage('operations')}>OPERATIONS</button>
                       <button aria-pressed={journalPage === 'settings'} onClick={() => setJournalPage('settings')}>SETTINGS</button>
                     </nav>
-                    {journalPage === 'police' && <PoliceCareerPanel profile={view.policeProfile} duty={view.police} streetBusy={!!view.profile.active}
-                      onUnit={id=>{runtime.current?.selectPoliceUnit(id);}}
-                      onStart={id=>{if(runtime.current?.startPolice(id))setPanel(null);}}
-                      onResume={resume} onEnd={()=>{runtime.current?.explore();setPanel(null);}}/>}
                     {journalPage === 'settings' && <section aria-label="Graphics and performance">
                       <h3>Graphics & performance</h3>
                       <FrameRateControl value={view.settings.targetFps} onChange={targetFps => runtime.current?.setSettings({targetFps})}/>
@@ -385,7 +376,7 @@ export function StreetCareerGame({ onExit }: { onExit: () => void }) {
                       <label>Blood traces <input type="checkbox" checked={view.settings.bloodEffects} onChange={e=>runtime.current?.setSettings({bloodEffects:e.target.checked})}/></label>
                       <label>Show performance <input type="checkbox" checked={view.settings.showPerformance} onChange={e=>runtime.current?.setSettings({showPerformance:e.target.checked})}/></label>
                     </section>}
-                    {journalPage === 'jobs' && <>
+                    {journalPage !== 'settings' && <>
                     {mission && <section className="tsc-briefing" aria-label="Mission briefing">
                       <small>CURRENT JOB · {mission.title}</small>
                       <h3>{view.objective.title}</h3>
@@ -394,17 +385,16 @@ export function StreetCareerGame({ onExit }: { onExit: () => void }) {
                       <progress aria-label="Job completion" max={1} value={view.objective.progress ?? p.index / Math.max(1, mission.stops.length)}/>
                       <button onClick={() => setPanel('map')}>SHOW ROUTE</button>
                     </section>}
-                    <p>
-                      Explore on foot, steal a ride or fly. Complete jobs to unlock
-                      new contacts, harder missions and your next story.
-                    </p>
+                    <p>{journalPage==='operations'?'District operations bring combat, recovered weapons and extraction into your city campaign. Travel to each target with your existing vehicle and equipment.':'Walk, drive, fly and build your story. Jobs and district operations share one character, inventory and city.'}</p>
+                    {view.lastResult && <p role="status" className="tsc-result"><strong>{view.lastResult.title} complete.</strong> Progress saved. Continue from your current position or choose your next job.</p>}
                     <p>
                       <strong>
                         {view.profile.completed.length}/
-                        {campaign.chapters.length} chapters
+                        {campaign.chapters.length} jobs & operations
                       </strong>{' '}
                       · ${p.cash} street cash · Saved on this device, not TPG.
                     </p>
+                    {journalPage==='jobs'&&<LegacyStoryHistory history={legacyHistory}/>}
                     {view.state.phase === 'finished' && (
                       <p role="status">
                         {view.state.message}
@@ -456,23 +446,23 @@ export function StreetCareerGame({ onExit }: { onExit: () => void }) {
                         <option value="hard">Veteran</option>
                       </select>
                     </label>
-                    {!view.profile.active && !view.policeProfile.active && <section aria-label="Available jobs">
-                      <h3>Next jobs</h3>
+                    {!view.profile.active && <section aria-label="Available jobs">
+                      <h3>{journalPage==='operations'?'District operations':'Next story jobs'}</h3>
                       <div className="tsc-chapters">
-                        {campaign.chapters.filter(m=>campaign.available(view.profile,m.id)&&!view.profile.completed.includes(m.id)).slice(0,3).map(m=><button key={m.id} onClick={()=>start(m.id)}>
+                        {campaign.chapters.filter(m=>!!m.operation===(journalPage==='operations')&&campaign.available(view.profile,m.id)&&!view.profile.completed.includes(m.id)).slice(0,journalPage==='operations'?6:3).map(m=><button key={m.id} onClick={()=>start(m.id)}>
                           <strong>{m.title}</strong><span>{m.description}</span>
                           <small>${Math.round(m.reward*difficultyOf(difficulty).reward)} · {m.stops.length} stops</small>
                         </button>)}
                         {view.profile.completed.length===campaign.chapters.length&&<p>All jobs completed. Explore freely or replay a chapter below.</p>}
                       </div>
                     </section>}
-                    {(view.profile.active||view.policeProfile.active)&&<p>Finish your current job or end duty to choose another.</p>}
-                    <details><summary>All chapters & replays</summary>
+                    {view.profile.active&&<p>Finish or end your current job to choose another.</p>}
+                    <details><summary>All jobs & replays</summary>
                     <div className="tsc-chapters">
-                      {campaign.chapters.map((m, i) => (
+                      {campaign.chapters.filter(m=>!!m.operation===(journalPage==='operations')).map((m, i) => (
                         <button
                           key={m.id}
-                          disabled={!!view.profile.active || !!view.policeProfile.active || !campaign.available(view.profile,m.id)}
+                          disabled={!!view.profile.active || !campaign.available(view.profile,m.id)}
                           onClick={() => start(m.id)}
                         >
                           <strong>
@@ -493,11 +483,11 @@ export function StreetCareerGame({ onExit }: { onExit: () => void }) {
                     </>}
                     {journalPage === 'settings' && <details>
                       <summary>World sources & models</summary>
-                      <p>Map data © OpenStreetMap contributors · ODbL. Terrain: Mapzen; Europe terrain produced using Copernicus data and information funded by the European Union – EU-DEM layers; SRTM/GMTED2010 courtesy of USGS. Buildings and cableway: original Blender models informed by public photographs. The city datum and terrain seam are adapted for gameplay.</p>
+                      <p>Map data © OpenStreetMap contributors · ODbL. Terrain: Mapzen; Europe terrain produced using Copernicus data and information funded by the European Union – EU-DEM layers; SRTM/GMTED2010 courtesy of USGS. Buildings: original Blender models informed by public photographs. The urban boundary and terrain are adapted for gameplay.</p>
                     </details>}
                     {journalPage === 'settings' && <section aria-label="Controls and comfort">
                       <h3>Controls & comfort</h3>
-                      <p>Explore Farkë, Surrel, Kinostudio and the Dajti trails. Approach a cable station and tap HIP for the 15-minute Dajti Ekspres ride. You can walk freely after arriving.</p>
+                      <p>Explore urban Tirana, from the center to Blloku, Ali Demi, Kinostudio and the western neighborhoods. Jobs, traffic and combat share this city.</p>
                       <p>
                         WASD / arrows · Mouse drag to look · F fire · Space jump
                         · C crouch · Shift sprint · Z aim · V kick · B guard · E
@@ -594,7 +584,7 @@ export function StreetCareerGame({ onExit }: { onExit: () => void }) {
                     routeNotice={view.routeNotice}
                     jobs={campaign.chapters.map(m => ({id:m.id,name:m.title,detail:m.description,available:campaign.available(view.profile,m.id),completed:view.profile.completed.includes(m.id),active:view.state.phase!=='finished'&&m.id===view.state.missionId,point:m.stops[0]}))}
                     onStartJob={start}
-                    task={view.police?.target?{name:view.objective.title,detail:view.objective.detail,point:view.police.target}:mission ? {name:view.objective.title,detail:view.objective.detail,point:target} : undefined}
+                    task={mission ? {name:view.objective.title,detail:view.objective.detail,point:target} : undefined}
                   />
                 )}
                 {!view.storageOK && (
@@ -615,7 +605,7 @@ export function StreetCareerGame({ onExit }: { onExit: () => void }) {
               </>
             )
           )}
-          <button onClick={onExit}>BACK TO OPERATION / CITY STORIES</button>
+          <button onClick={onExit}>RETURN TO LOBBY</button>
         </dialog>
       )}
     </main>

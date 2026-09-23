@@ -1,3 +1,4 @@
+import {pointInUrbanBounds} from '../tiranastreets/shared/urbanBounds.mjs';
 import {groundHeight} from '../tirana-east/terrainCore.mjs';
 import * as T from 'three';
 import {signReferenceFor,referencedAdvertising,SIGN_REFERENCES} from './signReferences.mjs';
@@ -29,7 +30,7 @@ export class StreetLifeLayer {
   const blocked=options.track?ribbonExclusion(options.track):null;
   const models:Model[]=[];
   for(const [key,type] of [['storefronts','storefront'],['stops','stop'],['fuel','fuel'],['advertising','advertising']] as const)
-   for(const s of data[key])if(!blocked||!blocked(s.x,s.z,Math.max(4,'width' in s?Number(s.width):0)))models.push(buildStreetModel(type==='advertising'?referencedAdvertising(s,data.storefronts):s,tradesOnly&&type==='storefront'?'store-detail':type));
+   for(const s of data[key])if(pointInUrbanBounds(s,4)&&(!blocked||!blocked(s.x,s.z,Math.max(4,'width' in s?Number(s.width):0))))models.push(buildStreetModel(type==='advertising'?referencedAdvertising(s,data.storefronts):s,tradesOnly&&type==='storefront'?'store-detail':type));
   if(this.labelsOnly)for(const model of models)for(const sign of model.signs)sign.p[2]=Math.max(.238,sign.p[2]);
   const signs:Sign[]=[],signIndex=new Map<string,number>();
   for(const sign of models.flatMap(m=>m.signs)){sign.brand=signReferenceFor(sign.text)?.id;const key=JSON.stringify([sign.text,sign.bg,sign.fg,Math.round(sign.s[0]/sign.s[1]*10)]);if(!signIndex.has(key)){signIndex.set(key,signs.length);signs.push(sign);}sign.atlas=signIndex.get(key)!;}

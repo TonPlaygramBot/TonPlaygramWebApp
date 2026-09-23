@@ -10,7 +10,11 @@ export function driverSocket(car) {
   const asset=roadVehicleFor({...car,collectionVehicle:car.collectionVehicle||car.racingAsset});
   if(asset) {
     const [forward,height,left]=asset.driverSeat;
-    return {x:left,y:Math.min(height+.58,asset.height-.12)+.03,z:-forward,
+    // Imported driverSeat values are driver-mesh mounts, not eye sockets.
+    // Native +X offsets are checked against actual cabin raycasts: Golf's
+    // mount is over its wheel; Benz/Ferrari mounts sit inside the headrests.
+    const eyeForward=asset.id==='golf-gti'?-.16:asset.id==='benz'?.13:asset.id==='ferrari'?-.08:forward;
+    return {x:left,y:Math.min(height+.58,asset.height-.12)+.03,z:-eyeForward,
       width:asset.width,length:asset.length,open:false};
   }
   const force=forceVehicleFor(car),bounds=FORCE_VEHICLE_BOUNDS.find(b=>b.id===force?.id);
@@ -30,6 +34,14 @@ export function driverPoint(car, seat, sample=groundHeight) {
   return {x:car.x+offset.x,y:offset.y+sample(car.x,car.z),z:car.z+offset.z};
 }
 export function driverEye(car, sample=groundHeight) {return driverPoint(car,driverSocket(car),sample);}
+/** Explicit original steering hubs where the mesh can be isolated. Other
+ * cabins retain the common authored wheel grip until independently calibrated. */
+export function driverWheel(car){
+  const asset=roadVehicleFor({...car,collectionVehicle:car.collectionVehicle||car.racingAsset});
+  if(asset?.id==='benz')return {x:-.375,y:.935,z:-.56};
+  if(asset?.id==='golf-gti')return {x:-.35,y:.87,z:-.32};
+  const eye=driverSocket(car);return {x:eye.x,y:eye.y-.4,z:eye.z-.39};
+}
 /** Same sampled support plane as the exterior. The eye and dashboard must tilt
  * together on hills; otherwise even a correct seat socket leaves the cabin. */
 function onSupport(v,car,sample){

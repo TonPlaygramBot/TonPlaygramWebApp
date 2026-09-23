@@ -12,7 +12,7 @@ const dir=await mkdtemp(join(tmpdir(),'tirana-realism-'));let api;
 try{const file=join(dir,'api.mjs');await build({stdin:{contents:`export * as T from 'three';export {InstitutionLayer} from './src/games/tirana-city-source/InstitutionLayer';export {StreetLifeLayer} from './src/games/tirana-street-life/StreetLifeLayer';export {ReferenceFacades} from './src/games/tirana-city-source/ReferenceFacades';export {sourceBuildingColour,firstWindowHeight} from './src/games/tirana-neighbourhood/buildingAppearance';`,resolveDir:new URL('../webapp/',import.meta.url).pathname,loader:'ts'},bundle:true,platform:'node',format:'esm',outfile:file});api=await import(pathToFileURL(file));}finally{await rm(dir,{recursive:true,force:true});}
 test('new canopy stays in mapped vegetation, outside paths and building walls',()=>{
  const features=new Map(NEIGHBOURHOOD.polygonFeatures.map(f=>[f.id,f]));const roads=spatialIndex(WORLD.roads.filter(r=>!r.tunnel),r=>{let b=bounds([r.a,r.b]),p=r.w/2+2;return[b[0]-p,b[1]-p,b[2]+p,b[3]+p];});const buildings=spatialIndex(WORLD.buildings,b=>bounds(b.p));
- assert.ok(NEIGHBOURHOOD_CANOPY.trees.length>1500);assert.equal(NEIGHBOURHOOD_CANOPY.source.satelliteVerified,false);
+ assert.ok(NEIGHBOURHOOD_CANOPY.trees.length>1000);assert.equal(NEIGHBOURHOOD_CANOPY.source.satelliteVerified,false);
  assert.equal(new Set(CANOPY_TREES.map(t=>t.id)).size,CANOPY_TREES.length);
  for(const t of NEIGHBOURHOOD_CANOPY.trees){const f=features.get(t.sourceId);assert.ok(f&&inside(t.x,t.z,f.p,f.holes));assert.ok(!roads(t.x,t.z).some(r=>distance([t.x,t.z],r.a,r.b)<r.w/2+1));assert.ok(!buildings(t.x,t.z).some(b=>inside(t.x,t.z,b.p,b.holes)));}
 });
@@ -49,7 +49,7 @@ test('source material/color survives every LOD and one-storey schools receive wi
 test('all institution signs share an atlas within a 4096 pixel mobile texture limit',async()=>{
  const {T,InstitutionLayer}=api,oldDocument=globalThis.document,oldLoad=T.TextureLoader.prototype.load,canvases=[];const ctx=new Proxy({measureText:s=>({width:s.length*7})},{get:(o,k)=>o[k]||(()=>{})});
  globalThis.document={createElement:()=>{const canvas={width:0,height:0,getContext:()=>ctx};canvases.push(canvas);return canvas;}};T.TextureLoader.prototype.load=function(url,onLoad){const t=new T.Texture();queueMicrotask(()=>onLoad(t));return t;};let layer;
- try{const start=performance.now();layer=new InstitutionLayer(CITY_PLACES.sites);await layer.ready;assert.ok(canvases[0].width<=4096&&canvases[0].height<=4096);assert.ok(layer.group.children.length>500);console.log('Institution startup CPU ms',Math.round(performance.now()-start),'atlas',canvases[0].width,canvases[0].height);}finally{layer?.dispose();globalThis.document=oldDocument;T.TextureLoader.prototype.load=oldLoad;}
+ try{const start=performance.now();layer=new InstitutionLayer(CITY_PLACES.sites);await layer.ready;assert.ok(canvases[0].width<=4096&&canvases[0].height<=4096);assert.ok(layer.group.children.length>300);console.log('Institution startup CPU ms',Math.round(performance.now()-start),'atlas',canvases[0].width,canvases[0].height);}finally{layer?.dispose();globalThis.document=oldDocument;T.TextureLoader.prototype.load=oldLoad;}
 });
 
 

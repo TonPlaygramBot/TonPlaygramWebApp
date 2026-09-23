@@ -5,6 +5,7 @@ export type PhaseCheckpoint = {
   version: 2;
   index: number;
   elapsed: number;
+  missionStartedAt?:number;
   player: Loadout & {
     x: number;
     z: number;

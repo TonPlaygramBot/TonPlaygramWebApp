@@ -150,27 +150,7 @@ export function initCityLife(state, env, mission) {
       ...(service === "police-patrol" ? {forceVehicle: "patrol_sedan", forceCharacter: "patrol_officer"} : {}),
     });
   }
-  if (mission.type === "combat") {
-    const target = mission.stops[0];
-    for (let i = 0; i < mission.enemies; i++) {
-      const n = {
-        id: `gang-${i}`,
-        kind: "gang",
-        motion: "walk",
-        x: target.x + Math.cos(i * 1.7) * 10,
-        z: target.z + Math.sin(i * 1.7) * 10,
-        heading: 0,
-        speed: 0,
-        health: 65,
-        weapon: i % 2 ? "uziSprayAttack" : "ak47VolleyAttack",
-        nextShot: 3 + i,
-        downUntil: 0,
-        origin: { ...target },
-      };
-      env.collide(n, 0.45);
-      state.npcs.push(n);
-    }
-  }
+  spawnCombatCrew(state,env,mission);
   state.npcs.push(...createInstitutionGuards(env.world,env));
   initPoliceDispatch(state,env);
   for (const p of Object.values(state.players))
@@ -620,5 +600,29 @@ export function updateCityLife(state, dt, env, mission) {
     ).length;
     state.objectiveRemaining = remaining;
     if (!remaining) state.message = "Area clear. Reach the extraction marker.";
+  }
+}
+
+export function spawnCombatCrew(state,env,mission){
+  if (mission.type === "combat") {
+    const target = mission.combatZone || mission.stops[0];
+    for (let i = 0; i < mission.enemies; i++) {
+      const n = {
+        id: `gang-${i}`,
+        kind: "gang",
+        motion: "walk",
+        x: target.x + Math.cos(i * 1.7) * 10,
+        z: target.z + Math.sin(i * 1.7) * 10,
+        heading: 0,
+        speed: 0,
+        health: 65,
+        weapon: i % 2 ? "uziSprayAttack" : "ak47VolleyAttack",
+        nextShot: state.elapsed + 3 + i,
+        downUntil: 0,
+        origin: { ...target },
+      };
+      env.collide(n, 0.45);
+      state.npcs.push(n);
+    }
   }
 }
