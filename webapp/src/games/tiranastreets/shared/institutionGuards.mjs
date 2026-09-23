@@ -3,6 +3,7 @@ import {CITY_SOURCE} from '../../tirana-city-source/sourceData.mjs';
 import {frontage,segmentDistance,facadeEdges} from '../../tirana-city-source/sourceCore.mjs';
 import {spatialIndex} from '../../tirana-city-completion/placementCore.mjs';
 import {forceWeaponFor} from './uploadedWeapons.mjs';
+import {createParliamentCordon} from './parliamentCordon.mjs';
 const layouts=new WeakMap();
 const roadIndexes=new WeakMap();
 function guardRoadIndex(roads) {
@@ -11,7 +12,7 @@ function guardRoadIndex(roads) {
   const bounded=[],unbounded=[];
   for(const road of roads){
     if(road.walk)continue;
-    const margin=road.w/2+.55;
+    const margin=road.w/2+.65;
     const bounds=[Math.min(road.a[0],road.b[0])-margin,Math.min(road.a[1],road.b[1])-margin,
       Math.max(road.a[0],road.b[0])+margin,Math.max(road.a[1],road.b[1])+margin];
     if(bounds.every(Number.isFinite))bounded.push({road,bounds});else unbounded.push(road);
@@ -39,6 +40,10 @@ export function createInstitutionGuards(world,env,sites=CITY_PLACES.sites) {
   for(const site of sites){
     const tier=institutionTier(site);if(!tier)continue;
     const key=site.name?.trim()||site.buildingId;if(seen.has(key))continue;
+    if(site.buildingId==='256162012'){
+      const cordon=createParliamentCordon(site,env.collide,nearbyRoads,guards);
+      if(cordon.length){guards.push(...cordon);seen.add(key);continue;}
+    }
     const edge=frontage(site,world.roads,CITY_SOURCE.entrances);if(!edge)continue;
     const candidates=[edge,...facadeEdges(site.footprint||[]).filter(e=>e.length>2).sort((a,b)=>b.length-a.length)];
     const count=[0,2,4,6][tier];

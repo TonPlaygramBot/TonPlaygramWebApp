@@ -1,0 +1,10 @@
+import {readFileSync,writeFileSync} from 'node:fs';
+import {createRequire} from 'node:module';
+import {CITY_PLACES} from '../src/games/tirana-city-source/registry.mjs';
+const require=createRequire(import.meta.url);
+const font=JSON.parse(readFileSync(require.resolve('three/examples/fonts/gentilis_regular.typeface.json'),'utf8'));
+const chars=new Set((' ABCDEFGHIJKLMNOPQRSTUVWXYZËÇabcdefghijklmnopqrstuvwxyzëç0123456789.,-·"'+CITY_PLACES.sites.map(s=>s.name).join('')).split(''));
+font.glyphs=Object.fromEntries(Object.entries(font.glyphs).filter(([key])=>chars.has(key)));
+writeFileSync(new URL('../src/games/tirana-city-source/institutionTypeface.json',import.meta.url),JSON.stringify(font)+'\n');
+writeFileSync(new URL('../../assets-source/tirana-identity/FONT-LICENSE.txt',import.meta.url),readFileSync(require.resolve('three/examples/fonts/LICENSE')));
+console.log('Subset font with Albanian diacritics:',Object.keys(font.glyphs).length,'glyphs');

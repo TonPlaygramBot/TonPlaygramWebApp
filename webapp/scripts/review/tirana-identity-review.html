@@ -1,0 +1,25 @@
+<div id="tirana-identity-review-root"></div>
+<style>
+#tirana-identity-review-root { color-scheme: light dark; max-width: 410px; margin: 0 auto; font-family: Inter, system-ui, sans-serif; }
+#tirana-identity-review-root .tp-review { background: light-dark(#f1f3ee,#17211f); color: light-dark(#17211f,#f1f3ee); border-radius: 18px; overflow: hidden; }
+#tirana-identity-review-root header { display: flex; justify-content: space-between; flex-wrap: wrap; gap: 8px; padding: 18px 16px 12px; font-size: 13px; font-weight: 500; letter-spacing: .04em; }
+#tirana-identity-review-root .tp-secondary { color: light-dark(#56625c,#b6c6bc); font-size: 12px; font-weight: 400; letter-spacing: normal; }
+#tirana-identity-review-root nav { display: grid; grid-template-columns: repeat(4,1fr); gap: 4px; padding: 0 12px 12px; }
+#tirana-identity-review-root button { background: light-dark(#e2e7de,#293832); color: inherit; border: 0; border-radius: 8px; padding: 12px 2px; font: 400 12px Inter,system-ui,sans-serif; min-width: 0; }
+#tirana-identity-review-root button[aria-pressed="true"] { background: #dced9b; color: #26311a; }
+#tirana-identity-review-root .tp-stage { position: relative; height: 480px; background: #d7e1e6; }
+#tirana-identity-review-root .tp-canvas { width: 100%; height: 100%; }
+#tirana-identity-review-root .tp-canvas canvas, #tirana-identity-review-root .tp-canvas svg { display: block; width: 100%; height: 100%; }
+#tirana-identity-review-root .tp-caption { position: absolute; left: 14px; bottom: 14px; max-width: calc(100% - 28px); padding: 8px 10px; border-radius: 6px; background: #23352c; color: #f0f5e5; font-size: 13px; }
+#tirana-identity-review-root footer { padding: 14px 16px 18px; display: grid; gap: 12px; }
+#tirana-identity-review-root label { display: grid; grid-template-columns: 1fr auto; gap: 7px; font-size: 13px; }
+#tirana-identity-review-root input { grid-column: 1/-1; width: 100%; margin: 0; accent-color: #78943b; }
+#tirana-identity-review-root select { color: inherit; background: light-dark(#e2e7de,#293832); border: 0; border-radius: 6px; font-size: 14px; padding: 8px; max-width: 225px; }
+@media(max-width:360px) { #tirana-identity-review-root .tp-stage { height: 420px; } #tirana-identity-review-root select { max-width: 205px; } }
+</style>
+<script type="importmap">
+{"imports":{"react":"https://esm.sh/react@18.2.0","react-dom/client":"https://esm.sh/react-dom@18.2.0/client?external=react","three":"https://cdn.jsdelivr.net/npm/three@0.164.1/build/three.module.js"}}
+</script>
+<script type="module">
+/* INLINE_MODULE */
+</script>

@@ -536,7 +536,10 @@ export function updateCityLife(state, dt, env, mission) {
     if(actual&&env.officerAction?.(n,actual,npcDt,env))continue;
     const p = actual && env.track ? env.track(n, actual) : actual;
     if (!p) {
-      if(n.guardPost){if(dist(n,n.guardPost)>1){walkTo(n.guardPost,1.45);n.anim='walk';}else{n.speed=0;n.anim='idle';n.heading=n.guardPost.heading;}}
+      if(n.guardPost){
+        if(dist(n,n.guardPost)>(n.cordon ? .12 : 1)){walkTo(n.guardPost,1.45);n.anim='walk';}
+        else {if(n.cordon){n.x=n.guardPost.x;n.z=n.guardPost.z;}n.speed=0;n.anim='idle';n.heading=n.guardPost.heading;}
+      }
       else if(n.patrol&&n.path?.length){walkTo(n.path[n.pathIndex],1.45);n.anim='walk';if(dist(n,n.path[n.pathIndex])<.6)n.pathIndex=1-n.pathIndex;}
       else {n.speed=0;n.anim='idle';}
       continue;
