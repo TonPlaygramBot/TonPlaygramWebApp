@@ -598,15 +598,21 @@ function measureObjectHeight(object) {
   return Math.max(0.01, box.max.y - box.min.y);
 }
 
-export function computeSeatedHumanScale(actorTemplate, targetHeight) {
+export function computeSeatedHumanScale(actorTemplate, targetHeight, visualScaleMultiplier = SEATED_HUMAN_VISUAL_SCALE_MULTIPLIER) {
   const measuredHeight = measureObjectHeight(actorTemplate);
-  return (targetHeight / Math.max(measuredHeight, 0.01)) * SEATED_HUMAN_VISUAL_SCALE_MULTIPLIER;
+  return (targetHeight / Math.max(measuredHeight, 0.01)) * visualScaleMultiplier;
 }
 
 export function createRestoredSeatedHumanActor(
   actorTemplate,
   chairGroup,
-  { targetHeight = 1.13, seatHeight = 0, supportsArmrest = true } = {}
+  {
+    targetHeight = 1.13,
+    seatHeight = 0,
+    supportsArmrest = true,
+    visualScaleMultiplier = SEATED_HUMAN_VISUAL_SCALE_MULTIPLIER,
+    seatedZOffset = 0
+  } = {}
 ) {
   if (!actorTemplate?.isObject3D || !chairGroup?.isObject3D) return null;
   const actor = cloneSkeleton(actorTemplate);
@@ -617,7 +623,7 @@ export function createRestoredSeatedHumanActor(
   const storedScale = Number(actorTemplate.userData?.seatedHumanScale);
   const seatedScale = Number.isFinite(storedScale) && storedScale > 0
     ? storedScale
-    : computeSeatedHumanScale(actor, targetHeight);
+    : computeSeatedHumanScale(actor, targetHeight, visualScaleMultiplier);
   actor.scale.multiplyScalar(seatedScale);
   chairGroup.add(actor);
 
@@ -636,6 +642,7 @@ export function createRestoredSeatedHumanActor(
   actor.rotation.y += Number(actorTemplate.userData?.seatedYawOffset) || 0;
   actor.position.y += Number(actorTemplate.userData?.seatedYOffset) || 0;
   actor.position.z += Number(actorTemplate.userData?.seatedZOffset) || 0;
+  actor.position.z += seatedZOffset;
   actor.updateMatrixWorld(true);
   return { actor, rig };
 }
@@ -645,11 +652,12 @@ export async function loadSeatedHumanTemplate({
   renderer = null,
   maxAnisotropy = 1,
   targetHeight = 1,
+  visualScaleMultiplier = SEATED_HUMAN_VISUAL_SCALE_MULTIPLIER,
   createLoader
 } = {}) {
   const fallbackOption = CHESS_HUMAN_CHARACTER_OPTIONS[0] || {};
   const selectedOption = option || fallbackOption;
-  const cacheKey = `${selectedOption.id || fallbackOption.id || 'default'}:${targetHeight}`;
+  const cacheKey = `${selectedOption.id || fallbackOption.id || 'default'}:${targetHeight}:${visualScaleMultiplier}`;
   const cached = seatedHumanTemplatePromiseById.get(cacheKey);
   if (cached) return cached;
   const promise = (async () => {
@@ -710,7 +718,7 @@ export async function loadSeatedHumanTemplate({
     const seatedScaleMultiplier = Number.isFinite(selectedAdapter?.seatedScaleMultiplier) ? selectedAdapter.seatedScaleMultiplier : 1;
     root.userData = {
       ...(root.userData || {}),
-      seatedHumanScale: computeSeatedHumanScale(root, targetHeight) * seatedScaleMultiplier,
+      seatedHumanScale: computeSeatedHumanScale(root, targetHeight, visualScaleMultiplier) * seatedScaleMultiplier,
       seatedYawOffset: Number.isFinite(selectedAdapter?.seatedYawOffset) ? selectedAdapter.seatedYawOffset : 0,
       seatedYOffset: Number.isFinite(selectedAdapter?.seatedYOffset) ? selectedAdapter.seatedYOffset : 0,
       seatedZOffset: Number.isFinite(selectedAdapter?.seatedZOffset) ? selectedAdapter.seatedZOffset : 0
