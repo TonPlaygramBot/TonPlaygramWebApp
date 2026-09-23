@@ -1,23 +1,29 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {readFileSync} from 'node:fs';
-import {STEP,KARTS,TRACKS,makeTrack,createRacer,equipKart,stepRacer,stepRace} from '../webapp/src/games/kartroyale/simulation.mjs';
+import {STEP,KARTS,TRACKS,RACING_PACE,AI_PACE,makeTrack,createRacer,equipKart,stepRacer,stepRace} from '../webapp/src/games/kartroyale/simulation.mjs';
 import {resampleCircuit} from '../webapp/src/games/kartroyale/grandRouteCore.mjs';
 import {sampleCircuitDistance,cornerSpeedLimit} from '../webapp/src/games/kartroyale/circuitMetrics.mjs';
 import {boostPads,stepBoostPads} from '../webapp/src/games/kartroyale/arcadeRules.mjs';
 const straight={...resampleCircuit([[0,0],[0,2000],[2000,2000],[2000,0]],720),width:20};
 const make=(id='apex')=>Object.assign(equipKart(createRacer(straight,'you','You'),id),sampleCircuitDistance(straight,200),{velocityYaw:0});
-test('all eight karts accelerate past the old cap and nitro produces a faster straight',()=>{
+test('all eight karts use the trimmed cap and nitro still produces a faster straight',()=>{
+  assert.deepEqual(RACING_PACE,{cruise:35,turbo:47});
   for(const kart of KARTS){
     const cruise=make(kart.id),nitro=make(kart.id);
     for(const r of [cruise,nitro])r.padCooldowns=Object.fromEntries(boostPads(straight).map(p=>[p.id,Infinity]));
     for(let i=0;i<360;i++)stepRacer(cruise,{throttle:true},straight,STEP,i*STEP);
-    assert.ok(cruise.speed>35,`${kart.id}: ${cruise.speed}`);
+    assert.ok(cruise.speed>=RACING_PACE.cruise*kart.speed-.01,`${kart.id}: ${cruise.speed}`);
     Object.assign(nitro,{speed:cruise.speed});
     for(let i=0;i<180;i++)stepRacer(nitro,{throttle:true,boost:true},straight,STEP,i*STEP);
     assert.ok(nitro.speed>cruise.speed+9,kart.id);
     assert.ok(nitro.boost>=0&&nitro.boost<25);
   }
+});
+test('AI pace is competitive at every difficulty and pro racers have a small top-speed edge',()=>{
+  assert.ok(AI_PACE.rookie>=.9);
+  assert.ok(AI_PACE.street>=1);
+  assert.ok(AI_PACE.pro>1&&AI_PACE.pro<=1.05);
 });
 test('turbo expiry decelerates smoothly; brake overrides gas and stops without reversing',()=>{
   const r=make();r.speed=52;r.turbo=.001;

@@ -14,6 +14,8 @@ import { surfaceGrip } from './racingSurface.mjs';
 export { damageRacer };
 export const STEP = 1 / 60,
   LAPS = 3;
+export const RACING_PACE = Object.freeze({cruise:35,turbo:47});
+export const AI_PACE = Object.freeze({rookie:.9,street:1,pro:1.04});
 export const COLORS = [
   '#baff29',
   '#44caff',
@@ -252,7 +254,7 @@ export function aiInput(r, track, time, difficulty = 'street', racers = []) {
   );
   // Look far enough ahead to brake from the faster straight-line pace.
   let safeSpeed = cornerSpeedLimit(track, n, Math.max(45, r.speed * r.speed / 40 + 16)) *
-    ({ rookie: 1, street: 1.08, pro: 1.16 }[difficulty] || 1.08);
+    ({ rookie: 1.05, street: 1.14, pro: 1.22 }[difficulty] || 1.14);
   for (const bump of roadBumps(track)) {
     const dx = bump.x - r.x, dz = bump.z - r.z, ahead = dx * s + dz * c;
     if (ahead > 0 && ahead < 45 && Math.abs(dx * c - dz * s) < bump.width / 2)
@@ -271,7 +273,7 @@ export function aiInput(r, track, time, difficulty = 'street', racers = []) {
     boost:
       !braking && Math.abs(turn) < 0.11 &&
       safeSpeed > 34 &&
-      r.boost > (difficulty === 'pro' ? 20 : 38) &&
+      r.boost > (difficulty === 'pro' ? 12 : 28) &&
       difficulty !== 'rookie'
   };
 }
@@ -325,13 +327,13 @@ export function stepRacer(r, raw, track, dt, time, difficulty = 'street', drivin
   r.boosting = throttle && !input.brake && !input.reverse && (boost || r.turbo > 0);
   const grip = (r.suspension?.grip ?? 1) * surfaceGrip(track) * (r.airborne ? .18 : 1);
   const factor = r.ai
-      ? ({ rookie: 0.82, street: 0.94, pro: 1 }[difficulty] || 0.94) +
+      ? (AI_PACE[difficulty] || AI_PACE.street) +
         r.slot * 0.006
       : 1,
     damageFactor = 1,
     // Keep the mobile race readable: trim both cruise and turbo top speeds
     // slightly without changing acceleration, braking, or kart-to-kart balance.
-    max = (boost || r.turbo > 0 ? 50 : 37) * kart.speed * factor * damageFactor;
+    max = (boost || r.turbo > 0 ? RACING_PACE.turbo : RACING_PACE.cruise) * kart.speed * factor * damageFactor;
   const drag = .9 + .17 * Math.abs(r.speed) + .006 * r.speed * r.speed;
   const drive = (boost || r.turbo > 0 ? 31 : (kart.id === 'oopi' || kart.id === 'aegis' ? 23 : 21)) * kart.speed * factor;
   const acceleration = input.reverse === true ? (r.speed > 0 ? -36 * kart.brake : -7)

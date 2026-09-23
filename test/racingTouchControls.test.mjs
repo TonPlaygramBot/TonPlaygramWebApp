@@ -23,20 +23,22 @@ test('production touch controls preserve two-thumb chords and release every poin
   dom.window.HTMLElement.prototype.setPointerCapture=function(){};
   const held=createHeldRaceInput(),root=createRoot(document.getElementById('root'));
   const render=async (disabled,frame={})=>act(()=>root.render(React.createElement(KartControls,{hold:held.hold,release:held.release,boost:0,disabled,...frame})));
-  const event=async(selector,type,id,y=600)=>act(()=>{
+  const event=async(selector,type,id,y=600,x=56)=>act(()=>{
     const target=document.querySelector(selector),e=new dom.window.Event(type,{bubbles:true,cancelable:true});
-    Object.assign(e,{pointerId:id,pointerType:'touch',button:0,clientY:y});target.dispatchEvent(e);
+    Object.assign(e,{pointerId:id,pointerType:'touch',button:0,clientX:x,clientY:y});target.dispatchEvent(e);
   });
   try{
     await render(false);
+    const stick=document.querySelector('.kart-steering-stick');
+    stick.getBoundingClientRect=()=>({left:0,top:544,width:112,height:112,right:112,bottom:656,x:0,y:544,toJSON(){}});
     assert.deepEqual([...document.querySelectorAll('.kart-pedal-controls button')].map(b=>b.textContent),['DRIFT','GAS']);
     assert.equal(document.querySelector('.kart-center-control').textContent,'BRAKE');
-    await event('.kart-gas','pointerdown',1);await event('.kart-steer-controls button','pointerdown',2);
-    assert.equal(held.read().throttle,true);assert.equal(held.read().steer,-1);
-    await event('.kart-steer-controls button','pointermove',2,550);assert.equal(held.read().drift,true);
+    await event('.kart-gas','pointerdown',1);await event('.kart-steering-stick','pointerdown',2,600,12);
+    assert.equal(held.read().throttle,true);assert.ok(held.read().steer<-.7);
+    await event('.kart-steering-stick','pointermove',2,550,56);assert.equal(held.read().drift,true);
     await event('.kart-gas','pointermove',1,550);assert.equal(held.read().boost,true);
-    await event('.kart-steer-controls button','pointermove',2,600);assert.equal(held.read().drift,false);assert.equal(held.read().throttle,true);
-    await event('.kart-steer-controls button','pointercancel',2);assert.equal(held.read().steer,0);assert.equal(held.read().boost,true);
+    await event('.kart-steering-stick','pointermove',2,600,100);assert.equal(held.read().drift,false);assert.ok(held.read().steer>.7);assert.equal(held.read().throttle,true);
+    await event('.kart-steering-stick','pointercancel',2);assert.equal(held.read().steer,0);assert.equal(held.read().boost,true);
     await event('.kart-brake','pointerdown',3);assert.equal(held.read().brake,true);
     await event('.kart-gas','lostpointercapture',1);assert.equal(held.read().throttle,false);assert.equal(held.read().boost,false);assert.equal(held.read().brake,true);
     await render(true);assert.equal(held.read().brake,false);assert.ok([...document.querySelectorAll('button')].every(b=>b.disabled));
