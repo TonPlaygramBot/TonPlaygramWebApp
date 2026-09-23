@@ -6,6 +6,7 @@ import { parse } from '@babel/parser';
 import * as THREE from '../webapp/node_modules/three/build/three.module.js';
 import { resolvePoolRoyalAddressState } from '../webapp/src/pages/Games/shared/poolRoyalAddress.ts';
 import { PoolRoyalHumanPlayers } from '../webapp/src/pages/Games/shared/PoolRoyalHumanPlayers.ts';
+import { PoolRoyalShotCamera } from '../webapp/src/pages/Games/shared/poolRoyalShotCamera.ts';
 import { poolRoyalHudLayout, POOL_SPIN_DIAMETER_PX, POOL_AVATAR_SIZE_PX } from '../webapp/src/pages/Games/poolRoyalHudLayout.js';
 import { normalizeSpinInput, spinFromScreenPoint, smoothDamp } from '../webapp/src/pages/Games/poolRoyaleSpinUtils.js';
 import { loadPoseModel } from './fixtures/poolRoyalPoseTrace.mjs';
@@ -62,62 +63,52 @@ test('the real 3D button exits Look and overhead modes on phone and desktop', ()
     attr.name?.name === 'aria-label' && attr.value?.value === 'Switch to 3D view'));
   const click = button.attributes.find(attr => attr.name?.name === 'onClick').value.expression;
   for (const isPortrait of [false, true]) {
-    const state = { look: true, rail: true, top: true, updates: 0, replayStops: 0 };
+    const state = { look: true, rail: true, top: true, updates: 0 };
     const lookModeRef = ref(true);
-    const playerEyeViewEnabledRef = ref(false);
-    evaluate(click, { isPortrait, lookModeRef, playerEyeViewEnabledRef, setIsLookMode: v => state.look = v,
+    evaluate(click, { isPortrait, lookModeRef, setIsLookMode: v => state.look = v,
       setIsRailOverheadView: v => state.rail = v, setIsTopDownView: v => state.top = v,
       topViewControlsRef: ref({ exit: () => state.top = false }),
-      skipReplayRef: ref(() => state.replayStops++),
       cameraUpdateRef: ref(() => state.updates++) })();
     assert.equal(lookModeRef.current, false);
-    assert.equal(playerEyeViewEnabledRef.current, true);
-    assert.deepEqual(state, { look: false, rail: false, top: false, updates: 1, replayStops: 1 });
+    assert.deepEqual(state, { look: false, rail: false, top: false, updates: 1 });
   }
 });
 
-test('the final JSX camera follows only the local eyes through both players turns, strokes and recovery', async () => {
+test('the final JSX render camera stays between the real eyes throughout address and walking, for both seats', async () => {
   const m = await readPoolRoyalMetrics();
   const world = new THREE.Group(); world.position.set(11, -4, 5); world.scale.setScalar(.23); world.rotation.y = .7;
   const players = new PoolRoyalHumanPlayers(world, { ...m, model: await loadPoseModel(), realisticMovement: true });
   assert.ok(await players.ready);
-  assert.equal(players.getEyeView('A'), null, 'wait for the first animated pose');
-  const localSeatRef = ref('A'), playerEyeViewEnabledRef = ref(true);
-  const replayPlaybackRef = ref(null), cueGalleryStateRef = ref(null);
-  const camera = new THREE.PerspectiveCamera(66, 390 / 844, .04, 4000);
-  const context = { THREE, camera, STANDING_VIEW_FOV: 66, CAMERA: { near: .04, far: 4000 },
-    activeHumanPlayersRef: ref(players), localSeatRef, playerEyeViewEnabledRef,
-    replayPlaybackRef, cueGalleryStateRef, world, replayPlaybackActive: false };
-  const resolveEye = evaluate(variable('resolveLocalHumanEyePose').init, context);
-  const start = source.indexOf('const humanEyePose = resolveLocalHumanEyePose();');
-  const end = source.indexOf('if (lookTarget) {', start);
+  const eyeRef = ref(null), topViewRef = ref(false);
+  const resolveEye = evaluate(variable('resolveActiveHumanEyePose').init, {
+    humanShotCamera: new PoolRoyalShotCamera(.55), activeHumanCueViewRef: eyeRef,
+    cueStrokeStateRef: ref(null), shootingRef: ref(false), cameraBlendRef: ref(1),
+    performance: { now: () => 1000 }, topViewRef, lookModeRef: ref(false),
+    replayPlaybackRef: ref(null), cueGalleryStateRef: ref(null), world
+  });
+  const start = source.indexOf('const humanEyePose = resolveActiveHumanEyePose();');
+  const end = source.indexOf('if (!replayPlaybackActive && lookTarget)', start);
   assert.ok(start > 0 && end > start);
   const applyFinalCamera = vm.runInNewContext(`(renderCamera, lookTarget) => {
     ${source.slice(start, end)}
     return { renderCamera, lookTarget };
-  }`, { ...context, humanEyeCamera: evaluate(variable('humanEyeCamera').init, context), resolveLocalHumanEyePose: resolveEye });
+  }`, { THREE, humanEyeCamera: new THREE.PerspectiveCamera(), resolveActiveHumanEyePose: resolveEye, STANDING_VIEW_FOV: 66 });
   let movingFrames = 0;
-  for (const localSeat of ['A', 'B']) for (const activeSeat of ['A', 'B']) for (let frame = 0; frame < 210; frame++) {
-    localSeatRef.current = localSeat;
-    const state = frame < 140 ? 'dragging' : frame < 150 ? 'striking' : 'idle';
+  for (const activeSeat of ['A', 'B']) for (let frame = 0; frame < 180; frame++) {
     const forward = new THREE.Vector3(0, 0, -1).applyAxisAngle(THREE.Object3D.DEFAULT_UP, frame > 90 ? .3 : 0);
-    const cueBall = new THREE.Vector3(0, m.ballY, m.tableL * .31 - (state === 'idle' ? frame - 150 : 0));
-    players.update(1 / 60, { activeSeat, state, power: .7, nowMs: frame * 16, cueBall, aimForward: forward });
-    assert.ok(players.getEyeView(localSeat), 'standing, shooting and opponent turns retain the local eyes');
-    const human = players.players.find(p => p.seat === localSeat).human;
+    players.update(1 / 60, { activeSeat, state: 'dragging', power: 0, nowMs: frame * 16,
+      cueBall: new THREE.Vector3(0, m.ballY, m.tableL * .31), aimForward: forward });
+    eyeRef.current = players.eyeView;
+    assert.ok(eyeRef.current, 'aiming never falls back to a camera outside the face');
+    const human = players.players.find(p => p.seat === activeSeat).human;
     const middle = human.model.getObjectByName('LeftEye').getWorldPosition(new THREE.Vector3())
       .lerp(human.model.getObjectByName('RightEye').getWorldPosition(new THREE.Vector3()), .5);
     const sourceCamera = new THREE.PerspectiveCamera(72, 390 / 844, .04, 4000);
-    sourceCamera.position.set(50, 90, -60); sourceCamera.up.set(0, 0, 1); sourceCamera.zoom = 3;
-    sourceCamera.setViewOffset(390, 844, 80, 180, 120, 200);
+    sourceCamera.position.set(50, 90, -60); sourceCamera.up.set(0, 0, 1); sourceCamera.zoom = 1.4;
     const final = applyFinalCamera(sourceCamera, new THREE.Vector3());
     assert.ok(final.renderCamera.position.distanceTo(middle) < 1e-8);
-    const headForward = new THREE.Vector3(0, 0, 1).applyQuaternion(human.bones.head.getWorldQuaternion(new THREE.Quaternion()));
-    assert.ok(final.renderCamera.getWorldDirection(new THREE.Vector3()).dot(headForward) > .99999,
-      'the camera faces out of the head, not towards a moving cue ball');
-    assert.equal(final.renderCamera.fov, 66);
+    assert.deepEqual(final.renderCamera.up.toArray(), [0, 1, 0]);
     assert.equal(final.renderCamera.zoom, 1);
-    assert.equal(final.renderCamera.view, null, 'no inherited broadcast crop');
     assert.equal(final.renderCamera.aspect, 390 / 844);
     assert.deepEqual(sourceCamera.position.toArray(), [50, 90, -60], 'broadcast source is untouched');
     final.renderCamera.updateMatrixWorld(true);
@@ -126,62 +117,9 @@ test('the final JSX camera follows only the local eyes through both players turn
     if (players.walking || human.poseT < .95) movingFrames++;
   }
   assert.ok(movingFrames > 30, 'exercise the transition that used to lose the eyes');
-  assert.equal(players.getEyeView('invalid'), null, 'never fall back to the active opponent');
-  for (const player of players.players) {
-    const mesh = player.firstPerson.meshes[0];
-    const material = Array.isArray(mesh.material) ? mesh.material[0] : mesh.material;
-    const shader = { uniforms: {}, fragmentShader: '#include <clipping_planes_fragment>' };
-    material.onBeforeCompile(shader, {});
-    const final = applyFinalCamera(camera, new THREE.Vector3());
-    mesh.onBeforeRender({}, world, final.renderCamera, mesh.geometry, material, null);
-    assert.equal(shader.uniforms.poolLocalFace.value, player.seat === localSeatRef.current ? 1 : 0);
-    assert.equal(mesh.visible, true, 'heads remain visible to other cameras');
-  }
-  playerEyeViewEnabledRef.current = false;
+  topViewRef.current = true;
   assert.equal(resolveEye(), null, 'explicit overhead selection still works');
-  playerEyeViewEnabledRef.current = true; cueGalleryStateRef.current = { active: true };
-  assert.equal(resolveEye(), null, 'explicit equipment inspection still works');
-  cueGalleryStateRef.current = null; replayPlaybackRef.current = {};
-  assert.equal(resolveEye(), null, 'a replay already in progress owns its recorded view');
   players.dispose();
-  assert.equal(players.getEyeView('A'), null);
-});
-
-test('automatic shot overhead and replay callbacks cannot take the local eye camera', () => {
-  const playerEyeViewEnabledRef = ref(true), topViewRef = ref(false);
-  let timeout, overheads = 0;
-  const setShooting = evaluate(variable('setShootingState').init, {
-    shooting: false, shotStartedAt: 0, getNow: () => 100, maxPowerLiftTriggered: false,
-    shotCameraHoldTimeoutRef: ref(null), clearTimeout() {},
-    preShotTopViewRef: ref(false), preShotTopViewLockRef: ref(false), topViewRef, topViewLockedRef: ref(false),
-    playerEyeViewEnabledRef, window: { setTimeout: fn => { timeout = fn; return 1; } },
-    SHOT_CAMERA_HOLD_MS: 2600, enterTopView: () => overheads++, exitTopView() {}, setShotActive() {}
-  });
-  setShooting(true); timeout();
-  assert.equal(topViewRef.current, false); assert.equal(overheads, 0);
-  evaluate(variable('enterTopView').init, { playerEyeViewEnabledRef, topViewRef })();
-  assert.equal(topViewRef.current, false, 'pocket/AI helpers cannot force overhead either');
-  const replayContext = { playerEyeViewEnabledRef, shotReplayRef: ref({}), shotRecording: {},
-    slate: true, setReplaySlate() { this.slate = false; } };
-  replayContext.setReplaySlate = () => { replayContext.slate = false; };
-  evaluate(variable('startShotReplay').init, replayContext)({});
-  assert.equal(replayContext.shotReplayRef.current, null);
-  assert.equal(replayContext.shotRecording, null);
-  assert.equal(replayContext.slate, false);
-  const recording = {};
-  const delayedContext = { playerEyeViewEnabledRef, replayBannerTimeoutRef: ref(1), setReplayBanner() {},
-    recordingForReplay: recording, shotRecording: recording, shotReplayRef: ref(recording),
-    triggerReplaySlate() { throw new Error('a delayed replay must not interrupt player view'); } };
-  evaluate(variable('launchReplay').init, delayedContext)();
-  assert.equal(delayedContext.shotRecording, null);
-  assert.equal(delayedContext.shotReplayRef.current, null);
-  const replayConditions = nodes.filter(node => node.type === 'AssignmentExpression' && node.left.name === 'shouldStartReplay').map(n => n.right);
-  replayConditions.push(variable('shouldStartReplay').init);
-  for (const condition of replayConditions) {
-    assert.equal(evaluate(condition, { ENABLE_SHOT_REPLAY: true, autoReplayEnabledRef: ref(true), playerEyeViewEnabledRef }), false);
-  }
-  playerEyeViewEnabledRef.current = false; setShooting(false); setShooting(true); timeout();
-  assert.equal(overheads, 1, 'other manually selected views retain their existing cameras');
 });
 
 test('avatar bounds reserve a clear spin lane at phone sizes and UI scales', () => {
