@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import * as THREE from 'three';
+import { fitSnakeTableModel } from '../utils/snakeTableFit';
 import { createSnakeHumanInteraction } from '../utils/snakeHumanInteraction';
 import { createSnakeDiceInteraction, SNAKE_DICE_PRESENTATION_MS } from '../utils/snakeDiceInteraction';
 import { parkSnakeWeapons, snakeParkingBounds } from '../utils/snakeWeaponParking';
@@ -80,12 +81,15 @@ const STOOL_HEIGHT = CHAIR_BASE_HEIGHT + SEAT_THICKNESS;
 // Portrait calibration: keep the chair ring close to the table.
 const CHAIR_GLOBAL_PUSHBACK = 0.18 * MODEL_SCALE;
 const CHAIR_TABLE_CLEARANCE = 0.22 * MODEL_SCALE;
-// The original seated thighs peak near 0.715. A thin top leaves a small
-// underside gap above them instead of forcing the knees around the table.
-const TABLE_HEIGHT = 0.835;
+// Chairs and tables share the same floor. Keep the top just above the
+// original seated thighs, after the downloaded chair has been grounded.
+const CHAIR_GROUND_Y = -0.91 * MODEL_SCALE * STOOL_SCALE;
+const TARGET_CHAIR_MIN_Y = -0.8570624993294478 * CHAIR_SIZE_SCALE;
+const GROUNDED_CHAIR_HEIGHT = CHAIR_GROUND_Y - TARGET_CHAIR_MIN_Y;
+const TABLE_HEIGHT = GROUNDED_CHAIR_HEIGHT + SEAT_THICKNESS * 0.65 + 0.224;
+// Lowering furniture must not lower the portrait viewpoint into the player.
+const CAMERA_TABLE_REFERENCE_HEIGHT = 2.0;
 const TABLE_TOP_THICKNESS_SCALE = 0.4;
-const TABLE_MODEL_TARGET_DIAMETER = TABLE_RADIUS * 2;
-const TABLE_MODEL_TARGET_HEIGHT = TABLE_HEIGHT;
 
 const DEFAULT_PLAYER_COUNT = 4;
 const CUSTOM_CHAIR_ANGLES = [
@@ -113,7 +117,6 @@ const DEFAULT_STOOL_THEME = Object.freeze({ legColor: '#1f1f1f' });
 const CHAIR_MODEL_URLS = [
   'https://raw.githubusercontent.com/KhronosGroup/glTF-Sample-Assets/main/Models/SheenChair/glTF-Binary/SheenChair.glb',
 ];
-const CHAIR_GROUND_Y = -0.91 * MODEL_SCALE * STOOL_SCALE;
 const WEAPON_ANCHOR_X = SEAT_WIDTH * 0.47;
 const WEAPON_ANCHOR_Z = -SEAT_DEPTH * 0.2;
 // Snake's seated-human presentation is intentionally pinned to the June 7
@@ -129,7 +132,6 @@ const SNAKE_TOKEN_MODEL_URLS = [
 const TARGET_CHAIR_SIZE = new THREE.Vector3(1.3162499970197679, 1.9173749900311232, 1.7001562547683715).multiplyScalar(
   CHAIR_SIZE_SCALE
 );
-const TARGET_CHAIR_MIN_Y = -0.8570624993294478 * CHAIR_SIZE_SCALE;
 
 const POLYHAVEN_TEXTURE_CACHE = new Map();
 const SNAKE_TOKEN_PROTOTYPE_CACHE = { promise: null, pieces: null };
@@ -218,7 +220,7 @@ const CAM = {
   far: CAMERA_FAR,
   minR: CAMERA_BASE_RADIUS * 0.55,
   maxR: CAMERA_BASE_RADIUS * 3.2,
-  phiMin: ARENA_CAMERA_DEFAULTS.phiMin,
+  phiMin: 0.7,
   phiMax: ARENA_CAMERA_DEFAULTS.phiMax
 };
 
@@ -1856,50 +1858,8 @@ async function loadPolyhavenModel(assetId, renderer = null) {
   return root;
 }
 
-function fitTableModelToArena(model) {
-  if (!model) return { surfaceY: TABLE_HEIGHT, radius: TABLE_RADIUS };
-  const box = new THREE.Box3().setFromObject(model);
-  const size = box.getSize(new THREE.Vector3());
-  const maxXZ = Math.max(size.x, size.z);
-  const targetHeight = TABLE_MODEL_TARGET_HEIGHT;
-  const targetDiameter = TABLE_MODEL_TARGET_DIAMETER;
-  const targetRadius = targetDiameter / 2;
-  const scaleY = size.y > 0 ? targetHeight / size.y : 1;
-  const scaleXZ = maxXZ > 0 ? targetDiameter / maxXZ : 1;
-
-  if (scaleY !== 1 || scaleXZ !== 1) {
-    model.scale.set(model.scale.x * scaleXZ, model.scale.y * scaleY, model.scale.z * scaleXZ);
-  }
-
-  const scaledBox = new THREE.Box3().setFromObject(model);
-  const center = scaledBox.getCenter(new THREE.Vector3());
-  model.position.add(new THREE.Vector3(-center.x, -scaledBox.min.y, -center.z));
-
-  const recenteredBox = new THREE.Box3().setFromObject(model);
-  const surfaceOffset = targetHeight - recenteredBox.max.y;
-  if (surfaceOffset !== 0) {
-    model.position.y += surfaceOffset;
-    recenteredBox.translate(new THREE.Vector3(0, surfaceOffset, 0));
-  }
-
-  const radius = Math.max(
-    Math.abs(recenteredBox.max.x),
-    Math.abs(recenteredBox.min.x),
-    Math.abs(recenteredBox.max.z),
-    Math.abs(recenteredBox.min.z),
-    targetRadius
-  );
-  return {
-    surfaceY: targetHeight,
-    radius,
-    getOuterRadius: (direction) => {
-      // Keep slots inside the fitted model's inscribed ellipse, including
-      // rectangular/oval imports whose short axis is smaller than radius.
-      const halfX = (recenteredBox.max.x - recenteredBox.min.x) / 2;
-      const halfZ = (recenteredBox.max.z - recenteredBox.min.z) / 2;
-      return 1 / Math.hypot(direction.x / Math.max(halfX, 0.001), direction.z / Math.max(halfZ, 0.001));
-    }
-  };
+function fitTableModelToArena(model, assetId) {
+  return fitSnakeTableModel(model, { radius: TABLE_RADIUS, surfaceY: TABLE_HEIGHT, groundY: CHAIR_GROUND_Y, assetId });
 }
 
 async function loadPolyHavenHdriEnvironment(renderer, variant = {}) {
@@ -2899,11 +2859,24 @@ function buildArena(
     includeBase: false,
     flushPlayingSurface: true,
     topThicknessScale: TABLE_TOP_THICKNESS_SCALE,
+    textures: appearanceOptions.tableTextures !== false,
     shapeOption,
     rotationY: 0
   });
   tableInfo = { ...tableInfo, radius: tableInfo.radius ?? TABLE_RADIUS, themeId: tableTheme?.id };
-  applyTableMaterials(tableInfo.materials, { woodOption: resolvedWoodOption, clothOption, baseOption }, renderer);
+  // A narrow pedestal supports the octagon while leaving the four knee lanes open.
+  const undersideY = TABLE_HEIGHT - 0.11;
+  const pedestalMaterial = new THREE.MeshStandardMaterial({ color: '#33261e', roughness: 0.58, metalness: 0.12 });
+  const pedestal = new THREE.Mesh(new THREE.CylinderGeometry(0.3, 0.4, undersideY - CHAIR_GROUND_Y, 24), pedestalMaterial);
+  pedestal.position.y = (undersideY + CHAIR_GROUND_Y) / 2;
+  const foot = new THREE.Mesh(new THREE.CylinderGeometry(0.48, 0.54, 0.08, 24), pedestalMaterial);
+  foot.position.y = CHAIR_GROUND_Y + 0.04;
+  pedestal.castShadow = pedestal.receiveShadow = foot.castShadow = foot.receiveShadow = true;
+  tableInfo.group.add(pedestal, foot);
+  disposeHandlers.push(() => { pedestal.geometry.dispose(); foot.geometry.dispose(); pedestalMaterial.dispose(); });
+  if (appearanceOptions.tableTextures !== false) {
+    applyTableMaterials(tableInfo.materials, { woodOption: resolvedWoodOption, clothOption, baseOption }, renderer);
+  }
 
   let activeTableGroup = tableInfo.group;
   tableRoot.add(activeTableGroup);
@@ -2933,14 +2906,14 @@ function buildArena(
     loadPolyhavenModel(tableTheme.assetId, renderer)
       .then((model) => {
         if (!model || disposed) return;
-        const fitted = fitTableModelToArena(model);
+        const fitted = fitTableModelToArena(model, tableTheme.assetId);
         const themed = new THREE.Group();
         themed.add(model);
         activeTableGroup.remove(boardGroup);
         tableRoot.remove(activeTableGroup);
         activeTableGroup = themed;
         tableRoot.add(activeTableGroup);
-        tableInfo = { ...fitted, group: themed, themeId: tableTheme.id };
+        tableInfo = { ...fitted, group: themed, themeId: tableTheme.id, assetId: tableTheme.assetId };
         attachBoard(tableInfo, activeTableGroup);
       })
       .catch(() => {});
@@ -2959,7 +2932,7 @@ function buildArena(
   const cameraRadius = chairRadius + cameraBackOffset - cameraForwardOffset;
   camera.position.set(
     Math.cos(cameraSeatAngle) * cameraRadius,
-    TABLE_HEIGHT + cameraHeightOffset,
+    CAMERA_TABLE_REFERENCE_HEIGHT + cameraHeightOffset,
     Math.sin(cameraSeatAngle) * cameraRadius
   );
   const initialCameraDirection = camera.position.clone().sub(boardLookTarget).normalize();
@@ -3142,6 +3115,7 @@ function buildArena(
     controls,
     get tableInfo() { return tableInfo; },
     getSeatHuman: (seat) => chairs[seat]?.interaction ?? null,
+    getSeatChair: (seat) => chairs[seat] ?? null,
     seatAnchors: chairs.map(({ anchor }) => anchor),
     weaponAnchors: chairs.map(({ weaponAnchor }) => weaponAnchor),
     startCameraState
@@ -6525,6 +6499,9 @@ export default function SnakeBoard3D({
 
 // Standalone reviews and geometry tests use the same board and pieces as gameplay.
 export {
+  buildArena as createSnakeArena,
+  fitChairModelToFootprint as fitSnakeChairModel,
+  alignChairLegsToGround as groundSnakeChair,
   makeDice as createSnakeDie, getDiceOrientationQuaternion,
   buildSnakeBoard as createSnakeBoardScene,
   updateTokens as updateSnakeBoardTokens,
@@ -6537,7 +6514,7 @@ export function getSnakePortraitCameraState() {
   const target = new THREE.Vector3(0, TABLE_HEIGHT + PORTRAIT_CAMERA_TUNING.targetLift + CAMERA_TARGET_EXTRA, 0);
   const chairRadius = SEATING_TABLE_RADIUS + SEAT_DEPTH / 2 + AI_CHAIR_GAP + CHAIR_GLOBAL_PUSHBACK;
   const z = chairRadius + PORTRAIT_CAMERA_TUNING.backOffset - PORTRAIT_CAMERA_TUNING.forwardOffset;
-  const y = TABLE_HEIGHT + PORTRAIT_CAMERA_TUNING.heightOffset + CAMERA_EXTRA_LIFT;
+  const y = CAMERA_TABLE_REFERENCE_HEIGHT + PORTRAIT_CAMERA_TUNING.heightOffset + CAMERA_EXTRA_LIFT;
   const polar = clamp(Math.atan2(z, y - target.y), CAM.phiMin, CAM.phiMax);
   const span = Math.max(SEATING_TABLE_RADIUS * 2.6, RAW_BOARD_SIZE * BOARD_SCALE * 1.6);
   const radius = clamp(Math.max(span / (2 * Math.tan(THREE.MathUtils.degToRad(CAM.fov) / 2)), CAM.maxR * PORTRAIT_INITIAL_CAMERA_DISTANCE_FACTOR), CAM.minR, CAM.maxR);
@@ -6548,6 +6525,6 @@ export const SNAKE_SCENE_DIMENSIONS = Object.freeze({
   tileSize: TILE_SIZE, tokenHeight: TOKEN_HEIGHT, diceSize: DICE_SIZE,
   tableHeight: TABLE_HEIGHT, tableRadius: TABLE_RADIUS, topThicknessScale: TABLE_TOP_THICKNESS_SCALE,
   chairRadius: SEATING_TABLE_RADIUS + SEAT_DEPTH * 0.08,
-  bottomChairExtra: CHAIR_TABLE_CLEARANCE, seatClearance: CHAIR_TABLE_CLEARANCE, chairBaseHeight: CHAIR_BASE_HEIGHT,
+  bottomChairExtra: CHAIR_TABLE_CLEARANCE, seatClearance: CHAIR_TABLE_CLEARANCE, chairBaseHeight: GROUNDED_CHAIR_HEIGHT, chairGroundY: CHAIR_GROUND_Y,
   seatHeight: SEAT_THICKNESS * 0.65, avatarAnchorHeight: AVATAR_ANCHOR_HEIGHT
 });
