@@ -1,33 +1,48 @@
 import React, { useEffect, useRef, useState } from 'react';
-import { ChevronLeft, ChevronRight, Zap } from 'lucide-react';
+import { Zap } from 'lucide-react';
 import {driftTier} from './arcadeRules.mjs';
 type Props = { hold: (id:string,key:string,value:number|boolean)=>void; release:(id:string)=>void; boost:number; drifting?:boolean; driftCharge?:number; turbo?:number; boostEvent?:number; reversing?:boolean; disabled?:boolean };
 
-/** Screen order: steering · brake · drift · gas, with boost above the pedals.
- * Each pointer owns its chord. Slide a steering thumb up for drift; slide the
- * gas thumb up for boost, so both actions work with just two thumbs. */
+/** Tirana Streets-style analogue steering stick plus independent pedals.
+ * Screen movement maps directly to steering: visually left is left and right is
+ * right. Sliding the stick visually upward also engages drift. */
 export function KartControls({hold,release,boost,drifting,driftCharge=0,turbo=0,boostEvent=0,reversing=false,disabled=false}:Props) {
   const pointers = useRef(new Map<number,{key:string;value:number|boolean;startY:number}>());
+  const stickOwner=useRef<number|null>(null),stickKnob=useRef<HTMLSpanElement>(null);
   const callbacks = useRef({hold,release}); callbacks.current = {hold,release};
   const [pressed,setPressed] = useState<string[]>([]);
   const publish = () => setPressed([...pointers.current.values()].map(p=>p.key+':'+p.value));
+  const resetStick=()=>{
+    if(stickOwner.current!==null){callbacks.current.release(`control:${stickOwner.current}`);callbacks.current.release(`gesture:${stickOwner.current}`);}
+    stickOwner.current=null;if(stickKnob.current)stickKnob.current.style.transform='translate(0px,0px)';
+  };
   const finish = (id:number) => {
-    callbacks.current.release(`control:${id}`);
-    callbacks.current.release(`gesture:${id}`);
+    callbacks.current.release(`control:${id}`);callbacks.current.release(`gesture:${id}`);
     pointers.current.delete(id); publish();
   };
+  const clear=()=>{
+    resetStick();
+    for (const id of pointers.current.keys()) {callbacks.current.release(`control:${id}`);callbacks.current.release(`gesture:${id}`);}
+    pointers.current.clear();setPressed([]);
+  };
   useEffect(()=>{
-    const clear = () => {
-      for (const id of pointers.current.keys()) {
-        callbacks.current.release(`control:${id}`); callbacks.current.release(`gesture:${id}`);
-      }
-      pointers.current.clear(); setPressed([]);
-    };
     const hide=()=>{if(document.hidden)clear();};
     window.addEventListener('blur',clear); document.addEventListener('visibilitychange',hide);
     if(disabled)clear();
     return ()=>{clear();window.removeEventListener('blur',clear);document.removeEventListener('visibilitychange',hide);};
   },[disabled]);
+  const moveStick=(e:React.PointerEvent<HTMLDivElement>)=>{
+    if(disabled||stickOwner.current!==e.pointerId)return;
+    const rect=e.currentTarget.getBoundingClientRect(),radius=Math.min(rect.width,rect.height)*.39;
+    const dx=e.clientX-rect.left-rect.width/2,dy=e.clientY-rect.top-rect.height/2;
+    const distance=Math.hypot(dx,dy),scale=distance>radius?radius/distance:1;
+    const x=dx*scale/radius,y=dy*scale/radius;
+    const steer=Math.abs(x)<.08?0:x;
+    callbacks.current.hold(`control:${e.pointerId}`,'steer',steer);
+    if(y<-.55)callbacks.current.hold(`gesture:${e.pointerId}`,'drift',true);else callbacks.current.release(`gesture:${e.pointerId}`);
+    if(stickKnob.current)stickKnob.current.style.transform=`translate(${x*radius*.8}px,${y*radius*.8}px)`;
+  };
+  const endStick=(e:React.PointerEvent<HTMLDivElement>)=>{if(stickOwner.current===e.pointerId)resetStick();};
   const touch = (key:string,value:number|boolean,gesture?:string) => ({
     onPointerDown:(e:React.PointerEvent<HTMLButtonElement>)=>{
       if(disabled || (e.pointerType==='mouse' && e.button!==0))return;
@@ -48,9 +63,10 @@ export function KartControls({hold,release,boost,drifting,driftCharge=0,turbo=0,
   const energy=Math.round(Math.max(0,Math.min(100,boost)));
   const label=turbo>0?'TURBO':drifting?['DRIFT','MINI','SUPER','ROYAL'][driftTier(driftCharge)]:'BOOST';
   return <div className="kart-controls" aria-label="Kart driving controls">
-    <div className="kart-steer-controls">
-      <button disabled={disabled} className={active('steer',-1)} {...touch('steer',-1,'drift')} aria-label="Steer left; slide up to drift"><ChevronLeft size={36}/></button>
-      <button disabled={disabled} className={active('steer',1)} {...touch('steer',1,'drift')} aria-label="Steer right; slide up to drift"><ChevronRight size={36}/></button>
+    <div className="kart-steering-stick" role="group" aria-label="Steering joystick; slide up to drift"
+      onPointerDown={e=>{if(disabled||stickOwner.current!==null||(e.pointerType==='mouse'&&e.button!==0))return;e.preventDefault();stickOwner.current=e.pointerId;e.currentTarget.setPointerCapture(e.pointerId);moveStick(e);}}
+      onPointerMove={moveStick} onPointerUp={endStick} onPointerCancel={endStick} onLostPointerCapture={endStick}>
+      <span ref={stickKnob} aria-hidden="true">↑</span>
     </div>
     <button disabled={disabled} className={`kart-brake kart-center-control${active('brake')}`} {...touch('brake',true)} aria-label="Brake; keep held after stopping to reverse">{reversing?'REV':'BRAKE'}</button>
     <div className="kart-right-controls">
