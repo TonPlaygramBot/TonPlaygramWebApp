@@ -2,7 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import {STEP,TRACKS,makeTrack,createRacer,stepRacer} from '../webapp/src/games/kartroyale/simulation.mjs';
 import {RURAL_ROUTES} from '../webapp/src/games/kartroyale/rural-routes.mjs';
-import {WORLD} from '../webapp/src/games/tiranastreets/shared/world.mjs';
+import {WORLD} from '../webapp/src/games/kartroyale/racingWorld.mjs';
 import {resampleCircuit} from '../webapp/src/games/kartroyale/grandRouteCore.mjs';
 import {jumpRamps,stepJumps} from '../webapp/src/games/kartroyale/jumpRamps.mjs';
 import {surfaceHeight} from '../webapp/src/games/kartroyale/racingSurface.mjs';

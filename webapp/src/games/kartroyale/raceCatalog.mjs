@@ -3,7 +3,7 @@ import { buildingClearance, waterClearance, courseClearance, courseRoadSurface, 
 import {widenPassingSections} from './passingClearance.mjs';
 import {RACING_CLEARANCE_VERSION} from './racingDimensions.mjs';
 import {circuitSides} from './trackEdges.mjs';
-import { WORLD } from '../tiranastreets/shared/world.mjs';
+import { WORLD } from './racingWorld.mjs';
 /** Pre-authored source-backed routes. Browser and server use identical geometry. */
 export function buildRaceCatalog(legacy,routes,districtRoutes=[],ruralRoutes=[]){
  const diagnostics=[],cache=new Map();
@@ -13,7 +13,7 @@ export function buildRaceCatalog(legacy,routes,districtRoutes=[],ruralRoutes=[])
  const roads=new Map(WORLD.roads.map(r=>[edgeKey(r.a,r.b),r.w]));
  const widthsFor=route=>route.points.map((p,i)=>{
     const width=roads.get(edgeKey(p,route.points[(i+1)%route.points.length]));
-    if(!width)throw Error('Race route left the shared Tirana street network');
+    if(!width)throw Error(`Race route left the shared Tirana street network (${route.id}, segment ${i})`);
     return width;
   });
  const tracks=legacy.TRACKS.map(old=>{

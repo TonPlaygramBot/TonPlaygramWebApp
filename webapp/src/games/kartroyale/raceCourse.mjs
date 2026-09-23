@@ -1,4 +1,4 @@
-import { WORLD } from '../tiranastreets/shared/world.mjs';
+import { WORLD } from './racingWorld.mjs';
 import { segmentDistance } from '../tirana-street-detail/roadDetailCore.mjs';
 import clipping from 'polygon-clipping';
 import {circuitSides} from './trackEdges.mjs';
