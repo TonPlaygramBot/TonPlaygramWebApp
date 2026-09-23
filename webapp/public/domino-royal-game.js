@@ -8283,6 +8283,82 @@ function findDominoBone(root, hints) {
   return found;
 }
 
+function findDominoFingerChain(root, hints) {
+  const first = findDominoBone(root, hints);
+  if (!first) return [];
+  const chain = [first];
+  let current = first;
+  while (chain.length < 3) {
+    const next = current.children?.find((child) => child?.isBone);
+    if (!next) break;
+    chain.push(next);
+    current = next;
+  }
+  return chain;
+}
+
+function applyDominoFingerGrip(chain, amount, isThumb = false) {
+  const grip = THREE.MathUtils.clamp(amount, 0, 1);
+  chain.forEach((bone, index) => {
+    const home = bone?.userData?.dominoGripHome;
+    if (!bone || !home) return;
+    const curl = isThumb ? [0.24, 0.42, 0.38][index] : [0.42, 0.72, 0.5][index];
+    bone.quaternion.copy(home).multiply(
+      new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(1, 0, 0), curl * grip)
+    );
+  });
+}
+
+// Domino uses Chess Battle Royal's synchronized contact principle: the tile
+// stays down while the fingers close, the arm follows its real world position,
+// and the grip opens only after the tile touches the cloth.
+function updateDominoPhysicalGrip(rig, placement, t) {
+  if (!rig?.bones?.rightHand || !placement?.mesh) return;
+  const phase = (from, to) => {
+    const value = THREE.MathUtils.clamp((t - from) / (to - from), 0, 1);
+    return value * value * (3 - 2 * value);
+  };
+  const grip = phase(0.12, PLACE_ANIM_PICK_HOLD) * (1 - phase(PLACE_ANIM_LOWER_END, 0.98));
+  const reach = phase(0, PLACE_ANIM_PICK_HOLD) * (1 - phase(0.96, 1));
+  const targetPose = makeDominoPose(rig.seatedPose, {
+    rightUpperArm: { x: -0.54, y: -0.12, z: -0.26 },
+    rightForeArm: { x: -0.58, y: -0.12, z: -0.2 },
+    rightHand: { x: -0.18, y: 0.12, z: -0.12 },
+    spine: { x: 0.12 }
+  });
+  applyDominoRigPose(rig, targetPose, reach);
+  applyDominoFingerGrip(rig.rightFingerChains.thumb, grip, true);
+  applyDominoFingerGrip(rig.rightFingerChains.index, grip);
+  applyDominoFingerGrip(rig.rightFingerChains.middle, grip);
+
+  placement.mesh.updateWorldMatrix(true, true);
+  const bounds = new THREE.Box3().setFromObject(placement.mesh);
+  const contact = bounds.getCenter(new THREE.Vector3());
+  contact.y = bounds.max.y;
+  const hand = rig.bones.rightHand;
+  const fingertip = () => {
+    const tips = [rig.rightFingerChains.thumb.at(-1), rig.rightFingerChains.index.at(-1), rig.rightFingerChains.middle.at(-1)].filter(Boolean);
+    if (!tips.length) return hand.getWorldPosition(new THREE.Vector3());
+    return tips.reduce((sum, bone) => sum.add(bone.getWorldPosition(new THREE.Vector3())), new THREE.Vector3()).multiplyScalar(1 / tips.length);
+  };
+  for (let iteration = 0; iteration < 18; iteration += 1) {
+    for (const joint of [rig.bones.rightForeArm, rig.bones.rightUpperArm]) {
+      if (!joint) continue;
+      joint.updateWorldMatrix(true, false);
+      const origin = joint.getWorldPosition(new THREE.Vector3());
+      const from = fingertip().sub(origin).normalize();
+      const to = contact.clone().sub(origin).normalize();
+      if (!Number.isFinite(from.x) || !Number.isFinite(to.x)) continue;
+      const worldDelta = new THREE.Quaternion().setFromUnitVectors(from, to);
+      worldDelta.slerp(new THREE.Quaternion(), 0.45);
+      const parentWorld = joint.parent?.getWorldQuaternion(new THREE.Quaternion()) || new THREE.Quaternion();
+      const localDelta = parentWorld.clone().invert().multiply(worldDelta).multiply(parentWorld);
+      joint.quaternion.premultiply(localDelta).normalize();
+      joint.updateWorldMatrix(false, true);
+    }
+  }
+}
+
 function addDominoBoneOffset(bone, x = 0, y = 0, z = 0) {
   if (!bone) return;
   bone.rotation.x += x;
@@ -8392,7 +8468,15 @@ function createDominoCharacterRig(instance, seatRoot, seatIndex, player) {
     rightThigh: findDominoBone(instance, ['rightupleg', 'rightthigh', 'r_thigh']),
     rightCalf: findDominoBone(instance, ['rightleg', 'rightcalf', 'r_calf'])
   };
-  const rig = { seatIndex, seatRoot, instance, bones, defaultPose: captureDominoPose(bones), heldRack: null, seatedPose: null };
+  const rightFingerChains = {
+    thumb: findDominoFingerChain(instance, ['righthandthumb1', 'rightthumb1', 'thumb1.r', 'r_thumb_01', 'right_hand_thumb_1']),
+    index: findDominoFingerChain(instance, ['righthandindex1', 'rightindex1', 'index1.r', 'r_index_01', 'right_hand_index_1']),
+    middle: findDominoFingerChain(instance, ['righthandmiddle1', 'rightmiddle1', 'middle1.r', 'r_middle_01', 'right_hand_middle_1'])
+  };
+  Object.values(rightFingerChains).flat().forEach((bone) => {
+    bone.userData.dominoGripHome = bone.quaternion.clone();
+  });
+  const rig = { seatIndex, seatRoot, instance, bones, rightFingerChains, defaultPose: captureDominoPose(bones), heldRack: null, seatedPose: null };
   addDominoBoneOffset(bones.hips, THREE.MathUtils.degToRad(-9), 0, 0);
   addDominoBoneOffset(bones.spine, THREE.MathUtils.degToRad(-3), 0, 0);
   addDominoBoneOffset(bones.head, THREE.MathUtils.degToRad(5), 0, 0);
@@ -8654,6 +8738,19 @@ function runDominoCharacterAction(seatIndex, type = 'PLAY') {
   }
 
   if (type === 'PLAY' || type === 'DRAW') {
+    if (type === 'PLAY') {
+      const placement = [...placementAnimations].reverse().find((anim) => anim.sourceSeat === seatIndex);
+      if (placement) {
+        dominoCharacterActions.push({
+          rig,
+          start: placement.startTime,
+          duration: placement.duration || PLACE_ANIM_DURATION,
+          update: (t) => updateDominoPhysicalGrip(rig, placement, t),
+          complete: () => applyDominoRigPose(rig, base, 1)
+        });
+        return;
+      }
+    }
     // Match Murlan Royale's exact single-card/place gesture for domino table placements.
     const releaseFingers = {
       rightIndex: { x: THREE.MathUtils.degToRad(-5), y: THREE.MathUtils.degToRad(2) },
