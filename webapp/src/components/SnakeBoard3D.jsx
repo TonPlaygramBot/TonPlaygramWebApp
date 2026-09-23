@@ -116,6 +116,13 @@ const CHAIR_MODEL_URLS = [
 const CHAIR_GROUND_Y = -0.91 * MODEL_SCALE * STOOL_SCALE;
 const WEAPON_ANCHOR_X = SEAT_WIDTH * 0.47;
 const WEAPON_ANCHOR_Z = -SEAT_DEPTH * 0.2;
+// Snake's seated-human presentation is intentionally pinned to the June 7
+// snapshot. Keep these values local so changes to shared game actors cannot
+// alter their portrait size or chair-relative placement again.
+const SEATED_HUMAN_TARGET_HEIGHT = BACK_HEIGHT * 2.42;
+const SEATED_HUMAN_VISUAL_SCALE_MULTIPLIER = 1.82;
+const SEATED_HUMAN_SEAT_Z_OFFSET = -SEAT_DEPTH * 0.28;
+const SELF_BOTTOM_HUMAN_EXTRA_Z_OFFSET = SEAT_DEPTH * 0.12;
 const SNAKE_TOKEN_MODEL_URLS = [
   'https://cdn.jsdelivr.net/gh/KhronosGroup/glTF-Sample-Models@master/2.0/ABeautifulGame/glTF/ABeautifulGame.gltf'
 ];
@@ -3085,15 +3092,18 @@ function buildArena(
   loadSeatedHumanTemplate({
     option: { ...CHESS_HUMAN_CHARACTER_OPTIONS[0], modelUrls: ['/assets/pool-royale/readyplayer.me.glb', ...CHESS_HUMAN_CHARACTER_OPTIONS[0].modelUrls] },
     renderer,
-    targetHeight: 1.13,
+    targetHeight: SEATED_HUMAN_TARGET_HEIGHT,
+    visualScaleMultiplier: SEATED_HUMAN_VISUAL_SCALE_MULTIPLIER,
     createLoader: createConfiguredGLTFLoader
   })
     .then((humanTemplate) => {
       if (disposed) return;
-      chairs.forEach((chair) => {
+      chairs.forEach((chair, seatIndex) => {
         const restoredHuman = createRestoredSeatedHumanActor(humanTemplate, chair.group, {
-          targetHeight: 1.13,
-          seatHeight: SEAT_THICKNESS * 0.65
+          targetHeight: SEATED_HUMAN_TARGET_HEIGHT,
+          seatHeight: 0,
+          visualScaleMultiplier: SEATED_HUMAN_VISUAL_SCALE_MULTIPLIER,
+          seatedZOffset: SEATED_HUMAN_SEAT_Z_OFFSET + (seatIndex === 0 ? SELF_BOTTOM_HUMAN_EXTRA_Z_OFFSET : 0)
         });
         if (restoredHuman) {
           chair.humanActor = restoredHuman;
