@@ -5,7 +5,7 @@ import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js';
 import { PoolRoyalHumanPlayers, type PlayerSeat } from '../pages/Games/shared/PoolRoyalHumanPlayers.ts';
 import { type ShotState } from '../pages/Games/shared/poolRoyalReferenceHuman.ts';
 import { createPoolRoyalCue, posePoolRoyalCue } from '../pages/Games/shared/createPoolRoyalCue.ts';
-import { SnookerRoyalShotCamera, snookerRoyalFallbackEye } from '../pages/Games/snookerRoyalShotCamera.ts';
+import { PoolRoyalShotCamera } from '../pages/Games/shared/poolRoyalShotCamera.ts';
 import { PoolRoyalPocketLights } from '../pages/Games/shared/poolRoyalPocketLights.ts';
 import { poolRoyalHudLayout, POOL_AVATAR_SIZE_PX, POOL_SPIN_DIAMETER_PX } from '../pages/Games/poolRoyalHudLayout.js';
 import { spinFromScreenPoint, normalizeSpinInput } from '../pages/Games/poolRoyaleSpinUtils.js';
@@ -165,7 +165,7 @@ function CharacterPreview() {
     const liveCue = createPoolRoyalCue({ ballRadius: METRICS.ballR, length: METRICS.cueLength, tipRadius: METRICS.cueRadius });
     liveCue.shaftMaterial.color.setHex(0xdeb887);
     scene.add(liveCue.body);
-    const shotCamera = new SnookerRoyalShotCamera();
+    const shotCamera = new PoolRoyalShotCamera(0.55);
     const shotTip = { position: new THREE.Vector3(), visible: true };
     let stroke: any = null;
     let seenShot = 0, seenReset = 0, seenStation = 0, simulationTime = 0, lastPhase = '', lastCanShoot = false;
@@ -231,12 +231,10 @@ function CharacterPreview() {
       const aimingTip = idleTip.clone().addScaledVector(forward, -pull);
       if (seenShot !== current.shotId) {
         seenShot = current.shotId; travel = 0; shotAnchor.copy(ballPosition); cueBall.position.copy(ballPosition); shotDirection.copy(forward);
-        shotCamera.beginShot(players?.eyeView ?? null,
-          snookerRoyalFallbackEye(ballPosition, forward, cueLength, METRICS.ballR));
         const contact = resolveCueBallContact(ballPosition, axis, idleTip.clone().sub(ballPosition), METRICS.ballR, METRICS.cueRadius);
         stroke = { startTime: simulationTime - (current.inspectContact ? 120 * 0.88 + 0.001 : 0), idlePos: idleTip.clone(), pullPos: aimingTip.clone(), contactPos: contact,
           pullbackDuration: current.ai ? 650 : 0, strikeDuration: 120, holdDuration: 50,
-          onImpact: () => { shotCamera.markImpact(simulationTime); travel = 0.00001; } };
+          onImpact: () => { travel = 0.00001; } };
       }
       let displayPhase = current.state === 'idle' ? 'Standing' : 'Aiming';
       let characterState = current.state;
@@ -300,12 +298,7 @@ function CharacterPreview() {
         }
       }
       const eye = shotCamera.resolve({ eye: players?.eyeView ?? null, stroke: Boolean(stroke && shotTip.visible),
-        shooting: Boolean(stroke), impactPending: Boolean(stroke && travel === 0),
-        cueBlend: 0, now: simulationTime, excluded: current.view !== 'player' });
-      if (current.view === 'player' && stroke && !current.paused) {
-        const cameraPhase = shotCamera.isBroadcasting ? 'Broadcast' : travel > 0 ? 'Follow-through' : 'Cue stroke';
-        if (cameraPhase !== lastPhase) { lastPhase = cameraPhase; setPhase(cameraPhase); }
-      }
+        shooting: Boolean(stroke), aiming: current.state === 'dragging', cueBlend: 1, now: simulationTime, excluded: current.view !== 'player' });
       const fov = current.view === 'player' && eye ? 66 : 46;
       if (camera.fov !== fov) { camera.fov = fov; camera.updateProjectionMatrix(); }
       collisionOverlay.visible = current.view === 'geometry';
