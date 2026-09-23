@@ -10,9 +10,9 @@ export class PoolRoyalShotCamera {
   /** Pool's aiming view reaches the eyes before the orbit reaches its limit. */
   constructor(eyeLockBlend = 0) { this.eyeLockBlend = eyeLockBlend; }
 
-  resolve({ eye, stroke, shooting, cueBlend, now, excluded = false }: {
+  resolve({ eye, stroke, shooting, cueBlend, now, excluded = false, aiming = false }: {
     eye: HumanEyeView | null; stroke: boolean; shooting: boolean;
-    cueBlend: number; now: number; excluded?: boolean;
+    cueBlend: number; now: number; excluded?: boolean; aiming?: boolean;
   }): HumanEyeView | null {
     if (excluded) { this.reset(); return null; }
     if (stroke && eye && !this.held) {
@@ -29,7 +29,7 @@ export class PoolRoyalShotCamera {
     }
     if (!shooting) this.reset();
     if (shooting || !eye) return null;
-    const weight = THREE.MathUtils.smoothstep(1 - cueBlend, 0.06, 1 - this.eyeLockBlend) * eye.blend;
+    const weight = (aiming ? 1 : THREE.MathUtils.smoothstep(1 - cueBlend, 0.06, 1 - this.eyeLockBlend)) * eye.blend;
     return weight > 0 ? { ...eye, blend: weight } : null;
   }
 

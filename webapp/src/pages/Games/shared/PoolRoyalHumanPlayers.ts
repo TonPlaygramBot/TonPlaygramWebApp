@@ -100,13 +100,16 @@ function disposeResources(root: THREE.Object3D) {
   textures.forEach(texture => texture.dispose());
 }
 
-export function choosePoolRoyalStance(ball: THREE.Vector3, forward: THREE.Vector3, tableW: number, tableL: number) {
-  const margin = 0.25 * CFG.humanScale;
+export function choosePoolRoyalStance(ball: THREE.Vector3, forward: THREE.Vector3, tableW: number, tableL: number, nearRail = false) {
+  // Keep the hips outside the same perimeter used by walking, without imposing
+  // an extra cue-length retreat when the cue ball is already close to a rail.
+  const margin = (nearRail ? 0.215 : 0.25) * CFG.humanScale;
   const x = Math.abs(forward.x) > 1e-6
     ? (tableW / 2 + margin + Math.sign(forward.x) * ball.x) / Math.abs(forward.x) : Infinity;
   const z = Math.abs(forward.z) > 1e-6
     ? (tableL / 2 + margin + Math.sign(forward.z) * ball.z) / Math.abs(forward.z) : Infinity;
-  return ball.clone().addScaledVector(forward, -Math.max(Math.min(x, z), CFG.desiredShootDistance)).setY(0);
+  const distance = Math.min(x, z);
+  return ball.clone().addScaledVector(forward, -(nearRail ? Math.max(distance, margin) : Math.max(distance, CFG.desiredShootDistance))).setY(0);
 }
 
 /**
@@ -316,7 +319,7 @@ export class PoolRoyalHumanPlayers {
       const aim = state === 'striking' ? player.shotAim.clone() : forward.clone();
       const cueBall = state === 'striking' ? player.shotBall : ball;
       const rootTarget = active
-        ? choosePoolRoyalStance(cueBall, aim, tableW, tableL)
+        ? choosePoolRoyalStance(cueBall, aim, tableW, tableL, Boolean(this.options.realisticMovement))
         : new THREE.Vector3(
           (player.seat === 'A' ? -1 : 1) * (tableW / 2 + CFG.edgeMargin * 2),
           0, (player.seat === 'A' ? 1 : -1) * tableL * 0.36

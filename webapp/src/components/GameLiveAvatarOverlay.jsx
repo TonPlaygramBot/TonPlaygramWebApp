@@ -89,6 +89,7 @@ const BLOCKING_OVERLAY_SELECTORS = [
   '#rules[style*="display:flex"]'
 ];
 const AVATAR_FRAME_STYLES = Object.freeze({
+  boxSizing: 'border-box',
   borderRadius: '999px',
   border: '2px solid rgba(255,255,255,.32)',
   boxShadow: '0 8px 18px rgba(0,0,0,.35),0 0 0 2px rgba(6,12,24,.45)',
@@ -115,7 +116,9 @@ export default function GameLiveAvatarOverlay({ gameSlug, children, onlineOnly =
 function LiveAvatarSession({ gameSlug, roomId, children }) {
   const { search } = useLocation();
   const isCheckers = gameSlug === 'checkersbattleroyal';
-  const usesOpponentAvatar = gameSlug === 'domino-royal' || isCheckers;
+  const isPool = gameSlug === 'poolroyale';
+  const compactCall = isCheckers || isPool;
+  const usesOpponentAvatar = gameSlug === 'domino-royal' || compactCall;
   const [liveMode, setLiveMode] = useState(false);
   const [anchorElement, setAnchorElement] = useState(null);
   const [opponentAnchorElement, setOpponentAnchorElement] = useState(null);
@@ -214,7 +217,7 @@ function LiveAvatarSession({ gameSlug, roomId, children }) {
       const contexts = getIframeContexts();
       for (const context of contexts) {
         // Target only the photo: keep the Checkers name and turn ring visible.
-        const selectors = isCheckers ? ['[data-self-player="true"] img'] : AVATAR_ANCHOR_SELECTORS;
+        const selectors = isPool ? ['[data-pool-avatar="self"]'] : isCheckers ? ['[data-self-player="true"] img'] : AVATAR_ANCHOR_SELECTORS;
         for (const selector of selectors) {
           const nodes = context.doc.querySelectorAll(selector);
           for (const candidate of nodes) {
@@ -241,27 +244,32 @@ function LiveAvatarSession({ gameSlug, roomId, children }) {
     };
 
     const applyRect = () => {
+      const pixel = value => isPool ? value : Math.round(value);
+      const tolerance = isPool ? 0.01 : 1;
       const { rect, node } = findAvatarAnchor();
-      if (!rect) return;
+      if (!rect) {
+        if (isPool) { setAnchorElement(null); setOpponentAnchorElement(null); setOpponentRect(null); }
+        return;
+      }
       const avatarDiameter = Math.min(rect.width, rect.height);
-      const frameDiameter = Math.max(Math.round(avatarDiameter * FRAME_SCALE), 32);
+      const frameDiameter = isPool ? avatarDiameter : Math.max(pixel(avatarDiameter * FRAME_SCALE), 32);
       const width = frameDiameter;
       const height = frameDiameter;
       const left = Math.max(
-        Math.round(rect.left - (width - rect.width) / 2),
+        pixel(rect.left - (width - rect.width) / 2),
         0
       );
       const top = Math.max(
-        Math.round(rect.top - (height - rect.height) / 2),
+        pixel(rect.top - (height - rect.height) / 2),
         0
       );
-      const activationSize = Math.max(Math.round(avatarDiameter), 20);
+      const activationSize = Math.max(pixel(avatarDiameter), 20);
       const activationLeft = Math.max(
-        Math.round(rect.left + rect.width / 2 - activationSize / 2),
+        pixel(rect.left + rect.width / 2 - activationSize / 2),
         0
       );
       const activationTop = Math.max(
-        Math.round(rect.top + rect.height / 2 - activationSize / 2),
+        pixel(rect.top + rect.height / 2 - activationSize / 2),
         0
       );
       setAnchorElement(node);
@@ -269,7 +277,7 @@ function LiveAvatarSession({ gameSlug, roomId, children }) {
         const opponentNodes = [];
         const opponentBoundsList = [];
         for (const context of getIframeContexts()) {
-          const selector = isCheckers
+          const selector = isPool ? '[data-pool-avatar="opponent"]' : isCheckers
             ? '[data-self-player="false"] img'
             : gameSlug === 'domino-royal'
             ? '[data-player-index]:not([data-self-player="true"]) .seat-badge-core'
@@ -281,10 +289,10 @@ function LiveAvatarSession({ gameSlug, roomId, children }) {
             const diameter = Math.min(localRect.width, localRect.height);
             opponentNodes.push(candidate);
             opponentBoundsList.push({
-              top: Math.round(localRect.top + context.offsetY + (localRect.height - diameter) / 2),
-              left: Math.round(localRect.left + context.offsetX + (localRect.width - diameter) / 2),
-              width: Math.round(diameter),
-              height: Math.round(diameter)
+              top: pixel(localRect.top + context.offsetY + (localRect.height - diameter) / 2),
+              left: pixel(localRect.left + context.offsetX + (localRect.width - diameter) / 2),
+              width: pixel(diameter),
+              height: pixel(diameter)
             });
           });
         }
@@ -311,10 +319,10 @@ function LiveAvatarSession({ gameSlug, roomId, children }) {
       }
       setOverlayRect((prev) => {
         if (
-          Math.abs(prev.top - top) <= 1 &&
-          Math.abs(prev.left - left) <= 1 &&
-          Math.abs(prev.width - width) <= 1 &&
-          Math.abs(prev.height - height) <= 1
+          Math.abs(prev.top - top) <= tolerance &&
+          Math.abs(prev.left - left) <= tolerance &&
+          Math.abs(prev.width - width) <= tolerance &&
+          Math.abs(prev.height - height) <= tolerance
         ) {
           return prev;
         }
@@ -322,10 +330,10 @@ function LiveAvatarSession({ gameSlug, roomId, children }) {
       });
       setActivationRect((prev) => {
         if (
-          Math.abs(prev.top - activationTop) <= 1 &&
-          Math.abs(prev.left - activationLeft) <= 1 &&
-          Math.abs(prev.width - activationSize) <= 1 &&
-          Math.abs(prev.height - activationSize) <= 1
+          Math.abs(prev.top - activationTop) <= tolerance &&
+          Math.abs(prev.left - activationLeft) <= tolerance &&
+          Math.abs(prev.width - activationSize) <= tolerance &&
+          Math.abs(prev.height - activationSize) <= tolerance
         ) {
           return prev;
         }
@@ -383,12 +391,12 @@ function LiveAvatarSession({ gameSlug, roomId, children }) {
       window.removeEventListener('orientationchange', scheduleApply);
       window.removeEventListener('scroll', scheduleApply, true);
     };
-  }, [gameSlug, isCheckers, usesOpponentAvatar, search]);
+  }, [gameSlug, isCheckers, isPool, usesOpponentAvatar, search]);
 
   useEffect(() => {
     if (typeof window === 'undefined') return undefined;
     const hasOpenOverlay = () =>
-      [...BLOCKING_OVERLAY_SELECTORS, ...(isCheckers ? ['[data-live-video-blocking="true"]'] : [])].some((selector) => {
+      [...BLOCKING_OVERLAY_SELECTORS, ...(compactCall ? ['[data-live-video-blocking="true"]'] : [])].some((selector) => {
         const node = document.querySelector(selector);
         if (!node) return false;
         if (node.id === 'rules') {
@@ -413,7 +421,7 @@ function LiveAvatarSession({ gameSlug, roomId, children }) {
       window.removeEventListener('resize', syncOverlayState);
       window.removeEventListener('orientationchange', syncOverlayState);
     };
-  }, [isCheckers]);
+  }, [compactCall]);
 
   useEffect(() => {
     if (!anchorElement) return undefined;
@@ -471,7 +479,7 @@ function LiveAvatarSession({ gameSlug, roomId, children }) {
           aria-label="Turn on live avatar video"
           title="Start video call"
           onClick={() => setLiveMode(true)}
-          className="fixed z-[18] rounded-full bg-transparent touch-manipulation"
+          className={`fixed ${isPool ? "z-[55]" : "z-[18]"} rounded-full bg-transparent touch-manipulation`}
           style={{
             top: `${activationRect.top}px`,
             left: `${activationRect.left}px`,
@@ -481,7 +489,7 @@ function LiveAvatarSession({ gameSlug, roomId, children }) {
             pointerEvents: hasBlockingOverlay ? 'none' : 'auto'
           }}
         >
-          {isCheckers ? (
+          {compactCall ? (
             <span aria-hidden="true" className="absolute -bottom-1 -right-1 flex h-5 w-5 items-center justify-center rounded-full bg-emerald-700 text-[10px] text-white shadow">📹</span>
           ) : null}
         </button>
@@ -491,7 +499,7 @@ function LiveAvatarSession({ gameSlug, roomId, children }) {
           type="button"
           aria-label="Turn off live avatar video"
           onClick={() => setLiveMode(false)}
-          className="fixed z-[18] overflow-hidden touch-manipulation"
+          className={`fixed ${isPool ? "z-[55]" : "z-[18]"} overflow-hidden touch-manipulation`}
           style={{
             top: `${overlayRect.top}px`,
             left: `${overlayRect.left}px`,
@@ -502,6 +510,7 @@ function LiveAvatarSession({ gameSlug, roomId, children }) {
             ...(gameSlug === 'domino-royal' ? AVATAR_FRAME_STYLES : {}),
             ...(gameSlug !== 'domino-royal'
               ? {
+                  boxSizing: 'border-box',
                   borderRadius: '999px',
                   border: '1px solid rgb(110 231 183 / 1)',
                   background: 'rgb(0 0 0 / 0.3)'
@@ -512,6 +521,7 @@ function LiveAvatarSession({ gameSlug, roomId, children }) {
           <video
             ref={(node) => {
               localVideoRef.current = node;
+              if (node) node.srcObject = liveChat.localStream || null;
             }}
             autoPlay
             muted
@@ -522,7 +532,7 @@ function LiveAvatarSession({ gameSlug, roomId, children }) {
       ) : null}
       {liveMode && usesOpponentAvatar && opponentRect ? (
         <div
-          className="fixed z-[18] overflow-hidden pointer-events-none"
+          className={`fixed ${isPool ? "z-[55]" : "z-[18]"} overflow-hidden pointer-events-none`}
           style={{
             top: `${opponentRect.top}px`,
             left: `${opponentRect.left}px`,
@@ -536,7 +546,7 @@ function LiveAvatarSession({ gameSlug, roomId, children }) {
             <RemoteVideo peer={liveChat.remotePeers[0]} />
           ) : (
             <div className="flex h-full items-center justify-center bg-slate-950 text-center text-[8px] font-semibold text-white/70">
-              {isCheckers && liveChat.error ? 'Camera unavailable' : 'Waiting…'}
+              {compactCall && liveChat.error ? 'Camera unavailable' : 'Waiting…'}
             </div>
           )}
         </div>
@@ -567,10 +577,13 @@ function LiveAvatarSession({ gameSlug, roomId, children }) {
         : null}
       {liveMode ? (
         <div
-          className={`fixed right-3 z-[18] flex flex-col gap-2 pointer-events-auto ${usesOpponentAvatar ? 'w-auto' : 'w-28'}`}
+          className={`fixed right-3 ${isPool ? "z-[55]" : "z-[18]"} flex flex-col gap-2 pointer-events-auto ${usesOpponentAvatar ? 'w-auto' : 'w-28'}`}
           style={{
             top: 'max(4.75rem, env(safe-area-inset-top))',
-            ...(isCheckers ? {
+            ...(isPool ? {
+              top: 'calc(env(safe-area-inset-top, 0px) + 4.75rem)',
+              left: '50%', right: 'auto', transform: 'translateX(-50%)'
+            } : isCheckers ? {
               top: 'auto',
               right: 'auto',
               left: '12px',
@@ -591,7 +604,7 @@ function LiveAvatarSession({ gameSlug, roomId, children }) {
               </div>
             )}
           </div> : null}
-          {isCheckers && liveChat.error ? (
+          {compactCall && liveChat.error ? (
             <p role="alert" className="max-w-[min(16rem,calc(100vw-24px))] rounded-xl bg-slate-950/95 p-3 text-xs text-white">
               {liveChat.error} Turn off live video and tap your avatar to retry.
             </p>
@@ -600,7 +613,7 @@ function LiveAvatarSession({ gameSlug, roomId, children }) {
             <button
               type="button"
               onClick={liveChat.toggleMicrophone}
-              className={`flex ${isCheckers ? 'h-11 w-11' : 'h-9 w-9'} items-center justify-center rounded-full text-sm text-white shadow-lg ${liveChat.mediaState.microphone ? 'bg-emerald-600' : 'bg-rose-600'}`}
+              className={`flex ${compactCall ? 'h-11 w-11' : 'h-9 w-9'} items-center justify-center rounded-full text-sm text-white shadow-lg ${liveChat.mediaState.microphone ? 'bg-emerald-600' : 'bg-rose-600'}`}
               aria-label={liveChat.mediaState.microphone ? 'Turn microphone off' : 'Turn microphone on'}
             >
               {liveChat.mediaState.microphone ? '🎙️' : '🔇'}
@@ -608,12 +621,12 @@ function LiveAvatarSession({ gameSlug, roomId, children }) {
             <button
               type="button"
               onClick={liveChat.toggleCamera}
-              className={`flex ${isCheckers ? 'h-11 w-11' : 'h-9 w-9'} items-center justify-center rounded-full text-sm text-white shadow-lg ${liveChat.mediaState.camera ? 'bg-emerald-600' : 'bg-rose-600'}`}
+              className={`flex ${compactCall ? 'h-11 w-11' : 'h-9 w-9'} items-center justify-center rounded-full text-sm text-white shadow-lg ${liveChat.mediaState.camera ? 'bg-emerald-600' : 'bg-rose-600'}`}
               aria-label={liveChat.mediaState.camera ? 'Turn camera off' : 'Turn camera on'}
             >
               {liveChat.mediaState.camera ? '📹' : '🚫'}
             </button>
-            {isCheckers ? (
+            {compactCall ? (
               <button
                 type="button"
                 onClick={() => setLiveMode(false)}
