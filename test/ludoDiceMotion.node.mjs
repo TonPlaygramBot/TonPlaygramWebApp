@@ -4,7 +4,7 @@ import { readFileSync } from 'node:fs';
 import * as THREE from '../webapp/node_modules/three/build/three.module.js';
 import { clone } from '../webapp/node_modules/three/examples/jsm/utils/SkeletonUtils.js';
 import { loadCheckersHumanTemplate } from './checkersHumanFixture.mjs';
-import { tipPosition } from '../webapp/src/games/chess/anatomicalHand.ts';
+import { calibrateHandRig, tipPosition } from '../webapp/src/games/chess/anatomicalHand.ts';
 import { createLudoDiceHand, createLudoDiceContact, createLudoDiceThrow, updateLudoDiceThrow, sampleLudoDiceThrow, LUDO_DICE_TIMING } from '../webapp/src/utils/ludoDiceMotion.ts';
 
 // Exercise the actual Ludo seated pose on the bundled skinned human, including
@@ -21,7 +21,7 @@ return { saveBoneRig, applySeatedHumanPose };
 `)(THREE);
 const template = await loadCheckersHumanTemplate();
 const world = (node) => node.getWorldPosition(new THREE.Vector3());
-function fixture(seat = 0, scale = 1) {
+function fixture(seat = 0, scale = 1, face = [0, 0, 0]) {
   const scene = new THREE.Group();
   scene.position.set(0.3, 0.12, -0.2); scene.rotation.y = 0.17; scene.scale.setScalar(scale);
   const root = new THREE.Group(); root.rotation.y = seat * Math.PI / 2; scene.add(root);
@@ -31,6 +31,7 @@ function fixture(seat = 0, scale = 1) {
   idle();
   const shoulder = root.worldToLocal(world(rig.rightUpperArm));
   const dice = new THREE.Object3D(); scene.add(dice);
+  dice.rotation.set(...face);
   dice.position.copy(scene.worldToLocal(root.localToWorld(shoulder.add(new THREE.Vector3(0.025, -0.22, 0.27)))));
   const destination = dice.position.clone().add(new THREE.Vector3(0.12, 0, 0.14));
   const contact = createLudoDiceContact(binding, dice, 0.054);
@@ -89,6 +90,34 @@ test('dropped frames release at the exact sampled position and follow-through ne
   dice.position.copy(destination);
   idle(); updateLudoDiceThrow(action, 1700);
   assert.ok(dice.position.equals(destination));
+});
+
+test('the palm faces the table and fingers continue past the wrist for every seat and die face', () => {
+  const halfTurn = Math.PI, quarterTurn = Math.PI / 2;
+  const faces = [[0, 0, 0], [quarterTurn, 0, 0], [-quarterTurn, 0, 0], [halfTurn, 0, 0], [0, 0, quarterTurn], [0, 0, -quarterTurn]];
+  for (const seat of [0, 1, 2, 3]) {
+    let referenceGrip;
+    for (const face of faces) {
+      const { rig, binding, contact, dice, destination, idle } = fixture(seat, seat % 2 ? 0.72 : 1, face);
+      const profile = calibrateHandRig(binding.rig).right;
+      const forward = world(dice).sub(world(rig.rightUpperArm)).setY(0).normalize();
+      const diceQ = dice.quaternion.clone();
+      if (referenceGrip) assert.ok(referenceGrip.angleTo(contact.gripQ) < 1e-6, 'a new rolled face must not flip the wrist');
+      referenceGrip = contact.gripQ.clone();
+      const action = createLudoDiceThrow(contact, dice, destination);
+      for (const ms of [440, 660, 840, 1040]) {
+        idle(); updateLudoDiceThrow(action, ms);
+        const handQ = rig.rightHand.getWorldQuaternion(new THREE.Quaternion());
+        const fingers = profile.forward.clone().applyQuaternion(handQ);
+        const palm = profile.inward.clone().applyQuaternion(handQ);
+        const forearm = world(rig.rightHand).sub(world(rig.rightForeArm)).normalize();
+        assert.ok(fingers.dot(forward) > 0.9, `seat ${seat}: fingers point backward at ${ms}`);
+        assert.ok(palm.y < -0.9, `seat ${seat}: palm twisted away from the table at ${ms}`);
+        assert.ok(fingers.dot(forearm) > 0.1, `seat ${seat}: wrist folds back over the arm at ${ms}`);
+        assert.ok(dice.quaternion.angleTo(diceQ) < 1e-6, 'hand correction rotated the die');
+      }
+    }
+  }
 });
 
 test('incomplete rigs fall back without a crash or any dice relocation', () => {

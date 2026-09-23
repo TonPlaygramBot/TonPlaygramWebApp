@@ -3,6 +3,7 @@ import {createLudoMissileFx,createLudoExplosionFx,updateLudoExplosionFx} from '.
 import { createLudoBlenderModel } from '../../utils/ludoBlenderMeshes';
 import { palmMarker, palmOrientation, solveArm, world as boneWorld } from '../../utils/ludoHumanMotion';
 import { createLudoDiceHand, createLudoDiceContact, createLudoDiceThrow, updateLudoDiceThrow, poseLudoDiceContact, LUDO_DICE_TIMING } from '../../utils/ludoDiceMotion.ts';
+import { createFallbackLudoToken, hasVisibleLudoToken, withLudoTokenAssets, setLudoTileHighlight, updateLudoTileGlow } from '../../utils/ludoTokenPresentation.ts';
 import {
   FIREARM_CAPTURE_ANIMATION_IDS,
   FIREARM_MARKSMAN_IDS,
@@ -8824,36 +8825,7 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount, onlin
   }, []);
 
   const setTileHighlight = useCallback((tile, active, tokenColor = null) => {
-    if (!tile || !tile.material) return;
-    const data = tile.userData?.boardTile;
-    if (!data) return;
-    if (active) {
-      if (tile.material.emissive) {
-        if (tokenColor) {
-          tile.material.emissive.copy(tokenColor).lerp(new THREE.Color(0xffffff), 0.14);
-        } else if (data.highlightEmissive) {
-          tile.material.emissive.copy(data.highlightEmissive);
-        }
-      }
-      if (tile.material.color && tokenColor) {
-        tile.material.color.copy(tokenColor).lerp(new THREE.Color(0xffffff), 0.08);
-      } else if (tile.material.color && data.highlightColor) {
-        tile.material.color.copy(data.highlightColor);
-      }
-      tile.material.emissiveIntensity = tokenColor
-        ? Math.max(data.baseIntensity + 1.2, data.highlightIntensity + 0.2, 1.2)
-        : Math.max(data.highlightIntensity, data.baseIntensity + 1.05);
-      data.isHighlighted = true;
-    } else {
-      if (tile.material.emissive && data.baseEmissive) {
-        tile.material.emissive.copy(data.baseEmissive);
-      }
-      if (tile.material.color && data.baseColor) {
-        tile.material.color.copy(data.baseColor);
-      }
-      tile.material.emissiveIntensity = data.baseIntensity;
-      data.isHighlighted = false;
-    }
+    setLudoTileHighlight(tile, active, tokenColor);
   }, []);
 
   const findTileForProgress = useCallback((player, progress) => {
@@ -8872,11 +8844,11 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount, onlin
   }, []);
 
   const clearAnimationHighlights = useCallback(
-    (anim) => {
+    (anim, preserveLandingGlow = false) => {
       if (!anim || !Array.isArray(anim.activeHighlightTiles)) return;
-      anim.activeHighlightTiles.forEach((tile) => {
-        setTileHighlight(tile, false);
-      });
+      if (!preserveLandingGlow) {
+        anim.activeHighlightTiles.forEach((tile) => setTileHighlight(tile, false));
+      }
       anim.activeHighlightTiles.length = 0;
       anim.highlightIndex = -1;
     },
@@ -8888,12 +8860,11 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount, onlin
       if (!anim || !Array.isArray(anim.highlightTiles)) return;
       if (nextIndex != null && nextIndex >= 0 && nextIndex < anim.highlightTiles.length) {
         const nextTile = anim.highlightTiles[nextIndex];
-      if (nextTile && Array.isArray(anim.activeHighlightTiles) && !anim.activeHighlightTiles.includes(nextTile)) {
+        if (nextTile && Array.isArray(anim.activeHighlightTiles) && !anim.activeHighlightTiles.includes(nextTile)) {
           const activeColors = playerColorsRef.current || DEFAULT_PLAYER_COLORS;
-          const color = new THREE.Color(activeColors[anim.player] ?? DEFAULT_PLAYER_COLORS[anim.player] ?? 0xffffff);
+          const color = new THREE.Color(anim.token?.userData?.tokenColor ?? activeColors[anim.player] ?? DEFAULT_PLAYER_COLORS[anim.player] ?? 0xffffff);
           setTileHighlight(nextTile, true, color);
           anim.activeHighlightTiles.push(nextTile);
-          if (anim.activeHighlightTiles.length > 3) setTileHighlight(anim.activeHighlightTiles.shift(), false);
         }
         anim.highlightIndex = nextIndex;
         return;
@@ -10451,27 +10422,20 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount, onlin
       }
 
       const state = stateRef.current;
+      // Pulses outlive the movement so the final landing remains visible.
+      state?.trackTiles?.forEach((tile) => updateLudoTileGlow(tile, delta));
+      state?.homeColumnTiles?.forEach((tiles) => tiles.forEach((tile) => updateLudoTileGlow(tile, delta)));
       if (state?.animation?.active) {
         const anim = state.animation;
         const seg = anim.segments?.[anim.segment];
-        if (anim.highlightIndex !== anim.segment) {
-          updateAnimationHighlight(anim, anim.segment);
-          if (anim.segment > 0) {
-            playTokenStepSound();
-          }
-        }
         if (!seg) {
           const done = anim.onComplete;
-          clearAnimationHighlights(anim);
+          clearAnimationHighlights(anim, true);
           state.animation = null;
           if (typeof done === 'function') done();
           updateTokenStacks();
         } else {
           anim.elapsed += delta;
-          anim.activeHighlightTiles.forEach((tile, index) => {
-            const recent = index === anim.activeHighlightTiles.length - 1;
-            tile.material.emissiveIntensity = recent ? 1.5 + Math.sin(Math.min(1, anim.elapsed / Math.max(seg.duration, .001)) * Math.PI) * 1.25 : .65;
-          });
           const duration = Math.max(seg.duration, 1e-4);
           const t = Math.min(1, anim.elapsed / duration);
           const jumpT =
@@ -10490,11 +10454,14 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount, onlin
             anim.token.lookAt(animLook);
           }
           if (t >= 0.999) {
+            anim.token.position.copy(seg.to);
+            updateAnimationHighlight(anim, anim.segment);
+            playTokenStepSound();
             anim.segment += 1;
             anim.elapsed = 0;
             if (anim.segment >= anim.segments.length) {
               const done = anim.onComplete;
-              clearAnimationHighlights(anim);
+              clearAnimationHighlights(anim, true);
               state.animation = null;
               if (typeof done === 'function') {
                 const result = done();
@@ -12797,7 +12764,6 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount, onlin
       activeHighlightTiles: [],
       highlightIndex: -1
     };
-    playTokenStepSound();
   };
 
   const getTrackIndexForProgress = (player, progress) => {
@@ -14011,8 +13977,7 @@ async function buildLudoBoard(
   const darkBoardMat = cloneBoardMaterial(null, 0xdccfb0);
   let defaultTokenTypeSequence =
     tokenStyleOption?.typeSequence?.length ? tokenStyleOption.typeSequence : TOKEN_TYPE_SEQUENCE;
-  const useAbgTokens = true;
-  const abgAssets = useAbgTokens ? await getAbgAssets() : null;
+  const abgAssets = await withLudoTokenAssets(getAbgAssets());
   const abgPrototypes = abgAssets?.proto ?? null;
   const shouldUseAbgTokens = Boolean(abgPrototypes);
 
@@ -14141,13 +14106,9 @@ async function buildLudoBoard(
           tintGltfToken(token, tokenTint);
         }
       }
-      if (!token) {
-        const fallbackProto =
-          resolveAbgPrototype(abgPrototypes, 'w', type) ?? resolveAbgPrototype(abgPrototypes, 'w', 'p');
-        token = cloneAbgToken(fallbackProto) || new THREE.Group();
-        if (tokenTint) {
-          tintGltfToken(token, tokenTint);
-        }
+      if (!hasVisibleLudoToken(token)) {
+        // A failed/empty remote asset used to produce an invisible Group.
+        token = createFallbackLudoToken(type, tokenTint ?? color, measureProceduralTokenHeight(), STANDARD_TOKEN_FOOTPRINT.x);
       }
       token.scale.multiplyScalar(TOKEN_SIZE_MULTIPLIER);
       const typeKey = String(type || '').toLowerCase();
