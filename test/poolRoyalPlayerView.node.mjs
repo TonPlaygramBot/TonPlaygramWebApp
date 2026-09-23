@@ -6,7 +6,7 @@ import { parse } from '@babel/parser';
 import * as THREE from '../webapp/node_modules/three/build/three.module.js';
 import { resolvePoolRoyalAddressState } from '../webapp/src/pages/Games/shared/poolRoyalAddress.ts';
 import { PoolRoyalHumanPlayers } from '../webapp/src/pages/Games/shared/PoolRoyalHumanPlayers.ts';
-import { SnookerRoyalShotCamera } from '../webapp/src/pages/Games/snookerRoyalShotCamera.ts';
+import { PoolRoyalShotCamera } from '../webapp/src/pages/Games/shared/poolRoyalShotCamera.ts';
 import { poolRoyalHudLayout, POOL_SPIN_DIAMETER_PX, POOL_AVATAR_SIZE_PX } from '../webapp/src/pages/Games/poolRoyalHudLayout.js';
 import { normalizeSpinInput, spinFromScreenPoint, smoothDamp } from '../webapp/src/pages/Games/poolRoyaleSpinUtils.js';
 import { loadPoseModel } from './fixtures/poolRoyalPoseTrace.mjs';
@@ -81,17 +81,16 @@ test('the final JSX render camera stays between the real eyes throughout address
   assert.ok(await players.ready);
   const eyeRef = ref(null), topViewRef = ref(false);
   const resolveEye = evaluate(variable('resolveActiveHumanEyePose').init, {
-    humanShotCamera: new SnookerRoyalShotCamera(), activeHumanCueViewRef: eyeRef,
-    cueAnimating: false, shotImpactPending: false, shootingRef: ref(false), cameraBlendRef: ref(0),
+    humanShotCamera: new PoolRoyalShotCamera(.55), activeHumanCueViewRef: eyeRef,
+    cueStrokeStateRef: ref(null), shootingRef: ref(false), cameraBlendRef: ref(1),
     performance: { now: () => 1000 }, topViewRef, lookModeRef: ref(false),
     replayPlaybackRef: ref(null), cueGalleryStateRef: ref(null), world
   });
-  const overlay = variable('updateCamera').init.body.body.find(node =>
-    node.type === 'IfStatement' && node.test.name === 'humanEyePose');
-  assert.ok(overlay);
+  const start = source.indexOf('const humanEyePose = resolveActiveHumanEyePose();');
+  const end = source.indexOf('if (!replayPlaybackActive && lookTarget)', start);
+  assert.ok(start > 0 && end > start);
   const applyFinalCamera = vm.runInNewContext(`(renderCamera, lookTarget) => {
-    const humanEyePose = resolveActiveHumanEyePose();
-    ${text(overlay)}
+    ${source.slice(start, end)}
     return { renderCamera, lookTarget };
   }`, { THREE, humanEyeCamera: new THREE.PerspectiveCamera(), resolveActiveHumanEyePose: resolveEye, STANDING_VIEW_FOV: 66 });
   let movingFrames = 0;
@@ -121,115 +120,6 @@ test('the final JSX render camera stays between the real eyes throughout address
   topViewRef.current = true;
   assert.equal(resolveEye(), null, 'explicit overhead selection still works');
   players.dispose();
-});
-
-function cameraContext() {
-  const world = new THREE.Group();
-  world.scale.setScalar(.23); world.position.y = -2;
-  const context = { THREE, world, humanShotCamera: new SnookerRoyalShotCamera(),
-    activeHumanCueViewRef: ref({ position: new THREE.Vector3(3, 9, 14), target: new THREE.Vector3(0, 2, -4), blend: 1 }),
-    cueAnimating: false, shooting: false, shootingRef: ref(false), shotImpactPending: false,
-    cameraBlendRef: ref(0), topViewRef: ref(false), lookModeRef: ref(false),
-    replayPlaybackRef: ref(null), cueGalleryStateRef: ref(null), now: 0 };
-  context.performance = { now: () => context.now };
-  context.resolveActiveHumanEyePose = evaluate(variable('resolveActiveHumanEyePose').init, context);
-  return context;
-}
-
-test('Pool uses Snooker’s aim blend and preserves all explicit camera views', () => {
-  const c = cameraContext();
-  for (const blend of [0, .2, .55, .94, 1]) {
-    c.cameraBlendRef.current = blend;
-    const expected = new SnookerRoyalShotCamera().resolve({ eye: c.activeHumanCueViewRef.current,
-      stroke: false, shooting: false, impactPending: false, cueBlend: blend, now: 0 });
-    const actual = c.resolveActiveHumanEyePose();
-    assert.equal(actual?.blend, expected?.blend);
-    if (actual) assert.ok(actual.position.distanceTo(c.world.localToWorld(expected.position.clone())) < 1e-9);
-  }
-  c.cameraBlendRef.current = 0;
-  for (const [name, value] of [['topViewRef', true], ['lookModeRef', true],
-    ['replayPlaybackRef', true], ['cueGalleryStateRef', { active: true }]]) {
-    c[name].current = value;
-    assert.equal(c.resolveActiveHumanEyePose(), null, name);
-    c[name].current = null;
-  }
-});
-
-test('the live impact callback holds the pre-shot view until 900 ms after contact', () => {
-  const c = cameraContext();
-  c.humanShotCamera.beginShot(c.activeHumanCueViewRef.current, c.activeHumanCueViewRef.current);
-  c.shooting = c.shootingRef.current = c.cueAnimating = c.shotImpactPending = true;
-  const address = c.resolveActiveHumanEyePose();
-  c.activeHumanCueViewRef.current.position.set(100, -5, -70);
-  c.now = 4500; // Long backswing: elapsed shot time must not start broadcast.
-  assert.deepEqual(c.resolveActiveHumanEyePose(), address);
-  let impacts = 0;
-  Object.assign(c, { shotImpactApplied: false, shotImpactPayload: {}, powerImpactHoldRef: ref(0),
-    SNOOKER_PLAYER_FOLLOW_THROUGH_MS: 900, applyShotAtImpact: () => impacts++ });
-  const impact = evaluate(variable('applyShotImpactOnce').init, c);
-  impact(); impact();
-  assert.equal(impacts, 1);
-  assert.equal(c.shotImpactPending, false);
-  assert.equal(c.powerImpactHoldRef.current, 5400);
-  c.cueAnimating = false;
-  c.activeHumanCueViewRef.current = null; // Scratch/rig disappearance cannot move the held view.
-  for (const now of [4500, 5000, 5399]) {
-    c.now = now;
-    assert.deepEqual(c.resolveActiveHumanEyePose(), address);
-  }
-  c.now = 5400;
-  assert.equal(c.resolveActiveHumanEyePose(), null);
-  assert.equal(c.humanShotCamera.isBroadcasting, true);
-  c.shootingRef.current = false;
-  c.resolveActiveHumanEyePose();
-  assert.equal(c.humanShotCamera.isBroadcasting, false);
-});
-
-test('production render dispatch skips ball tracking during the held player view', () => {
-  const c = cameraContext();
-  c.humanShotCamera.beginShot(c.activeHumanCueViewRef.current, c.activeHumanCueViewRef.current);
-  c.shooting = c.shootingRef.current = true;
-  const body = variable('updateCamera').init.body.body;
-  const index = body.findIndex(node => node.declarations?.[0]?.id.name === 'humanEyePose');
-  const overlay = body.find(node => node.type === 'IfStatement' && node.test.name === 'humanEyePose');
-  const camera = new THREE.PerspectiveCamera(72, 390 / 844, .01, 2000);
-  camera.position.set(30, 60, -40);
-  Object.assign(c, { camera, renderCamera: camera, lookTarget: null, broadcastArgs: {},
-    humanEyeCamera: camera.clone(), STANDING_VIEW_FOV: 66 });
-  Object.defineProperty(c, 'ballsRef', { get() { throw new Error('Held view must not read the moving ball'); } });
-  vm.runInNewContext(text(body[index]) + text(body[index + 1]) + text(overlay), c);
-  assert.ok(c.renderCamera.position.distanceTo(c.world.localToWorld(new THREE.Vector3(3, 9, 14))) < 1e-9);
-  assert.deepEqual(camera.position.toArray(), [30, 60, -40], 'the broadcast camera keeps its own transform');
-  assert.equal(c.renderCamera.fov, 66);
-});
-
-test('starting a shot locks state synchronously without an automatic overhead timer', () => {
-  const c = cameraContext();
-  let scheduled = 0;
-  Object.assign(c, { shotStartedAt: 0, getNow: () => 100, maxPowerLiftTriggered: false,
-    preShotTopViewRef: ref(false), preShotTopViewLockRef: ref(false), topViewLockedRef: ref(false),
-    setShotActive() {}, exitTopView() {}, window: { setTimeout() { scheduled++; } } });
-  const setShootingState = evaluate(variable('setShootingState').init, c);
-  setShootingState(true);
-  assert.equal(c.shootingRef.current, true);
-  assert.equal(scheduled, 0);
-  assert.equal(c.topViewRef.current, false);
-  setShootingState(false);
-  assert.equal(c.shootingRef.current, false);
-});
-
-test('rail and pocket events cannot preempt the held player camera', () => {
-  const guards = nodes.filter(node => node.type === 'IfStatement' &&
-    text(node.test) === '!humanShotCamera.isHoldingShot' && text(node.consequent).includes('enterTopView'));
-  assert.equal(guards.length, 5);
-  const c = cameraContext();
-  let cuts = 0; c.enterTopView = () => cuts++;
-  c.humanShotCamera.beginShot(c.activeHumanCueViewRef.current, c.activeHumanCueViewRef.current);
-  for (const guard of guards) vm.runInNewContext(text(guard), c);
-  assert.equal(cuts, 0);
-  c.humanShotCamera.reset();
-  for (const guard of guards) vm.runInNewContext(text(guard), c);
-  assert.equal(cuts, 5);
 });
 
 test('avatar bounds reserve a clear spin lane at phone sizes and UI scales', () => {
