@@ -11,7 +11,7 @@
     "build": "tsc -p tsconfig.build.json",
     "test": "jest",
     "test:checkers": "node --test test/checkersLaunch.node.mjs bot/tests/checkersRealtimeState.test.js",
-    "test:pool-players": "node --test test/poolRoyalHumanPlayers.node.mjs test/poolRoyalShotReview.node.mjs test/cueReachEquipment.node.mjs",
+    "test:pool-players": "node --test test/poolRoyalHumanPlayers.node.mjs test/poolRoyalShotReview.node.mjs test/poolRoyalHumanMovement.node.mjs test/poolRoyalHandsEyes.node.mjs test/cueReachEquipment.node.mjs",
     "demo": "node dist/demo.js demo/demo.json",
     "lint": "eslint .",
     "format": "prettier --write .",

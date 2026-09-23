@@ -20,10 +20,10 @@ type View = 'player' | 'table' | 'bridge' | 'geometry';
 
 function CharacterPreview() {
   const stage = useRef<HTMLDivElement>(null);
-  const live = useRef({ state: 'dragging' as ShotState, view: 'table' as View, paused: false, power: 0.25, yaw: 0, seat: 'A' as PlayerSeat, strikeAt: 0, shotId: 0, resetId: 0, elapsed: 0, slow: false, ai: false, inspectContact: false, station: 0 });
+  const live = useRef({ state: 'dragging' as ShotState, view: 'bridge' as View, paused: false, power: 0.25, yaw: 0, seat: 'A' as PlayerSeat, strikeAt: 0, shotId: 0, resetId: 0, elapsed: 0, slow: false, ai: false, inspectContact: false, station: 0 });
   const [state, setState] = useState<ShotState>('dragging');
   const [paused, setPaused] = useState(false);
-  const [view, setView] = useState<View>('table');
+  const [view, setView] = useState<View>('bridge');
   const [seat, setSeat] = useState<PlayerSeat>('A');
   const [power, setPower] = useState(25);
   const [direction, setDirection] = useState(0);
@@ -146,7 +146,7 @@ function CharacterPreview() {
     const liveCue = createPoolRoyalCue({ ballRadius: METRICS.ballR, length: METRICS.cueLength, tipRadius: METRICS.cueRadius });
     liveCue.shaftMaterial.color.setHex(0xdeb887);
     scene.add(liveCue.body);
-    const shotCamera = new PoolRoyalShotCamera();
+    const shotCamera = new PoolRoyalShotCamera(0.55);
     const shotTip = { position: new THREE.Vector3(), visible: true };
     let stroke: any = null;
     let seenShot = 0, seenReset = 0, seenStation = 0, simulationTime = 0, lastPhase = '', lastCanShoot = false;
@@ -225,11 +225,16 @@ function CharacterPreview() {
       const cueBack = cueTip.clone().addScaledVector(axis, -cueLength);
       posePoolRoyalCue(liveCue.body, cueBack, cueTip, liveCue.tipLocal, liveCue.buttLocal);
       liveCue.body.visible = (stroke ? shotTip.visible : current.state !== 'idle') && !players?.walking;
-      if (current.inspectContact) for (let i = 0; i < 65; i++) players?.update(1 / 60, { activeSeat: current.seat, state: 'dragging', power: current.power, cueBall: ballPosition, aimForward: forward, nowMs: simulationTime, cueBack, cueTip });
+      const bridgeSafety = {
+        cueRadius: METRICS.ballR / 0.0525 * (0.008 + 0.017 * 0.28),
+        bridgeBounds: { halfWidth: METRICS.playW / 2, halfLength: METRICS.playL / 2 },
+        bridgeRailY: METRICS.clothY + 0.04161 * tableGeometry.fit.scale.y,
+        bridgeObstacles: [{ position: cueBall.position, radius: METRICS.ballR }, ...objectBalls.map(ball => ({ position: ball.mesh.position, radius: METRICS.ballR }))]
+      };
+      if (current.inspectContact) for (let i = 0; i < 65; i++) players?.update(1 / 60, { activeSeat: current.seat, state: 'dragging', power: current.power, cueBall: ballPosition, aimForward: forward, nowMs: simulationTime, cueBack, cueTip, ...bridgeSafety });
       if (!current.paused) players?.update(dt * (current.slow ? 0.2 : 1), { activeSeat: current.seat, state: characterState, power: current.power,
         cueBall: shotAnchor.copy(ballPosition), aimForward: forward, nowMs: simulationTime, cueBack, cueTip,
-        bridgeBounds: { halfWidth: METRICS.playW / 2, halfLength: METRICS.playL / 2 },
-        bridgeObstacles: objectBalls.map(ball => ({ position: ball.mesh.position, radius: METRICS.ballR })) });
+        ...bridgeSafety });
       if (players?.readyToShoot !== lastCanShoot) { lastCanShoot = Boolean(players?.readyToShoot); setCanShoot(lastCanShoot); }
       if (players?.walking && !stroke) displayPhase = 'Walking to position';
       else if (!lastCanShoot && !stroke && current.state !== 'idle') displayPhase = 'Settling stance';
@@ -270,7 +275,6 @@ function CharacterPreview() {
         shooting: Boolean(stroke), cueBlend: 0, now: simulationTime, excluded: current.view !== 'player' });
       const fov = current.view === 'player' && eye ? 66 : 46;
       if (camera.fov !== fov) { camera.fov = fov; camera.updateProjectionMatrix(); }
-      players?.setFirstPerson(current.view === 'player' && Boolean(eye), current.seat);
       collisionOverlay.visible = current.view === 'geometry';
       if (current.view === 'player' && eye) {
         camera.position.copy(eye.position); camera.lookAt(eye.target);
@@ -305,6 +309,7 @@ function CharacterPreview() {
         camera.position.copy(focus).addScaledVector(offset, distance * 1.06);
         camera.lookAt(focus);
       }
+      players?.updateCameraVisibility(camera, eye?.target ?? focus, eye ? current.seat : undefined);
       renderer.render(scene, camera); needsRender = false; lastView = current.view;
       raf = requestAnimationFrame(draw);
     };
@@ -344,7 +349,7 @@ function CharacterPreview() {
   }, []);
 
   return <div className="pool-preview">
-    <div className="viz-row"><span>Pool Royal · Showood precision</span>
+    <div className="viz-row"><span>Pool Royal · Hands & eye view</span>
       <select className="form-select" aria-label="Active player" value={seat} onChange={event => {
         const next = event.target.value as PlayerSeat; setSeat(next); live.current.seat = next; changeState('dragging');
       }}><option value="A">Player 1</option><option value="B">AI player</option></select>

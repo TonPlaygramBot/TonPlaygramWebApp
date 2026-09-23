@@ -21867,7 +21867,8 @@ const shotPowerRef = useRef(0);
           return vec;
         };
 
-        const humanShotCamera = new PoolRoyalShotCamera();
+        const humanShotCamera = new PoolRoyalShotCamera(0.55);
+        const humanEyeCamera = camera.clone();
         const resolveActiveHumanEyePose = () => {
           const pose = humanShotCamera.resolve({
             eye: activeHumanCueViewRef.current,
@@ -23115,6 +23116,10 @@ const shotPowerRef = useRef(0);
           // Apply after choosing the actual render camera, including AI/action/pocket views.
           const humanEyePose = resolveActiveHumanEyePose();
           if (humanEyePose) {
+            // Blend into a separate camera. Mutating a pocket/broadcast camera
+            // here left the next view inside the face after a camera handoff.
+            humanEyeCamera.copy(renderCamera, false);
+            renderCamera = humanEyeCamera;
             renderCamera.position.lerp(humanEyePose.position, humanEyePose.blend);
             lookTarget = (lookTarget ?? humanEyePose.target).clone().lerp(humanEyePose.target, humanEyePose.blend);
             renderCamera.lookAt(lookTarget);
@@ -23124,7 +23129,7 @@ const shotPowerRef = useRef(0);
             }
           }
           if (!replayPlaybackActive && lookTarget) activeHumanPlayersRef.current?.updateCameraVisibility(
-            renderCamera, lookTarget, humanEyePose?.blend > 0.55
+            renderCamera, lookTarget, humanEyePose?.blend > 0
               ? (shootingRef.current ? characterShotShooterRef.current : frameRef.current?.activePlayer === 'B' ? 'B' : 'A') : undefined
           );
           if (lookTarget) {
@@ -25711,7 +25716,9 @@ const shotPowerRef = useRef(0);
           nowMs,
           cueBack,
           cueTip,
+          cueRadius: (BALL_R / 0.0525) * (0.008 + 0.017 * CUE_FRONT_SECTION_RATIO),
           bridgeBounds: { halfWidth: PLAY_W / 2, halfLength: PLAY_H / 2 },
+          bridgeRailY: TABLE_Y + (table.userData.cushionTopLocal ?? BALL_CENTER_Y + BALL_R),
           bridgeObstacles: ballsRef.current.filter(ball => ball?.active).map(ball => ({
             position: new THREE.Vector3(ball.pos.x, TABLE_Y + BALL_CENTER_Y, ball.pos.y),
             radius: BALL_R
