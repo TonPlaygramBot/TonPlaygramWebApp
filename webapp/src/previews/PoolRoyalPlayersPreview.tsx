@@ -6,6 +6,7 @@ import { PoolRoyalHumanPlayers, type PlayerSeat } from '../pages/Games/shared/Po
 import { type ShotState } from '../pages/Games/shared/poolRoyalReferenceHuman.ts';
 import { createPoolRoyalCue, posePoolRoyalCue } from '../pages/Games/shared/createPoolRoyalCue.ts';
 import { PoolRoyalShotCamera } from '../pages/Games/shared/poolRoyalShotCamera.ts';
+import { PoolRoyalPocketLights } from '../pages/Games/shared/poolRoyalPocketLights.ts';
 import { advancePoolRoyalCueStroke, referenceCuePull, referenceCueFeather, resolveCueBallContact } from '../pages/Games/poolRoyaleCueStrokeTimeline.js';
 import { clipGuideTravel } from '../pages/Games/shared/billiardsGuideGeometry.js';
 import { createShowoodTableGeometry, groundShowoodTableLegs, raycastPoolCushions } from '../pages/Games/shared/poolRoyaleShowoodGeometry.js';
@@ -16,16 +17,16 @@ declare const POOL_PREVIEW_TABLE: { floorY: number; clothY: number; ballY: numbe
 const METRICS = Object.fromEntries(Object.entries(POOL_PREVIEW_TABLE).map(([key, value]) => [key,
   (value - (['clothY', 'ballY', 'floorY'].includes(key) ? POOL_PREVIEW_TABLE.floorY : 0)) / 12
 ])) as typeof POOL_PREVIEW_TABLE;
-type View = 'player' | 'table' | 'bridge' | 'geometry';
+type View = 'player' | 'table' | 'bridge' | 'geometry' | 'pocket';
 
 function CharacterPreview() {
   const stage = useRef<HTMLDivElement>(null);
-  const live = useRef({ state: 'dragging' as ShotState, view: 'bridge' as View, paused: false, power: 0.25, yaw: 0, seat: 'A' as PlayerSeat, strikeAt: 0, shotId: 0, resetId: 0, elapsed: 0, slow: false, ai: false, inspectContact: false, station: 0 });
+  const live = useRef({ state: 'dragging' as ShotState, view: 'player' as View, paused: false, power: 0, yaw: 0, seat: 'A' as PlayerSeat, strikeAt: 0, shotId: 0, resetId: 0, elapsed: 0, slow: false, ai: false, inspectContact: false, station: 0, pocketPulse: 0 });
   const [state, setState] = useState<ShotState>('dragging');
   const [paused, setPaused] = useState(false);
-  const [view, setView] = useState<View>('bridge');
+  const [view, setView] = useState<View>('player');
   const [seat, setSeat] = useState<PlayerSeat>('A');
-  const [power, setPower] = useState(25);
+  const [power, setPower] = useState(0);
   const [direction, setDirection] = useState(0);
   const [status, setStatus] = useState('Loading players…');
   const [ready, setReady] = useState(false);
@@ -84,6 +85,14 @@ function CharacterPreview() {
     const l = METRICS.tableL;
     const tableGeometry = createShowoodTableGeometry({ playWidth: METRICS.playW,
       playLength: METRICS.playL, ballRadius: METRICS.ballR, clothHeight: METRICS.clothY });
+    const pocketLights = new PoolRoyalPocketLights(scene, { radius: METRICS.ballR,
+      clothY: METRICS.clothY, popupY: METRICS.ballY + METRICS.ballR * 2.4 });
+    const glowPocket = tableGeometry.pockets[4];
+    const popup = new THREE.Mesh(new THREE.SphereGeometry(METRICS.ballR, 32, 24),
+      new THREE.MeshStandardMaterial({ color: 0xf5bd36, roughness: 0.18 }));
+    popup.position.set(glowPocket.x, METRICS.ballY + METRICS.ballR * 2.4, glowPocket.y);
+    popup.visible = false; scene.add(popup);
+    let seenPocketPulse = 0, pocketUntil = 0;
     const collisionOverlay = new THREE.Group(); scene.add(collisionOverlay);
     const contourMaterial = new THREE.LineBasicMaterial({ color: 0xffda7a, depthTest: false });
     // This is the same measured nose/jaw contour used by Pool Royal collision.
@@ -195,6 +204,11 @@ function CharacterPreview() {
         ][current.station % 3];
         ballPosition.set(position[0], METRICS.ballY, position[1]);
       }
+      if (seenPocketPulse !== current.pocketPulse) {
+        seenPocketPulse = current.pocketPulse; pocketUntil = simulationTime + 2500;
+        pocketLights.pulse(4, glowPocket, simulationTime);
+      }
+      pocketLights.update(simulationTime); popup.visible = simulationTime < pocketUntil;
       const forward = new THREE.Vector3(0, 0, -1).applyAxisAngle(THREE.Object3D.DEFAULT_UP, current.yaw);
       const axis = forward.clone().addScaledVector(THREE.Object3D.DEFAULT_UP, -METRICS.cueButtLift / cueLength).normalize();
       if (seenReset !== current.resetId) {
@@ -272,12 +286,15 @@ function CharacterPreview() {
         }
       }
       const eye = shotCamera.resolve({ eye: players?.eyeView ?? null, stroke: Boolean(stroke && shotTip.visible),
-        shooting: Boolean(stroke), cueBlend: 0, now: simulationTime, excluded: current.view !== 'player' });
+        shooting: Boolean(stroke), aiming: current.state === 'dragging', cueBlend: 1, now: simulationTime, excluded: current.view !== 'player' });
       const fov = current.view === 'player' && eye ? 66 : 46;
       if (camera.fov !== fov) { camera.fov = fov; camera.updateProjectionMatrix(); }
       collisionOverlay.visible = current.view === 'geometry';
       if (current.view === 'player' && eye) {
         camera.position.copy(eye.position); camera.lookAt(eye.target);
+      } else if (current.view === 'pocket') {
+        camera.position.set(glowPocket.x * 0.35, METRICS.clothY + METRICS.ballR * 8, glowPocket.y + METRICS.ballR * 13);
+        camera.lookAt(glowPocket.x, METRICS.clothY + METRICS.ballR * 1.5, glowPocket.y);
       } else if (current.view === 'geometry') {
         const distance = Math.max(METRICS.playL * 0.6, METRICS.playW * 0.64 / camera.aspect) /
           Math.tan(THREE.MathUtils.degToRad(camera.fov / 2));
@@ -334,7 +351,7 @@ function CharacterPreview() {
     renderer.domElement.addEventListener('pointercancel', up);
     return () => {
       disposed = true; cancelAnimationFrame(raf); observer.disconnect(); themeObserver.disconnect();
-      themeProbe.remove(); players?.dispose();
+      themeProbe.remove(); players?.dispose(); pocketLights.dispose();
       renderer.domElement.removeEventListener('pointerdown', down);
       renderer.domElement.removeEventListener('pointermove', move);
       renderer.domElement.removeEventListener('pointerup', up);
@@ -349,7 +366,7 @@ function CharacterPreview() {
   }, []);
 
   return <div className="pool-preview">
-    <div className="viz-row"><span>Pool Royal · Hands & eye view</span>
+    <div className="viz-row"><span>Pool Royal · Player view</span>
       <select className="form-select" aria-label="Active player" value={seat} onChange={event => {
         const next = event.target.value as PlayerSeat; setSeat(next); live.current.seat = next; changeState('dragging');
       }}><option value="A">Player 1</option><option value="B">AI player</option></select>
@@ -363,13 +380,17 @@ function CharacterPreview() {
     <div className="viz-controls">
       <button className="btn" disabled={!ready} aria-pressed={state === 'idle'} onClick={() => changeState('idle')}>Stand</button>
       <button className="btn" disabled={!ready} aria-pressed={state === 'dragging'} onClick={() => changeState('dragging')}>Aim</button>
-      <button className="btn btn-primary" disabled={!ready || !canShoot || state !== 'dragging'} onClick={() => { live.current.ai = false; changeState('striking'); }}>Strike</button>
+      <button className="btn btn-primary" disabled={!ready || !canShoot || state !== 'dragging' || power < 2} onClick={() => { live.current.ai = false; changeState('striking'); }}>Strike</button>
       <button className="btn" disabled={!ready || state === 'striking'} onClick={() => {
         live.current.station++; live.current.yaw = [0, Math.PI / 2, Math.PI][live.current.station % 3];
         setDirection(Math.round(-live.current.yaw * 180 / Math.PI)); changeState('dragging');
         setView('table'); live.current.view = 'table';
       }}>Walk to next shot</button>
       <button className="btn" disabled={!ready || !canShoot} onClick={() => { live.current.ai = false; changeState('striking'); live.current.inspectContact = true; }}>Inspect contact</button>
+      <button className="btn" onClick={() => {
+        live.current.paused = false; setPaused(false); live.current.pocketPulse++;
+        live.current.view = 'pocket'; setView('pocket');
+      }}>Pocket glow</button>
       <button className="btn" onClick={() => { live.current.paused = !paused; setPaused(!paused); }}>{paused ? 'Resume motion' : 'Pause motion'}</button>
     </div>
     <div className="viz-controls"><label className="form-check"><input className="form-check-input" type="checkbox" checked={slow} onChange={e => { setSlow(e.target.checked); live.current.slow = e.target.checked; }} /><span className="form-check-label">Slow motion</span></label><span role="status">{phase}</span></div>

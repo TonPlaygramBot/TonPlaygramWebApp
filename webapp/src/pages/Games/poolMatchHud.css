@@ -21,3 +21,4 @@
 @media (orientation:landscape){.pool-match-hud{left:12px;transform:none;width:min(330px,38vw);padding:8px 11px}.pool-match-hud__players{font-size:12px}}
 
 .pool-match-hud[data-competition=true]{top:calc(env(safe-area-inset-top,0px) + 67px)}
+.pool-match-hud.pool-match-hud--embedded{position:static;transform:none;width:100%;padding:0;border:0;background:none;box-shadow:none;backdrop-filter:none}

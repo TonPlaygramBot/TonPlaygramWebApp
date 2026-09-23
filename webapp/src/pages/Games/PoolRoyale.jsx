@@ -9,6 +9,8 @@ import React, {
 } from 'react';
 import * as THREE from 'three';
 import { PoolRoyalHumanPlayers } from './shared/PoolRoyalHumanPlayers.ts';
+import { resolvePoolRoyalAddressState } from './shared/poolRoyalAddress.ts';
+import { PoolRoyalPocketLights } from './shared/poolRoyalPocketLights.ts';
 import { createShowoodTableGeometry, closestPointOnPoolCushion, raycastPoolCushions, projectPoolBallFromCushions, groundShowoodTableLegs } from './shared/poolRoyaleShowoodGeometry.js';
 import polygonClipping from 'polygon-clipping';
 import * as BufferGeometryUtils from 'three/examples/jsm/utils/BufferGeometryUtils.js';
@@ -68,7 +70,7 @@ import {
   getBallMaterial as getBilliardBallMaterial,
   setBallMaterialAnisotropy
 } from '../../utils/ballMaterialFactory.js';
-import { selectShot as selectUkAiShot } from '../../../../lib/poolUkAdvancedAi.js';
+import { refinePoolRoyalPotPlans } from './poolRoyalProAi.js';
 import { selectBilliardsAiPlans, createBilliardsPlanCache } from '../../../../lib/billiardsAiSelection.js';
 import { findBilliardsAiEscape } from './shared/billiardsAiEscape.js';
 import { createCueRackDisplay } from '../../utils/createCueRackDisplay.js';
@@ -1994,7 +1996,6 @@ const HUMAN_MOVE_LAMBDA = 5.6;
 const HUMAN_ROT_LAMBDA = 8.5;
 const HUMAN_EDGE_MARGIN = 1.86; // push the shooter farther outward so the avatar stays clear of the table edge in portrait
 const HUMAN_DESIRED_SHOOT_DISTANCE = 2.08; // keep the shooter much farther back on the cue-butt side like a real pool stance
-const HUMAN_SHOOT_BLEND_THRESHOLD = 0.96; // enter shooting pose immediately when the portrait cue camera starts lowering
 const HUMAN_WALK_RING_MARGIN = TABLE.WALL * 4.55; // widen the perimeter walk ring so feet never step onto the table mesh
 const HUMAN_TABLE_BLOCKER_MARGIN = TABLE.WALL * 1.95; // collision helper margin so characters never cut through the table body
 const WORLD_UP = new THREE.Vector3(0, 1, 0);
@@ -6024,7 +6025,7 @@ const RAIL_OVERHEAD_AIM_ZOOM = 1; // no extra zoom while tracking; rotate/look d
 const RAIL_OVERHEAD_AIM_PHI_LIFT = 0.014; // keep rail-overhead aim view marginally more downward while preserving depth
 const RAIL_OVERHEAD_REPLAY_FOV = STANDING_VIEW_FOV + 6; // widen rail-overhead lens a bit more so both bottom pockets stay visible on portrait screens
 const ENABLE_SHOT_REPLAY = true;
-const PORTRAIT_TOP_ACTION_BAR_DROP_REM = 8.4; // move portrait gift/chat/menu controls a bit lower from the top edge
+const PORTRAIT_TOP_ACTION_BAR_DROP_REM = 1.05; // move portrait gift/chat/menu controls a bit lower from the top edge
 const BACKSPIN_DIRECTION_PREVIEW = 1; // show draw/backswing direction on cue-ball follow line
 const AIM_SPIN_PREVIEW_SIDE = 1;
 const AIM_SPIN_PREVIEW_FORWARD = 0.18;
@@ -15567,6 +15568,7 @@ function PoolRoyaleGame({
     pocketDropRef.current.clear();
     pocketRestIndexRef.current.clear();
     pocketPopupRef.current = [];
+    pocketLightingRef.current?.clear();
     pocketPopupPendingRef.current = [];
     setFrameState((prev) => ({
       ...prev,
@@ -15780,6 +15782,7 @@ function PoolRoyaleGame({
     pocketDropRef.current.clear();
     pocketRestIndexRef.current.clear();
     pocketPopupRef.current = [];
+    pocketLightingRef.current?.clear();
     pocketPopupPendingRef.current = [];
     setFrameState((prev) => ({
       ...prev,
@@ -15817,6 +15820,7 @@ function PoolRoyaleGame({
     pocketDropRef.current.clear();
     pocketRestIndexRef.current.clear();
     pocketPopupRef.current = [];
+    pocketLightingRef.current?.clear();
     pocketPopupPendingRef.current = [];
     setFrameState((prev) => ({
       ...prev,
@@ -16805,7 +16809,6 @@ function PoolRoyaleGame({
   const opponentDisplayAvatar = opponentProfile?.avatar || opponentAvatar || '/assets/icons/profile.svg';
   const [aiPlanning, setAiPlanning] = useState(null);
   const aiPlanRef = useRef(null);
-  const aiPlanCacheRef = useRef({ key: null, plan: null });
   const aiPlanningRef = useRef(null);
   const aiTurnShotCountRef = useRef(0);
   const aiLastPlannedShotRef = useRef(0);
@@ -17650,6 +17653,7 @@ const shotPowerRef = useRef(0);
   const pocketDropRef = useRef(new Map());
   const pocketRestIndexRef = useRef(new Map());
   const pocketPopupRef = useRef([]);
+  const pocketLightingRef = useRef(null);
   const pocketPopupPendingRef = useRef([]);
   const pocketGlowResourcesRef = useRef({
     geometry: null,
@@ -21874,7 +21878,8 @@ const shotPowerRef = useRef(0);
             eye: activeHumanCueViewRef.current,
             stroke: Boolean(cueStrokeStateRef.current), shooting: shootingRef.current,
             cueBlend: cameraBlendRef.current ?? 1, now: performance.now(),
-            excluded: Boolean(topViewRef.current || replayPlaybackRef.current || cueGalleryStateRef.current?.active)
+            aiming: Boolean(activeHumanCueViewRef.current && !shootingRef.current),
+            excluded: Boolean(topViewRef.current || lookModeRef.current || replayPlaybackRef.current || cueGalleryStateRef.current?.active)
           });
           return pose ? { ...pose, position: world.localToWorld(pose.position.clone()),
             target: world.localToWorld(pose.target.clone()) } : null;
@@ -25221,6 +25226,13 @@ const shotPowerRef = useRef(0);
         rendererRef.current,
         { tableModel: activeTableModel, chromePlateStyle: activeChromePlateStyle }
       );
+      const pocketLighting = new PoolRoyalPocketLights(table, {
+        radius: BALL_R,
+        clothY: CLOTH_TOP_LOCAL + CLOTH_LIFT - CLOTH_DROP,
+        popupY: BALL_CENTER_Y + POCKET_POPUP_LIFT,
+        duration: POCKET_POPUP_DURATION_MS
+      });
+      pocketLightingRef.current = pocketLighting;
       const SPOTS = spotPositions(baulkZ);
 
       // Break order is now randomized directly; no dice meshes or dice roll animation are added to the table.
@@ -25687,18 +25699,10 @@ const shotPowerRef = useRef(0);
         const activeSeat = ballsMoving || stroke
           ? characterShotShooterRef.current
           : frameRef.current?.activePlayer === 'B' ? 'B' : 'A';
-        let state = 'idle';
-        if (stroke) {
-          state = stroke.phase === 'pullback' ? 'dragging' : 'striking';
-        } else if (shotPreparationRef.current) {
-          state = 'dragging';
-        } else if (!ballsMoving && !hudRef.current?.over && !hudRef.current?.inHand && (
-          sliderInstanceRef.current?.dragging ||
-          (powerRef.current ?? 0) > 0.01 ||
-          (cameraBlendRef.current ?? 1) <= HUMAN_SHOOT_BLEND_THRESHOLD
-        )) {
-          state = 'dragging';
-        }
+        const state = resolvePoolRoyalAddressState({
+          stroke, ballsMoving, gameOver: Boolean(hudRef.current?.over),
+          ballInHand: Boolean(hudRef.current?.inHand), breakReady: breakRollStateRef.current === 'done'
+        });
         // Read the rendered endpoints after the existing cue timeline has run.
         // This controller never advances physics or repositions the gameplay cue.
         const cueVisible = cueStick.visible && state !== 'idle';
@@ -28399,7 +28403,7 @@ const shotPowerRef = useRef(0);
             const sideAuthority = THREE.MathUtils.lerp(0.52, 0.28, cutSeverity);
             const spinX = THREE.MathUtils.clamp(lateral * sideAuthority, -0.62, 0.62);
             const spinY = THREE.MathUtils.clamp(
-              -forward * THREE.MathUtils.lerp(0.7, 0.42, cutSeverity),
+              forward * THREE.MathUtils.lerp(0.7, 0.42, cutSeverity),
               -0.72,
               0.62
             );
@@ -28572,8 +28576,7 @@ const shotPowerRef = useRef(0);
           // Always evaluate leave/position so AI attacking logic is consistent from the first
           // shot to the endgame instead of only improving late in the frame.
           const shouldAnalyzeLeave = true;
-          const isRotationVariant =
-            activeVariantId === 'american' || activeVariantId === '9ball';
+          const isRotationVariant = activeVariantId === '9ball';
           const activeBalls = ballsList.filter((b) => b.active);
           const targetOrder = resolveTargetPriorities(state, activeVariantId, activeBalls);
           const legalTargetsRaw = Array.isArray(state?.ballOn) && state.ballOn.length > 0
@@ -28587,7 +28590,7 @@ const shotPowerRef = useRef(0);
               .filter((entry) => entry && isBallTargetId(entry))
           );
           if (legalTargets.size === 0) {
-            if (activeVariantId === 'american' || activeVariantId === '9ball') {
+            if (activeVariantId === '9ball') {
               const lowestActive = activeBalls
                 .filter((b) => String(b?.id).toLowerCase() !== 'cue')
                 .reduce(
@@ -28600,68 +28603,15 @@ const shotPowerRef = useRef(0);
             if (legalTargets.size === 0) legalTargets.add('RED');
           }
           const cuePos = cueBall.pos.clone();
-          const clearance = BALL_R * (activeVariantId === 'uk' ? 1.4 : 1.65);
+          const clearance = BALL_R * 2.025;
           const clearanceSq = clearance * clearance;
           const ballDiameter = BALL_R * 2;
           const safetyAnchor = new THREE.Vector2(0, baulkZ - D_RADIUS * 0.5);
           const halfW = PLAY_W / 2;
           const halfH = PLAY_H / 2;
           const cushionMargin = BALL_R * 1.4;
-          const clampCueToPlay = (pos) =>
-            new THREE.Vector2(
-              THREE.MathUtils.clamp(pos.x, -halfW + BALL_R, halfW - BALL_R),
-              THREE.MathUtils.clamp(pos.y, -halfH + BALL_R, halfH - BALL_R)
-            );
-          const estimateCueAfterPot = (plan) => {
-            if (!plan?.aimDir || !plan?.targetBall?.pos) return null;
-            const cueDir = plan.aimDir.clone().normalize();
-            let exitDir = cueDir.clone();
-            if (plan.pocketCenter && plan.targetBall?.pos) {
-              const toPocket = plan.pocketCenter.clone().sub(plan.targetBall.pos);
-              if (toPocket.lengthSq() > 1e-6) {
-                const pocketDir = toPocket.normalize();
-                const combined = cueDir.clone().sub(pocketDir);
-                if (combined.lengthSq() > 1e-6) {
-                  exitDir = combined.normalize();
-                }
-              }
-            }
-            const power = Number.isFinite(plan.power) ? plan.power : 0.6;
-            const tableSpan = Math.max(PLAY_W, PLAY_H);
-            const baseTravel = THREE.MathUtils.lerp(tableSpan * 0.18, tableSpan * 0.46, power);
-            const spinBias = THREE.MathUtils.clamp(plan.spin?.y ?? 0, -0.45, 0.45);
-            const travel = baseTravel * (1 - spinBias * 0.25);
-            const cueAfter = plan.targetBall.pos.clone().add(exitDir.multiplyScalar(travel));
-            return clampCueToPlay(cueAfter);
-          };
-          const scoreNextShotPosition = (plan) => {
-            if (!shouldAnalyzeLeave) return 0;
-            const cueAfter = estimateCueAfterPot(plan);
-            if (!cueAfter) return 0;
-            const remainingTargets = activeBalls.filter((ball) => {
-              if (!ball.active || ball === cueBall || ball === plan.targetBall) return false;
-              if (legalTargets.size === 0) return true;
-              return Array.from(legalTargets).some((entry) => matchesTargetId(ball, entry));
-            });
-            if (remainingTargets.length === 0) return 0.15;
-            let bestScore = -Infinity;
-            remainingTargets.forEach((ball) => {
-              const base = scoreBallForAim(ball, cueAfter);
-              const ignore = new Set([cueBall.id, plan.targetBall?.id, ball.id].filter(Boolean));
-              const laneClear = isPathClear(cueAfter, ball.pos, ignore) ? 1 : 0.55;
-              bestScore = Math.max(bestScore, base * laneClear);
-            });
-            const scratchRadiusSq = (BALL_R * 1.25) * (BALL_R * 1.25);
-            const scratchPenalty = centers.some(
-              (pocket) => cueAfter.distanceToSquared(pocket) < scratchRadiusSq
-            )
-              ? 0.2
-              : 0;
-            const score = THREE.MathUtils.clamp(bestScore - scratchPenalty, 0, 1);
-            plan.cueAfter = cueAfter;
-            plan.nextShotScore = score;
-            return score;
-          };
+          const scoreNextShotPosition = (plan) =>
+            Number.isFinite(plan?.nextShotScore) ? plan.nextShotScore : 0;
           const isPathClear = (start, end, ignoreIds = new Set()) => {
             const delta = end.clone().sub(start);
             const lenSq = delta.lengthSq();
@@ -28679,6 +28629,7 @@ const shotPowerRef = useRef(0);
             return true;
           };
           const detectScratchRisk = (plan) => {
+            if (plan?.aiMeta?.predictedSafe) return false;
             if (!plan?.aimDir || !cuePos) return false;
             const dir = plan.aimDir.clone().normalize();
             const maxTravel =
@@ -28911,7 +28862,8 @@ const shotPowerRef = useRef(0);
                 -1,
                 1
               );
-              const cutAngle = Math.acos(Math.abs(cutCos));
+              if (!cushionAid && cutCos <= 0.12) continue;
+              const cutAngle = Math.acos(THREE.MathUtils.clamp(cutCos, 0, 1));
               const totalDist = cueDist + toPocketLen;
               const cushionTax = cushionAid ? BALL_R * 30 + cushionAid.totalDist * 0.08 : 0;
               const baseDifficulty =
@@ -29073,7 +29025,7 @@ const shotPowerRef = useRef(0);
               };
             safetyShots.push(safetyPlan);
           });
-          if (!potShots.length && (activeVariantId === 'american' || activeVariantId === '9ball')) {
+          if (!potShots.length && activeVariantId === '9ball') {
             const targetBall = activeBalls
               .filter((b) => b.id !== cueBall.id)
               .sort((a, b) => a.id - b.id)[0];
@@ -29230,7 +29182,8 @@ const shotPowerRef = useRef(0);
                 : 0;
             const laneBonus = Math.max(0, Math.min((laneClearance - 0.6) / 0.8, 1));
             const leaveScore = scoreNextShotPosition(plan);
-            const leaveWeight = shouldAnalyzeLeave ? 0.12 : 0;
+            const leaveWeight = shouldAnalyzeLeave ? 0.28 : 0;
+            // Keep the shared selector's 0..1 clamp from erasing positional value.
             return (
               quality * 0.27 +
               potChance * 0.24 +
@@ -29244,9 +29197,48 @@ const shotPowerRef = useRef(0);
               finishBonus +
               leaveScore * leaveWeight -
               cushionPenalty
-            );
+            ) / (1.25 + priorityWeight + leaveWeight);
           };
-          const scoredPots = potShots
+          const nextTargetCache = new Map();
+          const nextTargets = (plan) => {
+            const key = `${plan.targetBall.id}:${plan.pocketId}`;
+            if (nextTargetCache.has(key)) return nextTargetCache.get(key);
+            const next = rules.applyShot(state, [
+              { type: 'HIT', firstContact: plan.target, ballId: plan.targetBall.id },
+              { type: 'POTTED', ball: plan.target, ballId: plan.targetBall.id, pocket: plan.pocketId }
+            ], {
+              contactMade: true, cushionAfterContact: true, noCushionAfterContact: false,
+              placedFromHand: false, cueBallPotted: false, simulated: true,
+              calledBallId: plan.targetBall.id, calledPocket: plan.pocketId,
+              variant: activeVariantId
+            });
+            const targets = next.foul || (!next.frameOver && next.activePlayer !== state.activePlayer)
+              ? null : next.frameOver ? [] : activeBalls.filter(ball =>
+                ball !== cueBall && ball !== plan.targetBall &&
+                (next.ballOn ?? []).some(id => matchesTargetId(ball, id)));
+            nextTargetCache.set(key, targets);
+            return targets;
+          };
+          const physicsPots = refinePoolRoyalPotPlans(potShots.filter(isFirstContactLegal).map(plan => ({
+            ...plan, pocketIndex: POCKET_IDS.indexOf(plan.pocketId)
+          })), {
+            cuePos, cueId: cueBall.id, balls: activeBalls, nextTargets,
+            radius: BALL_R, width: PLAY_W, height: PLAY_H, baseSpeed: SHOT_BASE_SPEED,
+            pockets: SHOWOOD_GEOMETRY.pockets, segments: CUSHION_SEGMENTS,
+            entranceForTarget: resolvePocketEntranceForTarget,
+            restitution: PHYSICS_PROFILE.restitution, ballFriction: BALL_BALL_FRICTION,
+            cushionRestitution: CUSHION_RESTITUTION, railFriction: RAIL_FRICTION,
+            slidingFriction: SPIN_KINETIC_FRICTION, rollingFriction: ROLLING_RESISTANCE,
+            spinDamping: SPIN_ANGULAR_DAMPING, gravity: SPIN_GRAVITY, dt: SPIN_FIXED_DT
+          }).map(plan => ({
+            ...plan,
+            aimDir: new THREE.Vector2(plan.aimDir.x, plan.aimDir.y),
+            cueAfter: new THREE.Vector2(plan.cueAfter.x, plan.cueAfter.y),
+            cueToTarget: cuePos.distanceTo(new THREE.Vector2(plan.ghost.x, plan.ghost.y))
+          }));
+          // Keep validated cushion escapes; a failed direct rollout must never
+          // return through the older distance-only or UK-planner fallback.
+          const scoredPots = [...physicsPots, ...potShots.filter(plan => plan.viaCushion)]
             .map((plan) => ({ plan, score: scorePotPlan(plan) }))
             .sort(
               (a, b) =>
@@ -29259,7 +29251,7 @@ const shotPowerRef = useRef(0);
               (b.quality ?? 0) - (a.quality ?? 0) ||
               a.difficulty - b.difficulty
           );
-          const rating = competitionMatch?.difficulty ?? 0.8;
+          const rating = competitionMatch?.difficulty ?? 0.92;
           return selectBilliardsAiPlans({
             scoredPots, safetyShots,
             difficulty: rating < 0.45 ? 'beginner' : rating < 0.65 ? 'club' : rating < 0.85 ? 'expert' : 'champion',
@@ -29267,294 +29259,6 @@ const shotPowerRef = useRef(0);
           });
         };
 
-        const mapBallIdToUkAiColour = (colorId) => {
-          if (!colorId) return null;
-          const upper = colorId.toUpperCase();
-          if (upper === 'CUE') return 'cue';
-          if (upper.startsWith('YELLOW') || upper.startsWith('BLUE')) return 'blue';
-          if (upper.startsWith('RED')) return 'red';
-          if (upper.startsWith('BLACK')) return 'black';
-          return null;
-        };
-
-        const resolveUkBallOnColour = (frameSnapshot, metaState) => {
-          if (!metaState || metaState.isOpenTable) return null;
-          const assignments = metaState.assignments ?? {};
-          const current = metaState.currentPlayer ?? 'A';
-          const assigned = assignments[current];
-          if (assigned === 'blue' || assigned === 'yellow') return 'blue';
-          if (assigned === 'red') return 'red';
-          if (assigned === 'black') return 'black';
-          const raw = Array.isArray(frameSnapshot?.ballOn)
-            ? frameSnapshot.ballOn
-            : [];
-          const normalized = raw
-            .map((entry) => (typeof entry === 'string' ? entry.toUpperCase() : ''))
-            .filter(Boolean);
-          if (normalized.includes('BLACK')) return 'black';
-          if (normalized.some((entry) => entry === 'YELLOW' || entry === 'BLUE')) {
-            return 'blue';
-          }
-          if (normalized.includes('RED')) return 'red';
-          return null;
-        };
-
-        const mapLocalPocketToAi = (id) => {
-          if (id === 'TM') return 'ML';
-          if (id === 'BM') return 'MR';
-          return id;
-        };
-
-        const mapAiPocketToLocal = (name) => {
-          if (!name) return null;
-          if (name === 'ML') return 'TM';
-          if (name === 'MR') return 'BM';
-          return POCKET_IDS.includes(name) ? name : null;
-        };
-
-        const mapAiColourToTargetId = (colour) => {
-          if (!colour) return null;
-          switch (colour) {
-            case 'blue':
-              return 'YELLOW';
-            case 'red':
-              return 'RED';
-            case 'black':
-              return 'BLACK';
-            default:
-              return colour.toUpperCase();
-          }
-        };
-
-        const normalizeAiGroup = (value) => {
-          if (!value) return undefined;
-          const normalized = String(value).toUpperCase();
-          if (['SOLID', 'SOLIDS', 'RED'].includes(normalized)) return 'SOLIDS';
-          if (['STRIPE', 'STRIPES', 'BLUE'].includes(normalized)) return 'STRIPES';
-          return undefined;
-        };
-
-        const mapSpeedPresetScale = (speed) => {
-          switch (speed) {
-            case 'soft':
-              return 0.78;
-            case 'firm':
-              return 1.18;
-            case 'med':
-            default:
-              return 1;
-          }
-        };
-
-        const mapSpinPreset = (preset) => {
-          switch (preset) {
-            case 'followS':
-              return { x: 0, y: -0.18 };
-            case 'followL':
-              return { x: 0, y: -0.32 };
-            case 'drawS':
-              return { x: 0, y: 0.22 };
-            case 'drawL':
-              return { x: 0, y: 0.42 };
-            case 'sideL':
-              return { x: -0.35, y: -0.06 };
-            case 'sideR':
-              return { x: 0.35, y: -0.06 };
-            default:
-              return { x: 0, y: 0 };
-          }
-        };
-        const cloneAiPlan = (plan) => {
-          if (!plan) return null;
-          return {
-            ...plan,
-            aimDir: plan.aimDir?.clone ? plan.aimDir.clone() : plan.aimDir,
-            pocketCenter: plan.pocketCenter?.clone ? plan.pocketCenter.clone() : plan.pocketCenter,
-            spin: plan.spin ? { ...plan.spin } : { x: 0, y: 0 },
-            aiMeta: plan.aiMeta ? { ...plan.aiMeta } : null
-          };
-        };
-        const buildAiStateKey = (aiState) => {
-          if (!aiState?.balls) return 'none';
-          const ballsKey = aiState.balls
-            .slice()
-            .sort((a, b) => a.id - b.id)
-            .map((ball) => {
-              const x = Math.round(ball.x * 100);
-              const y = Math.round(ball.y * 100);
-              return `${ball.id}:${ball.colour}:${ball.pocketed ? 1 : 0}:${x}:${y}`;
-            })
-            .join('|');
-          return [
-            ballsKey,
-            aiState.ballOn ?? 'open',
-            aiState.isOpenTable ? '1' : '0',
-            aiState.shotsRemaining ?? '0',
-            aiState.mustPlayFromBaulk ? '1' : '0',
-            Math.round((aiState.baulkLineX ?? 0) * 100)
-          ].join('::');
-        };
-
-        const computeUkAdvancedPlan = (allBalls, cueBall, frameSnapshot) => {
-          if (!cueBall?.active) return null;
-          const variantId = activeVariantRef.current?.id ?? variantKey;
-          if (variantId !== 'uk') return null;
-          const meta = frameSnapshot?.meta;
-          if (!meta || meta.variant !== 'uk' || !meta.state) return null;
-          const snapshot = meta.state;
-          const width = PLAY_W;
-          const height = PLAY_H;
-          const toAi = (vec) => ({ x: vec.x + width / 2, y: vec.y + height / 2 });
-          const pocketPositions = pocketEntranceCenters();
-          const pockets = pocketPositions.map((center, idx) => {
-            const aiPos = toAi(center);
-            const localId = POCKET_IDS[idx] ?? `P${idx}`;
-            return { x: aiPos.x, y: aiPos.y, name: mapLocalPocketToAi(localId) };
-          });
-          const aiBalls = [];
-          allBalls.forEach((ball) => {
-            const colourId = toBallColorId(ball.id);
-            const aiColour = mapBallIdToUkAiColour(colourId);
-            if (!aiColour) return;
-            const pos = toAi(ball.pos);
-            aiBalls.push({
-              id: ball.id,
-              colour: aiColour,
-              x: pos.x,
-              y: pos.y,
-              pocketed: !ball.active
-            });
-          });
-          if (!aiBalls.some((ball) => ball.colour === 'cue' && !ball.pocketed)) {
-            return null;
-          }
-          const ballOnColour = resolveUkBallOnColour(frameSnapshot, snapshot);
-          const baulkLineLocal =
-            typeof baulkZ === 'number' ? baulkZ : -PLAY_H / 2 + BAULK_FROM_BAULK;
-          const aiState = {
-            balls: aiBalls,
-            pockets,
-            width,
-            height,
-            ballRadius: BALL_R,
-            ballOn: ballOnColour,
-            isOpenTable: snapshot.isOpenTable,
-            shotsRemaining: snapshot.shotsRemaining,
-            mustPlayFromBaulk: snapshot.mustPlayFromBaulk,
-            baulkLineX: baulkLineLocal + height / 2
-          };
-          try {
-            const cacheKey = buildAiStateKey(aiState);
-            const cached = aiPlanCacheRef.current;
-            if (cached?.key === cacheKey) {
-              return cloneAiPlan(cached.plan);
-            }
-            const plan = selectUkAiShot(aiState, {});
-            if (!plan) return null;
-            const aimPointRaw = plan.aimPoint;
-            if (
-              !aimPointRaw ||
-              !Number.isFinite(aimPointRaw.x) ||
-              !Number.isFinite(aimPointRaw.y)
-            ) {
-              return null;
-            }
-            const aimPoint = new THREE.Vector2(
-              aimPointRaw.x - width / 2,
-              aimPointRaw.y - height / 2
-            );
-            const aimDir = aimPoint.clone().sub(cueBall.pos);
-            if (aimDir.lengthSq() < 1e-6) aimDir.set(0, 1);
-            aimDir.normalize();
-            const targetBall =
-              allBalls.find(
-                (b) => String(b.id) === String(plan.targetId)
-              ) ||
-              allBalls.find(
-                (b) =>
-                  b.active &&
-                  mapBallIdToUkAiColour(toBallColorId(b.id)) === plan.targetBall
-              ) ||
-              null;
-            const targetColor = mapAiColourToTargetId(plan.targetBall);
-            const localPocketId = mapAiPocketToLocal(plan.pocket);
-            const pocketIndex =
-              localPocketId != null ? POCKET_IDS.indexOf(localPocketId) : -1;
-            const pocketCenter =
-              pocketIndex >= 0 ? pocketPositions[pocketIndex].clone() : null;
-            const cueToAim = cueBall.pos.distanceTo(aimPoint);
-            const pocketDistance =
-              targetBall && pocketCenter
-                ? targetBall.pos.distanceTo(pocketCenter)
-                : 0;
-            const basePower = computePowerFromDistance(cueToAim + pocketDistance);
-            const power = THREE.MathUtils.clamp(
-              basePower * mapSpeedPresetScale(plan.cueParams?.speed),
-              0.3,
-              0.95
-            );
-            const spin = mapSpinPreset(plan.cueParams?.spin);
-            const mappedPlan = {
-              type: plan.actionType === 'pot' ? 'pot' : 'safety',
-              aimDir,
-              power,
-              target: targetColor ?? 'SAFETY',
-              targetBall,
-              pocketId: localPocketId ?? 'SAFETY',
-              pocketCenter: pocketCenter ? pocketCenter.clone() : null,
-              difficulty:
-                typeof plan.EV === 'number' ? (1 - plan.EV) * 1000 : undefined,
-              cueToTarget: targetBall
-                ? cueBall.pos.distanceTo(targetBall.pos)
-                : cueToAim,
-              targetToPocket: pocketDistance,
-              spin,
-              aiMeta: {
-                EV: plan.EV ?? null,
-                notes: plan.notes ?? null,
-                source: 'advanced'
-              }
-            };
-            aiPlanCacheRef.current = { key: cacheKey, plan: mappedPlan };
-            return cloneAiPlan(mappedPlan);
-          } catch (err) {
-            console.warn('advanced UK AI planning failed', err);
-            return null;
-          }
-        };
-
-        const evaluateUncachedShotOptions = () => {
-          try {
-            const baseline = evaluateShotOptionsBaseline();
-            const variantId = activeVariantRef.current?.id ?? variantKey;
-            const liveCue = cueRef.current ?? cue;
-            const liveBalls =
-              ballsRef.current?.length > 0 ? ballsRef.current : balls;
-            if (variantId !== 'uk' || !liveCue?.active) return baseline;
-            const stateSnapshot = frameRef.current ?? frameState;
-            const advancedPlan = computeUkAdvancedPlan(
-              liveBalls,
-              liveCue,
-              stateSnapshot
-            );
-            if (!advancedPlan) return baseline;
-            const result = { ...baseline };
-            if (advancedPlan.type === 'pot') {
-              result.bestPot = advancedPlan;
-              if (!result.bestSafety) result.bestSafety = baseline.bestSafety;
-            } else {
-              if (!result.bestPot) result.bestPot = baseline.bestPot;
-              result.bestSafety = advancedPlan;
-            }
-            if (!result.bestPot && baseline.bestPot) {
-              result.bestPot = baseline.bestPot;
-            }
-            return result;
-          } catch (err) {
-            console.warn('AI evaluation fallback', err);
-            return evaluateShotOptionsBaseline();
-          }
-        };
         const cachedPlanning = createBilliardsPlanCache();
         const planningEntityIds = new WeakMap();
         let planningEntitySequence = 0;
@@ -29570,7 +29274,7 @@ const shotPowerRef = useRef(0);
             aiTurn: hudRef.current?.turn,
             visitShots: aiTurnShotCountRef.current,
             balls: liveBalls.map(ball => [planningEntityId(ball), ball.id, ball.active, ball.pos?.x, ball.pos?.y])
-          }, evaluateUncachedShotOptions);
+          }, evaluateShotOptionsBaseline);
         };
         const normalizeAiPlanAim = (plan) => {
           if (!plan || !cue?.active) return plan;
@@ -29698,7 +29402,6 @@ const shotPowerRef = useRef(0);
           if (aiLastPlannedShotRef.current !== aiTurnShotCountRef.current) {
             aiLastPlannedShotRef.current = aiTurnShotCountRef.current;
             aiPlanRef.current = null;
-            aiPlanCacheRef.current = { key: null, plan: null };
             setAiPlanning(null);
           }
           const liveBalls =
@@ -30512,6 +30215,7 @@ const shotPowerRef = useRef(0);
         };
         const refineAiPotAimLine = (plan) => {
           if (!plan || plan.type !== 'pot' || plan.viaCushion || !cue?.active) return plan;
+          if (plan.aiMeta?.predictedSafe) return plan;
           if (!plan.targetBall?.pos || !plan.pocketCenter) return plan;
           const baseAim =
             plan.aimDir?.clone?.()?.normalize?.() ??
@@ -31135,7 +30839,6 @@ const shotPowerRef = useRef(0);
             shotRecording = null;
           }
           aiPlanRef.current = null;
-          aiPlanCacheRef.current = { key: null, plan: null };
           clearEarlyAiShot();
           setAiPlanning(null);
           window.setTimeout(() => {
@@ -32792,6 +32495,7 @@ const shotPowerRef = useRef(0);
                 recordReplayFrame(performance.now());
               }
               playPocket(pocketVolume);
+              pocketLighting.pulse(pocketIndex, c, performance.now(), isCueBall);
               b.active = false;
               b.vel.set(0, 0);
               if (b.spin) b.spin.set(0, 0);
@@ -32848,6 +32552,7 @@ const shotPowerRef = useRef(0);
                     scratchPopup.position.set(c.x, BALL_CENTER_Y + POCKET_POPUP_LIFT, c.y);
                     if (pocketCameraStateRef.current) {
                       pocketPopupPendingRef.current.push({
+                        pocketIndex, foul: true,
                         popupMesh: scratchPopup,
                         renderOrder: (b.mesh?.renderOrder ?? 0) + 1
                       });
@@ -32953,6 +32658,7 @@ const shotPowerRef = useRef(0);
                   b.mesh.scale?.clone?.() ?? new THREE.Vector3(1, 1, 1);
                 if (pocketCameraStateRef.current) {
                   pocketPopupPendingRef.current.push({
+                    pocketIndex,
                     position: new THREE.Vector3(
                       c.x,
                       BALL_CENTER_Y + POCKET_POPUP_LIFT,
@@ -33335,6 +33041,7 @@ const shotPowerRef = useRef(0);
                 const popupMesh = entry.popupMesh;
                 popupMesh.renderOrder = entry.renderOrder ?? 0;
                 table.add(popupMesh);
+                pocketLighting.pulse(entry.pocketIndex, { x: popupMesh.position.x, y: popupMesh.position.z }, now, entry.foul);
                 pocketPopupRef.current.push({
                   mesh: popupMesh,
                   expiresAt: now + POCKET_POPUP_DURATION_MS,
@@ -33352,12 +33059,14 @@ const shotPowerRef = useRef(0);
               popupMesh.castShadow = false;
               popupMesh.receiveShadow = false;
               table.add(popupMesh);
+              pocketLighting.pulse(entry.pocketIndex, { x: popupMesh.position.x, y: popupMesh.position.z }, now, entry.foul);
               pocketPopupRef.current.push({
                 mesh: popupMesh,
                 expiresAt: now + POCKET_POPUP_DURATION_MS
               });
             });
           }
+          pocketLighting.update(now);
           prevCollisions = newCollisions;
           const fit = fitRef.current;
           if (fit && cue?.active && !shooting) {
@@ -33536,6 +33245,8 @@ const shotPowerRef = useRef(0);
         window.removeEventListener('resize', onResize);
         updatePocketCameraState(false);
         pocketCamerasRef.current.clear();
+        pocketLighting.dispose();
+        pocketLightingRef.current = null;
         pocketDropRef.current.forEach((entry) => {
           if (entry?.glowMesh) {
             entry.glowMesh.parent?.remove?.(entry.glowMesh);
@@ -34301,7 +34012,7 @@ const shotPowerRef = useRef(0);
       ? String(lastOpponentPot.id ?? lastOpponentPot.color)
       : null;
   const bottomHudVisible =
-    hud.turn != null && !hud.over && !shotActive && !replayActive && !hideNonEssentialHud;
+    hud.turn != null && !hud.over && !replayActive;
   const bottomHudScale = usePortraitHudLayout ? uiScale * 1.08 : uiScale * 1.12;
   const avatarSizeClass = usePortraitHudLayout ? 'h-[2.9rem] w-[2.9rem]' : 'h-[3.7rem] w-[3.7rem]';
   const nameWidthClass = usePortraitHudLayout ? 'max-w-[10.5rem]' : 'max-w-[13rem]';
@@ -34322,14 +34033,14 @@ const shotPowerRef = useRef(0);
   const chatGiftActionButtonClass =
     'w-full rounded-[12px] border border-emerald-400/70 bg-gradient-to-br from-emerald-400/95 to-emerald-500/85 px-3 py-2 text-sm font-extrabold uppercase tracking-[0.18em] text-[#04210f] shadow-[0_12px_24px_rgba(16,185,129,0.3)]';
   const playerPanelClass = usePortraitHudLayout
-    ? `flex min-w-0 items-center gap-2.5 rounded-full ${isPlayerTurn ? 'text-white' : 'text-white/80'}`
+    ? `flex min-w-0 flex-1 items-center gap-2.5 rounded-full ${isPlayerTurn ? 'text-white' : 'text-white/80'}`
     : `flex min-w-0 items-center ${usePortraitHudLayout ? 'gap-3' : 'gap-4'} rounded-full transition-all ${
         isPlayerTurn
           ? 'bg-emerald-400/20 pl-4 pr-3 text-white ring-2 ring-emerald-300/70'
           : 'pl-3.5 pr-3 text-white/80'
       }`;
   const opponentPanelClass = usePortraitHudLayout
-    ? `flex min-w-0 items-center gap-2.5 rounded-full ${isOpponentTurn ? 'text-white' : 'text-white/80'}`
+    ? `flex min-w-0 flex-1 items-center gap-2.5 rounded-full ${isOpponentTurn ? 'text-white' : 'text-white/80'}`
     : `flex min-w-0 items-center ${usePortraitHudLayout ? 'gap-3' : 'gap-4'} rounded-full transition-all ${
         isOpponentTurn
           ? 'bg-emerald-400/20 pl-3 pr-4 text-white ring-2 ring-emerald-300/70'
@@ -34372,11 +34083,8 @@ const shotPowerRef = useRef(0);
     [avatarSizeClass]
   );
 
-  return (
-    <div className="w-full h-[100vh] bg-black text-white overflow-hidden select-none">
-      {/* Canvas host now stretches full width so table reaches the slider */}
-      <div ref={mountRef} className="absolute inset-0" />
-      {!replayActive && !hud.over && !hideNonEssentialHud && <PoolMatchHud
+  const renderMatchRules = (embedded = true) => <PoolMatchHud
+        embedded={embedded} controlsOnly
         player={player.name || 'You'} opponent={opponentDisplayName || 'Opponent'} turn={hud.turn}
         target={hud.next} busy={shotActive || shotPreparing} preparing={shotPreparing} inHand={hud.inHand} timer={timer}
         variant={activeVariant?.label || variantKey} competition={competitionMatch}
@@ -34384,9 +34092,16 @@ const shotPowerRef = useRef(0);
         canCall={!isTraining && ['8ball', 'american'].includes(frameState.meta?.variant) && !isPoolRoyalBreak(frameState)}
         canPushOut={Boolean(frameState.meta?.state?.pushOutAvailable)}
         interactive={hud.turn === 0 && !pendingPushOut && !shotPreparing} callOpen={callPocketOpen}
-        onToggleCall={toggleCallPockets} onDeclaration={updateShotDeclaration}
+        onToggleCall={() => { setConfigOpen(false); toggleCallPockets(); }} onDeclaration={updateShotDeclaration}
         availableBalls={poolCalledBallOptions(frameState)}
-      />}
+      />;
+
+  return (
+    <div className="w-full h-[100vh] bg-black text-white overflow-hidden select-none"
+      data-live-video-blocking={configOpen || showChat || showGift || callPocketOpen || replayActive || pocketCameraActive || Boolean(hud.over) ? 'true' : 'false'}>
+      {/* Canvas host now stretches full width so table reaches the slider */}
+      <div ref={mountRef} className="absolute inset-0" />
+      {callPocketOpen && !replayActive && !hud.over && renderMatchRules(false)}
       {callPocketOpen && !shotActive && !shotPreparing && hud.turn === 0 && POCKET_IDS.map((id, index) => (
         <button key={id} type="button" className="pool-call-pocket"
           ref={node => { if (node) callPocketButtonsRef.current.set(id, node); else callPocketButtonsRef.current.delete(id); }}
@@ -34822,6 +34537,7 @@ const shotPowerRef = useRef(0);
               </button>
             </div>
             <div className="mt-4 max-h-72 space-y-4 overflow-y-auto pr-1">
+              {renderMatchRules()}
               {ENABLE_SHOT_REPLAY ? (
                 <div>
                   <h3 className="text-[10px] uppercase tracking-[0.35em] text-emerald-100/70">
@@ -35858,21 +35574,21 @@ const shotPowerRef = useRef(0);
         </div>
       )}
 
-      {bottomHudVisible && !isPortrait && (
+      {bottomHudVisible && (
         <div
           className={`absolute flex ${bottomHudLayoutClass} pointer-events-none z-50 transition-opacity duration-200 ${pocketCameraActive || replayActive ? 'opacity-0' : 'opacity-100'}`}
           aria-hidden={pocketCameraActive || replayActive}
           style={{
             bottom: `${12 + chromeUiLiftPx + sharedHudLiftPx + spinControllerLiftPx - sharedBottomControlsDropPx}px`,
-            left: hudInsets.left,
-            right: hudInsets.right,
-            transform: usePortraitHudLayout ? `translateX(${bottomHudOffset + bottomHudLeftPx}px)` : undefined
+            left: isPortrait ? '8px' : hudInsets.left,
+            right: isPortrait ? `${SPIN_CONTROL_DIAMETER_PX * uiScale + 18}px` : hudInsets.right,
+            transform: !isPortrait && usePortraitHudLayout ? `translateX(${bottomHudOffset + bottomHudLeftPx}px)` : undefined
           }}
         >
             <div
-              className={`pointer-events-auto flex min-h-[3.35rem] max-w-full items-center justify-center ${isFreePractice ? '' : hudGapClass} rounded-full border border-emerald-400/40 bg-black/70 ${usePortraitHudLayout ? 'pl-7 pr-9 py-2.5' : 'pl-8 pr-10 py-3'} text-white shadow-[0_12px_32px_rgba(0,0,0,0.45)] backdrop-blur`}
+              className={`pointer-events-auto flex min-h-[3.35rem] max-w-full items-center justify-center ${isFreePractice ? '' : isPortrait ? 'gap-2' : hudGapClass} rounded-full border border-emerald-400/40 bg-black/70 ${isPortrait ? 'px-2 py-2 w-full' : usePortraitHudLayout ? 'pl-7 pr-9 py-2.5' : 'pl-8 pr-10 py-3'} text-white shadow-[0_12px_32px_rgba(0,0,0,0.45)] backdrop-blur`}
               style={{
-                transform: `scale(${bottomHudScale})`,
+                transform: isPortrait ? undefined : `scale(${bottomHudScale})`,
                 transformOrigin: 'bottom center',
                 maxWidth: usePortraitHudLayout ? 'min(34rem, 100%)' : 'min(40rem, 100%)'
               }}
@@ -35881,6 +35597,7 @@ const shotPowerRef = useRef(0);
               className={isFreePractice ? 'flex min-w-0 justify-center' : playerPanelClass}
               style={playerPanelStyle}
               data-player-index="0"
+              data-self-player="true"
             >
               <div className="flex min-w-0 flex-col">
                 <div className="flex min-w-0 items-center gap-2.5">
@@ -35888,8 +35605,9 @@ const shotPowerRef = useRef(0);
                     <img
                       src={player.avatar || '/assets/icons/profile.svg'}
                       alt="You"
+                      data-pool-avatar="self"
                       data-self-player="true"
-                      className={`${avatarSizeClass} rounded-full object-cover transition-all duration-150 ${
+                      className={`${avatarSizeClass} shrink-0 rounded-full object-cover transition-all duration-150 ${
                         isPlayerTurn
                           ? 'ring-2 ring-emerald-200 shadow-[0_0_16px_rgba(16,185,129,0.55)]'
                           : ''
@@ -35899,7 +35617,8 @@ const shotPowerRef = useRef(0);
                     <img
                       src={resolvedPlayerAvatar || '/assets/icons/profile.svg'}
                       alt="player avatar"
-                      className={`${avatarSizeClass} rounded-full object-cover transition-all duration-150 ${
+                      data-pool-avatar="self"
+                      className={`${avatarSizeClass} shrink-0 rounded-full object-cover transition-all duration-150 ${
                         isPlayerTurn
                           ? 'ring-2 ring-emerald-200 shadow-[0_0_16px_rgba(16,185,129,0.55)]'
                           : ''
@@ -35923,6 +35642,7 @@ const shotPowerRef = useRef(0);
                   className={`${opponentPanelClass} ${usePortraitHudLayout ? 'text-xs' : 'text-sm'}`}
                   style={opponentPanelStyle}
                   data-player-index="1"
+                  data-self-player="false"
                 >
                   {isOnlineMatch ? (
                     <div className="flex min-w-0 flex-col">
@@ -35930,7 +35650,8 @@ const shotPowerRef = useRef(0);
                         <img
                           src={opponentDisplayAvatar}
                           alt="opponent avatar"
-                          className={`${avatarSizeClass} rounded-full object-cover transition-all duration-150 ${
+                          data-pool-avatar="opponent"
+                          className={`${avatarSizeClass} shrink-0 rounded-full object-cover transition-all duration-150 ${
                             isOpponentTurn
                               ? 'ring-2 ring-emerald-200 shadow-[0_0_16px_rgba(16,185,129,0.55)]'
                               : ''
@@ -35950,13 +35671,14 @@ const shotPowerRef = useRef(0);
                         <img
                           src={opponentDisplayAvatar || '/assets/icons/profile.svg'}
                           alt="opponent avatar"
-                          className={`${avatarSizeClass} rounded-full object-cover transition-all duration-150 ${
+                          data-pool-avatar="opponent"
+                          className={`${avatarSizeClass} shrink-0 rounded-full object-cover transition-all duration-150 ${
                             isOpponentTurn
                               ? 'ring-2 ring-emerald-200 shadow-[0_0_16px_rgba(16,185,129,0.55)]'
                               : ''
                           }`}
                         />
-                        <span className="text-[11px] font-semibold uppercase tracking-[0.32em]">
+                        <span className="min-w-0 truncate text-[11px] font-semibold uppercase tracking-[0.32em]">
                           {aiFlagLabel}
                         </span>
                       </div>
