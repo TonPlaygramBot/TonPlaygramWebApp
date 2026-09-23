@@ -1,6 +1,4 @@
 import {EAST} from '../../tirana-east/data.mjs';
-import {CABLE_STATIONS} from '../../tirana-east/cableCore.mjs';
-import {URBAN_DATUM_BOUNDS} from '../../tirana-east/terrainCore.mjs';
 import {memo, useEffect, useMemo, useRef, useState} from 'react';
 import type {PointerEvent as PE} from 'react';
 import {WORLD} from '../shared/world.mjs';
@@ -9,24 +7,14 @@ import type {State,Point} from '../shared/engine.mjs';
 import {fitView, constrainView, panView, zoomView, screenPoint, inBounds, readFavorites, writeFavorites, MAX_FAVORITES} from './mapCore.mjs';
 import './map.css';
 import {SatelliteLayer, SatelliteCredit} from './SatelliteLayer';
-import {expandedAtlasBounds,atlasPin} from './atlasExtent.mjs';
+import {atlasPin} from './atlasExtent.mjs';
 import {civicSites,referenceLinks,unproject,REFERENCES,project} from '../../tirana-expansion/geography.mjs';
 export type Place = Point & {id?:string; name:string; available?:boolean};
 export type MapJob = {id:string;name:string;detail:string;available:boolean;completed:boolean;active:boolean;point?:Point};
 type Props = {jobs?:MapJob[];onStartJob?:(id:string)=>void;task?:{name:string;detail:string;point?:Point};player?:Point & {heading:number};state:State|null;route:Point[];large?:boolean;destination?:Place|null;onDestination?:(p:Place|null)=>void;routeNotice?:string};
 type View = {x:number;z:number;w:number;h:number};
-// Additional atlas extent only. The original city, physics and routing keep WORLD.bounds.
-const REGIONAL_TERMINALS = CABLE_STATIONS;
-const ATLAS_BOUNDS = expandedAtlasBounds(WORLD.bounds,REGIONAL_TERMINALS);
-function RegionalReferences({scale}:{scale:number}) {
-  const [lower,upper]=REGIONAL_TERMINALS,b=WORLD.bounds;
-  return <g aria-label="Tirana, Farkë, Surrel and Dajti trails">
-    <rect x={b[0]} y={b[1]} width={b[2]-b[0]} height={b[3]-b[1]} fill="none" stroke="#9fb6bc" strokeWidth={scale} strokeDasharray={`${5*scale} ${4*scale}`}/>
-    <text x={b[0]} y={b[3]+16*scale} fontSize={10*scale} fill="#c3d5d7">Tirana · Farkë · Surrel · Dajt</text>
-    <line x1={lower.x} y1={lower.z} x2={upper.x} y2={upper.z} stroke="#e5cf91" strokeWidth={2*scale} strokeDasharray={`${6*scale} ${4*scale}`}><title>Dajti Ekspres · hip te stacionet</title></line>
-    {REGIONAL_TERMINALS.map((p,i)=><g key={p.id}><circle cx={p.x} cy={p.z} r={6*scale} fill="#e5cf91" stroke="#122c36" strokeWidth={2*scale}/><text x={p.x+(i?-9:9)*scale} y={p.z-11*scale} textAnchor={i?'end':'start'} fontSize={11*scale} fill="#f3e5bf">{i?'Dajti · upper station':'Dajti · lower station'}</text></g>)}
-  </g>;
-}
+// The explorer, route targets and playable city share one urban boundary.
+const ATLAS_BOUNDS = WORLD.bounds;
 function storage() { try {return window.localStorage;} catch {return undefined;} }
 const path = (points:number[][]) => points.length ? `M${points.map(p=>p.join(',')).join('L')}Z` : '';
 const ringDirection=(p:number[][],positive:boolean)=>{
@@ -82,14 +70,12 @@ function ExplorerMap(props:Props) {
   },[]);
   const places=useMemo<Place[]>(()=>{
     const list:Place[]=WORLD.landmarks.map(p=>({...p}));
-    for(const ref of CABLE_STATIONS)list.push({...ref,available:true});
-    for(const peak of EAST.peaks.filter((p:any)=>['Maja e Tujanit','Mali i Dajtit'].includes(p.name)))list.push({id:peak.id,name:peak.name,x:peak.point[0],z:peak.point[1],available:true});
-    for(const ref of [...NEIGHBOURHOOD.districts,...EAST.districts].filter((p:any)=>/^(Farkë e (Vogël|Madhe)|Surrel|Kinostudio|Linzë)$/.test(p.name)))list.push({id:ref.id,name:ref.name,x:ref.point[0],z:ref.point[1],available:true});
+    for(const ref of [...NEIGHBOURHOOD.districts,...EAST.districts].filter((p:any)=>/^(Kinostudio|Ali Demi|Kombinat|Lapraka|Sauk|Astir|Shkozë|Fresku)$/.test(p.name)))list.push({id:ref.id,name:ref.name,x:ref.point[0],z:ref.point[1],available:true});
     for(const site of civicSites(WORLD))if(!list.some(p=>p.name===site.name))list.push({id:site.id,name:site.name,x:site.x,z:site.z});
     for(const b of WORLD.buildings)if(b.name?.trim()&&!list.some(p=>p.name===b.name))list.push({id:`building:${b.id}`,name:b.name,x:b.p.reduce((s,p)=>s+p[0],0)/b.p.length,z:b.p.reduce((s,p)=>s+p[1],0)/b.p.length});
     const ids=new Set(list.map(p=>p.id));
     for(const p of [...NEIGHBOURHOOD.places,...EAST.places])if(p.name?.trim()&&!ids.has(p.id)){list.push({id:p.id,name:p.name,x:p.point[0],z:p.point[1]});ids.add(p.id);}
-    return list;
+    return list.filter(p=>inBounds(p,WORLD.bounds));
   },[]);
   const normalized=(s:string)=>s.normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLowerCase();
   const found=(tab==='favorites'?favorites:places).filter(p=>normalized(p.name).includes(normalized(query))).slice(0,40);
@@ -117,7 +103,6 @@ function ExplorerMap(props:Props) {
   const zoom=(factor:number)=>{const v=liveView.current;change(zoomView(v,factor,{x:v.x+v.w/2,z:v.z+v.h/2},ATLAS_BOUNDS));};
   const remove=(p:Place)=>{const next=favorites.filter(f=>f.id!==p.id);setFavorites(next);setSaveMessage(writeFavorites(storage(),next,WORLD)?'Removed from favourites.':'Storage is unavailable; removal applies until this map closes.');};
   const scale=view.w/width;
-  const regionVisible=view.x+view.w>WORLD.bounds[2]+100||view.z<WORLD.bounds[1]-100;
   const fit=(bounds:readonly number[])=>{pointers.current.clear();gesture.current=null;change(fitView(bounds,view.w/view.h));};
   return <div className="ts-explorer-map">
     <div className="ts-map-search"><input type="search" value={query} maxLength={80} placeholder="Search places or favourites" aria-label="Search Tirana places" onChange={e=>setQuery(e.target.value)}/></div>
@@ -129,7 +114,6 @@ function ExplorerMap(props:Props) {
         onKeyDown={e=>{const delta=60;let next:View|undefined;if(e.key==='+'||e.key==='='){zoom(1.4);e.preventDefault();}else if(e.key==='-'){zoom(1/1.4);e.preventDefault();}else if(['ArrowLeft','ArrowRight','ArrowUp','ArrowDown'].includes(e.key)){const dx=e.key==='ArrowLeft'?-delta:e.key==='ArrowRight'?delta:0,dy=e.key==='ArrowUp'?-delta:e.key==='ArrowDown'?delta:0;next=panView(view,dx,dy,width,width*view.h/view.w,ATLAS_BOUNDS);change(next);e.preventDefault();}}}>
         <Geometry/>
         {layer==='satellite'&&!imageryError&&<SatelliteLayer view={view} width={width} onError={()=>setImageryError(true)}/>}
-        {regionVisible&&<RegionalReferences scale={scale}/>}
         {WORLD.landmarks.map(p=><g key={p.id}><circle cx={p.x} cy={p.z} r={4*scale} fill="#f49268"/>{view.w<1100&&<text x={p.x+8*scale} y={p.z-7*scale} fontSize={11*scale} fill="#fff">{p.name}</text>}</g>)}
         {favorites.filter(p=>inBounds(p,ATLAS_BOUNDS)).map(p=><text key={p.id} x={p.x} y={p.z} textAnchor="middle" fontSize={17*scale} fill="#ffe19b">★</text>)}
         <Markers {...props} scale={scale}/>
@@ -142,7 +126,6 @@ function ExplorerMap(props:Props) {
     {layer==='satellite'&&<SatelliteCredit failed={imageryError}/>}
     {tab==='jobs'&&<div className="ts-map-jobs" role="tabpanel" aria-label="Jobs">{props.jobs?.map(job=><article key={job.id}><strong>{job.name}</strong><small>{job.active?'In progress':job.completed?'Completed · replay available':job.available?'Available':'Complete earlier jobs to unlock'}</small><p>{job.detail}</p><div><button disabled={!job.point} onClick={()=>job.point&&select({...job.point,name:job.name,id:job.id})}>Show location</button><button disabled={!job.available||job.active||!props.onStartJob||props.jobs?.some(j=>j.active)} onClick={()=>props.onStartJob?.(job.id)}>{job.active?'Active':job.completed?'Replay':'Start job'}</button></div></article>)}{!props.jobs?.length&&<p>Jobs are available in Street Career.</p>}</div>}
     {tab==='tasks'&&<div className="ts-map-jobs" role="tabpanel" aria-label="Tasks">{props.task?<article><strong>{props.task.name}</strong><p>{props.task.detail}</p><button disabled={!props.task.point} onClick={()=>props.task?.point&&select({...props.task.point,name:props.task.name})}>Show task</button></article>:<p>No active task. Choose a job to get started.</p>}</div>}
-    {regionVisible&&<p className="ts-map-save-status" role="status">Farkë, Surrel dhe Kinostudio · Ndiq rrugët dhe shtigjet drejt Dajtit. Te stacionet e teleferikut afrohu dhe zgjidh HIP.</p>}
     {selected&&<section className="ts-map-selection" aria-label="Selected place">
       <input value={selected.name} maxLength={80} aria-label="Place name" onChange={e=>setSelected({...selected,name:e.target.value})}/>
       <div><button disabled={!onDestination||!selected.name.trim()||selected.available===false||!player} onClick={()=>onDestination?.(selected)}>Set destination</button><button disabled={!selected.name.trim()} onClick={save}>★ Save favourite</button></div>

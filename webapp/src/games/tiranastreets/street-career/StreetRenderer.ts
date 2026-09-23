@@ -20,8 +20,8 @@ import { SurfaceImpactMarks } from '../SurfaceImpactMarks';
 import { vehicleDamageAppearance } from './vehicleDamageAppearance.mjs';
 import { MissileVisuals } from '../MissileVisuals';
 import { BuildingAccessVisuals } from './BuildingAccessVisuals';
-/** Local career only. Reuses the original driving renderer and the newer shared
- * city details without editing map coordinates, physics or paid-match actors. */
+/** Unified street campaign presentation: full-body combat, driving and the
+ * streamed city share one camera, effects budget and rendering lifecycle. */
 export class StreetRenderer extends CityRenderer {
   vehicleView:'cockpit'|'chase'='cockpit';
   protected override get cockpitCamera(){return this.vehicleView==='cockpit';}
@@ -35,18 +35,22 @@ export class StreetRenderer extends CityRenderer {
   private missileMeshes:MissileVisuals;
   private pockets:PocketVisuals;
   private buildingAccess:BuildingAccessVisuals;
+  private wreckAt=-Infinity;
   private wreckMaterials=new Map<T.Mesh,{original:T.Material|T.Material[];copies:T.Material[]}>();
-  private clearWrecks(){for(const [mesh,saved] of this.wreckMaterials){mesh.material=saved.original;saved.copies.forEach(m=>m.dispose());}this.wreckMaterials.clear();}
+  private clearWrecks(){for(const [mesh,saved] of this.wreckMaterials){mesh.material=saved.original;saved.copies.forEach(m=>m.dispose());}this.wreckMaterials.clear();this.wreckAt=-Infinity;}
   private showWrecks(sim:StreetSimulation){
+    if(sim.state.elapsed>=this.wreckAt && sim.state.elapsed-this.wreckAt<.1)return;
+    this.wreckAt=sim.state.elapsed;
     const active=new Set<T.Mesh>();
     for(const car of sim.cars())if(car.destroyed||(car.health??140)<110){
+      const damage=vehicleDamageAppearance(car);
       this.vehicleVisual(car.id)?.traverse(o=>{
         if(!(o instanceof T.Mesh))return;active.add(o);const existing=this.wreckMaterials.get(o);if(existing){
           const originals=Array.isArray(existing.original)?existing.original:[existing.original];
-          existing.copies.forEach((copy,i)=>{const original=originals[i];if(copy instanceof T.MeshStandardMaterial&&original instanceof T.MeshStandardMaterial){const damage=vehicleDamageAppearance(car);copy.color.copy(original.color).multiplyScalar(damage.brightness);copy.roughness=Math.max(original.roughness,damage.roughness);copy.metalness=damage.charred?.15:original.metalness;copy.emissive.copy(original.emissive);if(damage.charred)copy.emissive.set(0);}});return;
+          existing.copies.forEach((copy,i)=>{const original=originals[i];if(copy instanceof T.MeshStandardMaterial&&original instanceof T.MeshStandardMaterial){copy.color.copy(original.color).multiplyScalar(damage.brightness);copy.roughness=Math.max(original.roughness,damage.roughness);copy.metalness=damage.charred?.15:original.metalness;copy.emissive.copy(original.emissive);if(damage.charred)copy.emissive.set(0);}});return;
         }
         const original=o.material,copies=(Array.isArray(original)?original:[original]).map(m=>{
-          const copy=m.clone();if(copy instanceof T.MeshStandardMaterial){const damage=vehicleDamageAppearance(car);copy.color.multiplyScalar(damage.brightness);copy.roughness=Math.max(copy.roughness,damage.roughness);if(damage.charred){copy.metalness=.15;copy.emissive.set(0);}}
+          const copy=m.clone();if(copy instanceof T.MeshStandardMaterial){copy.color.multiplyScalar(damage.brightness);copy.roughness=Math.max(copy.roughness,damage.roughness);if(damage.charred){copy.metalness=.15;copy.emissive.set(0);}}
           return copy;
         });
         this.wreckMaterials.set(o,{original,copies});o.material=Array.isArray(original)?copies:copies[0];
@@ -113,6 +117,7 @@ export class StreetRenderer extends CityRenderer {
       b = sim.body,
       car = state.cars.find((c) => c.id === p.carId);
     this.camera.up.set(0,1,0);
+    this.camera.near=car&&this.vehicleView==='cockpit'?.035:.15;
     const aircraft=sim.flight.current;
     if(aircraft){
       if(this.flightHeading!==undefined)this.yaw+=Math.atan2(Math.sin(aircraft.heading-this.flightHeading),Math.cos(aircraft.heading-this.flightHeading));
@@ -237,11 +242,12 @@ export class StreetRenderer extends CityRenderer {
     const refreshLoot = performance.now();
     if (this.simulation && refreshLoot - this.lootAt >= 100) {
       this.lootAt = refreshLoot;
-      this.bodyRig.syncLoot(this.simulation.loot.filter(l=>!l.collected).sort((a,b)=>Math.hypot(a.x-this.simulation!.player.x,a.z-this.simulation!.player.z)-Math.hypot(b.x-this.simulation!.player.x,b.z-this.simulation!.player.z)).filter(l=>Math.hypot(l.x-this.simulation!.player.x,l.z-this.simulation!.player.z)<90).slice(0,24), this.simulation.claimed);
+      this.bodyRig.syncLoot(this.simulation.loot.filter(l=>!l.collected&&(l.x-this.simulation!.player.x)**2+(l.z-this.simulation!.player.z)**2<90**2).sort((a,b)=>((a.x-this.simulation!.player.x)**2+(a.z-this.simulation!.player.z)**2)-((b.x-this.simulation!.player.x)**2+(b.z-this.simulation!.player.z)**2)).slice(0,24), this.simulation.claimed);
     }
     const stamp = performance.now();
-    if (dt > 0) {
-      this.samples.push(stamp - this.streetSampleStamp);
+    const frameTime=stamp-this.streetSampleStamp;
+    if (dt > 0 && frameTime>0 && frameTime<250 && !document.hidden) {
+      this.samples.push(frameTime);
       if (this.samples.length > 240) this.samples.shift();
     }
     this.streetSampleStamp = stamp;
@@ -261,7 +267,6 @@ export class StreetRenderer extends CityRenderer {
     if (this.disposed) return;
     beginCityFrame(this.targetFps);
     const p = state?.players[id];
-    this.details.sourceCable.setRide(this.simulation?.cableRide||undefined);
     // Classify once. SharedHumans selects its own nearest civilian budget;
     // selecting it again for a force-only render list did duplicate sorting.
     const civilians:State['npcs']=[],forces:State['npcs']=[];

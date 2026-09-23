@@ -84,8 +84,8 @@ test('all four aircraft board, climb, fire and restore their own checkpoint; hov
  for(const id of ids){
  const s=sim(),a=s.flight.aircraft.find(a=>a.id===id),kind=a.kind,access=s.flight.access(a);Object.assign(s.player,access);
  assert.equal(s.flight.board(a.id),true,kind);s.intent.fast=true;s.flight.step(1);s.intent.fast=false;
- assert.ok(a.airborne,kind);assert.equal(s.flight.exit(),false);const old=a.missiles;s.intent.fire=true;s.flight.step(.05);assert.equal(a.missiles,old-1);
- const checkpoint=captureCheckpoint(s);assert.equal(checkpoint.aircraft.kind,kind);const next=sim();
+ assert.ok(a.airborne,kind);assert.equal(s.flight.exit(),false);const old=a.missiles;s.intent.fire=true;s.flight.step(.05);assert.equal(a.missiles,a.civilian?old:old-1,'civilian helicopters remain unarmed');
+  const checkpoint=captureCheckpoint(s);assert.equal(checkpoint.aircraft.kind,kind);const next=sim();
  assert.ok(restoreCheckpoint(next,checkpoint,campaign.apply));assert.equal(next.flight.current.kind,kind);assert.equal(next.flight.current.pilot,next.player.id);assert.equal(next.flight.current.id,id);
  a.speed=20;s.intent.fire=false;s.flight.assist('hover');assert.equal(a.speed,20);s.flight.step(.1);assert.ok(a.speed>0&&a.speed<20);
  }

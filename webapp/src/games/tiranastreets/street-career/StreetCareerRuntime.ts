@@ -25,8 +25,6 @@ import { captureCheckpoint, restoreCheckpoint } from './checkpointCore.mjs';
 import { loadSettings, type StreetSettings } from './settings';
 import {FramePacer} from '../renderSettings';
 import {WORLD} from '../shared/world.mjs';
-import {PoliceCareerController, type PoliceView} from './PoliceCareerController.mjs';
-import {POLICE_SAVE_KEY,POLICE_UNITS,normalizePoliceProfile,beginPoliceMission,settlePoliceMission,type PoliceProfile} from './policeCareerCore.mjs';
 import {buildMapGraph,findMapRoute} from '../map/mapCore.mjs';
 type Destination = Point & {name:string;id?:string;available?:boolean};
 import {
@@ -37,8 +35,7 @@ import {
 export const campaign = createCampaign(MISSIONS, WEAPONS, STARTER_WEAPON);
 export type StreetView = {
   profile: StreetProfile;
-  policeProfile: PoliceProfile;
-  police: PoliceView | null;
+  lastResult?:{title:string;message:string};
   state: State;
   paused: boolean;
   ready: boolean;
@@ -67,8 +64,7 @@ export class StreetCareerRuntime {
   simulation = new StreetSimulation(this.state);
   settings: StreetSettings;
   profile: StreetProfile;
-  policeProfile: PoliceProfile;
-  police: PoliceCareerController | null = null;
+  lastResult?:{title:string;message:string};
   paused = true;
   ready = false;
   graphicsError = '';
@@ -90,12 +86,12 @@ export class StreetCareerRuntime {
       const result = p.aircraftId?{points:[p,this.destination],message:'Direct flight to destination.'}:findMapRoute(graph,p,this.destination);
       this.route = result.points;
       this.routeNotice = result.message;
-    } else if(this.police?.target()) {
-      const target=this.police.target()!,mode=p.carId?'drive':'walk';
-      let graph=this.mapGraphs.get(mode);if(!graph){graph=buildMapGraph(WORLD,mode);this.mapGraphs.set(mode,graph);}
-      const result=findMapRoute(graph,p,target);this.route=result.points;this.routeNotice=result.message;
     } else {
       const mission = MISSIONS.find(m=>m.id===this.state.missionId);
+      if(mission?.combatZone && (this.state.objectiveRemaining ?? mission.enemies ?? 0)>0){
+        let graph=this.mapGraphs.get('walk');if(!graph){graph=buildMapGraph(WORLD,'walk');this.mapGraphs.set('walk',graph);}
+        this.route=findMapRoute(graph,p,mission.combatZone).points;this.routeNotice='Secure the marked district, then extract.';this.renderer.setRoute(this.route);return;
+      }
       const aircraft = mission?.aircraft && this.simulation.flight.aircraft.find(a=>a.kind===mission.aircraft);
       this.route = aircraft && !p.aircraftId ? [p,this.simulation.flight.access(aircraft)] : navigation(this.state,'local');
       this.routeNotice = '';
@@ -119,8 +115,6 @@ export class StreetCareerRuntime {
     private openPanel: (panel: 'journal' | 'arsenal') => void = () => {}
   ) {
     this.profile = campaign.load(storage);
-    try { this.policeProfile=normalizePoliceProfile(JSON.parse(storage?.getItem(POLICE_SAVE_KEY)||'null')); }
-    catch { this.policeProfile=normalizePoliceProfile(null); }
     this.settings = loadSettings(storage);
     this.audio.volume = this.settings.volume;
     this.audio.enabled = this.settings.volume > 0;
@@ -149,8 +143,11 @@ export class StreetCareerRuntime {
     this.simulation.body.combat = 'ready';
     if (this.profile.active)
       this.newRun(this.profile.active.id, this.profile.active.difficulty, true);
-    else this.renderer.simulation = this.simulation;
-    if(!this.profile.active && this.policeProfile.active)this.bindPoliceMission();
+    else {
+      restoreCheckpoint(this.simulation,this.profile.explore,campaign.apply);
+      this.renderer.simulation=this.simulation;
+      this.renderer.yaw=this.simulation.body.yaw;
+    }
     this.simulation.pause();
     window.addEventListener('blur', this.blur);
     window.addEventListener('pagehide', this.blur);
@@ -191,13 +188,13 @@ export class StreetCareerRuntime {
     this.emit();
   };
   private snapshot() {
-    if(this.police){this.police.snapshot();return;}
-    if (this.state.missionId === FREE_ROAM.id)
+    if (this.state.missionId === FREE_ROAM.id) {
       this.profile = campaign.saveExplore(
         this.profile,
         this.state.players.local
       );
-    else if (this.profile.active) {
+      this.profile.explore=captureCheckpoint(this.simulation);
+    } else if (this.profile.active) {
       const phase = captureCheckpoint(this.simulation);
       if (phase)
         this.profile = {
@@ -209,11 +206,8 @@ export class StreetCareerRuntime {
   private persist() {
     this.snapshot();
     this.storageOK = campaign.save(this.storage, this.profile);
-    try { if(this.storage)this.storage.setItem(POLICE_SAVE_KEY,JSON.stringify(normalizePoliceProfile(this.policeProfile))); }
-    catch { this.storageOK=false; }
   }
   private newRun(id: string, difficulty: string, restore = false) {
-    this.police=null;
     this.state = createState(
       [{ id: 'local', name: 'You' }],
       id,
@@ -249,13 +243,19 @@ export class StreetCareerRuntime {
     this.eventAt = 0;
     this.accumulator = 0;
   }
+  private switchMission(id:string,difficulty='normal') {
+    if(!this.simulation.beginMission(id,difficulty))return false;
+    this.route=[];this.destination=null;this.routeNotice='';this.renderer.setRoute([]);
+    this.routeAt=-Infinity;this.input.releaseAll();this.accumulator=0;
+    return true;
+  }
   start(id: string, difficulty = 'normal') {
-    if (!this.ready || this.disposed || this.policeProfile.active) return false;
+    if (!this.ready || this.disposed) return false;
     this.snapshot();
     const next = campaign.begin(this.profile, id, difficulty);
-    if (!next) return false;
+    if (!next || !this.switchMission(id,difficulty)) return false;
     this.profile = next;
-    this.newRun(id, difficulty);
+    this.lastResult=undefined;
     this.persist();
     this.resume();
     return true;
@@ -270,34 +270,12 @@ export class StreetCareerRuntime {
   explore() {
     if (!this.ready) return;
     this.snapshot();
-    this.policeProfile={...this.policeProfile,active:null};
     this.profile = campaign.abandon(this.profile);
-    this.newRun(FREE_ROAM.id, 'normal');
+    if(this.state.players.local.health<=0 || this.state.players.local.arrest)this.newRun(FREE_ROAM.id,'normal');
+    else this.switchMission(FREE_ROAM.id,'normal');
+    campaign.apply(this.state.players.local,this.profile.loadout);
     this.persist();
     this.resume();
-  }
-  selectPoliceUnit(unit:string) {
-    if(this.policeProfile.active||!POLICE_UNITS.some(u=>u.id===unit))return false;
-    this.policeProfile={...this.policeProfile,unit};this.persist();this.emit();return true;
-  }
-  private bindPoliceMission() {
-    const id=this.policeProfile.active?.id;if(!id)return false;
-    try { this.police=new PoliceCareerController(this.simulation,this.policeProfile);return true; }
-    catch {
-      this.policeProfile={...this.policeProfile,active:null,lastResult:{id,success:false,detail:'Zona nuk është gati. Zgjidh operacionin për të provuar përsëri.'}};
-      this.newRun(FREE_ROAM.id,'normal');this.emit();return false;
-    }
-  }
-  startPolice(id:string) {
-    if(!this.ready||this.disposed||this.profile.active)return false;
-    this.snapshot();const next=beginPoliceMission(this.policeProfile,id);if(!next)return false;
-    this.policeProfile=next;this.newRun(FREE_ROAM.id,'normal');
-    if(!this.bindPoliceMission()){this.persist();return false;}
-    this.renderer.yaw=this.simulation.body.yaw;this.persist();this.resume();return true;
-  }
-  retryPolice() {
-    if(!this.ready||!this.policeProfile.active)return false;
-    this.newRun(FREE_ROAM.id,'normal');if(!this.bindPoliceMission())return false;this.resume();return true;
   }
   resume() {
     if (!this.ready || this.disposed || this.graphicsError || document.hidden || this.state.phase === 'finished') return;
@@ -365,9 +343,6 @@ export class StreetCareerRuntime {
       return true;
     }
     if (this.paused) return false;
-    if(action==='police:interact'||action==='interact'&&this.police?.eligible()){
-      const result=this.police?.interact()??false;this.emit();return result;
-    }
     const result = this.simulation.execute(
       action === 'vehicle' ? 'interact' : action,
       targetId
@@ -378,14 +353,6 @@ export class StreetCareerRuntime {
   private stepSimulation(dt: number) {
     const p = this.state.players.local;
     this.simulation.step(dt);
-    if(this.police){
-      const changed=this.police.step(dt);
-      if(this.police.run.status!=='active'){
-        this.policeProfile=settlePoliceMission(this.policeProfile)||this.policeProfile;
-        this.newRun(FREE_ROAM.id,'normal');this.persist();this.pause();this.openPanel('journal');return;
-      }
-      if(changed){this.routeAt=-Infinity;this.persist();}
-    }
     const car = p.carId
       ? this.state.cars.find((c) => c.id === p.carId)
       : undefined;
@@ -444,6 +411,8 @@ export class StreetCareerRuntime {
           this.profile = complete;
           campaign.apply(p, this.profile.loadout);
           this.audio.cue(true);
+          this.lastResult={title:MISSIONS.find(m=>m.id===this.state.missionId)?.title||'Job',message:this.state.message};
+          this.switchMission(FREE_ROAM.id,'normal');
         }
         this.pause();
         this.openPanel('journal');
@@ -475,17 +444,10 @@ export class StreetCareerRuntime {
     this.raf = requestAnimationFrame(this.loop);
   };
   private emit() {
-    const actions=this.simulation.resolve(),policeAction=this.police?.action();
-    // Preserve car/door controls while travelling; the mission action takes the
-    // contextual slot only at a valid target or during its active channel.
-    if(policeAction&&(policeAction.enabled||this.police?.run.channel)){
-      const index=actions.findIndex(a=>a.id==='interact');
-      const action={...policeAction,id:'interact'};if(index>=0)actions[index]=action;else actions.push(action);
-    }
+    const actions=this.simulation.resolve();
     this.publish({
       profile: this.profile,
-      policeProfile:this.policeProfile,
-      police:this.police?.view()||null,
+      lastResult:this.lastResult,
       state: this.state,
       paused: this.paused,
       ready: this.ready,
@@ -504,7 +466,7 @@ export class StreetCareerRuntime {
       ],
       actions,
       body: { ...this.simulation.body },
-      objective: this.police?.objective()||this.simulation.objective(),
+      objective: this.simulation.objective(),
       settings: { ...this.settings },
       metrics: { ...this.renderer.metrics }
     });

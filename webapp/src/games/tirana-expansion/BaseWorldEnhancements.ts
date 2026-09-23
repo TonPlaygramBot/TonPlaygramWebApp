@@ -17,8 +17,9 @@ export function originalAsset(id:string):Promise<T.Group>{
 export class CivicDetails {
  readonly group=new T.Group();readonly errors:string[]=[];private disposed=false;
  readonly ready:Promise<void>;
- constructor(world= WORLD){
+ constructor(world= WORLD,enabled=true){
   this.group.name='Tirana:glTF-civic-details';
+  if(!enabled){this.ready=Promise.resolve();return;}
   this.ready=Promise.all(civicSites(world).filter(s=>s.id!=='hotel').map(async site=>{
    const id=site.id==='culture'?'culture-bay':site.id==='bank'?'bank-bay':'civic-bay';
    const source=await originalAsset(id);if(this.disposed){disposeTree(source);return;}
@@ -48,8 +49,9 @@ export class DajtiLayer {
  readonly group=new T.Group();readonly path=cablePath(WORLD.origin);readonly cabins:T.Object3D[]=[];
  readonly errors:string[]=[];private disposed=false;private tour=false;private tourCabin?:T.Object3D;
  readonly ready:Promise<void>;
- constructor(){
+ constructor(enabled=true){
   this.group.name='Dajti:authored-regional-reconstruction';
+  if(!enabled){this.group.visible=false;this.ready=Promise.resolve();return;}
   this.group.userData.accuracy='NOT a DEM: terrain, support positions and elevations are approximate';
   const top=project(WORLD.origin,REFERENCES.upper.latitude,REFERENCES.upper.longitude),p:number[]=[],colors:number[]=[],indices:number[]=[];
   const nx=48,nz=64,x0=top.x-5000,z0=top.z-6000;
@@ -86,14 +88,14 @@ export class DajtiLayer {
   if(!this.tourCabin&&this.cabins[0]){this.tourCabin=this.cabins[0].clone(true);this.tourCabin.name='Dajti:passenger-glTF-cabin';this.group.add(this.tourCabin);}
   if(this.tourCabin){const p=cablePose(this.path,fraction);this.tourCabin.position.set(p.x,p.y-3.4,p.z);this.tourCabin.rotation.y=p.yaw;this.tourCabin.visible=this.tour;}
  }
- setTour(value:boolean){this.tour=value;if(this.tourCabin)this.tourCabin.visible=value;const terrain=this.group.getObjectByName('Dajti:non-surveyed-relief') as T.Mesh;const m=terrain.material as T.Material;m.depthTest=value;m.depthWrite=value;terrain.renderOrder=value?0:-900;}
+ setTour(value:boolean){this.tour=value;if(this.tourCabin)this.tourCabin.visible=value;const terrain=this.group.getObjectByName('Dajti:non-surveyed-relief') as T.Mesh|undefined;if(!terrain)return;const m=terrain.material as T.Material;m.depthTest=value;m.depthWrite=value;terrain.renderOrder=value?0:-900;}
  retire(){this.disposed=true;}
  dispose(){this.disposed=true;disposeTree(this.group);}
 }
 export class WorldEnhancements {
- readonly group=new T.Group();readonly civic=new CivicDetails();readonly dajti=new DajtiLayer();
- constructor(){this.group.name='Tirana:regional-and-cultural-glTF-layer';this.group.add(this.civic.group,this.dajti.group);}
- update(t:number,camera?:T.PerspectiveCamera){if(camera&&camera.far<18000){camera.far=18000;camera.updateProjectionMatrix();}let viewer:T.Vector3|undefined;if(camera){this.group.updateWorldMatrix(true,false);viewer=this.group.worldToLocal(camera.getWorldPosition(new T.Vector3()));}this.dajti.update(t,viewer);}
+ readonly group=new T.Group();readonly civic:CivicDetails;readonly dajti:DajtiLayer;
+ constructor(private regional=true){this.civic=new CivicDetails(WORLD,regional);this.dajti=new DajtiLayer(regional);this.group.name='Tirana:regional-and-cultural-glTF-layer';this.group.add(this.civic.group,this.dajti.group);}
+ update(t:number,camera?:T.PerspectiveCamera){if(!this.regional)return;if(camera&&camera.far<18000){camera.far=18000;camera.updateProjectionMatrix();}let viewer:T.Vector3|undefined;if(camera){this.group.updateWorldMatrix(true,false);viewer=this.group.worldToLocal(camera.getWorldPosition(new T.Vector3()));}this.dajti.update(t,viewer);}
  retire(){this.civic.retire();this.dajti.retire();}
  dispose(){this.civic.dispose();this.dajti.dispose();this.group.removeFromParent();}
 }

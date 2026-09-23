@@ -1,3 +1,4 @@
+import {pointInUrbanBounds} from '../tiranastreets/shared/urbanBounds.mjs';
 import {groundHeight} from '../tirana-east/terrainCore.mjs';
 import * as T from 'three';
 import {mergeGeometries} from 'three/examples/jsm/utils/BufferGeometryUtils.js';
@@ -20,7 +21,7 @@ export class MatureTreeLayer {
  constructor(trees:Tree[]=CANOPY_TREES,options:StreetDetailOptions={}){
   this.group.name='Tirana:mature-boulevard-and-square-trees';
   const blocked=options.track?ribbonExclusion(options.track):null;
-  const eligible=trees.filter(t=>!blocked||!blocked(t.x,t.z,Math.max(.8,t.crown*.75)));this.near=nearbyIndex(eligible.map(t=>({...t,y:groundHeight(t.x,t.z)+.12})));
+  const eligible=trees.filter(t=>pointInUrbanBounds(t,Math.max(1,t.crown/2))&&(!blocked||!blocked(t.x,t.z,Math.max(.8,t.crown*.75))));this.near=nearbyIndex(eligible.map(t=>({...t,y:groundHeight(t.x,t.z)+.12})));
   this.group.userData={mappedTrunks:eligible.filter(t=>t.zone!=='estimated-area-canopy').length,estimatedAreaTrunks:eligible.filter(t=>t.zone==='estimated-area-canopy').length,accuracy:'Mapped trunks, interpolated rows and estimated canopy within mapped green spaces; not satellite verified'};
   // Original clustered leaf cutout. Repeated small cards leave daylight gaps;
   // opacity is tested instead of sorted transparency on mobile.

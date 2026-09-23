@@ -4,7 +4,6 @@ import {createMissionDirector, extractionSeconds, updateMissionDirector} from '.
 import {npcWeaponPose} from '../shared/npcWeaponPose.mjs';
 import {ThrowableSimulation} from './ThrowableSimulation.mjs';
 import {groundHeight} from '../../tirana-east/terrainCore.mjs';
-import {CABLE_STATIONS,CABLE_DURATION,cablePoint,dismountCandidates} from '../../tirana-east/cableCore.mjs';
 import { collectWeapon } from '../shared/cityPopulation.mjs';
 import { weaponPose } from './weaponPose.mjs';
 import { traceShot, hitMultiplier } from './shotCore.mjs';
@@ -13,6 +12,7 @@ import { CombatSimulation } from './CombatSimulation.mjs';
 import { FlightSimulation } from './FlightSimulation.mjs';
 import {
   advanceState,
+  startSessionMission,
   control,
   emptyInput,
   movePlayer,
@@ -61,7 +61,6 @@ export class StreetSimulation {
   constructor(state, world = new StreetWorld()) {
     this.state = state;
     this.world = world;
-    this.cableRide=null;
     this.body = createBody(state.players.local.heading);
     this.body.y=groundHeight(state.players.local.x,state.players.local.z)+.08;
     this.intent = { ...defaults, yaw: this.body.yaw };
@@ -91,6 +90,7 @@ export class StreetSimulation {
     // This is a local-only report consumed by campaign settlement. Keep the
     // reference in sync after checkpoint restoration, without touching payouts.
     this.state.streetMission = {id: this.mission.id, director: this.job.director};
+    this.placeMissionCrew();
     this.hooks = {
       movePlayer: (s, p, dt) => this.move(s, p, dt),
       afterLife: (s, dt) => this.afterLife(s, dt),
@@ -125,6 +125,32 @@ export class StreetSimulation {
         track: (n, p) => this.track(n, p)
       }
     };
+  }
+  placeMissionCrew() {
+    if(!this.mission.operation)return;
+    const center=this.mission.combatZone,placed=[];
+    const clear=q=>this.world.clearance({...q,y:groundHeight(q.x,q.z)+.08},1.78,.36)&&placed.every(n=>dist(n,q)>1.4);
+    for(const npc of this.state.npcs.filter(n=>/^gang-\d+$/.test(n.id))){
+      if(!clear(npc)){
+        let target=null;
+        for(let radius=2;radius<=30&&!target;radius+=2)for(let i=0;i<16;i++){
+          const a=i*Math.PI/8,q={x:center.x+Math.cos(a)*radius,z:center.z+Math.sin(a)*radius};
+          if(clear(q)){target=q;break;}
+        }
+        if(target){npc.x=target.x;npc.z=target.z;}
+      }
+      placed.push(npc);
+    }
+  }
+  beginMission(id,difficulty='normal') {
+    if(this.player.health<=0 || this.player.arrest || !startSessionMission(this.state,id,difficulty))return false;
+    this.mission=MISSIONS.find(m=>m.id===id)||FREE_ROAM;
+    this.placeMissionCrew();
+    cancelActions(this.player,this.body);this.approved=-1;
+    this.job={parcel:false,vehicleId:this.player.carId||null,defend:0,stage:0,tutorial:[...this.body.tutorial],director:createMissionDirector({lastHealth:this.player.health,lastDamageAt:this.player.lastDamage})};
+    this.state.streetMission={id:this.mission.id,director:this.job.director};
+    this.body.notice=this.mission.type==='free'?'Job complete. The city is yours.':this.mission.description;
+    return true;
   }
   get loot() { return this.state.pickups || []; }
   get player() {
@@ -203,8 +229,7 @@ export class StreetSimulation {
     if (this.arrest.locked) {p.speed=0;return;}
     if (p.aircraftId) { this.flight.step(dt); return; }
     if (p.health <= 0 || p.failed || p.finished) {
-      this.cableRide=null;
-      this.access.reset();
+        this.access.reset();
       if (b.interaction !== 'dead') {
         cancelActions(p, b);
         b.interaction = 'dead';
@@ -221,12 +246,6 @@ export class StreetSimulation {
       this.event('respawn');
     }
     if (this.access.step(dt)) return;
-    if(this.cableRide){
-      const ride=this.cableRide;ride.fraction=Math.min(1,ride.fraction+dt/CABLE_DURATION);const at=cablePoint(ride.fraction,ride.returning);
-      p.x=at.x;p.z=at.z;p.speed=0;b.y=at.y+.1;b.vy=0;b.interaction='cableway';
-      if(ride.fraction>=1){const exit=dismountCandidates(ride.returning?0:1).find(q=>this.world.clearance(q,MOTOR.standing));if(exit){p.x=exit.x;p.z=exit.z;b.y=exit.y;b.grounded=true;b.interaction='free';this.cableRide=null;b.notice=ride.returning?'Linzë · Mirë se u ktheve':'Dajt · Ndiq shtigjet drejt Maja e Tujanit';}}
-      return;
-    }
     if (p.carId) {
       b.interaction = b.action?.kind === 'exiting' ? 'exiting' : 'driving';
       const car=s.cars.find(c=>c.id===p.carId);
@@ -361,7 +380,7 @@ export class StreetSimulation {
       vehicleDestroyed: !!previousCar?.destroyed || d.recovery > 0,
       remaining: this.state.objectiveRemaining ?? m.enemies,
       distance: m.stops[p.index] ? dist(p, m.stops[p.index]) : Infinity,
-      driving: !!car, onFoot: !p.carId && !p.aircraftId && !this.cableRide,
+      driving: !!car, onFoot: !p.carId && !p.aircraftId,
       grounded: this.body.grounded, speed: p.speed, wanted: p.wanted,
       final: p.index === m.stops.length - 1, firing: this.intent.fire,
       correctAircraft: aircraft?.kind === m.aircraft,
@@ -479,7 +498,6 @@ export class StreetSimulation {
     return null;
   }
   candidates() {
-    if(this.cableRide)return [];
     if(this.player.aircraftId)return [{id:'interact',label:'EXIT',kind:'air-exit',targetId:this.player.aircraftId,
       visible:true,enabled:this.flight.canExit(),disabledReason:this.flight.canExit()?'':'Land and stop before exiting',priority:100,score:100,mode:'tap'}];
     const p = this.player,
@@ -498,7 +516,7 @@ export class StreetSimulation {
       if (
         l > range ||
         dot < 0.05 ||
-        kind!=='cableway' && !this.world.clear(
+        !this.world.clear(
           eye,
           point,
           this.cars(),
@@ -520,7 +538,6 @@ export class StreetSimulation {
         ...extra
       });
     };
-    if(!p.carId)for(const station of CABLE_STATIONS)add(station.id,'HIP · Dajti Ekspres',{...station,y:groundHeight(station.x,station.z)+1},16,90,'cableway');
     if (p.carId) {
       const car = this.state.cars.find((c) => c.id === p.carId);
       const reason = !car
@@ -626,7 +643,7 @@ export class StreetSimulation {
       busy =
         this.arrest.locked || !!b.action ||
         b.interaction === 'entering' ||
-        b.interaction === 'exiting' || b.interaction === 'cableway' || !!this.access.travel;
+        b.interaction === 'exiting' || !!this.access.travel;
     const reason = dead
       ? 'Run ended'
       : this.paused
@@ -1131,9 +1148,6 @@ export class StreetSimulation {
       this.body.notice = 'Move closer and try again';
       return;
     }
-    if(live.kind==='cableway'){
-      cancelActions(this.player,this.body);this.cableRide={fraction:0,returning:live.targetId==='dajti-upper'};this.body.interaction='cableway';this.body.notice='Dajti Ekspres · udhëtim 15 minuta';return;
-    }
     if (live.kind === 'loot') {
       const l = this.loot.find((l) => l.id === a.targetId);
       if (!l || this.claimed.has(l.id)) return;
@@ -1190,7 +1204,6 @@ export class StreetSimulation {
   }
   objective() {
     const accessObjective=this.access.objective();if(accessObjective)return accessObjective;
-    if(this.cableRide)return {title:'Dajti Ekspres',detail:`${Math.round(this.cableRide.fraction*100)}% · ${this.cableRide.returning?'drejt Linzës':'drejt Dajtit'}`,training:false};
     const p = this.player;
     if (this.mission.type === 'flight') {
       const a=this.flight.aircraft.find(a=>a.kind===this.mission.aircraft);
@@ -1216,7 +1229,7 @@ export class StreetSimulation {
     if (this.mission.type === 'combat') {
       const remaining = this.state.objectiveRemaining ?? this.mission.enemies;
       const duration = extractionSeconds(this.mission);
-      return {title:remaining ? `Secure ${stop?.name || 'the area'}` : d.extracting ? 'Hold the extraction area' : 'Signal extraction',
+      return {title:remaining ? `Secure ${this.mission.combatZone?.name || stop?.name || 'the area'}` : d.extracting ? 'Hold the extraction area' : 'Signal extraction',
         detail:remaining ? `${remaining} opponents remaining · use cover and control the approach` : d.extracting ? `${Math.ceil(Math.max(0,duration-d.hold))} s · stay on foot and still; damage interrupts` : 'Look at the cleared marker and tap INTERACT',
         training:false,phase:remaining?'secure':'extract',progress:remaining?1-remaining/this.mission.enemies:d.hold/duration,
         remaining:remaining?undefined:Math.max(0,duration-d.hold),optionalObjective:'Clean operation: take no more than 20 damage'};

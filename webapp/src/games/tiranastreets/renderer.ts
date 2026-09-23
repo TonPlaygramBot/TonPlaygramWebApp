@@ -15,8 +15,9 @@ import {AirMobilityVisuals} from './AirMobilityVisuals';
 import type {State} from './shared/engine.mjs';
 import {WeaponStoreInterior} from './WeaponStoreInterior';
 
-// Career needs six baked visual placements, not battlefield sector generation.
-const props=importedFleet.filter(v=>v.assetId&&!v.racingAsset&&!WEAPON_BY_ID.has(v.assetId));
+// City campaign decorations share one immutable placement list across frames.
+const props=importedFleet.filter(v=>v.assetId&&!v.racingAsset&&!WEAPON_BY_ID.has(v.assetId))
+  .map((v,i)=>({id:`original-${i}`,assetId:v.assetId,x:v.x+ORIGIN.x,z:v.z+ORIGIN.z}));
 
 /** Preserve input, loading, gameplay and camera implementation while replacing
  * the city's landmark layer. Base renderer also owns source-informed façades. */
@@ -48,15 +49,15 @@ export class CityRenderer extends BaseCityRenderer {
     if(this.ownDetailUpdate)beginCityFrame(this.targetFps);
     if(state){const viewer=state.players[playerId];if(viewer){this.buses.update(state,viewer,dt,this.quality==='battery',this.cockpitCamera&&!lobby?viewer.carId:undefined);this.cityStores.update(state,viewer);}}
     if(this.ownDetailUpdate)this.cityDetails.update(state?.elapsed||0,this.camera,state?.players[playerId],this.quality==='battery');
-    super.render(state,playerId,dt,lobby);
     if(this.detailQuality!==this.quality){this.detailQuality=this.quality;
       this.nativeLandmarks.setBatteryMode(this.quality==='battery');
       this.weaponStore.setBatteryMode(this.quality==='battery');
     }
     if(state) {
       this.airMobility.update(state,dt);
-      const p=state.players[playerId];if(p)this.imported.update(props.filter(v=>v.assetId).map((v,i)=>({id:`original-${i}`,assetId:v.assetId,x:v.x+ORIGIN.x,z:v.z+ORIGIN.z})),p,this.quality==='battery');
+      const p=state.players[playerId];if(p)this.imported.update(props,p,this.quality==='battery');
     }
+    super.render(state,playerId,dt,lobby);
   }
   override setQuality(quality:GraphicsSetting) {
     super.setQuality(quality);

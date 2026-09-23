@@ -122,6 +122,11 @@ export class FirstPersonBody {
   private firstPerson = true;
   private gait = 0;
   private motion = '';
+  private running = false;
+  private moving = false;
+  private activeMotion?: T.AnimationAction;
+  private motionActions: T.AnimationAction[] = [];
+  private previousYaw?: number;
   private muzzle = new T.Mesh(
     new T.ConeGeometry(0.035, 0.12, 6),
     new T.MeshBasicMaterial({ color: 0xffe5a6 })
@@ -158,6 +163,10 @@ export class FirstPersonBody {
     this.firstPerson = firstPerson;
     this.release = firstPerson ? maskHead(actor.group) : undefined;
     this.motion = '';
+    this.activeMotion = undefined;
+    this.running = false;
+    this.moving = false;
+    this.previousYaw = undefined;
     // Remove horizontal root translation from private clips; physics owns all movement.
     for (const [key, action] of Object.entries(actor.clips || {Idle:actor.idle, Walk:actor.walk, Run:actor.run})) {
       if (!action) continue;
@@ -176,6 +185,8 @@ export class FirstPersonBody {
           }
         }
     }
+    this.motionActions = [...new Set(Object.values(actor.clips || {Idle:actor.idle, Walk:actor.walk, Run:actor.run}))]
+      .filter((action): action is T.AnimationAction => !!action);
   }
   private loadWeapon(id: string, model: string, priority=false) {
     if(isPocketWeapon(id)){if(!this.models.has(id))this.models.set(id,pocketWeapon(id));return Promise.resolve();}
@@ -271,10 +282,17 @@ export class FirstPersonBody {
     firstPerson = true
   ) {
     this.bind(actor, firstPerson);
+    // Resuming a backgrounded tab should not fast-forward a stride or a blend.
+    // This is presentation only; the simulation retains its own fixed clock.
+    dt = T.MathUtils.clamp(Number.isFinite(dt) ? dt : 0, 0, .1);
     const root = actor.group;
     root.visible = p.health > 0;
     root.position.set(p.x, b.y, p.z);
-    root.rotation.set(0, b.yaw + Math.PI, 0);
+    const targetYaw = b.yaw + Math.PI;
+    const yaw = firstPerson || this.previousYaw === undefined ? targetYaw :
+      this.previousYaw + Math.atan2(Math.sin(targetYaw-this.previousYaw), Math.cos(targetYaw-this.previousYaw))*(1-Math.exp(-dt*20));
+    root.rotation.set(0, yaw, 0);
+    this.previousYaw = yaw;
     root.scale.setScalar(1);
     const down=p.arrest?.phase==='down'||p.arrest?.phase==='backup',seated=p.arrest?.phase==='transport';
     this.custodyDown+=(Number(down)-this.custodyDown)*(1-Math.exp(-dt*10));
@@ -284,18 +302,36 @@ export class FirstPersonBody {
       root.position.z-=Math.cos(b.yaw)*1.6*this.custodyDown;
       root.position.y+=.22*this.custodyDown;
     }
-    const moving = p.speed > 0.15 && !car && b.grounded,
-      motion = moving ? (p.speed > 3 ? (p.weapon && p.weapon!=='punch' ? 'Run_Shoot' : 'Run') : 'Walk') : p.weapon && p.weapon!=='punch' ? (b.aim ? 'Idle_Gun_Pointing' : 'Idle_Gun') : 'Idle';
-    if (motion !== this.motion) {
-      for (const a of Object.values(actor.clips || {Idle:actor.idle, Walk:actor.walk, Run:actor.run})) a?.fadeOut(0.14);
-      const next = actor.clips?.[motion] || (moving ? (p.speed > 3 ? actor.run : actor.walk) : actor.idle);
-      next?.reset().fadeIn(0.14).play();
-      this.motion = motion;
+    const speed = T.MathUtils.clamp(Number.isFinite(p.speed) ? Math.abs(p.speed) : 0, 0, 12);
+    this.moving = speed > (this.moving ? .08 : .18) && !car && b.grounded;
+    this.running = this.moving && speed > (this.running ? 2.7 : 3.25);
+    const moving = this.moving,
+      motion = moving ? (this.running ? (p.weapon && p.weapon!=='punch' ? 'Run_Shoot' : 'Run') : 'Walk') : p.weapon && p.weapon!=='punch' ? (b.aim ? 'Idle_Gun_Pointing' : 'Idle_Gun') : 'Idle';
+    const next = actor.clips?.[motion] || (moving ? (this.running ? actor.run || actor.walk : actor.walk || actor.run) : actor.idle);
+    if (next !== this.activeMotion) {
+      const previous = this.activeMotion;
+      const preserveStride = moving && /walk|run|sprint/i.test(previous?.getClip().name || '');
+      const phase = preserveStride && previous ? previous.time / Math.max(.001, previous.getClip().duration) : 0;
+      for (const action of this.motionActions)
+        if (action !== next) action?.fadeOut(.18);
+      if (next) {
+        next.reset();
+        next.time = (phase % 1) * next.getClip().duration;
+        next.fadeIn(.18).play();
+      }
+      this.activeMotion = next;
     }
-    actor.mixer?.update(
-      dt *
-        (moving ? Math.max(0.08, p.speed / (motion.startsWith('Run') ? 5.4 : 1.45)) : 1)
-    );
+    this.motion = motion;
+    // Scale the walk/run clip, not the mixer's clock: fading must take the same
+    // real time at a slow walk as at a sprint. Keep unkeyed IK joints fresh.
+    for (const [bone, rest] of this.rests) bone.quaternion.copy(rest);
+    for (const action of this.motionActions) {
+      if (!action) continue;
+      const name = action.getClip().name;
+      const locomotion = /walk|run|sprint/i.test(name);
+      action.setEffectiveTimeScale(moving && locomotion ? T.MathUtils.clamp(speed / (/run|sprint/i.test(name) ? 5.4 : 1.45), .15, 2.3) : 1);
+    }
+    actor.mixer?.update(dt);
     // Imported player skins may ship only a static pose: use their own bind
     // proportions to animate feet without assuming Mixamo local joint axes.
     if (!this.hasLocomotion) this.legPose?.update(b.gait, moving ? p.speed : 0);
@@ -307,21 +343,25 @@ export class FirstPersonBody {
           .copy(this.rests.get(bone)!)
           .multiply(q.setFromEuler(new T.Euler(x, y, z)));
     };
-    const crouch = b.crouched;
+    const crouch = b.crouched,
+      // The motor already eases the eye height. Use that same transition for
+      // the pelvis, so the player's body does not pop a half metre in one frame.
+      crouchBlend = T.MathUtils.clamp((1.62-b.eye)/.68, 0, 1);
     const hips = this.bones.get('hips');
     if (hips) {
-      const shift = crouch || car || seated ? -0.52 : 0;
+      const shift = car || seated ? -.52 : -.52*crouchBlend;
       root.position.y += shift;
     }
-    if (crouch || car || seated) {
-      set('leftupleg', car ? -1.35 : -1.3);
-      set('rightupleg', car ? -1.35 : -1.3);
-      set('leftleg', car ? 1.65 : 2.0);
-      set('rightleg', car ? 1.65 : 2.0);
+    if (crouchBlend > .001 || car || seated) {
+      const blend=car||seated?1:crouchBlend;
+      set('leftupleg', (car ? -1.35 : -1.3)*blend);
+      set('rightupleg', (car ? -1.35 : -1.3)*blend);
+      set('leftleg', (car ? 1.65 : 2.0)*blend);
+      set('rightleg', (car ? 1.65 : 2.0)*blend);
       if (crouch && moving) {
         const wave = Math.sin(b.gait) * 0.25;
-        set('leftupleg', -1.3 + wave * 0.4);
-        set('rightupleg', -1.3 - wave * 0.4);
+        set('leftupleg', (-1.3 + wave * 0.4)*blend);
+        set('rightupleg', (-1.3 - wave * 0.4)*blend);
       }
     }
     if (!b.grounded) {
@@ -337,7 +377,7 @@ export class FirstPersonBody {
     const forward = direction3(b.yaw, b.pitch),
       right = new T.Vector3(Math.cos(b.yaw), 0, -Math.sin(b.yaw)),
       eye = new T.Vector3(p.x, b.y + b.eye, p.z);
-    if (crouch && !car) {
+    if (crouchBlend > .001 && !car) {
       for (const side of ['left', 'right'] as const) {
         set(side + 'upleg', 0);
         set(side + 'leg', 0);

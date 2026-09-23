@@ -1,11 +1,12 @@
 import {renderPixelRatio} from './renderSettings';
 import {SkanderbegBuildingLayer} from '../tirana-landmarks/SkanderbegBuildingLayer';
 import {ROCK_REPLACEMENT_IDS} from '../tirana-landmarks/skanderbegBuilding.mjs';
-import {AutomaticGraphics, GRAPHICS_PROFILES, graphicsSetting, type GraphicsPreset, type GraphicsSetting} from './graphicsQuality';
+import {AutomaticGraphics, DynamicResolution, GRAPHICS_PROFILES, graphicsSetting, type GraphicsPreset, type GraphicsSetting} from './graphicsQuality';
 import {BikeVisuals} from './BikeVisuals';
 import {prepareModelWheels,prepareLegacyWheels,collectRollingWheels,rollWheels,type RollingWheel} from './rollingWheels';
+import {prepareVehicleMaterials} from './vehicleMaterials';
 import {selectedPlayerUrl} from './playerCatalog.mjs';
-import {FORCE_ASSET_BY_ID} from './shared/albanianForces.mjs';
+import {prepareHumanMaterials} from './street-career/humanMaterials.mjs';
 import {normalizePlayableHuman, humanoidBones, HumanoidLegPose, solveHumanoidLimb, hideAuthoredPlayerWeapon} from './street-career/humanoidRig.mjs';
 import {groundHeight} from '../tirana-east/terrainCore.mjs';
 import {LandscapeVisuals} from './landscapeVisuals';
@@ -47,62 +48,6 @@ import { MAPPED_TREES } from '../tirana-city-source/registry.mjs';
 import {MATURE_TREE_IDS,FUEL_CANOPY_IDS} from '../tirana-street-life/registry.mjs';
 
 const ASSETS = "/assets/tirana-streets/";
-// Only these three catalog entries can become the local career uniform. This
-// also bounds the optional source/animation cache to three human models.
-const DUTY_UNIFORMS = new Set(['shqiponja_officer', 'fnsh_officer', 'renea_officer']);
-
-/** The original uniforms use MakeHuman joints. Adapt only this private player
- * template; NPC skeletons and the authored force clips remain unchanged. */
-export function prepareDutyPlayerModel(scene: THREE.Group, animations: THREE.AnimationClip[]) {
-  const renamed = new Map<string, string>();
-  const names = new Map<string, string>();
-  if (scene.getObjectByName(THREE.PropertyBinding.sanitizeNodeName('upperarm01.L'))) {
-    for (const [source, target] of Object.entries({root:'hips', spine05:'spine', spine04:'spine1', spine03:'spine2', spine02:'spine3', spine01:'spine4', neck01:'neck', neck02:'neck1', neck03:'neck2'})) names.set(source, target);
-    for (const [suffix, side] of [['L', 'left'], ['R', 'right']]) {
-      for (const [source, target] of Object.entries({clavicle:'shoulder', upperarm01:'arm', lowerarm01:'forearm', wrist:'hand', upperleg01:'upleg', lowerleg01:'leg', foot:'foot'})) {
-        names.set(THREE.PropertyBinding.sanitizeNodeName(`${source}.${suffix}`), side + target);
-      }
-      for (const [index, finger] of ['thumb', 'index', 'middle', 'ring', 'pinky'].entries()) for (let joint = 1; joint <= 3; joint++) {
-        names.set(THREE.PropertyBinding.sanitizeNodeName(`finger${index + 1}-${joint}.${suffix}`), `${side}hand${finger}${joint}`);
-      }
-    }
-    scene.traverse(node => {
-      const name = node instanceof THREE.Bone ? names.get(node.name) : undefined;
-      if (name) { renamed.set(node.name, name); node.name = name; }
-    });
-  }
-  const clips = animations.map(source => {
-    const clip = source.clone();
-    for (const track of clip.tracks) {
-      const node = THREE.PropertyBinding.parseTrackName(track.name).nodeName;
-      const name = renamed.get(node);
-      if (name) track.name = track.name.replace(node + '.', name + '.');
-    }
-    return clip;
-  });
-  // The force pack ships Idle/Walk only. A private faster walk supplies the
-  // existing body controller's Run fallback while its own arm IK handles aim.
-  if (!clips.some(clip => /^(run|sprint)$/i.test(clip.name))) {
-    const walk = clips.find(clip => /^walk$/i.test(clip.name));
-    if (walk) {
-      const run = walk.clone(); run.name = 'Run'; run.duration /= 2;
-      for (const track of run.tracks) track.scale(.5);
-      clips.push(run);
-    }
-  }
-  const model = normalizePlayableHuman(scene);
-  hideAuthoredPlayerWeapon(model);
-  model.traverse(node => {
-    if (!(node instanceof THREE.Mesh)) return;
-    node.castShadow = true; node.receiveShadow = true;
-    for (const material of Array.isArray(node.material) ? node.material : [node.material]) {
-      if (!(material instanceof THREE.MeshStandardMaterial)) continue;
-      if (material.map) material.map.colorSpace = THREE.SRGBColorSpace;
-      if (material.emissiveMap) material.emissiveMap.colorSpace = THREE.SRGBColorSpace;
-    }
-  });
-  return {model, clips};
-}
 const Y = new THREE.Vector3(0, 1, 0);
 const tmp = new THREE.Object3D();
 const smoothAngle = (a: number, b: number, t: number) =>
@@ -133,6 +78,9 @@ export class CityRenderer {
   quality: GraphicsPreset = 'balanced';
   qualitySetting: GraphicsSetting = 'auto';
   private automaticGraphics = new AutomaticGraphics();
+  private dynamicResolution = new DynamicResolution();
+  private viewportWidth = 0;
+  private viewportHeight = 0;
   targetFps = 60;
   ready = false;
   disposed = false;
@@ -148,17 +96,13 @@ export class CityRenderer {
   private observer: ResizeObserver;
   private playerModel='character';
   private playerAnimations:THREE.AnimationClip[]=[];
-  private dutyAnimations = new Map<string, THREE.AnimationClip[]>();
-  private dutyPending = new Map<string, AbortController>();
-  private dutyRetryAt = new Map<string, number>();
-  private dutyLoader?: GLTFLoader;
+  private humanMaterialReleases: ((instances?:THREE.Object3D)=>void)[] = [];
   private models = new Map<string, THREE.Group>();
   private actors = new Map<string, Actor>();
   private animations: THREE.AnimationClip[] = [];
   private sunlight = new THREE.DirectionalLight(0xffe3a4, 3.4);
   private routeLine: THREE.Line | null = null;
   private beacon = new THREE.Group();
-  private cityChunks: THREE.Group[] = [];
   private shellMaterials: THREE.MeshStandardMaterial[] = [];
   private facades: CityFacades | null = null;
   private skanderbegBuilding=new SkanderbegBuildingLayer();
@@ -397,7 +341,6 @@ export class CityRenderer {
         const group = new THREE.Group();
         group.userData.center = { x: cx, z: cz };
         this.scene.add(group);
-        this.cityChunks.push(group);
         buckets.set(key, { geos: colors.map(() => []), group });
       }
       const shape = new THREE.Shape(
@@ -753,6 +696,7 @@ export class CityRenderer {
           // Authored +X nose becomes +Z for the existing road-vehicle transform.
           // Preserve native metres, complete geometry and all PBR maps.
           if (roadModel) {prepareModelWheels(gltf.scene,roadModel);gltf.scene.rotation.y = -Math.PI / 2;}
+          if (!isHuman) prepareVehicleMaterials(gltf.scene);
           if (name === "motorbike") gltf.scene.rotation.y = -Math.PI / 2;
           gltf.scene.updateMatrixWorld(true);
           const box = new THREE.Box3().setFromObject(gltf.scene),
@@ -786,6 +730,7 @@ export class CityRenderer {
               });
             }
           });
+          if(isHuman)this.humanMaterialReleases.push(prepareHumanMaterials(wrapper));
           this.models.set(name, wrapper);
           if (name === "character") this.animations = gltf.animations;
           if(name==='local-player')this.playerAnimations=gltf.animations;
@@ -828,7 +773,7 @@ export class CityRenderer {
           const texture = original.clone();
           texture.wrapS = texture.wrapT = THREE.RepeatWrapping;
           texture.repeat.set(1, 1);
-          texture.anisotropy = 2;
+          texture.anisotropy = Math.min(4,this.renderer.capabilities.getMaxAnisotropy());
           texture.needsUpdate = true;
           material[key] = texture;
           this.worldTextures.add(texture);
@@ -863,50 +808,6 @@ export class CityRenderer {
       void Promise.allSettled(pending).then(() => draco.dispose());
     }
   }
-  private localPlayerModel(player: {id: string; forceCharacter?: string}) {
-    const id = player.forceCharacter;
-    if (!id || !DUTY_UNIFORMS.has(id)) return this.playerModel;
-    const key = `duty-player:${id}`;
-    if (this.models.has(key)) return key;
-    void this.loadDutyPlayer(id);
-    // A network request never replaces a visible player with an empty group.
-    const current = this.actors.get(`player-${player.id}`);
-    return current?.group.children.length ? current.model : this.playerModel;
-  }
-  private async loadDutyPlayer(id: string) {
-    const asset = DUTY_UNIFORMS.has(id) ? FORCE_ASSET_BY_ID.get(id) : undefined;
-    const key = `duty-player:${id}`;
-    if (this.disposed || asset?.category !== 'person' || this.models.has(key) ||
-        this.dutyPending.size || (this.dutyRetryAt.get(id) || 0) > this.clock) return;
-    const abort = new AbortController();
-    this.dutyPending.set(id, abort);
-    const timer = setTimeout(() => abort.abort(), 45000);
-    let source: THREE.Group | undefined;
-    try {
-      const response = await fetch(asset.url, {signal: abort.signal});
-      if (!response.ok) throw Error(`Uniform HTTP ${response.status}`);
-      const bytes = await response.arrayBuffer();
-      if (this.disposed) return;
-      this.dutyLoader ||= new GLTFLoader();
-      const gltf = await this.dutyLoader.parseAsync(bytes, asset.url.slice(0, asset.url.lastIndexOf('/') + 1));
-      source = gltf.scene;
-      if (this.disposed) return;
-      const {model, clips} = prepareDutyPlayerModel(source, gltf.animations);
-      this.models.set(key, model);
-      this.dutyAnimations.set(key, clips);
-      this.dutyRetryAt.delete(id);
-      source = undefined;
-    } catch (error) {
-      if (!this.disposed) {
-        this.dutyRetryAt.set(id, this.clock + 30);
-        console.warn('Career uniform unavailable; current player retained', id, error);
-      }
-    } finally {
-      if (source) this.disposeObject(source);
-      clearTimeout(timer);
-      this.dutyPending.delete(id);
-    }
-  }
   private actor(model: string, id: string): Actor {
     const existing = this.actors.get(id);
     if (existing && existing.model === model && (existing.group.children.length || !this.models.has(model))) return existing;
@@ -920,8 +821,7 @@ export class CityRenderer {
       this.actors.delete(id);
     }
     const template = this.models.get(model);
-    const dutyAnimations = this.dutyAnimations.get(model);
-    const human = model === 'character' || model === 'local-player' || !!dutyAnimations;
+    const human = model === 'character' || model === 'local-player';
     const group = (
       template
         ? human
@@ -930,7 +830,7 @@ export class CityRenderer {
         : new THREE.Group()
     ) as THREE.Group;
     const actor: Actor = { group, wheels: CIVILIAN_VEHICLE_MODELS[model]?collectRollingWheels(group):prepareLegacyWheels(group), model };
-    const animations = dutyAnimations || (model==='local-player'?this.playerAnimations:this.animations);
+    const animations = model==='local-player'?this.playerAnimations:this.animations;
     if (human && animations.length) {
       actor.mixer = new THREE.AnimationMixer(group);
       actor.clips = Object.fromEntries(animations.map(clip => [clip.name, actor.mixer!.clipAction(clip)]));
@@ -944,7 +844,7 @@ export class CityRenderer {
       if (walk) actor.walk = actor.mixer.clipAction(walk);
       actor.idle.play();
     }
-    if (model === 'local-player' || dutyAnimations) {
+    if (model === 'local-player') {
       const bones=humanoidBones(group),rests=new Map<THREE.Bone,THREE.Quaternion>();
       for(const bone of bones.values())rests.set(bone,bone.quaternion.clone());
       actor.importedRig={bones,rests,legs:new HumanoidLegPose(group,bones),gait:0};
@@ -989,6 +889,7 @@ export class CityRenderer {
   setQuality(quality: GraphicsSetting) {
     this.qualitySetting = graphicsSetting(quality);
     this.automaticGraphics.reset();
+    this.dynamicResolution.reset();
     this.applyGraphics(this.qualitySetting === 'auto' ? this.automaticGraphics.preset : this.qualitySetting);
   }
   private applyGraphics(preset: GraphicsPreset) {
@@ -999,17 +900,27 @@ export class CityRenderer {
       this.sunlight.shadow.map?.dispose(); this.sunlight.shadow.map = null;
       this.sunlight.shadow.mapSize.setScalar(profile.shadowSize);this.sunlight.shadow.needsUpdate=true;
     }
+    const extent = profile.shadowSpan / 2;
+    Object.assign(this.sunlight.shadow.camera, {left:-extent,right:extent,top:extent,bottom:-extent});
+    this.sunlight.shadow.camera.updateProjectionMatrix();
+    this.sunlight.shadow.normalBias = profile.shadowSpan / profile.shadowSize * .28;
+    this.sunlight.shadow.needsUpdate = true;
     this.scene.userData.graphicsPreset = preset;
     this.resize();
   }
   private resize() {
     const w = this.root.clientWidth || 390,
       h = this.root.clientHeight || 800;
+    const ratio=renderPixelRatio(w,h,window.devicePixelRatio||1,GRAPHICS_PROFILES[this.quality].pixelRatio)
+      * (this.qualitySetting === 'auto' ? this.dynamicResolution.scale : 1);
+    if(w===this.viewportWidth && h===this.viewportHeight && Math.abs(ratio-this.dpr)<.001)return;
+    this.viewportWidth=w;this.viewportHeight=h;this.dpr=ratio;
     this.camera.aspect = w / h;
     this.camera.updateProjectionMatrix();
-    this.dpr=renderPixelRatio(w,h,window.devicePixelRatio||1,GRAPHICS_PROFILES[this.quality].pixelRatio);
-    this.renderer.setPixelRatio(this.dpr);
-    this.renderer.setSize(w, h, false);
+    // setDrawingBufferSize performs one buffer allocation; setPixelRatio followed
+    // by setSize allocated twice when the adaptive resolution changed.
+    this.renderer.setDrawingBufferSize(w,h,ratio);
+    this.scene.userData.resolutionScale = this.qualitySetting === 'auto' ? this.dynamicResolution.scale : 1;
   }
   render(state: State | null, playerId: string, dt: number, lobby: boolean) {
     if (this.disposed || this.renderer.getContext().isContextLost()) return;
@@ -1021,9 +932,16 @@ export class CityRenderer {
     this.sampleStamp = stamp;
     if (this.sampleTime >= 2) {
       this.fps = Math.round(this.frames / this.sampleTime);
-      if (this.qualitySetting === 'auto' && this.ready && state && dt>0 && !lobby && !document.hidden &&
-          this.automaticGraphics.sample(this.fps, this.targetFps)) {
-        this.applyGraphics(this.automaticGraphics.preset);
+      if (this.qualitySetting === 'auto' && this.ready && state && dt>0 && !lobby && !document.hidden) {
+        const resized = this.dynamicResolution.sample(this.fps, this.targetFps);
+        if(resized)this.resize();
+        // Keep character textures, nearby architecture and shadows until the
+        // framebuffer has exhausted its smaller, reversible performance steps.
+        if(!resized && (this.dynamicResolution.atMinimum || (this.dynamicResolution.scale === 1 && this.fps >= Math.min(60,this.targetFps)*.97))
+          && this.automaticGraphics.sample(this.fps,this.targetFps)) {
+          this.dynamicResolution.reset();
+          this.applyGraphics(this.automaticGraphics.preset);
+        }
       }
       this.frames = 0;
       this.sampleTime = 0;
@@ -1036,7 +954,6 @@ export class CityRenderer {
       else {this.yaw=drivenCar.heading;this.pitch=0;}
       this.lastDriven={id:drivenCar.id,heading:drivenCar.heading};
     }else this.lastDriven=undefined;
-    this.driverInterior.update(this.cockpitCamera&&!lobby?drivenCar:undefined);
     if (this.ready && state) {
       const active = new Set<string>();
       if(!this.bikeFleet.group.parent)this.scene.add(this.bikeFleet.group);
@@ -1086,12 +1003,12 @@ export class CityRenderer {
           Math.min(1, dt * 6),
         );
         rollWheels(a.wheels,car.speed,dt);
-        for (const w of a.wheels) if(w.steer)w.steer.rotation.y=-car.steering*.32;
+        for (const w of a.wheels) if(w.steer)w.steer.rotation.y=-(car.steerAngle??car.steering*.32);
         if (p?.carId === car.id) this.presentDrivenCar(a, state, playerId);
         this.presentVehicle(a, state, car.id, dt);
       }
       for (const pl of Object.values(state.players)) {
-        const a = this.actor(pl.id===playerId?this.localPlayerModel(pl):"character", `player-${pl.id}`);
+        const a = this.actor(pl.id===playerId?this.playerModel:"character", `player-${pl.id}`);
         active.add(`player-${pl.id}`);
         if (pl.id === playerId && this.presentLocalPlayer(a, state, playerId, dt)) continue;
         a.group.visible = !pl.carId && !(this.firstPerson && pl.id === playerId);
@@ -1284,7 +1201,6 @@ export class CityRenderer {
     this.facades?.update(target, dt, this.quality === "battery", this.camera);
     this.landscape.update(target,this.clock,this.quality === "battery");
     this.atmosphere.update(this.clock,this.camera,this.quality === "battery");
-    for (const chunk of this.cityChunks) chunk.visible = true;
     for (const label of this.landmarkText)
       label.visible = label.position.distanceTo(this.camera.position) < 300;
     this.beacon.visible =
@@ -1315,10 +1231,12 @@ export class CityRenderer {
     this.beforeDraw(state, playerId, dt);
     // Opaque original windows/cab roofs must not cover the active interior.
     // Hide only this viewer's exterior during this draw, restoring it afterward.
-    const exterior=this.cockpitCamera&&!lobby&&drivenCar
+    const exterior=drivenCar
       ? this.collectionFleet.getRoot(drivenCar.id)||this.forces.getRoot(drivenCar.id)||this.racingFleet.getRoot(drivenCar.id)||this.actors.get(drivenCar.id)?.group : undefined;
+    const cockpit=this.cockpitCamera&&!lobby&&drivenCar;
+    this.driverInterior.update(cockpit?drivenCar:undefined,undefined,exterior);
     const visible=exterior?.visible;
-    if(exterior)exterior.visible=false;
+    if(exterior&&cockpit)exterior.visible=false;
     try{this.renderer.render(this.scene, this.camera);}
     finally{if(exterior)exterior.visible=visible!;}
 
@@ -1408,9 +1326,6 @@ export class CityRenderer {
   destroy() {
     this.bikeFleet.dispose();
     this.disposed = true;
-    for (const abort of this.dutyPending.values()) abort.abort();
-    this.dutyAnimations.clear();
-    this.dutyRetryAt.clear();
     this.referenceFacades.dispose();
     this.skanderbegBuilding.dispose();
     this.agedHousing.dispose();
@@ -1422,6 +1337,7 @@ export class CityRenderer {
     this.atmosphere.dispose();this.landscape.dispose();this.surfaceMaterials.dispose();
     this.observer.disconnect();
     for (const a of this.actors.values()) a.mixer?.stopAllAction();
+    this.humanMaterialReleases.forEach(release=>release(this.scene));this.humanMaterialReleases.length=0;
     this.disposeObject(this.scene);
     this.models.forEach((m) => this.disposeObject(m));
     this.worldTextures.forEach((t) => t.dispose());

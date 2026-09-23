@@ -1,7 +1,8 @@
+import {pointInUrbanBounds} from '../../tiranastreets/shared/urbanBounds.mjs';
 // Lightweight menu metadata. No city decoding, collision placement or renderer imports.
 // District seeds mirror the checked-in NEIGHBOURHOOD/EAST snapshots.
 // © OpenStreetMap contributors, ODbL-1.0. See tiranastreets/shared/DATA-LICENSE.md.
-export const BATTLEFIELD_MAP_CATALOG = Object.freeze([
+const ARCHIVED_MAP_CATALOG = Object.freeze([
   Object.freeze({"id":"skanderbeg","name":"Skanderbeg Square","worldX":-55,"worldZ":-110}),
   Object.freeze({"id":"blloku","name":"Blloku Night Run","worldX":-165,"worldZ":520}),
   Object.freeze({"id":"lana","name":"Lana Riverfront","worldX":40,"worldZ":260}),
@@ -116,3 +117,5 @@ export const BATTLEFIELD_MAP_CATALOG = Object.freeze([
   Object.freeze({"id":"district-12189142966","name":"Kutrreq","worldX":9280.13,"worldZ":-7815.11}),
   Object.freeze({"id":"district-728424962","name":"Shkallë","worldX":12577.52,"worldZ":-573.7}),
 ]);
+
+export const BATTLEFIELD_MAP_CATALOG=Object.freeze(ARCHIVED_MAP_CATALOG.filter(m=>m.id!=='dajti-gate'&&pointInUrbanBounds({x:m.worldX,z:m.worldZ})));

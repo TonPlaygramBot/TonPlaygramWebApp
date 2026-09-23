@@ -1,3 +1,4 @@
+import {OPERATION_IDS} from '../shared/streetOperations.mjs';
 import {normalizeCheckpoint} from './checkpointCore.mjs';
 import {createMissionDirector, missionGrade} from './missionDirectorCore.mjs';
 import {ensureStarterWeapons} from '../shared/weapons.mjs';
@@ -6,7 +7,7 @@ export const STREET_SAVE_KEY = 'tirana-streets:street-career:v1';
 export const CHAPTER_IDS = Object.freeze([
   'first-shift', 'lana-run', 'after-hours', 'express', 'capital-circuit',
   'city-lights', 'rinia-rescue', 'boulevard-defense', 'five-star-escape',
-  'air-rescue', 'sky-patrol'
+  'air-rescue', 'sky-patrol', ...OPERATION_IDS
 ]);
 // Contacts unlock independent story strands. Existing completed chapters remain valid.
 export const MISSION_REQUIREMENTS = Object.freeze({
@@ -42,7 +43,7 @@ export function createCampaign(missions, weapons, starter) {
     return {cash: Math.floor(number(raw?.cash, 750, 10000000)), inventory,
       weapon: raw?.weapon === '' ? '' : raw?.weapon === 'fpsGunAttack' ? starter : Object.hasOwn(inventory, raw?.weapon) ? raw.weapon : Object.hasOwn(inventory,starter) ? starter : Object.keys(inventory)[0]};
   }
-  function fresh() { return {version: 1, completed: [], best: {}, records: {}, loadout: loadout(null), active: null}; }
+  function fresh() { return {version: 1, completed: [], best: {}, records: {}, loadout: loadout(null), active: null, explore:null}; }
   function normalize(raw) {
     const p = fresh();
     if (!plain(raw) || raw.version !== 1) return p;
@@ -56,6 +57,7 @@ export function createCampaign(missions, weapons, starter) {
         p.records[id] = {grade:record.grade,runs:Math.floor(number(record.runs,1,100000)),integrity:number(record.integrity,100,100)};
     }
     p.loadout = loadout(raw.loadout);
+    p.explore=normalizeCheckpoint(raw.explore,loadout,1);
     const a = raw.active;
     if (plain(a) && available(p, a.id)) {
       p.active = {id: a.id, difficulty: difficulties.has(a.difficulty) ? a.difficulty : 'normal', checkpoint: loadout(a.checkpoint)};

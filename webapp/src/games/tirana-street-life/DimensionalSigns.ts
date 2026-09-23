@@ -1,3 +1,4 @@
+import {pointInUrbanBounds} from '../tiranastreets/shared/urbanBounds.mjs';
 import * as T from 'three';
 import {GLTFLoader} from 'three/examples/jsm/loaders/GLTFLoader.js';
 import {STREET_LIFE} from './registry.mjs';
@@ -22,7 +23,7 @@ export class DimensionalSigns{
   this.group.name='Tirana:Blender-raised-identity-signs';
   const seen=new Set<string>();
   for(const s of [...STREET_LIFE.storefronts,...NEIGHBOURHOOD.storefronts,...BUSINESS_SIGNS] as any[]){
-   const ref=signReferenceFor(s.name);if(!ref||!available.has(ref.id)||seen.has(s.id))continue;seen.add(s.id);
+   const ref=signReferenceFor(s.name);if(!pointInUrbanBounds(s,4)||!ref||!available.has(ref.id)||seen.has(s.id))continue;seen.add(s.id);
    this.sites.push({id:s.id,brand:ref.id,x:s.x,z:s.z,yaw:s.yaw||0,width:s.width||4.5,height:s.signHeight||.46,y:s.mountHeight||3.21});
   }
   for(const site of CITY_PLACES.sites){

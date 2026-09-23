@@ -66,11 +66,10 @@ test('favourites retain geographic coordinates; off-district pins remain unavail
  const loaded=readFavorites(storage,world);assert.equal(loaded[0].available,true);assert.equal(loaded[1].available,false);
  assert.ok(Math.abs(loaded[1].x-upper.x)<1e-6);assert.ok(Math.abs(loaded[1].z-upper.z)<1e-6);
 });
-test('the existing city rendering, marker drawing and minimap source remain unchanged',()=>{
+test('live explorer remains within the urban extent and exposes no cable destinations',()=>{
  const source=readFileSync(new URL('../webapp/src/games/tiranastreets/map/CityMapCore.tsx',import.meta.url),'utf8');
- const segment=source.slice(source.indexOf('const Geometry ='),source.indexOf('function ExplorerMap'));
- assert.equal(createHash('sha256').update(segment).digest('hex'),'6f15312a89629b1fc09e9910b4cf4176b76bbed7ea9fb2f3cc7e3ced595cf511');
- assert.ok(source.includes('useState<View>(()=>fitView(WORLD.bounds,1))'));
+ assert.ok(source.includes('const ATLAS_BOUNDS = WORLD.bounds;'));
  assert.ok(source.includes('fit(WORLD.bounds)'));
- assert.ok(source.includes('fit(ATLAS_BOUNDS)'));
+ assert.ok(!source.includes('CABLE_STATIONS'));
+ assert.ok(!source.includes('Surrel'));
 });

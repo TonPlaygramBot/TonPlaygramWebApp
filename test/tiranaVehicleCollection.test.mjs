@@ -5,6 +5,7 @@ import {createHash} from 'node:crypto';
 import {VEHICLE_COLLECTION,collectionVehicleFor} from '../webapp/src/games/tiranastreets/shared/vehicleCollection.mjs';
 import {forceVehicleFor} from '../webapp/src/games/tiranastreets/shared/albanianForces.mjs';
 import {COLLECTION_PLACEMENTS} from '../webapp/src/games/tiranastreets/shared/collectionPlacements.mjs';
+import {CITY_POPULATION} from '../webapp/src/games/tiranastreets/shared/cityPopulation.mjs';
 import {createState,interact,advanceState,control,FREE_ROAM,emptyInput} from '../webapp/src/games/tiranastreets/shared/engine.mjs';
 import {ORIGIN,OBSTACLES,props,START,EXTRACTION,SPAWNS,BATTLEFIELD_MAPS} from '../webapp/src/games/blackwater/shared/layout.mjs';
 import {footprintDistance} from '../webapp/src/games/tiranastreets/shared/architecture.mjs';
@@ -26,7 +27,7 @@ test('registered cars retain their parked and enterable placements',()=>{
  const state=createState([{id:'tester',name:'Tester'}],FREE_ROAM.id,'solo');
  assert.equal(state.cars.filter(collectionVehicleFor).length,11);
  assert.deepEqual(new Set(state.traffic.filter(collectionVehicleFor).map(c=>c.collectionVehicle)),new Set(expected));
- assert.ok(state.traffic.filter(collectionVehicleFor).length>=240,'civilian collection vehicles scale with the denser traffic population');
+ assert.ok(state.traffic.filter(collectionVehicleFor).length>=Math.floor(CITY_POPULATION.vehicles*.04),'civilian collection vehicles retain their share of the urban traffic budget');
  assert.equal(state.traffic.filter(c=>collectionVehicleFor(c)&&forceVehicleFor(c)).length,0,'one visual owner per vehicle');
  assert.equal(forceVehicleFor({model:'police',forceVehicle:'patrol_hatch',collectionVehicle:'benz'}),undefined,'legacy dual assignment uses its collection model');
  for(const p of COLLECTION_PLACEMENTS){

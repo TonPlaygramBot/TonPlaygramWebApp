@@ -139,7 +139,7 @@ export function solveHumanoidLimb(root,bones,side,target,leg=false) {
 /** A rig-specific rest pose supplies stride targets when no walk/run is shipped. */
 export class HumanoidLegPose {
   constructor(root,bones) {
-    this.root=root;this.bones=bones;this.rests=new Map();this.feet=new Map();
+    this.root=root;this.bones=bones;this.rests=new Map();this.feet=new Map();this.target=new T.Vector3();
     root.updateMatrixWorld(true);
     for(const side of ['left','right'])for(const part of ['upleg','leg','foot']){
       const bone=bones.get(side+part);if(!bone)continue;
@@ -153,7 +153,7 @@ export class HumanoidLegPose {
     const amount=T.MathUtils.clamp(speed/4,0,1),stride=.28*amount,lift=.11*amount;
     for(const side of ['left','right']) {
       const rest=this.feet.get(side);if(!rest)continue;
-      const phase=gait+(side==='left'?0:Math.PI),foot=rest.clone();
+      const phase=gait+(side==='left'?0:Math.PI),foot=this.target.copy(rest);
       foot.z+=Math.sin(phase)*stride;foot.y+=Math.max(0,Math.cos(phase))*lift;
       solveHumanoidLimb(this.root,this.bones,side,this.root.localToWorld(foot),true);
     }

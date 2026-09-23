@@ -1,6 +1,8 @@
+import {urbanMonumentSolids} from '../../tirana-landmarks/urbanMonuments.mjs';
+import {STREET_OPERATIONS} from './streetOperations.mjs';
 import {initPoliceDispatch} from './policeDispatch.mjs';
 import {vehiclePolygonContact,slideVehicle} from './vehicleContacts.mjs';
-import {drivingScale} from './drivingScale.mjs';
+import {driveVehicle} from './vehicleDynamics.mjs';
 import {importedFleet,IMPORTED_PLACEMENT_ORIGIN} from '../../blackwater/shared/importedPlacements.mjs';
 import {VEHICLE_COLLECTION} from './vehicleCollection.mjs';
 import {COLLECTION_PLACEMENTS} from './collectionPlacements.mjs';
@@ -9,6 +11,7 @@ import {ROCK_REPLACEMENT_IDS,skanderbegBuildingSolids} from '../../tirana-landma
 import {FUEL_CANOPY_IDS,fuelCanopyObstacles} from '../../tirana-street-life/fuelCollision.mjs';
 import {
   equipStarter,
+  spawnCombatCrew,
   initCityLife,
   lifeAction,
   updateCityLife, harm
@@ -294,6 +297,8 @@ export const MISSIONS = [
     stops: [stop('square', -50, 100), stop('blloku', -50, 0), stop('pyramid', 80, 0), stop('mother', 0, -70)]
   }
 ];
+// Operations use the same world collision, AI, pickups and extraction rules.
+MISSIONS.push(...STREET_OPERATIONS.map(o=>({id:o.id,title:o.title,district:o.district,type:'combat',operation:true,enemies:o.enemies,time:o.time,reward:o.reward,extractionHold:o.hold,description:o.description,combatZone:{...roadPoint(o.x,o.z),name:o.district},stops:[{...roadPoint(o.extractX,o.extractZ),name:o.district+' extraction'}]})));
 export const SPAWN = roadPoint(-60, 130);
 const spawnNode = nearestNode(SPAWN.x, SPAWN.z);
 const initialHeading = (() => {
@@ -358,7 +363,7 @@ for(const water of waterSegments){const margin=water.width/2+6;
   for(let z=Math.floor((Math.min(water.a[1],water.b[1])-margin)/40);z<=Math.floor((Math.max(water.a[1],water.b[1])+margin)/40);z++){const key=`${x},${z}`;if(!waterCells.has(key))waterCells.set(key,[]);waterCells.get(key).push(water);}
 }
 const importedSolids=importedFleet.filter(a=>a.assetId).map(a=>{const x=a.x+IMPORTED_PLACEMENT_ORIGIN.x,z=a.z+IMPORTED_PLACEMENT_ORIGIN.z;return {id:'imported-'+a.assetId,h:a.h,p:[[x-a.w/2,z-a.d/2],[x+a.w/2,z-a.d/2],[x+a.w/2,z+a.d/2],[x-a.w/2,z+a.d/2]]};});
-const collisionBuildings = [...importedSolids,...WORLD.buildings.filter(b=>!FUEL_CANOPY_IDS.has(b.id)&&!ROCK_REPLACEMENT_IDS.has(String(b.id))),...skanderbegBuildingSolids(WORLD),...fuelCanopyObstacles().filter(b=>b.minY===0)];
+const collisionBuildings = [...importedSolids,...urbanMonumentSolids(),...WORLD.buildings.filter(b=>!FUEL_CANOPY_IDS.has(b.id)&&!ROCK_REPLACEMENT_IDS.has(String(b.id))),...skanderbegBuildingSolids(WORLD),...fuelCanopyObstacles().filter(b=>b.minY===0)];
 // Read-only geometry contract for the optional local 3D player system.
 export const collisionSolids = [...collisionBuildings, ...fuelCanopyObstacles().filter(b=>b.minY>0)];
 const cameraBuildings = collisionBuildings.map((b) => ({
@@ -535,8 +540,9 @@ export function collide(entity, radius, buildings = true) {
   const b = WORLD.bounds,
     x = entity.x,
     z = entity.z;
-  entity.x = clamp(x, b[0] + 4, b[2] - 4);
-  entity.z = clamp(z, b[1] + 4, b[3] - 4);
+  const boundaryMargin=Math.max(4,radius);
+  entity.x = clamp(x, b[0] + boundaryMargin, b[2] - boundaryMargin);
+  entity.z = clamp(z, b[1] + boundaryMargin, b[3] - boundaryMargin);
   return hit || x !== entity.x || z !== entity.z;
 }
 /** Query the full vehicle footprint, not just the grid cell under its center. */
@@ -553,6 +559,11 @@ export function collideVehicle(car) {
   }
   const before={x:car.x,z:car.z};
   if(collide(car,shape.width/2,false))contacts.push({x:car.x-before.x,z:car.z-before.z,kind:'bank',id:'world-boundary'});
+  // Long vehicles must keep the complete oriented body inside the playable cut.
+  const sine=Math.abs(Math.sin(car.heading||0)),cosine=Math.abs(Math.cos(car.heading||0)),bounds=WORLD.bounds;
+  const marginX=sine*shape.length/2+cosine*shape.width/2+1,marginZ=cosine*shape.length/2+sine*shape.width/2+1;
+  const x=clamp(car.x,bounds[0]+marginX,bounds[2]-marginX),z=clamp(car.z,bounds[1]+marginZ,bounds[3]-marginZ);
+  if(x!==car.x||z!==car.z){contacts.push({x:x-car.x,z:z-car.z,kind:'bank',id:'world-boundary'});car.x=x;car.z=z;}
   return contacts;
 }
 export function sanitizeInput(raw = {}) {
@@ -581,6 +592,36 @@ const vehicle = (id, x, z, heading, model = 'sedan') => ({
   steering: 0,
   driver: null
 });
+function createMissionRival(mission,start=SPAWN,occupied=[]) {
+  if(mission.type!=='race')return null;
+  // The player may accept a race from a roof or an interior. Search a bounded
+  // set of street nodes and reject footprint/traffic contacts before spawning.
+  const candidates=[];
+  for(let index=0;index<nodes.length;index++){
+    const point=nodes[index],distance=Math.hypot(point[0]-start.x,point[1]-start.z);
+    if(distance<=180&&links[index].length)candidates.push({index,distance});
+  }
+  candidates.sort((a,b)=>a.distance-b.distance);
+  for(const {index} of candidates.slice(0,64)){
+    let from=index,path=[];
+    for(const stop of mission.stops){
+      const to=nearestNode(stop.x,stop.z),segment=route(from,to);
+      if(!segment.length){path=[];break;}
+      path.push(...segment);from=to;
+    }
+    if(!path.length)continue;
+    const origin=point(index),next=path.find(p=>Math.hypot(p.x-origin.x,p.z-origin.z)>1)||point(links[index][0][0]);
+    const heading=Math.atan2(origin.x-next.x,origin.z-next.z);
+    const rival=vehicle('rival',origin.x,origin.z,heading,'sedan-sports');
+    if(Math.hypot(rival.x-start.x,rival.z-start.z)<4)continue;
+    const probe={...rival};
+    if(collideVehicle(probe).length)continue;
+    const shape=vehicleSize(rival),spaced={...rival,w:shape.width+1.5,d:shape.length+1.5};
+    if(occupied.some(car=>car.id!=='rival'&&vehicleSeparation(spaced,car)))continue;
+    return {...rival,path,pathIndex:0,index:0,finished:false,delay:10};
+  }
+  return null;
+}
 export function createState(
   members,
   missionId = 'first-shift',
@@ -634,32 +675,30 @@ export function createState(
     state.cars.push(car);
   }
   populateTraffic(state, SPAWN);
-  if (mission.type === 'race') {
-    let from = nearestNode(SPAWN.x, SPAWN.z),
-      path = [];
-    for (const s of mission.stops) {
-      const to = nearestNode(s.x, s.z);
-      path.push(...route(from, to));
-      from = to;
-    }
-    state.rival = {
-      ...vehicle(
-        'rival',
-        SPAWN.x - Math.cos(initialHeading) * 3.5,
-        SPAWN.z + Math.sin(initialHeading) * 3.5,
-        initialHeading,
-        'sedan-sports'
-      ),
-      path,
-      pathIndex: 0,
-      index: 0,
-      finished: false,
-      delay: 10
-    };
-  }
+  state.rival=createMissionRival(mission,SPAWN,[...state.cars,...state.traffic]);
   initCityLife(state, lifeEnvironment, mission);
   initAirMobility(state, WORLD);
   return state;
+}
+export const missionElapsed = state => Math.max(0,state.elapsed-(state.missionStartedAt || 0));
+export function startSessionMission(state, missionId, difficulty='normal') {
+  if(state.mode !== 'solo')return false;
+  const mission=missionId===FREE_ROAM.id?FREE_ROAM:MISSIONS.find(m=>m.id===missionId);
+  if(!mission)return false;
+  const rival=createMissionRival(mission,state.players.local,[...state.cars,...state.traffic,...state.units]);
+  if(mission.type==='race'&&!rival)return false;
+  const now=state.elapsed;
+  state.missionId=mission.id;state.missionStartedAt=now;state.difficulty=['easy','normal','hard'].includes(difficulty)?difficulty:'normal';
+  state.phase='active';state.winner=null;state.teamIndex=0;state.message=mission.description;
+  state.npcs=state.npcs.filter(n=>!/^gang-\d+$/.test(n.id));
+  spawnCombatCrew(state,lifeEnvironment,mission);
+  state.rival=rival;if(state.rival)state.rival.delay+=now;
+  state.objectiveRemaining=mission.type==='combat'?mission.enemies:undefined;
+  for(const player of Object.values(state.players)){
+    player.index=0;player.finished=false;player.failed=false;player.finishTime=null;
+    if(mission.stars){player.wanted=Math.max(player.wanted,(mission.stars-1)*100+55);player.lastCrime=now;}
+  }
+  return true;
 }
 export function addPlayer(
   state,
@@ -778,37 +817,24 @@ export function movePlayer(state, p, dt, onCollision) {
       p.carId = null;
       return;
     }
-    c.steering += (input.x - c.steering) * Math.min(1, dt * 8);
-    const bus=c.model==='tirana-bus';
-    const scale=drivingScale(c);
-    let accel = input.y * (input.y * c.speed < 0 ? scale.braking : scale.acceleration);
-    if (input.brake) accel = -Math.sign(c.speed) * Math.min(scale.braking,Math.abs(c.speed)/dt);
-    c.speed += accel * dt;
-    c.speed *= Math.exp(-(input.y === 0 ? 1.25 : 0.12) * dt);
-    c.speed = clamp(c.speed, -scale.reverse, scale.maximum);
-    // Positive steering is screen-right when the chase camera faces forward.
-    c.heading = angle(
-      c.heading -
-        ((c.steering * c.speed) / ((bus?7:2.8) + Math.abs(c.speed) * 0.55)) * dt
+    // Broad-phase once per frame; exact contacts still run every physics step.
+    const reach = Math.max(35, Math.abs(c.speed || 0) * Math.min(.1, dt) + 24);
+    const nearbyCars = [...state.cars, ...state.traffic, ...state.units].filter(
+      o => o.id !== c.id && Math.abs(o.x-c.x)<reach && Math.abs(o.z-c.z)<reach
     );
-    const grip = input.brake ? 3 : 10;
-    c.vx += (-Math.sin(c.heading) * c.speed - c.vx) * Math.min(1, dt * grip);
-    c.vz += (-Math.cos(c.heading) * c.speed - c.vz) * Math.min(1, dt * grip);
-    c.x += c.vx * dt;
-    c.z += c.vz * dt;
-    if(bus)c.trailerHeading=(c.trailerHeading??c.heading)+angle(c.heading-(c.trailerHeading??c.heading))*Math.min(1,dt*Math.max(.35,Math.abs(c.speed)/7));
-    for(const contact of collideVehicle(c)){
-      if(onCollision)onCollision(c,null,contact);
-      else slideVehicle(c,contact);
-    }
-    for (const o of [...state.cars, ...state.traffic, ...state.units]) {
-      if (o.id === c.id) continue;
-      const separation=vehicleSeparation(c,o);
-      if(!separation)continue;
-      c.x+=separation.x;c.z+=separation.z;
-      if(onCollision)onCollision(c,o,separation);
-      else slideVehicle(c,separation);
-    }
+    driveVehicle(c,input,dt,()=>{
+      for(const contact of collideVehicle(c)){
+        if(onCollision)onCollision(c,null,contact);
+        else slideVehicle(c,contact);
+      }
+      for(const o of nearbyCars){
+        const separation=vehicleSeparation(c,o);
+        if(!separation)continue;
+        c.x+=separation.x;c.z+=separation.z;
+        if(onCollision)onCollision(c,o,separation);
+        else slideVehicle(c,separation);
+      }
+    });
     p.x = c.x;
     p.z = c.z;
     p.heading = c.heading;
@@ -913,7 +939,7 @@ export function stepState(state, dt = STEP, systems) {
     }
     if (p.index >= mission.stops.length) {
       p.finished = true;
-      p.finishTime = state.elapsed;
+      p.finishTime = missionElapsed(state);
       if (!state.winner) state.winner = p.id;
       state.message =
         state.mode === 'coop'
@@ -922,7 +948,7 @@ export function stepState(state, dt = STEP, systems) {
     }
     if (
       !p.finished &&
-      (state.elapsed > mission.time * difficultyOf(state.difficulty).time ||
+      (missionElapsed(state) > mission.time * difficultyOf(state.difficulty).time ||
         (rival?.finished && state.mode !== 'rivals'))
     ) {
       p.failed = true;

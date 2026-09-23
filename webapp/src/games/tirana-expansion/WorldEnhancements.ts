@@ -1,10 +1,9 @@
+import {UrbanMonumentLayer} from '../tirana-landmarks/UrbanMonumentLayer';
 import {TabakeveQuarterLayer} from '../tirana-tabakeve/TabakeveQuarterLayer';
 import {DimensionalSigns} from '../tirana-street-life/DimensionalSigns';
 import {RegionalArchitecture} from '../tirana-regional-detail/RegionalArchitecture';
-import {TerrainLayer} from '../tirana-east/TerrainLayer';
 import {HousingDetails} from '../tirana-east/HousingDetails';
 import {EasternDistricts} from '../tirana-east/EasternDistricts';
-import {DajtiCableway} from '../tirana-east/DajtiCableway';
 import {NEIGHBOURHOOD} from '../tirana-neighbourhood/data.mjs';
 import {STREET_LIFE} from '../tirana-street-life/registry.mjs';
 import {LOCAL_FUEL} from '../tirana-environment/mappedAmenitiesCore.mjs';
@@ -40,12 +39,11 @@ export {
 } from './BaseWorldEnhancements';
 /** One shared street-detail integration, using the unchanged city metre frame. */
 export class WorldEnhancements extends ExistingEnhancements {
+  readonly monuments=new UrbanMonumentLayer();
   readonly dimensionalSigns=new DimensionalSigns();
   readonly regionalArchitecture=new RegionalArchitecture();
-  readonly terrain=new TerrainLayer();
   readonly housing=new HousingDetails();
   readonly eastern=new EasternDistricts();
-  readonly sourceCable=new DajtiCableway();
   readonly tradeDetails:StreetLifeLayer;
   readonly fuelBrands:StreetLifeLayer;
   readonly panorama = new RegionalPanorama();
@@ -68,17 +66,17 @@ export class WorldEnhancements extends ExistingEnhancements {
   readonly facadeCompletion: FacadeCompletionLayer;
   readonly tabakeve: TabakeveQuarterLayer;
   constructor(options: StreetDetailOptions = {}) {
-    super();
+    super(false);
     this.tradeDetails=new StreetLifeLayer({storefronts:NEIGHBOURHOOD.storefronts.filter(s=>['hairdresser','bakery','cafe','fast_food'].includes(s.shop||s.kind)||/barber|berber|hair/i.test(s.name)),stops:[],fuel:[],advertising:[]} as any,options,false,true);
     this.fuelBrands=new StreetLifeLayer({storefronts:LOCAL_FUEL,stops:[],fuel:[],advertising:[]} as any,options);
     this.attractions=new ParkAttractions(WORLD,options);
     this.urbanLife=new UrbanLifeLayer(options);
     this.dajti.retire();this.dajti.group.visible=false;
-    this.group.add(this.dimensionalSigns.group,this.regionalArchitecture.group,this.terrain.group,this.housing.group,this.eastern.group,this.sourceCable.group);
+    this.group.add(this.dimensionalSigns.group,this.regionalArchitecture.group,this.housing.group,this.eastern.group);
     this.cityCompletion=new CityCompletionLayer(options);
     this.facadeCompletion=new FacadeCompletionLayer();
     this.tabakeve=new TabakeveQuarterLayer(options);
-    this.group.add(this.tabakeve.group);
+    this.group.add(this.tabakeve.group,this.monuments.group);
     this.group.add(this.cityCompletion.group,this.facadeCompletion.group);
     this.neighbourhood=new NeighbourhoodLayer(options);
     this.streetLife=new StreetLifeLayer(undefined,options);
@@ -131,8 +129,7 @@ export class WorldEnhancements extends ExistingEnhancements {
       viewer = { x: p.x, z: p.z };
     }
     this.regionalArchitecture.update(seconds,viewer,battery);
-    this.terrain.update(viewer,battery);this.housing.update(viewer,battery);this.eastern.update(seconds,viewer,battery);this.sourceCable.update(seconds,viewer);
-    if(camera&&camera.far<55000){camera.far=55000;camera.updateProjectionMatrix();}
+    this.housing.update(viewer,battery);this.eastern.update(seconds,viewer,battery);
     this.tradeDetails.update(seconds,viewer,battery);
     this.fuelBrands.update(seconds,viewer,battery);
     this.institutions.update(seconds, viewer, battery);
@@ -149,6 +146,7 @@ export class WorldEnhancements extends ExistingEnhancements {
     this.cityCompletion.update(seconds,viewer,battery);
     this.facadeCompletion.update(seconds,viewer,battery);
     this.tabakeve.update(seconds,viewer,battery);
+    this.monuments.update(viewer,battery);
   }
   override retire() {
     this.regionalArchitecture.retire();
@@ -171,7 +169,7 @@ export class WorldEnhancements extends ExistingEnhancements {
   }
   override dispose() {
     this.regionalArchitecture.dispose();
-    this.terrain.dispose();this.housing.dispose();this.eastern.dispose();this.sourceCable.dispose();
+    this.housing.dispose();this.eastern.dispose();
     this.panorama.dispose();
     this.tradeDetails.dispose();
     this.fuelBrands.dispose();
@@ -189,6 +187,7 @@ export class WorldEnhancements extends ExistingEnhancements {
     this.cityCompletion.dispose();
     this.facadeCompletion.dispose();
     this.tabakeve.dispose();
+    this.monuments.dispose();
     super.dispose();
   }
 }

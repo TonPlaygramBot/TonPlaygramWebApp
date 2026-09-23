@@ -1,3 +1,4 @@
+import {pointInUrbanBounds} from '../tiranastreets/shared/urbanBounds.mjs';
 import * as T from 'three';
 import {CITY_COMPLETION,type Fixture} from './data.mjs';
 import {bakedParts,bakedMaterial} from './bakedGeometry';
@@ -23,7 +24,8 @@ export class CityCompletionLayer {
  private selected:Fixture[]=[];private rows=1;private color=new T.Color();
  constructor(options:StreetDetailOptions={},data=CITY_COMPLETION){
   this.group.name='Tirana:mapped-city-completion';
-  const exclusion=options.track?ribbonExclusion(options.track):()=>false;
+  const trackExclusion=options.track?ribbonExclusion(options.track):()=>false;
+  const exclusion=(x:number,z:number,r:number)=>!pointInUrbanBounds({x,z},r)||trackExclusion(x,z,r);
   const fixtures=data.fixtures.filter(p=>!exclusion(p.x,p.z,p.kind==='waste_container'?1.2:.5));
   this.fixtures=nearbyIndex(fixtures);
   this.trees=new MatureTreeLayer(data.trees,options);this.group.add(this.trees.group);

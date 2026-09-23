@@ -8,6 +8,7 @@ import { VEHICLE_COLLECTION, roadVehicleFor } from './vehicleCollection.mjs';
 import { FORCE_VEHICLE_BOUNDS } from './albanianForces.mjs';
 import { CITY_POPULATION } from './cityPopulation.mjs';
 import { signalsNear, signalPhase } from './streetLayout.mjs';
+import {actorVelocity, crossingConflict, followingSpeed} from './trafficAwareness.mjs';
 const turn=a=>Math.atan2(Math.sin(a),Math.cos(a));
 const cellKey=(x,z)=>x>=-32768&&x<32768&&z>=-32768&&z<32768?x*65536+z:`${x},${z}`;
 const key=(x,z)=>cellKey(Math.floor(x/32),Math.floor(z/32));
@@ -173,18 +174,26 @@ export function redSignalGap(car,time){
 }
 export function trafficDecision(car,vehicles,pedestrians,time){
   const shape=vehicleSize(car),fx=-Math.sin(car.heading),fz=-Math.cos(car.heading);
-  let gap=redSignalGap(car,time),reason=Number.isFinite(gap)?'signal':'';
+  let gap=redSignalGap(car,time),reason=Number.isFinite(gap)?'signal':'',leaderSpeed=0;
   const roundabout=roundaboutGap(car,time);if(roundabout<gap){gap=roundabout;reason='traffic-officer';}
   for(const o of vehicles){if(o.id===car.id)continue;const dx=o.x-car.x,dz=o.z-car.z,f=dx*fx+dz*fz,side=Math.abs(dx*fz-dz*fx),other=vehicleSize(o);
     const angle=car.heading-o.heading;
     const lateral=(Math.abs(Math.cos(angle))*other.width+Math.abs(Math.sin(angle))*other.length)/2;
     const longitudinal=(Math.abs(Math.cos(angle))*other.length+Math.abs(Math.sin(angle))*other.width)/2;
-    if(f>0&&side<shape.width/2+lateral+.15){const d=f-shape.length/2-longitudinal-1.2;if(d<gap){gap=d;reason='vehicle';}}
+    const inLane=side<shape.width/2+lateral+.15;
+    if(f>0&&(inLane||crossingConflict(car,o,shape.width/2+lateral+.2,shape.length/2+longitudinal+1.2))){
+      const d=f-shape.length/2-longitudinal-1.2;
+      if(d<gap){
+        gap=d;reason='vehicle';
+        const velocity=actorVelocity(o);
+        leaderSpeed=inLane&&Math.cos(angle)>.8?Math.max(0,velocity.x*fx+velocity.z*fz):0;
+      }
+    }
   }
   for(const n of pedestrians){if(n.health<=0||n.carId||n.aircraftId||n.motion==='drive')continue;const dx=n.x-car.x,dz=n.z-car.z,f=dx*fx+dz*fz;
-    if(f>0&&Math.abs(dx*fz-dz*fx)<shape.width*.5+.7){const d=f-shape.length*.5-.8;if(d<gap){gap=d;reason='pedestrian';}}
+    if(f>0&&(Math.abs(dx*fz-dz*fx)<shape.width*.5+.7||crossingConflict(car,n,shape.width*.5+.7,shape.length*.5+.8))){const d=f-shape.length*.5-.8;if(d<gap){gap=d;reason='pedestrian';leaderSpeed=0;}}
   }
-  return {gap,reason,target:Math.min(car.cruise,Math.sqrt(Math.max(0,gap)*6))};
+  return {gap,reason,target:followingSpeed(car.cruise,car.speed,gap,leaderSpeed)};
 }
 /** Staggered 20 Hz nearby / 5 Hz distant traffic. All actors persist. */
 export function updateTraffic(state,dt,onImpact){
@@ -250,6 +259,8 @@ export function updateTraffic(state,dt,onImpact){
     car.speed=Math.max(0,before+Math.max(-deceleration*step,Math.min(1.8*step,target-before)));
     car.braking=car.speed<before-.01;car.trafficReason=target<.1?decision.reason:'';
     // Cars cannot drive through a stopped queue or the red stop line.
+    // An incursion already inside the bumper envelope still uses the physical
+    // impact path below; anticipation must not grant instantaneous perfect brakes.
     if((decision.reason!=='pedestrian'||decision.gap>=0)&&decision.gap<car.speed*step)car.speed=Math.max(0,decision.gap/step);
     if(junctionGap<car.speed*step){car.speed=junctionGap/step;car.trafficReason='junction';}
     const oldX=car.x,oldZ=car.z,move=Math.min(d,car.speed*step);

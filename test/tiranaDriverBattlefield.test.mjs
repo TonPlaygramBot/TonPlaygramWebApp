@@ -61,7 +61,7 @@ test('every mapped district has a unique clear deployment, full wave and reachab
    assert.ok(arrival&&Math.hypot(arrival.x-m.start.x,arrival.z-m.start.z)<4,`${m.name}: bot must reach the objective`);
   }
  }
- assert.ok(BATTLEFIELD_MAPS.length>100);
+ assert.ok(BATTLEFIELD_MAPS.length>=30);
 });
 test('three curated operations preserve progress and cannot award duplicate completions',()=>{
  assert.deepEqual(missions.OPERATIONS.map(o=>o.id),['square-sweep','bazaar-intel','dajti-survival']);
@@ -69,8 +69,8 @@ test('three curated operations preserve progress and cannot award duplicate comp
  assert.equal(p.completed.length,missions.OPERATIONS.length);assert.deepEqual(missions.normalizeOperations(JSON.parse(JSON.stringify(p))),p);
  assert.deepEqual(missions.finishOperation(p,missions.OPERATIONS[0].id,true),p);
 });
-test('city density and nearby render budgets increase together and retain deterministic nearest selection',()=>{
- assert.ok(CITY_POPULATION.vehicles>=5600&&CITY_POPULATION.pedestrians>=2400);
+test('urban population stays bounded and nearby render selection remains deterministic',()=>{
+ assert.equal(CITY_POPULATION.vehicles,2400);assert.equal(CITY_POPULATION.pedestrians,1400);assert.equal(CITY_POPULATION.buses,24);
  const crowd=Array.from({length:150},(_,i)=>({id:String(i),x:i,z:0,motion:'walk'}));
  assert.equal(nearbyHumans(crowd,{x:0,z:0}).length,72);assert.equal(nearbyHumans(crowd,{x:0,z:0},true).length,28);
  assert.equal(nearbyHumans([...crowd].reverse(),{x:0,z:0})[0].id,'0');
