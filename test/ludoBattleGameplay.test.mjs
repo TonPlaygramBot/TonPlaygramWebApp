@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { createRequire } from 'node:module';
 import { canRollLudoDice } from '../shared/ludoBattleRules.js';
-import { hasVisibleLudoToken, setLudoTileHighlight, updateLudoTileGlow } from '../webapp/src/utils/ludoTokenPresentation.ts';
+import { createFallbackLudoToken, hasVisibleLudoToken, setLudoTileHighlight, updateLudoTileGlow } from '../webapp/src/utils/ludoTokenPresentation.ts';
 
 const requireWebapp = createRequire(new URL('../webapp/package.json', import.meta.url));
 const { parse } = requireWebapp('@babel/parser');
@@ -12,26 +12,16 @@ const source = readFileSync(new URL('../webapp/src/pages/Games/LudoBattleRoyal.j
 const ast = parse(source, { sourceType: 'module', plugins: ['jsx'] });
 const component = ast.program.body.find((node) => node.type === 'FunctionDeclaration' && node.id.name === 'Ludo3D');
 
-test('the shipped token builder clones all 16 pieces from the restored GLTF prototypes', () => {
+test('the shipped token builder creates all 16 selectable pieces when remote assets are missing', () => {
   const build = ast.program.body.find((node) => node.type === 'FunctionDeclaration' && node.id.name === 'buildLudoBoard');
   const tokens = build.body.body.find((node) => node.declarations?.some((declaration) => declaration.id.name === 'tokens'));
   const scene = new THREE.Group(), colors = [0xef4444, 0x3b82f6, 0xfacc15, 0x22c55e];
   const dependencies = {
     THREE, scene, playerColors: colors, playerCount: 4,
     tokenPieceByPlayer: [{ type: 'p' }, { type: 'r' }, { type: 'n' }, { type: 'k' }],
-    defaultTokenTypeSequence: ['p'], shouldUseAbgTokens: true, abgPrototypes: {},
-    resolveAbgColorKey: () => 'w', resolveAbgPrototype: () => new THREE.Mesh(
-      new THREE.CylinderGeometry(.02, .03, .08),
-      new THREE.MeshStandardMaterial({ color: 0xffffff })
-    ),
-    cloneAbgToken: (prototype) => prototype.clone(),
-    tintGltfToken: (piece, color) => piece.traverse((child) => {
-      if (child.isMesh) {
-        child.material = child.material.clone();
-        child.material.color.set(color);
-      }
-    }),
-    TOKEN_SIZE_MULTIPLIER: 1.24,
+    defaultTokenTypeSequence: ['p'], shouldUseAbgTokens: false, abgPrototypes: null,
+    createFallbackLudoToken, hasVisibleLudoToken, measureProceduralTokenHeight: () => .09,
+    STANDARD_TOKEN_FOOTPRINT: { x: .054, z: .054 }, TOKEN_SIZE_MULTIPLIER: 1.24,
     TOKEN_TYPE_SCALE_PROFILE: {}, TOKEN_THINNESS_SCALE: .76, TOKEN_HEIGHT_SCALE: 1.1,
     createTokenCountLabel: () => null, colorNumberToHex: (color) => `#${new THREE.Color(color).getHexString()}`,
     applyTokenFacingRotation: () => {}, getTokenRailHeight: () => .025,
@@ -46,13 +36,14 @@ test('the shipped token builder clones all 16 pieces from the restored GLTF prot
     assert.equal(piece.userData.playerIndex, player);
     assert.equal(piece.userData.tokenIndex, index);
     assert.equal(new THREE.Color(piece.userData.tokenColor).getHex(), colors[player]);
-    piece.traverse((child) => assert.equal(child.userData.tokenGroup, piece, 'GLTF piece lost its selection target'));
+    piece.traverse((child) => assert.equal(child.userData.tokenGroup, piece, 'fallback lost its selection target'));
     const scale = piece.scale.clone();
     select(piece, true); select(piece, false);
     assert.ok(piece.scale.equals(scale));
     piece.traverse((child) => {
       if (child.isMesh) {
-        assert.equal(child.material.color.getHex(), colors[player]);
+        assert.equal(child.material.emissive.getHex(), colors[player]);
+        assert.equal(child.material.emissiveIntensity, .12, 'selection left a shared material highlighted');
       }
     });
   }));
@@ -122,21 +113,12 @@ test('portrait seated-human sizing and character selection remain wired to the r
   assert.match(source, /\{ key: 'humanCharacter', label: 'Human Character', options: HUMAN_CHARACTER_OPTIONS \}/);
 });
 
-test('remote humans reach the landed die while the bottom human waits for the press', () => {
-  assert.match(source, /if \(player === 0\) \{[\s\S]*holdPlayer: null,[\s\S]*holdStartMs: 0[\s\S]*return;/);
-  assert.match(source, /if \(isHumanTurn\) beginDiceHoldPose\(player\);/);
-  assert.match(source, /if \(online\?\.tableId\) \{[\s\S]*beginDiceHoldPose\(player\);[\s\S]*dice\.userData\.isRolling = true;/);
-  assert.doesNotMatch(source, /animateDicePosition\(dice, target/);
+test('human dice resting and landing positions remain on the restored layout', () => {
+  assert.match(source, /if \(player === 0 && !immediate\) \{[\s\S]*beginDiceHoldPose\(player\);[\s\S]*return;/);
+  assert.match(source, /const target = resolveDiceHoldContactTarget\(player, railTarget\) \?\? railTarget;/);
   assert.match(source, /diceObj\.userData\.railPositions = rails;/);
   assert.match(source, /diceObj\.userData\.homeLandingTargets/);
   assert.doesNotMatch(source, /tabletopDiceLane/);
-});
-
-test('Ludo tokens use the restored A Beautiful Game GLTF clone path', () => {
-  assert.match(source, /const useAbgTokens = true;[\s\S]*await getAbgAssets\(\)/);
-  assert.match(source, /const proto = resolveAbgPrototype\(abgPrototypes, colorKey, type\);[\s\S]*token = cloneAbgToken\(proto\);/);
-  assert.match(source, /const fallbackProto =[\s\S]*resolveAbgPrototype\(abgPrototypes, 'w', type\)[\s\S]*token = cloneAbgToken\(fallbackProto\) \|\| new THREE\.Group\(\);/);
-  assert.doesNotMatch(source, /createFallbackLudoToken\(type/);
 });
 
 test('rapid taps cannot clear the pending move or turn timer', async () => {
