@@ -52,14 +52,7 @@ import snookerRoyaleRoutes from './routes/snookerRoyal.js';
 import exchangeRoutes from './routes/exchange.js';
 import tiranaStoreRoutes from './routes/tiranaStore.js';
 import pushRoutes from './routes/push.js';
-import wallProfileRoutes from './routes/wallProfiles.js';
-import wallNotificationRoutes from './routes/wallNotifications.js';
-import { startWallNotifications } from './services/wallNotifications.js';
 import matchmakingRoutes from './routes/matchmaking.js';
-import protestVideoRoutes from './routes/protestVideos.js';
-import flamingoWallRoutes, { backfillFlamingoWallMedia, startFlamingoWallMaintenance } from './routes/flamingoWall.js';
-import { removeRequestedWallPosts } from './migrations/removeRequestedWallPosts.js';
-import { flamingoDatabaseStorageEnabled } from './utils/flamingoStorage.js';
 import { isAllowedApiOrigin } from './utils/corsOrigin.js';
 import User from './models/User.js';
 import GameResult from './models/GameResult.js';
@@ -75,7 +68,6 @@ import PostRecord from './models/PostRecord.js';
 import Task from './models/Task.js';
 import WatchRecord from './models/WatchRecord.js';
 import ActiveConnection from './models/ActiveConnection.js';
-import FlamingoPost from './models/FlamingoPost.js';
 import ChessMatch from './models/ChessMatch.js';
 import path from 'path';
 import { fileURLToPath } from 'url';
@@ -94,6 +86,7 @@ import {
   resolvePrimaryTpcAccountNumber,
   validateDominoStateSubmission
 } from './utils/dominoRoyalOnline.js';
+import { retiredSocialWall } from './middleware/retiredSocialWall.js';
 import compression from 'compression';
 import rateLimit from 'express-rate-limit';
 import helmet from 'helmet';
@@ -170,8 +163,7 @@ const models = [
   Task,
   User,
   WatchRecord,
-  ActiveConnection,
-  FlamingoPost
+  ActiveConnection
 ];
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
@@ -353,10 +345,8 @@ bot.action(/^reject_invite:(.+)/, async (ctx) => {
 // initial app document must retain its sign-in popup's opener relationship.
 app.use(helmet({ contentSecurityPolicy, crossOriginOpenerPolicy: { policy: 'same-origin-allow-popups' } }));
 app.use(compression());
-app.use('/api/protest-videos', protestVideoRoutes);
-app.use('/api/flamingo-wall/social', wallProfileRoutes);
-app.use('/api/flamingo-wall/notifications', wallNotificationRoutes);
-app.use('/api/flamingo-wall', flamingoWallRoutes);
+// Stop legacy clients and direct media links before parsing uploads or serving files.
+app.use(retiredSocialWall);
 // Increase JSON body limit to handle large photo uploads
 app.use(express.json({ limit: '10mb' }));
 app.use(optionalAuthenticate);
@@ -2329,29 +2319,12 @@ if (mongoUri === 'memory') {
 
 mongoose.connection.once('open', async () => {
   console.log('Connected to MongoDB');
-  try {
-    const cleanup = await removeRequestedWallPosts({ apply: true });
-    if (cleanup.deletedPosts || cleanup.deletedDiskFiles || cleanup.deletedDatabaseFiles) console.log('Requested wall post removal:', cleanup);
-  } catch (error) {
-    console.error('Requested wall post removal stopped:', error.message);
-  }
-  startFlamingoWallMaintenance();
-  startWallNotifications(bot.telegram);
   for (const model of models) {
     try {
       await model.syncIndexes();
     } catch (err) {
       console.error(`Failed to sync ${model.modelName} indexes:`, err);
     }
-  }
-  if (flamingoDatabaseStorageEnabled()) {
-    backfillFlamingoWallMedia()
-      .then(({ copied, missing, failed }) => {
-        console.log(`Flamingo media backup complete: ${copied} copied, ${missing} missing, ${failed} failed`);
-      })
-      .catch((err) => console.error('Failed to back up Flamingo wall media:', err));
-  } else {
-    console.log('Flamingo media backup skipped: media is stored on the persistent disk');
   }
   gameManager
     .loadRooms()

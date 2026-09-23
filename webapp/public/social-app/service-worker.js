@@ -3,8 +3,6 @@
 const SOCIAL_CACHE = 'tonplaygram-social-__SOCIAL_VERSION__';
 const SOCIAL_ASSETS = /* SOCIAL_ASSETS */ [];
 const SOCIAL_SHELL = '/social-app/index.html';
-importScripts('/pwa/wall-push.js');
-importScripts('/pwa/wall-upload-worker.js');
 
 self.addEventListener('install', event => {
   event.waitUntil((async () => {

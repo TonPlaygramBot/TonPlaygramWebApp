@@ -2,22 +2,44 @@
   "id": "/com.tonplaygram.social",
   "name": "TonPlayGram Social",
   "short_name": "TPG Social",
-  "description": "Share videos, connect with friends and publish with Creator Studio.",
+  "description": "Connect with friends, chat and publish with Creator Studio.",
   "start_url": "/social-app/?launch=social",
   "scope": "/social-app/",
   "display": "standalone",
   "orientation": "portrait-primary",
   "theme_color": "#090b0e",
   "background_color": "#090b0e",
-  "categories": ["social", "photo", "entertainment"],
+  "categories": [
+    "social",
+    "photo",
+    "entertainment"
+  ],
   "icons": [
-    { "src": "/social-app/icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any" },
-    { "src": "/social-app/icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any maskable" }
+    {
+      "src": "/social-app/icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "/social-app/icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
+    }
   ],
   "shortcuts": [
-    { "name": "Social wall", "url": "/social-app/wall" },
-    { "name": "Social hub", "url": "/social-app/hub" },
-    { "name": "Creator Studio", "url": "/social-app/creator-studio" },
-    { "name": "My profile", "url": "/social-app/me" }
+    {
+      "name": "Social hub",
+      "url": "/social-app/hub"
+    },
+    {
+      "name": "Creator Studio",
+      "url": "/social-app/creator-studio"
+    },
+    {
+      "name": "My profile",
+      "url": "/social-app/me"
+    }
   ]
 }

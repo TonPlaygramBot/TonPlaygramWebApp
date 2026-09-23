@@ -12,11 +12,8 @@ import { IoLogoTiktok } from 'react-icons/io5';
 import { RiTelegramFill } from 'react-icons/ri';
 import {
   BrainCircuit,
-  ArrowUpRight,
   CheckCircle2,
   Heart,
-  Megaphone,
-  Radio,
   Rocket,
   Sparkles,
   Users
@@ -33,8 +30,7 @@ const xIcon = (
 
 import { Link } from 'react-router-dom';
 
-import { API_BASE_URL, ping, getProfile, fetchTelegramInfo } from '../utils/api.js';
-import { resolveWallMediaUrl } from '../features/flamingo/mediaUrl.js';
+import { ping, getProfile, fetchTelegramInfo } from '../utils/api.js';
 
 import { getAvatarUrl, saveAvatar, loadAvatar } from '../utils/avatarUtils.js';
 
@@ -56,7 +52,6 @@ const getStoredWalletAddress = () => {
 export default function Home() {
   const [status, setStatus] = useState('checking');
   const [photoUrl, setPhotoUrl] = useState(loadAvatar() || '');
-  const [latestProtestPost, setLatestProtestPost] = useState(null);
   const {
     tpcBalance,
     tonBalance,
@@ -178,61 +173,9 @@ export default function Home() {
       window.removeEventListener('profilePhotoUpdated', handleUpdate);
   }, []);
 
-  useEffect(() => {
-    let active = true;
-    fetch(`${API_BASE_URL}/api/flamingo-wall/latest-post`, { cache: 'no-store' })
-      .then((response) => (response.ok ? response.json() : Promise.reject()))
-      .then(({ post }) => {
-        if (active) setLatestProtestPost(post || null);
-      })
-      .catch(() => {});
-    return () => {
-      active = false;
-    };
-  }, []);
-
   return (
     <div className="home-page app-theme-page space-y-4">
       <ThemePicker />
-      <article className="home-protest-card">
-        {latestProtestPost?.attachment && (
-          <Link className="home-protest-card__thumbnail" to="/wall" aria-label="Open the latest wall post">
-            {latestProtestPost.attachment.type?.startsWith('video/') ? (
-              <video
-                src={resolveWallMediaUrl(API_BASE_URL, latestProtestPost.attachment.url, latestProtestPost.attachment.size)}
-                muted
-                playsInline
-                autoPlay
-                loop
-                preload="auto"
-              />
-            ) : latestProtestPost.attachment.type?.startsWith('image/') ? (
-              <img src={resolveWallMediaUrl(API_BASE_URL, latestProtestPost.attachment.url, latestProtestPost.attachment.size)} alt="Latest wall post" />
-            ) : null}
-            <span>Latest from the wall · playing now</span>
-          </Link>
-        )}
-        <div className="home-protest-card__glow" aria-hidden="true" />
-        <div className="home-protest-card__topline">
-          <span className="home-protest-card__live"><Radio aria-hidden="true" /> Community live</span>
-          <span className="home-protest-card__support"><span role="img" aria-label="Albanian flag">🇦🇱</span><b>TonPlayGram supports the protests in Albania</b></span>
-        </div>
-        <div className="home-protest-card__body">
-          <span className="home-protest-card__icon"><Megaphone aria-hidden="true" /></span>
-          <div>
-            <p>TonPlayGram Community</p>
-            <h2>TonPlayGram Social Wall</h2>
-            <span>Your voice. No barriers.</span>
-          </div>
-        </div>
-        <div className="home-protest-card__action">
-          <div><Users aria-hidden="true" /><span><b>An open wall for everyone</b><small>Photos, videos, articles, and polls from the community</small></span></div>
-        </div>
-        <div className="home-protest-card__buttons">
-          <Link to="/wall#wall-composer"><Megaphone /> Publish now</Link>
-          <Link to="/wall">Open wall <ArrowUpRight /></Link>
-        </div>
-      </article>
       <CreatorHomeCard />
       <HomeIntroduction />
       <div className="flex flex-col items-center">
@@ -519,7 +462,7 @@ export default function Home() {
         </a>
       </div>
       <a href="/social-app/install" className="flex items-center justify-between gap-3 rounded-2xl border border-teal-300/30 bg-slate-900 p-5 text-left">
-        <div><h2 className="text-lg font-bold text-teal-200">Get TonPlayGram Social</h2><p className="mt-1 text-sm text-slate-300">The wall, social hub and Creator Studio. Install your social app.</p></div>
+        <div><h2 className="text-lg font-bold text-teal-200">Get TonPlayGram Social</h2><p className="mt-1 text-sm text-slate-300">Chats, friends and Creator Studio. Install your social app.</p></div>
         <span className="text-teal-200" aria-hidden="true">↗</span>
       </a>
       <PlatformHelpAgentCard />

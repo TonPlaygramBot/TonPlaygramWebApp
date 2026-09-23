@@ -29,3 +29,19 @@ test('repeated public asset copies replace stale output and preserve emitted ent
     assert.equal(await readFile(path.join(output, 'index.html'), 'utf8'), 'bundled application');
   } finally { await rm(root, { recursive: true, force: true }); }
 });
+
+
+test('retired wall video originals remain on disk but are excluded from published assets', async () => {
+  const root = await mkdtemp(path.join(tmpdir(), 'retired-wall-assets-'));
+  const source = path.join(root, 'public');
+  const output = path.join(root, 'dist');
+  try {
+    await mkdir(path.join(source, 'ProtestVideo'), { recursive: true });
+    await writeFile(path.join(source, 'ProtestVideo', 'old.mp4'), 'saved original');
+    await writeFile(path.join(source, 'index.html'), 'main app');
+    await copyPublicAssets(source, output);
+    assert.equal(await readFile(path.join(source, 'ProtestVideo', 'old.mp4'), 'utf8'), 'saved original');
+    assert.equal(await readFile(path.join(output, 'index.html'), 'utf8'), 'main app');
+    await assert.rejects(readFile(path.join(output, 'ProtestVideo', 'old.mp4')), { code: 'ENOENT' });
+  } finally { await rm(root, { recursive: true, force: true }); }
+});

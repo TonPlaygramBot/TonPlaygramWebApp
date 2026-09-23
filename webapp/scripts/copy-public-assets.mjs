@@ -11,6 +11,8 @@ export async function copyPublicAssets(publicDir, outDir, emittedFiles = []) {
     for (const entry of await readdir(directory, { withFileTypes: true })) {
       const source = path.join(directory, entry.name);
       const relative = path.relative(publicDir, source);
+      // Retired wall media must not ship in the full-app download.
+      if (relative.split(path.sep)[0].toLowerCase() === 'protestvideo') continue;
       // Vite normally copies public files before emitting transformed entries.
       // This post-build copy must preserve those emitted entries, including
       // index.html, when a public file has the same output path.

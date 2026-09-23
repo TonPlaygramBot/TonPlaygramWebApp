@@ -2,8 +2,6 @@
  * marker in /pwa/app-build.js is generated at build time to keep caches in sync
  * with the currently packaged assets. */
 
-importScripts('/pwa/wall-push.js');
-try { importScripts('/pwa/wall-upload-worker.js'); } catch (error) { console.warn('Background uploads unavailable', error); }
 
 self.__TONPLAYGRAM_APP_BUILD__ = self.__TONPLAYGRAM_APP_BUILD__ || 'dev';
 try {
