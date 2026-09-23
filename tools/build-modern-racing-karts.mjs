@@ -20,7 +20,7 @@ for(const design of KART_DESIGNS)for(const low of [false,true]) {
   console.log(filename,bytes.length,triangles+' triangles',drawCalls+' draws');
   scene.traverse(o=>{if(o.isMesh){o.geometry.dispose();o.material.dispose();}});
 }
-await writeFile(new URL('modern-manifest.json',out),JSON.stringify({generator:'Three.js parameterised original mesh authoring',revision:'realistic-fleet-v1',source:'tools/assets/modernKartModel.ts',up:'+Y',forward:'+Z',assets},null,2)+'\n');
+await writeFile(new URL('modern-manifest.json',out),JSON.stringify({generator:'Three.js parameterised original mesh authoring',revision:'city-driver-v2',source:'tools/assets/modernKartModel.ts',up:'+Y',forward:'+Z',assets},null,2)+'\n');
 for(const file of ['manifest.json','future-manifest.json']) {
   const previous=JSON.parse(await readFile(new URL(file,out),'utf8'));
   previous.generator='Three.js original kart meshes; existing Blender driver assets';

@@ -1,0 +1,32 @@
+<div id="racing-city-career"></div>
+<style>
+#racing-city-career{max-width:440px;margin:0 auto;font-family:Arial,sans-serif}
+#racing-city-career .rr-preview{height:710px;position:relative;border-radius:24px;overflow:hidden;background:#102332;color:#f4fbff;isolation:isolate}
+#racing-city-career .rr-preview-canvas{position:absolute;inset:0}#racing-city-career canvas{width:100%;height:100%;display:block}
+#racing-city-career header{position:absolute;top:0;left:0;right:0;padding:20px 16px;display:flex;align-items:center;justify-content:space-between;background:linear-gradient(#0b202bef,transparent);gap:8px}
+#racing-city-career header b{font-size:16px;letter-spacing:1px}#racing-city-career header small{display:block;font-size:12px;margin-top:6px}#racing-city-career .rr-preview-tag{font-size:12px;color:#baff80}
+#racing-city-career button{font-family:inherit;cursor:pointer}#racing-city-career header button,#racing-city-career .rr-preview-overlay button{min-height:44px;padding:8px 14px;background:#183747;border:1px solid #88b2c7;border-radius:12px;color:#f5fbff;font-size:12px;font-weight:700}
+#racing-city-career .rr-preview-garage{position:absolute;left:16px;right:16px;bottom:22px;display:grid;gap:14px}#racing-city-career .rr-preview-picks{display:flex;gap:8px}#racing-city-career .rr-preview-picks button{flex:1;min-width:0;min-height:50px;background:#112c3ce8;border:1px solid #4b7b91;border-radius:12px;color:#edfaff;font-size:12px}#racing-city-career .rr-preview-picks button[aria-pressed=true]{background:#254f63;border-color:#a2edff}
+#racing-city-career .rr-preview-start{min-height:54px;background:#baff79;border:0;border-radius:14px;font-size:14px;font-weight:800;color:#193726;letter-spacing:1px}#racing-city-career button:disabled{opacity:.5}
+#racing-city-career .rr-preview-stats{position:absolute;top:90px;left:18px;right:18px;display:flex;align-items:center;justify-content:space-between;font-size:12px;text-shadow:0 2px 5px #102c3c}#racing-city-career .rr-preview-stats b{font-size:24px}
+#racing-city-career .rr-speed{position:absolute;left:50%;bottom:112px;transform:translateX(-50%);text-align:center;text-shadow:0 2px 6px #092334;pointer-events:none}#racing-city-career .rr-speed b{display:block;font-size:32px}#racing-city-career .rr-speed span{font-size:12px}
+#racing-city-career .rr-preview-overlay{position:absolute;inset:170px 50px 270px;z-index:15;display:flex;flex-direction:column;justify-content:center;gap:12px;text-align:center;background:#102635f5;border-radius:20px;padding:18px}
+#racing-city-career .kart-gas small{font-size:12px}#racing-city-career .kart-controls{bottom:22px}
+#racing-city-career .rr-preview-options{display:grid;grid-template-columns:minmax(0,1fr) 110px;gap:10px}
+#racing-city-career .rr-preview-options label{font-size:12px;display:grid;gap:6px;color:#e8f3f8}
+#racing-city-career select{width:100%;min-width:0;min-height:44px;background:#102c3c;color:#eefaff;border:1px solid #80afc7;border-radius:10px;font-size:16px;padding:6px}
+#racing-city-career .rr-kart-choice{display:grid;gap:6px;font-size:12px;color:#e8f3f8}
+#racing-city-career .rr-preview-garage{background:linear-gradient(transparent,#102332 20%);padding-top:16px}
+#racing-city-career .kart-controls{left:10px;right:10px;grid-template-columns:minmax(0,1fr) 50px minmax(0,1fr);gap:6px}
+#racing-city-career .kart-steer-controls button{width:clamp(54px,16vw,66px);height:96px}
+#racing-city-career .kart-right-controls{width:clamp(104px,29vw,128px)}
+</style>
+
+<style>
+#racing-city-career .rr-preview-feedback{position:absolute;bottom:240px;left:100px;right:100px;text-align:center;color:#a4efff;font-size:13px;display:flex;flex-direction:column;gap:6px;pointer-events:none}
+#racing-city-career progress{width:100%;height:6px;accent-color:#e7b653}
+</style>
+
+<style>
+#racing-city-career .rr-preview-job{position:absolute;top:120px;left:16px;right:16px;background:#102837eb;padding:12px;border-radius:12px;font-size:13px;pointer-events:none}#racing-city-career .rr-preview-job b,#racing-city-career .rr-preview-job span{display:block;margin-bottom:4px}#racing-city-career header{padding:15px 12px;gap:5px}#racing-city-career header button{padding:7px}#racing-city-career header b{font-size:13px}#racing-city-career header small{font-size:11px}#racing-city-career .rr-preview-overlay{inset:230px 35px 200px}#racing-city-career .rr-preview-garage{gap:10px}#racing-city-career .rr-preview-options{display:flex}#racing-city-career .rr-preview-options label{flex:1;min-width:0}
+</style>

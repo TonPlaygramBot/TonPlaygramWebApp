@@ -1,4 +1,8 @@
 import * as T from 'three';
+import {createCityJob,stepCityJob,type CityJobState} from './cityJobs.mjs';
+import {CityJobGuide} from './CityJobGuide';
+import {createRacingRoadside} from './RacingRoadside';
+import {STEERING_WHEEL_ANGLE} from './driverPose.mjs';
 import { KartDriver } from './KartDriver';
 import { KartMotion } from './KartMotion';
 import { RacingCockpit } from './RacingCockpit';
@@ -41,6 +45,7 @@ import type { DrivingWorld } from './freeRoamCore.mjs';
 export type CameraMode = 'driver' | 'chase';
 export type Quality = 'auto' | 'high' | 'performance';
 export interface Frame {
+  cityJob?:CityJobState;
   freeRoam:boolean;
   reversing:boolean;
   speed: number;
@@ -70,6 +75,7 @@ export interface Frame {
   slipstream: number;
 }
 export interface Result {
+  cityJob?:CityJobState;
   racers: Racer[];
   playerId: string;
   elapsed: number;
@@ -98,6 +104,9 @@ interface KartRig {
   motion: KartMotion;
   body: T.Object3D;
   steeringWheel?: T.Object3D;
+  pedals:T.Object3D[];
+  eyeMount?:T.Object3D;
+  nose?:T.Object3D;
   wheels: T.Object3D[];
   front: T.Object3D[];
   wheelHeights: Map<T.Object3D, number>;
@@ -161,6 +170,8 @@ export class KartRenderer {
   private state = 'garage';
   private network = false;
   private freeDriving:DrivingWorld|null = null;
+  private cityJob:CityJobState|null=null;
+  private jobGuide:CityJobGuide|null=null;
   private me = 'you';
   private difficulty = 'street';
   private time = 0;
@@ -429,6 +440,9 @@ export class KartRenderer {
       motion: new KartMotion(),
       body: model.getObjectByName('body') || model.children[0] || model,
       steeringWheel: model.getObjectByName('steering_wheel'),
+      eyeMount:model.getObjectByName('driver_eye'),
+      nose:model.getObjectByName('front_fairing'),
+      pedals:['pedal_brake','pedal_throttle'].map(n=>model.getObjectByName(n)).filter((o):o is T.Object3D=>!!o),
       wheels: [],
       front: [],
       wheelHeights: new Map(),
@@ -577,6 +591,7 @@ export class KartRenderer {
   }
   showGarage() {
     this.state = 'garage';
+    this.cityJob=null;this.jobGuide=null;
     this.network = false;
     this.freeDriving=null;
     this.paused = false;
@@ -607,6 +622,7 @@ export class KartRenderer {
     this.cityAt = this.skidAt = 0;
     this.release(this.world, true);
     this.world.clear();
+    this.jobGuide=null;
     const sampleCount = track.points.length;
     const m = new T.Object3D();
     if(!this.freeDriving){
@@ -614,6 +630,7 @@ export class KartRenderer {
     const surface = new T.Mesh(geo, new T.MeshStandardMaterial({color:surfaceColor(track),map:this.roadMaps[0],normalMap:this.roadMaps[1],roughnessMap:this.roadMaps[2],roughness:.96}));
     surface.name = 'Rounded closed-event race surface'; surface.receiveShadow = true;
     this.world.add(surface);
+    this.world.add(createRacingRoadside(track));
     this.world.add(createKerbLayer(track), createTyreBarrierLayer(track, (x,z)=>courseClearance(track,x,z)));
     const start = track.points[0],
       startWidth = start.width ?? track.width,
@@ -759,7 +776,8 @@ export class KartRenderer {
     }
     for (const front of rig.front)
       front.rotation.y += ((front.name.endsWith('fl') ? rig.motion.leftSteer : rig.motion.rightSteer) - front.rotation.y) * smooth;
-    if (rig.steeringWheel) rig.steeringWheel.rotation.z = steer * 0.65;
+    if (rig.steeringWheel) rig.steeringWheel.rotation.z = steer * STEERING_WHEEL_ANGLE;
+    for(const pedal of rig.pedals)pedal.rotation.x=(pedal.name==='pedal_brake'?Number(r.braking):r.throttle||0)*.23;
     const driver =
       this.cameraMode === 'driver' &&
       r.id === this.me &&
@@ -808,20 +826,18 @@ export class KartRenderer {
       rig.smoke.position.y = 0.8 + ((this.motionTime * 0.8) % 1.1);
       rig.smoke.scale.setScalar(1 + ((this.motionTime * 0.8) % 1.1) * 1.5);
     }
-    rig.body.scale.set(
-      rig.chassisScale.x * (1 - (r.damageSide || 0) * 0.00035),
-      rig.chassisScale.y,
-      rig.chassisScale.z *
-        (1 - ((r.damageFront || 0) + (r.damageRear || 0)) * 0.00045)
-    );
+    const nose=rig.nose;
+    if(nose){nose.rotation.y=(r.damageSide||0)*.0008;nose.scale.z=1-Math.min(.05,(r.damageFront||0)*.001);}
+
   }
 
   private updateSkids() {
     if (!this.skidMesh || this.paused || this.state !== 'racing') return;
     let dirty = false;
     for (const r of this.racers) {
-      const x = r.x - Math.sin(r.yaw) * 1.135,
-        z = r.z - Math.cos(r.yaw) * 1.135;
+      const rear=(r.bodyLength||2)*.3,halfTrack=(r.bodyWidth||1.27)*.46;
+      const x = r.x - Math.sin(r.yaw) * rear,
+        z = r.z - Math.cos(r.yaw) * rear;
       const previous = this.skidPrevious.get(r.id);
       if (previous && !r.airborne && r.speed > 7 && (r.drifting || r.acceleration < -16)) {
         const length = Math.hypot(x - previous.x, z - previous.z);
@@ -829,9 +845,9 @@ export class KartRenderer {
           for (const side of [-1, 1]) {
             const m = this.transform;
             m.position.set(
-              (x + previous.x) / 2 + Math.cos(r.yaw) * side * 0.85,
+              (x + previous.x) / 2 + Math.cos(r.yaw) * side * halfTrack,
               0.14+(r.groundY||0),
-              (z + previous.z) / 2 - Math.sin(r.yaw) * side * 0.85
+              (z + previous.z) / 2 - Math.sin(r.yaw) * side * halfTrack
             );
             m.rotation.set(0, Math.atan2(x - previous.x, z - previous.z), 0);
             m.scale.set(1, 1, length + 0.04);
@@ -868,6 +884,7 @@ export class KartRenderer {
     }
   }
   startLocal(id: string, difficulty: string, freeRoam=false) {
+    this.cityJob=null;
     this.track = freeRoam?{...makeTrack(id),terrainMode:'regional'}:makeTrack(id);
     this.freeDriving=freeRoam?freeRoamWorld():null;
     this.difficulty = difficulty;
@@ -900,7 +917,13 @@ export class KartRenderer {
     this.clearInput();
     this.snapCamera();
   }
+  startCityJob(id:string,trackId:string){
+    const job=createCityJob(id,makeTrack(trackId));
+    this.startLocal(trackId,'street',true);
+    this.cityJob=job;this.jobGuide=new CityJobGuide();this.world.add(this.jobGuide.group);
+  }
   networkState(next: ServerRace, id: string) {
+    this.cityJob=null;
     if (!next.racers.length) return;
     const fresh =
       !this.network ||
@@ -927,6 +950,7 @@ export class KartRenderer {
   }
   private finish() {
     this.onFinish({
+      cityJob:this.cityJob?{...this.cityJob}:undefined,
       racers: standings(this.racers),
       playerId: this.me,
       elapsed: this.time,
@@ -952,10 +976,12 @@ export class KartRenderer {
       this.lookTarget.copy(this.camera.position).addScaledVector(cockpit.forward(this.cockpitForward),24);
     } else if (driver && eye && visual) {
       visual.updateMatrixWorld(true);
-      this.camera.position.copy(eye).applyMatrix4(visual.matrixWorld);
+      const socket=this.rigs.get(visual)?.eyeMount;
+      if(socket)socket.getWorldPosition(this.camera.position);
+      else this.camera.position.copy(eye).applyMatrix4(visual.matrixWorld);
       this.lookTarget.set(
         this.camera.position.x + Math.sin(r.yaw) * 24,
-        this.camera.position.y - 0.08,
+        this.camera.position.y - 5.5,
         this.camera.position.z + Math.cos(r.yaw) * 24
       );
     } else {
@@ -1048,6 +1074,12 @@ export class KartRenderer {
                 this.time,
                 this.difficulty
               );
+            if(this.cityJob&&me){
+              stepCityJob(this.cityJob,me,STEP);
+              if(this.cityJob.status!=='active'){
+                this.state='finished';this.clearInput();this.accumulator=0;this.finish();break;
+              }
+            }
             this.accumulator -= STEP;
           }
           if (
@@ -1103,6 +1135,7 @@ export class KartRenderer {
           this.cityAt = now;
           this.scenery?.update(me.x, me.z, this.quality === 'performance', this.camera);
         }
+        if(this.cityJob)this.jobGuide?.update(this.cityJob,this.track,me);
         const running = this.state === 'racing' && !this.paused;
         this.supporters?.update(this.motionTime, me, this.quality === 'performance');
         if (now - this.skidAt > 65) {
@@ -1129,13 +1162,13 @@ export class KartRenderer {
             this.camera.near=.025;
           } else if (rig?.driverEye) {
             v.updateMatrixWorld(true);
-            this.camera.position
-              .copy(rig.driverEye)
-              .applyMatrix4(v.matrixWorld);
+            const socket=rig.eyeMount;
+            if(socket)socket.getWorldPosition(this.camera.position);
+            else this.camera.position.copy(rig.driverEye).applyMatrix4(v.matrixWorld);
             this.camera.position.y += bob + spring * 0.02;
             this.lookTarget.set(
               this.camera.position.x + Math.sin(steerYaw) * 24,
-              this.camera.position.y - 0.08,
+              this.camera.position.y - 5.5,
               this.camera.position.z + Math.cos(steerYaw) * 24
             );
             this.camera.near = 0.04;
@@ -1186,6 +1219,7 @@ export class KartRenderer {
         if (now - this.uiAt > 90) {
           this.uiAt = now;
           this.onFrame({
+            cityJob:this.cityJob?{...this.cityJob}:undefined,
             freeRoam:!!this.freeDriving,
             reversing:!!me.reversing || me.speed<-.1,
             speed: me.speed,

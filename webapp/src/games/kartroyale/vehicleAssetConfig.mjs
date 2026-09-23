@@ -34,7 +34,7 @@ export function vehicleAssetUrl(id, low = false) {
     return `/assets/tirana-streets/imported/${id}.glb`;
   const config = MILITARY_ASSETS[id];
   if (KART_ASSETS[id])
-    return `/assets/kart-royale/karts/${id}${low ? '-lod' : ''}.glb?v=realistic-fleet-v1`;
+    return `/assets/kart-royale/karts/${id}${low ? '-lod' : ''}.glb?v=city-driver-v2`;
   return config
     ? `/assets/kart-royale/military/${config.file}${low ? '-lod' : ''}.glb`
     : `/assets/kart-royale/kenney-${id}.glb`;

@@ -13,9 +13,9 @@
       "number": "07",
       "lod": false,
       "file": "apex.glb",
-      "bytes": 458044,
-      "triangles": 13436,
-      "drawCalls": 34,
+      "bytes": 491760,
+      "triangles": 14404,
+      "drawCalls": 36,
       "wheelRadius": 0.235
     },
     {
@@ -27,8 +27,8 @@
       "number": "07",
       "lod": true,
       "file": "apex-lod.glb",
-      "bytes": 245540,
-      "triangles": 6544,
+      "bytes": 248388,
+      "triangles": 6608,
       "drawCalls": 30,
       "wheelRadius": 0.235
     },
@@ -41,8 +41,8 @@
       "number": "12",
       "lod": false,
       "file": "oobi.glb",
-      "bytes": 493156,
-      "triangles": 14188,
+      "bytes": 531928,
+      "triangles": 15304,
       "drawCalls": 40,
       "wheelRadius": 0.235
     },
@@ -55,9 +55,9 @@
       "number": "12",
       "lod": true,
       "file": "oobi-lod.glb",
-      "bytes": 261488,
-      "triangles": 6856,
-      "drawCalls": 35,
+      "bytes": 268512,
+      "triangles": 7020,
+      "drawCalls": 34,
       "wheelRadius": 0.235
     },
     {
@@ -69,9 +69,9 @@
       "number": "23",
       "lod": false,
       "file": "oodi.glb",
-      "bytes": 464996,
-      "triangles": 13520,
-      "drawCalls": 35,
+      "bytes": 498712,
+      "triangles": 14488,
+      "drawCalls": 37,
       "wheelRadius": 0.235
     },
     {
@@ -83,8 +83,8 @@
       "number": "23",
       "lod": true,
       "file": "oodi-lod.glb",
-      "bytes": 252492,
-      "triangles": 6628,
+      "bytes": 255344,
+      "triangles": 6692,
       "drawCalls": 31,
       "wheelRadius": 0.235
     },
@@ -97,9 +97,9 @@
       "number": "35",
       "lod": false,
       "file": "ooli.glb",
-      "bytes": 473612,
-      "triangles": 13908,
-      "drawCalls": 35,
+      "bytes": 507328,
+      "triangles": 14876,
+      "drawCalls": 37,
       "wheelRadius": 0.235
     },
     {
@@ -111,8 +111,8 @@
       "number": "35",
       "lod": true,
       "file": "ooli-lod.glb",
-      "bytes": 267684,
-      "triangles": 7296,
+      "bytes": 270536,
+      "triangles": 7360,
       "drawCalls": 31,
       "wheelRadius": 0.235
     },
@@ -125,9 +125,9 @@
       "number": "44",
       "lod": false,
       "file": "oopi.glb",
-      "bytes": 748144,
-      "triangles": 23200,
-      "drawCalls": 34,
+      "bytes": 784428,
+      "triangles": 24204,
+      "drawCalls": 36,
       "wheelRadius": 0.31
     },
     {
@@ -139,8 +139,8 @@
       "number": "44",
       "lod": true,
       "file": "oopi-lod.glb",
-      "bytes": 360116,
-      "triangles": 9876,
+      "bytes": 365528,
+      "triangles": 9976,
       "drawCalls": 30,
       "wheelRadius": 0.31
     }
