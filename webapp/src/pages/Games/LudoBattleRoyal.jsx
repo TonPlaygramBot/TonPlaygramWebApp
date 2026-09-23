@@ -3,7 +3,7 @@ import {createLudoMissileFx,createLudoExplosionFx,updateLudoExplosionFx} from '.
 import { createLudoBlenderModel } from '../../utils/ludoBlenderMeshes';
 import { palmMarker, palmOrientation, solveArm, world as boneWorld } from '../../utils/ludoHumanMotion';
 import { createLudoDiceHand, createLudoDiceContact, createLudoDiceThrow, updateLudoDiceThrow, poseLudoDiceContact, LUDO_DICE_TIMING } from '../../utils/ludoDiceMotion.ts';
-import { setLudoTileHighlight, updateLudoTileGlow } from '../../utils/ludoTokenPresentation.ts';
+import { createFallbackLudoToken, hasVisibleLudoToken, withLudoTokenAssets, setLudoTileHighlight, updateLudoTileGlow } from '../../utils/ludoTokenPresentation.ts';
 import {
   FIREARM_CAPTURE_ANIMATION_IDS,
   FIREARM_MARKSMAN_IDS,
@@ -3755,6 +3755,7 @@ const SEATED_HELPER_UP_DICE_PICKUP = 0.007 * MODEL_SCALE;
 const SEATED_HELPER_UP_DICE_RELEASE = 0.018 * MODEL_SCALE;
 const SEATED_HELPER_FORWARD_DICE_HOLD = 0.064 * MODEL_SCALE;
 const SEATED_HELPER_UP_DICE_HOLD = 0.007 * MODEL_SCALE;
+const SEATED_DICE_HOLD_VERTICAL_NUDGE = 0.012;
 const SEATED_HELPER_FORWARD_TOKEN_PICKUP = 0.076 * MODEL_SCALE;
 const SEATED_HELPER_FORWARD_TOKEN_PLACE = 0.114 * MODEL_SCALE;
 const SEATED_HELPER_RIGHT_TOKEN = -0.012 * MODEL_SCALE;
@@ -9078,22 +9079,97 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount, onlin
     };
   };
 
-  const moveDiceToRail = (player) => {
+  const animateDicePosition = (dice, destination, { duration = 450, lift = 0.04, onComplete = null } = {}) => {
+    if (!dice || !destination) return;
+    const target = destination.clone ? destination.clone() : new THREE.Vector3().copy(destination);
+    stopDiceTransition();
+    const startPos = dice.position.clone();
+    const started = performance.now();
+    const state = { cancelled: false };
+    const handle = {
+      cancel: () => {
+        state.cancelled = true;
+      }
+    };
+    diceTransitionRef.current = handle;
+    const step = () => {
+      if (state.cancelled) return;
+      const now = performance.now();
+      const t = Math.min(1, (now - started) / Math.max(1, duration));
+      const eased = t < 0.82 ? easeInOutSine01(t / 0.82) * 0.92 : 0.92 + easeOutBack01((t - 0.82) / 0.18, 1.3) * 0.08;
+      const pos = startPos.clone().lerp(target, eased);
+      if (lift > 0) {
+        const arc = Math.sin(Math.PI * eased) * lift * (1 - eased * 0.25);
+        pos.y = THREE.MathUtils.lerp(startPos.y, target.y, eased) + arc;
+      }
+      dice.position.copy(pos);
+      if (t < 1) {
+        requestAnimationFrame(step);
+      } else {
+        dice.position.copy(target);
+        if (typeof onComplete === 'function') {
+          onComplete();
+        }
+        if (diceTransitionRef.current === handle) {
+          diceTransitionRef.current = null;
+        }
+      }
+    };
+    requestAnimationFrame(step);
+  };
+
+  const resolveDiceHoldContactTarget = (player, fallbackTarget = null) => {
+    const dice = diceRef.current;
+    if (!dice?.isObject3D) return fallbackTarget ?? null;
+    if (player === 0) {
+      // Keep local/human turn start anchored on the board rail so users see exactly where to tap to roll.
+      return fallbackTarget ?? null;
+    }
+    const actorEntry = seatedHumanActorsRef.current?.find((entry) => entry?.playerIndex === player);
+    if (!actorEntry) return fallbackTarget ?? null;
+    const helperWorld = new THREE.Vector3();
+    const sampled =
+      sampleSeatedActionHelper(actorEntry, 'diceHold', helperWorld) ||
+      sampleSeatedActionHelper(actorEntry, 'dicePickup', helperWorld);
+    if (!sampled) return fallbackTarget ?? null;
+    const parent = dice.parent;
+    const local = helperWorld.clone();
+    if (parent?.worldToLocal) {
+      parent.worldToLocal(local);
+    }
+    // Keep the dice slightly under the fingertip so the grasp appears like physical contact.
+    local.y -= DICE_SIZE * SEATED_DICE_HOLD_VERTICAL_NUDGE;
+    return local;
+  };
+
+  const moveDiceToRail = (player, immediate = false) => {
     const dice = diceRef.current;
     if (!dice) return;
-    // The die is never teleported to a hand socket between turns. Every remote
-    // human reaches forward to its actual landing point. The local, bottom
-    // human stays seated until the player presses the visible die.
-    stopDiceTransition();
-    if (player === 0) {
-      seatedHumanActionRef.current = {
-        ...seatedHumanActionRef.current,
-        holdPlayer: null,
-        holdStartMs: 0
-      };
+    const rails = dice.userData?.railPositions;
+    if (!rails || !rails[player]) return;
+
+    if (player === 0 && !immediate) {
+      // On human turns keep the dice where it landed so the seated actor can bend from the torso,
+      // reach to that exact table spot, and grab it before the next throw.
+      stopDiceTransition();
+      beginDiceHoldPose(player);
+      return;
+    }
+
+    const railTarget = rails[player].clone ? rails[player].clone() : new THREE.Vector3().copy(rails[player]);
+    const target = resolveDiceHoldContactTarget(player, railTarget) ?? railTarget;
+    if (immediate) {
+      stopDiceTransition();
+      dice.position.copy(target);
+      beginDiceHoldPose(player);
       return;
     }
     beginDiceHoldPose(player);
+    animateDicePosition(dice, target, {
+      duration: 260,
+      lift: 0.03,
+      onComplete: () => beginDiceHoldPose(player)
+    });
   };
 
   const updateTurnIndicator = (player, immediate = false) => {
@@ -13103,7 +13179,6 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount, onlin
     const online = onlineContextRef.current;
     if (online?.tableId) {
       if (player !== 0 || state.onlinePendingRoll != null) return;
-      beginDiceHoldPose(player);
       dice.userData.isRolling = true;
       setUi((current) => ({ ...current, status: 'Rolling…' }));
       socket.emit('ludoBattleRoll', {
@@ -13118,9 +13193,6 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount, onlin
       return;
     }
     const isHumanTurn = player === 0;
-    // Only start the bottom human's forward reach after the user's press, so
-    // their arm cannot cover the die while it is waiting for input.
-    if (isHumanTurn) beginDiceHoldPose(player);
     const baseHeight = dice.userData?.baseHeight ?? DICE_BASE_HEIGHT;
     const rollTargets = dice.userData?.rollTargets;
     const clothLimit = dice.userData?.clothLimit ?? BOARD_CLOTH_HALF - 0.12;
@@ -13905,8 +13977,7 @@ async function buildLudoBoard(
   const darkBoardMat = cloneBoardMaterial(null, 0xdccfb0);
   let defaultTokenTypeSequence =
     tokenStyleOption?.typeSequence?.length ? tokenStyleOption.typeSequence : TOKEN_TYPE_SEQUENCE;
-  const useAbgTokens = true;
-  const abgAssets = useAbgTokens ? await getAbgAssets() : null;
+  const abgAssets = await withLudoTokenAssets(getAbgAssets());
   const abgPrototypes = abgAssets?.proto ?? null;
   const shouldUseAbgTokens = Boolean(abgPrototypes);
 
@@ -14035,13 +14106,9 @@ async function buildLudoBoard(
           tintGltfToken(token, tokenTint);
         }
       }
-      if (!token) {
-        const fallbackProto =
-          resolveAbgPrototype(abgPrototypes, 'w', type) ?? resolveAbgPrototype(abgPrototypes, 'w', 'p');
-        token = cloneAbgToken(fallbackProto) || new THREE.Group();
-        if (tokenTint) {
-          tintGltfToken(token, tokenTint);
-        }
+      if (!hasVisibleLudoToken(token)) {
+        // A failed/empty remote asset used to produce an invisible Group.
+        token = createFallbackLudoToken(type, tokenTint ?? color, measureProceduralTokenHeight(), STANDARD_TOKEN_FOOTPRINT.x);
       }
       token.scale.multiplyScalar(TOKEN_SIZE_MULTIPLIER);
       const typeKey = String(type || '').toLowerCase();
