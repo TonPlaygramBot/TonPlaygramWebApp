@@ -5,7 +5,8 @@ import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js';
 import { PoolRoyalHumanPlayers, type PlayerSeat } from '../pages/Games/shared/PoolRoyalHumanPlayers.ts';
 import { type ShotState } from '../pages/Games/shared/poolRoyalReferenceHuman.ts';
 import { createPoolRoyalCue, posePoolRoyalCue } from '../pages/Games/shared/createPoolRoyalCue.ts';
-import { SnookerRoyalShotCamera, snookerRoyalFallbackEye } from '../pages/Games/snookerRoyalShotCamera.ts';
+import { snookerRoyalFallbackEye } from '../pages/Games/snookerRoyalShotCamera.ts';
+import { PoolRoyalPlayerCamera, POOL_ROYAL_PLAYER_FOV, applyPoolRoyalPlayerView } from '../pages/Games/shared/poolRoyalPlayerCamera.ts';
 import { PoolRoyalPocketLights } from '../pages/Games/shared/poolRoyalPocketLights.ts';
 import { poolRoyalHudLayout, POOL_AVATAR_SIZE_PX, POOL_SPIN_DIAMETER_PX } from '../pages/Games/poolRoyalHudLayout.js';
 import { spinFromScreenPoint, normalizeSpinInput } from '../pages/Games/poolRoyaleSpinUtils.js';
@@ -165,7 +166,7 @@ function CharacterPreview() {
     const liveCue = createPoolRoyalCue({ ballRadius: METRICS.ballR, length: METRICS.cueLength, tipRadius: METRICS.cueRadius });
     liveCue.shaftMaterial.color.setHex(0xdeb887);
     scene.add(liveCue.body);
-    const shotCamera = new SnookerRoyalShotCamera();
+    const shotCamera = new PoolRoyalPlayerCamera();
     const shotTip = { position: new THREE.Vector3(), visible: true };
     let stroke: any = null;
     let seenShot = 0, seenReset = 0, seenStation = 0, simulationTime = 0, lastPhase = '', lastCanShoot = false;
@@ -301,16 +302,16 @@ function CharacterPreview() {
       }
       const eye = shotCamera.resolve({ eye: players?.eyeView ?? null, stroke: Boolean(stroke && shotTip.visible),
         shooting: Boolean(stroke), impactPending: Boolean(stroke && travel === 0),
-        cueBlend: 0, now: simulationTime, excluded: current.view !== 'player' });
+        now: simulationTime, excluded: current.view !== 'player' });
       if (current.view === 'player' && stroke && !current.paused) {
         const cameraPhase = shotCamera.isBroadcasting ? 'Broadcast' : travel > 0 ? 'Follow-through' : 'Cue stroke';
         if (cameraPhase !== lastPhase) { lastPhase = cameraPhase; setPhase(cameraPhase); }
       }
-      const fov = current.view === 'player' && eye ? 66 : 46;
+      const fov = current.view === 'player' && eye ? POOL_ROYAL_PLAYER_FOV : 46;
       if (camera.fov !== fov) { camera.fov = fov; camera.updateProjectionMatrix(); }
       collisionOverlay.visible = current.view === 'geometry';
       if (current.view === 'player' && eye) {
-        camera.position.copy(eye.position); camera.lookAt(eye.target);
+        applyPoolRoyalPlayerView(camera, eye);
       } else if (current.view === 'pocket') {
         camera.position.set(glowPocket.x * 0.35, METRICS.clothY + METRICS.ballR * 8, glowPocket.y + METRICS.ballR * 13);
         camera.lookAt(glowPocket.x, METRICS.clothY + METRICS.ballR * 1.5, glowPocket.y);
