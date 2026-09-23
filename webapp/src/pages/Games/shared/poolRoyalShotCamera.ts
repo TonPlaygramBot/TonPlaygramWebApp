@@ -5,6 +5,10 @@ import type { HumanEyeView } from './poolRoyalPlayerPose.ts';
 export class PoolRoyalShotCamera {
   private held: HumanEyeView | null = null;
   private lastStrokeAt = -Infinity;
+  private readonly eyeLockBlend: number;
+
+  /** Pool's aiming view reaches the eyes before the orbit reaches its limit. */
+  constructor(eyeLockBlend = 0) { this.eyeLockBlend = eyeLockBlend; }
 
   resolve({ eye, stroke, shooting, cueBlend, now, excluded = false }: {
     eye: HumanEyeView | null; stroke: boolean; shooting: boolean;
@@ -25,7 +29,7 @@ export class PoolRoyalShotCamera {
     }
     if (!shooting) this.reset();
     if (shooting || !eye) return null;
-    const weight = THREE.MathUtils.smoothstep(1 - cueBlend, 0.06, 1) * eye.blend;
+    const weight = THREE.MathUtils.smoothstep(1 - cueBlend, 0.06, 1 - this.eyeLockBlend) * eye.blend;
     return weight > 0 ? { ...eye, blend: weight } : null;
   }
 

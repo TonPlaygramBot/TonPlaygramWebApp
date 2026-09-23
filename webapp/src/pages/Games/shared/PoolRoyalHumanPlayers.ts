@@ -6,8 +6,11 @@ import {
   cuePoseFromGrip, setCuePose, updateHumanPose,
   type HumanRig, type ShotState
 } from './poolRoyalReferenceHuman.ts';
-import { refinePoolRoyalBridge, poolRoyalEyeView, type HumanEyeView } from './poolRoyalPlayerPose.ts';
+import { refinePoolRoyalBridge, poolRoyalEyeView, bridgeCueClearance, type HumanEyeView } from './poolRoyalPlayerPose.ts';
 import { posePoolRoyalCue } from './createPoolRoyalCue.ts';
+import { addPoolRoyalHandDetails } from './poolRoyalHandDetails.ts';
+import { PoolRoyalFirstPerson } from './poolRoyalFirstPerson.ts';
+import { protectPoolRoyalBridge, type HandContactScene } from './poolRoyalHandContact.ts';
 import {
   createCueReachEquipment,
   hideCueReachEquipment,
@@ -32,9 +35,12 @@ export type PlayerFrame = {
   nowMs: number;
   cueBack?: THREE.Vector3;
   cueTip?: THREE.Vector3;
+  /** Maximum front-shaft radius, in the same coordinates as cueTip. */
+  cueRadius?: number;
   hidden?: boolean;
   bridgeObstacles?: BridgeObstacle[];
   bridgeBounds?: BridgeBounds;
+  bridgeRailY?: number;
 };
 type Player = {
   seat: PlayerSeat;
@@ -45,11 +51,14 @@ type Player = {
   shotBall: THREE.Vector3;
   shotAim: THREE.Vector3;
   headMeshes: THREE.Object3D[];
+  firstPerson?: PoolRoyalFirstPerson;
   reachEquipment: CueReachEquipment;
   cueModel?: THREE.Object3D;
   movement?: PoolRoyalMovement;
   feet?: PoolRoyalFeet;
   planted: boolean;
+  handClear: boolean;
+  safetyRest?: { ball: THREE.Vector3; aim: THREE.Vector3 };
   strokePose?: { position: THREE.Vector3; bones: Map<THREE.Bone, THREE.Quaternion> };
 };
 type Options = {
@@ -193,6 +202,7 @@ export class PoolRoyalHumanPlayers {
         // Object3D.clone alone shares bone references between skinned players.
         const human = createReferenceHuman(cloneSkeleton(model));
         if (!human.activeGlb) throw new Error('The reference character skeleton is incomplete.');
+        if (options.realisticMovement) addPoolRoyalHandDetails(human);
         if (!this.players.length) {
           const height = new THREE.Box3().setFromObject(human.modelRoot).getSize(new THREE.Vector3()).y;
           this.scale = this.humanHeight / height;
@@ -205,9 +215,10 @@ export class PoolRoyalHumanPlayers {
           if ((object as THREE.Mesh).isMesh && /^(EyeLeft|EyeRight|Wolf3D_(Head|Teeth|Beard|Headwear))$/.test(object.name)) headMeshes.push(object);
         });
         const feet = options.realisticMovement ? createPoolRoyalFeet(human) : undefined;
+        const firstPerson = options.realisticMovement ? new PoolRoyalFirstPerson(human) : undefined;
         this.group.add(human.modelRoot, cue.group, reachEquipment.group);
         this.players.push({ seat, human, cue, initialized: false, state: 'idle',
-          shotBall: new THREE.Vector3(), shotAim: new THREE.Vector3(), headMeshes, reachEquipment, feet, planted: true });
+          shotBall: new THREE.Vector3(), shotAim: new THREE.Vector3(), headMeshes, firstPerson, reachEquipment, feet, planted: true, handClear: true });
       }
       if (this.cueAppearance) this.setCueAppearance(this.cueAppearance.body, this.cueAppearance.tip, this.cueAppearance.butt);
       return true;
@@ -245,6 +256,14 @@ export class PoolRoyalHumanPlayers {
     const ray = target.clone().sub(cameraPos);
     const targetDistance = ray.length(); ray.normalize();
     for (const player of this.players) {
+      if (player.firstPerson) {
+        // Only the local shooter's face is suppressed, and only while this
+        // camera is entering/leaving the eye position. Other heads stay intact.
+        const eye = player.human.model!.getObjectByName('LeftEye')!.getWorldPosition(new THREE.Vector3());
+        const faceRadius = CFG.humanScale * 0.19 * this.group.getWorldScale(new THREE.Vector3()).x;
+        player.firstPerson.setCamera(camera, player.seat === firstPersonSeat && cameraPos.distanceTo(eye) < faceRadius);
+        continue;
+      }
       const head = player.human.bones.head!.getWorldPosition(new THREE.Vector3());
       const offset = head.sub(cameraPos), along = offset.dot(ray);
       const scale = this.group.getWorldScale(new THREE.Vector3()).x;
@@ -266,6 +285,13 @@ export class PoolRoyalHumanPlayers {
     const tableW = this.options.tableW / this.referenceScale;
     const tableL = this.options.tableL / this.referenceScale;
     const clothY = (this.options.clothY - this.options.floorY) / this.referenceScale;
+    const contactScene: HandContactScene | null = this.options.realisticMovement && frame.bridgeBounds ? {
+      clothY,
+      railY: frame.bridgeRailY === undefined ? clothY + CFG.scale * 0.09 : (frame.bridgeRailY - this.options.floorY) / this.referenceScale,
+      inner: { halfWidth: frame.bridgeBounds.halfWidth / this.referenceScale, halfLength: frame.bridgeBounds.halfLength / this.referenceScale },
+      outer: { halfWidth: tableW / 2, halfLength: tableL / 2 },
+      balls: (frame.bridgeObstacles ?? []).map(ball => ({ position: this.toReference(ball.position), radius: ball.radius / this.referenceScale }))
+    } : null;
     const power = THREE.MathUtils.clamp(frame.power, 0, 1);
     for (const player of this.players) {
       const active = player.seat === frame.activeSeat;
@@ -283,6 +309,10 @@ export class PoolRoyalHumanPlayers {
         }
       }
       if (state !== 'striking') player.strokePose = undefined;
+      if (state !== 'striking' && (state === 'idle' || !active ||
+        (player.safetyRest && (player.safetyRest.ball.distanceToSquared(ball) > 1e-8 || player.safetyRest.aim.distanceToSquared(forward) > 1e-8)))) {
+        player.safetyRest = undefined;
+      }
       const aim = state === 'striking' ? player.shotAim.clone() : forward.clone();
       const cueBall = state === 'striking' ? player.shotBall : ball;
       const rootTarget = active
@@ -340,7 +370,9 @@ export class PoolRoyalHumanPlayers {
         }
       }
       bridge = resolvePoolRoyalBridgeAnchor({ cueBall, aimForward: aim, cueTip: tip, clothY });
-      if (active && state !== 'idle' && frame.bridgeBounds) {
+      // Pool's skin-level solver moves along the shaft or selects a rest. The
+      // legacy circular footprint can shift sideways and leave the cue unsupported.
+      if (active && state !== 'idle' && frame.bridgeBounds && !this.options.realisticMovement) {
         const safety = resolveSafeBridgeAnchor(
           bridge,
           aim,
@@ -363,7 +395,11 @@ export class PoolRoyalHumanPlayers {
         tableW,
         tableL
       });
-      const reachPose = active && state !== 'idle'
+      // The captured stroke pose includes the bridge/rest grip. Keep its support
+      // equipment for the entire stroke, even when the ordinary reach is short.
+      if (player.safetyRest) { reachProfile.needsExtension = true; reachProfile.extensionLength = 0; }
+      player.reachEquipment.extension.visible = !player.safetyRest;
+      let reachPose = active && state !== 'idle'
         ? poseCueReachEquipment(player.reachEquipment, {
           cueBack: back,
           cueTip: tip,
@@ -390,9 +426,36 @@ export class PoolRoyalHumanPlayers {
         player.strokePose.bones.forEach((rotation, bone) => bone.quaternion.copy(rotation));
         human.modelRoot.updateMatrixWorld(true);
       } else {
-        if (!reachPose) refinePoolRoyalBridge(human, bridge, aim, clothY, bridgeStyle);
+        if (!reachPose) refinePoolRoyalBridge(human, bridge, aim, clothY, bridgeStyle,
+          this.options.realisticMovement && state !== 'idle'
+            ? { back, tip, radius: (frame.cueRadius ?? (frame.cueBall.y - this.options.clothY) * 0.243) / this.referenceScale }
+            : undefined);
         if (player.feet && player.movement) player.planted = plantPoolRoyalFeet(human, player.feet, player.movement, dt, false);
         if (player.movement) relaxPoolRoyalFreeArm(human, player.movement);
+      }
+      player.handClear = true;
+      if (active && contactScene && human.poseT > 0.05) {
+        player.handClear = protectPoolRoyalBridge(human, contactScene, aim, !player.strokePose && !reachPose);
+        const shaftGap = !reachPose && !player.strokePose && human.poseT > 0.95 && state !== 'idle'
+          ? bridgeCueClearance(human, { back, tip, radius: (frame.cueRadius ?? (frame.cueBall.y - this.options.clothY) * 0.243) / this.referenceScale }) : 0;
+        const unsupported = shaftGap < -0.001 * CFG.humanScale || shaftGap > 0.006 * CFG.humanScale;
+        if ((!player.handClear || unsupported) && !player.strokePose && !reachPose && state !== 'idle') {
+          // A rail/crowded layout or steep cue that cannot fit the hand uses a rest.
+          // Do not force a palm through the cushion or move any gameplay ball.
+          reachPose = poseCueReachEquipment(player.reachEquipment, {
+            cueBack: back, cueTip: tip, cueBall, aimForward: aim, rootTarget, clothY,
+            profile: { ...reachProfile, needsExtension: true, extensionLength: 0 }, scale: CFG.scale
+          });
+          player.reachEquipment.extension.visible = false;
+          if (reachPose) {
+            player.safetyRest = { ball: cueBall.clone(), aim: aim.clone() };
+            updateHumanPose(human, 0, state, rootTarget, aim, reachPose.restGrip,
+              idleRight, idleLeft, back, tip, power, clothY, 'mechanical-rest', reachPose.restDirection,
+              0, rearGrip, motion);
+            player.handClear = protectPoolRoyalBridge(human, contactScene, aim, false);
+            if (player.feet && player.movement) player.planted = plantPoolRoyalFeet(human, player.feet, player.movement, 0, false);
+          }
+        }
       }
       if (motion && ((rearGrip && human.poseT > 0.9) || human.poseT < 0.05)) {
         const wristRotation = human.bones.rightHand!.getWorldQuaternion(new THREE.Quaternion()).normalize();
@@ -414,14 +477,14 @@ export class PoolRoyalHumanPlayers {
     const shooter = this.players.find(player => player.seat === frame.activeSeat);
     this.walking = Boolean(shooter?.movement && !shooter.movement.settled);
     this.readyToShoot = Boolean(shooter && (!this.options.realisticMovement ||
-      (shooter.movement?.settled && shooter.planted && shooter.human.poseT > 0.98)));
+      (shooter.movement?.settled && shooter.planted && shooter.handClear && shooter.human.poseT > 0.98)));
     this.eyeView = shooter && frame.state !== 'idle'
       ? poolRoyalEyeView(shooter.human, this.group,
         frame.state === 'striking'
           ? shooter.shotBall.clone().multiplyScalar(this.referenceScale).add(new THREE.Vector3(0, this.options.floorY, 0))
           : frame.cueBall,
         frame.state === 'striking' ? shooter.shotAim : forward,
-        Math.max(0.01, frame.cueBall.y - this.options.clothY)) : null;
+        Math.max(0.01, frame.cueBall.y - this.options.clothY), Boolean(this.options.realisticMovement)) : null;
   }
 
   dispose() {

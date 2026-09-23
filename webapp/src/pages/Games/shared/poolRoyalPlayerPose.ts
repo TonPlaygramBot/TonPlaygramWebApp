@@ -5,6 +5,9 @@ const UP = new THREE.Vector3(0, 1, 0);
 const point = (bone: THREE.Object3D) => bone.getWorldPosition(new THREE.Vector3());
 const clamp = THREE.MathUtils.clamp;
 const samples = new WeakMap<HumanRig, { mesh: THREE.SkinnedMesh; indices: number[] }[]>();
+const bridgeFits = new WeakMap<HumanRig, { key: string; shift: number }>();
+
+export type BridgeCue = { back: THREE.Vector3; tip: THREE.Vector3; radius: number };
 
 function worldQuaternion(bone: THREE.Bone, rotation: THREE.Quaternion) {
   const parent = bone.parent!.getWorldQuaternion(new THREE.Quaternion()).normalize();
@@ -46,7 +49,7 @@ function palmQuaternion(forward: THREE.Vector3, side: THREE.Vector3) {
 }
 
 function bridgeFingers(human: HumanRig, rotation: THREE.Quaternion,
-  style: 'open' | 'compact' | 'raised' = 'open') {
+  style: 'open' | 'compact' | 'raised' = 'open', precise = false) {
   const spreads = style === 'compact'
     ? { Index: -0.02, Middle: 0.08, Ring: 0.24, Pinky: 0.34 }
     : style === 'raised'
@@ -55,13 +58,16 @@ function bridgeFingers(human: HumanRig, rotation: THREE.Quaternion,
   for (const [name, spread] of Object.entries(spreads)) {
     const chain = human.leftFingers.filter(bone => bone.name.includes(name)).sort((a, b) => a.name.localeCompare(b.name));
     for (let i = 0; i < chain.length - 1; i++) {
-      const direction = new THREE.Vector3(spread, 1, [0.10, 0.20, 0.04][i] ?? 0.04).normalize().applyQuaternion(rotation);
+      const slope = precise ? [0.13, 0.16, 0.08] : [0.10, 0.20, 0.04];
+      const direction = new THREE.Vector3(spread, 1, slope[i] ?? 0.01).normalize().applyQuaternion(rotation);
       aimBone(chain[i], chain[i + 1], point(chain[i]).add(direction));
     }
   }
   // Raise the thumb alongside the index base to form an open cue channel.
   const thumb = human.leftFingers.filter(bone => bone.name.includes('Thumb')).sort((a, b) => a.name.localeCompare(b.name));
-  const directions = [new THREE.Vector3(-0.68, 0.74, 0.30), new THREE.Vector3(-0.45, 0.90, -0.03), new THREE.Vector3(-0.20, 0.98, -0.015)];
+  const directions = precise
+    ? [new THREE.Vector3(-0.62, 0.72, 0.30), new THREE.Vector3(0.45, 0.86, 0.03), new THREE.Vector3(0.50, 0.86, -0.015)]
+    : [new THREE.Vector3(-0.68, 0.74, 0.30), new THREE.Vector3(-0.45, 0.90, -0.03), new THREE.Vector3(-0.20, 0.98, -0.015)];
   for (let i = 0; i < thumb.length - 1; i++) aimBone(thumb[i], thumb[i + 1], point(thumb[i]).add(directions[i].clone().normalize().applyQuaternion(rotation)));
 }
 
@@ -94,8 +100,74 @@ export function bridgeSkinBounds(human: HumanRig) {
   return box;
 }
 
+/** The minimum distance from the shaft axis to the visible hand triangles.
+ * Projecting to the shaft cross-section also catches triangle interiors, which
+ * a vertex-only test or centre-line ray misses on the low-poly palm. */
+export function bridgeCueClearance(human: HumanRig, cue: BridgeCue, sideShift = 0,
+  supplied?: THREE.Triangle[]) {
+  const triangles = supplied ?? bridgeCueSections(human, cue);
+  const origin = new THREE.Vector3(-sideShift, 0, 0), closest = new THREE.Vector3();
+  let distanceSq = Infinity;
+  for (const triangle of triangles) distanceSq = Math.min(distanceSq,
+    triangle.closestPointToPoint(origin, closest).distanceToSquared(origin));
+  return Math.sqrt(distanceSq) - cue.radius;
+}
+
+function bridgeCueSections(human: HumanRig, cue: BridgeCue) {
+  if (!samples.has(human)) bridgeSkinBounds(human);
+  const axis = cue.tip.clone().sub(cue.back).normalize();
+  const side = new THREE.Vector3(axis.z, 0, -axis.x).normalize();
+  const up = new THREE.Vector3().crossVectors(axis, side).normalize();
+  const triangles: THREE.Triangle[] = [];
+  for (const { mesh, indices } of samples.get(human)!) {
+    if (!mesh.geometry.index) continue;
+    const vertices = new Map<number, THREE.Vector3>();
+    for (const index of indices) {
+      const v = mesh.getVertexPosition(index, new THREE.Vector3()).applyMatrix4(mesh.matrixWorld).sub(cue.back);
+      vertices.set(index, new THREE.Vector3(v.dot(side), v.dot(up), 0));
+    }
+    const index = mesh.geometry.index;
+    for (let i = 0; i < index.count; i += 3) {
+      const a = vertices.get(index.getX(i)), b = vertices.get(index.getX(i + 1)), c = vertices.get(index.getX(i + 2));
+      if (a && b && c) triangles.push(new THREE.Triangle(a, b, c));
+    }
+  }
+  return triangles;
+}
+
+function fitBridgeChannel(human: HumanRig, cue: BridgeCue, bridge: THREE.Vector3,
+  clothY: number, style: string) {
+  const axis = cue.tip.clone().sub(cue.back).normalize();
+  const along = bridge.clone().sub(cue.back).dot(axis);
+  const height = cue.back.y + axis.y * along - clothY;
+  const key = `${style}:${height.toFixed(3)}:${axis.y.toFixed(3)}:${cue.radius.toFixed(4)}`;
+  const cached = bridgeFits.get(human);
+  if (cached?.key === key) return cached.shift;
+  const sections = bridgeCueSections(human, cue);
+  if (!sections.length) return 0;
+  const gap = 0.0008 * CFG.humanScale;
+  // Approach the cue from the thumb side. Stop at skin contact; never jump
+  // through a finger to another clear interval on the opposite side.
+  const step = 0.004 * CFG.humanScale;
+  let safe = 0.065 * CFG.humanScale;
+  if (bridgeCueClearance(human, cue, safe, sections) < gap) return 0;
+  let blocked = safe;
+  for (let i = 0; i < 34; i++) {
+    blocked = safe - step;
+    if (bridgeCueClearance(human, cue, blocked, sections) < gap) break;
+    safe = blocked;
+  }
+  for (let i = 0; i < 12; i++) {
+    const middle = (safe + blocked) * 0.5;
+    if (bridgeCueClearance(human, cue, middle, sections) >= gap) safe = middle;
+    else blocked = middle;
+  }
+  bridgeFits.set(human, { key, shift: safe });
+  return safe;
+}
+
 export function refinePoolRoyalBridge(human: HumanRig, bridgeTarget: THREE.Vector3,
-  forward: THREE.Vector3, clothY: number, style: 'open' | 'compact' | 'raised' = 'open') {
+  forward: THREE.Vector3, clothY: number, style: 'open' | 'compact' | 'raised' = 'open', cue?: BridgeCue) {
   const weight = THREE.MathUtils.smoothstep(human.poseT, 0.1, 0.95);
   if (!weight) return;
   const b = human.bones;
@@ -138,13 +210,18 @@ export function refinePoolRoyalBridge(human: HumanRig, bridgeTarget: THREE.Vecto
     solveArm(b.leftUpperArm!, b.leftLowerArm!, b.leftHand!, wrist, pole);
     worldQuaternion(b.leftHand!, rotation);
   };
-  place(); bridgeFingers(human, rotation, style);
+  place(); bridgeFingers(human, rotation, style, Boolean(cue));
   // Lift/lower the wrist until the skinned finger pads meet the cloth; the
   // correction translates the target and resolves the arm at its real length.
   for (let i = 0; i < 4; i++) {
     const clearance = clothY + 0.002 * CFG.humanScale - bridgeSkinBounds(human).min.y;
     if (Math.abs(clearance) < 0.0005) break;
     wrist.y += clearance;
+    place();
+  }
+  if (cue && human.poseT > 0.95) {
+    const shift = fitBridgeChannel(human, cue, bridgeTarget, clothY, style);
+    wrist.addScaledVector(side, shift);
     place();
   }
   bones.forEach((bone, i) => bone.quaternion.slerpQuaternions(previous[i], bone.quaternion.clone(), weight).normalize());
@@ -155,16 +232,16 @@ export type HumanEyeView = { position: THREE.Vector3; target: THREE.Vector3; ble
 
 /** Eyes and target are in the controller parent's coordinates, including floor and scale. */
 export function poolRoyalEyeView(human: HumanRig, group: THREE.Group, ball: THREE.Vector3,
-  forward: THREE.Vector3, ballRadius: number): HumanEyeView | null {
+  forward: THREE.Vector3, ballRadius: number, exactEyes = false): HumanEyeView | null {
   const left = human.model?.getObjectByName('LeftEye');
   const right = human.model?.getObjectByName('RightEye');
   if (!left || !right || human.poseT < 0.2) return null;
   group.updateWorldMatrix(true, true);
   const eye = point(left).lerp(point(right), 0.5);
   group.parent!.worldToLocal(eye);
-  // A small forward nudge clears the face and brings the table closer while
-  // retaining the height of the actual eyes and the shooter's handedness.
-  eye.addScaledVector(forward, ballRadius * 2);
+  // Older integrations retain their offset. Pool uses the anatomical midpoint;
+  // camera-specific face suppression handles self-occlusion without moving it.
+  if (!exactEyes) eye.addScaledVector(forward, ballRadius * 2);
   const target = ball.clone().addScaledVector(forward, ballRadius * 5);
   return { position: eye, target, blend: THREE.MathUtils.smoothstep(human.poseT, 0.2, 0.95) };
 }
