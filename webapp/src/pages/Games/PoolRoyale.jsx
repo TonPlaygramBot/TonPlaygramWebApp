@@ -135,7 +135,7 @@ import {
   shouldApplyPoolSuggestion
 } from './poolRoyaleAimSuggestion.js';
 import { advancePoolRoyalCueStroke, POOL_ROYAL_STROKE, referenceCuePull, referenceCueFeather, resolveCueBallContact } from './poolRoyaleCueStrokeTimeline.js';
-import { PoolRoyalShotCamera } from './shared/poolRoyalShotCamera.ts';
+import { SnookerRoyalShotCamera, SNOOKER_PLAYER_FOLLOW_THROUGH_MS, snookerRoyalFallbackEye } from './snookerRoyalShotCamera.ts';
 import { clipGuideTravel } from './shared/billiardsGuideGeometry.js';
 import { poolCueGuideResponse } from './poolRoyaleGuideResponse.js';
 import { PoolCompetitionMatch } from '../../games/pool/PoolCompetitionMatch.jsx';
@@ -6051,7 +6051,6 @@ const AI_STROKE_VISIBLE_DURATION_MS =
   (AI_CUE_PULLBACK_DURATION_MS + AI_CUE_FORWARD_DURATION_MS) * CUE_STROKE_VISUAL_SLOWDOWN;
 const AI_CAMERA_POST_STROKE_HOLD_MS = 2000;
 const AI_POST_SHOT_CAMERA_HOLD_MS = AI_STROKE_VISIBLE_DURATION_MS + AI_CAMERA_POST_STROKE_HOLD_MS;
-const SHOT_CAMERA_HOLD_MS = 2600;
 const REPLAY_BANNER_VARIANTS = {
   long: ['Long pot!', 'Full-table finish!', 'Cross-table clearance!'],
   bank: ['Banked clean!', 'Rail-first beauty!', 'Cushion wizardry!'],
@@ -16853,7 +16852,6 @@ function PoolRoyaleGame({
       }),
     []
   );
-  const shotCameraHoldTimeoutRef = useRef(null);
   const cueStrokeStateRef = useRef(null);
   const lastCueIdlePoseRef = useRef(null);
   const cueImpactDustRef = useRef([]);
@@ -17043,10 +17041,6 @@ const shotPowerRef = useRef(0);
       if (ruleToastTimeoutRef.current) {
         clearTimeout(ruleToastTimeoutRef.current);
         ruleToastTimeoutRef.current = null;
-      }
-      if (shotCameraHoldTimeoutRef.current) {
-        clearTimeout(shotCameraHoldTimeoutRef.current);
-        shotCameraHoldTimeoutRef.current = null;
       }
     },
     []
@@ -19873,6 +19867,7 @@ const shotPowerRef = useRef(0);
           : Date.now();
       let shooting = false; // track when a shot is in progress
       let shotStartedAt = 0;
+      let shotImpactPending = false;
       let shotRecording = null;
       let replayPlayback = null;
       let pausedPocketDrops = null;
@@ -19890,24 +19885,15 @@ const shotPowerRef = useRef(0);
       const setShootingState = (value) => {
         if (shooting === value) return;
         shooting = value;
+        shootingRef.current = value;
         shotStartedAt = shooting ? getNow() : 0;
         if (!shooting) {
+          shotImpactPending = false;
           maxPowerLiftTriggered = false;
-        }
-        if (shotCameraHoldTimeoutRef.current) {
-          clearTimeout(shotCameraHoldTimeoutRef.current);
-          shotCameraHoldTimeoutRef.current = null;
         }
         if (shooting) {
           preShotTopViewRef.current = topViewRef.current;
           preShotTopViewLockRef.current = topViewLockedRef.current;
-          shotCameraHoldTimeoutRef.current = window.setTimeout(() => {
-            shotCameraHoldTimeoutRef.current = null;
-            if (!shooting) return;
-            topViewRef.current = true;
-            topViewLockedRef.current = true;
-            enterTopView(true, { variant: 'rail' });
-          }, SHOT_CAMERA_HOLD_MS);
         } else if (!preShotTopViewRef.current) {
           exitTopView(true);
         } else {
@@ -21866,14 +21852,15 @@ const shotPowerRef = useRef(0);
           return vec;
         };
 
-        const humanShotCamera = new PoolRoyalShotCamera(0.55);
+        // Share Snooker's address → fixed follow-through → broadcast ownership.
+        const humanShotCamera = new SnookerRoyalShotCamera();
         const humanEyeCamera = camera.clone();
         const resolveActiveHumanEyePose = () => {
           const pose = humanShotCamera.resolve({
             eye: activeHumanCueViewRef.current,
-            stroke: Boolean(cueStrokeStateRef.current), shooting: shootingRef.current,
+            stroke: Boolean(cueAnimating), shooting: shootingRef.current,
+            impactPending: shotImpactPending,
             cueBlend: cameraBlendRef.current ?? 1, now: performance.now(),
-            aiming: Boolean(activeHumanCueViewRef.current && !shootingRef.current),
             excluded: Boolean(topViewRef.current || lookModeRef.current || replayPlaybackRef.current || cueGalleryStateRef.current?.active)
           });
           return pose ? { ...pose, position: world.localToWorld(pose.position.clone()),
@@ -22141,7 +22128,16 @@ const shotPowerRef = useRef(0);
             performance.now() < powerImpactHoldRef.current &&
             !cueAnimating;
           const galleryState = cueGalleryStateRef.current;
-          if (replayPlaybackActive) {
+          const humanEyePose = resolveActiveHumanEyePose();
+          if (humanEyePose && (shooting || cueAnimating)) {
+            // As in Snooker, a held player view owns the frame before any
+            // action/pocket tracking can move a camera towards the cue ball.
+            camera.up.set(0, 1, 0);
+            lookTarget = humanEyePose.target.clone();
+            broadcastArgs.focusWorld = lookTarget.clone();
+            broadcastArgs.targetWorld = lookTarget.clone();
+            broadcastArgs.orbitWorld = humanEyePose.position.clone();
+          } else if (replayPlaybackActive) {
             const storedReplayCamera = replayCameraRef.current;
             const scale = Number.isFinite(worldScaleFactor) ? worldScaleFactor : WORLD_SCALE;
             const resolvedReplayCamera = resolveReplayCameraView(
@@ -22221,7 +22217,23 @@ const shotPowerRef = useRef(0);
             broadcastArgs.focusWorld = resolvedTarget.clone();
             broadcastArgs.targetWorld = resolvedTarget.clone();
             broadcastArgs.lerp = 0.08;
-          } else if (!cameraHoldActive && activeShotView?.mode === 'action') {
+          } else if (!topViewRef.current && !lookModeRef.current && humanShotCamera.isBroadcasting &&
+              (!activeShotView || (activeShotView.mode === 'action' && !cue?.active))) {
+            const coverage = resolveRailOverheadReplayCamera({
+              focusOverride: broadcastCamerasRef.current?.defaultFocusWorld,
+              minTargetY: baseSurfaceWorldY + BALL_R * worldScaleFactor
+            });
+            if (coverage?.position && coverage?.target) {
+              camera.up.set(0, 1, 0);
+              camera.position.copy(coverage.position);
+              camera.fov = coverage.fov;
+              camera.updateProjectionMatrix();
+              camera.lookAt(coverage.target);
+              lookTarget = coverage.target;
+              broadcastArgs.focusWorld = lookTarget.clone();
+              broadcastArgs.orbitWorld = coverage.position.clone();
+            }
+          } else if (!topViewRef.current && !lookModeRef.current && !cameraHoldActive && activeShotView?.mode === 'action') {
             const ballsList = ballsRef.current || [];
             const cueBall = ballsList.find((b) => b.id === activeShotView.cueId);
             if (!cueBall?.active) {
@@ -22678,7 +22690,7 @@ const shotPowerRef = useRef(0);
                 renderCamera = camera;
               }
             }
-          } else if (!cameraHoldActive && activeShotView?.mode === 'pocket') {
+          } else if (!topViewRef.current && !lookModeRef.current && !cameraHoldActive && activeShotView?.mode === 'pocket') {
             const ballsList = ballsRef.current || [];
             const focusBall = ballsList.find(
               (b) => b.id === activeShotView.ballId
@@ -23113,8 +23125,7 @@ const shotPowerRef = useRef(0);
           broadcastArgs.lerp = 0.22;
         }
           }
-          // Apply after choosing the actual render camera, including AI/action/pocket views.
-          const humanEyePose = resolveActiveHumanEyePose();
+          // Apply Snooker's eye blend after choosing the render camera.
           if (humanEyePose) {
             // Blend into a separate camera. Mutating a pocket/broadcast camera
             // here left the next view inside the face after a camera handoff.
@@ -23342,7 +23353,7 @@ const shotPowerRef = useRef(0);
           if (cueMoving || pocketView?.completed) {
             activeShotView = null;
             suspendedActionView = null;
-            enterTopView(true, { variant: 'rail' });
+            if (!humanShotCamera.isHoldingShot) enterTopView(true, { variant: 'rail' });
             return;
           }
           const resumeAction =
@@ -27653,7 +27664,8 @@ const shotPowerRef = useRef(0);
         alignStandingCameraToAim(cue, aimDirRef.current);
         cancelCameraBlendTween();
         const forcedCueBlend = aiCueViewBlendRef.current ?? AI_CAMERA_DROP_BLEND;
-        applyCameraBlend(forcedCueView ? forcedCueBlend : 1);
+        applyCameraBlend(forcedCueView ? forcedCueBlend : 0);
+        updatePlayerCharacters(shotStartTime, 1 / 60);
         updateCamera();
         let placedFromHand = false;
         const meta = frameSnapshot?.meta;
@@ -27697,6 +27709,12 @@ const shotPowerRef = useRef(0);
         focusStoreAtShot.target.copy(
           lockedShotTargetWorld.clone().divideScalar(shotFocusScale)
         );
+        shotImpactPending = ENABLE_CUE_STROKE_ANIMATION;
+        humanShotCamera.beginShot(activeHumanCueViewRef.current, snookerRoyalFallbackEye(
+          world.worldToLocal(cue.mesh.getWorldPosition(new THREE.Vector3())),
+          new THREE.Vector3(aimDirRef.current.x, 0, aimDirRef.current.y),
+          cueLen, BALL_R
+        ));
         setShootingState(true);
         powerImpactHoldRef.current = Math.max(
           powerImpactHoldRef.current || 0,
@@ -27961,7 +27979,7 @@ const shotPowerRef = useRef(0);
           if (shouldForceImmediateRailOverhead) {
             queuedPocketView = null;
             suspendedActionView = actionView ?? null;
-            enterTopView(true, { variant: 'rail' });
+            if (!humanShotCamera.isHoldingShot) enterTopView(true, { variant: 'rail' });
           }
           const earlyPocketView =
             !prioritizeRailOverheadCut &&
@@ -28167,6 +28185,9 @@ const shotPowerRef = useRef(0);
           const applyShotImpactOnce = () => {
             if (shotImpactApplied) return;
             shotImpactApplied = true;
+            humanShotCamera.markImpact(performance.now(), activeHumanCueViewRef.current);
+            powerImpactHoldRef.current = performance.now() + SNOOKER_PLAYER_FOLLOW_THROUGH_MS;
+            shotImpactPending = false;
             applyShotAtImpact(shotImpactPayload);
           };
           if (ENABLE_CUE_STROKE_ANIMATION && shotRecording) {
@@ -31974,7 +31995,7 @@ const shotPowerRef = useRef(0);
                   activeShotView.activationTravel = 0;
                 }
                 queuedPocketView = null;
-                enterTopView(true, { variant: 'rail' });
+                if (!humanShotCamera.isHoldingShot) enterTopView(true, { variant: 'rail' });
               }
             }
             if (railImpact) {
@@ -32644,7 +32665,7 @@ const shotPowerRef = useRef(0);
                   }
                   activeShotView = null;
                   updatePocketCameraState(false);
-                  enterTopView(true, { variant: 'rail' });
+                  if (!humanShotCamera.isHoldingShot) enterTopView(true, { variant: 'rail' });
                 }
                 if (
                   activeShotView?.mode === 'pocket' &&
@@ -32844,7 +32865,7 @@ const shotPowerRef = useRef(0);
                 }
                 activeShotView = null;
                 updatePocketCameraState(false);
-                enterTopView(true, { variant: 'rail' });
+                if (!humanShotCamera.isHoldingShot) enterTopView(true, { variant: 'rail' });
               }
               if (
                 activeShotView?.mode === 'pocket' &&
