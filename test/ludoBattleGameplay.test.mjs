@@ -113,12 +113,21 @@ test('portrait seated-human sizing and character selection remain wired to the r
   assert.match(source, /\{ key: 'humanCharacter', label: 'Human Character', options: HUMAN_CHARACTER_OPTIONS \}/);
 });
 
-test('human dice resting and landing positions remain on the restored layout', () => {
-  assert.match(source, /if \(player === 0 && !immediate\) \{[\s\S]*beginDiceHoldPose\(player\);[\s\S]*return;/);
+test('the bottom human stays upright until the visible die is pressed', () => {
+  assert.match(source, /if \(player === 0\) \{[\s\S]*if \(immediate\) dice\.position\.copy\(rails\[player\]\);[\s\S]*holdPlayer: null,[\s\S]*holdStartMs: 0[\s\S]*return;/);
+  assert.match(source, /if \(isHumanTurn\) beginDiceHoldPose\(player\);/);
+  assert.match(source, /if \(online\?\.tableId\) \{[\s\S]*beginDiceHoldPose\(player\);[\s\S]*dice\.userData\.isRolling = true;/);
   assert.match(source, /const target = resolveDiceHoldContactTarget\(player, railTarget\) \?\? railTarget;/);
   assert.match(source, /diceObj\.userData\.railPositions = rails;/);
   assert.match(source, /diceObj\.userData\.homeLandingTargets/);
   assert.doesNotMatch(source, /tabletopDiceLane/);
+});
+
+test('Ludo waits for the restored A Beautiful Game token set before falling back', () => {
+  assert.match(source, /const abgAssets = await getAbgAssets\(\);/);
+  assert.doesNotMatch(source, /withLudoTokenAssets\(getAbgAssets\(\)\)/);
+  assert.match(source, /const proto = resolveAbgPrototype\(abgPrototypes, colorKey, type\);[\s\S]*token = cloneAbgToken\(proto\);/);
+  assert.match(source, /if \(!hasVisibleLudoToken\(token\)\) \{[\s\S]*createFallbackLudoToken\(type/);
 });
 
 test('rapid taps cannot clear the pending move or turn timer', async () => {

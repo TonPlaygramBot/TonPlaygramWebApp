@@ -3,7 +3,7 @@ import {createLudoMissileFx,createLudoExplosionFx,updateLudoExplosionFx} from '.
 import { createLudoBlenderModel } from '../../utils/ludoBlenderMeshes';
 import { palmMarker, palmOrientation, solveArm, world as boneWorld } from '../../utils/ludoHumanMotion';
 import { createLudoDiceHand, createLudoDiceContact, createLudoDiceThrow, updateLudoDiceThrow, poseLudoDiceContact, LUDO_DICE_TIMING } from '../../utils/ludoDiceMotion.ts';
-import { createFallbackLudoToken, hasVisibleLudoToken, withLudoTokenAssets, setLudoTileHighlight, updateLudoTileGlow } from '../../utils/ludoTokenPresentation.ts';
+import { createFallbackLudoToken, hasVisibleLudoToken, setLudoTileHighlight, updateLudoTileGlow } from '../../utils/ludoTokenPresentation.ts';
 import {
   FIREARM_CAPTURE_ANIMATION_IDS,
   FIREARM_MARKSMAN_IDS,
@@ -9148,11 +9148,17 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount, onlin
     const rails = dice.userData?.railPositions;
     if (!rails || !rails[player]) return;
 
-    if (player === 0 && !immediate) {
-      // On human turns keep the dice where it landed so the seated actor can bend from the torso,
-      // reach to that exact table spot, and grab it before the next throw.
+    if (player === 0) {
+      // Leave the bottom character upright while the die is waiting for a tap.
+      // Reaching now hides the die in the portrait camera; the reach begins in
+      // rollDice instead, at the same moment as every other character's throw.
       stopDiceTransition();
-      beginDiceHoldPose(player);
+      if (immediate) dice.position.copy(rails[player]);
+      seatedHumanActionRef.current = {
+        ...seatedHumanActionRef.current,
+        holdPlayer: null,
+        holdStartMs: 0
+      };
       return;
     }
 
@@ -13179,6 +13185,7 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount, onlin
     const online = onlineContextRef.current;
     if (online?.tableId) {
       if (player !== 0 || state.onlinePendingRoll != null) return;
+      beginDiceHoldPose(player);
       dice.userData.isRolling = true;
       setUi((current) => ({ ...current, status: 'Rolling…' }));
       socket.emit('ludoBattleRoll', {
@@ -13193,6 +13200,7 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount, onlin
       return;
     }
     const isHumanTurn = player === 0;
+    if (isHumanTurn) beginDiceHoldPose(player);
     const baseHeight = dice.userData?.baseHeight ?? DICE_BASE_HEIGHT;
     const rollTargets = dice.userData?.rollTargets;
     const clothLimit = dice.userData?.clothLimit ?? BOARD_CLOTH_HALF - 0.12;
@@ -13977,7 +13985,11 @@ async function buildLudoBoard(
   const darkBoardMat = cloneBoardMaterial(null, 0xdccfb0);
   let defaultTokenTypeSequence =
     tokenStyleOption?.typeSequence?.length ? tokenStyleOption.typeSequence : TOKEN_TYPE_SEQUENCE;
-  const abgAssets = await withLudoTokenAssets(getAbgAssets());
+  // These are the original A Beautiful Game chess pieces used by the June
+  // Ludo board. Wait for that set instead of replacing it after a short mobile
+  // network timeout; the procedural pieces remain a genuine load-failure
+  // fallback so a disconnected game is still playable.
+  const abgAssets = await getAbgAssets();
   const abgPrototypes = abgAssets?.proto ?? null;
   const shouldUseAbgTokens = Boolean(abgPrototypes);
 
