@@ -1,7 +1,7 @@
 import * as T from 'three';
 import {surfaceHeight} from './racingSurface.mjs';
 import {turnGuides} from './turnGuideCore.mjs';
-import {WORLD} from '../tiranastreets/shared/world.mjs';
+import {WORLD} from './racingWorld.mjs';
 import {insideRing} from '../tirana-environment/surfaceCore.mjs';
 import type {Track} from './simulation.mjs';
 /** New approach-facing boards are part of Racing Royal's actual scenery. */

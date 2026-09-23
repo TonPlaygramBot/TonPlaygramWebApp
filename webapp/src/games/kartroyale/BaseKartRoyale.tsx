@@ -61,7 +61,6 @@ interface Props {
     canResume: boolean;
   }) => React.ReactNode;
 }
-const maps = new Map(TRACKS.map((t) => [t.id, makeTrack(t.id)]));
 const modes = [
   { id: 'ai', title: 'VS AI', sub: 'Find your racing line', icon: Cpu },
   { id: 'free', title: 'FREE ROAM', sub: 'Explore with your kart', icon: Compass },
@@ -69,7 +68,8 @@ const modes = [
   { id: 'career', title: 'CAREER', sub: 'Build your legacy', icon: Trophy }
 ] as const;
 function CircuitMap({ id, frame }: { id: string; frame?: Frame | null }) {
-  const t = frame?.track || maps.get(id)!,
+  // makeTrack caches geometry; importing the garage must not build every route.
+  const t = frame?.track || makeTrack(id),
     extent = Math.max(t.x, t.z) + 12;
   const project = (x: number, z: number) =>
     `${(((x - t.center.x) / extent) * 42 + 50).toFixed(2)},${(((z - t.center.z) / extent) * 42 + 50).toFixed(2)}`;
@@ -771,7 +771,7 @@ export default function KartRoyale({
                       <span className="kr-label">{track.district}</span>
                       <h3>{track.name}</h3>
                       <p>
-                        {(maps.get(trackId)!.length / 1000).toFixed(2)} km{' '}
+                        {(makeTrack(trackId).length / 1000).toFixed(2)} km{' '}
                         <span>·</span> 3 laps
                       </p>
                     </div>

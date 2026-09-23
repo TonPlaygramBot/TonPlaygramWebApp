@@ -1,4 +1,4 @@
-import {WORLD} from '../tiranastreets/shared/world.mjs';
+import {WORLD} from './racingWorld.mjs';
 import {RAILINGS} from '../tiranastreets/shared/landscape.mjs';
 import {clearRoadSegment} from '../tiranastreets/shared/streetSafety.mjs';
 import {HYDROGRAPHY} from '../tirana-environment/hydrography.mjs';

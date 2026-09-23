@@ -5,7 +5,7 @@ import { KARTS, TRACKS, makeTrack, createRacer, equipKart, normalizeKart, stepRa
 import { stepDrift, boostPads, stepBoostPads, stepSlipstream } from '../webapp/src/games/kartroyale/arcadeRules.mjs';
 import { createHeldRaceInput } from '../webapp/src/games/kartroyale/heldRaceInput.mjs';
 import { damageRacer } from '../webapp/src/games/kartroyale/collisions.mjs';
-import { WORLD } from '../webapp/src/games/tiranastreets/shared/world.mjs';
+import { WORLD } from '../webapp/src/games/kartroyale/racingWorld.mjs';
 const input={steer:0,throttle:false,brake:false,boost:false,drift:false,reverse:false,recover:false,shield:false,fire:false};
 const make=()=>createRacer(makeTrack('blloku'),'you','You');
 test('saved car and military choices migrate to a kart; every selectable kart has a real model',()=>{

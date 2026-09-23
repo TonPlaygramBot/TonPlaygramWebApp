@@ -9,7 +9,7 @@ import {stepJumps} from '../webapp/src/games/kartroyale/jumpRamps.mjs';
 import {circuitSides} from '../webapp/src/games/kartroyale/trackEdges.mjs';
 import {ribbonExclusion} from '../webapp/src/games/tirana-street-detail/roadDetailCore.mjs';
 import {courseRoadSurface} from '../webapp/src/games/kartroyale/raceCourse.mjs';
-import {WORLD} from '../webapp/src/games/tiranastreets/shared/world.mjs';
+import {WORLD} from '../webapp/src/games/kartroyale/racingWorld.mjs';
 import {drivingWorldData} from '../webapp/src/games/kartroyale/roamObstacles.mjs';
 import {CANOPY_TREES} from '../webapp/src/games/tirana-street-life/canopyRegistry.mjs';
 import {RAILINGS} from '../webapp/src/games/tiranastreets/shared/landscape.mjs';
