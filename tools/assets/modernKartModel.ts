@@ -91,9 +91,10 @@ export function buildModernKart(id:string,low=false) {
     const stripe=box('Front bumper livery',[sign*.52,.30,1.22],[.58,.16,.015],paint,front,.009);stripe.rotation.y=sign*.13;
     tube('Front bumper mounting tube',[sign*.51,.22,.87],[sign*.51,.22,1.17],.022,steel,front);
   }
-  const noseTop=enclosed?.73:.69;
-  fairing('Nassau nose fairing',[[.31,.225,.61+raised,noseTop+raised],[.44,.255,.50+raised,.64+raised],[.70,.20,.32+raised,.45+raised],[.98,.16,.25+raised,.32+raised],[1.12,.14,.23+raised,.275+raised]],paint);
-  fairing('Nose stripe',[[.32,.09,noseTop+raised+.004,noseTop+raised+.013],[.45,.10,.637+raised,.647+raised],[.71,.075,.45+raised,.46+raised],[.99,.046,.32+raised,.33+raised]],accent);
+  // Each family has its own body profile while retaining the same collision footprint.
+  const noseTop=cross?.53:spec.family==='electric-sport'?.54:enclosed?.59:.56;
+  fairing('Nassau nose fairing',[[.31,.13,.44+raised,noseTop+raised],[.44,.11,.37+raised,.49+raised],[.70,.085,.29+raised,.40+raised],[.98,.16,.25+raised,.32+raised],[1.12,.14,.23+raised,.275+raised]],paint);
+  fairing('Nose stripe',[[.32,.09,noseTop+raised+.004,noseTop+raised+.013],[.45,.10,.487+raised,.497+raised],[.71,.075,.40+raised,.41+raised],[.99,.046,.32+raised,.33+raised]],accent);
   for(const sign of [-1,1]) {
     const x=sign*(enclosed?.68:.66),w=enclosed?.205:.18;
     fairing('Moulded sidepod',[[-.91,w*.66,.19+raised,.38+raised,x],[-.72,w,.17+raised,(enclosed?.51:.40)+raised,x],[.15,w,.17+raised,.39+raised,x],[.39,w*.76,.19+raised,.32+raised,x]],paint);
@@ -109,7 +110,10 @@ export function buildModernKart(id:string,low=false) {
   for(const sign of [-1,1]) {
     fairing('Seat side bolster',[[-.58,.06,.35+raised,.74+raised,sign*.22],[-.30,.046,.34+raised,.47+raised,sign*.235],[.01,.03,.34+raised,.41+raised,sign*.22]],carbon);
     tube('Pedal hinge',[sign*.24,.22+raised,.68],[sign*.12,.22+raised,.68],.014,steel);
-    const pedal=box('Adjustable alloy pedal',[sign*.18,.255+raised,.80],[.14,.14,.025],alloy,body,.012);pedal.rotation.x=-.30;
+    const pedalPivot=socket(sign>0?'pedal_brake':'pedal_throttle',[sign*.176,.22+raised,.72]);
+    const pedal=box('Adjustable alloy pedal',[0,.035,.08],[.135,.14,.025],alloy,pedalPivot,.012);pedal.rotation.x=-.30;
+    if(!low)for(const y of [-.01,.025,.06])box('Pedal grip pad',[0,y,.064],[.10,.009,.012],trim,pedalPivot,.002);
+    tube('Pedal return linkage',[sign*.176,.23+raised,.73],[sign*.28,.20+raised,.43],.007,steel);
   }
   tube('Steering column',[0,.19+raised,.49],[0,.70+raised,.16],.018,steel);
   const wheel=socket('steering_wheel',[0,.70+raised,.16]);
@@ -215,9 +219,30 @@ export function buildModernKart(id:string,low=false) {
     tube('Damper shaft',a.toArray(),b.toArray(),.018,alloy);
     const points=[];for(let i=0;i<=48;i++){const t=i/48,p=a.clone().lerp(b,t);p.y+=Math.sin(t*Math.PI*12)*.037;p.z+=Math.cos(t*Math.PI*12)*.037;points.push(p.toArray());}path('Coil spring',points,.007,paint);
   }
+  if(spec.family==='electric-sport'||spec.family==='shifter') {
+    const wing=socket('rear_spoiler',[0,.88+raised,-1.03]);
+    box('Sculpted aero blade',[0,0,0],[.94,.045,.21],carbon,wing,.019);
+    for(const sign of [-1,1]) {
+      box('Aero end plate',[sign*.46,.025,0],[.018,.13,.24],paint,wing,.008);
+      tube('Spoiler support',[sign*.30,.24,-.96],[sign*.30,.87+raised,-1.03],.012,steel);
+    }
+  }
+  if(cross) {
+    box('Trail skid plate',[0,.11,.83],[.82,.026,.36],alloy,body,.01);
+    for(const sign of [-1,1])box('Trail front mudguard',[sign*.80,.66,.79],[.31,.025,.55],trim,body,.01);
+  }
+  if(spec.family==='electric'||spec.family==='electric-endurance') {
+    for(const sign of [-1,1])fairing('Sculpted battery cooling duct',[[.27,.11,.38,.48,sign*.61],[.06,.12,.36,.46,sign*.63],[-.15,.11,.33,.40,sign*.64]],carbon);
+  }
+  if(!low) {
+    for(const sign of [-1,1]) {
+      path('Brake hydraulic hose',[[sign*.18,.21,.70],[sign*.40,.20,.10],[sign*.36,.22,-.70]],.005,trim);
+      for(const z of [-.65,.12,.83])tube('Chassis bolt',[sign*.42,.185+raised,z],[sign*.42,.203+raised,z],.009,steel,body,6);
+    }
+  }
   // Painted race numbers are original flat geometry, requiring no texture or
   // per-kart image download. The plate sits on the upper nose facing forwards.
-  const plate=socket('race_number',[0,.687+raised,.335]);plate.rotation.x=-.69;
+  const plate=socket('race_number',[0,noseTop-.003+raised,.335]);plate.rotation.x=-.69;
   box('Number plate',[0,0,0],[.225,.136,.010],accent,plate,.013);
   const digitSegments=[['a','b','c','d','e','f'],['b','c'],['a','b','g','e','d'],['a','b','g','c','d'],['f','g','b','c'],['a','f','g','c','d'],['a','f','g','c','d','e'],['a','b','c'],['a','b','c','d','e','f','g'],['a','b','c','d','f','g']];
   const segments:Record<string,number[]>={a:[0,.047,.051,.011],g:[0,0,.051,.011],d:[0,-.047,.051,.011],b:[.027,.024,.010,.044],c:[.027,-.024,.010,.044],e:[-.027,-.024,.010,.044],f:[-.027,.024,.010,.044]};
@@ -226,6 +251,13 @@ export function buildModernKart(id:string,low=false) {
 
   // Batch static parts by material under their owning pivot. Keep steering,
   // wheels, seat sockets and diffuser independently articulatable.
+  // These fittings are static: merge them into the chassis material batches.
+  root.updateMatrixWorld(true);
+  for(const name of ['radiator','race_number','rear_spoiler']){
+    const group=root.getObjectByName(name);if(!group)continue;
+    const parts:T.Mesh[]=[];group.traverse(o=>{if(o instanceof T.Mesh)parts.push(o);});
+    for(const part of parts)body.attach(part);group.removeFromParent();
+  }
   function batch(parent:T.Object3D) {
     for(const child of [...parent.children])if(!(child instanceof T.Mesh))batch(child);
     const groups=new Map<T.Material,T.Mesh[]>();
@@ -238,6 +270,6 @@ export function buildModernKart(id:string,low=false) {
     }
   }
   batch(body);root.updateMatrixWorld(true);
-  root.userData={kartId:id,revision:'realistic-fleet-v1',family:spec.family,features:[...features],wheelRadius:radius,units:'game metres',forward:'+Z',driverRaised:raised};
+  root.userData={kartId:id,revision:'city-driver-v2',family:spec.family,features:[...features],wheelRadius:radius,units:'game metres',forward:'+Z',driverRaised:raised};
   return root;
 }

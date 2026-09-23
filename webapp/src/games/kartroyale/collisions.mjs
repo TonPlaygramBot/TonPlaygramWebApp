@@ -46,7 +46,7 @@ function impact(r, normalSpeed, nx, nz, material = 'kart', severity = 1) {
   if ((r.impactCooldown || 0) > 0) return;
   const damage = damageRacer(
     r,
-    Math.min(material === 'kart' ? 14 : 18, Math.max(0, normalSpeed - 3.5) ** 2 * 0.018 * severity)
+    Math.min(material === 'kart' || material === 'metal' ? 14 : 18, Math.max(0, normalSpeed - 3.5) ** 2 * 0.018 * severity)
   );
   r.hop = Math.max(r.hop || 0, .12);
   if (normalSpeed > 1.5) {
@@ -93,7 +93,7 @@ export function resolveWallContact(r, near, width, dt, damage = true) {
       tz * friction - closing * restitution * nz
     );
     if (damage) {
-      if (!r.wallContact) impact(r, closing, nx, nz);
+      if (!r.wallContact) impact(r, closing, nx, nz, 'metal', .9);
       else damageRacer(r, Math.max(0, closing - 3.5) * 0.035 * dt);
     }
     r.yawRate += clamp(

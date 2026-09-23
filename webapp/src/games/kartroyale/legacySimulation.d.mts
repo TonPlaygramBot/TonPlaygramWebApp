@@ -1,5 +1,8 @@
 export interface Input {
   aiLane?: number;
+  aiPassLane?: number;
+  aiPassUntil?: number;
+  aiStuckTime?: number;
   steer: number;
   throttle?: boolean;
   brake: boolean;
@@ -39,6 +42,9 @@ export interface Racer {
   collisionSpin?: number;
   bumpImpact?: number;
   aiLane?: number;
+  aiPassLane?: number;
+  aiPassUntil?: number;
+  aiStuckTime?: number;
   suspension?: { height:number; velocity:number; pitch:number; pitchVelocity:number;
     roll:number; rollVelocity:number; wheels:number[]; grip:number };
   rollTime: number;

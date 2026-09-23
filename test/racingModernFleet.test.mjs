@@ -8,6 +8,7 @@ import {KART_ASSETS,vehicleAssetUrl,normaliseVehicleDimensions} from '../webapp/
 import {TRACKS,makeTrack} from '../webapp/src/games/kartroyale/simulation.mjs';
 import {tyreBarrierLayout,trackSurface} from '../webapp/src/games/kartroyale/tyreBarrierCore.mjs';
 import {buildingClearance} from '../webapp/src/games/kartroyale/raceCourse.mjs';
+import {KART_LENGTH} from '../webapp/src/games/kartroyale/racingDimensions.mjs';
 import {TYRE_RADIUS,ROAD_SURFACE_Y} from '../webapp/src/games/kartroyale/roadFeel.mjs';
 const base=new URL('../webapp/public/assets/kart-royale/karts/',import.meta.url);
 const manifest=JSON.parse(readFileSync(new URL('modern-manifest.json',base),'utf8'));
@@ -26,7 +27,7 @@ test('all eight modern models have valid self-contained geometry and smaller mob
       scene.traverse(o=>{if(o.isMesh){const p=o.geometry.attributes.position,n=o.geometry.attributes.normal;assert.ok([...p.array,...n.array].every(Number.isFinite));tris+=(o.geometry.index?.count||p.count)/3;assert.ok(!Array.isArray(o.material));}});
       assert.equal(tris,entry.triangles);
       pair.push(entry);
-      assert.match(vehicleAssetUrl(id,low),/\?v=realistic-fleet-v1$/);
+      assert.match(vehicleAssetUrl(id,low),/\?v=city-driver-v2$/);
     }
     assert.ok(pair[1].triangles<pair[0].triangles*.62);assert.ok(pair[1].bytes<pair[0].bytes*.65);
   }
@@ -40,7 +41,7 @@ test('front steering and wheel spin pivots stay aligned across high/low fits',as
     for(const scene of [high,low]){
       scene.scale.setScalar(fit.scale);scene.position.set(...fit.offset);scene.updateMatrixWorld(true);
       const box=new T.Box3().setFromObject(scene);assert.ok(Math.abs(box.min.y)<.012,'ground contact');
-      assert.ok(Math.abs(box.max.z-box.min.z-2.7)<.01);
+      assert.ok(Math.abs(box.max.z-box.min.z-KART_LENGTH)<.01);
       const wheels=['fl','fr','rl','rr'].map(s=>scene.getObjectByName('wheel_'+s));assert.ok(wheels.every(Boolean));
       const wheelPositions=wheels.map(w=>w.getWorldPosition(new T.Vector3()));
       sockets.push(wheelPositions);

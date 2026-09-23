@@ -1,6 +1,7 @@
 import {KART_LENGTH, KART_WIDTH, kartPassingRoom} from './racingDimensions.mjs';
 import { stepDrift, stepBoostPads, stepSlipstream } from './arcadeRules.mjs';
 import {KARTS} from './vehicleCatalog.mjs';
+import {planRacecraft} from './racecraft.mjs';
 export {KARTS};
 import { TIRANA_ROUTES } from './tirana-routes.mjs';
 import { resolveWallContact, resolveKartContact, damageRacer } from './collisions.mjs';
@@ -239,20 +240,9 @@ export function aiInput(r, track, time, difficulty = 'street', racers = []) {
   const n = nearestPoint(track, r.x, r.z, r.index);
   const look = clamp(5 + r.speed * 0.34, 6, 17);
   const p = pointAhead(track, n, look);
-  const room = kartPassingRoom(n.width ?? track.width, r.bodyWidth);
   const s = Math.sin(r.yaw), c = Math.cos(r.yaw);
-  let lane = (r.slot % 2 ? 1 : -1) * Math.min(room, .9), blocked = false;
-  for (const other of racers) {
-    if (other === r || other.finished || other.retired || other.disconnected) continue;
-    const dx = other.x - r.x, dz = other.z - r.z;
-    const ahead = dx * s + dz * c, across = dx * -c + dz * s;
-    const separation = ((r.bodyWidth || KART_WIDTH) + (other.bodyWidth || KART_WIDTH)) / 2 + .45;
-    if (ahead > 0 && ahead < 22 && Math.abs(across) < separation && other.speed < r.speed + 2) {
-      lane = clamp(n.lane + (across > 0 ? -separation : separation), -room, room);
-      if (ahead < ((r.bodyLength || KART_LENGTH) + (other.bodyLength || KART_LENGTH)) / 2 + .9 && Math.abs(across) < separation - .25) blocked = true;
-      break;
-    }
-  }
+  const tactics=planRacecraft(r,{...n,width:n.width??track.width},racers,time);
+  const {lane,blocked}=tactics;
   const aiLane = (r.aiLane ?? n.lane) + (lane - (r.aiLane ?? n.lane)) * .055;
   const turn = wrapAngle(
     Math.atan2(
@@ -268,10 +258,12 @@ export function aiInput(r, track, time, difficulty = 'street', racers = []) {
     if (ahead > 0 && ahead < 45 && Math.abs(dx * c - dz * s) < bump.width / 2)
       safeSpeed = Math.min(safeSpeed, Math.sqrt(24 ** 2 + 36 * Math.max(0, ahead - 6)));
   }
+  safeSpeed=Math.min(safeSpeed,tactics.speedLimit);
   const braking = blocked || r.speed > safeSpeed || (Math.abs(turn) > .55 && r.speed > 8);
   return {
-    aiLane,
-    throttle: true,
+    aiLane, aiPassLane:tactics.aiPassLane, aiPassUntil:tactics.aiPassUntil,
+    recover:(r.aiStuckTime||0)>3 && time-(r.recoveryAt??-10)>6,
+    throttle: !blocked,
     steer: clamp(-turn * 3.6, -1, 1),
     brake: braking,
     drift: difficulty === 'pro' && !braking && safeSpeed > 28 && (n.width ?? track.width) > 12 &&
@@ -298,14 +290,17 @@ export function stepRacer(r, raw, track, dt, time, difficulty = 'street', drivin
   }
   const input = drivePedals(r,raw || {},dt),
     steer = Number.isFinite(input.steer) ? clamp(input.steer, -1, 1) : 0;
-  if (r.ai && Number.isFinite(input.aiLane)) r.aiLane = input.aiLane;
+  if (r.ai && Number.isFinite(input.aiLane)) {
+    r.aiLane=input.aiLane;r.aiPassLane=input.aiPassLane;r.aiPassUntil=input.aiPassUntil;
+    r.aiStuckTime=Math.abs(r.speed)<1.2?(r.aiStuckTime||0)+dt:0;
+  }
   if (input.recover === true && time - (r.recoveryAt ?? -10) >= 3) {
     if(drivingWorld)drivingWorld.recover(r);
     else {const point = track.points[r.index];r.x = point.x; r.z = point.z; r.yaw = r.velocityYaw = point.yaw;}
     r.speed = 0; r.yawRate = 0; r.steering = 0; r.drifting = false;
     r.driftCharge = 0; r.turbo = 0; r.recoveryAt = time;
     r.collisionSpin = 0; r.boosting = false; resetSuspension(r);
-    r.brakeHold=0;r.reversing=false;resetJump(r,track);
+    r.brakeHold=0;r.reversing=false;r.aiStuckTime=0;resetJump(r,track);
     // Keep index, gates, laps and progress: recovery cannot manufacture distance.
     return;
   }

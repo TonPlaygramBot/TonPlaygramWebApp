@@ -50,6 +50,7 @@ type Mode = 'ai' | 'online' | 'career' | 'free';
 interface Props {
   getSocket?: () => Promise<Socket>;
   onExit?: () => void;
+  onCareer?: () => void;
   playerName?: string;
   renderOnlineLobby?: (props: {
     onMatched: (match: { tableId: string; accountId: string }) => Promise<void>;
@@ -109,6 +110,7 @@ function CircuitMap({ id, frame }: { id: string; frame?: Frame | null }) {
 export default function KartRoyale({
   getSocket,
   onExit,
+  onCareer,
   playerName = 'Racer',
   renderOnlineLobby
 }: Props) {
@@ -741,6 +743,7 @@ export default function KartRoyale({
                     }
                     key={m.id}
                     onClick={() => {
+                      if(m.id==='career'&&onCareer){onCareer();return;}
                       setMode(m.id);
                       setNotice('');
                     }}

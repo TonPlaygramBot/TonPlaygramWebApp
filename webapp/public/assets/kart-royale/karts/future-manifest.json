@@ -14,9 +14,9 @@
       "number": "60",
       "lod": false,
       "file": "photon.glb",
-      "bytes": 457632,
-      "triangles": 13160,
-      "drawCalls": 37,
+      "bytes": 493448,
+      "triangles": 14216,
+      "drawCalls": 39,
       "wheelRadius": 0.235
     },
     {
@@ -28,8 +28,8 @@
       "number": "60",
       "lod": true,
       "file": "photon-lod.glb",
-      "bytes": 257536,
-      "triangles": 6908,
+      "bytes": 262456,
+      "triangles": 7060,
       "drawCalls": 33,
       "wheelRadius": 0.235
     },
@@ -42,9 +42,9 @@
       "number": "81",
       "lod": false,
       "file": "vortex.glb",
-      "bytes": 461228,
-      "triangles": 13196,
-      "drawCalls": 38,
+      "bytes": 502036,
+      "triangles": 14312,
+      "drawCalls": 40,
       "wheelRadius": 0.235
     },
     {
@@ -56,8 +56,8 @@
       "number": "81",
       "lod": true,
       "file": "vortex-lod.glb",
-      "bytes": 261136,
-      "triangles": 6944,
+      "bytes": 269248,
+      "triangles": 7108,
       "drawCalls": 34,
       "wheelRadius": 0.235
     },
@@ -70,9 +70,9 @@
       "number": "95",
       "lod": false,
       "file": "aegis.glb",
-      "bytes": 473036,
-      "triangles": 13740,
-      "drawCalls": 37,
+      "bytes": 508848,
+      "triangles": 14796,
+      "drawCalls": 39,
       "wheelRadius": 0.235
     },
     {
@@ -84,8 +84,8 @@
       "number": "95",
       "lod": true,
       "file": "aegis-lod.glb",
-      "bytes": 263212,
-      "triangles": 7104,
+      "bytes": 268132,
+      "triangles": 7256,
       "drawCalls": 33,
       "wheelRadius": 0.235
     },
