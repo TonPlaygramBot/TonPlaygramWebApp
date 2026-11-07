@@ -243,6 +243,7 @@ const SHORT_CAPTURE_DISTANCE=1.45;
 const BOMB_VOLUME=0.16; // reduced from previous loud mix
 const SLASH_VOLUME=0.14;
 const DRONE_VOLUME=0.13;
+const JET_VOLUME=0.115;
 const MISSILE_HEIGHT=0.078;
 const MISSILE_SIZE=0.02;
 const MISSILE_TRAIL_COUNT=5;
@@ -430,6 +431,11 @@ function playTone(freq,duration,vol,type='sine'){
 function playBombSound(){ playTone(82,0.24,BOMB_VOLUME,'triangle'); playTone(45,0.3,BOMB_VOLUME*0.66,'sawtooth'); }
 function playSlashSound(){ playTone(640,0.08,SLASH_VOLUME,'square'); playTone(420,0.12,SLASH_VOLUME*0.9,'triangle'); }
 function playDroneSound(){ playTone(220,0.22,DRONE_VOLUME,'sawtooth'); playTone(330,0.16,DRONE_VOLUME*0.85,'triangle'); }
+function playJetSound(duration=0.72,vol=JET_VOLUME){
+  playTone(96,duration,vol,'sawtooth');
+  playTone(142,duration*0.92,vol*0.78,'triangle');
+  playTone(48,duration*1.08,vol*0.42,'sine');
+}
 function buildJetMesh(){
   const jet=new THREE.Group();
   const body=new THREE.Mesh(new THREE.CylinderGeometry(0.04,0.065,0.46,12), new THREE.MeshStandardMaterial({color:0xb7d3ff, metalness:0.65, roughness:0.35}));
@@ -602,6 +608,7 @@ function animateBazookaMissile(from,to){
     missile.position.copy(curve[0]);
     updateMissileRig(missile,curve,0.02);
     scene.add(missile);
+    playJetSound(0.7);
     const t0=performance.now();
     const dur=680;
     const tick=now=>{
@@ -646,6 +653,7 @@ function animateJetMissileStrike(from,to){
     jet.position.copy(entry);
     missile.visible=false;
     scene.add(jet); scene.add(missile);
+    playJetSound(1.55);
     const t0=performance.now();
     const phaseA=95*JET_SPEED_FACTOR, phaseB=560*JET_SPEED_FACTOR, phaseC=440*JET_SPEED_FACTOR, total=phaseA+phaseB+phaseC;
     let missileLaunched=false;
@@ -676,6 +684,7 @@ function animateJetMissileStrike(from,to){
           missile.visible=true;
           const curveStart=getJetNoseWorldPosition(jet).setY(MISSILE_HEIGHT);
           missileCurve.push(...buildQFlightCurve(curveStart,targetLow,{height:MISSILE_HEIGHT,loopRadius:0.58,tailDrift:0.24,steps:curveSteps}));
+          playJetSound(0.68, JET_VOLUME*0.9);
         }
         if(missileLaunched) updateMissileRig(missile,missileCurve,Math.min(1,t*0.9));
       }else if(elapsed<=total){
