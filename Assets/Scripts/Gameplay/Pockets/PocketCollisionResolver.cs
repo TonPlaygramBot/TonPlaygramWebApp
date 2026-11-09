@@ -9,8 +9,8 @@ namespace Aiming.Pockets
     [System.Serializable]
     public class PocketCollisionResolver
     {
-        [SerializeField, Min(0f)] private float positionalSlop = 0.0002f;
-        [SerializeField, Min(0f)] private float maxPushOut = 0.02f;
+        [SerializeField, Min(0f)] private float positionalSlop = 0.00045f;
+        [SerializeField, Min(0f)] private float maxPushOut = 0.03f;
 
         [Header("Jaw realism")]
         [SerializeField, Range(0f, 1f)] private float glancingRestitutionScale = 0.4f;
