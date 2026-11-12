@@ -26,6 +26,21 @@ async function fetchBytes(url) {
   throw last;
 }
 const hash=bytes=>createHash('sha256').update(bytes).digest('hex');
+async function downloadOriginal(item, sourceUrl) {
+  let bytes=await fetchBytes(sourceUrl);
+  if(item.localUrl.endsWith('.gltf')){
+    const doc=JSON.parse(bytes);
+    for(const key of ['buffers','images'])for(const resource of doc[key]||[]){
+      const uri=resource.uri;if(!uri||uri.startsWith('data:'))continue;
+      const data=await fetchBytes(new URL(uri,sourceUrl));
+      const mime=resource.mimeType||(key==='buffers'?'application/octet-stream':/\.jpe?g$/i.test(uri)?'image/jpeg':'image/png');
+      resource.uri=`data:${mime};base64,${data.toString('base64')}`;
+    }
+    bytes=Buffer.from(JSON.stringify(doc));
+  }
+  if(hash(bytes)!==item.sha256)throw Error(`SHA-256 mismatch: ${sourceUrl}`);
+  return bytes;
+}
 async function importAsset(item) {
   const file=join(root,'public',item.localUrl);
   try{const existing=await readFile(file);if(hash(existing)===item.sha256)return;}catch{}
@@ -33,20 +48,22 @@ async function importAsset(item) {
   if(new URL(item.sourceUrl).hostname==='static.poly.pizza') {
     throw Error(`Bundled original missing or corrupt: ${item.name} (${item.localUrl}). Restore this file from Git; its SHA-256 must match manifest.json.`);
   }
-  let bytes=await fetchBytes(item.sourceUrl);
-  if(item.localUrl.endsWith('.gltf')){
-    const doc=JSON.parse(bytes);
-    for(const key of ['buffers','images'])for(const resource of doc[key]||[]){
-      const uri=resource.uri;if(!uri||uri.startsWith('data:'))continue;
-      const data=await fetchBytes(new URL(uri,item.sourceUrl));
-      const mime=resource.mimeType||(key==='buffers'?'application/octet-stream':/\.jpe?g$/i.test(uri)?'image/jpeg':'image/png');
-      resource.uri=`data:${mime};base64,${data.toString('base64')}`;
+  const sources = new Set([item.sourceUrl, ...(item.urls ?? [])]);
+  const failures = [];
+  for (const sourceUrl of sources) {
+    let bytes;
+    try {
+      bytes = await downloadOriginal(item, sourceUrl);
+    } catch (error) {
+      failures.push(new Error(`${sourceUrl}: ${error.message}`, { cause: error }));
+      continue;
     }
-    bytes=Buffer.from(JSON.stringify(doc));
+    await writeFile(file + '.tmp', bytes);
+    await rename(file + '.tmp', file);
+    console.log(`Bundled ${item.name}`);
+    return;
   }
-  if(hash(bytes)!==item.sha256)throw Error(`Original changed upstream: ${item.name}. Review the source and refresh its manifest explicitly.`);
-  await writeFile(file+'.tmp',bytes);await rename(file+'.tmp',file);
-  console.log(`Bundled ${item.name}`);
+  throw new AggregateError(failures, `Unable to bundle verified original: ${item.name}`);
 }
 let index=0;
 await Promise.all(Array.from({length:4},async()=>{while(index<manifest.length)await importAsset(manifest[index++]);}));
