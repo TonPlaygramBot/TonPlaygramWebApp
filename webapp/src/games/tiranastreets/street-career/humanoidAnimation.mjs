@@ -101,7 +101,7 @@ export class HumanoidAnimation {
       }
       // Native walk clips retain their authored arm swing unless a deliberate
       // gameplay action owns the hands. Procedural rigs keep relaxed elbows.
-      if(clip&&!grips&&!cycle&&!['fight','punch','hit'].includes(n.anim))continue;
+      if(clip&&!grips&&!cycle&&!['fight','punch','hit','chant','protest'].includes(n.anim))continue;
       for(const side of ['left','right']){
         const arm=rig.hands.get(side);if(!arm)continue;
         const swing=this.gait+(side==='left'?Math.PI:0),hand=rig.handTarget.copy(arm.shoulder);
@@ -112,6 +112,10 @@ export class HumanoidAnimation {
         // without pushing narrower target forearms sideways away from the body.
         if(running&&!grips)hand.x=arm.shoulder.x+(side==='left'?1:-1)*.035;
         if(grips){const g=side==='left'?grips.left:grips.right;hand.set(g.x,g.y,g.z-recoil*.035);if(reload&&side==='left'){hand.y-=.12;hand.z-=Math.sin(time*7)*.06;}}
+        else if(n.anim==='chant'||n.anim==='protest'){
+          const raised=side==='right'||n.anim==='protest';
+          hand.set(arm.shoulder.x,raised?1.63+Math.sin(time*2.5+(n.eventSlot||0))*.08:1.08,raised?.25:.12);
+        }
         else if(cycle)hand.set(side==='left'?.2:-.2,1.08,.48);
         else if(n.anim==='fight'||n.anim==='punch'){
           const attack=Math.max(0,time-(n.defenseStartedAt??0))%1.8;

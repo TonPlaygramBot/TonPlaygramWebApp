@@ -1,5 +1,8 @@
 export type Point={x:number;z:number};
-export type Observer=Point&{id:string;health:number;kind?:string;coverId?:string;lastSeen?:Point;lastSeenAt?:number};
+export type ForceBehavior={runSpeed:number;holdDistance:number;spacing:number;flank:boolean;searchSeconds:number};
+export const FORCE_BEHAVIOR:Readonly<Record<string,Readonly<ForceBehavior>>>;
+export function forceBehavior(n:{forceCharacter?:string}):ForceBehavior;
+export type Observer=Point&{id:string;health:number;kind?:string;forceCharacter?:string;coverId?:string;lastSeen?:Point;lastSeenAt?:number};
 export type Cover=Point&{id:string;heading?:number;speed?:number;forceVehicle?:string;w?:number;d?:number};
 export function tacticalGoal(n:Observer,target:Point,squad:Observer[],cars:Cover[],time:number,clear:(a:Point,b:Point)=>boolean):{goal:Point;anim:string;coverId?:string};
 export function vehicleBlocks(a:Point,b:Point,car:Cover,margin?:number):boolean;

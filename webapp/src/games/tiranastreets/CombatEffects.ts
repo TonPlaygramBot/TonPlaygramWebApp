@@ -98,6 +98,14 @@ export class CombatEffects {
     this.particle(3,port,{x:-d.z*1.8,y:1.1+Math.random()*.4,z:d.x*1.8},1.6,size,floor);
     this.pools[3].items.at(-1)!.caseLength=category==='sidearm'||category==='smg'?.022:.05;
   }
+  /** Ambient event effect, deliberately separate from damage/explosion events. */
+  pyrotechnic(at:Point,floor=0) {
+    for(let i=0;i<12;i++){
+      const angle=i*Math.PI/6;
+      this.particle(0,at,{x:Math.cos(angle)*2,y:1+Math.sin(i)*1.2,z:Math.sin(angle)*2},.5,.08,floor);
+      if(i<5)this.particle(1,at,{x:Math.cos(angle)*.25,y:.65,z:Math.sin(angle)*.25},3.5,.55,floor);
+    }
+  }
   explosion(at:Point,radius=8,floor=0) {
     for(let i=0;i<36;i++){
       const angle=Math.random()*Math.PI*2,up=Math.random(),speed=2+Math.random()*radius;

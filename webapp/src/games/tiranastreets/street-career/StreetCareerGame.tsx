@@ -1,3 +1,4 @@
+import {CITY_EVENT_SITE,CITY_EVENT_PHASES} from '../shared/cityEvents.mjs';
 import {MissionReadout} from '../MissionReadout';
 import {GraphicsControl} from '../GraphicsControl';
 import {MovementStick} from '../MovementStick';
@@ -373,6 +374,7 @@ export function StreetCareerGame({ onExit, initialOperation, initialDifficulty='
                       <FrameRateControl value={view.settings.targetFps} onChange={targetFps => runtime.current?.setSettings({targetFps})}/>
                       <GraphicsControl value={view.settings.quality} resolved={runtime.current?.renderer.quality} onChange={quality=>runtime.current?.setSettings({quality})} />
                       <p>{view.fps} FPS · {view.metrics.p95} ms frame time (95th percentile)</p>
+                      <label>City protests <input type="checkbox" checked={view.settings.cityEvents} onChange={e=>runtime.current?.setSettings({cityEvents:e.target.checked})}/></label>
                       <label>Blood traces <input type="checkbox" checked={view.settings.bloodEffects} onChange={e=>runtime.current?.setSettings({bloodEffects:e.target.checked})}/></label>
                       <label>Show performance <input type="checkbox" checked={view.settings.showPerformance} onChange={e=>runtime.current?.setSettings({showPerformance:e.target.checked})}/></label>
                     </section>}
@@ -394,6 +396,13 @@ export function StreetCareerGame({ onExit, initialOperation, initialDifficulty='
                       </strong>{' '}
                       · ${p.cash} street cash · Saved on this device, not TPG.
                     </p>
+                    {journalPage==='jobs'&&view.settings.cityEvents&&<section className="tsc-briefing" aria-label="City event">
+                      <small>LIVE CITY · SKANDERBEG SQUARE</small>
+                      <h3>{CITY_EVENT_PHASES.find(p=>p.id===view.state.cityEvent?.phase)?.label||'Rally in the square'}</h3>
+                      <p>{view.state.cityEvent?.report}</p>
+                      <p>Explore a fictional rally with crowds, fireworks and police cordons. Bystanders can leave through the open sides of the square.</p>
+                      <button onClick={()=>{runtime.current?.setDestination({...CITY_EVENT_SITE,id:'city-rally'});setPanel('map');}}>SHOW ON MAP</button>
+                    </section>}
                     {journalPage==='jobs'&&<LegacyStoryHistory history={legacyHistory}/>}
                     {view.state.phase === 'finished' && (
                       <p role="status">

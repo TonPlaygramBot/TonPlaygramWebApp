@@ -190,7 +190,7 @@ export function updatePolicePatrols(state,dt,env,grids) {
     const desired=Math.atan2(-dx,-dz);
     u.heading+=Math.atan2(Math.sin(desired-u.heading),Math.cos(desired-u.heading))*Math.min(1,stepDt*4);
     u.cruise=u.target?12:7;
-    const decision=trafficDecision(u,vehicles.near(u.x,u.z,45),people.near(u.x,u.z,30),state.elapsed);
+    const decision=trafficDecision(u,vehicles.near(u.x,u.z,45),people.near(u.x,u.z,30),state.elapsed,state.cityEvent);
     const before=u.speed||0,target=Math.min(decision.target,Math.sqrt(2.8*d+3));
     u.speed=Math.max(0,before+Math.max(-6*stepDt,Math.min(2.4*stepDt,target-before)));
     const step=Math.min(d,u.speed*stepDt,Math.max(0,decision.gap));

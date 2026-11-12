@@ -182,3 +182,22 @@ test('a transient uniform download failure automatically returns to the original
   assert.equal(layer.errors.size,0);assert.equal(layer.ownsPerson(s.npcs[0]),true);assert.ok(layer.getRoot('npc-retry').getObjectByName('renea_officer'));
  }finally{globalThis.fetch=goodFetch;console.warn=warn;layer.dispose();}
 });
+
+test('original officers gesture without weapons and share prepared original surfaces',async()=>{
+ const layer=new AlbanianForcesVisuals();
+ try{
+  const s=state();s.npcs=[{...npc('gesture'),speed:0,anim:'idle',weapon:null},{...npc('other',2),speed:0,weapon:null}];
+  layer.update(s,{x:0,z:0},0,1/60);await settle(layer);layer.update(s,{x:0,z:0},1,1/60);
+  const root=layer.getRoot('npc-gesture');
+  const wrist=root.getObjectByName(T.PropertyBinding.sanitizeNodeName('wrist.R'));
+  let prepared=0;root.traverse(o=>{if(o.isMesh){for(const m of Array.isArray(o.material)?o.material:[o.material])if(m.userData.humanSurfacePrepared)prepared++;}});
+  assert.ok(prepared>0,'actual force templates receive the same PBR correction as civilians');
+  for(const anim of ['communicate','hold','direct']){
+   s.npcs[0].anim=anim;for(let i=0;i<90;i++)layer.update(s,{x:0,z:0},2+i/60,1/60);
+   const raised=root.worldToLocal(wrist.getWorldPosition(new T.Vector3()));
+   const expected=new T.Vector3(anim==='direct'?-.62:anim==='hold'?-.28:-.25,anim==='direct'?1.55:anim==='hold'?1.2:1.35+Math.sin((2+89/60)*2)*.07,anim==='direct'?.18:anim==='hold'?.3:.35);
+   assert.ok(raised.distanceTo(expected)<.13,`${anim} reaches its gesture target: ${raised.toArray()} vs ${expected.toArray()}`);
+   root.traverse(o=>{if(o.isBone)assert.ok(o.quaternion.toArray().every(Number.isFinite));});
+  }
+ }finally{layer.dispose();}
+});

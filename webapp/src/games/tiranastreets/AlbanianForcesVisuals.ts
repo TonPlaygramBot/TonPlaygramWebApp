@@ -1,10 +1,12 @@
+import {HumanModelLoader} from './HumanModelLoader';
+import {prepareHumanMaterials} from './street-career/humanMaterials.mjs';
 import {applyForceLOD,loadForceLOD,type ForceLOD} from './forceLOD';
 import {alignVehicle} from '../tirana-east/terrainTransforms';
 import {forcePersonBudget,forcePoseInterval} from './shared/parliamentCordon.mjs';
 import {groundHeight} from '../tirana-east/terrainCore.mjs';
 import * as T from 'three';
 import {resetForcePose,poseForce} from './forcePose';
-import {GLTFLoader, type GLTF} from 'three/examples/jsm/loaders/GLTFLoader.js';
+import type {GLTF} from 'three/examples/jsm/loaders/GLTFLoader.js';
 import {clone} from 'three/examples/jsm/utils/SkeletonUtils.js';
 import {clearWeaponInstance, disposeWeaponResources} from './weaponModelResources';
 import {authoredRollingWheels,rollWheels,type RollingWheel} from './rollingWheels';
@@ -16,7 +18,7 @@ export type ForceCar = Pick<Car, 'id' | 'x' | 'z' | 'heading' | 'speed' | 'steer
 export type ForceNPC = Pick<NPC, 'id' | 'x' | 'z' | 'heading' | 'speed' | 'kind' | 'motion' | 'health' | 'forceCharacter' | 'anim'> & Partial<Pick<NPC,'weapon'|'aimPitch'|'hitUntil'>> & {cordon?:string};
 export type ForceFrame = {cars: ForceCar[]; traffic: ForceCar[]; units: ForceCar[]; npcs: ForceNPC[]};
 type Candidate = {key: string; asset: ForceAsset; entity: ForceCar | ForceNPC; distance: number; flashing: boolean};
-type Source = {gltf: GLTF; frame: T.Group; used: number; lod?:ForceLOD};
+type Source = {gltf: GLTF; frame: T.Group; used: number; lod?:ForceLOD;releaseMaterials?:()=>void};
 type Actor = {
   root: T.Group; asset: ForceAsset; wheels: RollingWheel[]; steering: T.Object3D[];
   lamps: {material: T.MeshStandardMaterial; base: number}[];
@@ -33,7 +35,8 @@ type Actor = {
 export class AlbanianForcesVisuals {
   readonly group = new T.Group();
   readonly errors = new Map<string, string>();
-  private loader = new GLTFLoader();
+  private loader = new HumanModelLoader();
+  configure(renderer:T.WebGLRenderer){this.loader.configure(renderer);}
   private sources = new Map<string, Source>();
   private actors = new Map<string, Actor>();
   private pending = new Map<string, AbortController>();
@@ -79,7 +82,8 @@ export class AlbanianForcesVisuals {
       catch(error){if(!this.dead)this.errors.set(asset.id+'/lod',String(error));}
       if(this.dead){disposeWeaponResources([gltf.scene]);lod?.forEach(g=>g.dispose());gltf=undefined;lod=undefined;return;}
       const frame = prepareForceModel(gltf.scene, asset);
-      this.sources.set(asset.id, {gltf, frame, used: this.frame,lod});
+      const releaseMaterials=asset.category==='person'?prepareHumanMaterials(frame):undefined;
+      this.sources.set(asset.id, {gltf, frame, used: this.frame,lod,releaseMaterials});
       this.errors.delete(asset.id);this.retries.delete(asset.id);
       gltf = undefined;lod=undefined;
       this.trim();
@@ -138,7 +142,7 @@ export class AlbanianForcesVisuals {
       const asset = forceVehicleFor(car), d = distance(car);
       if (asset && d < (battery ? 180 : 350)) vehicles.push({
         key: car.id, asset, entity: car, distance: d,
-        flashing: state.units.includes(car) || !!car.responding,
+        flashing: !!car.responding,
       });
     }
     const people: Candidate[] = [];
@@ -223,7 +227,7 @@ export class AlbanianForcesVisuals {
     for(const key of this.errors.keys())if(key.endsWith('/lod')){
       const id=key.slice(0,-4),source=this.sources.get(id);if(!source)continue;
       for(const [actorId,actor]of this.actors)if(actor.asset.id===id)this.remove(actorId);
-      disposeWeaponResources([source.frame]);source.lod?.forEach(g=>g.dispose());this.sources.delete(id);
+      source.releaseMaterials?.();disposeWeaponResources([source.frame]);source.lod?.forEach(g=>g.dispose());this.sources.delete(id);
     }
     this.errors.clear();this.retries.clear();this.pump();
   }
@@ -244,7 +248,7 @@ export class AlbanianForcesVisuals {
     for (const [id, source] of [...this.sources].sort((a, b) => a[1].used - b[1].used)) {
       if (this.sources.size <= 8) break;
       if (live.has(id) || this.desired.has(id)) continue;
-      disposeWeaponResources([source.frame]);source.lod?.forEach(g=>g.dispose());
+      source.releaseMaterials?.();disposeWeaponResources([source.frame]);source.lod?.forEach(g=>g.dispose());
       this.sources.delete(id);
     }
   }
@@ -253,10 +257,10 @@ export class AlbanianForcesVisuals {
     this.dead = true;
     for (const abort of this.pending.values()) abort.abort();
     for (const key of this.actors.keys()) this.remove(key);
-    for (const source of this.sources.values()){disposeWeaponResources([source.frame]);source.lod?.forEach(g=>g.dispose());}
+    for (const source of this.sources.values()){source.releaseMaterials?.();disposeWeaponResources([source.frame]);source.lod?.forEach(g=>g.dispose());}
     this.sources.clear(); this.desired.clear(); this.errors.clear();this.retries.clear();
     for(const resolve of this.waiters.splice(0))resolve();
-    this.group.removeFromParent();
+    this.loader.dispose();this.group.removeFromParent();
   }
 }
 

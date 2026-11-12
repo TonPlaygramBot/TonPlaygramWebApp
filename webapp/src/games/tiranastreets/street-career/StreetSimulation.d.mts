@@ -77,6 +77,7 @@ export type StreetEvent = {
   weapon?: string;
 };
 export class StreetSimulation {
+  setCityEvents(enabled:boolean):void;
   beginMission(id:string,difficulty?:string):boolean;
   constructor(state: State, world?: import('./spatialCore.mjs').StreetWorld);
   state: State;

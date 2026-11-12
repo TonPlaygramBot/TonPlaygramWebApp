@@ -66,11 +66,12 @@ for(const file of ['tirana-streets/population/citizen-0.glb','tirana-streets/pop
     feet.push(foot.z);
   }
   assert.ok(Math.max(...feet)-Math.min(...feet)>.15,'feet actually stride');
-  for(const anim of ['aim','reload','hit','idle']){
+  for(const anim of ['aim','reload','hit','chant','protest','idle']){
     npc.anim=anim;npc.weapon=anim==='aim'||anim==='reload'?'ak47VolleyAttack':'';
     for(let frame=0;frame<90;frame++)animation.update(npc,4+frame/60,1/60,anim==='idle'?0:1.4);
     root.updateMatrixWorld(true);
     for(const bone of bones.values())assert.ok(bone.quaternion.toArray().every(Number.isFinite));
+    if(anim==='chant'||anim==='protest')assert.ok(point(root,bones.get('righthand')).y>1.4,'rally gesture raises the actual wrist above the chest');
     if(anim==='aim'){
       const grips=npcWeaponPose(npc);
       for(const side of ['left','right']){
