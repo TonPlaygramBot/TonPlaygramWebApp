@@ -20,6 +20,14 @@ const win = (winner: 'A' | 'B' = 'A') => ({
   winner
 });
 
+test('practice launches the existing training mode instead of a timed AI match', () => {
+  expect(resolveSnookerLaunchOptions('?type=training&mode=ai')).toMatchObject({
+    playType: 'training', mode: 'ai', variantKey: 'snooker'
+  });
+  expect(resolveSnookerLaunchOptions('?type=unknown').playType).toBe('regular');
+  expect(resolveSnookerLaunchOptions('?mode=career').mode).toBe('career');
+});
+
 test('lobby choices reach the snooker rules, table and multiplayer mode', () => {
   expect(
     resolveSnookerLaunchOptions(

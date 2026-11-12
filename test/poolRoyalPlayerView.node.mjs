@@ -80,7 +80,10 @@ test('the final JSX render camera stays between the real eyes throughout address
   const players = new PoolRoyalHumanPlayers(world, { ...m, model: await loadPoseModel(), realisticMovement: true });
   assert.ok(await players.ready);
   const eyeRef = ref(null), topViewRef = ref(false);
+  const frameRef = ref({ activePlayer: 'A' }), localSeatRef = ref('A');
+  const characterShotShooterRef = ref('A');
   const resolveEye = evaluate(variable('resolveActiveHumanEyePose').init, {
+    frameRef, localSeatRef, characterShotShooterRef,
     humanShotCamera: new PoolRoyalShotCamera(.55), activeHumanCueViewRef: eyeRef,
     cueStrokeStateRef: ref(null), shootingRef: ref(false), cameraBlendRef: ref(1),
     performance: { now: () => 1000 }, topViewRef, lookModeRef: ref(false),
@@ -95,6 +98,7 @@ test('the final JSX render camera stays between the real eyes throughout address
   }`, { THREE, humanEyeCamera: new THREE.PerspectiveCamera(), resolveActiveHumanEyePose: resolveEye, STANDING_VIEW_FOV: 66 });
   let movingFrames = 0;
   for (const activeSeat of ['A', 'B']) for (let frame = 0; frame < 180; frame++) {
+    frameRef.current.activePlayer = activeSeat; localSeatRef.current = activeSeat;
     const forward = new THREE.Vector3(0, 0, -1).applyAxisAngle(THREE.Object3D.DEFAULT_UP, frame > 90 ? .3 : 0);
     players.update(1 / 60, { activeSeat, state: 'dragging', power: 0, nowMs: frame * 16,
       cueBall: new THREE.Vector3(0, m.ballY, m.tableL * .31), aimForward: forward });
@@ -117,6 +121,9 @@ test('the final JSX render camera stays between the real eyes throughout address
     if (players.walking || human.poseT < .95) movingFrames++;
   }
   assert.ok(movingFrames > 30, 'exercise the transition that used to lose the eyes');
+  localSeatRef.current = 'A'; frameRef.current.activePlayer = 'B';
+  assert.equal(resolveEye(), null, 'opponent aiming cannot take over the local player view');
+  frameRef.current.activePlayer = 'A';
   topViewRef.current = true;
   assert.equal(resolveEye(), null, 'explicit overhead selection still works');
   players.dispose();

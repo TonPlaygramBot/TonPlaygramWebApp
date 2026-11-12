@@ -28,6 +28,10 @@ visit(gameAst);
 function cameraRig(world) {
   const context = {
     world,
+    frameRef: { current: { activePlayer: 'A' } },
+    localSeatRef: { current: 'A' },
+    characterShotShooter: 'A',
+    lookModeRef: { current: false },
     humanShotCamera: new SnookerRoyalShotCamera(),
     activeHumanCueViewRef: { current: null },
     cueAnimating: false,
@@ -102,7 +106,7 @@ test('overhead, replay and cue-gallery views retain camera ownership', () => {
   const rig = cameraRig(new THREE.Group());
   rig.cueAnimating = true;
   rig.activeHumanCueViewRef.current = { position: new THREE.Vector3(), target: new THREE.Vector3(), blend: 1 };
-  for (const ref of ['topViewRef', 'replayPlaybackRef', 'cueGalleryStateRef']) {
+  for (const ref of ['topViewRef', 'lookModeRef', 'replayPlaybackRef', 'cueGalleryStateRef']) {
     rig[ref].current = ref === 'cueGalleryStateRef' ? { active: true } : true;
     assert.equal(rig.resolve(), null);
     rig[ref].current = false;
@@ -181,17 +185,18 @@ test('the live render handoff skips tracking branches and renders the held playe
   for (const trackedBall of [new THREE.Vector3(50, 4, -30), new THREE.Vector3(-20, -10, 60)]) {
     camera.position.copy(trackedBall);
     const context = vm.createContext({
-      renderCamera: camera, lookTarget: trackedBall, THREE,
+      renderCamera: camera, humanEyeCamera: camera.clone(), lookTarget: trackedBall, THREE,
       camera, shooting: true, cueAnimating: false, broadcastArgs: {},
       activeShotView: { mode: 'pocket', anchorType: 'side' },
       get ballsRef() { throw new Error('player view must skip the ball-tracking branches'); },
       resolveActiveHumanEyePose: rig.resolve, STANDING_VIEW_FOV: m.cameraFov
     });
     vm.runInContext(handoff, context);
-    assert.deepEqual(camera.position, eye.position);
-    assert.equal(camera.fov, m.cameraFov);
-    camera.updateMatrixWorld(true);
-    const targetScreen = eye.target.clone().project(camera);
+    assert.deepEqual(context.renderCamera.position, eye.position);
+    assert.equal(context.renderCamera.fov, m.cameraFov);
+    assert.deepEqual(camera.position, trackedBall, 'source broadcast camera is not moved');
+    context.renderCamera.updateMatrixWorld(true);
+    const targetScreen = eye.target.clone().project(context.renderCamera);
     assert.ok(Math.abs(targetScreen.x) < 1e-8 && Math.abs(targetScreen.y) < 1e-8);
   }
 });
@@ -243,18 +248,18 @@ test('starting a live shot no longer schedules an automatic overhead camera', ()
   assert.equal(c.shootingRef.current, false);
 });
 
-test('the real character is clearly bigger and its original shot camera is preserved in portrait', async () => {
+test('the real character retains its height and its lens stays on the eyes in portrait', async () => {
   const world = new THREE.Group();
-  const players = new PoolRoyalHumanPlayers(world, { ...m, model: await loadPoseModel() });
+  const players = new PoolRoyalHumanPlayers(world, { ...m, model: await loadPoseModel(), exactEyeCamera: true });
   assert.equal(await players.ready, true);
   world.updateMatrixWorld(true);
-  const oldHeight = m.cueLength * 1.68;
   const height = new THREE.Box3().setFromObject(players.players[0].human.modelRoot).getSize(new THREE.Vector3()).y;
-  assert.ok(Math.abs(height / oldHeight - 1.05) < 0.001, '5% larger than the previous main character');
+  assert.ok(Math.abs(height / m.targetHeight - 1) < 0.001, 'production character height is unchanged');
   assert.equal(players.group.position.y, m.floorY, 'the character stays anchored to the floor');
   const rig = cameraRig(world);
   let cameraPoses = 0;
   for (const fps of [30, 60, 120]) for (const seat of ['A', 'B']) {
+    rig.localSeatRef.current = seat; rig.frameRef.current.activePlayer = seat; rig.characterShotShooter = seat;
     for (const yaw of [0, Math.PI / 2, Math.PI, -Math.PI / 2]) {
       const direction = new THREE.Vector3(Math.sin(yaw), 0, Math.cos(yaw));
       const ball = new THREE.Vector3(-direction.x * m.playW * 0.35, m.ballY, -direction.z * m.playL * 0.35);
@@ -263,6 +268,10 @@ test('the real character is clearly bigger and its original shot camera is prese
         players.update(1 / fps, { activeSeat: seat, state: striking ? 'striking' : 'dragging',
           cueBall: ball, aimForward: direction, power: 0.75, nowMs: i * 1000 / fps });
         rig.activeHumanCueViewRef.current = players.eyeView;
+        const human = players.players.find(player => player.seat === seat).human;
+        const middle = human.model.getObjectByName('LeftEye').getWorldPosition(new THREE.Vector3())
+          .lerp(human.model.getObjectByName('RightEye').getWorldPosition(new THREE.Vector3()), .5);
+        assert.ok(world.localToWorld(players.eyeView.position.clone()).distanceTo(middle) < 1e-8);
         rig.cueAnimating = striking;
         rig.shootingRef.current = striking;
         rig.shotImpactPending = striking;
@@ -310,4 +319,70 @@ test('contact clock advances through manual view changes, and the next shot rese
   rig.shotImpactPending = true;
   assert.ok(rig.resolve());
   assert.equal(rig.humanShotCamera.isBroadcasting, false);
+});
+
+test('production Snooker resolver keeps AI/remote eyes out for either local seat and preserves the shot owner', () => {
+  const rig = cameraRig(new THREE.Group());
+  rig.activeHumanCueViewRef.current = { position: new THREE.Vector3(0, 15, 30), target: new THREE.Vector3(), blend: 1 };
+  for (const localSeat of ['A', 'B']) {
+    rig.localSeatRef.current = localSeat;
+    rig.frameRef.current.activePlayer = localSeat;
+    rig.cueAnimating = false;
+    rig.shootingRef.current = false;
+    rig.cameraBlendRef.current = 1;
+    assert.equal(rig.resolve().blend, 1, 'normal aiming uses the exact eye even at the old overview blend');
+    const opponent = localSeat === 'A' ? 'B' : 'A';
+    rig.frameRef.current.activePlayer = opponent;
+    assert.equal(rig.resolve(), null, 'opponent address uses spectator cameras');
+    rig.characterShotShooter = localSeat;
+    rig.cueAnimating = true;
+    rig.shootingRef.current = true;
+    assert.ok(rig.resolve(), 'a rules turn change cannot steal the local follow-through');
+    rig.characterShotShooter = opponent;
+    assert.equal(rig.resolve(), null, 'opponent strike cannot acquire the eye camera');
+  }
+});
+
+test('Snooker prepares the aiming stance after placement while retaining ball-in-hand permission', async () => {
+  const { resolvePoolRoyalAddressState } = await import('../webapp/src/pages/Games/shared/poolRoyalAddress.ts');
+  const stateDeclaration = callbacks.get('updatePlayerCharacters').body.body.find(node =>
+    node.type === 'VariableDeclaration' && node.declarations[0].id.name === 'state');
+  const context = { resolvePoolRoyalAddressState, cueAnimating: false, shooting: false,
+    hudRef: { current: { inHand: true, over: false } },
+    cueBallPlacedFromHandRef: { current: false }, inHandPlacementModeRef: { current: true } };
+  const run = () => vm.runInNewContext(`(${source.slice(stateDeclaration.declarations[0].init.start, stateDeclaration.declarations[0].init.end)})`, context);
+  assert.equal(run(), 'idle');
+  context.cueBallPlacedFromHandRef.current = true;
+  context.inHandPlacementModeRef.current = false;
+  assert.equal(run(), 'dragging');
+  assert.equal(context.hudRef.current.inHand, true);
+  context.inHandPlacementModeRef.current = true;
+  assert.equal(run(), 'idle');
+});
+
+
+test('Snooker 3D button exits Look and overhead modes immediately', () => {
+  let button;
+  const find = node => {
+    if (!node || typeof node !== 'object') return;
+    if (node.type === 'JSXOpeningElement' && node.attributes.some(attr =>
+      attr.name?.name === 'aria-label' && attr.value?.value === 'Switch to 3D view')) button = node;
+    for (const value of Object.values(node)) {
+      if (Array.isArray(value)) value.forEach(find);
+      else if (value?.type) find(value);
+    }
+  };
+  find(gameAst);
+  const click = button.attributes.find(attr => attr.name?.name === 'onClick').value.expression;
+  const state = { look: true, rail: true, top: true, updates: 0 };
+  const lookModeRef = { current: true };
+  vm.runInNewContext(`(${source.slice(click.start, click.end)})`, {
+    lookModeRef, setIsLookMode: value => state.look = value,
+    setIsRailOverheadView: value => state.rail = value,
+    setIsTopDownView: value => state.top = value,
+    topViewControlsRef: { current: { exit: () => state.top = false } },
+    cameraUpdateRef: { current: () => state.updates++ }
+  })();
+  assert.equal(lookModeRef.current, false);
+  assert.deepEqual(state, { look: false, rail: false, top: false, updates: 1 });
 });

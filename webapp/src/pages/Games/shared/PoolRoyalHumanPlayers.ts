@@ -74,6 +74,8 @@ type Options = {
   model?: THREE.Object3D;
   /** Pool opts in; other games retain their existing timing and character pose. */
   realisticMovement?: boolean;
+  /** Anchor the lens to the eye bones independently of locomotion style. */
+  exactEyeCamera?: boolean;
   onError?: (error: unknown) => void;
 };
 
@@ -218,7 +220,8 @@ export class PoolRoyalHumanPlayers {
           if ((object as THREE.Mesh).isMesh && /^(EyeLeft|EyeRight|Wolf3D_(Head|Teeth|Beard|Headwear))$/.test(object.name)) headMeshes.push(object);
         });
         const feet = options.realisticMovement ? createPoolRoyalFeet(human) : undefined;
-        const firstPerson = options.realisticMovement ? new PoolRoyalFirstPerson(human) : undefined;
+        const firstPerson = options.realisticMovement || options.exactEyeCamera
+          ? new PoolRoyalFirstPerson(human) : undefined;
         this.group.add(human.modelRoot, cue.group, reachEquipment.group);
         this.players.push({ seat, human, cue, initialized: false, state: 'idle',
           shotBall: new THREE.Vector3(), shotAim: new THREE.Vector3(), headMeshes, firstPerson, reachEquipment, feet, planted: true, handClear: true });
@@ -487,7 +490,7 @@ export class PoolRoyalHumanPlayers {
           ? shooter.shotBall.clone().multiplyScalar(this.referenceScale).add(new THREE.Vector3(0, this.options.floorY, 0))
           : frame.cueBall,
         frame.state === 'striking' ? shooter.shotAim : forward,
-        Math.max(0.01, frame.cueBall.y - this.options.clothY), Boolean(this.options.realisticMovement)) : null;
+        Math.max(0.01, frame.cueBall.y - this.options.clothY), Boolean(this.options.realisticMovement || this.options.exactEyeCamera)) : null;
   }
 
   dispose() {
