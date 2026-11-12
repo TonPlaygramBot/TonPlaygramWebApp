@@ -1,6 +1,7 @@
+import {HumanModelLoader} from '../HumanModelLoader';
 import {groundHeight} from '../../tirana-east/terrainCore.mjs';
 import * as T from 'three';
-import {GLTFLoader, type GLTF} from 'three/examples/jsm/loaders/GLTFLoader.js';
+import type {GLTF} from 'three/examples/jsm/loaders/GLTFLoader.js';
 import {clone} from 'three/examples/jsm/utils/SkeletonUtils.js';
 import {LivingVisuals} from '../livingVisuals';
 import type {NPC, Point} from '../shared/engine.mjs';
@@ -29,7 +30,8 @@ export class SharedHumans {
   private aborts=new Set<AbortController>();
   private dead=false;private held=new LivingVisuals();
   private signs=new Map<string,T.SpriteMaterial>();
-  private loader=new GLTFLoader();
+  private loader=new HumanModelLoader();
+  configure(renderer:T.WebGLRenderer){this.loader.configure(renderer);}
   private frustum=new T.Frustum();
   private projection=new T.Matrix4();
   private bounds=new T.Sphere(new T.Vector3(),2.4);
@@ -168,7 +170,7 @@ export class SharedHumans {
       const fall=a.deathAt===undefined?0:Math.min(1,(time-a.deathAt)/.6);
       const yaw=first?n.heading+Math.PI:a.root.rotation.y+Math.atan2(Math.sin(n.heading+Math.PI-a.root.rotation.y),Math.cos(n.heading+Math.PI-a.root.rotation.y))*alpha;
       a.root.rotation.set(-Math.PI/2*fall*fall*(3-2*fall),yaw,0);
-      a.label.visible=n.health>0&&distance<18;
+      a.label.visible=n.kind==='dealer'&&n.health>0&&distance<18;
       this.bounds.center.copy(a.root.position);this.bounds.center.y+=1;
       // The host updates the eye camera later in this frame. Use its previous
       // frustum only to budget animation, never to hide a newly revealed person.
@@ -194,6 +196,6 @@ export class SharedHumans {
     for(const id of [...this.actors.keys()])this.remove(id);
     this.held.dispose();this.sourceMaterials.forEach(release=>release());this.sourceMaterials.clear();
     for(const g of this.sources.values())disposeResources(g.scene);this.sources.clear();
-    for(const m of this.signs.values()){m.map?.dispose();m.dispose();}this.signs.clear();this.failed.clear();this.requested.clear();this.group.removeFromParent();
+    for(const m of this.signs.values()){m.map?.dispose();m.dispose();}this.signs.clear();this.failed.clear();this.requested.clear();this.loader.dispose();this.group.removeFromParent();
   }
 }

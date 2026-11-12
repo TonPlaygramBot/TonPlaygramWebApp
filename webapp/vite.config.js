@@ -14,7 +14,7 @@ export default defineConfig({
   plugins: [localizeExternalAssetPlugin(), react(), socialAppPlugin(), copyPublicAssetsPlugin()],
   build: {
     copyPublicDir: false,
-    rollupOptions: { input: { main: resolve(__dirname, 'index.html'), social: resolve(__dirname, 'social-app/index.html'), cityUpdate: resolve(__dirname, 'tirana-city-update-review.html'), mobileReview: resolve(__dirname, 'tirana-mobile-review.html'), gameplayReview: resolve(__dirname, 'tirana-gameplay-review.html') } },
+    rollupOptions: { input: { cityEvent: resolve(__dirname, 'tirana-city-event-review.html'), main: resolve(__dirname, 'index.html'), social: resolve(__dirname, 'social-app/index.html'), cityUpdate: resolve(__dirname, 'tirana-city-update-review.html'), mobileReview: resolve(__dirname, 'tirana-mobile-review.html'), gameplayReview: resolve(__dirname, 'tirana-gameplay-review.html') } },
     outDir: 'dist',
     emptyOutDir: true
   },

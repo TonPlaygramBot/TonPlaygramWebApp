@@ -1,3 +1,4 @@
+import {cityEventRoadGap,cityEventRoadBlocked} from './cityEvents.mjs';
 import {roundaboutGap} from './junctionControl.mjs';
 import {scheduledActorStep} from './actorSchedule.mjs';
 import {BUS_STOPS} from '../../tirana-street-life/transitData.mjs';
@@ -172,9 +173,10 @@ export function redSignalGap(car,time){
   }
   return gap;
 }
-export function trafficDecision(car,vehicles,pedestrians,time){
+export function trafficDecision(car,vehicles,pedestrians,time,event){
   const shape=vehicleSize(car),fx=-Math.sin(car.heading),fz=-Math.cos(car.heading);
   let gap=redSignalGap(car,time),reason=Number.isFinite(gap)?'signal':'',leaderSpeed=0;
+  const closure=cityEventRoadGap(car,event);if(closure<gap){gap=closure;reason='city-event';}
   const roundabout=roundaboutGap(car,time);if(roundabout<gap){gap=roundabout;reason='traffic-officer';}
   for(const o of vehicles){if(o.id===car.id)continue;const dx=o.x-car.x,dz=o.z-car.z,f=dx*fx+dz*fz,side=Math.abs(dx*fz-dz*fx),other=vehicleSize(o);
     const angle=car.heading-o.heading;
@@ -225,7 +227,7 @@ export function updateTraffic(state,dt,onImpact){
       let next,cost=Infinity;
       for(let i=0;i<options.length;i++){
         const option=options[(offset+i)%options.length];
-        const candidate=trafficRouteCost(car,lanePoint(option,0),lanePoint(option),local)+i*.025;
+        const candidate=trafficRouteCost(car,lanePoint(option,0),lanePoint(option),local)+i*.025+(cityEventRoadBlocked(car,lanePoint(option),state.cityEvent)?10000:0);
         if(candidate<cost){next=option;cost=candidate;}
       }
       if(next){car.next=next.to;car.lane=next.lane;car.edgeWidth=next.w;}else{car.next=old;car.speed=0;}
@@ -234,7 +236,7 @@ export function updateTraffic(state,dt,onImpact){
     const desired=Math.atan2(-dx,-dz);car.heading+=turn(desired-car.heading)*Math.min(1,step*(car.model==='tirana-bus'?3:6));car.heading=turn(car.heading);
     const refresh=close||!car.awareness||state.elapsed>=car.awarenessAt;
     const nearbyPeople=refresh?people.near(car.x,car.z,50):[];
-    if(refresh){car.awareness=trafficDecision(car,vehicles.near(car.x,car.z,55),nearbyPeople,state.elapsed);car.awarenessAt=state.elapsed+.25;}
+    if(refresh){car.awareness=trafficDecision(car,vehicles.near(car.x,car.z,55),nearbyPeople,state.elapsed,state.cityEvent);car.awarenessAt=state.elapsed+.25;}
     const decision=car.awareness;
     let target=cornerSpeed(turn(desired-car.heading),decision.target),junctionGap=Infinity;
     if(d<16&&g.links[car.next]?.length>2){

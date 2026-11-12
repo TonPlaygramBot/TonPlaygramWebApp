@@ -234,6 +234,7 @@ export class StreetCareerRuntime {
       this.simulation.body.combat = this.state.players.local.weapon ? 'ready' : 'unarmed';
     }
     this.simulation.settings.aimAssist = this.settings.aimAssist;
+    if(this.state.cityEvent?.enabled!==this.settings.cityEvents)this.simulation.setCityEvents(this.settings.cityEvents);
     this.renderer.simulation = this.simulation;
     this.route = [];
     this.destination=null;this.routeNotice='';
@@ -304,6 +305,7 @@ export class StreetCareerRuntime {
     this.renderer.targetFps = this.settings.targetFps;
     this.renderer.settings = this.settings;
     this.simulation.settings.aimAssist = this.settings.aimAssist;
+    if(this.state.cityEvent?.enabled!==this.settings.cityEvents)this.simulation.setCityEvents(this.settings.cityEvents);
     this.audio.enabled = this.settings.volume > 0;
     this.audio.volume = this.settings.volume;
     try {

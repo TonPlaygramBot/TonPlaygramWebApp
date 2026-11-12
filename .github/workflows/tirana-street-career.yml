@@ -3,6 +3,8 @@ on:
   pull_request:
     paths:
       - 'webapp/src/games/tiranastreets/**'
+      - 'webapp/src/games/tirana-environment/**'
+      - 'webapp/public/assets/tirana-streets/environment/**'
       - 'webapp/src/games/tirana-landmarks/**'
       - 'webapp/src/games/tirana-city-source/**'
       - 'webapp/src/games/blackwater/**'
@@ -30,6 +32,8 @@ jobs:
         with:
           node-version: '22'
       - run: node --test test/tiranaFullBodyCareer.test.mjs test/tiranaStreetCareer.test.mjs test/tiranaStreetCareer.integration.test.mjs test/tiranaCityLife.test.mjs test/tiranaCareerExpansion.test.mjs test/tiranaGameplayOverhaul.test.mjs test/tiranaMobileRuntime.test.mjs test/tiranaNpcMotion.test.mjs test/tiranaBattlefieldTactics.test.mjs test/tiranaBattlefieldSurface.test.mjs test/tiranaMissionDirector.test.mjs test/tiranaCrowdResponse.test.mjs
+      - name: City event lifecycle and unit commands
+        run: node --test test/tiranaCityEvents.test.mjs
   application:
     runs-on: ubuntu-latest
     timeout-minutes: 25

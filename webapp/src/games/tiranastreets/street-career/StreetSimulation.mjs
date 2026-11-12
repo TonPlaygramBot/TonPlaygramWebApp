@@ -1,3 +1,4 @@
+import {createCityEvent,stopCityEvent} from '../shared/cityEvents.mjs';
 import {BuildingAccessSimulation} from './BuildingAccessSimulation.mjs';
 import {ArrestSimulation} from './ArrestSimulation.mjs';
 import {createMissionDirector, extractionSeconds, updateMissionDirector} from './missionDirectorCore.mjs';
@@ -60,6 +61,7 @@ export const TUTORIAL = [
 export class StreetSimulation {
   constructor(state, world = new StreetWorld()) {
     this.state = state;
+    this.state.cityEvent ??= createCityEvent(state.elapsed);
     this.world = world;
     this.body = createBody(state.players.local.heading);
     this.body.y=groundHeight(state.players.local.x,state.players.local.z)+.08;
@@ -125,6 +127,10 @@ export class StreetSimulation {
         track: (n, p) => this.track(n, p)
       }
     };
+  }
+  setCityEvents(enabled) {
+    if(!enabled)stopCityEvent(this.state,false);
+    else {this.state.cityEvent.enabled=true;this.state.cityEvent.nextAt=this.state.elapsed;}
   }
   placeMissionCrew() {
     if(!this.mission.operation)return;

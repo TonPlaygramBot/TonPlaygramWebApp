@@ -87,6 +87,7 @@ export type Mission = {
   stops: (Point & { name: string })[];
 };
 export type NPC = Point & {
+  cityEvent?:boolean;eventRole?:string;eventSlot?:number;eventHome?:Point;agitator?:boolean;cordon?:string;
   defenseAttackerId?:string|null;defenseUntil?:number;defenseStartedAt?:number;nextCounterAt?:number;punchedAt?:number;
   bikeType?:string;role?:string;behavior?:string;
   firedAt?:number; reloadUntil?:number; rounds?:number; aimPitch?:number; aimSince?:number; splatteredUntil?:number; splatter?:string;
@@ -121,6 +122,7 @@ export type Effect = Point & {
 };
 export type Aircraft = Point & {id:string;kind?:'helicopter'|'jet';civilian?:boolean;careerManaged?:boolean;verticalSpeed?:number;takeoffY?:number;roofAccess?:boolean;autoHover?:boolean;y:number;roofY:number;stairX:number;stairZ:number;heading:number;speed:number;pilot:string|null;airborne:boolean;nextMissile:number;autoLand?:boolean;homeX?:number;homeZ?:number;buildingId?:string;name?:string;health?:number;missiles?:number;roll?:number;pitch?:number};
 export type State = {
+  cityEvent?: import('./cityEvents.mjs').CityEvent;
   worldVersion?:string;
   helicopter?: Aircraft;
   helicopters?: Aircraft[];

@@ -1,4 +1,13 @@
 import {vehicleSize} from './trafficSimulation.mjs';
+// Arcade personality values, independent of the visual rig and wanted tier.
+export const FORCE_BEHAVIOR = Object.freeze({
+  patrol_officer: Object.freeze({runSpeed:3.6,holdDistance:20,spacing:1.8,flank:false,searchSeconds:12}),
+  traffic_officer: Object.freeze({runSpeed:3.1,holdDistance:28,spacing:2,flank:false,searchSeconds:8}),
+  shqiponja_officer: Object.freeze({runSpeed:4.1,holdDistance:17,spacing:2.1,flank:true,searchSeconds:14}),
+  fnsh_officer: Object.freeze({runSpeed:3.2,holdDistance:25,spacing:1.5,flank:false,searchSeconds:10}),
+  renea_officer: Object.freeze({runSpeed:3.8,holdDistance:28,spacing:2.4,flank:true,searchSeconds:16})
+});
+export function forceBehavior(n){return FORCE_BEHAVIOR[n.forceCharacter]||{runSpeed:3.6,holdDistance:20,spacing:1.8,flank:true,searchSeconds:12};}
 /** Deterministic arcade squad behavior shared by the city client/server. */
 export function deployment(stars, intensity = 0) {
   const size = Math.min(20, Math.max(10, 10 + Math.floor(intensity / 40) * 2));
@@ -39,6 +48,7 @@ export function coverPoint(car, target, slot=0, peek=false) {
   return {x:car.x+nx*radius-nz*side,z:car.z+nz*radius+nx*side};
 }
 export function tacticalGoal(n, target, squad, cars, time, clear) {
+  const profile=forceBehavior(n);
   const visible=clear(n,target);
   if(visible){n.lastSeen={x:target.x,z:target.z};n.lastSeenAt=time;}
   // Officers investigate the last observed position instead of tracking a
@@ -47,7 +57,7 @@ export function tacticalGoal(n, target, squad, cars, time, clear) {
     const report=squad.filter(o=>o.lastSeen&&time-o.lastSeenAt<8).sort((a,b)=>b.lastSeenAt-a.lastSeenAt)[0];
     if(report){n.lastSeen={...report.lastSeen};n.lastSeenAt=report.lastSeenAt;}
     if(!n.lastSeen)return {goal:n,anim:'idle'};
-    const searching=time-n.lastSeenAt<12&&Math.hypot(n.x-n.lastSeen.x,n.z-n.lastSeen.z)>1.2;
+    const searching=time-n.lastSeenAt<profile.searchSeconds&&Math.hypot(n.x-n.lastSeen.x,n.z-n.lastSeen.z)>1.2;
     return {goal:searching?n.lastSeen:n,anim:searching?'walk':'idle'};
   }
   const members=squad.filter(o=>o.health>0).sort((a,b)=>a.id.localeCompare(b.id));
@@ -64,14 +74,14 @@ export function tacticalGoal(n, target, squad, cars, time, clear) {
     return {goal, anim: Math.hypot(n.x-goal.x,n.z-goal.z)>.7?'run':peek?'aim':'cover', coverId:cover.id};
   }
   // Alternating pairs flank while the lead pair holds a readable firing line.
-  if(index>=2 && distance>11 && distance<42){
+  if(profile.flank && index>=2 && distance>11 && distance<42){
     const side=index%2?1:-1,yaw=Math.atan2(n.x-target.x,n.z-target.z);
     const goal={x:target.x+Math.sin(yaw+side*.65)*16,z:target.z+Math.cos(yaw+side*.65)*16};
     if(Math.hypot(n.x-goal.x,n.z-goal.z)>3&&clear(n,goal))return {goal,anim:'run'};
   }
-  const holding=distance<20 && visible;
+  const holding=distance<profile.holdDistance && visible;
   if(holding) return {goal:n,anim:'aim'};
-  return {goal:leader===n?target:formationSlot(leader,target,index),anim:distance>30?'run':'walk'};
+  return {goal:leader===n?target:formationSlot(leader,target,index,profile.spacing),anim:distance>30?'run':'walk'};
 }
 /** Pursuer / left interceptor / right interceptor / roadblock. Predictions
  * only use an observed heading; search orders share a timestamped report. */

@@ -26,7 +26,7 @@ export function poseForce(root:T.Object3D,anim:string,alive=true,dt=1/60,pitch=0
  if(pose.anim!==anim){pose.anim=anim;pose.actionTime=0;}else pose.actionTime+=step;
  pose.cover+=((anim==='cover'?1:0)-pose.cover)*alpha;
  pose.ride+=((anim==='ride'?1:0)-pose.ride)*alpha;
- pose.carry+=((weapon||anim==='spray'||anim==='ride'||anim==='direct'?1:0)-pose.carry)*alpha;
+ pose.carry+=((weapon||anim==='spray'||anim==='ride'||anim==='direct'||anim==='communicate'||anim==='hold'?1:0)-pose.carry)*alpha;
  const get=(name:string)=>pose.joints.get(T.PropertyBinding.sanitizeNodeName(name));
  const remember=(j:Joint)=>{if(!j.changed){j.base.copy(j.bone.quaternion);j.changed=true;}};
  const bend=pose.cover+pose.ride;
@@ -66,7 +66,9 @@ export function poseForce(root:T.Object3D,anim:string,alive=true,dt=1/60,pitch=0
   const upper=get(`upperarm01.${side}`),lower=get(`lowerarm01.${side}`),wrist=get(`wrist.${side}`);if(!upper||!lower||!wrist)continue;
   const g=side==='R'?grip.right:grip.left;
   target.set(g.x,g.y,g.z);
-  if(anim==='direct')target.set(side==='R'?-.72:.72,1.4,.12);
+  if(anim==='direct')target.set(side==='R'?-.62:.62,side==='R'?1.55:1.25+Math.sin(time*1.8)*.12,.18);
+  if(anim==='communicate')target.set(side==='R'?-.25:.25,side==='R'?1.35+Math.sin(time*2)*.07:1.08,.35);
+  if(anim==='hold')target.set(side==='R'?-.28:.28,1.2,.3);
   if(anim==='spray')target.set(side==='R'?grip.origin.x:.16,side==='R'?grip.origin.y:1.1,side==='R'?grip.origin.z:.16);
   if(anim==='ride')target.set(side==='R'?-.2:.2,1.08,.46);
   if(anim==='reload'){
@@ -84,6 +86,6 @@ export function poseForce(root:T.Object3D,anim:string,alive=true,dt=1/60,pitch=0
   pole.addScaledVector(axis,-pole.dot(axis)).normalize();
   bendPoint.copy(shoulder).addScaledVector(axis,along).addScaledVector(pole,Math.sqrt(Math.max(0,a*a-along*along)));
   point(upper,lower,bendPoint);point(lower,wrist,target);
-  if(anim!=='direct'&&anim!=='ride'&&anim!=='spray')poseHumanoidHandGrip(root,get,remember,side as 'R'|'L',grip.pitch,pose.carry*(anim==='reload'&&side==='L'?.55:1));
+  if(!['direct','ride','spray','communicate','hold'].includes(anim))poseHumanoidHandGrip(root,get,remember,side as 'R'|'L',grip.pitch,pose.carry*(anim==='reload'&&side==='L'?.55:1));
  }
 }

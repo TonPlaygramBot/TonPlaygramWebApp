@@ -32,6 +32,7 @@ export class StreetRenderer extends CityRenderer {
   private impactMarks=new SurfaceImpactMarks();
   private effectState?:State;
   private cutCount=0;
+  private pyroSequence=0;
   private missileMeshes:MissileVisuals;
   private pockets:PocketVisuals;
   private buildingAccess:BuildingAccessVisuals;
@@ -69,6 +70,7 @@ export class StreetRenderer extends CityRenderer {
   constructor(root: HTMLDivElement) {
     super(root);
     this.preserveVehicleInterior = true;
+    this.humans.configure(this.renderer);
     this.ownDetailUpdate=false;
     this.bodyRig = new FirstPersonBody(this.scene);
     this.combatEffects = new CombatEffects(this.scene);
@@ -226,7 +228,7 @@ export class StreetRenderer extends CityRenderer {
     const sim=this.simulation;
     if(sim){
       this.buildingAccess.update(sim.state.elapsed,sim);
-      if(this.effectState!==sim.state){this.combatEffects.reset();this.impactMarks.reset();this.clearWrecks();this.effectState=sim.state;this.cutCount=0;}
+      if(this.effectState!==sim.state){this.combatEffects.reset();this.impactMarks.reset();this.clearWrecks();this.effectState=sim.state;this.cutCount=0;this.pyroSequence=0;}
       this.combatEffects.setBloodEnabled(this.settings.bloodEffects);
       this.combatEffects.consume(sim.state.effects,groundHeight,false);this.showWrecks(sim);
       this.impactMarks.update(sim.state.effects,sim.state.elapsed,id=>this.vehicleVisual(id),this.vehicleView==='cockpit'?sim.player.carId||undefined:undefined,this.camera.position,this.quality==='battery');
@@ -236,6 +238,12 @@ export class StreetRenderer extends CityRenderer {
       }
       const fires=[...sim.combat.fires.values()].map(f=>({x:f.car.x,z:f.car.z,y:groundHeight(f.car.x,f.car.z)+.8}));
       this.combatEffects.update(dt,this.camera,fires,sim.combat.missiles,this.quality==='battery');
+      for(const burst of sim.state.cityEvent?.pyro||[]){
+        if(burst.id<=this.pyroSequence)continue;
+        this.pyroSequence=burst.id;
+        if(sim.state.elapsed-burst.at<.3&&Math.hypot(burst.x-this.camera.position.x,burst.z-this.camera.position.z)<140)
+          this.combatEffects.pyrotechnic({x:burst.x,y:groundHeight(burst.x,burst.z)+2.5,z:burst.z},groundHeight(burst.x,burst.z));
+      }
       this.missileMeshes.update(sim.combat.missiles);
       this.pockets.update(sim);
     }
