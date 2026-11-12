@@ -1,5 +1,19 @@
 const gamesCatalog = [
   {
+    name: 'Explore Albania',
+    route: '/games/explorealbania/lobby',
+    slug: 'explorealbania',
+    attribution: 'Geography © OpenStreetMap contributors',
+    image: '/assets/icons/explore-albania.svg',
+    badge: 'New',
+    featured: true,
+    multiplayer: false,
+    modes: ['Freight career', 'Free drive'],
+    launchLabel: 'Enter Truck Garage',
+    description:
+      'Drive a detailed mobile truck simulator across twelve Albanian cities with freight jobs, fuel, damage and a day-night cycle.'
+  },
+  {
     name: 'Royal Lanes Bowling',
     route: '/games/royallanes/lobby',
     slug: 'royallanes',
