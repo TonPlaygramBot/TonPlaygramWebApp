@@ -1,6 +1,40 @@
 # Pool Royal and Snooker Royal player camera review
 
-Based on main `5e1c6095d8bb09a7014092543e563ecfee118835`.
+Camera alignment follow-up based on main `88b952828f8d658596b74b0d227bd02216d80751`,
+which includes the initial camera ownership changes in PR #26038.
+
+## Alignment corrections
+
+- Pool's near-rail stance previously removed the minimum distance needed for
+  the forward lean. With the real GLB, a cue ball at 35% of the playable table
+  length put the settled eyes 1.91 ball radii beyond the ball. Its projected
+  vertical coordinate was about -14 (outside the visible -1 to +1 interval).
+  Keeping the minimum stance distance puts the eyes about 15.34 radii behind
+  that ball, while preserving the existing walking perimeter and planted feet.
+- Both exact-eye views now aim so the cue ball is horizontally centered and
+  64% down the portrait screen. The gaze uses the actual eye-to-ball angle and
+  the production 66-degree vertical FOV. It no longer depends on a target only
+  five ball radii ahead, which left long shots almost at screen center. The
+  camera remains at the real eye midpoint; only the gaze direction changes.
+- Snooker's direct character driver now interpolates yaw over the shortest
+  angle. Crossing +180/-180 degrees during a small aim adjustment no longer
+  swings the head and eye camera through an almost full turn.
+- `test/royalPlayerCameraFraming.node.mjs` exercises the original character
+  with both games' production dimensions, both seats, four rails, diagonal
+  corners, center/long shots, zero/full power, transformed parents, and
+  320/390/430 px portrait projections. It checks the actual cue ball and its
+  bounds, not merely whether the chosen look-at target is centered. It also
+  checks both directions across the yaw wrap and guards the shared FOV.
+
+These are transform/projection checks, not GPU-rendered screenshots. The
+WebGL limitation described below still applies to this follow-up.
+
+Follow-up validation: 111 Node checks and 28 Jest checks passed, including
+the final portrait checks with rail/ball clearance and shot-readiness enabled.
+The Vite production bundle completed successfully (existing large-chunk and
+URL-map script warnings remain). Both portrait preview interfaces were opened
+again; both still report that WebGL is unavailable in the test browser. Full
+asset-prebuild/Render deployment and live 3D gameplay were not validated.
 
 ## Historical reference
 

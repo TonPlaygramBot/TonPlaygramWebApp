@@ -103,15 +103,16 @@ function disposeResources(root: THREE.Object3D) {
 }
 
 export function choosePoolRoyalStance(ball: THREE.Vector3, forward: THREE.Vector3, tableW: number, tableL: number, nearRail = false) {
-  // Keep the hips outside the same perimeter used by walking, without imposing
-  // an extra cue-length retreat when the cue ball is already close to a rail.
+  // Keep the hips outside the walking perimeter AND leave room for the full
+  // forward lean. The rail margin alone lets the eyes pass the cue ball when
+  // addressing a shot near the cushion, even though the feet are outside it.
   const margin = (nearRail ? 0.215 : 0.25) * CFG.humanScale;
   const x = Math.abs(forward.x) > 1e-6
     ? (tableW / 2 + margin + Math.sign(forward.x) * ball.x) / Math.abs(forward.x) : Infinity;
   const z = Math.abs(forward.z) > 1e-6
     ? (tableL / 2 + margin + Math.sign(forward.z) * ball.z) / Math.abs(forward.z) : Infinity;
   const distance = Math.min(x, z);
-  return ball.clone().addScaledVector(forward, -(nearRail ? Math.max(distance, margin) : Math.max(distance, CFG.desiredShootDistance))).setY(0);
+  return ball.clone().addScaledVector(forward, -Math.max(distance, CFG.desiredShootDistance)).setY(0);
 }
 
 /**
