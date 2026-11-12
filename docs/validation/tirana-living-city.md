@@ -5,8 +5,9 @@ Base: `e6bd9b7f81282ab1a0aa0e80f8de63df021751d7`.
 ## Automated checks
 
 - 65 targeted tests passed across the regression run and the final event/force-rig rerun (18/18). Suites: city events, city life, crowd response, force squads, original force runtime, human animation, human material quality, predictive traffic, Street Career integration.
-- Full asset prebuild passed: original assets, vehicle hashes, local decoders and all 1,378 vendored external assets verified. Production bundling is still running at this checkpoint.
+- Full asset prebuild passed: original assets, vehicle hashes, local decoders and all 1,378 vendored external assets verified. The full production build passed. Final source was re-bundled successfully in 2m 51s; the portrait review page and application download manifests are present. Vite reports existing large-chunk warnings.
 
+- App-wide TypeScript: 414 diagnostics remain, compared with 416 on the unchanged base. Normalizing checkout paths and changed line numbers produced no new diagnostics. The Meshopt resolver declaration also corrects two existing missing-export diagnostics.
 - Focused TypeScript check: `cd webapp && ./node_modules/.bin/tsc -p tsconfig.tirana-gameplay.json --pretty false` — passed.
 - New event tests cover all phases, population bounds, cleanup, disabled/remote/mission conditions, collision rejection, stale/expired orders, unit-specific decisions, crowd flight, traffic detours and the real StreetSimulation pause lifecycle.
 - Existing human-animation tests now exercise rally gestures on six original rigs, including restoration to idle and immutable source clips.
