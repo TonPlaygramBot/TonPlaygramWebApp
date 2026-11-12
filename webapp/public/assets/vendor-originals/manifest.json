@@ -240,6 +240,14 @@
       "sha256": "a8c4f267291c290ef6310ef0e8d3e1b5a8e2e3c585e0f54633212e00d0a102a2",
       "required": true,
       "provenance": "assets/vendor-originals/README.md"
+    },
+    {
+      "sourceUrl": "https://cdn.polyhaven.com/asset_img/thumbs/voortrekker_interior.png?width=512&height=512",
+      "url": "/assets/vendor-originals/polyhaven/voortrekker_interior-512.png",
+      "sha256": "aa37964f21d98de3914ee8077941a130bd30343dbda7a6e66e149505295538aa",
+      "size": 363084,
+      "required": true,
+      "provenance": "Poly Haven Voortrekker Interior 512px CDN thumbnail, original PNG matching source-lock.json"
     }
   ]
 }
