@@ -230,6 +230,26 @@ export function refinePoolRoyalBridge(human: HumanRig, bridgeTarget: THREE.Vecto
 
 export type HumanEyeView = { position: THREE.Vector3; target: THREE.Vector3; blend: number };
 
+// Both production eye cameras use a 66-degree vertical field of view. Keep
+// the cue ball below the middle of the PHONE screen, with room for the shot
+// ahead and the bridge/cue below. This is a gaze correction, never a lens dolly.
+export const POOL_ROYAL_EYE_FOV = 66;
+export const POOL_ROYAL_CUE_BALL_SCREEN_Y = -0.28;
+
+export function poolRoyalPlayerLookTarget(eye: THREE.Vector3, ball: THREE.Vector3) {
+  const toBall = ball.clone().sub(eye);
+  const distance = toBall.length();
+  const horizontal = Math.hypot(toBall.x, toBall.z);
+  if (horizontal < 1e-8) return ball.clone();
+  const framingAngle = Math.atan(-POOL_ROYAL_CUE_BALL_SCREEN_Y * Math.tan(THREE.MathUtils.degToRad(POOL_ROYAL_EYE_FOV / 2)));
+  const pitch = Math.atan2(toBall.y, horizontal) + framingAngle;
+  return eye.clone().add(new THREE.Vector3(
+    toBall.x / horizontal * Math.cos(pitch),
+    Math.sin(pitch),
+    toBall.z / horizontal * Math.cos(pitch)
+  ).multiplyScalar(distance));
+}
+
 /** Eyes and target are in the controller parent's coordinates, including floor and scale. */
 export function poolRoyalEyeView(human: HumanRig, group: THREE.Group, ball: THREE.Vector3,
   forward: THREE.Vector3, ballRadius: number, exactEyes = false): HumanEyeView | null {
@@ -242,7 +262,8 @@ export function poolRoyalEyeView(human: HumanRig, group: THREE.Group, ball: THRE
   // Older integrations retain their offset. Pool uses the anatomical midpoint;
   // camera-specific face suppression handles self-occlusion without moving it.
   if (!exactEyes) eye.addScaledVector(forward, ballRadius * 2);
-  const target = ball.clone().addScaledVector(forward, ballRadius * 5);
+  const target = exactEyes ? poolRoyalPlayerLookTarget(eye, ball)
+    : ball.clone().addScaledVector(forward, ballRadius * 5);
   // The player lens follows the real eyes while standing, walking and bending
   // into the shot. Blending with the orbit camera puts the lens outside the
   // head during every aim adjustment and can look straight through the face.

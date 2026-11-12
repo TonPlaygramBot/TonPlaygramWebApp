@@ -429,7 +429,13 @@ export function updateHumanPose(human: HumanRig, dt: number, state: ShotState, r
   else dampVector(human.root.position, rootGoal, state === "striking" ? 12 : CFG.moveLambda, dt);
   const moveAmountRaw = human.root.position.distanceTo(rootGoal);
   human.walkT += motion ? motion.distance / (0.8 * CFG.humanScale) : dt * (2 + Math.min(7, moveAmountRaw * 10 / CFG.scale));
-  human.yaw = motion ? motion.yaw : dampScalar(human.yaw, state === "striking" ? human.strikeYaw : yawFromForward(aimForward), CFG.rotLambda, dt);
+  const targetYaw = state === "striking" ? human.strikeYaw : yawFromForward(aimForward);
+  const yawDelta = targetYaw - human.yaw;
+  // Snooker's direct stance driver also needs a circular interpolation. A tiny
+  // aim adjustment across +/-PI must not swing the head/camera around the table.
+  const nearbyYaw = Math.abs(yawDelta) > Math.PI
+    ? human.yaw + Math.atan2(Math.sin(yawDelta), Math.cos(yawDelta)) : targetYaw;
+  human.yaw = motion ? motion.yaw : dampScalar(human.yaw, nearbyYaw, CFG.rotLambda, dt);
   const t = easeInOut(human.poseT), idle = 1 - t;
   const breath = Math.sin(human.breathT * Math.PI * 2) * ((0.006 + idle * 0.004) * CFG.scale);
   const walk = Math.sin(human.walkT * 6.2) * Math.min(1, moveAmountRaw * 12 / CFG.scale);

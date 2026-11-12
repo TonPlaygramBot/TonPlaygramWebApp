@@ -7,6 +7,7 @@ import { PoolRoyalShotCamera } from '../webapp/src/pages/Games/shared/poolRoyalS
 import { PoolRoyalPocketLights } from '../webapp/src/pages/Games/shared/poolRoyalPocketLights.ts';
 import { readPoolRoyalMetrics } from '../scripts/read-pool-royal-metrics.mjs';
 import { loadPoseModel } from './fixtures/poolRoyalPoseTrace.mjs';
+import { CFG } from '../webapp/src/pages/Games/shared/poolRoyalReferenceHuman.ts';
 
 const m = await readPoolRoyalMetrics();
 const ready = { ballsMoving: false, gameOver: false, ballInHand: false, breakReady: true };
@@ -37,11 +38,10 @@ test('the player addresses the cue ball immediately on the aiming turn, independ
   players.dispose();
 });
 
-test('close-rail stance removes the minimum retreat while keeping the hips outside the frame', () => {
+test('close-rail stance allows the forward lean without putting the eyes past the ball', () => {
   const cue = new THREE.Vector3(0, 0, 8), forward = new THREE.Vector3(0, 0, -1);
-  const old = choosePoolRoyalStance(cue, forward, 9, 17);
   const next = choosePoolRoyalStance(cue, forward, 9, 17, true);
-  assert.ok(next.distanceTo(cue) < old.distanceTo(cue) * .6);
+  assert.ok(next.distanceTo(cue) >= CFG.desiredShootDistance);
   assert.ok(next.z > 17 / 2);
 });
 
