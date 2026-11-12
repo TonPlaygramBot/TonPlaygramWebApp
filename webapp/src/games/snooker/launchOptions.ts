@@ -10,7 +10,9 @@ export function resolveSnookerLaunchOptions(search: string) {
           : params.get('mode') === 'tournament'
             ? 'tournament'
           : 'ai',
-    playType: params.get('type') === 'tournament' ? 'tournament' : 'regular',
+    playType: params.get('type') === 'training'
+      ? 'training'
+      : params.get('type') === 'tournament' ? 'tournament' : 'regular',
     tableSizeKey: params.get('tableSize') === '10ft' ? '10ft' : '12ft',
     accountId: params.get('accountId') || undefined,
     tgId: params.get('tgId') || undefined,

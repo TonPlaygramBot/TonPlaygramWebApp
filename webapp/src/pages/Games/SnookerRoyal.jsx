@@ -128,6 +128,7 @@ import { clipGuideTravel } from './shared/billiardsGuideGeometry.js';
 import { isSnookerObstructed } from '../../utils/snookerVisibility.js';
 import { resolveSnookerImpactAudio } from './snookerImpactAudio.js';
 import { PoolRoyalHumanPlayers } from './shared/PoolRoyalHumanPlayers.ts';
+import { resolvePoolRoyalAddressState } from './shared/poolRoyalAddress.ts';
 import { SnookerRoyalShotCamera, SNOOKER_PLAYER_FOLLOW_THROUGH_MS, snookerRoyalFallbackEye } from './snookerRoyalShotCamera.ts';
 import {
   buildSnookerViewerHud,
@@ -17991,9 +17992,14 @@ const shotPowerRef = useRef(0);
         };
 
         const humanShotCamera = new SnookerRoyalShotCamera();
+        const humanEyeCamera = camera.clone();
         const resolveActiveHumanEyePose = () => {
           const pose = humanShotCamera.resolve({
             eye: activeHumanCueViewRef.current,
+            localTurn: (shootingRef.current || cueAnimating
+              ? characterShotShooter
+              : frameRef.current?.activePlayer ?? 'A') === localSeatRef.current,
+            aiming: Boolean(activeHumanCueViewRef.current && !shootingRef.current),
             stroke: Boolean(cueAnimating),
             shooting: shootingRef.current,
             impactPending: shotImpactPending,
@@ -18001,6 +18007,7 @@ const shotPowerRef = useRef(0);
             now: performance.now(),
             excluded: Boolean(
               topViewRef.current ||
+              lookModeRef.current ||
               replayPlaybackRef.current ||
               cueGalleryStateRef.current?.active
             )
@@ -18039,7 +18046,6 @@ const shotPowerRef = useRef(0);
             // This shot belongs to the player camera. Do not run a tracking
             // camera first: its pocket/rail transitions can change the view or
             // fail before the player pose reaches the renderer below.
-            camera.up.set(0, 1, 0);
             lookTarget = humanEyePose.target.clone();
             broadcastArgs.focusWorld = lookTarget.clone();
             broadcastArgs.targetWorld = lookTarget.clone();
@@ -19066,6 +19072,10 @@ const shotPowerRef = useRef(0);
           // that position and target through follow-through. Broadcast cameras
           // take over only after the shot-camera owner releases the anchor.
           if (humanEyePose) {
+            // Keep the source broadcast/pocket camera intact across view changes.
+            humanEyeCamera.copy(renderCamera, false);
+            renderCamera = humanEyeCamera;
+            renderCamera.up.set(0, 1, 0);
             renderCamera.position.lerp(humanEyePose.position, humanEyePose.blend);
             lookTarget = (lookTarget ?? humanEyePose.target)
               .clone()
@@ -19077,6 +19087,7 @@ const shotPowerRef = useRef(0);
                 STANDING_VIEW_FOV,
                 humanEyePose.blend
               );
+              renderCamera.zoom = THREE.MathUtils.lerp(renderCamera.zoom, 1, humanEyePose.blend);
               renderCamera.updateProjectionMatrix();
             }
           }
@@ -21977,6 +21988,7 @@ const shotPowerRef = useRef(0);
         // Keep both players floor-anchored while giving them a clearly taller,
         // larger silhouette against the full-size snooker table.
         targetHeight: cueLen * 1.68 * 1.2,
+        exactEyeCamera: true,
         onError: (error) => console.warn('Snooker Royal player characters could not load', error)
       });
       referencePlayers.setCueAppearance(cueBody, cueTipLocal, cueButtLocal);
@@ -21985,16 +21997,14 @@ const shotPowerRef = useRef(0);
         const activeSeat = cueAnimating || shooting
           ? characterShotShooter
           : frameRef.current?.activePlayer === 'B' ? 'B' : 'A';
-        let state = 'idle';
-        if (cueAnimating) {
-          state = characterStrokeState === 'dragging' ? 'dragging' : 'striking';
-        } else if (!shooting && !hudRef.current?.over && !hudRef.current?.inHand && (
-          sliderInstanceRef.current?.dragging ||
-          (powerRef.current ?? 0) > 0.01 ||
-          (cameraBlendRef.current ?? 1) <= 0.96
-        )) {
-          state = 'dragging';
-        }
+        const state = resolvePoolRoyalAddressState({
+          stroke: cueAnimating ? { phase: characterStrokeState === 'dragging' ? 'pullback' : 'strike' } : null,
+          ballsMoving: shooting,
+          gameOver: Boolean(hudRef.current?.over),
+          ballInHand: Boolean(hudRef.current?.inHand),
+          cueBallPlaced: cueBallPlacedFromHandRef.current,
+          placingCueBall: inHandPlacementModeRef.current
+        });
         const cueVisible = cueStick.visible && state !== 'idle';
         cueStick.updateWorldMatrix(true, false);
         const cueBack = cueVisible
@@ -22024,7 +22034,7 @@ const shotPowerRef = useRef(0);
           },
           hidden: Boolean(replayPlaybackRef.current || cueGalleryStateRef.current?.active)
         });
-        activeHumanCueViewRef.current = hudRef.current?.inHand ? null : referencePlayers.eyeView;
+        activeHumanCueViewRef.current = referencePlayers.eyeView;
         if (referencePlayers.players.length === 2 && state === 'idle') cueStick.visible = false;
       };
 
@@ -27518,13 +27528,7 @@ const shotPowerRef = useRef(0);
           referencePlayers.updateCameraVisibility(
             renderCamera,
             characterLookTarget,
-            !topViewRef.current && !replayPlaybackRef.current && !cueGalleryStateRef.current?.active &&
-              (humanShotCamera.isHoldingShot || (activeHumanCueViewRef.current &&
-                (cueAnimating || (!shooting && (cameraBlendRef.current ?? 1) < 0.94))))
-              ? (shooting || cueAnimating
-                  ? characterShotShooter
-                  : frameRef.current?.activePlayer === 'B' ? 'B' : 'A')
-              : undefined
+            renderCamera === humanEyeCamera ? localSeatRef.current : undefined
           );
           renderer.render(scene, renderCamera);
           const shouldStreamAim =
@@ -29443,13 +29447,17 @@ const shotPowerRef = useRef(0);
         <div className="pointer-events-auto mt-1 flex flex-col gap-2" style={{ marginTop: `${viewToggleButtonDropPx}px` }}>
           <button
             type="button"
-            aria-pressed={!isTopDownView}
+            aria-pressed={!isTopDownView && !isLookMode}
             onClick={() => {
+              lookModeRef.current = false;
+              setIsLookMode(false);
               setIsRailOverheadView(false);
               setIsTopDownView(false);
+              topViewControlsRef.current.exit?.(true);
+              cameraUpdateRef.current?.();
             }}
             className={`flex h-12 w-12 items-center justify-center rounded-full border text-[11px] font-semibold uppercase tracking-[0.2em] shadow-[0_12px_32px_rgba(0,0,0,0.45)] backdrop-blur transition ${
-              !isTopDownView
+              !isTopDownView && !isLookMode
                 ? 'border-emerald-300 bg-emerald-300/20 text-emerald-100'
                 : 'border-white/30 bg-black/70 text-white hover:bg-black/60'
             }`}

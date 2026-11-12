@@ -44,7 +44,7 @@ export class SnookerRoyalShotCamera {
     return this.held;
   }
 
-  resolve({ eye, stroke, shooting, impactPending, cueBlend, now = performance.now(), excluded = false }: {
+  resolve({ eye, stroke, shooting, impactPending, cueBlend, now = performance.now(), excluded = false, localTurn = true, aiming = false }: {
     eye: HumanEyeView | null;
     stroke: boolean;
     shooting: boolean;
@@ -52,7 +52,10 @@ export class SnookerRoyalShotCamera {
     cueBlend: number;
     now?: number;
     excluded?: boolean;
+    localTurn?: boolean;
+    aiming?: boolean;
   }): HumanEyeView | null {
+    if (!localTurn) { this.reset(); return null; }
     if (!shooting && !stroke) this.reset();
     if (shooting || stroke) {
       if (this.broadcast) return null;
@@ -77,7 +80,7 @@ export class SnookerRoyalShotCamera {
     }
     if (excluded) return null;
     if (!eye) return null;
-    const blend = THREE.MathUtils.smoothstep(1 - cueBlend, 0.06, 1) * eye.blend;
+    const blend = (aiming ? 1 : THREE.MathUtils.smoothstep(1 - cueBlend, 0.06, 1)) * eye.blend;
     return blend > 0 ? { ...eye, blend } : null;
   }
 

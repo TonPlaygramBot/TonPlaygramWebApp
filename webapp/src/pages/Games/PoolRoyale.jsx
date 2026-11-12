@@ -21871,6 +21871,9 @@ const shotPowerRef = useRef(0);
         const resolveActiveHumanEyePose = () => {
           const pose = humanShotCamera.resolve({
             eye: activeHumanCueViewRef.current,
+            localTurn: (shootingRef.current || cueStrokeStateRef.current
+              ? characterShotShooterRef.current
+              : frameRef.current?.activePlayer ?? 'A') === localSeatRef.current,
             stroke: Boolean(cueStrokeStateRef.current), shooting: shootingRef.current,
             cueBlend: cameraBlendRef.current ?? 1, now: performance.now(),
             aiming: Boolean(activeHumanCueViewRef.current && !shootingRef.current),
@@ -23132,7 +23135,7 @@ const shotPowerRef = useRef(0);
           }
           if (!replayPlaybackActive && lookTarget) activeHumanPlayersRef.current?.updateCameraVisibility(
             renderCamera, lookTarget, humanEyePose?.blend > 0
-              ? (shootingRef.current ? characterShotShooterRef.current : frameRef.current?.activePlayer === 'B' ? 'B' : 'A') : undefined
+              ? localSeatRef.current : undefined
           );
           if (lookTarget) {
             lastCameraTargetRef.current.copy(lookTarget);
@@ -27377,6 +27380,7 @@ const shotPowerRef = useRef(0);
       const applyShotAtImpact = (payload) => {
         if (!payload || payload.applied) return;
         payload.applied = true;
+        humanShotCamera.markImpact(performance.now());
         const {
           base,
           aimDir,
@@ -27697,6 +27701,9 @@ const shotPowerRef = useRef(0);
         focusStoreAtShot.target.copy(
           lockedShotTargetWorld.clone().divideScalar(shotFocusScale)
         );
+        characterShotShooterRef.current = frameSnapshot?.activePlayer === 'B' ? 'B' : 'A';
+        humanShotCamera.beginShot(characterShotShooterRef.current === localSeatRef.current
+          ? activeHumanCueViewRef.current : null);
         setShootingState(true);
         powerImpactHoldRef.current = Math.max(
           powerImpactHoldRef.current || 0,
