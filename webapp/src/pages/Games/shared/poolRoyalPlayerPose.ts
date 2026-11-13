@@ -228,7 +228,11 @@ export function refinePoolRoyalBridge(human: HumanRig, bridgeTarget: THREE.Vecto
   human.modelRoot.updateMatrixWorld(true);
 }
 
-export type HumanEyeView = { position: THREE.Vector3; target: THREE.Vector3; blend: number };
+export type HumanEyeView = {
+  position: THREE.Vector3; target: THREE.Vector3; blend: number;
+  /** Projection retained when a shot snapshots an intermediate or standing view. */
+  fov?: number; zoom?: number;
+};
 
 // Both production eye cameras use a 66-degree vertical field of view. Keep
 // the cue ball below the middle of the PHONE screen, with room for the shot

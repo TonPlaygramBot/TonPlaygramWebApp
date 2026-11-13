@@ -330,7 +330,9 @@ test('production Snooker resolver keeps AI/remote eyes out for either local seat
     rig.cueAnimating = false;
     rig.shootingRef.current = false;
     rig.cameraBlendRef.current = 1;
-    assert.equal(rig.resolve().blend, 1, 'normal aiming uses the exact eye even at the old overview blend');
+    assert.equal(rig.resolve(), null, 'standing view releases the eye override');
+    rig.cameraBlendRef.current = 0;
+    assert.equal(rig.resolve().blend, 1, 'lowered view reaches the exact player eyes');
     const opponent = localSeat === 'A' ? 'B' : 'A';
     rig.frameRef.current.activePlayer = opponent;
     assert.equal(rig.resolve(), null, 'opponent address uses spectator cameras');

@@ -1,7 +1,6 @@
 {
   "commit": "b2842f3400f2031bb81bbdcac670c60dfa27b9f4",
   "functions": {
-    "applyCameraBlend": "62c2c85ecddb296744689ec03f31c7851c2e8ebe4f87cc749b8fdbfb4bf94361",
     "updateBroadcastCameras": "c228145c910ca35ca73dd9daa81d3720cb4b48f5221ed85bbe463e6371d1a347",
     "animateCamera": "e968d03280da43afb741ffecaad48605418ce0d1d638cfa38951289f7de75b1a",
     "restoreOrbitCamera": "7c95cb484f143f0d094857d3259173abd384f2967dfc8bdb69f0ff981cc51645",
@@ -11,5 +10,8 @@
     "exitTopView": "83f734f4a90b99b7bb32c37591ea06390070cc353852202aece065397a1b839b",
     "beginCueView": "f515af03eafa6d51d3e26c0dd42dceebda4b5e7bc626e4b76edffc2de712b698"
   },
-  "date": "2026-09-11"
+  "date": "2026-09-11",
+  "overrides": {
+    "applyCameraBlend": "2026-11-13: preserve requested swipe height when rail safety clamps the source orbit; see royalCameraSwipe.node.mjs"
+  }
 }

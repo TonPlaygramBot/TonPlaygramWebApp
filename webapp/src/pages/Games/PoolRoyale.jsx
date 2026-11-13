@@ -7,6 +7,7 @@ import React, {
   useState
 } from 'react';
 import * as THREE from 'three';
+import { royalCameraBlendFromDrag, captureRoyalPlayerView } from './shared/royalCameraControls.ts';
 import { PoolRoyalHumanPlayers } from './shared/PoolRoyalHumanPlayers.ts';
 import { resolvePoolRoyalAddressState } from './shared/poolRoyalAddress.ts';
 import { poolRoyalHudLayout, POOL_SPIN_DIAMETER_PX, POOL_AVATAR_SIZE_PX } from './poolRoyalHudLayout.js';
@@ -21854,7 +21855,8 @@ const shotPowerRef = useRef(0);
           }
           sph.phi = clampedPhi;
           sph.radius = clampOrbitRadius(finalRadius, cueMinRadius);
-          syncBlendToSpherical();
+          // Rail safety may clamp the orbit, but must not overwrite the finger's
+          // standing-to-cue blend used by the final player-eye camera.
         };
 
         const sanitizeVector3 = (vec, fallback = null) => {
@@ -21866,7 +21868,7 @@ const shotPowerRef = useRef(0);
           return vec;
         };
 
-        const humanShotCamera = new PoolRoyalShotCamera(0.55);
+        const humanShotCamera = new PoolRoyalShotCamera();
         const humanEyeCamera = camera.clone();
         const resolveActiveHumanEyePose = () => {
           const pose = humanShotCamera.resolve({
@@ -21876,7 +21878,6 @@ const shotPowerRef = useRef(0);
               : frameRef.current?.activePlayer ?? 'A') === localSeatRef.current,
             stroke: Boolean(cueStrokeStateRef.current), shooting: shootingRef.current,
             cueBlend: cameraBlendRef.current ?? 1, now: performance.now(),
-            aiming: Boolean(activeHumanCueViewRef.current && !shootingRef.current),
             excluded: Boolean(topViewRef.current || lookModeRef.current || replayPlaybackRef.current || cueGalleryStateRef.current?.active)
           });
           return pose ? { ...pose, position: world.localToWorld(pose.position.clone()),
@@ -23060,7 +23061,6 @@ const shotPowerRef = useRef(0);
               const correctedPhi = Math.max(CAMERA.minPhi, surfaceSafePhi);
               TMP_SPH.phi = correctedPhi;
               sph.phi = correctedPhi;
-              syncBlendToSpherical();
             }
 
             const aimOffset = aimLineWorldY - lookTarget.y;
@@ -23081,7 +23081,6 @@ const shotPowerRef = useRef(0);
               if (clampedPhi !== TMP_SPH.phi) {
                 TMP_SPH.phi = clampedPhi;
                 sph.phi = clampedPhi;
-                syncBlendToSpherical();
               }
             }
           }
@@ -23105,7 +23104,6 @@ const shotPowerRef = useRef(0);
               );
               TMP_SPH.radius = sph.radius;
               TMP_SPH.phi = sph.phi;
-              syncBlendToSpherical();
             }
           }
           camera.lookAt(lookTarget);
@@ -23128,8 +23126,8 @@ const shotPowerRef = useRef(0);
             lookTarget = (lookTarget ?? humanEyePose.target).clone().lerp(humanEyePose.target, humanEyePose.blend);
             renderCamera.lookAt(lookTarget);
             if (renderCamera.isPerspectiveCamera) {
-              renderCamera.fov = THREE.MathUtils.lerp(renderCamera.fov, STANDING_VIEW_FOV, humanEyePose.blend);
-              renderCamera.zoom = THREE.MathUtils.lerp(renderCamera.zoom, 1, humanEyePose.blend);
+              renderCamera.fov = THREE.MathUtils.lerp(renderCamera.fov, humanEyePose.fov ?? STANDING_VIEW_FOV, humanEyePose.blend);
+              renderCamera.zoom = THREE.MathUtils.lerp(renderCamera.zoom, humanEyePose.zoom ?? 1, humanEyePose.blend);
               renderCamera.updateProjectionMatrix();
             }
           }
@@ -24912,17 +24910,26 @@ const shotPowerRef = useRef(0);
           const inHandPlacementActive =
             Boolean(currentHud?.inHand) && inHandPlacementModeRef.current;
           if (currentHud?.turn === 1 || inHandPlacementActive || shooting) return;
-          if (e.touches?.length === 2) return;
+          if (e.touches?.length > 1) { cancelCameraDrag(); return; }
           if (attemptCueLiftPress(e)) return;
           if (topViewRef.current && !topViewLockedRef.current)
             exitTopView(true, { preserveLock: true });
           drag.on = true;
           drag.moved = false;
-          drag.x = e.clientX || e.touches?.[0]?.clientX || 0;
-          drag.y = e.clientY || e.touches?.[0]?.clientY || 0;
+          drag.x = e.clientX ?? e.touches?.[0]?.clientX ?? 0;
+          drag.y = e.clientY ?? e.touches?.[0]?.clientY ?? 0;
+        };
+        const cancelCameraDrag = () => {
+          drag.on = false;
+          drag.moved = false;
+          cueLiftRef.current.active = false;
+          cueLiftRef.current.moved = false;
+          galleryDrag.active = false;
+          galleryDrag.identifier = null;
         };
         const move = (e) => {
           if (replayPlaybackRef.current) return;
+          if (e.touches?.length > 1 || shooting) { cancelCameraDrag(); return; }
           const galleryState = cueGalleryStateRef.current;
           if (galleryState?.active) {
             if (!galleryDrag.active) return;
@@ -25012,8 +25019,8 @@ const shotPowerRef = useRef(0);
           if (!drag.on) return;
           const currentHud = hudRef.current;
           if (currentHud?.turn === 1) return;
-          const x = e.clientX || e.touches?.[0]?.clientX || drag.x;
-          const y = e.clientY || e.touches?.[0]?.clientY || drag.y;
+          const x = e.clientX ?? e.touches?.[0]?.clientX ?? drag.x;
+          const y = e.clientY ?? e.touches?.[0]?.clientY ?? drag.y;
           const dx = x - drag.x;
           const dy = y - drag.y;
           if (!drag.moved && Math.hypot(dx, dy) > 4) drag.moved = true;
@@ -25038,11 +25045,9 @@ const shotPowerRef = useRef(0);
                 : 1;
             const precisionScale = basePrecisionScale * slowScale;
             sph.theta -= dx * 0.0026 * precisionScale;
-            const phiRange = CAMERA.maxPhi - CAMERA.minPhi;
-            const phiDelta = dy * 0.0019 * precisionScale;
-            const blendDelta =
-              phiRange > 1e-5 ? phiDelta / phiRange : 0;
-            applyCameraBlend(cameraBlendRef.current - blendDelta);
+            applyCameraBlend(royalCameraBlendFromDrag(
+              cameraBlendRef.current, dy, dom.getBoundingClientRect().height
+            ));
             updateCamera();
             registerInteraction();
           }
@@ -25067,6 +25072,7 @@ const shotPowerRef = useRef(0);
             cueLiftRef.current.moved = false;
             return;
           }
+          if (!drag.on) return;
           const moved = drag.moved;
           drag.on = false;
           drag.moved = false;
@@ -25081,6 +25087,8 @@ const shotPowerRef = useRef(0);
         dom.addEventListener('touchstart', down, { passive: true });
         dom.addEventListener('touchmove', move, { passive: true });
         window.addEventListener('touchend', up);
+        window.addEventListener('touchcancel', cancelCameraDrag);
+        window.addEventListener('blur', cancelCameraDrag);
         const keyRot = (e) => {
           if (topViewRef.current && !topViewLockedRef.current) {
             exitTopView(true, { preserveLock: true });
@@ -27703,7 +27711,9 @@ const shotPowerRef = useRef(0);
         );
         characterShotShooterRef.current = frameSnapshot?.activePlayer === 'B' ? 'B' : 'A';
         humanShotCamera.beginShot(characterShotShooterRef.current === localSeatRef.current
-          ? activeHumanCueViewRef.current : null);
+          ? (topViewRef.current || lookModeRef.current ? activeHumanCueViewRef.current
+            : captureRoyalPlayerView(activeRenderCameraRef.current, lastCameraTargetRef.current,
+              world, activeHumanCueViewRef.current)) : null);
         setShootingState(true);
         powerImpactHoldRef.current = Math.max(
           powerImpactHoldRef.current || 0,
@@ -33312,6 +33322,8 @@ const shotPowerRef = useRef(0);
         dom.removeEventListener('touchstart', down);
         dom.removeEventListener('touchmove', move);
         window.removeEventListener('touchend', up);
+        window.removeEventListener('touchcancel', cancelCameraDrag);
+        window.removeEventListener('blur', cancelCameraDrag);
         window.removeEventListener('keydown', keyRot);
         window.removeEventListener('pointerup', endInHandDrag);
         dom.removeEventListener('pointercancel', endInHandDrag);

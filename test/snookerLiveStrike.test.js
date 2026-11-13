@@ -2,6 +2,7 @@ import fs from 'node:fs';
 import vm from 'node:vm';
 import { parse } from '@babel/parser';
 import * as THREE from '../webapp/node_modules/three/build/three.cjs';
+import { captureRoyalPlayerView } from '../webapp/src/pages/Games/shared/royalCameraControls.ts';
 import { PowerSlider } from '../power-slider.js';
 import { deliverOrQueueSnookerShot } from '../webapp/src/pages/Games/snookerShotRelease.js';
 import { resolvePoolRoyalReleasePower } from '../webapp/src/pages/Games/poolRoyaleShotState.js';
@@ -81,6 +82,7 @@ function rig() {
     shotImpactFallbackTimer: null,
     camera: new THREE.PerspectiveCamera(),
     world: new THREE.Group(),
+    captureRoyalPlayerView,
     humanShotCamera: { beginShot: jest.fn(), markImpact: jest.fn() },
     snookerRoyalFallbackEye: (ball) => ({ position: ball.clone(), target: ball.clone(), blend: 1 }),
     SNOOKER_PLAYER_FOLLOW_THROUGH_MS: 900,
@@ -195,6 +197,7 @@ function rig() {
     'cueImpactCameraRef',
     'shotReplayRef',
     'topViewRef',
+    'lookModeRef',
     'topViewLockedRef',
     'tipGroupRef'
   ])

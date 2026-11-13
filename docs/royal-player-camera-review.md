@@ -1,5 +1,39 @@
 # Pool Royal and Snooker Royal player camera review
 
+## Vertical swipe restoration — 13 November 2026
+
+In local 3D aiming, drag down on the game canvas to lower the view along the cue;
+drag up to return to the existing standing view. Both games now use the same
+viewport-scaled vertical gesture, independent of horizontal aiming/chalk precision.
+The selected height persists on release. Rail/cloth safeguards still constrain the
+source orbit, but no longer overwrite the requested standing-to-cue blend. The
+previous unconditional aiming-eye override is removed.
+
+Shots snapshot the selected rendered position, target, FOV and zoom before the
+stroke. The existing impact clock and broadcast handoff remain in control; AI,
+remote players, explicit overhead/Look and replays retain their ownership rules.
+Snooker permits swiping after confirmed ball placement while retaining the rules'
+ball-in-hand entitlement. Cancelled touches, a second finger and window blur end
+camera dragging without choosing a new focus.
+
+Validation: 74 focused Node checks and 33 Jest shot/release checks passed. The
+camera TypeScript modules passed typechecking. The full Vite production bundle
+passed with the project's 3072 MB heap limit (the default 2 GB run exhausted its
+heap); existing large-chunk and URL-map script warnings remain. A final isolated
+production build of both game components and their portrait review entry also
+passed. Asset prebuild and Render deployment were not run.
+
+Visual limitation: local Chromium cannot launch because this environment denies
+its process singleton socket; the cloud browser cannot connect to the local dev
+server. No rendered gameplay screenshots or physical-phone playtest are claimed.
+On a deployment containing this change, open `/royal-camera-review.html`, select
+each game and 320/390/430 px portrait, complete cue-ball placement, and swipe down
+then up. Check intermediate heights, a shot from each endpoint, spin/power
+controls, cancelled drags and the return from overhead/Look. This review mounts
+the actual React/Three.js games.
+
+## Earlier camera alignment work
+
 Camera alignment follow-up based on main `88b952828f8d658596b74b0d227bd02216d80751`,
 which includes the initial camera ownership changes in PR #26038.
 

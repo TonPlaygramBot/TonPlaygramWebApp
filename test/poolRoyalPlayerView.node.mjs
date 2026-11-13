@@ -84,8 +84,8 @@ test('the final JSX render camera stays between the real eyes throughout address
   const characterShotShooterRef = ref('A');
   const resolveEye = evaluate(variable('resolveActiveHumanEyePose').init, {
     frameRef, localSeatRef, characterShotShooterRef,
-    humanShotCamera: new PoolRoyalShotCamera(.55), activeHumanCueViewRef: eyeRef,
-    cueStrokeStateRef: ref(null), shootingRef: ref(false), cameraBlendRef: ref(1),
+    humanShotCamera: new PoolRoyalShotCamera(), activeHumanCueViewRef: eyeRef,
+    cueStrokeStateRef: ref(null), shootingRef: ref(false), cameraBlendRef: ref(0),
     performance: { now: () => 1000 }, topViewRef, lookModeRef: ref(false),
     replayPlaybackRef: ref(null), cueGalleryStateRef: ref(null), world
   });
