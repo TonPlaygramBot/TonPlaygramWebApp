@@ -86,6 +86,10 @@ const heavyPacks = [
 
 ];
 
+const gamesWithoutPlayerCharacters = new Set([
+  'poolroyale', 'snookerroyale', 'airhockey', 'murlanroyale', 'domino-royal', 'texasholdem', 'snake'
+]);
+
 const covered = new Set(heavyPacks.flatMap(pack => pack.gameSlugs || []));
 const extraFiles = {
   texasholdem: ['texas-holdem.js'],
@@ -97,7 +101,7 @@ export const GAME_PACK_DEFINITIONS = Object.freeze([
     ...pack,
     // Turi is a shared player, so launching a table or sports game must never
     // require downloading the whole Tirana city pack.
-    dependencies: pack.gameSlugs?.length
+    dependencies: pack.gameSlugs?.some(slug => !gamesWithoutPlayerCharacters.has(slug))
       ? [...(pack.dependencies || []), 'shared-player-character']
       : pack.dependencies,
     excludeFiles: pack.id === 'tirana-streets'
@@ -125,6 +129,9 @@ export const GAME_PACK_DEFINITIONS = Object.freeze([
     gameSlugs: [game.slug], route: game.route, cover: game.image,
     roots: [`assets/${game.slug}`, `models/${game.slug}`],
     files: [decodeURIComponent(game.image).replace(/^\//, ''), ...(extraFiles[game.slug] || [])],
-    dependencies: ['shared-table-games', 'shared-player-character'], runtimeMedia: true, keepInNative: true
+    dependencies: gamesWithoutPlayerCharacters.has(game.slug)
+      ? ['shared-table-games']
+      : ['shared-table-games', 'shared-player-character'],
+    runtimeMedia: true, keepInNative: true
   }))
 ]);
