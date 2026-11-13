@@ -1,4 +1,5 @@
 export interface Input {
+  aiRecovery?:{x:number;z:number;yaw:number;index:number}|null;
   aiLane?: number;
   aiPassLane?: number;
   aiPassUntil?: number;
@@ -14,6 +15,8 @@ export interface Input {
   fire: boolean;
 }
 export interface Racer {
+  telemetry?:import('./raceTelemetry.mjs').RaceTelemetry;
+  powertrain?:import('./raceTelemetry.mjs').Powertrain;
   waterRecovery?:number;
   impactMaterial?:'kart'|'concrete'|'tree'|'metal'|'wood'|'water';
   brakeHold?:number;

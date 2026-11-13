@@ -40,5 +40,5 @@ export function driverPose(steer=0,acceleration=0,yawRate=0,speed=0,time=0,reduc
   const ankle=[rest.ankle[0],rest.ankle[1]+pedal*.003,rest.ankle[2]-pedal*.004];
   legs[key]={hip:rest.hip,ankle,pedal,knee:elbowFor(rest.hip,ankle,length(sub(rest.knee,rest.hip)),length(sub(rest.ankle,rest.knee)),0,[0,1,0])};
  }
- return {arms,legs,lean,recoil,breath,wheelAngle:angle,headYaw:clamp(-steer*.18,-.18,.18)};
+ return {arms,legs,lean,recoil,breath,wheelAngle:angle,headYaw:clamp(-steer*.18-yawRate*.055,-.24,.24),headPitch:reduced?0:clamp(acceleration*.0012-(feedback.landing||0)*.025,-.055,.04)};
 }

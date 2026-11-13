@@ -41,12 +41,13 @@ import {
 } from './simulation.mjs';
 import { loadCareer, recordRace, formatTime } from './career';
 import { KartAudio } from './audio';
+import {RaceTelemetryHud,RaceRevBar,RaceDebrief} from './RaceTelemetryHud';
 import { request, saveSession, loadSession } from './network';
 import type { Room, Session } from './network';
 import './kart-royale.css';
 import './kart-mobile.css';
 import './kart-controls.css';
-type Mode = 'ai' | 'online' | 'career' | 'free';
+type Mode = 'ai' | 'online' | 'career' | 'free' | 'trial';
 interface Props {
   getSocket?: () => Promise<Socket>;
   onExit?: () => void;
@@ -63,6 +64,7 @@ interface Props {
 }
 const modes = [
   { id: 'ai', title: 'VS AI', sub: 'Find your racing line', icon: Cpu },
+  { id: 'trial', title: 'TIME TRIAL', sub: 'Beat your personal best ghost', icon: Flag },
   { id: 'free', title: 'FREE ROAM', sub: 'Explore with your kart', icon: Compass },
   { id: 'online', title: 'MULTIPLAYER', sub: 'Race your friends', icon: Users },
   { id: 'career', title: 'CAREER', sub: 'Build your legacy', icon: Trophy }
@@ -177,7 +179,6 @@ export default function KartRoyale({
     careerRef = useRef(career),
     raceCup = useRef<number | null>(null),
     done = useRef(false),
-    count = useRef(0),
     cleanupSocket = useRef<(() => void) | null>(null),
     mounted = useRef(false),
     modalRef = useRef(modal);
@@ -197,6 +198,7 @@ export default function KartRoyale({
     engine.current?.clearInput();
     audio.current?.silence();
     audio.current?.beep(880, 0.3);
+    if(r.timeTrial){setSaved(r.ghostSaved!==false);return;}
     if (!sessionRef.current) {
       const me = r.racers.find((p) => p.id === r.playerId)!,
         place = r.racers.indexOf(me) + 1,
@@ -226,10 +228,7 @@ export default function KartRoyale({
             f,
             screenRef.current === 'race' && !modalRef.current
           );
-          if (f.countdown !== count.current) {
-            count.current = f.countdown;
-            audio.current?.beep(f.countdown === 0 ? 900 : 500, 0.15);
-          }
+
         },
         (r) => finish.current(r),
         setError
@@ -594,7 +593,8 @@ export default function KartRoyale({
     setHud(null);
     setModal(null);
     setScreen('race');
-    engine.current?.startLocal(
+    if(mode==='trial')engine.current?.startLocal(activeTrack,'street',false,true);
+    else engine.current?.startLocal(
       activeTrack,
       mode === 'career' ? CUPS[cup].difficulty : difficulty,
       mode === 'free'
@@ -761,7 +761,7 @@ export default function KartRoyale({
                   </button>
                 ))}
               </div>
-              {mode === 'ai' && (
+              {(mode === 'ai'||mode === 'trial') && (
                 <div className="kr-options">
                   <div className="kr-track-selector">
                     <div className="kr-track-mini">
@@ -803,7 +803,7 @@ export default function KartRoyale({
                       ))}
                     </div>
                   </div>
-                  <div className="kr-difficulty">
+                  {mode==='ai'&&<div className="kr-difficulty">
                     <span className="kr-label">AI LEVEL</span>
                     <div>
                       {['rookie', 'street', 'pro'].map((d) => (
@@ -817,10 +817,11 @@ export default function KartRoyale({
                         </button>
                       ))}
                     </div>
-                  </div>
+                  </div>}
+                  {mode==='trial'&&<p className="rr-trial-description">Three flying laps. Chase your best ghost, compare four sector splits, and improve your racing line. Recovering invalidates that lap. Records save for each kart and circuit on this device.</p>}
                 </div>
               )}
-              {mode === 'free' && <div className="kr-options kr-roam-options">
+              {mode === 'free'  && <div className="kr-options kr-roam-options">
                 <label className="kr-label" htmlFor="kr-roam-start">START EXPLORING</label>
                 <select id="kr-roam-start" value={roamStart} onChange={e=>setRoamStart(e.target.value)}>{FREE_ROAM_STARTS.map(p=><option key={p.track} value={p.track}>{p.name}</option>)}</select>
                 <p>Take any road through Tirana. No opponents, laps or time limit.</p>
@@ -1058,6 +1059,7 @@ export default function KartRoyale({
                     {!loaded
                       ? 'LOADING YOUR KART…'
                       : mode === 'free' ? 'EXPLORE TIRANA'
+                      : mode === 'trial' ? 'CHASE YOUR BEST'
                       : mode === 'career'
                         ? 'RACE FOR THE CUP'
                         : 'LET’S RACE'}
@@ -1113,7 +1115,7 @@ export default function KartRoyale({
         <div className="rr-race-ui">
           <div className="rr-race-top">
             {mode==='free'?<div className="rr-roam-label"><Compass size={18}/><span>FREE ROAM</span></div>:<>
-              <div className="rr-place"><b>{hud?.position || 1}</b><span>/{hud?.racers.length || 6}<small>POSITION</small></span></div>
+              <div className="rr-place"><b>{hud?.position || 1}</b><span>/{hud?.racers.length || 6}<small>{mode==='trial'?'SOLO RUN':'POSITION'}</small></span></div>
               <div className="rr-lap"><span>LAP <b>{hud?.lap || 1}</b> / 3</span><time aria-label="Current lap time">{formatTime(hud?.lapTime || 0)}</time>{!!hud?.bestLap && <small>BEST {formatTime(hud.bestLap)}</small>}</div>
             </>}
             <button className="kr-icon" aria-label="Pause menu" onClick={()=>setModal('pause')}><Pause size={22}/></button>
@@ -1121,9 +1123,10 @@ export default function KartRoyale({
           <div className="rr-map">{mode==='free'?<FreeRoamMap racer={hud?.racers[0]}/>:<CircuitMap id={trackId} frame={hud}/>}</div>
           <button className="rr-camera" aria-label={`Switch to ${cameraMode==='driver'?'chase':'driver'} camera`} onClick={()=>setCameraMode(v=>v==='driver'?'chase':'driver')}><Camera size={18}/></button>
           <button className="rr-recover" aria-label="Recover kart on track" {...touch('recover',true)}><RotateCcw size={18}/></button>
-          {(hud?.countdown || 0)>0 && <div className="rr-countdown" role="status"><span>READY TO RACE</span><b>{hud!.countdown}</b><p>Hold GAS to accelerate.<br/>Drag the left joystick to steer; slide it up to drift.</p></div>}
+          {(hud?.countdown || 0)>0 && <div className="rr-countdown" role="status"><div className="rr-start-lights" aria-hidden="true">{[3,2,1].map(n=><i key={n} className={hud!.countdown<=n?'on':''}/>)}</div><span>READY TO RACE</span><b>{hud!.countdown}</b><p>Hold GAS to accelerate.<br/>Drag the left joystick to steer; slide it up to drift.</p></div>}
           {notice && <div className="rr-notice" role="status"><WifiOff size={16}/>{notice}</div>}
-          <div className="rr-speed"><b>{hud?.reversing&&<small>R </small>}{Math.round(Math.abs(hud?.speed||0)*3.6)}</b><span>KM/H</span></div>
+          <div className="rr-speed"><b>{hud?.reversing&&<small>R </small>}{Math.round(Math.abs(hud?.speed||0)*3.6)}</b><span>KM/H</span><RaceRevBar frame={hud}/></div>
+          <RaceTelemetryHud frame={hud}/>
           <KartControls boost={hud?.boost||0} drifting={hud?.drifting} driftCharge={hud?.driftCharge} turbo={hud?.turbo} boostEvent={hud?.boostEvent} reversing={hud?.reversing} disabled={!!modal}
             hold={(id,key,value)=>{audio.current?.unlock();heldInput.current.hold(id,key,value);if(engine.current)Object.assign(engine.current.input,heldInput.current.read());}}
             release={id=>{heldInput.current.release(id);if(engine.current)Object.assign(engine.current.input,heldInput.current.read());}}/>
@@ -1134,12 +1137,12 @@ export default function KartRoyale({
         <div className="kr-results-backdrop">
           <section className="kr-results">
             <div className="kr-eyebrow">
-              <Flag size={16} /> RACE COMPLETE
+              <Flag size={16} /> {result.timeTrial?'TIME TRIAL COMPLETE':'RACE COMPLETE'}
             </div>
             <div className="kr-finish-place">
-              {finishedMe?.finished ? String(place).padStart(2, '0') : 'DNF'}
+              {result.timeTrial?'TT':finishedMe?.finished ? String(place).padStart(2, '0') : 'DNF'}
               <span>
-                {finishedMe?.finished
+                {result.timeTrial?'PERSONAL BEST CHALLENGE':finishedMe?.finished
                   ? place === 1
                     ? 'VICTORY'
                     : 'FINISH POSITION'
@@ -1149,7 +1152,7 @@ export default function KartRoyale({
               </span>
             </div>
             <h2>
-              {place === 1 && finishedMe?.finished
+              {result.timeTrial?(result.newBest?'A NEW BENCHMARK.':'FIND YOUR NEXT TENTH.') : place === 1 && finishedMe?.finished
                 ? 'THE STREETS ARE YOURS.'
                 : 'ONE MORE LAP? ONE MORE RACE.'}
             </h2>
@@ -1157,6 +1160,7 @@ export default function KartRoyale({
               {TRACKS.find((t) => t.id === result.trackId)?.name} ·{' '}
               {formatTime(finishedMe?.finishTime || result.elapsed)}
             </p>
+            <RaceDebrief result={result}/>
             <div className="kr-result-table">
               {result.racers.map((r, i) => (
                 <div
@@ -1397,7 +1401,7 @@ export default function KartRoyale({
                   </p>
                   <b>04 · Find extra speed.</b>
                   <p>
-                    Follow another kart to charge a slipstream boost. Cross the cyan
+                    Try TIME TRIAL to race a non-colliding ghost of your best lap. Four sector splits show where you gain time. Recovering invalidates that lap. Follow another kart to charge a slipstream boost. Cross the cyan
                     boost strips for turbo and extra boost energy. The crowd cheers you on.
                   </p>
                 </div>

@@ -1,7 +1,8 @@
 import {KART_LENGTH, KART_WIDTH, kartPassingRoom} from './racingDimensions.mjs';
 import { stepDrift, stepBoostPads, stepSlipstream } from './arcadeRules.mjs';
 import {KARTS} from './vehicleCatalog.mjs';
-import {planRacecraft} from './racecraft.mjs';
+import {planRacecraft,aiRecoveryPose} from './racecraft.mjs';
+import {createRaceTelemetry,recordTimingGate,stepRaceTelemetry} from './raceTelemetry.mjs';
 export {KARTS};
 import { TIRANA_ROUTES } from './tirana-routes.mjs';
 import { resolveWallContact, resolveKartContact, damageRacer } from './collisions.mjs';
@@ -196,6 +197,7 @@ export function createRacer(track, id, name, slot = 0, ai = false) {
     steering: 0,
     yawRate: 0,
     acceleration: 0, throttle: 0, braking: false, lapStartedAt: 0, lapTimes: [],
+    telemetry: createRaceTelemetry(), powertrain: {gear:1,rpm:1900,shift:0,shiftId:0},
     boost: 100,
     driftCharge: 0,
     recoveryAt: -10, hop: 0, boostEvent: 0, slipstream: 0, draftCooldown: 0, padCooldowns: {},
@@ -262,16 +264,17 @@ export function aiInput(r, track, time, difficulty = 'street', racers = []) {
   }
   safeSpeed=Math.min(safeSpeed,tactics.speedLimit);
   const braking = blocked || r.speed > safeSpeed || (Math.abs(turn) > .55 && r.speed > 8);
+  const recovery=(r.aiStuckTime||0)>3 && time-(r.recoveryAt??-10)>6?aiRecoveryPose(r,n,track,racers):null;
   return {
     aiLane, aiPassLane:tactics.aiPassLane, aiPassUntil:tactics.aiPassUntil,
-    recover:(r.aiStuckTime||0)>3 && time-(r.recoveryAt??-10)>6,
+    recover:!!recovery, aiRecovery:recovery,
     throttle: !blocked,
     steer: clamp(-turn * 3.6, -1, 1),
     brake: braking,
     drift: difficulty === 'pro' && !braking && safeSpeed > 28 && (n.width ?? track.width) > 12 &&
       r.speed > 12 && r.speed < 27 && Math.abs(turn) > .06 && Math.abs(turn) < .16,
     boost:
-      !braking && Math.abs(turn) < 0.11 &&
+      !braking && tactics.boostSafe && !(r.turbo > .2) && Math.abs(turn) < 0.11 &&
       safeSpeed > 34 &&
       r.boost > (difficulty === 'pro' ? 12 : 28) &&
       difficulty !== 'rookie'
@@ -297,13 +300,18 @@ export function stepRacer(r, raw, track, dt, time, difficulty = 'street', drivin
     r.aiStuckTime=Math.abs(r.speed)<1.2?(r.aiStuckTime||0)+dt:0;
   }
   if (input.recover === true && time - (r.recoveryAt ?? -10) >= 3) {
+    if(r.telemetry){r.telemetry.valid=false;r.telemetry.clean=false;}
     if(drivingWorld)drivingWorld.recover(r);
-    else {const point = track.points[r.index];r.x = point.x; r.z = point.z; r.yaw = r.velocityYaw = point.yaw;}
+    else {
+      const point=r.ai&&input.aiRecovery?input.aiRecovery:track.points[r.index];
+      r.x=point.x;r.z=point.z;r.yaw=r.velocityYaw=point.yaw;
+      if(r.ai&&input.aiRecovery)r.index=point.index;
+    }
     r.speed = 0; r.yawRate = 0; r.steering = 0; r.drifting = false;
     r.driftCharge = 0; r.turbo = 0; r.recoveryAt = time;
     r.collisionSpin = 0; r.boosting = false; resetSuspension(r);
     r.brakeHold=0;r.reversing=false;r.aiStuckTime=0;resetJump(r,track);
-    // Keep index, gates, laps and progress: recovery cannot manufacture distance.
+    // Player index stays fixed; AI may retreat. Gates/laps never advance on recovery.
     return;
   }
   const previousSpeed = r.speed, previousX = r.x, previousZ = r.z;
@@ -383,6 +391,7 @@ export function stepRacer(r, raw, track, dt, time, difficulty = 'street', drivin
   r.speed *= Math.exp(-dt * (r.bumpImpact || 0) * .24);
   stepBoostPads(r, track, time, previousX, previousZ);
   stepJumps(r,track,dt,time,previousX,previousZ);
+  stepRaceTelemetry(r,dt);
   if(drivingWorld){r.lap=0;r.gates=0;r.progress=0;return;}
   // Sequential quarter-track gates reject shortcuts and finish-line oscillation.
   const count = track.points.length;
@@ -390,6 +399,7 @@ export function stepRacer(r, raw, track, dt, time, difficulty = 'street', drivin
   if (delta > 0 && delta < 24) {
     const crossed = (r.nextGate * (count / 4) - r.index + count) % count;
     if (crossed > 0 && crossed <= delta) {
+      recordTimingGate(r,r.nextGate,time);
       r.gates++;
       if (r.nextGate === 0) {
         if (r.lap > 0) (r.lapTimes ||= []).push(Math.max(0, time - r.lapStartedAt));

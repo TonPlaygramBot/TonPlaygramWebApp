@@ -210,7 +210,8 @@ test('same-speed touching karts do not damage each other; a rear impact transfer
   assert.ok(a.speed < 28 && b.speed > 7);
   assert.ok(energy([a, b]) <= before);
   assert.ok(a.health < 100 && b.health < 100);
-  assert.ok(Math.hypot(a.x - b.x, a.z - b.z) >= 2.1);
+  assert.ok(Math.hypot(a.x - b.x, a.z - b.z) >= (a.bodyLength+b.bodyLength)/2,
+    'rear contact separates the actual two-metre kart bodies');
 });
 test('separating and exactly overlapping karts never gain energy or produce NaNs', () => {
   const a = racer(),
