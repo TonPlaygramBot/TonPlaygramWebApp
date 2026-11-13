@@ -44,6 +44,12 @@ it('launches, counts down, pauses and restarts the exact same game without stuck
     expect(host.querySelector('.jsr-countdown')).toBeTruthy();
     for (let i = 0; i < 35; i++) await act(async () => harness.frame(0.1));
     expect(host.querySelector('[aria-label="Throttle"]')).toBeTruthy();
+    const camera = host.querySelector('[aria-label="Rider eye camera"]');
+    await act(async () => camera.click());
+    expect(camera.getAttribute('aria-pressed')).toBe('true');
+    expect(harness.world.current.camera).toBe('eyes');
+    await act(async () => camera.click());
+    expect(harness.world.current.camera).toBe('chase');
     await act(async () =>
       host.querySelector('[aria-label="Pause and settings"]').click()
     );

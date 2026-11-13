@@ -5,6 +5,7 @@ type Rig = {
   root: T.Group;
   bones: Map<string, T.Bone[]>;
   rest: Map<T.Bone, T.Quaternion>;
+  eye: T.Object3D;
 };
 const v = (x = 0, y = 0, z = 0) => new T.Vector3(x, y, z);
 export function createRider(source: T.Group): Rig {
@@ -30,7 +31,23 @@ export function createRider(source: T.Group): Rig {
       if (o instanceof T.SkinnedMesh) o.frustumCulled = false;
     }
   });
-  return { root, bones, rest };
+  const eye = new T.Object3D();
+  const head = bones.get('Head')?.[0];
+  if (head) {
+    const eyes = model.getObjectByName('Eyes');
+    if (eyes) {
+      const center = new T.Box3().setFromObject(eyes, true).getCenter(v());
+      eye.position.copy(head.worldToLocal(center));
+      eye.position.z += 0.02;
+    } else {
+      eye.position.set(0, 0.1, 0.13);
+    }
+    head.add(eye);
+  } else {
+    eye.position.set(0, 1.62, 0.12);
+    root.add(eye);
+  }
+  return { root, bones, rest, eye };
 }
 function aim(a: T.Bone, b: T.Bone, target: T.Vector3) {
   a.updateWorldMatrix(true, true);
@@ -119,10 +136,40 @@ export function poseRider(
       pole(sign * 0.2, 0.1, 1)
     );
   }
+  const uprightHead = new T.Quaternion().setFromAxisAngle(v(1), -0.48);
+  for (const neck of r.bones.get('neck_01') ?? [])
+    neck.quaternion.multiply(uprightHead);
   for (const b of r.bones.get('Head') || [])
     b.quaternion.multiply(
       new T.Quaternion().setFromEuler(
         new T.Euler(0, -steer * 0.042, Math.sin(time * 2) * 0.012)
       )
     );
+}
+
+/** The rider releases the grips, tumbles, then floats until the remount. */
+export function poseFallingRider(r: Rig, age: number, aboveWater: boolean) {
+  for (const [bone, rest] of r.rest) bone.quaternion.copy(rest);
+  const settle = T.MathUtils.smoothstep(age, 0.35, 0.85);
+  const motion = Math.sin(age * 7) * (aboveWater ? 0.18 : 0.07);
+  const turn = (name: string, x: number, y: number, z: number) => {
+    const rotation = new T.Quaternion().setFromEuler(new T.Euler(x, y, z));
+    for (const bone of r.bones.get(name) ?? [])
+      bone.quaternion.multiply(rotation);
+  };
+  turn('spine_01', 0.22 * (1 - settle), 0.13 + motion, 0.16);
+  for (const [side, sign] of [
+    ['l', 1],
+    ['r', -1]
+  ] as const) {
+    turn(
+      `upperarm_${side}`,
+      0.38 + motion,
+      sign * 0.36,
+      sign * (0.5 + settle * 0.32)
+    );
+    turn(`lowerarm_${side}`, 0, sign * (0.55 - settle * 0.25), 0);
+    turn(`thigh_${side}`, -0.4 + settle * 0.23, sign * 0.14, sign * 0.13);
+    turn(`calf_${side}`, 0.65 - settle * 0.45 + motion * sign, 0, 0);
+  }
 }

@@ -4,7 +4,7 @@ import { createServer } from 'node:http';
 import { Server } from 'socket.io';
 import { io as client } from 'socket.io-client';
 import { attachJetskiRoyal } from '../bot/services/jetskiRoyal.js';
-import { aiInput } from '../webapp/src/games/jetski/simulation.mjs';
+import { aiInput, sample } from '../webapp/src/games/jetski/simulation.mjs';
 
 test('real sockets: lobby, host/ready rules, authority, reconnect, finish and rematch', async (t) => {
   let now = 100000;
@@ -138,4 +138,34 @@ test('real sockets: lobby, host/ready rules, authority, reconnect, finish and re
   assert.equal(room.hostId, join.playerId);
   await call(b, 'leave');
   assert.equal(game.rooms.size, 0);
+
+  now += 1000;
+  const river = await call(replacement, 'create', { trackId: 'lana' });
+  assert.equal(river.state.trackId, 'lana');
+  assert.equal((await call(b, 'join', { code: river.code })).ok, true);
+  await call(replacement, 'ready', { ready: true });
+  await call(b, 'ready', { ready: true });
+  assert.equal((await call(replacement, 'start')).ok, true);
+  tick(305);
+  const riverRoom = game.rooms.get(river.code);
+  const riverRider = riverRoom.racers.find((r) => r.id === river.playerId);
+  const edge = sample(riverRoom.track, 44, riverRoom.track.width - 0.1);
+  riverRider.x = edge.x;
+  riverRider.z = edge.z;
+  riverRider.heading = edge.heading + Math.PI / 2;
+  riverRider.vx = Math.sin(riverRider.heading) * 24;
+  riverRider.vz = Math.cos(riverRider.heading) * 24;
+  tick(2);
+  const remoteRider = (await call(b, 'sync')).state.racers.find(
+    (r) => r.id === river.playerId
+  );
+  assert.equal(remoteRider.crashes, 1);
+  assert.ok(remoteRider.crash && Number.isFinite(remoteRider.crash.height));
+  assert.ok(!('input' in remoteRider));
+  tick(180);
+  assert.equal(
+    (await call(b, 'sync')).state.racers.find((r) => r.id === river.playerId)
+      .crash,
+    null
+  );
 });

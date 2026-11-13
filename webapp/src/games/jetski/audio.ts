@@ -87,16 +87,19 @@ export class JetskiAudio {
     );
     this.filter.frequency.setTargetAtTime(800 + speed * 85, t, 0.12);
   }
-  cue(kind: 'gate' | 'splash' | 'count' | 'finish') {
+  cue(kind: 'gate' | 'splash' | 'crash' | 'count' | 'finish') {
     if (!this.context || !this.master || !this.enabled) return;
     const c = this.context,
       o = c.createOscillator(),
       g = c.createGain(),
       t = c.currentTime;
-    o.type = kind === 'splash' ? 'triangle' : 'sine';
+    const impact = kind === 'crash' || kind === 'splash';
+    o.type = kind === 'crash' ? 'sawtooth' : impact ? 'triangle' : 'sine';
     o.frequency.setValueAtTime(
-      kind === 'splash'
-        ? 130
+      impact
+        ? kind === 'crash'
+          ? 86
+          : 130
         : kind === 'finish'
           ? 880
           : kind === 'gate'
@@ -105,7 +108,7 @@ export class JetskiAudio {
       t
     );
     o.frequency.exponentialRampToValueAtTime(
-      kind === 'splash' ? 35 : kind === 'finish' ? 1320 : 880,
+      impact ? 35 : kind === 'finish' ? 1320 : 880,
       t + 0.18
     );
     g.gain.setValueAtTime(0.0001, t);

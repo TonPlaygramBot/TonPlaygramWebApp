@@ -1,4 +1,10 @@
 // Shared deterministic watercraft simulation. The online server accepts inputs only.
+import {
+  LANA_CHANNEL_WIDTH,
+  makeLanaPoints,
+  nearestLana
+} from './lanaCourse.mjs';
+
 export const STEP = 1 / 60;
 export const RACE_LIMIT = 300;
 export const LAPS = 3;
@@ -29,6 +35,15 @@ export const TRACKS = [
     wave: 0.14,
     length: '1.7 km',
     difficulty: 'Precision'
+  },
+  {
+    id: 'lana',
+    name: 'Lana River',
+    subtitle: 'Central Tirana · bridges and narrow banks',
+    width: LANA_CHANNEL_WIDTH / 2 - 0.65,
+    wave: 0.12,
+    length: '0.9 km',
+    difficulty: 'River sprint'
   }
 ];
 export const CRAFTS = [
@@ -36,27 +51,27 @@ export const CRAFTS = [
     id: 'pulse',
     name: 'Pulse R',
     role: 'Balanced',
-    speed: 31,
-    acceleration: 11,
-    handling: 1.45,
+    speed: 33,
+    acceleration: 13.4,
+    handling: 1.58,
     color: '#32e2d1'
   },
   {
     id: 'surge',
     name: 'Surge GT',
     role: 'Top speed',
-    speed: 34,
-    acceleration: 9.5,
-    handling: 1.28,
+    speed: 36,
+    acceleration: 13,
+    handling: 1.42,
     color: '#ffab62'
   },
   {
     id: 'agile',
     name: 'Aero SX',
     role: 'Cornering',
-    speed: 29,
-    acceleration: 12,
-    handling: 1.7,
+    speed: 31,
+    acceleration: 14.2,
+    handling: 1.82,
     color: '#c6b4ff'
   }
 ];
@@ -68,51 +83,66 @@ export const normalizeCraft = (id) =>
   CRAFTS.some((c) => c.id === id) ? id : 'pulse';
 export function makeTrack(id) {
   const info = TRACKS.find((t) => t.id === normalizeTrack(id));
-  const points = Array.from({ length: 240 }, (_, i) => {
-    const a = (i / 240) * Math.PI * 2;
-    const radius =
-      info.id === 'dhermi'
-        ? 110 + 18 * Math.sin(a * 3)
-        : info.id === 'harbor'
-          ? 83 + 14 * Math.sin(a * 2)
-          : 96 + 10 * Math.sin(a * 3);
-    return {
-      x: Math.sin(a) * radius,
-      z: Math.cos(a) * radius * (info.id === 'dhermi' ? 1.12 : 0.93)
-    };
-  });
+  const pointToPoint = info.id === 'lana';
+  const points = pointToPoint
+    ? makeLanaPoints()
+    : Array.from({ length: 240 }, (_, i) => {
+        const a = (i / 240) * Math.PI * 2;
+        const radius =
+          info.id === 'dhermi'
+            ? 110 + 18 * Math.sin(a * 3)
+            : info.id === 'harbor'
+              ? 83 + 14 * Math.sin(a * 2)
+              : 96 + 10 * Math.sin(a * 3);
+        return {
+          x: Math.sin(a) * radius,
+          z: Math.cos(a) * radius * (info.id === 'dhermi' ? 1.12 : 0.93)
+        };
+      });
   const lengths = [0];
-  for (let i = 1; i <= points.length; i++)
+  const segmentCount = points.length - Number(pointToPoint);
+  for (let i = 1; i <= segmentCount; i++)
     lengths.push(
       lengths[i - 1] +
         Math.hypot(
-          points[i % 240].x - points[i - 1].x,
-          points[i % 240].z - points[i - 1].z
+          points[i % points.length].x - points[i - 1].x,
+          points[i % points.length].z - points[i - 1].z
         )
     );
   const track = {
     ...info,
+    pointToPoint,
+    laps: pointToPoint ? 1 : LAPS,
     points,
     lengths,
-    totalLength: lengths[240],
+    totalLength: lengths[segmentCount],
     gates: [],
     ramps: [],
     pickups: []
   };
-  track.gates = Array.from({ length: 12 }, (_, i) => sample(track, i * 20));
-  track.ramps = [sample(track, 51, 4), sample(track, 166, -4)];
+  track.gates = Array.from({ length: 12 }, (_, i) =>
+    sample(track, pointToPoint ? Math.round((i * segmentCount) / 11) : i * 20)
+  );
+  if (!pointToPoint)
+    track.ramps = [sample(track, 51, 4), sample(track, 166, -4)];
+  const offset = pointToPoint ? 1.4 : 5;
   track.pickups = [
-    sample(track, 28, -5),
-    sample(track, 105, 5),
-    sample(track, 202, -4)
+    sample(track, 28, -offset),
+    sample(track, 105, offset),
+    sample(track, 202, -offset)
   ];
   return track;
 }
 export function sample(track, index, offset = 0) {
-  const i = ((Math.floor(index) % 240) + 240) % 240;
-  const p = track.points[i],
-    next = track.points[(i + 1) % 240];
-  const heading = Math.atan2(next.x - p.x, next.z - p.z);
+  const count = track.points.length;
+  const i = track.pointToPoint
+    ? clamp(Math.floor(index), 0, count - 1)
+    : ((Math.floor(index) % count) + count) % count;
+  const p = track.points[i];
+  const from = track.points[track.pointToPoint && i === count - 1 ? i - 1 : i];
+  const to =
+    track.points[track.pointToPoint && i === count - 1 ? i : (i + 1) % count];
+  const heading = Math.atan2(to.x - from.x, to.z - from.z);
   return {
     x: p.x + Math.cos(heading) * offset,
     z: p.z - Math.sin(heading) * offset,
@@ -121,6 +151,7 @@ export function sample(track, index, offset = 0) {
   };
 }
 export function nearest(track, x, z) {
+  if (track.pointToPoint) return nearestLana(x, z);
   let best = 0,
     d2 = Infinity;
   for (let i = 0; i < 240; i++) {
@@ -131,7 +162,7 @@ export function nearest(track, x, z) {
       best = i;
     }
   }
-  return { index: best, distance: Math.sqrt(d2) };
+  return { index: best, distance: Math.sqrt(d2), ...track.points[best] };
 }
 export function waterHeight(x, z, time, wave = 0.23) {
   return (
@@ -157,6 +188,21 @@ export function sanitizeInput(data = {}) {
     recover: data.recover === true
   };
 }
+function startPosition(track, slot) {
+  const offset = track.pointToPoint
+    ? slot % 2
+      ? 1.35
+      : -1.35
+    : ((slot % 3) - 1) * 3.8;
+  const grid = sample(track, 0, offset);
+  const distance = 5 + Math.floor(slot / (track.pointToPoint ? 2 : 3)) * 5;
+  return {
+    x: grid.x - Math.sin(grid.heading) * distance,
+    z: grid.z - Math.cos(grid.heading) * distance,
+    heading: grid.heading,
+    distance
+  };
+}
 export function createRacer(
   track,
   id,
@@ -165,17 +211,16 @@ export function createRacer(
   ai = false,
   craftId = 'pulse'
 ) {
-  const grid = sample(track, 0, ((slot % 3) - 1) * 3.8);
-  const distance = 5 + Math.floor(slot / 3) * 5;
+  const { x, z, heading, distance } = startPosition(track, slot);
   return {
     id,
     name: String(name).slice(0, 18),
     slot,
     ai,
     craftId: normalizeCraft(craftId),
-    x: grid.x - Math.sin(grid.heading) * distance,
-    z: grid.z - Math.cos(grid.heading) * distance,
-    heading: grid.heading,
+    x,
+    z,
+    heading,
     vx: 0,
     vz: 0,
     speed: 0,
@@ -201,48 +246,269 @@ export function createRacer(
     rampAt: -99,
     recoveryAt: -99,
     hitAt: -99,
+    crashes: 0,
+    crash: null,
     input: neutralInput(),
     lastInput: 0
   };
 }
 export function aiInput(r, track, difficulty = 'club') {
   const n = nearest(track, r.x, r.z);
+  const river = track.pointToPoint;
+  const next = track.gates[r.nextGate];
+  const nextIsAhead =
+    (next.x - r.x) * Math.sin(next.heading) +
+      (next.z - r.z) * Math.cos(next.heading) >
+    0;
+  const distancePerPoint =
+    track.totalLength / (track.points.length - (river ? 1 : 0));
+  const lookahead =
+    (river ? 5 + r.speed * 0.28 : 12 + r.speed * 0.38) / distancePerPoint;
   const look = sample(
     track,
-    n.index + 5 + r.speed * 0.18,
-    Math.sin(r.slot * 7) * 3
+    n.index + Math.max(1, Math.ceil(lookahead)),
+    Math.sin(r.slot * 7) * (river ? 1.05 : 3)
   );
-  const angle = wrapAngle(Math.atan2(look.x - r.x, look.z - r.z) - r.heading);
-  const target =
+  const courseHeading =
+    n.index >= track.points.length - 1 && river
+      ? look.heading
+      : Math.atan2(look.x - r.x, look.z - r.z);
+  // Straighten the hull to the direction of travel before it touches down.
+  const desired =
+    r.airborne && r.speed > 3 ? Math.atan2(r.vx, r.vz) : courseHeading;
+  const angle = wrapAngle(desired - r.heading);
+  const pace =
     difficulty === 'rookie'
-      ? 21 + r.slot * 0.4
+      ? 22 + r.slot * 0.4
       : difficulty === 'pro'
-        ? 33
-        : 27;
+        ? 35
+        : 30;
+  const curve = Math.abs(
+    wrapAngle(look.heading - sample(track, n.index).heading)
+  );
+  const target = river
+    ? clamp(pace * (0.88 - curve * 1.35 - Math.abs(angle) * 0.44), 8, pace)
+    : clamp(pace * (1 - curve * 0.55 - Math.abs(angle) * 0.28), 13, pace);
   return {
-    steer: clamp(-angle * 1.8, -1, 1),
-    throttle: r.speed < target || Math.abs(angle) < 0.35,
-    brake: Math.abs(angle) > 0.82 && r.speed > 17,
-    boost: Math.abs(angle) < 0.13 && r.boost > 32 && difficulty !== 'rookie',
-    recover: n.distance > track.width + 12
+    steer: clamp(-angle * (river ? 2.6 : 1.9), -1, 1),
+    throttle: r.speed < target,
+    brake: r.speed > target + (river ? 1.8 : 3.5),
+    boost:
+      Math.abs(angle) < 0.12 &&
+      curve < (river ? 0.06 : 0.2) &&
+      r.speed > 15 &&
+      r.boost > 32 &&
+      difficulty !== 'rookie',
+    recover:
+      n.distance > track.width + 12 ||
+      (river && !nextIsAhead && n.index > next.index + 2)
   };
+}
+function resetMotion(r, x, z, heading) {
+  r.x = x;
+  r.z = z;
+  r.heading = heading;
+  r.vx = r.vz = r.speed = r.verticalSpeed = r.height = r.steer = 0;
+  r.airborne = false;
+  r.boosting = false;
 }
 function recover(r, track, elapsed) {
   if (elapsed - r.recoveryAt < 4) return;
-  const p = track.gates[(r.nextGate + 11) % 12];
-  // Resume immediately AFTER the last accepted gate; never award a gate by resetting.
-  r.x = p.x + Math.sin(p.heading) * 3;
-  r.z = p.z + Math.cos(p.heading) * 3;
-  r.heading = p.heading;
-  r.vx = r.vz = r.speed = r.verticalSpeed = r.height = 0;
-  r.airborne = false;
+  if (!r.gatesPassed) {
+    const start = startPosition(track, r.slot);
+    resetMotion(r, start.x, start.z, start.heading);
+  } else {
+    const gates = track.gates;
+    const p = gates[(r.nextGate + gates.length - 1) % gates.length];
+    // Resume after the last accepted gate without skipping the next gate.
+    resetMotion(
+      r,
+      p.x + Math.sin(p.heading) * 3,
+      p.z + Math.cos(p.heading) * 3,
+      p.heading
+    );
+  }
   r.recoveryAt = elapsed;
   r.penalty += 5;
 }
+
+function eject(r, elapsed, impact, bankX = 0, bankZ = 0) {
+  if (r.crash) return;
+  const outward = Math.max(0, r.vx * bankX + r.vz * bankZ);
+  const vx = (r.vx - bankX * outward) * 0.44 - bankX * 2.2;
+  const vz = (r.vz - bankZ * outward) * 0.44 - bankZ * 2.2;
+  r.crash = {
+    x: r.x - bankX * 0.4,
+    z: r.z - bankZ * 0.4,
+    height: r.height + 0.98,
+    vx,
+    vz,
+    verticalSpeed: 2.5 + Math.min(1.7, impact * 0.09),
+    heading: Math.hypot(vx, vz) > 0.5 ? Math.atan2(vx, vz) : r.heading,
+    age: 0
+  };
+  r.hitAt = elapsed;
+  r.crashes++;
+  r.penalty += 3;
+  r.boosting = false;
+  r.vx *= 0.36;
+  r.vz *= 0.36;
+  r.speed = Math.hypot(r.vx, r.vz);
+}
+
+function bankContact(body, n, width) {
+  if (n.distance <= width) return null;
+  const nx = (body.x - n.x) / n.distance;
+  const nz = (body.z - n.z) / n.distance;
+  body.x = n.x + nx * width;
+  body.z = n.z + nz * width;
+  return { nx, nz, impact: Math.max(0, body.vx * nx + body.vz * nz) };
+}
+
+function remount(r, track) {
+  const n = nearest(track, r.x, r.z);
+  const next = track.gates[r.nextGate];
+  const prev =
+    track.gates[(r.nextGate + track.gates.length - 1) % track.gates.length];
+  const count = track.points.length;
+  const fromPrevious = (n.index - prev.index + count) % count;
+  const segmentLength = (next.index - prev.index + count) % count;
+  if (!r.gatesPassed) {
+    const start = startPosition(track, r.slot);
+    resetMotion(r, start.x, start.z, start.heading);
+  } else if (fromPrevious > 0 && fromPrevious < segmentLength) {
+    const p = sample(track, n.index);
+    const lateral = Math.min(
+      0.72,
+      (track.width - 0.8) / Math.max(1, n.distance)
+    );
+    resetMotion(
+      r,
+      n.x + (r.x - n.x) * lateral,
+      n.z + (r.z - n.z) * lateral,
+      p.heading
+    );
+  } else {
+    const p = sample(
+      track,
+      fromPrevious <= segmentLength + 6 ? next.index - 2 : prev.index + 1
+    );
+    resetMotion(r, p.x, p.z, p.heading);
+  }
+  r.crash = null;
+}
+
+function stepCrash(r, track, dt) {
+  const crash = r.crash;
+  crash.age += dt;
+  if (crash.height > 0) {
+    crash.verticalSpeed -= 9.81 * dt;
+    crash.height = Math.max(0, crash.height + crash.verticalSpeed * dt);
+  }
+  const riderDrag = Math.exp(-dt * (crash.height > 0 ? 0.8 : 6));
+  crash.vx *= riderDrag;
+  crash.vz *= riderDrag;
+  crash.x += crash.vx * dt;
+  crash.z += crash.vz * dt;
+  const hullDrag = Math.exp(-dt * 2.8);
+  r.vx *= hullDrag;
+  r.vz *= hullDrag;
+  r.x += r.vx * dt;
+  r.z += r.vz * dt;
+  r.speed = Math.hypot(r.vx, r.vz);
+  r.steer *= hullDrag;
+  if (r.airborne) {
+    r.verticalSpeed -= 9.81 * dt;
+    r.height = Math.max(0, r.height + r.verticalSpeed * dt);
+    if (r.height === 0) {
+      r.airborne = false;
+      r.verticalSpeed = 0;
+    }
+  }
+  if (track.pointToPoint) {
+    const craftContact = bankContact(r, nearest(track, r.x, r.z), track.width);
+    if (craftContact) {
+      r.vx -= craftContact.nx * craftContact.impact;
+      r.vz -= craftContact.nz * craftContact.impact;
+      r.speed = Math.hypot(r.vx, r.vz);
+    }
+    const riderContact = bankContact(
+      crash,
+      nearest(track, crash.x, crash.z),
+      track.width + 0.25
+    );
+    if (riderContact) {
+      crash.vx -= riderContact.nx * riderContact.impact;
+      crash.vz -= riderContact.nz * riderContact.impact;
+    }
+  }
+  if (crash.age >= 2.4) remount(r, track);
+}
+
+function finishRace(r, elapsed) {
+  r.finished = true;
+  r.finishTime = elapsed + r.penalty;
+  r.boosting = false;
+}
+
+function crossGate(r, track, elapsed) {
+  r.gatesPassed++;
+  if (r.nextGate === 0) {
+    if (r.lap > 0) {
+      const lapTime = elapsed - r.lapStarted;
+      r.bestLap = r.bestLap ? Math.min(r.bestLap, lapTime) : lapTime;
+    }
+    r.lap++;
+    r.lapStarted = elapsed;
+    if (r.lap > (track.laps ?? LAPS)) finishRace(r, elapsed);
+  }
+  const lastGate = r.nextGate === track.gates.length - 1;
+  if (lastGate && track.pointToPoint) {
+    r.bestLap = elapsed - r.lapStarted;
+    finishRace(r, elapsed);
+  } else {
+    r.nextGate = (r.nextGate + 1) % track.gates.length;
+  }
+}
+
+function hullReach(r, nx, nz) {
+  const along = Math.sin(r.heading) * nx + Math.cos(r.heading) * nz;
+  return Math.sqrt(0.72 ** 2 + (1.52 ** 2 - 0.72 ** 2) * along ** 2);
+}
+
+function checkGate(r, track, elapsed, oldX, oldZ) {
+  const gate = track.gates[r.nextGate];
+  const headingX = Math.sin(gate.heading);
+  const headingZ = Math.cos(gate.heading);
+  const before = (oldX - gate.x) * headingX + (oldZ - gate.z) * headingZ;
+  const after = (r.x - gate.x) * headingX + (r.z - gate.z) * headingZ;
+  if (before < 0 && after >= 0) {
+    const fraction = -before / (after - before);
+    const crossX = oldX + (r.x - oldX) * fraction;
+    const crossZ = oldZ + (r.z - oldZ) * fraction;
+    const gateDistance = Math.hypot(crossX - gate.x, crossZ - gate.z);
+    if (gateDistance < track.width + (track.pointToPoint ? 0.9 : 2)) {
+      crossGate(r, track, elapsed);
+    }
+  }
+}
+
+function updateProgress(r, track) {
+  // Gate count leads ranking. Proximity only breaks ties within that gate segment.
+  const next = track.gates[r.nextGate];
+  r.progress = r.gatesPassed * 1000 - Math.hypot(r.x - next.x, r.z - next.z);
+}
+
 export function stepRace(racers, track, dt, elapsed, difficulty = 'club') {
   dt = clamp(dt, 0, STEP);
+  const gateCandidates = [];
   for (const r of racers) {
     if (r.finished) continue;
+    if (r.crash) {
+      stepCrash(r, track, dt);
+      updateProgress(r, track);
+      continue;
+    }
     const input = r.disconnected
       ? { ...neutralInput(), brake: true }
       : r.ai
@@ -260,31 +526,41 @@ export function stepRace(racers, track, dt, elapsed, difficulty = 'club') {
       !r.airborne &&
       !input.brake;
     r.boost = clamp(r.boost + dt * (r.boosting ? -24 : 5), 0, 100);
-    const forward = r.vx * Math.sin(r.heading) + r.vz * Math.cos(r.heading);
+    const headingX = Math.sin(r.heading);
+    const headingZ = Math.cos(r.heading);
+    const forward = r.vx * headingX + r.vz * headingZ;
+    const cap = spec.speed * (r.boosting ? 1.24 : 1);
     const thrust =
       input.throttle && !input.brake
-        ? spec.acceleration * (r.boosting ? 1.7 : 1)
+        ? spec.acceleration *
+          (r.boosting ? 1.55 : 1) *
+          clamp((cap + 4 - forward) / 4, 0, 1) *
+          (r.airborne ? 0.15 : 1)
         : 0;
-    const drag = 0.18 + Math.abs(forward) * 0.006 + (input.brake ? 1.7 : 0);
-    r.vx += (Math.sin(r.heading) * thrust - r.vx * drag) * dt;
-    r.vz += (Math.cos(r.heading) * thrust - r.vz * drag) * dt;
-    const grip = 1 - Math.exp(-dt * (r.airborne ? 0.4 : 3.8));
-    const side = r.vx * Math.cos(r.heading) - r.vz * Math.sin(r.heading);
-    r.vx -= Math.cos(r.heading) * side * grip;
-    r.vz += Math.sin(r.heading) * side * grip;
+    const drag = r.airborne
+      ? 0.1
+      : 0.16 + Math.abs(forward) * 0.005 + (input.brake ? 1.65 : 0);
+    r.vx += (headingX * thrust - r.vx * drag) * dt;
+    r.vz += (headingZ * thrust - r.vz * drag) * dt;
+    const grip =
+      1 - Math.exp(-dt * (r.airborne ? 0.35 : 6 - Math.abs(r.steer) * 1.25));
+    const side = r.vx * headingZ - r.vz * headingX;
+    r.vx -= headingZ * side * grip;
+    r.vz += headingX * side * grip;
     // Positive input turns visually right from a rear chase / rider-eye view.
     r.heading -=
       r.steer *
       spec.handling *
-      clamp(Math.abs(forward) / 12, 0, 1) *
-      (r.airborne ? 0.28 : 1) *
+      clamp(Math.abs(forward) / 9, 0, 1) *
+      (r.airborne ? 0.24 : input.throttle || input.brake ? 1 : 0.76) *
+      (1 - clamp((r.speed - 19) * 0.013, 0, 0.27)) *
       dt;
     r.speed = Math.hypot(r.vx, r.vz);
-    const cap = spec.speed * (r.boosting ? 1.28 : 1);
-    if (r.speed > cap) {
-      r.vx *= cap / r.speed;
-      r.vz *= cap / r.speed;
-      r.speed = cap;
+    const maximum = spec.speed * 1.25;
+    if (r.speed > maximum) {
+      r.vx *= maximum / r.speed;
+      r.vz *= maximum / r.speed;
+      r.speed = maximum;
     }
     r.x += r.vx * dt;
     r.z += r.vz * dt;
@@ -295,10 +571,16 @@ export function stepRace(racers, track, dt, elapsed, difficulty = 'club') {
       if (r.height <= 0) {
         r.height = 0;
         r.airborne = false;
+        const landingImpact = -r.verticalSpeed;
         r.verticalSpeed = 0;
+        if (landingImpact > 7.3 && Math.abs(side) > 5.5) {
+          eject(r, elapsed, landingImpact);
+          continue;
+        }
         r.landings++;
         r.vx *= 0.92;
         r.vz *= 0.92;
+        r.speed *= 0.92;
       }
     } else if (elapsed - r.rampAt > 3 && r.speed > 12) {
       for (const ramp of track.ramps)
@@ -323,75 +605,84 @@ export function stepRace(racers, track, dt, elapsed, difficulty = 'club') {
         r.pickupAt[i] = elapsed;
       }
     });
-    const n = nearest(track, r.x, r.z),
-      center = track.points[n.index];
-    if (n.distance > track.width) {
+    const n = nearest(track, r.x, r.z);
+    if (track.pointToPoint) {
+      const contact = bankContact(r, n, track.width);
+      if (contact) {
+        if (contact.impact > 7.5) {
+          eject(r, elapsed, contact.impact, contact.nx, contact.nz);
+          continue;
+        }
+        if (contact.impact > 2.2) r.hitAt = elapsed;
+        r.vx -= contact.nx * contact.impact * 1.18;
+        r.vz -= contact.nz * contact.impact * 1.18;
+        r.speed = Math.hypot(r.vx, r.vz);
+      }
+    } else if (n.distance > track.width) {
       const excess = n.distance - track.width;
       r.vx *= Math.exp(-dt * 1.7);
       r.vz *= Math.exp(-dt * 1.7);
-      r.x += ((center.x - r.x) / n.distance) * Math.min(excess, dt * 6);
-      r.z += ((center.z - r.z) / n.distance) * Math.min(excess, dt * 6);
-      if (excess > 22) recover(r, track, elapsed);
-    }
-    const gate = track.gates[r.nextGate];
-    const before =
-      (oldX - gate.x) * Math.sin(gate.heading) +
-      (oldZ - gate.z) * Math.cos(gate.heading);
-    const after =
-      (r.x - gate.x) * Math.sin(gate.heading) +
-      (r.z - gate.z) * Math.cos(gate.heading);
-    if (
-      before < 0 &&
-      after >= 0 &&
-      Math.hypot(r.x - gate.x, r.z - gate.z) < track.width + 2
-    ) {
-      r.gatesPassed++;
-      if (r.nextGate === 0) {
-        if (r.lap > 0) {
-          const lapTime = elapsed - r.lapStarted;
-          r.bestLap = r.bestLap ? Math.min(r.bestLap, lapTime) : lapTime;
-        }
-        r.lap++;
-        r.lapStarted = elapsed;
-        if (r.lap > LAPS) {
-          r.finished = true;
-          r.finishTime = elapsed + r.penalty;
-          r.boosting = false;
-        }
+      r.x += ((n.x - r.x) / n.distance) * Math.min(excess, dt * 6);
+      r.z += ((n.z - r.z) / n.distance) * Math.min(excess, dt * 6);
+      r.speed = Math.hypot(r.vx, r.vz);
+      if (excess > 22) {
+        recover(r, track, elapsed);
+        updateProgress(r, track);
+        continue;
       }
-      r.nextGate = (r.nextGate + 1) % 12;
     }
-    // Gate count leads ranking. Proximity only breaks ties within that gate segment.
-    const next = track.gates[r.nextGate];
-    r.progress = r.gatesPassed * 1000 - Math.hypot(r.x - next.x, r.z - next.z);
+    gateCandidates.push({ r, oldX, oldZ });
   }
   for (let i = 0; i < racers.length; i++)
     for (let j = i + 1; j < racers.length; j++) {
       const a = racers[i],
         b = racers[j];
-      if (a.finished || b.finished || Math.abs(a.height - b.height) > 1)
+      if (
+        a.finished ||
+        b.finished ||
+        a.crash ||
+        b.crash ||
+        Math.abs(a.height - b.height) > 0.85
+      )
         continue;
       const dx = b.x - a.x,
         dz = b.z - a.z,
         d = Math.hypot(dx, dz);
-      if (d < 2.2 && d > 0.001) {
-        const nx = dx / d,
-          nz = dz / d,
-          overlap = (2.2 - d) * 0.5;
+      if (d < 3.04) {
+        const nx = d > 0.001 ? dx / d : Math.sin(a.heading),
+          nz = d > 0.001 ? dz / d : Math.cos(a.heading),
+          overlap = (hullReach(a, nx, nz) + hullReach(b, nx, nz) - d) * 0.5;
+        if (overlap <= 0) continue;
         a.x -= nx * overlap;
         a.z -= nz * overlap;
         b.x += nx * overlap;
         b.z += nz * overlap;
+        if (track.pointToPoint) {
+          bankContact(a, nearest(track, a.x, a.z), track.width);
+          bankContact(b, nearest(track, b.x, b.z), track.width);
+        }
         const closing = (a.vx - b.vx) * nx + (a.vz - b.vz) * nz;
         if (closing > 0) {
-          a.vx -= nx * closing * 0.6;
-          a.vz -= nz * closing * 0.6;
-          b.vx += nx * closing * 0.6;
-          b.vz += nz * closing * 0.6;
+          const impulse = closing * 0.56;
+          a.vx -= nx * impulse;
+          a.vz -= nz * impulse;
+          b.vx += nx * impulse;
+          b.vz += nz * impulse;
+          if (closing > 15) {
+            eject(a, elapsed, closing);
+            eject(b, elapsed, closing);
+            continue;
+          }
+          a.speed = Math.hypot(a.vx, a.vz);
+          b.speed = Math.hypot(b.vx, b.vz);
           a.hitAt = b.hitAt = elapsed;
         }
       }
     }
+  for (const { r, oldX, oldZ } of gateCandidates) {
+    if (!r.crash) checkGate(r, track, elapsed, oldX, oldZ);
+    updateProgress(r, track);
+  }
 }
 export const standings = (racers) =>
   [...racers].sort(
