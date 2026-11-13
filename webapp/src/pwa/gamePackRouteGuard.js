@@ -3,6 +3,7 @@ const GAME_PACKS_REQUIRED = import.meta.env.VITE_REQUIRE_GAME_PACKS === 'true';
 const INSTALL_STATE_KEY = 'tonplaygram-game-pack-installs-v1';
 
 const MANAGED_GAME_ROUTES = [
+  { prefixes: ['/games/tiranastreets', '/games/blackwater'], packId: 'tirana-streets' },
   { prefixes: ['/games/kartroyale'], packId: 'racing-royal' },
   { prefixes: ['/games/poolroyale', '/games/snookerroyale'], packId: 'pool-royale' },
   { prefixes: ['/games/tabletennisroyal', '/games/tennisroyal'], packId: 'table-tennis-royal' },

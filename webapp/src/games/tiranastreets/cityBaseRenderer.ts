@@ -1,0 +1,1352 @@
+import {LocalShadowBudget} from './LocalShadowBudget';
+import {updateNavigationLine,navigationLineEnd} from './NavigationLine';
+import {renderPixelRatio} from './renderSettings';
+import {nearestActors} from './shared/frameBudget.mjs';
+import {SkanderbegBuildingLayer} from '../tirana-landmarks/SkanderbegBuildingLayer';
+import {ROCK_REPLACEMENT_IDS} from '../tirana-landmarks/skanderbegBuilding.mjs';
+import {AutomaticGraphics, DynamicResolution, GRAPHICS_PROFILES, graphicsSetting, type GraphicsPreset, type GraphicsSetting} from './graphicsQuality';
+import {BikeVisuals} from './BikeVisuals';
+import {prepareModelWheels,prepareLegacyWheels,collectRollingWheels,rollWheels,type RollingWheel} from './rollingWheels';
+import {prepareVehicleMaterials} from './vehicleMaterials';
+import {selectedPlayerUrl} from './playerCatalog.mjs';
+import {HumanModelLoader} from './HumanModelLoader';
+import {loadPlayerModelBytes,discardPlayerModelBytes} from './playerModelBytes.mjs';
+import {prepareHumanMaterials} from './street-career/humanMaterials.mjs';
+import {normalizePlayableHuman, humanoidBones, HumanoidLegPose, solveHumanoidLimb, hideAuthoredPlayerWeapon} from './street-career/humanoidRig.mjs';
+import {groundHeight} from '../tirana-east/terrainCore.mjs';
+import {LandscapeVisuals} from './landscapeVisuals';
+import {CinematicAtmosphere} from '../tirana-environment/CinematicAtmosphere';
+import {EnvironmentMaterials} from '../tirana-environment/EnvironmentMaterials';
+import {cutChannels,surfaceGeometry} from '../tirana-environment/riverGeometry';
+import {createWebGLRenderer} from './createWebGLRenderer';
+import {CollectionVehicleVisuals} from './CollectionVehicleVisuals';
+import {UrbanRoadCells} from '../tirana-neighbourhood/UrbanRoadCells';
+import {DriverInterior} from './DriverInterior';
+import {driverEye,driverFov,driverDirection,driverUp} from './shared/driverView.mjs';
+import {AgedHousingLayer} from '../tirana-city-source/AgedHousingLayer';
+import {AGED_HOUSING_IDS} from '../tirana-city-source/housingRegistry.mjs';
+import {ECONOMY_BUILDING_IDS} from './street-career/cityEconomyDefinitions.mjs';
+import {collectionVehicleFor,CIVILIAN_VEHICLE_MODELS} from './shared/vehicleCollection.mjs';
+import {ImportedAssetVisuals} from './ImportedAssetVisuals';
+import * as THREE from "three";
+import {OutdoorEnvironment} from "../tirana-environment/OutdoorEnvironment";
+import { CityFacades, DETAIL_IDS } from "./cityVisuals";
+import { LivingVisuals } from "./livingVisuals";
+import { AlbanianForcesVisuals } from "./AlbanianForcesVisuals";
+import { GLTFLoader } from "three/examples/jsm/loaders/GLTFLoader.js";
+import { DRACOLoader } from "three/examples/jsm/loaders/DRACOLoader.js";
+import { clone } from "three/examples/jsm/utils/SkeletonUtils.js";
+import { mergeGeometries } from "three/examples/jsm/utils/BufferGeometryUtils.js";
+import {
+  WORLD,
+  SPAWN,
+  insidePolygon,
+  cameraDistance,
+  type State,
+  type Point,
+  type NPC,
+} from "./shared/engine.mjs";
+
+import { ReferenceFacades } from '../tirana-city-source/ReferenceFacades';
+import { REFERENCE_BUILDINGS } from '../tirana-city-source/profiles.mjs';
+import { LANDMARK_REPLACED_IDS } from '../tirana-city-source/landmarkCatalog.mjs';
+import { MAPPED_TREES } from '../tirana-city-source/registry.mjs';
+import {MATURE_TREE_IDS,FUEL_CANOPY_IDS} from '../tirana-street-life/registry.mjs';
+
+const ASSETS = "/assets/tirana-streets/";
+const Y = new THREE.Vector3(0, 1, 0);
+const tmp = new THREE.Object3D();
+const smoothAngle = (a: number, b: number, t: number) =>
+  a + Math.atan2(Math.sin(b - a), Math.cos(b - a)) * t;
+export type Actor = {
+  group: THREE.Group;
+  mixer?: THREE.AnimationMixer;
+  idle?: THREE.AnimationAction;
+  run?: THREE.AnimationAction;
+  moving?: boolean;
+  wheels: RollingWheel[];
+  model: string;
+  walk?: THREE.AnimationAction;
+  clips?: Record<string, THREE.AnimationAction>;
+  importedRig?: {bones:Map<string,THREE.Bone>;rests:Map<THREE.Bone,THREE.Quaternion>;legs:HumanoidLegPose;gait:number};
+};
+
+export class CityRenderer {
+  renderer: THREE.WebGLRenderer;
+  scene = new THREE.Scene();
+  camera = new THREE.PerspectiveCamera(52, 1, 0.15, 3600);
+  yaw = 0;
+  pitch = 0.32;
+  firstPerson = false;
+  protected get cockpitCamera(){return this.firstPerson;}
+  protected preserveVehicleInterior = false;
+  fps = 60;
+  quality: GraphicsPreset = 'balanced';
+  qualitySetting: GraphicsSetting = 'auto';
+  private automaticGraphics = new AutomaticGraphics();
+  private dynamicResolution = new DynamicResolution();
+  private viewportWidth = 0;
+  private viewportHeight = 0;
+  targetFps = 60;
+  ready = false;
+  disposed = false;
+  readonly landscape: LandscapeVisuals;
+  readonly atmosphere: CinematicAtmosphere;
+  private surfaceMaterials=new EnvironmentMaterials();
+  private root: HTMLDivElement;
+  private clock = 0;
+  private sampleTime = 0;
+  private sampleStamp = performance.now();
+  private frames = 0;
+  private dpr = 1.5;
+  private observer: ResizeObserver;
+  private playerModel='character';
+  private playerAnimations:THREE.AnimationClip[]=[];
+  private playerAbort?:AbortController;
+  private humanMaterialReleases: ((instances?:THREE.Object3D)=>void)[] = [];
+  private models = new Map<string, THREE.Group>();
+  private actors = new Map<string, Actor>();
+  private animations: THREE.AnimationClip[] = [];
+  private localShadows = new LocalShadowBudget();
+  private sunlight = new THREE.DirectionalLight(0xffe3a4, 3.4);
+  private routeLine: THREE.Line | null = null;
+  private beacon = new THREE.Group();
+  private shellMaterials: THREE.MeshStandardMaterial[] = [];
+  private facades: CityFacades | null = null;
+  private skanderbegBuilding=new SkanderbegBuildingLayer();
+  private living: LivingVisuals;
+  private forces = new AlbanianForcesVisuals();
+  private outdoorEnvironment:OutdoorEnvironment;
+  private racingFleet = new ImportedAssetVisuals();
+  readonly collectionFleet = new CollectionVehicleVisuals();
+  readonly driverInterior = new DriverInterior();
+ private urbanRoads=new UrbanRoadCells();
+  private worldTextures = new Set<THREE.Texture>();
+  private manualUntil = 0;
+  private lastDriven?:{id:string;heading:number};
+  private lastTarget = new THREE.Vector3(SPAWN.x, 0, SPAWN.z);
+  private landmarkText: THREE.Sprite[] = [];
+  readonly referenceFacades = new ReferenceFacades();
+  readonly agedHousing = new AgedHousingLayer();
+  private treePoints: Point[] = [];
+  private mappedTreeCells: {group: THREE.Group; x:number; z:number}[] = [];
+  readonly bikeFleet=new BikeVisuals();
+  constructor(root: HTMLDivElement) {
+    this.root = root;
+    this.renderer = createWebGLRenderer();
+    this.renderer.outputColorSpace = THREE.SRGBColorSpace;
+    this.renderer.toneMapping = THREE.ACESFilmicToneMapping;
+    this.renderer.toneMappingExposure = 1.05;
+    this.renderer.shadowMap.enabled = true;
+    this.renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+    this.dpr = Math.min(window.devicePixelRatio || 1, 1.65);
+    this.renderer.setPixelRatio(this.dpr);
+    root.appendChild(this.renderer.domElement);
+    this.scene.background = new THREE.Color("#b8d0d1");
+    this.scene.fog = new THREE.FogExp2("#b8c6bf", 0.00085);
+    this.scene.add(new THREE.HemisphereLight(0xc8e6f5, 0x8a7e60, 2.1));
+    this.sunlight.position.set(-100, 160, -90);
+    this.sunlight.castShadow = true;
+    this.sunlight.shadow.autoUpdate = false;
+    this.sunlight.shadow.mapSize.set(1024, 1024);
+    Object.assign(this.sunlight.shadow.camera, {
+      left: -65,
+      right: 65,
+      top: 65,
+      bottom: -65,
+      near: 1,
+      far: 420,
+    });
+    this.sunlight.shadow.bias = -0.0007;
+    this.sunlight.shadow.normalBias = 0.08;
+    this.scene.add(this.sunlight, this.sunlight.target);
+    this.landscape=new LandscapeVisuals();
+    this.scene.add(this.landscape.group);
+    this.atmosphere=new CinematicAtmosphere(this.scene,this.renderer);
+    this.outdoorEnvironment=new OutdoorEnvironment(this.scene,this.renderer);
+    this.forces.configure(this.renderer);
+    this.living = new LivingVisuals();
+    this.scene.add(this.living.group);
+    this.scene.add(this.forces.group,this.racingFleet.group,this.collectionFleet.group,this.driverInterior.group,this.urbanRoads.group);
+    this.buildStreets();
+    this.buildBlocks();
+    this.scene.add(this.referenceFacades.group,this.skanderbegBuilding.group);
+    this.scene.add(this.agedHousing.group);
+    this.buildLandmarks();
+    this.buildBeacon();
+    this.observer = new ResizeObserver(() => this.resize());
+    this.observer.observe(root);
+    this.resize();
+    this.setQuality('auto');
+  }
+  private material(
+    color: number | string,
+    options: THREE.MeshStandardMaterialParameters = {},
+  ) {
+    return new THREE.MeshStandardMaterial({
+      color,
+      roughness: 0.8,
+      ...options,
+    });
+  }
+  private box(
+    w: number,
+    h: number,
+    d: number,
+    x: number,
+    y: number,
+    z: number,
+    material: THREE.Material,
+    group: THREE.Object3D = this.scene,
+  ) {
+    const m = new THREE.Mesh(new THREE.BoxGeometry(w, h, d), material);
+    m.position.set(x, y, z);
+    m.castShadow = true;
+    m.receiveShadow = true;
+    group.add(m);
+    return m;
+  }
+  private polygon(
+    points: number[][],
+    height: number,
+    color: number,
+    y = 0.035,
+  ) {
+    if (points.length < 3) return;
+    const shape = new THREE.Shape(
+      points.map((p) => new THREE.Vector2(p[0], -p[1])),
+    );
+    const geo = height
+      ? new THREE.ExtrudeGeometry(shape, {
+          depth: height,
+          bevelEnabled: false,
+          steps: 1,
+        })
+      : new THREE.ShapeGeometry(shape);
+    geo.rotateX(-Math.PI / 2);
+    geo.translate(0, y, 0);
+    const mesh = new THREE.Mesh(geo, this.material(color));
+    mesh.receiveShadow = true;
+    mesh.castShadow = !!height;
+    this.scene.add(mesh);
+    return mesh;
+  }
+  private strip(a: number[], b: number[], w: number, y: number) {
+    const dx = b[0] - a[0],
+      dz = b[1] - a[1],
+      length = Math.hypot(dx, dz);
+    const g = new THREE.PlaneGeometry(w, length + 0.2);
+    g.rotateX(-Math.PI / 2);
+    g.rotateY(Math.atan2(dx, dz));
+    g.translate((a[0] + b[0]) / 2, y, (a[1] + b[1]) / 2);
+    const positions = g.getAttribute("position"),
+      uv = g.getAttribute("uv");
+    for (let i = 0; i < positions.count; i++)
+      uv.setXY(i, positions.getX(i) / 8, positions.getZ(i) / 8);
+    return g;
+  }
+  private merged(
+    geos: THREE.BufferGeometry[],
+    mat: THREE.Material,
+    group: THREE.Object3D = this.scene,
+  ) {
+    if (!geos.length) return;
+    const geo = mergeGeometries(geos, false);
+    geos.forEach((g) => g.dispose());
+    if (!geo) return;
+    const mesh = new THREE.Mesh(geo, mat);
+    mesh.receiveShadow = true;
+    group.add(mesh);
+    return mesh;
+  }
+  private buildStreets() {
+    const grass=this.surfaceMaterials.create('grass_path_2',0xb2bc9e,true),stone=this.surfaceMaterials.create('concrete_pavement');
+    for(const [polygons,y,material] of [[WORLD.parks,.04,grass],[WORLD.areas,.06,stone]] as const)
+      for(const p of polygons)for(const rings of cutChannels(p)){const mesh=new THREE.Mesh(surfaceGeometry(rings,y),material);mesh.receiveShadow=true;this.scene.add(mesh);}
+    const paving = this.material(0xb8aea0),
+      asphalt = this.material(0x555d5c),
+      foot = this.material(0xc3b9a1),
+      white = this.material(0xe9e3c7);
+    this.surfaceMaterials.apply(paving,'concrete_pavement');
+    this.surfaceMaterials.apply(foot,'concrete_pavement');asphalt.userData.environmentSurface=true;
+    const roadGeo: THREE.BufferGeometry[] = [],
+      walkGeo: THREE.BufferGeometry[] = [],
+      sideGeo: THREE.BufferGeometry[] = [],
+      paintGeo: THREE.BufferGeometry[] = [];
+    for (const r of WORLD.roads) {
+      if(r.neighbourhood || r.tunnel)continue;
+      const len = Math.hypot(r.a[0] - r.b[0], r.a[1] - r.b[1]);
+      // UrbanRoadCells owns asphalt and clipped pedestrian surfaces.
+      if (!r.walk) {
+
+        if (r.w > 5 && len > 5)
+          for (let d = 1; d < len - 2; d += 8) {
+            const n = Math.min(d + 3, len),
+              a = r.a.map((v, i) => v + ((r.b[i] - v) * d) / len),
+              b = r.a.map((v, i) => v + ((r.b[i] - v) * n) / len);
+            paintGeo.push(this.strip(a, b, 0.13, 0.18));
+          }
+      }
+    }
+    this.merged(sideGeo, paving);
+    this.merged(roadGeo, asphalt);
+    this.merged(walkGeo, foot);
+    this.merged(paintGeo, white);
+    const loader = new THREE.TextureLoader();
+    // Local PBR road textures are shared by all road segments; no runtime asset CDN.
+    loader.load(ASSETS + "asphalt-diff.jpg", (t) => {
+      if (this.disposed) {
+        t.dispose();
+        return;
+      }
+      t.colorSpace = THREE.SRGBColorSpace;
+      t.wrapS = t.wrapT = THREE.RepeatWrapping;
+      t.anisotropy = Math.min(4, this.renderer.capabilities.getMaxAnisotropy());
+      asphalt.map = t;
+      asphalt.color.set(0xa6a6a6);
+      asphalt.needsUpdate = true;
+      this.worldTextures.add(t);
+    });
+    for (const [file, key] of [
+      ["asphalt-nor_gl.jpg", "normalMap"],
+      ["asphalt-rough.jpg", "roughnessMap"],
+    ] as const)
+      loader.load(ASSETS + file, (t) => {
+        if (this.disposed) {
+          t.dispose();
+          return;
+        }
+        t.wrapS = t.wrapT = THREE.RepeatWrapping;
+        asphalt[key] = t;
+        asphalt.normalScale.set(0.3, 0.3);
+        asphalt.needsUpdate = true;
+        this.worldTextures.add(t);
+      });
+    for(const water of WORLD.water)if(Array.isArray(water))this.polygon(water,0,0x507f83,.075);
+    // Source DEM mountains are owned by WorldEnhancements.
+  }
+
+  private buildBlocks() {
+    const colors = [
+      0xc9bda7, 0xaebbaf, 0xdfbd9d, 0xe1d2b7, 0x909a96, 0xdab48e, 0xbfa9a6,
+      0xcdd3c6,
+    ];
+    const buckets = new Map<
+      string,
+      { geos: THREE.BufferGeometry[][]; windows: THREE.BufferGeometry[]; group: THREE.Group }
+    >();
+    const windowGeos: THREE.BufferGeometry[] = [];
+    for (const b of WORLD.buildings) {
+      if(b.neighbourhood)continue; // Shared Blender/mapped-neighbourhood layer.
+      if (ROCK_REPLACEMENT_IDS.has(String(b.id)) || b.special || REFERENCE_BUILDINGS[b.id] || LANDMARK_REPLACED_IDS.has(String(b.id)) || FUEL_CANOPY_IDS.has(String(b.id))) continue;
+      const cx = b.p.reduce((s, p) => s + p[0], 0) / b.p.length,
+        cz = b.p.reduce((s, p) => s + p[1], 0) / b.p.length;
+      // Eight city shell draws are cheaper on phones than hundreds of tiny chunks.
+      const dedicated=ECONOMY_BUILDING_IDS.has(String(b.id));
+      const key = dedicated ? String(b.id) : "city";
+      if (!buckets.has(key)) {
+        const group = new THREE.Group();
+        group.userData.center = { x: cx, z: cz };
+        if(dedicated){group.userData.buildingId=String(b.id);group.name='Accessible city shell: '+b.id;}
+        this.scene.add(group);
+        buckets.set(key, { geos: colors.map(() => []), windows: [], group });
+      }
+      const shape = new THREE.Shape(
+        b.p.map(
+          (p) =>
+            new THREE.Vector2(
+              DETAIL_IDS.has(b.id) ? cx + (p[0] - cx) * 0.73 : p[0],
+              -(DETAIL_IDS.has(b.id) ? cz + (p[1] - cz) * 0.73 : p[1]),
+            ),
+        ),
+      );
+      const geo = new THREE.ExtrudeGeometry(shape, {
+        depth: b.h,
+        bevelEnabled: false,
+        steps: 1,
+      });
+      geo.rotateX(-Math.PI / 2);
+      const pos = geo.getAttribute("position"),
+        normal = geo.getAttribute("normal"),
+        uv = geo.getAttribute("uv");
+      for (let i = 0; i < pos.count; i++)
+        uv.setXY(
+          i,
+          (Math.abs(normal.getX(i)) > 0.5 ? pos.getZ(i) : pos.getX(i)) / 5,
+          Math.abs(normal.getY(i)) > 0.5 ? pos.getZ(i) / 5 : pos.getY(i) / 5,
+        );
+      buckets.get(key)!.geos[Number(b.id) % colors.length].push(geo);
+      if (DETAIL_IDS.has(b.id)) continue;
+      if (AGED_HOUSING_IDS.has(String(b.id))) continue;
+      // Window ribbons follow actual facades; geometry is merged, not thousands of draw calls.
+      for (let i = 0; i < b.p.length; i++) {
+        const a = b.p[i],
+          c = b.p[(i + 1) % b.p.length],
+          dx = c[0] - a[0],
+          dz = c[1] - a[1],
+          length = Math.hypot(dx, dz);
+        if (length < 6 || length > 120) continue;
+        for (let y = 4; y < b.h - 1; y += 3.3) {
+          const g = new THREE.BoxGeometry(Math.max(1, length - 2), 1.25, 0.16);
+          g.rotateY(-Math.atan2(dz, dx));
+          g.translate((a[0] + c[0]) / 2, y, (a[1] + c[1]) / 2);
+          (dedicated?buckets.get(key)!.windows:windowGeos).push(g);
+        }
+      }
+    }
+    for (const bucket of buckets.values()) {
+      bucket.geos.forEach((geos, i) => {
+        const material = this.material(colors[i]);
+        this.shellMaterials.push(material);
+        const mesh = this.merged(geos, material, bucket.group);
+        if (mesh) mesh.castShadow = true;
+      });
+      this.merged(bucket.windows,this.material(0x506971,{metalness:.45,roughness:.27}),bucket.group);
+    }
+    this.merged(
+      windowGeos,
+      this.material(0x506971, { metalness: 0.45, roughness: 0.27 }),
+    );
+    this.treePoints = MAPPED_TREES.filter(t=>!MATURE_TREE_IDS.has(t.id));
+  }
+  private streetLabel(text: string, parent: THREE.Object3D) {
+    const canvas = document.createElement("canvas");
+    canvas.width = 512;
+    canvas.height = 112;
+    const ctx = canvas.getContext("2d")!;
+    ctx.fillStyle = "#14569a";
+    ctx.fillRect(0, 0, 512, 112);
+    ctx.strokeStyle = "#f4f5e9";
+    ctx.lineWidth = 9;
+    ctx.strokeRect(5, 5, 502, 102);
+    ctx.fillStyle = "white";
+    ctx.font = "700 42px sans-serif";
+    ctx.textAlign = "center";
+    ctx.fillText(text.replace(/^Rruga /, "Rr. ").slice(0, 22), 256, 71);
+    const texture = new THREE.CanvasTexture(canvas);
+    texture.colorSpace = THREE.SRGBColorSpace;
+    this.worldTextures.add(texture);
+    const sign = new THREE.Sprite(new THREE.SpriteMaterial({ map: texture }));
+    sign.position.set(0, 2.38, 0.07);
+    sign.scale.set(1.75, 0.38, 1);
+    parent.add(sign);
+  }
+  private async loadStreetFurniture(loader: GLTFLoader) {
+    const gltf = await loader.loadAsync(ASSETS + "street-furniture.glb");
+    const template = (name: string) => gltf.scene.getObjectByName(name);
+    const place = (name: string, x: number, z: number, yaw = 0, scale = 1) => {
+      const source = template(name);
+      if (!source) return;
+      const item = source.clone(true);
+      item.position.set(x, 0.12, z);
+      item.rotation.y = yaw;
+      item.scale.setScalar(scale);
+      item.traverse((o) => {
+        if (o instanceof THREE.Mesh) {
+          o.castShadow = true;
+          o.receiveShadow = true;
+        }
+      });
+      this.scene.add(item);
+      return item;
+    };
+    if (this.disposed) { this.disposeObject(gltf.scene); return; }
+    const tree = template("tree");
+    if (tree) {
+      tree.updateWorldMatrix(true, true);
+      const cells = new Map<string, Point[]>();
+      for (const point of this.treePoints) {
+        const key = `${Math.floor(point.x / 100)}:${Math.floor(point.z / 100)}`;
+        if (!cells.has(key)) cells.set(key, []);
+        cells.get(key)!.push(point);
+      }
+      for (const points of cells.values()) {
+        const group = new THREE.Group();
+        const x = Math.floor(points[0].x / 100) * 100 + 50;
+        const z = Math.floor(points[0].z / 100) * 100 + 50;
+        tree.traverse(o => {
+          if (!(o instanceof THREE.Mesh)) return;
+          const mesh = new THREE.InstancedMesh(o.geometry, o.material, points.length);
+          points.forEach((point, i) => {
+            const matrix = new THREE.Matrix4().makeTranslation(point.x, .12, point.z).multiply(o.matrixWorld);
+            mesh.setMatrixAt(i, matrix);
+          });
+          mesh.computeBoundingSphere(); mesh.receiveShadow = true; group.add(mesh);
+        });
+        group.visible = false;
+        this.scene.add(group); this.mappedTreeCells.push({group,x,z});
+      }
+    }
+    const streets = WORLD.roads.filter((r, i) => !r.walk && r.name && i % 55 === 0);
+    streets.forEach((r, i) => {
+      const dx = r.b[0] - r.a[0], dz = r.b[1] - r.a[1], d = Math.hypot(dx, dz) || 1;
+      const x = r.a[0] + (dz / d) * (r.w / 2 + 1.5), z = r.a[1] - (dx / d) * (r.w / 2 + 1.5);
+      const sign = place("street_sign", x, z, Math.atan2(dx, dz));
+      if (sign) this.streetLabel(r.name, sign);
+      if (i % 3 === 0) place("traffic_light", r.a[0], r.a[1], Math.atan2(dx, dz));
+      if (i % 4 === 0) place("road_sign", x + dz / d * 2, z - dx / d * 2, Math.atan2(dx, dz));
+      if (i % 2 === 0) place("park_bench", x + dz / d * 3.2, z - dx / d * 3.2, Math.atan2(dx, dz));
+    });
+    // Pavement tiles had fixed world-X offsets and crossed angled roads.
+    // The shared clipped road cells now own every sidewalk.
+    gltf.scene.visible=false;this.scene.add(gltf.scene);
+
+  }
+  private label(text: string, x: number, y: number, z: number) {
+    const canvas = document.createElement("canvas");
+    canvas.width = 512;
+    canvas.height = 96;
+    const ctx = canvas.getContext("2d")!;
+    ctx.fillStyle = "rgba(7,25,30,.8)";
+    ctx.fillRect(0, 0, 512, 96);
+    ctx.fillStyle = "#ddf67d";
+    ctx.font = "600 30px sans-serif";
+    ctx.textAlign = "center";
+    ctx.fillText(text, 256, 59);
+    const texture = new THREE.CanvasTexture(canvas);
+    texture.colorSpace = THREE.SRGBColorSpace;
+    this.worldTextures.add(texture);
+    const sprite = new THREE.Sprite(
+      new THREE.SpriteMaterial({
+        map: texture,
+        depthTest: true,
+        transparent: true,
+      }),
+    );
+    sprite.position.set(x, y, z);
+    sprite.scale.set(40, 7.5, 1);
+    this.scene.add(sprite);
+    this.landmarkText.push(sprite);
+  }
+  private buildLandmarks() {
+    const stone = this.material(0xd8cfba),
+      roof = this.material(0x7f9593, { metalness: 0.15 }),
+      cream = this.material(0xe7d9b9),
+      glass = this.material(0x497a84, { metalness: 0.5, roughness: 0.18 });
+    const get = (id: string) => WORLD.landmarks.find((p) => p.id === id)!;
+    // Original meshes inspired by the named landmarks; footprints and positions come from OSM.
+    const mosque = get("mosque");
+    const g = new THREE.Group();
+    g.position.set(mosque.x, 0, mosque.z);
+    this.scene.add(g);
+    this.box(15, 7, 15, 0, 3.5, 0, cream, g);
+    const dome = new THREE.Mesh(
+      new THREE.SphereGeometry(7.4, 24, 12, 0, Math.PI * 2, 0, Math.PI / 2),
+      roof,
+    );
+    dome.position.y = 7;
+    dome.castShadow = true;
+    g.add(dome);
+    for (let i = 0; i < 5; i++)
+      this.box(0.55, 5, 0.55, -7 + i * 3.5, 2.5, 11, cream, g);
+    this.box(17, 0.6, 6, 0, 5.4, 10, stone, g);
+    const minaret = new THREE.Mesh(
+      new THREE.CylinderGeometry(0.8, 1.2, 26, 12),
+      cream,
+    );
+    minaret.position.set(-10, 13, -5);
+    minaret.castShadow = true;
+    g.add(minaret);
+    const spire = new THREE.Mesh(new THREE.ConeGeometry(1.6, 5, 12), roof);
+    spire.position.set(-10, 28, -5);
+    g.add(spire);
+    const clock = get("clock");
+    const cg = new THREE.Group();
+    cg.position.set(clock.x, 0, clock.z);
+    this.scene.add(cg);
+    this.box(6, 27, 6, 0, 13.5, 0, stone, cg);
+    this.box(7.5, 4, 7.5, 0, 29, 0, cream, cg);
+    const cap = new THREE.Mesh(new THREE.ConeGeometry(5.6, 5, 4), roof);
+    cap.position.y = 33;
+    cap.rotation.y = Math.PI / 4;
+    cg.add(cap);
+    for (let a = 0; a < 4; a++) {
+      const face = new THREE.Group();
+      face.rotation.y = (a * Math.PI) / 2;
+      face.position.set(
+        Math.sin((a * Math.PI) / 2) * 3.79,
+        29,
+        Math.cos((a * Math.PI) / 2) * 3.79,
+      );
+      const disc = new THREE.Mesh(
+        new THREE.CircleGeometry(1.25, 24),
+        new THREE.MeshBasicMaterial({ color: 0xf4ebd3 }),
+      );
+      face.add(disc);
+      this.box(0.08, 0.95, 0.04, 0, 0.25, 0.03, this.material(0x1a3033), face);
+      this.box(0.8, 0.08, 0.04, 0.28, 0, 0.04, this.material(0x1a3033), face);
+      cg.add(face);
+    }
+    const pyramid = get("pyramid"),
+      pg = new THREE.Group();
+    pg.position.set(pyramid.x, 0, pyramid.z);
+    pg.rotation.y = 0.19;
+    this.scene.add(pg);
+    const cone = new THREE.Mesh(new THREE.ConeGeometry(37, 19, 4), stone);
+    cone.position.y = 9.5;
+    cone.rotation.y = Math.PI / 4;
+    cone.castShadow = true;
+    pg.add(cone);
+    // Wide stair runs and the colored pavilions of the 2023 transformation.
+    for (let side = 0; side < 4; side++) {
+      const stairs = new THREE.Group();
+      stairs.rotation.y = (side * Math.PI) / 2;
+      pg.add(stairs);
+      for (let n = 0; n < 27; n++)
+        this.box(
+          9,
+          0.7,
+          1.45,
+          0,
+          n * 0.68 + 0.35,
+          35 - n * 1.17,
+          stone,
+          stairs,
+        );
+    }
+    const accents = [0xea815b, 0xdea2bc, 0x98c4ce, 0xe5c962];
+    for (let i = 0; i < 9; i++) {
+      const a = i * 2.399;
+      const x = Math.cos(a) * 43,
+        z = Math.sin(a) * 39;
+      this.box(8, 4.8, 7, x, 2.4, z, this.material(accents[i % 4]), pg);
+      this.box(5.5, 3.3, 0.16, x, 2.2, z + 3.6, glass, pg);
+    }
+    // A civic plinth in the square is kept abstract; no borrowed commercial game IP.
+    this.box(6, 4, 6, -48, 2, 33, this.material(0x8e8f85));
+    const monument = new THREE.Mesh(
+      new THREE.CylinderGeometry(0.5, 1.4, 5, 6),
+      this.material(0x526354, { metalness: 0.65 }),
+    );
+    monument.position.set(-48, 6.5, 33);
+    this.scene.add(monument);
+    for (const l of WORLD.landmarks) {
+      if (l.id === "lana" || l.id === "blloku") continue;
+      this.label(
+        l.name.toUpperCase(),
+        l.x,
+        l.id === "pyramid" ? 34 : l.id === "clock" ? 47 : 24,
+        l.z,
+      );
+    }
+    const mother = get("mother");
+    this.box(
+      110,
+      19,
+      25,
+      mother.x,
+      9.5,
+      mother.z + 72,
+      this.material(0xceaf86),
+    );
+    for (let i = 0; i < 14; i++)
+      this.box(1.8, 13, 4, mother.x - 48 + i * 7.5, 9, mother.z + 57, cream);
+  }
+  private buildBeacon() {
+    const ring = new THREE.Mesh(
+      new THREE.TorusGeometry(9, 0.18, 6, 48),
+      new THREE.MeshBasicMaterial({ color: 0xddf67d }),
+    );
+    ring.rotation.x = Math.PI / 2;
+    ring.position.y = 0.3;
+    this.beacon.add(ring);
+    const cone = new THREE.Mesh(
+      new THREE.ConeGeometry(1.4, 2.5, 4),
+      new THREE.MeshBasicMaterial({ color: 0xddf67d }),
+    );
+    cone.rotation.z = Math.PI;
+    cone.position.y = 6;
+    this.beacon.add(cone);
+    this.scene.add(this.beacon);
+    this.beacon.visible = false;
+  }
+  async prepareActors(state:State,viewer:{x:number;z:number}) {
+    this.forces.update(state,viewer,state.elapsed,0,this.quality==='battery');
+    this.collectionFleet.update([...state.cars,...state.traffic].filter(c=>Math.hypot(c.x-viewer.x,c.z-viewer.z)<70),viewer,0);
+    await Promise.all([this.forces.whenIdle(),this.collectionFleet.whenIdle()]);
+    if(this.disposed)return;
+    this.forces.update(state,viewer,state.elapsed,0,this.quality==='battery');
+    this.collectionFleet.update([...state.cars,...state.traffic],viewer,0);
+  }
+  async load(onProgress?: (message: string) => void) {
+    const draco = new DRACOLoader().setDecoderPath(ASSETS + 'imported/draco/').setWorkerLimit(1);
+    const loader = new GLTFLoader().setDRACOLoader(draco);
+    const humanLoader = new HumanModelLoader();humanLoader.configure(this.renderer);
+    const playerAbort = new AbortController();this.playerAbort = playerAbort;
+    const pending: Promise<unknown>[] = [];
+    const vehicleSources = new Map<string, ReturnType<GLTFLoader['loadAsync']>>();
+    try {
+      const chosen=selectedPlayerUrl();this.playerModel=chosen?'local-player':'character';
+      const files = [
+        "character",
+        "sedan",
+        "sedan-sports",
+        "sport",
+        "taxi",
+        "police",
+        "city-car",
+        "military-suv",
+      ];
+      const loadModel = async (name: string) => {
+          const roadModel = CIVILIAN_VEHICLE_MODELS[name];
+          const file = roadModel ? 'vehicle-collection/' + roadModel :
+            name === "character"
+              ? "living/operator"
+              : ["city-car", "motorbike", "military-suv"].includes(name)
+                ? "living/" + name
+                : name;
+          const isHuman=name==='character'||name==='local-player';
+          const url = name==='local-player'?chosen!:ASSETS + file + '.glb';
+          let source = vehicleSources.get(url);
+          if (!source) {
+            source = name === 'local-player'
+              ? loadPlayerModelBytes(url,{signal:playerAbort.signal}).then(bytes=>humanLoader.parseAsync(bytes,new URL('.',new URL(url,window.location.href)).href).catch(error=>{discardPlayerModelBytes(url);throw error;}))
+              : loader.loadAsync(url);
+            vehicleSources.set(url, source);
+          }
+          const original = await source;
+          const gltf = {...original, scene: clone(original.scene)};
+          if (this.disposed) {
+            this.disposeObject(gltf.scene);
+            return;
+          }
+          // Authored +X nose becomes +Z for the existing road-vehicle transform.
+          // Preserve native metres, complete geometry and all PBR maps.
+          if (roadModel) {prepareModelWheels(gltf.scene,roadModel);gltf.scene.rotation.y = -Math.PI / 2;}
+          if (!isHuman) prepareVehicleMaterials(gltf.scene);
+          if (name === "motorbike") gltf.scene.rotation.y = -Math.PI / 2;
+          gltf.scene.updateMatrixWorld(true);
+          const box = new THREE.Box3().setFromObject(gltf.scene),
+            size = box.getSize(new THREE.Vector3()),
+            center = box.getCenter(new THREE.Vector3());
+          const scale = roadModel ? 1 :
+            isHuman
+              ? 1.78 / size.y
+              : name === "motorbike"
+                ? 2.1 / Math.max(size.x, size.z)
+                : 4.25 / size.z;
+          const wrapper = name === 'local-player' ? normalizePlayableHuman(gltf.scene) : new THREE.Group();
+          if(name==='local-player')hideAuthoredPlayerWeapon(wrapper);
+          if (name !== 'local-player') {
+            gltf.scene.position.set(-center.x * scale,-box.min.y * scale,-center.z * scale);
+            gltf.scene.scale.setScalar(scale);
+            wrapper.add(gltf.scene);
+          }
+          wrapper.traverse((o) => {
+            if (o instanceof THREE.Mesh) {
+              o.castShadow = true;
+              o.receiveShadow = true;
+              const mats = Array.isArray(o.material) ? o.material : [o.material];
+              mats.forEach((m) => {
+                if (m instanceof THREE.MeshStandardMaterial) {
+                  // Preserve the authored GLTF PBR channels and livery. Colour maps
+                  // use sRGB; normal/roughness/metalness maps remain linear.
+                  if (m.map) m.map.colorSpace = THREE.SRGBColorSpace;
+                  if (m.emissiveMap) m.emissiveMap.colorSpace = THREE.SRGBColorSpace;
+                }
+              });
+            }
+          });
+          if(isHuman)this.humanMaterialReleases.push(prepareHumanMaterials(wrapper,{maxAnisotropy:this.renderer.capabilities.getMaxAnisotropy()}));
+          this.models.set(name, wrapper);
+          if (name === "character") this.animations = gltf.animations;
+          if(name==='local-player')this.playerAnimations=gltf.animations;
+          onProgress?.(
+            name === "local-player" || (name === "character" && !chosen)
+              ? "Your character is ready"
+              : "Loading city assets",
+          );
+      };
+      // Only the player blocks entry. Nearby road vehicles stream in two lanes
+      // after the core city is ready; a missing optional vehicle cannot fail play.
+      const character = loadModel(chosen?'local-player':'character');
+      pending.push(character);
+      if (this.disposed) return;
+      onProgress?.("Adding textured city facades");
+      const [, city] = await Promise.all([character, loader.loadAsync(ASSETS + "city.glb")]);
+      if (this.disposed) {
+        this.disposeObject(city.scene);
+        return;
+      }
+      this.facades = new CityFacades(city.scene);
+      this.scene.add(this.facades.group);
+      const surfaces: THREE.MeshStandardMaterial[] = [];
+      city.scene.traverse((o) => {
+        if (o instanceof THREE.Mesh)
+          for (const m of Array.isArray(o.material) ? o.material : [o.material])
+            if (
+              m instanceof THREE.MeshStandardMaterial &&
+              /RedBrick|Concrete/.test(m.name) &&
+              !surfaces.includes(m)
+            )
+              surfaces.push(m);
+      });
+      this.shellMaterials.forEach((material, i) => {
+        const surface = surfaces[i % surfaces.length];
+        if (!surface) return;
+        for (const key of ["map", "normalMap", "roughnessMap"] as const) {
+          const original = surface[key];
+          if (!original) continue;
+          const texture = original.clone();
+          texture.wrapS = texture.wrapT = THREE.RepeatWrapping;
+          texture.repeat.set(1, 1);
+          texture.anisotropy = Math.min(4,this.renderer.capabilities.getMaxAnisotropy());
+          texture.needsUpdate = true;
+          material[key] = texture;
+          this.worldTextures.add(texture);
+        }
+        material.normalScale.set(0.45, 0.45);
+        material.roughness = 0.85;
+        material.needsUpdate = true;
+      });
+      // Keep the shared GLB source attached invisibly so all geometries/textures are disposed.
+      city.scene.visible = false;
+      this.scene.add(city.scene);
+
+      onProgress?.("Placing GLTF pavements, trees and traffic signs");
+      const furniture = this.loadStreetFurniture(loader).catch(error => {
+        if (!this.disposed) console.warn('Street furniture unavailable', error);
+      });
+      pending.push(furniture);
+      await character;
+
+      this.ready = true;
+      onProgress?.("City ready");
+      const queue = files.filter(name => chosen || name !== 'character');
+      const stream = async () => {
+        while (!this.disposed && queue.length) {
+          const name = queue.shift()!;
+          try { await loadModel(name); }
+          catch (error) { if (!this.disposed) console.warn(`Vehicle ${name} unavailable`, error); }
+        }
+      };
+      pending.push(stream(), stream());
+    } finally {
+      void Promise.allSettled(pending).then(() => {draco.dispose();humanLoader.dispose();});
+    }
+  }
+  private actor(model: string, id: string): Actor {
+    const existing = this.actors.get(id);
+    if (existing && existing.model === model && (existing.group.children.length || !this.models.has(model))) return existing;
+    if (existing) {
+      existing.mixer?.stopAllAction();
+      existing.mixer?.uncacheRoot(existing.group);
+      const skeletons = new Set<THREE.Skeleton>();
+      existing.group.traverse(node => { if (node instanceof THREE.SkinnedMesh) skeletons.add(node.skeleton); });
+      skeletons.forEach(skeleton => skeleton.dispose());
+      existing.group.removeFromParent();
+      this.actors.delete(id);
+    }
+    const template = this.models.get(model);
+    const human = model === 'character' || model === 'local-player';
+    const group = (
+      template
+        ? human
+          ? clone(template)
+          : template.clone(true)
+        : new THREE.Group()
+    ) as THREE.Group;
+    const actor: Actor = { group, wheels: CIVILIAN_VEHICLE_MODELS[model]?collectRollingWheels(group):prepareLegacyWheels(group), model };
+    const animations = model==='local-player'?this.playerAnimations:this.animations;
+    if (human && animations.length) {
+      actor.mixer = new THREE.AnimationMixer(group);
+      actor.clips = Object.fromEntries(animations.map(clip => [clip.name, actor.mixer!.clipAction(clip)]));
+      actor.idle = actor.mixer.clipAction(
+        animations.find((a) => a.name.toLowerCase() === "idle") ||
+          animations[0],
+      );
+      const run = animations.find((a) => ["sprint", "run"].includes(a.name.toLowerCase()));
+      if (run) actor.run = actor.mixer.clipAction(run);
+      const walk = animations.find((a) => a.name.toLowerCase() === "walk");
+      if (walk) actor.walk = actor.mixer.clipAction(walk);
+      actor.idle.play();
+    }
+    if (model === 'local-player') {
+      const bones=humanoidBones(group),rests=new Map<THREE.Bone,THREE.Quaternion>();
+      for(const bone of bones.values())rests.set(bone,bone.quaternion.clone());
+      actor.importedRig={bones,rests,legs:new HumanoidLegPose(group,bones),gait:0};
+    }
+    this.scene.add(group);
+    this.actors.set(id, actor);
+    return actor;
+  }
+  setRoute(points: Point[]) {
+    this.routeLine=updateNavigationLine(this.routeLine,points,groundHeight);
+    if(this.routeLine&&!this.routeLine.parent)this.scene.add(this.routeLine);
+  }
+  orbit(dx: number, dy: number) {
+    this.yaw -= dx * 0.006;
+    this.pitch = this.firstPerson ? THREE.MathUtils.clamp(this.pitch - dy * 0.004, -1.05, 1.05) : THREE.MathUtils.clamp(this.pitch + dy * 0.004, 0.12, 0.85);
+    this.manualUntil = this.clock + 2.8;
+  }
+  setFirstPerson(enabled: boolean) { this.firstPerson = enabled; this.pitch = enabled ? 0 : 0.32; }
+  /** Optional local presentation seams; the default renderer keeps its contract. */
+  protected presentLocalPlayer(_actor: Actor, _state: State, _id: string, _dt: number) { return false; }
+  protected presentFirstPerson(_state: State, _id: string, _dt: number) { return false; }
+  protected presentDrivenCar(_actor: Actor, _state: State, _id: string) {}
+  protected vehicleVisual(id:string){return this.bikeFleet.getRoot(id)||this.collectionFleet.getRoot(id)||this.forces.getRoot(id)||this.racingFleet.getRoot(id)||this.actors.get(id)?.group;}
+  protected presentVehicle(_actor: Actor, _state: State, _carId: string, _dt: number) {}
+  protected beforeDraw(_state: State | null, _id: string, _dt: number) {}
+  setQuality(quality: GraphicsSetting) {
+    this.qualitySetting = graphicsSetting(quality);
+    this.automaticGraphics.reset();
+    this.dynamicResolution.reset();
+    this.applyGraphics(this.qualitySetting === 'auto' ? this.automaticGraphics.preset : this.qualitySetting);
+  }
+  private applyGraphics(preset: GraphicsPreset) {
+    this.quality = preset;
+    const profile = GRAPHICS_PROFILES[preset];
+    this.renderer.shadowMap.enabled = profile.shadows;
+    if(this.sunlight.shadow.mapSize.x !== profile.shadowSize) {
+      this.sunlight.shadow.map?.dispose(); this.sunlight.shadow.map = null;
+      this.sunlight.shadow.mapSize.setScalar(profile.shadowSize);this.sunlight.shadow.needsUpdate=true;
+    }
+    const extent = profile.shadowSpan / 2;
+    Object.assign(this.sunlight.shadow.camera, {left:-extent,right:extent,top:extent,bottom:-extent});
+    this.sunlight.shadow.camera.updateProjectionMatrix();
+    this.sunlight.shadow.normalBias = profile.shadowSpan / profile.shadowSize * .28;
+    this.sunlight.shadow.needsUpdate = true;
+    this.scene.userData.graphicsPreset = preset;
+    this.resize();
+  }
+  private resize() {
+    const w = this.root.clientWidth || 390,
+      h = this.root.clientHeight || 800;
+    const ratio=renderPixelRatio(w,h,window.devicePixelRatio||1,GRAPHICS_PROFILES[this.quality].pixelRatio)
+      * (this.qualitySetting === 'auto' ? this.dynamicResolution.scale : 1);
+    if(w===this.viewportWidth && h===this.viewportHeight && Math.abs(ratio-this.dpr)<.001)return;
+    this.viewportWidth=w;this.viewportHeight=h;this.dpr=ratio;
+    this.camera.aspect = w / h;
+    this.camera.updateProjectionMatrix();
+    // setDrawingBufferSize performs one buffer allocation; setPixelRatio followed
+    // by setSize allocated twice when the adaptive resolution changed.
+    this.renderer.setDrawingBufferSize(w,h,ratio);
+    this.scene.userData.resolutionScale = this.qualitySetting === 'auto' ? this.dynamicResolution.scale : 1;
+  }
+  render(state: State | null, playerId: string, dt: number, lobby: boolean) {
+    if (this.disposed || this.renderer.getContext().isContextLost()) return;
+    this.clock += dt;
+    const stamp = performance.now();
+    const frameSeconds = Math.max(0, (stamp - this.sampleStamp) / 1000);
+    if (frameSeconds > .5 || dt<=0 || !state || lobby || document.hidden) { this.sampleTime = 0; this.frames = 0; }
+    else { this.sampleTime += frameSeconds; this.frames++; }
+    this.sampleStamp = stamp;
+    if (this.sampleTime >= 2) {
+      this.fps = Math.round(this.frames / this.sampleTime);
+      if (this.qualitySetting === 'auto' && this.ready && state && dt>0 && !lobby && !document.hidden) {
+        const resized = this.dynamicResolution.sample(this.fps, this.targetFps);
+        if(resized)this.resize();
+        // Keep character textures, nearby architecture and shadows until the
+        // framebuffer has exhausted its smaller, reversible performance steps.
+        if(!resized && (this.dynamicResolution.atMinimum || (this.dynamicResolution.scale === 1 && this.fps >= Math.min(60,this.targetFps)*.97))
+          && this.automaticGraphics.sample(this.fps,this.targetFps)) {
+          this.dynamicResolution.reset();
+          this.applyGraphics(this.automaticGraphics.preset);
+        }
+      }
+      this.frames = 0;
+      this.sampleTime = 0;
+    }
+    let target = new THREE.Vector3(SPAWN.x, 1, SPAWN.z);
+    const p = state?.players[playerId];
+    const drivenCar=p?.carId?state?.cars.find(c=>c.id===p.carId):undefined;
+    if(this.firstPerson&&drivenCar){
+      if(this.lastDriven?.id===drivenCar.id)this.yaw+=Math.atan2(Math.sin(drivenCar.heading-this.lastDriven.heading),Math.cos(drivenCar.heading-this.lastDriven.heading));
+      else {this.yaw=drivenCar.heading;this.pitch=0;}
+      this.lastDriven={id:drivenCar.id,heading:drivenCar.heading};
+    }else this.lastDriven=undefined;
+    if (this.ready && state) {
+      const active = new Set<string>();
+      if(!this.bikeFleet.group.parent)this.scene.add(this.bikeFleet.group);
+      this.bikeFleet.update([...state.cars,...state.traffic,...state.npcs.filter(n=>n.motion==='cycle'&&n.health>0)],p||SPAWN,dt,this.quality==='battery');
+      this.collectionFleet.update([...state.cars,...state.traffic],p||SPAWN,dt,p?.carId);
+      this.racingFleet.update(state.cars.filter(c=>c.racingAsset),p||SPAWN,this.quality==="battery");
+      this.forces.update(state, p || SPAWN, state.elapsed, dt, this.quality === "battery");
+      for (const npc of state.npcs) {
+        const key = `npc-${npc.id}`, root = this.forces.getRoot(key);
+        if (root) {
+          active.add(key);
+          this.living.pose(key, root, npc, state.elapsed);
+        }
+      }
+      for (const car of [
+        ...state.cars,
+        ...state.traffic,
+        ...state.units,
+        ...(state.rival ? [state.rival] : []),
+      ]) {
+        if(car.model==='tirana-bus' || this.bikeFleet.owns(car) || this.collectionFleet.owns(car) || this.forces.ownsVehicle(car))continue;
+        if(p && Math.hypot(car.x-p.x,car.z-p.z)>(this.quality==='battery'?140:260))continue;
+        const detail = car.model;
+        const a = this.actor(detail, car.id);
+        active.add(car.id);
+        a.group.visible = !this.forces.has(car.id) && !this.racingFleet.has(car.id) && (
+          !p ||
+          Math.hypot(car.x - p.x, car.z - p.z) <
+            (this.quality === "battery" ? 180 : 350));
+        if (!a.group.userData.placed) {
+          a.group.position.set(car.x, groundHeight(car.x,car.z), car.z);
+          a.group.rotation.y = car.heading + Math.PI;
+          a.group.userData.placed = true;
+        }
+        a.group.position.lerp(
+          new THREE.Vector3(car.x, groundHeight(car.x,car.z)+0.03, car.z),
+          Math.min(1, dt * 18),
+        );
+        a.group.rotation.y = smoothAngle(
+          a.group.rotation.y,
+          car.heading + Math.PI,
+          Math.min(1, dt * 14),
+        );
+        a.group.rotation.z = THREE.MathUtils.lerp(
+          a.group.rotation.z,
+          -car.steering * car.speed * 0.0018,
+          Math.min(1, dt * 6),
+        );
+        rollWheels(a.wheels,car.speed,dt);
+        for (const w of a.wheels) if(w.steer)w.steer.rotation.y=-(car.steerAngle??car.steering*.32);
+        if (p?.carId === car.id) this.presentDrivenCar(a, state, playerId);
+        this.presentVehicle(a, state, car.id, dt);
+      }
+      for (const pl of Object.values(state.players)) {
+        const a = this.actor(pl.id===playerId?this.playerModel:"character", `player-${pl.id}`);
+        active.add(`player-${pl.id}`);
+        if (pl.id === playerId && this.presentLocalPlayer(a, state, playerId, dt)) continue;
+        a.group.visible = !pl.carId && !(this.firstPerson && pl.id === playerId);
+        a.group.rotation.x = pl.health <= 0 ? -Math.PI / 2 : 0;
+        a.group.position.lerp(
+          new THREE.Vector3(pl.x, groundHeight(pl.x,pl.z)+0.08, pl.z),
+          a.group.userData.placed ? Math.min(1, dt * 20) : 1,
+        );
+        a.group.userData.placed = true;
+        a.group.scale.setScalar(1);
+        a.group.rotation.y = smoothAngle(
+          a.group.rotation.y,
+          pl.heading + Math.PI,
+          Math.min(1, dt * 15),
+        );
+        const moving = pl.speed > 0.2 && !pl.carId;
+        if (a.moving !== moving) {
+          const next = moving ? a.run : a.idle,
+            prev = moving ? a.idle : a.run;
+          next?.reset().fadeIn(0.15).play();
+          prev?.fadeOut(0.15);
+          a.moving = moving;
+        }
+        a.mixer?.update(dt * (moving ? Math.max(0.45, pl.speed / 6) : 1));
+        this.living.pose(`player-${pl.id}`, a.group, pl, state.elapsed);
+        if (a.importedRig) {
+          const rig=a.importedRig;rig.gait+=dt*pl.speed*1.8;
+          if(!a.walk&&!a.run)rig.legs.update(rig.gait,moving?pl.speed:0);
+          for(const side of ['left','right'] as const) {
+            for(const part of ['arm','forearm','hand']) {
+              const bone=rig.bones.get(side+part);if(bone)bone.quaternion.copy(rig.rests.get(bone)!);
+            }
+            if(pl.weapon)solveHumanoidLimb(a.group,rig.bones,side,a.group.localToWorld(new THREE.Vector3(side==='left'?-.1:-.22,1.3,side==='left'?.64:.43)));
+          }
+        }
+      }
+      const citizens = nearestActors(state.npcs,p||SPAWN,
+        this.quality==='battery'?110:230,this.quality==='battery'?28:72,
+        (n:NPC)=>n.motion!=='drive'&&!this.forces.ownsPerson(n));
+      let rendered = 0;
+      for (const n of citizens) {
+        const role = (n as NPC & { role?: string }).role;
+        if (
+          n.motion === "drive" ||
+          Math.hypot(n.x - (p?.x || 0), n.z - (p?.z || 0)) >
+            (this.quality === "battery" ? 110 : 230) ||
+          rendered++ >= (this.quality === "battery" ? 28 : 72)
+        )
+          continue;
+        const id = `npc-${n.id}`;
+        if (this.forces.ownsPerson(n)) {
+          const fallback = this.actors.get(id);
+          if (fallback) fallback.group.visible = false;
+          continue;
+        }
+        const a = this.actor("character", id);
+        active.add(id);
+        a.group.visible = true;
+        a.group.position.lerp(
+          new THREE.Vector3(n.x, groundHeight(n.x,n.z)+(n.motion === "cycle" ? -0.18 : 0.06), n.z),
+          a.group.userData.placed ? Math.min(1, dt * 12) : 1,
+        );
+        a.group.userData.placed = true;
+        a.group.rotation.set(
+          n.health <= 0 ? -Math.PI / 2 : 0,
+          n.heading + Math.PI,
+          0,
+        );
+        const moving = n.speed > 0.15 && n.health > 0;
+        if (a.moving !== moving) {
+          (moving ? a.walk || a.run : a.idle)?.reset().fadeIn(0.2).play();
+          (moving ? a.idle : a.walk || a.run)?.fadeOut(0.2);
+          a.moving = moving;
+        }
+        a.mixer?.update(dt * (n.anim === "run" ? 1.8 : 1));
+        this.living.pose(id, a.group, n, state.elapsed);
+        if (role === "dog-walker") {
+          const dogId = `dog-${n.id}`,
+            dog = this.actor("character", dogId);
+          active.add(dogId);
+          dog.group.visible = true;
+          dog.group.scale.set(.42, .28, .58);
+          dog.group.position.set(n.x + Math.cos(n.heading) * 1.15, .02, n.z - Math.sin(n.heading) * 1.15);
+          dog.group.rotation.y = n.heading + Math.PI;
+          dog.mixer?.update(dt * 1.6);
+        }
+        if (n.motion === "cycle" && n.health > 0) {
+          this.seated(a.group, state.elapsed, true);
+        }
+      }
+      // Visible drivers give nearby moving traffic a human occupant.
+      for (const car of state.traffic) {
+        if (car.model==='tirana-bus' || collectionVehicleFor(car) || this.forces.has(car.id)) continue;
+        if (!p || Math.hypot(car.x - p.x, car.z - p.z) > 40) continue;
+        const id = `driver-${car.id}`,
+          a = this.actor("character", id);
+        active.add(id);
+        a.group.visible = true;
+        a.group.position.set(car.x, groundHeight(car.x,car.z)+(this.bikeFleet.owns(car)?.16:-.25), car.z);
+        a.group.rotation.set(0, car.heading + Math.PI, 0);
+        a.mixer?.update(dt);
+        this.seated(a.group, state.elapsed, this.bikeFleet.owns(car));
+        a.group.scale.setScalar(0.83);
+      }
+      for (const [id, a] of this.actors) {
+        if (active.has(id)) {
+          a.group.userData.lastSeen = this.clock;
+          continue;
+        }
+        a.group.visible = false;
+        if (this.clock - (a.group.userData.lastSeen || 0) > 5) {
+          a.mixer?.stopAllAction();
+          a.mixer?.uncacheRoot(a.group);
+          a.group.removeFromParent();
+          a.group.traverse((o) => {
+            if (o instanceof THREE.SkinnedMesh) o.skeleton.dispose();
+          });
+          this.living.forget(id);
+          this.actors.delete(id);
+        }
+      }
+      this.living.update(state, p);
+      if (p) {
+        target.set(p.x, p.carId ? 1.1 : 1.3, p.z);
+        if (p.carId && !this.cockpitCamera && this.clock > this.manualUntil)
+          this.yaw = smoothAngle(this.yaw, p.heading, 1-Math.exp(-dt * 3));
+      }
+    }
+    if (lobby) {
+      const pyramid = WORLD.landmarks.find((p) => p.id === "pyramid")!;
+      // The initial view shows the recognizable Pyramid and its boulevard.
+      const a = -0.65 + Math.sin(this.clock * 0.025) * 0.12;
+      this.camera.position.set(
+        pyramid.x + Math.sin(a) * 125,
+        66,
+        pyramid.z + Math.cos(a) * 125,
+      );
+      this.camera.lookAt(pyramid.x, 5, pyramid.z);
+      target.set(pyramid.x, 0, pyramid.z);
+    } else if (this.firstPerson && p && state && this.presentFirstPerson(state, playerId, dt)) {
+      // The optional full-body view has already placed the camera at its eye anchor.
+    } else if (this.firstPerson && p) {
+      const eye=drivenCar?driverEye(drivenCar):{x:p.x,y:1.68,z:p.z};
+      this.lastTarget.set(eye.x,eye.y,eye.z);
+      if (p.carId && !this.cockpitCamera && this.clock > this.manualUntil) this.yaw = smoothAngle(this.yaw, p.heading, Math.min(1, dt * 4));
+      // Seat and cabin share a transform; independent position smoothing caused
+      // the eye to leave the cabin on acceleration, tight turns and entry.
+      if(drivenCar)this.camera.position.copy(this.lastTarget);
+      else this.camera.position.lerp(this.lastTarget,1-Math.exp(-dt*14));
+      const view=drivenCar?driverDirection(drivenCar,this.yaw,this.pitch):{x:-Math.sin(this.yaw)*Math.cos(this.pitch),y:Math.sin(this.pitch),z:-Math.cos(this.yaw)*Math.cos(this.pitch)};
+      const up=drivenCar?driverUp(drivenCar):{x:0,y:1,z:0};this.camera.up.set(up.x,up.y,up.z);
+      const direction = new THREE.Vector3(view.x,view.y,view.z);
+      this.camera.lookAt(this.camera.position.clone().add(direction));
+      this.camera.near=drivenCar?.04:.15;
+      this.camera.fov = drivenCar?driverFov(this.camera.aspect):74;
+      this.camera.updateProjectionMatrix();
+    } else {
+      this.camera.up.set(0,1,0);
+      this.camera.near=.15;
+      this.lastTarget.lerp(target, Math.min(1, dt * 9));
+      const wanted = p?.carId
+        ? 9.5 + Math.min(4, Math.abs(p.speed) * 0.11)
+        : 4.25;
+      const d = cameraDistance(
+        this.lastTarget.x,
+        this.lastTarget.z,
+        this.lastTarget.y,
+        this.yaw,
+        wanted,
+        this.pitch,
+      );
+      const pos = this.lastTarget
+        .clone()
+        .add(
+          new THREE.Vector3(
+            Math.sin(this.yaw) * d,
+            (p?.carId ? 2.4 : 1.65) + this.pitch * d,
+            Math.cos(this.yaw) * d,
+          ),
+        );
+      this.camera.position.lerp(pos, Math.min(1, dt * 10));
+      this.camera.lookAt(
+        this.lastTarget.clone().add(new THREE.Vector3(0, 0.7, 0)),
+      );
+      this.camera.fov = 52 + (p?.carId ? Math.abs(p.speed) * 0.28 : 0);
+      this.camera.updateProjectionMatrix();
+    }
+    this.facades?.update(target, dt, this.quality === "battery", this.camera);
+    this.landscape.update(target,this.clock,this.quality === "battery");
+    this.atmosphere.update(this.clock,this.camera,this.quality === "battery");
+    for (const label of this.landmarkText)
+      label.visible = label.position.distanceTo(this.camera.position) < 300;
+    this.beacon.visible =
+      !lobby &&
+      !!state &&
+      state.phase === "active" &&
+      state.missionId !== "free-roam";
+    if (this.beacon.visible && p && state) {
+      const mission = state.missionId;
+      const end = navigationLineEnd(this.routeLine);
+      this.beacon.visible=!!end;
+      if (end) {
+        this.beacon.position.set(
+          end.x,
+          end.y-.24,
+          end.z,
+        );
+        this.beacon.children[1].position.y = 6 + Math.sin(this.clock * 2) * 0.7;
+        this.beacon.children[1].rotation.y = this.clock;
+      }
+    }
+    this.referenceFacades.update(this.camera.position, this.quality === "battery");
+    this.skanderbegBuilding.update(this.camera.position,this.quality === "battery");
+    this.agedHousing.update(this.clock, this.camera.position, this.quality === "battery");
+    this.urbanRoads.update(this.clock,this.camera.position,this.quality === "battery");
+    for (const cell of this.mappedTreeCells) cell.group.visible =
+      Math.hypot(cell.x - this.camera.position.x, cell.z - this.camera.position.z) <
+      (this.quality === "battery" ? 140 : 260);
+    this.beforeDraw(state, playerId, dt);
+    if(this.renderer.shadowMap.enabled) this.localShadows.update(this.sunlight,
+      {x:this.camera.position.x,y:this.camera.position.y-1.5,z:this.camera.position.z},dt,this.quality==='high');
+    // Opaque original windows/cab roofs must not cover the active interior.
+    // Hide only this viewer's exterior during this draw, restoring it afterward.
+    const exterior=drivenCar
+      ? this.collectionFleet.getRoot(drivenCar.id)||this.forces.getRoot(drivenCar.id)||this.racingFleet.getRoot(drivenCar.id)||this.actors.get(drivenCar.id)?.group : undefined;
+    const cockpit=this.cockpitCamera&&!lobby&&drivenCar;
+    this.driverInterior.update(cockpit?drivenCar:undefined,undefined,exterior);
+    const visible=exterior?.visible;
+    if(exterior&&cockpit)exterior.visible=false;
+    try{this.renderer.render(this.scene, this.camera);}
+    finally{if(exterior)exterior.visible=visible!;}
+
+  }
+  private mergeCarSurfaces(root: THREE.Group) {
+    root.updateMatrixWorld(true);
+    const batches = new Map<THREE.Material, THREE.BufferGeometry[]>(),
+      remove: THREE.Mesh[] = [];
+    root.traverse((o) => {
+      if (!(o instanceof THREE.Mesh) || Array.isArray(o.material)) return;
+      let parent: THREE.Object3D | null = o,
+        wheel = false;
+      while (parent) {
+        if (/wheel|tire|rim/i.test(parent.name)) wheel = true;
+        parent = parent.parent;
+      }
+      if (wheel) return;
+      const source = o.geometry.clone(),
+        geometry = source.applyMatrix4(o.matrixWorld).toNonIndexed();
+      if (geometry !== source) source.dispose();
+      for (const key of Object.keys(geometry.attributes))
+        if (!["position", "normal", "uv"].includes(key))
+          geometry.deleteAttribute(key);
+      if (!geometry.getAttribute("normal")) geometry.computeVertexNormals();
+      if (!geometry.getAttribute("uv"))
+        geometry.setAttribute(
+          "uv",
+          new THREE.BufferAttribute(
+            new Float32Array(geometry.getAttribute("position").count * 2),
+            2,
+          ),
+        );
+      if (!batches.has(o.material)) batches.set(o.material, []);
+      batches.get(o.material)!.push(geometry);
+      remove.push(o);
+    });
+    for (const mesh of remove) mesh.removeFromParent();
+    for (const [material, geometries] of batches) {
+      const geometry = mergeGeometries(geometries, false);
+      geometries.forEach((g) => g.dispose());
+      if (geometry) root.add(new THREE.Mesh(geometry, material));
+    }
+    // Original meshes can share buffers with retained tires. Dispose only buffers no longer referenced.
+    const retained = new Set<THREE.BufferGeometry>();
+    root.traverse((o) => {
+      if (o instanceof THREE.Mesh) retained.add(o.geometry);
+    });
+    for (const mesh of remove)
+      if (!retained.has(mesh.geometry)) mesh.geometry.dispose();
+  }
+  private seated(group: THREE.Group, time: number, riding: boolean) {
+    group.traverse((o) => {
+      if (/LeftUpLeg|RightUpLeg/.test(o.name))
+        o.rotation.x =
+          -1.25 +
+          (riding
+            ? Math.sin(time * 5 + (/Left/.test(o.name) ? 0 : Math.PI)) * 0.17
+            : 0);
+      if (/LeftLeg$|RightLeg$/.test(o.name)) o.rotation.x = 1.65;
+      if (/LeftArm$|RightArm$/.test(o.name)) o.rotation.x = -1.1;
+    });
+  }
+  private disposeObject(root: THREE.Object3D) {
+    const geos = new Set<THREE.BufferGeometry>(),
+      mats = new Set<THREE.Material>(),
+      textures = new Set<THREE.Texture>();
+    root.traverse((o) => {
+      if (
+        o instanceof THREE.Mesh ||
+        o instanceof THREE.Sprite ||
+        o instanceof THREE.Line
+      ) {
+        if ("geometry" in o) geos.add(o.geometry);
+        const ms = Array.isArray(o.material) ? o.material : [o.material];
+        ms.forEach((m) => {
+          mats.add(m);
+          Object.values(m).forEach((v) => {
+            if (v instanceof THREE.Texture) textures.add(v);
+          });
+        });
+      }
+    });
+    geos.forEach((g) => g.dispose());
+    mats.forEach((m) => m.dispose());
+    textures.forEach((t) => t.dispose());
+  }
+  destroy() {
+    this.bikeFleet.dispose();
+    this.disposed = true;
+    this.playerAbort?.abort();
+    this.referenceFacades.dispose();
+    this.skanderbegBuilding.dispose();
+    this.agedHousing.dispose();
+    this.living.dispose();
+    this.forces.dispose();
+    this.outdoorEnvironment.dispose();
+    this.racingFleet.dispose();
+    this.collectionFleet.dispose();
+    this.driverInterior.dispose();this.urbanRoads.dispose();
+    this.atmosphere.dispose();this.landscape.dispose();this.surfaceMaterials.dispose();
+    this.observer.disconnect();
+    for (const a of this.actors.values()) a.mixer?.stopAllAction();
+    this.humanMaterialReleases.forEach(release=>release(this.scene));this.humanMaterialReleases.length=0;
+    this.disposeObject(this.scene);
+    this.models.forEach((m) => this.disposeObject(m));
+    this.worldTextures.forEach((t) => t.dispose());
+    this.renderer.dispose();
+    this.renderer.forceContextLoss();
+    this.renderer.domElement.remove();
+  }
+}

@@ -1,0 +1,45 @@
+import type { StreetSimulation } from './StreetSimulation.mjs';
+import type { Loadout } from './campaignCore.mjs';
+import type { Player } from '../shared/engine.mjs';
+export type WorldPickups={claimed:string[];pickupAmmo:Record<string,number>};
+export function normalizePickupState(raw?:unknown):WorldPickups;
+export function capturePickupState(sim:StreetSimulation):WorldPickups;
+export function restorePickupState(sim:StreetSimulation,raw?:unknown):void;
+export function rollbackPickupState(sim:StreetSimulation,raw?:unknown):void;
+export type PhaseCheckpoint = {
+  version: 2;
+  index: number;
+  elapsed: number;
+  missionStartedAt?:number;
+  player: Loadout & {
+    x: number;
+    z: number;
+    heading: number;
+    health: number;
+    armor: number;
+    wanted: number;
+  };
+  aircraft?: null | {kind:'helicopter'|'jet';x:number;y:number;z:number;heading:number;health:number;missiles:number};
+  car: null | {
+    id: string;
+    model: string;
+    health?: number;
+    x: number;
+    z: number;
+    heading: number;
+    collectionVehicle?: string;
+    racingAsset?: string;
+  };
+  job: { parcel: boolean; defend: number; tutorial: string[]; director?:import('./missionDirectorCore.mjs').MissionDirector };
+  defeated: string[];
+  claimed: string[];
+  pickupAmmo?: Record<string,number>;
+};
+export function captureCheckpoint(
+  sim: StreetSimulation
+): PhaseCheckpoint | null;
+export function restoreCheckpoint(
+  sim: StreetSimulation,
+  checkpoint: PhaseCheckpoint | null | undefined,
+  apply: (p: Player, loadout: Loadout) => void
+): boolean;

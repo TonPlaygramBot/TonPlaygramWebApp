@@ -6,6 +6,7 @@ import {BIKE_TYPES,bikeFor} from '../webapp/src/games/tiranastreets/shared/bikeC
 import {pedestrianIntent} from '../webapp/src/games/tiranastreets/shared/pedestrianBehavior.mjs';
 import {ROUNDABOUTS} from '../webapp/src/games/tiranastreets/shared/roundabouts.mjs';
 import {junctionPhase,roundaboutGap} from '../webapp/src/games/tiranastreets/shared/junctionControl.mjs';
+import {ArrestSimulation} from '../webapp/src/games/tiranastreets/street-career/ArrestSimulation.mjs';
 const original=createState([{id:'local',name:'You'}],'free-roam'),env={nearestNode,route};
 const clone=()=>structuredClone(original);
 test('the GTI is the enterable starting car and all five bike types populate the city',()=>{
@@ -38,6 +39,12 @@ test('a real response moves continuously and dismounts only after reaching the i
  let travelled=0,arrived=false;
  for(let i=0;i<4200;i++){const x=u.x,z=u.z;stepState(s);const delta=Math.hypot(u.x-x,u.z-z);assert.ok(delta<=12/60+.001);travelled+=delta;if(s.npcs.some(n=>n.deployed)){arrived=true;break;}}
  assert.ok(travelled>5);assert.ok(arrived);assert.ok(Math.hypot(u.x-p.x,u.z-p.z)<24);
+});
+test('custody reuses station vehicles and their crew, retaining them when released',()=>{
+ const s=clone(),sim={state:s,player:s.players.local,body:{}};const arrest=new ArrestSimulation(sim),ids=s.units.map(u=>u.id),npcs=s.npcs.length;
+ assert.equal(arrest.dispatch(),true);const van=arrest.van,position={x:van.x,z:van.z};assert.ok(van.stationId);assert.equal(van.driver,'custody');
+ arrest.backupOfficers();assert.equal(s.npcs.length,npcs);assert.deepEqual({x:van.x,z:van.z},position);
+ arrest.release('');assert.equal(van.duty,'returning');assert.deepEqual(s.units.map(u=>u.id),ids);assert.equal(s.npcs.length,npcs);
 });
 test('pedestrians yield to an approaching vehicle and resume across connected paths',()=>{
  const n={id:'walker',x:0,z:0,motion:'walk',health:100,path:[{x:0,z:0},{x:10,z:0}],pathIndex:1,panicUntil:0},state={elapsed:1,players:{}},world={roads:[{walk:true,a:[10,0],b:[20,0]}]};

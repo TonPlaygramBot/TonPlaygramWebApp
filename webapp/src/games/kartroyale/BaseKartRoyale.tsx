@@ -23,14 +23,12 @@ import {
   Camera,
   Compass,
   Wifi,
-  WifiOff,
-  Crosshair
+  WifiOff
 } from 'lucide-react';
 import { createHeldRaceInput } from './heldRaceInput.mjs';
 import { FREE_ROAM_STARTS } from './freeRoam.mjs';
 import { FreeRoamMap } from './FreeRoamMap';
 import { KartControls } from './KartControls';
-import { ConvoyAim, ConvoyHud, ConvoyRocket, convoyResult } from './ConvoyHud';
 import { KartRenderer } from './renderer';
 import type { Quality, Frame, Result, CameraMode } from './renderer';
 import {
@@ -49,7 +47,7 @@ import type { Room, Session } from './network';
 import './kart-royale.css';
 import './kart-mobile.css';
 import './kart-controls.css';
-type Mode = 'ai' | 'online' | 'career' | 'free' | 'trial' | 'convoy';
+type Mode = 'ai' | 'online' | 'career' | 'free' | 'trial';
 interface Props {
   getSocket?: () => Promise<Socket>;
   onExit?: () => void;
@@ -66,7 +64,6 @@ interface Props {
 }
 const modes = [
   { id: 'ai', title: 'VS AI', sub: 'Find your racing line', icon: Cpu },
-  { id: 'convoy', title: 'CONVOY RUN', sub: 'Intercept armed vehicles', icon: Crosshair },
   { id: 'trial', title: 'TIME TRIAL', sub: 'Beat your personal best ghost', icon: Flag },
   { id: 'free', title: 'FREE ROAM', sub: 'Explore with your kart', icon: Compass },
   { id: 'online', title: 'MULTIPLAYER', sub: 'Race your friends', icon: Users },
@@ -126,7 +123,6 @@ export default function KartRoyale({
     null
   );
   const slideDirection = useRef(0);
-  const convoyLoading = useRef(false);
   const heldInput = useRef(createHeldRaceInput());
   const [loaded, setLoaded] = useState(false),
     [error, setError] = useState(''),
@@ -202,7 +198,6 @@ export default function KartRoyale({
     engine.current?.clearInput();
     audio.current?.silence();
     audio.current?.beep(880, 0.3);
-    if (r.convoy) { setSaved(true); return; }
     if(r.timeTrial){setSaved(r.ghostSaved!==false);return;}
     if (!sessionRef.current) {
       const me = r.racers.find((p) => p.id === r.playerId)!,
@@ -306,8 +301,6 @@ export default function KartRoyale({
       if (mapping[key]) {
         e.preventDefault(); heldInput.current.hold(`key:${key}`, ...mapping[key]); apply();
       }
-      if (key === 'f' && !e.repeat && !e.ctrlKey && !e.metaKey && !e.altKey)
-        engine.current?.launchConvoyRocket?.();
       if (e.key === 'Escape') setModal('pause');
     };
     const up = (e: KeyboardEvent) => {
@@ -589,27 +582,9 @@ export default function KartRoyale({
     setModal(null);
     setResult(null);
   };
-  const start = async () => {
-    const view = engine.current;
-    if (!loaded || !view || convoyLoading.current) return;
-    if (mode === 'convoy') {
-      convoyLoading.current = true;
-      setBusy(true);
-      setNotice('');
-      try {
-        await view.loadConvoyFleet();
-        if (engine.current !== view) return;
-        audio.current?.resetConvoyAudio();
-        view.startConvoy(activeTrack);
-      } catch (error) {
-        if (engine.current === view) setNotice(error instanceof Error ? error.message : 'Convoy Run could not start.');
-        return;
-      } finally {
-        convoyLoading.current = false;
-        if (engine.current === view) setBusy(false);
-      }
-    }
+  const start = () => {
     heldInput.current.clear();
+    if (!loaded) return;
     audio.current?.unlock();
     done.current = false;
     raceCup.current = mode === 'career' ? cup : null;
@@ -619,7 +594,7 @@ export default function KartRoyale({
     setModal(null);
     setScreen('race');
     if(mode==='trial')engine.current?.startLocal(activeTrack,'street',false,true);
-    else if (mode !== 'convoy') engine.current?.startLocal(
+    else engine.current?.startLocal(
       activeTrack,
       mode === 'career' ? CUPS[cup].difficulty : difficulty,
       mode === 'free'
@@ -786,12 +761,7 @@ export default function KartRoyale({
                   </button>
                 ))}
               </div>
-              {mode === 'convoy' && (
-                <div className="rr-convoy-options">
-                  <p>Chase three waves and stop the command truck. The kart drives and fires automatically. Steer to dodge incoming fire and use rockets against groups.</p>
-                </div>
-              )}
-              {(mode === 'ai'||mode === 'trial'||mode === 'convoy') && (
+              {(mode === 'ai'||mode === 'trial') && (
                 <div className="kr-options">
                   <div className="kr-track-selector">
                     <div className="kr-track-mini">
@@ -802,7 +772,7 @@ export default function KartRoyale({
                       <h3>{track.name}</h3>
                       <p>
                         {(makeTrack(trackId).length / 1000).toFixed(2)} km{' '}
-                        <span>·</span> {mode === 'convoy' ? '3 waves' : '3 laps'}
+                        <span>·</span> 3 laps
                       </p>
                     </div>
                     <div className="kr-track-arrows">
@@ -1078,11 +1048,10 @@ export default function KartRoyale({
                   )}
                 </div>
               )}
-              {mode === 'convoy' && notice && <p className="kr-notice" role="status">{notice}</p>}
               {mode !== 'online' ? (
                 <button
                   className="kr-start"
-                  disabled={!loaded || !!error || busy}
+                  disabled={!loaded || !!error}
                   onClick={start}
                 >
                   <Flag size={23} />
@@ -1090,7 +1059,6 @@ export default function KartRoyale({
                     {!loaded
                       ? 'LOADING YOUR KART…'
                       : mode === 'free' ? 'EXPLORE TIRANA'
-                      : mode === 'convoy' ? busy ? 'LOADING CONVOY…' : 'START CONVOY RUN'
                       : mode === 'trial' ? 'CHASE YOUR BEST'
                       : mode === 'career'
                         ? 'RACE FOR THE CUP'
@@ -1146,45 +1114,26 @@ export default function KartRoyale({
       {screen === 'race' && (
         <div className="rr-race-ui">
           <div className="rr-race-top">
-            {mode === 'convoy' ? <ConvoyHud convoy={hud?.convoy} /> : mode==='free'?<div className="rr-roam-label"><Compass size={18}/><span>FREE ROAM</span></div>:<>
+            {mode==='free'?<div className="rr-roam-label"><Compass size={18}/><span>FREE ROAM</span></div>:<>
               <div className="rr-place"><b>{hud?.position || 1}</b><span>/{hud?.racers.length || 6}<small>{mode==='trial'?'SOLO RUN':'POSITION'}</small></span></div>
               <div className="rr-lap"><span>LAP <b>{hud?.lap || 1}</b> / 3</span><time aria-label="Current lap time">{formatTime(hud?.lapTime || 0)}</time>{!!hud?.bestLap && <small>BEST {formatTime(hud.bestLap)}</small>}</div>
             </>}
             <button className="kr-icon" aria-label="Pause menu" onClick={()=>setModal('pause')}><Pause size={22}/></button>
           </div>
-          {mode !== 'convoy' && <div className="rr-map">{mode==='free'?<FreeRoamMap racer={hud?.racers[0]}/>:<CircuitMap id={trackId} frame={hud}/>}</div>}
-          {mode !== 'convoy' && <button className="rr-camera" aria-label={`Switch to ${cameraMode==='driver'?'chase':'driver'} camera`} onClick={()=>setCameraMode(v=>v==='driver'?'chase':'driver')}><Camera size={18}/></button>}
-          {mode !== 'convoy' && <button className="rr-recover" aria-label="Recover kart on track" {...touch('recover',true)}><RotateCcw size={18}/></button>}
-          {mode === 'convoy' && (
-            <>
-              <ConvoyAim warning={hud?.convoy?.warning} />
-              <ConvoyRocket rockets={hud?.convoy?.rockets ?? 2}
-                disabled={!!modal || !hud || hud.countdown > 0}
-                onFire={() => engine.current?.launchConvoyRocket()} />
-            </>
-          )}
-          {(hud?.countdown || 0)>0 && <div className="rr-countdown" role="status"><div className="rr-start-lights" aria-hidden="true">{[3,2,1].map(n=><i key={n} className={hud!.countdown<=n?'on':''}/>)}</div><span>READY TO RACE</span><b>{hud!.countdown}</b><p>{mode === 'convoy' ? 'Steer with the left joystick. Tap the rocket button to fire.' : <>Hold GAS to accelerate.<br/>Drag the left joystick to steer. Slide it up to drift.</>}</p></div>}
+          <div className="rr-map">{mode==='free'?<FreeRoamMap racer={hud?.racers[0]}/>:<CircuitMap id={trackId} frame={hud}/>}</div>
+          <button className="rr-camera" aria-label={`Switch to ${cameraMode==='driver'?'chase':'driver'} camera`} onClick={()=>setCameraMode(v=>v==='driver'?'chase':'driver')}><Camera size={18}/></button>
+          <button className="rr-recover" aria-label="Recover kart on track" {...touch('recover',true)}><RotateCcw size={18}/></button>
+          {(hud?.countdown || 0)>0 && <div className="rr-countdown" role="status"><div className="rr-start-lights" aria-hidden="true">{[3,2,1].map(n=><i key={n} className={hud!.countdown<=n?'on':''}/>)}</div><span>READY TO RACE</span><b>{hud!.countdown}</b><p>Hold GAS to accelerate.<br/>Drag the left joystick to steer; slide it up to drift.</p></div>}
           {notice && <div className="rr-notice" role="status"><WifiOff size={16}/>{notice}</div>}
           <div className="rr-speed"><b>{hud?.reversing&&<small>R </small>}{Math.round(Math.abs(hud?.speed||0)*3.6)}</b><span>KM/H</span><RaceRevBar frame={hud}/></div>
-          {mode !== 'convoy' && <RaceTelemetryHud frame={hud}/>}
-          <KartControls autoThrottle={mode === 'convoy'} boost={hud?.boost||0} drifting={hud?.drifting} driftCharge={hud?.driftCharge} turbo={hud?.turbo} boostEvent={hud?.boostEvent} reversing={hud?.reversing} disabled={!!modal}
+          <RaceTelemetryHud frame={hud}/>
+          <KartControls boost={hud?.boost||0} drifting={hud?.drifting} driftCharge={hud?.driftCharge} turbo={hud?.turbo} boostEvent={hud?.boostEvent} reversing={hud?.reversing} disabled={!!modal}
             hold={(id,key,value)=>{audio.current?.unlock();heldInput.current.hold(id,key,value);if(engine.current)Object.assign(engine.current.input,heldInput.current.read());}}
             release={id=>{heldInput.current.release(id);if(engine.current)Object.assign(engine.current.input,heldInput.current.read());}}/>
-          <div className="rr-key-hint">{mode === 'convoy' ? '← → STEER · F ROCKET · SHIFT BOOST · ↓ BRAKE' : '↑ GAS · ← → STEER · SPACE DRIFT · SHIFT BOOST · HOLD ↓ BRAKE / REVERSE'}</div>
+          <div className="rr-key-hint">↑ GAS · ← → STEER · SPACE DRIFT · SHIFT BOOST · HOLD ↓ BRAKE / REVERSE</div>
         </div>
       )}
-      {screen === 'results' && result?.convoy && (
-        <div className="kr-results-backdrop">
-          <section className="kr-results" aria-label="Convoy Run result">
-            <div className="kr-eyebrow"><Crosshair size={16} /> CONVOY RUN</div>
-            <h2>{convoyResult[result.convoy.status]}</h2>
-            <p>{result.convoy.destroyed} vehicles taken out · {result.convoy.hull}% hull · {formatTime(result.elapsed)}</p>
-            <button className="kr-start" onClick={start}>RUN AGAIN</button>
-            <button className="kr-button" onClick={garage}>BACK TO GARAGE</button>
-          </section>
-        </div>
-      )}
-      {screen === 'results' && result && !result.convoy && (
+      {screen === 'results' && result && (
         <div className="kr-results-backdrop">
           <section className="kr-results">
             <div className="kr-eyebrow">

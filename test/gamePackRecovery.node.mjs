@@ -161,12 +161,8 @@ test('unrelated cached entries cannot conceal an evicted asset or a lost depende
  await reconcileGamePackInstallations();assert.equal(getGamePackStatus(shared),'partial');assert.equal(getGamePackStatus(game),'partial');
  await installGamePack('demo',{catalog});assert.equal(getGamePackStatus(shared),'installed');assert.equal(getGamePackStatus(game),'installed');assert.equal(await (await cache.match(origin+'/human.glb')).text(),'human');
 });
-
-test('retired Tirana pack is absent while Racing and Jet Ski retain shared city assets',()=>{
- const byId=id=>GAME_PACK_DEFINITIONS.find(p=>p.id===id);
- assert.equal(byId('tirana-streets'),undefined);
- for(const id of ['racing-royal','jetski-royal']){
-  assert.ok(byId(id).dependencies.includes('shared-tirana-vehicles'));
- }
- assert.ok(byId('shared-tirana-vehicles').roots.includes('assets/tirana-streets'));
+test('Tirana cannot claim a complete download without the built executable runtime',async()=>{
+ setup();const p=pack('tirana-streets');let fetched=false;routeFetch=async()=>{fetched=true;throw Error('unexpected');};
+ await assert.rejects(installGamePack(p.id,{catalog:{packs:[p]}}),/complete offline game/);assert.equal(fetched,false);assert.equal(getGamePackStatus(p),'partial');
+ assert.ok(GAME_PACK_DEFINITIONS.find(p=>p.id==='tirana-streets').dependencies.includes('shared-table-games'));
 });
