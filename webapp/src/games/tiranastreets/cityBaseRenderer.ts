@@ -9,6 +9,8 @@ import {BikeVisuals} from './BikeVisuals';
 import {prepareModelWheels,prepareLegacyWheels,collectRollingWheels,rollWheels,type RollingWheel} from './rollingWheels';
 import {prepareVehicleMaterials} from './vehicleMaterials';
 import {selectedPlayerUrl} from './playerCatalog.mjs';
+import {HumanModelLoader} from './HumanModelLoader';
+import {loadPlayerModelBytes,discardPlayerModelBytes} from './playerModelBytes.mjs';
 import {prepareHumanMaterials} from './street-career/humanMaterials.mjs';
 import {normalizePlayableHuman, humanoidBones, HumanoidLegPose, solveHumanoidLimb, hideAuthoredPlayerWeapon} from './street-career/humanoidRig.mjs';
 import {groundHeight} from '../tirana-east/terrainCore.mjs';
@@ -99,6 +101,7 @@ export class CityRenderer {
   private observer: ResizeObserver;
   private playerModel='character';
   private playerAnimations:THREE.AnimationClip[]=[];
+  private playerAbort?:AbortController;
   private humanMaterialReleases: ((instances?:THREE.Object3D)=>void)[] = [];
   private models = new Map<string, THREE.Group>();
   private actors = new Map<string, Actor>();
@@ -663,6 +666,8 @@ export class CityRenderer {
   async load(onProgress?: (message: string) => void) {
     const draco = new DRACOLoader().setDecoderPath(ASSETS + 'imported/draco/').setWorkerLimit(1);
     const loader = new GLTFLoader().setDRACOLoader(draco);
+    const humanLoader = new HumanModelLoader();humanLoader.configure(this.renderer);
+    const playerAbort = new AbortController();this.playerAbort = playerAbort;
     const pending: Promise<unknown>[] = [];
     const vehicleSources = new Map<string, ReturnType<GLTFLoader['loadAsync']>>();
     try {
@@ -688,7 +693,12 @@ export class CityRenderer {
           const isHuman=name==='character'||name==='local-player';
           const url = name==='local-player'?chosen!:ASSETS + file + '.glb';
           let source = vehicleSources.get(url);
-          if (!source) { source = loader.loadAsync(url); vehicleSources.set(url, source); }
+          if (!source) {
+            source = name === 'local-player'
+              ? loadPlayerModelBytes(url,{signal:playerAbort.signal}).then(bytes=>humanLoader.parseAsync(bytes,new URL('.',new URL(url,window.location.href)).href).catch(error=>{discardPlayerModelBytes(url);throw error;}))
+              : loader.loadAsync(url);
+            vehicleSources.set(url, source);
+          }
           const original = await source;
           const gltf = {...original, scene: clone(original.scene)};
           if (this.disposed) {
@@ -732,7 +742,7 @@ export class CityRenderer {
               });
             }
           });
-          if(isHuman)this.humanMaterialReleases.push(prepareHumanMaterials(wrapper));
+          if(isHuman)this.humanMaterialReleases.push(prepareHumanMaterials(wrapper,{maxAnisotropy:this.renderer.capabilities.getMaxAnisotropy()}));
           this.models.set(name, wrapper);
           if (name === "character") this.animations = gltf.animations;
           if(name==='local-player')this.playerAnimations=gltf.animations;
@@ -744,7 +754,7 @@ export class CityRenderer {
       };
       // Only the player blocks entry. Nearby road vehicles stream in two lanes
       // after the core city is ready; a missing optional vehicle cannot fail play.
-      const character = Promise.all([loadModel('character'),...(chosen?[loadModel('local-player')]:[])]);
+      const character = loadModel(chosen?'local-player':'character');
       pending.push(character);
       if (this.disposed) return;
       onProgress?.("Adding textured city facades");
@@ -797,7 +807,7 @@ export class CityRenderer {
 
       this.ready = true;
       onProgress?.("City ready");
-      const queue = files.filter(name => name !== 'character');
+      const queue = files.filter(name => chosen || name !== 'character');
       const stream = async () => {
         while (!this.disposed && queue.length) {
           const name = queue.shift()!;
@@ -807,7 +817,7 @@ export class CityRenderer {
       };
       pending.push(stream(), stream());
     } finally {
-      void Promise.allSettled(pending).then(() => draco.dispose());
+      void Promise.allSettled(pending).then(() => {draco.dispose();humanLoader.dispose();});
     }
   }
   private actor(model: string, id: string): Actor {
@@ -1313,6 +1323,7 @@ export class CityRenderer {
   destroy() {
     this.bikeFleet.dispose();
     this.disposed = true;
+    this.playerAbort?.abort();
     this.referenceFacades.dispose();
     this.skanderbegBuilding.dispose();
     this.agedHousing.dispose();

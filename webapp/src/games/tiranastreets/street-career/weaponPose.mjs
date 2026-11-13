@@ -8,7 +8,9 @@ export function weaponAnchors(id) {
   const optic=WEAPON_OPTICS[id];
   return {length,zoom:optic?.zoom||1,
     rightGrip:{x:0,y:-.045,z:-length*.2},
-    leftSupport:{x:-.06,y:-.03,z:length*.35},
+    // A pistol support palm wraps the grip; a rifle support palm sits under
+    // the fore-end. Using the rifle socket on a pistol crossed the muzzle.
+    leftSupport:sidearm?{x:.035,y:-.065,z:-length*.12}:{x:.045,y:-.03,z:length*.25},
     muzzle:{x:0,y:.045,z:length*.72},
     ejection:{x:-.028,y:.025,z:length*.05},
     sight:{x:0,y:.045+(optic?.rise||.02),z:0}};
@@ -18,7 +20,10 @@ export function weaponPose(p,b) {
   const wall=Math.max(0,Math.min(1,(.8-b.wall)/.6)),yaw=b.yaw,pitch=b.pitch-wall*.85;
   const forward=direction3(yaw,pitch),right={x:Math.cos(yaw),y:0,z:-Math.sin(yaw)};
   const up={x:Math.sin(yaw)*Math.sin(pitch),y:Math.cos(pitch),z:Math.cos(yaw)*Math.sin(pitch)};
-  const side=b.aim?0:.15,low=b.aim?a.sight.y:.16,reach=.37-wall*.2;
+  const side=b.aim?0:.12,low=b.aim?a.sight.y:.16;
+  // Keep long-gun stocks at the shoulder instead of extending the fore-end
+  // beyond the player's measured arm span. Pistols retain their extended hold.
+  const reach=(WEAPON_BY_ID.get(p.weapon)?.category==='sidearm'?.32:.18)-wall*.16;
   const origin={x:p.x+right.x*side+d.x*reach-up.x*low,
     y:b.y+b.eye+d.y*reach-up.y*low-wall*.27,
     z:p.z+right.z*side+d.z*reach-up.z*low};

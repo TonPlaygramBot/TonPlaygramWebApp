@@ -1,10 +1,14 @@
 const distance=(a,b)=>Math.hypot(a.x-b.x,a.z-b.z);
 /** Short, remembered detours keep pedestrians from pressing into walls. `clear`
  * is supplied by the active world's geometry, so this also works in missions. */
-export function steerNPC(actor,goal,clear,time){
+export function steerNPC(actor,goal,clear,time,cacheClear=clear){
   if(distance(actor,goal)<.2)return goal;
   const cached=actor.walkPlan;
-  if(cached&&time<cached.until&&distance(cached.goal,goal)<.7)return cached.point;
+  if(cached&&time<cached.until&&distance(cached.goal,goal)<.7&&distance(actor,cached.point)>.45){
+    const reach=Math.min(1,8/distance(actor,cached.point));
+    const ahead={x:actor.x+(cached.point.x-actor.x)*reach,z:actor.z+(cached.point.z-actor.z)*reach};
+    if(cacheClear(actor,ahead))return cached.point;
+  }
   const remember=point=>{actor.walkPlan={point,goal:{x:goal.x,z:goal.z},until:time+(actor.kind==='civilian'?.4:.2)};return point;};
   const reach=Math.min(1,8/distance(actor,goal)),ahead={x:actor.x+(goal.x-actor.x)*reach,z:actor.z+(goal.z-actor.z)*reach};
   if(clear(actor,ahead)){actor.walkDetour=null;return remember(goal);}

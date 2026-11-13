@@ -3,7 +3,8 @@ import {createInstitutionGuards} from './institutionGuards.mjs';
 import {scheduledActorStep} from './actorSchedule.mjs';
 import {createTrafficOfficers,directTraffic} from './junctionControl.mjs';
 import {initPoliceDispatch,updatePolicePatrols} from './policeDispatch.mjs';
-import {pedestrianIntent} from './pedestrianBehavior.mjs';
+import {pedestrianIntent,rememberPedestrianThreat} from './pedestrianBehavior.mjs';
+import {sweptVehicleConflict,parkedVehicleObstacle} from './trafficAwareness.mjs';
 import {crowdNeighbors,separateCrowd} from './crowdBehavior.mjs';
 import {shopLayout} from './shopLayout.mjs';
 import {registerPedestrianDefense,pedestrianDefenseIntent} from './pedestrianDefense.mjs';
@@ -271,6 +272,7 @@ export function harm(state, target, amount, attacker, env) {
   if (target.kind) {
     target.health = Math.max(0, target.health - amount);
     target.panicUntil = state.elapsed + 12;
+    rememberPedestrianThreat(target,attacker,state.elapsed,12);
     registerPedestrianDefense(target,attacker,amount,state.elapsed);
     if (!target.health) {
       dropWeapon(state,target);
@@ -392,7 +394,7 @@ function fire(state, p, env) {
   } else if (target) harm(state, target, w.damage, p, env);
   for (const n of state.npcs)
     if (n.kind === "civilian" && dist(p, n) < 55)
-      n.panicUntil = state.elapsed + 10;
+      rememberPedestrianThreat(n,p,state.elapsed);
 }
 export function updateCityLife(state, dt, env, mission) {
   updateCityEvent(state,dt,env);
@@ -467,14 +469,26 @@ export function updateCityLife(state, dt, env, mission) {
     if (n.custody) continue;
     if(n.role==='traffic-controller'){directTraffic(n,state.elapsed);continue;}
     if (env.recovering?.(n)) { n.speed=0; n.anim='hit'; continue; }
+    const nearVehicles=n.kind==='civilian'?vehicleGrid.near(n.x,n.z,32):[];
+    const parked=nearVehicles.filter(parkedVehicleObstacle).map(c=>{
+      const size=vehicleSize(c);
+      return {x:c.x,z:c.z,heading:c.heading,vx:0,vz:0,halfWidth:size.width/2+.5,halfLength:size.length/2+.5};
+    });
+    const vehicleClear=(a,b)=>{
+      const velocity={x:b.x-a.x,z:b.z-a.z};
+      return !parked.some(c=>sweptVehicleConflict(c,a,velocity,c.halfWidth,c.halfLength,1));
+    };
     const walkClear=(a,b)=>{
       if(!env.clear(a,b))return false;
       const probe={x:b.x,z:b.z};env.collide(probe,.45);
-      return Math.hypot(probe.x-b.x,probe.z-b.z)<.01;
+      if(Math.hypot(probe.x-b.x,probe.z-b.z)>=.01)return false;
+      return vehicleClear(a,b);
     };
-    const navigate=n.kind!=='civilian'||players.some(p=>(p.x-n.x)**2+(p.z-n.z)**2<140**2);
+    const navigate=n.kind!=='civilian'||parked.length>0||players.some(p=>(p.x-n.x)**2+(p.z-n.z)**2<140**2);
     const walkTo=(goal,speed,radius=.45)=>{
-      const x=n.x,z=n.z,arrived=env.along(n,navigate?steerNPC(n,goal,walkClear,state.elapsed):goal,speed,npcDt);
+      // Recheck changing vehicle bodies each tick; retain the existing cached
+      // building ray tests so dense streets do not multiply geometry queries.
+      const x=n.x,z=n.z,arrived=env.along(n,navigate?steerNPC(n,goal,walkClear,state.elapsed,vehicleClear):goal,speed,npcDt);
       env.collide(n,radius);
       // Rendered gait follows movement after collision, including scheduled
       // distant steps. Depenetration cannot accelerate the intended stride.
@@ -502,7 +516,7 @@ export function updateCityLife(state, dt, env, mission) {
         continue;
       }
       const nearbyPeople=peopleGrid.near(n.x,n.z,10),neighbors=crowdNeighbors(n,nearbyPeople);
-      const intent=pedestrianIntent(n,state,vehicleGrid.near(n.x,n.z,25),nearbyPeople,env.world,neighbors,players);
+      const intent=pedestrianIntent(n,state,nearVehicles,nearbyPeople,env.world,neighbors,players,env.clear);
       n.speed=0;
       if(intent.speed>0)walkTo(intent.goal,intent.speed,.4);
       if(separateCrowd(n,neighbors,npcDt))env.collide(n,.4);

@@ -2,9 +2,40 @@ const finite = value => Number.isFinite(value) ? value : 0;
 
 /** Heading uses the same -Z nose convention as vehicles and walking actors. */
 export function actorVelocity(actor) {
-  if (Number.isFinite(actor.vx) && Number.isFinite(actor.vz)) return {x: actor.vx, z: actor.vz};
   const speed = finite(actor.speed), heading = finite(actor.heading);
-  return {x: -Math.sin(heading) * speed, z: -Math.cos(heading) * speed};
+  return {x: Number.isFinite(actor.vx) ? actor.vx : -Math.sin(heading) * speed,
+    z: Number.isFinite(actor.vz) ? actor.vz : -Math.cos(heading) * speed};
+}
+
+/** Continuous relative sweep against the oriented vehicle footprint. Unlike
+ * sampled positions, this catches a fast car between two prediction instants. */
+export function sweptVehicleConflict(car, actor, velocity, halfWidth, halfLength, horizon = 1.8) {
+  const heading = finite(car.heading), fx = -Math.sin(heading), fz = -Math.cos(heading);
+  const dx = actor.x - car.x, dz = actor.z - car.z, c = actorVelocity(car);
+  const vx = velocity.x - c.x, vz = velocity.z - c.z;
+  let enter = 0, leave = Math.max(0, horizon);
+  for (const [position, speed, extent] of [
+    [dx * fx + dz * fz, vx * fx + vz * fz, halfLength],
+    [dx * fz - dz * fx, vx * fz - vz * fx, halfWidth]
+  ]) {
+    if (Math.abs(speed) < 1e-6) {
+      if (Math.abs(position) > extent) return false;
+      continue;
+    }
+    const a = (-extent - position) / speed, b = (extent - position) / speed;
+    enter = Math.max(enter, Math.min(a, b));
+    leave = Math.min(leave, Math.max(a, b));
+    if (leave < enter) return false;
+  }
+  return leave >= enter;
+}
+
+/** A parked or wrecked body is an obstacle to walk around, not a driver whose
+ * right of way can clear. Moving traffic, even briefly stopped, keeps priority. */
+export function parkedVehicleObstacle(car) {
+  const velocity = actorVelocity(car);
+  return Math.hypot(velocity.x, velocity.z) < .25 &&
+    (car.destroyed || car.burning || !car.driver && !car.npcDriver);
 }
 
 /** Continuous swept intervals catch a crossing between simulation ticks. The

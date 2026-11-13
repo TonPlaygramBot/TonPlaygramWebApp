@@ -23,10 +23,23 @@ export const vehicleAnchors = (car) => {
     doors: car.model==='tirana-bus' ? [{x:-1.9,y:0,z:-7.2},{x:1.9,y:0,z:-7.2}] : [-1,1].map(side=>({x:side*(vehicleSize(car).width/2+.65),y:0,z:car.forceVehicle?.includes('van')?-1.2:.15})),
     eye: { x: eye.x, y: eye.y, z: eye.z },
     seat: { x: eye.x, y: eye.y - 0.55, z: eye.z - 0.02 },
-    wheel: driverWheel(car)
+    wheel: driverWheel(car),
+    // Footwell ankle targets; vehicle assets do not expose named pedal sockets.
+    leftPedal: {x:eye.x-.13,y:Math.max(.13,eye.y-1.02),z:driverWheel(car).z-.12},
+    rightPedal: {x:eye.x+.13,y:Math.max(.13,eye.y-1.02),z:driverWheel(car).z-.12}
   };
 };
 export const carPoint = (car, p) => driverPoint(car, p);
+export const STEERING_WHEEL_AXIS=Object.freeze({x:0,y:.18/Math.hypot(.18,1),z:1/Math.hypot(.18,1)});
+export const steeringWheelAngle=car=>-Math.max(-1,Math.min(1,Number.isFinite(car.steering)?car.steering:0))*1.7;
+export const steeringWheelRadius=car=>car.model==='tirana-bus'?.24:.215;
+/** The same rim rotation rendered by DriverInterior, including terrain tilt. */
+export function steeringWheelContacts(car,sample=groundHeight){
+  const hub=driverWheel(car),angle=steeringWheelAngle(car),radius=steeringWheelRadius(car);
+  const c=Math.cos(angle),s=Math.sin(angle),axis=STEERING_WHEEL_AXIS;
+  const point=side=>driverPoint(car,{x:hub.x+side*radius*c,y:hub.y+side*radius*axis.z*s,z:hub.z-side*radius*axis.y*s},sample);
+  return {left:point(-1),right:point(1)};
+}
 export function exitPoint(state, car, world) {
   for (const side of [-1, 1])
     for (const z of (car.model==='tirana-bus'?[-7.2,-6.5,-7.8]:[0.15, 0.9, -0.6])) {

@@ -26,6 +26,39 @@ async function fixture(file,id='fixture'){
 }
 const point=(root,bone)=>root.worldToLocal(bone.getWorldPosition(new T.Vector3()));
 
+test('shared humans defer downloads until play and load visible originals before fallbacks with two lanes',async()=>{
+  const originalDocument=globalThis.document,originalLoad=SharedHumans.prototype.loadCatalogAsset;
+  // Only the existing dealer-label canvas needs a DOM; the real constructor,
+  // configure, request queue, update and disposal paths run below.
+  globalThis.document={createElement:()=>({width:0,height:0,getContext:()=>({fillRect(){},fillText(){}})})};
+  const requested=[],rejects=new Map();let configured=false,active=0,peak=0,layer;
+  SharedHumans.prototype.loadCatalogAsset=function(asset){
+    requested.push(asset.id);active++;peak=Math.max(peak,active);
+    assert.ok(configured,'renderer codec/sampler configuration precedes any human request');
+    return new Promise((resolve,reject)=>rejects.set(asset.id,reject)).finally(()=>active--);
+  };
+  const asset=id=>({id,label:id,url:`/assets/${id}.glb`,roles:['civilian']});
+  const flush=()=>new Promise(resolve=>setImmediate(resolve));
+  try{
+    layer=new SharedHumans(['visible-a','visible-b','visible-c','chess-human','athlete-male'].map(asset));
+    assert.deepEqual(requested,[],'constructing the city cannot compete with the player download');
+    layer.configure({extensions:{has:()=>false},capabilities:{getMaxAnisotropy:()=>{configured=true;return 2;}}});
+    const npcs=['visible-a','visible-b','visible-c'].map((id,i)=>({id,characterId:id,kind:'civilian',motion:'walk',x:i+1,z:0,heading:0,speed:1.4,health:100,weapon:''}));
+    layer.update(npcs,{x:0,z:0},0,1/60);
+    assert.deepEqual(requested,['visible-a','visible-b']);assert.equal(peak,2);
+    rejects.get('visible-a')(new Error('test download failed'));await flush();
+    assert.deepEqual(requested,['visible-a','visible-b','visible-c'],'visible original has priority over fallback prefetch');
+    rejects.get('visible-b')(new Error('test download failed'));await flush();
+    assert.deepEqual(requested,['visible-a','visible-b','visible-c','chess-human']);assert.equal(peak,2);
+    const count=requested.length;layer.dispose();
+    for(const reject of rejects.values())reject(new Error('disposed'));
+    await flush();assert.equal(requested.length,count,'disposal cannot start the remaining fallback');
+  }finally{
+    layer?.dispose();SharedHumans.prototype.loadCatalogAsset=originalLoad;
+    if(originalDocument===undefined)delete globalThis.document;else globalThis.document=originalDocument;
+  }
+});
+
 test('anatomy aliases preserve Quaternius spine segments and resolve hand/leg chains',()=>{
   for(const [from,to] of [['spine_01','spine'],['spine_02','spine1'],['spine_03','spine2'],['neck_01','neck'],['hand_l','lefthand'],['thigh_r','rightupleg'],['calf_r','rightleg'],['CC_Base_R_Upperarm_074','rightarm']])assert.equal(canonicalHumanoidBone(from),to);
 });

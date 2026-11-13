@@ -1,5 +1,6 @@
 import * as T from 'three';
-import {driverEye,driverSocket,driverDirection,driverUp,type DriverCar} from './shared/driverView.mjs';
+import {STEERING_WHEEL_AXIS,steeringWheelAngle,steeringWheelRadius} from './street-career/vehicleCore.mjs';
+import {driverEye,driverSocket,driverDirection,driverUp,driverWheel,type DriverCar} from './shared/driverView.mjs';
 import {cabinAssetId,cabinSurface,cabinSteeringSurface,hasAuthoredCabin} from './shared/vehicleCabins.mjs';
 
 type Driven=DriverCar&{id?:string;steering?:number;speed?:number};
@@ -15,7 +16,7 @@ export class DriverInterior {
  private needle?:T.Object3D;
  private geometries=new Set<T.BufferGeometry>();
  private materials=new Set<T.Material>();
- private readonly normal=new T.Vector3(0,.18,1).normalize();
+ private readonly normal=new T.Vector3(STEERING_WHEEL_AXIS.x,STEERING_WHEEL_AXIS.y,STEERING_WHEEL_AXIS.z);
  constructor(){this.group.name='Tirana:driver-interior';this.group.visible=false;}
  update(car:Driven|undefined,sample?:(x:number,z:number)=>number,exterior?:T.Object3D){
   this.group.visible=!!car&&!driverSocket(car).open;
@@ -30,7 +31,7 @@ export class DriverInterior {
   const eye=driverEye(car,sample),up=driverUp(car,sample),forward=driverDirection(car,car.heading,0,sample);
   this.group.position.set(eye.x,eye.y,eye.z);this.group.up.set(up.x,up.y,up.z);
   this.group.lookAt(eye.x-forward.x,eye.y-forward.y,eye.z-forward.z);
-  if(this.wheel)this.wheel.quaternion.setFromAxisAngle(this.normal,-(car.steering||0)*1.7);
+  if(this.wheel)this.wheel.quaternion.setFromAxisAngle(this.normal,steeringWheelAngle(car));
   if(this.needle)this.needle.rotation.z=2.2-Math.min(1,Math.abs(car.speed||0)/60)*4.4;
  }
  private original(car:Driven,source:T.Object3D){
@@ -94,8 +95,8 @@ export class DriverInterior {
    box('Door upper',.07,.18,.88,center+side*width*.51,-.52,-.03,charcoal);
    box('Air vent',.17,.07,.015,side<0?center-width*.41:center+width*.4,-.43,-.55,black);
   }
-  const pivot=new T.Group();pivot.position.set(0,-.4,-.39);group.add(pivot);this.wheel=pivot;
-  const ringGeo=new T.TorusGeometry(bus?.24:.215,.019,8,36);this.geometries.add(ringGeo);const ring=new T.Mesh(ringGeo,charcoal);pivot.add(ring);
+  const pivot=new T.Group(),wheel=driverWheel(car);pivot.position.set(wheel.x-seat.x,wheel.y-seat.y,wheel.z-seat.z);group.add(pivot);this.wheel=pivot;
+  const ringGeo=new T.TorusGeometry(steeringWheelRadius(car),.019,8,36);this.geometries.add(ringGeo);const ring=new T.Mesh(ringGeo,charcoal);pivot.add(ring);
   for(const angle of [0,Math.PI*.7,-Math.PI*.7]){
    const geo=new T.BoxGeometry(.025,.19,.025);this.geometries.add(geo);const spoke=new T.Mesh(geo,metal);spoke.rotation.z=angle;spoke.position.set(-Math.sin(angle)*.09,Math.cos(angle)*.09,0);pivot.add(spoke);
   }

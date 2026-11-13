@@ -43,7 +43,7 @@ export class CareerRuntime {
   this.renderer.setPixelRatio(Math.min(devicePixelRatio||1,1.5));this.renderer.shadowMap.enabled=true;this.renderer.shadowMap.type=T.PCFSoftShadowMap;
   this.applyGraphics();
   this.world=makeCityWorld(this.scene,this.camera,this.renderer);this.world.gun.visible=false;this.world.extraction.visible=false;
-  this.playerVisual=new CareerPlayer(this.scene);
+  this.playerVisual=new CareerPlayer(this.scene,this.renderer);
   this.extras=attachEnhancements(this.scene,ORIGIN);
   const anchors=new Map<string,Point>(WORLD.landmarks.map(l=>[l.id,{x:l.x,z:l.z}]));
   for(const site of civicSites(WORLD))anchors.set(site.id,site);

@@ -1,5 +1,7 @@
 import * as T from 'three';
-import {GLTFLoader} from 'three/examples/jsm/loaders/GLTFLoader.js';
+import {HumanModelLoader} from '../HumanModelLoader';
+import {loadPlayerModelBytes,discardPlayerModelBytes} from '../playerModelBytes.mjs';
+import {prepareHumanMaterials} from '../street-career/humanMaterials.mjs';
 import {selectedPlayerUrl} from '../playerCatalog.mjs';
 import {FirstPersonBody} from '../street-career/FirstPersonBody';
 import {normalizePlayableHuman,hideAuthoredPlayerWeapon} from '../street-career/humanoidRig.mjs';
@@ -13,12 +15,14 @@ import type {Player} from '../shared/engine.mjs';
 export class CareerPlayer {
   readonly errors:string[]=[];
   private actor?:Actor;
+  private loader=new HumanModelLoader();
+  private releaseMaterials?:()=>void;
   private rig:FirstPersonBody;
   private body=createBody();
   private abort?:AbortController;
   private request?:Promise<void>;
   private disposed=false;
-  constructor(private scene:T.Scene){this.rig=new FirstPersonBody(scene);}
+  constructor(private scene:T.Scene,private renderer?:T.WebGLRenderer){this.rig=new FirstPersonBody(scene);if(renderer?.capabilities)this.loader.configure(renderer);}
   get ready(){return !!this.actor&&!this.disposed;}
   load():Promise<void>{
     if(this.request)return this.request;
@@ -34,23 +38,21 @@ export class CareerPlayer {
     try{
       const selected=selectedPlayerUrl();
       if(!selected)throw Error('Choose a player before starting City Stories.');
-      const url=new URL(selected,window.location.href),response=await fetch(url,{signal:abort.signal});
-      if(!response.ok)throw Error(`Player download failed (HTTP ${response.status}).`);
-      const limit=24*1024*1024;
-      if(Number(response.headers.get('content-length')||0)>limit)throw Error('Player exceeds the mobile model budget.');
-      const bytes=await response.arrayBuffer();
-      if(bytes.byteLength>limit)throw Error('Player exceeds the mobile model budget.');
-      const gltf=await new GLTFLoader().parseAsync(bytes,new URL('.',url).href);source=gltf.scene;
+      const url=new URL(selected,window.location.href);
+      const bytes=await loadPlayerModelBytes(url,{signal:abort.signal});
+      if(this.disposed)return;
+      const gltf=await this.loader.parseAsync(bytes,new URL('.',url).href).catch(error=>{discardPlayerModelBytes(url);throw error;});source=gltf.scene;
       if(this.disposed)return;
       const group=normalizePlayableHuman(source);group.name='Tirana:city-stories-player';
       hideAuthoredPlayerWeapon(group);
+      this.releaseMaterials=prepareHumanMaterials(group,{maxAnisotropy:this.renderer?.capabilities?.getMaxAnisotropy()});
       const mixer=new T.AnimationMixer(group),clips=Object.fromEntries(gltf.animations.map(clip=>[clip.name,mixer.clipAction(clip)]));
       const idle=gltf.animations.find(clip=>/idle/i.test(clip.name));
       if(idle&&!clips.Idle)clips.Idle=mixer.clipAction(idle);
       this.actor={group,mixer,clips,idle:clips.Idle,walk:clips.Walk,run:clips.Run,wheels:[],model:'local-player'};
       this.scene.add(group);source=undefined;
     }catch(error){if(!this.disposed)this.errors.push(error instanceof Error?error.message:String(error));}
-    finally{clearTimeout(timer);if(source)disposeWeaponResources([source]);}
+    finally{clearTimeout(timer);if(source){this.releaseMaterials?.();this.releaseMaterials=undefined;disposeWeaponResources([source]);}}
   }
   update(frame:{x:number;z:number;yaw:number;pitch:number;speed:number;time:number;hidden:boolean},dt:number){
     if(!this.actor||this.disposed)return;
@@ -62,7 +64,8 @@ export class CareerPlayer {
   }
   dispose(){
     if(this.disposed)return;
-    this.disposed=true;this.abort?.abort();this.rig.dispose();
+    this.disposed=true;this.abort?.abort();this.rig.dispose();this.loader.dispose();
+    this.releaseMaterials?.();this.releaseMaterials=undefined;
     if(this.actor){
       this.actor.mixer?.stopAllAction();this.actor.mixer?.uncacheRoot(this.actor.group);
       this.actor.group.removeFromParent();disposeWeaponResources([this.actor.group]);this.actor=undefined;

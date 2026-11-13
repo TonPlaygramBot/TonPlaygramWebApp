@@ -3,6 +3,7 @@ import {BuildingAccessSimulation} from './BuildingAccessSimulation.mjs';
 import {ArrestSimulation} from './ArrestSimulation.mjs';
 import {createMissionDirector, extractionSeconds, updateMissionDirector} from './missionDirectorCore.mjs';
 import {npcWeaponPose} from '../shared/npcWeaponPose.mjs';
+import {rememberPedestrianThreat} from '../shared/pedestrianBehavior.mjs';
 import {ThrowableSimulation} from './ThrowableSimulation.mjs';
 import {groundHeight} from '../../tirana-east/terrainCore.mjs';
 import { collectWeapon } from '../shared/cityPopulation.mjs';
@@ -1094,7 +1095,7 @@ export class StreetSimulation {
     );
     for (const n of state.npcs)
       if (n.kind === 'civilian' && dist(p, n) < 55)
-        n.panicUntil = state.elapsed + 10;
+        rememberPedestrianThreat(n,p,state.elapsed);
   }
   finishEnter(a) {
     const p = this.player,

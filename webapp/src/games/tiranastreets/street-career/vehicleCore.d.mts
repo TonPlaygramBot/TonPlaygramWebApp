@@ -11,4 +11,8 @@ export function carPoint(
   p: Point & { y: number }
 ): Point & { y: number };
 
-export function vehicleAnchors(car: Car): typeof VEHICLE_ANCHORS;
+export function vehicleAnchors(car: Car): typeof VEHICLE_ANCHORS & {leftPedal:Point & {y:number};rightPedal:Point & {y:number}};
+export const STEERING_WHEEL_AXIS:Readonly<{x:number;y:number;z:number}>;
+export function steeringWheelAngle(car:{steering?:number}):number;
+export function steeringWheelRadius(car:{model?:string}):number;
+export function steeringWheelContacts(car:Car,sample?:(x:number,z:number)=>number):{left:Point & {y:number};right:Point & {y:number}};
