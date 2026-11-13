@@ -59,7 +59,7 @@ jobs:
           npm ci --ignore-scripts
           npm ci --prefix bot --ignore-scripts
       - name: Check verified authentication
-        run: node --test test/authSecurity.node.mjs test/googleAuth.node.mjs test/matchmakingAuth.node.mjs
+        run: node --test test/authSecurity.node.mjs test/googleAuth.node.mjs test/matchmakingAuth.node.mjs test/tiranaWeaponPurchaseClient.test.mjs
       - name: Check wallet transaction behavior
         run: node --test test/walletRoutes.test.js bot/tests/walletTransfer.test.js test/walletTransferMongo.test.mjs
       - name: Check account authorization and mobile policy
