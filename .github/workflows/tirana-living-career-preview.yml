@@ -1,0 +1,58 @@
+name: Tirana living career preview
+on:
+  pull_request:
+    paths:
+      - 'webapp/src/games/tiranastreets/career/**'
+      - 'webapp/src/games/tiranastreets/living-career/**'
+      - 'test/tiranaLivingCareer.test.mjs'
+      - 'test/tiranaGeographyCore.test.mjs'
+      - '.github/workflows/tirana-living-career-preview.yml'
+permissions:
+  contents: read
+concurrency:
+  group: tirana-preview-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+jobs:
+  preview:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Install isolated development dependencies
+        run: |
+          mkdir -p /tmp/tirana-fixture
+          npm install --prefix /tmp/tirana-fixture --ignore-scripts --no-audit --no-fund three@0.164.0 react@18.2.0 react-dom@18.2.0 @types/three@0.164.0 @types/react@18.2.79 @types/react-dom@18.2.25 vite@4.4.9 typescript@5.4.5
+      - name: Prepare offline development fixture
+        run: |
+          mkdir -p /tmp/tirana-fixture/webapp
+          cp -a webapp/src /tmp/tirana-fixture/webapp/src
+          cp webapp/package.json /tmp/tirana-fixture/webapp/package.json
+          if [ -d webapp/public/assets/tirana-streets/living ]; then
+            mkdir -p /tmp/tirana-fixture/webapp/public/assets/tirana-streets
+            cp -a webapp/public/assets/tirana-streets/living /tmp/tirana-fixture/webapp/public/assets/tirana-streets/
+          fi
+          find /tmp/tirana-fixture -type f \( -iname '*.ttf' -o -iname '*.otf' -o -iname '*.woff' -o -iname '*.woff2' -o -iname '*.eot' \) -delete
+          tar -czf tirana-development-fixture.tgz -C /tmp/tirana-fixture .
+      - uses: actions/upload-artifact@v4
+        with:
+          name: tirana-development-fixture
+          path: tirana-development-fixture.tgz
+          retention-days: 2
+      - name: Living-career simulation tests
+        run: node --test test/tiranaLivingCareer.test.mjs test/tiranaGeographyCore.test.mjs
+      - name: Bundle isolated React and Three.js preview
+        run: |
+          ln -s /tmp/tirana-fixture/node_modules webapp/node_modules
+          cd webapp
+          node /tmp/tirana-fixture/node_modules/vite/bin/vite.js build --config src/games/tiranastreets/living-career/preview.vite.mjs
+      - uses: actions/upload-artifact@v4
+        with:
+          name: tirana-living-career-preview
+          path: artifacts/tirana-preview/
+          retention-days: 7
