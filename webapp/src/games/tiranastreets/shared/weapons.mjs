@@ -1,3 +1,4 @@
+import {reserveCapacity} from './ammunition.mjs';
 import {UPLOADED_WEAPONS} from './uploadedWeapons.mjs';
 // Shared Ludo Battle Royal IDs. Values are fictional arcade balance.
 export const WEAPONS = Object.freeze([
@@ -454,7 +455,7 @@ export function ensureStarterWeapons(player) {
   const legacy = player.inventory.fpsGunAttack;
   if (legacy) {
     const w = WEAPON_BY_ID.get(STARTER_WEAPON), target = player.inventory[STARTER_WEAPON];
-    target.reserve = Math.min(w.magazine * 8, target.reserve + Math.max(0, legacy.ammo || 0) + Math.max(0, legacy.reserve || 0));
+    target.reserve = Math.min(reserveCapacity(w), target.reserve + Math.max(0, legacy.ammo || 0) + Math.max(0, legacy.reserve || 0));
     delete player.inventory.fpsGunAttack;
   }
   if (player.weapon === 'fpsGunAttack') player.weapon = STARTER_WEAPON;

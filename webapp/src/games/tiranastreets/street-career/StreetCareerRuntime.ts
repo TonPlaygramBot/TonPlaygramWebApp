@@ -17,12 +17,13 @@ import { collideDetailPosts } from '../../tirana-street-detail/sharedRoadDetails
 import { CityAudio } from '../audio';
 import { StreetRenderer } from './StreetRenderer';
 import { StreetInput } from './StreetInput';
+import type { CityEconomySimulation, EconomyAction } from './CityEconomySimulation.mjs';
 import {
   StreetSimulation,
   type StreetAction,
   type BodyState
 } from './StreetSimulation.mjs';
-import { captureCheckpoint, restoreCheckpoint } from './checkpointCore.mjs';
+import { captureCheckpoint, restoreCheckpoint, capturePickupState, restorePickupState, rollbackPickupState } from './checkpointCore.mjs';
 import { loadSettings, type StreetSettings } from './settings';
 import {FramePacer} from '../renderSettings';
 import {fixedStepBudget} from '../shared/frameBudget.mjs';
@@ -36,6 +37,7 @@ import {
 } from './campaignCore.mjs';
 export const campaign = createCampaign(MISSIONS, WEAPONS, STARTER_WEAPON);
 export type StreetView = {
+  economy: CityEconomySimulation;
   radio: RadioSnapshot;
   profile: StreetProfile;
   lastResult?:{title:string;message:string};
@@ -116,7 +118,7 @@ export class StreetCareerRuntime {
     root: HTMLDivElement,
     private publish: (view: StreetView) => void,
     private storage?: StoragePort,
-    private openPanel: (panel: 'journal' | 'arsenal') => void = () => {}
+    private openPanel: (panel: 'journal' | 'arsenal' | 'economy') => void = () => {}
   ) {
     this.radio = new VehicleRadio(storage);
     this.profile = campaign.load(storage);
@@ -150,6 +152,8 @@ export class StreetCareerRuntime {
     if (this.profile.active)
       this.newRun(this.profile.active.id, this.profile.active.difficulty, true);
     else {
+      this.simulation.economy.restore(this.profile.economy);
+      restorePickupState(this.simulation,this.profile.worldPickups);
       restoreCheckpoint(this.simulation,this.profile.explore,campaign.apply);
       this.renderer.simulation=this.simulation;
       this.renderer.yaw=this.simulation.body.yaw;
@@ -194,6 +198,8 @@ export class StreetCareerRuntime {
     this.emit();
   };
   private snapshot() {
+    this.profile.economy = this.simulation.economy.snapshot();
+    this.profile.worldPickups = capturePickupState(this.simulation);
     if (this.state.missionId === FREE_ROAM.id) {
       this.profile = campaign.saveExplore(
         this.profile,
@@ -226,12 +232,13 @@ export class StreetCareerRuntime {
       this.profile.active?.checkpoint || this.profile.loadout
     );
     this.simulation = new StreetSimulation(this.state);
-    if (restore)
-      restoreCheckpoint(
-        this.simulation,
-        this.profile.active?.phase,
-        campaign.apply
-      );
+    this.simulation.economy.restore(this.profile.economy);
+    restorePickupState(this.simulation,this.profile.worldPickups);
+    if (restore && this.profile.active) {
+      const phase = this.profile.active.phase;
+      const restored = restoreCheckpoint(this.simulation,phase,campaign.apply);
+      rollbackPickupState(this.simulation,restored ? phase : this.profile.active.worldPickups);
+    }
     this.grantWeapons([...this.ownedWeapons]);
     applyStartingLoadout(this.state.players.local);
     if (!restore) {
@@ -270,6 +277,8 @@ export class StreetCareerRuntime {
   retry() {
     const active = this.profile.active;
     if (!active || !this.ready) return false;
+    this.profile.economy = this.simulation.economy.snapshot();
+    this.profile.worldPickups = capturePickupState(this.simulation);
     this.newRun(active.id, active.difficulty, true);
     this.resume();
     return true;
@@ -281,6 +290,7 @@ export class StreetCareerRuntime {
     if(this.state.players.local.health<=0 || this.state.players.local.arrest)this.newRun(FREE_ROAM.id,'normal');
     else this.switchMission(FREE_ROAM.id,'normal');
     campaign.apply(this.state.players.local,this.profile.loadout);
+    rollbackPickupState(this.simulation,this.profile.worldPickups);
     this.persist();
     this.resume();
   }
@@ -348,6 +358,17 @@ export class StreetCareerRuntime {
     this.radio.setVolume(volume);
     this.emit();
   }
+  economyAction(action: EconomyAction, id: string, amount?: number, weapon?: string) {
+    if (this.disposed || !this.ready) return false;
+    const success = this.simulation.economy.transact(action,id,amount,weapon);
+    this.persist();
+    this.emit();
+    return success;
+  }
+  openWallet() {
+    this.pause();
+    window.location.assign('/wallet');
+  }
   cycleCamera() {
     const key=this.state.players.local.carId?'drivingView':'walkingView';
     if(key==='drivingView'){
@@ -399,6 +420,8 @@ export class StreetCareerRuntime {
       if (event.id <= this.eventAt) continue;
       this.eventAt = event.id;
       if(event.kind==='arrest-complete'){
+        this.profile.economy = this.simulation.economy.snapshot();
+        this.profile.worldPickups = capturePickupState(this.simulation);
         this.profile=campaign.saveExplore({...this.profile,active:null},p);
         this.newRun(FREE_ROAM.id,'normal');
         const released=this.state.players.local;released.x=POLICE_STATION.x;released.z=POLICE_STATION.z;released.weapon='';released.wanted=0;
@@ -421,6 +444,10 @@ export class StreetCareerRuntime {
       if (event.kind === 'arsenal') {
         this.pause();
         this.openPanel('arsenal');
+      }
+      if (event.kind === 'economy') {
+        this.pause();
+        this.openPanel('economy');
       }
       this.audio.street(event.kind);
     }
@@ -482,6 +509,7 @@ export class StreetCareerRuntime {
   private emit() {
     const actions=this.simulation.resolve();
     this.publish({
+      economy: this.simulation.economy,
       radio: this.radio.snapshot(),
       profile: this.profile,
       lastResult:this.lastResult,
@@ -495,6 +523,9 @@ export class StreetCareerRuntime {
       fps: this.renderer.fps,
       storageOK: this.storageOK,
       assetErrors: [
+        ...this.renderer.residentialAssetErrors,
+        ...(this.renderer.civicVisuals.error ? [this.renderer.civicVisuals.error] : []),
+        ...this.renderer.civicVisuals.escorts.errors.values(),
         ...this.renderer.collectionFleet.errors.values(),
         ...this.renderer.humans.errors,
         ...this.renderer.bodyRig.errors,

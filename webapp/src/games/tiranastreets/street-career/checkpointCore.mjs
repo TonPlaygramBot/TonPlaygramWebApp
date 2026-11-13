@@ -6,6 +6,49 @@ import {createMissionDirector} from './missionDirectorCore.mjs';
  * remain readable and old mission-start checkpoints remain the safe fallback. */
 const finite = (v, a, b, f) =>
   Number.isFinite(v) ? Math.max(a, Math.min(b, v)) : f;
+export function normalizePickupState(raw) {
+  return {
+    claimed: Array.isArray(raw?.claimed) ? [...new Set(raw.claimed
+      .filter(id => typeof id === 'string' && (id.startsWith('drop:') || /^city-(?:weapon|ammo)-\d+$/.test(id) || id === 'sky-cafe-sniper')))].slice(0,525) : [],
+    pickupAmmo: Object.fromEntries(Object.entries(raw?.pickupAmmo || {})
+      .filter(([id, amount]) => /^city-ammo-\d+$/.test(id) && Number.isFinite(amount))
+      .slice(0,96).map(([id, amount]) => [id, Math.floor(finite(amount,0,10000,0))]))
+  };
+}
+export function capturePickupState(sim) {
+  return normalizePickupState({claimed:[...sim.claimed],pickupAmmo:Object.fromEntries(sim.loot
+    .filter(item => item.source === 'cache' && !item.collected && item.ammo < item.initialAmmo)
+    .map(item => [item.id,item.ammo]))});
+}
+export function restorePickupState(sim, raw) {
+  const saved=normalizePickupState(raw);
+  // World collections survive a failed positional restore, arrest and mission retry.
+  // Never replenish an already depleted item while merging an older checkpoint.
+  for(const id of saved.claimed)sim.claimed.add(id);
+  for(const item of sim.loot){
+    if(sim.claimed.has(item.id)){item.collected=true;item.collectedBy=sim.player.id;}
+    if(item.source==='cache' && Number.isFinite(saved.pickupAmmo[item.id])){
+      item.ammo=Math.min(item.ammo,item.initialAmmo,saved.pickupAmmo[item.id]);
+      if(item.ammo===0){item.collected=true;item.collectedBy=sim.player.id;sim.claimed.add(item.id);}
+    }
+  }
+}
+/** Roll back authored city loot only when the matching inventory is rolled back.
+ * Dynamic drops are not recreated: their NPCs may have respawned or expired. */
+export function rollbackPickupState(sim, raw) {
+  const saved=normalizePickupState(raw);
+  const authored=id=>/^city-(?:weapon|ammo)-\d+$/.test(id)||id==='sky-cafe-sniper';
+  sim.claimed=new Set([...sim.claimed].filter(id=>!authored(id)).concat(saved.claimed));
+  for(const item of sim.loot){
+    if(!authored(item.id))continue;
+    item.collected=sim.claimed.has(item.id);
+    if(item.collected)item.collectedBy=sim.player.id;
+    else delete item.collectedBy;
+    if(item.source==='cache')item.ammo=Number.isFinite(saved.pickupAmmo[item.id])
+      ? Math.min(item.initialAmmo,saved.pickupAmmo[item.id]):item.initialAmmo;
+  }
+  restorePickupState(sim,saved);
+}
 export function normalizeCheckpoint(raw, loadout, stops = 0) {
   if (
     !raw ||
@@ -73,11 +116,7 @@ export function normalizeCheckpoint(raw, loadout, stops = 0) {
           .filter((id) => typeof id === 'string' && /^gang-\d+$/.test(id))
           .slice(0, 50)
       : [],
-    claimed: Array.isArray(raw.claimed)
-      ? raw.claimed
-          .filter((id) => typeof id === 'string' && (id.startsWith('drop:') || /^city-weapon-\d+$/.test(id)))
-          .slice(0, 428)
-      : []
+    ...normalizePickupState(raw)
   };
 }
 export function captureCheckpoint(sim) {
@@ -97,10 +136,11 @@ export function captureCheckpoint(sim) {
     defeated: sim.state.npcs
       .filter((n) => n.kind === 'gang' && n.health <= 0)
       .map((n) => n.id),
-    claimed: [...sim.claimed]
+    ...capturePickupState(sim)
   };
 }
 export function restoreCheckpoint(sim, checkpoint, apply) {
+  if(checkpoint)restorePickupState(sim,checkpoint);
   if (!checkpoint || !pointInUrbanBounds(checkpoint.player,.5) || checkpoint.aircraft&&!pointInUrbanBounds(checkpoint.aircraft,2) || checkpoint.car&&!pointInUrbanBounds(checkpoint.car,3)) return false;
   // Old regional saves fall back to a safe city spawn; a stored car must share
   // the player's location and fit its full footprint before either is applied.
@@ -145,8 +185,6 @@ export function restoreCheckpoint(sim, checkpoint, apply) {
       n.health = 0;
       n.downUntil = 86400;
     }
-  sim.claimed = new Set(checkpoint.claimed);
-  for(const item of sim.loot)if(sim.claimed.has(item.id)){item.collected=true;item.collectedBy=p.id;}
   if(aircraft){
     Object.assign(aircraft,checkpoint.aircraft,{id:aircraft.id,pilot:p.id,speed:0});
     p.aircraftId=aircraft.id;p.carId=null;p.x=aircraft.x;p.z=aircraft.z;

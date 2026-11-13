@@ -23,6 +23,7 @@ import { SurfaceImpactMarks } from '../SurfaceImpactMarks';
 import { vehicleDamageAppearance } from './vehicleDamageAppearance.mjs';
 import { MissileVisuals } from '../MissileVisuals';
 import { BuildingAccessVisuals } from './BuildingAccessVisuals';
+import { CivicConvoyVisuals } from './CivicConvoyVisuals';
 /** Unified street campaign presentation: full-body combat, driving and the
  * streamed city share one camera, effects budget and rendering lifecycle. */
 export class StreetRenderer extends CityRenderer {
@@ -42,6 +43,8 @@ export class StreetRenderer extends CityRenderer {
   private missileMeshes:MissileVisuals;
   private pockets:PocketVisuals;
   private buildingAccess:BuildingAccessVisuals;
+  get residentialAssetErrors(){return this.buildingAccess.assetErrors;}
+  readonly civicVisuals:CivicConvoyVisuals;
   private wreckAt=-Infinity;
   private wreckMaterials=new Map<T.Mesh,{original:T.Material|T.Material[];copies:T.Material[]}>();
   private clearWrecks(){for(const [mesh,saved] of this.wreckMaterials){mesh.material=saved.original;saved.copies.forEach(m=>m.dispose());}this.wreckMaterials.clear();this.wreckAt=-Infinity;}
@@ -87,6 +90,7 @@ export class StreetRenderer extends CityRenderer {
     this.missileMeshes = new MissileVisuals(this.scene);
     this.pockets = new PocketVisuals(this.scene);
     this.buildingAccess = new BuildingAccessVisuals(this.scene);
+    this.civicVisuals = new CivicConvoyVisuals(this.scene,this.renderer);
     this.airMobility.authoritativeMissiles = true;
     this.camera.near = 0.035;
     this.setFirstPerson(true);
@@ -258,7 +262,7 @@ export class StreetRenderer extends CityRenderer {
   protected override beforeDraw(_state: State | null, _id: string, dt: number) {
     const sim=this.simulation;
     if(sim){
-      this.buildingAccess.update(sim.state.elapsed,sim);
+      this.buildingAccess.update(sim.state.elapsed,sim,this.quality==='battery'?120:320);
       if(this.effectState!==sim.state){this.combatEffects.reset();this.impactMarks.reset();this.clearWrecks();this.effectState=sim.state;this.cutCount=0;this.pyroSequence=0;}
       this.combatEffects.setBloodEnabled(this.settings.bloodEffects);
       this.combatEffects.consume(sim.state.effects,groundHeight,false);this.showWrecks(sim);
@@ -306,6 +310,8 @@ export class StreetRenderer extends CityRenderer {
     if (this.disposed) return;
     beginCityFrame(this.targetFps);
     const p = state?.players[id];
+    if(this.simulation && p)this.civicVisuals.update(this.simulation.civicConvoy,p,state!.elapsed,dt,
+      vehicleId=>this.vehicleVisual(vehicleId),this.quality==='battery');
     // Classify once. SharedHumans selects its own nearest civilian budget;
     // selecting it again for a force-only render list did duplicate sorting.
     const civilians:State['npcs']=[],forces:State['npcs']=[];
@@ -341,6 +347,7 @@ export class StreetRenderer extends CityRenderer {
     if (this.disposed) return;
     this.bodyRig.dispose();
     this.buildingAccess.dispose();
+    this.civicVisuals.dispose();
     this.clearWrecks();this.impactMarks.dispose();this.combatEffects.dispose();this.missileMeshes.dispose();this.pockets.dispose();
     this.humans.dispose();
     super.destroy();

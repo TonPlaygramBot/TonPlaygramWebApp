@@ -1,5 +1,5 @@
 import {pocketWeapon,isPocketWeapon} from '../PocketWeapons';
-import { weaponPose, weaponAnchors } from './weaponPose.mjs';
+import { weaponPose, weaponAnchors, weaponHandFrame } from './weaponPose.mjs';
 import * as T from 'three';
 import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js';
 import type { Actor } from '../cityBaseRenderer';
@@ -498,9 +498,10 @@ export class FirstPersonBody {
         const normal=new T.Vector3(normalPoint.x-origin.x,normalPoint.y-origin.y,normalPoint.z-origin.z);
         solved=solveHumanoidGrip(root,this.bones,side,target,along,normal,.9);
       }else if(armed&&!(reload&&side==='left')&&!(configForGrip?.category==='melee'&&side==='left')){
-        const along=new T.Vector3(side==='right'?0:-1,side==='right'?.93:0,side==='right'?.36:.1).normalize().applyQuaternion(weaponRotation);
-        const normal=new T.Vector3(side==='right'?1:0,side==='right'?0:1,0).applyQuaternion(weaponRotation);
-        solved=solveHumanoidGrip(root,this.bones,side,target,along,normal,1);
+        const frame=weaponHandFrame(p.weapon,side);
+        const along=new T.Vector3(frame.along.x,frame.along.y,frame.along.z).normalize().applyQuaternion(weaponRotation);
+        const normal=new T.Vector3(frame.normal.x,frame.normal.y,frame.normal.z).applyQuaternion(weaponRotation);
+        solved=solveHumanoidGrip(root,this.bones,side,target,along,normal,frame.curl);
       }
       if(!solved){
         armPose(root,this.bones,side,target);

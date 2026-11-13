@@ -23,3 +23,5 @@ export function weaponPose(
   anchors: ReturnType<typeof weaponAnchors>;
   wall: number;
 };
+
+export function weaponHandFrame(id: string, side: "left" | "right"): {along: Vec3; normal: Vec3; curl: number};

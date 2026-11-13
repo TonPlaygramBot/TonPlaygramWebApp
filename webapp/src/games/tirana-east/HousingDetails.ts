@@ -7,6 +7,7 @@ import {housingProfile} from './housingCore.mjs';
 import {RURAL_HOUSE_IDS} from './ruralData.mjs';
 import {buildingGround} from './terrainCore.mjs';
 import {modelGeometry,ROOFS} from './blenderModels';
+import {ECONOMY_RESIDENCE_IDS} from '../tiranastreets/street-career/cityEconomyDefinitions.mjs';
 export function housingGeometry(b:any){
  const profile=housingProfile(b);if(!profile)return new T.BufferGeometry();
  const parts:T.BufferGeometry[]=[],base=buildingGround(b);
@@ -34,6 +35,7 @@ export class HousingDetails {
  readonly group=new T.Group();private material=new T.MeshStandardMaterial({vertexColors:true,roughness:.78});
  private cells=new Map<string,{x:number;z:number;buildings:any[];mesh?:T.Mesh}>();private jobs=new CellWorkQueue();private viewer={x:Infinity,z:Infinity};private battery?:boolean;private dead=false;
  constructor(buildings:any[]=WORLD.buildings){
+  buildings=buildings.filter(b=>!ECONOMY_RESIDENCE_IDS.has(String(b.id)));
   this.group.name='Tirana:Blender-private-houses-and-Studenti';
   for(const b of buildings){if(!housingProfile(b))continue;const x=b.p.reduce((s:number,p:number[])=>s+p[0]/b.p.length,0),z=b.p.reduce((s:number,p:number[])=>s+p[1]/b.p.length,0),key=`${Math.floor(x/240)}:${Math.floor(z/240)}`;if(!this.cells.has(key))this.cells.set(key,{x,z,buildings:[]});this.cells.get(key)!.buildings.push(b);}
  }

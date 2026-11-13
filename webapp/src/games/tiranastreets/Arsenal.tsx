@@ -1,3 +1,4 @@
+import {ammunitionQuote, reserveCapacity} from './shared/ammunition.mjs';
 import { nearestShop } from './shared/cityPopulation.mjs';
 import { useEffect, useState } from "react";
 import { WEAPON_BY_ID } from "./shared/weapons.mjs";
@@ -30,7 +31,7 @@ export function Arsenal({
   const near =
     !player.carId &&
     !!nearestShop(state,player) && Math.hypot(player.x - nearestShop(state,player).x, player.z - nearestShop(state,player).z) <= 9;
-  const canShop = near && wantedStars(player.wanted) === 0 && player.health > 0;
+  const canShop = near && !player.aircraftId && !player.arrest && !player.finished && !player.failed && wantedStars(player.wanted) === 0 && player.health > 0;
   return (
     <div className="ts-arsenal">
       <div className="ts-shop-balance">
@@ -68,7 +69,8 @@ export function Arsenal({
         ))}
       </div>
       <div className="ts-shop-feedback" role="status">
-        {pending ? 'Transaction pending — keep the shop open…' : feedback || player.shopMessage}
+        {pending ? 'Transaction pending — keep the shop open…' : feedback}
+        {player.shopMessage&&<p>{player.shopMessage}</p>}
       </div>
       <div className="ts-shop-list">
         {WEAPON_STORE_CATALOG.filter(
@@ -76,7 +78,9 @@ export function Arsenal({
         ).map((w) => {
           const owned = account?.ownedWeaponIds.includes(w.weaponId),
             carried = !!player.inventory[w.weaponId],
-            selected = player.weapon === w.weaponId;
+            selected = player.weapon === w.weaponId,
+            definition = WEAPON_BY_ID.get(w.weaponId),
+            quote = ammunitionQuote(definition,player.inventory[w.weaponId],'max');
           return (
             <div
               key={w.id}
@@ -98,6 +102,7 @@ export function Arsenal({
                   {selected ? "EQUIPPED" : "EQUIP"}
                 </button>
               )}
+              {carried&&definition?.category!=='melee'&&<div><small>{player.inventory[w.weaponId].reserve}/{reserveCapacity(definition)} reserve · ${player.cash} street cash</small><button disabled={!canShop||!quote.rounds||player.cash<quote.price} onClick={()=>onAction(`buy:ammo:max:${w.weaponId}`)}>FILL AMMO · +{quote.rounds} · ${quote.price}</button></div>}
               <button
                 disabled={
                   !canShop || !account || !!owned || pending === w.id || account.balanceTPG < w.priceTPG

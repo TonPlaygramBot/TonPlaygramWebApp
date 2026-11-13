@@ -21,6 +21,7 @@ const distanceToBounds=(viewer:{x:number;z:number},b:number[])=>Math.hypot(Math.
 export class MappedBuildingCells {
  readonly group=new T.Group();
  private buckets:Bucket[]=[];
+ private dedicatedRoots:T.Group[]=[];
  private frame=0;
  private districts:District[]=[];private districtJobs=new CellWorkQueue();
  private districtCache=new Set<District>();private selectedDistricts=new Set<District>();
@@ -32,7 +33,7 @@ export class MappedBuildingCells {
   this.finish=new EnvironmentMaterials(loadTextures);this.roof=this.finish.create('rough_concrete',0xa5a396);
   buildings=buildings.map(b=>{const estimate=ROOFTOP_HEIGHT_ESTIMATES[b.id as keyof typeof ROOFTOP_HEIGHT_ESTIMATES];return estimate?{...b,h:estimate.height,visualHeightSource:estimate.source,heightBasis:estimate.basis}:b;});
   const mapped=buildings.filter(b=>!DEDICATED_ACCESS_BUILDING_IDS.has(String(b.id)));
-  for(const b of buildings)if(DEDICATED_ACCESS_BUILDING_IDS.has(String(b.id))){const accessShell=this.build([b]);accessShell.userData.osmWay=String(b.id);accessShell.name='Accessible mapped shell: '+b.id;this.group.add(accessShell);}
+  for(const b of buildings)if(DEDICATED_ACCESS_BUILDING_IDS.has(String(b.id))){const accessShell=this.build([b]);accessShell.userData.osmWay=String(b.id);accessShell.name='Accessible mapped shell: '+b.id;this.dedicatedRoots.push(accessShell);this.group.add(accessShell);}
   const map=new Map<string,Bucket>();
   for(const b of mapped){
    const x=Math.floor(b.p.reduce((s:number,p:number[])=>s+p[0]/b.p.length,0)/240)*240+120;
@@ -182,5 +183,5 @@ export class MappedBuildingCells {
    ready:loadedDistricts===this.selectedDistricts.size,radius:SHELL_RADIUS};
  }
  private release(root:T.Group){root.traverse(o=>{if(o instanceof T.Mesh)o.geometry.dispose();});root.clear();root.removeFromParent();}
- dispose(){if(this.dead)return;this.dead=true;this.districtJobs.dispose();this.jobs.dispose();this.finish.dispose();for(const d of this.districtCache)this.releaseDistrict(d);this.districts=[];this.selectedDistricts.clear();for(const b of this.buckets)if(b.root)this.release(b.root);this.buckets=[];this.group.removeFromParent();}
+ dispose(){if(this.dead)return;this.dead=true;this.districtJobs.dispose();this.jobs.dispose();this.finish.dispose();for(const d of this.districtCache)this.releaseDistrict(d);this.districts=[];this.selectedDistricts.clear();for(const b of this.buckets)if(b.root)this.release(b.root);this.buckets=[];for(const root of this.dedicatedRoots)this.release(root);this.dedicatedRoots=[];this.group.removeFromParent();}
 }

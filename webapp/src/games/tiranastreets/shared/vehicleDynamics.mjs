@@ -8,7 +8,10 @@ const approach=(v,to,rate,dt)=>v+(to-v)*(1-Math.exp(-rate*dt));
 export function driveVehicle(car,input,delta,contact=()=>{}){
  const dt=clamp(finite(delta),0,.1);if(!dt)return;
  const tune=drivingScale(car),steps=Math.ceil(dt*120),step=dt/steps;
- const steer=clamp(finite(input.x),-1,1),pedal=clamp(finite(input.y),-1,1);
+ // A small radial-stick noise band avoids a drifting wheel after touch release.
+ const rawSteer=clamp(finite(input.x),-1,1);
+ const steer=Math.abs(rawSteer)<.035?0:Math.sign(rawSteer)*(Math.abs(rawSteer)-.035)/.965;
+ const pedal=clamp(finite(input.y),-1,1);
  if(!Number.isFinite(car.vx)||!Number.isFinite(car.vz)||(!car.vx&&!car.vz&&Math.abs(car.speed||0)>.01)){
   car.vx=-Math.sin(car.heading)*finite(car.speed);car.vz=-Math.cos(car.heading)*finite(car.speed);
  }
@@ -38,11 +41,19 @@ export function driveVehicle(car,input,delta,contact=()=>{}){
   const requested=-Math.tan(car.steerAngle)*forward/tune.wheelbase;
   const turnLimit=Math.min(1.35,(tune.grip*(handbrake?1.15:1))/Math.max(speed,2));
   car.yawRate=approach(car.yawRate,clamp(requested,-turnLimit,turnLimit),handbrake?5:8,step);
+  // Steering can move the front wheels while parked, never rotate the body.
+  // Bound residual yaw by the speed after braking, not the previous substep.
+  const movingTurnLimit=Math.abs(forward)*Math.tan(tune.steer)/tune.wheelbase;
+  car.yawRate=clamp(car.yawRate,-movingTurnLimit,movingTurnLimit);
   car.heading=Math.atan2(Math.sin(car.heading+car.yawRate*step),Math.cos(car.heading+car.yawRate*step));
   // Rotate the existing momentum into the new vehicle frame, then recover
   // lateral grip progressively instead of snapping velocity to the nose.
   const turn=car.yawRate*step;
+  const rotatedForward=forward*Math.cos(turn)-lateral*Math.sin(turn);
   lateral=(lateral*Math.cos(turn)+forward*Math.sin(turn))*Math.exp(-(handbrake?1.65:tune.grip*.86)*step);
+  // Transform BOTH components. Leaving forward unchanged injects energy on
+  // each turn and produces a skating/accelerating car without throttle.
+  forward=rotatedForward;
   if(input.brake&&speed<.15)lateral*=Math.exp(-18*step);
   const nextFx=-Math.sin(car.heading),nextFz=-Math.cos(car.heading);
   car.vx=nextFx*forward+Math.cos(car.heading)*lateral;

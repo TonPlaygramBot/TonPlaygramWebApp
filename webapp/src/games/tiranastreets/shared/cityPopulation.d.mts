@@ -1,5 +1,5 @@
 import type {State,Point,Player,Pickup,Shop} from './engine.mjs';
-export const CITY_POPULATION:Readonly<{vehicles:number;buses:number;weapons:number;shops:number;pedestrians:number}>;
+export const CITY_POPULATION:Readonly<{vehicles:number;buses:number;weapons:number;ammoCaches:number;shops:number;pedestrians:number}>;
 export function nearestShop(state:State,p:Point):Shop;
 export function citySites(env:any):{shops:Shop[];pickups:Pickup[]};
 export function initCityPopulation(state:State,env:any):void;

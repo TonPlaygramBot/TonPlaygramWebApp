@@ -2,6 +2,7 @@ import * as T from 'three';
 import { mergeGeometries } from 'three/examples/jsm/utils/BufferGeometryUtils.js';
 import { buildingAccessSites, stairTreads, siteVolumes, CAFE_REVOLUTION_SECONDS, type AccessSite } from '../shared/buildingAccess.mjs';
 import type { StreetSimulation } from './StreetSimulation.mjs';
+import {createResidentialBuildingForSite,setResidentialDoorOpen,releaseResidentialBuilding} from './residentialAssets';
 
 /** Authored public interiors. All collision treads and room cutouts use the
  * same manifest as the headless simulation; geometry never commits gameplay. */
@@ -18,11 +19,58 @@ export class BuildingAccessVisuals {
  private textures:T.Texture[]=[];
  private scene:T.Scene;
  private sim?:StreetSimulation;
+ private disposed=false;
+ private residenceGroup=new T.Group();
+ private residenceModels=new Map<string,{site:AccessSite;model:T.Group}>();
+ private requestedResidences=new Set<string>();
+ private pendingResidences=new Set<string>();
+ private residenceFailures=new Map<string,string>();
+ private hiddenResidenceShells=new Map<T.Object3D,{visible:boolean;buildingId:string}>();
+ private residenceViewer={x:Infinity,z:Infinity};
+ /** Asset failures remain visible to the runtime; the existing shell stays until
+  * all original glTF meshes and textures have loaded successfully. */
+ get assetErrors(){return [...this.residenceFailures.values()];}
+ get loadedResidenceIds(){return [...this.residenceModels.keys()];}
  constructor(scene:T.Scene,sim?:StreetSimulation,readonly sites:AccessSite[]=sim?.access.sites||buildingAccessSites()){
   this.scene=scene;this.sim=sim;this.group.name='Tirana:playable-building-access';
+  this.residenceGroup.name='Tirana:licensed-playable-residences';scene.add(this.residenceGroup);
   this.group.userData.accuracy='Public building identities; authored game interiors and equipment';
   for(const site of sites)this.buildSite(site);
   this.buildCabin();this.buildCanopy();this.group.add(this.cabin,this.canopy);scene.add(this.group);this.bindBuildingCutouts();
+ }
+ private async loadResidence(site:AccessSite){
+  this.requestedResidences.add(site.buildingId);this.pendingResidences.add(site.buildingId);
+  try{
+   const model=await createResidentialBuildingForSite(site);
+   if(this.disposed){releaseResidentialBuilding(model);return;}
+   model.userData.buildingId=site.buildingId;model.userData.residentialReplacement=true;model.visible=false;
+   this.residenceModels.set(site.buildingId,{site,model});this.residenceGroup.add(model);
+   this.hideReplacedShells();this.bindBuildingCutouts();
+  }catch(error){
+   if(!this.disposed)this.residenceFailures.set(site.buildingId,`${site.name}: residential glTF could not load (${String(error)})`);
+  }finally{this.pendingResidences.delete(site.buildingId);}
+ }
+ private hideReplacedShells(){
+  // Shells are isolated before batching. Do not hide unrelated buildings or
+  // collision-backed interior furniture when a residence finishes loading.
+  this.scene.traverse(object=>{
+   const id=String(object.userData.osmWay||object.userData.buildingId||'');
+   if(!this.residenceModels.has(id))return;
+   let ancestor:T.Object3D|null=object;
+   while(ancestor){if(ancestor===this.group||ancestor===this.residenceGroup)return;ancestor=ancestor.parent;}
+   if(!this.hiddenResidenceShells.has(object))this.hiddenResidenceShells.set(object,{visible:object.visible,buildingId:id});
+   object.visible=this.residenceModels.get(id)!.model.visible?false:this.hiddenResidenceShells.get(object)!.visible;
+  });
+ }
+ private updateResidenceVisibility(radius:number){
+  // High quality is reserved for two nearby homes (one in battery mode).
+  // The original mapped shells
+  // remain the skyline LOD; a downloaded model does not make distant blocks vanish.
+  const near=[...this.residenceModels.values()].map(entry=>({...entry,d:Math.hypot(entry.site.center.x-this.residenceViewer.x,entry.site.center.z-this.residenceViewer.z)}))
+   .filter(entry=>entry.d<radius).sort((a,b)=>a.d-b.d).slice(0,radius<=120?1:2);
+  const visible=new Set(near.map(entry=>entry.site.buildingId));
+  for(const [id,entry]of this.residenceModels)entry.model.visible=visible.has(id);
+  for(const [object,saved]of this.hiddenResidenceShells)object.visible=visible.has(saved.buildingId)?false:saved.visible;
  }
  private material(color:number){
   if(!this.materials.has(color))this.materials.set(color,new T.MeshStandardMaterial({color,roughness:color===0x91c3cb?.24:.72,metalness:color===0x30393c?.55:.08}));
@@ -61,7 +109,7 @@ export class BuildingAccessVisuals {
   if(site.stairs){
    box(0x30393c,site.center.x,site.ground+(site.roofY-site.ground)/2,site.center.z,.07,site.roofY-site.ground,3.5);
    this.label('SHKALLË → TARRACA',root,site.center.x,floor+2.55,site.center.z+3.2,3.7);
-  }else{
+  }else if(!site.economyId){
    const x=site.center.x-site.half+1,z=site.lobbyPoint.z;
    box(0x30393c,x,floor+1.3,z-.85,2.1,2.6,.15);box(0x8b9a9d,x,floor+1.25,z-.75,1.85,2.45,.06);
    box(0x4fc898,x+1.25,floor+1.25,z-.65,.15,.4,.1);
@@ -77,8 +125,16 @@ export class BuildingAccessVisuals {
   this.label(site.kind==='cafe'?'SKY CLUB 360° · ASHENSOR':'HYR · '+site.name,root,e.x,floor+3.65,e.z,5.5);
   box(0x856a43,site.center.x+site.half-1.15,floor+.48,site.center.z,1.6,.14,2.2);
   box(0x30393c,site.center.x+site.half-1.15,floor+.24,site.center.z,.1,.48,1.8);
+  if(site.economyId){
+   const bank=site.kind==='bank';
+   box(bank?0x243f38:0x473c2d,site.center.x,floor+.52,site.center.z-.85,bank?3.4:1.3,1.04,.65);
+   box(0xb4ada0,site.center.x,floor+1.09,site.center.z-.85,bank?3.6:1.4,.1,.78);
+   this.label(bank?'STREET CASH · TPG WALLET':'AMMO STORAGE',root,site.center.x,floor+2.2,site.center.z-.85,bank?4:3);
+   this.label('DALJE →',root,site.lobbyPoint.x,floor+2.2,site.lobbyPoint.z,2);
+  }
   flush();
   if(site.kind==='cafe')this.buildCafe(root,site);
+  if(site.economyId)return;
   const kit=new T.Group();kit.position.set(site.equipment.x,site.equipment.y,site.equipment.z);root.add(kit);this.equipment.set(site.id,kit);
   const kitBatch=this.batch(kit);
   kitBatch.box(0x293f3b,0,.22,0,.64,.44,.38);kitBatch.box(0xe1b759,0,.25,.2,.17,.38,.03);
@@ -134,7 +190,7 @@ export class BuildingAccessVisuals {
   this.scene.traverse(object=>{
    if(!(object instanceof T.Mesh)||this.cutMeshes.has(object))return;
    let ancestor:T.Object3D|null=object,site:AccessSite|undefined;
-   while(ancestor&&!site){if(ancestor===this.group)return;site=byId.get(String(ancestor.userData.osmWay||ancestor.userData.buildingId||''));ancestor=ancestor.parent;}
+   while(ancestor&&!site){if(ancestor===this.group||ancestor.name==='residential_entry_door')return;site=byId.get(String(ancestor.userData.osmWay||ancestor.userData.buildingId||''));ancestor=ancestor.parent;}
    if(!site)return;const selected=site;
    const volumes=siteVolumes(selected);
    const polygon=(p:number[][])=>p.map((a,i)=>{const b=p[(i+1)%p.length];return `((${(b[0]-a[0]).toFixed(5)})*(vAccessWorld.z-(${a[1].toFixed(5)}))-(${(b[1]-a[1]).toFixed(5)})*(vAccessWorld.x-(${a[0].toFixed(5)}))>=-0.001)`;}).join('&&');
@@ -148,16 +204,33 @@ export class BuildingAccessVisuals {
    object.material=Array.isArray(original)?copies:copies[0];this.cutMaterials.push({mesh:object,original,copies});this.cutMeshes.add(object);
   });
  }
- update(time:number,sim=this.sim){
+ update(time:number,sim=this.sim,residenceRadius=320){
   for(const platform of this.rotors)platform.rotation.y=-time*2*Math.PI/CAFE_REVOLUTION_SECONDS;
-  if(time-this.lastBind>3){this.lastBind=time;this.bindBuildingCutouts();}
+  if(time-this.lastBind>3){this.lastBind=time;this.hideReplacedShells();this.bindBuildingCutouts();}
   if(!sim)return;
+  this.residenceViewer.x=sim.player.x;this.residenceViewer.z=sim.player.z;
+  this.updateResidenceVisibility(residenceRadius);
+  if(this.pendingResidences.size<2){
+   const next=this.sites.filter(site=>site.economyId&&site.kind!=='bank'&&!this.requestedResidences.has(site.buildingId))
+    .map(site=>({site,distance:Math.hypot(site.entrance.x-sim.player.x,site.entrance.z-sim.player.z)}))
+    .filter(entry=>entry.distance<700).sort((a,b)=>a.distance-b.distance)[0];
+   if(next)void this.loadResidence(next.site);
+  }
+  for(const {site,model}of this.residenceModels.values()){
+   const nearby=Math.hypot(site.entrance.x-sim.player.x,site.entrance.z-sim.player.z)<6;
+   const inside=Math.abs(sim.body.y-site.interiorY)<3&&Math.hypot(site.center.x-sim.player.x,site.center.z-sim.player.z)<site.half*1.5;
+   setResidentialDoorOpen(model,nearby||inside||sim.access.travel?.siteId===site.id);
+  }
   this.cabin.visible=!!sim.access.travel;if(this.cabin.visible)this.cabin.position.set(sim.player.x,sim.body.y,sim.player.z);
   this.canopy.visible=sim.access.parachute.open;if(this.canopy.visible){this.canopy.position.set(sim.player.x,sim.body.y,sim.player.z);this.canopy.rotation.y=sim.body.yaw;}
   for(const [id,kit]of this.equipment){kit.children.forEach(o=>{if(o instanceof T.Mesh)o.scale.setScalar(sim.access.collected.has(id)?.65:1);});}
  }
  dispose(){
+  this.disposed=true;
   for(const {mesh,original,copies}of this.cutMaterials){mesh.material=original;copies.forEach(m=>m.dispose());}this.cutMaterials=[];
+  for(const [object,saved]of this.hiddenResidenceShells)object.visible=saved.visible;this.hiddenResidenceShells.clear();
+  for(const {model}of this.residenceModels.values())releaseResidentialBuilding(model);
+  this.residenceModels.clear();this.residenceGroup.removeFromParent();
   const materials=new Set<T.Material>();this.group.traverse(o=>{if(o instanceof T.Mesh){o.geometry.dispose();for(const m of Array.isArray(o.material)?o.material:[o.material])materials.add(m);}if(o instanceof T.Sprite)materials.add(o.material);});
   materials.forEach(m=>m.dispose());this.textures.forEach(t=>t.dispose());this.group.removeFromParent();
  }

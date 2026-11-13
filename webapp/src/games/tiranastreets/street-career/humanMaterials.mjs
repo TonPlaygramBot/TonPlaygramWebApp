@@ -1,4 +1,5 @@
 import * as T from 'three';
+import {prepareTuriSurfaceContinuity} from './turiSurfaceContinuity.mjs';
 
 // Match identifiable skin slots only. A soldier's body atlas contains clothing,
 // metal and skin together, so its authored PBR channels must remain intact.
@@ -78,9 +79,11 @@ export function prepareHumanMaterials(root, {maxAnisotropy = 4} = {}) {
       bindings.push({mesh, source, prepared});
     }
   });
+  const releaseSurface = prepareTuriSurfaceContinuity(root);
   return instances => {
     if (released) return;
     released = true;
+    releaseSurface(instances);
     for (const {mesh, source, prepared} of bindings)
       if (mesh.material === prepared) mesh.material = source;
     if (instances) {

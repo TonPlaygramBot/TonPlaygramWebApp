@@ -25,6 +25,7 @@ import {DriverInterior} from './DriverInterior';
 import {driverEye,driverFov,driverDirection,driverUp} from './shared/driverView.mjs';
 import {AgedHousingLayer} from '../tirana-city-source/AgedHousingLayer';
 import {AGED_HOUSING_IDS} from '../tirana-city-source/housingRegistry.mjs';
+import {ECONOMY_BUILDING_IDS} from './street-career/cityEconomyDefinitions.mjs';
 import {collectionVehicleFor,CIVILIAN_VEHICLE_MODELS} from './shared/vehicleCollection.mjs';
 import {ImportedAssetVisuals} from './ImportedAssetVisuals';
 import * as THREE from "three";
@@ -332,7 +333,7 @@ export class CityRenderer {
     ];
     const buckets = new Map<
       string,
-      { geos: THREE.BufferGeometry[][]; group: THREE.Group }
+      { geos: THREE.BufferGeometry[][]; windows: THREE.BufferGeometry[]; group: THREE.Group }
     >();
     const windowGeos: THREE.BufferGeometry[] = [];
     for (const b of WORLD.buildings) {
@@ -341,12 +342,14 @@ export class CityRenderer {
       const cx = b.p.reduce((s, p) => s + p[0], 0) / b.p.length,
         cz = b.p.reduce((s, p) => s + p[1], 0) / b.p.length;
       // Eight city shell draws are cheaper on phones than hundreds of tiny chunks.
-      const key = "city";
+      const dedicated=ECONOMY_BUILDING_IDS.has(String(b.id));
+      const key = dedicated ? String(b.id) : "city";
       if (!buckets.has(key)) {
         const group = new THREE.Group();
         group.userData.center = { x: cx, z: cz };
+        if(dedicated){group.userData.buildingId=String(b.id);group.name='Accessible city shell: '+b.id;}
         this.scene.add(group);
-        buckets.set(key, { geos: colors.map(() => []), group });
+        buckets.set(key, { geos: colors.map(() => []), windows: [], group });
       }
       const shape = new THREE.Shape(
         b.p.map(
@@ -387,17 +390,19 @@ export class CityRenderer {
           const g = new THREE.BoxGeometry(Math.max(1, length - 2), 1.25, 0.16);
           g.rotateY(-Math.atan2(dz, dx));
           g.translate((a[0] + c[0]) / 2, y, (a[1] + c[1]) / 2);
-          windowGeos.push(g);
+          (dedicated?buckets.get(key)!.windows:windowGeos).push(g);
         }
       }
     }
-    for (const bucket of buckets.values())
+    for (const bucket of buckets.values()) {
       bucket.geos.forEach((geos, i) => {
         const material = this.material(colors[i]);
         this.shellMaterials.push(material);
         const mesh = this.merged(geos, material, bucket.group);
         if (mesh) mesh.castShadow = true;
       });
+      this.merged(bucket.windows,this.material(0x506971,{metalness:.45,roughness:.27}),bucket.group);
+    }
     this.merged(
       windowGeos,
       this.material(0x506971, { metalness: 0.45, roughness: 0.27 }),

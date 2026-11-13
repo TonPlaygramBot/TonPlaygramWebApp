@@ -25,8 +25,10 @@ export class BuildingAccessSimulation {
    out.push(descriptor(site.id+':'+kind,label,kind,95-distance(p,point)));
   };
   for(const site of this.sites){
+   if(site.economyId&&site.kind!=='bank'&&!this.sim.economy?.owns(site.economyId))continue;
    add(site,site.entrance,'access-enter',site.kind==='cafe'?'HYR · SKY TOWER':'HYR · '+site.name,4);
    add(site,site.lobbyPoint,'access-leave','DALJE NË RRUGË');
+   if(site.economyId)continue;
    if(!site.stairs){
     // Separate controls leave room to enter and explore the lobby first.
     add(site,{...site.lobbyPoint,x:site.center.x-site.half+1},'access-up',site.kind==='cafe'?'ASHENSOR · SKY CLUB 360°':'ASHENSOR · TARRACA',3.6);

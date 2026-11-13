@@ -1,6 +1,7 @@
 import * as THREE from "three";
 import {VisibilityIndex,selectVisibilityBands} from './shared/visibilityIndex.mjs';
 import {AGED_HOUSING_IDS} from '../tirana-city-source/housingRegistry.mjs';
+import {ECONOMY_RESIDENCE_IDS} from './street-career/cityEconomyDefinitions.mjs';
 import { WORLD, insidePolygon, type Point } from "./shared/engine.mjs";
 import { nativeReplacementIds } from "../tirana-landmarks/nativeLocations.mjs";
 import {ROCK_REPLACEMENT_IDS} from '../tirana-landmarks/skanderbegBuilding.mjs';
@@ -13,6 +14,7 @@ type Placement = {
   height: number; variant: number; yaw: number;
 };
 export const CITY_DETAILS: Placement[] = WORLD.buildings.flatMap((b, i) => {
+  if(ECONOMY_RESIDENCE_IDS.has(String(b.id)))return [];
   if(AGED_HOUSING_IDS.has(String(b.id))||ROCK_REPLACEMENT_IDS.has(String(b.id)))return [];
   if(b.neighbourhood)return []; // Source shells/Blender assets own these footprints.
   if (INSTITUTION_BUILDING_IDS.has(String(b.id)) || REAL_STOREFRONT_BUILDING_IDS.has(String(b.id)) || FUEL_CANOPY_IDS.has(String(b.id)) || replacedLandmarkIds.has(String(b.id)) || b.special || b.h < 6 || b.h > 60) return [];

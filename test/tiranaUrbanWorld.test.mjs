@@ -35,11 +35,11 @@ test('routing retains one connected city graph with valid directions and reachab
  for(const id of ['node/10950616148','node/6824084784','node/7699528590']){const site=NEIGHBOURHOOD.places.find(p=>p.id===id);assert.ok(site);const route=findMapRoute(graph,{x:0,z:0},{x:site.point[0],z:site.point[1]});assert.equal(route.reachable,true,site.name);}
 });
 
-test('all 15 shops, 300 pickups and prior accessible roofs survive the compact map',()=>{
+test('all stores, weapons, caches and accessible buildings survive the compact map',()=>{
  const s=createState([{id:'urban-review',name:'Review'}],'free-roam');
- assert.equal(s.shops.length,15);assert.equal(s.pickups.length,300);
+ assert.equal(s.shops.length,24);assert.equal(s.pickups.length,396);
  for(const p of [...s.shops,...s.pickups,...s.traffic,...s.npcs,...s.cars,...Object.values(s.players)])assert.ok(pointInUrbanBounds(p),p.id);
- const sites=buildingAccessSites(WORLD);assert.equal(sites.length,11);for(const p of sites)assert.ok(pointInUrbanBounds(p.entrance),p.id);
+ const sites=buildingAccessSites(WORLD);assert.equal(sites.length,20);for(const p of sites)assert.ok(pointInUrbanBounds(p.entrance),p.id);
 });
 
 test('pedestrians and entire bus bodies stay inside all four edges',()=>{

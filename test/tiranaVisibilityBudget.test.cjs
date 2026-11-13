@@ -6,8 +6,8 @@ function load(file,deps={},globals={}){
  const code=ts.transpileModule(fs.readFileSync(path.join(base,file),'utf8'),{compilerOptions:{target:ts.ScriptTarget.ES2022,module:ts.ModuleKind.CommonJS}}).outputText;
  vm.runInNewContext(code,{module,exports:module.exports,require:id=>deps[id]||{},console,performance,...globals});return module.exports;
 }
-let visibility;
-test.before(async()=>{visibility=await import('../webapp/src/games/tiranastreets/shared/visibilityIndex.mjs');});
+let visibility,economy;
+test.before(async()=>{[visibility,economy]=await Promise.all([import('../webapp/src/games/tiranastreets/shared/visibilityIndex.mjs'),import('../webapp/src/games/tiranastreets/street-career/cityEconomyDefinitions.mjs')]);});
 test('visibility query visits local indexed cells and retains distant bands within the existing count budget',()=>{
  let reads=0;
  const items=Array.from({length:10000},(_,i)=>({id:i,get x(){reads++;return i*20;},z:0}));
@@ -21,6 +21,7 @@ test('visibility query visits local indexed cells and retains distant bands with
 function facadeFixture(buildings){
  const {CityFacades,FACADE_VISIBILITY}=load('tiranastreets/cityVisuals.ts',{
   three:T,'./shared/visibilityIndex.mjs':visibility,
+  './street-career/cityEconomyDefinitions.mjs':economy,
   './shared/engine.mjs':{WORLD:{buildings},insidePolygon:(x,z,p)=>x>p[0][0]&&x<p[2][0]&&z>p[0][1]&&z<p[2][1]},
   '../tirana-city-source/housingRegistry.mjs':{AGED_HOUSING_IDS:new Set()},
   '../tirana-landmarks/nativeLocations.mjs':{nativeReplacementIds:()=>new Set()},
@@ -51,6 +52,24 @@ test('generic facade templates never cover the dedicated Skanderbeg podium or fa
  layer.update({x:0,z:0},1,false);
  assert.equal(layer.group.userData.visibleBuildings,0);
  assert.ok(layer.batches.every(b=>b.mesh.count===0));
+});
+test('generic facade templates never overlap the licensed purchasable residences',()=>{
+ const {layer}=facadeFixture([...economy.ECONOMY_RESIDENCE_IDS].map((id,i)=>building(id,i*20,0)));
+ layer.update({x:0,z:0},1,false);
+ assert.equal(layer.group.userData.visibleBuildings,0);
+ assert.ok(layer.batches.every(b=>b.mesh.count===0));
+});
+test('residence LOD restores original shells at distance and caps battery detail at one home',()=>{
+ const {BuildingAccessVisuals}=load('tiranastreets/street-career/BuildingAccessVisuals.ts',{three:T});
+ const layer=Object.create(BuildingAccessVisuals.prototype),scene=new T.Scene(),group=new T.Group(),residenceGroup=new T.Group();
+ scene.add(group,residenceGroup);
+ const originals=['a','b','c'].map(id=>{const root=new T.Group();root.userData.buildingId=id;scene.add(root);return root;});
+ const models=originals.map(()=>{const model=new T.Group();model.visible=false;residenceGroup.add(model);return model;});
+ Object.assign(layer,{scene,group,residenceGroup,residenceViewer:{x:0,z:0},hiddenResidenceShells:new Map(),residenceModels:new Map(models.map((model,i)=>[['a','b','c'][i],{model,site:{buildingId:['a','b','c'][i],center:{x:10+i*20,z:0}}}]))});
+ layer.hideReplacedShells();assert.ok(originals.every(root=>root.visible),'pending assets retain their source shells');
+ layer.updateResidenceVisibility(320);assert.equal(models.filter(model=>model.visible).length,2);assert.deepEqual(originals.map(root=>root.visible),[false,false,true]);
+ layer.updateResidenceVisibility(120);assert.deepEqual(models.map(model=>model.visible),[true,false,false]);assert.deepEqual(originals.map(root=>root.visible),[false,true,true]);
+ layer.residenceViewer.x=10000;layer.updateResidenceVisibility(320);assert.ok(originals.every(root=>root.visible));assert.ok(models.every(model=>!model.visible));
 });
 test('portrait facade selection reaches 1.1 km, respects 100/35 caps, and refreshes when turning or resizing',()=>{
  const rows=Array.from({length:180},(_,i)=>building(i,(i%3-1)*20,-30-i*5));

@@ -2,6 +2,7 @@ import { BUILDING_PROFILES } from './architecture.mjs';
 import { WORLD } from './world.mjs';
 import { roofClearance, rooftopHelicopterSites, ROOFTOP_POOLS } from './rooftops.mjs';
 import { groundHeight, buildingGround } from '../../tirana-east/terrainCore.mjs';
+import { ECONOMY_BANKS, ECONOMY_PROPERTIES } from '../street-career/cityEconomyDefinitions.mjs';
 
 // Public identities come from mapped footprints. Every interior, access route,
 // equipment placement and aircraft assignment below is an authored game layout.
@@ -39,22 +40,24 @@ function entryFor(b,c,world){
 }
 export function buildingAccessSites(world=WORLD) {
  if(cache.has(world))return cache.get(world);
- const ids=new Set([SKY_TOWER_ID,...PUBLIC_INTERIORS,...ROOFTOP_POOLS.map(p=>p.buildingId),...rooftopHelicopterSites(world,2).map(s=>String(s.buildingId))]);
+ const economy=new Map([...ECONOMY_BANKS,...ECONOMY_PROPERTIES].map(s=>[s.buildingId,s]));
+ const ids=new Set([SKY_TOWER_ID,...PUBLIC_INTERIORS,...ROOFTOP_POOLS.map(p=>p.buildingId),...rooftopHelicopterSites(world,2).map(s=>String(s.buildingId)),...economy.keys()]);
  const sites=[];
  for(const id of ids){
   const building=world.buildings.find(b=>String(b.id)===id);if(!building)continue;
   const center=centreInside(building);if(!center||center.clearance<3.2)continue;
   const entrance=entryFor(building,center,world);if(!entrance)continue;
-  const ground=buildingGround(building),isCafe=id===SKY_TOWER_ID;
+  const ground=buildingGround(building),isCafe=id===SKY_TOWER_ID,listing=economy.get(id);
   const visualHeight=building.visualHeightSource?building.h:BUILDING_PROFILES[id]?.height??building.h;
   const roofY=ground+visualHeight-(isCafe?6:0);
   const half=Math.min(5.2,center.clearance*.66), room=rect(center.x,center.z,half*2,half*2);
   const doorPoints=[-1,1].map(s=>[entrance.x+entrance.ux*s*1.2,entrance.z+entrance.uz*s*1.2]);
   const lobby=hull([...room,...doorPoints]);
   const stairs=PUBLIC_INTERIORS.includes(id)&&half>=3.5&&building.h>=6;
-  const site={id:'access:'+id,buildingId:id,name:building.name||'Tarracë publike',building,center,half,ground,roofY,
+  const site={id:'access:'+id,buildingId:id,name:listing?.name||building.name||'Tarracë publike',building,center,half,ground,roofY,
     entrance:{...entrance,y:groundHeight(entrance.x,entrance.z)+.08},lobby,room,
-    kind:isCafe?'cafe':ROOFTOP_POOLS.some(p=>p.buildingId===id)?'pool':stairs?'institution':'roof',
+    kind:listing?.kind|| (isCafe?'cafe':ROOFTOP_POOLS.some(p=>p.buildingId===id)?'pool':stairs?'institution':'roof'),
+    economyId:listing?.id,
     stairs,travel:stairs?'stairs':'elevator',interiorY:ground+.08,
     roof:{x:center.x+(isCafe?0:-half+.8),z:center.z+half-.8,y:roofY},
     lobbyPoint:{x:center.x+half-.9,z:center.z+half-.9,y:ground+.08},

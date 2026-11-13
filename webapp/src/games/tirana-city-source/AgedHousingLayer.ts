@@ -3,6 +3,7 @@ import {mergeGeometries} from 'three/examples/jsm/utils/BufferGeometryUtils.js';
 import {facadeEdges} from './sourceCore.mjs';
 import {AGED_HOUSING} from './housingRegistry.mjs';
 import {housingSeed} from './housingCore.mjs';
+import {ECONOMY_RESIDENCE_IDS} from '../tiranastreets/street-career/cityEconomyDefinitions.mjs';
 
 /** Shared source-frame details. At most 24 nearby buildings / 36 cached models.
  * Geometry is merged by material; there is no draw call per AC or window. */
@@ -14,6 +15,7 @@ export class AgedHousingLayer {
   private materials:T.MeshStandardMaterial[];
   private textures=new Set<T.Texture>();
   constructor(private buildings=AGED_HOUSING,loadTextures=true){
+    this.buildings=buildings.filter(b=>!ECONOMY_RESIDENCE_IDS.has(String(b.id)));
     this.group.name='Tirana:aged-apartment-details';
     this.group.userData={buildings:buildings.length,classification:'Date-tagged or explicitly estimated typology',assetErrors:[]};
     const plaster=new T.MeshStandardMaterial({color:0xffffff,roughness:.96,vertexColors:true});

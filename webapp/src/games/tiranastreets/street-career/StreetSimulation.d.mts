@@ -82,6 +82,8 @@ export class StreetSimulation {
   constructor(state: State, world?: import('./spatialCore.mjs').StreetWorld);
   state: State;
   access: import('./BuildingAccessSimulation.mjs').BuildingAccessSimulation;
+  economy: import('./CityEconomySimulation.mjs').CityEconomySimulation;
+  civicConvoy: import('./CivicConvoySimulation.mjs').CivicConvoySimulation;
   combat: import('./CombatSimulation.mjs').CombatSimulation;
   flight: import('./FlightSimulation.mjs').FlightSimulation;
   arrest: import('./ArrestSimulation.mjs').ArrestSimulation;
@@ -95,6 +97,9 @@ export class StreetSimulation {
   hooks: SimulationSystems;
   settings: { aimAssist: boolean };
   loot: {collected?:boolean;
+    kind?:string;
+    source?:string;
+    initialAmmo?:number;
     id: string;
     weapon: string;
     x: number;

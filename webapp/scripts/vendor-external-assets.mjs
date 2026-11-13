@@ -34,19 +34,21 @@ function parseArguments(argv) {
 }
 
 async function discoverInventory() {
-  const [{ collectStaticExternalAssets }, { collectModelInventory }, polyhaven, { collectVerifiedLocalAssets }] = await Promise.all([
+  const [{ collectStaticExternalAssets }, { collectModelInventory }, polyhaven, { collectVerifiedLocalAssets }, { collectResidentialInventory }] = await Promise.all([
     import('./external-assets/source-inventory.mjs'),
     import('../../scripts/external-assets/model-inventory.mjs'),
     import('./external-assets/polyhaven-inventory.mjs'),
-    import('./external-assets/local-aliases.mjs')
+    import('./external-assets/local-aliases.mjs'),
+    import('./external-assets/residential-inventory.mjs')
   ]);
-  const [assets, modelGroups, poly, localAssets] = await Promise.all([
+  const [assets, modelGroups, poly, localAssets, residentialGroups] = await Promise.all([
     collectStaticExternalAssets({ repoRoot: REPO_ROOT }),
     collectModelInventory({ repoRoot: REPO_ROOT }),
     polyhaven.buildPolyhavenInventory({ repoRoot: REPO_ROOT }),
-    collectVerifiedLocalAssets({ repoRoot: REPO_ROOT })
+    collectVerifiedLocalAssets({ repoRoot: REPO_ROOT }),
+    collectResidentialInventory({ repoRoot: REPO_ROOT })
   ]);
-  const groups = [...poly.groups, ...modelGroups];
+  const groups = [...poly.groups, ...modelGroups, ...residentialGroups];
   const declared = new Set(groups.flatMap((group) => [...(group.candidates || []), ...(group.aliases || [])]));
   for (const asset of assets) {
     if (!declared.has(asset.url)) groups.push({ id: `static:${sha256(asset.url).slice(0, 16)}`, kind: 'static', candidates: [asset.url], sources: asset.referrers, essential: true });
