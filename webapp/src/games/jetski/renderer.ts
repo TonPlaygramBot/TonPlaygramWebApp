@@ -644,7 +644,14 @@ export class JetskiRenderer {
     } else if (onRider) {
       player.rider.eye.getWorldPosition(this.desired);
       player.rider.eye.getWorldDirection(this.viewOffset);
-      this.viewOffset.y = T.MathUtils.clamp(this.viewOffset.y, -0.26, -0.12);
+      // Keep the console in frame on tall screens while looking down the course.
+      const portrait = this.camera.aspect < 0.8;
+      if (portrait) this.desired.addScaledVector(this.viewOffset, -0.23);
+      this.viewOffset.y = T.MathUtils.clamp(
+        this.viewOffset.y - (portrait ? 0.24 : 0),
+        portrait ? -0.49 : -0.26,
+        portrait ? -0.41 : -0.12
+      );
       this.focus.copy(this.desired).addScaledVector(this.viewOffset, 26);
     } else {
       const river = this.track.pointToPoint;
@@ -701,7 +708,9 @@ export class JetskiRenderer {
       1 - Math.exp(-dt * 9)
     );
     this.camera.rotateZ(this.cameraRoll);
-    const fov = (onRider ? 66 : 57) + (local.boosting && !preview ? 4 : 0);
+    const fov =
+      (onRider ? (this.camera.aspect < 0.8 ? 75 : 66) : 57) +
+      (local.boosting && !preview ? 4 : 0);
     this.camera.fov = T.MathUtils.lerp(
       this.camera.fov,
       fov,

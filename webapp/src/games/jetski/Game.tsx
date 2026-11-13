@@ -577,6 +577,7 @@ export default function JetskiGame({
           <span className="jsr-hero-tag">
             <Waves size={15} /> {day === 'day' ? 'DAYLIGHT' : 'GOLDEN HOUR'}
           </span>
+          {track.pointToPoint && <MapAttribution />}
         </section>
         <div className="jsr-lobby-content">
           <div className="jsr-section-title">
@@ -986,6 +987,7 @@ export default function JetskiGame({
           racers={world.current.racers}
           playerId={world.current.playerId}
         />
+        {track.pointToPoint && <MapAttribution />}
       </div>
       <div className="jsr-race-actions">
         <button
@@ -1151,6 +1153,19 @@ export default function JetskiGame({
         </div>
       )}
     </main>
+  );
+}
+function MapAttribution() {
+  return (
+    <a
+      className="jsr-map-attribution"
+      href="https://www.openstreetmap.org/copyright"
+      target="_blank"
+      rel="noreferrer"
+      aria-label="Map data © OpenStreetMap contributors"
+    >
+      © OpenStreetMap
+    </a>
   );
 }
 function MiniMap({

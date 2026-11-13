@@ -696,6 +696,23 @@
   width: 100%;
   height: 100%;
 }
+.jsr-map-attribution {
+  position: absolute;
+  left: 0;
+  top: calc(100% + 4px);
+  padding: 4px 6px;
+  color: #edf9f8;
+  background: rgba(4, 26, 35, 0.8);
+  border-radius: 4px;
+  font-size: 9px;
+  white-space: nowrap;
+}
+.jsr-hero .jsr-map-attribution {
+  left: auto;
+  top: auto;
+  right: 16px;
+  bottom: 16px;
+}
 .jsr-race-actions {
   position: absolute;
   right: 16px;
