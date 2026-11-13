@@ -1,0 +1,25 @@
+{
+  "version": 1,
+  "license": "CC0-1.0",
+  "source": "assets-source/tirana-detail-kit/build.mjs",
+  "sha256": "d07d4f510e35fba2746d17067f944e6ac1361beaa0e0c3471ce7e3f61a70f8df",
+  "bytes": 465004,
+  "assets": [
+    "rooftop-ac",
+    "water-tank",
+    "solar-heater",
+    "vent-bank",
+    "roof-hatch",
+    "vent-stack",
+    "window-frame",
+    "balcony",
+    "shop-awning",
+    "shutter",
+    "downpipe",
+    "door-frame",
+    "park-bench",
+    "cycle-rack",
+    "park-lamp",
+    "bollard"
+  ]
+}

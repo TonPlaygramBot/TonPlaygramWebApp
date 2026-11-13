@@ -1,0 +1,26 @@
+name: Tirana city glTF assets
+on:
+  pull_request:
+    paths:
+      - 'webapp/src/games/tirana-street-life/ImportedTreeLayer.ts'
+      - 'webapp/src/games/tirana-street-life/MatureTreeLayer.ts'
+      - 'webapp/src/games/tirana-detail-kit/**'
+      - 'webapp/public/assets/tirana-streets/city-realism/**'
+      - 'webapp/public/assets/tirana-streets/detail-kit/**'
+      - 'test/tiranaImportedTrees.test.mjs'
+      - 'test/tiranaDetailedFixtures.test.mjs'
+      - 'test/tiranaCityRealismAssets.test.mjs'
+      - '.github/workflows/tirana-city-realism.yml'
+permissions:
+  contents: read
+jobs:
+  assets-and-runtime:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - run: npm ci --prefix webapp --ignore-scripts
+      - run: node --test test/tiranaImportedTrees.test.mjs test/tiranaDetailedFixtures.test.mjs test/tiranaCityRealismAssets.test.mjs test/tiranaDetailKit.test.mjs test/tiranaUrbanWorld.test.mjs
