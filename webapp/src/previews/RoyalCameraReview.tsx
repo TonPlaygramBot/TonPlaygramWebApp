@@ -20,7 +20,7 @@ function RoyalCameraReview() {
       </select>
       <button onClick={() => setVersion(value => value + 1)}>Restart practice</button>
     </header>
-    <p>Free practice · Place the cue ball, aim, set spin, and release the power slider to shoot.</p>
+    <p>Free practice · Drag down for the cue view; drag up to stand. Place the cue ball, set spin, and release the power slider to shoot.</p>
     <iframe key={`${game}-${version}`} title={`${game === 'poolroyale' ? 'Pool' : 'Snooker'} Royal portrait practice`} src={url} style={{width}} />
   </main>;
 }

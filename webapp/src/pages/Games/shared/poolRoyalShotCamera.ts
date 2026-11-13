@@ -13,22 +13,22 @@ export class PoolRoyalShotCamera {
 
   beginShot(eye: HumanEyeView | null): void {
     this.reset();
-    if (eye) this.held = { position: eye.position.clone(), target: eye.target.clone(), blend: 1 };
+    if (eye) this.held = { ...eye, position: eye.position.clone(), target: eye.target.clone(), blend: 1 };
   }
 
   markImpact(now: number): void {
     if (this.impactAt === null) this.impactAt = now;
   }
 
-  resolve({ eye, stroke, shooting, cueBlend, now, excluded = false, aiming = false, localTurn = true }: {
+  resolve({ eye, stroke, shooting, cueBlend, now, excluded = false, localTurn = true }: {
     eye: HumanEyeView | null; stroke: boolean; shooting: boolean;
-    cueBlend: number; now: number; excluded?: boolean; aiming?: boolean; localTurn?: boolean;
+    cueBlend: number; now: number; excluded?: boolean; localTurn?: boolean;
   }): HumanEyeView | null {
     if (!localTurn) { this.reset(); return null; }
     if (shooting || stroke) {
       if (this.broadcast) return null;
       if (!this.held && eye) {
-        this.held = { position: eye.position.clone(), target: eye.target.clone(), blend: 1 };
+        this.held = { ...eye, position: eye.position.clone(), target: eye.target.clone(), blend: 1 };
       }
       // Production marks the real contact. Support non-animated shots as well.
       if (!stroke && this.impactAt === null) this.markImpact(now);
@@ -42,7 +42,7 @@ export class PoolRoyalShotCamera {
     }
     this.reset();
     if (excluded || !eye) return null;
-    const weight = (aiming ? 1 : THREE.MathUtils.smoothstep(1 - cueBlend, 0.06, 1 - this.eyeLockBlend)) * eye.blend;
+    const weight = THREE.MathUtils.smoothstep(1 - cueBlend, 0.06, 1 - this.eyeLockBlend) * eye.blend;
     return weight > 0 ? { ...eye, blend: weight } : null;
   }
 

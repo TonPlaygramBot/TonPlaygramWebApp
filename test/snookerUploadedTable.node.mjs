@@ -128,6 +128,8 @@ test('production constructor publishes one mapping; decorative tables cannot ove
 
 // Shot-eye ownership intentionally changed to retain the player viewpoint;
 // its moving-ball behavior is exercised in snookerCharacterCamera.node.mjs.
+// Requested swipe height now survives safety clamping; royalCameraSwipe.node.mjs
+// exercises applyCameraBlend instead of freezing that helper to September.
 test('unchanged broadcast, orbit, overhead and replay helpers match September 11',async()=>{
   const expected=JSON.parse(await readFile(new URL('./fixtures/snooker-morning-cameras.json',import.meta.url),'utf8'));
   for(const [name,hash] of Object.entries(expected.functions))

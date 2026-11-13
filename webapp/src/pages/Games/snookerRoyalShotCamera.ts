@@ -40,11 +40,11 @@ export class SnookerRoyalShotCamera {
   }
 
   private hold(eye: HumanEyeView): HumanEyeView {
-    this.held = { position: eye.position.clone(), target: eye.target.clone(), blend: 1 };
+    this.held = { ...eye, position: eye.position.clone(), target: eye.target.clone(), blend: 1 };
     return this.held;
   }
 
-  resolve({ eye, stroke, shooting, impactPending, cueBlend, now = performance.now(), excluded = false, localTurn = true, aiming = false }: {
+  resolve({ eye, stroke, shooting, impactPending, cueBlend, now = performance.now(), excluded = false, localTurn = true }: {
     eye: HumanEyeView | null;
     stroke: boolean;
     shooting: boolean;
@@ -53,7 +53,6 @@ export class SnookerRoyalShotCamera {
     now?: number;
     excluded?: boolean;
     localTurn?: boolean;
-    aiming?: boolean;
   }): HumanEyeView | null {
     if (!localTurn) { this.reset(); return null; }
     if (!shooting && !stroke) this.reset();
@@ -80,7 +79,7 @@ export class SnookerRoyalShotCamera {
     }
     if (excluded) return null;
     if (!eye) return null;
-    const blend = (aiming ? 1 : THREE.MathUtils.smoothstep(1 - cueBlend, 0.06, 1)) * eye.blend;
+    const blend = THREE.MathUtils.smoothstep(1 - cueBlend, 0.06, 1) * eye.blend;
     return blend > 0 ? { ...eye, blend } : null;
   }
 
