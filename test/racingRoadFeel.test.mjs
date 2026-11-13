@@ -56,11 +56,15 @@ test('four tyres traverse the visible hump; faster crossings unload grip and set
 
 test('bumps affect driving momentum; recovery clears spring energy without granting race progress',()=>{
   const {track,r}=crossing(),flat=structuredClone(r),flatTrack={...track,roadFeelVersion:0};
+  let peakSpeedLoss=0,travel=0,flatTravel=0;
   for(let i=0;i<45;i++){
     stepRacer(r,{throttle:true},track,STEP,i*STEP);
     stepRacer(flat,{throttle:true},flatTrack,STEP,i*STEP);
+    peakSpeedLoss=Math.max(peakSpeedLoss,flat.speed-r.speed);
+    travel+=Math.abs(r.speed)*STEP;flatTravel+=Math.abs(flat.speed)*STEP;
   }
-  assert.ok(r.speed<flat.speed-.01,'hump changes physics, not only animation');
+  // Gas can restore the speed cap after the crest; measure the crossing itself.
+  assert.ok(peakSpeedLoss>.01&&travel<flatTravel-.01,'hump changes momentum and distance, not only animation');
   const progress=[r.lap,r.gates,r.progress];
   stepRacer(r,{recover:true},track,STEP,10);
   assert.equal(r.suspension.height,0);assert.equal(r.suspension.velocity,0);

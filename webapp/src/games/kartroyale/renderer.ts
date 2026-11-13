@@ -1,4 +1,6 @@
 import * as T from 'three';
+import {GhostRecorder,ghostKey,sampleGhost,type GhostLap} from './ghostLap.mjs';
+import {rivalIntervals,type RivalInterval,type RaceTelemetry,type Powertrain} from './raceTelemetry.mjs';
 import {createCityJob,stepCityJob,type CityJobState} from './cityJobs.mjs';
 import {CityJobGuide} from './CityJobGuide';
 import {createRacingRoadside} from './RacingRoadside';
@@ -9,6 +11,8 @@ import { RacingCockpit } from './RacingCockpit';
 import { createWebGLRenderer } from '../tiranastreets/createWebGLRenderer';
 import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js';
 import { DRACOLoader } from 'three/examples/jsm/loaders/DRACOLoader.js';
+import { KTX2Loader } from 'three/examples/jsm/loaders/KTX2Loader.js';
+import { MeshoptDecoder } from 'three/examples/jsm/libs/meshopt_decoder.module.js';
 import { isMilitaryVehicle } from './militaryVehicleCatalog.mjs';
 import { KART_ASSETS, vehicleAssetUrl, cockpitStyle, COCKPIT_URL } from './vehicleAssetConfig.mjs';
 import { prepareVehicleAsset } from './vehicleAssetAdapter';
@@ -45,6 +49,17 @@ import type { DrivingWorld } from './freeRoamCore.mjs';
 export type CameraMode = 'driver' | 'chase';
 export type Quality = 'auto' | 'high' | 'performance';
 export interface Frame {
+  playerId?:string;
+  timeTrial?:boolean;
+  telemetry?:RaceTelemetry;
+  powertrain?:Powertrain;
+  rivals?:RivalInterval[];
+  personalBest?:number;
+  splitDelta?:number|null;
+  ghostSaved?:boolean;
+  airborne?:boolean;
+  landingImpact?:number;
+  tireSlip?:number;
   cityJob?:CityJobState;
   freeRoam:boolean;
   reversing:boolean;
@@ -75,6 +90,10 @@ export interface Frame {
   slipstream: number;
 }
 export interface Result {
+  timeTrial?:boolean;
+  personalBest?:number;
+  newBest?:boolean;
+  ghostSaved?:boolean;
   cityJob?:CityJobState;
   racers: Racer[];
   playerId: string;
@@ -169,6 +188,10 @@ export class KartRenderer {
   private racers: Racer[] = [];
   private state = 'garage';
   private network = false;
+  private timeTrial = false;
+  private ghostRecorder:GhostRecorder|null = null;
+  private ghostVisual:T.Group|null = null;
+  private ghostMemory=new Map<string,{ghost:GhostLap;saved:boolean}>();
   private freeDriving:DrivingWorld|null = null;
   private cityJob:CityJobState|null=null;
   private jobGuide:CityJobGuide|null=null;
@@ -297,7 +320,8 @@ export class KartRenderer {
     const draco = new DRACOLoader()
       .setWorkerLimit(1)
       .setDecoderPath('/assets/tirana-streets/imported/draco/');
-    const loader = new GLTFLoader().setDRACOLoader(draco);
+    const basis=new KTX2Loader().setTranscoderPath('/vendor/three/examples/jsm/libs/basis/').setWorkerLimit(1).detectSupport(this.renderer);
+    const loader = new GLTFLoader().setDRACOLoader(draco).setKTX2Loader(basis).setMeshoptDecoder(MeshoptDecoder);
     const textures = new T.TextureLoader();
     const cockpitStyles = ['kart'];
     const results = await Promise.allSettled([
@@ -318,6 +342,7 @@ export class KartRenderer {
       loader.loadAsync('/assets/kart-royale/karts/race-driver-lod.glb')
     ]);
     draco.dispose();
+    basis.dispose();
     const failed = results.find((r) => r.status === 'rejected');
     if (this.disposed || failed) {
       for (const r of results)
@@ -605,6 +630,7 @@ export class KartRenderer {
     this.shadow.target.position.set(0, 0, 0);
   }
   private createWorld(track: Track) {
+    if(this.ghostVisual){this.world.remove(this.ghostVisual);this.release(this.ghostVisual,false);this.ghostVisual=null;}
     for (const v of this.visuals.values()) {
       this.world.remove(v);
       this.release(v, false);
@@ -883,7 +909,9 @@ export class KartRenderer {
       this.visuals.set(r.id, v);
     }
   }
-  startLocal(id: string, difficulty: string, freeRoam=false) {
+  startLocal(id: string, difficulty: string, freeRoam=false, timeTrial=false) {
+    this.timeTrial=timeTrial&&!freeRoam;
+    this.ghostRecorder=null;
     this.cityJob=null;
     this.track = freeRoam?{...makeTrack(id),terrainMode:'regional'}:makeTrack(id);
     this.freeDriving=freeRoam?freeRoamWorld():null;
@@ -894,7 +922,7 @@ export class KartRenderer {
     this.countdown = freeRoam?0:3;
     this.accumulator = 0;
     this.paused = false;
-    this.racers = Array.from({ length: freeRoam?1:6 }, (_, i) =>
+    this.racers = Array.from({ length: freeRoam||this.timeTrial?1:6 }, (_, i) =>
       createRacer(
         this.track,
         i === 0 ? 'you' : `ai-${i}`,
@@ -913,6 +941,19 @@ export class KartRenderer {
     }
     this.createWorld(this.track);
     this.addRacers();
+    if(this.timeTrial){
+      let storage:Storage|undefined;try{storage=window.localStorage;}catch{}
+      const key=ghostKey(this.track,this.kartId);
+      this.ghostRecorder=new GhostRecorder(storage,key,this.ghostMemory.get(key));
+      this.ghostVisual=this.cloneKart(0,true,this.kartId);
+      this.ghostVisual.name='Personal best ghost · non-colliding';
+      const material=new T.MeshBasicMaterial({color:'#76e7ff',transparent:true,opacity:.22,depthWrite:false});
+      this.ghostVisual.traverse(o=>{if(o instanceof T.Mesh){
+        for(const m of Array.isArray(o.material)?o.material:[o.material])m.dispose();
+        o.material=material;o.castShadow=false;o.receiveShadow=false;
+      }});
+      this.ghostVisual.visible=false;this.world.add(this.ghostVisual);
+    }
     this.state = freeRoam?'racing':'countdown';
     this.clearInput();
     this.snapCamera();
@@ -923,6 +964,7 @@ export class KartRenderer {
     this.cityJob=job;this.jobGuide=new CityJobGuide();this.world.add(this.jobGuide.group);
   }
   networkState(next: ServerRace, id: string) {
+    this.timeTrial=false;this.ghostRecorder=null;
     this.cityJob=null;
     if (!next.racers.length) return;
     const fresh =
@@ -950,6 +992,8 @@ export class KartRenderer {
   }
   private finish() {
     this.onFinish({
+      timeTrial:this.timeTrial,personalBest:this.ghostRecorder?.best?.time,
+      newBest:this.ghostRecorder?.improved,ghostSaved:this.ghostRecorder?.saved,
       cityJob:this.cityJob?{...this.cityJob}:undefined,
       racers: standings(this.racers),
       playerId: this.me,
@@ -1074,6 +1118,13 @@ export class KartRenderer {
                 this.time,
                 this.difficulty
               );
+            if(this.ghostRecorder&&me){
+              const recorder=this.ghostRecorder;recorder.update(me,this.time);
+              if(recorder.best&&this.ghostMemory.get(recorder.key)?.ghost!==recorder.best){
+                if(!this.ghostMemory.has(recorder.key)&&this.ghostMemory.size>=8)this.ghostMemory.delete(this.ghostMemory.keys().next().value!);
+                this.ghostMemory.set(recorder.key,{ghost:recorder.best,saved:recorder.saved});
+              }
+            }
             if(this.cityJob&&me){
               stepCityJob(this.cityJob,me,STEP);
               if(this.cityJob.status!=='active'){
@@ -1129,6 +1180,16 @@ export class KartRenderer {
       }
       const me = this.racers.find((r) => r.id === this.me);
       if (me) {
+        if(this.ghostVisual){
+          const pose=me.lap>0&&!me.finished?sampleGhost(this.ghostRecorder?.reference||null,this.time-me.lapStartedAt):null;
+          this.ghostVisual.visible=!!pose;
+          if(pose){
+            this.ghostVisual.position.set(pose.x,.13+pose.y,pose.z);this.ghostVisual.rotation.y=pose.yaw;
+            // Fade the ghost when inside the player's cockpit; it never obscures the road.
+            const opacity=Math.min(.24,Math.hypot(pose.x-me.x,pose.z-me.z)*.055);
+            this.ghostVisual.traverse(o=>{if(o instanceof T.Mesh)(o.material as T.MeshBasicMaterial).opacity=opacity;});
+          }
+        }
         const v = this.visuals.get(me.id)!,
           yaw = v.rotation.y + wrapAngle(me.velocityYaw - v.rotation.y) * 0.22;
         if (now - this.cityAt > 180) {
@@ -1219,13 +1280,20 @@ export class KartRenderer {
         if (now - this.uiAt > 90) {
           this.uiAt = now;
           this.onFrame({
+            playerId:this.me,timeTrial:this.timeTrial,
+            telemetry:me.telemetry?{...me.telemetry,sectors:[...me.telemetry.sectors]}:undefined,
+            powertrain:me.powertrain?{...me.powertrain}:undefined,
+            rivals:rivalIntervals(this.racers,this.me,this.track.length),
+            personalBest:this.ghostRecorder?.best?.time,splitDelta:this.ghostRecorder?.split(me),ghostSaved:this.ghostRecorder?.saved,
+            airborne:me.airborne,landingImpact:me.landingImpact,
+            tireSlip:Math.abs(wrapAngle(me.yaw-me.velocityYaw)),
             cityJob:this.cityJob?{...this.cityJob}:undefined,
             freeRoam:!!this.freeDriving,
             reversing:!!me.reversing || me.speed<-.1,
             speed: me.speed,
             throttle: me.throttle || 0,
             lapTime: Math.max(0, this.time - (me.lapStartedAt || 0)),
-            bestLap: me.lapTimes?.length ? Math.min(...me.lapTimes) : 0,
+            bestLap: me.telemetry?.bestLap || 0,
             boost: me.boost,
             lap: Math.min(3, Math.max(1, me.lap)),
             position:

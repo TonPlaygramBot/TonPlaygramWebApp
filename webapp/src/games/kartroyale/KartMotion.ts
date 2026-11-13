@@ -22,7 +22,10 @@ export class KartMotion {
     const powered=speed>2 && !r.braking && (r.throttle||0)>.1 &&
       (r.turbo>0 || (r.input?.boost===true && r.boost>1));
     this.boost+=(Number(powered)-this.boost)*(1-Math.exp(-dt*8));
-    const pitch=reduced?0:r.suspension?.pitch??clamp(-(r.acceleration||0)*.0026,-.07,.095);
+    const basePitch=r.suspension?.pitch??clamp(-(r.acceleration||0)*.0026,-.07,.095);
+    // A brief torque unload on each shift; landing compression stays suspension driven.
+    const shift=r.powertrain?.shift||0;
+    const pitch=reduced?0:basePitch+(shift>0?Math.sin(shift/.14*Math.PI)*.009:0);
     const roll=reduced?0:r.suspension?.roll??clamp((r.yawRate||0)*speed*.0025,-.09,.09);
     const height=reduced?0:r.suspension?.height??Math.sin(this.travel*3+r.slot)*Math.min(.009,Math.abs(speed)*.0003);
     const spring=(state:Spring,target:number)=>{

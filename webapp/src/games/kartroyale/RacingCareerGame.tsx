@@ -2,6 +2,7 @@ import {useEffect,useRef,useState} from 'react';
 import {KartControls} from './KartControls';
 import {KartRenderer,type Frame,type Result,type CameraMode} from './renderer';
 import {KartAudio} from './audio';
+import {RaceTelemetryHud,RaceDebrief} from './RaceTelemetryHud';
 import {CUPS,TRACKS,KARTS,normalizeKart} from './simulation.mjs';
 import {loadCareer,recordRace,formatTime} from './career';
 import {createHeldRaceInput} from './heldRaceInput.mjs';
@@ -91,6 +92,7 @@ export function RacingCareerGame({onExit}:{onExit:()=>void}){
    <div className="rr-career-title"><small>TIRANA CITY STORIES</small><h1>Make your name.</h1><p>{xp} city XP · {Object.keys(city.medals).length}/{CITY_JOBS.length} jobs · {career.wins} race wins</p></div>
    {!saved&&<p role="alert">Device save failed. Progress remains in this session.</p>}
    {result&&<div className="rr-job-result" role="status"><strong>{result.cityJob?.status==='failed'?'Try another run':result.cityJob?'Job complete':'Race complete'}</strong><p>{notice||formatTime(result.elapsed)}</p><button onClick={()=>start(active.current)}>RETRY / REPLAY</button></div>}
+   {result&&!result.cityJob&&<RaceDebrief result={result}/>}
    <label className="rr-career-vehicle">YOUR KART<select aria-label="Career kart" value={kartId} disabled={!ready} onChange={e=>chooseVehicle(e.target.value)}>{KARTS.map(k=><option value={k.id} key={k.id}>{k.name}</option>)}</select><small>{KARTS.find(k=>k.id===kartId)?.detail}</small></label>
    <nav className="rr-career-tabs" aria-label="Career activities"><button aria-pressed={tab==='jobs'} onClick={()=>setTab('jobs')}>CITY JOBS</button><button aria-pressed={tab==='cups'} onClick={()=>setTab('cups')}>CHAMPIONSHIPS</button></nav>
    {!ready&&!error&&<p role="status">Preparing karts and the city…</p>}
@@ -112,6 +114,7 @@ export function RacingCareerGame({onExit}:{onExit:()=>void}){
       {job.hold>0&&<progress max={1.5} value={job.hold} aria-label="Delivery handover"/>}</>:<><b>LAP {hud?.lap||1}/3 · POSITION {hud?.position||1}/6</b><span>{hud?.countdown?`START IN ${hud.countdown}`:formatTime(hud?.time||0)}</span></>}
    </div>
    <div className="rr-career-speed"><b>{Math.round(Math.abs(hud?.speed||0)*3.6)}</b><small>KM/H</small><button disabled={paused} onClick={()=>{if(engine.current)engine.current.input.recover=true;setTimeout(()=>{if(engine.current)engine.current.input.recover=false;},80);}}>RECOVER</button></div>
+   <RaceTelemetryHud frame={hud}/>
    <KartControls boost={hud?.boost||0} drifting={hud?.drifting} driftCharge={hud?.driftCharge} turbo={hud?.turbo} boostEvent={hud?.boostEvent} reversing={hud?.reversing} disabled={paused} hold={hold} release={release}/>
    {paused&&<section className="rr-career-pause" aria-label="Paused"><h2>Paused</h2><button onClick={()=>pause(false)}>RESUME DRIVE</button><button onClick={()=>start(active.current)}>RESTART</button><button onClick={board}>JOB BOARD</button></section>}
   </>}

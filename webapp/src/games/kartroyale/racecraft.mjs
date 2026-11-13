@@ -1,12 +1,33 @@
 import {kartPassingRoom,KART_WIDTH,KART_LENGTH} from './racingDimensions.mjs';
+import {circuitDistance,sampleCircuitDistance} from './circuitMetrics.mjs';
 const clamp=(n,a,b)=>Math.max(a,Math.min(b,n));
+/** Recover a jammed AI behind its current position into unoccupied road space.
+ * Never move it forward or award a checkpoint. Staggered distances avoid a pack
+ * of recovering rivals all selecting the same centre-line position. */
+export function aiRecoveryPose(r,near,track,racers){
+ const at=circuitDistance(track,near);
+ for(const back of [4,10,18]){
+  const point=sampleCircuitDistance(track,at-back-(r.slot%6)*2.5);
+  const width=track.points[point.index].width??track.width,room=kartPassingRoom(width,r.bodyWidth);
+  for(const lane of [(r.slot%2?1:-1)*room,0,(r.slot%2?-1:1)*room]){
+   const x=point.x-Math.cos(point.yaw)*lane,z=point.z+Math.sin(point.yaw)*lane;
+   if(racers.some(o=>o!==r&&!o.finished&&!o.disconnected&&Math.hypot(o.x-x,o.z-z)<((r.bodyLength||KART_LENGTH)+(o.bodyLength||KART_LENGTH))*.5+1))continue;
+   return {x,z,yaw:point.yaw,index:point.index};
+  }
+ }
+ return null;
+}
 /** Evaluate both passing lanes before committing. Every rival sees the same
  * pre-step field; no player-distance speed boost or teleporting catch-up. */
 export function planRacecraft(r,near,racers,time){
  const room=kartPassingRoom(near.width,r.bodyWidth),s=Math.sin(near.yaw),c=Math.cos(near.yaw);
  const traffic=racers.filter(o=>o!==r&&!o.finished&&!o.retired&&!o.disconnected).map(o=>{
   const dx=o.x-r.x,dz=o.z-r.z;
-  return {other:o,ahead:dx*s+dz*c,lane:near.lane-dx*c+dz*s,
+  const lane=near.lane-dx*c+dz*s;
+  // Predict a short cut-in using the actual velocity direction, not just heading.
+  const heading=(o.velocityYaw??o.yaw)-near.yaw;
+  const predictedLane=o.speed>5&&Math.cos(heading)>.8?lane-Math.sin(heading)*o.speed*.45:lane;
+  return {other:o,ahead:dx*s+dz*c,lane,predictedLane,
    gap:((r.bodyLength||KART_LENGTH)+(o.bodyLength||KART_LENGTH))*.5,
    width:((r.bodyWidth||KART_WIDTH)+(o.bodyWidth||KART_WIDTH))*.5+.35};
  }).filter(o=>o.ahead>-10&&o.ahead<55);
@@ -29,15 +50,19 @@ export function planRacecraft(r,near,racers,time){
   // Hysteresis prevents weaving when two gaps have nearly the same score.
   if(commit<=time&&choices[0].cost<18){lane=choices[0].lane;commit=time+1.1;}
  }
- let speedLimit=Infinity,blocked=false;
+ let speedLimit=Infinity,blocked=false,boostSafe=true;
  for(const o of traffic){
-  if(o.ahead<=0||Math.abs(o.lane-current)>=o.width)continue;
+  if(o.ahead<=0||Math.min(Math.abs(o.lane-current),Math.abs(o.predictedLane-current))>=o.width)continue;
   const free=Math.max(0,o.ahead-o.gap-1.0);
   const closing=Math.max(0,r.speed-o.other.speed);
+  if(free<8+closing*.8)boostSafe=false;
+  // Prediction reserves nitro; only an occupied lane can command a full stop.
+  // Treating a possible cut-in as a stopped obstacle deadlocks tight hairpins.
+  if(Math.abs(o.lane-current)>=o.width)continue;
   if(free<closing*.5+closing*closing/48+1.5){
    speedLimit=Math.min(speedLimit,Math.max(0,o.other.speed)+Math.max(0,free-1)*.65);
    if(free<1.1)blocked=true;
   }
  }
- return {lane,aiPassLane:lane,aiPassUntil:commit,speedLimit,blocked};
+ return {lane,aiPassLane:lane,aiPassUntil:commit,speedLimit,blocked,boostSafe};
 }
