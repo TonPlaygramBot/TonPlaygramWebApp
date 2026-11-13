@@ -13,6 +13,7 @@ import http from 'http';
 import { initSocket } from './socket.js';
 import { createChessGateway } from '../chess-multiplayer-server/dist/embedded.js';
 import { createTableTennisRoyal } from './services/tabletennisRoyal.js';
+import { attachJetskiRoyal } from './services/jetskiRoyal.js';
 import { attachKartRoyale } from './services/kartRoyale.js';
 import { createBowlingStakeService } from './services/bowlingStake.js';
 import { attachBlackwater } from './services/blackwater.js';
@@ -293,6 +294,7 @@ const kartRoyale = attachKartRoyale(io, {
   settleMatch: kartStake.settle,
   onMatchClosed: (tableId) => tableMap.delete(tableId)
 });
+attachJetskiRoyal(io);
 const blackwaterStake = createBlackwaterStakeService();
 const blackwater = attachBlackwater(io, {
   settleMatch: blackwaterStake.settle,

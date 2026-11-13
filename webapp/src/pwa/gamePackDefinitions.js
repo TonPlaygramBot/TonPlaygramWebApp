@@ -27,6 +27,16 @@ const heavyPacks = [
     dependencies: ['shared-tirana-vehicles', 'shared-table-games']
   },
   {
+    id: 'jetski-royal',
+    title: 'Jet Ski Royal',
+    description: 'Watercraft, scanned coast and water materials.',
+    cover: '/assets/jetski-royal/cover.webp',
+    route: '/games/jetskiroyal/lobby',
+    gameSlugs: ['jetskiroyal'],
+    roots: ['assets/jetski-royal'],
+    dependencies: ['shared-table-games']
+  },
+  {
     id: 'racing-royal',
     title: 'Racing Royal',
     description: 'Tracks, vehicles, environments and racing presentation assets.',
