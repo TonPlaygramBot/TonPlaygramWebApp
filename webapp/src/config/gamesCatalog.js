@@ -1,4 +1,14 @@
 const gamesCatalog = [
+  {
+    name: 'Jet Ski Royal',
+    route: '/games/jetskiroyal/lobby',
+    slug: 'jetskiroyal',
+    image: '/assets/jetski-royal/cover.webp',
+    badge: 'Beta',
+    modes: ['VS AI', 'Online rooms', 'Time trial'],
+    inviteFlow: 'room-code',
+    description: 'Race the Adriatic with six riders, dynamic water, boost and jumps. Private rooms and free online races.'
+  },
 
   {
     name: 'Table Tennis Royal',
