@@ -85,10 +85,6 @@ function accountIdGoogleStorageKey(googleId) {
 
 function getGoogleIdFromStorage(storage) {
   try {
-    // Legacy profile caches are display data, not a verified account session.
-    // Do not let them replace the canonical account returned by guest sign-in.
-    const verifiedAccount = storage?.getItem('googleSessionAccountId');
-    if (!storage?.getItem('tpgSessionToken') || !verifiedAccount || verifiedAccount !== storage?.getItem('accountId')) return '';
     const direct = storage?.getItem('googleId');
     if (direct) return String(direct);
     const rawProfile = storage?.getItem('googleProfile');

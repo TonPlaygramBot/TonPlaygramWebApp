@@ -8,14 +8,8 @@ const waitForPatch = () => new Promise((resolve) => setTimeout(resolve, 80));
 describe('chess_lobby matchmaking', () => {
   let server: ColyseusTestServer;
 
-  beforeAll(async () => {
-    process.env.ALLOW_DEV_AUTH = 'true';
-    server = await boot(createChessServerConfig() as any);
-  });
-  afterAll(async () => {
-    await server.shutdown();
-    delete process.env.ALLOW_DEV_AUTH;
-  });
+  beforeAll(async () => { server = await boot(createChessServerConfig() as any); });
+  afterAll(async () => { await server.shutdown(); });
 
   it('pairs two clients, reserves both seats, assigns opposite colours, and seats a third separately', async () => {
     const first = await server.sdk.joinOrCreate('chess_lobby', options('first'));

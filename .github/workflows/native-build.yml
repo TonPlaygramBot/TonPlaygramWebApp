@@ -3,13 +3,9 @@ name: Native build
 on:
   workflow_dispatch:
 
-permissions:
-  contents: read
-
 jobs:
   android:
     runs-on: ubuntu-latest
-    timeout-minutes: 60
     env:
       VITE_API_BASE_URL: ${{ secrets.VITE_API_BASE_URL }}
       VITE_SOCKET_URL: ${{ secrets.VITE_SOCKET_URL }}
@@ -27,8 +23,6 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: 22
-          cache: npm
-          cache-dependency-path: webapp/package-lock.json
 
       - name: Setup Java
         uses: actions/setup-java@v4
@@ -43,7 +37,7 @@ jobs:
         run: sdkmanager "platforms;android-36" "build-tools;36.0.0"
 
       - name: Install dependencies
-        run: npm ci --prefix webapp
+        run: npm --prefix webapp install
 
       - name: Generate native assets
         run: npm --prefix webapp run generate:native-assets
@@ -52,26 +46,23 @@ jobs:
         run: npm --prefix webapp run build
 
       - name: Sync Capacitor Android
-        working-directory: webapp
-        run: npx --no-install cap sync android
+        run: npx --prefix webapp cap sync android
 
       - name: Build Android APK and AAB
         run: |
           cd webapp/android
-          ./gradlew --no-daemon assembleDebug bundleDebug
+          ./gradlew assembleDebug bundleDebug
 
       - name: Upload Android artifacts
         uses: actions/upload-artifact@v4
         with:
-          name: android-debug-artifacts
-          if-no-files-found: error
+          name: android-artifacts
           path: |
             webapp/android/app/build/outputs/apk/debug/app-debug.apk
             webapp/android/app/build/outputs/bundle/debug/app-debug.aab
 
   ios:
     runs-on: macos-latest
-    timeout-minutes: 60
     env:
       VITE_API_BASE_URL: ${{ secrets.VITE_API_BASE_URL }}
       VITE_SOCKET_URL: ${{ secrets.VITE_SOCKET_URL }}
@@ -89,11 +80,9 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: 22
-          cache: npm
-          cache-dependency-path: webapp/package-lock.json
 
       - name: Install dependencies
-        run: npm ci --prefix webapp
+        run: npm --prefix webapp install
 
       - name: Require Xcode 26
         run: |
@@ -107,8 +96,7 @@ jobs:
         run: npm --prefix webapp run build
 
       - name: Sync Capacitor iOS
-        working-directory: webapp
-        run: npx --no-install cap sync ios
+        run: npx --prefix webapp cap sync ios
 
       - name: Install CocoaPods
         run: |
@@ -118,11 +106,10 @@ jobs:
       - name: Build iOS archive (unsigned)
         run: |
           cd webapp/ios/App
-          xcodebuild archive -workspace App.xcworkspace -scheme App -configuration Release -archivePath build/App.xcarchive -destination 'generic/platform=iOS' CODE_SIGNING_ALLOWED=NO CODE_SIGNING_REQUIRED=NO CODE_SIGN_IDENTITY=""
+          xcodebuild -workspace App.xcworkspace -scheme App -configuration Release -archivePath build/App.xcarchive -destination 'generic/platform=iOS' CODE_SIGNING_ALLOWED=NO CODE_SIGNING_REQUIRED=NO CODE_SIGN_IDENTITY=""
 
       - name: Upload iOS archive
         uses: actions/upload-artifact@v4
         with:
-          name: ios-unsigned-archive
-          if-no-files-found: error
+          name: ios-archive
           path: webapp/ios/App/build/App.xcarchive

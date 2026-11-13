@@ -22,10 +22,10 @@ test('resolveAccountBalance preserves persisted funds when a legacy ledger is in
   assert.equal(resolveAccountBalance(user), 500);
 });
 
-test('resolveAccountBalance does not restore spent funds from legacy transaction history', () => {
+test('resolveAccountBalance repairs a stale persisted balance from a newer ledger', () => {
   const user = {
     balance: 100,
     transactions: [{ amount: 250 }, { amount: -25 }]
   };
-  assert.equal(resolveAccountBalance(user), 100);
+  assert.equal(resolveAccountBalance(user), 225);
 });

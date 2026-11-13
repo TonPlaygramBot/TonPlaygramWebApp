@@ -3,7 +3,6 @@ import { Client, Room } from '@colyseus/sdk';
 import { useNavigate } from 'react-router-dom';
 import { ensureAccountId, getTelegramFirstName, getTelegramPhotoUrl, getTpcAccountId } from '../../utils/telegram.js';
 import { API_BASE_URL } from '../../utils/api.js';
-import { getAccountSessionToken } from '../../utils/accountSession.js';
 import { resolveChessEndpoint } from '../../utils/matchmakingEndpoint.js';
 
 type Player = { sessionId: string; accountId: string; name: string; avatar: string; ready: boolean; connected: boolean };
@@ -99,7 +98,6 @@ export default function ChessMultiplayerLobby() {
     accountIdRef.current = resolvedAccountId;
     setAccountId(resolvedAccountId);
     return {
-      sessionToken: getAccountSessionToken(),
       accountId: resolvedAccountId,
       tpcAccountNumber: resolvedAccountId,
       googleId,

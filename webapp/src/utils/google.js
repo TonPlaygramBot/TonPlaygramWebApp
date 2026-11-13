@@ -1,8 +1,5 @@
-import { clearAccountSessionToken, getAccountSessionToken } from './accountSession.js';
-
 const GOOGLE_ID_KEY = 'googleId';
 const GOOGLE_PROFILE_KEY = 'googleProfile';
-const GOOGLE_SESSION_ACCOUNT_KEY = 'googleSessionAccountId';
 
 function safeParse(json) {
   try {
@@ -35,9 +32,6 @@ export function decodeGoogleCredential(jwt) {
 export function storeGoogleProfile(profile) {
   if (typeof window === 'undefined' || !profile?.id) return;
   try {
-    const accountId = localStorage.getItem('accountId');
-    if (!accountId || !getAccountSessionToken()) return;
-    localStorage.setItem(GOOGLE_SESSION_ACCOUNT_KEY, accountId);
     localStorage.setItem(GOOGLE_ID_KEY, profile.id);
     localStorage.setItem(
       GOOGLE_PROFILE_KEY,
@@ -56,10 +50,8 @@ export function storeGoogleProfile(profile) {
 }
 
 export function loadGoogleProfile() {
-  if (typeof window === 'undefined' || !getAccountSessionToken()) return null;
+  if (typeof window === 'undefined') return null;
   try {
-    if (localStorage.getItem(GOOGLE_SESSION_ACCOUNT_KEY) !== localStorage.getItem('accountId')) return null;
-    if (!localStorage.getItem(GOOGLE_SESSION_ACCOUNT_KEY)) return null;
     const cached = safeParse(localStorage.getItem(GOOGLE_PROFILE_KEY));
     const storedId = localStorage.getItem(GOOGLE_ID_KEY);
     if (cached?.id) return cached;
@@ -71,12 +63,10 @@ export function loadGoogleProfile() {
 }
 
 export function clearGoogleProfile() {
-  clearAccountSessionToken();
   if (typeof window === 'undefined') return;
   try {
     localStorage.removeItem(GOOGLE_ID_KEY);
     localStorage.removeItem(GOOGLE_PROFILE_KEY);
-    localStorage.removeItem(GOOGLE_SESSION_ACCOUNT_KEY);
   } catch {
     // ignore
   }

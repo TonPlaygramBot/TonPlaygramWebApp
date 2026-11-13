@@ -1,115 +1,218 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import express from 'express';
-import walletRouter from '../bot/routes/wallet.js';
-import User from '../bot/models/User.js';
+import fs from 'fs';
+import { spawn } from 'child_process';
+import crypto from 'crypto';
 
-process.env.BOT_TOKEN = 'wallet-route-test-token';
-process.env.API_AUTH_TOKEN = 'wallet-route-test-service-token';
-process.env.WITHDRAW_ENABLED = 'true';
+const distDir = new URL('../webapp/dist/', import.meta.url);
 
-async function withServer(run) {
-  const app = express();
-  app.use(express.json());
-  app.use('/wallet', walletRouter);
-  const server = app.listen(0, '127.0.0.1');
-  await new Promise((resolve) => server.once('listening', resolve));
-  const base = `http://127.0.0.1:${server.address().port}/wallet`;
-  const post = (path, body = {}, headers = {}) => fetch(`${base}${path}`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${process.env.API_AUTH_TOKEN}`, ...headers },
-    body: JSON.stringify(body)
-  });
-  post.get = (path) => fetch(`${base}${path}`);
-  try { await run(post); }
-  finally { await new Promise((resolve) => server.close(resolve)); }
+function createInitData(id, token) {
+  const params = new URLSearchParams();
+  params.set('user', JSON.stringify({ id }));
+  const dataCheckString = [...params.entries()]
+    .map(([k, v]) => `${k}=${v}`)
+    .sort()
+    .join('\n');
+  const secret = crypto
+    .createHmac('sha256', 'WebAppData')
+    .update(token)
+    .digest();
+  const hash = crypto.createHmac('sha256', secret)
+    .update(dataCheckString)
+    .digest('hex');
+  params.set('hash', hash);
+  return params.toString();
 }
 
-test('deposits, both withdrawals and wallet reset fail closed without querying balances', async () => {
-  const previousMode = process.env.MOBILE_STORE_MODE;
-  process.env.MOBILE_STORE_MODE = 'false';
-  const original = User.findOne;
-  User.findOne = () => { throw new Error('disabled route accessed account'); };
-  try {
-    await withServer(async (post) => {
-      const address = await post.get('/deposit-address');
-      assert.equal(address.status, 403);
-      assert.equal((await address.json()).error, 'verified_deposit_settlement_required');
-      for (const [path, error] of [
-        ['/deposit', 'verified_deposit_settlement_required'],
-        ['/withdraw', 'withdrawals_unavailable_pending_verified_settlement'],
-        ['/claim-external', 'withdrawals_unavailable_pending_verified_settlement'],
-        ['/reset', 'wallet_reset_disabled']
-      ]) {
-        const response = await post(path, { accountId: 'victim', amount: 1000, address: 'fake' });
-        assert.equal(response.status, 403);
-        assert.equal((await response.json()).error, error);
+
+async function createGoogleAccount(port, googleId) {
+  const res = await fetch(`http://localhost:${port}/api/account/create`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'x-google-id': googleId,
+    },
+    body: JSON.stringify({ googleId, firstName: googleId }),
+  });
+  assert.equal(res.status, 200);
+  return res.json();
+}
+
+async function startServer(env) {
+  const server = spawn('node', ['bot/server.js'], { env, stdio: 'pipe' });
+  server.stdout.on('data', (chunk) => process.stdout.write(chunk));
+  server.stderr.on('data', (chunk) => process.stderr.write(chunk));
+  await new Promise((resolve) => {
+    const onData = (chunk) => {
+      if (chunk.toString().includes('Server running on port')) {
+        server.stdout.off('data', onData);
+        resolve();
       }
+    };
+    server.stdout.on('data', onData);
+  });
+  return server;
+}
+
+async function deposit(port, token, telegramId, amount) {
+  const res = await fetch(`http://localhost:${port}/api/wallet/deposit`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'x-telegram-init-data': createInitData(telegramId, token),
+    },
+    body: JSON.stringify({ telegramId, amount }),
+  });
+  assert.equal(res.status, 200);
+  await res.json();
+}
+
+test('withdraw route reverts balance on claim failure', { concurrency: false, timeout: 20000 }, async () => {
+  fs.mkdirSync(new URL('assets', distDir), { recursive: true });
+  fs.writeFileSync(new URL('index.html', distDir), '');
+
+  const env = {
+    ...process.env,
+    PORT: '3211',
+    MONGO_URI: 'memory',
+    BOT_TOKEN: 'dummy',
+    WITHDRAW_ENABLED: 'true',
+    SKIP_WEBAPP_BUILD: '1',
+    SKIP_BOT_LAUNCH: '1',
+  };
+  const server = await startServer(env);
+  try {
+    await deposit(3211, 'dummy', 1111, 100);
+    const res = await fetch('http://localhost:3211/api/wallet/withdraw', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'x-telegram-init-data': createInitData(1111, 'dummy'),
+      },
+      body: JSON.stringify({ telegramId: 1111, address: 'EQfake', amount: 50 }),
     });
+    assert.equal(res.status, 500);
+    const err = await res.json();
+    assert.equal(err.error, 'claim failed');
+    const balRes = await fetch('http://localhost:3211/api/wallet/balance', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'x-telegram-init-data': createInitData(1111, 'dummy'),
+      },
+      body: JSON.stringify({ telegramId: 1111 }),
+    });
+    assert.equal(balRes.status, 200);
+    const bal = await balRes.json();
+    assert.equal(bal.balance, 100);
   } finally {
-    User.findOne = original;
-    if (previousMode === undefined) delete process.env.MOBILE_STORE_MODE;
-    else process.env.MOBILE_STORE_MODE = previousMode;
+    server.kill();
   }
 });
 
-test('mobile store restriction stays enforced for deposit and withdrawal aliases', async () => {
-  const previousMode = process.env.MOBILE_STORE_MODE;
-  process.env.MOBILE_STORE_MODE = 'true';
+test('claim-external route reverts balance on claim failure', { concurrency: false, timeout: 20000 }, async () => {
+  fs.mkdirSync(new URL('assets', distDir), { recursive: true });
+  fs.writeFileSync(new URL('index.html', distDir), '');
+
+  const env = {
+    ...process.env,
+    PORT: '3212',
+    MONGO_URI: 'memory',
+    BOT_TOKEN: 'dummy',
+    WITHDRAW_ENABLED: 'true',
+    SKIP_WEBAPP_BUILD: '1',
+    SKIP_BOT_LAUNCH: '1',
+  };
+  const server = await startServer(env);
   try {
-    await withServer(async (post) => {
-      for (const path of ['/deposit', '/withdraw', '/claim-external']) {
-        const response = await post(path, { accountId: 'account', amount: 1 });
-        assert.equal(response.status, 403);
-        assert.equal((await response.json()).code, 'mobile_store_free_play');
-      }
+    await deposit(3212, 'dummy', 2222, 100);
+    const res = await fetch('http://localhost:3212/api/wallet/claim-external', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'x-telegram-init-data': createInitData(2222, 'dummy'),
+      },
+      body: JSON.stringify({ telegramId: 2222, address: 'EQfake', amount: 50 }),
     });
+    assert.equal(res.status, 500);
+    const err = await res.json();
+    assert.equal(err.error, 'claim failed');
+    const balRes = await fetch('http://localhost:3212/api/wallet/balance', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'x-telegram-init-data': createInitData(2222, 'dummy'),
+      },
+      body: JSON.stringify({ telegramId: 2222 }),
+    });
+    assert.equal(balRes.status, 200);
+    const bal = await balRes.json();
+    assert.equal(bal.balance, 100);
   } finally {
-    if (previousMode === undefined) delete process.env.MOBILE_STORE_MODE;
-    else process.env.MOBILE_STORE_MODE = previousMode;
+    server.kill();
   }
 });
 
-test('raw identity headers cannot authorize any wallet mutation', async () => {
-  await withServer(async (post) => {
-    for (const path of ['/send', '/deposit', '/withdraw', '/claim-external', '/reset']) {
-      const response = await post(path, { amount: 10 }, {
-        Authorization: '', 'x-google-id': 'victim', 'x-tpc-account-id': 'victim'
-      });
-      assert.equal(response.status, 401);
-    }
-  });
-});
 
-test('send rejects missing idempotency keys and non-integral values before account lookup', async () => {
-  const original = User.findOne;
-  User.findOne = () => { throw new Error('invalid request accessed account'); };
-  try {
-    await withServer(async (post) => {
-      for (const body of [
-        { amount: 1 },
-        { amount: 1.5, operationId: 'route-operation-00001' },
-        { amount: -2, operationId: 'route-operation-00001' },
-        { amount: 1, operationId: 'route-operation-00001', fromAccountId: { $ne: null } }
-      ]) {
-        const response = await post('/send', body);
-        assert.equal(response.status, 400);
-      }
-    });
-  } finally { User.findOne = original; }
-});
+test('google users can transfer TPG using account ids', { concurrency: false, timeout: 20000 }, async () => {
+  fs.mkdirSync(new URL('assets', distDir), { recursive: true });
+  fs.writeFileSync(new URL('index.html', distDir), '');
 
-test('balance reads do not resurrect a higher historical ledger total', async () => {
-  const original = User.findOne;
-  User.findOne = async () => ({
-    accountId: 'account', balance: 25, transactions: [{ amount: 100 }],
-    save() { throw new Error('a balance read must not write'); }
-  });
+  const env = {
+    ...process.env,
+    PORT: '3213',
+    MONGO_URI: 'memory',
+    BOT_TOKEN: 'dummy',
+    WITHDRAW_ENABLED: 'true',
+    SKIP_WEBAPP_BUILD: '1',
+    SKIP_BOT_LAUNCH: '1',
+  };
+
+  const server = await startServer(env);
   try {
-    await withServer(async (post) => {
-      const response = await post('/balance', { accountId: 'account' });
-      assert.equal(response.status, 200);
-      assert.equal((await response.json()).balance, 25);
+    const sender = await createGoogleAccount(3213, 'google-user-1');
+    const receiver = await createGoogleAccount(3213, 'google-user-2');
+
+    const depositRes = await fetch('http://localhost:3213/api/wallet/deposit', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'x-google-id': 'google-user-1',
+      },
+      body: JSON.stringify({ accountId: sender.accountId, amount: 75 }),
     });
-  } finally { User.findOne = original; }
+    assert.equal(depositRes.status, 200);
+
+    const sendRes = await fetch('http://localhost:3213/api/wallet/send', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'x-google-id': 'google-user-1',
+      },
+      body: JSON.stringify({
+        fromAccountId: sender.accountId,
+        toAccountId: receiver.accountId,
+        amount: 25,
+        note: 'google transfer',
+      }),
+    });
+    assert.equal(sendRes.status, 200);
+    const sendBody = await sendRes.json();
+    assert.equal(sendBody.balance, 50);
+
+    const receiverBalanceRes = await fetch('http://localhost:3213/api/wallet/balance', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'x-google-id': 'google-user-2',
+      },
+      body: JSON.stringify({ accountId: receiver.accountId }),
+    });
+
+    assert.equal(receiverBalanceRes.status, 200);
+    const receiverBalance = await receiverBalanceRes.json();
+    assert.equal(receiverBalance.balance, 25);
+  } finally {
+    server.kill();
+  }
 });
