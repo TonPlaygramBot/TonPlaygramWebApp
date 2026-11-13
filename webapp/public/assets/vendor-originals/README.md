@@ -43,3 +43,7 @@ Two more existing images are bundled because their providers changed automatic f
 | `domino-room-background.jpg` | The existing Unsplash URL returned a different automatically encoded JPEG. Adding `&fm=jpg` recovered the original 1600 × 1200 JPEG (286,221 bytes). | `a8c4f267291c290ef6310ef0e8d3e1b5a8e2e3c585e0f54633212e00d0a102a2` |
 
 The exact original source URLs remain in `manifest.json`. The existing provider attribution and licensing continue to apply. These copies use the same required-file and checksum verification as the earlier bundled originals, so clean builds no longer depend on the two format-negotiating endpoints.
+
+## Side Table Tall 01 thumbnail recovery
+
+Render's frozen asset import failed when the Poly Haven thumbnail endpoint returned bytes that differed from the pinned SHA-256. The bundled [Side Table Tall 01](https://polyhaven.com/a/side_table_tall_01) thumbnail was recovered from the last live deployment and matches the existing source pin. The manifest records its original URL and checksum.
