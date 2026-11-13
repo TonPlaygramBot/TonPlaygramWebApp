@@ -8,15 +8,15 @@ import {selectedStartingLoadout} from './startingLoadout.mjs';
 const preview=vi.hoisted(()=>({props:null}));
 vi.mock('./PlayerPreview',()=>({PlayerPreview:props=>{preview.props=props;return <div aria-label="Model preview"/>;}}));
 globalThis.IS_REACT_ACT_ENVIRONMENT=true;
-const manifest={players:Object.fromEntries(['tactical','polish','agent-47'].map(id=>[id,{url:`/assets/tirana-streets/players/${id}.glb`,rigValidated:true}]))};
+const manifest={players:Object.fromEntries(['tactical','polish','agent-47','turi'].map(id=>[id,{url:`/assets/tirana-streets/players/${id}.glb`,rigValidated:true}]))};
 let host,root,start,back;
 beforeEach(()=>{host=document.createElement('div');document.body.append(host);root=createRoot(host);start=vi.fn();back=vi.fn();vi.stubGlobal('fetch',vi.fn().mockResolvedValue({ok:true,json:async()=>manifest}));});
 afterEach(async()=>{await act(async()=>root.unmount());host.remove();vi.unstubAllGlobals();});
 const render=()=>act(async()=>root.render(<PlayerPicker onStart={start} onBack={back}/>));
 const button=()=>host.querySelector('.player-continue');
-it('offers exactly the supplied three and waits for the selected model to render before continuing',async()=>{
+it('offers all four supplied characters and waits for the selected model to render before continuing',async()=>{
  await render();
- expect([...host.querySelectorAll('.player-options button')].map(b=>b.textContent)).toEqual(['01Tactical Soldier','02Polish Soldier','03Agent 47']);
+ expect([...host.querySelectorAll('.player-options button')].map(b=>b.textContent)).toEqual(['01Tactical Soldier','02Polish Soldier','03Agent 47','04Turi']);
  expect(button().disabled).toBe(true);
  const old=preview.props;
  await act(async()=>host.querySelectorAll('.player-options button')[1].click());
@@ -53,4 +53,20 @@ it('shows attribution for the selected source and preserves Agent 47’s noncomm
  await render();await act(async()=>host.querySelectorAll('.player-options button')[2].click());
  expect(host.querySelector('.player-credits').textContent).toContain('CC BY-NC 4.0');
  expect(button().disabled).toBe(true);
+});
+it('selects Turi after preview readiness, keeps him through Back, and starts with his asset',async()=>{
+ await render();
+ await act(async()=>host.querySelectorAll('.player-options button')[3].click());
+ expect(preview.props.url).toBe('/assets/tirana-streets/players/turi.glb');
+ expect(button().disabled).toBe(true);
+ expect(host.querySelector('.player-credits').textContent).toContain('no additional licence specified');
+ expect(host.querySelector('.player-credits a')).toBeNull();
+ await act(async()=>preview.props.onState({url:preview.props.url,ready:true,message:'ready'}));
+ await act(async()=>button().click());
+ await act(async()=>host.querySelector('.player-back').click());
+ expect(host.querySelectorAll('.player-options button')[3].getAttribute('aria-pressed')).toBe('true');
+ await act(async()=>button().click());
+ await act(async()=>button().click());
+ expect(start).toHaveBeenCalledOnce();
+ expect(selectedPlayerAsset()).toEqual({id:'turi',url:'/assets/tirana-streets/players/turi.glb'});
 });

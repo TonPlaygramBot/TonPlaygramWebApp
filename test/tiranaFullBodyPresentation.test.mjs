@@ -220,7 +220,7 @@ test('body rig does not mutate shared source animation tracks', () => {
   );
   rig.dispose();
 });
-for (const id of ['tactical','polish','agent-47']) test(`${id} supplied body walks, crouches and punches through the actual player presentation`,async()=>{
+for (const id of ['tactical','polish','agent-47','turi']) test(`${id} supplied body walks, crouches and punches through the actual player presentation`,async()=>{
   const data=readFileSync(join(webapp,`public/assets/tirana-streets/players/${id}.glb`)),loader=new GLTFLoader();
   loader.register(()=>({name:'HEADLESS_TEXTURES',loadTexture:async()=>new T.Texture()}));
   const source=await loader.parseAsync(data.buffer.slice(data.byteOffset,data.byteOffset+data.byteLength),'');
@@ -232,7 +232,15 @@ for (const id of ['tactical','polish','agent-47']) test(`${id} supplied body wal
   body.gait=Math.PI/2;rig.update(actor,p,body,0,1/60);scene.updateMatrixWorld(true);
   const foot=bones.get('leftfoot'),forward=foot.getWorldPosition(new T.Vector3());
   body.gait=3*Math.PI/2;rig.update(actor,p,body,.1,1/60);scene.updateMatrixWorld(true);
-  assert.ok(foot.getWorldPosition(new T.Vector3()).z>forward.z+.2,'original uploaded legs must walk');
+  if(source.animations.some(clip=>/walk|run/i.test(clip.name))){
+    // Authored locomotion advances with elapsed time, not the fallback gait input.
+    const positions=[];
+    for(let frame=0;frame<120;frame++){
+      rig.update(actor,p,body,frame/60,1/60);scene.updateMatrixWorld(true);
+      positions.push(foot.getWorldPosition(new T.Vector3()).z);
+    }
+    assert.ok(Math.max(...positions)-Math.min(...positions)>.2,'authored clips must move the uploaded legs');
+  }else assert.ok(foot.getWorldPosition(new T.Vector3()).z>forward.z+.2,'original uploaded legs must walk');
   p.speed=0;body.crouched=true;body.eye=.94;
   rig.update(actor,p,body,.2,1/60);scene.updateMatrixWorld(true);
   assert.ok(bones.get('hips').getWorldPosition(new T.Vector3()).y<.85,'uploaded pelvis lowers when crouching');

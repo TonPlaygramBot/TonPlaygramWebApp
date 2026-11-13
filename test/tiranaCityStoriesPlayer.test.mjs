@@ -31,7 +31,7 @@ test('City Stories and Operations cannot silently replace a missing player choic
     await player.load();assert.match(player.errors[0],/Choose a player/);assert.equal(requests,0);player.dispose();assert.equal(scene.children.length,0);
   }
 });
-for(const id of ['tactical','polish','agent-47'])test(`City Stories loads ${id}, uses its body, and hides it during the authored cable trip`,async()=>{
+for(const id of ['tactical','polish','agent-47','turi'])test(`City Stories loads ${id}, uses its body, and hides it during the authored cable trip`,async()=>{
   selectPlayerAsset(asset(id));let requests=0;globalThis.fetch=async url=>{requests++;assert.equal(new URL(url).pathname,asset(id).url);return response(url);};
   const scene=new T.Scene(),player=new CareerPlayer(scene),a=player.load(),b=player.load();
   assert.equal(a,b,'one in-flight download');assert.equal(player.ready,false);await a;
