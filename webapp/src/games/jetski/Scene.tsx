@@ -4,13 +4,13 @@ import React, {
   useState,
   type MutableRefObject
 } from 'react';
-import { JetskiRenderer, type Quality } from './renderer';
+import { JetskiRenderer, type Quality, type CameraMode } from './renderer';
 import { type Racer, type Track } from './simulation.mjs';
 export interface World {
   racers: Racer[];
   playerId: string;
   elapsed: number;
-  camera: string;
+  camera: CameraMode;
   preview: boolean;
   paused: boolean;
 }
@@ -32,7 +32,7 @@ export default function Scene({
   const host = useRef<HTMLDivElement>(null),
     callbacks = useRef({ onReady, onFrame });
   callbacks.current = { onReady, onFrame };
-  const [loading, setLoading] = useState('Preparing the coastline…'),
+  const [loading, setLoading] = useState('Preparing the course…'),
     [error, setError] = useState(''),
     [retry, setRetry] = useState(0);
   useEffect(() => {
@@ -41,7 +41,7 @@ export default function Scene({
       view: JetskiRenderer | undefined,
       previous = 0,
       visualTime = 0;
-    setLoading('Preparing the coastline…');
+    setLoading('Preparing the course…');
     setError('');
     const lost = (e: Event) => {
       e.preventDefault();
@@ -103,7 +103,6 @@ export default function Scene({
         <div className="jsr-loading">
           <span className="jsr-spinner" />
           <strong>{loading}</strong>
-          <span>Original 3D assets · coastal water</span>
         </div>
       )}
       {error && (

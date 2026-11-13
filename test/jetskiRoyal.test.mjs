@@ -5,6 +5,7 @@ import {
   TRACKS,
   makeTrack,
   sample,
+  nearest,
   createRacer,
   neutralInput,
   stepRace,
@@ -12,7 +13,7 @@ import {
   standings
 } from '../webapp/src/games/jetski/simulation.mjs';
 
-test('six AI riders complete all courses through all 37 ordered gates', () => {
+test('six AI riders complete every course through its ordered gates', () => {
   for (const info of TRACKS) {
     const track = makeTrack(info.id),
       racers = Array.from({ length: 6 }, (_, i) =>
@@ -26,7 +27,8 @@ test('six AI riders complete all courses through all 37 ordered gates', () => {
       stepRace(racers, track, STEP, frame * STEP);
     for (const r of racers) {
       assert.equal(r.finished, true, `${info.id}: rider ${r.id}`);
-      assert.equal(r.gatesPassed, 37);
+      assert.equal(r.gatesPassed, track.pointToPoint ? track.gates.length : 37);
+      if (track.pointToPoint) assert.equal(r.lap, 1);
       assert.ok(r.finishTime > 30);
       assert.equal(r.penalty, 0);
     }
@@ -36,6 +38,60 @@ test('six AI riders complete all courses through all 37 ordered gates', () => {
       )
     );
   }
+});
+
+test('Lana bank impacts throw the rider clear and remount without skipping a gate', () => {
+  const track = makeTrack('lana');
+  const r = createRacer(track, 'you', 'You', 0);
+  const contact = sample(track, 10, track.width - 0.15);
+  r.x = contact.x;
+  r.z = contact.z;
+  r.heading = contact.heading + Math.PI / 2;
+  r.vx = Math.sin(r.heading) * 22;
+  r.vz = Math.cos(r.heading) * 22;
+  r.lap = r.gatesPassed = r.nextGate = 1;
+  r.input = { ...neutralInput(), throttle: true, boost: true };
+  stepRace([r], track, STEP, 3);
+  assert.ok(r.crash, 'hard impact ejects the rider');
+  assert.equal(r.crashes, 1);
+  assert.equal(r.penalty, 3);
+  assert.ok(nearest(track, r.x, r.z).distance <= track.width + 0.01);
+  const firstHeight = r.crash.height;
+  stepRace([r], track, STEP, 3 + STEP);
+  assert.ok(r.crash.height > firstHeight);
+  assert.notEqual(r.crash.x, r.x);
+  assert.equal(r.boosting, false);
+  for (let i = 2; i < 90; i++) stepRace([r], track, STEP, 3 + i * STEP);
+  assert.equal(r.crash.height, 0);
+  for (let i = 90; i < 146; i++) stepRace([r], track, STEP, 3 + i * STEP);
+  assert.equal(r.crash, null);
+  assert.equal(r.nextGate, 1);
+  assert.equal(r.gatesPassed, 1);
+  assert.equal(r.penalty, 3);
+});
+
+test('hard hull collisions eject riders while a light contact only transfers momentum', () => {
+  const track = makeTrack('ksamil');
+  const point = sample(track, 15);
+  const collide = (speed) => {
+    const front = createRacer(track, 'front', 'Front', 0);
+    const back = createRacer(track, 'back', 'Back', 1);
+    front.x = point.x + Math.sin(point.heading) * 1.45;
+    front.z = point.z + Math.cos(point.heading) * 1.45;
+    back.x = point.x - Math.sin(point.heading) * 1.45;
+    back.z = point.z - Math.cos(point.heading) * 1.45;
+    front.heading = back.heading = point.heading;
+    back.vx = Math.sin(point.heading) * speed;
+    back.vz = Math.cos(point.heading) * speed;
+    stepRace([front, back], track, STEP, 3);
+    return [front, back];
+  };
+  const light = collide(3);
+  assert.ok(light.every((r) => r.hitAt === 3 && r.crash === null));
+  assert.ok(light[0].speed > 0);
+  assert.ok(
+    collide(24).every((r) => r.crash && r.crashes === 1 && r.penalty === 3)
+  );
 });
 test('screen-right input turns right in a forward +Z chase camera and release slows the craft', () => {
   const track = makeTrack('ksamil'),

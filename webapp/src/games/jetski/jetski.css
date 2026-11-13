@@ -696,12 +696,63 @@
   width: 100%;
   height: 100%;
 }
+.jsr-map-attribution {
+  position: absolute;
+  left: 0;
+  top: calc(100% + 4px);
+  padding: 4px 6px;
+  color: #edf9f8;
+  background: rgba(4, 26, 35, 0.8);
+  border-radius: 4px;
+  font-size: 9px;
+  white-space: nowrap;
+}
+.jsr-hero .jsr-map-attribution {
+  left: auto;
+  top: auto;
+  right: 16px;
+  bottom: 16px;
+}
 .jsr-race-actions {
   position: absolute;
   right: 16px;
   top: 150px;
   display: grid;
   gap: 9px;
+}
+.jsr-camera-toggle {
+  flex-direction: column;
+  gap: 2px;
+  width: 48px;
+  height: 48px;
+}
+.jsr-camera-toggle span {
+  font-size: 9px;
+  font-weight: 700;
+}
+.jsr-camera-toggle[aria-pressed='true'] {
+  border-color: var(--accent);
+  color: var(--accent);
+}
+.jsr-ejected {
+  position: absolute;
+  top: 32%;
+  left: 50%;
+  transform: translateX(-50%);
+  display: grid;
+  gap: 5px;
+  padding: 12px 18px;
+  width: max-content;
+  max-width: calc(100% - 112px);
+  text-align: center;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  background: rgba(5, 23, 31, 0.84);
+  pointer-events: none;
+}
+.jsr-ejected span {
+  font-size: 12px;
+  color: #c5dce0;
 }
 .jsr-countdown {
   position: absolute;

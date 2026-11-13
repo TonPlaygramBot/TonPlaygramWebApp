@@ -19,12 +19,24 @@ export interface Track {
   wave: number;
   length: string;
   difficulty: string;
+  pointToPoint: boolean;
+  laps: number;
   points: { x: number; z: number }[];
   lengths: number[];
   totalLength: number;
   gates: Point[];
   ramps: Point[];
   pickups: Point[];
+}
+export interface EjectedRider {
+  x: number;
+  z: number;
+  height: number;
+  vx: number;
+  vz: number;
+  verticalSpeed: number;
+  heading: number;
+  age: number;
 }
 export interface Racer {
   id: string;
@@ -60,6 +72,8 @@ export interface Racer {
   rampAt: number;
   recoveryAt: number;
   hitAt: number;
+  crashes: number;
+  crash: EjectedRider | null;
   input: Input;
   lastInput: number;
 }
@@ -87,7 +101,7 @@ export function nearest(
   track: Track,
   x: number,
   z: number
-): { index: number; distance: number };
+): { index: number; distance: number; x: number; z: number };
 export function waterHeight(
   x: number,
   z: number,

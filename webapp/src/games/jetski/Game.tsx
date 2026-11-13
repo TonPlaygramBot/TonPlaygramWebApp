@@ -28,7 +28,7 @@ import {
 import Scene, { type World } from './Scene';
 import Controls from './Controls';
 import { JetskiAudio } from './audio';
-import { type Quality } from './renderer';
+import { type Quality, type CameraMode } from './renderer';
 import {
   request,
   loadSession,
@@ -41,7 +41,6 @@ import {
   TRACKS,
   CRAFTS,
   STEP,
-  LAPS,
   RACE_LIMIT,
   makeTrack,
   createRacer,
@@ -102,7 +101,9 @@ export default function JetskiGame({
   >('lobby');
   const [paused, setPaused] = useState(false),
     [showSettings, setShowSettings] = useState(false),
-    [camera, setCamera] = useState('chase');
+    [camera, setCamera] = useState<CameraMode>(() =>
+      read('jetski.camera', 'chase') === 'eyes' ? 'eyes' : 'chase'
+    );
   const [room, setRoom] = useState<Room | null>(null),
     [code, setCode] = useState(''),
     [busy, setBusy] = useState(false),
@@ -118,7 +119,8 @@ export default function JetskiGame({
     countdown: 3,
     gate: 0,
     air: 0,
-    penalty: 0
+    penalty: 0,
+    ejected: false
   });
   const [attempt, setAttempt] = useState(0);
   const [results, setResults] = useState<Racer[]>([]),
@@ -139,6 +141,7 @@ export default function JetskiGame({
     lastState = useRef(0);
   const gates = useRef(0),
     landings = useRef(0),
+    crashes = useRef(0),
     count = useRef(0),
     finishSaved = useRef(false),
     resumePending = useRef(false);
@@ -169,6 +172,9 @@ export default function JetskiGame({
     write('jetski.quality', quality);
   }, [quality]);
   useEffect(() => {
+    write('jetski.camera', camera);
+  }, [camera]);
+  useEffect(() => {
     setBest(read(`jetski.best.${trackId}`, ''));
   }, [trackId]);
   useEffect(() => {
@@ -197,6 +203,7 @@ export default function JetskiGame({
       serverOffset.current = state.serverNow - Date.now();
       if (state.trackId !== trackId) setTrackId(state.trackId);
       if (state.status === 'waiting') {
+        crashes.current = 0;
         setPhase('lobby');
         return;
       }
@@ -369,6 +376,7 @@ export default function JetskiGame({
     hudClock.current = 0;
     gates.current = 0;
     landings.current = 0;
+    crashes.current = 0;
     count.current = 0;
     world.current = {
       racers,
@@ -452,8 +460,11 @@ export default function JetskiGame({
       landings.current = me.landings;
       audio.current?.cue('splash');
     }
+    if (me.crashes > crashes.current) audio.current?.cue('crash');
+    crashes.current = me.crashes;
     const active =
       current === 'racing' &&
+      !me.crash &&
       !pausedRef.current &&
       (!online || (connected && performance.now() - lastState.current < 1500));
     audio.current?.update(
@@ -468,13 +479,14 @@ export default function JetskiGame({
       setHud({
         speed: me.speed * 3.6,
         boost: me.boost,
-        lap: Math.max(1, Math.min(me.lap, LAPS)),
+        lap: Math.max(1, Math.min(me.lap, track.laps)),
         position: standings(w.racers).findIndex((v) => v.id === me.id) + 1,
         elapsed: w.elapsed,
         countdown: Math.max(0, Math.ceil(countdown.current)),
         gate: me.nextGate,
         air: me.airborne ? me.jumpDistance : 0,
-        penalty: me.penalty
+        penalty: me.penalty,
+        ejected: Boolean(me.crash)
       });
     }
   };
@@ -509,7 +521,7 @@ export default function JetskiGame({
           value={day}
           onChange={(e) => setDay(e.target.value as 'day' | 'sunset')}
         >
-          <option value="day">Coastal daylight</option>
+          <option value="day">Daylight</option>
           <option value="sunset">Golden hour</option>
         </select>
       </label>
@@ -563,9 +575,9 @@ export default function JetskiGame({
             <p>Find your line. Own the water.</p>
           </div>
           <span className="jsr-hero-tag">
-            <Waves size={15} />{' '}
-            {day === 'day' ? 'COASTAL DAYLIGHT' : 'GOLDEN HOUR'}
+            <Waves size={15} /> {day === 'day' ? 'DAYLIGHT' : 'GOLDEN HOUR'}
           </span>
+          {track.pointToPoint && <MapAttribution />}
         </section>
         <div className="jsr-lobby-content">
           <div className="jsr-section-title">
@@ -574,7 +586,8 @@ export default function JetskiGame({
               <h2>Make waves.</h2>
             </div>
             <span className="jsr-pill">
-              <Flag size={13} /> 3 laps
+              <Flag size={13} />{' '}
+              {track.pointToPoint ? 'River sprint' : `${track.laps} laps`}
             </span>
           </div>
           {showSettings && (
@@ -626,7 +639,7 @@ export default function JetskiGame({
                   <h3>
                     01 <span>Choose your water</span>
                   </h3>
-                  <span>3 courses</span>
+                  <span>{TRACKS.length} courses</span>
                 </div>
                 <div className="jsr-tracks">
                   {TRACKS.map((t, i) => (
@@ -871,7 +884,11 @@ export default function JetskiGame({
             <button className="jsr-primary jsr-launch" onClick={startAI}>
               <span>
                 <small>{track.name.toUpperCase()}</small>
-                {mode === 'time' ? 'Start time trial' : 'Race the coast'}
+                {mode === 'time'
+                  ? 'Start time trial'
+                  : track.pointToPoint
+                    ? 'Race Lana River'
+                    : 'Race the coast'}
               </span>
               <ArrowUpRight size={26} />
             </button>
@@ -881,15 +898,16 @@ export default function JetskiGame({
               <Waves size={15} /> Dynamic water
             </span>
             <span>
-              <Zap size={15} /> Boost & jumps
+              <Zap size={15} /> {track.pointToPoint ? 'Boost' : 'Boost & jumps'}
             </span>
             <span>
               <Camera size={15} /> Rider view
             </span>
           </div>
           <p className="jsr-note jsr-bottom-note">
-            Hold throttle + steer. Pass every marked gate in order. Ramps add
-            airtime; green rings recharge boost. Recovery costs 5 seconds.
+            Hold throttle + steer. Pass every marked gate in order. Green rings
+            recharge boost. {!track.pointToPoint && 'Ramps add airtime. '}
+            Recovery costs 5 seconds.
           </p>
           <details className="jsr-credits">
             <summary>Asset credits</summary>
@@ -898,6 +916,13 @@ export default function JetskiGame({
               Rider: Quaternius Universal Base Characters (CC0). Water normals:
               Three.js examples (MIT). Engine and water audio synthesized in
               real time.
+            </p>
+            <p>
+              Lana River uses Tirana Streets map data ©{' '}
+              <a href="https://www.openstreetmap.org/copyright">
+                OpenStreetMap contributors
+              </a>{' '}
+              (ODbL).
             </p>
           </details>
         </div>
@@ -943,10 +968,12 @@ export default function JetskiGame({
           </strong>
         </div>
         <div>
-          <span>LAP</span>
+          <span>{track.pointToPoint ? 'GATE' : 'LAP'}</span>
           <strong>
-            {hud.lap}
-            <small>/{LAPS}</small>
+            {track.pointToPoint ? hud.gate + 1 : hud.lap}
+            <small>
+              /{track.pointToPoint ? track.gates.length : track.laps}
+            </small>
           </strong>
         </div>
         <div>
@@ -960,22 +987,27 @@ export default function JetskiGame({
           racers={world.current.racers}
           playerId={world.current.playerId}
         />
+        {track.pointToPoint && <MapAttribution />}
       </div>
       <div className="jsr-race-actions">
         <button
-          className="jsr-icon-button"
-          aria-label={
-            camera === 'chase'
-              ? 'Switch to rider eye camera'
-              : 'Switch to chase camera'
+          className="jsr-icon-button jsr-camera-toggle"
+          aria-label="Rider eye camera"
+          aria-pressed={camera === 'eyes'}
+          title={
+            camera === 'eyes'
+              ? 'Switch to chase camera'
+              : 'Switch to rider eye camera'
           }
           onClick={() => setCamera((v) => (v === 'chase' ? 'eyes' : 'chase'))}
         >
-          <Camera size={20} />
+          <Camera size={16} />
+          <span>{camera === 'eyes' ? 'Rider' : 'Chase'}</span>
         </button>
         <button
           className="jsr-icon-button"
           aria-label="Recover to last checkpoint, five second penalty"
+          disabled={hud.ejected}
           onClick={() => {
             input.current = { ...input.current, recover: true };
             if (online) services?.socket.emit('jetski:input', input.current);
@@ -994,7 +1026,13 @@ export default function JetskiGame({
           <p>Hold throttle. Steer through the buoys.</p>
         </div>
       )}
-      {hud.air > 0 && (
+      {hud.ejected && phase === 'racing' && !paused && (
+        <div className="jsr-ejected" role="status">
+          <strong>Rider in the water</strong>
+          <span>Remounting jet ski…</span>
+        </div>
+      )}
+      {hud.air > 0 && !hud.ejected && (
         <div className="jsr-airtime">
           <span>AIRTIME</span>
           <strong>{hud.air.toFixed(1)} m</strong>
@@ -1004,7 +1042,7 @@ export default function JetskiGame({
         <>
           <div className="jsr-drive-info">
             <span>
-              GATE {hud.gate + 1}/12
+              GATE {hud.gate + 1}/{track.gates.length}
               {hud.penalty > 0 ? ` · +${hud.penalty}s` : ''}
             </span>
             <strong>
@@ -1065,7 +1103,9 @@ export default function JetskiGame({
             <p className="jsr-note">
               {online
                 ? 'Official server results'
-                : 'Three laps. One coastline.'}
+                : track.pointToPoint
+                  ? 'Lana River sprint results'
+                  : 'Coastal race results'}
             </p>
             <ol>
               {results.map((r, i) => (
@@ -1079,7 +1119,7 @@ export default function JetskiGame({
                     {r.ai ? ' · AI' : ''}
                     <small>
                       {r.bestLap
-                        ? `Best lap ${formatTime(r.bestLap)}`
+                        ? `Best ${track.pointToPoint ? 'run' : 'lap'} ${formatTime(r.bestLap)}`
                         : r.disconnected
                           ? 'Disconnected'
                           : 'Racing'}
@@ -1115,6 +1155,19 @@ export default function JetskiGame({
     </main>
   );
 }
+function MapAttribution() {
+  return (
+    <a
+      className="jsr-map-attribution"
+      href="https://www.openstreetmap.org/copyright"
+      target="_blank"
+      rel="noreferrer"
+      aria-label="Map data © OpenStreetMap contributors"
+    >
+      © OpenStreetMap
+    </a>
+  );
+}
 function MiniMap({
   track,
   racers = [],
@@ -1124,8 +1177,24 @@ function MiniMap({
   racers?: Racer[];
   playerId?: string;
 }) {
-  const scale = 0.55,
-    point = (x: number, z: number) => `${100 + x * scale},${100 - z * scale}`;
+  const first = track.points[0];
+  const last = track.points[track.points.length - 1];
+  // Keep the long river visible on a square portrait minimap, oriented forward.
+  const angle = track.pointToPoint
+    ? Math.atan2(last.x - first.x, last.z - first.z)
+    : 0;
+  const cosine = Math.cos(angle),
+    sine = Math.sin(angle);
+  const originX = track.pointToPoint ? (first.x + last.x) / 2 : 0;
+  const originZ = track.pointToPoint ? (first.z + last.z) / 2 : 0;
+  const scale = track.pointToPoint ? 166 / track.totalLength : 0.55;
+  const coordinates = (x: number, z: number) => [
+    100 + ((x - originX) * cosine - (z - originZ) * sine) * scale,
+    100 - ((x - originX) * sine + (z - originZ) * cosine) * scale
+  ];
+  const points = (track.pointToPoint ? track.points : [...track.points, first])
+    .map((p) => coordinates(p.x, p.z).join(','))
+    .join(' ');
   return (
     <svg
       viewBox="0 0 200 200"
@@ -1133,33 +1202,32 @@ function MiniMap({
       aria-label={`${track.name} course map`}
     >
       <polyline
-        points={[...track.points, track.points[0]]
-          .map((p) => point(p.x, p.z))
-          .join(' ')}
+        points={points}
         fill="none"
         stroke="currentColor"
         strokeWidth="12"
         opacity=".16"
       />
       <polyline
-        points={[...track.points, track.points[0]]
-          .map((p) => point(p.x, p.z))
-          .join(' ')}
+        points={points}
         fill="none"
         stroke="currentColor"
         strokeWidth="2.3"
       />
-      {racers.map((r) => (
-        <circle
-          key={r.id}
-          cx={100 + r.x * scale}
-          cy={100 - r.z * scale}
-          r={r.id === playerId ? 5 : 3}
-          fill={r.id === playerId ? '#b8ff65' : COLORS[r.slot % 6]}
-          stroke="#08222b"
-          strokeWidth="1"
-        />
-      ))}
+      {racers.map((r) => {
+        const [cx, cy] = coordinates(r.x, r.z);
+        return (
+          <circle
+            key={r.id}
+            cx={cx}
+            cy={cy}
+            r={r.id === playerId ? 5 : 3}
+            fill={r.id === playerId ? '#b8ff65' : COLORS[r.slot % 6]}
+            stroke="#08222b"
+            strokeWidth="1"
+          />
+        );
+      })}
     </svg>
   );
 }

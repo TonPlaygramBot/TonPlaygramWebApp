@@ -33,11 +33,19 @@ it('the bundled rider reaches the grips and footwells while the hull turns, roll
     rig = createRider(gltf.scene),
     hull = new T.Group();
   hull.add(rig.root);
+  const eye = new T.Vector3();
+  const head = rig.bones.get('Head')[0];
+  expect(rig.eye.parent).toBe(head);
   for (const steer of [-1, 0, 1]) {
     hull.position.set(31, 2, 15);
     hull.rotation.set(0.12, 1.3, steer * 0.3);
     poseRider(rig, hull, steer, 30, 3, true);
     hull.updateMatrixWorld(true);
+    rig.eye.getWorldPosition(eye);
+    const eyeLocal = hull.worldToLocal(eye);
+    expect(eyeLocal.y).toBeGreaterThan(1.4);
+    expect(eyeLocal.y).toBeLessThan(1.95);
+    expect(eyeLocal.z).toBeGreaterThan(0.18);
     for (const [suffix, sign] of [
       ['l', 1],
       ['r', -1]
