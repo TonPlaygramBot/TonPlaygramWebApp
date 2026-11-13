@@ -30,6 +30,7 @@ export default function useTelegramAuth() {
       if (registeredTelegramId.current === user.id) return true;
 
       registeredTelegramId.current = user.id;
+      const acc = localStorage.getItem('accountId');
       localStorage.setItem('telegramId', user.id);
       if (user.username) localStorage.setItem('telegramUsername', user.username);
       if (user.first_name) localStorage.setItem('telegramFirstName', user.first_name);
@@ -39,11 +40,8 @@ export default function useTelegramAuth() {
       // localStorage's `storage` event is not fired in the same window. Notify
       // pages that mounted before Telegram finished injecting initData.
       window.dispatchEvent(new CustomEvent('telegramAuthUpdated', { detail: user }));
-      createAccount(user.id).then((response) => {
-        if (response?.accountId && !response.error) {
-          socket.emit('register', { tpcAccountNumber: response.accountId });
-        }
-      }).catch(err => {
+      socket.emit('register', { tpcAccountNumber: acc || user.id });
+      createAccount(user.id).catch(err => {
         console.error('Failed to create account', err);
       });
       return true;
@@ -81,13 +79,14 @@ export default function useTelegramAuth() {
     }
 
     {
+      const acc = localStorage.getItem('accountId');
       (async () => {
-        if (!acc) await ensureAccountId();
+        const accountId = acc || (await ensureAccountId());
+        socket.emit('register', { tpcAccountNumber: accountId });
         try {
           const res = await createAccount(undefined, googleProfile);
           if (res?.accountId) {
             localStorage.setItem('accountId', res.accountId);
-            socket.emit('register', { tpcAccountNumber: res.accountId });
           }
           if (res?.walletAddress) {
             localStorage.setItem('walletAddress', res.walletAddress);

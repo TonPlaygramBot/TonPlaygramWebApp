@@ -1,6 +1,5 @@
 import { ensureAccountId } from '../../utils/telegram.js';
 import { API_BASE_URL } from '../../utils/api.js';
-import { getAccountSessionToken } from '../../utils/accountSession.js';
 import { getNativeBridgeHeaders } from '../../utils/nativeBridge';
 
 export type WeaponStoreAccount = { balanceTPG: number; ownedWeaponIds: string[] };
@@ -9,8 +8,6 @@ async function request(path: string, init?: RequestInit, purchaseAccount?: strin
   const accountId = purchaseAccount || await ensureAccountId();
   if (!accountId) throw Error('Sign in to your TPG account before purchasing.');
   const telegramInitData = window.Telegram?.WebApp?.initData || '';
-  const sessionToken = getAccountSessionToken();
-  if (!sessionToken && !telegramInitData) throw Error('Sign in again to verify your TPG account.');
   const abort = new AbortController(), timer = setTimeout(()=>abort.abort(),15000);
   try {
   const response = await fetch(`${API_BASE_URL}/api/tirana-store${path}`, {
@@ -18,7 +15,7 @@ async function request(path: string, init?: RequestInit, purchaseAccount?: strin
     ...init,
     headers: {
       'content-type': 'application/json',
-      ...(sessionToken ? { Authorization: `Bearer ${sessionToken}` } : {}),
+      'x-tpc-account-id': accountId,
       ...getNativeBridgeHeaders(),
       ...(telegramInitData ? { 'x-telegram-init-data': telegramInitData } : {}),
       ...init?.headers

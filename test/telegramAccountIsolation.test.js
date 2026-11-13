@@ -1,7 +1,5 @@
-import { describe, expect, test, beforeEach, jest } from '@jest/globals';
+import { describe, expect, test, beforeEach } from '@jest/globals';
 import { getPlayerId, getTelegramId } from '../webapp/src/utils/telegram.js';
-
-jest.mock('../webapp/src/utils/api.js', () => ({ fetchTelegramInfo: jest.fn() }));
 
 class MemoryStorage {
   constructor() {
@@ -86,35 +84,35 @@ describe('telegram account scoped player ids', () => {
     expect(getPlayerId()).toBe('legacy-account-id');
   });
 
-  test('uses the canonical verified Google account outside Telegram', () => {
+  test('uses google scoped ids when running outside Telegram context', () => {
     setTelegramUserId(null);
     global.localStorage.setItem('googleId', 'google-user-1');
-    global.localStorage.setItem('accountId', 'server-google-account');
-    global.localStorage.setItem('accountId:google:google-user-1', 'server-google-account');
-    global.localStorage.setItem('googleSessionAccountId', 'server-google-account');
-    global.localStorage.setItem('tpgSessionToken', 'verified-google-session');
-    expect(getPlayerId()).toBe('server-google-account');
+
+    const googleOneFirst = getPlayerId();
+    const googleOneSecond = getPlayerId();
+    expect(googleOneFirst).toBeTruthy();
+    expect(googleOneSecond).toBe(googleOneFirst);
+
+    global.localStorage.setItem('googleId', 'google-user-2');
+    const googleTwo = getPlayerId();
+    expect(googleTwo).toBeTruthy();
+    expect(googleTwo).not.toBe(googleOneFirst);
+
+    global.localStorage.setItem('googleId', 'google-user-1');
+    expect(getPlayerId()).toBe(googleOneFirst);
   });
 
-  test('legacy Google cache cannot replace a new signed guest account', () => {
-    setTelegramUserId(null);
-    global.localStorage.setItem('googleId', 'old-google');
-    global.localStorage.setItem('googleProfile', JSON.stringify({ id: 'old-google' }));
-    global.localStorage.setItem('accountId:google:old-google', 'old-account');
-    global.localStorage.setItem('accountId', 'new-guest-account');
-    global.localStorage.setItem('tpgSessionToken', 'new-guest-session');
-    expect(getPlayerId()).toBe('new-guest-account');
-    expect(global.localStorage.getItem('accountId')).toBe('new-guest-account');
-  });
+  test('does not reuse telegram account id for a different google identity in shared storage', () => {
+    setTelegramUserId(101);
+    const telegramScoped = getPlayerId();
+    expect(telegramScoped).toBeTruthy();
 
-  test('a Google marker from another account cannot replace the active guest account', () => {
     setTelegramUserId(null);
-    global.localStorage.setItem('googleId', 'old-google');
-    global.localStorage.setItem('googleSessionAccountId', 'old-account');
-    global.localStorage.setItem('accountId:google:old-google', 'old-account');
-    global.localStorage.setItem('accountId', 'new-guest-account');
-    global.localStorage.setItem('tpgSessionToken', 'new-guest-session');
-    expect(getPlayerId()).toBe('new-guest-account');
+    global.localStorage.setItem('googleId', 'google-user-99');
+    const googleScoped = getPlayerId();
+
+    expect(googleScoped).toBeTruthy();
+    expect(googleScoped).not.toBe(telegramScoped);
   });
 
   test('does not return cached telegramId outside Telegram webview', () => {

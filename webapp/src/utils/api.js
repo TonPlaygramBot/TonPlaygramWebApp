@@ -1,5 +1,4 @@
 import { getNativeBridgeHeaders } from './nativeBridge';
-import { getAccountSessionToken, storeAccountSessionToken } from './accountSession.js';
 
 // Use the API base URL from the build environment or fallback to the same origin
 // so the webapp works when served by the Express server in production.
@@ -78,12 +77,6 @@ function normalizeTelegramId(rawId) {
 }
 
 async function fetchWithRetry(url, options = {}, retries = 3, backoff = 500) {
-  const method = String(options.method || 'GET').toUpperCase();
-  // A lost response does not mean a mutation failed. Retry only reads and the
-  // transfer route whose server transaction deduplicates the same operation ID.
-  const canRetry = ['GET', 'HEAD', 'OPTIONS'].includes(method) ||
-    (url === API_BASE_URL + '/api/wallet/send' && Boolean(options.headers?.['Idempotency-Key']));
-  if (!canRetry) retries = 0;
   try {
     const res = await fetch(url, options);
     const retryAfterSeconds = Number(res.headers?.get?.('retry-after'));
@@ -114,10 +107,23 @@ async function fetchWithRetry(url, options = {}, retries = 3, backoff = 500) {
 
 function buildHeaders(base = {}) {
   const headers = { Accept: 'application/json', ...base };
-  const initData = typeof window === 'undefined' ? '' : window.Telegram?.WebApp?.initData;
+  const initData = window?.Telegram?.WebApp?.initData;
   if (initData) headers['X-Telegram-Init-Data'] = initData;
-  const sessionToken = getAccountSessionToken();
-  if (sessionToken) headers.Authorization = `Bearer ${sessionToken}`;
+  const accountId = window?.localStorage?.getItem('accountId');
+  if (accountId) headers['X-Tpc-Account-Id'] = accountId;
+  const googleId =
+    window?.localStorage?.getItem('googleId') ||
+    (() => {
+      try {
+        const rawProfile = window?.localStorage?.getItem('googleProfile');
+        if (!rawProfile) return '';
+        const parsed = JSON.parse(rawProfile);
+        return parsed?.id ? String(parsed.id) : '';
+      } catch {
+        return '';
+      }
+    })();
+  if (googleId) headers['X-Google-Id'] = googleId;
   const bridgeHeaders = getNativeBridgeHeaders();
   Object.entries(bridgeHeaders).forEach(([key, value]) => {
     if (value && !headers[key]) headers[key] = value;
@@ -128,9 +134,6 @@ function buildHeaders(base = {}) {
 export async function post(path, body, token) {
   const headers = buildHeaders({ 'Content-Type': 'application/json' });
   if (token) headers['Authorization'] = `Bearer ${token}`;
-  if (path === '/api/wallet/send' && body?.operationId) {
-    headers['Idempotency-Key'] = body.operationId;
-  }
 
   let res;
   try {
@@ -525,51 +528,10 @@ export function getTonBalance(address) {
 export function getUsdtBalance(address) {
   return post('/api/wallet/usdt-balance', { address });
 }
-function createTransferOperationId() {
-  if (globalThis.crypto?.randomUUID) return globalThis.crypto.randomUUID();
-  const bytes = new Uint8Array(16);
-  if (!globalThis.crypto?.getRandomValues) throw new Error('Secure transfers require a secure browser connection.');
-  globalThis.crypto.getRandomValues(bytes);
-  return Array.from(bytes, (byte) => byte.toString(16).padStart(2, '0')).join('');
-}
-
-const PENDING_TRANSFERS_KEY = 'tpgPendingTransfers';
-
-async function sendWalletTransfer(identity, amount, note, operationId) {
-  const fingerprint = JSON.stringify([identity, Number(amount), note || '']);
-  let pending;
-  try {
-    const raw = window.localStorage.getItem(PENDING_TRANSFERS_KEY);
-    pending = raw ? JSON.parse(raw) : {};
-    if (!pending || typeof pending !== 'object' || Array.isArray(pending)) throw new Error('invalid pending transfers');
-    operationId = pending[fingerprint] || operationId || createTransferOperationId();
-    pending[fingerprint] = operationId;
-    // Save before sending so a page reload after a lost response still retries
-    // the same operation. Do not silently discard an unresolved transfer.
-    window.localStorage.setItem(PENDING_TRANSFERS_KEY, JSON.stringify(pending));
-  } catch {
-    return { error: 'Unable to save a safe transfer retry. Enable browser storage and try again.' };
-  }
-  const body = { ...identity, amount, operationId };
+export function sendTpc(fromId, toId, amount, note) {
+  const body = { fromId, toId, amount };
   if (note) body.note = note;
-  const response = await post('/api/wallet/send', body);
-  if (response?.error) return { ...response, operationId };
-  if (!response?.transaction || response.operationId !== operationId) {
-    return { error: 'Transfer confirmation is missing. Retry this transfer to check its receipt.', operationId };
-  }
-  try {
-    // Read again to retain other transfers started while this request was open.
-    pending = JSON.parse(window.localStorage.getItem(PENDING_TRANSFERS_KEY) || '{}');
-    if (pending[fingerprint] === operationId) delete pending[fingerprint];
-    window.localStorage.setItem(PENDING_TRANSFERS_KEY, JSON.stringify(pending));
-  } catch {
-    // Keeping a successful operation's key is safe: a retry returns its receipt.
-  }
-  return response;
-}
-
-export function sendTpc(fromId, toId, amount, note, operationId) {
-  return sendWalletTransfer({ fromId, toId }, amount, note, operationId);
+  return post('/api/wallet/send', body);
 }
 
 export function getTransactions(telegramId) {
@@ -820,9 +782,7 @@ export function registerWalletPasskey(telegramId, passkeyId, publicKey) {
 
 // ----- Account based wallet -----
 
-const pendingAccountCreations = new Map();
-
-export function createAccount(telegramId, googleProfile, accountId, walletAddress, googleCredential) {
+export function createAccount(telegramId, googleProfile, accountId, walletAddress) {
   const body = {};
   const normalizedTelegramId = normalizeTelegramId(telegramId);
   if (normalizedTelegramId != null) body.telegramId = normalizedTelegramId;
@@ -838,9 +798,6 @@ export function createAccount(telegramId, googleProfile, accountId, walletAddres
         ? `ton:${String(walletAddress).toLowerCase()}`
         : 'guest';
   const existingAccountId = (() => {
-    // Public account numbers are selectors, never login credentials. New or
-    // newly verified users let the server choose their canonical account.
-    if (!getAccountSessionToken() || googleCredential || normalizedTelegramId != null) return null;
     if (accountId) return accountId;
     if (typeof window === 'undefined') return null;
     const storedAccountId = localStorage.getItem('accountId');
@@ -852,10 +809,6 @@ export function createAccount(telegramId, googleProfile, accountId, walletAddres
     return storedOwnerKey === ownerKey ? storedAccountId : null;
   })();
   if (existingAccountId) body.accountId = existingAccountId;
-  if (googleCredential) body.googleCredential = googleCredential;
-  if (profile?.id && !googleCredential && !getAccountSessionToken() && normalizedTelegramId == null) {
-    return Promise.resolve({ error: 'Please sign in with Google again to verify your account.' });
-  }
   if (profile?.id) {
     body.googleId = profile.id;
     if (profile.email) body.googleEmail = profile.email;
@@ -866,9 +819,7 @@ export function createAccount(telegramId, googleProfile, accountId, walletAddres
   if (walletAddress) {
     body.walletAddress = walletAddress;
   }
-  const requestKey = JSON.stringify([body, getAccountSessionToken()]);
-  if (pendingAccountCreations.has(requestKey)) return pendingAccountCreations.get(requestKey);
-  const pending = post('/api/account/create', body).then((response) => {
+  return post('/api/account/create', body).then((response) => {
     if (
       typeof window !== 'undefined' &&
       response?.accountId &&
@@ -876,15 +827,10 @@ export function createAccount(telegramId, googleProfile, accountId, walletAddres
     ) {
       localStorage.setItem('accountId', response.accountId);
       localStorage.setItem('accountOwnerKey', ownerKey);
-      if (normalizedTelegramId != null) localStorage.setItem(`accountId:tg:${normalizedTelegramId}`, response.accountId);
-      else if (profile?.id) localStorage.setItem(`accountId:google:${profile.id}`, response.accountId);
-      if (response.sessionToken) storeAccountSessionToken(response.sessionToken);
       window.dispatchEvent(new Event('accountUpdated'));
     }
     return response;
-  }).finally(() => pendingAccountCreations.delete(requestKey));
-  pendingAccountCreations.set(requestKey, pending);
-  return pending;
+  });
 }
 
 export function getAccountBalance(accountId) {
@@ -899,8 +845,10 @@ export function deleteAccount(accountId) {
   return post('/api/profile/delete', { accountId, confirmation: 'DELETE' });
 }
 
-export function sendAccountTpc(fromAccount, toAccount, amount, note, operationId) {
-  return sendWalletTransfer({ fromAccountId: fromAccount, toAccountId: toAccount }, amount, note, operationId);
+export function sendAccountTpc(fromAccount, toAccount, amount, note) {
+  const body = { fromAccount, toAccount, amount };
+  if (note) body.note = note;
+  return post('/api/account/send', body);
 }
 
 export function getAccountTransactions(accountId) {

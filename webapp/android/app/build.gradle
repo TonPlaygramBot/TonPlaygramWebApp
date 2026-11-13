@@ -8,22 +8,11 @@ def keystoreProperties = new Properties()
 def keystorePropertiesFile = rootProject.file('keystore.properties')
 def isReleaseTask = gradle.startParameter.taskNames.any { name ->
     def lowered = name.toLowerCase()
-    lowered.contains('release')
+    lowered.contains('release') || lowered.contains('bundle')
 }
 
 if (keystorePropertiesFile.exists()) {
     keystoreProperties.load(new FileInputStream(keystorePropertiesFile))
-}
-
-// Aggregate tasks such as `bundle` can include release builds even when the
-// requested task name does not. Keep those fail-closed without blocking debug.
-gradle.taskGraph.whenReady { graph ->
-    def buildsRelease = graph.allTasks.any { task ->
-        task.project == project && task.name.toLowerCase().contains('release')
-    }
-    if (buildsRelease && !keystorePropertiesFile.exists()) {
-        throw new FileNotFoundException("Release signing requires keystore.properties. Populate it using keystore.properties.example.")
-    }
 }
 
 android {

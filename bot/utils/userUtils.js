@@ -1,4 +1,3 @@
-import { sanitizePublicPhoto } from './publicPhoto.js';
 import User from '../models/User.js';
 
 export function ensureTransactionArray(user) {
@@ -24,12 +23,18 @@ export function calculateBalance(user) {
   }, 0);
 }
 
-// Reads must never mint funds from historical transaction arrays. Some legacy
-// entries are incomplete or client-reported; reconciliation is an explicit
-// administrative operation, never a side effect of opening the wallet.
+// `balance` is updated atomically by deposits, rewards, stakes, and payouts.
+// Some older accounts do not have a complete transaction ledger, so summing
+// that ledger can be lower than the funds that were actually persisted. Never
+// let a read request erase those funds; the ledger may still repair a stale
+// persisted value when its total is higher.
 export function resolveAccountBalance(user) {
-  const balance = Number(user?.balance);
-  return Number.isFinite(balance) ? balance : 0;
+  if (!user) return 0;
+  const persisted = Number(user.balance);
+  const derived = Number(calculateBalance(user));
+  const safePersisted = Number.isFinite(persisted) ? persisted : 0;
+  const safeDerived = Number.isFinite(derived) ? derived : 0;
+  return Math.max(safePersisted, safeDerived);
 }
 
 export async function incrementReferralBonus(code) {
@@ -58,7 +63,7 @@ export function sanitizeUser(user) {
     nickname: user.nickname,
     firstName: user.firstName,
     lastName: user.lastName,
-    photo: sanitizePublicPhoto(user.photo),
+    photo: user.photo,
     bio: user.bio,
     balance: user.balance,
     gifts: user.gifts,

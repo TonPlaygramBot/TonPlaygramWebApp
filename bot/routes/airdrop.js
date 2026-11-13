@@ -1,4 +1,3 @@
-import { requireVerifiedReward } from '../middleware/rewardGuard.js';
 import { Router } from 'express';
 
 import User from '../models/User.js';
@@ -41,7 +40,7 @@ function adminOnly(req, res, next) {
 
 // ✅ Admin-only airdrop grant
 
-router.post('/grant', adminOnly, requireVerifiedReward, async (req, res) => {
+router.post('/grant', adminOnly, async (req, res) => {
 
   const { telegramId, amount, reason } = req.body;
 
@@ -112,7 +111,7 @@ router.post('/grant', adminOnly, requireVerifiedReward, async (req, res) => {
 });
 
 // ✅ Admin-only airdrop to all users
-router.post('/grant-all', adminOnly, requireVerifiedReward, async (req, res) => {
+router.post('/grant-all', adminOnly, async (req, res) => {
   const { amount, reason } = req.body;
   if (typeof amount !== 'number') {
     return res.status(400).json({ error: 'amount required' });

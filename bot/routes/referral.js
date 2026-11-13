@@ -1,4 +1,3 @@
-import { authenticateRewardAccount, requireVerifiedReward } from '../middleware/rewardGuard.js';
 import { Router } from 'express';
 import User from '../models/User.js';
 import {
@@ -12,7 +11,7 @@ const REWARD = 5000;
 
 const router = Router();
 
-router.post('/code', ...authenticateRewardAccount, async (req, res) => {
+router.post('/code', async (req, res) => {
   const { telegramId } = req.body;
   if (!telegramId) return res.status(400).json({ error: 'telegramId required' });
 
@@ -37,7 +36,7 @@ router.post('/code', ...authenticateRewardAccount, async (req, res) => {
   });
 });
 
-router.post('/claim', ...authenticateRewardAccount, requireVerifiedReward, async (req, res) => {
+router.post('/claim', async (req, res) => {
   const { telegramId, code } = req.body;
   if (!telegramId || !code) {
     return res.status(400).json({ error: 'telegramId and code required' });

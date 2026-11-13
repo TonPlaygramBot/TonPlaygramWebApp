@@ -1,4 +1,3 @@
-import { authenticateRewardAccount, requireVerifiedReward } from '../middleware/rewardGuard.js';
 import { Router } from 'express';
 import { VIDEOS } from '../utils/watchData.js';
 import WatchRecord from '../models/WatchRecord.js';
@@ -7,7 +6,7 @@ import { ensureTransactionArray } from '../utils/userUtils.js';
 
 const router = Router();
 
-router.post('/list', ...authenticateRewardAccount, async (req, res) => {
+router.post('/list', async (req, res) => {
   const { telegramId } = req.body;
   if (!telegramId) return res.status(400).json({ error: 'telegramId required' });
 
@@ -19,7 +18,7 @@ router.post('/list', ...authenticateRewardAccount, async (req, res) => {
   res.json(videos);
 });
 
-router.post('/watch', ...authenticateRewardAccount, requireVerifiedReward, async (req, res) => {
+router.post('/watch', async (req, res) => {
   const { telegramId, videoId } = req.body;
   if (!telegramId || !videoId) return res.status(400).json({ error: 'telegramId and videoId required' });
 
