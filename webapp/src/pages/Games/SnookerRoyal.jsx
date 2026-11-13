@@ -128,9 +128,6 @@ import SnookerMatchHud from './SnookerMatchHud.tsx';
 import { clipGuideTravel } from './shared/billiardsGuideGeometry.js';
 import { isSnookerObstructed } from '../../utils/snookerVisibility.js';
 import { resolveSnookerImpactAudio } from './snookerImpactAudio.js';
-import { PoolRoyalHumanPlayers } from './shared/PoolRoyalHumanPlayers.ts';
-import { TURI_MODEL_URL } from '../../config/playerCharacter.js';
-import { resolvePoolRoyalAddressState } from './shared/poolRoyalAddress.ts';
 import { SnookerRoyalShotCamera, SNOOKER_PLAYER_FOLLOW_THROUGH_MS, snookerRoyalFallbackEye } from './snookerRoyalShotCamera.ts';
 import {
   buildSnookerViewerHud,
@@ -14493,7 +14490,6 @@ const shotPowerRef = useRef(0);
   const broadcastCamerasRef = useRef(null);
   const lightingRigRef = useRef(null);
   const activeRenderCameraRef = useRef(null);
-  const activeHumanCueViewRef = useRef(null);
   const pocketSwitchIntentRef = useRef(null);
   const lastPocketBallRef = useRef(null);
   const cameraBlendRef = useRef(ACTION_CAMERA_START_BLEND);
@@ -17998,7 +17994,7 @@ const shotPowerRef = useRef(0);
         const humanEyeCamera = camera.clone();
         const resolveActiveHumanEyePose = () => {
           const pose = humanShotCamera.resolve({
-            eye: activeHumanCueViewRef.current,
+            eye: null,
             localTurn: (shootingRef.current || cueAnimating
               ? characterShotShooter
               : frameRef.current?.activePlayer ?? 'A') === localSeatRef.current,
@@ -21986,72 +21982,6 @@ const shotPowerRef = useRef(0);
       applySelectedCueStyle(cueStyleIndexRef.current ?? cueStyleIndex);
 
       let characterShotShooter = frameRef.current?.activePlayer === 'B' ? 'B' : 'A';
-      let characterStrokeState = 'idle';
-      const characterCueBall = new THREE.Vector3();
-      const characterShotCueBall = new THREE.Vector3();
-      const characterAim = new THREE.Vector3();
-      const characterCueBack = new THREE.Vector3();
-      const characterCueTip = new THREE.Vector3();
-      const characterLookTarget = new THREE.Vector3();
-      const referencePlayers = new PoolRoyalHumanPlayers(world, {
-        floorY,
-        renderer,
-        localPlayer: { seat: localSeatRef.current, modelUrl: TURI_MODEL_URL },
-        clothY: TABLE_Y + CLOTH_TOP_LOCAL + CLOTH_LIFT - CLOTH_DROP,
-        tableW: Math.max(TABLE.W, PLAY_W),
-        tableL: Math.max(TABLE.H, PLAY_H),
-        // Keep both players floor-anchored while giving them a clearly taller,
-        // larger silhouette against the full-size snooker table.
-        targetHeight: cueLen * 1.68 * 1.2,
-        exactEyeCamera: true,
-        onError: (error) => console.warn('Snooker Royal player characters could not load', error)
-      });
-      referencePlayers.setCueAppearance(cueBody, cueTipLocal, cueButtLocal);
-      const updatePlayerCharacters = (nowMs, dtSeconds) => {
-        if (!cue?.pos) return;
-        const activeSeat = cueAnimating || shooting
-          ? characterShotShooter
-          : frameRef.current?.activePlayer === 'B' ? 'B' : 'A';
-        const state = resolvePoolRoyalAddressState({
-          stroke: cueAnimating ? { phase: characterStrokeState === 'dragging' ? 'pullback' : 'strike' } : null,
-          ballsMoving: shooting,
-          gameOver: Boolean(hudRef.current?.over),
-          ballInHand: Boolean(hudRef.current?.inHand),
-          cueBallPlaced: cueBallPlacedFromHandRef.current,
-          placingCueBall: inHandPlacementModeRef.current
-        });
-        const cueVisible = cueStick.visible && state !== 'idle';
-        cueStick.updateWorldMatrix(true, false);
-        const cueBack = cueVisible
-          ? world.worldToLocal(cueStick.localToWorld(characterCueBack.copy(cueButtLocal))) : undefined;
-        const cueTip = cueVisible
-          ? world.worldToLocal(cueStick.localToWorld(characterCueTip.copy(cueTipLocal))) : undefined;
-        referencePlayers.update(dtSeconds, {
-          activeSeat,
-          state,
-          cueBall: shooting || cueAnimating
-            ? characterShotCueBall
-            : characterCueBall.set(cue.pos.x, TABLE_Y + BALL_CENTER_Y, cue.pos.y),
-          aimForward: characterAim.set(aimDirRef.current.x, 0, aimDirRef.current.y),
-          power: state === 'striking' ? shotPowerRef.current : powerRef.current,
-          nowMs,
-          cueBack,
-          cueTip,
-          bridgeObstacles: balls
-            .filter((ball) => ball.active && ball !== cue)
-            .map((ball) => ({
-              position: new THREE.Vector3(ball.pos.x, TABLE_Y + BALL_CENTER_Y, ball.pos.y),
-              radius: BALL_R
-            })),
-          bridgeBounds: {
-            halfWidth: uploadedTableMapping ? uploadedTableMapping.limitX + BALL_R : PLAY_W / 2,
-            halfLength: uploadedTableMapping ? uploadedTableMapping.limitY + BALL_R : PLAY_H / 2
-          },
-          hidden: Boolean(replayPlaybackRef.current || cueGalleryStateRef.current?.active)
-        });
-        activeHumanCueViewRef.current = referencePlayers.eyeView;
-        if (referencePlayers.players.length === 2 && state === 'idle') cueStick.visible = false;
-      };
 
       const closeCueGallery = () => {
         if (!ENABLE_CUE_GALLERY) return;
@@ -22638,7 +22568,6 @@ const shotPowerRef = useRef(0);
       };
       prepareInHandViewRef.current = () => {
         cancelCameraBlendTween();
-        activeHumanCueViewRef.current = null;
         aimFocusRef.current = null;
         const focus = ensureOrbitFocus();
         focus.ballId = null;
@@ -23030,7 +22959,6 @@ const shotPowerRef = useRef(0);
         cancelCameraBlendTween();
         const forcedCueBlend = aiCueViewBlendRef.current ?? AI_CAMERA_DROP_BLEND;
         applyCameraBlend(forcedCueView ? forcedCueBlend : 0);
-        updatePlayerCharacters(shotStartTime, 1 / 60);
         updateCamera();
         let placedFromHand = false;
         const meta = frameSnapshot?.meta;
@@ -23059,13 +22987,10 @@ const shotPowerRef = useRef(0);
             ? freeBallNominationRef.current || undefined : undefined
         };
         characterShotShooter = frameSnapshot?.activePlayer === 'B' ? 'B' : 'A';
-        characterShotCueBall.set(cue.pos.x, TABLE_Y + BALL_CENTER_Y, cue.pos.y);
-        characterStrokeState = 'dragging';
         shotImpactPending = ENABLE_CUE_STROKE_ANIMATION;
         humanShotCamera.beginShot(
-          topViewRef.current || lookModeRef.current ? activeHumanCueViewRef.current
-            : captureRoyalPlayerView(activeRenderCameraRef.current, lastCameraTargetRef.current,
-              world, activeHumanCueViewRef.current),
+          topViewRef.current || lookModeRef.current ? null
+            : captureRoyalPlayerView(activeRenderCameraRef.current, lastCameraTargetRef.current, world, null),
           snookerRoyalFallbackEye(
           world.worldToLocal(cue.mesh.getWorldPosition(new THREE.Vector3())),
           new THREE.Vector3(aimDirRef.current.x, 0, aimDirRef.current.y),
@@ -23323,7 +23248,7 @@ const shotPowerRef = useRef(0);
           const applyCueBallImpact = () => {
             if (shotImpactApplied) return;
             shotImpactApplied = true;
-            humanShotCamera.markImpact(performance.now(), activeHumanCueViewRef.current);
+            humanShotCamera.markImpact(performance.now());
             powerImpactHoldRef.current = performance.now() + SNOOKER_PLAYER_FOLLOW_THROUGH_MS;
             shotImpactPending = false;
             if (shotImpactFallbackTimer) {
@@ -23595,7 +23520,6 @@ const shotPowerRef = useRef(0);
               applyCueBallImpact();
               cueStick.visible = false;
               cueAnimating = false;
-              characterStrokeState = 'idle';
               cuePullCurrentRef.current = 0;
               cuePullTargetRef.current = 0;
               return;
@@ -23610,7 +23534,6 @@ const shotPowerRef = useRef(0);
               strikeWindowRatio: 0.12,
               hitArmRatio: 0.88
             });
-            characterStrokeState = sample.phase === 'pullback' ? 'dragging' : 'striking';
             if (sample.phase === 'pullback') {
               cueStick.position.lerpVectors(idlePos, pullPos, easeInOutQuad(sample.t));
             } else if (sample.phase === 'release' || sample.phase === 'strike') {
@@ -23630,7 +23553,6 @@ const shotPowerRef = useRef(0);
               const standingReleaseView = releaseHeightAboveCue > BALL_R * 3.4;
               cueStick.visible = !standingReleaseView;
               cueAnimating = false;
-              characterStrokeState = 'idle';
               cuePullCurrentRef.current = 0;
               cuePullTargetRef.current = 0;
               if (cameraRef.current && sphRef.current) {
@@ -25926,7 +25848,6 @@ const shotPowerRef = useRef(0);
               replayFrameCameraRef.current = null;
             }
             const frameCamera = updateCamera();
-            referencePlayers.group.visible = false;
             renderer.render(scene, frameCamera ?? camera);
             const finished = elapsed >= duration || elapsed - duration >= REPLAY_TIMEOUT_GRACE_MS;
             if (finished) {
@@ -27539,16 +27460,8 @@ const shotPowerRef = useRef(0);
             const edge = Math.min(1, Math.max(edgeX, edgeY) / 5);
             fit(1 + edge * 0.08);
           }
-          updatePlayerCharacters(now, deltaSeconds);
           const frameCamera = updateCamera();
           const renderCamera = frameCamera ?? camera;
-          characterLookTarget.set(cue.pos.x, TABLE_Y + BALL_CENTER_Y, cue.pos.y);
-          world.localToWorld(characterLookTarget);
-          referencePlayers.updateCameraVisibility(
-            renderCamera,
-            characterLookTarget,
-            renderCamera === humanEyeCamera ? localSeatRef.current : undefined
-          );
           renderer.render(scene, renderCamera);
           const shouldStreamAim =
             isOnlineMatch &&
@@ -27674,7 +27587,6 @@ const shotPowerRef = useRef(0);
         lightingRigRef.current = null;
         worldRef.current = null;
         activeRenderCameraRef.current = null;
-        referencePlayers.dispose();
         cueBodyRef.current = null;
         tipGroupRef.current = null;
         try {

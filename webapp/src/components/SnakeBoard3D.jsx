@@ -1,8 +1,6 @@
-import { TURI_CHARACTER } from '../config/playerCharacter.js';
-import { SEATED_PLAYER_VIEW, resolveSeatedPlayerEyePosition, updateSeatedPlayerLook } from '../utils/seatedPlayerView';
+import { SEATED_PLAYER_VIEW, updateSeatedPlayerLook } from '../utils/seatedPlayerView';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import * as THREE from 'three';
-import { createSnakeHumanInteraction } from '../utils/snakeHumanInteraction';
 import { createSnakeDiceInteraction, SNAKE_DICE_PRESENTATION_MS } from '../utils/snakeDiceInteraction';
 import { parkSnakeWeapons, snakeParkingBounds } from '../utils/snakeWeaponParking';
 import { prepareSnakeFirearm, snakeWeaponProfile } from '../utils/snakeWeaponGrip';
@@ -13,7 +11,6 @@ import { createSnakeDiceVisibility } from '../utils/snakeDiceVisibility';
 import { SNAKE_DICE_READ_MS } from '../utils/snakeDiceInteraction';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
-import { CHESS_HUMAN_CHARACTER_OPTIONS } from '../config/chessBattleInventoryConfig.js';
 import { SNAKE_CAPTURE_WEAPON_OPTIONS, SNAKE_SHARED_CAPTURE_WEAPON_OPTIONS } from '../config/snakeWeaponCatalog.js';
 import { DRACOLoader } from 'three/addons/loaders/DRACOLoader.js';
 import { KTX2Loader } from 'three/addons/loaders/KTX2Loader.js';
@@ -43,10 +40,6 @@ import {
 import { applyRendererSRGB, applySRGBColorSpace } from '../utils/colorSpace.js';
 import { getGameVolume } from '../utils/sound.js';
 import { playLudoCaptureWeaponSfx } from '../utils/ludoSfx.js';
-import {
-  createRestoredSeatedHumanActor,
-  loadSeatedHumanTemplate
-} from '../pages/Games/shared/seatedHumanActors.js';
 const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
 const clamp01 = (v) => clamp(v, 0, 1);
 const smootherstep01 = (v) => {
@@ -3092,41 +3085,6 @@ function buildArena(
     })
     .catch(() => {});
 
-  chairs.forEach((chair, seatIndex) => {
-    // Seat zero is the local player's eye-camera seat; rivals keep their own avatar.
-    const option = seatIndex === 0 ? TURI_CHARACTER : {
-      ...CHESS_HUMAN_CHARACTER_OPTIONS[0],
-      modelUrls: ['/assets/pool-royale/readyplayer.me.glb', ...CHESS_HUMAN_CHARACTER_OPTIONS[0].modelUrls]
-    };
-    loadSeatedHumanTemplate({
-      option, renderer,
-      targetHeight: SEATED_HUMAN_TARGET_HEIGHT,
-      visualScaleMultiplier: SEATED_HUMAN_VISUAL_SCALE_MULTIPLIER,
-      createLoader: createConfiguredGLTFLoader
-    }).then((humanTemplate) => {
-      if (disposed) return;
-      const restoredHuman = createRestoredSeatedHumanActor(humanTemplate, chair.group, {
-        targetHeight: SEATED_HUMAN_TARGET_HEIGHT,
-        seatHeight: 0,
-        visualScaleMultiplier: SEATED_HUMAN_VISUAL_SCALE_MULTIPLIER,
-        seatedZOffset: SEATED_HUMAN_SEAT_Z_OFFSET + (seatIndex === 0 ? SELF_BOTTOM_HUMAN_EXTRA_Z_OFFSET : 0)
-      });
-      if (restoredHuman) {
-        chair.humanActor = restoredHuman;
-        chair.interaction = createSnakeHumanInteraction(restoredHuman.actor);
-      }
-    }).catch((error) => console.warn('Unable to restore Snake & Ladder seated human', option.id, error));
-  });
-
-  const updatePlayerView = (position, eyeView) => {
-    const head = chairs[0]?.humanActor?.rig?.head;
-    if (!head || !position) return false;
-    const chair = chairs[0];
-    chair.headScale ??= head.scale.clone();
-    const resolved = resolveSeatedPlayerEyePosition(head, boardLookTarget, position);
-    head.scale.copy(chair.headScale).multiplyScalar(eyeView ? 0.001 : 1);
-    return resolved;
-  };
 
   const updateCameraTarget = () => {
     const radius = camera.position.distanceTo(boardLookTarget);
@@ -3139,8 +3097,7 @@ function buildArena(
     disposed = true;
     controls.dispose();
     disposeChairMaterials(chairMaterials);
-    chairs.forEach(({ group, interaction }) => {
-      interaction?.dispose();
+    chairs.forEach(({ group }) => {
       group.parent?.remove(group);
     });
     if (tableInfo?.dispose) tableInfo.dispose();
@@ -3156,8 +3113,6 @@ function buildArena(
     updateHdriZoom,
     controls,
     get tableInfo() { return tableInfo; },
-    getSeatHuman: (seat) => chairs[seat]?.interaction ?? null,
-    updatePlayerView,
     seatAnchors: chairs.map(({ anchor }) => anchor),
     weaponAnchors: chairs.map(({ weaponAnchor }) => weaponAnchor),
     startCameraState
@@ -5014,9 +4969,8 @@ function updateSeatWeaponDisplays(board, players = []) {
     const configuredWeaponType = typeof player?.weaponType === 'string' ? player.weaponType.trim() : '';
     const parkedWeaponType = configuredWeaponType || fallbackOrder[seatIndex % fallbackOrder.length];
     const firearmId = resolveSnakeFirearmAnimationId(parkedWeaponType);
-    const human = board.getSeatHuman?.(seatIndex);
     const parentScale = board.weaponDisplayGroup.getWorldScale(new THREE.Vector3());
-    const firearmLength = firearmId && snakeWeaponProfile(parkedWeaponType).handheld ? (human?.unit ?? 1.6) * snakeWeaponProfile(firearmId).lengthInArms /
+    const firearmLength = firearmId && snakeWeaponProfile(parkedWeaponType).handheld ? (board.getSeatHuman?.(seatIndex)?.unit ?? 1.6) * snakeWeaponProfile(firearmId).lengthInArms /
       parentScale.x : 0;
     if (holder.userData.weaponType !== parkedWeaponType || holder.userData.firearmLength !== firearmLength) {
       holder.clear();
@@ -5254,7 +5208,6 @@ export default function SnakeBoard3D({
       scene,
       boardLookTarget: arena.boardLookTarget,
       controls: arena.controls,
-      getSeatHuman: arena.getSeatHuman,
       seatAnchors: arena.seatAnchors ?? [],
       weaponAnchors: arena.weaponAnchors ?? [],
       startCameraState: arena.startCameraState ?? null,
@@ -5523,17 +5476,13 @@ export default function SnakeBoard3D({
       frameAccumulatorRef.current = Math.max(0, carry - targetMs);
       lastFrameTimeRef.current = now;
       const deltaSeconds = Math.min(0.2, Math.max(0, effectiveMs / 1000));
-      const humanCount = arena.seatAnchors.filter((_, seat) => arena.getSeatHuman(seat)).length;
-      if (boardRef.current && boardRef.current.humanCount !== humanCount) {
-        boardRef.current.humanCount = humanCount;
-        updateSeatWeaponDisplays(boardRef.current, playersRef.current);
-        if (humanCount > 0 && !diceStateRef.current.initialized && diceStateRef.current.currentId == null) {
-          const seat = playersRef.current[currentTurnRef.current]?.seatIndex ?? currentTurnRef.current ?? 0;
-          const layout = computeDiceThrowLayout(boardRef.current, seat, 1);
-          if (layout.basePositions[0]) {
-            boardRef.current.diceSet[0].position.copy(layout.basePositions[0]);
-            diceStateRef.current.initialized = true;
-          }
+      const activeBoard = boardRef.current;
+      if (activeBoard && !diceStateRef.current.initialized && diceStateRef.current.currentId == null) {
+        const seat = playersRef.current[currentTurnRef.current]?.seatIndex ?? currentTurnRef.current ?? 0;
+        const layout = computeDiceThrowLayout(activeBoard, seat, 1);
+        if (layout.basePositions[0]) {
+          activeBoard.diceSet[0].position.copy(layout.basePositions[0]);
+          diceStateRef.current.initialized = true;
         }
       }
       const active = animationsRef.current;
@@ -5591,7 +5540,6 @@ export default function SnakeBoard3D({
         }
       }
       const eyeView = cameraViewModeRef.current !== '2d';
-      arena.updatePlayerView(fixedSeatCameraPositionRef.current, eyeView);
       if (board) board.cameraHomeTarget.copy(arena.boardLookTarget);
       const followingAction = eyeView && board?.cameraDirector?.update(
         now, fixedSeatCameraPositionRef.current, board.cameraHomeTarget, motionPreference?.matches
@@ -6059,11 +6007,7 @@ export default function SnakeBoard3D({
           bouncePoints,
           values: diceEvent.values || [],
           rollId: diceEvent.id,
-          human: board.getSeatHuman?.(seatIndex),
-          visibility: createSnakeDiceVisibility(cameraRef.current, active, [
-            ...board.seatAnchors.map((_, seat) => board.getSeatHuman?.(seat)?.actor).filter(Boolean),
-            board.weaponDisplayGroup
-          ].filter(Boolean))
+          visibility: createSnakeDiceVisibility(cameraRef.current, active, [board.weaponDisplayGroup].filter(Boolean))
         });
         if (rollAnimation) animationsRef.current.push(rollAnimation);
       }
@@ -6149,7 +6093,6 @@ export default function SnakeBoard3D({
       const motion = createSnakeFirearmAnimation({
         scene: board.scene, weaponId: firearmId,
         parkedWeapon, origin, target: impact, victims, startedAt, reducedMotion,
-        human: snakeWeaponProfile(captureEvent.weaponType || firearmId).handheld ? board.getSeatHuman?.(players[captureEvent.attackerIndex]?.seatIndex ?? captureEvent.attackerIndex) : null,
         onShot: () => playCaptureSfx('shot'), onImpact: () => playCaptureSfx('impact')
       });
       attacker.userData.isSliding = true;

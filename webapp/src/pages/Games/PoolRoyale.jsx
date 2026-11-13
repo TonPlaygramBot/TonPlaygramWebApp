@@ -8,9 +8,6 @@ import React, {
 } from 'react';
 import * as THREE from 'three';
 import { royalCameraBlendFromDrag, captureRoyalPlayerView } from './shared/royalCameraControls.ts';
-import { PoolRoyalHumanPlayers } from './shared/PoolRoyalHumanPlayers.ts';
-import { TURI_MODEL_URL } from '../../config/playerCharacter.js';
-import { resolvePoolRoyalAddressState } from './shared/poolRoyalAddress.ts';
 import { poolRoyalHudLayout, POOL_SPIN_DIAMETER_PX, POOL_AVATAR_SIZE_PX } from './poolRoyalHudLayout.js';
 import { PoolRoyalPocketLights } from './shared/poolRoyalPocketLights.ts';
 import { createShowoodTableGeometry, closestPointOnPoolCushion, raycastPoolCushions, projectPoolBallFromCushions, groundShowoodTableLegs } from './shared/poolRoyaleShowoodGeometry.js';
@@ -1957,7 +1954,6 @@ const CUE_FOLLOW_THROUGH_MAX = BALL_R * 8.4; // extend top-end follow-through so
 const MIN_SHOT_POWER_TO_FIRE = BILARDO_MIN_RELEASE_POWER; // keep Pool Royale release gate identical to Bilardo Shqip
 const HUMAN_PLAYER_HEIGHT_RATIO_TO_TABLE = 0.96; // fallback body/table proportion when cue dimensions are unavailable
 const HUMAN_PLAYER_HEIGHT_RATIO_TO_CUE = 1.3; // keep the shooter 30% taller than the live cue stick
-const BILARDO_SHQIP_HUMAN_URL = 'https://threejs.org/examples/models/gltf/Soldier.glb';
 const POOL_ROYALE_VERIFIED_HUMAN_FALLBACK_URLS = Object.freeze([
   'https://threejs.org/examples/models/gltf/readyplayer.me.glb',
   'https://models.readyplayer.me/67d411b30787acbf58ce58ac.glb',
@@ -3438,11 +3434,6 @@ const POOL_ROYALE_MURLAN_CHAIR_URLS = Object.freeze([
   'https://dl.polyhaven.org/file/ph-assets/Models/gltf/1k/dining_chair_02/dining_chair_02_1k.gltf',
   'https://dl.polyhaven.org/file/ph-assets/Models/gltf/2k/dining_chair_02/dining_chair_02_2k.gltf',
   'https://dl.polyhaven.org/file/ph-assets/Models/gltf/4k/dining_chair_02/dining_chair_02_4k.gltf'
-]);
-const POOL_ROYALE_REFEREE_HUMAN_URLS = Object.freeze([
-  'https://threejs.org/examples/models/gltf/Xbot.glb',
-  'https://threejs.org/examples/models/gltf/readyplayer.me.glb',
-  BILARDO_SHQIP_HUMAN_URL
 ]);
 
 const DEFAULT_CHROME_COLOR_ID =
@@ -16716,17 +16707,12 @@ function PoolRoyaleGame({
   const clearHospitalityLayoutRef = useRef(() => {});
   const decorativeTablesRef = useRef([]);
   const hospitalityGroupsRef = useRef([]);
-  const spawnPlayerCharactersRef = useRef(() => {});
-  const activeHumanCueViewRef = useRef(null);
-  const activeHumanPlayersRef = useRef(null);
   const characterShotStartedAtRef = useRef(0);
   const characterShotShooterRef = useRef('A');
   const hospitalityLayoutRunRef = useRef(null);
   const chessLoungeTemplateRef = useRef(null);
   const chessChairTemplateRef = useRef(null);
   const chessLoungeLoadRef = useRef(null);
-  const seatedHumanTemplateRef = useRef(null);
-  const seatedHumanLoadRef = useRef(null);
   const hospitalityLoaderRef = useRef(null);
   const refreshSecondaryTableDecorRef = useRef(() => {});
   const clearSecondaryTableDecorRef = useRef(() => {});
@@ -17301,8 +17287,6 @@ const shotPowerRef = useRef(0);
     }
   }, [hud.inHand, hud.turn]);
   const [shotActive, setShotActive] = useState(false);
-  const [shotPreparing, setShotPreparing] = useState(false);
-  const shotPreparationRef = useRef(null);
   const shootingRef = useRef(shotActive);
   useEffect(() => {
     shootingRef.current = shotActive;
@@ -21165,49 +21149,6 @@ const shotPowerRef = useRef(0);
         return group;
       };
 
-      const ensureSeatedHumanTemplate = async () => {
-        if (seatedHumanTemplateRef.current) {
-          return seatedHumanTemplateRef.current;
-        }
-        if (seatedHumanLoadRef.current) {
-          return seatedHumanLoadRef.current;
-        }
-        seatedHumanLoadRef.current = loadFirstAvailableGltf([BILARDO_SHQIP_HUMAN_URL])
-          .then((gltf) => {
-            const model = gltf?.scene?.clone?.(true) ?? gltf?.scene ?? gltf?.scenes?.[0] ?? null;
-            if (!model) {
-              throw new Error('Missing seated human scene');
-            }
-            model.traverse((child) => {
-              if (!child?.isMesh) return;
-              child.castShadow = true;
-              child.receiveShadow = true;
-              const sourceMaterials = Array.isArray(child.material)
-                ? child.material
-                : [child.material];
-              const fixedMaterials = sourceMaterials.map((material) => {
-                const fixed = cloneHospitalityMaterial(material);
-                if (!fixed) return fixed;
-                fixed.skinning = material?.skinning ?? fixed.skinning;
-                return fixed;
-              });
-              child.material = Array.isArray(child.material)
-                ? fixedMaterials
-                : fixedMaterials[0];
-            });
-            seatedHumanTemplateRef.current = model;
-            return model;
-          })
-          .catch((error) => {
-            console.warn('Failed to load seated human GLB for Pool Royale', error);
-            return null;
-          })
-          .finally(() => {
-            seatedHumanLoadRef.current = null;
-          });
-        return seatedHumanLoadRef.current;
-      };
-
       const createChessLoungeSet = async ({
         chairOffsets,
         position = [0, 0],
@@ -21873,7 +21814,7 @@ const shotPowerRef = useRef(0);
         const humanEyeCamera = camera.clone();
         const resolveActiveHumanEyePose = () => {
           const pose = humanShotCamera.resolve({
-            eye: activeHumanCueViewRef.current,
+            eye: null,
             localTurn: (shootingRef.current || cueStrokeStateRef.current
               ? characterShotShooterRef.current
               : frameRef.current?.activePlayer ?? 'A') === localSeatRef.current,
@@ -23132,10 +23073,6 @@ const shotPowerRef = useRef(0);
               renderCamera.updateProjectionMatrix();
             }
           }
-          if (!replayPlaybackActive && lookTarget) activeHumanPlayersRef.current?.updateCameraVisibility(
-            renderCamera, lookTarget, humanEyePose?.blend > 0
-              ? localSeatRef.current : undefined
-          );
           if (lookTarget) {
             lastCameraTargetRef.current.copy(lookTarget);
           }
@@ -25676,81 +25613,6 @@ const shotPowerRef = useRef(0);
       updateHospitalityLayoutRef.current = layoutHospitalityGroups;
       clearHospitalityLayoutRef.current = disposeHospitalityGroups;
       layoutHospitalityGroups(environmentHdriRef.current);
-      let referencePlayers = null;
-      const disposePlayerCharacters = () => {
-        referencePlayers?.dispose();
-        activeHumanPlayersRef.current = null;
-        referencePlayers = null;
-        activeHumanCueViewRef.current = null;
-      };
-      const spawnPlayerCharacters = () => {
-        disposePlayerCharacters();
-        if (disposed) return;
-        referencePlayers = new PoolRoyalHumanPlayers(world, {
-          floorY,
-          renderer,
-          localPlayer: { seat: localSeatRef.current, modelUrl: TURI_MODEL_URL },
-          realisticMovement: true,
-          clothY: TABLE_Y + CLOTH_TOP_LOCAL + CLOTH_LIFT - CLOTH_DROP,
-          tableW: SHOWOOD_GEOMETRY.footprint.width,
-          tableL: SHOWOOD_GEOMETRY.footprint.length,
-          // Stance and walking clear the actual outer frame without resizing people.
-          targetHeight: Math.max(Math.max(TABLE.W, TABLE.H, PLAY_W, PLAY_H) * 0.82,
-            (TABLE_Y + CLOTH_TOP_LOCAL + CLOTH_LIFT - CLOTH_DROP - floorY) * 1.8),
-          onError: (error) => console.warn('Pool Royal reference players could not load', error)
-        });
-        activeHumanPlayersRef.current = referencePlayers;
-      };
-      spawnPlayerCharactersRef.current = spawnPlayerCharacters;
-
-      const updatePlayerCharacters = (nowMs, dtSeconds) => {
-        if (!referencePlayers || !cueRef.current?.pos) return;
-        const stroke = cueStrokeStateRef.current;
-        const ballsMoving = Boolean(shootingRef.current);
-        const activeSeat = ballsMoving || stroke
-          ? characterShotShooterRef.current
-          : frameRef.current?.activePlayer === 'B' ? 'B' : 'A';
-        const state = resolvePoolRoyalAddressState({
-          stroke, ballsMoving, gameOver: Boolean(hudRef.current?.over),
-          ballInHand: Boolean(hudRef.current?.inHand),
-          cueBallPlaced: cueBallPlacedFromHandRef.current,
-          placingCueBall: inHandPlacementModeRef.current || inHandDragRef.current.active,
-          breakReady: breakRollStateRef.current === 'done'
-        });
-        // Read the rendered endpoints after the existing cue timeline has run.
-        // This controller never advances physics or repositions the gameplay cue.
-        const cueVisible = cueStick.visible && state !== 'idle';
-        cueStick.updateWorldMatrix(true, false);
-        const cueBack = cueVisible
-          ? world.worldToLocal(cueStick.localToWorld(cueButtLocal.clone())) : undefined;
-        const cueTip = cueVisible
-          ? world.worldToLocal(cueStick.localToWorld(cueTipLocal.clone())) : undefined;
-        referencePlayers.update(dtSeconds, {
-          activeSeat,
-          state,
-          cueBall: new THREE.Vector3(cueRef.current.pos.x, TABLE_Y + BALL_CENTER_Y, cueRef.current.pos.y),
-          aimForward: new THREE.Vector3(aimDirRef.current.x, 0, aimDirRef.current.y),
-          power: shotPreparationRef.current?.power ?? (state === 'striking' ? shotPowerRef.current : powerRef.current),
-          nowMs,
-          cueBack,
-          cueTip,
-          cueRadius: (BALL_R / 0.0525) * (0.008 + 0.017 * CUE_FRONT_SECTION_RATIO),
-          bridgeBounds: { halfWidth: PLAY_W / 2, halfLength: PLAY_H / 2 },
-          bridgeRailY: TABLE_Y + (table.userData.cushionTopLocal ?? BALL_CENTER_Y + BALL_R),
-          bridgeObstacles: ballsRef.current.filter(ball => ball?.active).map(ball => ({
-            position: new THREE.Vector3(ball.pos.x, TABLE_Y + BALL_CENTER_Y, ball.pos.y),
-            radius: BALL_R
-          })),
-          hidden: Boolean(replayPlaybackRef.current)
-        });
-        activeHumanCueViewRef.current = referencePlayers.eyeView;
-        if (referencePlayers.players.length === 2 && (state === 'idle' || referencePlayers.walking) && !replayPlaybackRef.current) {
-          // The standing shooter already holds a copy of the selected game cue.
-          // Keep the extra aiming cue out of the rendered idle frame.
-          cueStick.visible = false;
-        }
-      };
-      spawnPlayerCharacters();
       setSecondaryTableReady(true);
       clothMat = tableCloth;
       cushionMat = tableCushion;
@@ -26298,7 +26160,6 @@ const shotPowerRef = useRef(0);
         buttCapMaterial: originalCue.buttCapMaterial, stripe: originalCue.stripeMaterial, styleIndex: initialIndex };
       tipGroupRef.current = originalCue.tipGroup;
       cueTipLocal.copy(originalCue.tipLocal);
-      referencePlayers?.setCueAppearance(originalCue.body, originalCue.tipLocal, originalCue.buttLocal);
 
       cueStick.position.set(cue.pos.x, CUE_Y, cue.pos.y + 1.2 * SCALE);
       applyCueButtTilt(cueStick, 0);
@@ -27591,15 +27452,9 @@ const shotPowerRef = useRef(0);
         }
 
       // Fire (slider triggers on release)
-      const isHumanReadyForShot = () => {
-        if (!referencePlayers || referencePlayers.players.length !== 2) return true;
-        const seat = frameRef.current?.activePlayer === 'B' ? 'B' : 'A';
-        return referencePlayers.readyToShoot && referencePlayers.players.some(player =>
-          player.seat === seat && player.state === 'dragging');
-      };
       const fire = (committedPowerOverride = null) => {
         const clampedPower = resolvePoolRoyalReleasePower({
-          busy: Boolean(shootingRef.current || cueStrokeStateRef.current || pendingImpactRef.current || shotPreparationRef.current),
+          busy: Boolean(shootingRef.current || cueStrokeStateRef.current || pendingImpactRef.current),
           committedPower: committedPowerOverride, currentPower: powerRef.current,
           minPower: MIN_SHOT_POWER_TO_FIRE
         });
@@ -27634,19 +27489,6 @@ const shotPowerRef = useRef(0);
           cueBallPlacedFromHandRef.current = true;
           inHandPlacementModeRef.current = false;
           setInHandPlacementMode(false);
-        }
-        if (!isHumanReadyForShot()) {
-          shotPreparationRef.current = {
-            power: clampedPower,
-            aim: aimDirRef.current.clone(),
-            spin: { ...(spinRequestRef.current ?? spinRef.current ?? { x: 0, y: 0 }) },
-            seat: frameSnapshot?.activePlayer === 'B' ? 'B' : 'A',
-            cuePosition: cue.pos.clone()
-          };
-          setShotPreparing(true);
-          setInHandPlacementMode(false);
-          clearInterval(timerRef.current);
-          return;
         }
         if (breakWinnerSeatRef.current === 'A') {
           breakWinnerSeatRef.current = null;
@@ -27714,9 +27556,9 @@ const shotPowerRef = useRef(0);
         );
         characterShotShooterRef.current = frameSnapshot?.activePlayer === 'B' ? 'B' : 'A';
         humanShotCamera.beginShot(characterShotShooterRef.current === localSeatRef.current
-          ? (topViewRef.current || lookModeRef.current ? activeHumanCueViewRef.current
-            : captureRoyalPlayerView(activeRenderCameraRef.current, lastCameraTargetRef.current,
-              world, activeHumanCueViewRef.current)) : null);
+          && !topViewRef.current && !lookModeRef.current
+          ? captureRoyalPlayerView(activeRenderCameraRef.current, lastCameraTargetRef.current, world, null)
+          : null);
         setShootingState(true);
         powerImpactHoldRef.current = Math.max(
           powerImpactHoldRef.current || 0,
@@ -30021,7 +29863,6 @@ const shotPowerRef = useRef(0);
 
         aiShoot.current = () => {
           if (!aiOpponentEnabled || frameRef.current?.meta?.state?.pushOutPending) return;
-          if (shotPreparationRef.current) return;
           if (aiRetryTimeoutRef.current) {
             clearTimeout(aiRetryTimeoutRef.current);
             aiRetryTimeoutRef.current = null;
@@ -30275,26 +30116,6 @@ const shotPowerRef = useRef(0);
           };
         };
 
-        const processPreparedShot = () => {
-          const prepared = shotPreparationRef.current;
-          if (!prepared) return;
-          const seat = frameRef.current?.activePlayer === 'B' ? 'B' : 'A';
-          const invalid = disposed || hudRef.current?.over || seat !== prepared.seat ||
-            shootingRef.current || replayPlaybackRef.current || !cue?.active ||
-            !allStopped(ballsRef.current?.length > 0 ? ballsRef.current : balls) ||
-            cue.pos.distanceToSquared(prepared.cuePosition) > BALL_R * BALL_R * 1e-6;
-          if (invalid || isHumanReadyForShot()) {
-            shotPreparationRef.current = null;
-            setShotPreparing(false);
-            if (!invalid) {
-              aimDirRef.current.copy(prepared.aim);
-              spinRequestRef.current = { ...prepared.spin };
-              spinRef.current = { ...prepared.spin };
-              powerRef.current = prepared.power;
-              fire(prepared.power);
-            }
-          }
-        };
         fireRef.current = fire;
 
         const selectReplayBanner = (tag = 'default') => {
@@ -30989,10 +30810,7 @@ const shotPowerRef = useRef(0);
               replayFrameCameraRef.current = null;
             }
             const frameCamera = updateCamera();
-            if (cueStick?.visible) {
-                }
-            if (referencePlayers) referencePlayers.group.visible = false;
-          renderer.render(scene, frameCamera ?? camera);
+            renderer.render(scene, frameCamera ?? camera);
             const finished = elapsed >= duration || elapsed - duration >= REPLAY_TIMEOUT_GRACE_MS;
             if (finished) {
               finishReplayPlayback(playback);
@@ -31126,12 +30944,7 @@ const shotPowerRef = useRef(0);
           : shouldAutoAimAi
             ? resolveAutoAimDirection({ turnOwner: 'ai', cycleToNext: false })
             : null;
-        if (shotPreparationRef.current) {
-          aimDir.copy(shotPreparationRef.current.aim);
-          powerRef.current = shotPreparationRef.current.power;
-          spinRequestRef.current = { ...shotPreparationRef.current.spin };
-          spinRef.current = { ...shotPreparationRef.current.spin };
-        } else if (!lookModeRef.current) {
+        if (!lookModeRef.current) {
           if (shouldLockAiAim) {
             aimDir.copy(activeAiPlan.aimDir);
             if (aimDir.lengthSq() > 1e-6) {
@@ -33109,8 +32922,6 @@ const shotPowerRef = useRef(0);
             const edge = Math.min(1, Math.max(edgeX, edgeY) / 5);
             fit(1 + edge * 0.08);
           }
-          updatePlayerCharacters(now, deltaSeconds);
-          processPreparedShot();
           syncCueShadow();
           const frameCamera = updateCamera();
           const handIconEl = inHandIconRef.current;
@@ -33265,8 +33076,6 @@ const shotPowerRef = useRef(0);
 
       return () => {
         disposed = true;
-        shotPreparationRef.current = null;
-        setShotPreparing(false);
         cancelCameraBlendTween();
         applyWorldScaleRef.current = () => {};
         topViewControlsRef.current = { enter: () => {}, exit: () => {} };
@@ -33344,8 +33153,6 @@ const shotPowerRef = useRef(0);
         clearDecorTablesRef.current = () => {};
         clearHospitalityLayoutRef.current?.();
         hospitalityGroupsRef.current = [];
-        disposePlayerCharacters();
-        spawnPlayerCharactersRef.current = () => {};
         updateHospitalityLayoutRef.current = () => {};
         clearHospitalityLayoutRef.current = () => {};
         chessBoardTextureRef.current?.dispose?.();
@@ -33435,7 +33242,7 @@ const shotPowerRef = useRef(0);
   // NEW Big Pull Slider (right side): drag DOWN to set power, releases → fire()
   // --------------------------------------------------
   const sliderRef = useRef(null);
-  const showPowerSlider = hud.turn === 0 && !hud.over && !replayActive && !shotActive && !shotPreparing && !pendingPushOut;
+  const showPowerSlider = hud.turn === 0 && !hud.over && !replayActive && !shotActive && !pendingPushOut;
   useEffect(() => {
     if (!showPowerSlider) {
       return undefined;
@@ -33494,9 +33301,9 @@ const shotPowerRef = useRef(0);
   const shotBroadcastActive = shotActive || pocketCameraActive;
   const topDownMinimalUi = isTopDownView;
   const hideNonEssentialHud = shotBroadcastActive || topDownMinimalUi;
-  const showPlayerControls = isPlayerTurn && !hud.over && !replayActive && !shotPreparing;
+  const showPlayerControls = isPlayerTurn && !hud.over && !replayActive;
   const showSpinController =
-    !hud.over && !replayActive && !shotBroadcastActive && !shotPreparing && (isPlayerTurn || aiTakingShot);
+    !hud.over && !replayActive && !shotBroadcastActive && (isPlayerTurn || aiTakingShot);
   const canRepositionCueBall = useMemo(
     () => showPlayerControls && deriveInHandFromFrame(frameState),
     [frameState, showPlayerControls]
@@ -34038,12 +33845,12 @@ const shotPowerRef = useRef(0);
   const renderMatchRules = (embedded = true) => <PoolMatchHud
         embedded={embedded} controlsOnly
         player={player.name || 'You'} opponent={opponentDisplayName || 'Opponent'} turn={hud.turn}
-        target={hud.next} busy={shotActive || shotPreparing} preparing={shotPreparing} inHand={hud.inHand} timer={timer}
+        target={hud.next} busy={shotActive} inHand={hud.inHand} timer={timer}
         variant={activeVariant?.label || variantKey} competition={competitionMatch}
         declaration={shotDeclaration} automaticCall={automaticCall}
         canCall={!isTraining && ['8ball', 'american'].includes(frameState.meta?.variant) && !isPoolRoyalBreak(frameState)}
         canPushOut={Boolean(frameState.meta?.state?.pushOutAvailable)}
-        interactive={hud.turn === 0 && !pendingPushOut && !shotPreparing} callOpen={callPocketOpen}
+        interactive={hud.turn === 0 && !pendingPushOut} callOpen={callPocketOpen}
         onToggleCall={() => { setConfigOpen(false); toggleCallPockets(); }} onDeclaration={updateShotDeclaration}
         availableBalls={poolCalledBallOptions(frameState)}
       />;
@@ -34054,7 +33861,7 @@ const shotPowerRef = useRef(0);
       {/* Canvas host now stretches full width so table reaches the slider */}
       <div ref={mountRef} className="absolute inset-0" />
       {callPocketOpen && !replayActive && !hud.over && renderMatchRules(false)}
-      {callPocketOpen && !shotActive && !shotPreparing && hud.turn === 0 && POCKET_IDS.map((id, index) => (
+      {callPocketOpen && !shotActive && hud.turn === 0 && POCKET_IDS.map((id, index) => (
         <button key={id} type="button" className="pool-call-pocket"
           ref={node => { if (node) callPocketButtonsRef.current.set(id, node); else callPocketButtonsRef.current.delete(id); }}
           aria-label={`Call pocket ${index + 1}`} aria-pressed={shotDeclaration.pocket === id}
