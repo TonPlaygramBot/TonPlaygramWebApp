@@ -1,8 +1,11 @@
+import { sanitizePublicPhoto } from '../utils/publicPhoto.js';
 import { Router } from 'express';
 import { v4 as uuidv4 } from 'uuid';
 import User from '../models/User.js';
 import authenticate from '../middleware/auth.js';
 import { optionalAuthenticate } from '../middleware/auth.js';
+import { createAuthSession } from '../utils/authSession.js';
+import { verifyGoogleIdToken } from '../utils/googleAuth.js';
 import {
   ensureTransactionArray,
   calculateBalance,
@@ -10,9 +13,7 @@ import {
 } from '../utils/userUtils.js';
 import bot from '../bot.js';
 import {
-  sendTransferNotification,
   sendGiftNotification,
-  sendDepositNotification,
   sendStorePurchaseNotification
 } from '../utils/notifications.js';
 import NFT_GIFTS from '../utils/nftGifts.js';
@@ -21,6 +22,7 @@ import { mintGiftNFT } from '../utils/nftService.js';
 import { generateWalletAddress } from '../utils/wallet.js';
 import { fetchTelegramInfo } from '../utils/telegram.js';
 import { applyStoreItemDelivery } from './store.js';
+import { sendWalletTransfer } from './wallet.js';
 import { POOL_ROYALE_STORE_ITEMS } from '../../webapp/src/config/poolRoyaleInventoryConfig.js';
 import { SNOOKER_ROYALE_STORE_ITEMS } from '../../webapp/src/config/snookerRoyalInventoryConfig.js';
 
@@ -28,8 +30,7 @@ import {
   createMemoryUser,
   findMemoryUser,
   saveMemoryUser,
-  shouldUseMemoryUserStore,
-  deleteMemoryUser
+  shouldUseMemoryUserStore
 } from '../utils/memoryUserStore.js';
 
 const router = Router();
@@ -65,6 +66,10 @@ export function resolveStoreItemPreview(items = []) {
   };
 }
 
+function requireVerifiedSettlement(_req, res) {
+  return res.status(403).json({ error: 'verified_settlement_required' });
+}
+
 function isPrivileged(req) {
   return req.auth?.apiToken === true;
 }
@@ -75,222 +80,100 @@ function canAccessUser(req, user) {
   if (user.telegramId && req.auth?.telegramId && user.telegramId === req.auth.telegramId) return true;
   if (user.googleId && req.auth?.googleId && user.googleId === req.auth.googleId) return true;
   if (user.accountId && req.auth?.accountId && user.accountId === req.auth.accountId) return true;
-  return !user.telegramId && !user.googleId;
+  return false;
 }
 
-// Create or fetch account for a user
+// Identifiers select accounts; only verified provider proof or a signed session
+// authorizes access. In particular, a public account number is never a login.
 router.post('/create', optionalAuthenticate, async (req, res) => {
-  const {
-    telegramId,
-    accountId,
-    googleId,
-    googleEmail,
-    firstName,
-    lastName,
-    photo,
-    walletAddress
-  } = req.body;
+  const body = req.body || {};
   const useMemoryStore = shouldUseMemoryUserStore();
-
   try {
-    if (!isPrivileged(req) && telegramId && req.auth?.telegramId !== telegramId) {
+    let googleProfile = null;
+    if (body.googleCredential) {
+      googleProfile = await verifyGoogleIdToken(body.googleCredential);
+      if (!googleProfile) return res.status(401).json({ error: 'invalid_google_credential' });
+    }
+    const telegramId = googleProfile ? undefined : isPrivileged(req)
+      ? body.telegramId
+      : req.auth?.telegramId;
+    const googleId = googleProfile?.googleId || (!telegramId ? req.auth?.googleId : undefined);
+    if (body.telegramId && Number(body.telegramId) !== telegramId) {
       return res.status(403).json({ error: 'forbidden' });
     }
-    if (!isPrivileged(req) && googleId && req.auth?.googleId !== googleId) {
-      return res.status(403).json({ error: 'forbidden' });
+    if (body.googleId && body.googleId !== googleId) {
+      return res.status(403).json({ error: 'verified_google_sign_in_required' });
     }
-    let user;
-    let telegramProfile = null;
+    if (telegramId != null && (!Number.isSafeInteger(telegramId) || telegramId <= 0)) {
+      return res.status(400).json({ error: 'invalid_telegram_id' });
+    }
+    if (body.walletAddress) {
+      return res.status(403).json({ error: 'wallet_ownership_proof_required' });
+    }
 
     const findUser = async (query) =>
       useMemoryStore ? findMemoryUser(query) : User.findOne(query);
-    const persistUser = async (payload) =>
-      useMemoryStore ? saveMemoryUser(payload) : payload.save();
-    const removeUser = async (payload) =>
-      useMemoryStore ? deleteMemoryUser(payload?.accountId) : payload?.deleteOne?.();
-
-    // These identities are independent indexed lookups. Running them together
-    // keeps an account refresh to one database round trip instead of making
-    // profile visitors wait for up to three sequential queries.
-    const [existingByAccountId, existingByTelegram, existingByGoogle] =
-      await Promise.all([
-        accountId ? findUser({ accountId }) : null,
-        telegramId ? findUser({ telegramId }) : null,
-        googleId ? findUser({ googleId }) : null
-      ]);
-
-    const primaryExisting = existingByAccountId || existingByTelegram || existingByGoogle;
-
-    if (telegramId) {
-      // Telegram is an external service and can be slow or rate limited. The
-      // database is authoritative for an existing profile, so only contact
-      // Telegram while creating a brand-new account.
-      if (!primaryExisting) {
-        try {
-          telegramProfile = await fetchTelegramInfo(telegramId);
-        } catch (err) {
-          console.error('fetchTelegramInfo failed:', err);
-        }
-      }
-
-      user = existingByTelegram || primaryExisting;
-      if (!user) {
-        const wallet = await generateWalletAddress();
-        const baseData = {
-          telegramId,
-          accountId: accountId || uuidv4(),
-          referralCode: String(telegramId),
-          walletAddress: wallet.address,
-          walletPublicKey: wallet.publicKey
-        };
-
-        if (telegramProfile) {
-          baseData.firstName = telegramProfile.firstName || '';
-          baseData.lastName = telegramProfile.lastName || '';
-          baseData.photo = telegramProfile.photoUrl || '';
-        }
-
-        if (existingByAccountId && existingByAccountId !== user) {
-          user = existingByAccountId;
-          user.telegramId = telegramId;
-          user.referralCode = user.referralCode || String(telegramId);
-          user.walletAddress = user.walletAddress || baseData.walletAddress;
-          user.walletPublicKey = user.walletPublicKey || baseData.walletPublicKey;
-          if (telegramProfile) {
-            user.firstName = user.firstName || telegramProfile.firstName || '';
-            user.lastName = user.lastName || telegramProfile.lastName || '';
-            user.photo = user.photo || telegramProfile.photoUrl || '';
-          }
-          await persistUser(user);
-          if (existingByTelegram && existingByTelegram !== user) {
-            await removeUser(existingByTelegram);
-          }
-        } else {
-          user = useMemoryStore ? createMemoryUser(baseData) : new User(baseData);
-          if (!useMemoryStore) await user.save();
-        }
-      } else {
-        let updated = false;
-        if (!user.accountId) {
-          user.accountId = accountId || uuidv4();
-          updated = true;
-        }
-        if (!user.walletAddress) {
-          const wallet = await generateWalletAddress();
-          user.walletAddress = wallet.address;
-          user.walletPublicKey = wallet.publicKey;
-          updated = true;
-        }
-        if (telegramProfile) {
-          if (!user.firstName && telegramProfile.firstName) {
-            user.firstName = telegramProfile.firstName;
-            updated = true;
-          }
-          if (!user.lastName && telegramProfile.lastName) {
-            user.lastName = telegramProfile.lastName;
-            updated = true;
-          }
-          if (!user.photo && telegramProfile.photoUrl) {
-            user.photo = telegramProfile.photoUrl;
-            updated = true;
-          }
-        }
-        if (updated) await persistUser(user);
-      }
-    } else if (googleId) {
-      user = existingByGoogle || primaryExisting;
-      if (!user) {
-        const wallet = await generateWalletAddress();
-        const baseData = {
-          googleId,
-          googleEmail: googleEmail || '',
-          accountId: accountId || uuidv4(),
-          referralCode: googleId,
-          walletAddress: wallet.address,
-          walletPublicKey: wallet.publicKey,
-          firstName: firstName || '',
-          lastName: lastName || '',
-          photo: photo || ''
-        };
-        if (existingByAccountId && existingByAccountId !== user) {
-          user = existingByAccountId;
-          user.googleId = googleId;
-          user.googleEmail = googleEmail || user.googleEmail;
-          user.firstName = user.firstName || firstName || '';
-          user.lastName = user.lastName || lastName || '';
-          user.photo = user.photo || photo || '';
-          user.walletAddress = user.walletAddress || wallet.address;
-          user.walletPublicKey = user.walletPublicKey || wallet.publicKey;
-          user.referralCode = user.referralCode || googleId;
-          await persistUser(user);
-          if (existingByGoogle && existingByGoogle !== user) {
-            await removeUser(existingByGoogle);
-          }
-        } else {
-          user = useMemoryStore ? createMemoryUser(baseData) : new User(baseData);
-          if (!useMemoryStore) await user.save();
-        }
-      } else {
-        let updated = false;
-        if (!user.accountId) {
-          user.accountId = accountId || uuidv4();
-          updated = true;
-        }
-        if (!user.walletAddress) {
-          const wallet = await generateWalletAddress();
-          user.walletAddress = wallet.address;
-          user.walletPublicKey = wallet.publicKey;
-          updated = true;
-        }
-        if (googleEmail && user.googleEmail !== googleEmail) {
-          user.googleEmail = googleEmail;
-          updated = true;
-        }
-        if (firstName && user.firstName !== firstName) {
-          user.firstName = firstName;
-          updated = true;
-        }
-        if (lastName && user.lastName !== lastName) {
-          user.lastName = lastName;
-          updated = true;
-        }
-        if (photo && !user.photoCustom && user.photo !== photo) {
-          user.photo = photo;
-          updated = true;
-        }
-        if (updated) await persistUser(user);
-      }
-    } else {
-      const wallet = await generateWalletAddress();
-      const id = uuidv4();
-      user = useMemoryStore ? createMemoryUser({
-        accountId: id,
-        referralCode: id,
-        walletAddress: wallet.address,
-        walletPublicKey: wallet.publicKey
-      }) : new User({
-        accountId: id,
-        referralCode: id,
-        walletAddress: wallet.address,
-        walletPublicKey: wallet.publicKey
-      });
-      if (!useMemoryStore) await user.save();
+    const persistUser = async (user) =>
+      useMemoryStore ? saveMemoryUser(user) : user.save();
+    // A fresh provider login resolves that provider's account. Never merge it
+    // into a caller-selected account, even when that account has no provider.
+    const selector = telegramId ? { telegramId }
+      : googleId ? { googleId }
+        : req.auth?.accountId ? { accountId: req.auth.accountId } : null;
+    let user = selector ? await findUser(selector) : null;
+    if (body.accountId && body.accountId !== user?.accountId) {
+      return res.status(req.auth || googleProfile ? 403 : 401).json({ error: 'account_sign_in_required' });
+    }
+    if (user?.isBanned) return res.status(403).json({ error: 'account_banned' });
+    if (req.auth?.accountId && !telegramId && !googleId && !user) {
+      return res.status(401).json({ error: 'account_sign_in_required' });
     }
 
-    if (walletAddress && !user.walletAddress) {
-      user.walletAddress = walletAddress;
+    const id = user?.accountId || uuidv4();
+    // Check signing configuration before creating an account. Return only
+    // verified identities in the token; Google display data is not a proof.
+    const sessionToken = createAuthSession({
+      accountId: id,
+      ...(user?.telegramId ? { telegramId: user.telegramId } : !user && telegramId ? { telegramId } : {}),
+      ...(user?.googleId ? { googleId: user.googleId } : !user && googleId ? { googleId } : {})
+    });
+    if (!user) {
+      const wallet = await generateWalletAddress();
+      let telegramProfile = null;
+      if (telegramId) {
+        try { telegramProfile = await fetchTelegramInfo(telegramId); }
+        catch (err) { console.error('fetchTelegramInfo failed:', err.message); }
+      }
+      const data = {
+        accountId: id,
+        ...(telegramId ? { telegramId } : {}),
+        ...(googleId ? { googleId } : {}),
+        referralCode: String(telegramId || googleId || id),
+        walletAddress: wallet.address,
+        walletPublicKey: wallet.publicKey,
+        firstName: googleProfile?.firstName || telegramProfile?.firstName || '',
+        lastName: googleProfile?.lastName || telegramProfile?.lastName || '',
+        photo: googleProfile?.photo || telegramProfile?.photoUrl || '',
+        googleEmail: googleProfile?.email || ''
+      };
+      user = useMemoryStore ? createMemoryUser(data) : new User(data);
+      if (!useMemoryStore) await user.save();
+    } else if (googleProfile) {
+      user.googleEmail = googleProfile.email;
+      user.firstName = googleProfile.firstName;
+      user.lastName = googleProfile.lastName;
+      if (!user.photoCustom) user.photo = googleProfile.photo;
       await persistUser(user);
     }
-
+    res.set('Cache-Control', 'no-store');
     res.json({
       accountId: user.accountId,
-      balance: user.balance,
+      sessionToken,
+      balance: resolveAccountBalance(user),
       walletAddress: user.walletAddress,
       firstName: user.firstName,
       lastName: user.lastName,
-      photo: user.photo,
-      // Let the profile screen render from this same database result rather
-      // than immediately issuing a second /account/info query.
+      photo: sanitizePublicPhoto(user.photo),
       profile: {
         accountId: user.accountId,
         telegramId: user.telegramId,
@@ -298,7 +181,7 @@ router.post('/create', optionalAuthenticate, async (req, res) => {
         nickname: user.nickname,
         firstName: user.firstName,
         lastName: user.lastName,
-        photo: user.photo,
+        photo: sanitizePublicPhoto(user.photo),
         balance: resolveAccountBalance(user),
         gifts: Array.isArray(user.gifts) ? user.gifts : [],
         transactions: Array.isArray(user.transactions) ? user.transactions : [],
@@ -306,8 +189,8 @@ router.post('/create', optionalAuthenticate, async (req, res) => {
       }
     });
   } catch (err) {
-    console.error('Failed to create account:', err);
-    res.status(500).json({ error: 'failed to create account' });
+    console.error('Failed to create account:', err.message);
+    res.status(503).json({ error: 'account_sign_in_unavailable' });
   }
 });
 
@@ -322,14 +205,6 @@ router.post('/balance', authenticate, async (req, res) => {
     return res.status(403).json({ error: 'forbidden' });
   }
   const balance = resolveAccountBalance(user);
-  if (user.balance !== balance) {
-    user.balance = balance;
-    try {
-      await user.save();
-    } catch (err) {
-      console.error('Failed to update balance:', err.message);
-    }
-  }
   res.json({ balance });
 });
 
@@ -348,14 +223,6 @@ router.post('/info', authenticate, async (req, res) => {
   if (!Array.isArray(user.gifts)) user.gifts = [];
 
   const balance = resolveAccountBalance(user);
-  if (user.balance !== balance) {
-    user.balance = balance;
-    try {
-      await user.save();
-    } catch (err) {
-      console.error('Failed to update balance:', err.message);
-    }
-  }
 
   res.json({
     accountId: user.accountId,
@@ -363,163 +230,23 @@ router.post('/info', authenticate, async (req, res) => {
     nickname: user.nickname,
     firstName: user.firstName,
     lastName: user.lastName,
-    photo: user.photo,
-    balance: user.balance,
+    photo: sanitizePublicPhoto(user.photo),
+    balance,
     gifts: user.gifts,
     transactions: user.transactions
   });
 });
 
-// Send TPG between accounts
-router.post('/send', authenticate, async (req, res) => {
-  const { fromAccount, toAccount, amount, note } = req.body;
-  if (!fromAccount || !toAccount || typeof amount !== 'number') {
-    return res
-      .status(400)
-      .json({ error: 'fromAccount, toAccount and amount required' });
-  }
-  if (amount <= 0)
-    return res.status(400).json({ error: 'amount must be positive' });
-
-  const sender = await User.findOne({ accountId: fromAccount });
-  if (!sender) return res.status(404).json({ error: 'sender not found' });
-  if (!canAccessUser(req, sender)) {
-    return res.status(403).json({ error: 'forbidden' });
-  }
-  const feeSender = Math.round(amount * 0.02);
-  const feeReceiver = Math.round(amount * 0.01);
-  if (sender.balance < amount + feeSender) {
-    return res.status(400).json({ error: 'insufficient balance' });
-  }
-
-  async function getDev(id) {
-    if (!id) return null;
-    let u = await User.findOne({ accountId: id });
-    if (!u) u = new User({ accountId: id });
-    return u;
-  }
-
-  const devMainId =
-    process.env.DEV_ACCOUNT_ID || process.env.VITE_DEV_ACCOUNT_ID;
-  const dev1Id =
-    process.env.DEV_ACCOUNT_ID_1 || process.env.VITE_DEV_ACCOUNT_ID_1;
-  const dev2Id =
-    process.env.DEV_ACCOUNT_ID_2 || process.env.VITE_DEV_ACCOUNT_ID_2;
-
-  const [foundReceiver, devMain, dev1, dev2] = await Promise.all([
-    User.findOne({ accountId: toAccount }),
-    getDev(devMainId),
-    getDev(dev1Id),
-    getDev(dev2Id)
-  ]);
-  const receiver = foundReceiver || new User({ accountId: toAccount });
-
-  ensureTransactionArray(sender);
-  ensureTransactionArray(receiver);
-  if (devMain) ensureTransactionArray(devMain);
-  if (dev1) ensureTransactionArray(dev1);
-  if (dev2) ensureTransactionArray(dev2);
-
-  const txDate = new Date();
-  sender.balance -= amount + feeSender;
-  receiver.balance = (receiver.balance || 0) + amount - feeReceiver;
-  if (dev1) {
-    dev1.balance = (dev1.balance || 0) + feeReceiver;
-  } else if (devMain) {
-    devMain.balance = (devMain.balance || 0) + feeReceiver;
-  }
-  if (dev2) {
-    dev2.balance = (dev2.balance || 0) + feeSender;
-  } else if (devMain) {
-    devMain.balance = (devMain.balance || 0) + feeSender;
-  }
-
-  const safeNote = typeof note === 'string' ? note.slice(0, 150) : undefined;
-  const senderTx = {
-    amount: -(amount + feeSender),
-    type: 'send',
-    token: 'TPG',
-    status: 'delivered',
-    date: txDate,
-    toAccount: toAccount,
-    toName: receiver.nickname || receiver.firstName || '',
-    ...(safeNote ? { detail: safeNote } : {})
-  };
-  const receiverTx = {
-    amount: amount - feeReceiver,
-    type: 'receive',
-    token: 'TPG',
-    status: 'delivered',
-    date: txDate,
-    fromAccount: fromAccount,
-    fromName: sender.nickname || sender.firstName || '',
-    ...(safeNote ? { detail: safeNote } : {})
-  };
-  const devTxs = [];
-  if (dev1 || devMain) {
-    const target = dev1 ? dev1Id : devMainId;
-    devTxs.push({
-      amount: feeReceiver,
-      type: 'fee',
-      token: 'TPG',
-      status: 'delivered',
-      date: txDate,
-      fromAccount: fromAccount,
-      toAccount: target
-    });
-  }
-  if (dev2 || devMain) {
-    const target = dev2 ? dev2Id : devMainId;
-    devTxs.push({
-      amount: feeSender,
-      type: 'fee',
-      token: 'TPG',
-      status: 'delivered',
-      date: txDate,
-      fromAccount: fromAccount,
-      toAccount: target
-    });
-  }
-  sender.transactions.push(senderTx);
-  receiver.transactions.push(receiverTx);
-  for (const tx of devTxs) {
-    if (dev1 && tx.toAccount === dev1Id) dev1.transactions.push(tx);
-    else if (dev2 && tx.toAccount === dev2Id) dev2.transactions.push(tx);
-    else if (devMain && tx.toAccount === devMainId)
-      devMain.transactions.push(tx);
-  }
-
-  await Promise.all([
-    sender.save(),
-    receiver.save(),
-    devMain ? devMain.save() : Promise.resolve(),
-    dev1 ? dev1.save() : Promise.resolve(),
-    dev2 ? dev2.save() : Promise.resolve()
-  ]);
-
-  const devIds = [
-    process.env.DEV_ACCOUNT_ID || process.env.VITE_DEV_ACCOUNT_ID,
-    process.env.DEV_ACCOUNT_ID_1 || process.env.VITE_DEV_ACCOUNT_ID_1,
-    process.env.DEV_ACCOUNT_ID_2 || process.env.VITE_DEV_ACCOUNT_ID_2
-  ].filter(Boolean);
-
-  res.json({ balance: sender.balance, transaction: senderTx });
-
-  if (receiver.telegramId && !devIds.includes(toAccount)) {
-    sendTransferNotification(
-      bot,
-      receiver.telegramId,
-      fromAccount,
-      amount,
-      safeNote
-    ).catch((err) => {
-      console.error('Failed to send Telegram notification:', err.message);
-    });
-  }
+// Keep the old URL as an adapter to the same atomic/idempotent transfer.
+// Fee distribution must also be transactional before fees can be reintroduced.
+router.post('/send', authenticate, (req, res) => {
+  const { fromAccount, toAccount, ...rest } = req.body || {};
+  req.body = { ...rest, fromAccountId: fromAccount, toAccountId: toAccount };
+  return sendWalletTransfer(req, res);
 });
 
 // Send a gift using account ids
-router.post('/gift', authenticate, async (req, res) => {
+router.post('/gift', authenticate, requireVerifiedSettlement, async (req, res) => {
   const { fromAccount, toAccount, gift } = req.body;
   if (!fromAccount || !toAccount || !gift) {
     return res
@@ -615,7 +342,7 @@ router.post('/gift', authenticate, async (req, res) => {
   res.json({ balance: sender.balance, transaction: senderTx });
 });
 
-router.post('/store-purchase', authenticate, async (req, res) => {
+router.post('/store-purchase', authenticate, requireVerifiedSettlement, async (req, res) => {
   const { accountId, fromAccount, bundle, txHash } = req.body;
   const purchaserAccountId = String(accountId || fromAccount || '').trim();
 
@@ -714,7 +441,7 @@ router.post('/store-purchase', authenticate, async (req, res) => {
 });
 
 // Convert received gifts to TPG
-router.post('/convert-gifts', authenticate, async (req, res) => {
+router.post('/convert-gifts', authenticate, requireVerifiedSettlement, async (req, res) => {
   const { accountId, giftIds, action = 'burn', toAccount } = req.body;
   if (!accountId || !Array.isArray(giftIds)) {
     return res.status(400).json({ error: 'accountId and giftIds required' });
@@ -930,58 +657,10 @@ router.get('/transfers/public', async (req, res) => {
   res.json({ transactions, totalCount });
 });
 
-// Deposit rewards into account
-router.post('/deposit', authenticate, async (req, res) => {
-  const { accountId, amount, game } = req.body;
-  const authId = req.auth?.telegramId;
-  const devIds = [
-    process.env.DEV_ACCOUNT_ID || process.env.VITE_DEV_ACCOUNT_ID,
-    process.env.DEV_ACCOUNT_ID_1 || process.env.VITE_DEV_ACCOUNT_ID_1,
-    process.env.DEV_ACCOUNT_ID_2 || process.env.VITE_DEV_ACCOUNT_ID_2
-  ].filter(Boolean);
-  if (!accountId || typeof amount !== 'number' || amount <= 0) {
-    return res
-      .status(400)
-      .json({ error: 'accountId and positive amount required' });
-  }
-  let user = await User.findOne({ accountId });
-  if (!user) {
-    user = new User({ accountId });
-    if (authId && !devIds.includes(accountId)) user.telegramId = authId;
-  }
-  if (
-    !devIds.includes(accountId) &&
-    authId &&
-    user.telegramId &&
-    authId !== user.telegramId
-  ) {
-    return res.status(403).json({ error: 'forbidden' });
-  }
-  ensureTransactionArray(user);
-  user.balance += amount;
-  const tx = {
-    amount,
-    type: 'deposit',
-    token: 'TPG',
-    status: 'delivered',
-    date: new Date()
-  };
-  if (game) tx.game = game;
-  user.transactions.push(tx);
-  await user.save();
-
-  if (user.telegramId && !devIds.includes(accountId)) {
-    try {
-      await sendDepositNotification(
-        bot,
-        user.telegramId,
-        amount
-      );
-    } catch (err) {
-      console.error('Failed to send Telegram notification:', err.message);
-    }
-  }
-  res.json({ balance: user.balance, transaction: tx });
+// Client-reported winnings or requested amounts are not payment/reward proofs.
+// Credits must be introduced by an authoritative, idempotent settlement service.
+router.post('/deposit', authenticate, (_req, res) => {
+  res.status(403).json({ error: 'verified_settlement_required' });
 });
 
 export default router;

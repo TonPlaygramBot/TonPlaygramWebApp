@@ -1,3 +1,4 @@
+import { requireVerifiedReward } from '../middleware/rewardGuard.js';
 import { Router } from 'express';
 import Task from '../models/Task.js';
 import User from '../models/User.js';
@@ -105,7 +106,7 @@ router.post('/list', authenticate, async (req, res) => {
   res.json({ version: TASKS_VERSION, tasks: [...baseTasks, ...customTasks] });
 });
 
-router.post('/complete', authenticate, async (req, res) => {
+router.post('/complete', authenticate, requireVerifiedReward, async (req, res) => {
   const { telegramId, taskId } = req.body;
   if (!telegramId || !taskId) return res.status(400).json({ error: 'telegramId and taskId required' });
   if (!req.auth?.telegramId || req.auth.telegramId !== telegramId) {
@@ -333,7 +334,7 @@ router.post('/verify-reply', authenticate, async (req, res) => {
   }
 });
 
-router.post('/verify-post', authenticate, async (req, res) => {
+router.post('/verify-post', authenticate, requireVerifiedReward, async (req, res) => {
   const { telegramId, tweetUrl } = req.body;
   if (!telegramId || !tweetUrl) {
     return res.status(400).json({ error: 'telegramId and tweetUrl required' });

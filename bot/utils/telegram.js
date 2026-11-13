@@ -1,57 +1,27 @@
 import { withProxy } from './proxyAgent.js';
 
 export async function fetchTelegramInfo(telegramId) {
+  if (!Number.isSafeInteger(Number(telegramId)) || Number(telegramId) <= 0 || !process.env.BOT_TOKEN) return null;
   const base = `https://api.telegram.org/bot${process.env.BOT_TOKEN}`;
   try {
     const infoResp = await fetch(
-      `${base}/getChat?chat_id=${telegramId}`,
-      withProxy()
+      `${base}/getChat?chat_id=${Number(telegramId)}`,
+      withProxy({ signal: AbortSignal.timeout(5000) })
     );
+    if (!infoResp.ok) return null;
     const infoData = await infoResp.json();
-    let photoUrl = '';
-
-    // Prefer chat photo info returned from getChat if available
-    if (infoData.ok && infoData.result?.photo) {
-      const fileId = infoData.result.photo.big_file_id || infoData.result.photo.small_file_id;
-      if (fileId) {
-        const fileResp = await fetch(
-          `${base}/getFile?file_id=${fileId}`,
-          withProxy()
-        );
-        const fileData = await fileResp.json();
-        if (fileData.ok) {
-          photoUrl = `${base.replace('/bot', '/file/bot')}/${fileData.result.file_path}`;
-        }
-      }
-    }
-
-    // Fallback to getUserProfilePhotos if chat photo not available
-    if (!photoUrl) {
-      const photosResp = await fetch(
-        `${base}/getUserProfilePhotos?user_id=${telegramId}&limit=1`,
-        withProxy()
-      );
-      const photosData = await photosResp.json();
-      if (photosData.ok && photosData.result.total_count > 0) {
-        const fileId = photosData.result.photos[0][0].file_id;
-        const fileResp = await fetch(
-          `${base}/getFile?file_id=${fileId}`,
-          withProxy()
-        );
-        const fileData = await fileResp.json();
-        if (fileData.ok) {
-          photoUrl = `${base.replace('/bot', '/file/bot')}/${fileData.result.file_path}`;
-        }
-      }
-    }
-
+    if (!infoData.ok) return null;
     return {
       firstName: infoData.result?.first_name || '',
       lastName: infoData.result?.last_name || '',
-      photoUrl,
+      // getFile download links contain BOT_TOKEN and must never be returned or
+      // persisted as public profile photos. Use Telegram's signed init-data
+      // photo_url, a verified provider avatar, or a user upload instead.
+      photoUrl: ''
     };
-  } catch (err) {
-    console.error('fetchTelegramInfo failed', err);
+  } catch {
+    // Fetch errors can include the requested URL, which contains the bot token.
+    console.error('fetchTelegramInfo failed');
     return null;
   }
 }

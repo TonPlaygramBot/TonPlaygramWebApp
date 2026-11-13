@@ -2,6 +2,7 @@ import { createInitialChessBoard, normalizeChessBoard, chessBoardToFen, validate
 import './loadEnv.js';
 import { validateEnv } from './env.js';
 import express from 'express';
+import { redactTelegramCredentialUrls, sanitizePublicPhoto } from './utils/publicPhoto.js';
 import { webappEntry } from '../shared/socialApp.js';
 import cors from 'cors';
 import bot from './bot.js';
@@ -86,7 +87,9 @@ import compression from 'compression';
 import rateLimit from 'express-rate-limit';
 import helmet from 'helmet';
 import { contentSecurityPolicy } from './config/contentSecurityPolicy.js';
-import authenticate, { optionalAuthenticate, verifyTelegramInitData } from './middleware/auth.js';
+import authenticate, { optionalAuthenticate } from './middleware/auth.js';
+import { authenticateSocketHandshake, ownsSocketPlayer } from './utils/socketAuth.js';
+import { findMemoryUser, shouldUseMemoryUserStore } from './utils/memoryUserStore.js';
 import {
   registerConnection,
   removeConnection,
@@ -219,6 +222,8 @@ const rateLimitWindowMs =
 // sensitive write routes apply their own validation and throttling.
 const rateLimitMax = Number(process.env.RATE_LIMIT_MAX) || 1000;
 const app = express();
+// Redact legacy credential-bearing profile URLs even from lean/nested records.
+app.set('json replacer', redactTelegramCredentialUrls);
 const corsOptions = {
   origin: resolveCorsOrigin
 };
@@ -244,48 +249,19 @@ httpServer.on('upgrade', (req, socket, head) => {
   if (chessGateway.handleUpgrade(req, socket, head)) return;
   if (!req.url?.startsWith('/socket.io/')) socket.destroy();
 });
-io.use((socket, next) => {
-  const authHeader = socket.handshake.headers?.authorization || '';
-  const token =
-    socket.handshake.auth?.token || authHeader.replace(/^Bearer\s+/i, '');
-  const initData =
-    socket.handshake.auth?.initData ||
-    socket.handshake.headers?.['x-telegram-init-data'];
-  const accountId =
-    socket.handshake.auth?.accountId ||
-    socket.handshake.headers?.['x-tpc-account-id'];
-  const googleId =
-    socket.handshake.auth?.googleId ||
-    socket.handshake.headers?.['x-google-id'];
-
-  const resolvedAuth = {};
-  if (initData) {
-    const data = verifyTelegramInitData(initData);
-    if (data) {
-      resolvedAuth.telegramId = data.user ? Number(JSON.parse(data.user).id) : undefined;
-    }
-  }
-
-  if (process.env.API_AUTH_TOKEN && token === process.env.API_AUTH_TOKEN) {
-    socket.data.auth = { ...resolvedAuth, apiToken: true };
+io.use(async (socket, next) => {
+  try {
+    const verified = await authenticateSocketHandshake(socket.handshake, (selector) =>
+      shouldUseMemoryUserStore() ? findMemoryUser(selector) : User.findOne(selector).lean()
+    );
+    if (!verified) return next(new Error('unauthorized'));
+    socket.data.auth = verified.auth;
+    socket.data.authenticatedPlayerId = verified.playerId;
+    socket.data.playerId = verified.playerId;
     return next();
+  } catch {
+    return next(new Error('unauthorized'));
   }
-
-  if (accountId || googleId) {
-    socket.data.auth = {
-      ...resolvedAuth,
-      accountId: accountId ? String(accountId) : undefined,
-      googleId: googleId ? String(googleId) : undefined
-    };
-    return next();
-  }
-
-  if (Object.keys(resolvedAuth).length > 0) {
-    socket.data.auth = resolvedAuth;
-    return next();
-  }
-
-  return next(new Error('unauthorized'));
 });
 const gameManager = new GameRoomManager(io);
 const tiranaStreets = createTiranaStreets();
@@ -861,25 +837,12 @@ function hasConflictingIdentities(payload = {}) {
 }
 
 function ensureRegistered(socket, tpcAccountNumber) {
-  let registered = socket.data?.playerId;
-  if (!registered && tpcAccountNumber) {
-    registered = String(tpcAccountNumber);
-    socket.data.playerId = registered;
-    let set = userSockets.get(registered);
-    if (!set) {
-      set = new Set();
-      userSockets.set(registered, set);
-    }
-    set.add(socket.id);
-    registerConnection({ userId: registered, socketId: socket.id }).catch((err) => {
-      console.error('registerConnection fallback failed', err);
-    });
-  }
+  const registered = socket.data?.authenticatedPlayerId;
   if (!registered) {
     socket.emit('errorMessage', 'register_required');
     return false;
   }
-  if (tpcAccountNumber && String(tpcAccountNumber) !== String(registered)) {
+  if (!ownsSocketPlayer(socket, tpcAccountNumber)) {
     socket.emit('errorMessage', 'identity_mismatch');
     return false;
   }
@@ -2350,7 +2313,7 @@ io.on('connection', (socket) => {
   tiranaStreets.attach(socket);
   tennisRoyal.attach(socket);
   tabletennisRoyal.attach(socket);
-  const authAccountId = resolveTpcIdentity(socket.handshake?.auth || {});
+  const authAccountId = socket.data.authenticatedPlayerId;
   if (authAccountId) {
     let set = userSockets.get(String(authAccountId));
     if (!set) {
@@ -2371,6 +2334,10 @@ io.on('connection', (socket) => {
       return;
     }
     if (hasConflictingIdentities(payload)) {
+      cb && cb({ success: false, error: 'identity_mismatch' });
+      return;
+    }
+    if (!ownsSocketPlayer(socket, resolvedPlayerId)) {
       cb && cb({ success: false, error: 'identity_mismatch' });
       return;
     }
@@ -2616,9 +2583,6 @@ io.on('connection', (socket) => {
       socket.emit('waitingForPlayers', { roomId, current: map.size, capacity: cap });
       cb?.({ success: false, error: 'waiting_for_players' });
       return;
-    }
-    if (pid && !socket.data?.playerId) {
-      socket.data.playerId = String(pid);
     }
     if (!ensureRegistered(socket, pid)) return;
     // When a player connects to the actual game room we should keep their
@@ -3729,8 +3693,8 @@ io.on('connection', (socket) => {
         toTelegramId,
         fromName: String(payload.fromName || caller.nickname || caller.firstName || 'TonPlaygram player').slice(0, 60),
         toName: String(target.nickname || target.firstName || 'TonPlaygram player').slice(0, 60),
-        fromPhoto: caller.photo || '',
-        toPhoto: target.photo || '',
+        fromPhoto: sanitizePublicPhoto(caller.photo),
+        toPhoto: sanitizePublicPhoto(target.photo),
         type
       };
       for (const sid of targets) io.to(sid).emit('friendCall:incoming', call);
@@ -3973,6 +3937,7 @@ io.on('connection', (socket) => {
   };
 
   socket.on('joinArcadeRace', ({ tableId, accountId, gameType } = {}, cb) => {
+    if (!ownsSocketPlayer(socket, accountId)) return cb?.({ success: false, error: 'identity_mismatch' });
     const id = String(tableId || '');
     const playerId = String(accountId || socket.data.playerId || '');
     const normalizedGameType = normalizeOnlineGameType(gameType);
@@ -4010,6 +3975,7 @@ io.on('connection', (socket) => {
   });
 
   socket.on('arcadeRaceScore', ({ tableId, accountId, score } = {}, cb) => {
+    if (!ownsSocketPlayer(socket, accountId)) return cb?.({ success: false, error: 'identity_mismatch' });
     const id = String(tableId || '');
     const playerId = String(accountId || socket.data.playerId || '');
     const state = arcadeRaceStates.get(id);
@@ -4024,6 +3990,7 @@ io.on('connection', (socket) => {
   });
 
   socket.on('arcadeRaceFinish', ({ tableId, accountId, score } = {}, cb) => {
+    if (!ownsSocketPlayer(socket, accountId)) return cb?.({ success: false, error: 'identity_mismatch' });
     const id = String(tableId || '');
     const playerId = String(accountId || socket.data.playerId || '');
     const state = arcadeRaceStates.get(id);

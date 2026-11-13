@@ -1,4 +1,4 @@
-name: Android APK (launcher)
+name: Android debug APK (testing launcher)
 
 on:
   workflow_dispatch:
@@ -7,10 +7,6 @@ on:
         description: "Release tag (e.g. launcher-v1)"
         required: true
         default: "launcher-latest"
-      prerelease:
-        description: "Mark as prerelease"
-        required: false
-        default: "true"
 
 permissions:
   contents: write
@@ -18,6 +14,7 @@ permissions:
 jobs:
   build-and-release:
     runs-on: ubuntu-latest
+    timeout-minutes: 60
 
     steps:
       - name: Checkout
@@ -28,9 +25,13 @@ jobs:
         with:
           node-version: 22
           cache: npm
+          cache-dependency-path: webapp/package-lock.json
 
       - name: Install dependencies
-        run: npm run install-all
+        run: npm ci --prefix webapp
+
+      - name: Generate native assets
+        run: npm --prefix webapp run generate:native-assets
 
       - name: Build webapp
         run: npm --prefix webapp run build
@@ -39,14 +40,21 @@ jobs:
         uses: actions/setup-java@v4
         with:
           distribution: temurin
-          java-version: 21
+          java-version: 17
+
+      - name: Setup Android SDK
+        uses: android-actions/setup-android@v3
+
+      - name: Install Android 16 SDK
+        run: sdkmanager "platforms;android-36" "build-tools;36.0.0"
 
       - name: Sync Capacitor
-        run: npx cap sync android
+        working-directory: webapp
+        run: npx --no-install cap sync android
 
       - name: Build debug APK
         working-directory: webapp/android
-        run: ./gradlew assembleDebug
+        run: ./gradlew --no-daemon assembleDebug
 
       - name: Prepare APK
         run: |
@@ -57,7 +65,8 @@ jobs:
         uses: softprops/action-gh-release@v2
         with:
           tag_name: ${{ inputs.tag }}
-          name: TonPlaygram Android Launcher
-          prerelease: ${{ inputs.prerelease }}
+          name: TonPlaygram Android Debug Launcher (testing only)
+          prerelease: true
+          body: "Debug-signed testing build. Not a Google Play production release. Use the Android store release workflow for a signed AAB."
           files: tonplaygram-launcher.apk
           fail_on_unmatched_files: true

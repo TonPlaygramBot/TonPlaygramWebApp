@@ -63,7 +63,7 @@ export default function Wallet({ hideClaim = false, accountIdOverride = '' }) {
   const connectedTonAddress = useTonAddress();
   const [tonWalletAddress, setTonWalletAddress] = useState(() => localStorage.getItem('walletAddress') || '');
   const [googleProfile, setGoogleProfile] = useState(() => (telegramId ? null : loadGoogleProfile()));
-  const requiresAuth = !telegramId && !googleProfile?.id && !tonWalletAddress && !connectedTonAddress;
+  const requiresAuth = !telegramId && !googleProfile?.id;
   const hasTelegram = Boolean(telegramId);
   const hasGoogle = Boolean(googleProfile?.id);
   const hasWallet = Boolean(connectedTonAddress || tonWalletAddress);
@@ -140,7 +140,7 @@ export default function Wallet({ hideClaim = false, accountIdOverride = '' }) {
     if (id && devMode) {
       acc = { accountId: id };
     } else {
-      acc = await createAccount(telegramId, googleProfile, undefined, tonWalletAddress);
+      acc = await createAccount(telegramId, googleProfile);
       if (acc?.error) {
         console.error('Failed to load account:', acc.error);
         return null;
@@ -210,11 +210,11 @@ export default function Wallet({ hideClaim = false, accountIdOverride = '' }) {
     setConfirmOpen(false);
     setSending(true);
     try {
-    const res = await sendAccountTpc(accountId, to, amt, note.trim());
+      const res = await sendAccountTpc(accountId, to, amt, note.trim());
       if (res?.error) {
         if (res.error === 'unauthorized' || res.error === 'forbidden') {
           setErrorMsg(
-            'Authorization failed. Make sure you opened this page from Telegram and that your bot token is correct.'
+            'Please sign in again with Google or reopen TonPlaygram in Telegram.'
           );
         } else {
           setErrorMsg(res.error);
@@ -396,7 +396,7 @@ export default function Wallet({ hideClaim = false, accountIdOverride = '' }) {
             Send
           </button>
           <p className="text-xs text-subtext mt-1">
-            Sending TPG 2% charge will be applied.
+            No transfer fee is charged.
           </p>
           {sending && (
             <div className="mt-1">
@@ -419,7 +419,7 @@ export default function Wallet({ hideClaim = false, accountIdOverride = '' }) {
           >
             Copy Account Number
           </button>
-          <p className="text-xs text-subtext mt-1">Receive TPG 1% charge will be applied.</p>
+          <p className="text-xs text-subtext mt-1">The recipient receives the full amount.</p>
         {accountId && (
           <div className="mt-4 flex justify-center">
             <QRCode value={String(accountId)} size={100} />
