@@ -1,23 +1,24 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import {KART_LENGTH,KART_WIDTH,KART_SCALE,MIN_PASSING_WIDTH,kartPassingRoom} from '../webapp/src/games/kartroyale/racingDimensions.mjs';
+import {KART_LENGTH,KART_WIDTH,kartBodyWidth,MIN_PASSING_WIDTH,kartPassingRoom} from '../webapp/src/games/kartroyale/racingDimensions.mjs';
 import {segmentHasClearance,widenPassingSections} from '../webapp/src/games/kartroyale/passingClearance.mjs';
 import {circuitSides} from '../webapp/src/games/kartroyale/trackEdges.mjs';
 const sides=points=>circuitSides(points,2.4);
 const square=(width=2.2)=>({width,points:[{x:0,z:0,width},{x:20,z:0,width},{x:20,z:20,width},{x:0,z:20,width}]});
 const free=()=>24;
 
-test('karts shrink uniformly to two metres rather than rescaling the city',()=>{
- assert.equal(KART_LENGTH,2);assert.ok(Math.abs(KART_WIDTH-1.72*KART_SCALE)<1e-12);
- assert.ok(KART_SCALE<.75&&KART_SCALE>.73);
+test('kart physics matches the fitted 1.82 m fleet',()=>{
+ assert.equal(KART_LENGTH,1.82);
+ assert.equal(kartBodyWidth('apex'),1.35);
+ assert.equal(kartBodyWidth('aegis'),KART_WIDTH);
 });
-test('two kart lane centres leave half a metre of body-to-body space',()=>{
- const lane=.9;assert.ok(2*lane-KART_WIDTH>.5);
- assert.ok(MIN_PASSING_WIDTH/2-lane-KART_WIDTH/2>.8);
+test('two kart lane centres leave more than a third of a metre of body-to-body space',()=>{
+ const lane=.9;assert.ok(2*lane-KART_WIDTH>.35);
+ assert.ok(MIN_PASSING_WIDTH/2-lane-KART_WIDTH/2>.75);
  assert.ok(kartPassingRoom(MIN_PASSING_WIDTH)>=lane);
 });
 test('AI room follows the body width and clamps invalid or narrow roads',()=>{
- assert.ok(kartPassingRoom(4.8)>1.3);assert.equal(kartPassingRoom(1),0);
+ assert.ok(kartPassingRoom(4.8)>1.2);assert.equal(kartPassingRoom(1),0);
  assert.equal(kartPassingRoom(100),2.2);assert.equal(kartPassingRoom(NaN),0);
  assert.equal(kartPassingRoom(4.8,-1),0);assert.ok(kartPassingRoom(4.8,2)<kartPassingRoom(4.8));
 });

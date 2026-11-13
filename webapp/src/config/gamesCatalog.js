@@ -19,18 +19,6 @@ const gamesCatalog = [
       'Human players, spin rallies, a career tour and TPC online matches.'
   },
   {
-    name: 'Tirana Streets',
-    route: '/games/tiranastreets/lobby',
-    slug: 'tiranastreets',
-    attribution: '© OpenStreetMap',
-    image: '/assets/tirana-streets/map.svg',
-    badge: 'Beta',
-    modes: ['Solo operation', 'TPG Multiplayer'],
-    launchLabel: 'Enter Tirana Streets',
-    description:
-      'First-person action on Tirana’s mapped streets. Three-wave operations, city landmarks and 2–4 player TPG matches.'
-  },
-  {
     name: 'Tennis Royal',
     route: '/games/tennisroyal/lobby',
     slug: 'tennisroyal',
@@ -43,10 +31,10 @@ const gamesCatalog = [
     slug: 'kartroyale',
     image: '/assets/kart-royale/cover.webp',
     badge: 'Beta',
-    modes: ['VS AI', 'TPG Multiplayer', 'Career'],
+    modes: ['VS AI', 'Convoy Run', 'TPG Multiplayer', 'Career'],
     launchLabel: 'Enter Racing Lobby',
     description:
-      'Enter your racing lobby for TPG matchmaking, private races, free AI practice and career cups.'
+      'Enter your racing lobby for TPG matchmaking, private races, free AI practice, Convoy Run and career cups.'
   },
   {
     name: "Texas Hold'em",

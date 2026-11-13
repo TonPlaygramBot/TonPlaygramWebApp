@@ -8,7 +8,7 @@ import {KART_ASSETS,vehicleAssetUrl,normaliseVehicleDimensions} from '../webapp/
 import {TRACKS,makeTrack} from '../webapp/src/games/kartroyale/simulation.mjs';
 import {tyreBarrierLayout,trackSurface} from '../webapp/src/games/kartroyale/tyreBarrierCore.mjs';
 import {buildingClearance} from '../webapp/src/games/kartroyale/raceCourse.mjs';
-import {KART_LENGTH} from '../webapp/src/games/kartroyale/racingDimensions.mjs';
+import {KART_LENGTH,kartBodyWidth} from '../webapp/src/games/kartroyale/racingDimensions.mjs';
 import {TYRE_RADIUS,ROAD_SURFACE_Y} from '../webapp/src/games/kartroyale/roadFeel.mjs';
 const base=new URL('../webapp/public/assets/kart-royale/karts/',import.meta.url);
 const manifest=JSON.parse(readFileSync(new URL('modern-manifest.json',base),'utf8'));
@@ -42,6 +42,9 @@ test('front steering and wheel spin pivots stay aligned across high/low fits',as
       scene.scale.setScalar(fit.scale);scene.position.set(...fit.offset);scene.updateMatrixWorld(true);
       const box=new T.Box3().setFromObject(scene);assert.ok(Math.abs(box.min.y)<.012,'ground contact');
       assert.ok(Math.abs(box.max.z-box.min.z-KART_LENGTH)<.01);
+      const visualWidth = box.max.x - box.min.x;
+      assert.ok(visualWidth <= kartBodyWidth(id) + .01, id + ' collision width covers the model');
+      if (scene === high) assert.ok(kartBodyWidth(id) - visualWidth < .025, id + ' high-detail footprint width');
       const wheels=['fl','fr','rl','rr'].map(s=>scene.getObjectByName('wheel_'+s));assert.ok(wheels.every(Boolean));
       const wheelPositions=wheels.map(w=>w.getWorldPosition(new T.Vector3()));
       sockets.push(wheelPositions);

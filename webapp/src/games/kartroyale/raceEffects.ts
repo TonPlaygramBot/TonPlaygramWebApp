@@ -1,3 +1,4 @@
+import { KART_LENGTH, KART_WIDTH } from './racingDimensions.mjs';
 import * as T from 'three';
 import { TyreSmoke } from './tyreSmoke';
 import { driftTier } from './arcadeRules.mjs';
@@ -21,7 +22,7 @@ export class RaceEffects {
     const nx=racer.impactNx,nz=racer.impactNz;
     const forward=Math.sin(racer.yaw)*nx+Math.cos(racer.yaw)*nz;
     const side=Math.cos(racer.yaw)*nx-Math.sin(racer.yaw)*nz;
-    const radius=Math.hypot((racer.bodyLength||2)*.5*forward,(racer.bodyWidth||1.27)*.5*side);
+    const radius=Math.hypot((racer.bodyLength||KART_LENGTH)*.5*forward,(racer.bodyWidth||KART_WIDTH)*.5*side);
     // Emit from the bumper's contact point, not underneath the driver's seat.
     this.impacts.set(racer.id,{x:racer.x+nx*radius,y:(racer.groundY||0)+(racer.jumpHeight||0),z:racer.z+nz*radius,nx,nz,strength:racer.impact,age:0,material:racer.impactMaterial||'kart'});
   }
@@ -39,7 +40,7 @@ export class RaceEffects {
       const turbo=r.speed>2&&!r.braking&&(r.boosting===true||(r.throttle||0)>.1&&(r.turbo>0||r.input?.boost&&r.boost>1));
       const tier=driftTier(r.driftCharge);
       if(!r.drifting&&!turbo)continue;
-      const s=Math.sin(r.yaw),c=Math.cos(r.yaw),halfTrack=(r.bodyWidth||1.27)*.46,rear=(r.bodyLength||2)*.3;
+      const s=Math.sin(r.yaw),c=Math.cos(r.yaw),halfTrack=(r.bodyWidth||KART_WIDTH)*.46,rear=(r.bodyLength||KART_LENGTH)*.3;
       for(let i=0;i<12;i++){
         const side=i%2?1:-1,age=((this.clock*3.7+i*.13)%1),trail=age*(turbo?3.4:1.6);
         put(r.x+c*side*halfTrack-s*(rear+trail),(r.groundY||0)+(r.jumpHeight||0)+.16+Math.sin(age*Math.PI)*.22,r.z-s*side*halfTrack-c*(rear+trail),(.065+ (turbo?.04:0))*(1-age),this.colors[turbo?1:tier]);

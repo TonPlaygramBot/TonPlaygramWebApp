@@ -6,13 +6,10 @@ import {STREET_SOURCE} from '../webapp/src/games/tirana-street-life/streetSource
 import {STREET_LIFE as S,MATURE_TREE_IDS,FUEL_CANOPY_IDS} from '../webapp/src/games/tirana-street-life/registry.mjs';
 import {resolveStreetFronts,resolveStops} from '../webapp/src/games/tirana-street-life/streetLifeCore.mjs';
 import {buildStreetModel,nearbyIndex} from '../webapp/src/games/tirana-street-life/streetModels.mjs';
-import {fuelCanopyObstacles} from '../webapp/src/games/tirana-street-life/fuelCollision.mjs';
 import {MAPPED_TREES,INSTITUTION_BUILDING_IDS} from '../webapp/src/games/tirana-city-source/registry.mjs';
 import {containsPoint} from '../webapp/src/games/tirana-landmarks/nativeLocations.mjs';
 import {segmentDistance} from '../webapp/src/games/tirana-city-source/sourceCore.mjs';
 import {STREET_PROPS,STREET_SOLIDS,collideStreetProps} from '../webapp/src/games/tiranastreets/shared/streetDressing.mjs';
-import {collides} from '../webapp/src/games/blackwater/shared/physics.mjs';
-import {ORIGIN,OBSTACLES} from '../webapp/src/games/blackwater/shared/layout.mjs';
 
 test('348 traceable ground-floor assignments retain source names and footprint identity',()=>{
  assert.equal(S.storefronts.length,348);const source=new Map(STREET_SOURCE.places.map(s=>[s.id,s]));
@@ -49,16 +46,6 @@ test('mapped tall trees cover both boulevard verges and square gardens without d
  assert.ok(boulevard.some(t=>t.shape==='upright'&&t.height>=20));assert.ok(boulevard.some(t=>t.shape==='umbrella'));
  assert.ok(S.trees.some(t=>t.zone==='square-gardens'&&t.x>120&&t.z<0));assert.ok(S.trees.some(t=>t.zone==='square-gardens'&&t.x>0&&t.z>0));
  for(const t of S.trees)assert.ok(!WORLD.roads.some(r=>!r.walk&&segmentDistance(t.x,t.z,r.a,r.b)<r.w/2+.24));
-});
-test('fuel roof outlines become open canopies with solid pumps and translated supports',()=>{
- assert.equal(S.fuel.length,5);assert.equal(FUEL_CANOPY_IDS.size,2);
- const original=fuelCanopyObstacles(),translated=fuelCanopyObstacles(ORIGIN);
- for(let i=0;i<original.length;i++){assert.ok(Math.abs(original[i].x-ORIGIN.x-translated[i].x)<1e-8);assert.ok(Math.abs(original[i].z-ORIGIN.z-translated[i].z)<1e-8);assert.equal(original[i].rot,translated[i].rot);}
- for(const f of S.fuel.filter(f=>f.canopy)){
-  assert.equal(collides(f.x-ORIGIN.x,f.z-ORIGIN.z,.2,OBSTACLES),false,'walk under the canopy centre');
-  const post=translated.find(p=>p.id.startsWith(f.id)&&p.w===.25);assert.equal(collides(post.x,post.z,.2,OBSTACLES),true);
-  const roof=original.find(p=>p.id.startsWith(f.id)&&p.minY>4);assert.ok(roof);assert.ok(!OBSTACLES.some(o=>o.id===f.id.slice(4)));
- }
 });
 test('all street models fit the batched instance budget and contain no invented timetable/price',()=>{
  let max=0;const signs=new Set();

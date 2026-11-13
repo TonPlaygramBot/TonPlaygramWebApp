@@ -65,7 +65,7 @@ test('district and rural circuits retain mapped street or trail edges and share 
     const edges=config.terrainMode?trails:roads;
     for(let i=0;i<config.points.length;i++)assert.ok(edges.has(key(config.points[i],config.points[(i+1)%config.points.length])),config.id);
   }
-  for(const path of ['blackwater/cityWorld.ts','kartroyale/tiranaScenery.ts'])assert.match(readFileSync(new URL('../webapp/src/games/'+path,import.meta.url),'utf8'),/new TiranaCityScene/);
+  assert.match(readFileSync(new URL('../webapp/src/games/kartroyale/tiranaScenery.ts',import.meta.url),'utf8'),/new TiranaCityScene/);
   const flag=readFileSync(new URL('../webapp/public/assets/kart-royale/albania.svg',import.meta.url),'utf8');assert.match(flag,/viewBox="0 0 980 700"/);
 });
 

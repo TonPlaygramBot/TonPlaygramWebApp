@@ -2,7 +2,6 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import {createCityEvent,updateCityEvent,cityEventIntent,stopCityEvent,issueUnitOrder,acceptUnitOrder,cityEventRoadGap,cityEventRoadBlocked} from '../webapp/src/games/tiranastreets/shared/cityEvents.mjs';
 import {createState,collide} from '../webapp/src/games/tiranastreets/shared/engine.mjs';
-import {StreetSimulation} from '../webapp/src/games/tiranastreets/street-career/StreetSimulation.mjs';
 import {tacticalGoal,forceBehavior} from '../webapp/src/games/tiranastreets/shared/forceTactics.mjs';
 const env={collide(){}};
 function fixture(){return {elapsed:0,missionId:'free-roam',players:{local:{x:0,z:45,health:100,wanted:0,cash:750,lastCrime:-100}},npcs:[],cars:[],units:[],cityEvent:createCityEvent()};}
@@ -55,17 +54,6 @@ test('incoming traffic stops, through routes divert, and vehicles inside can lea
  assert.equal(cityEventRoadBlocked({x:0,z:50},{x:0,z:-50},s.cityEvent),true);
  assert.equal(cityEventRoadBlocked({x:45,z:50},{x:45,z:-50},s.cityEvent),false);
  s.cityEvent.phase='dispersal';assert.equal(cityEventRoadGap({x:0,z:50,heading:0},s.cityEvent),Infinity);
-});
-test('actual street simulation activates safe placements, pauses and disables without leaking into base state',()=>{
- const state=createState([{id:'local',name:'You'}],'free-roam','solo');
- assert.equal(state.cityEvent,undefined,'shared online engine does not opt into local event');
- const sim=new StreetSimulation(state);Object.assign(sim.player,{x:0,z:45});sim.step(1/30);
- const eventNPCs=state.npcs.filter(n=>n.cityEvent);assert.ok(eventNPCs.length>=30);
- for(const n of eventNPCs){const q={x:n.x,z:n.z};collide(q,.35);assert.ok(Math.hypot(q.x-n.x,q.z-n.z)<.25);}
- const fallen=eventNPCs.find(n=>n.kind==='civilian');fallen.health=0;fallen.downUntil=state.elapsed-1;sim.step(1/30);assert.equal(fallen.health,0,'event casualties do not revive in the crowd');
- const at=state.elapsed;sim.pause();sim.step(2);assert.equal(state.elapsed,at);
- sim.setCityEvents(false);assert.ok(!state.npcs.some(n=>n.cityEvent));
- sim.resume();sim.step(1/30);assert.ok(!state.npcs.some(n=>n.cityEvent));
 });
 test('specialist profiles change decisions instead of only changing uniforms',()=>{
  const target={x:0,z:0};

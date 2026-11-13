@@ -4,7 +4,7 @@ import {STREET_OPERATIONS} from './streetOperations.mjs';
 import {initPoliceDispatch} from './policeDispatch.mjs';
 import {vehiclePolygonContact,slideVehicle} from './vehicleContacts.mjs';
 import {driveVehicle} from './vehicleDynamics.mjs';
-import {importedFleet,IMPORTED_PLACEMENT_ORIGIN} from '../../blackwater/shared/importedPlacements.mjs';
+import {importedFleet,IMPORTED_PLACEMENT_ORIGIN} from './importedPlacements.mjs';
 import {VEHICLE_COLLECTION} from './vehicleCollection.mjs';
 import {COLLECTION_PLACEMENTS} from './collectionPlacements.mjs';
 import { WORLD } from './world.mjs';
