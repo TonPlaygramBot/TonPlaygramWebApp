@@ -5,8 +5,6 @@ import {CITY_BUILDING_DATA as DATA} from '../webapp/src/games/tirana-city-source
 import {CITY_BUILDING_CATALOG as CATALOG} from '../webapp/src/games/tirana-city-source/cityBuildingCatalog.mjs';
 import {REFERENCE_BUILDINGS} from '../webapp/src/games/tirana-city-source/profiles.mjs';
 import {CITY_PLACES,INSTITUTION_BUILDING_IDS} from '../webapp/src/games/tirana-city-source/registry.mjs';
-import {buildings} from '../webapp/src/games/blackwater/shared/layout.mjs';
-import {collides,rayBox} from '../webapp/src/games/blackwater/shared/physics.mjs';
 const centre=ring=>[0,1].map(i=>ring.reduce((s,p)=>s+p[i],0)/ring.length);
 
 test('new catalog has 25 matched sites and 34 separate buildings',()=>{
@@ -25,20 +23,6 @@ test('museum and academy share one building and the cathedral annex has no secon
  assert.match(CATALOG.archaeology.name,/Muzeu.*Albanologjia/);
  assert.equal(REFERENCE_BUILDINGS['469978009'].style,'orthodox-annex');
  assert.equal(REFERENCE_BUILDINGS['469978009'].height,12);
-});
-test('mapped court holes are open in collisions and vertical rays, with solid inner walls',()=>{
- for(const id of ['384505310','459085861']){
-  const source=DATA.buildings.find(b=>b.id===id),obstacle=buildings.find(b=>b.id===id);
-  assert.equal(obstacle.holes.length,source.holes.length);
-  for(const hole of obstacle.holes){
-   const [x,z]=centre(hole);
-   assert.equal(collides(x,z,.1,[obstacle]),false,id);
-   assert.equal(rayBox({x,y:100,z},{x:0,y:-1,z:0},obstacle),Infinity,id);
-   assert.ok(Number.isFinite(rayBox({x,y:2,z},{x:1,y:0,z:0},obstacle)),id+' inner wall');
-   const edge=hole[0];assert.equal(collides(edge[0],edge[1],.2,[obstacle]),true);
-  }
-  for(const replaced of source.replaces){assert.ok(INSTITUTION_BUILDING_IDS.has(replaced));assert.ok(!buildings.some(b=>b.id===replaced));}
- }
 });
 test('new public institutions have AL flags while worship and commerce do not inherit them',()=>{
  for(const b of DATA.buildings){

@@ -1,0 +1,59 @@
+.rr-convoy-hud {
+  display: flex;
+  flex: 1;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: .4rem .7rem;
+  min-width: 0;
+  padding: .55rem .65rem;
+  border-radius: .65rem;
+  color: #f4fcff;
+  background: #0d1a24ed;
+  font: 700 12px/1.2 system-ui, sans-serif;
+}
+.rr-convoy-hud strong, .rr-convoy-hud small { display: block; }
+.rr-convoy-hud small { margin-top: 3px; color: #b8c9d1; font-size: 10px; }
+.rr-convoy-hud time { font-variant-numeric: tabular-nums; }
+.rr-convoy-condition { display: grid; gap: 3px; }
+.rr-convoy-condition progress { width: 62px; height: 5px; accent-color: #97ec66; }
+.rr-convoy-warning, .rr-convoy-aim {
+  position: absolute;
+  left: 50%;
+  transform: translateX(-50%);
+  pointer-events: none;
+}
+.rr-convoy-warning {
+  top: 19%;
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  padding: .5rem .65rem;
+  border-radius: .5rem;
+  color: #ffe0a4;
+  background: #542219f5;
+  font: 800 12px/1 system-ui, sans-serif;
+  white-space: nowrap;
+}
+.rr-convoy-aim { top: 42%; color: #f4fcffb0; }
+.rr-race-ui .rr-convoy-rocket {
+  position: absolute;
+  right: max(14px, env(safe-area-inset-right));
+  bottom: calc(187px + env(safe-area-inset-bottom));
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: .4rem;
+  min-width: 58px;
+  min-height: 52px;
+  border: 1px solid #7fe7ff;
+  border-radius: 12px;
+  color: #deffff;
+  background: #133846f5;
+  pointer-events: auto;
+  touch-action: manipulation;
+}
+.rr-race-ui .rr-convoy-rocket:disabled { opacity: .45; }
+.rr-convoy-options { padding: .7rem .35rem; font-size: .875rem; }
+.rr-convoy-options p { margin: 0; }
+.kart-pedal-controls.kart-auto-pedals { grid-template-columns: 1fr; }

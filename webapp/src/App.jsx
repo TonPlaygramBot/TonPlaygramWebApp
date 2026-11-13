@@ -1,5 +1,5 @@
 import React, { Suspense, useMemo } from 'react';
-import { BrowserRouter, Routes, Route, Navigate, useLocation } from 'react-router-dom';
+import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { TonConnectUIProvider } from '@tonconnect/ui-react';
 
 import Home from './pages/Home.jsx';
@@ -122,12 +122,6 @@ const ShootingRangeLobby = React.lazy(
 const ArcadeRaceLobby = React.lazy(() => import('./pages/Games/ArcadeRaceLobby.jsx'));
 const JetSkiRoyal = React.lazy(() => import('./pages/Games/JetSkiRoyal.tsx'));
 const KartRoyale = React.lazy(() => import('./pages/Games/KartRoyale.jsx'));
-function LegacyTiranaRoute({ lobby = false }) {
-  const { search } = useLocation();
-  return <Navigate replace to={`/games/tiranastreets${lobby ? '/lobby' : ''}${search}`} />;
-}
-const TiranaStreetsLobby = React.lazy(() => import('./pages/Games/TiranaStreetsLobby.jsx'));
-const TiranaStreets = React.lazy(() => import('./pages/Games/TiranaStreets.jsx'));
 const Game2048Royale = React.lazy(() => import('./pages/Games/Game2048Royale.jsx'));
 const HextrisBattle = React.lazy(() => import('./pages/Games/HextrisBattle.jsx'));
 const UnderrunArena = React.lazy(() => import('./pages/Games/UnderrunArena.jsx'));
@@ -236,14 +230,10 @@ export default function App() {
               />
               <Route path="/games/:game/lobby" element={<Lobby />} />
 
-              <Route path="/games/blackwater/lobby" element={<LegacyTiranaRoute lobby />} />
-              <Route path="/games/blackwater" element={<LegacyTiranaRoute />} />
               <Route path="/games/jetskiroyal/lobby" element={<JetSkiRoyal />} />
               <Route path="/games/jetskiroyal" element={<JetSkiRoyal />} />
               <Route path="/games/kartroyale/lobby" element={<KartRoyale />} />
               <Route path="/games/kartroyale" element={<KartRoyale />} />
-              <Route path="/games/tiranastreets/lobby" element={<TiranaStreetsLobby />} />
-              <Route path="/games/tiranastreets" element={<TiranaStreets />} />
               <Route path="/games/2048royale/lobby" element={<ArcadeRaceLobby gameSlug="2048royale" />} />
               <Route path="/games/2048royale" element={<GameLiveAvatarOverlay gameSlug="2048royale"><Game2048Royale /></GameLiveAvatarOverlay>} />
               <Route path="/games/hextrisbattle/lobby" element={<ArcadeRaceLobby gameSlug="hextrisbattle" />} />

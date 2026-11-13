@@ -1,7 +1,6 @@
 import {randomBytes,createHash} from 'node:crypto';
 import {EXPLORE_VERSION,EXPLORE_LIMITS as L,APPEARANCES,cleanText,avatarURL,exploreInput,mediaFlags,isLive,validSignal} from '../../webapp/src/games/tirana-social/socialCore.mjs';
-/** Single-process room authority. Plug into the already registered Tirana socket
- * service. No balances, career stores, client positions or match rewards. */
+/** Single-process room authority. Used by Racing Royal Explore. No balances, career stores, client positions or match rewards. */
 export function createExploreRooms({engine,resolveProfile,now=Date.now,autoTick=true,onReport=report=>console.warn('Explore report',report)}={}) {
   if(!engine||typeof resolveProfile!=='function')throw Error('Explore requires simulation and identity resolver');
   const rooms=new Map(),members=new Map(),joining=new Set(),rates=new Map();

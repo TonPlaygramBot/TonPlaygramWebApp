@@ -7,7 +7,6 @@ on:
       - 'webapp/src/games/tirana-landmarks/**'
       - 'webapp/src/games/tiranastreets/**'
       - 'webapp/src/games/kartroyale/**'
-      - 'webapp/src/games/blackwater/**'
       - 'webapp/scripts/export-tirana-landmarks.mjs'
       - 'test/tirana*Landmark*.mjs'
       - '.github/workflows/tirana-landmarks.yml'

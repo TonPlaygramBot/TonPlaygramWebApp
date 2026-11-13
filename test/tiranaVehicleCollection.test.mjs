@@ -7,8 +7,6 @@ import {forceVehicleFor} from '../webapp/src/games/tiranastreets/shared/albanian
 import {COLLECTION_PLACEMENTS} from '../webapp/src/games/tiranastreets/shared/collectionPlacements.mjs';
 import {CITY_POPULATION} from '../webapp/src/games/tiranastreets/shared/cityPopulation.mjs';
 import {createState,interact,advanceState,control,FREE_ROAM,emptyInput} from '../webapp/src/games/tiranastreets/shared/engine.mjs';
-import {ORIGIN,OBSTACLES,props,START,EXTRACTION,SPAWNS,BATTLEFIELD_MAPS} from '../webapp/src/games/blackwater/shared/layout.mjs';
-import {footprintDistance} from '../webapp/src/games/tiranastreets/shared/architecture.mjs';
 const expected=['benz','bmw','range','audi','ford','fiat','jaguar','ferrari','bugatti','landrover','golf-gti'];
 test('all registered GLBs retain exact bytes, geometry counts and embedded materials',()=>{
  assert.deepEqual(VEHICLE_COLLECTION.map(c=>c.id),expected);
@@ -36,16 +34,6 @@ test('registered cars retain their parked and enterable placements',()=>{
   assert.ok(Math.abs(prop.x+ORIGIN.x-p.x)<1e-9);assert.ok(Math.abs(prop.z+ORIGIN.z-p.z)<1e-9);
   assert.equal(prop.w,p.w);assert.equal(prop.d,p.d);assert.equal(prop.h,p.h);
   assert.ok(car.npcDriver&&!car.driver);assert.ok(OBSTACLES.includes(prop));
- }
-});
-test('full-sized parked models avoid buildings, existing props and player spawns',()=>{
- for(const c of props.filter(c=>c.collectionVehicle)){
-  const radius=Math.hypot(c.w,c.d)/2;
-  for(const o of OBSTACLES){if(o===c)continue;
-   const clear=o.footprint?footprintDistance(c.x,c.z,o.footprint,o.holes):Math.hypot(c.x-o.x,c.z-o.z)-Math.hypot(o.w,o.d)/2;
-   assert.ok(clear>radius,`${c.collectionVehicle} overlaps an existing obstacle`);
-  }
-  for(const p of [START,EXTRACTION,...SPAWNS,...BATTLEFIELD_MAPS.flatMap(m=>[m.start,m.extraction])])assert.ok(Math.hypot(c.x-p.x,c.z-p.z)>radius+3);
  }
 });
 test('each NPC yields its seat, the player can drive and exit, and no duplicate driver returns',()=>{

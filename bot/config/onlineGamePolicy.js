@@ -11,7 +11,6 @@ const BASE_SECURITY_CONTROLS = Object.freeze([
 
 const GAME_ONLINE_POLICY = Object.freeze({
 
-  blackwater: { maxPlayers: [2, 3, 4], allowMatchMeta: ['mapId', 'mode', 'token'] },
   kartroyale: {
     maxPlayers: [2, 3, 4, 5, 6],
     allowMatchMeta: ['trackId', 'mode', 'token']
@@ -210,10 +209,6 @@ export function validateSeatTableRequest({
   }
 
   const safeMatchMeta = {};
-  if (normalizedGameType === 'blackwater') {
-    if (matchMeta.mapId !== 'tirana' || !Number.isSafeInteger(normalizedStake * normalizedMaxPlayers)) return { ok: false, error: 'invalid_blackwater_options' };
-    safeMatchMeta.mapId = 'tirana';
-  }
   if (normalizedGameType === 'kartroyale') {
     const trackId = normalizeTrack(String(matchMeta.trackId || 'skanderbeg').trim().toLowerCase());
     if (!TRACKS.some(t => t.id === trackId)) return { ok: false, error: 'invalid_track' };

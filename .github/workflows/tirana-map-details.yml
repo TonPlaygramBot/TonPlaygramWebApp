@@ -6,8 +6,6 @@ on:
     paths:
       - 'webapp/src/games/tiranastreets/map/**'
       - 'webapp/src/games/tirana-detail-kit/**'
-      - 'webapp/src/games/blackwater/ui.tsx'
-      - 'webapp/src/games/blackwater/cityWorld.ts'
       - 'webapp/src/games/kartroyale/tiranaScenery.ts'
       - 'webapp/scripts/tirana/**'
       - 'test/tiranaMap.test.mjs'
