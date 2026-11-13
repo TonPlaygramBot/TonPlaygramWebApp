@@ -1,3 +1,6 @@
+import {traceShot} from './shotCore.mjs';
+import {WEAPON_BY_ID} from '../shared/weapons.mjs';
+import {FollowCamera, type DrivingView} from './FollowCamera';
 import {weaponAnchors} from './weaponPose.mjs';
 import {PocketVisuals} from '../PocketVisuals';
 import {beginCityFrame} from '../renderSettings';
@@ -23,7 +26,10 @@ import { BuildingAccessVisuals } from './BuildingAccessVisuals';
 /** Unified street campaign presentation: full-body combat, driving and the
  * streamed city share one camera, effects budget and rendering lifecycle. */
 export class StreetRenderer extends CityRenderer {
-  vehicleView:'cockpit'|'chase'='cockpit';
+  vehicleView:DrivingView='chase';
+  private followCamera = new FollowCamera();
+  private cameraInsidePlayer = false;
+  private get eyeView() { return !['shoulder','wide'].includes(this.settings.walkingView) || !!this.simulation?.body.aim || !!this.simulation?.access?.binoculars; }
   protected override get cockpitCamera(){return this.vehicleView==='cockpit';}
   private flightHeading?:number;
   readonly humans = new SharedHumans();
@@ -109,7 +115,7 @@ export class StreetRenderer extends CityRenderer {
     const p = state.players[id],
       car = state.cars.find((c) => c.id === p.carId);
     if(p.aircraftId){actor.group.visible=false;this.bodyRig.weapon.visible=false;return true;}
-    this.bodyRig.update(actor, p, sim.body, state.elapsed, dt, car, !car || this.vehicleView === 'cockpit');
+    this.bodyRig.update(actor, p, sim.body, state.elapsed, dt, car, car ? this.vehicleView === 'cockpit' : this.eyeView || this.cameraInsidePlayer);
     return true;
   }
   protected override presentFirstPerson(state: State, id: string, dt: number) {
@@ -122,6 +128,7 @@ export class StreetRenderer extends CityRenderer {
     this.camera.near=car&&this.vehicleView==='cockpit'?.035:.15;
     const aircraft=sim.flight.current;
     if(aircraft){
+      this.followCamera.reset();
       if(this.flightHeading!==undefined)this.yaw+=Math.atan2(Math.sin(aircraft.heading-this.flightHeading),Math.cos(aircraft.heading-this.flightHeading));
       this.flightHeading=aircraft.heading;
       const d=direction3(this.yaw,T.MathUtils.clamp(this.pitch,-.6,.7));
@@ -131,25 +138,49 @@ export class StreetRenderer extends CityRenderer {
     } else if (car) {
       this.flightHeading=undefined;
       if(this.vehicleView==='cockpit'){
+        this.followCamera.reset();
         const eye = driverEye(car);
         this.camera.position.set(eye.x, eye.y, eye.z);
       }else{
-        const target={x:car.x,y:groundHeight(car.x,car.z)+1.4,z:car.z};
-        const d=direction3(this.yaw,-.22),distance=car.model==='tirana-bus'?15:8;
-        const away={x:-d.x,y:-d.y,z:-d.z};
-        const hit=sim.world.cast(target,away,distance,sim.cars(),car.id);
-        const safe=Math.max(1,Math.min(distance,hit.distance-.35));
-        this.camera.position.set(target.x+away.x*safe,target.y+away.y*safe,target.z+away.z*safe);
-        this.camera.lookAt(target.x,target.y,target.z);
+        const cars=sim.cars();
+        const speed=Math.min(1,Math.abs(car.speed)/36);
+        this.followCamera.update(this.camera,{
+          key:`car:${car.id}:${this.vehicleView}`,
+          anchor:{x:car.x,y:groundHeight(car.x,car.z)+(car.model==='tirana-bus'?2.4:1.25),z:car.z},
+          yaw:this.yaw,pitch:this.pitch-.16,lookPitch:this.pitch,
+          distance:(car.model==='tirana-bus'?15:this.vehicleView==='wide'?10:6.5)+speed*1.5,
+          dt,cast:(origin,direction,distance)=>sim.world.cast(origin,direction,distance,cars,car.id).distance,
+          ground:groundHeight
+        });
       }
     } else {
       this.flightHeading = undefined;
-      // Camera follows the physical player's eyes. Looking down shows the body;
-      // aiming never pulls the camera back behind the character.
-      this.camera.position.set(p.x, b.y + b.eye, p.z);
-      const look = direction3(this.yaw, this.pitch);
-      this.camera.lookAt(p.x + look.x, b.y + b.eye + look.y, p.z + look.z);
+      if(this.eyeView){
+        this.followCamera?.reset();
+        this.cameraInsidePlayer=false;
+        this.camera.position.set(p.x, b.y + b.eye, p.z);
+        const look = direction3(this.yaw, this.pitch);
+        this.camera.lookAt(p.x + look.x, b.y + b.eye + look.y, p.z + look.z);
+      }else{
+        const cars=sim.cars(),wide=this.settings.walkingView==='wide';
+        const eye=sim.eye(),direction=direction3(this.yaw,this.pitch);
+        const range=Math.min(250,WEAPON_BY_ID.get(p.weapon)?.range||60);
+        const aimTarget=traceShot(sim.world,eye,direction,range,cars,state.npcs).hit.point;
+        this.followCamera.update(this.camera,{
+          key:`walk:${this.settings.walkingView}`,
+          anchor:eye,yaw:this.yaw,pitch:this.pitch-.10,lookPitch:this.pitch,aimTarget,
+          distance:wide?4.8:2.8,shoulder:wide?.35:.48,dt,
+          cast:(origin,direction,distance)=>sim.world.cast(origin,direction,distance,cars).distance,
+          ground:(x,z)=>sim.world.surface(x,z,b.y)
+        });
+        this.cameraInsidePlayer=Math.hypot(this.camera.position.x-eye.x,this.camera.position.y-eye.y,this.camera.position.z-eye.z)<.7;
+        if(this.cameraInsidePlayer){
+          this.camera.position.set(eye.x,eye.y,eye.z);
+          this.camera.lookAt(eye.x+direction.x,eye.y+direction.y,eye.z+direction.z);
+        }
+      }
     }
+    if(!car&&!aircraft)this.bodyRig.setEyeView(this.eyeView||this.cameraInsidePlayer);
     const d = car?driverDirection(car,this.yaw,this.pitch):direction3(this.yaw, this.pitch);
     if(car&&this.vehicleView==='cockpit'){const up=driverUp(car);this.camera.up.set(up.x,up.y,up.z);}
     if(car&&this.vehicleView==='cockpit')this.camera.lookAt(
@@ -160,12 +191,12 @@ export class StreetRenderer extends CityRenderer {
     const binoculars=sim.access.binoculars&&!car&&!aircraft;
     if(binoculars||sim.access.parachute.open)this.bodyRig.weapon.visible=false;
     const zoom=binoculars?5:b.aim&&!b.action&&b.wall>=.8?weaponAnchors(p.weapon).zoom:1;
-    const baseFov=this.settings.fov-(b.aim&&zoom===1?17:0);
+    const baseFov=this.settings.fov-(b.aim&&zoom===1?17:0)+(car&&this.vehicleView!=='cockpit'?Math.min(5,Math.abs(car.speed)*.14):0);
     const fov=car&&this.vehicleView==='cockpit'?driverFov(this.camera.aspect):2*Math.atan(Math.tan(baseFov*Math.PI/360)/zoom)*180/Math.PI;
     this.camera.fov = T.MathUtils.lerp(
       this.camera.fov,
       fov,
-      dt ? Math.min(1, dt * 12) : 1
+      dt ? 1-Math.exp(-dt * 12) : 1
     );
     this.camera.updateProjectionMatrix();
     return true;

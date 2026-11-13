@@ -139,6 +139,9 @@ export class FirstPersonBody {
     this.muzzle.visible = false;
     this.weapon.add(this.muzzle);
   }
+  setEyeView(firstPerson: boolean) {
+    if(this.actor)this.bind(this.actor,firstPerson);
+  }
   private bind(actor: Actor, firstPerson: boolean) {
     if (this.actor === actor) {
       if (this.firstPerson !== firstPerson) {
@@ -288,7 +291,10 @@ export class FirstPersonBody {
     const root = actor.group;
     root.visible = p.health > 0;
     root.position.set(p.x, b.y, p.z);
-    const targetYaw = b.yaw + Math.PI;
+    const unarmed=!p.weapon||p.weapon==='punch';
+    const travelYaw=!firstPerson&&unarmed&&!car&&b.grounded&&p.speed>.15
+      ? Math.atan2(-b.vx,-b.vz) : b.yaw;
+    const targetYaw = travelYaw + Math.PI;
     const yaw = firstPerson || this.previousYaw === undefined ? targetYaw :
       this.previousYaw + Math.atan2(Math.sin(targetYaw-this.previousYaw), Math.cos(targetYaw-this.previousYaw))*(1-Math.exp(-dt*20));
     root.rotation.set(0, yaw, 0);
@@ -316,7 +322,7 @@ export class FirstPersonBody {
         if (action !== next) action?.fadeOut(.18);
       if (next) {
         next.reset();
-        next.time = (phase % 1) * next.getClip().duration;
+        next.time = ((phase % 1 + 1) % 1) * next.getClip().duration;
         next.fadeIn(.18).play();
       }
       this.activeMotion = next;
@@ -325,11 +331,12 @@ export class FirstPersonBody {
     // Scale the walk/run clip, not the mixer's clock: fading must take the same
     // real time at a slow walk as at a sprint. Keep unkeyed IK joints fresh.
     for (const [bone, rest] of this.rests) bone.quaternion.copy(rest);
+    const backwards = !unarmed && !car && -Math.sin(b.yaw)*b.vx-Math.cos(b.yaw)*b.vz < -.15;
     for (const action of this.motionActions) {
       if (!action) continue;
       const name = action.getClip().name;
       const locomotion = /walk|run|sprint/i.test(name);
-      action.setEffectiveTimeScale(moving && locomotion ? T.MathUtils.clamp(speed / (/run|sprint/i.test(name) ? 5.4 : 1.45), .15, 2.3) : 1);
+      action.setEffectiveTimeScale(moving && locomotion ? (backwards?-1:1)*T.MathUtils.clamp(speed / (/run|sprint/i.test(name) ? 5.4 : 1.45), .15, 2.3) : 1);
     }
     actor.mixer?.update(dt);
     // Imported player skins may ship only a static pose: use their own bind

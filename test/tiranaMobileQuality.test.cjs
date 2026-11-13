@@ -91,7 +91,7 @@ function runtimeFixture(hidden=false){
 }
 test('resume cannot restart a hidden tab or an unavailable graphics context',()=>{
   const {runtime,document}=runtimeFixture(true);
-  let resumed=0;Object.assign(runtime,{ready:true,disposed:false,paused:true,state:{phase:'active'},
+  let resumed=0;Object.assign(runtime,{ready:true,disposed:false,paused:true,state:{phase:'active',players:{local:{carId:null}}},settings:{volume:.6},radio:{setContext(){}},
     input:{setEnabled(){resumed++;}},simulation:{resume(){}},audio:{unlock:async()=>{}},emit(){}});
   runtime.resume();assert.equal(resumed,0);assert.equal(runtime.paused,true);
   document.hidden=false;runtime.ready=false;runtime.resume();assert.equal(resumed,0);

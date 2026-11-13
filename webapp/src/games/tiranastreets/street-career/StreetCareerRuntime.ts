@@ -1,3 +1,4 @@
+import {VehicleRadio, type RadioSnapshot} from '../radio/VehicleRadio';
 import {groundHeight} from '../../tirana-east/terrainCore.mjs';
 import {POLICE_STATION} from './ArrestSimulation.mjs';
 import {
@@ -35,6 +36,7 @@ import {
 } from './campaignCore.mjs';
 export const campaign = createCampaign(MISSIONS, WEAPONS, STARTER_WEAPON);
 export type StreetView = {
+  radio: RadioSnapshot;
   profile: StreetProfile;
   lastResult?:{title:string;message:string};
   state: State;
@@ -61,6 +63,7 @@ export class StreetCareerRuntime {
   readonly renderer: StreetRenderer;
   readonly input: StreetInput;
   readonly audio = new CityAudio();
+  readonly radio: VehicleRadio;
   state = createState([{ id: 'local', name: 'You' }], FREE_ROAM.id, 'solo');
   simulation = new StreetSimulation(this.state);
   settings: StreetSettings;
@@ -115,12 +118,14 @@ export class StreetCareerRuntime {
     private storage?: StoragePort,
     private openPanel: (panel: 'journal' | 'arsenal') => void = () => {}
   ) {
+    this.radio = new VehicleRadio(storage);
     this.profile = campaign.load(storage);
     this.settings = loadSettings(storage);
     this.audio.volume = this.settings.volume;
     this.audio.enabled = this.settings.volume > 0;
     this.renderer = new StreetRenderer(root);
     this.renderer.settings = this.settings;
+    this.renderer.vehicleView = this.settings.drivingView;
     this.renderer.setQuality(this.settings.quality);
     this.renderer.targetFps = this.settings.targetFps;
     this.input = new StreetInput(
@@ -287,6 +292,7 @@ export class StreetCareerRuntime {
     this.accumulator = 0;
     this.last = 0;
     void this.audio.unlock().catch(() => {});
+    this.radio.setContext(!!this.state.players.local.carId, this.settings.volume);
     this.emit();
   }
   pause() {
@@ -296,6 +302,7 @@ export class StreetCareerRuntime {
     this.simulation.pause();
     this.accumulator = 0;
     this.audio.suspend();
+    this.radio.setContext(false, this.settings.volume);
     this.persist();
     this.emit();
   }
@@ -304,6 +311,7 @@ export class StreetCareerRuntime {
     if (patch.quality) this.renderer.setQuality(this.settings.quality);
     this.renderer.targetFps = this.settings.targetFps;
     this.renderer.settings = this.settings;
+    this.renderer.vehicleView = this.settings.drivingView;
     this.simulation.settings.aimAssist = this.settings.aimAssist;
     if(this.state.cityEvent?.enabled!==this.settings.cityEvents)this.simulation.setCityEvents(this.settings.cityEvents);
     this.audio.enabled = this.settings.volume > 0;
@@ -327,6 +335,29 @@ export class StreetCareerRuntime {
     }
     this.emit();
   }
+  radioAction(action: string) {
+    if(this.disposed || this.paused || !this.state.players.local.carId) return;
+    this.radio.setContext(true, this.settings.volume);
+    if(action==='next')this.radio.next();
+    else if(action==='previous')this.radio.next(-1);
+    else if(action==='toggle')this.radio.toggle();
+    else this.radio.select(action);
+    this.emit();
+  }
+  setRadioVolume(volume: number) {
+    this.radio.setVolume(volume);
+    this.emit();
+  }
+  cycleCamera() {
+    const key=this.state.players.local.carId?'drivingView':'walkingView';
+    if(key==='drivingView'){
+      const modes=['chase','wide','cockpit'] as const;
+      this.setSettings({drivingView:modes[(modes.indexOf(this.settings.drivingView)+1)%modes.length]});
+    }else{
+      const modes=['shoulder','wide','eyes'] as const;
+      this.setSettings({walkingView:modes[(modes.indexOf(this.settings.walkingView)+1)%modes.length]});
+    }
+  }
   action(action: string, targetId?: string | null) {
     if (this.disposed || !this.ready) return false;
     if (
@@ -346,6 +377,8 @@ export class StreetCareerRuntime {
       return true;
     }
     if (this.paused) return false;
+    if(action==='camera'){this.cycleCamera();return true;}
+    if(action==='radio-next'||action==='radio-previous'||action==='radio-toggle'){this.radioAction(action.slice(6));return true;}
     const result = this.simulation.execute(
       action === 'vehicle' ? 'interact' : action,
       targetId
@@ -420,6 +453,7 @@ export class StreetCareerRuntime {
         this.openPanel('journal');
       }
       if (!this.paused) {
+        this.radio.setContext(!!p.carId && p.health>0, this.settings.volume);
         this.audio.update(p.speed, !!p.carId);
         this.audio.city(this.state, p, dt, this.renderer.yaw, this.simulation.body.grounded, this.simulation.body.y);
       }
@@ -448,6 +482,7 @@ export class StreetCareerRuntime {
   private emit() {
     const actions=this.simulation.resolve();
     this.publish({
+      radio: this.radio.snapshot(),
       profile: this.profile,
       lastResult:this.lastResult,
       state: this.state,
@@ -487,6 +522,7 @@ export class StreetCareerRuntime {
     );
     this.input.destroy();
     this.audio.destroy();
+    this.radio.dispose();
     this.renderer.destroy();
   }
 }

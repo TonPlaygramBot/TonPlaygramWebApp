@@ -1,6 +1,9 @@
+import type {WalkingView, DrivingView} from './FollowCamera';
 import {graphicsSetting, type GraphicsSetting} from '../graphicsQuality';
 import {targetFps, type TargetFps} from '../renderSettings';
 export type StreetSettings = {
+  walkingView: WalkingView;
+  drivingView: DrivingView;
   targetFps: TargetFps;
   quality: GraphicsSetting;
   fov: number;
@@ -19,6 +22,8 @@ export type StreetSettings = {
   cityEvents: boolean;
 };
 export const DEFAULT_SETTINGS: StreetSettings = {
+  walkingView: 'shoulder',
+  drivingView: 'chase',
   targetFps: 60,
   quality: 'auto',
   fov: 74,
@@ -69,6 +74,8 @@ export function loadSettings(
       if (Number.isFinite(raw[key]))
         s[key] = Math.max(bounds[0], Math.min(bounds[1], raw[key]));
     }
+    s.walkingView = ['eyes', 'shoulder', 'wide'].includes(raw.walkingView) ? raw.walkingView : DEFAULT_SETTINGS.walkingView;
+    s.drivingView = ['cockpit', 'chase', 'wide'].includes(raw.drivingView) ? raw.drivingView : DEFAULT_SETTINGS.drivingView;
     s.targetFps = targetFps(raw.targetFps);
     s.quality = graphicsSetting(raw.quality);
     s.aimAssist = raw.aimAssist === true;

@@ -1,3 +1,4 @@
+import {RadioControls} from '../radio/RadioControls';
 import {CITY_EVENT_SITE,CITY_EVENT_PHASES} from '../shared/cityEvents.mjs';
 import {MissionReadout} from '../MissionReadout';
 import {GraphicsControl} from '../GraphicsControl';
@@ -164,7 +165,6 @@ export function StreetCareerGame({ onExit, initialOperation, initialDifficulty='
       </button>
     ) : null;
   };
-  const [vehicleView,setVehicleView]=useState<'cockpit'|'chase'>('cockpit');
   const failure = error || view?.graphicsError;
   const p = view?.state.players.local,
     flying = !!p?.aircraftId,
@@ -199,7 +199,7 @@ export function StreetCareerGame({ onExit, initialOperation, initialDifficulty='
       {failure && (
         <div className="tsc-error" role="alert">
           {failure}
-          <button onClick={() => { reset(); setVehicleView('cockpit'); setSession(s => s + 1); }}>RETRY</button>
+          <button onClick={() => { reset(); setSession(s => s + 1); }}>RETRY</button>
           <button onClick={onExit}>RETURN TO GAMES</button>
         </div>
       )}
@@ -227,9 +227,13 @@ export function StreetCareerGame({ onExit, initialOperation, initialDifficulty='
             </p>}
           </div>
           {driving && <output className="tsc-speedometer" aria-label="Vehicle speed"><strong>{Math.round(Math.abs(p.speed)*3.6)}</strong><span>km/h</span><small>{p.speed<-.5?'R':Math.abs(p.speed)<.5?'N':'D'}</small></output>}
-          <nav className="tsc-tools" aria-label="Vehicle controls">
-            {driving && <button aria-label="Change driving camera view" onClick={()=>{const next=vehicleView==='cockpit'?'chase':'cockpit';setVehicleView(next);if(runtime.current)runtime.current.renderer.vehicleView=next;}}>CAMERA · {vehicleView==='cockpit'?'COCKPIT':'CHASE'}</button>}
-          </nav>
+          {!flying && <nav className="tsc-tools" aria-label="Camera controls">
+            <button aria-label={driving?'Change driving camera view':'Change walking camera view'} onClick={()=>runtime.current?.cycleCamera()}>
+              CAMERA · {(driving?view.settings.drivingView:view.settings.walkingView).toUpperCase()}
+            </button>
+          </nav>}
+          {driving && <RadioControls radio={view.radio} onAction={action=>runtime.current?.radioAction(action)}
+            onVolume={value=>runtime.current?.setRadioVolume(value)}/>}
           {!driving&&!flying&&<AccessEquipmentControls actions={view.actions} onAction={id=>{runtime.current?.action(id);}}/>}
           {!driving && !flying && <WeaponSwitcher
             selected={p.weapon || ''}
@@ -500,7 +504,7 @@ export function StreetCareerGame({ onExit, initialOperation, initialDifficulty='
                       <p>
                         WASD / arrows · Mouse drag to look · F fire · Space jump
                         · C crouch · Shift sprint · Z aim · V kick · B guard · E
-                        interact · R reload · H draw / holster · Esc pause.
+                        interact · R reload · H draw / holster · N camera · [ / ] radio station · M radio on/off · Esc pause.
                         Aircraft: steering stick controls direction and speed; UP climbs,
                         DOWN descends. Land and stop to exit and rearm. Drag to aim missiles.
                       </p>
