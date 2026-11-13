@@ -1,0 +1,6 @@
+const ts=require('typescript'),fs=require('node:fs');
+const files=['webapp/src/games/blackwater/ui.tsx','webapp/src/games/blackwater/cityWorld.ts','webapp/src/games/kartroyale/KartRoyale.tsx','webapp/src/games/kartroyale/tiranaScenery.ts','webapp/src/games/kartroyale/RacingAtlas.tsx','webapp/src/games/kartroyale/raceAtlasStore.ts','webapp/src/games/tirana-expansion/WorldEnhancements.ts','webapp/src/games/tirana-expansion/ExistingHumans.ts','webapp/src/games/tiranastreets/map/CityMap.tsx','webapp/src/games/tiranastreets/career/CareerGame.tsx','webapp/src/games/tiranastreets/career/CareerRuntime.ts'];
+let errors=0;
+for(const file of files){const result=ts.transpileModule(fs.readFileSync(file,'utf8'),{fileName:file,reportDiagnostics:true,compilerOptions:{target:ts.ScriptTarget.ES2022,module:ts.ModuleKind.ESNext,jsx:ts.JsxEmit.ReactJSX,strict:true}});const bad=(result.diagnostics||[]).filter(d=>d.category===ts.DiagnosticCategory.Error);errors+=bad.length;console.log(`${bad.length?'FAIL':'PASS'} ${file}`);for(const d of bad)console.log(ts.flattenDiagnosticMessageText(d.messageText,'\n'));}
+console.log(`${files.length} TS/TSX modules; ${errors} syntax diagnostics. This is not dependency-aware typechecking.`);
+process.exitCode=errors?1:0;

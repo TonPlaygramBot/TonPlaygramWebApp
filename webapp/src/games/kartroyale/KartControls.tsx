@@ -1,12 +1,12 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { Zap } from 'lucide-react';
 import {driftTier} from './arcadeRules.mjs';
-type Props = { hold: (id:string,key:string,value:number|boolean)=>void; release:(id:string)=>void; boost:number; drifting?:boolean; driftCharge?:number; turbo?:number; boostEvent?:number; reversing?:boolean; disabled?:boolean; autoThrottle?:boolean };
+type Props = { hold: (id:string,key:string,value:number|boolean)=>void; release:(id:string)=>void; boost:number; drifting?:boolean; driftCharge?:number; turbo?:number; boostEvent?:number; reversing?:boolean; disabled?:boolean };
 
-/** Analogue steering stick plus independent pedals.
+/** Tirana Streets-style analogue steering stick plus independent pedals.
  * Screen movement maps directly to steering: visually left is left and right is
  * right. Sliding the stick visually upward also engages drift. */
-export function KartControls({hold,release,boost,drifting,driftCharge=0,turbo=0,boostEvent=0,reversing=false,disabled=false,autoThrottle=false}:Props) {
+export function KartControls({hold,release,boost,drifting,driftCharge=0,turbo=0,boostEvent=0,reversing=false,disabled=false}:Props) {
   const pointers = useRef(new Map<number,{key:string;value:number|boolean;startY:number}>());
   const stickOwner=useRef<number|null>(null),stickKnob=useRef<HTMLSpanElement>(null);
   const callbacks = useRef({hold,release}); callbacks.current = {hold,release};
@@ -68,15 +68,15 @@ export function KartControls({hold,release,boost,drifting,driftCharge=0,turbo=0,
       onPointerMove={moveStick} onPointerUp={endStick} onPointerCancel={endStick} onLostPointerCapture={endStick}>
       <span ref={stickKnob} aria-hidden="true">↑</span>
     </div>
-    <button disabled={disabled} className={`kart-brake kart-center-control${active('brake')}`} {...touch('brake',true)} aria-label={autoThrottle ? 'Hold brake' : 'Brake; keep held after stopping to reverse'}>{reversing?'REV':'BRAKE'}</button>
+    <button disabled={disabled} className={`kart-brake kart-center-control${active('brake')}`} {...touch('brake',true)} aria-label="Brake; keep held after stopping to reverse">{reversing?'REV':'BRAKE'}</button>
     <div className="kart-right-controls">
-      <button disabled={disabled} className={`kart-boost${active('boost')}${turbo>0?' is-turbo':''}${energy<1?' is-empty':''}`} {...touch('boost',true)} aria-label={`${label}; hold${autoThrottle ? '' : ' while accelerating'}; ${energy}% energy`}>
+      <button disabled={disabled} className={`kart-boost${active('boost')}${turbo>0?' is-turbo':''}${energy<1?' is-empty':''}`} {...touch('boost',true)} aria-label={`${label}; hold while accelerating; ${energy}% energy`}>
         <Zap size={18}/><span aria-live="polite">{label}</span><i style={{width:`${drifting?Math.min(100,driftCharge/1.9*100):energy}%`}}/>
         {boostEvent>0&&<em key={boostEvent} className="kart-boost-pickup" aria-hidden="true"/>}
       </button>
-      <div className={`kart-pedal-controls${autoThrottle ? ' kart-auto-pedals' : ''}`}>
+      <div className="kart-pedal-controls">
         <button disabled={disabled} className={`kart-drift${drifting?' is-active':active('drift')}`} {...touch('drift',true)} aria-label="Hold drift while steering">DRIFT</button>
-        {!autoThrottle && <button disabled={disabled} className={`kart-gas${active('throttle')}`} {...touch('throttle',true,'boost')} aria-label="Hold gas to accelerate; slide up to boost">GAS</button>}
+        <button disabled={disabled} className={`kart-gas${active('throttle')}`} {...touch('throttle',true,'boost')} aria-label="Hold gas to accelerate; slide up to boost">GAS</button>
       </div>
     </div>
   </div>;

@@ -1,0 +1,77 @@
+import type {GraphicsSetting, GraphicsPreset} from './graphicsQuality';
+import {beginCityFrame} from './renderSettings';
+import {attachEnhancements} from '../tirana-expansion/WorldEnhancements';
+import {BusVisuals} from './population/BusVisuals';
+import {CityStores} from './population/CityStores';
+import {ImportedAssetVisuals} from './ImportedAssetVisuals';
+import {importedFleet,IMPORTED_PLACEMENT_ORIGIN as ORIGIN} from '../blackwater/shared/importedPlacements.mjs';
+import {WEAPON_BY_ID} from './shared/weapons.mjs';
+import {CityRenderer as BaseCityRenderer} from './cityBaseRenderer';
+import {WORLD} from './shared/world.mjs';
+import {resolveNativeLandmarks} from '../tirana-landmarks/nativeLocations.mjs';
+import {NativeLandmarkLayer} from '../tirana-landmarks/NativeLandmarkLayer';
+import {replaceLegacyCityLandmarks} from '../tirana-landmarks/legacyReplacement';
+import {AirMobilityVisuals} from './AirMobilityVisuals';
+import type {State} from './shared/engine.mjs';
+import {WeaponStoreInterior} from './WeaponStoreInterior';
+
+// City campaign decorations share one immutable placement list across frames.
+const props=importedFleet.filter(v=>v.assetId&&!v.racingAsset&&!WEAPON_BY_ID.has(v.assetId))
+  .map((v,i)=>({id:`original-${i}`,assetId:v.assetId,x:v.x+ORIGIN.x,z:v.z+ORIGIN.z}));
+
+/** Preserve input, loading, gameplay and camera implementation while replacing
+ * the city's landmark layer. Base renderer also owns source-informed façades. */
+export class CityRenderer extends BaseCityRenderer {
+  private detailQuality?:GraphicsPreset;
+  private imported=new ImportedAssetVisuals();
+  protected cityDetails:ReturnType<typeof attachEnhancements>;
+  protected ownDetailUpdate=true;
+  readonly nativeLandmarks: NativeLandmarkLayer;
+  readonly airMobility: AirMobilityVisuals;
+  readonly weaponStore: WeaponStoreInterior;
+  readonly buses=new BusVisuals();
+  readonly cityStores=new CityStores();
+  constructor(root:HTMLDivElement) {
+    super(root);
+    this.scene.add(this.imported.group);
+    const {landmarks,issues}=resolveNativeLandmarks(WORLD);
+    const replacement=replaceLegacyCityLandmarks(this.scene,landmarks,'tiranastreets');
+    this.nativeLandmarks=new NativeLandmarkLayer(landmarks);
+    this.scene.add(this.nativeLandmarks.group);
+    this.scene.userData.tiranaLandmarks={issues,...replacement};
+    this.airMobility=new AirMobilityVisuals(this.scene);
+    this.weaponStore=new WeaponStoreInterior();
+    this.scene.add(this.buses.group,this.cityStores.group);
+    this.cityDetails=attachEnhancements(this.scene);
+    this.cityDetails.bindBuildings(this.scene,[this.nativeLandmarks.group,this.referenceFacades.group]);
+  }
+  override render(state:State|null,playerId:string,dt:number,lobby:boolean) {
+    if(this.ownDetailUpdate)beginCityFrame(this.targetFps);
+    if(state){const viewer=state.players[playerId];if(viewer){this.buses.update(state,viewer,dt,this.quality==='battery',this.cockpitCamera&&!lobby?viewer.carId:undefined);this.cityStores.update(state,viewer);}}
+    if(this.ownDetailUpdate)this.cityDetails.update(state?.elapsed||0,this.camera,state?.players[playerId],this.quality==='battery');
+    if(this.detailQuality!==this.quality){this.detailQuality=this.quality;
+      this.nativeLandmarks.setBatteryMode(this.quality==='battery');
+      this.weaponStore.setBatteryMode(this.quality==='battery');
+    }
+    if(state) {
+      this.airMobility.update(state,dt);
+      const p=state.players[playerId];if(p)this.imported.update(props,p,this.quality==='battery');
+    }
+    super.render(state,playerId,dt,lobby);
+  }
+  override setQuality(quality:GraphicsSetting) {
+    super.setQuality(quality);
+    this.nativeLandmarks?.setBatteryMode(this.quality==='battery');
+    this.weaponStore?.setBatteryMode(this.quality==='battery');
+  }
+  override destroy() {
+    if(this.disposed)return;
+    this.cityDetails.dispose();
+    this.imported.dispose();
+    this.airMobility.dispose();
+    this.weaponStore.dispose();
+    this.buses.dispose();this.cityStores.dispose();
+    this.nativeLandmarks.dispose();
+    super.destroy();
+  }
+}

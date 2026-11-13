@@ -1,0 +1,13 @@
+#tirana-mission-preview {color-scheme:dark;font:14px/1.5 system-ui,sans-serif;max-width:410px;margin:0 auto;}
+#tirana-mission-preview * {box-sizing:border-box;}
+#tirana-mission-preview .ts-director-review {background:#131d18;color:#f1f4e6;border-radius:18px;padding:20px;display:grid;gap:18px;}
+#tirana-mission-preview header {display:grid;gap:4px;}
+#tirana-mission-preview header span {font-size:11px;letter-spacing:.14em;color:#c5d4ba;}
+#tirana-mission-preview header strong {font-size:19px;}
+#tirana-mission-preview label {display:grid;gap:7px;font-size:12px;color:#d9e4d2;}
+#tirana-mission-preview select {width:100%;min-height:44px;padding:8px;background:#25332a;border:1px solid #49604a;border-radius:8px;color:#f1f4e6;font:14px system-ui,sans-serif;}
+#tirana-mission-preview .ts-director-panel {padding:16px;background:#1c2921;border-radius:10px;min-height:166px;}
+#tirana-mission-preview .ts-director-actions {display:flex;gap:10px;flex-wrap:wrap;}
+#tirana-mission-preview button {min-height:44px;flex:1;padding:10px;border:0;border-radius:8px;background:#d1e59c;color:#182011;font:600 13px system-ui,sans-serif;}
+#tirana-mission-preview button+button {flex:0 1 auto;background:#314432;color:#e3edd8;}
+#tirana-mission-preview button:disabled {opacity:.5;}

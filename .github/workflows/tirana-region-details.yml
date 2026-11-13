@@ -6,6 +6,7 @@ name: Tirana regional details
       - 'webapp/src/games/tirana-region/**'
       - 'webapp/src/games/tirana-expansion/**'
       - 'webapp/src/games/tiranastreets/**'
+      - 'webapp/src/games/blackwater/**'
       - 'webapp/src/games/kartroyale/**'
       - 'webapp/scripts/**'
       - 'webapp/package*.json'

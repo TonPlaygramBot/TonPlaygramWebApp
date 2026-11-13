@@ -30,6 +30,7 @@ const MANAGED_GAME_ASSET_PREFIXES = [
   '/assets/tirana-streets/',
   '/assets/tirana-detail-kit/',
   '/assets/tirana-landmarks/',
+  '/assets/blackwater/',
   '/assets/kart-royale/',
   '/assets/pool-royale/',
   '/models/pool-royale/',

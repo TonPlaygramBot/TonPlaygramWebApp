@@ -3,9 +3,6 @@ import {GhostRecorder,ghostKey,sampleGhost,type GhostLap} from './ghostLap.mjs';
 import {rivalIntervals,type RivalInterval,type RaceTelemetry,type Powertrain} from './raceTelemetry.mjs';
 import {createCityJob,stepCityJob,type CityJobState} from './cityJobs.mjs';
 import {CityJobGuide} from './CityJobGuide';
-import { ConvoyRun, type ConvoySummary } from './ConvoyRun';
-import { ConvoyVisuals } from './ConvoyVisuals';
-import { KART_LENGTH, KART_WIDTH } from './racingDimensions.mjs';
 import {createRacingRoadside} from './RacingRoadside';
 import {STEERING_WHEEL_ANGLE} from './driverPose.mjs';
 import { KartDriver } from './KartDriver';
@@ -54,7 +51,6 @@ import type { DrivingWorld } from './freeRoamCore.mjs';
 export type CameraMode = 'driver' | 'chase';
 export type Quality = 'auto' | 'high' | 'performance';
 export interface Frame {
-  convoy?: ConvoySummary;
   playerId?:string;
   timeTrial?:boolean;
   telemetry?:RaceTelemetry;
@@ -96,7 +92,6 @@ export interface Frame {
   slipstream: number;
 }
 export interface Result {
-  convoy?: ConvoySummary;
   timeTrial?:boolean;
   personalBest?:number;
   newBest?:boolean;
@@ -201,10 +196,6 @@ export class KartRenderer {
   private ghostMemory=new Map<string,{ghost:GhostLap;saved:boolean}>();
   private freeDriving:DrivingWorld|null = null;
   private cityJob:CityJobState|null=null;
-  private convoy: ConvoyRun | null = null;
-  private convoyVisuals: ConvoyVisuals | null = null;
-  private convoyModels = new Map<string, T.Group>();
-  private rocketQueued = false;
   private jobGuide:CityJobGuide|null=null;
   private me = 'you';
   private difficulty = 'street';
@@ -633,7 +624,6 @@ export class KartRenderer {
   showGarage() {
     this.state = 'garage';
     this.cityJob=null;this.jobGuide=null;
-    this.clearConvoy();
     this.network = false;
     this.freeDriving=null;
     this.paused = false;
@@ -645,12 +635,6 @@ export class KartRenderer {
     this.scene.fog = new T.Fog('#101619', 13, 55);
     this.shadow.position.set(8, 12, 6);
     this.shadow.target.position.set(0, 0, 0);
-  }
-  private clearConvoy() {
-    this.convoyVisuals?.dispose();
-    this.convoyVisuals = null;
-    this.convoy = null;
-    this.rocketQueued = false;
   }
   private createWorld(track: Track) {
     if(this.ghostVisual){this.world.remove(this.ghostVisual);this.release(this.ghostVisual,false);this.ghostVisual=null;}
@@ -750,7 +734,7 @@ export class KartRenderer {
     this.world.add(createBoostPadLayer(track),createRoadBumpLayer(track),createJumpRampLayer(track));
     this.scenery = new TiranaScenery(track,!!this.freeDriving);
     this.world.add(this.scenery.group);
-    if (this.flagTexture && !this.freeDriving && !this.convoy && !track.terrainMode) {
+    if (this.flagTexture && !this.freeDriving && !track.terrainMode) {
       this.supporters = new Supporters(
         track,
         this.flagTexture,
@@ -884,7 +868,7 @@ export class KartRenderer {
     if (!this.skidMesh || this.paused || this.state !== 'racing') return;
     let dirty = false;
     for (const r of this.racers) {
-      const rear=(r.bodyLength||KART_LENGTH)*.3,halfTrack=(r.bodyWidth||KART_WIDTH)*.46;
+      const rear=(r.bodyLength||2)*.3,halfTrack=(r.bodyWidth||1.27)*.46;
       const x = r.x - Math.sin(r.yaw) * rear,
         z = r.z - Math.cos(r.yaw) * rear;
       const previous = this.skidPrevious.get(r.id);
@@ -933,40 +917,6 @@ export class KartRenderer {
     }
   }
   startLocal(id: string, difficulty: string, freeRoam=false, timeTrial=false) {
-    this.clearConvoy();
-    this.startRun(id, difficulty, freeRoam, timeTrial);
-  }
-  async loadConvoyFleet() {
-    if (this.convoyModels.size) return;
-    const loader = new GLTFLoader();
-    const models = ['defender', 'brabus-g', 'shota'];
-    const results = await Promise.allSettled(models.map(id => loader.loadAsync(vehicleAssetUrl(id, true))));
-    const failed = results.some(result => result.status === 'rejected');
-    results.forEach((result, index) => {
-      if (result.status !== 'fulfilled') return;
-      const { scene } = result.value;
-      this.collectTextures(scene);
-      if (failed || this.disposed) {
-        this.release(scene, true);
-      } else {
-        prepareVehicleAsset(scene, models[index]);
-        this.convoyModels.set(models[index], scene);
-      }
-    });
-    if (failed && !this.disposed) throw Error('The convoy vehicles could not load. Try again.');
-  }
-  startConvoy(id: string) {
-    if (this.convoyModels.size !== 3 || this.disposed) return;
-    this.clearConvoy();
-    this.convoy = new ConvoyRun(makeTrack(id));
-    this.startRun(id, 'street');
-    this.convoyVisuals = new ConvoyVisuals(this.track, this.convoyModels);
-    this.world.add(this.convoyVisuals.group);
-  }
-  launchConvoyRocket() {
-    if (this.convoy && this.state === 'racing' && !this.paused) this.rocketQueued = true;
-  }
-  private startRun(id: string, difficulty: string, freeRoam=false, timeTrial=false) {
     this.timeTrial=timeTrial&&!freeRoam;
     this.ghostRecorder=null;
     this.cityJob=null;
@@ -979,7 +929,7 @@ export class KartRenderer {
     this.countdown = freeRoam?0:3;
     this.accumulator = 0;
     this.paused = false;
-    this.racers = Array.from({ length: freeRoam||this.timeTrial||this.convoy?1:6 }, (_, i) =>
+    this.racers = Array.from({ length: freeRoam||this.timeTrial?1:6 }, (_, i) =>
       createRacer(
         this.track,
         i === 0 ? 'you' : `ai-${i}`,
@@ -990,7 +940,7 @@ export class KartRenderer {
     );
     this.racers[0].color = this.color;
     equipKart(this.racers[0], this.kartId);
-    if(freeRoam || this.convoy){
+    if(freeRoam){
       const p=this.track.points[0],r=this.racers[0];
       r.x=p.x;r.z=p.z;r.yaw=r.velocityYaw=p.yaw;r.index=0;
       r.groundY=surfaceHeight(this.track,p.x,p.z);r.jumpY=r.groundY;
@@ -1036,7 +986,6 @@ export class KartRenderer {
     this.countdown = Math.max(0, (next.startsAt - next.serverNow) / 1000);
     this.racers = next.racers.map((r) => ({ ...r }));
     if (fresh) {
-      this.clearConvoy();
       this.track = makeTrack(next.trackId);
       this.createWorld(this.track);
       this.addRacers();
@@ -1050,7 +999,6 @@ export class KartRenderer {
   }
   private finish() {
     this.onFinish({
-      convoy: this.convoy?.summary(),
       timeTrial:this.timeTrial,personalBest:this.ghostRecorder?.best?.time,
       newBest:this.ghostRecorder?.improved,ghostSaved:this.ghostRecorder?.saved,
       cityJob:this.cityJob?{...this.cityJob}:undefined,
@@ -1065,18 +1013,11 @@ export class KartRenderer {
     this.clearInput();
   }
   clearInput() {
-    this.rocketQueued = false;
     Object.assign(this.input, neutral());
   }
   private snapCamera() {
     const r = this.racers.find((r) => r.id === this.me);
     if (!r) return;
-    if (this.convoy) {
-      this.positionConvoyCamera(r, r, 1);
-      this.camera.fov = this.raceFov(r.speed);
-      this.camera.updateProjectionMatrix();
-      return;
-    }
     const driver = this.cameraMode === 'driver';
     const visual = this.visuals.get(r.id),
       eye = visual && this.rigs.get(visual)?.driverEye,
@@ -1111,20 +1052,7 @@ export class KartRenderer {
     this.camera.fov = this.raceFov(r.speed);
     this.camera.updateProjectionMatrix();
   }
-  private positionConvoyCamera(racer: Racer, position: { x: number; z: number }, blend: number) {
-    const yaw = this.track.points[racer.index]?.yaw ?? racer.yaw;
-    const forwardX = Math.sin(yaw), forwardZ = Math.cos(yaw);
-    const height = racer.groundY || 0;
-    this.camera.near = .15;
-    this.cameraTarget.set(position.x - forwardX * 9.5, height + 8.5, position.z - forwardZ * 9.5);
-    this.camera.position.lerp(this.cameraTarget, blend);
-    this.vector.set(position.x + forwardX * 10, height, position.z + forwardZ * 10);
-    this.lookTarget.lerp(this.vector, blend);
-    this.camera.lookAt(this.lookTarget);
-  }
-
   private raceFov(speed: number) {
-    if (this.convoy) return this.camera.aspect < .85 ? 63 : 56;
     if (this.cameraMode === 'chase') return (this.camera.aspect < .85 ? 60 : 55) + (this.reducedMotion ? 0 : speed * .12);
     // Preserve useful horizontal sight in portrait without rotating the screen.
     return (
@@ -1185,18 +1113,7 @@ export class KartRenderer {
             this.time += STEP;
             const me = this.racers.find((r) => r.id === this.me);
             if (me) me.input = this.input;
-            if (this.convoy && me) {
-              stepRacer(me, { ...this.input, throttle: !this.input.brake }, this.track, STEP, this.time);
-              this.convoy.step(me, { ...this.input, fire: this.rocketQueued }, STEP);
-              this.rocketQueued = false;
-              if (this.convoy.status !== 'active') {
-                this.state = 'finished';
-                this.clearInput();
-                this.accumulator = 0;
-                this.finish();
-                break;
-              }
-            } else if(this.freeDriving){
+            if(this.freeDriving){
               if(me)stepRacer(me,this.input,this.track,STEP,this.time,this.difficulty,this.freeDriving);
             } else if (this.network) {
               if (me) stepRacer(me, this.input, this.track, STEP, this.time);
@@ -1224,7 +1141,7 @@ export class KartRenderer {
             this.accumulator -= STEP;
           }
           if (
-            !this.convoy && !this.network && !this.freeDriving &&
+            !this.network && !this.freeDriving &&
             (this.racers.find((r) => r.id === this.me)?.finished ||
               this.racers.find((r) => r.id === this.me)?.retired ||
               this.time >= RACE_LIMIT)
@@ -1293,12 +1210,8 @@ export class KartRenderer {
           this.skidAt = now;
           this.updateSkids();
         }
-        const driver = !this.convoy && this.cameraMode === 'driver';
-        if (this.convoy) {
-          this.positionConvoyCamera(me, v.position, 1 - Math.exp(-dt * 6));
-          if (this.state === 'finished') this.convoy.advanceEffects(dt);
-          this.convoyVisuals?.update(this.convoy, this.camera, this.motionTime);
-        } else if (driver) {
+        const driver = this.cameraMode === 'driver';
+        if (driver) {
           const rig = this.rigs.get(v);
           const spring =
             rig && !this.reducedMotion
@@ -1374,7 +1287,6 @@ export class KartRenderer {
         if (now - this.uiAt > 90) {
           this.uiAt = now;
           this.onFrame({
-            convoy: this.convoy?.summary(),
             playerId:this.me,timeTrial:this.timeTrial,
             telemetry:me.telemetry?{...me.telemetry,sectors:[...me.telemetry.sectors]}:undefined,
             powertrain:me.powertrain?{...me.powertrain}:undefined,
@@ -1454,8 +1366,6 @@ export class KartRenderer {
       'webglcontextlost',
       this.contextLost
     );
-    this.clearConvoy();
-    this.convoyModels.forEach(model => this.release(model, true));
     this.supporters?.dispose();
     this.effects?.dispose();
     this.scenery?.dispose();

@@ -1,7 +1,8 @@
-name: Tirana shared street scenery
+name: Tirana lobby and street detail integration
 on:
   pull_request:
     paths:
+      - 'webapp/src/pages/Games/TiranaStreetsLobby.jsx'
       - 'webapp/src/games/tirana-street-detail/**'
       - 'webapp/src/games/tirana-street-life/**'
       - 'webapp/src/games/tirana-landmarks/**'
@@ -16,8 +17,10 @@ on:
       - 'webapp/scripts/import-tirana-city-details.py'
       - 'webapp/scripts/import-tirana-landmarks.py'
       - 'webapp/scripts/import-tirana-public-buildings.py'
+      - 'webapp/src/games/blackwater/shared/physics.mjs'
       - 'webapp/src/games/tiranastreets/shared/architecture.mjs'
       - 'test/tiranaPublicBuildings.test.mjs'
+      - 'test/blackwater.test.mjs'
       - 'webapp/scripts/verify-tirana-landmark-geometry.mjs'
       - 'webapp/src/games/tiranastreets/map/CityMap.tsx'
       - 'webapp/src/games/tirana-environment/ParkAttractions.ts'
@@ -25,6 +28,8 @@ on:
       - 'test/tiranaLandmarks.test.mjs'
       - 'test/tiranaCitySource.test.mjs'
       - 'webapp/src/games/tiranastreets/street-career/**'
+      - 'webapp/src/games/blackwater/cityWorld.ts'
+      - 'webapp/src/games/blackwater/shared/layout.mjs'
       - 'webapp/src/games/kartroyale/tiranaScenery.ts'
       - 'webapp/src/games/tirana-expansion/WorldEnhancements.ts'
       - 'webapp/scripts/export-tirana-street-detail.mjs'
@@ -47,7 +52,7 @@ jobs:
         with:
           node-version: '22'
       - name: New contracts, actual WORLD and preserved career tests
-        run: node --test test/tiranaStreetLife.test.mjs test/tiranaNativeLandmarks.test.mjs test/tiranaPublicBuildings.test.mjs test/tiranaLandmarks.test.mjs test/tiranaCitySource.test.mjs test/tiranaFpsCity.test.mjs test/tiranaStreetDetail.test.mjs test/tiranaMap.test.mjs
+        run: node --test test/tiranaStreetLife.test.mjs test/tiranaNativeLandmarks.test.mjs test/blackwater.test.mjs test/tiranaPublicBuildings.test.mjs test/tiranaLandmarks.test.mjs test/tiranaCitySource.test.mjs test/tiranaFpsCity.test.mjs test/tiranaStreetDetail.test.mjs test/tiranaStreetDetail.integration.test.mjs test/tiranaStreetCareer.test.mjs test/tiranaStreetCareer.integration.test.mjs test/tiranaCareerExpansion.test.mjs test/tiranaMap.test.mjs
   application-and-export:
     runs-on: ubuntu-latest
     timeout-minutes: 25

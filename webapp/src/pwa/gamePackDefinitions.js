@@ -7,15 +7,25 @@ export const RUNTIME_MEDIA_EXTENSIONS = new Set(['.png', '.jpg', '.jpeg', '.webp
 const heavyPacks = [
   {
     id: 'shared-tirana-vehicles',
-    title: 'Shared Tirana Scenery and Vehicles',
-    description: 'Map scenery and vehicles used in Racing Royal and Jet Ski Royal.',
+    title: 'Shared Tirana Vehicle Fleet',
+    description: 'Vehicle models shared by Tirana Streets and Racing Royal.',
     hidden: true,
     cover: '/assets/kart-royale/cover.webp',
     route: null,
     gameSlugs: [],
-    roots: ['assets/tirana-streets', 'assets/tirana-detail-kit', 'assets/tirana-landmarks'],
-    excludeRoots: ['assets/tirana-streets/players', 'assets/tirana-streets/weapons', 'assets/tirana-streets/weapon-thumbnails', 'assets/tirana-streets/albanian-forces'],
+    roots: ['assets/tirana-streets/vehicle-collection'],
     dependencies: []
+  },
+  {
+    id: 'tirana-streets',
+    title: 'Tirana Streets',
+    description: 'City, landmark, street-life, vehicle and operation assets.',
+    cover: '/assets/tirana-streets/map.svg',
+    route: '/games/tiranastreets/lobby',
+    gameSlugs: ['tiranastreets'],
+    roots: ['assets/tirana-streets', 'assets/tirana-detail-kit', 'assets/tirana-landmarks', 'assets/blackwater'],
+    excludeRoots: ['assets/tirana-streets/vehicle-collection'],
+    dependencies: ['shared-tirana-vehicles', 'shared-table-games']
   },
   {
     id: 'jetski-royal',
@@ -25,7 +35,7 @@ const heavyPacks = [
     route: '/games/jetskiroyal/lobby',
     gameSlugs: ['jetskiroyal'],
     roots: ['assets/jetski-royal'],
-    dependencies: ['shared-tirana-vehicles', 'shared-table-games']
+    dependencies: ['shared-table-games']
   },
   {
     id: 'racing-royal',
@@ -89,9 +99,14 @@ const extraFiles = {
 export const GAME_PACK_DEFINITIONS = Object.freeze([
   ...heavyPacks.map(pack => ({
     ...pack,
+    // Turi is a shared player, so launching a table or sports game must never
+    // require downloading the whole Tirana city pack.
     dependencies: pack.gameSlugs?.some(slug => !gamesWithoutPlayerCharacters.has(slug))
       ? [...(pack.dependencies || []), 'shared-player-character']
       : pack.dependencies,
+    excludeFiles: pack.id === 'tirana-streets'
+      ? [...(pack.excludeFiles || []), TURI_MODEL_URL.slice(1)]
+      : pack.excludeFiles,
     runtimeMedia: true
   })),
   {

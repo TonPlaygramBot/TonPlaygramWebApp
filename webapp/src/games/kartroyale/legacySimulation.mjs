@@ -1,4 +1,4 @@
-import {KART_LENGTH, kartBodyWidth, kartPassingRoom} from './racingDimensions.mjs';
+import {KART_LENGTH, KART_WIDTH, kartPassingRoom} from './racingDimensions.mjs';
 import { stepDrift, stepBoostPads, stepSlipstream } from './arcadeRules.mjs';
 import {KARTS} from './vehicleCatalog.mjs';
 import {planRacecraft,aiRecoveryPose} from './racecraft.mjs';
@@ -31,7 +31,7 @@ export const normalizeKart = (id) =>
 export function equipKart(r, id) {
   const kartId=normalizeKart(id), kart=KARTS.find(k=>k.id===kartId);
   r.bodyLength=KART_LENGTH;
-  r.bodyWidth=kartBodyWidth(kartId);
+  r.bodyWidth=KART_WIDTH;
   r.kartId=kartId; r.shieldMax=kart.shield; r.shield=kart.shield;
   r.ammunition=kart.ammunition; r.fireCooldown=0;
   return r;

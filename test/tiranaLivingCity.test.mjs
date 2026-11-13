@@ -5,16 +5,19 @@ import {readFileSync,mkdtempSync,rmSync} from 'node:fs';
 import {createHash} from 'node:crypto';
 import {fileURLToPath,pathToFileURL} from 'node:url';
 import {build} from '../webapp/node_modules/esbuild/lib/main.js';
+import * as T from '../webapp/node_modules/three/build/three.module.js';
+import {GLTFLoader} from '../webapp/node_modules/three/examples/jsm/loaders/GLTFLoader.js';
 import {CellWorkQueue} from '../webapp/src/games/tirana-neighbourhood/cellWorkQueue.mjs';
 import {buildStreetModel} from '../webapp/src/games/tirana-street-life/streetModels.mjs';
 import {signReferenceFor} from '../webapp/src/games/tirana-street-life/signReferences.mjs';
 import {drivingScale,cornerSpeed} from '../webapp/src/games/tiranastreets/shared/drivingScale.mjs';
+import {createBody} from '../webapp/src/games/tiranastreets/street-career/playerCore.mjs';
 import {WORLD} from '../webapp/src/games/tiranastreets/shared/world.mjs';
 const webapp=fileURLToPath(new URL('../webapp/',import.meta.url)),dir=mkdtempSync(webapp+'.living-test-');
 test.after(()=>rmSync(dir,{recursive:true,force:true}));
 const outfile=dir+'/runtime.mjs';
-await build({stdin:{contents:`export {RainPuddles} from './src/games/tirana-environment/RainPuddles';export {MappedParkLife} from './src/games/tirana-environment/MappedParkLife';`,resolveDir:webapp,loader:'ts'},bundle:true,platform:'node',format:'esm',external:['three','three/*'],outfile,logLevel:'silent'});
-const {RainPuddles,MappedParkLife}=await import(pathToFileURL(outfile));
+await build({stdin:{contents:`export {FirstPersonBody} from './src/games/tiranastreets/street-career/FirstPersonBody';export {StreetRenderer} from './src/games/tiranastreets/street-career/StreetRenderer';export {RainPuddles} from './src/games/tirana-environment/RainPuddles';export {MappedParkLife} from './src/games/tirana-environment/MappedParkLife';export {campaign} from './src/games/tiranastreets/street-career/StreetCareerRuntime';`,resolveDir:webapp,loader:'ts'},bundle:true,platform:'node',format:'esm',external:['three','three/*'],outfile,logLevel:'silent'});
+const {FirstPersonBody,StreetRenderer,RainPuddles,MappedParkLife,campaign}=await import(pathToFileURL(outfile));
 
 test('streaming retains progress when the viewer requests the same cell again',()=>{
   let started=0,steps=0,closed=0;
@@ -48,6 +51,28 @@ test('real-scale speed ceilings and corner braking remain in metres per second',
   assert.equal(drivingScale({model:'tirana-bus'}).maximum*3.6,45);
   assert.equal(drivingScale({model:'sedan-sports'}).maximum*3.6,70);
   assert.ok(cornerSpeed(Math.PI/2,12)<3);assert.equal(cornerSpeed(0,12),12);
+});
+test('the actual runtime campaign initializes with both free starter weapons',()=>{
+  const p=campaign.fresh();assert.equal(p.loadout.weapon,'glockSidearmAttack');assert.ok(p.loadout.inventory.combatKnife);assert.ok(p.loadout.inventory.glockSidearmAttack);
+});
+test('actual suited CC0 rig has a complete head, metre scale and a full-body portrait camera',async()=>{
+  const bytes=readFileSync(webapp+'public/assets/tirana-streets/living/suited-agent.glb');
+  const g=await new GLTFLoader().parseAsync(bytes.buffer.slice(bytes.byteOffset,bytes.byteOffset+bytes.byteLength),'');
+  assert.match(g.asset.copyright,/Quaternius/);
+  assert.deepEqual(g.animations.map(a=>a.name).sort(),['Idle','Run','Walk']);
+  const root=new T.Group();root.add(g.scene);const size=new T.Box3().setFromObject(root,true).getSize(new T.Vector3());assert.ok(size.y>1.7&&size.y<1.9);
+  const scene=new T.Scene();scene.add(root);const mixer=new T.AnimationMixer(root),actor={group:root,mixer,wheels:[],model:'character'};
+  for(const name of ['idle','walk','run'])actor[name]=mixer.clipAction(g.animations.find(a=>a.name.toLowerCase()===name));
+  const rig=new FirstPersonBody(scene),body=createBody(0),p={x:0,z:0,health:100,speed:0,weapon:'',nextShot:0};
+  rig.update(actor,p,body,0,1/60);scene.updateMatrixWorld(true);
+  for(const key of ['head','leftfoot','rightfoot','righthand','lefthand'])assert.ok(rig.bones.get(key),key);
+  assert.equal(root.getObjectByName('full-body-shadow-only'),undefined,'full head is not masked');
+  assert.ok(!g.scene.getObjectByName('Pistol')?.isMesh);
+  const camera=new T.PerspectiveCamera(74,390/844,.035,3600),view={camera,settings:{fov:74},simulation:{body,world:{cast:()=>({distance:4.6})},cars:()=>[]},yaw:0,pitch:0};
+  StreetRenderer.prototype.presentFirstPerson.call(view,{players:{local:p},cars:[]},'local',0);camera.updateMatrixWorld(true);
+  for(const key of ['head','leftfoot','rightfoot']){const point=rig.bones.get(key).getWorldPosition(new T.Vector3()).project(camera);assert.ok(Math.abs(point.x)<1&&Math.abs(point.y)<1,key+' remains inside portrait');}
+  assert.ok(camera.position.z>4);view.simulation.world.cast=()=>({distance:1});StreetRenderer.prototype.presentFirstPerson.call(view,{players:{local:p},cars:[]},'local',0);assert.ok(camera.position.distanceTo(new T.Vector3(0,1,0))<.81,'wall hit pulls camera forward');
+  rig.dispose();
 });
 test('knife is a compact CC0 asset with a 30 cm blade-and-handle extent',()=>{
   const bytes=readFileSync(webapp+'public/assets/tirana-streets/living/combat-knife.glb'),j=JSON.parse(bytes.subarray(20,20+bytes.readUInt32LE(12)));

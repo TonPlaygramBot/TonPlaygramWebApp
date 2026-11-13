@@ -30,9 +30,9 @@ export class AgedHousingLayer {
         float wear=housingNoise(housingUV*2.3)+.25*housingNoise(housingUV*13.0);
         float exposed=smoothstep(.78,.88,wear);
         vec2 panel=floor(housingUV*vec2(1.0,1.25));float repair=housingHash(panel);
-        vec3 plasterTint=repair>.78?vec3(.77,.73,.65):repair>.64?vec3(.94,.86,.72):vec3(1.);
+        vec3 patch=repair>.78?vec3(.77,.73,.65):repair>.64?vec3(.94,.86,.72):vec3(1.);
         float streak=pow(max(0.,sin(housingUV.x*14.)),18.)*smoothstep(.12,.8,fract(housingUV.y*1.25))*.13;
-        diffuseColor.rgb*=plasterTint*(1.-streak);
+        diffuseColor.rgb*=patch*(1.-streak);
         diffuseColor.rgb=mix(diffuseColor.rgb*(.76+.24*housingNoise(housingUV*8.0)),brick,exposed);
       `);
     };

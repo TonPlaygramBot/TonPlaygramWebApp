@@ -5,12 +5,13 @@ import {readSourceArchive} from '../webapp/scripts/tirana/sourceArchive.mjs';
 import {createHash} from 'node:crypto';
 import {gunzipSync} from 'node:zlib';
 import {WORLD as core} from '../webapp/src/games/tiranastreets/shared/centralWorld.mjs';
-import {WORLD,createState,advanceState} from '../webapp/src/games/tiranastreets/shared/engine.mjs';
+import {WORLD,collide,lineOfSight,createState,advanceState} from '../webapp/src/games/tiranastreets/shared/engine.mjs';
 import {EAST} from '../webapp/src/games/tirana-east/data.mjs';
 import {NEIGHBOURHOOD as n} from '../webapp/src/games/tirana-neighbourhood/data.mjs';
 import {extendNeighbourhood} from '../webapp/src/games/tirana-neighbourhood/worldExtension.mjs';
 import {buildMapGraph,findMapRoute} from '../webapp/src/games/tiranastreets/map/mapCore.mjs';
 import {facadeEdges} from '../webapp/src/games/tirana-city-source/sourceCore.mjs';
+import {ORIGIN,buildings as fpsBuildings} from '../webapp/src/games/blackwater/shared/layout.mjs';
 
 test('frozen source checksum, complete records and unchanged central metre geometry',()=>{
  const archive=readSourceArchive(new URL('../assets-source/tirana-urban/source.osm.json.gz',import.meta.url));
@@ -37,6 +38,12 @@ test('new source identities do not snap nearby endpoints/crossings and retain on
  const r={bounds:c.bounds,buildings:[],roads:[road('a','b',[0,0],[10,0]),road('b','c',[10,0],[20,0],{oneway:true}),road('foreign','far',[20,.01],[30,.01]),road('private','closed',[10,0],[10,20],{access:'private'}),road('high','bridge',[10,0],[15,5],{bridge:true,layer:1})]};
  const result=extendNeighbourhood(c,r);assert.equal(result.graph.nodes.length,3);assert.equal(result.graph.edges.length,2);assert.equal(result.graph.directions[1],1);
  const g=buildMapGraph(result,'drive');assert.equal(findMapRoute(g,{x:1,z:0},{x:19,z:0}).reachable,true);assert.equal(findMapRoute(g,{x:19,z:0},{x:1,z:0}).reachable,false);
+});
+test('source courtyards remain open in street collision, sight lines and FPS coordinates',()=>{
+ const b=n.buildings.find(b=>b.id==='relation/5344956'),hole=b.holes[0];
+ const p={x:hole.reduce((s,v)=>s+v[0]/hole.length,0),z:hole.reduce((s,v)=>s+v[1]/hole.length,0)},before={...p};
+ assert.equal(collide(p,.4),false);assert.deepEqual(p,before);assert.equal(lineOfSight(p,{x:p.x+1,z:p.z}),true);
+ const translated=fpsBuildings.find(f=>f.id===b.id);assert.deepEqual(translated.holes,hole?[hole.map(v=>[v[0]-ORIGIN.x,v[1]-ORIGIN.z])]:[]);
 });
 test('frontages fit their selected source wall and every category has a source-linked tenant',()=>{
  assert.ok(n.storefronts.length>1200&&n.storefronts.length<1559);

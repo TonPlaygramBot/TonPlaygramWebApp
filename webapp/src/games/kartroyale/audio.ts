@@ -22,7 +22,6 @@ export class KartAudio {
   private sources: AudioScheduledSourceNode[] = [];
   private lastImpact = 0;
   private lastBoost = 0;
-  private convoyAudio: Frame['convoy'];
   muted = false;
   unlock() {
     if (!this.context)
@@ -93,9 +92,6 @@ export class KartAudio {
       }
     this.context?.resume().catch(() => {});
   }
-  resetConvoyAudio() {
-    this.convoyAudio = undefined;
-  }
   setMuted(m: boolean) {
     this.muted = m;
     if (this.context && this.master)
@@ -154,14 +150,6 @@ export class KartAudio {
       if(running&&frame.boostEvent>this.lastBoost)this.burst(.28,.11,1900);
       this.lastBoost=frame.boostEvent;
     }
-    const convoy = frame.convoy;
-    if (running && convoy) {
-      if (convoy.shots > (this.convoyAudio?.shots ?? 0)) this.burst(.075, .11, 2800);
-      if (convoy.launches > (this.convoyAudio?.launches ?? 0)) this.burst(.24, .15, 1350);
-      if (convoy.blasts > (this.convoyAudio?.blasts ?? 0)) this.burst(.38, .25, 680);
-      if (convoy.hits > (this.convoyAudio?.hits ?? 0)) this.burst(.18, .18, 460);
-    }
-    this.convoyAudio = convoy;
     const laps=frame.telemetry?.completed||0;
     if(running&&laps>this.lastLap)this.beep(frame.telemetry?.lastLap?.clean?1046:784,.16);
     this.lastLap=laps;
