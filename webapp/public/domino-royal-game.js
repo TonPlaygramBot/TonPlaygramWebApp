@@ -1009,6 +1009,9 @@ const TABLE_HEIGHT = STOOL_HEIGHT + TABLE_HEIGHT_LIFT;
 const CAMERA_REFERENCE_TABLE_RADIUS = TABLE_RADIUS;
 const CAMERA_REFERENCE_TABLE_HEIGHT = TABLE_HEIGHT;
 const HUMAN_SEAT_INDEX = 0;
+// Logical local seat may differ from the portrait bottom seat in online rooms.
+// Initialize before asynchronous chair/model setup can inspect it.
+let human = HUMAN_SEAT_INDEX;
 const CHAIR_SEAT_ANGLES = Object.freeze([
   THREE.MathUtils.degToRad(90),
   THREE.MathUtils.degToRad(0),
@@ -8020,6 +8023,13 @@ const DOMINO_CHARACTER_THEMES = Object.freeze([
     skinTone: 0xe3b08b
   }
 ]);
+const DOMINO_PLAYER_CHARACTER = typeof window !== 'undefined' && window.__DOMINO_ROYAL_PLAYER_CHARACTER__
+  ? Object.freeze({
+      ...window.__DOMINO_ROYAL_PLAYER_CHARACTER__,
+      urls: window.__DOMINO_ROYAL_PLAYER_CHARACTER__.modelUrls,
+      scale: 1, seatOffsetY: -0.56, seatOffsetZ: 0.52, handLift: 1.04
+    })
+  : null;
 const DOMINO_CHARACTER_PROPORTION_SCALE = 2.5;
 const DOMINO_HUMAN_CHARACTER_SCALE_BOOST = 0.63;
 // Seat avatars from the chair footprint instead of adding a table-facing Z offset.
@@ -8117,6 +8127,7 @@ function shuffleDominoCharacterThemeOrder() {
 }
 
 function getDominoCharacterThemeForSeat(seatIndex) {
+  if (seatIndex === human && DOMINO_PLAYER_CHARACTER) return DOMINO_PLAYER_CHARACTER;
   const orderIndex = dominoCharacterThemeOrder[seatIndex % dominoCharacterThemeOrder.length];
   return DOMINO_CHARACTER_THEMES[orderIndex] || DOMINO_CHARACTER_THEMES[seatIndex % DOMINO_CHARACTER_THEMES.length] || DOMINO_CHARACTER_THEMES[0];
 }
@@ -8274,13 +8285,25 @@ function clearDominoCharacters() {
 }
 
 function findDominoBone(root, hints) {
-  let found = null;
-  root?.traverse?.((obj) => {
-    if (found || !obj?.isBone) return;
-    const name = String(obj.name || '').toLowerCase();
-    if (hints.some((hint) => name.includes(hint))) found = obj;
+  // Match the joint itself before descendants such as HeadTop_End or HandIndex4.
+  const normalize = (name) => String(name || '').toLowerCase()
+    .replace(/mixamorig\d*|[^a-z0-9]/g, '')
+    .replace(/(left|right)hand(thumb|index|middle|ring|pinky)/, '$1$2');
+  const bones = [];
+  root?.traverse?.((bone) => {
+    if (bone?.isBone) bones.push({ bone, name: normalize(bone.name) });
   });
-  return found;
+  for (const hint of hints || []) {
+    const name = normalize(hint);
+    const exact = bones.find((entry) => entry.name === name || entry.name === `${name}1`);
+    if (exact) return exact.bone;
+  }
+  for (const hint of hints || []) {
+    const name = normalize(hint);
+    const partial = bones.find((entry) => entry.name.includes(name));
+    if (partial) return partial.bone;
+  }
+  return null;
 }
 
 function findDominoFingerChain(root, hints) {
@@ -8490,12 +8513,15 @@ function createDominoCharacterRig(instance, seatRoot, seatIndex, player) {
   addDominoBoneOffset(bones.rightThigh, THREE.MathUtils.degToRad(-90.5), THREE.MathUtils.degToRad(1.7), THREE.MathUtils.degToRad(-1.1));
   addDominoBoneOffset(bones.leftCalf, THREE.MathUtils.degToRad(-95.1), THREE.MathUtils.degToRad(1.1), THREE.MathUtils.degToRad(0.6));
   addDominoBoneOffset(bones.rightCalf, THREE.MathUtils.degToRad(-95.1), THREE.MathUtils.degToRad(-1.1), THREE.MathUtils.degToRad(-0.6));
-  if (seatIndex === HUMAN_SEAT_INDEX) {
+  if (seatIndex === human) {
     addDominoBoneOffset(bones.leftUpperArm, THREE.MathUtils.degToRad(8), THREE.MathUtils.degToRad(-1), THREE.MathUtils.degToRad(0));
     addDominoBoneOffset(bones.leftForeArm, THREE.MathUtils.degToRad(10), THREE.MathUtils.degToRad(-1), THREE.MathUtils.degToRad(0));
     addDominoBoneOffset(bones.rightUpperArm, THREE.MathUtils.degToRad(8), THREE.MathUtils.degToRad(1), THREE.MathUtils.degToRad(0));
     addDominoBoneOffset(bones.rightForeArm, THREE.MathUtils.degToRad(10), THREE.MathUtils.degToRad(1), THREE.MathUtils.degToRad(0));
     addDominoBoneOffset(bones.head, THREE.MathUtils.degToRad(-7), 0, 0);
+  }
+  if (getDominoCharacterThemeForSeat(seatIndex)?.id === DOMINO_PLAYER_CHARACTER?.id) {
+    window.__DOMINO_ROYAL_POSE_TURI__?.(instance);
   }
   rig.seatedPose = captureDominoPose(bones);
   instance.position.y -= 0.24 * MODEL_SCALE;
@@ -8644,10 +8670,22 @@ function attachDominoCharacterToChair(template, chair, seatIndex, player) {
       mat.needsUpdate = true;
     });
   });
-  enhanceDominoCharacterMaterials(instance, theme, seatIndex);
+  if (theme.preserveMaterials) {
+    instance.traverse((mesh) => {
+      if (!mesh.isMesh) return;
+      const originals = Array.isArray(mesh.material) ? mesh.material : [mesh.material];
+      const copies = originals.map((material) => material?.clone?.() || material);
+      mesh.material = Array.isArray(mesh.material) ? copies : copies[0];
+    });
+    instance.updateMatrixWorld(true);
+    const height = new THREE.Box3().setFromObject(instance).getSize(new THREE.Vector3()).y;
+    if (height > 0) instance.scale.multiplyScalar(1.74 / height);
+  } else {
+    enhanceDominoCharacterMaterials(instance, theme, seatIndex);
+  }
   normalizeDominoCharacterRoot(instance);
   const seatRoot = new THREE.Group();
-  const isHumanSeat = seatIndex === HUMAN_SEAT_INDEX;
+  const isHumanSeat = seatIndex === human;
   const characterScale = DOMINO_CHARACTER_PROPORTION_SCALE +
     (isHumanSeat ? DOMINO_HUMAN_CHARACTER_SCALE_BOOST : 0);
   const seatScale = (theme.scale || 1) * characterScale;
@@ -8670,6 +8708,10 @@ async function loadDominoSeatCharacterTemplate(seatIndex) {
   try {
     return await loadDominoCharacterTemplate(primaryTheme);
   } catch (primaryError) {
+    if (primaryTheme?.id === DOMINO_PLAYER_CHARACTER?.id) {
+      console.warn('Turi could not load for the local Domino player', primaryError);
+      return null;
+    }
     console.warn('Domino seat character load failed, trying default avatar', primaryTheme?.id, primaryError);
     if (fallbackTheme && fallbackTheme !== primaryTheme) {
       try {
@@ -9202,7 +9244,6 @@ winnerReturnLobbyButton?.addEventListener('click', () => {
 let statusPrefix = '';
 let ends = null; // {L:{v,x,z,dir:[dx,dz]}, R:{...}}
 let current = 0;
-let human = 0;
 let selectedTile = null;
 let selectedHighlight = null;
 let selectedHighlightHost = null;

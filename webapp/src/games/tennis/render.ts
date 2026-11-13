@@ -1,6 +1,6 @@
 import * as THREE from 'three';
 import { SoftwareRenderer } from './software';
-import { loadAthlete } from './assetLoader';
+import { athleteUrl, loadAthlete } from './assetLoader';
 import { dressAthlete, poseAthlete, disposeAthlete } from './athlete';
 import { buildStadium, courtTexture } from './stadium';
 import {
@@ -26,6 +26,7 @@ type Actor = {
   lastZ: number;
   marker: THREE.Mesh;
   racket: THREE.Group;
+  asset: string;
 };
 export class TennisRenderer {
   scene = new THREE.Scene();
@@ -399,20 +400,45 @@ export class TennisRenderer {
       lastX: 0,
       lastZ: 0,
       marker,
-      racket
+      racket,
+      asset: ''
     };
     this.actors[seat] = actor;
+    group.add(racket);
+    await this.loadActorModel(actor, seat);
+  }
+  setLocalSeat(seat: Seat) {
+    if (seat === this.seat) return;
+    this.seat = seat;
+    this.actors.forEach((actor, n) => {
+      (actor.marker.material as THREE.MeshBasicMaterial).color.setHex(
+        n === seat ? 0xddff47 : 0xff8772
+      );
+      void this.loadActorModel(actor, n as Seat);
+    });
+  }
+  private async loadActorModel(actor: Actor, seat: Seat) {
+    const localSeat = this.seat;
+    const asset = athleteUrl(seat, localSeat);
+    if (actor.asset === asset) return;
+    actor.asset = asset;
     try {
-      const model = await loadAthlete(seat);
-      if (this.disposed) {
+      const model = await loadAthlete(seat, localSeat);
+      if (this.disposed || actor.asset !== asset) {
         disposeAthlete(model);
         return;
       }
-      actor.rig = dressAthlete(model, seat);
-      group.add(model);
-      group.add(racket);
+      const rig = dressAthlete(model, seat, seat === localSeat);
+      if (actor.model) {
+        actor.root.remove(actor.model);
+        disposeAthlete(actor.model);
+      }
+      actor.rig = rig;
+      actor.root.add(model);
       actor.model = model;
     } catch (e) {
+      if (this.disposed || actor.asset !== asset) return;
+      actor.asset = '';
       this.loadError = 'Player model could not load. Reload to retry.';
       console.error(e);
     }

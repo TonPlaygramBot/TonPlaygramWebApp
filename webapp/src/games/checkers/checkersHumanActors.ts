@@ -23,7 +23,7 @@ export function checkersSeatForSide(side: string, localSide: string): CheckersSe
 
 // Preserve the real skinned hands in the player's first-person camera, while
 // keeping their head and torso out of the board view. Both views use one rig.
-function createFirstPersonArms(actor: THREE.Object3D) {
+export function createFirstPersonArms(actor: THREE.Object3D) {
   const originals: THREE.Mesh[] = [];
   const arms: THREE.SkinnedMesh[] = [];
   actor.traverse((node) => {
@@ -34,7 +34,7 @@ function createFirstPersonArms(actor: THREE.Object3D) {
     const skinWeight = source.geometry.getAttribute('skinWeight');
     if (!source.isSkinnedMesh || !skinIndex || !skinWeight) return;
     const armBones = source.skeleton.bones.map((bone) =>
-      /^(left|right)(arm|upperarm|forearm|lowerarm|hand|thumb|index|middle|ring|pinky)/.test(normalizeRigBoneName(bone.name))
+      /^(left|right)(arm|upperarm|forearm|lowerarm|hand|thumb|index|middle|ring|pinky)/.test(normalizeRigBoneName(bone.name).replace(/^mixamorig/, ''))
     );
     const included = new Uint8Array(skinIndex.count);
     for (let vertex = 0; vertex < included.length; vertex++) {

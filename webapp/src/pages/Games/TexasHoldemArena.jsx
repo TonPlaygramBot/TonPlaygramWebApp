@@ -1,5 +1,6 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import * as THREE from 'three';
+import { applyTuriSeatedPose } from '../../games/shared/turiSeatedPose.js';
 import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js';
 import { DRACOLoader } from 'three/examples/jsm/loaders/DRACOLoader.js';
 import { KTX2Loader } from 'three/examples/jsm/loaders/KTX2Loader.js';
@@ -8,6 +9,7 @@ import { EXRLoader } from 'three/examples/jsm/loaders/EXRLoader.js';
 import { MeshoptDecoder } from 'three/examples/jsm/libs/meshopt_decoder.module.js';
 import { clone as cloneSkeleton } from 'three/examples/jsm/utils/SkeletonUtils.js';
 
+import { TURI_CHARACTER, TURI_MODEL_URL } from '../../config/playerCharacter.js';
 import { applyRendererSRGB, applySRGBColorSpace } from '../../utils/colorSpace.js';
 import { ARENA_CAMERA_DEFAULTS, buildArenaCameraConfig } from '../../utils/arenaCameraConfig.js';
 import { createMurlanStyleTable, applyTableMaterials, TABLE_SHAPE_OPTIONS } from '../../utils/murlanTable.js';
@@ -575,6 +577,10 @@ const TEXAS_DOMINO_CHARACTER_THEMES = Object.freeze([
   { id: 'webgl-ai-teacher-domino', urls: ['https://raw.githubusercontent.com/Surbh77/AI-teacher/main/avatar.glb'], scale: 1, seatOffsetY: -0.56, seatOffsetZ: 0.52, clothCombo: 'patternedRed', hairColor: 0x231915, eyeColor: 0x3d5f73, skinTone: 0xc88b64 },
   { id: 'webgl-ai-teacher-1-domino', urls: ['https://raw.githubusercontent.com/Surbh77/AI-teacher/main/avatar1.glb'], scale: 1, seatOffsetY: -0.56, seatOffsetZ: 0.52, clothCombo: 'mixedDenim', hairColor: 0x0f0b08, eyeColor: 0x4c3425, skinTone: 0xe3b08b }
 ]);
+const TEXAS_PLAYER_CHARACTER = Object.freeze({
+  ...TURI_CHARACTER, urls: [TURI_MODEL_URL], scale: 1,
+  normalizedSeatOffsetY: -0.4, normalizedSeatOffsetZ: 0.52
+});
 const TEXAS_DOMINO_CHARACTER_PROPORTION_SCALE = 1.82;
 const TEXAS_DOMINO_HUMAN_CHARACTER_SCALE_BOOST = 0;
 const TEXAS_MURLAN_SEATED_OFFSET_Y = -0.92;
@@ -1184,16 +1190,25 @@ function disposeObjectResources(object) {
 
 
 function findTexasCharacterBone(root, names = []) {
-  const normalized = names.map((name) => String(name || '').toLowerCase());
-  let found = null;
-  root?.traverse?.((obj) => {
-    if (found || !obj?.isBone) return;
-    const boneName = String(obj.name || '').toLowerCase().replace(/[^a-z0-9]/g, '');
-    if (normalized.some((name) => boneName.includes(name.replace(/[^a-z0-9]/g, '')))) {
-      found = obj;
-    }
+  // Match the joint itself before descendants such as HeadTop_End or HandIndex4.
+  const normalize = (name) => String(name || '').toLowerCase()
+    .replace(/mixamorig\d*|[^a-z0-9]/g, '')
+    .replace(/(left|right)hand(thumb|index|middle|ring|pinky)/, '$1$2');
+  const bones = [];
+  root?.traverse?.((bone) => {
+    if (bone?.isBone) bones.push({ bone, name: normalize(bone.name) });
   });
-  return found;
+  for (const hint of names || []) {
+    const name = normalize(hint);
+    const exact = bones.find((entry) => entry.name === name || entry.name === `${name}1`);
+    if (exact) return exact.bone;
+  }
+  for (const hint of names || []) {
+    const name = normalize(hint);
+    const partial = bones.find((entry) => entry.name.includes(name));
+    if (partial) return partial.bone;
+  }
+  return null;
 }
 
 function captureTexasCharacterPose(bones = {}) {
@@ -1365,7 +1380,7 @@ async function loadAnyTexasDominoCharacterTemplate(preferredTheme, renderer = nu
   throw lastError || new Error('Texas Holdem GLTF character model unavailable for every fallback theme');
 }
 
-function createTexasCharacterRig(instance, seatRoot, seatIndex) {
+function createTexasCharacterRig(instance, seatRoot, seatIndex, isTuri = false) {
   const bones = {
     hips: findTexasCharacterBone(instance, ['hips', 'pelvis']),
     spine: findTexasCharacterBone(instance, ['spine', 'chest', 'torso']),
@@ -1402,6 +1417,7 @@ function createTexasCharacterRig(instance, seatRoot, seatIndex) {
   addTexasBoneOffset(bones.rightThigh, THREE.MathUtils.degToRad(-90.5), THREE.MathUtils.degToRad(1.7), THREE.MathUtils.degToRad(-1.1));
   addTexasBoneOffset(bones.leftCalf, THREE.MathUtils.degToRad(-95.1), THREE.MathUtils.degToRad(1.1), THREE.MathUtils.degToRad(0.6));
   addTexasBoneOffset(bones.rightCalf, THREE.MathUtils.degToRad(-95.1), THREE.MathUtils.degToRad(-1.1), THREE.MathUtils.degToRad(-0.6));
+  if (isTuri) applyTuriSeatedPose(instance);
   rig.seatedPose = captureTexasCharacterPose(bones);
   instance.position.y -= 0.09 * MODEL_SCALE;
   return rig;
@@ -1409,8 +1425,8 @@ function createTexasCharacterRig(instance, seatRoot, seatIndex) {
 
 async function attachTexasDominoCharacterToSeat(seatGroup, seatIndex, renderer) {
   if (!seatGroup?.group) return null;
-  const theme = getTexasDominoCharacterThemeForSeat(seatIndex);
   const isHumanSeat = Boolean(seatGroup.isHuman);
+  const theme = isHumanSeat ? TEXAS_PLAYER_CHARACTER : getTexasDominoCharacterThemeForSeat(seatIndex);
 
   const mountInstance = (sourceInstance, { replace = false } = {}) => {
     if (replace && seatGroup.character?.root?.parent) {
@@ -1419,7 +1435,20 @@ async function attachTexasDominoCharacterToSeat(seatGroup, seatIndex, renderer) 
       prior.parent.remove(prior);
     }
     const instance = sourceInstance;
-    enhanceTexasDominoCharacterMaterials(instance, theme, seatIndex);
+    if (theme.preserveMaterials) {
+      // The original material atlas includes Turi's face, clothing and emblem.
+      instance.traverse((mesh) => {
+        if (!mesh.isMesh) return;
+        const originals = Array.isArray(mesh.material) ? mesh.material : [mesh.material];
+        const copies = originals.map((material) => material?.clone?.() || material);
+        mesh.material = Array.isArray(mesh.material) ? copies : copies[0];
+      });
+      instance.updateMatrixWorld(true);
+      const height = new THREE.Box3().setFromObject(instance).getSize(new THREE.Vector3()).y;
+      if (height > 0) instance.scale.multiplyScalar(1.74 / height);
+    } else {
+      enhanceTexasDominoCharacterMaterials(instance, theme, seatIndex);
+    }
     normalizeTexasCharacterRoot(instance);
     const seatRoot = new THREE.Group();
     const characterScale = TEXAS_DOMINO_CHARACTER_PROPORTION_SCALE + (isHumanSeat ? TEXAS_DOMINO_HUMAN_CHARACTER_SCALE_BOOST : 0);
@@ -1441,13 +1470,15 @@ async function attachTexasDominoCharacterToSeat(seatGroup, seatIndex, renderer) 
     );
     seatRoot.add(instance);
     seatGroup.group.add(seatRoot);
-    const rig = createTexasCharacterRig(instance, seatRoot, seatIndex);
+    const rig = createTexasCharacterRig(instance, seatRoot, seatIndex, theme.id === TURI_CHARACTER.id);
     seatGroup.character = { root: seatRoot, rig, theme };
     return seatGroup.character;
   };
 
   try {
-    const template = await loadAnyTexasDominoCharacterTemplate(theme, renderer);
+    const template = await (isHumanSeat
+      ? loadTexasDominoCharacterTemplate(theme, renderer)
+      : loadAnyTexasDominoCharacterTemplate(theme, renderer));
     if (!seatGroup?.group?.parent || !template) return null;
     return mountInstance(cloneSkeleton(template));
   } catch (error) {

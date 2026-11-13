@@ -1,3 +1,4 @@
+import { TURI_CHARACTER } from './playerCharacter.js';
 import { TOKEN_TYPE_SEQUENCE } from '../utils/ludoTokenConstants.js';
 
 export const HEAD_PRESET_OPTIONS = Object.freeze([
@@ -450,7 +451,8 @@ export const HUMAN_CHARACTER_OPTIONS = Object.freeze([
     modelUrls: ['https://raw.githubusercontent.com/Surbh77/AI-teacher/main/avatar1.glb'],
     source: 'Surbh77/AI-teacher GitHub',
     license: 'Check repository license'
-  }
+  },
+  TURI_CHARACTER
 ]);
 
 export const TOKEN_PALETTE_OPTIONS = Object.freeze([

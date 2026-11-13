@@ -4,11 +4,12 @@ export async function loadCharacter(id: string) {
   const base = CHARACTERS.find((c) => c.id === id);
   const shared = SHARED_CHARACTERS.find((c) => c.id === id);
   const urls =
-    base || id === 'rpm-current' || !shared
+    base?.urls ||
+    (base || id === 'rpm-current' || !shared
       ? [
           `/assets/table-tennis/${base?.model || (id === 'rpm-current' ? 'chess-human' : 'athlete-male')}.glb`
         ]
-      : shared.urls;
+      : shared.urls);
   for (const url of urls) {
     try {
       return (await new GLTFLoader().loadAsync(url)).scene;

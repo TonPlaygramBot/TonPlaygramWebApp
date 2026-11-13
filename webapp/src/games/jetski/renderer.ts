@@ -10,6 +10,7 @@ import { DRACOLoader } from 'three/examples/jsm/loaders/DRACOLoader.js';
 import { KTX2Loader } from 'three/examples/jsm/loaders/KTX2Loader.js';
 import { MeshoptDecoder } from 'three/examples/jsm/libs/meshopt_decoder.module.js';
 import { createRider, poseRider, poseFallingRider } from './rider';
+import { TURI_MODEL_URL } from '../../config/playerCharacter.js';
 import { nearestLana } from './lanaCourse.mjs';
 import { makeLanaWaterGeometry } from './lanaWater';
 import { createRaceWater } from './water';
@@ -81,6 +82,7 @@ export class JetskiRenderer {
   private visuals = new Map<string, Visual>();
   private craft: T.Group | null = null;
   private human: T.Group | null = null;
+  private turi: T.Group | null = null;
   private buoyBatches: {
     mesh: T.InstancedMesh;
     points: { x: number; z: number }[];
@@ -221,7 +223,8 @@ export class JetskiRenderer {
         : loader
             .loadAsync('/assets/jetski-royal/rock/rock.gltf')
             .then((asset) => asset.scene),
-      new T.TextureLoader().loadAsync('/assets/jetski-royal/waternormals.jpg')
+      new T.TextureLoader().loadAsync('/assets/jetski-royal/waternormals.jpg'),
+      loader.loadAsync(TURI_MODEL_URL)
     ]);
     for (const r of settled)
       if (r.status === 'fulfilled') {
@@ -245,6 +248,7 @@ export class JetskiRenderer {
       scenery = (settled[2] as PromiseFulfilledResult<T.Group>).value;
     this.craft = craft.scene;
     this.human = human.scene;
+    this.turi = (settled[4] as PromiseFulfilledResult<GLTF>).value.scene;
     // Batch rigid parts by original material (and preserve the steering assembly).
     this.craft.updateMatrixWorld(true);
     const groups = new Map<T.Material, T.Mesh[]>();
@@ -502,7 +506,8 @@ export class JetskiRenderer {
         steeringParts.push(o);
     });
     steeringParts.forEach((o) => handle.attach(o));
-    const rider = createRider(this.human);
+    const useTuri = !r.ai && !!this.turi;
+    const rider = createRider(useTuri ? this.turi! : this.human, useTuri);
     root.add(rider.root);
     const name = label(
       `${r.ai ? 'AI · ' : ''}${r.name}`,
@@ -741,6 +746,7 @@ export class JetskiRenderer {
       textures = new Set<T.Texture>();
     for (const root of [this.scene, ...this.assets])
       root.traverse((o) => {
+        if (o instanceof T.SkinnedMesh) o.skeleton.dispose();
         if (
           o instanceof T.Mesh ||
           o instanceof T.Points ||

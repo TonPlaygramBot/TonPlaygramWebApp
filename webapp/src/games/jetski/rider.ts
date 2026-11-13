@@ -1,15 +1,25 @@
 import * as T from 'three';
 import { clone } from 'three/examples/jsm/utils/SkeletonUtils.js';
+import {
+  canonicalHumanoidBone,
+  humanoidBones,
+  normalizePlayableHuman
+} from '../tiranastreets/street-career/humanoidRig.mjs';
+import { solveHumanoidGrip } from '../tiranastreets/street-career/humanoidHands.mjs';
 
 type Rig = {
   root: T.Group;
   bones: Map<string, T.Bone[]>;
   rest: Map<T.Bone, T.Quaternion>;
   eye: T.Object3D;
+  turi: boolean;
+  canonical: Map<string, T.Bone>;
 };
 const v = (x = 0, y = 0, z = 0) => new T.Vector3(x, y, z);
-export function createRider(source: T.Group): Rig {
-  const model = clone(source) as T.Group;
+export function createRider(source: T.Group, turi = false): Rig {
+  const model = (
+    turi ? normalizePlayableHuman(clone(source), 1.76) : clone(source)
+  ) as T.Group;
   model.updateMatrixWorld(true);
   const bounds = new T.Box3().setFromObject(model),
     scale = 1.76 / (bounds.max.y - bounds.min.y);
@@ -17,12 +27,35 @@ export function createRider(source: T.Group): Rig {
   model.position.y = -bounds.min.y * scale;
   const root = new T.Group();
   root.add(model);
+  root.userData.characterId = turi ? 'turi' : 'athlete-male';
   root.position.set(0, -0.08, -0.05);
+  const aliases: Record<string, string> = {
+    head: 'Head',
+    neck: 'neck_01',
+    spine: 'spine_01',
+    spine1: 'spine_02',
+    spine2: 'spine_03',
+    leftarm: 'upperarm_l',
+    rightarm: 'upperarm_r',
+    leftforearm: 'lowerarm_l',
+    rightforearm: 'lowerarm_r',
+    lefthand: 'hand_l',
+    righthand: 'hand_r',
+    leftupleg: 'thigh_l',
+    rightupleg: 'thigh_r',
+    leftleg: 'calf_l',
+    rightleg: 'calf_r',
+    leftfoot: 'foot_l',
+    rightfoot: 'foot_r'
+  };
   const bones = new Map<string, T.Bone[]>(),
     rest = new Map<T.Bone, T.Quaternion>();
   model.traverse((o) => {
     if (o instanceof T.Bone) {
-      bones.set(o.name, [...(bones.get(o.name) || []), o]);
+      const alias = turi
+        ? aliases[canonicalHumanoidBone(o.name)] || o.name
+        : o.name;
+      bones.set(alias, [...(bones.get(alias) || []), o]);
       rest.set(o, o.quaternion.clone());
     }
     if (o instanceof T.Mesh) {
@@ -35,7 +68,10 @@ export function createRider(source: T.Group): Rig {
   const head = bones.get('Head')?.[0];
   if (head) {
     const eyes = model.getObjectByName('Eyes');
-    if (eyes) {
+    if (turi) {
+      root.updateMatrixWorld(true);
+      eye.position.copy(head.worldToLocal(root.localToWorld(v(0, 1.63, 0.07))));
+    } else if (eyes) {
       const center = new T.Box3().setFromObject(eyes, true).getCenter(v());
       eye.position.copy(head.worldToLocal(center));
       eye.position.z += 0.02;
@@ -47,7 +83,7 @@ export function createRider(source: T.Group): Rig {
     eye.position.set(0, 1.62, 0.12);
     root.add(eye);
   }
-  return { root, bones, rest, eye };
+  return { root, bones, rest, eye, turi, canonical: humanoidBones(model) };
 }
 function aim(a: T.Bone, b: T.Bone, target: T.Vector3) {
   a.updateWorldMatrix(true, true);
@@ -123,12 +159,24 @@ export function poseRider(
     ['l', 1],
     ['r', -1]
   ] as const) {
-    limb(
-      r,
-      [`upperarm_${side}`, `lowerarm_${side}`, `hand_${side}`],
-      world(sign * 0.37, 1.035, 0.42 + sign * steer * 0.08),
-      pole(sign, -0.4, -0.2)
-    );
+    const grip = world(sign * 0.37, 1.035, 0.42 + sign * steer * 0.08);
+    if (r.turi)
+      solveHumanoidGrip(
+        r.root,
+        r.canonical,
+        side === 'l' ? 'left' : 'right',
+        grip,
+        pole(0, 0, 1),
+        pole(0, -1, 0),
+        0.85
+      );
+    else
+      limb(
+        r,
+        [`upperarm_${side}`, `lowerarm_${side}`, `hand_${side}`],
+        grip,
+        pole(sign, -0.4, -0.2)
+      );
     limb(
       r,
       [`thigh_${side}`, `calf_${side}`, `foot_${side}`],

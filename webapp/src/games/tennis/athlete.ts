@@ -6,10 +6,76 @@ type Rig = {
   bones: Map<string, THREE.Bone>;
   rest: Map<THREE.Bone, THREE.Quaternion>;
   floorY: number;
+  authored: boolean;
 };
 const vec = (x = 0, y = 0, z = 0) => new THREE.Vector3(x, y, z);
 
-export function dressAthlete(model: THREE.Group, seat: Seat): Rig {
+/** Bind Mixamo names to the existing court IK without renaming the source rig. */
+export function bindTuriAthlete(model: THREE.Group): Rig {
+  const bounds = new THREE.Box3().setFromObject(model);
+  const scale = 1.75 / (bounds.max.y - bounds.min.y);
+  model.scale.multiplyScalar(scale);
+  model.position.y = -bounds.min.y * scale;
+  model.updateMatrixWorld(true);
+  const bones = new Map<string, THREE.Bone>();
+  const rest = new Map<THREE.Bone, THREE.Quaternion>();
+  const source = new Map<string, THREE.Bone>();
+  model.traverse((o) => {
+    const bone = o as THREE.Bone;
+    if (bone.isBone) {
+      source.set(bone.name.toLowerCase().replace(/[^a-z0-9]/g, ''), bone);
+      rest.set(bone, bone.quaternion.clone());
+    }
+    const mesh = o as THREE.Mesh;
+    if (mesh.isMesh) {
+      mesh.castShadow = true;
+      mesh.receiveShadow = true;
+      mesh.frustumCulled = false;
+    }
+  });
+  const aliases: Record<string, string> = { spine_02: 'Spine2', Head: 'Head' };
+  for (const [suffix, side] of [
+    ['l', 'Left'],
+    ['r', 'Right']
+  ]) {
+    for (const [key, name] of Object.entries({
+      thigh: 'UpLeg',
+      calf: 'Leg',
+      foot: 'Foot',
+      ball: 'ToeBase',
+      upperarm: 'Arm',
+      lowerarm: 'ForeArm',
+      hand: 'Hand'
+    }))
+      aliases[`${key}_${suffix}`] = `${side}${name}`;
+    for (const finger of ['index', 'middle', 'ring', 'pinky', 'thumb'])
+      for (let joint = 1; joint <= 3; joint++)
+        aliases[`${finger}_0${joint}_${suffix}`] =
+          `${side}Hand${finger[0].toUpperCase()}${finger.slice(1)}${joint}`;
+  }
+  for (const [alias, name] of Object.entries(aliases)) {
+    const bone = source.get(`mixamorig${name.toLowerCase()}`);
+    if (bone) bones.set(alias, bone);
+  }
+  for (const required of [
+    'upperarm_r',
+    'lowerarm_r',
+    'hand_r',
+    'thigh_l',
+    'foot_l'
+  ])
+    if (!bones.has(required))
+      throw Error(`Turi athlete joint missing: ${required}`);
+  return { model, bones, rest, floorY: model.position.y, authored: true };
+}
+
+export function dressAthlete(
+  model: THREE.Group,
+  seat: Seat,
+  authored = false
+): Rig {
+  // Never replace Turi's atlas, face, outfit or mesh with the procedural sports kit.
+  if (authored) return bindTuriAthlete(model);
   const bounds = new THREE.Box3().setFromObject(model);
   const scale = (seat === 0 ? 1.87 : 1.8) / (bounds.max.y - bounds.min.y);
   model.scale.multiplyScalar(scale);
@@ -188,7 +254,7 @@ export function dressAthlete(model: THREE.Group, seat: Seat): Rig {
     if (material instanceof THREE.MeshStandardMaterial) material.map?.dispose();
     material.dispose();
   });
-  return { model, bones, rest, floorY: model.position.y };
+  return { model, bones, rest, floorY: model.position.y, authored: false };
 }
 
 function aimBone(
@@ -340,7 +406,10 @@ export function poseAthlete(
       rig.bones
         .get(`${finger}_${joint}_r`)
         ?.quaternion.multiply(
-          new THREE.Quaternion().setFromAxisAngle(vec(0, 0, 1), 0.75)
+          new THREE.Quaternion().setFromAxisAngle(
+            rig.authored ? vec(1, 0, 0) : vec(0, 0, 1),
+            0.75
+          )
         );
     }
   root.updateWorldMatrix(true, true);

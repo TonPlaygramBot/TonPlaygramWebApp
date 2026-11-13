@@ -1,3 +1,4 @@
+import { applyTuriSeatedPose } from '../../../games/shared/turiSeatedPose.js';
 import * as THREE from 'three';
 import { clone as cloneSkeleton } from 'three/examples/jsm/utils/SkeletonUtils.js';
 import { CHESS_HUMAN_CHARACTER_OPTIONS } from '../../../config/chessBattleInventoryConfig.js';
@@ -33,7 +34,7 @@ function normalizePbrTexture(texture, maxAnisotropy = 1) {
 }
 
 function normalizeBoneName(name = '') {
-  return String(name).toLowerCase().replace(/[^a-z0-9]/g, '');
+  return String(name).toLowerCase().replace(/[^a-z0-9]/g, '').replace(/^mixamorig/, '').replace(/(left|right)hand(?=thumb|index|middle|ring|pinky)/g, '$1');
 }
 
 function findBoneByNeedle(bones, ...needles) {
@@ -61,6 +62,8 @@ export function saveSeatedHumanBoneRig(modelRoot) {
     });
   });
   return {
+    root: modelRoot,
+    characterId: modelRoot.userData?.playerCharacterId,
     saved,
     hips: findBoneByNeedle(bones, 'hips', 'pelvis'),
     spine: findBoneByNeedle(bones, 'spine'),
@@ -311,8 +314,23 @@ export function applySeatedHumanPose(rig, mode = 'idle', intensity = 1, handGrip
 
   addBoneRot(rig, rig.chest, chestX, 0, 0);
   addBoneRot(rig, rig.head, headX, 0, 0);
-  addBoneRot(rig, rig.rightUpperArm, shoulderX, shoulderY, shoulderZ);
-  addBoneRot(rig, rig.rightForeArm, forearmX, forearmY, forearmZ);
+  if (rig.characterId === 'turi') {
+    applyTuriSeatedPose(rig.root);
+    // Keep this game's action deltas on Turi's anatomically calibrated rest pose.
+    if (rig.rightUpperArm) {
+      rig.rightUpperArm.rotation.x += shoulderX - (-0.54);
+      rig.rightUpperArm.rotation.y += shoulderY - (-0.03);
+      rig.rightUpperArm.rotation.z += shoulderZ - (-0.18);
+    }
+    if (rig.rightForeArm) {
+      rig.rightForeArm.rotation.x += forearmX - (-0.18);
+      rig.rightForeArm.rotation.y += forearmY - (-0.02);
+      rig.rightForeArm.rotation.z += forearmZ - (0.04);
+    }
+  } else {
+    addBoneRot(rig, rig.rightUpperArm, shoulderX, shoulderY, shoulderZ);
+    addBoneRot(rig, rig.rightForeArm, forearmX, forearmY, forearmZ);
+  }
   addBoneRot(rig, rig.rightHand, wristX, wristY, wristZ);
   applyRightHandGrip(rig, handGrip);
 }
@@ -522,7 +540,7 @@ function applyChessDominoClothMaterial(mat, cloth, maxAnisotropy = 1) {
 }
 
 function enhanceChessDominoCharacterMaterials(instance, option, maxAnisotropy = 1, seatIndex = 0) {
-  if (!option?.dominoClothTheme || !instance?.traverse) return;
+  if (option?.preserveMaterials || !option?.dominoClothTheme || !instance?.traverse) return;
   const clothSlots = {
     upperCloth: resolveChessDominoClothSlot(option, 'upper', seatIndex),
     lowerCloth: resolveChessDominoClothSlot(option, 'lower', seatIndex),
@@ -681,9 +699,9 @@ export async function loadSeatedHumanTemplate({
 
     normalizeSeatedHumanRootToChair(root);
     const selectedAdapter = selectedOption?.seatedAdapter || {};
-    const skinTex = createSeatedHumanFallbackTexture('#d8c0a6', '#b48d6b');
-    const clothTex = createSeatedHumanFallbackTexture('#55739a', '#2c3f54');
-    const hairTex = createSeatedHumanFallbackTexture('#7b5d3f', '#3f2f20');
+    const skinTex = selectedOption.preserveMaterials ? null : createSeatedHumanFallbackTexture('#d8c0a6', '#b48d6b');
+    const clothTex = selectedOption.preserveMaterials ? null : createSeatedHumanFallbackTexture('#55739a', '#2c3f54');
+    const hairTex = selectedOption.preserveMaterials ? null : createSeatedHumanFallbackTexture('#7b5d3f', '#3f2f20');
     [skinTex, clothTex, hairTex].forEach((texture) => normalizePbrTexture(texture, maxAnisotropy));
     root.traverse((obj) => {
       if (!obj?.isMesh) return;
@@ -697,7 +715,7 @@ export async function loadSeatedHumanTemplate({
       const mats = Array.isArray(obj.material) ? obj.material : obj.material ? [obj.material] : [];
       const hasOriginalTexture = mats.some((mat) => Boolean(mat?.map || mat?.emissiveMap || mat?.normalMap || mat?.roughnessMap || mat?.metalnessMap));
       mats.forEach((mat) => {
-        const needsFallbackMap = !hasOriginalTexture && !mat?.map;
+        const needsFallbackMap = !selectedOption.preserveMaterials && !hasOriginalTexture && !mat?.map;
         if (needsFallbackMap) mat.map = fallbackTex;
         if (needsFallbackMap && mat?.color?.setHex) mat.color.setHex(0xffffff);
         if (mat?.map) {
@@ -718,6 +736,7 @@ export async function loadSeatedHumanTemplate({
     const seatedScaleMultiplier = Number.isFinite(selectedAdapter?.seatedScaleMultiplier) ? selectedAdapter.seatedScaleMultiplier : 1;
     root.userData = {
       ...(root.userData || {}),
+      playerCharacterId: selectedOption.id,
       seatedHumanScale: computeSeatedHumanScale(root, targetHeight, visualScaleMultiplier) * seatedScaleMultiplier,
       seatedYawOffset: Number.isFinite(selectedAdapter?.seatedYawOffset) ? selectedAdapter.seatedYawOffset : 0,
       seatedYOffset: Number.isFinite(selectedAdapter?.seatedYOffset) ? selectedAdapter.seatedYOffset : 0,

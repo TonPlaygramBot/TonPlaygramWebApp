@@ -1,3 +1,4 @@
+import { TURI_CHARACTER } from '../config/playerCharacter.js';
 import { SEATED_PLAYER_VIEW, resolveSeatedPlayerEyePosition, updateSeatedPlayerLook } from '../utils/seatedPlayerView';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import * as THREE from 'three';
@@ -3091,29 +3092,31 @@ function buildArena(
     })
     .catch(() => {});
 
-  loadSeatedHumanTemplate({
-    option: { ...CHESS_HUMAN_CHARACTER_OPTIONS[0], modelUrls: ['/assets/pool-royale/readyplayer.me.glb', ...CHESS_HUMAN_CHARACTER_OPTIONS[0].modelUrls] },
-    renderer,
-    targetHeight: SEATED_HUMAN_TARGET_HEIGHT,
-    visualScaleMultiplier: SEATED_HUMAN_VISUAL_SCALE_MULTIPLIER,
-    createLoader: createConfiguredGLTFLoader
-  })
-    .then((humanTemplate) => {
+  chairs.forEach((chair, seatIndex) => {
+    // Seat zero is the local player's eye-camera seat; rivals keep their own avatar.
+    const option = seatIndex === 0 ? TURI_CHARACTER : {
+      ...CHESS_HUMAN_CHARACTER_OPTIONS[0],
+      modelUrls: ['/assets/pool-royale/readyplayer.me.glb', ...CHESS_HUMAN_CHARACTER_OPTIONS[0].modelUrls]
+    };
+    loadSeatedHumanTemplate({
+      option, renderer,
+      targetHeight: SEATED_HUMAN_TARGET_HEIGHT,
+      visualScaleMultiplier: SEATED_HUMAN_VISUAL_SCALE_MULTIPLIER,
+      createLoader: createConfiguredGLTFLoader
+    }).then((humanTemplate) => {
       if (disposed) return;
-      chairs.forEach((chair, seatIndex) => {
-        const restoredHuman = createRestoredSeatedHumanActor(humanTemplate, chair.group, {
-          targetHeight: SEATED_HUMAN_TARGET_HEIGHT,
-          seatHeight: 0,
-          visualScaleMultiplier: SEATED_HUMAN_VISUAL_SCALE_MULTIPLIER,
-          seatedZOffset: SEATED_HUMAN_SEAT_Z_OFFSET + (seatIndex === 0 ? SELF_BOTTOM_HUMAN_EXTRA_Z_OFFSET : 0)
-        });
-        if (restoredHuman) {
-          chair.humanActor = restoredHuman;
-          chair.interaction = createSnakeHumanInteraction(restoredHuman.actor);
-        }
+      const restoredHuman = createRestoredSeatedHumanActor(humanTemplate, chair.group, {
+        targetHeight: SEATED_HUMAN_TARGET_HEIGHT,
+        seatHeight: 0,
+        visualScaleMultiplier: SEATED_HUMAN_VISUAL_SCALE_MULTIPLIER,
+        seatedZOffset: SEATED_HUMAN_SEAT_Z_OFFSET + (seatIndex === 0 ? SELF_BOTTOM_HUMAN_EXTRA_Z_OFFSET : 0)
       });
-    })
-    .catch((error) => console.warn('Unable to restore Snake & Ladder seated humans', error));
+      if (restoredHuman) {
+        chair.humanActor = restoredHuman;
+        chair.interaction = createSnakeHumanInteraction(restoredHuman.actor);
+      }
+    }).catch((error) => console.warn('Unable to restore Snake & Ladder seated human', option.id, error));
+  });
 
   const updatePlayerView = (position, eyeView) => {
     const head = chairs[0]?.humanActor?.rig?.head;

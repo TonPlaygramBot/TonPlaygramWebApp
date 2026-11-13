@@ -1,3 +1,5 @@
+import { applyTuriSeatedPose } from '../../games/shared/turiSeatedPose.js';
+import { TURI_CHARACTER } from '../../config/playerCharacter.js';
 import { SEATED_PLAYER_VIEW, resolveSeatedPlayerEyePosition } from '../../utils/seatedPlayerView';
 import { ludoTableFrame, prepareLudoParkedWeapon, parkLudoWeapon } from '../../utils/ludoTabletopLayout';
 import {createLudoMissileFx,createLudoExplosionFx,updateLudoExplosionFx} from '../../utils/ludoMissilePresentation';
@@ -3991,6 +3993,7 @@ const resolveHdriVariant = (index) => {
 };
 
 const APPEARANCE_STORAGE_KEY = 'ludoBattleRoyalArenaAppearance';
+const DEFAULT_HUMAN_CHARACTER_INDEX = HUMAN_CHARACTER_OPTIONS.findIndex(option => option.id === TURI_CHARACTER.id);
 const DEFAULT_APPEARANCE = {
   tables: 0,
   tableFinish: 0,
@@ -4001,7 +4004,8 @@ const DEFAULT_APPEARANCE = {
   tokenStyle: 0,
   tokenPiece: 0,
   captureAnimation: 0,
-  humanCharacter: 0
+  humanCharacter: DEFAULT_HUMAN_CHARACTER_INDEX,
+  humanCharacterCatalogVersion: 2
 };
 
 const CUSTOMIZATION_SECTIONS = [
@@ -4105,6 +4109,10 @@ function normalizeAppearance(value = {}) {
       normalized[key] = clamped;
     }
   });
+  if (value.humanCharacterCatalogVersion !== 2 && Number(value.humanCharacter) === 0) {
+    normalized.humanCharacter = DEFAULT_HUMAN_CHARACTER_INDEX;
+  }
+  normalized.humanCharacterCatalogVersion = 2;
   return normalized;
 }
 
@@ -5995,7 +6003,7 @@ function setDiceOrientation(dice, val) {
 }
 
 function normalizeBoneName(name = '') {
-  return String(name).toLowerCase().replace(/[^a-z0-9]/g, '');
+  return String(name).toLowerCase().replace(/[^a-z0-9]/g, '').replace(/^mixamorig/, '').replace(/(left|right)hand(?=thumb|index|middle|ring|pinky)/g, '$1');
 }
 
 function findBoneByNeedle(bones, ...needles) {
@@ -6039,6 +6047,8 @@ function saveBoneRig(modelRoot) {
     });
   });
   return {
+    root: modelRoot,
+    characterId: modelRoot.userData?.playerCharacterId,
     bones,
     saved,
     hips: findBoneByNeedle(bones, 'hips', 'pelvis'),
@@ -6672,8 +6682,22 @@ function applySeatedHumanPose(
 
   addBoneRot(rig, rig.chest, chestX, chestY, 0, 1);
   addBoneRot(rig, rig.head, headX, headY, 0, 1);
-  addBoneRot(rig, rig.rightUpperArm, shoulderX, shoulderY, shoulderZ, 1);
-  addBoneRot(rig, rig.rightForeArm, forearmX, forearmY, forearmZ, 1);
+  if (rig.characterId === 'turi') {
+    applyTuriSeatedPose(rig.root);
+    if (rig.rightUpperArm) {
+      rig.rightUpperArm.rotation.x += shoulderX - (chairSupportsArmrest ? -0.2 : -0.98);
+      rig.rightUpperArm.rotation.y += shoulderY - (chairSupportsArmrest ? -0.02 : -0.03);
+      rig.rightUpperArm.rotation.z += shoulderZ - (chairSupportsArmrest ? -0.72 : -0.06);
+    }
+    if (rig.rightForeArm) {
+      rig.rightForeArm.rotation.x += forearmX - (chairSupportsArmrest ? -0.5 : -0.12);
+      rig.rightForeArm.rotation.y += forearmY - (chairSupportsArmrest ? -0.04 : 0.02);
+      rig.rightForeArm.rotation.z += forearmZ - (chairSupportsArmrest ? 0.14 : -0.08);
+    }
+  } else {
+    addBoneRot(rig, rig.rightUpperArm, shoulderX, shoulderY, shoulderZ, 1);
+    addBoneRot(rig, rig.rightForeArm, forearmX, forearmY, forearmZ, 1);
+  }
   addBoneRot(rig, rig.rightHand, wristX, wristY, wristZ, 1);
   if (String(mode || '').startsWith('firearmAim')) {
     applyFirearmTriggerGrip(rig, handGrip);
@@ -7267,25 +7291,28 @@ async function loadSeatedHumanTemplate(renderer = null, humanOption = HUMAN_CHAR
         if (!gltf) throw lastError || new Error(`Unable to load seated human model for ${optionId}`);
         const root = gltf?.scene || gltf?.scenes?.[0];
         if (!root) throw new Error('Missing seated human scene');
-        const skinTex = createSeatedHumanFallbackTexture('#d8c0a6', '#b48d6b');
-        const clothTex = createSeatedHumanFallbackTexture('#55739a', '#2c3f54');
-        const shoesTex = createSeatedHumanFallbackTexture('#4a3324', '#1f1711');
-        const hairTex = createSeatedHumanFallbackTexture('#7b5d3f', '#3f2f20');
-        let textureProfile = null;
-        try {
-          textureProfile = await loadSeatedHumanTextureProfile(renderer, humanOption);
-        } catch (error) {
-          console.warn('Unable to load Poly Haven seated-human texture profile; using procedural fallback', optionId, error);
+        root.userData.playerCharacterId = humanOption.id;
+        if (!humanOption.preserveMaterials) {
+          const skinTex = createSeatedHumanFallbackTexture('#d8c0a6', '#b48d6b');
+          const clothTex = createSeatedHumanFallbackTexture('#55739a', '#2c3f54');
+          const shoesTex = createSeatedHumanFallbackTexture('#4a3324', '#1f1711');
+          const hairTex = createSeatedHumanFallbackTexture('#7b5d3f', '#3f2f20');
+          let textureProfile = null;
+          try {
+            textureProfile = await loadSeatedHumanTextureProfile(renderer, humanOption);
+          } catch (error) {
+            console.warn('Unable to load Poly Haven seated-human texture profile; using procedural fallback', optionId, error);
+          }
+          applySeatedHumanMaterialDetail(root, textureProfile || {
+            cloth: null,
+            shoes: null,
+            accessory: null,
+            skinTexture: skinTex,
+            skinTone: '#c99974',
+            hairColor: '#3f2f20',
+            eyeColor: '#3f6f8f'
+          }, { skinTex, clothTex, shoesTex, hairTex });
         }
-        applySeatedHumanMaterialDetail(root, textureProfile || {
-          cloth: null,
-          shoes: null,
-          accessory: null,
-          skinTexture: skinTex,
-          skinTone: '#c99974',
-          hairColor: '#3f2f20',
-          eyeColor: '#3f6f8f'
-        }, { skinTex, clothTex, shoesTex, hairTex });
         applyModelQualityToObject(root);
         return root;
       })()

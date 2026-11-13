@@ -9,6 +9,7 @@ import React, {
 import * as THREE from 'three';
 import { royalCameraBlendFromDrag, captureRoyalPlayerView } from './shared/royalCameraControls.ts';
 import { PoolRoyalHumanPlayers } from './shared/PoolRoyalHumanPlayers.ts';
+import { TURI_MODEL_URL } from '../../config/playerCharacter.js';
 import { resolvePoolRoyalAddressState } from './shared/poolRoyalAddress.ts';
 import { poolRoyalHudLayout, POOL_SPIN_DIAMETER_PX, POOL_AVATAR_SIZE_PX } from './poolRoyalHudLayout.js';
 import { PoolRoyalPocketLights } from './shared/poolRoyalPocketLights.ts';
@@ -25687,6 +25688,8 @@ const shotPowerRef = useRef(0);
         if (disposed) return;
         referencePlayers = new PoolRoyalHumanPlayers(world, {
           floorY,
+          renderer,
+          localPlayer: { seat: localSeatRef.current, modelUrl: TURI_MODEL_URL },
           realisticMovement: true,
           clothY: TABLE_Y + CLOTH_TOP_LOCAL + CLOTH_LIFT - CLOTH_DROP,
           tableW: SHOWOOD_GEOMETRY.footprint.width,

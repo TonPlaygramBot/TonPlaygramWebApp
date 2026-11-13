@@ -1,5 +1,7 @@
+import { TURI_CHARACTER } from './playerCharacter.js';
 import {
   CAPTURE_ANIMATION_OPTIONS,
+  HUMAN_CHARACTER_OPTIONS,
   TOKEN_PALETTE_OPTIONS,
   TOKEN_PIECE_OPTIONS,
   TOKEN_STYLE_OPTIONS
@@ -12,6 +14,7 @@ import { swatchThumbnail } from './storeThumbnails.js';
 import { TABLE_CLOTH_OPTIONS } from '../utils/tableCustomizationOptions.js';
 
 export const LUDO_BATTLE_DEFAULT_UNLOCKS = Object.freeze({
+  humanCharacter: [TURI_CHARACTER.id, HUMAN_CHARACTER_OPTIONS[0]?.id],
   tables: [MURLAN_TABLE_THEMES[0]?.id],
   tableFinish: [MURLAN_TABLE_FINISHES[0]?.id],
   tableCloth: [TABLE_CLOTH_OPTIONS[0]?.id],
@@ -30,6 +33,7 @@ const reduceLabels = (options) =>
   }, {});
 
 export const LUDO_BATTLE_OPTION_LABELS = Object.freeze({
+  humanCharacter: Object.freeze(reduceLabels(HUMAN_CHARACTER_OPTIONS)),
   tables: Object.freeze(reduceLabels(MURLAN_TABLE_THEMES)),
   tableFinish: Object.freeze(reduceLabels(MURLAN_TABLE_FINISHES)),
   tableCloth: Object.freeze(reduceLabels(TABLE_CLOTH_OPTIONS)),

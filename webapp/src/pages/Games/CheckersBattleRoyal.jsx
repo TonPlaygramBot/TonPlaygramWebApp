@@ -1,3 +1,4 @@
+import { TURI_CHARACTER } from '../../config/playerCharacter.js';
 import { fitCheckersTable } from '../../games/checkers/checkersTableFit.ts';
 import { createSeatedHumanModelLibrary } from '../../games/chess/seatedHumanModel.js';
 import { createCheckersHumanActor, updateCheckersHumanMove, idleCheckersHuman, disposeCheckersHuman, setCheckersHumanView, checkersSeatForSide, checkersPortraitFov, CHECKERS_HUMAN_CAMERA_TARGET_HEIGHT, PHYSICAL_MOVE_DURATION_MS } from '../../games/checkers/checkersHumanActors.ts';
@@ -1734,7 +1735,7 @@ export default function CheckersBattleRoyal() {
       boardTheme:
         inventory.boardTheme?.[0] || CHECKERS_BOARD_THEME_OPTIONS[0]?.id,
       headStyle: inventory.headStyle?.[0] || 'current',
-      humanCharacter: inventory.humanCharacter?.[0] || CHESS_HUMAN_CHARACTER_OPTIONS[0].id
+      humanCharacter: TURI_CHARACTER.id
     }),
     [inventory]
   );

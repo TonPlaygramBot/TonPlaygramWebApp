@@ -292,7 +292,7 @@ export default function TennisGame({
   }, [hints]);
   useEffect(() => {
     if (renderer.current) {
-      renderer.current.seat = own;
+      renderer.current.setLocalSeat(own);
       renderer.current.resizeToFit();
     }
   }, [own]);
@@ -1154,7 +1154,11 @@ export default function TennisGame({
             Original tennis.
           </h2>
           <p>
-            Human player models:{' '}
+            Turi: the user-supplied Tirana Streets character, with his original
+            face, black outfit and UÇK emblem.
+          </p>
+          <p>
+            Opponent athlete models:{' '}
             <a
               href="https://quaternius.com/packs/universalbasecharacters.html"
               target="_blank"

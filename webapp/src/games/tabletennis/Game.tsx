@@ -69,7 +69,7 @@ export default function TableTennisGame({
     [score, setScore] = useState(frame.current),
     [career, setCareer] = useState<Career>(freshCareer()),
     [arena, setArena] = useState(launch?.arena || 'dancingHall'),
-    [character, setCharacter] = useState(launch?.character || 'athlete-male'),
+    [character, setCharacter] = useState(launch?.character || 'turi'),
     [difficulty, setDifficulty] = useState(launch?.difficulty ?? 1),
     [format, setFormat] = useState(launch?.format || 'quick');
   const [error, setError] = useState(''),
@@ -381,10 +381,12 @@ export default function TableTennisGame({
     };
   }, [services]);
   const actor0 = room.current
-    ? room.current.players?.[0]?.character || 'athlete-male'
+    ? room.current.players?.[0]?.character ||
+      (seat === 0 ? character : 'athlete-male')
     : character;
   const actor1 = room.current
-    ? room.current.players?.[1]?.character || 'athlete-female'
+    ? room.current.players?.[1]?.character ||
+      (seat === 1 ? character : 'athlete-female')
     : character === 'athlete-female'
       ? 'athlete-male-gold'
       : 'athlete-female';
@@ -928,6 +930,10 @@ export default function TableTennisGame({
             ← Back
           </button>
           <h2>Behind the rally</h2>
+          <p>
+            Turi: the user-supplied Tirana Streets character, with his original
+            face, black outfit and UÇK emblem.
+          </p>
           <p>
             Chess veteran: the Ready Player Me human already used by Chess
             Battle Royal, preserved with original attribution.

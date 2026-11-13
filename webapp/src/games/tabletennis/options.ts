@@ -1,3 +1,7 @@
+import {
+  TURI_CHARACTER_ID,
+  TURI_MODEL_URL
+} from '../../config/playerCharacter.js';
 import { CHESS_HUMAN_CHARACTER_OPTIONS } from '../../config/chessBattleInventoryConfig.js';
 import {
   getChessBattleInventory,
@@ -6,7 +10,23 @@ import {
 export const CHESS_CHARACTER = CHESS_HUMAN_CHARACTER_OPTIONS.find(
   (c: { id: string }) => c.id === 'rpm-current'
 );
-export const CHARACTERS = [
+export type CharacterOption = {
+  id: string;
+  name: string;
+  description: string;
+  color: string;
+  model: string;
+  urls?: readonly string[];
+};
+export const CHARACTERS: CharacterOption[] = [
+  {
+    id: TURI_CHARACTER_ID,
+    name: 'Turi',
+    description: 'Tirana Streets player · original black UÇK outfit',
+    color: '#17191d',
+    model: TURI_CHARACTER_ID,
+    urls: [TURI_MODEL_URL]
+  },
   {
     id: 'chess-human',
     name: 'Chess veteran',
@@ -82,8 +102,10 @@ export function ownedAppearance(): AppearanceChoices {
   return {
     characters: [
       ...CHARACTERS,
-      ...SHARED_CHARACTERS.filter((c) =>
-        isChessOptionUnlocked('humanCharacter', c.id, inventory)
+      ...SHARED_CHARACTERS.filter(
+        (c) =>
+          !CHARACTERS.some((base) => base.id === c.id) &&
+          isChessOptionUnlocked('humanCharacter', c.id, inventory)
       )
     ],
     arenas: ARENAS

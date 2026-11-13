@@ -7,7 +7,7 @@ const root = document.getElementById('table-tennis-preview');
 const launch = {
   mode: 'ai',
   arena: 'dancingHall',
-  character: 'athlete-male',
+  character: 'turi',
   difficulty: 2,
   format: 'quick'
 };

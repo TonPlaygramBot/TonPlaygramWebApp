@@ -129,6 +129,7 @@ import { clipGuideTravel } from './shared/billiardsGuideGeometry.js';
 import { isSnookerObstructed } from '../../utils/snookerVisibility.js';
 import { resolveSnookerImpactAudio } from './snookerImpactAudio.js';
 import { PoolRoyalHumanPlayers } from './shared/PoolRoyalHumanPlayers.ts';
+import { TURI_MODEL_URL } from '../../config/playerCharacter.js';
 import { resolvePoolRoyalAddressState } from './shared/poolRoyalAddress.ts';
 import { SnookerRoyalShotCamera, SNOOKER_PLAYER_FOLLOW_THROUGH_MS, snookerRoyalFallbackEye } from './snookerRoyalShotCamera.ts';
 import {
@@ -21994,6 +21995,8 @@ const shotPowerRef = useRef(0);
       const characterLookTarget = new THREE.Vector3();
       const referencePlayers = new PoolRoyalHumanPlayers(world, {
         floorY,
+        renderer,
+        localPlayer: { seat: localSeatRef.current, modelUrl: TURI_MODEL_URL },
         clothY: TABLE_Y + CLOTH_TOP_LOCAL + CLOTH_LIFT - CLOTH_DROP,
         tableW: Math.max(TABLE.W, PLAY_W),
         tableL: Math.max(TABLE.H, PLAY_H),

@@ -1,5 +1,7 @@
 import * as THREE from 'three';
-import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js';
+import { HumanModelLoader } from '../../../games/tiranastreets/HumanModelLoader.ts';
+import { TURI_MODEL_URL } from '../../../config/playerCharacter.js';
+import { BILLIARDS_REFERENCE_HEIGHT, addTuriBilliardsEyeSockets } from './poolRoyalTuri.ts';
 import { clone as cloneSkeleton } from 'three/examples/jsm/utils/SkeletonUtils.js';
 import {
   CFG, HUMAN_URL, createCue, createReferenceHuman,
@@ -72,6 +74,9 @@ type Options = {
   targetHeight?: number;
   modelUrl?: string;
   model?: THREE.Object3D;
+  /** The local player uses Turi; the other seat retains its current character. */
+  localPlayer?: { seat: PlayerSeat; modelUrl: string; model?: THREE.Object3D };
+  renderer?: THREE.WebGLRenderer;
   /** Pool opts in; other games retain their existing timing and character pose. */
   realisticMovement?: boolean;
   /** Anchor the lens to the eye bones independently of locomotion style. */
@@ -196,19 +201,41 @@ export class PoolRoyalHumanPlayers {
     this.group.name = 'PoolRoyalReferencePlayers';
     this.group.position.y = options.floorY;
     parent.add(this.group);
+    const loader = new HumanModelLoader();
+    if (options.renderer) loader.configure(options.renderer);
     const load = options.model
       ? Promise.resolve(options.model)
-      : new GLTFLoader().loadAsync(options.modelUrl ?? HUMAN_URL).then(gltf => gltf.scene);
-    this.ready = load.then(model => {
+      : loader.loadAsync(options.modelUrl ?? HUMAN_URL).then(gltf => gltf.scene);
+    const localLoad = options.localPlayer
+      ? options.localPlayer.model ? Promise.resolve(options.localPlayer.model)
+        : loader.loadAsync(options.localPlayer.modelUrl).then(gltf => gltf.scene)
+      : load;
+    this.ready = Promise.allSettled([load, localLoad]).then(([standard, local]) => {
+      if (standard.status === 'rejected' || local.status === 'rejected') {
+        const owned = new Set<THREE.Object3D>();
+        if (standard.status === 'fulfilled' && !options.model) owned.add(standard.value);
+        if (local.status === 'fulfilled' && options.localPlayer && !options.localPlayer.model) owned.add(local.value);
+        owned.forEach(disposeResources);
+        throw standard.status === 'rejected' ? standard.reason : (local as PromiseRejectedResult).reason;
+      }
+      const model = standard.value, localModel = local.value;
       if (this.disposed) {
         if (!options.model) disposeResources(model);
+        if (localModel !== model && !options.localPlayer?.model) disposeResources(localModel);
         return false;
       }
       for (const seat of ['A', 'B'] as const) {
+        const isLocal = options.localPlayer?.seat === seat;
+        const isTuri = isLocal && options.localPlayer?.modelUrl === TURI_MODEL_URL;
         // Object3D.clone alone shares bone references between skinned players.
-        const human = createReferenceHuman(cloneSkeleton(model));
+        const human = createReferenceHuman(cloneSkeleton(isLocal ? localModel : model), isTuri
+          ? { referenceHeight: BILLIARDS_REFERENCE_HEIGHT, preserveMaterials: true } : {});
+        if (isTuri) {
+          human.model!.userData.playerCharacterId = 'turi';
+          addTuriBilliardsEyeSockets(human);
+        }
         if (!human.activeGlb) throw new Error('The reference character skeleton is incomplete.');
-        if (options.realisticMovement) addPoolRoyalHandDetails(human);
+        if (options.realisticMovement && !isTuri) addPoolRoyalHandDetails(human);
         if (!this.players.length) {
           const height = new THREE.Box3().setFromObject(human.modelRoot).getSize(new THREE.Vector3()).y;
           this.scale = this.humanHeight / height;
@@ -233,7 +260,7 @@ export class PoolRoyalHumanPlayers {
       if (!this.disposed) options.onError?.(error);
       this.dispose();
       return false;
-    });
+    }).finally(() => loader.dispose());
   }
 
   toReference(point: THREE.Vector3) {
@@ -266,7 +293,8 @@ export class PoolRoyalHumanPlayers {
       if (player.firstPerson) {
         // Only the local shooter's face is suppressed, and only while this
         // camera is entering/leaving the eye position. Other heads stay intact.
-        const eye = player.human.model!.getObjectByName('LeftEye')!.getWorldPosition(new THREE.Vector3());
+        const eye = (player.human.model!.getObjectByName('LeftEye') ?? player.human.bones.head!)
+          .getWorldPosition(new THREE.Vector3());
         const faceRadius = CFG.humanScale * 0.19 * this.group.getWorldScale(new THREE.Vector3()).x;
         player.firstPerson.setCamera(camera, player.seat === firstPersonSeat && cameraPos.distanceTo(eye) < faceRadius);
         continue;
@@ -501,7 +529,10 @@ export class PoolRoyalHumanPlayers {
     this.readyToShoot = false;
     this.walking = false;
     // The gameplay cue owns shared geometry/materials; do not dispose its copies here.
-    for (const player of this.players) player.cueModel?.removeFromParent();
+    for (const player of this.players) {
+      player.cueModel?.removeFromParent();
+      player.firstPerson?.dispose();
+    }
     this.cueAppearance = null;
     disposeResources(this.group);
     this.group.removeFromParent();

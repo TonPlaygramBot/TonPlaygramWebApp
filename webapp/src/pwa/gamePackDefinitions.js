@@ -1,4 +1,5 @@
 import gamesCatalog from '../config/gamesCatalog.js';
+import { TURI_MODEL_URL } from '../config/playerCharacter.js';
 
 // One catalog drives generation, the browser fallback and every Games card.
 // Downloading web media does not authorize removing it from the native shell.
@@ -92,7 +93,25 @@ const extraFiles = {
   chessbattleroyal: ['chess-royale.html']
 };
 export const GAME_PACK_DEFINITIONS = Object.freeze([
-  ...heavyPacks.map(pack => ({ ...pack, runtimeMedia: true })),
+  ...heavyPacks.map(pack => ({
+    ...pack,
+    // Turi is a shared player, so launching a table or sports game must never
+    // require downloading the whole Tirana city pack.
+    dependencies: pack.gameSlugs?.length
+      ? [...(pack.dependencies || []), 'shared-player-character']
+      : pack.dependencies,
+    excludeFiles: pack.id === 'tirana-streets'
+      ? [...(pack.excludeFiles || []), TURI_MODEL_URL.slice(1)]
+      : pack.excludeFiles,
+    runtimeMedia: true
+  })),
+  {
+    id: 'shared-player-character', title: 'Turi player character', hidden: true,
+    description: 'Turi’s original model and textures, shared by every game.',
+    gameSlugs: [], roots: [],
+    files: [TURI_MODEL_URL.slice(1), 'assets/tirana-streets/players/ATTRIBUTION.txt'],
+    dependencies: [], runtimeMedia: true, keepInNative: true
+  },
   {
     id: 'shared-table-games', title: 'Shared game characters and materials', hidden: true,
     description: 'Shared models, textures, audio and game libraries.', gameSlugs: [],
@@ -106,6 +125,6 @@ export const GAME_PACK_DEFINITIONS = Object.freeze([
     gameSlugs: [game.slug], route: game.route, cover: game.image,
     roots: [`assets/${game.slug}`, `models/${game.slug}`],
     files: [decodeURIComponent(game.image).replace(/^\//, ''), ...(extraFiles[game.slug] || [])],
-    dependencies: ['shared-table-games'], runtimeMedia: true, keepInNative: true
+    dependencies: ['shared-table-games', 'shared-player-character'], runtimeMedia: true, keepInNative: true
   }))
 ]);

@@ -27,7 +27,7 @@ const DEFAULT_MURLAN_SHARED_IDS = Object.freeze({
 
 
 const DEFAULT_UNLOCKED_CHARACTER_IDS = Object.freeze(
-  MURLAN_CHARACTER_THEMES.filter((theme, index) => index === 0 || theme?.sourceUrl?.includes('sketchfab.com/3d-models/'))
+  MURLAN_CHARACTER_THEMES.filter((theme, index) => index === 0 || theme?.price === 0 || theme?.sourceUrl?.includes('sketchfab.com/3d-models/'))
     .map((theme) => theme.id)
     .filter(Boolean)
 );
@@ -147,8 +147,8 @@ export const MURLAN_ROYALE_DEFAULT_LOADOUT = [
   },
   {
     type: 'characters',
-    optionId: MURLAN_CHARACTER_THEMES[0].id,
-    label: MURLAN_CHARACTER_THEMES[0].label
+    optionId: 'turi',
+    label: 'Turi'
   },
   {
     type: 'tableCloth',

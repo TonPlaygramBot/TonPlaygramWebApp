@@ -6,6 +6,8 @@ import {CityJobGuide} from './CityJobGuide';
 import {createRacingRoadside} from './RacingRoadside';
 import {STEERING_WHEEL_ANGLE} from './driverPose.mjs';
 import { KartDriver } from './KartDriver';
+import { TuriKartDriver } from './TuriKartDriver';
+import { TURI_MODEL_URL } from '../../config/playerCharacter.js';
 import { KartMotion } from './KartMotion';
 import { RacingCockpit } from './RacingCockpit';
 import { createWebGLRenderer } from '../tiranastreets/createWebGLRenderer';
@@ -133,7 +135,7 @@ interface KartRig {
   wheelRadius: number;
   driverEye?: T.Vector3;
   cockpit?: RacingCockpit;
-  driver?: KartDriver;
+  driver?: KartDriver | TuriKartDriver;
   aero?: T.Object3D;
   lights: T.MeshStandardMaterial[];
   smoke: T.Mesh;
@@ -338,7 +340,7 @@ export class KartRenderer {
         loader.loadAsync(vehicleAssetUrl(k.id, true))
       ),
       ...cockpitStyles.map(style => loader.loadAsync(COCKPIT_URL + style + '.glb')),
-      loader.loadAsync('/assets/kart-royale/karts/race-driver.glb'),
+      loader.loadAsync(TURI_MODEL_URL),
       loader.loadAsync('/assets/kart-royale/karts/race-driver-lod.glb')
     ]);
     draco.dispose();
@@ -418,6 +420,7 @@ export class KartRenderer {
       this.cockpitModels.set(style,model);this.collectTextures(model);
     });
     this.driverModels = results.slice(-2).map(r => (r as PromiseFulfilledResult<import('three/examples/jsm/loaders/GLTFLoader.js').GLTF>).value.scene);
+    this.driverModels.forEach(model => this.collectTextures(model));
     this.roadMaps = results
       .slice(3, 6)
       .map((r) => (r as PromiseFulfilledResult<T.Texture>).value);
@@ -556,7 +559,11 @@ export class KartRenderer {
       }
     }
     const driverModel = this.driverModels[low ? 1 : 0];
-    if (driverModel) { rig.driver = new KartDriver(driverModel, COLORS[slot % 6], kartId === 'oopi'); rig.body.add(rig.driver.root); }
+    if (driverModel) {
+      rig.driver = low ? new KartDriver(driverModel, COLORS[slot % 6], kartId === 'oopi')
+        : new TuriKartDriver(driverModel, COLORS[slot % 6], kartId === 'oopi');
+      rig.body.add(rig.driver.root);
+    }
     const cabin=this.cockpitModels.get(cockpitStyle(kartId));
     if(!rig.driver && !low && cabin && rig.driverEye)rig.cockpit=new RacingCockpit(cabin,model,rig.body,rig.driverEye);
     this.rigs.set(model, rig);
@@ -1335,6 +1342,7 @@ export class KartRenderer {
     const mats = new Set<T.Material>(),
       geos = new Set<T.BufferGeometry>();
     group.traverse((o) => {
+      o.userData.releaseKartDriver?.();
       if (o instanceof T.Mesh) {
         if (geometry || o.geometry.userData.kartOwned) geos.add(o.geometry);
         if (geometry && o instanceof T.InstancedMesh) o.dispose();

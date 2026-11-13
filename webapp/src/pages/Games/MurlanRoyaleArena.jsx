@@ -6,6 +6,7 @@ import React, {
   useState
 } from 'react';
 import * as THREE from 'three';
+import { applyTuriSeatedPose } from '../../games/shared/turiSeatedPose.js';
 import { renderToStaticMarkup } from 'react-dom/server';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 import * as OpenSourceDeck from '@letele/playing-cards';
@@ -52,7 +53,7 @@ import {
   BATTLE_ROYALE_SHARED_TABLE_FINISH_OPTIONS as MURLAN_TABLE_FINISHES,
   BATTLE_ROYALE_SHARED_TABLE_THEME_OPTIONS as TABLE_THEMES
 } from '../../config/battleRoyaleSharedInventory.js';
-import { MURLAN_CHARACTER_THEMES } from '../../config/murlanCharacterThemes.js';
+import { MURLAN_CHARACTER_THEMES, DEFAULT_MURLAN_CHARACTER_INDEX } from '../../config/murlanCharacterThemes.js';
 import { giftSounds } from '../../utils/giftSounds.js';
 import { getAvatarUrl } from '../../utils/avatarUtils.js';
 import { getGameVolume, isGameMuted } from '../../utils/sound.js';
@@ -197,7 +198,7 @@ function buildSeatCharacterThemeRoster(baseTheme, players = [], humanSeatIndex =
   const playerSignature = players
     .map((player, index) => `${index}:${player?.name || ''}:${player?.avatar || ''}:${player?.isHuman ? 'h' : 'ai'}`)
     .join('|');
-  const aiThemePool = availableThemes.filter((theme) => theme.id !== selectedId);
+  const aiThemePool = availableThemes.filter((theme) => theme.id !== selectedId && theme.id !== 'turi');
   const shuffledAiThemes = (aiThemePool.length ? aiThemePool : availableThemes)
     .map((theme, index) => ({
       theme,
@@ -1422,7 +1423,7 @@ const DEFAULT_APPEARANCE = {
   outfit: 0,
   cards: 0,
   stools: DEFAULT_STOOL_INDEX,
-  characters: 0,
+  characters: DEFAULT_MURLAN_CHARACTER_INDEX,
   tables: 0,
   tableShape: DEFAULT_TABLE_SHAPE_INDEX,
   tableCloth: DEFAULT_TABLE_CLOTH_INDEX,
@@ -2330,6 +2331,7 @@ function preserveOriginalCharacterMaterials(instance, characterTheme = null, ren
       [mat.normalMap, mat.roughnessMap, mat.metalnessMap, mat.aoMap, mat.alphaMap]
         .filter(Boolean)
         .forEach((texture) => normalizeOriginalCharacterTexture(texture, { maxAnisotropy }));
+      if (characterTheme?.id === 'turi') return mat;
       mat.envMapIntensity = Math.max(mat.envMapIntensity ?? 0.45, characterTheme?.sourceFormat === 'sketchfab-converted-gltf' ? 0.62 : 0.45);
       mat.roughness = Math.min(Math.max(mat.roughness ?? 0.68, 0.28), 0.92);
       if (mat.opacity <= 0.02 && !mat.alphaMap) {
@@ -2344,17 +2346,25 @@ function preserveOriginalCharacterMaterials(instance, characterTheme = null, ren
 }
 
 function findBoneByHints(root, hints = []) {
-  if (!root || !hints.length) return null;
-  let matched = null;
-  root.traverse((obj) => {
-    if (matched || !obj?.isBone) return;
-    const name = String(obj.name || '').toLowerCase();
-    if (!name) return;
-    if (hints.some((hint) => name.includes(hint))) {
-      matched = obj;
-    }
+  // Match the joint itself before descendants such as HeadTop_End or HandIndex4.
+  const normalize = (name) => String(name || '').toLowerCase()
+    .replace(/mixamorig\d*|[^a-z0-9]/g, '')
+    .replace(/(left|right)hand(thumb|index|middle|ring|pinky)/, '$1$2');
+  const bones = [];
+  root?.traverse?.((bone) => {
+    if (bone?.isBone) bones.push({ bone, name: normalize(bone.name) });
   });
-  return matched;
+  for (const hint of hints || []) {
+    const name = normalize(hint);
+    const exact = bones.find((entry) => entry.name === name || entry.name === `${name}1`);
+    if (exact) return exact.bone;
+  }
+  for (const hint of hints || []) {
+    const name = normalize(hint);
+    const partial = bones.find((entry) => entry.name.includes(name));
+    if (partial) return partial.bone;
+  }
+  return null;
 }
 
 function captureBoneRotation(bone) {
@@ -2522,6 +2532,8 @@ function createCharacterRig(instance, seatRoot, seatConfig, characterTheme, play
   applyRotationOffset(rightThigh, THREE.MathUtils.degToRad(-90.5), THREE.MathUtils.degToRad(1.7), THREE.MathUtils.degToRad(-1.1));
   applyRotationOffset(leftCalf, THREE.MathUtils.degToRad(-95.1), THREE.MathUtils.degToRad(1.1), THREE.MathUtils.degToRad(0.6));
   applyRotationOffset(rightCalf, THREE.MathUtils.degToRad(-95.1), THREE.MathUtils.degToRad(-1.1), THREE.MathUtils.degToRad(-0.6));
+
+  if (characterTheme?.id === 'turi') applyTuriSeatedPose(instance);
 
   rig.seatedPose = {
     hips: captureBoneRotation(hips),

@@ -1,3 +1,4 @@
+import { TURI_CHARACTER } from './playerCharacter.js';
 import { MURLAN_STOOL_THEMES, MURLAN_TABLE_THEMES } from './murlanThemes.js';
 import { CAPTURE_ANIMATION_OPTIONS } from './ludoBattleOptions.js';
 import { MURLAN_TABLE_FINISHES } from './murlanTableFinishes.js';
@@ -179,8 +180,18 @@ export const CHESS_HUMAN_CHARACTER_OPTIONS = Object.freeze([
     source: 'Surbh77/AI-teacher GitHub',
     license: 'Check repository license',
     author: 'Surbh77'
+  },
+  {
+    ...TURI_CHARACTER,
+    seatedAdapter: DEFAULT_SEATED_HUMAN_ADAPTER,
+    description: 'Turi from Tirana Streets, with his original black outfit and UÇK emblem.',
+    thumbnail: swatchThumbnail(['#111111', '#080808', '#ae8b74']),
+    source: 'User-supplied Turi workshop',
+    license: 'User-supplied asset; no additional licence specified'
   }
 ]);
+
+export const CHESS_DEFAULT_HUMAN_CHARACTER_INDEX = CHESS_HUMAN_CHARACTER_OPTIONS.findIndex(option => option.id === TURI_CHARACTER.id);
 
 // Saved appearances used numeric indices before unavailable source models were retired.
 // Keep this order only for migration; retired characters are never loading candidates.
@@ -213,12 +224,15 @@ const LEGACY_CHESS_HUMAN_CHARACTER_IDS = Object.freeze([
 
 export function normalizeChessHumanCharacterSelection(value = {}) {
   const index = Math.round(Number(value.humanCharacter));
-  if (!Number.isInteger(index) || index < 0) return 0;
-  if (value.humanCharacterCatalogVersion === 2) {
-    return index < CHESS_HUMAN_CHARACTER_OPTIONS.length ? index : 0;
+  if (!Number.isInteger(index) || index < 0) return CHESS_DEFAULT_HUMAN_CHARACTER_INDEX;
+  // The previous free default becomes Turi; saved non-default choices remain valid.
+  if (value.humanCharacterCatalogVersion !== 3 && index === 0) return CHESS_DEFAULT_HUMAN_CHARACTER_INDEX;
+  if (value.humanCharacterCatalogVersion === 2 || value.humanCharacterCatalogVersion === 3) {
+    return index < CHESS_HUMAN_CHARACTER_OPTIONS.length ? index : CHESS_DEFAULT_HUMAN_CHARACTER_INDEX;
   }
   const previousId = LEGACY_CHESS_HUMAN_CHARACTER_IDS[index];
-  return Math.max(0, CHESS_HUMAN_CHARACTER_OPTIONS.findIndex((option) => option.id === previousId));
+  const migrated = CHESS_HUMAN_CHARACTER_OPTIONS.findIndex(option => option.id === previousId);
+  return migrated < 0 ? CHESS_DEFAULT_HUMAN_CHARACTER_INDEX : migrated;
 }
 
 const CHESS_STORE_HUMAN_CHARACTER_IDS = Object.freeze([
@@ -356,7 +370,7 @@ export const CHESS_BATTLE_DEFAULT_UNLOCKS = Object.freeze({
   sideColor: ['amberGlow', 'mintVale'],
   boardTheme: ['classic'],
   headStyle: ['current'],
-  humanCharacter: [CHESS_HUMAN_CHARACTER_OPTIONS[0]?.id],
+  humanCharacter: [TURI_CHARACTER.id, CHESS_HUMAN_CHARACTER_OPTIONS[0]?.id],
   environmentHdri: [DEFAULT_HDRI_ID],
   captureAnimation: [...CHESS_BATTLE_WEAPON_IDS]
 });
@@ -769,8 +783,8 @@ export const CHESS_BATTLE_DEFAULT_LOADOUT = [
   { type: 'headStyle', optionId: 'current', label: 'Current Pawn Heads' },
   {
     type: 'humanCharacter',
-    optionId: CHESS_HUMAN_CHARACTER_OPTIONS[0]?.id,
-    label: CHESS_HUMAN_CHARACTER_OPTIONS[0]?.label || 'Current Avatar'
+    optionId: TURI_CHARACTER.id,
+    label: TURI_CHARACTER.label
   },
   {
     type: 'environmentHdri',

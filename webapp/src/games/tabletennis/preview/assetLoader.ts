@@ -1,3 +1,7 @@
+import {
+  TURI_CHARACTER_ID,
+  TURI_MODEL_URL
+} from '../../../config/playerCharacter.js';
 import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js';
 import { models } from './packed';
 async function unpack(text: string) {
@@ -8,6 +12,8 @@ async function unpack(text: string) {
   return new Response(stream).arrayBuffer();
 }
 export async function loadCharacter(id: string) {
+  if (id === TURI_CHARACTER_ID)
+    return (await new GLTFLoader().loadAsync(TURI_MODEL_URL)).scene;
   const model = id.includes('female')
     ? 'athlete-female'
     : id === 'chess-human'
