@@ -11,7 +11,7 @@ const withBase = (path) => {
 };
 
 export const gameThumbnails = {
-  royallanes: '/assets/royal-lanes/mark.svg',
+
   blackwater: '/assets/blackwater/mark.svg',
   tabletennisroyal: '/assets/icons/table-tennis-royal.svg',
   tiranastreets: '/assets/tirana-streets/map.svg',
@@ -27,7 +27,7 @@ export const gameThumbnails = {
   chessbattleroyal: '/assets/icons/Chess%20battle%20Royal%20logo.png',
   checkersbattleroyal: '/assets/icons/Checkersbattleroyallogo.png',
   fourinrowroyale: '/assets/icons/four-in-row-royale.svg',
-  tavullbattleroyal: '/assets/icons/Backgammonroyallogo.png',
+
   ludobattleroyal: '/assets/icons/Ludo%20battle%20Royal%20game%20logo.png',
   shootingrange: '/assets/icons/shooting-range.svg',
   '2048royale': '/assets/icons/2048-royale.svg',
@@ -134,10 +134,7 @@ export const lobbyOptionIcons = {
     ['mode-ai', 'mode-online', 'size-9', 'size-13', 'size-16', 'size-19'],
     '/assets/icons/four-in-row-royale.svg'
   ),
-  tavullbattleroyal: buildLobbyIconSet(
-    ['mode-ai', 'mode-online', 'queue-instant', 'queue-mobile', 'queue-hdr'],
-    '/assets/icons/chess-royale.svg'
-  ),
+
   ludobattleroyal: buildLobbyIconSet(
     [
       'queue-instant',

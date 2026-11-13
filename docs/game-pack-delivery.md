@@ -18,13 +18,12 @@ TonPlaygram now has a versioned game-pack layer on top of the existing Capacitor
 
 ## Generated packs
 
-Every one of the 17 Games Lobby entries resolves to a pack. The larger shared groups remain:
+Every Games Lobby entry resolves to a pack. The larger shared groups remain:
 
 - Tirana Streets
 - Racing Royal
 - Pool & Snooker Royale
 - Table Tennis & Tennis Royal
-- Royal Lanes Bowling
 - Each other catalog game has its own pack, with a hidden shared table-game resource dependency.
 - A hidden shared Tirana vehicle dependency is used by Tirana Streets and Racing Royal.
 - After Vite, a hidden shared runtime dependency includes the built index and hashed JavaScript/CSS/font files for all visible packs.

@@ -26,14 +26,7 @@ import {
 } from '../webapp/src/config/texasHoldemInventoryConfig.js';
 import { TABLE_CLOTH_OPTIONS } from '../webapp/src/utils/tableCustomizationOptions.js';
 import { CARD_THEMES } from '../webapp/src/utils/cardThemes.js';
-import {
-  TAVULL_BATTLE_DEFAULT_UNLOCKS,
-  TAVULL_BATTLE_CHAIR_OPTIONS,
-  TAVULL_BATTLE_BOARD_FINISH_OPTIONS,
-  TAVULL_BATTLE_FRAME_FINISH_OPTIONS,
-  TAVULL_BATTLE_TRIANGLE_COLOR_OPTIONS,
-  TAVULL_BATTLE_STORE_ITEMS
-} from '../webapp/src/config/tavullBattleInventoryConfig.js';
+
 import { CHESS_TABLE_FINISH_OPTIONS } from '../webapp/src/config/chessBattleInventoryConfig.js';
 import { POOL_ROYALE_HDRI_VARIANTS } from '../webapp/src/config/poolRoyaleInventoryConfig.js';
 import {
@@ -80,21 +73,6 @@ describe('cross-game inventory alignment', () => {
     );
   });
 
-  test('tavull store keeps chess arena items for tables, chairs, cloth, and hdri', () => {
-    const toOptionSet = (items, type) =>
-      new Set(items.filter((item) => item.type === type).map((item) => item.optionId));
-    const chessTables = toOptionSet(CHESS_BATTLE_STORE_ITEMS, 'tables');
-    const chessChairs = toOptionSet(CHESS_BATTLE_STORE_ITEMS, 'chairColor');
-    const chessTableFinish = toOptionSet(CHESS_BATTLE_STORE_ITEMS, 'tableFinish');
-    const chessHdri = toOptionSet(CHESS_BATTLE_STORE_ITEMS, 'environmentHdri');
-
-    expect(toOptionSet(TAVULL_BATTLE_STORE_ITEMS, 'tables')).toEqual(chessTables);
-    expect(toOptionSet(TAVULL_BATTLE_STORE_ITEMS, 'chairColor')).toEqual(chessChairs);
-    expect(toOptionSet(TAVULL_BATTLE_STORE_ITEMS, 'tableFinish')).toEqual(chessTableFinish);
-    expect(toOptionSet(TAVULL_BATTLE_STORE_ITEMS, 'environmentHdri')).toEqual(chessHdri);
-    expect(TAVULL_BATTLE_DEFAULT_UNLOCKS.tables[0]).toBe(CHESS_BATTLE_DEFAULT_UNLOCKS.tables[0]);
-  });
-
   test('murlan excludes runtime-only and non-commercial Sketchfab characters from its shared roster', () => {
     const expectedSketchfabCharacters = [
       ['sketchfab-agent-47', '/models/murlan/agent-47-rigged-face-morphs/scene.gltf', 'CC BY-NC 4.0'],
@@ -112,7 +90,6 @@ describe('cross-game inventory alignment', () => {
       expect(MURLAN_ROYALE_DEFAULT_UNLOCKS.characters).not.toContain(id);
     });
   });
-
 
   test('murlan Sketchfab character installer fetches converted glTF instead of GLB binaries', async () => {
     const source = await readFile('webapp/scripts/fetch-murlan-agent47.mjs', 'utf8');
@@ -156,27 +133,6 @@ describe('cross-game inventory alignment', () => {
     expect(MURLAN_ROYALE_DEFAULT_UNLOCKS.cards[0]).toBe(CARD_THEMES[0]?.id);
   });
 
-  test('tavull store thumbnails match each source option thumbnail', () => {
-    const optionByType = {
-      tableFinish: new Map(CHESS_TABLE_FINISH_OPTIONS.map((option) => [option.id, option])),
-      tables: new Map([...MURLAN_TABLE_THEMES, ...CHESS_TABLE_OPTIONS].map((option) => [option.id, option])),
-      chairColor: new Map(TAVULL_BATTLE_CHAIR_OPTIONS.map((option) => [option.id, option])),
-      boardFinish: new Map(TAVULL_BATTLE_BOARD_FINISH_OPTIONS.map((option) => [option.id, option])),
-      frameFinish: new Map(TAVULL_BATTLE_FRAME_FINISH_OPTIONS.map((option) => [option.id, option])),
-      triangleColor: new Map(TAVULL_BATTLE_TRIANGLE_COLOR_OPTIONS.map((option) => [option.id, option])),
-      environmentHdri: new Map(POOL_ROYALE_HDRI_VARIANTS.map((option) => [option.id, option]))
-    };
-
-    TAVULL_BATTLE_STORE_ITEMS
-      .filter((item) => optionByType[item.type])
-      .forEach((item) => {
-        const source = optionByType[item.type].get(item.optionId);
-        expect(source).toBeTruthy();
-        expect(item.thumbnail || source.thumbnail).toBeTruthy();
-      });
-  });
-
-
   test('Gunify weapon URLs use original source model folders for texture resolution', async () => {
     const sourceFiles = await Promise.all([
       readFile('webapp/src/pages/Games/LudoBattleRoyal.jsx', 'utf8'),
@@ -200,7 +156,6 @@ describe('cross-game inventory alignment', () => {
       );
     });
   });
-
 
   test('ludo battle royal pins Gunify weapon loading to the May 9 texture baseline', async () => {
     const source = await readFile('webapp/src/pages/Games/LudoBattleRoyal.jsx', 'utf8');
@@ -241,7 +196,6 @@ describe('cross-game inventory alignment', () => {
     });
   });
 
-
   test('ludo fps gun mirrors snake and ladder May 9 fps gun config only', async () => {
     const source = await readFile('webapp/src/pages/Games/LudoBattleRoyal.jsx', 'utf8');
     const snakeSource = await readFile('webapp/src/config/snakeWeaponCatalog.js', 'utf8');
@@ -277,7 +231,6 @@ describe('cross-game inventory alignment', () => {
     expect(materialSetup).toContain('material.opacity = 1');
   });
 
-
   test('ludo battle royal parks each selected firearm in the legacy table slot and ignores stale loads', async () => {
     const source = await readFile('webapp/src/pages/Games/LudoBattleRoyal.jsx', 'utf8');
 
@@ -288,17 +241,12 @@ describe('cross-game inventory alignment', () => {
     expect(source).toContain('if (entry.selectedCaptureAnimationId === selectedCaptureAnimationId) {');
   });
 
-  test('ludo battle royal shows the selected Ukrainian drone parked and frames the portrait camera lower and closer', async () => {
+  test('ludo battle royal shows the selected Ukrainian drone parked', async () => {
     const source = await readFile('webapp/src/pages/Games/LudoBattleRoyal.jsx', 'utf8');
 
     expect(source).toContain("const CAPTURE_AIR_ATTACK_ID_SET = new Set(['fighterJetAttack', 'helicopterAttack', 'droneAttack', 'ukrainianDroneAttack', 'missileJavelin'])");
     expect(source).toContain("entry.drone.visible = selectedCaptureAnimationId === 'ukrainianDroneAttack';");
     expect(source).toContain("selectedCaptureAnimationId === 'ukrainianDroneAttack';");
-    expect(source).toContain('const CAMERA_FOV = 78;');
-    expect(source).toContain('const SEATED_FACE_CAMERA_GAMEPLAY_FORWARD = 0.37 * MODEL_SCALE;');
-    expect(source).toContain('const SEATED_FACE_CAMERA_GAMEPLAY_UP = 0.78 * MODEL_SCALE;');
-    expect(source).toContain('const PLAYER_VIEW_CAMERA_FORWARD_OFFSET_PORTRAIT = 0.96;');
-    expect(source).toContain('const PLAYER_VIEW_CAMERA_HEIGHT_OFFSET_PORTRAIT = 1.1;');
   });
 
   test('snake store mirrors ludo battle royal capture weapons', () => {

@@ -18,7 +18,7 @@ const games = [
   { gameType: 'ludobattleroyal', maxPlayers: 4, matchMeta: { variant: 'classic' } },
   { gameType: 'fourinrow', maxPlayers: 2, matchMeta: { boardSize: '7x6' } },
   { gameType: 'checkers', maxPlayers: 2, matchMeta: {} },
-  { gameType: 'backgammon', maxPlayers: 2, matchMeta: {} },
+
   { gameType: 'texasholdem', maxPlayers: 8, matchMeta: { tableSize: 8, gameMode: 'standard', buyIn: 100 } },
   { gameType: 'airhockey', maxPlayers: 2, matchMeta: { winScore: 11, arena: 'regular' } },
   { gameType: 'murlanroyale', maxPlayers: 4, matchMeta: { variant: 'single', players: 4, rules: 'single' } }

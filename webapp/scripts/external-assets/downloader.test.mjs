@@ -254,8 +254,7 @@ async function bundledOriginalFixture(t, document = { asset: { version: '2.0' } 
     'assets/vendor-originals/manifest.json': JSON.stringify({ schemaVersion: 1, assets: [asset] }),
     'assets/tirana-streets/imported/manifest.json': '[]',
     'assets/tirana-streets/materials/street-surfaces-sources.json': '[]',
-    'assets/pool-royale/README.md': '',
-    'assets/royal-lanes/asset-manifest.json': '{"files":[]}'
+    'assets/pool-royale/README.md': ''
   };
   for (const [relative, body] of Object.entries(files)) {
     const filename = path.join(publicRoot, relative);

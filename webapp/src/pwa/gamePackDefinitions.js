@@ -72,21 +72,7 @@ const heavyPacks = [
     ],
     dependencies: []
   },
-  {
-    id: 'royal-lanes',
-    title: 'Royal Lanes Bowling',
-    description: 'Bowling lane, ball, pin, character and arena assets.',
-    cover: '/assets/royal-lanes/mark.svg',
-    route: '/games/royallanes/lobby',
-    gameSlugs: ['royallanes'],
-    roots: ['assets/royal-lanes'],
-    files: [
-      'assets/pool-royale/readyplayer.me.glb',
-      'assets/table-tennis/athlete-male.glb',
-      'assets/table-tennis/athlete-female.glb'
-    ],
-    dependencies: []
-  }
+
 ];
 
 const covered = new Set(heavyPacks.flatMap(pack => pack.gameSlugs || []));

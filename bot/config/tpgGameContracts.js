@@ -9,7 +9,7 @@ const CONTRACTS = {
   '2048royale': ['format', 'durationSeconds'],
   hextrisbattle: ['format', 'durationSeconds'],
   underrunarena: ['format', 'durationSeconds'],
-  backgammon: ['rules'],
+
   'domino-royal': ['variant', 'targetPoints', 'players'],
   ludobattleroyal: ['players', 'rules'],
   texasholdem: ['tableSize', 'gameMode', 'buyIn'],

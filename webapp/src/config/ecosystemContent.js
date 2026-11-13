@@ -35,6 +35,6 @@ export const gameDetails = [
   ['Chess Battle Royal', 'Chess with AI and online competition, private codes, side preferences, validation and themed 3D presentation.'],
   ['Checkers Battle Royal', 'Authoritative checkers rules, matchmaking, AI play and a premium shared arena.'],
   ['4 in a Row', 'Quick strategic rounds against players or AI on the Battle Royal visual system.'],
-  ['Backgammon Royal', 'Classic bearing-off strategy with smart AI, legal-move assistance and multiplayer-ready flows.'],
+
   ['Ludo Battle Royal', 'A lively multi-player race with configurable player counts, AI, safe spaces and home-lane progression.']
 ]

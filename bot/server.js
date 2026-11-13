@@ -14,7 +14,6 @@ import { initSocket } from './socket.js';
 import { createChessGateway } from '../chess-multiplayer-server/dist/embedded.js';
 import { createTableTennisRoyal } from './services/tabletennisRoyal.js';
 import { attachKartRoyale } from './services/kartRoyale.js';
-import { attachRoyalLanes } from './services/royalLanes.js';
 import { createBowlingStakeService } from './services/bowlingStake.js';
 import { attachBlackwater } from './services/blackwater.js';
 import { createBlackwaterStakeService } from './services/blackwaterStake.js';
@@ -299,18 +298,14 @@ const blackwater = attachBlackwater(io, {
   settleMatch: blackwaterStake.settle,
   onMatchClosed: (tableId) => tableMap.delete(tableId)
 });
+// Recovery only: refund expired reservations from the retired game. No new matches.
 const bowlingStake = createBowlingStakeService();
-const royalLanes = attachRoyalLanes(io, {
-  settleMatch: bowlingStake.settle,
-  onMatchClosed: (tableId) => tableMap.delete(tableId)
-});
 // Expired persisted reservations are refunded even after a process restart.
 setInterval(() => {
   bowlingStake.recoverExpired().catch((error) => console.error('Bowling recovery:', error.message));
   kartStake.recoverExpired().catch((error) => console.error('Kart recovery:', error.message));
   blackwaterStake.recoverExpired().catch((error) => console.error('Blackwater recovery:', error.message));
 }, 60_000).unref();
-
 
 // Expose socket.io instance and userSockets map for routes
 app.set('io', io);
@@ -397,7 +392,6 @@ app.use('/api/tirana-store', requireDatabase, tiranaStoreRoutes);
 
 const socialScheduler = setInterval(() => queueDueSocialPosts().catch((error) => console.error('Social scheduler failed:', error.message)), 30_000);
 socialScheduler.unref?.();
-
 
 // Serve the built React app
 const webappPath = path.join(__dirname, '../webapp/dist');
@@ -1051,7 +1045,6 @@ function cleanupSeats() {
   }
 }
 
-
 function getChessState(tableId) {
   if (!chessGames.has(tableId)) {
     const board = createInitialChessBoard();
@@ -1353,7 +1346,6 @@ async function seatTableSocket(
   return table;
 }
 
-
 async function reserveChessStakeContract(table) {
   if (!table || table.gameType !== 'chess') return { ok: true };
   if (process.env.SKIP_CHESS_STAKE_RESERVATION === '1') {
@@ -1566,9 +1558,9 @@ function maybeStartGame(table) {
         return;
       }
       console.log(`Table ${table.id} confirmed by all players. Starting game.`);
-      if (['kartroyale', 'blackwater', 'royallanes'].includes(table.gameType)) {
-        const stakeService = table.gameType === 'royallanes' ? bowlingStake : table.gameType === 'blackwater' ? blackwaterStake : kartStake;
-        const runtime = table.gameType === 'royallanes' ? royalLanes : table.gameType === 'blackwater' ? blackwater : kartRoyale;
+      if (['kartroyale', 'blackwater'].includes(table.gameType)) {
+        const stakeService = table.gameType === 'blackwater' ? blackwaterStake : kartStake;
+        const runtime = table.gameType === 'blackwater' ? blackwater : kartRoyale;
         table.starting = true;
         let reserved = false;
         const roster = table.players.map((p) => String(p.id)).join('|');
@@ -1715,7 +1707,7 @@ function unseatTableSocket(accountId, tableId, socketId) {
   if (!tableId) return;
   // Once started, the game runtime owns the immutable roster and stake.
   // A late lobby cancel or disconnect must not release its account lock.
-  if (['kartroyale', 'blackwater', 'royallanes'].includes(tableMap.get(tableId)?.gameType) && tableMap.get(tableId)?.started) return;
+  if (['kartroyale', 'blackwater'].includes(tableMap.get(tableId)?.gameType) && tableMap.get(tableId)?.started) return;
   const map = tableSeats.get(tableId);
   const normalizedAccountId = accountId ? String(accountId) : '';
   // A mobile WebView can reconnect before Socket.IO finishes disconnecting the
@@ -2321,7 +2313,6 @@ mongoose.connection.once('open', async () => {
     .catch((err) => console.error('Failed to load game rooms:', err));
 });
 
-
 function normalizeLiveChatRoomId(roomId) {
   const raw = String(roomId || '').trim();
   if (!raw) return '';
@@ -2488,8 +2479,8 @@ io.on('connection', (socket) => {
 
       const safeMeta = validation.safeMatchMeta;
 
-      if (['kartroyale', 'blackwater', 'royallanes'].includes(validation.normalizedGameType)) {
-        const stakeService = validation.normalizedGameType === 'royallanes' ? bowlingStake : validation.normalizedGameType === 'blackwater' ? blackwaterStake : kartStake;
+      if (['kartroyale', 'blackwater'].includes(validation.normalizedGameType)) {
+        const stakeService = validation.normalizedGameType === 'blackwater' ? blackwaterStake : kartStake;
         try { await stakeService.canQueue(String(resolvedAccountId), validation.normalizedStake, tableId); }
         catch (error) { return cb && cb({ success: false, error: error.message }); }
         // The asynchronous balance read may complete after this phone leaves.
@@ -2762,7 +2753,6 @@ io.on('connection', (socket) => {
     socket.emit('chessState', { tableId, ...state });
   });
 
-
   socket.on('joinDominoRoyalTable', async ({ tableId, accountId } = {}) => {
     if (!tableId) return;
     const resolvedAccountId = resolveTpcIdentity({ accountId });
@@ -2850,7 +2840,6 @@ io.on('connection', (socket) => {
     socket.to(tableId).emit('dominoRoyalState', payload);
     cb && cb({ success: true, revision });
   });
-
 
   const getLudoSession = (tableId, table) => {
     let game = ludoBattleStates.get(tableId);
@@ -3590,7 +3579,6 @@ io.on('connection', (socket) => {
       io.to(roomId).emit('watchCount', { roomId, count });
     }
   });
-
 
   socket.on('liveChat:join', ({ roomId, participant } = {}) => {
     const normalizedRoomId = normalizeLiveChatRoomId(roomId);

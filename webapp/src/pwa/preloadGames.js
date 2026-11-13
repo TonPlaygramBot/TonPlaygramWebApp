@@ -34,7 +34,7 @@ const MANAGED_GAME_ASSET_PREFIXES = [
   '/assets/pool-royale/',
   '/models/pool-royale/',
   '/assets/table-tennis/',
-  '/assets/royal-lanes/'
+
 ];
 const shouldWarmAsset = asset =>
   import.meta.env.VITE_PRELOAD_ALL_GAME_ASSETS === 'true' ||

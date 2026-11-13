@@ -1,6 +1,6 @@
 import * as THREE from 'three';
 
-// The same short, eased table throw used by Ludo Battle Royal and Tavull.
+// The same short, eased table throw used by Ludo Battle Royal and Snake & Ladder.
 // Elapsed-time rotation keeps the motion identical on 30/60/90 Hz phones.
 export const ROYAL_DICE_ROLL_MS = 980;
 export const ROYAL_DICE_READ_MS = 320;

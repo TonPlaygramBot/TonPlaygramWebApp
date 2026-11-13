@@ -7,7 +7,7 @@ const MANAGED_GAME_ROUTES = [
   { prefixes: ['/games/kartroyale'], packId: 'racing-royal' },
   { prefixes: ['/games/poolroyale', '/games/snookerroyale'], packId: 'pool-royale' },
   { prefixes: ['/games/tabletennisroyal', '/games/tennisroyal'], packId: 'table-tennis-royal' },
-  { prefixes: ['/games/royallanes'], packId: 'royal-lanes' }
+
 ];
 
 const findRequiredPackId = pathname =>

@@ -80,11 +80,7 @@ import {
   LUDO_BATTLE_OPTION_LABELS,
   LUDO_BATTLE_STORE_ITEMS
 } from '../config/ludoBattleInventoryConfig.js';
-import {
-  TAVULL_BATTLE_DEFAULT_LOADOUT,
-  TAVULL_BATTLE_OPTION_LABELS,
-  TAVULL_BATTLE_STORE_ITEMS
-} from '../config/tavullBattleInventoryConfig.js';
+
 import {
   addLudoBattleUnlock,
   getLudoBattleInventory,
@@ -92,13 +88,7 @@ import {
   listOwnedLudoOptions,
   ludoBattleAccountId
 } from '../utils/ludoBattleInventory.js';
-import {
-  addTavullBattleUnlock,
-  getTavullBattleInventory,
-  isTavullOptionUnlocked,
-  listOwnedTavullOptions,
-  tavullBattleAccountId
-} from '../utils/tavullBattleInventory.js';
+
 import {
   MURLAN_ROYALE_DEFAULT_LOADOUT,
   MURLAN_ROYALE_OPTION_LABELS,
@@ -400,7 +390,6 @@ const AIR_HOCKEY_TYPE_LABELS = {
   goals: 'Goals'
 };
 
-
 const CHESS_TYPE_LABELS = {
   tables: 'Table Models',
   tableFinish: 'Table Finish',
@@ -471,14 +460,6 @@ const CHECKERS_BATTLE_STORE_ITEMS = [
     previewShape: 'table'
   }))
 ];
-const TAVULL_TYPE_LABELS = {
-  tableFinish: 'Table Finish',
-  chairColor: 'Chairs',
-  boardFinish: 'Board Finish',
-  frameFinish: 'Board Frame',
-  triangleColor: 'Triangle Colors',
-  environmentHdri: 'HDR Environments'
-};
 
 const FOUR_IN_ROW_TYPE_LABELS = {
   tables: 'Table Models',
@@ -577,8 +558,7 @@ const AIR_HOCKEY_STORE_ACCOUNT_ID =
   import.meta.env.VITE_AIR_HOCKEY_STORE_ACCOUNT_ID || DEV_INFO.account;
 const CHESS_STORE_ACCOUNT_ID =
   import.meta.env.VITE_CHESS_BATTLE_STORE_ACCOUNT_ID || DEV_INFO.account;
-const TAVULL_STORE_ACCOUNT_ID =
-  import.meta.env.VITE_TAVULL_BATTLE_STORE_ACCOUNT_ID || DEV_INFO.account;
+
 const BLACKJACK_STORE_ACCOUNT_ID =
   import.meta.env.VITE_BLACKJACK_STORE_ACCOUNT_ID || DEV_INFO.account;
 const LUDO_STORE_ACCOUNT_ID =
@@ -883,7 +863,7 @@ const PREVIEW_BY_SLUG = {
   chessbattleroyal: 'chess-royals',
   checkersbattleroyal: 'chess-royals',
   fourinrowroyale: 'chess-royals',
-  tavullbattleroyal: 'chess-royals',
+
   'domino-royal': 'domino'
 };
 
@@ -1123,7 +1103,6 @@ const USAGE_BY_TYPE = {
   }
 };
 
-
 const hashString = (value) => {
   let hash = 0;
   if (!value) return hash;
@@ -1207,14 +1186,7 @@ const storeMeta = {
     typeLabels: FOUR_IN_ROW_TYPE_LABELS,
     accountId: CHESS_STORE_ACCOUNT_ID
   },
-  tavullbattleroyal: {
-    name: 'Backgammon Royal',
-    items: TAVULL_BATTLE_STORE_ITEMS,
-    defaults: TAVULL_BATTLE_DEFAULT_LOADOUT,
-    labels: TAVULL_BATTLE_OPTION_LABELS,
-    typeLabels: TAVULL_TYPE_LABELS,
-    accountId: TAVULL_STORE_ACCOUNT_ID
-  },
+
   ludobattleroyal: {
     name: 'Ludo Battle Royal',
     items: LUDO_BATTLE_STORE_ITEMS,
@@ -1295,9 +1267,7 @@ export default function Store() {
   const [ludoOwned, setLudoOwned] = useState(() =>
     getLudoBattleInventory(ludoBattleAccountId(accountId))
   );
-  const [tavullOwned, setTavullOwned] = useState(() =>
-    getTavullBattleInventory(tavullBattleAccountId(accountId))
-  );
+
   const [murlanOwned, setMurlanOwned] = useState(() =>
     getMurlanInventory(murlanAccountId(accountId))
   );
@@ -1427,7 +1397,7 @@ export default function Store() {
     setChessOwned(getChessBattleInventory(chessBattleAccountId(accountId)));
     setFourInRowOwned(getFourInRowInventory(fourInRowAccountId(accountId)));
     setLudoOwned(getLudoBattleInventory(ludoBattleAccountId(accountId)));
-    setTavullOwned(getTavullBattleInventory(tavullBattleAccountId(accountId)));
+
     setMurlanOwned(getMurlanInventory(murlanAccountId(accountId)));
     setDominoOwned(getDominoRoyalInventory(dominoRoyalAccountId(accountId)));
     setSnakeOwned(getSnakeInventory(snakeAccountId(accountId)));
@@ -1565,11 +1535,7 @@ export default function Store() {
         key: createItemKey(item.type, item.optionId),
         slug: 'fourinrowroyale'
       })),
-      tavullbattleroyal: TAVULL_BATTLE_STORE_ITEMS.map((item) => ({
-        ...item,
-        key: createItemKey(item.type, item.optionId),
-        slug: 'tavullbattleroyal'
-      })),
+
       ludobattleroyal: LUDO_BATTLE_STORE_ITEMS.map((item) => ({
         ...item,
         key: createItemKey(item.type, item.optionId),
@@ -1622,8 +1588,7 @@ export default function Store() {
         isChessOptionUnlocked(type, optionId, chessOwned),
       fourinrowroyale: (type, optionId) =>
         isFourInRowOptionUnlocked(type, optionId, fourInRowOwned),
-      tavullbattleroyal: (type, optionId) =>
-        isTavullOptionUnlocked(type, optionId, tavullOwned),
+
       ludobattleroyal: (type, optionId) =>
         isLudoOptionUnlocked(type, optionId, ludoOwned),
       murlanroyale: (type, optionId) =>
@@ -1644,7 +1609,7 @@ export default function Store() {
       chessOwned,
       fourInRowOwned,
       ludoOwned,
-      tavullOwned,
+
       murlanOwned,
       dominoOwned,
       snakeOwned,
@@ -1671,8 +1636,7 @@ export default function Store() {
       fourinrowroyale: (item) =>
         FOUR_IN_ROW_BATTLE_OPTION_LABELS[item.type]?.[item.optionId] ||
         item.name,
-      tavullbattleroyal: (item) =>
-        TAVULL_BATTLE_OPTION_LABELS[item.type]?.[item.optionId] || item.name,
+
       ludobattleroyal: (item) =>
         LUDO_BATTLE_OPTION_LABELS[item.type]?.[item.optionId] || item.name,
       murlanroyale: (item) =>
@@ -1698,7 +1662,7 @@ export default function Store() {
       chessbattleroyal: CHESS_TYPE_LABELS,
       checkersbattleroyal: CHECKERS_BATTLE_TYPE_LABELS,
       fourinrowroyale: FOUR_IN_ROW_TYPE_LABELS,
-      tavullbattleroyal: TAVULL_TYPE_LABELS,
+
       ludobattleroyal: LUDO_TYPE_LABELS,
       murlanroyale: MURLAN_TYPE_LABELS,
       weaponkart: { humanCharacter: 'Seated Characters' },
@@ -2335,14 +2299,6 @@ export default function Store() {
           ) {
             setChessOwned(
               addChessBattleUnlock(
-                entry.type,
-                entry.optionId,
-                resolvedAccountId
-              )
-            );
-          } else if (slug === 'tavullbattleroyal') {
-            setTavullOwned(
-              addTavullBattleUnlock(
                 entry.type,
                 entry.optionId,
                 resolvedAccountId

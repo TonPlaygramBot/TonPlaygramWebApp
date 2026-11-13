@@ -124,7 +124,7 @@ export async function buildPolyhavenInventory({ webappDir = WEBAPP } = {}) {
   };
 
   // Pool's catalog is also used by Snake, Chess, Ludo, Checkers, Four in Row,
-  // Tavull and Murlan. Murlan/Pool frame-rate profiles and Texas lobby preloading
+  // Murlan. Murlan/Pool frame-rate profiles and Texas lobby preloading
   // select all four resolutions; include them without adding unsupported 16k.
   for (const option of pool.POOL_ROYALE_HDRI_VARIANTS) addHdri(option, RESOLUTIONS, 'shared game HDRI catalog / adaptive quality');
   for (const option of texas.TEXAS_HDRI_OPTIONS) addHdri(option, RESOLUTIONS, 'Texas HDRI options / lobby preload');

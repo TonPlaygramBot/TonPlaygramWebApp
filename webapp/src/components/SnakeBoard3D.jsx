@@ -1,3 +1,4 @@
+import { SEATED_PLAYER_VIEW, resolveSeatedPlayerEyePosition, updateSeatedPlayerLook } from '../utils/seatedPlayerView';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import * as THREE from 'three';
 import { createSnakeHumanInteraction } from '../utils/snakeHumanInteraction';
@@ -203,7 +204,7 @@ const BOARD_BASE_EXTRA = RAW_BOARD_SIZE * (0.36 / 3.4);
 const BOARD_BASE_HEIGHT = RAW_BOARD_SIZE * (0.24 / 3.4);
 const WORLD_UP = new THREE.Vector3(0, 1, 0);
 
-const CAMERA_FOV = ARENA_CAMERA_DEFAULTS.fov;
+const CAMERA_FOV = SEATED_PLAYER_VIEW.fov;
 const CAMERA_NEAR = ARENA_CAMERA_DEFAULTS.near;
 const CAMERA_FAR = ARENA_CAMERA_DEFAULTS.far;
 const CAMERA_TARGET_LIFT = 0.08 * MODEL_SCALE;
@@ -393,10 +394,6 @@ const CAMERA_TOPDOWN_MAX_POLAR = THREE.MathUtils.degToRad(18);
 const CAMERA_TOPDOWN_RADIUS_FACTOR = 2.56;
 const CAMERA_TOPDOWN_MIN_RADIUS_FACTOR = 1.2;
 const CAMERA_TOPDOWN_MAX_RADIUS_FACTOR = 4.7;
-const CAMERA_LOOK_YAW_LIMIT = THREE.MathUtils.degToRad(42);
-const CAMERA_LOOK_YAW_DRAG_FACTOR = 0.0055;
-const CAMERA_LOOK_PITCH_LIMIT = THREE.MathUtils.degToRad(16);
-const CAMERA_LOOK_PITCH_DRAG_FACTOR = -0.0038;
 const CAMERA_EXTRA_LIFT = 0.08;
 const PORTRAIT_INITIAL_CAMERA_DISTANCE_FACTOR = 0.54;
 const LANDSCAPE_INITIAL_CAMERA_DISTANCE_FACTOR = 0.65;
@@ -2852,7 +2849,12 @@ function buildArena(
   };
   if (environmentHdri) {
     loadPolyHavenHdriEnvironment(renderer, environmentHdri).then((result) => {
-      if (!result || disposed) return;
+      if (!result) return;
+      if (disposed) {
+        result.envMap?.dispose?.();
+        if (result.backgroundTexture !== result.envMap) result.backgroundTexture?.dispose?.();
+        return;
+      }
       scene.environment = result.envMap;
       scene.background = result.backgroundTexture || result.envMap;
       hdriZoomState.texture = result.backgroundTexture || null;
@@ -2997,8 +2999,8 @@ function buildArena(
   };
 
   const fit = (initial = false) => {
-    const w = host.clientWidth;
-    const h = host.clientHeight;
+    const w = Math.max(1, host.clientWidth);
+    const h = Math.max(1, host.clientHeight);
     renderer.setSize(w, h, false);
     camera.aspect = w / h || 1;
     camera.updateProjectionMatrix();
@@ -3113,6 +3115,16 @@ function buildArena(
     })
     .catch((error) => console.warn('Unable to restore Snake & Ladder seated humans', error));
 
+  const updatePlayerView = (position, eyeView) => {
+    const head = chairs[0]?.humanActor?.rig?.head;
+    if (!head || !position) return false;
+    const chair = chairs[0];
+    chair.headScale ??= head.scale.clone();
+    const resolved = resolveSeatedPlayerEyePosition(head, boardLookTarget, position);
+    head.scale.copy(chair.headScale).multiplyScalar(eyeView ? 0.001 : 1);
+    return resolved;
+  };
+
   const updateCameraTarget = () => {
     const radius = camera.position.distanceTo(boardLookTarget);
     const dir = camera.position.clone().sub(boardLookTarget).normalize();
@@ -3142,6 +3154,7 @@ function buildArena(
     controls,
     get tableInfo() { return tableInfo; },
     getSeatHuman: (seat) => chairs[seat]?.interaction ?? null,
+    updatePlayerView,
     seatAnchors: chairs.map(({ anchor }) => anchor),
     weaponAnchors: chairs.map(({ weaponAnchor }) => weaponAnchor),
     startCameraState
@@ -5057,6 +5070,8 @@ export default function SnakeBoard3D({
   onDiceTap,
   soundEnabled = true
 }) {
+  const [graphicsError, setGraphicsError] = useState(null);
+  const [graphicsRevision, setGraphicsRevision] = useState(0);
   const mountRef = useRef(null);
   const cameraRef = useRef(null);
   const boardRef = useRef(null);
@@ -5075,7 +5090,6 @@ export default function SnakeBoard3D({
   const lastSeatPositionsRef = useRef([]);
   const lastDiceAnchorRef = useRef(null);
   const cameraRestoreRef = useRef(null);
-  const startCameraMinYRef = useRef(null);
   const fixedSeatCameraPositionRef = useRef(null);
   const headLookRef = useRef({ yaw: 0, pitch: 0 });
   const manualCameraActiveRef = useRef(false);
@@ -5090,7 +5104,7 @@ export default function SnakeBoard3D({
   const captureFxIdRef = useRef(null);
   const [tokenPrototypeVersion, setTokenPrototypeVersion] = useState(0);
   const fallbackAppearanceKey = useMemo(() => JSON.stringify(appearance ?? {}), [appearance]);
-  const keyForEffect = appearanceKey ?? fallbackAppearanceKey;
+  const keyForEffect = `${appearanceKey ?? fallbackAppearanceKey}:${graphicsRevision}`;
   const activePlayerCount = clamp(Math.trunc(Number(playerCount) || 0), 0, DEFAULT_PLAYER_COUNT);
   const appearanceMemo = useMemo(() => appearance || {}, [keyForEffect, appearance]);
   const tokenTheme = appearanceMemo?.token;
@@ -5114,89 +5128,6 @@ export default function SnakeBoard3D({
   useEffect(() => {
     diceEventRef.current = diceEvent;
   }, [diceEvent]);
-
-  useEffect(() => {
-    const board = boardRef.current;
-    const camera = cameraRef.current;
-    const controls = board?.controls;
-    const boardLookTarget = board?.boardLookTarget;
-    if (!board || !camera || !controls || !boardLookTarget) return;
-
-    board.cameraDirector?.cancel();
-    if (cameraViewMode === '2d') {
-      if (!cameraRestoreRef.current) {
-        cameraRestoreRef.current = {
-          position: camera.position.clone(),
-          target: controls.target.clone(),
-          enableRotate: controls.enableRotate,
-          enableZoom: controls.enableZoom,
-          minPolarAngle: controls.minPolarAngle,
-          maxPolarAngle: controls.maxPolarAngle,
-          minAzimuthAngle: controls.minAzimuthAngle,
-          maxAzimuthAngle: controls.maxAzimuthAngle,
-          minDistance: controls.minDistance,
-          maxDistance: controls.maxDistance,
-          touches: { ...controls.touches },
-          mouseButtons: { ...controls.mouseButtons }
-        };
-      }
-      const topDownTarget = boardLookTarget.clone();
-      topDownTarget.y = board?.tableInfo?.surfaceY ?? boardLookTarget.y;
-      const topDownDistance = CAMERA_BASE_RADIUS * CAMERA_TOPDOWN_RADIUS_FACTOR;
-      const topDownPosition = topDownTarget.clone().add(new THREE.Vector3(0, topDownDistance, 0.0001));
-      const clampedTopDownPosition = topDownPosition.clone().sub(topDownTarget);
-      const spherical = new THREE.Spherical().setFromVector3(clampedTopDownPosition);
-      spherical.radius = clamp(
-        spherical.radius,
-        CAMERA_BASE_RADIUS * CAMERA_TOPDOWN_MIN_RADIUS_FACTOR,
-        CAMERA_BASE_RADIUS * CAMERA_TOPDOWN_MAX_RADIUS_FACTOR
-      );
-      spherical.phi = clamp(spherical.phi, CAMERA_TOPDOWN_MIN_POLAR, CAMERA_TOPDOWN_MAX_POLAR);
-      camera.position.copy(topDownTarget).add(new THREE.Vector3().setFromSpherical(spherical));
-      controls.target.copy(topDownTarget);
-      controls.enableRotate = false;
-      controls.enablePan = false;
-      controls.enableZoom = false;
-      controls.minPolarAngle = CAMERA_TOPDOWN_MIN_POLAR;
-      controls.maxPolarAngle = CAMERA_TOPDOWN_MAX_POLAR;
-      const lockedAzimuth = controls.getAzimuthalAngle();
-      controls.minAzimuthAngle = lockedAzimuth;
-      controls.maxAzimuthAngle = lockedAzimuth;
-      controls.minDistance = CAMERA_BASE_RADIUS * CAMERA_TOPDOWN_MIN_RADIUS_FACTOR;
-      controls.maxDistance = CAMERA_BASE_RADIUS * CAMERA_TOPDOWN_MAX_RADIUS_FACTOR;
-      controls.touches = { ONE: THREE.TOUCH.NONE, TWO: THREE.TOUCH.NONE, THREE: THREE.TOUCH.NONE };
-      controls.mouseButtons = {
-        LEFT: THREE.MOUSE.NONE,
-        MIDDLE: THREE.MOUSE.NONE,
-        RIGHT: THREE.MOUSE.NONE
-      };
-      controls.update();
-      return;
-    }
-
-    if (cameraRestoreRef.current) {
-      const restore = cameraRestoreRef.current;
-      camera.position.copy(restore.position);
-      controls.target.copy(restore.target);
-      controls.enableRotate = restore.enableRotate;
-      controls.enablePan = false;
-      controls.enableZoom = false;
-      controls.minPolarAngle = restore.minPolarAngle;
-      controls.maxPolarAngle = restore.maxPolarAngle;
-      controls.minAzimuthAngle = restore.minAzimuthAngle;
-      controls.maxAzimuthAngle = restore.maxAzimuthAngle;
-      controls.minDistance = restore.minDistance ?? CAM.minR;
-      controls.maxDistance = restore.maxDistance ?? CAM.maxR;
-      controls.touches = restore.touches || { ONE: THREE.TOUCH.NONE, TWO: THREE.TOUCH.NONE, THREE: THREE.TOUCH.NONE };
-      controls.mouseButtons = restore.mouseButtons || {
-        LEFT: THREE.MOUSE.NONE,
-        MIDDLE: THREE.MOUSE.NONE,
-        RIGHT: THREE.MOUSE.NONE
-      };
-      controls.update();
-      cameraRestoreRef.current = null;
-    }
-  }, [cameraViewMode]);
 
   useEffect(() => {
     seatCallbackRef.current = typeof onSeatPositionsChange === 'function' ? onSeatPositionsChange : null;
@@ -5252,7 +5183,14 @@ export default function SnakeBoard3D({
     const mount = mountRef.current;
     if (!mount) return;
 
-    const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: false, powerPreference: 'high-performance' });
+    let renderer;
+    try {
+      renderer = new THREE.WebGLRenderer({ antialias: true, alpha: false, powerPreference: 'high-performance' });
+      setGraphicsError(null);
+    } catch {
+      setGraphicsError('The 3D board could not start. Enable WebGL, then try again.');
+      return;
+    }
     renderer.shadowMap.enabled = true;
     applyRendererSRGB(renderer);
     renderer.toneMapping = THREE.ACESFilmicToneMapping;
@@ -5272,8 +5210,21 @@ export default function SnakeBoard3D({
 
     const handlers = disposeHandlers.current;
     handlers.length = 0;
+    const onContextLost = (event) => {
+      event.preventDefault();
+      renderer.setAnimationLoop(null);
+      setGraphicsError('The 3D view was interrupted. Restore it to continue your match.');
+    };
+    const onContextRestored = () => setGraphicsRevision((revision) => revision + 1);
+    renderer.domElement.addEventListener('webglcontextlost', onContextLost);
+    renderer.domElement.addEventListener('webglcontextrestored', onContextRestored);
+    handlers.push(() => {
+      renderer.domElement.removeEventListener('webglcontextlost', onContextLost);
+      renderer.domElement.removeEventListener('webglcontextrestored', onContextRestored);
+    });
 
     diceStateRef.current = { currentId: null, initialized: false };
+    captureFxIdRef.current = null;
     const arena = buildArena(
       scene,
       renderer,
@@ -5320,7 +5271,6 @@ export default function SnakeBoard3D({
     Object.values(captureVehicles).forEach((vehicle) => scene.add(vehicle.root));
     scene.add(captureExplosion.root);
     boardRef.current.captureFx = { vehicles: captureVehicles, explosion: captureExplosion };
-    startCameraMinYRef.current = arena.startCameraState?.position?.y ?? null;
     fixedSeatCameraPositionRef.current = arena.startCameraState?.position?.clone?.() ?? null;
     boardRef.current.cameraHomeTarget = arena.boardLookTarget.clone();
     boardRef.current.cameraDirector = createSnakeCameraDirector(cameraRef.current, arena.controls.target);
@@ -5358,7 +5308,7 @@ export default function SnakeBoard3D({
         spherical.radius = minRadius;
         spherical.theta = Math.PI / 2;
         spherical.phi = THREE.MathUtils.clamp(
-          THREE.MathUtils.lerp(CAM.phiMin, CAM.phiMax, initialCameraDistanceFactor),
+          THREE.MathUtils.lerp(CAM.phiMin, CAM.phiMax, PORTRAIT_INITIAL_CAMERA_DISTANCE_FACTOR),
           minPolar,
           maxPolar
         );
@@ -5397,6 +5347,8 @@ export default function SnakeBoard3D({
     };
     const onPointerDown = (event) => {
       if (event.button !== 0 && event.pointerType !== 'touch') return;
+      if (dragState.pointerId != null) { dragState.hadMultiplePointers = true; return; }
+      dragState.hadMultiplePointers = pinchState.pointers.size > 0;
       dragState.pointerId = event.pointerId;
       dragState.lastX = event.clientX;
       dragState.lastY = event.clientY;
@@ -5410,7 +5362,7 @@ export default function SnakeBoard3D({
       if (pinchState.pointers.has(event.pointerId)) {
         pinchState.pointers.set(event.pointerId, { x: event.clientX, y: event.clientY, pointerType: event.pointerType });
       }
-      if (dragState.pointerId !== event.pointerId) return;
+      if (dragState.pointerId !== event.pointerId || pinchState.pointers.size > 1) return;
       const deltaX = event.clientX - dragState.lastX;
       const deltaY = event.clientY - dragState.lastY;
       dragState.lastX = event.clientX;
@@ -5423,45 +5375,10 @@ export default function SnakeBoard3D({
       if (Math.hypot(event.clientX - dragState.startX, event.clientY - dragState.startY) <= POINTER_TAP_MAX_DISTANCE) return;
       if (!dragState.manualCamera) {
         boardRef.current?.cameraDirector?.cancel();
-        fixedSeatCameraPositionRef.current?.copy(cameraRef.current.position);
-        boardRef.current?.cameraHomeTarget?.copy(boardRef.current.controls.target);
         dragState.manualCamera = true;
         manualCameraActiveRef.current = true;
       }
-      const look = headLookRef.current;
-      look.yaw = clamp(
-        look.yaw + deltaX * CAMERA_LOOK_YAW_DRAG_FACTOR,
-        -CAMERA_LOOK_YAW_LIMIT,
-        CAMERA_LOOK_YAW_LIMIT
-      );
-      look.pitch = clamp(
-        look.pitch + deltaY * CAMERA_LOOK_PITCH_DRAG_FACTOR,
-        -CAMERA_LOOK_PITCH_LIMIT,
-        CAMERA_LOOK_PITCH_LIMIT
-      );
-      const fixedCamera = fixedSeatCameraPositionRef.current;
-      const board = boardRef.current;
-      const controls = board?.controls;
-      const camera = cameraRef.current;
-      const target = controls?.target || board?.boardLookTarget;
-      if (fixedCamera && camera && target) {
-        const minCameraY = Number.isFinite(startCameraMinYRef.current)
-          ? startCameraMinYRef.current
-          : fixedCamera.y;
-        const maxLift = TOKEN_HEIGHT * 15;
-        const liftDelta = deltaY * -0.0034;
-        const nextY = clamp(fixedCamera.y + liftDelta, minCameraY, minCameraY + maxLift);
-        const appliedLift = nextY - fixedCamera.y;
-        fixedCamera.y = nextY;
-        if (Math.abs(appliedLift) > 1e-6) {
-          const towardTarget = target.clone().sub(fixedCamera);
-          towardTarget.y = 0;
-          if (towardTarget.lengthSq() > 1e-6) {
-            towardTarget.normalize();
-            fixedCamera.addScaledVector(towardTarget, appliedLift * 0.42);
-          }
-        }
-      }
+      updateSeatedPlayerLook(headLookRef.current, deltaX, deltaY);
     };
     const raycaster = new THREE.Raycaster();
     const pointerNdc = new THREE.Vector2();
@@ -5487,12 +5404,12 @@ export default function SnakeBoard3D({
       if (isTrackedPointer) {
         const moved = Math.hypot(event.clientX - dragState.startX, event.clientY - dragState.startY);
         const elapsed = performance.now() - dragState.startTime;
-        if (moved <= POINTER_TAP_MAX_DISTANCE && elapsed <= POINTER_TAP_MAX_DURATION_MS) {
+        if (event.type === 'pointerup' && !dragState.hadMultiplePointers && moved <= POINTER_TAP_MAX_DISTANCE && elapsed <= POINTER_TAP_MAX_DURATION_MS) {
           tryHandleDiceTap(event);
         }
       }
       if (dragState.pointerId !== event.pointerId) return;
-      renderer.domElement.releasePointerCapture?.(event.pointerId);
+      if (renderer.domElement.hasPointerCapture?.(event.pointerId)) renderer.domElement.releasePointerCapture(event.pointerId);
       dragState.pointerId = null;
       manualCameraActiveRef.current = false;
       pinchState.pointers.delete(event.pointerId);
@@ -5590,7 +5507,7 @@ export default function SnakeBoard3D({
       const last = lastFrameTimeRef.current || now;
       const elapsed = now - last;
       const targetMs = 1000 / Math.max(30, frameRateRef.current || 60);
-      let carry = frameAccumulatorRef.current + elapsed;
+      let carry = Math.min(frameAccumulatorRef.current + elapsed, targetMs * 2);
       if (!lastFrameTimeRef.current) {
         carry = targetMs;
       }
@@ -5670,10 +5587,13 @@ export default function SnakeBoard3D({
           }
         }
       }
-      const followingAction = cameraViewModeRef.current !== '2d' && board?.cameraDirector?.update(
+      const eyeView = cameraViewModeRef.current !== '2d';
+      arena.updatePlayerView(fixedSeatCameraPositionRef.current, eyeView);
+      if (board) board.cameraHomeTarget.copy(arena.boardLookTarget);
+      const followingAction = eyeView && board?.cameraDirector?.update(
         now, fixedSeatCameraPositionRef.current, board.cameraHomeTarget, motionPreference?.matches
       );
-      if (!followingAction) arena.controls?.update?.();
+      if (cameraViewModeRef.current === '2d') arena.controls?.update?.();
       const camera = cameraRef.current;
       if (camera) {
         if (cameraViewModeRef.current !== '2d' && fixedSeatCameraPositionRef.current && !followingAction) {
@@ -5688,22 +5608,17 @@ export default function SnakeBoard3D({
         }
         if (cameraViewModeRef.current !== '2d' && !followingAction) {
           const look = headLookRef.current;
-          const baseTarget = board?.controls?.target || board?.boardLookTarget || arena.boardLookTarget;
+          const baseTarget = board?.cameraHomeTarget || arena.boardLookTarget;
           if (baseTarget) {
             const forward = baseTarget.clone().sub(camera.position);
             const focusDistance = forward.length();
+            const lookTarget = baseTarget.clone();
             if (focusDistance > 1e-6) {
-              forward.normalize();
-              const right = new THREE.Vector3().crossVectors(forward, WORLD_UP);
-              if (right.lengthSq() > 1e-6) {
-                right.normalize();
-                const up = new THREE.Vector3().crossVectors(right, forward).normalize();
-                const lookTarget = baseTarget
-                  .clone()
-                  .addScaledVector(right, look.yaw * focusDistance * 0.52)
-                  .addScaledVector(up, look.pitch * focusDistance * 0.4);
-                camera.lookAt(lookTarget);
-              }
+              const horizontalDistance = Math.max(Math.hypot(forward.x, forward.z), 0.001);
+              const right = new THREE.Vector3(-forward.z, 0, forward.x).normalize();
+              lookTarget.addScaledVector(right, Math.tan(look.yaw) * horizontalDistance);
+              lookTarget.y += Math.tan(look.pitch) * focusDistance;
+              camera.lookAt(lookTarget);
             }
           }
         }
@@ -5781,8 +5696,9 @@ export default function SnakeBoard3D({
       animationsRef.current.length = 0;
       boardRef.current?.cameraDirector?.cancel();
       boardRef.current = null;
-      startCameraMinYRef.current = null;
       fixedSeatCameraPositionRef.current = null;
+      cameraRestoreRef.current = null;
+      headLookRef.current = { yaw: 0, pitch: 0 };
       manualCameraActiveRef.current = false;
       if (renderer.domElement.parentElement === mount) {
         mount.removeChild(renderer.domElement);
@@ -5806,6 +5722,89 @@ export default function SnakeBoard3D({
   }, [keyForEffect, activePlayerCount]);
 
   useEffect(() => {
+    const board = boardRef.current;
+    const camera = cameraRef.current;
+    const controls = board?.controls;
+    const boardLookTarget = board?.boardLookTarget;
+    if (!board || !camera || !controls || !boardLookTarget) return;
+
+    board.cameraDirector?.cancel();
+    if (cameraViewMode === '2d') {
+      if (!cameraRestoreRef.current) {
+        cameraRestoreRef.current = {
+          position: camera.position.clone(),
+          target: controls.target.clone(),
+          enableRotate: controls.enableRotate,
+          enableZoom: controls.enableZoom,
+          minPolarAngle: controls.minPolarAngle,
+          maxPolarAngle: controls.maxPolarAngle,
+          minAzimuthAngle: controls.minAzimuthAngle,
+          maxAzimuthAngle: controls.maxAzimuthAngle,
+          minDistance: controls.minDistance,
+          maxDistance: controls.maxDistance,
+          touches: { ...controls.touches },
+          mouseButtons: { ...controls.mouseButtons }
+        };
+      }
+      const topDownTarget = boardLookTarget.clone();
+      topDownTarget.y = board?.tableInfo?.surfaceY ?? boardLookTarget.y;
+      const topDownDistance = CAMERA_BASE_RADIUS * CAMERA_TOPDOWN_RADIUS_FACTOR;
+      const topDownPosition = topDownTarget.clone().add(new THREE.Vector3(0, topDownDistance, 0.0001));
+      const clampedTopDownPosition = topDownPosition.clone().sub(topDownTarget);
+      const spherical = new THREE.Spherical().setFromVector3(clampedTopDownPosition);
+      spherical.radius = clamp(
+        spherical.radius,
+        CAMERA_BASE_RADIUS * CAMERA_TOPDOWN_MIN_RADIUS_FACTOR,
+        CAMERA_BASE_RADIUS * CAMERA_TOPDOWN_MAX_RADIUS_FACTOR
+      );
+      spherical.phi = clamp(spherical.phi, CAMERA_TOPDOWN_MIN_POLAR, CAMERA_TOPDOWN_MAX_POLAR);
+      camera.position.copy(topDownTarget).add(new THREE.Vector3().setFromSpherical(spherical));
+      controls.target.copy(topDownTarget);
+      controls.enableRotate = false;
+      controls.enablePan = false;
+      controls.enableZoom = false;
+      controls.minPolarAngle = CAMERA_TOPDOWN_MIN_POLAR;
+      controls.maxPolarAngle = CAMERA_TOPDOWN_MAX_POLAR;
+      const lockedAzimuth = controls.getAzimuthalAngle();
+      controls.minAzimuthAngle = lockedAzimuth;
+      controls.maxAzimuthAngle = lockedAzimuth;
+      controls.minDistance = CAMERA_BASE_RADIUS * CAMERA_TOPDOWN_MIN_RADIUS_FACTOR;
+      controls.maxDistance = CAMERA_BASE_RADIUS * CAMERA_TOPDOWN_MAX_RADIUS_FACTOR;
+      controls.touches = { ONE: THREE.TOUCH.NONE, TWO: THREE.TOUCH.NONE, THREE: THREE.TOUCH.NONE };
+      controls.mouseButtons = {
+        LEFT: THREE.MOUSE.NONE,
+        MIDDLE: THREE.MOUSE.NONE,
+        RIGHT: THREE.MOUSE.NONE
+      };
+      controls.update();
+      return;
+    }
+
+    if (cameraRestoreRef.current) {
+      const restore = cameraRestoreRef.current;
+      camera.position.copy(restore.position);
+      controls.target.copy(restore.target);
+      controls.enableRotate = restore.enableRotate;
+      controls.enablePan = false;
+      controls.enableZoom = false;
+      controls.minPolarAngle = restore.minPolarAngle;
+      controls.maxPolarAngle = restore.maxPolarAngle;
+      controls.minAzimuthAngle = restore.minAzimuthAngle;
+      controls.maxAzimuthAngle = restore.maxAzimuthAngle;
+      controls.minDistance = restore.minDistance ?? CAM.minR;
+      controls.maxDistance = restore.maxDistance ?? CAM.maxR;
+      controls.touches = restore.touches || { ONE: THREE.TOUCH.NONE, TWO: THREE.TOUCH.NONE, THREE: THREE.TOUCH.NONE };
+      controls.mouseButtons = restore.mouseButtons || {
+        LEFT: THREE.MOUSE.NONE,
+        MIDDLE: THREE.MOUSE.NONE,
+        RIGHT: THREE.MOUSE.NONE
+      };
+      controls.update();
+      cameraRestoreRef.current = null;
+    }
+  }, [cameraViewMode, keyForEffect, activePlayerCount]);
+
+  useEffect(() => {
     if (!boardRef.current) return;
     const board = boardRef.current;
     const colors = board.highlightColors || DEFAULT_HIGHLIGHT_COLORS;
@@ -5817,7 +5816,7 @@ export default function SnakeBoard3D({
         applyTileHighlight(tile, color);
       }
     }
-  }, [highlight, trail, offsetPopup, keyForEffect]);
+  }, [highlight, trail, offsetPopup, keyForEffect, activePlayerCount]);
 
   useEffect(() => {
     if (!boardRef.current) return;
@@ -5847,7 +5846,7 @@ export default function SnakeBoard3D({
     tokenTheme,
     tokenShape,
     tokenPrototypeVersion,
-    cameraViewMode
+    activePlayerCount
   ]);
 
   useEffect(() => {
@@ -5860,7 +5859,7 @@ export default function SnakeBoard3D({
       boardRef.current.serpentineIndexToXZ,
       railTextureRef.current
     );
-  }, [ladders, snakes, ladderOffsets, keyForEffect]);
+  }, [ladders, snakes, ladderOffsets, keyForEffect, activePlayerCount]);
 
   useEffect(() => {
     if (!boardRef.current || !snakeTextureRef.current) return;
@@ -5873,7 +5872,7 @@ export default function SnakeBoard3D({
       snakeTextureRef.current,
       snakeTheme
     );
-  }, [snakes, ladders, snakeOffsets, keyForEffect, snakeTheme]);
+  }, [snakes, ladders, snakeOffsets, keyForEffect, snakeTheme, activePlayerCount]);
 
   useEffect(() => {
     if (!slide || !boardRef.current) return;
@@ -5966,7 +5965,7 @@ export default function SnakeBoard3D({
         return false;
       }
     });
-  }, [slide, onSlideComplete, cameraViewMode]);
+  }, [slide, onSlideComplete, keyForEffect, activePlayerCount]);
 
   useEffect(() => {
     if (!diceEvent || !boardRef.current) return;
@@ -6110,7 +6109,7 @@ export default function SnakeBoard3D({
         lastSeatIndex
       };
     }
-  }, [diceEvent, cameraViewMode, currentTurn, players]);
+  }, [diceEvent, keyForEffect, activePlayerCount, currentTurn, players]);
 
   useEffect(() => {
     if (!captureEvent || !boardRef.current) return;
@@ -6498,7 +6497,7 @@ export default function SnakeBoard3D({
         return false;
       }
     });
-  }, [captureEvent, onCaptureAnimationComplete, soundEnabled]);
+  }, [captureEvent, onCaptureAnimationComplete, soundEnabled, keyForEffect, activePlayerCount]);
 
   useEffect(() => {
     const handle = () => fitRef.current();
@@ -6509,6 +6508,13 @@ export default function SnakeBoard3D({
   return (
     <div className="relative w-full h-full" data-snake-board-root>
       <div ref={mountRef} className="w-full h-full" />
+      {graphicsError && (
+        <div role="alert" className="absolute inset-0 z-40 flex flex-col items-center justify-center gap-4 bg-slate-950/95 p-6 text-center text-white">
+          <p>{graphicsError}</p>
+          <button type="button" className="min-h-12 rounded-xl bg-amber-300 px-6 py-3 font-semibold text-slate-950"
+            onClick={() => setGraphicsRevision((revision) => revision + 1)}>Restore 3D view</button>
+        </div>
+      )}
       {celebrate && (
         <div className="absolute inset-0 pointer-events-none flex items-center justify-center text-6xl animate-pulse">
           🎉
@@ -6544,6 +6550,8 @@ export function getSnakePortraitCameraState() {
   return { position: target.clone().add(new THREE.Vector3(0, Math.cos(polar) * radius, Math.sin(polar) * radius)), target, fov: CAM.fov };
 }
 export const SNAKE_SCENE_DIMENSIONS = Object.freeze({
+  humanHeight: SEATED_HUMAN_TARGET_HEIGHT, humanScale: SEATED_HUMAN_VISUAL_SCALE_MULTIPLIER,
+  humanSeatOffset: SEATED_HUMAN_SEAT_Z_OFFSET + SELF_BOTTOM_HUMAN_EXTRA_Z_OFFSET,
   boardScale: BOARD_SCALE, footprintScale: BOARD_FOOTPRINT_SCALE,
   tileSize: TILE_SIZE, tokenHeight: TOKEN_HEIGHT, diceSize: DICE_SIZE,
   tableHeight: TABLE_HEIGHT, tableRadius: TABLE_RADIUS, topThicknessScale: TABLE_TOP_THICKNESS_SCALE,
