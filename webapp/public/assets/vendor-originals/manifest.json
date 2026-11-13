@@ -248,6 +248,14 @@
       "size": 363084,
       "required": true,
       "provenance": "Poly Haven Voortrekker Interior 512px CDN thumbnail, original PNG matching source-lock.json"
+    },
+    {
+      "sourceUrl": "https://cdn.polyhaven.com/asset_img/thumbs/side_table_tall_01.png?width=256&height=256",
+      "url": "/assets/vendor-originals/polyhaven/side_table_tall_01-256.png",
+      "size": 35961,
+      "sha256": "bcedc0d0a86f2e1925bee7242e39baced29a946e72eba3e00c65d4a6eeb51f50",
+      "required": true,
+      "provenance": "assets/vendor-originals/README.md"
     }
   ]
 }
