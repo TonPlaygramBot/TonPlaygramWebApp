@@ -70,8 +70,11 @@ and a JSON report. Browser launch failure is a failed check, never a pass.
 
 ## Validation limits and remaining work
 
+All 119 targeted tests in the command above pass on the branch rebased onto
+`main` at `7991b50`; the Tirana TypeScript check also passes.
+
 The production Vite gameplay entry bundles successfully with actual dependencies
-(2,075 modules). Its existing city/map data chunk is approximately 15.19 MB before
+(2,074 modules). Its existing city/map data chunk is approximately 15.19 MB before
 gzip / 7.70 MB gzip. Character-transfer reuse is verified, but geography streaming
 remains a separate startup bottleneck. No measured startup-speed or FPS percentage
 is claimed.
