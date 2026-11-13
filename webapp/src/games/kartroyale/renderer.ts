@@ -705,47 +705,49 @@ export class KartRenderer {
       );
     }
     this.world.add(checker);
-    const arch = new T.Group();
-    arch.position.set(start.x, surfaceHeight(track,start.x,start.z), start.z);
-    arch.rotation.y = start.yaw;
-    const metal = new T.MeshStandardMaterial({
-      color: '#232c31',
-      metalness: 0.55,
-      roughness: 0.5
-    });
-    for (const s of [-1, 1]) {
-      const pole = new T.Mesh(new T.BoxGeometry(0.5, 6, 0.6), metal);
-      pole.position.set(s * (startWidth / 2 + 1), 3, 0);
-      arch.add(pole);
-    }
-    const beam = new T.Mesh(
-      new T.BoxGeometry(startWidth + 2.5, 1.1, 0.7),
-      metal
-    );
-    beam.position.y = 5.65;
-    arch.add(beam);
-    const canvas = document.createElement('canvas');
-    canvas.width = 1024;
-    canvas.height = 128;
-    const ctx = canvas.getContext('2d');
-    if (ctx) {
-      ctx.fillStyle = COLORS[0];
-      ctx.fillRect(0, 0, 1024, 128);
-      ctx.fillStyle = '#172018';
-      ctx.font = '900 78px sans-serif';
-      ctx.textAlign = 'center';
-      ctx.fillText('TIRANA · RACING ROYAL', 512, 92);
-      const tex = new T.CanvasTexture(canvas);
-      tex.userData.ephemeral = true;
-      tex.colorSpace = T.SRGBColorSpace;
-      const sign = new T.Mesh(
-        new T.PlaneGeometry(startWidth, 1),
-        new T.MeshBasicMaterial({ map: tex, side: T.DoubleSide })
+    if (!this.convoy) {
+      const arch = new T.Group();
+      arch.position.set(start.x, surfaceHeight(track,start.x,start.z), start.z);
+      arch.rotation.y = start.yaw;
+      const metal = new T.MeshStandardMaterial({
+        color: '#232c31',
+        metalness: 0.55,
+        roughness: 0.5
+      });
+      for (const s of [-1, 1]) {
+        const pole = new T.Mesh(new T.BoxGeometry(0.5, 6, 0.6), metal);
+        pole.position.set(s * (startWidth / 2 + 1), 3, 0);
+        arch.add(pole);
+      }
+      const beam = new T.Mesh(
+        new T.BoxGeometry(startWidth + 2.5, 1.1, 0.7),
+        metal
       );
-      sign.position.set(0, 5.65, -0.36);
-      arch.add(sign);
+      beam.position.y = 5.65;
+      arch.add(beam);
+      const canvas = document.createElement('canvas');
+      canvas.width = 1024;
+      canvas.height = 128;
+      const ctx = canvas.getContext('2d');
+      if (ctx) {
+        ctx.fillStyle = COLORS[0];
+        ctx.fillRect(0, 0, 1024, 128);
+        ctx.fillStyle = '#172018';
+        ctx.font = '900 78px sans-serif';
+        ctx.textAlign = 'center';
+        ctx.fillText('TIRANA · RACING ROYAL', 512, 92);
+        const tex = new T.CanvasTexture(canvas);
+        tex.userData.ephemeral = true;
+        tex.colorSpace = T.SRGBColorSpace;
+        const sign = new T.Mesh(
+          new T.PlaneGeometry(startWidth, 1),
+          new T.MeshBasicMaterial({ map: tex, side: T.DoubleSide })
+        );
+        sign.position.set(0, 5.65, -0.36);
+        arch.add(sign);
+      }
+      this.world.add(arch);
     }
-    this.world.add(arch);
     }
     this.world.add(createBoostPadLayer(track),createRoadBumpLayer(track),createJumpRampLayer(track));
     this.scenery = new TiranaScenery(track,!!this.freeDriving);
