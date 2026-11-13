@@ -50,8 +50,8 @@ export class KartDriver {
    this.forward=(Math.sin(r.yaw)*r.impactNx+Math.cos(r.yaw)*r.impactNz)*r.impact*.045;
   }
   const age=Math.max(0,time-this.impactTime),impulse=Math.sin(age*18)*Math.exp(-age*7);
-  const pose=driverPose(r.steering,r.acceleration,r.yawRate,r.speed,time,reduced,{side:this.side*impulse,forward:this.forward*impulse,throttle:r.throttle,brake:r.braking?1:0});
-  if(this.helmet){this.helmet.visible=!firstPerson;this.helmet.rotation.y=pose.headYaw;this.helmet.position.set(pose.lean*.85,1.14+pose.breath,-.32+pose.recoil*.85);}
+  const pose=driverPose(r.steering,r.acceleration,r.yawRate,r.speed,time,reduced,{side:this.side*impulse,forward:this.forward*impulse,throttle:r.throttle,brake:r.braking?1:0,landing:r.landingImpact||0});
+  if(this.helmet){this.helmet.visible=!firstPerson;this.helmet.rotation.y=pose.headYaw;this.helmet.rotation.x=pose.headPitch;this.helmet.position.set(pose.lean*.85,1.14+pose.breath,-.32+pose.recoil*.85);}
   if(this.torso){this.torso.position.set(pose.lean*.5,.56+pose.breath,-.29+pose.recoil*.5);this.torso.rotation.z=-pose.lean*.6;this.torso.rotation.x=pose.recoil*.7;}
   for(const h of this.harness){h.object.position.copy(h.position);h.object.position.x+=pose.lean*.5;h.object.position.z+=pose.recoil*.5;}
   for(const [side,arm] of Object.entries(pose.arms)){
