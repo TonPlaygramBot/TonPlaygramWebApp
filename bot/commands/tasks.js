@@ -1,5 +1,4 @@
 import Task from '../models/Task.js';
-import User from '../models/User.js';
 import { TASKS } from '../utils/tasksData.js';
 
 export default function registerTasks(bot) {
@@ -8,23 +7,8 @@ export default function registerTasks(bot) {
     const action = parts[1];
     const telegramId = ctx.from.id;
 
-    if (action === 'complete' && parts[2]) {
-      const taskId = parts[2];
-      const config = TASKS.find(t => t.id === taskId);
-      if (!config) return ctx.reply('Unknown task.');
-
-      const existing = await Task.findOne({ telegramId, taskId });
-      if (existing) return ctx.reply('Task already completed.');
-
-      await Task.create({ telegramId, taskId, completedAt: new Date() });
-      const user = await User.findOneAndUpdate(
-        { telegramId },
-        { $setOnInsert: { referralCode: telegramId.toString() } },
-        { upsert: true, new: true, setDefaultsOnInsert: true }
-      );
-      user.minedTPC += config.reward;
-      await user.save();
-      return ctx.reply(`Task completed! You earned ${config.reward} TPG.`);
+    if (action === 'complete') {
+      return ctx.reply('Task rewards are unavailable until verified settlement is enabled.');
     }
 
     const tasks = await Promise.all(TASKS.map(async t => {
@@ -34,7 +18,7 @@ export default function registerTasks(bot) {
 
     let msg = 'Tasks:\n';
     tasks.forEach(t => {
-      msg += `- ${t.description} - ` + (t.completed ? '✅' : `/tasks complete ${t.id}`) + '\n';
+      msg += `- ${t.description} - ` + (t.completed ? '✅' : 'Reward settlement paused') + '\n';
     });
     ctx.reply(msg);
   });

@@ -1,6 +1,7 @@
+import { authenticateRewardAccount, requireVerifiedReward } from '../middleware/rewardGuard.js';
 import { Router } from 'express';
 import User from '../models/User.js';
-import { startMining, stopMining, claimRewards, updateMiningRewards } from '../utils/miningUtils.js';
+import { startMining, stopMining, claimRewards } from '../utils/miningUtils.js';
 import { fetchTelegramInfo } from '../utils/telegram.js';
 
 const router = Router();
@@ -11,34 +12,18 @@ const AUTHENTIC_LEADERBOARD_QUERY = {
     { googleId: { $exists: true, $nin: ['', null] } }
   ]
 };
-const UNAUTHENTIC_ACCOUNT_QUERY = {
-  isBanned: { $ne: true },
-  $and: [
-    { $or: [{ telegramId: { $exists: false } }, { telegramId: null }] },
-    { $or: [{ googleId: { $exists: false } }, { googleId: { $in: ['', null] } }] }
-  ]
-};
-
-async function banUnauthenticatedAccounts() {
-  await User.updateMany(UNAUTHENTIC_ACCOUNT_QUERY, {
-    $set: { isBanned: true, currentTableId: null, isMining: false }
-  });
-}
-
 async function getUser(req, res, next) {
   const { telegramId } = req.body;
   if (!telegramId) {
     return res.status(400).json({ error: 'telegramId required' });
   }
-  req.user = await User.findOneAndUpdate(
-    { telegramId },
-    { $setOnInsert: { referralCode: telegramId.toString() } },
-    { upsert: true, new: true, setDefaultsOnInsert: true }
-  );
+  req.user = await User.findOne({ telegramId });
+  if (!req.user) return res.status(404).json({ error: 'account not found' });
+  if (req.user.isBanned) return res.status(403).json({ error: 'forbidden' });
   next();
 }
 
-router.post('/start', getUser, async (req, res) => {
+router.post('/start', ...authenticateRewardAccount, requireVerifiedReward, getUser, async (req, res) => {
   if (req.user.isMining) {
     return res.json({ message: 'already mining' });
   }
@@ -46,7 +31,7 @@ router.post('/start', getUser, async (req, res) => {
   res.json({ message: 'mining started' });
 });
 
-router.post('/stop', getUser, async (req, res) => {
+router.post('/stop', ...authenticateRewardAccount, requireVerifiedReward, getUser, async (req, res) => {
   if (!req.user.isMining) {
     return res.json({ message: 'not mining' });
   }
@@ -54,20 +39,17 @@ router.post('/stop', getUser, async (req, res) => {
   res.json({ message: 'mining stopped', pending: req.user.minedTPC, balance: req.user.balance });
 });
 
-router.post('/claim', getUser, async (req, res) => {
+router.post('/claim', ...authenticateRewardAccount, requireVerifiedReward, getUser, async (req, res) => {
   const amount = await claimRewards(req.user);
   res.json({ message: 'claimed', amount, balance: req.user.balance });
 });
 
-router.post('/status', getUser, async (req, res) => {
-  await updateMiningRewards(req.user);
-  await req.user.save();
+router.post('/status', ...authenticateRewardAccount, getUser, async (req, res) => {
   res.json({ isMining: req.user.isMining, pending: req.user.minedTPC, balance: req.user.balance });
 });
 
 router.post('/leaderboard', async (req, res) => {
   const { telegramId, accountId } = req.body || {};
-  await banUnauthenticatedAccounts();
   const tableMap = req.app.get('tableMap') || new Map();
   const gameManager = req.app.get('gameManager');
   const activeTables = new Set([

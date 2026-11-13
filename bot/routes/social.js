@@ -5,6 +5,7 @@ import Message from '../models/Message.js';
 import Post from '../models/Post.js';
 import bot from '../bot.js';
 import authenticate from '../middleware/auth.js';
+import { sanitizePublicPhoto } from '../utils/publicPhoto.js';
 import { sendPushNotifications } from '../services/pushNotificationService.js';
 import Busboy from 'busboy';
 import path from 'path';
@@ -152,7 +153,7 @@ router.post('/request', async (req, res) => {
       fromTelegramId: Number(fromId),
       fromAccountId: sender?.accountId,
       fromName: sender?.nickname || `${sender?.firstName || ''} ${sender?.lastName || ''}`.trim() || String(fromId),
-      fromPhoto: sender?.photo || ''
+      fromPhoto: sanitizePublicPhoto(sender?.photo)
     });
   }
   try {
@@ -267,8 +268,8 @@ router.post('/requests', async (req, res) => {
       toAccountId: toUser?.accountId,
       fromName: displayName(fromUser),
       toName: displayName(toUser),
-      fromPhoto: fromUser?.photo || '',
-      toPhoto: toUser?.photo || ''
+      fromPhoto: sanitizePublicPhoto(fromUser?.photo),
+      toPhoto: sanitizePublicPhoto(toUser?.photo)
     };
   });
   res.json(response);

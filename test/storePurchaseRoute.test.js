@@ -1,92 +1,35 @@
-import { test } from '@jest/globals';
-import assert from 'node:assert/strict';
-import fs from 'fs';
-import { spawn } from 'child_process';
-import path from 'node:path';
+import express from 'express';
+import storeRoutes from '../bot/routes/store.js';
+import User from '../bot/models/User.js';
+import { createAuthSession } from '../bot/utils/authSession.js';
 
-const distDir = path.resolve(process.cwd(), 'webapp', 'dist');
-const apiToken = 'test-token';
+jest.mock('../bot/models/User.js');
+jest.mock('../webapp/src/config/poolRoyaleInventoryConfig.js', () => ({ POOL_ROYALE_DEFAULT_UNLOCKS: {} }));
+jest.mock('../webapp/src/config/snookerRoyalInventoryConfig.js', () => ({ SNOOKER_ROYALE_DEFAULT_UNLOCKS: {} }));
+jest.mock('../webapp/src/config/airHockeyInventoryConfig.js', () => ({ AIR_HOCKEY_DEFAULT_UNLOCKS: {} }));
 
-async function startServer(env) {
-  const server = spawn('node', ['bot/server.js'], { env, stdio: 'pipe' });
-  server.stdout.on('data', (chunk) => process.stdout.write(chunk));
-  server.stderr.on('data', (chunk) => process.stderr.write(chunk));
-  await new Promise((resolve) => {
-    const onData = (chunk) => {
-      if (chunk.toString().includes('Server running on port')) {
-        server.stdout.off('data', onData);
-        resolve();
-      }
-    };
-    server.stdout.on('data', onData);
-  });
-  return server;
-}
-
-async function createAccount(port, telegramId) {
-  const res = await fetch(`http://localhost:${port}/api/account/create`, {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      Authorization: `Bearer ${apiToken}`
-    },
-    body: JSON.stringify({ telegramId })
-  });
-  assert.equal(res.status, 200);
-  const data = await res.json();
-  return data.accountId;
-}
-
-async function deposit(port, accountId, amount) {
-  const res = await fetch(`http://localhost:${port}/api/account/deposit`, {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      Authorization: `Bearer ${apiToken}`
-    },
-    body: JSON.stringify({ accountId, amount, game: 'test' })
-  });
-  assert.equal(res.status, 200);
-}
-
-test('account store-purchase accepts gift-style fromAccount payload', async () => {
-  fs.mkdirSync(path.join(distDir, 'assets'), { recursive: true });
-  fs.writeFileSync(path.join(distDir, 'index.html'), '');
-
-  const env = {
-    ...process.env,
-    PORT: '3215',
-    MONGO_URI: 'memory',
-    BOT_TOKEN: 'dummy',
-    API_AUTH_TOKEN: apiToken,
-    SKIP_WEBAPP_BUILD: '1',
-    SKIP_BOT_LAUNCH: '1'
-  };
-
-  const server = await startServer(env);
+// Client prices cannot authorize an entitlement or debit. Keep this historical
+// regression on the closed contract until authoritative settlement replaces it.
+test('legacy storefront rejects forged prices even for an authenticated customer', async () => {
+  const oldSecret = process.env.AUTH_SESSION_SECRET;
+  process.env.AUTH_SESSION_SECRET = 'storefront-regression-secret-longer-than-32-characters';
+  const app = express();
+  app.use(express.json());
+  app.use('/api/store', storeRoutes);
+  const server = await new Promise(resolve => { const listener = app.listen(0, '127.0.0.1', () => resolve(listener)); });
   try {
-    const accountId = await createAccount(3215, 999992);
-    await deposit(3215, accountId, 500);
-
-    const purchaseRes = await fetch('http://localhost:3215/api/account/store-purchase', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        Authorization: `Bearer ${apiToken}`
-      },
-      body: JSON.stringify({
-        fromAccount: accountId,
-        bundle: {
-          items: [{ slug: 'poolroyale', type: 'cueStyle', optionId: 'carbon-matrix', price: 100 }]
-        }
-      })
-    });
-
-    assert.equal(purchaseRes.status, 200);
-    const purchaseData = await purchaseRes.json();
-    assert.equal(purchaseData.balance, 400);
-    assert.equal(purchaseData.transaction?.type, 'storefront');
+    for (const route of ['purchase', 'purchase-v2']) {
+      const response = await fetch(`http://127.0.0.1:${server.address().port}/api/store/${route}`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${createAuthSession({ accountId: 'customer' })}` },
+        body: JSON.stringify({ fromAccount: 'customer', bundle: { items: [{ optionId: 'premium', price: 0 }] } })
+      });
+      expect(response.status).toBe(403);
+      expect(User.findOne).not.toHaveBeenCalled();
+    }
   } finally {
-    server.kill();
+    await new Promise(resolve => server.close(resolve));
+    if (oldSecret === undefined) delete process.env.AUTH_SESSION_SECRET;
+    else process.env.AUTH_SESSION_SECRET = oldSecret;
   }
-}, 20000);
+});

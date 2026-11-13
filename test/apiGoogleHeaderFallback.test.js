@@ -1,6 +1,8 @@
 import { describe, expect, test, beforeEach, afterEach, jest } from '@jest/globals';
 import { post } from '../webapp/src/utils/api.js';
 
+jest.mock('../webapp/src/utils/nativeBridge', () => ({ getNativeBridgeHeaders: () => ({}) }));
+
 class MemoryStorage {
   constructor() {
     this.store = new Map();
@@ -19,7 +21,7 @@ class MemoryStorage {
   }
 }
 
-describe('api auth headers google fallback', () => {
+describe('api authentication rejects public identity headers', () => {
   const originalWindow = global.window;
   const originalFetch = global.fetch;
 
@@ -43,14 +45,15 @@ describe('api auth headers google fallback', () => {
     jest.clearAllMocks();
   });
 
-  test('includes X-Google-Id header when only googleProfile is cached', async () => {
+  test('does not send X-Google-Id as authentication for a cached profile', async () => {
     window.localStorage.setItem('googleProfile', JSON.stringify({ id: 'google-profile-only' }));
     window.localStorage.removeItem('googleId');
 
     await post('/api/ping', { ok: true });
 
     const fetchOptions = global.fetch.mock.calls[0][1];
-    expect(fetchOptions.headers['X-Google-Id']).toBe('google-profile-only');
+    expect(fetchOptions.headers['X-Google-Id']).toBeUndefined();
+    expect(fetchOptions.headers.Authorization).toBeUndefined();
   });
 
   test('returns a useful error for a long rate-limit response without retrying', async () => {

@@ -1,5 +1,6 @@
 import { io } from 'socket.io-client';
 import { API_BASE_URL } from './api.js';
+import { getAccountSessionToken } from './accountSession.js';
 
 function normalizePath(path) {
   if (!path) return '/socket.io';
@@ -67,7 +68,9 @@ function buildSocketAuthPayload() {
   const initData = getTelegramInitData();
   const accountId = getStoredAccountId();
   const googleId = getStoredGoogleId();
+  const token = getAccountSessionToken();
   return {
+    ...(token ? { token } : {}),
     ...(initData ? { initData } : {}),
     ...(accountId ? { accountId } : {}),
     ...(googleId ? { googleId } : {})
@@ -84,7 +87,8 @@ function isSameIdentity(currentAuth, nextAuth) {
   return (
     currentAccountId === nextAccountId &&
     currentGoogleId === nextGoogleId &&
-    currentInit === nextInit
+    currentInit === nextInit &&
+    String(currentAuth?.token || '') === String(nextAuth?.token || '')
   );
 }
 
@@ -154,4 +158,10 @@ export function refreshSocketAuthIdentity(patch = {}, { reconnect = false } = {}
     }
   }
   return nextAuth;
+}
+
+if (typeof window !== 'undefined' && window.addEventListener) {
+  window.addEventListener('accountSessionUpdated', () => {
+    refreshSocketAuthIdentity({}, { reconnect: true });
+  });
 }

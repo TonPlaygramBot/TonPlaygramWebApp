@@ -4,7 +4,7 @@ import mongoose from 'mongoose';
 import User from '../models/User.js';
 import ChessMatch from '../models/ChessMatch.js';
 import Sequence from '../models/Sequence.js';
-import { verifyTelegramInitData } from '../middleware/auth.js';
+import { authenticateSocketHandshake } from '../utils/socketAuth.js';
 
 const router = Router();
 const serviceOnly = (req, res, next) => {
@@ -15,29 +15,23 @@ const serviceOnly = (req, res, next) => {
 router.use(serviceOnly);
 
 router.post('/session', async (req, res) => {
-  const initData = String(req.body?.initData || '');
-  const verified = initData ? verifyTelegramInitData(initData) : null;
-  let telegram = null;
-  if (verified?.user) telegram = JSON.parse(verified.user);
-
-  const accountId = String(
-    req.body?.tpcAccountNumber || req.body?.accountId || ''
-  ).trim().slice(0, 80);
-  const googleId = String(req.body?.googleId || '').trim().slice(0, 160);
-  const identity = telegram?.id
-    ? { telegramId: Number(telegram.id) }
-    : googleId
-      ? { googleId }
-      : accountId
-        ? { $or: [{ tpcAccountNumber: accountId }, { accountId }] }
-        : null;
-  if (!identity) return res.status(401).json({ error: 'missing_account_authentication' });
-
-  const user = await User.findOne({ ...identity, isBanned: { $ne: true } }).lean();
-  if (!user) return res.status(404).json({ error: 'registered_tpc_account_not_found' });
-  const tpcAccountNumber = String(user.tpcAccountNumber || user.accountId || '');
-  if (!tpcAccountNumber) return res.status(409).json({ error: 'tpc_account_number_missing' });
-  res.json({ tpcAccountNumber, balance: user.balance || 0, name: user.nickname || user.firstName || telegram?.first_name || 'Player', avatar: user.photo || telegram?.photo_url || '', activeTableId: user.currentTableId || null });
+  try {
+    let user;
+    // The service secret authenticates the gateway, not its end user. Require
+    // the player's signed proof as well before returning balances or reserving
+    // stakes under a public account number.
+    const verified = await authenticateSocketHandshake({ auth: {
+      token: req.body?.sessionToken,
+      initData: req.body?.initData
+    } }, async (selector) => {
+      user = await User.findOne(selector).lean();
+      return user;
+    });
+    if (!verified) return res.status(401).json({ error: 'missing_account_authentication' });
+    res.json({ tpcAccountNumber: verified.playerId, balance: user.balance || 0, name: user.nickname || user.firstName || 'Player', avatar: user.photo || '', activeTableId: user.currentTableId || null });
+  } catch {
+    res.status(503).json({ error: 'account_authentication_unavailable' });
+  }
 });
 
 router.post('/reserve', async (req, res) => {

@@ -10,6 +10,7 @@ const botToken = 'dummy';
 function createInitData(id, token) {
   const params = new URLSearchParams();
   params.set('user', JSON.stringify({ id }));
+  params.set('auth_date', String(Math.floor(Date.now() / 1000)));
   const dataCheckString = [...params.entries()]
     .map(([k, v]) => `${k}=${v}`)
     .sort()

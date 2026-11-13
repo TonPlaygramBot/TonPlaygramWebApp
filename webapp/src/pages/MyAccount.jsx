@@ -120,11 +120,7 @@ export default function MyAccount() {
   const [lockMessage, setLockMessage] = useState('');
   const [lockMessageTone, setLockMessageTone] = useState('info');
   const [showRecoveryCodes, setShowRecoveryCodes] = useState([]);
-  const requiresAuth =
-    !telegramId &&
-    !googleProfile?.id &&
-    !tonWalletAddress &&
-    !connectedTonAddress;
+  const requiresAuth = !telegramId && !googleProfile?.id;
 
   useEffect(() => {
     setGoogleLinked(Boolean(googleProfile?.id));
@@ -189,12 +185,7 @@ export default function MyAccount() {
     async function load() {
       setLoadingProfile(true);
       setLoadError('');
-      const accountPayload = await createAccount(
-        telegramId,
-        googleProfile,
-        undefined,
-        tonWalletAddress
-      );
+      const accountPayload = await createAccount(telegramId, googleProfile);
       if (accountPayload?.error || !accountPayload?.accountId) {
         throw new Error(
           accountPayload?.error ||
@@ -365,7 +356,7 @@ export default function MyAccount() {
     const parsedId = Number(cleaned);
     const telegramIdentifier = Number.isNaN(parsedId) ? cleaned : parsedId;
     try {
-      await linkGoogleAccount({
+      const linked = await linkGoogleAccount({
         telegramId: telegramIdentifier,
         googleId: googleProfile.id,
         email: googleProfile.email,
@@ -373,11 +364,13 @@ export default function MyAccount() {
         lastName: googleProfile.lastName,
         photo: googleProfile.photo
       });
-      await createAccount(
+      if (linked?.error) throw new Error(linked.error);
+      const linkedAccount = await createAccount(
         telegramIdentifier,
         googleProfile,
         profile?.accountId
       );
+      if (linkedAccount?.error) throw new Error(linkedAccount.error);
       localStorage.setItem('telegramId', telegramIdentifier);
       setTelegramId(telegramIdentifier);
       setGoogleLinked(true);
@@ -387,7 +380,7 @@ export default function MyAccount() {
     } catch (err) {
       console.error('Failed to link Telegram account', err);
       setLinkFeedback(
-        'We could not link that Telegram account. Double-check the ID and try again.'
+        'Open TonPlaygram in Telegram, then use Connect Google to verify both accounts.'
       );
     } finally {
       setLinkingTelegram(false);

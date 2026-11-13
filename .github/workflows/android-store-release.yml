@@ -7,8 +7,13 @@ permissions:
   contents: read
 
 jobs:
+  security:
+    uses: ./.github/workflows/launch-security.yml
+
   signed-aab:
+    needs: security
     runs-on: ubuntu-latest
+    timeout-minutes: 60
     environment: mobile-store-release
     env:
       VITE_API_BASE_URL: ${{ secrets.VITE_API_BASE_URL }}
@@ -45,12 +50,13 @@ jobs:
           npm ci --prefix webapp
           npm --prefix webapp run generate:native-assets
           npm --prefix webapp run build
-          npx --prefix webapp cap sync android
+          cd webapp
+          npx --no-install cap sync android
       - name: Configure signing
         run: |
           printf '%s' "$ANDROID_KEYSTORE_BASE64" | base64 --decode > webapp/android/tonplaygram-upload.jks
           cat > webapp/android/keystore.properties <<EOF
-          storeFile=tonplaygram-upload.jks
+          storeFile=$GITHUB_WORKSPACE/webapp/android/tonplaygram-upload.jks
           storePassword=$ANDROID_KEYSTORE_PASSWORD
           keyAlias=$ANDROID_KEY_ALIAS
           keyPassword=$ANDROID_KEY_PASSWORD
@@ -66,3 +72,6 @@ jobs:
           path: webapp/android/app/build/outputs/bundle/release/app-release.aab
           if-no-files-found: error
           retention-days: 14
+      - name: Remove signing files
+        if: always()
+        run: rm -f webapp/android/tonplaygram-upload.jks webapp/android/keystore.properties

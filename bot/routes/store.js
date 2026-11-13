@@ -1,12 +1,5 @@
 import { Router } from 'express';
 import authenticate from '../middleware/auth.js';
-import User from '../models/User.js';
-import { ensureTransactionArray, resolveAccountBalance } from '../utils/userUtils.js';
-import {
-  findMemoryUser,
-  saveMemoryUser,
-  shouldUseMemoryUserStore
-} from '../utils/memoryUserStore.js';
 import { POOL_ROYALE_DEFAULT_UNLOCKS } from '../../webapp/src/config/poolRoyaleInventoryConfig.js';
 import { SNOOKER_ROYALE_DEFAULT_UNLOCKS } from '../../webapp/src/config/snookerRoyalInventoryConfig.js';
 import { AIR_HOCKEY_DEFAULT_UNLOCKS } from '../../webapp/src/config/airHockeyInventoryConfig.js';
@@ -94,110 +87,13 @@ export function applyStoreItemDelivery(user, items = []) {
   };
 }
 
-function resolveUserBalance(user) {
-  return resolveAccountBalance(user);
+// Client-supplied item prices and non-atomic delivery are not a settlement
+// authority. Keep both aliases closed until catalog pricing, idempotent debit,
+// and inventory delivery are enforced together on the server.
+function rejectUnverifiedPurchase(_req, res) {
+  return res.status(403).json({ error: 'verified_settlement_required' });
 }
-
-function isPrivileged(req) {
-  return req.auth?.apiToken === true;
-}
-
-function canAccessUser(req, user) {
-  if (isPrivileged(req)) return true;
-  if (!user) return false;
-  if (user.telegramId && req.auth?.telegramId && user.telegramId === req.auth.telegramId) return true;
-  if (user.googleId && req.auth?.googleId && user.googleId === req.auth.googleId) return true;
-  if (user.accountId && req.auth?.accountId && user.accountId === req.auth.accountId) return true;
-  return !user.telegramId && !user.googleId;
-}
-
-async function handleTpcPurchase(req, res) {
-  const { accountId, bundle, txHash } = req.body;
-  const useMemoryStore = shouldUseMemoryUserStore();
-  const findUser = async (query) =>
-    useMemoryStore ? findMemoryUser(query) : User.findOne(query);
-  const persistUser = async (user) =>
-    useMemoryStore ? saveMemoryUser(user) : user.save();
-
-  if (!accountId) {
-    return res.status(400).json({ error: 'accountId required' });
-  }
-
-  if (txHash) {
-    return res.status(400).json({ error: 'TON payments are disabled. Use TPG balance only.' });
-  }
-
-  const isItemBundle =
-    bundle &&
-    typeof bundle === 'object' &&
-    !Array.isArray(bundle) &&
-    Array.isArray(bundle.items);
-
-  if (!isItemBundle) {
-    return res.status(400).json({ error: 'items bundle required' });
-  }
-
-  const user = await findUser({ accountId });
-  if (!user) return res.status(404).json({ error: 'account not found' });
-  if (!canAccessUser(req, user)) {
-    return res.status(403).json({ error: 'forbidden' });
-  }
-
-  const rawItems = bundle.items.filter(Boolean);
-  if (!rawItems.length) {
-    return res.status(400).json({ error: 'items required' });
-  }
-
-  const items = rawItems.map((item) => ({
-    slug: item.slug,
-    type: item.type,
-    optionId: item.optionId,
-    price: Number(item.price) || 0
-  }));
-
-  const totalPrice = items.reduce((sum, item) => sum + (Number(item.price) || 0), 0);
-  if (!Number.isFinite(totalPrice) || totalPrice < 0) {
-    return res.status(400).json({ error: 'invalid bundle total' });
-  }
-
-  ensureTransactionArray(user);
-  const balance = resolveUserBalance(user);
-  if (balance < totalPrice) {
-    return res.status(400).json({ error: 'insufficient balance' });
-  }
-
-  const txDate = new Date();
-
-  const delivery = applyStoreItemDelivery(user, items);
-
-  user.transactions.push({
-    amount: -totalPrice,
-    type: 'storefront',
-    token: 'TPG',
-    status: 'delivered',
-    date: txDate,
-    detail: 'Storefront purchase',
-    items: items.map((item) => JSON.stringify(item))
-  });
-  user.balance = balance - totalPrice;
-  await persistUser(user);
-
-  return res.json({
-    balance: user.balance,
-    date: txDate,
-    paymentToken: 'TPG',
-    delivery: {
-      pool: delivery.pool.length,
-      snooker: delivery.snooker.length,
-      airHockey: delivery.airHockey.length,
-      unsupported: delivery.unsupported.length
-    }
-  });
-}
-
-router.post('/purchase-v2', authenticate, handleTpcPurchase);
-
-// Legacy route kept as a compatibility alias while clients migrate.
-router.post('/purchase', authenticate, handleTpcPurchase);
+router.post('/purchase-v2', authenticate, rejectUnverifiedPurchase);
+router.post('/purchase', authenticate, rejectUnverifiedPurchase);
 
 export default router;

@@ -1,3 +1,4 @@
+import { authenticateRewardAccount, requireVerifiedReward } from '../middleware/rewardGuard.js';
 import { Router } from 'express';
 import InfluencerTask from '../models/InfluencerTask.js';
 import User from '../models/User.js';
@@ -18,7 +19,7 @@ function calculateReward(views) {
 }
 
 // submit influencer video
-router.post('/submit', async (req, res) => {
+router.post('/submit', ...authenticateRewardAccount, async (req, res) => {
   const { telegramId, videoUrl, platform } = req.body;
   if (!telegramId || !videoUrl || !platform) {
     return res.status(400).json({ error: 'telegramId, videoUrl and platform required' });
@@ -68,7 +69,7 @@ router.post('/submit', async (req, res) => {
 });
 
 // list submissions for user
-router.post('/mine', async (req, res) => {
+router.post('/mine', ...authenticateRewardAccount, async (req, res) => {
   const { telegramId } = req.body;
   if (!telegramId) return res.status(400).json({ error: 'telegramId required' });
   try {
@@ -99,7 +100,7 @@ router.get('/admin', async (req, res) => {
 });
 
 // admin verify
-router.patch('/admin/:id/verify', async (req, res) => {
+router.patch('/admin/:id/verify', requireVerifiedReward, async (req, res) => {
   const auth = req.get('authorization') || '';
   const token = auth.replace(/^Bearer\s+/i, '');
   const list = process.env.AIRDROP_ADMIN_TOKENS;

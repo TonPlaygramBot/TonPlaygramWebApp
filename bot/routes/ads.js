@@ -1,3 +1,4 @@
+import { authenticateRewardAccount, requireVerifiedReward } from '../middleware/rewardGuard.js';
 import { Router } from 'express';
 import AdView from '../models/AdView.js';
 import User from '../models/User.js';
@@ -15,7 +16,7 @@ function startOfToday() {
   return d;
 }
 
-router.post('/status', async (req, res) => {
+router.post('/status', ...authenticateRewardAccount, async (req, res) => {
   const { telegramId } = req.body;
   if (!telegramId) return res.status(400).json({ error: 'telegramId required' });
 
@@ -28,7 +29,7 @@ router.post('/status', async (req, res) => {
   res.json({ count, remaining: Math.max(DAILY_LIMIT - count, 0) });
 });
 
-router.post('/watch', async (req, res) => {
+router.post('/watch', ...authenticateRewardAccount, requireVerifiedReward, async (req, res) => {
   const { telegramId } = req.body;
   if (!telegramId) return res.status(400).json({ error: 'telegramId required' });
 
@@ -57,7 +58,7 @@ router.post('/watch', async (req, res) => {
   res.json({ message: 'watched', reward: REWARD, remaining: DAILY_LIMIT - count - 1 });
 });
 
-router.post('/quest-status', async (req, res) => {
+router.post('/quest-status', ...authenticateRewardAccount, async (req, res) => {
   const { telegramId } = req.body;
   if (!telegramId) return res.status(400).json({ error: 'telegramId required' });
 
@@ -67,7 +68,7 @@ router.post('/quest-status', async (req, res) => {
   res.json({ remaining: remaining > 0 ? remaining : 0 });
 });
 
-router.post('/quest-watch', async (req, res) => {
+router.post('/quest-watch', ...authenticateRewardAccount, requireVerifiedReward, async (req, res) => {
   const { telegramId } = req.body;
   if (!telegramId) return res.status(400).json({ error: 'telegramId required' });
 

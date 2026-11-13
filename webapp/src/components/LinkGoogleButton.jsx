@@ -19,29 +19,28 @@ export default function LinkGoogleButton({
 
   useEffect(() => {
 
-    function handleCredential(res) {
+    async function handleCredential(res) {
       try {
-        const profile = decodeGoogleCredential(res?.credential);
-        if (!profile?.id) return;
-        storeGoogleProfile(profile);
+        // Decoding is only for display. The API validates Google's signed token
+        // before a profile is cached or the UI reports a successful sign-in.
+        const credential = res?.credential;
+        const profile = decodeGoogleCredential(credential);
+        if (!profile?.id) throw new Error('Google did not return a valid sign-in credential.');
+        let response;
         if (telegramId) {
-          linkGoogleAccount({
-            telegramId,
-            googleId: profile.id,
-            email: profile.email,
-            firstName: profile.firstName,
-            lastName: profile.lastName,
-            photo: profile.photo
-          }).then(() => {
-            if (onLinked) onLinked();
-            if (onAuthenticated) onAuthenticated(profile);
-          });
+          response = await linkGoogleAccount({ telegramId, googleCredential: credential });
+          if (response?.error) throw new Error(response.error);
+          response = await createAccount(telegramId);
         } else {
-          // Standalone Chrome flow: create or attach account with Google profile
-          createAccount(undefined, profile).finally(() => {
-            if (onAuthenticated) onAuthenticated(profile);
-          });
+          response = await createAccount(undefined, profile, undefined, undefined, credential);
         }
+        if (response?.error) throw new Error(response.error);
+        if (!response?.accountId || !response?.sessionToken) {
+          throw new Error('The server could not establish a verified account session.');
+        }
+        storeGoogleProfile(profile);
+        if (telegramId && onLinked) onLinked();
+        if (onAuthenticated) onAuthenticated(profile);
       } catch (err) {
         console.error('Failed to link Google account', err);
         emitError('Google login failed. Please try again.', err?.message || String(err));

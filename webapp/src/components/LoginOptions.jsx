@@ -10,8 +10,6 @@ export default function LoginOptions({ onAuthenticated, onTonConnected }) {
   const [googleProfile, setGoogleProfile] = useState(() => loadGoogleProfile());
   const [status, setStatus] = useState('initializing');
   const [ctaMessage, setCtaMessage] = useState('');
-  const [tonStatus, setTonStatus] = useState('idle');
-  const [tonError, setTonError] = useState('');
   const [googleAuthError, setGoogleAuthError] = useState('');
   const tonAddress = useTonAddress();
   const isChrome = useMemo(() => {
@@ -41,13 +39,11 @@ export default function LoginOptions({ onAuthenticated, onTonConnected }) {
     let cancelled = false;
     (async () => {
       const existingProfile = googleProfile || loadGoogleProfile();
-      if (!googleProfile && existingProfile) {
-        handleAuthenticated(existingProfile);
-      }
       const accountId = await ensureAccountId();
       try {
         const res = await createAccount(undefined, existingProfile || undefined);
         if (cancelled) return;
+        if (res?.error) throw new Error(res.error);
         if (res?.accountId) {
           localStorage.setItem('accountId', res.accountId);
         } else if (accountId) {
@@ -56,6 +52,7 @@ export default function LoginOptions({ onAuthenticated, onTonConnected }) {
         if (res?.walletAddress) {
           localStorage.setItem('walletAddress', res.walletAddress);
         }
+        if (existingProfile && res?.sessionToken) handleAuthenticated(existingProfile);
         setStatus('ready');
       } catch (err) {
         console.error('Account setup failed', err);
@@ -68,54 +65,19 @@ export default function LoginOptions({ onAuthenticated, onTonConnected }) {
   }, [googleProfile?.id]);
 
   useEffect(() => {
-    if (googleProfile?.id && onAuthenticated) {
-      onAuthenticated(googleProfile);
-    }
-  }, [googleProfile, onAuthenticated]);
-
-  useEffect(() => {
     if (!tonAddress) return;
-    let cancelled = false;
-    setTonStatus('linking');
-    setTonError('');
+    // A connected public address is useful for viewing balances but is not an
+    // account credential. Account login requires Google or Telegram verification.
     localStorage.setItem('walletAddress', tonAddress);
     if (onTonConnected) onTonConnected(tonAddress);
-    (async () => {
-      try {
-        const existingProfile = googleProfile || loadGoogleProfile();
-        const res = await createAccount(undefined, existingProfile || undefined, undefined, tonAddress);
-        if (cancelled) return;
-        if (res?.error) throw new Error(res.error);
-        if (res?.accountId) {
-          localStorage.setItem('accountId', res.accountId);
-        }
-        setTonStatus('ready');
-      } catch (err) {
-        console.error('TON account link failed', err);
-        if (!cancelled) {
-          const fallback = await createAccount(undefined, googleProfile || undefined);
-          if (fallback?.accountId) {
-            localStorage.setItem('accountId', fallback.accountId);
-            setTonStatus('ready');
-            return;
-          }
-          setTonStatus('error');
-          setTonError(err?.message || 'Unable to link TON wallet');
-        }
-      }
-    })();
-    return () => {
-      cancelled = true;
-    };
-  }, [tonAddress, googleProfile, onTonConnected]);
+  }, [tonAddress, onTonConnected]);
 
   return (
     <div className="p-6 text-text space-y-4 max-w-3xl mx-auto">
       <div className="space-y-2">
         <h2 className="text-xl font-bold text-white">Welcome to TonPlaygram</h2>
         <p className="text-sm text-subtext">
-          Sign in with Google on Chrome or continue from the Telegram mini app. We&apos;ll create a fresh
-          TPG profile so you can access the full site, stake, and sync rewards anywhere.
+          Sign in with Google or continue from the Telegram mini app to access your TPG profile.
         </p>
       </div>
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 items-start">
@@ -166,9 +128,9 @@ export default function LoginOptions({ onAuthenticated, onTonConnected }) {
         </div>
 
         <div className="rounded-xl border border-border bg-surface/60 p-4 space-y-3">
-          <p className="text-sm font-semibold text-white">Sign up with TON Connect</p>
+          <p className="text-sm font-semibold text-white">Connect a TON wallet</p>
           <p className="text-xs text-subtext">
-            Use your TON wallet to create a TPG account and sync rewards from anywhere.
+            Connect a wallet to view its balance. Sign in with Google or Telegram to access your TPG account.
           </p>
           <TonConnectButton className="w-full" />
           {tonAddress && (
@@ -176,14 +138,10 @@ export default function LoginOptions({ onAuthenticated, onTonConnected }) {
               Wallet connected: {tonAddress}
             </p>
           )}
-          {tonStatus === 'linking' && (
-            <p className="text-[11px] text-amber-200">Creating your TPG account with TON…</p>
-          )}
-          {tonStatus === 'ready' && (
-            <p className="text-[11px] text-green-400">TON wallet linked. Reloading your profile…</p>
-          )}
-          {tonStatus === 'error' && (
-            <p className="text-[11px] text-red-300">{tonError || 'TON wallet linked, but profile sync failed. Tap again.'}</p>
+          {tonAddress && (
+            <p className="text-[11px] text-amber-200">
+              Wallet sign-in is unavailable. Continue with Google or Telegram above.
+            </p>
           )}
         </div>
       </div>

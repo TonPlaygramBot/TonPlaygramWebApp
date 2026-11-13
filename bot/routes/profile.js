@@ -1,10 +1,10 @@
 import { Router } from 'express';
-import { v4 as uuidv4 } from 'uuid';
 import User from '../models/User.js';
 import { fetchTelegramInfo } from '../utils/telegram.js';
-import { ensureTransactionArray, resolveAccountBalance, sanitizeUser } from '../utils/userUtils.js';
-import { normalizeAddress } from '../utils/ton.js';
-import authenticate from '../middleware/auth.js';
+import { sanitizeUser } from '../utils/userUtils.js';
+import { verifyGoogleIdToken } from '../utils/googleAuth.js';
+import { sanitizePublicPhoto } from '../utils/publicPhoto.js';
+import authenticate, { optionalAuthenticate } from '../middleware/auth.js';
 
 export function parseTwitterHandle(input) {
   if (!input) return '';
@@ -41,7 +41,7 @@ export function canManageUserTransactions(reqAuth = {}, user = null, requestedTe
     if (user.telegramId != null) {
       return Number(user.telegramId) === Number(authTelegramId);
     }
-    return requestedTelegramId != null;
+    return false;
   }
 
   if (reqAuth?.accountId && user.accountId) {
@@ -55,34 +55,15 @@ export function canManageUserTransactions(reqAuth = {}, user = null, requestedTe
   return false;
 }
 
-router.post('/register-wallet', async (req, res) => {
-  const { walletAddress } = req.body;
-  if (!walletAddress) {
-    return res.status(400).json({ error: 'walletAddress required' });
-  }
-  const normalized = normalizeAddress(walletAddress);
-  if (!normalized) {
-    return res.status(400).json({ error: 'invalid walletAddress' });
-  }
-  const user = await User.findOneAndUpdate(
-    { walletAddress: normalized },
-    { $setOnInsert: { walletAddress: normalized, referralCode: normalized } },
-    { upsert: true, new: true, setDefaultsOnInsert: true }
-  );
-  res.json(sanitizeUser(user));
+// These legacy registration routes accepted public identifiers as ownership.
+// Account creation now belongs to /api/account/create with verified login or a
+// newly issued guest session; wallet ownership needs a separate proof flow.
+router.post('/register-wallet', (_req, res) => {
+  res.status(410).json({ error: 'wallet_proof_required' });
 });
 
-router.post('/register-google', async (req, res) => {
-  const { googleId } = req.body;
-  if (!googleId) {
-    return res.status(400).json({ error: 'googleId required' });
-  }
-  const user = await User.findOneAndUpdate(
-    { googleId },
-    { $setOnInsert: { googleId, referralCode: googleId } },
-    { upsert: true, new: true, setDefaultsOnInsert: true }
-  );
-  res.json(sanitizeUser(user));
+router.post('/register-google', (_req, res) => {
+  res.status(410).json({ error: 'use_verified_account_login' });
 });
 
 router.post('/telegram-info', async (req, res) => {
@@ -95,85 +76,47 @@ router.post('/telegram-info', async (req, res) => {
     if (!info) {
       return res.status(503).json({ error: 'failed to fetch telegram info' });
     }
-    res.json(info);
+    res.json({ ...info, photoUrl: sanitizePublicPhoto(info.photoUrl) });
   } catch (err) {
     console.error('Error fetching telegram info:', err);
     res.status(500).json({ error: 'failed to fetch telegram info' });
   }
 });
 
-router.post('/get', async (req, res) => {
+router.post('/get', optionalAuthenticate, async (req, res) => {
   const { telegramId, accountId } = req.body;
-  if (!telegramId && !accountId) {
+  if ((!Number.isSafeInteger(telegramId) || telegramId <= 0) &&
+      (typeof accountId !== 'string' || !accountId.trim())) {
     return res.status(400).json({ error: 'telegramId or accountId required' });
   }
 
-  let user = null;
-  if (accountId) user = await User.findOne({ accountId });
-  if (!user && telegramId) user = await User.findOne({ telegramId });
+  try {
+    // Public profile reads never create accounts, refresh identity, or repair
+    // balances. A caller knowing an account number only sees public fields.
+    const user = await User.findOne(
+      typeof accountId === 'string' && accountId.trim() ? { accountId } : { telegramId }
+    );
+    if (!user) return res.status(404).json({ error: 'account not found' });
 
-  let filledFromTelegram = false;
-  if (!user || !user.firstName || !user.lastName || !user.photo) {
-    let info = null;
-    const tgId = telegramId || user?.telegramId;
-    if (tgId) info = await fetchTelegramInfo(tgId);
-
-    const update = {
-      $setOnInsert: { referralCode: String(tgId || accountId) }
-    };
-    if (info) {
-      update.$set = {
-        firstName: info.firstName,
-        lastName: info.lastName,
-        photo: user?.photoCustom ? user.photo : info.photoUrl
-      };
-      filledFromTelegram = true;
+    if (canManageUserTransactions(req.auth, user)) {
+      return res.json({ ...sanitizeUser(user), filledFromTelegram: false });
     }
 
-    user = await User.findOneAndUpdate(
-      accountId ? { accountId } : { telegramId: tgId },
-      update,
-      { upsert: true, new: true, setDefaultsOnInsert: true }
-    );
+    return res.json({
+      accountId: user.accountId,
+      tpcAccountNumber: user.tpcAccountNumber || user.accountId,
+      nickname: user.nickname,
+      firstName: user.firstName,
+      lastName: user.lastName,
+      photo: sanitizePublicPhoto(user.photo),
+      bio: user.bio,
+      social: user.social,
+      filledFromTelegram: false
+    });
+  } catch (err) {
+    console.error('Failed to read profile:', err.message);
+    return res.status(500).json({ error: 'failed to read profile' });
   }
-
-  if (!user.accountId) {
-    user.accountId = uuidv4();
-  }
-  if (!user.tpcAccountNumber) {
-    user.tpcAccountNumber = String(user.accountId);
-  }
-  await user.save();
-
-
-  ensureTransactionArray(user);
-  if (!Array.isArray(user.gifts)) user.gifts = [];
-  const balance = resolveAccountBalance(user);
-  if (user.balance !== balance) {
-    user.balance = balance;
-    await user.save();
-  }
-
-  const isOwner =
-    req.auth?.telegramId &&
-    user?.telegramId &&
-    req.auth.telegramId === user.telegramId;
-
-  if (isOwner) {
-    return res.json({ ...sanitizeUser(user), filledFromTelegram });
-  }
-
-  return res.json({
-    accountId: user.accountId,
-    tpcAccountNumber: user.tpcAccountNumber || user.accountId,
-    nickname: user.nickname,
-    firstName: user.firstName,
-    lastName: user.lastName,
-    photo: user.photo,
-    bio: user.bio,
-    social: user.social,
-    filledFromTelegram
-  });
 });
 
 router.post('/by-account', async (req, res) => {
@@ -182,7 +125,7 @@ router.post('/by-account', async (req, res) => {
   const user = await User.findOne({ accountId });
   if (!user) return res.status(404).json({ error: 'account not found' });
   const { telegramId, nickname, firstName, lastName, photo } = user;
-  res.json({ accountId: user.accountId, telegramId, nickname, firstName, lastName, photo });
+  res.json({ accountId: user.accountId, telegramId, nickname, firstName, lastName, photo: sanitizePublicPhoto(photo) });
 });
 
 router.post('/update', authenticate, async (req, res) => {
@@ -194,7 +137,7 @@ router.post('/update', authenticate, async (req, res) => {
 
   const update = {};
   if (nickname !== undefined) update.nickname = nickname;
-  if (photo !== undefined) { update.photo = photo; update.photoCustom = true; }
+  if (photo !== undefined) { update.photo = sanitizePublicPhoto(photo); update.photoCustom = true; }
   if (bio !== undefined) update.bio = bio;
   if (firstName !== undefined) update.firstName = firstName;
   if (lastName !== undefined) update.lastName = lastName;
@@ -207,83 +150,67 @@ router.post('/update', authenticate, async (req, res) => {
   res.json(sanitizeUser(user));
 });
 
-router.post('/updateBalance', authenticate, async (req, res) => {
-  const { telegramId, balance } = req.body;
-  if (!telegramId || balance === undefined) {
-    return res.status(400).json({ error: 'telegramId and balance required' });
-  }
-  if (!req.auth?.telegramId || req.auth.telegramId !== telegramId) {
-    return res.status(403).json({ error: 'forbidden' });
-  }
-  const user = await User.findOneAndUpdate(
-    { telegramId },
-    { $set: { balance }, $setOnInsert: { referralCode: telegramId.toString() } },
-    { upsert: true, new: true, setDefaultsOnInsert: true }
-  );
-  res.json({ balance: user.balance });
-});
-
-router.post('/addTransaction', authenticate, async (req, res) => {
-  const { telegramId, accountId, amount, type, game, players } = req.body;
-  if ((telegramId == null && !accountId) || amount === undefined || !type) {
-    return res
-      .status(400)
-      .json({ error: 'telegramId or accountId, amount and type required' });
-  }
-
-  let user = null;
-  if (telegramId != null) user = await User.findOne({ telegramId });
-  if (!user && accountId) user = await User.findOne({ accountId });
-
-  if (!user) {
-    const data = {
-      accountId: accountId || uuidv4(),
-      referralCode: String(telegramId || accountId)
-    };
-    if (telegramId != null) data.telegramId = telegramId;
-    if (req.auth?.googleId) data.googleId = req.auth.googleId;
-    user = new User(data);
-  }
-
-  if (!canManageUserTransactions(req.auth, user, telegramId)) {
-    return res.status(403).json({ error: 'forbidden' });
-  }
-
-  ensureTransactionArray(user);
-  const tx = { amount, type, date: new Date() };
-  if (game) tx.game = game;
-  if (players) tx.players = players;
-  user.transactions.push(tx);
-  await user.save();
-  res.json({ transactions: user.transactions });
-});
+// Client-reported balances and ledger entries cannot establish payment or
+// game settlement. These routes intentionally fail closed, including API-token
+// callers, until migrated to an authoritative, idempotent settlement service.
+function rejectClientAccounting(_req, res) {
+  return res.status(403).json({ error: 'server_settlement_required' });
+}
+router.post('/updateBalance', authenticate, rejectClientAccounting);
+router.post('/addTransaction', authenticate, rejectClientAccounting);
 
 router.post('/link-google', authenticate, async (req, res) => {
-  const { telegramId, googleId, email, dob, firstName, lastName, photo } = req.body;
-  if (!telegramId || !googleId) {
-    return res.status(400).json({ error: 'telegramId and googleId required' });
+  const { telegramId, googleCredential } = req.body;
+  if (!Number.isSafeInteger(telegramId) || telegramId <= 0 ||
+      typeof googleCredential !== 'string' || !googleCredential) {
+    return res.status(400).json({ error: 'telegramId and googleCredential required' });
   }
-  if (!req.auth?.telegramId || req.auth.telegramId !== telegramId) {
+  if (req.auth?.telegramId !== telegramId) {
     return res.status(403).json({ error: 'forbidden' });
   }
 
-  const update = {
-    googleId,
-    googleEmail: email,
-    googleDob: dob
-  };
+  try {
+    const identity = await verifyGoogleIdToken(googleCredential);
+    if (!identity) return res.status(401).json({ error: 'invalid_google_credential' });
 
-  if (firstName !== undefined) update.firstName = firstName;
-  if (lastName !== undefined) update.lastName = lastName;
-  const existing = await User.findOne({ telegramId }).select('photoCustom').lean();
-  if (photo !== undefined && !existing?.photoCustom) update.photo = photo;
+    const [existing, googleOwner] = await Promise.all([
+      User.findOne({ telegramId }),
+      User.findOne({ googleId: identity.googleId })
+    ]);
+    if (!existing) return res.status(404).json({ error: 'account not found' });
+    if ((existing.googleId && existing.googleId !== identity.googleId) ||
+        (googleOwner && String(googleOwner._id) !== String(existing._id))) {
+      return res.status(409).json({ error: 'google_account_already_linked' });
+    }
 
-  const user = await User.findOneAndUpdate(
-    { telegramId },
-    { $set: update, $setOnInsert: { referralCode: telegramId.toString() } },
-    { upsert: true, new: true, setDefaultsOnInsert: true }
-  );
-  res.json(sanitizeUser(user));
+    const update = {
+      googleId: identity.googleId,
+      googleEmail: identity.email,
+      firstName: identity.firstName,
+      lastName: identity.lastName
+    };
+    if (!existing.photoCustom) update.photo = sanitizePublicPhoto(identity.photo);
+
+    // Guard against a concurrent relink of this Telegram account. The unique
+    // Google identity index prevents the same Google login claiming two users.
+    const user = await User.findOneAndUpdate(
+      {
+        _id: existing._id,
+        $or: [{ googleId: { $exists: false } }, { googleId: null },
+          { googleId: '' }, { googleId: identity.googleId }]
+      },
+      { $set: update },
+      { new: true, runValidators: true }
+    );
+    if (!user) return res.status(409).json({ error: 'google_account_already_linked' });
+    return res.json(sanitizeUser(user));
+  } catch (err) {
+    if (err.code === 11000) {
+      return res.status(409).json({ error: 'google_account_already_linked' });
+    }
+    console.error('Failed to link Google account:', err.message);
+    return res.status(503).json({ error: 'google_link_unavailable' });
+  }
 });
 
 router.post('/link-social', authenticate, async (req, res) => {

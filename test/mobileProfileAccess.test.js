@@ -18,18 +18,16 @@ describe('mobile profile access', () => {
     expect(navItem).toContain('aria-label={label}');
   });
 
-  test('loads the profile with the live TonConnect wallet identity', () => {
-    const profile = fs.readFileSync('webapp/src/pages/MyAccount.jsx', 'utf8');
-
-    expect(profile).toContain(
-      'const walletIdentity = connectedTonAddress || tonWalletAddress;'
-    );
-    expect(profile).toMatch(
-      /createAccount\([\s\S]*?telegramId,[\s\S]*?googleProfile,[\s\S]*?undefined,[\s\S]*?walletIdentity[\s\S]*?\)/
-    );
-    expect(profile).toMatch(
-      /\[telegramId, googleProfile\?\.id, walletIdentity, requiresAuth, reloadNonce\]/
-    );
+  test('uses verified account login and never treats a connected address as identity', () => {
+    for (const path of ['webapp/src/pages/MyAccount.jsx', 'webapp/src/pages/Wallet.jsx']) {
+      const source = fs.readFileSync(path, 'utf8');
+      expect(source).toContain('createAccount(telegramId, googleProfile)');
+      expect(source).toContain('const requiresAuth = !telegramId && !googleProfile?.id;');
+      expect(source).not.toMatch(/createAccount\([^)]*(?:tonWalletAddress|walletIdentity|connectedTonAddress)/);
+    }
+    const login = fs.readFileSync('webapp/src/components/LoginOptions.jsx', 'utf8');
+    expect(login).toContain('Wallet sign-in is unavailable.');
+    expect(login).not.toMatch(/createAccount\([^)]*tonAddress/);
   });
 
   test('renders the profile returned by account initialization without a second request', () => {

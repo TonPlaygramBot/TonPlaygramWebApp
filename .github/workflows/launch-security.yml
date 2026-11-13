@@ -1,0 +1,84 @@
+name: Launch security regression checks
+
+on:
+  pull_request:
+    paths:
+      - 'bot/**'
+      - 'chess-multiplayer-server/**'
+      - 'webapp/src/utils/**'
+      - 'webapp/src/components/**'
+      - 'webapp/src/hooks/**'
+      - 'webapp/src/pages/**'
+      - 'test/**'
+      - 'package.json'
+      - 'package-lock.json'
+      - 'jest.config.cjs'
+      - '.github/workflows/launch-security.yml'
+  push:
+    branches: [main]
+    paths:
+      - 'bot/**'
+      - 'chess-multiplayer-server/**'
+      - 'webapp/src/utils/**'
+      - 'webapp/src/components/**'
+      - 'webapp/src/hooks/**'
+      - 'webapp/src/pages/**'
+      - 'test/**'
+      - 'package.json'
+      - 'package-lock.json'
+      - 'jest.config.cjs'
+      - '.github/workflows/launch-security.yml'
+  workflow_dispatch:
+  workflow_call:
+
+permissions:
+  contents: read
+
+jobs:
+  security:
+    name: Verified identity and wallet integrity
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    env:
+      CI: 'true'
+      MONGOMS_VERSION: '7.0.14'
+      RUN_WALLET_MONGO_TESTS: '1'
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: |
+            package-lock.json
+            bot/package-lock.json
+      - name: Install security test dependencies
+        # These tests do not import canvas, run video processing, or build games.
+        # Normal application/native builds still execute their install scripts.
+        run: |
+          npm ci --ignore-scripts
+          npm ci --prefix bot --ignore-scripts
+      - name: Check verified authentication
+        run: node --test test/authSecurity.node.mjs test/googleAuth.node.mjs test/matchmakingAuth.node.mjs
+      - name: Check wallet transaction behavior
+        run: node --test test/walletRoutes.test.js bot/tests/walletTransfer.test.js test/walletTransferMongo.test.mjs
+      - name: Check account authorization and mobile policy
+        run: npx --no-install jest --runInBand --runTestsByPath test/accountSecurity.test.js test/profileSecurity.test.js test/storeSecurity.test.js test/rewardGuards.test.js test/telegramPhotoSecurity.test.js test/profileTransactionAuth.test.js test/mobileStorePolicy.test.js test/apiSessionSecurity.test.js test/apiGoogleHeaderFallback.test.js test/socketSessionSecurity.test.js test/accountProfilePerformance.test.js test/userUtils.test.js test/storePurchaseRoute.test.js test/mobileProfileAccess.test.js test/telegramAccountIsolation.test.js
+
+  matchmaking:
+    name: Verified matchmaking gateway
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: chess-multiplayer-server/package-lock.json
+      - name: Install matchmaking dependencies
+        run: npm ci --prefix chess-multiplayer-server
+      - name: Compile matchmaking server
+        run: npm run build --prefix chess-multiplayer-server
+      - name: Check matchmaking authentication
+        run: npm test --prefix chess-multiplayer-server -- auth matchmaking embedded
