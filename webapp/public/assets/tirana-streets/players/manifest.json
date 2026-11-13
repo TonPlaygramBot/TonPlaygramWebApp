@@ -36,6 +36,16 @@
       "licence": "CC BY-NC 4.0",
       "licenceUrl": "https://creativecommons.org/licenses/by-nc/4.0/",
       "changes": "Textures resized and re-encoded; source geometry, skin and authored transforms preserved. Gameplay uses a rig adapter."
+    },
+    "turi": {
+      "url": "/assets/tirana-streets/players/turi.glb",
+      "rigValidated": true,
+      "validation": "Embedded GLB and mapped humanoid joints; visual/device QA tracked separately",
+      "sha256": "15aa91bb5206589087df60e47911f3b64ec1d95b4e380a685b3b025f21446f02",
+      "size": 12156604,
+      "author": "User-supplied Turi workshop",
+      "licence": "User-supplied asset; no additional licence specified",
+      "changes": "Original leaner-build model, textures and Idle/Walk/Run clips preserved; gameplay uses the shared rig adapter."
     }
   }
 }

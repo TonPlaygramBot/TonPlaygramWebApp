@@ -1,4 +1,4 @@
-/** The user's three supplied originals; no alternate/default character entry. */
+/** The user's supplied playable characters; assets are validated before selection. */
 export const PLAYER_CATALOG = Object.freeze([
   { id:'tactical', label:'Tactical Soldier', author:'DanlyVostok',
     uid:'850593a8c7114c188395ba1849a66eb9',
@@ -11,7 +11,10 @@ export const PLAYER_CATALOG = Object.freeze([
   { id:'agent-47', label:'Agent 47', author:'Veterock (@windofglass)',
     uid:'1680cad927304bb687d6a9ad5b9dd98a',
     source:'https://sketchfab.com/3d-models/1680cad927304bb687d6a9ad5b9dd98a',
-    licence:'CC BY-NC 4.0', licenceUrl:'https://creativecommons.org/licenses/by-nc/4.0/' }
+    licence:'CC BY-NC 4.0', licenceUrl:'https://creativecommons.org/licenses/by-nc/4.0/' },
+  { id:'turi', label:'Turi', author:'User-supplied Turi workshop',
+    licence:'User-supplied asset; no additional licence specified',
+    changes:'Original leaner-build model, textures and Idle/Walk/Run clips preserved; gameplay uses the shared rig adapter.' }
 ].map(entry=>Object.freeze(entry)));
 let selected = null;
 export function playerAssetFor(id, manifest) {
@@ -22,7 +25,7 @@ export function playerAssetFor(id, manifest) {
 }
 export function selectPlayerAsset(asset) {
   if(!asset || !PLAYER_CATALOG.some(p=>p.id===asset.id) || asset.url!==`/assets/tirana-streets/players/${asset.id}.glb`)
-    throw new Error('Choose one of the three available players.');
+    throw new Error('Choose one of the available players.');
   selected = Object.freeze({id:asset.id,url:asset.url});
 }
 export function selectedPlayerAsset(){return selected;}

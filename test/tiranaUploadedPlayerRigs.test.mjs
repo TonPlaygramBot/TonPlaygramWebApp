@@ -28,7 +28,7 @@ test('uploaded joint aliases preserve Mixamo finger numbers and exclude twist he
   assert.equal(canonicalHumanoidBone('Bone.046_base_soldier1'),'righthandindex1');
 });
 
-for(const id of ['tactical','polish','agent-47']){
+for(const id of ['tactical','polish','agent-47','turi']){
   test(`${id}: real uploaded skin has both limbs, masked facial descendants and unchanged source transforms`,async()=>{
     const gltf=await source(id),model=clone(gltf.scene),matrix=model.matrix.clone(),scale=model.scale.clone();
     const root=normalizePlayableHuman(model),rig=inspectHumanoidRig(root);

@@ -8,7 +8,7 @@ import {canonicalHumanoidBone} from '../src/games/tiranastreets/street-career/hu
 // Embedded GLB resources make the asset portable and complete offline.
 const [id,input]=process.argv.slice(2);
 const entry=PLAYER_CATALOG.find(p=>p.id===id);
-if(!entry||!input)throw Error('Usage: node scripts/import-tirana-player.mjs <tactical|polish|agent-47> <optimized.glb>');
+if(!entry||!input)throw Error('Usage: node scripts/import-tirana-player.mjs <tactical|polish|agent-47|turi> <optimized.glb>');
 const buffer=await readFile(input);
 if(buffer.length<20||buffer.readUInt32LE(0)!==0x46546c67||buffer.readUInt32LE(4)!==2||buffer.readUInt32LE(8)!==buffer.length||buffer.readUInt32LE(16)!==0x4e4f534a)throw Error('Expected a complete GLB 2.0 file');
 const json=JSON.parse(buffer.subarray(20,20+buffer.readUInt32LE(12)).toString());
@@ -21,6 +21,6 @@ if(buffer.length>15*1024*1024)throw Error('Optimize the character below 15 MiB f
 const root=fileURLToPath(new URL('../public/assets/tirana-streets/players/',import.meta.url));await mkdir(root,{recursive:true});
 const manifest=JSON.parse(await readFile(path.join(root,'manifest.json'),'utf8'));
 if(path.resolve(input)!==path.join(root,id+'.glb'))await copyFile(input,path.join(root,id+'.glb'));
-manifest.players[id]={url:'/assets/tirana-streets/players/'+id+'.glb',rigValidated:true,validation:'Embedded GLB and mapped humanoid joints; visual/device QA tracked separately',sha256:createHash('sha256').update(buffer).digest('hex'),size:buffer.length,source:entry.source,author:entry.author,licence:entry.licence,licenceUrl:entry.licenceUrl,changes:'Textures resized and re-encoded; source geometry, skin and authored transforms preserved. Gameplay uses a rig adapter.'};
+manifest.players[id]={url:'/assets/tirana-streets/players/'+id+'.glb',rigValidated:true,validation:'Embedded GLB and mapped humanoid joints; visual/device QA tracked separately',sha256:createHash('sha256').update(buffer).digest('hex'),size:buffer.length,source:entry.source,author:entry.author,licence:entry.licence,licenceUrl:entry.licenceUrl,changes:entry.changes||'Textures resized and re-encoded; source geometry, skin and authored transforms preserved. Gameplay uses a rig adapter.'};
 await writeFile(path.join(root,'manifest.json'),JSON.stringify(manifest,null,2)+'\n');
 console.log('Imported '+entry.label+'. Include the GLB and manifest in the same commit.');

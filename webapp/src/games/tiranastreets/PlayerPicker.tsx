@@ -51,7 +51,7 @@ export function PlayerPicker({onStart,onBack}:{onStart:()=>void;onBack:()=>void}
       <p className="player-status" role="status">{loading?'Loading characters…':error||(!asset?'This character is missing from the game download.':preview.url===asset.url?preview.message:'Loading preview…')}</p>
       {!loading&&!ready&&<button className="player-retry" onClick={()=>setAttempt(n=>n+1)}>Retry</button>}
       <details className="player-credits"><summary>Character credits</summary>
-        <p><a href={character.source} target="_blank" rel="noreferrer">{character.label}</a> by {character.author} · <a href={character.licenceUrl} target="_blank" rel="noreferrer">{character.licence}</a>. Texture sizes optimized for mobile; body rig adapted for gameplay.</p>
+        <p>{character.source?<a href={character.source} target="_blank" rel="noreferrer">{character.label}</a>:character.label} by {character.author} · {character.licenceUrl?<a href={character.licenceUrl} target="_blank" rel="noreferrer">{character.licence}</a>:character.licence}. {character.changes||'Texture sizes optimized for mobile; body rig adapted for gameplay.'}</p>
       </details>
       </section>
       {step==='weapons'&&<section aria-label="Choose starting weapons">
