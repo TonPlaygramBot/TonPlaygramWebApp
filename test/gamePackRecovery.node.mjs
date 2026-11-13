@@ -165,8 +165,8 @@ test('unrelated cached entries cannot conceal an evicted asset or a lost depende
 test('retired Tirana pack is absent while Racing and Jet Ski retain shared city assets',()=>{
  const byId=id=>GAME_PACK_DEFINITIONS.find(p=>p.id===id);
  assert.equal(byId('tirana-streets'),undefined);
- for(const id of ['racing-royal','jetski-royal']){
-  assert.ok(byId(id).dependencies.includes('shared-tirana-vehicles'));
- }
+ assert.ok(byId('racing-royal').dependencies.includes('shared-tirana-vehicles'));
  assert.ok(byId('shared-tirana-vehicles').roots.includes('assets/tirana-streets'));
+ assert.ok(byId('jetski-royal').files.includes('assets/tirana-streets/environment/roadside-rail.glb'));
+ assert.ok(byId('jetski-royal').files.includes('assets/tirana-streets/landmark-rebuild/namazgah-far.glb'));
 });

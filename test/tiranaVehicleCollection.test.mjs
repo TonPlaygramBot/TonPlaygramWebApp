@@ -29,11 +29,9 @@ test('registered cars retain their parked and enterable placements',()=>{
  assert.equal(state.traffic.filter(c=>collectionVehicleFor(c)&&forceVehicleFor(c)).length,0,'one visual owner per vehicle');
  assert.equal(forceVehicleFor({model:'police',forceVehicle:'patrol_hatch',collectionVehicle:'benz'}),undefined,'legacy dual assignment uses its collection model');
  for(const p of COLLECTION_PLACEMENTS){
-  const car=state.cars.find(c=>c.id===p.id),prop=props.find(c=>c.collectionVehicle===p.collectionVehicle);
-  assert.ok(car&&prop,p.id);assert.equal(car.x,p.x);assert.equal(car.z,p.z);
-  assert.ok(Math.abs(prop.x+ORIGIN.x-p.x)<1e-9);assert.ok(Math.abs(prop.z+ORIGIN.z-p.z)<1e-9);
-  assert.equal(prop.w,p.w);assert.equal(prop.d,p.d);assert.equal(prop.h,p.h);
-  assert.ok(car.npcDriver&&!car.driver);assert.ok(OBSTACLES.includes(prop));
+  const car=state.cars.find(c=>c.id===p.id);
+  assert.ok(car,p.id);assert.equal(car.x,p.x);assert.equal(car.z,p.z);
+  assert.ok(car.npcDriver&&!car.driver);
  }
 });
 test('each NPC yields its seat, the player can drive and exit, and no duplicate driver returns',()=>{

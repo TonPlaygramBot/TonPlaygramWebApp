@@ -1179,6 +1179,7 @@ export default function KartRoyale({
             <div className="kr-eyebrow"><Crosshair size={16} /> CONVOY RUN</div>
             <h2>{convoyResult[result.convoy.status]}</h2>
             <p>{result.convoy.destroyed} vehicles taken out · {result.convoy.hull}% hull · {formatTime(result.elapsed)}</p>
+            {notice && <p role="status">{notice}</p>}
             <button className="kr-start" onClick={start}>RUN AGAIN</button>
             <button className="kr-button" onClick={garage}>BACK TO GARAGE</button>
           </section>

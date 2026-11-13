@@ -8,7 +8,7 @@ const heavyPacks = [
   {
     id: 'shared-tirana-vehicles',
     title: 'Shared Tirana Scenery and Vehicles',
-    description: 'Map scenery and vehicles used in Racing Royal and Jet Ski Royal.',
+    description: 'Map scenery and vehicles used in Racing Royal.',
     hidden: true,
     cover: '/assets/kart-royale/cover.webp',
     route: null,
@@ -25,7 +25,11 @@ const heavyPacks = [
     route: '/games/jetskiroyal/lobby',
     gameSlugs: ['jetskiroyal'],
     roots: ['assets/jetski-royal'],
-    dependencies: ['shared-tirana-vehicles', 'shared-table-games']
+    files: [
+      'assets/tirana-streets/environment/roadside-rail.glb',
+      'assets/tirana-streets/landmark-rebuild/namazgah-far.glb'
+    ],
+    dependencies: ['shared-table-games']
   },
   {
     id: 'racing-royal',
@@ -35,7 +39,7 @@ const heavyPacks = [
     route: '/games/kartroyale/lobby',
     gameSlugs: ['kartroyale'],
     roots: ['assets/kart-royale'],
-    dependencies: ['shared-tirana-vehicles']
+    dependencies: ['shared-tirana-vehicles', 'shared-table-games']
   },
   {
     id: 'pool-royale',
