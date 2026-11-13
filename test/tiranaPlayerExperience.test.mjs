@@ -135,7 +135,7 @@ test('driver hands and eye share the same support plane on hills',()=>{
 test('on-foot camera is eye-level and follows screen directions, including crouch',()=>{
  const {StreetRenderer}=load('webapp/src/games/tiranastreets/street-career/StreetRenderer.ts',{'three':T,'../renderer':{CityRenderer:class{}},'./spatialCore.mjs':spatial,'../../tirana-east/terrainCore.mjs':{groundHeight}});
  const body={...createBody(),y:10,eye:1.68,aim:false,recoil:0},p={x:4,z:8};
- const r=Object.assign(Object.create(StreetRenderer.prototype),{simulation:{body,flight:{}},camera:new T.PerspectiveCamera(),yaw:0,pitch:.3,settings:{fov:74,shake:0}});
+ const r=Object.assign(Object.create(StreetRenderer.prototype),{simulation:{body,flight:{},access:{binoculars:false,parachute:{open:false}}},bodyRig:{setEyeView(){},weapon:{}},camera:new T.PerspectiveCamera(),yaw:0,pitch:.3,settings:{walkingView:'eyes',fov:74,shake:0}});
  r.presentFirstPerson({players:{local:p},cars:[]},'local',1/60);
  assert.ok(r.camera.position.distanceTo(new T.Vector3(4,11.68,8))<1e-8);assert.ok(r.camera.getWorldDirection(new T.Vector3()).y>0);
  body.eye=.86;body.crouched=true;r.presentFirstPerson({players:{local:p},cars:[]},'local',1/60);assert.equal(r.camera.position.y,10.86);

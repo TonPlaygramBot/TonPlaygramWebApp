@@ -25,7 +25,11 @@ export class StreetInput extends CityInput {
     )
       return;
     const action =
-      e.code === 'Space'
+      e.code === 'KeyN' ? 'camera'
+        : e.code === 'BracketRight' ? 'radio-next'
+        : e.code === 'BracketLeft' ? 'radio-previous'
+        : e.code === 'KeyM' ? 'radio-toggle'
+        : e.code === 'Space'
         ? 'jump'
         : e.code === 'KeyC'
           ? 'crouch'

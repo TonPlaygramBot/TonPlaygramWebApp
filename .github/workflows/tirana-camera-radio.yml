@@ -1,0 +1,28 @@
+name: Tirana camera and radio
+on:
+  pull_request:
+    paths:
+      - 'webapp/src/games/tiranastreets/**'
+      - 'test/tiranaCameraRadio.test.mjs'
+      - '.github/workflows/tirana-camera-radio.yml'
+permissions:
+  contents: read
+concurrency:
+  group: tirana-camera-radio-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - run: npm ci --prefix webapp --ignore-scripts --no-audit --no-fund
+      - name: Camera, shadows and radio lifecycle
+        run: node --test test/tiranaCameraRadio.test.mjs test/tiranaPlayerExperience.test.mjs test/tiranaFullBodyPresentation.test.mjs test/tiranaHumanAnimation.test.mjs test/tiranaRenderBudget.test.cjs
+      - name: Tirana gameplay types
+        run: webapp/node_modules/.bin/tsc --noEmit -p webapp/tsconfig.tirana-gameplay.json
+      - name: Portrait input and radio controls
+        run: npm --prefix webapp run test:navigation -- src/games/tiranastreets/radio/RadioControls.navigation.test.jsx src/games/tiranastreets/MovementStick.navigation.test.jsx src/games/tiranastreets/TiranaHud.navigation.test.jsx

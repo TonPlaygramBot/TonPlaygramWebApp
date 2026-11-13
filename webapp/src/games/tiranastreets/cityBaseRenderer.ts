@@ -1,3 +1,4 @@
+import {LocalShadowBudget} from './LocalShadowBudget';
 import {updateNavigationLine,navigationLineEnd} from './NavigationLine';
 import {renderPixelRatio} from './renderSettings';
 import {nearestActors} from './shared/frameBudget.mjs';
@@ -102,6 +103,7 @@ export class CityRenderer {
   private models = new Map<string, THREE.Group>();
   private actors = new Map<string, Actor>();
   private animations: THREE.AnimationClip[] = [];
+  private localShadows = new LocalShadowBudget();
   private sunlight = new THREE.DirectionalLight(0xffe3a4, 3.4);
   private routeLine: THREE.Line | null = null;
   private beacon = new THREE.Group();
@@ -141,6 +143,7 @@ export class CityRenderer {
     this.scene.add(new THREE.HemisphereLight(0xc8e6f5, 0x8a7e60, 2.1));
     this.sunlight.position.set(-100, 160, -90);
     this.sunlight.castShadow = true;
+    this.sunlight.shadow.autoUpdate = false;
     this.sunlight.shadow.mapSize.set(1024, 1024);
     Object.assign(this.sunlight.shadow.camera, {
       left: -65,
@@ -1117,7 +1120,7 @@ export class CityRenderer {
       if (p) {
         target.set(p.x, p.carId ? 1.1 : 1.3, p.z);
         if (p.carId && !this.cockpitCamera && this.clock > this.manualUntil)
-          this.yaw = smoothAngle(this.yaw, p.heading, Math.min(1, dt * 3));
+          this.yaw = smoothAngle(this.yaw, p.heading, 1-Math.exp(-dt * 3));
       }
     }
     if (lobby) {
@@ -1211,6 +1214,8 @@ export class CityRenderer {
       Math.hypot(cell.x - this.camera.position.x, cell.z - this.camera.position.z) <
       (this.quality === "battery" ? 140 : 260);
     this.beforeDraw(state, playerId, dt);
+    if(this.renderer.shadowMap.enabled) this.localShadows.update(this.sunlight,
+      {x:this.camera.position.x,y:this.camera.position.y-1.5,z:this.camera.position.z},dt,this.quality==='high');
     // Opaque original windows/cab roofs must not cover the active interior.
     // Hide only this viewer's exterior during this draw, restoring it afterward.
     const exterior=drivenCar
