@@ -1,3 +1,4 @@
+import {reserveCapacity} from '../webapp/src/games/tiranastreets/shared/ammunition.mjs';
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {readFileSync} from 'node:fs';
@@ -76,7 +77,7 @@ test('fresh careers equip a loaded AK-47 and preserve saved weapon choice',()=>{
  profile.loadout.inventory.uziSprayAttack={ammo:4,reserve:21};profile.loadout.weapon='uziSprayAttack';
  assert.equal(campaign.normalize(JSON.parse(JSON.stringify(profile))).loadout.weapon,'uziSprayAttack');
  const state=createState([{id:'local',name:'You'}],'free-roam','solo');assert.equal(state.players.local.inventory[STARTER_WEAPON].ammo,w.magazine);
- assert.equal(state.pickups.length,300);assert.ok(state.pickups.every(item=>item.weapon!=='fpsGunAttack'&&WEAPON_BY_ID.has(item.weapon)));
+ assert.equal(state.pickups.length,396);assert.ok(state.pickups.every(item=>item.weapon!=='fpsGunAttack'&&WEAPON_BY_ID.has(item.weapon)));
  assert.equal(props.some(p=>WEAPON_BY_ID.has(p.assetId)),false,'visible ground guns must come from collectible loot');
 });
 test('retired FPS gun migrates once without destroying progress or other weapons',()=>{
@@ -86,10 +87,10 @@ test('retired FPS gun migrates once without destroying progress or other weapons
 });
 test('every ground weapon can equip at full reserve, exactly once, cancelling reload',()=>{
  for(const w of WEAPONS.filter(w=>w.id!=='fpsGunAttack')){
-  const p={id:'local',health:100,x:0,z:0,weapon:STARTER_WEAPON,reloadAt:9,nextShot:7,inventory:{[w.id]:{ammo:0,reserve:w.magazine*8}}};
+  const p={id:'local',health:100,x:0,z:0,weapon:STARTER_WEAPON,reloadAt:9,nextShot:7,inventory:{[w.id]:{ammo:0,reserve:reserveCapacity(w)}}};
   const state={elapsed:0,pickups:[{id:'loot',weapon:w.id,x:1,z:0,ammo:w.magazine}]};
   assert.equal(collectWeapon(state,p,'loot'),true,w.id);assert.equal(p.weapon,w.id);assert.equal(p.reloadAt,0);assert.equal(p.nextShot,0);
-  assert.equal(p.inventory[w.id].reserve,w.magazine*8);assert.equal(collectWeapon(state,p,'loot'),false);
+  assert.equal(p.inventory[w.id].reserve,reserveCapacity(w));assert.equal(collectWeapon(state,p,'loot'),false);
  }
 });
 test('invalid, expired, far and vehicle pickups cannot be consumed',()=>{

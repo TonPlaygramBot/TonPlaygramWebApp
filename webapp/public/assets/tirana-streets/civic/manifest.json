@@ -1,0 +1,18 @@
+{
+  "character": "Edi Rama \u2014 stylized fictional game NPC",
+  "likeness": "Artistic approximation, not a scan or exact portrait",
+  "heightMetres": 1.98,
+  "source": "https://quaternius.com/packs/ultimatemodularcharacters.html",
+  "license": "CC0-1.0",
+  "sourceSHA256": "de314438d264c9a9bd8f4862124161a7d2ec90d02e89f4eeb9947372999bc74c",
+  "file": "edi-rama-stylized.glb",
+  "bytes": 1069732,
+  "sha256": "f5e3f2e8ac0d9a7ead1ee509da0fa753d5736ffba4f262473c909a1630701977",
+  "changes": [
+    "charcoal suit",
+    "grey hair and eyebrows",
+    "grey lower-face stubble on original skin vertices",
+    "original rig and clips retained"
+  ],
+  "itinerary": "Fictional game route; no real schedule or tracking data"
+}

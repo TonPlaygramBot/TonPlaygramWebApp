@@ -1,7 +1,9 @@
 import {OPERATION_IDS} from '../shared/streetOperations.mjs';
-import {normalizeCheckpoint} from './checkpointCore.mjs';
+import {normalizeCheckpoint,normalizePickupState} from './checkpointCore.mjs';
+import {normalizeCityEconomy} from './CityEconomySimulation.mjs';
 import {createMissionDirector, missionGrade} from './missionDirectorCore.mjs';
 import {ensureStarterWeapons} from '../shared/weapons.mjs';
+import {reserveCapacity} from '../shared/ammunition.mjs';
 /** Local, fictional street economy. No account, TPG or room APIs belong here. */
 export const STREET_SAVE_KEY = 'tirana-streets:street-career:v1';
 export const CHAPTER_IDS = Object.freeze([
@@ -33,7 +35,7 @@ export function createCampaign(missions, weapons, starter) {
     if (plain(raw?.inventory)) for (const [id, w] of arsenal) {
       const own = raw.inventory[id];
       if (!Object.hasOwn(raw.inventory, id) || !plain(own)) continue;
-      inventory[id] = {ammo: Math.floor(number(own.ammo, 0, w.magazine)), reserve: Math.floor(number(own.reserve, 0, w.magazine * 8))};
+      inventory[id] = {ammo: Math.floor(number(own.ammo, 0, w.magazine)), reserve: Math.floor(number(own.reserve, 0, reserveCapacity(w)))};
     }
     if (!Object.keys(inventory).length) {
       const w = arsenal.get(starter);
@@ -43,7 +45,7 @@ export function createCampaign(missions, weapons, starter) {
     return {cash: Math.floor(number(raw?.cash, 750, 10000000)), inventory,
       weapon: raw?.weapon === '' ? '' : raw?.weapon === 'fpsGunAttack' ? starter : Object.hasOwn(inventory, raw?.weapon) ? raw.weapon : Object.hasOwn(inventory,starter) ? starter : Object.keys(inventory)[0]};
   }
-  function fresh() { return {version: 1, completed: [], best: {}, records: {}, loadout: loadout(null), active: null, explore:null}; }
+  function fresh() { return {version: 1, completed: [], best: {}, records: {}, loadout: loadout(null), active: null, explore:null, economy:normalizeCityEconomy(null),worldPickups:normalizePickupState(null)}; }
   function normalize(raw) {
     const p = fresh();
     if (!plain(raw) || raw.version !== 1) return p;
@@ -57,10 +59,13 @@ export function createCampaign(missions, weapons, starter) {
         p.records[id] = {grade:record.grade,runs:Math.floor(number(record.runs,1,100000)),integrity:number(record.integrity,100,100)};
     }
     p.loadout = loadout(raw.loadout);
+    p.economy = normalizeCityEconomy(raw.economy);
+    p.worldPickups = normalizePickupState(raw.worldPickups || raw.active?.phase || raw.explore);
     p.explore=normalizeCheckpoint(raw.explore,loadout,1);
     const a = raw.active;
     if (plain(a) && available(p, a.id)) {
-      p.active = {id: a.id, difficulty: difficulties.has(a.difficulty) ? a.difficulty : 'normal', checkpoint: loadout(a.checkpoint)};
+      p.active = {id: a.id, difficulty: difficulties.has(a.difficulty) ? a.difficulty : 'normal', checkpoint: loadout(a.checkpoint),
+        worldPickups:normalizePickupState(a.worldPickups || raw.explore || p.worldPickups)};
       const phase=normalizeCheckpoint(a.phase,loadout,byId.get(a.id)?.stops?.length||0);if(phase)p.active.phase=phase;
     }
     return p;
@@ -69,7 +74,7 @@ export function createCampaign(missions, weapons, starter) {
     const p = normalize(raw);
     if (p.active || !available(p, id) || !difficulties.has(difficulty)) return null;
     // Mission starts are the durable retry checkpoint; damage/ammo are reset by the engine.
-    p.active = {id, difficulty, checkpoint: loadout(p.loadout)};
+    p.active = {id, difficulty, checkpoint: loadout(p.loadout),worldPickups:normalizePickupState(p.worldPickups)};
     return p;
   }
   function resolve(raw, state, playerId) {
@@ -92,7 +97,10 @@ export function createCampaign(missions, weapons, starter) {
   }
   function abandon(raw) {
     const p = normalize(raw);
-    if (p.active) p.loadout = loadout(p.active.checkpoint);
+    if (p.active) {
+      p.loadout = loadout(p.active.checkpoint);
+      p.worldPickups = normalizePickupState(p.active.worldPickups);
+    }
     p.active = null;
     return p;
   }

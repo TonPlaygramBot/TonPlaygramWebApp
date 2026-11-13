@@ -1,3 +1,4 @@
+import {reserveCapacity} from '../webapp/src/games/tiranastreets/shared/ammunition.mjs';
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync, readdirSync, existsSync } from 'node:fs';
@@ -33,7 +34,7 @@ test('dealer enforces proximity, wanted status, funds and ammo capacity',()=>{
  p.wanted=0;p.cash=w.price-1;lifeAction(s,p,'buy:'+w.id);assert.equal(p.inventory[w.id],undefined);
  p.cash=1000;lifeAction(s,p,'buy:'+w.id);assert.equal(p.cash,1000-w.price);assert.equal(p.weapon,w.id);assert.equal(p.inventory[w.id].ammo,w.magazine);
  lifeAction(s,p,'equip:invented');assert.equal(p.weapon,w.id);
- p.inventory[w.id].reserve=w.magazine*8;const cash=p.cash;lifeAction(s,p,'buy:'+w.id);assert.equal(p.cash,cash);
+ p.inventory[w.id].reserve=reserveCapacity(w);const cash=p.cash;lifeAction(s,p,'buy:'+w.id);assert.equal(p.cash,cash);
  p.armor=0;lifeAction(s,p,'buy:armor');assert.equal(p.armor,100);
 });
 test('server firing consumes ammo, obeys cadence, stops stale controls and blocks walls',()=>{

@@ -21,7 +21,9 @@ import {
   type StreetView
 } from './StreetCareerRuntime';
 import { CityMap } from '../map/MapPanel';
+import { NavigationGuidance } from '../map/NavigationGuidance';
 import { StreetArsenal } from './StreetArsenal';
+import { PropertyBankPanel } from './PropertyBankPanel';
 import {WeaponSwitcher} from '../WeaponSwitcher';
 import {FrameRateControl} from '../FrameRateControl';
 import { difficultyOf, WEAPON_BY_ID } from '../shared/weapons.mjs';
@@ -40,7 +42,7 @@ const storage = () => {
     return undefined;
   }
 };
-type Panel = 'journal' | 'arsenal' | 'map' | null;
+type Panel = 'journal' | 'arsenal' | 'map' | 'economy' | null;
 export function StreetCareerGame({ onExit, initialOperation, initialDifficulty='normal' }: { onExit: () => void; initialOperation?:string; initialDifficulty?:string }) {
   const root = useRef<HTMLDivElement>(null),
     runtime = useRef<StreetCareerRuntime>(),
@@ -211,6 +213,11 @@ export function StreetCareerGame({ onExit, initialOperation, initialDifficulty='
             <span className={p.wanted > 0 ? 'is-wanted' : ''}>{'★'.repeat(wantedStars(p.wanted)) || 'NO PURSUIT'}</span>
           </div>
           <div className="tsc-overview">
+            <NavigationGuidance route={view.route} player={p} destination={view.destination}
+              onClear={() => runtime.current?.setDestination(null)}/>
+            {view.economy.robbery && <section className="tsc-objective" aria-label="Bank job">
+              <strong>{view.objective.title}</strong><span>{view.objective.detail}</span>
+            </section>}
             {mission && <section className="tsc-objective">
               <MissionReadout label="Current mission" eyebrow={mission.title}
                 title={view.state.phase === 'finished' ? view.state.message : view.objective.title}
@@ -338,6 +345,8 @@ export function StreetCareerGame({ onExit, initialOperation, initialDifficulty='
               ? 'Career journal'
               : panel === 'arsenal'
                 ? 'Street arsenal'
+                : panel === 'economy'
+                  ? 'City property and banking'
                 : 'Tirana city map'
           }
           onCancel={(e) => {
@@ -351,6 +360,8 @@ export function StreetCareerGame({ onExit, initialOperation, initialDifficulty='
                 ? 'Your name in Tirana'
                 : panel === 'arsenal'
                   ? 'Arben · Arsenal'
+                  : panel === 'economy'
+                    ? 'City services'
                   : 'Tirana city map'}
             </h2>
             <button
@@ -586,6 +597,10 @@ export function StreetCareerGame({ onExit, initialOperation, initialDifficulty='
                     onAction={(a) => runtime.current?.action(a)}
                     onOwned={(ids) => runtime.current?.grantWeapons(ids)}
                   />
+                ) : panel === 'economy' ? (
+                  <PropertyBankPanel economy={view.economy}
+                    onAction={(action,id,amount,weapon) => runtime.current?.economyAction(action,id,amount,weapon) || false}
+                    onWallet={() => runtime.current?.openWallet()} onClose={resume}/>
                 ) : (
                   <CityMap
                     player={p}

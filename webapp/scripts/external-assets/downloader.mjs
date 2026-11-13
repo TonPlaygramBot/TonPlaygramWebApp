@@ -205,6 +205,20 @@ function lfsMediaUrl(sourceUrl) {
   return null;
 }
 
+function polyhavenPngRetryUrl(sourceUrl, bytes) {
+  const url = new URL(sourceUrl);
+  if (url.hostname !== 'cdn.polyhaven.com' || !/^\/asset_img\/thumbs\/[^/]+\.png$/i.test(url.pathname) || url.searchParams.has('format')) return null;
+  // This CDN now negotiates WebP at historical PNG URLs even with Accept:
+  // image/png. Request the explicit original format only for recognized image
+  // responses, never for an HTML/error payload or another provider's asset.
+  const webp = bytes.length >= 20 && bytes.subarray(0, 4).toString() === 'RIFF' &&
+    bytes.subarray(8, 12).toString() === 'WEBP' && ['VP8 ', 'VP8L', 'VP8X'].includes(bytes.subarray(12, 16).toString());
+  const jpeg = bytes.length >= 4 && bytes[0] === 255 && bytes[1] === 216 && bytes[2] === 255;
+  if (!webp && !jpeg) return null;
+  url.searchParams.set('format', 'png');
+  return url.href;
+}
+
 export async function fetchAsset(sourceUrl, options = {}) {
   const { timeoutMs = 90_000, retries = 2, fetchImpl = fetch, expectedSha256, updateLock = false } = options;
   let lastError;
@@ -232,6 +246,14 @@ export async function fetchAsset(sourceUrl, options = {}) {
         const media = await fetchAsset(mediaUrl, { ...options, retries: 0, expectedSha256: oid, updateLock: false });
         if (media.bytes.length !== expectedSize) throw new Error('Git LFS size mismatch');
         ({ bytes, contentType, resolvedUrl } = media);
+      }
+      const pngRetryUrl = polyhavenPngRetryUrl(sourceUrl, bytes);
+      if (pngRetryUrl && !/text\/html/i.test(contentType)) {
+        // Keep sourceUrl as the canonical inventory/lock identity. The explicit
+        // response must pass normal PNG validation AND the unchanged reviewed
+        // source hash. Never accept the negotiated bytes or update the lock.
+        const png = await fetchAsset(pngRetryUrl, { ...options, retries: 0, expectedSha256, updateLock: false });
+        ({ bytes, contentType, resolvedUrl } = png);
       }
       validatePayload(bytes, sourceUrl, contentType);
       const digest = sha256(bytes);

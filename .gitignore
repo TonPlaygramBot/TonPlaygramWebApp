@@ -84,6 +84,12 @@ webapp/public/vendor/three/examples/jsm/libs/basis/
 /webapp/public/assets/external/
 /webapp/.cache/
 
+# Reviewed Poly Haven source originals used only by the residence assembly tool.
+# Runtime dependencies are materialized under assets/external by the vendor gate.
+/webapp/public/assets/tirana-streets/residential/modular_urban_apartments_facade_1k.gltf
+/webapp/public/assets/tirana-streets/residential/*.bin
+/webapp/public/assets/tirana-streets/residential/textures/
+
 # Generated shared upload runner for the classic service worker.
 /webapp/public/pwa/wall-upload-worker.js
 

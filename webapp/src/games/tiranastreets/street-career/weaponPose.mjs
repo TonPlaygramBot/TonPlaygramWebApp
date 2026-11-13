@@ -1,6 +1,17 @@
 import { WEAPON_BY_ID } from '../shared/weapons.mjs';
 import { WEAPON_OPTICS } from '../shared/weaponCalibration.mjs';
 import { direction3 } from './spatialCore.mjs';
+/** Palm frames are expressed in the same upright barrel space as the model.
+ * A support hand wraps a pistol grip from the opposite side; it must not use
+ * the upward-facing rifle fore-end palm. Three.js world-space limb IK then
+ * compensates for each imported rig's metacarpal lengths and bone rolls. */
+export function weaponHandFrame(id, side) {
+  const sidearm = WEAPON_BY_ID.get(id)?.category === 'sidearm';
+  if (side === 'right') return {along:{x:0,y:.93,z:.36},normal:{x:1,y:0,z:0},curl:1};
+  return sidearm
+    ? {along:{x:0,y:.93,z:.36},normal:{x:-1,y:0,z:0},curl:.9}
+    : {along:{x:-1,y:0,z:.1},normal:{x:0,y:1,z:0},curl:.82};
+}
 /** Model and simulation use the same calibrated barrel, sight and ejection port. */
 export function weaponAnchors(id) {
   const w=WEAPON_BY_ID.get(id),sidearm=w?.category==='sidearm';

@@ -125,7 +125,9 @@ export class CollectionVehicleVisuals {
         try { actor.driver=createNpcVehicleDriver(this.human,asset,car.id);actor.root.add(actor.driver); }
         catch(error){this.errors.set('driver-rig',String(error));}
       }
-      if(actor.driver)actor.driver.visible=car.npcDriver!==false&&!car.driver;
+      // Scripted civic drivers reserve their seat just like a player, while
+      // still needing the ordinary seated NPC mesh inside the convoy car.
+      if(actor.driver)actor.driver.visible=car.npcDriver!==false&&(!car.driver||car.driver.startsWith('civic-driver:'));
     }
     this.trim();this.pump();
     this.group.userData.loadedCars=this.actors.size;

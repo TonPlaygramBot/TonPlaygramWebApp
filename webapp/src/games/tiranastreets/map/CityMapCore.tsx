@@ -6,15 +6,19 @@ import {NEIGHBOURHOOD} from '../../tirana-neighbourhood/data.mjs';
 import type {State,Point} from '../shared/engine.mjs';
 import {fitView, constrainView, panView, zoomView, screenPoint, inBounds, readFavorites, writeFavorites, MAX_FAVORITES} from './mapCore.mjs';
 import './map.css';
+import {NavigationGuidance} from './NavigationGuidance';
+import {cityEconomySites} from '../street-career/cityEconomyCatalog.mjs';
+import {nearbyServices,formatRouteDistance} from './navigationGuidance.mjs';
 import {SatelliteLayer, SatelliteCredit} from './SatelliteLayer';
 import {atlasPin} from './atlasExtent.mjs';
 import {civicSites,referenceLinks,unproject,REFERENCES,project} from '../../tirana-expansion/geography.mjs';
-export type Place = Point & {id?:string; name:string; available?:boolean};
+export type Place = Point & {id?:string; name:string; available?:boolean;category?:'weapon'|'bank'|'property'};
 export type MapJob = {id:string;name:string;detail:string;available:boolean;completed:boolean;active:boolean;point?:Point};
 type Props = {jobs?:MapJob[];onStartJob?:(id:string)=>void;task?:{name:string;detail:string;point?:Point};player?:Point & {heading:number};state:State|null;route:Point[];large?:boolean;destination?:Place|null;onDestination?:(p:Place|null)=>void;routeNotice?:string};
 type View = {x:number;z:number;w:number;h:number};
 // The explorer, route targets and playable city share one urban boundary.
 const ATLAS_BOUNDS = WORLD.bounds;
+const economyPlaces:Place[]=cityEconomySites(WORLD).map(site=>({id:site.id,name:site.name,x:site.entrance.x,z:site.entrance.z,available:true,category:site.kind==='bank'?'bank':'property'}));
 function storage() { try {return window.localStorage;} catch {return undefined;} }
 const path = (points:number[][]) => points.length ? `M${points.map(p=>p.join(',')).join('L')}Z` : '';
 const ringDirection=(p:number[][],positive:boolean)=>{
@@ -36,7 +40,7 @@ const Geometry = memo(function Geometry() {
     {Object.entries(paths.roads).map(([key,d])=><path key={key} d={d} fill="none" stroke={key.startsWith('walk')?'#78958a':'#bbc3b5'} strokeWidth={Number(key.split(':')[1])} strokeLinecap="round"/>)}</g>;
 });
 function Markers({player,state,route,scale,destination}:Props & {scale:number}) {
-  return <g>{[...(state?.helicopters||[state?.helicopter]),state?.jet].filter(Boolean).map(a=>a&&<g key={a.id} transform={`translate(${a.kind==='helicopter'&&!a.pilot?a.stairX:a.x} ${a.kind==='helicopter'&&!a.pilot?a.stairZ:a.z}) scale(${scale})`}><circle r="9" fill="#97dce4" stroke="#142a30" strokeWidth="2"/><text y="4" textAnchor="middle" fill="#142a30" fontSize="12" fontWeight="bold">{a.kind==='jet'?'J':'H'}</text><title>{a.kind==='jet'?'Fighter jet':'Helicopter access'}</title></g>)}{route.length>1&&<polyline points={route.map(p=>`${p.x},${p.z}`).join(' ')} fill="none" stroke="#d8fa69" strokeWidth={3*scale} strokeLinejoin="round"/>}
+  return <g>{economyPlaces.map(place=><g key={place.id} transform={`translate(${place.x} ${place.z}) scale(${scale})`}><rect x="-9" y="-9" width="18" height="18" rx="4" fill={place.category==='bank'?'#f3c86c':'#b9b8ff'} stroke="#142a30" strokeWidth="1.5"/><text y="4" textAnchor="middle" fill="#142a30" fontSize="12" fontWeight="bold">{place.category==='bank'?'B':'H'}</text><title>{place.name}</title></g>)}{[...(state?.helicopters||[state?.helicopter]),state?.jet].filter(Boolean).map(a=>a&&<g key={a.id} transform={`translate(${a.kind==='helicopter'&&!a.pilot?a.stairX:a.x} ${a.kind==='helicopter'&&!a.pilot?a.stairZ:a.z}) scale(${scale})`}><circle r="9" fill="#97dce4" stroke="#142a30" strokeWidth="2"/><text y="4" textAnchor="middle" fill="#142a30" fontSize="12" fontWeight="bold">{a.kind==='jet'?'J':'H'}</text><title>{a.kind==='jet'?'Fighter jet':'Helicopter access'}</title></g>)}{route.length>1&&<polyline points={route.map(p=>`${p.x},${p.z}`).join(' ')} fill="none" stroke="#d8fa69" strokeWidth={3*scale} strokeLinejoin="round"/>}
     {state?.cars.filter(c=>!c.driver).map(c=><rect key={c.id} x={c.x-3*scale} y={c.z-5*scale} width={6*scale} height={10*scale} fill="#80cad6"/>)}
     {state&&Object.values(state.players).map(p=><circle key={p.id} cx={p.x} cy={p.z} r={4*scale} fill="#f49268"/>)}
     {state&&<>{(state.shops||[state.shop]).map(s=><g key={s.id||s.name} transform={`translate(${s.x} ${s.z}) scale(${scale})`} aria-label={`Weapons · ${s.name}`}><circle r="11" fill="#d8fa69" stroke="#142a30" strokeWidth="1.5"/><path d="M-7 -5H7V-1H1L-1 1L-2 7H-6L-4 0H-7Z M0 0V3H3V0" fill="#142a30" stroke="#142a30" strokeWidth="1"/><title>WEAPONS · {s.name}</title></g>)}{state.traffic.filter(c=>c.model==='tirana-bus').map(c=><rect key={c.id} x={c.x-3*scale} y={c.z-6*scale} width={6*scale} height={12*scale} fill="#64cc8a"><title>{c.routeName}</title></rect>)}
@@ -54,6 +58,7 @@ export function CityMap(props:Props) {
 function ExplorerMap(props:Props) {
   const {player,destination,onDestination}=props;
   const [layer,setLayer]=useState<'map'|'satellite'>('map'),[imageryError,setImageryError]=useState(false);
+  const [serviceFilter,setServiceFilter]=useState('all');
   const svg=useRef<SVGSVGElement>(null), pointers=useRef(new Map<number,{x:number;y:number}>());
   const [view,setView]=useState<View>(()=>player?{x:player.x-450,z:player.z-450,w:900,h:900}:fitView(WORLD.bounds,1)), liveView=useRef(view), measured=useRef(false);
   const [width,setWidth]=useState(390),[selected,setSelected]=useState<Place|null>(destination||null),[query,setQuery]=useState(''),[tab,setTab]=useState('places');
@@ -68,7 +73,7 @@ function ExplorerMap(props:Props) {
     el.addEventListener('wheel',wheel,{passive:false});
     return()=>{observer.disconnect();el.removeEventListener('wheel',wheel);};
   },[]);
-  const places=useMemo<Place[]>(()=>{
+  const basePlaces=useMemo<Place[]>(()=>{
     const list:Place[]=WORLD.landmarks.map(p=>({...p}));
     for(const ref of [...NEIGHBOURHOOD.districts,...EAST.districts].filter((p:any)=>/^(Kinostudio|Ali Demi|Kombinat|Lapraka|Sauk|Astir|Shkozë|Fresku)$/.test(p.name)))list.push({id:ref.id,name:ref.name,x:ref.point[0],z:ref.point[1],available:true});
     for(const site of civicSites(WORLD))if(!list.some(p=>p.name===site.name))list.push({id:site.id,name:site.name,x:site.x,z:site.z});
@@ -77,6 +82,12 @@ function ExplorerMap(props:Props) {
     for(const p of [...NEIGHBOURHOOD.places,...EAST.places])if(p.name?.trim()&&!ids.has(p.id)){list.push({id:p.id,name:p.name,x:p.point[0],z:p.point[1]});ids.add(p.id);}
     return list.filter(p=>inBounds(p,WORLD.bounds));
   },[]);
+  const services=useMemo<Place[]>(()=>{
+    const shops=props.state?.shops||(props.state?.shop?[props.state.shop]:[]);
+    return [...shops.map(s=>({id:s.id||`shop:${s.x}:${s.z}`,name:`Weapons · ${s.name}`,x:s.x,z:s.z+3,available:true,category:'weapon' as const})),...economyPlaces];
+  },[props.state?.shops,props.state?.shop]);
+  const places=useMemo(()=>[...services,...basePlaces.filter(p=>!services.some(s=>s.id===p.id))],[services,basePlaces]);
+  const nearest=nearbyServices(services.filter(p=>serviceFilter==='all'||p.category===serviceFilter),player,6);
   const normalized=(s:string)=>s.normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLowerCase();
   const found=(tab==='favorites'?favorites:places).filter(p=>normalized(p.name).includes(normalized(query))).slice(0,40);
   const select=(p:Place)=>{setSelected(p);if(!inBounds(p,ATLAS_BOUNDS))return;pointers.current.clear();gesture.current=null;const v=liveView.current,w=Math.min(v.w,360),h=w*v.h/v.w;change(constrainView({x:p.x-w/2,z:p.z-h/2,w,h},ATLAS_BOUNDS));};
@@ -105,9 +116,10 @@ function ExplorerMap(props:Props) {
   const scale=view.w/width;
   const fit=(bounds:readonly number[])=>{pointers.current.clear();gesture.current=null;change(fitView(bounds,view.w/view.h));};
   return <div className="ts-explorer-map">
+    <NavigationGuidance route={props.route} player={player} destination={destination} onClear={()=>onDestination?.(null)}/>
     <div className="ts-map-search"><input type="search" value={query} maxLength={80} placeholder="Search places or favourites" aria-label="Search Tirana places" onChange={e=>setQuery(e.target.value)}/></div>
     <div className="ts-map-tabs ts-map-layers" role="group" aria-label="Map view"><button aria-pressed={layer==='map'} onClick={()=>setLayer('map')}>Map</button><button aria-pressed={layer==='satellite'} onClick={()=>{setImageryError(false);setLayer('satellite');}}>Satellite</button><button onClick={()=>fit(ATLAS_BOUNDS)}>Whole map</button></div>
-    <div className="ts-map-tabs" role="tablist" aria-label="Map activities">{['places','favorites','jobs','tasks'].map(t=><button key={t} role="tab" aria-selected={tab===t} onClick={()=>setTab(t)}>{t==='favorites'?`Favorites (${favorites.length})`:t[0].toUpperCase()+t.slice(1)}</button>)}</div>
+    <div className="ts-map-tabs" role="tablist" aria-label="Map activities">{['places','nearby','favorites','jobs','tasks'].map(t=><button key={t} role="tab" aria-selected={tab===t} onClick={()=>setTab(t)}>{t==='favorites'?`Favorites (${favorites.length})`:t[0].toUpperCase()+t.slice(1)}</button>)}</div>
     <div className="ts-map-viewport">
       <svg ref={svg} viewBox={`${view.x} ${view.z} ${view.w} ${view.h}`} preserveAspectRatio="none" role="application" aria-label="Interactive Tirana map. Drag to pan, pinch or use plus and minus to zoom. Tap to drop a pin." tabIndex={0}
         onPointerDown={down} onPointerMove={move} onPointerUp={e=>up(e)} onPointerCancel={e=>up(e,true)} onLostPointerCapture={e=>up(e,true)}
@@ -124,6 +136,11 @@ function ExplorerMap(props:Props) {
       <span className="ts-map-scale">{Math.round(scale*70)} m<i aria-hidden="true"/></span>
     </div>
     {layer==='satellite'&&<SatelliteCredit failed={imageryError}/>}
+    {tab==='nearby'&&<section className="ts-map-nearby" aria-label="Nearby services">
+      <div className="ts-map-tabs" role="group" aria-label="Service type">{[['all','All'],['weapon','Weapons'],['bank','Banks'],['property','Homes']].map(([key,label])=><button key={key} aria-pressed={serviceFilter===key} onClick={()=>setServiceFilter(key)}>{label}</button>)}</div>
+      {nearest.map(place=><div key={place.id}><button onClick={()=>select(place)}><strong>{place.name}</strong><small>{formatRouteDistance(place.distance)} away</small></button><button disabled={!onDestination} onClick={()=>{select(place);onDestination?.(place);}} aria-label={`Navigate to ${place.name}`}>Go</button></div>)}
+      {!nearest.length&&<p>{player?'No services of this type nearby.':'Enter the city to find nearby services.'}</p>}
+    </section>}
     {tab==='jobs'&&<div className="ts-map-jobs" role="tabpanel" aria-label="Jobs">{props.jobs?.map(job=><article key={job.id}><strong>{job.name}</strong><small>{job.active?'In progress':job.completed?'Completed · replay available':job.available?'Available':'Complete earlier jobs to unlock'}</small><p>{job.detail}</p><div><button disabled={!job.point} onClick={()=>job.point&&select({...job.point,name:job.name,id:job.id})}>Show location</button><button disabled={!job.available||job.active||!props.onStartJob||props.jobs?.some(j=>j.active)} onClick={()=>props.onStartJob?.(job.id)}>{job.active?'Active':job.completed?'Replay':'Start job'}</button></div></article>)}{!props.jobs?.length&&<p>Jobs are available in Street Career.</p>}</div>}
     {tab==='tasks'&&<div className="ts-map-jobs" role="tabpanel" aria-label="Tasks">{props.task?<article><strong>{props.task.name}</strong><p>{props.task.detail}</p><button disabled={!props.task.point} onClick={()=>props.task?.point&&select({...props.task.point,name:props.task.name})}>Show task</button></article>:<p>No active task. Choose a job to get started.</p>}</div>}
     {selected&&<section className="ts-map-selection" aria-label="Selected place">

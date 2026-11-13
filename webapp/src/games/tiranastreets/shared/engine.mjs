@@ -1006,6 +1006,7 @@ export function upgradeState(state) {
   if (state.lifeVersion === 2) {
     if(!state.policeVersion)initPoliceDispatch(state,lifeEnvironment);
     if(!state.populationVersion){initCityPopulation(state,lifeEnvironment);populateTraffic(state,SPAWN);}
+    else if(state.populationVersion<2)initCityPopulation(state,lifeEnvironment);
     return state;
   }
   state.difficulty ||= 'normal';

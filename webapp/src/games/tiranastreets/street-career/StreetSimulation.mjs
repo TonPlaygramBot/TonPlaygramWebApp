@@ -1,5 +1,7 @@
 import {createCityEvent,stopCityEvent} from '../shared/cityEvents.mjs';
 import {BuildingAccessSimulation} from './BuildingAccessSimulation.mjs';
+import {CityEconomySimulation} from './CityEconomySimulation.mjs';
+import {CivicConvoySimulation} from './CivicConvoySimulation.mjs';
 import {ArrestSimulation} from './ArrestSimulation.mjs';
 import {createMissionDirector, extractionSeconds, updateMissionDirector} from './missionDirectorCore.mjs';
 import {npcWeaponPose} from '../shared/npcWeaponPose.mjs';
@@ -7,6 +9,7 @@ import {rememberPedestrianThreat} from '../shared/pedestrianBehavior.mjs';
 import {ThrowableSimulation} from './ThrowableSimulation.mjs';
 import {groundHeight} from '../../tirana-east/terrainCore.mjs';
 import { collectWeapon } from '../shared/cityPopulation.mjs';
+import { reserveCapacity } from '../shared/ammunition.mjs';
 import { weaponPose } from './weaponPose.mjs';
 import { traceShot, hitMultiplier } from './shotCore.mjs';
 import { CrashSimulation } from './CrashSimulation.mjs';
@@ -79,6 +82,8 @@ export class StreetSimulation {
     this.crashes = new CrashSimulation(this);
     this.flight = new FlightSimulation(this);
     this.access = new BuildingAccessSimulation(this);
+    this.economy = new CityEconomySimulation(this);
+    this.civicConvoy = new CivicConvoySimulation(this);
     this.arrest = new ArrestSimulation(this);
     this.throwables = new ThrowableSimulation(this);
     this.body.combat = this.player.weapon ? 'ready' : 'unarmed';
@@ -278,6 +283,8 @@ export class StreetSimulation {
     this.combat.step(dt);
     this.throwables.step(dt);
     this.arrest.step(dt);
+    this.economy.step(dt);
+    this.civicConvoy.step(dt);
     if(this.arrest.locked)return;
     const p = this.player,
       b = this.body;
@@ -590,9 +597,11 @@ export class StreetSimulation {
     for (const l of this.loot)
       if (!l.collected && !this.claimed.has(l.id) && (!l.expiresAt || l.expiresAt > this.state.elapsed)) {
         const w = WEAPON_BY_ID.get(l.weapon);
-        add(l.id, `PICK UP ${w?.label || 'WEAPON'}`, l, 3.2, 80, 'loot', {
-          enabled: !!w,
-          disabledReason: ''
+        const ammoOnly = l.kind === 'ammo', inventory = p.inventory[l.weapon];
+        const reason = ammoOnly && !inventory ? 'Find this weapon first' : ammoOnly && inventory.reserve >= reserveCapacity(w) ? 'Reserve is full' : '';
+        add(l.id, ammoOnly ? `AMMO · ${w?.label || 'WEAPON'} · ${l.ammo}` : `PICK UP ${w?.label || 'WEAPON'}`, l, 3.2, 80, 'loot', {
+          enabled: !!w && !reason,
+          disabledReason: reason
         });
       }
     for (const aircraft of this.flight.aircraft) {
@@ -631,7 +640,13 @@ export class StreetSimulation {
         { enabled: !reason, disabledReason: reason, side, occupied }
       );
     }
-    for(const shop of this.state.shops || [this.state.shop])add(shop.id || 'arsenal', 'ARSENAL', shop, 5, 50, 'arsenal');
+    for(const shop of this.state.shops || [this.state.shop]){
+      if(!shop || dist(p,shop)>9)continue;
+      const inside = dist(p,shop)<4;
+      const entrance = {x:shop.x,z:shop.z+(inside?0:3),y:inside?(shop.y??groundHeight(shop.x,shop.z))+.9:groundHeight(shop.x,shop.z+3)+.9};
+      add(shop.id || 'arsenal', 'SHOP · WEAPONS & AMMO', entrance, 6, 50, 'arsenal');
+    }
+    out.push(...this.economy.candidates());
     return out;
   }
   focus() {
@@ -767,6 +782,7 @@ export class StreetSimulation {
       b = this.body,
       now = this.state.elapsed;
     b.notice = '';
+    if (descriptor.kind === 'economy') return this.economy.execute(descriptor);
     if (descriptor.kind?.startsWith('access-')) return this.access.execute(descriptor);
     if (descriptor.kind === 'aircraft') return this.flight.board(descriptor.targetId);
     if (descriptor.kind === 'air-exit') return this.flight.exit();
@@ -1158,9 +1174,10 @@ export class StreetSimulation {
     if (live.kind === 'loot') {
       const l = this.loot.find((l) => l.id === a.targetId);
       if (!l || this.claimed.has(l.id)) return;
-      if(!collectWeapon(this.state,this.player,l.id))return;
-      this.body.combat = 'ready';
-      this.claimed.add(l.id);
+      if(!collectWeapon(this.state,this.player,l.id)){this.body.notice=this.player.shopMessage;return;}
+      if(l.kind !== 'ammo')this.body.combat = 'ready';
+      if(l.collected)this.claimed.add(l.id);
+      this.body.notice=this.player.shopMessage;
       this.event('loot', { targetId: l.id });
     } else if (live.kind === 'objective') {
       if (this.mission.type === 'delivery') {
@@ -1211,6 +1228,7 @@ export class StreetSimulation {
   }
   objective() {
     const accessObjective=this.access.objective();if(accessObjective)return accessObjective;
+    const economyObjective=this.economy.objective();if(economyObjective)return economyObjective;
     const p = this.player;
     if (this.mission.type === 'flight') {
       const a=this.flight.aircraft.find(a=>a.kind===this.mission.aircraft);

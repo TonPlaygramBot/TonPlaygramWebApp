@@ -1,3 +1,5 @@
+import {ammunitionQuote, reserveCapacity} from './ammunition.mjs';
+import {WEAPON_STORE_CATALOG} from '../weaponStoreCatalog.mjs';
 import {updateCityEvent,cityEventIntent} from './cityEvents.mjs';
 import {createInstitutionGuards} from './institutionGuards.mjs';
 import {scheduledActorStep} from './actorSchedule.mjs';
@@ -209,7 +211,7 @@ export function lifeAction(state, p, action) {
   }
   if (!action.startsWith("buy:")) return false;
   p.shopMessage = "";
-  if (p.carId || (!nearestShop(state,p) || dist(p, nearestShop(state,p)) > 9) || p.health <= 0) {
+  if (p.carId || p.aircraftId || p.arrest || p.finished || p.failed || (!nearestShop(state,p) || dist(p, nearestShop(state,p)) > 9) || p.health <= 0) {
     p.shopMessage = "Walk up to Arben to shop.";
     return true;
   }
@@ -217,7 +219,11 @@ export function lifeAction(state, p, action) {
     p.shopMessage = "Lose your wanted stars before shopping.";
     return true;
   }
-  const id = action.slice(4);
+  const parts = action.slice(4).split(':');
+  const bulk = parts[0] === 'ammo';
+  const amount = bulk ? parts[1] : 'box';
+  const id = bulk ? parts[2] : parts[0];
+  if(bulk && (parts.length!==3 || !['mag','box','max'].includes(amount))){p.shopMessage='Choose an ammunition amount';return true;}
   if (id === "medkit" || id === "armor") {
     const price = id === "medkit" ? 90 : 180;
     if ((id === "medkit" ? p.health : p.armor) >= 100) {
@@ -240,23 +246,27 @@ export function lifeAction(state, p, action) {
     p.shopMessage = "That item is unavailable.";
     return true;
   }
-  const own = p.inventory[id],
-    price = own ? Math.max(30, Math.round(w.price * 0.2)) : w.price;
+  const own = p.inventory[id];
   if (w.category === 'melee') return true;
-  if (own && own.reserve >= w.magazine * 8) {
+  if (!own && (bulk || WEAPON_STORE_CATALOG.some(item=>item.weaponId===id))) {
+    p.shopMessage = 'Buy this weapon through the TPG equipment catalog, or find it in the city.';
+    return true;
+  }
+  const quote = own ? ammunitionQuote(w, own, amount) : {rounds:w.magazine*3,price:w.price};
+  if (own && !quote.rounds) {
     p.shopMessage = "Ammo is full.";
     return true;
   }
-  if (p.cash < price) {
+  if (!Number.isFinite(p.cash) || p.cash < quote.price) {
     p.shopMessage = "Not enough street cash.";
     return true;
   }
-  p.cash -= price;
-  if (own) own.reserve = Math.min(w.magazine * 8, own.reserve + w.magazine * 3);
-  else p.inventory[id] = { ammo: w.magazine, reserve: w.magazine * 3 };
-  p.weapon = id;
-  p.reloadAt = 0;
-  p.shopMessage = own ? "Ammo restocked." : `${w.label} equipped.`;
+  p.cash -= quote.price;
+  if (own) own.reserve = Math.min(reserveCapacity(w), own.reserve + quote.rounds);
+  else p.inventory[id] = { ammo: w.magazine, reserve: Math.min(reserveCapacity(w),quote.rounds) };
+  // Restocking preserves the equipped weapon and current reload timeline.
+  if(!own){p.weapon = id;p.reloadAt = 0;}
+  p.shopMessage = own ? `${quote.rounds} rounds restocked for $${quote.price}.` : `${w.label} equipped.`;
   emit(state, "purchase", p, p, p.id);
   return true;
 }

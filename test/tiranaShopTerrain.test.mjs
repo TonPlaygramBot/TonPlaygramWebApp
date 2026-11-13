@@ -22,23 +22,21 @@ const load=(file,deps,globals={})=>{
   return module.exports;
 };
 
-test('all original shop locations use one terrain datum and bounded access within the existing footprint',()=>{
-  const elevated=state.shops.filter(s=>shopLayout(s).stairCount);
-  assert.deepEqual(elevated.map(s=>s.id),['arsenal-3','arsenal-4','arsenal-7','arsenal-8','arsenal-15']);
+test('all 24 shop locations use one terrain datum and bounded access within the existing footprint',()=>{
+  assert.equal(state.shops.length,24);
   for(const shop of state.shops){
     const layout=shopLayout(shop),solids=shopObstacles().filter(b=>b.id.startsWith(`${shop.id}-solid-`));
     assert.equal(solids.length,layout.solids.length);assert.ok(layout.stairCount<=32);
+    if(layout.stairCount)assert.ok((layout.baseY+.18-layout.entranceY)/layout.stairCount<=.240001);
     for(const b of solids){assert.equal(b.baseY,layout.baseY);assert.ok(b.minX>=shop.x-6.511&&b.maxX<=shop.x+6.511&&b.minZ>=shop.z-10.511&&b.maxZ<=shop.z+2.501);}
     if(!layout.stairCount){assert.equal(layout.baseY,0);assert.equal(solids.length,5,'central shops retain the original five collision pieces');}
   }
 });
 
 test('the capsule walks from terrain through every entrance to the counter without teleporting or changing movement limits',()=>{
-  let largestRise=0;
   for(const shop of state.shops){
     const layout=shopLayout(shop),world=new StreetWorld(layout.solids,false);
     const p={x:shop.x,z:shop.z+3.5,y:groundHeight(shop.x,shop.z+3.5)+.08};
-    largestRise=Math.max(largestRise,layout.baseY+.18-p.y);
     for(let i=0;i<220&&p.z>shop.z-6.3;i++){
       const previous={...p};world.move(p,0,-.06,1.78);
       assert.ok(p.y-previous.y<=.280001,`${shop.id}: step limit`);
@@ -51,7 +49,19 @@ test('the capsule walks from terrain through every entrance to the counter witho
     const hit=world.cast({x:shop.x+8,y:layout.baseY+1.7,z:shop.z-3},{x:-1,y:0,z:0},8);
     assert.equal(hit.objectId,`${shop.id}-solid-2`,'sight hits the original side wall');
   }
-  assert.ok(largestRise>6,'covers the highest mountain entrance');
+});
+
+// The compact city no longer includes the old hillside shop IDs. Keep slope
+// coverage as a deliberate fixture, independent of the live shop distribution.
+test('a synthetic hillside shop remains walkable with legal continuous stair risers',()=>{
+  const shop={id:'hillside-fixture',x:5800,z:-4250},layout=shopLayout(shop),world=new StreetWorld(layout.solids,false);
+  const p={x:shop.x,z:shop.z+3.5,y:groundHeight(shop.x,shop.z+3.5)+.08};
+  assert.ok(layout.stairCount>=20);assert.ok(layout.baseY+.18-p.y>4);
+  for(let i=0;i<220&&p.z>shop.z-6.3;i++){
+    const previous={...p};world.move(p,0,-.06,1.78);
+    assert.ok(p.y-previous.y<=.280001);assert.ok(Math.abs(p.z-previous.z)<=.060001);assert.ok(world.clearance(p,1.78));
+  }
+  assert.ok(p.z<shop.z-6.3);assert.ok(Math.abs(p.y-layout.baseY-.18)<.001);
 });
 
 test('continuing on a low platform works while excessive steps and low ceilings stay blocked',()=>{
