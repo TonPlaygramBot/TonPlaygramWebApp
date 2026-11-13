@@ -1,6 +1,8 @@
 import {useEffect,useRef} from 'react';
 import * as T from 'three';
-import {GLTFLoader} from 'three/examples/jsm/loaders/GLTFLoader.js';
+import {HumanModelLoader} from './HumanModelLoader';
+import {loadPlayerModelBytes,discardPlayerModelBytes} from './playerModelBytes.mjs';
+import {prepareHumanMaterials} from './street-career/humanMaterials.mjs';
 import {OrbitControls} from 'three/examples/jsm/controls/OrbitControls.js';
 import {normalizePlayableHuman} from './street-career/humanoidRig.mjs';
 import {disposeWeaponResources} from './weaponModelResources';
@@ -14,6 +16,7 @@ export function PlayerPreview({url,label,onState}:{url:string|null;label:string;
     let closed=false,contextLost=false,frame=0,model:T.Object3D|undefined,mixer:T.AnimationMixer|undefined,renderer:T.WebGLRenderer|undefined;
     const scene=new T.Scene();scene.background=new T.Color('#15232b');
     const camera=new T.PerspectiveCamera(34,1,.05,30);camera.position.set(0,1.05,3.6);
+    const loader=new HumanModelLoader();let releaseMaterials:(()=>void)|undefined;
     const clock=new T.Clock();let controls:OrbitControls|undefined,observer:ResizeObserver|undefined;
     const report=(ready:boolean,message:string)=>{if(!closed)onState({url,ready,message});};
     report(false,`Loading ${label}…`);
@@ -21,6 +24,7 @@ export function PlayerPreview({url,label,onState}:{url:string|null;label:string;
     const lost=(event:Event)=>{event.preventDefault();contextLost=true;cancelAnimationFrame(frame);report(false,'3D preview was interrupted. Tap Retry.');};
     try {
       renderer=new T.WebGLRenderer({antialias:true,alpha:false,powerPreference:'low-power'});
+      loader.configure(renderer);
       renderer.setPixelRatio(Math.min(window.devicePixelRatio||1,1.5));
       renderer.outputColorSpace=T.SRGBColorSpace;renderer.toneMapping=T.ACESFilmicToneMapping;renderer.toneMappingExposure=1.2;
       renderer.domElement.setAttribute('aria-label',`${label} 3D preview`);renderer.domElement.setAttribute('role','img');
@@ -36,13 +40,11 @@ export function PlayerPreview({url,label,onState}:{url:string|null;label:string;
       observer=new ResizeObserver(resize);observer.observe(root);resize();
       const render=()=>{if(closed)return;frame=requestAnimationFrame(render);if(document.hidden||!root.getClientRects().length)return;const dt=Math.min(.05,clock.getDelta());mixer?.update(dt);controls?.update();renderer?.render(scene,camera);};render();
       void (async()=>{
-        const response=await fetch(url,{signal:abort.signal});
-        if(!response.ok)throw Error(`Character download failed (${response.status}).`);
-        const bytes=await response.arrayBuffer();if(closed)return;
-        if(bytes.byteLength<20||new DataView(bytes).getUint32(0,true)!==0x46546c67)throw Error('Character file is unavailable.');
-        const gltf=await new GLTFLoader().parseAsync(bytes,url.slice(0,url.lastIndexOf('/')+1));
+        const bytes=await loadPlayerModelBytes(url,{signal:abort.signal});if(closed)return;
+        const gltf=await loader.parseAsync(bytes,new URL('.',new URL(url,window.location.href)).href).catch(error=>{discardPlayerModelBytes(url);throw error;});
         if(closed){disposeWeaponResources([gltf.scene]);return;}
         try{model=normalizePlayableHuman(gltf.scene);}catch(error){disposeWeaponResources([gltf.scene]);throw error;}
+        releaseMaterials=prepareHumanMaterials(model,{maxAnisotropy:renderer!.capabilities.getMaxAnisotropy()});
         scene.add(model);
         const idle=gltf.animations.find(clip=>/idle/i.test(clip.name));
         if(idle){mixer=new T.AnimationMixer(model);mixer.clipAction(idle).play();}
@@ -51,7 +53,7 @@ export function PlayerPreview({url,label,onState}:{url:string|null;label:string;
     }catch{report(false,'WebGL is unavailable. Enable hardware graphics, then retry.');}
     return ()=>{
       closed=true;clearTimeout(timer);abort.abort();cancelAnimationFrame(frame);observer?.disconnect();controls?.dispose();
-      mixer?.stopAllAction();if(model)mixer?.uncacheRoot(model);disposeWeaponResources([scene]);
+      mixer?.stopAllAction();if(model)mixer?.uncacheRoot(model);releaseMaterials?.();disposeWeaponResources([scene]);loader.dispose();
       renderer?.domElement.removeEventListener('webglcontextlost',lost);renderer?.dispose();renderer?.forceContextLoss();renderer?.domElement.remove();
     };
   },[url,label,onState]);

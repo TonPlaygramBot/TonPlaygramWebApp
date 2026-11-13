@@ -1,4 +1,3 @@
-import {groundHeight} from '../../tirana-east/terrainCore.mjs';
 import {pocketWeapon,isPocketWeapon} from '../PocketWeapons';
 import { weaponPose, weaponAnchors } from './weaponPose.mjs';
 import * as T from 'three';
@@ -15,7 +14,9 @@ import {
   disposeWeaponResources
 } from '../weaponModelResources';
 import { direction3 } from './spatialCore.mjs';
-import { carPoint, vehicleAnchors } from './vehicleCore.mjs';
+import { carPoint, vehicleAnchors, steeringWheelContacts, steeringWheelAngle, STEERING_WHEEL_AXIS } from './vehicleCore.mjs';
+import {driverUp,driverDirection} from '../shared/driverView.mjs';
+import {solveHumanoidGrip,poseHumanoidFist} from './humanoidHands.mjs';
 import {humanoidBones, headBoneIndices, solveHumanoidLimb, HumanoidLegPose} from './humanoidRig.mjs';
 const v = new T.Vector3(),
   q = new T.Quaternion();
@@ -449,33 +450,27 @@ export class FirstPersonBody {
       r = local(0.13, -0.22, 0.3 + 0.35 * swing);
     }
     if (car) {
-      const seat = carPoint(car, vehicleAnchors(car).seat);
-      root.position.y = groundHeight(car.x,car.z)+vehicleAnchors(car).eye.y - 1.62;
-      root.position.x = seat.x;
-      root.position.z = seat.z;
-      const wheel = carPoint(car, vehicleAnchors(car).wheel),
-        wheelRight = new T.Vector3(
-          Math.cos(car.heading),
-          0,
-          -Math.sin(car.heading)
-        ),
-        turn = -(car.steering || 0) * 1.7;
-      left = new T.Vector3(wheel.x, wheel.y, wheel.z).addScaledVector(
-        wheelRight,
-        -0.18 * Math.cos(turn)
-      );
-      r = new T.Vector3(wheel.x, wheel.y, wheel.z).addScaledVector(
-        wheelRight,
-        0.18 * Math.cos(turn)
-      );
-      left.y -= 0.18 * Math.sin(turn);
-      r.y += 0.18 * Math.sin(turn);
-      root.rotation.y = car.heading + Math.PI;
-    }
+      const anchors=vehicleAnchors(car),seat=carPoint(car,{...anchors.seat,z:anchors.seat.z-.035});
+      const up=driverUp(car),forward=driverDirection(car);
+      root.position.set(seat.x,seat.y,seat.z);root.up.set(up.x,up.y,up.z);
+      root.lookAt(seat.x+forward.x,seat.y+forward.y,seat.z+forward.z);
+      // Seat the actual pelvis, then solve the authored leg lengths into the
+      // footwell. Local Euler bends differ across the supplied player rigs.
+      if(hips){root.updateWorldMatrix(true,true);root.position.sub(hips.getWorldPosition(new T.Vector3()).sub(new T.Vector3(seat.x,seat.y,seat.z)));}
+      for(const side of ['left','right'] as const){
+        set(side+'upleg',0);set(side+'leg',0);set(side+'foot',0);
+        const pedal=carPoint(car,side==='left'?anchors.leftPedal:anchors.rightPedal);
+        armPose(root,this.bones,side,new T.Vector3(pedal.x,pedal.y,pedal.z),true);
+      }
+      const contact=steeringWheelContacts(car);
+      left.set(contact.left.x,contact.left.y,contact.left.z);
+      r.set(contact.right.x,contact.right.y,contact.right.z);
+    } else root.up.set(0,1,0);
     const weaponRotation = new T.Quaternion().setFromEuler(new T.Euler(
       -pose.pitch + (reload ? swing * .6 : 0), b.yaw + Math.PI,
       reload ? swing * .25 : 0, 'YXZ'));
-    const weaponOrigin = new T.Vector3(pose.origin.x, pose.origin.y - (reload ? swing * .18 : 0), pose.origin.z);
+    const weaponOrigin = new T.Vector3(pose.origin.x, pose.origin.y - (reload ? swing * .18 : 0), pose.origin.z)
+      .addScaledVector(v.set(forward.x,forward.y,forward.z),-b.recoil);
     if (armed && !car) {
       const socket = (point: {x:number;y:number;z:number}) => new T.Vector3(point.x, point.y, point.z).applyQuaternion(weaponRotation).add(weaponOrigin);
       r = socket(pose.anchors.rightGrip);
@@ -491,21 +486,31 @@ export class FirstPersonBody {
       left = local(-.26,-.55,.06);
       if(a?.kind==='punch')r=local(.12,-.2,.3+.42*swing);
     }
-    armPose(root, this.bones, 'left', left);
-    armPose(root, this.bones, 'right', r);
-    for (const [name, bone] of this.bones)
-      if (/hand(index|middle|ring|pinky|thumb)/.test(name)) {
-        const curl = armed
-          ? 0.8
-          : b.guard
-            ? 1.1
-            : a?.kind === 'interacting'
-              ? 0.18
-              : 1.2;
-        bone.quaternion
-          .copy(this.rests.get(bone)!)
-          .multiply(q.setFromEuler(new T.Euler(curl, 0, 0)));
+    const configForGrip=WEAPON_BY_ID.get(p.weapon);
+    for(const side of ['left','right'] as const){
+      const target=side==='left'?left:r;
+      let solved=false;
+      if(car){
+        const origin=carPoint(car,{x:0,y:0,z:0}),forwardPoint=carPoint(car,{x:0,y:0,z:-1});
+        const along=new T.Vector3(forwardPoint.x-origin.x,forwardPoint.y-origin.y,forwardPoint.z-origin.z);
+        const inward=new T.Vector3(side==='left'?1:-1,0,0).applyAxisAngle(new T.Vector3(STEERING_WHEEL_AXIS.x,STEERING_WHEEL_AXIS.y,STEERING_WHEEL_AXIS.z),steeringWheelAngle(car));
+        const normalPoint=carPoint(car,{x:inward.x,y:inward.y,z:inward.z});
+        const normal=new T.Vector3(normalPoint.x-origin.x,normalPoint.y-origin.y,normalPoint.z-origin.z);
+        solved=solveHumanoidGrip(root,this.bones,side,target,along,normal,.9);
+      }else if(armed&&!(reload&&side==='left')&&!(configForGrip?.category==='melee'&&side==='left')){
+        const along=new T.Vector3(side==='right'?0:-1,side==='right'?.93:0,side==='right'?.36:.1).normalize().applyQuaternion(weaponRotation);
+        const normal=new T.Vector3(side==='right'?1:0,side==='right'?0:1,0).applyQuaternion(weaponRotation);
+        solved=solveHumanoidGrip(root,this.bones,side,target,along,normal,1);
       }
+      if(!solved){
+        armPose(root,this.bones,side,target);
+        if(!car&&!armed&&(b.guard||a?.kind==='punch'||p.weapon==='punch'))poseHumanoidFist(root,this.bones,side,1);
+      }
+    }
+    // Finger joints for gripping hands are posed in measured anatomical space.
+    // Keep the relaxed reload hand open instead of leaving a clenched fist.
+    if(reload&&!car)for(const [name,bone] of this.bones)
+      if(/^lefthand(index|middle|ring|pinky|thumb)/.test(name))bone.quaternion.copy(this.rests.get(bone)!);
     const config = WEAPON_BY_ID.get(p.weapon);
     if (config) void this.loadWeapon(p.weapon, config.model,true);
     if (
@@ -520,18 +525,13 @@ export class FirstPersonBody {
     }
     this.weapon.visible =
       armed && !car && this.models.has(p.weapon) && p.health > 0;
-    this.weapon.position.set(
-      pose.origin.x,
-      pose.origin.y - (reload ? swing * 0.18 : 0),
-      pose.origin.z
-    );
+    this.weapon.position.copy(weaponOrigin);
     this.weapon.rotation.set(
       -pose.pitch + (reload ? swing * 0.6 : 0),
       b.yaw + Math.PI,
       reload ? swing * 0.25 : 0,
       'YXZ'
     );
-    this.weapon.position.addScaledVector(v.set(forward.x,forward.y,forward.z), -b.recoil);
     if(isPocketWeapon(p.weapon)){
       const throwing=config?.category==='throwable';
       const t=throwing?Math.max(0,Math.min(1,1-(p.nextShot-time)/(config?.interval||1))):1;

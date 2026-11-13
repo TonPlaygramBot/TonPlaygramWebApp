@@ -28,16 +28,18 @@ export class SharedHumans {
   private failed=new Set<string>();
   private actors=new Map<string,Actor>(); private queue:SharedAsset[]=[];private loading=0;
   private aborts=new Set<AbortController>();
-  private dead=false;private held=new LivingVisuals();
+  private dead=false;private started=false;private held=new LivingVisuals();
   private signs=new Map<string,T.SpriteMaterial>();
   private loader=new HumanModelLoader();
-  configure(renderer:T.WebGLRenderer){this.loader.configure(renderer);}
+  private maxAnisotropy=4;
+  configure(renderer:T.WebGLRenderer){this.loader.configure(renderer);this.maxAnisotropy=renderer.capabilities.getMaxAnisotropy();}
   private frustum=new T.Frustum();
   private projection=new T.Matrix4();
   private bounds=new T.Sphere(new T.Vector3(),2.4);
   constructor(private cast:readonly SharedAsset[]=SHARED_GAME_CAST){
     this.group.name='Tirana:shared-games-human-NPCs';
-    this.primeLocalHumans();
+    // The selected player and starting weapon own the entry bandwidth. NPCs
+    // request their original models on the first playable frame below.
   }
   private primeLocalHumans(){
     const priority=['tirana-citizen-0','tirana-citizen-1','rpm-current','chess-human','athlete-male','athlete-female','mixamo-soldier'];
@@ -65,7 +67,7 @@ export class SharedHumans {
         const box=new T.Box3().setFromObject(g.scene),height=box.max.y-box.min.y;
         let skinned=false;g.scene.traverse(o=>{if(o instanceof T.SkinnedMesh)skinned=true;});
         if(!skinned||!Number.isFinite(height)||height<.01){disposeResources(g.scene);throw Error('Not a usable rigged full-body human');}
-        this.sourceMaterials.set(asset.url,prepareHumanMaterials(g.scene));
+        this.sourceMaterials.set(asset.url,prepareHumanMaterials(g.scene,{maxAnisotropy:this.maxAnisotropy}));
         this.failed.delete(asset.url);this.sources.set(asset.url,g);
       }).catch(e=>{if(!this.dead){this.failed.add(asset.url);this.errors.push(`${asset.label}: ${String(e)}. Compatible loaded human or existing actor is retained.`);}}).finally(()=>{this.loading--;this.pump();});
     }
@@ -183,6 +185,9 @@ export class SharedHumans {
       if(first||onScreen)this.held.pose(`shared-${n.id}`,a.root,n,time);
 
     }
+    // Queue fallback sources after the visible cast, never during construction
+    // while the player's own model and city are still loading.
+    if(!this.started){this.started=true;this.primeLocalHumans();}
   }
   private remove(id:string){
     const a=this.actors.get(id);if(!a)return;

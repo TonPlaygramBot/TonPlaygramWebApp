@@ -1,4 +1,4 @@
-import test,{after} from 'node:test';
+import test,{after,beforeEach} from 'node:test';
 import assert from 'node:assert/strict';
 import {mkdtemp,readFile,rm} from 'node:fs/promises';
 import {createRequire} from 'node:module';
@@ -11,16 +11,18 @@ const webapp=fileURLToPath(new URL('../webapp/',import.meta.url)),require=create
 const dir=await mkdtemp(join(webapp,'.city-stories-player-test-'));
 after(()=>rm(dir,{recursive:true,force:true}));
 const file=join(dir,'player.mjs');
-await build({stdin:{contents:"export {CareerPlayer} from './src/games/tiranastreets/career/CareerPlayer';export {CareerRuntime} from './src/games/tiranastreets/career/CareerRuntime';export {BattlefieldPlayer} from './src/games/blackwater/BattlefieldPlayer';export {selectPlayerAsset} from './src/games/tiranastreets/playerCatalog.mjs';",resolveDir:webapp,loader:'ts'},outfile:file,bundle:true,format:'esm',platform:'node',external:['three','three/*'],logLevel:'silent',plugins:[{
+await build({stdin:{contents:"export {playerModelBytes,loadPlayerModelBytes} from './src/games/tiranastreets/playerModelBytes.mjs';export {CareerPlayer} from './src/games/tiranastreets/career/CareerPlayer';export {CareerRuntime} from './src/games/tiranastreets/career/CareerRuntime';export {BattlefieldPlayer} from './src/games/blackwater/BattlefieldPlayer';export {selectPlayerAsset} from './src/games/tiranastreets/playerCatalog.mjs';",resolveDir:webapp,loader:'ts'},outfile:file,bundle:true,format:'esm',platform:'node',external:['three','three/*'],logLevel:'silent',plugins:[{
   name:'headless-texture-decoder',setup(build){
     build.onResolve({filter:/^three\/examples\/jsm\/loaders\/GLTFLoader\.js$/},()=>({path:'headless-loader',namespace:'test'}));
     build.onLoad({filter:/.*/,namespace:'test'},()=>({contents:`import {GLTFLoader as Original} from ${JSON.stringify(require.resolve('three/examples/jsm/loaders/GLTFLoader.js'))};import {Texture} from 'three';export class GLTFLoader extends Original {constructor(){super();this.register(()=>({name:'HEADLESS_TEXTURES',loadTexture:async()=>new Texture()}));}}`,loader:'js',resolveDir:webapp}));
   }
 }]});
-const {CareerPlayer,CareerRuntime,BattlefieldPlayer,selectPlayerAsset}=await import(pathToFileURL(file));
+const {CareerPlayer,CareerRuntime,BattlefieldPlayer,selectPlayerAsset,playerModelBytes,loadPlayerModelBytes}=await import(pathToFileURL(file));
 const oldFetch=globalThis.fetch,oldWindow=globalThis.window;
 globalThis.window={location:{href:'https://game.example/games/tiranastreets?activity=career'}};
 after(()=>{globalThis.fetch=oldFetch;if(oldWindow===undefined)delete globalThis.window;else globalThis.window=oldWindow;});
+beforeEach(()=>playerModelBytes.clear());
+after(()=>playerModelBytes.clear());
 const asset=id=>({id,url:`/assets/tirana-streets/players/${id}.glb`});
 const response=async url=>new Response(await readFile(join(webapp,'public',new URL(url).pathname)));
 
@@ -62,9 +64,25 @@ test('Operations prepares the lobby weapon before its selected body finishes loa
   await player.load('sigsauer');assert.deepEqual(player.errors,[]);assert.equal(prepared,'sigsauerTacticalAttack');
   assert.ok(scene.getObjectByName('Tirana:player-body'));player.dispose();assert.equal(scene.children.length,0);
 });
-test('City Stories runtime gates resume and chapter changes until the chosen body is ready',()=>{
+test('City Stories runtime gates resume and chapter changes until the chosen body is ready',t=>{
+  const oldDocument=globalThis.document;globalThis.document={hidden:false};
+  t.after(()=>{if(oldDocument===undefined)delete globalThis.document;else globalThis.document=oldDocument;});
   const game=Object.create(CareerRuntime.prototype);let emits=0,starts=0,clears=0;
   Object.assign(game,{playerVisual:{ready:false},paused:true,input:{active:false,clear:()=>clears++},audio:{start:()=>starts++},emit:()=>emits++});
   game.resume();game.select('anything');assert.equal(game.paused,true);assert.equal(game.input.active,false);assert.equal(starts,0);assert.equal(clears,0);
   game.playerVisual.ready=true;game.resume();assert.equal(game.paused,false);assert.equal(game.input.active,true);assert.equal(starts,1);assert.equal(clears,1);assert.equal(emits,2);
+});
+
+
+test('picker bytes are reused by gameplay without sharing live materials or skeletons',async()=>{
+  selectPlayerAsset(asset('turi'));let requests=0;globalThis.fetch=async url=>{requests++;return response(url);};
+  await loadPlayerModelBytes(asset('turi').url);
+  const a=new CareerPlayer(new T.Scene()),b=new CareerPlayer(new T.Scene());
+  await Promise.all([a.load(),b.load()]);
+  assert.equal(requests,1,'preview and both game instances share one source download');
+  assert.equal(a.ready,true);assert.equal(b.ready,true);
+  const aMeshes=[],bMeshes=[];a.actor.group.traverse(o=>{if(o.isSkinnedMesh)aMeshes.push(o);});b.actor.group.traverse(o=>{if(o.isSkinnedMesh)bMeshes.push(o);});
+  assert.notEqual(aMeshes[0].skeleton,bMeshes[0].skeleton);
+  assert.notEqual(aMeshes[0].material,bMeshes[0].material);
+  a.dispose();assert.equal(b.ready,true,'disposing one renderer does not release the other body');b.dispose();
 });
