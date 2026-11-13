@@ -68,7 +68,7 @@ export function KartControls({hold,release,boost,drifting,driftCharge=0,turbo=0,
       onPointerMove={moveStick} onPointerUp={endStick} onPointerCancel={endStick} onLostPointerCapture={endStick}>
       <span ref={stickKnob} aria-hidden="true">↑</span>
     </div>
-    <button disabled={disabled} className={`kart-brake kart-center-control${active('brake')}`} {...touch('brake',true)} aria-label={autoThrottle ? 'Hold brake' : 'Brake; keep held after stopping to reverse'}>{reversing?'REV':'BRAKE'}</button>
+    <button disabled={disabled} className={`kart-brake kart-center-control${active('brake')}`} {...touch('brake',true)} aria-label={autoThrottle ? 'Hold brake' : 'Brake; keep held after stopping to reverse'}>{reversing&&!autoThrottle?'REV':'BRAKE'}</button>
     <div className="kart-right-controls">
       <button disabled={disabled} className={`kart-boost${active('boost')}${turbo>0?' is-turbo':''}${energy<1?' is-empty':''}`} {...touch('boost',true)} aria-label={`${label}; hold${autoThrottle ? '' : ' while accelerating'}; ${energy}% energy`}>
         <Zap size={18}/><span aria-live="polite">{label}</span><i style={{width:`${drifting?Math.min(100,driftCharge/1.9*100):energy}%`}}/>

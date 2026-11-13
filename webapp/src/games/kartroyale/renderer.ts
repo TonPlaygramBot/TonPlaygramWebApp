@@ -1186,7 +1186,7 @@ export class KartRenderer {
             const me = this.racers.find((r) => r.id === this.me);
             if (me) me.input = this.input;
             if (this.convoy && me) {
-              stepRacer(me, { ...this.input, throttle: !this.input.brake }, this.track, STEP, this.time);
+              stepRacer(me, { ...this.input, throttle: true }, this.track, STEP, this.time);
               this.convoy.step(me, { ...this.input, fire: this.rocketQueued }, STEP);
               this.rocketQueued = false;
               if (this.convoy.status !== 'active') {
