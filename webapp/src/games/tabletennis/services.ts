@@ -4,7 +4,7 @@ import type { GameServices, RoomSnapshot } from './career';
 import type { Input } from './engine';
 
 export function createAppTableTennisServices(
-  character = 'athlete-male'
+  character = 'turi'
 ): GameServices & {
   dispose: () => void;
   activate: () => void;

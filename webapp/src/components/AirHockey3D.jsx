@@ -22,6 +22,7 @@ import { AIR_HOCKEY_CUSTOMIZATION } from '../config/airHockeyInventoryConfig.js'
 import { AIR_HOCKEY_DIMENSIONS, SOURCE_FIELD, loadAirHockeyModel, fitAirHockeyPiece, disposeAirHockeyModel } from './airHockey/model';
 import { AirHockeyControls, AirHockeySettingsSheet } from './airHockey/AirHockeyControls';
 import { resolveAirHockeyRails } from './airHockey/collisions';
+import { loadAirHockeyTuri } from './airHockey/turiPlayer';
 import {
   airHockeyAccountId,
   getAirHockeyInventory,
@@ -363,6 +364,7 @@ export default function AirHockey3D({
   const [showCustomizer, setShowCustomizer] = useState(false);
   const [tableReady, setTableReady] = useState(false);
   const [tableError, setTableError] = useState('');
+  const [characterError, setCharacterError] = useState('');
   const [isTopDownView, setIsTopDownView] = useState(false);
   const [showChat, setShowChat] = useState(false);
   const [showGift, setShowGift] = useState(false);
@@ -1186,6 +1188,21 @@ export default function AirHockey3D({
     puck.name = 'air-hockey-puck';
     tableGroup.add(you, aiMallet, puck);
     malletRefs.current = { player: you, ai: aiMallet };
+    let turiPlayer = null;
+    setCharacterError('');
+    const cancelTuri = loadAirHockeyTuri(renderer, {
+      width: PLAYFIELD.w, length: PLAYFIELD.h, surfaceY: elevatedTableSurfaceY
+    }, (actor) => {
+      turiPlayer = actor;
+      world.add(actor.root);
+    }, (error) => {
+      console.error('Air Hockey Turi failed to load', error);
+      setCharacterError('Turi could not load. Reload to try again.');
+    });
+    const updateTuri = () => {
+      turiPlayer?.update(you, malletDimensionsRef.current.knobHeight);
+      turiPlayer?.setCamera(camera, camera.up.z < -.5);
+    };
     const playerMaterial = new THREE.MeshStandardMaterial({ color: 0xff5577, roughness: 0.3, metalness: 0.2 });
     const aiMaterial = new THREE.MeshStandardMaterial({ color: 0x66ddff, roughness: 0.3, metalness: 0.2 });
     const puckMaterial = new THREE.MeshStandardMaterial({ color: 0x111111, roughness: 0.3, metalness: 0.2 });
@@ -1478,6 +1495,7 @@ export default function AirHockey3D({
 
       if (!modelLoaded) {
         physicsAccumulatorRef.current = 0;
+        updateTuri();
         renderer.render(scene, camera);
         raf.current = requestAnimationFrame(tick);
         return;
@@ -1501,6 +1519,7 @@ export default function AirHockey3D({
             setWinner(snapshot.winnerSeat === 1 ? player.name : ai.name);
           }
         }
+        updateTuri();
         renderer.render(scene, camera);
         if (!gameOverRef.current) raf.current = requestAnimationFrame(tick);
         return;
@@ -1560,6 +1579,7 @@ export default function AirHockey3D({
           }
         });
       }
+      updateTuri();
       renderer.render(scene, camera);
       if (!gameOverRef.current) {
         raf.current = requestAnimationFrame(tick);
@@ -1575,6 +1595,8 @@ export default function AirHockey3D({
 
     return () => {
       modelDisposed = true;
+      cancelTuri();
+      turiPlayer?.dispose();
       if (loadedModel) disposeAirHockeyModel(loadedModel);
       playerMaterial.dispose();
       aiMaterial.dispose();
@@ -1892,6 +1914,10 @@ export default function AirHockey3D({
       {!tableReady && <div className="ah-model-status" role={tableError ? 'alert' : 'status'}>
         <span>{tableError || 'Loading your table…'}</span>
         {tableError && <button type="button" onClick={() => window.location.reload()}>Retry</button>}
+      </div>}
+      {tableReady && characterError && <div className="ah-model-status" role="alert">
+        <span>{characterError}</span>
+        <button type="button" onClick={() => window.location.reload()}>Retry</button>
       </div>}
       <AirHockeySettingsSheet open={showCustomizer} onClose={() => setShowCustomizer(false)}>
             <div className="rounded-xl border border-white/10 bg-white/5 p-3">

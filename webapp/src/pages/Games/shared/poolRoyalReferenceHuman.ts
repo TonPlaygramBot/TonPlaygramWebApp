@@ -267,12 +267,19 @@ function collectFingerBones(hand?: THREE.Bone) {
   });
   return out;
 }
-function normalizeHuman(model: THREE.Object3D) {
+function normalizeHuman(model: THREE.Object3D, referenceHeight?: number) {
   model.scale.setScalar(CFG.humanScale);
   model.rotation.set(0, CFG.humanVisualYawFix, 0);
   model.position.set(0, 0, 0);
   model.updateMatrixWorld(true);
   const box = new THREE.Box3().setFromObject(model);
+  if (referenceHeight) {
+    // Adapt another authored body to the existing solver's metre scale. A
+    // uniform transform preserves Turi's lean build and original bind pose.
+    model.scale.multiplyScalar(referenceHeight * CFG.humanScale / box.getSize(new THREE.Vector3()).y);
+    model.updateMatrixWorld(true);
+    box.setFromObject(model);
+  }
   const center = box.getCenter(new THREE.Vector3());
   model.position.set(-center.x, -box.min.y, -center.z);
 }
@@ -499,7 +506,7 @@ export function chooseHumanEdgePosition(cueBallWorld: THREE.Vector3, aimForward:
 
 
 /** Attach an independently cloned skeleton without changing its bind pose or materials. */
-export function createReferenceHuman(model: THREE.Object3D): HumanRig {
+export function createReferenceHuman(model: THREE.Object3D, options: { referenceHeight?: number; preserveMaterials?: boolean } = {}): HumanRig {
   const human: HumanRig = {
     root: new THREE.Group(), modelRoot: new THREE.Group(), model,
     bones: {}, leftFingers: [], rightFingers: [], restQuats: new Map(),
@@ -507,8 +514,8 @@ export function createReferenceHuman(model: THREE.Object3D): HumanRig {
     strikeRoot: new THREE.Vector3(), strikeYaw: 0, strikeClock: 0
   };
   human.root.visible = false;
-  normalizeHuman(model);
-  enhanceReferenceHumanMaterials(model);
+  normalizeHuman(model, options.referenceHeight);
+  if (!options.preserveMaterials) enhanceReferenceHumanMaterials(model);
   enableShadow(model);
   human.bones = buildAvatarBones(model);
   human.leftFingers = collectFingerBones(human.bones.leftHand);

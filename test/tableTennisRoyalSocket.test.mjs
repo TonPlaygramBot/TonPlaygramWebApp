@@ -63,9 +63,11 @@ test(
       for (let i = 0; i < 2; i++) {
         const joined = await ack(clients[i], 'tabletennisJoin', {
           tableId: table.id,
-          accountId: ids[i]
+          accountId: ids[i],
+          character: i === 0 ? 'turi' : 'athlete-female'
         });
         assert.equal(joined.data.seat, i);
+        assert.equal(joined.data.players[i].character, i === 0 ? 'turi' : 'athlete-female');
       }
       await ack(clients[0], 'tabletennisInput', {
         tableId: table.id,

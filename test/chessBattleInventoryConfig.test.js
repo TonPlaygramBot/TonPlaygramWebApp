@@ -85,10 +85,10 @@ describe('chess battle inventory config', () => {
     expect(source).toContain('cruiseHeight: CAPTURE_UKRAINIAN_DRONE_CRUISE_HEIGHT');
   });
 
-  test('keeps current avatar free by default and sells exactly the 5 requested WebGL humans', () => {
+  test('makes Turi free while preserving Current Avatar and the 5 WebGL store humans', () => {
     expect(CHESS_HUMAN_CHARACTER_OPTIONS[0]?.id).toBe('rpm-current');
-    expect(CHESS_BATTLE_DEFAULT_UNLOCKS.humanCharacter[0]).toBe('rpm-current');
-    expect(CHESS_BATTLE_ROYAL_DEFAULT_UNLOCKS.humanCharacter[0]).toBe('rpm-current');
+    expect(CHESS_BATTLE_DEFAULT_UNLOCKS.humanCharacter).toEqual(['turi', 'rpm-current']);
+    expect(CHESS_BATTLE_ROYAL_DEFAULT_UNLOCKS.humanCharacter).toEqual(['turi', 'rpm-current']);
 
     const storeHumanIds = CHESS_BATTLE_ROYAL_STORE_ITEMS
       .filter((item) => item.type === 'humanCharacter')

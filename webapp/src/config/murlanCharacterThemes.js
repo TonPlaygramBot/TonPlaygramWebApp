@@ -1,3 +1,5 @@
+import { TURI_CHARACTER, TURI_MODEL_URL } from './playerCharacter.js';
+
 const CHARACTER_THEME_CATALOG = Object.freeze([
   {
     id: 'rpm-current',
@@ -353,13 +355,30 @@ const CHARACTER_THEME_CATALOG = Object.freeze([
     hairColor: 0x111111,
     eyeColor: 0x2f4b5f,
     skinTone: 0xc9906e
+  },
+  {
+    ...TURI_CHARACTER,
+    source: 'Tirana Streets Turi workshop',
+    license: 'User-supplied asset; no additional licence specified',
+    description: 'Turi with his original black outfit and UÇK emblem.',
+    url: TURI_MODEL_URL,
+    preserveOriginalMaterials: true,
+    normalizeForSeat: true,
+    normalizedSeatHeight: 1.74,
+    scale: 1,
+    normalizedSeatOffsetY: -0.4,
+    normalizedSeatOffsetZ: 0.52,
+    seatPitch: 0,
+    seatYaw: 0,
+    handLift: 1.04
   }
 ]);
 
-// Murlan Royale intentionally uses the same seven-player roster as Domino
-// Royal. Keep Pool Royale's additional standing/shooter models in the shared
+// Murlan Royale shares the classic roster with Domino and adds Turi as a free player.
+// Keep Pool Royale's additional standing/shooter models in the shared
 // catalog without exposing them in Murlan's character picker or AI seats.
 const DOMINO_ROYAL_CHARACTER_IDS = new Set([
+  TURI_CHARACTER.id,
   'rpm-current',
   'rpm-67d411',
   'rpm-67f433',
@@ -387,3 +406,5 @@ export const MURLAN_CHARACTER_THEMES = Object.freeze(
 export const POOL_ROYALE_CHARACTER_THEMES = Object.freeze(
   CHARACTER_THEME_CATALOG.filter((theme) => theme.available !== false)
 );
+
+export const DEFAULT_MURLAN_CHARACTER_INDEX = MURLAN_CHARACTER_THEMES.findIndex((theme) => theme.id === TURI_CHARACTER.id);

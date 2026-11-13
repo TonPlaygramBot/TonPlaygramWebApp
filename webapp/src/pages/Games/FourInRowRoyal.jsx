@@ -1,3 +1,4 @@
+import { TURI_CHARACTER } from '../../config/playerCharacter.js';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import * as THREE from 'three';
@@ -818,7 +819,7 @@ export default function FourInRowRoyal() {
       inventory.environmentHdri?.[0] ||
       FOUR_IN_ROW_BATTLE_DEFAULT_LOADOUT.environmentHdri?.[0] ||
       POOL_ROYALE_DEFAULT_HDRI_ID,
-    humanCharacter: humanOptions[0].id,
+    humanCharacter: TURI_CHARACTER.id,
     graphics: GRAPHICS_PRESETS[1]?.id || GRAPHICS_PRESETS[0].id
   }));
 

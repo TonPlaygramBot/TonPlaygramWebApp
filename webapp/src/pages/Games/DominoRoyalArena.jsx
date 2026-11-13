@@ -1,11 +1,13 @@
 import { useEffect } from 'react';
+import { applyTuriSeatedPose } from '../../games/shared/turiSeatedPose.js';
+import { TURI_CHARACTER } from '../../config/playerCharacter.js';
 
 import { DOMINO_ROYAL_INLINE_STYLE } from './dominoRoyalTemplate.js';
 import { socket } from '../../utils/socket.js';
 
 const INLINE_STYLE_ID = 'domino-royal-inline-style';
 const GAME_SCRIPT_SELECTOR = 'script[data-domino-royal-script="true"]';
-const DOMINO_ROYAL_SCRIPT_VERSION = '2026-09-23-chess-grip-v67';
+const DOMINO_ROYAL_SCRIPT_VERSION = '2026-11-13-turi-player-v68';
 const DOMINO_CHARACTER_PRECONNECT_URLS = Object.freeze([
   'https://threejs.org',
   'https://models.readyplayer.me',
@@ -39,6 +41,8 @@ export default function DominoRoyalArena() {
     }
 
     window.__DOMINO_ROYAL_ENABLE_SEATED_HUMANS = true;
+    window.__DOMINO_ROYAL_PLAYER_CHARACTER__ = TURI_CHARACTER;
+    window.__DOMINO_ROYAL_POSE_TURI__ = applyTuriSeatedPose;
     window.__DOMINO_ROYAL_SOCKET__ = socket;
     const characterPreconnectLinks = DOMINO_CHARACTER_PRECONNECT_URLS.map((href) => {
       const link = document.createElement('link');
@@ -76,6 +80,8 @@ export default function DominoRoyalArena() {
       script.remove();
       characterPreconnectLinks.forEach((link) => link.remove());
       delete window.__DOMINO_ROYAL_ENABLE_SEATED_HUMANS;
+      delete window.__DOMINO_ROYAL_PLAYER_CHARACTER__;
+      delete window.__DOMINO_ROYAL_POSE_TURI__;
       delete window.__DOMINO_ROYAL_SOCKET__;
       if (appRoot) {
         appRoot.replaceChildren();

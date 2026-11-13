@@ -31,7 +31,7 @@ export default function TableTennisRoyalLobby() {
     starting = useRef(false);
   const [mode, setMode] = useState('ai'),
     [arena, setSurface] = useState('dancingHall'),
-    [character, setCharacter] = useState('athlete-male'),
+    [character, setCharacter] = useState('turi'),
     [format, setFormat] = useState('set'),
     [difficulty, setDifficulty] = useState(1),
     [stake, setStake] = useState({ token: 'TPG', amount: 100 });

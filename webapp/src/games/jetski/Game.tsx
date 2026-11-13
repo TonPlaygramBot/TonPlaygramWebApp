@@ -94,7 +94,7 @@ export default function JetskiGame({
       ? (q as Quality)
       : 'auto';
   });
-  const [name, setName] = useState(() => read('jetski.name', 'Rider')),
+  const [name, setName] = useState(() => read('jetski.name', 'Turi')),
     [sound, setSound] = useState(() => read('jetski.sound', 'on') !== 'off');
   const [phase, setPhase] = useState<
     'lobby' | 'loading' | 'countdown' | 'racing' | 'finished'
@@ -913,7 +913,7 @@ export default function JetskiGame({
             <summary>Asset credits</summary>
             <p>
               Watercraft: Innerscene (CC0). Coast rocks: Poly Haven (CC0).
-              Rider: Quaternius Universal Base Characters (CC0). Water normals:
+              Player: Turi, the original user-supplied Tirana Streets character. AI riders: Quaternius Universal Base Characters (CC0). Water normals:
               Three.js examples (MIT). Engine and water audio synthesized in
               real time.
             </p>

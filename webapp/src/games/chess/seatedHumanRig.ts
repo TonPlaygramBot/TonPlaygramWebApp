@@ -1,3 +1,4 @@
+import { applyTuriSeatedPose } from '../shared/turiSeatedPose.js';
 import * as THREE from 'three';
 import { calibrateHandRig, applyHandGrip } from './anatomicalHand.ts';
 import { normalizeRigBoneName } from './physicalPieceMove.ts';
@@ -8,7 +9,7 @@ const SEATED_HUMAN_REACH_SIDE_GAIN = 0.3;
 export type SeatedHumanRig = ReturnType<typeof saveBoneRig>;
 
 function normalizeBoneName(name: string = '') {
-  return normalizeRigBoneName(name);
+  return normalizeRigBoneName(name).replace(/^mixamorig/, '');
 }
 
 function findBoneByNeedle(bones: THREE.Bone[], ...needles: string[]) {
@@ -36,6 +37,8 @@ export function saveBoneRig(modelRoot: THREE.Object3D) {
     });
   });
   const rig = {
+    root: modelRoot,
+    characterId: modelRoot.userData?.playerCharacterId,
     saved,
     hips: findBoneByNeedle(bones, 'hips', 'pelvis'),
     spine: findBoneByNeedle(bones, 'spine'),
@@ -242,8 +245,23 @@ export function applySeatedBoardPose(rig: SeatedHumanRig, mode = 'idle', intensi
 
   addBoneRot(rig, rig.chest, chestX, 0, 0);
   addBoneRot(rig, rig.head, headX, 0, 0);
-  addBoneRot(rig, rig.rightUpperArm, shoulderX, shoulderY, shoulderZ);
-  addBoneRot(rig, rig.rightForeArm, forearmX, forearmY, forearmZ);
+  if (rig.characterId === 'turi') {
+    applyTuriSeatedPose(rig.root);
+    // Keep this game's action deltas on Turi's anatomically calibrated rest pose.
+    if (rig.rightUpperArm) {
+      rig.rightUpperArm.rotation.x += shoulderX - (-0.36);
+      rig.rightUpperArm.rotation.y += shoulderY - (-0.03);
+      rig.rightUpperArm.rotation.z += shoulderZ - (-1.02);
+    }
+    if (rig.rightForeArm) {
+      rig.rightForeArm.rotation.x += forearmX - (-0.56);
+      rig.rightForeArm.rotation.y += forearmY - (-0.06);
+      rig.rightForeArm.rotation.z += forearmZ - (0.22);
+    }
+  } else {
+    addBoneRot(rig, rig.rightUpperArm, shoulderX, shoulderY, shoulderZ);
+    addBoneRot(rig, rig.rightForeArm, forearmX, forearmY, forearmZ);
+  }
   addBoneRot(rig, rig.rightHand, wristX, wristY, wristZ);
   applyHandGrip(rig, 'right', rightHandGrip);
 }

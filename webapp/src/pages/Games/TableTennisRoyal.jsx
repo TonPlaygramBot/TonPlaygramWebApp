@@ -44,7 +44,7 @@ export default function TableTennisRoyal() {
         : 'dancingHall',
       character: choices.characters.some((c) => c.id === requestedCharacter)
         ? requestedCharacter
-        : 'athlete-male',
+        : 'turi',
       difficulty: Math.max(0, Math.min(2, Number(p.get('difficulty')) || 0)),
       format: ['quick', 'set', 'full'].includes(p.get('format'))
         ? p.get('format')

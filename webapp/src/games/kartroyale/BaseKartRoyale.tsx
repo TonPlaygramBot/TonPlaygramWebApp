@@ -1350,7 +1350,7 @@ export default function KartRoyale({
                     </a>
                     . Karts and asphalt: CC0. Supporters reuse the male and
                     female Quaternius characters from Table Tennis Royal (CC0).
-                    Adapted for TonPlaygram. Tirana geography:{' '}
+                    Your driver is Turi, using the original user-supplied Tirana Streets character. Adapted for TonPlaygram. Tirana geography:{' '}
                     <a
                       href="https://www.openstreetmap.org/copyright"
                       target="_blank"

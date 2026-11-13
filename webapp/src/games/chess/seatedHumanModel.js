@@ -243,7 +243,7 @@ export function createSeatedHumanModelLibrary({ createLoader, targetHeight, visu
   }
 
   function enhanceChessDominoCharacterMaterials(instance, option, maxAnisotropy = 1, seatIndex = 0) {
-    if (!option?.dominoClothTheme || !instance?.traverse) return;
+    if (option?.preserveMaterials || !option?.dominoClothTheme || !instance?.traverse) return;
     const clothSlots = {
       upperCloth: resolveChessDominoClothSlot(option, 'upper', seatIndex),
       lowerCloth: resolveChessDominoClothSlot(option, 'lower', seatIndex),
@@ -352,7 +352,7 @@ export function createSeatedHumanModelLibrary({ createLoader, targetHeight, visu
     const cacheKey = selectedId;
     const cached = seatedHumanTemplatePromiseById.get(cacheKey);
     if (cached) return cached;
-    if (FAILED_HUMAN_CHARACTER_IDS.has(selectedId) && selectedId !== fallbackId) {
+    if (!selectedOption.preserveMaterials && FAILED_HUMAN_CHARACTER_IDS.has(selectedId) && selectedId !== fallbackId) {
       return loadSeatedHumanTemplate(fallbackOption, renderer, maxAnisotropy);
     }
     const promise = (async () => {
@@ -379,7 +379,7 @@ export function createSeatedHumanModelLibrary({ createLoader, targetHeight, visu
       if (!root) {
         FAILED_HUMAN_CHARACTER_IDS.add(selectedId);
         seatedHumanTemplatePromiseById.delete(cacheKey);
-        if (selectedId !== fallbackId) {
+        if (!selectedOption.preserveMaterials && selectedId !== fallbackId) {
           console.warn(`Chess Battle Royal: human "${selectedId}" failed to load, falling back to "${fallbackId}".`, lastError);
           return loadSeatedHumanTemplate(fallbackOption, renderer, maxAnisotropy);
         }
@@ -387,9 +387,9 @@ export function createSeatedHumanModelLibrary({ createLoader, targetHeight, visu
       }
       normalizeSeatedHumanRootToChair(root);
       const selectedAdapter = selectedOption?.seatedAdapter || {};
-      const skinTex = createSeatedHumanFallbackTexture('#d8c0a6', '#b48d6b');
-      const clothTex = createSeatedHumanFallbackTexture('#55739a', '#2c3f54');
-      const hairTex = createSeatedHumanFallbackTexture('#7b5d3f', '#3f2f20');
+      const skinTex = selectedOption.preserveMaterials ? null : createSeatedHumanFallbackTexture('#d8c0a6', '#b48d6b');
+      const clothTex = selectedOption.preserveMaterials ? null : createSeatedHumanFallbackTexture('#55739a', '#2c3f54');
+      const hairTex = selectedOption.preserveMaterials ? null : createSeatedHumanFallbackTexture('#7b5d3f', '#3f2f20');
       applyTextureQualityToMaterialMap(skinTex, maxAnisotropy);
       applyTextureQualityToMaterialMap(clothTex, maxAnisotropy);
       applyTextureQualityToMaterialMap(hairTex, maxAnisotropy);
@@ -407,7 +407,7 @@ export function createSeatedHumanModelLibrary({ createLoader, targetHeight, visu
           Boolean(mat?.map || mat?.emissiveMap || mat?.normalMap || mat?.roughnessMap || mat?.metalnessMap)
         );
         mats.forEach((mat) => {
-          const needsFallbackMap = !hasOriginalTexture && !mat?.map;
+          const needsFallbackMap = !selectedOption.preserveMaterials && !hasOriginalTexture && !mat?.map;
           if (needsFallbackMap) mat.map = fallbackTex;
           if (needsFallbackMap && mat?.color?.setHex) mat.color.setHex(0xffffff);
           if (mat?.map) {
@@ -445,6 +445,7 @@ export function createSeatedHumanModelLibrary({ createLoader, targetHeight, visu
         : 0;
       root.userData = {
         ...(root.userData || {}),
+        playerCharacterId: selectedOption.id,
         seatedHumanScale: computeSeatedHumanScale(root) * seatedScaleMultiplier,
         seatedYawOffset,
         seatedYOffset,

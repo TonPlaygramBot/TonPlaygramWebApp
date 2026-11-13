@@ -1,3 +1,4 @@
+import { TURI_CHARACTER_ID } from '../../config/playerCharacter.js';
 import * as THREE from 'three';
 import { SoftwareRenderer } from './software';
 import { clone } from 'three/examples/jsm/utils/SkeletonUtils.js';
@@ -293,7 +294,7 @@ export class TableTennisRenderer {
                 : [m.material];
               m.material = mats.map((original) => {
                 const mat = (original as THREE.MeshStandardMaterial).clone();
-                mat.roughness = 0.82;
+                if (id !== TURI_CHARACTER_ID) mat.roughness = 0.82;
                 return mat;
               });
               if (
@@ -303,6 +304,7 @@ export class TableTennisRenderer {
                 m.material = m.material[0];
               // Vertex regions turn the CC0 base mesh into an opaque sports kit.
               if (
+                id !== TURI_CHARACTER_ID &&
                 id !== 'chess-human' &&
                 mats.some((mat) => mat.name.includes('Superhero')) &&
                 m.geometry.attributes.position

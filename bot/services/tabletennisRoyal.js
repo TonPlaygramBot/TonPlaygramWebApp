@@ -215,6 +215,7 @@ export function createTableTennisRoyal({
     handle('tabletennisJoin', (payload) => {
       const { r, seat } = withRoom(payload, true);
       const choices = [
+        'turi',
         'chess-human',
         'athlete-male',
         'athlete-female',

@@ -1,3 +1,6 @@
+import { TURI_CHARACTER_ID } from '../../config/playerCharacter.js';
+import { createFirstPersonArms } from '../../games/checkers/checkersHumanActors.ts';
+import { applyTuriSeatedPose } from '../../games/shared/turiSeatedPose.js';
 import { saveBoneRig, resetBoneRig, addBoneRot, addBonePos, applySeatedBoardPose } from '../../games/chess/seatedHumanRig.ts';
 import { createSeatedHumanModelLibrary } from '../../games/chess/seatedHumanModel.js';
 import { applyHandGrip } from '../../games/chess/anatomicalHand.ts';
@@ -55,6 +58,7 @@ import {
   CHESS_BATTLE_OPTION_THUMBNAILS,
   CHESS_TABLE_FINISH_OPTIONS,
   CHESS_HUMAN_CHARACTER_OPTIONS,
+  CHESS_DEFAULT_HUMAN_CHARACTER_INDEX,
   normalizeChessHumanCharacterSelection,
   CHESS_BATTLE_WEAPON_OPTIONS
 } from '../../config/chessBattleInventoryConfig.js';
@@ -1191,6 +1195,22 @@ function applyLeftArmContactIK(rig, targetWorld, strength = 0.5) {
   rotateBoneTowardTarget(rig, rig.leftHand, rig.leftMiddle?.[rig.leftMiddle.length - 1], targetWorld, strength * 0.42);
 }
 
+function collectChessFirstPersonMeshes(actor) {
+  if (actor.userData?.playerCharacterId === TURI_CHARACTER_ID) {
+    const { originals, arms } = createFirstPersonArms(actor);
+    return { head: [], body: originals, arms, armOnly: true };
+  }
+  const meshes = { head: [], body: [], arms: [], armOnly: false };
+  actor.traverse((obj) => {
+    if (!obj?.isMesh) return;
+    const meshName = String(obj.name || '').toLowerCase();
+    if (/(head|face|hair|helmet|cap|ear)/.test(meshName)) meshes.head.push(obj);
+    else if (/(arm|hand|wrist|finger)/.test(meshName)) meshes.arms.push(obj);
+    else meshes.body.push(obj);
+  });
+  return meshes;
+}
+
 function applySeatedHumanPose(rig, mode = 'idle', intensity = 1, handGrip = 0, motionProfile = null) {
   if (mode !== 'firearmAim') return applySeatedBoardPose(rig, mode, intensity, handGrip, motionProfile);
   if (!rig) return;
@@ -1281,6 +1301,7 @@ function applySeatedHumanPose(rig, mode = 'idle', intensity = 1, handGrip = 0, m
   addBoneRot(rig, rig.rightUpperArm, shoulderX, shoulderY, shoulderZ);
   addBoneRot(rig, rig.rightForeArm, forearmX, forearmY, forearmZ);
   addBoneRot(rig, rig.rightHand, wristX, wristY, wristZ);
+  if (rig.characterId === 'turi') applyTuriSeatedPose(rig.root, { arms: false });
   applyRightHandGrip(rig, rightHandGrip);
 }
 
@@ -2912,7 +2933,8 @@ const DEFAULT_APPEARANCE = {
   whitePieceStyle: 0,
   blackPieceStyle: 1,
   headStyle: 0,
-  humanCharacter: 0,
+  humanCharacter: CHESS_DEFAULT_HUMAN_CHARACTER_INDEX,
+  humanCharacterCatalogVersion: 3,
   environmentHdri: DEFAULT_HDRI_INDEX
 };
 const APPEARANCE_STORAGE_KEY = 'chessBattleRoyalAppearance';
@@ -3026,7 +3048,7 @@ function normalizeAppearance(value = {}) {
   normalized.blackPieceStyle = DEFAULT_APPEARANCE.blackPieceStyle;
   normalized.headStyle = DEFAULT_APPEARANCE.headStyle;
   normalized.humanCharacter = normalizeChessHumanCharacterSelection(value);
-  normalized.humanCharacterCatalogVersion = 2;
+  normalized.humanCharacterCatalogVersion = 3;
   return normalized;
 }
 
@@ -9372,14 +9394,7 @@ function Chess3D({
             chair.group.add(actor);
             const rig = saveBoneRig(actor);
             applySeatedHumanPose(rig, 'idle', 1, 0);
-            const fpvMeshes = { head: [], body: [], arms: [] };
-            actor.traverse((obj) => {
-              if (!obj?.isMesh) return;
-              const meshName = String(obj.name || '').toLowerCase();
-              if (/(head|face|hair|helmet|cap|ear)/.test(meshName)) fpvMeshes.head.push(obj);
-              else if (/(arm|hand|wrist|finger)/.test(meshName)) fpvMeshes.arms.push(obj);
-              else fpvMeshes.body.push(obj);
-            });
+            const fpvMeshes = collectChessFirstPersonMeshes(actor);
             positionSeatedHumanChestAvatarAnchor(chair, actor);
             nextActors.push({ playerIndex, chair, actor, rig, fpvMeshes });
           });
@@ -10050,14 +10065,7 @@ function Chess3D({
         chair.group.add(actor);
         const rig = saveBoneRig(actor);
         applySeatedHumanPose(rig, 'idle', 1, 0);
-        const fpvMeshes = { head: [], body: [], arms: [] };
-        actor.traverse((obj) => {
-          if (!obj?.isMesh) return;
-          const meshName = String(obj.name || '').toLowerCase();
-          if (/(head|face|hair|helmet|cap|ear)/.test(meshName)) fpvMeshes.head.push(obj);
-          else if (/(arm|hand|wrist|finger)/.test(meshName)) fpvMeshes.arms.push(obj);
-          else fpvMeshes.body.push(obj);
-        });
+        const fpvMeshes = collectChessFirstPersonMeshes(actor);
         positionSeatedHumanChestAvatarAnchor(chair, actor);
         seatedHumanActorsRef.current.push({ playerIndex, chair, actor, rig, fpvMeshes });
       }
@@ -15623,7 +15631,7 @@ function Chess3D({
           mesh.visible = showFullBody;
         });
         localActorEntry.fpvMeshes?.arms?.forEach((mesh) => {
-          mesh.visible = true;
+          mesh.visible = localActorEntry.fpvMeshes.armOnly ? fpvEnabled : true;
         });
       }
       const locked3dEnabled = viewModeRef.current === '3d' && locked3dViewRef.current.activeLook;

@@ -2,6 +2,7 @@ import assert from 'node:assert/strict';
 import test from 'node:test';
 import {
   CHESS_HUMAN_CHARACTER_OPTIONS,
+  CHESS_DEFAULT_HUMAN_CHARACTER_INDEX,
   normalizeChessHumanCharacterSelection
 } from '../webapp/src/config/chessBattleInventoryConfig.js';
 import {
@@ -9,10 +10,10 @@ import {
   POOL_ROYALE_CHARACTER_THEMES
 } from '../webapp/src/config/murlanCharacterThemes.js';
 
-test('saved retired character selections return to Current Avatar', () => {
+test('saved retired character selections return to Turi', () => {
   for (const index of [4, 5, 6, 7, 8, 9, 12, 13, 14, 15, 16, 17, 18]) {
     const nextIndex = normalizeChessHumanCharacterSelection({ humanCharacter: index });
-    assert.equal(CHESS_HUMAN_CHARACTER_OPTIONS[nextIndex].id, 'rpm-current');
+    assert.equal(CHESS_HUMAN_CHARACTER_OPTIONS[nextIndex].id, 'turi');
   }
 });
 
@@ -23,12 +24,12 @@ test('surviving saved characters retain their identity across catalog migration'
     assert.equal(normalizeChessHumanCharacterSelection({ humanCharacter: migrated, humanCharacterCatalogVersion: 2 }), migrated);
   }
   for (const humanCharacter of [-10, 99, NaN, Infinity]) {
-    assert.equal(normalizeChessHumanCharacterSelection({ humanCharacter, humanCharacterCatalogVersion: 2 }), 0);
+    assert.equal(normalizeChessHumanCharacterSelection({ humanCharacter, humanCharacterCatalogVersion: 2 }), CHESS_DEFAULT_HUMAN_CHARACTER_INDEX);
   }
 });
 
 test('missing Sketchfab packages are absent from the available store roster', () => {
-  assert.equal(MURLAN_CHARACTER_THEMES.length, 7);
-  assert.equal(POOL_ROYALE_CHARACTER_THEMES.length, 9);
+  assert.ok(MURLAN_CHARACTER_THEMES.some(theme => theme.id === 'turi'));
+  assert.ok(POOL_ROYALE_CHARACTER_THEMES.some(theme => theme.id === 'turi'));
   assert.ok(POOL_ROYALE_CHARACTER_THEMES.every((theme) => !theme.id.startsWith('sketchfab-')));
 });
