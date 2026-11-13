@@ -2,7 +2,6 @@
  * marker in /pwa/app-build.js is generated at build time to keep caches in sync
  * with the currently packaged assets. */
 
-
 self.__TONPLAYGRAM_APP_BUILD__ = self.__TONPLAYGRAM_APP_BUILD__ || 'dev';
 try {
   importScripts('/pwa/app-build.js');
@@ -75,7 +74,7 @@ const MANAGED_GAME_ASSET_PREFIXES = [
   '/assets/pool-royale/',
   '/models/pool-royale/',
   '/assets/table-tennis/',
-  '/assets/royal-lanes/'
+
 ];
 const shouldWarmAsset = asset =>
   !MANAGED_GAME_ASSET_PREFIXES.some(prefix => asset.startsWith(prefix));

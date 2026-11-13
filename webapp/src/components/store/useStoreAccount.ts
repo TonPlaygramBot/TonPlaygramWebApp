@@ -5,7 +5,7 @@ import { getCachedSnookerRoyalInventory, getSnookerRoyalInventory, isSnookerOpti
 import { getAirHockeyInventory, isAirHockeyOptionUnlocked, addAirHockeyUnlock } from '../../utils/airHockeyInventory.js';
 import { getChessBattleInventory, isChessOptionUnlocked, addChessBattleUnlock } from '../../utils/chessBattleInventory.js';
 import { getFourInRowInventory, isFourInRowOptionUnlocked, addFourInRowUnlock } from '../../utils/fourInRowInventory.js';
-import { getTavullBattleInventory, isTavullOptionUnlocked, addTavullBattleUnlock } from '../../utils/tavullBattleInventory.js';
+
 import { getLudoBattleInventory, isLudoOptionUnlocked, addLudoBattleUnlock } from '../../utils/ludoBattleInventory.js';
 import { getMurlanInventory, isMurlanOptionUnlocked, addMurlanUnlock } from '../../utils/murlanInventory.js';
 import { getDominoRoyalInventory, isDominoOptionUnlocked, addDominoRoyalUnlock } from '../../utils/dominoRoyalInventory.js';
@@ -24,7 +24,7 @@ const adapters: Record<string,Adapter> = {
   airhockey:{read:getAirHockeyInventory,owns:isAirHockeyOptionUnlocked,unlock:addAirHockeyUnlock},
   chessbattleroyal:{read:getChessBattleInventory,owns:isChessOptionUnlocked,unlock:addChessBattleUnlock},
   fourinrowroyale:{read:getFourInRowInventory,owns:isFourInRowOptionUnlocked,unlock:addFourInRowUnlock},
-  tavullbattleroyal:{read:getTavullBattleInventory,owns:isTavullOptionUnlocked,unlock:addTavullBattleUnlock},
+
   ludobattleroyal:{read:getLudoBattleInventory,owns:isLudoOptionUnlocked,unlock:addLudoBattleUnlock},
   murlanroyale:{read:getMurlanInventory,owns:isMurlanOptionUnlocked,unlock:addMurlanUnlock},
   'domino-royal':{read:getDominoRoyalInventory,owns:isDominoOptionUnlocked,unlock:addDominoRoyalUnlock},
@@ -64,7 +64,7 @@ export function useStoreAccount() {
   useEffect(()=>{
     mounted.current=true;void refresh();
     const update=()=>{if(!paying.current)void refresh();};
-    const inventoryEvents=['poolRoyalInventoryUpdate','snookerRoyalInventoryUpdate','airHockeyInventoryUpdate','chessBattleInventoryUpdate','fourInRowInventoryUpdate','tavullBattleInventoryUpdate','ludoBattleInventoryUpdate','murlanInventoryUpdate','dominoRoyalInventoryUpdate','snakeInventoryUpdate','texasHoldemInventoryUpdate','appThemeUpdate'];
+    const inventoryEvents=['poolRoyalInventoryUpdate','snookerRoyalInventoryUpdate','airHockeyInventoryUpdate','chessBattleInventoryUpdate','fourInRowInventoryUpdate','ludoBattleInventoryUpdate','murlanInventoryUpdate','dominoRoyalInventoryUpdate','snakeInventoryUpdate','texasHoldemInventoryUpdate','appThemeUpdate'];
     inventoryEvents.forEach(event=>window.addEventListener(event,update));
     window.addEventListener('storage',update);window.addEventListener('focus',update);
     return()=>{mounted.current=false;generation.current++;inventoryEvents.forEach(event=>window.removeEventListener(event,update));window.removeEventListener('storage',update);window.removeEventListener('focus',update);};

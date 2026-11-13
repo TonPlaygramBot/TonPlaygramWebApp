@@ -46,14 +46,6 @@ Use this with one subject below, its game name, and supplied reference screensho
 
 Five subjects per game (85), plus one extra Pool Royale flagship (86). These are creative titles, not claims of existing achievements or unlockable equipment. Scene accuracy must be checked against the actual game. The slug is the exact key from the Games-page catalog.
 
-### 01 — Royal Lanes Bowling (`royallanes`)
-
-1. **Midnight Strike** — A polished black bowling ball with restrained cyan marbling beside an ivory pin with a thin gold neck band; clearly formed finger holes.
-2. **Ten-Pin Throne** — A complete bowling-pin arrangement on a compact lacquered lane section, with crisp silhouettes and warm wood detail.
-3. **Lane Runner** — A sculptural miniature of the final bowling approach into the lane, with a hero ball and finely machined gutter edges.
-4. **Split Breaker** — A ball visually traveling between two standing pins, caught in a clean physical collectible composition without an explosion.
-5. **Perfect Game** — A bowling-specific crystal trophy enclosing a tiny ball and pin; no score, reward amount, or edition claim.
-
 ### 02 — Table Tennis Royal (`tabletennisroyal`)
 
 6. **Carbon Spin** — A carbon-fiber paddle with realistic rubber texture and an ivory table-tennis ball, precision gold edge hardware.
@@ -166,14 +158,6 @@ Five subjects per game (85), plus one extra Pool Royale flagship (86). These are
 74. **Double Threat** — A rule-valid tactical position showing two threats, verified against gameplay before rendering.
 75. **Alignment Trophy** — A crystal-and-metal sculpture built from four aligned discs, not a generic cup with unrelated props.
 
-### 16 — Backgammon Royal (`tavullbattleroyal`)
-
-76. **Golden Points** — A miniature backgammon board corner with precisely alternating elongated points and tactile checkers.
-77. **Ivory Roll** — Two correctly formed dice, a refined dice cup and one checker, reflecting the game's actual equipment.
-78. **Home Board** — A compact home-board arrangement based on a valid position, with wood grain and ivory inlay.
-79. **Bearing Off** — A simple verified bearing-off position expressed as a collectible board fragment, not a fabricated rule mechanic.
-80. **Royal Backgammon** — An open premium backgammon case with accurate point pattern and restrained checker arrangement.
-
 ### 17 — Ludo Battle Royal (`ludobattleroyal`)
 
 81. **Ruby Runner** — One recognizable Ludo pawn in jewel-red enamel, graphite base and selective gold detailing.
@@ -189,7 +173,7 @@ Five subjects per game (85), plus one extra Pool Royale flagship (86). These are
 ## Reference preparation and generation workflow
 
 1. Capture or export the real game's equipment and arena screenshots; use the catalog image as a secondary identity reference. Supply those references to the image-enabled ChatGPT session. Do not claim references were supplied when they were only described.
-2. Generate one flagship artwork per game first, starting with Pool Royale, Racing Royal, Chess Battle Royal and Royal Lanes Bowling. Inspect material realism, game identity and portrait-card readability.
+2. Generate one flagship artwork per game first, starting with Pool Royale, Racing Royal and Chess Battle Royal. Inspect material realism, game identity and portrait-card readability.
 3. Lock an approved series reference and reuse it with each independent subject. Generate every final artwork separately, not a sprite sheet to be cropped into low-quality images.
 4. Review all 86 full-size masters and their small phone thumbnails. Correct malformed equipment, card ranks, pips, board layouts, duplicated objects, clipped edges or inconsistent illumination with focused image edits.
 5. Retain original output files and their available generation/provenance metadata. Record generator, generation date, source-reference files, prompt revision and visual approval; never populate those fields speculatively.

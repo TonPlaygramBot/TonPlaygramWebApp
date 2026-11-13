@@ -3,7 +3,7 @@ import { SNOOKER_ROYALE_STORE_ITEMS, SNOOKER_ROYALE_OPTION_LABELS } from '../../
 import { AIR_HOCKEY_STORE_ITEMS, AIR_HOCKEY_OPTION_LABELS } from '../../config/airHockeyInventoryConfig.js';
 import { CHESS_BATTLE_STORE_ITEMS, CHESS_BATTLE_ROYAL_STORE_ITEMS, CHESS_BATTLE_OPTION_LABELS, CHESS_BATTLE_ROYAL_OPTION_LABELS } from '../../config/chessBattleInventoryConfig.js';
 import { FOUR_IN_ROW_BATTLE_STORE_ITEMS, FOUR_IN_ROW_BATTLE_OPTION_LABELS } from '../../config/fourInRowInventoryConfig.js';
-import { TAVULL_BATTLE_STORE_ITEMS, TAVULL_BATTLE_OPTION_LABELS } from '../../config/tavullBattleInventoryConfig.js';
+
 import { LUDO_BATTLE_STORE_ITEMS, LUDO_BATTLE_OPTION_LABELS } from '../../config/ludoBattleInventoryConfig.js';
 import { MURLAN_ROYALE_STORE_ITEMS, MURLAN_ROYALE_OPTION_LABELS } from '../../config/murlanInventoryConfig.js';
 import { DOMINO_ROYAL_STORE_ITEMS, DOMINO_ROYAL_OPTION_LABELS } from '../../config/dominoRoyalInventoryConfig.js';
@@ -32,7 +32,7 @@ export const STORE_GAMES: StoreGame[] = [
   {slug:'chessbattleroyal',name:'Chess Battle Royal',shortName:'Chess',symbol:'♞',items:CHESS_BATTLE_ROYAL_STORE_ITEMS,labels:CHESS_BATTLE_ROYAL_OPTION_LABELS},
   {slug:'checkersbattleroyal',name:'Checkers Battle Royal',shortName:'Checkers',symbol:'◉',items:[...CHESS_BATTLE_STORE_ITEMS,...checkersTables,...checkersCloths],labels:CHESS_BATTLE_OPTION_LABELS},
   {slug:'fourinrowroyale',name:'4 in a Row',shortName:'4 in a Row',symbol:'▦',items:FOUR_IN_ROW_BATTLE_STORE_ITEMS,labels:FOUR_IN_ROW_BATTLE_OPTION_LABELS},
-  {slug:'tavullbattleroyal',name:'Backgammon Royal',shortName:'Backgammon',symbol:'◭',items:TAVULL_BATTLE_STORE_ITEMS,labels:TAVULL_BATTLE_OPTION_LABELS},
+
   {slug:'ludobattleroyal',name:'Ludo Battle Royal',shortName:'Ludo',symbol:'✣',items:LUDO_BATTLE_STORE_ITEMS,labels:LUDO_BATTLE_OPTION_LABELS},
   {slug:'murlanroyale',name:'Murlan Royale',shortName:'Murlan',symbol:'♠',items:MURLAN_ROYALE_STORE_ITEMS,labels:MURLAN_ROYALE_OPTION_LABELS},
   {slug:'weaponkart',name:'Weapon Kart',shortName:'Kart',symbol:'◒',items:MURLAN_ROYALE_STORE_ITEMS.filter(item=>item.type==='characters').map(item=>({...item,type:'humanCharacter'})),labels:{humanCharacter:MURLAN_ROYALE_OPTION_LABELS.characters}},

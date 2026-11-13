@@ -40,7 +40,6 @@ export function thumbnailSvg(item: CatalogItem & {displayLabel?: string; slug?: 
   const kind = itemInfo(item).kind;
   const label = item.displayLabel || item.name;
   const isPool = ['poolroyale','bilardoshqip','snookerroyale'].includes(item.slug || '');
-  const isBackgammon = item.slug === 'tavullbattleroyal';
   let shape='';
   const rect=(x:number,y:number,w:number,h:number,r:number,fill:string,extra='')=>`<rect x="${x}" y="${y}" width="${w}" height="${h}" rx="${r}" fill="${fill}" ${extra}/>`;
   const circle=(x:number,y:number,r:number,fill:string,extra='')=>`<circle cx="${x}" cy="${y}" r="${r}" fill="${fill}" ${extra}/>`;
@@ -63,8 +62,7 @@ export function thumbnailSvg(item: CatalogItem & {displayLabel?: string; slug?: 
     case 'chair': shape=`<g transform="translate(6 0)" filter="url(#shadow)"><path d="M147 170L140 232M242 162L255 223M171 175L185 219" stroke="${s}" stroke-width="10" stroke-linecap="round"/><path d="M133 153L207 124L266 157L183 191L132 167Z" fill="${s}"/><path d="M134 148L208 121L266 151L183 181L134 160Z" fill="url(#main)"/><path d="M135 150L128 67Q128 55 142 54L208 45Q225 43 225 59L229 124L185 157Z" fill="url(#main)"/><path d="M146 65L208 56M151 78L213 69" stroke="${a}" stroke-opacity=".23" stroke-width="2"/></g>`;break;
     case 'board': {
       shape=`<g transform="translate(77 54) rotate(8 122 90)" filter="url(#shadow)">${rect(-8,-8,260,186,9,s)}${rect(0,0,244,170,5,p)}`;
-      if(isBackgammon){for(let i=0;i<12;i++){const x=8+i*19;shape+=`<path d="M${x} 4L${x+17} 4L${x+8} 74Z M${x} 166L${x+17} 166L${x+8} 96Z" fill="${i%2?a:s}"/>`;}}
-      else if(item.slug==='airhockey' || item.type==='field'){
+      if(item.slug==='airhockey' || item.type==='field'){
         shape+=`<path d="M122 0V170" stroke="${a}" stroke-width="2"/><ellipse cx="122" cy="85" rx="26" ry="22" fill="none" stroke="${a}" stroke-width="2"/><path d="M0 55Q49 85 0 115M244 55Q195 85 244 115" fill="none" stroke="${a}" stroke-width="2"/>`;
       }else if(item.slug==='fourinrowroyale'||item.slug==='snake'){
         for(let y=1;y<9;y++)shape+=`<path d="M12 ${y*17}H232" stroke="${s}"/>`;

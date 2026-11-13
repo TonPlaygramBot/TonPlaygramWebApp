@@ -23,7 +23,7 @@ import { fetchTelegramInfo } from '../utils/telegram.js';
 import { applyStoreItemDelivery } from './store.js';
 import { POOL_ROYALE_STORE_ITEMS } from '../../webapp/src/config/poolRoyaleInventoryConfig.js';
 import { SNOOKER_ROYALE_STORE_ITEMS } from '../../webapp/src/config/snookerRoyalInventoryConfig.js';
-import { TAVULL_BATTLE_STORE_ITEMS } from '../../webapp/src/config/tavullBattleInventoryConfig.js';
+
 import {
   createMemoryUser,
   findMemoryUser,
@@ -38,7 +38,7 @@ const STORE_ITEMS_INDEX = new Map(
   [
     ...POOL_ROYALE_STORE_ITEMS,
     ...SNOOKER_ROYALE_STORE_ITEMS,
-    ...TAVULL_BATTLE_STORE_ITEMS
+
   ].map((item) => [
     `${item.type}:${item.optionId}`,
     item
@@ -614,8 +614,6 @@ router.post('/gift', authenticate, async (req, res) => {
 
   res.json({ balance: sender.balance, transaction: senderTx });
 });
-
-
 
 router.post('/store-purchase', authenticate, async (req, res) => {
   const { accountId, fromAccount, bundle, txHash } = req.body;

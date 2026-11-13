@@ -1,3 +1,4 @@
+import { SEATED_PLAYER_VIEW, resolveSeatedPlayerEyePosition } from '../../utils/seatedPlayerView';
 import { ludoTableFrame, prepareLudoParkedWeapon, parkLudoWeapon } from '../../utils/ludoTabletopLayout';
 import {createLudoMissileFx,createLudoExplosionFx,updateLudoExplosionFx} from '../../utils/ludoMissilePresentation';
 import { createLudoBlenderModel } from '../../utils/ludoBlenderMeshes';
@@ -3778,7 +3779,6 @@ const SEATED_HELPER_FACE_CAMERA_UP = 0.146 * MODEL_SCALE;
 const SEATED_HELPER_FACE_CAMERA_FORWARD = -0.072 * MODEL_SCALE;
 // The bottom-seat gameplay camera is intentionally raised and pushed farther toward the table so
 // portrait players see over the local avatar and closer into the Ludo board/action area.
-const SEATED_FACE_CAMERA_GAMEPLAY_FORWARD = 0.10;
 // Lift the human player's locked first-person camera higher so portrait gameplay has a clearer
 // over-the-table view of the dice, tokens, and board while staying only slightly closer.
 const SEATED_FACE_CAMERA_GAMEPLAY_UP = 0.075;
@@ -3832,7 +3832,7 @@ function resolvePlayerColors(appearance = {}) {
   return PLAYER_COLOR_ORDER.map((_, idx) => normalizeColorValue(swatches[idx], DEFAULT_PLAYER_COLORS[idx]));
 }
 
-const CAMERA_FOV = 78;
+const CAMERA_FOV = SEATED_PLAYER_VIEW.fov;
 const CAMERA_NEAR = ARENA_CAMERA_DEFAULTS.near;
 const CAMERA_FAR = ARENA_CAMERA_DEFAULTS.far;
 const CAMERA_DOLLY_FACTOR = ARENA_CAMERA_DEFAULTS.wheelDeltaFactor;
@@ -6802,8 +6802,7 @@ function resolveSeatedFaceCameraPose(actorEntry, fallbackTarget = null) {
       if (toGameplay.lengthSq() > 1e-8) {
         toGameplay.normalize();
         // Hard clamp camera to sit in front of the face toward table gameplay, never inside the skull mesh.
-        position.copy(headWorld).addScaledVector(toGameplay, SEATED_FACE_CAMERA_GAMEPLAY_FORWARD);
-        position.y += SEATED_FACE_CAMERA_GAMEPLAY_UP;
+        resolveSeatedPlayerEyePosition(actorEntry.rig.head, target, position);
       }
     }
   } else if (actorEntry?.rig?.head?.isBone) {

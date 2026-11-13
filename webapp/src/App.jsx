@@ -99,14 +99,7 @@ const FourInRowRoyal = React.lazy(
 const FourInRowRoyalLobby = React.lazy(
   () => import('./pages/Games/FourInRowRoyalLobby.jsx')
 );
-const TavullBattleRoyal = React.lazy(
-  () => import('./pages/Games/TavullBattleRoyal.jsx')
-);
-const TavullBattleRoyalLobby = React.lazy(
-  () => import('./pages/Games/TavullBattleRoyalLobby.jsx')
-);
-const RoyalLanes = React.lazy(() => import('./pages/Games/RoyalLanes.tsx'));
-const RoyalLanesLobby = React.lazy(() => import('./pages/Games/RoyalLanesLobby.jsx'));
+
 const PoolRoyale = React.lazy(() => import('./pages/Games/PoolRoyale.jsx'));
 const PoolRoyaleLobby = React.lazy(
   () => import('./pages/Games/PoolRoyaleLobby.jsx')
@@ -235,13 +228,13 @@ export default function App() {
                 element={<MiningTransactions />}
               />
               <Route path="/games" element={<Games />} />
+              <Route path="/games/*" element={<Navigate to="/games" replace />} />
               <Route
                 path="/games/transactions"
                 element={<GameTransactions />}
               />
               <Route path="/games/:game/lobby" element={<Lobby />} />
-              <Route path="/games/royallanes/lobby" element={<RoyalLanesLobby />} />
-              <Route path="/games/royallanes" element={<RoyalLanes />} />
+
               <Route path="/games/blackwater/lobby" element={<LegacyTiranaRoute lobby />} />
               <Route path="/games/blackwater" element={<LegacyTiranaRoute />} />
               <Route path="/games/kartroyale/lobby" element={<KartRoyale />} />
@@ -368,36 +361,7 @@ export default function App() {
                   </Suspense>
                 }
               />
-              <Route
-                path="/games/tavullbattleroyal/lobby"
-                element={
-                  <Suspense
-                    fallback={
-                      <div className="p-4 text-center">
-                        Loading Backgammon Lobby…
-                      </div>
-                    }
-                  >
-                    <TavullBattleRoyalLobby />
-                  </Suspense>
-                }
-              />
-              <Route
-                path="/games/tavullbattleroyal"
-                element={
-                  <Suspense
-                    fallback={
-                      <div className="p-4 text-center">
-                        Loading Backgammon Royal…
-                      </div>
-                    }
-                  >
-                    <GameLiveAvatarOverlay gameSlug="tavullbattleroyal">
-                      <TavullBattleRoyal />
-                    </GameLiveAvatarOverlay>
-                  </Suspense>
-                }
-              />
+
               <Route
                 path="/games/ludobattleroyal/lobby"
                 element={<LudoBattleRoyalLobby />}

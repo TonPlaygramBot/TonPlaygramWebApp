@@ -128,20 +128,6 @@ export async function collectVerifiedLocalAssets({ repoRoot = DEFAULT_REPO_ROOT 
     await verify({ sourceUrl: asset.url, url: `/assets/tirana-streets/materials/${asset.file}`, size: asset.bytes, sha256: asset.sha256, provenance: streetProvenance });
   }
 
-  const bowlingProvenance = 'assets/royal-lanes/asset-manifest.json';
-  const bowling = JSON.parse(await readFile(path.join(publicRoot, bowlingProvenance), 'utf8'));
-  const bowlingOriginals = {
-    white_maple_veneer_diff_4k: 'maple-color.jpg',
-    white_maple_veneer_nor_gl_2k: 'maple-normal.jpg',
-    white_maple_veneer_rough_2k: 'maple-roughness.jpg',
-    billiard_hall_1k: 'billiard-hall-1k.hdr'
-  };
-  for (const asset of bowling.files || []) {
-    const file = bowlingOriginals[path.parse(asset.filename || '').name];
-    if (!file || asset.verified_against_provider !== true) continue;
-    await verify({ sourceUrl: asset.url, url: `/assets/royal-lanes/textures/${file}`, size: asset.bytes, sha256: asset.sha256, provenance: bowlingProvenance });
-  }
-
   return entries.sort((a, b) => a.sourceUrl.localeCompare(b.sourceUrl));
 }
 

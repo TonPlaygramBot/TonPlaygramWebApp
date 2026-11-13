@@ -1,13 +1,5 @@
 const gamesCatalog = [
-  {
-    name: 'Royal Lanes Bowling',
-    route: '/games/royallanes/lobby',
-    slug: 'royallanes',
-    image: '/assets/royal-lanes/mark.svg',
-    modes: ['VS AI', 'TPG Online'],
-    launchLabel: 'Enter Bowling Lobby',
-    description: 'Realistic 3D bowling, human players, touch controls and ten-frame TPG matches.'
-  },
+
   {
     name: 'Table Tennis Royal',
     route: '/games/tabletennisroyal/lobby',
@@ -118,14 +110,6 @@ const gamesCatalog = [
     image: '/assets/icons/four-in-row-royale.svg',
     description:
       'Vertical 4 in a Row strategy on the shared Battle Royal 3D arena.'
-  },
-
-  {
-    name: 'Backgammon Royal',
-    route: '/games/tavullbattleroyal/lobby',
-    slug: 'tavullbattleroyal',
-    image: '/assets/icons/Backgammonroyallogo.png',
-    description: 'Backgammon duels with a royal 3D-inspired board and smart AI.'
   },
 
   {
