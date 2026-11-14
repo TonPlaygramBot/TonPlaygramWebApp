@@ -296,6 +296,13 @@
 .jsr-track-art-2 {
   background: linear-gradient(135deg, #517277, #183c45);
 }
+.jsr-track-art-3,
+.jsr-track-art-5 {
+  background: linear-gradient(135deg, #527d66, #193c42);
+}
+.jsr-track-art-4 {
+  background: linear-gradient(135deg, #316f95, #122f50);
+}
 .jsr-track-art svg {
   height: 80px;
   width: 80px;

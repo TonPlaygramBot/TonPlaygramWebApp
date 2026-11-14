@@ -24,6 +24,7 @@ export interface Track {
   points: { x: number; z: number }[];
   lengths: number[];
   totalLength: number;
+  current: { x: number; z: number };
   gates: Point[];
   ramps: Point[];
   pickups: Point[];
@@ -80,7 +81,7 @@ export interface Racer {
 export const STEP: number, RACE_LIMIT: number, LAPS: number;
 export const TRACKS: Pick<
   Track,
-  'id' | 'name' | 'subtitle' | 'width' | 'wave' | 'length' | 'difficulty'
+  'id' | 'name' | 'subtitle' | 'width' | 'wave' | 'difficulty'
 >[];
 export const CRAFTS: {
   id: string;

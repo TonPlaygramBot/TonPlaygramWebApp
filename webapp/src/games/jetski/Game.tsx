@@ -28,6 +28,14 @@ import {
 import Scene, { type World } from './Scene';
 import Controls from './Controls';
 import { JetskiAudio } from './audio';
+import {
+  GHOST_INTERVAL,
+  ghostFrame,
+  ghostKey,
+  readGhost,
+  replayGhost,
+  type GhostRun
+} from './ghost';
 import { type Quality, type CameraMode } from './renderer';
 import {
   request,
@@ -54,6 +62,7 @@ import {
 import './jetski.css';
 
 type Mode = 'ai' | 'time' | 'online';
+const COURSES = TRACKS.map(({ id }) => makeTrack(id));
 const COLORS = [
   '#32e2d1',
   '#ffab62',
@@ -118,6 +127,7 @@ export default function JetskiGame({
     elapsed: 0,
     countdown: 3,
     gate: 0,
+    gateDistance: 0,
     air: 0,
     penalty: 0,
     ejected: false
@@ -125,7 +135,14 @@ export default function JetskiGame({
   const [attempt, setAttempt] = useState(0);
   const [results, setResults] = useState<Racer[]>([]),
     [best, setBest] = useState(() => read('jetski.best.ksamil', ''));
-  const track = useMemo(() => makeTrack(trackId), [trackId]);
+  const track = COURSES.find((course) => course.id === trackId) ?? COURSES[0];
+  const ghostStorageKey = ghostKey(track.id, craftId);
+  const ghostBest = useMemo(
+    () => readGhost(read(ghostStorageKey, '')),
+    [ghostStorageKey, best, phase]
+  );
+  const recording = useRef<GhostRun['frames']>([]);
+  const replay = useRef<GhostRun | null>(null);
   const session = useRef<Session | null>(null),
     roomRef = useRef<Room | null>(null),
     phaseRef = useRef(phase),
@@ -195,6 +212,7 @@ export default function JetskiGame({
       setRoom((previous) =>
         previous?.status === state.status &&
         previous.hostId === state.hostId &&
+        previous.trackId === state.trackId &&
         JSON.stringify(previous.players) === JSON.stringify(state.players)
           ? previous
           : state
@@ -370,6 +388,9 @@ export default function JetskiGame({
             CRAFTS[i % 3].id
           )
         );
+    input.current = neutralInput();
+    replay.current = mode === 'time' ? readGhost(read(ghostStorageKey, '')) : null;
+    recording.current = mode === 'time' ? [ghostFrame(racers[0])] : [];
     clock.current = 0;
     accumulator.current = 0;
     countdown.current = 3;
@@ -384,7 +405,8 @@ export default function JetskiGame({
       elapsed: 0,
       camera,
       preview: false,
-      paused: false
+      paused: false,
+      ghost: replayGhost(replay.current, 0)
     };
     setPhase('loading');
   };
@@ -395,10 +417,21 @@ export default function JetskiGame({
     const ranked = standings(world.current.racers);
     setResults(ranked);
     setPhase('finished');
+    audio.current?.update(0, false, false, false);
     audio.current?.cue('finish');
     const me = ranked.find((v) => v.id === 'you');
     if (me?.finished && !finishSaved.current) {
       finishSaved.current = true;
+      if (
+        mode === 'time' &&
+        recording.current.length >= 2 &&
+        (!replay.current || me.finishTime < replay.current.time)
+      ) {
+        write(ghostStorageKey, JSON.stringify({
+          time: me.finishTime,
+          frames: recording.current
+        }));
+      }
       const key = `jetski.best.${trackId}`,
         old = Number(read(key, '0'));
       if (!old || me.finishTime < old) {
@@ -410,7 +443,7 @@ export default function JetskiGame({
   const onFrame = (dt: number) => {
     const current = phaseRef.current,
       w = world.current;
-    if (current === 'lobby') return;
+    if (current === 'lobby' || current === 'finished') return;
     if (online) {
       const state = roomRef.current;
       if (!state) return;
@@ -440,14 +473,20 @@ export default function JetskiGame({
       }
       if (current === 'racing') {
         accumulator.current += dt;
-        while (accumulator.current >= STEP) {
+        const player = w.racers[0];
+        while (accumulator.current >= STEP && !player.finished) {
           clock.current += STEP;
-          w.racers[0].input = { ...input.current };
+          player.input = { ...input.current };
           stepRace(w.racers, track, STEP, clock.current, difficulty);
           accumulator.current -= STEP;
+          if (
+            mode === 'time' &&
+            clock.current + 1e-6 >= recording.current.length * GHOST_INTERVAL
+          ) recording.current.push(ghostFrame(player));
         }
         w.elapsed = clock.current;
-        if (w.racers[0].finished || clock.current >= RACE_LIMIT) finish();
+        w.ghost = replayGhost(replay.current, w.elapsed);
+        if (player.finished || clock.current >= RACE_LIMIT) finish();
       }
     }
     const me = w.racers.find((v) => v.id === w.playerId);
@@ -464,6 +503,7 @@ export default function JetskiGame({
     crashes.current = me.crashes;
     const active =
       current === 'racing' &&
+      !me.finished &&
       !me.crash &&
       !pausedRef.current &&
       (!online || (connected && performance.now() - lastState.current < 1500));
@@ -484,6 +524,10 @@ export default function JetskiGame({
         elapsed: w.elapsed,
         countdown: Math.max(0, Math.ceil(countdown.current)),
         gate: me.nextGate,
+        gateDistance: Math.hypot(
+          me.x - track.gates[me.nextGate].x,
+          me.z - track.gates[me.nextGate].z
+        ),
         air: me.airborne ? me.jumpDistance : 0,
         penalty: me.penalty,
         ejected: Boolean(me.crash)
@@ -642,7 +686,7 @@ export default function JetskiGame({
                   <span>{TRACKS.length} courses</span>
                 </div>
                 <div className="jsr-tracks">
-                  {TRACKS.map((t, i) => (
+                  {COURSES.map((t, i) => (
                     <button
                       className={`jsr-track ${trackId === t.id ? 'selected' : ''}`}
                       onClick={() => setTrackId(t.id)}
@@ -650,7 +694,7 @@ export default function JetskiGame({
                       aria-pressed={trackId === t.id}
                     >
                       <div className={`jsr-track-art jsr-track-art-${i}`}>
-                        <MiniMap track={makeTrack(t.id)} />
+                        <MiniMap track={t} />
                         <span>0{i + 1}</span>
                       </div>
                       <div>
@@ -658,6 +702,7 @@ export default function JetskiGame({
                         <span>
                           {t.difficulty} · {t.length}
                         </span>
+                        {trackId === t.id && <span>{t.subtitle}</span>}
                       </div>
                       {trackId === t.id ? (
                         <Check size={18} />
@@ -718,9 +763,13 @@ export default function JetskiGame({
                   </label>
                 ) : (
                   <div className="jsr-record">
-                    <span>Personal best</span>
+                    <span>{mode === 'time' ? 'Personal ghost' : 'Personal best'}</span>
                     <strong>
-                      {best ? formatTime(Number(best)) : 'Set your first time'}
+                      {mode === 'time'
+                        ? ghostBest
+                          ? formatTime(ghostBest.time)
+                          : 'Finish a run to unlock'
+                        : best ? formatTime(Number(best)) : 'Set your first time'}
                     </strong>
                   </div>
                 )}
@@ -888,7 +937,9 @@ export default function JetskiGame({
                   ? 'Start time trial'
                   : track.pointToPoint
                     ? 'Race Lana River'
-                    : 'Race the coast'}
+                    : track.id === 'koman'
+                      ? 'Race the gorge'
+                      : 'Race the coast'}
               </span>
               <ArrowUpRight size={26} />
             </button>
@@ -905,14 +956,14 @@ export default function JetskiGame({
             </span>
           </div>
           <p className="jsr-note jsr-bottom-note">
-            Hold throttle + steer. Pass every marked gate in order. Green rings
-            recharge boost. {!track.pointToPoint && 'Ramps add airtime. '}
+            Hold throttle and steer through each gate in order. Green rings
+            refill boost. {track.ramps.length > 0 && 'Straight landings refill boost. '}
             Recovery costs 5 seconds.
           </p>
           <details className="jsr-credits">
             <summary>Asset credits</summary>
             <p>
-              Watercraft: Innerscene (CC0). Coast rocks: Poly Haven (CC0).
+              Watercraft and fishing boat: Innerscene (CC0). Coast scan: Poly Haven (CC0). Buoys: Watercraft Kit (CC0).
               Player: Turi, the original user-supplied Tirana Streets character. AI riders: Quaternius Universal Base Characters (CC0). Water normals:
               Three.js examples (MIT). Engine and water audio synthesized in
               real time.
@@ -1042,7 +1093,7 @@ export default function JetskiGame({
         <>
           <div className="jsr-drive-info">
             <span>
-              GATE {hud.gate + 1}/{track.gates.length}
+              GATE {hud.gate + 1}/{track.gates.length} · {Math.round(hud.gateDistance)} m
               {hud.penalty > 0 ? ` · +${hud.penalty}s` : ''}
             </span>
             <strong>
@@ -1185,12 +1236,20 @@ function MiniMap({
     : 0;
   const cosine = Math.cos(angle),
     sine = Math.sin(angle);
-  const originX = track.pointToPoint ? (first.x + last.x) / 2 : 0;
-  const originZ = track.pointToPoint ? (first.z + last.z) / 2 : 0;
-  const scale = track.pointToPoint ? 166 / track.totalLength : 0.55;
+  const projected = track.points.map(({ x, z }) => [
+    x * cosine - z * sine,
+    x * sine + z * cosine
+  ]);
+  const xs = projected.map(([x]) => x);
+  const zs = projected.map(([, z]) => z);
+  const minX = Math.min(...xs), maxX = Math.max(...xs);
+  const minZ = Math.min(...zs), maxZ = Math.max(...zs);
+  const originX = (minX + maxX) / 2;
+  const originZ = (minZ + maxZ) / 2;
+  const scale = 166 / Math.max(maxX - minX, maxZ - minZ);
   const coordinates = (x: number, z: number) => [
-    100 + ((x - originX) * cosine - (z - originZ) * sine) * scale,
-    100 - ((x - originX) * sine + (z - originZ) * cosine) * scale
+    100 + (x * cosine - z * sine - originX) * scale,
+    100 - (x * sine + z * cosine - originZ) * scale
   ];
   const points = (track.pointToPoint ? track.points : [...track.points, first])
     .map((p) => coordinates(p.x, p.z).join(','))
