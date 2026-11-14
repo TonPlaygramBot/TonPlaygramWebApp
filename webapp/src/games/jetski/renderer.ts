@@ -15,6 +15,8 @@ import { nearestLana } from './lanaCourse.mjs';
 import { makeLanaWaterGeometry } from './lanaWater';
 import { createRaceWater } from './water';
 import { WaterEffects } from './waterEffects';
+import { buildCoastalScenery } from './coastalScenery';
+import { type GhostPose } from './ghost';
 import {
   CRAFTS,
   sample,
@@ -82,16 +84,18 @@ export class JetskiRenderer {
   private visuals = new Map<string, Visual>();
   private craft: T.Group | null = null;
   private human: T.Group | null = null;
+  private ghost: T.Group | null = null;
   private turi: T.Group | null = null;
   private buoyBatches: {
     mesh: T.InstancedMesh;
     points: { x: number; z: number }[];
-    height: number;
+    modelMatrix: T.Matrix4;
   }[] = [];
   private rings: T.Mesh[] = [];
   private gateMarker: T.Group = new T.Group();
   private waterEffects: WaterEffects;
   private dummy = new T.Object3D();
+  private instanceMatrix = new T.Matrix4();
   private draco: DRACOLoader;
   private ktx: KTX2Loader;
   private disposed = false;
@@ -220,11 +224,10 @@ export class JetskiRenderer {
         ? import('./lanaScenery').then(({ buildLanaScenery }) =>
             buildLanaScenery(loader)
           )
-        : loader
-            .loadAsync('/assets/jetski-royal/rock/rock.gltf')
-            .then((asset) => asset.scene),
+        : buildCoastalScenery(loader, this.track),
       new T.TextureLoader().loadAsync('/assets/jetski-royal/waternormals.jpg'),
-      loader.loadAsync(TURI_MODEL_URL)
+      loader.loadAsync(TURI_MODEL_URL),
+      loader.loadAsync('/assets/jetski-royal/navigation-buoy.glb')
     ]);
     for (const r of settled)
       if (r.status === 'fulfilled') {
@@ -264,13 +267,16 @@ export class JetskiRenderer {
     for (const [material, meshes] of groups) {
       if (meshes.length < 2) continue;
       const copies = meshes.map((m) => {
-        const g = m.geometry.clone().applyMatrix4(m.matrixWorld);
-        return g.index ? g.toNonIndexed() : g;
+        const g = m.geometry.index ? m.geometry.toNonIndexed() : m.geometry.clone();
+        return g.applyMatrix4(m.matrixWorld);
       });
       const merged = mergeGeometries(copies, false);
       copies.forEach((g) => g.dispose());
       if (merged) {
-        meshes.forEach((m) => m.removeFromParent());
+        meshes.forEach((m) => {
+          m.removeFromParent();
+          m.geometry.dispose();
+        });
         const m = new T.Mesh(merged, material);
         this.craft.add(m);
       }
@@ -278,7 +284,7 @@ export class JetskiRenderer {
     for (const root of this.assets)
       root.traverse((o) => {
         if (!(o instanceof T.Mesh)) return;
-        if (root !== scenery || !river) {
+        if (root !== scenery) {
           o.castShadow = true;
           o.receiveShadow = true;
         }
@@ -300,95 +306,42 @@ export class JetskiRenderer {
       river ? makeLanaWaterGeometry() : undefined
     );
     this.scene.add(this.water);
-    if (river) this.scene.add(scenery);
-    else this.buildScenery(scenery);
-    this.buildCourse();
+    this.scene.add(scenery);
+    const buoy = (settled[5] as PromiseFulfilledResult<GLTF>).value.scene;
+    this.buildCourse(buoy);
     onProgress('Ready');
   }
-  private buildScenery(rock: T.Group) {
-    const parts: T.Mesh[] = [];
-    rock.updateMatrixWorld(true);
-    rock.traverse((o) => {
-      if (o instanceof T.Mesh) parts.push(o);
-    });
-    for (const part of parts) {
-      const geo = part.geometry.clone();
-      geo.applyMatrix4(part.matrixWorld);
-      geo.computeBoundingBox();
-      const size = geo.boundingBox!.getSize(new T.Vector3());
-      const normalization = 1 / Math.max(size.x, size.z, size.y);
-      geo.translate(
-        -geo.boundingBox!.getCenter(new T.Vector3()).x,
-        -geo.boundingBox!.min.y,
-        -geo.boundingBox!.getCenter(new T.Vector3()).z
-      );
-      geo.scale(normalization, normalization, normalization);
-      const count = 48;
-      const cliffs = new T.InstancedMesh(geo, part.material, count);
-      for (let i = 0; i < count; i++) {
-        const a = i * 0.93,
-          outer = i >= 24,
-          r = outer ? 230 + (i % 4) * 28 : 24 + (i % 5) * 5;
-        const s = outer ? 85 + (i % 4) * 20 : 23 + (i % 4) * 5;
-        this.dummy.position.set(Math.sin(a) * r, -2, Math.cos(a) * r);
-        this.dummy.rotation.set(0, a + Math.PI, 0);
-        this.dummy.scale.set(s, s * (outer ? 0.6 : 0.65), s * 0.85);
-        this.dummy.updateMatrix();
-        cliffs.setMatrixAt(i, this.dummy.matrix);
-      }
-      cliffs.castShadow = false;
-      cliffs.receiveShadow = true;
-      this.scene.add(cliffs);
-    }
-  }
-  private buildCourse() {
-    const white = new T.MeshStandardMaterial({
-        color: 0xf3f1e9,
-        roughness: 0.45
-      }),
-      orange = new T.MeshStandardMaterial({ color: 0xff6a33, roughness: 0.35 }),
-      teal = new T.MeshStandardMaterial({ color: 0x14c7c1, roughness: 0.3 });
+  private buildCourse(buoy: T.Group) {
+    const teal = new T.MeshStandardMaterial({ color: 0x14c7c1, roughness: 0.3 });
     const dark = new T.MeshStandardMaterial({
       color: 0x0b2730,
       roughness: 0.55,
       metalness: 0.25
     });
-    const cone = new T.ConeGeometry(0.65, 1.45, 12),
-      base = new T.CylinderGeometry(0.72, 0.88, 0.2, 16);
-    const left: { x: number; z: number }[] = [],
-      right: { x: number; z: number }[] = [];
-    for (
-      let i = 0;
-      i < this.track.points.length;
-      i += this.track.pointToPoint ? 10 : 5
-    ) {
-      left.push(sample(this.track, i, -(this.track.width - 1)));
-      right.push(sample(this.track, i, this.track.width - 1));
+    const markers = new Map<number, { x: number; z: number }[]>();
+    const indices = new Set(this.track.gates.map((gate) => gate.index));
+    for (let i = 0; i < this.track.points.length; i += this.track.pointToPoint ? 10 : 7)
+      indices.add(i);
+    for (const side of [-1, 1]) {
+      const color = side === -1 ? 0xf77b3b : 0x6fe5dd;
+      markers.set(color, [...indices].map((index) =>
+        sample(this.track, index, side * (this.track.width - 1))
+      ));
     }
-    for (const batch of [
-      {
-        geometry: base,
-        material: dark,
-        points: [...left, ...right],
-        height: 0.04
-      },
-      { geometry: cone, material: orange, points: left, height: 0.75 },
-      { geometry: cone, material: white, points: right, height: 0.75 }
-    ]) {
-      const instanced = new T.InstancedMesh(
-        batch.geometry,
-        batch.material,
-        batch.points.length
-      );
-      instanced.instanceMatrix.setUsage(T.DynamicDrawUsage);
-      instanced.frustumCulled = false;
-      this.buoyBatches.push({
-        mesh: instanced,
-        points: batch.points,
-        height: batch.height
-      });
-      this.scene.add(instanced);
-    }
+    buoy.updateMatrixWorld(true);
+    buoy.traverse((part) => {
+      if (!(part instanceof T.Mesh) || Array.isArray(part.material)) return;
+      const modelMatrix = part.matrixWorld.clone();
+      for (const [color, points] of markers) {
+        const material = part.material.clone() as T.MeshStandardMaterial;
+        material.color.setHex(color);
+        const instanced = new T.InstancedMesh(part.geometry, material, points.length);
+        instanced.instanceMatrix.setUsage(T.DynamicDrawUsage);
+        instanced.frustumCulled = false;
+        this.buoyBatches.push({ mesh: instanced, points, modelMatrix });
+        this.scene.add(instanced);
+      }
+    });
     this.track.gates.forEach((p, i) => {
       const finish =
         this.track.pointToPoint && i === this.track.gates.length - 1;
@@ -515,7 +468,7 @@ export class JetskiRenderer {
       256,
       64
     );
-    name.scale.set(3.2, 0.8, 1);
+    name.scale.set(2.5, 0.625, 1);
     name.position.y = 2.5;
     root.add(name);
     this.scene.add(root);
@@ -530,13 +483,44 @@ export class JetskiRenderer {
     this.visuals.set(r.id, visual);
     return visual;
   }
+  private updateGhost(pose: GhostPose | null | undefined, time: number, local: Racer) {
+    if (!pose || !this.craft) {
+      if (this.ghost) this.ghost.visible = false;
+      return;
+    }
+    if (!this.ghost) {
+      const model = this.craft.clone(true);
+      model.rotation.y = -Math.PI / 2;
+      const material = new T.MeshBasicMaterial({
+        color: 0x82e8ff,
+        transparent: true,
+        opacity: 0.3,
+        depthWrite: false
+      });
+      model.traverse((part) => {
+        if (!(part instanceof T.Mesh)) return;
+        part.material = material;
+        part.castShadow = false;
+        part.receiveShadow = false;
+      });
+      this.ghost = new T.Group();
+      this.ghost.add(model);
+      this.scene.add(this.ghost);
+    }
+    this.ghost.visible = Math.hypot(pose.x - local.x, pose.z - local.z) > 3.5;
+    this.ghost.position.set(
+      pose.x, waterHeight(pose.x, pose.z, time, this.track.wave) + pose.height - 0.16, pose.z
+    );
+    this.ghost.rotation.y = pose.heading;
+  }
   update(
     racers: Racer[],
     playerId: string,
     time: number,
     dt: number,
     mode: CameraMode,
-    preview = false
+    preview = false,
+    ghost?: GhostPose | null
   ) {
     if (this.disposed || !this.water) return;
     this.setCamera(mode);
@@ -604,20 +588,24 @@ export class JetskiRenderer {
           poseRider(item.rider, root, r.steer, r.speed, time, r.airborne);
       }
       item.ejected = Boolean(r.crash);
-      item.name.visible = r.id !== playerId;
+      const offsetX = r.x - local.x;
+      const offsetZ = r.z - local.z;
+      const ahead = offsetX * Math.sin(local.heading) + offsetZ * Math.cos(local.heading);
+      item.name.visible = r.id !== playerId && ahead > 2 && Math.hypot(offsetX, offsetZ) < 36;
       rider.visible = !onRider || r.id !== local.id;
     }
     for (const batch of this.buoyBatches) {
       batch.points.forEach((p, i) => {
         this.dummy.position.set(
           p.x,
-          batch.height + waterHeight(p.x, p.z, time, this.track.wave),
+          waterHeight(p.x, p.z, time, this.track.wave),
           p.z
         );
         this.dummy.rotation.set(0, 0, Math.sin(time * 1.5 + p.x) * 0.045);
         this.dummy.scale.setScalar(1);
         this.dummy.updateMatrix();
-        batch.mesh.setMatrixAt(i, this.dummy.matrix);
+        this.instanceMatrix.multiplyMatrices(this.dummy.matrix, batch.modelMatrix);
+        batch.mesh.setMatrixAt(i, this.instanceMatrix);
       });
       batch.mesh.instanceMatrix.needsUpdate = true;
     }
@@ -629,6 +617,7 @@ export class JetskiRenderer {
     const gate = this.track.gates[local.nextGate] ?? this.track.gates[0];
     this.gateMarker.position.set(gate.x, Math.sin(time * 3) * 0.35, gate.z);
     this.gateMarker.visible = !preview && !local.finished;
+    this.updateGhost(ghost, time, local);
     this.waterEffects.update(racers, time);
     const player = this.visuals.get(local.id);
     if (!player) return;
@@ -653,14 +642,15 @@ export class JetskiRenderer {
       const portrait = this.camera.aspect < 0.8;
       if (portrait) this.desired.addScaledVector(this.viewOffset, -0.23);
       this.viewOffset.y = T.MathUtils.clamp(
-        this.viewOffset.y - (portrait ? 0.24 : 0),
-        portrait ? -0.49 : -0.26,
-        portrait ? -0.41 : -0.12
+        this.viewOffset.y - (portrait ? 0.16 : 0),
+        portrait ? -0.34 : -0.26,
+        portrait ? -0.24 : -0.12
       );
       this.focus.copy(this.desired).addScaledVector(this.viewOffset, 26);
     } else {
       const river = this.track.pointToPoint;
-      const distance = river ? 5.4 : this.camera.aspect < 0.8 ? 9 : 10.8;
+      const portrait = this.camera.aspect < 0.8;
+      const distance = river ? 5.4 : portrait ? 7.4 : 10;
       const crash = local.crash;
       const x = crash?.x ?? ship.position.x,
         z = crash?.z ?? ship.position.z;
@@ -670,10 +660,11 @@ export class JetskiRenderer {
         y + (river ? 2.7 : 4.2) + local.height * 0.55,
         z - Math.cos(heading) * distance
       );
+      const lookAhead = crash ? 0.8 : portrait ? 5 : 9;
       this.focus.set(
-        x + Math.sin(heading) * (crash ? 0.8 : 9),
-        y + (crash ? Math.max(0.38, crash.height) : 1 + local.height * 0.35),
-        z + Math.cos(heading) * (crash ? 0.8 : 9)
+        x + Math.sin(heading) * lookAhead,
+        y + (crash ? Math.max(0.38, crash.height) : 0.8 + local.height * 0.35),
+        z + Math.cos(heading) * lookAhead
       );
     }
     if (!this.cameraSet) {

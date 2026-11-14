@@ -44,6 +44,22 @@ export const TRACKS = [
     wave: 0.12,
     length: '0.9 km',
     difficulty: 'River sprint'
+  },
+  {
+    id: 'karaburun',
+    name: 'Karaburun Headland',
+    subtitle: 'Wide headland sweep · exposed swell',
+    width: 22,
+    wave: 0.69,
+    difficulty: 'Open water'
+  },
+  {
+    id: 'koman',
+    name: 'Koman Gorge',
+    subtitle: 'Cliff-lined bends · cross-current',
+    width: 14,
+    wave: 0.20,
+    difficulty: 'Technical'
   }
 ];
 export const CRAFTS = [
@@ -81,13 +97,38 @@ export const normalizeTrack = (id) =>
   TRACKS.some((t) => t.id === id) ? id : 'ksamil';
 export const normalizeCraft = (id) =>
   CRAFTS.some((c) => c.id === id) ? id : 'pulse';
+const courseProfiles = {
+  karaburun: {
+    // An elongated offshore leg followed by a tighter turn around the headland.
+    shape: (a) => ({
+      x: 158 * Math.sin(a) + 24 * Math.sin(2 * a),
+      z: 92 * Math.cos(a) + 16 * Math.sin(3 * a)
+    }),
+    current: { x: 0.55, z: 0.3 },
+    ramps: [[44, -4], [147, 5], [202, -5]],
+    pickups: [[25, -7], [90, 6], [175, -7], [219, 6]]
+  },
+  koman: {
+    // A long, narrow circuit with alternating bends along its two shorelines.
+    shape: (a) => ({
+      x: 76 * Math.sin(a) + 17 * Math.sin(3 * a + 0.7),
+      z: 150 * Math.cos(a) + 12 * Math.sin(2 * a)
+    }),
+    current: { x: -1.05, z: 0.45 },
+    ramps: [[76, 3], [177, -3]],
+    pickups: [[29, 4], [111, -5], [198, 4]]
+  }
+};
+
 export function makeTrack(id) {
   const info = TRACKS.find((t) => t.id === normalizeTrack(id));
   const pointToPoint = info.id === 'lana';
+  const profile = courseProfiles[info.id];
   const points = pointToPoint
     ? makeLanaPoints()
     : Array.from({ length: 240 }, (_, i) => {
         const a = (i / 240) * Math.PI * 2;
+        if (profile) return profile.shape(a);
         const radius =
           info.id === 'dhermi'
             ? 110 + 18 * Math.sin(a * 3)
@@ -116,6 +157,8 @@ export function makeTrack(id) {
     points,
     lengths,
     totalLength: lengths[segmentCount],
+    length: info.length ?? `${((lengths[segmentCount] * LAPS) / 1000).toFixed(1)} km`,
+    current: profile?.current ?? { x: 0, z: 0 },
     gates: [],
     ramps: [],
     pickups: []
@@ -124,13 +167,13 @@ export function makeTrack(id) {
     sample(track, pointToPoint ? Math.round((i * segmentCount) / 11) : i * 20)
   );
   if (!pointToPoint)
-    track.ramps = [sample(track, 51, 4), sample(track, 166, -4)];
+    track.ramps = (profile?.ramps ?? [[51, 4], [166, -4]]).map(
+      ([index, side]) => sample(track, index, side)
+    );
   const offset = pointToPoint ? 1.4 : 5;
-  track.pickups = [
-    sample(track, 28, -offset),
-    sample(track, 105, offset),
-    sample(track, 202, -offset)
-  ];
+  track.pickups = (
+    profile?.pickups ?? [[28, -offset], [105, offset], [202, -offset]]
+  ).map(([index, side]) => sample(track, index, side));
   return track;
 }
 export function sample(track, index, offset = 0) {
@@ -154,7 +197,7 @@ export function nearest(track, x, z) {
   if (track.pointToPoint) return nearestLana(x, z);
   let best = 0,
     d2 = Infinity;
-  for (let i = 0; i < 240; i++) {
+  for (let i = 0; i < track.points.length; i++) {
     const p = track.points[i],
       d = (x - p.x) ** 2 + (z - p.z) ** 2;
     if (d < d2) {
@@ -242,7 +285,7 @@ export function createRacer(
     disconnected: false,
     penalty: 0,
     progress: -distance,
-    pickupAt: [-99, -99, -99],
+    pickupAt: track.pickups.map(() => -99),
     rampAt: -99,
     recoveryAt: -99,
     hitAt: -99,
@@ -276,7 +319,11 @@ export function aiInput(r, track, difficulty = 'club') {
   // Straighten the hull to the direction of travel before it touches down.
   const desired =
     r.airborne && r.speed > 3 ? Math.atan2(r.vx, r.vz) : courseHeading;
-  const angle = wrapAngle(desired - r.heading);
+  const currentCorrection = Math.atan2(
+    track.current.x * Math.cos(desired) - track.current.z * Math.sin(desired),
+    Math.max(r.speed, 8)
+  );
+  const angle = wrapAngle(desired - currentCorrection - r.heading);
   const pace =
     difficulty === 'rookie'
       ? 22 + r.slot * 0.4
@@ -562,8 +609,9 @@ export function stepRace(racers, track, dt, elapsed, difficulty = 'club') {
       r.vz *= maximum / r.speed;
       r.speed = maximum;
     }
-    r.x += r.vx * dt;
-    r.z += r.vz * dt;
+    const currentGrip = r.airborne ? 0 : 1;
+    r.x += (r.vx + track.current.x * currentGrip) * dt;
+    r.z += (r.vz + track.current.z * currentGrip) * dt;
     if (r.airborne) {
       r.verticalSpeed -= 9.81 * dt;
       r.height += r.verticalSpeed * dt;
@@ -581,6 +629,9 @@ export function stepRace(racers, track, dt, elapsed, difficulty = 'club') {
         r.vx *= 0.92;
         r.vz *= 0.92;
         r.speed *= 0.92;
+        // Aligned landings keep momentum and earn a small refill.
+        if (Math.abs(side) < 3.5 && r.jumpDistance > 12)
+          r.boost = clamp(r.boost + 12, 0, 100);
       }
     } else if (elapsed - r.rampAt > 3 && r.speed > 12) {
       for (const ramp of track.ramps)

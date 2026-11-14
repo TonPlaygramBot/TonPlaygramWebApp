@@ -30,11 +30,20 @@ const heavyPacks = [
   {
     id: 'jetski-royal',
     title: 'Jet Ski Royal',
-    description: 'Watercraft, scanned coast and water materials.',
+    description: 'Watercraft, scanned coast, marina assets and Lana River scenery.',
     cover: '/assets/jetski-royal/cover.webp',
     route: '/games/jetskiroyal/lobby',
     gameSlugs: ['jetskiroyal'],
     roots: ['assets/jetski-royal'],
+    files: [
+      'assets/tirana-streets/environment/roadside-rail.glb',
+      'assets/tirana-streets/landmark-rebuild/namazgah-far.glb',
+      ...['rough_concrete', 'asphalt_02', 'concrete_pavement'].flatMap(surface =>
+        ['diff', 'nor_gl', 'rough'].map(channel =>
+          `assets/tirana-streets/environment/${surface}-${channel}.jpg`
+        )
+      )
+    ],
     dependencies: ['shared-table-games']
   },
   {

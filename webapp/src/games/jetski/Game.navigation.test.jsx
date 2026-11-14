@@ -101,3 +101,42 @@ it('preview makes the deployment requirement explicit and does not simulate onli
     host.remove();
   }
 });
+
+it('saves and replays the best time trial without adding the ghost to the race', async () => {
+  const host = document.createElement('div');
+  const root = createRoot(host);
+  document.body.append(host);
+  const storageKey = 'jetski.ghost.v1.karaburun.pulse';
+  localStorage.removeItem(storageKey);
+  try {
+    await act(async () => root.render(<JetskiGame preview />));
+    await click(host, 'Karaburun Headland');
+    await click(host, 'Time trial');
+    await click(host, 'Start time trial');
+    for (let i = 0; i < 39; i++) await act(async () => harness.frame(0.1));
+    expect(harness.world.current.ghost).toBeNull();
+
+    const player = harness.world.current.racers[0];
+    player.finished = true;
+    player.finishTime = 42;
+    await act(async () => harness.frame(0.1));
+    const saved = JSON.parse(localStorage.getItem(storageKey));
+    expect(saved.time).toBe(42);
+
+    await click(host, 'Race again');
+    const [x, z] = saved.frames[0];
+    expect(harness.world.current.ghost).toMatchObject({ x, z });
+    expect(harness.world.current.racers).toHaveLength(1);
+    for (let i = 0; i < 39; i++) await act(async () => harness.frame(0.1));
+    const nextPlayer = harness.world.current.racers[0];
+    nextPlayer.finished = true;
+    nextPlayer.finishTime = 50;
+    await act(async () => harness.frame(0.1));
+    expect(JSON.parse(localStorage.getItem(storageKey)).time).toBe(42);
+  } finally {
+    await act(async () => root.unmount());
+    localStorage.removeItem(storageKey);
+    localStorage.removeItem('jetski.best.karaburun');
+    host.remove();
+  }
+});

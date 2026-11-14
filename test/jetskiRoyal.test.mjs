@@ -178,3 +178,27 @@ test('fixed-step replay is deterministic', () => {
     };
   assert.deepEqual(run(), run());
 });
+
+test('new courses have different racing conditions and every boost ring can be collected', () => {
+  const headland = makeTrack('karaburun');
+  const gorge = makeTrack('koman');
+  assert.ok(headland.width > gorge.width);
+  assert.ok(headland.wave > gorge.wave);
+  assert.notDeepEqual(headland.current, gorge.current);
+  assert.equal(headland.ramps.length, 3);
+
+  const rider = createRacer(headland, 'you', 'You', 0);
+  const ring = headland.pickups.at(-1);
+  rider.x = ring.x;
+  rider.z = ring.z;
+  rider.boost = 10;
+  stepRace([rider], headland, STEP, 1);
+  assert.ok(rider.boost > 40);
+  assert.equal(rider.pickupAt.at(-1), 1);
+
+  const drifter = createRacer(gorge, 'drift', 'Drift', 0);
+  const startX = drifter.x;
+  for (let frame = 0; frame < 60; frame++)
+    stepRace([drifter], gorge, STEP, (frame + 1) * STEP);
+  assert.ok(Math.abs(drifter.x - startX - gorge.current.x) < 1e-8);
+});

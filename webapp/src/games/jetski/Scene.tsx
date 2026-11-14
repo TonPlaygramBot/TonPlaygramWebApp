@@ -6,6 +6,8 @@ import React, {
 } from 'react';
 import { JetskiRenderer, type Quality, type CameraMode } from './renderer';
 import { type Racer, type Track } from './simulation.mjs';
+import { type GhostPose } from './ghost';
+
 export interface World {
   racers: Racer[];
   playerId: string;
@@ -13,6 +15,7 @@ export interface World {
   camera: CameraMode;
   preview: boolean;
   paused: boolean;
+  ghost?: GhostPose | null;
 }
 export default function Scene({
   track,
@@ -74,7 +77,8 @@ export default function Scene({
               w.preview ? visualTime : w.elapsed,
               dt,
               w.camera,
-              w.preview
+              w.preview,
+              w.ghost
             );
           }
           frame = requestAnimationFrame(tick);

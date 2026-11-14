@@ -12,6 +12,15 @@ export const waveShader = /* glsl */ `
   }
 `;
 
+const WATER_COLORS: Record<string, number> = {
+  ksamil: 0x158f8e,
+  dhermi: 0x0b587b,
+  harbor: 0x226d76,
+  lana: 0x386e64,
+  karaburun: 0x084f73,
+  koman: 0x256b59
+};
+
 export function createRaceWater(
   track: Track,
   normals: T.Texture,
@@ -32,7 +41,7 @@ export function createRaceWater(
       -0.7
     ).normalize(),
     sunColor: day === 'day' ? 0xfff6e5 : 0xffba82,
-    waterColor: river ? 0x386e64 : 0x087b83,
+    waterColor: WATER_COLORS[track.id] ?? 0x087b83,
     distortionScale: river ? 1.8 : 2.5,
     fog: true
   });
