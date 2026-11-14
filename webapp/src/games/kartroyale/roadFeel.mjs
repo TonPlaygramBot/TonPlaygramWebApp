@@ -51,7 +51,9 @@ export function roadBumps(track) {
         bumps.push(bump);return true;
     };
     // Reserve a third for turn approaches/apexes; do not reject every bend.
-    for(let at=80;at<track.length-65&&bumps.length<Math.ceil(count/3);at+=9)add(at,true);
+    // Main-road junctions may have only a few safe metres between the turn and
+    // a boost pad. Sample the approach finely enough not to skip that window.
+    for(let at=80;at<track.length-65&&bumps.length<Math.ceil(count/3);at+=3)add(at,true);
     for(let i=0;i<count&&bumps.length<count;i++){
       for(let attempt=0;attempt<14;attempt++)if(add(track.length*(i+.45)/count+attempt*7))break;
     }

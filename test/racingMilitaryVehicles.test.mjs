@@ -16,6 +16,7 @@ import {
 } from '../webapp/src/games/kartroyale/simulation.mjs';
 import { MILITARY_VEHICLES } from '../webapp/src/games/kartroyale/militaryVehicleCatalog.mjs';
 import { VEHICLE_COLLECTION } from '../webapp/src/games/tiranastreets/shared/vehicleCollection.mjs';
+import {KART_LENGTH} from '../webapp/src/games/kartroyale/racingDimensions.mjs';
 import {
   vehicleAssetUrl,
   normaliseVehicleDimensions,
@@ -141,7 +142,7 @@ test('asset fitting applies one scale to the body, floor and actual left-hand se
     min: [-1.5, 0.04, -2.9],
     max: [1.5, 3.8, 3.5]
   });
-  assert(Math.abs(fit.scale * 6.4 - 2.7) < 1e-10);
+  assert(Math.abs(fit.scale * 6.4 - KART_LENGTH) < 1e-10);
   assert.equal(0.04 * fit.scale + fit.offset[1], 0);
   const eye = vehicleDriverMount('shota', fit);
   assert(eye[0] > 0, 'Vehicle-left is screen-left facing +Z');

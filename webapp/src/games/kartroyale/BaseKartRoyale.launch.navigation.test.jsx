@@ -7,9 +7,9 @@ vi.mock('./simulation.mjs',async importOriginal=>{
  return {...actual,makeTrack:harness.makeTrack};
 });
 vi.mock('./renderer',()=>({KartRenderer:class{
- constructor(_host,onFrame,onFinish){harness.game=this;this.input={};this.onFrame=onFrame;this.onFinish=onFinish;}
+ constructor(_host,onFrame,onFinish){harness.game=this;this.input={};this.combatInput={reload:false};this.onFrame=onFrame;this.onFinish=onFinish;}
  load=vi.fn(async()=>{});setColor=vi.fn();setKart=vi.fn();setQuality=vi.fn();setCameraMode=vi.fn();
- startLocal=vi.fn();pause=vi.fn();clearInput=vi.fn();destroy=vi.fn();
+ startLocal=vi.fn();startCombatRace=vi.fn();queueCombatReload=vi.fn();pause=vi.fn();clearInput=vi.fn(()=>{this.input={};this.combatInput={reload:false};});destroy=vi.fn();
 }}));
 vi.mock('./audio',()=>({KartAudio:class{unlock(){}update(){}silence(){}beep(){}destroy(){}setMuted(){}}}));
 import BaseKartRoyale from './BaseKartRoyale';
@@ -51,5 +51,25 @@ it('starts a solo time trial and saves no career wins or credits from a solo fin
   expect(host.textContent).toContain('NEW PERSONAL BEST');
   expect(host.textContent).not.toContain('VICTORY');
   expect(localStorage.getItem('tonplaygram.kartroyale.career.v1')).toBeNull();
+ }finally{await act(async()=>root.unmount());host.remove();}
+});
+
+it('starts local combat, supports simultaneous controls, and awards no normal career progress',async()=>{
+ localStorage.clear();const host=document.createElement('div');document.body.append(host);const root=createRoot(host);
+ try{
+  await act(async()=>root.render(<BaseKartRoyale/>));
+  await act(async()=>[...host.querySelectorAll('button')].find(b=>b.textContent.includes('COMBAT RACE')).click());
+  expect(host.textContent).toContain('no TPG stake or career rewards');
+  await act(async()=>host.querySelector('button.kr-start').click());
+  expect(harness.game.startCombatRace).toHaveBeenCalledWith('skanderbeg','rookie');
+  expect(harness.game.startLocal).not.toHaveBeenCalled();
+  await act(async()=>{window.dispatchEvent(new KeyboardEvent('keydown',{key:'w',bubbles:true}));window.dispatchEvent(new KeyboardEvent('keydown',{key:'f',bubbles:true}));window.dispatchEvent(new KeyboardEvent('keydown',{key:'r',bubbles:true}));});
+  expect(harness.game.input.throttle).toBe(true);expect(harness.game.input.fire).toBe(true);expect(harness.game.combatInput.reload).toBe(true);expect(harness.game.queueCombatReload).toHaveBeenCalledOnce();expect(harness.game.input.reverse).toBe(false);
+  await act(async()=>window.dispatchEvent(new KeyboardEvent('keyup',{key:'f',bubbles:true})));
+  expect(harness.game.input.throttle).toBe(true);expect(harness.game.input.fire).toBe(false);
+  await act(async()=>window.dispatchEvent(new Event('blur')));
+  expect(harness.game.combatInput.reload).toBe(false);expect(harness.game.input.throttle).not.toBe(true);
+  await act(async()=>harness.game.onFinish({combat:{player:{kills:2,hits:8}},trackId:'skanderbeg',playerId:'you',elapsed:110,racers:[{id:'you',name:'You',finished:true,finishTime:110,lap:4,telemetry:{bestLap:35,topSpeed:35,driftDistance:120,draftSeconds:0}}]}));
+  expect(host.textContent).toContain('2 rival karts disabled');expect(localStorage.getItem('tonplaygram.kartroyale.career.v1')).toBeNull();
  }finally{await act(async()=>root.unmount());host.remove();}
 });

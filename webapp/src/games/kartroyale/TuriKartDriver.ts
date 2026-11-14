@@ -9,6 +9,7 @@ import {
 import { solveHumanoidGrip } from '../tiranastreets/street-career/humanoidHands.mjs';
 import { driverPose } from './driverPose.mjs';
 import type { Racer } from './simulation.mjs';
+import { DRIVER_HEIGHT } from './racingDimensions.mjs';
 
 /** Turi's original skin follows the same steering/pedal contacts as the kart.
  * Each car owns its skeleton/material instances; the embedded atlas is shared. */
@@ -18,6 +19,9 @@ export class TuriKartDriver {
   private body: T.Group;
   private rest = new Map<T.Bone, T.Quaternion>();
   private base = new T.Vector3();
+  private hip = new T.Vector3();
+  private authoredScale = 1;
+  private scale = new T.Vector3();
   private masks: {
     mesh: T.SkinnedMesh;
     full: T.BufferGeometry;
@@ -32,13 +36,14 @@ export class TuriKartDriver {
     this.root.name = 'Turi kart driver';
     this.root.position.y = raised ? 0.1 : 0;
     this.root.userData.characterId = 'turi';
-    this.body = normalizePlayableHuman(clone(source), 1.76);
+    this.body = normalizePlayableHuman(clone(source), DRIVER_HEIGHT);
     this.root.add(this.body);
     this.bones = humanoidBones(this.body);
     this.root.updateMatrixWorld(true);
     const hip = this.root.worldToLocal(
       this.bones.get('hips')!.getWorldPosition(new T.Vector3())
     );
+    this.hip.copy(hip);
     // Sit toward the cushion front so Turi's original leg lengths reach the pedals.
     this.body.position.set(-hip.x, 0.47 - hip.y, -0.08 - hip.z);
     this.base.copy(this.body.position);
@@ -102,6 +107,16 @@ export class TuriKartDriver {
     );
   }
   update(r: Racer, time: number, firstPerson: boolean, reduced = false) {
+    // A two-metre kart is fitted from a larger authored GLB. Its seated adult
+    // must retain the same stature as the on-foot player instead of inheriting
+    // the chassis shrink. Control sockets still use the kart's authored space.
+    const parentScale = this.root.parent?.getWorldScale(this.scale).y || 1;
+    if (Math.abs(parentScale - this.authoredScale) > 1e-6) {
+      this.authoredScale = parentScale;
+      this.root.scale.setScalar(1 / parentScale);
+      this.base.set(-this.hip.x, 0.47 * parentScale - this.hip.y,
+        -0.08 * parentScale - this.hip.z);
+    }
     for (const [bone, q] of this.rest) bone.quaternion.copy(q);
     if ((r.impactId || 0) > this.lastImpact) {
       this.lastImpact = r.impactId;
@@ -136,7 +151,7 @@ export class TuriKartDriver {
       .copy(this.base)
       .add(new T.Vector3(pose.lean * 0.5, pose.breath, pose.recoil * 0.5));
     this.root.updateWorldMatrix(true, true);
-    const world = (p: number[]) => this.root.localToWorld(new T.Vector3(...p));
+    const world = (p: number[]) => this.root.localToWorld(new T.Vector3(...p).multiplyScalar(this.authoredScale));
     const direction = (x: number, y: number, z: number) =>
       new T.Vector3(x, y, z).transformDirection(this.root.matrixWorld);
     for (const [side, key] of [
@@ -171,6 +186,14 @@ export class TuriKartDriver {
       );
     for (const mask of this.masks)
       mask.mesh.geometry = firstPerson ? mask.eyes : mask.full;
+  }
+  /** Actual adult eye position; unaffected by the chassis asset's fit scale. */
+  eye(out: T.Vector3) {
+    const head = this.bones.get('head')!;
+    head.getWorldPosition(out);
+    // The head joint is at the base of the skull. Offset in the driver's frame
+    // so banking the kart does not move the eye away from the face.
+    return out.add(new T.Vector3(0, .105, .075).transformDirection(this.root.matrixWorld).multiplyScalar(Math.hypot(.105, .075)));
   }
   dispose() {
     if (this.disposed) return;

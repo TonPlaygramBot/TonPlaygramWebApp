@@ -7,9 +7,9 @@ import { TuriKartDriver } from './TuriKartDriver';
 import { driverPose } from './driverPose.mjs';
 import { humanoidPalmPoint } from '../tiranastreets/street-career/humanoidHands.mjs';
 
-it.each([false, true])(
-  'Turi keeps both palms and feet on moving kart controls (raised seat: %s)',
-  async (raised) => {
+it.each([[false, 1], [true, 1], [false, 2 / 2.7], [true, 2 / 2.7]] as const)(
+  'Turi keeps adult stature and moving control contacts (raised %s, fit %s)',
+  async (raised, fitScale) => {
     const bytes = readFileSync(
       new URL(
         '../../../public/assets/tirana-streets/players/turi.glb',
@@ -28,14 +28,17 @@ it.each([false, true])(
     const driver = new TuriKartDriver(source.scene, '#ff0000', raised),
       hull = new T.Group();
     hull.add(driver.root);
+    hull.scale.setScalar(fitScale);
+    driver.update({ steering: 0, acceleration: 0, yawRate: 0, speed: 0, throttle: 0, braking: false } as any, 0, false, true);
     hull.updateMatrixWorld(true);
+    expect(driver.root.getWorldScale(new T.Vector3()).y).toBeCloseTo(1, 6);
     const garagePose = driverPose(0, 0, 0, 0, 0, true);
     expect(
       driver.bones
         .get('leftfoot')!
         .getWorldPosition(new T.Vector3())
         .distanceTo(
-          driver.root.localToWorld(new T.Vector3(...garagePose.legs.l.ankle))
+          driver.root.localToWorld(new T.Vector3(...garagePose.legs.l.ankle).multiplyScalar(fitScale))
         )
     ).toBeLessThan(0.012);
     const materialNames = new Set<string>();
@@ -67,7 +70,7 @@ it.each([false, true])(
         ] as const) {
           expect(
             humanoidPalmPoint(driver.bones, side).distanceTo(
-              driver.root.localToWorld(new T.Vector3(...pose.arms[key].hand))
+              driver.root.localToWorld(new T.Vector3(...pose.arms[key].hand).multiplyScalar(fitScale))
             )
           ).toBeLessThan(0.012);
           expect(
@@ -75,7 +78,7 @@ it.each([false, true])(
               .get(side + 'foot')!
               .getWorldPosition(new T.Vector3())
               .distanceTo(
-                driver.root.localToWorld(new T.Vector3(...pose.legs[key].ankle))
+                driver.root.localToWorld(new T.Vector3(...pose.legs[key].ankle).multiplyScalar(fitScale))
               )
           ).toBeLessThan(0.012);
         }

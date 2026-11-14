@@ -1,7 +1,11 @@
 /** World metres. Shared by rendering, browser simulation and the server. */
 export const KART_LENGTH = 2;
 export const KART_SCALE = KART_LENGTH / 2.7;
-export const KART_WIDTH = 1.72 * KART_SCALE;
+// Fitted GLB extents include the outer tyres. The previous 1.27 m collision
+// width clipped tyres through rivals and overestimated passing room.
+export const KART_WIDTH = 1.48;
+export const kartBodyWidth = id => ['ooli', 'photon', 'vortex', 'aegis'].includes(id) ? 1.56 : KART_WIDTH;
+export const DRIVER_HEIGHT = 1.76;
 export const MIN_PASSING_WIDTH = 4.8;
 export const RACING_CLEARANCE_VERSION = 'racing-two-lane-v1';
 /** Leave bumper and steering clearance without reserving a car-sized lane. */

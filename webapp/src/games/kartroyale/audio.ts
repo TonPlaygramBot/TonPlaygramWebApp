@@ -22,6 +22,10 @@ export class KartAudio {
   private sources: AudioScheduledSourceNode[] = [];
   private lastImpact = 0;
   private lastBoost = 0;
+  private lastCombatShot = 0;
+  private lastExplosion = 0;
+  private lastActionShot = 0;
+  private lastFootstep = 0;
   muted = false;
   unlock() {
     if (!this.context)
@@ -104,7 +108,8 @@ export class KartAudio {
   update(frame: Frame, active: boolean) {
     if (!this.context) return;
     if (!active) { this.silence(); return; }
-    const now=this.context.currentTime, running=!frame.retired&&frame.countdown===0;
+    const onFoot=frame.actionCareer?.mode==='onfoot';
+    const now=this.context.currentTime, running=!frame.retired&&frame.countdown===0&&!onFoot;
     const speed=Math.abs(frame.speed), throttle=frame.throttle||0;
     const rpm=frame.powertrain?.rpm ?? (1900+speed*180);
     const shift=frame.powertrain?.shift||0;
@@ -153,6 +158,18 @@ export class KartAudio {
     const laps=frame.telemetry?.completed||0;
     if(running&&laps>this.lastLap)this.beep(frame.telemetry?.lastLap?.clean?1046:784,.16);
     this.lastLap=laps;
+    const combatShot=frame.combat?.shotId||0,explosion=frame.combat?.explosionId||0;
+    if(combatShot>this.lastCombatShot)this.burst(.075,.075,2600);
+    if(explosion>this.lastExplosion)this.burst(.45,.2,500);
+    this.lastCombatShot=combatShot;this.lastExplosion=explosion;
+    const action=frame.actionCareer,actionShot=action?.shotId||0;
+    if(actionShot>this.lastActionShot)this.burst(.08,.08,2100);
+    this.lastActionShot=actionShot;
+    if(action&&onFoot&&action.actor.speed>.4&&action.actor.jumpHeight<.05){
+      if(action.elapsed-this.lastFootstep>(action.actor.speed>3?.19:.31)){
+        this.burst(.055,.035,350);this.lastFootstep=action.elapsed;
+      }
+    }else this.lastFootstep=action?.elapsed||0;
   }
   silence() {
     if (!this.context) return;

@@ -2,7 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { build } from '../webapp/node_modules/esbuild/lib/main.js';
 import { WORLD } from '../webapp/src/games/tiranastreets/shared/world.mjs';
-import { DISTRICT_ROUTES } from '../webapp/src/games/kartroyale/district-routes.mjs';
+import { MAIN_ROAD_ROUTES } from '../webapp/src/games/kartroyale/main-road-routes.mjs';
 import { TRACKS, STEP, makeTrack, createRacer, stepRacer, stepRace, aiInput } from '../webapp/src/games/kartroyale/simulation.mjs';
 import { buildingClearance } from '../webapp/src/games/kartroyale/raceCourse.mjs';
 import { roadBumps, roadHeight, stepSuspension, ROAD_SURFACE_Y, TYRE_RADIUS, TYRE_EDGE_OFFSET } from '../webapp/src/games/kartroyale/roadFeel.mjs';
@@ -10,11 +10,11 @@ import { resolveKartContact } from '../webapp/src/games/kartroyale/collisions.mj
 
 const edgeKey = (a,b) => [a.join(','),b.join(',')].sort().join('|');
 const streets = new Set(WORLD.roads.filter(r=>!r.walk).map(r=>edgeKey(r.a,r.b)));
-test('all six longer district circuits stay connected, near their landmarks, and clear of buildings',()=>{
-  assert.equal(DISTRICT_ROUTES.length,6);
-  for(const route of DISTRICT_ROUTES){
+test('all six main-road circuits stay connected, near their landmarks, and clear of buildings',()=>{
+  assert.equal(MAIN_ROAD_ROUTES.length,6);
+  for(const route of MAIN_ROAD_ROUTES){
     const track=makeTrack(route.id);
-    assert.ok(track.length > route.originalLength*1.35,route.id+' longer');
+    assert.ok(track.length >=1600 && track.length<=4200,route.id+' playable city length');
     assert.equal(new Set(route.points.map(p=>p.join(','))).size,route.points.length,'no repeated road nodes');
     route.points.forEach((p,i)=>assert.ok(streets.has(edgeKey(p,route.points[(i+1)%route.points.length])),route.id+' connected road'));
     for(const p of track.points)assert.ok(buildingClearance(p.x,p.z)>=p.width/2+TYRE_RADIUS+TYRE_EDGE_OFFSET,route.id+' tyre clearance');
