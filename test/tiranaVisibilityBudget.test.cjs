@@ -18,95 +18,9 @@ test('visibility query visits local indexed cells and retains distant bands with
  assert.equal(selected.length,10);assert.ok(selected.some(p=>p.distanceSq>500**2));
  assert.equal(index.query({x:NaN,z:0},100).length,0);
 });
-function facadeFixture(buildings, options={}){
- const {CityFacades,FACADE_VISIBILITY}=load('tiranastreets/cityVisuals.ts',{
-  three:T,'./shared/visibilityIndex.mjs':visibility,
-  './street-career/cityEconomyDefinitions.mjs':economy,
-  './shared/engine.mjs':{WORLD:{buildings},insidePolygon:(x,z,p)=>x>p[0][0]&&x<p[2][0]&&z>p[0][1]&&z<p[2][1]},
-  '../tirana-city-source/housingRegistry.mjs':{AGED_HOUSING_IDS:new Set()},
-  '../tirana-landmarks/nativeLocations.mjs':{nativeReplacementIds:()=>new Set()},
-  '../tirana-landmarks/skanderbegBuilding.mjs':{ROCK_REPLACEMENT_IDS:new Set(['1482874836','1482874842'])},
-  '../tirana-city-source/registry.mjs':{INSTITUTION_BUILDING_IDS:new Set()},
-  '../tirana-street-life/registry.mjs':{REAL_STOREFRONT_BUILDING_IDS:new Set(),FUEL_CANOPY_IDS:new Set()}
- });
- const source=new T.Group();
- for(const name of ['brick_block','corner_block'])for(const lod of (options.onlyFull?['']:['', '_lod'])){
-  const group=new T.Group();group.name=name+lod;group.add(new T.Mesh(new T.BoxGeometry(20,12,20),new T.MeshStandardMaterial()));source.add(group);
- }
- return {layer:new CityFacades(source),profiles:FACADE_VISIBILITY};
-}
+
 const building=(id,x,z)=>({id:String(id),p:[[x-10,z-10],[x+10,z-10],[x+10,z+10],[x-10,z+10]],h:12});
-test('crowded near facades overflow to LOD instead of disappearing and static views do not upload matrices repeatedly',()=>{
- const {layer}=facadeFixture(Array.from({length:80},(_,i)=>building(i,(i%8)*3-12,Math.floor(i/8)*3-15)));
- layer.update({x:0,z:0},1,false);
- assert.equal(layer.group.userData.visibleBuildings,80);
- assert.equal(layer.batches.reduce((sum,b)=>sum+b.mesh.count,0),80);
- assert.equal(layer.batches.filter(b=>!b.lod).reduce((sum,b)=>sum+b.mesh.count,0),20);
- const versions=layer.batches.map(b=>b.mesh.instanceMatrix.version);
- for(let i=0;i<120;i++)layer.update({x:0,z:0},1/60,false);
- assert.deepEqual(layer.batches.map(b=>b.mesh.instanceMatrix.version),versions);
- for(const {mesh} of layer.batches){assert.ok(mesh.frustumCulled);assert.ok(Number.isFinite(mesh.boundingSphere.radius));}
-});
-test('generic facade templates never cover the dedicated Skanderbeg podium or face',()=>{
- const {layer}=facadeFixture([building('1482874836',0,0),building('1482874842',20,0)]);
- layer.update({x:0,z:0},1,false);
- assert.equal(layer.group.userData.visibleBuildings,0);
- assert.ok(layer.batches.every(b=>b.mesh.count===0));
-});
-test('battery preserves nearby authored detail and a single-detail glTF remains visible at distance',()=>{
- const {layer}=facadeFixture(Array.from({length:12},(_,i)=>building(i,i*2,0)),{onlyFull:true});
- layer.update({x:0,z:0},1,true);
- assert.equal(layer.batches.filter(b=>!b.lod).reduce((sum,b)=>sum+b.mesh.count,0),6);
- assert.equal(layer.batches.reduce((sum,b)=>sum+b.mesh.count,0),12);
- layer.update({x:0,z:200},1,true);
- assert.equal(layer.batches.filter(b=>b.lod).reduce((sum,b)=>sum+b.mesh.count,0),12);
- assert.ok(layer.batches.every(b=>Number.isFinite(b.mesh.boundingSphere.radius)));
-});
-test('facade detail has hysteresis when walking across a detail threshold',()=>{
- const {layer}=facadeFixture([building('a',0,0)]);
- const detailed=()=>layer.batches.filter(b=>!b.lod).reduce((sum,b)=>sum+b.mesh.count,0);
- layer.update({x:0,z:65},1,false);assert.equal(detailed(),1);
- layer.update({x:0,z:85},1,false);assert.equal(detailed(),1,'retain the existing detailed facade inside the hysteresis band');
- layer.update({x:0,z:110},1,false);assert.equal(detailed(),0);
- layer.update({x:0,z:85},1,false);assert.equal(detailed(),0,'do not repeatedly re-enter detail at the outer threshold');
- layer.update({x:0,z:65},1,false);assert.equal(detailed(),1);
-});
-test('generic facade templates never overlap the licensed purchasable residences',()=>{
- const {layer}=facadeFixture([...economy.ECONOMY_RESIDENCE_IDS].map((id,i)=>building(id,i*20,0)));
- layer.update({x:0,z:0},1,false);
- assert.equal(layer.group.userData.visibleBuildings,0);
- assert.ok(layer.batches.every(b=>b.mesh.count===0));
-});
-test('residence LOD restores original shells at distance and caps battery detail at one home',()=>{
- const {BuildingAccessVisuals}=load('tiranastreets/street-career/BuildingAccessVisuals.ts',{three:T});
- const layer=Object.create(BuildingAccessVisuals.prototype),scene=new T.Scene(),group=new T.Group(),residenceGroup=new T.Group();
- scene.add(group,residenceGroup);
- const originals=['a','b','c'].map(id=>{const root=new T.Group();root.userData.buildingId=id;scene.add(root);return root;});
- const models=originals.map(()=>{const model=new T.Group();model.visible=false;residenceGroup.add(model);return model;});
- Object.assign(layer,{scene,group,residenceGroup,residenceViewer:{x:0,z:0},hiddenResidenceShells:new Map(),residenceModels:new Map(models.map((model,i)=>[['a','b','c'][i],{model,site:{buildingId:['a','b','c'][i],center:{x:10+i*20,z:0}}}]))});
- layer.hideReplacedShells();assert.ok(originals.every(root=>root.visible),'pending assets retain their source shells');
- layer.updateResidenceVisibility(320);assert.equal(models.filter(model=>model.visible).length,2);assert.deepEqual(originals.map(root=>root.visible),[false,false,true]);
- layer.updateResidenceVisibility(120);assert.deepEqual(models.map(model=>model.visible),[true,false,false]);assert.deepEqual(originals.map(root=>root.visible),[false,true,true]);
- layer.residenceViewer.x=10000;layer.updateResidenceVisibility(320);assert.ok(originals.every(root=>root.visible));assert.ok(models.every(model=>!model.visible));
-});
-test('portrait facade selection reaches 1.1 km, respects 100/35 caps, and refreshes when turning or resizing',()=>{
- const rows=Array.from({length:180},(_,i)=>building(i,(i%3-1)*20,-30-i*5));
- rows.push(building('far',0,-1050),building('behind',0,180));
- const {layer}=facadeFixture(rows),camera=new T.PerspectiveCamera(55,.56,.1,3600);
- camera.position.set(0,7,5);camera.lookAt(0,7,-100);
- layer.update({x:0,z:0},1,false,camera);
- assert.ok(layer.group.userData.visibleBuildings<=100);
- const matrix=new T.Matrix4(),positions=()=>layer.batches.flatMap(({mesh})=>Array.from({length:mesh.count},(_,i)=>{mesh.getMatrixAt(i,matrix);return matrix.elements[14];}));
- assert.ok(positions().some(z=>z<-750),'far detail slots survive a dense nearby street');
- assert.ok(positions().every(z=>z<20),'behind-camera details do not consume the budget');
- camera.lookAt(0,7,100);layer.update({x:0,z:0},1,false,camera);
- assert.ok(positions().some(z=>z>100),'rotation refreshes selection without walking');
- camera.lookAt(0,7,-100);layer.update({x:0,z:0},1,true,camera);assert.ok(layer.group.userData.visibleBuildings<=35);
- assert.equal(layer.group.userData.detailRadius,640);
- const version=layer.batches[0].mesh.instanceMatrix.version;
- camera.aspect=1.6;camera.updateProjectionMatrix();layer.update({x:0,z:0},1,true,camera);
- assert.ok(layer.batches[0].mesh.instanceMatrix.version>version,'orientation/aspect updates the frustum');
-});
+
 function fpsFixture(){
  const settings=load('tiranastreets/renderSettings.ts');
  const {FpsCity}=load('tiranastreets/FpsCity.ts',{three:T,'./renderSettings':settings,'./shared/visibilityIndex.mjs':visibility});
@@ -132,31 +46,7 @@ test('shared FPS city keeps a 2 km skyline with bounded distant detail and corre
  camera.lookAt(-800,10,100);layer.update(new T.Vector3(0,10,0),3,true,camera);
  assert.equal(layer.group.userData.visibleDetailCells,0);
 });
-function importedFixture(){
- let clones=0,workerLimit;
- class Loader{constructor(){workerLimit=1;}configure(){}dispose(){}}
- const {ImportedAssetVisuals}=load('tiranastreets/ImportedAssetVisuals.ts',{
-  three:T,'./CityAssetLoader':{CityAssetLoader:Loader,prepareCityAssetTextures(){}},
-  'three/examples/jsm/utils/SkeletonUtils.js':{clone:source=>{clones++;return source.clone(true);}},
-  './shared/importedAssets.mjs':{IMPORTED_BY_ID:new Map()},'../tirana-east/terrainCore.mjs':{groundHeight:()=>0},
-  '../tirana-east/terrainTransforms':{alignVehicle(){}},'./weaponModelResources':{disposeWeaponResources(){},clearWeaponInstance(root){root.clear();}}
- });
- const layer=new ImportedAssetVisuals();layer.sources.set('original',new T.Group());layer.load=()=>{};
- return {layer,clones:()=>clones,workerLimit};
-}
-test('imported originals cap clone bursts, retain per-frame movement, replace asset identity, and evict disappeared entries',()=>{
- const {layer,clones,workerLimit}=importedFixture(),viewer={x:0,z:0};assert.equal(workerLimit,1);
- let rows=Array.from({length:14},(_,i)=>({id:String(i),assetId:'original',x:i,z:0})).reverse();
- layer.update(rows,viewer,false,0);assert.equal(clones(),2);assert.ok(layer.getRoot('0'));assert.ok(layer.getRoot('1'));
- for(let i=1;i<7;i++)layer.update(rows,viewer,false,i*16);
- assert.equal(clones(),14);
- rows=rows.map(e=>e.id==='0'?{...e,x:2}:e);layer.update(rows,viewer,false,112);assert.equal(layer.getRoot('0').position.x,2);
- const selected=layer.selected;layer.update(rows,viewer,false,128);assert.equal(layer.selected,selected,'no resort before selection deadline');
- rows=rows.map(e=>e.id==='0'?{...e,assetId:'replacement'}:e);layer.update(rows,viewer,false,144);assert.equal(layer.has('0'),false,'stale source is not reused under the same entity ID');
- layer.update(rows.filter(e=>e.id!=='1'),viewer,false,160);assert.equal(layer.has('1'),false);
- layer.update(rows,{x:1000,z:0},false,176);assert.equal(layer.group.children.length,0,'teleport refresh is immediate');
- layer.dispose();
-});
+
 test('city generation still shares a target-frame CPU allowance across both streams',()=>{
  let clock=0;const settings=load('tiranastreets/renderSettings.ts',{}, {performance:{now:()=>clock}});
  for(const fps of [50,60,90,120]){

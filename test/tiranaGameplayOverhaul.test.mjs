@@ -4,8 +4,7 @@ import {createState, MISSIONS, movePlayer} from '../webapp/src/games/tiranastree
 import {WEAPONS,STARTER_WEAPON} from '../webapp/src/games/tiranastreets/shared/weapons.mjs';
 import {StreetSimulation} from '../webapp/src/games/tiranastreets/street-career/StreetSimulation.mjs';
 import {StreetWorld} from '../webapp/src/games/tiranastreets/street-career/spatialCore.mjs';
-import {createCampaign} from '../webapp/src/games/tiranastreets/street-career/campaignCore.mjs';
-import {captureCheckpoint,restoreCheckpoint} from '../webapp/src/games/tiranastreets/street-career/checkpointCore.mjs';
+
 import {takeVehicle} from '../webapp/src/games/tiranastreets/street-career/vehicleCore.mjs';
 import {groundHeight} from '../webapp/src/games/tirana-east/terrainCore.mjs';
 import {drivingScale} from '../webapp/src/games/tiranastreets/shared/drivingScale.mjs';
@@ -15,16 +14,10 @@ import {BATTLEFIELD_MAPS,OBSTACLES} from '../webapp/src/games/blackwater/shared/
 import {collides} from '../webapp/src/games/blackwater/shared/physics.mjs';
 import {createBrain,thinkBot} from '../webapp/src/games/blackwater/shared/botBrain.mjs';
 import {makeMatch,stepMatch,publicMatch,MATCH_LIMIT} from '../webapp/src/games/blackwater/shared/match.mjs';
-const campaign=createCampaign(MISSIONS,WEAPONS,STARTER_WEAPON);
+
 function sim(){const s=createState([{id:'local',name:'Pilot'}],'free-roam','solo'),sim=new StreetSimulation(s,new StreetWorld([],false));s.npcs=[];s.cars=[];s.traffic=[];s.units=[];s.nextDispatch=1e9;return sim;}
 const car=(id,x,z)=>({id,x,z,heading:0,speed:0,vx:0,vz:0,steering:0,model:'sedan',driver:null});
-test('contacts unlock independent ground and flight stories and survive a save reload',()=>{
- const profile=campaign.fresh();profile.completed=['first-shift'];
- for(const id of ['express','rinia-rescue','air-rescue','lana-run'])assert.ok(campaign.begin(profile,id),id);
- assert.equal(campaign.begin(profile,'sky-patrol'),null);
- profile.completed.push('air-rescue');const restored=campaign.normalize(JSON.parse(JSON.stringify(profile)));
- assert.ok(campaign.begin(restored,'sky-patrol'));assert.deepEqual(restored.completed,['first-shift','air-rescue']);
-});
+
 test('all district spawns are local, separated and outside city collision',()=>{
  for(const map of BATTLEFIELD_MAPS){const points=sectorSpawns(map.id,7);assert.equal(points.length,7,map.id);for(const p of points){assert.ok(!collides(p.x,p.z,.65,OBSTACLES),map.id);assert.ok(Math.hypot(p.x-map.start.x,p.z-map.start.z)>=24-.001);assert.ok(Math.hypot(p.x-map.start.x,p.z-map.start.z)<75);}}
 });
@@ -79,17 +72,7 @@ test('missiles sweep the flight segment, fracture only the impact section and ke
  assert.equal(s.world.cast({x:0,y:floor+8,z:0},{x:0,y:0,z:-1},21).kind,'air');
  assert.equal(s.world.cast({x:0,y:floor+18,z:0},{x:0,y:0,z:-1},30).kind,'wall');
 });
-test('all four aircraft board, climb, fire and restore their own checkpoint; hover brakes smoothly',()=>{
- const ids=sim().flight.aircraft.map(a=>a.id);assert.equal(ids.length,4);
- for(const id of ids){
- const s=sim(),a=s.flight.aircraft.find(a=>a.id===id),kind=a.kind,access=s.flight.access(a);Object.assign(s.player,access);
- assert.equal(s.flight.board(a.id),true,kind);s.intent.fast=true;s.flight.step(1);s.intent.fast=false;
- assert.ok(a.airborne,kind);assert.equal(s.flight.exit(),false);const old=a.missiles;s.intent.fire=true;s.flight.step(.05);assert.equal(a.missiles,a.civilian?old:old-1,'civilian helicopters remain unarmed');
-  const checkpoint=captureCheckpoint(s);assert.equal(checkpoint.aircraft.kind,kind);const next=sim();
- assert.ok(restoreCheckpoint(next,checkpoint,campaign.apply));assert.equal(next.flight.current.kind,kind);assert.equal(next.flight.current.pilot,next.player.id);assert.equal(next.flight.current.id,id);
- a.speed=20;s.intent.fire=false;s.flight.assist('hover');assert.equal(a.speed,20);s.flight.step(.1);assert.ok(a.speed>0&&a.speed<20);
- }
-});
+
 test('faster car classes retain capped reverse speed and working brakes',()=>{
  assert.ok(drivingScale({model:'sedan'}).maximum*3.6>=110);assert.ok(drivingScale({model:'sport'}).maximum>drivingScale({model:'sedan'}).maximum);
  assert.equal(drivingScale({model:'sedan'}).reverse*3.6,20);

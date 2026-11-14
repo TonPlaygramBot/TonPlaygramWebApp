@@ -1,9 +1,8 @@
-name: Tirana career and Dajti source checks
+name: Shared Tirana geography and Dajti source checks
 on:
   pull_request:
     paths:
       - 'webapp/src/games/tirana-expansion/**'
-      - 'webapp/src/games/tiranastreets/career/**'
       - 'webapp/src/games/tiranastreets/map/**'
       - 'webapp/src/games/blackwater/**'
       - 'webapp/src/games/kartroyale/**'

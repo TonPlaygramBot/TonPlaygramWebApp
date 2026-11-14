@@ -4,6 +4,9 @@ export const GAME_PACK_CATALOG_URL = '/pwa/game-packs/index.json';
 export const GAME_PACK_CACHE_PREFIX = 'tonplaygram-pack-';
 export const GAME_PACK_COMPLETE_PATH = '/pwa/game-packs/.complete';
 const GAME_PACK_METADATA_CACHE = `${GAME_PACK_CACHE_PREFIX}metadata-v1`;
+// Old offline metadata must not offer games removed from the app. Keep their
+// downloaded asset caches intact because Racing can reuse the shared city files.
+const RETIRED_GAME_PACK_IDS = new Set(['tirana-streets', 'jetski-royal']);
 export const FALLBACK_GAME_PACK_CATALOG = Object.freeze({
   schemaVersion: 1, source: 'runtime-fallback',
   packs: GAME_PACK_DEFINITIONS.map(definition => ({
@@ -84,7 +87,7 @@ const normalizeCatalog = catalog => {
     ...catalog,
     schemaVersion: Number(catalog.schemaVersion) || GAME_PACK_SCHEMA_VERSION,
     packs: catalog.packs
-      .filter(pack => pack && typeof pack.id === 'string')
+      .filter(pack => pack && typeof pack.id === 'string' && !RETIRED_GAME_PACK_IDS.has(pack.id))
       .map(pack => ({
         ...pack,
         dependencies: Array.isArray(pack.dependencies) ? pack.dependencies : [],

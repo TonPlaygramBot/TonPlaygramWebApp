@@ -1,8 +1,0 @@
-{
-  "extends": "./tsconfig.neighbourhood.json",
-  "compilerOptions": {"allowJs": true, "checkJs": false},
-  "include": [
-    "src/games/blackwater/**/*.ts", "src/games/blackwater/**/*.tsx",
-    "src/games/tiranastreets/**/*.ts", "src/games/tiranastreets/**/*.tsx"
-  ]
-}

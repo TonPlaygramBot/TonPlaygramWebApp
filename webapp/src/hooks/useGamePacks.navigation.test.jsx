@@ -140,7 +140,7 @@ describe('download reconciliation during startup', () => {
   it('enters a required game route with only its completed-download receipt check', async () => {
     const fixture = savedDownload();
     vi.stubEnv('VITE_REQUIRE_GAME_PACKS', 'true');
-    window.history.replaceState({}, '', '/games/tiranastreets?activity=street-career');
+    window.history.replaceState({}, '', '/games/kartroyale?mode=career');
     const { enforceRequiredGamePackRoute } = await import('../pwa/gamePackRouteGuard.js');
     expect(await enforceRequiredGamePackRoute()).toBe(false);
     expect(fixture.reads).toEqual({ receipt: 1, assets: 0 });

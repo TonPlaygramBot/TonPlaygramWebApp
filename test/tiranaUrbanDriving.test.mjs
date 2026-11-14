@@ -12,8 +12,7 @@ import {VEHICLE_COLLECTION} from '../webapp/src/games/tiranastreets/shared/vehic
 import {load,T} from '../webapp/scripts/vehicle-wheels/loadAsset.mjs';
 const temp=new URL('../webapp/node_modules/.cache/urban-driving-test.mjs',import.meta.url);
 mkdirSync(new URL('.',temp),{recursive:true});
-buildSync({entryPoints:[fileURLToPath(new URL('../webapp/src/games/tiranastreets/DriverInterior.ts',import.meta.url))],outfile:fileURLToPath(temp),bundle:true,platform:'node',format:'esm',external:['three','three/*'],logLevel:'silent'});
-const {DriverInterior}=await import(temp);
+
 const fresh=(model='sedan',speed=0)=>({id:'test',x:0,z:0,heading:0,model,speed,vx:0,vz:-speed,steering:0});
 const run=(car,input,seconds,dt=1/60,contact)=>{for(let i=0;i<Math.round(seconds/dt);i++)driveVehicle(car,input,dt,contact);return car;};
 
@@ -66,51 +65,4 @@ test('six audited GLBs contain distinct original cabin surfaces; seat-only GLBs 
  }
  assert.deepEqual(found.sort(),['benz','bmw','ferrari','ford','golf-gti','jaguar']);
  for(const id of ['range','audi','fiat','bugatti','landrover'])assert.equal(hasAuthoredCabin({collectionVehicle:id}),false);
-});
-for(const id of ['benz','bmw','ferrari','ford','golf-gti','jaguar'])test(`${id}: original cabin follows exact driver frame and does not dispose shared exterior maps`,async()=>{
- const asset=VEHICLE_COLLECTION.find(a=>a.id===id),source=await load(new URL('../webapp/public'+asset.url,import.meta.url));
- const root=new T.Group();root.add(source);root.position.set(80,3,90);root.rotation.y=1.2+Math.PI/2;
- const car={...fresh(),x:80,z:90,heading:1.2,collectionVehicle:id},cabin=new DriverInterior();
- let disposed=0;const materials=new Set();source.traverse(o=>{if(o instanceof T.Mesh)for(const m of Array.isArray(o.material)?o.material:[o.material])materials.add(m);});
- for(const material of materials)material.addEventListener('dispose',()=>disposed++);
- cabin.update(car,()=>3,root);assert.equal(cabin.group.userData.cabinSource,'original-vehicle-materials');
- const eye=driverEye(car,()=>3);assert.ok(cabin.group.position.distanceTo(new T.Vector3(eye.x,eye.y,eye.z))<1e-8);
- cabin.group.updateMatrixWorld(true);
- // Regression: old Benz/Ferrari mount coordinates put the camera behind a
- // headrest, covering the road with opaque leather 4–10 cm from the eye.
- for(const offset of [-.2,0,.2]){
-  const direction=new T.Vector3(-Math.sin(car.heading+offset),0,-Math.cos(car.heading+offset));
-  const ray=new T.Raycaster(new T.Vector3(eye.x,eye.y,eye.z),direction,.035,.3);
-  assert.equal(ray.intersectObject(cabin.group,true).length,0,`${id}: windshield must not be covered by the driver's headrest`);
- }
- const copied=[];cabin.group.traverse(o=>{if(o instanceof T.Mesh)copied.push(o);});assert.ok(copied.length>0);
- for(const mesh of copied)for(const material of Array.isArray(mesh.material)?mesh.material:[mesh.material])assert.ok(materials.has(material));
- cabin.update({...car,heading:-.7,steering:.6},()=>3,root);cabin.dispose();assert.equal(disposed,0);
-});
-test('fallback cabins fit the vehicle class and golf eye is safely behind its actual steering hub',()=>{
- const cabin=new DriverInterior();cabin.update({...fresh(),collectionVehicle:'range'},()=>0);
- assert.equal(cabin.group.userData.cabinSource,'authored-basic-cabin');assert.equal(cabin.group.children[0].userData.profile,'utility');
- cabin.update({...fresh('tirana-bus')},()=>0);assert.equal(cabin.group.children[0].userData.profile,'bus');
- cabin.update({...fresh('motorbike')},()=>0);assert.equal(cabin.group.visible,false);cabin.dispose();
- const car={collectionVehicle:'golf-gti'},eye=driverSocket(car),wheel=driverWheel(car);assert.ok(eye.z-wheel.z>.4);assert.ok(eye.y>wheel.y+.2);
-});
-test('ordinary sedan and city-car wrappers keep their original cabin orientation',async()=>{
- for(const [model,id] of [['sedan','benz'],['city-car','ford']]){
-  const asset=VEHICLE_COLLECTION.find(a=>a.id===id),source=await load(new URL('../webapp/public'+asset.url,import.meta.url));
-  source.rotation.y=-Math.PI/2;source.updateMatrixWorld(true);
-  const box=new T.Box3().setFromObject(source),center=box.getCenter(new T.Vector3());source.position.set(-center.x,-box.min.y,-center.z);
-  const root=new T.Group();root.add(source);root.rotation.y=Math.PI;
-  const car=fresh(model),cabin=new DriverInterior();cabin.update(car,()=>0,root);cabin.group.updateMatrixWorld(true);
-  assert.equal(cabin.group.userData.cabinSource,'original-vehicle-materials');
-  const eye=driverEye(car,()=>0),ray=new T.Raycaster(new T.Vector3(eye.x,eye.y,eye.z),new T.Vector3(0,0,-1),.035,.3);
-  assert.equal(ray.intersectObject(cabin.group,true).length,0,model+' road view');
-  // The cabin in first person occupies exactly the same world positions as
-  // the original parked GLB, including the generic renderer recentering.
-  const copied=[];cabin.group.traverse(o=>{if(o instanceof T.Mesh)copied.push(o);});root.updateMatrixWorld(true);
-  for(const mesh of copied){
-   const original=source.getObjectByName(mesh.name.replace(/^Cabin:/,''));assert.ok(original);
-   const a=mesh.getWorldPosition(new T.Vector3()),b=original.getWorldPosition(new T.Vector3());assert.ok(a.distanceTo(b)<1e-6);
-  }
-  cabin.dispose();
- }
 });

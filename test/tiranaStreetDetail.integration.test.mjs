@@ -26,13 +26,3 @@ test('every Racing Royal circuit has a closed ribbon exclusion without changing 
   assert.ok(retained.length<=STREET_DETAILS.posts.length);assert.equal(JSON.stringify(track.points),before);
  }
 });
-test('actual lobby and both active scene adapters use the new integrations',()=>{
- assert.match(read('webapp/src/pages/Games/TiranaStreetsLobby.jsx'),/gameModeURL\('streets',\s*'career'\)/);
- assert.match(read('webapp/src/games/blackwater/ui.tsx'),/activity\s*===\s*'street-career'/);
- assert.match(read('webapp/src/games/blackwater/cityWorld.ts'),/enhancements.bindBuildings\(city.group/);
- assert.match(read('webapp/src/games/tiranastreets/street-career/StreetRenderer.ts'),/details.bindBuildings\(this.scene/);
- assert.match(read('webapp/src/games/kartroyale/tiranaScenery.ts'),/profile:'racing',track/);
- assert.match(read('webapp/src/games/tiranastreets/street-career/SharedGameCast.ts'),/CHESS_HUMAN_CHARACTER_OPTIONS/);
- const catalog=read('webapp/src/config/chessBattleInventoryConfig.js');
- for(const id of ['rpm-current','rpm-67d411-domino','rpm-67f433-domino','rpm-67e1b5-domino'])assert.ok(catalog.includes(id));
-});

@@ -12,8 +12,6 @@ import {createBody} from '../webapp/src/games/tiranastreets/street-career/player
 const webapp=fileURLToPath(new URL('../webapp/',import.meta.url));
 const dir=await mkdtemp(join(webapp,'.human-quality-test-'));
 after(()=>rm(dir,{recursive:true,force:true}));
-await build({entryPoints:[join(webapp,'src/games/tiranastreets/street-career/FirstPersonBody.ts')],outfile:join(dir,'body.mjs'),bundle:true,platform:'node',format:'esm',external:['three','three/*'],logLevel:'silent'});
-const {FirstPersonBody}=await import(pathToFileURL(join(dir,'body.mjs')));
 
 test('human PBR preparation keeps source textures and normals immutable and owns its copies',()=>{
   const albedo=new T.Texture(),normal=new T.Texture(),roughness=new T.Texture();
@@ -110,41 +108,4 @@ test('actual Turi preserves the black uniform/emblem atlas and photographic face
   assert.equal(head.normalMap.source,sourceHead.normalMap.source);
   assert.deepEqual(head.normalScale,sourceHead.normalScale);assert.equal(head.normalScale.x,.34);assert.equal(head.metalness,0);
   release();
-});
-
-function actorFixture(){
-  const group=new T.Group(),hips=new T.Bone();hips.name='Hips';group.add(hips);
-  const mixer=new T.AnimationMixer(group);
-  const clips=Object.fromEntries([['Idle',2],['Walk',1],['Run',.7]].map(([name,duration])=>{
-    const clip=new T.AnimationClip(name,duration,[new T.QuaternionKeyframeTrack('Hips.quaternion',[0,duration],[0,0,0,1,0,0,0,1])]);
-    return [name,mixer.clipAction(clip)];
-  }));
-  const actor={group,mixer,clips,idle:clips.Idle,walk:clips.Walk,run:clips.Run,model:'character',wheels:[]};
-  const body=createBody(0),player={x:0,z:0,health:100,speed:1.45,weapon:'',nextShot:0};
-  const rig=new FirstPersonBody(new T.Scene());
-  return {actor,body,player,rig};
-}
-
-test('local walk/run blends preserve stride phase and equipment fallback does not restart the gait',()=>{
-  const {actor,body,player,rig}=actorFixture();
-  for(let frame=0;frame<20;frame++)rig.update(actor,player,body,frame/60,1/60);
-  const phase=actor.walk.time/actor.walk.getClip().duration;
-  player.speed=4;rig.update(actor,player,body,1,0);
-  assert.ok(Math.abs(actor.run.time/actor.run.getClip().duration-phase)<1e-8);
-  for(const speed of [3.05,2.95,3.2,2.8]){player.speed=speed;rig.update(actor,player,body,1.1,0);assert.equal(rig.activeMotion,actor.run);}
-  // No matching Run_Shoot: the existing run action should continue untouched.
-  const runningPhase=actor.run.time;player.weapon='unknown-rifle';rig.update(actor,player,body,1.2,0);
-  assert.equal(actor.run.time,runningPhase);
-  rig.dispose();
-});
-
-test('local animation limits resume jumps and crouch body follows the motor eye transition',()=>{
-  const {actor,body,player,rig}=actorFixture();
-  player.speed=5.4;rig.update(actor,player,body,0,.016);
-  const before=actor.mixer.time;rig.update(actor,player,body,3,3);
-  assert.ok(actor.mixer.time-before<=.100001,'background-tab delta cannot fast-forward animation');
-  player.speed=0;body.crouched=true;body.eye=1.28;
-  rig.update(actor,player,body,3.1,.016);
-  assert.ok(Math.abs(actor.group.position.y-(body.y-.26))<1e-8,'halfway eye transition lowers body halfway');
-  rig.dispose();
 });

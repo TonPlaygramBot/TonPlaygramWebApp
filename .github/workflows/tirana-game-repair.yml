@@ -1,11 +1,10 @@
-name: Tirana game repair
+name: Racing Royal and shared Tirana checks
 on:
   pull_request:
     paths:
       - 'webapp/src/games/kartroyale/**'
       - 'webapp/src/games/tirana-social/**'
       - 'webapp/src/games/tiranastreets/street-career/**'
-      - 'webapp/src/games/blackwater/ui.tsx'
       - 'webapp/src/games/shared/GameModeBoundary.tsx'
       - 'test/tiranaRepair*'
       - '.github/workflows/tirana-game-repair.yml'

@@ -18,8 +18,7 @@ import {advanceBattleObjective} from '../webapp/src/games/blackwater/shared/miss
 import {CITY_POPULATION} from '../webapp/src/games/tiranastreets/shared/cityPopulation.mjs';
 import {nearbyHumans} from '../webapp/src/games/tiranastreets/street-career/humanRoster.mjs';
 function loadTS(file,deps){const module={exports:{}};const code=ts.transpileModule(readFileSync(new URL('../'+file,import.meta.url),'utf8'),{compilerOptions:{target:ts.ScriptTarget.ES2022,module:ts.ModuleKind.CommonJS}}).outputText;vm.runInNewContext(code,{module,exports:module.exports,require:key=>deps[key]||{},console,Math,performance},{filename:file});return module.exports;}
-const {BattlefieldVehicle}=loadTS('webapp/src/games/blackwater/BattlefieldVehicle.ts',{'three':T,'./core':physics,'./shared/terrain.mjs':terrain,'../tiranastreets/shared/driverView.mjs':driver});
-const {GameEngine}=loadTS('webapp/src/games/blackwater/engine.ts',{'three':T,'./core':physics,'./shared/terrain.mjs':terrain,'./shared/botBrain.mjs':brains,'./shared/battlefield.mjs':missions,'../tiranastreets/shared/forceTactics.mjs':tactics,'../tiranastreets/shared/weaponCalibration.mjs':optics});
+
 const flat=()=>0,close=(a,b)=>assert.ok(Math.abs(a-b)<1e-6,`${a} != ${b}`);
 
 test('all collection, force, bus and generic cameras face forward from a fixed driver seat',()=>{
@@ -40,15 +39,7 @@ test('eye, view and up use the same support-plane rotation on hills',()=>{
  const eye=driver.driverEye(car,sample),d=driver.driverDirection(car,car.heading,0,sample),u=driver.driverUp(car,sample);
  close(eye.x,expected.x);close(eye.y,expected.y);close(eye.z,expected.z);close(d.x*u.x+d.y*u.y+d.z*u.z,0);close(u.y,up.y);
 });
-test('actual Battlefield camera resets aim zoom/near plane in portrait and landscape',()=>{
- const car=Object.assign(Object.create(BattlefieldVehicle.prototype),{car:{x:0,z:0,heading:1,model:'sedan'},view:'cockpit'});
- for(const aspect of [390/844,844/390]){
-  const camera=new T.PerspectiveCamera(40,aspect,.2,2800);car.camera(camera,[]);
-  close(camera.fov,driver.driverFov(aspect));close(camera.near,.035);
-  const expected=driver.driverEye(car.car,terrain.battleGround);close(camera.position.x,expected.x);close(camera.position.y,expected.y);
-  const direction=camera.getWorldDirection(new T.Vector3()),forward=driver.driverDirection(car.car,car.car.heading,0,terrain.battleGround);close(direction.x,forward.x);close(direction.z,forward.z);
- }
-});
+
 test('every mapped district has a unique clear deployment, full wave and reachable extraction',()=>{
  assert.equal(new Set(BATTLEFIELD_MAPS.map(m=>m.id)).size,BATTLEFIELD_MAPS.length);
  assert.equal(new Set(BATTLEFIELD_MAPS.map(m=>`${m.start.x},${m.start.z}`)).size,BATTLEFIELD_MAPS.length);
@@ -117,15 +108,4 @@ test('AI prioritizes zone safety and follows hold and intel mission objectives',
  let d=brains.thinkBot(b,{...self,x:95},[target],1,.1,()=>true,self,{mode:'last-stand',zoneRadius:50});assert.equal(d.state,'zone');assert.ok(Math.hypot(d.goal.x,d.goal.z)<25);
  d=brains.thinkBot(b,{...self,x:40},[],20,.1,()=>false,self,{mode:'hold'});assert.equal(d.state,'objective');assert.ok(Math.hypot(d.goal.x,d.goal.z)<10);
  d=brains.thinkBot(b,self,[],30,.1,()=>false,self,{mode:'extraction',intelCollected:true,extractionPoint:{x:60,z:0}});assert.ok(Math.hypot(d.goal.x-60,d.goal.z)<4);
-});
-function engineFixture(mode){
- const game=Object.assign(Object.create(GameEngine.prototype),{battleMode:mode,sectorCenter:{x:0,z:0},intelPoint:{x:10,z:0},extractionPoint:{x:-25,z:0},intel:false,health:100,player:{x:100,z:0},elapsed:0,battleObstacles:[],loot:[],wave:1,gunNoise:null,difficulty:'recruit',rng:()=>1,scene:new T.Scene(),combatEffects:{shot(){}}});
- const e={id:0,group:new T.Group(),flash:new T.Object3D(),legs:[new T.Object3D(),new T.Object3D()],hp:100,brain:brains.createBrain('0'),flashTime:0,hurt:0,deadTime:0,cooldown:0,repath:0,path:[],walk:0};e.group.position.set(35,0,0);game.enemies=[e];return {game,e};
-}
-test('actual engine AI reaches and contests the hold beacon without seeing the player',()=>{
- const {game,e}=engineFixture('hold');for(let i=0;i<300;i++){game.elapsed+=.05;game.updateEnemy(e,.05);}assert.ok(Math.hypot(e.group.position.x,e.group.position.z)<8);
-});
-test('actual engine AI switches from intel defense to extraction defense',()=>{
- const {game,e}=engineFixture('extraction');for(let i=0;i<200;i++){game.elapsed+=.05;game.updateEnemy(e,.05);}assert.ok(Math.hypot(e.group.position.x-10,e.group.position.z)<5);
- game.intel=true;for(let i=0;i<300;i++){game.elapsed+=.05;game.updateEnemy(e,.05);}assert.ok(Math.hypot(e.group.position.x+25,e.group.position.z)<5);
 });

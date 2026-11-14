@@ -8,7 +8,7 @@ const heavyPacks = [
   {
     id: 'shared-tirana-vehicles',
     title: 'Shared Tirana Vehicle Fleet',
-    description: 'Vehicle models shared by Tirana Streets and Racing Royal.',
+    description: 'Vehicle models used by Racing Royal.',
     hidden: true,
     cover: '/assets/kart-royale/cover.webp',
     route: null,
@@ -17,34 +17,16 @@ const heavyPacks = [
     dependencies: []
   },
   {
-    id: 'tirana-streets',
-    title: 'Tirana Streets',
-    description: 'City, landmark, street-life, vehicle and operation assets.',
+    id: 'shared-tirana-city',
+    title: 'Shared Tirana City',
+    description: 'Tirana map, landmarks, street scenery and materials used by Racing Royal.',
+    hidden: true,
     cover: '/assets/tirana-streets/map.svg',
-    route: '/games/tiranastreets/lobby',
-    gameSlugs: ['tiranastreets'],
+    route: null,
+    gameSlugs: [],
     roots: ['assets/tirana-streets', 'assets/tirana-detail-kit', 'assets/tirana-landmarks', 'assets/blackwater'],
     excludeRoots: ['assets/tirana-streets/vehicle-collection'],
     dependencies: ['shared-tirana-vehicles', 'shared-table-games']
-  },
-  {
-    id: 'jetski-royal',
-    title: 'Jet Ski Royal',
-    description: 'Watercraft, scanned coast, marina assets and Lana River scenery.',
-    cover: '/assets/jetski-royal/cover.webp',
-    route: '/games/jetskiroyal/lobby',
-    gameSlugs: ['jetskiroyal'],
-    roots: ['assets/jetski-royal'],
-    files: [
-      'assets/tirana-streets/environment/roadside-rail.glb',
-      'assets/tirana-streets/landmark-rebuild/namazgah-far.glb',
-      ...['rough_concrete', 'asphalt_02', 'concrete_pavement'].flatMap(surface =>
-        ['diff', 'nor_gl', 'rough'].map(channel =>
-          `assets/tirana-streets/environment/${surface}-${channel}.jpg`
-        )
-      )
-    ],
-    dependencies: ['shared-table-games']
   },
   {
     id: 'racing-royal',
@@ -54,7 +36,7 @@ const heavyPacks = [
     route: '/games/kartroyale/lobby',
     gameSlugs: ['kartroyale'],
     roots: ['assets/kart-royale'],
-    dependencies: ['shared-tirana-vehicles']
+    dependencies: ['shared-tirana-vehicles', 'shared-tirana-city']
   },
   {
     id: 'pool-royale',
@@ -113,7 +95,7 @@ export const GAME_PACK_DEFINITIONS = Object.freeze([
     dependencies: pack.gameSlugs?.some(slug => !gamesWithoutPlayerCharacters.has(slug))
       ? [...(pack.dependencies || []), 'shared-player-character']
       : pack.dependencies,
-    excludeFiles: pack.id === 'tirana-streets'
+    excludeFiles: pack.id === 'shared-tirana-city'
       ? [...(pack.excludeFiles || []), TURI_MODEL_URL.slice(1)]
       : pack.excludeFiles,
     runtimeMedia: true

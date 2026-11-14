@@ -21,7 +21,6 @@ import {
   applyRoom,
   roomSnapshot
 } from '../webapp/src/games/tiranastreets/shared/rooms.mjs';
-import { createTiranaStreets } from '../bot/services/tiranaStreets.js';
 
 const member = (id = 'p') => ({ id, name: `Driver ${id}` });
 const state = (id = MISSIONS[0].id) => createState([member()], id);
@@ -243,58 +242,7 @@ test('room suspension advances deadlines without replaying held input', () => {
   assert.equal(p.x, x);
   assert.equal(p.failed, true);
 });
-test('registered app accounts own one room; concurrent create and spoofed results are rejected', async () => {
-  let time = 100000;
-  const saved = new Map();
-  const service = createTiranaStreets({
-    now: () => time,
-    autoTick: false,
-    career: {
-      load: async (id) => saved.get(id) || freshCareer(),
-      complete: async (id, state, pid) => {
-        const c = awardCareer(saved.get(id) || freshCareer(), state, pid);
-        saved.set(id, c);
-        return c;
-      }
-    }
-  });
-  const socket = (id) => ({ data: { playerId: id, auth: { accountId: id } } });
-  const a = socket('account-a'),
-    b = socket('account-b');
-  const req = (s, action, extra = {}) =>
-    service.request(s, { accountId: s.data.playerId, action, ...extra });
-  await assert.rejects(
-    service.request(a, { accountId: 'account-b', action: 'profile' }),
-    /registered/
-  );
-  await assert.rejects(
-    req(a, 'create', { mode: 'career', missionId: 'city-lights' }),
-    /earlier/
-  );
-  const results = await Promise.allSettled([
-    req(a, 'create', { mode: 'rivals', missionId: 'first-shift' }),
-    req(a, 'create', { mode: 'rivals', missionId: 'first-shift' })
-  ]);
-  assert.equal(results.filter((r) => r.status === 'fulfilled').length, 1);
-  assert.equal(service.rooms.size, 1);
-  const roomId = results.find((r) => r.status === 'fulfilled').value.room.id;
-  const joined = await req(b, 'join', { roomId });
-  await req(b, 'ready', { roomId, ready: true });
-  await req(a, 'start', { roomId });
-  time += 500;
-  const updated = await req(a, 'input', {
-    roomId,
-    input: { seq: 1, x: 0, y: 0 },
-    x: 99999,
-    finished: true,
-    credits: 999999
-  });
-  assert.ok(updated.room.state.players[updated.room.playerId].x < 1000);
-  assert.equal(updated.career.credits, 0);
-  assert.equal(joined.room.members.length, 2);
-  assert.equal(JSON.stringify(updated).includes('account-a'), false);
-  service.close();
-});
+
 test('GLB assets have valid containers and all external images ship locally', async () => {
   const dir = new URL(
     '../webapp/public/assets/tirana-streets/',

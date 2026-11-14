@@ -15,9 +15,11 @@ const temporary=await mkdtemp(join(tmpdir(),'tirana-identity-test-'));
 let api;
 try{
  const module=join(temporary,'test.mjs');
- await build({stdin:{contents:`export * as T from 'three'; export {createForceLOD,applyForceLOD} from './src/games/tiranastreets/forceLOD'; export {updateNavigationLine,navigationLineEnd} from './src/games/tiranastreets/NavigationLine'; export {GLTFLoader} from 'three/examples/jsm/loaders/GLTFLoader.js'; export {identityReliefFromImage,RELIEF_BRANDS} from './src/games/tirana-street-life/IdentityRelief'; export {raisedInstitutionName} from './src/games/tirana-city-source/RaisedInstitutionName'; export {createBrandArtworkCache} from './src/games/tirana-street-life/brandArtworkCache'; export {UrbanMonumentLayer} from './src/games/tirana-landmarks/UrbanMonumentLayer';`,resolveDir:new URL('../webapp/',import.meta.url).pathname,loader:'ts'},bundle:true,format:'esm',platform:'node',outfile:module});
+ await build({stdin:{contents:`export * as T from 'three'; export {GLTFLoader} from 'three/examples/jsm/loaders/GLTFLoader.js'; export {identityReliefFromImage,RELIEF_BRANDS} from './src/games/tirana-street-life/IdentityRelief'; export {raisedInstitutionName} from './src/games/tirana-city-source/RaisedInstitutionName'; export {createBrandArtworkCache} from './src/games/tirana-street-life/brandArtworkCache'; export {UrbanMonumentLayer} from './src/games/tirana-landmarks/UrbanMonumentLayer';`,resolveDir:new URL('../webapp/',import.meta.url).pathname,loader:'ts'},bundle:true,format:'esm',platform:'node',outfile:module});
  api=await import(pathToFileURL(module));
 }finally{await rm(temporary,{recursive:true,force:true});}
+
+
 const awaitableFont=await readFile(new URL('../webapp/src/games/tirana-city-source/institutionTypeface.json',import.meta.url),'utf8');
 const dispose=root=>root.traverse(o=>{if(o.isMesh){o.geometry.dispose();for(const m of Array.isArray(o.material)?o.material:[o.material]){m.map?.dispose();m.dispose();}}});
 
@@ -109,45 +111,5 @@ test('shipped Blender input GLBs contain embedded artwork, valid accessors and p
   for(const accessor of json.accessors){assert.ok(accessor.count>0);const v=json.bufferViews[accessor.bufferView];assert.equal(v.byteLength,accessor.count*(accessor.type==='VEC2'?2:3)*4);}
   if(model.kind==='operator-sign'){assert.equal(json.images.length,1);const view=json.bufferViews[json.images[0].bufferView];assert.equal(bytes.subarray(binStart+view.byteOffset,binStart+view.byteOffset+8).toString('hex'),'89504e470d0a1a0a');assert.ok(!json.images[0].uri);}
   else {const buffer=bytes.buffer.slice(bytes.byteOffset,bytes.byteOffset+bytes.byteLength);const gltf=await new api.GLTFLoader().parseAsync(buffer,'');assert.ok(gltf.scene.children.length);dispose(gltf.scene);}
- }
-});
-
-
-test('route changes reuse buffers and the beacon follows the drawn endpoint on slopes',()=>{
- const first=[{x:100,z:100},{x:120,z:115},{x:160,z:140}],height=(x,z)=>x*.1+z*.02;
- const line=api.updateNavigationLine(null,first,height),buffer=line.geometry.getAttribute('position'),material=line.material;
- assert.equal(line.geometry.drawRange.count,3);assert.equal(api.navigationLineEnd(line).x,160);
- const next=[{x:101,z:102},{x:111,z:112}];assert.equal(api.updateNavigationLine(line,next,height),line);
- assert.equal(line.geometry.getAttribute('position'),buffer);assert.equal(line.material,material);
- const end=api.navigationLineEnd(line);assert.equal(end.x,111);assert.ok(Math.abs(end.y-height(111,112)-.24)<1e-5);
- assert.ok(line.geometry.boundingSphere.center.x>100,'unused capacity must not pull bounds to origin');
- api.updateNavigationLine(line,[],height);assert.equal(api.navigationLineEnd(line),null);assert.equal(line.visible,false);
- const many=Array.from({length:130},(_,i)=>({x:100+i,z:100}));api.updateNavigationLine(line,many,height);
- assert.equal(line.geometry.getAttribute('position').count,256);assert.equal(api.navigationLineEnd(line).x,229);
- line.geometry.dispose();material.dispose();
-});
-
-
-test('cordon LOD removes over 70% of triangles while sharing original skin, paint and animation data',async()=>{
- const {createHash}=await import('node:crypto');
- for(const id of ['fnsh_officer','shqiponja_officer']){
-  const folder=new URL('../webapp/public/assets/tirana-streets/albanian-forces/',import.meta.url),bytes=await readFile(new URL('glb/'+id+'.glb',folder)),patch=JSON.parse(await readFile(new URL('lod/'+id+'.json',folder),'utf8'));
-  assert.equal(patch.sourceSha256,createHash('sha256').update(bytes).digest('hex'));assert.ok(patch.triangles<patch.originalTriangles*.3);
-  const oldLength=bytes.readUInt32LE(12),json=JSON.parse(bytes.subarray(20,20+oldLength));
-  // Geometry/rig verification in Node omits image decoding only. The shipped
-  // GLB and all runtime texture/material definitions remain untouched.
-  const removeTextures=value=>{if(!value||typeof value!=='object')return;for(const key of Object.keys(value)){if(key.endsWith('Texture'))delete value[key];else removeTextures(value[key]);}};
-  removeTextures(json.materials);delete json.images;delete json.textures;
-  const jsonBytes=Buffer.from(JSON.stringify(json)),padded=Buffer.alloc(Math.ceil(jsonBytes.length/4)*4,32);jsonBytes.copy(padded);
-  const binary=bytes.subarray(20+oldLength),header=Buffer.from(bytes.subarray(0,20));header.writeUInt32LE(20+padded.length+binary.length,8);header.writeUInt32LE(padded.length,12);
-  const data=Buffer.concat([header,padded,binary]),gltf=await new api.GLTFLoader().parseAsync(data.buffer.slice(data.byteOffset,data.byteOffset+data.byteLength),'');
-  const lod=api.createForceLOD(gltf,patch),originals=[];gltf.scene.traverse(o=>{if(o.isMesh)originals.push([o,o.geometry,o.material,o.skeleton]);});
-  assert.equal(lod.size,patch.primitives.length);api.applyForceLOD(gltf.scene,lod,true);
-  for(const [mesh,geometry,material,skeleton] of originals){assert.equal(mesh.material,material);assert.equal(mesh.skeleton,skeleton);for(const [key,attribute]of Object.entries(geometry.attributes))assert.equal(mesh.geometry.getAttribute(key),attribute);assert.ok(mesh.geometry.index.count<=geometry.index.count);}
-  const mixer=new api.T.AnimationMixer(gltf.scene);mixer.clipAction(gltf.animations.find(a=>a.name==='Walk')).play();mixer.update(.37);gltf.scene.updateMatrixWorld(true);
-  for(const [mesh] of originals)if(mesh.isSkinnedMesh){mesh.skeleton.update();const vertex=mesh.getVertexPosition(mesh.geometry.index.getX(0),new api.T.Vector3());assert.ok(vertex.toArray().every(Number.isFinite));}
-  api.applyForceLOD(gltf.scene,lod,false);for(const [mesh,geometry]of originals)assert.equal(mesh.geometry,geometry);
-  const invalid=structuredClone(patch);invalid.primitives[0].vertices++;assert.throws(()=>api.createForceLOD(gltf,invalid),/does not match/);
-  mixer.stopAllAction();dispose(gltf.scene);lod.forEach(g=>g.dispose());
  }
 });
