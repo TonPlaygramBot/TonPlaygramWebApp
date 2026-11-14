@@ -1,3 +1,4 @@
+import {equipmentZoom,armorCapacity} from '../shared/equipment.mjs';
 import {operationTarget} from './operationRoute.mjs';
 import {RadioControls} from '../radio/RadioControls';
 import {CITY_EVENT_SITE,CITY_EVENT_PHASES} from '../shared/cityEvents.mjs';
@@ -8,7 +9,6 @@ import {DEFAULT_SETTINGS} from './settings';
 import {LiveHud} from '../LiveHud';
 import {OpticalSight} from '../OpticalSight';
 import {touchAction} from '../touchActions';
-import {weaponAnchors} from './weaponPose.mjs';
 import {
   useEffect,
   useRef,
@@ -34,6 +34,7 @@ import {missionElapsed} from '../shared/engine.mjs';
 import {LegacyStoryHistory} from './LegacyStoryHistory';
 import {loadLegacyStoryHistory} from './legacyStoryHistory.mjs';
 import {AccessEquipmentControls} from './AccessEquipmentControls';
+import {FlightControls,FlightInstruments} from './FlightControls';
 import '../city.css';
 import './street-career.css';
 const storage = () => {
@@ -211,6 +212,7 @@ export function StreetCareerGame({ onExit, initialOperation, initialDifficulty='
         <>
           <div className="tsc-street-status" aria-label="Street cash and pursuit">
             <strong>${p.cash.toLocaleString()}</strong>
+            <span aria-label="Body armor">ARMOR {Math.ceil(p.armor)}/{armorCapacity(p)}</span>
             <span className={p.wanted > 0 ? 'is-wanted' : ''}>{'★'.repeat(wantedStars(p.wanted)) || 'NO PURSUIT'}</span>
           </div>
           <div className="tsc-overview">
@@ -235,11 +237,12 @@ export function StreetCareerGame({ onExit, initialOperation, initialDifficulty='
             </p>}
           </div>
           {driving && <output className="tsc-speedometer" aria-label="Vehicle speed"><strong>{Math.round(Math.abs(p.speed)*3.6)}</strong><span>km/h</span><small>{p.speed<-.5?'R':Math.abs(p.speed)<.5?'N':'D'}</small></output>}
-          {!flying && <nav className="tsc-tools" aria-label="Camera controls">
-            <button aria-label={driving?'Change driving camera view':'Change walking camera view'} onClick={()=>runtime.current?.cycleCamera()}>
-              CAMERA · {(driving?view.settings.drivingView:view.settings.walkingView).toUpperCase()}
+          <nav className="tsc-tools" aria-label="Camera controls">
+            <button aria-label={flying?'Change aircraft camera view':driving?'Change driving camera view':'Change walking camera view'} onClick={()=>runtime.current?.cycleCamera()}>
+              CAMERA · {(flying?runtime.current?.simulation.flight.view||'pilot':driving?view.settings.drivingView:view.settings.walkingView).toUpperCase()}
             </button>
-          </nav>}
+          </nav>
+          {flying&&aircraft&&runtime.current&&<FlightInstruments aircraft={aircraft} lock={runtime.current.simulation.flight.lock}/>}
           {driving && <RadioControls radio={view.radio} onAction={action=>runtime.current?.radioAction(action)}
             onVolume={value=>runtime.current?.setRadioVolume(value)}/>}
           {!driving&&!flying&&<AccessEquipmentControls actions={view.actions} onAction={id=>{runtime.current?.action(id);}}/>}
@@ -248,7 +251,7 @@ export function StreetCareerGame({ onExit, initialOperation, initialDifficulty='
             disabled={p.health <= 0 || p.finished || p.failed || !!p.arrest && p.arrest.phase!=='pursuit'}
             weapons={[{id:'',label:'No weapon',icon:'✋'},...Object.entries(p.inventory).flatMap(([id, ammo]) => {
               const w = WEAPON_BY_ID.get(id);
-              return w ? [{id, label: w.label, icon:({punch:'✊',egg:'🥚',tomato:'🍅'} as Record<string,string>)[id], category:w.category, thumbnail: `/assets/tirana-streets/weapon-thumbnails/${id}.webp`,
+              return w && w.category!=='equipment' ? [{id, label: w.label, icon:({punch:'✊',egg:'🥚',tomato:'🍅'} as Record<string,string>)[id], category:w.category, thumbnail: `/assets/tirana-streets/weapon-thumbnails/${id}.webp`,
                 ammo: w.category === 'melee' ? undefined : ammo.ammo, reserve: ammo.reserve}] : [];
             })]}
             onSelect={id => runtime.current?.action(`equip:${id}`) ?? false}
@@ -262,8 +265,9 @@ export function StreetCareerGame({ onExit, initialOperation, initialDifficulty='
             move={(x,y)=>{if(runtime.current){runtime.current.input.touch.x=x;runtime.current.input.touch.y=y;}}}>
             {!driving && !flying && <button className="ts-joystick-sprint" aria-label="Toggle sprint" aria-pressed={view.body.sprint}
               {...touchAction(()=>{runtime.current?.action('sprint');})}>SPRINT {view.body.sprint?'ON':'OFF'}</button>}
+            {flying&&<small className="tsc-flight-stick-hint">STEER · {aircraft?.kind==='jet'?'THROTTLE':'FORWARD / BACK'}</small>}
           </MovementStick>
-          {view.body.aim && !view.body.action && view.body.wall>=.8 && !driving && !flying && weaponAnchors(p.weapon).zoom>1 ? <OpticalSight zoom={weaponAnchors(p.weapon).zoom}/> : <div
+          {view.body.aim && !view.body.action && view.body.wall>=.8 && !driving && !flying && equipmentZoom(p)>1 ? <OpticalSight zoom={equipmentZoom(p)}/> : <div
             className={'tsc-reticle' + (view.body.aim ? ' is-aim' : '')}
             aria-label="Aim reticle"
           >
@@ -277,13 +281,9 @@ export function StreetCareerGame({ onExit, initialOperation, initialDifficulty='
           {context && <div className="tsc-context-action">{actionButton('interact','context')}</div>}
           <div className="tsc-actions" aria-label={driving?'Driving pedals':flying?'Flight controls':'Combat and movement controls'}>
             {flying ? (
-              <>
-                <button className="tsc-slot-aim" aria-label="Climb" {...pointer('ascend')}>UP</button>
-                <button className="tsc-slot-secondary" aria-label="Descend and land" {...pointer('brake')}>DOWN</button>
-                <button className="tsc-slot-jump" onClick={()=>runtime.current?.simulation.flight.assist('hover')}>HOVER</button>
-                <button className="tsc-slot-crouch" onClick={()=>runtime.current?.simulation.flight.assist('land')}>LAND</button>
-                {!aircraft?.civilian && <button className="tsc-slot-primary" aria-label="Fire missile" {...pointer('fire')}>MISSILE<small>{aircraft?.missiles ?? 0}</small></button>}
-              </>
+              aircraft&&runtime.current&&<FlightControls aircraft={aircraft} lock={runtime.current.simulation.flight.lock}
+                held={pointer} onAssist={action=>runtime.current?.simulation.flight.assist(action)}
+                onLock={()=>runtime.current?.action('flight-lock')}/>
             ) : driving ? (
               <>
                 <button className="tsc-slot-secondary" {...pointer('reverse')}>
@@ -318,7 +318,7 @@ export function StreetCareerGame({ onExit, initialOperation, initialDifficulty='
                 )}
                 {actionButton('crouch', 'crouch')}
 
-                {actionButton('vault', 'vault')}
+                {actionButton(view.actions.some(a=>a.id==='detonate'&&a.visible)?'detonate':view.actions.some(a=>a.id==='vault'&&a.visible)?'vault':'holster', 'vault')}
               </>
             )}
           </div>

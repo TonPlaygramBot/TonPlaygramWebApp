@@ -8,5 +8,7 @@ export class CivicConvoySimulation {
  readonly destination:{id:string;label:string;x:number;z:number;wait:number};
  readonly npc:CivicNpc|null;
  readonly riders:any[];
+ escorts:any[];threat:any;lastAttack:number;
+ onAttack(car:Car,attacker:any,cause?:string,amount?:number):boolean;
  step(dt:number):void;
 }

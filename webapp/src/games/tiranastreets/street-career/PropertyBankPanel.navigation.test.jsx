@@ -53,7 +53,7 @@ it('buying a home switches the same panel to storage and transfers only carried 
  economy.selectedId=home.id;Object.assign(sim.player,{x:10,z:0});await render();
  expect(host.querySelector('[aria-label="Property services"]')).toBeTruthy();await click(`Buy this ${home.kind}`);
  expect(economy.owns(home.id)).toBe(true);expect(sim.player.cash).toBe(10000-home.price);expect(host.textContent).toContain('YOUR HOME');expect(button(`Buy this ${home.kind}`)).toBeUndefined();
- expect(host.querySelector('select').value).toBe(weapon.id);expect(host.textContent).toContain('Carrying 90/600');
+ expect(host.querySelector('select').value).toBe(weapon.id);expect(host.textContent).toContain('Carrying 90/1200');
  await amount(30);await click('Store rounds');expect(host.textContent).toContain('Walk inside to the service counter.');expect(sim.player.inventory[weapon.id].reserve).toBe(90);
  sim.player.z=10;await render();await click('Store rounds');
  expect(economy.data.stash[home.id][weapon.id]).toBe(30);expect(sim.player.inventory[weapon.id].reserve).toBe(60);expect(host.textContent).toContain('Stored 30/');

@@ -3,6 +3,7 @@ import {GLTFLoader} from 'three/examples/jsm/loaders/GLTFLoader.js';
 import {DRACOLoader} from 'three/examples/jsm/loaders/DRACOLoader.js';
 import {KTX2Loader} from 'three/examples/jsm/loaders/KTX2Loader.js';
 import {MeshoptDecoder} from 'three/examples/jsm/libs/meshopt_decoder.module.js';
+import {loadCityAssetBytes} from './cityAssetBytes.mjs';
 
 /** Original glTF scenes share one bounded codec pool per streaming owner. */
 export class CityAssetLoader extends GLTFLoader {
@@ -16,6 +17,14 @@ export class CityAssetLoader extends GLTFLoader {
   configure(renderer: T.WebGLRenderer) {
     this.basis.detectSupport(renderer);
     this.setKTX2Loader(this.basis);
+  }
+  override async loadAsync(url:string,onProgress?:(event:ProgressEvent)=>void) {
+    // Keep GLTFLoader's ordinary path for JSON models and callers that need
+    // incremental progress. GLBs share only compressed bytes across owners.
+    if(!/\.glb(?:[?#]|$)/i.test(url)||onProgress)return super.loadAsync(url,onProgress);
+    const resolved=new URL(this.path+url,typeof window==='undefined'?'http://localhost/':window.location.href);
+    const bytes=await loadCityAssetBytes(resolved.href);
+    return this.parseAsync(bytes,this.resourcePath||new URL('.',resolved).href);
   }
   dispose() { this.draco.dispose(); this.basis.dispose(); }
 }

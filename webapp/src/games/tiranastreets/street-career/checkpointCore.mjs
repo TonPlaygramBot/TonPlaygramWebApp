@@ -1,3 +1,4 @@
+import {armorCapacity} from '../shared/equipment.mjs';
 import {pointInUrbanBounds} from '../shared/urbanBounds.mjs';
 import {vehicleSize} from '../shared/trafficSimulation.mjs';
 import {groundHeight} from '../../tirana-east/terrainCore.mjs';
@@ -71,7 +72,7 @@ export function normalizeCheckpoint(raw, loadout, stops = 0) {
       z: finite(q.z, -100000, 100000, 0),
       heading: finite(q.heading, -Math.PI * 2, Math.PI * 2, 0),
       health: finite(q.health, 1, 100, 100),
-      armor: finite(q.armor, 0, 100, 0),
+      armor: finite(q.armor, 0, armorCapacity(loadout(q)), 0),
       wanted: finite(q.wanted, 0, 500, 0),
       ...loadout(q)
     },

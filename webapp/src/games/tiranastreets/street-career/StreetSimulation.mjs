@@ -2,12 +2,14 @@ import {createCityEvent,stopCityEvent} from '../shared/cityEvents.mjs';
 import {BuildingAccessSimulation} from './BuildingAccessSimulation.mjs';
 import {CityEconomySimulation} from './CityEconomySimulation.mjs';
 import {CivicConvoySimulation} from './CivicConvoySimulation.mjs';
+import {ReneaResponseSimulation} from './ReneaResponseSimulation.mjs';
 import {ArrestSimulation} from './ArrestSimulation.mjs';
 import {createMissionDirector, extractionSeconds, updateMissionDirector} from './missionDirectorCore.mjs';
 import {operationTarget} from './operationRoute.mjs';
 import {npcWeaponPose} from '../shared/npcWeaponPose.mjs';
 import {rememberPedestrianThreat} from '../shared/pedestrianBehavior.mjs';
 import {ThrowableSimulation} from './ThrowableSimulation.mjs';
+import {EquipmentSimulation} from './EquipmentSimulation.mjs';
 import {groundHeight} from '../../tirana-east/terrainCore.mjs';
 import { collectWeapon } from '../shared/cityPopulation.mjs';
 import { reserveCapacity } from '../shared/ammunition.mjs';
@@ -85,8 +87,10 @@ export class StreetSimulation {
     this.access = new BuildingAccessSimulation(this);
     this.economy = new CityEconomySimulation(this);
     this.civicConvoy = new CivicConvoySimulation(this);
+    this.reneaResponse = new ReneaResponseSimulation(this);
     this.arrest = new ArrestSimulation(this);
     this.throwables = new ThrowableSimulation(this);
+    this.equipment = new EquipmentSimulation(this);
     this.body.combat = this.player.weapon ? 'ready' : 'unarmed';
     this.job = {
       parcel: false,
@@ -105,6 +109,7 @@ export class StreetSimulation {
       afterLife: (s, dt) => this.afterLife(s, dt),
       canAdvanceObjective: (s, p, m) => this.canAdvance(p, m),
       life: {
+        managedNPC: (n) => !!(n.civicEscort || n.civicPrincipal || n.airDeploying),
         clear: (a, c) =>
           this.world.clear(
             {
@@ -283,9 +288,11 @@ export class StreetSimulation {
   afterLife(s, dt) {
     this.combat.step(dt);
     this.throwables.step(dt);
+    this.equipment.step(dt);
     this.arrest.step(dt);
     this.economy.step(dt);
     this.civicConvoy.step(dt);
+    this.reneaResponse.step(dt);
     if(this.arrest.locked)return;
     const p = this.player,
       b = this.body;
@@ -432,6 +439,8 @@ export class StreetSimulation {
   }
   damaged(target, attacker) {
     this.combat.actorHit(target, attacker);
+    if(target.civicPrincipal&&target.health<=0)target.downUntil=Infinity;
+    if(target.civicEscort||target.civicPrincipal)this.civicConvoy.onAttack(this.civicConvoy.principal,attacker,'bullet');
     if (target === this.player) {
       if (this.body.action || target.health <= 0) {
         cancelActions(target, this.body);
@@ -757,6 +766,7 @@ export class StreetSimulation {
       list.push(
         a('holster', p.weapon ? 'HOLSTER' : 'DRAW', true, '', 'toggle')
       );
+      list.push(a('detonate','DETONATE',this.equipment.charges.length>0));
       const vault = this.world.vault({ ...p, y: b.y }, b.yaw, b.height);
       if (vault)
         list.push(a('vault', 'VAULT', true, !b.grounded ? 'Land first' : ''));
@@ -786,6 +796,7 @@ export class StreetSimulation {
       b = this.body,
       now = this.state.elapsed;
     b.notice = '';
+    if(id==='detonate')return this.equipment.detonate();
     if (descriptor.kind === 'economy') return this.economy.execute(descriptor);
     if (descriptor.kind?.startsWith('access-')) return this.access.execute(descriptor);
     if (descriptor.kind === 'aircraft') return this.flight.board(descriptor.targetId);
@@ -979,7 +990,7 @@ export class StreetSimulation {
     n.rounds--;n.shotsFired=(n.shotsFired||0)+1;n.firedAt=now;
     n.nextShot=now+Math.max(w.interval,n.kind==='soldier'?.22:.42)/Math.max(.5,scale);
     this.combat.emit('shot',from,{toX:hit.point.x,toY:hit.point.y,toZ:hit.point.z,owner:n.id,weapon:w.id});
-    if(target&&now-p.lastDamage>.35)this.damage(p,Math.min(w.damage,n.kind==='soldier'?8:5)*scale,n);
+    if(target&&now-(p.lastDamage??-Infinity)>.35)this.damage(p,Math.min(w.damage,n.kind==='soldier'?8:5)*scale,n);
     else if(hit.kind!=='air'){this.combat.emit('hit',hit.point,{objectId:hit.objectId,hitKind:hit.kind,nx:hit.normal?.x,ny:hit.normal?.y,nz:hit.normal?.z,weapon:w.id,owner:n.id});const car=cars.find(c=>c.id===hit.objectId);if(car)this.combat.damageVehicle(car,w.damage,n,'bullet');}
   }
   fire() {
@@ -1000,6 +1011,7 @@ export class StreetSimulation {
       !inv.ammo
     )
       return;
+    if(this.equipment.fire())return;
     if(w.category==='melee'){this.startMelee('punch');p.nextShot=this.state.elapsed+w.interval;return;}
     if(w.category==='throwable'){this.throwables.throw(w);return;}
     inv.ammo--;

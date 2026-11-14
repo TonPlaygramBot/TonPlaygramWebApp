@@ -270,7 +270,7 @@ export class FirstPersonBody {
   }
   async prepare(id: string) {
     const config = WEAPON_BY_ID.get(id);
-    if (!config) return;
+    if (!config || config.category==='equipment') return;
     while (!this.dead && !this.loading.has(id) && this.loading.size >= 2)
       await Promise.race(this.requests.values());
     await this.loadWeapon(id, config.model,true);

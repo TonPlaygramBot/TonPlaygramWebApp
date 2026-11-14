@@ -159,3 +159,16 @@
 /* Camera stays above the weapon selector, with the same visual placement in portrait. */
 .tsc.is-on-foot .tsc-tools {bottom:calc(270px + env(safe-area-inset-bottom,0px));}
 .tsc.is-left-handed .tsc-tools {left:auto;right:18px;}
+
+/* Aircraft instruments stay above the thumb controls in narrow portrait. */
+.tsc-flight-instruments {position:absolute;z-index:2;left:50%;top:55%;transform:translateX(-50%);width:min(290px,85vw);display:grid;grid-template-columns:repeat(3,1fr);gap:6px;pointer-events:none;color:#d9f5c0;text-align:center;text-shadow:0 1px 3px #000;font-variant-numeric:tabular-nums;}
+.tsc-flight-instruments div {padding:4px 2px;background:#0c262657;border-radius:5px;}
+.tsc-flight-instruments span {display:block;font-size:8px;letter-spacing:.08em;}
+.tsc-flight-instruments strong {display:block;font-size:12px;}
+.tsc-flight-instruments output {grid-column:1/-1;font-size:10px;letter-spacing:.06em;}
+.tsc-flight-instruments .is-locked {color:#ffe3a3;}
+.tsc-flight-stick-hint {position:absolute;bottom:-23px;left:-8px;right:-8px;text-align:center;white-space:nowrap;font-size:8px;pointer-events:none;}
+.tsc.is-flying .tsc-slot-crouch {grid-area:3/1;}
+.tsc.is-flying .tsc-slot-vault {grid-area:3/2;}
+.tsc.is-flying .tsc-slot-vault[aria-pressed=true] {border-color:#e4e9a5;color:#f2f7bf;}
+@media(max-height:520px) and (orientation:landscape){.tsc-flight-instruments{top:55%;width:240px;}.tsc.is-flying .tsc-slot-crouch{grid-area:2/2;}.tsc.is-flying .tsc-slot-vault{grid-area:2/3;}}

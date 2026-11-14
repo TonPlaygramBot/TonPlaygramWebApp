@@ -1,6 +1,7 @@
 import {rooftopHelicopterSites} from '../shared/rooftops.mjs';
 import { WORLD } from '../shared/world.mjs';
 import { groundHeight } from '../../tirana-east/terrainCore.mjs';
+import {findFlightTarget,LOCK_SECONDS} from './flightTargeting.mjs';
 const clamp = (n,a,b) => Math.max(a,Math.min(b,n));
 export const SQUARE_AIRCRAFT_PADS = Object.freeze({jet:{x:-22,z:25},helicopter:{x:22,z:25}});
 const gearHeight = a => a.kind === 'jet' ? 1.3 : .65;
@@ -31,6 +32,9 @@ export class FlightSimulation {
     const extra=sites.map((site,i)=>{const roofY=sim.world.surface(site.x,site.z);return {id:`tirana-rooftop-helicopter-${i+2}`,...site,kind:'helicopter',roofAccess:true,homeX:site.x,homeZ:site.z,roofY,y:roofY+.65,careerManaged:true,heading:Math.PI,speed:0,verticalSpeed:0,pilot:null,airborne:false,nextMissile:0,health:220,missiles:0,civilian:true,roll:0,pitch:0};});
     sim.state.helicopters=[h,...extra].filter(Boolean);
     this.aircraft = [...sim.state.helicopters,sim.state.jet];
+    this.view='pilot';
+    this.lock={enabled:false,targetId:null,progress:0,label:'',distance:0};
+    this.lockCheck=0;
   }
   get current() { return this.aircraft.find(a=>a.id===this.sim.player.aircraftId); }
   board(id) {
@@ -41,6 +45,7 @@ export class FlightSimulation {
     if(Math.abs(b.y-(a.y-gearHeight(a)))>2.5)return false;
     a.pilot=p.id;p.aircraftId=a.id;p.x=a.x;p.z=a.z;p.speed=0;
     a.autoLand=false;a.autoHover=false;a.takeoffY=null;a.verticalSpeed=0;
+    this.view='pilot';this.clearLock();
     b.y=a.y;b.yaw=a.heading;b.pitch=0;b.interaction='flying';b.action=null;b.aim=false;
     this.sim.event('enter',{vehicleId:a.id});return true;
   }
@@ -65,6 +70,7 @@ export class FlightSimulation {
     }
     if(!safe)return false;
     a.pilot=null;p.aircraftId=null;Object.assign(p,{x:safe.x,z:safe.z,speed:0});
+    this.clearLock();
     Object.assign(b,{y:safe.y,vy:0,vx:0,vz:0,grounded:true,interaction:'free'});
     this.sim.event('exit');return true;
   }
@@ -76,11 +82,14 @@ export class FlightSimulation {
   integrate(dt) {
     const a=this.current,p=this.sim.player,b=this.sim.body;
     if(!a)return;
-    if(p.health<=0||p.failed){a.pilot=null;p.aircraftId=null;return;}
+    if(p.health<=0||p.failed){a.pilot=null;p.aircraftId=null;this.clearLock();return;}
     const input=this.sim.intent;
     // Assisted hover/landing keeps both aircraft playable with two thumbs in portrait.
-    a.heading-=(Math.abs(input.x)<.08?0:input.x)*dt*(a.kind==='jet'?1:1.35);
-    const throttle=Math.abs(input.y)<.08?0:input.y;
+    const stickX=clamp(Number(input.x)||0,-1,1),stickY=clamp(Number(input.y)||0,-1,1);
+    const steering=Math.abs(stickX)<.04?0:stickX*.65+stickX**3*.35;
+    a.heading-=steering*dt*(a.kind==='jet'?1:1.35);
+    // Down on the stick brakes the jet; helicopters retain slower reverse.
+    const throttle=Math.abs(stickY)<.04?0:a.kind==='jet'?Math.max(0,stickY):Math.max(-.45,stickY);
     if(input.fast||Math.abs(throttle-(this.assistThrottle||0))>.15){a.autoLand=false;a.autoHover=false;}
     const height=gearHeight(a),support=this.sim.world.surface(a.x,a.z,a.y-height+.3),altitude=a.y-support-height;
     if(!a.airborne&&throttle>.15&&!input.brake&&!a.autoLand&&!a.autoHover)a.takeoffY=support+height+(a.kind==='jet'?12:8);
@@ -137,12 +146,36 @@ export class FlightSimulation {
     if(!a.airborne&&Math.abs(input.y)<.1)a.speed*=Math.exp(-dt*8);
     Object.assign(p,{x:a.x,z:a.z,heading:a.heading,speed:Math.abs(a.speed)});
     b.y=a.y;b.interaction='flying';b.grounded=false;b.action=null;
-    if(input.fire&&a.airborne&&!a.civilian)this.sim.combat.launch(a,b.yaw,b.pitch);
+    this.updateLock(dt);
+    if(input.fire&&a.airborne&&!a.civilian){
+      const targetId=this.lock?.progress>=1?this.lock.targetId:null;
+      this.sim.combat.launch(a,b.yaw,b.pitch,targetId);
+    }
+  }
+  clearLock(){this.lock={enabled:false,targetId:null,progress:0,label:'',distance:0};this.lockCheck=0;}
+  toggleLock(){
+    const a=this.current;if(!a||a.civilian||!a.airborne)return false;
+    const enabled=!this.lock?.enabled;this.clearLock();this.lock.enabled=enabled;return true;
+  }
+  updateLock(dt){
+    if(!this.lock?.enabled)return;
+    const a=this.current;
+    if(!a||!a.airborne||a.civilian){this.clearLock();return;}
+    this.lockCheck-=dt;
+    if(this.lockCheck<=0){
+      this.lockCheck=.1;
+      const target=findFlightTarget(this.sim,a,this.sim.body.yaw,this.sim.body.pitch,this.lock.targetId);
+      if(target?.id!==this.lock.targetId)this.lock.progress=0;
+      this.lock.targetId=target?.id??null;
+      this.lock.label=target?.name||target?.forceVehicle||target?.model||'';
+      this.lock.distance=target?Math.round(Math.hypot(target.x-a.x,target.z-a.z)):0;
+    }
+    this.lock.progress=this.lock.targetId?Math.min(1,this.lock.progress+dt/LOCK_SECONDS):0;
   }
   assist(action) {const a=this.current;if(!a)return false;this.assistThrottle=this.sim.intent.y;a.autoHover=true;a.autoLand=action==='land';return true;}
   objective() {
     const a=this.current;
     return a ? {title:`${a.kind==='jet'?'Fighter jet':'Helicopter'} · ${Math.round(a.y-groundHeight(a.x,a.z))} m`,
-      detail:`${a.civilian?'Commercial helicopter':a.missiles+' missiles'} · Stick takes off and moves · UP climbs · LAND stops and descends`,training:false} : null;
+      detail:`${a.civilian?'Commercial helicopter':a.missiles+' missiles'} · Stick steers and moves · UP / DOWN altitude · ${a.civilian?'HOVER holds position':'LOCK tracks a vehicle in the reticle'}`,training:false} : null;
   }
 }

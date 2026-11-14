@@ -2,6 +2,8 @@
  * Forward is the bore direction AFTER base rotation; +Y is the upright reference.
  * Never infer barrel sign from the longest bounding-box axis. */
 export const WEAPON_CALIBRATIONS = Object.freeze({
+  // Authored delta-wing glTF: nose +X, top +Y (shared Ludo presentation asset).
+  'drone.glb': {base:[0,0,0],forward:[1,0,0],up:[0,1,0]},
   "adaptiveCombatRifleAttack.glb": {"base":[0,0,0],"forward":[0,0.263913,0.964546],"up":[0,1,0]},
   "dragunovAttack.glb": {"base":[0,0,0],"forward":[-0.0325,0.0348,0.998866],"up":[0,1,0]},
   "vityazAttack.glb": {"base":[0,0,0],"forward":[0,0,1],"up":[0,1,0]},

@@ -84,10 +84,12 @@ export class StreetSimulation {
   access: import('./BuildingAccessSimulation.mjs').BuildingAccessSimulation;
   economy: import('./CityEconomySimulation.mjs').CityEconomySimulation;
   civicConvoy: import('./CivicConvoySimulation.mjs').CivicConvoySimulation;
+  reneaResponse: import('./ReneaResponseSimulation.mjs').ReneaResponseSimulation;
   combat: import('./CombatSimulation.mjs').CombatSimulation;
   flight: import('./FlightSimulation.mjs').FlightSimulation;
   arrest: import('./ArrestSimulation.mjs').ArrestSimulation;
   throwables: import('./ThrowableSimulation.mjs').ThrowableSimulation;
+  equipment: import('./EquipmentSimulation.mjs').EquipmentSimulation;
   world: import('./spatialCore.mjs').StreetWorld;
   body: BodyState;
   intent: StreetIntent;

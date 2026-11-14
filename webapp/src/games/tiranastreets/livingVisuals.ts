@@ -43,7 +43,7 @@ export const WEAPON_MODEL_VARIANTS: Record<string, string> = {
 };
 export const weaponModelFile = (model: string) =>
   OPTIMIZED_WEAPON_MODELS[model] || (IMPORTED_BY_ID.has(model) ? model : WEAPON_MODEL_VARIANTS[model] || model);
-export const weaponModelUrl = (model:string) => UPLOADED_WEAPONS.find(w=>w.model===model)?.modelUrl || IMPORTED_BY_ID.get(weaponModelFile(model))?.localUrl || BASE + weaponModelFile(model) + ".glb";
+export const weaponModelUrl = (model:string) => model==='shahed-game-drone' ? '/assets/ludo/presentation/drone.glb' : UPLOADED_WEAPONS.find(w=>w.model===model)?.modelUrl || IMPORTED_BY_ID.get(weaponModelFile(model))?.localUrl || BASE + weaponModelFile(model) + ".glb";
 export class LivingVisuals {
   group = new THREE.Group();
   private models = new Map<string, THREE.Group>();

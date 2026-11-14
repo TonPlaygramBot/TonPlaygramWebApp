@@ -74,7 +74,7 @@ export function Arsenal({
       </div>
       <div className="ts-shop-list">
         {WEAPON_STORE_CATALOG.filter(
-          (w) => category === "all" || w.category === category,
+          (w) => !['equipment','explosive','drone'].includes(w.category) && (category === "all" || w.category === category),
         ).map((w) => {
           const owned = account?.ownedWeaponIds.includes(w.weaponId),
             carried = !!player.inventory[w.weaponId],
@@ -133,7 +133,7 @@ export function Arsenal({
           : "Draw your weapon"}
       </button>
       <p className="ts-shop-note">
-        Weapon ownership is validated, charged and saved by the TPG backend.
+        Special equipment, remote charges and drones are available in the solo street campaign. Weapon ownership is charged and saved by the TPG backend.
         Interrupted requests are safe to retry with the same transaction key.
       </p>
     </div>

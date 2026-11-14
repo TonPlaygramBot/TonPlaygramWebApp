@@ -31,6 +31,9 @@ export class AirMobilityVisuals {
   private disposed = false;
   private rotor: THREE.Object3D | null = null;
   authoritativeMissiles = false;
+  // Exterior-only GLBs have no interior faces. In pilot view their own hull
+  // must not cover the eye camera; other aircraft remain visible.
+  pilotAircraftId:string|null=null;
   private rotorParts: ReturnType<typeof rotorPivot>[] = [];
   private rotorSpeed = 0;
   private blur = new THREE.Mesh(new THREE.RingGeometry(.4, 4, 32), new THREE.MeshBasicMaterial({color:0x8d9388,transparent:true,opacity:0,depthWrite:false,side:THREE.DoubleSide}));
@@ -185,7 +188,7 @@ export class AirMobilityVisuals {
     const active=new Set(fleet.map(a=>a!.id));
     for(const [id,entry]of this.extraHelicopters)if(!active.has(id)){entry.root.removeFromParent();entry.paint.forEach(m=>m.dispose());this.extraHelicopters.delete(id);}
     for(const a of fleet){if(!a)continue;
-      if(!this.pads.has(a.id)){
+      if(!a.responseOnly&&!this.pads.has(a.id)){
         const pad=new THREE.Group(),ring=new THREE.Mesh(new THREE.RingGeometry(4.7,5,48),new THREE.MeshBasicMaterial({color:0xd6e4b1,side:THREE.DoubleSide}));ring.rotation.x=-Math.PI/2;pad.add(ring);
         const mat=new THREE.MeshBasicMaterial({color:0xd6e4b1});for(const x of [-.9,.9]){const bar=new THREE.Mesh(new THREE.BoxGeometry(.3,.04,2.8),mat);bar.position.x=x;pad.add(bar);}pad.add(new THREE.Mesh(new THREE.BoxGeometry(1.8,.04,.3),mat));
         pad.position.set(a.homeX??a.x,a.roofY+.025,a.homeZ??a.z);pad.name=`Helipad:${a.name||a.id}`;this.group.add(pad);this.pads.set(a.id,pad);
@@ -193,13 +196,13 @@ export class AirMobilityVisuals {
       if(a.id===h?.id)continue;
       let entry=this.extraHelicopters.get(a.id);
       if(!entry){const root=this.helicopter.clone(true),rotors:THREE.Object3D[]=[];root.traverse(o=>{if(o.name==='rotor-pivot')rotors.push(o);});entry={root,rotors,paint:a.civilian?this.paintCommercialHelicopter(root):[]};this.extraHelicopters.set(a.id,entry);this.group.add(root);}
-      entry.root.visible=(a.health??1)>0;entry.root.position.set(a.x,a.y,a.z);entry.root.rotation.set(a.pitch||0,a.heading,a.roll||0,'YXZ');
+      entry.root.visible=(a.health??1)>0&&a.id!==this.pilotAircraftId;entry.root.position.set(a.x,a.y,a.z);entry.root.rotation.set(a.pitch||0,a.heading,a.roll||0,'YXZ');
       if(a.pilot)for(const rotor of entry.rotors)rotor.rotateOnAxis(new THREE.Vector3().fromArray(rotor.userData.spinAxis||[0,1,0]),dt*34);
     }
     if(state.elapsed < this.elapsed){this.seen.clear();this.missiles=[];}
     this.elapsed=state.elapsed;
-    this.helicopter.visible=!!h&&(h.health??1)>0;
-    this.jet.visible=!!j&&(j.health??1)>0;
+    this.helicopter.visible=!!h&&(h.health??1)>0&&h.id!==this.pilotAircraftId;
+    this.jet.visible=!!j&&(j.health??1)>0&&j.id!==this.pilotAircraftId;
     if(h){
       this.buildStairs(state);
       this.helicopter.position.set(h.x,h.y,h.z);

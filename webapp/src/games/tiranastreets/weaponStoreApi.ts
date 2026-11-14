@@ -7,6 +7,8 @@ export type WeaponStoreAccount = { balanceTPG: number; ownedWeaponIds: string[] 
 async function request(path: string, init?: RequestInit, purchaseAccount?: string) {
   const accountId = purchaseAccount || await ensureAccountId();
   if (!accountId) throw Error('Sign in to your TPG account before purchasing.');
+  let googleId = '';
+  try { googleId = localStorage.getItem('googleId') || JSON.parse(localStorage.getItem('googleProfile') || '{}')?.id || ''; } catch { /* optional identity */ }
   const telegramInitData = window.Telegram?.WebApp?.initData || '';
   const abort = new AbortController(), timer = setTimeout(()=>abort.abort(),15000);
   try {
@@ -17,12 +19,13 @@ async function request(path: string, init?: RequestInit, purchaseAccount?: strin
       'content-type': 'application/json',
       'x-tpc-account-id': accountId,
       ...getNativeBridgeHeaders(),
+      ...(googleId ? { 'x-google-id': String(googleId) } : {}),
       ...(telegramInitData ? { 'x-telegram-init-data': telegramInitData } : {}),
       ...init?.headers
     }
   });
   const body = await response.json().catch(() => ({}));
-  if (!response.ok) throw Object.assign(Error(body.error || 'Purchase failed.'), { code: body.code, status:response.status });
+  if (!response.ok) throw Object.assign(Error(body.error || 'Purchase failed.'), { code: body.code, status:response.status, account: Number.isFinite(body.balanceTPG) ? body : undefined });
   return body;
   } finally { clearTimeout(timer); }
 }

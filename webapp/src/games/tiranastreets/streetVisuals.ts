@@ -1,3 +1,5 @@
+import {StreetSignFaces, type StreetSign} from './StreetSignFaces';
+import {groundHeight} from '../tirana-east/terrainCore.mjs';
 import {footprintIndex} from '../tirana-city-source/footprintIndex.mjs';
 import {treeOccupancy} from '../tirana-street-life/canopyCore.mjs';
 import {cutRoads} from '../tirana-environment/roadSurfaceRegistry';
@@ -32,6 +34,7 @@ export class StreetVisuals {
     baseY: number;
   }[] = [];
   private textures: T.Texture[] = [];
+  private signs: StreetSignFaces;
   private wind = { value: 0 };
   private phases = ['red', 'amber', 'green'] as const;
   private phaseMaterials = [0xff3e26, 0xffb326, 0x66e490].map(
@@ -54,9 +57,10 @@ export class StreetVisuals {
     this.pavements();
     const placements = new Map<string, Placement[]>();
     const add = (name: string, x: number, z: number, yaw = 0, scale = 1) => {
-      if (blocked?.(x,z,name.startsWith('tree') ? scale*2.6 : 1.2)) return;
+      if (blocked?.(x,z,name.startsWith('tree') ? scale*2.6 : 1.2)) return false;
       if (!placements.has(name)) placements.set(name, []);
       placements.get(name)!.push({ x, z, yaw, scale });
+      return true;
     };
     const buildingsNear=footprintIndex(WORLD.buildings);
     const free = (x: number, z: number) =>
@@ -73,6 +77,8 @@ export class StreetVisuals {
         Math.hypot(r.b[0] - r.a[0], r.b[1] - r.a[1]) > 24
     );
     const occupied=treeOccupancy([],22);
+    const signRows:StreetSign[]=[];
+    const namedSigns=new Map<string,Point[]>();
     roads.forEach((r, i) => {
       const dx = r.b[0] - r.a[0],
         dz = r.b[1] - r.a[1],
@@ -104,19 +110,12 @@ export class StreetVisuals {
           z2 = r.a[1] + dz * 0.5 + rz * (r.w / 2 - 0.28);
         add('drain', x2, z2, yaw);
       }
-      if (r.name && i % 5 === 0) {
-        add('street_sign', x, z, yaw);
-        const face = this.textFace(
-          r.name.replace(/^Rruga /, 'Rr. '),
-          2.35,
-          0.46,
-          '#165591',
-          '#f4f5ed'
-        );
-        face.position.set(x, 2.485 + pavementHeight(x, z), z);
-        face.rotation.y = yaw;
-        face.translateZ(0.044);
-        this.group.add(face);
+      // Keep source names and place another board only after 240 m on the
+      // same street. Array-index sampling used to omit entire named roads.
+      if (r.name && !(namedSigns.get(r.name)||[]).some(p=>Math.hypot(p.x-x,p.z-z)<240) && add('street_sign', x, z, yaw)) {
+        if(!namedSigns.has(r.name))namedSigns.set(r.name,[]);
+        namedSigns.get(r.name)!.push({x,z});
+        signRows.push({x,z,y:groundHeight(x,z)+2.485+pavementHeight(x,z),yaw,text:r.name.replace(/^Rruga /,'Rr. '),w:2.35,h:.46,bg:'#165591',fg:'#f4f5ed'});
       }
       // Sparse, deterministic social terraces and roadside advertising add
       // recognizable activity without blocking lanes or flooding mobile GPUs.
@@ -133,17 +132,7 @@ export class StreetVisuals {
           bz = z - (dz / length) * 9;
         if (free(bx, bz)) {
           add('city_billboard', bx, bz, yaw - Math.PI / 2, 0.88);
-          const advert = this.textFace(
-            'TIRANA · JETO QYTETIN',
-            3.62,
-            1.58,
-            '#ebd7ad',
-            '#9f242d'
-          );
-          advert.position.set(bx, 3.55 + pavementHeight(bx, bz), bz);
-          advert.rotation.y = yaw - Math.PI / 2;
-          advert.translateZ(0.1);
-          this.group.add(advert);
+          signRows.push({x:bx,z:bz,y:groundHeight(bx,bz)+3.55+pavementHeight(bx,bz),yaw:yaw-Math.PI/2,text:'TIRANA · JETO QYTETIN',w:3.62,h:1.58,bg:'#ebd7ad',fg:'#9f242d'});
         }
       }
     });
@@ -152,9 +141,9 @@ export class StreetVisuals {
         rz = -Math.sin(s.yaw),
         x = s.x + rx * (s.width / 2 + 0.48),
         z = s.z + rz * (s.width / 2 + 0.48);
-      if (!free(x, z)) continue;
+      if (!free(x, z)||blocked?.(x,z,1.2)) continue;
       add('traffic_light', x, z, s.yaw);
-      const baseY = pavementHeight(x, z) + 0.005;
+      const baseY = groundHeight(x,z)+pavementHeight(x, z) + 0.005;
       const lens = new T.Mesh(
         new T.CircleGeometry(0.118, 16),
         this.phaseMaterials[0]
@@ -170,16 +159,9 @@ export class StreetVisuals {
       this.group.add(walk);
       this.lights.push({ signal: s, lens, walk, baseY });
       add('road_sign', x + Math.sin(s.yaw) * 3, z + Math.cos(s.yaw) * 3, s.yaw);
-      const speed = this.textFace('30', 0.58, 0.58, '#e2e4df', '#182128');
-      speed.position.set(
-        x + Math.sin(s.yaw) * 3,
-        2.225 +
-          pavementHeight(x + Math.sin(s.yaw) * 3, z + Math.cos(s.yaw) * 3),
-        z + Math.cos(s.yaw) * 3
-      );
-      speed.rotation.y = s.yaw;
-      speed.translateZ(0.049);
-      this.group.add(speed);
+      const sx=x+Math.sin(s.yaw)*3,sz=z+Math.cos(s.yaw)*3;
+      // This is the existing game speed zone, not a newly asserted real limit.
+      signRows.push({x:sx,z:sz,y:groundHeight(sx,sz)+2.225+pavementHeight(sx,sz),yaw:s.yaw,text:'30',w:.58,h:.58,bg:'#f4f4ed',fg:'#182128',round:true});
       for (const side of [-1, 1]) {
         for (let k = 0; k < 3; k++)
           add(
@@ -200,6 +182,7 @@ export class StreetVisuals {
       if (['tree_plane', 'tree_linden', 'tree_cypress'].includes(name))
         this.instance(name + '_lod', items);
     }
+    this.signs=new StreetSignFaces(signRows);this.group.add(this.signs.mesh);
     source.visible = false;
     this.group.add(source);
   }
@@ -266,41 +249,6 @@ export class StreetVisuals {
       }
     });
   }
-  private textFace(
-    text: string,
-    w: number,
-    h: number,
-    background: string,
-    color: string
-  ) {
-    const c = document.createElement('canvas');
-    c.width = 512;
-    c.height = 128;
-    const ctx = c.getContext('2d')!;
-    ctx.fillStyle = background;
-    ctx.fillRect(0, 0, 512, 128);
-    ctx.strokeStyle = color;
-    ctx.lineWidth = 4;
-    ctx.strokeRect(5, 5, 502, 118);
-    ctx.fillStyle = color;
-    ctx.font = `600 ${text.length > 24 ? 25 : 34}px Arial`;
-    ctx.textAlign = 'center';
-    ctx.textBaseline = 'middle';
-    ctx.fillText(text, 256, 67, 476);
-    const tex = new T.CanvasTexture(c);
-    tex.colorSpace = T.SRGBColorSpace;
-    this.textures.push(tex);
-    return new T.Mesh(
-      new T.PlaneGeometry(w, h),
-      new T.MeshStandardMaterial({
-        map: tex,
-        roughness: 0.55,
-        side: T.DoubleSide,
-        polygonOffset: true,
-        polygonOffsetFactor: -1
-      })
-    );
-  }
   private instance(name: string, items: Placement[]) {
     const template = this.source.getObjectByName(name);
     if (!template) return;
@@ -332,7 +280,7 @@ export class StreetVisuals {
           ].includes(name);
         instances.receiveShadow = true;
         list.forEach((p, i) => {
-          m.position.set(p.x, pavementHeight(p.x, p.z) + 0.005, p.z);
+          m.position.set(p.x, groundHeight(p.x,p.z)+pavementHeight(p.x, p.z) + 0.005, p.z);
           m.rotation.set(0, p.yaw, 0);
           m.scale.set(p.scale, p.scale, p.length ? p.length / 2.6 : p.scale);
           m.updateMatrix();
@@ -438,6 +386,7 @@ export class StreetVisuals {
   update(camera: T.Vector3, time: number, quality: string) {
     const radius = quality === 'battery' ? 160 : 330;
     this.wind.value = time;
+    this.signs.update(camera,time,quality==='battery');
     const detailDistance = quality === 'battery' ? 65 : 115;
     for (const cell of this.tiles) {
       const distance = Math.hypot(camera.x - cell.x, camera.z - cell.z);
@@ -461,6 +410,7 @@ export class StreetVisuals {
     }
   }
   dispose() {
+    this.signs.dispose();
     this.textures.forEach((t) => t.dispose());
     this.phaseMaterials.forEach((m) => m.dispose());
     this.off.dispose();

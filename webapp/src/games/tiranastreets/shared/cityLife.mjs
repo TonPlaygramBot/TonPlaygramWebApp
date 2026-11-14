@@ -1,3 +1,4 @@
+import {armorCapacity} from './equipment.mjs';
 import {ammunitionQuote, reserveCapacity} from './ammunition.mjs';
 import {WEAPON_STORE_CATALOG} from '../weaponStoreCatalog.mjs';
 import {updateCityEvent,cityEventIntent} from './cityEvents.mjs';
@@ -196,14 +197,15 @@ export function lifeAction(state, p, action) {
     return true;
   }
   if (action === "holster") {
-    p.weapon = p.weapon ? "" : Object.keys(p.inventory)[0];
+    if(p.weapon){p.holsteredWeapon=p.weapon;p.weapon='';}
+    else p.weapon=p.inventory[p.holsteredWeapon]&&WEAPON_BY_ID.get(p.holsteredWeapon)?.category!=='equipment'?p.holsteredWeapon:Object.keys(p.inventory).find(id=>WEAPON_BY_ID.get(id)?.category!=='equipment')||'';
     p.reloadAt = 0;
     return true;
   }
   if (action.startsWith("equip:")) {
     const id = action.slice(6);
     if(!id){p.weapon='';p.reloadAt=0;return true;}
-    if (p.inventory[id] && WEAPON_BY_ID.has(id)) {
+    if (p.inventory[id] && WEAPON_BY_ID.has(id) && WEAPON_BY_ID.get(id).category!=='equipment') {
       p.weapon = id;
       p.reloadAt = 0;
     }
@@ -225,8 +227,9 @@ export function lifeAction(state, p, action) {
   const id = bulk ? parts[2] : parts[0];
   if(bulk && (parts.length!==3 || !['mag','box','max'].includes(amount))){p.shopMessage='Choose an ammunition amount';return true;}
   if (id === "medkit" || id === "armor") {
-    const price = id === "medkit" ? 90 : 180;
-    if ((id === "medkit" ? p.health : p.armor) >= 100) {
+    const capacity = id === 'medkit' ? 100 : armorCapacity(p);
+    const price = id === "medkit" ? 90 : capacity>100 ? 270 : 180;
+    if ((id === "medkit" ? p.health : p.armor) >= capacity) {
       p.shopMessage = "Already full.";
       return true;
     }
@@ -236,7 +239,7 @@ export function lifeAction(state, p, action) {
     }
     p.cash -= price;
     if (id === "medkit") p.health = 100;
-    else p.armor = 100;
+    else p.armor = capacity;
     p.shopMessage = id === "medkit" ? "Health restored." : "Armor equipped.";
     emit(state, "purchase", p, p, p.id);
     return true;
@@ -247,7 +250,7 @@ export function lifeAction(state, p, action) {
     return true;
   }
   const own = p.inventory[id];
-  if (w.category === 'melee') return true;
+  if (['melee','equipment'].includes(w.category)) return true;
   if (!own && (bulk || WEAPON_STORE_CATALOG.some(item=>item.weaponId===id))) {
     p.shopMessage = 'Buy this weapon through the TPG equipment catalog, or find it in the city.';
     return true;
@@ -480,6 +483,7 @@ export function updateCityLife(state, dt, env, mission) {
     }
     if(n.kind==='dealer'){n.y??=shopLayout(n).standingY;continue;}
     if (n.custody) continue;
+    if (env.managedNPC?.(n,npcDt)) continue;
     if(n.role==='traffic-controller'){directTraffic(n,state.elapsed);continue;}
     if (env.recovering?.(n)) { n.speed=0; n.anim='hit'; continue; }
     const nearVehicles=n.kind==='civilian'?vehicleGrid.near(n.x,n.z,32):[];

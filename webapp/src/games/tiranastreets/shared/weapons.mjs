@@ -6,6 +6,10 @@ export const WEAPONS = Object.freeze([
   {id:'egg',label:'Eggs',category:'throwable',model:'egg',magazine:12,damage:0,interval:.7,range:24,reload:.6,price:0,radius:0},
   {id:'tomato',label:'Tomatoes',category:'throwable',model:'tomato',magazine:12,damage:0,interval:.75,range:22,reload:.6,price:0,radius:0},
   ...UPLOADED_WEAPONS,
+  {id:'c4Charge',label:'C4 Remote Charge',category:'explosive',model:'polyDynamiteBomb01Attack',magazine:1,damage:95,interval:.9,range:4,reload:1.2,price:560,radius:7},
+  {id:'shahedDrone',label:'Shahed-style Arcade Drone',category:'drone',model:'shahed-game-drone',magazine:1,damage:100,interval:2,range:90,reload:3,price:800,radius:8},
+  {id:'scope4x',label:'4× Universal Scope',category:'equipment',model:'',magazine:1,damage:0,interval:0,range:0,reload:0,price:250,radius:0},
+  {id:'armorCarrier',label:'Heavy Body Armor Carrier',category:'equipment',model:'',magazine:1,damage:0,interval:0,range:0,reload:0,price:320,radius:0},
   {id:'combatKnife',label:'Combat Knife',category:'melee',model:'combat-knife',magazine:1,damage:35,interval:.55,range:1.65,reload:0,price:0,radius:0},
   {
     "id": "fpsGunAttack",
@@ -447,7 +451,7 @@ export function ensureStarterWeapons(player) {
   player.inventory ||= {};
   for (const id of STARTER_WEAPONS) {
     // A chosen three-firearm kit already satisfies the starter migration.
-    if(id===STARTER_WEAPON&&!player.inventory.fpsGunAttack&&Object.keys(player.inventory).filter(key=>!['melee','throwable'].includes(WEAPON_BY_ID.get(key)?.category)&&WEAPON_BY_ID.has(key)).length>=3)continue;
+    if(id===STARTER_WEAPON&&!player.inventory.fpsGunAttack&&Object.keys(player.inventory).filter(key=>!['melee','throwable','equipment'].includes(WEAPON_BY_ID.get(key)?.category)&&WEAPON_BY_ID.has(key)).length>=3)continue;
     const w = WEAPON_BY_ID.get(id);
     player.inventory[id] ||= {ammo:w.magazine,reserve:w.category==='melee'?0:w.magazine*3};
   }

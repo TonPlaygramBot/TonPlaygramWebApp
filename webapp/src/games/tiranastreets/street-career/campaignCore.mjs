@@ -43,7 +43,7 @@ export function createCampaign(missions, weapons, starter) {
     }
     if(arsenal.has(starter)&&arsenal.has('combatKnife'))ensureStarterWeapons({inventory});
     return {cash: Math.floor(number(raw?.cash, 750, 10000000)), inventory,
-      weapon: raw?.weapon === '' ? '' : raw?.weapon === 'fpsGunAttack' ? starter : Object.hasOwn(inventory, raw?.weapon) ? raw.weapon : Object.hasOwn(inventory,starter) ? starter : Object.keys(inventory)[0]};
+      weapon: raw?.weapon === '' ? '' : raw?.weapon === 'fpsGunAttack' ? starter : Object.hasOwn(inventory, raw?.weapon) && arsenal.get(raw.weapon)?.category!=='equipment' ? raw.weapon : Object.hasOwn(inventory,starter) ? starter : Object.keys(inventory).find(id=>arsenal.get(id)?.category!=='equipment') || ''};
   }
   function fresh() { return {version: 1, completed: [], best: {}, records: {}, loadout: loadout(null), active: null, explore:null, economy:normalizeCityEconomy(null),worldPickups:normalizePickupState(null)}; }
   function normalize(raw) {

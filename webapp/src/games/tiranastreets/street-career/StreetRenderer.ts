@@ -1,7 +1,8 @@
+import {EquipmentVisuals} from './EquipmentVisuals';
+import {equipmentZoom} from '../shared/equipment.mjs';
 import {traceShot} from './shotCore.mjs';
 import {WEAPON_BY_ID} from '../shared/weapons.mjs';
 import {FollowCamera, type DrivingView} from './FollowCamera';
-import {weaponAnchors} from './weaponPose.mjs';
 import {PocketVisuals} from '../PocketVisuals';
 import {beginCityFrame} from '../renderSettings';
 import {alignVehicle} from '../../tirana-east/terrainTransforms';
@@ -24,6 +25,7 @@ import { vehicleDamageAppearance } from './vehicleDamageAppearance.mjs';
 import { MissileVisuals } from '../MissileVisuals';
 import { BuildingAccessVisuals } from './BuildingAccessVisuals';
 import { CivicConvoyVisuals } from './CivicConvoyVisuals';
+import {pilotView,angleDifference} from './flightView.mjs';
 /** Unified street campaign presentation: full-body combat, driving and the
  * streamed city share one camera, effects budget and rendering lifecycle. */
 export class StreetRenderer extends CityRenderer {
@@ -33,6 +35,7 @@ export class StreetRenderer extends CityRenderer {
   private get eyeView() { return !['shoulder','wide'].includes(this.settings.walkingView) || !!this.simulation?.body.aim || !!this.simulation?.access?.binoculars; }
   protected override get cockpitCamera(){return this.vehicleView==='cockpit';}
   private flightHeading?:number;
+  private flightId?:string;
   readonly humans = new SharedHumans();
   readonly bodyRig: FirstPersonBody;
   readonly combatEffects: CombatEffects;
@@ -42,6 +45,7 @@ export class StreetRenderer extends CityRenderer {
   private pyroSequence=0;
   private missileMeshes:MissileVisuals;
   private pockets:PocketVisuals;
+  private equipmentVisuals:EquipmentVisuals;
   private buildingAccess:BuildingAccessVisuals;
   get residentialAssetErrors(){return this.buildingAccess.assetErrors;}
   readonly civicVisuals:CivicConvoyVisuals;
@@ -89,6 +93,7 @@ export class StreetRenderer extends CityRenderer {
     this.scene.add(this.impactMarks.mesh);
     this.missileMeshes = new MissileVisuals(this.scene);
     this.pockets = new PocketVisuals(this.scene);
+    this.equipmentVisuals = new EquipmentVisuals(this.scene,this.renderer);
     this.buildingAccess = new BuildingAccessVisuals(this.scene);
     this.civicVisuals = new CivicConvoyVisuals(this.scene,this.renderer);
     this.airMobility.authoritativeMissiles = true;
@@ -104,7 +109,7 @@ export class StreetRenderer extends CityRenderer {
   }
   override orbit(dx: number, dy: number) {
     const b = this.simulation?.body,
-      scale = this.settings.sensitivity * (b?.aim ? this.settings.aimSensitivity / weaponAnchors(this.simulation?.player.weapon || '').zoom : 1);
+      scale = this.settings.sensitivity * (b?.aim ? this.settings.aimSensitivity / equipmentZoom(this.simulation?.player || {}) : 1);
     // Preserve the Career sensitivity while sharing the manual-look timeout.
     super.orbit(dx*scale*2/3,dy*scale);
   }
@@ -131,16 +136,28 @@ export class StreetRenderer extends CityRenderer {
     this.camera.up.set(0,1,0);
     this.camera.near=car&&this.vehicleView==='cockpit'?.035:.15;
     const aircraft=sim.flight.current;
+    this.airMobility.pilotAircraftId=aircraft&&sim.flight.view==='pilot'?aircraft.id:null;
     if(aircraft){
       this.followCamera.reset();
-      if(this.flightHeading!==undefined)this.yaw+=Math.atan2(Math.sin(aircraft.heading-this.flightHeading),Math.cos(aircraft.heading-this.flightHeading));
+      if(this.flightId!==aircraft.id){this.yaw=aircraft.heading;this.pitch=0;}
+      else if(this.flightHeading!==undefined)this.yaw+=angleDifference(aircraft.heading,this.flightHeading);
+      this.flightId=aircraft.id;
       this.flightHeading=aircraft.heading;
-      const d=direction3(this.yaw,T.MathUtils.clamp(this.pitch,-.6,.7));
-      const follow=aircraft.kind==='jet'?20:13;
-      this.camera.position.set(aircraft.x-d.x*follow,aircraft.y+5-d.y*follow,aircraft.z-d.z*follow);
-      this.camera.lookAt(aircraft.x+d.x*40,aircraft.y+d.y*40,aircraft.z+d.z*40);
+      this.pitch=T.MathUtils.clamp(this.pitch,-.6,.7);
+      if(sim.flight.view==='pilot'){
+        const pose=pilotView(aircraft,this.yaw,this.pitch,this.camera.aspect);
+        this.camera.near=.035;
+        this.camera.position.set(pose.eye.x,pose.eye.y,pose.eye.z);
+        this.camera.up.set(pose.up.x,pose.up.y,pose.up.z);
+        this.camera.lookAt(pose.eye.x+pose.direction.x,pose.eye.y+pose.direction.y,pose.eye.z+pose.direction.z);
+      }else{
+        const d=direction3(this.yaw,T.MathUtils.clamp(this.pitch,-.6,.7));
+        const follow=aircraft.kind==='jet'?20:13;
+        this.camera.position.set(aircraft.x-d.x*follow,aircraft.y+5-d.y*follow,aircraft.z-d.z*follow);
+        this.camera.lookAt(aircraft.x+d.x*40,aircraft.y+d.y*40,aircraft.z+d.z*40);
+      }
     } else if (car) {
-      this.flightHeading=undefined;
+      this.flightHeading=undefined;this.flightId=undefined;
       if(this.vehicleView==='cockpit'){
         this.followCamera.reset();
         const eye = driverEye(car);
@@ -158,7 +175,7 @@ export class StreetRenderer extends CityRenderer {
         });
       }
     } else {
-      this.flightHeading = undefined;
+      this.flightHeading = undefined;this.flightId=undefined;
       if(this.eyeView){
         this.followCamera?.reset();
         this.cameraInsidePlayer=false;
@@ -194,9 +211,9 @@ export class StreetRenderer extends CityRenderer {
     );
     const binoculars=sim.access.binoculars&&!car&&!aircraft;
     if(binoculars||sim.access.parachute.open)this.bodyRig.weapon.visible=false;
-    const zoom=binoculars?5:b.aim&&!b.action&&b.wall>=.8?weaponAnchors(p.weapon).zoom:1;
+    const zoom=binoculars?5:b.aim&&!b.action&&b.wall>=.8?equipmentZoom(p):1;
     const baseFov=this.settings.fov-(b.aim&&zoom===1?17:0)+(car&&this.vehicleView!=='cockpit'?Math.min(5,Math.abs(car.speed)*.14):0);
-    const fov=car&&this.vehicleView==='cockpit'?driverFov(this.camera.aspect):2*Math.atan(Math.tan(baseFov*Math.PI/360)/zoom)*180/Math.PI;
+    const fov=aircraft&&sim.flight.view==='pilot'?pilotView(aircraft,this.yaw,this.pitch,this.camera.aspect).fov:car&&this.vehicleView==='cockpit'?driverFov(this.camera.aspect):2*Math.atan(Math.tan(baseFov*Math.PI/360)/zoom)*180/Math.PI;
     this.camera.fov = T.MathUtils.lerp(
       this.camera.fov,
       fov,
@@ -281,6 +298,7 @@ export class StreetRenderer extends CityRenderer {
       }
       this.missileMeshes.update(sim.combat.missiles);
       this.pockets.update(sim);
+      this.equipmentVisuals.update(sim.equipment);
     }
     const refreshLoot = performance.now();
     if (this.simulation && refreshLoot - this.lootAt >= 100) {
@@ -308,6 +326,7 @@ export class StreetRenderer extends CityRenderer {
   }
   override render(state: State | null, id: string, dt: number, lobby: boolean) {
     if (this.disposed) return;
+    this.airMobility.pilotAircraftId=this.simulation?.flight.view==='pilot'?this.simulation.flight.current?.id??null:null;
     beginCityFrame(this.targetFps);
     const p = state?.players[id];
     if(this.simulation && p)this.civicVisuals.update(this.simulation.civicConvoy,p,state!.elapsed,dt,
@@ -315,7 +334,7 @@ export class StreetRenderer extends CityRenderer {
     // Classify once. SharedHumans selects its own nearest civilian budget;
     // selecting it again for a force-only render list did duplicate sorting.
     const civilians:State['npcs']=[],forces:State['npcs']=[];
-    if(state)for(const npc of state.npcs)(forceCharacterFor(npc)?forces:civilians).push(npc);
+    if(state)for(const npc of state.npcs)if(npc.id!=='edi-rama-civic')(forceCharacterFor(npc)?forces:civilians).push(npc);
     if (state && p)
       this.humans.update(
         civilians,
@@ -348,7 +367,7 @@ export class StreetRenderer extends CityRenderer {
     this.bodyRig.dispose();
     this.buildingAccess.dispose();
     this.civicVisuals.dispose();
-    this.clearWrecks();this.impactMarks.dispose();this.combatEffects.dispose();this.missileMeshes.dispose();this.pockets.dispose();
+    this.clearWrecks();this.impactMarks.dispose();this.combatEffects.dispose();this.missileMeshes.dispose();this.pockets.dispose();this.equipmentVisuals.dispose();
     this.humans.dispose();
     super.destroy();
   }

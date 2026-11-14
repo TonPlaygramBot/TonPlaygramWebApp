@@ -26,6 +26,7 @@ export class StreetInput extends CityInput {
       return;
     const action =
       e.code === 'KeyN' ? 'camera'
+        : e.code === 'KeyL' ? 'flight-lock'
         : e.code === 'BracketRight' ? 'radio-next'
         : e.code === 'BracketLeft' ? 'radio-previous'
         : e.code === 'KeyM' ? 'radio-toggle'
