@@ -4,6 +4,56 @@ import { UkPool } from '../lib/poolUk8Ball.js';
 import { selectShot, recordShotOutcome, __resetShotMemory } from '../lib/poolUkAdvancedAi.js';
 import planShot from '../lib/poolAi.js';
 
+for (const breaker of ['A', 'B']) {
+  for (const scratch of [false, true]) {
+    test(`${breaker}: black on break re-racks${scratch ? ' even with a scratch' : ''}`, () => {
+      const game = new UkPool();
+      game.state.currentPlayer = breaker;
+      game.startBreak();
+      const result = game.shotTaken({
+        contactOrder: ['red'],
+        potted: ['red', 'blue', 'black', ...(scratch ? ['cue'] : [])],
+        placedFromHand: true
+      });
+      assert.equal(result.rerack, true);
+      assert.equal(result.foul, false);
+      assert.equal(result.frameOver, false);
+      assert.equal(game.state.winner, null);
+      assert.equal(game.state.currentPlayer, breaker);
+      assert.equal(game.state.lastEvent, 'BREAK_START');
+      assert.equal(game.state.ballInHand, true);
+      assert.equal(game.state.mustPlayFromBaulk, true);
+      assert.equal(game.state.ballsOnTable.red.size, 7);
+      assert.equal(game.state.ballsOnTable.blue.size, 7);
+      assert.equal(game.state.ballsOnTable.black8, true);
+      assert.equal(game.state.ballsOnTable.cueInPocket, false);
+      assert.deepEqual(game.state.assignments, { A: null, B: null });
+      assert.deepEqual(result.potted, []);
+      const repeatBreak = game.shotTaken({
+        contactOrder: ['red'], potted: ['red'], placedFromHand: true
+      });
+      assert.equal(repeatBreak.nextPlayer, breaker);
+      assert.equal(game.state.assignments[breaker], 'red');
+    });
+  }
+
+  test(`${breaker}: ordinary break pots keep the turn, scratch pots pass it`, () => {
+    for (const scratch of [false, true]) {
+      const game = new UkPool();
+      game.state.currentPlayer = breaker;
+      game.startBreak();
+      const result = game.shotTaken({
+        contactOrder: ['blue'], potted: ['red', ...(scratch ? ['cue'] : [])],
+        placedFromHand: true
+      });
+      assert.equal(result.foul, scratch);
+      assert.equal(result.nextPlayer, scratch ? (breaker === 'A' ? 'B' : 'A') : breaker);
+      assert.equal(game.state.ballsOnTable.red.size, 6);
+      assert.equal(game.state.assignments[breaker], scratch ? null : 'red');
+    }
+  });
+}
+
 test('scratch on break gives opponent ball in hand', () => {
   const game = new UkPool();
   game.startBreak();

@@ -3,6 +3,7 @@ import './loadEnv.js';
 import { validateEnv } from './env.js';
 import express from 'express';
 import { webappEntry } from '../shared/socialApp.js';
+import { ALBANIAN_61_ID, arePoolVariantsCompatible, isAlbanian61Variant } from '../webapp/src/config/poolRoyaleVariants.js';
 import cors from 'cors';
 import bot from './bot.js';
 import { getInviteUrl, sendInviteNotification } from './utils/notifications.js';
@@ -769,6 +770,7 @@ function normalizeBallSetMeta(value = '') {
 function normalizeVariantMeta(value = '') {
   const normalized = String(value || '').trim().toLowerCase();
   if (!normalized) return '';
+  if (isAlbanian61Variant(normalized)) return ALBANIAN_61_ID;
   const compact = normalized.replace(/[\s_-]+/g, '');
   if (normalized === 'us' || normalized === 'usa') return 'american';
   if (normalized === 'english') return 'uk';
@@ -818,9 +820,7 @@ function isMatchMetaCompatible(existing = {}, requested = {}, gameType = '') {
     const requestedVariant = requested?.variant || '';
     // Pool Royale quick matchmaking now only partitions by stake + variant.
     // Stake is checked outside this helper (see getAvailableTable).
-    // Keep missing variants as wildcards for backward compatibility.
-    if (!existingVariant || !requestedVariant) return true;
-    return existingVariant === requestedVariant;
+    return arePoolVariantsCompatible(existingVariant, requestedVariant);
   }
 
   const allKeys = new Set([

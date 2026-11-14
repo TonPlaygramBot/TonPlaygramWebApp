@@ -22,3 +22,10 @@
 
 .pool-match-hud[data-competition=true]{top:calc(env(safe-area-inset-top,0px) + 67px)}
 .pool-match-hud.pool-match-hud--embedded{position:static;transform:none;width:100%;padding:0;border:0;background:none;box-shadow:none;backdrop-filter:none}
+.pool-match-hud__points{display:grid;grid-template-columns:minmax(0,1fr) auto minmax(0,1fr);align-items:center;gap:8px;margin-bottom:5px;padding-bottom:5px;border-bottom:1px solid #ffffff1c;font-size:11px}
+.pool-match-hud__points>span{display:flex;align-items:center;gap:6px;min-width:0;color:#acc8c2}
+.pool-match-hud__points>span:last-child{justify-content:flex-end}
+.pool-match-hud__points>span>span{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.pool-match-hud__points strong{flex-shrink:0;color:#ffe3a1;font-size:16px;font-variant-numeric:tabular-nums}
+.pool-match-hud__points>span.is-active{color:#d2fff0}
+.pool-match-hud__points .pool-match-hud__points-goal{white-space:nowrap;font-size:10px}

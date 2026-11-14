@@ -13,6 +13,7 @@ import {
 import { getAccountBalance, addTransaction } from '../../utils/api.js';
 import { loadAvatar } from '../../utils/avatarUtils.js';
 import { resolveTableSize } from '../../config/poolRoyaleTables.js';
+import { ALBANIAN_61_ID, ALBANIAN_61_RULES, POOL_ROYALE_LOBBY_VARIANTS, resolvePoolLobbyVariant } from '../../config/poolRoyaleVariants.js';
 import {
   POOL_ROYALE_TABLE_MODEL_STORAGE_KEY,
   resolvePoolRoyaleTableModel
@@ -76,7 +77,7 @@ export default function PoolRoyaleLobby() {
   const [showAiFlagPicker, setShowAiFlagPicker] = useState(false);
   const [playerFlagIndex, setPlayerFlagIndex] = useState(null);
   const [aiFlagIndex, setAiFlagIndex] = useState(null);
-  const [variant, setVariant] = useState('uk');
+  const [variant, setVariant] = useState(() => resolvePoolLobbyVariant(searchParams.get('variant')));
   const [ukBallSet, setUkBallSet] = useState('uk');
   const [playType, setPlayType] = useState(initialPlayType);
   const [tableModelId] = useState(() => {
@@ -308,7 +309,7 @@ export default function PoolRoyaleLobby() {
         stake,
         tableId: requestedOnlineTableId || undefined,
         variant,
-        ballSet: ukBallSet,
+        ballSet: variant === ALBANIAN_61_ID ? 'american' : ukBallSet,
         playType,
         mode,
         tableSize: onlineTableSize,
@@ -833,15 +834,13 @@ export default function PoolRoyaleLobby() {
                 </span>
               </div>
               <div className="grid grid-cols-2 gap-3">
-                {[
-                  { id: 'uk', label: '8Ball' },
-                  { id: '9ball', label: '9-Ball' }
-                ].map(({ id, label }) => {
+                {POOL_ROYALE_LOBBY_VARIANTS.map(({ id, label, subtitle }) => {
                   const active = variant === id;
                   return (
                     <button
                       key={id}
                       type="button"
+                      aria-pressed={active}
                       onClick={() => setVariant(id)}
                       className={`lobby-option-card ${
                         active
@@ -861,11 +860,15 @@ export default function PoolRoyaleLobby() {
                       </div>
                       <div className="text-center">
                         <p className="lobby-option-label">{label}</p>
+                        {subtitle && <p className="lobby-option-subtitle">{subtitle}</p>}
                       </div>
                     </button>
                   );
                 })}
               </div>
+              {variant === ALBANIAN_61_ID && (
+                <p className="rounded-xl border border-red-400/20 bg-red-500/5 p-3 text-xs leading-relaxed text-white/75">{ALBANIAN_61_RULES}</p>
+              )}
             </div>
           )}
 

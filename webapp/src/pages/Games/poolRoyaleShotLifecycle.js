@@ -17,8 +17,29 @@ export function poolRoyalBallNumber(id) {
   return Number.isInteger(value) && value >= 1 && value <= 15 ? value : null;
 }
 
+/** Keep the displayed turn and the serialized rules turn together on a new break. */
+export function withPoolRoyalActivePlayer(frame, seat) {
+  const activePlayer = seat === 'B' ? 'B' : 'A';
+  return {
+    ...frame,
+    activePlayer,
+    meta: { ...frame.meta, state: { ...frame.meta?.state, currentPlayer: activePlayer } }
+  };
+}
+
+/** Numeric IDs such as ball_10 must never sort ahead of ball_2. */
+export function lowestPoolRoyalBall(balls) {
+  return balls.filter(ball => ball.active && poolRoyalBallNumber(ball.id) !== null)
+    .reduce((lowest, ball) => !lowest || poolRoyalBallNumber(ball.id) < poolRoyalBallNumber(lowest.id)
+      ? ball : lowest, null);
+}
+
+// Fixed permutation makes the initial layout identical on both online clients.
+// Triangle indices: apex 0, center 4, rear corners 10 and 14.
+export const ALBANIAN_61_RACK = Object.freeze([1, 11, 6, 9, 15, 4, 13, 7, 10, 5, 2, 12, 8, 14, 3]);
+
 export function poolRoyalBallsToSpot(balls, frame) {
-  if (frame?.frameOver || !['8ball', '9ball'].includes(frame?.meta?.variant)) return [];
+  if (frame?.frameOver || !['8ball', '9ball', 'albanian61'].includes(frame?.meta?.variant)) return [];
   const remaining = new Set(frame.meta.state.ballsOnTable);
   return balls.filter(ball => !ball.active && remaining.has(poolRoyalBallNumber(ball.id)));
 }

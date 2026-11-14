@@ -5,6 +5,7 @@ import { CAREER_LEVEL_COUNT, getCareerRoadmap, loadCareerProgress } from '../../
 import { getTelegramId } from '../../utils/telegram.js';
 import { loadPoolCompetition, poolCompetitionKey, poolCompetitionScope, poolOpponent, poolRaceTo, poolStageFormat } from '../../games/pool/competition.js';
 import { PoolBracket } from '../../games/pool/PoolCompetitionMatch.jsx';
+import { ALBANIAN_61_ID, ALBANIAN_61_RULES } from '../../config/poolRoyaleVariants.js';
 import '../../games/pool/competition.css';
 
 const labels = { training: 'Academy drill', friendly: 'Friendly match', league: 'League fixture', showdown: 'Rival showdown', tournament: 'Knockout tournament' };
@@ -50,7 +51,8 @@ export default function PoolRoyaleCareer() {
       <h2 style={{ marginTop: 8 }}>{nextStage.title}</h2><p className="pr-muted">{nextStage.objective}</p>
       <span className="pr-chip">{labels[nextStage.type]}</span><span className="pr-chip">{poolStageFormat(nextStage).label}</span>{nextStage.players > 2 && <span className="pr-chip">{nextStage.players} players</span>}
       {activeEvent?.status === 'active' && <p className="pr-muted">{activeEvent.frames[0]} — {activeEvent.frames[1]} vs {poolOpponent(activeEvent)?.name} · Race to {poolRaceTo(activeEvent)}</p>}
-      {nextStage.type !== 'training' && !activeEvent && <div className="pr-filter" aria-label="Career pool rules" style={{ marginTop: 12 }}>{[['american', '8-ball'], ['9ball', '9-ball'], ['uk', 'UK pool']].map(([value, label]) => <button key={value} aria-pressed={variant === value} onClick={() => setVariant(value)}>{label}</button>)}</div>}
+      {nextStage.type !== 'training' && !activeEvent && <div className="pr-filter" aria-label="Career pool rules" style={{ marginTop: 12 }}>{[['american', '8-ball'], ['9ball', '9-ball'], ['uk', 'UK pool'], [ALBANIAN_61_ID, 'Albanian 61']].map(([value, label]) => <button key={value} aria-pressed={variant === value} onClick={() => setVariant(value)}>{label}</button>)}</div>}
+      {nextStage.type !== 'training' && (activeEvent?.variant || variant) === ALBANIAN_61_ID && <p className="pr-mini">{ALBANIAN_61_RULES}</p>}
       <button className="pr-primary" onClick={() => launch(nextStage)}>{activeEvent?.status === 'active' ? 'Resume event' : 'Play next stage'} <span>→</span></button>
       {nextStage.type !== 'training' && <p className="pr-mini">Alternate break · Progress saves after settled shots</p>}
       {activeEvent?.draw && activeEvent.totalRounds > 1 && <details><summary>View your tournament draw</summary><PoolBracket event={activeEvent} /></details>}
