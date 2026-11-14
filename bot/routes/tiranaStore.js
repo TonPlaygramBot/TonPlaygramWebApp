@@ -1,16 +1,19 @@
 import { Router } from 'express';
 import authenticate from '../middleware/auth.js';
 import User from '../models/User.js';
+import { resolveAccountBalance } from '../utils/userUtils.js';
 import { STARTER_WEAPONS } from '../../webapp/src/games/tiranastreets/shared/weapons.mjs';
 import { WEAPON_STORE_BY_ID, WEAPON_STORE_CATALOG } from '../../webapp/src/games/tiranastreets/weaponStoreCatalog.mjs';
 
 const router = Router();
 router.use(authenticate);
 
-function identity(auth = {}) {
+export function identity(auth = {}) {
+  // Match the account selected by the wallet instead of silently selecting a
+  // second Telegram/Google profile with a different balance.
+  if (auth.accountId) return { accountId: auth.accountId, ...(auth.telegramId ? { telegramId: auth.telegramId } : {}) };
   if (auth.telegramId) return { telegramId: auth.telegramId };
   if (auth.googleId) return { googleId: auth.googleId };
-  if (auth.accountId) return { accountId: auth.accountId };
   return null;
 }
 
@@ -22,19 +25,35 @@ export function validatePurchase(body = {}) {
   return { item, transactionId: `tirana-weapon:${key}` };
 }
 
-const accountPayload = (user) => ({
-  balanceTPG: Number(user.balance || 0),
+export const accountPayload = (user) => ({
+  balanceTPG: resolveAccountBalance(user),
   ownedWeaponIds: [...new Set([...STARTER_WEAPONS, ...(user.tiranaStreetsInventory?.weapons || [])])]
 });
 
 router.get('/catalog', (_req, res) => res.json({ items: WEAPON_STORE_CATALOG }));
+/** Reconcile the same legacy-ledger balance shown by the wallet. The balance
+ * and ledger length predicates prevent a concurrent purchase/deposit from being
+ * overwritten by a stale read. A failed compare is retried from fresh state. */
+export async function loadStoreAccount(Model, query) {
+  for (let attempt = 0; attempt < 3; attempt++) {
+    const user = await Model.findOne(query);
+    if (!user) return null;
+    const balance = resolveAccountBalance(user);
+    if (Number(user.balance || 0) >= balance) return user;
+    const updated = await Model.findOneAndUpdate({ ...query, balance: user.balance,
+      $expr: { $eq: [{ $size: { $ifNull: ['$transactions', []] } }, user.transactions.length] }
+    }, { $set: { balance } }, { new: true });
+    if (updated) return updated;
+  }
+  throw Object.assign(Error('Your account changed while loading. Please retry.'), { status: 409 });
+}
 router.get('/account', async (req, res, next) => {
   try {
-  const query = identity(req.auth);
-  if (!query) return res.status(401).json({ error: 'Unauthorized.' });
-  const user = await User.findOne(query).select('balance tiranaStreetsInventory').lean();
-  if (!user) return res.status(404).json({ error: 'TPG account not found.' });
-  res.json(accountPayload(user));
+    const query = identity(req.auth);
+    if (!query) return res.status(401).json({ error: 'Unauthorized.' });
+    const user = await loadStoreAccount(User, query);
+    if (!user) return res.status(404).json({ error: 'TPG account not found. Reopen your wallet to refresh this account.' });
+    res.json(accountPayload(user));
   } catch (error) { next(error); }
 });
 
@@ -53,6 +72,7 @@ export const createPurchaseHandler = (Model) => async (req, res, next) => {
       } else res.json({...accountPayload(user),weaponId:item.weaponId,transactionId});
       return true;
     };
+    await loadStoreAccount(Model, query);
     const existing = await Model.findOne({ ...query, 'transactions.transactionId': transactionId });
     if (replay(existing)) return;
     // A single conditional document update atomically checks funds, prevents

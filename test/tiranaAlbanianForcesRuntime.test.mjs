@@ -7,8 +7,9 @@ import {buildSync} from '../webapp/node_modules/esbuild/lib/main.js';
 import * as T from '../webapp/node_modules/three/build/three.module.js';
 const temp = new URL('../webapp/node_modules/.cache/force-test/', import.meta.url);
 mkdirSync(temp, {recursive:true});
-buildSync({entryPoints:[fileURLToPath(new URL('../webapp/src/games/tiranastreets/AlbanianForcesVisuals.ts',import.meta.url))], outfile:fileURLToPath(new URL('runtime.mjs',temp)), bundle:true, platform:'node', format:'esm', external:['three','three/*'], logLevel:'silent'});
-const {AlbanianForcesVisuals} = await import(new URL('runtime.mjs',temp));
+buildSync({stdin:{contents:"export {AlbanianForcesVisuals} from './AlbanianForcesVisuals'; export {cityAssetBytes} from './cityAssetBytes.mjs';",resolveDir:fileURLToPath(new URL('../webapp/src/games/tiranastreets/',import.meta.url)),loader:'ts'}, outfile:fileURLToPath(new URL('runtime.mjs',temp)), bundle:true, platform:'node', format:'esm', external:['three','three/*'], logLevel:'silent'});
+const {AlbanianForcesVisuals,cityAssetBytes} = await import(new URL('runtime.mjs',temp));
+test.beforeEach(()=>cityAssetBytes.clear());
 const originalFetch = globalThis.fetch;
 const originalBitmap = globalThis.createImageBitmap, originalSelf = globalThis.self;
 globalThis.self = globalThis;
@@ -128,6 +129,17 @@ test('an unarmed officer retains the original relaxed walking arms',async()=>{
     const hand=root.worldToLocal(root.getObjectByName(T.PropertyBinding.sanitizeNodeName(`wrist.${side}`)).getWorldPosition(new T.Vector3()));
     assert.ok(hand.y<1.2,'no phantom firearm pose when the NPC has no weapon');
   }
+ }finally{layer.dispose();}
+});
+
+test('an airborne deployment preserves the officer altitude until the simulation returns it to terrain',async()=>{
+ const layer=new AlbanianForcesVisuals();
+ try{
+  const s=state();s.npcs=[{...npc('airborne'),forceCharacter:'renea_officer',y:24,anim:'idle',speed:0}];
+  layer.update(s,{x:0,z:0},0,1/60);await settle(layer);layer.update(s,{x:0,z:0},1,1/60);
+  const root=layer.getRoot('npc-airborne');assert.ok(root);assert.ok(Math.abs(root.position.y-24.06)<.001);
+  s.npcs[0].y=12;layer.update(s,{x:0,z:0},2,1/60);assert.ok(Math.abs(root.position.y-12.06)<.001);
+  delete s.npcs[0].y;layer.update(s,{x:0,z:0},3,1/60);assert.ok(root.position.y<1,'grounded officers return to the terrain surface');
  }finally{layer.dispose();}
 });
 

@@ -83,3 +83,36 @@ test('all five uploaded weapons can be purchased at the catalog price', async ()
     assert.equal(user.transactions[0].amount, -weapon.priceTPG);
   }
 });
+
+test('store uses the wallet account identity and protects a signed Telegram mismatch', async()=>{
+ const {identity}=await import('../routes/tiranaStore.js');
+ assert.deepEqual(identity({accountId:'wallet-selected',googleId:'profile'}),{accountId:'wallet-selected'});
+ assert.deepEqual(identity({accountId:'wallet-selected',telegramId:17}),{accountId:'wallet-selected',telegramId:17});
+ assert.deepEqual(identity({googleId:'profile'}),{googleId:'profile'});
+});
+test('store reconciles the ledger balance displayed by wallet before an atomic debit', async()=>{
+ const {loadStoreAccount,accountPayload}=await import('../routes/tiranaStore.js');
+ const user={accountId:'legacy',balance:100,transactions:[{amount:5000}],tiranaStreetsInventory:{weapons:[]}};
+ let comparisons=0;
+ const Model={async findOne(){return structuredClone(user);},async findOneAndUpdate(query,update){
+  comparisons++;assert.equal(query.balance,100);assert.equal(query.$expr.$eq[1],1);
+  user.balance=update.$set.balance;return structuredClone(user);
+ }};
+ assert.equal(accountPayload(user).balanceTPG,5000);
+ assert.equal((await loadStoreAccount(Model,{accountId:'legacy'})).balance,5000);assert.equal(comparisons,1);
+});
+test('a concurrent debit cannot be overwritten by stale wallet reconciliation',async()=>{
+ const {loadStoreAccount}=await import('../routes/tiranaStore.js');
+ const user={balance:100,transactions:[{amount:5000}]};let writes=0;
+ const Model={async findOne(){return structuredClone(user);},async findOneAndUpdate(){
+  writes++;user.balance=2000;user.transactions.push({amount:-3000});return null;
+ }};
+ assert.equal((await loadStoreAccount(Model,{accountId:'race'})).balance,2000);assert.equal(writes,1);
+});
+test('new equipment unlocks use authoritative TPG prices and one receipt',async()=>{
+ for(const id of ['c4Charge','shahedDrone','scope4x','armorCarrier']){
+  const {user,buy}=account(10000);const result=await buy('equipment_purchase_key',`tirana-${id}`);
+  assert.equal(result.statusCode,201);assert.ok(result.body.ownedWeaponIds.includes(id));
+  const again=await buy('equipment_purchase_key',`tirana-${id}`);assert.equal(again.statusCode,200);assert.equal(user.transactions.length,1);
+ }
+});

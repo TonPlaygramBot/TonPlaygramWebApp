@@ -4,6 +4,8 @@ import * as T from 'three';
 import {nearbyIndex} from '../tirana-street-life/streetModels.mjs';
 import {STREET_LIFE} from '../tirana-street-life/registry.mjs';
 import {LAMPS} from './urbanLampRegistry.mjs';
+import {groundHeight} from '../tirana-east/terrainCore.mjs';
+import {localLampStrength} from './urbanLightingCore.mjs';
 /** A fixed light pool bounds shader cost. Lamps and bulbs are instanced; only
  * nearby fixtures illuminate surfaces, with no per-lamp shadow maps. */
 export class UrbanLighting {
@@ -26,7 +28,7 @@ export class UrbanLighting {
   this.poles.name='Street lamp poles and arms';this.bulbs.name='Street lamp luminaires';
   for(const m of [this.poles,this.bulbs]){m.count=0;m.frustumCulled=false;m.instanceMatrix.setUsage(T.DynamicDrawUsage);this.group.add(m);}
   this.poles.castShadow=true;this.poles.receiveShadow=true;
-  for(const light of this.lights){light.userData.environmentLight='street';light.userData.nightIntensity=170;this.group.add(light);}
+  for(const light of this.lights){light.userData.environmentLight='street';light.userData.nightIntensity=240;this.group.add(light);}
   for(const light of this.shopLights){light.userData.environmentLight='business';light.userData.nightIntensity=35;this.group.add(light);}
  }
  update(viewer:{x:number;z:number},seconds:number,battery=false){
@@ -36,16 +38,21 @@ export class UrbanLighting {
    this.dummy.position.set(x,y,z);this.dummy.scale.set(w,h,d);this.dummy.rotation.set(0,yaw,0);this.dummy.updateMatrix();mesh.setMatrixAt(mesh.count++,this.dummy.matrix);
   };
   for(const p of selected){
-   const nx=Math.cos(p.yaw),nz=-Math.sin(p.yaw);
-   box(this.poles,p.x,3.23,p.z,.13,6.4,.13,0);
-   box(this.poles,p.x+nx*.7,6.36,p.z+nz*.7,1.5,.085,.085,p.yaw);
-   box(this.poles,p.x+nx*1.35,6.30,p.z+nz*1.35,.62,.12,.28,p.yaw);
-   box(this.bulbs,p.x+nx*1.35,6.23,p.z+nz*1.35,.51,.018,.22,p.yaw);
+   const nx=Math.cos(p.yaw),nz=-Math.sin(p.yaw),base=groundHeight(p.x,p.z);
+   box(this.poles,p.x,base+3.23,p.z,.13,6.4,.13,0);
+   box(this.poles,p.x+nx*.7,base+6.36,p.z+nz*.7,1.5,.085,.085,p.yaw);
+   box(this.poles,p.x+nx*1.35,base+6.30,p.z+nz*1.35,.62,.12,.28,p.yaw);
+   box(this.bulbs,p.x+nx*1.35,base+6.23,p.z+nz*1.35,.51,.018,.22,p.yaw);
   }
   this.poles.instanceMatrix.needsUpdate=true;this.bulbs.instanceMatrix.needsUpdate=true;this.poles.castShadow=!battery;
-  this.lights.forEach((light,i)=>{const p=selected[i];light.userData.lightAvailable=!!p&&i<(battery?2:8);if(p)light.position.set(p.x+Math.cos(p.yaw)*1.35,6.05,p.z-Math.sin(p.yaw)*1.35);});
+  this.lights.forEach((light,i)=>{
+   const p=selected[i],strength=p&&i<(battery?2:8)?localLampStrength(Math.hypot(p.x-viewer.x,p.z-viewer.z)):0;
+   light.userData.lightAvailable=strength>0;light.userData.nightIntensity=240*strength;
+   if(!strength)light.intensity=0;
+   if(p)light.position.set(p.x+Math.cos(p.yaw)*1.35,groundHeight(p.x,p.z)+6.05,p.z-Math.sin(p.yaw)*1.35);
+  });
   const shops=this.shops(viewer,35,battery?1:2);
-  this.shopLights.forEach((light,i)=>{const p=shops[i];light.userData.lightAvailable=!!p;if(p)light.position.set(p.x+Math.sin(p.yaw)*.9,2.3,p.z+Math.cos(p.yaw)*.9);});
+  this.shopLights.forEach((light,i)=>{const p=shops[i];light.userData.lightAvailable=!!p;if(!p)light.intensity=0;if(p)light.position.set(p.x+Math.sin(p.yaw)*.9,groundHeight(p.x,p.z)+2.3,p.z+Math.cos(p.yaw)*.9);});
  }
  dispose(){if(this.dead)return;this.dead=true;this.poles.dispose();this.bulbs.dispose();this.unit.dispose();this.steel.dispose();this.bulb.dispose();this.group.removeFromParent();this.group.clear();}
 }

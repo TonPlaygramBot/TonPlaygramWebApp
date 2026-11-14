@@ -1,8 +1,8 @@
 /** Shared arcade inventory limits and quotes. These use street cash only;
  * persistent TPG weapon unlocks stay on the authenticated store API. */
 export function reserveCapacity(weapon) {
-  if (!weapon || weapon.category === 'melee') return 0;
-  const magazines = weapon.radius || ['launcher', 'throwable'].includes(weapon.category) ? 8 : 20;
+  if (!weapon || ['melee', 'equipment'].includes(weapon.category)) return 0;
+  const magazines = weapon.radius || ['launcher', 'throwable'].includes(weapon.category) ? 16 : 40;
   return Math.max(0, Math.floor(weapon.magazine || 0)) * magazines;
 }
 

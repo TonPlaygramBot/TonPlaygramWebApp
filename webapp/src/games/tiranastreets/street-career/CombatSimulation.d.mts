@@ -6,7 +6,7 @@ export class CombatSimulation {
  fires:Map<string,{car:Car;until:number}>;
  emit(kind:string,point:Point&{y:number},extra?:Record<string,unknown>):void;
  actorHit(target:Player|NPC,attacker?:Player|NPC):void;
- launch(aircraft:Aircraft,yaw:number,pitch:number):boolean;
+ launch(aircraft:Aircraft,yaw:number,pitch:number,targetId?:string|null):boolean;
  impact(hit:{point:Point&{y:number};kind:string;objectId?:string},amount?:number,explosive?:boolean):void;
  damageVehicle(car:Car,amount:number,owner?:Player|NPC,cause?:'collision'|'bullet'|'explosive'|'heat'):void;
  step(dt:number):void;

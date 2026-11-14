@@ -31,7 +31,7 @@ export class WeaponStoreInterior {
     box(.22,4,13,-6.4,2,-4,wall); box(.22,4,13,6.4,2,-4,wall);
     box(8,1.05,1.1,0,.55,-7.9,wood);
     box(11,.12,2.1,0,2.35,-9.9,dark);
-    WEAPON_STORE_CATALOG.forEach((item,index) => {
+    WEAPON_STORE_CATALOG.filter(item=>item.category!=='equipment').slice(0, 12).forEach((item,index) => {
       const x = -4.7 + (index % 4) * 3.15, z = -9.25 + Math.floor(index/4)*2.35;
       box(2.35,.08,.75,x,1.7,z,lime);
       const weapon = box(item.category === 'sidearm' ? .75 : 1.65,.16,.18,x,2.05,z-.42,dark);

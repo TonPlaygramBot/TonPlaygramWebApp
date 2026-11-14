@@ -1,3 +1,4 @@
+import {reserveCapacity} from '../shared/ammunition.mjs';
 import {operationTarget} from './operationRoute.mjs';
 import {VehicleRadio, type RadioSnapshot} from '../radio/VehicleRadio';
 import {groundHeight} from '../../tirana-east/terrainCore.mjs';
@@ -349,7 +350,7 @@ export class StreetCareerRuntime {
     for (const id of ids) {
       const w=WEAPON_BY_ID.get(id);if(!w||id==='fpsGunAttack')continue;
       this.ownedWeapons.add(id);
-      this.state.players.local.inventory[id] ||= {ammo:w.magazine,reserve:w.category==='melee'?0:w.magazine*3};
+      this.state.players.local.inventory[id] ||= {ammo:w.category==='equipment'?0:w.magazine,reserve:Math.min(reserveCapacity(w),w.magazine*6)};
     }
     this.emit();
   }
@@ -378,6 +379,10 @@ export class StreetCareerRuntime {
     window.location.assign('/wallet');
   }
   cycleCamera() {
+    if(this.state.players.local.aircraftId){
+      this.simulation.flight.view=this.simulation.flight.view==='pilot'?'chase':'pilot';
+      this.emit();return;
+    }
     const key=this.state.players.local.carId?'drivingView':'walkingView';
     if(key==='drivingView'){
       const modes=['chase','wide','cockpit'] as const;
@@ -407,6 +412,7 @@ export class StreetCareerRuntime {
     }
     if (this.paused) return false;
     if(action==='camera'){this.cycleCamera();return true;}
+    if(action==='flight-lock'){const result=this.simulation.flight.toggleLock();this.emit();return result;}
     if(action==='radio-next'||action==='radio-previous'||action==='radio-toggle'){this.radioAction(action.slice(6));return true;}
     const result = this.simulation.execute(
       action === 'vehicle' ? 'interact' : action,

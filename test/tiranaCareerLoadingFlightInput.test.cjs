@@ -30,6 +30,7 @@ function runtimeFixture(){
       this.collectionFleet={errors:new Map()};this.humans={errors:[]};
       this.bodyRig={errors:[],prepare:id=>{prepared.push(id);return weapon.promise;}};
       this.details={civic:{errors:[]},dajti:{errors:[]}};this.metrics={};
+      this.residentialAssetErrors=[];this.civicVisuals={error:'',escorts:{errors:new Map()}};
       this.yaw=0;this.pitch=0;this.fps=60;
     }
     setQuality(){}setRoute(){}orbit(){}
@@ -37,11 +38,12 @@ function runtimeFixture(){
     render(...args){renders.push(args);optionalWork.push('scene streaming requested');}
   }
   class Simulation{
-    constructor(){this.body={grounded:true,y:0};this.settings={};this.events=[];}
+    constructor(){this.body={grounded:true,y:0};this.settings={};this.events=[];this.economy={restore(){},snapshot(){return {};}};}
     pause(){}resume(){}setIntent(){}step(){}resolve(){return [];}objective(){return {title:'Test',detail:'',training:false};}
   }
   class Input{setEnabled(){}readStreet(){return {};}releaseAll(){}}
   class Audio{update(){}city(){}suspend(){}unlock(){return Promise.resolve();}}
+  class Radio{snapshot(){return {};}setContext(){}dispose(){}}
   const profile={active:null,completed:['first-shift'],loadout:{weapon:player.weapon,inventory:{...player.inventory}}};
   const campaign={load:()=>profile,apply(){},saveExplore:p=>p,save:()=>true};
   const renderSettings=load(street+'renderSettings.ts');
@@ -50,6 +52,8 @@ function runtimeFixture(){
     '../shared/weapons.mjs':{WEAPONS:[],WEAPON_BY_ID:new Map(),STARTER_WEAPON:'starter',ensureStarterWeapons(){}},
     '../weaponStoreApi':{loadWeaponStoreAccount:async()=>({ownedWeaponIds:[]})},
     '../startingLoadout.mjs':{applyStartingLoadout(){},selectedStartingLoadout:()=>null},
+    '../radio/VehicleRadio':{VehicleRadio:Radio},
+    './checkpointCore.mjs':{restoreCheckpoint(){},restorePickupState(){},capturePickupState:()=>({}),captureCheckpoint:()=>({})},
     '../audio':{CityAudio:Audio},'./StreetRenderer':{StreetRenderer:Renderer},'./StreetInput':{StreetInput:Input},
     './StreetSimulation.mjs':{StreetSimulation:Simulation},'./campaignCore.mjs':{createCampaign:()=>campaign},
     './settings':{loadSettings:()=>({volume:0,targetFps:60,quality:'auto',shake:0})},'../renderSettings':renderSettings

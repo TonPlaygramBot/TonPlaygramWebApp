@@ -12,7 +12,7 @@ function load(file, deps, globals = {}) {
     compilerOptions:{target:ts.ScriptTarget.ES2022,module:ts.ModuleKind.CommonJS}
   }).outputText;
   vm.runInNewContext(code,{module,exports:module.exports,require:k=>deps[k]||{},
-    console,Map,Set,AbortController,setTimeout,clearTimeout,...globals});
+    console,Map,Set,AbortController,setTimeout,clearTimeout,performance,...globals});
   return module.exports;
 }
 async function fleetFixture() {
@@ -27,6 +27,7 @@ async function fleetFixture() {
     'three/examples/jsm/loaders/DRACOLoader.js':{DRACOLoader:Draco},
     'three/examples/jsm/utils/SkeletonUtils.js':{clone:o=>o.clone(true)},
     './shared/vehicleCollection.mjs':catalog,
+    './shared/fleetSelection.mjs':await import('../webapp/src/games/tiranastreets/shared/fleetSelection.mjs'),
     '../tirana-east/terrainTransforms':{alignVehicle(){}},
     '../tirana-east/terrainCore.mjs':{groundHeight:()=>0},
     './NpcVehicleDriver':{createNpcVehicleDriver:()=>{const g=new T.Group();g.userData.role='npc-driver';return g;}},
@@ -54,6 +55,23 @@ test('a driver arriving after its car is attached once and yields the seat to th
   car.driver=null;fleet.update([car],car,1/60);assert.equal(driver.visible,false);
   fleet.dispose();
 });
+test('one completed source spreads new car clones across frames and immediately includes the player car',async()=>{
+  const {fleet,car}=await fleetFixture();
+  const cars=Array.from({length:8},(_,i)=>({...car,id:`car-${i}`,x:i*2}));
+  fleet.update(cars,{x:0,z:0},1/60,'car-7');
+  assert.equal(fleet.loadedCount,2);assert.ok(fleet.has('car-7'));
+  for(let frame=2;frame<=4;frame++){
+    fleet.update(cars,{x:0,z:0},1/60,'car-7');assert.equal(fleet.loadedCount,frame*2);
+  }
+  cars[7].x=15;fleet.update(cars,{x:0,z:0},1/60,'car-7');
+  assert.equal(fleet.getRoot('car-7').position.x,15,'controlled movement is never throttled');
+  fleet.human=new T.Group();
+  for(let frame=1;frame<=4;frame++){
+    fleet.update(cars,{x:0,z:0},1/60,'car-7');
+    assert.equal(cars.filter(c=>fleet.getRoot(c.id).children.some(child=>child.userData.role==='npc-driver')).length,frame*2,'late occupants also respect a per-frame clone budget');
+  }
+  fleet.dispose();
+});
 test('civilian models use original asset dimensions and their actual cockpit sockets',async()=>{
   const {CIVILIAN_VEHICLE_MODELS,roadVehicleFor}=await import('../webapp/src/games/tiranastreets/shared/vehicleCollection.mjs');
   const {vehicleSize}=await import('../webapp/src/games/tiranastreets/shared/trafficSimulation.mjs');
@@ -63,8 +81,9 @@ test('civilian models use original asset dimensions and their actual cockpit soc
     const car={id:model,model},asset=roadVehicleFor(car),seat=driverSocket(car);
     assert.ok(asset.url.includes('/vehicle-collection/'));
     assert.deepEqual(vehicleSize(car),{length:asset.length,width:asset.width});
-    assert.equal(seat.x,asset.driverSeat[2]);assert.equal(seat.z,-asset.driverSeat[0]);
-    assert.ok(seat.y<asset.height);
+    assert.equal(seat.x,asset.driverSeat[2]);
+    assert.ok(Math.abs(seat.z)<asset.length/2,'calibrated eye remains inside the cabin');
+    assert.ok(seat.y>asset.driverSeat[1]&&seat.y<asset.height,'eye is above the mesh mount and below the roof');
   }
   assert.equal(roadVehicleFor({model:'police',forceVehicle:'patrol_sedan'}),undefined);
 });

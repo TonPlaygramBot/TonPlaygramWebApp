@@ -11,7 +11,7 @@ function codecFixture(){
  class Codec{constructor(){codecs.push(this);}setDecoderPath(path){this.path=path;return this;}setTranscoderPath(path){this.path=path;return this;}setWorkerLimit(limit){this.limit=limit;return this;}detectSupport(renderer){this.renderer=renderer;return this;}dispose(){this.disposed=true;}}
  class Loader{setDRACOLoader(decoder){this.dracoDecoder=decoder;return this;}setKTX2Loader(decoder){this.ktxDecoder=decoder;return this;}setMeshoptDecoder(decoder){this.meshoptDecoder=decoder;return this;}}
  const meshopt={ready:Promise.resolve()};
- const exports=load('CityAssetLoader.ts',{three:T,'three/examples/jsm/loaders/GLTFLoader.js':{GLTFLoader:Loader},'three/examples/jsm/loaders/DRACOLoader.js':{DRACOLoader:Codec},'three/examples/jsm/loaders/KTX2Loader.js':{KTX2Loader:Codec},'three/examples/jsm/libs/meshopt_decoder.module.js':{MeshoptDecoder:meshopt}});
+ const exports=load('CityAssetLoader.ts',{three:T,'./cityAssetBytes.mjs':{},'three/examples/jsm/loaders/GLTFLoader.js':{GLTFLoader:Loader},'three/examples/jsm/loaders/DRACOLoader.js':{DRACOLoader:Codec},'three/examples/jsm/loaders/KTX2Loader.js':{KTX2Loader:Codec},'three/examples/jsm/libs/meshopt_decoder.module.js':{MeshoptDecoder:meshopt}});
  return {...exports,codecs,meshopt};
 }
 test('city codec pool configures local Draco, Meshopt and capability-aware KTX2 with one worker each',()=>{

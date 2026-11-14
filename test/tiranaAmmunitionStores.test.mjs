@@ -16,8 +16,8 @@ const fixture=()=>{
 };
 
 test('quotes charge only transferred ammunition and bound explosive reserves',()=>{
- assert.equal(reserveCapacity(rifle),rifle.magazine*20);
- assert.equal(reserveCapacity(WEAPON_BY_ID.get('egg')),96);
+ assert.equal(reserveCapacity(rifle),rifle.magazine*40);
+ assert.equal(reserveCapacity(WEAPON_BY_ID.get('egg')),192);
  assert.equal(reserveCapacity(WEAPON_BY_ID.get('combatKnife')),0);
  const quote=ammunitionQuote(rifle,{reserve:reserveCapacity(rifle)-2},'max');
  assert.equal(quote.rounds,2);assert.ok(quote.price>0);

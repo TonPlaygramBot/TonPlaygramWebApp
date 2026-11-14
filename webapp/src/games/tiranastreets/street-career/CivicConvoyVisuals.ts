@@ -101,6 +101,7 @@ export class CivicConvoyVisuals {
     root.visible=!!npc&&distance<(battery?100:180);
     if(!npc||!root.visible)return;
     root.position.set(npc.x,groundHeight(npc.x,npc.z)+.03,npc.z);root.rotation.set(0,npc.heading+Math.PI,0);
+    if(npc.health<=0){root.rotation.x=-Math.PI/2;root.children[0].position.y=this.normalY;if(this.label)this.label.visible=false;return;}
     root.children[0].position.y=this.normalY+(npc.seated?.58-this.pelvisHeight:0);
     if(npc.seated){
       this.animation?.reset();root.updateMatrixWorld(true);

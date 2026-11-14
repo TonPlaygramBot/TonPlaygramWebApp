@@ -2,6 +2,7 @@ import { exitPoint } from './vehicleCore.mjs';
 import { reportCrime } from '../shared/cityLife.mjs';
 import { groundHeight } from '../../tirana-east/terrainCore.mjs';
 import { direction3, pointAlong } from './spatialCore.mjs';
+import {findFlightTarget,guideMissile,targetDirection} from './flightTargeting.mjs';
 
 /** Fixed-step gameplay. Rendering consumes events; it never decides damage. */
 export class CombatSimulation {
@@ -25,21 +26,24 @@ export class CombatSimulation {
     this.emit('blood',{x:target.x,y:floor+.95,z:target.z},{floorY:floor,
       toX:target.x-(attacker?.x??target.x),toY:.15,toZ:target.z-(attacker?.z??target.z)});
   }
-  launch(aircraft, yaw, pitch) {
+  launch(aircraft, yaw, pitch, targetId = null) {
     const now = this.sim.state.elapsed;
     if (now < aircraft.nextMissile || !aircraft.missiles || this.missiles.length >= 8) return false;
-    const d = direction3(yaw, pitch);
+    const target=targetId?findFlightTarget(this.sim,aircraft,yaw,pitch,targetId):null;
+    const locked=target?.id===targetId?target:null;
+    const d = locked?targetDirection(aircraft,locked).direction:direction3(yaw, pitch);
     const clearance = this.sim.world.cast(aircraft, d, 5, this.sim.cars());
     const from = pointAlong(aircraft, d, Math.min(5, clearance.kind === 'air' ? 5 : Math.max(0, clearance.distance - .2)));
     reportCrime(this.sim.state, this.sim.player, 65);
     aircraft.nextMissile = now + .8;
     aircraft.missiles--;
-    this.missiles.push({ id: ++this.serial, ...from, direction: d, age: 0, owner: aircraft.pilot });
+    this.missiles.push({ id: ++this.serial, ...from, direction: d, age: 0, owner: aircraft.pilot,targetId:locked?.id??null });
     this.emit('launch', from, { weapon: aircraft.kind + 'Missile' });
     return true;
   }
   damageVehicle(car, amount, owner = this.sim.player, cause = 'collision') {
     if (car.destroyed || !Number.isFinite(amount) || amount <= 0) return;
+    this.sim.civicConvoy?.onAttack(car,owner,cause,amount);
     // A health bar measures mechanical condition, not a fuel-tank fuse. Small
     // arms damage panels/components; only a substantial explosive hit adds heat.
     if (cause === 'bullet') amount *= /armored|military|tank/.test(car.forceVehicle || car.model) ? .08 : .18;
@@ -102,10 +106,19 @@ export class CombatSimulation {
     }
   }
   step(dt) {
+    const missileTargets=this.missiles.length?this.sim.cars():[];
     for (let i = this.missiles.length-1; i >= 0; i--) {
       const m = this.missiles[i];
+      if(m.targetId){
+        const target=missileTargets.find(c=>c.id===m.targetId&&!c.destroyed&&(c.health??1)>0);
+        if(target){
+          const aim=targetDirection(m,target),sight=this.sim.world.cast(m,aim.direction,aim.distance,missileTargets);
+          if(sight.kind==='air'||sight.objectId===target.id)guideMissile(m,target,dt);
+          else m.targetId=null;
+        }else m.targetId=null;
+      }
       const travel = 95 * dt;
-      const hit = this.sim.world.cast(m, m.direction, travel, this.sim.cars());
+      const hit = this.sim.world.cast(m, m.direction, travel, missileTargets);
       m.age += dt;
       if (hit.kind !== 'air') {
         // Move the blast slightly away from the surface so cover rays start outside it.

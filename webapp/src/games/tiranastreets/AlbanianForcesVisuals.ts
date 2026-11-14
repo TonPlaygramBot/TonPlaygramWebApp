@@ -1,4 +1,6 @@
 import {HumanModelLoader} from './HumanModelLoader';
+import {loadCityAssetBytes} from './cityAssetBytes.mjs';
+import {prepareForceUniform} from './forceUniformMaterials';
 import {prepareHumanMaterials} from './street-career/humanMaterials.mjs';
 import {applyForceLOD,loadForceLOD,type ForceLOD} from './forceLOD';
 import {alignVehicle} from '../tirana-east/terrainTransforms';
@@ -15,7 +17,7 @@ import {forceVehicleFor, forceCharacterFor, type ForceAsset} from './shared/alba
 import type {Point, NPC, Car} from './shared/engine.mjs';
 
 export type ForceCar = Pick<Car, 'id' | 'x' | 'z' | 'heading' | 'speed' | 'steering' | 'steerAngle' | 'model' | 'forceVehicle' | 'responding'>;
-export type ForceNPC = Pick<NPC, 'id' | 'x' | 'z' | 'heading' | 'speed' | 'kind' | 'motion' | 'health' | 'forceCharacter' | 'anim'> & Partial<Pick<NPC,'weapon'|'aimPitch'|'hitUntil'>> & {cordon?:string};
+export type ForceNPC = Pick<NPC, 'id' | 'x' | 'z' | 'heading' | 'speed' | 'kind' | 'motion' | 'health' | 'forceCharacter' | 'anim'> & Partial<Pick<NPC,'weapon'|'aimPitch'|'hitUntil'>> & {cordon?:string; y?:number};
 export type ForceFrame = {cars: ForceCar[]; traffic: ForceCar[]; units: ForceCar[]; npcs: ForceNPC[]};
 type Candidate = {key: string; asset: ForceAsset; entity: ForceCar | ForceNPC; distance: number; flashing: boolean};
 type Source = {gltf: GLTF; frame: T.Group; used: number; lod?:ForceLOD;releaseMaterials?:()=>void};
@@ -72,12 +74,11 @@ export class AlbanianForcesVisuals {
     let gltf: GLTF | undefined;
     let lod:ForceLOD|undefined;
     try {
-      const response = await fetch(asset.url, {signal: abort.signal,cache:this.retries.has(asset.id)?'reload':'default'});
-      if (!response.ok) throw Error(`HTTP ${response.status}`);
-      const bytes = await response.arrayBuffer();
+      const bytes = await loadCityAssetBytes(asset.url, {signal: abort.signal,reload:this.retries.has(asset.id)});
       if (this.dead) return;
       gltf = await this.loader.parseAsync(bytes, '/assets/tirana-streets/albanian-forces/glb/');
       if (this.dead) { disposeWeaponResources([gltf.scene]); return; }
+      prepareForceUniform(gltf.scene,asset.id);
       try{lod=await loadForceLOD(gltf,asset.id,bytes,abort.signal);this.errors.delete(asset.id+'/lod');}
       catch(error){if(!this.dead)this.errors.set(asset.id+'/lod',String(error));}
       if(this.dead){disposeWeaponResources([gltf.scene]);lod?.forEach(g=>g.dispose());gltf=undefined;lod=undefined;return;}
@@ -184,7 +185,7 @@ export class AlbanianForcesVisuals {
       const oldX=actor.root.position.x,oldZ=actor.root.position.z;
       const relocated=first||resumed||Math.hypot(e.x-oldX,e.z-oldZ)>8;
       const alpha = relocated ? 1 : 1-Math.exp(-dt*(person?12:18));
-      const ground=groundHeight(e.x,e.z);
+      const ground=person && Number.isFinite((e as ForceNPC).y) ? (e as ForceNPC).y! : groundHeight(e.x,e.z);
       actor.root.position.x+=(e.x-actor.root.position.x)*alpha;
       actor.root.position.z+=(e.z-actor.root.position.z)*alpha;
       actor.root.position.y=ground+(person?.06:.03);

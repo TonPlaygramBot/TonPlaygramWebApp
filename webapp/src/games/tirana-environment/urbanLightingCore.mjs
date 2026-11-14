@@ -50,3 +50,11 @@ export function urbanLightLevel(environment,kind='street') {
   if(kind==='apartment')return dark*(hour<5?.28:1);
   return dark;
 }
+
+// Avoid a bright lamp jumping to a distant fixture when the fixed light pool
+// changes membership. Fixtures outside the useful local range cost no light.
+export function localLampStrength(distance) {
+  if(!Number.isFinite(distance)||distance>=48)return 0;
+  const t=Math.max(0,Math.min(1,(distance-24)/24));
+  return 1-t*t*(3-2*t);
+}

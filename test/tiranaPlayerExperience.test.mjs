@@ -41,7 +41,7 @@ const visuals=load('webapp/src/games/tiranastreets/livingVisuals.ts',{'three':T,
 test('every playable weapon supplies its procedural prop or a valid local GLB within the held-model budget',async()=>{
  const seen=new Set(),procedural=new Set(),loader=new GLTFLoader();
  loader.register(()=>({name:'HEADLESS_TEXTURES',loadTexture:async()=>new T.Texture()}));
- for(const weapon of WEAPONS.filter(w=>w.id!=='fpsGunAttack')){
+ for(const weapon of WEAPONS.filter(w=>w.id!=='fpsGunAttack'&&w.category!=='equipment')){
   if(pockets.isPocketWeapon(weapon.id)){
    procedural.add(weapon.id);const prop=pockets.pocketWeapon(weapon.id);assert.ok(prop instanceof T.Group,weapon.id);
    if(weapon.id==='punch')assert.equal(prop.children.length,0,'unarmed punching uses the player body without a downloaded prop');
@@ -86,7 +86,7 @@ test('retired FPS gun migrates once without destroying progress or other weapons
  const saved=JSON.stringify(p);ensureStarterWeapons(p);assert.equal(JSON.stringify(p),saved);assert.deepEqual(p.inventory.uziSprayAttack,{ammo:3,reserve:9});
 });
 test('every ground weapon can equip at full reserve, exactly once, cancelling reload',()=>{
- for(const w of WEAPONS.filter(w=>w.id!=='fpsGunAttack')){
+ for(const w of WEAPONS.filter(w=>w.id!=='fpsGunAttack'&&w.category!=='equipment')){
   const p={id:'local',health:100,x:0,z:0,weapon:STARTER_WEAPON,reloadAt:9,nextShot:7,inventory:{[w.id]:{ammo:0,reserve:reserveCapacity(w)}}};
   const state={elapsed:0,pickups:[{id:'loot',weapon:w.id,x:1,z:0,ammo:w.magazine}]};
   assert.equal(collectWeapon(state,p,'loot'),true,w.id);assert.equal(p.weapon,w.id);assert.equal(p.reloadAt,0);assert.equal(p.nextShot,0);
@@ -136,7 +136,7 @@ test('driver hands and eye share the same support plane on hills',()=>{
 test('on-foot camera is eye-level and follows screen directions, including crouch',()=>{
  const {StreetRenderer}=load('webapp/src/games/tiranastreets/street-career/StreetRenderer.ts',{'three':T,'../renderer':{CityRenderer:class{}},'./spatialCore.mjs':spatial,'../../tirana-east/terrainCore.mjs':{groundHeight}});
  const body={...createBody(),y:10,eye:1.68,aim:false,recoil:0},p={x:4,z:8};
- const r=Object.assign(Object.create(StreetRenderer.prototype),{simulation:{body,flight:{},access:{binoculars:false,parachute:{open:false}}},bodyRig:{setEyeView(){},weapon:{}},camera:new T.PerspectiveCamera(),yaw:0,pitch:.3,settings:{walkingView:'eyes',fov:74,shake:0}});
+ const r=Object.assign(Object.create(StreetRenderer.prototype),{airMobility:{pilotAircraftId:null},simulation:{body,flight:{},access:{binoculars:false,parachute:{open:false}}},bodyRig:{setEyeView(){},weapon:{}},camera:new T.PerspectiveCamera(),yaw:0,pitch:.3,settings:{walkingView:'eyes',fov:74,shake:0}});
  r.presentFirstPerson({players:{local:p},cars:[]},'local',1/60);
  assert.ok(r.camera.position.distanceTo(new T.Vector3(4,11.68,8))<1e-8);assert.ok(r.camera.getWorldDirection(new T.Vector3()).y>0);
  body.eye=.86;body.crouched=true;r.presentFirstPerson({players:{local:p},cars:[]},'local',1/60);assert.equal(r.camera.position.y,10.86);
