@@ -468,7 +468,7 @@ export class JetskiRenderer {
       256,
       64
     );
-    name.scale.set(3.2, 0.8, 1);
+    name.scale.set(2.5, 0.625, 1);
     name.position.y = 2.5;
     root.add(name);
     this.scene.add(root);
@@ -588,7 +588,10 @@ export class JetskiRenderer {
           poseRider(item.rider, root, r.steer, r.speed, time, r.airborne);
       }
       item.ejected = Boolean(r.crash);
-      item.name.visible = r.id !== playerId;
+      const offsetX = r.x - local.x;
+      const offsetZ = r.z - local.z;
+      const ahead = offsetX * Math.sin(local.heading) + offsetZ * Math.cos(local.heading);
+      item.name.visible = r.id !== playerId && ahead > 2 && Math.hypot(offsetX, offsetZ) < 36;
       rider.visible = !onRider || r.id !== local.id;
     }
     for (const batch of this.buoyBatches) {
@@ -639,14 +642,15 @@ export class JetskiRenderer {
       const portrait = this.camera.aspect < 0.8;
       if (portrait) this.desired.addScaledVector(this.viewOffset, -0.23);
       this.viewOffset.y = T.MathUtils.clamp(
-        this.viewOffset.y - (portrait ? 0.24 : 0),
-        portrait ? -0.49 : -0.26,
-        portrait ? -0.41 : -0.12
+        this.viewOffset.y - (portrait ? 0.16 : 0),
+        portrait ? -0.34 : -0.26,
+        portrait ? -0.24 : -0.12
       );
       this.focus.copy(this.desired).addScaledVector(this.viewOffset, 26);
     } else {
       const river = this.track.pointToPoint;
-      const distance = river ? 5.4 : this.camera.aspect < 0.8 ? 7.4 : 10;
+      const portrait = this.camera.aspect < 0.8;
+      const distance = river ? 5.4 : portrait ? 7.4 : 10;
       const crash = local.crash;
       const x = crash?.x ?? ship.position.x,
         z = crash?.z ?? ship.position.z;
@@ -656,10 +660,11 @@ export class JetskiRenderer {
         y + (river ? 2.7 : 4.2) + local.height * 0.55,
         z - Math.cos(heading) * distance
       );
+      const lookAhead = crash ? 0.8 : portrait ? 5 : 9;
       this.focus.set(
-        x + Math.sin(heading) * (crash ? 0.8 : 9),
-        y + (crash ? Math.max(0.38, crash.height) : 1 + local.height * 0.35),
-        z + Math.cos(heading) * (crash ? 0.8 : 9)
+        x + Math.sin(heading) * lookAhead,
+        y + (crash ? Math.max(0.38, crash.height) : 0.8 + local.height * 0.35),
+        z + Math.cos(heading) * lookAhead
       );
     }
     if (!this.cameraSet) {
