@@ -15341,7 +15341,7 @@ const shotPowerRef = useRef(0);
         };
       }
 
-      if (isRemotePlayer && hasLayout) {
+      if (isRemotePlayer && hasLayout && !payload.state && !payload.final) {
         remoteShotActiveRef.current = true;
         remoteShotUntilRef.current = now + 1200;
         remoteAimRef.current = null;
@@ -15389,7 +15389,7 @@ const shotPowerRef = useRef(0);
 
       const recording = incomingRemoteShotRef.current;
       const hasState = Boolean(payload.state);
-      if (recording && (hasState || (payload.final && !hasLayout))) {
+      if (isRemotePlayer && recording && (hasState || payload.final)) {
         recording.postState =
           payload.layout ??
           (captureBallSnapshotRef.current ? captureBallSnapshotRef.current() : recording.frames?.[recording.frames.length - 1]?.balls ?? null);
@@ -15976,6 +15976,8 @@ const shotPowerRef = useRef(0);
       let activeShotView = null;
       let suspendedActionView = null;
       let queuedPocketView = null;
+      let remotePocketView = null;
+      let lastRemotePocketFrame = null;
       let shotPrediction = null;
       let lastShotPower = 0;
       let prevCollisions = new Set();
@@ -18005,6 +18007,7 @@ const shotPowerRef = useRef(0);
 
         const humanShotCamera = new SnookerRoyalShotCamera();
         const humanEyeCamera = camera.clone();
+        const opponentBroadcastCamera = camera.clone();
         const resolveActiveHumanEyePose = () => {
           const pose = humanShotCamera.resolve({
             eye: null,
@@ -18032,6 +18035,34 @@ const shotPowerRef = useRef(0);
             : null;
         };
 
+        const resolveOpponentRailView = () => {
+          const target = world.localToWorld(new THREE.Vector3(0, tableSurfaceY, 0));
+          const coverage = resolveRailOverheadReplayCamera({
+            focusOverride: target,
+            minTargetY: target.y,
+            preferredRail: railOverheadSideRef.current
+          });
+          if (!coverage?.position) return null;
+
+          // Fit the full table, including the nearer cushion, at the current aspect ratio.
+          const offset = coverage.position.sub(target);
+          const distance = offset.length();
+          const halfLength = Math.max(TABLE.H, PLAY_H) * worldScaleFactor / 2;
+          const railDepth = Math.abs(offset.z / distance) * halfLength;
+          const fitDistance =
+            computeTopViewBroadcastDistance(camera.aspect, coverage.fov) * worldScaleFactor;
+          offset.setLength(Math.max(distance, fitDistance + railDepth));
+
+          opponentBroadcastCamera.copy(camera, false);
+          opponentBroadcastCamera.position.copy(target).add(offset);
+          opponentBroadcastCamera.up.set(0, 1, 0);
+          opponentBroadcastCamera.fov = coverage.fov;
+          opponentBroadcastCamera.zoom = 1;
+          opponentBroadcastCamera.lookAt(target);
+          opponentBroadcastCamera.updateProjectionMatrix();
+          return target;
+        };
+
         const updateCamera = () => {
           const replayPlaybackActive = Boolean(replayPlaybackRef.current);
           let renderCamera = camera;
@@ -18052,6 +18083,13 @@ const shotPowerRef = useRef(0);
             powerImpactHoldRef.current &&
             performance.now() < powerImpactHoldRef.current;
           const galleryState = cueGalleryStateRef.current;
+          const opponentShotActive = shooting
+            ? characterShotShooter !== localSeatRef.current
+            : remoteShotActiveRef.current;
+          const pocketView = shooting ? activeShotView : remotePocketView;
+          const showPocketView =
+            !cameraHoldActive && pocketView?.mode === 'pocket' &&
+            (shooting || opponentShotActive);
           const humanEyePose = resolveActiveHumanEyePose();
           if (humanEyePose && (shooting || cueAnimating)) {
             // This shot belongs to the player camera. Do not run a tracking
@@ -18141,23 +18179,13 @@ const shotPowerRef = useRef(0);
             broadcastArgs.focusWorld = resolvedTarget.clone();
             broadcastArgs.targetWorld = resolvedTarget.clone();
             broadcastArgs.lerp = 0.08;
-          } else if (!topViewRef.current && humanShotCamera.isBroadcasting &&
-              (!activeShotView || (activeShotView.mode === 'action' && !cue?.active))) {
-            const coverage = resolveRailOverheadReplayCamera({
-              focusOverride: broadcastCamerasRef.current?.defaultFocusWorld,
-              minTargetY: baseSurfaceWorldY + BALL_R * worldScaleFactor
-            });
-            if (coverage?.position && coverage?.target) {
-              camera.up.set(0, 1, 0);
-              camera.position.copy(coverage.position);
-              camera.fov = coverage.fov;
-              camera.updateProjectionMatrix();
-              camera.lookAt(coverage.target);
-              lookTarget = coverage.target;
-              broadcastArgs.focusWorld = lookTarget.clone();
-              broadcastArgs.orbitWorld = coverage.position.clone();
+          } else if (!topViewRef.current && opponentShotActive && !lookModeRef.current && !showPocketView) {
+            lookTarget = resolveOpponentRailView();
+            if (lookTarget) {
+              renderCamera = opponentBroadcastCamera;
+              broadcastArgs.focusWorld = lookTarget;
             }
-          } else if (!topViewRef.current && cameraHoldActive && cueImpactCameraRef.current) {
+          } else if (!topViewRef.current && !opponentShotActive && cameraHoldActive && cueImpactCameraRef.current) {
             const impactState = cueImpactCameraRef.current;
             const cueBall = (ballsRef.current || []).find((b) => b.id === impactState.cueBallId);
             if (!cueBall?.active && !impactState.cueStick) {
@@ -18245,7 +18273,7 @@ const shotPowerRef = useRef(0);
               broadcastArgs.orbitWorld = impactState.smoothedPos.clone();
               broadcastArgs.lerp = 0.08;
             }
-          } else if (!topViewRef.current && !cameraHoldActive && activeShotView?.mode === 'action') {
+          } else if (!topViewRef.current && !opponentShotActive && !cameraHoldActive && activeShotView?.mode === 'action') {
             const ballsList = ballsRef.current || [];
             const cueBall = ballsList.find((b) => b.id === activeShotView.cueId);
             if (!cueBall?.active) {
@@ -18654,48 +18682,48 @@ const shotPowerRef = useRef(0);
                 renderCamera = camera;
               }
             }
-          } else if (!topViewRef.current && !cameraHoldActive && activeShotView?.mode === 'pocket') {
+          } else if (!topViewRef.current && showPocketView && (!opponentShotActive || !lookModeRef.current)) {
             const ballsList = ballsRef.current || [];
             const focusBall = ballsList.find(
-              (b) => b.id === activeShotView.ballId
+              (b) => b.id === pocketView.ballId
             );
             if (focusBall?.active) {
-              activeShotView.lastBallPos.set(
+              pocketView.lastBallPos.set(
                 focusBall.pos.x,
                 focusBall.pos.y
               );
             }
-            const pocketCenter = activeShotView.pocketCenter;
+            const pocketCenter = pocketView.pocketCenter;
             const pocketCenter2D = pocketCenter.clone();
             const anchorType =
-              activeShotView.anchorType ??
-              (activeShotView.isSidePocket ? 'side' : 'short');
+              pocketView.anchorType ??
+              (pocketView.isSidePocket ? 'side' : 'short');
             let railDir =
-              activeShotView.railDir ??
+              pocketView.railDir ??
               (anchorType === 'side'
                 ? signed(pocketCenter.x, 1)
                 : signed(pocketCenter.y, 1));
-            if (!Number.isFinite(activeShotView.railDir) || activeShotView.railDir === 0) {
-              activeShotView.railDir = railDir;
+            if (!Number.isFinite(pocketView.railDir) || pocketView.railDir === 0) {
+              pocketView.railDir = railDir;
             } else {
-              railDir = activeShotView.railDir;
+              railDir = pocketView.railDir;
             }
-            let approachDir = activeShotView.approach
-              ? activeShotView.approach.clone()
+            let approachDir = pocketView.approach
+              ? pocketView.approach.clone()
               : new THREE.Vector2(0, -railDir);
             if (approachDir.lengthSq() < 1e-6) {
               approachDir.set(0, -railDir);
             }
             approachDir.normalize();
-            if (activeShotView.approach) {
-              activeShotView.approach.copy(approachDir);
+            if (pocketView.approach) {
+              pocketView.approach.copy(approachDir);
             } else {
-              activeShotView.approach = approachDir.clone();
+              pocketView.approach = approachDir.clone();
             }
             let broadcastRailDir =
-              activeShotView.broadcastRailDir ?? (anchorType === 'side' ? null : railDir);
+              pocketView.broadcastRailDir ?? (anchorType === 'side' ? null : railDir);
             const fallbackBroadcast = signed(
-              activeShotView.lastBallPos?.y ?? pocketCenter.y ?? 0,
+              pocketView.lastBallPos?.y ?? pocketCenter.y ?? 0,
               broadcastRailDir ?? railDir ?? 1
             );
             if (anchorType === 'side') {
@@ -18703,7 +18731,7 @@ const shotPowerRef = useRef(0);
                 resolveShortRailBroadcastDirection({
                   pocketCenter: pocketCenter2D,
                   approachDir,
-                  ballPos: activeShotView.lastBallPos,
+                  ballPos: pocketView.lastBallPos,
                   ballVel: focusBall?.vel,
                   fallback: fallbackBroadcast
                 });
@@ -18713,7 +18741,7 @@ const shotPowerRef = useRef(0);
             } else {
               broadcastRailDir = railDir;
             }
-            activeShotView.broadcastRailDir = broadcastRailDir;
+            pocketView.broadcastRailDir = broadcastRailDir;
             broadcastArgs = {
               railDir: broadcastRailDir ?? railDir,
               targetWorld: null,
@@ -18721,23 +18749,23 @@ const shotPowerRef = useRef(0);
               lerp: 0.25
             };
             const heightScale =
-              activeShotView.heightScale ?? POCKET_CAM.heightScale ?? 1;
+              pocketView.heightScale ?? POCKET_CAM.heightScale ?? 1;
             const resolvedAnchorId = resolvePocketCameraAnchor(
-              activeShotView.pocketId ?? pocketIdFromCenter(pocketCenter),
+              pocketView.pocketId ?? pocketIdFromCenter(pocketCenter),
               pocketCenter,
               approachDir,
-              activeShotView.lastBallPos ?? pocketCenter
+              pocketView.lastBallPos ?? pocketCenter
             );
             const anchorId =
               resolvedAnchorId ??
-              activeShotView.anchorId ??
+              pocketView.anchorId ??
               pocketIdFromCenter(pocketCenter);
-            if (anchorId !== activeShotView.anchorId) {
-              activeShotView.anchorId = anchorId;
-              activeShotView.fixedPos = null;
+            if (anchorId !== pocketView.anchorId) {
+              pocketView.anchorId = anchorId;
+              pocketView.fixedPos = null;
               const latestOutward = getPocketCameraOutward(anchorId);
               if (latestOutward) {
-                activeShotView.anchorOutward = latestOutward;
+                pocketView.anchorOutward = latestOutward;
               }
             }
             let pocketCamEntry = getPocketCameraEntry(anchorId);
@@ -18748,8 +18776,8 @@ const shotPowerRef = useRef(0);
             if (!pocketCamEntry) {
               pocketCamEntry = getPocketCameraEntry(anchorId) ?? null;
             }
-            const outward = activeShotView.anchorOutward
-              ? activeShotView.anchorOutward.clone()
+            const outward = pocketView.anchorOutward
+              ? pocketView.anchorOutward.clone()
               : getPocketCameraOutward(anchorId) ?? pocketCenter2D.clone();
             if (outward.lengthSq() < 1e-6) {
               outward.set(
@@ -18758,8 +18786,8 @@ const shotPowerRef = useRef(0);
               );
             }
             outward.normalize();
-            if (!activeShotView.anchorOutward) {
-              activeShotView.anchorOutward = outward.clone();
+            if (!pocketView.anchorOutward) {
+              pocketView.anchorOutward = outward.clone();
             }
             const focusHeightLocal = BALL_CENTER_Y + BALL_R * 0.6;
             const focusBallPos2D = focusBall?.active
@@ -18767,8 +18795,8 @@ const shotPowerRef = useRef(0);
               : null;
             const focusPoint2D =
               focusBallPos2D ??
-              activeShotView.fixedTarget2D?.clone?.() ??
-              activeShotView.lastBallPos?.clone?.() ??
+              pocketView.fixedTarget2D?.clone?.() ??
+              pocketView.lastBallPos?.clone?.() ??
               pocketCenter2D;
             const focusTarget = new THREE.Vector3(
               focusPoint2D.x * worldScaleFactor,
@@ -18776,9 +18804,9 @@ const shotPowerRef = useRef(0);
               focusPoint2D.y * worldScaleFactor
             );
             const baseDistance =
-              Number.isFinite(activeShotView.cameraDistance) &&
-              activeShotView.cameraDistance > 0
-                ? activeShotView.cameraDistance
+              Number.isFinite(pocketView.cameraDistance) &&
+              pocketView.cameraDistance > 0
+                ? pocketView.cameraDistance
                 : anchorType === 'short'
                   ? POCKET_CAM.minOutsideShort ?? POCKET_CAM.minOutside
                   : POCKET_CAM.minOutside;
@@ -18787,7 +18815,7 @@ const shotPowerRef = useRef(0);
                 ? POCKET_CAM.outwardOffsetShort ?? POCKET_CAM.outwardOffset
                 : POCKET_CAM.outwardOffset;
             const distanceScale =
-              activeShotView.distanceScale ?? POCKET_CAM.distanceScale ?? 1;
+              pocketView.distanceScale ?? POCKET_CAM.distanceScale ?? 1;
             const cameraDistance = Math.max(
               BALL_DIAMETER,
               (baseDistance + Math.max(0, outwardOffsetMagnitude ?? 0)) *
@@ -18803,45 +18831,45 @@ const shotPowerRef = useRef(0);
                   )
                 : 0;
             const desiredPosition =
-              activeShotView.fixedPos ??
+              pocketView.fixedPos ??
               new THREE.Vector3(
                 (pocketCenter2D.x + outward.x * cameraDistance) * worldScaleFactor,
-                (TABLE_Y + TABLE.THICK + activeShotView.heightOffset * heightScale) *
+                (TABLE_Y + TABLE.THICK + pocketView.heightOffset * heightScale) *
                   worldScaleFactor,
                 (pocketCenter2D.y + outward.y * cameraDistance + sideEdgeShift) *
                   worldScaleFactor
               );
-            if (!activeShotView.fixedPos) {
-              activeShotView.fixedPos = desiredPosition.clone();
+            if (!pocketView.fixedPos) {
+              pocketView.fixedPos = desiredPosition.clone();
             }
             const now = performance.now();
             if (focusBall?.active) {
-              activeShotView.completed = false;
+              pocketView.completed = false;
               const extendTo = now + POCKET_VIEW_ACTIVE_EXTENSION_MS;
-              activeShotView.holdUntil =
-                activeShotView.holdUntil != null
-                  ? Math.max(activeShotView.holdUntil, extendTo)
+              pocketView.holdUntil =
+                pocketView.holdUntil != null
+                  ? Math.max(pocketView.holdUntil, extendTo)
                   : extendTo;
             }
             const leveledTarget = focusTarget.clone();
             leveledTarget.y = desiredPosition.y;
-            if (!activeShotView.smoothedPos) {
-              activeShotView.smoothedPos = desiredPosition.clone();
+            if (!pocketView.smoothedPos) {
+              pocketView.smoothedPos = desiredPosition.clone();
             } else {
-              activeShotView.smoothedPos.copy(desiredPosition);
+              pocketView.smoothedPos.copy(desiredPosition);
             }
-            if (!activeShotView.smoothedTarget) {
-              activeShotView.smoothedTarget = leveledTarget.clone();
+            if (!pocketView.smoothedTarget) {
+              pocketView.smoothedTarget = leveledTarget.clone();
             } else {
-              activeShotView.smoothedTarget.copy(leveledTarget);
+              pocketView.smoothedTarget.copy(leveledTarget);
             }
             if (pocketCamera) {
-              pocketCamera.position.copy(activeShotView.smoothedPos);
-              pocketCamera.lookAt(activeShotView.smoothedTarget);
+              pocketCamera.position.copy(pocketView.smoothedPos);
+              pocketCamera.lookAt(pocketView.smoothedTarget);
               pocketCamera.updateMatrixWorld();
               renderCamera = pocketCamera;
             }
-            lookTarget = activeShotView.smoothedTarget;
+            lookTarget = pocketView.smoothedTarget;
           } else {
             const aimFocus =
               !shooting && !hudRef.current?.inHand && cue?.active ? aimFocusRef.current : null;
@@ -19394,14 +19422,14 @@ const shotPowerRef = useRef(0);
           };
         };
         const makePocketCameraView = (ballId, followView, options = {}) => {
-          if (!followView) return null;
-          const { forceEarly = false } = options;
+          const { forceEarly = false, remoteDirection = null } = options;
+          if (!followView && !remoteDirection) return null;
           if (shotPrediction?.railNormal) return null;
           if (forceEarly && shotPrediction?.ballId !== ballId) return null;
           const ballsList = ballsRef.current || [];
           const targetBall = ballsList.find((b) => b.id === ballId);
           if (!targetBall) return null;
-          const dir = targetBall.vel.clone();
+          const dir = (remoteDirection ?? targetBall.vel).clone();
           if (dir.lengthSq() < 1e-6 && shotPrediction?.ballId === ballId) {
             dir.copy(shotPrediction.dir ?? new THREE.Vector2());
           }
@@ -19427,10 +19455,14 @@ const shotPowerRef = useRef(0);
             shotPrediction?.ballId === ballId && shotPrediction?.dir
               ? shotPrediction.dir.clone().normalize().dot(best.pocketDir)
               : null;
-          const isGuaranteedPocket =
-            shotPrediction?.ballId === ballId &&
-            predictedAlignment != null &&
-            predictedAlignment >= POCKET_GUARANTEED_ALIGNMENT;
+          // Online snapshots carry positions. Only cut if the observed path leads into the pocket.
+          const isGuaranteedPocket = remoteDirection
+            ? best.dist <= POCKET_CAM.triggerDist &&
+              bestScore >= POCKET_GUARANTEED_ALIGNMENT &&
+              best.dist * Math.sqrt(Math.max(0, 1 - bestScore ** 2)) <= BALL_R
+            : shotPrediction?.ballId === ballId &&
+              predictedAlignment != null &&
+              predictedAlignment >= POCKET_GUARANTEED_ALIGNMENT;
           if (!isGuaranteedPocket) return null;
           const predictedTravelForBall =
             shotPrediction?.ballId === ballId
@@ -19439,7 +19471,7 @@ const shotPowerRef = useRef(0);
           if (
             (predictedTravelForBall != null &&
               predictedTravelForBall < SHORT_SHOT_CAMERA_DISTANCE) ||
-            best.dist < SHORT_SHOT_CAMERA_DISTANCE
+            (!remoteDirection && best.dist < SHORT_SHOT_CAMERA_DISTANCE)
           ) {
             return null;
           }
@@ -19528,6 +19560,52 @@ const shotPowerRef = useRef(0);
             forcedEarly
           };
         };
+        const updateRemotePocketView = (now) => {
+          if (!remoteShotActiveRef.current || topViewRef.current || lookModeRef.current) {
+            remotePocketView = null;
+            lastRemotePocketFrame = null;
+            return;
+          }
+          const frames = incomingRemoteShotRef.current?.frames;
+          if (remotePocketView?.holdUntil != null && now >= remotePocketView.holdUntil) {
+            remotePocketView = null;
+          }
+          const frame = frames?.at(-1);
+          if (!frame || frame === lastRemotePocketFrame) return;
+          lastRemotePocketFrame = frame;
+          const previous = frames.at(-2);
+          if (!previous) {
+            remotePocketView = null;
+            return;
+          }
+
+          const previousBalls = new Map(previous.balls.map((ball) => [ball.id, ball]));
+          const focus = remotePocketView && frame.balls.find((ball) => ball.id === remotePocketView.ballId);
+          if (focus && !focus.active) {
+            remotePocketView.holdUntil ??= now + POCKET_VIEW_POST_POT_HOLD_MS;
+            if (now < remotePocketView.holdUntil) return;
+          }
+
+          let nextView = null;
+          let nearest = Infinity;
+          for (const ball of frame.balls) {
+            const before = previousBalls.get(ball.id);
+            if (!ball.active || !before?.active || ball.id === 'cue') continue;
+            const direction = new THREE.Vector2(ball.pos.x - before.pos.x, ball.pos.y - before.pos.y);
+            const view = makePocketCameraView(ball.id, null, { remoteDirection: direction });
+            if (!view) continue;
+            const distance = view.lastBallPos.distanceTo(view.pocketCenter);
+            if (distance < nearest) {
+              nextView = view;
+              nearest = distance;
+            }
+          }
+          if (nextView && nextView.ballId === remotePocketView?.ballId &&
+              nextView.pocketId === remotePocketView.pocketId) return;
+          remotePocketView = nextView;
+          if (remotePocketView) remotePocketView.holdUntil = null;
+        };
+
         const fit = (m = STANDING_VIEW.margin) => {
           camera.aspect = host.clientWidth / host.clientHeight;
           const aspect = camera.aspect;
@@ -23023,6 +23101,7 @@ const shotPowerRef = useRef(0);
             : undefined
         };
         characterShotShooter = frameSnapshot?.activePlayer === 'B' ? 'B' : 'A';
+        const isOpponentShot = characterShotShooter !== localSeatRef.current;
         shotImpactPending = ENABLE_CUE_STROKE_ANIMATION;
         humanShotCamera.beginShot(
           null,
@@ -23142,6 +23221,7 @@ const shotPowerRef = useRef(0);
             shotReplayRef.current = null;
           }
           const allowLongShotCameraSwitch =
+            !isOpponentShot &&
             !isShortShot &&
             (!isLongShot || predictedCueSpeed <= LONG_SHOT_SPEED_SWITCH_THRESHOLD);
           const broadcastSystem =
@@ -23285,7 +23365,9 @@ const shotPowerRef = useRef(0);
             if (shotImpactApplied) return;
             shotImpactApplied = true;
             humanShotCamera.markImpact(performance.now());
-            powerImpactHoldRef.current = performance.now() + SNOOKER_PLAYER_FOLLOW_THROUGH_MS;
+            powerImpactHoldRef.current = isOpponentShot
+              ? 0
+              : performance.now() + SNOOKER_PLAYER_FOLLOW_THROUGH_MS;
             shotImpactPending = false;
             if (shotImpactFallbackTimer) {
               clearTimeout(shotImpactFallbackTimer);
@@ -23346,7 +23428,7 @@ const shotPowerRef = useRef(0);
             playCueHit(clampedPower * 0.6);
           };
 
-          if (cameraRef.current && sphRef.current) {
+          if (cameraRef.current && sphRef.current && (!isOpponentShot || !topViewLockedRef.current)) {
             topViewRef.current = false;
             topViewLockedRef.current = false;
             setIsTopDownView(false);
@@ -23404,7 +23486,7 @@ const shotPowerRef = useRef(0);
           const obstructionStrength = resolveCueObstruction(
             dir,
             startPull,
-            activeRenderCameraRef.current ?? cameraRef.current ?? camera
+            isOpponentShot ? camera : activeRenderCameraRef.current ?? camera
           );
           const { obstructionTilt, obstructionLift, obstructionTiltFromLift } =
             resolveCueObstructionTilt(obstructionStrength);
@@ -23591,7 +23673,7 @@ const shotPowerRef = useRef(0);
               cueAnimating = false;
               cuePullCurrentRef.current = 0;
               cuePullTargetRef.current = 0;
-              if (cameraRef.current && sphRef.current) {
+              if (cameraRef.current && sphRef.current && (!isOpponentShot || !topViewLockedRef.current)) {
                 topViewRef.current = false;
                 topViewLockedRef.current = false;
                 setIsTopDownView(false);
@@ -25230,9 +25312,10 @@ const shotPowerRef = useRef(0);
               dir.rotateAround(new THREE.Vector2(), THREE.MathUtils.clamp(executionError, -0.035, 0.035));
             }
             aimDirRef.current.copy(dir);
-            topViewRef.current = false;
-            topViewLockedRef.current = false;
-            setIsTopDownView(false);
+            if (!topViewLockedRef.current) {
+              topViewRef.current = false;
+              setIsTopDownView(false);
+            }
             alignStandingCameraToAim(cue, dir);
             setAiShotCueViewActive(false);
             setAiShotPreviewActive(true);
@@ -25953,6 +26036,7 @@ const shotPowerRef = useRef(0);
         if (remoteShotActiveRef.current && remoteShotUntilRef.current > 0 && nowMs > remoteShotUntilRef.current) {
           remoteShotActiveRef.current = false;
         }
+        updateRemotePocketView(nowMs);
         if (
           remoteAimRef.current &&
           Number.isFinite(remoteAimRef.current.updatedAt) &&
