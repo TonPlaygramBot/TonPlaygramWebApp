@@ -6,14 +6,9 @@ import path from 'node:path';
 
 const root = fileURLToPath(new URL('../', import.meta.url));
 const base = path.join(root, 'webapp/src/games/tennis');
-const urls = {
-  react: 'https://esm.sh/react@18.3.1',
-  'react/jsx-runtime': 'https://esm.sh/react@18.3.1/jsx-runtime',
-  'react-dom/client':
-    'https://esm.sh/react-dom@18.3.1/client?deps=react@18.3.1',
-  three: 'https://cdn.jsdelivr.net/npm/three@0.164.0/build/three.module.js'
-};
-// The app already includes reduced versions of the same CC0 meshes for chat.
+const three =
+  'https://cdn.jsdelivr.net/npm/three@0.164.1/build/three.module.js';
+// Reuse the reduced CC0 meshes already bundled for chat previews.
 const packedSource = await readFile(
   path.join(root, 'webapp/src/games/tabletennis/preview/packed.ts'),
   'utf8'
@@ -37,10 +32,10 @@ const result = await build({
     {
       name: 'conversation-preview',
       setup(builder) {
-        builder.onResolve(
-          { filter: /^(react|react\/jsx-runtime|react-dom\/client|three)$/ },
-          (args) => ({ path: urls[args.path], external: true })
-        );
+        builder.onResolve({ filter: /^three$/ }, () => ({
+          path: three,
+          external: true
+        }));
         builder.onResolve({ filter: /^\.\/assetLoader$/ }, (args) =>
           args.importer === path.join(base, 'render.ts')
             ? { path: 'athletes', namespace: 'embedded' }
