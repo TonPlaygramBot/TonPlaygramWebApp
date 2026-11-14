@@ -18,7 +18,7 @@ export function driveVehicle(car,input,delta,contact=()=>{}){
  car.steering=finite(car.steering);car.yawRate=finite(car.yawRate);
  const before=finite(car.speed);
  for(let i=0;i<steps;i++){
-  if(car.destroyed||car.burning){car.speed=car.vx=car.vz=car.yawRate=0;break;}
+  if(car.destroyed||car.burning){car.speed=car.vx=car.vz=car.yawRate=car.slip=0;car.handbraking=false;car.braking=false;break;}
   const fx=-Math.sin(car.heading),fz=-Math.cos(car.heading),rx=Math.cos(car.heading),rz=-Math.sin(car.heading);
   let forward=car.vx*fx+car.vz*fz,lateral=car.vx*rx+car.vz*rz;
   const speed=Math.abs(forward),opposite=pedal*forward<-.03;
@@ -26,6 +26,9 @@ export function driveVehicle(car,input,delta,contact=()=>{}){
   // Brake alone is always a straight service brake, including stale input.
   const handbrake=input.brake===true&&pedal>.15&&Math.abs(steer)>.2&&forward>6;
   const braking=input.brake===true||opposite;
+  // Braking uses part of the same tyre contact patch as cornering. Reserve
+  // some lateral grip for control, but allow a longer turn under heavy braking.
+  const cornerGrip=tune.grip*(braking&&!handbrake?.72:1);
   const throttle=braking?0:Math.abs(pedal);
   const torque=1-.55*Math.min(1,speed/tune.maximum)**1.5;
   const drag=.12+speed*speed*.00075;
@@ -39,7 +42,7 @@ export function driveVehicle(car,input,delta,contact=()=>{}){
   const sensitivity=1/(1+(speed/14)**1.45);
   car.steerAngle=car.steering*tune.steer*sensitivity;
   const requested=-Math.tan(car.steerAngle)*forward/tune.wheelbase;
-  const turnLimit=Math.min(1.35,(tune.grip*(handbrake?1.15:1))/Math.max(speed,2));
+  const turnLimit=Math.min(1.35,(cornerGrip*(handbrake?1.15:1))/Math.max(speed,2));
   car.yawRate=approach(car.yawRate,clamp(requested,-turnLimit,turnLimit),handbrake?5:8,step);
   // Steering can move the front wheels while parked, never rotate the body.
   // Bound residual yaw by the speed after braking, not the previous substep.
@@ -50,18 +53,29 @@ export function driveVehicle(car,input,delta,contact=()=>{}){
   // lateral grip progressively instead of snapping velocity to the nose.
   const turn=car.yawRate*step;
   const rotatedForward=forward*Math.cos(turn)-lateral*Math.sin(turn);
-  lateral=(lateral*Math.cos(turn)+forward*Math.sin(turn))*Math.exp(-(handbrake?1.65:tune.grip*.86)*step);
+  lateral=lateral*Math.cos(turn)+forward*Math.sin(turn);
+  // Exponential recovery alone produces enormous lateral forces after an
+  // impact (15 m/s of sideslip used to recover at over 100 m/s²). Limit the
+  // tyre impulse so drifting and countersteering preserve visible momentum.
+  const recovery=Math.abs(lateral)*(1-Math.exp(-(handbrake?1.65:tune.grip*.86)*step));
+  const lateralImpulse=Math.min(recovery,cornerGrip*(handbrake?.55:1)*step);
+  lateral-=Math.sign(lateral)*lateralImpulse;
   // Transform BOTH components. Leaving forward unchanged injects energy on
   // each turn and produces a skating/accelerating car without throttle.
   forward=rotatedForward;
-  if(input.brake&&speed<.15)lateral*=Math.exp(-18*step);
+  // Do not treat a car sliding sideways at speed as parked just because its
+  // forward component is small. Only remove sub-centimetre resting jitter.
+  if(input.brake&&speed<.15&&Math.abs(lateral)<.005)lateral=0;
   const nextFx=-Math.sin(car.heading),nextFz=-Math.cos(car.heading);
   car.vx=nextFx*forward+Math.cos(car.heading)*lateral;
   car.vz=nextFz*forward-Math.sin(car.heading)*lateral;
-  car.speed=forward;car.slip=Math.atan2(lateral,Math.max(2,Math.abs(forward)));
+  car.speed=forward;
   car.handbraking=handbrake;car.braking=braking;
   car.x+=car.vx*step;car.z+=car.vz*step;
   contact(car);
+  // Contacts may change both velocity components. Audio and tyre effects must
+  // read the resolved slide, including a wall stopping the vehicle this step.
+  car.slip=Math.atan2(car.vx*Math.cos(car.heading)-car.vz*Math.sin(car.heading),Math.max(2,Math.abs(car.speed)));
   if(tune.kind==='bus')car.trailerHeading=(car.trailerHeading??car.heading)+Math.atan2(Math.sin(car.heading-(car.trailerHeading??car.heading)),Math.cos(car.heading-(car.trailerHeading??car.heading)))*(1-Math.exp(-step*Math.max(.35,Math.abs(car.speed)/7)));
  }
  car.acceleration=(car.speed-before)/dt;

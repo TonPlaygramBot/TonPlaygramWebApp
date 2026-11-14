@@ -140,6 +140,7 @@ export function solveHumanoidLimb(root,bones,side,target,leg=false) {
 export class HumanoidLegPose {
   constructor(root,bones) {
     this.root=root;this.bones=bones;this.rests=new Map();this.feet=new Map();this.target=new T.Vector3();
+    this.footRotation=new T.Quaternion();this.parentRotation=new T.Quaternion();
     root.updateMatrixWorld(true);
     for(const side of ['left','right'])for(const part of ['upleg','leg','foot']){
       const bone=bones.get(side+part);if(!bone)continue;
@@ -148,7 +149,31 @@ export class HumanoidLegPose {
     }
   }
   reset(){for(const [bone,rotation] of this.rests)bone.quaternion.copy(rotation);}
-  update(gait,speed) {
+  // Rotate only the authored stride displacement, keeping each foot's stance
+  // centre and heel lift. Aiming stays fixed while feet follow lateral travel.
+  redirect(directionX=0,directionZ=1) {
+    const length=Math.hypot(directionX,directionZ);
+    if(!Number.isFinite(length)||length<1e-6)return;
+    const x=directionX/length,z=directionZ/length;
+    if(Math.abs(x)<1e-5&&z>.99999)return;
+    for(const side of ['left','right']) {
+      const rest=this.feet.get(side),bone=this.bones.get(side+'foot');if(!rest||!bone)continue;
+      const foot=this.root.worldToLocal(bone.getWorldPosition(this.target));
+      bone.getWorldQuaternion(this.footRotation);
+      const dx=foot.x-rest.x,dz=foot.z-rest.z;
+      foot.x=rest.x+dx*z+dz*x;foot.z=rest.z+dz*z-dx*x;
+      // Side steps retain separate foot lanes instead of crossing the ankles.
+      if(Math.abs(x)>.01)foot.x=rest.x>0?Math.max(.035,foot.x):Math.min(-.035,foot.x);
+      solveHumanoidLimb(this.root,this.bones,side,this.root.localToWorld(foot),true);
+      // Preserve the clip's heel/toe roll after moving the knee and ankle.
+      if(bone.parent){
+        bone.parent.getWorldQuaternion(this.parentRotation);
+        bone.quaternion.copy(this.parentRotation.invert().multiply(this.footRotation)).normalize();
+        bone.updateWorldMatrix(false,true);
+      }
+    }
+  }
+  update(gait,speed,directionX=0,directionZ=1) {
     this.reset();
     const amount=T.MathUtils.clamp(speed/4,0,1),stride=.28*amount,lift=.11*amount;
     for(const side of ['left','right']) {
@@ -157,5 +182,6 @@ export class HumanoidLegPose {
       foot.z+=Math.sin(phase)*stride;foot.y+=Math.max(0,Math.cos(phase))*lift;
       solveHumanoidLimb(this.root,this.bones,side,this.root.localToWorld(foot),true);
     }
+    this.redirect(directionX,directionZ);
   }
 }

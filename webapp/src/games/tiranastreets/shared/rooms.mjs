@@ -20,7 +20,7 @@ export function makeRoom(
 ) {
   if (!["rivals", "coop", "career"].includes(mode))
     throw Error("Choose a supported city mode.");
-  if (!MISSIONS.some((m) => m.id === missionId))
+  if (!MISSIONS.some((m) => m.id === missionId && !m.soloOnly))
     throw Error("Choose a mission.");
   return {
     id,

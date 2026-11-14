@@ -49,18 +49,17 @@ export function makeCityWorld(scene:THREE.Scene,camera:THREE.PerspectiveCamera,r
     id: `battlefield-fleet-${i}`, forceVehicle: p.forceVehicle, model: 'police',
     x: p.x, z: p.z, heading: p.rot - Math.PI, speed: 0, steering: 0,
   })), traffic: [], units: [], npcs: []};
-  const imported=new ImportedAssetVisuals();scene.add(imported.group);
+  const imported=new ImportedAssetVisuals();
+  if(webgl)imported.configure(renderer);
+  scene.add(imported.group);
   const importedPlacements=props.filter(p=>p.racingAsset||p.assetId).map((p,i)=>({id:`imported-${i}`,x:p.x,z:p.z,heading:p.rot,racingAsset:p.racingAsset,assetId:p.assetId}));
-  const importedFallbacks = new Map<string, THREE.Object3D>();
   const fleetFallbacks = new Map<string, THREE.Object3D>();
   for (const p of props) {
     // Original models own these props. Never draw a low-detail substitute.
     if(p.collectionVehicle)continue;
-    if(p.racingAsset||p.assetId) {
-      const entry=importedPlacements.find(e=>e.racingAsset===p.racingAsset&&e.assetId===p.assetId)!;
-      const placeholder=new THREE.Mesh(new THREE.BoxGeometry(p.w,p.h,p.d),metal);
-      placeholder.position.set(p.x,p.h/2,p.z);cover.add(placeholder);importedFallbacks.set(entry.id,placeholder);continue;
-    }
+    // Keep collision data in OBSTACLES while originals stream; a failed glTF
+    // is reported rather than appearing as an untextured procedural block.
+    if(p.racingAsset||p.assetId)continue;
     const car = p.sx===8 && p.sz===12 || p.sx===-9 && p.sz===-24;
     const fallback = new THREE.Mesh(new THREE.BoxGeometry(p.w,p.h,p.d),car?metal:concrete);
     fallback.position.set(p.x,p.h/2,p.z); fallback.rotation.y=p.rot;
@@ -91,7 +90,7 @@ export function makeCityWorld(scene:THREE.Scene,camera:THREE.PerspectiveCamera,r
     imported.update(importedPlacements,position,!renderer.shadowMap.enabled);
     collection?.update(collectionCars,position,Math.min(.05,now-forceTime));
     city.group.userData.collectionErrors=collection?Object.fromEntries(collection.errors):{};
-    for(const [id,fallback] of importedFallbacks)fallback.visible=!imported.has(id);
+    city.group.userData.importedErrors=Object.fromEntries(imported.errors);
     forceTime = now;
     for (const [id, fallback] of fleetFallbacks) fallback.visible = !forces?.has(id);
     point.copy(position);point.x+=ORIGIN.x;point.z+=ORIGIN.z;

@@ -17,7 +17,7 @@ import { CITY_POPULATION, initCityPopulation, nearestShop, dropWeapon, collectWe
 import { WEAPON_BY_ID, STARTER_WEAPON, ensureStarterWeapons, difficultyOf } from "./weapons.mjs";
 import {forceWeaponFor} from './uploadedWeapons.mjs';
 import { FORCE_VEHICLE_BOUNDS } from "./albanianForces.mjs";
-import { tacticalGoal, vehicleBlocks, avoidVehicles, forceBehavior } from "./forceTactics.mjs";
+import { tacticalGoal, vehicleBlocks, avoidVehicles, forceBehavior, tacticalFireReady, recordTacticalShot } from "./forceTactics.mjs";
 
 // Gameplay-only, bounded systems. The server owns these values in connected runs.
 const dist = (a, b) => Math.hypot(a.x - b.x, a.z - b.z);
@@ -279,7 +279,10 @@ export function harm(state, target, amount, attacker, env) {
   )
     return;
   amount = env.damageAmount ? env.damageAmount(target, amount, attacker) : amount;
+  if (!Number.isFinite(amount) || amount <= 0) return;
   if (target.kind) {
+    target.lastDamage = state.elapsed;
+    target.tacticAt = 0;
     target.health = Math.max(0, target.health - amount);
     target.panicUntil = state.elapsed + 12;
     rememberPedestrianThreat(target,attacker,state.elapsed,12);
@@ -607,7 +610,7 @@ export function updateCityLife(state, dt, env, mission) {
     const cars=vehicleGrid.near(n.x,n.z,60),localPeople=peopleGrid.near(n.x,n.z,50);
     if(!n.tacticCache||state.elapsed>=(n.tacticAt||0)){
       const squad=n.squadId?squads.get(n.squadId)||[n]:localPeople.filter(o=>o.health>0&&o.kind===n.kind&&dist(n,o)<45);
-      n.tacticCache=tacticalGoal(n,p,squad,cars,state.elapsed,env.clear);n.tacticAt=state.elapsed+.12;
+      n.tacticCache=tacticalGoal(n,p,squad,cars,state.elapsed,env.clear,{observed:!env.track||p===actual});n.tacticAt=state.elapsed+.12;
     }
     const tactic=n.tacticCache;
     n.anim=tactic.anim; n.coverId=tactic.coverId; n.speed=0;
@@ -622,15 +625,21 @@ export function updateCityLife(state, dt, env, mission) {
     // Geometry cannot authorize a shot while its timer/aim state forbids it.
     // Check those gates first instead of allocating allies and tracing every
     // render tick throughout the much longer weapon cooldown.
-    const readyToShoot=d<46&&n.anim==='aim'&&!actual?.arrest&&state.elapsed-(n.aimSince||0)>.18&&state.elapsed>=n.nextShot&&(!env.track||p===actual);
+    const readyToShoot=d<46&&tacticalFireReady(n,state.elapsed)&&n.anim==='aim'&&!actual?.arrest&&state.elapsed-(n.aimSince||0)>.18&&state.elapsed>=n.nextShot&&(!env.track||p===actual);
     const canShoot=readyToShoot&&!cars.some(c=>vehicleBlocks(n,p,c))&&!friendlyInFiringLane(n,p,localPeople.filter(o=>o.kind===n.kind||o.kind!=='gang'&&n.kind!=='gang'));
     if (canShoot && env.clear(n, actual || p)) {
-      if(env.fireNPC){env.fireNPC(n,actual||p,cfg.damage);continue;}
+      if(env.fireNPC){
+        const previousShot=n.firedAt;
+        env.fireNPC(n,actual||p,cfg.damage);
+        if(n.firedAt!==previousShot&&n.firedAt===state.elapsed)recordTacticalShot(n,state.elapsed);
+        continue;
+      }
       n.nextShot =
         state.elapsed + (n.kind === "soldier" ? 0.85 : 1.6) / cfg.damage;
       // Grace period and readable cadence give touch players time to react.
       if (state.elapsed - p.lastDamage > 0.35)
         harm(state, p, (n.kind === "soldier" ? 8 : 5) * cfg.damage, n, env);
+      n.firedAt=state.elapsed;recordTacticalShot(n,state.elapsed);
       emit(state, "shot", n, p, n.id, n.weapon);
     }
   }

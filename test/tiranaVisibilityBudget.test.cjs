@@ -18,7 +18,7 @@ test('visibility query visits local indexed cells and retains distant bands with
  assert.equal(selected.length,10);assert.ok(selected.some(p=>p.distanceSq>500**2));
  assert.equal(index.query({x:NaN,z:0},100).length,0);
 });
-function facadeFixture(buildings){
+function facadeFixture(buildings, options={}){
  const {CityFacades,FACADE_VISIBILITY}=load('tiranastreets/cityVisuals.ts',{
   three:T,'./shared/visibilityIndex.mjs':visibility,
   './street-career/cityEconomyDefinitions.mjs':economy,
@@ -30,7 +30,7 @@ function facadeFixture(buildings){
   '../tirana-street-life/registry.mjs':{REAL_STOREFRONT_BUILDING_IDS:new Set(),FUEL_CANOPY_IDS:new Set()}
  });
  const source=new T.Group();
- for(const name of ['brick_block','corner_block'])for(const lod of ['', '_lod']){
+ for(const name of ['brick_block','corner_block'])for(const lod of (options.onlyFull?['']:['', '_lod'])){
   const group=new T.Group();group.name=name+lod;group.add(new T.Mesh(new T.BoxGeometry(20,12,20),new T.MeshStandardMaterial()));source.add(group);
  }
  return {layer:new CityFacades(source),profiles:FACADE_VISIBILITY};
@@ -52,6 +52,24 @@ test('generic facade templates never cover the dedicated Skanderbeg podium or fa
  layer.update({x:0,z:0},1,false);
  assert.equal(layer.group.userData.visibleBuildings,0);
  assert.ok(layer.batches.every(b=>b.mesh.count===0));
+});
+test('battery preserves nearby authored detail and a single-detail glTF remains visible at distance',()=>{
+ const {layer}=facadeFixture(Array.from({length:12},(_,i)=>building(i,i*2,0)),{onlyFull:true});
+ layer.update({x:0,z:0},1,true);
+ assert.equal(layer.batches.filter(b=>!b.lod).reduce((sum,b)=>sum+b.mesh.count,0),6);
+ assert.equal(layer.batches.reduce((sum,b)=>sum+b.mesh.count,0),12);
+ layer.update({x:0,z:200},1,true);
+ assert.equal(layer.batches.filter(b=>b.lod).reduce((sum,b)=>sum+b.mesh.count,0),12);
+ assert.ok(layer.batches.every(b=>Number.isFinite(b.mesh.boundingSphere.radius)));
+});
+test('facade detail has hysteresis when walking across a detail threshold',()=>{
+ const {layer}=facadeFixture([building('a',0,0)]);
+ const detailed=()=>layer.batches.filter(b=>!b.lod).reduce((sum,b)=>sum+b.mesh.count,0);
+ layer.update({x:0,z:65},1,false);assert.equal(detailed(),1);
+ layer.update({x:0,z:85},1,false);assert.equal(detailed(),1,'retain the existing detailed facade inside the hysteresis band');
+ layer.update({x:0,z:110},1,false);assert.equal(detailed(),0);
+ layer.update({x:0,z:85},1,false);assert.equal(detailed(),0,'do not repeatedly re-enter detail at the outer threshold');
+ layer.update({x:0,z:65},1,false);assert.equal(detailed(),1);
 });
 test('generic facade templates never overlap the licensed purchasable residences',()=>{
  const {layer}=facadeFixture([...economy.ECONOMY_RESIDENCE_IDS].map((id,i)=>building(id,i*20,0)));
@@ -116,13 +134,12 @@ test('shared FPS city keeps a 2 km skyline with bounded distant detail and corre
 });
 function importedFixture(){
  let clones=0,workerLimit;
- class Draco{setDecoderPath(){return this;}setWorkerLimit(value){workerLimit=value;return this;}dispose(){}}
- class Loader{setDRACOLoader(){return this;}}
+ class Loader{constructor(){workerLimit=1;}configure(){}dispose(){}}
  const {ImportedAssetVisuals}=load('tiranastreets/ImportedAssetVisuals.ts',{
-  three:T,'three/examples/jsm/loaders/GLTFLoader.js':{GLTFLoader:Loader},'three/examples/jsm/loaders/DRACOLoader.js':{DRACOLoader:Draco},
+  three:T,'./CityAssetLoader':{CityAssetLoader:Loader,prepareCityAssetTextures(){}},
   'three/examples/jsm/utils/SkeletonUtils.js':{clone:source=>{clones++;return source.clone(true);}},
   './shared/importedAssets.mjs':{IMPORTED_BY_ID:new Map()},'../tirana-east/terrainCore.mjs':{groundHeight:()=>0},
-  '../tirana-east/terrainTransforms':{alignVehicle(){}},'./weaponModelResources':{disposeWeaponResources(){}}
+  '../tirana-east/terrainTransforms':{alignVehicle(){}},'./weaponModelResources':{disposeWeaponResources(){},clearWeaponInstance(root){root.clear();}}
  });
  const layer=new ImportedAssetVisuals();layer.sources.set('original',new T.Group());layer.load=()=>{};
  return {layer,clones:()=>clones,workerLimit};

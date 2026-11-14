@@ -34,7 +34,7 @@ import { CityFacades, DETAIL_IDS } from "./cityVisuals";
 import { LivingVisuals } from "./livingVisuals";
 import { AlbanianForcesVisuals } from "./AlbanianForcesVisuals";
 import { GLTFLoader } from "three/examples/jsm/loaders/GLTFLoader.js";
-import { DRACOLoader } from "three/examples/jsm/loaders/DRACOLoader.js";
+import {CityAssetLoader,prepareCityAssetTextures} from './CityAssetLoader';
 import { clone } from "three/examples/jsm/utils/SkeletonUtils.js";
 import { mergeGeometries } from "three/examples/jsm/utils/BufferGeometryUtils.js";
 import {
@@ -165,6 +165,7 @@ export class CityRenderer {
     this.atmosphere=new CinematicAtmosphere(this.scene,this.renderer);
     this.outdoorEnvironment=new OutdoorEnvironment(this.scene,this.renderer);
     this.forces.configure(this.renderer);
+    this.racingFleet.configure(this.renderer);
     this.living = new LivingVisuals();
     this.scene.add(this.living.group);
     this.scene.add(this.forces.group,this.racingFleet.group,this.collectionFleet.group,this.driverInterior.group,this.urbanRoads.group);
@@ -451,6 +452,7 @@ export class CityRenderer {
       return item;
     };
     if (this.disposed) { this.disposeObject(gltf.scene); return; }
+    prepareCityAssetTextures(gltf.scene,this.renderer.capabilities.getMaxAnisotropy());
     const tree = template("tree");
     if (tree) {
       tree.updateWorldMatrix(true, true);
@@ -669,11 +671,11 @@ export class CityRenderer {
     this.collectionFleet.update([...state.cars,...state.traffic],viewer,0);
   }
   async load(onProgress?: (message: string) => void) {
-    const draco = new DRACOLoader().setDecoderPath(ASSETS + 'imported/draco/').setWorkerLimit(1);
-    const loader = new GLTFLoader().setDRACOLoader(draco);
+    const loader = new CityAssetLoader();loader.configure(this.renderer);
     const humanLoader = new HumanModelLoader();humanLoader.configure(this.renderer);
     const playerAbort = new AbortController();this.playerAbort = playerAbort;
     const pending: Promise<unknown>[] = [];
+    let unattachedCity: THREE.Group | undefined;
     const vehicleSources = new Map<string, ReturnType<GLTFLoader['loadAsync']>>();
     try {
       const chosen=selectedPlayerUrl();this.playerModel=chosen?'local-player':'character';
@@ -747,6 +749,7 @@ export class CityRenderer {
               });
             }
           });
+          if(!isHuman)prepareCityAssetTextures(wrapper,this.renderer.capabilities.getMaxAnisotropy());
           if(isHuman)this.humanMaterialReleases.push(prepareHumanMaterials(wrapper,{maxAnisotropy:this.renderer.capabilities.getMaxAnisotropy()}));
           this.models.set(name, wrapper);
           if (name === "character") this.animations = gltf.animations;
@@ -763,11 +766,15 @@ export class CityRenderer {
       pending.push(character);
       if (this.disposed) return;
       onProgress?.("Adding textured city facades");
-      const [, city] = await Promise.all([character, loader.loadAsync(ASSETS + "city.glb")]);
+      const cityLoad = loader.loadAsync(ASSETS + "city.glb").then(city=>{unattachedCity=city.scene;return city;});
+      pending.push(cityLoad);
+      const [, city] = await Promise.all([character, cityLoad]);
       if (this.disposed) {
         this.disposeObject(city.scene);
+        unattachedCity=undefined;
         return;
       }
+      prepareCityAssetTextures(city.scene,this.renderer.capabilities.getMaxAnisotropy());
       this.facades = new CityFacades(city.scene);
       this.scene.add(this.facades.group);
       const surfaces: THREE.MeshStandardMaterial[] = [];
@@ -802,6 +809,7 @@ export class CityRenderer {
       // Keep the shared GLB source attached invisibly so all geometries/textures are disposed.
       city.scene.visible = false;
       this.scene.add(city.scene);
+      unattachedCity=undefined;
 
       onProgress?.("Placing GLTF pavements, trees and traffic signs");
       const furniture = this.loadStreetFurniture(loader).catch(error => {
@@ -822,7 +830,12 @@ export class CityRenderer {
       };
       pending.push(stream(), stream());
     } finally {
-      void Promise.allSettled(pending).then(() => {draco.dispose();humanLoader.dispose();});
+      void Promise.allSettled(pending).then(() => {
+        // A failed character load must not terminate an in-flight city decode
+        // or leak the city scene when Promise.all rejects before attachment.
+        if(unattachedCity)this.disposeObject(unattachedCity);
+        loader.dispose();humanLoader.dispose();
+      });
     }
   }
   private actor(model: string, id: string): Actor {

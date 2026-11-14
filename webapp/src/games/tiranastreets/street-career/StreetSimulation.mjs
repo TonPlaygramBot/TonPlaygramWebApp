@@ -4,6 +4,7 @@ import {CityEconomySimulation} from './CityEconomySimulation.mjs';
 import {CivicConvoySimulation} from './CivicConvoySimulation.mjs';
 import {ArrestSimulation} from './ArrestSimulation.mjs';
 import {createMissionDirector, extractionSeconds, updateMissionDirector} from './missionDirectorCore.mjs';
+import {operationTarget} from './operationRoute.mjs';
 import {npcWeaponPose} from '../shared/npcWeaponPose.mjs';
 import {rememberPedestrianThreat} from '../shared/pedestrianBehavior.mjs';
 import {ThrowableSimulation} from './ThrowableSimulation.mjs';
@@ -394,6 +395,7 @@ export class StreetSimulation {
       vehicleDestroyed: !!previousCar?.destroyed || d.recovery > 0,
       remaining: this.state.objectiveRemaining ?? m.enemies,
       distance: m.stops[p.index] ? dist(p, m.stops[p.index]) : Infinity,
+      approachDistance: m.approach ? dist(p, m.approach) : Infinity,
       driving: !!car, onFoot: !p.carId && !p.aircraftId,
       grounded: this.body.grounded, speed: p.speed, wanted: p.wanted,
       final: p.index === m.stops.length - 1, firing: this.intent.fire,
@@ -576,7 +578,9 @@ export class StreetSimulation {
         }
       ];
     }
-    const target = this.mission.stops[p.index];
+    const target = this.mission.approach
+      ? this.job.director.operationStage === 'secure' ? this.mission.combatZone : null
+      : this.mission.stops[p.index];
     if (
       target &&
       this.mission.type !== 'race' &&
@@ -584,12 +588,12 @@ export class StreetSimulation {
     )
       add(
         'objective:' + p.index,
-        this.mission.type === 'delivery'
+        this.mission.approach ? 'RECOVER DISPATCH' : this.mission.type === 'delivery'
           ? p.index === 0
             ? 'MERR PAKON'
             : 'DORËZO'
           : 'NXJERRJE',
-        { ...target, y: 0.8 },
+        { ...target, y: groundHeight(target.x, target.z) + 0.8 },
         7,
         90,
         'objective'
@@ -1180,6 +1184,17 @@ export class StreetSimulation {
       this.body.notice=this.player.shopMessage;
       this.event('loot', { targetId: l.id });
     } else if (live.kind === 'objective') {
+      if (this.mission.approach) {
+        if (this.job.director.operationStage !== 'secure' || this.state.objectiveRemaining !== 0 || !this.body.grounded || this.player.carId || this.player.aircraftId) {
+          this.body.notice = 'Clear the crew, then recover the dispatch on foot.';
+          return;
+        }
+        this.job.director.operationStage = 'escape';
+        this.job.director.hold = 0;
+        this.body.notice = 'Dispatch recovered. Enter a car and follow the route to the safe point.';
+        this.event('checkpoint', {stage: 'escape'});
+        return;
+      }
       if (this.mission.type === 'delivery') {
         if (this.player.index > 0 && !this.job.parcel) {
           this.body.notice = 'Collect the parcel first';
@@ -1208,6 +1223,8 @@ export class StreetSimulation {
   }
   canAdvance(p, m) {
     if(p.arrest)return false;
+    if (m.approach)
+      return this.job.director.operationStage === 'escape' && !!p.carId && this.job.director.hold >= 3 - 1e-7;
     if (m.type === 'flight') {
       const a = this.flight.current;
       if (!a || a.kind !== m.aircraft) return false;
@@ -1251,6 +1268,28 @@ export class StreetSimulation {
     }
     const stop = this.mission.stops[p.index];
     const d = this.job.director;
+    if (this.mission.approach) {
+      const remaining = this.state.objectiveRemaining ?? this.mission.enemies;
+      const stage = d.operationStage;
+      const target = operationTarget(this.mission, d, remaining);
+      if (stage === 'approach') return {
+        title: p.carId ? `Drive to ${target.name}` : 'Find a car for City response',
+        detail: 'Follow the road route. Brake inside the staging marker and hold still for one second.',
+        training:false,phase:'drive',progress:d.hold/3,stage:1,stages:3,
+        optionalObjective:'Keep your vehicle intact for the escape'
+      };
+      if (stage === 'secure') return {
+        title: remaining > 0 ? 'Dismount and secure the river corridor' : 'Recover the dispatch case',
+        detail: remaining > 0 ? `${remaining} opponents · use cover and watch their reloads` : 'Approach the marker on foot, look at it and tap RECOVER DISPATCH.',
+        training:false,phase:'secure',progress:(1 + 1 - remaining / this.mission.enemies)/3,stage:2,stages:3
+      };
+      return {
+        title:p.wanted > 0 ? 'Break contact and reach the safe point' : p.carId ? 'Drive the dispatch to Blloku' : 'Find a getaway car',
+        detail: 'Follow the road route. Lose any pursuit, then park inside the final marker for three seconds.',
+        training:false,phase:'escape',progress:(2+d.hold/3)/3,remaining:Math.max(0,3-d.hold),stage:3,stages:3,
+        optionalObjective:'Clean operation: take no more than 20 damage'
+      };
+    }
     if (this.mission.type === 'combat') {
       const remaining = this.state.objectiveRemaining ?? this.mission.enemies;
       const duration = extractionSeconds(this.mission);

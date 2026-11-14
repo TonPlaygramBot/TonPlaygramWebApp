@@ -125,6 +125,6 @@ export class StreetSimulation {
   cars(): import('../shared/engine.mjs').Car[];
   resolve(): StreetAction[];
   execute(id: string, targetId?: string | null): boolean;
-  objective(): { title: string; detail: string; training: boolean; phase?:string;progress?:number;remaining?:number;integrity?:number;optionalObjective?:string };
+  objective(): { title: string; detail: string; training: boolean; phase?:string;stage?:number;stages?:number;progress?:number;remaining?:number;integrity?:number;optionalObjective?:string };
 }
 export const TUTORIAL: readonly (readonly string[])[];

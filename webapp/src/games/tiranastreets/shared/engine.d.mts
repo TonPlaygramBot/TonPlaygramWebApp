@@ -81,8 +81,10 @@ export type Mission = {
   stars?: number;
   enemies?: number;
   operation?:boolean;
+  soloOnly?:boolean;
   combatZone?:Point & {name:string};
   extractionHold?:number;
+  approach?:Point & {name:string};
   aircraft?: 'helicopter' | 'jet';
   stops: (Point & { name: string })[];
 };

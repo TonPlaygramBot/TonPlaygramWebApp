@@ -6,6 +6,7 @@ export function createMissionDirector(raw) {
     version: 1,
     hold: bounded(raw?.hold, 0, 12),
     extracting: raw?.extracting === true,
+    operationStage: ['secure', 'escape'].includes(raw?.operationStage) ? raw.operationStage : 'approach',
     integrity: bounded(raw?.integrity, 100, 100),
     damageTaken: bounded(raw?.damageTaken, 0, 10000),
     vehicleDamage: bounded(raw?.vehicleDamage, 0, 10000),
@@ -43,7 +44,19 @@ export function updateMissionDirector(director, mission, frame, seconds) {
     director.integrity = Math.max(0, director.integrity - loss * .6 - vehicleLoss * .35);
     if (director.integrity <= 0) director.failure = 'The delivery was damaged beyond repair. Retry from your checkpoint.';
   }
-  if (mission.type === 'combat') {
+  if (mission.approach) {
+    if (director.operationStage === 'approach') {
+      const parked = frame.driving && frame.approachDistance < 17 && Math.abs(frame.speed) < .6 && !frame.firing && !hurt;
+      director.hold = parked ? Math.min(1, director.hold + dt) : 0;
+      if (director.hold >= 1 - 1e-7) {
+        director.operationStage = 'secure';
+        director.hold = 0;
+      }
+    } else if (director.operationStage === 'escape') {
+      const safe = frame.remaining === 0 && frame.driving && frame.distance < 17 && Math.abs(frame.speed) < .6 && frame.wanted === 0 && !frame.firing && !hurt;
+      director.hold = safe ? Math.min(3, director.hold + dt) : 0;
+    } else director.hold = 0;
+  } else if (mission.type === 'combat') {
     const secure = frame.remaining === 0 && frame.distance < 18 && frame.onFoot === true && frame.grounded === true && !frame.driving && Math.abs(frame.speed) < 1.2;
     // Extraction needs continuous control of the area; taking damage, leaving
     // the marker, or a surviving opponent interrupts the channel.

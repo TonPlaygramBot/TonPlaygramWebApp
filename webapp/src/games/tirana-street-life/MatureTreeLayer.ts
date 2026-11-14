@@ -20,6 +20,8 @@ export class MatureTreeLayer {
  private near:(p:{x:number;z:number},r:number,n:number)=>Tree[];
  private dummy=new T.Object3D();private color=new T.Color();
  private viewer={x:Infinity,z:Infinity};private battery?:boolean;
+ private cameraMatrix=new T.Matrix4();private cameraProjection=new T.Matrix4();
+ private frustum=new T.Frustum();private projection=new T.Matrix4();private treeBounds=new T.Sphere();
  constructor(trees:Tree[]=CANOPY_TREES,options:StreetDetailOptions={}){
   this.group.name='Tirana:mature-boulevard-and-square-trees';this.group.add(this.imported.group);
   const blocked=options.track?ribbonExclusion(options.track):null;
@@ -44,16 +46,36 @@ export class MatureTreeLayer {
    this.batches.push({shape,lod,wood:trunk,leaves});
   }
  }
- update(seconds:number,viewer?:{x:number;z:number},battery=false,force=false){
+ update(seconds:number,viewer?:{x:number;z:number},battery=false,force=false,camera?:T.Camera){
   if(this.dead||!viewer)return;
-  if(!force&&this.importedReady===this.imported.ready&&this.battery===battery&&seconds>=this.last&&(seconds-this.last<.2||Math.hypot(viewer.x-this.viewer.x,viewer.z-this.viewer.z)<12))return;
+  if(camera)camera.updateWorldMatrix(true,false);
+  const cameraChanged=!!camera&&(!this.cameraMatrix.equals(camera.matrixWorld)||!this.cameraProjection.equals(camera.projectionMatrix));
+  if(!force&&this.importedReady===this.imported.ready&&this.battery===battery&&seconds>=this.last&&(seconds-this.last<.2||Math.hypot(viewer.x-this.viewer.x,viewer.z-this.viewer.z)<12&&!cameraChanged))return;
+  if(camera){
+   this.cameraMatrix.copy(camera.matrixWorld);this.cameraProjection.copy(camera.projectionMatrix);
+   this.projection.multiplyMatrices(camera.projectionMatrix,camera.matrixWorldInverse);this.frustum.setFromProjectionMatrix(this.projection);
+   this.group.updateWorldMatrix(true,false);
+  }
   this.importedReady=this.imported.ready;this.imported.begin();
   this.last=seconds;this.viewer={x:viewer.x,z:viewer.z};this.battery=battery;
   const trees=this.near(viewer,2200,6000);let detailed=0,medium=0;
   this.batches.forEach(b=>{b.wood.count=0;b.leaves.count=0;});
+  // Spend the existing original-model budget on what is visible on the phone.
+  // Trees behind the camera must not force visible broadleaf trees to use the
+  // generated canopy; cypress/upright profiles keep their existing proportions.
+  const originalIds=new Set<string>();
   for(const t of trees){
+   if(Math.hypot(t.x-viewer.x,t.z-viewer.z)>=(battery?75:125)||!['garden','umbrella'].includes(t.shape))continue;
+   if(camera){
+    this.treeBounds.center.set(t.x,(t.y??.12)+t.height/2,t.z);this.treeBounds.radius=Math.hypot(t.crown,t.height)/2;
+    this.treeBounds.applyMatrix4(this.group.matrixWorld);
+    if(!this.frustum.intersectsSphere(this.treeBounds))continue;
+   }
+   this.imported.request();if(this.imported.add(t,battery))originalIds.add(t.id);
+  }
+  for(const t of trees){
+   if(originalIds.has(t.id))continue;
    const distance=Math.hypot(t.x-viewer.x,t.z-viewer.z);
-   if(distance<65&&['garden','umbrella'].includes(t.shape)){this.imported.request();if(this.imported.add(t,battery))continue;}
    const lod=!battery&&distance<65&&detailed<64?0:distance<(battery?120:240)&&medium<384?1:2;
    if(lod===0)detailed++;if(lod===1)medium++;
    const b=this.batches.find(b=>b.shape===t.shape&&b.lod===lod)??this.batches.find(b=>b.shape==='upright'&&b.lod===lod)!;
@@ -64,6 +86,7 @@ export class MatureTreeLayer {
   }
   this.imported.end();
   this.group.userData.importedTrunks=this.imported.group.userData.visibleTrees;
+  this.group.userData.importedRadius=battery?75:125;
   this.group.userData.visibleTrunks=trees.length;this.group.userData.radius=2200;
   this.batches.forEach(b=>{b.wood.instanceMatrix.needsUpdate=true;b.leaves.instanceMatrix.needsUpdate=true;if(b.leaves.instanceColor)b.leaves.instanceColor.needsUpdate=true;});
  }

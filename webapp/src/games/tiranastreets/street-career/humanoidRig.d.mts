@@ -10,5 +10,6 @@ export function solveHumanoidLimb(root:T.Object3D,bones:Map<string,T.Bone>,side:
 export class HumanoidLegPose {
   constructor(root:T.Object3D,bones:Map<string,T.Bone>);
   reset():void;
-  update(gait:number,speed:number):void;
+  redirect(directionX?:number,directionZ?:number):void;
+  update(gait:number,speed:number,directionX?:number,directionZ?:number):void;
 }
