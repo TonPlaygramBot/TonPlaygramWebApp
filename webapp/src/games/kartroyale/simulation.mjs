@@ -3,10 +3,10 @@
 export * from './legacySimulation.mjs';
 import * as legacy from './legacySimulation.mjs';
 import {TIRANA_ROUTES} from './tirana-routes.mjs';
-import {DISTRICT_ROUTES} from './district-routes.mjs';
+import {MAIN_ROAD_ROUTES} from './main-road-routes.mjs';
 import {RURAL_ROUTES} from './rural-routes.mjs';
 import {buildRaceCatalog} from './raceCatalog.mjs';
-const catalog=buildRaceCatalog(legacy,TIRANA_ROUTES,DISTRICT_ROUTES,RURAL_ROUTES);
+const catalog=buildRaceCatalog(legacy,TIRANA_ROUTES,MAIN_ROAD_ROUTES,RURAL_ROUTES);
 export const TRACKS=catalog.tracks;
 export const CUPS=catalog.cups;
 export const GRAND_ROUTE_DIAGNOSTICS=catalog.diagnostics;

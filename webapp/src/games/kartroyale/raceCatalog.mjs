@@ -20,7 +20,7 @@ export function buildRaceCatalog(legacy,routes,districtRoutes=[],ruralRoutes=[])
   const route=districtRoutes.find(r=>r.id===old.id)||routes.find(r=>r.id===old.id);
   if(!route)throw Error('Missing Tirana city circuit: '+old.id);
   const widths=widthsFor(route);
-  return {...old,...route,widths,width:Math.max(...widths),roadFeelVersion:1,mapVersion:'tirana-district-racing-v2'};
+  return {...old,...route,widths,width:Math.max(...widths),roadFeelVersion:1,mapVersion:route.routeClass==='main-roads'?'tirana-main-roads-v3':'tirana-district-racing-v2'};
  });
  const grand=districtRoutes.find(r=>r.id==='lana-pyramid-grand')||combineMappedLoops(routes.find(r=>r.id==='lana'),routes.find(r=>r.id==='pyramid'));
  if(grand)tracks.push({...legacy.TRACKS.find(t=>t.id==='lana'),...grand,
@@ -78,11 +78,14 @@ export function buildRaceCatalog(legacy,routes,districtRoutes=[],ruralRoutes=[])
    const track={...config,...samples,width:Math.max(...samples.points.map(p=>p.width)),turns:course.turns,bounds,center:{x:(bounds[0]+bounds[2])/2,z:(bounds[1]+bounds[3])/2},x:(bounds[2]-bounds[0])/2,z:(bounds[3]-bounds[1])/2,bend:0};
    // Event-only shoulder widening: city coordinates/buildings stay untouched.
    // Insufficient building or shoreline clearance is reported, never bulldozed.
-   track.passingAudit=widenPassingSections(track,{
+   track.passingAudit=config.routeClass==='main-roads'?{
+    requiredWidth:4.8,minimumWidth:Math.min(...track.points.map(p=>p.width)),widenedSamples:0,
+    unresolved:track.points.flatMap((p,index)=>p.width+1e-6<4.8?[{index,x:p.x,z:p.z,width:p.width}]:[])
+   }:widenPassingSections(track,{
     clearance:(x,z)=>Math.min(buildingClearance(x,z)-1.8,waterClearance(x,z)-.5),
     sides:points=>circuitSides(points,track.width/2)
    });
-   track.mapVersion=RACING_CLEARANCE_VERSION;
+   track.mapVersion=config.routeClass==='main-roads'?'tirana-main-roads-v3':RACING_CLEARANCE_VERSION;
    if(track.passingAudit.unresolved.length)diagnostics.push({id,kind:'passing-clearance',...track.passingAudit});
    cache.set(id,track);return track;
   }};

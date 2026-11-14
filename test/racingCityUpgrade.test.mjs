@@ -7,6 +7,7 @@ import {makeTrack,createRacer,equipKart,stepRace,STEP,RACE_LIMIT,nearestPoint} f
 import {COLLECTION_BY_ID} from '../webapp/src/games/tiranastreets/shared/vehicleCollection.mjs';
 import {vehicleDriverMount,cockpitStyle} from '../webapp/src/games/kartroyale/vehicleAssetConfig.mjs';
 import {resolveKartContact} from '../webapp/src/games/kartroyale/collisions.mjs';
+import {KART_LENGTH,KART_WIDTH} from '../webapp/src/games/kartroyale/racingDimensions.mjs';
 const key=(a,b)=>[a.join(','),b.join(',')].sort().join('|');
 const edges=new Map(WORLD.roads.filter(r=>!r.walk).map(r=>[key(r.a,r.b),r]));
 test('archived city routes retain mapped edges while active races use rounded district circuits',()=>{
@@ -26,13 +27,13 @@ test('street cameras retain source seats while stale racing car IDs migrate to k
  for(const car of COLLECTION_BY_ID.values()){
   const eye=vehicleDriverMount(car.id,{scale:1,offset:[0,0,0]});
   assert.ok(Math.abs(eye[1]-(car.driverSeat[1]+.62))<1e-8);assert.ok(eye[0]>0);assert.ok(eye[1]<car.height+.02);
-  const r=equipKart(createRacer(t,car.id,car.name),car.id);assert.equal(r.kartId,'apex');assert.equal(r.bodyLength,2.7);assert.equal(r.bodyWidth,1.72);assert.ok(cockpitStyle(car.id));
+  const r=equipKart(createRacer(t,car.id,car.name),car.id);assert.equal(r.kartId,'apex');assert.equal(r.bodyLength,KART_LENGTH);assert.equal(r.bodyWidth,KART_WIDTH);assert.ok(cockpitStyle(car.id));
  }
 });
 test('migrated car selections use the compact kart collision footprint',()=>{
  const t=makeTrack(),a=equipKart(createRacer(t,'a','A'),'benz'),b=equipKart(createRacer(t,'b','B'),'benz');
- Object.assign(a,{x:0,z:0,yaw:0,velocityYaw:0,speed:0});Object.assign(b,{x:0,z:2.4,yaw:0,velocityYaw:0,speed:0});
- resolveKartContact(a,b);assert.ok(Math.abs(b.z-a.z)>2.4);assert.equal(a.kartId,'apex');assert.equal(b.kartId,'apex');
+ Object.assign(a,{x:0,z:0,yaw:0,velocityYaw:0,speed:0});Object.assign(b,{x:0,z:KART_LENGTH-.2,yaw:0,velocityYaw:0,speed:0});
+ resolveKartContact(a,b);assert.ok(Math.abs(b.z-a.z)>KART_LENGTH-.2);assert.equal(a.kartId,'apex');assert.equal(b.kartId,'apex');
 });
 test('all five Blender cockpit exports contain eye, steering, and instrument pivots',()=>{
  for(const style of ['sedan','sport','suv','armored','kart']){

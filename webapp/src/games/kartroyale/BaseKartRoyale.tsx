@@ -23,12 +23,14 @@ import {
   Camera,
   Compass,
   Wifi,
-  WifiOff
+  WifiOff,
+  Crosshair
 } from 'lucide-react';
 import { createHeldRaceInput } from './heldRaceInput.mjs';
 import { FREE_ROAM_STARTS } from './freeRoam.mjs';
 import { FreeRoamMap } from './FreeRoamMap';
 import { KartControls } from './KartControls';
+import {CombatControls,createHeldActionInput} from './ActionControls';
 import { KartRenderer } from './renderer';
 import type { Quality, Frame, Result, CameraMode } from './renderer';
 import {
@@ -47,7 +49,7 @@ import type { Room, Session } from './network';
 import './kart-royale.css';
 import './kart-mobile.css';
 import './kart-controls.css';
-type Mode = 'ai' | 'online' | 'career' | 'free' | 'trial';
+type Mode = 'ai' | 'online' | 'career' | 'free' | 'trial' | 'combat';
 interface Props {
   getSocket?: () => Promise<Socket>;
   onExit?: () => void;
@@ -64,6 +66,7 @@ interface Props {
 }
 const modes = [
   { id: 'ai', title: 'VS AI', sub: 'Find your racing line', icon: Cpu },
+  { id: 'combat', title: 'COMBAT RACE', sub: 'Race, defend and fight rivals', icon: Crosshair },
   { id: 'trial', title: 'TIME TRIAL', sub: 'Beat your personal best ghost', icon: Flag },
   { id: 'free', title: 'FREE ROAM', sub: 'Explore with your kart', icon: Compass },
   { id: 'online', title: 'MULTIPLAYER', sub: 'Race your friends', icon: Users },
@@ -124,6 +127,7 @@ export default function KartRoyale({
   );
   const slideDirection = useRef(0);
   const heldInput = useRef(createHeldRaceInput());
+  const combatHeld = useRef(createHeldActionInput());
   const [loaded, setLoaded] = useState(false),
     [error, setError] = useState(''),
     [mode, setMode] = useState<Mode>('ai'),
@@ -181,7 +185,9 @@ export default function KartRoyale({
     done = useRef(false),
     cleanupSocket = useRef<(() => void) | null>(null),
     mounted = useRef(false),
-    modalRef = useRef(modal);
+    modalRef = useRef(modal),
+    modeRef = useRef(mode);
+  modeRef.current = mode;
   sessionRef.current = session;
   screenRef.current = screen;
   careerRef.current = career;
@@ -195,9 +201,11 @@ export default function KartRoyale({
     setResult(r);
     setScreen('results');
     setModal(null);
+    heldInput.current.clear();combatHeld.current.clear();
     engine.current?.clearInput();
     audio.current?.silence();
     audio.current?.beep(880, 0.3);
+    if(r.combat){setSaved(true);return;}
     if(r.timeTrial){setSaved(r.ghostSaved!==false);return;}
     if (!sessionRef.current) {
       const me = r.racers.find((p) => p.id === r.playerId)!,
@@ -288,28 +296,35 @@ export default function KartRoyale({
       ArrowRight:['steer',1],d:['steer',1],ArrowLeft:['steer',-1],a:['steer',-1],
       ArrowUp:['throttle',true],w:['throttle',true],ArrowDown:['brake',true],s:['brake',true],r:['reverse',true],' ':['drift',true],Shift:['boost',true]
     };
-    const apply = () => { if(engine.current) Object.assign(engine.current.input, heldInput.current.read()); };
+    const apply = () => { if(engine.current){Object.assign(engine.current.input,heldInput.current.read());engine.current.combatInput.reload=combatHeld.current.read().reload;} };
     const down = (e: KeyboardEvent) => {
       const key = e.key.length === 1 ? e.key.toLowerCase() : e.key;
       if (
         screenRef.current !== 'race' ||
         modalRef.current ||
         e.target instanceof HTMLInputElement ||
-        e.target instanceof HTMLSelectElement
+        e.target instanceof HTMLSelectElement ||
+        (e.target as HTMLElement)?.closest?.('textarea,[contenteditable="true"]') ||
+        e.ctrlKey || e.metaKey || e.altKey
       )
         return;
-      if (mapping[key]) {
+      if(modeRef.current==='combat'&&!sessionRef.current&&['f','q','r'].includes(key)){
+        e.preventDefault();
+        if(key==='r'){combatHeld.current.hold(`key:${key}`,'reload',true);if(!e.repeat)engine.current?.queueCombatReload();}
+        else heldInput.current.hold(`key:${key}`,key==='f'?'fire':'shield',true);
+        apply();
+      }else if (mapping[key]) {
         e.preventDefault(); heldInput.current.hold(`key:${key}`, ...mapping[key]); apply();
       }
       if (e.key === 'Escape') setModal('pause');
     };
     const up = (e: KeyboardEvent) => {
       const key = e.key.length === 1 ? e.key.toLowerCase() : e.key;
-      heldInput.current.release(`key:${key}`);
+      heldInput.current.release(`key:${key}`);combatHeld.current.release(`key:${key}`);
       if (!modalRef.current) apply();
     };
     const blur = () => {
-      heldInput.current.clear();
+      heldInput.current.clear();combatHeld.current.clear();
       engine.current?.clearInput();
       audio.current?.silence();
       if (screenRef.current === 'race' && !sessionRef.current)
@@ -332,7 +347,7 @@ export default function KartRoyale({
   useEffect(() => {
     engine.current?.pause(modal === 'pause' && !session);
     if (modal) {
-      heldInput.current.clear();
+      heldInput.current.clear();combatHeld.current.clear();
       engine.current?.clearInput();
       audio.current?.silence();
     }
@@ -571,7 +586,7 @@ export default function KartRoyale({
     audio.current?.silence();
   };
   const garage = () => {
-    heldInput.current.clear();
+    heldInput.current.clear();combatHeld.current.clear();
     if (session) {
       leave();
       return;
@@ -583,8 +598,8 @@ export default function KartRoyale({
     setResult(null);
   };
   const start = () => {
-    heldInput.current.clear();
-    if (!loaded) return;
+    heldInput.current.clear();combatHeld.current.clear();
+    if (!loaded || sessionRef.current) return;
     audio.current?.unlock();
     done.current = false;
     raceCup.current = mode === 'career' ? cup : null;
@@ -593,7 +608,8 @@ export default function KartRoyale({
     setHud(null);
     setModal(null);
     setScreen('race');
-    if(mode==='trial')engine.current?.startLocal(activeTrack,'street',false,true);
+    if(mode==='combat')engine.current?.startCombatRace(activeTrack,difficulty);
+    else if(mode==='trial')engine.current?.startLocal(activeTrack,'street',false,true);
     else engine.current?.startLocal(
       activeTrack,
       mode === 'career' ? CUPS[cup].difficulty : difficulty,
@@ -761,7 +777,7 @@ export default function KartRoyale({
                   </button>
                 ))}
               </div>
-              {(mode === 'ai'||mode === 'trial') && (
+              {(mode === 'ai'||mode === 'trial'||mode === 'combat') && (
                 <div className="kr-options">
                   <div className="kr-track-selector">
                     <div className="kr-track-mini">
@@ -803,7 +819,7 @@ export default function KartRoyale({
                       ))}
                     </div>
                   </div>
-                  {mode==='ai'&&<div className="kr-difficulty">
+                  {(mode==='ai'||mode==='combat')&&<div className="kr-difficulty">
                     <span className="kr-label">AI LEVEL</span>
                     <div>
                       {['rookie', 'street', 'pro'].map((d) => (
@@ -818,6 +834,7 @@ export default function KartRoyale({
                       ))}
                     </div>
                   </div>}
+                  {mode==='combat'&&<p className="rr-trial-description">Finish the race while rivals fight back. Hold FIRE, block attacks with SHIELD, and collect repair and ammo pickups. Red warnings show incoming attacks. Local play · no TPG stake or career rewards.</p>}
                   {mode==='trial'&&<p className="rr-trial-description">Three flying laps. Chase your best ghost, compare four sector splits, and improve your racing line. Recovering invalidates that lap. Records save for each kart and circuit on this device.</p>}
                 </div>
               )}
@@ -1060,6 +1077,7 @@ export default function KartRoyale({
                       ? 'LOADING YOUR KART…'
                       : mode === 'free' ? 'EXPLORE TIRANA'
                       : mode === 'trial' ? 'CHASE YOUR BEST'
+                      : mode === 'combat' ? 'START COMBAT RACE'
                       : mode === 'career'
                         ? 'RACE FOR THE CUP'
                         : 'LET’S RACE'}
@@ -1126,18 +1144,24 @@ export default function KartRoyale({
           {(hud?.countdown || 0)>0 && <div className="rr-countdown" role="status"><div className="rr-start-lights" aria-hidden="true">{[3,2,1].map(n=><i key={n} className={hud!.countdown<=n?'on':''}/>)}</div><span>READY TO RACE</span><b>{hud!.countdown}</b><p>Hold GAS to accelerate.<br/>Drag the left joystick to steer; slide it up to drift.</p></div>}
           {notice && <div className="rr-notice" role="status"><WifiOff size={16}/>{notice}</div>}
           <div className="rr-speed"><b>{hud?.reversing&&<small>R </small>}{Math.round(Math.abs(hud?.speed||0)*3.6)}</b><span>KM/H</span><RaceRevBar frame={hud}/></div>
-          <RaceTelemetryHud frame={hud}/>
+          {!hud?.combat&&<RaceTelemetryHud frame={hud}/>}
+          {hud?.combat&&<>
+            <div className="rr-combat-hud" aria-label="Combat status"><strong>COMBAT RACE</strong><span>{Math.ceil(hud.health)}% CONDITION · {hud.combat.player.kills} DISABLED</span><span>{hud.combat.player.reload>0?`RELOAD ${hud.combat.player.reload.toFixed(1)}s`:`AMMO ${hud.combat.player.ammo} / ${hud.combat.player.reserve}`}</span>{hud.combat.warnings.some(w=>w.targetId===hud.playerId)&&<span className="rr-incoming">INCOMING · STEER CLEAR OR SHIELD</span>}</div>
+            <CombatControls disabled={!!modal} reloading={hud.combat.player.reload>0} shield={hud.combat.player.shield} shieldActive={hud.combat.player.shieldActive}
+              hold={(id,key,value)=>{if(modalRef.current)return;audio.current?.unlock();if(key==='reload'){combatHeld.current.hold(id,'reload',value);if(value===true)engine.current?.queueCombatReload();}else heldInput.current.hold(id,key,value);if(engine.current){Object.assign(engine.current.input,heldInput.current.read());engine.current.combatInput.reload=combatHeld.current.read().reload;}}}
+              release={id=>{heldInput.current.release(id);combatHeld.current.release(id);if(engine.current){Object.assign(engine.current.input,heldInput.current.read());engine.current.combatInput.reload=combatHeld.current.read().reload;}}}/>
+          </>}
           <KartControls boost={hud?.boost||0} drifting={hud?.drifting} driftCharge={hud?.driftCharge} turbo={hud?.turbo} boostEvent={hud?.boostEvent} reversing={hud?.reversing} disabled={!!modal}
             hold={(id,key,value)=>{audio.current?.unlock();heldInput.current.hold(id,key,value);if(engine.current)Object.assign(engine.current.input,heldInput.current.read());}}
             release={id=>{heldInput.current.release(id);if(engine.current)Object.assign(engine.current.input,heldInput.current.read());}}/>
-          <div className="rr-key-hint">↑ GAS · ← → STEER · SPACE DRIFT · SHIFT BOOST · HOLD ↓ BRAKE / REVERSE</div>
+          <div className="rr-key-hint">{hud?.combat?'F FIRE · Q SHIELD · R RELOAD · ↑ GAS · ← → STEER':'↑ GAS · ← → STEER · SPACE DRIFT · SHIFT BOOST · HOLD ↓ BRAKE / REVERSE'}</div>
         </div>
       )}
       {screen === 'results' && result && (
         <div className="kr-results-backdrop">
           <section className="kr-results">
             <div className="kr-eyebrow">
-              <Flag size={16} /> {result.timeTrial?'TIME TRIAL COMPLETE':'RACE COMPLETE'}
+              <Flag size={16} /> {result.combat?'COMBAT RACE COMPLETE':result.timeTrial?'TIME TRIAL COMPLETE':'RACE COMPLETE'}
             </div>
             <div className="kr-finish-place">
               {result.timeTrial?'TT':finishedMe?.finished ? String(place).padStart(2, '0') : 'DNF'}
@@ -1161,6 +1185,7 @@ export default function KartRoyale({
               {formatTime(finishedMe?.finishTime || result.elapsed)}
             </p>
             <RaceDebrief result={result}/>
+            {result.combat&&<div className="rr-action-summary"><b>{result.combat.player.kills} rival karts disabled · {result.combat.player.hits} hits</b><p>Combat races are local. Championship progress and TPG are unchanged.</p></div>}
             <div className="kr-result-table">
               {result.racers.map((r, i) => (
                 <div
