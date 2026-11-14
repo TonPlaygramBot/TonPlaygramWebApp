@@ -2,21 +2,34 @@ import * as THREE from 'three';
 import type { HumanEyeView } from './shared/poolRoyalPlayerPose.ts';
 
 export const SNOOKER_PLAYER_FOLLOW_THROUGH_MS = 900;
+export const SNOOKER_PLAYER_SHOT_FOV = 66;
+export const SNOOKER_CUE_BALL_SCREEN_Y = -0.28;
 
-/** A safe address view while the character is still loading or settling. */
+/** A cue-line player view, independent of orbit cameras and character assets. */
 export function snookerRoyalFallbackEye(ball: THREE.Vector3, forward: THREE.Vector3,
   cueLength: number, ballRadius: number): HumanEyeView {
   const direction = forward.clone().setY(0).normalize();
-  if (direction.lengthSq() < 1e-8) direction.set(0, 0, 1);
+  if (!Number.isFinite(direction.lengthSq()) || direction.lengthSq() < 1e-8) direction.set(0, 0, 1);
+  const distance = Math.max(cueLength * .7, ballRadius * 8);
+  const height = ballRadius * 4;
+  const position = ball.clone().addScaledVector(direction, -distance);
+  position.y += height;
+  // Keep the ball at 64% down the phone display, leaving room for the cue
+  // below and the shot ahead. Changing aim never introduces a lateral offset.
+  const framingAngle = Math.atan(-SNOOKER_CUE_BALL_SCREEN_Y *
+    Math.tan(THREE.MathUtils.degToRad(SNOOKER_PLAYER_SHOT_FOV / 2)));
+  const pitch = Math.atan2(-height, distance) + framingAngle;
+  const gaze = direction.clone().multiplyScalar(Math.cos(pitch)).setY(Math.sin(pitch));
   return {
-    position: ball.clone().addScaledVector(direction, -cueLength * .7)
-      .add(new THREE.Vector3(0, ballRadius * 4, 0)),
-    target: ball.clone().addScaledVector(direction, ballRadius * 5),
-    blend: 1
+    position,
+    target: position.clone().addScaledVector(gaze, Math.hypot(distance, height)),
+    blend: 1,
+    fov: SNOOKER_PLAYER_SHOT_FOV,
+    zoom: 1
   };
 }
 
-/** Player address → fixed follow-through → broadcast, once per shot. */
+/** Hold the player's cue-line viewpoint until every ball has stopped. */
 export class SnookerRoyalShotCamera {
   private held: HumanEyeView | null = null;
   private impactAt: number | null = null;
@@ -69,12 +82,9 @@ export class SnookerRoyalShotCamera {
           this.markImpact(now);
         }
       }
-      if (this.impactAt !== null && !stroke && now - this.impactAt >= SNOOKER_PLAYER_FOLLOW_THROUGH_MS) {
-        this.held = null;
-        this.broadcast = true;
-        return null;
-      }
-      // Explicit views override rendering without pausing the shot clock.
+      // A timer must not switch a live player shot to side or pocket tracking.
+      // The caller releases this snapshot when both stroke and shooting end.
+      // Explicit views override rendering without losing the shot's anchor.
       return excluded ? null : this.held;
     }
     if (excluded) return null;

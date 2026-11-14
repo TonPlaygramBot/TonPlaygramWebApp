@@ -1,5 +1,12 @@
 const normalizeSeat = (seat) => (seat === 'B' ? 'B' : 'A')
 
+export function shouldApplySnookerRevision (payload = {}, latestRevision = 0) {
+  const revision = Number(payload.revision ?? payload.state?.seq ?? 0)
+  if (!Number.isFinite(revision) || revision < 0) return false
+  return revision === 0 || revision > latestRevision ||
+    (revision === latestRevision && payload.resync === true && Boolean(payload.state))
+}
+
 export function resolveSnookerViewerScores (scores, localSeat = 'A') {
   const seat = normalizeSeat(localSeat)
   const playerScore = Number(scores?.[seat] ?? 0)
@@ -27,6 +34,13 @@ export function buildSnookerViewerHud (state, previousHud = {}, localSeat = 'A')
     over: Boolean(state.frameOver),
     power: 0
   }
+}
+
+export function buildSnookerRemoteHud ({ state, incomingHud, previousHud = {}, localSeat = 'A' }) {
+  // A streamed HUD is in the sender's point of view. Turn/score/placement
+  // controls must always come from our current frame and our own seat.
+  if (!state) return { ...previousHud }
+  return buildSnookerViewerHud(state, { ...previousHud, ...incomingHud }, localSeat)
 }
 
 export function resolveSnookerShotClockExpiry ({ rules, state, localSeat = 'A' }) {

@@ -2,10 +2,10 @@ import fs from 'node:fs';
 import vm from 'node:vm';
 import { parse } from '@babel/parser';
 import * as THREE from '../webapp/node_modules/three/build/three.cjs';
-import { captureRoyalPlayerView } from '../webapp/src/pages/Games/shared/royalCameraControls.ts';
 import { PowerSlider } from '../power-slider.js';
 import { deliverOrQueueSnookerShot } from '../webapp/src/pages/Games/snookerShotRelease.js';
 import { resolvePoolRoyalReleasePower } from '../webapp/src/pages/Games/poolRoyaleShotState.js';
+import { inspectSnookerDirectContact } from '../webapp/src/utils/snookerVisibility.js';
 import {
   sampleCueStrokeTimeline,
   resolveCueBallContact
@@ -61,6 +61,7 @@ function rig() {
     balls: [cue],
     cueStick: new THREE.Object3D(),
     resolvePoolRoyalReleasePower,
+    inspectSnookerDirectContact,
     sampleCueStrokeTimeline,
     resolveCueBallContact,
     requestAnimationFrame: (fn) => {
@@ -82,7 +83,6 @@ function rig() {
     shotImpactFallbackTimer: null,
     camera: new THREE.PerspectiveCamera(),
     world: new THREE.Group(),
-    captureRoyalPlayerView,
     humanShotCamera: { beginShot: jest.fn(), markImpact: jest.fn() },
     snookerRoyalFallbackEye: (ball) => ({ position: ball.clone(), target: ball.clone(), blend: 1 }),
     SNOOKER_PLAYER_FOLLOW_THROUGH_MS: 900,
@@ -308,6 +308,18 @@ test.each([10, 50, 100])(
     expect(r.context.playCueHit).toHaveBeenCalledTimes(1);
   }
 );
+test.each([false, true])('production shot records actual legal-target visibility (blocked: %s)', (blocked) => {
+  const r = rig();
+  r.context.frameRef.current.ballOn = ['RED'];
+  const red = { id: 'RED_1', active: true, pos: new THREE.Vector2(0, 1), vel: new THREE.Vector2() };
+  r.context.balls.push(red);
+  if (blocked) r.context.balls.push({ id: 'BLUE', active: true,
+    pos: new THREE.Vector2(0, .5), vel: new THREE.Vector2() });
+  r.context.ballsRef.current = r.context.balls;
+  expect(r.context.fire(.5)).toBe(true);
+  expect(r.context.shotContextRef.current.clearPathToBallOn).toBe(!blocked);
+  expect(r.context.shotContextRef.current.fullBallContactAvailable).toBe(!blocked);
+});
 test('fallback launches exactly once when the stroke frame is dropped', () => {
   const r = rig();
   r.context.fire(0.7);

@@ -69,3 +69,43 @@ test('the final black still contributes to the highest break when scores tie', (
   const next = rules.applyShot(state, [{ type: 'HIT', firstContact: 'BLACK' }, { type: 'POTTED', ball: 'BLACK', pocket: 'TL' }]);
   expect(next.players.A.highestBreak).toBe(17);
 });
+
+test('the deciding-black draw winner can choose the opponent to start', () => {
+  const tied = rules.applyShot(blackOnly(), [
+    { type: 'HIT', firstContact: 'BLACK' },
+    { type: 'POTTED', ball: 'BLACK', pocket: 'TL' }
+  ], { decidingBlackDrawWinner: 'A' });
+  expect(tied.meta).toMatchObject({ decidingBlackChoice: { winner: 'A' } });
+  expect(tied.activePlayer).toBe('A');
+  const serialized = JSON.parse(JSON.stringify(tied));
+  const chosen = rules.resolveDecidingBlackChoice(serialized, 'opponent');
+  expect(chosen.activePlayer).toBe('B');
+  expect(chosen.players).toEqual(tied.players);
+  expect(chosen.balls).toEqual(tied.balls);
+  expect(chosen.meta).toMatchObject({ state: { ballInHand: true } });
+  expect(chosen.meta!.decidingBlackChoice).toBeUndefined();
+  expect(serialized.meta.decidingBlackChoice).toEqual({ winner: 'A' });
+});
+
+test('a pending draw choice blocks strokes until the winner chooses to play', () => {
+  const tied = rules.applyShot(blackOnly(), [
+    { type: 'HIT', firstContact: 'BLACK' },
+    { type: 'POTTED', ball: 'BLACK', pocket: 'TL' }
+  ], { decidingBlackDrawWinner: 'B' });
+  expect(rules.applyShot(tied, [{ type: 'FOUL', reason: 'premature stroke' }])).toBe(tied);
+  const chosen = rules.resolveDecidingBlackChoice(tied, 'play');
+  expect(chosen.activePlayer).toBe('B');
+  const finish = rules.applyShot(chosen, [{ type: 'FOUL', reason: 'in-off' }]);
+  expect(finish.frameOver).toBe(true);
+  expect(finish.winner).toBe('A');
+  expect(rules.resolveDecidingBlackChoice(finish, 'opponent')).toBe(finish);
+});
+
+test('draw input does not create a choice unless the final-black result ties the frame', () => {
+  const state = rules.getInitialFrame('A', 'B');
+  const next = rules.applyShot(state, [{ type: 'HIT', firstContact: 'RED' }], {
+    decidingBlackDrawWinner: 'B'
+  });
+  expect(next.meta!.decidingBlackChoice).toBeUndefined();
+  expect(rules.resolveDecidingBlackChoice(next, 'play')).toBe(next);
+});

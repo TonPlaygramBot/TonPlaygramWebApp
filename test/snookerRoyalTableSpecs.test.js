@@ -40,7 +40,6 @@ describe('Snooker Royal physical table specs', () => {
     assert.match(source, /const BALL_SIZE_SCALE = 0\.96;/);
     assert.match(source, /const CUE_VISUAL_LIFT = BALL_R \* 0\.14;/);
     assert.match(source, /const SNOOKER_CUE_STRAIGHT_ON_TABLE = true;/);
-    assert.ok(/targetHeight: cueLen \* 1\.68 \* 1\.05,/.test(source));
     assert.doesNotMatch(source, /aimDir\.rotateAround\(new THREE\.Vector2\(\), careerMatch\.aimError\(\)\)/);
     assert.match(source, /providedCueBack\.y = providedCueTip\.y;/);
     assert.match(source, /spinInput: spinRef\.current/);
@@ -50,6 +49,6 @@ describe('Snooker Royal physical table specs', () => {
     assert.doesNotMatch(source, /const TARGET_RATIO = 1\.83;/);
   });
 
-  // Character proportions and the production shot-camera handoff are exercised
-  // with the actual GLB rig in snookerCharacterCamera.node.mjs.
+  // The current game has no player avatar. Production cue-line camera framing
+  // is exercised with Three.js in snookerPlayerShotCamera.node.mjs.
 });

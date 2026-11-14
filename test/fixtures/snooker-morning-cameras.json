@@ -7,11 +7,11 @@
     "makeActionCameraView": "1df3508351f04d22890e867e73753bc6c339fb002c1b4e8a8e23dd4b4049ff6e",
     "makePocketCameraView": "39efb00ad80b1ab851c5fe0e72e3ae9a30da65a4129541b656542648b4bcba82",
     "enterTopView": "f24a401de81787c45ec9797c87c7a865b58eaeafb8dfd649038f40b6f231527b",
-    "exitTopView": "83f734f4a90b99b7bb32c37591ea06390070cc353852202aece065397a1b839b",
-    "beginCueView": "f515af03eafa6d51d3e26c0dd42dceebda4b5e7bc626e4b76edffc2de712b698"
+    "exitTopView": "83f734f4a90b99b7bb32c37591ea06390070cc353852202aece065397a1b839b"
   },
   "date": "2026-09-11",
   "overrides": {
-    "applyCameraBlend": "2026-11-13: preserve requested swipe height when rail safety clamps the source orbit; see royalCameraSwipe.node.mjs"
+    "applyCameraBlend": "2026-11-13: preserve requested swipe height when rail safety clamps the source orbit; see royalCameraSwipe.node.mjs",
+    "beginCueView": "2026-11-14: stale AI timers cannot fire after ownership or lifecycle changes; see snookerPlayerShotCamera.node.mjs"
   }
 }
