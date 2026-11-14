@@ -141,7 +141,7 @@ export class WorldEnhancements extends ExistingEnhancements {
     this.attractions.update(seconds, viewer, battery);
     this.urbanLife.update(seconds, viewer, battery);
     this.streetLife.update(seconds,viewer,battery);
-    this.matureTrees.update(seconds,viewer,battery);
+    this.matureTrees.update(seconds,viewer,battery,false,camera);
     this.neighbourhood.update(seconds,viewer,battery);
     this.cityCompletion.update(seconds,viewer,battery);
     this.facadeCompletion.update(seconds,viewer,battery);

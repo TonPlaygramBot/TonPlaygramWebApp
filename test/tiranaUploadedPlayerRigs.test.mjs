@@ -72,6 +72,11 @@ for(const id of ['tactical','polish','agent-47','turi']){
     for(let i=0;i<120;i++)legs.update(i/10,3);
     legs.update(Math.PI/2,3);root.updateMatrixWorld(true);
     assert.ok(root.worldToLocal(foot.getWorldPosition(new T.Vector3())).distanceTo(forward)<1e-5,'poses must reset instead of compounding');
+    legs.update(Math.PI/2,3,1,0);root.updateMatrixWorld(true);const sideStep=root.worldToLocal(foot.getWorldPosition(new T.Vector3()));
+    legs.update(3*Math.PI/2,3,1,0);root.updateMatrixWorld(true);const otherStep=root.worldToLocal(foot.getWorldPosition(new T.Vector3()));
+    assert.ok(sideStep.x-otherStep.x>.1,'side steps follow lateral movement on the original rig');
+    legs.update(Math.PI/2,3,0,-1);root.updateMatrixWorld(true);
+    assert.ok(root.worldToLocal(foot.getWorldPosition(new T.Vector3())).z<forward.z-.2,'backwards movement redirects the stride');
     root.traverse(o=>{if(o.isBone)assert.ok(o.quaternion.toArray().every(Number.isFinite),o.name);});
   });
 }

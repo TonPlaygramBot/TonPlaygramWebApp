@@ -4,6 +4,7 @@ import {scheduledActorStep} from './actorSchedule.mjs';
 import {BUS_STOPS} from '../../tirana-street-life/transitData.mjs';
 import {bikeFor,BIKE_TYPES} from './bikeCatalog.mjs';
 import {cornerSpeed} from './drivingScale.mjs';
+import {updateTrafficPose} from './trafficPose.mjs';
 import { WORLD } from './world.mjs';
 import { VEHICLE_COLLECTION, roadVehicleFor } from './vehicleCollection.mjs';
 import { FORCE_VEHICLE_BOUNDS } from './albanianForces.mjs';
@@ -207,7 +208,7 @@ export function updateTraffic(state,dt,onImpact){
     const close=!viewers.length||viewers.some(p=>(p.x-car.x)**2+(p.z-car.z)**2<320**2);
     const step=scheduledActorStep(car,state.elapsed,dt,close?.05:.2);
     if(!step)continue;
-    if(car.destroyed||car.burning){car.speed=car.vx=car.vz=0;continue;}
+    if(car.destroyed||car.burning){car.speed=car.vx=car.vz=car.yawRate=car.steering=car.steerAngle=0;continue;}
     if(state.elapsed<(car.impactUntil||0)){
       car.x+=(car.vx||0)*step;car.z+=(car.vz||0)*step;
       car.vx*=Math.exp(-step*4);car.vz*=Math.exp(-step*4);
@@ -233,7 +234,7 @@ export function updateTraffic(state,dt,onImpact){
       if(next){car.next=next.to;car.lane=next.lane;car.edgeWidth=next.w;}else{car.next=old;car.speed=0;}
       continue;
     }
-    const desired=Math.atan2(-dx,-dz);car.heading+=turn(desired-car.heading)*Math.min(1,step*(car.model==='tirana-bus'?3:6));car.heading=turn(car.heading);
+    const desired=Math.atan2(-dx,-dz);
     const refresh=close||!car.awareness||state.elapsed>=car.awarenessAt;
     const nearbyPeople=refresh?people.near(car.x,car.z,50):[];
     if(refresh){car.awareness=trafficDecision(car,vehicles.near(car.x,car.z,55),nearbyPeople,state.elapsed,state.cityEvent);car.awarenessAt=state.elapsed+.25;}
@@ -266,6 +267,7 @@ export function updateTraffic(state,dt,onImpact){
     if((decision.reason!=='pedestrian'||decision.gap>=0)&&decision.gap<car.speed*step)car.speed=Math.max(0,decision.gap/step);
     if(junctionGap<car.speed*step){car.speed=junctionGap/step;car.trafficReason='junction';}
     const oldX=car.x,oldZ=car.z,move=Math.min(d,car.speed*step);
+    updateTrafficPose(car,desired,move,step);
     decision.gap-=move;
     car.x+=dx/d*move;car.z+=dz/d*move;car.vx=(car.x-oldX)/step;car.vz=(car.z-oldZ)/step;
     if(car.speed>2)for(const n of nearbyPeople){

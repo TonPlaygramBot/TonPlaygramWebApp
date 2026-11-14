@@ -413,3 +413,41 @@ test('mapped window storeys and batched facade normals remain correct on elevate
  for(let i=0;i<p.count;i+=6){const a=new T.Vector3().fromBufferAttribute(p,i),b=new T.Vector3().fromBufferAttribute(p,i+1),c=new T.Vector3().fromBufferAttribute(p,i+2);assert.ok(a.y>base&&a.y<base+9.6);assert.ok(b.sub(a).cross(c.sub(a)).dot(new T.Vector3().fromBufferAttribute(norm,i))>0);}
  group.traverse(o=>{if(o instanceof T.Mesh)o.geometry.dispose();});layer.dispose();material.dispose();
 });
+
+
+test('Turi authored gait follows sideways and backward movement while keeping aim and original clips',async()=>{
+  const data=readFileSync(join(webapp,'public/assets/tirana-streets/players/turi.glb')),loader=new GLTFLoader();
+  loader.register(()=>({name:'HEADLESS_TEXTURES',loadTexture:async()=>new T.Texture()}));
+  const source=await loader.parseAsync(data.buffer.slice(data.byteOffset,data.byteOffset+data.byteLength),'');
+  const originals=source.animations.map(clip=>clip.tracks.map(track=>Array.from(track.values)));
+  const sample=(vx,vz)=>{
+    const group=normalizePlayableHuman(clone(source.scene)),mixer=new T.AnimationMixer(group);
+    const clips=Object.fromEntries(source.animations.map(clip=>[clip.name,mixer.clipAction(clip)]));
+    const actor={group,mixer,clips,idle:clips.Idle,walk:clips.Walk,run:clips.Run,model:'local-player',wheels:[]};
+    const scene=new T.Scene();scene.add(group);
+    const rig=new FirstPersonBody(scene),body=createBody(0),p={x:0,z:0,health:100,speed:1.45,weapon:'',nextShot:0};
+    const bones=humanoidBones(group),feet=[],heads=[],footRotations=[];
+    const point=bone=>group.worldToLocal(bone.getWorldPosition(new T.Vector3()));
+    body.vx=vx;body.vz=vz;
+    try{
+      for(let frame=0;frame<90;frame++){
+        rig.update(actor,p,body,frame/60,1/60);feet.push(point(bones.get('leftfoot')));heads.push(point(bones.get('head')));
+        footRotations.push(bones.get('leftfoot').getWorldQuaternion(new T.Quaternion()).normalize());
+      }
+    }finally{rig.dispose();}
+    return {feet,heads,footRotations};
+  };
+  const forward=sample(0,-1.45),sideways=sample(1.45,0),backward=sample(0,1.45);
+  const range=(samples,axis)=>Math.max(...samples.map(p=>p[axis]))-Math.min(...samples.map(p=>p[axis]));
+  assert.ok(range(forward.feet,'z')>.2,'original walk has a visible forward stride');
+  assert.ok(range(sideways.feet,'x')>.1,'sideways input produces lateral foot travel');
+  assert.ok(range(sideways.feet,'z')<range(forward.feet,'z')*.35,'sideways input stops walking straight forward');
+  for(let i=0;i<90;i++){
+    assert.ok(sideways.heads[i].distanceTo(forward.heads[i])<1e-6,'aiming head is not redirected with feet');
+    assert.ok(sideways.feet[i].x>.02,'left ankle retains its own lane');
+    assert.ok(sideways.footRotations[i].angleTo(forward.footRotations[i])<.002,`native heel/toe roll survives the lateral IK correction: frame ${i}, angle ${sideways.footRotations[i].angleTo(forward.footRotations[i])}`);
+  }
+  const first=forward.feet[35].z-forward.feet[65].z,back=backward.feet[35].z-backward.feet[65].z;
+  assert.ok(first*back<0,'backpedalling reverses foot travel at the same clip phase');
+  assert.deepEqual(source.animations.map(clip=>clip.tracks.map(track=>Array.from(track.values))),originals);
+});

@@ -65,13 +65,20 @@ export class CityFacades {
   private frustum = new THREE.Frustum();
   private projection = new THREE.Matrix4();
   private sphere = new THREE.Sphere();
+  private fullIds = new Set<string>();
   constructor(source: THREE.Group) {
+    source.updateMatrixWorld(true);
     const names = ["brick_block", "corner_block"];
     for (const [variant, name] of names.entries()) for (const lod of [false, true]) {
-      const template = source.children.find((o) => o.name === name + (lod ? "_lod" : ""));
+      // Import tools may wrap named nodes, and some originals ship a single
+      // detail level. Keep their actual glTF geometry at both ranges instead of
+      // leaving holes or introducing generated substitute buildings.
+      const template = source.getObjectByName(name + (lod ? "_lod" : "")) ||
+        source.getObjectByName(name + (lod ? "" : "_lod"));
       if (!template) continue;
       template.updateMatrixWorld(true);
       const box = new THREE.Box3().setFromObject(template), size = box.getSize(new THREE.Vector3());
+      if (![size.x,size.y,size.z].every(value=>Number.isFinite(value)&&value>0)) continue;
       template.traverse((o) => {
         if (o instanceof THREE.Mesh) {
           for(const material of Array.isArray(o.material)?o.material:[o.material])if(material instanceof THREE.MeshStandardMaterial&&/glass|window|glazing/i.test(material.name))material.userData.environmentWindow=true;
@@ -107,7 +114,21 @@ export class CityFacades {
     // A crowded near band must overflow into the available LOD slots, rather
     // than silently disappearing when its full-detail batch reaches capacity.
     const fullIds=new Set<string>(),fullCounts=[0,0];
-    for(const {item:p,distanceSq} of near)if(!battery&&distanceSq<70**2&&fullCounts[p.variant]<10){fullIds.add(p.id);fullCounts[p.variant]++;}
+    // Judge distance to the facade, rather than the centre of a wide building.
+    // A small hysteresis band prevents detail from repeatedly switching as the
+    // player walks beside a threshold. Battery mode still shows nearby authored
+    // door/window detail, with only three detailed buildings per variant.
+    const candidates=near.map(({item:p})=>{
+      const dx=target.x-p.x,dz=target.z-p.z,cos=Math.cos(p.yaw),sin=Math.sin(p.yaw);
+      const x=dx*cos-dz*sin,z=dx*sin+dz*cos;
+      const distance=Math.hypot(Math.max(0,Math.abs(x)-p.width/2),Math.max(0,Math.abs(z)-p.depth/2));
+      return {p,distance};
+    }).sort((a,b)=>a.distance-b.distance||a.p.id.localeCompare(b.p.id));
+    for(const {p,distance} of candidates){
+      const radius=(battery?28:70)+(this.fullIds.has(p.id)?16:0);
+      if(distance<radius&&fullCounts[p.variant]<(battery?3:10)){fullIds.add(p.id);fullCounts[p.variant]++;}
+    }
+    this.fullIds=fullIds;
     for (const batch of this.batches) {
       let count = 0;
       for (const { item:p } of near) {

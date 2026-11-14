@@ -332,17 +332,22 @@ export class FirstPersonBody {
     // Scale the walk/run clip, not the mixer's clock: fading must take the same
     // real time at a slow walk as at a sprint. Keep unkeyed IK joints fresh.
     for (const [bone, rest] of this.rests) bone.quaternion.copy(rest);
-    const backwards = !unarmed && !car && -Math.sin(b.yaw)*b.vx-Math.cos(b.yaw)*b.vz < -.15;
+    // The skeleton faces the camera/weapon while movement may be sideways or
+    // backward. Redirect the lower-body stride in the actor's local frame.
+    const travelSpeed=Math.hypot(b.vx,b.vz);
+    const strideX=moving&&travelSpeed>.08?(Math.cos(yaw)*b.vx-Math.sin(yaw)*b.vz)/travelSpeed:0;
+    const strideZ=moving&&travelSpeed>.08?(Math.sin(yaw)*b.vx+Math.cos(yaw)*b.vz)/travelSpeed:1;
     for (const action of this.motionActions) {
       if (!action) continue;
       const name = action.getClip().name;
       const locomotion = /walk|run|sprint/i.test(name);
-      action.setEffectiveTimeScale(moving && locomotion ? (backwards?-1:1)*T.MathUtils.clamp(speed / (/run|sprint/i.test(name) ? 5.4 : 1.45), .15, 2.3) : 1);
+      action.setEffectiveTimeScale(moving && locomotion ? T.MathUtils.clamp(speed / (/run|sprint/i.test(name) ? 5.4 : 1.45), .15, 2.3) : 1);
     }
     actor.mixer?.update(dt);
     // Imported player skins may ship only a static pose: use their own bind
     // proportions to animate feet without assuming Mixamo local joint axes.
-    if (!this.hasLocomotion) this.legPose?.update(b.gait, moving ? p.speed : 0);
+    if (!this.hasLocomotion) this.legPose?.update(b.gait, moving ? speed : 0,strideX,strideZ);
+    else if(moving) this.legPose?.redirect(strideX,strideZ);
     // Procedural additive fallbacks for clips absent from this audited rig.
     const set = (name: string, x: number, y = 0, z = 0) => {
       const bone = this.bones.get(name);
@@ -395,7 +400,7 @@ export class FirstPersonBody {
           point = new T.Vector3(p.x, b.y + 0.13, p.z)
             .addScaledVector(right, side === 'left' ? -0.14 : 0.14)
             .addScaledVector(
-              new T.Vector3(-Math.sin(b.yaw), 0, -Math.cos(b.yaw)),
+              travelSpeed>.08?new T.Vector3(b.vx/travelSpeed,0,b.vz/travelSpeed):new T.Vector3(-Math.sin(b.yaw),0,-Math.cos(b.yaw)),
               stride
             );
         armPose(root, this.bones, side, point, true);

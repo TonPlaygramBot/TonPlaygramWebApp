@@ -1,3 +1,4 @@
+import {operationTarget} from './operationRoute.mjs';
 import {VehicleRadio, type RadioSnapshot} from '../radio/VehicleRadio';
 import {groundHeight} from '../../tirana-east/terrainCore.mjs';
 import {POLICE_STATION} from './ArrestSimulation.mjs';
@@ -94,9 +95,16 @@ export class StreetCareerRuntime {
       this.routeNotice = result.message;
     } else {
       const mission = MISSIONS.find(m=>m.id===this.state.missionId);
-      if(mission?.combatZone && (this.state.objectiveRemaining ?? mission.enemies ?? 0)>0){
-        let graph=this.mapGraphs.get('walk');if(!graph){graph=buildMapGraph(WORLD,'walk');this.mapGraphs.set('walk',graph);}
-        this.route=findMapRoute(graph,p,mission.combatZone).points;this.routeNotice='Secure the marked district, then extract.';this.renderer.setRoute(this.route);return;
+      const operationPoint = operationTarget(mission, this.simulation.job.director, this.state.objectiveRemaining ?? mission?.enemies ?? 0);
+      if (operationPoint) {
+        const mode = p.carId ? 'drive' : 'walk';
+        let graph = this.mapGraphs.get(mode);
+        if (!graph) { graph = buildMapGraph(WORLD, mode); this.mapGraphs.set(mode, graph); }
+        const result = findMapRoute(graph, p, operationPoint);
+        this.route = result.points;
+        this.routeNotice = result.message;
+        this.renderer.setRoute(this.route);
+        return;
       }
       const aircraft = mission?.aircraft && this.simulation.flight.aircraft.find(a=>a.kind===mission.aircraft);
       this.route = aircraft && !p.aircraftId ? [p,this.simulation.flight.access(aircraft)] : navigation(this.state,'local');

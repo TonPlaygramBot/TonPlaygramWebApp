@@ -135,7 +135,9 @@ export class AlbanianForcesVisuals {
   update(state: ForceFrame, viewer: Point, time: number, dt: number, battery = false) {
     if (this.dead) return;
     this.frame++;
-    this.elapsed+=Math.max(0,Math.min(dt,.25));
+    const resumed=!Number.isFinite(dt)||dt>.25;
+    this.elapsed+=Number.isFinite(dt)?Math.max(0,Math.min(dt,.25)):0;
+    dt=Number.isFinite(dt)?Math.max(0,Math.min(dt,.1)):0;
     const distance = (e: Point) => Math.hypot(e.x - viewer.x, e.z - viewer.z);
     const vehicles: Candidate[] = [];
     for (const car of [...state.cars, ...state.traffic, ...state.units]) {
@@ -180,7 +182,8 @@ export class AlbanianForcesVisuals {
       const e = c.entity, person = c.asset.category === 'person';
       const first = !actor.root.userData.placed;
       const oldX=actor.root.position.x,oldZ=actor.root.position.z;
-      const alpha = first ? 1 : 1-Math.exp(-Math.max(0,dt)*(person?12:18));
+      const relocated=first||resumed||Math.hypot(e.x-oldX,e.z-oldZ)>8;
+      const alpha = relocated ? 1 : 1-Math.exp(-dt*(person?12:18));
       const ground=groundHeight(e.x,e.z);
       actor.root.position.x+=(e.x-actor.root.position.x)*alpha;
       actor.root.position.z+=(e.z-actor.root.position.z)*alpha;
@@ -190,9 +193,9 @@ export class AlbanianForcesVisuals {
       actor.root.userData.placed = true;
       if (person) {
         const npc = e as ForceNPC, riding = npc.motion === 'drive';
-        const measured=first||dt<=0?0:Math.hypot(actor.root.position.x-oldX,actor.root.position.z-oldZ)/dt;
-        actor.gaitSpeed=(actor.gaitSpeed||0)+(measured-(actor.gaitSpeed||0))*(1-Math.exp(-dt*12));
-        const moving=actor.gaitSpeed>.12&&npc.health>0&&!riding;
+        const measured=relocated||dt<=0?0:Math.min(7,Math.hypot(actor.root.position.x-oldX,actor.root.position.z-oldZ)/dt);
+        actor.gaitSpeed=relocated?0:(actor.gaitSpeed||0)+(measured-(actor.gaitSpeed||0))*(1-Math.exp(-dt*12));
+        const moving=actor.gaitSpeed>(actor.moving?.08:.18)&&npc.health>0&&!riding;
         const height=riding?.38:npc.anim==='cover'?-.32:.06;
         actor.height=(actor.height??height)+(height-(actor.height??height))*(1-Math.exp(-dt*12));
         actor.root.position.y=ground+actor.height;
@@ -207,7 +210,11 @@ export class AlbanianForcesVisuals {
         // their rigs with 20/10 Hz skeletal sampling and smooth root movement.
         if(first||actor.poseTime>=forcePoseInterval(c.distance,npc.anim||'idle',moving,npc.cordon)){
           const poseDt=actor.poseTime;actor.poseTime=0;resetForcePose(actor.root);
-          if(npc.health>0)actor.mixer?.update(poseDt*(moving?Math.min(2.8,Math.max(.15,actor.gaitSpeed/1.4)):1));
+          // Speed changes stride cadence, never the real-time fade clock.
+          // Slow movement and sprinting therefore blend over the same .18 s.
+          actor.walk?.setEffectiveTimeScale(moving?Math.min(2.8,Math.max(.15,actor.gaitSpeed/1.4)):1);
+          actor.idle?.setEffectiveTimeScale(1);
+          if(npc.health>0)actor.mixer?.update(poseDt);
           poseForce(actor.root,npc.anim||(moving?'walk':'idle'),npc.health>0,poseDt,npc.aimPitch||0,npc.weapon??undefined,time,npc.hitUntil);
         }
       } else {

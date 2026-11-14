@@ -1,13 +1,12 @@
 import {alignVehicle} from '../tirana-east/terrainTransforms';
 import {groundHeight} from '../tirana-east/terrainCore.mjs';
 import * as T from 'three';
-import {GLTFLoader} from 'three/examples/jsm/loaders/GLTFLoader.js';
-import {DRACOLoader} from 'three/examples/jsm/loaders/DRACOLoader.js';
+import {CityAssetLoader,prepareCityAssetTextures} from './CityAssetLoader';
 import {clone} from 'three/examples/jsm/utils/SkeletonUtils.js';
 import {vehicleAssetUrl} from '../kartroyale/vehicleAssetConfig.mjs';
 import {prepareVehicleAsset} from '../kartroyale/vehicleAssetAdapter';
 import {IMPORTED_BY_ID} from './shared/importedAssets.mjs';
-import {disposeWeaponResources} from './weaponModelResources';
+import {disposeWeaponResources,clearWeaponInstance} from './weaponModelResources';
 export type ImportedPlacement={id:string;x:number;z:number;y?:number;heading?:number;racingAsset?:string;assetId?:string};
 /** Demand-loaded originals, two concurrent requests, shared GPU resources. */
 export class ImportedAssetVisuals {
@@ -16,16 +15,18 @@ export class ImportedAssetVisuals {
   private sources=new Map<string,T.Group>();
   private instances=new Map<string,T.Group>();
   private pending=new Set<string>();
-  private failed=new Set<string>();
+  private failures=new Map<string,{attempts:number;retryAt:number}>();
+  private maxAnisotropy=1;
   private selected=new Set<string>();
   private selectedAt=-Infinity;
   private viewer={x:Infinity,z:Infinity};
   private battery?:boolean;
   private entryCount=-1;
   private dead=false;
-  private draco=new DRACOLoader().setDecoderPath('/assets/tirana-streets/imported/draco/').setWorkerLimit(1);
-  private loader=new GLTFLoader().setDRACOLoader(this.draco);
+  private loaderDisposed=false;
+  private loader=new CityAssetLoader();
   constructor(){this.group.name='Tirana:Imported-assets';}
+  configure(renderer:T.WebGLRenderer){this.loader.configure(renderer);this.maxAnisotropy=renderer.capabilities.getMaxAnisotropy();}
   has(id:string){return this.instances.has(id);}
   getRoot(id:string){return this.instances.get(id);}
   private async load(key:string,racing:boolean) {
@@ -49,9 +50,17 @@ export class ImportedAssetVisuals {
         scene.position.sub(new T.Vector3(center.x,fit.min.y,center.z));
       }
       frame.traverse(o=>{if(o instanceof T.Mesh){o.castShadow=true;o.receiveShadow=true;}});
-      this.sources.set(key,frame);
-    }catch(e){if(scene)disposeWeaponResources([scene]);this.errors.set(key,String(e));this.failed.add(key);}
-    finally{this.pending.delete(key);}
+      prepareCityAssetTextures(frame,this.maxAnisotropy);
+      this.sources.set(key,frame);this.failures.delete(key);this.errors.delete(key);
+    }catch(e){
+      if(scene)disposeWeaponResources([scene]);
+      if(!this.dead){
+        const attempts=(this.failures.get(key)?.attempts??0)+1;
+        this.errors.set(key,String(e));
+        this.failures.set(key,{attempts,retryAt:performance.now()+1000*4**(attempts-1)});
+      }
+    }
+    finally{this.pending.delete(key);this.releaseLoader();}
   }
   update(entries:readonly ImportedPlacement[], viewer:{x:number;z:number}, battery=false, now=performance.now()) {
     if(this.dead)return;
@@ -66,6 +75,7 @@ export class ImportedAssetVisuals {
       this.selected=new Set(nearest.map(({entry:e})=>e.id));
     }
     const keep=new Set<string>();
+    const neededSources=new Set<string>();
     const current=new Map<string,ImportedPlacement>();
     for(const entry of entries)if(this.selected.has(entry.id))current.set(entry.id,entry);
     let created=0;
@@ -73,18 +83,30 @@ export class ImportedAssetVisuals {
       const e=current.get(id);if(!e)continue;
       keep.add(e.id);
       const key=e.racingAsset||e.assetId;if(!key)continue;
+      neededSources.add(key);
       let root=this.instances.get(e.id);
-      if(root&&root.userData.assetKey!==key){root.removeFromParent();this.instances.delete(e.id);root=undefined;}
+      if(root&&root.userData.assetKey!==key){this.releaseInstance(e.id,root);root=undefined;}
       const source=this.sources.get(key);
-      if(!source){if(this.pending.size<2&&!this.pending.has(key)&&!this.failed.has(key))void this.load(key,!!e.racingAsset);continue;}
+      if(!source){
+        const failure=this.failures.get(key);
+        if(this.pending.size<2&&!this.pending.has(key)&&(!failure||(failure.attempts<3&&now>=failure.retryAt)))void this.load(key,!!e.racingAsset);
+        continue;
+      }
       // A completed shared download may be requested by many placements. Keep
       // their scene cloning/first GPU uploads from arriving in one large burst.
       if(!root){if(created>=2)continue;created++;root=clone(source) as T.Group;root.name=e.id;root.userData.assetKey=key;this.instances.set(e.id,root);this.group.add(root);}
       root.position.set(e.x,(e.y??.03)+groundHeight(e.x,e.z),e.z);root.rotation.y=(e.heading||0)+(e.racingAsset?Math.PI:0);if(e.racingAsset)alignVehicle(root,(e.heading||0)+Math.PI);
     }
-    for(const [id,root] of this.instances)if(!keep.has(id)){root.removeFromParent();this.instances.delete(id);}
+    for(const [id,root] of this.instances)if(!keep.has(id))this.releaseInstance(id,root);
     const live=new Set([...this.instances.values()].map(r=>r.userData.assetKey));
-    for(const [key,source] of this.sources)if(this.sources.size>12 && !live.has(key)){disposeWeaponResources([source]);this.sources.delete(key);}
+    for(const [key,source] of this.sources)if(this.sources.size>12 && !live.has(key)&&!neededSources.has(key)){disposeWeaponResources([source]);this.sources.delete(key);}
   }
-  dispose(){this.dead=true;this.draco.dispose();this.group.removeFromParent();this.instances.clear();this.sources.forEach(s=>disposeWeaponResources([s]));this.sources.clear();}
+  private releaseLoader(){if(this.dead&&!this.pending.size&&!this.loaderDisposed){this.loaderDisposed=true;this.loader.dispose();}}
+  private releaseInstance(id:string,root:T.Group){root.removeFromParent();clearWeaponInstance(root);this.instances.delete(id);}
+  dispose(){
+    if(this.dead)return;
+    this.dead=true;this.releaseLoader();this.group.removeFromParent();
+    for(const [id,root] of this.instances)this.releaseInstance(id,root);
+    this.sources.forEach(s=>disposeWeaponResources([s]));this.sources.clear();this.selected.clear();this.errors.clear();this.failures.clear();
+  }
 }

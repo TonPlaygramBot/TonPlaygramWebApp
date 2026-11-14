@@ -33,6 +33,7 @@ export class CityRenderer extends BaseCityRenderer {
   readonly cityStores=new CityStores();
   constructor(root:HTMLDivElement) {
     super(root);
+    this.imported.configure(this.renderer);
     this.scene.add(this.imported.group);
     const {landmarks,issues}=resolveNativeLandmarks(WORLD);
     const replacement=replaceLegacyCityLandmarks(this.scene,landmarks,'tiranastreets');

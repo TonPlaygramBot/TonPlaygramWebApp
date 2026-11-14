@@ -1,3 +1,4 @@
+import {operationTarget} from './operationRoute.mjs';
 import {RadioControls} from '../radio/RadioControls';
 import {CITY_EVENT_SITE,CITY_EVENT_PHASES} from '../shared/cityEvents.mjs';
 import {MissionReadout} from '../MissionReadout';
@@ -173,7 +174,7 @@ export function StreetCareerGame({ onExit, initialOperation, initialDifficulty='
     aircraft = flying ? (p?.aircraftId === view?.state.jet?.id ? view?.state.jet : view?.state.helicopters?.find(a=>a.id===p?.aircraftId)) : undefined,
     driving = !!p?.carId,
     mission = campaign.chapters.find((m) => m.id === view?.state.missionId),
-    target = mission?.combatZone && (view?.state.objectiveRemaining??mission.enemies??0)>0 ? mission.combatZone : mission?.stops[p?.index || 0];
+    target = operationTarget(mission, runtime.current?.simulation.job.director, view?.state.objectiveRemaining ?? mission?.enemies ?? 0) || mission?.stops[p?.index || 0];
   return (
     <main
       className={`tsc ${driving?'is-driving':flying?'is-flying':'is-on-foot'}${view?.settings.leftHanded?' is-left-handed':''}${mission?' has-mission':''}`}
@@ -224,7 +225,7 @@ export function StreetCareerGame({ onExit, initialOperation, initialDifficulty='
                 detail={view.objective.detail}
                 remaining={Math.max(0, mission.time * difficultyOf(view.state.difficulty).time - missionElapsed(view.state))}
                 progress={view.objective.progress ?? p.index / Math.max(1, mission.stops.length)}
-                meta={[`Stage ${Math.min(p.index + 1, mission.stops.length)} / ${mission.stops.length}`,
+                meta={[`Stage ${view.objective.stage ?? Math.min(p.index + 1, mission.stops.length)} / ${view.objective.stages ?? mission.stops.length}`,
                   ...(view.objective.integrity !== undefined ? [`Condition ${Math.ceil(view.objective.integrity)}%`] : []),
                   ...(view.state.objectiveRemaining !== undefined && mission.type === 'combat' ? [`${view.state.objectiveRemaining} opponents`] : []),
                   ...(view.objective.remaining !== undefined ? [`${view.objective.phase === 'recover' ? 'Recover in' : 'Hold'} ${Math.ceil(view.objective.remaining)}s`] : [])]}/>
@@ -473,9 +474,9 @@ export function StreetCareerGame({ onExit, initialOperation, initialDifficulty='
                     {!view.profile.active && <section aria-label="Available jobs">
                       <h3>{journalPage==='operations'?'District operations':'Next story jobs'}</h3>
                       <div className="tsc-chapters">
-                        {campaign.chapters.filter(m=>!!m.operation===(journalPage==='operations')&&campaign.available(view.profile,m.id)&&!view.profile.completed.includes(m.id)).slice(0,journalPage==='operations'?6:3).map(m=><button key={m.id} onClick={()=>start(m.id)}>
+                        {campaign.chapters.filter(m=>!!m.operation===(journalPage==='operations')&&campaign.available(view.profile,m.id)&&!view.profile.completed.includes(m.id)).sort((a,b)=>Number(!!b.approach)-Number(!!a.approach)).slice(0,journalPage==='operations'?6:3).map(m=><button key={m.id} onClick={()=>start(m.id)}>
                           <strong>{m.title}</strong><span>{m.description}</span>
-                          <small>${Math.round(m.reward*difficultyOf(difficulty).reward)} · {m.stops.length} stops</small>
+                          <small>${Math.round(m.reward*difficultyOf(difficulty).reward)} · {m.approach ? '3 stages · drive / secure / escape' : `${m.stops.length} stops`}</small>
                         </button>)}
                         {view.profile.completed.length===campaign.chapters.length&&<p>All jobs completed. Explore freely or replay a chapter below.</p>}
                       </div>

@@ -201,3 +201,28 @@ test('original officers gesture without weapons and share prepared original surf
   }
  }finally{layer.dispose();}
 });
+
+
+test('uniform fades use wall time at every gait speed and relocation does not create a sprint',async()=>{
+ const layer=new AlbanianForcesVisuals();
+ try{
+  const s=state();s.npcs=[npc('timing')];
+  layer.update(s,{x:0,z:0},0,1/60);await settle(layer);layer.update(s,{x:0,z:0},0,1/60);
+  const actor=layer.actors.get('npc-timing');
+  for(const speed of [.3,1.4,4.5]){
+   for(let i=0;i<60;i++){s.npcs[0].z-=speed/60;layer.update(s,{x:0,z:0},i/60,1/60);}
+   const before=actor.mixer.time;
+   for(let i=0;i<12;i++){s.npcs[0].z-=speed/60;layer.update(s,{x:0,z:0},1+i/60,1/60);}
+   assert.ok(Math.abs(actor.mixer.time-before-.2)<1e-8,'walk cadence cannot accelerate the fade clock');
+   assert.ok(Math.abs(actor.walk.getEffectiveTimeScale()-Math.min(2.8,Math.max(.15,speed/1.4)))<.08);
+  }
+  const before=actor.mixer.time;s.npcs[0].z-=30;
+  layer.update(s,{x:0,z:0},10,3);
+  assert.ok(actor.mixer.time-before<=.100001,'tab resume cannot fast-forward a pose');
+  assert.equal(actor.gaitSpeed,0,'teleport is not walking displacement');
+  assert.equal(actor.moving,false);
+  assert.equal(actor.root.position.z,s.npcs[0].z);
+  layer.update(s,{x:0,z:0},10,Number.NaN);
+  assert.ok(actor.root.position.toArray().every(Number.isFinite));
+ }finally{layer.dispose();}
+});

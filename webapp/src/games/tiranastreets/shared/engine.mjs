@@ -299,7 +299,7 @@ export const MISSIONS = [
   }
 ];
 // Operations use the same world collision, AI, pickups and extraction rules.
-MISSIONS.push(...STREET_OPERATIONS.map(o=>({id:o.id,title:o.title,district:o.district,type:'combat',operation:true,enemies:o.enemies,time:o.time,reward:o.reward,extractionHold:o.hold,description:o.description,combatZone:{...roadPoint(o.x,o.z),name:o.district},stops:[{...roadPoint(o.extractX,o.extractZ),name:o.district+' extraction'}]})));
+MISSIONS.push(...STREET_OPERATIONS.map(o=>({id:o.id,title:o.title,district:o.district,type:'combat',operation:true,enemies:o.enemies,time:o.time,reward:o.reward,extractionHold:o.hold,description:o.description,...(Number.isFinite(o.approachX)?{soloOnly:true,approach:{...roadPoint(o.approachX,o.approachZ),name:'River staging point'}}:{}),combatZone:{...roadPoint(o.x,o.z),name:o.district},stops:[{...roadPoint(o.extractX,o.extractZ),name:o.district+' extraction'}]})));
 export const SPAWN = roadPoint(-60, 130);
 const spawnNode = nearestNode(SPAWN.x, SPAWN.z);
 const initialHeading = (() => {
