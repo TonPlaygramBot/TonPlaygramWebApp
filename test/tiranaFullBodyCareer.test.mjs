@@ -10,11 +10,7 @@ import {
   StreetWorld,
   direction3
 } from '../webapp/src/games/tiranastreets/street-career/spatialCore.mjs';
-import { createCampaign } from '../webapp/src/games/tiranastreets/street-career/campaignCore.mjs';
-import {
-  captureCheckpoint,
-  restoreCheckpoint
-} from '../webapp/src/games/tiranastreets/street-career/checkpointCore.mjs';
+
 import {
   WEAPONS,
   STARTER_WEAPON
@@ -96,7 +92,6 @@ const car = (id = 'test-car', x = 0, z = -3) => ({
   steering: 0,
   driver: null
 });
-const campaign = createCampaign(MISSIONS, WEAPONS, STARTER_WEAPON);
 
 test('screen-right strafe and camera-up yaw/pitch preserve visible directions', () => {
   const s = run();
@@ -316,62 +311,7 @@ test('delivery proximity alone never advances; interaction produces actual progr
   assert.equal(s.player.index, 1);
   assert.equal(s.job.parcel, true);
 });
-test('real mission start to final delivery, save, reload and idempotent reward', () => {
-  let profile = campaign.begin(campaign.fresh(), 'first-shift');
-  const s = run('first-shift');
-  campaign.apply(s.player, profile.active.checkpoint);
-  for (let i = 0; i < s.mission.stops.length; i++) {
-    const t = s.mission.stops[i];
-    s.player.x = t.x;
-    s.player.z = t.z + 2;
-    look(s, t.x, 0.8, t.z);
-    assert.equal(s.execute('interact', 'objective:' + i), true);
-    tick(s, 0.65);
-  }
-  assert.equal(s.state.phase, 'finished');
-  assert.equal(s.player.finished, true);
-  profile = campaign.resolve(profile, s.state, 'local');
-  assert.deepEqual(profile.completed, ['first-shift']);
-  let raw;
-  const storage = {
-    setItem: (k, v) => {
-      raw = v;
-    },
-    getItem: () => raw
-  };
-  campaign.save(storage, profile);
-  const loaded = campaign.load(storage);
-  assert.deepEqual(loaded.completed, ['first-shift']);
-  assert.equal(campaign.resolve(loaded, s.state, 'local'), null);
-});
-test('phase checkpoint resumes inventory, stage, car identity and v1 progress', () => {
-  const s = run('first-shift'),
-    profile = campaign.begin(campaign.fresh(), 'first-shift');
-  s.player.index = 1;
-  s.job.parcel = true;
-  s.player.inventory[STARTER_WEAPON].ammo = 3;
-  const c = car();
-  s.state.cars.push(c);
-  takeVehicle(s.state, s.player, c);
-  profile.active.phase = captureCheckpoint(s);
-  const normalized = campaign.normalize(profile),
-    other = run('first-shift');
-  assert.equal(
-    restoreCheckpoint(other, normalized.active.phase, campaign.apply),
-    true
-  );
-  assert.equal(other.player.index, 1);
-  assert.equal(other.player.inventory[STARTER_WEAPON].ammo, 3);
-  assert.equal(other.player.carId, c.id);
-  assert.equal(other.state.cars.filter((c) => c.driver === 'local').length, 1);
-  assert.equal(
-    campaign.normalize({
-      ...profile,
-      active: { ...profile.active, phase: { version: 99 } }
-    }).active.phase,
-    undefined
-  );
-});
+
 test('legacy simulation keeps horizontal controls and proximity mission contract', () => {
   const s = createState(
     [{ id: 'local', name: 'Legacy' }],

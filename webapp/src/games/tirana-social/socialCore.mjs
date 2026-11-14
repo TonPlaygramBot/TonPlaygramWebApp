@@ -12,12 +12,11 @@ export function exploreInput(raw={}) {
   return {x:n('x',-1,1),y:n('y',-1,1),yaw:n('yaw',-Math.PI,Math.PI),fast:raw.fast===true,brake:raw.brake===true,fire:false,seq:Number.isSafeInteger(raw.seq)&&raw.seq>=0?raw.seq:0};
 }
 export function gameModeURL(game,mode) {
-  if(!['streets','racing'].includes(game))throw Error('Unknown game');
-  const path=game==='streets'?'/games/tiranastreets':'/games/kartroyale';
+  if(game!=='racing')throw Error('Unknown game');
+  const path='/games/kartroyale';
   if(mode==='explore')return `${path}?mode=ai&activity=explore`;
-  if(mode==='career')return `${path}?mode=ai&activity=${game==='streets'?'street-career':'racing-career'}`;
-  if(mode==='battlefield'&&game==='streets')return `${path}?mode=ai&activity=street-career`;
-  if(mode==='multiplayer'&&game==='racing')return `${path}?mode=online`;
+  if(mode==='career')return `${path}?mode=ai&activity=racing-career`;
+  if(mode==='multiplayer')return `${path}?mode=online`;
   throw Error('Unsupported game mode');
 }
 export function mediaFlags(raw) {return {camera:raw?.camera===true,microphone:raw?.microphone===true};}

@@ -26,7 +26,6 @@ const GLTF_MANIFEST_PATH = '/pwa/gltf-assets.json';
 const HALLWAY_MANIFEST_PATH = '/pwa/hallway-assets.json';
 const GLTF_EXTENSIONS = /\.(gltf|glb|bin|ktx2|dds|hdr|exr)$/i;
 const MANAGED_GAME_ASSET_PREFIXES = [
-  '/assets/jetski-royal/',
   '/assets/tirana-streets/',
   '/assets/tirana-detail-kit/',
   '/assets/tirana-landmarks/',

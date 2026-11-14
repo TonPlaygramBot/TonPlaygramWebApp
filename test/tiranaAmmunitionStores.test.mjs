@@ -5,9 +5,8 @@ import {collectWeapon,CITY_POPULATION} from '../webapp/src/games/tiranastreets/s
 import {createState,upgradeState,MISSIONS} from '../webapp/src/games/tiranastreets/shared/engine.mjs';
 import {lifeAction} from '../webapp/src/games/tiranastreets/shared/cityLife.mjs';
 import {WEAPON_BY_ID,WEAPONS,STARTER_WEAPON} from '../webapp/src/games/tiranastreets/shared/weapons.mjs';
-import {createCampaign} from '../webapp/src/games/tiranastreets/street-career/campaignCore.mjs';
+
 import {StreetSimulation} from '../webapp/src/games/tiranastreets/street-career/StreetSimulation.mjs';
-import {captureCheckpoint,restoreCheckpoint} from '../webapp/src/games/tiranastreets/street-career/checkpointCore.mjs';
 
 const rifle=WEAPON_BY_ID.get('ak47VolleyAttack');
 const fixture=()=>{
@@ -77,17 +76,4 @@ test('older multiplayer populations receive new shops and caches without resetti
  assert.equal(s.pickups[0].collected,true);assert.equal(s.pickups[0].collectedBy,'local');
  assert.ok(s.npcs.find(n=>n.id==='dealer-arsenal-24'));
  const count=s.npcs.length;upgradeState(s);assert.equal(s.npcs.length,count);assert.equal(s.pickups.length,396);
-});
-
-test('expanded reserves and partially collected ammunition survive saved career restoration',()=>{
- const s=createState([{id:'local',name:'Test'}],'free-roam'),world={clear:()=>true,clearance:()=>true,surface:()=>.08};
- const sim=new StreetSimulation(s,world),item=s.pickups.find(p=>p.kind==='ammo'&&p.weapon===rifle.id);
- assert.ok(item);Object.assign(sim.player,{x:item.x,z:item.z});sim.player.inventory[rifle.id]={ammo:rifle.magazine,reserve:reserveCapacity(rifle)-7};
- assert.equal(collectWeapon(s,sim.player,item.id),true);
- const campaign=createCampaign(MISSIONS,WEAPONS,STARTER_WEAPON),profile=campaign.fresh();profile.explore=captureCheckpoint(sim);
- const saved=campaign.normalize(JSON.parse(JSON.stringify(profile))).explore;
- assert.equal(saved.player.inventory[rifle.id].reserve,reserveCapacity(rifle));assert.equal(saved.pickupAmmo[item.id],item.ammo);
- const restored=new StreetSimulation(createState([{id:'local',name:'Test'}],'free-roam'),world);
- assert.equal(restoreCheckpoint(restored,saved,campaign.apply),true);
- assert.equal(restored.loot.find(p=>p.id===item.id).ammo,item.ammo);
 });

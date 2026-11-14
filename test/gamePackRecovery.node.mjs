@@ -43,7 +43,7 @@ function serve(packs,bodies){
     return new Response('missing',{status:404});
   };
 }
-test('all 17 game slugs have a generated and fallback download definition',()=>{
+test('all available game slugs have a generated and fallback download definition',()=>{
   for(const game of games){assert.ok(GAME_PACK_DEFINITIONS.some(p=>p.gameSlugs.includes(game.slug)),game.slug);assert.ok(FALLBACK_GAME_PACK_CATALOG.packs.some(p=>p.gameSlugs.includes(game.slug)),game.slug);}
   assert.equal(new Set(GAME_PACK_DEFINITIONS.map(p=>p.id)).size,GAME_PACK_DEFINITIONS.length);
 });
@@ -161,8 +161,21 @@ test('unrelated cached entries cannot conceal an evicted asset or a lost depende
  await reconcileGamePackInstallations();assert.equal(getGamePackStatus(shared),'partial');assert.equal(getGamePackStatus(game),'partial');
  await installGamePack('demo',{catalog});assert.equal(getGamePackStatus(shared),'installed');assert.equal(getGamePackStatus(game),'installed');assert.equal(await (await cache.match(origin+'/human.glb')).text(),'human');
 });
-test('Tirana cannot claim a complete download without the built executable runtime',async()=>{
- setup();const p=pack('tirana-streets');let fetched=false;routeFetch=async()=>{fetched=true;throw Error('unexpected');};
- await assert.rejects(installGamePack(p.id,{catalog:{packs:[p]}}),/complete offline game/);assert.equal(fetched,false);assert.equal(getGamePackStatus(p),'partial');
- assert.ok(GAME_PACK_DEFINITIONS.find(p=>p.id==='tirana-streets').dependencies.includes('shared-table-games'));
+test('removed games cannot start downloads from the current catalog',async()=>{
+ setup();let fetched=false;routeFetch=async()=>{fetched=true;throw Error('unexpected');};
+ for(const id of ['tirana-streets','jetski-royal']) {
+  await assert.rejects(installGamePack(id,{catalog:FALLBACK_GAME_PACK_CATALOG}),/Unknown game pack/);
+ }
+ assert.equal(fetched,false);
+ assert.ok(GAME_PACK_DEFINITIONS.find(p=>p.id==='racing-royal').dependencies.includes('shared-tirana-city'));
+});
+test('old cached metadata cannot restore removed games while Racing remains available',async()=>{
+ setup();const packs=[pack('tirana-streets'),pack('jetski-royal'),pack('racing-royal')];
+ const cache=await caches.open('tonplaygram-pack-metadata-v1');
+ await cache.put(origin+'/pwa/game-packs/index.json',Response.json({packs}));
+ const city=await caches.open('tonplaygram-pack-tirana-streets-v1');
+ await city.put(origin+'/assets/tirana-streets/city.glb',new Response('shared city'));
+ const catalog=await loadGamePackCatalog({force:true,fetchImpl:async()=>{throw Error('offline');}});
+ assert.deepEqual(catalog.packs.map(p=>p.id),['racing-royal']);
+ assert.equal(await (await city.match(origin+'/assets/tirana-streets/city.glb')).text(),'shared city');
 });

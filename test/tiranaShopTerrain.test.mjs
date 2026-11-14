@@ -90,27 +90,3 @@ test('dealer standing height survives shared and local simulation, including an 
   const simulation=new StreetSimulation(saved,new StreetWorld(shopObstacles(),false));
   simulation.step(1/60);verify();
 });
-
-test('actual CityStores roots and instanced access match the same collision layout',()=>{
-  const {WeaponStoreInterior}=load('webapp/src/games/tiranastreets/WeaponStoreInterior.ts',{
-    three:T,'./shared/engine.mjs':{SPAWN},'./weaponStoreCatalog.mjs':{WEAPON_STORE_CATALOG},'./shared/uploadedWeapons.mjs':{UPLOADED_WEAPONS},
-    'three/examples/jsm/loaders/GLTFLoader.js':{GLTFLoader:class{}},'./weaponModelResources':{prepareWeaponScene(){},releaseBatchedSourceGeometry(){},disposeWeaponResources(){}}
-  });
-  const context={fillRect(){},fillText(){}},document={createElement:()=>({width:0,height:0,getContext:()=>context})};
-  const {CityStores}=load('webapp/src/games/tiranastreets/population/CityStores.ts',{three:T,'../WeaponStoreInterior':{WeaponStoreInterior},'../shared/shopLayout.mjs':{shopLayout}},{document});
-  const stores=new CityStores();stores.template.updateDisplays=()=>{};
-  stores.update(state,state.shops[0]);
-  for(const shop of state.shops){
-    const layout=shopLayout(shop),room=stores.group.children.find(o=>o.name===shop.name);
-    assert.ok(room);assert.equal(room.position.x,shop.x);assert.equal(room.position.z,shop.z);assert.equal(room.position.y,layout.baseY);
-    const originalFloor=room.children.find(o=>o instanceof T.Mesh&&o.geometry===stores.floor.geometry);
-    assert.equal(originalFloor.visible,!layout.stairCount);
-    const access=room.getObjectByName('Terrain-aligned shop access');
-    if(layout.extras.length){
-      assert.ok(access instanceof T.InstancedMesh);assert.equal(access.count,layout.extras.length);
-      const matrix=new T.Matrix4(),point=new T.Vector3();
-      layout.extras.forEach((b,i)=>{access.getMatrixAt(i,matrix);point.setFromMatrixPosition(matrix);assert.ok(Math.abs(point.y-(b.h+b.minY)/2)<1e-5);});
-    }else assert.equal(access,undefined);
-  }
-  stores.dispose();assert.equal(stores.group.children.length,0);
-});

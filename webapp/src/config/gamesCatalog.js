@@ -1,34 +1,11 @@
 const gamesCatalog = [
   {
-    name: 'Jet Ski Royal',
-    route: '/games/jetskiroyal/lobby',
-    slug: 'jetskiroyal',
-    image: '/assets/jetski-royal/cover.webp',
-    badge: 'Beta',
-    modes: ['VS AI', 'Online rooms', 'Time trial'],
-    inviteFlow: 'room-code',
-    description: 'Race the Adriatic with six riders, dynamic water, boost and jumps. Private rooms and free online races.'
-  },
-
-  {
     name: 'Table Tennis Royal',
     route: '/games/tabletennisroyal/lobby',
     slug: 'tabletennisroyal',
     image: '/assets/icons/table-tennis-royal.svg',
     description:
       'Human players, spin rallies, a career tour and TPC online matches.'
-  },
-  {
-    name: 'Tirana Streets',
-    route: '/games/tiranastreets/lobby',
-    slug: 'tiranastreets',
-    attribution: '© OpenStreetMap',
-    image: '/assets/tirana-streets/map.svg',
-    badge: 'Beta',
-    modes: ['Solo operation', 'TPG Multiplayer'],
-    launchLabel: 'Enter Tirana Streets',
-    description:
-      'First-person action on Tirana’s mapped streets. Three-wave operations, city landmarks and 2–4 player TPG matches.'
   },
   {
     name: 'Tennis Royal',

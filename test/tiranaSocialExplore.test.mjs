@@ -7,12 +7,19 @@ function fixture(){let time=100000;const reports=[];const engine={createState:()
  const ask=(s,action,p={})=>service.request(s,{accountId:s.data.playerId,clientId:s.id,action,...p});return {service,sock,ask,reports,advance:n=>{time+=n;service.tick();}};
 }
 const sdp={type:'offer',sdp:{type:'offer',sdp:'v=0'}};
-test('mode routes are three real paths and discard all stake/room inputs',()=>{assert.equal(gameModeURL('streets','explore'),'/games/tiranastreets?mode=ai&activity=explore');assert.match(gameModeURL('racing','career'),/racing-career/);assert.match(gameModeURL('streets','battlefield'),/mode=ai$/);assert.throws(()=>gameModeURL('bad','career'));assert.throws(()=>gameModeURL('racing','battlefield'));});
+test('Racing modes stay available and removed Streets routes are rejected',()=>{
+  assert.equal(gameModeURL('racing','explore'),'/games/kartroyale?mode=ai&activity=explore');
+  assert.equal(gameModeURL('racing','career'),'/games/kartroyale?mode=ai&activity=racing-career');
+  assert.equal(gameModeURL('racing','multiplayer'),'/games/kartroyale?mode=online');
+  for(const mode of ['explore','career','battlefield'])assert.throws(()=>gameModeURL('streets',mode),/Unknown game/);
+  assert.throws(()=>gameModeURL('bad','career'));
+  assert.throws(()=>gameModeURL('racing','battlefield'));
+});
 test('combat/client positions cannot enter peaceful input',()=>{const i=exploreInput({x:Infinity,y:100,yaw:NaN,fire:true,xPos:999,seq:-1});assert.equal(i.fire,false);assert.equal(i.x,0);assert.equal(i.y,1);assert.equal(i.yaw,0);assert.equal(i.seq,0);assert.equal('xPos' in i,false);});
 test('avatar protocols, credential URLs and control characters are bounded',()=>{for(const u of ['javascript:x','http://example.com','https://user:pass@example.com'])assert.equal(avatarURL(u),'');assert.match(avatarURL('https://example.com/x'),/^https:/);assert.equal(cleanText('x\u202ey\n z',5),'x y');assert.equal(cleanText('a'.repeat(900)).length,280);assert.equal(validSignal({type:'offer',sdp:{type:'answer',sdp:'x'}}),false);});
 test('authentication rejects unbound or mismatched identities',async()=>{const f=fixture(),a=f.sock('a');delete a.data.auth;await assert.rejects(f.ask(a,'join'),/authenticated/);a.data.auth={accountId:'b'};await assert.rejects(f.ask(a,'join'),/authenticated/);});
 test('server identity wins over forged names, photos and social IDs',async()=>{const f=fixture(),a=f.sock('1'),r=await f.ask(a,'join',{name:'Impersonator',photo:'x',telegramId:'99'});assert.equal(r.members[0].name,'Person 1');assert.equal(r.members[0].socialId,'1');assert.deepEqual(r.members[0].media,{camera:false,microphone:false});assert.equal(r.state.players[r.playerId].cash,0);});
-test('both game entry points share one public room with four-person cap',async()=>{const f=fixture(),joined=[];for(let i=1;i<=5;i++)joined.push(await f.ask(f.sock(String(i)),'join'));assert.equal(joined[0].id,joined[3].id);assert.notEqual(joined[0].id,joined[4].id);});
+test('Explore players share one public room with four-person cap',async()=>{const f=fixture(),joined=[];for(let i=1;i<=5;i++)joined.push(await f.ask(f.sock(String(i)),'join'));assert.equal(joined[0].id,joined[3].id);assert.notEqual(joined[0].id,joined[4].id);});
 test('private room cannot be accidentally joined by public matchmaking',async()=>{const f=fixture(),a=await f.ask(f.sock('a'),'join',{private:true}),b=await f.ask(f.sock('b'),'join');assert.notEqual(a.id,b.id);const c=await f.ask(f.sock('c'),'join',{roomId:a.id});assert.equal(c.id,a.id);});
 test('duplicate tabs cannot own or command the same avatar',async()=>{const f=fixture(),a=f.sock('a'),r=await f.ask(a,'join'),other=f.sock('a','other');await assert.rejects(f.ask(other,'join'),/another connection/);await assert.rejects(f.ask(other,'input',{roomId:r.id,input:{x:1}}),/Join/);});
 test('outsiders cannot chat, move, signal or enumerate a room snapshot',async()=>{const f=fixture(),a=await f.ask(f.sock('a'),'join'),b=f.sock('b');for(const action of ['chat','input','signal','snapshot'])await assert.rejects(f.ask(b,action,{roomId:a.id}),/Join/);});

@@ -57,12 +57,3 @@ test('camera changes are delegated every frame, never cached by scene identity',
   updateAutomaticLods(root, second);
   assert.deepEqual(calls, [first, second]);
 });
-test('BLACKWATER invokes the selector after matrices and before extracting faces', () => {
-  const source = readFileSync(new URL('../webapp/src/games/blackwater/compatibility.ts', import.meta.url), 'utf8');
-  assert.match(source, /import \{ updateAutomaticLods \} from '\.\.\/tirana-landmarks\/automaticLods\.mjs'/);
-  const matrices = source.indexOf('camera.matrixWorldInverse.copy(camera.matrixWorld).invert();');
-  const select = source.indexOf('updateAutomaticLods(scene, camera);');
-  const collect = source.indexOf('const collect=');
-  assert.ok(matrices >= 0 && select > matrices && collect > select);
-  assert.equal(source.match(/updateAutomaticLods\(scene, camera\)/g).length, 1);
-});

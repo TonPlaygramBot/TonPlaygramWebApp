@@ -4,7 +4,7 @@ import {EquipmentSimulation} from '../webapp/src/games/tiranastreets/street-care
 import {WEAPONS,WEAPON_BY_ID,STARTER_WEAPON} from '../webapp/src/games/tiranastreets/shared/weapons.mjs';
 import {reserveCapacity,ammunitionQuote} from '../webapp/src/games/tiranastreets/shared/ammunition.mjs';
 import {equipmentZoom,armorCapacity} from '../webapp/src/games/tiranastreets/shared/equipment.mjs';
-import {createCampaign} from '../webapp/src/games/tiranastreets/street-career/campaignCore.mjs';
+
 import {createState,MISSIONS} from '../webapp/src/games/tiranastreets/shared/engine.mjs';
 import {lifeAction} from '../webapp/src/games/tiranastreets/shared/cityLife.mjs';
 function fixture(weapon='c4Charge'){
@@ -30,15 +30,4 @@ test('larger ammo reserves clamp purchases while passive equipment has no ammo',
  const rifle=WEAPON_BY_ID.get(STARTER_WEAPON);assert.equal(reserveCapacity(rifle),1200);
  assert.deepEqual(ammunitionQuote(rifle,{reserve:1198},'max'),{rounds:2,price:2,capacity:1200});
  assert.equal(reserveCapacity(WEAPON_BY_ID.get('c4Charge')),16);assert.equal(reserveCapacity(WEAPON_BY_ID.get('scope4x')),0);
-});
-test('scope and armor unlocks survive save normalization without becoming equipped',()=>{
- const campaign=createCampaign(MISSIONS,WEAPONS,STARTER_WEAPON),profile=campaign.fresh();
- profile.loadout.inventory.scope4x={ammo:1,reserve:0};profile.loadout.inventory.armorCarrier={ammo:1,reserve:0};profile.loadout.weapon='';
- profile.loadout.weapon='scope4x';assert.notEqual(campaign.normalize(profile).loadout.weapon,'scope4x');profile.loadout.weapon='';
- const restored=campaign.normalize(JSON.parse(JSON.stringify(profile))).loadout;
- assert.equal(restored.weapon,'');assert.equal(armorCapacity(restored),150);
- restored.weapon=STARTER_WEAPON;assert.equal(equipmentZoom(restored),4);restored.weapon='egg';assert.equal(equipmentZoom(restored),1);
- const state=createState([{id:'local'}],'free-roam','solo'),p=state.players.local;p.inventory=restored.inventory;p.weapon=STARTER_WEAPON;
- lifeAction(state,p,'equip:scope4x');assert.equal(p.weapon,STARTER_WEAPON);
- lifeAction(state,p,'holster');assert.equal(p.weapon,'');lifeAction(state,p,'holster');assert.equal(p.weapon,STARTER_WEAPON);
 });

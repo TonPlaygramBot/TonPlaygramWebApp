@@ -28,41 +28,6 @@ import {
 } from '../webapp/src/games/blackwater/shared/match.mjs';
 import { validateSeatTableRequest } from '../bot/config/onlineGamePolicy.js';
 
-test('the complete Tirana Streets layout retains its metric scale and east/south axes', () => {
-  assert.equal(roads.length, WORLD.roads.length);
-  const originalIds=new Set(WORLD.buildings.map(b=>b.id));
-  const added=buildings.filter(b=>!originalIds.has(b.id));
-  // Six former catalog additions now belong to WORLD itself. Keep checking
-  // all nine sourced buildings, but do not count those six a second time.
-  const sourcedIds=['384505310','387444374','410277109','410277110','410277119','410277120','459085861','469978008','470298324'];
-  for(const id of sourcedIds)assert.ok(buildings.some(b=>b.id===id),`missing sourced building ${id}`);
-  assert.deepEqual(added.map(b=>b.id).sort(),sourcedIds.filter(id=>!originalIds.has(id)).sort());
-  assert.equal(buildings.length, WORLD.buildings.length+added.length);
-  roads.forEach((r, i) => {
-    for (const end of ['a', 'b']) {
-      assert.ok(Math.abs(r[end][0] + ORIGIN.x - WORLD.roads[i][end][0]) < 1e-8);
-      assert.ok(Math.abs(r[end][1] + ORIGIN.z - WORLD.roads[i][end][1]) < 1e-8);
-    }
-    assert.equal(r.w, WORLD.roads[i].w);
-  });
-  for(const original of WORLD.buildings){
-    const b=buildings.find(b=>b.id===original.id);assert.ok(b,original.id);
-    assert.deepEqual(b.footprint,original.p.map(([x,z])=>[x-ORIGIN.x,z-ORIGIN.z]));
-  }
-  assert.equal(MAP.minX + ORIGIN.x, WORLD.bounds[0]);
-  const assets = readFileSync(
-    new URL('../webapp/src/games/blackwater/world.ts', import.meta.url),
-    'utf8'
-  );
-  // Preserve the original gun; actor bodies now support original Albanian uniforms.
-  // Unchanged factory verified against main 391db8b before this overhaul.
-  const sha = (text) => createHash('sha256').update(text).digest('hex');
-  assert.equal(
-    sha(assets.slice(assets.indexOf('function makeGun()'), assets.indexOf('export type ActorVisual'))),
-    'ad8274a568fee1f5d2e2a838146cfd81a2cae9de64eb78996648a3a95d7a6a41'
-  );
-
-});
 test('spawns, extraction and AI routes are collision-free in the relocated scene', () => {
   assert.equal(collides(START.x, START.z, 0.4, OBSTACLES), false);
   assert.equal(collides(EXTRACTION.x, EXTRACTION.z, 0.4, OBSTACLES), false);
@@ -93,36 +58,6 @@ test('rotated building collision, occlusion and screen-relative movement agree',
   const right = { x: 0, z: 0 };
   moveCircle(right, 2, 0, 0.34, empty);
   assert.ok(Math.abs(right.x - 2) < 1e-9);
-});
-test('TPG policy accepts only 2–4 players, Tirana, online mode and valid TPG stakes', () => {
-  const criteria = {
-    gameType: 'blackwater',
-    maxPlayers: 2,
-    stake: 100,
-    matchMeta: { mapId: 'tirana', mode: 'online', token: 'TPG' }
-  };
-  for (const maxPlayers of [2, 3, 4])
-    assert.equal(
-      validateSeatTableRequest({ ...criteria, maxPlayers }).ok,
-      true
-    );
-  for (const patch of [
-    { maxPlayers: 1 },
-    { maxPlayers: 5 },
-    { stake: -1 },
-    { stake: 0.5 },
-    { stake: Infinity },
-    { stake: Number.MAX_SAFE_INTEGER }
-  ])
-    assert.equal(validateSeatTableRequest({ ...criteria, ...patch }).ok, false);
-  for (const patch of [{ mapId: 'fake' }, { mode: 'ai' }, { token: 'TON' }])
-    assert.equal(
-      validateSeatTableRequest({
-        ...criteria,
-        matchMeta: { ...criteria.matchMeta, ...patch }
-      }).ok,
-      false
-    );
 });
 test('untrusted input cannot teleport, accelerate, inject ammo or report a winner', () => {
   assert.equal(

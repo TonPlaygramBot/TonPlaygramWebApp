@@ -14,12 +14,10 @@ import http from 'http';
 import { initSocket } from './socket.js';
 import { createChessGateway } from '../chess-multiplayer-server/dist/embedded.js';
 import { createTableTennisRoyal } from './services/tabletennisRoyal.js';
-import { attachJetskiRoyal } from './services/jetskiRoyal.js';
 import { attachKartRoyale } from './services/kartRoyale.js';
 import { createBowlingStakeService } from './services/bowlingStake.js';
-import { attachBlackwater } from './services/blackwater.js';
 import { createBlackwaterStakeService } from './services/blackwaterStake.js';
-import { createTiranaStreets } from './services/tiranaStreets.js';
+import { createRacingExplore } from './services/racingExplore.js';
 import { createKartStakeService } from './services/kartStake.js';
 import KartMatch from './models/KartMatch.js';
 import { createTennisRoyal } from './services/tennisRoyal.js';
@@ -48,7 +46,6 @@ import poolRoyaleRoutes from './routes/poolRoyale.js';
 import snookerRoyaleRoutes from './routes/snookerRoyal.js';
 import { authorizeSnookerActor, isValidSnookerAim, isValidSnookerLayout, validateSnookerShotState } from './utils/snookerRealtimeValidation.js';
 import exchangeRoutes from './routes/exchange.js';
-import tiranaStoreRoutes from './routes/tiranaStore.js';
 import pushRoutes from './routes/push.js';
 import matchmakingRoutes from './routes/matchmaking.js';
 import { isAllowedApiOrigin } from './utils/corsOrigin.js';
@@ -290,19 +287,14 @@ io.use((socket, next) => {
   return next(new Error('unauthorized'));
 });
 const gameManager = new GameRoomManager(io);
-const tiranaStreets = createTiranaStreets();
+const racingExplore = createRacingExplore();
 const kartStake = createKartStakeService();
 const kartRoyale = attachKartRoyale(io, {
   settleMatch: kartStake.settle,
   onMatchClosed: (tableId) => tableMap.delete(tableId)
 });
-attachJetskiRoyal(io);
+// Recovery only: refund expired reservations from retired games. No new matches.
 const blackwaterStake = createBlackwaterStakeService();
-const blackwater = attachBlackwater(io, {
-  settleMatch: blackwaterStake.settle,
-  onMatchClosed: (tableId) => tableMap.delete(tableId)
-});
-// Recovery only: refund expired reservations from the retired game. No new matches.
 const bowlingStake = createBowlingStakeService();
 // Expired persisted reservations are refunded even after a process restart.
 setInterval(() => {
@@ -392,7 +384,6 @@ app.use('/api/matchmaking', matchmakingRoutes);
 app.use('/api/pool-royale', poolRoyaleRoutes);
 app.use('/api/snooker-royale', snookerRoyaleRoutes);
 app.use('/api/exchange', exchangeRoutes);
-app.use('/api/tirana-store', requireDatabase, tiranaStoreRoutes);
 
 const socialScheduler = setInterval(() => queueDueSocialPosts().catch((error) => console.error('Social scheduler failed:', error.message)), 30_000);
 socialScheduler.unref?.();
@@ -1561,14 +1552,12 @@ function maybeStartGame(table) {
         return;
       }
       console.log(`Table ${table.id} confirmed by all players. Starting game.`);
-      if (['kartroyale', 'blackwater'].includes(table.gameType)) {
-        const stakeService = table.gameType === 'blackwater' ? blackwaterStake : kartStake;
-        const runtime = table.gameType === 'blackwater' ? blackwater : kartRoyale;
+      if (table.gameType === 'kartroyale') {
         table.starting = true;
         let reserved = false;
         const roster = table.players.map((p) => String(p.id)).join('|');
         try {
-          await stakeService.reserve(table);
+          await kartStake.reserve(table);
           reserved = true;
           // A cancellation/disconnect during the transaction must not start a
           // different roster or leave an unmatched player's stake locked.
@@ -1576,11 +1565,11 @@ function maybeStartGame(table) {
             table.players.some((p) => !io.sockets.sockets.get(p.socketId)?.connected || !table.ready.has(String(p.id)))) {
             throw new Error('match_cancelled');
           }
-          runtime.createMatch(table);
+          kartRoyale.createMatch(table);
           table.matchId = table.id;
         } catch (error) {
           if (reserved) {
-            try { await stakeService.settle(table.id, { reason: 'start_cancelled_refund' }); }
+            try { await kartStake.settle(table.id, { reason: 'start_cancelled_refund' }); }
             catch (refundError) { console.error('Match refund pending recovery:', table.id, refundError.message); }
           }
           io.to(table.id).emit('matchmakingError', { tableId: table.id, error: error.message || 'match_start_failed' });
@@ -1710,7 +1699,7 @@ function unseatTableSocket(accountId, tableId, socketId) {
   if (!tableId) return;
   // Once started, the game runtime owns the immutable roster and stake.
   // A late lobby cancel or disconnect must not release its account lock.
-  if (['kartroyale', 'blackwater'].includes(tableMap.get(tableId)?.gameType) && tableMap.get(tableId)?.started) return;
+  if (tableMap.get(tableId)?.gameType === 'kartroyale' && tableMap.get(tableId)?.started) return;
   const map = tableSeats.get(tableId);
   const normalizedAccountId = accountId ? String(accountId) : '';
   // A mobile WebView can reconnect before Socket.IO finishes disconnecting the
@@ -2348,7 +2337,7 @@ function removeSocketFromLiveChat(socket) {
 }
 
 io.on('connection', (socket) => {
-  tiranaStreets.attach(socket);
+  racingExplore.attach(socket);
   tennisRoyal.attach(socket);
   tabletennisRoyal.attach(socket);
   const authAccountId = resolveTpcIdentity(socket.handshake?.auth || {});
@@ -2482,9 +2471,8 @@ io.on('connection', (socket) => {
 
       const safeMeta = validation.safeMatchMeta;
 
-      if (['kartroyale', 'blackwater'].includes(validation.normalizedGameType)) {
-        const stakeService = validation.normalizedGameType === 'blackwater' ? blackwaterStake : kartStake;
-        try { await stakeService.canQueue(String(resolvedAccountId), validation.normalizedStake, tableId); }
+      if (validation.normalizedGameType === 'kartroyale') {
+        try { await kartStake.canQueue(String(resolvedAccountId), validation.normalizedStake, tableId); }
         catch (error) { return cb && cb({ success: false, error: error.message }); }
         // The asynchronous balance read may complete after this phone leaves.
         if (!socket.connected) return;

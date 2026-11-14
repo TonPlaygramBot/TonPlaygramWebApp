@@ -463,9 +463,6 @@ async function performInstall(packId, { catalog, concurrency = DEFAULT_CONCURREN
   const catalogPack = findGamePack(resolvedCatalog, packId);
   if (!catalogPack) throw new Error(`Unknown game pack: ${packId}`);
 
-  if(packId==='tirana-streets'&&!(catalogPack.dependencies||[]).includes('shared-game-runtime')) {
-    throw new Error('The complete offline game is not available in this build. Refresh after the game update is published.');
-  }
   const manifest = await loadGamePackManifest(catalogPack, { fetchImpl: getNetworkFetch() });
   if(manifest.version!==catalogPack.version||JSON.stringify([...(manifest.dependencies||[])].sort())!==JSON.stringify([...(catalogPack.dependencies||[])].sort())){
     throw new Error('The game download changed while preparing. Refresh the game list and try again.');

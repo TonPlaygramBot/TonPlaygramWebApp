@@ -2,7 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import {FlightSimulation} from '../webapp/src/games/tiranastreets/street-career/FlightSimulation.mjs';
 import {CombatSimulation} from '../webapp/src/games/tiranastreets/street-career/CombatSimulation.mjs';
-import {pilotView,flightReadout,angleDifference} from '../webapp/src/games/tiranastreets/street-career/flightView.mjs';
+
 import {findFlightTarget,guideMissile} from '../webapp/src/games/tiranastreets/street-career/flightTargeting.mjs';
 
 function fixture(kind='jet'){
@@ -14,20 +14,7 @@ function fixture(kind='jet'){
   sim.combat=new CombatSimulation(sim);
   return {sim,flight,aircraft,target};
 }
-for(const kind of ['jet','helicopter'])test(`${kind}: pilot eye is inside the aircraft footprint and right steering looks right`,()=>{
-  const {flight,aircraft}=fixture(kind),pose=pilotView(aircraft,0,0,.46);
-  assert.ok(Math.hypot(pose.eye.x-aircraft.x,pose.eye.z-aircraft.z)<3);
-  assert.ok(pose.eye.y>aircraft.y);assert.equal(pose.direction.z,-1);assert.ok(Math.abs(pose.direction.x)<1e-9);
-  flight.sim.intent.x=1;flight.step(.1);
-  assert.ok(aircraft.heading<0);assert.ok(pilotView(aircraft,aircraft.heading,0,.46).direction.x>0);
-  assert.ok(pilotView(aircraft,aircraft.heading,.3,.46).direction.y>0,'looking up points visually higher');
-  assert.ok(pilotView(aircraft,aircraft.heading,-.3,.46).direction.y<0,'looking down points visually lower');
-});
-test('heading wraps across north and the HUD uses altitude above local terrain',()=>{
-  assert.ok(Math.abs(angleDifference(-Math.PI+.01,Math.PI-.01)-.02)<1e-9);
-  const readout=flightReadout({heading:-Math.PI/2,y:140,speed:10,verticalSpeed:-3},100);
-  assert.deepEqual(readout,{heading:90,cardinal:'E',altitude:40,speed:36,climb:-3});
-});
+
 test('jet stick back brakes without reverse; helicopter retains slow backwards travel',()=>{
   for(const kind of ['jet','helicopter']){
     const {flight,sim,aircraft}=fixture(kind);sim.intent.y=-1;flight.step(.5);

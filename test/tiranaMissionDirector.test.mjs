@@ -4,11 +4,9 @@ import {createMissionDirector,updateMissionDirector,missionGrade} from '../webap
 import {createState,MISSIONS} from '../webapp/src/games/tiranastreets/shared/engine.mjs';
 import {StreetSimulation} from '../webapp/src/games/tiranastreets/street-career/StreetSimulation.mjs';
 import {StreetWorld} from '../webapp/src/games/tiranastreets/street-career/spatialCore.mjs';
-import {captureCheckpoint,restoreCheckpoint,normalizeCheckpoint} from '../webapp/src/games/tiranastreets/street-career/checkpointCore.mjs';
-import {createCampaign} from '../webapp/src/games/tiranastreets/street-career/campaignCore.mjs';
+
 import {WEAPONS,STARTER_WEAPON} from '../webapp/src/games/tiranastreets/shared/weapons.mjs';
-import {CHAPTERS,freshCareer,startChapter,currentStep,advanceCareer,normalizeCareer,careerBalance} from '../webapp/src/games/tiranastreets/career/careerCore.mjs';
-const campaign=createCampaign(MISSIONS,WEAPONS,STARTER_WEAPON);
+
 const mission=id=>MISSIONS.find(m=>m.id===id);
 const frame=(patch={})=>({health:100,distance:2,speed:0,remaining:0,driving:false,onFoot:true,grounded:true,parcel:false,wanted:0,final:true,firing:false,...patch});
 function advance(d,m,f,seconds){for(let t=0;t<seconds-1e-8;t+=1/60)updateMissionDirector(d,m,f,1/60);}
@@ -20,7 +18,6 @@ function simulation(id){
   return sim;
 }
 function tick(sim,seconds){for(let t=0;t<seconds-1e-8;t+=1/60)sim.step(1/60);}
-function completeStory(profile){while(profile.active){const s=currentStep(profile);profile=advanceCareer(profile,{type:'interact',...s,distance:1,lineOfSight:true,completedJourney:true});}return profile;}
 
 test('defense requires a cleared area, on-foot stationarity and uninterrupted simulation time',()=>{
   const d=createMissionDirector({extracting:true}),m=mission('boulevard-defense');
@@ -90,51 +87,4 @@ test('combat extraction resets when airborne or boarding an aircraft',()=>{
   }
   sim.body.grounded=true;sim.player.aircraftId=null;
   sim.updateObjective(1/60);assert.ok(sim.job.director.hold>0,'grounded on-foot extraction resumes normally');
-});
-test('vehicle recovery deadline survives save/reload without recreating its wreck and resets on replacement',()=>{
-  const sim=simulation('after-hours');
-  sim.job.director.recovery=10;sim.job.director.vehicleId='lost-car';sim.job.vehicleId='lost-car';
-  const saved=normalizeCheckpoint(captureCheckpoint(sim),x=>x,sim.mission.stops.length);
-  const next=simulation('after-hours');assert.equal(restoreCheckpoint(next,saved,campaign.apply),true);
-  assert.equal(next.state.cars.length,0);assert.equal(next.job.vehicleId,null);
-  next.updateObjective(.1);assert.ok(next.job.director.recovery>10,'missing wreck does not cancel the saved deadline');
-  const car={id:'replacement',model:'sedan',health:140,x:next.player.x,z:next.player.z,driver:'local'};
-  next.state.cars.push(car);next.player.carId=car.id;next.job.vehicleId=car.id;
-  next.updateObjective(.1);assert.equal(next.job.director.recovery,0);
-  assert.equal(restoreCheckpoint(next,saved,campaign.apply),true);
-  next.player.carId=null;next.state.cars=[];next.job.vehicleId=null;
-  for(let i=0;i<100;i++)next.updateObjective(.1);
-  assert.equal(next.player.failed,true);assert.match(next.state.message,/vehicle/);
-});
-test('retry checkpoint detaches director state, restores extraction and preserves vehicle condition',()=>{
-  const sim=simulation('boulevard-defense');sim.job.director.extracting=true;sim.job.director.hold=5;sim.job.director.integrity=72;
-  const car={id:'owned',model:'sedan',x:sim.player.x,z:sim.player.z,heading:0,health:84,driver:'local'};
-  sim.state.cars=[car];sim.player.carId=car.id;
-  const saved=captureCheckpoint(sim);sim.job.director.hold=0;sim.job.director.integrity=0;assert.equal(saved.job.director.hold,5);assert.equal(saved.job.director.integrity,72);
-  const clean=normalizeCheckpoint(saved,x=>x,1),next=simulation('boulevard-defense');assert.equal(restoreCheckpoint(next,clean,campaign.apply),true);
-  assert.equal(next.approved,0);assert.equal(next.job.director.hold,5);assert.equal(next.state.streetMission.director,next.job.director);assert.equal(next.state.cars.find(c=>c.id==='owned').health,84);
-  delete saved.job.director;const legacy=normalizeCheckpoint(saved,x=>x,1);assert.equal(legacy.job.director.integrity,100);assert.equal(legacy.job.director.hold,0);
-});
-test('career grades persist across replays without paying a second reward',()=>{
-  let profile=campaign.begin(campaign.fresh(),'first-shift');
-  const state={mode:'solo',phase:'finished',missionId:'first-shift',difficulty:'normal',players:{local:{...profile.loadout,finished:true,health:100,finishTime:60}},streetMission:{id:'first-shift',director:createMissionDirector()}};
-  profile=campaign.resolve(profile,state,'local');assert.equal(profile.records['first-shift'].grade,'gold');const cash=profile.loadout.cash;
-  profile=campaign.begin(profile,'first-shift');state.players.local={...profile.loadout,finished:true,health:100,finishTime:500};state.streetMission.director.damageTaken=200;
-  profile=campaign.resolve(profile,state,'local');assert.equal(profile.loadout.cash,cash);assert.equal(profile.records['first-shift'].grade,'gold');assert.equal(profile.records['first-shift'].runs,2);
-  assert.equal(missionGrade(createMissionDirector({integrity:40}),500,600),'bronze');
-});
-test('City Stories verifies items through multiple contacts and still awards each chapter once',()=>{
-  let profile=freshCareer();for(const chapter of CHAPTERS){profile=startChapter(profile,chapter.id);while(profile.active){const step=currentStep(profile);assert.ok(step.requires.every(item=>profile.active.items.includes(item)));profile=advanceCareer(profile,{type:'interact',...step,distance:1,lineOfSight:true,completedJourney:true});}}
-  assert.equal(careerBalance(profile),1010);assert.equal(Object.keys(profile.grades).length,6);
-  assert.equal(careerBalance(completeStory(startChapter(profile,'culture-run'))),1010);
-});
-test('City Stories migrates old delivery phases and retries a reached checkpoint after timeout',()=>{
-  const migrated=normalizeCareer({version:1,completed:['first-contact'],bestTimes:{},active:{id:'culture-run',step:1,elapsed:40,status:'active'}});
-  assert.equal(migrated.active.step,2);assert.deepEqual(migrated.active.items,['schedule','entrance-note']);
-  assert.equal(normalizeCareer({...migrated,active:{id:'culture-run',step:3,elapsed:0}}).active,null,'an invalid legacy step cannot skip the new route');
-  let p=freshCareer();for(const c of CHAPTERS.slice(0,4))p=completeStory(startChapter(p,c.id));
-  p=startChapter(p,'last-delivery');p.active.elapsed=30;p=advanceCareer(p,{type:'interact',...currentStep(p),distance:1,lineOfSight:true});assert.equal(p.active.step,1);
-  p.active.elapsed=359.99;p=advanceCareer(p,{type:'tick',dt:.05});assert.equal(p.active.status,'failed');
-  p=startChapter(p,'last-delivery');assert.equal(p.active.step,1);assert.equal(p.active.elapsed,30);assert.deepEqual(p.active.items,['sealed-parcel']);
-  const bad={...p,active:{...p.active,items:[]}};assert.equal(advanceCareer(bad,{type:'interact',...currentStep(bad),distance:1,lineOfSight:true}),bad);
 });

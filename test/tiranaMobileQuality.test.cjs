@@ -100,20 +100,3 @@ test('Tirana contains no Racing Royal karts or invisible kart collision props',a
   assert.deepEqual(new Set(ids),new Set(VEHICLE_COLLECTION.map(c=>c.id)));
   assert.ok(ids.includes('golf-gti'),'the starter GTI remains alongside the parked originals');
 });
-function runtimeFixture(hidden=false){
-  const document={hidden};
-  const {StreetCareerRuntime}=load('webapp/src/games/tiranastreets/street-career/StreetCareerRuntime.ts',{
-    './campaignCore.mjs':{createCampaign:()=>({})}
-  },{document});
-  const runtime=Object.create(StreetCareerRuntime.prototype);
-  return {StreetCareerRuntime,document,runtime};
-}
-test('resume cannot restart a hidden tab or an unavailable graphics context',()=>{
-  const {runtime,document}=runtimeFixture(true);
-  let resumed=0;Object.assign(runtime,{ready:true,disposed:false,paused:true,state:{phase:'active',players:{local:{carId:null}}},settings:{volume:.6},radio:{setContext(){}},
-    input:{setEnabled(){resumed++;}},simulation:{resume(){}},audio:{unlock:async()=>{}},emit(){}});
-  runtime.resume();assert.equal(resumed,0);assert.equal(runtime.paused,true);
-  document.hidden=false;runtime.ready=false;runtime.resume();assert.equal(resumed,0);
-  runtime.ready=true;runtime.graphicsError='context lost';runtime.resume();assert.equal(resumed,0);
-  runtime.graphicsError='';runtime.resume();assert.equal(resumed,1);assert.equal(runtime.paused,false);
-});
