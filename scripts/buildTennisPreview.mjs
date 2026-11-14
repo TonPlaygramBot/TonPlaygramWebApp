@@ -49,10 +49,12 @@ const result = await build({
         builder.onLoad({ filter: /.*/, namespace: 'embedded' }, () => ({
           contents: `import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js';
           const models = ${JSON.stringify(models)};
-          export async function loadAthlete(seat) {
-            const bytes = Uint8Array.from(atob(models[seat]), c => c.charCodeAt(0));
+          export const athleteUrl = (seat) => String(seat);
+          export async function loadAthlete(url) {
+            const bytes = Uint8Array.from(atob(models[Number(url)]), c => c.charCodeAt(0));
             const stream = new Blob([bytes]).stream().pipeThrough(new DecompressionStream('gzip'));
-            return new GLTFLoader().parseAsync(await new Response(stream).arrayBuffer(), '').then(g => g.scene);
+            const { scene } = await new GLTFLoader().parseAsync(await new Response(stream).arrayBuffer(), '');
+            return { model: scene, authored: false };
           }`,
           loader: 'js',
           resolveDir: base

@@ -2,6 +2,7 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { Button } from './Button';
 import { TennisRenderer } from './render';
+import { CAMERA_VIEWS, type CameraView } from './camera';
 import { TennisAudio } from './audio';
 import { LineReview } from './LineReview';
 import {
@@ -20,6 +21,7 @@ import {
 } from '../../../../shared/tennis/swipe';
 import {
   advance,
+  canQueueSwing,
   createMatch,
   neutralInput,
   pointLabels,
@@ -88,6 +90,7 @@ export default function TennisGame({
     [assist, setAssist] = useState(true),
     [hints, setHints] = useState(true),
     [eco, setEco] = useState(false),
+    [cameraView, setCameraView] = useState<CameraView>('close'),
     [strokeMenu, setStrokeMenu] = useState(false),
     [confirmExit, setConfirmExit] = useState(false),
     [difficulty, setDifficulty] = useState(launch?.difficulty ?? 2),
@@ -441,7 +444,6 @@ export default function TennisGame({
     setCharge(0);
   };
   const release = (power: number) => {
-    if (!charging.current) return;
     charging.current = false;
     input.current.power = power;
     input.current.swing = ++nextSwing.current;
@@ -522,23 +524,27 @@ export default function TennisGame({
           : ['Club AI', 'Tour AI', 'Pro AI'][difficulty];
   const canHit = () =>
     screen === 'match' &&
-    !paused &&
-    !reviewActive(frame.current) &&
-    (frame.current.phase === 'serve' || frame.current.phase === 'rally') &&
-    (!room || room.joined) &&
-    (frame.current.phase !== 'serve' || frame.current.score.server === own);
+    !pausedRef.current &&
+    !confirmExit &&
+    (!roomRef.current || roomRef.current.joined) &&
+    canQueueSwing(frame.current, own);
   const tour = TOUR[career.tour];
   const finishCourtTouch = (e: React.PointerEvent<HTMLDivElement>) => {
     touches.current.delete(e.pointerId);
     if (pointer.current !== e.pointerId || !gesture.current) return;
     sampleSwipe(gesture.current, e.clientX, e.clientY, e.timeStamp);
     const { power, dx, dy } = readSwipe(gesture.current);
-    input.current.direction =
-      renderer.current?.shotDirection(dx, dy, frame.current) ?? null;
-    // A tap has no heading: softly return towards centre (diagonal on serve).
-    chooseAim(dx);
-    if (canHit()) release(power);
-    else charging.current = false;
+    if (canHit()) {
+      input.current.direction =
+        renderer.current?.shotDirection(dx, dy, frame.current) ?? null;
+      // A tap has no heading: softly return towards centre (diagonal on serve).
+      chooseAim(dx);
+      unlock();
+      release(power);
+    } else {
+      charging.current = false;
+      setCharge(0);
+    }
     pointer.current = null;
     gesture.current = null;
     input.current.moveX = null;
@@ -599,7 +605,14 @@ export default function TennisGame({
         className="tr-court"
         ref={canvas}
         onPointerDown={(e) => {
-          if (e.button !== 0 || screen !== 'match' || paused) return;
+          if (
+            e.button !== 0 ||
+            screen !== 'match' ||
+            pausedRef.current ||
+            confirmExit ||
+            reviewActive(frame.current)
+          )
+            return;
           touches.current.add(e.pointerId);
           e.currentTarget.setPointerCapture(e.pointerId);
           if (touches.current.size > 1) {
@@ -610,17 +623,9 @@ export default function TennisGame({
             setCharge(0);
             return;
           }
-          if (
-            screen !== 'match' ||
-            paused ||
-            reviewActive(frame.current) ||
-            pointer.current !== null ||
-            e.button !== 0
-          )
-            return;
+          if (pointer.current !== null) return;
           setStrokeMenu(false);
           pointer.current = e.pointerId;
-          e.currentTarget.setPointerCapture(e.pointerId);
           gesture.current = beginSwipe(
             e.clientX,
             e.clientY,
@@ -671,6 +676,29 @@ export default function TennisGame({
           <span className="tr-brand-ball">◉</span> TENNIS <b>ROYAL</b>
         </button>
         <div className="tr-top-actions">
+          {screen === 'match' && (
+            <label className="tr-camera">
+              <select
+                aria-label="Camera view"
+                value={cameraView}
+                onChange={(e) => {
+                  const view = e.target.value as CameraView;
+                  renderer.current?.setCameraView(view);
+                  setCameraView(view);
+                }}
+              >
+                {Object.entries(CAMERA_VIEWS).map(([view, label]) => (
+                  <option
+                    key={view}
+                    value={view}
+                    aria-label={view === 'eyes' ? 'First-person view' : label}
+                  >
+                    {label}
+                  </option>
+                ))}
+              </select>
+            </label>
+          )}
           <Button
             variant="ghost"
             className="tr-icon"
@@ -1106,8 +1134,9 @@ export default function TennisGame({
               <b>Return</b>
               <p>
                 Your player moves to intercept the ball. Tap for a soft return
-                or release a swipe as the ball approaches. You can queue a shot
-                just before it reaches your racket.
+                or swipe toward the open court. You can queue the return during
+                the opponent’s toss. Your shot plays when the ball is in reach
+                after the first legal bounce.
               </p>
             </li>
             <li>

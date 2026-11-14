@@ -13,7 +13,7 @@ import {
   CONTACT_RADIUS
 } from './engine';
 import { reviewBall, CENTRE_LINE_HALF } from '../../../../shared/tennis/court';
-import { playerCamera, fingerDirection } from './camera';
+import { playerCamera, fingerDirection, type CameraView } from './camera';
 
 export const decode = (data: string) =>
   Uint8Array.from(atob(data), (c) => c.charCodeAt(0));
@@ -31,6 +31,8 @@ type Actor = {
 export class TennisRenderer {
   scene = new THREE.Scene();
   camera = new THREE.PerspectiveCamera(39, 1, 0.1, 160);
+  cameraView: CameraView = 'close';
+  private snapCamera = true;
   renderer: THREE.WebGLRenderer | SoftwareRenderer;
   root = new THREE.Group();
   clock = 0;
@@ -298,16 +300,16 @@ export class TennisRenderer {
     if (!w || !h) return;
     this.renderer.setSize(w, h, false);
     this.camera.aspect = w / h;
-    playerCamera(
-      this.camera,
-      this.seat,
-      { x: 0, z: side(this.seat) * 12.4 },
-      10
-    );
+    this.camera.updateProjectionMatrix();
+  }
+  setCameraView(view: CameraView) {
+    this.cameraView = view;
+    this.snapCamera = true;
   }
   shotDirection(dx: number, dy: number, s: MatchState) {
-    const p = s.players[this.seat];
-    return fingerDirection(this.camera, { x: p.x, y: 1.2, z: p.z }, dx, dy);
+    const p = this.actors[this.seat]?.root.position ?? s.players[this.seat];
+    const z = this.cameraView === 'eyes' ? p.z - 2 * side(this.seat) : p.z;
+    return fingerDirection(this.camera, { x: p.x, y: 1.2, z }, dx, dy);
   }
 
   setSurface(surface: Surface) {
@@ -410,6 +412,7 @@ export class TennisRenderer {
   setLocalSeat(seat: Seat) {
     if (seat === this.seat) return;
     this.seat = seat;
+    this.snapCamera = true;
     this.actors.forEach((actor, n) => {
       (actor.marker.material as THREE.MeshBasicMaterial).color.setHex(
         n === seat ? 0xddff47 : 0xff8772
@@ -423,12 +426,12 @@ export class TennisRenderer {
     if (actor.asset === asset) return;
     actor.asset = asset;
     try {
-      const model = await loadAthlete(seat, localSeat);
+      const { model, authored } = await loadAthlete(asset);
       if (this.disposed || actor.asset !== asset) {
         disposeAthlete(model);
         return;
       }
-      const rig = dressAthlete(model, seat, seat === localSeat);
+      const rig = dressAthlete(model, seat, authored);
       if (actor.model) {
         actor.root.remove(actor.model);
         disposeAthlete(actor.model);
@@ -519,19 +522,9 @@ export class TennisRenderer {
       this.renderer.render(this.scene, this.camera);
       return;
     }
-    playerCamera(
-      this.camera,
-      this.seat,
-      s.players[this.seat],
-      this.reviewing ? 10 : dt
-    );
-    this.reviewing = false;
     this.reviewMark.visible = this.reviewPath.visible = false;
     this.ball.scale.setScalar(1);
     this.ball.visible = this.ballShadow.visible = true;
-    this.actors.forEach((a) => {
-      a.root.visible = true;
-    });
     this.setSurface(s.config.surface);
     // Keep the stand closest to the camera from hiding the playable court.
     this.stadium.ends[0].visible = this.seat === 0;
@@ -542,6 +535,11 @@ export class TennisRenderer {
       const a = this.actors[i],
         p = s.players[i];
       if (!a) continue;
+      a.root.visible = true;
+      // Keep the racket visible without clipping the local avatar into the view.
+      if (a.model)
+        a.model.visible = this.cameraView !== 'eyes' || i !== this.seat;
+      a.marker.visible = this.cameraView !== 'eyes' || i !== this.seat;
       const speed =
         Math.hypot(p.x - a.lastX, p.z - a.lastZ) / Math.max(0.001, dt);
       a.lastX = p.x;
@@ -562,6 +560,14 @@ export class TennisRenderer {
         a.marker.material.color.setHex(i === this.seat ? 0xddff47 : 0xff8772);
       }
     }
+    playerCamera(
+      this.camera,
+      this.seat,
+      this.actors[this.seat]?.root.position ?? s.players[this.seat],
+      this.reviewing || this.snapCamera ? 10 : dt,
+      this.cameraView
+    );
+    this.snapCamera = this.reviewing = false;
     if (smooth && s.phase === 'rally')
       this.ball.position.lerp(
         new THREE.Vector3(s.ball.x, s.ball.y, s.ball.z),

@@ -4,6 +4,7 @@ import {
   createMatch,
   stepMatch,
   advance,
+  awardPoint,
   setInput,
   neutralInput
 } from '../shared/tennis/engine.js';
@@ -12,6 +13,50 @@ import { advanceBall, ballAtRest } from '../shared/tennis/physics.js';
 
 const surfaces = ['hard', 'clay', 'grass'];
 const steps = [1 / 30, 1 / 60, 1 / 120, 1 / 240];
+
+test('early returns connect after the legal AI serve bounce across all surfaces and levels', () => {
+  for (const surface of surfaces)
+    for (const difficulty of [0, 1, 2])
+      for (const phase of ['toss', 'rally']) {
+        const s = createMatch({ surface, difficulty, gamesToWin: 3 });
+        // End a game to transfer serve and run the normal AI service setup.
+        for (let i = 0; i < 4; i++) awardPoint(s.score, 1, 3, 1);
+        s.phase = 'point';
+        s.phaseAt = -2;
+        for (let i = 0; i < 480 && s.phase !== phase; i++) stepMatch(s);
+        assert.equal(s.phase, phase);
+        const input = { ...neutralInput(), swing: 1, power: 0.7 };
+        setInput(s, 0, input);
+        for (let i = 0; i < 480 && s.rally < 2; i++) stepMatch(s);
+        assert.deepEqual(
+          s.events.map((event) => [event.type, event.seat]),
+          [
+            ['serve', 1],
+            ['bounce', 1],
+            ['hit', 0]
+          ],
+          `${surface}/${difficulty}/${phase}`
+        );
+        assert.equal(s.fault, 0);
+        assert.equal(s.players[0].queuedInput, null);
+      }
+});
+
+test('a return queued during the toss clears on a fault and cannot leak into the second serve', () => {
+  const s = createMatch({ ai: false });
+  setInput(s, 0, { ...neutralInput(), swing: 1, direction: { x: 1, z: 0 } });
+  stepMatch(s);
+  assert.equal(s.phase, 'toss');
+  setInput(s, 1, { ...neutralInput(), swing: 1 });
+  assert.ok(s.players[1].queuedInput);
+  for (let i = 0; i < 480 && s.phase !== 'fault'; i++) stepMatch(s);
+  assert.equal(s.fault, 1);
+  assert.equal(s.players[1].queuedInput, null);
+  advance(s, 1);
+  advance(s, 1);
+  assert.equal(s.phase, 'serve');
+  assert.equal(s.players[1].queuedInput, null);
+});
 function landing({
   surface = 'hard',
   seat = 0,

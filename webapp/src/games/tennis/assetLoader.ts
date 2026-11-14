@@ -8,7 +8,7 @@ export const athleteUrl = (seat: Seat, localSeat: Seat = 0) =>
   seat === localSeat
     ? TURI_MODEL_URL
     : `/assets/table-tennis/athlete-${seat === 0 ? 'male' : 'female'}.glb`;
-export const loadAthlete = (seat: Seat, localSeat: Seat = 0) =>
-  new GLTFLoader()
-    .loadAsync(athleteUrl(seat, localSeat))
-    .then((gltf) => gltf.scene);
+export async function loadAthlete(url: string) {
+  const { scene } = await new GLTFLoader().loadAsync(url);
+  return { model: scene, authored: url === TURI_MODEL_URL };
+}

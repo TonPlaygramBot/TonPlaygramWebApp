@@ -15,7 +15,7 @@ import { planAiShot } from '../shared/tennis/ai.js';
 const bundle = await build({
   stdin: {
     contents:
-      "export { playerCamera, fingerDirection } from './camera'; export * as THREE from 'three';",
+      "export { CAMERA_VIEWS, playerCamera, fingerDirection } from './camera'; export * as THREE from 'three';",
     resolveDir: fileURLToPath(
       new URL('../webapp/src/games/tennis', import.meta.url)
     )
@@ -25,7 +25,7 @@ const bundle = await build({
   format: 'esm',
   write: false
 });
-const { playerCamera, fingerDirection, THREE } = await import(
+const { CAMERA_VIEWS, playerCamera, fingerDirection, THREE } = await import(
   'data:text/javascript;base64,' +
     Buffer.from(bundle.outputFiles[0].text).toString('base64')
 );
@@ -53,10 +53,15 @@ test('close player camera keeps both seats visible on narrow and tall phones', (
 
 test('screen vectors retain their angle and sign in all directions, for both seats', () => {
   for (const seat of [0, 1])
-    for (const x of [-3, 0, 3]) {
-      const camera = new THREE.PerspectiveCamera(64, 390 / 460, 0.1, 160),
-        anchor = { x, y: 1.2, z: side(seat) * 10 };
-      playerCamera(camera, seat, anchor, 10);
+    for (const view of Object.keys(CAMERA_VIEWS)) {
+      const player = { x: 3, z: side(seat) * 10 };
+      const camera = new THREE.PerspectiveCamera(64, 390 / 460, 0.1, 160);
+      playerCamera(camera, seat, player, 10, view);
+      const anchor = {
+        ...player,
+        y: 1.2,
+        z: player.z - (view === 'eyes' ? 2 * side(seat) : 0)
+      };
       for (const [dx, dy] of [
         [0, -1],
         [0, 1],
@@ -81,6 +86,25 @@ test('screen vectors retain their angle and sign in all directions, for both sea
             0.99999
         );
       }
+    }
+});
+
+test('camera modes distinguish a close follow, eye height and full-court framing', () => {
+  for (const seat of [0, 1])
+    for (const aspect of [320 / 650, 390 / 460, 480 / 360]) {
+      const camera = new THREE.PerspectiveCamera(64, aspect, 0.1, 160);
+      const p = { x: 1.8, z: side(seat) * 12.4 };
+      playerCamera(camera, seat, p, 10);
+      assert.ok(Math.abs(camera.position.z - p.z) < 7);
+      playerCamera(camera, seat, p, 10, 'eyes');
+      assert.equal(camera.position.x, p.x);
+      assert.ok(camera.position.y >= 1.6 && camera.position.y <= 1.75);
+      playerCamera(camera, seat, p, 10, 'wide');
+      for (const x of [-4.115, 4.115])
+        for (const z of [-11.885, 11.885]) {
+          const v = new THREE.Vector3(x, 0, z).project(camera);
+          assert.ok(Math.abs(v.x) < 1 && Math.abs(v.y) < 1);
+        }
     }
 });
 

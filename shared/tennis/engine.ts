@@ -2,6 +2,7 @@ import {
   BALL_RADIUS,
   GRAVITY,
   REVIEW_SECONDS,
+  groundTime,
   lineCall,
   reviewActive,
   type CloseCall,
@@ -88,6 +89,7 @@ export type MatchState = {
     bounces: number;
     last: Seat;
     serve: boolean;
+    serverX?: number;
     netTouch: boolean;
     spin: number;
   };
@@ -121,6 +123,17 @@ export const neutralInput = (): Input => ({
   swing: 0,
   assist: true
 });
+const SWING_WINDOW = 0.85;
+const TOSS_SECONDS = 0.6;
+
+export function canQueueSwing(s: MatchState, seat: Seat) {
+  return (
+    !reviewActive(s) &&
+    (s.phase === 'rally' ||
+      (s.phase === 'serve' && s.score.server === seat) ||
+      (s.phase === 'toss' && s.score.server !== seat))
+  );
+}
 export function initialScore(): Score {
   return {
     points: [0, 0],
@@ -361,6 +374,7 @@ function trajectory(s: MatchState, seat: Seat, input: Input, isServe: boolean) {
     shot = isServe ? 'flat' : input.shot;
   if (isServe) {
     b.x = s.players[seat].x;
+    b.serverX = b.x;
     b.z = s.players[seat].z - 0.5 * sign;
     b.y = 2.7;
   }
@@ -411,6 +425,10 @@ function trajectory(s: MatchState, seat: Seat, input: Input, isServe: boolean) {
   b.bounces = 0;
   b.last = seat;
   b.serve = isServe;
+  if (isServe) {
+    const receiver = s.players[opponent(seat)];
+    if (receiver.queuedInput) receiver.queued = s.time + flight + SWING_WINDOW;
+  }
   b.netTouch = false;
   b.spin = shot === 'topspin' ? 0.8 : shot === 'slice' ? -0.6 : 0;
   s.rally++;
@@ -467,8 +485,18 @@ export function setInput(s: MatchState, seat: Seat, input: Input) {
   p.lastInput = s.time;
   if (swing > p.swingId) {
     p.swingId = swing;
-    if (!reviewActive(s) && (s.phase === 'serve' || s.phase === 'rally')) {
-      p.queued = s.time + 0.85;
+    if (canQueueSwing(s, seat)) {
+      // A return may be prepared before contact, but a serve must bounce first.
+      const wait =
+        s.phase === 'toss'
+          ? Math.max(0, TOSS_SECONDS - (s.time - s.phaseAt))
+          : s.phase === 'rally' &&
+              s.ball.serve &&
+              s.ball.last !== seat &&
+              s.ball.bounces === 0
+            ? groundTime(s.ball)
+            : 0;
+      p.queued = s.time + wait + SWING_WINDOW;
       p.queuedInput = { ...s.inputs[seat] };
     }
   }
@@ -481,7 +509,7 @@ function movePlayers(s: MatchState, dt: number) {
       incoming = s.ball.last !== seat && s.phase === 'rally';
     const ai = seat === 1 && s.config.ai;
     const assisted = ai || inp.assist;
-    if (s.phase === 'serve' || s.phase === 'toss') continue;
+    if (s.phase !== 'rally' && (seat === s.score.server || assisted)) continue;
     let speed = ai
       ? aiSpeed(s.config.difficulty)
       : 7.2 + (s.config.upgrades[0] || 0) * 0.35;
@@ -549,6 +577,7 @@ export function stepMatch(s: MatchState, dt = 1 / 120) {
   const server = s.score.server,
     p = s.players[server];
   if (s.phase === 'serve') {
+    movePlayers(s, dt);
     if (
       (s.config.ai && server === 1 && s.time - s.phaseAt > 1.35) ||
       p.queued >= s.time
@@ -564,9 +593,11 @@ export function stepMatch(s: MatchState, dt = 1 / 120) {
     return;
   }
   if (s.phase === 'toss') {
+    movePlayers(s, dt);
     const t = s.time - s.phaseAt;
     s.ball.y = 1.25 + Math.sin(Math.min(1, t / 0.65) * Math.PI * 0.65) * 1.6;
-    if (t >= 0.6) trajectory(s, server, s.serveInput || neutralInput(), true);
+    if (t >= TOSS_SECONDS)
+      trajectory(s, server, s.serveInput || neutralInput(), true);
     return;
   }
   const b = s.ball;
@@ -587,7 +618,7 @@ export function stepMatch(s: MatchState, dt = 1 / 120) {
           impact.z,
           b.last,
           b.serve,
-          s.players[b.last].x
+          b.serverX ?? s.players[b.last].x
         );
         if (call.close && !b.netTouch)
           s.closeCall = {

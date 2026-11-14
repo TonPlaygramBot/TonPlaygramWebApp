@@ -115,6 +115,21 @@
   display: flex;
   gap: 6px;
 }
+.tr-game .tr-camera select {
+  width: 66px;
+  min-height: 44px;
+  border: 1px solid #70998c66;
+  border-radius: 8px;
+  padding: 0 6px;
+  color: var(--tr-paper);
+  background: #12363e;
+  font: inherit;
+  font-size: 13px;
+}
+.tr-game .tr-camera select:focus-visible {
+  outline: 3px solid var(--tr-lime);
+  outline-offset: 2px;
+}
 .tr-game .tr-icon {
   display: flex;
   align-items: center;
