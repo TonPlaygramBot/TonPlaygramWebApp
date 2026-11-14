@@ -40,7 +40,7 @@ await build({
               marker +
                 `
       (globalThis as any).__tennisProbe = {
-        read: () => ({ state: structuredClone(frame.current), visual: renderer.current?.ball.position.toArray(), webgl: renderer.current?.renderer.constructor.name }),
+        read: () => ({ state: structuredClone(frame.current), visual: renderer.current?.ball.position.toArray(), webgl: renderer.current?.renderer.constructor.name, camera: renderer.current?.camera.position.toArray(), view: renderer.current?.cameraView, reviewing: renderer.current?.reviewing, avatar: renderer.current?.actors[0]?.model?.visible }),
         load: (patch: Partial<MatchState>) => { const s = createMatch({ ai: false }); Object.assign(s, patch); frame.current = s; input.current = neutralInput(); nextSwing.current = 0; updateHud(); },
         fresh: (config: any) => createMatch(config)
       };`
@@ -223,15 +223,69 @@ try {
     const layout = await page.evaluate(() => ({
       width: innerWidth,
       scroll: document.documentElement.scrollWidth,
-      buttons: [...document.querySelectorAll('button')].map((b) => {
+      buttons: [...document.querySelectorAll('button, select')].map((b) => {
         const r = b.getBoundingClientRect();
-        return { x: r.x, right: r.right };
+        return {
+          name: b.getAttribute('aria-label') || b.textContent,
+          x: r.x,
+          right: r.right
+        };
       })
     }));
     assert.ok(layout.scroll <= layout.width);
-    assert.ok(layout.buttons.every((r) => r.x >= 0 && r.right <= layout.width));
+    assert.ok(
+      layout.buttons.every((r) => r.x >= 0 && r.right <= layout.width),
+      JSON.stringify(layout)
+    );
     controls.push({ width, softPace, fastPace, power: fast.inputs[0].power });
   }
+  const cameraPicker = page.getByRole('combobox', { name: 'Camera view' });
+  await page.setViewportSize({ width: 390, height: 844 });
+  const cameras = {};
+  for (const view of ['close', 'eyes', 'wide']) {
+    await page.evaluate(() => {
+      const s = __tennisProbe.fresh({ ai: true, seed: 42117, gamesToWin: 3 });
+      s.phase = 'point';
+      s.phaseAt = -2;
+      s.score.server = 1;
+      __tennisProbe.load(s);
+    });
+    await cameraPicker.selectOption(view);
+    await page.clock.runFor(1250);
+    assert.equal((await read()).state.phase, 'serve');
+    const cdp = await page.context().newCDPSession(page);
+    const sendTouch = (type, x, y) =>
+      cdp.send('Input.dispatchTouchEvent', {
+        type,
+        touchPoints: type === 'touchEnd' ? [] : [{ x, y }]
+      });
+    await sendTouch('touchStart', 205, 500);
+    await page.clock.runFor(200);
+    const toss = await read();
+    assert.equal(toss.state.phase, 'toss');
+    assert.equal(toss.view, view);
+    assert.equal(toss.avatar, view !== 'eyes');
+    cameras[view] = toss.camera;
+    await page.screenshot({ path: path.join(output, `${view}.png`) });
+    await sendTouch('touchMove', 194, 440);
+    await page.clock.runFor(32);
+    await sendTouch('touchEnd');
+    await cdp.detach();
+    await page.clock.runFor(64);
+    assert.ok((await read()).state.players[0].queuedInput);
+    await page.clock.runFor(2000);
+    assert.deepEqual(
+      (await read()).state.events.slice(0, 3).map((e) => [e.type, e.seat]),
+      [
+        ['serve', 1],
+        ['bounce', 1],
+        ['hit', 0]
+      ]
+    );
+  }
+  assert.equal(new Set(Object.values(cameras).map(String)).size, 3);
+  console.log(JSON.stringify({ aiReturn: 'passed', cameras }));
+  await cameraPicker.selectOption('eyes');
   await fresh();
   await page.mouse.move(240, 500);
   await page.mouse.down();
@@ -293,6 +347,9 @@ try {
   await page.clock.runFor(5400);
   assert.equal((await read()).state.phase, 'serve');
   assert.equal((await read()).state.pointCount, point);
+  assert.equal((await read()).view, 'eyes');
+  assert.equal((await read()).reviewing, false);
+  assert.equal((await read()).avatar, false);
   await page.evaluate(() => {
     const s = __tennisProbe.fresh({ ai: false });
     s.phase = 'rally';

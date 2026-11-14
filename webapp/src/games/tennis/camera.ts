@@ -1,25 +1,43 @@
 import * as THREE from 'three';
 import { side, type Seat } from './engine';
 
-/** Low third-person view. Translation follows the player without reversing the
- * screen axes or shaking the view as they take individual steps. */
+export const CAMERA_VIEWS = {
+  close: 'Close',
+  eyes: 'POV',
+  wide: 'Wide'
+} as const;
+export type CameraView = keyof typeof CAMERA_VIEWS;
+
+/** All views face the opposite baseline from the local player's end. */
 export function playerCamera(
   camera: THREE.PerspectiveCamera,
   seat: Seat,
   player: { x: number; z: number },
-  dt = 1
+  dt = 1,
+  view: CameraView = 'close'
 ) {
   camera.up.set(0, 1, 0);
-  camera.fov = 64;
   const sign = side(seat);
-  const target = new THREE.Vector3(
-    player.x * 0.55,
-    4.8,
-    sign * (Math.max(8.5, Math.min(13.3, Math.abs(player.z))) + 8.2)
-  );
-  camera.position.lerp(target, 1 - Math.exp(-dt * 4.5));
-  camera.lookAt(camera.position.x, 1, camera.position.z - sign * 22);
-  camera.updateProjectionMatrix();
+  const fov = view === 'eyes' ? 72 : view === 'wide' ? 55 : 64;
+  const blend = 1 - Math.exp(-dt * 5.5);
+  if (view === 'eyes') {
+    // Follow the rendered player's position at eye height, without head bob.
+    camera.position.set(player.x, 1.66, player.z - sign * 0.16);
+    camera.lookAt(player.x, 0.95, camera.position.z - sign * 12);
+  } else if (view === 'wide') {
+    camera.position.set(0, 14, sign * (camera.aspect < 0.85 ? 25 : 22));
+    camera.lookAt(0, 0, 0);
+  } else {
+    const depth = Math.max(7, Math.abs(player.z)) + 6.1;
+    camera.position.x += (player.x * 0.68 - camera.position.x) * blend;
+    camera.position.y += (3.9 - camera.position.y) * blend;
+    camera.position.z += (sign * depth - camera.position.z) * blend;
+    camera.lookAt(camera.position.x, 0.8, camera.position.z - sign * 16);
+  }
+  if (camera.fov !== fov) {
+    camera.fov = fov;
+    camera.updateProjectionMatrix();
+  }
   camera.updateMatrixWorld();
 }
 

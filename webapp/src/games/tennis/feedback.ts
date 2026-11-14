@@ -52,7 +52,12 @@ export function courtCue(
         ? 'Reset for your second serve'
         : 'Opponent prepares a second serve'
       : 'Let · replay the serve';
-  if (state.phase === 'toss') return 'Serve queued · watch the ball';
+  if (state.phase === 'toss')
+    return state.score.server === own
+      ? 'Serve queued · watch the ball'
+      : state.players[own].queued > state.time
+        ? 'Return queued · wait for the bounce'
+        : 'Swipe to queue your return';
   if (state.phase === 'serve')
     return state.score.server === own
       ? 'Tap to serve softly · swipe to the opposite service box'
