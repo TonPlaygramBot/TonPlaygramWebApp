@@ -6,6 +6,23 @@ import { checkpointPoolFrame, completePoolFrame, createPoolCompetition, loadPool
 const frame = (winner = 'A') => ({ frameOver: true, winner, players: { A: { score: 7 }, B: { score: 0 } } });
 const memory = () => { const values = new Map(); return { getItem: (key) => values.get(key), setItem: (key, value) => values.set(key, value) }; };
 
+test('Albanian 61 tournaments persist points and resume their own ruleset', () => {
+  const storage = memory();
+  const key = poolCompetitionKey('albanian-player', '', 'albanian61');
+  const event = createPoolCompetition({ variant: 'albanian61', id: '61-tournament' });
+  const scoreFrame = { frameOver: false, activePlayer: 'B', players: { A: { score: 39 }, B: { score: 27 } }, meta: { variant: 'albanian61' } };
+  const saved = checkpointPoolFrame(event, poolFrameId(event), scoreFrame, [{ id: 'cue', pos: { x: 2, y: 5 }, active: true }]);
+  assert.equal(savePoolCompetition(key, saved, storage), true);
+  const restored = loadPoolCompetition(key, storage);
+  assert.equal(restored.variant, 'albanian61');
+  assert.equal(restored.options.variantKey, 'albanian61');
+  assert.deepEqual(restored.checkpoint.frame.players, scoreFrame.players);
+  assert.equal(loadPoolCompetition(poolCompetitionKey('albanian-player', '', 'uk'), storage), null);
+  const completed = completePoolFrame(restored, poolFrameId(restored), { ...scoreFrame, frameOver: true, winner: 'B', players: { A: { score: 39 }, B: { score: 66 } } });
+  assert.deepEqual(completed.frames, [0, 1]);
+  assert.equal(validPoolCompetition(completed), true);
+});
+
 test('a pool match requires a series, advances only on match victory and ignores repeated results', () => {
   const initial = createPoolCompetition({ id: 't1' });
   const id = poolFrameId(initial);

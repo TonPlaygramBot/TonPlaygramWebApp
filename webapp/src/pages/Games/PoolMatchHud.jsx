@@ -3,10 +3,12 @@ import './poolMatchHud.css';
 
 export function PoolMatchHud({ player, opponent, turn, target, busy, preparing = false, inHand, timer, variant,
   competition, declaration, automaticCall, canCall, canPushOut, interactive, callOpen,
-  onToggleCall, onDeclaration, availableBalls, embedded = false, controlsOnly = false }) {
+  onToggleCall, onDeclaration, availableBalls, embedded = false, controlsOnly = false,
+  scores, pointsTarget }) {
   const callBall = declaration.ballId ?? automaticCall.ballId;
   const callPocket = declaration.pocket ?? automaticCall.pocket;
   const pocketNumber = ['TL', 'TR', 'BL', 'BR', 'TM', 'BM'].indexOf(callPocket) + 1;
+  const showPoints = Number.isFinite(pointsTarget) && pointsTarget > 0 && scores;
   return <section className={`pool-match-hud${embedded ? ' pool-match-hud--embedded' : ''}`} data-competition={Boolean(competition)} aria-label={controlsOnly ? 'Shot rules and calls' : 'Pool match scoreboard'}>
     {!controlsOnly && <><div className="pool-match-hud__meta">
       <span>{competition ? `Round ${(competition.round ?? 0) + 1} · Race to ${competition.raceTo}` : `${variant} · Pool Royal`}</span>
@@ -17,6 +19,15 @@ export function PoolMatchHud({ player, opponent, turn, target, busy, preparing =
       <strong>{competition ? `${competition.frames?.[0] ?? 0} : ${competition.frames?.[1] ?? 0}` : 'VS'}</strong>
       <span className={turn === 1 ? 'is-active' : ''}>{opponent}</span>
     </div></>}
+    {showPoints && <div className="pool-match-hud__points" aria-live="polite" aria-atomic="true">
+      <span className={turn === 0 ? 'is-active' : ''} title={player}>
+        <span>{player}</span><strong>{scores.player ?? 0}</strong>
+      </span>
+      <span className="pool-match-hud__points-goal">First to {pointsTarget}</span>
+      <span className={turn === 1 ? 'is-active' : ''} title={opponent}>
+        <strong>{scores.opponent ?? 0}</strong><span>{opponent}</span>
+      </span>
+    </div>}
     <div className="pool-match-hud__target">
       <span><i /> {preparing ? 'Planting feet and lining up' : inHand ? 'Place cue ball, then aim' : `Ball on: ${target}`}</span>
       <span>{preparing ? 'Shot queued' : busy ? 'Watching shot' : `${Math.max(0, timer)}s`}</span>

@@ -315,3 +315,123 @@ test('winning frame and HUD stay unchanged after delayed shot notifications', ()
   expect(delayed.winner).toBe('A');
   expect(delayed.foul).toBeUndefined();
 });
+
+// Break selection may arrive before a saved rules snapshot is updated.
+// The visible active seat is the shooter for both humans and AI.
+test.each(['uk', '8ball', '9ball', 'albanian61'])('%s credits the selected AI breaker when the serialized seat is stale', (variant) => {
+  const rules = new PoolRoyaleRules(variant);
+  const initial = rules.getInitialFrame('Human', 'AI');
+  initial.activePlayer = 'B';
+  const id = variant === 'uk' ? 'red_1' : 'ball_1';
+  const next = rules.applyShot(initial, [
+    { type: 'HIT', firstContact: id, ballId: id },
+    { type: 'POTTED', ball: id, ballId: id, pocket: 'TM' }
+  ], { contactMade: true, placedFromHand: true });
+  expect(next.foul).toBeUndefined();
+  expect(next.activePlayer).toBe('B');
+  expect((next.meta as any).state.currentPlayer).toBe('B');
+  expect(next.currentBreak).toBe(1);
+  if (variant === 'uk') expect((next.meta as any).state.assignments.B).toBe('red');
+  if (variant === '8ball') expect((next.meta as any).state.assignments).toEqual({ A: null, B: null });
+  if (variant === 'albanian61') expect(next.players.B.score).toBe(1);
+});
+
+test.each(['uk', '8ball', '9ball', 'albanian61'])('%s passes a scratched AI break back to the human', (variant) => {
+  const rules = new PoolRoyaleRules(variant);
+  const initial = rules.getInitialFrame('Human', 'AI');
+  initial.activePlayer = 'B';
+  const id = variant === 'uk' ? 'red_1' : 'ball_1';
+  const next = rules.applyShot(initial, [
+    { type: 'HIT', firstContact: id, ballId: id },
+    { type: 'POTTED', ball: id, ballId: id, pocket: 'TM' },
+    { type: 'POTTED', ball: 'cue', ballId: 'cue', pocket: 'TM' }
+  ], { cueBallPotted: true, contactMade: true, placedFromHand: true });
+  expect(next.foul?.reason).toBe('scratch');
+  expect(next.activePlayer).toBe('A');
+  expect(poolRoyalBallInHand(next)).toBe(true);
+  expect(next.currentBreak).toBe(0);
+});
+
+test.each(['albanian61', 'Albanian 61', '61', '61points', 'rotation61', 'race61', 'albanian'])('61 alias %s preserves scores and target through JSON serialization', (variant) => {
+  const rules = new PoolRoyaleRules(variant);
+  const initial = rules.getInitialFrame('Human', 'AI');
+  const breakShot = rules.applyShot(initial, [
+    { type: 'HIT', firstContact: 1, ballId: 'ball_1' },
+    { type: 'POTTED', ball: 8, ballId: 'ball_8', pocket: 'TM' },
+    { type: 'POTTED', ball: 15, ballId: 'ball_15', pocket: 'TM' }
+  ]);
+  expect(breakShot.players.A.score).toBe(23);
+  expect(breakShot.frameOver).toBe(false);
+  expect(breakShot.ballOn).toEqual(['BALL_1']);
+  expect((breakShot.meta as any).hud.scores).toEqual({ A: 23, B: 0 });
+  const restored = JSON.parse(JSON.stringify(breakShot));
+  const next = rules.applyShot(restored, [
+    { type: 'HIT', firstContact: 1, ballId: 'ball_1' },
+    { type: 'POTTED', ball: 1, ballId: 'ball_1', pocket: 'TM' }
+  ]);
+  expect(next.players.A.score).toBe(24);
+  expect(next.currentBreak).toBe(24);
+  expect(next.ballOn).toEqual(['BALL_2']);
+  expect(restored.players.A.score).toBe(23);
+});
+
+test('61 foul pots remain in serialized table state for physical re-spotting', () => {
+  const rules = new PoolRoyaleRules('albanian61');
+  const next = rules.applyShot(rules.getInitialFrame('A', 'B'), [
+    { type: 'HIT', firstContact: 1, ballId: 'ball_1' },
+    { type: 'POTTED', ball: 15, ballId: 'ball_15', pocket: 'TM' },
+    { type: 'POTTED', ball: 'cue', ballId: 'cue', pocket: 'TM' }
+  ], { cueBallPotted: true });
+  expect(next.players.A.score).toBe(0);
+  expect((next.meta as any).state.ballsOnTable).toContain(15);
+  expect((next.meta as any).state.mustPlayFromBaulk).toBe(true);
+});
+
+test('UK black on break asks for a physical rerack without counting voided pots', () => {
+  const rules = new PoolRoyaleRules('uk');
+  const initial = rules.getInitialFrame('A', 'B');
+  initial.activePlayer = 'B';
+  const next = rules.applyShot(initial, [
+    { type: 'HIT', firstContact: 'red', ballId: 'red_1' },
+    { type: 'POTTED', ball: 'red', ballId: 'red_1', pocket: 'TM' },
+    { type: 'POTTED', ball: 'black', ballId: 'black_8', pocket: 'TM' }
+  ], { placedFromHand: true });
+  expect(next.frameOver).toBe(false);
+  expect(next.activePlayer).toBe('B');
+  expect(next.currentBreak).toBe(0);
+  expect((next.meta as any).rerack).toBe(true);
+  expect((next.meta as any).breakInProgress).toBe(true);
+  expect((next.meta as any).state.ballsOnTable.red).toHaveLength(7);
+});
+
+test.each(['A', 'B'] as const)('8 on the %s break is spotted and keeps the table open', (seat) => {
+  const rules = new PoolRoyaleRules('8ball');
+  const initial = rules.getInitialFrame('Human', 'AI');
+  initial.activePlayer = seat;
+  const events: ShotEvent[] = [
+    { type: 'HIT', firstContact: 1, ballId: 'ball_1' },
+    { type: 'POTTED', ball: 8, ballId: 'ball_8', pocket: 'TM' }
+  ];
+  const next = rules.applyShot(initial, events);
+  expect(next.frameOver).toBe(false);
+  expect(next.foul).toBeUndefined();
+  expect(next.activePlayer).toBe(seat);
+  expect((next.meta as any).state.assignments).toEqual({ A: null, B: null });
+  expect(poolRoyalBallsToSpot([{ id: 'ball_8', active: false }], next).map((ball: { id: string }) => ball.id)).toEqual(['ball_8']);
+  const scratched = rules.applyShot(initial, [...events, { type: 'POTTED', ball: 'cue', ballId: 'cue', pocket: 'TM' }]);
+  expect(scratched.frameOver).toBe(false);
+  expect(scratched.activePlayer).toBe(seat === 'A' ? 'B' : 'A');
+  expect((scratched.meta as any).state.mustPlayFromBaulk).toBe(true);
+});
+
+test('legal nine on AI break awards the AI the rack', () => {
+  const rules = new PoolRoyaleRules('9ball');
+  const initial = rules.getInitialFrame('Human', 'AI');
+  initial.activePlayer = 'B';
+  const next = rules.applyShot(initial, [
+    { type: 'HIT', firstContact: 1, ballId: 'ball_1' },
+    { type: 'POTTED', ball: 9, ballId: 'ball_9', pocket: 'TM' }
+  ]);
+  expect(next.frameOver).toBe(true);
+  expect(next.winner).toBe('B');
+});

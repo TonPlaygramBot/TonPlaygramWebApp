@@ -141,7 +141,8 @@ import { PoolCompetitionMatch } from '../../games/pool/PoolCompetitionMatch.jsx'
 import { PoolMatchHud } from './PoolMatchHud.jsx';
 import { poolCalledBallOptions, positionPocketCallButton, restorePendingBilliardsLayout } from './shared/billiardsPresentationState.js';
 import { createPoolRoyalCue } from './shared/createPoolRoyalCue.ts';
-import { isPoolRoyalBreak, poolRoyalBallInHand, recordPoolRoyalRail, findPoolRoyalSpot, poolRoyalBallsToSpot } from './poolRoyaleShotLifecycle.js';
+import { isPoolRoyalBreak, poolRoyalBallInHand, poolRoyalBallNumber, recordPoolRoyalRail, findPoolRoyalSpot, poolRoyalBallsToSpot, withPoolRoyalActivePlayer, lowestPoolRoyalBall, ALBANIAN_61_RACK } from './poolRoyaleShotLifecycle.js';
+import { isAlbanian61Variant, ALBANIAN_61_RULES } from '../../config/poolRoyaleVariants.js';
 import { resolvePocketMouthAimPoint } from './poolRoyalePocketAim.js';
 import { resolveAiPotGhostAim } from './poolRoyaleAiAimCompensation.js';
 import { computeCueDriveBoost } from './cueShotImpact.js';
@@ -2105,6 +2106,16 @@ const AMERICAN_BALL_SET = Object.freeze({
   ]
 });
 const POOL_VARIANT_COLOR_SETS = Object.freeze({
+  albanian61: {
+    id: 'albanian61',
+    label: 'Albanian 61',
+    cueColor: 0xffffff,
+    rackLayout: 'triangle',
+    disableSnookerMarkings: true,
+    objectNumbers: ALBANIAN_61_RACK,
+    objectColors: ALBANIAN_61_RACK.map(number => AMERICAN_BALL_SET.objectColors[number - 1]),
+    objectPatterns: ALBANIAN_61_RACK.map(number => AMERICAN_BALL_SET.objectPatterns[number - 1])
+  },
   uk: {
     id: 'uk',
     label: '8Ball',
@@ -2207,11 +2218,11 @@ function resolvePoolVariant(variantId, ballSet = null) {
   let key = normalized;
   if (normalized === '9' || normalized === 'nineball') {
     key = '9ball';
+  } else if (isAlbanian61Variant(normalized)) {
+    key = 'albanian61';
   } else if (
     normalized === 'american' ||
     normalized === 'americanbilliards' ||
-    normalized === 'rotation61' ||
-    normalized === 'race61' ||
     normalized === '8balluk' ||
     normalized === 'eightballuk' ||
     normalized === '8pooluk' ||
@@ -2393,6 +2404,9 @@ function generateRackPositions(ballCount, layout, ballRadius, startZ, anchor = n
 }
 
 function resolveEightBallRackAnchor(variant, spots) {
+  if (variant?.id === 'albanian61' && spots?.penalty) {
+    return { index: 0, x: spots.penalty[0], z: spots.penalty[1] };
+  }
   const numbers = Array.isArray(variant?.objectNumbers) ? variant.objectNumbers : [];
   const eightIndex = numbers.findIndex((number) => number === 8);
   if (eightIndex < 0 || !spots?.penalty) return null;
@@ -14609,11 +14623,12 @@ function PoolRoyaleGame({
     [variantKey, ballSetKey]
   );
   const infoText = useMemo(() => {
+    if (activeVariant?.id === 'albanian61') return ALBANIAN_61_RULES;
     if (activeVariant?.id === '9ball') {
       return 'Hit the lowest ball first. A legal 9 wins, including a combination. After a legal break you may declare push out; your opponent then plays or returns the shot. Fouls give ball in hand, a fouled 9 is spotted, and three consecutive fouls lose the rack.';
     }
     if (activeVariant?.id === 'uk') {
-      return 'Pocket your assigned group, then sink the 8-ball to win. Fouls give your opponent ball in hand.';
+      return 'A legal pot on the break keeps your turn. One colour on the break assigns groups; mixed colours leave the table open. A black on the break re-racks for the same breaker. Pocket your assigned group, then sink the 8-ball to win. Fouls give your opponent ball in hand.';
     }
     return 'The table stays open after the break. A legal called pot assigns solids or stripes. Clear your group, then call the 8 and its pocket. An early 8, wrong-pocket 8, or scratch with the 8 loses the rack. The 8 on the break is spotted. Use Safety to pass after a legal defensive shot.';
   }, [activeVariant]);
@@ -16748,8 +16763,7 @@ function PoolRoyaleGame({
     if (savedFrame?.frame && !savedFrame.frame.frameOver) return savedFrame.frame;
     const baseFrame = rules.getInitialFrame(framePlayerAName, framePlayerBName);
     const desiredStarter = starterSeat === 'B' ? 'B' : 'A';
-    if (baseFrame.activePlayer === desiredStarter) return baseFrame;
-    return { ...baseFrame, activePlayer: desiredStarter, meta: { ...baseFrame.meta, state: { ...baseFrame.meta?.state, currentPlayer: desiredStarter } } };
+    return withPoolRoyalActivePlayer(baseFrame, desiredStarter);
   }, [framePlayerAName, framePlayerBName, rules, starterSeat, savedFrame]);
   const [frameState, setFrameState] = useState(initialFrame);
   useEffect(() => {
@@ -17002,7 +17016,9 @@ const shotPowerRef = useRef(0);
       setBreakRollState('done');
       setBreakRollMessage(`${breakerLabel} breaks first. Random selection complete.`);
       setHud((prev) => ({ ...prev, turn: breakerSeat === 'A' ? 0 : 1 }));
-      setFrameState((prev) => ({ ...prev, activePlayer: breakerSeat }));
+      const nextFrame = withPoolRoyalActivePlayer(frameRef.current, breakerSeat);
+      frameRef.current = nextFrame;
+      setFrameState(nextFrame);
       await new Promise((resolve) => window.setTimeout(resolve, RANDOM_BREAK_RESULT_PAUSE_MS));
       if (announce) showRuleToast(`${breakerLabel} breaks first`);
       breakRollBusyRef.current = false;
@@ -17759,7 +17775,8 @@ const shotPowerRef = useRef(0);
   const resetMatchState = useCallback(
     ({ broadcast = false } = {}) => {
       const randomStarter = !isTraining && !isOnlineMatch ? chooseRandomBreakerSeat() : null;
-      const nextFrame = randomStarter ? { ...initialFrame, activePlayer: randomStarter } : initialFrame;
+      const freshFrame = rules.getInitialFrame(framePlayerAName, framePlayerBName);
+      const nextFrame = withPoolRoyalActivePlayer(freshFrame, randomStarter ?? starterSeat);
       const nextInHand = deriveInHandFromFrame(nextFrame);
       openingShotViewSuppressedRef.current = true;
       frameRef.current = nextFrame;
@@ -17813,7 +17830,10 @@ const shotPowerRef = useRef(0);
     [
       aiOpponentEnabled,
       chooseRandomBreakerSeat,
-      initialFrame,
+      rules,
+      framePlayerAName,
+      framePlayerBName,
+      starterSeat,
       isOnlineMatch,
       isTraining,
       resetTableLayoutForRematch,
@@ -18141,7 +18161,7 @@ const shotPowerRef = useRef(0);
       if (!userWon || !winnerTracker) return null;
       if (winnerTracker.missedShot || winnerTracker.foulShot) return null;
       const variantId = String(activeVariantRef.current?.id || '').toLowerCase();
-      if (variantId === '9ball' || variantId === 'nineball') return null;
+      if (variantId === '9ball' || variantId === 'nineball' || variantId === 'albanian61') return null;
       const pottedByWinner = pottedBySeat?.[seat] || [];
       if (!Array.isArray(pottedByWinner) || pottedByWinner.length < 7) return null;
       const reward = pickPoolRoyaleHighValueRewardNft();
@@ -23769,7 +23789,16 @@ const shotPowerRef = useRef(0);
             if (ball.pendingSpin) ball.pendingSpin.set(0, 0);
             ball.impacted = false;
             ball.launchDir = null;
+            ball.lift = 0;
+            ball.liftVel = 0;
+            ball.spinMode = 'standard';
+            ball.swerveStrength = 0;
+            ball.swervePowerStrength = 0;
             ball.pos.set(state.pos.x, state.pos.y);
+            if (ball.shadow) {
+              ball.shadow.visible = Boolean(state.active);
+              ball.shadow.position.set(state.pos.x, BALL_SHADOW_Y, state.pos.y);
+            }
             const meshState = state.mesh;
             if (ball.mesh && meshState) {
               const position = normalizeVector3Snapshot(meshState.position);
@@ -25848,10 +25877,9 @@ const shotPowerRef = useRef(0);
 
       cueRef.current = cue;
       ballsRef.current = balls;
+      // Preserve a fresh rack before loading a saved, partially played layout.
+      initialLayoutRef.current = captureBallSnapshot();
       restorePendingBilliardsLayout(pendingLayoutRef, balls, applyBallSnapshotRef.current);
-      if (!initialLayoutRef.current && captureBallSnapshot) {
-        initialLayoutRef.current = captureBallSnapshot();
-      }
       if (isTraining) {
         flushPendingTrainingLayout();
         applyTrainingLayoutForLevel(trainingLevelRef.current || 1);
@@ -27517,7 +27545,7 @@ const shotPowerRef = useRef(0);
         if (meta && typeof meta === 'object') {
           if ((meta.variant === '8ball' || meta.variant === 'american') && meta.state) {
             placedFromHand = Boolean(meta.state.ballInHand);
-          } else if (meta.variant === '9ball' && meta.state) {
+          } else if ((meta.variant === '9ball' || meta.variant === 'albanian61') && meta.state) {
             placedFromHand = Boolean(meta.state.ballInHand);
           } else if (meta.variant === 'uk' && meta.state) {
             placedFromHand = Boolean(meta.state.ballInHand || meta.state.mustPlayFromBaulk);
@@ -28349,6 +28377,10 @@ const shotPowerRef = useRef(0);
           return colorId === normalizedTarget;
         };
         const resolveTargetPriorities = (frameSnapshot, activeVariantId, activeBalls) => {
+          if (activeVariantId === '9ball' || activeVariantId === 'albanian61') {
+            const lowest = lowestPoolRoyalBall(activeBalls);
+            return lowest ? [toBallColorId(lowest.id)] : [];
+          }
           const order = [];
           const pushTargetId = (id) => {
             const normalized = normalizeTargetId(id);
@@ -28448,7 +28480,7 @@ const shotPowerRef = useRef(0);
           // Always evaluate leave/position so AI attacking logic is consistent from the first
           // shot to the endgame instead of only improving late in the frame.
           const shouldAnalyzeLeave = true;
-          const isRotationVariant = activeVariantId === '9ball';
+          const isRotationVariant = activeVariantId === '9ball' || activeVariantId === 'albanian61';
           const activeBalls = ballsList.filter((b) => b.active);
           const targetOrder = resolveTargetPriorities(state, activeVariantId, activeBalls);
           const legalTargetsRaw = Array.isArray(state?.ballOn) && state.ballOn.length > 0
@@ -28462,13 +28494,8 @@ const shotPowerRef = useRef(0);
               .filter((entry) => entry && isBallTargetId(entry))
           );
           if (legalTargets.size === 0) {
-            if (activeVariantId === '9ball') {
-              const lowestActive = activeBalls
-                .filter((b) => String(b?.id).toLowerCase() !== 'cue')
-                .reduce(
-                  (best, ball) => (best == null || ball.id < best.id ? ball : best),
-                  null
-                );
+            if (isRotationVariant) {
+              const lowestActive = lowestPoolRoyalBall(activeBalls);
               const mapped = lowestActive ? toBallColorId(lowestActive.id) : null;
               if (mapped) legalTargets.add(mapped);
             }
@@ -28897,10 +28924,8 @@ const shotPowerRef = useRef(0);
               };
             safetyShots.push(safetyPlan);
           });
-          if (!potShots.length && activeVariantId === '9ball') {
-            const targetBall = activeBalls
-              .filter((b) => b.id !== cueBall.id)
-              .sort((a, b) => a.id - b.id)[0];
+          if (!potShots.length && isRotationVariant) {
+            const targetBall = lowestPoolRoyalBall(activeBalls);
             if (targetBall) {
               const pocketCenter = centers
                 .slice()
@@ -29960,7 +29985,8 @@ const shotPowerRef = useRef(0);
                   }
                   return best;
                 }, null);
-                const targetPos = rackTargetBall?.ball?.pos ?? null;
+                const rotationBreak = ['9ball', 'albanian61'].includes(frameSnapshot?.meta?.variant);
+                const targetPos = (rotationBreak ? lowestPoolRoyalBall(rackBalls) : rackTargetBall?.ball)?.pos ?? null;
                 const breakDir = targetPos
                   ? new THREE.Vector2(targetPos.x - cue.pos.x, targetPos.y - cue.pos.y)
                   : axisToRack.clone();
@@ -30366,9 +30392,10 @@ const shotPowerRef = useRef(0);
           hasReplayFrames;
         const shooterSeat = currentState?.activePlayer === 'B' ? 'B' : 'A';
         if (potted.length) {
-          const newPots = potted.filter(
-            (entry) => entry && entry.color && entry.color !== 'CUE'
-          );
+          const retainedNumbers = new Set(Array.isArray(safeState.meta?.state?.ballsOnTable)
+            ? safeState.meta.state.ballsOnTable : []);
+          const newPots = potted.filter((entry) => entry && entry.color && entry.color !== 'CUE' &&
+            !safeState.meta?.rerack && !retainedNumbers.has(poolRoyalBallNumber(entry.id)));
           if (newPots.length) {
             lastPottedBySeatRef.current = {
               ...lastPottedBySeatRef.current,
@@ -30529,6 +30556,25 @@ const shotPowerRef = useRef(0);
               }
             }
             const cueNeedsPlacement = isTraining ? cueBallPotted : poolRoyalBallInHand(safeState);
+            // Placement restrictions must use the resolved foul/break state.
+            frameRef.current = safeState;
+            if (!isTraining && safeState.meta?.rerack) {
+              pocketDropRef.current.forEach((_entry, id) => removePocketDropEntry(id));
+              pocketPopupRef.current.forEach(entry => {
+                entry.mesh?.parent?.remove?.(entry.mesh);
+                entry.dispose?.();
+              });
+              pocketPopupPendingRef.current.forEach(entry => entry.popupMesh?.userData?.dispose?.());
+              pocketPopupRef.current = [];
+              pocketPopupPendingRef.current = [];
+              pocketLightingRef.current?.clear();
+              pocketRestIndexRef.current.clear();
+              applyBallSnapshotRef.current?.(initialLayoutRef.current);
+              setPottedBySeat({ A: [], B: [] });
+              lastPottedBySeatRef.current = { A: null, B: null };
+              lastAssignmentsRef.current = { A: null, B: null };
+              showRuleToast('Black on the break — re-rack. Same player breaks again.');
+            }
             // The lifted cue must not displace an 8 or 9 that belongs on its foot spot.
             if (cueNeedsPlacement) cue.active = false;
             if (!isTraining) {
@@ -33847,6 +33893,8 @@ const shotPowerRef = useRef(0);
         player={player.name || 'You'} opponent={opponentDisplayName || 'Opponent'} turn={hud.turn}
         target={hud.next} busy={shotActive} inHand={hud.inHand} timer={timer}
         variant={activeVariant?.label || variantKey} competition={competitionMatch}
+        scores={{ player: frameState.players[playerSeatId].score, opponent: frameState.players[opponentSeatId].score }}
+        pointsTarget={activeVariant?.id === 'albanian61' ? 61 : undefined}
         declaration={shotDeclaration} automaticCall={automaticCall}
         canCall={!isTraining && ['8ball', 'american'].includes(frameState.meta?.variant) && !isPoolRoyalBreak(frameState)}
         canPushOut={Boolean(frameState.meta?.state?.pushOutAvailable)}
@@ -33953,6 +34001,12 @@ const shotPowerRef = useRef(0);
             <div className="text-lg font-semibold text-white drop-shadow-[0_2px_10px_rgba(0,0,0,0.55)]">
               {winnerOverlay.name}
             </div>
+            {activeVariant?.id === 'albanian61' && (
+              <div className="text-sm font-bold text-amber-100" aria-label="Final 61-point score">
+                {frameState.players[playerSeatId].score} – {frameState.players[opponentSeatId].score} pikë
+                {frameState.meta?.state?.tieBreakBonus ? ' · Includes the 60–60 deciding point' : ''}
+              </div>
+            )}
             {winnerOverlay.tournamentAdvance ? (
               <div className="max-w-md rounded-2xl border border-emerald-300/55 bg-emerald-400/15 px-4 py-2 text-xs font-semibold uppercase tracking-[0.2em] text-emerald-100">
                 Congratulations! You are moving to the next stage of the tournament.
@@ -35389,6 +35443,11 @@ const shotPowerRef = useRef(0);
                     </span>
                   )}
                 </div>
+                {activeVariant?.id === 'albanian61' && (
+                  <div className="mt-1 text-xs font-bold text-amber-100" aria-live="polite" aria-label="Your points">
+                    {frameState.players[playerSeatId].score} / 61 pikë
+                  </div>
+                )}
                 <div className="mt-1">
                   {renderPottedRow(playerPotted, lastPlayerPotId, lastPotGlow)}
                 </div>
@@ -35420,6 +35479,11 @@ const shotPowerRef = useRef(0);
                           {opponentDisplayName}
                         </span>
                       </div>
+                      {activeVariant?.id === 'albanian61' && (
+                        <div className="mt-1 text-xs font-bold text-amber-100" aria-live="polite" aria-label="Opponent points">
+                          {frameState.players[opponentSeatId].score} / 61 pikë
+                        </div>
+                      )}
                       <div className="mt-1">
                         {renderPottedRow(opponentPotted, lastOpponentPotId, lastPotGlow)}
                       </div>
@@ -35442,6 +35506,11 @@ const shotPowerRef = useRef(0);
                           {aiFlagLabel}
                         </span>
                       </div>
+                      {activeVariant?.id === 'albanian61' && (
+                        <div className="mt-1 text-xs font-bold text-amber-100" aria-live="polite" aria-label="Opponent points">
+                          {frameState.players[opponentSeatId].score} / 61 pikë
+                        </div>
+                      )}
                       <div className="mt-1">
                         {renderPottedRow(opponentPotted, lastOpponentPotId, lastPotGlow)}
                       </div>

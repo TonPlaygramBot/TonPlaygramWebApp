@@ -2,9 +2,12 @@ import { FrameState, Player, ShotContext, ShotEvent } from '../types';
 import { UkPool } from '../../lib/poolUk8Ball.js';
 import { NineBall } from '../../lib/nineBall.js';
 import { BcaEightBall } from '../../lib/bcaEightBall.js';
+import { Albanian61, Albanian61State } from '../../lib/albanian61.js';
 import { normalizePoolBallId, poolShotHasNoCushion, PoolRuleProfile } from '../../lib/poolShotInput.js';
 
-type PoolVariantId = '8ball' | 'uk' | '9ball';
+type PoolVariantId = '8ball' | 'uk' | '9ball' | 'albanian61';
+
+type Albanian61SerializedState = Omit<Albanian61State, 'ballsOnTable'> & { ballsOnTable: number[] };
 
 type UkColour = 'blue' | 'red' | 'black' | 'cue';
 
@@ -57,7 +60,15 @@ type NineSerializedState = {
 
 type PoolMeta =
   | {
+      variant: 'albanian61';
+      state: Albanian61SerializedState;
+      hud: HudInfo;
+      breakInProgress: boolean;
+    }
+  | {
       variant: 'uk';
+      rerack?: boolean;
+      breakInProgress?: boolean;
       state: UkSerializedState;
       totals: { blue: number; red: number };
       hud: HudInfo;
@@ -238,7 +249,9 @@ export class PoolRoyaleRules {
   constructor(variantKey: string | null | undefined, ruleProfile: PoolRuleProfile = 'standard') {
     this.ruleProfile = ruleProfile;
     const normalized = normalizeVariantId(variantKey);
-    if (normalized === 'uk' || normalized === '8balluk' || normalized === 'eightballuk' || normalized === 'uk8') {
+    if (['albanian61', 'albanian', '61', '61points', 'rotation61', 'race61'].includes(normalized)) {
+      this.variant = 'albanian61';
+    } else if (normalized === 'uk' || normalized === '8balluk' || normalized === 'eightballuk' || normalized === 'uk8') {
       this.variant = 'uk';
     } else if (
       normalized === '8ball' ||
@@ -258,6 +271,17 @@ export class PoolRoyaleRules {
 
   getInitialFrame(playerA: string, playerB: string): FrameState {
     switch (this.variant) {
+      case 'albanian61': {
+        const game = new Albanian61();
+        const snapshot = { ...game.state, ballsOnTable: [...game.state.ballsOnTable], scores: { ...game.state.scores } };
+        return {
+          balls: [], activePlayer: 'A', players: basePlayers(playerA, playerB),
+          currentBreak: 0, phase: 'REDS_AND_COLORS', redsRemaining: 15,
+          ballOn: ['BALL_1'], frameOver: false,
+          meta: { variant: 'albanian61', state: snapshot, breakInProgress: true,
+            hud: { next: 'ball 1 · first to 61', phase: '61 points', scores: { A: 0, B: 0 } } } satisfies PoolMeta
+        };
+      }
       case 'uk': {
         const game = new UkPool();
         game.startBreak();
@@ -279,6 +303,7 @@ export class PoolRoyaleRules {
         };
         base.meta = {
           variant: 'uk',
+          breakInProgress: true,
           state: snapshot,
           totals: { blue: UK_TOTAL_PER_COLOUR, red: UK_TOTAL_PER_COLOUR },
           hud
@@ -352,6 +377,8 @@ export class PoolRoyaleRules {
     const meta = state.meta as PoolMeta | undefined;
     if (meta?.variant === '9ball' && meta.state?.pushOutPending) return state;
     switch (this.variant) {
+      case 'albanian61':
+        return this.applyAlbanian61Shot(state, events, context);
       case 'uk':
         return this.applyUkShot(state, events, context);
       case '9ball':
@@ -379,6 +406,47 @@ export class PoolRoyaleRules {
     };
   }
 
+  private applyAlbanian61Shot(state: FrameState, events: ShotEvent[], context: ShotContext): FrameState {
+    const meta = state.meta as PoolMeta | undefined;
+    const game = new Albanian61();
+    if (meta?.variant === 'albanian61') {
+      game.state = { ...meta.state, ballsOnTable: new Set(meta.state.ballsOnTable), scores: { ...meta.state.scores } };
+    }
+    game.state.currentPlayer = state.activePlayer;
+    const contactOrder = events.filter((event): event is Extract<ShotEvent, { type: 'HIT' }> => event.type === 'HIT')
+      .map(event => normalizePoolBallId(event.ballId ?? event.firstContact) ?? 0);
+    const potted = events.filter((event): event is Extract<ShotEvent, { type: 'POTTED' }> => event.type === 'POTTED')
+      .map(event => normalizePoolBallId(event.ballId ?? event.ball)).filter((id): id is number => id !== null);
+    const result = game.shotTaken({
+      contactOrder: context.contactMade === false ? [] : contactOrder,
+      potted, offTable: context.offTableBallIds,
+      cueOffTable: Boolean(context.cueBallPotted),
+      foulReason: events.find(event => event.type === 'FOUL')?.reason,
+      noCushionAfterContact: poolShotHasNoCushion(context),
+      objectBallsToRailAfterContact: context.objectBallsToRailAfterContact,
+      railContactsAfterFirstHit: Number(context.railContactCountAfterContact ?? 0)
+    });
+    const snapshot: Albanian61SerializedState = {
+      ...game.state, ballsOnTable: [...game.state.ballsOnTable], scores: { ...game.state.scores }
+    };
+    const lowest = lowestBall(snapshot.ballsOnTable);
+    const hud: HudInfo = {
+      next: snapshot.frameOver ? (snapshot.tieBreakBonus ? '61 points · deciding point' : 'frame over') : `ball ${lowest} · first to 61`,
+      phase: snapshot.frameOver ? 'complete' : '61 points', scores: { ...snapshot.scores }
+    };
+    return {
+      ...state, activePlayer: snapshot.currentPlayer,
+      players: { A: { ...state.players.A, score: snapshot.scores.A }, B: { ...state.players.B, score: snapshot.scores.B } },
+      currentBreak: !result.foul && snapshot.currentPlayer === state.activePlayer && result.points > 0
+        ? (state.currentBreak ?? 0) + result.points : 0,
+      redsRemaining: snapshot.ballsOnTable.length,
+      ballOn: lowest !== null && !snapshot.frameOver ? [`BALL_${lowest}`] : [],
+      frameOver: snapshot.frameOver, winner: snapshot.winner ?? undefined,
+      foul: result.foul ? { points: 0, reason: result.reason ?? 'foul' } : undefined,
+      meta: { variant: 'albanian61', state: snapshot, hud, breakInProgress: snapshot.breakInProgress } satisfies PoolMeta
+    };
+  }
+
   private applyUkShot(state: FrameState, events: ShotEvent[], context: ShotContext): FrameState {
     const meta = state.meta as PoolMeta | undefined;
     const previous = meta && meta.variant === 'uk' && meta.state ? meta : null;
@@ -388,6 +456,7 @@ export class PoolRoyaleRules {
     } else {
       game.startBreak();
     }
+    game.state.currentPlayer = state.activePlayer;
     const contactOrder: UkColour[] = [];
     for (const ev of events) {
       if (ev.type !== 'HIT') continue;
@@ -415,7 +484,7 @@ export class PoolRoyaleRules {
       noCushionAfterContact: Boolean(context.noCushionAfterContact),
       placedFromHand: Boolean(context.placedFromHand)
     });
-    const pottedCount = potted.filter((colour) => colour !== 'cue').length;
+    const pottedCount = shotResult.potted.filter((colour: UkColour) => colour !== 'cue').length;
     const snapshot = serializeUkState(game.state);
     const totals = previous ? previous.totals : { blue: UK_TOTAL_PER_COLOUR, red: UK_TOTAL_PER_COLOUR };
     const playerScores = this.computeUkScores(snapshot, totals);
@@ -449,6 +518,8 @@ export class PoolRoyaleRules {
         : undefined,
       meta: {
         variant: 'uk',
+        rerack: Boolean(shotResult.rerack),
+        breakInProgress: snapshot.lastEvent === 'BREAK_START',
         state: snapshot,
         totals,
         hud
@@ -500,6 +571,7 @@ export class PoolRoyaleRules {
     } else {
       game.state.ballInHand = true;
     }
+    game.state.currentPlayer = state.activePlayer;
     const contactOrder: number[] = [];
     for (const ev of events) {
       if (ev.type !== 'HIT') continue;
@@ -621,6 +693,7 @@ export class PoolRoyaleRules {
     } else {
       game.state.ballInHand = true;
     }
+    game.state.currentPlayer = state.activePlayer;
     const contactOrder: number[] = [];
     for (const ev of events) {
       if (ev.type !== 'HIT') continue;
