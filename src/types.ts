@@ -56,9 +56,18 @@ export interface ShotContext {
   variant?: string;
   simulated?: boolean;
   respottedBlackStarter?: 'A' | 'B';
+  // Winner of the deciding-black draw; that player must choose who plays next.
+  decidingBlackDrawWinner?: 'A' | 'B';
   calledBallId?: string | number;
   calledPocket?: PocketId;
   safety?: boolean;
   pushOut?: boolean;
   offTableBallIds?: Array<string | number>;
+  // Snooker referee evidence captured before the stroke, never from the layout left.
+  clearPathToBallOn?: boolean;
+  fullBallContactAvailable?: boolean;
+  missCalled?: boolean;
+  touchingBallIds?: string[];
+  touchingBallPlayedAway?: boolean;
+  pushedTouchingBallIds?: string[];
 }

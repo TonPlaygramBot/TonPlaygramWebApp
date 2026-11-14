@@ -7,7 +7,7 @@ import React, {
   useState
 } from 'react';
 import * as THREE from 'three';
-import { royalCameraBlendFromDrag, captureRoyalPlayerView } from './shared/royalCameraControls.ts';
+import { royalCameraBlendFromDrag } from './shared/royalCameraControls.ts';
 import polygonClipping from 'polygon-clipping';
 import * as BufferGeometryUtils from 'three/examples/jsm/utils/BufferGeometryUtils.js';
 import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js';
@@ -65,6 +65,7 @@ import {
 import { selectShot as selectUkAiShot } from '../../../../lib/poolUkAdvancedAi.js';
 import { selectBilliardsAiPlans, createBilliardsPlanCache } from '../../../../lib/billiardsAiSelection.js';
 import { findBilliardsAiEscape } from './shared/billiardsAiEscape.js';
+import { selectSnookerAiPlans, snookerAiMatchesTarget } from './snookerRoyalAi.js';
 import { restorePendingBilliardsLayout } from './shared/billiardsPresentationState.js';
 import { createCueRackDisplay } from '../../utils/createCueRackDisplay.js';
 import { socket } from '../../utils/socket.js';
@@ -126,13 +127,15 @@ import { resolvePocketMouthAimPoint } from './poolRoyalePocketAim.js';
 import SnookerShotCoach from './SnookerShotCoach.jsx';
 import SnookerMatchHud from './SnookerMatchHud.tsx';
 import { clipGuideTravel } from './shared/billiardsGuideGeometry.js';
-import { isSnookerObstructed } from '../../utils/snookerVisibility.js';
+import { inspectSnookerDirectContact, isSnookerObstructed } from '../../utils/snookerVisibility.js';
 import { resolveSnookerImpactAudio } from './snookerImpactAudio.js';
 import { SnookerRoyalShotCamera, SNOOKER_PLAYER_FOLLOW_THROUGH_MS, snookerRoyalFallbackEye } from './snookerRoyalShotCamera.ts';
 import {
+  buildSnookerRemoteHud,
   buildSnookerViewerHud,
   resolveSnookerShotClockExpiry,
-  resolveSnookerViewerScores
+  resolveSnookerViewerScores,
+  shouldApplySnookerRevision
 } from './snookerRoyalMatchQuality.js';
 
 const DRACO_DECODER_PATH = '/vendor/three/examples/jsm/libs/draco/gltf/';
@@ -15282,8 +15285,15 @@ const shotPowerRef = useRef(0);
       setFrameState(state);
       setTurnCycle((value) => value + 1);
     }
-    if (incomingHud) {
-      setHud((prev) => ({ ...prev, ...incomingHud }));
+    if (state || incomingHud) {
+      const nextHud = buildSnookerRemoteHud({
+        state: state || frameRef.current,
+        incomingHud,
+        previousHud: hudRef.current,
+        localSeat: localSeatRef.current
+      });
+      hudRef.current = nextHud;
+      setHud(nextHud);
     }
     if (Array.isArray(layout)) {
       const applySnapshot = applyBallSnapshotRef.current;
@@ -15406,7 +15416,7 @@ const shotPowerRef = useRef(0);
     let latestRevision = 0;
     const shouldApplyPayload = (payload = {}) => {
       const revision = Number(payload.revision ?? payload.state?.seq ?? 0);
-      if (revision > 0 && revision <= latestRevision) return false;
+      if (!shouldApplySnookerRevision(payload, latestRevision)) return false;
       if (revision > 0) latestRevision = revision;
       return true;
     };
@@ -15428,6 +15438,9 @@ const shotPowerRef = useRef(0);
         ? 'Online seat lost • return to lobby and rejoin'
         : 'Online synchronization failed • reconnecting';
       showRuleToast(message);
+      if (payload.error !== 'seat_required') {
+        socket.emit('snookerSyncRequest', { tableId, accountId: accountIdRef.current || accountId });
+      }
     };
 
     const joinAndSync = () => {
@@ -15590,7 +15603,7 @@ const shotPowerRef = useRef(0);
 
   useEffect(() => {
     const isSoloTraining = isTraining && trainingModeState === 'solo';
-    if (hud.over || isSoloTraining || (careerMatch && hud.turn === 0)) {
+    if (hud.over || frameState.meta?.decidingBlackChoice || isSoloTraining || (careerMatch && hud.turn === 0)) {
       setTimer(null);
       return undefined;
     }
@@ -15632,7 +15645,7 @@ const shotPowerRef = useRef(0);
       });
     }, 1000);
     return () => clearInterval(timerRef.current);
-  }, [aiOpponentEnabled, careerMatch, commitShotClockExpiry, hud.turn, hud.over, playTurnKnock, isTraining, trainingModeState, turnCycle]);
+  }, [aiOpponentEnabled, careerMatch, commitShotClockExpiry, hud.turn, hud.over, frameState.meta?.decidingBlackChoice, playTurnKnock, isTraining, trainingModeState, turnCycle]);
 
   useEffect(() => {
     if (hud.over) {
@@ -19703,9 +19716,20 @@ const shotPowerRef = useRef(0);
             if (ball.vel) ball.vel.set(0, 0);
             if (ball.spin) ball.spin.set(0, 0);
             if (ball.pendingSpin) ball.pendingSpin.set(0, 0);
+            ball.omega?.set(0, 0, 0);
+            ball.lift = 0;
+            ball.liftVel = 0;
+            ball.spinMode = 'standard';
+            ball.swerveStrength = 0;
+            ball.swervePowerStrength = 0;
+            pocketDropRef.current.delete(ball.id);
             ball.impacted = false;
             ball.launchDir = null;
             ball.pos.set(state.pos.x, state.pos.y);
+            if (ball.shadow) {
+              ball.shadow.visible = Boolean(state.active);
+              ball.shadow.position.set(state.pos.x, BALL_SHADOW_Y, state.pos.y);
+            }
             const meshState = state.mesh;
             if (ball.mesh && meshState) {
               const position = normalizeVector3Snapshot(meshState.position);
@@ -22941,6 +22965,7 @@ const shotPowerRef = useRef(0);
         if (Number.isFinite(committedPowerOverride) && currentHud?.turn !== 0) return false;
         const frameSnapshot = frameRef.current ?? frameState;
         if (
+          frameSnapshot?.meta?.decidingBlackChoice ||
           !cue?.active ||
           currentHud?.inHand ||
           !allStopped(ballsRef.current?.length > 0 ? ballsRef.current : balls) ||
@@ -22979,23 +23004,34 @@ const shotPowerRef = useRef(0);
         const declaredColour = frameSnapshot?.colorOnAfterRed &&
           frameSnapshot.ballOn?.includes(previewColour) ? previewColour : undefined;
         shotContextRef.current = {
+          ...inspectSnookerDirectContact({
+            cue,
+            balls: ballsRef.current?.length ? ballsRef.current : balls,
+            ballOn: frameSnapshot?.ballOn,
+            ballRadius: BALL_R,
+            direction: aimDirRef.current
+          }),
+          preShotLayout: captureBallSnapshot(),
           placedFromHand,
           contactMade: false,
           cushionAfterContact: false,
           declaredBall: declaredColour,
-          nominatedBall: frameSnapshot?.freeBall && frameSnapshot.activePlayer === localSeatRef.current
-            ? freeBallNominationRef.current || undefined : undefined
+          nominatedBall: frameSnapshot?.freeBall
+            ? frameSnapshot.activePlayer === localSeatRef.current
+              ? freeBallNominationRef.current || undefined
+              : aiOpponentEnabled ? aiPlanRef.current?.nomination : undefined
+            : undefined
         };
         characterShotShooter = frameSnapshot?.activePlayer === 'B' ? 'B' : 'A';
         shotImpactPending = ENABLE_CUE_STROKE_ANIMATION;
         humanShotCamera.beginShot(
-          topViewRef.current || lookModeRef.current ? null
-            : captureRoyalPlayerView(activeRenderCameraRef.current, lastCameraTargetRef.current, world, null),
+          null,
           snookerRoyalFallbackEye(
-          world.worldToLocal(cue.mesh.getWorldPosition(new THREE.Vector3())),
-          new THREE.Vector3(aimDirRef.current.x, 0, aimDirRef.current.y),
-          cueLen, BALL_R
-        ));
+            world.worldToLocal(cue.mesh.getWorldPosition(new THREE.Vector3())),
+            new THREE.Vector3(aimDirRef.current.x, 0, aimDirRef.current.y),
+            cueLen, BALL_R
+          )
+        );
         setShootingState(true);
         powerImpactHoldRef.current = Math.max(
           powerImpactHoldRef.current || 0,
@@ -23754,6 +23790,9 @@ const shotPowerRef = useRef(0);
           return 'SOLID';
         };
         const matchesTargetId = (ball, targetId) => {
+          if ((activeVariantRef.current?.id ?? variantKey) === 'snooker') {
+            return snookerAiMatchesTarget(ball, targetId);
+          }
           if (!ball || !targetId) return false;
           const normalizedTarget = normalizeTargetId(targetId);
           if (!normalizedTarget) return false;
@@ -24690,8 +24729,27 @@ const shotPowerRef = useRef(0);
 
         const evaluateUncachedShotOptions = () => {
           try {
-            const baseline = evaluateShotOptionsBaseline();
             const variantId = activeVariantRef.current?.id ?? variantKey;
+            if (variantId === 'snooker') {
+              return selectSnookerAiPlans({
+                cue: cueRef.current ?? cue,
+                balls: ballsRef.current?.length ? ballsRef.current : balls,
+                state: frameRef.current ?? frameState,
+                rules,
+                radius: BALL_R,
+                width: PLAY_W,
+                height: PLAY_H,
+                pockets: pocketEntranceCenters().map((p, index) => ({ x: p.x, y: p.y, id: POCKET_IDS[index] })),
+                trace: calcTarget,
+                powerFromDistance: computePowerFromDistance,
+                entranceForTarget: resolvePocketEntranceForTarget,
+                limitX: RAIL_LIMIT_X,
+                limitY: RAIL_LIMIT_Y,
+                baulkY: baulkZ,
+                rating: careerMatch?.opponentRating ?? 0.9
+              });
+            }
+            const baseline = evaluateShotOptionsBaseline();
             if (variantId !== 'uk' || !cue?.active) return baseline;
             const stateSnapshot = frameRef.current ?? frameState;
             const advancedPlan = computeUkAdvancedPlan(balls, cue, stateSnapshot);
@@ -25114,7 +25172,7 @@ const shotPowerRef = useRef(0);
         startUserSuggestionRef.current = updateUserSuggestion;
 
         aiShoot.current = () => {
-          if (!aiOpponentEnabled) return;
+          if (disposed || !aiOpponentEnabled || hudRef.current?.turn !== 1 || hudRef.current?.over) return;
           if (aiRetryTimeoutRef.current) {
             clearTimeout(aiRetryTimeoutRef.current);
             aiRetryTimeoutRef.current = null;
@@ -25186,10 +25244,10 @@ const shotPowerRef = useRef(0);
             cuePullTargetRef.current = 0;
             powerRef.current = plan.power;
             setHud((s) => ({ ...s, power: plan.power }));
+            resetSpinRef.current?.();
             const spinToApply = plan.spin ?? { x: 0, y: 0 };
             spinRef.current = { ...spinToApply };
             spinRequestRef.current = { ...spinToApply };
-            resetSpinRef.current?.();
             if (aiShotTimeoutRef.current) {
               clearTimeout(aiShotTimeoutRef.current);
               aiShotTimeoutRef.current = null;
@@ -25205,6 +25263,7 @@ const shotPowerRef = useRef(0);
               dropDelay + AI_CAMERA_SETTLE_MS + AI_CUE_VIEW_HOLD_MS
             );
             const beginCueView = () => {
+              if (disposed || hudRef.current?.turn !== 1 || hudRef.current?.over || shootingRef.current) return;
               setAiShotCueViewActive(true);
               setAiShotPreviewActive(false);
               aiCueViewBlendRef.current = AI_CAMERA_DROP_BLEND;
@@ -25215,6 +25274,10 @@ const shotPowerRef = useRef(0);
               const remaining = Math.max(0, shotDelay - dropDelay);
               aiShotTimeoutRef.current = window.setTimeout(() => {
                 aiShotTimeoutRef.current = null;
+                if (disposed || hudRef.current?.turn !== 1 || hudRef.current?.over || shootingRef.current) return;
+                const committedSpin = aiPlanRef.current?.spin ?? { x: 0, y: 0 };
+                spinRef.current = { ...committedSpin };
+                spinRequestRef.current = { ...committedSpin };
                 applyCameraBlend(aiCueViewBlendRef.current ?? AI_CAMERA_DROP_BLEND);
                 updateCamera();
                 fire();
@@ -25342,15 +25405,41 @@ const shotPowerRef = useRef(0);
           cushionAfterContact: shotContextRef.current.cushionAfterContact,
           declaredBall: shotContextRef.current.declaredBall,
           nominatedBall: shotContextRef.current.nominatedBall,
+          clearPathToBallOn: shotContextRef.current.clearPathToBallOn,
+          fullBallContactAvailable: shotContextRef.current.fullBallContactAvailable,
+          touchingBallIds: shotContextRef.current.touchingBallIds,
+          touchingBallPlayedAway: shotContextRef.current.touchingBallPlayedAway,
+          pushedTouchingBallIds: shotContextRef.current.pushedTouchingBallIds,
           noCushionAfterContact,
           variant: variantId
         };
         let safeState = currentState;
         let shotResolved = false;
         try {
-          const resolved = rules.applyShot(currentState, shotEvents, shotContext);
+          let resolved = rules.applyShot(currentState, shotEvents, shotContext);
+          if (resolved?.meta?.respottedBlack && !currentState.meta?.respottedBlack && !resolved.frameOver) {
+            // Draw once for the choice of starter, then synchronize that choice
+            // in the frame. Re-evaluate the same immutable pre-shot state.
+            const drawWinner = Math.random() < 0.5 ? 'A' : 'B';
+            resolved = rules.applyShot(currentState, shotEvents, {
+              ...shotContext, decidingBlackDrawWinner: drawWinner
+            });
+            if (aiOpponentEnabled && drawWinner !== localSeatRef.current) {
+              resolved = rules.resolveDecidingBlackChoice(resolved, 'play');
+              showRuleToast('Deciding black · AI won the draw and will play');
+            }
+          }
           if (resolved && typeof resolved === 'object') {
             safeState = resolved;
+            if (safeState.meta?.foulChoice?.miss && Array.isArray(shotContextRef.current.preShotLayout)) {
+              safeState = {
+                ...safeState,
+                meta: {
+                  ...safeState.meta,
+                  foulChoice: { ...safeState.meta.foulChoice, layout: shotContextRef.current.preShotLayout }
+                }
+              };
+            }
           }
           shotResolved = true;
         } catch (err) {
@@ -27772,7 +27861,7 @@ const shotPowerRef = useRef(0);
   // NEW Big Pull Slider (right side): drag DOWN to set power, releases → fire()
   // --------------------------------------------------
   const sliderRef = useRef(null);
-  const showPowerSlider = shotReady && hud.turn === 0 && !hud.over && !hud.inHand && !replayActive && !shotActive;
+  const showPowerSlider = shotReady && hud.turn === 0 && !hud.over && !hud.inHand && !replayActive && !shotActive && !frameState.meta?.decidingBlackChoice;
   useEffect(() => {
     if (!showPowerSlider) {
       return undefined;
@@ -27836,9 +27925,17 @@ const shotPowerRef = useRef(0);
   const resolveRefereeChoice = (choice) => {
     if (shotActive || !isPlayerTurn || hud.over) return;
     const current = frameRef.current;
-    if (!current?.meta?.foulChoice) return;
-    const next = rules.resolveFoulChoice(current, choice);
+    if (!current?.meta?.foulChoice && !current?.meta?.decidingBlackChoice) return;
+    const replacementLayout = current.meta.foulChoice?.layout;
+    if (choice === 'replace' && !Array.isArray(replacementLayout)) return;
+    const next = current.meta.decidingBlackChoice
+      ? rules.resolveDecidingBlackChoice(current, choice)
+      : rules.resolveFoulChoice(current, choice);
     if (next === current) return;
+    if (choice === 'replace') {
+      applyBallSnapshotRef.current?.(replacementLayout);
+      cueBallPlacedFromHandRef.current = false;
+    }
     const nextHud = buildSnookerViewerHud(next, hudRef.current, localSeatRef.current);
     frameRef.current = next;
     hudRef.current = nextHud;
@@ -27858,7 +27955,7 @@ const shotPowerRef = useRef(0);
   const showSpinController =
     !hud.over && !replayActive && !shotActive && !pocketCameraActive && (isPlayerTurn || aiTakingShot);
 
-  const canRepositionCueBall = showPlayerControls && !shotActive &&
+  const canRepositionCueBall = showPlayerControls && !shotActive && !frameState.meta?.decidingBlackChoice &&
     deriveInHandFromFrame(frameState);
   const handleCueBallReposition = useCallback(() => {
     if (!canRepositionCueBall || shootingRef.current) return;
@@ -29535,12 +29632,30 @@ const shotPowerRef = useRef(0);
       )}
       {isPlayerTurn && !shotActive && !replayActive && !hud.over && frameState.meta?.foulChoice && (
         <div className="absolute bottom-24 left-3 z-40 max-w-[min(21rem,calc(100vw-6rem))] rounded-2xl border border-amber-200/25 bg-slate-950/95 p-3 text-white shadow-xl">
-          <p className="text-xs font-semibold text-amber-200">Foul · {frameState.foul?.points || 4} points awarded</p>
+          <p className="text-xs font-semibold text-amber-200">{frameState.meta.foulChoice.miss ? 'Foul and a miss' : 'Foul'} · {frameState.foul?.points || 4} points awarded</p>
           <p className="mt-1 text-[11px] text-white/65">Play from here or ask your opponent to play again.</p>
           <div className="mt-2 flex gap-2">
             <button type="button" onClick={() => resolveRefereeChoice('play')} className="min-h-[44px] flex-1 rounded-xl bg-emerald-500 px-3 text-xs font-bold text-slate-950">Play here</button>
             <button type="button" onClick={() => resolveRefereeChoice('return')} className="min-h-[44px] flex-1 rounded-xl border border-white/20 px-3 text-xs font-semibold">Opponent again</button>
           </div>
+          {frameState.meta.foulChoice.miss && Array.isArray(frameState.meta.foulChoice.layout) && (
+            <button type="button" onClick={() => resolveRefereeChoice('replace')} className="mt-2 min-h-[44px] w-full rounded-xl border border-amber-200/40 px-3 text-xs font-semibold">Replace balls · opponent again</button>
+          )}
+        </div>
+      )}
+      {isPlayerTurn && !shotActive && !replayActive && !hud.over && frameState.meta?.decidingBlackChoice && (
+        <div role="dialog" aria-label="Deciding black choice" className="absolute bottom-24 left-3 right-20 z-40 rounded-2xl border border-amber-200/25 bg-slate-950/95 p-3 text-white shadow-xl">
+          <p className="text-xs font-semibold text-amber-200">Deciding black · you won the draw</p>
+          <p className="mt-1 text-[11px] text-white/65">Choose who plays from the D. The next pot or foul decides the frame.</p>
+          <div className="mt-2 flex gap-2">
+            <button type="button" onClick={() => resolveRefereeChoice('play')} className="min-h-[44px] flex-1 rounded-xl bg-emerald-500 px-3 text-xs font-bold text-slate-950">I play</button>
+            <button type="button" onClick={() => resolveRefereeChoice('opponent')} className="min-h-[44px] flex-1 rounded-xl border border-white/20 px-3 text-xs font-semibold">Opponent plays</button>
+          </div>
+        </div>
+      )}
+      {isPlayerTurn && frameState.meta?.missWarning && !shotActive && !replayActive && !hud.over && (
+        <div role="alert" className="pointer-events-none absolute left-3 right-20 top-24 z-40 rounded-xl bg-amber-950/95 p-3 text-xs font-semibold text-amber-100">
+          Miss warning: another failure to hit a ball on from this position loses the frame.
         </div>
       )}
       {frameState.freeBall && isPlayerTurn && !shotActive && !replayActive && !hud.over && !frameState.meta?.foulChoice && (

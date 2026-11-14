@@ -176,7 +176,7 @@ test('placement cannot overlap an object ball', () => {
 test('placement keeps the selected 3D or overhead view and clears a moving aim target', () => {
   for (const top of [false, true]) {
     const focus = { ballId: 'cue', target: new THREE.Vector3() };
-    const c = { activeHumanCueViewRef: { current: {} }, aimFocusRef: { current: {} },
+    const c = { aimFocusRef: { current: {} },
       topViewRef: { current: top }, TABLE_Y: 0, BALL_CENTER_Y: 1, baulkZ: -55,
       ensureOrbitFocus: () => focus, cancelCameraBlendTween() {},
       sph: { theta: 0, phi: 0 }, STANDING_VIEW_PHI: 1.04,
@@ -186,7 +186,7 @@ test('placement keeps the selected 3D or overhead view and clears a moving aim t
     assert.equal(c.topViewRef.current, top);
     assert.equal(c.blend, top ? undefined : 1);
     assert.equal(focus.ballId, null);
-    assert.equal(c.activeHumanCueViewRef.current, null);
+    assert.equal(c.aimFocusRef.current, null);
   }
 });
 

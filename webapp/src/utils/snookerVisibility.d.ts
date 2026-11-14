@@ -19,3 +19,17 @@ export function isSnookerObstructed(options: {
   ballRadius: number;
   ballInHand?: boolean;
 }): boolean;
+
+export function inspectSnookerDirectContact(options: {
+  cue: SnookerVisibilityBall;
+  balls: SnookerVisibilityBall[];
+  ballOn: string[];
+  ballRadius: number;
+  direction?: { x: number; y: number };
+}): {
+  clearPathToBallOn: boolean;
+  fullBallContactAvailable: boolean;
+  touchingBallIds: string[];
+  touchingBallPlayedAway: boolean | undefined;
+  pushedTouchingBallIds: string[];
+};

@@ -45,6 +45,7 @@ import influencerRoutes from './routes/influencer.js';
 import onlineRoutes from './routes/online.js';
 import poolRoyaleRoutes from './routes/poolRoyale.js';
 import snookerRoyaleRoutes from './routes/snookerRoyal.js';
+import { authorizeSnookerActor, isValidSnookerAim, isValidSnookerLayout, validateSnookerShotState } from './utils/snookerRealtimeValidation.js';
 import exchangeRoutes from './routes/exchange.js';
 import tiranaStoreRoutes from './routes/tiranaStore.js';
 import pushRoutes from './routes/push.js';
@@ -3278,13 +3279,14 @@ io.on('connection', (socket) => {
         hud: cached.hud,
         layout: cached.layout,
         updatedAt: cached.ts,
-        revision: cached.revision || 0
+        revision: cached.revision || 0,
+        resync: true
       });
     }
   });
 
-  socket.on('snookerFrame', ({ tableId, layout, hud, playerId, frameTs, accountId } = {}) => {
-    if (!tableId || !Array.isArray(layout)) return;
+  socket.on('snookerFrame', ({ tableId, layout, hud, aim, playerId, frameTs, accountId } = {}) => {
+    if (!tableId) return;
     const resolvedAccountId = resolveTpcIdentity({ accountId: accountId || playerId || socket.data?.playerId });
     const table = tableMap.get(tableId);
     if (!ensureRegistered(socket, resolvedAccountId) || !socket.rooms.has(tableId) ||
@@ -3292,29 +3294,46 @@ io.on('connection', (socket) => {
       socket.emit('snookerSyncError', { tableId, error: 'seat_required' });
       return;
     }
-    const ts = Number.isFinite(frameTs) ? frameTs : Date.now();
     const cached = snookerStates.get(tableId) || {};
+    const actor = authorizeSnookerActor(table, cached, resolvedAccountId);
+    if (!actor.ok) {
+      socket.emit('snookerSyncError', { tableId, error: actor.error });
+      return;
+    }
+    if ((layout == null && aim == null) ||
+        (layout != null && !isValidSnookerLayout(layout)) ||
+        (aim != null && !isValidSnookerAim(aim))) {
+      socket.emit('snookerSyncError', { tableId, error: 'invalid_payload' });
+      return;
+    }
     const revision = Number(cached.revision || 0) + 1;
     const payload = {
       tableId,
-      layout,
-      hud: hud || cached.hud || null,
-      updatedAt: ts,
+      ...(layout != null ? { layout } : {}),
+      ...(aim != null ? { aim } : {}),
+      // HUD ownership comes from the frame, never the sender's local turn flag.
+      hud: cached.hud || null,
+      updatedAt: Date.now(),
+      frameTs: Number.isFinite(frameTs) ? frameTs : undefined,
       playerId: String(resolvedAccountId),
       revision
     };
     snookerStates.set(tableId, {
+      ...cached,
       state: cached.state || null,
       hud: payload.hud,
-      layout,
-      ts,
+      layout: layout || cached.layout || null,
+      ts: payload.updatedAt,
       revision
     });
     socket.to(tableId).emit('snookerFrame', payload);
   });
 
   socket.on('snookerShot', ({ tableId, state, hud, layout, accountId } = {}, cb) => {
-    if (!tableId || !state) return;
+    if (!tableId || !state) {
+      cb && cb({ success: false, error: 'invalid_payload' });
+      return;
+    }
     const resolvedAccountId = resolveTpcIdentity({ accountId: accountId || socket.data?.playerId });
     const table = tableMap.get(tableId);
     if (!ensureRegistered(socket, resolvedAccountId) || !socket.rooms.has(tableId) ||
@@ -3324,23 +3343,42 @@ io.on('connection', (socket) => {
       return;
     }
     const cached = snookerStates.get(tableId) || {};
+    const actor = authorizeSnookerActor(table, cached, resolvedAccountId);
+    const error = !actor.ok ? actor.error :
+      !validateSnookerShotState(state, cached.state) ||
+      (layout != null && !isValidSnookerLayout(layout)) ? 'invalid_payload' : null;
+    if (error) {
+      socket.emit('snookerSyncError', { tableId, error });
+      cb && cb({ success: false, error });
+      return;
+    }
     const revision = Number(cached.revision || 0) + 1;
-    const authoritativeState = { ...state, seq: revision };
+    const acceptedState = { ...state, seq: revision };
+    const frameHud = {
+      A: state.players.A.score,
+      B: state.players.B.score,
+      phase: state.phase === 'COLORS_ORDER' ? 'colors' : 'reds',
+      next: state.meta?.hud?.next || state.ballOn.join(' / ').toLowerCase(),
+      inHand: Boolean(state.meta?.state?.ballInHand),
+      over: state.frameOver
+    };
     const payload = {
       tableId,
-      state: authoritativeState,
-      hud: hud || null,
+      state: acceptedState,
+      hud: frameHud,
       layout: layout || null,
+      playerId: String(resolvedAccountId),
       updatedAt: Date.now(),
       revision
     };
     snookerStates.set(tableId, {
-      state: authoritativeState,
-      hud: hud || null,
-      layout: layout || null,
+      state: acceptedState,
+      hud: frameHud,
+      layout: layout || cached.layout || null,
       ts: payload.updatedAt,
       revision
     });
+    table.currentTurn = table.players[state.activePlayer === 'B' ? 1 : 0].id;
     socket.to(tableId).emit('snookerState', payload);
     cb && cb({ success: true, revision });
   });

@@ -58,7 +58,7 @@ export async function readSnookerViewMetrics() {
     }
   };
   walk(ast);
-  if (!heightExpression || !eyeResolver) throw new Error('Production character/camera integration missing');
+  if (!eyeResolver) throw new Error('Production camera integration missing');
   return {
     worldScale: value('WORLD_SCALE'),
     tableY: value('TABLE_Y'),
@@ -71,7 +71,10 @@ export async function readSnookerViewMetrics() {
     playW: value('PLAY_W'), playL: value('PLAY_H'),
     railH: value('RAIL_HEIGHT'), thickness: table.THICK,
     cueLength,
-    targetHeight: evaluate(heightExpression, new Map([['cueLen', cueLength]])),
+    // Characters are optional; table/camera checks must also work after their
+    // deliberate removal from the live game.
+    targetHeight: heightExpression ? evaluate(heightExpression, new Map([['cueLen', cueLength]])) : null,
+    hasPlayerCharacters: Boolean(heightExpression),
     cameraClearance: value('CAMERA_CUE_SURFACE_MARGIN'),
     cameraFov: value('STANDING_VIEW_FOV'),
     eyeResolver,

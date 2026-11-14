@@ -9,8 +9,21 @@ type HudInfo = {
 type SnookerMeta = {
   variant: 'snooker';
   ruleProfile?: 'standard' | 'reference';
-  foulChoice?: { offender: 'A' | 'B'; colorOnAfterRed: boolean };
+  foulChoice?: {
+    offender: 'A' | 'B'; colorOnAfterRed: boolean;
+    miss?: boolean;
+    replacement?: {
+      balls: Ball[]; phase: FrameState['phase']; redsRemaining: number;
+      colorOnAfterRed: boolean; colorsRemaining: BallColor[]; ballInHand: boolean;
+    };
+    missCount?: number;
+    fullBallContactAvailable?: boolean;
+    layout?: unknown[];
+  };
+  missSequence?: { offender: 'A' | 'B'; count: number; warningIssued: boolean };
+  missWarning?: boolean;
   respottedBlack?: boolean;
+  decidingBlackChoice?: { winner: 'A' | 'B' };
   colorsRemaining: BallColor[];
   freeBall: boolean;
   hud: HudInfo;
@@ -111,6 +124,11 @@ function isBallState(value: unknown): value is Ball {
   return typeof candidate.id === 'string' && typeof candidate.color === 'string';
 }
 
+function pointsRemaining(reds: number, colorAfterRed: boolean, colors: BallColor[]): number {
+  return Math.max(0, reds) * 8 + (colorAfterRed ? 7 : 0) +
+    colors.reduce((total, color) => total + COLOR_VALUES[color], 0);
+}
+
 export class SnookerRoyalRules {
   private readonly ruleProfile: 'standard' | 'reference';
 
@@ -146,24 +164,38 @@ export class SnookerRoyalRules {
   }
 
   /** WPBSA 3.13: the incoming player can require the offender to play again. */
-  resolveFoulChoice(state: FrameState, choice: 'play' | 'return'): FrameState {
+  resolveFoulChoice(state: FrameState, choice: 'play' | 'return' | 'replace'): FrameState {
     const meta = state.meta as SnookerMeta | undefined;
-    if (state.frameOver || !meta?.foulChoice || (choice !== 'play' && choice !== 'return')) return state;
+    if (state.frameOver || !meta?.foulChoice || !['play', 'return', 'replace'].includes(choice)) return state;
+    const replacement = choice === 'replace' ? meta.foulChoice.replacement : undefined;
+    if (choice === 'replace' && !replacement) return state;
     const offender = meta.foulChoice.offender;
-    const colorOnAfterRed = choice === 'return' ? meta.foulChoice.colorOnAfterRed : Boolean(state.colorOnAfterRed);
-    const phase = colorOnAfterRed ? 'REDS_AND_COLORS' : state.phase;
+    const colorOnAfterRed = replacement?.colorOnAfterRed ??
+      (choice === 'return' ? meta.foulChoice.colorOnAfterRed : Boolean(state.colorOnAfterRed));
+    const phase = replacement?.phase ?? (colorOnAfterRed ? 'REDS_AND_COLORS' : state.phase);
+    const colorsRemaining = replacement?.colorsRemaining ?? meta.colorsRemaining;
+    const repeatsFullBallMiss = Boolean(replacement && meta.foulChoice.fullBallContactAvailable);
+    const count = meta.foulChoice.missCount ?? 0;
+    const warningIssued = repeatsFullBallMiss && count >= 2;
     const next = {
       ...state,
-      activePlayer: choice === 'return' ? offender : state.activePlayer,
+      activePlayer: choice === 'play' ? state.activePlayer : offender,
       currentBreak: 0,
       colorOnAfterRed,
       phase,
-      freeBall: choice === 'return' ? false : state.freeBall
+      balls: replacement ? replacement.balls.map(ball => ({ ...ball,
+        ...(ball.position ? { position: { ...ball.position } } : {}) })) : state.balls,
+      redsRemaining: replacement?.redsRemaining ?? state.redsRemaining,
+      freeBall: choice === 'play' ? state.freeBall : false
     } as FrameState;
-    next.ballOn = resolveBallOn(next, meta.colorsRemaining);
+    next.ballOn = resolveBallOn(next, colorsRemaining);
     next.meta = {
       ...meta,
       foulChoice: undefined,
+      colorsRemaining: [...colorsRemaining],
+      missSequence: repeatsFullBallMiss ? { offender, count, warningIssued } : undefined,
+      missWarning: warningIssued,
+      state: { ...meta.state, ballInHand: replacement?.ballInHand ?? meta.state.ballInHand },
       freeBall: Boolean(next.freeBall),
       hud: buildHud(next, { A: next.players.A.score, B: next.players.B.score }, next.ballOn)
     };
@@ -184,9 +216,23 @@ export class SnookerRoyalRules {
     return next;
   }
 
+  /** WPBSA 3.4(b): the draw winner chooses who plays the re-spotted black. */
+  resolveDecidingBlackChoice(state: FrameState, choice: 'play' | 'opponent'): FrameState {
+    const meta = state.meta as SnookerMeta | undefined;
+    const winner = meta?.decidingBlackChoice?.winner;
+    if (state.frameOver || !winner || !['play', 'opponent'].includes(choice)) return state;
+    const activePlayer = choice === 'play' ? winner : winner === 'A' ? 'B' : 'A';
+    const next = { ...state, activePlayer, currentBreak: 0, freeBall: false } as FrameState;
+    next.meta = { ...meta, decidingBlackChoice: undefined, freeBall: false,
+      state: { ...meta.state, ballInHand: true },
+      hud: buildHud(next, { A: next.players.A.score, B: next.players.B.score }, next.ballOn) };
+    return next;
+  }
+
   applyShot(state: FrameState, events: ShotEvent[], context: ShotContext = {}): FrameState {
     if (state.frameOver) return state;
     const meta = state.meta as SnookerMeta | undefined;
+    if (meta?.decidingBlackChoice) return state;
     const savedBalls = Array.isArray(state.balls) ? state.balls.filter(isBallState) : [];
     const balls = (savedBalls.length ? savedBalls : buildInitialBalls()).map(ball => ({ ...ball }));
     // A placed cue ball is back in play before this shot's events are evaluated.
@@ -241,7 +287,11 @@ export class SnookerRoyalRules {
     const pottedObjects = potted.filter(ball => ball.color !== 'CUE');
     const pottedReds = pottedObjects.filter(ball => ball.color === 'RED');
     const pottedColors = pottedObjects.filter(ball => ball.color !== 'RED');
+    const offTable = [...new Set(context.offTableBallIds ?? [])].map(findBall)
+      .filter((ball): ball is Ball => Boolean(ball && snapshot.get(ball.id)?.onTable));
+    offTable.forEach(ball => { ball.onTable = false; ball.potted = false; });
     const cuePotted = Boolean(context.cueBallPotted) || potted.some(ball => ball.color === 'CUE');
+    const cueOffTable = offTable.some(ball => ball.color === 'CUE');
     if (cuePotted) {
       const cue = balls.find(ball => ball.color === 'CUE');
       if (cue) { cue.onTable = false; cue.potted = true; }
@@ -272,19 +322,30 @@ export class SnookerRoyalRules {
       !resolveBallOn(state, colorsRemaining).includes(nominatedFreeBall);
     const freeBallColor = validFreeBall ? nominatedFreeBall : null;
     const requiredContact = freeBallColor ?? ballOnColor;
+    const touching = (context.touchingBallIds ?? []).map(findBall)
+      .filter((ball): ball is Ball => Boolean(ball && snapshot.get(ball.id)?.onTable));
+    const pushedTouching = context.pushedTouchingBallIds
+      ? touching.filter(ball => context.pushedTouchingBallIds!.some(id => String(id).toUpperCase() === ball.id.toUpperCase()))
+      : context.touchingBallPlayedAway === false ? touching : [];
+    const legalTouchingBall = context.touchingBallPlayedAway === true && requiredContact !== null &&
+      touching.some(ball => ball.color === requiredContact);
+    const failedFirstContact = !legalTouchingBall &&
+      (context.contactMade === false || !firstContact || !requiredContact || firstContact !== requiredContact);
     const explicitFouls = events.filter((event): event is Extract<ShotEvent, { type: 'FOUL' }> =>
       event.type === 'FOUL');
     let foulReason: string | null = explicitFouls.length
       ? explicitFouls.find(event => event.reason)?.reason || 'foul'
       : null;
     if (!foulReason && cuePotted) foulReason = 'cue ball potted';
+    if (!foulReason && offTable.length) foulReason = 'ball forced off table';
+    if (!foulReason && pushedTouching.length) foulReason = 'push stroke';
     if (!foulReason && hasFreeBallNomination && !validFreeBall) foulReason = 'invalid nomination';
     if (!foulReason && onColorAfterRed && declarationInput != null &&
         (!declaredColor || !colorsRemaining.includes(declaredColor) || !onTableColor(declaredColor))) {
       foulReason = 'invalid nomination';
     }
-    if (!foulReason && (context.contactMade === false || !firstContact)) foulReason = 'no contact';
-    if (!foulReason && (!requiredContact || firstContact !== requiredContact)) foulReason = 'wrong ball';
+    if (!foulReason && !legalTouchingBall && (context.contactMade === false || !firstContact)) foulReason = 'no contact';
+    if (!foulReason && !legalTouchingBall && (!requiredContact || firstContact !== requiredContact)) foulReason = 'wrong ball';
 
     const permittedPots = new Set<BallColor>();
     if (ballOnColor) permittedPots.add(ballOnColor);
@@ -304,8 +365,10 @@ export class SnookerRoyalRules {
     // the list of all selectable colours must not turn every miss into seven.
     const foulValueColor = (color: BallColor | null | undefined) =>
       color === freeBallColor && ballOnColor ? ballOnColor : color;
-    const involved = [firstContact, ...explicitFouls.map(event => normalizeColor(event.ball)),
-      ...pottedObjects.map(ball => ball.color)].map(foulValueColor).filter(Boolean) as BallColor[];
+    const involved = [legalTouchingBall ? null : firstContact, ...explicitFouls.map(event => normalizeColor(event.ball)),
+      ...pottedObjects.map(ball => ball.color), ...offTable.map(ball => ball.color),
+      ...pushedTouching.map(ball => ball.color)]
+      .map(foulValueColor).filter(Boolean) as BallColor[];
     const ruleProfile = meta?.ruleProfile ?? this.ruleProfile;
     // WPBSA 3.11(d)(vi): a foul after a red before any colour has been
     // nominated is seven. Keep the prior automatic-minimum profile explicit.
@@ -322,7 +385,8 @@ export class SnookerRoyalRules {
     const scores = { A: state.players.A.score, B: state.players.B.score };
     scores[state.activePlayer] += pointsScored;
     scores[opponent] += foulPoints;
-    const redsRemaining = Math.max(0, (state.redsRemaining ?? RED_COUNT) - pottedReds.length);
+    const removedRedIds = new Set([...pottedReds, ...offTable.filter(ball => ball.color === 'RED')].map(ball => ball.id));
+    const redsRemaining = Math.max(0, (state.redsRemaining ?? RED_COUNT) - removedRedIds.size);
     let nextActivePlayer = pointsScored ? state.activePlayer : opponent;
     const completedVisitBreak = (state.currentBreak ?? 0) + pointsScored;
     let nextBreak = pointsScored ? completedVisitBreak : 0;
@@ -330,11 +394,11 @@ export class SnookerRoyalRules {
     const nextPhase = inColorsOrder || (redsRemaining === 0 && !colorOnAfterRed)
       ? 'COLORS_ORDER' : 'REDS_AND_COLORS';
     let nextFreeBall = Boolean(foulReason && context.snookered);
-    let nextBallInHand = cuePotted;
+    let nextBallInHand = cuePotted || cueOffTable;
 
     // Restore every potted colour except the legally cleared target. The
     // caller places these balls on collision-free spots in its scene.
-    for (const ball of pottedColors) {
+    for (const ball of [...pottedColors, ...offTable.filter(ball => ball.color !== 'RED' && ball.color !== 'CUE')]) {
       const clearedTarget = !foulReason && inColorsOrder && ball.color === ballOnColor;
       if (!clearedTarget) {
         ball.onTable = true;
@@ -357,9 +421,25 @@ export class SnookerRoyalRules {
       nextBallInHand = true;
       nextFreeBall = false;
       nextBreak = 0;
-      nextActivePlayer = context.respottedBlackStarter ?? opponent;
+      nextActivePlayer = context.decidingBlackDrawWinner ?? context.respottedBlackStarter ?? opponent;
     }
     if (frameOver) { nextFreeBall = false; nextBallInHand = false; }
+    const continuingMiss = meta?.missSequence?.offender === state.activePlayer ? meta.missSequence : undefined;
+    const requiresPenaltyPoints = Math.abs(state.players.A.score - state.players.B.score) >
+      pointsRemaining(state.redsRemaining ?? RED_COUNT, onColorAfterRed, meta?.colorsRemaining ?? COLOR_ORDER) ||
+      Math.abs(scores.A - scores.B) > pointsRemaining(redsRemaining, false, colorsRemaining);
+    // Automatic misses are limited to proven direct contact. Escape effort when
+    // obstructed needs a referee decision; an unsuccessful escape alone is not proof.
+    const missCalled = Boolean(foulReason && failedFirstContact && !frameOver && !tiedFinalBlack &&
+      (context.missCalled || continuingMiss || (context.clearPathToBallOn && !requiresPenaltyPoints)));
+    const fullBallAvailable = Boolean(continuingMiss || context.fullBallContactAvailable);
+    const missCount = missCalled && fullBallAvailable ? (continuingMiss?.count ?? 0) + 1 : 0;
+    if (missCalled && continuingMiss?.warningIssued && missCount >= 3) {
+      frameOver = true;
+      winner = opponent;
+      nextFreeBall = false;
+      nextBallInHand = false;
+    }
     const highestBreak = Math.max(state.players[state.activePlayer].highestBreak ?? 0,
       state.currentBreak ?? 0, completedVisitBreak);
     const nextBallOn = frameOver ? [] : resolveBallOn({ ...state, phase: nextPhase, colorOnAfterRed }, colorsRemaining);
@@ -385,9 +465,22 @@ export class SnookerRoyalRules {
         variant: 'snooker',
         ruleProfile,
         foulChoice: foulReason && !frameOver && !tiedFinalBlack
-          ? { offender: state.activePlayer, colorOnAfterRed: onColorAfterRed }
+          ? { offender: state.activePlayer, colorOnAfterRed: onColorAfterRed,
+              miss: missCalled, missCount, fullBallContactAvailable: fullBallAvailable,
+              replacement: missCalled ? {
+                balls: [...snapshot.values()].map(ball => ({ ...ball,
+                  ...(ball.position ? { position: { ...ball.position } } : {}) })),
+                phase: state.phase, redsRemaining: state.redsRemaining,
+                colorOnAfterRed: Boolean(state.colorOnAfterRed),
+                colorsRemaining: [...(meta?.colorsRemaining ?? COLOR_ORDER)],
+                ballInHand: Boolean(meta?.state?.ballInHand)
+              } : undefined }
           : undefined,
+        missSequence: undefined,
+        missWarning: false,
         respottedBlack: tiedFinalBlack || Boolean(meta?.respottedBlack),
+        decidingBlackChoice: tiedFinalBlack && context.decidingBlackDrawWinner
+          ? { winner: context.decidingBlackDrawWinner } : undefined,
         colorsRemaining,
         freeBall: nextFreeBall,
         hud: buildHud({ ...state, phase: nextPhase, freeBall: nextFreeBall }, scores, nextBallOn),
