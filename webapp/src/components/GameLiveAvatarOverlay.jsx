@@ -3,7 +3,7 @@ import { useLocation } from 'react-router-dom';
 import useLiveVideoChat from '../hooks/useLiveVideoChat.js';
 import { buildGameLiveChatRoomId } from '../utils/liveVideoRoom.js';
 
-function RemoteVideo({ peer }) {
+function RemoteVideo({ peer, audioOnly = false }) {
   const videoRef = useRef(null);
 
   useEffect(() => {
@@ -28,7 +28,17 @@ function RemoteVideo({ peer }) {
       document.removeEventListener('touchend', play);
       video.srcObject = null;
     };
-  }, [peer.stream]);
+  }, [audioOnly, peer.stream]);
+
+  if (audioOnly) {
+    return (
+      <audio
+        ref={videoRef}
+        autoPlay
+        aria-label={`${peer.displayName || 'Opponent'} live audio`}
+      />
+    );
+  }
 
   return (
     <div className="relative h-full w-full overflow-hidden rounded-2xl bg-slate-950 shadow-2xl ring-2 ring-emerald-300/80">
@@ -119,7 +129,9 @@ function LiveAvatarSession({ gameSlug, roomId, children }) {
   const isPool = gameSlug === 'poolroyale';
   const compactCall = isCheckers || isPool;
   const usesOpponentAvatar = gameSlug === 'domino-royal' || compactCall;
-  const [liveMode, setLiveMode] = useState(false);
+  const [callMode, setCallMode] = useState(null);
+  const liveMode = callMode !== null;
+  const audioOnly = isPool && callMode === 'audio';
   const [anchorElement, setAnchorElement] = useState(null);
   const [opponentAnchorElement, setOpponentAnchorElement] = useState(null);
   const localVideoRef = useRef(null);
@@ -153,7 +165,8 @@ function LiveAvatarSession({ gameSlug, roomId, children }) {
   const liveChat = useLiveVideoChat({
     roomId,
     displayName,
-    enabled: liveMode
+    enabled: liveMode,
+    video: !audioOnly
   });
 
   useEffect(() => {
@@ -426,22 +439,22 @@ function LiveAvatarSession({ gameSlug, roomId, children }) {
   useEffect(() => {
     if (!anchorElement) return undefined;
     const previousVisibility = anchorElement.style.visibility;
-    if (liveMode) anchorElement.style.visibility = 'hidden';
+    if (liveMode && !audioOnly) anchorElement.style.visibility = 'hidden';
     else anchorElement.style.visibility = previousVisibility || '';
     return () => {
       anchorElement.style.visibility = previousVisibility || '';
     };
-  }, [anchorElement, liveMode]);
+  }, [anchorElement, audioOnly, liveMode]);
 
   useEffect(() => {
     if (!opponentAnchorElement) return undefined;
     const previousVisibility = opponentAnchorElement.style.visibility;
-    if (liveMode) opponentAnchorElement.style.visibility = 'hidden';
+    if (liveMode && !audioOnly) opponentAnchorElement.style.visibility = 'hidden';
     else opponentAnchorElement.style.visibility = previousVisibility || '';
     return () => {
       opponentAnchorElement.style.visibility = previousVisibility || '';
     };
-  }, [opponentAnchorElement, liveMode]);
+  }, [opponentAnchorElement, audioOnly, liveMode]);
 
   useEffect(() => {
     // Single-opponent layouts already restore this photo in the effect above.
@@ -462,7 +475,8 @@ function LiveAvatarSession({ gameSlug, roomId, children }) {
     const handleStartEvent = (event) => {
       const eventSlug = event?.detail?.gameSlug;
       if (eventSlug && eventSlug !== gameSlug) return;
-      setLiveMode(true);
+      // A second start request must not change capture mode during a call.
+      setCallMode((current) => current || 'video');
     };
     window.addEventListener('tonplaygram:live-avatar:start', handleStartEvent);
     return () => {
@@ -473,12 +487,48 @@ function LiveAvatarSession({ gameSlug, roomId, children }) {
   return (
     <>
       {children}
+      {isPool && !liveMode && anchorElement ? (
+        <div
+          role="group"
+          aria-label="Pool Royal calls"
+          className="fixed z-[55] flex gap-2"
+          style={{
+            top: 'calc(env(safe-area-inset-top, 0px) + 4.75rem)',
+            left: '50%',
+            transform: 'translateX(-50%)',
+            visibility: hasBlockingOverlay ? 'hidden' : 'visible',
+            pointerEvents: hasBlockingOverlay ? 'none' : 'auto'
+          }}
+        >
+          <button
+            type="button"
+            aria-label="Start voice call"
+            title="Join your opponent with microphone only"
+            onClick={() => setCallMode('audio')}
+            className="flex h-11 min-w-20 items-center justify-center gap-1.5 rounded-full border border-white/25 bg-slate-950/90 px-3 text-xs font-semibold text-white shadow-lg touch-manipulation"
+          >
+            <span aria-hidden="true">📞</span> Voice
+          </button>
+          <button
+            type="button"
+            aria-label="Start video call"
+            title="Join your opponent with camera and microphone"
+            onClick={() => setCallMode('video')}
+            className="flex h-11 min-w-20 items-center justify-center gap-1.5 rounded-full border border-white/25 bg-slate-950/90 px-3 text-xs font-semibold text-white shadow-lg touch-manipulation"
+          >
+            <span aria-hidden="true">📹</span> Video
+          </button>
+        </div>
+      ) : null}
+      {audioOnly && liveChat.remotePeers[0] ? (
+        <RemoteVideo key={liveChat.remotePeers[0].socketId} peer={liveChat.remotePeers[0]} audioOnly />
+      ) : null}
       {!liveMode && anchorElement ? (
         <button
           type="button"
           aria-label="Turn on live avatar video"
           title="Start video call"
-          onClick={() => setLiveMode(true)}
+          onClick={() => setCallMode('video')}
           className={`fixed ${isPool ? "z-[55]" : "z-[18]"} rounded-full bg-transparent touch-manipulation`}
           style={{
             top: `${activationRect.top}px`,
@@ -494,11 +544,11 @@ function LiveAvatarSession({ gameSlug, roomId, children }) {
           ) : null}
         </button>
       ) : null}
-      {liveMode && anchorElement ? (
+      {liveMode && !audioOnly && anchorElement ? (
         <button
           type="button"
           aria-label="Turn off live avatar video"
-          onClick={() => setLiveMode(false)}
+          onClick={() => setCallMode(null)}
           className={`fixed ${isPool ? "z-[55]" : "z-[18]"} overflow-hidden touch-manipulation`}
           style={{
             top: `${overlayRect.top}px`,
@@ -530,7 +580,7 @@ function LiveAvatarSession({ gameSlug, roomId, children }) {
           />
         </button>
       ) : null}
-      {liveMode && usesOpponentAvatar && opponentRect ? (
+      {liveMode && !audioOnly && usesOpponentAvatar && opponentRect ? (
         <div
           className={`fixed ${isPool ? "z-[55]" : "z-[18]"} overflow-hidden pointer-events-none`}
           style={{
@@ -606,31 +656,44 @@ function LiveAvatarSession({ gameSlug, roomId, children }) {
           </div> : null}
           {compactCall && liveChat.error ? (
             <p role="alert" className="max-w-[min(16rem,calc(100vw-24px))] rounded-xl bg-slate-950/95 p-3 text-xs text-white">
-              {liveChat.error} Turn off live video and tap your avatar to retry.
+              {liveChat.error} {isPool
+                ? 'End the call, then choose Voice or Video to retry.'
+                : 'Turn off live video and tap your avatar to retry.'}
+            </p>
+          ) : null}
+          {isPool && !liveChat.error ? (
+            <p role="status" className="max-w-[min(16rem,calc(100vw-24px))] rounded-full bg-slate-950/90 px-3 py-1 text-center text-[10px] text-white">
+              {!liveChat.localStream
+                ? `Starting ${audioOnly ? 'voice' : 'video'} call…`
+                : liveChat.remotePeers.some((peer) => peer.stream)
+                  ? `${audioOnly ? 'Voice' : 'Video'} call`
+                  : 'Waiting for opponent to tap Voice or Video…'}
             </p>
           ) : null}
           <div className={`flex justify-center gap-2 ${isCheckers ? 'flex-col items-start' : ''}`}>
             <button
               type="button"
               onClick={liveChat.toggleMicrophone}
+              disabled={isPool && !liveChat.isConnected}
               className={`flex ${compactCall ? 'h-11 w-11' : 'h-9 w-9'} items-center justify-center rounded-full text-sm text-white shadow-lg ${liveChat.mediaState.microphone ? 'bg-emerald-600' : 'bg-rose-600'}`}
               aria-label={liveChat.mediaState.microphone ? 'Turn microphone off' : 'Turn microphone on'}
             >
               {liveChat.mediaState.microphone ? '🎙️' : '🔇'}
             </button>
-            <button
+            {!audioOnly ? <button
               type="button"
               onClick={liveChat.toggleCamera}
+              disabled={isPool && !liveChat.isConnected}
               className={`flex ${compactCall ? 'h-11 w-11' : 'h-9 w-9'} items-center justify-center rounded-full text-sm text-white shadow-lg ${liveChat.mediaState.camera ? 'bg-emerald-600' : 'bg-rose-600'}`}
               aria-label={liveChat.mediaState.camera ? 'Turn camera off' : 'Turn camera on'}
             >
               {liveChat.mediaState.camera ? '📹' : '🚫'}
-            </button>
+            </button> : null}
             {compactCall ? (
               <button
                 type="button"
-                onClick={() => setLiveMode(false)}
-                aria-label="End video call"
+                onClick={() => setCallMode(null)}
+                aria-label={audioOnly ? 'End voice call' : 'End video call'}
                 className="flex h-11 w-11 items-center justify-center rounded-full bg-rose-700 text-white shadow-lg"
               >
                 ✕

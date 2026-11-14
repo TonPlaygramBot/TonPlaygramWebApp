@@ -28,9 +28,13 @@ describe.each(['checkersbattleroyal', 'poolroyale'])('%s shared live video', (de
   const roomId = `live-${defaultGame}-match-42`;
   const avatarSize = defaultGame === 'poolroyale' ? '46.4px' : '52px';
   const track = (kind) => ({ kind, enabled: true, stop: vi.fn() });
-  const makeStream = () => {
-    const tracks = [track('audio'), track('video')];
-    return { getTracks: () => tracks, getAudioTracks: () => [tracks[0]], getVideoTracks: () => [tracks[1]] };
+  const makeStream = (withVideo = true) => {
+    const tracks = [track('audio'), ...(withVideo ? [track('video')] : [])];
+    return {
+      getTracks: () => tracks,
+      getAudioTracks: () => tracks.filter((track) => track.kind === 'audio'),
+      getVideoTracks: () => tracks.filter((track) => track.kind === 'video')
+    };
   };
   const button = (label) => container.querySelector(`button[aria-label="${label}"]`);
   async function frame() {
@@ -140,6 +144,8 @@ describe.each(['checkersbattleroyal', 'poolroyale'])('%s shared live video', (de
     await mount(search);
     await act(async () => window.dispatchEvent(new CustomEvent('tonplaygram:live-avatar:start', { detail: { gameSlug: defaultGame } })));
     expect(button('Turn on live avatar video')).toBeNull();
+    expect(button('Start voice call')).toBeNull();
+    expect(button('Start video call')).toBeNull();
     expect(getUserMedia).not.toHaveBeenCalled();
     expect(socket.emit).not.toHaveBeenCalledWith('liveChat:join', expect.anything());
   });
@@ -292,6 +298,154 @@ describe.each(['checkersbattleroyal', 'poolroyale'])('%s shared live video', (de
     expect(container.querySelector('video').srcObject).toBe(stream);
     expect(getUserMedia).toHaveBeenCalledTimes(1);
   });
+
+
+  if (defaultGame === 'poolroyale') {
+    it('shows explicit voice and video launch buttons without capturing until tapped', async () => {
+      await mount();
+      expect(button('Start voice call')).not.toBeNull();
+      expect(button('Start video call')).not.toBeNull();
+      expect(getUserMedia).not.toHaveBeenCalled();
+      await render(true);
+      expect(button('Start voice call').parentElement.style.visibility).toBe('hidden');
+      expect(button('Start video call').parentElement.style.pointerEvents).toBe('none');
+      await render(false);
+      await click('Start video call');
+      expect(getUserMedia).toHaveBeenCalledTimes(1);
+      expect(getUserMedia).toHaveBeenCalledWith(expect.objectContaining({
+        audio: expect.any(Object), video: expect.objectContaining({ facingMode: 'user' })
+      }));
+      expect(button('Start voice call')).toBeNull();
+      expect(button('Turn off live avatar video').style.width).toBe(avatarSize);
+      await click('End video call');
+      expect(button('Start voice call')).not.toBeNull();
+    });
+
+    it('joins voice with microphone only, preserves photos and plays remote audio', async () => {
+      stream = makeStream(false);
+      getUserMedia.mockResolvedValue(stream);
+      await mount();
+      await click('Start voice call');
+      expect(getUserMedia).toHaveBeenCalledTimes(1);
+      expect(getUserMedia).toHaveBeenCalledWith(expect.objectContaining({
+        audio: expect.any(Object), video: false
+      }));
+      expect(socket.emit).toHaveBeenCalledWith('liveChat:join', {
+        roomId, participant: expect.objectContaining({
+          mediaState: { microphone: true, camera: false }
+        })
+      });
+      expect(container.querySelectorAll('video').length).toBe(0);
+      expect(container.querySelector('[data-pool-avatar="self"]').style.visibility).toBe('');
+      expect(container.querySelector('[data-pool-avatar="opponent"]').style.visibility).toBe('');
+      expect(button('Turn camera on')).toBeNull();
+      expect(button('Turn camera off')).toBeNull();
+      expect(button('Turn on live avatar video')).toBeNull();
+      expect(container.querySelector('[role="status"]').textContent).toContain('Waiting for opponent');
+      await receive('liveChat:signal', {
+        roomId, fromSocketId: 'rival',
+        participant: { displayName: 'Rival', mediaState: { camera: false, microphone: true } },
+        data: { type: 'offer', sdp: { type: 'offer', sdp: 'mock' } }
+      });
+      expect(connections[0].addTrack).toHaveBeenCalledTimes(1);
+      const remoteStream = makeStream(false);
+      await act(async () => connections[0].ontrack({ streams: [remoteStream] }));
+      const audio = container.querySelector('audio[aria-label="Rival live audio"]');
+      expect(audio.srcObject).toBe(remoteStream);
+      expect(audio.muted).toBe(false);
+      expect(audio.autoplay).toBe(true);
+      expect(container.querySelector('[role="status"]').textContent).toBe('Voice call');
+      const play = HTMLMediaElement.prototype.play;
+      play.mockClear();
+      await act(async () => document.dispatchEvent(new Event('pointerdown')));
+      expect(play).toHaveBeenCalled();
+      await render(true);
+      expect(audio.srcObject).toBe(remoteStream);
+      expect(button('End voice call').parentElement.parentElement.style.visibility).toBe('hidden');
+      await render(false);
+      await click('Turn microphone off');
+      expect(stream.getAudioTracks()[0].enabled).toBe(false);
+      expect(socket.emit).toHaveBeenCalledWith('liveChat:media_state', {
+        roomId, mediaState: { microphone: false, camera: false }
+      });
+      await click('Turn microphone on');
+      expect(stream.getAudioTracks()[0].enabled).toBe(true);
+      await click('End voice call');
+      expect(stream.getTracks().every((track) => track.stop.mock.calls.length === 1)).toBe(true);
+      expect(connections[0].close).toHaveBeenCalled();
+      expect(audio.srcObject).toBeNull();
+      expect(container.querySelector('audio')).toBeNull();
+      expect(socket.emit).toHaveBeenCalledWith('liveChat:leave', { roomId });
+    });
+
+    it('can use voice after camera permission is denied', async () => {
+      vi.spyOn(console, 'error').mockImplementation(() => {});
+      stream = makeStream(false);
+      getUserMedia.mockRejectedValueOnce(new Error('Camera permission denied')).mockResolvedValue(stream);
+      await mount();
+      await click('Start video call');
+      expect(container.querySelector('[role="alert"]').textContent).toContain('Camera permission denied');
+      await click('End video call');
+      await click('Start voice call');
+      expect(getUserMedia).toHaveBeenLastCalledWith(expect.objectContaining({ video: false }));
+      expect(container.querySelector('[role="alert"]')).toBeNull();
+      expect(button('End voice call')).not.toBeNull();
+      expect(socket.emit).toHaveBeenCalledWith('liveChat:join', expect.objectContaining({
+        roomId, participant: expect.objectContaining({ mediaState: { microphone: true, camera: false } })
+      }));
+    });
+
+    it('disposes a cancelled voice permission result without interrupting a new video call', async () => {
+      let resolveVoice;
+      getUserMedia.mockReturnValueOnce(new Promise((resolve) => { resolveVoice = resolve; }));
+      await mount();
+      await click('Start voice call');
+      expect(button('Turn microphone off').disabled).toBe(true);
+      await click('End voice call');
+      await click('Start video call');
+      const oldVoiceStream = makeStream(false);
+      await act(async () => resolveVoice(oldVoiceStream));
+      expect(getUserMedia).toHaveBeenCalledTimes(2);
+      expect(oldVoiceStream.getTracks().every((track) => track.stop.mock.calls.length === 1)).toBe(true);
+      expect(stream.getTracks().every((track) => track.stop.mock.calls.length === 0)).toBe(true);
+      expect(container.querySelector('video').srcObject).toBe(stream);
+      expect(socket.emit.mock.calls.filter(([event]) => event === 'liveChat:join')).toHaveLength(1);
+    });
+
+    it('keeps voice capture unchanged on duplicate starts and releases it on a match change', async () => {
+      stream = makeStream(false);
+      getUserMedia.mockResolvedValue(stream);
+      await mount();
+      await click('Start voice call');
+      await act(async () => window.dispatchEvent(new CustomEvent('tonplaygram:live-avatar:start', {
+        detail: { gameSlug: defaultGame }
+      })));
+      expect(getUserMedia).toHaveBeenCalledTimes(1);
+      expect(button('End voice call')).not.toBeNull();
+      expect(container.querySelector('video')).toBeNull();
+      await act(async () => navigate('/games/poolroyale?mode=online&tableId=next-match'));
+      await frame();
+      expect(stream.getTracks().every((track) => track.stop.mock.calls.length === 1)).toBe(true);
+      expect(socket.emit).toHaveBeenCalledWith('liveChat:leave', { roomId });
+      expect(button('Start voice call')).not.toBeNull();
+      expect(button('Start video call')).not.toBeNull();
+      expect(getUserMedia).toHaveBeenCalledTimes(1);
+      expect(container.querySelector('audio')).toBeNull();
+    });
+
+    it('stops voice capture when leaving an online match for practice', async () => {
+      stream = makeStream(false);
+      getUserMedia.mockResolvedValue(stream);
+      await mount();
+      await click('Start voice call');
+      await act(async () => navigate('/games/poolroyale?mode=ai'));
+      await frame();
+      expect(stream.getTracks().every((track) => track.stop.mock.calls.length === 1)).toBe(true);
+      expect(button('Start voice call')).toBeNull();
+      expect(button('End voice call')).toBeNull();
+      expect(socket.emit).toHaveBeenCalledWith('liveChat:leave', { roomId });
+    });
+  }
 
   it.each(['chessbattleroyal', 'domino-royal', 'murlanroyale'])('preserves shared call start and cleanup in %s', async (slug) => {
     gameSlug = slug;
