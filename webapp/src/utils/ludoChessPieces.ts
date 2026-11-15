@@ -5,8 +5,8 @@ import { hasVisibleLudoToken } from './ludoTokenPresentation.ts';
 // A Beautiful Game by ASWF and Ed Mackey (https://creativecommons.org/licenses/by/4.0/).
 // https://github.com/KhronosGroup/glTF-Sample-Assets/tree/main/Models/ABeautifulGame
 const ABG_MODEL_URLS = [
-  'https://cdn.jsdelivr.net/gh/KhronosGroup/glTF-Sample-Models@master/2.0/ABeautifulGame/glTF/ABeautifulGame.gltf',
-  'https://raw.githubusercontent.com/KhronosGroup/glTF-Sample-Assets/main/Models/ABeautifulGame/glTF/ABeautifulGame.gltf'
+  'https://raw.githubusercontent.com/KhronosGroup/glTF-Sample-Assets/main/Models/ABeautifulGame/glTF/ABeautifulGame.gltf',
+  'https://cdn.jsdelivr.net/gh/KhronosGroup/glTF-Sample-Models@master/2.0/ABeautifulGame/glTF/ABeautifulGame.gltf'
 ];
 
 const ABG_WHITE_PIECES = {
