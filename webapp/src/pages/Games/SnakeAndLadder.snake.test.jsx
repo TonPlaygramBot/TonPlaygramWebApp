@@ -4,8 +4,10 @@ import { BrowserRouter } from 'react-router-dom';
 import { beforeEach, afterEach, expect, it, vi } from 'vitest';
 import SnakeAndLadder from './SnakeAndLadder';
 import { SNAKE_DICE_PRESENTATION_MS, SNAKE_DICE_RELEASE_MS, SNAKE_DICE_READ_MS } from '../../utils/snakeDiceInteraction';
+import { setGameMuted } from '../../utils/sound.js';
+import { SNAKE_FINAL_TILE as FINAL_TILE } from '../../../../lib/snakeRules.js';
 
-const testState = vi.hoisted(() => ({ handlers: new Map(), events: [], board: null }));
+const testState = vi.hoisted(() => ({ handlers: new Map(), events: [], board: null, deposits: [], boardPositions: [] }));
 vi.mock('../../utils/socket.js', () => ({ socket: {
   on: (name, handler) => { if (!testState.handlers.has(name)) testState.handlers.set(name, new Set()); testState.handlers.get(name).add(handler); },
   off: (name, handler) => testState.handlers.get(name)?.delete(handler),
@@ -14,10 +16,13 @@ vi.mock('../../utils/socket.js', () => ({ socket: {
 vi.mock('../../utils/telegram.js', () => ({ getPlayerId: () => 'p1', getTelegramId: () => null, ensureAccountId: async () => 'p1' }));
 vi.mock('../../utils/api.js', async (original) => ({ ...(await original()),
   getProfileByAccount: async () => ({}), pingOnline: async () => ({}), unseatTable: async () => ({}),
+  depositAccount: async (...args) => { testState.deposits.push(args); return {}; },
+  addTransaction: async () => ({}),
   getSnakeBoard: async () => ({ snakes: { 9: 2 }, ladders: { 3: 8 }, diceCells: {} })
 }));
 vi.mock('../../components/SnakeBoard3D.jsx', () => ({ default: (props) => {
   testState.board = props;
+  testState.boardPositions.push(props.players.map(player => player.position));
   React.useEffect(() => { if (props.slide) props.onSlideComplete(props.slide.id); }, [props.slide]);
   return <div data-testid="board" />;
 } }));
@@ -27,7 +32,6 @@ vi.mock('../../components/AvatarTimer.jsx', () => ({ default: () => null }));
 vi.mock('../../components/GiftPopup.jsx', () => ({ default: () => null }));
 vi.mock('../../components/QuickMessagePopup.jsx', () => ({ default: () => null }));
 vi.mock('../../components/PlayerPopup.jsx', () => ({ default: () => null }));
-vi.mock('../../components/InfoPopup.jsx', () => ({ default: () => null }));
 vi.mock('../../components/HintPopup.jsx', () => ({ default: () => null }));
 
 let root, host;
@@ -37,9 +41,11 @@ beforeEach(() => {
   vi.stubGlobal('IS_REACT_ACT_ENVIRONMENT', true);
   vi.stubGlobal('Audio', class { volume = 1; currentTime = 0; play() { return Promise.resolve(); } pause() {} addEventListener() {} removeEventListener() {} });
   localStorage.clear(); testState.handlers.clear(); testState.events = [];
+  testState.deposits = []; testState.boardPositions = [];
+  setGameMuted(false);
   host = document.createElement('div'); document.body.append(host); root = createRoot(host);
 });
-afterEach(() => { act(() => root.unmount()); document.body.innerHTML = ''; vi.useRealTimers(); vi.unstubAllGlobals(); });
+afterEach(() => { act(() => root.unmount()); document.body.innerHTML = ''; vi.useRealTimers(); vi.unstubAllGlobals(); vi.restoreAllMocks(); });
 
 it('keeps local rolling locked until the die lands and the entry hop finishes', async () => {
   window.history.replaceState({}, '', '/games/snake?ai=1');
@@ -83,4 +89,237 @@ it('animates a server roll and ladder before applying the final snapshot', async
   expect(testState.board.players[0].position).toBe(8);
   expect(testState.board.currentTurn).toBe(1);
   expect(host.querySelector('.snake-roll-button').disabled).toBe(true);
+});
+
+it('keeps the human turn after an overshooting six at tile 49', async () => {
+  window.history.replaceState({}, '', '/games/snake?ai=1');
+  localStorage.setItem('snakeGameState_0', JSON.stringify({ pos: 49, aiPositions: [], currentTurn: 0 }));
+  await act(async () => root.render(<BrowserRouter><SnakeAndLadder /></BrowserRouter>));
+  expect(testState.board.players[0].position).toBe(49);
+  vi.spyOn(crypto, 'getRandomValues').mockImplementation(array => { array[0] = 5; return array; });
+  await act(async () => host.querySelector('.snake-roll-button').click());
+  await act(async () => vi.advanceTimersByTimeAsync(SNAKE_DICE_PRESENTATION_MS + SNAKE_DICE_READ_MS + 500));
+  expect(testState.board.players[0].position).toBe(49);
+  expect(testState.board.currentTurn).toBe(0);
+  expect(host.querySelector('.snake-roll-button').disabled).toBe(false);
+  vi.restoreAllMocks();
+});
+
+it('gives the AI the same extra turn after an overshooting six at tile 49', async () => {
+  window.history.replaceState({}, '', '/games/snake?ai=1');
+  localStorage.setItem('snakeGameState_0', JSON.stringify({ pos: 0, aiPositions: [49], currentTurn: 0 }));
+  await act(async () => root.render(<BrowserRouter><SnakeAndLadder /></BrowserRouter>));
+  expect(testState.board.players[1].position).toBe(49);
+  const random = vi.spyOn(crypto, 'getRandomValues').mockImplementation(array => { array[0] = 0; return array; });
+  await act(async () => host.querySelector('.snake-roll-button').click());
+  await act(async () => vi.advanceTimersByTimeAsync(SNAKE_DICE_PRESENTATION_MS + SNAKE_DICE_READ_MS + 500));
+  random.mockImplementation(array => { array[0] = 5; return array; });
+  for (let tick = 0; tick < 100 && testState.board.diceEvent?.seatIndex !== 1; tick += 1) {
+    await act(async () => vi.advanceTimersByTimeAsync(100));
+  }
+  expect(testState.board.diceEvent.seatIndex).toBe(1);
+  expect(testState.board.diceEvent.values).toEqual([6]);
+  await act(async () => vi.advanceTimersByTimeAsync(SNAKE_DICE_PRESENTATION_MS + SNAKE_DICE_READ_MS + 500));
+  expect(testState.board.players[1].position).toBe(49);
+  expect(testState.board.currentTurn).toBe(1);
+  vi.restoreAllMocks();
+});
+
+async function mountPractice() {
+  window.history.replaceState({}, '', '/games/snake?ai=1');
+  await act(async () => root.render(<BrowserRouter><SnakeAndLadder /></BrowserRouter>));
+}
+function buttonWithLabel(label) {
+  return document.querySelector(`button[aria-label="${label}"]`);
+}
+function buttonWithText(text, container = document) {
+  return [...container.querySelectorAll('button')].find(button => button.textContent === text);
+}
+
+it('opens the real rules dialog from the game header and closes it without leaving', async () => {
+  await mountPractice();
+  await act(async () => buttonWithLabel('How to play').click());
+  const rules = document.querySelector('[role="dialog"]');
+  expect(rules.textContent).toContain(`Be the first to reach tile ${FINAL_TILE}.`);
+  expect(rules.textContent).toContain('Enter with a six.');
+  expect(rules.textContent).toContain('Capture a rival.');
+  expect(rules.textContent).toContain('Finish exactly.');
+  await act(async () => buttonWithText('Close', rules).click());
+  expect(document.querySelector('[role="dialog"]')).toBeNull();
+  expect(window.location.pathname).toBe('/games/snake');
+  expect(host.querySelector('.snake-roll-button').disabled).toBe(false);
+});
+
+it('switches between player and board view using the production camera props', async () => {
+  await mountPractice();
+  expect(testState.board.cameraViewMode).toBe('3d');
+  await act(async () => buttonWithLabel('Switch to board view').click());
+  expect(testState.board.cameraViewMode).toBe('2d');
+  expect(buttonWithLabel('Switch to player view').getAttribute('aria-pressed')).toBe('true');
+  await act(async () => buttonWithLabel('Switch to player view').click());
+  expect(testState.board.cameraViewMode).toBe('3d');
+  expect(buttonWithLabel('Switch to board view').getAttribute('aria-pressed')).toBe('false');
+});
+
+it('keeps dock mute controls, stored audio settings and the arena sound state in sync', async () => {
+  await mountPractice();
+  expect(testState.board.soundEnabled).toBe(true);
+  await act(async () => vi.advanceTimersByTimeAsync(5100));
+  const secondsLeft = Number(host.querySelector('[role="progressbar"]').getAttribute('aria-valuenow'));
+  expect(secondsLeft).toBeLessThanOrEqual(10);
+  await act(async () => buttonWithLabel('Mute game audio').click());
+  expect(localStorage.getItem('gameMuted')).toBe('true');
+  expect(testState.board.soundEnabled).toBe(false);
+  expect(buttonWithLabel('Unmute game audio').getAttribute('aria-pressed')).toBe('true');
+  expect(Number(host.querySelector('[role="progressbar"]').getAttribute('aria-valuenow'))).toBe(secondsLeft);
+  await act(async () => setGameMuted(false));
+  expect(testState.board.soundEnabled).toBe(true);
+  expect(buttonWithLabel('Mute game audio').getAttribute('aria-pressed')).toBe('false');
+  expect(Number(host.querySelector('[role="progressbar"]').getAttribute('aria-valuenow'))).toBe(secondsLeft);
+});
+
+it('closes settings with Escape or Close and restores focus to its opening control', async () => {
+  await mountPractice();
+  const open = buttonWithLabel('Open game settings menu');
+  open.focus();
+  await act(async () => open.click());
+  let settings = document.querySelector('[role="dialog"]');
+  expect(settings.textContent).toContain('Arena settings');
+  expect(settings.textContent).toContain('Graphics');
+  expect(document.activeElement.textContent).toBe('Close');
+  await act(async () => settings.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true })));
+  expect(document.querySelector('[role="dialog"]')).toBeNull();
+  expect(document.activeElement).toBe(open);
+  await act(async () => open.click());
+  settings = document.querySelector('[role="dialog"]');
+  await act(async () => buttonWithText('Close', settings).click());
+  expect(document.querySelector('[role="dialog"]')).toBeNull();
+  expect(document.activeElement).toBe(open);
+});
+
+it('keeps the current match and saved progress when the player cancels leaving', async () => {
+  await mountPractice();
+  const state = localStorage.getItem('snakeGameState_0');
+  const positions = testState.board.players.map(player => player.position);
+  await act(async () => buttonWithLabel('Open game settings menu').click());
+  await act(async () => buttonWithText('Return to lobby').click());
+  expect(buttonWithText('Keep playing')).toBeDefined();
+  await act(async () => buttonWithText('Keep playing').click());
+  expect(buttonWithText('Keep playing')).toBeUndefined();
+  expect(window.location.pathname + window.location.search).toBe('/games/snake?ai=1');
+  expect(localStorage.getItem('snakeGameState_0')).toBe(state);
+  expect(testState.board.players.map(player => player.position)).toEqual(positions);
+  expect(host.querySelector('.snake-roll-button').disabled).toBe(false);
+});
+
+it('updates the scoreboard positions, active player and connection status from online snapshots', async () => {
+  window.history.replaceState({}, '', '/games/snake?table=snake-2&capacity=2');
+  await act(async () => root.render(<BrowserRouter><SnakeAndLadder /></BrowserRouter>));
+  await emit('snakeState', {
+    roomId: 'snake-2', status: 'playing', currentPlayerId: 'p2', maxPlayers: 2,
+    snakes: { 9: 2 }, ladders: { 3: 8 }, diceCells: {},
+    players: [{ playerId: 'p1', name: 'Ada', position: 12 }, { playerId: 'p2', name: 'Arben', position: 24 }]
+  });
+  let cards = [...host.querySelectorAll('.snake-score-card')];
+  expect(cards.map(card => card.querySelector('.snake-score-position').textContent)).toEqual(['Tile 12', 'Tile 24']);
+  expect(cards[0].getAttribute('aria-label')).toContain(`Ada (you), tile 12 of ${FINAL_TILE}`);
+  expect(cards[1].getAttribute('aria-label')).toContain(`Arben, tile 24 of ${FINAL_TILE}, current turn`);
+  expect(cards[0].getAttribute('data-active')).toBe('false');
+  expect(cards[1].getAttribute('data-active')).toBe('true');
+  expect(host.querySelector('.snake-roll-button').disabled).toBe(true);
+  await emit('playerDisconnected', { playerId: 'p2', maxPlayers: 2 });
+  cards = [...host.querySelectorAll('.snake-score-card')];
+  expect(cards[1].textContent).toContain('Offline');
+  expect(cards[1].getAttribute('aria-label')).toContain('reconnecting');
+  await emit('playerRejoined', { playerId: 'p2', maxPlayers: 2 });
+  expect(host.querySelectorAll('.snake-score-position')[1].textContent).toBe('Tile 24');
+});
+
+it('keeps the local live-video photo and gift targets attached to the correct online seats', async () => {
+  window.history.replaceState({}, '', '/games/snake?table=snake-2&capacity=2');
+  await act(async () => root.render(<BrowserRouter><SnakeAndLadder /></BrowserRouter>));
+  await emit('snakeState', {
+    roomId: 'snake-2', status: 'playing', currentPlayerId: 'p1', maxPlayers: 2,
+    snakes: {}, ladders: {}, diceCells: {},
+    players: [{ playerId: 'p2', name: 'Arben', position: 4 }, { playerId: 'p1', name: 'Ada', position: 7 }]
+  });
+  const localAvatar = host.querySelector('[data-self-player="true"]');
+  expect(localAvatar.tagName).toBe('IMG');
+  expect(localAvatar.alt).toBe('Your avatar');
+  expect(localAvatar.closest('[data-player-index]').getAttribute('data-player-index')).toBe('1');
+  expect(host.querySelector('[data-player-index="0"]').textContent).toContain('Arben');
+  expect(host.querySelector('[data-player-index="1"]').textContent).toContain('You');
+  expect(host.querySelectorAll('[data-self-player="true"]')).toHaveLength(1);
+});
+
+it('finishes exactly once on the real 3D pot at tile 50 after rolling one from tile 49', async () => {
+  window.history.replaceState({}, '', '/games/snake?ai=1');
+  localStorage.setItem('snakeGameState_0', JSON.stringify({ pos: 49, aiPositions: [], currentTurn: 0 }));
+  await act(async () => root.render(<BrowserRouter><SnakeAndLadder /></BrowserRouter>));
+  expect(FINAL_TILE).toBe(50);
+  expect(testState.board.players[0].position).toBe(49);
+  vi.spyOn(crypto, 'getRandomValues').mockImplementation(array => { array[0] = 0; return array; });
+  await act(async () => host.querySelector('.snake-roll-button').click());
+  expect(testState.board.diceEvent.values).toEqual([1]);
+  await act(async () => vi.advanceTimersByTimeAsync(SNAKE_DICE_PRESENTATION_MS + SNAKE_DICE_READ_MS + 500));
+  // Flush the token landing callback, then its 80ms movement completion delay.
+  await act(async () => vi.advanceTimersByTimeAsync(100));
+  expect(testState.board.players[0].position).toBe(50);
+  expect(host.querySelector('.snake-score-position').textContent).toBe('Finished');
+  expect(host.querySelector('.snake-roll-button')).toBeNull();
+  expect(buttonWithText('Return to Lobby')).toBeDefined();
+  expect(testState.deposits.filter(([, , options]) => options?.game === 'snake-win')).toHaveLength(1);
+  await act(async () => vi.advanceTimersByTimeAsync(20000));
+  expect(testState.board.players[0].position).toBe(50);
+  expect(testState.deposits.filter(([, , options]) => options?.game === 'snake-win')).toHaveLength(1);
+  expect(testState.boardPositions.flat().every(position => position <= 50)).toBe(true);
+});
+
+it('keeps rolling locked after dismissing a connection warning until an authoritative state restores play', async () => {
+  window.history.replaceState({}, '', '/games/snake?table=snake-2&capacity=2');
+  await act(async () => root.render(<BrowserRouter><SnakeAndLadder /></BrowserRouter>));
+  const joiningNotice = document.querySelector('[role="dialog"]');
+  if (joiningNotice) await act(async () => buttonWithText('Close', joiningNotice).click());
+  const state = {
+    roomId: 'snake-2', status: 'playing', currentPlayerId: 'p1', maxPlayers: 2,
+    snakes: {}, ladders: {}, diceCells: {},
+    players: [{ playerId: 'p1', name: 'Ada', position: 12 }, { playerId: 'p2', name: 'Arben', position: 24 }]
+  };
+  await emit('snakeState', state);
+  expect(host.querySelector('.snake-roll-button').disabled).toBe(false);
+  await emit('disconnect');
+  const warning = document.querySelector('[role="dialog"]');
+  expect(warning.textContent).toContain('Connection Lost');
+  expect(host.querySelector('.snake-roll-button').disabled).toBe(true);
+  await act(async () => buttonWithText('Close', warning).click());
+  expect(document.querySelector('[role="dialog"]')).toBeNull();
+  expect(host.querySelector('.snake-roll-button').disabled).toBe(true);
+  const rollsSent = () => testState.events.filter(([event]) => event === 'rollDice').length;
+  expect(rollsSent()).toBe(0);
+  await act(async () => host.querySelector('.snake-roll-button').click());
+  expect(rollsSent()).toBe(0);
+  await emit('snakeState', state);
+  expect(host.querySelector('.snake-roll-button').disabled).toBe(false);
+});
+
+it('restores a legacy save already at the pot as finished without replaying turns or paying again', async () => {
+  window.history.replaceState({}, '', '/games/snake?ai=1');
+  localStorage.setItem('snakeGameState_0', JSON.stringify({
+    pos: 50, aiPositions: [0], currentTurn: 1, gameOver: false, timestamp: Date.now() - 1
+  }));
+  await act(async () => root.render(<BrowserRouter><SnakeAndLadder /></BrowserRouter>));
+  expect(testState.board.players.map(player => player.position)).toEqual([50, 0]);
+  expect(host.querySelector('.snake-score-position').textContent).toBe('Finished');
+  expect(host.querySelector('.snake-roll-button')).toBeNull();
+  const results = buttonWithText('Return to Lobby').parentElement;
+  expect(results.textContent).toContain('Winner');
+  const winnerImage = results.querySelector('img');
+  expect(winnerImage.alt).toBe('You');
+  expect(winnerImage.nextElementSibling.textContent).toBe('0');
+  expect(testState.deposits).toHaveLength(0);
+  await act(async () => vi.advanceTimersByTimeAsync(20000));
+  expect(testState.board.players.map(player => player.position)).toEqual([50, 0]);
+  expect(testState.board.diceEvent).toBeNull();
+  expect(host.querySelector('.snake-roll-button')).toBeNull();
+  expect(testState.deposits).toHaveLength(0);
 });

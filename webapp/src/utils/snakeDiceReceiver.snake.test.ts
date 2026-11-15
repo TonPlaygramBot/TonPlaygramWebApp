@@ -16,6 +16,6 @@ it('uses the local reverse order, including sixes and bonus landings', () => {
   expect(snakeDiceReceiver(base)).toBe(3);
   expect(snakeDiceReceiver({ ...base, values: [6] })).toBe(0);
   expect(snakeDiceReceiver({ ...base, ladders: { 3: 22 }, diceCells: { 22: 1 } })).toBe(0);
-  expect(snakeDiceReceiver({ ...base, roller: 1, positions: [0, 49, 0, 0], values: [6] })).toBe(0);
+  expect(snakeDiceReceiver({ ...base, roller: 1, positions: [0, 49, 0, 0], values: [6] })).toBe(1);
   expect(snakeDiceReceiver({ ...base, positions: [49, 0, 0, 0], values: [6] })).toBe(0);
 });

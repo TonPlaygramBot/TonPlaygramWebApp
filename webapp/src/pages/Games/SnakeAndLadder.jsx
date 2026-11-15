@@ -7,8 +7,9 @@ import { createSnakePresentationQueue } from '../../utils/snakePresentationQueue
 import './SnakeAndLadder.css';
 import DiceRoller from "../../components/DiceRoller.jsx";
 import SnakeTurnPanel from "../../components/SnakeTurnPanel";
+import { SnakeGameHeader, SnakeGameDock } from "../../components/SnakeGameChrome";
+import { resolveSnakeRoll, SNAKE_FINAL_TILE } from "../../../../lib/snakeRules.js";
 import SnakeBoard3D from "../../components/SnakeBoard3D.jsx";
-import { FINAL_TILE as BOARD_FINAL_TILE } from "../../components/SnakeBoard.jsx";
 import {
   chatBeep
 } from "../../assets/coreSoundData.js";
@@ -22,7 +23,6 @@ import {
   AiOutlineRollback,
   AiOutlineReload,
 } from "react-icons/ai";
-import BottomLeftIcons from "../../components/BottomLeftIcons.jsx";
 import { isGameMuted, getGameVolume, setGameMuted } from "../../utils/sound.js";
 import useTelegramBackButton from "../../hooks/useTelegramBackButton.js";
 import { useNavigate } from "react-router-dom";
@@ -92,7 +92,6 @@ async function awardDevShare(total) {
   }
 }
 import { socket } from "../../utils/socket.js";
-import AvatarTimer from "../../components/AvatarTimer.jsx";
 import ConfirmPopup from "../../components/ConfirmPopup.jsx";
 import PlayerPopup from "../../components/PlayerPopup.jsx";
 import QuickMessagePopup from "../../components/QuickMessagePopup.jsx";
@@ -179,7 +178,7 @@ const SNAKE_SFX = Object.freeze({
   badLuck: '/assets/sounds/no-luck-too-bad-disappointing-sound-effect-112943.mp3',
   cheer: '/assets/sounds/crowd-cheering-383111.mp3'
 });
-const FINAL_TILE = BOARD_FINAL_TILE;
+const FINAL_TILE = SNAKE_FINAL_TILE;
 const PENULTIMATE_TILE = FINAL_TILE - 1;
 const TURN_TIME = 15;
 const AI_ROLL_DELAY_MS = 1300;
@@ -262,15 +261,6 @@ function resolveAiTokenShapes(options, count) {
   if (!Array.isArray(options) || options.length === 0) return [];
   return Array.from({ length: count }, () => options[Math.floor(Math.random() * options.length)]);
 }
-
-const FALLBACK_SEAT_POSITIONS = [
-  { left: '50%', top: '94%' },
-  { left: '78%', top: '58%' },
-  { left: '48%', top: '27%' },
-  { left: '22%', top: '59%' }
-];
-const AVATAR_RING_SCREEN_DOWN_OFFSET_PERCENT = 3.8;
-const SELF_AVATAR_SCREEN_DOWN_OFFSET_PERCENT = 12.4;
 
 const clampValue = (value, min, max) => Math.max(min, Math.min(max, value));
 
@@ -798,25 +788,25 @@ const SNAKE_CUSTOMIZATION_SECTIONS = [
 const FRAME_RATE_OPTIONS = Object.freeze([
   {
     id: 'mobile50',
-    label: 'Battery Saver (50 Hz)',
+    label: 'Battery saver',
     fps: 50,
     renderScale: 0.88,
     pixelRatioCap: 1.15,
     resolution: '0.88x render • DPR 1.15 cap',
-    description: 'For 50–60 Hz displays or thermally constrained mobile GPUs.'
+    description: 'Lower frame rate to help reduce battery use.'
   },
   {
     id: 'balanced60',
-    label: 'Snooker Match (60 Hz)',
+    label: 'Balanced · Recommended',
     fps: 60,
     renderScale: 0.95,
     pixelRatioCap: 1.3,
     resolution: '0.95x render • DPR 1.3 cap',
-    description: 'Mirror the 3D Snooker frame pacing and resolution profile.'
+    description: 'Recommended for clear visuals and smooth mobile play.'
   },
   {
     id: 'smooth90',
-    label: 'Smooth Motion (90 Hz)',
+    label: 'Smooth motion',
     fps: 90,
     renderScale: 0.92,
     pixelRatioCap: 1.35,
@@ -825,21 +815,21 @@ const FRAME_RATE_OPTIONS = Object.freeze([
   },
   {
     id: 'fast120',
-    label: 'Performance (120 Hz)',
+    label: 'High refresh',
     fps: 120,
     renderScale: 0.9,
     pixelRatioCap: 1.25,
     resolution: '0.90x render • DPR 1.25 cap',
-    description: 'Adaptive quality for 120 Hz flagships and desktops.'
+    description: 'For devices with a 120 Hz display.'
   },
   {
     id: 'esports144',
-    label: 'Tournament (144 Hz)',
+    label: 'Maximum refresh',
     fps: 144,
     renderScale: 0.86,
     pixelRatioCap: 1.2,
     resolution: '0.86x render • DPR 1.2 cap',
-    description: 'Aggressive scaling to keep 144 Hz stable on mobile chips.'
+    description: 'For 144 Hz displays; uses more battery.'
   }
 ]);
 const FRAME_RATE_ALIASES = Object.freeze({
@@ -864,7 +854,7 @@ const DEFAULT_APPEARANCE = Object.freeze({
   environmentHdri: DEFAULT_HDRI_INDEX
 });
 
-const DEFAULT_FRAME_RATE_ID = 'fast120';
+const DEFAULT_FRAME_RATE_ID = 'balanced60';
 const DEFAULT_FRAME_RATE_OPTION =
   FRAME_RATE_OPTIONS.find((option) => option.id === DEFAULT_FRAME_RATE_ID) ?? FRAME_RATE_OPTIONS[0];
 
@@ -1168,6 +1158,8 @@ export default function SnakeAndLadder() {
   const [leftWinner, setLeftWinner] = useState(null);
   const [disconnectMsg, setDisconnectMsg] = useState(null);
   const [connectionLost, setConnectionLost] = useState(false);
+  const [connectionNoticeDismissed, setConnectionNoticeDismissed] = useState(false);
+  useEffect(() => { if (!connectionLost) setConnectionNoticeDismissed(false); }, [connectionLost]);
   const [forfeitMsg, setForfeitMsg] = useState(false);
   const [cheatMsg, setCheatMsg] = useState(null);
   const [showInfo, setShowInfo] = useState(false);
@@ -1387,7 +1379,6 @@ export default function SnakeAndLadder() {
   const captureFxStateRef = useRef(null);
   const captureFxIdRef = useRef(0);
   const [captureEvent, setCaptureEvent] = useState(null);
-  const [seatAnchors, setSeatAnchors] = useState([]);
   useEffect(() => {
     if (isMultiplayer) {
       setAiWeaponLoadout([]);
@@ -1400,13 +1391,6 @@ export default function SnakeAndLadder() {
     setAiWeaponLoadout(next);
   }, [ai, isMultiplayer]);
 
-  const seatAnchorMap = useMemo(() => {
-    const map = new Map();
-    seatAnchors.forEach((anchor) => {
-      if (anchor && typeof anchor.index === 'number') map.set(anchor.index, anchor);
-    });
-    return map;
-  }, [seatAnchors]);
 
 
   const requestSlideAnimation = useCallback(
@@ -2158,7 +2142,8 @@ export default function SnakeAndLadder() {
         id: p.playerId ?? p.id,
         name: p.name || `Player`,
         photoUrl: p.avatar || p.photoUrl || '/assets/icons/profile.svg',
-        position: p.position || 0
+        position: p.position || 0,
+        connected: !p.disconnected
       }));
       updateMpPlayers(arr, capValue);
     };
@@ -2177,7 +2162,8 @@ export default function SnakeAndLadder() {
           id: player.playerId ?? player.id,
           name: player.name || 'Player',
           photoUrl: player.avatar || player.photoUrl || '/assets/icons/profile.svg',
-          position: Number(player.position) || 0
+          position: Number(player.position) || 0,
+          connected: !player.disconnected
         }));
         updateMpPlayers(roster, state.maxPlayers);
         const local = roster.find((player) => String(player.id) === String(myAccountId));
@@ -2220,6 +2206,7 @@ export default function SnakeAndLadder() {
     listen('playerLeft', onLeft);
     listen('playerDisconnected', ({ playerId, maxPlayers }) => {
       handleCapacity(maxPlayers);
+      updateMpPlayers((list) => list.map((player) => player.id === playerId ? { ...player, connected: false } : player));
       if (playerId === myAccountId) {
         setConnectionLost(true);
       } else if (tableCapacityRef.current > 2) {
@@ -2230,6 +2217,7 @@ export default function SnakeAndLadder() {
     });
     listen('playerRejoined', ({ playerId, maxPlayers }) => {
       handleCapacity(maxPlayers);
+      updateMpPlayers((list) => list.map((player) => player.id === playerId ? { ...player, connected: true } : player));
       if (playerId === myAccountId) {
         setConnectionLost(false);
       } else if (tableCapacityRef.current > 2) {
@@ -2255,7 +2243,8 @@ export default function SnakeAndLadder() {
         id: p.id,
         name: p.name,
         photoUrl: p.avatar || '/assets/icons/profile.svg',
-        position: p.position || 0
+        position: p.position || 0,
+        connected: !p.disconnected
       }));
       updateMpPlayers(arr, maxPlayers);
     });
@@ -2396,6 +2385,26 @@ export default function SnakeAndLadder() {
         if (data.gameOver) {
           localStorage.removeItem(key);
         } else {
+          // Older local clients expected a nonexistent tile 51. A saved token
+          // already on the real finish must end the match before any catch-up
+          // rolls can move an opponent or capture that finished token. Restore
+          // only recorded rewards; resuming a snapshot must never pay twice.
+          const savedPositions = [data.pos ?? 0, ...(data.aiPositions ?? Array(ai).fill(0))];
+          const finishedIndex = savedPositions.findIndex((position) => position >= FINAL_TILE);
+          if (finishedIndex >= 0) {
+            const savedAvatar = finishedIndex === 0 ? photoUrl : data.aiAvatars?.[finishedIndex - 1];
+            const winnerName = finishedIndex === 0 ? 'You' : avatarToName(savedAvatar) || getPlayerName(finishedIndex);
+            const savedRanking = (data.ranking || []).map((entry) => typeof entry === 'string' ? { name: entry, amount: 0 } : entry);
+            const winner = savedRanking.find((entry) => entry.name === winnerName)
+              || { name: winnerName, photoUrl: savedAvatar || '/assets/icons/profile.svg', amount: 0 };
+            setPos(Math.min(FINAL_TILE, savedPositions[0]));
+            setAiPositions(savedPositions.slice(1).map((position) => Math.min(FINAL_TILE, position)));
+            setRanking([winner, ...savedRanking.filter((entry) => entry.name !== winnerName)]);
+            setGameOver(true);
+            setSetupPhase(false);
+            localStorage.removeItem(key);
+            return;
+          }
           setPos(data.pos ?? 0);
           setAiPositions(data.aiPositions ?? Array(ai).fill(0));
           setCurrentTurn(data.currentTurn ?? 0);
@@ -2466,31 +2475,21 @@ export default function SnakeAndLadder() {
     setMoving(true);
     setTurnMessage("");
     setRollCooldown(1);
-    const value = Array.isArray(values)
-      ? values.reduce((a, b) => a + b, 0)
-      : values;
-    const rolledSix = Array.isArray(values)
-      ? values.some((v) => Number(v) === 6)
-      : Number(value) === 6;
+    const resolution = resolveSnakeRoll(pos, values, FINAL_TILE);
+    const value = resolution.total;
+    const extraRoll = resolution.extraTurn;
     const playerLabel = getPlayerName(0);
 
     setRollColor(playerColors[0] || '#fff');
 
     // Predict capture for laugh sound
-    let preview = pos;
-    if (preview === 0) {
-      if (rolledSix) preview = 1;
-    } else if (preview === PENULTIMATE_TILE) {
-      if (value === 1) preview = FINAL_TILE;
-    } else {
-      if (preview + value <= FINAL_TILE) preview = preview + value;
-    }
+    let preview = resolution.landing;
     if (snakes[preview] != null) preview = Math.max(0, snakes[preview]);
     else if (ladders[preview] != null) {
       const ladObj = ladders[preview];
       preview = typeof ladObj === 'object' ? ladObj.end : ladObj;
     }
-    const willCapture = aiPositions.some((p) => p === preview);
+    const willCapture = resolution.moved && aiPositions.some((p) => p === preview);
 
     setRollResult(value);
     playGameHaptic('diceLand');
@@ -2508,62 +2507,23 @@ export default function SnakeAndLadder() {
 
 
       setMessage("");
-      let current = pos;
-      let target = current;
-
-      if (current === PENULTIMATE_TILE) {
-        if (value === 1) {
-          target = FINAL_TILE;
-        } else {
-          setMessage("Need a 1 to win!");
-          setTurnMessage("");
-          setDiceVisible(false);
-          const next = rolledSix ? currentTurn : getPreviousTurn(currentTurn);
-          setPendingExtraRoll(rolledSix);
-          if (rolledSix) setRollCooldown(0);
-          scheduleTimeout(() => {
-            setCurrentTurn(next);
-            setDiceCount(playerDiceCounts[next] ?? 1);
-          }, TURN_ADVANCE_AFTER_DICE_MS);
-          scheduleTimeout(() => setMoving(false), TURN_ADVANCE_AFTER_DICE_MS);
-          return;
-        }
-      } else if (current === 0) {
-        if (rolledSix) {
-          target = 1;
-          if (!muted) cheerSoundRef.current?.play().catch(() => {});
-        }
-        else {
-          setMessage("");
-          setTurnMessage("");
-          setDiceVisible(false);
-          const next = rolledSix ? currentTurn : getPreviousTurn(currentTurn);
-          setPendingExtraRoll(rolledSix);
-          if (rolledSix) setRollCooldown(0);
-          scheduleTimeout(() => {
-            setCurrentTurn(next);
-            setDiceCount(playerDiceCounts[next] ?? 1);
-          }, TURN_ADVANCE_AFTER_DICE_MS);
-          scheduleTimeout(() => setMoving(false), TURN_ADVANCE_AFTER_DICE_MS);
-          return;
-        }
-      } else if (current + value <= FINAL_TILE) {
-        target = current + value;
-      } else {
-        setMessage(`Need ${FINAL_TILE - current} to finish`);
-        setTurnMessage("");
+      const current = pos;
+      const target = resolution.landing;
+      if (!resolution.moved) {
+        setMessage(current === 0 ? '' : `Need ${FINAL_TILE - current} to finish`);
+        setTurnMessage('');
         setDiceVisible(false);
-        const next = rolledSix ? currentTurn : getPreviousTurn(currentTurn);
-          setPendingExtraRoll(rolledSix);
-          if (rolledSix) setRollCooldown(0);
+        const next = extraRoll ? currentTurn : getPreviousTurn(currentTurn);
+        setPendingExtraRoll(extraRoll);
+        if (extraRoll) setRollCooldown(0);
         scheduleTimeout(() => {
           setCurrentTurn(next);
           setDiceCount(playerDiceCounts[next] ?? 1);
+          setMoving(false);
         }, TURN_ADVANCE_AFTER_DICE_MS);
-        scheduleTimeout(() => setMoving(false), TURN_ADVANCE_AFTER_DICE_MS);
         return;
       }
-
+      if (current === 0 && !muted) cheerSoundRef.current?.play().catch(() => {});
 
       let predicted = target;
       if (snakes[predicted] != null) predicted = Math.max(0, snakes[predicted]);
@@ -2683,7 +2643,7 @@ export default function SnakeAndLadder() {
             yabbaSoundRef.current?.play().catch(() => {});
           }
           scheduleTimeout(() => setRewardDice(0), 1000);
-        } else if (rolledSix) {
+        } else if (extraRoll) {
           setTurnMessage('Six! Roll again');
           setBonusDice(0);
           extraTurn = true;
@@ -2718,31 +2678,22 @@ export default function SnakeAndLadder() {
 
   const handleAIRoll = (index, vals) => {
     setMoving(true);
-    const value = Array.isArray(vals)
-      ? vals.reduce((a, b) => a + b, 0)
-      : vals ?? Math.floor(Math.random() * 6) + 1;
-    const rolledSix = Array.isArray(vals)
-      ? vals.some((v) => Number(v) === 6)
-      : Number(value) === 6;
+    const resolution = resolveSnakeRoll(aiPositions[index - 1], vals ?? Math.floor(Math.random() * 6) + 1, FINAL_TILE);
+    const value = resolution.total;
+    const extraRoll = resolution.extraTurn;
     const playerLabel = getPlayerName(index);
     setRollColor(playerColors[index] || '#fff');
 
-    let preview = aiPositions[index - 1];
-    if (preview === 0) {
-      if (rolledSix) preview = 1;
-    } else if (preview === PENULTIMATE_TILE) {
-      if (value === 1) preview = FINAL_TILE;
-    } else if (preview + value <= FINAL_TILE) {
-      preview = preview + value;
-    }
+    let preview = resolution.landing;
     if (snakes[preview] != null) preview = Math.max(0, snakes[preview]);
     else if (ladders[preview] != null) {
       const ladObj = ladders[preview];
       preview = typeof ladObj === 'object' ? ladObj.end : ladObj;
     }
-    const capture =
+    const capture = resolution.moved && (
       (index !== 0 && pos === preview) ||
-      aiPositions.some((p, i) => i !== index - 1 && p === preview);
+      aiPositions.some((p, i) => i !== index - 1 && p === preview)
+    );
 
     setTurnMessage(<>{playerName(index)} rolled {value}</>);
     setRollResult(value);
@@ -2756,30 +2707,21 @@ export default function SnakeAndLadder() {
       setDiceVisible(false);
     let positions = [...aiPositions];
     let current = positions[index - 1];
-    let target = current;
-    if (current === 0) {
-      if (rolledSix) {
-        target = 1;
-        if (!muted) cheerSoundRef.current?.play().catch(() => {});
-      } else {
-      }
-    } else if (current === PENULTIMATE_TILE) {
-      if (value === 1) target = FINAL_TILE;
-      else {
-        setTurnMessage('');
-        setDiceVisible(false);
-        const next = getPreviousTurn(currentTurn);
-        scheduleTimeout(() => {
-          setCurrentTurn(next);
-          setDiceCount(playerDiceCounts[next] ?? 1);
-        }, TURN_ADVANCE_AFTER_DICE_MS);
-        scheduleTimeout(() => setMoving(false), TURN_ADVANCE_AFTER_DICE_MS);
-        return;
-      }
-    } else if (current + value <= FINAL_TILE) {
-      target = current + value;
-    } else if (current !== 0) {
+    const target = resolution.landing;
+    if (!resolution.moved) {
+      // Exact finish applies equally to AI and humans. An overshoot cannot
+      // trigger another snake/ladder, bonus, or capture on the occupied tile.
+      setTurnMessage(extraRoll ? 'Six! Roll again' : '');
+      setDiceVisible(false);
+      const next = extraRoll ? index : getPreviousTurn(index);
+      scheduleTimeout(() => {
+        setCurrentTurn(next);
+        setDiceCount(playerDiceCounts[next] ?? 1);
+        setMoving(false);
+      }, TURN_ADVANCE_AFTER_DICE_MS);
+      return;
     }
+    if (current === 0 && !muted) cheerSoundRef.current?.play().catch(() => {});
 
     let predicted = target;
     if (snakes[predicted] != null) predicted = Math.max(0, snakes[predicted]);
@@ -2879,7 +2821,7 @@ export default function SnakeAndLadder() {
           yabbaSoundRef.current?.play().catch(() => {});
         }
         scheduleTimeout(() => setRewardDice(0), 1000);
-      } else if (rolledSix) {
+      } else if (extraRoll) {
         extraTurn = true;
       }
       const next = extraTurn ? index : getPreviousTurn(index);
@@ -3013,7 +2955,7 @@ export default function SnakeAndLadder() {
         timerSoundRef.current
       ) {
         timerSoundRef.current.currentTime = 0;
-        if (!muted) timerSoundRef.current.play().catch(() => {});
+        if (!isGameMuted()) timerSoundRef.current.play().catch(() => {});
       }
       if (next <= 0) {
         timerSoundRef.current?.pause();
@@ -3031,7 +2973,7 @@ export default function SnakeAndLadder() {
       clearInterval(timerRef.current);
       timerSoundRef.current?.pause();
     };
-  }, [currentTurn, setupPhase, gameOver, moving, rollingIndex, isMultiplayer, accountId, waitingForPlayers, watchOnly, muted]);
+  }, [currentTurn, setupPhase, gameOver, moving, rollingIndex, isMultiplayer, accountId, waitingForPlayers, watchOnly]);
 
   // Periodically refresh the component state to avoid freezes
   useEffect(() => {
@@ -3108,6 +3050,7 @@ export default function SnakeAndLadder() {
     (!isMultiplayer || !connectionLost) &&
     rollReady &&
     !gameOver &&
+    (players[myPlayerIndex ?? 0]?.position ?? 0) < FINAL_TILE &&
     !waitingForPlayers &&
     !playerAutoRolling &&
     aiRollingIndex == null &&
@@ -3346,15 +3289,8 @@ export default function SnakeAndLadder() {
   };
 
   // determine ranking numbers based on board positions
-  const rankMap = {};
-  players
-    .map((p, i) => ({ idx: i, pos: p.position }))
-    .sort((a, b) => b.pos - a.pos)
-    .forEach((p, i) => {
-      rankMap[p.idx] = p.pos === 0 ? 0 : i + 1;
-    });
   return (
-    <div className="relative w-screen h-dvh overflow-hidden bg-[#05070f] text-text select-none">
+    <div className="snake-game relative w-screen h-dvh overflow-hidden bg-[#05070f] text-text select-none">
       <div className="absolute inset-0">
         <SnakeBoard3D
           players={players}
@@ -3377,7 +3313,6 @@ export default function SnakeAndLadder() {
           diceEvent={diceBoardEvent}
           captureEvent={captureEvent}
           onCaptureAnimationComplete={handleCaptureAnimationComplete}
-          onSeatPositionsChange={setSeatAnchors}
           appearance={resolvedAppearance}
           appearanceKey={appearanceKey}
           frameRate={frameRateValue}
@@ -3388,47 +3323,18 @@ export default function SnakeAndLadder() {
           soundEnabled={!muted}
         />
       </div>
-      <div
-        className="absolute z-30 pointer-events-auto"
-        style={{
-          top: 'calc(5.8rem + env(safe-area-inset-top, 0px))',
-          left: 'calc(0.75rem + env(safe-area-inset-left, 0px))'
-        }}
-      >
-        <div className="relative">
-          <button
-            type="button"
-            aria-label={showConfig ? 'Close game settings menu' : 'Open game settings menu'}
-            onClick={() => setShowConfig((prev) => !prev)}
-            className="flex items-center gap-2 rounded-full border border-white/15 bg-black/60 px-3 py-2 text-xs font-semibold uppercase tracking-[0.3em] text-gray-100 shadow-[0_6px_18px_rgba(2,6,23,0.45)] transition hover:border-white/30 hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/70"
-          >
-            <span className="text-base leading-none">☰</span>
-            <span className="leading-none">Menu</span>
-          </button>
-          {showConfig && (
-            <div className="absolute left-0 mt-2 w-[min(22rem,80vw)] max-h-[80vh] overflow-y-auto rounded-2xl border border-white/10 bg-black/85 p-4 text-xs text-gray-100 shadow-[0_20px_60px_rgba(2,6,23,0.55)] backdrop-blur-xl">
-              <div className="flex items-center justify-between">
-                <div>
-                  <span className="text-[0.6rem] font-semibold uppercase tracking-[0.4em] text-sky-200/80">
-                    Table Setup
-                  </span>
-                  <p className="mt-1 text-[0.7rem] text-white/70">
-                    Customize the Snake &amp; Ladder arena layout and visuals.
-                  </p>
-                </div>
-                <button
-                  type="button"
-                  aria-label="Mbyll konfigurimet"
-                  onClick={() => setShowConfig(false)}
-                  className="rounded-full p-1 text-white/60 transition hover:text-white"
-                >
-                  ✕
-                </button>
-              </div>
+      <SnakeGameHeader
+        players={players.map((player, index) => ({ ...player, name: getPlayerName(index), connected: isMultiplayer ? mpPlayers[index]?.connected : true }))}
+        currentTurn={currentTurn} localIndex={myPlayerIndex} finalTile={FINAL_TILE}
+        online={isMultiplayer} watching={watchOnly} waiting={waitingForPlayers} setup={setupPhase}
+        onSettings={() => { setShowWeaponSwapMenu(false); setShowConfig(true); }}
+        onRules={() => setShowInfo(true)}
+        onPlayer={(index) => { if (index !== myPlayerIndex) setPlayerPopup({ ...players[index], index }); }}
+      />
+      <InfoPopup open={showConfig} onClose={() => setShowConfig(false)} title="Arena settings">
               <div className="mt-4 space-y-3 pr-1">
-                <div className="rounded-xl border border-white/10 bg-white/5 p-3">
-                  <p className="text-[10px] uppercase tracking-[0.35em] text-white/70">Personalize Arena</p>
-                  <p className="mt-1 text-[0.7rem] text-white/60">Boards, tokens, and table themes.</p>
+                <details className="snake-appearance-section rounded-xl border border-white/10 bg-white/5 p-3">
+                  <summary>Personalize arena <span>Boards, tokens, tables &amp; lighting</span></summary>
                   <div className="mt-3 space-y-4">
                     {SNAKE_CUSTOMIZATION_SECTIONS.map(({ key, label, options }) => (
                       <div key={key} className="space-y-2">
@@ -3463,11 +3369,11 @@ export default function SnakeAndLadder() {
                       </div>
                     ))}
                   </div>
-                </div>
+                </details>
                 <div className="rounded-xl border border-white/10 bg-white/5 p-3 space-y-3">
                   <p className="text-[10px] uppercase tracking-[0.35em] text-white/70">Settings</p>
-                  <label className="flex items-center justify-between text-[0.7rem] text-gray-200">
-                    <span>Ndalo tingujt</span>
+                  <label className="flex min-h-[44px] items-center justify-between gap-3 text-sm text-gray-200">
+                    <span>Mute sounds</span>
                     <input
                       type="checkbox"
                       className="h-4 w-4 rounded border border-emerald-400/40 bg-transparent text-emerald-400 focus:ring-emerald-500"
@@ -3479,7 +3385,7 @@ export default function SnakeAndLadder() {
                       }}
                     />
                   </label>
-                  <label className="flex items-center justify-between text-[0.7rem] text-gray-200">
+                  <label className="flex min-h-[44px] items-center justify-between gap-3 text-sm text-gray-200">
                     <span>Show movement trail</span>
                     <input
                       type="checkbox"
@@ -3489,8 +3395,8 @@ export default function SnakeAndLadder() {
                     />
                   </label>
                 </div>
-                <div className="rounded-xl border border-white/10 bg-white/5 p-3 space-y-2">
-                  <h3 className="text-[10px] uppercase tracking-[0.35em] text-white/70">Graphics</h3>
+                <details className="snake-appearance-section rounded-xl border border-white/10 bg-white/5 p-3 space-y-2">
+                  <summary>Graphics <span>Current limit: {frameRateValue} FPS</span></summary>
                   <div className="grid gap-2">
                     {FRAME_RATE_OPTIONS.map((option) => {
                       const active = option.id === frameRateId;
@@ -3507,17 +3413,15 @@ export default function SnakeAndLadder() {
                           }`}
                         >
                           <span className="flex items-center justify-between gap-2">
-                            <span className="text-[11px] font-semibold uppercase tracking-[0.28em]">
+                            <span className="text-sm font-semibold">
                               {option.label}
                             </span>
                             <span className="text-xs font-semibold tracking-wide">
-                              {option.resolution
-                                ? `${option.resolution} • ${option.fps} FPS`
-                                : `${option.fps} FPS`}
+                              {option.fps} FPS
                             </span>
                           </span>
                           {option.description ? (
-                            <span className="mt-1 block text-[10px] uppercase tracking-[0.2em] text-white/60">
+                            <span className={`mt-1 block text-xs ${active ? 'text-slate-800' : 'text-slate-300'}`}>
                               {option.description}
                             </span>
                           ) : null}
@@ -3525,7 +3429,7 @@ export default function SnakeAndLadder() {
                       );
                     })}
                   </div>
-                </div>
+                </details>
                 <div className="rounded-xl border border-white/10 bg-white/5 p-3 space-y-2">
                   <button
                     type="button"
@@ -3535,95 +3439,18 @@ export default function SnakeAndLadder() {
                     }}
                     className="w-full rounded-lg border border-white/10 bg-white/10 py-2 text-center text-[0.7rem] font-semibold text-white transition hover:bg-white/20"
                   >
-                    Reseto personalizimin
+                    Reset arena settings
                   </button>
-                  <button
-                    type="button"
-                    onClick={() => window.location.reload()}
-                    className="w-full rounded-lg bg-emerald-500/20 py-2 text-center text-[0.7rem] font-semibold text-emerald-200 transition hover:bg-emerald-500/30"
-                  >
-                    Restart game
-                  </button>
+                  <button type="button" onClick={() => { setShowConfig(false); setShowLobbyConfirm(true); }} className="snake-leave-button">Return to lobby</button>
                 </div>
               </div>
-            </div>
-          )}
-        </div>
-      </div>
+      </InfoPopup>
       <div className="relative z-10 flex flex-col justify-end items-center w-full h-full p-4 pb-32 space-y-4 pointer-events-none">
-        <div className="pointer-events-auto w-full">
-          <BottomLeftIcons
-            onInfo={() => setShowInfo(true)}
-            showMute
-            onCamera2d={() => setCameraViewMode((mode) => (mode === '3d' ? '2d' : '3d'))}
-            style={{
-              right: 'calc(0.75rem + env(safe-area-inset-right, 0px))',
-              top: 'calc(4.5rem + env(safe-area-inset-top, 0px))'
-            }}
-            className="fixed z-30 flex flex-col items-center gap-3"
-            showChat={false}
-            showGift={false}
-            showCamera2d
-            camera2dActive={cameraViewMode === '2d'}
-            cameraLabel="2D"
-            order={['info', 'mute', 'camera2d']}
-            buttonClassName="flex flex-col items-center bg-transparent p-0 text-white/90 shadow-none transition hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/70"
-            iconClassName="text-2xl leading-none"
-            labelClassName="sr-only"
-          />
-        </div>
-        {/* Bottom left controls */}
-        <div className="pointer-events-auto w-full">
-          <BottomLeftIcons
-            onChat={() => setShowChat(true)}
-            style={{
-              left: 'calc(0.75rem + env(safe-area-inset-left, 0px))',
-              bottom: 'calc(env(safe-area-inset-bottom, 0px) + 3rem)'
-            }}
-            className="fixed z-20 flex flex-col items-center gap-3"
-            showInfo={false}
-            showMute={false}
-            showGift={false}
-            showCamera2d={false}
-            order={['chat']}
-            buttonClassName="flex flex-col items-center bg-transparent p-0 text-white/90 shadow-none transition hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/70"
-            iconClassName="text-2xl leading-none"
-            labelClassName="sr-only"
-          />
-        </div>
-        <div className="pointer-events-auto w-full">
-          <BottomLeftIcons
-            onGift={() => setShowGift(true)}
-            style={{
-              right: 'calc(0.75rem + env(safe-area-inset-right, 0px))',
-              bottom: 'calc(env(safe-area-inset-bottom, 0px) + 3rem)'
-            }}
-            className="fixed z-20 flex flex-col items-center gap-2"
-            showInfo={false}
-            showChat={false}
-            showMute={false}
-            showGift
-            showCamera2d={false}
-            order={['swapWeapon', 'gift']}
-            extraActions={[
-              {
-                key: 'swapWeapon',
-                label: 'Swap',
-                icon: '🔁',
-                onClick: () => setShowWeaponSwapMenu((prev) => !prev),
-                ariaLabel: 'Swap capture weapon'
-              }
-            ]}
-            buttonClassName="flex flex-col items-center bg-transparent p-0 text-white/90 shadow-none transition hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/70"
-            iconClassName="text-2xl leading-none"
-            labelClassName="sr-only"
-          />
-        </div>
         {showWeaponSwapMenu ? (
           <div
             className="pointer-events-auto fixed z-30 right-3 rounded-2xl border border-white/15 bg-slate-900/95 p-2 shadow-2xl backdrop-blur-md"
             style={{
-              bottom: 'calc(env(safe-area-inset-bottom, 0px) + 7.3rem)',
+              bottom: 'calc(env(safe-area-inset-bottom, 0px) + 13rem)',
               maxWidth: '18rem',
               width: 'min(72vw, 18rem)'
             }}
@@ -3659,58 +3486,6 @@ export default function SnakeAndLadder() {
             </div>
           </div>
         ) : null}
-        {/* Player photos stacked vertically */}
-        <div className="absolute inset-0 z-20 pointer-events-none">
-          {players.map((player, seat) => {
-            const p = { ...player, index: seat };
-            const seatIndex = Number.isFinite(player.seatIndex) ? player.seatIndex : seat;
-            const anchor = seatAnchorMap.get(seatIndex);
-            const fallback =
-              FALLBACK_SEAT_POSITIONS[seatIndex] || FALLBACK_SEAT_POSITIONS[FALLBACK_SEAT_POSITIONS.length - 1];
-            const positionStyle = anchor
-              ? {
-                  position: 'absolute',
-                  left: `${anchor.x}%`,
-                  top: `${Math.min(
-                    97,
-                    anchor.y + AVATAR_RING_SCREEN_DOWN_OFFSET_PERCENT + (seatIndex === 0 ? SELF_AVATAR_SCREEN_DOWN_OFFSET_PERCENT : 0)
-                  )}%`,
-                  transform: 'translate(-50%, -50%)'
-                }
-              : {
-                  position: 'absolute',
-                  left: fallback.left,
-                  top: fallback.top,
-                  transform: 'translate(-50%, -50%)'
-                };
-            const avatarSize = anchor ? clampValue(1.32 - (anchor.depth - 2.6) * 0.22, 0.86, 1.2) : 1;
-            return (
-              <div
-                key={`player-${p.index}`}
-                className={`absolute flex flex-col items-center ${showConfig ? 'pointer-events-none' : 'pointer-events-auto'}`}
-                style={positionStyle}
-              >
-                <AvatarTimer
-                  index={p.index}
-                  photoUrl={p.photoUrl}
-                  active={p.index === currentTurn}
-                  rank={rankMap[p.index]}
-                  name={getPlayerName(p.index)}
-                  isTurn={p.index === currentTurn}
-                  timerPct={p.index === currentTurn ? timeLeft / TURN_TIME : 1}
-                  color={p.color}
-                  size={avatarSize}
-                  onClick={() => {
-                    const myIdx = isMultiplayer
-                      ? mpPlayers.findIndex((pl) => pl.id === accountId)
-                      : 0;
-                    if (p.index !== myIdx) setPlayerPopup(p);
-                  }}
-                />
-              </div>
-            );
-          })}
-        </div>
       {chatBubbles.map((b) => (
         <div key={b.id} className="chat-bubble">
           <span>{b.text}</span>
@@ -3942,12 +3717,19 @@ export default function SnakeAndLadder() {
           />
         </div>
       )}
-      {!watchOnly && !gameOver && (
-        <SnakeTurnPanel
+      {!gameOver && <SnakeGameDock muted={muted} overhead={cameraViewMode === '2d'} watching={watchOnly}
+        weaponOpen={showWeaponSwapMenu} onMute={() => setGameMuted(!muted)}
+        onCamera={() => setCameraViewMode((mode) => mode === '3d' ? '2d' : '3d')}
+        onChat={() => setShowChat(true)} onGift={() => setShowGift(true)}
+        onWeapon={() => setShowWeaponSwapMenu((prev) => !prev)}>
+        {!watchOnly && <SnakeTurnPanel
           canRoll={canRoll}
           rolling={rollingIndex != null || playerAutoRolling}
           moving={moving}
-          waiting={waitingForPlayers || setupPhase}
+          waiting={waitingForPlayers}
+          setup={setupPhase}
+          offline={isMultiplayer && connectionLost}
+          finished={(players[myPlayerIndex ?? 0]?.position ?? 0) >= FINAL_TILE}
           message={displayedTurnMessage}
           result={rollResult}
           position={players[myPlayerIndex ?? 0]?.position ?? 0}
@@ -3955,8 +3737,8 @@ export default function SnakeAndLadder() {
           seconds={timeLeft}
           playerName={getPlayerName(currentTurn)}
           onRoll={handleRollButtonClick}
-        />
-      )}
+        />}
+      </SnakeGameDock>}
       {!watchOnly && (
         <div className="pointer-events-auto">
           <InfoPopup
@@ -3968,14 +3750,24 @@ export default function SnakeAndLadder() {
           />
         </div>
       )}
-      {!watchOnly && (
+      {(
         <div className="pointer-events-auto">
           <InfoPopup
             open={showInfo}
             onClose={() => setShowInfo(false)}
             title="Snake & Ladder"
-            info="Roll one die each turn. A 6 enters your token onto the board and also grants an extra roll. Ladders lift you up and snakes bring you down. You must land exactly on the pot tile to win."
-          />
+            info={`Be the first to reach tile ${FINAL_TILE}.`}
+          >
+            <ol className="snake-rules">
+              <li><strong>Enter with a six.</strong> Roll a 6 to move from start onto tile 1. A six also earns another turn.</li>
+              <li><strong>Find a ladder.</strong> Ladders take you higher; snakes slide you down.</li>
+              <li><strong>Capture a rival.</strong> Land on an occupied tile to send the other token back to start.</li>
+              <li><strong>Collect a bonus.</strong> Landing on a bonus die tile earns another roll.</li>
+              <li><strong>Finish exactly.</strong> If your roll goes past tile {FINAL_TILE}, stay in place and try again.</li>
+              <li><strong>Keep playing.</strong> You have 15 seconds to roll. The game rolls for you when time runs out.</li>
+            </ol>
+          </InfoPopup>
+
         </div>
       )}
       {!watchOnly && (
@@ -3990,8 +3782,8 @@ export default function SnakeAndLadder() {
       {!watchOnly && (
         <div className="pointer-events-auto">
           <InfoPopup
-            open={connectionLost}
-            onClose={() => setConnectionLost(false)}
+            open={isMultiplayer && connectionLost && !connectionNoticeDismissed}
+            onClose={() => setConnectionNoticeDismissed(true)}
             title="Connection Lost"
             info="Attempting to reconnect..."
           />
@@ -4089,15 +3881,12 @@ export default function SnakeAndLadder() {
             open={showLobbyConfirm}
             message="Your funds will be lost if you quit the game."
             confirmLabel="Return to Lobby"
-            cancelLabel="Games"
+            cancelLabel="Keep playing"
             onConfirm={() => {
               localStorage.removeItem(`snakeGameState_${ai}`);
               navigate("/games/snake/lobby");
             }}
-            onCancel={() => {
-              localStorage.removeItem(`snakeGameState_${ai}`);
-              navigate("/games");
-            }}
+            onCancel={() => setShowLobbyConfirm(false)}
           />
         </div>
       )}

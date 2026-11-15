@@ -8,6 +8,7 @@ import { createSnakeFirearmAnimation } from '../utils/snakeFirearmAnimation';
 import { FIREARM_CAPTURE_ANIMATION_IDS } from '../utils/ludoFirearmPresentation';
 import { createSnakeCameraDirector } from '../utils/snakeCameraDirector';
 import { createSnakeDiceVisibility } from '../utils/snakeDiceVisibility';
+import { createSnakeFrameClock, updateSnakeHdriZoom } from '../utils/snakeRenderTiming';
 import { SNAKE_DICE_READ_MS } from '../utils/snakeDiceInteraction';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
@@ -1893,7 +1894,7 @@ function fitTableModelToArena(model) {
   };
 }
 
-async function loadPolyHavenHdriEnvironment(renderer, variant = {}) {
+async function loadPolyHavenHdriEnvironment(renderer, variant = {}, isActive = () => true) {
   if (!renderer || !variant) return null;
   const assetId = variant.assetId || variant.id || 'neon_photostudio';
   const resolutions =
@@ -1907,20 +1908,40 @@ async function loadPolyHavenHdriEnvironment(renderer, variant = {}) {
   });
 
   for (const url of urls) {
+    let texture;
+    let pmrem;
+    let renderTarget;
     try {
       const loader = url.endsWith('.exr') ? new EXRLoader() : new RGBELoader();
       loader.setCrossOrigin?.('anonymous');
-      const texture = await loader.loadAsync(url);
-      const pmrem = new THREE.PMREMGenerator(renderer);
+      texture = await loader.loadAsync(url);
+      if (!isActive()) {
+        texture.dispose();
+        return null;
+      }
+      pmrem = new THREE.PMREMGenerator(renderer);
       pmrem.compileEquirectangularShader();
-      const envMap = pmrem.fromEquirectangular(texture).texture;
+      renderTarget = pmrem.fromEquirectangular(texture);
       texture.mapping = THREE.EquirectangularReflectionMapping;
       texture.wrapS = texture.wrapT = THREE.RepeatWrapping;
       texture.repeat.set(1, 1);
-      pmrem.dispose();
-      return { envMap, url, backgroundTexture: texture };
+      return {
+        envMap: renderTarget.texture,
+        url,
+        backgroundTexture: texture,
+        dispose() {
+          // Dispose the target, not just its texture, to release its framebuffer.
+          renderTarget.dispose();
+          texture.dispose();
+        }
+      };
     } catch (error) {
+      renderTarget?.dispose();
+      texture?.dispose();
+      if (!isActive()) return null;
       // try next
+    } finally {
+      pmrem?.dispose();
     }
   }
   return null;
@@ -2830,23 +2851,13 @@ function buildArena(
   const hdriZoomState = { texture: null, baseDistance: null };
   const updateHdriZoom = (camera, target) => {
     if (!hdriZoomState.texture || !camera || !target) return;
-    const distance = camera.position.distanceTo(target);
-    if (!hdriZoomState.baseDistance) {
-      hdriZoomState.baseDistance = distance;
-    }
-    const base = hdriZoomState.baseDistance || distance;
-    const ratio = clamp(distance / base, 0.7, 1.4);
-    const zoom = 1 / ratio;
-    hdriZoomState.texture.repeat.set(zoom, zoom);
-    hdriZoomState.texture.offset.set((1 - zoom) / 2, (1 - zoom) / 2);
-    hdriZoomState.texture.needsUpdate = true;
+    updateSnakeHdriZoom(hdriZoomState, camera.position.distanceTo(target));
   };
   if (environmentHdri) {
-    loadPolyHavenHdriEnvironment(renderer, environmentHdri).then((result) => {
+    loadPolyHavenHdriEnvironment(renderer, environmentHdri, () => !disposed).then((result) => {
       if (!result) return;
       if (disposed) {
-        result.envMap?.dispose?.();
-        if (result.backgroundTexture !== result.envMap) result.backgroundTexture?.dispose?.();
+        result.dispose();
         return;
       }
       scene.environment = result.envMap;
@@ -2856,8 +2867,7 @@ function buildArena(
       environmentCleanup = () => {
         scene.environment = null;
         scene.background = toThreeColor(arenaTheme.background, '#030712');
-        result.envMap?.dispose?.();
-        result.backgroundTexture?.dispose?.();
+        result.dispose();
         hdriZoomState.texture = null;
         hdriZoomState.baseDistance = null;
       };
@@ -5054,10 +5064,9 @@ export default function SnakeBoard3D({
   soundEnabledRef.current = soundEnabled;
   const currentTurnRef = useRef(currentTurn);
   const diceEventRef = useRef(diceEvent);
-  const lastFrameTimeRef = useRef(0);
+  const frameClockRef = useRef(createSnakeFrameClock());
   const frameRateRef = useRef(Math.max(30, frameRate || 90));
   const cameraViewModeRef = useRef(cameraViewMode);
-  const frameAccumulatorRef = useRef(0);
   const captureFxIdRef = useRef(null);
   const [tokenPrototypeVersion, setTokenPrototypeVersion] = useState(0);
   const fallbackAppearanceKey = useMemo(() => JSON.stringify(appearance ?? {}), [appearance]);
@@ -5074,8 +5083,7 @@ export default function SnakeBoard3D({
 
   useEffect(() => {
     frameRateRef.current = Math.max(30, frameRate || 90);
-    frameAccumulatorRef.current = 0;
-    lastFrameTimeRef.current = 0;
+    frameClockRef.current.reset();
   }, [frameRate]);
 
   useEffect(() => {
@@ -5455,27 +5463,12 @@ export default function SnakeBoard3D({
     fitRef.current = arena.fit;
     arena.fit();
 
-    lastFrameTimeRef.current = 0;
-    frameAccumulatorRef.current = 0;
+    frameClockRef.current.reset();
 
     renderer.setAnimationLoop((time) => {
       const now = typeof time === 'number' ? time : performance.now();
-      const last = lastFrameTimeRef.current || now;
-      const elapsed = now - last;
-      const targetMs = 1000 / Math.max(30, frameRateRef.current || 60);
-      let carry = Math.min(frameAccumulatorRef.current + elapsed, targetMs * 2);
-      if (!lastFrameTimeRef.current) {
-        carry = targetMs;
-      }
-      if (carry < targetMs) {
-        frameAccumulatorRef.current = carry;
-        lastFrameTimeRef.current = now;
-        return;
-      }
-      const effectiveMs = Math.min(carry, targetMs * 2);
-      frameAccumulatorRef.current = Math.max(0, carry - targetMs);
-      lastFrameTimeRef.current = now;
-      const deltaSeconds = Math.min(0.2, Math.max(0, effectiveMs / 1000));
+      const deltaSeconds = frameClockRef.current.next(now, frameRateRef.current);
+      if (deltaSeconds === null) return;
       const activeBoard = boardRef.current;
       if (activeBoard && !diceStateRef.current.initialized && diceStateRef.current.currentId == null) {
         const seat = playersRef.current[currentTurnRef.current]?.seatIndex ?? currentTurnRef.current ?? 0;
@@ -5667,8 +5660,7 @@ export default function SnakeBoard3D({
           else obj.material?.dispose?.();
         }
       });
-      lastFrameTimeRef.current = 0;
-      frameAccumulatorRef.current = 0;
+      frameClockRef.current.reset();
     };
   }, [keyForEffect, activePlayerCount]);
 

@@ -1,5 +1,6 @@
+import { SNAKE_FINAL_TILE } from '../lib/snakeRules.js';
 import GameResult from "./models/GameResult.js";
-export const FINAL_TILE = 50;
+export const FINAL_TILE = SNAKE_FINAL_TILE;
 export const DEFAULT_SNAKES = { 49: 35, 99: 80 };
 export const DEFAULT_LADDERS = { 3: 22, 27: 46 };
 export const ROLL_COOLDOWN_MS = 1000;
@@ -214,18 +215,26 @@ export class GameRoom {
     this.emitState();
     if (!existing) {
       this.io.to(this.id).emit('playerJoined', { playerId, name });
-      if (this.players.length === this.capacity) {
-        if (this.startTimer) clearTimeout(this.startTimer);
-        this.io.to(this.id).emit('gameStarting', { startIn: this.gameStartDelay });
-        this.startTimer = setTimeout(() => {
-          this.startTimer = null;
-          this.startGame();
-        }, this.gameStartDelay);
-        if (this.startTimer?.unref) this.startTimer.unref();
-      }
     } else if (this.status === 'playing') {
       socket.emit('gameStarted');
-      this.emitNextTurn();
+      // Rejoining another seat must not reset the current player's clock.
+      if (this.gameType !== 'snake' || !this.turnTimer) this.emitNextTurn();
+      if (this.gameType === 'snake') this.emitState();
+    }
+    // Reconnecting the final seat must restart a countdown cancelled when that
+    // phone disconnected. Do not start Snake while one of the seats is absent.
+    if (
+      this.status === 'waiting' && !this.startTimer &&
+      this.players.length === this.capacity &&
+      (!existing || this.gameType === 'snake') &&
+      (this.gameType !== 'snake' || this.players.every((p) => !p.disconnected))
+    ) {
+      this.io.to(this.id).emit('gameStarting', { startIn: this.gameStartDelay });
+      this.startTimer = setTimeout(() => {
+        this.startTimer = null;
+        this.startGame();
+      }, this.gameStartDelay);
+      if (this.startTimer?.unref) this.startTimer.unref();
     }
     return {
       success: true,
@@ -268,6 +277,17 @@ export class GameRoom {
   }
 
   emitNextTurn() {
+    if (this.gameType === 'snake') {
+      if (this.players[this.currentTurn]?.disconnected) {
+        this.currentTurn = this.game.nextPlayerIndex(this.currentTurn);
+      }
+      this.game.currentTurn = this.currentTurn;
+      if (!this.players[this.currentTurn] || this.players[this.currentTurn].disconnected) {
+        if (this.turnTimer) clearTimeout(this.turnTimer);
+        this.turnTimer = null;
+        return;
+      }
+    }
     const current = this.players[this.currentTurn];
     if (current) {
       this.io.to(this.id).emit('turnChanged', { playerId: current.playerId });
@@ -428,8 +448,12 @@ export class GameRoom {
       do {
         this.currentTurn = (this.currentTurn + 1) % this.players.length;
       } while (this.players[this.currentTurn].disconnected && this.players.some((p) => !p.disconnected));
+      if (this.gameType === 'snake') this.game.currentTurn = this.currentTurn;
       if (this.players.some((p) => !p.disconnected)) this.emitNextTurn();
     }
+    // Publish the new owner after advancing; a pre-advance snapshot points
+    // reconnecting clients at the absent player.
+    if (this.gameType === 'snake') this.emitState();
     player.disconnectTimer = setTimeout(() => {
       this.finalizeDisconnect(player);
     }, this.reconnectGrace);
