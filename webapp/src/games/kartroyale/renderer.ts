@@ -161,6 +161,7 @@ export class KartRenderer {
   readonly input = neutral();
   readonly combatInput = {reload:false};
   private combatReloadPulse=false;
+  private combatEmpPulse=false;
   readonly actionInput:ActionInput = {moveX:0,moveZ:0,turn:0,sprint:false,fire:false,jump:false,interact:false,reload:false};
   private actionPulses = {jump:false,interact:false,reload:false};
   readonly renderer: T.WebGLRenderer;
@@ -1063,10 +1064,14 @@ export class KartRenderer {
   queueCombatReload(){
     if(!this.paused&&this.state==='racing'&&this.combat)this.combatReloadPulse=true;
   }
+  queueCombatPulse(){
+    if(!this.paused&&this.state==='racing'&&this.combat)this.combatEmpPulse=true;
+  }
   clearInput() {
     Object.assign(this.input, neutral());
     this.combatInput.reload=false;
     this.combatReloadPulse=false;
+    this.combatEmpPulse=false;
     Object.assign(this.actionInput,{moveX:0,moveZ:0,turn:0,sprint:false,fire:false,jump:false,interact:false,reload:false});
     Object.assign(this.actionPulses,{jump:false,interact:false,reload:false});
   }
@@ -1194,8 +1199,9 @@ export class KartRenderer {
                 this.difficulty
               );
             if(this.combat){
-              stepRaceCombat(this.combat,this.racers,this.track,{...this.input,reload:this.combatInput.reload||this.combatReloadPulse},STEP,this.time);
+              stepRaceCombat(this.combat,this.racers,this.track,{...this.input,reload:this.combatInput.reload||this.combatReloadPulse,pulse:this.combatEmpPulse},STEP,this.time);
               this.combatReloadPulse=false;
+              this.combatEmpPulse=false;
             }
             if(this.actionCareer&&me){
               const previousMode=this.actionCareer.mode;

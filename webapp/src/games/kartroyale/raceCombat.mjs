@@ -9,13 +9,14 @@ export const COMBAT_RULES = Object.freeze({
   magazine: 12, reserve: 48, reserveMax: 96, reloadSeconds: 1.4,
   shotInterval: .18, shotSpeed: 80, shotDamage: 16, range: 96,
   warningSeconds: .85, shieldMax: 100, shieldDrain: 22, shieldRecharge: 7,
-  pickupRespawn: 18, maxProjectiles: 64, maxBursts: 40, maxPickups: 18
+  pickupRespawn: 18, maxProjectiles: 64, maxBursts: 40, maxPickups: 18,
+  pulseRadius: 18, pulseRecharge: 22, pulseDisrupt: 2.2, pulseDamage: 8
 });
 const clamp = (n, lo, hi) => Math.max(lo, Math.min(hi, n));
 const active = r => r && !r.finished && !r.retired && !r.disconnected;
 const ground = (track, r) => (r.groundY ?? surfaceHeight(track,r.x,r.z)) + (r.jumpHeight || 0);
 const position = (track, r) => ({x:r.x,z:r.z,y:ground(track,r)});
-const weapon = () => ({ammo:COMBAT_RULES.magazine,reserve:COMBAT_RULES.reserve,reload:0,cooldown:0,shield:100,shieldActive:false,kills:0,hits:0,aiCooldown:1,windup:0,aim:0,targetId:''});
+const weapon = () => ({ammo:COMBAT_RULES.magazine,reserve:COMBAT_RULES.reserve,reload:0,cooldown:0,shield:100,shieldActive:false,kills:0,hits:0,score:0,supplies:0,pulseCooldown:0,disrupted:0,aiCooldown:1,windup:0,aim:0,targetId:''});
 
 export function createRaceCombat(track, racers, playerId = 'you') {
   if (!track?.points?.length || !racers.some(r => r.id === playerId)) throw Error('Combat race needs a track and player');
@@ -30,7 +31,7 @@ export function createRaceCombat(track, racers, playerId = 'you') {
     const p=sampleCircuitDistance(track,track.length*((i+.42)/count));
     const width=track.points[p.index].width || track.width;
     const lane=(i%2?1:-1)*Math.max(0,Math.min(1.2,width*.16));
-    return {id:i,kind:['ammo','repair','shield'][i%3],x:p.x+Math.cos(p.yaw)*lane,z:p.z-Math.sin(p.yaw)*lane,cooldown:0};
+    return {id:i,kind:['ammo','repair','shield','charge'][i%4],x:p.x+Math.cos(p.yaw)*lane,z:p.z-Math.sin(p.yaw)*lane,cooldown:0};
   });
   const state = {playerId,player:weapons[playerId],weapons,previous,pickups,projectiles:[],warnings:[],bursts:[],elapsed:0,serial:0,shotId:0,explosionId:0};
   mirror(state,racers);
@@ -52,7 +53,7 @@ function reload(w){if(w.reload<=0&&w.ammo<COMBAT_RULES.magazine&&w.reserve>0)w.r
 
 function fire(state,r,track,yaw) {
   const w=state.weapons[r.id];
-  if(!active(r)||w.reload>0||w.cooldown>0||w.ammo<=0||state.projectiles.length>=COMBAT_RULES.maxProjectiles)return false;
+  if(!active(r)||w.disrupted>0||w.reload>0||w.cooldown>0||w.ammo<=0||state.projectiles.length>=COMBAT_RULES.maxProjectiles)return false;
   w.ammo--;w.cooldown=COMBAT_RULES.shotInterval;
   const listener=state.previous[state.playerId];
   if(r.id===state.playerId||listener&&Math.hypot(r.x-listener.x,r.z-listener.z)<80)state.shotId++;
@@ -114,15 +115,33 @@ function damage(state,target,amount,source,at){
   if(w.shieldActive&&w.shield>0){const absorbed=Math.min(w.shield,amount*.85);w.shield-=absorbed;amount-=absorbed;}
   target.health=clamp((Number.isFinite(target.health)?target.health:100)-amount,0,100);
   target.hitFlash=.28;target.collision=Math.max(target.collision||0,.12);
-  const shooter=state.weapons[source];if(shooter)shooter.hits++;
+  const shooter=state.weapons[source];if(shooter){shooter.hits++;shooter.score+=10;}
   burst(state,at.x,at.y,at.z,'impact',source);
   if(target.health<=0){
     target.retired=true;target.speed=0;target.throttle=0;target.drifting=false;target.boosting=false;target.turbo=0;
     w.shieldActive=false;w.windup=0;
-    if(shooter)shooter.kills++;
+    if(shooter){shooter.kills++;shooter.score+=100;}
     const listener=state.previous[state.playerId];
     if(listener&&Math.hypot(target.x-listener.x,target.z-listener.z)<100)state.explosionId++;
     burst(state,target.x,at.y,target.z,'explosion',source);
+  }
+}
+
+/** A short-range escape tool. Buildings/road bends and vertical separation block
+ * it just like shots, and one input pulse spends a full rechargeable charge. */
+function pulse(state,source,racers,track){
+  const w=state.weapons[source.id];
+  if(!active(source)||w.pulseCooldown>0||w.disrupted>0)return;
+  w.pulseCooldown=COMBAT_RULES.pulseRecharge;
+  burst(state,source.x,ground(track,source)+.2,source.z,'pulse',source.id);
+  for(const target of racers){
+    if(target.id===source.id||!active(target)||!state.weapons[target.id])continue;
+    if(Math.hypot(target.x-source.x,target.z-source.z)>COMBAT_RULES.pulseRadius||Math.abs(ground(track,target)-ground(track,source))>1.2)continue;
+    if(!clearShot(track,source,target.x,target.z))continue;
+    const enemy=state.weapons[target.id];
+    enemy.disrupted=COMBAT_RULES.pulseDisrupt;enemy.windup=0;enemy.targetId='';enemy.shieldActive=false;
+    target.turbo=0;target.boosting=false;
+    damage(state,target,COMBAT_RULES.pulseDamage,source.id,{x:target.x,y:ground(track,target)+.6,z:target.z});
   }
 }
 function sweepCircle(ax,az,bx,bz,x,z,radius){
@@ -137,17 +156,19 @@ export function stepRaceCombat(state,racers,track,input,dt,_time){
   if(!Number.isFinite(dt)||dt<=0)return;
   dt=Math.min(dt,.1);input||={};state.elapsed+=dt;
   for(const b of state.bursts)b.age+=dt;
-  state.bursts=state.bursts.filter(b=>b.age<(b.kind==='explosion'?1.05:b.kind==='muzzle'?.07:.5));
+  state.bursts=state.bursts.filter(b=>b.age<(b.kind==='explosion'?1.05:b.kind==='pulse'?.65:b.kind==='muzzle'?.07:.5));
   for(const pickup of state.pickups)pickup.cooldown=Math.max(0,pickup.cooldown-dt);
   for(const r of racers){
     const w=state.weapons[r.id];if(!w)continue;
     w.cooldown=Math.max(0,w.cooldown-dt);w.aiCooldown=Math.max(0,w.aiCooldown-dt);
+    w.pulseCooldown=Math.max(0,w.pulseCooldown-dt);w.disrupted=Math.max(0,w.disrupted-dt);
     if(w.reload>0){
       w.reload=Math.max(0,w.reload-dt);
       if(!w.reload){const amount=Math.min(COMBAT_RULES.magazine-w.ammo,w.reserve);w.ammo+=amount;w.reserve-=amount;}
     }
     if(!active(r)){w.shieldActive=false;w.windup=0;continue;}
     const controlled=r.id===state.playerId;
+    if(w.disrupted>0){w.shieldActive=false;w.windup=0;r.turbo=0;r.boosting=false;continue;}
     const wantsShield=controlled&&input.shield===true;
     w.shieldActive=wantsShield&&w.shield>0;
     w.shield=clamp(w.shield+dt*(wantsShield?(w.shieldActive?-COMBAT_RULES.shieldDrain:0):COMBAT_RULES.shieldRecharge),0,100);
@@ -165,6 +186,8 @@ export function stepRaceCombat(state,racers,track,input,dt,_time){
     }
     if(w.ammo<=0)reload(w);
   }
+  // Resolve after all cooldowns update so racer ordering cannot shorten effects.
+  if(input.pulse) {const player=racers.find(r=>r.id===state.playerId);if(player)pulse(state,player,racers,track);}
   const live=[];
   for(const p of state.projectiles){
     const next={x:p.x+p.vx*dt,z:p.z+p.vz*dt};
@@ -197,7 +220,8 @@ export function stepRaceCombat(state,racers,track,input,dt,_time){
       if(pickup.kind==='ammo'&&w.reserve<COMBAT_RULES.reserveMax){w.reserve=Math.min(COMBAT_RULES.reserveMax,w.reserve+24);collected=true;}
       if(pickup.kind==='repair'&&r.health<100){r.health=Math.min(100,r.health+24);collected=true;}
       if(pickup.kind==='shield'&&w.shield<100){w.shield=Math.min(100,w.shield+40);collected=true;}
-      if(collected){pickup.cooldown=COMBAT_RULES.pickupRespawn;burst(state,pickup.x,ground(track,r)+.4,pickup.z,'pickup',r.id);break;}
+      if(pickup.kind==='charge'&&w.pulseCooldown>0){w.pulseCooldown=Math.max(0,w.pulseCooldown-8);collected=true;}
+      if(collected){w.supplies++;w.score+=5;pickup.cooldown=COMBAT_RULES.pickupRespawn;burst(state,pickup.x,ground(track,r)+.4,pickup.z,'pickup',r.id);break;}
     }
   }
   state.warnings=racers.filter(r=>active(r)&&state.weapons[r.id]?.windup>0).map(r=>{

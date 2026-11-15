@@ -1,0 +1,10 @@
+export const EXPLORE_VERSION:1;
+export const EXPLORE_LIMITS:Readonly<{players:number;rooms:number;message:number;history:number;idleMs:number;payloadBytes:number}>;
+export const APPEARANCES:readonly string[];
+export function cleanText(value:unknown,limit?:number):string;
+export function avatarURL(value:unknown):string;
+export function exploreInput(raw?:Record<string,unknown>):{x:number;y:number;yaw:number;fast:boolean;brake:boolean;fire:false;seq:number};
+export function gameModeURL(game:'racing',mode:'explore'|'career'|'multiplayer'):string;
+export function mediaFlags(raw:unknown):{camera:boolean;microphone:boolean};
+export function isLive(media:unknown):boolean;
+export function validSignal(data:unknown):boolean;

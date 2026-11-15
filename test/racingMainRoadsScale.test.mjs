@@ -33,7 +33,7 @@ test('rounded main-road surfaces have room for two real karts and remain inside 
   for(const route of MAIN_ROAD_ROUTES){
     const config=TRACKS.find(t=>t.id===route.id),track=makeTrack(route.id);
     const surface=courseRoadSurface(config.points,config.widths);
-    assert.equal(track.mapVersion,'tirana-main-roads-v3');
+    assert.equal(track.mapVersion,'tirana-main-roads-v4');
     assert.equal(track.passingAudit.widenedSamples,0,'do not invent asphalt shoulders');
     assert.equal(track.passingAudit.unresolved.length,0);
     assert.ok(track.points.every(p=>p.width>=4.8));

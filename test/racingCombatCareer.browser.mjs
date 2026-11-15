@@ -64,6 +64,12 @@ try{
  await page.waitForFunction(n=>window.__racingEngine.combat.player.ammo<n,ammoBefore);
  assert.deepEqual(await page.evaluate(()=>({fire:window.__racingEngine.input.fire,gas:window.__racingEngine.input.throttle})),{fire:true,gas:true});
  await cdp.send('Input.dispatchTouchEvent',{type:'touchEnd',touchPoints:[]});
+ const emp=page.getByRole('button',{name:'Release EMP pulse to disrupt nearby rival weapons and shields',exact:true});
+ await emp.tap();
+ await page.waitForFunction(()=>window.__racingEngine.combat.player.pulseCooldown>0);
+ assert.ok(await emp.isDisabled(),'EMP action shows its recharge cooldown after a touch');
+ result.checks.push('Touch EMP activates the local pulse and disables its action while recharging');
+ await page.screenshot({path:join(out,'02a-combat-emp-portrait.png')});
  await page.getByRole('button',{name:'Pause menu',exact:true}).click();
  const pause=await page.evaluate(()=>({time:window.__racingEngine.time,input:window.__racingEngine.input}));
  await page.waitForTimeout(250);
@@ -74,7 +80,9 @@ try{
  await page.getByRole('button',{name:'RETURN TO GARAGE',exact:true}).click();
  assert.equal(await page.evaluate(()=>JSON.stringify({...localStorage})),savedBefore,'Combat cannot alter normal career or paid progress');
  result.checks.push('Abandoned combat race leaves persistent career/TPG progress unchanged');
- await page.getByRole('button',{name:/^CAREER/}).click();
+ // Career now opens the live city. Existing solo action jobs keep their explicit deep link.
+ await page.goto(`${address}/?activity=racing-career`);
+ await page.waitForFunction(()=>!!window.__racingEngine,{},{timeout:90000});
  await page.getByRole('button',{name:'ACTION MISSIONS',exact:true}).click();
  await page.getByRole('button',{name:'ACCEPT MISSION',exact:true}).first().click();
  await page.waitForFunction(()=>!!window.__racingEngine.actionCareer);

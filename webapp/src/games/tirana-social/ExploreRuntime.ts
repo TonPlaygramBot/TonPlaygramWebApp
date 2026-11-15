@@ -22,7 +22,7 @@ export class ExploreRuntime {
   readonly atmosphere:CinematicAtmosphere;
   readonly details:ReturnType<typeof attachEnhancements>;readonly input:CityInput;
   yaw=0; pitch=.3; paused=false;
-  private overlayOpen=false; private networkAvailable=false; private fps=0;
+  private overlayOpen=false; private renderingSuspended=false; private networkAvailable=false; private fps=0;
   private state:ExploreSnapshot|null=null;private shown=new Map<string,{x:number;z:number}>();private streams:Record<string,MediaStream>={};
   private cars=new Map<string,T.Group>();private templates=new Map<string,T.Group>();private requests=new Set<string>();
   private assetsReady=false;private visibleReady=false;private dead=false;private frame=0;private last=0;private observer:ResizeObserver;private target=new T.Vector3();
@@ -45,6 +45,7 @@ export class ExploreRuntime {
   private syncInput(){this.input.setEnabled(this.visibleReady&&!this.paused&&!this.overlayOpen&&this.networkAvailable);}
   private stopMovement(){this.input.clear();const control=this.input.read(this.yaw,false);this.connection.controls({...control,x:0,y:0,fast:false,fire:false,brake:true});}
   pause(value:boolean){if(this.dead)return;this.paused=value;this.syncInput();this.stopMovement();this.publishStatus();}
+  setRenderSuspended(value:boolean){this.renderingSuspended=value;this.last=0;if(value)this.stopMovement();}
   setOverlay(open:boolean){this.overlayOpen=open;this.syncInput();this.stopMovement();}
   setNetworkAvailable(online:boolean){this.networkAvailable=online;this.syncInput();if(!online){this.visibleReady=false;this.stopMovement();this.publishStatus();}}
   accept(snapshot:ExploreSnapshot){if(!this.state){const p=snapshot.state.players[snapshot.playerId];if(p){this.yaw=p.heading;this.target.set(p.x,1,p.z);}}this.state=snapshot;this.networkAvailable=true;}
@@ -53,7 +54,9 @@ export class ExploreRuntime {
   private frames=0;private seconds=0;private assetErrorCount=0;
   private loop=(now:number)=>{try{this.draw(now);}catch(e){this.pause(true);this.fail(e instanceof Error?e.message:'City rendering stopped');}};
   private draw=(now:number)=>{
-    if(this.dead)return;const real=this.last?Math.max(0,(now-this.last)/1000):0,dt=Math.min(.05,real);this.last=now;
+    if(this.dead)return;
+    if(this.renderingSuspended){this.stopMovement();this.frame=requestAnimationFrame(this.loop);return;}
+    const real=this.last?Math.max(0,(now-this.last)/1000):0,dt=Math.min(.05,real);this.last=now;
     const s=this.state,p=s?.state.players[s.playerId];
     if(s&&p){
       const controls=this.input.read(this.yaw,!!p.carId);if(this.paused||this.overlayOpen||!this.networkAvailable||!this.visibleReady)Object.assign(controls,{x:0,y:0,fast:false,brake:true});this.connection.controls(controls);

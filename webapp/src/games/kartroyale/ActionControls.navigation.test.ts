@@ -53,3 +53,13 @@ it('releases keyboard-activated buttons when the controls unmount',async()=>{
  await act(async()=>root.render(null));
  expect(input.read().fire).toBe(false);
 });
+
+it('delivers a short EMP touch once and disables the recharging action without blocking driving controls',async()=>{
+ const hold=vi.fn(),release=vi.fn();
+ await act(async()=>root.render(React.createElement(CombatControls,{hold,release,shield:100,pulseCooldown:0})));
+ await act(async()=>{button('EMP READY').dispatchEvent(pointer('pointerdown',7));button('EMP READY').dispatchEvent(pointer('pointerup',7));});
+ expect(hold).toHaveBeenCalledWith('action-button:pulse:7','pulse',true);
+ expect(hold).toHaveBeenCalledTimes(1);
+ await act(async()=>root.render(React.createElement(CombatControls,{hold,release,shield:100,pulseCooldown:21.6})));
+ expect(button('EMP 22s').disabled).toBe(true);expect(button('FIRE').disabled).toBe(false);
+});

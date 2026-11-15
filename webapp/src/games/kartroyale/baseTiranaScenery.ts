@@ -1,4 +1,5 @@
 import * as T from 'three';
+import {createMallBrand} from '../tirana-mall/MallBrand';
 import { mergeGeometries } from 'three/examples/jsm/utils/BufferGeometryUtils.js';
 import { WORLD } from '../tiranastreets/shared/world.mjs';
 import { REFERENCE_BUILDINGS } from '../tirana-city-source/profiles.mjs';
@@ -310,6 +311,7 @@ export class TiranaScenery {
       g.position.set(l.x, 0, l.z);
       this.group.add(g);
       if (l.id === 'pyramid') {
+        const brand = createMallBrand(14); brand.position.y = 20; g.add(brand);
         g.rotation.y = 0.19;
         const cone = new T.Mesh(new T.ConeGeometry(37, 19, 4), stone);
         cone.position.y = 9.5;

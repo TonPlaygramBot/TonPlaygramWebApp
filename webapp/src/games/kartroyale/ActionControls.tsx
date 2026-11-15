@@ -90,10 +90,11 @@ function ActionStick({kind,hold,release,disabled=false}:HoldProps&{kind:'move'|'
     <span ref={knob} aria-hidden="true">{kind==='move'?'MOVE':'AIM'}</span>
   </div>;
 }
-export function CombatControls(props:HoldProps&{reloading?:boolean;shieldActive?:boolean;shield:number}){
+export function CombatControls(props:HoldProps&{reloading?:boolean;shieldActive?:boolean;shield:number;pulseCooldown?:number;disrupted?:boolean}){
   return <div className="rr-combat-controls" aria-label="Combat race controls">
     <HoldButton {...props} inputKey="shield" label={props.shieldActive?'SHIELD ON':`SHIELD ${Math.round(props.shield)}%`} ariaLabel="Hold shield to block incoming fire"/>
     <HoldButton {...props} inputKey="reload" label={props.reloading?'RELOADING':'RELOAD'} ariaLabel="Reload combat weapon"/>
+    <HoldButton {...props} inputKey="pulse" label={(props.pulseCooldown||0)>0?`EMP ${Math.ceil(props.pulseCooldown!)}s`:'EMP READY'} disabled={props.disabled||props.disrupted||(props.pulseCooldown||0)>0} ariaLabel="Release EMP pulse to disrupt nearby rival weapons and shields" className="rr-action-pulse"/>
     <HoldButton {...props} inputKey="fire" label="FIRE" ariaLabel="Hold fire to shoot ahead" className="rr-action-fire"/>
   </div>;
 }

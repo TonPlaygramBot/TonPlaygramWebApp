@@ -5,11 +5,11 @@ import type {ExploreRequest,ExploreSnapshot} from './types';
 /** Same WebRTC mesh size as the other Royal games, but with Explore membership,
  * mutual live opt-in and server-issued epochs guarding every signal. */
 export function useExploreMedia(snapshot:ExploreSnapshot|null,request:ExploreRequest){
-  const [local,setLocal]=useState<MediaStream|null>(null),[remote,setRemote]=useState<Record<string,MediaStream>>({}),[error,setError]=useState(''),[starting,setStarting]=useState(false);
+  const [local,setLocal]=useState<MediaStream|null>(null),[remote,setRemote]=useState<Record<string,MediaStream>>({}),[error,setError]=useState(''),[starting,setStarting]=useState(false),[changing,setChanging]=useState(false);
   const ref=useRef(snapshot);ref.current=snapshot;
   const req=useRef(request);req.current=request;
   const capture=useRef(createCaptureGuard());
-  const state=useRef({pending:false,generation:0,epoch:'',stream:null as MediaStream|null,peers:new Map<string,{pc:RTCPeerConnection;epoch:string;queue:RTCIceCandidateInit[]}>(),dead:false});
+  const state=useRef({pending:false,generation:0,epoch:'',stream:null as MediaStream|null,peers:new Map<string,{pc:RTCPeerConnection;epoch:string;queue:RTCIceCandidateInit[]}>(),dead:false,changing:false});
   function closePeer(id:string){const p=state.current.peers.get(id);if(!p)return;p.pc.close();state.current.peers.delete(id);setRemote(old=>{const next={...old};delete next[id];return next;});}
   function releaseLocal(){const s=state.current;s.generation++;s.pending=false;s.stream?.getTracks().forEach(t=>t.stop());s.stream=null;s.epoch='';for(const id of [...s.peers.keys()])closePeer(id);setLocal(null);setStarting(false);}
   async function stop(){capture.current.cancel();releaseLocal();setStarting(capture.current.busy);if(ref.current)await req.current('media',{media:{camera:false,microphone:false}}).catch(()=>{});}
@@ -68,6 +68,23 @@ export function useExploreMedia(snapshot:ExploreSnapshot|null,request:ExploreReq
       void(async()=>{try{const offer=await peer.pc.createOffer();await peer.pc.setLocalDescription(offer);await send(m.id,m.mediaEpoch,{type:'offer',sdp:offer});}catch{if(s.peers.get(m.id)===peer)closePeer(m.id);}})();
     }
   },[snapshot,local]);
-  async function mute(){const s=state.current;if(!s.stream||!s.epoch)return;const audio=s.stream.getAudioTracks(),on=!audio.some(t=>t.enabled);audio.forEach(t=>{t.enabled=on;});await req.current('media-state',{epoch:s.epoch,media:{camera:s.stream.getVideoTracks().some(t=>t.enabled),microphone:on}}).catch(()=>{});}
-  return {local,remote,error,starting,start,stop,mute};
+  async function updateTracks(kind:'audio'|'video'){
+    const s=state.current;if(!s.stream||!s.epoch||s.changing)return;
+    const stream=s.stream,epoch=s.epoch,tracks=kind==='audio'?stream.getAudioTracks():stream.getVideoTracks();
+    if(!tracks.length)return;
+    const previous=tracks.map(track=>track.enabled),on=!tracks.some(track=>track.enabled);
+    s.changing=true;setChanging(true);setError('');tracks.forEach(track=>{track.enabled=on;});
+    try{
+      await req.current('media-state',{epoch,media:{camera:stream.getVideoTracks().some(track=>track.readyState==='live'&&track.enabled),microphone:stream.getAudioTracks().some(track=>track.readyState==='live'&&track.enabled)}});
+    }catch(e){
+      if(s.stream===stream){
+        // A failed mute/camera-off acknowledgement must never resume capture.
+        if(!on){await stop();setError('Call ended because the server could not confirm your privacy control. Camera and microphone are off.');}
+        else{tracks.forEach((track,index)=>{track.enabled=previous[index];});setError(e instanceof Error?e.message:'Call controls did not update. Try again.');}
+      }
+    }finally{s.changing=false;if(!s.dead)setChanging(false);}
+  }
+  const mute=()=>updateTracks('audio');
+  const toggleCamera=()=>updateTracks('video');
+  return {local,remote,error,starting,changing,start,stop,mute,toggleCamera};
 }

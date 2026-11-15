@@ -1,5 +1,10 @@
 import {randomBytes,createHash} from 'node:crypto';
+import {MALL_GAMES} from '../../webapp/src/games/tirana-mall/mallCatalog.mjs';
 import {EXPLORE_VERSION,EXPLORE_LIMITS as L,APPEARANCES,cleanText,avatarURL,exploreInput,mediaFlags,isLive,validSignal} from '../../webapp/src/games/tirana-social/socialCore.mjs';
+
+const INVITATION_TTL_MS=120000;
+const INVITATION_LIMIT=24;
+const invitationGames=new Map(MALL_GAMES.map(game=>[game.slug,game]));
 /** Shared Racing Explore room authority, attached to the authenticated game socket.
  * No balances, career stores, client positions or match rewards. */
 export function createExploreRooms({engine,resolveProfile,now=Date.now,autoTick=true,onReport=report=>console.warn('Explore report',report)}={}) {
@@ -20,14 +25,27 @@ export function createExploreRooms({engine,resolveProfile,now=Date.now,autoTick=
     if(++r.n>limit)throw Error('Too many requests. Please wait.');
   }
   const blocked=(a,b)=>a.blocked.has(b.id)||b.blocked.has(a.id);
+  function pruneInvitations(room) {
+    const t=now();
+    for(const [id,invite] of room.invitations) {
+      const from=room.members.get(invite.from),to=room.members.get(invite.to);
+      // An accepted invitation remains available to the other participant while
+      // the first enters the lobby. Pending invitations require both people.
+      if(invite.expiresAt<=t||(!from&&!to)||(from&&to&&blocked(from,to))||
+        (invite.status!=='accepted'&&(!from||!to)))room.invitations.delete(id);
+    }
+  }
   function snapshot(room,me) {
+    pruneInvitations(room);
     const visible=[...room.members.values()].filter(m=>m===me||!blocked(me,m));
-    const keep=new Set(visible.map(m=>m.id)),state=engine.publicState(room.state);
+    const keep=new Set(visible.map(m=>m.id)),state=engine.publicState(room.state,me.id);
     for(const id of Object.keys(state.players))if(!keep.has(id))delete state.players[id];
     if(state.cars)state.cars=state.cars.filter(car=>!car.driver||keep.has(car.driver));
     return {version:EXPLORE_VERSION,id:room.id,playerId:me.id,serverNow:now(),state,
       members:visible.map(m=>({id:m.id,name:m.name,avatar:m.avatar,socialId:m.socialId,appearance:m.appearance,callJoined:m.callJoined,media:{...m.media},mediaEpoch:m.mediaEpoch,socketId:m.socket.id})),
-      messages:room.messages.filter(m=>keep.has(m.from)).map(m=>({...m})),blocked:[...me.blocked]};
+      messages:room.messages.filter(m=>keep.has(m.from)).map(m=>({...m})),
+      invitations:[...room.invitations.values()].filter(invite=>invite.from===me.id||invite.to===me.id).map(invite=>({...invite})),
+      blocked:[...me.blocked]};
   }
   function broadcast(room) {for(const m of room.members.values())m.socket.emit('explore:snapshot',snapshot(room,m));}
   function leave(accountId) {
@@ -73,7 +91,7 @@ export function createExploreRooms({engine,resolveProfile,now=Date.now,autoTick=
         if(!room) {
           if(rooms.size>=L.rooms)throw Error('The city is busy');
           const id=randomBytes(12).toString('hex'),t=now();
-          room={id,private:payload.private===true,members:new Map(),messages:[],seq:0,last:t,sent:t,state:engine.createState([], 'free-roam','explore')};rooms.set(id,room);
+          room={id,private:payload.private===true,members:new Map(),messages:[],invitations:new Map(),seq:0,last:t,sent:t,state:engine.createState([], 'free-roam','explore')};rooms.set(id,room);
         }
         if(room.members.size>=L.players)throw Error('This district instance is full');
         const m={accountId,clientId,id:idOf(accountId),roomId:room.id,socket,name:cleanText(profile.nickname||profile.firstName||'Explorer',24),avatar:avatarURL(profile.photo),socialId:String(profile.telegramId||profile.accountId),appearance:APPEARANCES.includes(payload.appearance)?payload.appearance:APPEARANCES[0],media:mediaFlags(null),callJoined:false,mediaEpoch:'',blocked:new Set(),seen:now()};
@@ -94,6 +112,27 @@ export function createExploreRooms({engine,resolveProfile,now=Date.now,autoTick=
     if(action==='chat') {
       rate(socket,'chat',4,5000);const text=cleanText(payload.text,L.message);if(!text)throw Error('Write a message');
       room.messages.push({id:++room.seq,from:me.id,name:me.name,text,at:now()});if(room.messages.length>L.history)room.messages.shift();broadcast(room);return {accepted:true};
+    }
+    if(action==='game-invite') {
+      rate(socket,'game-invite',4,30000);
+      const peer=room.members.get(payload.to),game=invitationGames.get(payload.gameId);
+      if(!peer||peer===me||blocked(me,peer))throw Error('Player unavailable');
+      if(!game)throw Error('Choose a game from the gaming mall');
+      pruneInvitations(room);
+      const existing=[...room.invitations.values()].find(invite=>invite.from===me.id&&invite.to===peer.id&&invite.gameId===game.slug&&invite.status==='pending');
+      if(existing)return {invitation:{...existing}};
+      if(room.invitations.size>=INVITATION_LIMIT)throw Error('Too many city invitations. Please wait.');
+      const createdAt=now(),invitation={id:randomBytes(12).toString('hex'),from:me.id,to:peer.id,fromName:me.name,toName:peer.name,gameId:game.slug,gameName:game.name,path:game.route,status:'pending',createdAt,expiresAt:createdAt+INVITATION_TTL_MS};
+      room.invitations.set(invitation.id,invitation);broadcast(room);return {invitation:{...invitation}};
+    }
+    if(action==='game-invite-response') {
+      rate(socket,'game-invite-response',12,30000);pruneInvitations(room);
+      const invitation=room.invitations.get(payload.id);
+      if(!invitation||invitation.to!==me.id)throw Error('Invitation unavailable or expired');
+      if(typeof payload.accept!=='boolean')throw Error('Accept or decline this invitation');
+      if(invitation.status!=='pending')throw Error('Invitation already answered');
+      invitation.status=payload.accept?'accepted':'declined';
+      broadcast(room);return {invitation:{...invitation}};
     }
     if(action==='appearance') {if(!APPEARANCES.includes(payload.appearance))throw Error('Unknown character');me.appearance=payload.appearance;broadcast(room);return {accepted:true};}
     if(action==='prepare-media') {

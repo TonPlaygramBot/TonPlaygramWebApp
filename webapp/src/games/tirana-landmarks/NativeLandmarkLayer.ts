@@ -1,4 +1,5 @@
 import * as THREE from 'three';
+import {createMallBrand} from '../tirana-mall/MallBrand';
 import {buildNativeModel, MATERIALS} from './nativeModels.mjs';
 import type {NativeLandmark} from './nativeLocations.mjs';
 
@@ -34,6 +35,9 @@ export class NativeLandmarkLayer {
           mesh.castShadow = detail === 'near';
           mesh.receiveShadow = true;
           group.add(mesh);
+        }
+        if (l.id === 'pyramid') {
+          const brand = createMallBrand(14); brand.position.set(0, 19.1, 0); group.add(brand);
         }
         lod.addLevel(group, detail === 'near' ? 0 : (l.id === 'skanderbeg' ? 90 : 190), .12);
       }

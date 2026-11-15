@@ -37,7 +37,11 @@ export function roadBumps(track) {
         const p = sampleCircuitDistance(track,at);
         const before=sampleCircuitDistance(track,at-6),after=sampleCircuitDistance(track,at+6);
         const turn=Math.abs(Math.atan2(Math.sin(after.yaw-before.yaw),Math.cos(after.yaw-before.yaw)));
-        const corner=turn>.055;
+        // A braking hump belongs on the safe approach to a bend, not
+        // necessarily on its apex. Keep the profile aligned to the local road.
+        const approach=sampleCircuitDistance(track,at+24);
+        const approachTurn=Math.abs(Math.atan2(Math.sin(approach.yaw-p.yaw),Math.cos(approach.yaw-p.yaw)));
+        const corner=turn>.055||approachTurn>.12;
         const width = track.points[p.index].width ?? track.width;
         if (p.distance < 65 || track.length - p.distance < 65 || width < 2.1 || turn>1.8 || (cornerOnly&&!corner)||
             cornerSpeedLimit(track, p, 4) < 11 ||

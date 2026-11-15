@@ -1,0 +1,9 @@
+export type SocialFriend={socialId?:string;telegramId?:string|number;accountId?:string;nickname?:string;firstName?:string;lastName?:string;photo?:string};
+export type SocialFriendRequest={requestId?:string;_id?:string;fromId?:string|number;toId?:string|number;from?:string|number;to?:string|number;fromName?:string;toName?:string};
+export type SocialError={error:string};
+export function acceptFriendRequest(requestId:string):Promise<SocialFriendRequest>;
+export function rejectFriendRequest(requestId:string):Promise<SocialFriendRequest>;
+export function listFriendRequests(socialId:string):Promise<SocialFriendRequest[]|SocialError>;
+export function listFriends(socialId:string):Promise<SocialFriend[]|SocialError>;
+export function sendFriendRequest(fromId:string,toId:string):Promise<SocialFriendRequest>;
+export const socket:{on:(event:'friendRequest'|'friendRequestAccepted',listener:()=>void)=>void;off:(event:'friendRequest'|'friendRequestAccepted',listener:()=>void)=>void};
