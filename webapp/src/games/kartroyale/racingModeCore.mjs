@@ -6,6 +6,6 @@ export function racingActivity(search = '') {
   if (p.get('activity') === 'explore' || p.get('activity') === 'city') return 'explore';
   // Explicit old job-board links continue to work; the Career entry is social.
   if (p.get('activity') === 'racing-career') return 'career';
-  if (p.get('mode') === 'career') return 'explore';
+  if (p.get('mode') === 'career' || p.get('mode') === 'free') return 'explore';
   return 'race';
 }

@@ -23,4 +23,4 @@ export const COMBAT_RULES:Readonly<{
   pulseRadius:number;pulseRecharge:number;pulseDisrupt:number;pulseDamage:number;
 }>;
 export function createRaceCombat(track:Track,racers:Racer[],playerId?:string):RaceCombatState;
-export function stepRaceCombat(state:RaceCombatState,racers:Racer[],track:Track,input:CombatInput,dt:number,time?:number):void;
+export function stepRaceCombat(state:RaceCombatState,racers:Racer[],track:Track,input:CombatInput,dt:number,time?:number,inputsById?:Record<string,CombatInput>):void;

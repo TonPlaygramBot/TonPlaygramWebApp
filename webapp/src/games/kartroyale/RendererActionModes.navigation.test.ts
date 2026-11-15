@@ -1,5 +1,8 @@
 import {afterEach,beforeEach,expect,it,vi} from 'vitest';
 import * as T from 'three';
+import {createElement} from 'react';
+import {renderToStaticMarkup} from 'react-dom/server';
+import {RaceTelemetryHud,RaceDebrief} from './RaceTelemetryHud';
 import {KartRenderer} from './renderer';
 import {ACTION_MISSIONS} from './actionCareer.mjs';
 
@@ -126,4 +129,62 @@ it('drops local mission state and effects before receiving an online race, and c
  expect(world.dispose).toHaveBeenCalledOnce();expect(world.group.parent).toBeNull();expect(game.actionInput.fire).toBe(false);
  game.startCombatRace(mission.track,'rookie');const effects=game.combatEffects,dispose=vi.spyOn(effects,'dispose');
  game.showGarage();expect(game.state).toBe('garage');expect(game.combat).toBeNull();expect(dispose).toHaveBeenCalledOnce();
+});
+
+it('renders online combat for the local viewer without predicting damage or losing tap inputs',()=>{
+ game.startCombatRace('skanderbeg','rookie');
+ const snapshot={
+  trackId:'skanderbeg',raceFormat:'combat',status:'racing',
+  racers:structuredClone(game.racers),combat:structuredClone(game.combat),
+  elapsed:10,startsAt:0,serverNow:10000,results:[]
+ };
+ const me=snapshot.racers[1].id;
+ snapshot.racers[1].ai=false;
+ snapshot.combat.weapons[me].ammo=9;
+ game.networkState(snapshot,me);
+ expect(game.combat.playerId).toBe(me);
+ expect(game.combat.player).toBe(game.combat.weapons[me]);
+ expect(game.combat.player.ammo).toBe(9);
+ expect(snapshot.combat.playerId).toBe('you');
+ const effects=game.combatEffects,dispose=vi.spyOn(effects,'dispose');
+ const authoritativeCombat=JSON.stringify(game.combat);
+ game.input.fire=true;game.queueCombatReload();game.queueCombatPulse();
+ advance(.3);
+ expect(JSON.stringify(game.combat)).toBe(authoritativeCombat);
+ const packet=game.networkInput();
+ expect(packet).toMatchObject({fire:true,reload:true,pulse:true});
+ expect(game.networkInput()).toMatchObject({fire:true,reload:false,pulse:false});
+ game.networkState({...snapshot,elapsed:10.3},me);
+ expect(game.combatEffects).toBe(effects);expect(dispose).not.toHaveBeenCalled();
+ expect(game.input.fire).toBe(true);
+ game.queueCombatPulse();game.pause(true);
+ expect(game.networkInput()).toMatchObject({fire:false,reload:false,pulse:false});
+ game.networkState({...snapshot,raceFormat:'race',combat:null,elapsed:10.4},me);
+ expect(game.combat).toBeNull();expect(dispose).toHaveBeenCalledOnce();
+});
+
+it('uses online trial rankings without writing a local ghost and finishes once',()=>{
+ game.startLocal('skanderbeg','rookie');
+ const racers=structuredClone(game.racers.slice(0,2));
+ const snapshot={trackId:'skanderbeg',raceFormat:'trial',status:'racing',racers,elapsed:30,startsAt:0,serverNow:30000,results:[]};
+ game.networkState(snapshot,'you');
+ expect(game.timeTrial).toBe(true);expect(game.ghostRecorder).toBeNull();
+ advance(.15);
+ expect(frame.mock.lastCall?.[0]).toMatchObject({timeTrial:true,online:true});
+ const hudMarkup=renderToStaticMarkup(createElement(RaceTelemetryHud,{frame:frame.mock.lastCall?.[0]}));
+ expect(hudMarkup).toContain('Fastest valid lap wins this session');
+ expect(hudMarkup).not.toMatch(/ghost/i);
+ const localHudMarkup=renderToStaticMarkup(createElement(RaceTelemetryHud,{frame:{...frame.mock.lastCall?.[0],online:false}}));
+ expect(localHudMarkup).toContain('Your first valid lap creates a ghost');
+ // Server ranks the fastest lap; circuit progress alone may have another order.
+ const results=[{...racers[1],finished:true},{...racers[0],finished:true}];
+ game.networkState({...snapshot,status:'finished',results},'you');
+ game.networkState({...snapshot,status:'finished',results},'you');
+ expect(finish).toHaveBeenCalledOnce();
+ expect(finish.mock.lastCall?.[0].racers.map((r:any)=>r.id)).toEqual(results.map(r=>r.id));
+ expect(finish.mock.lastCall?.[0]).toMatchObject({timeTrial:true,online:true,ghostSaved:undefined,newBest:undefined});
+ const debriefMarkup=renderToStaticMarkup(createElement(RaceDebrief,{result:finish.mock.lastCall?.[0]}));
+ expect(debriefMarkup).toContain('Ranked by the fastest valid lap');
+ expect(debriefMarkup).not.toMatch(/ghost/i);
+ game.showGarage();expect(game.timeTrial).toBe(false);expect(game.authoritativeResults).toBeNull();
 });

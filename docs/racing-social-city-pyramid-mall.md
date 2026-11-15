@@ -1,6 +1,6 @@
 # Racing Royal: Tirana social city and Pyramid gaming mall
 
-Racing Royal's **Career** button now opens the shared Tirana city. Players can
+Racing Royal's **Free Roam** entry opens the shared Tirana city. Players can
 walk, drive, chat, manage friend requests, opt into voice/video, and invite each
 other to an existing game lobby. **Solo Missions** retains the existing driving
 jobs, action missions, and championships. Paid race/resume URLs still take
@@ -9,7 +9,7 @@ priority over social activity URLs.
 ## Player flow
 
 1. Sign in with the existing TonPlayGram account, open Racing Royal, and select
-   **Career**. Each city instance supports four people; **People / Chat** has a
+   **Free Roam → Enter Tirana City**. Each city instance supports four people; **People / Chat** has a
    shareable link for joining the same instance.
 2. Open **Voice / Video** and explicitly join voice or video. Live video tiles
    stay visible while driving/walking. Mute, camera off, and end-call controls
@@ -54,12 +54,39 @@ ghosts.
 | Stadium | 2.817 km | 89.70% |
 | Grand | 2.706 km | 99.64% |
 
-Local **Combat Race** adds an EMP pulse (button or **E**) with an 18-metre range,
+**Combat Race**, selected inside VS AI or free Multiplayer rooms, adds an EMP pulse (button or **E**) with an 18-metre range,
 22-second recharge, and 2.2-second disruption of nearby rivals' weapons/shields.
 Road/height separation blocks attacks through unrelated streets. Purple charge
 supplies reduce recharge by eight seconds. Score and supply feedback supplement
-the existing fire, shield, repairs, ammo, rival AI, and race objectives. Combat
-does not award normal career/TPG rewards.
+the existing fire, shield, repairs, ammo, rival AI, and race objectives. Online
+combat runs on the server for each human player. Combat does not award normal
+career/TPG rewards. Standard TPG matchmaking does not enable combat or time trial.
+
+## Integrated racing and Free Roam
+
+The main garage has VS AI, Multiplayer and Free Roam. VS AI and Multiplayer
+contain an activity selector for Race, Career, Combat Race and Time Trial.
+Career offers cup races plus the existing city jobs/action mission board. Online
+cup finishes use authoritative results to save device-local cup progress. Online
+time trials rank valid completed laps, exclude recovered laps, and disable kart
+contact, drafting and AI fillers. A host can configure a waiting free room;
+changing its activity or cup clears readiness for everyone.
+
+Free Roam starts as Turi unless the player previously chose another character.
+People / Chat exposes Turi and the six existing alternate avatars, persists the
+choice, and sends it through the existing server appearance allowlist. Explicit
+player choices now take precedence over randomized ambient civilian models.
+The thumb controls include hold-to-run on foot and brake while driving.
+
+Live Radio restores the original five Tirana stations, station/volume settings,
+mobile tap-to-play and unavailable/retry feedback. It stops during calls, pause,
+backgrounding, disconnect and teardown. Radio does not capture microphone audio.
+Live broadcasters still need a deployment/device playback check.
+
+Karts now cruise at 33 m/s (previously 35), with a 44 m/s turbo cap (previously
+47), smoother thumb deadzone and quicker countersteering/centering. Free Roam
+vehicle speed and acceleration are scaled to 94%. Old faster ghosts remain in
+storage but a new handling revision starts comparable current records.
 
 ## Operational notes
 

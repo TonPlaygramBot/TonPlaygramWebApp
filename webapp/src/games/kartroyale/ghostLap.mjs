@@ -1,12 +1,15 @@
 export const GHOST_VERSION = 1;
+// Keep older, faster handling records intact without using them as targets for
+// the current 33/44 m/s tuning. Increment when shared driving physics changes.
+const HANDLING_REVISION = 2;
 const MAX_SAMPLES = 16000;
 const finite = n => typeof n === 'number' && Number.isFinite(n);
-// Geometry signature prevents replaying a ghost after a route/physics update.
+// Geometry and handling signatures keep best laps comparable after updates.
 export function ghostKey(track, kart) {
   let hash = 2166136261;
   for (const p of track.points) for (const v of [p.x, p.z, p.width || track.width])
     hash = Math.imul(hash ^ Math.round(v * 100), 16777619) >>> 0;
-  return `racingRoyal.timeTrial.v${GHOST_VERSION}.${track.id}.${hash}.${kart}`;
+  return `racingRoyal.timeTrial.v${GHOST_VERSION}.handling${HANDLING_REVISION}.${track.id}.${hash}.${kart}`;
 }
 export function loadGhost(storage, key) {
   try {

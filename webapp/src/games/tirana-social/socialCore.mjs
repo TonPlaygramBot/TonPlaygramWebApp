@@ -1,7 +1,20 @@
 /** Wire contract for a free, non-combat shared Tirana instance. */
 export const EXPLORE_VERSION = 1;
 export const EXPLORE_LIMITS = Object.freeze({players:4, rooms:128, message:280, history:60, idleMs:60000, payloadBytes:40000});
-export const APPEARANCES = Object.freeze(['rpm-current','rpm-67d411-domino','rpm-67f433-domino','rpm-67e1b5-domino','athlete-male','athlete-female']);
+export const APPEARANCES = Object.freeze(['turi','rpm-current','rpm-67d411-domino','rpm-67f433-domino','rpm-67e1b5-domino','athlete-male','athlete-female']);
+export const EXPLORE_CHARACTERS = Object.freeze([
+  {id:'turi',label:'Turi'}, {id:'rpm-current',label:'Chess avatar'},
+  {id:'rpm-67d411-domino',label:'Casino Check'}, {id:'rpm-67f433-domino',label:'Linen Street'},
+  {id:'rpm-67e1b5-domino',label:'Jacquard Night'}, {id:'athlete-male',label:'Adrian'}, {id:'athlete-female',label:'Maya'}
+].map(character=>Object.freeze(character)));
+const CHARACTER_KEY='racingRoyal.character';
+export function loadExploreCharacter(storage) {
+  try { const id=storage?.getItem(CHARACTER_KEY);return APPEARANCES.includes(id)?id:'turi'; } catch { return 'turi'; }
+}
+export function saveExploreCharacter(storage,id) {
+  if(!APPEARANCES.includes(id))return;
+  try { storage?.setItem(CHARACTER_KEY,id); } catch {}
+}
 export const cleanText = (value, limit=280) => typeof value === 'string' ? value.normalize('NFC').replace(/[\u0000-\u001f\u007f\u202a-\u202e\u2066-\u2069]/g,' ').trim().slice(0,limit).trim() : '';
 export function avatarURL(value) {
   if(typeof value!=='string'||value.length>2048)return '';

@@ -2,6 +2,7 @@ import {useEffect,useRef,useState} from 'react';
 import {acceptFriendRequest,listFriendRequests,listFriends,rejectFriendRequest,sendFriendRequest,socket} from './socialApi.mjs';
 import {MALL_GAMES} from '../tirana-mall/mallCatalog.mjs';
 import {ExploreCallDock} from './ExploreCallDock';
+import {EXPLORE_CHARACTERS,saveExploreCharacter} from './socialCore.mjs';
 import type {ExploreRequest,ExploreSnapshot,GameInvitation,Member} from './types';
 import type {useExploreMedia} from './useExploreMedia';
 export type SocialTab='people'|'chat'|'live'|'invites';
@@ -58,7 +59,7 @@ export function ExploreSocialPanel({snapshot,request,media,tab,onTab,onClose,onL
       </article>)}</div>
       {friends.length>0&&<p>{friends.length} friends on your account. <a href="/messages">Open messages and friend calls</a></p>}
       <button disabled={busy} onClick={()=>void run(refreshFriends)}>REFRESH FRIENDS</button>
-      <label>Your character<select value={me?.appearance||'rpm-current'} disabled={busy||!me} onChange={event=>void run(()=>request('appearance',{appearance:event.target.value}))}><option value="rpm-current">Chess avatar</option><option value="rpm-67d411-domino">Casino Check</option><option value="rpm-67f433-domino">Linen Street</option><option value="rpm-67e1b5-domino">Jacquard Night</option><option value="athlete-male">Adrian</option><option value="athlete-female">Maya</option></select></label>
+      <label>Your character<select value={me?.appearance||'turi'} disabled={busy||!me} onChange={event=>{const appearance=event.target.value;void run(async()=>{await request('appearance',{appearance});try{saveExploreCharacter(localStorage,appearance);}catch{}});}}>{EXPLORE_CHARACTERS.map(character=><option key={character.id} value={character.id}>{character.label}</option>)}</select></label>
     </>}
     {tab==='chat'&&<><p>Room chat is shared with the people listed in this instance.</p><div className="te-chat" role="log" aria-live="polite" ref={log}>{snapshot?.messages.length?snapshot.messages.map(message=><p key={message.id}><b>{message.name}: </b>{message.text}</p>):<p>Say hello to the city.</p>}</div><form onSubmit={event=>{event.preventDefault();void run(async()=>{await request('chat',{text});setText('');});}}><input value={text} onChange={event=>setText(event.target.value)} maxLength={280} placeholder="Message this room" aria-label="Chat message"/><button disabled={busy||!snapshot||!text.trim()}>SEND</button></form></>}
     {tab==='live'&&<><div className="te-live"><b>{media.local?'LIVE WITH THIS ROOM':'CAMERA & MICROPHONE OFF'}</b><p>{media.local?'Only people who join the call can hear and see you. Leaving or hiding the page stops capture.':'Join voice or video to speak while exploring. Camera and microphone start only when you choose.'}</p>{media.error&&<p role="alert">{media.error}</p>}

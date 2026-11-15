@@ -7,7 +7,7 @@ import {LivingVisuals} from '../livingVisuals';
 import type {NPC, Point} from '../shared/engine.mjs';
 import {nearbyHumans, actorRole, stableActorHash, type HumanAsset} from './humanRoster.mjs';
 
-import {chooseSharedHuman, type SharedAsset} from './sharedCastCore.mjs';
+import {chooseStreetHuman, type SharedAsset} from './sharedCastCore.mjs';
 import {SHARED_GAME_CAST} from './SharedGameCast';
 import {HumanoidAnimation} from './humanoidAnimation.mjs';
 import {humanoidBones} from './humanoidRig.mjs';
@@ -139,9 +139,7 @@ export class SharedHumans {
     for(const [id] of this.actors)if(!keep.has(id))this.remove(id);
     for(const n of selected){
       const role=actorRole(n.kind);
-      let asset=n.kind==='civilian'||n.kind==='dealer'||n.kind==='gang'
-        ? this.cast.find(a=>a.id===`tirana-citizen-${stableActorHash(n.id)%8}`)||chooseSharedHuman(n,available)
-        : chooseSharedHuman(n,available);
+      let asset=chooseStreetHuman(n,available);
       this.request(asset);
       const shown=this.actors.get(n.id);
       // Keep a loaded actor during a slow request, but allow the requested

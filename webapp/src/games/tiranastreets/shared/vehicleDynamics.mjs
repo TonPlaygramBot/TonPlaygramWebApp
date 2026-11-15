@@ -5,9 +5,10 @@ const approach=(v,to,rate,dt)=>v+(to-v)*(1-Math.exp(-rate*dt));
 /** Fixed-size integration keeps braking, direction changes and collision checks
  * stable on a missed mobile frame. `contact` resolves actual world/car contacts
  * after every <= 1/120 s movement; the solver never teleports past thin walls. */
-export function driveVehicle(car,input,delta,contact=()=>{}){
+export function driveVehicle(car,input,delta,contact=()=>{},speedScale=1){
  const dt=clamp(finite(delta),0,.1);if(!dt)return;
- const tune=drivingScale(car),steps=Math.ceil(dt*120),step=dt/steps;
+ const profile=drivingScale(car),scale=clamp(finite(speedScale,1),.5,1);
+ const tune=scale===1?profile:{...profile,maximum:profile.maximum*scale,reverse:profile.reverse*scale,acceleration:profile.acceleration*scale},steps=Math.ceil(dt*120),step=dt/steps;
  // A small radial-stick noise band avoids a drifting wheel after touch release.
  const rawSteer=clamp(finite(input.x),-1,1);
  const steer=Math.abs(rawSteer)<.035?0:Math.sign(rawSteer)*(Math.abs(rawSteer)-.035)/.965;

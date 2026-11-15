@@ -1,3 +1,11 @@
+/** Continuous dead zone gives thumbs room to rest without a steering jump.
+ * Keep the screen-space sign and full lock at the edge of the joystick. */
+export function steeringStickInput(value) {
+  if (!Number.isFinite(value)) return 0;
+  const magnitude = Math.min(1, Math.abs(value));
+  return magnitude <= .08 ? 0 : Math.sign(value) * ((magnitude - .08) / .92) ** 1.25;
+}
+
 /** Independent owners preserve multi-touch chords and keyboard + touch input. */
 export function createHeldRaceInput() {
   const owners = new Map();

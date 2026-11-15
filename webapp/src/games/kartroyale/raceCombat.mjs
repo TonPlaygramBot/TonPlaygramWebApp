@@ -2,9 +2,8 @@ import { nearestPoint } from './legacySimulation.mjs';
 import { sampleCircuitDistance } from './circuitMetrics.mjs';
 import { surfaceHeight } from './racingSurface.mjs';
 
-/** Local combat is deliberately opt-in. The shared race/server simulation stays
- * nonlethal and cannot be armed through the legacy wire fields. Call this AFTER
- * the regular fixed physics step, only for a local combat session. */
+/** Combat is deliberately opt-in. Call this after the regular fixed physics
+ * step only for a combat session; standard and staked races never create it. */
 export const COMBAT_RULES = Object.freeze({
   magazine: 12, reserve: 48, reserveMax: 96, reloadSeconds: 1.4,
   shotInterval: .18, shotSpeed: 80, shotDamage: 16, range: 96,
@@ -152,7 +151,7 @@ function sweepCircle(ax,az,bx,bz,x,z,radius){
 
 /** dt is simulation time. No wall-clock timers, random rolls, hidden damage or
  * unlimited enemy ammo. A paused session (dt <= 0) is a strict no-op. */
-export function stepRaceCombat(state,racers,track,input,dt,_time){
+export function stepRaceCombat(state,racers,track,input,dt,_time,inputsById){
   if(!Number.isFinite(dt)||dt<=0)return;
   dt=Math.min(dt,.1);input||={};state.elapsed+=dt;
   for(const b of state.bursts)b.age+=dt;
@@ -167,15 +166,16 @@ export function stepRaceCombat(state,racers,track,input,dt,_time){
       if(!w.reload){const amount=Math.min(COMBAT_RULES.magazine-w.ammo,w.reserve);w.ammo+=amount;w.reserve-=amount;}
     }
     if(!active(r)){w.shieldActive=false;w.windup=0;continue;}
-    const controlled=r.id===state.playerId;
+    const controlled=inputsById?!r.ai:r.id===state.playerId;
+    const controls=inputsById?(inputsById[r.id]||{}):input;
     if(w.disrupted>0){w.shieldActive=false;w.windup=0;r.turbo=0;r.boosting=false;continue;}
-    const wantsShield=controlled&&input.shield===true;
+    const wantsShield=controlled&&controls.shield===true;
     w.shieldActive=wantsShield&&w.shield>0;
     w.shield=clamp(w.shield+dt*(wantsShield?(w.shieldActive?-COMBAT_RULES.shieldDrain:0):COMBAT_RULES.shieldRecharge),0,100);
     if(w.shield<=0)w.shieldActive=false;
     if(controlled){
-      if(input.reload)reload(w);
-      if(input.fire)fire(state,r,track,r.yaw);
+      if(controls.reload)reload(w);
+      if(controls.fire)fire(state,r,track,r.yaw);
     }else if(w.windup>0){
       w.windup=Math.max(0,w.windup-dt);
       if(w.windup<=0){fire(state,r,track,w.aim);w.aiCooldown=2.1+(r.slot%3)*.24;w.targetId='';}
@@ -187,7 +187,9 @@ export function stepRaceCombat(state,racers,track,input,dt,_time){
     if(w.ammo<=0)reload(w);
   }
   // Resolve after all cooldowns update so racer ordering cannot shorten effects.
-  if(input.pulse) {const player=racers.find(r=>r.id===state.playerId);if(player)pulse(state,player,racers,track);}
+  if(inputsById){
+    for(const r of racers)if(!r.ai&&inputsById[r.id]?.pulse)pulse(state,r,racers,track);
+  }else if(input.pulse) {const player=racers.find(r=>r.id===state.playerId);if(player)pulse(state,player,racers,track);}
   const live=[];
   for(const p of state.projectiles){
     const next={x:p.x+p.vx*dt,z:p.z+p.vz*dt};

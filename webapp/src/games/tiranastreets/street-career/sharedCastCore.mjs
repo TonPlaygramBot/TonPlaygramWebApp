@@ -27,3 +27,11 @@ export function chooseSharedHuman(entity, cast) {
   const choices=role==='soldier'?all:(role==='police'||stableActorHash(entity.id)%4!==0)&&chess.length?chess:all;
   return choices[stableActorHash(entity.id)%choices.length] || HUMAN_ROSTER.find(a=>a.roles.includes(role)) || HUMAN_ROSTER[0];
 }
+
+/** Authored player choices take priority over the ambient citizen variety. */
+export function chooseStreetHuman(entity,cast) {
+  const role=actorRole(entity.kind);
+  if(cast.some(asset=>asset.id===entity.characterId&&asset.roles.includes(role)))return chooseSharedHuman(entity,cast);
+  if(['civilian','dealer','gang'].includes(entity.kind))return cast.find(asset=>asset.id===`tirana-citizen-${stableActorHash(entity.id)%8}`)||chooseSharedHuman(entity,cast);
+  return chooseSharedHuman(entity,cast);
+}

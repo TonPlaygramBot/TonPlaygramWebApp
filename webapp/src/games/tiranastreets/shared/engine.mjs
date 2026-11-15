@@ -835,7 +835,7 @@ export function movePlayer(state, p, dt, onCollision) {
         if(onCollision)onCollision(c,o,separation);
         else slideVehicle(c,separation);
       }
-    });
+    },state.mode==='explore'?.94:1);
     p.x = c.x;
     p.z = c.z;
     p.heading = c.heading;

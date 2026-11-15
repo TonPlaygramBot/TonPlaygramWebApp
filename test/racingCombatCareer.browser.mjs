@@ -50,7 +50,7 @@ try{
  result.checks.push('Garage loaded original kart/driver GLBs with a WebGL context');
  await page.screenshot({path:join(out,'01-garage-portrait.png')});
  const savedBefore=await page.evaluate(()=>JSON.stringify({...localStorage}));
- await page.getByRole('button',{name:/COMBAT RACE/}).click();
+ await page.getByLabel('Racing activity').selectOption('combat');
  await page.getByRole('button',{name:'START COMBAT RACE',exact:true}).click();
  await page.waitForFunction(()=>!!window.__racingEngine.combat);
  await page.evaluate(()=>{const g=window.__racingEngine;g.countdown=0;g.state='racing';});

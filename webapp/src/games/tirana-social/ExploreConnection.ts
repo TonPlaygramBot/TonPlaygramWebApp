@@ -18,7 +18,7 @@ export class ExploreConnection {
   private heartbeat?: ReturnType<typeof setInterval>;
   private joining: Promise<void> | null = null;
   private cancelWait?: () => void;
-  private appearance = 'rpm-current';
+  private appearance = 'turi';
   private invitation?: string;
   private phase: ExploreStatus = 'idle';
   constructor(

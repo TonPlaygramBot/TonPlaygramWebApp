@@ -1,6 +1,9 @@
 export const EXPLORE_VERSION:1;
 export const EXPLORE_LIMITS:Readonly<{players:number;rooms:number;message:number;history:number;idleMs:number;payloadBytes:number}>;
 export const APPEARANCES:readonly string[];
+export const EXPLORE_CHARACTERS:readonly {readonly id:string;readonly label:string}[];
+export function loadExploreCharacter(storage?:Pick<Storage,'getItem'>):string;
+export function saveExploreCharacter(storage:Pick<Storage,'setItem'>|undefined,id:string):void;
 export function cleanText(value:unknown,limit?:number):string;
 export function avatarURL(value:unknown):string;
 export function exploreInput(raw?:Record<string,unknown>):{x:number;y:number;yaw:number;fast:boolean;brake:boolean;fire:false;seq:number};

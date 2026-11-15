@@ -8,7 +8,7 @@ import {boostPads,stepBoostPads} from '../webapp/src/games/kartroyale/arcadeRule
 const straight={...resampleCircuit([[0,0],[0,2000],[2000,2000],[2000,0]],720),width:20};
 const make=(id='apex')=>Object.assign(equipKart(createRacer(straight,'you','You'),id),sampleCircuitDistance(straight,200),{velocityYaw:0});
 test('all eight karts use the trimmed cap and nitro still produces a faster straight',()=>{
-  assert.deepEqual(RACING_PACE,{cruise:35,turbo:47});
+  assert.deepEqual(RACING_PACE,{cruise:33,turbo:44});
   for(const kart of KARTS){
     const cruise=make(kart.id),nitro=make(kart.id);
     for(const r of [cruise,nitro])r.padCooldowns=Object.fromEntries(boostPads(straight).map(p=>[p.id,Infinity]));
