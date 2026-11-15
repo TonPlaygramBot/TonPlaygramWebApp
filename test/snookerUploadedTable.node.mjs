@@ -126,11 +126,11 @@ test('production constructor publishes one mapping; decorative tables cannot ove
   assert.ok(reflect(ball));assert.ok(ball.vel.x<0);
 });
 
-// Shot-eye ownership intentionally changed to retain the player viewpoint;
-// its moving-ball behavior is exercised in snookerCharacterCamera.node.mjs.
+// Shot ownership and broadcast cuts now match Pool Royal; production parity
+// is exercised in snookerBroadcastParity.node.mjs and snookerCharacterCamera.node.mjs.
 // Requested swipe height now survives safety clamping; royalCameraSwipe.node.mjs
 // exercises applyCameraBlend instead of freezing that helper to September.
-test('unchanged broadcast, orbit, overhead and replay helpers match September 11',async()=>{
+test('unchanged manual orbit and overhead helpers match September 11',async()=>{
   const expected=JSON.parse(await readFile(new URL('./fixtures/snooker-morning-cameras.json',import.meta.url),'utf8'));
   for(const [name,hash] of Object.entries(expected.functions))
     assert.equal(createHash('sha256').update(definitions.get(name)).digest('hex'),hash,`${name} diverged from ${expected.commit}`);

@@ -86,22 +86,68 @@ test('explicit overhead bypasses legacy impact, action and pocket camera branche
   // Execute the production camera dispatch and legacy branches. Only the
   // unchanged generic orbit/overhead renderer is replaced with a sentinel.
   const dispatch = source.slice(chain.start, genericBranch.start) + '{ selectedOverhead = true; }';
+  const allowViews = callbacks.get('allowShotBroadcastViews');
   for (const mode of ['impact', 'action', 'pocket']) {
     const context = vm.createContext({
       humanEyePose: null, shooting: true, cueAnimating: false,
       replayPlaybackActive: false, galleryState: null,
-      topViewRef: { current: true }, cameraHoldActive: mode === 'impact',
+      topViewRef: { current: true }, overheadBroadcastVariantRef: { current: 'top' },
+      lookModeRef: { current: false }, cameraHoldActive: mode === 'impact',
       cueImpactCameraRef: { current: {} }, activeShotView: { mode, anchorType: 'side' },
       get ballsRef() { throw new Error('manual overhead must skip the ball-tracking branches'); },
       selectedOverhead: false
     });
+    context.allowShotBroadcastViews = vm.runInContext(source.slice(allowViews.start, allowViews.end), context);
     vm.runInContext(dispatch, context);
     assert.equal(context.selectedOverhead, true, `${mode} cannot override explicit overhead`);
   }
 });
 
+test('automatic rail fallback preserves the selected action or pocket cut while manual views take precedence', () => {
+  const statements = callbacks.get('updateCamera').body.body;
+  const index = statements.findIndex(s => s.declarations?.[0]?.id?.name === 'humanEyePose');
+  let branch = statements[index + 1];
+  let dispatch = '';
+  while (branch?.type === 'IfStatement') {
+    const condition = source.slice(branch.test.start, branch.test.end);
+    const name = condition.includes('humanEyePose') ? 'player'
+      : condition.includes('replayPlaybackActive') ? 'replay'
+        : condition.includes('galleryState') ? 'gallery'
+          : condition.includes('remoteShotActiveRef') ? 'remote'
+            : condition.includes("'action'") ? 'action'
+              : condition.includes('showPocketView') ? 'pocket' : 'other';
+    // Preserve the complete production priority chain, replacing only each
+    // rendering body with a sentinel so selection has no graphics dependency.
+    dispatch += `if (${condition}) { selected = '${name}'; } else `;
+    branch = branch.alternate;
+  }
+  dispatch += "{ selected = 'manual-or-orbit'; }";
+  for (const variant of ['orbit', 'rail', 'top']) {
+    for (const look of [false, true]) {
+      for (const mode of ['action', 'pocket']) {
+        const context = vm.createContext({
+          humanEyePose: null, shooting: true, cueAnimating: false,
+          replayPlaybackActive: false, galleryState: null,
+          remoteShotActiveRef: { current: false }, opponentShotActive: false,
+          topViewRef: { current: variant !== 'orbit' },
+          overheadBroadcastVariantRef: { current: variant }, lookModeRef: { current: look },
+          cameraHoldActive: false, activeShotView: { mode }, pocketView: { mode },
+          selected: null
+        });
+        for (const name of ['showPocketView', 'allowShotBroadcastViews']) {
+          const expression = callbacks.get(name);
+          context[name] = vm.runInContext(source.slice(expression.start, expression.end), context);
+        }
+        vm.runInContext(dispatch, context);
+        assert.equal(context.selected, look || variant === 'top' ? 'manual-or-orbit' : mode,
+          `${variant}, look=${look}, cut=${mode}`);
+      }
+    }
+  }
+});
 
-test('starting a live shot no longer schedules an automatic overhead camera', () => {
+
+test('starting a live shot schedules the Pool broadcast fallback without moving the camera immediately', () => {
   const scheduled = [];
   const c = {
     shooting: false, shootingRef: { current: false }, shotStartedAt: 0,
@@ -109,7 +155,7 @@ test('starting a live shot no longer schedules an automatic overhead camera', ()
     maxPowerLiftTriggered: false, cueImpactCameraRef: { current: null },
     preShotTopViewRef: { current: false }, preShotTopViewLockRef: { current: false },
     topViewRef: { current: false }, topViewLockedRef: { current: false },
-    shotCameraHoldTimeoutRef: { current: null }, SHOT_CAMERA_HOLD_MS: 2000,
+    shotCameraHoldTimeoutRef: { current: null }, SHOT_CAMERA_HOLD_MS: 2600,
     window: { setTimeout: (callback, delay) => scheduled.push({ callback, delay }) },
     clearTimeout() {}, enterTopView() { c.topViewRef.current = true; },
     exitTopView() { c.topViewRef.current = false; }, setShotActive() {}
@@ -119,7 +165,8 @@ test('starting a live shot no longer schedules an automatic overhead camera', ()
   const setShootingState = vm.runInContext(`(${source.slice(node.start, node.end)})`, c);
   setShootingState(true);
   assert.equal(c.shootingRef.current, true);
-  assert.equal(scheduled.length, 0, 'the shot-camera owner controls the broadcast handoff');
+  assert.equal(scheduled.length, 1, 'a long shot receives the same rail fallback as Pool');
+  assert.equal(scheduled[0].delay, 2600);
   assert.equal(c.topViewRef.current, false);
   setShootingState(false);
   assert.equal(c.shootingRef.current, false);

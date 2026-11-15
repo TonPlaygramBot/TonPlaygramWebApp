@@ -18,9 +18,11 @@ const source = fs.readFileSync(
   'utf8'
 );
 const ast = parse(source, { sourceType: 'module', plugins: ['jsx'] });
-let fireCode, obstructionCode;
+let fireCode, obstructionCode, pocketIntentCode;
 function walk(node) {
   if (!node || typeof node !== 'object') return;
+  if (node.type === 'VariableDeclarator' && node.id.name === 'resolveLikelyPocketIntent')
+    pocketIntentCode = source.slice(node.init.start, node.init.end);
   if (node.type === 'VariableDeclarator' && node.id.name === 'fire')
     fireCode = source.slice(node.init.start, node.init.end);
   if (
@@ -158,6 +160,7 @@ function rig() {
     CUE_PULL_BASE: 0.25,
     ENABLE_CUE_STROKE_ANIMATION: true,
     SHORT_SHOT_CAMERA_DISTANCE: 1,
+    RAIL_OVERHEAD_OPPOSITE_DIRECTION_DOT: 0.45,
     LONG_SHOT_DISTANCE: 20,
     LONG_SHOT_SPEED_SWITCH_THRESHOLD: 50,
     MAX_POWER_BOUNCE_THRESHOLD: 0.95,
@@ -214,6 +217,7 @@ function rig() {
   Object.assign(context, {
     hudRef: { current: { turn: 0, inHand: false, over: false } },
     frameRef: { current: context.frameState },
+    localSeatRef: { current: 'A' },
     ballsRef: { current: [cue] },
     powerRef: { current: 0 },
     aimDirRef: { current: new THREE.Vector2(0, 1) },
@@ -254,7 +258,7 @@ function rig() {
     context.shootingRef.current = value;
   };
   vm.createContext(context);
-  vm.runInContext(`${obstructionCode}\nthis.fire=${fireCode}`, context);
+  vm.runInContext(`${obstructionCode}\nthis.resolveLikelyPocketIntent=${pocketIntentCode};\nthis.fire=${fireCode}`, context);
   const slider = Object.create(PowerSlider.prototype);
   Object.assign(slider, {
     value: 65,

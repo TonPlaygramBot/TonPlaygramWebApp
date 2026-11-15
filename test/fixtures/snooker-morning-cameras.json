@@ -1,17 +1,17 @@
 {
   "commit": "b2842f3400f2031bb81bbdcac670c60dfa27b9f4",
   "functions": {
-    "updateBroadcastCameras": "c228145c910ca35ca73dd9daa81d3720cb4b48f5221ed85bbe463e6371d1a347",
     "animateCamera": "e968d03280da43afb741ffecaad48605418ce0d1d638cfa38951289f7de75b1a",
     "restoreOrbitCamera": "7c95cb484f143f0d094857d3259173abd384f2967dfc8bdb69f0ff981cc51645",
-    "makeActionCameraView": "1df3508351f04d22890e867e73753bc6c339fb002c1b4e8a8e23dd4b4049ff6e",
-    "makePocketCameraView": "39efb00ad80b1ab851c5fe0e72e3ae9a30da65a4129541b656542648b4bcba82",
     "enterTopView": "f24a401de81787c45ec9797c87c7a865b58eaeafb8dfd649038f40b6f231527b",
     "exitTopView": "83f734f4a90b99b7bb32c37591ea06390070cc353852202aece065397a1b839b"
   },
   "date": "2026-09-11",
   "overrides": {
     "applyCameraBlend": "2026-11-13: preserve requested swipe height when rail safety clamps the source orbit; see royalCameraSwipe.node.mjs",
-    "beginCueView": "2026-11-14: stale AI timers cannot fire after ownership or lifecycle changes; see snookerPlayerShotCamera.node.mjs"
+    "beginCueView": "2026-11-14: stale AI timers cannot fire after ownership or lifecycle changes; see snookerPlayerShotCamera.node.mjs",
+    "updateBroadcastCameras": "2026-11-15: match Pool Royal broadcast behavior; exercised against production Pool callbacks in snookerBroadcastParity.node.mjs",
+    "makeActionCameraView": "2026-11-15: match Pool Royal broadcast behavior; exercised against production Pool callbacks in snookerBroadcastParity.node.mjs",
+    "makePocketCameraView": "2026-11-15: match Pool Royal broadcast behavior; exercised against production Pool callbacks in snookerBroadcastParity.node.mjs"
   }
 }
