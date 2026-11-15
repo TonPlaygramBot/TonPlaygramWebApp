@@ -1,4 +1,5 @@
 import { expect, it, vi } from 'vitest';
+import { SNAKE_FINAL_TILE } from '../../../lib/snakeRules.js';
 import * as THREE from 'three';
 import { createSnakeBoardScene, SNAKE_SCENE_DIMENSIONS as sizes, updateSnakeBoardTokens, resolveSnakeFirearmAnimationId } from './SnakeBoard3D';
 import { createSnakeCameraDirector } from '../utils/snakeCameraDirector';
@@ -36,7 +37,9 @@ it('looks toward the actual board tiles from the same player position', () => {
     expect(center.clone().project(camera).x).toBeCloseTo(0, 5);
     expect(center.clone().project(camera).y).toBeCloseTo(0, 5);
   }
-  expect(board.indexToPosition.size).toBe(50);
+  expect(board.indexToPosition.size).toBe(SNAKE_FINAL_TILE);
+  expect(board.indexToPosition.has(SNAKE_FINAL_TILE)).toBe(true);
+  expect(board.indexToPosition.has(SNAKE_FINAL_TILE + 1)).toBe(false);
 });
 
 it.each([

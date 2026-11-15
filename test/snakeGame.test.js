@@ -334,3 +334,74 @@ test('diceRolled announces the receiver before presentation for normal and bonus
   room.rollDice(sockets[1], [6]); assert.equal(announced(), 'p1');
   room.rollDice(sockets[1], [1]); assert.equal(announced(), 'p0');
 });
+
+
+test('disconnecting the active Snake seat moves the next player, not the absent token', () => {
+  const io = new DummyIO();
+  const room = createRoom('disconnect-owner', io, 3, { snakes: {}, ladders: {} });
+  room.rollCooldown = 0;
+  const sockets = [0, 1, 2].map((index) => ({ id: `disconnect-${index}`, join() {}, emit() {} }));
+  sockets.forEach((socket, index) => room.addPlayer(`p${index}`, `Player ${index}`, socket));
+  room.startGame();
+  room.players.forEach((player, index) => { player.position = 10 + index * 10; player.isActive = true; });
+
+  room.handleDisconnect(sockets[0]);
+  assert.equal(room.currentTurn, 1);
+  assert.equal(room.game.currentTurn, 1);
+  assert.equal(io.emitted.filter(({ event }) => event === 'snakeState').at(-1).data.currentPlayerId, 'p1');
+  room.rollDice(sockets[1], [2]);
+  assert.deepEqual(room.players.map((player) => player.position), [10, 22, 30]);
+  room.rollDice(sockets[2], [2]);
+  assert.equal(room.currentTurn, 1, 'next turn skips the disconnected seat');
+  assert.equal(room.game.currentTurn, 1);
+});
+
+test('Snake resumes when a different seat reconnects after every phone disconnected', () => {
+  const room = createRoom('disconnect-everyone', new DummyIO(), 3, { snakes: {}, ladders: {} });
+  room.rollCooldown = 0;
+  const sockets = [0, 1, 2].map((index) => ({ id: `all-${index}`, join() {}, emit() {} }));
+  sockets.forEach((socket, index) => room.addPlayer(`p${index}`, `Player ${index}`, socket));
+  room.startGame();
+  sockets.forEach((socket) => room.handleDisconnect(socket));
+  assert.equal(room.turnTimer, null);
+
+  const rejoined = { id: 'rejoined-2', join() {}, emit() {} };
+  room.addPlayer('p2', 'Player 2', rejoined);
+  assert.equal(room.currentTurn, 2);
+  assert.equal(room.game.currentTurn, 2);
+  assert.ok(room.turnTimer, 'a fresh turn deadline is scheduled');
+  room.rollDice(rejoined, [6]);
+  assert.equal(room.players[2].position, 1);
+  assert.equal(room.players[0].position, 0);
+});
+
+test('Snake restarts a cancelled opening countdown when the final seat reconnects', async () => {
+  const room = createRoom('rejoin-countdown', new DummyIO(), 2, { snakes: {}, ladders: {} });
+  room.gameStartDelay = 0;
+  const first = { id: 'first', join() {}, emit() {} };
+  const second = { id: 'second', join() {}, emit() {} };
+  room.addPlayer('p1', 'First', first);
+  room.addPlayer('p2', 'Second', second);
+  room.handleDisconnect(second);
+  assert.equal(room.startTimer, null);
+  await delay(0);
+  assert.equal(room.status, 'waiting');
+  room.addPlayer('p2', 'Second', { ...second, id: 'second-rejoined' });
+  await delay(0);
+  assert.equal(room.status, 'playing');
+  assert.ok(room.turnTimer);
+});
+
+test('rejoining a Snake spectator seat preserves the active turn deadline', () => {
+  const room = createRoom('rejoin-deadline', new DummyIO(), 2, { snakes: {}, ladders: {} });
+  const first = { id: 'first', join() {}, emit() {} };
+  const second = { id: 'second', join() {}, emit() {} };
+  room.addPlayer('p1', 'First', first);
+  room.addPlayer('p2', 'Second', second);
+  room.startGame();
+  const deadline = room.turnTimer;
+  room.handleDisconnect(second);
+  room.addPlayer('p2', 'Second', { ...second, id: 'second-rejoined' });
+  assert.equal(room.turnTimer, deadline);
+  assert.equal(room.currentTurn, 0);
+});

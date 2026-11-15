@@ -1,4 +1,6 @@
-export const FINAL_TILE = 50;
+import { resolveSnakeRoll, SNAKE_FINAL_TILE } from '../../lib/snakeRules.js';
+
+export const FINAL_TILE = SNAKE_FINAL_TILE;
 
 export function applySnakesAndLadders(pos, snakes, ladders) {
   if (snakes[pos] != null) return Math.max(0, snakes[pos]);
@@ -27,49 +29,41 @@ export class SnakeGame {
   }
 
   nextPlayerIndex(start) {
-    let idx = start;
-    do {
-      idx = (idx + 1) % this.players.length;
-    } while (this.players[idx].position === FINAL_TILE);
-    return idx;
+    // A disconnected seat must not stall the remaining players. Bound the
+    // search so an empty room (or one with no eligible seats) cannot loop.
+    for (let step = 1; step <= this.players.length; step += 1) {
+      const idx = (start + step) % this.players.length;
+      const player = this.players[idx];
+      if (!player.disconnected && player.position !== FINAL_TILE) return idx;
+    }
+    return start;
   }
 
   rollDice(diceValue) {
     if (this.finished) return null;
     const player = this.players[this.currentTurn];
-    if (!player) return null;
+    if (!player || player.disconnected) return null;
 
     const rand = () => Math.floor(Math.random() * 6) + 1;
     const suppliedDice = Array.isArray(diceValue) ? diceValue : [diceValue];
     const dice = suppliedDice.length > 0 && suppliedDice.map(Number).every(Number.isFinite)
       ? suppliedDice.map((value) => Math.max(1, Math.min(6, Math.floor(value))))
       : [rand()];
-    const diceTotal = dice.reduce((sum, value) => sum + value, 0);
-
-    let target = player.position;
-    let extraTurn = false;
-
-    if (player.position === 0) {
-      if (dice.includes(6)) {
-        player.isActive = true;
-        target = 1;
-      }
-    } else if (player.position < FINAL_TILE) {
-      if (player.position + diceTotal <= FINAL_TILE) {
-        target = player.position + diceTotal;
-      }
-    }
+    const resolution = resolveSnakeRoll(player.position, dice, FINAL_TILE);
+    const target = resolution.landing;
+    let extraTurn = resolution.extraTurn;
+    if (player.position === 0 && resolution.moved) player.isActive = true;
 
     const path = [];
     for (let i = player.position + 1; i <= target; i++) path.push(i);
 
     player.position = target;
-    const final = applySnakesAndLadders(target, this.snakes, this.ladders);
+    const final = resolution.moved ? applySnakesAndLadders(target, this.snakes, this.ladders) : target;
     if (final !== target) path.push(final);
     player.position = final;
 
     for (const p of this.players) {
-      if (p !== player && p.position === player.position && p.position > 0) {
+      if (resolution.moved && p !== player && p.position === player.position && p.position > 0) {
         p.position = 0;
         p.isActive = false;
       }
@@ -77,13 +71,11 @@ export class SnakeGame {
 
     let bonus = null;
     let bonusCell = null;
-    if (this.diceCells[player.position]) {
+    if (resolution.moved && this.diceCells[player.position]) {
       bonus = this.diceCells[player.position];
       bonusCell = player.position;
       player.bonus = bonus;
       delete this.diceCells[player.position];
-      extraTurn = true;
-    } else if (dice.length >= 1 && dice.every((value) => value === 6)) {
       extraTurn = true;
     }
 
