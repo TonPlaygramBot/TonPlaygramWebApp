@@ -6,6 +6,7 @@ import { SocialShell } from './SocialApp';
 globalThis.IS_REACT_ACT_ENVIRONMENT = true;
 vi.mock('@tonconnect/ui-react', () => ({ TonConnectUIProvider: ({ children }: any) => children }));
 vi.mock('../hooks/useTelegramAuth.js', () => ({ default: () => {} }));
+vi.mock('../components/SocialCallController.jsx', () => ({ default: () => null }));
 vi.mock('../pages/Social.jsx', () => ({ default: () => <p>Shared chats and friends</p> }));
 let root: Root, container: HTMLDivElement;
 beforeEach(() => { container = document.createElement('div'); document.body.append(container); root = createRoot(container); });

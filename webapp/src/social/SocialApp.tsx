@@ -6,6 +6,7 @@ import BackNavigationProvider from '../components/BackNavigationProvider.jsx';
 import useTelegramAuth from '../hooks/useTelegramAuth.js';
 import { SOCIAL_APP_BASE } from '../../../shared/socialApp.js';
 import SocialInstallPage from './SocialInstallPage';
+import SocialCallController from '../components/SocialCallController.jsx';
 import './social-app.css';
 
 const Messages = lazy(() => import('../pages/Social.jsx'));
@@ -20,6 +21,7 @@ export function SocialShell() {
     return () => { window.removeEventListener('online', refresh); window.removeEventListener('offline', refresh); };
   }, []);
   return <div className="social-app-shell">
+    <SocialCallController />
     <header className="social-app-header">
       <Link to="/hub" className="social-brand" aria-label="TonPlayGram Social hub"><img src="/social-app/icon.svg" alt="" /><span><small>TONPLAYGRAM</small><strong>Social</strong></span></Link>
       <div><Link to="/install" aria-label="Install TonPlayGram Social"><Download size={19} /><span>Get app</span></Link><a href="/" aria-label="Open main TonPlayGram app"><ArrowUpRight size={21} /></a></div>

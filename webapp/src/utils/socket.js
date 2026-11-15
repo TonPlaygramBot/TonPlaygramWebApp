@@ -1,5 +1,6 @@
 import { io } from 'socket.io-client';
 import { API_BASE_URL } from './api.js';
+import { loadGoogleCredential } from './google.js';
 
 function normalizePath(path) {
   if (!path) return '/socket.io';
@@ -67,10 +68,12 @@ function buildSocketAuthPayload() {
   const initData = getTelegramInitData();
   const accountId = getStoredAccountId();
   const googleId = getStoredGoogleId();
+  const googleIdToken = loadGoogleCredential();
   return {
     ...(initData ? { initData } : {}),
     ...(accountId ? { accountId } : {}),
-    ...(googleId ? { googleId } : {})
+    ...(googleId ? { googleId } : {}),
+    ...(googleIdToken ? { googleIdToken } : {})
   };
 }
 
@@ -84,6 +87,7 @@ function isSameIdentity(currentAuth, nextAuth) {
   return (
     currentAccountId === nextAccountId &&
     currentGoogleId === nextGoogleId &&
+    String(currentAuth?.googleIdToken || '') === String(nextAuth?.googleIdToken || '') &&
     currentInit === nextInit
   );
 }
@@ -154,4 +158,13 @@ export function refreshSocketAuthIdentity(patch = {}, { reconnect = false } = {}
     }
   }
   return nextAuth;
+}
+
+// Reauthenticate only the social channel without disconnecting active games.
+if (typeof window !== 'undefined') {
+  window.addEventListener('social-auth-changed', () => {
+    const auth = refreshSocketAuthIdentity();
+    if (socket.connected) socket.emit('social:authenticate', auth);
+    else socket.connect();
+  });
 }

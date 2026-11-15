@@ -9,6 +9,7 @@ import { chatBeep as inviteBeep } from '../assets/coreSoundData.js';
 import usePwaInstallPrompt from '../hooks/usePwaInstallPrompt.js';
 import InvitePopup from './InvitePopup.jsx';
 import FriendCallOverlay from './FriendCallOverlay.jsx';
+import { recordLocalCall, updateLocalCall } from '../utils/socialHubState.js';
 
 import Navbar from './Navbar.jsx';
 
@@ -63,6 +64,8 @@ export default function Layout({ children }) {
   const [messageNotice, setMessageNotice] = useState('');
   const inviteSoundRef = useRef(null);
   const callRingTimerRef = useRef(null);
+  const incomingCallRef = useRef(null);
+  incomingCallRef.current = incomingCall;
   const {
     canInstall,
     canShowTelegramInstall,
@@ -145,12 +148,12 @@ export default function Layout({ children }) {
     const identity = getTelegramId() || getPlayerId();
     if (identity) socket.emit('register', { playerId: identity, tpcAccountNumber: identity });
     const onMessage = (message = {}) => {
-      if (location.pathname === '/messages') return;
+      if (['/messages', '/social'].includes(location.pathname)) return;
       setMessageNotice('You received a new message');
       if (inviteSoundRef.current && !isGameMuted()) inviteSoundRef.current.play().catch(() => {});
       if (typeof Notification !== 'undefined' && Notification.permission === 'granted') {
         const notification = new Notification('New message', {
-          body: String(message.text || 'Open TonPlaygram to read it.').slice(0, 120),
+          body: 'Open TonPlaygram to read your message.',
           icon: '/assets/icons/profile.svg',
           tag: `message-${message._id || Date.now()}`
         });
@@ -188,6 +191,8 @@ export default function Layout({ children }) {
       callRingTimerRef.current = window.setInterval(ring, 3000);
     };
     const onIncomingCall = (call) => {
+      incomingCallRef.current = call;
+      recordLocalCall(getPlayerId(), call, { direction: 'incoming', status: 'ringing' });
       setIncomingCall(call);
       setCallNotice(`${call?.fromName || 'Someone'} is calling you now`);
       startRinging();
@@ -206,14 +211,18 @@ export default function Layout({ children }) {
       }
     };
     const onStartCall = (event) => {
+      recordLocalCall(getPlayerId(), event.detail, { direction: 'outgoing', status: 'ringing' });
       setActiveCall(event.detail);
       setCallNotice(`${event.detail?.name || 'Friend'} is ringing…`);
     };
     const onAccepted = ({ roomId } = {}) => {
+      updateLocalCall(getPlayerId(), roomId, 'connected');
       stopRinging();
       if (!roomId || activeCall?.roomId === roomId) setCallNotice('Call connected');
     };
     const onEnded = ({ roomId, reason } = {}) => {
+      if (incomingCallRef.current?.roomId === roomId) incomingCallRef.current = null;
+      updateLocalCall(getPlayerId(), roomId, reason || 'ended');
       stopRinging();
       if (!roomId || activeCall?.roomId === roomId) {
         setActiveCall(null);
@@ -221,13 +230,29 @@ export default function Layout({ children }) {
       }
       setIncomingCall((current) => (current?.roomId === roomId ? null : current));
     };
+    const onSocialUnavailable = () => {
+      stopRinging();
+      incomingCallRef.current = null;
+      setIncomingCall(null);
+      setActiveCall(null);
+    };
+    socket.on('social:authentication-required', onSocialUnavailable);
+    socket.on('disconnect', onSocialUnavailable);
     socket.on('friendCall:incoming', onIncomingCall);
-    const onIncomingCallPush = (event) => onIncomingCall(event.detail || {});
+    const onIncomingCallPush = (event) => {
+      const roomId = event.detail?.roomId;
+      if (!roomId) return;
+      socket.timeout(10000).emit('friendCall:details', { roomId }, (error, response) => {
+        if (!error && response?.success && response.call) onIncomingCall(response.call);
+      });
+    };
     window.addEventListener('friend-call:incoming-push', onIncomingCallPush);
     socket.on('friendCall:accepted', onAccepted);
     socket.on('friendCall:ended', onEnded);
     window.addEventListener('friend-call:start', onStartCall);
     return () => {
+      socket.off('social:authentication-required', onSocialUnavailable);
+      socket.off('disconnect', onSocialUnavailable);
       socket.off('friendCall:incoming', onIncomingCall);
       window.removeEventListener('friend-call:incoming-push', onIncomingCallPush);
       socket.off('friendCall:accepted', onAccepted);
@@ -236,6 +261,25 @@ export default function Layout({ children }) {
       stopRinging();
     };
   }, [activeCall?.roomId]);
+
+  function answerCall() {
+    const call = incomingCall;
+    if (!call) return;
+    socket.timeout(10000).emit('friendCall:accept', call, (error, response) => {
+      if (incomingCallRef.current?.roomId !== call.roomId) return;
+      window.clearInterval(callRingTimerRef.current);
+      inviteSoundRef.current?.pause();
+      navigator.vibrate?.(0);
+      if (error || !response?.success) {
+        setCallNotice(response?.error || 'This call is no longer available.');
+        setIncomingCall(null);
+        return;
+      }
+      updateLocalCall(getPlayerId(), call.roomId, 'connected');
+      setActiveCall({ ...call, name: call.fromName, photo: call.fromPhoto });
+      setIncomingCall(null);
+    });
+  }
 
   useEffect(() => {
     if (!callNotice || activeCall || incomingCall) return undefined;
@@ -502,13 +546,13 @@ export default function Layout({ children }) {
             <h2 className="mt-3 text-xl font-bold">{incomingCall.fromName || 'Friend'}</h2>
             <p className="mt-1 text-sm text-white/65">Real-time Messenger call invitation</p>
             <div className="mt-6 flex justify-center gap-4">
-              <button onClick={() => { window.clearInterval(callRingTimerRef.current); inviteSoundRef.current?.pause(); navigator.vibrate?.(0); socket.emit('friendCall:reject', incomingCall); setIncomingCall(null); }} className="rounded-full bg-red-600 px-6 py-3 font-semibold">Decline</button>
-              <button onClick={() => { window.clearInterval(callRingTimerRef.current); inviteSoundRef.current?.pause(); navigator.vibrate?.(0); socket.emit('friendCall:accept', incomingCall); setActiveCall({ ...incomingCall, name: incomingCall.fromName }); setIncomingCall(null); }} className="rounded-full bg-emerald-600 px-6 py-3 font-semibold">Accept</button>
+              <button onClick={() => { window.clearInterval(callRingTimerRef.current); inviteSoundRef.current?.pause(); navigator.vibrate?.(0); updateLocalCall(getPlayerId(), incomingCall.roomId, 'declined'); socket.emit('friendCall:reject', incomingCall); setIncomingCall(null); }} className="rounded-full bg-red-600 px-6 py-3 font-semibold">Decline</button>
+              <button onClick={answerCall} className="rounded-full bg-emerald-600 px-6 py-3 font-semibold">Accept</button>
             </div>
           </div>
         </div>
       )}
-      <FriendCallOverlay call={activeCall} displayName="TonPlaygram player" onEnd={() => { socket.emit('friendCall:end', activeCall); setActiveCall(null); }} />
+      <FriendCallOverlay call={activeCall} displayName="TonPlaygram player" onEnd={() => { updateLocalCall(getPlayerId(), activeCall.roomId, 'ended'); socket.emit('friendCall:end', activeCall); setActiveCall(null); }} />
 
       <PwaInstallBanner
         mode={showPwaBanner ? mode : 'none'}
