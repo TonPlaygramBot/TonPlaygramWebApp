@@ -145,6 +145,22 @@ const uniqueStoreItemsByName = (items) => {
   });
 };
 
+// Final TPG prices calculated by the June 12, 2026 store (aec6ccb90).
+// Keep these independent of subsequent changes to the global catalog range.
+const LUDO_TOKEN_TPG_PRICES = Object.freeze({
+  frostbite: 362.14,
+  midnightPulse: 382.30,
+  radiantCandy: 402.47,
+  steelPulse: 422.63,
+  sunsetArena: 442.80,
+  towerRooks: 553.70,
+  pieceRook: 402.47,
+  pieceKnight: 422.63,
+  pieceBishop: 442.80,
+  pieceQueen: 462.96,
+  pieceKing: 483.13
+});
+
 export const LUDO_BATTLE_STORE_ITEMS = uniqueStoreItemsByName([
   ...MURLAN_TABLE_FINISHES.map((finish, idx) => ({
     id: `ludo-table-finish-${finish.id}`,
@@ -201,6 +217,7 @@ export const LUDO_BATTLE_STORE_ITEMS = uniqueStoreItemsByName([
     optionId: option.id,
     name: `${option.label} Palette`,
     price: 260 + idx * 20,
+    fixedPrice: LUDO_TOKEN_TPG_PRICES[option.id],
     description: 'Alternate pawn color palette for every side.',
     thumbnail: swatchThumbnail(option.swatches.map((value) => `#${value.toString(16).padStart(6, '0')}`))
   })),
@@ -210,6 +227,7 @@ export const LUDO_BATTLE_STORE_ITEMS = uniqueStoreItemsByName([
     optionId: option.id,
     name: option.label,
     price: 450,
+    fixedPrice: LUDO_TOKEN_TPG_PRICES[option.id],
     description: 'Swap the token mesh set for a new silhouette.',
     thumbnail: swatchThumbnail(['#f8fafc', '#1f2937', '#94a3b8'])
   })),
@@ -219,6 +237,7 @@ export const LUDO_BATTLE_STORE_ITEMS = uniqueStoreItemsByName([
     optionId: option.id,
     name: option.label,
     price: 300 + idx * 20,
+    fixedPrice: LUDO_TOKEN_TPG_PRICES[option.id],
     description: 'Unlock an alternate piece identity for your pawns.',
     thumbnail: swatchThumbnail(['#f8fafc', '#0f172a', '#fbbf24'])
   })),

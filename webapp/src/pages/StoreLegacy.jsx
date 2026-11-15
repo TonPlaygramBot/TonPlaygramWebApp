@@ -1849,7 +1849,7 @@ export default function Store() {
 
   const decorateMarketplaceItem = (item, options = {}) => {
     const resolvedPrice = options.scalePrice
-      ? normalizeTonPrice(item.price)
+      ? (item.fixedPrice ?? normalizeTonPrice(item.price))
       : clampTonPrice(item.price);
     const swatches = resolveSwatches(item.type, item.optionId, item.swatches);
     const previewShape = resolvePreviewShape(
