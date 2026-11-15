@@ -3,6 +3,7 @@ import { buildingClearance, waterClearance, courseClearance, courseRoadSurface, 
 import {widenPassingSections} from './passingClearance.mjs';
 import {RACING_CLEARANCE_VERSION} from './racingDimensions.mjs';
 import {circuitSides} from './trackEdges.mjs';
+import {placeRaceStartGrid} from './raceStartGrid.mjs';
 import { WORLD } from './racingWorld.mjs';
 /** Pre-authored source-backed routes. Browser and server use identical geometry. */
 export function buildRaceCatalog(legacy,routes,districtRoutes=[],ruralRoutes=[]){
@@ -20,12 +21,12 @@ export function buildRaceCatalog(legacy,routes,districtRoutes=[],ruralRoutes=[])
   const route=districtRoutes.find(r=>r.id===old.id)||routes.find(r=>r.id===old.id);
   if(!route)throw Error('Missing Tirana city circuit: '+old.id);
   const widths=widthsFor(route);
-  return {...old,...route,widths,width:Math.max(...widths),roadFeelVersion:1,mapVersion:route.routeClass==='main-roads'?'tirana-main-roads-v3':'tirana-district-racing-v2'};
+  return {...old,...route,widths,width:Math.max(...widths),roadFeelVersion:1,mapVersion:route.routeClass==='main-roads'?'tirana-main-roads-v4':'tirana-district-racing-v2'};
  });
  const grand=districtRoutes.find(r=>r.id==='lana-pyramid-grand')||combineMappedLoops(routes.find(r=>r.id==='lana'),routes.find(r=>r.id==='pyramid'));
  if(grand)tracks.push({...legacy.TRACKS.find(t=>t.id==='lana'),...grand,
   widths:widthsFor(grand),
-  width:10,roadFeelVersion:1,mapVersion:'tirana-district-racing-v2',name:'Lana–Pyramid · Classic Grand'});
+  width:10,roadFeelVersion:1,mapVersion:grand.routeClass==='main-roads'?'tirana-main-roads-v4':'tirana-district-racing-v2',name:'Lana–Pyramid · Boulevard Grand'});
  tracks.push(...ruralRoutes);
  return {tracks,cups:[...legacy.CUPS,...tracks.filter(t=>t.id.endsWith('-grand')).map(t=>({name:t.name+' Cup',track:t.id,difficulty:'street',target:2,reward:500}))],diagnostics,
   makeTrack(id='skanderbeg'){
@@ -73,9 +74,11 @@ export function buildRaceCatalog(legacy,routes,districtRoutes=[],ruralRoutes=[])
     if(!narrow.size)break;
     for(const i of narrow)samples.points[i].width=Math.min(samples.points[i].width,Math.max(2.1,samples.points[i].width*.9));
    }
+   const start=config.routeClass==='main-roads'?placeRaceStartGrid(samples.points):null;
+   if(start)samples.points=start.points;
    const xs=samples.points.map(p=>p.x),zs=samples.points.map(p=>p.z);
    const bounds=[Math.min(...xs),Math.min(...zs),Math.max(...xs),Math.max(...zs)];
-   const track={...config,...samples,width:Math.max(...samples.points.map(p=>p.width)),turns:course.turns,bounds,center:{x:(bounds[0]+bounds[2])/2,z:(bounds[1]+bounds[3])/2},x:(bounds[2]-bounds[0])/2,z:(bounds[3]-bounds[1])/2,bend:0};
+   const track={...config,...samples,...(start?{startGrid:start.startGrid}:{}),width:Math.max(...samples.points.map(p=>p.width)),turns:course.turns,bounds,center:{x:(bounds[0]+bounds[2])/2,z:(bounds[1]+bounds[3])/2},x:(bounds[2]-bounds[0])/2,z:(bounds[3]-bounds[1])/2,bend:0};
    // Event-only shoulder widening: city coordinates/buildings stay untouched.
    // Insufficient building or shoreline clearance is reported, never bulldozed.
    track.passingAudit=config.routeClass==='main-roads'?{
@@ -85,7 +88,7 @@ export function buildRaceCatalog(legacy,routes,districtRoutes=[],ruralRoutes=[])
     clearance:(x,z)=>Math.min(buildingClearance(x,z)-1.8,waterClearance(x,z)-.5),
     sides:points=>circuitSides(points,track.width/2)
    });
-   track.mapVersion=config.routeClass==='main-roads'?'tirana-main-roads-v3':RACING_CLEARANCE_VERSION;
+   track.mapVersion=config.routeClass==='main-roads'?'tirana-main-roads-v4':RACING_CLEARANCE_VERSION;
    if(track.passingAudit.unresolved.length)diagnostics.push({id,kind:'passing-clearance',...track.passingAudit});
    cache.set(id,track);return track;
   }};

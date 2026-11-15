@@ -9,7 +9,7 @@ vi.mock('./simulation.mjs',async importOriginal=>{
 vi.mock('./renderer',()=>({KartRenderer:class{
  constructor(_host,onFrame,onFinish){harness.game=this;this.input={};this.combatInput={reload:false};this.onFrame=onFrame;this.onFinish=onFinish;}
  load=vi.fn(async()=>{});setColor=vi.fn();setKart=vi.fn();setQuality=vi.fn();setCameraMode=vi.fn();
- startLocal=vi.fn();startCombatRace=vi.fn();queueCombatReload=vi.fn();pause=vi.fn();clearInput=vi.fn(()=>{this.input={};this.combatInput={reload:false};});destroy=vi.fn();
+ startLocal=vi.fn();startCombatRace=vi.fn();queueCombatReload=vi.fn();queueCombatPulse=vi.fn();pause=vi.fn();clearInput=vi.fn(()=>{this.input={};this.combatInput={reload:false};});destroy=vi.fn();
 }}));
 vi.mock('./audio',()=>({KartAudio:class{unlock(){}update(){}silence(){}beep(){}destroy(){}setMuted(){}}}));
 import BaseKartRoyale from './BaseKartRoyale';
@@ -65,6 +65,8 @@ it('starts local combat, supports simultaneous controls, and awards no normal ca
   expect(harness.game.startLocal).not.toHaveBeenCalled();
   await act(async()=>{window.dispatchEvent(new KeyboardEvent('keydown',{key:'w',bubbles:true}));window.dispatchEvent(new KeyboardEvent('keydown',{key:'f',bubbles:true}));window.dispatchEvent(new KeyboardEvent('keydown',{key:'r',bubbles:true}));});
   expect(harness.game.input.throttle).toBe(true);expect(harness.game.input.fire).toBe(true);expect(harness.game.combatInput.reload).toBe(true);expect(harness.game.queueCombatReload).toHaveBeenCalledOnce();expect(harness.game.input.reverse).toBe(false);
+  await act(async()=>{window.dispatchEvent(new KeyboardEvent('keydown',{key:'e',bubbles:true}));window.dispatchEvent(new KeyboardEvent('keydown',{key:'e',repeat:true,bubbles:true}));});
+  expect(harness.game.queueCombatPulse).toHaveBeenCalledOnce();
   await act(async()=>window.dispatchEvent(new KeyboardEvent('keyup',{key:'f',bubbles:true})));
   expect(harness.game.input.throttle).toBe(true);expect(harness.game.input.fire).toBe(false);
   await act(async()=>window.dispatchEvent(new Event('blur')));

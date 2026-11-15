@@ -4,7 +4,11 @@ import {writeFile} from 'node:fs/promises';
 import {WORLD} from '../webapp/src/games/kartroyale/racingWorld.mjs';
 import {buildingClearance} from '../webapp/src/games/kartroyale/raceCourse.mjs';
 import {roadGraph,routeLength} from '../webapp/src/games/kartroyale/grandRouteCore.mjs';
+import {buildRaceCatalog} from '../webapp/src/games/kartroyale/raceCatalog.mjs';
+import {tyreBarrierLayout} from '../webapp/src/games/kartroyale/tyreBarrierCore.mjs';
+import {MAIN_ROAD_ROUTES} from '../webapp/src/games/kartroyale/main-road-routes.mjs';
 import {DISTRICT_ROUTES} from '../webapp/src/games/kartroyale/district-routes.mjs';
+import {parallelRoadOverlap} from '../webapp/src/games/kartroyale/raceRouteAudit.mjs';
 
 const distance=(a,b)=>Math.hypot(a[0]-b[0],a[1]-b[1]);
 const districts=[
@@ -19,8 +23,9 @@ function path(graph,a,b,blocked){
   while(heap.length){const [d,u]=pop(heap);if(d!==cost.get(u))continue;
     if(u===b){const out=[b];while(out.at(-1)!==a)out.push(previous.get(out.at(-1)));return out.reverse();}
     for(const [v,e] of graph.edges.get(u)||[]){if(blocked.has(v)&&v!==b)continue;
-      // Prefer boulevards, but preserve real two-lane connectors at junctions.
-      const next=d+e.cost*(e.width>=9?1:1.18);
+      // Strongly prefer broad boulevards; use narrow connectors only where
+      // the checked-in street graph cannot form a neighborhood loop without them.
+      const next=d+e.cost*(e.width>=9?1:4.5);
       if(next<(cost.get(v)??Infinity)){cost.set(v,next);previous.set(v,u);push(heap,[next,v]);}
     }
   }return null;
@@ -35,11 +40,33 @@ const clear=main.filter(r=>{
 const graph=roadGraph(clear),junctions=[...graph.nodes].filter(([id])=>graph.edges.get(id).size>=3);
 const nearest=p=>junctions.reduce((a,b)=>distance(a[1],p)<distance(b[1],p)?a:b)[0];
 const routes=[],signatures=new Set();
-for(const [id,center,target] of districts){
+const district=process.argv[2];
+if(district&&!districts.some(([id])=>id===district))throw Error('Unknown race district');
+for(const [id,center,target] of districts.filter(([id])=>!district||id===district)){
+  // When authoring a single district, preserve the other event signatures.
+  if(district)for(const route of (await import('../webapp/src/games/kartroyale/main-road-routes.mjs')).MAIN_ROAD_ROUTES)if(route.id!==district)signatures.add(route.points.map(p=>p.join(',')).sort().join('|'));
   let best;
-  const starts=junctions.filter(([,p])=>distance(p,center)<550).sort((a,b)=>distance(a[1],center)-distance(b[1],center)).slice(0,10);
-  for(const [start] of starts)for(const radius of [250,400,550,700,900])for(let i=0;i<16;i++){
-    const angle=i*Math.PI/8,a=nearest([center[0]+Math.cos(angle)*radius,center[1]+Math.sin(angle)*radius]);
+  // Preserve a shipped event when the source graph cannot offer a better
+  // separated boulevard loop. Certify its actual asphalt and barriers first.
+  const preserved=MAIN_ROAD_ROUTES.find(route=>route.id===id);
+  if(preserved){
+    const ids=preserved.points.map(p=>p.join(','));
+    const edges=ids.map((key,i)=>graph.edges.get(key)?.get(ids[(i+1)%ids.length]));
+    if(edges.every(Boolean)){
+      const length=routeLength(preserved.points),near=Math.min(...preserved.points.map(p=>distance(p,center)));
+      const broadShare=edges.reduce((sum,e)=>sum+(e.width>=9?e.cost:0),0)/length;
+      const routeStats={minimumSourceWidth:Math.min(...edges.map(e=>e.width)),broadRoadShare:Number(broadShare.toFixed(4)),averageSourceWidth:Number((edges.reduce((sum,e)=>sum+e.width*e.cost,0)/length).toFixed(2))};
+      const score=Math.abs(length-target)*.35+near*.4+(1-broadShare)*6000;
+      const candidate={...preserved,length,routeStats};
+      const catalog=buildRaceCatalog({TRACKS:[candidate],CUPS:[],normalizeTrack:id=>id},[],[candidate]);
+      const track=catalog.makeTrack(id),layout=tyreBarrierLayout(track,buildingClearance);
+      if(broadShare>=.75&&near<=240&&!track.passingAudit.unresolved.length&&layout.positions.length>track.length*1.3)
+        best={...candidate,score,signature:[...ids].sort().join('|')};
+    }
+  }
+  const starts=junctions.filter(([,p])=>distance(p,center)<750).sort((a,b)=>distance(a[1],center)-distance(b[1],center)).slice(0,30);
+  for(const [start] of starts)for(const radius of [250,400,550,700,900,1100,1300])for(let i=0;i<24;i++){
+    const angle=i*Math.PI/12,a=nearest([center[0]+Math.cos(angle)*radius,center[1]+Math.sin(angle)*radius]);
     const b=nearest([center[0]+Math.cos(angle+2.2)*radius,center[1]+Math.sin(angle+2.2)*radius]);
     if(new Set([start,a,b]).size!==3)continue;
     const first=path(graph,start,a,new Set([b]));if(!first)continue;
@@ -53,15 +80,23 @@ for(const [id,center,target] of districts){
     const near=Math.min(...points.map(p=>distance(p,center)));if(near>240)continue;
     const edges=ids.map((key,i)=>graph.edges.get(key).get(ids[(i+1)%ids.length]));
     const mainLength=edges.reduce((sum,e)=>sum+(e.width>=9?e.cost:0),0);
-    const score=Math.abs(length-target)+near*.6+(1-mainLength/length)*200;
-    if(!best||score<best.score)best={id,points,streets:[...new Set(edges.map(e=>e.name).filter(Boolean))].sort(),length,originalLength:DISTRICT_ROUTES.find(r=>r.id===id).length,score,signature};
+    const broadShare=mainLength/length;
+    if(broadShare<.75)continue;
+    const score=Math.abs(length-target)*.35+near*.4+(1-broadShare)*6000;
+    const routeStats={minimumSourceWidth:Math.min(...edges.map(e=>e.width)),broadRoadShare:Number(broadShare.toFixed(4)),averageSourceWidth:Number((edges.reduce((sum,e)=>sum+e.width*e.cost,0)/length).toFixed(2))};
+    // Paired carriageways must not merge into a single race ribbon.
+    // Keep room for the independent tyre walls on either side of every lap.
+    if((!best||score<best.score)&&parallelRoadOverlap(points,edges.map(e=>e.width))<.18)best={id,points,streets:[...new Set(edges.map(e=>e.name).filter(Boolean))].sort(),length,originalLength:DISTRICT_ROUTES.find(r=>r.id===id).length,routeStats,score,signature};
   }
   if(!best)throw Error('No continuous main-road circuit for '+id);
   signatures.add(best.signature);delete best.score;delete best.signature;
   routes.push({...best,routeClass:'main-roads'});
-  console.log(id,Math.round(best.length)+' m',best.points.length+' source nodes');
+  console.log(id,Math.round(best.length)+' m',best.points.length+' source nodes',Math.round(best.routeStats.broadRoadShare*100)+'% broad roads');
 }
-await writeFile(new URL('../webapp/src/games/kartroyale/main-road-routes.mjs',import.meta.url),
+if(district){
+  if(!process.argv[3])throw Error('A single-district run requires an output JSON path');
+  await writeFile(process.argv[3],JSON.stringify(routes[0]));
+}else await writeFile(new URL('../webapp/src/games/kartroyale/main-road-routes.mjs',import.meta.url),
   '// Main-road closed events, generated by scripts/build-racing-main-roads.mjs.\n'+
   '// Exact connected OSM road edges, source width >= 6.2 m. © OpenStreetMap contributors, ODbL 1.0.\n'+
   'export const MAIN_ROAD_ROUTES = '+JSON.stringify(routes)+';\n');

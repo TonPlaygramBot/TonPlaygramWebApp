@@ -61,12 +61,15 @@ it('runs combat only in its local session and pauses both projectiles and held c
  Object.assign(game.input,{fire:true,throttle:true});advance(.3);
  expect(game.combat.player.ammo).toBeLessThan(ammo);
  expect(game.time).toBeGreaterThan(0);
+ game.queueCombatPulse();advance(.05);expect(game.combat.player.pulseCooldown).toBeGreaterThan(21);
+ game.combat.player.pulseCooldown=0;game.queueCombatPulse();
  game.combatInput.reload=true;game.actionInput.fire=true;game.pause(true);
  const time=game.time,combatTime=game.combat.elapsed,shots=JSON.stringify(game.combat.projectiles);
  advance(.3);
  expect(game.time).toBe(time);expect(game.combat.elapsed).toBe(combatTime);expect(JSON.stringify(game.combat.projectiles)).toBe(shots);
  expect(game.input.fire).toBe(false);expect(game.input.throttle).toBe(false);
- expect(game.combatInput.reload).toBe(false);expect(game.actionInput.fire).toBe(false);
+ expect(game.combatInput.reload).toBe(false);expect(game.actionInput.fire).toBe(false);expect(game.combatEmpPulse).toBe(false);
+ game.pause(false);advance(.05);expect(game.combat.player.pulseCooldown).toBe(0);
  game.startLocal('skanderbeg','rookie');
  expect(game.combat).toBeNull();expect(game.actionCareer).toBeNull();expect(dispose).toHaveBeenCalledOnce();
  expect(effects.group.parent).toBeNull();

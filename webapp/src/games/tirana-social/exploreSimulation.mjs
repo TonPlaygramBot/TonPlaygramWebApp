@@ -1,4 +1,5 @@
 import * as city from '../tiranastreets/shared/engine.mjs';
+import {exploreSnapshot} from './exploreSnapshot.mjs';
 import {collideDetailPosts} from '../tirana-street-detail/sharedRoadDetails.mjs';
 function peaceful(s) {
   s.units=[];s.effects=[];
@@ -8,6 +9,7 @@ function peaceful(s) {
 }
 /** Same mapped roads, driving and fixed timestep, with all combat/economy removed. */
 export const exploreSimulation={...city,
+  publicState:exploreSnapshot,
   createState(members){const s=city.createState(members,'free-roam','explore');peaceful(s);return s;},
   advanceState(s,seconds){
     for(let left=Math.max(0,Math.min(.2,seconds));left>0;){const dt=Math.min(1/60,left);peaceful(s);city.stepState(s,dt);peaceful(s);

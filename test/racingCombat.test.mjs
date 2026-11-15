@@ -113,3 +113,42 @@ test('pause is a strict no-op and effect buffers remain bounded during sustained
     assert.ok(f.combat.projectiles.length<=COMBAT_RULES.maxProjectiles);assert.ok(f.combat.bursts.length<=COMBAT_RULES.maxBursts);
   }
 });
+
+test('EMP spends one charge, disrupts nearby rivals and cannot penetrate blocks or reach distant karts',()=>{
+  const f=setup();
+  const blocked={...f.rival,id:'blocked',x:15,z:10},distant={...f.rival,id:'distant',x:0,z:35};
+  f.racers.push(blocked,distant);f.combat=createRaceCombat(f.t,f.racers);
+  for(const w of Object.values(f.combat.weapons))w.aiCooldown=999;
+  f.combat.weapons.rival.shieldActive=true;
+  stepRaceCombat(f.combat,f.racers,f.t,{pulse:true},1/60);
+  assert.equal(f.combat.player.pulseCooldown,COMBAT_RULES.pulseRecharge);
+  assert.equal(f.rival.health,92);assert.equal(f.combat.weapons.rival.disrupted,COMBAT_RULES.pulseDisrupt);
+  assert.equal(f.combat.weapons.rival.shieldActive,false);
+  assert.equal(blocked.health,100);assert.equal(distant.health,100);
+  assert.equal(f.combat.player.score,10);
+  stepRaceCombat(f.combat,f.racers,f.t,{pulse:true},1/60);
+  assert.equal(f.rival.health,92,'holding or duplicate events cannot spend a charge twice');
+  assert.equal(f.combat.bursts.filter(b=>b.kind==='pulse').length,1);
+  run(f,2.3);assert.equal(f.combat.weapons.rival.disrupted,0);
+});
+
+test('disrupted weapons cannot fire or shield and pause freezes recharge',()=>{
+  const f=setup();f.combat.player.disrupted=1;f.combat.player.pulseCooldown=12;
+  stepRaceCombat(f.combat,f.racers,f.t,{fire:true,shield:true,pulse:true},.1);
+  assert.equal(f.combat.player.ammo,12);assert.equal(f.combat.player.shieldActive,false);
+  assert.equal(f.combat.projectiles.length,0);assert.equal(f.combat.player.pulseCooldown,11.9);
+  const before=JSON.stringify(f.combat);stepRaceCombat(f.combat,f.racers,f.t,{pulse:true},0);
+  assert.equal(JSON.stringify(f.combat),before);
+  run(f,1);stepRaceCombat(f.combat,f.racers,f.t,{fire:true,shield:true},1/60);
+  assert.equal(f.combat.player.ammo,11);assert.equal(f.combat.player.shieldActive,true);
+});
+
+test('purple charge supplies shorten recharge once, respect caps and award local supply score',()=>{
+  const f=setup();f.combat.pickups=[{id:0,kind:'charge',x:0,z:10,cooldown:0}];
+  stepRaceCombat(f.combat,f.racers,f.t,{},.1);
+  assert.equal(f.combat.pickups[0].cooldown,0,'ready charge must not waste a pickup');
+  f.combat.player.pulseCooldown=3;
+  stepRaceCombat(f.combat,f.racers,f.t,{},.1);
+  assert.equal(f.combat.player.pulseCooldown,0);assert.equal(f.combat.player.supplies,1);assert.equal(f.combat.player.score,5);
+  stepRaceCombat(f.combat,f.racers,f.t,{},.1);assert.equal(f.combat.player.score,5);
+});

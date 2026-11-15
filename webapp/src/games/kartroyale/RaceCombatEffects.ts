@@ -14,11 +14,12 @@ export class RaceCombatEffects {
   private rings = this.batch(new T.RingGeometry(.74,1,24),COMBAT_RULES.maxPickups+12,true);
   private warnings = this.batch(new T.PlaneGeometry(1,1),12,true);
   private shields = this.batch(new T.SphereGeometry(1,12,8),12,true);
+  private pulses = this.batch(new T.RingGeometry(.94,1,48),COMBAT_RULES.maxBursts,true);
   private fragments = this.batch(new T.IcosahedronGeometry(1,0),COMBAT_RULES.maxBursts*10,true);
 
   constructor(){
     this.group.name='Local combat · projectiles, warnings and supplies';
-    this.group.add(this.shots,this.pickups,this.rings,this.warnings,this.shields,this.fragments);
+    this.group.add(this.shots,this.pickups,this.rings,this.warnings,this.shields,this.pulses,this.fragments);
     (this.shields.material as T.MeshBasicMaterial).opacity=.18;
     (this.shields.material as T.MeshBasicMaterial).wireframe=true;
     (this.warnings.material as T.MeshBasicMaterial).opacity=.28;
@@ -38,13 +39,13 @@ export class RaceCombatEffects {
     mesh.count=count;mesh.instanceMatrix.needsUpdate=true;if(mesh.instanceColor)mesh.instanceColor.needsUpdate=true;
   }
   update(state:RaceCombatState,racers:Racer[],track:Track){
-    let shots=0,pickups=0,rings=0,warnings=0,shields=0,fragments=0;
+    let shots=0,pickups=0,rings=0,warnings=0,shields=0,fragments=0,pulses=0;
     for(const p of state.projectiles){
       shots=this.put(this.shots,shots,p.x,p.y,p.z,.08,.08,1.4,p.ownerId===state.playerId?'#73f3ff':'#ff694f',0,Math.atan2(p.vx,p.vz));
     }
     for(const p of state.pickups){
       if(p.cooldown>0)continue;
-      const c=p.kind==='ammo'?'#ffc857':p.kind==='repair'?'#6aff9b':'#57c9ff';
+      const c=p.kind==='ammo'?'#ffc857':p.kind==='repair'?'#6aff9b':p.kind==='charge'?'#cb92ff':'#57c9ff';
       const y=surfaceHeight(track,p.x,p.z);
       pickups=this.put(this.pickups,pickups,p.x,y+.65+Math.sin(state.elapsed*3+p.id)*.1,p.z,.38,.48,.38,c,0,state.elapsed+p.id);
       rings=this.put(this.rings,rings,p.x,y+.12,p.z,.8,.8,.8,c,-Math.PI/2);
@@ -61,6 +62,11 @@ export class RaceCombatEffects {
       shields=this.put(this.shields,shields,r.x,(r.groundY||0)+(r.jumpHeight||0)+.65,r.z,(r.bodyWidth||1.27)*.75,1.05,(r.bodyLength||2)*.65,'#77dfff',0,r.yaw);
     }
     for(const b of state.bursts){
+      if(b.kind==='pulse'){
+        const radius=COMBAT_RULES.pulseRadius*Math.min(1,b.age/.42);
+        pulses=this.put(this.pulses,pulses,b.x,b.y,b.z,radius,radius,radius,'#d6a6ff',-Math.PI/2);
+        continue;
+      }
       const explosion=b.kind==='explosion',pickup=b.kind==='pickup',muzzle=b.kind==='muzzle';
       const lifetime=explosion?1.05:muzzle?.07:.5,remaining=Math.max(0,1-b.age/lifetime);
       const count=explosion?10:muzzle?1:6;
@@ -70,12 +76,12 @@ export class RaceCombatEffects {
         fragments=this.put(this.fragments,fragments,b.x+Math.cos(angle)*spread,b.y+Math.max(0,b.age*(explosion?4:2)-b.age*b.age*4),b.z+Math.sin(angle)*spread,size,size,size,pickup?'#80ffc0':explosion?(i%3?'#ff7d32':'#ffd875'):b.ownerId===state.playerId?'#9bfbff':'#ffb75f',b.age*6,angle,b.age*4);
       }
     }
-    this.finish(this.shots,shots);this.finish(this.pickups,pickups);this.finish(this.rings,rings);this.finish(this.warnings,warnings);this.finish(this.shields,shields);this.finish(this.fragments,fragments);
+    this.finish(this.shots,shots);this.finish(this.pickups,pickups);this.finish(this.rings,rings);this.finish(this.warnings,warnings);this.finish(this.shields,shields);this.finish(this.pulses,pulses);this.finish(this.fragments,fragments);
   }
-  clear(){for(const mesh of [this.shots,this.pickups,this.rings,this.warnings,this.shields,this.fragments])mesh.count=0;}
+  clear(){for(const mesh of [this.shots,this.pickups,this.rings,this.warnings,this.shields,this.pulses,this.fragments])mesh.count=0;}
   dispose(){
     this.group.removeFromParent();
-    for(const mesh of [this.shots,this.pickups,this.rings,this.warnings,this.shields,this.fragments]){
+    for(const mesh of [this.shots,this.pickups,this.rings,this.warnings,this.shields,this.pulses,this.fragments]){
       mesh.geometry.dispose();(mesh.material as T.Material).dispose();mesh.dispose();
     }
     this.group.clear();

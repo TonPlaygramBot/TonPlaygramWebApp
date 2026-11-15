@@ -106,6 +106,7 @@ export interface Racer {
   disconnected: boolean;
 }
 export interface TrackConfig {
+  routeStats?: {minimumSourceWidth:number;broadRoadShare:number;averageSourceWidth:number};
   surface?:'asphalt'|'gravel'|'dirt';
   terrainMode?:'regional';
   id: string;
@@ -118,6 +119,7 @@ export interface TrackConfig {
   accent: string;
 }
 export interface Track extends TrackConfig {
+  startGrid?: {minimumWidth:number;turn:number;behind:number;ahead:number};
   roadFeelVersion?: number;
   points: { x: number; z: number; yaw: number; distance: number; width?: number }[];
   length: number;

@@ -16,7 +16,7 @@ test('paid multiplayer/table URLs take priority over Explore or local Career',()
  for(const paid of ['mode=online','tableId=paid-seat','code=ABC123'])assert.equal(racingActivity(`?${paid}&activity=explore`),'race');
 });
 test('explicit free Explore and kart-career URLs still open their own activities',()=>{
- assert.equal(racingActivity('?mode=ai&activity=explore'),'explore');assert.equal(racingActivity('?activity=racing-career'),'career');assert.equal(racingActivity('?mode=career'),'career');
+ assert.equal(racingActivity('?mode=ai&activity=explore'),'explore');assert.equal(racingActivity('?activity=racing-career'),'career');assert.equal(racingActivity('?mode=career'),'explore');
 });
 test('releasing a boost finger retains a separately held steering finger',()=>{
  const input=createHeldRaceInput();input.hold('finger1','steer',1);input.hold('finger2','boost',true);input.release('finger2');assert.deepEqual(input.read(),{steer:1,brake:false,boost:false,drift:false});

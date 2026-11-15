@@ -7,20 +7,20 @@ import '../tirana-street-detail/lobby.css';
 const Race=lazy(()=>import('./BaseKartRoyale'));
 const Career=lazy(()=>import('./RacingCareerGame').then(m=>({default:m.RacingCareerGame})));
 const Explore=lazy(()=>import('../tirana-social/ExploreGame').then(m=>({default:m.ExploreGame})));
-/** Restore the original garage and its VS AI / MULTIPLAYER / CAREER tabs.
- * Explore is optional and owns no kart race, stake, renderer or media until opened. */
+/** Career begins in the shared city. Solo jobs and races keep separate runtimes
+ * and are disposed before entering the city or opening a different activity. */
 export default function KartRoyale(props:ComponentProps<typeof BaseKartRoyale>){
   const [mode,setMode]=useState(()=>racingActivity(typeof window==='undefined'?'':window.location.search));
   const [retry,setRetry]=useState(0);
   const back=()=>{setMode('race');setRetry(n=>n+1);};
   return <GameModeBoundary key={`${mode}:${retry}`} onBack={back}>
     <Suspense fallback={<main className="tsl-root"><section className="tsl-careers"><h1>Racing Royal</h1><p role="status">Loading {mode==='explore'?'shared exploration':mode==='career'?'kart career':'your kart garage'}…</p><button onClick={props.onExit}>Back to Games</button></section></main>}>
-      {mode==='explore'?<Explore sourceGame="racing" onExit={back}/>:
-       mode==='career'?<><Career onExit={back}/><RacingAtlas/></>:
-       <><Race {...props} onCareer={()=>setMode('career')} renderOnlineLobby={props.renderOnlineLobby?lobby=><>
+      {mode==='explore'?<Explore sourceGame="racing" onExit={back} onCareerJobs={()=>setMode('career')}/>:
+       mode==='career'?<><Career onExit={back} onExplore={()=>setMode('explore')}/><RacingAtlas/></>:
+       <><Race {...props} onCareer={()=>setMode('explore')} renderOnlineLobby={props.renderOnlineLobby?lobby=><>
          <nav aria-label="Additional Racing Royal modes" style={{display:'flex',flexWrap:'wrap',gap:8,marginBottom:16}}>
            <button className="kr-button" onClick={()=>setMode('career')}>KART MISSIONS</button>
-           <button className="kr-button" onClick={()=>setMode('explore')}>EXPLORE TIRANA</button>
+           <button className="kr-button" onClick={()=>setMode('explore')}>TIRANA SOCIAL CITY</button>
          </nav>{props.renderOnlineLobby!(lobby)}
        </>:undefined}/><RacingAtlas/></>}
     </Suspense>

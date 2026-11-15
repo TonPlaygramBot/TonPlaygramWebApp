@@ -70,7 +70,7 @@ const modes = [
   { id: 'trial', title: 'TIME TRIAL', sub: 'Beat your personal best ghost', icon: Flag },
   { id: 'free', title: 'FREE ROAM', sub: 'Explore with your kart', icon: Compass },
   { id: 'online', title: 'MULTIPLAYER', sub: 'Race your friends', icon: Users },
-  { id: 'career', title: 'CAREER', sub: 'Build your legacy', icon: Trophy }
+  { id: 'career', title: 'CAREER', sub: 'Meet, explore and play together', icon: Trophy }
 ] as const;
 function CircuitMap({ id, frame }: { id: string; frame?: Frame | null }) {
   // makeTrack caches geometry; importing the garage must not build every route.
@@ -308,9 +308,10 @@ export default function KartRoyale({
         e.ctrlKey || e.metaKey || e.altKey
       )
         return;
-      if(modeRef.current==='combat'&&!sessionRef.current&&['f','q','r'].includes(key)){
+      if(modeRef.current==='combat'&&!sessionRef.current&&['f','q','r','e'].includes(key)){
         e.preventDefault();
-        if(key==='r'){combatHeld.current.hold(`key:${key}`,'reload',true);if(!e.repeat)engine.current?.queueCombatReload();}
+        if(key==='e'){if(!e.repeat)engine.current?.queueCombatPulse();}
+        else if(key==='r'){combatHeld.current.hold(`key:${key}`,'reload',true);if(!e.repeat)engine.current?.queueCombatReload();}
         else heldInput.current.hold(`key:${key}`,key==='f'?'fire':'shield',true);
         apply();
       }else if (mapping[key]) {
@@ -790,6 +791,7 @@ export default function KartRoyale({
                         {(makeTrack(trackId).length / 1000).toFixed(2)} km{' '}
                         <span>·</span> 3 laps
                       </p>
+                      {track.routeStats&&<p className="kr-route-width">{Math.round(track.routeStats.broadRoadShare*100)}% broad roads · {track.routeStats.averageSourceWidth.toFixed(1)} m average</p>}
                     </div>
                     <div className="kr-track-arrows">
                       {[-1, 1].map((d) => (
@@ -834,7 +836,7 @@ export default function KartRoyale({
                       ))}
                     </div>
                   </div>}
-                  {mode==='combat'&&<p className="rr-trial-description">Finish the race while rivals fight back. Hold FIRE, block attacks with SHIELD, and collect repair and ammo pickups. Red warnings show incoming attacks. Local play · no TPG stake or career rewards.</p>}
+                  {mode==='combat'&&<p className="rr-trial-description">Finish the race while rivals fight back. Hold FIRE, block attacks with SHIELD, and use EMP to disrupt nearby rivals for 2.2 seconds. Collect repair, ammo, shield and purple EMP charge pickups. Red warnings show incoming attacks. Local play · no TPG stake or career rewards.</p>}
                   {mode==='trial'&&<p className="rr-trial-description">Three flying laps. Chase your best ghost, compare four sector splits, and improve your racing line. Recovering invalidates that lap. Records save for each kart and circuit on this device.</p>}
                 </div>
               )}
@@ -1146,15 +1148,15 @@ export default function KartRoyale({
           <div className="rr-speed"><b>{hud?.reversing&&<small>R </small>}{Math.round(Math.abs(hud?.speed||0)*3.6)}</b><span>KM/H</span><RaceRevBar frame={hud}/></div>
           {!hud?.combat&&<RaceTelemetryHud frame={hud}/>}
           {hud?.combat&&<>
-            <div className="rr-combat-hud" aria-label="Combat status"><strong>COMBAT RACE</strong><span>{Math.ceil(hud.health)}% CONDITION · {hud.combat.player.kills} DISABLED</span><span>{hud.combat.player.reload>0?`RELOAD ${hud.combat.player.reload.toFixed(1)}s`:`AMMO ${hud.combat.player.ammo} / ${hud.combat.player.reserve}`}</span>{hud.combat.warnings.some(w=>w.targetId===hud.playerId)&&<span className="rr-incoming">INCOMING · STEER CLEAR OR SHIELD</span>}</div>
-            <CombatControls disabled={!!modal} reloading={hud.combat.player.reload>0} shield={hud.combat.player.shield} shieldActive={hud.combat.player.shieldActive}
-              hold={(id,key,value)=>{if(modalRef.current)return;audio.current?.unlock();if(key==='reload'){combatHeld.current.hold(id,'reload',value);if(value===true)engine.current?.queueCombatReload();}else heldInput.current.hold(id,key,value);if(engine.current){Object.assign(engine.current.input,heldInput.current.read());engine.current.combatInput.reload=combatHeld.current.read().reload;}}}
+            <div className="rr-combat-hud" aria-label="Combat status"><strong>COMBAT RACE</strong><span>{Math.ceil(hud.health)}% CONDITION · {hud.combat.player.kills} DISABLED · {hud.combat.player.score} PTS</span><span>{hud.combat.player.reload>0?`RELOAD ${hud.combat.player.reload.toFixed(1)}s`:`AMMO ${hud.combat.player.ammo} / ${hud.combat.player.reserve}`}</span>{hud.combat.warnings.some(w=>w.targetId===hud.playerId)&&<span className="rr-incoming">INCOMING · STEER CLEAR OR SHIELD</span>}</div>
+            <CombatControls disabled={!!modal} reloading={hud.combat.player.reload>0} shield={hud.combat.player.shield} shieldActive={hud.combat.player.shieldActive} pulseCooldown={hud.combat.player.pulseCooldown} disrupted={hud.combat.player.disrupted>0}
+              hold={(id,key,value)=>{if(modalRef.current)return;audio.current?.unlock();if(key==='pulse'){if(value===true)engine.current?.queueCombatPulse();return;}if(key==='reload'){combatHeld.current.hold(id,'reload',value);if(value===true)engine.current?.queueCombatReload();}else heldInput.current.hold(id,key,value);if(engine.current){Object.assign(engine.current.input,heldInput.current.read());engine.current.combatInput.reload=combatHeld.current.read().reload;}}}
               release={id=>{heldInput.current.release(id);combatHeld.current.release(id);if(engine.current){Object.assign(engine.current.input,heldInput.current.read());engine.current.combatInput.reload=combatHeld.current.read().reload;}}}/>
           </>}
           <KartControls boost={hud?.boost||0} drifting={hud?.drifting} driftCharge={hud?.driftCharge} turbo={hud?.turbo} boostEvent={hud?.boostEvent} reversing={hud?.reversing} disabled={!!modal}
             hold={(id,key,value)=>{audio.current?.unlock();heldInput.current.hold(id,key,value);if(engine.current)Object.assign(engine.current.input,heldInput.current.read());}}
             release={id=>{heldInput.current.release(id);if(engine.current)Object.assign(engine.current.input,heldInput.current.read());}}/>
-          <div className="rr-key-hint">{hud?.combat?'F FIRE · Q SHIELD · R RELOAD · ↑ GAS · ← → STEER':'↑ GAS · ← → STEER · SPACE DRIFT · SHIFT BOOST · HOLD ↓ BRAKE / REVERSE'}</div>
+          <div className="rr-key-hint">{hud?.combat?'F FIRE · Q SHIELD · R RELOAD · E EMP · ↑ GAS · ← → STEER':'↑ GAS · ← → STEER · SPACE DRIFT · SHIFT BOOST · HOLD ↓ BRAKE / REVERSE'}</div>
         </div>
       )}
       {screen === 'results' && result && (
@@ -1185,7 +1187,7 @@ export default function KartRoyale({
               {formatTime(finishedMe?.finishTime || result.elapsed)}
             </p>
             <RaceDebrief result={result}/>
-            {result.combat&&<div className="rr-action-summary"><b>{result.combat.player.kills} rival karts disabled · {result.combat.player.hits} hits</b><p>Combat races are local. Championship progress and TPG are unchanged.</p></div>}
+            {result.combat&&<div className="rr-action-summary"><b>{result.combat.player.kills} rival karts disabled · {result.combat.player.hits} hits · {result.combat.player.score||0} points</b><p>{result.combat.player.supplies||0} supply pickups collected. Combat races are local. Championship progress and TPG are unchanged.</p></div>}
             <div className="kr-result-table">
               {result.racers.map((r, i) => (
                 <div

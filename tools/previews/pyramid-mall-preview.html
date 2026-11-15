@@ -1,0 +1,15 @@
+<div id="pyramid-mall-inline" aria-label="TonPlayGram Pyramid mall preview"></div>
+<style>
+/* PRODUCTION_MALL_CSS */
+#pyramid-mall-inline{position:relative;max-width:480px;margin:auto;min-height:700px;background:#102125;border-radius:16px;overflow:hidden}#pyramid-mall-inline .tpg-mall{position:absolute}#pyramid-mall-inline .tpg-mall-header{right:104px}#pyramid-mall-inline .tpg-mall-header button{position:absolute;left:calc(100% + 5px);width:82px;top:50px}#pyramid-mall-inline .tpg-mall-floors{top:122px}#pyramid-mall-inline .tpg-mall-directory{top:177px}#pyramid-mall-inline .tpg-mall-walk{top:177px}#pyramid-mall-inline .tpg-mall-error{top:166px}
+</style>
+<script type="module">
+const packed='PACKED_PRODUCTION_MALL_MODULE';
+const bytes=Uint8Array.from(atob(packed),c=>c.charCodeAt(0));
+const reader=new Blob([bytes]).stream().pipeThrough(new DecompressionStream('gzip')).getReader();
+const chunks=[];let size=0;
+for(;;){const part=await reader.read();if(part.done)break;chunks.push(part.value);size+=part.value.length;}
+const moduleBytes=new Uint8Array(size);let offset=0;for(const chunk of chunks){moduleBytes.set(chunk,offset);offset+=chunk.length;}
+const url=URL.createObjectURL(new Blob([moduleBytes],{type:'text/javascript'}));
+try{await import(url);}finally{URL.revokeObjectURL(url);}
+</script>
