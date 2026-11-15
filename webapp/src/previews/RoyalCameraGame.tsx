@@ -1,6 +1,7 @@
 import React, { lazy, Suspense } from 'react';
 import { createRoot } from 'react-dom/client';
 import { BrowserRouter } from 'react-router-dom';
+import GameLiveAvatarOverlay from '../components/GameLiveAvatarOverlay.jsx';
 import '../index.css';
 
 // Render the production game component directly, without account navigation or
@@ -11,7 +12,11 @@ const snooker = new URLSearchParams(location.search).get('game') === 'snooker';
 createRoot(document.getElementById('root')!).render(
   <BrowserRouter>
     <Suspense fallback={<p style={{ padding: 24, color: 'white' }}>Loading practice…</p>}>
-      {snooker ? <SnookerRoyal /> : <PoolRoyal />}
+      {snooker ? <SnookerRoyal /> : (
+        <GameLiveAvatarOverlay gameSlug="poolroyale" onlineOnly>
+          <PoolRoyal />
+        </GameLiveAvatarOverlay>
+      )}
     </Suspense>
   </BrowserRouter>
 );

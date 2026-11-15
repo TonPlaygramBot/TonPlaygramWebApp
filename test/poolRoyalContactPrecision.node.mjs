@@ -4,7 +4,10 @@ import { test } from 'node:test';
 import { parse } from '@babel/parser';
 import * as THREE from '../webapp/node_modules/three/build/three.cjs';
 import { resolvePoolRoyalCushionSpin } from '../webapp/src/pages/Games/poolRoyaleSpinUtils.js';
+import { ALBANIAN_61_RACK } from '../webapp/src/pages/Games/poolRoyaleShotLifecycle.js';
 import { resolvePoolRoyaleShotPowerScale } from '../webapp/src/pages/Games/poolRoyaleShotState.js';
+import { createShowoodTableGeometry, projectPoolBallFromCushions } from '../webapp/src/pages/Games/shared/poolRoyaleShowoodGeometry.js';
+import { readPoolRoyalMetrics } from '../scripts/read-pool-royal-metrics.mjs';
 
 // Exercise the actual JSX functions and collision loop without WebGL/Telegram.
 // No copy of the game's impulse or frame-step implementation lives in this test.
@@ -168,15 +171,15 @@ test('the live shot-speed tuning adds modest power without changing the slider c
   for (const name of ['SHOT_POWER_REDUCTION', 'SHOT_POWER_MULTIPLIER', 'SHOT_POWER_INCREASE',
     'SHOT_POWER_ADJUSTMENT', 'SHOT_POWER_BOOST', 'SHOT_GLOBAL_POWER_SCALE', 'SHOT_FORCE_BOOST',
     'SHOT_BREAK_MULTIPLIER', 'SHOT_BASE_SPEED', 'SHOT_MIN_FACTOR', 'SHOT_POWER_RANGE']) powerScope[name] = load(name, powerScope);
-  assert.equal(powerScope.SHOT_GLOBAL_POWER_SCALE, 0.98);
+  assert.equal(powerScope.SHOT_GLOBAL_POWER_SCALE, 1.03);
   assert.equal(powerScope.SHOT_BREAK_MULTIPLIER, 1.5);
-  const previousForce = load('SHOT_FORCE_BOOST', { ...powerScope, SHOT_GLOBAL_POWER_SCALE: 0.93 });
+  const previousForce = load('SHOT_FORCE_BOOST', { ...powerScope, SHOT_GLOBAL_POWER_SCALE: 0.98 });
   const previousBase = load('SHOT_BASE_SPEED', { ...powerScope, SHOT_FORCE_BOOST: previousForce });
   for (const power of [0.02, 0.25, 0.5, 0.8, 1]) {
     const multiplier = powerScope.SHOT_MIN_FACTOR + powerScope.SHOT_POWER_RANGE * resolvePoolRoyaleShotPowerScale(power);
     const currentSpeed = powerScope.SHOT_BASE_SPEED * multiplier;
     const previousSpeed = previousBase * multiplier;
-    assert.ok(Math.abs(currentSpeed / previousSpeed - 0.98 / 0.93) < 1e-12);
+    assert.ok(Math.abs(currentSpeed / previousSpeed - 1.03 / 0.98) < 1e-12);
   }
 });
 
@@ -232,8 +235,11 @@ test('actual post-rack scaling keeps displayed spheres exactly the same radius a
 
 test('actual ball geometry and center height rest exactly on the cloth without a floating gap', () => {
   const { sizing, apply } = scalingFixture();
-  Object.assign(sizing, { RAIL_HEIGHT: radius * 3.7, FRAME_TOP_Y: -radius * 1.2 });
-  for (const name of ['CLOTH_LIFT', 'CLOTH_TOP_LOCAL', 'CLOTH_DROP', 'BALL_CENTER_LIFT', 'BALL_CENTER_Y']) {
+  Object.assign(sizing, {
+    RAIL_HEIGHT: radius * 3.7, FRAME_TOP_Y: -radius * 1.2,
+    MM_TO_UNITS: radius * 2 / (sizing.BALL_D_REF * sizing.BALL_SIZE_SCALE)
+  });
+  for (const name of ['CLOTH_REFERENCE_BALL_R', 'CLOTH_LIFT', 'CLOTH_TOP_LOCAL', 'CLOTH_DROP', 'BALL_CENTER_LIFT', 'BALL_CENTER_Y']) {
     sizing[name] = load(name, sizing);
   }
   assert.equal(sizing.BALL_CENTER_LIFT, 0);
@@ -247,4 +253,41 @@ test('actual ball geometry and center height rest exactly on the cloth without a
   assert.equal(b.colliderRadius, b.mesh.geometry.parameters.radius * b.mesh.scale.y);
   sizing.BALL_GEOMETRY.dispose();
   material.dispose();
+});
+
+test('slightly larger game balls fit every starting rack and all six mapped pocket approaches', async () => {
+  const { ballR, playW, playL, ballY, clothY } = await readPoolRoyalMetrics();
+  const previousRadius = 1.3809368878;
+  assert.ok(Math.abs(ballR / previousRadius - 1.07 / 1.04) < 1e-9);
+  assert.ok(Math.abs(clothY - 4.2490962789) < 1e-9);
+  assert.ok(Math.abs(ballY - ballR - clothY) < 1e-12);
+
+  const sizing = { BALL_R: ballR, PLAY_H: playL, ALBANIAN_61_RACK };
+  for (const name of ['UK_POOL_RED', 'UK_POOL_YELLOW', 'UK_POOL_BLACK', 'AMERICAN_BALL_SET',
+    'POOL_VARIANT_COLOR_SETS', 'RACK_VERTICAL_SCREEN_LIFT']) sizing[name] = load(name, sizing);
+  const generateRack = load('generateRackPositions');
+  const anchorRack = load('resolveEightBallRackAnchor');
+  const spots = { pink: [0, playL / 4], penalty: [0, playL / 4] };
+  const startZ = spots.pink[1] + ballR * 2 + sizing.RACK_VERTICAL_SCREEN_LIFT;
+  const geometry = createShowoodTableGeometry({ playWidth: playW, playLength: playL, ballRadius: ballR });
+  const variants = [...Object.values(sizing.POOL_VARIANT_COLOR_SETS),
+    { ...sizing.POOL_VARIANT_COLOR_SETS.uk, ...sizing.AMERICAN_BALL_SET }];
+  for (const variant of variants) {
+    const rack = generateRack(variant.objectColors.length, variant.rackLayout, ballR, startZ, anchorRack(variant, spots));
+    assert.equal(rack.length, variant.objectColors.length);
+    for (const [index, ball] of rack.entries()) {
+      assert.ok(Math.abs(ball.x) < geometry.railLimits.x && Math.abs(ball.z) < geometry.railLimits.y);
+      for (const other of rack.slice(index + 1)) {
+        assert.ok(Math.hypot(ball.x - other.x, ball.z - other.z) > ballR * 2);
+      }
+    }
+  }
+  for (const pocket of geometry.pockets) {
+    const length = Math.hypot(pocket.x, pocket.y);
+    for (let t = 0; t <= 1; t += 1 / 32) {
+      const position = { x: pocket.x - pocket.x / length * t * ballR * 4,
+        y: pocket.y - pocket.y / length * t * ballR * 4 };
+      assert.equal(projectPoolBallFromCushions(position, ballR, geometry.segments), false, pocket.type);
+    }
+  }
 });

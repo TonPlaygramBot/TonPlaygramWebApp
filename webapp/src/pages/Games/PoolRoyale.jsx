@@ -59,6 +59,7 @@ import {
   speakCommentaryLines
 } from '../../utils/textToSpeech.js';
 import BottomLeftIcons from '../../components/BottomLeftIcons.jsx';
+import PoolLiveAvatar from '../../components/PoolLiveAvatar.jsx';
 import InfoPopup from '../../components/InfoPopup.jsx';
 import QuickMessagePopup from '../../components/QuickMessagePopup.jsx';
 import GiftPopup from '../../components/GiftPopup.jsx';
@@ -1449,7 +1450,7 @@ const CURRENT_RATIO = innerLong / Math.max(1e-6, innerShort);
     'Pool table inner ratio must match the official 2:1 target after scaling.'
   );
 const MM_TO_UNITS = (innerLong / WIDTH_REF) / TABLE_SURFACE_COMPENSATION;
-const BALL_SIZE_SCALE = 1.04; // make balls just a tiny bit smaller while every helper stays tied to BALL_R/BALL_DIAMETER
+const BALL_SIZE_SCALE = 1.07;
 const BALL_DIAMETER = BALL_D_REF * MM_TO_UNITS * BALL_SIZE_SCALE;
 const BALL_SCALE = BALL_DIAMETER / 4;
 const BALL_R = BALL_DIAMETER / 2;
@@ -1526,15 +1527,12 @@ console.assert(
   Math.abs(BALL_DIAMETER - BALL_R * 2) <= 0.1 * MM_TO_UNITS,
   'Ball diameter mismatch after scaling.'
 );
-const CLOTH_LIFT = (() => {
-  const ballR = BALL_R;
-  const microEpsRatio = 0.022857142857142857;
-  const eps = ballR * microEpsRatio;
-  return Math.max(0, RAIL_HEIGHT - ballR - eps);
-})();
+// Keep the Showood cloth at its calibrated height when the gameplay ball size changes.
+const CLOTH_REFERENCE_BALL_R = (BALL_D_REF * MM_TO_UNITS * 1.04) / 2;
+const CLOTH_LIFT = Math.max(0, RAIL_HEIGHT - CLOTH_REFERENCE_BALL_R * (1 + 0.022857142857142857));
 const ACTION_CAMERA_START_BLEND = 1;
-const CLOTH_DROP = BALL_R * 0.2; // raise the cloth surface so Showood overlays sit flush with the physics field
-const CLOTH_TOP_LOCAL = FRAME_TOP_Y + BALL_R * 0.09523809523809523;
+const CLOTH_DROP = CLOTH_REFERENCE_BALL_R * 0.2;
+const CLOTH_TOP_LOCAL = FRAME_TOP_Y + CLOTH_REFERENCE_BALL_R * 0.09523809523809523;
 const MICRO_EPS = BALL_R * 0.022857142857142857;
 const POCKET_CUT_EXPANSION = POCKET_INTERIOR_TOP_SCALE; // align cloth apertures to the now-wider interior pocket diameter at the rim
 const CLOTH_REFLECTION_LIMITS = Object.freeze({
@@ -1854,13 +1852,13 @@ const POCKET_VIEW_EARLY_HOLD_MS = 320;
 // Independently implemented sphere/contact spin helpers drive the shot.
 const SPIN_AFTER_IMPACT_DEFLECTION_SCALE = 0; // disable preview-only spin deflection so lines match the true impact geometry
 // Align shot strength to the legacy 2D tuning (3.3 * 0.3 * 1.65) while keeping overall power soft for portrait mobile play.
-// Keep the slider range unchanged, but trim the global pace so released shots travel less aggressively.
+// Keep the slider curve and relative break power steady while tuning the overall launch speed.
 const SHOT_POWER_REDUCTION = 0.425;
 const SHOT_POWER_MULTIPLIER = 2.109375;
 const SHOT_POWER_INCREASE = 1.5; // match Snooker Royale standard shot lift
 const SHOT_POWER_ADJUSTMENT = 0.72; // reduce overall Pool Royale power by an additional 20%
 const SHOT_POWER_BOOST = 1.5; // preserve legacy cue response before the final mobile comfort trim
-const SHOT_GLOBAL_POWER_SCALE = 0.98; // +5.38% launch speed, preserving the slider curve and break ratio
+const SHOT_GLOBAL_POWER_SCALE = 1.03;
 const SHOT_FORCE_BOOST =
   1.5 *
   0.75 *
@@ -8745,65 +8743,33 @@ export function Table3D(
   const markingsGroup = new THREE.Group();
   const markingMat = new THREE.MeshBasicMaterial({
     color: 0xffffff,
-    transparent: true,
-    opacity: 1,
-    side: THREE.DoubleSide,
+    toneMapped: false,
     depthWrite: false,
-    depthTest: false,
     polygonOffset: true,
-    polygonOffsetFactor: -4,
-    polygonOffsetUnits: -4
+    polygonOffsetFactor: -1,
+    polygonOffsetUnits: -1
   });
-  const externalMarkingLift =
-    usesExternalTableModel && Number.isFinite(resolvedTableOptions?.tableModel?.markingVisualLift)
-      ? Math.max(0, resolvedTableOptions.tableModel.markingVisualLift)
-      : 0;
-  const markingHeight = clothPlaneLocal - CLOTH_DROP + MICRO_EPS * 2 + externalMarkingLift;
-  // A bright, slightly raised head string remains readable on a phone even on
-  // pale cloth textures and externally loaded table models.
-  const lineThickness = Math.max(BALL_R * 0.16, 0.14);
+  const markingHeight = clothSurfaceY + MICRO_EPS;
+  const lineThickness = BALL_R * 0.22;
   const baulkLineLength = PLAY_W - SIDE_RAIL_INNER_THICKNESS * 0.4;
   const baulkLineGeom = new THREE.PlaneGeometry(baulkLineLength, lineThickness);
   const baulkLine = new THREE.Mesh(baulkLineGeom, markingMat);
   baulkLine.rotation.x = -Math.PI / 2;
   baulkLine.position.set(0, markingHeight, baulkLineZ);
-  baulkLine.userData.externalTableKeepVisible = true;
-  baulkLine.userData.externalTableAlwaysKeepVisible = true;
-  baulkLine.visible = true;
-  baulkLine.renderOrder = cloth.renderOrder + 30;
-  markingsGroup.add(baulkLine);
 
-  const dArc = null;
-  const spotRadius = BALL_R * 0.34;
-  const spotMeshes = [];
-  const addSpot = (x, z) => {
-    const spotGeo = new THREE.CircleGeometry(spotRadius, 40);
-    const spot = new THREE.Mesh(spotGeo, markingMat.clone());
-    spot.rotation.x = -Math.PI / 2;
-    spot.position.set(x, markingHeight, z);
-    spot.userData.externalTableKeepVisible = true;
-    spot.userData.externalTableAlwaysKeepVisible = true;
-    markingsGroup.add(spot);
-    spotMeshes.push(spot);
-    return spot;
-  };
-  const topCushionZ = PLAY_H / 2;
-  const penaltySpot = addSpot(0, (topCushionZ + 0) / 2);
-  markingsGroup.traverse((child) => {
-    if (child.isMesh) {
-      child.renderOrder = cloth.renderOrder + 20;
-      child.castShadow = false;
-      child.receiveShadow = false;
-    }
-  });
-  markingsGroup.userData.externalTableKeepVisible = true;
-  markingsGroup.userData.externalTableAlwaysKeepVisible = true;
+  const penaltySpot = new THREE.Mesh(new THREE.CircleGeometry(BALL_R * 0.4, 40), markingMat.clone());
+  penaltySpot.rotation.x = -Math.PI / 2;
+  penaltySpot.position.set(0, markingHeight, PLAY_H / 4);
+
+  baulkLine.renderOrder = cloth.renderOrder + 1;
+  penaltySpot.renderOrder = baulkLine.renderOrder;
+  markingsGroup.add(baulkLine, penaltySpot);
   table.add(markingsGroup);
   table.userData.markings = {
     group: markingsGroup,
     baulkLine,
-    dArc,
-    spots: spotMeshes,
+    dArc: null,
+    spots: [penaltySpot],
     penaltySpot
   };
   const pocketGeo = new THREE.CylinderGeometry(
@@ -13885,10 +13851,12 @@ function mountPoolRoyaleExternalTableModel({
   const generatedVisualObjects = [];
   const generatedStructuralObjects = [];
   table.traverse((child) => {
-    if (child !== table && (child.isMesh || child.isLine || child.isSprite)) {
+    // The cloth guides belong to the playfield over either table surface.
+    if (child === table || child.parent === markingsGroup) return;
+    if (child.isMesh || child.isLine || child.isSprite) {
       generatedVisualObjects.push(child);
     }
-    if (child !== table && child.isMesh) {
+    if (child.isMesh) {
       generatedStructuralObjects.push(child);
     }
   });
@@ -35416,10 +35384,10 @@ const shotPowerRef = useRef(0);
               <div className="flex min-w-0 w-full flex-col">
                 <div className="flex min-w-0 items-center gap-1.5">
                   {isOnlineMatch ? (
-                    <img
+                    <PoolLiveAvatar
                       src={player.avatar || '/assets/icons/profile.svg'}
                       alt="You"
-                      data-pool-avatar="self"
+                      seat="self"
                       style={avatarStyle}
                       data-self-player="true"
                       className={`${avatarSizeClass} shrink-0 rounded-full object-cover transition-all duration-150 ${
@@ -35429,10 +35397,11 @@ const shotPowerRef = useRef(0);
                       }`}
                     />
                   ) : (
-                    <img
+                    <PoolLiveAvatar
                       src={resolvedPlayerAvatar || '/assets/icons/profile.svg'}
                       alt="player avatar"
-                      data-pool-avatar="self"
+                      seat="self"
+                      visible={!hideAvatarHudForShot}
                       style={avatarStyle}
                       className={`${avatarSizeClass} shrink-0 rounded-full object-cover transition-all duration-150 ${
                         isPlayerTurn
@@ -35468,10 +35437,10 @@ const shotPowerRef = useRef(0);
                   {isOnlineMatch ? (
                     <div className="flex min-w-0 w-full flex-col">
                       <div className="flex min-w-0 items-center gap-1.5">
-                        <img
+                        <PoolLiveAvatar
                           src={opponentDisplayAvatar}
                           alt="opponent avatar"
-                          data-pool-avatar="opponent"
+                          seat="opponent"
                           style={avatarStyle}
                           className={`${avatarSizeClass} shrink-0 rounded-full object-cover transition-all duration-150 ${
                             isOpponentTurn
