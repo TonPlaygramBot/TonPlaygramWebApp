@@ -12,6 +12,10 @@ import polygonClipping from 'polygon-clipping';
 import * as BufferGeometryUtils from 'three/examples/jsm/utils/BufferGeometryUtils.js';
 import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js';
 import {
+  createSnookerTableTextureQuality,
+  sharpenSnookerTableTextures
+} from './snookerTableTextures.ts';
+import {
   createUploadedSnookerMapping,
   fitUploadedSnookerModel,
   reflectUploadedSnookerCushions,
@@ -126,6 +130,7 @@ import {
 import { resolvePocketMouthAimPoint } from './poolRoyalePocketAim.js';
 import SnookerShotCoach from './SnookerShotCoach.jsx';
 import SnookerMatchHud from './SnookerMatchHud.tsx';
+import { poolRoyalHudLayout, POOL_SPIN_DIAMETER_PX } from './poolRoyalHudLayout.js';
 import { clipGuideTravel } from './shared/billiardsGuideGeometry.js';
 import { inspectSnookerDirectContact, isSnookerObstructed } from '../../utils/snookerVisibility.js';
 import { resolveSnookerImpactAudio } from './snookerImpactAudio.js';
@@ -1849,7 +1854,7 @@ const SIDE_SPIN_MULTIPLIER = 1.5 * SPIN_GLOBAL_BOOST_MULTIPLIER;
 const BACKSPIN_MULTIPLIER = 2.6 * SPIN_GLOBAL_BOOST_MULTIPLIER;
 const TOPSPIN_MULTIPLIER = 1.62 * SPIN_GLOBAL_BOOST_MULTIPLIER;
 const CUE_CLEARANCE_PADDING = BALL_R * 0.05;
-const SPIN_CONTROL_DIAMETER_PX = 124;
+const SPIN_CONTROL_DIAMETER_PX = POOL_SPIN_DIAMETER_PX;
 const SPIN_DOT_DIAMETER_PX = 16;
 // angle for cushion cuts guiding balls into corner pockets (match Pool Royale physics defaults)
 const DEFAULT_CUSHION_CUT_ANGLE = 32;
@@ -7192,6 +7197,7 @@ function UploadedTable3D(parent, renderer, isGameplayTable) {
       else node.material = node.material.clone();
     });
     table.add(fitUploadedSnookerModel(model, mapping, clothY, FLOOR_Y - TABLE_Y));
+    if (renderer) sharpenSnookerTableTextures(model, renderer);
     table.userData.loadState = 'ready';
     return true;
   }).catch(error => {
@@ -12897,9 +12903,9 @@ function SnookerRoyalGame({
     return chromeLike && !isTelegram ? 10 : 0;
   }, []);
   const portraitViewport = typeof window === 'undefined' ? true : window.innerHeight >= window.innerWidth;
-  const sharedHudLiftPx = portraitViewport ? 20 : 30;
-  const spinControllerLiftPx = portraitViewport ? 8 : 14;
-  const topControlsOffset = 'calc(8.5rem + env(safe-area-inset-top, 0px))';
+  const sharedHudLiftPx = portraitViewport ? 24 : 34;
+  const spinControllerLiftPx = portraitViewport ? 18 : 16;
+  const topControlsOffset = 'calc(6.15rem + env(safe-area-inset-top, 0px))';
   const menuButtonTopNudgePx = 0;
   const menuButtonCenterNudgePx = 0;
   const sideActionButtonsLiftPx = 10;
@@ -20961,6 +20967,9 @@ const shotPowerRef = useRef(0);
         tableModel,
         true
       );
+      const tableTextureQuality = table.userData.uploadedTable
+        ? createSnookerTableTextureQuality(table, renderer)
+        : null;
       const SPOTS = spotPositions(baulkZ);
       snookerSpotsRef.current = SPOTS;
       const longestSide = Math.max(PLAY_W, PLAY_H);
@@ -27815,6 +27824,7 @@ const shotPowerRef = useRef(0);
         remoteShotUntilRef.current = 0;
         remoteAimRef.current = null;
         lightingRigRef.current = null;
+        tableTextureQuality?.dispose();
         worldRef.current = null;
         activeRenderCameraRef.current = null;
         cueBodyRef.current = null;
@@ -28567,7 +28577,12 @@ const shotPowerRef = useRef(0);
     lastOpponentPot != null
       ? String(lastOpponentPot.id ?? lastOpponentPot.color)
       : null;
-  const bottomHudVisible = hud.turn != null && !hud.over && !shotActive && !replayActive;
+  const controlLayout = poolRoyalHudLayout({
+    uiScale,
+    portrait: isPortrait,
+    bottom: 12 + chromeUiLiftPx + sharedHudLiftPx + spinControllerLiftPx - sharedBottomControlsDropPx
+  });
+  const hideAvatarHudForShot = !isOnlineMatch && (pocketCameraActive || replayActive);
   const bottomHudScale = isPortrait ? uiScale * 1.08 : uiScale * 1.12;
   const avatarSizeClass = isPortrait ? 'h-[2.9rem] w-[2.9rem]' : 'h-[3.7rem] w-[3.7rem]';
   const nameWidthClass = isPortrait ? 'max-w-[10.5rem]' : 'max-w-[13rem]';
@@ -29707,8 +29722,11 @@ const shotPowerRef = useRef(0);
         </div>
       )}
 
-      {!replayActive && !loadingActive && !tableLoadError && (
+      {(isOnlineMatch || !replayActive) && !loadingActive && !tableLoadError && (
         <SnookerMatchHud
+          portrait={isPortrait}
+          style={controlLayout.avatars}
+          hidden={hideAvatarHudForShot}
           player={{ name: player.name, avatar: resolvedPlayerAvatar, score: playerScore }}
           opponent={{ name: opponentDisplayName || aiFlagLabel, avatar: opponentDisplayAvatar, score: opponentScore }}
           playerTurn={isPlayerTurn}
@@ -29859,21 +29877,7 @@ const shotPowerRef = useRef(0);
         <div
           ref={spinBoxRef}
           className={`absolute ${showPlayerControls ? '' : 'pointer-events-none'}`}
-          style={isTopDownView
-            ? {
-                left: '50%',
-                right: 'auto',
-                top: 'auto',
-                bottom: `${12 + chromeUiLiftPx + sharedHudLiftPx + spinControllerLiftPx - sharedBottomControlsDropPx}px`,
-                transform: `translateX(-50%) scale(${uiScale * 0.88})`,
-                transformOrigin: 'bottom center'
-              }
-            : {
-                right: `${rightHudShiftPx}px`,
-                bottom: `${12 + chromeUiLiftPx + sharedHudLiftPx + spinControllerLiftPx - sharedBottomControlsDropPx}px`,
-                transform: `scale(${uiScale * 0.88})`,
-                transformOrigin: 'bottom right'
-              }}
+          style={controlLayout.spin}
         >
           <div
             id="spinBox"
