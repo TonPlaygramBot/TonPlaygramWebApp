@@ -1,7 +1,7 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { createAccount } from '../utils/api.js';
 import { linkGoogleAccount } from '../utils/api.js';
-import { decodeGoogleCredential, storeGoogleProfile } from '../utils/google.js';
+import { decodeGoogleCredential, storeGoogleProfile, storeGoogleCredential } from '../utils/google.js';
 
 export default function LinkGoogleButton({
   telegramId,
@@ -19,31 +19,27 @@ export default function LinkGoogleButton({
 
   useEffect(() => {
 
-    function handleCredential(res) {
+    async function handleCredential(res) {
       try {
         const profile = decodeGoogleCredential(res?.credential);
-        if (!profile?.id) return;
+        if (!profile?.id) throw new Error('Google did not return a valid sign-in credential.');
         storeGoogleProfile(profile);
-        if (telegramId) {
-          linkGoogleAccount({
+        storeGoogleCredential(res.credential);
+        const result = telegramId
+          ? await linkGoogleAccount({
             telegramId,
             googleId: profile.id,
             email: profile.email,
             firstName: profile.firstName,
             lastName: profile.lastName,
             photo: profile.photo
-          }).then(() => {
-            if (onLinked) onLinked();
-            if (onAuthenticated) onAuthenticated(profile);
-          });
-        } else {
-          // Standalone Chrome flow: create or attach account with Google profile
-          createAccount(undefined, profile).finally(() => {
-            if (onAuthenticated) onAuthenticated(profile);
-          });
-        }
+          })
+          : await createAccount(undefined, profile);
+        if (result?.error) throw new Error(result.message || result.error);
+        window.dispatchEvent(new Event('social-auth-changed'));
+        if (telegramId && onLinked) onLinked();
+        if (onAuthenticated) onAuthenticated(profile);
       } catch (err) {
-        console.error('Failed to link Google account', err);
         emitError('Google login failed. Please try again.', err?.message || String(err));
       }
     }

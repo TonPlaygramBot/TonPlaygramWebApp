@@ -1,4 +1,5 @@
 import { getNativeBridgeHeaders } from './nativeBridge';
+import { loadGoogleCredential } from './google.js';
 
 // Use the API base URL from the build environment or fallback to the same origin
 // so the webapp works when served by the Express server in production.
@@ -107,6 +108,8 @@ async function fetchWithRetry(url, options = {}, retries = 3, backoff = 500) {
 
 function buildHeaders(base = {}) {
   const headers = { Accept: 'application/json', ...base };
+  const googleCredential = loadGoogleCredential();
+  if (googleCredential) headers['X-Google-Id-Token'] = googleCredential;
   const initData = window?.Telegram?.WebApp?.initData;
   if (initData) headers['X-Telegram-Init-Data'] = initData;
   const accountId = window?.localStorage?.getItem('accountId');

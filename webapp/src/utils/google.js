@@ -1,5 +1,31 @@
 const GOOGLE_ID_KEY = 'googleId';
 const GOOGLE_PROFILE_KEY = 'googleProfile';
+const GOOGLE_CREDENTIAL_KEY = 'socialGoogleCredential';
+
+// The server verifies the signature, audience and identity. Decoding here is
+// only a freshness check; a cached profile is never an authentication token.
+export function storeGoogleCredential(credential) {
+  if (typeof window === 'undefined') return;
+  try {
+    sessionStorage.setItem(GOOGLE_CREDENTIAL_KEY, String(credential || ''));
+  } catch { /* A blocked session store requires signing in again. */ }
+  window.dispatchEvent(new Event('social-auth-changed'));
+}
+
+export function loadGoogleCredential() {
+  if (typeof window === 'undefined') return '';
+  try {
+    const credential = sessionStorage.getItem(GOOGLE_CREDENTIAL_KEY) || '';
+    const payload = JSON.parse(atob(credential.split('.')[1].replace(/-/g, '+').replace(/_/g, '/')));
+    const profileId = localStorage.getItem(GOOGLE_ID_KEY);
+    if (!payload.sub || !Number.isFinite(payload.exp) || payload.exp * 1000 <= Date.now() + 30000 ||
+      (profileId && String(payload.sub) !== profileId)) {
+      sessionStorage.removeItem(GOOGLE_CREDENTIAL_KEY);
+      return '';
+    }
+    return credential;
+  } catch { return ''; }
+}
 
 function safeParse(json) {
   try {
@@ -67,7 +93,9 @@ export function clearGoogleProfile() {
   try {
     localStorage.removeItem(GOOGLE_ID_KEY);
     localStorage.removeItem(GOOGLE_PROFILE_KEY);
+    sessionStorage.removeItem(GOOGLE_CREDENTIAL_KEY);
   } catch {
     // ignore
   }
+  window.dispatchEvent(new Event('social-auth-changed'));
 }

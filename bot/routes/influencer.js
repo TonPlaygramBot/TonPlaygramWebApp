@@ -1,7 +1,6 @@
 import { Router } from 'express';
 import InfluencerTask from '../models/InfluencerTask.js';
 import User from '../models/User.js';
-import Message from '../models/Message.js';
 import { ensureTransactionArray } from '../utils/userUtils.js';
 import bot from '../bot.js';
 
@@ -50,11 +49,9 @@ router.post('/submit', async (req, res) => {
             String(devUser.telegramId),
             `New influencer submission: ${videoUrl}`,
           );
-          await Message.create({
-            from: telegramId,
-            to: devUser.telegramId,
-            text: `New influencer submission: ${videoUrl}`
-          });
+          // Submissions belong to InfluencerTask and the admin notification
+          // channel. Never turn a supplied telegramId into a private message:
+          // conversational writes must pass the authenticated encrypted route.
         }
       } catch (e) {
         console.error('dev notify failed:', e.message);

@@ -86,6 +86,9 @@ import rateLimit from 'express-rate-limit';
 import helmet from 'helmet';
 import { contentSecurityPolicy } from './config/contentSecurityPolicy.js';
 import authenticate, { optionalAuthenticate, verifyTelegramInitData } from './middleware/auth.js';
+import { resolveSocialUser } from './middleware/socialAuth.js';
+import { createPrivateCallStore } from './services/privateCallStore.js';
+import { createSocialSocketRegistry, emitDirectSocket, emitLiveChatMembers } from './services/socialSocketRegistry.js';
 import {
   registerConnection,
   removeConnection,
@@ -270,7 +273,7 @@ io.use((socket, next) => {
     return next();
   }
 
-  if (accountId || googleId) {
+  if (accountId || googleId || socket.handshake.auth?.googleIdToken || socket.handshake.headers?.['x-google-id-token']) {
     socket.data.auth = {
       ...resolvedAuth,
       accountId: accountId ? String(accountId) : undefined,
@@ -700,6 +703,41 @@ async function resolveInviteTelegramId(accountId, telegramId) {
 
 const tableWatchers = new Map();
 const liveChatRooms = new Map();
+// Strict social registration is isolated from legacy game IDs and rooms.
+const socialRegistry = createSocialSocketRegistry({
+  io, resolveUser: resolveSocialUser,
+  onRevoke: (accountId, reason) => privateCalls.endForAccount(accountId, reason),
+  onExpire: (socket) => {
+    if ([...(socket.data.liveChatRooms || [])].some((id) => id.startsWith('livechat:friend-call-'))) {
+      privateCalls.endForAccount(socket.data.socialAuth?.auth?.accountId, 'authentication_expired');
+    }
+    removeSocketFromLiveChat(socket);
+  }
+});
+const socialSockets = socialRegistry.sockets;
+const emitSocialEvent = socialRegistry.emit;
+const removeSocialSocket = socialRegistry.remove;
+const authenticateSocialSocket = socialRegistry.authenticate;
+const requireSocialSocket = socialRegistry.requireUser;
+app.set('socialSockets', socialSockets);
+app.set('emitSocialEvent', emitSocialEvent);
+const privateCalls = createPrivateCallStore({
+  onEnd(call, reason) {
+    emitSocialEvent([call.fromAccountId, call.toAccountId], 'friendCall:ended', { roomId: call.roomId, reason });
+    const roomId = `livechat:${call.roomId}`;
+    for (const sid of liveChatRooms.get(roomId)?.keys() || []) {
+      const peer = io.sockets.sockets.get(sid);
+      peer?.leave(roomId);
+      peer?.data?.liveChatRooms?.delete(roomId);
+    }
+    liveChatRooms.delete(roomId);
+  }
+});
+const callSweepTimer = setInterval(() => privateCalls.sweep(), 15000);
+callSweepTimer.unref?.();
+function sendLiveChatPeers(roomId, excludedSocketId, event, payload) {
+  emitLiveChatMembers(io, liveChatRooms.get(roomId), excludedSocketId, event, payload);
+}
 // Dynamic lobby tables grouped by game type and capacity
 const lobbyTables = {};
 const tableMap = new Map();
@@ -2327,7 +2365,7 @@ function removeSocketFromLiveChat(socket) {
     if (!room) continue;
     room.delete(socket.id);
     socket.leave(roomId);
-    socket.to(roomId).emit('liveChat:peer-left', { roomId: roomId.replace(/^livechat:/, ''), socketId: socket.id });
+    sendLiveChatPeers(roomId, socket.id, 'liveChat:peer-left', { roomId: roomId.replace(/^livechat:/, ''), socketId: socket.id });
     if (room.size === 0) {
       liveChatRooms.delete(roomId);
     }
@@ -2337,6 +2375,16 @@ function removeSocketFromLiveChat(socket) {
 }
 
 io.on('connection', (socket) => {
+  authenticateSocialSocket(socket).catch(() => {});
+  socket.on('social:authenticate', async (credentials = {}, cb) => {
+    try {
+      const user = await authenticateSocialSocket(socket, credentials);
+      cb?.({ success: true, accountId: String(user.accountId) });
+    } catch (error) {
+      if (error.code !== 'authentication_superseded') removeSocialSocket(socket, { endCalls: true });
+      cb?.({ success: false, error: error.code === 'authentication_superseded' ? error.code : 'reauthentication_required' });
+    }
+  });
   racingExplore.attach(socket);
   tennisRoyal.attach(socket);
   tabletennisRoyal.attach(socket);
@@ -3608,12 +3656,26 @@ io.on('connection', (socket) => {
     }
   });
 
-  socket.on('liveChat:join', ({ roomId, participant } = {}) => {
+  socket.on('liveChat:join', async ({ roomId, participant } = {}) => {
     const normalizedRoomId = normalizeLiveChatRoomId(roomId);
     if (!normalizedRoomId) return;
 
+    let privateUser = null;
+    if (String(roomId).trim().startsWith('friend-call-')) {
+      try {
+        privateUser = await requireSocialSocket(socket);
+        if (!privateCalls.canJoin(roomId, privateUser.accountId)) throw new Error('Call unavailable');
+      } catch {
+        socket.emit('liveChat:room-full', { roomId: String(roomId), message: 'This private call is unavailable. Sign in again if needed.' });
+        return;
+      }
+    }
     const room = ensureLiveChatRoom(normalizedRoomId);
-    if (!room.has(socket.id) && room.size >= 4) {
+    if (privateUser && [...room.entries()].some(([sid, details]) => sid !== socket.id && details.accountId === String(privateUser.accountId))) {
+      socket.emit('liveChat:room-full', { roomId: String(roomId), message: 'This call is already open on another device.' });
+      return;
+    }
+    if (!room.has(socket.id) && room.size >= (privateUser ? 2 : 4)) {
       socket.emit('liveChat:room-full', {
         roomId: String(roomId),
         message: 'This live video room already has four players.'
@@ -3621,7 +3683,8 @@ io.on('connection', (socket) => {
       return;
     }
     const safeParticipant = {
-      displayName: String(participant?.displayName || 'Player').slice(0, 60),
+      displayName: String(privateUser?.nickname || privateUser?.firstName || participant?.displayName || 'Player').slice(0, 60),
+      ...(privateUser ? { accountId: String(privateUser.accountId) } : {}),
       mediaState: {
         microphone: participant?.mediaState?.microphone !== false,
         camera: participant?.mediaState?.camera !== false
@@ -3635,7 +3698,8 @@ io.on('connection', (socket) => {
     }));
 
     room.set(socket.id, safeParticipant);
-    socket.join(normalizedRoomId);
+    // Private calls use the verified membership map, never a joinable room.
+    if (!privateUser) socket.join(normalizedRoomId);
     if (!socket.data.liveChatRooms) socket.data.liveChatRooms = new Set();
     socket.data.liveChatRooms.add(normalizedRoomId);
 
@@ -3644,7 +3708,7 @@ io.on('connection', (socket) => {
       participants
     });
 
-    socket.to(normalizedRoomId).emit('liveChat:peer-joined', {
+    sendLiveChatPeers(normalizedRoomId, socket.id, 'liveChat:peer-joined', {
       roomId: String(roomId),
       socketId: socket.id,
       participant: safeParticipant
@@ -3663,7 +3727,7 @@ io.on('connection', (socket) => {
       socket.data.liveChatRooms.delete(normalizedRoomId);
     }
 
-    socket.to(normalizedRoomId).emit('liveChat:peer-left', {
+    sendLiveChatPeers(normalizedRoomId, socket.id, 'liveChat:peer-left', {
       roomId: String(roomId),
       socketId: socket.id
     });
@@ -3689,7 +3753,7 @@ io.on('connection', (socket) => {
       mediaState: nextMediaState
     });
 
-    socket.to(normalizedRoomId).emit('liveChat:media_state', {
+    sendLiveChatPeers(normalizedRoomId, socket.id, 'liveChat:media_state', {
       roomId: String(roomId),
       socketId: socket.id,
       mediaState: nextMediaState
@@ -3701,8 +3765,16 @@ io.on('connection', (socket) => {
     if (!normalizedRoomId || !targetSocketId || !data) return;
     const room = liveChatRooms.get(normalizedRoomId);
     if (!room || !room.has(socket.id) || !room.has(targetSocketId)) return;
+    if (String(roomId).trim().startsWith('friend-call-')) {
+      const auth = socket.data.socialAuth;
+      const target = io.sockets.sockets.get(targetSocketId)?.data?.socialAuth;
+      if (!(auth?.expiresAt > Date.now()) || !(target?.expiresAt > Date.now()) ||
+          !privateCalls.canJoin(roomId, auth.auth.accountId) || !privateCalls.canJoin(roomId, target.auth.accountId) ||
+          privateCalls.get(roomId)?.state !== 'accepted') return;
+      if (JSON.stringify(data).length > 128000) return;
+    }
 
-    io.to(targetSocketId).emit('liveChat:signal', {
+    emitDirectSocket(io, targetSocketId, 'liveChat:signal', {
       roomId: String(roomId),
       fromSocketId: socket.id,
       participant: room.get(socket.id),
@@ -3711,92 +3783,56 @@ io.on('connection', (socket) => {
   });
 
   socket.on('friendCall:invite', async (payload = {}, cb) => {
-    const requestedFromAccountId = resolveTpcIdentity({
-      accountId: payload.fromAccountId,
-      tpcAccountNumber: payload.fromAccountId
-    });
-    const fromAccountId = String(socket.data?.playerId || requestedFromAccountId || '');
-    const toAccountId = String(payload.toAccountId || '');
-    const fromTelegramId = Number(payload.fromTelegramId);
-    const toTelegramId = Number(payload.toTelegramId);
-    const type = payload.type === 'video' ? 'video' : 'voice';
-    if (!fromAccountId || !toAccountId || !fromTelegramId || !toTelegramId) {
-      return cb?.({ success: false, error: 'Invalid call details' });
-    }
+    if (isRateLimited(socket, 'friendCall:invite', 3000)) return cb?.({ success: false, error: 'Please wait before calling again.' });
     try {
-      const caller = await User.findOne({ telegramId: fromTelegramId, accountId: fromAccountId }).select('accountId telegramId nickname firstName lastName photo friends');
-      if (!caller) return cb?.({ success: false, error: 'Caller account not found' });
-      const target = await User.findOne({ telegramId: toTelegramId, accountId: toAccountId }).select('_id accountId telegramId nickname firstName lastName photo friends pushTokens');
-      if (!target) return cb?.({ success: false, error: 'User not found' });
-      const callerIsFriend = caller.friends?.some((id) =>
-        [target.accountId, target.telegramId].some((targetId) => String(id) === String(targetId))
-      );
-      const targetIsFriend = target.friends?.some((id) =>
-        [caller.accountId, caller.telegramId].some((callerId) => String(id) === String(callerId))
-      );
-      if (!callerIsFriend || !targetIsFriend) {
-        return cb?.({ success: false, error: 'Only friends can call each other' });
-      }
-      if (!socket.data?.playerId) {
-        socket.data.playerId = fromAccountId;
-        let callerSockets = userSockets.get(fromAccountId);
-        if (!callerSockets) {
-          callerSockets = new Set();
-          userSockets.set(fromAccountId, callerSockets);
-        }
-        callerSockets.add(socket.id);
-      }
-      const targets = await getUserSocketIds({ accountId: toAccountId, telegramId: toTelegramId });
-      const call = {
-        roomId: `friend-call-${Date.now()}-${Math.random().toString(36).slice(2, 9)}`,
-        fromAccountId,
-        toAccountId,
-        fromTelegramId,
-        toTelegramId,
-        fromName: String(payload.fromName || caller.nickname || caller.firstName || 'TonPlaygram player').slice(0, 60),
-        toName: String(target.nickname || target.firstName || 'TonPlaygram player').slice(0, 60),
-        fromPhoto: caller.photo || '',
-        toPhoto: target.photo || '',
-        type
-      };
-      for (const sid of targets) io.to(sid).emit('friendCall:incoming', call);
-      sendPushNotifications(
-        target.pushTokens || [],
-        {
-          title: `Incoming ${type} call`,
-          body: `${call.fromName} is calling you now.`
-        },
-        { type: 'friendCall', ...Object.fromEntries(Object.entries(call).map(([key, value]) => [key, String(value ?? '')])) }
-      ).catch((error) => console.error('Failed to send friend call push:', error.message));
-      if (target.telegramId) {
-        bot.telegram.sendMessage(
-          String(target.telegramId),
-          `📞 Incoming ${type} call from ${call.fromName}. Open TonPlaygram now to answer.`
-        ).catch((error) => console.error('Failed to send friend call Telegram notification:', error.message));
-      }
-      cb?.({ success: true, call, delivery: targets?.size ? 'online' : 'push' });
+      const caller = await requireSocialSocket(socket);
+      const target = await User.findOne({ accountId: String(payload.toAccountId || '') }).select('accountId telegramId nickname firstName photo friends pushTokens isBanned').lean();
+      if (!target || target.isBanned) return cb?.({ success: false, error: 'User not available' });
+      const mutual = (a, b) => a.friends?.some((id) => [b.accountId, b.telegramId].filter((value) => value != null).some((value) => String(id) === String(value)));
+      if (!mutual(caller, target) || !mutual(target, caller)) return cb?.({ success: false, error: 'Only friends can call each other' });
+      const call = privateCalls.create(caller, target, payload.type);
+      emitSocialEvent([target.accountId], 'friendCall:incoming', call);
+      sendPushNotifications(target.pushTokens || [], {
+        title: `Incoming ${call.type} call`, body: 'A friend is calling you. Open TonPlaygram to answer.'
+      }, { type: 'friendCall', roomId: call.roomId }).catch(() => {});
+      if (target.telegramId) bot.telegram.sendMessage(String(target.telegramId),
+        'Incoming private call. Open TonPlaygram to answer.'
+      ).catch(() => {});
+      cb?.({ success: true, call, delivery: socialSockets.get(String(target.accountId))?.size ? 'online' : 'push' });
     } catch (error) {
-      console.error('friend call invite failed', error);
-      cb?.({ success: false, error: 'Unable to start call' });
+      cb?.({ success: false, error: error.code === 'reauthentication_required' ? error.code : error.message || 'Unable to start call' });
     }
   });
 
-  socket.on('friendCall:accept', async ({ roomId, fromAccountId, fromTelegramId } = {}) => {
-    const targets = await getUserSocketIds({ accountId: fromAccountId, telegramId: fromTelegramId });
-    for (const sid of targets || []) io.to(sid).emit('friendCall:accepted', { roomId });
+  // A push carries only an opaque room id. Recover details only after strict
+  // authentication and participant authorization, never from push metadata.
+  socket.on('friendCall:details', async ({ roomId } = {}, cb) => {
+    try {
+      const user = await requireSocialSocket(socket);
+      const call = privateCalls.get(roomId);
+      if (!call || ![call.fromAccountId, call.toAccountId].includes(String(user.accountId))) return cb?.({ success: false, error: 'Call unavailable' });
+      cb?.({ success: true, call: { ...call } });
+    } catch { cb?.({ success: false, error: 'reauthentication_required' }); }
   });
 
-  socket.on('friendCall:reject', async ({ roomId, fromAccountId, fromTelegramId } = {}) => {
-    const targets = await getUserSocketIds({ accountId: fromAccountId, telegramId: fromTelegramId });
-    for (const sid of targets || []) io.to(sid).emit('friendCall:ended', { roomId, reason: 'declined' });
+  socket.on('friendCall:accept', async ({ roomId } = {}, cb) => {
+    try {
+      const user = await requireSocialSocket(socket);
+      const call = privateCalls.accept(roomId, user.accountId);
+      if (!call) return cb?.({ success: false, error: 'Call unavailable' });
+      emitSocialEvent([call.fromAccountId, call.toAccountId], 'friendCall:accepted', { roomId: call.roomId });
+      cb?.({ success: true, call });
+    } catch { cb?.({ success: false, error: 'reauthentication_required' }); }
   });
-
-  socket.on('friendCall:end', async ({ roomId, fromAccountId, toAccountId, fromTelegramId, toTelegramId } = {}) => {
-    const peerId = String(socket.data?.playerId) === String(fromAccountId) ? toAccountId : fromAccountId;
-    const peerTelegramId = String(peerId) === String(toAccountId) ? toTelegramId : fromTelegramId;
-    const targets = await getUserSocketIds({ accountId: peerId, telegramId: peerTelegramId });
-    for (const sid of targets || []) io.to(sid).emit('friendCall:ended', { roomId });
-  });
+  for (const [event, reason] of [['friendCall:reject', 'declined'], ['friendCall:end', 'ended']]) {
+    socket.on(event, async ({ roomId } = {}, cb) => {
+      try {
+        const user = await requireSocialSocket(socket);
+        const success = privateCalls.end(roomId, user.accountId, reason);
+        cb?.({ success, ...(success ? {} : { error: 'Call unavailable' }) });
+      } catch { cb?.({ success: false, error: 'reauthentication_required' }); }
+    });
+  }
 
   socket.on('rollDice', async (payload = {}) => {
     const { accountId, tableId } = payload;
@@ -4145,6 +4181,7 @@ io.on('connection', (socket) => {
   });
 
   socket.on('disconnecting', () => {
+    removeSocialSocket(socket);
     removeSocketFromLiveChat(socket);
     clearSocketLobbySeats();
   });

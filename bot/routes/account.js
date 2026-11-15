@@ -3,6 +3,7 @@ import { v4 as uuidv4 } from 'uuid';
 import User from '../models/User.js';
 import authenticate from '../middleware/auth.js';
 import { optionalAuthenticate } from '../middleware/auth.js';
+import { verifyRequestedIdentity, identityOwnsUser, sendIdentityError } from '../middleware/accountIdentity.js';
 import {
   ensureTransactionArray,
   calculateBalance,
@@ -28,8 +29,7 @@ import {
   createMemoryUser,
   findMemoryUser,
   saveMemoryUser,
-  shouldUseMemoryUserStore,
-  deleteMemoryUser
+  shouldUseMemoryUserStore
 } from '../utils/memoryUserStore.js';
 
 const router = Router();
@@ -78,235 +78,85 @@ function canAccessUser(req, user) {
   return !user.telegramId && !user.googleId;
 }
 
-// Create or fetch account for a user
+// Identity ownership is established from signed credentials, never an account-id
+// hint. Existing accounts are not silently merged or reassigned during login.
 router.post('/create', optionalAuthenticate, async (req, res) => {
-  const {
-    telegramId,
-    accountId,
-    googleId,
-    googleEmail,
-    firstName,
-    lastName,
-    photo,
-    walletAddress
-  } = req.body;
+  const { telegramId, googleId, firstName, lastName, photo, googleEmail } = req.body || {};
+  if (telegramId == null && googleId == null) {
+    return res.status(401).json({ error: 'reauthentication_required', message: 'Sign in with Telegram or Google to create or restore your account.' });
+  }
+  let claims;
+  try { claims = await verifyRequestedIdentity(req, { telegramId, googleId }); }
+  catch (error) { return sendIdentityError(res, error); }
   const useMemoryStore = shouldUseMemoryUserStore();
-
+  const findUser = (query) => useMemoryStore ? findMemoryUser(query) : User.findOne(query);
+  const persistUser = (user) => useMemoryStore ? saveMemoryUser(user) : user.save();
   try {
-    if (!isPrivileged(req) && telegramId && req.auth?.telegramId !== telegramId) {
-      return res.status(403).json({ error: 'forbidden' });
+    const [telegramUser, googleUser] = await Promise.all([
+      telegramId != null ? findUser({ telegramId: claims.telegramId }) : null,
+      googleId != null ? findUser({ googleId: claims.googleId }) : null
+    ]);
+    if (telegramUser && googleUser && String(telegramUser.accountId) !== String(googleUser.accountId)) {
+      return res.status(409).json({ error: 'identity_already_linked', message: 'These sign-ins belong to different accounts.' });
     }
-    if (!isPrivileged(req) && googleId && req.auth?.googleId !== googleId) {
-      return res.status(403).json({ error: 'forbidden' });
-    }
-    let user;
-    let telegramProfile = null;
-
-    const findUser = async (query) =>
-      useMemoryStore ? findMemoryUser(query) : User.findOne(query);
-    const persistUser = async (payload) =>
-      useMemoryStore ? saveMemoryUser(payload) : payload.save();
-    const removeUser = async (payload) =>
-      useMemoryStore ? deleteMemoryUser(payload?.accountId) : payload?.deleteOne?.();
-
-    // These identities are independent indexed lookups. Running them together
-    // keeps an account refresh to one database round trip instead of making
-    // profile visitors wait for up to three sequential queries.
-    const [existingByAccountId, existingByTelegram, existingByGoogle] =
-      await Promise.all([
-        accountId ? findUser({ accountId }) : null,
-        telegramId ? findUser({ telegramId }) : null,
-        googleId ? findUser({ googleId }) : null
-      ]);
-
-    const primaryExisting = existingByAccountId || existingByTelegram || existingByGoogle;
-
-    if (telegramId) {
-      // Telegram is an external service and can be slow or rate limited. The
-      // database is authoritative for an existing profile, so only contact
-      // Telegram while creating a brand-new account.
-      if (!primaryExisting) {
-        try {
-          telegramProfile = await fetchTelegramInfo(telegramId);
-        } catch (err) {
-          console.error('fetchTelegramInfo failed:', err);
-        }
-      }
-
-      user = existingByTelegram || primaryExisting;
-      if (!user) {
-        const wallet = await generateWalletAddress();
-        const baseData = {
-          telegramId,
-          accountId: accountId || uuidv4(),
-          referralCode: String(telegramId),
-          walletAddress: wallet.address,
-          walletPublicKey: wallet.publicKey
-        };
-
-        if (telegramProfile) {
-          baseData.firstName = telegramProfile.firstName || '';
-          baseData.lastName = telegramProfile.lastName || '';
-          baseData.photo = telegramProfile.photoUrl || '';
-        }
-
-        if (existingByAccountId && existingByAccountId !== user) {
-          user = existingByAccountId;
-          user.telegramId = telegramId;
-          user.referralCode = user.referralCode || String(telegramId);
-          user.walletAddress = user.walletAddress || baseData.walletAddress;
-          user.walletPublicKey = user.walletPublicKey || baseData.walletPublicKey;
-          if (telegramProfile) {
-            user.firstName = user.firstName || telegramProfile.firstName || '';
-            user.lastName = user.lastName || telegramProfile.lastName || '';
-            user.photo = user.photo || telegramProfile.photoUrl || '';
-          }
-          await persistUser(user);
-          if (existingByTelegram && existingByTelegram !== user) {
-            await removeUser(existingByTelegram);
-          }
-        } else {
-          user = useMemoryStore ? createMemoryUser(baseData) : new User(baseData);
-          if (!useMemoryStore) await user.save();
-        }
-      } else {
-        let updated = false;
-        if (!user.accountId) {
-          user.accountId = accountId || uuidv4();
-          updated = true;
-        }
-        if (!user.walletAddress) {
-          const wallet = await generateWalletAddress();
-          user.walletAddress = wallet.address;
-          user.walletPublicKey = wallet.publicKey;
-          updated = true;
-        }
-        if (telegramProfile) {
-          if (!user.firstName && telegramProfile.firstName) {
-            user.firstName = telegramProfile.firstName;
-            updated = true;
-          }
-          if (!user.lastName && telegramProfile.lastName) {
-            user.lastName = telegramProfile.lastName;
-            updated = true;
-          }
-          if (!user.photo && telegramProfile.photoUrl) {
-            user.photo = telegramProfile.photoUrl;
-            updated = true;
-          }
-        }
-        if (updated) await persistUser(user);
-      }
-    } else if (googleId) {
-      user = existingByGoogle || primaryExisting;
-      if (!user) {
-        const wallet = await generateWalletAddress();
-        const baseData = {
-          googleId,
-          googleEmail: googleEmail || '',
-          accountId: accountId || uuidv4(),
-          referralCode: googleId,
-          walletAddress: wallet.address,
-          walletPublicKey: wallet.publicKey,
-          firstName: firstName || '',
-          lastName: lastName || '',
-          photo: photo || ''
-        };
-        if (existingByAccountId && existingByAccountId !== user) {
-          user = existingByAccountId;
-          user.googleId = googleId;
-          user.googleEmail = googleEmail || user.googleEmail;
-          user.firstName = user.firstName || firstName || '';
-          user.lastName = user.lastName || lastName || '';
-          user.photo = user.photo || photo || '';
-          user.walletAddress = user.walletAddress || wallet.address;
-          user.walletPublicKey = user.walletPublicKey || wallet.publicKey;
-          user.referralCode = user.referralCode || googleId;
-          await persistUser(user);
-          if (existingByGoogle && existingByGoogle !== user) {
-            await removeUser(existingByGoogle);
-          }
-        } else {
-          user = useMemoryStore ? createMemoryUser(baseData) : new User(baseData);
-          if (!useMemoryStore) await user.save();
-        }
-      } else {
-        let updated = false;
-        if (!user.accountId) {
-          user.accountId = accountId || uuidv4();
-          updated = true;
-        }
-        if (!user.walletAddress) {
-          const wallet = await generateWalletAddress();
-          user.walletAddress = wallet.address;
-          user.walletPublicKey = wallet.publicKey;
-          updated = true;
-        }
-        if (googleEmail && user.googleEmail !== googleEmail) {
-          user.googleEmail = googleEmail;
-          updated = true;
-        }
-        if (firstName && user.firstName !== firstName) {
-          user.firstName = firstName;
-          updated = true;
-        }
-        if (lastName && user.lastName !== lastName) {
-          user.lastName = lastName;
-          updated = true;
-        }
-        if (photo && !user.photoCustom && user.photo !== photo) {
-          user.photo = photo;
-          updated = true;
-        }
-        if (updated) await persistUser(user);
-      }
-    } else {
-      const wallet = await generateWalletAddress();
+    let user = telegramUser || googleUser;
+    if (user && !identityOwnsUser(claims, user)) return res.status(403).json({ error: 'forbidden' });
+    if (user?.isBanned) return res.status(403).json({ error: 'account_unavailable' });
+    let updated = false;
+    if (!user) {
       const id = uuidv4();
-      user = useMemoryStore ? createMemoryUser({
+      const wallet = await generateWalletAddress();
+      const data = {
         accountId: id,
-        referralCode: id,
+        referralCode: String(telegramId || googleId || id),
         walletAddress: wallet.address,
-        walletPublicKey: wallet.publicKey
-      }) : new User({
-        accountId: id,
-        referralCode: id,
-        walletAddress: wallet.address,
-        walletPublicKey: wallet.publicKey
-      });
-      if (!useMemoryStore) await user.save();
+        walletPublicKey: wallet.publicKey,
+        ...(telegramId != null ? { telegramId: claims.telegramId } : {}),
+        ...(googleId != null ? { googleId: claims.googleId, googleEmail: String(googleEmail || '').slice(0, 254) } : {})
+      };
+      if (telegramId != null) {
+        try {
+          const profile = await fetchTelegramInfo(claims.telegramId);
+          if (profile) Object.assign(data, { firstName: profile.firstName || '', lastName: profile.lastName || '', photo: profile.photoUrl || '' });
+        } catch (error) { console.error('fetchTelegramInfo failed:', error.message); }
+      } else if (googleId != null) {
+        Object.assign(data, { firstName: String(firstName || '').slice(0, 100), lastName: String(lastName || '').slice(0, 100), photo: String(photo || '').slice(0, 2048) });
+      }
+      user = useMemoryStore ? createMemoryUser(data) : new User(data);
+      updated = true;
+    } else {
+      // Account ids are generated by the server and must never be assigned from
+      // a caller-provided hint, even when the credential itself is valid.
+      if (!user.accountId) { user.accountId = uuidv4(); updated = true; }
+      if (!user.walletAddress) {
+        const wallet = await generateWalletAddress();
+        user.walletAddress = wallet.address;
+        user.walletPublicKey = wallet.publicKey;
+        updated = true;
+      }
+      if (googleId != null && !telegramId) {
+        for (const [key, value, limit] of [['googleEmail', googleEmail, 254], ['firstName', firstName, 100], ['lastName', lastName, 100]]) {
+          if (typeof value === 'string' && value && user[key] !== value) { user[key] = value.slice(0, limit); updated = true; }
+        }
+        if (typeof photo === 'string' && photo && !user.photoCustom && user.photo !== photo) { user.photo = photo.slice(0, 2048); updated = true; }
+      }
     }
-
-    if (walletAddress && !user.walletAddress) {
-      user.walletAddress = walletAddress;
-      await persistUser(user);
-    }
-
+    if (updated) await persistUser(user);
+    res.setHeader('Cache-Control', 'no-store');
     res.json({
-      accountId: user.accountId,
-      balance: user.balance,
-      walletAddress: user.walletAddress,
-      firstName: user.firstName,
-      lastName: user.lastName,
-      photo: user.photo,
-      // Let the profile screen render from this same database result rather
-      // than immediately issuing a second /account/info query.
+      accountId: user.accountId, balance: user.balance, walletAddress: user.walletAddress,
+      firstName: user.firstName, lastName: user.lastName, photo: user.photo,
       profile: {
-        accountId: user.accountId,
-        telegramId: user.telegramId,
-        googleId: user.googleId,
-        nickname: user.nickname,
-        firstName: user.firstName,
-        lastName: user.lastName,
-        photo: user.photo,
-        balance: resolveAccountBalance(user),
+        accountId: user.accountId, telegramId: user.telegramId, googleId: user.googleId,
+        nickname: user.nickname, firstName: user.firstName, lastName: user.lastName,
+        photo: user.photo, balance: resolveAccountBalance(user),
         gifts: Array.isArray(user.gifts) ? user.gifts : [],
-        transactions: Array.isArray(user.transactions) ? user.transactions : [],
-        social: user.social || {}
+        transactions: Array.isArray(user.transactions) ? user.transactions : [], social: user.social || {}
       }
     });
-  } catch (err) {
-    console.error('Failed to create account:', err);
+  } catch (error) {
+    if (error?.code === 11000) return res.status(409).json({ error: 'identity_already_linked' });
+    console.error('Failed to create account:', error.message);
     res.status(500).json({ error: 'failed to create account' });
   }
 });
@@ -945,10 +795,7 @@ router.post('/deposit', authenticate, async (req, res) => {
       .json({ error: 'accountId and positive amount required' });
   }
   let user = await User.findOne({ accountId });
-  if (!user) {
-    user = new User({ accountId });
-    if (authId && !devIds.includes(accountId)) user.telegramId = authId;
-  }
+  if (!user) return res.status(404).json({ error: 'account_not_found', message: 'Create your account with a verified sign-in first.' });
   if (
     !devIds.includes(accountId) &&
     authId &&

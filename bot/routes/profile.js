@@ -5,6 +5,7 @@ import { fetchTelegramInfo } from '../utils/telegram.js';
 import { ensureTransactionArray, resolveAccountBalance, sanitizeUser } from '../utils/userUtils.js';
 import { normalizeAddress } from '../utils/ton.js';
 import authenticate from '../middleware/auth.js';
+import { verifyRequestedIdentity, sendIdentityError } from '../middleware/accountIdentity.js';
 
 export function parseTwitterHandle(input) {
   if (!input) return '';
@@ -74,9 +75,9 @@ router.post('/register-wallet', async (req, res) => {
 
 router.post('/register-google', async (req, res) => {
   const { googleId } = req.body;
-  if (!googleId) {
-    return res.status(400).json({ error: 'googleId required' });
-  }
+  if (!googleId) return res.status(400).json({ error: 'googleId required' });
+  try { await verifyRequestedIdentity(req, { googleId }); }
+  catch (error) { return sendIdentityError(res, error); }
   const user = await User.findOneAndUpdate(
     { googleId },
     { $setOnInsert: { googleId, referralCode: googleId } },
@@ -225,6 +226,11 @@ router.post('/updateBalance', authenticate, async (req, res) => {
 
 router.post('/addTransaction', authenticate, async (req, res) => {
   const { telegramId, accountId, amount, type, game, players } = req.body;
+  // Compatibility identity headers cannot create or claim a sign-in mapping.
+  if (!req.auth?.apiToken) {
+    try { req.auth = await verifyRequestedIdentity(req, { telegramId }); }
+    catch (error) { return sendIdentityError(res, error); }
+  }
   if ((telegramId == null && !accountId) || amount === undefined || !type) {
     return res
       .status(400)
@@ -258,32 +264,36 @@ router.post('/addTransaction', authenticate, async (req, res) => {
   res.json({ transactions: user.transactions });
 });
 
-router.post('/link-google', authenticate, async (req, res) => {
-  const { telegramId, googleId, email, dob, firstName, lastName, photo } = req.body;
-  if (!telegramId || !googleId) {
-    return res.status(400).json({ error: 'telegramId and googleId required' });
+router.post('/link-google', async (req, res) => {
+  const { telegramId, googleId, email, dob, firstName, lastName, photo } = req.body || {};
+  if (!telegramId || !googleId) return res.status(400).json({ error: 'telegramId and googleId required' });
+  // Linking proves ownership of both sign-ins. Knowing a Google subject id or
+  // presenting somebody else's account-id header is not authorization.
+  try { await verifyRequestedIdentity(req, { telegramId, googleId }); }
+  catch (error) { return sendIdentityError(res, error); }
+  try {
+    const [existing, googleOwner] = await Promise.all([
+      User.findOne({ telegramId }), User.findOne({ googleId })
+    ]);
+    if (!existing || existing.isBanned) return res.status(404).json({ error: 'account_not_found' });
+    if (googleOwner && String(googleOwner._id) !== String(existing._id)) {
+      return res.status(409).json({ error: 'identity_already_linked', message: 'This Google sign-in belongs to another account.' });
+    }
+    const update = { googleId, googleEmail: String(email || '').slice(0, 254) };
+    if (typeof dob === 'string') update.googleDob = dob.slice(0, 20);
+    if (typeof firstName === 'string') update.firstName = firstName.slice(0, 100);
+    if (typeof lastName === 'string') update.lastName = lastName.slice(0, 100);
+    if (typeof photo === 'string' && !existing.photoCustom) update.photo = photo.slice(0, 2048);
+    const user = await User.findOneAndUpdate(
+      { _id: existing._id, telegramId }, { $set: update }, { new: true }
+    );
+    if (!user) return res.status(409).json({ error: 'account_changed' });
+    res.setHeader('Cache-Control', 'no-store');
+    res.json(sanitizeUser(user));
+  } catch (error) {
+    if (error?.code === 11000) return res.status(409).json({ error: 'identity_already_linked' });
+    res.status(500).json({ error: 'link_failed' });
   }
-  if (!req.auth?.telegramId || req.auth.telegramId !== telegramId) {
-    return res.status(403).json({ error: 'forbidden' });
-  }
-
-  const update = {
-    googleId,
-    googleEmail: email,
-    googleDob: dob
-  };
-
-  if (firstName !== undefined) update.firstName = firstName;
-  if (lastName !== undefined) update.lastName = lastName;
-  const existing = await User.findOne({ telegramId }).select('photoCustom').lean();
-  if (photo !== undefined && !existing?.photoCustom) update.photo = photo;
-
-  const user = await User.findOneAndUpdate(
-    { telegramId },
-    { $set: update, $setOnInsert: { referralCode: telegramId.toString() } },
-    { upsert: true, new: true, setDefaultsOnInsert: true }
-  );
-  res.json(sanitizeUser(user));
 });
 
 router.post('/link-social', authenticate, async (req, res) => {
