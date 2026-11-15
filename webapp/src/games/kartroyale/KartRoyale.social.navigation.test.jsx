@@ -4,9 +4,9 @@ import { afterEach, expect, it, vi } from 'vitest';
 import { racingActivity } from './racingModeCore.mjs';
 
 const lifecycle = vi.hoisted(() => ({ cityLeave: vi.fn(), raceLeave: vi.fn() }));
-vi.mock('./BaseKartRoyale', () => ({ default: function Garage({ onCareer }) {
+vi.mock('./BaseKartRoyale', () => ({ default: function Garage({ onCareer, onFreeRoam }) {
   useEffect(() => () => lifecycle.raceLeave(), []);
-  return <button onClick={onCareer}>CAREER</button>;
+  return <><button onClick={onCareer}>CAREER JOBS</button><button onClick={onFreeRoam}>FREE ROAM</button></>;
 } }));
 vi.mock('../tirana-social/ExploreGame', () => ({ ExploreGame: function City({ onExit, onCareerJobs }) {
   useEffect(() => () => lifecycle.cityLeave(), []);
@@ -34,9 +34,9 @@ async function click(label) {
   expect(button).toBeTruthy();
   await act(async () => button.click());
 }
-it('opens Career in the shared city and disposes each runtime when switching activities', async () => {
+it('opens Free Roam in the shared city and disposes each runtime when switching activities', async () => {
   await render();
-  await click('CAREER');
+  await click('FREE ROAM');
   expect(host.querySelector('[aria-label="Shared city"]')).not.toBeNull();
   expect(lifecycle.raceLeave).toHaveBeenCalledOnce();
   await click('CITY JOBS');
@@ -44,12 +44,13 @@ it('opens Career in the shared city and disposes each runtime when switching act
   await click('RETURN TO CITY');
   await click('GARAGE');
   expect(lifecycle.cityLeave).toHaveBeenCalledTimes(2);
-  expect(host.textContent).toBe('CAREER');
+  expect(host.textContent).toBe('CAREER JOBSFREE ROAM');
 });
 it('opens career links in social city while preserving explicit solo-job links', async () => {
   await render('?mode=career');
   expect(host.querySelector('[aria-label="Shared city"]')).not.toBeNull();
   expect(racingActivity('?activity=city')).toBe('explore');
+  expect(racingActivity('?mode=free')).toBe('explore');
   expect(racingActivity('?activity=racing-career')).toBe('career');
 });
 it('never diverts a paid race or resume link into the social city', async () => {
@@ -58,4 +59,14 @@ it('never diverts a paid race or resume link into the social city', async () => 
   for (const query of ['mode=online', 'tableId=paid-seat', 'code=ABC123']) {
     expect(racingActivity(`?${query}&activity=city&mode=career`)).toBe('race');
   }
+});
+
+it('opens nested career jobs directly and returns to the shared city', async () => {
+ await render();
+ await click('CAREER JOBS');
+ expect(host.querySelector('[aria-label="Shared city"]')).toBeNull();
+ expect(host.textContent).toBe('RETURN TO CITY');
+ expect(lifecycle.raceLeave).toHaveBeenCalledOnce();
+ await click('RETURN TO CITY');
+ expect(host.querySelector('[aria-label="Shared city"]')).not.toBeNull();
 });

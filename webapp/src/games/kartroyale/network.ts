@@ -1,9 +1,15 @@
 import type { Socket } from 'socket.io-client';
 import type { Racer } from './simulation.mjs';
+import type { RaceCombatState } from './raceCombat.mjs';
+import type { RaceFormat } from './raceFormats.mjs';
 export interface Room {
   code: string;
   hostId: string;
   trackId: string;
+  raceFormat: RaceFormat;
+  cupIndex: number | null;
+  timeTrial: boolean;
+  combat: RaceCombatState | null;
   status: 'waiting' | 'countdown' | 'racing' | 'finished';
   public: boolean;
   tableId?: string | null;

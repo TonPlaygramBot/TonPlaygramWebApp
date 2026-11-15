@@ -1,9 +1,10 @@
 import * as T from 'three';
 import {GhostRecorder,ghostKey,sampleGhost,type GhostLap} from './ghostLap.mjs';
+import {trialStandings} from './raceFormats.mjs';
 import {rivalIntervals,type RivalInterval,type RaceTelemetry,type Powertrain} from './raceTelemetry.mjs';
 import {createCityJob,stepCityJob,type CityJobState} from './cityJobs.mjs';
 import {CityJobGuide} from './CityJobGuide';
-import {createRaceCombat,stepRaceCombat,type RaceCombatState} from './raceCombat.mjs';
+import {createRaceCombat,stepRaceCombat,type RaceCombatState,type CombatInput} from './raceCombat.mjs';
 import {RaceCombatEffects} from './RaceCombatEffects';
 import {createActionCareer,stepActionCareer,actionCameraDistance,type ActionCareerState,type ActionInput} from './actionCareer.mjs';
 import {ActionCareerWorld} from './ActionCareerWorld';
@@ -55,6 +56,7 @@ import type { DrivingWorld } from './freeRoamCore.mjs';
 export type CameraMode = 'driver' | 'chase';
 export type Quality = 'auto' | 'high' | 'performance';
 export interface Frame {
+  online?:boolean;
   playerId?:string;
   timeTrial?:boolean;
   telemetry?:RaceTelemetry;
@@ -98,6 +100,7 @@ export interface Frame {
   slipstream: number;
 }
 export interface Result {
+  online?:boolean;
   timeTrial?:boolean;
   personalBest?:number;
   newBest?:boolean;
@@ -111,6 +114,10 @@ export interface Result {
   trackId: string;
 }
 export interface ServerRace {
+  raceFormat?: 'race' | 'combat' | 'trial' | 'championship';
+  timeTrial?: boolean;
+  combat?: RaceCombatState | null;
+  results?: Racer[];
   trackId: string;
   status: string;
   racers: Racer[];
@@ -203,6 +210,7 @@ export class KartRenderer {
   private racers: Racer[] = [];
   private state = 'garage';
   private network = false;
+  private authoritativeResults: Racer[] | null = null;
   private timeTrial = false;
   private ghostRecorder:GhostRecorder|null = null;
   private ghostVisual:T.Group|null = null;
@@ -643,6 +651,9 @@ export class KartRenderer {
     this.resetActionModes();
     this.cityJob=null;this.jobGuide=null;
     this.network = false;
+    this.authoritativeResults = null;
+    this.timeTrial = false;
+    this.ghostRecorder = null;
     this.freeDriving=null;
     this.paused = false;
     this.clearInput();
@@ -947,6 +958,7 @@ export class KartRenderer {
     this.difficulty = difficulty;
     this.me = 'you';
     this.network = false;
+    this.authoritativeResults = null;
     this.time = 0;
     this.countdown = freeRoam?0:3;
     this.accumulator = 0;
@@ -1014,41 +1026,77 @@ export class KartRenderer {
     this.actionWorld?.dispose();this.actionWorld=null;this.actionCareer=null;
   }
   networkState(next: ServerRace, id: string) {
-    this.resetActionModes();
-    this.timeTrial=false;this.ghostRecorder=null;
-    this.cityJob=null;
     if (!next.racers.length) return;
     const fresh =
       !this.network ||
       this.me !== id ||
+      this.track.id !== next.trackId ||
       this.state === 'garage' ||
       (this.state === 'finished' && next.status === 'countdown');
+    if (fresh) this.resetActionModes();
+    this.timeTrial = next.raceFormat === 'trial';
+    this.ghostRecorder = null;
+    this.cityJob = null;
     this.network = true;
-    this.freeDriving=null;
+    this.freeDriving = null;
     this.me = id;
     this.time = next.elapsed;
     this.countdown = Math.max(0, (next.startsAt - next.serverNow) / 1000);
     this.racers = next.racers.map((r) => ({ ...r }));
+    this.authoritativeResults = next.results?.length
+      ? next.results.map((r) => ({ ...r }))
+      : null;
     if (fresh) {
       this.track = makeTrack(next.trackId);
       this.createWorld(this.track);
       this.addRacers();
+      this.accumulator = 0;
       this.clearInput();
       this.snapCamera();
     }
+    // A shared snapshot contains every weapon. Select this viewer's weapon
+    // without mutating the transport payload or running combat prediction.
+    if (next.raceFormat === 'combat' && next.combat?.weapons[id]) {
+      this.combat = structuredClone(next.combat);
+      this.combat.playerId = id;
+      this.combat.player = this.combat.weapons[id];
+      if (!this.combatEffects) {
+        this.combatEffects = new RaceCombatEffects();
+        this.world.add(this.combatEffects.group);
+      }
+    } else if (this.combat) {
+      this.combatEffects?.dispose();
+      this.combatEffects = null;
+      this.combat = null;
+      this.combatReloadPulse = false;
+      this.combatEmpPulse = false;
+    }
     if (next.status === 'finished' && this.state !== 'finished') {
       this.state = 'finished';
+      this.clearInput();
       this.finish();
     } else if (next.status !== 'finished') this.state = next.status;
   }
+  /** Consume short combat taps at the packet boundary, not the render step. */
+  networkInput(): Input & CombatInput {
+    const input = { ...this.input, reload: false, pulse: false };
+    if (!this.paused && this.state === 'racing' && this.combat) {
+      input.reload = this.combatInput.reload || this.combatReloadPulse;
+      input.pulse = this.combatEmpPulse;
+    }
+    this.combatReloadPulse = false;
+    this.combatEmpPulse = false;
+    return input;
+  }
   private finish() {
     this.onFinish({
+      online:this.network,
       timeTrial:this.timeTrial,personalBest:this.ghostRecorder?.best?.time,
       newBest:this.ghostRecorder?.improved,ghostSaved:this.ghostRecorder?.saved,
       cityJob:this.cityJob?{...this.cityJob}:undefined,
       combat:this.combat?structuredClone(this.combat):undefined,
       actionCareer:this.actionCareer?structuredClone(this.actionCareer):undefined,
-      racers: standings(this.racers),
+      racers: this.authoritativeResults || (this.timeTrial && this.network ? trialStandings(this.racers) : standings(this.racers)),
       playerId: this.me,
       elapsed: this.time,
       trackId: this.track.id
@@ -1198,7 +1246,7 @@ export class KartRenderer {
                 this.time,
                 this.difficulty
               );
-            if(this.combat){
+            if(this.combat&&!this.network){
               stepRaceCombat(this.combat,this.racers,this.track,{...this.input,reload:this.combatInput.reload||this.combatReloadPulse,pulse:this.combatEmpPulse},STEP,this.time);
               this.combatReloadPulse=false;
               this.combatEmpPulse=false;
@@ -1407,7 +1455,7 @@ export class KartRenderer {
         if (now - this.uiAt > 90) {
           this.uiAt = now;
           this.onFrame({
-            playerId:this.me,timeTrial:this.timeTrial,
+            online:this.network,playerId:this.me,timeTrial:this.timeTrial,
             telemetry:me.telemetry?{...me.telemetry,sectors:[...me.telemetry.sectors]}:undefined,
             powertrain:me.powertrain?{...me.powertrain}:undefined,
             rivals:rivalIntervals(this.racers,this.me,this.track.length),
@@ -1426,7 +1474,7 @@ export class KartRenderer {
             boost: me.boost,
             lap: Math.min(3, Math.max(1, me.lap)),
             position:
-              standings(this.racers).findIndex((r) => r.id === this.me) + 1,
+              (this.timeTrial && this.network ? trialStandings(this.racers) : standings(this.racers)).findIndex((r) => r.id === this.me) + 1,
             time: this.time,
             countdown:
               this.state === 'countdown' ? Math.ceil(this.countdown) : 0,

@@ -5,11 +5,15 @@ authoritative multiplayer simulation are retained.
 
 ## Driving
 
-- Base cruise is capped at 35 m/s and turbo at 47 m/s before kart multipliers,
+- Base cruise is capped at 33 m/s and turbo at 44 m/s before kart multipliers,
   trimming the previous pace slightly so portrait races remain readable.
 - Stronger acceleration and brakes accompany the higher speed. Manual gas,
   coasting, brake priority, and reverse limits remain intact.
 - Expiring turbo decelerates smoothly instead of instantly clamping to cruise.
+- Releasing the stick centres the wheels promptly, countersteering responds
+  faster than entering a turn, and high-speed steering is slightly gentler.
+- Time-trial best laps use a handling revision in their storage key, keeping
+  older faster records intact without comparing them against the slower setup.
 - AI corner targets, speed factors, and boost thresholds are more assertive at
   every difficulty, while preserving predictive braking and recovery.
 - Nitro consumption is 27 energy/second, with 4 passive or 16 drifting recharge.
@@ -23,6 +27,9 @@ The left side now uses the same 112px analogue joystick pattern as Tirana
 Streets. Drag visually left or right for proportional steering and slide the
 stick upward to drift. Brake remains central; gas, drift, and boost stay on the
 right so two-thumb driving remains possible in portrait.
+
+The centre dead zone blends continuously into steering, with finer small
+corrections and full steering lock at either edge. Left/right mapping is unchanged.
 
 Hold gas and slide that thumb upward to boost. Slide the joystick thumb upward
 to drift; sliding back down releases only the drift. Separate drift and boost

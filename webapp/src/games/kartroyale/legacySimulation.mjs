@@ -15,7 +15,7 @@ import { surfaceGrip } from './racingSurface.mjs';
 export { damageRacer };
 export const STEP = 1 / 60,
   LAPS = 3;
-export const RACING_PACE = Object.freeze({cruise:35,turbo:47});
+export const RACING_PACE = Object.freeze({cruise:33,turbo:44});
 export const AI_PACE = Object.freeze({rookie:.9,street:1,pro:1.04});
 export const COLORS = [
   '#baff29',
@@ -325,11 +325,14 @@ export function stepRacer(r, raw, track, dt, time, difficulty = 'street', drivin
   const kart = KARTS.find(k => k.id === r.kartId) || KARTS[0];
   // Keep legacy wire fields inert so stale clients cannot enable combat.
   r.shieldMax = 0; r.shield = 0; r.shieldActive = false; r.ammunition = 0;
-  // A finite steering rack response makes touch buttons progressive. Physics
-  // and the visible wheels share this value on both the client and server.
+  // Ease into a turn, but respond faster when the driver releases the stick or
+  // countersteers. This avoids carrying the previous turn through a correction.
+  // Physics and the visible wheels share the rack on the client and server.
+  const previousSteering = r.steering || 0;
+  const rackResponse = !steer ? 18 : steer * previousSteering < 0 ? 14 : 8;
   r.steering =
-    (r.steering || 0) +
-    (steer - (r.steering || 0)) * (1 - Math.exp(-dt * (steer ? 8 : 12)));
+    previousSteering +
+    (steer - previousSteering) * (1 - Math.exp(-dt * rackResponse));
   const drift = stepDrift(r, r.airborne?{...input,drift:false}:input, dt),
     boost = throttle && input.boost === true && r.boost > 1 && !input.brake && !input.reverse && r.speed >= 0;
   r.boosting = throttle && !input.brake && !input.reverse && (boost || r.turbo > 0);
@@ -356,10 +359,10 @@ export function stepRacer(r, raw, track, dt, time, difficulty = 'street', drivin
   r.boost = clamp(r.boost + (boost ? -27 : drift ? 16 : 4) * dt, 0, 100);
   const turn =
     (-r.steering * kart.handling * (drift ? 1.42 : 1.28) * clamp(r.speed / 10, -1, 1)) /
-    (1 + Math.max(0, r.speed - 22) * 0.022);
+    (1 + Math.max(0, r.speed - 22) * 0.028);
   r.yawRate =
     (r.yawRate || 0) +
-    (turn - (r.yawRate || 0)) * (1 - Math.exp(-dt * (drift ? 7 : 12)));
+    (turn - (r.yawRate || 0)) * (1 - Math.exp(-dt * (drift ? 7 : !steer ? 18 : 12)));
   r.collisionSpin = (r.collisionSpin || 0) * Math.exp(-dt * 5);
   r.yaw += (r.yawRate * grip + r.collisionSpin) * dt;
   // Gentle edge assistance preserves screen-relative steering and never teleports.

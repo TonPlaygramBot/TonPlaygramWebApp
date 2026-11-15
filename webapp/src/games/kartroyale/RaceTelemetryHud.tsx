@@ -13,8 +13,8 @@ export function RaceTelemetryHud({frame}:{frame:Frame|null}){
       {timing?.valid===false?<strong className="rr-invalid">RECOVERY · LAP INVALID</strong>:
         delta!==undefined&&delta!==null?<strong className={delta<=0?'rr-faster':'rr-slower'}>{delta>0?'+':''}{delta.toFixed(2)}s <small>AT LAST SPLIT</small></strong>:
         <small>{frame.timeTrial?'SET YOUR BEST LAP':frame.lap===3?'FINAL LAP':'CHASE THE PODIUM'}</small>}
-      {frame.timeTrial&&<small>{frame.personalBest?`PERSONAL BEST ${formatTime(frame.personalBest)}`:'Your first valid lap creates a ghost'}</small>}
-      {frame.ghostSaved===false&&<small role="status">Ghost kept for this session; device save unavailable</small>}
+      {frame.timeTrial&&<small>{frame.online?'Fastest valid lap wins this session':frame.personalBest?`PERSONAL BEST ${formatTime(frame.personalBest)}`:'Your first valid lap creates a ghost'}</small>}
+      {!frame.online&&frame.ghostSaved===false&&<small role="status">Ghost kept for this session; device save unavailable</small>}
     </div>
     {!frame.timeTrial&&<ol className="rr-rival-tower" aria-label="Nearby race positions">
       {frame.rivals?.map(r=><li key={r.id} className={r.player?'you':''}><b>{r.position}</b><span>{r.player?'YOU':r.name}</span><small>{r.player?'':r.finished?'FIN':`${r.ahead?'+':'−'}${r.meters}m`}</small></li>)}
@@ -31,7 +31,8 @@ export function RaceDebrief({result}:{result:Result}){
     <div><span>TOP SPEED</span><b>{Math.round(timing.topSpeed*3.6)} <small>km/h</small></b></div>
     <div><span>DRIFT DISTANCE</span><b>{Math.round(timing.driftDistance)} <small>m</small></b></div>
     <div><span>SLIPSTREAM</span><b>{timing.draftSeconds.toFixed(1)} <small>s</small></b></div>
-    {result.timeTrial&&<p>{result.newBest?'NEW PERSONAL BEST · GHOST UPDATED':result.personalBest?`PERSONAL BEST ${formatTime(result.personalBest)}`:'Complete a lap without recovering to record a ghost.'}{result.ghostSaved===false?' · Device save unavailable; kept for this session.':''}</p>}
+    {result.timeTrial&&result.online&&<p>Ranked by the fastest valid lap in this session.</p>}
+    {result.timeTrial&&!result.online&&<p>{result.newBest?'NEW PERSONAL BEST · GHOST UPDATED':result.personalBest?`PERSONAL BEST ${formatTime(result.personalBest)}`:'Complete a lap without recovering to record a ghost.'}{result.ghostSaved===false?' · Device save unavailable; kept for this session.':''}</p>}
   </section>;
 }
 

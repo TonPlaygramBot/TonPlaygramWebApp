@@ -1963,3 +1963,10 @@
 .kr-vehicle-carousel button:disabled { opacity:.4; }
 .kr-vehicle-carousel > span { flex:1;text-align:center;color:#eef4ee;font-size:14px;white-space:nowrap; }
 .kr-vehicle-carousel small { display:block;font-size:10px;letter-spacing:0;margin-top:3px;color:#c6d3d3; }
+
+/* Activity options stay inside the chosen play mode on portrait phones. */
+.rr-race-features { display: grid; gap: 10px; }
+.rr-race-features p { margin: 0; font-size: 12px; line-height: 1.5; color: #b1c7c2; }
+.rr-race-features select { width: 100%; min-height: 44px; }
+.kr-row[aria-label="Online race entry"] { margin-bottom: 12px; }
+.kr-row[aria-label="Online race entry"] button[aria-pressed="true"] { border-color: #d4fd36; color: #d4fd36; }

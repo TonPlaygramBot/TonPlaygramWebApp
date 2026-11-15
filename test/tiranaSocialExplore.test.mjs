@@ -36,3 +36,13 @@ test('closing service ends rooms and rejects late requests',async()=>{const f=fi
 test('a stale client on a reused socket cannot leave or command a newer session',async()=>{const f=fixture(),s=f.sock('a'),old=await f.ask(s,'join');await f.ask(s,'leave',{roomId:old.id});const next=await f.ask(s,'join',{clientId:'newclient'});await assert.rejects(f.ask(s,'leave',{roomId:next.id}),/Join/);const snap=await f.ask(s,'snapshot',{roomId:next.id,clientId:'newclient'});assert.equal(snap.members.length,1);});
 test('missing client-session fencing cannot create social membership',async()=>{const f=fixture();await assert.rejects(f.ask(f.sock('a'),'join',{clientId:''}),/session/);});
 test('explicitly joined muted users can keep listening without falsely broadcasting a live microphone',async()=>{const f=fixture(),a=f.sock('a'),b=f.sock('b'),ra=await f.ask(a,'join'),rb=await f.ask(b,'join');const ca=await f.ask(a,'prepare-media',{roomId:ra.id}),cb=await f.ask(b,'prepare-media',{roomId:rb.id});for(const [s,epoch] of [[a,ca.epoch],[b,cb.epoch]])await f.ask(s,'media',{roomId:ra.id,epoch,media:{microphone:true}});await f.ask(b,'media-state',{roomId:ra.id,epoch:cb.epoch,media:{}});const snap=await f.ask(b,'snapshot',{roomId:rb.id}),me=snap.members.find(m=>m.id===rb.playerId);assert.equal(me.callJoined,true);assert.equal(me.media.microphone,false);await f.ask(a,'signal',{roomId:ra.id,to:rb.playerId,epoch:ca.epoch,toEpoch:cb.epoch,data:sdp});});
+
+test('Turi is the default and existing avatar changes are authoritative for all room members',async()=>{
+  const f=fixture(),alice=f.sock('a'),bob=f.sock('b'),room=await f.ask(alice,'join');
+  assert.equal(room.members[0].appearance,'turi');await f.ask(bob,'join');
+  await f.ask(alice,'appearance',{roomId:room.id,appearance:'athlete-female'});
+  let view=await f.ask(bob,'snapshot',{roomId:room.id});assert.equal(view.members.find(m=>m.id===room.playerId).appearance,'athlete-female');
+  await f.ask(alice,'appearance',{roomId:room.id,appearance:'turi'});
+  view=await f.ask(bob,'snapshot',{roomId:room.id});assert.equal(view.members.find(m=>m.id===room.playerId).appearance,'turi');
+  await assert.rejects(f.ask(alice,'appearance',{roomId:room.id,appearance:'external-avatar'}),/Unknown character/);
+});

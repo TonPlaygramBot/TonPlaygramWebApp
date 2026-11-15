@@ -23,8 +23,7 @@ import {
   Camera,
   Compass,
   Wifi,
-  WifiOff,
-  Crosshair
+  WifiOff
 } from 'lucide-react';
 import { createHeldRaceInput } from './heldRaceInput.mjs';
 import { FREE_ROAM_STARTS } from './freeRoam.mjs';
@@ -45,15 +44,21 @@ import { loadCareer, recordRace, formatTime } from './career';
 import { KartAudio } from './audio';
 import {RaceTelemetryHud,RaceRevBar,RaceDebrief} from './RaceTelemetryHud';
 import { request, saveSession, loadSession } from './network';
+import { bestTrialLap, type RaceFormat } from './raceFormats.mjs';
 import type { Room, Session } from './network';
 import './kart-royale.css';
 import './kart-mobile.css';
 import './kart-controls.css';
-type Mode = 'ai' | 'online' | 'career' | 'free' | 'trial' | 'combat';
+type Mode = 'ai' | 'online' | 'free';
+const raceFormats: {id: RaceFormat; label: string}[] = [
+  {id: 'race', label: 'Race'}, {id: 'championship', label: 'Career'},
+  {id: 'combat', label: 'Combat race'}, {id: 'trial', label: 'Time trial'}
+];
 interface Props {
   getSocket?: () => Promise<Socket>;
   onExit?: () => void;
   onCareer?: () => void;
+  onFreeRoam?: () => void;
   playerName?: string;
   renderOnlineLobby?: (props: {
     onMatched: (match: { tableId: string; accountId: string }) => Promise<void>;
@@ -66,11 +71,8 @@ interface Props {
 }
 const modes = [
   { id: 'ai', title: 'VS AI', sub: 'Find your racing line', icon: Cpu },
-  { id: 'combat', title: 'COMBAT RACE', sub: 'Race, defend and fight rivals', icon: Crosshair },
-  { id: 'trial', title: 'TIME TRIAL', sub: 'Beat your personal best ghost', icon: Flag },
-  { id: 'free', title: 'FREE ROAM', sub: 'Explore with your kart', icon: Compass },
-  { id: 'online', title: 'MULTIPLAYER', sub: 'Race your friends', icon: Users },
-  { id: 'career', title: 'CAREER', sub: 'Meet, explore and play together', icon: Trophy }
+  { id: 'free', title: 'FREE ROAM', sub: 'Drive, walk, listen and meet people', icon: Compass },
+  { id: 'online', title: 'MULTIPLAYER', sub: 'Race your friends', icon: Users }
 ] as const;
 function CircuitMap({ id, frame }: { id: string; frame?: Frame | null }) {
   // makeTrack caches geometry; importing the garage must not build every route.
@@ -116,6 +118,7 @@ export default function KartRoyale({
   getSocket,
   onExit,
   onCareer,
+  onFreeRoam,
   playerName = 'Racer',
   renderOnlineLobby
 }: Props) {
@@ -131,6 +134,8 @@ export default function KartRoyale({
   const [loaded, setLoaded] = useState(false),
     [error, setError] = useState(''),
     [mode, setMode] = useState<Mode>('ai'),
+    [raceFormat, setRaceFormat] = useState<RaceFormat>('race'),
+    [onlineEntry, setOnlineEntry] = useState<'free'|'tpg'>(renderOnlineLobby ? 'tpg' : 'free'),
     [trackId, setTrackId] = useState('skanderbeg'),
     [roamStart,setRoamStart] = useState('skanderbeg'),
     [difficulty, setDifficulty] = useState('rookie'),
@@ -186,14 +191,16 @@ export default function KartRoyale({
     cleanupSocket = useRef<(() => void) | null>(null),
     mounted = useRef(false),
     modalRef = useRef(modal),
-    modeRef = useRef(mode);
-  modeRef.current = mode;
+    formatRef = useRef(raceFormat),
+    roomRef = useRef(room);
+  formatRef.current = room?.raceFormat || raceFormat;
+  roomRef.current = room;
   sessionRef.current = session;
   screenRef.current = screen;
   careerRef.current = career;
   modalRef.current = modal;
   const track = TRACKS.find((t) => t.id === trackId)!,
-    activeTrack = mode === 'free' ? roamStart : mode === 'career' ? CUPS[cup].track : trackId;
+    activeTrack = mode === 'free' ? roamStart : raceFormat === 'championship' ? CUPS[cup].track : trackId;
   const finish = useRef<(r: Result) => void>(() => {});
   finish.current = (r) => {
     if (done.current) return;
@@ -207,7 +214,7 @@ export default function KartRoyale({
     audio.current?.beep(880, 0.3);
     if(r.combat){setSaved(true);return;}
     if(r.timeTrial){setSaved(r.ghostSaved!==false);return;}
-    if (!sessionRef.current) {
+    if (!sessionRef.current || (!sessionRef.current.tableId && roomRef.current?.raceFormat === 'championship')) {
       const me = r.racers.find((p) => p.id === r.playerId)!,
         place = r.racers.indexOf(me) + 1,
         n = recordRace(
@@ -215,7 +222,7 @@ export default function KartRoyale({
           r.trackId,
           me.finished ? place : 7,
           me.finished ? me.finishTime : 0,
-          raceCup.current
+          sessionRef.current ? roomRef.current?.cupIndex ?? null : raceCup.current
         );
       setCareer(n.career);
       setReward(n.reward);
@@ -308,7 +315,7 @@ export default function KartRoyale({
         e.ctrlKey || e.metaKey || e.altKey
       )
         return;
-      if(modeRef.current==='combat'&&!sessionRef.current&&['f','q','r','e'].includes(key)){
+      if(formatRef.current==='combat'&&['f','q','r','e'].includes(key)){
         e.preventDefault();
         if(key==='e'){if(!e.repeat)engine.current?.queueCombatPulse();}
         else if(key==='r'){combatHeld.current.hold(`key:${key}`,'reload',true);if(!e.repeat)engine.current?.queueCombatReload();}
@@ -387,14 +394,14 @@ export default function KartRoyale({
     if (!session) return;
     const id = setInterval(() => {
       if (socket.current?.connected && screenRef.current === 'race')
-        socket.current.emit('kart:input', engine.current?.input);
+        socket.current.emit('kart:input', engine.current?.networkInput());
     }, 1000 / 30);
     return () => clearInterval(id);
   }, [session]);
   const connect = async () => {
     if (!getSocket)
       throw new Error(
-        'Online racing is unavailable in this preview. VS AI and Career are ready to play.'
+        'Online racing is unavailable in this preview. VS AI activities are ready to play.'
       );
     if (!socket.current) {
       const s = await getSocket();
@@ -406,6 +413,7 @@ export default function KartRoyale({
           r.code !== sessionRef.current.code
         )
           return;
+        roomRef.current = r;
         setRoom(r);
         setNotice('');
         if (r.tableId && r.status === 'finished' && !r.racers.length) {
@@ -417,7 +425,7 @@ export default function KartRoyale({
           return;
         }
         if (['countdown', 'racing', 'finished'].includes(r.status)) {
-          if (r.status === 'countdown') done.current = false;
+          if (r.status === 'countdown') {done.current = false;setReward(0);setSaved(true);}
           if (r.status !== 'finished') setScreen('race');
           engine.current?.networkState(r, sessionRef.current.playerId);
         } else if (screenRef.current !== 'lobby') {
@@ -496,7 +504,7 @@ export default function KartRoyale({
         data =
           action === 'resume'
             ? loadSession()
-            : { name: name.trim() || 'Racer', trackId, code };
+            : { name: name.trim() || 'Racer', trackId: activeTrack, code, raceFormat, cupIndex: cup };
       if (!data) throw new Error('No saved race session was found.');
       const r = await request(s, action, data),
         n = {
@@ -514,6 +522,8 @@ export default function KartRoyale({
         await request(s, 'appearance', { kartId }).catch(() => {});
       setResume(false);
       if (r.state) {
+        roomRef.current = r.state;
+        setMode('online');
         setRoom(r.state);
         if (r.state.status !== 'waiting') {
           done.current = false;
@@ -550,6 +560,7 @@ export default function KartRoyale({
       setResume(false);
       setNotice('');
       done.current = false;
+      setReward(0);
       audio.current?.unlock();
       if (reply.state) {
         setRoom(reply.state);
@@ -600,20 +611,22 @@ export default function KartRoyale({
   };
   const start = () => {
     heldInput.current.clear();combatHeld.current.clear();
+    if (mode === 'free' && onFreeRoam) { onFreeRoam(); return; }
     if (!loaded || sessionRef.current) return;
+    if (mode === 'ai' && raceFormat === 'championship' && cup > 0 && !career.cups[cup - 1]) {setCup(0);return;}
     audio.current?.unlock();
     done.current = false;
-    raceCup.current = mode === 'career' ? cup : null;
+    raceCup.current = raceFormat === 'championship' ? cup : null;
     setReward(0);
     setResult(null);
     setHud(null);
     setModal(null);
     setScreen('race');
-    if(mode==='combat')engine.current?.startCombatRace(activeTrack,difficulty);
-    else if(mode==='trial')engine.current?.startLocal(activeTrack,'street',false,true);
+    if(mode!=='free'&&raceFormat==='combat')engine.current?.startCombatRace(activeTrack,difficulty);
+    else if(mode!=='free'&&raceFormat==='trial')engine.current?.startLocal(activeTrack,'street',false,true);
     else engine.current?.startLocal(
       activeTrack,
-      mode === 'career' ? CUPS[cup].difficulty : difficulty,
+      raceFormat === 'championship' ? CUPS[cup].difficulty : difficulty,
       mode === 'free'
     );
   };
@@ -654,12 +667,14 @@ export default function KartRoyale({
         ].id
     );
   };
+  const selectedFormat = room?.raceFormat || raceFormat;
   const me = room?.players.find((p) => p.id === session?.playerId),
     host = room?.hostId === session?.playerId,
     finishedMe = result?.racers.find((r) => r.id === result.playerId),
     place = result
       ? result.racers.findIndex((r) => r.id === result.playerId) + 1
       : 0;
+  const rankedTrial = !!(session && result?.timeTrial && finishedMe && Number.isFinite(bestTrialLap(finishedMe)));
   return (
     <div
       className={`kr-app rr-remake kr-${screen}`}
@@ -760,7 +775,7 @@ export default function KartRoyale({
                     }
                     key={m.id}
                     onClick={() => {
-                      if(m.id==='career'&&onCareer){onCareer();return;}
+                      if(m.id==='ai' && cup>0 && !career.cups[cup-1])setCup(0);
                       setMode(m.id);
                       setNotice('');
                     }}
@@ -778,7 +793,19 @@ export default function KartRoyale({
                   </button>
                 ))}
               </div>
-              {(mode === 'ai'||mode === 'trial'||mode === 'combat') && (
+              {mode !== 'free' && <div className="kr-options rr-race-features">
+                <label className="kr-label" htmlFor="rr-race-format">{mode === 'ai' ? 'VS AI ACTIVITY' : 'MULTIPLAYER ACTIVITY'}</label>
+                <select id="rr-race-format" className="kr-input" aria-label="Racing activity"
+                  value={room?.raceFormat || raceFormat} disabled={busy || (!!room && (!host || !!room.tableId || room.status !== 'waiting'))}
+                  onChange={e => {const next=e.target.value as RaceFormat;setRaceFormat(next);if(next!=='race')setOnlineEntry('free');if(room)void updateRoom('config',{raceFormat:next,cupIndex:cup,trackId});}}>
+                  {raceFormats.map(f=><option key={f.id} value={f.id}>{f.label}</option>)}
+                </select>
+                {selectedFormat === 'championship' && onCareer && !room && <button className="kr-secondary kr-full" onClick={onCareer}>CITY JOBS &amp; ACTION MISSIONS</button>}
+                {mode==='online' && selectedFormat==='trial' && <p>Race the clock together without kart collisions. The fastest valid completed lap wins.</p>}
+                {mode==='online' && selectedFormat==='combat' && <p>Live combat with friends: fire, shield, reload and EMP. Free rooms only.</p>}
+                {mode==='online' && selectedFormat==='championship' && <p>Compete in cup races with friends. Cup progress and credits save on this device.</p>}
+              </div>}
+              {mode === 'ai' && selectedFormat !== 'championship' && (
                 <div className="kr-options">
                   <div className="kr-track-selector">
                     <div className="kr-track-mini">
@@ -821,7 +848,7 @@ export default function KartRoyale({
                       ))}
                     </div>
                   </div>
-                  {(mode==='ai'||mode==='combat')&&<div className="kr-difficulty">
+                  {selectedFormat!=='trial'&&<div className="kr-difficulty">
                     <span className="kr-label">AI LEVEL</span>
                     <div>
                       {['rookie', 'street', 'pro'].map((d) => (
@@ -836,16 +863,17 @@ export default function KartRoyale({
                       ))}
                     </div>
                   </div>}
-                  {mode==='combat'&&<p className="rr-trial-description">Finish the race while rivals fight back. Hold FIRE, block attacks with SHIELD, and use EMP to disrupt nearby rivals for 2.2 seconds. Collect repair, ammo, shield and purple EMP charge pickups. Red warnings show incoming attacks. Local play · no TPG stake or career rewards.</p>}
-                  {mode==='trial'&&<p className="rr-trial-description">Three flying laps. Chase your best ghost, compare four sector splits, and improve your racing line. Recovering invalidates that lap. Records save for each kart and circuit on this device.</p>}
+                  {selectedFormat==='combat'&&<p className="rr-trial-description">Finish the race while rivals fight back. Hold FIRE, block attacks with SHIELD, and use EMP to disrupt nearby rivals for 2.2 seconds. Collect repair, ammo, shield and purple EMP charge pickups. Red warnings show incoming attacks. Local play · no TPG stake or career rewards.</p>}
+                  {selectedFormat==='trial'&&<p className="rr-trial-description">Three flying laps. Chase your best ghost, compare four sector splits, and improve your racing line. Recovering invalidates that lap. Records save for each kart and circuit on this device.</p>}
                 </div>
               )}
               {mode === 'free'  && <div className="kr-options kr-roam-options">
+                {onFreeRoam ? <p>Enter the shared Tirana city as Turi. Choose another character, drive or exit and walk, hold RUN, listen to live radio and meet people in People / Chat.</p> : <>
                 <label className="kr-label" htmlFor="kr-roam-start">START EXPLORING</label>
                 <select id="kr-roam-start" value={roamStart} onChange={e=>setRoamStart(e.target.value)}>{FREE_ROAM_STARTS.map(p=><option key={p.track} value={p.track}>{p.name}</option>)}</select>
-                <p>Take any road through Tirana. No opponents, laps or time limit.</p>
+                <p>Take any road through Tirana. No opponents, laps or time limit.</p></>}
               </div>}
-              {mode === 'career' && (
+              {mode !== 'free' && (room?.raceFormat || raceFormat) === 'championship' && (
                 <div className="kr-options">
                   <div className="kr-section-line">
                     <span className="kr-label">THE ROAD TO ROYALE</span>
@@ -853,13 +881,13 @@ export default function KartRoyale({
                   </div>
                   <div className="kr-cups">
                     {CUPS.map((c, i) => {
-                      const locked = i > 0 && !career.cups[i - 1];
+                      const locked = mode === 'ai' && i > 0 && !career.cups[i - 1];
                       return (
                         <button
                           key={c.name}
-                          disabled={locked}
-                          className={cup === i ? 'active' : ''}
-                          onClick={() => setCup(i)}
+                          disabled={locked || busy || (!!room && (!host || !!room.tableId || room.status !== 'waiting'))}
+                          className={(room?.cupIndex ?? cup) === i ? 'active' : ''}
+                          onClick={() => {setCup(i);if(room)void updateRoom('config',{raceFormat:'championship',cupIndex:i});}}
                         >
                           {locked ? (
                             <LockKeyhole size={22} />
@@ -882,16 +910,16 @@ export default function KartRoyale({
                   </div>
                   <div className="kr-career-meta">
                     <span>
-                      {TRACKS.find((t) => t.id === CUPS[cup].track)?.name} · 3
+                      {TRACKS.find((t) => t.id === CUPS[room?.cupIndex ?? cup].track)?.name} · 3
                       laps
                     </span>
-                    <b>+{CUPS[cup].reward} CR</b>
+                    <b>+{CUPS[room?.cupIndex ?? cup].reward} CR</b>
                   </div>
                 </div>
               )}
               {mode === 'online' && (
                 <div className="kr-options kr-online">
-                  {!room && (
+                  {!room && selectedFormat !== 'championship' && (
                     <label className="kr-circuit-choice">
                       Tirana circuit
                       <select
@@ -909,8 +937,12 @@ export default function KartRoyale({
                       </select>
                     </label>
                   )}
+                  {!room && renderOnlineLobby && selectedFormat==='race' && <div className="kr-row" aria-label="Online race entry">
+                    <button className="kr-secondary" aria-pressed={onlineEntry==='free'} onClick={()=>setOnlineEntry('free')}>FREE ROOMS</button>
+                    <button className="kr-secondary" aria-pressed={onlineEntry==='tpg'} onClick={()=>setOnlineEntry('tpg')}>TPG RACES</button>
+                  </div>}
                   {!room ? (
-                    renderOnlineLobby ? (
+                    renderOnlineLobby && onlineEntry==='tpg' && selectedFormat==='race' ? (
                       renderOnlineLobby({
                         onMatched: joinMatch,
                         trackId,
@@ -1026,7 +1058,7 @@ export default function KartRoyale({
                       </div>
                       <div className="kr-room-bottom">
                         <span>
-                          {room.players.length}/
+                          {room.raceFormat==='trial'?'TIME TRIAL · ':room.raceFormat==='combat'?'COMBAT · ':room.raceFormat==='championship'?'CUP · ':''}{room.players.length}/
                           {room.tableId ? room.players.length : 6} ·{' '}
                           {TRACKS.find((t) => t.id === room.trackId)?.name}
                         </span>
@@ -1039,7 +1071,7 @@ export default function KartRoyale({
                           ? room.status === 'finished'
                             ? 'Return to the lobby to queue for another race.'
                             : 'Grid reserved. The countdown starts when every racer joins.'
-                          : 'Empty seats fill with AI. Everyone must be ready.'}
+                          : room.raceFormat==='trial' ? 'Fastest valid lap wins. Everyone must be ready. No kart collisions.' : 'Empty seats fill with AI. Everyone must be ready.'}
                       </p>
                       {!room.tableId && (
                         <button
@@ -1070,17 +1102,17 @@ export default function KartRoyale({
               {mode !== 'online' ? (
                 <button
                   className="kr-start"
-                  disabled={!loaded || !!error}
+                  disabled={mode==='free' && onFreeRoam ? false : !loaded || !!error}
                   onClick={start}
                 >
                   <Flag size={23} />
                   <span>
-                    {!loaded
+                    {mode==='free' && onFreeRoam ? 'ENTER TIRANA CITY' : !loaded
                       ? 'LOADING YOUR KART…'
                       : mode === 'free' ? 'EXPLORE TIRANA'
-                      : mode === 'trial' ? 'CHASE YOUR BEST'
-                      : mode === 'combat' ? 'START COMBAT RACE'
-                      : mode === 'career'
+                      : selectedFormat === 'trial' ? 'CHASE YOUR BEST'
+                      : selectedFormat === 'combat' ? 'START COMBAT RACE'
+                      : selectedFormat === 'championship'
                         ? 'RACE FOR THE CUP'
                         : 'LET’S RACE'}
                   </span>
@@ -1111,10 +1143,10 @@ export default function KartRoyale({
               )}
               <div className="kr-panel-footer">
                 <span>
-                  {mode === 'career'
+                  {selectedFormat === 'championship'
                     ? 'Progress saved on this device'
                     : mode === 'online'
-                      ? renderOnlineLobby
+                      ? renderOnlineLobby && onlineEntry==='tpg' && selectedFormat==='race'
                         ? 'TPG races · Shared Royal matchmaking'
                         : 'Live races · No entry fee'
                       : 'Manual gas · Touch & keyboard'}
@@ -1135,7 +1167,7 @@ export default function KartRoyale({
         <div className="rr-race-ui">
           <div className="rr-race-top">
             {mode==='free'?<div className="rr-roam-label"><Compass size={18}/><span>FREE ROAM</span></div>:<>
-              <div className="rr-place"><b>{hud?.position || 1}</b><span>/{hud?.racers.length || 6}<small>{mode==='trial'?'SOLO RUN':'POSITION'}</small></span></div>
+              <div className="rr-place"><b>{hud?.position || 1}</b><span>/{hud?.racers.length || 6}<small>{hud?.timeTrial?'TIME TRIAL':'POSITION'}</small></span></div>
               <div className="rr-lap"><span>LAP <b>{hud?.lap || 1}</b> / 3</span><time aria-label="Current lap time">{formatTime(hud?.lapTime || 0)}</time>{!!hud?.bestLap && <small>BEST {formatTime(hud.bestLap)}</small>}</div>
             </>}
             <button className="kr-icon" aria-label="Pause menu" onClick={()=>setModal('pause')}><Pause size={22}/></button>
@@ -1166,9 +1198,9 @@ export default function KartRoyale({
               <Flag size={16} /> {result.combat?'COMBAT RACE COMPLETE':result.timeTrial?'TIME TRIAL COMPLETE':'RACE COMPLETE'}
             </div>
             <div className="kr-finish-place">
-              {result.timeTrial?'TT':finishedMe?.finished ? String(place).padStart(2, '0') : 'DNF'}
+              {result.timeTrial && !session?'TT':finishedMe?.finished || rankedTrial ? String(place).padStart(2, '0') : 'DNF'}
               <span>
-                {result.timeTrial?'PERSONAL BEST CHALLENGE':finishedMe?.finished
+                {result.timeTrial?(session?'FASTEST LAP CHALLENGE':'PERSONAL BEST CHALLENGE'):finishedMe?.finished
                   ? place === 1
                     ? 'VICTORY'
                     : 'FINISH POSITION'
@@ -1178,7 +1210,7 @@ export default function KartRoyale({
               </span>
             </div>
             <h2>
-              {result.timeTrial?(result.newBest?'A NEW BENCHMARK.':'FIND YOUR NEXT TENTH.') : place === 1 && finishedMe?.finished
+              {result.timeTrial?(session ? (finishedMe && Number.isFinite(bestTrialLap(finishedMe)) ? (place===1?'FASTEST LAP.':'YOUR NEXT LAP AWAITS.') : 'NO VALID LAP RECORDED.') : result.newBest?'A NEW BENCHMARK.':'FIND YOUR NEXT TENTH.') : place === 1 && finishedMe?.finished
                 ? 'THE STREETS ARE YOURS.'
                 : 'ONE MORE LAP? ONE MORE RACE.'}
             </h2>
@@ -1187,7 +1219,7 @@ export default function KartRoyale({
               {formatTime(finishedMe?.finishTime || result.elapsed)}
             </p>
             <RaceDebrief result={result}/>
-            {result.combat&&<div className="rr-action-summary"><b>{result.combat.player.kills} rival karts disabled · {result.combat.player.hits} hits · {result.combat.player.score||0} points</b><p>{result.combat.player.supplies||0} supply pickups collected. Combat races are local. Championship progress and TPG are unchanged.</p></div>}
+            {result.combat&&<div className="rr-action-summary"><b>{result.combat.player.kills} rival karts disabled · {result.combat.player.hits} hits · {result.combat.player.score||0} points</b><p>{result.combat.player.supplies||0} supply pickups collected. Combat races do not award championship credits or TPG.</p></div>}
             <div className="kr-result-table">
               {result.racers.map((r, i) => (
                 <div
@@ -1200,7 +1232,7 @@ export default function KartRoyale({
                     {r.ai ? 'AI' : r.id === result.playerId ? 'YOU' : 'PLAYER'}
                   </small>
                   <span>
-                    {r.finished
+                    {result.timeTrial && session ? (Number.isFinite(bestTrialLap(r)) ? formatTime(bestTrialLap(r)) : 'NO VALID LAP') : r.finished
                       ? formatTime(r.finishTime)
                       : r.disconnected
                         ? 'LEFT'

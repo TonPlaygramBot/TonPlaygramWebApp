@@ -1,6 +1,7 @@
 import { randomBytes, timingSafeEqual } from 'node:crypto';
 import {
   STEP,
+  CUPS,
   RACE_LIMIT,
   normalizeKart,
   equipKart,
@@ -9,6 +10,10 @@ import {
   stepRace,
   standings
 } from '../../webapp/src/games/kartroyale/simulation.mjs';
+import { createRaceCombat, stepRaceCombat } from '../../webapp/src/games/kartroyale/raceCombat.mjs';
+import { normalizeRaceFormat, trialStandings } from '../../webapp/src/games/kartroyale/raceFormats.mjs';
+const normalizeCup = (value) => Number.isInteger(value) && value >= 0 && value < CUPS.length ? value : 0;
+const resultOrder = (room) => room.raceFormat === 'trial' ? trialStandings(room.racers) : standings(room.racers);
 // Inputs are untrusted. Physics, lap gates, race clock and results are server owned.
 export function attachKartRoyale(
   io,
@@ -23,6 +28,10 @@ export function attachKartRoyale(
     code: r.code,
     hostId: r.hostId,
     trackId: r.track.id,
+    raceFormat: r.raceFormat,
+    cupIndex: r.cupIndex ?? null,
+    timeTrial: r.raceFormat === 'trial',
+    combat: r.combat || null,
     status: r.status,
     public: r.public,
     tableId: r.tableId || null,
@@ -34,7 +43,7 @@ export function attachKartRoyale(
     startsAt: r.startsAt,
     elapsed: r.elapsed,
     racers: r.racers,
-    results: r.status === 'finished' ? standings(r.racers) : []
+    results: r.status === 'finished' ? resultOrder(r) : []
   });
   const emit = (r) => io.to(`kart:${r.code}`).emit('kart:state', snapshot(r));
   const current = (s) => rooms.get(memberships.get(s.id));
@@ -83,7 +92,7 @@ export function attachKartRoyale(
     r.racers = r.players.map((p, i) =>
       equipKart(createRacer(r.track, p.id, p.name, i), p.kartId)
     );
-    while (fillAI && r.racers.length < 6) {
+    while (fillAI && r.raceFormat !== 'trial' && r.racers.length < 6) {
       const i = r.racers.length;
       r.racers.push(
         createRacer(
@@ -95,6 +104,7 @@ export function attachKartRoyale(
         )
       );
     }
+    r.combat = r.raceFormat === 'combat' ? createRaceCombat(r.track, r.racers, r.hostId) : null;
     r.status = 'countdown';
     r.startsAt = clock() + 3500;
     r.finishedAt = 0;
@@ -231,11 +241,16 @@ export function attachKartRoyale(
       do {
         code = randomBytes(4).toString('hex').slice(0, 6).toUpperCase();
       } while (rooms.has(code));
+      const raceFormat = normalizeRaceFormat(d.raceFormat);
+      const cupIndex = raceFormat === 'championship' ? normalizeCup(d.cupIndex) : null;
       const r = {
         code,
+        raceFormat,
+        cupIndex,
+        combat: null,
         hostId: '',
         public: d.public === true,
-        track: makeTrack(d.trackId),
+        track: makeTrack(cupIndex === null ? d.trackId : CUPS[cupIndex].track),
         players: [],
         racers: [],
         status: 'waiting',
@@ -251,7 +266,8 @@ export function attachKartRoyale(
       const r = [...rooms.values()].find(
         (r) =>
           r.public &&
-          r.track.id === makeTrack(d.trackId).id &&
+          r.raceFormat === normalizeRaceFormat(d.raceFormat) &&
+          r.track.id === makeTrack(normalizeRaceFormat(d.raceFormat) === 'championship' ? CUPS[normalizeCup(d.cupIndex)].track : d.trackId).id &&
           !r.tableId &&
           r.status === 'waiting' &&
           r.players.length < 6 &&
@@ -319,6 +335,18 @@ export function attachKartRoyale(
       )
         startRace(r);
     });
+    listen('config', (d, cb) => {
+      const r = current(s), p = player(r, s);
+      if (!p || r.tableId || r.hostId !== p.id || r.status !== 'waiting')
+        return cb({ ok: false, error: 'Only the host can change a waiting free room.' });
+      r.raceFormat = normalizeRaceFormat(d.raceFormat);
+      r.cupIndex = r.raceFormat === 'championship' ? normalizeCup(d.cupIndex) : null;
+      r.track = makeTrack(r.cupIndex === null ? d.trackId || r.track.id : CUPS[r.cupIndex].track);
+      r.combat = null;
+      r.players.forEach((p) => (p.ready = false));
+      emit(r);
+      cb({ ok: true, state: snapshot(r) });
+    });
     listen('ready', (d, cb) => {
       const r = current(s),
         p = player(r, s);
@@ -380,8 +408,15 @@ export function attachKartRoyale(
         boost: d.boost === true,
         shield: d.shield === true,
         recover: d.recover === true,
-        fire: false
+        fire: room.raceFormat === 'combat' && d.fire === true
       };
+      if (room.raceFormat === 'combat') {
+        r.combatInput = {
+          fire: d.fire === true, shield: d.shield === true,
+          reload: r.combatInput?.reload === true || d.reload === true,
+          pulse: r.combatInput?.pulse === true || d.pulse === true
+        };
+      }
       r.lastInput = clock();
     });
     listen('sync', (_, cb) => {
@@ -400,6 +435,7 @@ export function attachKartRoyale(
         });
       r.status = 'waiting';
       r.racers = [];
+      r.combat = null;
       r.elapsed = 0;
       r.players.forEach((p) => (p.ready = false));
       emit(r);
@@ -420,6 +456,7 @@ export function attachKartRoyale(
       const racer = r.racers.find((v) => v.id === p.id);
       if (racer) {
         racer.disconnected = true;
+        racer.combatInput = {};
         racer.input = { steer: 0, throttle: false, brake: true, drift: false, boost: false, shield:false, fire:false };
       }
       emit(r);
@@ -442,10 +479,25 @@ export function attachKartRoyale(
           room.status = 'racing';
         if (room.status !== 'racing') continue;
         room.elapsed += STEP;
-        for (const r of room.racers)
-          if (!r.ai && now - r.lastInput > 900)
+        for (const r of room.racers) {
+          if (!r.ai && now - (r.lastInput || 0) > 900) {
             r.input = { steer: 0, throttle: false, brake: true, drift: false, boost: false, shield:false, fire:false };
-        stepRace(room.racers, room.track, STEP, room.elapsed, 'street');
+            r.combatInput = {};
+          }
+        }
+        const difficulty = room.cupIndex === null || room.cupIndex === undefined ? 'street' : CUPS[room.cupIndex].difficulty;
+        if (room.raceFormat === 'trial') {
+          // Each kart gets its own physics step: opponents cannot collide,
+          // supply a slipstream, or interfere with another driver's lap.
+          for (const racer of room.racers) stepRace([racer], room.track, STEP, room.elapsed, difficulty);
+        } else stepRace(room.racers, room.track, STEP, room.elapsed, difficulty);
+        if (room.combat) {
+          const inputs = Object.fromEntries(room.racers.filter((r) => !r.ai).map((r) => [r.id, r.combatInput || {}]));
+          stepRaceCombat(room.combat, room.racers, room.track, {}, STEP, room.elapsed, inputs);
+          for (const racer of room.racers) if (racer.combatInput) {
+            racer.combatInput.pulse = false; racer.combatInput.reload = false;
+          }
+        }
         const allDone = room.racers
           .filter((r) => !r.ai)
           .every(
@@ -508,6 +560,9 @@ export function attachKartRoyale(
       if (rooms.size >= 128) throw new Error('kart_lobby_full');
       rooms.set(table.id, {
         code: table.id,
+        raceFormat: 'race',
+        cupIndex: null,
+        combat: null,
         tableId: table.id,
         stake: table.stake,
         hostId: String(table.players[0].id),

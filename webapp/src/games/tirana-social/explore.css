@@ -15,3 +15,11 @@
 @media(max-height:640px){.te-call-dock{top:76px;left:8px;right:8px;max-width:320px}.te-call-tile{aspect-ratio:1.25/1}.te-city-menu,.te-mall-waypoint{top:200px}.te-stick{bottom:34px;width:96px;height:96px}.te-actions{bottom:34px}}
 
 .te-city .te-social-panel{z-index:60}.te-mall-social-tools{position:absolute;z-index:50;left:0;right:0;bottom:0;display:flex;gap:6px;justify-content:center;padding:4px 10px calc(4px + env(safe-area-inset-bottom));background:#092728ed}.te-mall-social-tools button{font-size:10px;min-height:36px;flex:1;max-width:240px;padding:5px}.te-city:has(.te-mall-social-tools) .tpg-mall-directory,.te-city:has(.te-mall-social-tools) .tpg-mall-selection,.te-city:has(.te-mall-social-tools) .tpg-mall-hint{bottom:calc(60px + env(safe-area-inset-bottom))}
+
+/* Restored Tirana live radio, clear of portrait movement controls. */
+.te-city .ts-radio{bottom:calc(218px + env(safe-area-inset-bottom));z-index:4}
+.te-city .ts-radio-row button{padding:4px;min-width:0;background:transparent;border:0;font-size:22px}
+.te-city .ts-radio-row .ts-radio-station{font-size:12px;text-align:left}
+.te-city .ts-radio-panel select{box-sizing:border-box;min-height:44px;color:#fff;background:#173943;border:1px solid #7caaa5;border-radius:8px}
+.te-city .te-radio-note{position:absolute;z-index:4;left:12px;right:12px;bottom:calc(190px + env(safe-area-inset-bottom));margin:0;text-align:center;font-size:11px;background:#10232bf2}
+@media(max-height:680px){.te-city .ts-radio{bottom:calc(192px + env(safe-area-inset-bottom))}.te-city .ts-radio-panel{max-height:24dvh}.te-city .te-radio-note{bottom:calc(170px + env(safe-area-inset-bottom))}}

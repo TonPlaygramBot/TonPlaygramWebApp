@@ -15,7 +15,8 @@ test('production touch controls preserve two-thumb chords and release every poin
   const code=ts.transpileModule(source,{compilerOptions:{target:ts.ScriptTarget.ES2022,module:ts.ModuleKind.ES2022,jsx:ts.JsxEmit.React}}).outputText
     .replace("'react'",JSON.stringify(new URL('webapp/node_modules/react/index.js',rootUrl).href))
     .replace("'lucide-react'",JSON.stringify(new URL('webapp/node_modules/lucide-react/dist/cjs/lucide-react.js',rootUrl).href))
-    .replace("'./arcadeRules.mjs'",JSON.stringify(new URL('webapp/src/games/kartroyale/arcadeRules.mjs',rootUrl).href));
+    .replace("'./arcadeRules.mjs'",JSON.stringify(new URL('webapp/src/games/kartroyale/arcadeRules.mjs',rootUrl).href))
+    .replace("'./heldRaceInput.mjs'",JSON.stringify(new URL('webapp/src/games/kartroyale/heldRaceInput.mjs',rootUrl).href));
   const {KartControls}=await import('data:text/javascript;base64,'+Buffer.from(code).toString('base64'));
   const dom=new JSDOM('<div id="root"></div>',{url:'https://racing.test'});
   const saved={window:globalThis.window,document:globalThis.document,IS_REACT_ACT_ENVIRONMENT:globalThis.IS_REACT_ACT_ENVIRONMENT};

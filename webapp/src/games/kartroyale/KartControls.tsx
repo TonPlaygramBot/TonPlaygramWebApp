@@ -1,6 +1,7 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { Zap } from 'lucide-react';
 import {driftTier} from './arcadeRules.mjs';
+import {steeringStickInput} from './heldRaceInput.mjs';
 type Props = { hold: (id:string,key:string,value:number|boolean)=>void; release:(id:string)=>void; boost:number; drifting?:boolean; driftCharge?:number; turbo?:number; boostEvent?:number; reversing?:boolean; disabled?:boolean };
 
 /** Tirana Streets-style analogue steering stick plus independent pedals.
@@ -37,7 +38,7 @@ export function KartControls({hold,release,boost,drifting,driftCharge=0,turbo=0,
     const dx=e.clientX-rect.left-rect.width/2,dy=e.clientY-rect.top-rect.height/2;
     const distance=Math.hypot(dx,dy),scale=distance>radius?radius/distance:1;
     const x=dx*scale/radius,y=dy*scale/radius;
-    const steer=Math.abs(x)<.08?0:x;
+    const steer=steeringStickInput(x);
     callbacks.current.hold(`control:${e.pointerId}`,'steer',steer);
     if(y<-.55)callbacks.current.hold(`gesture:${e.pointerId}`,'drift',true);else callbacks.current.release(`gesture:${e.pointerId}`);
     if(stickKnob.current)stickKnob.current.style.transform=`translate(${x*radius*.8}px,${y*radius*.8}px)`;
