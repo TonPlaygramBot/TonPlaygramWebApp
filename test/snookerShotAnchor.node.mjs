@@ -19,10 +19,10 @@ test('address stays fixed during backswing, contact and follow-through despite a
   camera.markImpact(250, eye);
   assert.deepEqual(resolve(251, true, false), address, 'contact does not resnapshot a moving head');
   assert.deepEqual(resolve(1149, false, false), address);
-  assert.deepEqual(resolve(1150, false, false), address);
-  assert.deepEqual(resolve(30000, false, false), address, 'a long shot stays at the original player viewpoint');
-  assert.equal(camera.isBroadcasting, false);
+  assert.equal(resolve(1150, false, false), null, 'yield to broadcast 900 ms after contact');
+  assert.equal(resolve(30000, false, false), null, 'broadcast keeps the remainder of a long shot');
+  assert.equal(camera.isBroadcasting, true);
   assert.equal(camera.resolve({ eye: null, now: 30001, stroke: false, impactPending: false,
     shooting: false, cueBlend: 0 }), null);
-  assert.equal(camera.isHoldingShot, false, 'release only after the stroke and ball motion finish');
+  assert.equal(camera.isHoldingShot, false, 'release the shot anchor after follow-through');
 });

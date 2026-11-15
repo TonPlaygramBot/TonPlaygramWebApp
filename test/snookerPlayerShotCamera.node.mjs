@@ -10,6 +10,7 @@ import {
   SNOOKER_PLAYER_SHOT_FOV,
   SNOOKER_CUE_BALL_SCREEN_Y
 } from '../webapp/src/pages/Games/snookerRoyalShotCamera.ts';
+import { PoolRoyalShotCamera } from '../webapp/src/pages/Games/shared/poolRoyalShotCamera.ts';
 import { captureRoyalPlayerView, royalCameraBlendFromDrag } from '../webapp/src/pages/Games/shared/royalCameraControls.ts';
 
 const source = await readFile(new URL('../webapp/src/pages/Games/SnookerRoyal.jsx', import.meta.url), 'utf8');
@@ -87,7 +88,7 @@ function liveRig(localSeat = 'A') {
   return c;
 }
 
-test('actual shot callback cannot capture a side/orbit view and never follows moving balls', () => {
+test('actual shot callback holds the cue line through contact then yields to broadcast like Pool', () => {
   for (const seat of ['A', 'B']) {
     const rig = liveRig(seat); rig.begin();
     const expected = snookerRoyalFallbackEye(rig.cue.mesh.position, new THREE.Vector3(0, 0, 1), 30, 1);
@@ -97,12 +98,17 @@ test('actual shot callback cannot capture a side/orbit view and never follows mo
     assert.equal(initial.fov, SNOOKER_PLAYER_SHOT_FOV);
     rig.humanShotCamera.markImpact(250); rig.shotImpactPending = false; rig.cueAnimating = false;
     rig.frameRef.current.activePlayer = seat === 'A' ? 'B' : 'A';
-    for (const now of [251, 1150, 5000, 30000]) {
+    for (const now of [251, 900, 1149]) {
       rig.now = now;
       rig.cue.mesh.position.set(-20, -40, 80); // A scratch also cannot steal the camera.
       rig.aimDirRef.current.set(1, 0);
       assert.deepEqual(rig.resolve(), initial);
       assert.equal(rig.humanShotCamera.isBroadcasting, false);
+    }
+    for (const now of [1150, 5000, 30000]) {
+      rig.now = now;
+      assert.equal(rig.resolve(), null, 'broadcast owns the remainder of the shot');
+      assert.equal(rig.humanShotCamera.isBroadcasting, true);
     }
     rig.shootingRef.current = false;
     assert.equal(rig.resolve(), null);
@@ -110,15 +116,22 @@ test('actual shot callback cannot capture a side/orbit view and never follows mo
   }
 });
 
-test('manual overview, look, replay and gallery can temporarily override the held shot', () => {
-  const rig = liveRig(); rig.begin();
-  const initial = rig.resolve(); rig.cueAnimating = false; rig.shotImpactPending = false;
+test('manual views preserve the contact clock and do not restore a stale player viewpoint', () => {
   for (const ref of ['topViewRef', 'lookModeRef', 'replayPlaybackRef', 'cueGalleryStateRef']) {
+    const rig = liveRig(); rig.begin();
+    const initial = rig.resolve();
+    rig.humanShotCamera.markImpact(250); rig.cueAnimating = false; rig.shotImpactPending = false;
     rig[ref].current = ref === 'cueGalleryStateRef' ? { active: true } : true;
-    rig.now += 5000;
+    rig.now = 500;
     assert.equal(rig.resolve(), null);
     rig[ref].current = false;
-    assert.deepEqual(rig.resolve(), initial, 'return to the exact player viewpoint even after 900 ms');
+    assert.deepEqual(rig.resolve(), initial, 'return to the anchored view during follow-through');
+    rig[ref].current = ref === 'cueGalleryStateRef' ? { active: true } : true;
+    rig.now = 1150;
+    assert.equal(rig.resolve(), null);
+    rig[ref].current = false;
+    assert.equal(rig.resolve(), null, 'an explicit view cannot restart the 900 ms hold');
+    assert.equal(rig.humanShotCamera.isBroadcasting, true);
   }
 });
 
@@ -174,5 +187,38 @@ test('delayed AI cue-view timer cannot fire after turn, frame or scene state cha
       assert.equal(spin.x, fired ? .3 : 0);
       assert.equal(spin.y, fired ? -.25 : 0, 'the committed plan restores spin immediately before striking');
     }
+  }
+});
+
+test('Snooker and Pool share identical stroke, contact, broadcast and next-turn transitions', () => {
+  for (const animated of [true, false]) for (const explicitView of [true, false]) {
+    const snooker = new SnookerRoyalShotCamera(), pool = new PoolRoyalShotCamera();
+    const eye = { position: new THREE.Vector3(4, 8, -15), target: new THREE.Vector3(4, 2, 10), blend: 1 };
+    snooker.beginShot(null, eye); pool.beginShot(eye);
+    const step = (now, extra = {}) => {
+      const state = { eye, now, stroke: animated, shooting: true, cueBlend: 0, ...extra };
+      assert.deepEqual(snooker.resolve({ ...state, impactPending: now < 250 }), pool.resolve(state), `${now} ms`);
+      assert.equal(snooker.isHoldingShot, pool.isHoldingShot);
+      assert.equal(snooker.isBroadcasting, pool.isBroadcasting);
+    };
+    step(0); step(200);
+    if (animated) { snooker.markImpact(250); pool.markImpact(250); }
+    eye.position.set(100, -100, 200); eye.target.set(30, 60, -10);
+    step(899, { excluded: explicitView });
+    step(1149, { stroke: false, excluded: explicitView });
+    // A slow visible cue return must finish before handing over, even after 900 ms.
+    step(1200, { stroke: animated });
+    if (animated) assert.equal(snooker.isHoldingShot, true);
+    step(1201, { stroke: false, excluded: explicitView });
+    assert.equal(snooker.isBroadcasting, true);
+    step(10000, { stroke: false });
+    step(10001, { stroke: false, shooting: false });
+    assert.equal(snooker.isBroadcasting, false);
+    snooker.beginShot(null, eye); pool.beginShot(eye);
+    step(11000, { stroke: true });
+    assert.equal(snooker.isHoldingShot, true, 'next shot captures a fresh viewpoint');
+    step(11001, { localTurn: false });
+    assert.equal(snooker.isHoldingShot, false, 'AI or remote ownership clears the local anchor');
+    step(11002, { stroke: false, shooting: false, cueBlend: .4 });
   }
 });

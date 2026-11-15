@@ -11,6 +11,9 @@ export class PoolRoyalShotCamera {
   /** Pool's aiming view reaches the eyes before the orbit reaches its limit. */
   constructor(eyeLockBlend = 0) { this.eyeLockBlend = eyeLockBlend; }
 
+  get isHoldingShot(): boolean { return this.held !== null; }
+  get isBroadcasting(): boolean { return this.broadcast; }
+
   beginShot(eye: HumanEyeView | null): void {
     this.reset();
     if (eye) this.held = { ...eye, position: eye.position.clone(), target: eye.target.clone(), blend: 1 };
