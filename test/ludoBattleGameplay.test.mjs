@@ -19,7 +19,9 @@ test('the shipped token builder creates all 16 selectable pieces when remote ass
   const dependencies = {
     THREE, scene, playerColors: colors, playerCount: 4,
     tokenPieceByPlayer: [{ type: 'p' }, { type: 'r' }, { type: 'n' }, { type: 'k' }],
-    defaultTokenTypeSequence: ['p'], shouldUseAbgTokens: false, abgPrototypes: null,
+    defaultTokenTypeSequence: ['p'], abgPrototypes: null,
+    tokenStyleOption: { id: 'battleChess' }, TOKEN_STYLE_OPTIONS: [{ id: 'battleChess' }],
+    TOKEN_PIECE_OPTIONS: [{ type: 'p' }],
     createFallbackLudoToken, hasVisibleLudoToken, measureProceduralTokenHeight: () => .09,
     STANDARD_TOKEN_FOOTPRINT: { x: .054, z: .054 }, TOKEN_SIZE_MULTIPLIER: 1.24,
     TOKEN_TYPE_SCALE_PROFILE: {}, TOKEN_THINNESS_SCALE: .76, TOKEN_HEIGHT_SCALE: 1.1,
@@ -124,10 +126,9 @@ test('the bottom human stays upright until the visible die is pressed', () => {
 });
 
 test('Ludo waits for the restored A Beautiful Game token set before falling back', () => {
-  assert.match(source, /const abgAssets = await getAbgAssets\(\);/);
-  assert.doesNotMatch(source, /withLudoTokenAssets\(getAbgAssets\(\)\)/);
-  assert.match(source, /const proto = resolveAbgPrototype\(abgPrototypes, colorKey, type\);[\s\S]*token = cloneAbgToken\(proto\);/);
-  assert.match(source, /if \(!hasVisibleLudoToken\(token\)\) \{[\s\S]*createFallbackLudoToken\(type/);
+  assert.match(source, /const abgPrototypes = await getAbgAssets\(renderer\);/);
+  assert.match(source, /const prototype = abgPrototypes\?\.\[type\];/);
+  assert.match(source, /if \(hasVisibleLudoToken\(token\)\) \{\s+tintGltfToken\(token, color\);\s+\} else \{\s+token = createFallbackLudoToken\(type/);
 });
 
 test('rapid taps cannot clear the pending move or turn timer', async () => {

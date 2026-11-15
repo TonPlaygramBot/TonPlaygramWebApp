@@ -1,5 +1,6 @@
 export interface CatalogItem {
   id: string; type: string; optionId: string | number; name: string; price: number;
+  fixedPrice?: number;
   description?: string; thumbnail?: string | { url?: string; src?: string };
   image?: string; imageUrl?: string; previewImage?: string; zoomImage?: string;
   swatches?: Array<string | number>; previewShape?: string;

@@ -45,6 +45,6 @@ const priceMin=prices.length?Math.min(...prices):0, priceMax=prices.length?Math.
 export const STORE_ITEMS: StoreItem[] = STORE_GAMES.flatMap(game=>game.items.map(item=>{
   const info=itemInfo(item);
   return {...item,slug:game.slug,gameName:game.name,displayLabel:game.labels[item.type]?.[item.optionId]||item.name,
-    typeLabel:info.label,category:info.category,sourcePrice:item.price,price:legacyStorePrice(item.price,priceMin,priceMax),
+    typeLabel:info.label,category:info.category,sourcePrice:item.price,price:item.fixedPrice ?? legacyStorePrice(item.price,priceMin,priceMax),
     key:`${game.slug}:${item.id}`,entitlementKey:entitlementKey({...item,slug:game.slug})};
 }));

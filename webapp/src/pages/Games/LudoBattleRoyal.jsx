@@ -7,6 +7,7 @@ import { createLudoBlenderModel } from '../../utils/ludoBlenderMeshes';
 import { palmMarker, palmOrientation, solveArm, world as boneWorld } from '../../utils/ludoHumanMotion';
 import { createLudoDiceHand, createLudoDiceContact, createLudoDiceThrow, updateLudoDiceThrow, poseLudoDiceContact, LUDO_DICE_TIMING } from '../../utils/ludoDiceMotion.ts';
 import { createFallbackLudoToken, hasVisibleLudoToken, setLudoTileHighlight, updateLudoTileGlow } from '../../utils/ludoTokenPresentation.ts';
+import { loadLudoChessPieces } from '../../utils/ludoChessPieces.ts';
 import {
   FIREARM_CAPTURE_ANIMATION_IDS,
   FIREARM_MARKSMAN_IDS,
@@ -3614,20 +3615,6 @@ function isLikelyMobileDevice() {
   return isMobileUA || coarsePointer || isTouch || rendererTier === 'mobile';
 }
 
-const ABG_MODEL_URLS = Object.freeze([
-  'https://cdn.jsdelivr.net/gh/KhronosGroup/glTF-Sample-Models@master/2.0/ABeautifulGame/glTF/ABeautifulGame.gltf'
-]);
-const ABG_TYPES = Object.freeze(['p', 'r', 'n', 'b', 'q', 'k']);
-const ABG_TYPE_ALIASES = Object.freeze([
-  ['p', /pawn/],
-  ['r', /rook|castle/],
-  ['n', /knight|horse/],
-  ['b', /bishop/],
-  ['q', /queen/],
-  ['k', /king/]
-]);
-const ABG_COLOR_W = /\b(white|ivory|light|w)\b/i;
-const ABG_COLOR_B = /\b(black|ebony|dark|b)\b/i;
 let proceduralTokenHeight = null;
 
 const BASE_ARENA_SCALE = 0.85;
@@ -4123,47 +4110,6 @@ function adjustHexColor(hex, amount) {
   return `#${base.getHexString()}`;
 }
 
-function abgNodePath(node) {
-  const names = [];
-  let current = node;
-  while (current) {
-    if (current.name) names.push(current.name);
-    current = current.parent;
-  }
-  return names.reverse().join('/');
-}
-
-function abgDetectType(path) {
-  const lower = path.toLowerCase();
-  for (const [t, re] of ABG_TYPE_ALIASES) {
-    if (re.test(lower)) return t;
-  }
-  return undefined;
-}
-
-function abgDetectColor(path, luminanceHint = 0.6) {
-  if (ABG_COLOR_W.test(path)) return 'w';
-  if (ABG_COLOR_B.test(path)) return 'b';
-  return luminanceHint >= 0.5 ? 'w' : 'b';
-}
-
-function abgAverageLuminance(root) {
-  let sum = 0;
-  let count = 0;
-  root.traverse((node) => {
-    if (!node.isMesh) return;
-    const mats = Array.isArray(node.material) ? node.material : [node.material];
-    mats.forEach((mat) => {
-      if (mat?.color) {
-        const c = mat.color;
-        sum += 0.2126 * c.r + 0.7152 * c.g + 0.0722 * c.b;
-        count += 1;
-      }
-    });
-  });
-  return count ? sum / count : 0.5;
-}
-
 function abgCloneWithMats(src) {
   const clone = src.clone(true);
   clone.traverse((node) => {
@@ -4227,7 +4173,7 @@ function abgPreparePiece(src) {
 }
 
 function tintGltfToken(node, tint) {
-  if (!node || !tint) return;
+  if (!node || tint == null) return;
   const target = new THREE.Color(tint);
   node.traverse((child) => {
     if (!child.isMesh) return;
@@ -4243,15 +4189,6 @@ function tintGltfToken(node, tint) {
       mat.needsUpdate = true;
     });
   });
-}
-
-function resolveAbgColorKey() {
-  return 'w';
-}
-
-function resolveAbgPrototype(proto, colorKey, type) {
-  if (!proto) return null;
-  return proto[colorKey]?.[type] ?? proto[colorKey]?.p ?? proto.w?.p ?? proto.b?.p ?? null;
 }
 
 function applyTokenFacingRotation(token) {
@@ -4273,83 +4210,21 @@ function applyTokenFacingRotation(token) {
   token.rotation.set(0, baseY, 0);
 }
 
-function cloneAbgToken(proto) {
-  if (!proto) return null;
-  return abgCloneWithMats(proto);
-}
-
 let abgAssetPromise = null;
-async function getAbgAssets() {
-  if (abgAssetPromise) return abgAssetPromise;
-  abgAssetPromise = (async () => {
-    const loader = new GLTFLoader();
-    loader.setCrossOrigin('anonymous');
-    const draco = new DRACOLoader();
-    draco.setDecoderPath(DRACO_DECODER_PATH);
-    loader.setDRACOLoader(draco);
-
-    let root = null;
-    for (const url of ABG_MODEL_URLS) {
-      try {
-        const gltf = await loader.loadAsync(url);
-        root = gltf?.scene;
-        if (root) break;
-      } catch (error) {
-        console.warn('ABG load failed', url, error);
+async function getAbgAssets(renderer) {
+  if (!abgAssetPromise) {
+    abgAssetPromise = loadLudoChessPieces(createConfiguredGLTFLoader(renderer)).then((pieces) => {
+      if (!pieces) {
+        abgAssetPromise = null;
+        return null;
       }
-    }
-    if (!root) return null;
-    root.updateMatrixWorld(true);
-
-    const proto = { w: {}, b: {} };
-    const boards = [];
-
-    root.traverse((node) => {
-      const path = abgNodePath(node);
-      const type = abgDetectType(path);
-      if (node.isMesh) {
-        const mats = Array.isArray(node.material) ? node.material : [node.material];
-        let lum = 0;
-        let cnt = 0;
-        mats.forEach((mat) => {
-          if (mat?.map) applySRGBColorSpace(mat.map);
-          if (mat?.emissiveMap) applySRGBColorSpace(mat.emissiveMap);
-          if (mat?.color) {
-            const c = mat.color;
-            lum += 0.2126 * c.r + 0.7152 * c.g + 0.0722 * c.b;
-            cnt += 1;
-          }
-        });
-        const lumAvg = cnt ? lum / cnt : 0.6;
-        const colorKey = abgDetectColor(path, lumAvg);
-        void colorKey;
-        if (/board|table|chessboard/i.test(node.name || '')) boards.push(node);
-      }
-      if (!type) return;
-      const color = abgDetectColor(path, abgAverageLuminance(node));
-      if (!proto[color][type]) {
-        proto[color][type] = node;
-      }
+      return Object.fromEntries(Object.entries(pieces).map(([type, piece]) => {
+        const prototype = abgPreparePiece(piece);
+        prepareLoadedModel(prototype, { preserveGltfTextureMapping: true });
+        return [type, prototype];
+      }));
     });
-
-    const boardNode = boards[0] || root;
-    (['w', 'b']).forEach((color) => {
-      ABG_TYPES.forEach((type) => {
-        if (!proto[color][type]) {
-          const other = color === 'w' ? 'b' : 'w';
-          if (proto[other][type]) {
-            const clone = abgCloneWithMats(proto[other][type]);
-            proto[color][type] = clone;
-          }
-        }
-        if (proto[color][type]) {
-          proto[color][type] = abgPreparePiece(proto[color][type]);
-        }
-      });
-    });
-
-    return { proto, boardPrototype: abgCloneWithMats(boardNode) };
-  })();
+  }
   return abgAssetPromise;
 }
 
@@ -9594,7 +9469,8 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount, onlin
         activePlayerCount,
         nextColors,
         tokenStyleOption,
-        tokenPieceByPlayer
+        tokenPieceByPlayer,
+        rendererRef.current
       );
       if (arenaState.boardGroup) {
         arenaState.tableInfo.group.remove(arenaState.boardGroup);
@@ -10119,7 +9995,8 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount, onlin
       activePlayerCount,
       initialPlayerColors,
       tokenStyleOption,
-      tokenPieceByPlayer
+      tokenPieceByPlayer,
+      renderer
     );
     if (cancelled) {
       disposeBoardGroup(boardGroup);
@@ -14003,21 +13880,16 @@ async function buildLudoBoard(
   playerCount = DEFAULT_PLAYER_COUNT,
   playerColors = DEFAULT_PLAYER_COLORS,
   tokenStyleOption = TOKEN_STYLE_OPTIONS[0],
-  tokenPieceByPlayer = TOKEN_PIECE_OPTIONS[0]
+  tokenPieceByPlayer = TOKEN_PIECE_OPTIONS[0],
+  renderer
 ) {
   const scene = boardGroup;
 
   const lightBoardMat = cloneBoardMaterial(null, 0xfef9ef);
   const darkBoardMat = cloneBoardMaterial(null, 0xdccfb0);
-  let defaultTokenTypeSequence =
+  const defaultTokenTypeSequence =
     tokenStyleOption?.typeSequence?.length ? tokenStyleOption.typeSequence : TOKEN_TYPE_SEQUENCE;
-  // These are the original A Beautiful Game chess pieces used by the June
-  // Ludo board. Wait for that set instead of replacing it after a short mobile
-  // network timeout; the procedural pieces remain a genuine load-failure
-  // fallback so a disconnected game is still playable.
-  const abgAssets = await getAbgAssets();
-  const abgPrototypes = abgAssets?.proto ?? null;
-  const shouldUseAbgTokens = Boolean(abgPrototypes);
+  const abgPrototypes = await getAbgAssets(renderer);
 
   const trackTileMeshes = new Array(RING_STEPS).fill(null);
   const homeColumnTiles = Array.from({ length: playerCount }, () =>
@@ -14128,25 +14000,18 @@ async function buildLudoBoard(
     const playerTokenPieceOption = Array.isArray(tokenPieceByPlayer)
       ? tokenPieceByPlayer[playerIdx]
       : tokenPieceByPlayer;
-    const tokenTypeSequence = playerTokenPieceOption?.type
-      ? Array(4).fill(playerTokenPieceOption.type)
-      : defaultTokenTypeSequence;
+    const pieceType = playerTokenPieceOption?.type;
+    const usesStyle = pieceType === TOKEN_PIECE_OPTIONS[0].type
+      && tokenStyleOption?.id !== TOKEN_STYLE_OPTIONS[0].id;
+    const tokenTypeSequence = pieceType && !usesStyle ? [pieceType] : defaultTokenTypeSequence;
     return Array.from({ length: 4 }, (_, i) => {
       const type = tokenTypeSequence[i % tokenTypeSequence.length];
-      const useAbgForPlayer = shouldUseAbgTokens;
-      const tokenTint = color;
-      let token = null;
-      if (useAbgForPlayer && abgPrototypes) {
-        const colorKey = resolveAbgColorKey(playerIdx);
-        const proto = resolveAbgPrototype(abgPrototypes, colorKey, type);
-        token = cloneAbgToken(proto);
-        if (token && tokenTint) {
-          tintGltfToken(token, tokenTint);
-        }
-      }
-      if (!hasVisibleLudoToken(token)) {
-        // A failed/empty remote asset used to produce an invisible Group.
-        token = createFallbackLudoToken(type, tokenTint ?? color, measureProceduralTokenHeight(), STANDARD_TOKEN_FOOTPRINT.x);
+      const prototype = abgPrototypes?.[type];
+      let token = prototype ? abgCloneWithMats(prototype) : null;
+      if (hasVisibleLudoToken(token)) {
+        tintGltfToken(token, color);
+      } else {
+        token = createFallbackLudoToken(type, color, measureProceduralTokenHeight(), STANDARD_TOKEN_FOOTPRINT.x);
       }
       token.scale.multiplyScalar(TOKEN_SIZE_MULTIPLIER);
       const typeKey = String(type || '').toLowerCase();
@@ -14168,7 +14033,7 @@ async function buildLudoBoard(
         token.userData.countLabel = label;
       }
       if (!token.userData) token.userData = {};
-      token.userData.tokenColor = colorNumberToHex(tokenTint ?? color);
+      token.userData.tokenColor = colorNumberToHex(color);
       token.userData.tokenType = type;
       token.userData.playerIndex = playerIdx;
       token.userData.tokenIndex = i;

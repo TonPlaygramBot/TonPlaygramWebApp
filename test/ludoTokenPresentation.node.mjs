@@ -1,6 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import * as THREE from '../webapp/node_modules/three/build/three.module.js';
+import { loadLudoChessPieces } from '../webapp/src/utils/ludoChessPieces.ts';
 import { createFallbackLudoToken, hasVisibleLudoToken, withLudoTokenAssets, setLudoTileHighlight, updateLudoTileGlow, LUDO_TILE_GLOW_SECONDS } from '../webapp/src/utils/ludoTokenPresentation.ts';
 
 const colors = [0xef4444, 0x3b82f6, 0xfacc15, 0x22c55e];
@@ -47,6 +48,43 @@ test('failed and stalled asset downloads allow the board to use local pieces', a
   assert.equal(await withLudoTokenAssets(new Promise(() => {}), 10), null);
   const assets = { proto: {} };
   assert.equal(await withLudoTokenAssets(Promise.resolve(assets)), assets);
+});
+
+test('the original ivory pawn loads with its glass top and an incomplete source is retried', async () => {
+  const names = ['King_B', 'King_W', 'Queen_W', 'Chessboard', 'Pawn_Top_W1',
+    'Pawn_Body_W1', 'Pawn_Body_W2', 'Castle_W1', 'Knight_W1', 'Bishop_W1'];
+  const nodes = names.map((name) => ({ name }));
+  nodes[5].children = [4];
+  const scene = { nodes: [0, 1, 2, 3, 5, 6, 7, 8, 9] };
+  const root = new THREE.Group();
+  let plugin;
+  let attempts = 0;
+  const loader = {
+    register: (callback) => { plugin = callback; },
+    async loadAsync() {
+      await plugin({ json: { nodes, scenes: [scene] } }).beforeRoot();
+      assert.deepEqual(scene.nodes, [1, 2, 5, 7, 8, 9]);
+      root.clear();
+      const makePiece = (index) => {
+        const node = nodes[index];
+        const mesh = new THREE.Mesh(new THREE.BoxGeometry(1, 2, 1), new THREE.MeshStandardMaterial({
+          map: new THREE.Texture(), normalMap: new THREE.Texture()
+        }));
+        mesh.name = node.name;
+        for (const child of node.children ?? []) mesh.add(makePiece(child));
+        return mesh;
+      };
+      attempts += 1;
+      root.add(...scene.nodes.map(makePiece));
+      if (attempts === 1) root.getObjectByName('Bishop_W1').material.map = null;
+      return { scene: root };
+    }
+  };
+  const pieces = await loadLudoChessPieces(loader);
+  assert.equal(attempts, 2);
+  assert.deepEqual(Object.keys(pieces).sort(), ['b', 'k', 'n', 'p', 'q', 'r']);
+  assert.equal(pieces.p.name, 'Pawn_Body_W1');
+  assert.equal(pieces.p.children[0].name, 'Pawn_Top_W1');
 });
 
 function tile() {
