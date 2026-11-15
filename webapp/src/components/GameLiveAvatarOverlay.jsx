@@ -3,7 +3,7 @@ import { useLocation } from 'react-router-dom';
 import useLiveVideoChat from '../hooks/useLiveVideoChat.js';
 import { buildGameLiveChatRoomId } from '../utils/liveVideoRoom.js';
 
-function RemoteVideo({ peer, audioOnly = false, muted = false }) {
+function RemoteVideo({ peer, audioOnly = false, muted = false, avatarOnly = false }) {
   const videoRef = useRef(null);
 
   useEffect(() => {
@@ -41,26 +41,30 @@ function RemoteVideo({ peer, audioOnly = false, muted = false }) {
   }
 
   return (
-    <div className="relative h-full w-full overflow-hidden rounded-2xl bg-slate-950 shadow-2xl ring-2 ring-emerald-300/80">
+    <div className={`relative h-full w-full overflow-hidden bg-slate-950 ${avatarOnly ? 'rounded-full' : 'rounded-2xl shadow-2xl ring-2 ring-emerald-300/80'}`}>
       <video
         ref={videoRef}
         autoPlay
         playsInline
         muted={muted}
         aria-label={`${peer.displayName || 'Opponent'} live video`}
-        className="h-full w-full object-cover"
+        className="block h-full w-full object-cover"
       />
       {!peer.stream || peer.mediaState?.camera === false ? (
-        <div className="absolute inset-0 flex items-center justify-center bg-slate-950/95 px-2 text-center text-[10px] font-semibold text-white/75">
-          {peer.stream ? 'Opponent camera off' : 'Connecting to opponent…'}
+        <div
+          className={`absolute inset-0 flex items-center justify-center bg-slate-950/95 text-center text-[10px] font-semibold text-white/75 ${avatarOnly ? '' : 'px-2'}`}
+          aria-label={peer.stream ? 'Opponent camera off' : 'Connecting to opponent…'}
+          title={peer.stream ? 'Opponent camera off' : 'Connecting to opponent…'}
+        >
+          {avatarOnly ? <span aria-hidden="true">{peer.stream ? '📷' : '…'}</span> : peer.stream ? 'Opponent camera off' : 'Connecting to opponent…'}
         </div>
       ) : null}
-      <div className="absolute inset-x-0 bottom-0 flex items-center justify-between bg-gradient-to-t from-black/90 to-transparent px-2 pb-1 pt-5 text-[9px] font-semibold text-white">
+      {!avatarOnly && <div className="absolute inset-x-0 bottom-0 flex items-center justify-between bg-gradient-to-t from-black/90 to-transparent px-2 pb-1 pt-5 text-[9px] font-semibold text-white">
         <span className="max-w-[75%] truncate">{peer.displayName || 'Opponent'}</span>
         <span aria-label={peer.mediaState?.microphone === false ? 'Opponent microphone off' : 'Opponent microphone on'}>
           {peer.mediaState?.microphone === false ? '🔇' : '🔊'}
         </span>
-      </div>
+      </div>}
     </div>
   );
 }
@@ -89,6 +93,16 @@ const AVATAR_ANCHOR_SELECTORS = [
 ];
 
 const FRAME_SCALE = 1;
+// Pool's camera must cover the same pixels as its photo. Global button padding
+// otherwise shrinks a 40px avatar video to 22x30px, even with the correct bounds.
+const POOL_AVATAR_FRAME_STYLES = Object.freeze({
+  boxSizing: 'border-box',
+  borderRadius: '999px',
+  border: 0,
+  padding: 0,
+  boxShadow: 'none',
+  background: 'rgb(0 0 0 / 0.3)'
+});
 const BLOCKING_OVERLAY_SELECTORS = [
   '#configPanel.active',
   '#chatModal.active',
@@ -567,7 +581,8 @@ function LiveAvatarSession({ gameSlug, roomId, children }) {
                   border: '1px solid rgb(110 231 183 / 1)',
                   background: 'rgb(0 0 0 / 0.3)'
                 }
-              : {})
+              : {}),
+            ...(isPool ? POOL_AVATAR_FRAME_STYLES : {})
           }}
         >
           <video
@@ -578,7 +593,7 @@ function LiveAvatarSession({ gameSlug, roomId, children }) {
             autoPlay
             muted
             playsInline
-            className="h-full w-full object-cover scale-x-[-1]"
+            className="block h-full w-full object-cover scale-x-[-1]"
           />
         </button>
       ) : null}
@@ -591,11 +606,11 @@ function LiveAvatarSession({ gameSlug, roomId, children }) {
             width: `${opponentRect.width}px`,
             height: `${opponentRect.height}px`,
             opacity: hasBlockingOverlay ? 0 : 1,
-            ...AVATAR_FRAME_STYLES
+            ...(isPool ? POOL_AVATAR_FRAME_STYLES : AVATAR_FRAME_STYLES)
           }}
         >
           {liveChat.remotePeers[0] ? (
-            <RemoteVideo peer={liveChat.remotePeers[0]} muted={isPool} />
+            <RemoteVideo peer={liveChat.remotePeers[0]} muted={isPool} avatarOnly={isPool} />
           ) : (
             <div className="flex h-full items-center justify-center bg-slate-950 text-center text-[8px] font-semibold text-white/70">
               {compactCall && liveChat.error ? 'Camera unavailable' : 'Waiting…'}
