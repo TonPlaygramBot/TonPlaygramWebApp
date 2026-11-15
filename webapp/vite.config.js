@@ -18,6 +18,7 @@ export default defineConfig({
       input: {
         snakeReview: resolve(__dirname, 'snake-player-review.html'),
         royalGame: resolve(__dirname, 'royal-camera-game.html'),
+        poolCompetition: resolve(__dirname, 'pool-competition-review.html'),
         royalCamera: resolve(__dirname, 'royal-camera-review.html'),
         main: resolve(__dirname, 'index.html'),
         social: resolve(__dirname, 'social-app/index.html')

@@ -4,19 +4,33 @@ import { getTelegramId } from '../../utils/telegram.js';
 import { getCareerRoadmap, markCareerStageCompleted } from '../../utils/poolRoyaleCareerProgress.js';
 import { checkpointPoolFrame, completePoolFrame, createPoolCompetition, loadPoolCompetition, poolCompetitionKey, poolCompetitionScope, poolFrameId, poolOpponent, poolRaceTo, poolRoundName, savePoolCompetition } from './competition.js';
 import './competition.css';
+import { careerStageXp } from './careerRewards.js';
 
-export function PoolBracket({ event }) {
+export function PoolBracket({ event, playerId = 'you' }) {
+  const [selected, setSelected] = useState(null);
   if (!event?.draw) return null;
-  const name = (id) => event.entrants.find((entrant) => entrant.id === id)?.name || 'To be decided';
+  const round = Math.min(selected ?? event.round ?? 0, event.totalRounds - 1);
+  const name = (id, fallback) => event.entrants.find((entrant) => entrant.id === id)?.name || fallback;
+  const pairs = event.draw[round] || Array.from({ length: event.entrants.length / 2 ** (round + 1) }, () => ({}));
   return <div className="pr-bracket" aria-label="Tournament bracket">
-    {Array.from({ length: event.totalRounds }, (_, round) => <section key={round}>
-      <h3>{poolRoundName(event, round)}</h3>
-      {event.draw[round]?.map((pair, index) => <div className="pr-pair" key={index}>
-        {[pair.a, pair.b].map((id, seat) => <p key={id} data-winner={pair.winner === id} data-you={id === 'you'}>
-          <span>{name(id)}{id === 'you' ? ' · You' : ''}</span><strong>{pair.score?.[seat] ?? '–'}</strong>
+    <ol className="pr-round-path" aria-label="Road to the title">
+      {Array.from({ length: event.totalRounds }, (_, index) => <li key={index} data-current={index === round}>
+        <button type="button" aria-pressed={index === round} onClick={() => setSelected(index)}>
+          <span aria-hidden="true">{index < event.round ? '✓' : index + 1}</span>
+          <span>{poolRoundName(event, index)}<small>{index === event.totalRounds - 1 ? 'The title match' : `${event.entrants.length / 2 ** index} players · Winners advance`}</small></span>
+        </button>
+      </li>)}
+    </ol>
+    <section aria-label={poolRoundName(event, round)}>
+      <h3>{poolRoundName(event, round)} · {pairs.length} {pairs.length === 1 ? 'match' : 'matches'}</h3>
+      {pairs.map((pair, index) => <div className="pr-pair" key={index} data-current={[pair.a, pair.b].includes(playerId) && !pair.winner}>
+        <div className="pr-match-label">Match {index + 1} · {pair.winner ? 'Complete' : pair.a && pair.b ? 'Ready to play' : 'Awaiting winners'}</div>
+        {[pair.a, pair.b].map((id, seat) => <p key={seat} data-winner={Boolean(id && pair.winner === id)} data-you={id === playerId}>
+          <span>{name(id, `Winner of match ${index * 2 + seat + 1}`)}{id === playerId ? ' · You' : ''}{id && pair.winner === id ? ' ✓' : ''}</span><strong>{pair.score?.[seat] ?? '–'}</strong>
         </p>)}
-      </div>) || <p className="pr-muted">Winners advance here</p>}
-    </section>)}
+      </div>)}
+    </section>
+    {event.champion && <p className="pr-champion">🏆 {name(event.champion, 'Champion')}</p>}
   </div>;
 }
 
@@ -121,6 +135,7 @@ function PoolCompetitionSession({ Game, options, storageKey }) {
       <p className="pr-muted">{poolOpponent(next)?.style} · {Math.round((poolOpponent(next)?.rating || 0.5) * 100)} skill</p>
       <button className="pr-primary" onClick={continueEvent}>{next.checkpoint ? 'Resume saved rack' : result ? 'Play next rack' : 'Start match'} <span>→</span></button>
     </section>}
+    {next.status === 'champion' && stage && <section className="pr-feature"><p className="pr-eyebrow">Career bonus earned</p><h2>+{careerStageXp(stage)} career XP</h2>{stage.level % 5 === 0 && <p className="pr-muted">🎁 A milestone gift is ready to open in your career rewards club.</p>}</section>}
     {next.status !== 'active' && <div className="pr-actions"><button className="pr-primary" onClick={leave}>{stageId ? 'Continue career' : 'Back to lobby'} →</button>{(next.status === 'eliminated' || !stageId) && <button className="pr-secondary" onClick={restart}>{next.status === 'champion' ? 'Start a new tournament' : 'Try event again'}</button>}</div>}
     {rewards?.frameId === id && (rewards.unlocks?.length > 0 || rewards.nftReward) && <section className="pr-feature"><p className="pr-eyebrow">Rewards unlocked</p>{rewards.unlocks?.map((reward, index) => <p key={`${reward.type}-${reward.optionId}-${index}`}>{reward.label || reward.optionId}</p>)}{rewards.nftReward && <p>{rewards.nftReward.name || 'Bonus collectible'} · Added to your rewards</p>}</section>}
     {next.totalRounds > 1 && <><h2>The draw</h2><PoolBracket event={next} /></>}

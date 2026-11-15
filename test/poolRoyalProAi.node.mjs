@@ -2,7 +2,7 @@ import assert from 'node:assert/strict';
 import { test } from 'node:test';
 import * as THREE from '../webapp/node_modules/three/build/three.module.js';
 import { createShowoodTableGeometry } from '../webapp/src/pages/Games/shared/poolRoyaleShowoodGeometry.js';
-import { poolRoyalAiLaneClear, predictPoolRoyalImpact, simulatePoolRoyalPot, refinePoolRoyalPotPlans, scorePoolRoyalLeave } from '../webapp/src/pages/Games/poolRoyalProAi.js';
+import { poolRoyalAiLaneClear, predictPoolRoyalImpact, simulatePoolRoyalPot, refinePoolRoyalPotPlans, scorePoolRoyalLeave, poolRoyalAiAimSpread } from '../webapp/src/pages/Games/poolRoyalProAi.js';
 import { readPoolRoyalMetrics } from '../scripts/read-pool-royal-metrics.mjs';
 
 const m = await readPoolRoyalMetrics();
@@ -56,6 +56,17 @@ test('power/spin search makes a clear side-pocket pot and rejects a blocked pot'
   assert.ok(result[0].power < .88, 'does not default to excessive power');
   assert.ok(result[0].entrySpeed >= .035);
   assert.equal(simulatePoolRoyalPot(shot, context(cue, target, [ball(2, 0, 0)]), result[0].power, result[0].spin), null);
+});
+
+test('refined soft-pot power stays safe between the old coarse search steps', () => {
+  const cue = ball('cue', -8, 0), target = ball(1, 10, 0);
+  const pocketIndex = geometry.pockets.findIndex(p => p.type === 'side' && p.x > 0);
+  const shot = plan(target, pocketIndex), input = context(cue, target);
+  const [best] = refinePoolRoyalPotPlans([shot], input);
+  assert.ok(best.power < .28, 'finds a controlled shot below the old minimum');
+  assert.ok(simulatePoolRoyalPot(shot, input, best.power, best.spin), 'selected power and spin still pot without scratching');
+  assert.ok(poolRoyalAiAimSpread(.92) < .0003, 'elite aim keeps the computed pot line');
+  assert.ok(poolRoyalAiAimSpread(.4) > poolRoyalAiAimSpread(.8), 'career difficulty still progresses');
 });
 
 test('straight follow into the same pocket is rejected while controlled draw is available', () => {

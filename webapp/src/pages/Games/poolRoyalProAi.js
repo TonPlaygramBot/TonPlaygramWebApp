@@ -137,7 +137,7 @@ export function simulatePoolRoyalPot(plan, { cuePos, balls, ...config }, power, 
   let correction = 0, impact, ghost, aim, object;
   // Estimate throw from contact friction, then solve the contact normal again.
   // This is physics-based compensation; no random or empirical aim offset.
-  for (let pass = 0; pass < 3; pass++) {
+  for (let pass = 0; pass < 5; pass++) {
     const contactNormal = rotated(normal, correction);
     ghost = pointOn(target.pos, contactNormal, -config.radius * 2);
     aim = unit(sub(ghost, cuePos));
@@ -157,7 +157,7 @@ export function simulatePoolRoyalPot(plan, { cuePos, balls, ...config }, power, 
     }
     const outgoing = unit(sub(probePosition, target.pos));
     const error = Math.atan2(cross(normal, outgoing), dot(normal, outgoing));
-    if (pass < 2 && Math.abs(error) > 0.001) { correction = clamp(correction - error, -0.12, 0.12); continue; }
+    if (pass < 4 && Math.abs(error) > 0.0002) { correction = clamp(correction - error, -0.12, 0.12); continue; }
     object = traceRoll(target.pos, impact.object, config, { obstacles, object: true });
     break;
   }
@@ -200,17 +200,33 @@ export function refinePoolRoyalPotPlans(plans, context) {
     if (!Array.isArray(nextTargets)) continue; // Do not guess a rules transition.
     const remaining = context.balls.filter(b => b.active !== false && b !== plan.targetBall);
     let best = null, bestScore = -Infinity;
-    for (const power of [0.28, 0.4, 0.52, 0.64, 0.76, 0.88]) for (const y of [0, -0.5, 0.5]) {
+    const evaluate = (power, y) => {
       const trial = simulatePoolRoyalPot(plan, context, power, { x: 0, y });
-      if (!trial) continue;
+      if (!trial) return;
       const nextShotScore = scorePoolRoyalLeave(trial.cueAfter, nextTargets, remaining, context);
       // Potting speed and a useful next shot beat unnecessary power or rails.
       const score = nextShotScore * 0.72 - power * 0.13 - trial.rails * 0.06 -
         Math.max(0, trial.entrySpeed / context.baseSpeed - 0.45) * 0.2;
       if (score > bestScore) { bestScore = score; best = { ...trial, nextShotScore }; }
     }
+    // Coarse search followed by a bounded local refinement finds softer pots and
+    // useful draw/follow between the old fixed power and spin steps.
+    for (const power of [0.16, 0.28, 0.4, 0.52, 0.64, 0.76, 0.88])
+      for (const y of [0, -0.5, 0.5]) evaluate(power, y);
+    if (best) {
+      const seed = best;
+      for (const dp of [-0.04, 0, 0.04]) for (const dy of [-0.2, 0, 0.2]) {
+        if (dp || dy) evaluate(clamp(seed.power + dp, 0.1, 0.96), clamp(seed.spin.y + dy, -0.8, 0.8));
+      }
+    }
     if (best) refined.push({ ...plan, ...best, aiMeta: { ...plan.aiMeta, source: 'physics-position',
       predictedSafe: true, nextBallIds: nextTargets.map(ball => ball.id) } });
   }
   return refined;
+}
+
+// Elite opponents keep the physics solution; lower circuits retain a small,
+// predictable difficulty curve instead of almost identical angular noise.
+export function poolRoyalAiAimSpread(skill = 0.92) {
+  return 0.00015 + (1 - clamp(skill, 0, 1)) ** 2 * 0.008;
 }

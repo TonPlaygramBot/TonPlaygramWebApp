@@ -248,11 +248,12 @@ export const CAREER_STAGES = Array.from(
 const normalizeProgress = (value) => {
   const completed = Array.isArray(value?.completedStageIds)
     ? value.completedStageIds.filter(
-      (entry) => typeof entry === 'string' && entry.trim()
+      (entry) => CAREER_STAGES.some(stage => stage.id === entry)
     )
     : []
   return {
     completedStageIds: [...new Set(completed)],
+    claimedGiftIds: [...new Set(Array.isArray(value?.claimedGiftIds) ? value.claimedGiftIds.filter(id => /^gift-\d+$/.test(id) && Number(id.slice(5)) >= 5 && Number(id.slice(5)) <= 100 && Number(id.slice(5)) % 5 === 0) : [])],
     updatedAt: Number(value?.updatedAt) || Date.now()
   }
 }

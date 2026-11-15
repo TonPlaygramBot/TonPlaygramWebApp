@@ -1,3 +1,4 @@
+import { createPoolOnlineTournaments } from './services/poolOnlineTournaments.js';
 import { createInitialChessBoard, normalizeChessBoard, chessBoardToFen, validateAndApplyChessMove, adjudicateChessTimeout } from './chessRules.js';
 import './loadEnv.js';
 import { validateEnv } from './env.js';
@@ -1738,6 +1739,7 @@ function unseatTableSocket(accountId, tableId, socketId) {
   // Once started, the game runtime owns the immutable roster and stake.
   // A late lobby cancel or disconnect must not release its account lock.
   if (tableMap.get(tableId)?.gameType === 'kartroyale' && tableMap.get(tableId)?.started) return;
+  if (tableMap.get(tableId)?.tournamentId) return;
   const map = tableSeats.get(tableId);
   const normalizedAccountId = accountId ? String(accountId) : '';
   // A mobile WebView can reconnect before Socket.IO finishes disconnecting the
@@ -2374,7 +2376,12 @@ function removeSocketFromLiveChat(socket) {
   joinedRooms.clear();
 }
 
+const poolTournaments = createPoolOnlineTournaments({ io, tableMap, poolStates });
+const poolTournamentCleanup = setInterval(() => poolTournaments.sweep(), 60000);
+poolTournamentCleanup.unref();
+
 io.on('connection', (socket) => {
+  poolTournaments.attach(socket);
   authenticateSocialSocket(socket).catch(() => {});
   socket.on('social:authenticate', async (credentials = {}, cb) => {
     try {
@@ -3214,6 +3221,7 @@ io.on('connection', (socket) => {
       return;
     }
     const ts = Number.isFinite(frameTs) ? frameTs : Date.now();
+    if (table.tournamentId && !poolTournaments.canUpdate(table, String(resolvedAccountId))) return;
     const cached = poolStates.get(tableId) || {};
     const revision = Number(cached.revision || 0) + 1;
     const payload = {
@@ -3244,6 +3252,7 @@ io.on('connection', (socket) => {
       cb && cb({ success: false, error: 'seat_required' });
       return;
     }
+    if (table.tournamentId && !poolTournaments.canUpdate(table, String(resolvedAccountId))) return;
     const cached = poolStates.get(tableId) || {};
     const revision = Number(cached.revision || 0) + 1;
     const authoritativeState = { ...state, seq: revision };

@@ -1,12 +1,14 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import useTelegramBackButton from '../../hooks/useTelegramBackButton.js';
-import { CAREER_LEVEL_COUNT, getCareerRoadmap, loadCareerProgress } from '../../utils/poolRoyaleCareerProgress.js';
+import { CAREER_LEVEL_COUNT, getCareerRoadmap, loadCareerProgress, persistCareerProgress } from '../../utils/poolRoyaleCareerProgress.js';
 import { getTelegramId } from '../../utils/telegram.js';
 import { loadPoolCompetition, poolCompetitionKey, poolCompetitionScope, poolOpponent, poolRaceTo, poolStageFormat } from '../../games/pool/competition.js';
 import { PoolBracket } from '../../games/pool/PoolCompetitionMatch.jsx';
 import { ALBANIAN_61_ID, ALBANIAN_61_RULES } from '../../config/poolRoyaleVariants.js';
 import '../../games/pool/competition.css';
+import { careerRewardSummary, careerStageXp } from '../../games/pool/careerRewards.js';
+import { addPoolRoyalUnlock } from '../../utils/poolRoyalInventory.js';
 
 const labels = { training: 'Academy drill', friendly: 'Friendly match', league: 'League fixture', showdown: 'Rival showdown', tournament: 'Knockout tournament' };
 
@@ -14,6 +16,26 @@ export default function PoolRoyaleCareer() {
   useTelegramBackButton('/games/poolroyale/lobby?type=career');
   const navigate = useNavigate();
   const [progress, setProgress] = useState(loadCareerProgress);
+  const [claiming, setClaiming] = useState('');
+  const [rewardMessage, setRewardMessage] = useState('');
+  const rewards = useMemo(() => careerRewardSummary(progress), [progress]);
+  const claim = async (gift) => {
+    if (claiming) return;
+    setClaiming(gift.id);
+    try {
+      const current = loadCareerProgress();
+      const available = careerRewardSummary(current).gifts.find(entry => entry.id === gift.id);
+      if (!available?.unlocked || available.claimed) return;
+      if (gift.type !== 'title') await addPoolRoyalUnlock(gift.type, gift.optionId);
+      const latest = loadCareerProgress();
+      persistCareerProgress({ ...latest, claimedGiftIds: [...latest.claimedGiftIds, gift.id] });
+      const saved = loadCareerProgress();
+      if (!saved.claimedGiftIds.includes(gift.id)) throw Error('Unable to save your gift. Free some device storage and retry.');
+      setProgress(saved);
+      setRewardMessage(`${gift.label} unlocked · +${gift.xp} career XP`);
+    } catch (error) { setRewardMessage(error.message || 'Gift could not be claimed. Please retry.'); }
+    finally { setClaiming(''); }
+  };
   const roadmap = useMemo(() => getCareerRoadmap(undefined, progress), [progress]);
   const nextStage = roadmap.find((stage) => stage.playable);
   const [phase, setPhase] = useState(() => nextStage?.phase || 1);
@@ -48,7 +70,7 @@ export default function PoolRoyaleCareer() {
     <div className="pr-progress" role="progressbar" aria-label="Career progress" aria-valuenow={completed} aria-valuemin={0} aria-valuemax={CAREER_LEVEL_COUNT}><span style={{ width: `${completed}%` }} /></div>
     {nextStage ? <section className="pr-feature">
       <p className="pr-eyebrow">{activeEvent?.status === 'active' ? 'Event in progress' : 'Your next challenge'} · Stage {String(nextStage.level).padStart(2, '0')}</p>
-      <h2 style={{ marginTop: 8 }}>{nextStage.title}</h2><p className="pr-muted">{nextStage.objective}</p>
+      <h2 style={{ marginTop: 8 }}>{nextStage.title}</h2><p className="pr-muted">{nextStage.objective}</p><span className="pr-chip">+{careerStageXp(nextStage)} XP</span>
       <span className="pr-chip">{labels[nextStage.type]}</span><span className="pr-chip">{poolStageFormat(nextStage).label}</span>{nextStage.players > 2 && <span className="pr-chip">{nextStage.players} players</span>}
       {activeEvent?.status === 'active' && <p className="pr-muted">{activeEvent.frames[0]} — {activeEvent.frames[1]} vs {poolOpponent(activeEvent)?.name} · Race to {poolRaceTo(activeEvent)}</p>}
       {nextStage.type !== 'training' && !activeEvent && <div className="pr-filter" aria-label="Career pool rules" style={{ marginTop: 12 }}>{[['american', '8-ball'], ['9ball', '9-ball'], ['uk', 'UK pool'], [ALBANIAN_61_ID, 'Albanian 61']].map(([value, label]) => <button key={value} aria-pressed={variant === value} onClick={() => setVariant(value)}>{label}</button>)}</div>}
@@ -57,6 +79,18 @@ export default function PoolRoyaleCareer() {
       {nextStage.type !== 'training' && <p className="pr-mini">Alternate break · Progress saves after settled shots</p>}
       {activeEvent?.draw && activeEvent.totalRounds > 1 && <details><summary>View your tournament draw</summary><PoolBracket event={activeEvent} /></details>}
     </section> : <section className="pr-feature"><h2>Legend circuit complete.</h2><p className="pr-muted">All 100 stages cleared. Return to the lobby to start another Royal tournament.</p><button className="pr-primary" onClick={() => navigate('/games/poolroyale/lobby?type=tournament')}>Enter a tournament →</button></section>}
+    <section aria-label="Career bonuses">
+      <h2>Your rewards club</h2>
+      <div className="pr-stat-grid"><div><strong>{rewards.xp.toLocaleString()}</strong><span>Career XP</span></div><div><strong>{rewards.rank}</strong><span>Club rank</span></div><div><strong>{rewards.gifts.filter(gift => gift.claimed).length}/20</strong><span>Gifts collected</span></div></div>
+      <p className="pr-muted">Earn XP with every stage. Complete bonus goals and open a guaranteed gift every five stages. Career XP and titles stay on this device; cosmetic gifts join your Pool inventory.</p>
+      {rewardMessage && <p role="status" className="pr-notice">{rewardMessage}</p>}
+      {rewards.titles.length > 0 && <p className="pr-champion">🏅 {rewards.titles.at(-1)}</p>}
+      <ul className="pr-goals">{rewards.goals.map(goal => <li key={goal.id}><strong>{goal.done ? '✓ ' : ''}{goal.label}</strong><span>{Math.min(goal.value, goal.target)} / {goal.target} · +{goal.xp} bonus XP {goal.done ? 'earned' : ''}</span></li>)}</ul>
+      <div className="pr-gifts">{rewards.gifts.filter(gift => gift.unlocked || gift === rewards.gifts.find(entry => !entry.unlocked)).map(gift => <article className="pr-gift" key={gift.id}>
+        <p className="pr-eyebrow">🎁 Stage {gift.level}</p><h3>{gift.label}</h3><p>+{gift.xp} bonus XP</p>
+        <button className="pr-primary" disabled={!gift.unlocked || gift.claimed || Boolean(claiming)} onClick={() => claim(gift)}>{gift.claimed ? 'Collected ✓' : claiming === gift.id ? 'Opening…' : gift.unlocked ? 'Open gift' : `${Math.max(0, gift.level - completed)} stages to unlock`}</button>
+      </article>)}</div>
+    </section>
     <h2>Your career route</h2>
     <div className="pr-filter" aria-label="Career phase">{Array.from({ length: 5 }, (_, index) => <button key={index} aria-pressed={phase === index + 1} onClick={() => setPhase(index + 1)}>Phase {index + 1}</button>)}</div>
     <div className="pr-phase-note"><h2 style={{ marginTop: 0 }}>{phaseInfo?.phaseTitle}</h2><p>{phaseInfo?.phaseSummary}</p></div>
@@ -64,7 +98,7 @@ export default function PoolRoyaleCareer() {
       <span aria-label={stage.completed ? 'Completed' : stage.locked ? 'Locked' : 'Next stage'}>{stage.completed ? '✓' : String(stage.level).padStart(2, '0')}</span>
       <div><h3>{stage.title}</h3><p>{labels[stage.type]} · {poolStageFormat(stage).label}{stage.players > 2 ? ` · ${stage.players} players` : ''}</p><p>{stage.objective}</p>
         {stage.playable && <button className="pr-primary" onClick={() => launch(stage)}>Play this stage <span>→</span></button>}
-        {!stage.locked && <details><summary>Stage details</summary><p>{stage.detailBrief}</p><p>{stage.type === 'training' ? stage.winCondition : stage.type === 'tournament' ? 'Win every match, then the final. A match loss eliminates you from this event.' : `Win ${poolStageFormat(stage).raceTo} racks before your rival to complete this stage.`}</p><p>Stage reward: {stage.reward}</p>{stage.type === 'training' && <p>Career drills use the existing heart allowance. Missed attempts deduct hearts; practice remains unlimited.</p>}</details>}
+        {!stage.locked && <details><summary>Stage details</summary><p>{stage.detailBrief}</p><p>{stage.type === 'training' ? stage.winCondition : stage.type === 'tournament' ? 'Win every match, then the final. A match loss eliminates you from this event.' : `Win ${poolStageFormat(stage).raceTo} racks before your rival to complete this stage.`}</p><p>Career reward: +{careerStageXp(stage)} XP{stage.level % 5 === 0 ? " + milestone gift" : ""}</p>{stage.type === 'training' && <p>Career drills use the existing heart allowance. Missed attempts deduct hearts; practice remains unlimited.</p>}</details>}
       </div>
     </article>)}
   </main>;

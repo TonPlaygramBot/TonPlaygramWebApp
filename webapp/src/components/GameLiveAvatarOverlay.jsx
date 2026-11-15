@@ -668,13 +668,13 @@ function LiveAvatarSession({ gameSlug, roomId, previewOnly, children }) {
             </div>
           ))
         : null}
-      {liveMode ? (
+      {liveMode && (!isPool || !previewOnly || liveChat.error) ? (
         <div
           className={`fixed right-3 ${isPool ? "z-[55]" : "z-[18]"} flex flex-col gap-2 pointer-events-auto ${usesOpponentAvatar ? 'w-auto' : 'w-28'}`}
           style={{
             top: 'max(4.75rem, env(safe-area-inset-top))',
             ...(isPool ? {
-              top: 'calc(env(safe-area-inset-top, 0px) + 4.75rem)',
+              top: 'auto', bottom: 'max(12px, env(safe-area-inset-bottom))',
               left: '50%', right: 'auto', transform: 'translateX(-50%)'
             } : isCheckers ? {
               top: 'auto',
@@ -709,7 +709,7 @@ function LiveAvatarSession({ gameSlug, roomId, previewOnly, children }) {
               {previewOnly ? (liveChat.localStream ? 'Camera preview' : 'Starting camera…') : callStatus}
             </p>
           ) : null}
-          <div className={`flex justify-center gap-2 ${isCheckers ? 'flex-col items-start' : ''}`}>
+          {!(isPool && previewOnly) && <div className={`flex justify-center gap-2 ${isCheckers ? 'flex-col items-start' : ''}`}>
             {!previewOnly && <button
               type="button"
               onClick={liveChat.toggleMicrophone}
@@ -738,7 +738,7 @@ function LiveAvatarSession({ gameSlug, roomId, previewOnly, children }) {
                 ✕
               </button>
             ) : null}
-          </div>
+          </div>}
         </div>
       ) : null}
     </>
