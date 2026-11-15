@@ -19,20 +19,18 @@ globalThis.IS_REACT_ACT_ENVIRONMENT=true;
 it('imports the garage without eagerly constructing all circuit minimaps',()=>{
  expect(harness.makeTrack).not.toHaveBeenCalled();
 });
-it('opens the real garage, prepares only the shown circuit and starts rural free roam',async()=>{
+it('opens the real garage, prepares only the shown circuit and starts a circuit race',async()=>{
  localStorage.clear();const host=document.createElement('div');document.body.append(host);const root=createRoot(host);
  try{
   await act(async()=>root.render(<BaseKartRoyale/>));
   expect(host.querySelector('.kr-lobby')).not.toBeNull();
   expect(new Set(harness.makeTrack.mock.calls.map(([id])=>id))).toEqual(new Set(['skanderbeg']));
-  const free=[...host.querySelectorAll('button')].find(b=>b.textContent.includes('FREE ROAM'));
-  await act(async()=>free.click());
-  const start=host.querySelector('#kr-roam-start');
-  await act(async()=>{start.value='farke';start.dispatchEvent(new Event('change',{bubbles:true}));});
+  expect(host.textContent).not.toContain('FREE ROAM');
+  expect(host.querySelector('#kr-roam-start')).toBeNull();
   const launch=host.querySelector('button.kr-start');
   expect(launch).toBeTruthy();expect(launch.disabled).toBe(false);
   await act(async()=>launch.click());
-  expect(harness.game.startLocal).toHaveBeenCalledWith('farke','rookie',true);
+  expect(harness.game.startLocal).toHaveBeenCalledWith('skanderbeg','rookie',false);
  }finally{await act(async()=>root.unmount());host.remove();}
  expect(harness.game.destroy).toHaveBeenCalledOnce();
 });
@@ -101,29 +99,16 @@ function testSocket() {
  return socket;
 }
 
-it('shows only the three entry modes and keeps all race features inside VS AI',async()=>{
+it('shows only the two racing entry modes and keeps all race features inside VS AI',async()=>{
  localStorage.clear();const host=document.createElement('div');document.body.append(host);const root=createRoot(host);
  try {
   await act(async()=>root.render(<BaseKartRoyale/>));
-  expect([...host.querySelectorAll('.kr-mode b')].map(el=>el.textContent)).toEqual(['VS AI','FREE ROAM','MULTIPLAYER']);
+  expect([...host.querySelectorAll('.kr-mode b')].map(el=>el.textContent)).toEqual(['VS AI','MULTIPLAYER']);
   expect([...host.querySelector('[aria-label="Racing activity"]').options].map(o=>o.value)).toEqual(['race','championship','combat','trial']);
   await selectActivity(host,'championship');
   expect(host.querySelectorAll('.kr-cups button')).toHaveLength(CUPS.length);
   await act(async()=>host.querySelector('.kr-start').click());
   expect(harness.game.startLocal).toHaveBeenCalledWith(CUPS[0].track,CUPS[0].difficulty,false);
- }finally{await act(async()=>root.unmount());host.remove();}
-});
-
-it('launches shared free roam through its callback instead of starting a solo kart race',async()=>{
- const onFreeRoam=vi.fn();const host=document.createElement('div');document.body.append(host);const root=createRoot(host);
- try {
-  await act(async()=>root.render(<BaseKartRoyale onFreeRoam={onFreeRoam}/>));
-  await act(async()=>[...host.querySelectorAll('.kr-mode')].find(b=>b.textContent.includes('FREE ROAM')).click());
-  expect(host.querySelector('[aria-label="Racing activity"]')).toBeNull();
-  expect(host.textContent).toContain('live radio');
-  await clickText(host,'ENTER TIRANA CITY');
-  expect(onFreeRoam).toHaveBeenCalledOnce();
-  expect(harness.game.startLocal).not.toHaveBeenCalled();
  }finally{await act(async()=>root.unmount());host.remove();}
 });
 

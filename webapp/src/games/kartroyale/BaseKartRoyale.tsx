@@ -21,13 +21,10 @@ import {
   RotateCcw,
   Cpu,
   Camera,
-  Compass,
   Wifi,
   WifiOff
 } from 'lucide-react';
 import { createHeldRaceInput } from './heldRaceInput.mjs';
-import { FREE_ROAM_STARTS } from './freeRoam.mjs';
-import { FreeRoamMap } from './FreeRoamMap';
 import { KartControls } from './KartControls';
 import {CombatControls,createHeldActionInput} from './ActionControls';
 import { KartRenderer } from './renderer';
@@ -49,7 +46,7 @@ import type { Room, Session } from './network';
 import './kart-royale.css';
 import './kart-mobile.css';
 import './kart-controls.css';
-type Mode = 'ai' | 'online' | 'free';
+type Mode = 'ai' | 'online';
 const raceFormats: {id: RaceFormat; label: string}[] = [
   {id: 'race', label: 'Race'}, {id: 'championship', label: 'Career'},
   {id: 'combat', label: 'Combat race'}, {id: 'trial', label: 'Time trial'}
@@ -58,7 +55,6 @@ interface Props {
   getSocket?: () => Promise<Socket>;
   onExit?: () => void;
   onCareer?: () => void;
-  onFreeRoam?: () => void;
   playerName?: string;
   renderOnlineLobby?: (props: {
     onMatched: (match: { tableId: string; accountId: string }) => Promise<void>;
@@ -71,7 +67,6 @@ interface Props {
 }
 const modes = [
   { id: 'ai', title: 'VS AI', sub: 'Find your racing line', icon: Cpu },
-  { id: 'free', title: 'FREE ROAM', sub: 'Drive, walk, listen and meet people', icon: Compass },
   { id: 'online', title: 'MULTIPLAYER', sub: 'Race your friends', icon: Users }
 ] as const;
 function CircuitMap({ id, frame }: { id: string; frame?: Frame | null }) {
@@ -118,7 +113,6 @@ export default function KartRoyale({
   getSocket,
   onExit,
   onCareer,
-  onFreeRoam,
   playerName = 'Racer',
   renderOnlineLobby
 }: Props) {
@@ -137,7 +131,6 @@ export default function KartRoyale({
     [raceFormat, setRaceFormat] = useState<RaceFormat>('race'),
     [onlineEntry, setOnlineEntry] = useState<'free'|'tpg'>(renderOnlineLobby ? 'tpg' : 'free'),
     [trackId, setTrackId] = useState('skanderbeg'),
-    [roamStart,setRoamStart] = useState('skanderbeg'),
     [difficulty, setDifficulty] = useState('rookie'),
     [paint, setPaint] = useState(0),
     [kartId, setKartId] = useState(() => {
@@ -200,7 +193,7 @@ export default function KartRoyale({
   careerRef.current = career;
   modalRef.current = modal;
   const track = TRACKS.find((t) => t.id === trackId)!,
-    activeTrack = mode === 'free' ? roamStart : raceFormat === 'championship' ? CUPS[cup].track : trackId;
+    activeTrack = raceFormat === 'championship' ? CUPS[cup].track : trackId;
   const finish = useRef<(r: Result) => void>(() => {});
   finish.current = (r) => {
     if (done.current) return;
@@ -611,7 +604,6 @@ export default function KartRoyale({
   };
   const start = () => {
     heldInput.current.clear();combatHeld.current.clear();
-    if (mode === 'free' && onFreeRoam) { onFreeRoam(); return; }
     if (!loaded || sessionRef.current) return;
     if (mode === 'ai' && raceFormat === 'championship' && cup > 0 && !career.cups[cup - 1]) {setCup(0);return;}
     audio.current?.unlock();
@@ -622,12 +614,12 @@ export default function KartRoyale({
     setHud(null);
     setModal(null);
     setScreen('race');
-    if(mode!=='free'&&raceFormat==='combat')engine.current?.startCombatRace(activeTrack,difficulty);
-    else if(mode!=='free'&&raceFormat==='trial')engine.current?.startLocal(activeTrack,'street',false,true);
+    if(raceFormat==='combat')engine.current?.startCombatRace(activeTrack,difficulty);
+    else if(raceFormat==='trial')engine.current?.startLocal(activeTrack,'street',false,true);
     else engine.current?.startLocal(
       activeTrack,
       raceFormat === 'championship' ? CUPS[cup].difficulty : difficulty,
-      mode === 'free'
+      false
     );
   };
   const touch = (key: 'steer'|'drift'|'boost'|'brake'|'reverse'|'recover', value: number|boolean) => {
@@ -793,7 +785,7 @@ export default function KartRoyale({
                   </button>
                 ))}
               </div>
-              {mode !== 'free' && <div className="kr-options rr-race-features">
+              <div className="kr-options rr-race-features">
                 <label className="kr-label" htmlFor="rr-race-format">{mode === 'ai' ? 'VS AI ACTIVITY' : 'MULTIPLAYER ACTIVITY'}</label>
                 <select id="rr-race-format" className="kr-input" aria-label="Racing activity"
                   value={room?.raceFormat || raceFormat} disabled={busy || (!!room && (!host || !!room.tableId || room.status !== 'waiting'))}
@@ -804,7 +796,7 @@ export default function KartRoyale({
                 {mode==='online' && selectedFormat==='trial' && <p>Race the clock together without kart collisions. The fastest valid completed lap wins.</p>}
                 {mode==='online' && selectedFormat==='combat' && <p>Live combat with friends: fire, shield, reload and EMP. Free rooms only.</p>}
                 {mode==='online' && selectedFormat==='championship' && <p>Compete in cup races with friends. Cup progress and credits save on this device.</p>}
-              </div>}
+              </div>
               {mode === 'ai' && selectedFormat !== 'championship' && (
                 <div className="kr-options">
                   <div className="kr-track-selector">
@@ -867,13 +859,7 @@ export default function KartRoyale({
                   {selectedFormat==='trial'&&<p className="rr-trial-description">Three flying laps. Chase your best ghost, compare four sector splits, and improve your racing line. Recovering invalidates that lap. Records save for each kart and circuit on this device.</p>}
                 </div>
               )}
-              {mode === 'free'  && <div className="kr-options kr-roam-options">
-                {onFreeRoam ? <p>Enter the shared Tirana city as Turi. Choose another character, drive or exit and walk, hold RUN, listen to live radio and meet people in People / Chat.</p> : <>
-                <label className="kr-label" htmlFor="kr-roam-start">START EXPLORING</label>
-                <select id="kr-roam-start" value={roamStart} onChange={e=>setRoamStart(e.target.value)}>{FREE_ROAM_STARTS.map(p=><option key={p.track} value={p.track}>{p.name}</option>)}</select>
-                <p>Take any road through Tirana. No opponents, laps or time limit.</p></>}
-              </div>}
-              {mode !== 'free' && (room?.raceFormat || raceFormat) === 'championship' && (
+              {(room?.raceFormat || raceFormat) === 'championship' && (
                 <div className="kr-options">
                   <div className="kr-section-line">
                     <span className="kr-label">THE ROAD TO ROYALE</span>
@@ -1102,14 +1088,13 @@ export default function KartRoyale({
               {mode !== 'online' ? (
                 <button
                   className="kr-start"
-                  disabled={mode==='free' && onFreeRoam ? false : !loaded || !!error}
+                  disabled={!loaded || !!error}
                   onClick={start}
                 >
                   <Flag size={23} />
                   <span>
-                    {mode==='free' && onFreeRoam ? 'ENTER TIRANA CITY' : !loaded
+                    {!loaded
                       ? 'LOADING YOUR KART…'
-                      : mode === 'free' ? 'EXPLORE TIRANA'
                       : selectedFormat === 'trial' ? 'CHASE YOUR BEST'
                       : selectedFormat === 'combat' ? 'START COMBAT RACE'
                       : selectedFormat === 'championship'
@@ -1166,13 +1151,11 @@ export default function KartRoyale({
       {screen === 'race' && (
         <div className="rr-race-ui">
           <div className="rr-race-top">
-            {mode==='free'?<div className="rr-roam-label"><Compass size={18}/><span>FREE ROAM</span></div>:<>
               <div className="rr-place"><b>{hud?.position || 1}</b><span>/{hud?.racers.length || 6}<small>{hud?.timeTrial?'TIME TRIAL':'POSITION'}</small></span></div>
               <div className="rr-lap"><span>LAP <b>{hud?.lap || 1}</b> / 3</span><time aria-label="Current lap time">{formatTime(hud?.lapTime || 0)}</time>{!!hud?.bestLap && <small>BEST {formatTime(hud.bestLap)}</small>}</div>
-            </>}
             <button className="kr-icon" aria-label="Pause menu" onClick={()=>setModal('pause')}><Pause size={22}/></button>
           </div>
-          <div className="rr-map">{mode==='free'?<FreeRoamMap racer={hud?.racers[0]}/>:<CircuitMap id={trackId} frame={hud}/>}</div>
+          <div className="rr-map"><CircuitMap id={trackId} frame={hud}/></div>
           <button className="rr-camera" aria-label={`Switch to ${cameraMode==='driver'?'chase':'driver'} camera`} onClick={()=>setCameraMode(v=>v==='driver'?'chase':'driver')}><Camera size={18}/></button>
           <button className="rr-recover" aria-label="Recover kart on track" {...touch('recover',true)}><RotateCcw size={18}/></button>
           {(hud?.countdown || 0)>0 && <div className="rr-countdown" role="status"><div className="rr-start-lights" aria-hidden="true">{[3,2,1].map(n=><i key={n} className={hud!.countdown<=n?'on':''}/>)}</div><span>READY TO RACE</span><b>{hud!.countdown}</b><p>Hold GAS to accelerate.<br/>Drag the left joystick to steer; slide it up to drift.</p></div>}

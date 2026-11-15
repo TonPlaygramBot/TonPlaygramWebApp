@@ -1,11 +1,8 @@
-/** Explicit activity resolution. Paid sessions always retain the original race
- * runtime; missing/AI URLs must not default to a new nested mode-selection menu. */
+/** Paid/resume links always open racing. Retired city and Free Roam links
+ * fall back to the garage; explicit career-job links keep their own runtime. */
 export function racingActivity(search = '') {
   const p = new URLSearchParams(search);
   if (p.get('mode') === 'online' || p.get('tableId') || p.get('code')) return 'race';
-  if (p.get('activity') === 'explore' || p.get('activity') === 'city') return 'explore';
-  // Explicit old job-board links continue to work; the Career entry is social.
   if (p.get('activity') === 'racing-career') return 'career';
-  if (p.get('mode') === 'career' || p.get('mode') === 'free') return 'explore';
   return 'race';
 }

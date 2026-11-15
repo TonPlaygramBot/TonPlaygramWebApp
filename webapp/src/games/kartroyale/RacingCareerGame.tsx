@@ -18,7 +18,7 @@ const storage=()=>{try{return window.localStorage;}catch{return undefined;}};
 type Launch={cup?:number;task?:string;job?:string;action?:string};
 const actionKeys:ActionKey[]=['moveX','moveZ','turn','sprint','fire','jump','interact','reload'];
 
-export function RacingCareerGame({onExit,onExplore}:{onExit:()=>void;onExplore?:()=>void}){
+export function RacingCareerGame({onExit}:{onExit:()=>void}){
  const host=useRef<HTMLDivElement>(null),engine=useRef<KartRenderer|null>(null),audio=useRef<KartAudio|null>(null);
  const active=useRef<Launch>({}),finished=useRef(true),held=useRef(createHeldRaceInput()),actionHeld=useRef(createHeldActionInput());
  const actionMode=useRef<'driving'|'onfoot'|null>(null);
@@ -125,7 +125,6 @@ export function RacingCareerGame({onExit,onExplore}:{onExit:()=>void;onExplore?:
   {error&&<p className="te-error" role="alert">{error}</p>}
   {!racing&&<section className="te-panel rr-job-board">
    <div className="rr-career-title"><small>TIRANA CITY STORIES</small><h1>Make your name.</h1><p>{xp} city XP · {actionXp} action XP · {career.wins} race wins</p></div>
-   {onExplore&&<button className="rr-career-city" onClick={()=>{clear();audio.current?.silence();onExplore();}}><strong>RETURN TO TIRANA SOCIAL CITY</strong><span>Meet friends, drive together and visit the Pyramid gaming mall.</span></button>}
    {!saved&&<p role="alert">Device save failed. Progress remains in this session.</p>}
    {result&&<div className="rr-job-result" role="status"><strong>{failed?'Try another run':result.actionCareer?'Mission complete':result.cityJob?'Job complete':'Race complete'}</strong><p>{notice||formatTime(result.elapsed)}</p><button onClick={()=>start(active.current)}>RETRY / REPLAY</button></div>}
    {result&&!result.cityJob&&!result.actionCareer&&<RaceDebrief result={result}/>}
