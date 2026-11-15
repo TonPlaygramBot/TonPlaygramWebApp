@@ -8,7 +8,9 @@ def keystoreProperties = new Properties()
 def keystorePropertiesFile = rootProject.file('keystore.properties')
 def isReleaseTask = gradle.startParameter.taskNames.any { name ->
     def lowered = name.toLowerCase()
-    lowered.contains('release') || lowered.contains('bundle')
+    // Aggregate tasks also build release variants; bundleDebug must remain unsigned.
+    def task = lowered.tokenize(':').last()
+    lowered.contains('release') || ['bundle', 'assemble', 'build'].contains(task)
 }
 
 if (keystorePropertiesFile.exists()) {

@@ -42,7 +42,8 @@ jobs:
           java-version: 21
 
       - name: Sync Capacitor
-        run: npx cap sync android
+        working-directory: webapp
+        run: npx --no-install cap sync android
 
       - name: Build debug APK
         working-directory: webapp/android

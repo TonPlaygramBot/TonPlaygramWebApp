@@ -39,18 +39,26 @@ jobs:
           test -n "$ANDROID_KEYSTORE_PASSWORD"
           test -n "$ANDROID_KEY_ALIAS"
           test -n "$ANDROID_KEY_PASSWORD"
-          test -n "$VITE_API_BASE_URL"
-      - name: Install, build, and sync
+          node --input-type=module <<'NODE'
+          let api;
+          try { api = new URL(process.env.VITE_API_BASE_URL); } catch {}
+          if (!api || api.protocol !== 'https:' || api.username || api.password) {
+            throw new Error('VITE_API_BASE_URL must be an HTTPS URL without embedded credentials.');
+          }
+          NODE
+      - name: Install and build web assets
         run: |
           npm ci --prefix webapp
           npm --prefix webapp run generate:native-assets
           npm --prefix webapp run build
-          npx --prefix webapp cap sync android
+      - name: Sync Capacitor Android
+        working-directory: webapp
+        run: npx --no-install cap sync android
       - name: Configure signing
         run: |
           printf '%s' "$ANDROID_KEYSTORE_BASE64" | base64 --decode > webapp/android/tonplaygram-upload.jks
           cat > webapp/android/keystore.properties <<EOF
-          storeFile=tonplaygram-upload.jks
+          storeFile=$GITHUB_WORKSPACE/webapp/android/tonplaygram-upload.jks
           storePassword=$ANDROID_KEYSTORE_PASSWORD
           keyAlias=$ANDROID_KEY_ALIAS
           keyPassword=$ANDROID_KEY_PASSWORD

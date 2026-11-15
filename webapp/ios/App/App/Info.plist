@@ -41,7 +41,9 @@
 	<key>UIViewControllerBasedStatusBarAppearance</key>
 	<true/>
 	<key>NSCameraUsageDescription</key>
-	<string>Camera access is required to scan QR codes and provide interactive gameplay features.</string>
+	<string>TonPlaygram uses your camera when you start a video call or scan a QR code.</string>
+	<key>NSMicrophoneUsageDescription</key>
+	<string>TonPlaygram uses your microphone when you start a voice or video call.</string>
 	<key>NSPhotoLibraryAddUsageDescription</key>
 	<string>Photo library access is required to save captures shared from the app.</string>
 	<key>NSPhotoLibraryUsageDescription</key>

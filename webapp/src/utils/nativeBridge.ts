@@ -44,7 +44,6 @@ export type BridgeUser = {
 type BridgeState = {
   user?: BridgeUser;
   startParam?: string;
-  initData?: string;
   source?: 'storage' | 'deeplink' | 'unknown';
 };
 
@@ -169,15 +168,6 @@ async function persistBridgeUser(user?: BridgeUser, startParam?: string) {
   }
 }
 
-function buildInitDataString(user?: BridgeUser, startParam?: string): string {
-  const params = new URLSearchParams();
-  if (user?.id != null) params.set('user_id', String(user.id));
-  if (user?.username) params.set('username', user.username);
-  if (startParam) params.set('start_param', startParam);
-  params.set('platform', 'native');
-  return params.toString();
-}
-
 function emitBackButtonClick() {
   const listener = [...backButtonListeners].at(-1);
   if (!listener) return false;
@@ -205,7 +195,6 @@ function installBackButtonHandler() {
 function createTelegramShim(user?: BridgeUser, startParam?: string) {
   if (window.Telegram?.WebApp?.initDataUnsafe) return; // Do not override real Telegram
 
-  const initData = buildInitDataString(user, startParam);
   const initDataUnsafe: Record<string, unknown> = {
     user,
     start_param: startParam
@@ -231,7 +220,10 @@ function createTelegramShim(user?: BridgeUser, startParam?: string) {
   };
 
   const webApp = {
-    initData,
+    // Native/deep-link metadata is not signed by Telegram. Keeping this empty
+    // prevents API clients from sending it as Telegram credentials alongside
+    // a valid Google sign-in. Only the real Telegram SDK supplies initData.
+    initData: '',
     initDataUnsafe,
     isExpanded: true,
     expand() {
@@ -256,7 +248,6 @@ function createTelegramShim(user?: BridgeUser, startParam?: string) {
 
   bridgeState.user = user;
   bridgeState.startParam = startParam;
-  bridgeState.initData = initData;
   bridgeState.source = 'unknown';
 
   (window as any).__TONPLAYGRAM_BRIDGE__ = {
@@ -304,7 +295,6 @@ export async function initNativeBridge() {
 export function getNativeBridgeHeaders() {
   if (window?.Telegram?.WebApp?.initData) return {};
   const headers: Record<string, string> = {};
-  if (bridgeState.initData) headers['X-Telegram-Init-Data'] = bridgeState.initData;
   if (bridgeState.user?.id != null) headers['X-Telegram-User-Id'] = String(bridgeState.user.id);
   if (bridgeState.user?.username) headers['X-Telegram-Username'] = bridgeState.user.username;
   if (bridgeState.startParam) headers['X-Telegram-Start-Param'] = bridgeState.startParam;
