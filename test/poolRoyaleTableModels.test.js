@@ -46,7 +46,6 @@ describe('Pool Royale table models', () => {
     assert.equal(showood.upperFrameHeightScale, 1);
     assert.equal(showood.cornerRimHeightScale, 1);
     assert.equal(showood.accentBottomTrimOffset, 0);
-    assert.equal(showood.markingVisualLift, 0.028);
     assert.equal(showood.lowerBaseHeightScale, 1);
     assert.equal(showood.lowerLegFootReachScale, 1);
     assert.equal(showood.footWidthScale, 1);

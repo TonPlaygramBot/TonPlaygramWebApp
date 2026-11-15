@@ -39,7 +39,6 @@ export const POOL_ROYALE_TABLE_MODEL_OPTIONS = Object.freeze([
     cornerRimLift: 0.018,
     originalBaseRemovalCutoffRatio: 0.66,
     accentBottomTrimOffset: 0,
-    markingVisualLift: 0.028,
     lowerBaseHeightScale: 1,
     lowerLegFootReachScale: 1,
     lowerLegReachTarget: 'footBottom',
