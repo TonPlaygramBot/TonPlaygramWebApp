@@ -1,4 +1,4 @@
-name: Build Android APK (Capacitor)
+name: Build Android debug APK (Capacitor)
 
 on:
   workflow_dispatch:
@@ -58,17 +58,5 @@ jobs:
           path: webapp/android/app/build/outputs/apk/debug/*.apk
           if-no-files-found: error
 
-      # Release APK signing is not configured here.
-      # If you want a signed release APK, we can add keystore secrets later.
-      - name: Build unsigned release APK
-        run: |
-          cd android
-          chmod +x gradlew
-          ./gradlew assembleRelease
-
-      - name: Upload release APK (unsigned)
-        uses: actions/upload-artifact@v4
-        with:
-          name: TonPlaygram-release-apk-unsigned
-          path: webapp/android/app/build/outputs/apk/release/*.apk
-          if-no-files-found: error
+      # Store releases use android-store-release.yml and the protected
+      # mobile-store-release environment; debug CI never creates a release APK.

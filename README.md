@@ -167,11 +167,13 @@ npm test
 
 ### Mobile shells (Capacitor)
 
+Store submission is not ready yet. See the [Android/iOS readiness review](docs/mobile-store-readiness-2026-11.md) for current blockers, validation limits and the release sequence.
+
 - Run `npm --prefix webapp run generate:native-assets` to generate the native icon and splash assets from the existing `webapp/public/assets/icons` sources. Generated PNGs (including PWA install icons and startup splash screens under `webapp/public/assets/splash/`) are gitignored so the script must be run before `cap sync` or a native build.
 - Set `VITE_API_BASE_URL` to the production HTTPS endpoint when packaging native apps. Native shells warn when this is missing to avoid accidentally pointing to an unsecured or incorrect origin.
 - Android deep links are verified for `https://tonplaygram.com`, `https://tonplaygram.app` and `https://api.tonplaygram.com`, plus the custom schemes `tonplaygram://` and `tonconnect://tonplaygram.com`.
 - iOS universal links rely on the Associated Domains entitlement (`applinks:tonplaygram.com`, `applinks:tonplaygram.app`, `applinks:api.tonplaygram.com`). Keep the entitlement list in sync with production domains.
-- Only network access is requested by default (`INTERNET` on Android; no native permissions on iOS). Document the same in store submissions.
+- Native calls require camera/microphone consent. iOS also declares photo-library and biometric usage descriptions. Verify actual permission requests and data handling on devices before completing store privacy declarations.
 
 ### CI for native packages
 

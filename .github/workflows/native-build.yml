@@ -46,7 +46,8 @@ jobs:
         run: npm --prefix webapp run build
 
       - name: Sync Capacitor Android
-        run: npx --prefix webapp cap sync android
+        working-directory: webapp
+        run: npx --no-install cap sync android
 
       - name: Build Android APK and AAB
         run: |
@@ -57,6 +58,7 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: android-artifacts
+          if-no-files-found: error
           path: |
             webapp/android/app/build/outputs/apk/debug/app-debug.apk
             webapp/android/app/build/outputs/bundle/debug/app-debug.aab
@@ -96,7 +98,8 @@ jobs:
         run: npm --prefix webapp run build
 
       - name: Sync Capacitor iOS
-        run: npx --prefix webapp cap sync ios
+        working-directory: webapp
+        run: npx --no-install cap sync ios
 
       - name: Install CocoaPods
         run: |
@@ -106,10 +109,11 @@ jobs:
       - name: Build iOS archive (unsigned)
         run: |
           cd webapp/ios/App
-          xcodebuild -workspace App.xcworkspace -scheme App -configuration Release -archivePath build/App.xcarchive -destination 'generic/platform=iOS' CODE_SIGNING_ALLOWED=NO CODE_SIGNING_REQUIRED=NO CODE_SIGN_IDENTITY=""
+          xcodebuild archive -workspace App.xcworkspace -scheme App -configuration Release -archivePath build/App.xcarchive -destination 'generic/platform=iOS' CODE_SIGNING_ALLOWED=NO CODE_SIGNING_REQUIRED=NO CODE_SIGN_IDENTITY=""
 
       - name: Upload iOS archive
         uses: actions/upload-artifact@v4
         with:
           name: ios-archive
+          if-no-files-found: error
           path: webapp/ios/App/build/App.xcarchive
