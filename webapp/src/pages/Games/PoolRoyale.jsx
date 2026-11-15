@@ -33814,8 +33814,12 @@ const shotPowerRef = useRef(0);
     lastOpponentPot != null
       ? String(lastOpponentPot.id ?? lastOpponentPot.color)
       : null;
+  // Online avatar frames host the live call. Keep them on screen while a shot
+  // switches to a pocket camera or replay so players can keep talking/seeing
+  // each other without remounting their media elements.
   const bottomHudVisible =
-    hud.turn != null && !hud.over && !replayActive;
+    hud.turn != null && !hud.over && (isOnlineMatch || !replayActive);
+  const hideAvatarHudForShot = !isOnlineMatch && (pocketCameraActive || replayActive);
   const controlLayout = poolRoyalHudLayout({ uiScale, portrait: isPortrait,
     bottom: 12 + chromeUiLiftPx + sharedHudLiftPx + spinControllerLiftPx - sharedBottomControlsDropPx });
   const avatarStyle = { width: POOL_AVATAR_SIZE_PX, height: POOL_AVATAR_SIZE_PX };
@@ -33905,7 +33909,7 @@ const shotPowerRef = useRef(0);
 
   return (
     <div className="w-full h-[100vh] bg-black text-white overflow-hidden select-none"
-      data-live-video-blocking={configOpen || showChat || showGift || callPocketOpen || replayActive || pocketCameraActive || Boolean(hud.over) ? 'true' : 'false'}>
+      data-live-video-blocking={configOpen || showChat || showGift || callPocketOpen || Boolean(hud.over) ? 'true' : 'false'}>
       {/* Canvas host now stretches full width so table reaches the slider */}
       <div ref={mountRef} className="absolute inset-0" />
       {callPocketOpen && !replayActive && !hud.over && renderMatchRules(false)}
@@ -35393,8 +35397,8 @@ const shotPowerRef = useRef(0);
       {bottomHudVisible && (
         <div
           data-pool-avatar-hud
-          className={`absolute flex ${bottomHudLayoutClass} pointer-events-none z-50 transition-opacity duration-200 ${pocketCameraActive || replayActive ? 'opacity-0' : 'opacity-100'}`}
-          aria-hidden={pocketCameraActive || replayActive}
+          className={`absolute flex ${bottomHudLayoutClass} pointer-events-none z-50 transition-opacity duration-200 ${hideAvatarHudForShot ? 'opacity-0' : 'opacity-100'}`}
+          aria-hidden={hideAvatarHudForShot}
           style={controlLayout.avatars}
         >
             <div

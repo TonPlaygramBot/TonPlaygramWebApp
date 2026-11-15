@@ -3,7 +3,7 @@ import { useLocation } from 'react-router-dom';
 import useLiveVideoChat from '../hooks/useLiveVideoChat.js';
 import { buildGameLiveChatRoomId } from '../utils/liveVideoRoom.js';
 
-function RemoteVideo({ peer, audioOnly = false }) {
+function RemoteVideo({ peer, audioOnly = false, muted = false }) {
   const videoRef = useRef(null);
 
   useEffect(() => {
@@ -46,7 +46,7 @@ function RemoteVideo({ peer, audioOnly = false }) {
         ref={videoRef}
         autoPlay
         playsInline
-        muted={false}
+        muted={muted}
         aria-label={`${peer.displayName || 'Opponent'} live video`}
         className="h-full w-full object-cover"
       />
@@ -520,7 +520,9 @@ function LiveAvatarSession({ gameSlug, roomId, children }) {
           </button>
         </div>
       ) : null}
-      {audioOnly && liveChat.remotePeers[0] ? (
+      {/* Keep Pool audio mounted even when a game transition removes its avatar
+          anchors. The matching video is muted so the opponent plays only once. */}
+      {isPool && liveMode && liveChat.remotePeers[0] ? (
         <RemoteVideo key={liveChat.remotePeers[0].socketId} peer={liveChat.remotePeers[0]} audioOnly />
       ) : null}
       {!liveMode && anchorElement ? (
@@ -593,7 +595,7 @@ function LiveAvatarSession({ gameSlug, roomId, children }) {
           }}
         >
           {liveChat.remotePeers[0] ? (
-            <RemoteVideo peer={liveChat.remotePeers[0]} />
+            <RemoteVideo peer={liveChat.remotePeers[0]} muted={isPool} />
           ) : (
             <div className="flex h-full items-center justify-center bg-slate-950 text-center text-[8px] font-semibold text-white/70">
               {compactCall && liveChat.error ? 'Camera unavailable' : 'Waiting…'}

@@ -50,13 +50,21 @@ describe.each(['checkersbattleroyal', 'poolroyale'])('%s shared live video', (de
       for (const handler of listeners.get(event) || []) await handler(payload);
     });
   }
+  function GameplayControls() {
+    const [shots, setShots] = React.useState(0);
+    return <>
+      <button aria-label="Take shot" onClick={() => setShots((count) => count + 1)}>Shoot</button>
+      <output aria-label="Shots taken">{shots}</output>
+      <button aria-label="Replay last move">Replay</button>
+    </>;
+  }
   function Game({ blocked = false }) {
     navigate = useNavigate();
     return <GameLiveAvatarOverlay gameSlug={gameSlug} onlineOnly={['checkersbattleroyal', 'poolroyale'].includes(gameSlug)}>
       <div data-live-video-blocking={blocked ? 'true' : 'false'}>
         <div data-self-player="false" data-player-index="0">{gameSlug === 'poolroyale' ? <img data-pool-avatar="opponent" alt="Rival" /> : <AvatarTimer index={0} name="Rival" />}<span>Rival</span></div>
         <div data-self-player="true" data-player-index="1">{gameSlug === 'poolroyale' ? <img data-pool-avatar="self" alt="You" /> : <AvatarTimer index={1} name="You" isTurn active />}<span>You</span></div>
-        <button aria-label="Replay last move">Replay</button>
+        <GameplayControls />
       </div>
     </GameLiveAvatarOverlay>;
   }
@@ -150,7 +158,7 @@ describe.each(['checkersbattleroyal', 'poolroyale'])('%s shared live video', (de
     expect(socket.emit).not.toHaveBeenCalledWith('liveChat:join', expect.anything());
   });
 
-  it('negotiates the shared signaling protocol and renders audible inline opponent video', async () => {
+  it('negotiates the shared signaling protocol and renders inline opponent video with one audio source', async () => {
     await mount();
     await click('Turn on live avatar video');
     await receive('liveChat:signal', { roomId, fromSocketId: 'rival', participant: { displayName: 'Rival' }, data: { type: 'offer', sdp: { type: 'offer', sdp: 'mock' } } });
@@ -160,14 +168,24 @@ describe.each(['checkersbattleroyal', 'poolroyale'])('%s shared live video', (de
     await act(async () => connections[0].ontrack({ streams: [remoteStream] }));
     const video = container.querySelector('video[aria-label="Rival live video"]');
     expect(video.srcObject).toBe(remoteStream);
-    expect(video.muted).toBe(false);
+    expect(video.muted).toBe(defaultGame === 'poolroyale');
     expect(video.playsInline).toBe(true);
     expect(video.parentElement.parentElement.style.top).toBe('115px');
     expect(video.parentElement.parentElement.style.width).toBe(avatarSize);
     expect(video.parentElement.parentElement.style.height).toBe(avatarSize);
+    const audio = container.querySelector('audio[aria-label="Rival live audio"]');
+    if (defaultGame === 'poolroyale') {
+      expect(audio.srcObject).toBe(remoteStream);
+      expect(audio.muted).toBe(false);
+      expect(audio.autoplay).toBe(true);
+    } else {
+      expect(audio).toBeNull();
+    }
+    expect([...container.querySelectorAll('video, audio')].filter((media) => !media.muted)).toHaveLength(1);
     await click('End video call');
     expect(connections[0].close).toHaveBeenCalled();
     expect(video.srcObject).toBeNull();
+    if (audio) expect(audio.srcObject).toBeNull();
   });
 
   it('toggles camera and microphone independently, then releases tracks and restores photos', async () => {
@@ -301,6 +319,82 @@ describe.each(['checkersbattleroyal', 'poolroyale'])('%s shared live video', (de
 
 
   if (defaultGame === 'poolroyale') {
+    it('keeps opponent sound and call controls alive when gameplay replaces the avatar HUD', async () => {
+      await mount();
+      await click('Start video call');
+      await receive('liveChat:signal', {
+        roomId, fromSocketId: 'rival', participant: { displayName: 'Rival' },
+        data: { type: 'offer', sdp: { type: 'offer', sdp: 'mock' } }
+      });
+      const remoteStream = makeStream();
+      await act(async () => connections[0].ontrack({ streams: [remoteStream] }));
+      const audio = container.querySelector('audio[aria-label="Rival live audio"]');
+      const video = container.querySelector('video[aria-label="Rival live video"]');
+      expect(audio.srcObject).toBe(remoteStream);
+      expect(video.muted).toBe(true);
+      const photos = [...container.querySelectorAll('[data-pool-avatar]')].map((photo) => ({
+        photo, owner: photo.parentElement
+      }));
+
+      await act(async () => photos.forEach(({ photo }) => photo.remove()));
+      await frame();
+      expect(container.querySelector('video[aria-label="Rival live video"]')).toBeNull();
+      expect(video.srcObject).toBeNull();
+      expect(container.querySelector('audio[aria-label="Rival live audio"]')).toBe(audio);
+      expect(audio.srcObject).toBe(remoteStream);
+      expect(audio.muted).toBe(false);
+      expect(button('End video call').parentElement.parentElement.style.visibility).toBe('visible');
+      expect(button('End video call').parentElement.parentElement.style.pointerEvents).toBe('auto');
+      await click('Turn microphone off');
+      expect(stream.getAudioTracks()[0].enabled).toBe(false);
+      await click('Take shot');
+      expect(container.querySelector('[aria-label="Shots taken"]').textContent).toBe('1');
+
+      await act(async () => photos.forEach(({ photo, owner }) => owner.prepend(photo)));
+      await frame();
+      const restoredVideo = container.querySelector('video[aria-label="Rival live video"]');
+      expect(restoredVideo.srcObject).toBe(remoteStream);
+      expect(restoredVideo.muted).toBe(true);
+      expect(container.querySelector('audio[aria-label="Rival live audio"]')).toBe(audio);
+      expect(audio.srcObject).toBe(remoteStream);
+      expect(getUserMedia).toHaveBeenCalledTimes(1);
+      expect(connections[0].close).not.toHaveBeenCalled();
+      await click('End video call');
+      expect(audio.srcObject).toBeNull();
+      expect(container.querySelector('audio')).toBeNull();
+    });
+
+    it.each(['video', 'voice'])('keeps the game interactive and preserves progress throughout a %s call', async (mode) => {
+      if (mode === 'voice') {
+        stream = makeStream(false);
+        getUserMedia.mockResolvedValue(stream);
+      }
+      await mount();
+      const shootButton = button('Take shot');
+      const shots = () => container.querySelector('[aria-label="Shots taken"]').textContent;
+      await click('Take shot');
+      expect(shots()).toBe('1');
+      await click(`Start ${mode} call`);
+      expect(button('Take shot')).toBe(shootButton);
+      expect(shots()).toBe('1');
+      await click('Take shot');
+      expect(shots()).toBe('2');
+      await click('Turn microphone off');
+      expect(shots()).toBe('2');
+      if (mode === 'video') {
+        await click('Turn camera off');
+        expect(shots()).toBe('2');
+      }
+      await click('Take shot');
+      expect(shots()).toBe('3');
+      await click(`End ${mode} call`);
+      expect(button('Take shot')).toBe(shootButton);
+      expect(shots()).toBe('3');
+      await click('Take shot');
+      expect(shots()).toBe('4');
+      expect(getUserMedia).toHaveBeenCalledTimes(1);
+    });
+
     it('shows explicit voice and video launch buttons without capturing until tapped', async () => {
       await mount();
       expect(button('Start voice call')).not.toBeNull();
