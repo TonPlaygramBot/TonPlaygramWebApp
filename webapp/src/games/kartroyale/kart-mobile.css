@@ -28,7 +28,7 @@
 .rr-stats{display:flex;gap:10px;font-size:10px;letter-spacing:.5px;color:#a2b6c3}
 .rr-stats b{display:block;font-size:17px;color:#e9f5fa}
 .rr-remake .kr-controls-panel{position:relative;inset:auto;transform:none;width:100%;max-width:none;padding:14px;border:1px solid #39566966;border-radius:24px;background:#132330f5;box-shadow:0 15px 50px #0004;z-index:2;margin:0;flex-shrink:0}
-.rr-remake .kr-mode-list{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:5px;margin-bottom:14px}
+.rr-remake .kr-mode-list{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:5px;margin-bottom:14px}
 .rr-remake .kr-mode{min-height:54px;padding:9px 3px;display:flex;flex-direction:column;justify-content:center;gap:5px;text-align:center;border-radius:12px;background:#0b1823;border:0;box-shadow:none}
 .rr-remake .kr-mode.active{background:#8ff04f;color:#101c16}
 .rr-remake .kr-mode svg{width:17px;height:17px}

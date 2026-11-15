@@ -16,5 +16,5 @@ const held=createHeldRaceInput();held.hold('finger','steer',1);
 const current:Input=held.read();racer.input=current;
 stepRace([racer],track,1/60,1/60);
 const progress:KartTasks=finishKartTask(freshKartTasks(),'qender-qualifier',{}).profile;
-const mode:'race'|'career'|'explore'=racingActivity('');
+const mode:'race'|'career'=racingActivity('');
 void [input,progress,mode,CUPS];

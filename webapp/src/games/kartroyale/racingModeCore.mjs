@@ -3,9 +3,7 @@
 export function racingActivity(search = '') {
   const p = new URLSearchParams(search);
   if (p.get('mode') === 'online' || p.get('tableId') || p.get('code')) return 'race';
-  if (p.get('activity') === 'explore' || p.get('activity') === 'city') return 'explore';
-  // Explicit old job-board links continue to work; the Career entry is social.
+  // Keep explicit job-board links; retired city/free-roam links open the garage.
   if (p.get('activity') === 'racing-career') return 'career';
-  if (p.get('mode') === 'career' || p.get('mode') === 'free') return 'explore';
   return 'race';
 }
