@@ -143,7 +143,8 @@ describe.each(['checkersbattleroyal', 'poolroyale'])('%s shared live video', (de
     } else {
       expect(button('Turn off live avatar video').style.width).toBe(avatarSize);
       expect(button('Turn off live avatar video').style.height).toBe(avatarSize);
-      expect(button('End video call').parentElement.parentElement.style.left).toBe('50%');
+      expect(button('End video call').parentElement.parentElement.style.top).toBe('auto');
+      expect(button('End video call').parentElement.parentElement.style.bottom).toContain('12px');
     }
   });
 
@@ -352,7 +353,9 @@ describe.each(['checkersbattleroyal', 'poolroyale'])('%s shared live video', (de
       expect(getUserMedia).toHaveBeenCalledExactlyOnceWith(expect.objectContaining({ audio: false }));
       expect(container.querySelector('video').srcObject).toBe(stream);
       expect(button('Turn microphone off')).toBeNull();
-      await click('Turn camera off');
+      expect(button('Turn camera off')).toBeNull();
+      expect(button('Close camera preview')).toBeNull();
+      await click('End camera preview');
       await act(async () => navigate('/games/poolroyale?mode=online'));
       await frame();
       expect(stream.getVideoTracks()[0].stop).toHaveBeenCalledTimes(1);

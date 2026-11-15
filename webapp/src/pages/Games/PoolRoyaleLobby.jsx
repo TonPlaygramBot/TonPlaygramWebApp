@@ -426,7 +426,7 @@ export default function PoolRoyaleLobby() {
     if (initData) params.set('init', encodeURIComponent(initData));
 
     if (effectivePlayType === 'tournament') {
-      params.set('competition', '1');
+      params.set(mode === 'online' ? 'onlineTournament' : 'competition', '1');
       navigate(`/games/poolroyale?${params.toString()}`);
       return;
     }
@@ -506,7 +506,6 @@ export default function PoolRoyaleLobby() {
 
   useEffect(() => {
     if (
-      playType === 'tournament' ||
       playType === 'training' ||
       playType === 'career'
     ) {
@@ -559,7 +558,7 @@ export default function PoolRoyaleLobby() {
   const tournamentOppKey = `poolRoyaleTournamentOpponent_${tournamentKey}`;
   const royalCompetitionKey = poolCompetitionKey(poolCompetitionScope(getTelegramId()), '', variant);
   const hasActiveTournament =
-    playType === 'tournament' && Boolean(activeTournament);
+    playType === 'tournament' && mode === 'ai' && Boolean(activeTournament);
 
   useEffect(() => {
     if (typeof window === 'undefined' || playType !== 'tournament') {
@@ -759,8 +758,7 @@ export default function PoolRoyaleLobby() {
         </div>
 
         {playType !== 'training' &&
-          playType !== 'career' &&
-          !hasActiveTournament && (
+          playType !== 'career' && (
             <div className="space-y-3">
               <div className="flex items-center justify-between">
                 <h3 className="font-semibold text-white">Play Mode</h3>
@@ -778,11 +776,11 @@ export default function PoolRoyaleLobby() {
                   },
                   {
                     id: 'online',
-                    label: '1v1 Online',
-                    desc: 'Live matchmaking',
+                    label: playType === 'tournament' ? 'Online tournament' : '1v1 Online',
+                    desc: playType === 'tournament' ? 'Invite friends · Free entry' : 'Live matchmaking',
                     iconKey: 'mode-online',
                     disabled:
-                      playType === 'tournament' || playType === 'training'
+                      playType === 'training'
                   }
                 ].map(({ id, label, desc, iconKey, disabled }) => {
                   const active = mode === id;
@@ -1335,7 +1333,8 @@ export default function PoolRoyaleLobby() {
             className="w-full rounded-2xl bg-primary px-4 py-3 text-base font-semibold text-background transition hover:bg-primary-hover"
             disabled={mode === 'online' && (isSearching || matching)}
           >
-            {mode === 'online'
+            {mode === 'online' && playType === 'tournament'
+              ? 'OPEN ONLINE TOURNAMENT' : mode === 'online'
               ? matching
                 ? 'Waiting for opponent…'
                 : 'START ONLINE'

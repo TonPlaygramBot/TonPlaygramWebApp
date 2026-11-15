@@ -70,7 +70,8 @@ import {
   getBallMaterial as getBilliardBallMaterial,
   setBallMaterialAnisotropy
 } from '../../utils/ballMaterialFactory.js';
-import { refinePoolRoyalPotPlans } from './poolRoyalProAi.js';
+import PoolOnlineTournament from '../../games/pool/PoolOnlineTournament.jsx';
+import { refinePoolRoyalPotPlans, poolRoyalAiAimSpread } from './poolRoyalProAi.js';
 import { selectBilliardsAiPlans, createBilliardsPlanCache } from '../../../../lib/billiardsAiSelection.js';
 import { findBilliardsAiEscape } from './shared/billiardsAiEscape.js';
 import { createCueRackDisplay } from '../../utils/createCueRackDisplay.js';
@@ -29989,7 +29990,7 @@ const shotPowerRef = useRef(0);
             const dir = plan.aimDir.clone().normalize();
             if (competitionMatch) {
               const skill = THREE.MathUtils.clamp(competitionMatch.difficulty ?? 0.5, 0, 1);
-              const spread = 0.001 + (1 - skill) * 0.012;
+              const spread = poolRoyalAiAimSpread(skill);
               dir.rotateAround(new THREE.Vector2(), (Math.random() - Math.random()) * spread);
             }
             aimDirRef.current.copy(dir);
@@ -36006,6 +36007,11 @@ export default function PoolRoyale() {
     return params.get('opponentAvatar') || '';
   }, [location.search]);
   const competitionParams = new URLSearchParams(location.search);
+  if (mode === 'online' && playType === 'tournament') {
+    return <PoolRoyaleErrorBoundary><PoolOnlineTournament Game={PoolRoyaleGame}
+      options={{ variantKey, tableModelKey, accountId, tgId, playerName, playerAvatar }}
+    /></PoolRoyaleErrorBoundary>;
+  }
   if (mode !== 'online' && (competitionParams.get('competition') === '1' ||
     (competitionParams.get('career') === '1' && playType !== 'training'))) {
     return <PoolRoyaleErrorBoundary><PoolCompetitionMatch Game={PoolRoyaleGame}
