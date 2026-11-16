@@ -16,7 +16,7 @@ The broadcast, action, pocket, player-eye, overhead and replay camera functions 
 - Pot detection uses the original cloth cutout polygons. Balls fall into the uploaded pockets instead of traveling along invisible procedural holders.
 - Cue placement and colour respots respect the actual cushion noses. Only the active table owns physics; decorative tables cannot replace its mapping.
 - Shots remain disabled until the model has loaded. Failed loading provides a retry action. The model is fetched once and cloned for the other tables.
-- The prepared asset is 7,408,740 bytes, down from 255,951,228. Its URL is same-origin and included in the Pool/Snooker downloadable game pack.
+- The native-resolution prepared model is split into a geometry GLB and 21 relative JPG/PNG texture files (about 73 MB combined), down from the 255,951,228-byte full scene. Splitting preserves the exact encoded map bytes while allowing independent transfers and caching. It retains 18 original 4096² maps and three original 1024² maps; it is not upscaled. Mipmapped filtering and renderer-supported anisotropy preserve detail at grazing camera angles. This increases download and GPU memory costs compared with the former 1024px preparation; physical mobile memory/FPS testing is required. The GLB and every relative image URL are same-origin and included in the Pool/Snooker downloadable game pack.
 - The uploaded table keeps its authored finish, base and rails. Legacy procedural finish/base/rail-marker options apply to the explicit classic table; they do not replace parts of the uploaded model.
 
 Asset attribution and the embedded CC BY-NC 4.0 licence are in `webapp/public/assets/snooker-royal/mesxwi/NOTICE.md`. Additional commercial-use permission has not been established by this change.
@@ -38,3 +38,18 @@ Run the existing webapp dev server and open `/snooker-review.html` to play the a
 `node scripts/build-snooker-table-preview.mjs` builds the self-contained portrait table/collision review. It uses the production mapping adapter and table topology with smaller textures and rounded preview vertex precision. Its three inspection cameras and single-ball shot are a focused table review, not the full game or the production camera choreography.
 
 Regenerate the game asset and mapping with `python scripts/import-snooker-table.py /path/to/snooker_table.glb` (NumPy and Pillow required). The source upload is intentionally not duplicated in Git.
+
+## Pool-style match UI (November 2026)
+
+Snooker now uses Pool Royal's shared avatar/spin bounds and 40px avatar size.
+Both players appear left-to-right in the bottom rounded panel, with their own
+seat-mapped points underneath, while visit, break, ball-on and timer information
+remain in a compact top status panel. The spin dial stays to the right in every
+camera mode, and referee/placement prompts sit above the avatar panel.
+
+`npm run test:navigation --prefix webapp -- src/pages/Games/SnookerMatchHud.navigation.test.jsx`
+checks both seat scores, turn changes, shot/completion states, long names, and the
+shared bounds for 320/390/430px portrait and 844px landscape viewports.
+A physical-device/WebGL review is still needed, especially for the substantially
+larger native table textures. Chromium in the build environment cannot launch
+because its process socket is denied; DOM tests are not a visual playtest.

@@ -9,6 +9,6 @@ Licence recorded in the uploaded GLB: CC BY-NC 4.0 — https://creativecommons.o
 Supplied file: `snooker_table(1).glb` (255,951,228 bytes).
 The source SHA-256 is embedded in the prepared GLB and `snookerUploadedTableGeometry.json`.
 
-Modifications: retained the 22 table meshes; removed display balls, cues, cue boxes and the suspended lamp; repacked retained accessor values without changing them; resized textures to at most 1024 pixels and re-encoded opaque maps as JPEG. Original materials, UV layout, pocket irons, nets and eight legs are retained. At runtime, the bed is uniformly fitted to the existing game footprint and only the lower leg sections are extended to reach the existing arena floor.
+Modifications: retained the 22 table meshes; removed display balls, cues, cue boxes and the suspended lamp; repacked retained accessor values without changing them; retained all 21 textures at their original dimensions (18 at 4096 × 4096 and three at 1024 × 1024), preserving alpha maps as PNG and re-encoding opaque maps as JPEG (quality 88, no chroma subsampling). No upscaling or downsampling is applied. Maps are stored as relative texture files alongside the geometry GLB without further re-encoding. Original materials, UV layout, pocket irons, nets and eight legs are retained. At runtime, the bed is uniformly fitted to the existing game footprint and only the lower leg sections are extended to reach the existing arena floor.
 
 The source's noncommercial licence is retained. This change does not establish additional commercial-use permission.

@@ -16,7 +16,7 @@ const temp=await mkdtemp(join(tmpdir(),'snooker-table-test-'));
 after(()=>rm(temp,{recursive:true,force:true}));
 const threePath=new URL('../webapp/node_modules/three/build/three.module.js',import.meta.url).pathname;
 await build({entryPoints:[new URL('../webapp/src/pages/Games/snookerUploadedTable.ts',import.meta.url).pathname],bundle:true,format:'esm',platform:'node',outfile:join(temp,'table.mjs'),alias:{three:threePath},external:[threePath]});
-const {createUploadedSnookerMapping,fitUploadedSnookerModel,reflectUploadedSnookerCushions,uploadedPocketContains,uploadedBallFits}=await import(pathToFileURL(join(temp,'table.mjs')));
+const {configureUploadedSnookerTextures,createUploadedSnookerMapping,fitUploadedSnookerModel,reflectUploadedSnookerCushions,uploadedPocketContains,uploadedBallFits}=await import(pathToFileURL(join(temp,'table.mjs')));
 const metrics=await readSnookerViewMetrics();
 const mapping=createUploadedSnookerMapping(metrics.playW,metrics.playL,metrics.ballR);
 const radius=metrics.ballR;
@@ -45,7 +45,7 @@ test('real GLB preserves 22 table meshes, original UVs, bed height and grounded 
   assert.ok(Math.abs(bedBox.max.y-(metrics.ballY-metrics.tableY-radius))<1e-5);
   assert.ok(Math.abs(new THREE.Box3().setFromObject(fitted).min.y-(metrics.floorY-metrics.tableY))<1e-4);
   assert.deepEqual(Array.from(bed.geometry.attributes.uv.array),uv);
-  assert.ok(bytes.length<12_000_000);
+  assert.ok(bytes.length < 100_000_000, 'native table stays below GitHub single-file limit');
 });
 
 test('six cushion contours come from the actual GLB cross-section, including rounded ends',()=>{
@@ -103,7 +103,7 @@ test('rail centers rebound, solid cloth never pots, and placements respect actua
 });
 
 test('production constructor publishes one mapping; decorative tables cannot overwrite it',async()=>{
-  const context={THREE,createUploadedSnookerMapping,fitUploadedSnookerModel,
+  const context={THREE,configureUploadedSnookerTextures,createUploadedSnookerMapping,fitUploadedSnookerModel,
     GLTFLoader:class{loadAsync(){return Promise.resolve(gltf);}},
     uploadedTableMapping:null,uploadedTableTemplatePromise:null,CUSHION_SEGMENTS:[],RAIL_LIMIT_X:0,RAIL_LIMIT_Y:0,
     PLAY_W:metrics.playW,PLAY_H:metrics.playL,BALL_R:radius,BALL_CENTER_Y:metrics.ballY-metrics.tableY,

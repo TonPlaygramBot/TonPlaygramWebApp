@@ -1,7 +1,7 @@
 """Prepare the user-supplied MesXwi table without changing its mesh or UVs.
 
 Usage: python scripts/import-snooker-table.py /path/to/snooker_table.glb
-Requires numpy and Pillow. Textures are resized/re-encoded; table geometry stays exact.
+Requires numpy and Pillow. Textures retain their native resolution; table geometry stays exact.
 """
 from pathlib import Path
 from io import BytesIO
@@ -173,11 +173,12 @@ for old, new in accessors.items():
     a = out['accessors'][new]
     a['bufferView'] = append_buffer(accessor(old).tobytes())
     a.pop('byteOffset', None)
-for image_def in out['images']:
+(OUT / 'textures').mkdir(parents=True, exist_ok=True)
+for image_index, image_def in enumerate(out['images']):
     v = g['bufferViews'][image_def['bufferView']]
     payload = binary[v.get('byteOffset', 0):v.get('byteOffset', 0)+v['byteLength']]
     image = Image.open(BytesIO(payload))
-    image.thumbnail((1024, 1024), Image.Resampling.LANCZOS)
+    # Preserve the full authored image dimensions. Never upscale or downsample.
     buf = BytesIO()
     # Keep meaningful alpha (nets), otherwise JPEG saves mobile bandwidth.
     alpha = image.getchannel('A').getextrema() if 'A' in image.getbands() else (255, 255)
@@ -188,9 +189,14 @@ for image_def in out['images']:
         image.convert('RGB').save(buf, format='JPEG', quality=88, subsampling=0, optimize=True)
         mime = 'image/jpeg'
     image_def['mimeType'] = mime
-    image_def['bufferView'] = append_buffer(buf.getvalue())
+    # Relative files preserve the encoded bytes and allow independent caching.
+    extension = 'png' if mime == 'image/png' else 'jpg'
+    uri = f'textures/table-{image_index:02d}.{extension}'
+    (OUT / uri).write_bytes(buf.getvalue())
+    image_def.pop('bufferView', None)
+    image_def['uri'] = uri
 out['buffers'] = [{'byteLength': offset}]
-out['asset']['extras']['modifications'] = 'Table-only extraction; textures reduced to 1024px. Original geometry and UVs preserved.'
+out['asset']['extras']['modifications'] = 'Table-only extraction; external textures kept at native resolution (up to 4096px). Original geometry and UVs preserved.'
 out['asset']['extras']['sourceSha256'] = hashlib.sha256(source).hexdigest()
 js = json.dumps(out, separators=(',', ':')).encode()
 js += b' ' * (-len(js) % 4)

@@ -13,6 +13,7 @@ import * as BufferGeometryUtils from 'three/examples/jsm/utils/BufferGeometryUti
 import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js';
 import {
   createUploadedSnookerMapping,
+  configureUploadedSnookerTextures,
   fitUploadedSnookerModel,
   reflectUploadedSnookerCushions,
   uploadedPocketContains,
@@ -126,6 +127,7 @@ import {
 import { resolvePocketMouthAimPoint } from './poolRoyalePocketAim.js';
 import SnookerShotCoach from './SnookerShotCoach.jsx';
 import SnookerMatchHud from './SnookerMatchHud.tsx';
+import { poolRoyalHudLayout, POOL_SPIN_DIAMETER_PX } from './poolRoyalHudLayout.js';
 import { clipGuideTravel } from './shared/billiardsGuideGeometry.js';
 import { inspectSnookerDirectContact, isSnookerObstructed } from '../../utils/snookerVisibility.js';
 import { resolveSnookerImpactAudio } from './snookerImpactAudio.js';
@@ -1849,7 +1851,7 @@ const SIDE_SPIN_MULTIPLIER = 1.5 * SPIN_GLOBAL_BOOST_MULTIPLIER;
 const BACKSPIN_MULTIPLIER = 2.6 * SPIN_GLOBAL_BOOST_MULTIPLIER;
 const TOPSPIN_MULTIPLIER = 1.62 * SPIN_GLOBAL_BOOST_MULTIPLIER;
 const CUE_CLEARANCE_PADDING = BALL_R * 0.05;
-const SPIN_CONTROL_DIAMETER_PX = 124;
+const SPIN_CONTROL_DIAMETER_PX = POOL_SPIN_DIAMETER_PX;
 const SPIN_DOT_DIAMETER_PX = 16;
 // angle for cushion cuts guiding balls into corner pockets (match Pool Royale physics defaults)
 const DEFAULT_CUSHION_CUT_ANGLE = 32;
@@ -7183,6 +7185,7 @@ function UploadedTable3D(parent, renderer, isGameplayTable) {
   table.userData.ready = uploadedTableTemplatePromise.then(gltf => {
     if (!table.parent || !parent.parent) return false;
     const model = gltf.scene.clone(true);
+    configureUploadedSnookerTextures(model, renderer?.capabilities?.getMaxAnisotropy?.() ?? 1);
     // Retain the authored texture atlas. Geometry is fitted using the bed, not
     // the lamp, rail top or outer bounds; the playing surface stays at ball feet.
     model.traverse(node => {
@@ -28567,6 +28570,10 @@ const shotPowerRef = useRef(0);
     lastOpponentPot != null
       ? String(lastOpponentPot.id ?? lastOpponentPot.color)
       : null;
+  const controlLayout = poolRoyalHudLayout({ uiScale, portrait: isPortrait,
+    bottom: 12 + chromeUiLiftPx + sharedHudLiftPx + spinControllerLiftPx - sharedBottomControlsDropPx });
+  const matchPromptBottom = controlLayout.avatars.bottom +
+    Math.max(96, POOL_SPIN_DIAMETER_PX * uiScale * 0.88 + 12);
   const bottomHudVisible = hud.turn != null && !hud.over && !shotActive && !replayActive;
   const bottomHudScale = isPortrait ? uiScale * 1.08 : uiScale * 1.12;
   const avatarSizeClass = isPortrait ? 'h-[2.9rem] w-[2.9rem]' : 'h-[3.7rem] w-[3.7rem]';
@@ -29709,6 +29716,8 @@ const shotPowerRef = useRef(0);
 
       {!replayActive && !loadingActive && !tableLoadError && (
         <SnookerMatchHud
+          portrait={isPortrait}
+          avatarLayout={controlLayout.avatars}
           player={{ name: player.name, avatar: resolvedPlayerAvatar, score: playerScore }}
           opponent={{ name: opponentDisplayName || aiFlagLabel, avatar: opponentDisplayAvatar, score: opponentScore }}
           playerTurn={isPlayerTurn}
@@ -29772,7 +29781,7 @@ const shotPowerRef = useRef(0);
         </div>
       )}
       {isPlayerTurn && !shotActive && !replayActive && !hud.over && frameState.meta?.foulChoice && (
-        <div className="absolute bottom-24 left-3 z-40 max-w-[min(21rem,calc(100vw-6rem))] rounded-2xl border border-amber-200/25 bg-slate-950/95 p-3 text-white shadow-xl">
+        <div style={{ bottom: matchPromptBottom }} className="absolute left-3 z-40 max-w-[min(21rem,calc(100vw-6rem))] rounded-2xl border border-amber-200/25 bg-slate-950/95 p-3 text-white shadow-xl">
           <p className="text-xs font-semibold text-amber-200">{frameState.meta.foulChoice.miss ? 'Foul and a miss' : 'Foul'} · {frameState.foul?.points || 4} points awarded</p>
           <p className="mt-1 text-[11px] text-white/65">Play from here or ask your opponent to play again.</p>
           <div className="mt-2 flex gap-2">
@@ -29785,7 +29794,7 @@ const shotPowerRef = useRef(0);
         </div>
       )}
       {isPlayerTurn && !shotActive && !replayActive && !hud.over && frameState.meta?.decidingBlackChoice && (
-        <div role="dialog" aria-label="Deciding black choice" className="absolute bottom-24 left-3 right-20 z-40 rounded-2xl border border-amber-200/25 bg-slate-950/95 p-3 text-white shadow-xl">
+        <div role="dialog" aria-label="Deciding black choice" style={{ bottom: matchPromptBottom }} className="absolute left-3 right-20 z-40 rounded-2xl border border-amber-200/25 bg-slate-950/95 p-3 text-white shadow-xl">
           <p className="text-xs font-semibold text-amber-200">Deciding black · you won the draw</p>
           <p className="mt-1 text-[11px] text-white/65">Choose who plays from the D. The next pot or foul decides the frame.</p>
           <div className="mt-2 flex gap-2">
@@ -29800,7 +29809,7 @@ const shotPowerRef = useRef(0);
         </div>
       )}
       {frameState.freeBall && isPlayerTurn && !shotActive && !replayActive && !hud.over && !frameState.meta?.foulChoice && (
-        <div className="absolute bottom-24 left-3 z-40 max-w-[min(21rem,calc(100vw-6rem))] rounded-2xl border border-cyan-200/25 bg-slate-950/95 p-3 shadow-xl">
+        <div style={{ bottom: matchPromptBottom }} className="absolute left-3 z-40 max-w-[min(21rem,calc(100vw-6rem))] rounded-2xl border border-cyan-200/25 bg-slate-950/95 p-3 shadow-xl">
           <p className="text-xs font-semibold text-cyan-200">Free ball · nominate a substitute</p>
           <div className="mt-2 flex flex-wrap gap-1.5">
             {[...new Set(frameState.balls.filter((ball) => ball.onTable && ball.color !== 'CUE' && !frameState.ballOn.includes(ball.color)).map((ball) => ball.color))].map((colour) => (
@@ -29812,7 +29821,7 @@ const shotPowerRef = useRef(0);
         </div>
       )}
       {hud?.inHand && hud.turn === 0 && (
-        <div style={{ bottom: careerMatch ? 60 : 24 }} className="pointer-events-none absolute left-1/2 z-40 flex w-[min(24rem,94vw)] -translate-x-1/2 flex-col items-center gap-2 px-3 text-center text-white drop-shadow-[0_2px_12px_rgba(0,0,0,0.55)]">
+        <div style={{ bottom: matchPromptBottom }} className="pointer-events-none absolute left-1/2 z-40 flex w-[min(24rem,94vw)] -translate-x-1/2 flex-col items-center gap-2 px-3 text-center text-white drop-shadow-[0_2px_12px_rgba(0,0,0,0.55)]">
           <div className="flex items-center gap-2 rounded-full bg-white/90 px-4 py-2 text-sm font-semibold text-gray-900 shadow-lg ring-1 ring-white/60">
             <span className="flex h-6 w-6 items-center justify-center rounded-full bg-emerald-500 text-xs font-bold text-white">BIH</span>
             <span className="text-left leading-tight">
@@ -29828,7 +29837,7 @@ const shotPowerRef = useRef(0);
         <button
           type="button"
           onClick={handleCueBallReposition}
-          style={{ bottom: careerMatch ? 60 : 24 }}
+          style={{ bottom: matchPromptBottom }}
           className="absolute left-1/2 z-40 min-h-[44px] -translate-x-1/2 rounded-full border border-emerald-200/60 bg-emerald-950/95 px-4 py-2 text-sm font-semibold text-white shadow-lg"
         >
           Move cue ball
@@ -29859,21 +29868,7 @@ const shotPowerRef = useRef(0);
         <div
           ref={spinBoxRef}
           className={`absolute ${showPlayerControls ? '' : 'pointer-events-none'}`}
-          style={isTopDownView
-            ? {
-                left: '50%',
-                right: 'auto',
-                top: 'auto',
-                bottom: `${12 + chromeUiLiftPx + sharedHudLiftPx + spinControllerLiftPx - sharedBottomControlsDropPx}px`,
-                transform: `translateX(-50%) scale(${uiScale * 0.88})`,
-                transformOrigin: 'bottom center'
-              }
-            : {
-                right: `${rightHudShiftPx}px`,
-                bottom: `${12 + chromeUiLiftPx + sharedHudLiftPx + spinControllerLiftPx - sharedBottomControlsDropPx}px`,
-                transform: `scale(${uiScale * 0.88})`,
-                transformOrigin: 'bottom right'
-              }}
+          style={controlLayout.spin}
         >
           <div
             id="spinBox"

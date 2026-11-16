@@ -46,6 +46,8 @@ const heavyPacks = [
     route: '/games/poolroyale/lobby',
     gameSlugs: ['poolroyale', 'snookerroyale'],
     roots: ['assets/pool-royale', 'models/pool-royale', 'assets/snooker-royal'],
+    // The snooker GLB references native-resolution JPG/PNG maps beside it.
+    runtimeMedia: true,
     files: [
       'pool-royale-bracket.html',
       'pool-royale-api.js',
