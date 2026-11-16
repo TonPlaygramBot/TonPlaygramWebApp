@@ -1,8 +1,7 @@
-import TikTokTaskVideo from './TikTokTaskVideo.jsx';
 import { useEffect, useMemo, useRef, useState } from 'react';
-import AdModal from './AdModal.tsx';
+import SpinRewardVideo from './SpinRewardVideo.tsx';
 import { getTelegramId } from '../utils/telegram.js';
-import { getWalletBalance, updateBalance, addTransaction } from '../utils/api.js';
+import { creditSpinReward } from '../utils/creditSpinReward.js';
 import coinConfetti from '../utils/coinConfetti';
 import { getGameVolume } from '../utils/sound.js';
 
@@ -76,6 +75,7 @@ const PRIZE_MAP = ROULETTE_ORDER.reduce((acc, value) => {
   return acc;
 }, {});
 
+const SPIN_DURATION_MS = 4500;
 const COOLDOWN = 4 * 60 * 60 * 1000; // 4 hours
 
 const formatCountdown = (ms) => {
@@ -93,7 +93,7 @@ const formatPrize = (amount) =>
     maximumFractionDigits: 0,
   });
 
-export default function RouletteMini() {
+export default function RouletteMini({ reelUrl = null }) {
   let telegramId;
   try {
     telegramId = getTelegramId();
@@ -108,13 +108,13 @@ export default function RouletteMini() {
   const [spinning, setSpinning] = useState(false);
   const [outcome, setOutcome] = useState(null);
   const [showAd, setShowAd] = useState(false);
-  const [adWatched, setAdWatched] = useState(false);
+  const [creditFailed, setCreditFailed] = useState(false);
   const [canSpin, setCanSpin] = useState(false);
   const [nextSpinTime, setNextSpinTime] = useState(null);
   const [remaining, setRemaining] = useState(0);
   const spinTimeoutRef = useRef(null);
   const spinSoundRef = useRef(null);
-  const targetIndexRef = useRef(0);
+  const finishSpinRef = useRef(null);
 
   const wheelBackground = useMemo(() => {
     const parts = ROULETTE_ORDER.map((num, idx) => {
@@ -185,8 +185,16 @@ export default function RouletteMini() {
     if (spinTimeoutRef.current) clearTimeout(spinTimeoutRef.current);
   }, []);
 
+  const finishSpin = () => {
+    if (!finishSpinRef.current) return;
+    const finish = finishSpinRef.current;
+    finishSpinRef.current = null;
+    clearTimeout(spinTimeoutRef.current);
+    finish();
+  };
+
   const startSpin = () => {
-    if (spinning) return;
+    if (!canSpin || spinning || finishSpinRef.current) return;
     const index = Math.floor(Math.random() * ROULETTE_ORDER.length);
     const extraSpins = Math.floor(Math.random() * 3) + 4;
     const totalSpins = spinState.totalSpins + extraSpins;
@@ -198,64 +206,43 @@ export default function RouletteMini() {
 
     setSpinning(true);
     setOutcome(null);
-    setAdWatched(false);
+    setCreditFailed(false);
     setSpinState({ totalSpins, rotation });
-    targetIndexRef.current = index;
     if (spinSoundRef.current) {
       spinSoundRef.current.currentTime = 0;
       spinSoundRef.current.play().catch(() => {});
     }
 
-    const timeout = setTimeout(async () => {
+    finishSpinRef.current = () => {
       setSpinning(false);
       spinSoundRef.current?.pause();
       if (spinSoundRef.current) spinSoundRef.current.currentTime = 0;
-      const resolvedIndex = targetIndexRef.current;
-      const resolvedNumber = ROULETTE_ORDER[resolvedIndex];
+
+      const resolvedNumber = ROULETTE_ORDER[index];
       const resolvedPrize = PRIZE_MAP[resolvedNumber];
       setOutcome({ number: resolvedNumber, prize: resolvedPrize });
       const now = Date.now();
       localStorage.setItem('rouletteSpinTs', String(now));
-      const next = now + COOLDOWN;
-      setNextSpinTime(next);
+      setNextSpinTime(now + COOLDOWN);
       setCanSpin(false);
 
-      try {
-        const balRes = await getWalletBalance(telegramId);
-        const newBalance = (balRes.balance || 0) + resolvedPrize;
-        await updateBalance(telegramId, newBalance);
-        await addTransaction(telegramId, resolvedPrize, 'roulette');
-      } catch (err) {
-        // ignore API errors silently
-      }
-
-      coinConfetti(60, '/assets/icons/file_00000000362481f7978631c42572193f.png');
+      coinConfetti(36);
       const audio = new Audio(
         '/assets/sounds/11l-victory_sound_with_t-1749487412779-357604.mp3',
       );
       audio.volume = getGameVolume();
       audio.play().catch(() => {});
-    }, 4500);
 
-    spinTimeoutRef.current = timeout;
-  };
+      creditSpinReward(telegramId, resolvedPrize, 'roulette')
+        .catch(() => setCreditFailed(true));
+    };
 
-  const handleSpinClick = () => {
-    if (!canSpin || spinning) return;
-    if (!adWatched) {
-      setShowAd(true);
-      return;
-    }
-    startSpin();
+    spinTimeoutRef.current = setTimeout(finishSpin, SPIN_DURATION_MS + 150);
   };
 
   const handleAdComplete = () => {
-    setAdWatched(true);
-    startSpin();
-  };
-
-  const handleAdClose = () => {
     setShowAd(false);
+    startSpin();
   };
 
   return (
@@ -269,10 +256,11 @@ export default function RouletteMini() {
         }}
       />
       <h3 className="text-lg font-bold text-white">Roulette Spin</h3>
-      <TikTokTaskVideo
-        title="Roulette Spin Video"
-        videoUrl="https://vt.tiktok.com/ZSujagfxp/"
-        storageKey="rouletteVideoPopupSeen"
+      <SpinRewardVideo
+        reelUrl={reelUrl}
+        rewardOpen={showAd}
+        onRewardComplete={handleAdComplete}
+        onRewardClose={() => setShowAd(false)}
       />
       <div className="relative mx-auto w-72 h-72 sm:w-80 sm:h-80">
         <div className="absolute left-1/2 -translate-x-1/2 -top-2 z-20 flex flex-col items-center">
@@ -285,8 +273,13 @@ export default function RouletteMini() {
             background: wheelBackground,
             transform: `translateZ(0) rotate(${spinState.rotation}deg)`,
             transition: spinning
-              ? 'transform 4.5s cubic-bezier(0.22, 1, 0.36, 1)'
+              ? `transform ${SPIN_DURATION_MS}ms cubic-bezier(0.22, 1, 0.36, 1)`
               : 'transform 0s',
+          }}
+          onTransitionEnd={(event) => {
+            if (event.target === event.currentTarget && event.propertyName === 'transform') {
+              finishSpin();
+            }
           }}
         >
           <div className="absolute inset-[6%] rounded-full border-2 border-red-500/80 pointer-events-none" />
@@ -337,7 +330,7 @@ export default function RouletteMini() {
       </div>
       <div className="space-y-2">
         <button
-          onClick={handleSpinClick}
+          onClick={() => setShowAd(true)}
           disabled={!canSpin || spinning}
           className={`px-6 py-2 rounded-full font-semibold transition text-white ${
             !canSpin || spinning
@@ -361,12 +354,11 @@ export default function RouletteMini() {
           </div>
         )}
       </div>
-      <AdModal
-        open={showAd}
-        onComplete={handleAdComplete}
-        onClose={handleAdClose}
-        videoId="7614503027684216071"
-      />
+      {creditFailed && (
+        <p role="status" className="text-sm text-yellow-300">
+          Could not confirm the reward in your wallet.
+        </p>
+      )}
     </div>
   );
 }

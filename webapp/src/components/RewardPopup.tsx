@@ -1,4 +1,4 @@
-import { useEffect } from 'react';
+import { useLayoutEffect, useRef } from 'react';
 import { getGameVolume } from '../utils/sound.js';
 import coinConfetti from '../utils/coinConfetti';
 import { Segment } from '../utils/rewardLogic';
@@ -18,9 +18,15 @@ export default function RewardPopup({
   showCloseButton = true,
   disableEffects = false,
 }: RewardPopupProps) {
-  if (reward === null) return null;
-  useEffect(() => {
+  const closeRef = useRef(onClose);
+  useLayoutEffect(() => {
+    closeRef.current = onClose;
+  }, [onClose]);
+
+  useLayoutEffect(() => {
+    if (reward === null) return;
     let audio: HTMLAudioElement | undefined;
+    let stopConfetti: (() => void) | undefined;
     if (!disableEffects) {
       let icon = '/assets/icons/file_00000000362481f7978631c42572193f.png';
       if (reward === 'BONUS_X3') {
@@ -28,19 +34,21 @@ export default function RewardPopup({
       } else if (reward === 'FREE_SPIN') {
         icon = '/assets/icons/file_00000000ae68620a96d269fe76d158e5_256x256.webp';
       }
-      coinConfetti(50, icon);
+      stopConfetti = coinConfetti(32, icon);
       audio = new Audio(
         '/assets/sounds/11l-victory_sound_with_t-1749487412779-357604.mp3',
       );
       audio.volume = getGameVolume();
       audio.play().catch(() => {});
     }
-    const timer = setTimeout(onClose, duration);
+    const timer = setTimeout(() => closeRef.current(), duration);
     return () => {
-      if (audio) audio.pause();
+      stopConfetti?.();
+      audio?.pause();
       clearTimeout(timer);
     };
-  }, [onClose, duration, reward, disableEffects]);
+  }, [duration, reward, disableEffects]);
+  if (reward === null) return null;
   return (
     <div className="fixed inset-0 flex items-center justify-center bg-black bg-opacity-70 z-50">
       <div className="text-center space-y-4 text-text">
