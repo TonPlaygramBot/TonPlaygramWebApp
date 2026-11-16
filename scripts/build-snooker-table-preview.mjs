@@ -11,7 +11,16 @@ const output = process.argv[2] || '/workspace/snooker-table-review.html';
 const source = await readFile(resolve(root, 'webapp/public/assets/snooker-royal/mesxwi/snooker-table.glb'));
 const jsonLength = source.readUInt32LE(12);
 const gltf = JSON.parse(source.subarray(20, 20 + jsonLength).toString());
-const binary = source.subarray(28 + jsonLength);
+let binary = source.subarray(28 + jsonLength);
+// Inline external production maps before building the self-contained preview.
+for (const image of gltf.images) {
+  if (!image.uri) continue;
+  const payload = await readFile(resolve(root, 'webapp/public/assets/snooker-royal/mesxwi', image.uri));
+  image.bufferView = gltf.bufferViews.length;
+  gltf.bufferViews.push({ buffer: 0, byteOffset: binary.length, byteLength: payload.length });
+  binary = Buffer.concat([binary, payload, Buffer.alloc((4 - payload.length % 4) % 4)]);
+  delete image.uri;
+}
 const images = new Map(gltf.images.map(image => [image.bufferView, image]));
 const colorImages = new Set(gltf.materials.flatMap(material => {
   const texture = material.pbrMetallicRoughness?.baseColorTexture?.index;

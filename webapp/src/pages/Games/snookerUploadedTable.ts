@@ -5,6 +5,27 @@ type Point = { x: number; y: number };
 export const UPLOADED_SNOOKER_TABLE_URL = '/assets/snooker-royal/mesxwi/snooker-table.glb';
 export const SNOOKER_CAMERA_BASELINE = 'b2842f3400f2031bb81bbdcac670c60dfa27b9f4';
 
+/** Keep authored maps and colour spaces; sharpen grazing-angle table views. */
+export function configureUploadedSnookerTextures(model: THREE.Object3D, maxAnisotropy = 1) {
+  const anisotropy = Number.isFinite(maxAnisotropy) ? Math.max(1, maxAnisotropy) : 1;
+  const seen = new Set<THREE.Texture>();
+  model.traverse(node => {
+    if (!(node instanceof THREE.Mesh)) return;
+    const materials = Array.isArray(node.material) ? node.material : [node.material];
+    for (const material of materials) {
+      for (const value of Object.values(material)) {
+        if (!(value instanceof THREE.Texture) || seen.has(value)) continue;
+        seen.add(value);
+        value.anisotropy = anisotropy;
+        value.generateMipmaps = true;
+        value.minFilter = THREE.LinearMipmapLinearFilter;
+        value.magFilter = THREE.LinearFilter;
+        value.needsUpdate = true;
+      }
+    }
+  });
+}
+
 export function createUploadedSnookerMapping(playWidth: number, playLength: number, ballRadius: number) {
   const bed = geometry.bed;
   const scale = Math.min(playWidth / (bed.maxX-bed.minX), playLength / (bed.maxZ-bed.minZ));
