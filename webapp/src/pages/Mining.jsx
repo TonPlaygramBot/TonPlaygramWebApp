@@ -7,7 +7,7 @@ import SpinGame from '../components/SpinGame.jsx';
 import MiningCard from '../components/MiningCard.tsx';
 import RouletteMini from '../components/RouletteMini.jsx';
 import MiningTransactionsCard from '../components/MiningTransactionsCard.jsx';
-import { getOnlineCount, getReferralInfo } from '../utils/api.js';
+import { API_BASE_URL, getOnlineCount, getReferralInfo } from '../utils/api.js';
 
 export default function Mining() {
   useTelegramBackButton();
@@ -19,6 +19,18 @@ export default function Mining() {
   const [onlineCount, setOnlineCount] = useState(0);
   const [referralCount, setReferralCount] = useState(0);
   const [miningBoost, setMiningBoost] = useState(0);
+  const [reelUrl, setReelUrl] = useState(null);
+
+  useEffect(() => {
+    const controller = new AbortController();
+    fetch(`${API_BASE_URL}/api/ads/spin-reel`, { signal: controller.signal })
+      .then((response) => response.ok ? response.json() : null)
+      .then((data) => {
+        if (!controller.signal.aborted) setReelUrl(data?.reelUrl ?? null);
+      })
+      .catch(() => {});
+    return () => controller.abort();
+  }, []);
 
   useEffect(() => {
     function loadOnline() {
@@ -83,8 +95,8 @@ export default function Mining() {
           <p className="text-xs text-subtext">
             These actions improve your consistency and help you compound mining rewards every day.
           </p>
-          <SpinGame />
-          <RouletteMini />
+          <SpinGame reelUrl={reelUrl} />
+          <RouletteMini reelUrl={reelUrl} />
         </section>
 
     </div>

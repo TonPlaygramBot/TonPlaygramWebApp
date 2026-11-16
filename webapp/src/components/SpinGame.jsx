@@ -1,19 +1,14 @@
 import { useEffect, useState, useRef } from 'react';
 import SpinWheel from './SpinWheel.tsx';
 import RewardPopup from './RewardPopup.tsx';
-import AdModal from './AdModal.tsx';
+import SpinRewardVideo from './SpinRewardVideo.tsx';
 import { canSpin, nextSpinTime, numericSegments } from '../utils/rewardLogic';
-import {
-  getWalletBalance,
-  updateBalance,
-  addTransaction
-} from '../utils/api.js';
+import { creditSpinReward } from '../utils/creditSpinReward.js';
 import { getTelegramId } from '../utils/telegram.js';
 import { getGameVolume } from '../utils/sound.js';
 import LoginOptions from './LoginOptions.jsx';
-import TikTokTaskVideo from './TikTokTaskVideo.jsx';
 
-export default function SpinGame() {
+export default function SpinGame({ reelUrl = null }) {
   let telegramId;
   try {
     telegramId = getTelegramId();
@@ -24,13 +19,11 @@ export default function SpinGame() {
   const [reward, setReward] = useState(null);
   const [spinning, setSpinning] = useState(false);
   const [bonusMode, setBonusMode] = useState(false);
-  const [bonusResults, setBonusResults] = useState([]);
+  const bonusResults = useRef([]);
   const [showAd, setShowAd] = useState(false);
   const ONE_HOUR = 60 * 60 * 1000;
-  const [adWatched, setAdWatched] = useState(() => {
-    const ts = localStorage.getItem('lastSpinAd');
-    return ts ? Date.now() - parseInt(ts, 10) < ONE_HOUR : false;
-  });
+  const [crediting, setCrediting] = useState(false);
+  const [creditFailed, setCreditFailed] = useState(false);
   const [freeSpins, setFreeSpins] = useState(0);
   const [spinLock, setSpinLock] = useState(
     localStorage.getItem('spinInProgress') === '1'
@@ -121,7 +114,7 @@ export default function SpinGame() {
 
   useEffect(() => {
     if (bonusMode) {
-      setBonusResults([]);
+      bonusResults.current = [];
       setSpinning(true);
       wheelRef.current?.spin();
       bonusRefLeft.current?.spin();
@@ -129,7 +122,15 @@ export default function SpinGame() {
     }
   }, [bonusMode]);
 
-  const handleFinish = async (r) => {
+  const awardCoins = (amount) => {
+    setReward(amount);
+    setCrediting(true);
+    creditSpinReward(telegramId, amount, 'spin')
+      .catch(() => setCreditFailed(true))
+      .finally(() => setCrediting(false));
+  };
+
+  const handleFinish = (r) => {
     localStorage.removeItem('spinInProgress');
     setSpinLock(false);
     if (r === 'BOMB') {
@@ -160,25 +161,16 @@ export default function SpinGame() {
       return;
     }
 
-    if (typeof r === 'number') {
-      const id = telegramId;
-      const balRes = await getWalletBalance(id);
-      const newBalance = (balRes.balance || 0) + r;
-      await updateBalance(id, newBalance);
-      await addTransaction(id, r, 'spin');
-    }
-
     if (freeSpins === 0) {
       const now = Date.now();
       localStorage.setItem('lastSpin', String(now));
       setLastSpin(now);
     }
-    setReward(r);
+    awardCoins(r);
   };
 
-
   const triggerSpin = () => {
-    if (spinning || spinLock) return;
+    if (spinning || spinLock || bonusMode || crediting) return;
 
     const storedLast = parseInt(localStorage.getItem('lastSpin') || '0', 10);
     const storedFree = parseInt(localStorage.getItem('freeSpins') || '0', 10);
@@ -189,9 +181,7 @@ export default function SpinGame() {
 
     if (storedFree === 0) {
       const ts = parseInt(localStorage.getItem('lastSpinAd') || '0', 10);
-      const adValid = Date.now() - ts < ONE_HOUR;
-      if (!adValid) setAdWatched(false);
-      if (!adValid || !adWatched) {
+      if (!(Date.now() - ts < ONE_HOUR)) {
         setShowAd(true);
         return;
       }
@@ -210,13 +200,14 @@ export default function SpinGame() {
     localStorage.setItem('spinInProgress', '1');
     setSpinLock(true);
     setSpinning(true);
+    setCreditFailed(false);
     wheelRef.current?.spin();
   };
 
   const handleAdComplete = () => {
     const now = Date.now();
     localStorage.setItem('lastSpinAd', String(now));
-    setAdWatched(true);
+    setShowAd(false);
     triggerSpin();
   };
 
@@ -227,25 +218,16 @@ export default function SpinGame() {
     return `${m.toString().padStart(2, '0')}:${s.toString().padStart(2, '0')}`;
   };
 
-  const handleBonusFinish = async (val) => {
-    setBonusResults((r) => {
-      const arr = [...r, val];
-      if (arr.length === 3) {
-        localStorage.removeItem('spinInProgress');
-        setSpinLock(false);
-        const sum = arr.reduce((a, b) => a + (typeof b === 'number' ? b : 0), 0);
-        (async () => {
-          const balRes = await getWalletBalance(telegramId);
-          const newBalance = (balRes.balance || 0) + sum;
-          await updateBalance(telegramId, newBalance);
-          await addTransaction(telegramId, sum, 'spin');
-        })();
-        setReward(sum);
-        setBonusMode(false);
-        setSpinning(false);
-      }
-      return arr;
-    });
+  const handleBonusFinish = (value) => {
+    bonusResults.current.push(value);
+    if (bonusResults.current.length !== 3) return;
+
+    localStorage.removeItem('spinInProgress');
+    setSpinLock(false);
+    const total = bonusResults.current.reduce((sum, prize) => sum + prize, 0);
+    awardCoins(total);
+    setBonusMode(false);
+    setSpinning(false);
   };
 
   const ready = freeSpins > 0 || canSpin(lastSpin);
@@ -264,14 +246,15 @@ export default function SpinGame() {
         }}
       />
       <h3 className="text-lg font-bold text-white">Spin &amp; Win</h3>
-      <TikTokTaskVideo
-        title="Spin & Win Video"
-        videoUrl="https://vt.tiktok.com/ZSujaPuVF/"
-        storageKey="spinWinVideoPopupSeen"
+      <SpinRewardVideo
+        reelUrl={reelUrl}
+        rewardOpen={showAd}
+        onRewardComplete={handleAdComplete}
+        onRewardClose={() => setShowAd(false)}
       />
       <p className="text-sm text-subtext">Try your luck and win rewards!</p>
       {!bonusMode ? (
-        <div className="flex items-start justify-center">
+        <div key="single-wheel" className="flex items-start justify-center">
           <SpinWheel
             ref={wheelRef}
             onFinish={handleFinish}
@@ -282,7 +265,7 @@ export default function SpinGame() {
           />
         </div>
       ) : (
-        <div className="flex items-start justify-center space-x-2">
+        <div key="bonus-wheels" className="flex items-start justify-center space-x-2">
           <SpinWheel
             ref={bonusRefLeft}
             onFinish={handleBonusFinish}
@@ -315,7 +298,7 @@ export default function SpinGame() {
       <button
         onClick={triggerSpin}
         className={`mt-2 px-6 py-2 ${ready ? 'bg-green-600' : 'bg-red-600'} text-white text-sm font-bold rounded disabled:bg-gray-500`}
-        disabled={spinning || spinLock || !ready || bonusMode}
+        disabled={spinning || spinLock || !ready || bonusMode || crediting}
       >
         Spin
       </button>
@@ -333,12 +316,11 @@ export default function SpinGame() {
         reward={reward}
         onClose={() => setReward(null)}
       />
-      <AdModal
-        open={showAd}
-        onComplete={handleAdComplete}
-        onClose={() => setShowAd(false)}
-        videoId="7614600402654252296"
-      />
+      {creditFailed && (
+        <p role="status" className="text-sm text-yellow-300">
+          Could not confirm the reward in your wallet.
+        </p>
+      )}
       {bombed && (
         <div className="fixed inset-0 flex items-center justify-center bg-black bg-opacity-70 z-50">
           <div className="text-center space-y-4">

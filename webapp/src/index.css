@@ -2307,22 +2307,36 @@ input:focus {
   @apply -mx-4;
 }
 
-.coin-confetti {
+.coin-confetti-layer {
   position: fixed;
-  top: 0;
-  width: 48px;
-  height: 48px;
+  inset: 0;
+  z-index: 60;
+  overflow: hidden;
   pointer-events: none;
-  animation: coin-fall var(--duration, 3s) linear forwards;
+}
+
+.coin-confetti {
+  position: absolute;
+  top: 0;
+  width: var(--size);
+  height: var(--size);
+  object-fit: contain;
+  opacity: 0;
+  animation: coin-fall var(--duration) cubic-bezier(0.5, 0.1, 0.83, 0.65)
+    var(--delay) forwards;
 }
 
 @keyframes coin-fall {
-  from {
-    transform: translateY(-10vh) rotate(0deg);
-    opacity: 1;
+  0% {
+    transform: translate3d(0, calc(var(--size) * -0.75), 0) rotateX(18deg) rotateZ(-12deg);
+    opacity: 0.95;
   }
-  to {
-    transform: translateY(100vh) rotate(360deg);
+  89% {
+    opacity: 0.95;
+  }
+  100% {
+    transform: translate3d(var(--drift), calc(100dvh + var(--size)), 0)
+      rotateX(var(--tumble)) rotateZ(var(--tilt));
     opacity: 0;
   }
 }

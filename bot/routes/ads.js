@@ -1,6 +1,7 @@
 import { Router } from 'express';
 import AdView from '../models/AdView.js';
 import User from '../models/User.js';
+import { getSpinInstagramReel } from '../services/spinInstagramReel.js';
 import { ensureTransactionArray } from '../utils/userUtils.js';
 
 const router = Router();
@@ -14,6 +15,12 @@ function startOfToday() {
   d.setUTCHours(0, 0, 0, 0);
   return d;
 }
+
+router.get('/spin-reel', async (_req, res) => {
+  const reelUrl = await getSpinInstagramReel();
+  res.set('Cache-Control', reelUrl ? 'public, max-age=60' : 'no-store');
+  res.json({ reelUrl });
+});
 
 router.post('/status', async (req, res) => {
   const { telegramId } = req.body;

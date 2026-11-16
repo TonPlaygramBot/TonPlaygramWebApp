@@ -28,6 +28,7 @@ const winningRow = 2;  // Index of the row that marks the winner (3rd row)
 
 const loops = 6;       // How many times the list repeats while spinning
 const maxSpins = 50;    // Pre-generated spins to allow continuous play
+const SPIN_DURATION_MS = 4000;
 
 export default forwardRef<SpinWheelHandle, SpinWheelProps>(function SpinWheel(
   {
@@ -47,6 +48,14 @@ export default forwardRef<SpinWheelHandle, SpinWheelProps>(function SpinWheel(
   const [winnerIndex, setWinnerIndex] = useState<number | null>(null);
 
   const spinCountRef = useRef(0);
+  const finishRef = useRef<(() => void) | null>(null);
+  const timeoutRef = useRef<number>();
+  const mountedRef = useRef(false);
+
+  useEffect(() => {
+    mountedRef.current = true;
+    return () => { mountedRef.current = false; };
+  }, []);
 
   const shuffleSegments = (arr: Segment[]) =>
     arr
@@ -111,9 +120,16 @@ export default forwardRef<SpinWheelHandle, SpinWheelProps>(function SpinWheel(
     [wheelSegments]
   );
 
-  const spin = () => {
+  const finishSpin = () => {
+    const finish = finishRef.current;
+    if (!finish) return;
+    finishRef.current = null;
+    window.clearTimeout(timeoutRef.current);
+    finish();
+  };
 
-    if (spinning || disabled) return;
+  const spin = () => {
+    if (spinning || disabled || finishRef.current) return;
     if (!disableSound && spinSoundRef.current) {
       spinSoundRef.current.currentTime = 0;
       spinSoundRef.current.play().catch(() => {});
@@ -134,7 +150,12 @@ export default forwardRef<SpinWheelHandle, SpinWheelProps>(function SpinWheel(
 
     setWinnerIndex(null);
 
-    setTimeout(() => {
+    finishRef.current = () => {
+      if (!mountedRef.current) {
+        // The reward still needs to settle if the player leaves during a spin.
+        onFinish(reward);
+        return;
+      }
       if (!disableSound) {
         spinSoundRef.current?.pause();
         if (spinSoundRef.current) spinSoundRef.current.currentTime = 0;
@@ -157,7 +178,8 @@ export default forwardRef<SpinWheelHandle, SpinWheelProps>(function SpinWheel(
         }
       }
       onFinish(reward);
-    }, 4000);
+    };
+    timeoutRef.current = window.setTimeout(finishSpin, SPIN_DURATION_MS + 150);
   };
 
   useImperativeHandle(ref, () => ({ spin }));
@@ -192,10 +214,14 @@ export default forwardRef<SpinWheelHandle, SpinWheelProps>(function SpinWheel(
 
             transform: `translateY(${offset}px)`,
 
-            transition: 'transform 4s cubic-bezier(0.33,1,0.68,1)'
+            transition: `transform ${SPIN_DURATION_MS}ms cubic-bezier(0.33,1,0.68,1)`
 
           }}
-
+          onTransitionEnd={(event) => {
+            if (event.target === event.currentTarget && event.propertyName === 'transform') {
+              finishSpin();
+            }
+          }}
         >
 
           {items.map((val, idx) => (
