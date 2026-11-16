@@ -17,9 +17,9 @@ function startOfToday() {
 }
 
 router.get('/spin-reel', async (_req, res) => {
-  const reelUrl = await getSpinInstagramReel();
-  res.set('Cache-Control', reelUrl ? 'public, max-age=60' : 'no-store');
-  res.json({ reelUrl });
+  const reel = await getSpinInstagramReel();
+  res.set('Cache-Control', reel.reelUrl ? 'public, max-age=60' : 'no-store');
+  res.json(reel);
 });
 
 router.post('/status', async (req, res) => {
