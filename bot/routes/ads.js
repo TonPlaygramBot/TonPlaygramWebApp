@@ -18,7 +18,8 @@ function startOfToday() {
 
 router.get('/spin-reel', async (_req, res) => {
   const reel = await getSpinInstagramReel();
-  res.set('Cache-Control', reel.reelUrl ? 'public, max-age=60' : 'no-store');
+  // Media URLs expire; never reuse a cached browser/CDN response on retry.
+  res.set('Cache-Control', 'no-store');
   res.json(reel);
 });
 

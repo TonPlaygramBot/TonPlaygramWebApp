@@ -241,7 +241,6 @@ export default function RouletteMini({ reelUrl = null }) {
   };
 
   const handleAdComplete = () => {
-    setShowAd(false);
     startSpin();
   };
 

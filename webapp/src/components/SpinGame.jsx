@@ -207,7 +207,6 @@ export default function SpinGame({ reelUrl = null }) {
   const handleAdComplete = () => {
     const now = Date.now();
     localStorage.setItem('lastSpinAd', String(now));
-    setShowAd(false);
     triggerSpin();
   };
 
@@ -313,7 +312,7 @@ export default function SpinGame({ reelUrl = null }) {
         </>
       )}
       <RewardPopup
-        reward={reward}
+        reward={showAd ? null : reward}
         onClose={() => setReward(null)}
       />
       {creditFailed && (

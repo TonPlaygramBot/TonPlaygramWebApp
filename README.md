@@ -462,3 +462,40 @@ Run `npm run reset-db` to drop the existing MongoDB database and start with a cl
 ## License
 
 This project is licensed under the [MIT License](LICENSE).
+
+### Earn page Instagram reward playback
+
+The Spin & Win and Roulette Spin dialogs resolve the latest Reel through
+`GET /api/ads/spin-reel`. Set `SPIN_INSTAGRAM_ACCESS_TOKEN` **on the server**
+using an Instagram Login user token for the **@tonplaygram professional account**
+with `instagram_business_basic` access. Never put this token in a `VITE_` variable
+or commit it. The service caches the latest feed response for five minutes.
+A profile link alone cannot provide a direct, autoplayable video.
+`SPIN_INSTAGRAM_REEL_URL` is only a public permalink fallback for preview; it
+cannot enable reward playback without a direct media URL from the account API.
+
+Playback starts muted and inline. Users can enable sound with the player controls.
+If the browser refuses autoplay, a Play video button appears. Reward progress
+counts 15 seconds of visible, advancing video playback; loading, buffering,
+pausing, seeking, and time in another app do not count. Short Reels loop. At the
+threshold the existing wheel starts once and Skip unlocks; the video stays open
+until the user closes it. Skipping does not cancel the wheel or its reward.
+Existing prize amounts and cooldowns are unchanged. This is a UI playback gate,
+not server-side watch attestation; the existing wallet endpoints are unchanged.
+
+Before releasing, check that the deployed `/api/ads/spin-reel` returns both a
+TonPlayGram `reelUrl` and a non-null HTTPS `mediaUrl`, then test that actual video
+on a phone. An all-null response means the feed is not available; the new dialog
+shows Retry and does not consume a spin. Do not mistake fixture tests for a
+successful live Instagram/account test.
+
+Regression checks:
+
+```sh
+node --test bot/tests/spinInstagramReel.test.js
+npm --prefix webapp run test:video -- src/components/SpinRewardVideo.video.test.jsx
+```
+
+These automated tests simulate media events and API responses. They do not
+prove real browser decoding/autoplay or live Instagram credentials. Complete
+the phone playback check above before opening the release PR.
