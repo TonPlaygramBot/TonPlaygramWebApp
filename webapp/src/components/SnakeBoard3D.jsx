@@ -1,4 +1,4 @@
-import { SEATED_PLAYER_VIEW, updateSeatedPlayerLook } from '../utils/seatedPlayerView';
+import { SEATED_PLAYER_VIEW, resolveSeatedPlayerEyePosition, updateSeatedPlayerLook } from '../utils/seatedPlayerView';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import * as THREE from 'three';
 import {
@@ -2400,7 +2400,9 @@ function attachSnakeSeatActor(model, chair, seatIndex) {
   const { actor, rig } = restored;
   const rest = [...rig.saved.keys()].map(bone => [bone, bone.position.clone(), bone.quaternion.clone()]);
   return {
-    actor, rig, interaction: createSnakeHumanInteraction(actor, { relaxArms: false }), diceHand: createLudoDiceHand(rig),
+    actor, rig, headScale: rig.head?.scale.clone(),
+    interaction: createSnakeHumanInteraction(actor, { relaxArms: false }),
+    diceHand: createLudoDiceHand(rig),
     reset() {
       rest.forEach(([bone, position, rotation]) => {
         bone.position.copy(position);
@@ -2409,6 +2411,24 @@ function attachSnakeSeatActor(model, chair, seatIndex) {
       actor.updateWorldMatrix(true, true);
     }
   };
+}
+
+function fitSnakeSeatedView(head, board, target, aspect, eye) {
+  if (!resolveSeatedPlayerEyePosition(head, target, eye)) return CAM.fov;
+  const forward = target.clone().sub(eye).normalize();
+  const right = forward.clone().cross(WORLD_UP).normalize();
+  const up = right.clone().cross(forward);
+  const corner = new THREE.Vector3();
+  const half = RAW_BOARD_SIZE * 0.5 + TILE_GAP;
+  let slope = 0;
+  for (const x of [-half, half]) {
+    for (const z of [-half, half]) {
+      board.root.localToWorld(corner.set(x, board.baseLevelTop, z)).sub(eye);
+      const depth = Math.max(corner.dot(forward), 0.1);
+      slope = Math.max(slope, Math.abs(corner.dot(up)) / depth, Math.abs(corner.dot(right)) / (depth * aspect));
+    }
+  }
+  return Math.max(CAM.fov, THREE.MathUtils.radToDeg(2 * Math.atan(slope / 0.94)));
 }
 
 function createDiceRollAnimation(diceArray, { basePositions, values = [], rollId, actor, visibility }) {
@@ -5605,12 +5625,29 @@ export default function SnakeBoard3D({
         }
       }
       const eyeView = cameraViewModeRef.current !== '2d';
+      const camera = cameraRef.current;
       if (board) board.cameraHomeTarget.copy(arena.boardLookTarget);
+      const localActor = board?.seatedActors.get(0);
+      if (camera && localActor?.rig.head && localActor.headScale) {
+        const { head } = localActor.rig;
+        if (eyeView && (board.seatedViewAspect !== camera.aspect || board.seatedViewTargetY !== board.cameraHomeTarget.y)) {
+          board.seatedViewAspect = camera.aspect;
+          board.seatedViewTargetY = board.cameraHomeTarget.y;
+          board.seatedViewFov = fitSnakeSeatedView(head, board, board.cameraHomeTarget,
+            camera.aspect, fixedSeatCameraPositionRef.current);
+        }
+        const fov = eyeView ? board.seatedViewFov : CAM.fov;
+        if (fov && camera.fov !== fov) {
+          camera.fov = fov;
+          camera.updateProjectionMatrix();
+        }
+        // Ludo's eye view keeps hands visible and hides the local head.
+        head.scale.copy(localActor.headScale).multiplyScalar(eyeView ? 0.001 : 1);
+      }
       const followingAction = eyeView && board?.cameraDirector?.update(
         now, fixedSeatCameraPositionRef.current, board.cameraHomeTarget, motionPreference?.matches
       );
-      if (cameraViewModeRef.current === '2d') arena.controls?.update?.();
-      const camera = cameraRef.current;
+      if (!eyeView) arena.controls?.update?.();
       if (camera) {
         if (cameraViewModeRef.current !== '2d' && fixedSeatCameraPositionRef.current && !followingAction) {
           camera.position.copy(fixedSeatCameraPositionRef.current);
@@ -6533,7 +6570,7 @@ export default function SnakeBoard3D({
 
 // Standalone reviews and geometry tests use the same board and pieces as gameplay.
 export {
-  makeDice as createSnakeDie, getDiceOrientationQuaternion, attachSnakeSeatActor,
+  makeDice as createSnakeDie, getDiceOrientationQuaternion, attachSnakeSeatActor, fitSnakeSeatedView,
   createDiceRollAnimation as createSnakeDiceRollAnimation,
   buildSnakeBoard as createSnakeBoardScene,
   updateTokens as updateSnakeBoardTokens,

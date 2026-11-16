@@ -3,14 +3,15 @@ import { beforeAll, expect, it, vi } from 'vitest';
 import { readFile } from 'node:fs/promises';
 import * as THREE from 'three';
 import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js';
-import { createRestoredSeatedHumanActor } from '../pages/Games/shared/seatedHumanActors';
+import { createRestoredSeatedHumanActor, loadSeatedHumanTemplate } from '../pages/Games/shared/seatedHumanActors';
 import { createSnakeHumanInteraction, worldPoint } from './snakeHumanInteraction';
 import { createSnakeDiceInteraction, SNAKE_DICE_RELEASE_MS, SNAKE_DICE_PRESENTATION_MS } from './snakeDiceInteraction';
 import { createSnakeFirearmAnimation, createSnakeFirearmFallback } from './snakeFirearmAnimation';
 import { prepareSnakeFirearm, readSnakeWeaponContacts, snakeWeaponProfile } from './snakeWeaponGrip';
-import { attachSnakeSeatActor, createSnakeDiceRollAnimation, computeDiceThrowLayout, getDiceOrientationQuaternion, updateSnakeSeatWeapons, SNAKE_SCENE_DIMENSIONS as D } from '../components/SnakeBoard3D';
+import { attachSnakeSeatActor, createSnakeDiceRollAnimation, fitSnakeSeatedView, computeDiceThrowLayout, getDiceOrientationQuaternion, updateSnakeSeatWeapons, SNAKE_SCENE_DIMENSIONS as D } from '../components/SnakeBoard3D';
 import { LUDO_DICE_PRESENTATION_MS, LUDO_DICE_TIMING } from './ludoDiceMotion';
 import { getLudoFirearmTiming } from './ludoFirearmPresentation';
+import { TURI_CHARACTER } from '../config/playerCharacter';
 
 let template: THREE.Object3D;
 beforeAll(async () => {
@@ -291,4 +292,39 @@ it.each([
   expect(entry.actor.parent).toBe(chair);
   motion.dispose();
   scene.clear();
+});
+
+it('keeps the full board in the seated local view at narrow portrait widths', async () => {
+  const loader = new GLTFLoader();
+  loader.register(() => ({ name: 'PortraitTextures', loadTexture: () => Promise.resolve(null) }));
+  const bytes = await readFile('public/assets/tirana-streets/players/turi.glb');
+  const gltf = await loader.parseAsync(bytes.buffer.slice(bytes.byteOffset, bytes.byteOffset + bytes.byteLength), '');
+  const model = await loadSeatedHumanTemplate({
+    option: TURI_CHARACTER, targetHeight: D.humanHeight, visualScaleMultiplier: D.humanScale,
+    createLoader: () => ({ loadAsync: async () => gltf })
+  });
+  const { chair, boardRoot } = fixture(0);
+  const actor = attachSnakeSeatActor(model, chair, 0)!;
+  const head = worldPoint(actor.rig.head);
+  const target = new THREE.Vector3(0, D.tableHeight + 0.08, 0);
+  const board = { root: boardRoot, baseLevelTop: 0.05 };
+  const eye = new THREE.Vector3();
+  for (const [width, height] of [[320, 740], [390, 844], [430, 932]]) {
+    const aspect = width / height;
+    const fov = fitSnakeSeatedView(actor.rig.head, board, target, aspect, eye);
+    const camera = new THREE.PerspectiveCamera(fov, aspect, 0.06, 100);
+    camera.position.copy(eye);
+    camera.lookAt(target);
+    camera.updateMatrixWorld(true);
+    expect(eye.z).toBeLessThan(head.z);
+    expect(eye.distanceTo(head)).toBeLessThan(0.18);
+    const half = 4 * D.tileSize;
+    for (const x of [-half, half]) {
+      for (const z of [-half, half]) {
+        const screen = boardRoot.localToWorld(new THREE.Vector3(x, board.baseLevelTop, z)).project(camera);
+        expect(Math.abs(screen.x)).toBeLessThan(0.95);
+        expect(Math.abs(screen.y)).toBeLessThan(0.95);
+      }
+    }
+  }
 });
