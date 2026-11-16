@@ -3,6 +3,7 @@ import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { createRequire } from 'node:module';
 import { canRollLudoDice } from '../shared/ludoBattleRules.js';
+import { createLudoDiceFlight } from '../webapp/src/utils/ludoDiceMotion.ts';
 import { createFallbackLudoToken, hasVisibleLudoToken, setLudoTileHighlight, updateLudoTileGlow } from '../webapp/src/utils/ludoTokenPresentation.ts';
 
 const requireWebapp = createRequire(new URL('../webapp/package.json', import.meta.url));
@@ -219,7 +220,8 @@ test('a newer online sync cannot be overwritten by an old movement animation', (
 test('a superseded dice animation stops before touching the die', async () => {
   const spinNode = ast.program.body.find((node) => node.type === 'FunctionDeclaration' && node.id.name === 'spinDice');
   const frames = [];
-  const spin = Function('THREE', 'requestAnimationFrame', `return (${source.slice(spinNode.start, spinNode.end)});`)(THREE, (frame) => frames.push(frame));
+  const spin = Function('THREE', 'requestAnimationFrame', 'createLudoDiceFlight',
+    `return (${source.slice(spinNode.start, spinNode.end)});`)(THREE, (frame) => frames.push(frame), createLudoDiceFlight);
   const die = new THREE.Object3D();
   die.position.set(1, 2, 3);
   const result = spin(die, { isCurrent: () => false });
@@ -254,15 +256,16 @@ test('starting a throw preserves the die position until the animation releases i
   assert.deepEqual(dice.position.toArray(), [0.1, 0.2, 0.3]);
 });
 
-test('dice flight agrees at 30, 60 and 120 Hz and keeps the authoritative face', async () => {
+test('dice flight agrees at 30, 60 and 120 Hz and keeps the authoritative face', async ({ mock }) => {
+  mock.method(Math, 'random', () => 0.5);
   const spinNode = ast.program.body.find((node) => node.type === 'FunctionDeclaration' && node.id.name === 'spinDice');
   const rotations = [];
   for (const hz of [30, 60, 120]) {
     let now = 0;
     const frames = [];
-    const spin = Function('THREE', 'requestAnimationFrame', 'performance', 'Math', 'easeOutCubic',
+    const spin = Function('THREE', 'requestAnimationFrame', 'performance', 'createLudoDiceFlight',
       `return (${source.slice(spinNode.start, spinNode.end)});`)(THREE, (frame) => frames.push(frame),
-      { now: () => now }, Object.assign(Object.create(Math), { random: () => 0.5 }), (t) => 1 - (1 - t) ** 3);
+      { now: () => now }, createLudoDiceFlight);
     const die = new THREE.Object3D();
     let resultFace = null;
     die.userData.setValue = (face) => { resultFace = face; };

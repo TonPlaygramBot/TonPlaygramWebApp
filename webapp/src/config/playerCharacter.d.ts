@@ -1,3 +1,4 @@
+export const READY_PLAYER_ME_MODEL_URL: '/assets/pool-royale/readyplayer.me.glb';
 export const TURI_CHARACTER_ID: 'turi';
 export const TURI_MODEL_URL: '/assets/tirana-streets/players/turi.glb';
 export const TURI_CHARACTER: Readonly<{

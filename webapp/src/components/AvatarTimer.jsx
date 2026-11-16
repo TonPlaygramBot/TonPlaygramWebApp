@@ -3,6 +3,7 @@ import { getAvatarUrl } from '../utils/avatarUtils.js';
 
 export default function AvatarTimer({
   photoUrl,
+  selfPlayer,
   active = false,
   timerPct = 1,
   rank,
@@ -58,7 +59,8 @@ export default function AvatarTimer({
       )}
       <img
         src={getAvatarUrl(photoUrl)}
-        alt="player"
+        data-self-player={selfPlayer === true ? true : undefined}
+        alt={selfPlayer === true ? 'Your avatar' : 'player'}
         className="rounded-full border-2 object-cover w-full h-full"
         style={{
           borderColor: color || '#fde047',

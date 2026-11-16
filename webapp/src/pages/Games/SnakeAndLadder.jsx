@@ -1,13 +1,15 @@
 import { useState, useEffect, useRef, useCallback, useMemo } from "react";
 import coinConfetti from "../../utils/coinConfetti";
 import { snakeDiceReceiver } from '../../utils/snakeDiceReceiver';
-import { SNAKE_DICE_PRESENTATION_MS } from '../../utils/snakeDiceInteraction';
+import { LUDO_DICE_PRESENTATION_MS, LUDO_DICE_TIMING } from '../../utils/ludoDiceMotion';
 import { SNAKE_DICE_READ_MS } from '../../utils/snakeDiceInteraction';
 import { createSnakePresentationQueue } from '../../utils/snakePresentationQueue.js';
 import './SnakeAndLadder.css';
 import DiceRoller from "../../components/DiceRoller.jsx";
 import SnakeTurnPanel from "../../components/SnakeTurnPanel";
-import { SnakeGameHeader, SnakeGameDock } from "../../components/SnakeGameChrome";
+import {
+  seatedGameClassName, SeatedGameActions, SeatedGameAvatars, SeatedGameMenu, SeatedGameStatus
+} from '../../components/SeatedGameHud';
 import { resolveSnakeRoll, SNAKE_FINAL_TILE } from "../../../../lib/snakeRules.js";
 import SnakeBoard3D from "../../components/SnakeBoard3D.jsx";
 import {
@@ -2072,8 +2074,8 @@ export default function SnakeAndLadder() {
       });
       const receiverSeatIndex = assignments.get(receiver) ?? receiver;
       startDiceBoardAnimation({ id: rollId, phase: 'start', count: 1, values: serverValues, seatIndex: visualSeat, receiverSeatIndex });
-      playDiceRollSound(`online:${rollId}`);
-      await waitForPresentation(SNAKE_DICE_PRESENTATION_MS);
+      scheduleTimeout(() => playDiceRollSound(`online:${rollId}`), LUDO_DICE_TIMING.release);
+      await waitForPresentation(LUDO_DICE_PRESENTATION_MS);
       if (!mountedRef.current) return;
       startDiceBoardAnimation({ id: rollId, phase: 'end', values: serverValues, seatIndex: visualSeat });
       activeDiceBoardRollRef.current = { id: rollId, seatIndex, phase: 'end' };
@@ -2313,7 +2315,7 @@ export default function SnakeAndLadder() {
         }
       }
     };
-  }, [accountId, applyTableCapacity, isMultiplayer, myName, photoUrl, refreshPlayersNeeded, tableId, updateMpPlayers, watchOnly]);
+  }, [accountId, applyTableCapacity, isMultiplayer, myName, photoUrl, refreshPlayersNeeded, tableId, updateMpPlayers, watchOnly, scheduleTimeout]);
 
   const fastForward = (elapsed, state) => {
     let p = state.pos ?? 0;
@@ -2997,6 +2999,8 @@ export default function SnakeAndLadder() {
       ? resolvedAppearance.captureWeapon.id
       : 'drone';
 
+  const [seatPositions, setSeatPositions] = useState([]);
+  const seatAnchors = useMemo(() => new Map(seatPositions.map(anchor => [anchor.index, anchor])), [seatPositions]);
   const players = isMultiplayer
     ? mpPlayers.map((p, i) => ({
         id: p.id,
@@ -3055,6 +3059,7 @@ export default function SnakeAndLadder() {
     !playerAutoRolling &&
     aiRollingIndex == null &&
     !watchOnly;
+  const visibleTurn = waitingForPlayers || setupPhase || gameOver ? null : currentTurn;
   const hasTurnMessage =
     turnMessage !== null &&
     turnMessage !== '' &&
@@ -3288,9 +3293,8 @@ export default function SnakeAndLadder() {
     }
   };
 
-  // determine ranking numbers based on board positions
   return (
-    <div className="snake-game relative w-screen h-dvh overflow-hidden bg-[#05070f] text-text select-none">
+    <div className={`${seatedGameClassName} overflow-hidden`}>
       <div className="absolute inset-0">
         <SnakeBoard3D
           players={players}
@@ -3319,19 +3323,17 @@ export default function SnakeAndLadder() {
           cameraViewMode={cameraViewMode}
           camera2dTilt={camera2dTilt}
           onCameraTiltChange={setCamera2dTilt}
+          onSeatPositionsChange={setSeatPositions}
           onDiceTap={handleRollButtonClick}
           soundEnabled={!muted}
         />
       </div>
-      <SnakeGameHeader
-        players={players.map((player, index) => ({ ...player, name: getPlayerName(index), connected: isMultiplayer ? mpPlayers[index]?.connected : true }))}
-        currentTurn={currentTurn} localIndex={myPlayerIndex} finalTile={FINAL_TILE}
-        online={isMultiplayer} watching={watchOnly} waiting={waitingForPlayers} setup={setupPhase}
-        onSettings={() => { setShowWeaponSwapMenu(false); setShowConfig(true); }}
-        onRules={() => setShowInfo(true)}
-        onPlayer={(index) => { if (index !== myPlayerIndex) setPlayerPopup({ ...players[index], index }); }}
-      />
-      <InfoPopup open={showConfig} onClose={() => setShowConfig(false)} title="Arena settings">
+      <div className="absolute inset-0 pointer-events-none">
+        <SeatedGameMenu open={showConfig} title="Arena settings" onClose={() => setShowConfig(false)}
+        onOpen={() => {
+          setShowWeaponSwapMenu(false);
+          setShowConfig(true);
+        }}>
               <div className="mt-4 space-y-3 pr-1">
                 <details className="snake-appearance-section rounded-xl border border-white/10 bg-white/5 p-3">
                   <summary>Personalize arena <span>Boards, tokens, tables &amp; lighting</span></summary>
@@ -3441,16 +3443,41 @@ export default function SnakeAndLadder() {
                   >
                     Reset arena settings
                   </button>
+                  <button type="button" aria-label="How to play" onClick={() => { setShowConfig(false); setShowInfo(true); }}
+                    className="w-full min-h-[44px] rounded-lg bg-white/10 py-2 text-sm font-semibold text-white hover:bg-white/20">
+                    How to play
+                  </button>
                   <button type="button" onClick={() => { setShowConfig(false); setShowLobbyConfirm(true); }} className="snake-leave-button">Return to lobby</button>
                 </div>
               </div>
-      </InfoPopup>
+        </SeatedGameMenu>
+        <SeatedGameActions overhead={cameraViewMode === '2d'}
+          onCamera={() => setCameraViewMode(mode => mode === '3d' ? '2d' : '3d')}
+          onChat={() => setShowChat(true)} onGift={() => setShowGift(true)}
+          onWeapon={watchOnly || gameOver ? undefined : () => setShowWeaponSwapMenu(open => !open)}
+          weaponOpen={showWeaponSwapMenu}
+        />
+        <SeatedGameAvatars
+          players={players.map((player, index) => {
+            const name = getPlayerName(index);
+            const finished = player.position >= FINAL_TILE;
+            const disconnected = isMultiplayer && mpPlayers[index]?.connected === false;
+            const detail = disconnected ? 'Offline' : finished ? 'Finished' : player.position > 0 ? `Tile ${player.position}` : 'At start';
+            const label = `${name}${index === myPlayerIndex ? ' (you)' : ''}, ${finished ? 'finished' : player.position > 0 ? `tile ${player.position} of ${FINAL_TILE}` : 'at start'}${index === visibleTurn ? ', current turn' : ''}${disconnected ? ', reconnecting' : ''}`;
+            return { ...player, index, name: index === myPlayerIndex ? 'You' : name, detail, label };
+          })}
+          anchors={seatAnchors} localIndex={myPlayerIndex} turn={visibleTurn} keepInView
+          timerPct={Math.max(0, Math.min(1, timeLeft / TURN_TIME))}
+          onPlayer={index => setPlayerPopup({ ...players[index], index, name: getPlayerName(index) })}
+        />
+      </div>
+
       <div className="relative z-10 flex flex-col justify-end items-center w-full h-full p-4 pb-32 space-y-4 pointer-events-none">
         {showWeaponSwapMenu ? (
           <div
-            className="pointer-events-auto fixed z-30 right-3 rounded-2xl border border-white/15 bg-slate-900/95 p-2 shadow-2xl backdrop-blur-md"
+            className="pointer-events-auto absolute z-30 right-3 rounded-2xl border border-white/15 bg-slate-900/95 p-2 shadow-2xl backdrop-blur-md"
             style={{
-              bottom: 'calc(env(safe-area-inset-bottom, 0px) + 13rem)',
+              bottom: 'calc(env(safe-area-inset-bottom, 0px) + 10.75rem)',
               maxWidth: '18rem',
               width: 'min(72vw, 18rem)'
             }}
@@ -3684,14 +3711,15 @@ export default function SnakeAndLadder() {
                 id: diceRollIdRef.current,
                 phase: 'start',
                 values,
-                count: diceCount,
+                count: values.length,
                 receiverSeatIndex: snakeDiceReceiver({ roller: aiRollingIndex ?? 0, positions: [pos, ...aiPositions], values, snakes, ladders, diceCells }),
                 seatIndex: aiRollingIndex ?? 0
               });
               setPendingExtraRoll(false);
               setMoving(true);
               setRollResult(null);
-              playDiceRollSound(`local:${diceRollIdRef.current}`);
+              const rollId = diceRollIdRef.current;
+              scheduleTimeout(() => playDiceRollSound(`local:${rollId}`), LUDO_DICE_TIMING.release);
               if (timerRef.current) clearInterval(timerRef.current);
               timerSoundRef.current?.pause();
               setRollingIndex(aiRollingIndex || 0);
@@ -3707,7 +3735,7 @@ export default function SnakeAndLadder() {
               !moving
             }
             numDice={1}
-            durationMs={SNAKE_DICE_PRESENTATION_MS}
+            durationMs={LUDO_DICE_PRESENTATION_MS}
             triggerDelayMs={0}
             renderVisual={false}
             trigger={aiRollingIndex != null ? aiRollTrigger : playerAutoRolling ? playerRollTrigger : undefined}
@@ -3717,12 +3745,8 @@ export default function SnakeAndLadder() {
           />
         </div>
       )}
-      {!gameOver && <SnakeGameDock muted={muted} overhead={cameraViewMode === '2d'} watching={watchOnly}
-        weaponOpen={showWeaponSwapMenu} onMute={() => setGameMuted(!muted)}
-        onCamera={() => setCameraViewMode((mode) => mode === '3d' ? '2d' : '3d')}
-        onChat={() => setShowChat(true)} onGift={() => setShowGift(true)}
-        onWeapon={() => setShowWeaponSwapMenu((prev) => !prev)}>
-        {!watchOnly && <SnakeTurnPanel
+      {!gameOver && !watchOnly && <SeatedGameStatus>
+        <SnakeTurnPanel
           canRoll={canRoll}
           rolling={rollingIndex != null || playerAutoRolling}
           moving={moving}
@@ -3737,8 +3761,8 @@ export default function SnakeAndLadder() {
           seconds={timeLeft}
           playerName={getPlayerName(currentTurn)}
           onRoll={handleRollButtonClick}
-        />}
-      </SnakeGameDock>}
+        />
+      </SeatedGameStatus>}
       {!watchOnly && (
         <div className="pointer-events-auto">
           <InfoPopup

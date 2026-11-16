@@ -8,7 +8,8 @@ import { createSnakeHumanInteraction, worldPoint } from './snakeHumanInteraction
 import { createSnakeDiceInteraction, SNAKE_DICE_RELEASE_MS, SNAKE_DICE_PRESENTATION_MS } from './snakeDiceInteraction';
 import { createSnakeFirearmAnimation, createSnakeFirearmFallback } from './snakeFirearmAnimation';
 import { prepareSnakeFirearm, readSnakeWeaponContacts, snakeWeaponProfile } from './snakeWeaponGrip';
-import { computeDiceThrowLayout, getDiceOrientationQuaternion, updateSnakeSeatWeapons, SNAKE_SCENE_DIMENSIONS as D } from '../components/SnakeBoard3D';
+import { attachSnakeSeatActor, createSnakeDiceRollAnimation, computeDiceThrowLayout, getDiceOrientationQuaternion, updateSnakeSeatWeapons, SNAKE_SCENE_DIMENSIONS as D } from '../components/SnakeBoard3D';
+import { LUDO_DICE_PRESENTATION_MS, LUDO_DICE_TIMING } from './ludoDiceMotion';
 import { getLudoFirearmTiming } from './ludoFirearmPresentation';
 
 let template: THREE.Object3D;
@@ -251,4 +252,43 @@ it.each([1, 2, 3, 4, 5, 6])('pinches landed face %i above the tabletop with thum
   }
   lengths.forEach(([bone, length]) => expect(bone.position.length()).toBeCloseTo(length, 10));
   motion.dispose(); human.dispose();
+});
+
+it.each([
+  ['turi', 'public/assets/tirana-streets/players/turi.glb'],
+  ['rpm-current', 'public/assets/pool-royale/readyplayer.me.glb']
+])('uses the seated %s rig for the live Ludo-style dice throw', async (id, path) => {
+  const loader = new GLTFLoader();
+  loader.register(() => ({ name: 'LiveDiceTextures', loadTexture: () => Promise.resolve(null) }));
+  const bytes = await readFile(path);
+  const model = (await loader.parseAsync(bytes.buffer.slice(bytes.byteOffset, bytes.byteOffset + bytes.byteLength), '')).scene;
+  model.userData.playerCharacterId = id;
+  const { scene, chair, boardRoot, pickup } = fixture(0);
+  const entry = attachSnakeSeatActor(model, chair, 0)!;
+  expect(entry.actor.parent).toBe(chair);
+  expect(entry.diceHand.rig.rightHand?.isBone).toBe(true);
+
+  const die = new THREE.Group();
+  die.userData.setValue = (value: number) => die.quaternion.copy(getDiceOrientationQuaternion(value));
+  boardRoot.add(die);
+  die.position.copy(pickup);
+  const landing = pickup.clone().setZ(-pickup.z);
+  const startedAt = performance.now();
+  const motion = createSnakeDiceRollAnimation([die], {
+    actor: entry, basePositions: [landing], values: [6], rollId: 1,
+    visibility: { update() {}, dispose() {} }
+  });
+  const handAtRest = worldPoint(entry.rig.rightHand!);
+  motion.update(startedAt + LUDO_DICE_TIMING.reach);
+  expect(die.position.distanceTo(pickup)).toBeLessThan(1e-6);
+  expect(worldPoint(entry.rig.rightHand!).distanceTo(handAtRest)).toBeGreaterThan(0.02);
+  motion.update(startedAt + LUDO_DICE_TIMING.windup);
+  expect(die.position.y).toBeGreaterThan(pickup.y);
+  motion.update(startedAt + LUDO_DICE_PRESENTATION_MS + 100);
+  expect(die.position.distanceTo(landing)).toBeLessThan(1e-6);
+  expect(die.quaternion.angleTo(getDiceOrientationQuaternion(6))).toBeLessThan(1e-6);
+  expect(worldPoint(entry.rig.rightHand!).distanceTo(handAtRest)).toBeLessThan(1e-6);
+  expect(entry.actor.parent).toBe(chair);
+  motion.dispose();
+  scene.clear();
 });
