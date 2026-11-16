@@ -3,7 +3,8 @@ import { createRoot } from 'react-dom/client';
 import { BrowserRouter } from 'react-router-dom';
 import { beforeEach, afterEach, expect, it, vi } from 'vitest';
 import SnakeAndLadder from './SnakeAndLadder';
-import { SNAKE_DICE_PRESENTATION_MS, SNAKE_DICE_RELEASE_MS, SNAKE_DICE_READ_MS } from '../../utils/snakeDiceInteraction';
+import { SNAKE_DICE_READ_MS } from '../../utils/snakeDiceInteraction';
+import { LUDO_DICE_PRESENTATION_MS, LUDO_DICE_TIMING } from '../../utils/ludoDiceMotion';
 import { setGameMuted } from '../../utils/sound.js';
 import { SNAKE_FINAL_TILE as FINAL_TILE } from '../../../../lib/snakeRules.js';
 
@@ -27,8 +28,6 @@ vi.mock('../../components/SnakeBoard3D.jsx', () => ({ default: (props) => {
   return <div data-testid="board" />;
 } }));
 vi.mock('../../utils/coinConfetti', () => ({ default() {} }));
-vi.mock('../../components/BottomLeftIcons.jsx', () => ({ default: () => null }));
-vi.mock('../../components/AvatarTimer.jsx', () => ({ default: () => null }));
 vi.mock('../../components/GiftPopup.jsx', () => ({ default: () => null }));
 vi.mock('../../components/QuickMessagePopup.jsx', () => ({ default: () => null }));
 vi.mock('../../components/PlayerPopup.jsx', () => ({ default: () => null }));
@@ -57,10 +56,10 @@ it('keeps local rolling locked until the die lands and the entry hop finishes', 
   expect(roll().disabled).toBe(true);
   expect(testState.board.diceEvent.values).toEqual([6]);
   expect(testState.board.diceEvent.receiverSeatIndex).toBe(0);
-  await act(async () => vi.advanceTimersByTimeAsync(SNAKE_DICE_RELEASE_MS));
+  await act(async () => vi.advanceTimersByTimeAsync(LUDO_DICE_TIMING.release));
   expect(testState.board.players[0].position).toBe(0);
   expect(testState.board.diceEvent.phase).toBe('start');
-  await act(async () => vi.advanceTimersByTimeAsync(SNAKE_DICE_PRESENTATION_MS - SNAKE_DICE_RELEASE_MS));
+  await act(async () => vi.advanceTimersByTimeAsync(LUDO_DICE_PRESENTATION_MS - LUDO_DICE_TIMING.release));
   expect(roll().disabled).toBe(true);
   await act(async () => vi.advanceTimersByTimeAsync(SNAKE_DICE_READ_MS));
   await act(async () => vi.advanceTimersByTimeAsync(100));
@@ -84,7 +83,7 @@ it('animates a server roll and ladder before applying the final snapshot', async
   await emit('snakeState', {...state,currentPlayerId:'p2',players:[{...state.players[0],position:8},state.players[1]]});
   expect(testState.board.players[0].position).toBe(1);
   expect(host.querySelector('.snake-roll-button').disabled).toBe(true);
-  await act(async () => vi.advanceTimersByTimeAsync(SNAKE_DICE_PRESENTATION_MS + SNAKE_DICE_READ_MS));
+  await act(async () => vi.advanceTimersByTimeAsync(LUDO_DICE_PRESENTATION_MS + SNAKE_DICE_READ_MS));
   for (let step=0;step<5;step++) await act(async () => vi.advanceTimersByTimeAsync(100));
   expect(testState.board.players[0].position).toBe(8);
   expect(testState.board.currentTurn).toBe(1);
@@ -98,7 +97,7 @@ it('keeps the human turn after an overshooting six at tile 49', async () => {
   expect(testState.board.players[0].position).toBe(49);
   vi.spyOn(crypto, 'getRandomValues').mockImplementation(array => { array[0] = 5; return array; });
   await act(async () => host.querySelector('.snake-roll-button').click());
-  await act(async () => vi.advanceTimersByTimeAsync(SNAKE_DICE_PRESENTATION_MS + SNAKE_DICE_READ_MS + 500));
+  await act(async () => vi.advanceTimersByTimeAsync(LUDO_DICE_PRESENTATION_MS + SNAKE_DICE_READ_MS + 500));
   expect(testState.board.players[0].position).toBe(49);
   expect(testState.board.currentTurn).toBe(0);
   expect(host.querySelector('.snake-roll-button').disabled).toBe(false);
@@ -112,14 +111,14 @@ it('gives the AI the same extra turn after an overshooting six at tile 49', asyn
   expect(testState.board.players[1].position).toBe(49);
   const random = vi.spyOn(crypto, 'getRandomValues').mockImplementation(array => { array[0] = 0; return array; });
   await act(async () => host.querySelector('.snake-roll-button').click());
-  await act(async () => vi.advanceTimersByTimeAsync(SNAKE_DICE_PRESENTATION_MS + SNAKE_DICE_READ_MS + 500));
+  await act(async () => vi.advanceTimersByTimeAsync(LUDO_DICE_PRESENTATION_MS + SNAKE_DICE_READ_MS + 500));
   random.mockImplementation(array => { array[0] = 5; return array; });
   for (let tick = 0; tick < 100 && testState.board.diceEvent?.seatIndex !== 1; tick += 1) {
     await act(async () => vi.advanceTimersByTimeAsync(100));
   }
   expect(testState.board.diceEvent.seatIndex).toBe(1);
   expect(testState.board.diceEvent.values).toEqual([6]);
-  await act(async () => vi.advanceTimersByTimeAsync(SNAKE_DICE_PRESENTATION_MS + SNAKE_DICE_READ_MS + 500));
+  await act(async () => vi.advanceTimersByTimeAsync(LUDO_DICE_PRESENTATION_MS + SNAKE_DICE_READ_MS + 500));
   expect(testState.board.players[1].position).toBe(49);
   expect(testState.board.currentTurn).toBe(1);
   vi.restoreAllMocks();
@@ -136,8 +135,9 @@ function buttonWithText(text, container = document) {
   return [...container.querySelectorAll('button')].find(button => button.textContent === text);
 }
 
-it('opens the real rules dialog from the game header and closes it without leaving', async () => {
+it('opens the real rules dialog from the Ludo-style menu and closes it without leaving', async () => {
   await mountPractice();
+  await act(async () => buttonWithLabel('Open game settings menu').click());
   await act(async () => buttonWithLabel('How to play').click());
   const rules = document.querySelector('[role="dialog"]');
   expect(rules.textContent).toContain(`Be the first to reach tile ${FINAL_TILE}.`);
@@ -212,7 +212,7 @@ it('keeps the current match and saved progress when the player cancels leaving',
   expect(host.querySelector('.snake-roll-button').disabled).toBe(false);
 });
 
-it('updates the scoreboard positions, active player and connection status from online snapshots', async () => {
+it('updates the seated player positions, active player and connection status from online snapshots', async () => {
   window.history.replaceState({}, '', '/games/snake?table=snake-2&capacity=2');
   await act(async () => root.render(<BrowserRouter><SnakeAndLadder /></BrowserRouter>));
   await emit('snakeState', {
@@ -220,19 +220,19 @@ it('updates the scoreboard positions, active player and connection status from o
     snakes: { 9: 2 }, ladders: { 3: 8 }, diceCells: {},
     players: [{ playerId: 'p1', name: 'Ada', position: 12 }, { playerId: 'p2', name: 'Arben', position: 24 }]
   });
-  let cards = [...host.querySelectorAll('.snake-score-card')];
-  expect(cards.map(card => card.querySelector('.snake-score-position').textContent)).toEqual(['Tile 12', 'Tile 24']);
+  let cards = [...host.querySelectorAll('[data-seat-index]')];
+  expect(cards.map(card => card.querySelector('[data-player-detail]').textContent)).toEqual(['Tile 12', 'Tile 24']);
   expect(cards[0].getAttribute('aria-label')).toContain(`Ada (you), tile 12 of ${FINAL_TILE}`);
   expect(cards[1].getAttribute('aria-label')).toContain(`Arben, tile 24 of ${FINAL_TILE}, current turn`);
-  expect(cards[0].getAttribute('data-active')).toBe('false');
-  expect(cards[1].getAttribute('data-active')).toBe('true');
+  expect(cards[0].hasAttribute('aria-current')).toBe(false);
+  expect(cards[1].getAttribute('aria-current')).toBe('true');
   expect(host.querySelector('.snake-roll-button').disabled).toBe(true);
   await emit('playerDisconnected', { playerId: 'p2', maxPlayers: 2 });
-  cards = [...host.querySelectorAll('.snake-score-card')];
+  cards = [...host.querySelectorAll('[data-seat-index]')];
   expect(cards[1].textContent).toContain('Offline');
   expect(cards[1].getAttribute('aria-label')).toContain('reconnecting');
   await emit('playerRejoined', { playerId: 'p2', maxPlayers: 2 });
-  expect(host.querySelectorAll('.snake-score-position')[1].textContent).toBe('Tile 24');
+  expect(host.querySelectorAll('[data-player-detail]')[1].textContent).toBe('Tile 24');
 });
 
 it('keeps the local live-video photo and gift targets attached to the correct online seats', async () => {
@@ -248,7 +248,15 @@ it('keeps the local live-video photo and gift targets attached to the correct on
   expect(localAvatar.alt).toBe('Your avatar');
   expect(localAvatar.closest('[data-player-index]').getAttribute('data-player-index')).toBe('1');
   expect(host.querySelector('[data-player-index="0"]').textContent).toContain('Arben');
-  expect(host.querySelector('[data-player-index="1"]').textContent).toContain('You');
+  const localSeat = host.querySelector('[data-player-index="1"]').closest('[data-seat-index]');
+  expect(localSeat.textContent).toContain('You');
+  expect(localSeat.getAttribute('data-seat-index')).toBe('0');
+  expect(localSeat.style.left).toBe('50%');
+  expect(localSeat.style.top).toBe('86%');
+  await act(async () => testState.board.onSeatPositionsChange([{ index: 1, x: 64, y: 38, depth: 3 }]));
+  const opponentSeat = host.querySelector('[data-player-index="0"]').closest('[data-seat-index]');
+  expect(opponentSeat.style.left).toContain('64%');
+  expect(opponentSeat.style.top).toContain('38%');
   expect(host.querySelectorAll('[data-self-player="true"]')).toHaveLength(1);
 });
 
@@ -261,11 +269,11 @@ it('finishes exactly once on the real 3D pot at tile 50 after rolling one from t
   vi.spyOn(crypto, 'getRandomValues').mockImplementation(array => { array[0] = 0; return array; });
   await act(async () => host.querySelector('.snake-roll-button').click());
   expect(testState.board.diceEvent.values).toEqual([1]);
-  await act(async () => vi.advanceTimersByTimeAsync(SNAKE_DICE_PRESENTATION_MS + SNAKE_DICE_READ_MS + 500));
+  await act(async () => vi.advanceTimersByTimeAsync(LUDO_DICE_PRESENTATION_MS + SNAKE_DICE_READ_MS + 500));
   // Flush the token landing callback, then its 80ms movement completion delay.
   await act(async () => vi.advanceTimersByTimeAsync(100));
   expect(testState.board.players[0].position).toBe(50);
-  expect(host.querySelector('.snake-score-position').textContent).toBe('Finished');
+  expect(host.querySelector('[data-player-detail]').textContent).toBe('Finished');
   expect(host.querySelector('.snake-roll-button')).toBeNull();
   expect(buttonWithText('Return to Lobby')).toBeDefined();
   expect(testState.deposits.filter(([, , options]) => options?.game === 'snake-win')).toHaveLength(1);
@@ -309,7 +317,7 @@ it('restores a legacy save already at the pot as finished without replaying turn
   }));
   await act(async () => root.render(<BrowserRouter><SnakeAndLadder /></BrowserRouter>));
   expect(testState.board.players.map(player => player.position)).toEqual([50, 0]);
-  expect(host.querySelector('.snake-score-position').textContent).toBe('Finished');
+  expect(host.querySelector('[data-player-detail]').textContent).toBe('Finished');
   expect(host.querySelector('.snake-roll-button')).toBeNull();
   const results = buttonWithText('Return to Lobby').parentElement;
   expect(results.textContent).toContain('Winner');

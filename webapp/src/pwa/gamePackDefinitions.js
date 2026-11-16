@@ -1,5 +1,5 @@
 import gamesCatalog from '../config/gamesCatalog.js';
-import { TURI_MODEL_URL } from '../config/playerCharacter.js';
+import { READY_PLAYER_ME_MODEL_URL, TURI_MODEL_URL } from '../config/playerCharacter.js';
 
 // One catalog drives generation, the browser fallback and every Games card.
 // Downloading web media does not authorize removing it from the native shell.
@@ -80,12 +80,13 @@ const heavyPacks = [
 ];
 
 const gamesWithoutPlayerCharacters = new Set([
-  'poolroyale', 'snookerroyale', 'airhockey', 'murlanroyale', 'domino-royal', 'texasholdem', 'snake'
+  'poolroyale', 'snookerroyale', 'airhockey', 'murlanroyale', 'domino-royal', 'texasholdem'
 ]);
 
 const covered = new Set(heavyPacks.flatMap(pack => pack.gameSlugs || []));
 const extraFiles = {
   texasholdem: ['texas-holdem.js'],
+  snake: [READY_PLAYER_ME_MODEL_URL.slice(1)],
   'domino-royal': ['domino-royal-game.js'],
   chessbattleroyal: ['chess-royale.html']
 };

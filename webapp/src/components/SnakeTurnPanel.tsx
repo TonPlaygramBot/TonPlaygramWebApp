@@ -1,4 +1,4 @@
-import { Dice5, Flag, LoaderCircle } from 'lucide-react';
+import { LoaderCircle } from 'lucide-react';
 import type { ReactNode } from 'react';
 
 type Props = {
@@ -39,36 +39,26 @@ export default function SnakeTurnPanel({ canRoll, rolling, moving, waiting, mess
   const status = offline ? 'Reconnecting…' : isFinished ? 'You finished!' : waiting ? 'Waiting for players'
     : setup ? 'Choosing the first player' : rolling ? 'Rolling…'
       : moving ? message || 'Moving…' : active ? message || 'Your turn' : `${playerName}’s turn`;
-  const detail = offline ? 'Rejoining your match' : isFinished ? 'Watch the race to the finish'
-    : waiting ? 'Get ready to play' : setup ? 'Rolling for turn order' : active
-      ? `Tap to throw ${count > 1 ? 'your dice' : 'your die'}` : rolling ? 'Waiting for the die to land'
-        : moving ? 'Follow your token' : 'Waiting for your turn';
   return (
-    <section className="snake-turn-panel" aria-label="Turn controls">
-      <div className="snake-turn-meta">
-        <span><Flag size={14} aria-hidden="true" />{position === 0 ? 'At start' : `${position} / ${finalTile}`}
-          {count > 1 && !isFinished && <span className="snake-bonus-dice">{count} dice</span>}
-        </span>
-        <span>{hint}</span>
-      </div>
-      <div className="snake-turn-main">
-        <div className={`snake-roll-result ${rolling ? 'is-rolling' : ''}`} role="img" aria-label={rolling ? 'Die rolling' : shownResult ? `Rolled ${shownResult}${count > 1 || shownResult > 6 ? ' in total' : ''}` : 'Die ready'}>
+    <section className="flex items-center justify-center gap-2" aria-label="Turn controls">
+      {shownResult || rolling ? (
+        <div className="shrink-0 text-white" role="img" aria-label={rolling ? 'Die rolling' : shownResult ? `Rolled ${shownResult}${count > 1 || shownResult > 6 ? ' in total' : ''}` : 'Die ready'}>
           {rolling ? <LoaderCircle size={24} aria-hidden="true" /> : shownResult ? (
             shownResult <= 6 && count === 1 ? <DieFace value={shownResult} /> : <span className="snake-roll-total">{shownResult}<small>Total</small></span>
-          ) : <Dice5 size={26} aria-hidden="true" />}
+          ) : null}
         </div>
-        <div className="snake-turn-copy" role="status" aria-live="polite" aria-atomic="true">
-          <strong>{status}</strong>
-          <span className="snake-turn-detail">{detail}</span>
-        </div>
-        <button type="button" className="snake-roll-button" onClick={onRoll} disabled={!active}>
-          <span>{offline ? 'Offline' : isFinished ? 'Finished' : rolling ? 'Rolling' : moving ? 'Moving' : count > 1 ? 'Roll dice' : 'Roll die'}</span>
-          {active && <span className="snake-turn-seconds" aria-label={`${Math.ceil(clockSeconds)} seconds left`}>{Math.ceil(clockSeconds)}s</span>}
-        </button>
+      ) : null}
+      <div className="min-w-0" role="status" aria-live="polite" aria-atomic="true">
+        <div className="break-words">{status}</div>
+        {(active || isFinished) && <div className="text-[11px] text-white/75">{hint}</div>}
       </div>
-      <div className="snake-turn-clock" role={active ? 'progressbar' : undefined} aria-hidden={!active || undefined} aria-label={active ? 'Time remaining in your turn' : undefined} aria-valuemin={active ? 0 : undefined} aria-valuemax={active ? 15 : undefined} aria-valuenow={active ? Math.ceil(clockSeconds) : undefined}>
-        <span style={{ width: `${active ? clockSeconds / 15 * 100 : 0}%` }} data-urgent={active && clockSeconds <= 5} />
-      </div>
+      <button type="button" className={`snake-roll-button pointer-events-auto min-h-[44px] shrink-0 rounded-lg border border-white/20 bg-white/10 px-2 text-xs font-semibold text-white hover:bg-white/20 focus-visible:outline focus-visible:outline-white ${active ? '' : 'sr-only'}`}
+        onClick={onRoll} disabled={!active}>
+        {count > 1 ? 'Roll dice' : 'Roll die'}
+        {active && <span className="snake-turn-seconds ml-1 tabular-nums text-white/75" aria-label={`${Math.ceil(clockSeconds)} seconds left`}>{Math.ceil(clockSeconds)}s</span>}
+      </button>
+      {active && <div className="sr-only" role="progressbar" aria-label="Time remaining in your turn"
+        aria-valuemin={0} aria-valuemax={15} aria-valuenow={Math.ceil(clockSeconds)} />}
     </section>
   );
 }

@@ -1,3 +1,5 @@
+export const READY_PLAYER_ME_MODEL_URL = '/assets/pool-royale/readyplayer.me.glb';
+
 // Reuse the exact playable Turi asset from Tirana Streets in every game.
 // Keep the authored face, black outfit, UÇK atlas and proportions intact.
 export const TURI_CHARACTER_ID = 'turi';

@@ -76,7 +76,7 @@ export default function BottomLeftIcons({
       : null,
     mute: showMute
       ? (
-          <button type="button" onClick={toggle} className={buttonClassName}>
+          <button type="button" onClick={toggle} className={buttonClassName} aria-label={muted ? 'Unmute game audio' : 'Mute game audio'} aria-pressed={muted}>
             <span className={iconClassName}>
               {muted ? muteIconOn ?? '🔇' : muteIconOff ?? '🔊'}
             </span>
@@ -86,7 +86,7 @@ export default function BottomLeftIcons({
       : null,
     camera2d: showCamera2d && onCamera2d
       ? (
-          <button type="button" onClick={onCamera2d} className={buttonClassName} aria-pressed={camera2dActive}>
+          <button type="button" onClick={onCamera2d} className={buttonClassName} aria-label={camera2dActive ? 'Switch to player view' : 'Switch to board view'} aria-pressed={camera2dActive}>
             <span className={iconClassName}>{cameraIcon ?? '🎥'}</span>
             <span className={labelClassName}>{camera2dActive ? '3D' : cameraLabel}</span>
           </button>

@@ -163,3 +163,39 @@ export function updateLudoDiceThrow(action: LudoDiceThrow, elapsedMs: number) {
   action.released ||= frame.released;
   return frame;
 }
+
+export const LUDO_DICE_FLIGHT_MS = 1100;
+export const LUDO_DICE_PRESENTATION_MS = LUDO_DICE_TIMING.release + LUDO_DICE_FLIGHT_MS;
+
+export function createLudoDiceFlight(
+  dice: THREE.Object3D,
+  destination: THREE.Vector3,
+  { startedAt, duration = LUDO_DICE_FLIGHT_MS, bounceHeight = 0.06, reducedMotion = false }: {
+    startedAt: number;
+    duration?: number;
+    bounceHeight?: number;
+    reducedMotion?: boolean;
+  }
+) {
+  const start = dice.position.clone();
+  const rotation = dice.rotation.clone();
+  const end = destination.clone();
+  const spin = new THREE.Vector3(1.2 + Math.random() * 0.7, 1.35 + Math.random() * 0.65, 1.05 + Math.random() * 0.75);
+  const wobble = new THREE.Vector3((Math.random() - 0.5) * 0.16, 0, (Math.random() - 0.5) * 0.16);
+  return {
+    update(now: number) {
+      const t = THREE.MathUtils.clamp((now - startedAt) / Math.max(1, duration), 0, 1);
+      const eased = 1 - (1 - t) ** 3;
+      dice.position.lerpVectors(start, end, eased);
+      if (!reducedMotion) {
+        dice.position.addScaledVector(wobble, Math.sin(eased * Math.PI) * 0.45);
+        dice.position.y += Math.sin(Math.min(1, eased * 1.25) * Math.PI) * bounceHeight * (1 - eased * 0.45);
+        const angle = 0.22 * 60 * (duration / 1000) * (0.72 * t + 0.07 * (1 - (1 - t) ** 4));
+        dice.rotation.set(rotation.x + spin.x * angle, rotation.y + spin.y * angle, rotation.z + spin.z * angle);
+      }
+      if (t < 1) return false;
+      dice.position.copy(end);
+      return true;
+    }
+  };
+}

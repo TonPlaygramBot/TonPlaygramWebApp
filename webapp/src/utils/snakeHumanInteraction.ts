@@ -19,7 +19,7 @@ function pointBone(bone: THREE.Bone, child: THREE.Bone, point: THREE.Vector3) {
 }
 
 /** Snapshot the already seated pose. Never change the chair/root or stretch bones. */
-export function createSnakeHumanInteraction(actor: THREE.Object3D) {
+export function createSnakeHumanInteraction(actor: THREE.Object3D, { relaxArms = true } = {}) {
   const bones: THREE.Bone[] = [];
   const rest = new Map<THREE.Bone, BonePose>();
   actor.traverse(object => {
@@ -227,7 +227,8 @@ export function createSnakeHumanInteraction(actor: THREE.Object3D) {
   };
   // Rest the forearms over the lap instead of restoring the legacy outstretched
   // arm pose after each action. Preserve the original seated lower body.
-  for (const side of ['right', 'left'] as Side[]) {
+  const relaxedSides: Side[] = relaxArms ? ['right', 'left'] : [];
+  for (const side of relaxedSides) {
     const arm = arms[side];
     const target = worldPoint(arm.upper).addScaledVector(forward, unit * 0.3).add(V(0, -unit * 0.76, 0));
     const radial = worldPoint(arms[side === 'right' ? 'left' : 'right'].upper).sub(worldPoint(arm.upper)).normalize();
