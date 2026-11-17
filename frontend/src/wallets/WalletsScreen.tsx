@@ -1,3 +1,4 @@
+import { walletCurrencyLabel } from './balance/currencyDisplay';
 import { useEffect, useMemo, useState } from 'react';
 import type { SessionState } from '../auth/useSession';
 import { AddWalletModal } from './AddWalletModal';
@@ -38,7 +39,7 @@ export function WalletsScreen({ session }: { session: SessionState }) {
           try {
             const balance = await getWalletBalance({ chain: wallet.chain, address: wallet.address });
             if (cancelled) return;
-            setBalances((prev) => ({ ...prev, [wallet.id]: { loading: false, value: `${balance.formatted} ${balance.symbol}` } }));
+            setBalances((prev) => ({ ...prev, [wallet.id]: { loading: false, value: `${balance.formatted} ${walletCurrencyLabel(wallet.chain, balance.symbol)}` } }));
           } catch {
             if (cancelled) return;
             setBalances((prev) => ({ ...prev, [wallet.id]: { loading: false, error: 'Balance unavailable' } }));

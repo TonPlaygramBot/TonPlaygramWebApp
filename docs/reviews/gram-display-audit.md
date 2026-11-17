@@ -8,6 +8,8 @@ Additional fixes: Wallet, TPG hub and platform-statistics historical transaction
 
 Intentionally retained: TON Connect, TON blockchain/ecosystem and network-wallet wording; RPC/API URLs and TON rate/query keys; legacy room tokens and database keys; diagnostic console messages/comments; legacy TON.webp for cached-client compatibility; explanatory “formerly Toncoin” note; unused lpToken.js metadata containing a pre-existing on-chain LP identity (not relabelled without verified LP metadata).
 
-Seven focused tests pass including a rendered legacy TON historical transaction displayed as GRAM while input data and TON Connect branding remain unchanged. This is a source audit, not a claim of exhaustive live-device or authenticated production testing.
+Eight focused tests pass including a rendered legacy TON historical transaction displayed as GRAM while input data and TON Connect branding remain unchanged. This is a source audit, not a claim of exhaustive live-device or authenticated production testing.
 
 Independent residual scan additionally found system notification and Home social invite captions; both now use display mapping. Invite acceptance URLs and stored data retain TON; a rendered invite regression covers this.
+
+Second independent scan found Pool/Snooker prize/exit captions and the separate frontend native wallet balance caption; fixed display-only. Native launcher icon generator still references TON.webp as application branding, intentionally not changed as a currency icon.

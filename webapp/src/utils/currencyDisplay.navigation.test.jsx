@@ -1,3 +1,4 @@
+import { walletCurrencyLabel } from '../../../frontend/src/wallets/balance/currencyDisplay.ts';
 import React from 'react';
 import { describe, it, expect, vi } from 'vitest';
 import { renderToStaticMarkup } from 'react-dom/server';
@@ -36,4 +37,10 @@ describe('native currency rebrand display only', () => {
     const jetton={id:'gram-2',symbol:'GRAM',name:'Gram jetton'};
     expect(nativeMarketDisplay(jetton)).toBe(jetton);
   });
+});
+
+it('keeps multichain native wallet currency identity separate from TON network', () => {
+ expect(walletCurrencyLabel('ton','TON')).toBe('GRAM');
+ expect(walletCurrencyLabel('solana','SOL')).toBe('SOL');
+ expect(walletCurrencyLabel('evm','TON')).toBe('TON');
 });

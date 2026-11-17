@@ -97,7 +97,7 @@ router.get('/convert', async (req, res) => {
     const markets = await fetchTopMarkets();
     const from = markets.find((coin) => coin.symbol === fromSymbol);
     if (!from) {
-      return res.status(404).json({ ok: false, error: `Symbol ${fromSymbol} not found in top 100 list` });
+      return res.status(404).json({ ok: false, error: `Symbol ${fromSymbol === 'TON' ? 'GRAM' : fromSymbol} not found in top 100 list` });
     }
 
     const usdValue = amount * from.currentPriceUsd;
