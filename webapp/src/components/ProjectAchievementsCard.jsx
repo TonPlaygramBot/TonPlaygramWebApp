@@ -1,12 +1,13 @@
 import { ArrowRight, BarChart3, Check, CircleDot, Coins, Flag, Gamepad2, ShieldCheck, Sparkles, Trophy, Users, WalletCards } from 'lucide-react';
 import { Link } from 'react-router-dom';
+import { achievements, roadmap } from '../config/ecosystemContent.js';
 import gamesCatalog from '../config/gamesCatalog.js';
 
 const summaries = [
-  { title: 'Achievements', kicker: 'What is live', copy: 'See the product pillars already connecting identity, multiplayer, rewards and social play.', to: '/achievements', icon: Trophy, accent: '#65e0b8', meta: '6 product pillars', progress: 76 },
-  { title: 'Roadmap', kicker: 'Where we are going', copy: 'Follow every delivery track, its current progress and the outcomes planned next.', to: '/roadmap', icon: Flag, accent: '#74a8ff', meta: '6 delivery tracks', progress: 58 },
-  { title: 'Tokenomics', kicker: 'How value moves', copy: 'Understand platform fees, reward allocation and the utility designed around TPG.', to: '/tokenomics', icon: Coins, accent: '#e5c66f', meta: 'Transparent flow', progress: 84 },
-  { title: 'Platform stats', kicker: 'Live operations', copy: 'Open one dashboard for community, games, transactions and token activity.', to: '/platform-stats', icon: BarChart3, accent: '#c59bff', meta: 'Operational view', progress: 67 }
+  { title: 'Achievements', kicker: 'Merged foundations', copy: 'Review merged milestones and the validation still needed before release.', to: '/achievements', icon: Trophy, accent: '#65e0b8', meta: `${achievements.length} merged milestones` },
+  { title: 'Roadmap', kicker: 'Where we are going', copy: 'Follow every delivery track, its current progress and the outcomes planned next.', to: '/roadmap', icon: Flag, accent: '#74a8ff', meta: `${roadmap.length} delivery tracks` },
+  { title: 'Tokenomics', kicker: 'How value moves', copy: 'Understand platform fees, reward allocation and the utility designed around TPG.', to: '/tokenomics', icon: Coins, accent: '#e5c66f', meta: 'Transparent flow' },
+  { title: 'Platform stats', kicker: 'Live operations', copy: 'Open one dashboard for community, games, transactions and token activity.', to: '/platform-stats', icon: BarChart3, accent: '#c59bff', meta: 'Operational view' }
 ];
 
 const journey = [
@@ -44,8 +45,8 @@ export default function ProjectAchievementsCard() {
         </div>
 
         <div className="mt-3 grid grid-cols-3 gap-2">
-          <Stat value={gamesCatalog.length} label="Playable games" />
-          <Stat value="6" label="Core pillars" />
+          <Stat value={gamesCatalog.length} label="Catalogue entries" />
+          <Stat value={achievements.length} label="Milestones" />
           <Stat value="1" label="Player identity" />
         </div>
       </header>
@@ -56,7 +57,7 @@ export default function ProjectAchievementsCard() {
           <ShieldCheck size={20} className="mb-0.5 shrink-0 text-slate-600" />
         </div>
         <div className="grid gap-3 sm:grid-cols-2">
-          {summaries.map(({ title, kicker, copy, to, icon: Icon, accent, meta, progress }) => (
+          {summaries.map(({ title, kicker, copy, to, icon: Icon, accent, meta }) => (
             <Link key={title} to={to} className="group relative overflow-hidden rounded-2xl border border-white/[0.09] bg-gradient-to-br from-white/[0.065] to-white/[0.015] p-4 no-underline transition-colors hover:border-white/20">
               <div className="pointer-events-none absolute -right-8 -top-8 h-24 w-24 rounded-full opacity-10 blur-2xl" style={{ background: accent }} />
               <div className="relative flex items-start gap-3">
@@ -66,7 +67,6 @@ export default function ProjectAchievementsCard() {
               </div>
               <p className="relative mt-3 text-[10px] leading-[1.55] text-slate-400">{copy}</p>
               <div className="relative mt-3 flex items-center gap-2">
-                <span className="h-1 flex-1 overflow-hidden rounded-full bg-white/[0.07]"><span className="block h-full rounded-full" style={{ width: `${progress}%`, background: accent }} /></span>
                 <span className="flex items-center gap-1 text-[8px] font-semibold text-slate-500"><Check size={10} style={{ color: accent }} />{meta}</span>
               </div>
             </Link>
