@@ -1,3 +1,4 @@
+import TelegramSessionNotice from './components/TelegramSessionNotice.jsx';
 import React, { Suspense, useMemo } from 'react';
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { TonConnectUIProvider } from '@tonconnect/ui-react';
@@ -202,6 +203,7 @@ export default function App() {
         actionsConfiguration={actionsConfiguration}
       >
         <TonConnectSync />
+        <TelegramSessionNotice />
         <Layout>
           <Suspense
             fallback={
