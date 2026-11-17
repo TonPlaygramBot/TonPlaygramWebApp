@@ -29,11 +29,12 @@ export default function TelegramSessionNotice() {
       aria-live="polite"
       className="fixed left-3 right-3 top-3 z-[10000] mx-auto max-w-md rounded-xl border border-amber-400 bg-gray-900 p-4 text-sm text-white shadow-lg"
     >
-      <p className="font-semibold">Renew your Telegram session</p>
+      <p className="font-semibold">Check your sign-in session</p>
       <p className="mt-1">
-        Telegram could not verify this session. It may have expired. When you are
-        ready, close this mini app and open TonPlayGram again from the bot in
-        Telegram. Reloading this page may reuse the same expired session.
+        TonPlayGram could not authenticate this request. If your Telegram session
+        has expired, close this mini app when you are ready and open TonPlayGram again from the bot in
+        Telegram. Reloading this page may reuse the same session. If you also
+        signed in with Google, you may need to sign in with Google again.
       </p>
       <p className="mt-1">Check whether your last action completed before trying it again.</p>
       <button
