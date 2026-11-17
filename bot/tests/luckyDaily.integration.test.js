@@ -7,7 +7,7 @@ import { createLuckyDaily } from '../services/luckyDaily.js';
 let mongo, user;
 const now = Date.parse('2026-11-17T12:00:00Z');
 const service = createLuckyDaily({ User, clock: () => now });
-test.before(async () => { mongo = await MongoMemoryServer.create(); await mongoose.connect(mongo.getUri()); });
+test.before(async () => { mongo = await MongoMemoryServer.create({ instance: { args: ['--nounixsocket'] } }); await mongoose.connect(mongo.getUri()); });
 test.after(async () => { await mongoose.disconnect(); await mongo?.stop(); });
 test.beforeEach(async () => { await User.deleteMany({}); user = await User.create({ telegramId: 123, balance: 50, transactions: [] }); });
 test('parallel requests credit only once and duplicate response recovery is safe', async () => {
