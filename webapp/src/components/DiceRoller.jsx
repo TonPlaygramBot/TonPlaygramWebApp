@@ -5,6 +5,7 @@ import { socket } from '../utils/socket.js';
 
 export default function DiceRoller({
   onRollEnd,
+  forcedValues,
   onRollStart,
   durationMs = 1050,
   triggerDelayMs = 1000,
@@ -74,6 +75,8 @@ export default function DiceRoller({
 
   const rollDice = () => {
     if (rollingRef.current || disabled) return;
+    if (forcedValues !== undefined && (!Array.isArray(forcedValues) || forcedValues.length !== numDice ||
+      !forcedValues.every((value) => Number.isInteger(value) && value >= 1 && value <= 6))) return;
     rollingRef.current = true;
     if (soundRef.current && !muted) {
       soundRef.current.currentTime = 0;
@@ -99,7 +102,7 @@ export default function DiceRoller({
 
     // Choose once before the throw, so the visible cube lands on the same
     // result used by gameplay. No independently randomized landing face.
-    const results = Array.from({ length: numDice }, rand);
+    const results = forcedValues === undefined ? Array.from({ length: numDice }, rand) : [...forcedValues];
     callbacksRef.current.onRollStart?.(results);
     later(() => {
       setValues(results);

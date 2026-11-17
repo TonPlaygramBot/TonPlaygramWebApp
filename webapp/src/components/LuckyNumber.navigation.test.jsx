@@ -5,6 +5,7 @@ import LuckyNumber from './LuckyNumber.jsx';
 import { getTelegramId } from '../utils/telegram.js';
 import { post, getWalletBalance, updateBalance, addTransaction } from '../utils/api.js';
 globalThis.IS_REACT_ACT_ENVIRONMENT = true;
+vi.mock('../utils/serverSpinRewards.js', () => ({ spinRewardStatus: () => Promise.resolve({ pending: null, nextSpinAt: 0, freeSpins: 0 }), hasPendingServerSpin: () => false, startServerSpin: vi.fn(), claimServerSpin: vi.fn() }));
 vi.mock('../utils/api.js', () => ({ post: vi.fn(), getWalletBalance: vi.fn(), updateBalance: vi.fn(), addTransaction: vi.fn() }));
 vi.mock('../utils/telegram.js', () => ({ getTelegramId: vi.fn() }));
 vi.mock('./DiceRoller.jsx', () => ({ default: () => <div>Dice gameplay</div> }));

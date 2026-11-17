@@ -39,13 +39,15 @@ function PrizeItem({ value }) {
   );
 }
 
-export default function CardSpinner({ trigger = 0, onFinish }) {
+export default function CardSpinner({ trigger = 0, onFinish, forcedOutcome }) {
   const [items, setItems] = useState([]);
   const [offset, setOffset] = useState(0);
   const [itemHeight, setItemHeight] = useState(0);
   const spinSoundRef = useRef(null);
   const successSoundRef = useRef(null);
   const containerRef = useRef(null);
+  const finishRef = useRef(onFinish);
+  finishRef.current = onFinish;
 
   useEffect(() => {
     spinSoundRef.current = new Audio('/assets/sounds/spinning.mp3');
@@ -75,11 +77,12 @@ export default function CardSpinner({ trigger = 0, onFinish }) {
       'FREE_SPIN',
       'BONUS_X3',
     ];
+    if (forcedOutcome !== undefined && !base.includes(forcedOutcome)) return;
     const arr = [];
     for (let i = 0; i < 10; i++) {
       arr.push(base[Math.floor(Math.random() * base.length)]);
     }
-    const finalReward = getLuckyReward();
+    const finalReward = forcedOutcome === undefined ? getLuckyReward() : forcedOutcome;
     arr.push(finalReward);
     setItems(arr);
     setOffset(0);
@@ -90,10 +93,10 @@ export default function CardSpinner({ trigger = 0, onFinish }) {
     const timeout = setTimeout(() => {
       spinSoundRef.current?.pause();
       successSoundRef.current?.play().catch(() => {});
-      onFinish(finalReward);
+      finishRef.current?.(finalReward);
     }, 3000);
     return () => clearTimeout(timeout);
-  }, [trigger, onFinish]);
+  }, [trigger, forcedOutcome]);
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50">
