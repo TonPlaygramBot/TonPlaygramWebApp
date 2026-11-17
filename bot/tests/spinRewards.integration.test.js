@@ -11,7 +11,7 @@ let now = 1800000000000;
 const draws = [];
 const service = createSpinRewards({ User, clock: () => now, random: () => draws.shift() ?? 0 });
 test.before(async () => {
-  mongo = await MongoMemoryServer.create();
+  mongo = await MongoMemoryServer.create({ instance: { args: ['--nounixsocket'] } });
   await mongoose.connect(mongo.getUri());
   await User.init();
 });
