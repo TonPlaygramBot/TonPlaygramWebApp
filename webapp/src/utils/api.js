@@ -1,3 +1,4 @@
+import { observeTelegramSessionResponse } from './telegramSessionRecovery.js';
 import { getNativeBridgeHeaders } from './nativeBridge';
 import { loadGoogleCredential } from './google.js';
 
@@ -80,6 +81,7 @@ function normalizeTelegramId(rawId) {
 async function fetchWithRetry(url, options = {}, retries = 3, backoff = 500) {
   try {
     const res = await fetch(url, options);
+    observeTelegramSessionResponse(res, options.headers);
     const retryAfterSeconds = Number(res.headers?.get?.('retry-after'));
     const hasShortRateLimit =
       res.status === 429 &&
