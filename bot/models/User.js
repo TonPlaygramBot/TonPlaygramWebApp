@@ -49,7 +49,22 @@ nftTokenId: String
   { _id: false }
 );
 
+const spinGrantSchema = new mongoose.Schema({
+  id: String,
+  outcome: mongoose.Schema.Types.Mixed,
+  bonusOutcomes: [Number],
+  amount: Number,
+  readyAt: Date,
+  claimed: Boolean
+}, { _id: false });
+const spinStateSchema = new mongoose.Schema({
+  nextSpinAt: Date,
+  freeSpins: Number,
+  pending: spinGrantSchema
+}, { _id: false });
+
 const userSchema = new mongoose.Schema({
+  spinRewards: { spin: spinStateSchema, roulette: spinStateSchema },
 
   // Allow multiple users without a Telegram account. The sparse unique index
   // defined below ensures that only defined telegramId values must be unique,

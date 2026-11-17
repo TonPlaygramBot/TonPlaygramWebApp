@@ -5,7 +5,7 @@ import { getGameVolume } from '../utils/sound.js';
 import { segments as baseSegments, Segment } from '../utils/rewardLogic';
 
 export interface SpinWheelHandle {
-  spin: () => void;
+  spin: (outcome?: Segment) => void;
 }
 
 interface SpinWheelProps {
@@ -128,14 +128,17 @@ export default forwardRef<SpinWheelHandle, SpinWheelProps>(function SpinWheel(
     finish();
   };
 
-  const spin = () => {
+  const spin = (outcome?: Segment) => {
     if (spinning || disabled || finishRef.current) return;
     if (!disableSound && spinSoundRef.current) {
       spinSoundRef.current.currentTime = 0;
       spinSoundRef.current.play().catch(() => {});
     }
 
-    const index = Math.floor(Math.random() * wheelSegments.length);
+    const index = outcome === undefined
+      ? Math.floor(Math.random() * wheelSegments.length)
+      : wheelSegments.indexOf(outcome);
+    if (index < 0) return;
 
     const reward = wheelSegments[index];
 
@@ -276,7 +279,7 @@ export default forwardRef<SpinWheelHandle, SpinWheelProps>(function SpinWheel(
       </div>
       {showButton && (
         <button
-          onClick={spin}
+          onClick={() => spin()}
           className="mt-4 px-4 py-1 bg-green-600 text-white text-sm font-bold rounded disabled:bg-gray-500"
           disabled={spinning || disabled}
         >

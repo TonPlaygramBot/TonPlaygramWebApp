@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import SpinRewardVideo from './SpinRewardVideo.tsx';
 import { getTelegramId } from '../utils/telegram.js';
-import { creditSpinReward } from '../utils/creditSpinReward.js';
+import useServerSpinReward from '../hooks/useServerSpinReward.js';
 import coinConfetti from '../utils/coinConfetti';
 import { getGameVolume } from '../utils/sound.js';
 
@@ -69,14 +69,7 @@ const RED_NUMBERS = new Set([
 const SEGMENT_ANGLE = 360 / ROULETTE_ORDER.length;
 const LABEL_OFFSET_ANGLE = -90 + SEGMENT_ANGLE / 2;
 const WHEEL_ROTATION_OFFSET = 90;
-const PRIZE_MAP = ROULETTE_ORDER.reduce((acc, value) => {
-  if (value === 0) acc[value] = 5000;
-  else acc[value] = value * 100;
-  return acc;
-}, {});
-
 const SPIN_DURATION_MS = 4500;
-const COOLDOWN = 4 * 60 * 60 * 1000; // 4 hours
 
 const formatCountdown = (ms) => {
   const totalSeconds = Math.max(0, Math.ceil(ms / 1000));
@@ -107,11 +100,6 @@ export default function RouletteMini({ reelUrl = null }) {
   });
   const [spinning, setSpinning] = useState(false);
   const [outcome, setOutcome] = useState(null);
-  const [showAd, setShowAd] = useState(false);
-  const [creditFailed, setCreditFailed] = useState(false);
-  const [canSpin, setCanSpin] = useState(false);
-  const [nextSpinTime, setNextSpinTime] = useState(null);
-  const [remaining, setRemaining] = useState(0);
   const spinTimeoutRef = useRef(null);
   const spinSoundRef = useRef(null);
   const finishSpinRef = useRef(null);
@@ -142,45 +130,6 @@ export default function RouletteMini({ reelUrl = null }) {
     };
   }, []);
 
-  useEffect(() => {
-    const lastSpin = parseInt(localStorage.getItem('rouletteSpinTs') || '0', 10);
-    if (!lastSpin) {
-      setCanSpin(true);
-      setNextSpinTime(null);
-      return;
-    }
-    const elapsed = Date.now() - lastSpin;
-    if (elapsed >= COOLDOWN) {
-      setCanSpin(true);
-      setNextSpinTime(null);
-    } else {
-      setCanSpin(false);
-      setNextSpinTime(lastSpin + COOLDOWN);
-      setRemaining(COOLDOWN - elapsed);
-    }
-  }, []);
-
-  useEffect(() => {
-    if (!nextSpinTime) {
-      setRemaining(0);
-      return;
-    }
-    setCanSpin(false);
-    const update = () => {
-      const diff = nextSpinTime - Date.now();
-      if (diff <= 0) {
-        setNextSpinTime(null);
-        setCanSpin(true);
-        setRemaining(0);
-      } else {
-        setRemaining(diff);
-      }
-    };
-    update();
-    const id = setInterval(update, 1000);
-    return () => clearInterval(id);
-  }, [nextSpinTime]);
-
   useEffect(() => () => {
     if (spinTimeoutRef.current) clearTimeout(spinTimeoutRef.current);
   }, []);
@@ -193,9 +142,10 @@ export default function RouletteMini({ reelUrl = null }) {
     finish();
   };
 
-  const startSpin = () => {
-    if (!canSpin || spinning || finishSpinRef.current) return;
-    const index = Math.floor(Math.random() * ROULETTE_ORDER.length);
+  const startSpin = (grant) => {
+    if (spinning || finishSpinRef.current) return;
+    const index = ROULETTE_ORDER.indexOf(grant.outcome);
+    if (index < 0) return;
     const extraSpins = Math.floor(Math.random() * 3) + 4;
     const totalSpins = spinState.totalSpins + extraSpins;
     const rotation =
@@ -206,7 +156,7 @@ export default function RouletteMini({ reelUrl = null }) {
 
     setSpinning(true);
     setOutcome(null);
-    setCreditFailed(false);
+
     setSpinState({ totalSpins, rotation });
     if (spinSoundRef.current) {
       spinSoundRef.current.currentTime = 0;
@@ -219,13 +169,8 @@ export default function RouletteMini({ reelUrl = null }) {
       if (spinSoundRef.current) spinSoundRef.current.currentTime = 0;
 
       const resolvedNumber = ROULETTE_ORDER[index];
-      const resolvedPrize = PRIZE_MAP[resolvedNumber];
+      const resolvedPrize = grant.amount;
       setOutcome({ number: resolvedNumber, prize: resolvedPrize });
-      const now = Date.now();
-      localStorage.setItem('rouletteSpinTs', String(now));
-      setNextSpinTime(now + COOLDOWN);
-      setCanSpin(false);
-
       coinConfetti(36);
       const audio = new Audio(
         '/assets/sounds/11l-victory_sound_with_t-1749487412779-357604.mp3',
@@ -233,17 +178,12 @@ export default function RouletteMini({ reelUrl = null }) {
       audio.volume = getGameVolume();
       audio.play().catch(() => {});
 
-      creditSpinReward(telegramId, resolvedPrize, 'roulette')
-        .catch(() => setCreditFailed(true));
     };
 
     spinTimeoutRef.current = setTimeout(finishSpin, SPIN_DURATION_MS + 150);
   };
 
-  const handleAdComplete = () => {
-    setShowAd(false);
-    startSpin();
-  };
+  const server = useServerSpinReward('roulette', startSpin);
 
   return (
     <div className="relative bg-surface border border-border rounded-xl p-4 space-y-4 text-center overflow-hidden wide-card">
@@ -258,9 +198,9 @@ export default function RouletteMini({ reelUrl = null }) {
       <h3 className="text-lg font-bold text-white">Roulette Spin</h3>
       <SpinRewardVideo
         reelUrl={reelUrl}
-        rewardOpen={showAd}
-        onRewardComplete={handleAdComplete}
-        onRewardClose={() => setShowAd(false)}
+        rewardOpen={server.showAd}
+        onRewardComplete={server.claim}
+        onRewardClose={server.closeAd}
       />
       <div className="relative mx-auto w-72 h-72 sm:w-80 sm:h-80">
         <div className="absolute left-1/2 -translate-x-1/2 -top-2 z-20 flex flex-col items-center">
@@ -330,19 +270,19 @@ export default function RouletteMini({ reelUrl = null }) {
       </div>
       <div className="space-y-2">
         <button
-          onClick={() => setShowAd(true)}
-          disabled={!canSpin || spinning}
+          onClick={server.begin}
+          disabled={!server.ready || server.busy || spinning}
           className={`px-6 py-2 rounded-full font-semibold transition text-white ${
-            !canSpin || spinning
+            !server.ready || server.busy || spinning
               ? 'bg-border cursor-not-allowed'
               : 'bg-gradient-to-r from-brand-gold to-yellow-400 text-black shadow-lg'
           }`}
         >
-          {spinning ? 'Spinning…' : 'Spin the Wheel'}
+          {spinning ? 'Spinning…' : server.busy ? 'Confirming…' : server.error ? 'Retry spin' : 'Spin the Wheel'}
         </button>
-        {!canSpin && remaining > 0 && (
+        {!server.ready && server.remaining > 0 && (
           <p className="text-sm text-subtext">
-            Next spin available in {formatCountdown(remaining)}
+            Next spin available in {formatCountdown(server.remaining)}
           </p>
         )}
         {outcome && (
@@ -354,9 +294,9 @@ export default function RouletteMini({ reelUrl = null }) {
           </div>
         )}
       </div>
-      {creditFailed && (
+      {server.error && (
         <p role="status" className="text-sm text-yellow-300">
-          Could not confirm the reward in your wallet.
+          Could not confirm the reward. Retry safely; the same spin will not be credited twice. {server.error}
         </p>
       )}
     </div>
