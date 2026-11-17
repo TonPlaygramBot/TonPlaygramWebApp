@@ -12,7 +12,7 @@ let server;
 const request = (extra = {}) => ({ fromAccount: 'alice', toAccount: 'bob', gift: 'fireworks', requestId: randomUUID(), ...extra });
 const send = (data, options = {}) => deliverGift(data, user => user.accountId === 'alice', { externalMintConfigured: false, ...options });
 before(async () => {
-  server = await MongoMemoryReplSet.create({ replSet: { count: 1 }, instanceOpts: [{ storageEngine: 'wiredTiger' }] });
+  server = await MongoMemoryReplSet.create({ replSet: { count: 1, args: ['--nounixsocket'] }, instanceOpts: [{ storageEngine: 'wiredTiger' }] });
   await mongoose.connect(server.getUri(), { dbName: `gift_test_${randomUUID()}` });
   await Promise.all([User.init(), GiftDelivery.init()]);
 });

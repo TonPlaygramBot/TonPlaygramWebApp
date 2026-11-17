@@ -22,7 +22,7 @@ Stacked on the premium gift experience draft. No IDs/prices changed. No producti
 
 ## Verification
 - Disposable MongoDB replica-set integration suite covers duplicate concurrency, distinct-send overspend, rollback after recipient/receipt write failures, self-gifts, key mismatch, authorization, durable rejection, legacy arrays and provider fail-closed behavior.
-- **Local integration run is blocked**, not passed: mongod exits with `open: Operation not permitted` before database startup in this environment, including a sandbox escalation attempt. Dedicated GitHub CI workflow runs this isolated fixture without production secrets or database URLs.
+- **Local integration run: all 13 tests passed on an actual disposable MongoDB 7.0.14 replica set.** Initial startup was blocked by Unix socket restrictions; starting the fixture with `--nounixsocket` resolved this without changing database transaction behavior. Verification command: `MONGOMS_SYSTEM_BINARY=/tmp/tpg-mongodb-binaries/mongod-x64-debian-7.0.14 node --test test/giftDelivery.integration.node.mjs`. The fixture uses only its generated URI and never reads a configured production DB URL. Dedicated GitHub CI also runs this fixture without production secrets. This does not verify production deployment topology or on-device behavior.
 - Frontend checkout/UI/API tests use mocked requests only. A passing UI test does not prove database atomicity.
 
 ## Remaining premium artwork
