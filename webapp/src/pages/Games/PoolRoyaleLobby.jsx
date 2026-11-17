@@ -1,3 +1,4 @@
+import { PAID_PLAY_PAUSE_MESSAGE } from '../../../../lib/paidPlayPause.js';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import RoomSelector from '../../components/RoomSelector.jsx';
@@ -602,6 +603,7 @@ export default function PoolRoyaleLobby() {
     <div className="relative min-h-screen bg-[#070b16] text-text">
       <div className="absolute inset-0 tetris-grid-bg opacity-60" />
       <div className="relative z-10 space-y-6 p-4 pb-8">
+        <p role="status">{PAID_PLAY_PAUSE_MESSAGE}</p>
         {winnerParam && (
           <div className="rounded-2xl border border-emerald-400/30 bg-emerald-400/10 px-4 py-2 text-center text-sm font-semibold text-emerald-200">
             {winnerParam === '1' ? 'You won!' : 'CPU won!'}

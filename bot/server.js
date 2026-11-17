@@ -1,3 +1,4 @@
+import { isPausedPaidGame, PAID_PLAY_PAUSE_CODE } from '../lib/paidPlayPause.js';
 import { createPoolOnlineTournaments } from './services/poolOnlineTournaments.js';
 import { createInitialChessBoard, normalizeChessBoard, chessBoardToFen, validateAndApplyChessMove, adjudicateChessTimeout } from './chessRules.js';
 import './loadEnv.js';
@@ -1261,6 +1262,7 @@ async function seatTableSocket(
   forcedTableId = null
 ) {
   if (!accountId) return null;
+  if (isPausedPaidGame(gameType, stake) || isPausedPaidGame(tableMap.get(forcedTableId)?.gameType, tableMap.get(forcedTableId)?.stake)) return null;
   console.log(
     `Seating player ${playerName || accountId} at ${gameType}-${maxPlayers} (stake ${stake})`
   );
@@ -1573,6 +1575,10 @@ async function settleChessStakeContract(tableId, result = {}) {
 }
 
 function maybeStartGame(table) {
+  if (isPausedPaidGame(table.gameType, table.stake)) {
+    io.to(table.id).emit('matchmakingError', { tableId: table.id, error: PAID_PLAY_PAUSE_CODE });
+    return;
+  }
   if (table.started || table.starting) return;
   if (
     table.players.length === table.maxPlayers &&
@@ -1582,6 +1588,7 @@ function maybeStartGame(table) {
     if (table.startTimeout) return;
     table.startTimeout = setTimeout(async () => {
       table.startTimeout = null;
+      if (isPausedPaidGame(table.gameType, table.stake)) return;
       if (
         tableMap.get(table.id) !== table ||
         table.players.length !== table.maxPlayers ||
@@ -2114,12 +2121,12 @@ app.post('/api/admin/accounts/cleanup-fake', authenticate, async (req, res) => {
   }
 });
 
-app.post('/api/snake/table/seat', (req, res) => {
+app.post('/api/snake/table/seat', async (req, res) => {
   const { tableId, name, avatar } = req.body || {};
   const pid = resolveTpcIdentity(req.body || {});
   if (!tableId || !pid) return res.status(400).json({ error: 'missing data' });
   const [gameType, capStr] = tableId.split('-');
-  seatTableSocket(
+  const seated = await seatTableSocket(
     pid,
     gameType,
     0,
@@ -2131,6 +2138,7 @@ app.post('/api/snake/table/seat', (req, res) => {
     {},
     tableId
   );
+  if (!seated) return res.status(503).json({ error: PAID_PLAY_PAUSE_CODE });
   res.json({ success: true });
 });
 
@@ -2524,6 +2532,9 @@ io.on('connection', (socket) => {
         return cb && cb({ success: false, error: validation.error });
       }
 
+      if (isPausedPaidGame(validation.normalizedGameType, validation.normalizedStake)) {
+        return cb?.({ success: false, error: PAID_PLAY_PAUSE_CODE });
+      }
       const safeMeta = validation.safeMatchMeta;
 
       if (validation.normalizedGameType === 'kartroyale') {
@@ -2649,6 +2660,12 @@ io.on('connection', (socket) => {
 
   socket.on('joinRoom', async (payload = {}, cb) => {
     const { roomId, name, avatar } = payload;
+    const pausedTable = tableMap.get(roomId) || gameManager.rooms.get(roomId);
+    if (pausedTable && isPausedPaidGame(pausedTable.gameType, pausedTable.stake ?? pausedTable.amount)) {
+      socket.emit('errorMessage', PAID_PLAY_PAUSE_CODE);
+      cb?.({ success: false, error: PAID_PLAY_PAUSE_CODE });
+      return;
+    }
     const pid = resolveTpcIdentity(payload);
     if (hasConflictingIdentities(payload)) {
       socket.emit('errorMessage', 'identity_mismatch');
@@ -3161,6 +3178,11 @@ io.on('connection', (socket) => {
     if (!tableId) return;
     const resolvedAccountId = resolveTpcIdentity({ accountId });
     const table = tableMap.get(tableId);
+    if (isPausedPaidGame(table?.gameType, table?.stake)) {
+      socket.emit('poolSyncError', { tableId, error: PAID_PLAY_PAUSE_CODE });
+      cb?.({ success: false, error: PAID_PLAY_PAUSE_CODE });
+      return;
+    }
     if (!ensureRegistered(socket, resolvedAccountId) || !table || table.gameType !== 'poolroyale' ||
       !table.players.some((player) => String(player.id) === String(resolvedAccountId))) {
       socket.emit('poolSyncError', { tableId, error: 'seat_required' });
@@ -3193,6 +3215,10 @@ io.on('connection', (socket) => {
     if (!tableId) return;
     const resolvedAccountId = resolveTpcIdentity({ accountId });
     const table = tableMap.get(tableId);
+    if (isPausedPaidGame(table?.gameType, table?.stake)) {
+      socket.emit('poolSyncError', { tableId, error: PAID_PLAY_PAUSE_CODE });
+      return;
+    }
     if (!ensureRegistered(socket, resolvedAccountId) || !socket.rooms.has(tableId) ||
       !table?.players.some((player) => String(player.id) === String(resolvedAccountId))) {
       socket.emit('poolSyncError', { tableId, error: 'seat_required' });
@@ -3215,6 +3241,10 @@ io.on('connection', (socket) => {
     if (!tableId || !Array.isArray(layout)) return;
     const resolvedAccountId = resolveTpcIdentity({ accountId: accountId || playerId || socket.data?.playerId });
     const table = tableMap.get(tableId);
+    if (isPausedPaidGame(table?.gameType, table?.stake)) {
+      socket.emit('poolSyncError', { tableId, error: PAID_PLAY_PAUSE_CODE });
+      return;
+    }
     if (!ensureRegistered(socket, resolvedAccountId) || !socket.rooms.has(tableId) ||
       !table?.players.some((player) => String(player.id) === String(resolvedAccountId))) {
       socket.emit('poolSyncError', { tableId, error: 'seat_required' });
@@ -3246,6 +3276,11 @@ io.on('connection', (socket) => {
     if (!tableId || !state) return;
     const resolvedAccountId = resolveTpcIdentity({ accountId: accountId || socket.data?.playerId });
     const table = tableMap.get(tableId);
+    if (isPausedPaidGame(table?.gameType, table?.stake)) {
+      socket.emit('poolSyncError', { tableId, error: PAID_PLAY_PAUSE_CODE });
+      cb?.({ success: false, error: PAID_PLAY_PAUSE_CODE });
+      return;
+    }
     if (!ensureRegistered(socket, resolvedAccountId) || !socket.rooms.has(tableId) ||
       !table?.players.some((player) => String(player.id) === String(resolvedAccountId))) {
       socket.emit('poolSyncError', { tableId, error: 'seat_required' });

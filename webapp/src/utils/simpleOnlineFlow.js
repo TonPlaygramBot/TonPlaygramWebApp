@@ -1,3 +1,4 @@
+import { isPausedPaidGame, PAID_PLAY_PAUSE_MESSAGE } from '../../../lib/paidPlayPause.js';
 import { ensureAccountId, getTelegramId } from './telegram.js';
 import { getAccountBalance } from './api.js';
 import { refreshSocketAuthIdentity, socket } from './socket.js';
@@ -73,6 +74,11 @@ export async function runSimpleOnlineFlow({
   deps = {},
   refreshMs = MATCHMAKING_REFRESH_MS
 }) {
+  if (isPausedPaidGame(gameType, stake?.amount)) {
+    state.setMatchError?.(PAID_PLAY_PAUSE_MESSAGE);
+    state.setMatching?.(false);
+    return { ok: false, error: 'paid_play_temporarily_paused' };
+  }
   const effectiveRefreshMs = Number.isFinite(refreshMs) && refreshMs > 0
     ? refreshMs
     : MATCHMAKING_REFRESH_MS;

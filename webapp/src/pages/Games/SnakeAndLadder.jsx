@@ -1,3 +1,4 @@
+import { PAID_PLAY_PAUSE_MESSAGE } from '../../../../lib/paidPlayPause.js';
 import { useState, useEffect, useRef, useCallback, useMemo } from "react";
 import coinConfetti from "../../utils/coinConfetti";
 import { snakeDiceReceiver } from '../../utils/snakeDiceReceiver';
@@ -1154,7 +1155,7 @@ export default function SnakeAndLadder() {
   const [, setDiceVisible] = useState(true);
   const [photoUrl, setPhotoUrl] = useState(loadAvatar() || '');
   const [myName, setMyName] = useState('You');
-  const [pot, setPot] = useState(101);
+  const [pot, setPot] = useState(0);
   const [token, setToken] = useState("TPG");
   const [celebrate, setCelebrate] = useState(false);
   const [leftWinner, setLeftWinner] = useState(null);
@@ -1731,13 +1732,13 @@ export default function SnakeAndLadder() {
     const params = new URLSearchParams(window.location.search);
     const watchParam = params.get("watch");
     const t = params.get("token");
-    const amt = params.get("amount");
     const aiParam = params.get("ai");
     const flagsParam = params.get('flags');
     const tableParam = params.get("table");
     const capacityParam = params.get('capacity');
     if (t) setToken(t.toUpperCase());
-    if (amt) setPot(Number(amt));
+    // Paid Snake settlement is paused; URL amounts cannot create a prize.
+    setPot(0);
     const aiCount = aiParam
       ? Math.max(1, Math.min(3, Number(aiParam)))
       : tableParam
@@ -2605,7 +2606,7 @@ export default function SnakeAndLadder() {
           const first = ranking.length === 0;
           const total = pot * (ai + 1);
           const winAmt = Math.round(total * 0.91);
-          if (first) {
+          if (first && winAmt > 0) {
             ensureAccountId()
               .then(async (aid) => {
                 await Promise.all([
@@ -3295,6 +3296,7 @@ export default function SnakeAndLadder() {
 
   return (
     <div className={`${seatedGameClassName} overflow-hidden`}>
+      <p role="status" className="fixed top-2 left-2 right-2 z-50 bg-black/80 p-2 text-xs text-white">{PAID_PLAY_PAUSE_MESSAGE}</p>
       <div className="absolute inset-0">
         <SnakeBoard3D
           players={players}
