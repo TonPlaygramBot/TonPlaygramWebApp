@@ -52,3 +52,56 @@ it('restores unresolved confirmation after unmount without automatically sending
 });
 
 it('terminal persisted rejection unlocks recipient changes after safe recovery',async()=>{mock.send.mockRejectedValueOnce(new Error('lost response')).mockImplementation(async(_from,_to,_gift,requestId)=>({error:'insufficient balance',requestId,requestStatus:'rejected'}));await render();await select();await act(async()=>button('Confirm ·').click());await act(async()=>button('Retry same gift request').click());expect(button('Choose another gift').disabled).toBe(false);expect(document.querySelector('[aria-label="Gift recipient"]').disabled).toBe(false);expect(sessionStorage.length).toBe(0);});
+
+it('one explicit quick-buy click sends without a separate confirmation screen',async()=>{
+ await render();const buy=document.querySelector('.gift-quick-send'),preview=document.querySelector('.gift-tile');
+ expect(buy.textContent).toContain('To: Bob');expect(buy.textContent).toContain('TPG');expect(buy.getAttribute('aria-label')).toContain('Buy ');expect(preview.getAttribute('aria-label')).toContain('View ');
+ expect(mock.send).not.toHaveBeenCalled();await act(async()=>buy.click());
+ expect(mock.send).toHaveBeenCalledTimes(1);expect(mock.send.mock.calls[0].slice(0,2)).toEqual(['alice','bob']);expect(complete).toHaveBeenCalledOnce();expect(close).toHaveBeenCalledOnce();
+});
+it('quick-buy shows and snapshots the selected recipient and blocks rapid duplicate taps',async()=>{
+ let resolve;mock.send.mockImplementation(()=>new Promise(r=>resolve=r));await render();
+ await act(async()=>{const s=document.querySelector('[aria-label="Quick gift recipient"]');s.value='carol';s.dispatchEvent(new Event('change',{bubbles:true}));});
+ expect(document.querySelector('.gift-quick-send').textContent).toContain('To: Carol');
+ await act(async()=>{const b=document.querySelector('.gift-quick-send');b.click();b.click();});
+ expect(mock.send).toHaveBeenCalledTimes(1);expect(document.querySelector('[aria-label="Quick gift recipient"]').disabled).toBe(true);expect(document.querySelector('.gift-tile').disabled).toBe(true);
+ const [from,to,id,requestId]=mock.send.mock.calls[0];expect(to).toBe('carol');
+ await act(async()=>resolve({requestId,balance:1000,transaction:{type:'gift',token:'TPG',status:'delivered',detail:id,toAccount:to,amount:-GIFT_BY_ID[id].price}}));expect(complete).toHaveBeenCalledOnce();
+});
+it('quick-buy ambiguous response locks into same-intent recovery, not another card purchase',async()=>{
+ const deliver=mock.send.getMockImplementation();mock.send.mockRejectedValueOnce(new Error('response lost')).mockImplementation(deliver);await render();await act(async()=>document.querySelector('.gift-quick-send').click());const original=mock.send.mock.calls[0];
+ expect(document.querySelector('.gift-quick-send')).toBeNull();expect(button('Choose another gift').disabled).toBe(true);expect(mock.sound).not.toHaveBeenCalled();
+ await act(async()=>button('Retry same gift request').click());expect(mock.send.mock.calls[1]).toEqual(original);expect(complete).toHaveBeenCalledOnce();
+});
+it('shop quick-buy defaults visibly to own collection and sends exactly once',async()=>{
+ await act(async()=>root.render(<GiftExperience accountId="alice" onClose={close} onCompleted={complete}/>));const buy=document.querySelector('.gift-quick-send');
+ expect(buy.textContent).toContain('Buy for me');expect(buy.textContent).toContain('To: Your collection');await act(async()=>buy.click());
+ expect(mock.send.mock.calls[0].slice(0,2)).toEqual(['alice','alice']);expect(document.querySelector('.gift-success').textContent).toContain('Your collection');expect(mock.send).toHaveBeenCalledTimes(1);
+});
+it('quick-buy is disabled for signed-out or unavailable recipients',async()=>{
+ await act(async()=>root.render(<GiftExperience players={players} onClose={close}/>));expect(document.querySelector('.gift-quick-send').disabled).toBe(true);
+ await render([]);expect(document.querySelector('.gift-quick-send').disabled).toBe(true);expect(mock.send).not.toHaveBeenCalled();
+});
+it('quick terminal rejection is visibly reported without success or another automatic send',async()=>{
+ mock.send.mockImplementation(async(_from,_to,_gift,requestId)=>({error:'insufficient balance',requestId,requestStatus:'rejected'}));await render();await act(async()=>document.querySelector('.gift-quick-send').click());
+ expect(document.querySelector('[role="alert"]').textContent).toBe('insufficient balance');expect(mock.send).toHaveBeenCalledTimes(1);expect(mock.sound).not.toHaveBeenCalled();expect(close).not.toHaveBeenCalled();expect(sessionStorage.length).toBe(0);
+});
+it('quick-buy storage failure is visible and never transmits',async()=>{
+ await render();const spy=vi.spyOn(Storage.prototype,'setItem').mockImplementation(()=>{throw Error('blocked');});
+ try{await act(async()=>document.querySelector('.gift-quick-send').click());expect(document.querySelector('[role="alert"]').textContent).toContain('No gift was sent');expect(mock.send).not.toHaveBeenCalled();}finally{spy.mockRestore();}
+});
+it('account switch during quick-send does not celebrate or close the new account UI',async()=>{
+ let resolve;mock.send.mockImplementation(()=>new Promise(r=>resolve=r));await render();await act(async()=>document.querySelector('.gift-quick-send').click());const [,to,id,requestId]=mock.send.mock.calls[0];
+ await act(async()=>root.render(<GiftExperience accountId="different" players={players} onClose={close} onCompleted={complete}/>));
+ await act(async()=>resolve({requestId,balance:1000,transaction:{type:'gift',token:'TPG',status:'delivered',detail:id,toAccount:to,amount:-GIFT_BY_ID[id].price}}));
+ expect(mock.sound).not.toHaveBeenCalled();expect(close).not.toHaveBeenCalled();expect(complete).not.toHaveBeenCalled();
+});
+it('account-scoped unresolved request clears for B and restores for original A',async()=>{
+ mock.send.mockRejectedValue(new Error('offline'));await render();await act(async()=>document.querySelector('.gift-quick-send').click());const key=mock.send.mock.calls[0][3];expect(button('Retry same gift request')).toBeDefined();
+ await act(async()=>root.render(<GiftExperience accountId="other" players={players} onClose={close} onCompleted={complete}/>));expect(button('Retry same gift request')).toBeUndefined();expect(document.querySelector('.gift-quick-send').disabled).toBe(false);
+ await render();expect(button('Retry same gift request')).toBeDefined();expect(mock.send).toHaveBeenCalledTimes(1);await act(async()=>button('Retry same gift request').click());expect(mock.send.mock.calls[1][3]).toBe(key);
+});
+it('confirmed send does not animate a recipient who left during the request',async()=>{
+ let resolve;mock.send.mockImplementation(()=>new Promise(r=>resolve=r));await render();await act(async()=>document.querySelector('.gift-quick-send').click());const [,to,id,requestId]=mock.send.mock.calls[0];await render([players[1]]);
+ await act(async()=>resolve({requestId,balance:1000,transaction:{type:'gift',token:'TPG',status:'delivered',detail:id,toAccount:to,amount:-GIFT_BY_ID[id].price}}));expect(close).toHaveBeenCalledOnce();expect(complete).not.toHaveBeenCalled();
+});
