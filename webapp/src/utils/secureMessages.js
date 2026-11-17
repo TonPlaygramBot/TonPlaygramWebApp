@@ -221,3 +221,8 @@ export function clearSecureConversation(ctx, scope = 'me') {
 export function releaseMessageAttachments(records) {
   for (const message of records || []) if (message?.attachment?.url?.startsWith('blob:')) URL.revokeObjectURL(message.attachment.url);
 }
+
+// Send category metadata only. Never attach decrypted messages or files.
+export function submitSocialReport(targetAccountId, reason, requestId) {
+  return request('/reports', { targetAccountId, reason, requestId });
+}

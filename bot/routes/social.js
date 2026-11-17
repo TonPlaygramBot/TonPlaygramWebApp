@@ -5,11 +5,13 @@ import Post from '../models/Post.js';
 import bot from '../bot.js';
 import socialAuthenticate from '../middleware/socialAuth.js';
 import socialMessages from './socialMessages.js';
+import socialReports from './socialReports.js';
 import { sendPushNotifications } from '../services/pushNotificationService.js';
 
 const router = Router();
 router.use(socialAuthenticate);
 router.use(socialMessages);
+router.use(socialReports);
 
 function authCanUseIdentity(auth, identity) {
   const value = String(identity ?? '');

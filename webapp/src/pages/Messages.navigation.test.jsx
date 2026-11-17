@@ -7,7 +7,7 @@ import { clearLocalCalls, listLocalCalls, recordLocalCall } from '../utils/socia
 const mocks = vi.hoisted(() => ({
   initialize: vi.fn(), prepare: vi.fn(), load: vi.fn(), send: vi.fn(), decrypt: vi.fn(), remove: vi.fn(), clear: vi.fn(),
   release: vi.fn(), accept: vi.fn(), reset: vi.fn(), listeners: new Map(),
-  friends: vi.fn(), requests: vi.fn(), read: vi.fn(), emit: vi.fn()
+  submitReport: vi.fn(), friends: vi.fn(), requests: vi.fn(), read: vi.fn(), emit: vi.fn()
 }));
 vi.mock('../hooks/useTelegramBackButton.js', () => ({ default: () => {} }));
 vi.mock('../components/LeaderboardCard.jsx', () => ({ default: () => <div>Leaderboard</div> }));
@@ -28,7 +28,8 @@ vi.mock('../utils/secureMessages.js', () => ({
   sendSecureMessage: (...args) => mocks.send(...args), decryptMessages: (...args) => mocks.decrypt(...args),
   deleteSecureMessage: (...args) => mocks.remove(...args), clearSecureConversation: (...args) => mocks.clear(...args),
   releaseMessageAttachments: (...args) => mocks.release(...args), acceptPeerKeyChange: (...args) => mocks.accept(...args),
-  resetConversationDeviceKey: (...args) => mocks.reset(...args)
+  resetConversationDeviceKey: (...args) => mocks.reset(...args),
+  submitSocialReport: (...args) => mocks.submitReport(...args)
 }));
 
 const NOW = Date.now();
@@ -50,6 +51,7 @@ describe('Social Hub privacy and conversation controls', () => {
   beforeEach(() => {
     vi.clearAllMocks(); mocks.listeners.clear(); localStorage.clear();
     mocks.friends.mockResolvedValue([{ accountId: 'peer', telegramId: 2, nickname: 'Arta' }, { accountId: 'other', telegramId: 3, nickname: 'Besa' }]);
+    mocks.submitReport.mockResolvedValue({ status: 'received' });
     mocks.requests.mockResolvedValue([]); mocks.read.mockResolvedValue({ success: true });
     mocks.initialize.mockResolvedValue({ selfId: 'self', isReady: true, securityReason: null });
     mocks.prepare.mockImplementation(async (_self, peer) => readyContext(peer));
@@ -61,6 +63,36 @@ describe('Social Hub privacy and conversation controls', () => {
     container = document.createElement('div'); document.body.appendChild(container); root = createRoot(container);
   });
   afterEach(async () => { await act(async () => root.unmount()); container.remove(); vi.useRealTimers(); });
+
+  const openReport = async () => {
+    await click(byLabel('Conversation options'));
+    await click([...container.querySelectorAll('.hub-option')].find(element => element.textContent.includes('Report player')));
+  };
+  it('reports only selected canonical account and category after explicit confirmation', async () => {
+    await render(); await open(); await openReport();
+    expect(mocks.submitReport).not.toHaveBeenCalled();
+    expect(container.textContent).toContain('will not be included');
+    await click(button('Submit report'));
+    expect(mocks.submitReport).toHaveBeenCalledWith('peer', 'harassment', expect.any(String));
+    expect(container.textContent).toContain('Report received. This does not block the player.');
+  });
+  it('cancel never submits, failed requests retain the same id on retry', async () => {
+    await render(); await open(); await openReport(); await click(byLabel('Close dialog'));
+    expect(mocks.submitReport).not.toHaveBeenCalled(); await openReport();
+    mocks.submitReport.mockRejectedValueOnce(new Error('Network failed'));
+    await click(button('Submit report')); expect(container.textContent).not.toContain('Report received.');
+    await click(button('Submit report'));
+    expect(mocks.submitReport.mock.calls[0]).toEqual(mocks.submitReport.mock.calls[1]);
+  });
+  it('repeated taps submit once and delayed response does not close another conversation sheet', async () => {
+    const pending = deferred(); mocks.submitReport.mockReturnValue(pending.promise);
+    await render(); await open(); await openReport(); await click(button('Submit report'));
+    await click(button('Submitting…')); expect(mocks.submitReport).toHaveBeenCalledTimes(1);
+    await click(byLabel('Back to conversations')); await open('Besa'); await click(byLabel('Conversation options'));
+    await act(async () => pending.resolve({ status: 'received' }));
+    expect(container.querySelector('[role="dialog"]')).toBeTruthy();
+    expect(container.textContent).not.toContain('Report received.');
+  });
 
   it('shows real people and empty call history without invented online, unread or notification data', async () => {
     await render();
