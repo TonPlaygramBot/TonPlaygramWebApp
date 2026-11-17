@@ -25,6 +25,7 @@ export default function GiftExperience({ accountId = '', resolveAccount, players
   const [playerId, setPlayerId] = useState(String(validPlayers[0]?.id || ''));
   const [search, setSearch] = useState(''), [collection, setCollection] = useState('All'), [tier, setTier] = useState('All'), [sort, setSort] = useState('featured');
   const [limit, setLimit] = useState(24), [selectedId, setSelectedId] = useState(null), [stage, setStage] = useState('browse');
+  const [recovery, setRecovery] = useState(null);
   const [order, setOrder] = useState(null), [busy, setBusy] = useState(false), [error, setError] = useState('');
   const scroll = useRef(null), savedScroll = useRef(0), heading = useRef(null), busyRef = useRef(false), completed = useRef(null), mounted = useRef(true);
   const checkout = useRef(createGiftCheckout(sendGift));
@@ -35,6 +36,16 @@ export default function GiftExperience({ accountId = '', resolveAccount, players
   const playerKey = validPlayers.map(p => String(p.id)).join('|');
   useEffect(() => { if (gameMode && !validPlayers.some(p => String(p.id) === playerId)) setPlayerId(String(validPlayers[0]?.id || '')); }, [playerKey, gameMode, playerId]);
   useEffect(() => { if (stage !== 'browse') { scroll.current?.scrollTo(0, 0); heading.current?.focus(); } }, [stage, selectedId]);
+  const restoreIntent = intent => {
+    const player = validPlayers.find(p => String(p.id) === intent.toAccount);
+    setRecovery(intent); setSelectedId(intent.giftId); setStage('confirm');
+    setOrder({ giftId: intent.giftId, toAccount: intent.toAccount, recipientName: player?.name || intent.toAccount, playerIndex: player?.index });
+  };
+  useEffect(() => {
+    if (!accountId) return;
+    try { const intent = checkout.current.recover(accountId); if (intent) restoreIntent(intent); }
+    catch (err) { setError(err.message); }
+  }, [accountId]);
   const finish = () => {
     if (busyRef.current) return;
     const sent = completed.current; completed.current = null;
@@ -66,10 +77,12 @@ export default function GiftExperience({ accountId = '', resolveAccount, players
     const snapshot = order;
     let gameDelivery = null;
     try {
-      if (gameMode && !validPlayers.some(p => String(p.id) === snapshot.toAccount)) throw new Error('That player is no longer available. Choose another recipient.');
+      if (gameMode && !recovery && !validPlayers.some(p => String(p.id) === snapshot.toAccount)) throw new Error('That player is no longer available. Choose another recipient.');
       const from = String(accountId || (resolveAccount ? await resolveAccount() : '') || '').trim();
+      if (recovery && from !== recovery.fromAccount) throw new Error('Sign in with the original sender account to recover this gift.');
       const response = await checkout.current({ fromAccount: from, toAccount: snapshot.toAccount, giftId: snapshot.giftId });
       if (response.ignored) return;
+      setRecovery(null);
       completed.current = { gift: GIFT_BY_ID[snapshot.giftId], recipient: snapshot.toAccount, recipientName: snapshot.recipientName, playerIndex: snapshot.playerIndex, result: response.result };
       window.dispatchEvent(new CustomEvent('tpg:gifts-updated', { detail: { accountId: from } }));
       playGiftChime(GIFT_BY_ID[snapshot.giftId].tier);
@@ -81,14 +94,17 @@ export default function GiftExperience({ accountId = '', resolveAccount, players
         } else setStage('success');
       }
     } catch (err) {
+      if (mounted.current && err?.terminalRejection) setRecovery(null);
+      if (mounted.current && err?.intent) restoreIntent(err.intent);
       if (mounted.current) setError(err?.message || 'Delivery could not be confirmed. Check your inventory and balance before trying again.');
     } finally { busyRef.current = false; if (mounted.current) setBusy(false); }
     // UI callbacks are not part of payment: never describe their errors as a failed purchase.
-    if (gameDelivery) { onClose?.(); onCompleted?.(gameDelivery); }
+    if (gameDelivery) { onClose?.(); if (validPlayers.some(p => String(p.id) === gameDelivery.recipient)) onCompleted?.(gameDelivery); }
   };
   const resetFilters = () => { setSearch(''); setCollection('All'); setTier('All'); setSort('featured'); };
   return <GiftDialog title={title} onClose={finish} busy={busy} className={gameMode ? 'gift-dialog-game' : ''}>
     <div ref={scroll} className="gift-scroll">
+      {stage === 'browse' && error && <p className="gift-error" role="alert">{error}</p>}
       {stage === 'browse' ? <>
         <section className="gift-hero"><div><p className="gift-eyebrow">THE TONPLAYGRAM COLLECTION</p><h1>Play together.<br/><em>Gift legendary.</em></h1><p>Celebrate your next victory.<br/>{NFT_GIFTS.length} designs, made to be given.</p><span className="gift-count-pill">✧ Made for the TonPlayGram community</span></div><div className="gift-hero-art" aria-hidden="true"><GiftIcon gift={GIFT_BY_ID.royal_crown} className="gift-hero-crown"/><GiftIcon gift={GIFT_BY_ID.saturn_silk} className="gift-hero-planet"/><GiftIcon gift={GIFT_BY_ID.butterfly_kiss} className="gift-hero-butterfly"/></div></section>
         <div className="gift-toolbar"><label className="gift-search"><span aria-hidden="true">⌕</span><input type="search" aria-label="Search gifts" placeholder="Find a gift, a feeling, a collection…" value={search} onChange={e => setSearch(e.target.value)}/>{search && <button type="button" aria-label="Clear search" onClick={() => setSearch('')}>×</button>}</label>
@@ -115,14 +131,15 @@ export default function GiftExperience({ accountId = '', resolveAccount, players
           <button type="submit" className="gift-primary" disabled={gameMode ? !validPlayers.length : !accountId}>Review gift <span aria-hidden="true">→</span></button><p className="gift-disclosure">You will review the recipient and total before spending TPG.</p>
         </form>}
         {stage === 'confirm' && <div className="gift-order-form">
-          {gameMode && <label>Send to<select aria-label="Gift recipient" disabled={busy} value={order?.toAccount || ''} onChange={event => {
+          {gameMode && <label>Send to<select aria-label="Gift recipient" disabled={busy || Boolean(recovery)} value={order?.toAccount || ''} onChange={event => {
             const recipient = validPlayers.find(p => String(p.id) === event.target.value);
             setPlayerId(event.target.value); setError('');
             setOrder(current => ({...current, toAccount: event.target.value, recipientName: recipient?.name || event.target.value, playerIndex: recipient?.index}));
           }}>{!validPlayers.some(p => String(p.id) === order?.toAccount) && <option value={order?.toAccount || ''}>Select an available player</option>}{validPlayers.map(p => <option key={`${p.id}-${p.index}`} value={String(p.id)}>{p.name || p.id}</option>)}</select></label>}
           <dl className="gift-order-summary"><div><dt>Gift</dt><dd>{gift.name}</dd></div><div><dt>To</dt><dd>{order?.recipientName}</dd></div><div><dt>Total</dt><dd>{formatGiftPrice(gift.price)} TPG</dd></div></dl>
+          {recovery && <p className="gift-status">This gift has an unresolved request. Retry the same request to confirm delivery without creating a second purchase.</p>}
           {error && <p className="gift-error" role="alert">{error}</p>}
-          <button type="button" className="gift-primary" onClick={purchase} disabled={busy || Boolean(error) || (gameMode && !validPlayers.some(p => String(p.id) === order?.toAccount))}>{busy ? 'Sending gift…' : `Confirm · ${formatGiftPrice(gift.price)} TPG`}</button><button type="button" className="gift-secondary" disabled={busy} onClick={() => {if (gameMode) back(); else {setStage('detail');setError('');}}}>{gameMode ? 'Choose another gift' : 'Back to gift'}</button><p className="gift-disclosure">Confirming spends TPG. Please check the recipient carefully.</p>
+          <button type="button" className="gift-primary" onClick={purchase} disabled={busy || (!recovery && (Boolean(error) || (gameMode && !validPlayers.some(p => String(p.id) === order?.toAccount))))}>{busy ? 'Sending gift…' : recovery ? 'Retry same gift request' : `Confirm · ${formatGiftPrice(gift.price)} TPG`}</button><button type="button" className="gift-secondary" disabled={busy || Boolean(recovery)} onClick={() => {if (gameMode) back(); else {setStage('detail');setError('');}}}>{gameMode ? 'Choose another gift' : 'Back to gift'}</button><p className="gift-disclosure">Confirming spends TPG. Please check the recipient carefully.</p>
         </div>}
         {stage === 'success' && <div className="gift-order-form"><p className="gift-success" role="status">{gift.name} was delivered to {order?.recipientName}.</p><button type="button" className="gift-primary" onClick={finish}>Done <span aria-hidden="true">✓</span></button></div>}
       </>}
