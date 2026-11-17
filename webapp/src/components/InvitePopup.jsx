@@ -1,3 +1,4 @@
+import { currencyLabel } from '../utils/currencyDisplay.js';
 import React from 'react';
 import { createPortal } from 'react-dom';
 import RoomSelector from './RoomSelector.jsx';
@@ -27,13 +28,13 @@ export default function InvitePopup({
                 stake?.token === 'TPG'
                   ? '/assets/icons/file_00000000362481f7978631c42572193f.png'
                   : stake?.token === 'TON'
-                  ? '/assets/icons/TON.webp'
+                  ? '/assets/icons/GRAM.svg'
                   : '/assets/icons/Usdt.webp'
               }
               alt="token"
               className="inline w-4 h-4 mr-1"
             />
-            {stake?.token}
+            {currencyLabel(stake?.token)}
             {group && opponents.length > 0 && (
               <> with {opponents.join(', ')}</>
             )}

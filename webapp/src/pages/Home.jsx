@@ -212,11 +212,11 @@ export default function Home() {
         </section>
         {(walletAddress || balanceWalletAddress) && (
           <div className="mt-2 text-center">
-            <p className="text-xs text-subtext">Connected TON balance</p>
+            <p className="text-xs text-subtext">Connected GRAM balance</p>
             <p className="text-lg font-semibold text-white">
               {externalBalanceStatus === 'loading'
                 ? 'Fetching balance…'
-                : `${formatValue(tonBalance ?? '—', 4)} TON`}
+                : `${formatValue(tonBalance ?? '—', 4)} GRAM`}
             </p>
             {externalBalanceError && (
               <button type="button" onClick={refreshExternalBalances} className="mt-1 text-xs font-semibold text-sky-300 underline underline-offset-2">
@@ -276,7 +276,7 @@ export default function Home() {
               }}
             />
             <div className="flex-1 flex items-center justify-center space-x-1">
-              <img src="/assets/icons/TON.webp" alt="TON" className="w-8 h-8" />
+              <img src="/assets/icons/GRAM.svg" alt="GRAM" className="w-8 h-8" />
               <span className="text-base">
                 {formatValue(tonBalance ?? '...')}
               </span>

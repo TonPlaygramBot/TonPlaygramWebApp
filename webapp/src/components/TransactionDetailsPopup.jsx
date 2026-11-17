@@ -1,3 +1,4 @@
+import { currencyLabel } from '../utils/currencyDisplay.js';
 import React, { useEffect, useState } from 'react';
 
 import { createPortal } from 'react-dom';
@@ -70,7 +71,7 @@ export default function TransactionDetailsPopup({ tx, onClose }) {
 
     TPG: '/assets/icons/file_00000000362481f7978631c42572193f.png',
 
-    TON: '/assets/icons/TON.webp',
+    TON: '/assets/icons/GRAM.svg',
 
     USDT: '/assets/icons/Usdt.webp'
 
@@ -178,7 +179,7 @@ export default function TransactionDetailsPopup({ tx, onClose }) {
 
               })()} {sign}{formattedAmount}
 
-              <img src={icon} alt={token} className="w-5 h-5 inline" />
+              <img src={icon} alt={currencyLabel(token)} className="w-5 h-5 inline" />
 
             </span>
 

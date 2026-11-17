@@ -1,3 +1,4 @@
+import { currencyLabel } from '../../utils/currencyDisplay.js';
 import { useState, useEffect, useRef, useCallback, useMemo } from "react";
 import coinConfetti from "../../utils/coinConfetti";
 import { snakeDiceReceiver } from '../../utils/snakeDiceReceiver';
@@ -1483,7 +1484,7 @@ export default function SnakeAndLadder() {
   // Preload token and avatar images so board icons and AI photos display
   // immediately without waiting for network requests during gameplay.
   useEffect(() => {
-    ['TON.webp', 'Usdt.webp'].forEach((file) => {
+    ['GRAM.svg', 'Usdt.webp'].forEach((file) => {
       const img = new Image();
       img.src = `/assets/icons/${file}`;
     });
@@ -2618,7 +2619,7 @@ export default function SnakeAndLadder() {
           setRanking((r) => [...r, { name: 'You', photoUrl, amount: winAmt }]);
           if (first) setGameOver(true);
           if (first) playGameHaptic('win');
-          setMessage(`You win ${winAmt} ${token}!`);
+          setMessage(`You win ${winAmt} ${currencyLabel(token)}!`);
           setMessageColor("");
           if (!muted) winSoundRef.current?.play().catch(() => {});
           coinConfetti();
@@ -3856,12 +3857,12 @@ export default function SnakeAndLadder() {
                   <img
                     src={
                       token === 'TON'
-                        ? '/assets/icons/TON.webp'
+                        ? '/assets/icons/GRAM.svg'
                         : token === 'USDT'
                         ? '/assets/icons/Usdt.webp'
                         : '/assets/icons/file_00000000362481f7978631c42572193f.png'
                     }
-                    alt={token}
+                    alt={currencyLabel(token)}
                     className="inline w-4 h-4 align-middle"
                   />
                 </span>

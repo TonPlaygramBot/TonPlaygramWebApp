@@ -1,3 +1,4 @@
+import { currencyLabel, nativeMarketDisplay } from '../utils/currencyDisplay.js';
 import { useEffect, useMemo, useState } from 'react';
 import {
   getExchangeMarkets,
@@ -131,12 +132,13 @@ export default function Exchange() {
 
       <div className="bg-surface border border-border rounded-xl p-4 space-y-3">
         <h2 className="text-lg font-semibold text-white">Convert to TPG</h2>
+        <p className="text-xs text-subtext">GRAM quotes here refer to the native TON-network coin (formerly Toncoin), not a separate GRAM jetton.</p>
         <div className="flex gap-2">
           <input
-            value={symbol}
-            onChange={(e) => setSymbol(e.target.value.toUpperCase())}
+            value={currencyLabel(symbol)}
+            onChange={(e) => setSymbol(e.target.value.toUpperCase() === 'GRAM' ? 'TON' : e.target.value.toUpperCase())}
             className="bg-background border border-border rounded px-3 py-2 w-24"
-            placeholder="TON"
+            placeholder="GRAM"
           />
           <input
             value={amount}
@@ -148,8 +150,8 @@ export default function Exchange() {
         </div>
         {quote && (
           <div className="text-sm rounded-lg border border-border bg-background/60 p-3 space-y-1">
-            <p>Pair: {quote.fromSymbol} → TPG</p>
-            <p>Input value: {quote.amount} {quote.fromSymbol} ({formatUsd(quote.usdValue)})</p>
+            <p>Pair: {currencyLabel(quote.fromSymbol)} → TPG</p>
+            <p>Input value: {quote.amount} {currencyLabel(quote.fromSymbol)} ({formatUsd(quote.usdValue)})</p>
             <p>TPG estimate: <span className="text-green-300 font-semibold">{Number(quote.estimatedTpc).toLocaleString(undefined, { maximumFractionDigits: 4 })} TPG</span></p>
           </div>
         )}
@@ -160,11 +162,13 @@ export default function Exchange() {
         {loading && <p className="text-sm text-subtext">Loading market feed…</p>}
         {error && <p className="text-sm text-red-300">{error}</p>}
         <div className="space-y-2 max-h-[60vh] overflow-auto pr-1">
-          {sorted.map((coin) => (
+          {sorted.map((rawCoin) => {
+            const coin = nativeMarketDisplay(rawCoin);
+            return (
             <button
               key={coin.id}
               type="button"
-              onClick={() => openCoin(coin)}
+              onClick={() => openCoin(rawCoin)}
               className="w-full flex items-center justify-between rounded-lg bg-background/50 border border-border px-3 py-2 text-left hover:bg-background/70"
             >
               <div className="flex items-center gap-2 min-w-0">
@@ -181,7 +185,7 @@ export default function Exchange() {
                 </p>
               </div>
             </button>
-          ))}
+          ); })}
         </div>
       </div>
 
@@ -193,9 +197,9 @@ export default function Exchange() {
             ) : (
               <>
                 <div className="flex items-center gap-2">
-                  <img src={selectedCoin.image} alt={selectedCoin.symbol} className="w-8 h-8 rounded-full" />
+                  <img src={nativeMarketDisplay(selectedCoin).image} alt={nativeMarketDisplay(selectedCoin).symbol} className="w-8 h-8 rounded-full" />
                   <div>
-                    <p className="text-white font-semibold">{selectedCoin.name} ({selectedCoin.symbol})</p>
+                    <p className="text-white font-semibold">{nativeMarketDisplay(selectedCoin).name} ({nativeMarketDisplay(selectedCoin).symbol})</p>
                     <p className="text-xs text-subtext">Rank #{selectedCoin.marketCapRank}</p>
                   </div>
                 </div>
