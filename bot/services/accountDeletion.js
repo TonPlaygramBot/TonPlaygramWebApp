@@ -31,6 +31,14 @@ export async function deleteAccountRecords(accountId, claims, {
       if (Number.isSafeInteger(user.telegramId) && user.telegramId > 0) {
         identities.push(user.telegramId, String(user.telegramId));
       }
+      // Legacy identifiers share one untagged namespace. Do not erase another
+      // account's data when a numeric account ID aliases a Telegram ID.
+      const numericIds = identities.map(Number).filter((id) => Number.isSafeInteger(id) && id > 0);
+      const collision = await models.User.findOne({
+        _id: { $ne: user._id },
+        $or: [{ accountId: { $in: identities.map(String) } }, { telegramId: { $in: numericIds } }]
+      }).session(session);
+      if (collision) throw failure('ambiguous_social_identity', 409);
       const participants = { $or: [{ from: { $in: identities } }, { to: { $in: identities } }] };
       // MongoDB transactions do not support parallel operations on one session.
       await models.Message.deleteMany(participants, { session });
