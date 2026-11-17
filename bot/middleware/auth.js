@@ -1,24 +1,34 @@
 import crypto from 'crypto';
 
-export function verifyTelegramInitData(initData, botToken = process.env.BOT_TOKEN) {
+/** Validate Telegram's signed payload before any route trusts its user id.
+ * Keep the legacy return shape for matchmaking and Socket.IO callers.
+ */
+export function verifyTelegramInitData(
+  initData,
+  botToken = process.env.BOT_TOKEN,
+  { now = Date.now(), maxAgeSeconds = 86400 } = {}
+) {
   try {
+    if (typeof botToken !== 'string' || !botToken || typeof initData !== 'string' ||
+        !initData || initData.length > 16384 || !Number.isFinite(now) ||
+        !Number.isFinite(maxAgeSeconds) || maxAgeSeconds <= 0 || maxAgeSeconds > 86400) return null;
     const params = new URLSearchParams(initData);
+    if ([...params.keys()].some((key) => params.getAll(key).length !== 1)) return null;
     const hash = params.get('hash');
-    if (!hash) return null;
+    if (!/^[a-fA-F0-9]{64}$/.test(hash || '')) return null;
     params.delete('hash');
     const dataCheckString = [...params.entries()]
       .map(([k, v]) => `${k}=${v}`)
       .sort()
       .join('\n');
-    const secret = crypto
-      .createHmac('sha256', 'WebAppData')
-      .update(botToken || '')
-      .digest();
-    const computed = crypto
-      .createHmac('sha256', secret)
-      .update(dataCheckString)
-      .digest('hex');
-    if (computed !== hash) return null;
+    const secret = crypto.createHmac('sha256', 'WebAppData').update(botToken).digest();
+    const computed = crypto.createHmac('sha256', secret).update(dataCheckString).digest();
+    if (!crypto.timingSafeEqual(computed, Buffer.from(hash, 'hex'))) return null;
+    const authDate = Number(params.get('auth_date'));
+    if (!Number.isSafeInteger(authDate) || authDate <= 0 ||
+        authDate * 1000 > now + 60000 || now >= (authDate + maxAgeSeconds) * 1000) return null;
+    const user = JSON.parse(params.get('user'));
+    if (!Number.isSafeInteger(user?.id) || user.id <= 0) return null;
     return Object.fromEntries(params.entries());
   } catch {
     return null;
@@ -39,6 +49,13 @@ function attachAuth(req, token, initData) {
       };
       return true;
     }
+    // A separately configured server credential remains valid. Never
+    // downgrade invalid/expired signed credentials to identity hints.
+    if (allowedToken && token === allowedToken) {
+      req.auth = { apiToken: true };
+      return true;
+    }
+    return false;
   }
   if (allowedToken && token === allowedToken) {
     req.auth = { apiToken: true };
