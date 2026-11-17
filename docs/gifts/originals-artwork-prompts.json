@@ -1,0 +1,123 @@
+[
+  {
+    "id": "fireworks",
+    "file": "webapp/public/assets/gifts/tpg/fireworks.webp",
+    "prompt": "Use case: stylized-concept. Asset: TonPlayGram in-app gift collectible square studio render. Subject: a celebratory sculptural burst of crystal fireworks, three luminous cyan and warm-gold radial starbursts on elegant curved stems, clearly festive fireworks not a weapon. High-end tactile 3D collectible, crisp intricate surface detail, polished titanium and black obsidian with electric cyan luminous accents, fine gold edges, violet rim lighting. Single coherent object centered above a small round cyan illuminated pedestal, midnight navy studio background. Clearly readable silhouette at thumbnail size, whole object fully in frame with 12% margins. The pedestal bears only a tiny tasteful TPG monogram. No UI, card border, prices, rarity claims, watermark or extra lettering. Original design, no third-party character likeness. Match a premium coherent gaming/social ecosystem gift collection.",
+    "method": "OpenAI built-in image generation; no third-party reference art",
+    "dimensions": [
+      640,
+      640
+    ],
+    "encoding": "WebP quality 82"
+  },
+  {
+    "id": "laugh_bomb",
+    "file": "webapp/public/assets/gifts/tpg/laugh_bomb.webp",
+    "prompt": "Use case: stylized-concept. Asset: TonPlayGram in-app gift collectible square studio render. Subject: a playful round black enamel cartoon laugh-bomb collectible with a huge cheerful laughing face, closed happy eyes and a short glowing decorative fuse, funny harmless toy, no realistic explosive details. High-end tactile 3D collectible, crisp intricate surface detail, polished titanium and black obsidian with electric cyan luminous accents, fine gold edges, violet rim lighting. Single coherent object centered above a small round cyan illuminated pedestal, midnight navy studio background. Clearly readable silhouette at thumbnail size, whole object fully in frame with 12% margins. The pedestal bears only a tiny tasteful TPG monogram. No UI, card border, prices, rarity claims, watermark or extra lettering. Original design, no third-party character likeness. Match a premium coherent gaming/social ecosystem gift collection.",
+    "method": "OpenAI built-in image generation; no third-party reference art",
+    "dimensions": [
+      640,
+      640
+    ],
+    "encoding": "WebP quality 82"
+  },
+  {
+    "id": "pizza_slice",
+    "file": "webapp/public/assets/gifts/tpg/pizza_slice.webp",
+    "prompt": "Use case: stylized-concept. Asset: TonPlayGram in-app gift collectible square studio render. Subject: a delicious triangular pizza slice collectible, glossy melted golden cheese and red pepperoni on a sculpted ceramic gold crust, cyan-lit titanium serving plate. High-end tactile 3D collectible, crisp intricate surface detail, polished titanium and black obsidian with electric cyan luminous accents, fine gold edges, violet rim lighting. Single coherent object centered above a small round cyan illuminated pedestal, midnight navy studio background. Clearly readable silhouette at thumbnail size, whole object fully in frame with 12% margins. The pedestal bears only a tiny tasteful TPG monogram. No UI, card border, prices, rarity claims, watermark or extra lettering. Original design, no third-party character likeness. Match a premium coherent gaming/social ecosystem gift collection.",
+    "method": "OpenAI built-in image generation; no third-party reference art",
+    "dimensions": [
+      640,
+      640
+    ],
+    "encoding": "WebP quality 82"
+  },
+  {
+    "id": "coffee_boost",
+    "file": "webapp/public/assets/gifts/tpg/coffee_boost.webp",
+    "prompt": "Use case: stylized-concept. Asset: TonPlayGram in-app gift collectible square studio render. Subject: a premium dark titanium espresso cup and saucer, rich coffee crema and a sculptural cyan steam curl shaped like a lightning bolt. High-end tactile 3D collectible, crisp intricate surface detail, polished titanium and black obsidian accents with electric cyan luminous details, fine gold edges, violet rim lighting. Keep subject's distinctive natural colors recognizable. Single coherent object centered above a small round cyan illuminated pedestal, midnight navy studio background. Clearly readable silhouette at thumbnail size, whole object fully in frame with 12% margins. The pedestal bears only a tiny tasteful TPG monogram. No UI, card border, prices, rarity claims, watermark or extra lettering. Original design, no third-party character likeness. Match a premium coherent gaming/social ecosystem gift collection.",
+    "method": "OpenAI built-in image generation; no third-party reference art",
+    "dimensions": [
+      640,
+      640
+    ],
+    "encoding": "WebP quality 82"
+  },
+  {
+    "id": "baby_chick",
+    "file": "webapp/public/assets/gifts/tpg/baby_chick.webp",
+    "prompt": "Use case: stylized-concept. Asset: TonPlayGram in-app gift collectible square studio render. Subject: an adorable fluffy bright-yellow baby chick hatching from a pearl ceramic egg shell, tiny cyan gaming headset, expressive friendly eyes. High-end tactile 3D collectible, crisp intricate surface detail, polished titanium and black obsidian accents with electric cyan luminous details, fine gold edges, violet rim lighting. Keep subject's distinctive natural colors recognizable. Single coherent object centered above a small round cyan illuminated pedestal, midnight navy studio background. Clearly readable silhouette at thumbnail size, whole object fully in frame with 12% margins. The pedestal bears only a tiny tasteful TPG monogram. No UI, card border, prices, rarity claims, watermark or extra lettering. Original design, no third-party character likeness. Match a premium coherent gaming/social ecosystem gift collection.",
+    "method": "OpenAI built-in image generation; no third-party reference art",
+    "dimensions": [
+      640,
+      640
+    ],
+    "encoding": "WebP quality 82"
+  },
+  {
+    "id": "poop",
+    "file": "webapp/public/assets/gifts/tpg/poop.webp",
+    "prompt": "Use case: stylized-concept. Asset: TonPlayGram in-app gift collectible square studio render. Subject: a humorous charming stylized chocolate-brown spiral poop toy collectible with cute smiling eyes, glossy ceramic material, tiny cyan gaming visor; unmistakable poop emoji shape but original character. High-end tactile 3D collectible, crisp intricate surface detail, polished titanium and black obsidian accents with electric cyan luminous details, fine gold edges, violet rim lighting. Keep subject's distinctive natural colors recognizable. Single coherent object centered above a small round cyan illuminated pedestal, midnight navy studio background. Clearly readable silhouette at thumbnail size, whole object fully in frame with 12% margins. The pedestal bears only a tiny tasteful TPG monogram. No UI, card border, prices, rarity claims, watermark or extra lettering. Original design, no third-party character likeness. Match a premium coherent gaming/social ecosystem gift collection.",
+    "method": "OpenAI built-in image generation; no third-party reference art",
+    "dimensions": [
+      640,
+      640
+    ],
+    "encoding": "WebP quality 82"
+  },
+  {
+    "id": "bullseye",
+    "file": "webapp/public/assets/gifts/tpg/bullseye.webp",
+    "prompt": "Use case: stylized-concept. Asset: TonPlayGram in-app gift collectible square studio render. Subject: a premium circular red and ivory bullseye target with a small polished titanium dart embedded precisely in the central red ring, cyan luminous outer rim. High-end tactile 3D collectible, crisp intricate surface detail, polished titanium and black obsidian accents with electric cyan luminous details, fine gold edges, violet rim lighting. Keep subject's distinctive natural colors recognizable. Single coherent object centered above a small round cyan illuminated pedestal, midnight navy studio background. Clearly readable silhouette at thumbnail size, whole object fully in frame with 12% margins. The pedestal bears only a tiny tasteful TPG monogram. No UI, card border, prices, rarity claims, watermark or extra lettering. Original design, no third-party character likeness. Match a premium coherent gaming/social ecosystem gift collection.",
+    "method": "OpenAI built-in image generation; no third-party reference art",
+    "dimensions": [
+      640,
+      640
+    ],
+    "encoding": "WebP quality 82"
+  },
+  {
+    "id": "magic_trick",
+    "file": "webapp/public/assets/gifts/tpg/magic_trick.webp",
+    "prompt": "Use case: stylized-concept. Asset: TonPlayGram in-app gift collectible square studio render. Subject: a luxurious magician's black top hat with violet satin band and a polished gold wand levitating above it, a cyan crystal star emerging in magical light. High-end tactile 3D collectible, crisp intricate surface detail, polished titanium and black obsidian accents with electric cyan luminous details, fine gold edges, violet rim lighting. Keep subject's distinctive colors recognizable. Single coherent object centered above a small round cyan illuminated pedestal, midnight navy studio background. Clearly readable silhouette at thumbnail size, whole object fully in frame with 12% margins. The pedestal bears only a tiny tasteful TPG monogram. No UI, card border, prices, rarity claims, watermark or extra lettering. Original design, no third-party character likeness. Match a premium coherent gaming/social ecosystem gift collection.",
+    "method": "OpenAI built-in image generation; no third-party reference art",
+    "dimensions": [
+      640,
+      640
+    ],
+    "encoding": "WebP quality 82"
+  },
+  {
+    "id": "dragon_burst",
+    "file": "webapp/public/assets/gifts/tpg/dragon_burst.webp",
+    "prompt": "Use case: stylized-concept. Asset: TonPlayGram in-app gift collectible square studio render. Subject: an original majestic miniature emerald-and-cyan dragon with curled tail, elegant folded gold-edged wings and a small luminous cyan breath plume, friendly powerful fantasy game collectible. High-end tactile 3D collectible, crisp intricate surface detail, polished titanium and black obsidian accents with electric cyan luminous details, fine gold edges, violet rim lighting. Keep subject's distinctive colors recognizable. Single coherent object centered above a small round cyan illuminated pedestal, midnight navy studio background. Clearly readable silhouette at thumbnail size, whole object fully in frame with 12% margins. The pedestal bears only a tiny tasteful TPG monogram. No UI, card border, prices, rarity claims, watermark or extra lettering. Original design, no third-party character likeness. Match a premium coherent gaming/social ecosystem gift collection.",
+    "method": "OpenAI built-in image generation; no third-party reference art",
+    "dimensions": [
+      640,
+      640
+    ],
+    "encoding": "WebP quality 82"
+  },
+  {
+    "id": "rocket_blast",
+    "file": "webapp/public/assets/gifts/tpg/rocket_blast.webp",
+    "prompt": "Use case: stylized-concept. Asset: TonPlayGram in-app gift collectible square studio render. Subject: a sleek miniature retro-futuristic silver rocket with cyan circular window, dark titanium fins and vivid stylized golden flame thrust, unmistakable rocket silhouette. High-end tactile 3D collectible, crisp intricate surface detail, polished titanium and black obsidian accents with electric cyan luminous details, fine gold edges, violet rim lighting. Keep subject's distinctive colors recognizable. Single coherent object centered above a small round cyan illuminated pedestal, midnight navy studio background. Clearly readable silhouette at thumbnail size, whole object fully in frame with 12% margins. The pedestal bears only a tiny tasteful TPG monogram. No UI, card border, prices, rarity claims, watermark or extra lettering. Original design, no third-party character likeness. Match a premium coherent gaming/social ecosystem gift collection.",
+    "method": "OpenAI built-in image generation; no third-party reference art",
+    "dimensions": [
+      640,
+      640
+    ],
+    "encoding": "WebP quality 82"
+  },
+  {
+    "id": "alien_visit",
+    "file": "webapp/public/assets/gifts/tpg/alien_visit.webp",
+    "prompt": "Premium TonPlayGram square collectible studio illustration: a polished titanium flying saucer with violet glass dome, a small friendly original green alien visible inside, cyan ring lights and a short luminous tractor-beam cone. High-end 3D render with polished titanium, black obsidian, electric cyan light, gold edge accents and violet rim glow. Single coherent collectible above cyan illuminated round pedestal with tiny TPG monogram, midnight navy background. Entire silhouette inside frame with generous margin, clear thumbnail readability. No extra text, no prices, no rarity, no UI, no watermark. Original friendly alien design.",
+    "method": "OpenAI built-in image generation; no third-party reference art",
+    "dimensions": [
+      640,
+      640
+    ],
+    "encoding": "WebP quality 82"
+  }
+]
