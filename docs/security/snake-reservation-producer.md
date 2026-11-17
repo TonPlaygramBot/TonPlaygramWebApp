@@ -1,5 +1,10 @@
 # Snake reservation producer: unwired draft, no real-data use
 
+> Verification update: the isolated Mongo startup issue is now resolved with
+> `--nounixsocket`; the specific reservation/settlement/coordinator replica tests
+> pass. Earlier blocked-run descriptions below are historical. See
+> `snake-round-coordinator.md` for exact evidence and remaining release gates.
+
 This advances the consent/settlement foundation with native Mongo transaction
 code. It does NOT activate paid games, debit any real account, create provenance
 attestations, start games, deploy to TON, or change runtime routes.

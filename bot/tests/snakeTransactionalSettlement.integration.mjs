@@ -10,7 +10,7 @@ import { createSnakeTransactionalSettlement } from '../services/settlement/snake
 test('real replica-set transaction: concurrent duplicate settlement and failed credit rollback', async () => {
   let replica; let connection;
   try {
-    replica = await MongoMemoryReplSet.create({ replSet: { count: 1 } });
+    replica = await MongoMemoryReplSet.create({ replSet: { count: 1, args: ['--nounixsocket'] } });
     connection = await mongoose.createConnection(replica.getUri(), { dbName: 'isolated_snake_settlement_test' }).asPromise();
     const db = connection.db;
     const matches = db.collection('matches'); const users = db.collection('users'); const receipts = db.collection('receipts');
