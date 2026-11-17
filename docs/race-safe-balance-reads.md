@@ -30,3 +30,14 @@ repairs, deletion, hydrated legacy defaults and route responses. These are
 model/mocked tests, NOT real Mongo concurrency verification. Real Mongo testing,
 legacy account reconciliation and concurrent-game verification are required
 before merging or deploying. No production database is used.
+
+
+## Local Mongo verification (2026-11-17)
+
+The isolated real MongoDB integration suite now passes: 4 tests, MongoDB
+7.0.14 with `--nounixsocket`. This removes the earlier local startup blocker.
+Use `MONGOMS_SYSTEM_BINARY=/path/to/mongod MONGOMS_VERSION=7.0.14` to reproduce
+without downloading a binary. No production database was accessed. Model-only
+results above are now supplemented by these actual database tests, not replaced.
+CI, broader combined release checks, legacy data/entitlement decisions and
+real-device/full-build gates remain. This verification does not authorize deployment.

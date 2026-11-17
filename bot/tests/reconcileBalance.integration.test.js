@@ -6,7 +6,7 @@ import User from '../models/User.js';
 import { reconcileBalanceSnapshot } from '../utils/reconcileBalance.js';
 
 let mongo, id;
-test.before(async () => { mongo = await MongoMemoryServer.create(); await mongoose.connect(mongo.getUri()); });
+test.before(async () => { mongo = await MongoMemoryServer.create({ instance: { args: ['--nounixsocket'] } }); await mongoose.connect(mongo.getUri()); });
 test.after(async () => { await mongoose.disconnect(); await mongo?.stop(); });
 test.beforeEach(async () => {
   await User.collection.deleteMany({}); id = new mongoose.Types.ObjectId();
