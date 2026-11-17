@@ -4,7 +4,7 @@ import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js';
 import { RoomEnvironment } from 'three/examples/jsm/environments/RoomEnvironment.js';
 import { SVGLoader } from 'three/examples/jsm/loaders/SVGLoader.js';
 import { RoundedBoxGeometry } from 'three/examples/jsm/geometries/RoundedBoxGeometry.js';
-import { giftMotifSvg, giftArtworkUrl } from './giftArtwork.js';
+import { giftMotifSvg, giftArtworkUrl, giftFallbackUrl } from './giftArtwork.js';
 export type GiftDefinition = { id: string; name: string; model: string; color: string; accent: string; [key: string]: unknown };
 
 /** Sculptural objects for the featured families, layered beveled reliefs for the
@@ -168,6 +168,6 @@ export default function GiftViewer({ gift }: { gift: GiftDefinition }) {
   },[gift.id]);
   return <div className="gift-viewer-wrap">
     <div className="gift-viewer" ref={host} role="img" aria-label={`Interactive 3D model of ${gift.name}`} style={{display:unavailable?'none':undefined}} />
-    {unavailable?<><img className="gift-viewer-fallback" src={giftArtworkUrl(gift)} alt={gift.name}/><p className="gift-muted">3D is unavailable on this device. Original artwork is shown.</p></>:<div className="gift-viewer-help"><span>Drag to rotate · Pinch to zoom</span><button type="button" onClick={()=>reset.current()}>Reset view</button></div>}
+    {unavailable?<><img className="gift-viewer-fallback" src={giftArtworkUrl(gift)} onError={event => { const fallback = giftFallbackUrl(gift); if (event.currentTarget.src !== fallback) event.currentTarget.src = fallback; }} alt={gift.name}/><p className="gift-muted">3D is unavailable on this device. Original artwork is shown.</p></>:<div className="gift-viewer-help"><span>Drag to rotate · Pinch to zoom</span><button type="button" onClick={()=>reset.current()}>Reset view</button></div>}
   </div>;
 }
