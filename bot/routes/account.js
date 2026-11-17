@@ -2,6 +2,7 @@ import { Router } from 'express';
 import { v4 as uuidv4 } from 'uuid';
 import User from '../models/User.js';
 import authenticate from '../middleware/auth.js';
+import { rejectUnverifiedReward } from '../utils/depositPolicy.js';
 import { optionalAuthenticate } from '../middleware/auth.js';
 import { verifyRequestedIdentity, identityOwnsUser, sendIdentityError } from '../middleware/accountIdentity.js';
 import {
@@ -780,55 +781,7 @@ router.get('/transfers/public', async (req, res) => {
   res.json({ transactions, totalCount });
 });
 
-// Deposit rewards into account
-router.post('/deposit', authenticate, async (req, res) => {
-  const { accountId, amount, game } = req.body;
-  const authId = req.auth?.telegramId;
-  const devIds = [
-    process.env.DEV_ACCOUNT_ID || process.env.VITE_DEV_ACCOUNT_ID,
-    process.env.DEV_ACCOUNT_ID_1 || process.env.VITE_DEV_ACCOUNT_ID_1,
-    process.env.DEV_ACCOUNT_ID_2 || process.env.VITE_DEV_ACCOUNT_ID_2
-  ].filter(Boolean);
-  if (!accountId || typeof amount !== 'number' || amount <= 0) {
-    return res
-      .status(400)
-      .json({ error: 'accountId and positive amount required' });
-  }
-  let user = await User.findOne({ accountId });
-  if (!user) return res.status(404).json({ error: 'account_not_found', message: 'Create your account with a verified sign-in first.' });
-  if (
-    !devIds.includes(accountId) &&
-    authId &&
-    user.telegramId &&
-    authId !== user.telegramId
-  ) {
-    return res.status(403).json({ error: 'forbidden' });
-  }
-  ensureTransactionArray(user);
-  user.balance += amount;
-  const tx = {
-    amount,
-    type: 'deposit',
-    token: 'TPG',
-    status: 'delivered',
-    date: new Date()
-  };
-  if (game) tx.game = game;
-  user.transactions.push(tx);
-  await user.save();
-
-  if (user.telegramId && !devIds.includes(accountId)) {
-    try {
-      await sendDepositNotification(
-        bot,
-        user.telegramId,
-        amount
-      );
-    } catch (err) {
-      console.error('Failed to send Telegram notification:', err.message);
-    }
-  }
-  res.json({ balance: user.balance, transaction: tx });
-});
+// Client-awarded rewards need server-authoritative settlement before reopening.
+router.post('/deposit', authenticate, rejectUnverifiedReward);
 
 export default router;
