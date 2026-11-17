@@ -9,12 +9,12 @@ function fixture() {
     expiresAt: NOW + 60000, stakeUnits: '10', accountIds: ['a', 'b'], rulesHash: 'a'.repeat(64), feePolicy: { policyId: 'testfee', units: '2', accountId: 'house' } };
   const people = ['a', 'b', 'house'].map((id, i) => ({ _id: `u-${id}`, tpcAccountNumber: id, telegramId: i + 1, balance: 100, transactions: [] }));
   let data = { offers: [offer], consents: [], users: people,
-    fundingAudits: people.slice(0, 2).map(user => ({ _id: user.tpcAccountNumber, assetId: 'test-ledger', userId: user._id, status: 'verified', version: 0,
+    fundingAudits: people.map(user => ({ _id: user.tpcAccountNumber, assetId: 'test-ledger', userId: user._id, status: 'verified', version: 0,
       fingerprint: gameFundingFingerprint(user), availableUnits: '100' })),
     accountLocks: [], escrowMatches: [], lifecycleMatches: [{ _id: 'm', matchId: 'm', offerId: 'o', status: 'offered', version: 0, updatedAt: NOW, accountIds: ['a', 'b'] }], journal: [] };
   let clock = NOW; let clockSequence = []; let fail = null; let operationCount = 0; let closes = 0;
   const session = { async withTransaction(fn) { const before = structuredClone(data); try { await fn(); } catch (e) { data = before; throw e; } }, async endSession() { closes++; } };
-  const match = (doc, query) => Object.entries(query).every(([k, v]) => v && typeof v === 'object' && '$ne' in v ? !isDeepStrictEqual(doc[k], v.$ne) : isDeepStrictEqual(doc[k], v));
+  const match = (doc, query) => Object.entries(query).every(([k, v]) => v && typeof v === 'object' && '$ne' in v ? !isDeepStrictEqual(doc[k], v.$ne) : v && typeof v === 'object' && '$exists' in v ? Object.hasOwn(doc, k) === v.$exists : isDeepStrictEqual(doc[k], v));
   const check = (name, op, options) => { assert.equal(options.session, session); if (fail?.name === name && fail?.op === op && ++operationCount === (fail.at || 1)) throw new Error('simulated_write_failure'); };
   const collection = name => ({
     async findOne(q, options) { check(name, 'findOne', options); return structuredClone(data[name].find(d => match(d, q)) || null); },
@@ -50,8 +50,8 @@ test('reserve debits all participants, advances audits, acquires locks and write
   const before = structuredClone(f.data()); assert.equal((await f.producer.reserve('m')).duplicate, true); assert.deepEqual(f.data(), before);
 });
 for (const failure of [
- { name: 'accountLocks', op: 'insertOne', at: 2 }, { name: 'users', op: 'updateOne', at: 2 },
- { name: 'fundingAudits', op: 'updateOne', at: 2 }, { name: 'escrowMatches', op: 'insertOne' },
+ { name: 'accountLocks', op: 'insertOne', at: 2 }, { name: 'users', op: 'updateOne', at: 3 },
+ { name: 'fundingAudits', op: 'updateOne', at: 3 }, { name: 'escrowMatches', op: 'insertOne' },
  { name: 'offers', op: 'updateOne' }, { name: 'lifecycleMatches', op: 'updateOne' }, { name: 'journal', op: 'insertOne' }
 ]) test(`rollback simulated ${failure.name} write failure including prior debits`, async () => {
   const f = await prepared(); const before = structuredClone(f.data()); f.setFailure(failure);
@@ -113,4 +113,9 @@ test('maximum valid round ID produces bounded lifecycle event ID and reserves sa
   f.data().lifecycleMatches[0]._id = f.data().lifecycleMatches[0].matchId = long;
   await f.accept(1, long); await f.accept(2, long); const result = await f.producer.reserve(long);
   assert.equal(result.match.matchId, long); assert.ok(f.data().journal[0].command.eventId.length <= 160);
+});
+
+test('invalid fee audit version blocks debit', async () => {
+  const f = await prepared(); delete f.data().fundingAudits.find(a => a._id === 'house').version;
+  const before = structuredClone(f.data()); await assert.rejects(f.producer.reserve('m'), /fee_provenance_required/); assert.deepEqual(f.data(), before);
 });

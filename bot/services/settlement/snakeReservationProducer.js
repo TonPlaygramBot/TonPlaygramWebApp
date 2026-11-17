@@ -1,3 +1,4 @@
+import { fenceVerifiedGameAccount } from './gameFinancialFence.js';
 import { createHash } from 'node:crypto';
 import { buildVerifiedStakeConsent, gameOfferTerms, requireCurrentConsents } from './gameStakeConsent.js';
 import { nextGameLifecycle, lifecycleCommandRecord } from './gameLifecycle.js';
@@ -93,6 +94,11 @@ export function createSnakeReservationProducer({ client, offers, consents, users
         if (BigInt(terms.feePolicy.units) > 0n) {
           const house = await users.find({ tpcAccountNumber: terms.feePolicy.accountId }, { session }).limit(2).toArray();
           need(house.length === 1 && !house[0].isBanned, 'fee_recipient_unavailable');
+          const houseAudit = await fundingAudits.findOne({ _id: terms.feePolicy.accountId }, { session });
+          need(Number.isSafeInteger(house[0].balance) && house[0].balance >= 0 && Array.isArray(house[0].transactions) &&
+            houseAudit?.status === 'verified' && Number.isSafeInteger(houseAudit.version) && houseAudit.version >= 0 && houseAudit.version < Number.MAX_SAFE_INTEGER && houseAudit.assetId === assetId && houseAudit.userId === String(house[0]._id) &&
+            houseAudit.availableUnits === String(house[0].balance) && houseAudit.fingerprint === gameFundingFingerprint(house[0]), 'fee_provenance_required');
+          await fenceVerifiedGameAccount({ users, fundingAudits, user: house[0], audit: houseAudit, session });
         }
         const reservations = [];
         for (const p of participants) {

@@ -1,5 +1,10 @@
 # Snake & Ladder / Pool Royale settlement foundation (DRAFT, NOT LIVE)
 
+> Verification update: the isolated Mongo startup issue is now resolved with
+> `--nounixsocket`; the specific reservation/settlement/coordinator replica tests
+> pass. Earlier blocked-run descriptions below are historical. See
+> `snake-round-coordinator.md` for exact evidence and remaining release gates.
+
 ## What exists and what does not
 
 Reviewed repository baseline: `3927dd5db040af340ca6721fbfb142ad7a679b7b`.

@@ -1,5 +1,10 @@
 # Game stake consent and durable lifecycle: non-runtime draft
 
+> Verification update: the isolated Mongo startup issue is now resolved with
+> `--nounixsocket`; the specific reservation/settlement/coordinator replica tests
+> pass. Earlier blocked-run descriptions below are historical. See
+> `snake-round-coordinator.md` for exact evidence and remaining release gates.
+
 ## Why this gate precedes any debit
 
 At baseline `3927dd5`, `bot/server.js` accepts player identity from socket

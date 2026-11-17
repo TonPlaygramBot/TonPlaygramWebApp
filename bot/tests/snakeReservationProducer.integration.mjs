@@ -9,7 +9,7 @@ import { gameOfferTerms } from '../services/settlement/gameStakeConsent.js';
 test('real Mongo reserve rollback and competing same-round requests conserve funds', async () => {
   let replica; let connection;
   try {
-    replica = await MongoMemoryReplSet.create({ replSet: { count: 1 } });
+    replica = await MongoMemoryReplSet.create({ replSet: { count: 1, args: ['--nounixsocket'] } });
     connection = await mongoose.createConnection(replica.getUri(), { dbName: 'isolated_reserve_test' }).asPromise();
     const names = ['offers', 'consents', 'users', 'fundingAudits', 'accountLocks', 'escrowMatches', 'lifecycleMatches', 'journal'];
     const db = connection.db; for (const name of names) await db.createCollection(name);
@@ -19,7 +19,7 @@ test('real Mongo reserve rollback and competing same-round requests conserve fun
       expiresAt: at + 60000, stakeUnits: '10', accountIds: ['a', 'b'], rulesHash: 'a'.repeat(64), feePolicy: { policyId: 'testfee', units: '2', accountId: 'house' } };
     const people = ['a', 'b', 'house'].map((id, i) => ({ _id: `u-${id}`, tpcAccountNumber: id, telegramId: i + 1, balance: 100, transactions: [] }));
     await collections.offers.insertOne(offer); await collections.users.insertMany(people);
-    await collections.fundingAudits.insertMany(people.slice(0, 2).map(user => ({ _id: user.tpcAccountNumber, assetId: 'test-ledger', userId: user._id, status: 'verified', version: 0,
+    await collections.fundingAudits.insertMany(people.map(user => ({ _id: user.tpcAccountNumber, assetId: 'test-ledger', userId: user._id, status: 'verified', version: 0,
       fingerprint: gameFundingFingerprint(user), availableUnits: '100' })));
     await collections.lifecycleMatches.insertOne({ _id: 'm', matchId: 'm', offerId: 'o', status: 'offered', version: 0, updatedAt: at, accountIds: ['a', 'b'] });
     let failJournal = true;
