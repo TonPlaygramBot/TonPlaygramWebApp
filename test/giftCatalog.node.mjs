@@ -23,8 +23,10 @@ test('server JSON errors are failures, not success messages',async()=>{const buy
 test('failed requests release latch for a later explicit retry',async()=>{let calls=0;const buy=createGiftCheckout(async()=>{calls++;if(calls===1)throw new Error('Offline');return receipt();});const order={fromAccount:'a',toAccount:'b',giftId:'fireworks'};await assert.rejects(buy(order),/Offline/);assert.ok((await buy(order)).result.transaction);assert.equal(calls,2);});
 test('ambiguous empty responses are not presented as delivered',async()=>{const buy=createGiftCheckout(async()=>null);await assert.rejects(buy({fromAccount:'a',toAccount:'b',giftId:'fireworks'}),/could not be confirmed/);});
 
-test('premium assets are local, bounded and mapped only to known IDs',()=>{assert.equal(Object.keys(PREMIUM_GIFT_ART).length,15);for(const [id,path] of Object.entries(PREMIUM_GIFT_ART)){assert.ok(GIFT_BY_ID[id]);assert.match(path,/^\/assets\/gifts\/tpg\/[a-z_]+\.webp$/);assert.ok(statSync(new URL('../webapp/public'+path,import.meta.url)).size<80000);}});
+test('premium assets are local, bounded and mapped only to known IDs',()=>{assert.equal(Object.keys(PREMIUM_GIFT_ART).length,86);for(const [id,path] of Object.entries(PREMIUM_GIFT_ART)){assert.ok(GIFT_BY_ID[id]);assert.match(path,/^\/assets\/gifts\/tpg\/[a-z_]+\.webp$/);assert.ok(statSync(new URL('../webapp/public'+path,import.meta.url)).size<80000);}});
 
 test('empty or mismatched receipts cannot confirm delivery',async()=>{for(const result of [{},{success:true},{...receipt(),balance:undefined},{...receipt(),transaction:{...receipt().transaction,detail:'royal_crown'}},{...receipt(),transaction:{...receipt().transaction,toAccount:'other'}},{...receipt(),transaction:{...receipt().transaction,amount:0}}]){const buy=createGiftCheckout(async()=>result);await assert.rejects(buy({fromAccount:'a',toAccount:'b',giftId:'fireworks'}),/could not be confirmed/);}});
 
 test('all 14 original gifts have individual premium raster artwork',()=>{for(const id of Object.keys(original)) assert.ok(PREMIUM_GIFT_ART[id],id);});
+
+test("entire catalog has unique premium raster artwork",()=>{assert.deepEqual(Object.keys(PREMIUM_GIFT_ART).sort(),NFT_GIFTS.map(g=>g.id).sort());assert.equal(new Set(Object.values(PREMIUM_GIFT_ART)).size,NFT_GIFTS.length);});
