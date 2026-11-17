@@ -15,6 +15,7 @@ import {
 } from '../utils/userUtils.js';
 
 import authenticate from '../middleware/auth.js';
+import { rejectUnverifiedDeposit, rejectUnverifiedWithdrawal } from '../utils/depositPolicy.js';
 import tonClaim from '../utils/tonClaim.js';
 import { blockExternalValueInMobileStore } from '../config/mobileStorePolicy.js';
 
@@ -106,15 +107,8 @@ router.post('/balance', authenticate, async (req, res) => {
 
 });
 
-// Provide the server deposit address for TON transfers
-
-router.get('/deposit-address', blockExternalValueInMobileStore, (_req, res) => {
-
-  const address = process.env.DEPOSIT_WALLET_ADDRESS || '';
-
-  res.json({ address });
-
-});
+// Do not advertise a funding address while deposits cannot be verified.
+router.get('/deposit-address', blockExternalValueInMobileStore, rejectUnverifiedDeposit);
 
 // Fetch TON balance from the blockchain using a public API
 
@@ -372,65 +366,13 @@ router.post('/send', authenticate, async (req, res) => {
 
 });
 
-// ✅ Credit user balance after a TON deposit
-
-router.post('/deposit', authenticate, blockExternalValueInMobileStore, async (req, res) => {
-
-  const { telegramId, accountId, amount } = req.body;
-
-  if ((!telegramId && !accountId) || typeof amount !== 'number' || amount <= 0) {
-
-    return res.status(400).json({ error: 'telegramId or accountId and positive amount required' });
-
-  }
-  let user = await User.findOne(accountId ? { accountId } : { telegramId });
-  if (user && !canAccessUser(req, user)) {
-    return res.status(403).json({ error: 'forbidden' });
-  }
-  if (!user) {
-    user = await User.findOneAndUpdate(
-      accountId ? { accountId } : { telegramId },
-      {
-        $inc: { balance: amount },
-        $setOnInsert: { referralCode: String(accountId || telegramId) }
-      },
-      { upsert: true, new: true, setDefaultsOnInsert: true }
-    );
-  } else {
-    user.balance += amount;
-  }
-
-  ensureTransactionArray(user);
-
-  const tx = {
-    amount,
-    type: 'deposit',
-    token: 'TPG',
-    status: 'delivered',
-    date: new Date()
-  };
-
-  user.transactions.push(tx);
-
-  await user.save();
-
-  try {
-    await sendTPCNotification(
-      bot,
-      user.telegramId,
-      `\u{1FA99} Your deposit of ${amount} TPG was credited`
-    );
-  } catch (err) {
-    console.error('Failed to send Telegram notification:', err.message);
-  }
-
-  res.json({ balance: user.balance, transaction: tx });
-
-});
+// Client-submitted amounts are not proof of an on-chain deposit. Keep this
+// route closed until a server-side verifier and replay-safe ledger exist.
+router.post('/deposit', authenticate, blockExternalValueInMobileStore, rejectUnverifiedDeposit);
 
 // ✅ Request withdrawal to a TON wallet address
 
-router.post('/withdraw', authenticate, blockExternalValueInMobileStore, async (req, res) => {
+router.post('/withdraw', authenticate, blockExternalValueInMobileStore, rejectUnverifiedWithdrawal, async (req, res) => {
 
   if (!WITHDRAW_ENABLED) {
     return res.status(403).json({ error: 'withdrawals disabled' });
@@ -500,7 +442,7 @@ router.post('/withdraw', authenticate, blockExternalValueInMobileStore, async (r
 });
 
 // ✅ Claim TPG to an external TON wallet
-router.post('/claim-external', authenticate, blockExternalValueInMobileStore, async (req, res) => {
+router.post('/claim-external', authenticate, blockExternalValueInMobileStore, rejectUnverifiedWithdrawal, async (req, res) => {
   const { telegramId, accountId, address, amount } = req.body;
 
   if ((!telegramId && !accountId) || !address || typeof amount !== 'number' || amount <= 0) {
