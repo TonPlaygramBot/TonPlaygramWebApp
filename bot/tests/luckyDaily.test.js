@@ -12,6 +12,7 @@ test('fixed server award atomically credits balance and durable daily receipt', 
   assert.equal(result.amount, 100); assert.equal(result.balance, 150); assert.equal(result.day, '2026-11-17');
   assert.equal(result.nextClaimAt, Date.parse('2026-11-18T00:00:00Z')); assert.equal(result.alreadyClaimed, false);
   assert.equal(User.current.transactions.length, 1); assert.equal(User.current.transactions[0].amount, 100);
+  assert.equal(User.current.transactions[0].type, 'lucky'); // Existing mining/history filters.
 });
 test('parallel devices and lost-response retries credit exactly once', async () => {
   const { User, service } = setup();

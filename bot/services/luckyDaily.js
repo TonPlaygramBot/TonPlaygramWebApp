@@ -24,7 +24,7 @@ export function createLuckyDaily({ User, clock = Date.now }) {
         const updated = await User.collection.findOneAndUpdate(
           { _id: userId, isBanned: { $ne: true }, balance: { $type: 'number', $gte: -Number.MAX_VALUE, $lte: Number.MAX_VALUE }, transactions: { $eq: user.transactions } },
           { $inc: { balance: 100 }, $push: { transactions: {
-            transactionId, amount: 100, type: 'lucky_daily', token: 'TPG', status: 'delivered', date: new Date(now)
+            transactionId, amount: 100, type: 'lucky', token: 'TPG', status: 'delivered', date: new Date(now)
           } } },
           { returnDocument: 'after', includeResultMetadata: false }
         );
