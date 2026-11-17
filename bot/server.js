@@ -88,6 +88,7 @@ import helmet from 'helmet';
 import { contentSecurityPolicy } from './config/contentSecurityPolicy.js';
 import authenticate, { optionalAuthenticate, verifyTelegramInitData } from './middleware/auth.js';
 import { resolveSocialUser } from './middleware/socialAuth.js';
+import { createGameCallMembership } from './services/gameCallMembership.js';
 import { createPrivateCallStore } from './services/privateCallStore.js';
 import { createSocialSocketRegistry, emitDirectSocket, emitLiveChatMembers } from './services/socialSocketRegistry.js';
 import {
@@ -712,6 +713,12 @@ const socialRegistry = createSocialSocketRegistry({
     if ([...(socket.data.liveChatRooms || [])].some((id) => id.startsWith('livechat:friend-call-'))) {
       privateCalls.endForAccount(socket.data.socialAuth?.auth?.accountId, 'authentication_expired');
     }
+    for (const id of socket.data.liveChatRooms || []) {
+      if (!id.startsWith('livechat:friend-call-')) socket.emit('liveChat:room-full', {
+        roomId: id.replace(/^livechat:/, ''), reason: 'membership_required',
+        message: 'Game call ended: sign in again to continue.'
+      });
+    }
     removeSocketFromLiveChat(socket);
   }
 });
@@ -742,6 +749,25 @@ function sendLiveChatPeers(roomId, excludedSocketId, event, payload) {
 // Dynamic lobby tables grouped by game type and capacity
 const lobbyTables = {};
 const tableMap = new Map();
+const gameCallMembership = createGameCallMembership({ tableMap, getSocket: (id) => io.sockets.sockets.get(id) });
+function pruneGameCallRoom(normalizedRoomId) {
+  const roomId = normalizedRoomId.replace(/^livechat:/, '');
+  if (roomId.startsWith('friend-call-')) return;
+  const room = liveChatRooms.get(normalizedRoomId);
+  gameCallMembership.prune(roomId, room, (sid) => {
+    const peer = io.sockets.sockets.get(sid);
+    peer?.data?.liveChatRooms?.delete(normalizedRoomId);
+    peer?.leave(normalizedRoomId);
+    peer?.emit('liveChat:room-full', { roomId, message: 'Game call ended: sign in and rejoin your match.', reason: 'membership_required' });
+    sendLiveChatPeers(normalizedRoomId, sid, 'liveChat:peer-left', { roomId, socketId: sid });
+  });
+  if (room?.size === 0) liveChatRooms.delete(normalizedRoomId);
+}
+// End stale established peer sessions even when no new signaling is sent.
+const gameCallSweepTimer = setInterval(() => {
+  for (const id of liveChatRooms.keys()) pruneGameCallRoom(id);
+}, 1000);
+gameCallSweepTimer.unref?.();
 const tennisRoyal = createTennisRoyal({io,tableMap});
 const tabletennisRoyal = createTableTennisRoyal({io,tableMap});
 app.set('gameManager', gameManager);
@@ -3670,7 +3696,8 @@ io.on('connection', (socket) => {
     if (!normalizedRoomId) return;
 
     let privateUser = null;
-    if (String(roomId).trim().startsWith('friend-call-')) {
+    const isPrivateCall = typeof roomId === 'string' && roomId.startsWith('friend-call-');
+    if (isPrivateCall) {
       try {
         privateUser = await requireSocialSocket(socket);
         if (!privateCalls.canJoin(roomId, privateUser.accountId)) throw new Error('Call unavailable');
@@ -3679,12 +3706,22 @@ io.on('connection', (socket) => {
         return;
       }
     }
+    if (!isPrivateCall) {
+      try {
+        privateUser = await requireSocialSocket(socket);
+        if (!gameCallMembership.allows(socket, roomId)) throw new Error('Match membership required');
+      } catch {
+        socket.emit('liveChat:room-full', { roomId, reason: 'membership_required', message: 'Game calls require sign-in and an active seat in this match. This room may not support calls yet.' });
+        return;
+      }
+      pruneGameCallRoom(normalizedRoomId);
+    }
     const room = ensureLiveChatRoom(normalizedRoomId);
     if (privateUser && [...room.entries()].some(([sid, details]) => sid !== socket.id && details.accountId === String(privateUser.accountId))) {
       socket.emit('liveChat:room-full', { roomId: String(roomId), message: 'This call is already open on another device.' });
       return;
     }
-    if (!room.has(socket.id) && room.size >= (privateUser ? 2 : 4)) {
+    if (!room.has(socket.id) && room.size >= (isPrivateCall ? 2 : 4)) {
       socket.emit('liveChat:room-full', {
         roomId: String(roomId),
         message: 'This live video room already has four players.'
@@ -3707,8 +3744,7 @@ io.on('connection', (socket) => {
     }));
 
     room.set(socket.id, safeParticipant);
-    // Private calls use the verified membership map, never a joinable room.
-    if (!privateUser) socket.join(normalizedRoomId);
+    // All calls use verified membership maps, never joinable Socket.IO rooms.
     if (!socket.data.liveChatRooms) socket.data.liveChatRooms = new Set();
     socket.data.liveChatRooms.add(normalizedRoomId);
 
@@ -3727,8 +3763,9 @@ io.on('connection', (socket) => {
   socket.on('liveChat:leave', ({ roomId } = {}) => {
     const normalizedRoomId = normalizeLiveChatRoomId(roomId);
     if (!normalizedRoomId) return;
+    pruneGameCallRoom(normalizedRoomId);
     const room = liveChatRooms.get(normalizedRoomId);
-    if (!room) return;
+    if (!room || !room.has(socket.id)) return;
 
     room.delete(socket.id);
     socket.leave(normalizedRoomId);
@@ -3749,6 +3786,7 @@ io.on('connection', (socket) => {
   socket.on('liveChat:media_state', ({ roomId, mediaState } = {}) => {
     const normalizedRoomId = normalizeLiveChatRoomId(roomId);
     if (!normalizedRoomId) return;
+    pruneGameCallRoom(normalizedRoomId);
     const room = liveChatRooms.get(normalizedRoomId);
     if (!room || !room.has(socket.id)) return;
 
@@ -3772,8 +3810,10 @@ io.on('connection', (socket) => {
   socket.on('liveChat:signal', ({ roomId, targetSocketId, data } = {}) => {
     const normalizedRoomId = normalizeLiveChatRoomId(roomId);
     if (!normalizedRoomId || !targetSocketId || !data) return;
+    pruneGameCallRoom(normalizedRoomId);
     const room = liveChatRooms.get(normalizedRoomId);
     if (!room || !room.has(socket.id) || !room.has(targetSocketId)) return;
+    if (JSON.stringify(data).length > 128000) return;
     if (String(roomId).trim().startsWith('friend-call-')) {
       const auth = socket.data.socialAuth;
       const target = io.sockets.sockets.get(targetSocketId)?.data?.socialAuth;

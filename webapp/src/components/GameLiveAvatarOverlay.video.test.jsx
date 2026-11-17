@@ -688,6 +688,24 @@ describe.each(['checkersbattleroyal', 'poolroyale'])('%s shared live video', (de
     expect(connections[0].close).toHaveBeenCalledOnce();
   });
 
+  it('stops tracks and peers when server rejects or revokes match membership', async () => {
+    await mount();
+    await click('Turn on live avatar video');
+    await receive('liveChat:signal', {roomId, fromSocketId:'rival', data:{type:'offer',sdp:{type:'offer',sdp:'right'}}});
+    await receive('liveChat:room-full', {roomId, reason:'membership_required', message:'Sign in and rejoin your match.'});
+    expect(stream.getTracks().every(track => track.stop.mock.calls.length === 1)).toBe(true);
+    expect(connections[0].close).toHaveBeenCalled();
+    expect(container.textContent).toContain('Sign in and rejoin your match.');
+    await receive('connect');
+    await receive('liveChat:signal', {roomId, fromSocketId:'late-peer', data:{type:'offer',sdp:{type:'offer',sdp:'late'}}});
+    await frame();
+    expect(getUserMedia).toHaveBeenCalledTimes(1);
+    expect(connections).toHaveLength(1);
+    await click('End video call');
+    await click('Turn on live avatar video');
+    expect(getUserMedia).toHaveBeenCalledTimes(2);
+  });
+
   it('stops capture on native dialog open and does not automatically resume', async () => {
     await mount();
     await click('Turn on live avatar video');
