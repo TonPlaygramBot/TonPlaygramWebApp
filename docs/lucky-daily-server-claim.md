@@ -1,5 +1,8 @@
 # LuckyNumber daily 100: focused server migration (draft)
 
+This document records the daily-only step (#26092). The stacked follow-up dice
+work is described separately in lucky-dice-server-migration.md; its gates remain.
+
 Only the automatic daily 100 TPG award is migrated. POST /api/lucky-daily/claim
 requires signed Telegram/Google identity, ignores all submitted fields, and uses
 the server UTC date and fixed amount. Claiming simultaneously across devices or

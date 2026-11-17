@@ -1,11 +1,11 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import DiceRoller from './DiceRoller.jsx';
 import AdModal from './AdModal.tsx';
 import CardSpinner from './CardSpinner.jsx';
 import { getTelegramId } from '../utils/telegram.js';
 import LoginOptions from './LoginOptions.jsx';
 import TikTokTaskVideo from './TikTokTaskVideo.jsx';
-import { getWalletBalance, updateBalance, addTransaction } from '../utils/api.js';
+import useServerSpinReward from '../hooks/useServerSpinReward.js';
 import coinConfetti from '../utils/coinConfetti';
 import { getGameVolume } from '../utils/sound.js';
 
@@ -22,106 +22,50 @@ export default function LuckyNumber() {
   const [selected, setSelected] = useState(null);
   const [cardPrize, setCardPrize] = useState(null);
   const [spinTrigger, setSpinTrigger] = useState(0);
-  const [canRoll, setCanRoll] = useState(false);
   const [rolling, setRolling] = useState(false);
-  const [showAd, setShowAd] = useState(false);
-  const [adWatched, setAdWatched] = useState(false);
   const [trigger, setTrigger] = useState(0);
   const ranks = ['A', '2', '3', '4', '5', '6', '7', '8', '9', '10', 'J', 'Q'];
   const suitTypes = ['hearts', 'spades', 'diamonds', 'clubs'];
-  const [cards] = useState(() =>
+  const [cards, setCards] = useState(() =>
     ranks.map((r) => ({ rank: r, suit: suitTypes[Math.floor(Math.random() * suitTypes.length)] }))
   );
   const [overlays, setOverlays] = useState([]);
 
-  const COOLDOWN = 4 * 60 * 60 * 1000; // 4 hours
-
-  useEffect(() => {
-    const last = parseInt(localStorage.getItem('luckyRollTs') || '0', 10);
-    setCanRoll(Date.now() - last >= COOLDOWN);
-  }, []);
-
   const daily = useLuckyDaily(telegramId);
-
+  const receiptRef = useRef(null);
+  const [receipt, setReceipt] = useState(null);
+  const reward = useServerSpinReward('lucky', (grant) => {
+    receiptRef.current = grant;
+    setReceipt(grant);
+    setSelected(null); setCardPrize(null); setRolling(true);
+    setCards((items) => items.map((card, index) => index === grant.cardIndex ? { ...card, suit: grant.suit } : card));
+    setTrigger((value) => value + 1);
+  });
+  useEffect(() => {
+    receiptRef.current = null; setReceipt(null); setSelected(null);
+    setCardPrize(null); setRolling(false); setOverlays([]);
+  }, [reward.identity]);
+  const canRoll = reward.ready && !reward.busy && !rolling;
   const handleRollStart = () => setRolling(true);
-
-  const handleRollEnd = (values) => {
-    setRolling(false);
-    const sum = values.reduce((acc, v) => acc + v, 0);
-    const idx = Math.min(Math.max(0, sum - 2), ranks.length - 1);
-    setSelected(idx);
-    setCardPrize(null);
-    setSpinTrigger((t) => t + 1);
-    localStorage.setItem('luckyRollTs', String(Date.now()));
-    setCanRoll(false);
-    setAdWatched(false);
-    const items = ['DICE', 'FREE_SPIN', 'BONUS_X3'];
-    setOverlays(
-      items.map((type) => ({
-        type,
-        top: `${10 + Math.random() * 80}%`,
-        left: `${10 + Math.random() * 80}%`,
-      }))
-    );
+  const handleRollEnd = () => {
+    const grant = receiptRef.current;
+    if (!grant) return;
+    setSelected(grant.cardIndex);
+    setSpinTrigger((value) => value + 1);
+    setOverlays(['DICE', 'FREE_SPIN', 'BONUS_X3'].map((type) => ({
+      type, top: `${10 + Math.random() * 80}%`, left: `${10 + Math.random() * 80}%`
+    })));
   };
-
-  // Legacy dice/card rewards remain client-authoritative and require a separate migration.
-  const handleSpinFinish = async (prize) => {
-    let finalPrize = prize;
-    if (typeof prize === 'number') {
-      const suit = cards[selected]?.suit;
-      if (suit === 'hearts') finalPrize = prize * 2;
-      else if (suit === 'spades') finalPrize = Math.floor(prize * 0.5);
-      else if (suit === 'diamonds') finalPrize = Math.floor(prize * 1.5);
-      else if (suit === 'clubs') finalPrize = Math.floor(prize * 0.75);
-    }
-
-    setCardPrize(finalPrize);
-    if (typeof finalPrize === 'number') {
-      try {
-        const balRes = await getWalletBalance(telegramId);
-        const newBalance = (balRes.balance || 0) + finalPrize;
-        await updateBalance(telegramId, newBalance);
-        await addTransaction(telegramId, finalPrize, 'lucky');
-      } catch (e) {}
-    } else if (finalPrize === 'FREE_SPIN') {
-      const fs = parseInt(localStorage.getItem('freeSpins') || '0', 10) + 2;
-      localStorage.setItem('freeSpins', String(fs));
-      window.dispatchEvent(new Event('freeSpinAwarded'));
-      document.getElementById('spin-game')?.scrollIntoView({ behavior: 'smooth' });
-    } else if (finalPrize === 'BONUS_X3') {
-      localStorage.setItem('bonusX3', 'true');
-      window.dispatchEvent(new Event('bonusX3Awarded'));
-      document.getElementById('spin-game')?.scrollIntoView({ behavior: 'smooth' });
-    }
-
-    let icon = '/assets/icons/file_00000000362481f7978631c42572193f.png';
-    if (finalPrize === 'BONUS_X3') {
-      icon = '/assets/icons/file_00000000ead061faa3b429466e006f48.webp';
-    } else if (finalPrize === 'FREE_SPIN') {
-      icon = '/assets/icons/file_00000000ae68620a96d269fe76d158e5_256x256.webp';
-    }
-    coinConfetti(50, icon);
-    const audio = new Audio(
-      '/assets/sounds/11l-victory_sound_with_t-1749487412779-357604.mp3'
-    );
-    audio.volume = getGameVolume();
-    audio.play().catch(() => {});
+  const handleSpinFinish = () => {
+    const grant = receiptRef.current;
+    if (!grant) return;
+    // Already credited by the claim. Animation callbacks never mutate balances.
+    setCardPrize(grant.outcome); setRolling(false);
+    coinConfetti(50, '/assets/icons/file_00000000362481f7978631c42572193f.png');
+    const audio = new Audio('/assets/sounds/11l-victory_sound_with_t-1749487412779-357604.mp3');
+    audio.volume = getGameVolume(); audio.play().catch(() => {});
   };
-
-  const handleRollClick = () => {
-    if (!canRoll || rolling) return;
-    if (!adWatched) {
-      setShowAd(true);
-      return;
-    }
-    setTrigger((t) => t + 1);
-  };
-
-  const handleAdComplete = () => {
-    setAdWatched(true);
-    setTrigger((t) => t + 1);
-  };
+  const handleRollClick = () => { if (canRoll) reward.begin(); };
 
   return (
     <div className="relative bg-surface border border-border rounded-xl p-4 space-y-2 text-center overflow-hidden wide-card">
@@ -203,7 +147,7 @@ export default function LuckyNumber() {
                   </div>
                 )}
                 {selected === i && !cardPrize && (
-                  <CardSpinner trigger={spinTrigger} onFinish={handleSpinFinish} />
+                  <CardSpinner trigger={spinTrigger} forcedOutcome={receipt?.baseOutcome} onFinish={handleSpinFinish} />
                 )}
                 {selected === i && cardPrize && (
                   <div className="w-full h-full bg-white rounded-md relative">
@@ -351,11 +295,14 @@ export default function LuckyNumber() {
         ))}
       </div>
       <div className="flex flex-col items-center space-y-2 mt-6">
-        <div
+        <button
+          type="button" aria-label="Roll Lucky Card dice" disabled={!canRoll}
           onClick={handleRollClick}
           className={canRoll ? 'cursor-pointer' : 'cursor-not-allowed'}
         >
           <DiceRoller
+            key={reward.identity}
+            forcedValues={receipt?.dice || []}
             onRollEnd={handleRollEnd}
             onRollStart={handleRollStart}
             showButton={false}
@@ -364,15 +311,24 @@ export default function LuckyNumber() {
             className="lucky-dice"
             diceTransparent
           />
-        </div>
+        </button>
         {!canRoll && (
-          <p className="text-sm text-subtext">You can roll again every 4 hours.</p>
+          <p className="text-sm text-subtext">{reward.busy ? 'Confirming reward…' : rolling ? 'Revealing your reward…' : `Next roll in ${Math.ceil(reward.remaining / 60000)} minutes (4-hour cooldown).`}</p>
         )}
       </div>
+      {reward.error && <div role="alert" className="text-sm text-white">
+        <p>{reward.error} Retrying recovers the same reward, without crediting it twice.</p>
+        <button type="button" onClick={reward.begin} disabled={reward.busy}>Retry Lucky reward</button>
+      </div>}
+      {cardPrize === 'BONUS_X3' && <p role="status" className="text-white">
+        Bonus: {receipt.bonusOutcomes.join(' + ')} = {receipt.amount} TPC credited.
+      </p>}
+      {cardPrize === 'FREE_SPIN' && <p role="status" className="text-white">2 server-issued free spins added to Spin.</p>}
+      <p className="text-xs text-subtext">Only server-issued rewards count. Older local Lucky Number bonuses still need verification.</p>
       <AdModal
-        open={showAd}
-        onComplete={handleAdComplete}
-        onClose={() => setShowAd(false)}
+        open={reward.showAd}
+        onComplete={reward.claim}
+        onClose={reward.closeAd}
       />
     </div>
   );

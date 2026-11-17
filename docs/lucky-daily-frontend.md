@@ -9,10 +9,10 @@ receipt updates the displayed wallet; already-claimed receipts are safe retries.
 Unmounted requests do not update the UI. React Strict Mode may issue two requests;
 server atomic once-per-account/day enforcement is required.
 
-This is deliberately NOT a migration of dice/card prizes: that flow still reads
-and writes balances and locally awards spin bonuses. Its existing cooldown and
-random selection are unchanged. Those remaining client-authoritative operations
-must be separately secured before claiming platform-wide reward integrity.
+Dice/card prizes now use the server-authoritative spin reward endpoint with
+`kind: lucky`; see `lucky-dice-frontend.md`. This replaces the previously documented
+client-authoritative remainder in LuckyNumber, but does not secure unrelated game
+balance writers elsewhere in the platform.
 
 Verification: focused component tests cover confirmed/duplicate daily responses,
 authentication failure and retry, no client identity/date/amount, forged local

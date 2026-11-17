@@ -1,340 +1,66 @@
-import { useEffect, useState, useRef } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import SpinWheel from './SpinWheel.tsx';
 import RewardPopup from './RewardPopup.tsx';
 import SpinRewardVideo from './SpinRewardVideo.tsx';
-import { canSpin, nextSpinTime, numericSegments } from '../utils/rewardLogic';
-import { creditSpinReward } from '../utils/creditSpinReward.js';
-import { getTelegramId } from '../utils/telegram.js';
-import { getGameVolume } from '../utils/sound.js';
-import LoginOptions from './LoginOptions.jsx';
+import { numericSegments } from '../utils/rewardLogic';
+import { rewardIdentity } from '../utils/rewardIdentity.js';
+import useServerSpinReward from '../hooks/useServerSpinReward.js';
 
 export default function SpinGame({ reelUrl = null }) {
-  let telegramId;
-  try {
-    telegramId = getTelegramId();
-  } catch (err) {
-    return <LoginOptions />;
-  }
-  const [lastSpin, setLastSpin] = useState(null);
-  const [reward, setReward] = useState(null);
   const [spinning, setSpinning] = useState(false);
-  const [bonusMode, setBonusMode] = useState(false);
-  const bonusResults = useRef([]);
-  const [showAd, setShowAd] = useState(false);
-  const ONE_HOUR = 60 * 60 * 1000;
-  const [crediting, setCrediting] = useState(false);
-  const [creditFailed, setCreditFailed] = useState(false);
-  const [freeSpins, setFreeSpins] = useState(0);
-  const [spinLock, setSpinLock] = useState(
-    localStorage.getItem('spinInProgress') === '1'
-  );
-  const [timeLeft, setTimeLeft] = useState(0);
-  const wheelRef = useRef(null);
-  const bonusRefLeft = useRef(null);
-  const bonusRefRight = useRef(null);
+  const [reward, setReward] = useState(null);
+  const [bonus, setBonus] = useState(null);
   const [bombed, setBombed] = useState(false);
-  const bombSoundRef = useRef(null);
-
+  const result = useRef(null);
+  const resultOwner = useRef(null);
+  const main = useRef(null); const left = useRef(null); const right = useRef(null);
+  const completed = useRef(0);
+  const server = useServerSpinReward('spin', (grant) => {
+    resultOwner.current = rewardIdentity();
+    result.current = grant;
+    main.current?.spin(grant.outcome);
+  });
   useEffect(() => {
-    bombSoundRef.current = new Audio('/assets/sounds/a-bomb-139689.mp3');
-    bombSoundRef.current.volume = getGameVolume();
-    const handler = () => {
-      if (bombSoundRef.current) bombSoundRef.current.volume = getGameVolume();
-    };
-    window.addEventListener('gameVolumeChanged', handler);
-    return () => {
-      window.removeEventListener('gameVolumeChanged', handler);
-      bombSoundRef.current?.pause();
-    };
-  }, []);
-
-  useEffect(() => {
-    if (bombed) {
-      bombSoundRef.current?.play().catch(() => {});
-    }
-  }, [bombed]);
-
-  useEffect(() => {
-    const handleFs = () => {
-      const fs = parseInt(localStorage.getItem('freeSpins') || '0', 10);
-      setFreeSpins(fs);
-      document
-        .getElementById('spin-game')
-        ?.scrollIntoView({ behavior: 'smooth' });
-    };
-    window.addEventListener('freeSpinAwarded', handleFs);
-    return () => window.removeEventListener('freeSpinAwarded', handleFs);
-  }, []);
-
-  useEffect(() => {
-    const handleBonus = () => {
-      if (localStorage.getItem('bonusX3') === 'true') {
-        setBonusMode(true);
-        localStorage.removeItem('bonusX3');
-        document
-          .getElementById('spin-game')
-          ?.scrollIntoView({ behavior: 'smooth' });
-      }
-    };
-    window.addEventListener('bonusX3Awarded', handleBonus);
-    handleBonus();
-    return () => window.removeEventListener('bonusX3Awarded', handleBonus);
-  }, []);
-
-  useEffect(() => {
-    const ts = localStorage.getItem('lastSpin');
-    if (ts) setLastSpin(parseInt(ts, 10));
-    const fs = localStorage.getItem('freeSpins');
-    if (fs) setFreeSpins(parseInt(fs, 10));
-    const sl = localStorage.getItem('spinInProgress');
-    if (sl) setSpinLock(sl === '1');
-
-    const handleStorage = (e) => {
-      if (e.key === 'lastSpin') {
-        setLastSpin(e.newValue ? parseInt(e.newValue, 10) : null);
-      } else if (e.key === 'freeSpins') {
-        setFreeSpins(e.newValue ? parseInt(e.newValue, 10) : 0);
-      } else if (e.key === 'spinInProgress') {
-        setSpinLock(e.newValue === '1');
-      }
-    };
-    window.addEventListener('storage', handleStorage);
-    return () => window.removeEventListener('storage', handleStorage);
-  }, []);
-
-  useEffect(() => {
-    const update = () => {
-      const t = nextSpinTime(lastSpin) - Date.now();
-      setTimeLeft(t > 0 ? t : 0);
-    };
-    update();
-    const id = setInterval(update, 1000);
-    return () => clearInterval(id);
-  }, [lastSpin]);
-
-  useEffect(() => {
-    if (bonusMode) {
-      bonusResults.current = [];
-      setSpinning(true);
-      wheelRef.current?.spin();
-      bonusRefLeft.current?.spin();
-      bonusRefRight.current?.spin();
-    }
-  }, [bonusMode]);
-
-  const awardCoins = (amount) => {
-    setReward(amount);
-    setCrediting(true);
-    creditSpinReward(telegramId, amount, 'spin')
-      .catch(() => setCreditFailed(true))
-      .finally(() => setCrediting(false));
-  };
-
-  const handleFinish = (r) => {
-    localStorage.removeItem('spinInProgress');
-    setSpinLock(false);
-    if (r === 'BOMB') {
-      if (freeSpins === 0) {
-        const now = Date.now();
-        localStorage.setItem('lastSpin', String(now));
-        setLastSpin(now);
-      }
-      setSpinning(false);
-      setBombed(true);
-      return;
-    }
-    if (r === 'BONUS_X3') {
-      setBonusMode(true);
-      if (freeSpins === 0) {
-        const now = Date.now();
-        localStorage.setItem('lastSpin', String(now));
-        setLastSpin(now);
-      }
-      return;
-    }
-
-    if (r === 'FREE_SPIN') {
-      const total = freeSpins + 2;
-      setFreeSpins(total);
-      localStorage.setItem('freeSpins', String(total));
-      setReward(r);
-      return;
-    }
-
-    if (freeSpins === 0) {
-      const now = Date.now();
-      localStorage.setItem('lastSpin', String(now));
-      setLastSpin(now);
-    }
-    awardCoins(r);
-  };
-
-  const triggerSpin = () => {
-    if (spinning || spinLock || bonusMode || crediting) return;
-
-    const storedLast = parseInt(localStorage.getItem('lastSpin') || '0', 10);
-    const storedFree = parseInt(localStorage.getItem('freeSpins') || '0', 10);
-
-    if (storedFree === 0 && !canSpin(storedLast)) {
-      return;
-    }
-
-    if (storedFree === 0) {
-      const ts = parseInt(localStorage.getItem('lastSpinAd') || '0', 10);
-      if (!(Date.now() - ts < ONE_HOUR)) {
-        setShowAd(true);
-        return;
-      }
-    }
-
-    if (storedFree > 0) {
-      const remaining = storedFree - 1;
-      setFreeSpins(remaining);
-      localStorage.setItem('freeSpins', String(remaining));
-    } else {
-      const now = Date.now();
-      localStorage.setItem('lastSpin', String(now));
-      setLastSpin(now);
-    }
-
-    localStorage.setItem('spinInProgress', '1');
-    setSpinLock(true);
-    setSpinning(true);
-    setCreditFailed(false);
-    wheelRef.current?.spin();
-  };
-
-  const handleAdComplete = () => {
-    const now = Date.now();
-    localStorage.setItem('lastSpinAd', String(now));
-    setShowAd(false);
-    triggerSpin();
-  };
-
-  const formatTime = (ms) => {
-    const total = Math.ceil(ms / 1000);
-    const m = Math.floor(total / 60);
-    const s = total % 60;
-    return `${m.toString().padStart(2, '0')}:${s.toString().padStart(2, '0')}`;
-  };
-
-  const handleBonusFinish = (value) => {
-    bonusResults.current.push(value);
-    if (bonusResults.current.length !== 3) return;
-
-    localStorage.removeItem('spinInProgress');
-    setSpinLock(false);
-    const total = bonusResults.current.reduce((sum, prize) => sum + prize, 0);
-    awardCoins(total);
-    setBonusMode(false);
+    result.current = null; resultOwner.current = null; completed.current = 0;
+    setSpinning(false); setReward(null); setBonus(null); setBombed(false);
+  }, [server.identity]);
+  const ownsAnimation = () => server.identity === rewardIdentity() && resultOwner.current === server.identity;
+  const finish = () => {
+    if (!ownsAnimation()) return;
+    const grant = result.current;
+    if (!grant) return;
+    if (grant.outcome === 'BONUS_X3') { setBonus(grant.bonusOutcomes); return; }
+    if (grant.outcome === 'BOMB') setBombed(true);
+    else setReward(grant.outcome === 'FREE_SPIN' ? 'FREE_SPIN' : grant.amount);
     setSpinning(false);
   };
-
-  const ready = freeSpins > 0 || canSpin(lastSpin);
-
-  return (
-    <div
-      id="spin-game"
-      className="relative bg-surface border border-border rounded-xl p-4 flex flex-col items-center space-y-2 overflow-hidden wide-card"
-    >
-      <img
-        src="/assets/icons/snakes_and_ladders.webp"
-        className="background-behind-board object-cover"
-        alt=""
-        onError={(e) => {
-          e.currentTarget.style.display = 'none';
-        }}
-      />
-      <h3 className="text-lg font-bold text-white">Spin &amp; Win</h3>
-      <SpinRewardVideo
-        reelUrl={reelUrl}
-        rewardOpen={showAd}
-        onRewardComplete={handleAdComplete}
-        onRewardClose={() => setShowAd(false)}
-      />
-      <p className="text-sm text-subtext">Try your luck and win rewards!</p>
-      {!bonusMode ? (
-        <div key="single-wheel" className="flex items-start justify-center">
-          <SpinWheel
-            ref={wheelRef}
-            onFinish={handleFinish}
-            spinning={spinning}
-            setSpinning={setSpinning}
-            disabled={!ready}
-            showButton={false}
-          />
-        </div>
-      ) : (
-        <div key="bonus-wheels" className="flex items-start justify-center space-x-2">
-          <SpinWheel
-            ref={bonusRefLeft}
-            onFinish={handleBonusFinish}
-            spinning={spinning}
-            setSpinning={() => {}}
-            segments={numericSegments}
-            showButton={false}
-          />
-          <SpinWheel
-            ref={wheelRef}
-            onFinish={handleBonusFinish}
-            spinning={spinning}
-            setSpinning={() => {}}
-            segments={numericSegments}
-            showButton={false}
-          />
-          <SpinWheel
-            ref={bonusRefRight}
-            onFinish={handleBonusFinish}
-            spinning={spinning}
-            setSpinning={() => {}}
-            segments={numericSegments}
-            showButton={false}
-          />
-        </div>
-      )}
-      {freeSpins > 0 && (
-        <p className="text-xs text-accent font-bold">Free Spins: {freeSpins}</p>
-      )}
-      <button
-        onClick={triggerSpin}
-        className={`mt-2 px-6 py-2 ${ready ? 'bg-green-600' : 'bg-red-600'} text-white text-sm font-bold rounded disabled:bg-gray-500`}
-        disabled={spinning || spinLock || !ready || bonusMode || crediting}
-      >
-        Spin
-      </button>
-      {!ready && (
-        <>
-          <p className="text-sm font-semibold text-yellow-400 text-outline-black">
-            Next spin in {formatTime(timeLeft)}
-          </p>
-          <p className="text-sm text-yellow-400 text-outline-black">
-            Watch an ad every hour to get a free spin.
-          </p>
-        </>
-      )}
-      <RewardPopup
-        reward={reward}
-        onClose={() => setReward(null)}
-      />
-      {creditFailed && (
-        <p role="status" className="text-sm text-yellow-300">
-          Could not confirm the reward in your wallet.
-        </p>
-      )}
-      {bombed && (
-        <div className="fixed inset-0 flex items-center justify-center bg-black bg-opacity-70 z-50">
-          <div className="text-center space-y-4">
-            <div className="text-6xl bomb-explosion">💥</div>
-            <p className="text-text text-xl font-bold">Try Again Later</p>
-            <button
-              onClick={() => setBombed(false)}
-              className="px-4 py-1 bg-primary hover:bg-primary-hover text-white rounded w-full"
-            >
-              Close
-            </button>
-          </div>
-        </div>
-      )}
-    </div>
-  );
+  useEffect(() => {
+    if (!bonus || !ownsAnimation()) return;
+    completed.current = 0;
+    left.current?.spin(bonus[0]); main.current?.spin(bonus[1]); right.current?.spin(bonus[2]);
+    setSpinning(true);
+  }, [bonus]);
+  const finishBonus = () => {
+    if (!ownsAnimation() || !result.current) return;
+    completed.current += 1;
+    if (completed.current !== 3) return;
+    setReward(result.current.amount); setBonus(null); setSpinning(false);
+  };
+  const seconds = Math.ceil(server.remaining / 1000);
+  return <div id="spin-game" className="relative bg-surface border border-border rounded-xl p-4 flex flex-col items-center space-y-2 overflow-hidden wide-card">
+    <img src="/assets/icons/snakes_and_ladders.webp" className="background-behind-board object-cover" alt="" onError={(event) => { event.currentTarget.style.display = 'none'; }} />
+    <h3 className="text-lg font-bold text-white">Spin &amp; Win</h3>
+    <SpinRewardVideo reelUrl={reelUrl} rewardOpen={server.showAd} onRewardComplete={server.claim} onRewardClose={server.closeAd} />
+    <p className="text-sm text-subtext">Try your luck and win rewards!</p>
+    {bonus ? <div key={`bonus:${server.identity}`} className="flex items-start justify-center space-x-2">
+      {[left, main, right].map((ref, index) => <SpinWheel key={index} ref={ref} onFinish={finishBonus} spinning={false} setSpinning={() => {}} segments={numericSegments} showButton={false} />)}
+    </div> : <SpinWheel key={`single:${server.identity}`} ref={main} onFinish={finish} spinning={spinning} setSpinning={(value) => { if (server.identity === rewardIdentity()) setSpinning(value); }} showButton={false} />}
+    {server.freeSpins > 0 && <p className="text-xs text-accent font-bold">Free Spins: {server.freeSpins}</p>}
+    <button onClick={server.begin} disabled={server.busy || spinning || !server.ready} className="mt-2 px-6 py-2 bg-green-600 text-white text-sm font-bold rounded disabled:bg-gray-500">{server.busy ? 'Confirming…' : server.error ? 'Retry spin' : 'Spin'}</button>
+    {!server.ready && <p className="text-sm text-yellow-400">Next spin in {Math.floor(seconds / 60)}:{String(seconds % 60).padStart(2, '0')}</p>}
+    <p className="text-xs text-subtext">New Lucky Card bonuses are server-issued. Older locally stored bonuses still need server verification.</p>
+    {server.error && <p role="status" className="text-sm text-yellow-300">Could not confirm the reward. Retry safely; the same spin will not be credited twice. {server.error}</p>}
+    <RewardPopup reward={reward} onClose={() => setReward(null)} />
+    {bombed && <div role="status" className="text-white"><span>💥 Try Again Later</span><button onClick={() => setBombed(false)} className="ml-3">Close</button></div>}
+  </div>;
 }
