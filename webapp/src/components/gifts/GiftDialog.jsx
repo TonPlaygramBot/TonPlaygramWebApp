@@ -2,7 +2,7 @@ import React, { useEffect, useId, useRef } from 'react';
 import { createPortal } from 'react-dom';
 import './gifts.css';
 let locks = 0, previousOverflow = '';
-export default function GiftDialog({ title = 'Gift atelier', children, onClose, busy = false, className = '' }) {
+export default function GiftDialog({ title = 'Gift Store', children, onClose, busy = false, className = '' }) {
   const id = useId(), panel = useRef(null), closeRef = useRef(onClose), busyRef = useRef(busy);
   closeRef.current = onClose; busyRef.current = busy;
   useEffect(() => {
