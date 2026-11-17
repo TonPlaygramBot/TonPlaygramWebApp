@@ -14,7 +14,7 @@ function signed(id, token = TEST_TOKEN) {
   params.set('hash', createHmac('sha256', secret).update(data).digest('hex')); return params.toString();
 }
 function fixture() {
-  const offer = { matchId: 'm', offerId: 'o', assetId: 'test-ledger', gameType: 'snake', status: 'offered', revision: 0,
+  const offer = { matchId: 'm', roomId: 'room', offerId: 'o', assetId: 'test-ledger', gameType: 'snake', status: 'offered', revision: 0,
     expiresAt: NOW + 60000, stakeUnits: '10', accountIds: ['a', 'b'], rulesHash: 'a'.repeat(64), feePolicy: { policyId: 'fee1', units: '2', accountId: 'house' } };
   const rows = [{ _id: 'ua', telegramId: 1, tpcAccountNumber: 'a' }, { _id: 'ub', telegramId: 2, tpcAccountNumber: 'b' }];
   let clock = NOW;

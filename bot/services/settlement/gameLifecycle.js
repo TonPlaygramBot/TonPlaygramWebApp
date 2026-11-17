@@ -42,16 +42,21 @@ export function nextGameLifecycle(state, event) {
   return Object.freeze(next);
 }
 
+export function lifecycleCommandRecord(event) {
+  // Pick an explicit schema; unknown caller fields cannot affect idempotency.
+  const command = { matchId: event.matchId, eventId: event.eventId, expectedVersion: event.expectedVersion,
+    at: event.at, kind: event.kind, referenceId: event.referenceId ?? null, accountId: event.accountId ?? null };
+  const eventKey = createHash('sha256').update(JSON.stringify([command.matchId, command.eventId])).digest('hex');
+  const commandHash = createHash('sha256').update(JSON.stringify(command)).digest('hex');
+  return { command, eventKey, commandHash };
+}
+
 /** UNWIRED append-only transaction adapter. No external caller may choose internal events. */
 export function createGameLifecycleJournal({ client, lifecycleMatches, journal }) {
   requireValue(client?.startSession && lifecycleMatches && journal, 'lifecycle_store_required');
   return async event => {
     requireValue(event && id(event.matchId) && id(event.eventId), 'invalid_lifecycle_identity');
-    // Pick an explicit schema; unknown caller fields cannot affect idempotency.
-    const command = { matchId: event.matchId, eventId: event.eventId, expectedVersion: event.expectedVersion,
-      at: event.at, kind: event.kind, referenceId: event.referenceId ?? null, accountId: event.accountId ?? null };
-    const eventKey = createHash('sha256').update(JSON.stringify([command.matchId, command.eventId])).digest('hex');
-    const commandHash = createHash('sha256').update(JSON.stringify(command)).digest('hex');
+    const { command, eventKey, commandHash } = lifecycleCommandRecord(event);
     const session = client.startSession(); let result;
     try {
       await session.withTransaction(async () => {
