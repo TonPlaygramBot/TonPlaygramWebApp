@@ -1,3 +1,4 @@
+import { currencyLabel } from '../utils/currencyDisplay.js';
 import React from 'react';
 
 const AMOUNTS = {
@@ -7,7 +8,7 @@ const AMOUNTS = {
 };
 const tokens = [
   { id: 'TPG', icon: '/assets/icons/file_00000000362481f7978631c42572193f.png' },
-  { id: 'TON', icon: '/assets/icons/TON.webp' },
+  { id: 'TON', icon: '/assets/icons/GRAM.svg' },
   { id: 'USDT', icon: '/assets/icons/Usdt.webp' },
 ];
 
@@ -32,7 +33,7 @@ export default function RoomSelector({ selected, onSelect, tokens: allowed }) {
             >
               <img
                 src={icon}
-                alt={id}
+                alt={currencyLabel(id)}
                 className={
                   id === 'TPG'
                     ? 'w-[0.9306rem] h-[0.9306rem]'

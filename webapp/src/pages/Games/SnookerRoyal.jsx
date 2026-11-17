@@ -1,3 +1,4 @@
+import { currencyLabel } from '../../utils/currencyDisplay.js';
 import React, {
   useCallback,
   useEffect,
@@ -15129,7 +15130,7 @@ const shotPowerRef = useRef(0);
       const overlayData = {
         name: userWon ? player.name || 'You' : opponentDisplayName || 'Opponent',
         avatar: userWon ? resolvedPlayerAvatar : opponentDisplayAvatar || '/assets/icons/profile.svg',
-        prizeText: prizeAmount > 0 ? `+${prizeAmount} ${stakeToken}` : '',
+        prizeText: prizeAmount > 0 ? `+${prizeAmount} ${currencyLabel(stakeToken)}` : '',
         rewards: tournamentOutcome?.unlocks || [],
         userWon
       };

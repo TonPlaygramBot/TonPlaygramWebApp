@@ -474,7 +474,7 @@ router.post('/store-purchase', authenticate, async (req, res) => {
   }
 
   if (txHash) {
-    return res.status(400).json({ error: 'TON payments are disabled. Use TPG balance only.' });
+    return res.status(400).json({ error: 'GRAM payments are disabled. Use TPG balance only.' });
   }
 
   const isItemBundle =

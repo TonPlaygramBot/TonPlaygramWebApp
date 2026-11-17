@@ -1,3 +1,4 @@
+import { currencyLabel } from '../utils/currencyDisplay.js';
 import { useEffect, useState } from 'react';
 import useTelegramBackButton from '../hooks/useTelegramBackButton.js';
 import { getMiningTransactions } from '../utils/api.js';
@@ -65,7 +66,7 @@ export default function MiningTransactions() {
           const token = (tx.token || 'TPG').toUpperCase();
           const iconMap = {
             TPG: '/assets/icons/file_00000000362481f7978631c42572193f.png',
-            TON: '/assets/icons/TON.webp',
+            TON: '/assets/icons/GRAM.svg',
             USDT: '/assets/icons/Usdt.webp'
           };
           const icon = iconMap[token] || `/assets/icons/${token}.webp`;
@@ -81,7 +82,7 @@ export default function MiningTransactions() {
               <div className="text-right">
                 <div className="text-green-500">
                   +{formatValue(tx.amount)}
-                  <img src={icon} alt={token} className="inline w-4 h-4 ml-1" />
+                  <img src={icon} alt={currencyLabel(token)} className="inline w-4 h-4 ml-1" />
                 </div>
                 <div className="text-xs">
                   {tx.date ? new Date(tx.date).toLocaleString(undefined, { hour12: false }) : ''}

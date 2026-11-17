@@ -1,3 +1,4 @@
+import { currencyLabel } from '../utils/currencyDisplay.js';
 import { useState, useEffect, useRef, Fragment, useMemo } from "react";
 import PlayerToken from "./PlayerToken.jsx";
 
@@ -119,7 +120,7 @@ function CoinBurst({ token }) {
           src={
             token.toUpperCase() === 'TPG'
               ? '/assets/icons/file_00000000362481f7978631c42572193f.png'
-              : `/icons/${token.toLowerCase()}.svg`
+              : token.toUpperCase() === 'TON' ? '/assets/icons/GRAM.svg' : `/icons/${token.toLowerCase()}.svg`
           }
           alt=""
           className="coin-img"
@@ -422,19 +423,19 @@ export default function SnakeBoard({
                 <img
                   src={
                     token === 'TON'
-                      ? '/assets/icons/TON.webp'
+                      ? '/assets/icons/GRAM.svg'
                       : token === 'USDT'
                         ? '/assets/icons/Usdt.webp'
                         : '/assets/icons/file_00000000362481f7978631c42572193f.png'
                   }
 
-                  alt={token}
+                  alt={currencyLabel(token)}
                   className="coin-face front"
                 />
                 <img
                   src={
                     token === 'TON'
-                      ? '/assets/icons/TON.webp'
+                      ? '/assets/icons/GRAM.svg'
                       : token === 'USDT'
                         ? '/assets/icons/Usdt.webp'
                         : '/assets/icons/file_00000000362481f7978631c42572193f.png'

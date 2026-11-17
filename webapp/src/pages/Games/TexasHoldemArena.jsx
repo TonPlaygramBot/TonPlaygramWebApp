@@ -1,3 +1,4 @@
+import { currencyLabel } from '../../utils/currencyDisplay.js';
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import * as THREE from 'three';
 import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js';
@@ -2524,7 +2525,7 @@ function createRailTextSprite(initialLines = [], options = {}) {
   const draw = (payload) => {
     lastPayload = parsePayload(payload);
     ctx.clearRect(0, 0, canvas.width, canvas.height);
-    const amountLabel = `${lastPayload.amount.toLocaleString()} ${lastPayload.token}`;
+    const amountLabel = `${lastPayload.amount.toLocaleString()} ${currencyLabel(lastPayload.token)}`;
     const totalPotLabel = 'TOTAL POT';
     const iconSize = 154 * resolutionScale;
     const iconY = canvas.height / 2 - iconSize / 2;
@@ -6055,7 +6056,7 @@ function TexasHoldemArena({ search }) {
       if (canCheck) {
         actions.push({ id: 'check', label: 'Check' });
       } else {
-        actions.push({ id: 'call', label: `Call ${Math.round(humanToCall)} ${gameState.token}` });
+        actions.push({ id: 'call', label: `Call ${Math.round(humanToCall)} ${currencyLabel(gameState.token)}` });
       }
       setUiState({ availableActions: actions, toCall: humanToCall, canRaise: humanCanRaise, maxRaise: humanMaxRaise, minRaise: humanMinRaise });
     } else {
@@ -6612,7 +6613,7 @@ function TexasHoldemArena({ search }) {
           <div className="flex flex-col leading-tight text-white text-center">
             <span className="text-sm font-semibold drop-shadow-md">{humanPlayer?.name || 'You'}</span>
             <span className="text-[0.74rem] text-white/80">
-              {Math.round(humanPlayer?.chips ?? 0)} {gameState.token}
+              {Math.round(humanPlayer?.chips ?? 0)} {currencyLabel(gameState.token)}
             </span>
           </div>
         </div>
@@ -6648,15 +6649,15 @@ function TexasHoldemArena({ search }) {
           <div className="flex flex-col items-center gap-1 text-center">
             <span className="text-[0.6rem] uppercase tracking-[0.4em] text-white/60">{sliderLabel}</span>
             <span className="text-xl font-semibold drop-shadow-md">
-              {Math.round(finalRaise)} {gameState.token}
+              {Math.round(finalRaise)} {currencyLabel(gameState.token)}
             </span>
             {toCall > 0 && (
-              <span className="text-[0.65rem] text-white/60">To call {Math.round(toCall)} {gameState.token}</span>
+              <span className="text-[0.65rem] text-white/60">To call {Math.round(toCall)} {currencyLabel(gameState.token)}</span>
             )}
             {minRaiseAmount > 0 && (
-              <span className="text-[0.65rem] text-white/60">Min raise {Math.round(minRaiseAmount)} {gameState.token}</span>
+              <span className="text-[0.65rem] text-white/60">Min raise {Math.round(minRaiseAmount)} {currencyLabel(gameState.token)}</span>
             )}
-            <span className="text-[0.65rem] text-white/70">Stack {Math.round(sliderMax)} {gameState.token}</span>
+            <span className="text-[0.65rem] text-white/70">Stack {Math.round(sliderMax)} {currencyLabel(gameState.token)}</span>
           </div>
         </div>
       )}

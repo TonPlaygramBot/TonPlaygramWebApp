@@ -1,3 +1,4 @@
+import { currencyLabel } from '../../utils/currencyDisplay.js';
 import { useState, useEffect, useRef } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import RoomSelector from '../../components/RoomSelector.jsx';
@@ -1173,7 +1174,7 @@ export default function ChessBattleRoyalLobby() {
                 <span className="text-xs text-white/60">
                   {onlineQueueMode === 'private'
                     ? `Code ${normalizeHostCode(hostCodeInput) || extractHostCodeFromTableId(pendingTableRef.current) || '—'}`
-                    : `Stake ${stake.amount} ${stake.token}`}
+                    : `Stake ${stake.amount} ${currencyLabel(stake.token)}`}
                 </span>
               </div>
             )}

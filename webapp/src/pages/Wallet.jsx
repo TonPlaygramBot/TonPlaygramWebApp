@@ -1,3 +1,4 @@
+import { currencyLabel } from '../utils/currencyDisplay.js';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { useTonAddress } from '@tonconnect/ui-react';
 import QRCode from 'react-qr-code';
@@ -508,7 +509,7 @@ export default function Wallet({ hideClaim = false, accountIdOverride = '' }) {
                 </span>
                 <span className={tx.amount > 0 ? 'text-green-500' : 'text-red-500'}>
                   {sign}
-                  {amt} {(tx.token || 'TPG').toUpperCase()}
+                  {amt} {currencyLabel((tx.token || 'TPG').toUpperCase())}
                 </span>
                 <span className="text-xs">
                   {new Date(tx.date).toLocaleString(undefined, { hour12: false })}

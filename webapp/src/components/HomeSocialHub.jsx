@@ -1,3 +1,4 @@
+import { currencyLabel } from '../utils/currencyDisplay.js';
 import { useEffect, useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { FaUserFriends, FaGamepad, FaComments } from 'react-icons/fa';
@@ -306,7 +307,7 @@ export default function HomeSocialHub() {
                         {(invite.game || 'snake').toUpperCase()}
                       </p>
                       <p className="text-[10px] text-subtext">
-                        Stake: {invite.amount || 0} {invite.token || 'TPG'}
+                        Stake: {invite.amount || 0} {currencyLabel(invite.token || 'TPG')}
                       </p>
                     </div>
                     <Link

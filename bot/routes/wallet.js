@@ -166,7 +166,7 @@ router.post('/ton-balance', async (req, res) => {
 
     console.error('Error fetching TON balance:', err);
 
-    res.status(500).json({ error: 'Failed to fetch TON balance' });
+    res.status(500).json({ error: 'Failed to fetch GRAM balance' });
 
   }
 

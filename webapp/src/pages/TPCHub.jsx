@@ -1,3 +1,4 @@
+import { currencyLabel } from '../utils/currencyDisplay.js';
 import { useEffect, useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { useTonAddress } from '@tonconnect/ui-react';
@@ -115,7 +116,7 @@ export default function TPCHub() {
             <div key={`${tx.txHash || tx.date || idx}-${idx}`} className="rounded-lg border border-border bg-background/60 px-3 py-2 text-xs">
               <div className="flex items-center justify-between">
                 <span className="text-white font-semibold">{tx.type || tx.category || 'Transaction'}</span>
-                <span>{formatAmount(tx.amount)} {tx.token || 'TPG'}</span>
+                <span>{formatAmount(tx.amount)} {currencyLabel(tx.token || 'TPG')}</span>
               </div>
               <div className="text-subtext mt-1">{tx.detail || tx.game || 'No details'}</div>
               <div className="text-[10px] text-subtext mt-1">{tx.date ? new Date(tx.date).toLocaleString() : '—'}</div>

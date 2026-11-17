@@ -1,3 +1,4 @@
+import { currencyLabel } from '../utils/currencyDisplay.js';
 import React, { useState, useEffect, useRef } from 'react';
 
 import { useLocation, useNavigate } from 'react-router-dom';
@@ -26,7 +27,7 @@ function showGameInviteNotification(invite) {
   const title = 'New game invite';
   const gameName = String(invite?.game || 'snake').replace(/[-_]/g, ' ');
   const stake = Number(invite?.amount) > 0
-    ? ` for ${invite.amount} ${invite.token || 'TPG'}`
+    ? ` for ${invite.amount} ${currencyLabel(invite.token || 'TPG')}`
     : '';
   const options = {
     body: `${invite?.fromName || 'A TonPlaygram player'} invited you to ${gameName}${stake}. Open TonPlaygram to accept or reject.`,
