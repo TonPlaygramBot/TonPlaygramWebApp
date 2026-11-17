@@ -321,7 +321,8 @@ export default function useLiveVideoChat({ roomId, displayName, enabled, video =
       });
     };
 
-    const handleParticipants = ({ participants = [] } = {}) => {
+    const handleParticipants = ({ roomId: eventRoomId, participants = [] } = {}) => {
+      if (eventRoomId !== safeRoomId) return;
       participants.forEach((participant) => {
         upsertRemotePeer(participant.socketId, {
           displayName: participant.displayName || 'Player',
@@ -330,12 +331,14 @@ export default function useLiveVideoChat({ roomId, displayName, enabled, video =
       });
     };
 
-    const handlePeerJoined = ({ socketId, participant } = {}) => {
+    const handlePeerJoined = ({ roomId: eventRoomId, socketId, participant } = {}) => {
+      if (eventRoomId !== safeRoomId) return;
       if (!socketId || socketId === socket.id) return;
       createOfferForPeer(socketId, participant || {});
     };
 
-    const handleSignal = async ({ fromSocketId, data, participant } = {}) => {
+    const handleSignal = async ({ roomId: eventRoomId, fromSocketId, data, participant } = {}) => {
+      if (eventRoomId !== safeRoomId) return;
       if (!fromSocketId || !data) return;
       const peerConnection = ensurePeerConnection(fromSocketId, participant || {});
       if (!peerConnection) return;
@@ -364,17 +367,20 @@ export default function useLiveVideoChat({ roomId, displayName, enabled, video =
       }
     };
 
-    const handlePeerLeft = ({ socketId } = {}) => {
+    const handlePeerLeft = ({ roomId: eventRoomId, socketId } = {}) => {
+      if (eventRoomId !== safeRoomId) return;
       if (!socketId) return;
       closePeer(socketId);
     };
 
-    const handleMediaState = ({ socketId, mediaState: nextMediaState } = {}) => {
+    const handleMediaState = ({ roomId: eventRoomId, socketId, mediaState: nextMediaState } = {}) => {
+      if (eventRoomId !== safeRoomId) return;
       if (!socketId) return;
       upsertRemotePeer(socketId, { mediaState: nextMediaState || EMPTY_MEDIA_STATE });
     };
 
-    const handleRoomFull = ({ message } = {}) => {
+    const handleRoomFull = ({ roomId: eventRoomId, message } = {}) => {
+      if (eventRoomId !== safeRoomId) return;
       setError(message || 'This live video room already has four players.');
     };
 

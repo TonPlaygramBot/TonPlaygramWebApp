@@ -3,6 +3,7 @@ import { createRoot } from 'react-dom/client';
 import { BrowserRouter, useNavigate } from 'react-router-dom';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import GameLiveAvatarOverlay from './GameLiveAvatarOverlay.jsx';
+import BottomLeftIcons from './BottomLeftIcons.jsx';
 import AvatarTimer from './AvatarTimer.jsx';
 import PoolLiveAvatar from './PoolLiveAvatar.jsx';
 import { buildGameLiveChatRoomId } from '../utils/liveVideoRoom.js';
@@ -66,6 +67,7 @@ describe.each(['checkersbattleroyal', 'poolroyale'])('%s shared live video', (de
         <div data-self-player="false" data-player-index="0">{gameSlug === 'poolroyale' ? <PoolLiveAvatar seat="opponent" alt="Rival" style={{ width: avatarSize, height: avatarSize }} /> : <AvatarTimer index={0} name="Rival" />}<span>Rival</span></div>
         <div data-self-player="true" data-player-index="1">{gameSlug === 'poolroyale' ? <PoolLiveAvatar seat="self" alt="You" style={{ width: avatarSize, height: avatarSize }} /> : <AvatarTimer index={1} name="You" isTurn active />}<span>You</span></div>
         <GameplayControls />
+        <BottomLeftIcons onChat={() => { throw new Error("Legacy chat must not open"); }} showGift={false} showInfo={false} showMute={false} />
       </div>
     </GameLiveAvatarOverlay>;
   }
@@ -217,14 +219,15 @@ describe.each(['checkersbattleroyal', 'poolroyale'])('%s shared live video', (de
     expect(container.querySelector('[data-self-player="false"] img').style.visibility).toBe('');
   });
 
-  it('hides call controls while settings, gifts or results block the board', async () => {
+  it('ends calls while settings, gifts or results block the board', async () => {
     await mount();
     await click('Turn on live avatar video');
     await render(true);
-    expect(button('End video call').parentElement.parentElement.style.visibility).toBe('hidden');
-    expect(button('Turn off live avatar video').style.visibility).toBe('hidden');
+    expect(button('End video call')).toBeNull();
+    expect(stream.getTracks().every(track => track.stop.mock.calls.length === 1)).toBe(true);
     await render(false);
-    expect(button('End video call').parentElement.parentElement.style.visibility).toBe('visible');
+    expect(button('End video call')).toBeNull();
+    expect(getUserMedia).toHaveBeenCalledTimes(1);
     expect(getUserMedia).toHaveBeenCalledTimes(1);
   });
 
@@ -496,10 +499,7 @@ describe.each(['checkersbattleroyal', 'poolroyale'])('%s shared live video', (de
       play.mockClear();
       await act(async () => document.dispatchEvent(new Event('pointerdown')));
       expect(play).toHaveBeenCalled();
-      await render(true);
-      expect(audio.srcObject).toBe(remoteStream);
-      expect(button('End voice call').parentElement.parentElement.style.visibility).toBe('hidden');
-      await render(false);
+
       await click('Turn microphone off');
       expect(stream.getAudioTracks()[0].enabled).toBe(false);
       expect(socket.emit).toHaveBeenCalledWith('liveChat:media_state', {
@@ -597,4 +597,108 @@ describe.each(['checkersbattleroyal', 'poolroyale'])('%s shared live video', (de
     expect(stream.getTracks().every((track) => track.stop.mock.calls.length === 1)).toBe(true);
     expect(container.querySelector('[data-self-player="false"] img').style.visibility).toBe('');
   });
+  it.each(['ludobattleroyal', 'murlanroyale', 'snookerroyale', 'chessbattleroyal', 'texasholdem', 'domino-royal', 'snake', 'airhockey'])('replaces chat with opt-in voice/video in %s', async slug => {
+    gameSlug = slug;
+    stream = makeStream(false);
+    getUserMedia.mockResolvedValue(stream);
+    await mount();
+    expect(container.textContent).not.toContain('Chat');
+    expect(getUserMedia).not.toHaveBeenCalled();
+    await click('Start voice call');
+    expect(getUserMedia).toHaveBeenCalledWith(expect.objectContaining({ audio: expect.any(Object), video: false }));
+    expect(socket.emit).toHaveBeenCalledWith('liveChat:join', expect.objectContaining({roomId: `live-${slug}-match-42`}));
+    expect(button('Start video call').disabled).toBe(true);
+    expect(button('Turn camera on')).toBeNull();
+    await receive('liveChat:signal', { roomId: `live-${slug}-match-42`, fromSocketId: 'voice-rival', participant: {displayName:'Voice rival'}, data:{type:'offer',sdp:{type:'offer',sdp:'voice'}} });
+    await act(async () => connections[0].ontrack({streams:[makeStream(false)]}));
+    expect(container.querySelectorAll('audio[aria-label="Voice rival live audio"]')).toHaveLength(1);
+    expect(container.querySelectorAll('video')).toHaveLength(0);
+    expect(container.querySelector('[data-self-player="true"] img').style.visibility).toBe('');
+    await click('Take shot');
+    expect(container.querySelector('output').textContent).toBe('1');
+    await click('End voice call');
+    expect(stream.getTracks().every(track => track.stop.mock.calls.length === 1)).toBe(true);
+    expect(button('Start video call').disabled).toBe(false);
+  });
+
+  it.each(['ludobattleroyal','murlanroyale','snake'])('never joins a shared default room in %s', async slug => {
+    gameSlug = slug;
+    await mount('?mode=ai');
+    expect(button('Start voice call')).toBeNull();
+    expect(button('Start video call')).toBeNull();
+    await click('Start camera preview');
+    expect(socket.emit).not.toHaveBeenCalledWith('liveChat:join', expect.anything());
+    await act(async () => navigate(`/games/${slug}?mode=online&tableId=real-match`));
+    await frame();
+    expect(stream.getTracks().every(track => track.stop.mock.calls.length === 1)).toBe(true);
+    expect(button('Start voice call')).not.toBeNull();
+    expect(socket.emit).not.toHaveBeenCalledWith('liveChat:join', expect.anything());
+  });
+
+  it('restores shared voice controls after permission denial without affecting gameplay', async () => {
+    gameSlug = 'murlanroyale';
+    getUserMedia.mockRejectedValueOnce(new Error('Permission denied'));
+    await mount();
+    await click('Start voice call');
+    expect(container.querySelector('[role="alert"]').textContent).toContain('Permission denied');
+    expect(socket.emit).not.toHaveBeenCalledWith('liveChat:join', expect.anything());
+    await click('Take shot');
+    expect(container.querySelector('output').textContent).toBe('1');
+    await click('End voice call');
+    expect(button('Start voice call').disabled).toBe(false);
+  });
+
+  it('uses trimmed match aliases consistently', () => {
+    expect(buildGameLiveChatRoomId('ludobattleroyal', new URLSearchParams('tableId=%20&roomId=one'))).toBe('live-ludobattleroyal-one');
+    expect(buildGameLiveChatRoomId('ludobattleroyal', new URLSearchParams('tableId=%20one%20'))).toBe('live-ludobattleroyal-one');
+  });
+
+  it('releases capture on blocking overlays instead of hiding stop controls', async () => {
+    await mount();
+    await click('Turn on live avatar video');
+    const modal = document.createElement('div');
+    modal.id = 'chatModal';
+    modal.className = 'active';
+    await act(async () => document.body.append(modal));
+    await frame();
+    expect(button('End video call')).toBeNull();
+    expect(stream.getTracks().every(track => track.stop.mock.calls.length === 1)).toBe(true);
+    await act(async () => modal.remove());
+  });
+
+  it('ignores wrong-room and unscoped signaling while a call is active', async () => {
+    await mount();
+    await click('Turn on live avatar video');
+    socket.emit.mockClear();
+    for (const wrongRoom of ['live-other-match', undefined]) {
+      await receive('liveChat:participants', {roomId: wrongRoom, participants: [{socketId: 'stranger',displayName:'Stranger'}]});
+      await receive('liveChat:peer-joined', {roomId: wrongRoom, socketId:'stranger'});
+      await receive('liveChat:signal', {roomId: wrongRoom, fromSocketId:'stranger', data:{type:'offer',sdp:{type:'offer',sdp:'wrong'}}});
+      await receive('liveChat:media_state', {roomId: wrongRoom, socketId:'stranger', mediaState:{microphone:true}});
+      await receive('liveChat:room-full', {roomId:wrongRoom,message:'Wrong room error'});
+    }
+    expect(connections).toHaveLength(0);
+    expect(container.textContent).not.toContain('Wrong room error');
+    expect(container.textContent).not.toContain('Stranger');
+    await receive('liveChat:signal', {roomId, fromSocketId:'rival', data:{type:'offer',sdp:{type:'offer',sdp:'right'}}});
+    expect(connections).toHaveLength(1);
+    await receive('liveChat:peer-left', {roomId:'wrong',socketId:'rival'});
+    expect(connections[0].close).not.toHaveBeenCalled();
+    await receive('liveChat:peer-left', {roomId,socketId:'rival'});
+    expect(connections[0].close).toHaveBeenCalledOnce();
+  });
+
+  it('stops capture on native dialog open and does not automatically resume', async () => {
+    await mount();
+    await click('Turn on live avatar video');
+    const dialog = document.createElement('dialog');
+    await act(async () => document.body.append(dialog));
+    await act(async () => dialog.setAttribute('open', ''));
+    await frame();
+    expect(stream.getTracks().every(track => track.stop.mock.calls.length === 1)).toBe(true);
+    await act(async () => dialog.remove());
+    await frame();
+    expect(getUserMedia).toHaveBeenCalledTimes(1);
+  });
+
 });
