@@ -92,3 +92,51 @@ missing/excessive fees, nonparticipant winner and invalid lifecycle transitions,
 Not run/provided: real database integration, socket end-to-end, device testing,
 TON sandbox game escrow, testnet or mainnet transactions. No runtime behavior
 changes, merge or deployment are included.
+
+## Follow-on: unwired Snake server-result / transaction adapter
+
+`snakeServerResult.js` accepts a trusted in-process completed GameRoom and binds
+its reservation-bound `settlementMatchId`, canonical roster, winner position/current turn, room and initial rules hash
+to the stored reserved match. It returns a digest-bound result. That digest is
+not a signature and the object checks are not authentication; no client payload
+may enter this adapter. It uses the existing SnakeGame outcome, not new rules.
+There is no disconnect-forfeit payout (no final-tile result means rejection).
+
+`snakeTransactionalSettlement.js` implements a native Mongo transaction boundary:
+load held match, verify canonical-account uniqueness and exact prior debit rows,
+consume reserved debit status, CAS match status/version, CAS each recipient's
+balance plus complete ledger, and insert one `_id`-unique settlement receipt.
+The canonical lookup uses only `tpcAccountNumber`, never ambiguous account aliases.
+A duplicate returns the committed receipt; no client winner is accepted. All
+writes share one snapshot/majority transaction. No notification occurs inside the
+retryable callback. Numeric legacy balance limits are explicitly checked.
+
+**Still no runtime wiring or activation.** No durable reserve producer, approved
+fee/asset snapshot producer, durable game journal/restart recovery, complete
+legacy-ledger provenance lockout or migration is delivered. Matching a debit row
+alone cannot prove legitimacy while older APIs can fabricate ledger entries.
+Existing Snake random generation is unchanged and not made cryptographically
+secure by this adapter. Other writers can still corrupt balances after commit;
+this adapter cannot repair them. Old account histories/IDs may fail closed.
+GameRoom's current names-only GameResult is not silently promoted to funding
+proof. Pool remains unsupported by this adapter.
+
+The follow-on tests run 64 combined pure/mock assertions including real
+SnakeGame rule resolution, duplicate receipt handling, failed-write rollback
+simulation, canonical identity ambiguity, changed rules/roster, missing debit,
+unsafe balances and missing fee recipient. Mock rollback is **not evidence of
+Mongo atomicity or concurrency correctness**.
+
+A separate ephemeral-replica-set test is supplied:
+`node --test bot/tests/snakeTransactionalSettlement.integration.mjs`.
+It tests missing-fee-recipient rollback and concurrent duplicate settlement
+without using any external database URI. Execution was attempted here but
+MongoDB exited with code 100 during startup: **0 passed, 1 blocked/failing test;
+no real transaction or concurrency assertion ran**. This remains a release gate.
+A supported disposable replica set must run this and expanded crash/retry/race
+cases before any integration or paid-play activation. No production data was
+read or changed.
+
+Existing `node --test test/snakeGame.test.js` also passes: 19/19.
+
+A future reserve producer must assign the trusted per-round `room.settlementMatchId`; current/legacy rooms without it fail closed. A reusable room ID alone cannot authorize settlement. Independent review added same-room cross-match replay and second-credit rollback regressions.
