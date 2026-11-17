@@ -1,3 +1,4 @@
+import GameCallActions from '../../components/GameCallActions.jsx';
 import { useEffect } from 'react';
 
 import { DOMINO_ROYAL_INLINE_STYLE } from './dominoRoyalTemplate.js';
@@ -279,10 +280,7 @@ export default function DominoRoyalArena() {
           <span className="icon" aria-hidden="true">🎁</span>
           <span>Gift</span>
         </button>
-        <button className="quick-action" type="button" data-action="chat">
-          <span className="icon" aria-hidden="true">💬</span>
-          <span>Chat</span>
-        </button>
+        <GameCallActions buttonClassName="quick-action" iconClassName="icon" />
       </div>
       <div id="rules">
         <div className="card">

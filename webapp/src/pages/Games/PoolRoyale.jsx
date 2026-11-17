@@ -35350,16 +35350,7 @@ const shotPowerRef = useRef(0);
             >
               <span aria-hidden="true">↻</span>
             </button>
-          ) : (
-            <button
-              type="button"
-              onClick={() => setShowChat(true)}
-              className="pointer-events-auto flex h-[3.15rem] w-[3.15rem] items-center justify-center rounded-[14px] border-none bg-transparent p-0 text-[1.5rem] text-white shadow-none"
-              aria-label="Open chat"
-            >
-              <span aria-hidden="true">💬</span>
-            </button>
-          )}
+          ) : null}
         </div>
       )}
 

@@ -1,5 +1,6 @@
+import GameCallActions from './GameCallActions.jsx';
 import { useState, useEffect } from 'react';
-import { AiOutlineInfoCircle, AiOutlineMessage } from 'react-icons/ai';
+import { AiOutlineInfoCircle } from 'react-icons/ai';
 import { isGameMuted, toggleGameMuted } from '../utils/sound.js';
 export default function BottomLeftIcons({
   onInfo,
@@ -43,16 +44,7 @@ export default function BottomLeftIcons({
 
   const actions = {
     chat: showChat && onChat
-      ? (
-          <button type="button" onClick={onChat} className={buttonClassName}>
-            {chatIcon ? (
-              <span className={iconClassName}>{chatIcon}</span>
-            ) : (
-              <AiOutlineMessage className={iconClassName} />
-            )}
-            <span className={labelClassName}>Chat</span>
-          </button>
-        )
+      ? <GameCallActions buttonClassName={buttonClassName} iconClassName={iconClassName} labelClassName={labelClassName} />
       : null,
     gift: showGift && onGift
       ? (

@@ -38,6 +38,12 @@ export default function useLiveVideoChat({ roomId, displayName, enabled, video =
   const disconnectTimersRef = useRef(new Map());
   const startPromiseRef = useRef(null);
   const sessionGenerationRef = useRef(0);
+  const rejectedRef = useRef(false);
+  useEffect(() => {
+    // A rejection must not re-open capture via a render/reconnect. Require the
+    // person to end the call and explicitly start again.
+    if (!enabled) rejectedRef.current = false;
+  }, [enabled]);
 
   const safeRoomId = useMemo(() => String(roomId || '').trim(), [roomId]);
 
@@ -205,7 +211,7 @@ export default function useLiveVideoChat({ roomId, displayName, enabled, video =
   }, [localOnly, safeRoomId]);
 
   const startLiveChat = useCallback(async () => {
-    if (!enabled || (!localOnly && !safeRoomId) || isConnected) return startPromiseRef.current;
+    if (rejectedRef.current || !enabled || (!localOnly && !safeRoomId) || isConnected) return startPromiseRef.current;
     // React StrictMode and fast Telegram WebView renders can invoke this action
     // twice before state updates. Sharing the in-flight request prevents two
     // simultaneous camera captures, which can terminate the Telegram WebView.
@@ -321,7 +327,8 @@ export default function useLiveVideoChat({ roomId, displayName, enabled, video =
       });
     };
 
-    const handleParticipants = ({ participants = [] } = {}) => {
+    const handleParticipants = ({ roomId: eventRoomId, participants = [] } = {}) => {
+      if (eventRoomId !== safeRoomId || rejectedRef.current) return;
       participants.forEach((participant) => {
         upsertRemotePeer(participant.socketId, {
           displayName: participant.displayName || 'Player',
@@ -330,12 +337,14 @@ export default function useLiveVideoChat({ roomId, displayName, enabled, video =
       });
     };
 
-    const handlePeerJoined = ({ socketId, participant } = {}) => {
+    const handlePeerJoined = ({ roomId: eventRoomId, socketId, participant } = {}) => {
+      if (eventRoomId !== safeRoomId || rejectedRef.current) return;
       if (!socketId || socketId === socket.id) return;
       createOfferForPeer(socketId, participant || {});
     };
 
-    const handleSignal = async ({ fromSocketId, data, participant } = {}) => {
+    const handleSignal = async ({ roomId: eventRoomId, fromSocketId, data, participant } = {}) => {
+      if (eventRoomId !== safeRoomId || rejectedRef.current) return;
       if (!fromSocketId || !data) return;
       const peerConnection = ensurePeerConnection(fromSocketId, participant || {});
       if (!peerConnection) return;
@@ -364,17 +373,22 @@ export default function useLiveVideoChat({ roomId, displayName, enabled, video =
       }
     };
 
-    const handlePeerLeft = ({ socketId } = {}) => {
+    const handlePeerLeft = ({ roomId: eventRoomId, socketId } = {}) => {
+      if (eventRoomId !== safeRoomId || rejectedRef.current) return;
       if (!socketId) return;
       closePeer(socketId);
     };
 
-    const handleMediaState = ({ socketId, mediaState: nextMediaState } = {}) => {
+    const handleMediaState = ({ roomId: eventRoomId, socketId, mediaState: nextMediaState } = {}) => {
+      if (eventRoomId !== safeRoomId || rejectedRef.current) return;
       if (!socketId) return;
       upsertRemotePeer(socketId, { mediaState: nextMediaState || EMPTY_MEDIA_STATE });
     };
 
-    const handleRoomFull = ({ message } = {}) => {
+    const handleRoomFull = ({ roomId: eventRoomId, message } = {}) => {
+      if (eventRoomId !== safeRoomId || rejectedRef.current) return;
+      rejectedRef.current = true;
+      stopLiveChat();
       setError(message || 'This live video room already has four players.');
     };
 
@@ -395,7 +409,7 @@ export default function useLiveVideoChat({ roomId, displayName, enabled, video =
       socket.off('liveChat:media_state', handleMediaState);
       socket.off('liveChat:room-full', handleRoomFull);
     };
-  }, [addOrQueueIceCandidate, closePeer, createOfferForPeer, displayName, emitSignal, enabled, ensurePeerConnection, flushIceCandidates, localOnly, mediaState, safeRoomId, upsertRemotePeer]);
+  }, [addOrQueueIceCandidate, closePeer, createOfferForPeer, displayName, emitSignal, enabled, ensurePeerConnection, flushIceCandidates, localOnly, mediaState, safeRoomId, stopLiveChat, upsertRemotePeer]);
 
   useEffect(() => () => stopLiveChat(), [stopLiveChat]);
 

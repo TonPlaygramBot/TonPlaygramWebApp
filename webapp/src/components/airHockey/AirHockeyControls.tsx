@@ -1,5 +1,6 @@
+import GameCallActions from '../GameCallActions.jsx';
 import React, { useEffect, useRef, type ReactNode } from 'react';
-import { ArrowDown, ArrowUp, Camera, Gift, Grid2X2, MessageCircle, SlidersHorizontal, Volume2, VolumeX, X } from 'lucide-react';
+import { ArrowDown, ArrowUp, Camera, Gift, Grid2X2, SlidersHorizontal, Volume2, VolumeX, X } from 'lucide-react';
 import './airHockey.css';
 
 type ControlsProps = {
@@ -22,7 +23,6 @@ export function AirHockeyControls(props: ControlsProps) {
     { id: 'settings', label: 'Settings', icon: SlidersHorizontal, action: props.onSettings, pressed: props.settingsOpen },
     { id: 'sound', label: props.muted ? 'Unmute' : 'Sound', icon: props.muted ? VolumeX : Volume2, action: props.onMute, pressed: !props.muted },
     { id: 'view', label: props.topView ? '3D view' : 'Top view', icon: props.topView ? Camera : Grid2X2, action: props.onView, pressed: props.topView },
-    { id: 'chat', label: 'Chat', icon: MessageCircle, action: props.onChat },
     { id: 'gift', label: 'Gift', icon: Gift, action: props.onGift }
   ];
   return <>
@@ -37,6 +37,7 @@ export function AirHockeyControls(props: ControlsProps) {
         aria-pressed={pressed} aria-expanded={label === 'Settings' ? props.settingsOpen : undefined}
         aria-controls={label === 'Settings' ? 'air-hockey-settings' : undefined}
       ><Icon aria-hidden="true" /><span>{label}</span></button>)}
+      <GameCallActions />
     </nav>
   </>;
 }
