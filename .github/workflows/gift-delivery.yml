@@ -1,0 +1,31 @@
+name: Gift delivery safety
+on:
+  pull_request:
+    paths:
+      - 'bot/models/GiftDelivery.js'
+      - 'bot/models/User.js'
+      - 'bot/utils/giftDelivery.js'
+      - 'bot/routes/account.js'
+      - 'bot/routes/giftPurchase.js'
+      - 'bot/middleware/socialAuth.js'
+      - 'test/giftPurchaseAuth.node.mjs'
+      - 'shared/giftCatalog.js'
+      - 'test/giftDelivery.integration.node.mjs'
+      - '.github/workflows/gift-delivery.yml'
+permissions:
+  contents: read
+jobs:
+  isolated-replica-set:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - run: npm ci --ignore-scripts --no-audit --no-fund
+      - run: npm ci --prefix bot --ignore-scripts --no-audit --no-fund
+      - name: Verify atomic delivery on disposable MongoDB replica set
+        env:
+          MONGOMS_VERSION: 7.0.14
+        run: node --test test/giftPurchaseAuth.node.mjs test/giftDelivery.integration.node.mjs
