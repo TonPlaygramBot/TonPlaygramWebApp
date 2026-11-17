@@ -14,9 +14,9 @@ const questionGroups = [
   {
     title: 'TPG & launch status',
     questions: [
-      ['Is TPG live on-chain?', 'No. TonPlayGram and TPG have not been deployed on-chain yet. Token minting and the official on-chain launch are planned for the coming weeks. We will publish verified contract details only through official TonPlayGram channels when deployment is complete.'],
+      ['Is TPG live on-chain?', 'No. TonPlayGram and TPG have not been deployed on-chain yet. No date has been committed for token minting or the official on-chain launch. We will publish verified contract details only through official TonPlayGram channels when deployment is complete.'],
       ['Are my current TPG rewards blockchain tokens?', 'No. Any TPG balance currently shown is an in-platform reward record, not an on-chain token balance. Eligible balances are expected to be handled under the final launch, verification, and distribution rules.'],
-      ['When will TPG be minted?', 'The team plans to mint TPG and go live on-chain in the coming weeks. A confirmed date, network details, eligibility rules, and the verified contract address will be announced through official channels.'],
+      ['When will TPG be minted?', 'No minting date has been committed. The initial launch is planned for TON and remains subject to security, legal, and economic review. A confirmed date, network details, eligibility rules, and the verified contract address will be announced through official channels.'],
       ['Can I buy, sell, or transfer TPG now?', 'Not through an official on-chain TPG contract. Be cautious of any token, pool, presale, or contract claiming to be official before TonPlayGram publishes verified launch details.'],
       ['Will every in-app point convert to on-chain TPG?', 'Final conversion, eligibility, verification, vesting, and distribution terms will be provided before launch. In-app balances should not be treated as guaranteed cash value or a promise of a specific allocation.']
     ]
@@ -78,7 +78,7 @@ export default function PlatformHelpAgentCard() {
         <div>
           <span>IMPORTANT LAUNCH STATUS</span>
           <strong>TPG is not live on-chain yet</strong>
-          <p>Token minting and the official on-chain launch are planned for the coming weeks. Trust only contract details published through official TonPlayGram channels.</p>
+          <p>No date has been committed for token minting or the official on-chain launch. Trust only contract details published through official TonPlayGram channels.</p>
         </div>
       </aside>
 
