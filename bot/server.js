@@ -31,6 +31,7 @@ import referralRoutes from './routes/referral.js';
 import walletRoutes from './routes/wallet.js';
 import accountRoutes from './routes/account.js';
 import profileRoutes from './routes/profile.js';
+import luckyDailyRoutes from './routes/luckyDaily.js';
 import twitterAuthRoutes from './routes/twitterAuth.js';
 import airdropRoutes from './routes/airdrop.js';
 import checkinRoutes from './routes/checkin.js';
@@ -373,6 +374,7 @@ const requireDatabase = (_req, res, next) => {
 };
 app.use('/api/account', requireDatabase, accountRoutes);
 app.use('/api/profile', requireDatabase, profileRoutes);
+app.use('/api/lucky-daily', requireDatabase, luckyDailyRoutes);
 app.use('/api/push', pushRoutes);
 if (process.env.ENABLE_TWITTER_OAUTH === 'true') {
   app.use('/api/twitter', twitterAuthRoutes);
