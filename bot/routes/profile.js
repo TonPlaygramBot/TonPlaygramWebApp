@@ -1,8 +1,9 @@
 import { Router } from 'express';
 import { v4 as uuidv4 } from 'uuid';
 import User from '../models/User.js';
+import { reconcileBalanceSnapshot } from '../utils/reconcileBalance.js';
 import { fetchTelegramInfo } from '../utils/telegram.js';
-import { ensureTransactionArray, resolveAccountBalance, sanitizeUser } from '../utils/userUtils.js';
+import { ensureTransactionArray, sanitizeUser } from '../utils/userUtils.js';
 import { normalizeAddress } from '../utils/ton.js';
 import authenticate from '../middleware/auth.js';
 import { verifyRequestedIdentity, sendIdentityError } from '../middleware/accountIdentity.js';
@@ -147,13 +148,11 @@ router.post('/get', async (req, res) => {
   await user.save();
 
 
+  try { user = await reconcileBalanceSnapshot(user); }
+  catch (error) { return res.status(503).json({ error: 'balance_temporarily_unavailable' }); }
+  if (!user) return res.status(404).json({ error: 'account not found' });
   ensureTransactionArray(user);
   if (!Array.isArray(user.gifts)) user.gifts = [];
-  const balance = resolveAccountBalance(user);
-  if (user.balance !== balance) {
-    user.balance = balance;
-    await user.save();
-  }
 
   const isOwner =
     req.auth?.telegramId &&

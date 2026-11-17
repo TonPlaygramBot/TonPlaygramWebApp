@@ -1,6 +1,7 @@
 import { Router } from 'express';
 import { v4 as uuidv4 } from 'uuid';
 import User from '../models/User.js';
+import { reconcileBalanceSnapshot } from '../utils/reconcileBalance.js';
 import authenticate from '../middleware/auth.js';
 import { optionalAuthenticate } from '../middleware/auth.js';
 import { verifyRequestedIdentity, identityOwnsUser, sendIdentityError } from '../middleware/accountIdentity.js';
@@ -166,21 +167,15 @@ router.post('/balance', authenticate, async (req, res) => {
   const { accountId } = req.body;
   if (!accountId) return res.status(400).json({ error: 'accountId required' });
 
-  const user = await User.findOne({ accountId });
+  let user = await User.findOne({ accountId });
   if (!user) return res.status(404).json({ error: 'account not found' });
   if (!canAccessUser(req, user)) {
     return res.status(403).json({ error: 'forbidden' });
   }
-  const balance = resolveAccountBalance(user);
-  if (user.balance !== balance) {
-    user.balance = balance;
-    try {
-      await user.save();
-    } catch (err) {
-      console.error('Failed to update balance:', err.message);
-    }
-  }
-  res.json({ balance });
+  try { user = await reconcileBalanceSnapshot(user); }
+  catch (error) { return res.status(503).json({ error: 'balance_temporarily_unavailable' }); }
+  if (!user) return res.status(404).json({ error: 'account not found' });
+  res.json({ balance: user.balance });
 });
 
 // Get full account info including gifts and transactions
@@ -188,25 +183,18 @@ router.post('/info', authenticate, async (req, res) => {
   const { accountId } = req.body;
   if (!accountId) return res.status(400).json({ error: 'accountId required' });
 
-  const user = await User.findOne({ accountId });
+  let user = await User.findOne({ accountId });
   if (!user) return res.status(404).json({ error: 'account not found' });
   if (!canAccessUser(req, user)) {
     return res.status(403).json({ error: 'forbidden' });
   }
 
+  try { user = await reconcileBalanceSnapshot(user); }
+  catch (error) { return res.status(503).json({ error: 'balance_temporarily_unavailable' }); }
+  if (!user) return res.status(404).json({ error: 'account not found' });
+
   ensureTransactionArray(user);
   if (!Array.isArray(user.gifts)) user.gifts = [];
-
-  const balance = resolveAccountBalance(user);
-  if (user.balance !== balance) {
-    user.balance = balance;
-    try {
-      await user.save();
-    } catch (err) {
-      console.error('Failed to update balance:', err.message);
-    }
-  }
-
   res.json({
     accountId: user.accountId,
     telegramId: user.telegramId,
