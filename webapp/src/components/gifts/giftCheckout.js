@@ -14,6 +14,11 @@ export function createGiftCheckout(send) {
       const result = await send(from, to, giftId);
       if (!result || typeof result !== 'object') throw new Error('Delivery could not be confirmed. Check your inventory and balance before trying again.');
       if (result.error || result.success === false) throw new Error(typeof result.error === 'string' ? result.error : 'The gift was not accepted.');
+      const tx = result.transaction;
+      if (!Number.isFinite(result.balance) || !tx || tx.type !== 'gift' || tx.token !== 'TPG' ||
+          tx.status !== 'delivered' || tx.detail !== giftId || tx.toAccount !== to || tx.amount !== -GIFT_BY_ID[giftId].price) {
+        throw new Error('Delivery could not be confirmed. Check your inventory and balance before trying again.');
+      }
       return { result };
     } finally { pending = false; }
   };

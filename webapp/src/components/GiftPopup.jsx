@@ -1,21 +1,22 @@
-import React from 'react';
+import React, { useEffect, useState } from 'react';
+import { createPortal } from 'react-dom';
 import GiftExperience from './gifts/GiftExperience.jsx';
+import GiftIcon from './GiftIcon.jsx';
 import { ensureAccountId } from '../utils/telegram.js';
-import { giftSounds } from '../utils/giftSounds.js';
-import { getGameVolume, isGameMuted } from '../utils/sound.js';
-/** Legacy player/callback interface retained for all game integrations.
- * Presentation is now shared with the shop; old per-game tiny-grid class props
- * are intentionally superseded by the responsive gift dialog.
- */
+/** Legacy player/callback interface retained for all game integrations. */
 export default function GiftPopup({ open, onClose, players = [], senderIndex = 0, onGiftSent, title }) {
-  const complete = ({gift, playerIndex}) => {
-    const source=giftSounds[gift.id];
-    if(source && !isGameMuted()) {
-      const audio=new Audio(source);audio.volume=getGameVolume();
-      const start=()=>{audio.play().catch(()=>{});window.setTimeout(()=>{audio.pause();audio.removeAttribute('src');audio.load();},gift.id==='fireworks'?6000:gift.id==='surprise_box'?5000:4000);};
-      if(gift.id==='bullseye')window.setTimeout(start,2500);else start();
-    }
-    onGiftSent?.({from:senderIndex,to:playerIndex,gift});
+  const [receipt, setReceipt] = useState(null);
+  useEffect(() => {
+    if (!receipt) return;
+    const timer = window.setTimeout(() => setReceipt(null), 2200);
+    return () => window.clearTimeout(timer);
+  }, [receipt]);
+  const complete = ({ gift, playerIndex, recipientName }) => {
+    setReceipt({ gift, recipientName });
+    onGiftSent?.({ from: senderIndex, to: playerIndex, gift });
   };
-  return open ? <GiftExperience resolveAccount={ensureAccountId} players={players} title={title || 'Send a gift'} onClose={onClose} onCompleted={complete}/> : null;
+  return <>
+    {open && <GiftExperience resolveAccount={ensureAccountId} players={players} title={title || 'Send a gift'} onClose={onClose} onCompleted={complete}/>}
+    {receipt && createPortal(<div className="gift-receipt" role="status" aria-live="polite"><GiftIcon gift={receipt.gift}/><div><strong>{receipt.gift.name} delivered</strong><span>To {receipt.recipientName}</span></div><span aria-hidden="true">✦</span></div>, document.body)}
+  </>;
 }

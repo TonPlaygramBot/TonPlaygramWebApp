@@ -134,7 +134,7 @@ function buildHeaders(base = {}) {
   return headers;
 }
 
-export async function post(path, body, token) {
+export async function post(path, body, token, { retries = 3 } = {}) {
   const headers = buildHeaders({ 'Content-Type': 'application/json' });
   if (token) headers['Authorization'] = `Bearer ${token}`;
 
@@ -144,7 +144,7 @@ export async function post(path, body, token) {
       method: 'POST',
       headers,
       body: JSON.stringify(body)
-    });
+    }, retries);
   } catch (err) {
     return { error: 'Network request failed' };
   }
@@ -685,12 +685,15 @@ export function sendMessage(fromId, toId, text, attachment) {
   return post('/api/social/send-message', { fromId, toId, text });
 }
 
-export function sendGift(fromId, toId, gift) {
-  return post('/api/account/gift', {
+export async function sendGift(fromId, toId, gift) {
+  // This endpoint has no idempotency key. Never repeat a potentially committed charge.
+  const result = await post('/api/account/gift', {
     fromAccount: fromId,
     toAccount: toId,
     gift
-  });
+  }, undefined, { retries: 0 });
+  if (result?.error) return { ...result, error: `${result.error} Check your inventory and balance before trying again.` };
+  return result;
 }
 
 export function convertGifts(accountId, giftIds, action = 'burn', toAccount) {

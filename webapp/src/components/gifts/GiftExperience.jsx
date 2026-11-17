@@ -3,6 +3,7 @@ import { NFT_GIFTS, GIFT_BY_ID, GIFT_COLLECTIONS, GIFT_TIER_LABELS, filterGifts 
 import { sendGift } from '../../utils/api.js';
 import GiftIcon from '../GiftIcon.jsx';
 import GiftDialog from './GiftDialog.jsx';
+import { prepareGiftAudio, playGiftChime } from '../../utils/giftAudio.js';
 import { createGiftCheckout, formatGiftPrice } from './giftCheckout.js';
 const GiftViewer = lazy(() => import('./GiftViewer.tsx'));
 class ViewerBoundary extends React.Component {
@@ -40,7 +41,14 @@ export default function GiftExperience({ accountId = '', resolveAccount, players
     onClose?.();
     if (sent) onCompleted?.(sent);
   };
-  const selectGift = selected => { savedScroll.current = scroll.current?.scrollTop || 0; setError(''); setSelectedId(selected.id); setStage('detail'); };
+  const selectGift = selected => {
+    savedScroll.current = scroll.current?.scrollTop || 0; setError(''); setSelectedId(selected.id);
+    if (gameMode) {
+      const recipient = validPlayers.find(p => String(p.id) === playerId);
+      setOrder({ giftId: selected.id, toAccount: recipient ? String(recipient.id) : '', recipientName: recipient?.name || recipient?.id || '', playerIndex: recipient?.index });
+      setStage('confirm');
+    } else setStage('detail');
+  };
   const back = () => { setError(''); setStage('browse'); setSelectedId(null); requestAnimationFrame(() => { if (scroll.current) scroll.current.scrollTop = savedScroll.current; }); };
   const review = event => {
     event.preventDefault(); setError('');
@@ -53,8 +61,10 @@ export default function GiftExperience({ accountId = '', resolveAccount, players
   };
   const purchase = async () => {
     if (busyRef.current || !order) return;
+    prepareGiftAudio();
     busyRef.current = true; setBusy(true); setError('');
     const snapshot = order;
+    let gameDelivery = null;
     try {
       if (gameMode && !validPlayers.some(p => String(p.id) === snapshot.toAccount)) throw new Error('That player is no longer available. Choose another recipient.');
       const from = String(accountId || (resolveAccount ? await resolveAccount() : '') || '').trim();
@@ -62,16 +72,25 @@ export default function GiftExperience({ accountId = '', resolveAccount, players
       if (response.ignored) return;
       completed.current = { gift: GIFT_BY_ID[snapshot.giftId], recipient: snapshot.toAccount, recipientName: snapshot.recipientName, playerIndex: snapshot.playerIndex, result: response.result };
       window.dispatchEvent(new CustomEvent('tpg:gifts-updated', { detail: { accountId: from } }));
-      if (mounted.current) setStage('success');
+      playGiftChime(GIFT_BY_ID[snapshot.giftId].tier);
+      if (mounted.current) {
+        if (gameMode) {
+          const sent = completed.current; completed.current = null;
+          // Delivery is confirmed. Return to gameplay without a second Done tap.
+          gameDelivery = sent;
+        } else setStage('success');
+      }
     } catch (err) {
       if (mounted.current) setError(err?.message || 'Delivery could not be confirmed. Check your inventory and balance before trying again.');
     } finally { busyRef.current = false; if (mounted.current) setBusy(false); }
+    // UI callbacks are not part of payment: never describe their errors as a failed purchase.
+    if (gameDelivery) { onClose?.(); onCompleted?.(gameDelivery); }
   };
   const resetFilters = () => { setSearch(''); setCollection('All'); setTier('All'); setSort('featured'); };
-  return <GiftDialog title={title} onClose={finish} busy={busy}>
+  return <GiftDialog title={title} onClose={finish} busy={busy} className={gameMode ? 'gift-dialog-game' : ''}>
     <div ref={scroll} className="gift-scroll">
       {stage === 'browse' ? <>
-        <section className="gift-hero"><div><p className="gift-eyebrow">THE COLLECTIBLE EDIT</p><h1>Small gifts.<br/><em>Big energy.</em></h1><p>Find their next favourite.<br/>{NFT_GIFTS.length} designs, made to be given.</p><span className="gift-count-pill">✧ 72 new designs</span></div><div className="gift-hero-art" aria-hidden="true"><GiftIcon gift={GIFT_BY_ID.royal_crown} className="gift-hero-crown"/><GiftIcon gift={GIFT_BY_ID.saturn_silk} className="gift-hero-planet"/><GiftIcon gift={GIFT_BY_ID.butterfly_kiss} className="gift-hero-butterfly"/></div></section>
+        <section className="gift-hero"><div><p className="gift-eyebrow">THE TONPLAYGRAM COLLECTION</p><h1>Play together.<br/><em>Gift legendary.</em></h1><p>Celebrate your next victory.<br/>{NFT_GIFTS.length} designs, made to be given.</p><span className="gift-count-pill">✧ Made for the TonPlayGram community</span></div><div className="gift-hero-art" aria-hidden="true"><GiftIcon gift={GIFT_BY_ID.royal_crown} className="gift-hero-crown"/><GiftIcon gift={GIFT_BY_ID.saturn_silk} className="gift-hero-planet"/><GiftIcon gift={GIFT_BY_ID.butterfly_kiss} className="gift-hero-butterfly"/></div></section>
         <div className="gift-toolbar"><label className="gift-search"><span aria-hidden="true">⌕</span><input type="search" aria-label="Search gifts" placeholder="Find a gift, a feeling, a collection…" value={search} onChange={e => setSearch(e.target.value)}/>{search && <button type="button" aria-label="Clear search" onClick={() => setSearch('')}>×</button>}</label>
           <div className="gift-collections" role="group" aria-label="Gift collections">{['All', ...GIFT_COLLECTIONS].map(item => <button key={item} type="button" aria-pressed={collection === item} className={collection === item ? 'is-active' : ''} onClick={() => setCollection(item)}>{item}</button>)}</div>
           <div className="gift-filter-row"><label><span className="gift-sr-only">Filter by tier</span><select value={tier} onChange={e => setTier(e.target.value)} aria-label="Gift tier"><option value="All">All tiers</option>{[1,2,3].map(t => <option key={t} value={t}>{GIFT_TIER_LABELS[t]}</option>)}</select></label><label><span className="gift-sr-only">Sort gifts</span><select aria-label="Sort gifts" value={sort} onChange={e => setSort(e.target.value)}><option value="featured">New arrivals</option><option value="price-asc">Price: low to high</option><option value="price-desc">Price: high to low</option><option value="name">Name: A–Z</option></select></label></div>
@@ -95,9 +114,15 @@ export default function GiftExperience({ accountId = '', resolveAccount, players
           {error && <p className="gift-error" role="alert">{error}</p>}
           <button type="submit" className="gift-primary" disabled={gameMode ? !validPlayers.length : !accountId}>Review gift <span aria-hidden="true">→</span></button><p className="gift-disclosure">You will review the recipient and total before spending TPG.</p>
         </form>}
-        {stage === 'confirm' && <div className="gift-order-form"><dl className="gift-order-summary"><div><dt>Gift</dt><dd>{gift.name}</dd></div><div><dt>To</dt><dd>{order?.recipientName}</dd></div><div><dt>Total</dt><dd>{formatGiftPrice(gift.price)} TPG</dd></div></dl>
+        {stage === 'confirm' && <div className="gift-order-form">
+          {gameMode && <label>Send to<select aria-label="Gift recipient" disabled={busy} value={order?.toAccount || ''} onChange={event => {
+            const recipient = validPlayers.find(p => String(p.id) === event.target.value);
+            setPlayerId(event.target.value); setError('');
+            setOrder(current => ({...current, toAccount: event.target.value, recipientName: recipient?.name || event.target.value, playerIndex: recipient?.index}));
+          }}>{!validPlayers.some(p => String(p.id) === order?.toAccount) && <option value={order?.toAccount || ''}>Select an available player</option>}{validPlayers.map(p => <option key={`${p.id}-${p.index}`} value={String(p.id)}>{p.name || p.id}</option>)}</select></label>}
+          <dl className="gift-order-summary"><div><dt>Gift</dt><dd>{gift.name}</dd></div><div><dt>To</dt><dd>{order?.recipientName}</dd></div><div><dt>Total</dt><dd>{formatGiftPrice(gift.price)} TPG</dd></div></dl>
           {error && <p className="gift-error" role="alert">{error}</p>}
-          <button type="button" className="gift-primary" onClick={purchase} disabled={busy || Boolean(error)}>{busy ? 'Sending gift…' : `Confirm · ${formatGiftPrice(gift.price)} TPG`}</button><button type="button" className="gift-secondary" disabled={busy} onClick={() => {setStage('detail');setError('');}}>Back to gift</button><p className="gift-disclosure">Confirming spends TPG. Please check the recipient carefully.</p>
+          <button type="button" className="gift-primary" onClick={purchase} disabled={busy || Boolean(error) || (gameMode && !validPlayers.some(p => String(p.id) === order?.toAccount))}>{busy ? 'Sending gift…' : `Confirm · ${formatGiftPrice(gift.price)} TPG`}</button><button type="button" className="gift-secondary" disabled={busy} onClick={() => {if (gameMode) back(); else {setStage('detail');setError('');}}}>{gameMode ? 'Choose another gift' : 'Back to gift'}</button><p className="gift-disclosure">Confirming spends TPG. Please check the recipient carefully.</p>
         </div>}
         {stage === 'success' && <div className="gift-order-form"><p className="gift-success" role="status">{gift.name} was delivered to {order?.recipientName}.</p><button type="button" className="gift-primary" onClick={finish}>Done <span aria-hidden="true">✓</span></button></div>}
       </>}
