@@ -15,13 +15,14 @@ import { createSnakeRoundCoordinator } from '../services/settlement/snakeRoundCo
 const board = { snakes: {}, ladders: {}, diceCells: {} };
 
 test('coherent Snake reserve/start/finish/refund real Mongo release gates', async t => {
-  let replica; let connection; let serial = 0;
+  let replica; let connection; let serial = 0; let previousFixtureDb;
   try {
     replica = await MongoMemoryReplSet.create({ replSet: { count: 1, args: ['--nounixsocket'] } });
     connection = await mongoose.createConnection(replica.getUri(), { dbName: 'snake_coordinator_test' }).asPromise();
     const client = connection.getClient();
     async function fixture(matchId = 'm') {
-      const db = client.db(`snake_coordinator_${++serial}`);
+      if (previousFixtureDb) await previousFixtureDb.dropDatabase();
+      const db = client.db(`snake_coordinator_${++serial}`); previousFixtureDb = db;
       const names = ['offers', 'consents', 'users', 'fundingAudits', 'accountLocks', 'escrowMatches', 'lifecycleMatches', 'journal', 'receipts', 'gameStates', 'gameMoves'];
       for (const name of names) await db.createCollection(name);
       const c = Object.fromEntries(names.map(name => [name, db.collection(name)]));
