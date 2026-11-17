@@ -20,6 +20,8 @@ describe('evidence-based delivery snapshot', () => {
     const html = show(<EcosystemTopic topic="roadmap" />);
     expect(html).not.toMatch(/\d+%/);
     expect(html).toContain('Android and iOS beta');
+    expect(html).toContain('TON ecosystem');
+    expect(html).toContain('not part of the initial TON launch');
     expect(roadmap.every(item => !('progress' in item) && item.status && item.deliverables.length)).toBe(true);
   });
   it('does not label an unverified track release-ready in the printable guide', () => {
@@ -27,6 +29,8 @@ describe('evidence-based delivery snapshot', () => {
     expect(html).not.toContain('release-ready tracks');
     expect(html).toContain('native release validation');
     expect(html).toContain('2026-11-17');
+    expect(html.match(/View merged change/g)).toHaveLength(achievements.length);
+    for (const item of achievements) expect(html).toContain(item.source);
   });
   it('keeps home navigation without fake progress bars', () => {
     const html = show(<ProjectAchievementsCard />);
