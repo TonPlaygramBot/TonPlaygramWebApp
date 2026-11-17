@@ -21,6 +21,8 @@ describe('evidence-based delivery snapshot', () => {
     expect(html).not.toMatch(/\d+%/);
     expect(html).toContain('Android and iOS beta');
     expect(html).toContain('TON ecosystem');
+    expect(roadmap.find(item => item.title === 'TON ecosystem')).toMatchObject({ phase: 'Now', status: 'In progress' });
+    expect(html).toContain('mainnet minting remain planned and unapproved');
     expect(html).toContain('not part of the initial TON launch');
     expect(roadmap.every(item => !('progress' in item) && item.status && item.deliverables.length)).toBe(true);
   });
