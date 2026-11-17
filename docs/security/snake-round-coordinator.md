@@ -1,5 +1,9 @@
 # Snake coordinated reserve/start/settlement/refund (unwired draft)
 
+> Follow-on update: the coordinator now seeds and replays a durable versioned
+> move journal and rejects supplied outcomes. See `snake-durable-journal.md`.
+> Earlier descriptions of the pre-journal adapter below are historical.
+
 ## What changed
 
 `snakeRoundCoordinator.js` joins the preceding reservation producer with a

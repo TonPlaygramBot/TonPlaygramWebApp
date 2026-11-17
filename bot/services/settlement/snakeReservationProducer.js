@@ -117,7 +117,7 @@ export function createSnakeReservationProducer({ client, offers, consents, users
         // Time may advance while DB operations run. Abort, do not debit expired consent.
         requireCurrentConsents(offer, accepted, now());
         const match = { _id: matchId, matchId, roomId: terms.roomId, gameType: 'snake', assetId, termsHash,
-          status: 'reserved', version: 0, startedAt: null, rulesHash: terms.rulesHash, feePolicy: terms.feePolicy, reservations, reservedAt: at };
+          status: 'reserved', version: 0, startedAt: null, rulesVersion: terms.rulesVersion, turnOrder: terms.turnOrder, rulesHash: terms.rulesHash, feePolicy: terms.feePolicy, reservations, reservedAt: at };
         await escrowMatches.insertOne(match, { session });
         const changed = await offers.updateOne({ _id: matchId, status: 'offered', revision: offer.revision }, { $set: { status: 'reserved' } }, { session });
         need(changed.modifiedCount === 1, 'offer_reservation_conflict');

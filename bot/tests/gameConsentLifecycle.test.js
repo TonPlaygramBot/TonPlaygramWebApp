@@ -14,7 +14,7 @@ function signed(id, token = TEST_TOKEN) {
   params.set('hash', createHmac('sha256', secret).update(data).digest('hex')); return params.toString();
 }
 function fixture() {
-  const offer = { matchId: 'm', roomId: 'room', offerId: 'o', assetId: 'test-ledger', gameType: 'snake', status: 'offered', revision: 0,
+  const offer = { matchId: 'm', roomId: 'room', offerId: 'o', assetId: 'test-ledger', gameType: 'snake', rulesVersion: 'snake-server-single-die-v1', turnOrder: ['a', 'b'], status: 'offered', revision: 0,
     expiresAt: NOW + 60000, stakeUnits: '10', accountIds: ['a', 'b'], rulesHash: 'a'.repeat(64), feePolicy: { policyId: 'fee1', units: '2', accountId: 'house' } };
   const rows = [{ _id: 'ua', telegramId: 1, tpcAccountNumber: 'a' }, { _id: 'ub', telegramId: 2, tpcAccountNumber: 'b' }];
   let clock = NOW;
@@ -43,7 +43,7 @@ for (const [name, change] of [
  ['missing canonical', f => { delete f.rows[0].tpcAccountNumber; }],
  ['duplicate provider identity', f => { f.rows.push({ ...f.rows[0], _id: 'other' }); }],
  ['duplicate canonical identity', f => { f.rows.push({ _id: 'other', telegramId: 3, tpcAccountNumber: 'a' }); }],
- ['not invited', f => { f.offer.accountIds = ['c', 'd']; }],
+ ['not invited', f => { f.offer.accountIds = ['c', 'd']; f.offer.turnOrder = ['c', 'd']; }],
  ['offer expired', f => { f.setClock(NOW + 60000); }],
  ['credentials expired', f => { f.setClock(NOW + 3600000); }],
  ['cancelled offer', f => { f.offer.status = 'cancelled'; }],
@@ -125,4 +125,10 @@ test('reserved cancellation, repeated cancellation and committed refund remain l
   s = nextGameLifecycle(s, event('cancel', { eventId: 'second-cancel', expectedVersion: 1 }));
   s = nextGameLifecycle(s, event('refund_committed', { eventId: 'refund', expectedVersion: 2, referenceId: 'refund-receipt' }));
   assert.equal(s.status, 'refunded'); assert.equal(s.refundId, 'refund-receipt');
+});
+
+test('turn order and rules policy are bound to accepted terms', async () => {
+  const f = fixture(); const receipts = [await f.consent(1), await f.consent(2)];
+  f.offer.turnOrder.reverse(); assert.throws(() => requireCurrentConsents(f.offer, receipts, NOW), /consent_not_current/);
+  f.offer.rulesVersion = 'future-rules'; assert.throws(() => gameOfferTerms(f.offer), /unsupported_offer_rules_version/);
 });
