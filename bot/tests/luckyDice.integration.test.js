@@ -5,9 +5,10 @@ import mongoose from 'mongoose';
 import { MongoMemoryServer } from 'mongodb-memory-server';
 import User from '../models/User.js';
 import { createSpinRewards } from '../services/spinRewards.js';
+import { createLuckyDaily } from '../services/luckyDaily.js';
 let mongo, user, now, draws;
 const service = createSpinRewards({ User, clock: () => now, random: () => draws.shift() ?? 0 });
-test.before(async () => { mongo = await MongoMemoryServer.create(); await mongoose.connect(mongo.getUri()); });
+test.before(async () => { mongo = await MongoMemoryServer.create({ instance: { args: ['--nounixsocket'] } }); await mongoose.connect(mongo.getUri()); });
 test.after(async () => { await mongoose.disconnect(); await mongo?.stop(); });
 test.beforeEach(async () => {
   await User.deleteMany({}); now = 1800000000000; draws = [];
@@ -36,4 +37,18 @@ test('bonus sum credits once without changing spin cooldown or creating consumab
   assert.equal((await service.claim(user._id, 'lucky', lucky.id)).balance, 1900);
   assert.equal((await service.claim(user._id, 'lucky', lucky.id)).balance, 1900);
   assert.equal((await service.status(user._id, 'spin')).nextSpinAt, 0);
+});
+
+test('real daily, Lucky and Spin claims share one wallet without lost credits', async () => {
+  draws = [0];
+  const spin = await service.start(user._id, 'spin', randomUUID());
+  draws = [0, 0, 0, 30, 0];
+  const lucky = await service.start(user._id, 'lucky', randomUUID()); now += 15000;
+  await Promise.all([
+    service.claim(user._id, 'spin', spin.id),
+    service.claim(user._id, 'lucky', lucky.id),
+    createLuckyDaily({ User, clock: () => now }).claim(user._id)
+  ]);
+  const stored = await User.findById(user._id);
+  assert.equal(stored.balance, 1400); assert.equal(stored.transactions.length, 3);
 });

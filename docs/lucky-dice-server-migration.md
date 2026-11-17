@@ -69,3 +69,13 @@ still resolves the signed owner and validates eligibility, so this cache hint
 cannot transfer another account's receipt or authorize a bonus. This recovery
 is separate from untrusted old freeSpins/bonusX3 entitlements, which are NOT
 imported. Failed responses retain the scoped retry ID for safe recovery.
+
+
+## Local Mongo verification (2026-11-17)
+
+The isolated real MongoDB 7.0.14 suites now pass with `--nounixsocket`:
+10 wheel, 3 daily and 4 Lucky dice tests, including concurrent daily/Lucky/Spin
+claims sharing one real wallet. The earlier Unix-socket startup blocker
+is resolved; no production database was accessed. CI and broader integrated
+release coverage, legacy entitlement/parity review and device/full-build gates
+remain. This is not deployment approval.

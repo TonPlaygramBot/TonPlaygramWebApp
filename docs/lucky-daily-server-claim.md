@@ -37,6 +37,17 @@ ledger reconciliation semantics or generic client writes.
 Tests exercise daily UTC boundaries, duplicate/parallel claims, write failures,
 legacy evidence and concurrent ledger changes. Model tests are not real Mongo
 verification. The temporary Mongo integration suite must pass in compatible CI;
-this environment cannot start Mongo. Run combined-PR, real-device and frontend
+the previously blocked startup works with `--nounixsocket`. Run combined-PR, real-device and frontend
 retry tests, review legacy data, and verify production rollout before merging or
 deploying. Draft only, no production data changes.
+
+
+## Local Mongo verification (2026-11-17)
+
+The isolated real MongoDB integration suite now passes: 3 tests, MongoDB
+7.0.14 with `--nounixsocket`. This removes the earlier local startup blocker.
+Use `MONGOMS_SYSTEM_BINARY=/path/to/mongod MONGOMS_VERSION=7.0.14` to reproduce
+without downloading a binary. No production database was accessed. Model-only
+results above are now supplemented by these actual database tests, not replaced.
+CI, broader combined release checks, legacy data/entitlement decisions and
+real-device/full-build gates remain. This verification does not authorize deployment.

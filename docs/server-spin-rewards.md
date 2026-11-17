@@ -54,3 +54,14 @@ write failures/retries, cooldowns, bonus outcomes and ownership validation.
 against an isolated temporary real MongoDB. It must pass in CI before merge;
 operator-model tests alone are not proof of actual database concurrency behavior.
 No production database is used by these tests.
+
+
+## Local Mongo verification (2026-11-17)
+
+The isolated real MongoDB integration suite now passes: 10 tests, MongoDB
+7.0.14 with `--nounixsocket`. This removes the earlier local startup blocker.
+Use `MONGOMS_SYSTEM_BINARY=/path/to/mongod MONGOMS_VERSION=7.0.14` to reproduce
+without downloading a binary. No production database was accessed. Model-only
+results above are now supplemented by these actual database tests, not replaced.
+CI, broader combined release checks, legacy data/entitlement decisions and
+real-device/full-build gates remain. This verification does not authorize deployment.
