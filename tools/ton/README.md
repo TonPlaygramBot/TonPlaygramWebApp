@@ -104,3 +104,18 @@ on-chain transaction identity, verified master/network/recipient or durable repl
 key. This must not be used to credit real TON/TPG deposits. Claims use a separately
 configured contract and do not prove successful token receipt. These are existing
 application issues, not fixed or activated by this offline contract draft.
+
+#### Reproduced blocker (not fixed)
+
+The `KNOWN LAUNCH BLOCKER` regression sends a valid internal-transfer opcode and
+25 base units with missing address fields. The destination rejects with exit 9
+and a bounce reaches the minter. Wallet balance remains zero while minter supply
+reports 25. A green characterization test means this defect was reproduced, not
+that accounting is production-safe. A fix needs authenticated pending-mint
+correlation/replay handling and adversarial tests, not an unconditional decrement
+for arbitrary bounce payloads. This draft must remain undeployed until resolved.
+
+Metadata editing also allows changing externally displayed decimals even though
+the contract cap stays fixed in base units. Immutable decimal metadata/content
+and admin policy must be decided explicitly before launch. No freeze policy is
+silently selected here.

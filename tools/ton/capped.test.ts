@@ -73,3 +73,25 @@ test('zero and non-transfer mint messages are rejected', async () => {
   assertRejected(await admin.send({to:minter.address,value:toNano('0.2'),body}), minter.address,77);
   assert.equal(await minter.getTotalSupply(),0n);
 });
+test('maximum Coins amount and unauthorized admin/metadata updates cannot bypass cap', async () => {
+  const {minter, admin, outsider, content} = await setup();
+  assertRejected(await minter.sendMint(admin.getSender(), admin.address, (1n << 120n) - 1n, 0n, toNano('0.1')), minter.address, 76);
+  assertRejected(await minter.sendChangeAdmin(outsider.getSender(), outsider.address), minter.address, 73);
+  assertRejected(await minter.sendChangeContent(outsider.getSender(), jettonContentToCell({type:1,uri:'https://example.invalid/spoof.json'})), minter.address, 73);
+  assert.equal(await minter.getTotalSupply(), 0n);
+  assert((await minter.getAdminAddress()).equals(admin.address));
+  assert((await minter.getContent()).equals(content));
+});
+test('KNOWN LAUNCH BLOCKER: malformed mint delivery bounces but reported supply remains inflated', async () => {
+  const {chain, minter, admin} = await setup();
+  // Valid opcode/query/amount passes minter parsing, but missing addresses makes
+  // the destination wallet reject the body. Characterize, do not endorse, this bug.
+  const malformed = beginCell().storeUint(0x178d4519,32).storeUint(7,64).storeCoins(25n).endCell();
+  const body = beginCell().storeUint(21,32).storeUint(7,64).storeAddress(admin.address).storeCoins(toNano('0.1')).storeRef(malformed).endCell();
+  const result = await admin.send({to:minter.address,value:toNano('0.2'),body});
+  const wallet = chain.openContract(JettonWallet.createFromAddress(await minter.getWalletAddress(admin.address)));
+  assertRejected(result, wallet.address, 9); // cell underflow in wallet parsing
+  assert(result.transactions.some(tx => tx.inMessage?.info.type === 'internal' && tx.inMessage.info.bounced && tx.inMessage.info.dest.equals(minter.address)));
+  assert.equal(await wallet.getJettonBalance(), 0n);
+  assert.equal(await minter.getTotalSupply(), 25n); // BUG: not a valid production invariant
+});
