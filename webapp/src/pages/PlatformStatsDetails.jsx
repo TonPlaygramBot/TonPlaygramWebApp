@@ -1,3 +1,4 @@
+import { currencyLabel } from '../utils/currencyDisplay.js';
 import { useEffect, useMemo, useState } from 'react';
 import {
   FaBolt,
@@ -429,7 +430,7 @@ export default function PlatformStatsDetails() {
                   {(tx.fromName || tx.fromAccount || 'Unknown')} → {(tx.toName || tx.toAccount || 'Unknown')}
                 </div>
                 <div className="text-subtext">
-                  {formatValue(tx.amount)} {(tx.token || 'TPG').toUpperCase()} • {tx.date ? new Date(tx.date).toLocaleString(undefined, { hour12: false }) : 'unknown date'}
+                  {formatValue(tx.amount)} {currencyLabel((tx.token || 'TPG').toUpperCase())} • {tx.date ? new Date(tx.date).toLocaleString(undefined, { hour12: false }) : 'unknown date'}
                 </div>
                 {tx.note ? <div className="text-subtext">Note: {tx.note}</div> : null}
               </div>

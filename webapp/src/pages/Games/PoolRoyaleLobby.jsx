@@ -1,3 +1,4 @@
+import { currencyLabel } from '../../utils/currencyDisplay.js';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import RoomSelector from '../../components/RoomSelector.jsx';
@@ -1235,7 +1236,7 @@ export default function PoolRoyaleLobby() {
                 <h3 className="font-semibold text-white">Online Arena</h3>
                 <p className="text-sm text-white/60">
                   We securely seat players by TPG account, then match the same
-                  Pool Royale variant and stake ({stake.amount} {stake.token}).
+                  Pool Royale variant and stake ({stake.amount} {currencyLabel(stake.token)}).
                   Only usernames and avatars are shown here.
                 </p>
               </div>
@@ -1262,7 +1263,7 @@ export default function PoolRoyaleLobby() {
                 <div className="lobby-tile w-full flex items-center justify-between">
                   <span>🎯 {spinningPlayer || 'Searching…'}</span>
                   <span className="text-xs text-white/60">
-                    Stake {stake.amount} {stake.token}
+                    Stake {stake.amount} {currencyLabel(stake.token)}
                   </span>
                 </div>
                 <div className="space-y-1">

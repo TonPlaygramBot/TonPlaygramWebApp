@@ -1,3 +1,4 @@
+import { currencyLabel } from '../../utils/currencyDisplay.js';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import RoomSelector from '../../components/RoomSelector.jsx';
@@ -577,7 +578,7 @@ export default function SnookerRoyalLobby() {
               <div>
                 <h3 className="font-semibold text-white">Online Arena</h3>
                 <p className="text-sm text-white/60">
-                  We match your verified TPG account by stake ({stake.amount} {stake.token})
+                  We match your verified TPG account by stake ({stake.amount} {currencyLabel(stake.token)})
                   and the selected Snooker Royal options.
                 </p>
               </div>
@@ -595,7 +596,7 @@ export default function SnookerRoyalLobby() {
                   <div className="flex items-center justify-between">
                     <span>🎯 {spinningPlayer || 'Searching…'}</span>
                     <span className="text-xs text-white/60">
-                      Stake {stake.amount} {stake.token}
+                      Stake {stake.amount} {currencyLabel(stake.token)}
                     </span>
                   </div>
                 </div>
