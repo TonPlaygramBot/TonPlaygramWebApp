@@ -1,7 +1,7 @@
+import { initializeSnakeJournal, replaySnakeJournal, captureSnakeJournalResult, snakeJournalRulesHash, journalHash } from './snakeDurableRules.js';
 import { fenceVerifiedGameAccount } from './gameFinancialFence.js';
 import { createHash } from 'node:crypto';
 import { buildReservedMatchSettlementPlan } from './reservedMatchPlan.js';
-import { captureSnakeServerResult, snakeRulesHash } from './snakeServerResult.js';
 import { gameFundingFingerprint } from './snakeReservationProducer.js';
 import { lifecycleCommandRecord, nextGameLifecycle } from './gameLifecycle.js';
 function need(ok, code) { if (!ok) throw new Error(code); }
@@ -9,8 +9,8 @@ const digest = value => createHash('sha256').update(value).digest('hex');
 const options = { readConcern: { level: 'snapshot' }, writeConcern: { w: 'majority' }, readPreference: 'primary' };
 
 /** UNWIRED. Trusted server coordinator only. No endpoints, automatic migration or real-data use. */
-export function createSnakeRoundCoordinator({ client, escrowMatches, lifecycleMatches, journal, users, fundingAudits, accountLocks, receipts, assetId, now = Date.now }) {
-  need(client?.startSession && escrowMatches && lifecycleMatches && journal && users && fundingAudits && accountLocks && receipts && assetId, 'coordinator_dependencies_required');
+export function createSnakeRoundCoordinator({ client, escrowMatches, lifecycleMatches, journal, users, fundingAudits, accountLocks, receipts, gameStates, gameMoves, assetId, now = Date.now }) {
+  need(client?.startSession && escrowMatches && lifecycleMatches && journal && users && fundingAudits && accountLocks && receipts && gameStates && gameMoves && assetId, 'coordinator_dependencies_required');
   async function transact(matchId, callback) {
     need(typeof matchId === 'string' && /^[A-Za-z0-9_.:-]{1,160}$/.test(matchId), 'invalid_match');
     const session = client.startSession(); let result;
@@ -52,7 +52,7 @@ export function createSnakeRoundCoordinator({ client, escrowMatches, lifecycleMa
       rows[0].game === 'snake' && rows[0].token === 'TPG' && rows[0].detail === match.matchId, 'held_debit_missing');
     return { ...account, lock };
   }
-  async function complete({ match, lifecycle, session, at }, room, refund) {
+  async function complete({ match, lifecycle, session, at }, refund) {
     const key = `game-settlement:${match.matchId}`;
     const existing = await receipts.findOne({ _id: key }, { session });
     if (existing) {
@@ -64,7 +64,13 @@ export function createSnakeRoundCoordinator({ client, escrowMatches, lifecycleMa
     need(match.status === 'reserved', 'round_not_reserved');
     need(refund ? match.startedAt === null && ['reserved', 'refund_pending'].includes(lifecycle.status) :
       typeof match.startedAt === 'string' && lifecycle.status === 'playing', 'round_lifecycle_mismatch');
-    const decision = refund ? { kind: 'cancel_before_start', matchId: match.matchId, gameType: 'snake', decisionId: `refund:${digest(match.matchId)}` } : captureSnakeServerResult(room, match);
+    let replayedDecision;
+    if (!refund) {
+      const persisted = await gameStates.findOne({ _id: match.matchId }, { session });
+      const records = await gameMoves.find({ matchId: match.matchId }, { session }).sort({ sequence: 1 }).limit(10002).toArray();
+      replayedDecision = captureSnakeJournalResult(match, replaySnakeJournal(match, records, persisted));
+    }
+    const decision = refund ? { kind: 'cancel_before_start', matchId: match.matchId, gameType: 'snake', decisionId: `refund:${digest(match.matchId)}` } : replayedDecision;
     const plan = buildReservedMatchSettlementPlan(match, decision);
     need(BigInt(plan.totalUnits) <= BigInt(Number.MAX_SAFE_INTEGER), 'unsafe_ledger_amount');
     const accounts = new Map();
@@ -104,11 +110,11 @@ export function createSnakeRoundCoordinator({ client, escrowMatches, lifecycleMa
     await receipts.insertOne(receipt, { session }); return { duplicate: false, receipt };
   }
   return {
-    start(matchId, initialBoard) {
+    start(matchId, initialBoard, turnOrder) {
       return transact(matchId, async ({ match, lifecycle, session, at }) => {
-        need(snakeRulesHash(initialBoard) === match.rulesHash, 'initial_rules_mismatch');
+        need(snakeJournalRulesHash(match.rulesVersion, initialBoard) === match.rulesHash && Array.isArray(turnOrder) && Array.isArray(match.turnOrder) && journalHash(turnOrder) === journalHash(match.turnOrder), 'initial_rules_mismatch');
         if (match.startedAt !== null) {
-          need(match.status === 'reserved' && lifecycle.status === 'playing', 'round_already_advanced');
+          need(match.status === 'reserved' && lifecycle.status === 'playing' && journalHash(turnOrder) === journalHash(match.turnOrder), 'round_already_advanced');
           return { duplicate: true, match };
         }
         need(match.status === 'reserved' && lifecycle.status === 'reserved', 'round_not_startable');
@@ -126,15 +132,21 @@ export function createSnakeRoundCoordinator({ client, escrowMatches, lifecycleMa
             need(held.modifiedCount === 1, 'lock_fence_conflict');
           }
         }
+        const initial = initializeSnakeJournal(match, initialBoard, turnOrder, at);
         const startedAt = new Date(at).toISOString();
         const changed = await escrowMatches.updateOne({ _id: matchId, status: 'reserved', version: match.version, startedAt: null },
-          { $set: { startedAt, initialBoard: structuredClone(initialBoard) }, $inc: { version: 1 } }, { session });
+          { $set: { startedAt, initialBoard: structuredClone(initialBoard), turnOrder: [...turnOrder] }, $inc: { version: 1 } }, { session });
         need(changed.modifiedCount === 1, 'start_conflict');
+        await gameStates.insertOne(initial.state, { session });
+        await gameMoves.insertOne(initial.genesis, { session });
         await move(lifecycle, 'start', null, at, session);
-        return { duplicate: false, match: { ...match, startedAt, initialBoard: structuredClone(initialBoard), version: match.version + 1 } };
+        return { duplicate: false, match: { ...match, startedAt, turnOrder: [...turnOrder], initialBoard: structuredClone(initialBoard), version: match.version + 1 } };
       });
     },
-    finish: (matchId, room) => transact(matchId, state => complete(state, room, false)),
-    refundBeforeStart: matchId => transact(matchId, state => complete(state, null, true))
+    finish: (matchId, suppliedOutcome) => {
+      if (suppliedOutcome !== undefined) return Promise.reject(new Error('client_outcome_not_accepted'));
+      return transact(matchId, state => complete(state, false));
+    },
+    refundBeforeStart: matchId => transact(matchId, state => complete(state, true))
   };
 }

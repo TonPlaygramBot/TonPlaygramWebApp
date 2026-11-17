@@ -15,7 +15,7 @@ test('real Mongo reserve rollback and competing same-round requests conserve fun
     const db = connection.db; for (const name of names) await db.createCollection(name);
     const collections = Object.fromEntries(names.map(name => [name, db.collection(name)]));
     const at = Date.now();
-    const offer = { _id: 'm', matchId: 'm', roomId: 'room', offerId: 'o', gameType: 'snake', assetId: 'test-ledger', revision: 0, status: 'offered',
+    const offer = { _id: 'm', matchId: 'm', roomId: 'room', offerId: 'o', gameType: 'snake', rulesVersion: 'snake-server-single-die-v1', turnOrder: ['a', 'b'], assetId: 'test-ledger', revision: 0, status: 'offered',
       expiresAt: at + 60000, stakeUnits: '10', accountIds: ['a', 'b'], rulesHash: 'a'.repeat(64), feePolicy: { policyId: 'testfee', units: '2', accountId: 'house' } };
     const people = ['a', 'b', 'house'].map((id, i) => ({ _id: `u-${id}`, tpcAccountNumber: id, telegramId: i + 1, balance: 100, transactions: [] }));
     await collections.offers.insertOne(offer); await collections.users.insertMany(people);

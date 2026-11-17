@@ -17,6 +17,8 @@ export function gameOfferTerms(offer) {
     offer.accountIds.length <= (offer.gameType === 'snake' ? 4 : 2), 'invalid_offer_roster');
   const accountIds = Array.from(offer.accountIds);
   requireValue(BigInt(offer.stakeUnits) * BigInt(accountIds.length) <= BigInt(Number.MAX_SAFE_INTEGER), 'offer_pot_unsafe');
+  requireValue(offer.rulesVersion === 'snake-server-single-die-v1' && offer.gameType === 'snake', 'unsupported_offer_rules_version');
+  requireValue(Array.isArray(offer.turnOrder) && offer.turnOrder.length === accountIds.length && Array.from(offer.turnOrder).every(validId) && new Set(offer.turnOrder).size === accountIds.length && [...offer.turnOrder].sort().every((id, i) => id === [...accountIds].sort()[i]), 'invalid_offer_turn_order');
   requireValue(accountIds.every(validId) && new Set(accountIds).size === accountIds.length, 'invalid_offer_roster');
   requireValue(typeof offer.rulesHash === 'string' && /^[a-f0-9]{64}$/.test(offer.rulesHash), 'invalid_offer_rules');
   requireValue(offer.feePolicy && validId(offer.feePolicy.policyId) && typeof offer.feePolicy.units === 'string' &&
@@ -25,7 +27,7 @@ export function gameOfferTerms(offer) {
   requireValue(fee < BigInt(offer.stakeUnits) * BigInt(accountIds.length), 'invalid_offer_fee');
   requireValue(fee === 0n || (validId(offer.feePolicy.accountId) && !accountIds.includes(offer.feePolicy.accountId)), 'invalid_offer_fee_recipient');
   const terms = { version: 1, matchId: offer.matchId, roomId: offer.roomId, offerId: offer.offerId, revision: offer.revision, assetId: offer.assetId,
-    gameType: offer.gameType, stakeUnits: offer.stakeUnits, accountIds: accountIds.sort(), rulesHash: offer.rulesHash,
+    gameType: offer.gameType, rulesVersion: offer.rulesVersion, turnOrder: [...offer.turnOrder], stakeUnits: offer.stakeUnits, accountIds: accountIds.sort(), rulesHash: offer.rulesHash,
     feePolicy: { policyId: offer.feePolicy.policyId, units: offer.feePolicy.units, accountId: fee ? offer.feePolicy.accountId : null }, expiresAt: offer.expiresAt };
   return { terms, termsHash: createHash('sha256').update(JSON.stringify(terms)).digest('hex') };
 }

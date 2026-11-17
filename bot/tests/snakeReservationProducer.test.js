@@ -5,7 +5,7 @@ import { createSnakeReservationProducer, gameFundingFingerprint } from '../servi
 import { gameOfferTerms } from '../services/settlement/gameStakeConsent.js';
 const NOW = 1800000000000;
 function fixture() {
-  const offer = { _id: 'm', matchId: 'm', roomId: 'room', offerId: 'o', gameType: 'snake', assetId: 'test-ledger', revision: 0, status: 'offered',
+  const offer = { _id: 'm', matchId: 'm', roomId: 'room', offerId: 'o', gameType: 'snake', rulesVersion: 'snake-server-single-die-v1', turnOrder: ['a', 'b'], assetId: 'test-ledger', revision: 0, status: 'offered',
     expiresAt: NOW + 60000, stakeUnits: '10', accountIds: ['a', 'b'], rulesHash: 'a'.repeat(64), feePolicy: { policyId: 'testfee', units: '2', accountId: 'house' } };
   const people = ['a', 'b', 'house'].map((id, i) => ({ _id: `u-${id}`, tpcAccountNumber: id, telegramId: i + 1, balance: 100, transactions: [] }));
   let data = { offers: [offer], consents: [], users: people,
