@@ -50,7 +50,7 @@ it('dismisses repeated failures and shows a new session failure without navigati
   expect(container.textContent).toBe('');
   window.Telegram.WebApp.initData = 'new-session';
   await act(async () => observe({ status: 401 }, headers('new-session')));
-  expect(container.textContent).toContain('Renew your Telegram session');
+  expect(container.textContent).toContain('Check your sign-in session');
   expect(window.location.href).toBe(url);
 });
 
@@ -85,8 +85,19 @@ it('preserves rejected credentials and account state, and does not replay a reje
   expect(request.mock.calls[0][1].headers['X-Telegram-Init-Data']).toBe('expired-signed-session');
   expect(window.Telegram.WebApp.initData).toBe('expired-signed-session');
   expect(localStorage.getItem('accountId')).toBe('existing-account');
-  expect(container.textContent).toContain('Renew your Telegram session');
+  expect(container.textContent).toContain('Check your sign-in session');
   // Public success must not be mistaken for authenticated session renewal.
   await act(async () => observe({ status: 200, ok: true }, headers('expired-signed-session')));
-  expect(container.textContent).toContain('Renew your Telegram session');
+  expect(container.textContent).toContain('Check your sign-in session');
+});
+
+it('gives non-diagnostic guidance for combined Telegram and Google credentials', async () => {
+  await mount();
+  await act(async () => observe({ status: 401 }, {
+    ...headers('expired-signed-session'), 'X-Google-Id-Token': 'expired-google-token'
+  }));
+  expect(container.textContent).toContain('TonPlayGram could not authenticate this request');
+  expect(container.textContent).toContain('sign in with Google again');
+  expect(container.textContent).not.toContain('Telegram could not verify');
+  expect(container.textContent).not.toContain('expired-google-token');
 });
