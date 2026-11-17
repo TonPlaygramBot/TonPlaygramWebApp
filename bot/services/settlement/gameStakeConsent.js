@@ -7,7 +7,7 @@ function requireValue(condition, code) { if (!condition) throw new Error(code); 
 
 /** Trusted server offer. No fee/stake defaults; all economics must be explicit. */
 export function gameOfferTerms(offer) {
-  requireValue(offer && validId(offer.matchId) && validId(offer.offerId) && validId(offer.assetId) &&
+  requireValue(offer && validId(offer.matchId) && validId(offer.roomId) && validId(offer.offerId) && validId(offer.assetId) &&
     ['snake', 'poolroyale'].includes(offer.gameType), 'invalid_offer');
   requireValue(Number.isSafeInteger(offer.revision) && offer.revision >= 0 &&
     Number.isSafeInteger(offer.expiresAt) && offer.expiresAt > 0, 'invalid_offer_version');
@@ -24,7 +24,7 @@ export function gameOfferTerms(offer) {
   const fee = BigInt(offer.feePolicy.units);
   requireValue(fee < BigInt(offer.stakeUnits) * BigInt(accountIds.length), 'invalid_offer_fee');
   requireValue(fee === 0n || (validId(offer.feePolicy.accountId) && !accountIds.includes(offer.feePolicy.accountId)), 'invalid_offer_fee_recipient');
-  const terms = { version: 1, matchId: offer.matchId, offerId: offer.offerId, revision: offer.revision, assetId: offer.assetId,
+  const terms = { version: 1, matchId: offer.matchId, roomId: offer.roomId, offerId: offer.offerId, revision: offer.revision, assetId: offer.assetId,
     gameType: offer.gameType, stakeUnits: offer.stakeUnits, accountIds: accountIds.sort(), rulesHash: offer.rulesHash,
     feePolicy: { policyId: offer.feePolicy.policyId, units: offer.feePolicy.units, accountId: fee ? offer.feePolicy.accountId : null }, expiresAt: offer.expiresAt };
   return { terms, termsHash: createHash('sha256').update(JSON.stringify(terms)).digest('hex') };
@@ -54,7 +54,7 @@ export async function buildVerifiedStakeConsent({ offer, presentedTermsHash, cre
   const acceptedAt = now();
   requireValue(Number.isSafeInteger(acceptedAt) && acceptedAt > 0 && terms.expiresAt > acceptedAt && claims.expiresAt > acceptedAt, 'consent_expired');
   return Object.freeze({ version: 1, matchId: terms.matchId, offerId: terms.offerId, offerRevision: terms.revision,
-    termsHash, accountId: user.tpcAccountNumber, userId: String(user._id), acceptedAt,
+    termsHash, accountId: user.tpcAccountNumber, userId: String(user._id), identity: Object.freeze({ ...selector }), acceptedAt,
     expiresAt: Math.min(terms.expiresAt, claims.expiresAt) });
 }
 
