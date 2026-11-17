@@ -1,3 +1,4 @@
+import { rejectPausedPaidAction } from '../../lib/paidPlayPause.js';
 import { Router } from 'express';
 import authenticate from '../middleware/auth.js';
 import User from '../models/User.js';
@@ -195,9 +196,9 @@ async function handleTpcPurchase(req, res) {
   });
 }
 
-router.post('/purchase-v2', authenticate, handleTpcPurchase);
+router.post('/purchase-v2', authenticate, rejectPausedPaidAction, handleTpcPurchase);
 
 // Legacy route kept as a compatibility alias while clients migrate.
-router.post('/purchase', authenticate, handleTpcPurchase);
+router.post('/purchase', authenticate, rejectPausedPaidAction, handleTpcPurchase);
 
 export default router;

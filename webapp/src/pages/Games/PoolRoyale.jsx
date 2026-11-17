@@ -1,3 +1,4 @@
+import { PAID_PLAY_PAUSE_MESSAGE } from '../../../../lib/paidPlayPause.js';
 import React, {
   Component,
   useCallback,
@@ -32,7 +33,7 @@ import {
   getTelegramId
 } from '../../utils/telegram.js';
 import useTelegramBackButton from '../../hooks/useTelegramBackButton.js';
-import { addTransaction, buyBundle, depositAccount, getAccountBalance } from '../../utils/api.js';
+import { addTransaction, depositAccount, getAccountBalance } from '../../utils/api.js';
 import { FLAG_EMOJIS } from '../../utils/flagEmojis.js';
 import { PoolRoyaleRules } from '../../../../src/rules/PoolRoyaleRules.ts';
 import { useAimCalibration } from '../../hooks/useAimCalibration.js';
@@ -15448,54 +15449,9 @@ function PoolRoyaleGame({
   }, [careerStageId, isTraining, usesCareerAttempts]);
 
 
-  const handleTrainingAttemptsPurchase = useCallback(async (bundle) => {
-    if (!usesCareerAttempts || !bundle || !resolvedAccountId) {
-      window.alert('Connect your account to buy attempts.');
-      return;
-    }
-    if (buyingTrainingBundleId) return;
-    setBuyingTrainingBundleId(bundle.id);
-    setTrainingPurchaseState('processing');
-    setTrainingPurchaseStatus('Payment in progress…');
-    try {
-      const purchase = await buyBundle(resolvedAccountId, {
-        items: [{
-          slug: bundle.id,
-          type: 'pool-training-attempt',
-          optionId: String(bundle.attempts),
-          price: Number(bundle.price) || 0
-        }]
-      });
-      if (purchase?.error) {
-        setTrainingPurchaseState('error');
-        setTrainingPurchaseStatus(purchase.error || 'Payment failed. Please try again.');
-        return;
-      }
-      const previous = careerAttemptsProgressRef.current || {
-        carryShots: 0,
-        attemptsAwardedStageIds: [],
-        bonusAwardedStageIds: []
-      };
-      const updated = persistCareerAttemptsProgress({
-        ...previous,
-        carryShots: Math.max(0, Number(previous?.carryShots) || 0) + Math.max(0, Number(bundle.attempts) || 0)
-      });
-      const nextShots = Math.max(0, Number(updated?.carryShots) || 0);
-      careerAttemptsProgressRef.current = updated;
-      setCareerAttemptsProgress(updated);
-      setTrainingShotsRemaining(nextShots);
-      setTrainingPurchaseState('success');
-      setTrainingPurchaseStatus('Payment confirmed. Hearts delivered to your career bank.');
-      setTrainingAttemptsStoreOpen(false);
-      window.alert(`+${bundle.attempts} attempts added.`);
-    } catch (error) {
-      setTrainingPurchaseState('error');
-      setTrainingPurchaseStatus('Purchase failed. Try again.');
-      console.warn('Pool Royale training attempts purchase failed:', error);
-    } finally {
-      setBuyingTrainingBundleId('');
-    }
-  }, [buyingTrainingBundleId, resolvedAccountId, usesCareerAttempts]);
+  const handleTrainingAttemptsPurchase = useCallback(async () => {
+    window.alert(PAID_PLAY_PAUSE_MESSAGE);
+  }, []);
 
   useEffect(() => {
     if (!trainingAttemptsStoreOpen) return;

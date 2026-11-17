@@ -1,3 +1,4 @@
+import { rejectPausedPaidAction } from '../../lib/paidPlayPause.js';
 import { Router } from 'express';
 import { v4 as uuidv4 } from 'uuid';
 import User from '../models/User.js';
@@ -466,7 +467,7 @@ router.post('/gift', authenticate, async (req, res) => {
   res.json({ balance: sender.balance, transaction: senderTx });
 });
 
-router.post('/store-purchase', authenticate, async (req, res) => {
+router.post('/store-purchase', authenticate, rejectPausedPaidAction, async (req, res) => {
   const { accountId, fromAccount, bundle, txHash } = req.body;
   const purchaserAccountId = String(accountId || fromAccount || '').trim();
 

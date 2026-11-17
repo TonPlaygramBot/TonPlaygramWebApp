@@ -1,3 +1,4 @@
+import { isPausedPaidGame, PAID_PLAY_PAUSE_MESSAGE } from '../../../../lib/paidPlayPause.js';
 import {
   ensureAccountId,
   getTelegramFirstName,
@@ -228,6 +229,12 @@ export async function runPoolRoyaleOnlineFlow({
     seatTimeoutRef
   } = refs;
 
+  if (isPausedPaidGame('poolroyale', stake?.amount)) {
+    setMatchingError(PAID_PLAY_PAUSE_MESSAGE);
+    setMatching(false);
+    setIsSearching(false);
+    return { success: false };
+  }
   const seatTimeoutMs = timeouts.seat ?? DEFAULT_SEAT_TIMEOUT_MS;
   const matchmakingTimeoutMs = timeouts.matchmaking ?? DEFAULT_MATCH_TIMEOUT_MS;
   const socketConnectTimeoutMs =

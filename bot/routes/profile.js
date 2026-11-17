@@ -1,3 +1,4 @@
+import { rejectPausedPaidAction } from '../../lib/paidPlayPause.js';
 import { Router } from 'express';
 import { v4 as uuidv4 } from 'uuid';
 import User from '../models/User.js';
@@ -224,7 +225,7 @@ router.post('/updateBalance', authenticate, async (req, res) => {
   res.json({ balance: user.balance });
 });
 
-router.post('/addTransaction', authenticate, async (req, res) => {
+router.post('/addTransaction', authenticate, rejectPausedPaidAction, async (req, res) => {
   const { telegramId, accountId, amount, type, game, players } = req.body;
   // Compatibility identity headers cannot create or claim a sign-in mapping.
   if (!req.auth?.apiToken) {
