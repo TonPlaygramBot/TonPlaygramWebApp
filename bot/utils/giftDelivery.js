@@ -77,7 +77,11 @@ export async function deliverGift({ fromAccount, toAccount, gift: giftId, reques
         if (delivered.matchedCount !== 1) reject('Recipient account not found.', 'RECIPIENT_NOT_FOUND', 404);
       }
       receipt = { requestId, balance: updated.balance, transaction };
-      await DeliveryModel.create([{ _id: key, fromAccount, toAccount, giftId, requestId, receipt }], { session });
+      const notification = receiver.telegramId ? {
+        state: 'pending', telegramId: String(receiver.telegramId), giftName: gift.name,
+        price: gift.price, senderName: entry.fromName || fromAccount
+      } : undefined;
+      await DeliveryModel.create([{ _id: key, fromAccount, toAccount, giftId, requestId, receipt, notification }], { session });
     }, { readConcern: { level: 'snapshot' }, writeConcern: { w: 'majority' }, readPreference: 'primary' });
     return receipt;
   } catch (error) {

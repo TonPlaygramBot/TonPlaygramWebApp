@@ -75,3 +75,25 @@ test('absent legacy arrays initialize, corrupt arrays fail closed',async()=>{
   await User.collection.updateOne({accountId:'bob'},{$unset:{transactions:'',gifts:''}});await send(request());assert.equal((await User.findOne({accountId:'bob'})).gifts.length,1);
   await User.collection.updateOne({accountId:'bob'},{$set:{gifts:null}});await assert.rejects(send(request()),e=>e.code==='ACCOUNT_HISTORY_INVALID');assert.equal((await User.findOne({accountId:'alice'})).balance,800);
 });
+
+test('notification enqueue commits with gift and receipt replay never requeues',async()=>{
+ await User.updateOne({accountId:'bob'},{$set:{telegramId:222}});
+ const input=request();await send(input);await send(input);
+ const record=await GiftDelivery.findOne().lean();assert.equal(record.notification.state,'pending');assert.equal(record.notification.telegramId,'222');
+ const {drainGiftNotifications}=await import('../bot/utils/giftNotifications.js');let calls=0;
+ await Promise.all([drainGiftNotifications(async()=>{calls++;return{message_id:99};}),drainGiftNotifications(async()=>{calls++;return{message_id:100};})]);
+ assert.equal(calls,1);assert.equal((await GiftDelivery.findOne().lean()).notification.state,'sent');
+ await send(input);await drainGiftNotifications(async()=>{calls++;});assert.equal(calls,1);
+});
+test('ambiguous Telegram result is held without retry or rolling back delivered gift',async()=>{
+ await User.updateOne({accountId:'bob'},{$set:{telegramId:222}});await send(request());
+ const {drainGiftNotifications}=await import('../bot/utils/giftNotifications.js');let calls=0;
+ await drainGiftNotifications(async()=>{calls++;throw Error('response lost');});
+ await drainGiftNotifications(async()=>{calls++;});
+ assert.equal(calls,1);assert.equal((await GiftDelivery.findOne().lean()).notification.state,'uncertain');
+ assert.equal((await User.findOne({accountId:'alice'})).balance,800);assert.equal((await User.findOne({accountId:'bob'})).gifts.length,1);
+});
+test('crashed claimed notification is not automatically replayed',async()=>{
+ await User.updateOne({accountId:'bob'},{$set:{telegramId:222}});await send(request());await GiftDelivery.updateOne({},{$set:{'notification.state':'attempting'}});
+ const {drainGiftNotifications}=await import('../bot/utils/giftNotifications.js');let calls=0;await drainGiftNotifications(async()=>{calls++;});assert.equal(calls,0);
+});

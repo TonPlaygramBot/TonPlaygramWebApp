@@ -685,11 +685,11 @@ export function sendMessage(fromId, toId, text, attachment) {
   return post('/api/social/send-message', { fromId, toId, text });
 }
 
-export function getGiftSession() { return get('/api/account/gift'); }
+export function getGiftSession() { return get('/api/account/gift/v2'); }
 
 export async function sendGift(fromId, toId, gift, requestId) {
   // A stable request key supports explicit recovery; never retry a charge automatically.
-  const result = await post('/api/account/gift', {
+  const result = await post('/api/account/gift/v2', {
     fromAccount: fromId,
     toAccount: toId,
     gift,

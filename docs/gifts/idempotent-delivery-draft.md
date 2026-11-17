@@ -4,7 +4,7 @@ Stacked on the premium gift experience draft. No IDs/prices changed. No producti
 
 ## Proposed contract
 - New clients generate a secure UUIDv4 and persist the sender-scoped intent in sessionStorage before sending. Explicit retries reuse exactly that intent; no automatic network retry. Different unresolved intents cannot silently replace it.
-- `POST /api/account/gift` requires `requestId`. Legacy clients without it receive 428 without a charge. Coordinated client/server rollout and old-client update UX are mandatory.
+- `POST /api/account/gift/v2` requires `requestId`. Legacy clients without it receive 428 without a charge. Coordinated client/server rollout and old-client update UX are mandatory.
 - A MongoDB replica-set transaction atomically writes debit, recipient inventory/ledger and a durable GiftDelivery receipt. Unique document ID is sender+request UUID. No TTL or receipt deletion is safe without a migration/replay plan.
 - Replays return the original receipt, not current balance; do not use it as a live balance feed. Changing recipient/gift under the same key is rejected. Self-gifts update one account once.
 - Existing recipients only; no account creation from a typo. Missing recipients and insufficient funds receive immutable rejected receipts; a later retry cannot change those to a charge. Other errors retain the recovery intent.
@@ -14,7 +14,7 @@ Stacked on the premium gift experience draft. No IDs/prices changed. No producti
 ## Deliberate compatibility changes / release blockers
 1. **Configured external NFT minting is disabled for new purchases in this patch.** The existing external mint API provides no documented idempotency/status contract. It cannot safely run inside a retryable MongoDB transaction or before commit. Implement a reviewed provider-idempotent outbox/reconciliation integration before enabling it. Already committed receipts remain readable.
 2. With no external provider, gifts are in-app collectibles. This patch creates no fabricated NFT token ID and makes no on-chain ownership claim. Conversion/burn flows need separate compatibility testing for entries without `nftTokenId`.
-3. Telegram gift notifications are not sent by this endpoint in this draft. A durable deduplicated notification outbox is follow-up work. Do not reintroduce external side effects inside the transaction or receipt replay.
+3. Text gift notifications now use transactional enqueue and postcommit at-most-once transport attempt. Ambiguous/crashed sends are held for reconciliation, never automatically retried. No exactly-once guarantee. See rollout-v2.md.
 4. SessionStorage survives reloads but not cleared storage/new tabs/devices. Losing an unresolved key requires inventory/ledger reconciliation before initiating another purchase. Cross-tab/server unresolved-intent discovery is not implemented.
 5. The new transaction covers gift sending only. Other legacy balance writers elsewhere still need integrity review.
 6. Durable receipt retention and privacy/account-deletion handling need an explicit policy: deleting an account must not silently remove replay protection for a reused identity.

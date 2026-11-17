@@ -18,7 +18,7 @@ function signed(id) {
 async function invoke(headers={}, fromAccount='alice', method='post') {
   let calls=0, authorization;
   const router=createGiftPurchaseRouter(async(_body,authorize)=>{calls++;authorization=authorize;return {requestId:'fixture'};});
-  const handlers=router.stack.find(layer=>layer.route?.methods?.[method]).route.stack.map(layer=>layer.handle);
+  const handlers=router.stack.find(layer=>layer.route?.path === '/v2' && layer.route?.methods?.[method]).route.stack.map(layer=>layer.handle);
   const req={body:{fromAccount,toAccount:'bob',gift:'fireworks',requestId:randomUUID()},get:name=>headers[name.toLowerCase()]};
   const res={code:200,setHeader(){},status(code){this.code=code;return this;},json(body){this.body=body;return this;}};
   let next=false;await handlers[0](req,res,()=>{next=true;});if(next)await handlers[1](req,res);
@@ -31,3 +31,5 @@ test('signed owner accepted and service authorization binds canonical DB id',asy
 
 test('gift session requires signed credentials and resolves canonical account',async()=>{const denied=await invoke({},'alice','get');assert.equal(denied.res.code,401);const valid=await invoke({'x-telegram-init-data':signed(111),'x-tpc-account-id':'bob'},'bob','get');assert.equal(valid.res.body.accountId,'alice');assert.equal(valid.res.body.purchasingEnabled,true);assert.equal(valid.calls,0);});
 test('gift session explicitly reports configured provider unavailability',async()=>{process.env.NFT_API_BASE_URL='https://fixture.invalid';try{const r=await invoke({'x-telegram-init-data':signed(111)},'alice','get');assert.equal(r.res.body.purchasingEnabled,false);assert.match(r.res.body.error,/provider/);}finally{delete process.env.NFT_API_BASE_URL;}});
+
+test('legacy endpoint rejects instead of generating keys or performing money writes',async()=>{let calls=0;const router=createGiftPurchaseRouter(async()=>{calls++;});const handler=router.stack.find(l=>l.route?.path==='/'&&l.route.methods.post).route.stack[0].handle;const res={status(code){this.code=code;return this;},json(body){this.body=body;return this;}};handler({body:{fromAccount:'alice',toAccount:'bob',gift:'fireworks'}},res);assert.equal(res.code,428);assert.equal(res.body.code,'GIFT_CLIENT_UPDATE_REQUIRED');assert.equal(calls,0);});

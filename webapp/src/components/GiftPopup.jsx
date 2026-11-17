@@ -17,7 +17,7 @@ export default function GiftPopup({ open, onClose, players = [], senderIndex = 0
       try {
         const next = await getGiftSession();
         if (!active || current !== generation) return;
-        if (next?.error || !next?.accountId || !next.purchasingEnabled) throw new Error(next?.error || 'Sign in with Telegram or Google before sending gifts.');
+        if (next?.error || next?.giftProtocol !== 2 || !next?.accountId || !next.purchasingEnabled) throw new Error(next?.error || 'Sign in with Telegram or Google before sending gifts.');
         setSession(next);
       } catch (error) {
         if (active && current === generation) setSessionError(error?.message || 'Could not verify your gift account. Sign in again.');

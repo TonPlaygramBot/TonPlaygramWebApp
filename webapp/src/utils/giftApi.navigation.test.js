@@ -16,3 +16,4 @@ it.each([['GET',()=>get('/api/example')],['PUT',()=>put('/api/example',{value:1}
  const fetch=vi.fn().mockResolvedValue({ok:false,status:400,statusText:'Bad Request',text:async()=>JSON.stringify({error:'invalid input',code:'UNRELATED'})});vi.stubGlobal('fetch',fetch);
  await expect(request()).resolves.toEqual({error:'invalid input'});expect(fetch).toHaveBeenCalledTimes(1);
 });
+it('uses only versioned purchase URL so mixed fleets cannot hit unsafe legacy handler',async()=>{const fetch=vi.fn().mockResolvedValue({ok:false,status:404,text:async()=>JSON.stringify({error:'not found'})});vi.stubGlobal('fetch',fetch);await sendGift('alice','bob','fireworks','11111111-1111-4111-8111-111111111111');expect(fetch).toHaveBeenCalledTimes(1);expect(fetch.mock.calls[0][0]).toMatch(/\/api\/account\/gift\/v2$/);});
