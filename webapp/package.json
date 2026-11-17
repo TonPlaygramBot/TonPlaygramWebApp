@@ -16,6 +16,8 @@
     "lint": "eslint --no-ignore --no-warn-ignored",
     "build": "node scripts/write-build-metadata.mjs && node scripts/run-vite-build.mjs",
     "build:native-lite": "node scripts/build-native-lite.mjs",
+    "check:native-size": "node scripts/check-native-bundle-size.mjs",
+    "test:native-size": "node --test scripts/check-native-bundle-size.test.mjs",
     "native:sync": "npm run build && cap sync",
     "native:sync:lite": "npm run build:native-lite && cap sync",
     "android:sync": "npm run build && cap sync android",

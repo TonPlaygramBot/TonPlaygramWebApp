@@ -2,6 +2,16 @@ name: Android store release
 
 on:
   workflow_dispatch:
+    inputs:
+      native_bundle_max_bytes:
+        description: "Uncompressed web asset budget in bytes (project default: 200 MiB)"
+        default: "209715200"
+        required: false
+        type: string
+      native_bundle_size_override_reason:
+        description: "Required reason when raising the project size budget"
+        required: false
+        type: string
 
 permissions:
   contents: read
@@ -51,6 +61,17 @@ jobs:
           npm ci --prefix webapp
           npm --prefix webapp run generate:native-assets
           npm --prefix webapp run build
+      - name: Test native bundle-size gate
+        working-directory: webapp
+        run: npm run test:native-size
+
+      - name: Check native bundle size before copying or signing
+        working-directory: webapp
+        env:
+          NATIVE_BUNDLE_MAX_BYTES: ${{ inputs.native_bundle_max_bytes || '209715200' }}
+          NATIVE_BUNDLE_SIZE_OVERRIDE_REASON: ${{ inputs.native_bundle_size_override_reason }}
+        run: npm run check:native-size
+
       - name: Sync Capacitor Android
         working-directory: webapp
         run: npx --no-install cap sync android
