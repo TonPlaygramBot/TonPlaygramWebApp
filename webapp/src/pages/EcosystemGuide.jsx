@@ -6,7 +6,7 @@ import {
 } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import gamesCatalog from '../config/gamesCatalog.js';
-import { achievements, gameDetails, roadmap, tokenomics } from '../config/ecosystemContent.js';
+import { achievements, gameDetails, roadmap, tokenomics, ecosystemReviewDate, deliveryNotice } from '../config/ecosystemContent.js';
 
 const pillars = [
   { title: 'Play', icon: Gamepad2, color: '#63d7ff', text: 'Choose a game, learn in seconds and enter practice, private or matched play.' },
@@ -84,12 +84,12 @@ export default function EcosystemGuide() {
     </GuideSection>
 
     <GuideSection id="achievements" eyebrow="04 · Progress report" title="Built foundations, not promises" icon={Sparkles} intro="A connected prototype already represents the systems needed to prove the larger idea.">
-      <AchievementDashboard />
+      <p>Reviewed {ecosystemReviewDate}. {deliveryNotice}</p><AchievementDashboard />
       <div className="guide-detail-grid">{achievements.map((item, index) => <DetailBlock key={item.title} index={index} title={item.title} summary={item.summary} items={item.details} />)}</div>
       <PageLink to="/achievements">Explore every achievement</PageLink>
     </GuideSection>
 
-    <GuideSection id="roadmap" eyebrow="05 · Delivery direction" title="From prototype to platform" icon={Rocket} intro="Progress is shown plainly. Percentages describe delivery—not dates or guarantees.">
+    <GuideSection id="roadmap" eyebrow="05 · Delivery direction" title="From prototype to platform" icon={Rocket} intro="Priorities and remaining checks, without invented completion percentages or promised dates.">
       <RoadmapLine />
       <div className="guide-roadmap-list">{roadmap.map((item) => <RoadmapItem key={item.title} item={item} />)}</div>
       <PageLink to="/roadmap">Open the detailed roadmap</PageLink>
@@ -117,10 +117,10 @@ function JourneyMap() { const points = [['01','Discover'],['02','Learn'],['03','
 function PillarCard({ title, icon: Icon, color, text, index }) { return <div className="guide-pillar" style={{ '--pillar': color }}><span>0{index + 1}</span><Icon /><h3>{title}</h3><p>{text}</p></div>; }
 function PhoneExplainer() { return <div className="phone-explainer"><div className="phone-frame"><div className="phone-speaker" /><div className="phone-profile"><span>TP</span><div><small>PLAYER LEVEL</small><strong>Level 24</strong></div><b>2,480 XP</b></div><div className="phone-match"><small>QUICK MATCH</small><strong>Pool Royale</strong><div><i>YOU</i><span>VS</span><i>AK</i></div><button>Ready to play</button></div><div className="phone-tabs"><Gamepad2 /><Trophy /><Users /><WalletCards /></div></div><div className="phone-notes"><span><b>01</b><strong>Mobile first</strong><small>Portrait controls and quick decisions</small></span><span><b>02</b><strong>Instant context</strong><small>Identity, match and value in one view</small></span><span><b>03</b><strong>Progress intact</strong><small>Every result returns to your profile</small></span></div></div>; }
 function GameGalaxy() { return <div className="game-galaxy"><div className="galaxy-center"><Gamepad2 /><strong>12+</strong><span>GAME WORLDS</span></div><span className="game-chip g1">CARDS</span><span className="game-chip g2">CUE SPORTS</span><span className="game-chip g3">ARCADE</span><span className="game-chip g4">CLASSICS</span><div className="galaxy-caption"><i /> ONE PROFILE · SHARED REWARDS</div></div>; }
-function AchievementDashboard() { const completed = roadmap.filter(i => i.progress >= 70).length; return <div className="achievement-dashboard"><div className="achievement-score"><div><strong>{achievements.length}</strong><span>CONNECTED<br/>FOUNDATIONS</span></div><svg viewBox="0 0 120 64" role="img" aria-label="Platform foundation progress"><path d="M8 55 C26 51,29 40,43 42 S59 23,73 30 S91 12,112 9" fill="none" stroke="#efd175" strokeWidth="3"/><path d="M8 55 C26 51,29 40,43 42 S59 23,73 30 S91 12,112 9 L112 64 L8 64Z" fill="url(#fade)"/><defs><linearGradient id="fade" x1="0" y1="0" x2="0" y2="1"><stop stopColor="#efd175" stopOpacity=".35"/><stop offset="1" stopColor="#efd175" stopOpacity="0"/></linearGradient></defs></svg></div><div className="achievement-mini"><span><b>{completed}</b><small>release-ready tracks</small></span><span><b>24/7</b><small>mobile access goal</small></span><span><b>1</b><small>unified ecosystem</small></span></div></div>; }
+function AchievementDashboard() { return <div className="achievement-dashboard"><div className="achievement-mini"><span><b>{achievements.length}</b><small>merged milestones</small></span><span><b>{roadmap.length}</b><small>delivery tracks</small></span><span><b>Pending</b><small>native release validation</small></span></div></div>; }
 function DetailBlock({ index, title, summary, items }) { return <div className="guide-detail"><div className="guide-detail-title"><span><Check /></span><small>FOUNDATION {String(index + 1).padStart(2,'0')}</small></div><h3>{title}</h3><p>{summary}</p><BulletList items={items} /></div>; }
 function RoadmapLine() { return <div className="roadmap-line"><span className="active"><b>NOW</b><i /></span><span><b>NEXT</b><i /></span><span><b>LATER</b><i /></span></div>; }
-function RoadmapItem({ item }) { return <div className="guide-roadmap-item"><div className="roadmap-meta"><span>{item.phase}</span><strong>{item.progress}%</strong></div><h3>{item.title}</h3><p>{item.goal}</p><div className="roadmap-bar"><i style={{ width: `${item.progress}%` }} /></div><BulletList items={item.deliverables} /></div>; }
+function RoadmapItem({ item }) { return <div className="guide-roadmap-item"><div className="roadmap-meta"><span>{item.phase}</span><strong>{item.status}</strong></div><h3>{item.title}</h3><p>{item.goal}</p><BulletList items={item.deliverables} /></div>; }
 function FeeChart() { const rows = [['Player-side value',90,'#334155'],['Rewards',4,'#f0cd70'],['Treasury',3,'#68a4ff'],['Product',2,'#a88cff'],['Growth',1,'#54deb0']]; return <div className="fee-chart"><div className="fee-donut"><div><strong>10%</strong><span>PLATFORM<br/>FEE</span></div></div><div className="fee-legend"><p>ILLUSTRATIVE PAID MATCH</p>{rows.map(([label,value,color]) => <div key={label}><i style={{background:color}}/><span>{label}</span><b>{value}%</b></div>)}</div><small>90% follows the displayed match or prize rules. The 10% fee is divided across four platform functions.</small></div>; }
 function TrustGrid() { return <div className="trust-grid">{[[ShieldCheck,'Fair outcomes','Authoritative match rules'],[BarChart3,'Visible records','Clear fees and activity'],[WalletCards,'Responsible utility','Compliance before rollout'],[Globe2,'Mobile access','Performance and inclusion']].map(([Icon,title,text]) => <div key={title}><Icon/><strong>{title}</strong><span>{text}</span></div>)}</div>; }
 function BulletList({ items }) { return <ul className="guide-bullets">{items.map(item => <li key={item}><Check size={14}/><span>{item}</span></li>)}</ul>; }
