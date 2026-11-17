@@ -5,6 +5,7 @@ import { fetchTelegramInfo } from '../utils/telegram.js';
 import { ensureTransactionArray, resolveAccountBalance, sanitizeUser } from '../utils/userUtils.js';
 import { normalizeAddress } from '../utils/ton.js';
 import authenticate from '../middleware/auth.js';
+import { deleteAccountRecords } from '../services/accountDeletion.js';
 import { verifyRequestedIdentity, sendIdentityError } from '../middleware/accountIdentity.js';
 
 export function parseTwitterHandle(input) {
@@ -316,42 +317,27 @@ router.post('/link-social', authenticate, async (req, res) => {
   res.json({ social: user.social });
 });
 
-router.post('/delete', authenticate, async (req, res) => {
+router.post('/delete', async (req, res) => {
+  res.setHeader('Cache-Control', 'no-store');
   const { accountId, confirmation } = req.body || {};
-  if (!accountId || confirmation !== 'DELETE') {
+  if (typeof accountId !== 'string' || !accountId.trim() || accountId.length > 255 || confirmation !== 'DELETE') {
     return res.status(400).json({ error: 'accountId and DELETE confirmation required' });
   }
-
-  const user = await User.findOne({ accountId });
-  if (!user) return res.status(404).json({ error: 'account not found' });
-
-  // Account-id and Google-id headers are compatibility identifiers, not proof
-  // of identity. Destructive deletion requires signed Telegram init data or a
-  // trusted server-to-server credential until native Google token verification
-  // is implemented.
-  const ownsTelegramAccount =
-    req.auth?.telegramId != null &&
-    user.telegramId != null &&
-    Number(req.auth.telegramId) === Number(user.telegramId);
-  if (!req.auth?.apiToken && !ownsTelegramAccount) {
-    return res.status(403).json({
-      error: 'reauthentication_required',
-      message: 'Open TonPlaygram from the linked Telegram account, or contact privacy@tonplaygram.com.'
-    });
+  let claims;
+  try {
+    claims = await verifyRequestedIdentity(req);
+  } catch (error) {
+    return sendIdentityError(res, error);
   }
-
-  const pendingFinancialActivity = (user.transactions || []).some(
-    (transaction) => transaction?.status === 'pending'
-  );
-  if (pendingFinancialActivity || user.currentTableId) {
-    return res.status(409).json({
-      error: 'account_has_pending_activity',
-      message: 'Finish or request support for pending games and transactions before deletion.'
-    });
+  try {
+    await deleteAccountRecords(accountId, claims);
+    return res.json({ success: true, deletedAccountId: accountId });
+  } catch (error) {
+    if (error.status) return res.status(error.status).json({ error: error.code });
+    // No non-transactional fallback: an unavailable replica set must not leave
+    // a removed account with only part of its social data cleaned up.
+    return res.status(503).json({ error: 'account_deletion_unavailable', message: 'Deletion could not be completed. Please retry or contact privacy@tonplaygram.com.' });
   }
-
-  await User.deleteOne({ _id: user._id });
-  return res.json({ success: true, deletedAccountId: String(accountId) });
 });
 
 export default router;
