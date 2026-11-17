@@ -39,6 +39,9 @@ jobs:
       - name: Install dependencies
         run: npm --prefix webapp install
 
+      - name: Test native asset generator
+        run: npm --prefix webapp run test:native-assets
+
       - name: Generate native assets
         run: npm --prefix webapp run generate:native-assets
 
@@ -90,6 +93,9 @@ jobs:
         run: |
           xcodebuild -version
           test "$(xcodebuild -version | awk '/Xcode/{print int($2)}')" -ge 26
+
+      - name: Test native asset generator
+        run: npm --prefix webapp run test:native-assets
 
       - name: Generate native assets
         run: npm --prefix webapp run generate:native-assets
