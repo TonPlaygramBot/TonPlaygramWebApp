@@ -1,0 +1,29 @@
+name: TON contract validation
+on:
+  pull_request:
+    paths:
+      - 'ft/**'
+      - 'stdlib.fc'
+      - 'wrappers/**'
+      - 'tools/ton/**'
+      - '.github/workflows/ton-contract-validation.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  offline-contract-tests:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+          cache-dependency-path: tools/ton/package-lock.json
+      - run: npm ci --ignore-scripts
+        working-directory: tools/ton
+      - run: npm run compile
+        working-directory: tools/ton
+      - run: npm test
+        working-directory: tools/ton

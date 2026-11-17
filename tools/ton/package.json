@@ -1,0 +1,19 @@
+{
+  "name": "tpg-ton-validation",
+  "version": "1.0.0",
+  "scripts": {
+    "compile": "node compile.mjs",
+    "test": "esbuild jetton.test.ts --bundle --platform=node --format=esm --packages=external --external:./compile.mjs --outfile=jetton.test.generated.mjs && node --test jetton.test.generated.mjs"
+  },
+  "license": "ISC",
+  "type": "module",
+  "dependencies": {
+    "@ton-community/func-js": "0.11.0",
+    "@ton/core": "0.63.1",
+    "@ton/sandbox": "0.45.0"
+  },
+  "private": true,
+  "devDependencies": {
+    "esbuild": "0.28.2"
+  }
+}
