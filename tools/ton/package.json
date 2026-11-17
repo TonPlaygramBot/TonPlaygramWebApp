@@ -3,7 +3,8 @@
   "version": "1.0.0",
   "scripts": {
     "compile": "node compile.mjs",
-    "test": "esbuild jetton.test.ts --bundle --platform=node --format=esm --packages=external --external:./compile.mjs --outfile=jetton.test.generated.mjs && node --test jetton.test.generated.mjs"
+    "test": "esbuild jetton.test.ts --bundle --platform=node --format=esm --packages=external --external:./compile.mjs --outfile=jetton.test.generated.mjs && node --test jetton.test.generated.mjs",
+    "test:capped": "esbuild capped.test.ts --bundle --platform=node --format=esm --packages=external --external:./compile.mjs --outfile=capped.test.generated.mjs && node --test capped.test.generated.mjs"
   },
   "license": "ISC",
   "type": "module",

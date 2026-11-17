@@ -27,3 +27,7 @@ jobs:
         working-directory: tools/ton
       - run: npm test
         working-directory: tools/ton
+      - run: npm run compile -- --capped
+        working-directory: tools/ton
+      - run: npm run test:capped
+        working-directory: tools/ton

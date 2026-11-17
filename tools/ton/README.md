@@ -62,3 +62,60 @@ is authorized or performed by this package.
 References: [TON Sandbox](https://github.com/ton-blockchain/sandbox),
 [FunC JS compiler](https://github.com/ton-community/func-js),
 [TON testing guide](https://docs.ton.org/v3/guidelines/smart-contracts/testing/writing-test-examples/).
+
+## Opt-in 10 billion TPG cap draft
+
+`ft/tpg-capped-minter.fc` is a separate, **undeployed** candidate. The existing
+`JettonMinter.compile.ts` deployment target remains unchanged. Explicitly select
+this candidate only for offline validation:
+
+```sh
+npm run compile -- --capped
+npm run test:capped
+```
+
+The constant is 10,000,000,000 × 10^9 base units, matching the repository metadata's
+9 decimals. `get_max_supply` exposes that immutable constant. It cannot be raised
+by the admin. Zero mint and a mint above the cap fail with exit 76; non-transfer
+mint payloads fail with 77. Admin authorization still fails with 73.
+
+**This draft caps outstanding `total_supply`, not cumulative lifetime issuance.**
+A successful burn reduces supply and reopens equivalent mint capacity. This choice
+is visible in tests and requires explicit policy agreement before deployment; do
+not treat it as approval of unlimited burn-and-remint lifetime issuance. Admin
+can still mint remaining capacity, transfer authority and edit token metadata.
+Changing metadata decimals does not change the immutable on-chain base-unit cap.
+Admin custody, irreversible mint closure, and metadata freezing remain undecided.
+
+A separate per-chain cap does **not** implement the user's future global multichain
+cap. Any additional chain needs coordinated issuance or audited lock-and-mint /
+burn-and-release accounting; deploying 10 billion independently on each chain
+would violate a 10 billion global limit. No bridge or cross-chain mint is included.
+
+The legacy minter ignores bounced mint messages, so reported supply may retain a
+failed delivery. This inherited conservative accounting does not increase the
+cap, but must be resolved and tested before production. The draft does not claim
+complete supply reconciliation or audit readiness.
+
+### Application integration blockers found during read-only audit
+
+Current `bot/routes/wallet.js` `/deposit` credits the caller's amount without an
+on-chain transaction identity, verified master/network/recipient or durable replay
+key. This must not be used to credit real TON/TPG deposits. Claims use a separately
+configured contract and do not prove successful token receipt. These are existing
+application issues, not fixed or activated by this offline contract draft.
+
+#### Reproduced blocker (not fixed)
+
+The `KNOWN LAUNCH BLOCKER` regression sends a valid internal-transfer opcode and
+25 base units with missing address fields. The destination rejects with exit 9
+and a bounce reaches the minter. Wallet balance remains zero while minter supply
+reports 25. A green characterization test means this defect was reproduced, not
+that accounting is production-safe. A fix needs authenticated pending-mint
+correlation/replay handling and adversarial tests, not an unconditional decrement
+for arbitrary bounce payloads. This draft must remain undeployed until resolved.
+
+Metadata editing also allows changing externally displayed decimals even though
+the contract cap stays fixed in base units. Immutable decimal metadata/content
+and admin policy must be decided explicitly before launch. No freeze policy is
+silently selected here.
