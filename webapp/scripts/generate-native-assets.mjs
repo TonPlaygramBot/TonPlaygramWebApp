@@ -68,20 +68,21 @@ async function generateIosIcons() {
 
   await ensureDir(iosAppIconDir);
 
-  await Promise.all(
+  contents.images = await Promise.all(
     iosTargets.flatMap(({ idiom, size, scales }) =>
       scales.map(async (scale) => {
         const scaledSize = Math.round(size * scale);
-        const filename = `app-icon-${size}x${size}@${scale}x.png`;
+        const filename = `app-icon-${idiom}-${size}x${size}@${scale}x.png`;
         const outputPath = join(iosAppIconDir, filename);
-        const buffer = await sharp(baseBuffer).resize(scaledSize, scaledSize).png().toBuffer();
+        // App Store icons must not carry an alpha channel, even when all pixels are opaque.
+        const buffer = await sharp(baseBuffer).resize(scaledSize, scaledSize).removeAlpha().png().toBuffer();
         await writeFile(outputPath, buffer);
-        contents.images.push({
+        return {
           filename,
           idiom,
           scale: `${scale}x`,
           size: `${size}x${size}`
-        });
+        };
       })
     )
   );
@@ -91,13 +92,14 @@ async function generateIosIcons() {
 
 async function generateIosSplash() {
   await ensureDir(iosSplashDir);
-  const sizes = [
-    { filename: 'splash-1242x2688.png', width: 1242, height: 2688, scale: '3x' },
-    { filename: 'splash-1125x2436.png', width: 1125, height: 2436, scale: '3x' },
-    { filename: 'splash-828x1792.png', width: 828, height: 1792, scale: '2x' },
-    { filename: 'splash-1170x2532.png', width: 1170, height: 2532, scale: '3x' },
-    { filename: 'splash-1284x2778.png', width: 1284, height: 2778, scale: '3x' }
-  ];
+  // An imageset has one universal image per scale, not one per phone resolution.
+  // Keep all three renditions at the same logical size (428 x 926 points).
+  const sizes = [1, 2, 3].map((scale) => ({
+    filename: `splash@${scale}x.png`,
+    width: 428 * scale,
+    height: 926 * scale,
+    scale: `${scale}x`
+  }));
 
   const contents = {
     images: sizes.map(({ filename, scale }) => ({
