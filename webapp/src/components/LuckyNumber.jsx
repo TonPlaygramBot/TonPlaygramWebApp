@@ -9,7 +9,7 @@ import { getWalletBalance, updateBalance, addTransaction } from '../utils/api.js
 import coinConfetti from '../utils/coinConfetti';
 import { getGameVolume } from '../utils/sound.js';
 
-const todayKey = () => new Date().toISOString().slice(0, 10);
+import useLuckyDaily from '../hooks/useLuckyDaily.js';
 
 export default function LuckyNumber() {
   let telegramId;
@@ -41,20 +41,7 @@ export default function LuckyNumber() {
     setCanRoll(Date.now() - last >= COOLDOWN);
   }, []);
 
-  useEffect(() => {
-    const claimed = localStorage.getItem('luckyCard1Claimed') === todayKey();
-    if (!claimed) {
-      (async () => {
-        try {
-          const balRes = await getWalletBalance(telegramId);
-          const newBalance = (balRes.balance || 0) + 100;
-          await updateBalance(telegramId, newBalance);
-          await addTransaction(telegramId, 100, 'lucky');
-          localStorage.setItem('luckyCard1Claimed', todayKey());
-        } catch (e) {}
-      })();
-    }
-  }, [telegramId]);
+  const daily = useLuckyDaily(telegramId);
 
   const handleRollStart = () => setRolling(true);
 
@@ -78,6 +65,7 @@ export default function LuckyNumber() {
     );
   };
 
+  // Legacy dice/card rewards remain client-authoritative and require a separate migration.
   const handleSpinFinish = async (prize) => {
     let finalPrize = prize;
     if (typeof prize === 'number') {
@@ -146,6 +134,17 @@ export default function LuckyNumber() {
         }}
       />
       <h3 className="text-lg font-bold text-white">Lucky Card</h3>
+      <div aria-live="polite" className="text-sm text-white">
+        {daily.busy && <p>Checking daily reward…</p>}
+        {daily.receipt && <p>Daily 100 TPC {daily.receipt.alreadyClaimed ? 'already claimed today' : 'claimed'}.</p>}
+        {daily.error && (
+          <div role="alert">
+            <p>{daily.error}</p>
+            <button type="button" onClick={daily.retry} disabled={daily.busy}
+              className="underline text-brand-gold">Retry daily reward</button>
+          </div>
+        )}
+      </div>
       <TikTokTaskVideo
         title="Lucky Card Video"
         videoUrl="https://vt.tiktok.com/ZSujaXgpP/"
