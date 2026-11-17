@@ -32,3 +32,20 @@ and notification doubles. Pool socket tests execute actual extracted registered 
 mocked dependencies (paid/free variants). Generic seat/start coverage checks
 wiring in server source plus policy cases, NOT a live end-to-end socket/DB test. JSX parsed with Babel; no full
 production build or browser visual verification is claimed. No merge/deploy.
+
+## Isolated real-database verification
+
+`node --experimental-test-module-mocks --test bot/tests/paidContainment.integration.mjs`
+uses a temporary Mongo replica set with `--nounixsocket`, never an external DB
+URI. Actual Express routers and real User documents are exercised through local
+HTTP. Eight blocked endpoints replay twice without changing any account fields or
+user count. Unknown-account deposits cannot upsert; missing auth is rejected and
+funding address stays hidden. Zero-value practice records a transaction through
+the real route and persists it while preserving the seeded 100-unit balance.
+Notifications and TON transmission are replaced with throwing doubles.
+
+Validated with MongoDB 7.0.14 via `MONGOMS_SYSTEM_BINARY` pointing to an already
+installed test binary. This adds real route/database coverage, not a full game,
+WebSocket, browser, deployment or production verification. Older wallet test
+fixtures still need migration; they depend on the intentionally closed deposit
+endpoint and outdated Telegram signatures.
