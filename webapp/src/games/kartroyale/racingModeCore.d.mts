@@ -1,1 +1,1 @@
-export function racingActivity(search?:string):'race'|'career';
+export function racingActivity(search?:string):'race';

@@ -28,7 +28,7 @@ export function gameModeURL(game,mode) {
   if(game!=='racing')throw Error('Unknown game');
   const path='/games/kartroyale';
   if(mode==='explore')return `${path}?mode=ai&activity=explore`;
-  if(mode==='career')return `${path}?mode=ai&activity=racing-career`;
+  if(mode==='career')return `${path}?mode=ai`;
   if(mode==='multiplayer')return `${path}?mode=online`;
   throw Error('Unsupported game mode');
 }

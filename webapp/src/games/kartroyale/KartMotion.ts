@@ -16,7 +16,9 @@ export class KartMotion {
     const speed=Number.isFinite(r.speed)?r.speed:0;
     this.travel=(this.travel+Math.abs(speed)*dt)%10000;
     this.wheelSpin=(this.wheelSpin+speed*dt/Math.max(.1,radius))%(Math.PI*2);
-    const rack=-(r.steering||0)*.42;
+    // A visibly stronger rack at parking speeds; taper at race speed keeps
+    // the tyre pose credible without changing server-authoritative handling.
+    const rack=-clamp(r.steering||0,-1,1)*(.56-Math.min(1,Math.abs(speed)/30)*.08);
     // The inside front wheel turns slightly farther than the outside wheel.
     this.leftSteer=rack*(rack>0?1.1:.92);this.rightSteer=rack*(rack<0?1.1:.92);
     const powered=speed>2 && !r.braking && (r.throttle||0)>.1 &&

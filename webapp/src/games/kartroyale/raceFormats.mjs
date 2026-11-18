@@ -1,6 +1,8 @@
 import { standings } from './simulation.mjs';
 
-export const RACE_FORMATS = Object.freeze(['race', 'combat', 'trial', 'championship']);
+export const RACE_FORMATS = Object.freeze(['race']);
+// Normalize old client URLs/room requests to normal racing. Retired format
+// helpers remain only for old saved telemetry, not selectable activities.
 export const normalizeRaceFormat = (value) => RACE_FORMATS.includes(value) ? value : 'race';
 export function bestTrialLap(racer) {
   // The timing gates invalidate recovery laps. Raw lapTimes also contains
