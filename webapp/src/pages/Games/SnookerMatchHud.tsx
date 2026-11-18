@@ -1,4 +1,5 @@
 import React from 'react';
+import PoolLiveAvatar from '../../components/PoolLiveAvatar.jsx';
 import { POOL_AVATAR_SIZE_PX } from './poolRoyalHudLayout.js';
 
 type Competitor = { name: string; avatar?: string; score: number };
@@ -30,7 +31,7 @@ export default function SnookerMatchHud({ player, opponent, playerTurn, shooting
       style={{ boxShadow: active ? '0 0 18px rgba(16,185,129,0.32)' : '0 6px 14px rgba(0,0,0,0.35)' }}>
       <div className="flex min-w-0 w-full flex-col">
         <div className="flex min-w-0 items-center gap-1.5">
-          <img src={person.avatar || '/assets/icons/profile.svg'} alt={`${person.name} avatar`}
+          <PoolLiveAvatar seat={index === 0 ? 'self' : 'opponent'} src={person.avatar || '/assets/icons/profile.svg'} alt={`${person.name} avatar`}
             width={POOL_AVATAR_SIZE_PX} height={POOL_AVATAR_SIZE_PX}
             style={{ width: POOL_AVATAR_SIZE_PX, height: POOL_AVATAR_SIZE_PX }}
             className={`h-10 w-10 shrink-0 rounded-full object-cover transition-all duration-150 ${active ? 'ring-2 ring-emerald-200 shadow-[0_0_16px_rgba(16,185,129,0.55)]' : ''}`} />
@@ -61,7 +62,7 @@ export default function SnookerMatchHud({ player, opponent, playerTurn, shooting
           {!shooting && !finished && !inHand && <span className="min-w-0 truncate text-white/60">Ball on <strong className="capitalize text-white/90">{ballOn}</strong></span>}
         </div>
       </section>
-      <section aria-label="Snooker match score" data-snooker-avatar-hud
+      <section aria-label="Snooker match score" data-snooker-avatar-hud data-pool-avatar-hud
         className="absolute flex justify-center pointer-events-none z-50" style={avatarLayout}>
         <div className={`pointer-events-none flex min-w-0 max-w-full items-center justify-center rounded-full border border-emerald-400/40 bg-black/70 text-white shadow-[0_12px_32px_rgba(0,0,0,0.45)] backdrop-blur ${portrait ? 'gap-2 px-2 py-1.5 w-full' : 'gap-7 px-4 py-1.5'}`}
           style={{ maxWidth: 'min(26rem, 100%)' }}>

@@ -28386,7 +28386,8 @@ const shotPowerRef = useRef(0);
   }, []);
 
   return (
-    <div className="w-full h-[100dvh] bg-black text-white overflow-hidden select-none">
+    <div className="w-full h-[100dvh] bg-black text-white overflow-hidden select-none"
+      data-live-video-blocking={configOpen || showChat || showGift || showInfo || Boolean(winnerOverlay) || Boolean(tableLoadError) ? 'true' : 'false'}>
       {/* Canvas host now stretches full width so table reaches the slider */}
       <div ref={mountRef} className="absolute inset-0" />
       {tableLoadError && (
