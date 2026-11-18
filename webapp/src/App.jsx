@@ -119,11 +119,7 @@ const ShootingRange = React.lazy(
 const ShootingRangeLobby = React.lazy(
   () => import('./pages/Games/ShootingRangeLobby.jsx')
 );
-const ArcadeRaceLobby = React.lazy(() => import('./pages/Games/ArcadeRaceLobby.jsx'));
 const KartRoyale = React.lazy(() => import('./pages/Games/KartRoyale.jsx'));
-const Game2048Royale = React.lazy(() => import('./pages/Games/Game2048Royale.jsx'));
-const HextrisBattle = React.lazy(() => import('./pages/Games/HextrisBattle.jsx'));
-const UnderrunArena = React.lazy(() => import('./pages/Games/UnderrunArena.jsx'));
 const StoreThumbnailStudioPoolRoyale = React.lazy(
   () => import('./pages/Tools/StoreThumbnailStudioPoolRoyale.jsx')
 );
@@ -237,12 +233,9 @@ export default function App() {
               <Route path="/games/kartroyale" element={<KartRoyale />} />
               <Route path="/games/tiranastreets/lobby" element={<Navigate to="/games" replace />} />
               <Route path="/games/tiranastreets" element={<Navigate to="/games" replace />} />
-              <Route path="/games/2048royale/lobby" element={<ArcadeRaceLobby gameSlug="2048royale" />} />
-              <Route path="/games/2048royale" element={<GameLiveAvatarOverlay gameSlug="2048royale"><Game2048Royale /></GameLiveAvatarOverlay>} />
-              <Route path="/games/hextrisbattle/lobby" element={<ArcadeRaceLobby gameSlug="hextrisbattle" />} />
-              <Route path="/games/hextrisbattle" element={<GameLiveAvatarOverlay gameSlug="hextrisbattle"><HextrisBattle /></GameLiveAvatarOverlay>} />
-              <Route path="/games/underrunarena/lobby" element={<ArcadeRaceLobby gameSlug="underrunarena" />} />
-              <Route path="/games/underrunarena" element={<GameLiveAvatarOverlay gameSlug="underrunarena"><UnderrunArena /></GameLiveAvatarOverlay>} />
+              <Route path="/games/2048royale/*" element={<Navigate to="/games" replace />} />
+              <Route path="/games/hextrisbattle/*" element={<Navigate to="/games" replace />} />
+              <Route path="/games/underrunarena/*" element={<Navigate to="/games" replace />} />
               <Route
                 path="/games/snake"
                 element={
