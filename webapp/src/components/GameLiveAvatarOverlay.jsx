@@ -139,16 +139,26 @@ export default function GameLiveAvatarOverlay({ gameSlug, children, onlineOnly =
       gameSlug={gameSlug}
       roomId={roomId}
       previewOnly={previewOnly}
+      search={search}
     >
       {children}
     </LiveAvatarSession>
   );
 }
 
-function LiveAvatarSession({ gameSlug, roomId, previewOnly, children }) {
-  const { search } = useLocation();
+// For standalone games whose authoritative room is state, not a router URL.
+// Render as a sibling so entering/leaving a call never remounts gameplay.
+export function RoomLiveAvatarOverlay({ gameSlug, sessionId }) {
+  const id = typeof sessionId === 'string' ? sessionId.trim() : '';
+  if (!id || !/^[a-zA-Z0-9:_-]{1,120}$/.test(id)) return null;
+  const roomId = `live-${gameSlug}-${id}`;
+  return <LiveAvatarSession key={roomId} gameSlug={gameSlug} roomId={roomId} previewOnly={false} search="" />;
+}
+
+function LiveAvatarSession({ gameSlug, roomId, previewOnly, children, search = '' }) {
   const isCheckers = gameSlug === 'checkersbattleroyal';
   const isPool = gameSlug === 'poolroyale';
+  const floatingCall = ['kartroyale', 'tennisroyal', 'tabletennisroyal'].includes(gameSlug);
   const compactCall = isCheckers || isPool;
   const usesOpponentAvatar = gameSlug === 'domino-royal' || compactCall;
   const [callMode, setCallMode] = useState(null);
@@ -565,7 +575,7 @@ function LiveAvatarSession({ gameSlug, roomId, previewOnly, children }) {
       {isPool && liveMode && liveChat.remotePeers[0] ? (
         <RemoteVideo key={liveChat.remotePeers[0].socketId} peer={liveChat.remotePeers[0]} audioOnly />
       ) : null}
-      {!isPool && !liveMode && anchorElement ? (
+      {!isPool && !liveMode && (anchorElement || floatingCall) ? (
         <button
           type="button"
           aria-label="Turn on live avatar video"
@@ -573,6 +583,9 @@ function LiveAvatarSession({ gameSlug, roomId, previewOnly, children }) {
           onClick={() => setCallMode('video')}
           className="fixed z-[18] rounded-full bg-transparent touch-manipulation"
           style={{
+            position: 'fixed', zIndex: 18,
+            background: !anchorElement && floatingCall ? '#065f46' : undefined,
+            color: 'white', borderRadius: '50%',
             top: `${activationRect.top}px`,
             left: `${activationRect.left}px`,
             width: `${activationRect.width}px`,
@@ -581,12 +594,12 @@ function LiveAvatarSession({ gameSlug, roomId, previewOnly, children }) {
             pointerEvents: hasBlockingOverlay ? 'none' : 'auto'
           }}
         >
-          {compactCall ? (
+          {compactCall || (!anchorElement && floatingCall) ? (
             <span aria-hidden="true" className="absolute -bottom-1 -right-1 flex h-5 w-5 items-center justify-center rounded-full bg-emerald-700 text-[10px] text-white shadow">📹</span>
           ) : null}
         </button>
       ) : null}
-      {liveMode && !audioOnly && anchorElement ? (
+      {liveMode && !audioOnly && (anchorElement || floatingCall) ? (
         <button
           type="button"
           aria-label={previewOnly ? 'End camera preview' : 'Turn off live avatar video'}
@@ -728,7 +741,7 @@ function LiveAvatarSession({ gameSlug, roomId, previewOnly, children }) {
             >
               {liveChat.mediaState.camera ? '📹' : '🚫'}
             </button> : null}
-            {compactCall ? (
+            {compactCall || (!anchorElement && floatingCall) ? (
               <button
                 type="button"
                 onClick={() => setCallMode(null)}
