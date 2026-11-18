@@ -5,7 +5,7 @@ const gamesCatalog = [
     slug: 'tabletennisroyal',
     image: '/assets/icons/table-tennis-royal.svg',
     description:
-      'Human players, spin rallies, a career tour and TPC online matches.'
+      'Human players, spin rallies, a career tour and TPG online matches.'
   },
   {
     name: 'Tennis Royal',
