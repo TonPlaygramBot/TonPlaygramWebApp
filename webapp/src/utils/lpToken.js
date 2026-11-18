@@ -1,8 +1,6 @@
-export const PTONTPC_LP_TOKEN = {
-  address: 'EQDpCAhghH97AzU5bprMXQwGM0oJg56DqNI5OboUJxduMsg-',
-  name: 'LP Token for TON-TPG',
-  symbol: 'TON-TPG LP',
-  decimals: 9,
-  image: 'https://dedust.io/favicon.ico',
-  description: 'Liquidity pool token for TON and TonPlaygram Coin on DeDust DEX'
-};
+// Legacy pool is unverified and must not be presented as an approved TON-TPG pool.
+export const PTONTPC_LP_TOKEN = Object.freeze({
+  address: null, enabled: false, name: 'External liquidity unavailable',
+  symbol: null, decimals: null, image: null,
+  description: 'No replacement token or liquidity pool has been approved.'
+});
