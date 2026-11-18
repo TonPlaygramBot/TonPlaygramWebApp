@@ -8,7 +8,7 @@ const heavyPacks = [
   {
     id: 'shared-tirana-vehicles',
     title: 'Shared Tirana Vehicle Fleet',
-    description: 'Vehicle models used by Racing Royal.',
+    description: 'Vehicle models used by Tirana Racing Streets.',
     hidden: true,
     cover: '/assets/kart-royale/cover.webp',
     route: null,
@@ -19,7 +19,7 @@ const heavyPacks = [
   {
     id: 'shared-tirana-city',
     title: 'Shared Tirana City',
-    description: 'Tirana map, landmarks, street scenery and materials used by Racing Royal.',
+    description: 'Tirana map, landmarks, street scenery and materials used by Tirana Racing Streets.',
     hidden: true,
     cover: '/assets/tirana-streets/map.svg',
     route: null,
@@ -30,7 +30,7 @@ const heavyPacks = [
   },
   {
     id: 'racing-royal',
-    title: 'Racing Royal',
+    title: 'Tirana Racing Streets',
     description: 'Tracks, vehicles, environments and racing presentation assets.',
     cover: '/assets/kart-royale/cover.webp',
     route: '/games/kartroyale/lobby',

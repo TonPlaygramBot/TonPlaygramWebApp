@@ -287,7 +287,7 @@ export default function KartRoyale({
   useEffect(() => {
     const mapping: Record<string, [string, number | boolean]> = {
       ArrowRight:['steer',1],d:['steer',1],ArrowLeft:['steer',-1],a:['steer',-1],
-      ArrowUp:['throttle',true],w:['throttle',true],ArrowDown:['brake',true],s:['brake',true],r:['reverse',true],' ':['drift',true],Shift:['boost',true]
+      ArrowUp:['throttle',true],w:['throttle',true],ArrowDown:['brake',true],s:['brake',true],r:['reverse',true],' ':['drift',true],Shift:['boost',true],e:['useItem',true]
     };
     const apply = () => { if(engine.current){Object.assign(engine.current.input,heldInput.current.read());engine.current.combatInput.reload=combatHeld.current.read().reload;} };
     const down = (e: KeyboardEvent) => {
@@ -728,7 +728,7 @@ export default function KartRoyale({
           </header>
           <main className="kr-lobby-layout">
             <section className="rr-garage-heading">
-              <span>TIRANA KART SERIES</span><h1>Racing <em>Royal</em></h1>
+              <span>CITY CIRCUIT SERIES</span><h1>Tirana <em>Racing Streets</em></h1>
             </section>
             <div className="rr-showcase" aria-hidden="true" />
             <section className="rr-kart-picker" aria-label="Choose your kart">
@@ -1085,7 +1085,7 @@ export default function KartRoyale({
           <div className="rr-map"><CircuitMap id={trackId} frame={hud}/></div>
           <button className="rr-camera" aria-label={`Switch to ${cameraMode==='driver'?'chase':'driver'} camera`} onClick={()=>setCameraMode(v=>v==='driver'?'chase':'driver')}><Camera size={18}/></button>
           <button className="rr-recover" aria-label="Recover kart on track" {...touch('recover',true)}><RotateCcw size={18}/></button>
-          {(hud?.countdown || 0)>0 && <div className="rr-countdown" role="status"><div className="rr-start-lights" aria-hidden="true">{[3,2,1].map(n=><i key={n} className={hud!.countdown<=n?'on':''}/>)}</div><span>READY TO RACE</span><b>{hud!.countdown}</b><p>Hold GAS to accelerate.<br/>Drag the left joystick to steer; slide it up to drift.</p></div>}
+          {(hud?.countdown || 0)>0 && <div className="rr-countdown" role="status"><div className="rr-start-lights" aria-hidden="true">{[3,2,1].map(n=><i key={n} className={hud!.countdown<=n?'on':''}/>)}</div><span>READY TO RACE</span><b>{hud!.countdown}</b><p>Hold GAS to accelerate.<br/>Drag the left joystick to steer; slide it up to drift. Collect rockets, shields and boosts on track.</p></div>}
           {notice && <div className="rr-notice" role="status"><WifiOff size={16}/>{notice}</div>}
           <div className="rr-speed"><b>{hud?.reversing&&<small>R </small>}{Math.round(Math.abs(hud?.speed||0)*3.6)}</b><span>KM/H</span><RaceRevBar frame={hud}/></div>
           {!hud?.combat&&<RaceTelemetryHud frame={hud}/>}
@@ -1095,10 +1095,10 @@ export default function KartRoyale({
               hold={(id,key,value)=>{if(modalRef.current)return;audio.current?.unlock();if(key==='pulse'){if(value===true)engine.current?.queueCombatPulse();return;}if(key==='reload'){combatHeld.current.hold(id,'reload',value);if(value===true)engine.current?.queueCombatReload();}else heldInput.current.hold(id,key,value);if(engine.current){Object.assign(engine.current.input,heldInput.current.read());engine.current.combatInput.reload=combatHeld.current.read().reload;}}}
               release={id=>{heldInput.current.release(id);combatHeld.current.release(id);if(engine.current){Object.assign(engine.current.input,heldInput.current.read());engine.current.combatInput.reload=combatHeld.current.read().reload;}}}/>
           </>}
-          <KartControls boost={hud?.boost||0} drifting={hud?.drifting} driftCharge={hud?.driftCharge} turbo={hud?.turbo} boostEvent={hud?.boostEvent} reversing={hud?.reversing} disabled={!!modal}
+          <KartControls raceItem={hud?.raceItem} itemShield={hud?.itemShield} boost={hud?.boost||0} drifting={hud?.drifting} driftCharge={hud?.driftCharge} turbo={hud?.turbo} boostEvent={hud?.boostEvent} reversing={hud?.reversing} disabled={!!modal}
             hold={(id,key,value)=>{audio.current?.unlock();heldInput.current.hold(id,key,value);if(engine.current)Object.assign(engine.current.input,heldInput.current.read());}}
             release={id=>{heldInput.current.release(id);if(engine.current)Object.assign(engine.current.input,heldInput.current.read());}}/>
-          <div className="rr-key-hint">{hud?.combat?'F FIRE · Q SHIELD · R RELOAD · E EMP · ↑ GAS · ← → STEER':'↑ GAS · ← → STEER · SPACE DRIFT · SHIFT BOOST · HOLD ↓ BRAKE / REVERSE'}</div>
+          <div className="rr-key-hint">{hud?.combat?'F FIRE · Q SHIELD · R RELOAD · E EMP · ↑ GAS · ← → STEER':'↑ GAS · ← → STEER · SPACE DRIFT · SHIFT BOOST · E USE PICKUP · HOLD ↓ BRAKE / REVERSE'}</div>
         </div>
       )}
       {screen === 'results' && result && (
@@ -1230,7 +1230,7 @@ export default function KartRoyale({
             >
               <X size={21} />
             </button>
-            <div className="kr-eyebrow">RACING ROYAL</div>
+            <div className="kr-eyebrow">TIRANA RACING STREETS</div>
             <h2>
               {modal === 'settings'
                 ? 'Make it yours.'
@@ -1370,13 +1370,13 @@ export default function KartRoyale({
                   </p>
                   <b>04 · Find extra speed.</b>
                   <p>
-                    Try TIME TRIAL to race a non-colliding ghost of your best lap. Four sector splits show where you gain time. Recovering invalidates that lap. Follow another kart to charge a slipstream boost. Cross the cyan
-                    boost strips for turbo and extra boost energy. The crowd cheers you on.
+                    Four sector splits show where you gain time. Recovering invalidates that lap. Follow another kart to charge a slipstream boost. Cross the cyan
+                    boost strips for turbo and extra boost energy. Collect orange rockets, blue shields and green boosts. Hold one pickup at a time; tap its button or press E to use it. Rockets slow rivals without eliminating them; shields last four seconds.
                   </p>
                 </div>
                 <p>
                   Keyboard: arrows or A/D to steer, Space to drift, Shift to
-                  boost, and hold the down arrow to brake, then reverse after stopping. Tap the reset arrow if you get stuck.
+                  boost, E to use your pickup, and hold the down arrow to brake, then reverse after stopping. Tap the reset arrow if you get stuck.
                 </p>
               </>
             ) : (

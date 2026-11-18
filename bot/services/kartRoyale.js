@@ -406,6 +406,7 @@ export function attachKartRoyale(
         reverse: d.reverse === true,
         drift: d.drift === true,
         boost: d.boost === true,
+        useItem: d.useItem === true,
         shield: d.shield === true,
         recover: d.recover === true,
         fire: room.raceFormat === 'combat' && d.fire === true

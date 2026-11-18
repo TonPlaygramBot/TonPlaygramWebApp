@@ -2,12 +2,12 @@ import React, { useEffect, useRef, useState } from 'react';
 import { Zap } from 'lucide-react';
 import {driftTier} from './arcadeRules.mjs';
 import {steeringStickInput} from './heldRaceInput.mjs';
-type Props = { hold: (id:string,key:string,value:number|boolean)=>void; release:(id:string)=>void; boost:number; drifting?:boolean; driftCharge?:number; turbo?:number; boostEvent?:number; reversing?:boolean; disabled?:boolean };
+type Props = { hold: (id:string,key:string,value:number|boolean)=>void; release:(id:string)=>void; boost:number; drifting?:boolean; driftCharge?:number; turbo?:number; boostEvent?:number; reversing?:boolean; disabled?:boolean; raceItem?:'rocket'|'shield'|'boost'|null; itemShield?:number };
 
 /** Tirana Streets-style analogue steering stick plus independent pedals.
  * Screen movement maps directly to steering: visually left is left and right is
  * right. Sliding the stick visually upward also engages drift. */
-export function KartControls({hold,release,boost,drifting,driftCharge=0,turbo=0,boostEvent=0,reversing=false,disabled=false}:Props) {
+export function KartControls({hold,release,boost,drifting,driftCharge=0,turbo=0,boostEvent=0,reversing=false,disabled=false,raceItem=null,itemShield=0}:Props) {
   const pointers = useRef(new Map<number,{key:string;value:number|boolean;startY:number}>());
   const stickOwner=useRef<number|null>(null),stickKnob=useRef<HTMLSpanElement>(null);
   const callbacks = useRef({hold,release}); callbacks.current = {hold,release};
@@ -32,6 +32,9 @@ export function KartControls({hold,release,boost,drifting,driftCharge=0,turbo=0,
     if(disabled)clear();
     return ()=>{clear();window.removeEventListener('blur',clear);document.removeEventListener('visibilitychange',hide);};
   },[disabled]);
+  useEffect(()=>{
+    if(!raceItem){for(const [id,p] of pointers.current){if(p.key==='useItem')finish(id);}}
+  },[raceItem]);
   const moveStick=(e:React.PointerEvent<HTMLDivElement>)=>{
     if(disabled||stickOwner.current!==e.pointerId)return;
     const rect=e.currentTarget.getBoundingClientRect(),radius=Math.min(rect.width,rect.height)*.39;
@@ -71,6 +74,11 @@ export function KartControls({hold,release,boost,drifting,driftCharge=0,turbo=0,
     </div>
     <button disabled={disabled} className={`kart-brake kart-center-control${active('brake')}`} {...touch('brake',true)} aria-label="Brake; keep held after stopping to reverse">{reversing?'REV':'BRAKE'}</button>
     <div className="kart-right-controls">
+      <button disabled={disabled||!raceItem} className="kart-item" {...touch('useItem',true)} aria-label={raceItem?`Use ${raceItem} pickup`:'Collect a race pickup'}>
+        <span>{raceItem==='rocket'?'🚀':raceItem==='shield'?'🛡':raceItem==='boost'?'⚡':'◇'}</span>
+        <b>{raceItem?raceItem.toUpperCase():'PICKUP'}</b>
+        {itemShield>0&&<small>SHIELD {Math.ceil(itemShield)}s</small>}
+      </button>
       <button disabled={disabled} className={`kart-boost${active('boost')}${turbo>0?' is-turbo':''}${energy<1?' is-empty':''}`} {...touch('boost',true)} aria-label={`${label}; hold while accelerating; ${energy}% energy`}>
         <Zap size={18}/><span aria-live="polite">{label}</span><i style={{width:`${drifting?Math.min(100,driftCharge/1.9*100):energy}%`}}/>
         {boostEvent>0&&<em key={boostEvent} className="kart-boost-pickup" aria-hidden="true"/>}

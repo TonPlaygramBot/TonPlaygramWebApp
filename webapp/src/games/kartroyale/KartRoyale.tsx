@@ -8,7 +8,7 @@ const Race=lazy(()=>import('./BaseKartRoyale'));
 export default function KartRoyale(props:ComponentProps<typeof BaseKartRoyale>){
   const [retry,setRetry]=useState(0);
   return <GameModeBoundary key={retry} onBack={()=>setRetry(n=>n+1)}>
-    <Suspense fallback={<main className="tsl-root"><section className="tsl-careers"><h1>Racing Royal</h1><p role="status">Loading your kart garage…</p><button onClick={props.onExit}>Back to Games</button></section></main>}>
+    <Suspense fallback={<main className="tsl-root"><section className="tsl-careers"><h1>Tirana Racing Streets</h1><p role="status">Loading your kart garage…</p><button onClick={props.onExit}>Back to Games</button></section></main>}>
       <Race {...props}/><RacingAtlas/>
     </Suspense>
   </GameModeBoundary>;

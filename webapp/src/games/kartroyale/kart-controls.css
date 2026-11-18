@@ -19,3 +19,5 @@
 @media(prefers-reduced-motion:reduce){.kart-boost-pickup{animation:none}.kart-controls .kart-boost.is-turbo{outline:2px solid #96f3ff}}
 
 .rr-remake .kr-mode-list{grid-template-columns:repeat(2,minmax(0,1fr))}
+.kart-controls .kart-item{min-height:46px;gap:6px;color:#f5fbd9;background:#283b20ed;border-color:#b5dd7255;position:relative;flex-wrap:wrap;padding:5px 8px}
+.kart-item span{font-size:19px}.kart-item b{font-size:11px;letter-spacing:.05em}.kart-item small{width:100%;font-size:9px;color:#78dfff}.kart-item:disabled{opacity:.5}
