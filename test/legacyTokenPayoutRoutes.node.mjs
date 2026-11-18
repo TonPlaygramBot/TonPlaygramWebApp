@@ -17,8 +17,8 @@ try{
   });
   b.onLoad({filter:/.*/,namespace:'fake'},()=>({contents:`
    const forbidden=()=>{globalThis.walletForbiddenEffects++;throw Error('Unexpected side effect');};
-   export default new Proxy({}, {get:()=>forbidden});
-   export const withProxy=forbidden,ensureTransactionArray=forbidden,calculateBalance=forbidden,resolveAccountBalance=forbidden,
+   export default new Proxy({}, {get:(_target,key)=>globalThis.walletTransferFixture?.model?.[key]??forbidden});
+   export const withProxy=forbidden,ensureTransactionArray=(u)=>globalThis.walletTransferFixture? (u.transactions??=[]):forbidden(),calculateBalance=(u)=>globalThis.walletTransferFixture?u.balance:forbidden(),resolveAccountBalance=forbidden,
     sendTransferNotification=forbidden,sendTPCNotification=forbidden,sendGiftNotification=forbidden,sendStorePurchaseNotification=forbidden,
     verifyRequestedIdentity=forbidden,identityOwnsUser=forbidden,sendIdentityError=forbidden,mintGiftNFT=forbidden,generateWalletAddress=forbidden,
     fetchTelegramInfo=forbidden,applyStoreItemDelivery=forbidden,createMemoryUser=forbidden,findMemoryUser=forbidden,saveMemoryUser=forbidden,
@@ -57,3 +57,6 @@ test('both external payout routes reject before DB effects; reward routes remain
   delete globalThis.walletForbiddenEffects;
  }
 });
+
+// Export the bundled actual router for transport-level denial regression tests.
+export const walletRouterUnderTest = api.wallet;
