@@ -1,7 +1,7 @@
 import * as THREE from 'three';
 
 const UP = new THREE.Vector3(0, 1, 0);
-export const SNAKE_PARKING_GAP = 0.035;
+export const SNAKE_PARKING_GAP = 0.012;
 export const SNAKE_PARKING_SURFACE_GAP = 0.002;
 
 /** Visible model geometry only: hidden trails and firing effects are not a footprint. */
@@ -33,7 +33,7 @@ type ParkingOptions = {
 export function parkSnakeWeapons({ holders, anchors, center, table, obstacles = [], diceZones = [] }: ParkingOptions) {
   const occupied = obstacles.map(snakeParkingBounds).filter(box => !box.isEmpty());
   for (const position of diceZones) {
-    occupied.push(new THREE.Box3().setFromCenterAndSize(position, new THREE.Vector3(0.24, 1, 0.24)));
+    occupied.push(new THREE.Box3().setFromCenterAndSize(position, new THREE.Vector3(0.10, 1, 0.10)));
   }
   const overlaps = (box: THREE.Box3) => occupied.some(other =>
     box.min.x < other.max.x + SNAKE_PARKING_GAP && box.max.x > other.min.x - SNAKE_PARKING_GAP &&

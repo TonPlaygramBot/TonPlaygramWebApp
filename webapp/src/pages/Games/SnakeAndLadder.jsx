@@ -1167,6 +1167,7 @@ export default function SnakeAndLadder() {
   const [cheatMsg, setCheatMsg] = useState(null);
   const [showInfo, setShowInfo] = useState(false);
   const [cameraViewMode, setCameraViewMode] = useState('3d');
+  const [cameraResetKey, setCameraResetKey] = useState(0);
   const [camera2dTilt, setCamera2dTilt] = useState(0.2);
   const [showExactHelp, setShowExactHelp] = useState(false);
   const [muted, setMuted] = useState(isGameMuted());
@@ -3322,6 +3323,7 @@ export default function SnakeAndLadder() {
           appearanceKey={appearanceKey}
           frameRate={frameRateValue}
           cameraViewMode={cameraViewMode}
+          cameraResetKey={cameraResetKey}
           camera2dTilt={camera2dTilt}
           onCameraTiltChange={setCamera2dTilt}
           onSeatPositionsChange={setSeatPositions}
@@ -3330,14 +3332,15 @@ export default function SnakeAndLadder() {
         />
       </div>
       <div className="absolute inset-0 pointer-events-none">
-        <SeatedGameMenu open={showConfig} title="Arena settings" onClose={() => setShowConfig(false)}
+        <SeatedGameMenu open={showConfig} title="Table Setup" onClose={() => setShowConfig(false)}
         onOpen={() => {
           setShowWeaponSwapMenu(false);
           setShowConfig(true);
         }}>
-              <div className="mt-4 space-y-3 pr-1">
-                <details className="snake-appearance-section rounded-xl border border-white/10 bg-white/5 p-3">
-                  <summary>Personalize arena <span>Boards, tokens, tables &amp; lighting</span></summary>
+              <div className="mt-4 flex-1 space-y-3 touch-pan-y overscroll-contain">
+                <div className="rounded-xl border border-white/10 bg-white/5 p-3">
+                  <p className="text-[10px] uppercase tracking-[0.35em] text-white/70">Personalize Arena</p>
+                  <p className="mt-1 text-[0.7rem] text-white/60">Table surfaces, tokens, and seating.</p>
                   <div className="mt-3 space-y-4">
                     {SNAKE_CUSTOMIZATION_SECTIONS.map(({ key, label, options }) => (
                       <div key={key} className="space-y-2">
@@ -3355,14 +3358,14 @@ export default function SnakeAndLadder() {
                                   setAppearance((prev) => normalizeAppearance({ ...prev, [key]: idx }))
                                 }
                                 aria-pressed={selected}
-                                className={`flex flex-col items-center gap-1.5 rounded-xl border px-2 py-2 text-left transition focus:outline-none focus-visible:ring-2 focus-visible:ring-sky-300 ${
+                                className={`flex flex-col items-center rounded-2xl border p-2 transition focus:outline-none focus-visible:ring-2 focus-visible:ring-sky-300 ${
                                   selected
-                                    ? 'border-sky-400/80 bg-sky-400/10 shadow-[0_0_18px_rgba(56,189,248,0.45)]'
+                                    ? 'border-sky-400/80 bg-sky-400/10 shadow-[0_0_12px_rgba(56,189,248,0.35)]'
                                     : 'border-white/10 bg-white/5 hover:border-white/20'
                                 }`}
                               >
                                 {renderPreview(key, option)}
-                                <span className="block w-full text-center text-[0.6rem] font-semibold text-gray-200">
+                                <span className="mt-2 text-center text-[0.65rem] font-semibold text-gray-200">
                                   {option.label}
                                 </span>
                               </button>
@@ -3372,34 +3375,9 @@ export default function SnakeAndLadder() {
                       </div>
                     ))}
                   </div>
-                </details>
-                <div className="rounded-xl border border-white/10 bg-white/5 p-3 space-y-3">
-                  <p className="text-[10px] uppercase tracking-[0.35em] text-white/70">Settings</p>
-                  <label className="flex min-h-[44px] items-center justify-between gap-3 text-sm text-gray-200">
-                    <span>Mute sounds</span>
-                    <input
-                      type="checkbox"
-                      className="h-4 w-4 rounded border border-emerald-400/40 bg-transparent text-emerald-400 focus:ring-emerald-500"
-                      checked={muted}
-                      onChange={(event) => {
-                        const next = event.target.checked;
-                        setMuted(next);
-                        setGameMuted(next);
-                      }}
-                    />
-                  </label>
-                  <label className="flex min-h-[44px] items-center justify-between gap-3 text-sm text-gray-200">
-                    <span>Show movement trail</span>
-                    <input
-                      type="checkbox"
-                      className="h-4 w-4 rounded border border-emerald-400/40 bg-transparent text-emerald-400 focus:ring-emerald-500"
-                      checked={showTrailEnabled}
-                      onChange={(event) => setShowTrailEnabled(event.target.checked)}
-                    />
-                  </label>
                 </div>
-                <details className="snake-appearance-section rounded-xl border border-white/10 bg-white/5 p-3 space-y-2">
-                  <summary>Graphics <span>Current limit: {frameRateValue} FPS</span></summary>
+                <div className="rounded-xl border border-white/10 bg-white/5 p-3 space-y-2">
+                  <h3 className="text-[10px] uppercase tracking-[0.35em] text-sky-100/80">Graphics</h3>
                   <div className="grid gap-2">
                     {FRAME_RATE_OPTIONS.map((option) => {
                       const active = option.id === frameRateId;
@@ -3409,9 +3387,9 @@ export default function SnakeAndLadder() {
                           type="button"
                           onClick={() => setFrameRateId(option.id)}
                           aria-pressed={active}
-                          className={`w-full rounded-2xl border px-4 py-2 text-left transition focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-300 ${
+                          className={`w-full rounded-2xl border px-4 py-2 text-left transition-all duration-200 focus:outline-none focus-visible:ring-2 focus-visible:ring-sky-300 ${
                             active
-                              ? 'border-emerald-300 bg-emerald-300/90 text-black shadow-[0_0_16px_rgba(16,185,129,0.55)]'
+                              ? 'border-sky-300 bg-sky-300/90 text-black shadow-[0_0_16px_rgba(125,211,252,0.45)]'
                               : 'border-white/20 bg-white/10 text-white/80 hover:bg-white/20'
                           }`}
                         >
@@ -3432,8 +3410,36 @@ export default function SnakeAndLadder() {
                       );
                     })}
                   </div>
-                </details>
+                </div>
+                <div className="rounded-xl border border-white/10 bg-white/5 p-3 space-y-3">
+                  <label className="flex min-h-[44px] items-center justify-between gap-3 text-sm text-gray-200">
+                    <span>Sound effects</span>
+                    <input
+                      type="checkbox"
+                      className="h-4 w-4 rounded border border-emerald-400/40 bg-transparent text-emerald-400 focus:ring-emerald-500"
+                      checked={!muted}
+                      onChange={(event) => {
+                        const next = !event.target.checked;
+                        setMuted(next);
+                        setGameMuted(next);
+                      }}
+                    />
+                  </label>
+                  <label className="flex min-h-[44px] items-center justify-between gap-3 text-sm text-gray-200">
+                    <span>Show movement trail</span>
+                    <input
+                      type="checkbox"
+                      className="h-4 w-4 rounded border border-emerald-400/40 bg-transparent text-emerald-400 focus:ring-emerald-500"
+                      checked={showTrailEnabled}
+                      onChange={(event) => setShowTrailEnabled(event.target.checked)}
+                    />
+                  </label>
+                </div>
                 <div className="rounded-xl border border-white/10 bg-white/5 p-3 space-y-2">
+                  <button type="button" onClick={() => { setCameraResetKey(key => key + 1); setShowConfig(false); }}
+                    className="w-full rounded-lg bg-white/10 py-2 text-center text-[0.7rem] font-semibold text-white transition hover:bg-white/20">
+                    Center camera
+                  </button>
                   <button
                     type="button"
                     onClick={() => {
@@ -3463,11 +3469,10 @@ export default function SnakeAndLadder() {
             const name = getPlayerName(index);
             const finished = player.position >= FINAL_TILE;
             const disconnected = isMultiplayer && mpPlayers[index]?.connected === false;
-            const detail = disconnected ? 'Offline' : finished ? 'Finished' : player.position > 0 ? `Tile ${player.position}` : 'At start';
             const label = `${name}${index === myPlayerIndex ? ' (you)' : ''}, ${finished ? 'finished' : player.position > 0 ? `tile ${player.position} of ${FINAL_TILE}` : 'at start'}${index === visibleTurn ? ', current turn' : ''}${disconnected ? ', reconnecting' : ''}`;
-            return { ...player, index, name: index === myPlayerIndex ? 'You' : name, detail, label };
+            return { ...player, index, name: index === myPlayerIndex ? 'You' : name, label };
           })}
-          anchors={seatAnchors} localIndex={myPlayerIndex} turn={visibleTurn} keepInView
+          anchors={seatAnchors} localIndex={myPlayerIndex} turn={visibleTurn}
           timerPct={Math.max(0, Math.min(1, timeLeft / TURN_TIME))}
           onPlayer={index => setPlayerPopup({ ...players[index], index, name: getPlayerName(index) })}
         />

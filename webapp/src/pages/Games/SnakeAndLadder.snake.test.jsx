@@ -184,7 +184,7 @@ it('closes settings with Escape or Close and restores focus to its opening contr
   open.focus();
   await act(async () => open.click());
   let settings = document.querySelector('[role="dialog"]');
-  expect(settings.textContent).toContain('Arena settings');
+  expect(settings.textContent).toContain('Table Setup');
   expect(settings.textContent).toContain('Graphics');
   expect(document.activeElement.textContent).toBe('Close');
   await act(async () => settings.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true })));
@@ -221,7 +221,7 @@ it('updates the seated player positions, active player and connection status fro
     players: [{ playerId: 'p1', name: 'Ada', position: 12 }, { playerId: 'p2', name: 'Arben', position: 24 }]
   });
   let cards = [...host.querySelectorAll('[data-seat-index]')];
-  expect(cards.map(card => card.querySelector('[data-player-detail]').textContent)).toEqual(['Tile 12', 'Tile 24']);
+  expect(host.querySelector('[data-player-detail]')).toBeNull(); // Match Ludo's uncluttered avatar presentation.
   expect(cards[0].getAttribute('aria-label')).toContain(`Ada (you), tile 12 of ${FINAL_TILE}`);
   expect(cards[1].getAttribute('aria-label')).toContain(`Arben, tile 24 of ${FINAL_TILE}, current turn`);
   expect(cards[0].hasAttribute('aria-current')).toBe(false);
@@ -229,10 +229,10 @@ it('updates the seated player positions, active player and connection status fro
   expect(host.querySelector('.snake-roll-button').disabled).toBe(true);
   await emit('playerDisconnected', { playerId: 'p2', maxPlayers: 2 });
   cards = [...host.querySelectorAll('[data-seat-index]')];
-  expect(cards[1].textContent).toContain('Offline');
   expect(cards[1].getAttribute('aria-label')).toContain('reconnecting');
   await emit('playerRejoined', { playerId: 'p2', maxPlayers: 2 });
-  expect(host.querySelectorAll('[data-player-detail]')[1].textContent).toBe('Tile 24');
+  expect(host.querySelectorAll('[data-seat-index]')[1].getAttribute('aria-label')).toContain('tile 24');
+  expect(host.querySelectorAll('[data-seat-index]')[1].getAttribute('aria-label')).not.toContain('reconnecting');
 });
 
 it('keeps the local live-video photo and gift targets attached to the correct online seats', async () => {
@@ -273,7 +273,7 @@ it('finishes exactly once on the real 3D pot at tile 50 after rolling one from t
   // Flush the token landing callback, then its 80ms movement completion delay.
   await act(async () => vi.advanceTimersByTimeAsync(100));
   expect(testState.board.players[0].position).toBe(50);
-  expect(host.querySelector('[data-player-detail]').textContent).toBe('Finished');
+  expect(host.querySelector('[data-seat-index]').getAttribute('aria-label')).toContain('finished');
   expect(host.querySelector('.snake-roll-button')).toBeNull();
   expect(buttonWithText('Return to Lobby')).toBeDefined();
   expect(testState.deposits.filter(([, , options]) => options?.game === 'snake-win')).toHaveLength(1);
@@ -317,7 +317,7 @@ it('restores a legacy save already at the pot as finished without replaying turn
   }));
   await act(async () => root.render(<BrowserRouter><SnakeAndLadder /></BrowserRouter>));
   expect(testState.board.players.map(player => player.position)).toEqual([50, 0]);
-  expect(host.querySelector('[data-player-detail]').textContent).toBe('Finished');
+  expect(host.querySelector('[data-seat-index]').getAttribute('aria-label')).toContain('finished');
   expect(host.querySelector('.snake-roll-button')).toBeNull();
   const results = buttonWithText('Return to Lobby').parentElement;
   expect(results.textContent).toContain('Winner');
@@ -330,4 +330,35 @@ it('restores a legacy save already at the pot as finished without replaying turn
   expect(testState.board.diceEvent).toBeNull();
   expect(host.querySelector('.snake-roll-button')).toBeNull();
   expect(testState.deposits).toHaveLength(0);
+});
+
+
+it('centers the Ludo-style camera without restarting or changing Snake progress', async () => {
+  await mountPractice();
+  const positions = testState.board.players.map(player => player.position);
+  const resetKey = testState.board.cameraResetKey;
+  await act(async () => buttonWithLabel('Open game settings menu').click());
+  expect(document.querySelector('[role="dialog"]').textContent).toContain('Personalize Arena');
+  await act(async () => buttonWithText('Center camera').click());
+  expect(testState.board.cameraResetKey).toBe(resetKey + 1);
+  expect(testState.board.players.map(player => player.position)).toEqual(positions);
+  expect(document.querySelector('[role="dialog"]')).toBeNull();
+  expect(testState.board.cameraViewMode).toBe('3d');
+  expect(host.querySelector('.snake-roll-button').disabled).toBe(false);
+});
+
+
+it('uses the Ludo sound checkbox semantics while preserving the Snake match', async () => {
+  await mountPractice();
+  const positions=testState.board.players.map(player => player.position);
+  await act(async () => buttonWithLabel('Open game settings menu').click());
+  const label=[...host.querySelectorAll('label')].find(node=>node.textContent.includes('Sound effects'));
+  const sound=label.querySelector('input');
+  expect(sound.checked).toBe(true);
+  await act(async()=>sound.click());
+  expect(testState.board.soundEnabled).toBe(false);
+  expect(localStorage.getItem('gameMuted')).toBe('true');
+  await act(async()=>sound.click());
+  expect(testState.board.soundEnabled).toBe(true);
+  expect(testState.board.players.map(player => player.position)).toEqual(positions);
 });

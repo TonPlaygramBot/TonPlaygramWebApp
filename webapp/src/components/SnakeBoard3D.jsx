@@ -1,3 +1,6 @@
+import { resolveLudoDiceCameraTarget, LUDO_CAMERA_PRESENTATION } from '../utils/ludoCameraPresentation';
+import { ludoParkedWeaponLength } from '../utils/ludoParkedWeaponScale.js';
+import { applyLudoSeatedHumanPose, alignLudoHumanFeet, inferChairSupportsArmrest } from '../utils/ludoSeatedPose.js';
 import { SEATED_PLAYER_VIEW, resolveSeatedPlayerEyePosition, updateSeatedPlayerLook } from '../utils/seatedPlayerView';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import * as THREE from 'three';
@@ -59,12 +62,22 @@ const DRACO_DECODER_PATH = '/vendor/three/examples/jsm/libs/draco/gltf/';
 const BASIS_TRANSCODER_PATH = '/vendor/three/examples/jsm/libs/basis/';
 const DEFAULT_HDRI_RESOLUTIONS = ['4k'];
 
-const MODEL_SCALE = 0.75;
-const CHAIR_SIZE_SCALE = 1.38;
-const SEATING_TABLE_RADIUS = 3.05 * MODEL_SCALE;
-const TABLE_RADIUS = SEATING_TABLE_RADIUS * 0.90;
-const BASE_TABLE_HEIGHT = 0.94 * MODEL_SCALE;
-const STOOL_SCALE = 1.5 * 1.3 * CHAIR_SIZE_SCALE;
+const BASE_ARENA_SCALE = 0.85;
+// Keep the exact layout, but make the full table setup (table + board + chairs + attached animations)
+// slightly smaller in world space while preserving the exact relative layout.
+const LUDO_ARENA_SHRINK_FACTOR = 0.374;
+const ARENA_SCALE = 0.72 * LUDO_ARENA_SHRINK_FACTOR;
+const ARENA_SCALE_RATIO = ARENA_SCALE / BASE_ARENA_SCALE;
+const MODEL_SCALE = 0.75 * ARENA_SCALE;
+const TABLE_SIDE_SHRINK_FACTOR = 0.92;
+const TABLE_RADIUS = 4.2 * MODEL_SCALE * TABLE_SIDE_SHRINK_FACTOR;
+const TABLE_HEIGHT_SCALE = 0.56;
+const BASE_TABLE_HEIGHT = 1.03 * MODEL_SCALE * TABLE_HEIGHT_SCALE;
+const TABLE_VISUAL_SCALE = 0.9;
+const TABLE_SIDE_EXPANSION_FACTOR = 1;
+const TABLE_EDGE_INSET = TABLE_RADIUS * (1 - TABLE_VISUAL_SCALE);
+const CHAIR_GLOBAL_SCALE = 0.66;
+const STOOL_SCALE = 1.5 * 1.3 * CHAIR_GLOBAL_SCALE;
 const SEAT_WIDTH = 0.9 * MODEL_SCALE * STOOL_SCALE;
 const SEAT_DEPTH = 0.95 * MODEL_SCALE * STOOL_SCALE;
 const SEAT_THICKNESS = 0.09 * MODEL_SCALE * STOOL_SCALE;
@@ -73,22 +86,40 @@ const BACK_THICKNESS = 0.08 * MODEL_SCALE * STOOL_SCALE;
 const ARM_THICKNESS = 0.125 * MODEL_SCALE * STOOL_SCALE;
 const ARM_HEIGHT = 0.3 * MODEL_SCALE * STOOL_SCALE;
 const ARM_DEPTH = SEAT_DEPTH * 0.75;
-const BASE_COLUMN_HEIGHT = 0.5 * MODEL_SCALE * STOOL_SCALE;
+const CHAIR_LEG_TRIM_FACTOR = 0.64;
+const BASE_COLUMN_HEIGHT = 0.5 * MODEL_SCALE * STOOL_SCALE * CHAIR_LEG_TRIM_FACTOR;
 const CARD_SCALE = 0.95;
 const CARD_W = 0.4 * MODEL_SCALE * CARD_SCALE;
 const SEAT_ROTATION_OFFSET = Math.PI / 8;
 const AI_CHAIR_GAP = CARD_W * 0.74;
 const CHAIR_BASE_HEIGHT = BASE_TABLE_HEIGHT - SEAT_THICKNESS * 1.1;
 const STOOL_HEIGHT = CHAIR_BASE_HEIGHT + SEAT_THICKNESS;
-// Portrait calibration: keep the chair ring close to the table.
-const CHAIR_GLOBAL_PUSHBACK = 0.18 * MODEL_SCALE;
-const CHAIR_TABLE_CLEARANCE = 0.22 * MODEL_SCALE;
-// The original seated thighs peak near 0.715. A thin top leaves a small
-// underside gap above them instead of forcing the knees around the table.
-const TABLE_HEIGHT = 0.835;
-const TABLE_TOP_THICKNESS_SCALE = 0.4;
-const TABLE_MODEL_TARGET_DIAMETER = TABLE_RADIUS * 2;
+const TABLE_VERTICAL_LOWERING = 0.198 * MODEL_SCALE;
+const TABLE_EXTRA_LOWERING = 0.048 * MODEL_SCALE;
+const TABLE_HEIGHT_LIFT = 0.025 * MODEL_SCALE - TABLE_VERTICAL_LOWERING - TABLE_EXTRA_LOWERING;
+const TABLE_HEIGHT = STOOL_HEIGHT + TABLE_HEIGHT_LIFT;
+const CHAIR_OUTWARD_OFFSET = 0.31 * MODEL_SCALE;
+const CHAIR_INWARD_PULL = 0.22 * MODEL_SCALE;
+const AI_CHAIR_RADIUS =
+  TABLE_RADIUS +
+  SEAT_DEPTH / 2 +
+  AI_CHAIR_GAP +
+  0.19 * MODEL_SCALE +
+  CHAIR_OUTWARD_OFFSET -
+  TABLE_EDGE_INSET -
+  CHAIR_INWARD_PULL;
+// Keep shared chair spacing readable, while the local bottom chair gets pulled inward toward the table.
+const CHAIR_GLOBAL_PUSHBACK = 0.68 * MODEL_SCALE;
+// Move the bottom/local-player chair closer to the table for portrait-first gameplay framing.
+const SELF_BOTTOM_CHAIR_EXTRA_PUSHBACK = -0.18 * MODEL_SCALE;
+
+const SEATING_TABLE_RADIUS = TABLE_RADIUS;
+const CHAIR_SIZE_SCALE = CHAIR_GLOBAL_SCALE;
+const CHAIR_TABLE_CLEARANCE = SELF_BOTTOM_CHAIR_EXTRA_PUSHBACK;
+const TABLE_TOP_THICKNESS_SCALE = 1;
+const TABLE_MODEL_TARGET_DIAMETER = TABLE_RADIUS * 2 * TABLE_VISUAL_SCALE;
 const TABLE_MODEL_TARGET_HEIGHT = TABLE_HEIGHT;
+const TABLE_LEG_EXTENSION_FACTOR = 1.22;
 
 const DEFAULT_PLAYER_COUNT = 4;
 const CUSTOM_CHAIR_ANGLES = [
@@ -119,8 +150,10 @@ const DEFAULT_SEATED_OPPONENT = {
   preserveMaterials: true
 };
 const SEATED_HUMAN_TARGET_HEIGHT = BACK_HEIGHT * 2.42;
-const SEATED_HUMAN_VISUAL_SCALE_MULTIPLIER = 1.82;
-const SEATED_HUMAN_SEAT_Z_OFFSET = -SEAT_DEPTH * 0.28;
+const SEATED_HUMAN_VISUAL_SCALE_MULTIPLIER = 4.2;
+const SEATED_HUMAN_SEAT_Z_OFFSET = -SEAT_DEPTH * 0.42;
+const SEATED_HUMAN_SEAT_Y_OFFSET = -6.75 * MODEL_SCALE * STOOL_SCALE;
+const SEATED_HUMAN_FOOT_GROUND_CLEARANCE = -1.55 * MODEL_SCALE * STOOL_SCALE;
 const SELF_BOTTOM_HUMAN_EXTRA_Z_OFFSET = SEAT_DEPTH * 0.12;
 const SNAKE_TOKEN_MODEL_URLS = [
   'https://cdn.jsdelivr.net/gh/KhronosGroup/glTF-Sample-Models@master/2.0/ABeautifulGame/glTF/ABeautifulGame.gltf'
@@ -128,7 +161,9 @@ const SNAKE_TOKEN_MODEL_URLS = [
 const TARGET_CHAIR_SIZE = new THREE.Vector3(1.3162499970197679, 1.9173749900311232, 1.7001562547683715).multiplyScalar(
   CHAIR_SIZE_SCALE
 );
-const TARGET_CHAIR_MIN_Y = -0.8570624993294478 * CHAIR_SIZE_SCALE;
+const CHAIR_BOTTOM_TRIM_SCALE = 0.74;
+TARGET_CHAIR_SIZE.y *= 0.84;
+const TARGET_CHAIR_MIN_Y = -0.8570624993294478 * CHAIR_SIZE_SCALE + 0.07 * CHAIR_SIZE_SCALE;
 
 const POLYHAVEN_TEXTURE_CACHE = new Map();
 const SNAKE_TOKEN_PROTOTYPE_CACHE = { promise: null, pieces: null };
@@ -176,8 +211,8 @@ const LEVEL_TILE_COUNTS = (() => {
 const BASE_LEVEL_TILES = PYRAMID_LEVELS[0];
 const TOTAL_BOARD_TILES = LEVEL_TILE_COUNTS.reduce((sum, count) => sum + count, 0);
 const RAW_BOARD_SIZE = 1.125;
-const BOARD_SCALE = 2.7 * 0.68 * 1.15 * 1.06 * 0.68; // keep the previous vertical/table-height calibration
-const BOARD_FOOTPRINT_SCALE = BOARD_SCALE * 1.16; // widen the board in portrait while preserving the existing height
+const BOARD_SCALE = 3.22 * ARENA_SCALE; // Same world scale as the Ludo board; Snake geometry stays intact.
+const BOARD_FOOTPRINT_SCALE = BOARD_SCALE;
 const BOARD_DISPLAY_SIZE = RAW_BOARD_SIZE * BOARD_FOOTPRINT_SCALE;
 const BOARD_RADIUS = BOARD_DISPLAY_SIZE / 2;
 
@@ -185,7 +220,7 @@ const TILE_GAP = 0.015;
 const TILE_SIZE = RAW_BOARD_SIZE / BASE_LEVEL_TILES;
 const PYRAMID_HEIGHT_MULTIPLIER = 0.92; // portrait calibration: shorter, lower pyramid tiers
 const MAX_DICE = 1;
-const DICE_SIZE = TILE_SIZE * 0.61 * 0.8;
+const DICE_SIZE = 0.054;
 const DICE_CORNER_RADIUS = DICE_SIZE * 0.18;
 const DICE_PIP_RADIUS = DICE_SIZE * 0.093;
 const DICE_PIP_DEPTH = DICE_SIZE * 0.018;
@@ -195,7 +230,7 @@ const DICE_PIP_RIM_OFFSET = DICE_SIZE * 0.0048;
 const DICE_PIP_SPREAD = DICE_SIZE * 0.3;
 const DICE_FACE_INSET = DICE_SIZE * 0.064;
 const DICE_SETTLE_DURATION = 160;
-const DICE_BOUNCE_HEIGHT = 0.06;
+const DICE_BOUNCE_HEIGHT = 0.07;
 const DICE_THROW_LANDING_MARGIN = TILE_SIZE * 1.8;
 const DICE_RETREAT_EXTRA = DICE_SIZE * 0.95;
 const BOARD_BASE_EXTRA = RAW_BOARD_SIZE * (0.36 / 3.4);
@@ -205,20 +240,21 @@ const WORLD_UP = new THREE.Vector3(0, 1, 0);
 const CAMERA_FOV = SEATED_PLAYER_VIEW.fov;
 const CAMERA_NEAR = ARENA_CAMERA_DEFAULTS.near;
 const CAMERA_FAR = ARENA_CAMERA_DEFAULTS.far;
-const CAMERA_TARGET_LIFT = 0.08 * MODEL_SCALE;
+const CAMERA_TARGET_LIFT = 0.028 * MODEL_SCALE;
 // Portrait framing calibration: aim the camera at the physical board surface center,
 // not above the table, so the Snake board center projects to the exact phone center.
 const BOARD_SURFACE_CENTER_LIFT = BOARD_SCALE * (((0.07 + 0.26) * RAW_BOARD_SIZE) / 10.2) - 0.01;
-const CAMERA_TARGET_EXTRA = 0.055 * MODEL_SCALE;
+const CAMERA_TARGET_EXTRA = (0.06 - 0.062) * MODEL_SCALE;
+const CAMERA_LOOK_TARGET_FORWARD_BIAS = -0.02 * 3.22 * ARENA_SCALE;
 const CAMERA_BASE_RADIUS = Math.max(SEATING_TABLE_RADIUS, BOARD_RADIUS);
 const CAM = {
   fov: CAMERA_FOV,
   near: CAMERA_NEAR,
   far: CAMERA_FAR,
-  minR: CAMERA_BASE_RADIUS * 0.55,
-  maxR: CAMERA_BASE_RADIUS * 3.2,
+  minR: CAMERA_BASE_RADIUS * ARENA_CAMERA_DEFAULTS.minRadiusFactor * 0.82,
+  maxR: CAMERA_BASE_RADIUS * ARENA_CAMERA_DEFAULTS.maxRadiusFactor * 1.32,
   phiMin: ARENA_CAMERA_DEFAULTS.phiMin,
-  phiMax: ARENA_CAMERA_DEFAULTS.phiMax
+  phiMax: 1.14
 };
 
 const TILE_COLOR_A = new THREE.Color(0xe7e2d3);
@@ -253,8 +289,8 @@ function getSeatAngle(seatIndex, activePlayerCount = DEFAULT_PLAYER_COUNT) {
   return CUSTOM_CHAIR_ANGLES[seatIndex] ?? fallbackAngle;
 }
 
-function getSeatRadius(baseChairRadius) {
-  return baseChairRadius + CHAIR_TABLE_CLEARANCE;
+function getSeatRadius(baseChairRadius, seatIndex = 0) {
+  return baseChairRadius + (seatIndex === 0 ? SELF_BOTTOM_CHAIR_EXTRA_PUSHBACK : 0);
 }
 
 function measureMinYRelativeToParent(object) {
@@ -389,22 +425,22 @@ const CAMERA_TOPDOWN_MAX_POLAR = THREE.MathUtils.degToRad(18);
 const CAMERA_TOPDOWN_RADIUS_FACTOR = 2.56;
 const CAMERA_TOPDOWN_MIN_RADIUS_FACTOR = 1.2;
 const CAMERA_TOPDOWN_MAX_RADIUS_FACTOR = 4.7;
-const CAMERA_EXTRA_LIFT = 0.08;
-const PORTRAIT_INITIAL_CAMERA_DISTANCE_FACTOR = 0.54;
-const LANDSCAPE_INITIAL_CAMERA_DISTANCE_FACTOR = 0.65;
+const CAMERA_EXTRA_LIFT = 0.2;
+const PORTRAIT_INITIAL_CAMERA_DISTANCE_FACTOR = 0.62;
+const LANDSCAPE_INITIAL_CAMERA_DISTANCE_FACTOR = 0.68;
 const POINTER_TAP_MAX_DISTANCE = 14;
 const POINTER_TAP_MAX_DURATION_MS = 420;
 const PORTRAIT_CAMERA_TUNING = Object.freeze({
-  backOffset: 1.72,
-  forwardOffset: 0.34,
-  heightOffset: 2.46,
-  targetLift: BOARD_SURFACE_CENTER_LIFT
+  backOffset: 1.18,
+  forwardOffset: 0.96,
+  heightOffset: 1.1,
+  targetLift: 0.03 * MODEL_SCALE
 });
 const LANDSCAPE_CAMERA_TUNING = Object.freeze({
-  backOffset: 0.9,
-  forwardOffset: 0,
-  heightOffset: 1.4,
-  targetLift: 0.06 * MODEL_SCALE
+  backOffset: 1.26,
+  forwardOffset: 0.98,
+  heightOffset: 0.9,
+  targetLift: 0.08 * MODEL_SCALE
 });
 const SHOW_BOARD_RAILS = false;
 const COIN_RAISE = TILE_SIZE * 0.24;
@@ -1777,6 +1813,7 @@ function fitChairModelToFootprint(model) {
     model.scale.multiplyScalar(scale);
   }
 
+  model.scale.y *= CHAIR_BOTTOM_TRIM_SCALE;
   const scaledBox = new THREE.Box3().setFromObject(model);
   const scaledCenter = scaledBox.getCenter(new THREE.Vector3());
   const offset = new THREE.Vector3(
@@ -1848,49 +1885,35 @@ async function loadPolyhavenModel(assetId, renderer = null) {
   return root;
 }
 
-function fitTableModelToArena(model) {
-  if (!model) return { surfaceY: TABLE_HEIGHT, radius: TABLE_RADIUS };
+function fitTableModelToArena(model, tableThemeId = null) {
+  if (!model) return { surfaceY: TABLE_MODEL_TARGET_HEIGHT, radius: TABLE_RADIUS };
   const box = new THREE.Box3().setFromObject(model);
   const size = box.getSize(new THREE.Vector3());
   const maxXZ = Math.max(size.x, size.z);
   const targetHeight = TABLE_MODEL_TARGET_HEIGHT;
-  const targetDiameter = TABLE_MODEL_TARGET_DIAMETER;
+  const targetDiameter =
+    TABLE_MODEL_TARGET_DIAMETER * TABLE_SIDE_EXPANSION_FACTOR * getTableWidthScale(tableThemeId);
   const targetRadius = targetDiameter / 2;
   const scaleY = size.y > 0 ? targetHeight / size.y : 1;
   const scaleXZ = maxXZ > 0 ? targetDiameter / maxXZ : 1;
-
   if (scaleY !== 1 || scaleXZ !== 1) {
     model.scale.set(model.scale.x * scaleXZ, model.scale.y * scaleY, model.scale.z * scaleXZ);
   }
-
+  if (TABLE_LEG_EXTENSION_FACTOR !== 1) {
+    const stretchedScaleY = model.scale.y * TABLE_LEG_EXTENSION_FACTOR;
+    model.scale.set(model.scale.x, stretchedScaleY, model.scale.z);
+  }
   const scaledBox = new THREE.Box3().setFromObject(model);
   const center = scaledBox.getCenter(new THREE.Vector3());
-  model.position.add(new THREE.Vector3(-center.x, -scaledBox.min.y, -center.z));
-
+  const topAfterStretch = scaledBox.max.y;
+  const topCorrection = targetHeight - topAfterStretch;
+  model.position.add(new THREE.Vector3(-center.x, -scaledBox.min.y + topCorrection, -center.z));
   const recenteredBox = new THREE.Box3().setFromObject(model);
-  const surfaceOffset = targetHeight - recenteredBox.max.y;
-  if (surfaceOffset !== 0) {
-    model.position.y += surfaceOffset;
-    recenteredBox.translate(new THREE.Vector3(0, surfaceOffset, 0));
-  }
-
-  const radius = Math.max(
-    Math.abs(recenteredBox.max.x),
-    Math.abs(recenteredBox.min.x),
-    Math.abs(recenteredBox.max.z),
-    Math.abs(recenteredBox.min.z),
-    targetRadius
-  );
+  void recenteredBox;
+  const radius = targetRadius;
   return {
     surfaceY: targetHeight,
-    radius,
-    getOuterRadius: (direction) => {
-      // Keep slots inside the fitted model's inscribed ellipse, including
-      // rectangular/oval imports whose short axis is smaller than radius.
-      const halfX = (recenteredBox.max.x - recenteredBox.min.x) / 2;
-      const halfZ = (recenteredBox.max.z - recenteredBox.min.z) / 2;
-      return 1 / Math.hypot(direction.x / Math.max(halfX, 0.001), direction.z / Math.max(halfZ, 0.001));
-    }
+    radius
   };
 }
 
@@ -1946,7 +1969,6 @@ async function loadPolyHavenHdriEnvironment(renderer, variant = {}, isActive = (
   }
   return null;
 }
-
 async function loadGltfChair(renderer = null) {
   const loader = createConfiguredGLTFLoader(renderer);
 
@@ -1977,6 +1999,14 @@ async function loadGltfChair(renderer = null) {
     materials: extractChairMaterials(model)
   };
 }
+
+function getTableWidthScale(tableThemeId) {
+  const id = String(tableThemeId || '').toLowerCase();
+  if (!id) return 1;
+  if (id.includes('octagon')) return 1;
+  return 1.03;
+}
+
 
 function applyChairThemeMaterials(three, theme) {
   const mats = three?.chairMaterials;
@@ -2398,6 +2428,12 @@ function attachSnakeSeatActor(model, chair, seatIndex) {
   });
   if (!restored) return null;
   const { actor, rig } = restored;
+  // Use Ludo's authored root placement, armrest pose and foot grounding.
+  actor.position.set(0, SEATED_HUMAN_SEAT_Y_OFFSET,
+    SEATED_HUMAN_SEAT_Z_OFFSET + (seatIndex === 0 ? SELF_BOTTOM_HUMAN_EXTRA_Z_OFFSET : 0));
+  actor.rotation.set(0, 0, 0);
+  applyLudoSeatedHumanPose(rig, 'idle', 1, 0, {}, { idleBreathAmp: 0 }, chair.userData.supportsArmrest !== false);
+  alignLudoHumanFeet(actor, rig);
   const rest = [...rig.saved.keys()].map(bone => [bone, bone.position.clone(), bone.quaternion.clone()]);
   return {
     actor, rig, headScale: rig.head?.scale.clone(),
@@ -2413,22 +2449,11 @@ function attachSnakeSeatActor(model, chair, seatIndex) {
   };
 }
 
-function fitSnakeSeatedView(head, board, target, aspect, eye) {
-  if (!resolveSeatedPlayerEyePosition(head, target, eye)) return CAM.fov;
-  const forward = target.clone().sub(eye).normalize();
-  const right = forward.clone().cross(WORLD_UP).normalize();
-  const up = right.clone().cross(forward);
-  const corner = new THREE.Vector3();
-  const half = RAW_BOARD_SIZE * 0.5 + TILE_GAP;
-  let slope = 0;
-  for (const x of [-half, half]) {
-    for (const z of [-half, half]) {
-      board.root.localToWorld(corner.set(x, board.baseLevelTop, z)).sub(eye);
-      const depth = Math.max(corner.dot(forward), 0.1);
-      slope = Math.max(slope, Math.abs(corner.dot(up)) / depth, Math.abs(corner.dot(right)) / (depth * aspect));
-    }
-  }
-  return Math.max(CAM.fov, THREE.MathUtils.radToDeg(2 * Math.atan(slope / 0.94)));
+function fitSnakeSeatedView(head, _board, target, _aspect, eye) {
+  // Ludo locks the viewpoint to the local player's eye and uses a fixed lens.
+  // Do not widen the lens to fit Snake's board: that changes every asset's scale.
+  resolveSeatedPlayerEyePosition(head, target, eye);
+  return SEATED_PLAYER_VIEW.fov;
 }
 
 function createDiceRollAnimation(diceArray, { basePositions, values = [], rollId, actor, visibility }) {
@@ -2956,13 +2981,12 @@ function buildArena(
   let tableInfo = createMurlanStyleTable({
     arena: arenaGroup,
     renderer,
-    tableRadius: TABLE_RADIUS,
+    tableRadius: TABLE_RADIUS * TABLE_VISUAL_SCALE,
     tableHeight: TABLE_HEIGHT,
     woodOption: resolvedWoodOption,
     clothOption,
     baseOption,
-    includeBase: false,
-    flushPlayingSurface: true,
+    includeBase: true,
     topThicknessScale: TABLE_TOP_THICKNESS_SCALE,
     shapeOption,
     rotationY: 0
@@ -2977,18 +3001,18 @@ function buildArena(
   const initialCameraDistanceFactor = isPortrait
     ? PORTRAIT_INITIAL_CAMERA_DISTANCE_FACTOR
     : LANDSCAPE_INITIAL_CAMERA_DISTANCE_FACTOR;
-  const targetLift = cameraTuning.targetLift;
+  const targetLift = isPortrait ? cameraTuning.targetLift : CAMERA_TARGET_LIFT;
 
   const boardGroup = new THREE.Group();
   boardGroup.scale.set(BOARD_FOOTPRINT_SCALE, BOARD_SCALE, BOARD_FOOTPRINT_SCALE);
   const boardLookTarget = new THREE.Vector3(
     0,
     tableInfo.surfaceY + targetLift + CAMERA_TARGET_EXTRA,
-    0
+    CAMERA_LOOK_TARGET_FORWARD_BIAS
   );
   const attachBoard = (info, group) => {
-    boardGroup.position.set(0, info.surfaceY - 0.01, 0);
-    boardLookTarget.set(0, info.surfaceY + targetLift + CAMERA_TARGET_EXTRA, 0);
+    boardGroup.position.set(0, info.surfaceY - 0.0025, 0);
+    boardLookTarget.set(0, info.surfaceY + targetLift + CAMERA_TARGET_EXTRA, CAMERA_LOOK_TARGET_FORWARD_BIAS);
     group.add(boardGroup);
     boardGroup.userData.onTableChanged?.();
   };
@@ -2998,7 +3022,7 @@ function buildArena(
     loadPolyhavenModel(tableTheme.assetId, renderer)
       .then((model) => {
         if (!model || disposed) return;
-        const fitted = fitTableModelToArena(model);
+        const fitted = fitTableModelToArena(model, tableTheme?.id);
         const themed = new THREE.Group();
         themed.add(model);
         activeTableGroup.remove(boardGroup);
@@ -3109,17 +3133,18 @@ function buildArena(
         const model = chairTemplate.clone(true);
         chair.group.add(model);
         chair.model = model;
-        alignChairLegsToGround(chair);
+        // Match Ludo: chair roots retain the authored seat height.
       }
     });
   };
   for (let i = 0; i < activePlayerCount; i += 1) {
     const angle = getSeatAngle(i, activePlayerCount);
     const forward = new THREE.Vector3(Math.cos(angle), 0, Math.sin(angle));
-    const seatRadius = getSeatRadius(SEATING_TABLE_RADIUS + SEAT_DEPTH * 0.08, i);
+    const seatRadius = getSeatRadius(AI_CHAIR_RADIUS + CHAIR_GLOBAL_PUSHBACK, i);
     const seatPos = forward.clone().multiplyScalar(seatRadius);
     seatPos.y = CHAIR_BASE_HEIGHT;
     const group = new THREE.Group();
+    group.userData.supportsArmrest = inferChairSupportsArmrest(stoolTheme);
     group.position.copy(seatPos);
     group.lookAt(new THREE.Vector3(0, seatPos.y, 0));
     const avatarAnchor = new THREE.Object3D();
@@ -3138,7 +3163,7 @@ function buildArena(
 
     arenaGroup.add(group);
     const chair = { group, anchor: avatarAnchor, model: chairModel, weaponAnchor };
-    alignChairLegsToGround(chair);
+    // Match Ludo: chair roots retain the authored seat height.
     chairs.push(chair);
   }
 
@@ -5070,7 +5095,7 @@ function updateSeatWeaponDisplays(board, players = []) {
     const parkedWeaponType = configuredWeaponType || fallbackOrder[seatIndex % fallbackOrder.length];
     const firearmId = resolveSnakeFirearmAnimationId(parkedWeaponType);
     const parentScale = board.weaponDisplayGroup.getWorldScale(new THREE.Vector3());
-    const firearmLength = firearmId && snakeWeaponProfile(parkedWeaponType).handheld ? (board.getSeatHuman?.(seatIndex)?.unit ?? 1.6) * snakeWeaponProfile(firearmId).lengthInArms /
+    const firearmLength = firearmId && snakeWeaponProfile(parkedWeaponType).handheld ? ludoParkedWeaponLength(firearmId) /
       parentScale.x : 0;
     if (holder.userData.weaponType !== parkedWeaponType || holder.userData.firearmLength !== firearmLength) {
       holder.clear();
@@ -5123,6 +5148,7 @@ export default function SnakeBoard3D({
   frameRate = 90,
   cameraViewMode = '3d',
   camera2dTilt = 0.2,
+  cameraResetKey = 0,
   onCameraTiltChange,
   onDiceTap,
   soundEnabled = true
@@ -5630,7 +5656,7 @@ export default function SnakeBoard3D({
       const localActor = board?.seatedActors.get(0);
       if (camera && localActor?.rig.head && localActor.headScale) {
         const { head } = localActor.rig;
-        if (eyeView && (board.seatedViewAspect !== camera.aspect || board.seatedViewTargetY !== board.cameraHomeTarget.y)) {
+        if (eyeView) {
           board.seatedViewAspect = camera.aspect;
           board.seatedViewTargetY = board.cameraHomeTarget.y;
           board.seatedViewFov = fitSnakeSeatedView(head, board, board.cameraHomeTarget,
@@ -5642,7 +5668,7 @@ export default function SnakeBoard3D({
           camera.updateProjectionMatrix();
         }
         // Ludo's eye view keeps hands visible and hides the local head.
-        head.scale.copy(localActor.headScale).multiplyScalar(eyeView ? 0.001 : 1);
+        head.scale.copy(localActor.headScale).multiplyScalar(eyeView && !board.cameraDirector?.isCinematic() ? 0.001 : 1);
       }
       const followingAction = eyeView && board?.cameraDirector?.update(
         now, fixedSeatCameraPositionRef.current, board.cameraHomeTarget, motionPreference?.matches
@@ -5661,6 +5687,10 @@ export default function SnakeBoard3D({
         }
         if (cameraViewModeRef.current !== '2d' && !followingAction) {
           const look = headLookRef.current;
+          if (!manualCameraActiveRef.current) {
+            look.yaw *= 1 - 0.055;
+            if (Math.abs(look.yaw) < 1e-4) look.yaw = 0;
+          }
           const baseTarget = board?.cameraHomeTarget || arena.boardLookTarget;
           if (baseTarget) {
             const forward = baseTarget.clone().sub(camera.position);
@@ -5782,6 +5812,8 @@ export default function SnakeBoard3D({
     if (!board || !camera || !controls || !boardLookTarget) return;
 
     board.cameraDirector?.cancel();
+    headLookRef.current = { yaw: 0, pitch: 0 };
+    manualCameraActiveRef.current = false;
     if (cameraViewMode === '2d') {
       if (!cameraRestoreRef.current) {
         cameraRestoreRef.current = {
@@ -5855,7 +5887,20 @@ export default function SnakeBoard3D({
       controls.update();
       cameraRestoreRef.current = null;
     }
-  }, [cameraViewMode, keyForEffect, activePlayerCount]);
+    if (cameraViewMode !== '2d') {
+      const target = board.cameraHomeTarget || boardLookTarget;
+      const head = board.seatedActors?.get(0)?.rig?.head;
+      if (fixedSeatCameraPositionRef.current) {
+        fitSnakeSeatedView(head, board, target, camera.aspect, fixedSeatCameraPositionRef.current);
+        camera.position.copy(fixedSeatCameraPositionRef.current);
+      }
+      camera.fov = SEATED_PLAYER_VIEW.fov;
+      camera.updateProjectionMatrix();
+      controls.target.copy(target);
+      camera.lookAt(target);
+      camera.updateMatrixWorld(true);
+    }
+  }, [cameraViewMode, cameraResetKey, keyForEffect, activePlayerCount]);
 
   useEffect(() => {
     if (!boardRef.current) return;
@@ -6087,9 +6132,13 @@ export default function SnakeBoard3D({
       if (active.length) {
         const dieWorldPositions = active.map(() => new THREE.Vector3());
         board.startCameraShot?.({
-          id: `dice:${diceEvent.id}`, priority: 1,
-          until: performance.now() + LUDO_DICE_PRESENTATION_MS + SNAKE_DICE_READ_MS,
-          points: () => active.map((die, index) => die.getWorldPosition(dieWorldPositions[index])),
+          id: `dice:${diceEvent.id}`, priority: 1, ludoFraming: true,
+          until: performance.now() + LUDO_DICE_PRESENTATION_MS + LUDO_CAMERA_PRESENTATION.diceResultHoldMs,
+          points: () => {
+            const seat = board.seatAnchors?.[seatIndex]?.getWorldPosition(new THREE.Vector3());
+            return [seat ? resolveLudoDiceCameraTarget(board.cameraHomeTarget, seat, seatIndex,
+              board.tableInfo?.surfaceY ?? TABLE_HEIGHT, CAMERA_TARGET_LIFT) : board.cameraHomeTarget.clone()];
+          },
           overview: () => active.flatMap((die, index) => [startPositions[index], basePositions[index]].map(point =>
             die.parent.localToWorld(point.clone()).add(new THREE.Vector3(0, DICE_BOUNCE_HEIGHT, 0))))
         });
@@ -6162,8 +6211,8 @@ export default function SnakeBoard3D({
         muted: !soundEnabledRef.current
       });
     };
-    const completeCaptureAnimation = () => {
-      board.cameraDirector?.finish(`capture:${captureEvent.id}`, performance.now(), 450);
+    const completeCaptureAnimation = (hold = 450) => {
+      board.cameraDirector?.finish(`capture:${captureEvent.id}`, performance.now(), hold);
       playCaptureSfx('loopStop');
       onCaptureAnimationComplete?.(captureEvent.id);
     };
@@ -6190,7 +6239,7 @@ export default function SnakeBoard3D({
       });
       attacker.userData.isSliding = true;
       const shotId = `capture:${captureEvent.id}`;
-      board.startCameraShot?.({ id: shotId, priority: 3, points: () => [motion.focus], overview: motion.overview });
+      board.startCameraShot?.({ id: shotId, priority: 3, points: () => [motion.focus], cameraPose: motion.cameraPose, overview: motion.overview });
       let completed = false;
       const dispose = () => { motion.dispose(); attacker.userData.isSliding = false; };
       animationsRef.current.push({
@@ -6204,7 +6253,7 @@ export default function SnakeBoard3D({
           attacker.position.copy(attacker.parent.worldToLocal(position.clone()));
           motion.focus.copy(position);
           if (advance < 1) return false;
-          completed = true; dispose(); completeCaptureAnimation(); return true;
+          completed = true; dispose(); completeCaptureAnimation(0); return true;
         }
       });
       return;
@@ -6580,7 +6629,7 @@ export {
 };
 // Shared review data from the production portrait camera configuration.
 export function getSnakePortraitCameraState() {
-  const target = new THREE.Vector3(0, TABLE_HEIGHT + PORTRAIT_CAMERA_TUNING.targetLift + CAMERA_TARGET_EXTRA, 0);
+  const target = new THREE.Vector3(0, TABLE_HEIGHT + PORTRAIT_CAMERA_TUNING.targetLift + CAMERA_TARGET_EXTRA, CAMERA_LOOK_TARGET_FORWARD_BIAS);
   const chairRadius = SEATING_TABLE_RADIUS + SEAT_DEPTH / 2 + AI_CHAIR_GAP + CHAIR_GLOBAL_PUSHBACK;
   const z = chairRadius + PORTRAIT_CAMERA_TUNING.backOffset - PORTRAIT_CAMERA_TUNING.forwardOffset;
   const y = TABLE_HEIGHT + PORTRAIT_CAMERA_TUNING.heightOffset + CAMERA_EXTRA_LIFT;
@@ -6595,7 +6644,7 @@ export const SNAKE_SCENE_DIMENSIONS = Object.freeze({
   boardScale: BOARD_SCALE, footprintScale: BOARD_FOOTPRINT_SCALE,
   tileSize: TILE_SIZE, tokenHeight: TOKEN_HEIGHT, diceSize: DICE_SIZE,
   tableHeight: TABLE_HEIGHT, tableRadius: TABLE_RADIUS, topThicknessScale: TABLE_TOP_THICKNESS_SCALE,
-  chairRadius: SEATING_TABLE_RADIUS + SEAT_DEPTH * 0.08,
+  chairRadius: AI_CHAIR_RADIUS + CHAIR_GLOBAL_PUSHBACK,
   bottomChairExtra: CHAIR_TABLE_CLEARANCE, seatClearance: CHAIR_TABLE_CLEARANCE, chairBaseHeight: CHAIR_BASE_HEIGHT,
   seatHeight: SEAT_THICKNESS * 0.65, avatarAnchorHeight: AVATAR_ANCHOR_HEIGHT
 });

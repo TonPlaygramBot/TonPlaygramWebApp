@@ -1,3 +1,4 @@
+import { applyLudoSeatedHumanPose as applySeatedHumanPose } from '../webapp/src/utils/ludoSeatedPose.js';
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
@@ -11,13 +12,12 @@ import { createLudoDiceHand, createLudoDiceContact, createLudoDiceThrow, updateL
 // seat rotation and a transformed board parent. No synthetic skeleton lengths.
 const source = readFileSync(new URL('../webapp/src/pages/Games/LudoBattleRoyal.jsx', import.meta.url), 'utf8');
 const between = (a, b) => source.slice(source.indexOf(a), source.indexOf(b));
-const { saveBoneRig, applySeatedHumanPose } = Function('THREE', `
+const { saveBoneRig } = Function('THREE', `
 const clamp = THREE.MathUtils.clamp;
 const SEATED_HUMAN_MOTION_TUNING = { idleBreathAmp: 0 };
 ${between('const SEATED_HUMAN_DOWNWARD_CONTACT_MODE_SET', 'const SEATED_HELPER_FORWARD_DICE_PICKUP')}
 ${between('function normalizeBoneName(', 'const SEATED_HUMAN_TEXTURE_PROFILES')}
-${between('const FRONT_SIDE_Z', 'function alignSeatedHumanFeetToGroundPlane(')}
-return { saveBoneRig, applySeatedHumanPose };
+return { saveBoneRig };
 `)(THREE);
 const template = await loadCheckersHumanTemplate();
 const world = (node) => node.getWorldPosition(new THREE.Vector3());
