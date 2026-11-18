@@ -134,7 +134,7 @@ function buildHeaders(base = {}) {
   return headers;
 }
 
-export async function post(path, body, token) {
+export async function post(path, body, token, { retries = 3, preserveErrorDetails = false } = {}) {
   const headers = buildHeaders({ 'Content-Type': 'application/json' });
   if (token) headers['Authorization'] = `Bearer ${token}`;
 
@@ -144,7 +144,7 @@ export async function post(path, body, token) {
       method: 'POST',
       headers,
       body: JSON.stringify(body)
-    });
+    }, retries);
   } catch (err) {
     return { error: 'Network request failed' };
   }
@@ -173,7 +173,7 @@ export async function post(path, body, token) {
     if (res.status === 502) {
       return { error: 'Server unavailable. Please try again later.' };
     }
-    return { error: data.error || res.statusText || 'Request failed' };
+    return { ...(preserveErrorDetails ? { code: data.code, requestId: data.requestId, rejected: data.rejected, requestStatus: data.requestStatus } : {}), error: data.error || res.statusText || 'Request failed' };
   }
   return data;
 }
@@ -685,12 +685,18 @@ export function sendMessage(fromId, toId, text, attachment) {
   return post('/api/social/send-message', { fromId, toId, text });
 }
 
-export function sendGift(fromId, toId, gift) {
-  return post('/api/account/gift', {
+export function getGiftSession() { return get('/api/account/gift/v2'); }
+
+export async function sendGift(fromId, toId, gift, requestId) {
+  // A stable request key supports explicit recovery; never retry a charge automatically.
+  const result = await post('/api/account/gift/v2', {
     fromAccount: fromId,
     toAccount: toId,
-    gift
-  });
+    gift,
+    requestId
+  }, undefined, { retries: 0, preserveErrorDetails: true });
+  if (result?.error) return { ...result, error: `${result.error} Retry the same gift request to check its outcome safely.` };
+  return result;
 }
 
 export function convertGifts(accountId, giftIds, action = 'burn', toAccount) {

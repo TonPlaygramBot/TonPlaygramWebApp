@@ -12,13 +12,13 @@ import {
 import bot from '../bot.js';
 import {
   sendTransferNotification,
-  sendGiftNotification,
   sendDepositNotification,
   sendStorePurchaseNotification
 } from '../utils/notifications.js';
 import NFT_GIFTS from '../utils/nftGifts.js';
 
 import { mintGiftNFT } from '../utils/nftService.js';
+import giftPurchaseRouter from './giftPurchase.js';
 import { generateWalletAddress } from '../utils/wallet.js';
 import { fetchTelegramInfo } from '../utils/telegram.js';
 import { applyStoreItemDelivery } from './store.js';
@@ -369,101 +369,7 @@ router.post('/send', authenticate, async (req, res) => {
 });
 
 // Send a gift using account ids
-router.post('/gift', authenticate, async (req, res) => {
-  const { fromAccount, toAccount, gift } = req.body;
-  if (!fromAccount || !toAccount || !gift) {
-    return res
-      .status(400)
-      .json({ error: 'fromAccount, toAccount and gift required' });
-  }
-
-  const g = NFT_GIFTS.find((x) => x.id === gift);
-  if (!g) return res.status(400).json({ error: 'invalid gift' });
-
-  const sender = await User.findOne({ accountId: fromAccount });
-  if (!sender || sender.balance < g.price) {
-    return res.status(400).json({ error: 'insufficient balance' });
-  }
-  if (!canAccessUser(req, sender)) {
-    return res.status(403).json({ error: 'forbidden' });
-  }
-
-  let receiver = await User.findOne({ accountId: toAccount });
-  if (!receiver) receiver = new User({ accountId: toAccount });
-
-  ensureTransactionArray(sender);
-  ensureTransactionArray(receiver);
-  if (!Array.isArray(receiver.gifts)) receiver.gifts = [];
-
-  let nftTokenId;
-  try {
-    nftTokenId = await mintGiftNFT(g.id, receiver.walletAddress);
-  } catch (err) {
-    console.error('Failed to mint gift NFT:', err.message);
-    return res.status(500).json({ error: 'failed to mint NFT' });
-  }
-
-  sender.balance -= g.price;
-
-  const txDate = new Date();
-  const senderTx = {
-    amount: -g.price,
-    type: 'gift',
-    token: 'TPG',
-    status: 'delivered',
-    date: txDate,
-    toAccount: String(toAccount),
-    detail: gift,
-    category: String(g.tier)
-  };
-  sender.transactions.push(senderTx);
-
-  const giftEntry = {
-    _id: uuidv4(),
-    gift: g.id,
-    price: g.price,
-    tier: g.tier,
-    fromAccount: String(fromAccount),
-    fromName: sender.nickname || sender.firstName || '',
-    date: txDate,
-    nftTokenId
-  };
-  receiver.gifts.push(giftEntry);
-
-  const receiverTx = {
-    amount: 0,
-    type: 'gift-receive',
-    token: 'TPG',
-    status: 'pending',
-    date: txDate,
-    fromAccount: String(fromAccount),
-    fromName: sender.nickname || sender.firstName || '',
-    giftId: giftEntry._id,
-    detail: gift,
-    category: String(g.tier)
-  };
-  receiver.transactions.push(receiverTx);
-
-  await sender.save();
-  await receiver.save();
-
-  if (receiver.telegramId) {
-    try {
-      await sendGiftNotification(
-        bot,
-        receiver.telegramId,
-        g,
-        sender.nickname || sender.firstName || String(fromAccount),
-        txDate,
-        { senderPhoto: sender.photo }
-      );
-    } catch (err) {
-      console.error('Failed to send Telegram notification:', err.message);
-    }
-  }
-
-  res.json({ balance: sender.balance, transaction: senderTx });
-});
+router.use('/gift', giftPurchaseRouter);
 
 router.post('/store-purchase', authenticate, async (req, res) => {
   const { accountId, fromAccount, bundle, txHash } = req.body;

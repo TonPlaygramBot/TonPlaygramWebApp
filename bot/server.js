@@ -7,6 +7,7 @@ import { webappEntry } from '../shared/socialApp.js';
 import { ALBANIAN_61_ID, arePoolVariantsCompatible, isAlbanian61Variant } from '../webapp/src/config/poolRoyaleVariants.js';
 import cors from 'cors';
 import bot from './bot.js';
+import { drainGiftNotifications } from './utils/giftNotifications.js';
 import { getInviteUrl, sendInviteNotification } from './utils/notifications.js';
 import mongoose from 'mongoose';
 import { mongoConnectionOptions } from './config/mongo.js';
@@ -391,6 +392,18 @@ app.use('/api/exchange', exchangeRoutes);
 
 const socialScheduler = setInterval(() => queueDueSocialPosts().catch((error) => console.error('Social scheduler failed:', error.message)), 30_000);
 socialScheduler.unref?.();
+// Only committed receipts are visible to the worker. Atomic claims prevent
+// duplicate transport attempts across processes; uncertain notices are held.
+let giftNotificationBusy = false;
+const giftNotificationTimer = setInterval(() => {
+  if (giftNotificationBusy || mongoose.connection.readyState !== 1 || !process.env.BOT_TOKEN || process.env.BOT_TOKEN === 'dummy') return;
+  giftNotificationBusy = true;
+  drainGiftNotifications((chatId, text) => bot.telegram.sendMessage(chatId, text))
+    .catch(error => console.error('Gift notification worker failed:', error.name))
+    .finally(() => { giftNotificationBusy = false; });
+}, 15_000);
+giftNotificationTimer.unref?.();
+
 
 // Serve the built React app
 const webappPath = path.join(__dirname, '../webapp/dist');
