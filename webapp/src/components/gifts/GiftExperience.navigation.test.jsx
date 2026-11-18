@@ -1,0 +1,43 @@
+import React, { act } from 'react';
+import { createRoot } from 'react-dom/client';
+import { afterEach, beforeEach, expect, it, vi } from 'vitest';
+import GiftExperience from './GiftExperience.jsx';
+import { sendGift } from '../../utils/api.js';
+vi.mock('../../utils/api.js', () => ({ sendGift: vi.fn() }));
+globalThis.IS_REACT_ACT_ENVIRONMENT = true;
+let root, container;
+beforeEach(() => {
+  vi.clearAllMocks();
+  HTMLElement.prototype.scrollTo = vi.fn();
+  container = document.createElement('div'); document.body.append(container);
+  root = createRoot(container);
+});
+afterEach(async () => { await act(async () => root.unmount()); container.remove(); });
+const click = async el => { await act(async () => el.click()); };
+it('names the store clearly, supports browse/detail/back, and never purchases before confirmation', async () => {
+  const close = vi.fn();
+  await act(async () => root.render(<GiftExperience accountId="test-account" onClose={close}/>));
+  expect(document.querySelector('[role="dialog"] h2').textContent).toBe('Gift Store');
+  expect(document.querySelectorAll('.gift-tile')).toHaveLength(24);
+  await click(document.querySelector('.gift-load-more'));
+  expect(document.querySelectorAll('.gift-tile')).toHaveLength(48);
+  await click(document.querySelector('.gift-tile'));
+  await act(async () => document.querySelector('form').dispatchEvent(new Event('submit', {bubbles:true,cancelable:true})));
+  expect(document.querySelector('.gift-order-summary').textContent).toContain('Your collection');
+  expect(sendGift).not.toHaveBeenCalled();
+  await click(document.querySelector('.gift-secondary'));
+  await click(document.querySelector('.gift-back'));
+  expect(document.querySelectorAll('.gift-tile')).toHaveLength(48);
+  await click(document.querySelector('[data-dialog-close]'));
+  expect(close).toHaveBeenCalledTimes(1);
+  expect(sendGift).not.toHaveBeenCalled();
+});
+it('keeps signed-out browsing safe and supports Escape dismissal', async () => {
+  const close = vi.fn();
+  await act(async () => root.render(<GiftExperience onClose={close}/>));
+  await click(document.querySelector('.gift-tile'));
+  expect(document.querySelector('button[type="submit"]').disabled).toBe(true);
+  await act(async () => document.dispatchEvent(new KeyboardEvent('keydown', {key:'Escape',bubbles:true})));
+  expect(close).toHaveBeenCalledTimes(1);
+  expect(sendGift).not.toHaveBeenCalled();
+});

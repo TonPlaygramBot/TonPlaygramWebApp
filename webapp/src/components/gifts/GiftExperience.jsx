@@ -17,7 +17,7 @@ export function GiftInspection({ gift }) {
     <button type="button" className="gift-view-toggle" aria-pressed={view3d} onClick={() => setView3d(v => !v)}>{view3d ? '◈ Artwork' : '◈ Explore in 3D'}</button>
   </div>;
 }
-export default function GiftExperience({ accountId = '', resolveAccount, players, onClose, onCompleted, title = 'Gift atelier' }) {
+export default function GiftExperience({ accountId = '', resolveAccount, players, onClose, onCompleted, title = 'Gift Store' }) {
   const gameMode = Array.isArray(players);
   const validPlayers = (players || []).filter(p => p && p.id);
   const [receiver, setReceiver] = useState('');
