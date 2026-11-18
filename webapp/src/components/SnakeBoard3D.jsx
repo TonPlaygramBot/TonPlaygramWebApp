@@ -6652,7 +6652,7 @@ export const SNAKE_SCENE_DIMENSIONS = Object.freeze({
   humanSeatOffset: SEATED_HUMAN_SEAT_Z_OFFSET + SELF_BOTTOM_HUMAN_EXTRA_Z_OFFSET,
   boardScale: BOARD_SCALE, footprintScale: BOARD_FOOTPRINT_SCALE,
   tileSize: TILE_SIZE, tokenHeight: TOKEN_HEIGHT, diceSize: DICE_SIZE,
-  tableHeight: TABLE_HEIGHT, tableRadius: TABLE_RADIUS, topThicknessScale: TABLE_TOP_THICKNESS_SCALE,
+  tableHeight: TABLE_HEIGHT, tableRadius: TABLE_RADIUS, tableVisualScale: TABLE_VISUAL_SCALE, topThicknessScale: TABLE_TOP_THICKNESS_SCALE,
   chairRadius: AI_CHAIR_RADIUS + CHAIR_GLOBAL_PUSHBACK,
   bottomChairExtra: CHAIR_TABLE_CLEARANCE, seatClearance: CHAIR_TABLE_CLEARANCE, chairBaseHeight: CHAIR_BASE_HEIGHT,
   seatHeight: SEAT_THICKNESS * 0.65, avatarAnchorHeight: AVATAR_ANCHOR_HEIGHT

@@ -151,3 +151,35 @@ it('preserves production die world geometry and table landing height after shrin
     expect(extent.z).toBeCloseTo(0.05278, 5);
   }
 });
+
+it('keeps dice bounds clear of the board on the default production-sized table', () => {
+  const scene = new THREE.Scene();
+  const table = createMurlanStyleTable({ arena: scene, tableRadius: D.tableRadius * D.tableVisualScale, tableHeight: D.tableHeight,
+    topThicknessScale: D.topThicknessScale, includeBase: true, rotationY: 0, textures: false });
+  const root = new THREE.Group(); table.group.add(root);
+  root.position.set(0, table.surfaceY - 0.0025, 0);
+  root.scale.set(D.footprintScale, D.boardScale, D.footprintScale);
+  const board = createSnakeBoardScene(root, new THREE.Vector3(0, table.surfaceY, 0), null);
+  const anchors = Array.from({ length: 4 }, (_, seat) => {
+    const anchor = new THREE.Object3D(); anchor.position.set(0, 1, D.chairRadius).applyAxisAngle(THREE.Object3D.DEFAULT_UP, seat * Math.PI / 2);
+    scene.add(anchor); return anchor;
+  });
+  const footprint = new THREE.Box3().setFromObject(board.rotationRoot);
+  const die = createSnakeDie(); board.root.add(die);
+  for (let seat = 0; seat < 4; seat++) {
+    die.position.copy(computeDiceThrowLayout({ ...board, tableInfo: table, seatAnchors: anchors }, seat, 1).basePositions[0]);
+    scene.updateMatrixWorld(true);
+    const bounds = new THREE.Box3().setFromObject(die);
+    const gap = Math.max(bounds.min.x - footprint.max.x, footprint.min.x - bounds.max.x,
+      bounds.min.z - footprint.max.z, footprint.min.z - bounds.max.z);
+    // Default cardinal seats have ~0.00345 world units between conservative AABBs.
+    expect(gap).toBeGreaterThan(0.003);
+    expect(bounds.intersectsBox(footprint)).toBe(false);
+    for (const x of [bounds.min.x, bounds.max.x]) for (const z of [bounds.min.z, bounds.max.z]) {
+      const direction = new THREE.Vector3(x, 0, z);
+      const radius = table.getOuterRadius?.(direction.clone().normalize()) ?? table.radius;
+      expect(direction.length()).toBeLessThan(radius);
+    }
+  }
+  table.dispose();
+});
