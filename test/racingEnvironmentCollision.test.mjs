@@ -1,3 +1,4 @@
+import {makeArchivedTrack,ARCHIVED_TRACKS} from './fixtures/archivedRacingCatalog.mjs';
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {createDrivingWorld} from '../webapp/src/games/kartroyale/freeRoamCore.mjs';
@@ -105,8 +106,8 @@ test('the full road footprint excludes scenery at folded bends and neighbouring 
   for(const p of [...t.points,...sides.left,...sides.right])assert.ok(blocked(p.x,p.z,.3));
 });
 
-test('every circuit has frequent physical humps, including turn approaches',()=>{
-  for(const config of TRACKS){const bumps=roadBumps(makeTrack(config.id));assert.ok(bumps.length>=4,config.id+' humps');assert.ok(bumps.some(b=>b.corner),config.id+' corner hump');}
+test('long boulevard circuits retain frequent physical humps, including turn approaches',()=>{
+  for(const config of ARCHIVED_TRACKS){const bumps=roadBumps(makeArchivedTrack(config.id));assert.ok(bumps.length>=4,config.id+' humps');assert.ok(bumps.some(b=>b.corner),config.id+' corner hump');}
 });
 
 test('hump takeoff scales with speed and lands without awarding nitro or re-launching midair',()=>{

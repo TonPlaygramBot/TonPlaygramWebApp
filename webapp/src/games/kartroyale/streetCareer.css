@@ -1,0 +1,149 @@
+.street-career {
+  position: fixed;
+  inset: 0;
+  background: #10191c;
+  color: #f4f8ee;
+  font-family: system-ui;
+  overflow: hidden;
+}
+.sc-canvas {
+  position: absolute;
+  inset: 0;
+}
+.street-career > header {
+  position: relative;
+  z-index: 2;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 12px 16px;
+  background: #14231ef2;
+}
+.street-career h1 {
+  font-size: 24px;
+  margin: 0;
+}
+.street-career h2 {
+  font-size: 17px;
+  margin: 6px 0;
+}
+.street-career button,
+.street-career select {
+  min-height: 44px;
+  border: 1px solid #718c79;
+  border-radius: 9px;
+  background: #253a30;
+  color: #fff;
+  padding: 8px 12px;
+}
+.street-career button:disabled {
+  opacity: 0.45;
+}
+.street-career button:focus-visible,
+.street-career select:focus-visible {
+  outline: 3px solid #b9ff48;
+}
+.sc-board {
+  position: relative;
+  z-index: 1;
+  max-height: calc(100dvh - 83px);
+  overflow: auto;
+  max-width: 720px;
+  margin: auto;
+  background: #16281ff5;
+  padding: 16px 16px max(40px, env(safe-area-inset-bottom));
+}
+.sc-note {
+  font-size: 12px;
+  color: #c7d5cc;
+}
+.sc-board fieldset {
+  border: 1px solid #557663;
+  border-radius: 12px;
+  margin: 14px 0;
+  padding: 12px;
+  display: flex;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+.sc-board label {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  flex: 1;
+  min-width: 130px;
+}
+.sc-stages {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(190px, 1fr));
+  gap: 12px;
+}
+.sc-stages article {
+  background: #294334;
+  border: 1px solid #58705e;
+  border-radius: 14px;
+  padding: 16px;
+}
+.sc-stages article button {
+  width: 100%;
+  color: #142018;
+  background: #b9ff48;
+  font-weight: 700;
+}
+.sc-alert {
+  position: relative;
+  z-index: 5;
+  background: #70261e;
+  padding: 12px;
+}
+.sc-hud {
+  position: relative;
+  z-index: 2;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  padding: 8px;
+  background: #15241de6;
+  max-width: 560px;
+  margin: auto;
+}
+.sc-hud span {
+  flex: 1;
+}
+.sc-supplies {
+  position: absolute;
+  z-index: 3;
+  top: 220px;
+  right: 12px;
+  display: flex;
+  flex-direction: column;
+  max-width: 180px;
+  gap: 6px;
+  background: #16281fe8;
+  padding: 8px;
+  border-radius: 10px;
+}
+.sc-supplies small {
+  font-size: 11px;
+}
+.sc-pause {
+  position: absolute;
+  z-index: 10;
+  inset: 25% 10% auto;
+  background: #183024;
+  padding: 24px;
+  border: 1px solid #b9ff48;
+  border-radius: 15px;
+  display: grid;
+  gap: 10px;
+}
+@media (max-height: 600px) {
+  .sc-supplies {
+    top: 150px;
+    max-width: 150px;
+  }
+  .sc-hud button {
+    font-size: 11px;
+    min-height: 32px;
+  }
+}

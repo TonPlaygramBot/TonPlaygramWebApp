@@ -1,8 +1,9 @@
+import {makeArchivedTrack as makeTrack,ARCHIVED_TRACKS as TRACKS} from './fixtures/archivedRacingCatalog.mjs';
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {MAIN_ROAD_ROUTES} from '../webapp/src/games/kartroyale/main-road-routes.mjs';
 import {WORLD} from '../webapp/src/games/kartroyale/racingWorld.mjs';
-import {makeTrack,createRacer,nearestPoint} from '../webapp/src/games/kartroyale/simulation.mjs';
+import {createRacer,nearestPoint} from '../webapp/src/games/kartroyale/simulation.mjs';
 import {sampleCircuitDistance} from '../webapp/src/games/kartroyale/circuitMetrics.mjs';
 
 const key=(a,b)=>[a.join(','),b.join(',')].sort().join('|');

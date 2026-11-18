@@ -2,10 +2,7 @@ import {drivingWorldData} from './roamObstacles.mjs';
 import {createDrivingWorld} from './freeRoamCore.mjs';
 let environment;
 export const FREE_ROAM_STARTS=[
-  {track:'skanderbeg',name:'City centre'},
-  {track:'blloku',name:'Blloku'},
-  {track:'liqeni',name:'Liqeni · Grand Park'},
-  {track:'farke',name:'Farkë'},
-  {track:'surrel',name:'Surrel'}
+  {track:'tirana-zogu-pare',name:'City centre'},
+  {track:'tirana-sulejman-delvina',name:'Blloku'}
 ];
 export function freeRoamWorld(){return environment ||= createDrivingWorld(drivingWorldData());}

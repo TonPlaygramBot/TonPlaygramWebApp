@@ -1,3 +1,4 @@
+import {careerSupplies,equipCareerSupply} from './streetCareer.mjs';
 import { RaceItemEffects } from './RaceItemEffects';
 import { KartExhaust } from './KartExhaust';
 import * as T from 'three';
@@ -58,6 +59,7 @@ import type { DrivingWorld } from './freeRoamCore.mjs';
 export type CameraMode = 'driver' | 'chase';
 export type Quality = 'auto' | 'high' | 'performance';
 export interface Frame {
+  careerSupplies?: {rocket:number;shield:number};
   online?:boolean;
   playerId?:string;
   timeTrial?:boolean;
@@ -195,6 +197,8 @@ export class KartRenderer {
   private supporters: Supporters | null = null;
   private humanTemplates: T.Group[] = [];
   private driverModels: T.Group[] = [];
+  private streetDriver = false;
+  private streetSupplies: {rocket:number;shield:number}|null = null;
   private effects: RaceEffects | null = null;
   private itemEffects: RaceItemEffects | null = null;
   private cameraMode: CameraMode = 'chase';
@@ -604,9 +608,10 @@ export class KartRenderer {
         model.add(post);
       }
     }
-    const driverModel = this.driverModels[low ? 1 : 0];
+    const helmet = low || (slot === 0 && this.streetDriver);
+    const driverModel = this.driverModels[helmet ? 1 : 0];
     if (driverModel) {
-      rig.driver = low ? new KartDriver(driverModel, COLORS[slot % 6], kartId === 'oopi')
+      rig.driver = helmet ? new KartDriver(driverModel, slot===0?this.color:COLORS[slot % 6], kartId === 'oopi')
         : new TuriKartDriver(driverModel, COLORS[slot % 6], kartId === 'oopi');
       rig.body.add(rig.driver.root);
     }
@@ -972,7 +977,9 @@ export class KartRenderer {
       this.visuals.set(r.id, v);
     }
   }
-  startLocal(id: string, difficulty: string, freeRoam=false, timeTrial=false) {
+  startLocal(id: string, difficulty: string, freeRoam=false, timeTrial=false, careerLoadout?: {driver?:string;ammo?:string;shield?:string}) {
+    this.streetDriver = careerLoadout?.driver === "helmet";
+    this.streetSupplies = careerLoadout ? careerSupplies(careerLoadout) : null;
     this.resetActionModes();
     this.timeTrial=timeTrial&&!freeRoam;
     this.ghostRecorder=null;
@@ -1022,6 +1029,13 @@ export class KartRenderer {
     this.state = freeRoam?'racing':'countdown';
     this.clearInput();
     this.snapCamera();
+  }
+  startStreetCareer(id:string,difficulty:string,loadout:{driver?:string;ammo?:string;shield?:string}){
+    this.startLocal(id,difficulty,false,false,loadout);
+  }
+  equipStreetSupply(kind:"rocket"|"shield"){
+    if(this.network||this.state!=="racing"||this.paused)return false;
+    return equipCareerSupply(this.streetSupplies,this.racers.find(r=>r.id===this.me),kind);
   }
   startCityJob(id:string,trackId:string){
     const job=createCityJob(id,makeTrack(trackId));
@@ -1522,6 +1536,7 @@ export class KartRenderer {
             turbo: me.turbo,
             boostEvent: me.boostEvent || 0,
             raceItem: me.raceItem, itemShield: me.itemShield,
+            careerSupplies: !this.network&&this.streetSupplies?{...this.streetSupplies}:undefined,
             slipstream: me.slipstream || 0
           });
         }

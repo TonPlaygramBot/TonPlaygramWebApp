@@ -1,3 +1,4 @@
+import {makeArchivedTrack as makeTrack,ARCHIVED_TRACKS as TRACKS} from './fixtures/archivedRacingCatalog.mjs';
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {readFileSync} from 'node:fs';
@@ -5,7 +6,7 @@ import * as T from '../webapp/node_modules/three/build/three.module.js';
 import {GLTFLoader} from '../webapp/node_modules/three/examples/jsm/loaders/GLTFLoader.js';
 import {MAIN_ROAD_ROUTES} from '../webapp/src/games/kartroyale/main-road-routes.mjs';
 import {WORLD} from '../webapp/src/games/kartroyale/racingWorld.mjs';
-import {TRACKS,KARTS,makeTrack,createRacer,equipKart,stepRace,STEP,RACE_LIMIT} from '../webapp/src/games/kartroyale/simulation.mjs';
+import {KARTS,createRacer,equipKart,stepRace,STEP,RACE_LIMIT} from '../webapp/src/games/kartroyale/simulation.mjs';
 import {courseRoadSurface,buildingClearance} from '../webapp/src/games/kartroyale/raceCourse.mjs';
 import {circuitSides} from '../webapp/src/games/kartroyale/trackEdges.mjs';
 import {normaliseVehicleDimensions} from '../webapp/src/games/kartroyale/vehicleAssetConfig.mjs';
@@ -26,7 +27,7 @@ test('city races retain their save IDs while using only connected main carriagew
     assert.equal(config.routeClass,'main-roads');
     assert.deepEqual(config.points,route.points);
   }
-  assert.ok(TRACKS.some(t=>t.terrainMode),'optional rural circuits remain');
+  assert.ok(TRACKS.every(t=>!t.terrainMode),'retired rural terrain is not selectable');
 });
 
 test('rounded main-road surfaces have room for two real karts and remain inside mapped asphalt',()=>{

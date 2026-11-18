@@ -5,7 +5,10 @@ import {driverPose,DRIVER_REST,DRIVER_LEGS} from '../webapp/src/games/kartroyale
 import {makeTrack,createRacer,STEP,stepRacer} from '../webapp/src/games/kartroyale/simulation.mjs';
 import {planRacecraft} from '../webapp/src/games/kartroyale/racecraft.mjs';
 const len=(a,b)=>Math.hypot(...a.map((n,i)=>n-b[i]));
-function session(id='market-courier'){const job=CITY_JOBS.find(j=>j.id===id),track=makeTrack(job.track);return {job,state:createCityJob(id,track),r:createRacer(track,'you','You'),track};}
+// Archived free-driving jobs are unreachable from the new circuit career.
+// Exercise their reward/state machine on a closed-track fixture, not as a claim
+// that removed historical routes remain in the selectable catalogue.
+function session(id='market-courier'){const job=CITY_JOBS.find(j=>j.id===id),track={...makeTrack(),id:job.track};return {job,state:createCityJob(id,track),r:createRacer(track,'you','You'),track};}
 function stopAt(state,r,target){Object.assign(r,{x:target.x,z:target.z,speed:0});for(let i=0;i<95;i++)stepCityJob(state,r,STEP);}
 test('delivery requires every stop and a stationary handover; fast drive-through cannot complete',()=>{
  const {state,r}=session();const target=state.targets[0];Object.assign(r,{x:target.x,z:target.z,speed:18});for(let i=0;i<100;i++)stepCityJob(state,r,STEP);assert.equal(state.stage,0);
@@ -24,7 +27,7 @@ test('progression survives corrupt storage and never erases existing race career
  assert.deepEqual(p.medals,{'market-courier':3});assert.equal(saveCityCareer(storage,p),true);assert.deepEqual(loadCityCareer(storage),p);assert.equal(values.get('tonplaygram.kartroyale.career.v1'),'existing');
  assert.equal(saveCityCareer({setItem(){throw Error();}},p),false);assert.deepEqual(loadCityCareer({getItem(){return '{broken';}}),freshCityCareer());
 });
-test('all six job routes exist; locked jobs cannot earn rewards ahead of progression',()=>{
+test('archived job definitions retain reward guards without restoring retired routes',()=>{
  for(const job of CITY_JOBS){const {state}=session(job.id);assert.equal(state.targets.length,job.stops.length);assert.ok(state.targets.every(p=>Number.isFinite(p.x)&&Number.isFinite(p.z)));}
  const {state,r}=session('medical-express');for(const target of state.targets)stopAt(state,r,target);assert.equal(state.status,'complete');assert.equal(finishCityJob(freshCityCareer(),state).xp,0);
 });

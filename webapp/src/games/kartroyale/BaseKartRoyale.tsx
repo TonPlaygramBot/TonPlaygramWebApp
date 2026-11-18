@@ -34,7 +34,8 @@ import {
   TRACKS,
   KARTS,
   makeTrack,
-  normalizeKart
+  normalizeKart,
+  normalizeTrack
 } from './simulation.mjs';
 import { loadCareer, recordRace, formatTime } from './career';
 import { KartAudio } from './audio';
@@ -107,6 +108,7 @@ function CircuitMap({ id, frame }: { id: string; frame?: Frame | null }) {
 export default function KartRoyale({
   getSocket,
   onExit,
+  onCareer,
   playerName = 'Racer',
   renderOnlineLobby
 }: Props) {
@@ -124,7 +126,7 @@ export default function KartRoyale({
     [mode, setMode] = useState<Mode>('ai'),
     [raceFormat] = useState<RaceFormat>('race'),
     [onlineEntry, setOnlineEntry] = useState<'free'|'tpg'>(renderOnlineLobby ? 'tpg' : 'free'),
-    [trackId, setTrackId] = useState('skanderbeg'),
+    [trackId, setTrackId] = useState(TRACKS[0].id),
     [difficulty, setDifficulty] = useState('rookie'),
     [paint, setPaint] = useState(0),
     [kartId, setKartId] = useState(() => {
@@ -185,7 +187,7 @@ export default function KartRoyale({
   screenRef.current = screen;
   careerRef.current = career;
   modalRef.current = modal;
-  const track = TRACKS.find((t) => t.id === trackId)!,
+  const track = (TRACKS.find((t) => t.id === normalizeTrack(trackId)) || TRACKS[0]),
     activeTrack = trackId;
   const finish = useRef<(r: Result) => void>(() => {});
   finish.current = (r) => {
@@ -743,6 +745,7 @@ export default function KartRoyale({
               </div>
             </section>
             <section className="kr-controls-panel">
+              {onCareer&&<button className="kr-mode" disabled={!!room || !!session || busy} onClick={() => {if (!busy && !sessionRef.current && !roomRef.current) onCareer();}}>CAREER · TIRANA STREET SERIES</button>}
               <div className="kr-mode-list" aria-label="Race mode">
                 {modes.map((m) => (
                   <button
@@ -973,7 +976,7 @@ export default function KartRoyale({
                         <span>
                           {room.raceFormat==='trial'?'TIME TRIAL · ':room.raceFormat==='combat'?'COMBAT · ':room.raceFormat==='championship'?'CUP · ':''}{room.players.length}/
                           {room.tableId ? room.players.length : 6} ·{' '}
-                          {TRACKS.find((t) => t.id === room.trackId)?.name}
+                          {TRACKS.find((t) => t.id === normalizeTrack(room.trackId))?.name}
                         </span>
                         <button className="kr-text" onClick={leave}>
                           Leave
@@ -1125,7 +1128,7 @@ export default function KartRoyale({
                 : 'ONE MORE LAP? ONE MORE RACE.'}
             </h2>
             <p>
-              {TRACKS.find((t) => t.id === result.trackId)?.name} ·{' '}
+              {TRACKS.find((t) => t.id === normalizeTrack(result.trackId))?.name} ·{' '}
               {formatTime(finishedMe?.finishTime || result.elapsed)}
             </p>
             <RaceDebrief result={result}/>

@@ -6,7 +6,7 @@ import {circuitSides} from './trackEdges.mjs';
 import {placeRaceStartGrid} from './raceStartGrid.mjs';
 import { WORLD } from './racingWorld.mjs';
 /** Pre-authored source-backed routes. Browser and server use identical geometry. */
-export function buildRaceCatalog(legacy,routes,districtRoutes=[],ruralRoutes=[]){
+export function buildRaceCatalog(legacy,routes,districtRoutes=[],additionalRoutes=[]){
  const diagnostics=[],cache=new Map();
  // District extensions retain the six map/save IDs and the shared street graph.
  // Build once per revision; geometry never changes during a running race.
@@ -27,9 +27,13 @@ export function buildRaceCatalog(legacy,routes,districtRoutes=[],ruralRoutes=[])
  if(grand)tracks.push({...legacy.TRACKS.find(t=>t.id==='lana'),...grand,
   widths:widthsFor(grand),
   width:10,roadFeelVersion:1,mapVersion:grand.routeClass==='main-roads'?'tirana-main-roads-v4':'tirana-district-racing-v2',name:'Lana–Pyramid · Boulevard Grand'});
- tracks.push(...ruralRoutes);
+ tracks.push(...additionalRoutes.map(route=>{
+  const widths=widthsFor(route);
+  return {...route,widths,width:Math.max(...widths),roadFeelVersion:1,mapVersion:'tirana-urban-routes-v1'};
+ }));
+ if(new Set(tracks.map(t=>t.id)).size!==tracks.length)throw Error('Duplicate race circuit ID');
  return {tracks,cups:[...legacy.CUPS,...tracks.filter(t=>t.id.endsWith('-grand')).map(t=>({name:t.name+' Cup',track:t.id,difficulty:'street',target:2,reward:500}))],diagnostics,
-  makeTrack(id='skanderbeg'){
+  makeTrack(id=tracks[0]?.id||'skanderbeg'){
    if(typeof id!=='string')throw Error('Choose a valid circuit');
    id=legacy.normalizeTrack(id);
    const config=tracks.find(t=>t.id===id);
@@ -88,7 +92,7 @@ export function buildRaceCatalog(legacy,routes,districtRoutes=[],ruralRoutes=[])
     clearance:(x,z)=>Math.min(buildingClearance(x,z)-1.8,waterClearance(x,z)-.5),
     sides:points=>circuitSides(points,track.width/2)
    });
-   track.mapVersion=config.routeClass==='main-roads'?'tirana-main-roads-v4':RACING_CLEARANCE_VERSION;
+   track.mapVersion=config.mapVersion==='tirana-urban-routes-v1'?config.mapVersion:(config.routeClass==='main-roads'?'tirana-main-roads-v4':RACING_CLEARANCE_VERSION);
    if(track.passingAudit.unresolved.length)diagnostics.push({id,kind:'passing-clearance',...track.passingAudit});
    cache.set(id,track);return track;
   }};

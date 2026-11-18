@@ -36,3 +36,14 @@ Native Blender sources, source checksums, per-building asset hashes and the
 coverage/omissions report are in `assets-source/tirana-city-completion`.
 See `docs/tirana-city-completion.md` for evidence and validation limits.
 No Google Street View, Google Earth or ASIG image textures are shipped.
+
+## Factual place names and authored city panels
+Mapped business/place names identify locations in a fictional game environment.
+Their inclusion does not imply sponsorship, endorsement, affiliation or a paid
+advertising relationship. Fascia positions and dimensions are approximate.
+Toptani's existing mapped-building fascia uses plain text, not copied logo art;
+identity reference: https://toptani.com.al/en/contact-us/ .
+Authored roadside panels read “TIRANË”. These are neutral game scenery, not
+surveyed advertisements or official municipal signs. Nearby tenants do not
+supply commercial identities for these panels. This notice does not grant or
+replace licenses for any third-party artwork already present in the project.

@@ -5,7 +5,7 @@ import {
   resolveKartContact,
   resolveWallContact
 } from '../webapp/src/games/kartroyale/collisions.mjs';
-import { TIRANA_ROUTES } from '../webapp/src/games/kartroyale/tirana-routes.mjs';
+import { URBAN_RACE_ROUTES as TIRANA_ROUTES } from '../webapp/src/games/kartroyale/urban-race-routes.mjs';
 import { WORLD } from '../webapp/src/games/tiranastreets/shared/world.mjs';
 import {
   launchFood,
@@ -30,10 +30,10 @@ const racer = (id = 'a', slot = 0) => {
 };
 const energy = (rs) => rs.reduce((s, r) => s + r.speed * r.speed, 0);
 
-test('nine circuits are available and city routes retain closed, unique mapped street paths', () => {
+test('city circuits are available and retain closed, unique mapped street paths', () => {
   assert.deepEqual(
     TRACKS.map((t) => t.id),
-    ['skanderbeg', 'blloku', 'lana', 'pyramid', 'stadium','lana-pyramid-grand','farke','surrel','liqeni']
+    TIRANA_ROUTES.map(t=>t.id)
   );
   const edges = new Set(
     WORLD.roads
@@ -55,12 +55,13 @@ test('nine circuits are available and city routes retain closed, unique mapped s
     );
     const track = makeTrack(route.id);
     assert.ok(track.points.length >= 360 && track.points.length % 4 === 0);
-    assert.ok(track.length > 1400 && track.length < 4400);
+    assert.ok(track.length > 500 && track.length < 1800);
     for (const p of track.points)
       assert.ok(
         Number.isFinite(p.x) && Number.isFinite(p.z) && Number.isFinite(p.yaw)
       );
-    assert.ok(route.streets.length >= 3);
+    assert.ok(route.streets.length >= 1); // A divided boulevard loop can have one actual street name.
+    assert.ok(route.streets.every(name=>WORLD.roads.some(r=>r.name===name)));
   }
 });
 test('every Tirana circuit is valid in the shared TPG queue; legacy names migrate', () => {
@@ -80,8 +81,8 @@ test('every Tirana circuit is valid in the shared TPG queue; legacy names migrat
     });
     assert.equal(result.ok, true, trackId);
   }
-  assert.equal(makeTrack('harbor').id, 'skanderbeg');
-  assert.equal(makeTrack('coast').id, 'stadium');
+  assert.equal(makeTrack('harbor').id, 'tirana-zogu-pare');
+  assert.equal(makeTrack('coast').id, 'tirana-prokop-mima');
 });
 test('combat and automatic pickups are absent, including stale client inputs', () => {
   assert.equal(simulation.POWERUPS, undefined);
