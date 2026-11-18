@@ -11,7 +11,7 @@ This change prepares a reviewable toolchain and fails closed on oversized native
 
 ## Packaging gate
 
-The signed-release workflow now requires repository variable `GAME_PACK_CDN_BASE_URL` and builds through `build:native-lite`. The value must be a public HTTPS base URL without credentials, query or fragment. Do not put credentials in this variable.
+The signed-release workflow now requires repository variable `GAME_PACK_CDN_BASE_URL` and builds through `build:native-lite`. The value must be a public HTTPS base URL without credentials, query or fragment. Literal IP addresses (including public ones), single-label hosts and local host suffixes are rejected; use a DNS CDN hostname. This syntactic check does not resolve DNS or prove public reachability. Verify DNS, HTTPS access and CORS from an actual device before release. Do not put credentials in this variable.
 
 The existing CDN manifests drive removal of recoverable game payloads. All manifest paths, removable asset sources and symlink boundaries are checked before deletion begins. Covers and explicitly non-removable files remain. Empty directories can now be removed correctly. A post-prune audit checks a nonempty entry point, CDN catalog, prune report, regular files only and a 150 MiB **uncompressed engineering shell budget**. This is not a claim about Play or Apple compressed download limits.
 
@@ -19,7 +19,7 @@ No CDN configuration or production flags were changed. The current generated app
 
 ## Evidence and remaining gates
 
-Local checks: 32 Node tests (9 new native release checks plus existing app manifest/recovery checks), 3 existing pack-delivery Jest tests; explicit scripts ESLint and whitespace validation. Official wrapper and Gradle archive hashes verified; Gradle 8.11.1 runs on installed Java 21. Capacitor Android sync succeeds with all five plugins using a clearly labeled compile-only HTML fixture.
+Local checks: 33 Node tests (10 new native release checks plus existing app manifest/recovery checks), 3 existing pack-delivery Jest tests; explicit scripts ESLint and whitespace validation. Official wrapper and Gradle archive hashes verified; Gradle 8.11.1 runs on installed Java 21. Capacitor Android sync succeeds with all five plugins using a clearly labeled compile-only HTML fixture.
 
 Actual Android compilation has **not passed locally**. This environment has no Android SDK. Online Gradle resolved the Android plugin but stopped at an unwritable default Android config directory; offline execution lacked dependency caches. No signed APK/AAB, emulator, phone or WebGL test was produced. No full multi-gigabyte web build was run for this change.
 

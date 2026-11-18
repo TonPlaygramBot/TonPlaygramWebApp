@@ -1,9 +1,18 @@
 import { lstat, readFile, readdir } from 'node:fs/promises'
 import path from 'node:path'
+import { isIP } from 'node:net'
 import { fileURLToPath, pathToFileURL } from 'node:url'
 export const DEFAULT_NATIVE_WEB_BUDGET = 150 * 1024 * 1024
 export function publicHttpsUrl (value) {
-  try { const u = new URL(value); return u.protocol === 'https:' && !u.username && !u.password && !u.search && !u.hash } catch { return false }
+  try {
+    const u = new URL(value)
+    const hostname = u.hostname.replace(/^\[|\]$/g, '').replace(/\.$/, '').toLowerCase()
+    // Require a DNS CDN name, not literal addresses (including IPv4-normalized
+    // numeric/hex forms or IPv4-mapped IPv6). DNS reachability is a separate gate.
+    if (isIP(hostname) || !hostname.includes('.') ||
+      /(?:^|\.)(?:localhost|local|internal|home\.arpa)$/.test(hostname)) return false
+    return u.protocol === 'https:' && !u.username && !u.password && !u.search && !u.hash
+  } catch { return false }
 }
 /** Engineering shell budget, not an assertion about a store's compressed limit.
  * Reject symlinks so the measured tree is exactly the tree Capacitor will copy. */

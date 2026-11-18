@@ -58,3 +58,10 @@ test('signed-store workflow requires CDN native-lite path and compile CI never p
   assert.match(release, /GAME_PACK_CDN_BASE_URL/); assert.match(release, /run build:native-lite/); assert.match(release, /publicHttpsUrl/)
   assert.match(check, /testDebugUnitTest lintDebug assembleDebug/); assert.doesNotMatch(check, /uses: actions\/upload-artifact|uses: softprops\/action-gh-release/)
 })
+
+test('CDN configuration rejects local hosts and all literal IP address variants', () => {
+  for (const host of ['localhost', 'localhost.', 'cdn.localhost', 'cdn.local', 'cdn.internal', 'router.home.arpa', 'intranet', '127.0.0.1', '127.1', '2130706433', '0x7f000001', '10.0.0.1', '172.16.0.1', '192.168.1.1', '169.254.169.254', '0.0.0.0', '[::1]', '[::]', '[fd00::1]', '[fe80::1]', '[::ffff:127.0.0.1]', '8.8.8.8', '[2606:4700:4700::1111]']) {
+    assert.equal(publicHttpsUrl(`https://${host}/assets`), false, host)
+  }
+  assert.equal(publicHttpsUrl('https://cdn.example.com/assets'), true)
+})
