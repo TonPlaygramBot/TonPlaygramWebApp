@@ -15,10 +15,8 @@ import {
 } from '../utils/userUtils.js';
 
 import authenticate from '../middleware/auth.js';
-import tonClaim from '../utils/tonClaim.js';
 import { blockExternalValueInMobileStore } from '../config/mobileStorePolicy.js';
 
-const WITHDRAW_ENABLED = process.env.WITHDRAW_ENABLED === 'true';
 
 // Track USDT using the official jetton master address on TON
 const USDT_JETTON_HEX =
@@ -372,189 +370,29 @@ router.post('/send', authenticate, async (req, res) => {
 
 });
 
-// ✅ Credit user balance after a TON deposit
-
-router.post('/deposit', authenticate, blockExternalValueInMobileStore, async (req, res) => {
-
-  const { telegramId, accountId, amount } = req.body;
-
-  if ((!telegramId && !accountId) || typeof amount !== 'number' || amount <= 0) {
-
-    return res.status(400).json({ error: 'telegramId or accountId and positive amount required' });
-
-  }
-  let user = await User.findOne(accountId ? { accountId } : { telegramId });
-  if (user && !canAccessUser(req, user)) {
-    return res.status(403).json({ error: 'forbidden' });
-  }
-  if (!user) {
-    user = await User.findOneAndUpdate(
-      accountId ? { accountId } : { telegramId },
-      {
-        $inc: { balance: amount },
-        $setOnInsert: { referralCode: String(accountId || telegramId) }
-      },
-      { upsert: true, new: true, setDefaultsOnInsert: true }
-    );
-  } else {
-    user.balance += amount;
-  }
-
-  ensureTransactionArray(user);
-
-  const tx = {
-    amount,
-    type: 'deposit',
-    token: 'TPG',
-    status: 'delivered',
-    date: new Date()
-  };
-
-  user.transactions.push(tx);
-
-  await user.save();
-
-  try {
-    await sendTPCNotification(
-      bot,
-      user.telegramId,
-      `\u{1FA99} Your deposit of ${amount} TPG was credited`
-    );
-  } catch (err) {
-    console.error('Failed to send Telegram notification:', err.message);
-  }
-
-  res.json({ balance: user.balance, transaction: tx });
-
+// Retired client-asserted credit endpoint. Never trust an amount as payment proof.
+router.post('/deposit', authenticate, blockExternalValueInMobileStore, (_req, res) => {
+  return res.status(403).json({
+    error: 'Direct wallet credits are disabled; a verified settlement is required',
+    code: 'verified_deposit_required'
+  });
 });
 
-// ✅ Request withdrawal to a TON wallet address
-
-router.post('/withdraw', authenticate, blockExternalValueInMobileStore, async (req, res) => {
-
-  if (!WITHDRAW_ENABLED) {
-    return res.status(403).json({ error: 'withdrawals disabled' });
-  }
-
-  const { telegramId, accountId, address, amount } = req.body;
-
-  if ((!telegramId && !accountId) || !address || typeof amount !== 'number' || amount <= 0) {
-
-    return res
-
-      .status(400)
-
-      .json({ error: 'telegramId or accountId, address and positive amount required' });
-
-  }
-  const user = await User.findOne(accountId ? { accountId } : { telegramId });
-  if (!user || !canAccessUser(req, user)) {
-    return res.status(403).json({ error: 'forbidden' });
-  }
-
-  if (!user || user.balance < amount) {
-
-    return res.status(400).json({ error: 'insufficient balance' });
-
-  }
-
-  ensureTransactionArray(user);
-
-  user.balance -= amount;
-
-  const tx = {
-    amount: -amount,
-    type: 'withdraw',
-    token: 'TPG',
-    status: 'pending',
-    date: new Date()
-  };
-
-  user.transactions.push(tx);
-
-  await user.save();
-
-  try {
-    await tonClaim(address, amount);
-    tx.status = 'delivered';
-    await user.save();
-    try {
-      await sendTPCNotification(
-        bot,
-        user.telegramId,
-        `\u{1FA99} Claim of ${amount} TPG sent to ${address}. If it doesn't appear, add TPG using ${TPC_JETTON_ADDRESS}`
-      );
-    } catch (err) {
-      console.error('Failed to send Telegram notification:', err.message);
-    }
-    return res.json({ balance: user.balance, transaction: tx });
-  } catch (err) {
-    console.error('Claim transaction failed:', err.message);
-    user.balance += amount;
-    tx.status = 'failed';
-    user.transactions.pop();
-    await user.save();
-    return res.status(500).json({ error: 'claim failed' });
-  }
-
+// Legacy payout path is disabled as well: no alternative unverified transfer.
+router.post('/withdraw', authenticate, blockExternalValueInMobileStore, (_req, res) => {
+  return res.status(403).json({
+    error: 'Withdrawals are disabled pending verified settlement',
+    code: 'verified_withdrawal_required'
+  });
 });
 
-// ✅ Claim TPG to an external TON wallet
-router.post('/claim-external', authenticate, blockExternalValueInMobileStore, async (req, res) => {
-  const { telegramId, accountId, address, amount } = req.body;
-
-  if ((!telegramId && !accountId) || !address || typeof amount !== 'number' || amount <= 0) {
-    return res
-      .status(400)
-      .json({ error: 'telegramId or accountId, address and positive amount required' });
-  }
-
-  const user = await User.findOne(accountId ? { accountId } : { telegramId });
-  if (!user || !canAccessUser(req, user)) {
-    return res.status(403).json({ error: 'forbidden' });
-  }
-
-  if (!user || user.balance < amount) {
-    return res.status(400).json({ error: 'insufficient balance' });
-  }
-
-  ensureTransactionArray(user);
-
-  user.balance -= amount;
-
-  const tx = {
-    amount: -amount,
-    type: 'withdraw',
-    token: 'TPG',
-    status: 'pending',
-    date: new Date(),
-    address,
-  };
-
-  user.transactions.push(tx);
-  await user.save();
-  try {
-    await tonClaim(address, amount);
-    tx.status = 'delivered';
-    await user.save();
-    try {
-      await sendTPCNotification(
-        bot,
-        user.telegramId,
-        `\u{1FA99} Claim of ${amount} TPG sent to ${address}. If it doesn't appear, add TPG using ${TPC_JETTON_ADDRESS}`
-      );
-    } catch (err) {
-      console.error('Failed to send Telegram notification:', err.message);
-    }
-    return res.json({ balance: user.balance, transaction: tx });
-  } catch (err) {
-    console.error('Claim transaction failed:', err.message);
-    user.balance += amount;
-    tx.status = 'failed';
-    user.transactions.pop();
-    await user.save();
-    return res.status(500).json({ error: 'claim failed' });
-  }
+// DB game balances are not authorization to send mainnet or testnet assets.
+// No configuration flag can reopen this retired, unverified claim endpoint.
+router.post('/claim-external', authenticate, blockExternalValueInMobileStore, (_req, res) => {
+  return res.status(403).json({
+    error: 'External claims are disabled pending verified settlement',
+    code: 'verified_external_claim_required'
+  });
 });
 
 // ✅ Authenticated transaction history
