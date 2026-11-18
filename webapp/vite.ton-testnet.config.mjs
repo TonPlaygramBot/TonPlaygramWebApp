@@ -1,0 +1,2 @@
+import {defineConfig} from 'vite';import react from '@vitejs/plugin-react';import {fileURLToPath} from 'node:url';
+export default defineConfig({plugins:[react()],publicDir:false,build:{outDir:'dist-testnet',emptyOutDir:true,rollupOptions:{input:fileURLToPath(new URL('./ton-testnet.html',import.meta.url))}},server:{host:'127.0.0.1',port:4317,strictPort:true,proxy:{'/api/testnet':'http://127.0.0.1:4318'}}});

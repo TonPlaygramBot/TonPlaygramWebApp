@@ -1,0 +1,11 @@
+import React from 'react';import {createRoot} from 'react-dom/client';import {act} from 'react-dom/test-utils';
+import {beforeEach,afterEach,test,expect,vi} from 'vitest';
+const state=vi.hoisted(()=>({wallet:null}));
+vi.mock('@tonconnect/ui-react',()=>({useTonWallet:()=>state.wallet,TonConnectButton:()=> <button>Connect test wallet</button>}));
+import TestnetLab,{fetchTestnetBalance} from './TestnetLab.jsx';
+const address=`0:${'ab'.repeat(32)}`;let root,host;
+beforeEach(()=>{globalThis.IS_REACT_ACT_ENVIRONMENT=true;host=document.createElement('div');document.body.append(host);root=createRoot(host);state.wallet=null;});
+afterEach(()=>{act(()=>root.unmount());host.remove();vi.restoreAllMocks();});
+test('mainnet session never reads testnet provider or enables purchase',async()=>{globalThis.fetch=vi.fn();state.wallet={account:{chain:'-239',address}};await act(async()=>root.render(<TestnetLab/>));expect(fetch).not.toHaveBeenCalled();expect(host.textContent).toContain('Wrong network');expect([...host.querySelectorAll('button')].find(b=>b.textContent==='Purchase unavailable').disabled).toBe(true);});
+test('returned response must match testnet/account and cannot claim payment verification',async()=>{for(const response of [{chain:'-239',address,paymentVerified:false,balanceNano:'1'},{chain:'-3',address:`0:${'cd'.repeat(32)}`,paymentVerified:false,balanceNano:'1'},{chain:'-3',address,paymentVerified:true,balanceNano:'1'}])await expect(fetchTestnetBalance({chain:'-3',address},undefined,async()=>({ok:true,json:async()=>response}))).rejects.toThrow('Mismatched');});
+test('old balance cannot appear after wallet changes network during read',async()=>{let resolve;globalThis.fetch=vi.fn(()=>new Promise(r=>{resolve=r;}));state.wallet={account:{chain:'-3',address}};await act(async()=>root.render(<TestnetLab/>));expect(host.textContent).toContain('Reading testnet');state.wallet={account:{chain:'-239',address}};await act(async()=>root.render(<TestnetLab/>));await act(async()=>resolve({ok:true,json:async()=>({chain:'-3',address,balanceNano:'1000000000',balanceTon:'1',paymentVerified:false})}));expect(host.textContent).toContain('Wrong network');expect(host.textContent).not.toContain('1 test TON');});

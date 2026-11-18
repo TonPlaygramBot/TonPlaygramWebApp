@@ -36,7 +36,10 @@
     "generate:military-vehicles": "node scripts/build-military-vehicles.mjs",
     "import:tirana-originals": "node scripts/import-tirana-originals.mjs",
     "test:snake": "vitest run --config vitest.snake.config.mjs",
-    "test:fourinrow": "vitest run --config vitest.fourinrow.config.mjs"
+    "test:fourinrow": "vitest run --config vitest.fourinrow.config.mjs",
+    "dev:ton-testnet": "vite --config vite.ton-testnet.config.mjs --open /ton-testnet.html",
+    "build:ton-testnet": "vite build --config vite.ton-testnet.config.mjs",
+    "test:ton-testnet": "vitest run --config vitest.ton-testnet.config.mjs"
   },
   "type": "module",
   "dependencies": {
