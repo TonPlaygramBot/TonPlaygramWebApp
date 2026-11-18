@@ -1,3 +1,4 @@
+import { resolvePoolRoyalCueStrike } from '../webapp/src/pages/Games/snookerRoyalSpinUtils.js';
 import fs from 'node:fs';
 import vm from 'node:vm';
 import { parse } from '@babel/parser';
@@ -47,6 +48,7 @@ function rig() {
     pos: new THREE.Vector2(),
     vel: new THREE.Vector2(),
     spin: new THREE.Vector2(),
+    omega: new THREE.Vector3(),
     pendingSpin: new THREE.Vector2()
   };
   cue.mesh = new THREE.Object3D();
@@ -63,6 +65,7 @@ function rig() {
     balls: [cue],
     cueStick: new THREE.Object3D(),
     resolvePoolRoyalReleasePower,
+    resolvePoolRoyalCueStrike,
     inspectSnookerDirectContact,
     sampleCueStrokeTimeline,
     resolveCueBallContact,
@@ -376,3 +379,23 @@ test.each(['loading', 'error'])('the uploaded table cannot be played while %s', 
   r.advance(220);
   expect(r.cue.vel.length()).toBe(0);
 });
+
+
+test.each([{x:0,y:.75}, {x:0,y:-.75}, {x:.5,y:-.3}])(
+  'actual cue contact preserves shared spin impulse %j and applies it once', (offset) => {
+    const r = rig();
+    r.context.applySpinConstraints = () => offset;
+    r.context.fire(.7);
+    r.advance(120); r.advance(220);
+    const expected = resolvePoolRoyalCueStrike({ spin: offset, direction: {x:0,y:1},
+      speed: 100 * (.1 + .9 * .7), radius: r.context.BALL_R });
+    expect(r.cue.vel.x).toBeCloseTo(expected.velocity.x);
+    expect(r.cue.vel.y).toBeCloseTo(expected.velocity.y);
+    expect(r.cue.omega.toArray()).toEqual([expected.omega.x, expected.omega.y, expected.omega.z]);
+    const omega = r.cue.omega.clone();
+    for (const fn of r.timers.values()) fn();
+    r.advance(500);
+    expect(r.cue.omega.toArray()).toEqual(omega.toArray());
+    expect(r.context.playCueHit).toHaveBeenCalledTimes(1);
+  }
+);

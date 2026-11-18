@@ -65,6 +65,7 @@ const fixture = overrides => vm.createContext({
 test('Snooker uses the same fixed broadcast preset and rail/pocket framing values as Pool', () => {
   const names = [
     'BROADCAST_SYSTEM_OPTIONS', 'DEFAULT_BROADCAST_SYSTEM_ID', 'LOCK_RAIL_OVERHEAD_FRAME',
+    'CAMERA_SWITCH_MIN_HOLD_MS', 'CAMERA_ZOOM_PROFILES',
     'RAIL_OVERHEAD_SCREEN_OFFSET', 'RAIL_OVERHEAD_TOP_VIEW_MIN_RADIUS_SCALE',
     'RAIL_OVERHEAD_TOP_VIEW_RADIUS_SCALE', 'RAIL_OVERHEAD_PHI',
     'RAIL_OVERHEAD_DISTANCE_BIAS', 'RAIL_OVERHEAD_REPLAY_FOV', 'SHOT_CAMERA_HOLD_MS', 'ACTION_CAM', 'POCKET_CAM',
@@ -355,5 +356,50 @@ test('remote corner cuts use observed motion rather than stale local bank or sho
   for (const pocket of ['TM', 'BM']) {
     const { make, ball } = pocketFixture(games[1], { pocket });
     assert.equal(make(ball.id, null, { remoteDirection: ball.vel }), null);
+  }
+});
+
+
+test('short-rail forced pocket cuts require the same predicted and aligned target in both games', () => {
+  for (const predicted of [false, true]) for (const aligned of [false, true]) {
+    const results = games.map(game => {
+      const ball = { id: 'target', active: true, pos: new THREE.Vector2(30, 70), vel: new THREE.Vector2(1, 1) };
+      const center = new THREE.Vector2(40, 80);
+      const context = fixture({
+        shotPrediction: predicted ? { ballId: ball.id, dir: aligned ? new THREE.Vector2(1, 1) : new THREE.Vector2(-1, 1) } : null,
+        SHORT_RAIL_POCKET_TRIGGER: 60, STOP_EPS: .01, TMP_VEC2_VIEW: new THREE.Vector2(),
+        pocketCenters: () => [center], pocketIdFromCenter: () => 'BR',
+        pocketSwitchIntentRef: { current: null }, powerImpactHoldRef: { current: 3000 }
+      });
+      game.evaluate('POCKET_GUARANTEED_ALIGNMENT', context);
+      game.evaluate('maybeForceShortRailPocketView', context)(ball);
+      return plain(context.pocketSwitchIntentRef.current);
+    });
+    assert.deepEqual(results[1], results[0]);
+    assert.equal(Boolean(results[1]), predicted && aligned);
+    if (results[1]) {
+      assert.equal(results[1].allowEarly, false);
+      assert.equal(results[1].preferredPocketId, 'BR');
+    }
+  }
+});
+
+test('post-contact cushion shots suppress pocket cuts identically', () => {
+  for (const avoid of [false, true]) for (const cushion of [false, true]) {
+    const results = games.map(game => game.evaluate('suppressPocketCameras', fixture({
+      broadcastSystemRef: { current: { avoidPocketCameras: avoid } },
+      activeBroadcastSystem: null,
+      shotContextRef: { current: { cushionAfterContact: cushion } }
+    })));
+    assert.deepEqual(results, [avoid || cushion, avoid || cushion]);
+  }
+});
+
+test('cue animation does not acquire the impact camera hold in either game', () => {
+  for (const cueAnimating of [false, true]) {
+    const results = games.map(game => game.evaluate('cameraHoldActive', fixture({
+      shooting: true, powerImpactHoldRef: { current: 2000 }, cueAnimating
+    })));
+    assert.deepEqual(results, [!cueAnimating, !cueAnimating]);
   }
 });
