@@ -5,6 +5,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import GameLiveAvatarOverlay from './GameLiveAvatarOverlay.jsx';
 import AvatarTimer from './AvatarTimer.jsx';
 import PoolLiveAvatar from './PoolLiveAvatar.jsx';
+import SnookerMatchHud from '../pages/Games/SnookerMatchHud.tsx';
 import { buildGameLiveChatRoomId } from '../utils/liveVideoRoom.js';
 
 const { socket, listeners } = vi.hoisted(() => {
@@ -24,10 +25,10 @@ const { socket, listeners } = vi.hoisted(() => {
 vi.mock('../utils/socket.js', () => ({ socket }));
 globalThis.IS_REACT_ACT_ENVIRONMENT = true;
 
-describe.each(['checkersbattleroyal', 'poolroyale'])('%s shared live video', (defaultGame) => {
+describe.each(['checkersbattleroyal', 'poolroyale', 'snookerroyale'])('%s shared live video', (defaultGame) => {
   let root, container, navigate, getUserMedia, stream, connections, gameSlug;
   const roomId = `live-${defaultGame}-match-42`;
-  const avatarSize = defaultGame === 'poolroyale' ? '46.4px' : '52px';
+  const avatarSize = defaultGame === 'snookerroyale' ? '40px' : defaultGame === 'poolroyale' ? '46.4px' : '52px';
   const track = (kind) => ({ kind, enabled: true, stop: vi.fn() });
   const makeStream = (withVideo = true, withAudio = true) => {
     const tracks = [...(withAudio ? [track('audio')] : []), ...(withVideo ? [track('video')] : [])];
@@ -61,10 +62,16 @@ describe.each(['checkersbattleroyal', 'poolroyale'])('%s shared live video', (de
   }
   function Game({ blocked = false }) {
     navigate = useNavigate();
-    return <GameLiveAvatarOverlay gameSlug={gameSlug} onlineOnly={['checkersbattleroyal', 'poolroyale'].includes(gameSlug)}>
+    return <GameLiveAvatarOverlay gameSlug={gameSlug} onlineOnly={['checkersbattleroyal', 'poolroyale', 'snookerroyale'].includes(gameSlug)}>
       <div data-live-video-blocking={blocked ? 'true' : 'false'}>
-        <div data-self-player="false" data-player-index="0">{gameSlug === 'poolroyale' ? <PoolLiveAvatar seat="opponent" alt="Rival" style={{ width: avatarSize, height: avatarSize }} /> : <AvatarTimer index={0} name="Rival" />}<span>Rival</span></div>
-        <div data-self-player="true" data-player-index="1">{gameSlug === 'poolroyale' ? <PoolLiveAvatar seat="self" alt="You" style={{ width: avatarSize, height: avatarSize }} /> : <AvatarTimer index={1} name="You" isTurn active />}<span>You</span></div>
+        {gameSlug === 'snookerroyale' ? <SnookerMatchHud
+          player={{ name: 'You', score: 0 }} opponent={{ name: 'Rival', score: 0 }}
+          playerTurn shooting={false} finished={false} inHand={false}
+          next="red" currentBreak={0} timer={60} mode="Snooker Royal" avatarLayout={{}}
+        /> : <>
+        <div data-self-player="false" data-player-index="0">{['poolroyale', 'snookerroyale'].includes(gameSlug) ? <PoolLiveAvatar seat="opponent" alt="Rival" style={{ width: avatarSize, height: avatarSize }} /> : <AvatarTimer index={0} name="Rival" />}<span>Rival</span></div>
+        <div data-self-player="true" data-player-index="1">{['poolroyale', 'snookerroyale'].includes(gameSlug) ? <PoolLiveAvatar seat="self" alt="You" style={{ width: avatarSize, height: avatarSize }} /> : <AvatarTimer index={1} name="You" isTurn active />}<span>You</span></div>
+        </>}
         <GameplayControls />
       </div>
     </GameLiveAvatarOverlay>;
@@ -103,7 +110,7 @@ describe.each(['checkersbattleroyal', 'poolroyale'])('%s shared live video', (de
       const self = this.closest('[data-self-player="true"]');
       const opponent = this.closest('[data-self-player="false"]');
       const photo = this.tagName === 'IMG';
-      const width = photo ? gameSlug === 'poolroyale' ? 46.4 : 52 : 110;
+      const width = photo ? gameSlug === 'snookerroyale' ? 40 : gameSlug === 'poolroyale' ? 46.4 : 52 : 110;
       return { top: self ? 560 : opponent ? 115 : 0, left: 139, width, height: photo ? width : 80, right: 139 + width, bottom: 640 };
     });
   });
@@ -121,7 +128,7 @@ describe.each(['checkersbattleroyal', 'poolroyale'])('%s shared live video', (de
     await mount();
     expect(getUserMedia).not.toHaveBeenCalled();
     expect(button('Turn on live avatar video').style.width).toBe(avatarSize);
-    if (defaultGame === 'poolroyale') {
+    if (['poolroyale', 'snookerroyale'].includes(defaultGame)) {
       const photo = container.querySelector('[data-pool-avatar="self"]');
       expect(photo.closest('button')).toBe(button('Turn on live avatar video'));
       await act(async () => photo.click());
@@ -164,7 +171,7 @@ describe.each(['checkersbattleroyal', 'poolroyale'])('%s shared live video', (de
     expect(button('Start voice call')).toBeNull();
     expect(button('Start video call')).toBeNull();
     expect(button('Start camera preview') !== null).toBe(
-      defaultGame === 'poolroyale' && new URLSearchParams(search).get('mode') !== 'online'
+      ['poolroyale', 'snookerroyale'].includes(defaultGame) && new URLSearchParams(search).get('mode') !== 'online'
     );
     expect(getUserMedia).not.toHaveBeenCalled();
     expect(socket.emit).not.toHaveBeenCalledWith('liveChat:join', expect.anything());
@@ -180,13 +187,13 @@ describe.each(['checkersbattleroyal', 'poolroyale'])('%s shared live video', (de
     await act(async () => connections[0].ontrack({ streams: [remoteStream] }));
     const video = container.querySelector('video[aria-label="Rival live video"]');
     expect(video.srcObject).toBe(remoteStream);
-    expect(video.muted).toBe(defaultGame === 'poolroyale');
+    expect(video.muted).toBe(['poolroyale', 'snookerroyale'].includes(defaultGame));
     expect(video.playsInline).toBe(true);
     expect(video.parentElement.parentElement.style.top).toBe('115px');
     expect(video.parentElement.parentElement.style.width).toBe(avatarSize);
     expect(video.parentElement.parentElement.style.height).toBe(avatarSize);
     const audio = container.querySelector('audio[aria-label="Rival live audio"]');
-    if (defaultGame === 'poolroyale') {
+    if (['poolroyale', 'snookerroyale'].includes(defaultGame)) {
       expect(audio.srcObject).toBe(remoteStream);
       expect(audio.muted).toBe(false);
       expect(audio.autoplay).toBe(true);
@@ -315,7 +322,7 @@ describe.each(['checkersbattleroyal', 'poolroyale'])('%s shared live video', (de
   });
 
   it('keeps Pool video tied to mounted photos and reattaches the same stream', async () => {
-    if (defaultGame !== 'poolroyale') return;
+    if (!['poolroyale', 'snookerroyale'].includes(defaultGame)) return;
     await mount();
     await click('Turn on live avatar video');
     const photo = container.querySelector('[data-pool-avatar="self"]');
@@ -330,7 +337,7 @@ describe.each(['checkersbattleroyal', 'poolroyale'])('%s shared live video', (de
   });
 
 
-  if (defaultGame === 'poolroyale') {
+  if (['poolroyale', 'snookerroyale'].includes(defaultGame)) {
     it('starts a match video call from the opponent photo', async () => {
       await mount();
       const photo = container.querySelector('[data-pool-avatar="opponent"]');
@@ -356,7 +363,7 @@ describe.each(['checkersbattleroyal', 'poolroyale'])('%s shared live video', (de
       expect(button('Turn camera off')).toBeNull();
       expect(button('Close camera preview')).toBeNull();
       await click('End camera preview');
-      await act(async () => navigate('/games/poolroyale?mode=online'));
+      await act(async () => navigate(`/games/${gameSlug}?mode=online`));
       await frame();
       expect(stream.getVideoTracks()[0].stop).toHaveBeenCalledTimes(1);
       expect(socket.emit).not.toHaveBeenCalled();
@@ -478,7 +485,7 @@ describe.each(['checkersbattleroyal', 'poolroyale'])('%s shared live video', (de
       expect(button('Turn camera on')).toBeNull();
       expect(button('Turn camera off')).toBeNull();
       expect(button('Turn on live avatar video').disabled).toBe(true);
-      expect(container.querySelector('[role="status"]').textContent).toContain('Waiting for opponent');
+      expect([...container.querySelectorAll('[role="status"]')].some(node => node.textContent.includes('Waiting for opponent'))).toBe(true);
       await receive('liveChat:signal', {
         roomId, fromSocketId: 'rival',
         participant: { displayName: 'Rival', mediaState: { camera: false, microphone: true } },
@@ -491,7 +498,7 @@ describe.each(['checkersbattleroyal', 'poolroyale'])('%s shared live video', (de
       expect(audio.srcObject).toBe(remoteStream);
       expect(audio.muted).toBe(false);
       expect(audio.autoplay).toBe(true);
-      expect(container.querySelector('[role="status"]').textContent).toBe('Voice call');
+      expect([...container.querySelectorAll('[role="status"]')].some(node => node.textContent === 'Voice call')).toBe(true);
       const play = HTMLMediaElement.prototype.play;
       play.mockClear();
       await act(async () => document.dispatchEvent(new Event('pointerdown')));
@@ -560,7 +567,7 @@ describe.each(['checkersbattleroyal', 'poolroyale'])('%s shared live video', (de
       expect(getUserMedia).toHaveBeenCalledTimes(1);
       expect(button('End voice call')).not.toBeNull();
       expect(container.querySelector('video')).toBeNull();
-      await act(async () => navigate('/games/poolroyale?mode=online&tableId=next-match'));
+      await act(async () => navigate(`/games/${gameSlug}?mode=online&tableId=next-match`));
       await frame();
       expect(stream.getTracks().every((track) => track.stop.mock.calls.length === 1)).toBe(true);
       expect(socket.emit).toHaveBeenCalledWith('liveChat:leave', { roomId });
@@ -575,7 +582,7 @@ describe.each(['checkersbattleroyal', 'poolroyale'])('%s shared live video', (de
       getUserMedia.mockResolvedValue(stream);
       await mount();
       await click('Start voice call');
-      await act(async () => navigate('/games/poolroyale?mode=ai'));
+      await act(async () => navigate(`/games/${gameSlug}?mode=ai`));
       await frame();
       expect(stream.getTracks().every((track) => track.stop.mock.calls.length === 1)).toBe(true);
       expect(button('Start voice call')).toBeNull();
