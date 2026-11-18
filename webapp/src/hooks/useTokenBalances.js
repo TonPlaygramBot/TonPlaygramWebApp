@@ -117,18 +117,8 @@ export default function useTokenBalances() {
           setExternalBalanceError('Balance is temporarily unavailable.');
         }
       }
-      try {
-        const res = await fetch(
-          `https://tonapi.io/v2/accounts/${encodeURIComponent(walletAddress)}/jettons/EQDY3qbfGN6IMI5d4MsEoprhuMTz09OkqjyhPKX6DVtzbi6X`
-        );
-        if (!res.ok) throw new Error('request failed');
-        const data = await res.json();
-        const decimals = Number(data.jetton?.decimals) || 0;
-        setTpcWalletBalance(Number(data.balance) / 10 ** decimals);
-      } catch (err) {
-        console.error('Failed to load TPG balance:', err);
-        setTpcWalletBalance(0);
-      }
+      // Retired jetton is not TPG. Unknown external balance is not zero.
+      setTpcWalletBalance(null);
       setExternalBalanceStatus(tonLoaded ? 'success' : 'error');
     }
     loadExternal();
@@ -149,6 +139,7 @@ export default function useTokenBalances() {
     tpcBalance,
     tonBalance,
     tpcWalletBalance,
+    externalTpgStatus: 'unavailable',
     telegramId,
     walletAddress,
     externalBalanceStatus,

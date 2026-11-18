@@ -22,11 +22,6 @@ import { blockExternalValueInMobileStore } from '../config/mobileStorePolicy.js'
 const USDT_JETTON_HEX =
   '0:b113a994b5024a16719f69139328eb759596c38a25f59028b146fecdc3621dfe';
 
-// Token root address used when directing users to import TPG
-const TPC_JETTON_ADDRESS =
-  process.env.TPC_JETTON_ADDRESS ||
-  'EQDY3qbfGN6IMI5d4MsEoprhuMTz09OkqjyhPKX6DVtzbi6X';
-
 const router = Router();
 
 function canAccessUser(req, user) {

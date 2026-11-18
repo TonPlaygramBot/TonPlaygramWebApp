@@ -1,13 +1,13 @@
 import { useEffect, useState } from 'react';
 
-export default function useWalletUsdValue(tonBalance, tpcWalletBalance) {
+export default function useWalletUsdValue(tonBalance) {
   const [usdValue, setUsdValue] = useState(null);
 
-  const TPC_ADDRESS = 'EQDY3qbfGN6IMI5d4MsEoprhuMTz09OkqjyhPKX6DVtzbi6X';
+  // TON-only estimate. The retired token has no supported TPG valuation.
 
   useEffect(() => {
     async function load() {
-      if (tonBalance == null && tpcWalletBalance == null) {
+      if (tonBalance == null) {
         setUsdValue(null);
         return;
       }
@@ -35,30 +35,11 @@ export default function useWalletUsdValue(tonBalance, tpcWalletBalance) {
         }
       }
 
-      let tpcPrice = 0;
-      try {
-        const res = await fetch('https://api.dedust.io/v2/pools-lite');
-        const pools = await res.json();
-        const pool = pools.find(
-          (p) =>
-            p.assets.includes('native') &&
-            p.assets.includes(`jetton:${TPC_ADDRESS}`)
-        );
-        if (pool) {
-          const [tonReserve, tpcReserve] = pool.reserves.map((r) => Number(r));
-          const rate = tpcReserve / tonReserve; // TPG per TON
-          if (rate) tpcPrice = tonPrice / rate; // USD per TPG
-        }
-      } catch (err) {
-        console.error('Failed to load TPG price from dedust:', err);
-      }
-
-      const total =
-        (tonBalance ?? 0) * tonPrice + (tpcWalletBalance ?? 0) * tpcPrice;
+      const total = tonBalance * tonPrice;
       setUsdValue(total);
     }
     load();
-  }, [tonBalance, tpcWalletBalance]);
+  }, [tonBalance]);
 
   return usdValue;
 }
