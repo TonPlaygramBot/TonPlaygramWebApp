@@ -95,3 +95,6 @@ webapp/public/vendor/three/examples/jsm/libs/basis/
 
 # Generated public Google client ID, never a client secret.
 /webapp/public/creator-auth-config.json
+
+# Isolated read-only TON lab build
+webapp/dist-testnet/
