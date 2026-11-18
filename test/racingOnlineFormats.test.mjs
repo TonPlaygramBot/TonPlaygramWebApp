@@ -72,77 +72,36 @@ test('multiplayer combat controls every human independently and never substitute
   assert.equal(combat.weapons.a.pulseCooldown, 0);
 });
 
-test('free room hosts select formats, guests cannot alter them, and quick join respects format', async (t) => {
-  const { connect, emit, service } = await setup(t);
-  const host = await connect(), guest = await connect(), quick = await connect();
-  const created = await emit(host, 'create', { trackId: 'skanderbeg', public: true, raceFormat: 'combat' });
-  assert.equal(created.state.raceFormat, 'combat');
-  assert.equal(created.state.tableId, null);
-  await emit(guest, 'join', { code: created.code });
-  assert.equal((await emit(guest, 'config', { raceFormat: 'trial' })).ok, false);
-  await emit(guest, 'ready', { ready: true });
-  const configured = await emit(host, 'config', { raceFormat: 'championship', cupIndex: 1 });
-  assert.equal(configured.state.trackId, CUPS[1].track);
-  assert.equal(configured.state.cupIndex, 1);
-  assert.ok(configured.state.players.every((player) => !player.ready));
-  const other = await emit(quick, 'quick', { trackId: CUPS[1].track, raceFormat: 'trial' });
-  assert.notEqual(other.code, created.code);
-  assert.equal(service.rooms.get(other.code).raceFormat, 'trial');
-});
-
-test('online combat accepts only server-owned weapon inputs, clears stale fire, and stays opt-in', async (t) => {
-  const { connect, emit, tick, service } = await setup(t);
-  const a = await connect(), b = await connect();
-  const created = await emit(a, 'create', { trackId: 'skanderbeg', raceFormat: 'combat' });
-  const joined = await emit(b, 'join', { code: created.code });
-  await emit(a, 'ready', { ready: true }); await emit(b, 'ready', { ready: true });
-  await emit(a, 'start'); await tick(3600);
-  const room = service.rooms.get(created.code);
-  // Keep the network fixture about human ownership rather than rival targeting.
-  for (const racer of room.racers) if (racer.ai) racer.retired = true;
-  a.emit('kart:input', { fire: true, ammo: 9999, health: 9999, playerId: joined.playerId, pulse: true });
-  b.emit('kart:input', { fire: true, shield: true });
-  await new Promise((resolve) => setTimeout(resolve, 10));
-  await tick(100);
-  assert.ok(room.combat.weapons[created.playerId].ammo < 12);
-  assert.ok(room.combat.weapons[joined.playerId].ammo < 12);
-  assert.ok(room.racers.every((racer) => racer.health <= 100));
-  assert.ok(room.combat.weapons[created.playerId].pulseCooldown > 21);
-  assert.equal((await emit(a, 'config', { raceFormat: 'race' })).ok, false);
-  // A tap may be followed by its release before the next server physics tick.
-  a.emit('kart:input', { reload: true }); a.emit('kart:input', { reload: false });
-  await new Promise((resolve) => setTimeout(resolve, 10)); await tick(100);
-  assert.ok(room.combat.weapons[created.playerId].reload > 0, 'queued reload survives a release packet');
-  await tick(1000);
-  assert.ok(Object.values(room.racers.find((racer) => racer.id === created.playerId).combatInput).every((value) => value !== true));
-  assert.equal(room.combat.weapons[joined.playerId].shieldActive, false);
-});
-
-test('online time trial has no AI, contact, slipstream, or client-supplied times', async (t) => {
-  const { connect, emit, tick, service } = await setup(t);
-  const a = await connect(), b = await connect();
-  const created = await emit(a, 'create', { trackId: 'skanderbeg', raceFormat: 'trial' });
-  await emit(b, 'join', { code: created.code });
-  await emit(a, 'ready', { ready: true }); await emit(b, 'ready', { ready: true });
-  await emit(a, 'start'); await tick(3600);
-  const room = service.rooms.get(created.code);
-  assert.equal(room.racers.length, 2);
-  assert.equal(room.combat, null);
-  const [first, second] = room.racers;
-  Object.assign(second, { x: first.x, z: first.z, yaw: first.yaw, velocityYaw: first.velocityYaw, index: first.index, speed: 0 });
-  a.emit('kart:input', { lapTimes: [0.01], lap: 4, finished: true });
-  await tick(100);
-  assert.ok(Math.hypot(first.x - second.x, first.z - second.z) < 0.001, 'overlapping trial karts must not push each other');
-  assert.deepEqual(first.lapTimes, []);
-  assert.equal(first.finished, false);
-  Object.assign(first, { finished: true, finishTime: 150, lapTimes: [50, 50, 50] });
-  Object.assign(second, { finished: true, finishTime: 155, lapTimes: [45, 55, 55] });
-  first.telemetry.bestLap = 50; second.telemetry.bestLap = 45;
-  await tick(100);
-  const state = await emit(a, 'resume', { code: created.code, playerId: created.playerId, token: created.token });
-  assert.equal(state.state.timeTrial, true);
-  assert.equal(state.state.results[0].id, second.id);
-});
+for (const retired of ['combat', 'trial', 'championship']) {
+  test(`legacy ${retired} room requests become ordinary racing`, async (t) => {
+    const { connect, emit, tick, service } = await setup(t);
+    const host = await connect(), guest = await connect();
+    const created = await emit(host, 'create', { trackId: 'skanderbeg', public: true, raceFormat: retired, cupIndex: 1 });
+    assert.equal(created.state.raceFormat, 'race');
+    assert.equal(created.state.cupIndex, null);
+    assert.equal(created.state.trackId, 'skanderbeg');
+    const joined = await emit(guest, 'quick', { trackId: 'skanderbeg', raceFormat: 'race' });
+    assert.equal(joined.code, created.code, 'retired format does not split matchmaking');
+    assert.equal((await emit(guest, 'config', { raceFormat: retired })).ok, false);
+    const configured = await emit(host, 'config', { raceFormat: retired, cupIndex: 2 });
+    assert.equal(configured.state.raceFormat, 'race');
+    assert.equal(configured.state.cupIndex, null);
+    assert.equal(configured.state.trackId, 'skanderbeg');
+    await emit(host, 'ready', { ready: true }); await emit(guest, 'ready', { ready: true });
+    await emit(host, 'start'); await tick(3600);
+    const room = service.rooms.get(created.code);
+    assert.equal(room.combat, null);
+    host.emit('kart:input', { fire: true, pulse: true, reload: true, lapTimes: [0.01], lap: 4, finished: true });
+    await tick(100);
+    const racer = room.racers.find(r => r.id === created.playerId);
+    assert.deepEqual(racer.lapTimes, []);
+    assert.equal(racer.finished, false);
+    const resumed = await emit(host, 'resume', { code: created.code, playerId: created.playerId, token: created.token });
+    assert.equal(resumed.state.raceFormat, 'race');
+    assert.equal(resumed.state.timeTrial, false);
+    assert.equal(resumed.state.combat, null);
+  });
+}
 
 test('paid matches force normal racing and reject combat/trial configuration and weapon input', async (t) => {
   const { connect, emit, tick, service } = await setup(t);

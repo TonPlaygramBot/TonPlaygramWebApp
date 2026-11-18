@@ -23,10 +23,11 @@ export class KartDriver {
   this.root=source.clone(true);this.root.name='Seated racing driver';this.root.position.y=raised?.1:0;
   this.root.traverse(o=>{
    this.joints.set(o.name,o);
-   if(o instanceof T.Mesh){o.material=(o.material as T.Material).clone();o.castShadow=true;
-    const material=o.material as T.MeshStandardMaterial;
+   if(o instanceof T.Mesh){o.material=Array.isArray(o.material)?o.material.map(m=>m.clone()):o.material.clone();o.castShadow=true;
+   for(const material of (Array.isArray(o.material)?o.material:[o.material]) as T.MeshStandardMaterial[]){
     if(material.name==='race_suit')material.color.set(color).lerp(new T.Color('#152535'),.42);
     if(material.name==='helmet_paint')material.color.set(color).lerp(new T.Color('#ffffff'),.5);
+   }
    }
    if(o.name.startsWith('harness_shoulder'))this.harness.push({object:o,position:o.position.clone()});
   });

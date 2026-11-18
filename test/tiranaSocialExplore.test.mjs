@@ -9,7 +9,7 @@ function fixture(){let time=100000;const reports=[];const engine={createState:()
 const sdp={type:'offer',sdp:{type:'offer',sdp:'v=0'}};
 test('Racing modes stay available and removed Streets routes are rejected',()=>{
   assert.equal(gameModeURL('racing','explore'),'/games/kartroyale?mode=ai&activity=explore');
-  assert.equal(gameModeURL('racing','career'),'/games/kartroyale?mode=ai&activity=racing-career');
+  assert.equal(gameModeURL('racing','career'),'/games/kartroyale?mode=ai');
   assert.equal(gameModeURL('racing','multiplayer'),'/games/kartroyale?mode=online');
   for(const mode of ['explore','career','battlefield'])assert.throws(()=>gameModeURL('streets',mode),/Unknown game/);
   assert.throws(()=>gameModeURL('bad','career'));

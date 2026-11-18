@@ -5,6 +5,7 @@ import {ROCK_REPLACEMENT_IDS} from '../tirana-landmarks/skanderbegBuilding.mjs';
 import {VisibilityIndex,selectVisibilityBands} from './shared/visibilityIndex.mjs';
 import {cutChannels, surfaceGeometry} from '../tirana-environment/riverGeometry';
 import {EnvironmentMaterials} from '../tirana-environment/EnvironmentMaterials';
+import {buildingSurfaceUV} from '../tirana-environment/buildingSurfaceUV.mjs';
 import {UrbanRoadCells} from '../tirana-neighbourhood/UrbanRoadCells';
 import {AgedHousingLayer} from '../tirana-city-source/AgedHousingLayer';
 import {AGED_HOUSING_IDS} from '../tirana-city-source/housingRegistry.mjs';
@@ -106,8 +107,12 @@ export class FpsCity {
     const geo = height ? new T.ExtrudeGeometry(shape, { depth: height, bevelEnabled: false, steps: 1 }) : new T.ShapeGeometry(shape);
     geo.rotateX(-Math.PI / 2);
     geo.translate(0, y, 0);
-    const pos = geo.getAttribute('position'), uv = geo.getAttribute('uv');
-    for (let i = 0; i < pos.count; i++) uv.setXY(i, pos.getX(i) / 5, pos.getZ(i) / 5);
+    const pos = geo.getAttribute('position'), uv = geo.getAttribute('uv'), normal = geo.getAttribute('normal');
+    for (let i = 0; i < pos.count; i++) {
+      const [u, v] = buildingSurfaceUV(pos.getX(i), pos.getY(i), pos.getZ(i),
+        normal.getX(i), normal.getY(i), normal.getZ(i), height ? 4 : 5);
+      uv.setXY(i, u, v);
+    }
     return geo;
   }
   private strip(a: number[], b: number[], w: number, y: number) {
@@ -182,6 +187,17 @@ export class FpsCity {
     for(const water of WORLD.water) if(Array.isArray(water)) this.mesh(this.polygon(water,0,.075),this.material(0x557a70));
 
   }
+  private facadeMaterial(color: number) {
+    const key = `facade:${color}`;
+    if (!this.materials.has(key)) {
+      // Reuse the bundled CC0 material already used by the glTF neighbourhood.
+      // Keep trim/glass materials separate and retain mapped palette/footprints.
+      const material = this.surfaceMaterials.create('plastered_wall_02', color, true);
+      material.normalScale.set(.18, .18);
+      this.materials.set(key, material);
+    }
+    return this.materials.get(key)!;
+  }
   private buildings() {
     const replaced = new Set(resolveNativeLandmarks(WORLD).landmarks.map(l => l.buildingId));
     const shells = new Map<string, { parts: T.BufferGeometry[]; material: T.Material; x: number; z: number }>();
@@ -192,7 +208,7 @@ export class FpsCity {
       const p = buildingProfile(b), height = p.height ?? b.h;
       const cx = b.p.reduce((s, v) => s + v[0], 0) / b.p.length, cz = b.p.reduce((s, v) => s + v[1], 0) / b.p.length;
       const key = `${Math.floor(cx / 140)}:${Math.floor(cz / 140)}:${p.color}`;
-      if (!shells.has(key)) shells.set(key, { parts: [], material: this.material(p.color), x: cx, z: cz });
+      if (!shells.has(key)) shells.set(key, { parts: [], material: this.facadeMaterial(p.color), x: cx, z: cz });
       shells.get(key)!.parts.push(this.polygon(b.p, height, 0));
       if(AGED_HOUSING_IDS.has(String(b.id)))continue;
       const trim = this.material(p.trim);

@@ -13,7 +13,6 @@ vi.mock('./renderer',()=>({KartRenderer:class{
 }}));
 vi.mock('./audio',()=>({KartAudio:class{unlock(){}update(){}silence(){}beep(){}destroy(){}setMuted(){}}}));
 import BaseKartRoyale from './BaseKartRoyale';
-import { CUPS } from './simulation.mjs';
 globalThis.IS_REACT_ACT_ENVIRONMENT=true;
 
 it('imports the garage without eagerly constructing all circuit minimaps',()=>{
@@ -35,51 +34,6 @@ it('opens the real garage, prepares only the shown circuit and starts an AI race
  expect(harness.game.destroy).toHaveBeenCalledOnce();
 });
 
-it('starts a solo time trial and saves no career wins or credits from a solo finish',async()=>{
- localStorage.clear();const host=document.createElement('div');document.body.append(host);const root=createRoot(host);
- try{
-  await act(async()=>root.render(<BaseKartRoyale/>));
-  await selectActivity(host,'trial');
-  expect(host.textContent).toContain('Recovering invalidates that lap');
-  expect(host.querySelector('.kr-difficulty')).toBeNull();
-  await act(async()=>host.querySelector('button.kr-start').click());
-  expect(harness.game.startLocal).toHaveBeenCalledWith('skanderbeg','street',false,true);
-  await act(async()=>harness.game.onFinish({timeTrial:true,newBest:true,personalBest:35,ghostSaved:true,trackId:'skanderbeg',playerId:'you',elapsed:110,
-   racers:[{id:'you',name:'You',finished:true,finishTime:110,lap:4,telemetry:{bestLap:35,topSpeed:35,driftDistance:120,draftSeconds:0}}]}));
-  expect(host.textContent).toContain('NEW PERSONAL BEST');
-  expect(host.textContent).not.toContain('VICTORY');
-  expect(localStorage.getItem('tonplaygram.kartroyale.career.v1')).toBeNull();
- }finally{await act(async()=>root.unmount());host.remove();}
-});
-
-it('starts local combat, supports simultaneous controls, and awards no normal career progress',async()=>{
- localStorage.clear();const host=document.createElement('div');document.body.append(host);const root=createRoot(host);
- try{
-  await act(async()=>root.render(<BaseKartRoyale/>));
-  await selectActivity(host,'combat');
-  expect(host.textContent).toContain('no TPG stake or career rewards');
-  await act(async()=>host.querySelector('button.kr-start').click());
-  expect(harness.game.startCombatRace).toHaveBeenCalledWith('skanderbeg','rookie');
-  expect(harness.game.startLocal).not.toHaveBeenCalled();
-  await act(async()=>{window.dispatchEvent(new KeyboardEvent('keydown',{key:'w',bubbles:true}));window.dispatchEvent(new KeyboardEvent('keydown',{key:'f',bubbles:true}));window.dispatchEvent(new KeyboardEvent('keydown',{key:'r',bubbles:true}));});
-  expect(harness.game.input.throttle).toBe(true);expect(harness.game.input.fire).toBe(true);expect(harness.game.combatInput.reload).toBe(true);expect(harness.game.queueCombatReload).toHaveBeenCalledOnce();expect(harness.game.input.reverse).toBe(false);
-  await act(async()=>{window.dispatchEvent(new KeyboardEvent('keydown',{key:'e',bubbles:true}));window.dispatchEvent(new KeyboardEvent('keydown',{key:'e',repeat:true,bubbles:true}));});
-  expect(harness.game.queueCombatPulse).toHaveBeenCalledOnce();
-  await act(async()=>window.dispatchEvent(new KeyboardEvent('keyup',{key:'f',bubbles:true})));
-  expect(harness.game.input.throttle).toBe(true);expect(harness.game.input.fire).toBe(false);
-  await act(async()=>window.dispatchEvent(new Event('blur')));
-  expect(harness.game.combatInput.reload).toBe(false);expect(harness.game.input.throttle).not.toBe(true);
-  await act(async()=>harness.game.onFinish({combat:{player:{kills:2,hits:8}},trackId:'skanderbeg',playerId:'you',elapsed:110,racers:[{id:'you',name:'You',finished:true,finishTime:110,lap:4,telemetry:{bestLap:35,topSpeed:35,driftDistance:120,draftSeconds:0}}]}));
-  expect(host.textContent).toContain('2 rival karts disabled');expect(localStorage.getItem('tonplaygram.kartroyale.career.v1')).toBeNull();
- }finally{await act(async()=>root.unmount());host.remove();}
-});
-
-
-async function selectActivity(host, format) {
- const selector=host.querySelector('[aria-label="Racing activity"]');
- expect(selector).toBeTruthy();
- await act(async()=>{selector.value=format;selector.dispatchEvent(new Event('change',{bubbles:true}));});
-}
 async function clickText(host,text) {
  const button=[...host.querySelectorAll('button')].find(b=>b.textContent.trim()===text);
  expect(button).toBeTruthy();
@@ -99,46 +53,29 @@ function testSocket() {
  return socket;
 }
 
-it('shows only the two entry modes and keeps all race features inside VS AI',async()=>{
+it('offers only normal racing under AI and multiplayer with no retired entrypoints',async()=>{
  localStorage.clear();const host=document.createElement('div');document.body.append(host);const root=createRoot(host);
  try {
   await act(async()=>root.render(<BaseKartRoyale/>));
   expect([...host.querySelectorAll('.kr-mode b')].map(el=>el.textContent)).toEqual(['VS AI','MULTIPLAYER']);
-  expect([...host.querySelector('[aria-label="Racing activity"]').options].map(o=>o.value)).toEqual(['race','championship','combat','trial']);
-  await selectActivity(host,'championship');
-  expect(host.querySelectorAll('.kr-cups button')).toHaveLength(CUPS.length);
+  expect(host.querySelector('[aria-label="Racing activity"]')).toBeNull();
+  expect(host.querySelector('.kr-cups')).toBeNull();
+  for(const label of ['Career', 'Combat race', 'Time trial', 'CITY JOBS & ACTION MISSIONS'])expect(host.textContent).not.toContain(label);
   await act(async()=>host.querySelector('.kr-start').click());
-  expect(harness.game.startLocal).toHaveBeenCalledWith(CUPS[0].track,CUPS[0].difficulty,false);
+  expect(harness.game.startLocal).toHaveBeenCalledWith('skanderbeg','rookie',false);
+  expect(harness.game.startCombatRace).not.toHaveBeenCalled();
  }finally{await act(async()=>root.unmount());host.remove();}
 });
 
-it('exposes the existing career jobs from the nested career activity',async()=>{
- const onCareer=vi.fn();const host=document.createElement('div');document.body.append(host);const root=createRoot(host);
- try {
-  await act(async()=>root.render(<BaseKartRoyale onCareer={onCareer}/>));
-  expect(host.textContent).not.toContain('CITY JOBS & ACTION MISSIONS');
-  await selectActivity(host,'championship');
-  await clickText(host,'CITY JOBS & ACTION MISSIONS');
-  expect(onCareer).toHaveBeenCalledOnce();
- }finally{await act(async()=>root.unmount());host.remove();}
-});
-
-it.each(['combat','trial','championship'])('creates a free online %s room with the selected activity and cup',async(format)=>{
+it('creates a standard free room and retains the selected circuit',async()=>{
  sessionStorage.clear();const socket=testSocket();const host=document.createElement('div');document.body.append(host);const root=createRoot(host);
- const paidLobby=vi.fn(()=> <div data-testid="paid-lobby">PAID MATCHMAKING</div>);
  try {
-  await act(async()=>root.render(<BaseKartRoyale getSocket={async()=>socket} renderOnlineLobby={paidLobby}/>));
+  await act(async()=>root.render(<BaseKartRoyale getSocket={async()=>socket}/>));
   await act(async()=>[...host.querySelectorAll('.kr-mode')].find(b=>b.textContent.includes('MULTIPLAYER')).click());
-  expect(host.querySelector('[data-testid="paid-lobby"]')).not.toBeNull();
-  paidLobby.mockClear();
-  await selectActivity(host,format);
-  expect(host.querySelector('[data-testid="paid-lobby"]')).toBeNull();
-  expect(paidLobby).not.toHaveBeenCalled();
-  if(format==='championship')await act(async()=>host.querySelectorAll('.kr-cups button')[1].click());
   await clickText(host,'Create room');
-  expect(socket.emit).toHaveBeenCalledWith('kart:create',expect.objectContaining({raceFormat:format,cupIndex:format==='championship'?1:0,trackId:format==='championship'?CUPS[1].track:'skanderbeg'}),expect.any(Function));
-  expect(host.querySelector('[aria-label="Racing activity"]').value).toBe(format);
+  expect(socket.emit).toHaveBeenCalledWith('kart:create',expect.objectContaining({raceFormat:'race',trackId:'skanderbeg'}),expect.any(Function));
   expect(host.textContent).toContain('ABCDEF');
+  expect(host.querySelector('[aria-label="Racing activity"]')).toBeNull();
  }finally{await act(async()=>root.unmount());host.remove();sessionStorage.clear();}
 });
 
@@ -153,35 +90,5 @@ it('lets standard multiplayer select free rooms or the existing TPG lobby',async
   await clickText(host,'TPG RACES');
   expect(host.querySelector('[data-testid="paid-lobby"]')).not.toBeNull();
   expect(host.textContent).not.toContain('Create room');
- }finally{await act(async()=>root.unmount());host.remove();sessionStorage.clear();}
-});
-
-it('resets an online cup that is still locked when switching back to VS AI',async()=>{
- localStorage.clear();sessionStorage.clear();const socket=testSocket();const host=document.createElement('div');document.body.append(host);const root=createRoot(host);
- try{
-  await act(async()=>root.render(<BaseKartRoyale getSocket={async()=>socket}/>));
-  await act(async()=>[...host.querySelectorAll('.kr-mode')].find(b=>b.textContent.includes('MULTIPLAYER')).click());
-  await selectActivity(host,'championship');
-  await act(async()=>host.querySelectorAll('.kr-cups button')[2].click());
-  expect(host.querySelectorAll('.kr-cups button')[2].className).toBe('active');
-  await act(async()=>[...host.querySelectorAll('.kr-mode')].find(b=>b.textContent.includes('VS AI')).click());
-  expect(host.querySelectorAll('.kr-cups button')[0].className).toBe('active');
-  expect(host.querySelectorAll('.kr-cups button')[2].disabled).toBe(true);
-  await act(async()=>host.querySelector('button.kr-start').click());
-  expect(harness.game.startLocal).toHaveBeenCalledWith(CUPS[0].track,CUPS[0].difficulty,false);
- }finally{await act(async()=>root.unmount());host.remove();sessionStorage.clear();}
-});
-
-it('shows a ranked online trial lap at timeout even without completing three laps',async()=>{
- localStorage.clear();sessionStorage.clear();const socket=testSocket();const host=document.createElement('div');document.body.append(host);const root=createRoot(host);
- try{
-  await act(async()=>root.render(<BaseKartRoyale getSocket={async()=>socket}/>));
-  await act(async()=>[...host.querySelectorAll('.kr-mode')].find(b=>b.textContent.includes('MULTIPLAYER')).click());
-  await selectActivity(host,'trial');await clickText(host,'Create room');
-  await act(async()=>harness.game.onFinish({online:true,timeTrial:true,trackId:'skanderbeg',playerId:'you',elapsed:900,racers:[{id:'you',name:'You',finished:false,finishTime:0,lap:2,telemetry:{bestLap:105,topSpeed:33,driftDistance:0,draftSeconds:0}}]}));
-  expect(host.querySelector('.kr-finish-place').textContent).toContain('01');
-  expect(host.querySelector('.kr-finish-place').textContent).not.toContain('DNF');
-  expect(host.textContent).toContain('FASTEST LAP.');
-  expect(localStorage.getItem('tonplaygram.kartroyale.career.v1')).toBeNull();
  }finally{await act(async()=>root.unmount());host.remove();sessionStorage.clear();}
 });

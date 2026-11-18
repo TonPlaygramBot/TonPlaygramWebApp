@@ -32,7 +32,6 @@ import type { Quality, Frame, Result, CameraMode } from './renderer';
 import {
   COLORS,
   TRACKS,
-  CUPS,
   KARTS,
   makeTrack,
   normalizeKart
@@ -47,10 +46,6 @@ import './kart-royale.css';
 import './kart-mobile.css';
 import './kart-controls.css';
 type Mode = 'ai' | 'online';
-const raceFormats: {id: RaceFormat; label: string}[] = [
-  {id: 'race', label: 'Race'}, {id: 'championship', label: 'Career'},
-  {id: 'combat', label: 'Combat race'}, {id: 'trial', label: 'Time trial'}
-];
 interface Props {
   getSocket?: () => Promise<Socket>;
   onExit?: () => void;
@@ -112,7 +107,6 @@ function CircuitMap({ id, frame }: { id: string; frame?: Frame | null }) {
 export default function KartRoyale({
   getSocket,
   onExit,
-  onCareer,
   playerName = 'Racer',
   renderOnlineLobby
 }: Props) {
@@ -128,7 +122,7 @@ export default function KartRoyale({
   const [loaded, setLoaded] = useState(false),
     [error, setError] = useState(''),
     [mode, setMode] = useState<Mode>('ai'),
-    [raceFormat, setRaceFormat] = useState<RaceFormat>('race'),
+    [raceFormat] = useState<RaceFormat>('race'),
     [onlineEntry, setOnlineEntry] = useState<'free'|'tpg'>(renderOnlineLobby ? 'tpg' : 'free'),
     [trackId, setTrackId] = useState('skanderbeg'),
     [difficulty, setDifficulty] = useState('rookie'),
@@ -146,7 +140,6 @@ export default function KartRoyale({
     [hud, setHud] = useState<Frame | null>(null),
     [result, setResult] = useState<Result | null>(null),
     [career, setCareer] = useState(loadCareer),
-    [cup, setCup] = useState(0),
     [reward, setReward] = useState(0),
     [saved, setSaved] = useState(true);
   const [cameraMode, setCameraMode] = useState<CameraMode>(() => {
@@ -193,7 +186,7 @@ export default function KartRoyale({
   careerRef.current = career;
   modalRef.current = modal;
   const track = TRACKS.find((t) => t.id === trackId)!,
-    activeTrack = raceFormat === 'championship' ? CUPS[cup].track : trackId;
+    activeTrack = trackId;
   const finish = useRef<(r: Result) => void>(() => {});
   finish.current = (r) => {
     if (done.current) return;
@@ -497,7 +490,7 @@ export default function KartRoyale({
         data =
           action === 'resume'
             ? loadSession()
-            : { name: name.trim() || 'Racer', trackId: activeTrack, code, raceFormat, cupIndex: cup };
+            : { name: name.trim() || 'Racer', trackId: activeTrack, code, raceFormat: 'race' };
       if (!data) throw new Error('No saved race session was found.');
       const r = await request(s, action, data),
         n = {
@@ -605,22 +598,15 @@ export default function KartRoyale({
   const start = () => {
     heldInput.current.clear();combatHeld.current.clear();
     if (!loaded || sessionRef.current) return;
-    if (mode === 'ai' && raceFormat === 'championship' && cup > 0 && !career.cups[cup - 1]) {setCup(0);return;}
     audio.current?.unlock();
     done.current = false;
-    raceCup.current = raceFormat === 'championship' ? cup : null;
+    raceCup.current = null;
     setReward(0);
     setResult(null);
     setHud(null);
     setModal(null);
     setScreen('race');
-    if(raceFormat==='combat')engine.current?.startCombatRace(activeTrack,difficulty);
-    else if(raceFormat==='trial')engine.current?.startLocal(activeTrack,'street',false,true);
-    else engine.current?.startLocal(
-      activeTrack,
-      raceFormat === 'championship' ? CUPS[cup].difficulty : difficulty,
-      false
-    );
+    engine.current?.startLocal(trackId, difficulty, false);
   };
   const touch = (key: 'steer'|'drift'|'boost'|'brake'|'reverse'|'recover', value: number|boolean) => {
     const release = (e: React.PointerEvent<HTMLButtonElement>) => {
@@ -767,7 +753,6 @@ export default function KartRoyale({
                     }
                     key={m.id}
                     onClick={() => {
-                      if(m.id==='ai' && cup>0 && !career.cups[cup-1])setCup(0);
                       setMode(m.id);
                       setNotice('');
                     }}
@@ -784,18 +769,6 @@ export default function KartRoyale({
                     {mode === m.id && <Check className="kr-tick" size={13} />}
                   </button>
                 ))}
-              </div>
-              <div className="kr-options rr-race-features">
-                <label className="kr-label" htmlFor="rr-race-format">{mode === 'ai' ? 'VS AI ACTIVITY' : 'MULTIPLAYER ACTIVITY'}</label>
-                <select id="rr-race-format" className="kr-input" aria-label="Racing activity"
-                  value={room?.raceFormat || raceFormat} disabled={busy || (!!room && (!host || !!room.tableId || room.status !== 'waiting'))}
-                  onChange={e => {const next=e.target.value as RaceFormat;setRaceFormat(next);if(next!=='race')setOnlineEntry('free');if(room)void updateRoom('config',{raceFormat:next,cupIndex:cup,trackId});}}>
-                  {raceFormats.map(f=><option key={f.id} value={f.id}>{f.label}</option>)}
-                </select>
-                {selectedFormat === 'championship' && onCareer && !room && <button className="kr-secondary kr-full" onClick={onCareer}>CITY JOBS &amp; ACTION MISSIONS</button>}
-                {mode==='online' && selectedFormat==='trial' && <p>Race the clock together without kart collisions. The fastest valid completed lap wins.</p>}
-                {mode==='online' && selectedFormat==='combat' && <p>Live combat with friends: fire, shield, reload and EMP. Free rooms only.</p>}
-                {mode==='online' && selectedFormat==='championship' && <p>Compete in cup races with friends. Cup progress and credits save on this device.</p>}
               </div>
               {mode === 'ai' && selectedFormat !== 'championship' && (
                 <div className="kr-options">
@@ -855,52 +828,6 @@ export default function KartRoyale({
                       ))}
                     </div>
                   </div>}
-                  {selectedFormat==='combat'&&<p className="rr-trial-description">Finish the race while rivals fight back. Hold FIRE, block attacks with SHIELD, and use EMP to disrupt nearby rivals for 2.2 seconds. Collect repair, ammo, shield and purple EMP charge pickups. Red warnings show incoming attacks. Local play · no TPG stake or career rewards.</p>}
-                  {selectedFormat==='trial'&&<p className="rr-trial-description">Three flying laps. Chase your best ghost, compare four sector splits, and improve your racing line. Recovering invalidates that lap. Records save for each kart and circuit on this device.</p>}
-                </div>
-              )}
-              {(room?.raceFormat || raceFormat) === 'championship' && (
-                <div className="kr-options">
-                  <div className="kr-section-line">
-                    <span className="kr-label">THE ROAD TO ROYALE</span>
-                    <span>{career.cups.filter(Boolean).length}/3 CUPS</span>
-                  </div>
-                  <div className="kr-cups">
-                    {CUPS.map((c, i) => {
-                      const locked = mode === 'ai' && i > 0 && !career.cups[i - 1];
-                      return (
-                        <button
-                          key={c.name}
-                          disabled={locked || busy || (!!room && (!host || !!room.tableId || room.status !== 'waiting'))}
-                          className={(room?.cupIndex ?? cup) === i ? 'active' : ''}
-                          onClick={() => {setCup(i);if(room)void updateRoom('config',{raceFormat:'championship',cupIndex:i});}}
-                        >
-                          {locked ? (
-                            <LockKeyhole size={22} />
-                          ) : (
-                            <Trophy size={22} />
-                          )}
-                          <b>{c.name}</b>
-                          <small>
-                            {locked
-                              ? 'Win previous cup'
-                              : career.cups[i]
-                                ? '★'.repeat(career.cups[i])
-                                : i === 2
-                                  ? 'Finish 1st'
-                                  : 'Finish top 3'}
-                          </small>
-                        </button>
-                      );
-                    })}
-                  </div>
-                  <div className="kr-career-meta">
-                    <span>
-                      {TRACKS.find((t) => t.id === CUPS[room?.cupIndex ?? cup].track)?.name} · 3
-                      laps
-                    </span>
-                    <b>+{CUPS[room?.cupIndex ?? cup].reward} CR</b>
-                  </div>
                 </div>
               )}
               {mode === 'online' && (
@@ -1361,7 +1288,7 @@ export default function KartRoyale({
                   controls responsive.
                 </p>
                 <p>
-                  Career progress and achievement credits stay on this device.
+                  Race achievements stay on this device.
                 </p>
                 <details className="kr-credits">
                   <summary>Free asset credits</summary>

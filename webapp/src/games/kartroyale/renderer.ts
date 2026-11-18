@@ -1,3 +1,4 @@
+import { KartExhaust } from './KartExhaust';
 import * as T from 'three';
 import {GhostRecorder,ghostKey,sampleGhost,type GhostLap} from './ghostLap.mjs';
 import {trialStandings} from './raceFormats.mjs';
@@ -154,6 +155,7 @@ interface KartRig {
   aero?: T.Object3D;
   lights: T.MeshStandardMaterial[];
   smoke: T.Mesh;
+  exhaust?: KartExhaust;
   chassisScale: T.Vector3;
   bodyPosition: T.Vector3;
   bodyRotation: T.Euler;
@@ -480,13 +482,22 @@ export class KartRenderer {
       if (o instanceof T.Mesh) {
         o.castShadow = true;
         o.receiveShadow = true;
-        const m = (o.material as T.MeshStandardMaterial).clone();
-        if (m.name === 'paint') {
-          const finish = new T.MeshPhysicalMaterial(); T.MeshStandardMaterial.prototype.copy.call(finish, m); finish.color.set(COLORS[slot % 6]);
-          finish.clearcoat = 1; finish.clearcoatRoughness = .22; finish.roughness = .32; finish.metalness = .28;
-          m.dispose(); o.material = finish; return;
-        }
-        o.material = m;
+        const finishMaterial = (original: T.Material) => {
+          const m = original.clone() as T.MeshStandardMaterial;
+          if (m.name === 'paint' && m.isMeshStandardMaterial) {
+            const finish = new T.MeshPhysicalMaterial();
+            T.MeshStandardMaterial.prototype.copy.call(finish, m);
+            finish.color.set(COLORS[slot % 6]);
+            finish.clearcoat = 1; finish.clearcoatRoughness = .22;
+            finish.roughness = .32; finish.metalness = .28;
+            m.dispose(); return finish;
+          }
+          return m;
+        };
+        // Preserve embedded GLTF textures and multi-material bodies, rather than
+        // crashing or flattening the author's material slots on clone.
+        o.material = Array.isArray(o.material)
+          ? o.material.map(finishMaterial) : finishMaterial(o.material);
       }
     });
     const rig: KartRig = {
@@ -527,6 +538,8 @@ export class KartRenderer {
         })
       )
     };
+    rig.exhaust = new KartExhaust();
+    model.add(rig.exhaust.root);
     rig.smoke.geometry.userData.kartOwned = true;
     rig.chassisScale.copy(rig.body.scale);
     rig.bodyPosition.copy(rig.body.position);
@@ -536,7 +549,9 @@ export class KartRenderer {
     model.add(rig.smoke);
     model.traverse((o) => {
       if (/^(character|body_suit|body_visor)$/.test(o.name)) o.visible = false;
-      if (o instanceof T.Mesh && ['energy','brake_light'].includes(o.material.name)) rig.lights.push(o.material as T.MeshStandardMaterial);
+      if (o instanceof T.Mesh) for (const material of Array.isArray(o.material) ? o.material : [o.material]) {
+        if (['energy','brake_light'].includes(material.name) && (material as T.MeshStandardMaterial).isMeshStandardMaterial) rig.lights.push(material as T.MeshStandardMaterial);
+      }
       if (/^wheel_[fr][lr]$/.test(o.name) || o.name.startsWith('wheel-'))
         rig.wheels.push(o);
       if (/^steer_f[lr]$/.test(o.name)) rig.front.push(o);
@@ -550,6 +565,7 @@ export class KartRenderer {
     ) {
       for (const wheel of rig.wheels.filter((w) => w.name.includes('front'))) {
         const pivot = new T.Group();
+        pivot.name = wheel.position.x > 0 ? 'steer_fl' : 'steer_fr';
         pivot.position.copy(wheel.position);
         wheel.parent?.add(pivot);
         pivot.add(wheel);
@@ -827,6 +843,7 @@ export class KartRenderer {
     const steer = Number.isFinite(r.steering) ? r.steering : 0;
     const yawRate = r.yawRate || 0;
     rig.motion.update(r,dt,rig.wheelRadius,this.reducedMotion);
+    rig.exhaust?.update(r,dt,this.motionTime,this.reducedMotion);
     rig.spin = rig.motion.wheelSpin;
     for (const wheel of rig.wheels) {
       wheel.rotation.x = rig.spin;
@@ -1150,19 +1167,19 @@ export class KartRenderer {
       else this.camera.position.copy(eye).applyMatrix4(visual.matrixWorld);
       this.lookTarget.set(
         this.camera.position.x + Math.sin(r.yaw) * 24,
-        this.camera.position.y - 5.5,
+        this.camera.position.y - .3,
         this.camera.position.z + Math.cos(r.yaw) * 24
       );
     } else {
       this.camera.position.set(
-        r.x - Math.sin(r.yaw) * (driver ? 0.1 : 10),
-        (r.groundY||0)+(r.jumpHeight||0)+(driver ? 1.16 : 6),
-        r.z - Math.cos(r.yaw) * (driver ? 0.1 : 10)
+        r.x - Math.sin(r.yaw) * (driver ? 0.1 : 7.8),
+        (r.groundY||0)+(r.jumpHeight||0)+(driver ? 1.16 : 3.7 + Math.max(0,r.speed)*.009),
+        r.z - Math.cos(r.yaw) * (driver ? 0.1 : 7.8)
       );
       this.lookTarget.set(
-        r.x + Math.sin(r.yaw) * 24,
+        r.x + Math.sin(r.yaw) * (driver ? 24 : 6),
         (r.groundY||0)+(r.jumpHeight||0)+(driver ? 1 : 1.25),
-        r.z + Math.cos(r.yaw) * 24
+        r.z + Math.cos(r.yaw) * (driver ? 24 : 6)
       );
     }
     this.camera.near = driver && eye ? 0.04 : 0.15;
@@ -1404,7 +1421,7 @@ export class KartRenderer {
             this.camera.position.y += bob + spring * 0.02;
             this.lookTarget.set(
               this.camera.position.x + Math.sin(steerYaw) * 24,
-              this.camera.position.y - 5.5,
+              this.camera.position.y - .3,
               this.camera.position.z + Math.cos(steerYaw) * 24
             );
             this.camera.near = 0.04;

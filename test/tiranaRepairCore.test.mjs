@@ -15,9 +15,9 @@ test('original garage opens by default and AI URLs do not open a nested menu',()
 test('paid multiplayer/table URLs take priority over Explore or local Career',()=>{
  for(const paid of ['mode=online','tableId=paid-seat','code=ABC123'])assert.equal(racingActivity(`?${paid}&activity=explore`),'race');
 });
-test('retired free-roam URLs return to the garage while explicit career jobs remain available',()=>{
+test('retired free-roam and career URLs return to the garage',()=>{
  for(const query of ['?mode=ai&activity=explore','?activity=city','?mode=free','?mode=career','?activity=explore&exploreRoom=old-room'])assert.equal(racingActivity(query),'race');
- assert.equal(racingActivity('?activity=racing-career'),'career');
+ assert.equal(racingActivity('?activity=racing-career'),'race');
 });
 test('releasing a boost finger retains a separately held steering finger',()=>{
  const input=createHeldRaceInput();input.hold('finger1','steer',1);input.hold('finger2','boost',true);input.release('finger2');assert.deepEqual(input.read(),{steer:1,brake:false,boost:false,drift:false});
