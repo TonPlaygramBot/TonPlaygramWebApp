@@ -1,4 +1,5 @@
 import * as T from 'three';
+import {RealisticFacadeLayer,updateFacadeFallback,updateFacadeShell,type FacadeShellRange} from '../tirana-environment/RealisticFacadeLayer';
 import {CITY_RADIUS} from './renderSettings';
 import {SkanderbegBuildingLayer} from '../tirana-landmarks/SkanderbegBuildingLayer';
 import {ROCK_REPLACEMENT_IDS} from '../tirana-landmarks/skanderbegBuilding.mjs';
@@ -25,8 +26,8 @@ import { LandscapeVisuals } from './landscapeVisuals';
 import { NativeLandmarkLayer } from '../tirana-landmarks/NativeLandmarkLayer';
 import { resolveNativeLandmarks } from '../tirana-landmarks/nativeLocations.mjs';
 
-type Batch = { geometry: T.BufferGeometry; material: T.Material; matrices: T.Matrix4[]; x: number; z: number };
-type Cell = { object: T.Object3D; x: number; z: number; detail: boolean };
+type Batch = { geometry: T.BufferGeometry; material: T.Material; matrices: T.Matrix4[]; x: number; z: number; detail:boolean; facadeIds:string[] };
+type Cell = { object: T.Object3D; x: number; z: number; detail: boolean; facadeIds?:string[]; hiddenMatrices?:Map<number,T.Matrix4>; masked?:boolean };
 const BASE = '/assets/tirana-streets/';
 export const CITY_DETAIL_VISIBILITY = {
   battery: [{radius:180,count:18},{radius:320,count:4},{radius:480,count:2}],
@@ -54,6 +55,10 @@ export class FpsCity {
   private cellFrustum = new T.Frustum();
   private cellProjection = new T.Matrix4();
   private cellBounds = new T.Sphere();
+  readonly realisticFacades:RealisticFacadeLayer;
+  private facadeVersion=-1;
+  private facadeShells:{geometry:T.BufferGeometry;ranges:FacadeShellRange[];saved:Map<string,Float32Array>}[]=[];
+  private facadeId:string|undefined;
   private batches = new Map<string, Batch>();
   private materials = new Map<string, T.MeshStandardMaterial>();
   private textures = new Set<T.Texture>();
@@ -79,13 +84,16 @@ export class FpsCity {
     this.surfaceMaterials = new EnvironmentMaterials(loadAssets);
     this.landscape = new LandscapeVisuals(loadAssets, this.raceClearance);
     this.group.add(this.landscape.group);
+    const facadeExcluded=new Set([...resolveNativeLandmarks(WORLD).landmarks.map(l=>String(l.buildingId)),...ROCK_REPLACEMENT_IDS,...Object.keys(REFERENCE_BUILDINGS),...LANDMARK_REPLACED_IDS,...FUEL_CANOPY_IDS,...AGED_HOUSING_IDS]);
+    this.realisticFacades=new RealisticFacadeLayer(WORLD,facadeExcluded,loadAssets,this.raceClearance);
+    this.group.add(this.realisticFacades.group);
     this.surfaces(loadAssets);
     this.buildings();
     this.square();
     this.flush();
     this.detailIndex = new VisibilityIndex(this.cells.filter(cell=>cell.detail));
     this.group.add(this.landmarks.group, this.referenceFacades.group, this.skanderbegBuilding.group);
-    this.ready = loadAssets ? this.loadFixtures() : Promise.resolve();
+    this.ready = loadAssets ? Promise.all([this.loadFixtures(),this.realisticFacades.ready]).then(()=>{}) : Promise.resolve();
   }
 
   private material(color: number, glass = false) {
@@ -135,10 +143,11 @@ export class FpsCity {
     material: T.Material, yaw = 0, detail = true) {
     const cx = Math.floor(x / 100) * 100 + 50, cz = Math.floor(z / 100) * 100 + 50;
     const key = `${cx}:${cz}:${material.uuid}:${detail}`;
-    if (!this.batches.has(key)) this.batches.set(key, { geometry: this.box, material, matrices: [], x: cx, z: cz });
+    if (!this.batches.has(key)) this.batches.set(key, { geometry: this.box, material, matrices: [], x: cx, z: cz,detail,facadeIds:[] });
     this.dummy.position.set(x, y, z); this.dummy.rotation.set(0, yaw, 0); this.dummy.scale.set(w, h, d);
     this.dummy.updateMatrix();
     this.batches.get(key)!.matrices.push(this.dummy.matrix.clone());
+    this.batches.get(key)!.facadeIds.push(this.facadeId||'');
   }
   private flush() {
     for (const [key, b] of this.batches) {
@@ -146,7 +155,7 @@ export class FpsCity {
       b.matrices.forEach((m, i) => mesh.setMatrixAt(i, m));
       mesh.castShadow = true; mesh.receiveShadow = true; mesh.computeBoundingSphere();
       this.group.add(mesh);
-      this.cells.push({ object: mesh, x: b.x, z: b.z, detail: key.endsWith('true') });
+      this.cells.push({ object: mesh, x: b.x, z: b.z, detail: b.detail,facadeIds:b.facadeIds,hiddenMatrices:b.facadeIds.some(Boolean)?new Map():undefined });
     }
     this.batches.clear();
   }
@@ -203,17 +212,20 @@ export class FpsCity {
     // Existing CC0 rough concrete for caps; plaster belongs on vertical walls.
     const roofMaterial = this.surfaceMaterials.create('rough_concrete', 0xb9b7af);
     const replaced = new Set(resolveNativeLandmarks(WORLD).landmarks.map(l => l.buildingId));
-    const shells = new Map<string, { parts: T.BufferGeometry[]; material: T.Material; x: number; z: number }>();
+    const shells = new Map<string, { parts: T.BufferGeometry[]; ids:string[]; material: T.Material; x: number; z: number }>();
     const glass = this.material(0x355560, true), dark = this.material(0x4e514b), shutters = this.material(0x64776a);
     for (const b of WORLD.buildings) {
       if(b.neighbourhood)continue; // Shared Blender/mapped-neighbourhood layer.
       if (replaced.has(String(b.id)) || ROCK_REPLACEMENT_IDS.has(String(b.id)) || REFERENCE_BUILDINGS[b.id] || LANDMARK_REPLACED_IDS.has(String(b.id)) || FUEL_CANOPY_IDS.has(String(b.id))) continue;
+      this.facadeId=undefined;
       const p = buildingProfile(b), height = p.height ?? b.h;
       const cx = b.p.reduce((s, v) => s + v[0], 0) / b.p.length, cz = b.p.reduce((s, v) => s + v[1], 0) / b.p.length;
       const key = `${Math.floor(cx / 140)}:${Math.floor(cz / 140)}:${p.color}`;
-      if (!shells.has(key)) shells.set(key, { parts: [], material: this.facadeMaterial(p.color), x: cx, z: cz });
+      if (!shells.has(key)) shells.set(key, { parts: [], ids:[], material: this.facadeMaterial(p.color), x: cx, z: cz });
       shells.get(key)!.parts.push(this.polygon(b.p, height, 0));
+      shells.get(key)!.ids.push(String(b.id));
       if(AGED_HOUSING_IDS.has(String(b.id)))continue;
+      this.facadeId=this.realisticFacades.eligibleIds.has(String(b.id))?String(b.id):undefined;
       const trim = this.material(p.trim);
       for (let i = 0; i < b.p.length; i++) {
         const a = b.p[i], c = b.p[(i + 1) % b.p.length], dx = c[0] - a[0], dz = c[1] - a[1], length = Math.hypot(dx, dz);
@@ -263,8 +275,12 @@ export class FpsCity {
         this.instance(cx, height + .7, cz, 2.5, 1.4, 2, dark, 0);
       }
     }
+    this.facadeId=undefined;
     for (const b of shells.values()) {
+      let start=0;
+      const ranges=b.parts.map((part,i)=>{const range={id:b.ids[i],start,count:part.getAttribute('position').count};start+=range.count;return range;}).filter(r=>this.realisticFacades.eligibleIds.has(r.id));
       const geometry = mergeGeometries(b.parts, false);
+      if(geometry&&ranges.length){(geometry.getAttribute('position') as T.BufferAttribute).setUsage(T.DynamicDrawUsage);this.facadeShells.push({geometry,ranges,saved:new Map()});}
       b.parts.forEach(part => part.dispose());
       const mesh = geometry ? new T.Mesh(assignBuildingSurfaceGroups(geometry), [b.material, roofMaterial]) : undefined;
       if (mesh) { mesh.receiveShadow = true; this.group.add(mesh); }
@@ -317,10 +333,23 @@ export class FpsCity {
     // Shared streamed pavements remain the sole surface owner.
   }
   update(camera: T.Vector3, time: number, battery: boolean, viewCamera?: T.PerspectiveCamera) {
+    this.realisticFacades.update(camera,battery);
     if(viewCamera)viewCamera.getWorldDirection(this.cellDirection);
     const viewChanged=!!viewCamera&&(this.cellDirection.distanceToSquared(this.lastCellDirection)>.0025||
       viewCamera.position.distanceToSquared(this.cellCameraPosition)>16||viewCamera.projectionMatrix.elements[0]!==this.cellProjectionWidth||viewCamera.projectionMatrix.elements[5]!==this.cellProjectionHeight);
-    if (viewChanged || this.cellBattery !== battery || (camera.x-this.cellViewer.x)**2 + (camera.z-this.cellViewer.z)**2 > 16) {
+    if (this.facadeVersion!==this.realisticFacades.version || viewChanged || this.cellBattery !== battery || (camera.x-this.cellViewer.x)**2 + (camera.z-this.cellViewer.z)**2 > 16) {
+      if(this.facadeVersion!==this.realisticFacades.version){
+        for(const shell of this.facadeShells)updateFacadeShell(shell.geometry,shell.ranges,this.realisticFacades.activeIds,shell.saved);
+        for(const cell of this.cells){
+          if(!cell.facadeIds||!cell.hiddenMatrices)continue;
+          const masked=cell.facadeIds.some(id=>id&&this.realisticFacades.activeIds.has(id));
+          if(!masked&&!cell.masked)continue;
+          const mesh=cell.object as T.InstancedMesh;
+          updateFacadeFallback(mesh,cell.facadeIds,this.realisticFacades.activeIds,cell.hiddenMatrices);
+          cell.masked=masked;
+        }
+      }
+      this.facadeVersion=this.realisticFacades.version;
       this.cellViewer = {x: camera.x, z: camera.z}; this.cellBattery = battery;
       if(viewCamera){
         this.lastCellDirection.copy(this.cellDirection);this.cellCameraPosition.copy(viewCamera.position);
@@ -360,6 +389,7 @@ export class FpsCity {
   dispose() {
     if(this.disposed)return;
     this.disposed = true;
+    this.realisticFacades.dispose();
     this.surfaceMaterials.dispose();
     this.referenceFacades.dispose();
     this.agedHousing.dispose();this.urbanRoads.dispose();

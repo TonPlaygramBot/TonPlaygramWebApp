@@ -20,7 +20,7 @@ const gamesCatalog = [
     slug: 'kartroyale',
     image: '/assets/kart-royale/cover.webp',
     badge: 'Beta',
-    modes: ['VS AI', 'TPG Multiplayer', 'Career'],
+    modes: ['VS AI', 'TPG Multiplayer'],
     launchLabel: 'Enter Racing Lobby',
     description:
       'Enter your racing lobby for TPG matchmaking, private races, free AI races and on-track pickups.'
