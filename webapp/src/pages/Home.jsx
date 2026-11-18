@@ -54,13 +54,12 @@ export default function Home() {
   const {
     tpcBalance,
     tonBalance,
-    tpcWalletBalance,
     walletAddress: balanceWalletAddress,
     externalBalanceStatus,
     externalBalanceError,
     refreshExternalBalances,
   } = useTokenBalances();
-  const usdValue = useWalletUsdValue(tonBalance, tpcWalletBalance);
+  const usdValue = useWalletUsdValue(tonBalance);
   const tonAddress = useTonAddress();
   const [walletAddress, setWalletAddress] = useState(
     () => tonAddress || getStoredWalletAddress()
@@ -260,8 +259,8 @@ export default function Home() {
         </div>
 
         {walletAddress && (
-          <div className="roll-result text-white text-4xl">
-            {'$' + formatValue(usdValue ?? '...', 2)}
+          <div className="roll-result text-white text-4xl" aria-label="TON-only USD estimate">
+            {'TON only · $' + formatValue(usdValue ?? '...', 2)}
           </div>
         )}
 
@@ -288,7 +287,7 @@ export default function Home() {
                 className="w-8 h-8"
               />
               <span className="text-base">
-                {formatValue(tpcWalletBalance ?? '...', 2)}
+                TPG external unavailable
               </span>
             </div>
           </div>

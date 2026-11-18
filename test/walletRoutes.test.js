@@ -1,218 +1,36 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import fs from 'fs';
-import { spawn } from 'child_process';
-import crypto from 'crypto';
+import express from 'express';
+import {walletRouterUnderTest} from './legacyTokenPayoutRoutes.node.mjs';
 
-const distDir = new URL('../webapp/dist/', import.meta.url);
-
-function createInitData(id, token) {
-  const params = new URLSearchParams();
-  params.set('user', JSON.stringify({ id }));
-  const dataCheckString = [...params.entries()]
-    .map(([k, v]) => `${k}=${v}`)
-    .sort()
-    .join('\n');
-  const secret = crypto
-    .createHmac('sha256', 'WebAppData')
-    .update(token)
-    .digest();
-  const hash = crypto.createHmac('sha256', secret)
-    .update(dataCheckString)
-    .digest('hex');
-  params.set('hash', hash);
-  return params.toString();
-}
-
-
-async function createGoogleAccount(port, googleId) {
-  const res = await fetch(`http://localhost:${port}/api/account/create`, {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      'x-google-id': googleId,
-    },
-    body: JSON.stringify({ googleId, firstName: googleId }),
-  });
-  assert.equal(res.status, 200);
-  return res.json();
-}
-
-async function startServer(env) {
-  const server = spawn('node', ['bot/server.js'], { env, stdio: 'pipe' });
-  server.stdout.on('data', (chunk) => process.stdout.write(chunk));
-  server.stderr.on('data', (chunk) => process.stderr.write(chunk));
-  await new Promise((resolve) => {
-    const onData = (chunk) => {
-      if (chunk.toString().includes('Server running on port')) {
-        server.stdout.off('data', onData);
-        resolve();
-      }
-    };
-    server.stdout.on('data', onData);
-  });
-  return server;
-}
-
-async function deposit(port, token, telegramId, amount) {
-  const res = await fetch(`http://localhost:${port}/api/wallet/deposit`, {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      'x-telegram-init-data': createInitData(telegramId, token),
-    },
-    body: JSON.stringify({ telegramId, amount }),
-  });
-  assert.equal(res.status, 200);
-  await res.json();
-}
-
-test('withdraw route reverts balance on claim failure', { concurrency: false, timeout: 20000 }, async () => {
-  fs.mkdirSync(new URL('assets', distDir), { recursive: true });
-  fs.writeFileSync(new URL('index.html', distDir), '');
-
-  const env = {
-    ...process.env,
-    PORT: '3211',
-    MONGO_URI: 'memory',
-    BOT_TOKEN: 'dummy',
-    WITHDRAW_ENABLED: 'true',
-    SKIP_WEBAPP_BUILD: '1',
-    SKIP_BOT_LAUNCH: '1',
-  };
-  const server = await startServer(env);
-  try {
-    await deposit(3211, 'dummy', 1111, 100);
-    const res = await fetch('http://localhost:3211/api/wallet/withdraw', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'x-telegram-init-data': createInitData(1111, 'dummy'),
-      },
-      body: JSON.stringify({ telegramId: 1111, address: 'EQfake', amount: 50 }),
-    });
-    assert.equal(res.status, 500);
-    const err = await res.json();
-    assert.equal(err.error, 'claim failed');
-    const balRes = await fetch('http://localhost:3211/api/wallet/balance', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'x-telegram-init-data': createInitData(1111, 'dummy'),
-      },
-      body: JSON.stringify({ telegramId: 1111 }),
-    });
-    assert.equal(balRes.status, 200);
-    const bal = await balRes.json();
-    assert.equal(bal.balance, 100);
-  } finally {
-    server.kill();
+test('HTTP payout requests return explicit retirement, never mutate or attempt rollback',async t=>{
+ const priorMobile=process.env.MOBILE_STORE_MODE,priorWithdraw=process.env.WITHDRAW_ENABLED;
+ process.env.MOBILE_STORE_MODE='false';process.env.WITHDRAW_ENABLED='true';
+ globalThis.walletForbiddenEffects=0;
+ const app=express();app.use(express.json());app.use('/api/wallet',walletRouterUnderTest);
+ const server=app.listen(0,'127.0.0.1');
+ await new Promise((resolve,reject)=>{server.once('listening',resolve);server.once('error',reject);});
+ t.after(async()=>{await new Promise(r=>server.close(r));for(const[k,v]of[['MOBILE_STORE_MODE',priorMobile],['WITHDRAW_ENABLED',priorWithdraw]]){if(v===undefined)delete process.env[k];else process.env[k]=v;}delete globalThis.walletForbiddenEffects;delete globalThis.walletTransferFixture;});
+ const base=`http://127.0.0.1:${server.address().port}`;
+ for(const path of ['withdraw','claim-external']){
+  const payload={accountId:'fixture-account',address:'untrusted-address',amount:50};
+  for(let retry=0;retry<2;retry++){
+   const r=await fetch(`${base}/api/wallet/${path}`,{method:'POST',headers:{'content-type':'application/json','x-tpc-account-id':'fixture-account'},body:JSON.stringify(payload)});
+   assert.equal(r.status,403);assert.equal((await r.json()).code,'legacy_token_retired');
   }
-});
+  const unauth=await fetch(`${base}/api/wallet/${path}`,{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify(payload)});
+  assert.equal(unauth.status,401);
+ }
+ assert.equal(globalThis.walletForbiddenEffects,0,'No balance read/write, transaction insert, rollback, notification or TON call');
+ // Preserve the legacy off-chain transfer scenario, but seed the test model
+ // directly rather than manufacturing a credit through an insecure deposit.
+ const sender={accountId:'sender',googleId:'google-sender',balance:75,transactions:[],async save(){}},receiver={accountId:'receiver',googleId:'google-receiver',balance:0,transactions:[],async save(){}};
+ const users={sender,receiver};
+ globalThis.walletTransferFixture={model:{findOne:async q=>users[q.accountId],findOneAndUpdate:async(q,update)=>{const u=users[q.accountId];u.balance+=update.$inc.balance;return u;}}};
+ const sent=await fetch(`${base}/api/wallet/send`,{method:'POST',headers:{'content-type':'application/json','x-google-id':'google-sender'},body:JSON.stringify({fromAccountId:'sender',toAccountId:'receiver',amount:25,note:'fixture transfer'})});
+ assert.equal(sent.status,200);assert.equal((await sent.json()).balance,50);
+ assert.equal(sender.balance,50);assert.equal(receiver.balance,25);
+ assert.equal(sender.transactions[0].type,'send');assert.equal(receiver.transactions[0].type,'receive');
+ delete globalThis.walletTransferFixture;
 
-test('claim-external route reverts balance on claim failure', { concurrency: false, timeout: 20000 }, async () => {
-  fs.mkdirSync(new URL('assets', distDir), { recursive: true });
-  fs.writeFileSync(new URL('index.html', distDir), '');
-
-  const env = {
-    ...process.env,
-    PORT: '3212',
-    MONGO_URI: 'memory',
-    BOT_TOKEN: 'dummy',
-    WITHDRAW_ENABLED: 'true',
-    SKIP_WEBAPP_BUILD: '1',
-    SKIP_BOT_LAUNCH: '1',
-  };
-  const server = await startServer(env);
-  try {
-    await deposit(3212, 'dummy', 2222, 100);
-    const res = await fetch('http://localhost:3212/api/wallet/claim-external', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'x-telegram-init-data': createInitData(2222, 'dummy'),
-      },
-      body: JSON.stringify({ telegramId: 2222, address: 'EQfake', amount: 50 }),
-    });
-    assert.equal(res.status, 500);
-    const err = await res.json();
-    assert.equal(err.error, 'claim failed');
-    const balRes = await fetch('http://localhost:3212/api/wallet/balance', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'x-telegram-init-data': createInitData(2222, 'dummy'),
-      },
-      body: JSON.stringify({ telegramId: 2222 }),
-    });
-    assert.equal(balRes.status, 200);
-    const bal = await balRes.json();
-    assert.equal(bal.balance, 100);
-  } finally {
-    server.kill();
-  }
-});
-
-
-test('google users can transfer TPG using account ids', { concurrency: false, timeout: 20000 }, async () => {
-  fs.mkdirSync(new URL('assets', distDir), { recursive: true });
-  fs.writeFileSync(new URL('index.html', distDir), '');
-
-  const env = {
-    ...process.env,
-    PORT: '3213',
-    MONGO_URI: 'memory',
-    BOT_TOKEN: 'dummy',
-    WITHDRAW_ENABLED: 'true',
-    SKIP_WEBAPP_BUILD: '1',
-    SKIP_BOT_LAUNCH: '1',
-  };
-
-  const server = await startServer(env);
-  try {
-    const sender = await createGoogleAccount(3213, 'google-user-1');
-    const receiver = await createGoogleAccount(3213, 'google-user-2');
-
-    const depositRes = await fetch('http://localhost:3213/api/wallet/deposit', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'x-google-id': 'google-user-1',
-      },
-      body: JSON.stringify({ accountId: sender.accountId, amount: 75 }),
-    });
-    assert.equal(depositRes.status, 200);
-
-    const sendRes = await fetch('http://localhost:3213/api/wallet/send', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'x-google-id': 'google-user-1',
-      },
-      body: JSON.stringify({
-        fromAccountId: sender.accountId,
-        toAccountId: receiver.accountId,
-        amount: 25,
-        note: 'google transfer',
-      }),
-    });
-    assert.equal(sendRes.status, 200);
-    const sendBody = await sendRes.json();
-    assert.equal(sendBody.balance, 50);
-
-    const receiverBalanceRes = await fetch('http://localhost:3213/api/wallet/balance', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'x-google-id': 'google-user-2',
-      },
-      body: JSON.stringify({ accountId: receiver.accountId }),
-    });
-
-    assert.equal(receiverBalanceRes.status, 200);
-    const receiverBalance = await receiverBalanceRes.json();
-    assert.equal(receiverBalance.balance, 25);
-  } finally {
-    server.kill();
-  }
 });

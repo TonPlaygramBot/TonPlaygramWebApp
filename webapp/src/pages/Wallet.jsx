@@ -9,7 +9,6 @@ import {
   getAccountTransactions
 } from '../utils/api.js';
 import { getTelegramId } from '../utils/telegram.js';
-import { STORE_ADDRESS } from '../utils/storeData.js';
 import ConfirmPopup from '../components/ConfirmPopup.jsx';
 import InfoPopup from '../components/InfoPopup.jsx';
 import TransactionDetailsPopup from '../components/TransactionDetailsPopup.jsx';
