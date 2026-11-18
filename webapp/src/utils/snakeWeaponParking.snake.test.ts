@@ -4,7 +4,7 @@ import { beforeAll, afterAll, expect, it, vi } from 'vitest';
 import { readFile } from 'node:fs/promises';
 import * as THREE from 'three';
 import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js';
-import { createSnakeBoardScene, computeDiceThrowLayout, updateSnakeBoardTokens, updateSnakeSeatWeapons, SNAKE_SCENE_DIMENSIONS as D } from '../components/SnakeBoard3D';
+import { createSnakeDie, createSnakeBoardScene, computeDiceThrowLayout, updateSnakeBoardTokens, updateSnakeSeatWeapons, SNAKE_SCENE_DIMENSIONS as D } from '../components/SnakeBoard3D';
 import { SNAKE_CAPTURE_WEAPON_OPTIONS, SNAKE_SHARED_CAPTURE_WEAPON_OPTIONS } from '../config/snakeWeaponCatalog';
 import { createMurlanStyleTable, TABLE_SHAPE_OPTIONS } from './murlanTable';
 import { prepareSnakeFirearm, snakeWeaponProfile } from './snakeWeaponGrip';
@@ -129,3 +129,57 @@ it('keeps every catalog fallback clear of real reserve tokens and other parked w
   }
   await new Promise(resolve => setImmediate(resolve)); loading.mockRestore(); f.table.dispose();
 }, 20000);
+
+it('preserves production die world geometry and table landing height after shrinking the board', () => {
+  const { board, root, anchors, table } = fixture(4);
+  const die = createSnakeDie(); root.add(die);
+  const originalBoardScale = D.boardScale / 0.9;
+  const originalWorldSize = 0.054 * originalBoardScale;
+  expect(D.diceSize * D.boardScale).toBeCloseTo(originalWorldSize, 12);
+  expect(die.userData.gripHalfExtent * D.boardScale).toBeCloseTo(originalWorldSize / 2, 12);
+  for (let seat = 0; seat < 4; seat++) {
+    const layout = computeDiceThrowLayout({ ...board, tableInfo: table, seatAnchors: anchors }, seat, 1);
+    die.position.copy(layout.basePositions[0]); root.updateWorldMatrix(true, true);
+    const center = die.getWorldPosition(new THREE.Vector3());
+    expect(center.y).toBeCloseTo(table.surfaceY + originalWorldSize / 2 + 0.002, 12);
+    const bounds = new THREE.Box3().setFromObject(die);
+    // Box3 includes transformed pip bounds; do not treat it as a collision test.
+    // Pips and rounded rim extend slightly beyond the authored body.
+    const extent = bounds.getSize(new THREE.Vector3());
+    expect(extent.x).toBeCloseTo(0.05278, 5);
+    expect(extent.y).toBeCloseTo(0.05278, 5);
+    expect(extent.z).toBeCloseTo(0.05278, 5);
+  }
+});
+
+it('keeps dice bounds clear of the board on the default production-sized table', () => {
+  const scene = new THREE.Scene();
+  const table = createMurlanStyleTable({ arena: scene, tableRadius: D.tableRadius * D.tableVisualScale, tableHeight: D.tableHeight,
+    topThicknessScale: D.topThicknessScale, includeBase: true, rotationY: 0, textures: false });
+  const root = new THREE.Group(); table.group.add(root);
+  root.position.set(0, table.surfaceY - 0.0025, 0);
+  root.scale.set(D.footprintScale, D.boardScale, D.footprintScale);
+  const board = createSnakeBoardScene(root, new THREE.Vector3(0, table.surfaceY, 0), null);
+  const anchors = Array.from({ length: 4 }, (_, seat) => {
+    const anchor = new THREE.Object3D(); anchor.position.set(0, 1, D.chairRadius).applyAxisAngle(THREE.Object3D.DEFAULT_UP, seat * Math.PI / 2);
+    scene.add(anchor); return anchor;
+  });
+  const footprint = new THREE.Box3().setFromObject(board.rotationRoot);
+  const die = createSnakeDie(); board.root.add(die);
+  for (let seat = 0; seat < 4; seat++) {
+    die.position.copy(computeDiceThrowLayout({ ...board, tableInfo: table, seatAnchors: anchors }, seat, 1).basePositions[0]);
+    scene.updateMatrixWorld(true);
+    const bounds = new THREE.Box3().setFromObject(die);
+    const gap = Math.max(bounds.min.x - footprint.max.x, footprint.min.x - bounds.max.x,
+      bounds.min.z - footprint.max.z, footprint.min.z - bounds.max.z);
+    // Default cardinal seats have ~0.00345 world units between conservative AABBs.
+    expect(gap).toBeGreaterThan(0.003);
+    expect(bounds.intersectsBox(footprint)).toBe(false);
+    for (const x of [bounds.min.x, bounds.max.x]) for (const z of [bounds.min.z, bounds.max.z]) {
+      const direction = new THREE.Vector3(x, 0, z);
+      const radius = table.getOuterRadius?.(direction.clone().normalize()) ?? table.radius;
+      expect(direction.length()).toBeLessThan(radius);
+    }
+  }
+  table.dispose();
+});
