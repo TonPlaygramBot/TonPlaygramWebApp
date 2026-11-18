@@ -1,3 +1,6 @@
+import { ludoParkedWeaponLength } from '../../utils/ludoParkedWeaponScale.js';
+import { resolveLudoFirearmCameraPose, applyLudoCinematicPose, resolveLudoDiceCameraTarget, LUDO_CAMERA_PRESENTATION, resolveLudoBroadcastDuration } from '../../utils/ludoCameraPresentation';
+import { applyLudoSeatedHumanPose as applySeatedHumanPose, alignLudoHumanFeet as alignSeatedHumanFeetToGroundPlane } from '../../utils/ludoSeatedPose.js';
 import { applyTuriSeatedPose } from '../../games/shared/turiSeatedPose.js';
 import { TURI_CHARACTER } from '../../config/playerCharacter.js';
 import { SEATED_PLAYER_VIEW, resolveSeatedPlayerEyePosition } from '../../utils/seatedPlayerView';
@@ -1954,10 +1957,7 @@ async function applyCaptureWeaponDisplay(entry, captureAnimationId) {
     stopCaptureWeaponMixersForObjectTree(child, entry.weaponAnimationMixers);
   });
   entry.weaponHolder.clear();
-  const displayTuning = MAY_9_TABLE_FIREARM_DISPLAY_TUNING_BY_ID[captureAnimationId] ||
-    (LARGE_RACK_FIREARM_IDS.has(captureAnimationId) ? FIREARM_RACK_DISPLAY_TUNING.large : FIREARM_RACK_DISPLAY_TUNING.default);
-  const length = CAPTURE_PARK_BOX_TARGET_SIZE * displayTuning.targetSizeMultiplier *
-    (FIREARM_RACK_SIZE_MULTIPLIER_BY_ID[captureAnimationId] ?? 1) * CAPTURE_PARKED_WEAPON_VISUAL_SCALE;
+  const length = ludoParkedWeaponLength(captureAnimationId);
   const clone = prepareLudoParkedWeapon(weaponModel.clone(true), captureAnimationId, length,
     !!FIREARM_RACK_MUZZLE_YAW_CORRECTION_BY_ID[captureAnimationId]);
 
@@ -3686,7 +3686,7 @@ const AI_ROLL_DELAY_MS = 2000;
 const AI_EXTRA_TURN_DELAY_MS = 1600;
 const HUMAN_ROLL_DELAY_MS = 1880;
 const DICE_RESULT_EXTRA_HOLD_MS = 4500;
-const DICE_RESULT_CAMERA_HOLD_MS = 1500;
+const DICE_RESULT_CAMERA_HOLD_MS = LUDO_CAMERA_PRESENTATION.diceResultHoldMs;
 const ANIMATION_BASE_FPS = 60;
 const MIN_ANIMATION_SPEED_MULTIPLIER = 0.62;
 const MAX_ANIMATION_SPEED_MULTIPLIER = 1.2;
@@ -6289,303 +6289,9 @@ function moveLegRootsToFront(rig, amount = LEG_FRONT_OFFSET_MIXAMO) {
   addBonePos(rig, rig.rightUpperLeg, 0, 0, FRONT_SIDE_Z * amount, 1);
 }
 
-function applySeatedHumanPose(
-  rig,
-  mode = 'idle',
-  intensity = 1,
-  handGrip = 0,
-  throwBias = {},
-  motionTuning = {},
-  chairSupportsArmrest = true
-) {
-  if (!rig) return;
-  resetBoneRig(rig);
-  const t = smoother01(intensity);
-  const breathe = Math.sin(performance.now() * 0.002) * (motionTuning.idleBreathAmp ?? SEATED_HUMAN_MOTION_TUNING.idleBreathAmp);
-  const precision = clamp(motionTuning?.precision ?? 1, 0.8, 1.35);
-  const throwLateral = clamp(throwBias?.lateral ?? 0, -1, 1);
-  const throwForward = clamp(throwBias?.forward ?? 1, -1, 1);
 
-  addBonePos(rig, rig.hips, 0, -0.62, -0.078, 1);
-  moveLegRootsToFront(rig);
-  addBoneRot(rig, rig.hips, -0.16, 0, 0, 1);
-  addBoneRot(rig, rig.spine, 0.26 + breathe, 0, 0, 1);
-  addBoneRot(rig, rig.chest, 0.16, 0, 0, 1);
-  addBoneRot(rig, rig.neck, -0.04, 0, 0, 1);
-  addBoneRot(rig, rig.head, -0.06, 0, 0, 1);
 
-  // Push seated bodies lower on portrait view by folding legs further and dropping hips.
-  addBoneRot(rig, rig.leftUpperLeg, -1.58, 0.16, 0.05, 1);
-  addBoneRot(rig, rig.leftLowerLeg, -1.66, 0.02, 0.01, 1);
-  addBoneRot(rig, rig.leftFoot, 0.26, 0.03, 0.02, 1);
-  addBoneRot(rig, rig.rightUpperLeg, -1.58, 0.03, -0.02, 1);
-  addBoneRot(rig, rig.rightLowerLeg, -1.66, -0.02, -0.01, 1);
-  addBoneRot(rig, rig.rightFoot, 0.26, -0.02, -0.01, 1);
 
-  if (chairSupportsArmrest) {
-    addBoneRot(rig, rig.leftUpperArm, -0.28, 0.12, 0.96, 1);
-    addBoneRot(rig, rig.leftForeArm, -0.62, 0.05, -0.24, 1);
-    addBoneRot(rig, rig.leftHand, -0.16, 0, 0, 1);
-  } else {
-    addBoneRot(rig, rig.leftUpperArm, -0.96, 0.04, 0.08, 1);
-    addBoneRot(rig, rig.leftForeArm, -0.12, 0.02, -0.08, 1);
-    addBoneRot(rig, rig.leftHand, 0.06, 0, 0.02, 1);
-  }
-
-  let shoulderX = chairSupportsArmrest ? -0.2 : -0.98;
-  let shoulderY = chairSupportsArmrest ? -0.02 : -0.03;
-  let shoulderZ = chairSupportsArmrest ? -0.72 : -0.06;
-  let forearmX = chairSupportsArmrest ? -0.5 : -0.12;
-  let forearmY = chairSupportsArmrest ? -0.04 : 0.02;
-  let forearmZ = chairSupportsArmrest ? 0.14 : -0.08;
-  let wristX = chairSupportsArmrest ? -0.08 : 0.04;
-  let wristY = 0;
-  let wristZ = chairSupportsArmrest ? 0.06 : 0.02;
-  let chestX = 0.12;
-  let chestY = 0;
-  let headX = -0.06;
-  let headY = 0;
-  const bodyLockedMode = mode !== 'idle';
-  const isDiceReachMode = mode === 'reachDice' || mode === 'gripDice';
-
-  if (mode === 'firearmAim') {
-    shoulderX = THREE.MathUtils.lerp(shoulderX, -0.96, t);
-    shoulderY = THREE.MathUtils.lerp(shoulderY, -0.09, t);
-    shoulderZ = THREE.MathUtils.lerp(shoulderZ, -1.02, t);
-    forearmX = THREE.MathUtils.lerp(forearmX, -0.22, t);
-    forearmY = THREE.MathUtils.lerp(forearmY, -0.06, t);
-    forearmZ = THREE.MathUtils.lerp(forearmZ, 0.1, t);
-    wristX = THREE.MathUtils.lerp(wristX, 0.1, t);
-    wristY = THREE.MathUtils.lerp(wristY, -0.05, t);
-    wristZ = THREE.MathUtils.lerp(wristZ, -0.18, t);
-    chestX = THREE.MathUtils.lerp(chestX, 0.2, t);
-    headX = THREE.MathUtils.lerp(headX, -0.14, t);
-
-  } else if (mode === 'firearmAimPistol') {
-    shoulderX = THREE.MathUtils.lerp(shoulderX, -0.94, t);
-    shoulderY = THREE.MathUtils.lerp(shoulderY, -0.04, t);
-    shoulderZ = THREE.MathUtils.lerp(shoulderZ, -0.96, t);
-    forearmX = THREE.MathUtils.lerp(forearmX, -0.18, t);
-    forearmY = THREE.MathUtils.lerp(forearmY, -0.04, t);
-    forearmZ = THREE.MathUtils.lerp(forearmZ, 0.07, t);
-    wristX = THREE.MathUtils.lerp(wristX, 0.06, t);
-    wristY = THREE.MathUtils.lerp(wristY, -0.03, t);
-    wristZ = THREE.MathUtils.lerp(wristZ, -0.12, t);
-  } else if (mode === 'firearmAimSmg') {
-    shoulderX = THREE.MathUtils.lerp(shoulderX, -0.98, t);
-    shoulderY = THREE.MathUtils.lerp(shoulderY, -0.1, t);
-    shoulderZ = THREE.MathUtils.lerp(shoulderZ, -1.06, t);
-    forearmX = THREE.MathUtils.lerp(forearmX, -0.26, t);
-    forearmY = THREE.MathUtils.lerp(forearmY, -0.08, t);
-    forearmZ = THREE.MathUtils.lerp(forearmZ, 0.12, t);
-    wristX = THREE.MathUtils.lerp(wristX, 0.12, t);
-    wristY = THREE.MathUtils.lerp(wristY, -0.06, t);
-    wristZ = THREE.MathUtils.lerp(wristZ, -0.2, t);
-  } else if (mode === 'firearmAimRifle') {
-    shoulderX = THREE.MathUtils.lerp(shoulderX, -1.02, t);
-    shoulderY = THREE.MathUtils.lerp(shoulderY, -0.11, t);
-    shoulderZ = THREE.MathUtils.lerp(shoulderZ, -1.12, t);
-    forearmX = THREE.MathUtils.lerp(forearmX, -0.28, t);
-    forearmY = THREE.MathUtils.lerp(forearmY, -0.07, t);
-    forearmZ = THREE.MathUtils.lerp(forearmZ, 0.14, t);
-    wristX = THREE.MathUtils.lerp(wristX, 0.14, t);
-    wristY = THREE.MathUtils.lerp(wristY, -0.07, t);
-    wristZ = THREE.MathUtils.lerp(wristZ, -0.22, t);
-    chestX = THREE.MathUtils.lerp(chestX, 0.22, t);
-    headX = THREE.MathUtils.lerp(headX, -0.16, t);
-  } else if (mode === 'firearmAimShotgun') {
-    shoulderX = THREE.MathUtils.lerp(shoulderX, -1.06, t);
-    shoulderY = THREE.MathUtils.lerp(shoulderY, -0.13, t);
-    shoulderZ = THREE.MathUtils.lerp(shoulderZ, -1.16, t);
-    forearmX = THREE.MathUtils.lerp(forearmX, -0.32, t);
-    forearmY = THREE.MathUtils.lerp(forearmY, -0.1, t);
-    forearmZ = THREE.MathUtils.lerp(forearmZ, 0.16, t);
-    wristX = THREE.MathUtils.lerp(wristX, 0.18, t);
-    wristY = THREE.MathUtils.lerp(wristY, -0.08, t);
-    wristZ = THREE.MathUtils.lerp(wristZ, -0.24, t);
-    chestX = THREE.MathUtils.lerp(chestX, 0.24, t);
-    headX = THREE.MathUtils.lerp(headX, -0.18, t);
-  } else if (mode === 'reachDice') {
-    shoulderX = THREE.MathUtils.lerp(shoulderX, -0.92, t);
-    shoulderY = THREE.MathUtils.lerp(shoulderY, -0.19, t);
-    shoulderZ = THREE.MathUtils.lerp(shoulderZ, -1.22, t);
-    forearmX = THREE.MathUtils.lerp(forearmX, -1.28, t);
-    forearmY = THREE.MathUtils.lerp(forearmY, -0.3, t);
-    forearmZ = THREE.MathUtils.lerp(forearmZ, -0.5, t);
-    wristX = THREE.MathUtils.lerp(wristX, -0.58, t);
-    wristY = THREE.MathUtils.lerp(wristY, 0.14, t);
-    wristZ = THREE.MathUtils.lerp(wristZ, -0.42, t);
-    chestX = THREE.MathUtils.lerp(chestX, 0.34, t);
-    headX = THREE.MathUtils.lerp(headX, -0.2, t);
-  } else if (mode === 'gripDice') {
-    shoulderX = THREE.MathUtils.lerp(shoulderX, -0.9, t);
-    shoulderY = THREE.MathUtils.lerp(shoulderY, -0.2, t);
-    shoulderZ = THREE.MathUtils.lerp(shoulderZ, -1.1, t);
-    forearmX = THREE.MathUtils.lerp(forearmX, -1.22, t);
-    forearmY = THREE.MathUtils.lerp(forearmY, -0.31, t);
-    forearmZ = THREE.MathUtils.lerp(forearmZ, -0.26, t);
-    wristX = THREE.MathUtils.lerp(wristX, -0.62, t);
-    wristY = THREE.MathUtils.lerp(wristY, 0.12, t);
-    wristZ = THREE.MathUtils.lerp(wristZ, -0.28, t);
-    chestX = THREE.MathUtils.lerp(chestX, 0.3, t);
-    headX = THREE.MathUtils.lerp(headX, -0.18, t);
-  } else if (mode === 'holdDice') {
-    shoulderX = THREE.MathUtils.lerp(shoulderX, -0.5, t);
-    shoulderY = THREE.MathUtils.lerp(shoulderY, -0.18, t);
-    shoulderZ = THREE.MathUtils.lerp(shoulderZ, -0.34, t);
-    forearmX = THREE.MathUtils.lerp(forearmX, -1.08, t);
-    forearmY = THREE.MathUtils.lerp(forearmY, -0.1, t);
-    forearmZ = THREE.MathUtils.lerp(forearmZ, 0.38, t);
-    wristX = THREE.MathUtils.lerp(wristX, -0.56, t);
-    wristY = THREE.MathUtils.lerp(wristY, 0.06, t);
-    wristZ = THREE.MathUtils.lerp(wristZ, 0.14, t);
-  } else if (mode === 'windUp') {
-    shoulderX = THREE.MathUtils.lerp(shoulderX, -0.88, t);
-    shoulderY = THREE.MathUtils.lerp(shoulderY, -0.38, t);
-    shoulderZ = THREE.MathUtils.lerp(shoulderZ, -0.22, t);
-    forearmX = THREE.MathUtils.lerp(forearmX, -1.06, t);
-    forearmY = THREE.MathUtils.lerp(forearmY, -0.2, t);
-    forearmZ = THREE.MathUtils.lerp(forearmZ, 0.38, t);
-    wristX = THREE.MathUtils.lerp(wristX, -0.62, t);
-    wristY = THREE.MathUtils.lerp(wristY, -0.12, t);
-    wristZ = THREE.MathUtils.lerp(wristZ, 0.04, t);
-    shoulderY += throwLateral * 0.24 * t * precision;
-    forearmY += throwLateral * 0.14 * t * precision;
-    wristY += throwLateral * 0.08 * t * precision;
-    shoulderZ += (1 - throwForward) * 0.14 * t * precision;
-  } else if (mode === 'release') {
-    shoulderX = THREE.MathUtils.lerp(shoulderX, -1.08, t);
-    shoulderY = THREE.MathUtils.lerp(shoulderY, -0.14, t);
-    shoulderZ = THREE.MathUtils.lerp(shoulderZ, -0.98, t);
-    forearmX = THREE.MathUtils.lerp(forearmX, -0.24, t);
-    forearmY = THREE.MathUtils.lerp(forearmY, -0.06, t);
-    forearmZ = THREE.MathUtils.lerp(forearmZ, 0.08, t);
-    wristX = THREE.MathUtils.lerp(wristX, 0.14, t);
-    wristY = THREE.MathUtils.lerp(wristY, -0.06, t);
-    wristZ = THREE.MathUtils.lerp(wristZ, -0.16, t);
-    shoulderY += throwLateral * 0.34 * t * precision;
-    forearmY += throwLateral * 0.24 * t * precision;
-    wristY += throwLateral * 0.2 * t * precision;
-    shoulderZ += (1 - throwForward) * 0.2 * t * precision;
-  } else if (mode === 'followThrough') {
-    shoulderX = THREE.MathUtils.lerp(shoulderX, -0.8, t);
-    shoulderY = THREE.MathUtils.lerp(shoulderY, -0.12, t);
-    shoulderZ = THREE.MathUtils.lerp(shoulderZ, -0.96, t);
-    forearmX = THREE.MathUtils.lerp(forearmX, -0.18, t);
-    forearmY = THREE.MathUtils.lerp(forearmY, 0.02, t);
-    forearmZ = THREE.MathUtils.lerp(forearmZ, 0.03, t);
-    wristX = THREE.MathUtils.lerp(wristX, 0.06, t);
-    wristY = THREE.MathUtils.lerp(wristY, 0.02, t);
-    wristZ = THREE.MathUtils.lerp(wristZ, -0.2, t);
-    shoulderY += throwLateral * 0.24 * t * precision;
-    forearmY += throwLateral * 0.14 * t * precision;
-    wristY += throwLateral * 0.1 * t * precision;
-  } else if (mode === 'reachToken') {
-    shoulderX = THREE.MathUtils.lerp(shoulderX, -0.82, t);
-    shoulderY = THREE.MathUtils.lerp(shoulderY, 0.06, t);
-    shoulderZ = THREE.MathUtils.lerp(shoulderZ, -0.98, t);
-    forearmX = THREE.MathUtils.lerp(forearmX, -0.78, t);
-    forearmY = THREE.MathUtils.lerp(forearmY, -0.22, t);
-    forearmZ = THREE.MathUtils.lerp(forearmZ, -0.26, t);
-    wristX = THREE.MathUtils.lerp(wristX, -0.2, t);
-    wristY = THREE.MathUtils.lerp(wristY, 0.2, t);
-    wristZ = THREE.MathUtils.lerp(wristZ, -0.22, t);
-  } else if (mode === 'gripToken') {
-    shoulderX = THREE.MathUtils.lerp(shoulderX, -0.88, t);
-    shoulderY = THREE.MathUtils.lerp(shoulderY, 0.02, t);
-    shoulderZ = THREE.MathUtils.lerp(shoulderZ, -0.96, t);
-    forearmX = THREE.MathUtils.lerp(forearmX, -0.84, t);
-    forearmY = THREE.MathUtils.lerp(forearmY, -0.16, t);
-    forearmZ = THREE.MathUtils.lerp(forearmZ, -0.12, t);
-    wristX = THREE.MathUtils.lerp(wristX, -0.36, t);
-    wristY = THREE.MathUtils.lerp(wristY, 0.1, t);
-    wristZ = THREE.MathUtils.lerp(wristZ, -0.08, t);
-  } else if (mode === 'carryToken') {
-    shoulderX = THREE.MathUtils.lerp(shoulderX, -0.86, t);
-    shoulderY = THREE.MathUtils.lerp(shoulderY, -0.02, t);
-    shoulderZ = THREE.MathUtils.lerp(shoulderZ, -1.02, t);
-    forearmX = THREE.MathUtils.lerp(forearmX, -0.62, t);
-    forearmY = THREE.MathUtils.lerp(forearmY, -0.14, t);
-    forearmZ = THREE.MathUtils.lerp(forearmZ, -0.16, t);
-    wristX = THREE.MathUtils.lerp(wristX, -0.06, t);
-    wristY = THREE.MathUtils.lerp(wristY, 0.08, t);
-    wristZ = THREE.MathUtils.lerp(wristZ, -0.08, t);
-  } else if (mode === 'placeToken') {
-    shoulderX = THREE.MathUtils.lerp(shoulderX, -0.78, t);
-    shoulderY = THREE.MathUtils.lerp(shoulderY, 0.03, t);
-    shoulderZ = THREE.MathUtils.lerp(shoulderZ, -0.88, t);
-    forearmX = THREE.MathUtils.lerp(forearmX, -0.98, t);
-    forearmY = THREE.MathUtils.lerp(forearmY, -0.2, t);
-    forearmZ = THREE.MathUtils.lerp(forearmZ, -0.34, t);
-    wristX = THREE.MathUtils.lerp(wristX, -0.38, t);
-    wristY = THREE.MathUtils.lerp(wristY, 0.14, t);
-    wristZ = THREE.MathUtils.lerp(wristZ, -0.2, t);
-  }
-
-  if (SEATED_HUMAN_DOWNWARD_CONTACT_MODE_SET.has(mode)) {
-    wristX = THREE.MathUtils.lerp(wristX, -1.05, t);
-    wristY = THREE.MathUtils.lerp(wristY, -0.28, t);
-    wristZ = THREE.MathUtils.lerp(wristZ, 0.52, t);
-    forearmY = THREE.MathUtils.lerp(forearmY, -0.2, t);
-    forearmZ = THREE.MathUtils.lerp(forearmZ, 0.28, t);
-  }
-
-  if (SEATED_HUMAN_DICE_CONTACT_MODE_SET.has(mode)) {
-    wristX = THREE.MathUtils.lerp(wristX, -0.82, t);
-    wristY = THREE.MathUtils.lerp(wristY, -0.08, t);
-    wristZ = THREE.MathUtils.lerp(wristZ, 0.18, t);
-    forearmY = THREE.MathUtils.lerp(forearmY, -0.24, t);
-    forearmZ = THREE.MathUtils.lerp(forearmZ, 0.12, t);
-  }
-
-  if (bodyLockedMode && !isDiceReachMode) {
-    chestX = 0.12;
-    chestY = 0;
-    headX = -0.06;
-    headY = 0;
-  }
-
-  addBoneRot(rig, rig.chest, chestX, chestY, 0, 1);
-  addBoneRot(rig, rig.head, headX, headY, 0, 1);
-  if (rig.characterId === 'turi') {
-    applyTuriSeatedPose(rig.root);
-    if (rig.rightUpperArm) {
-      rig.rightUpperArm.rotation.x += shoulderX - (chairSupportsArmrest ? -0.2 : -0.98);
-      rig.rightUpperArm.rotation.y += shoulderY - (chairSupportsArmrest ? -0.02 : -0.03);
-      rig.rightUpperArm.rotation.z += shoulderZ - (chairSupportsArmrest ? -0.72 : -0.06);
-    }
-    if (rig.rightForeArm) {
-      rig.rightForeArm.rotation.x += forearmX - (chairSupportsArmrest ? -0.5 : -0.12);
-      rig.rightForeArm.rotation.y += forearmY - (chairSupportsArmrest ? -0.04 : 0.02);
-      rig.rightForeArm.rotation.z += forearmZ - (chairSupportsArmrest ? 0.14 : -0.08);
-    }
-  } else {
-    addBoneRot(rig, rig.rightUpperArm, shoulderX, shoulderY, shoulderZ, 1);
-    addBoneRot(rig, rig.rightForeArm, forearmX, forearmY, forearmZ, 1);
-  }
-  addBoneRot(rig, rig.rightHand, wristX, wristY, wristZ, 1);
-  if (String(mode || '').startsWith('firearmAim')) {
-    applyFirearmTriggerGrip(rig, handGrip);
-    applyLeftHandGrip(rig, Math.max(0.72, handGrip * 0.96));
-  } else {
-    applyRightHandGrip(rig, handGrip);
-  }
-}
-
-function alignSeatedHumanFeetToGroundPlane(actor, rig, clearance = SEATED_HUMAN_FOOT_GROUND_CLEARANCE) {
-  if (!actor?.isObject3D) return;
-  actor.updateMatrixWorld(true);
-  const footBones = [rig?.leftFoot, rig?.rightFoot].filter((bone) => bone?.isBone);
-  if (!footBones.length) return;
-  let minFootY = Infinity;
-  footBones.forEach((bone) => {
-    const worldPos = bone.getWorldPosition(new THREE.Vector3());
-    if (Number.isFinite(worldPos.y)) minFootY = Math.min(minFootY, worldPos.y);
-  });
-  if (!Number.isFinite(minFootY)) return;
-  actor.position.y -= minFootY - clearance;
-  actor.updateMatrixWorld(true);
-}
 
 function createSeatedHumanActionHelpers(actor, rig) {
   const rightHand = rig?.rightHand;
@@ -7298,9 +7004,9 @@ const TOKEN_THINNESS_SCALE = 0.76;
 const TOKEN_HEIGHT_SCALE = 1.1;
 const TOKEN_RAIL_OUTWARD_PUSH = 0.108;
 const CAPTURE_ANIMATION_HEIGHT_COMPENSATION = TABLE_VERTICAL_LOWERING;
-const CAMERA_TURN_VIEW_DURATION_MS = 520;
+const CAMERA_TURN_VIEW_DURATION_MS = LUDO_CAMERA_PRESENTATION.turnMs;
 const CAMERA_BROADCAST_ANIMATION_MS = 700;
-const CAMERA_RETURN_ANIMATION_MS = 760;
+const CAMERA_RETURN_ANIMATION_MS = LUDO_CAMERA_PRESENTATION.returnMs;
 const CAMERA_BROADCAST_DYNAMIC_DURATION = {
   minMs: 460,
   maxMs: 980,
@@ -10568,12 +10274,8 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount, onlin
 
       if (!isCamera2d && camera && controls && dynamicFirearmCameraRef.current && firearmCinematicCameraPoseRef.current) {
         const pose = firearmCinematicCameraPoseRef.current;
-        const lerpFactor = 1 - Math.pow(1 - clamp(pose.lerp ?? 0.28, 0.02, 1), delta * 60);
-        if (pose.position?.isVector3) camera.position.lerp(pose.position, lerpFactor);
-        if (pose.target?.isVector3) {
-          controls.target.lerp(pose.target, Math.min(1, lerpFactor * 1.18));
-          cameraTurnStateRef.current.currentTarget = controls.target.clone();
-        }
+        applyLudoCinematicPose(camera.position, controls.target, pose, delta);
+        if (pose.target?.isVector3) cameraTurnStateRef.current.currentTarget = controls.target.clone();
         controls.update();
       }
 
@@ -11137,19 +10839,9 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount, onlin
             cinematicSide.copy(cameraWorldUp).cross(cinematicAimDir);
             if (cinematicSide.lengthSq() < 1e-7) cinematicSide.set(1, 0, 0);
             cinematicSide.normalize();
-            const shoulderCameraBlend = clamp(elapsed / Math.max(1, preFireLeadMs), 0, 1);
-            // Stable attacker-side aiming view: no dolly/zoom during the volley, just a wider
-            // over-weapon angle so the hand, weapon and target line stay readable without table shrink.
-            cinematicPosition
-              .copy(muzzleOrigin)
-              .addScaledVector(cinematicAimDir, -(singleShotFirearm ? 0.36 : 0.46))
-              .addScaledVector(cinematicSide, singleShotFirearm ? 0.09 : 0.13)
-              .addScaledVector(cameraWorldUp, THREE.MathUtils.lerp(0.12, singleShotFirearm ? 0.16 : 0.18, shoulderCameraBlend));
-            cinematicTarget
-              .copy(muzzleOrigin)
-              .lerp(muzzleTarget, THREE.MathUtils.lerp(0.42, 0.72, shoulderCameraBlend))
-              .addScaledVector(cameraWorldUp, 0.018);
-            setFirearmCinematicPose(cinematicPosition, cinematicTarget, elapsed < pickupLeadMs ? 0.1 : 0.18);
+            const shoulderPose = resolveLudoFirearmCameraPose({ muzzle: muzzleOrigin, target: muzzleTarget,
+              singleShot: singleShotFirearm, elapsed, preFireLeadMs, pickupLeadMs });
+            setFirearmCinematicPose(shoulderPose.position, shoulderPose.target, shoulderPose.lerp);
             muzzleFx.root.position.copy(muzzleOrigin);
             muzzleFx.root.visible = elapsed >= preFireLeadMs && elapsedShooting >= 0 && elapsedShooting < shots * cadenceMs;
             targetReticle.root.position.copy(muzzleTarget);
@@ -11268,13 +10960,9 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount, onlin
               cinematicSide.copy(cameraWorldUp).cross(bulletDir);
               if (cinematicSide.lengthSq() < 1e-7) cinematicSide.set(1, 0, 0);
               cinematicSide.normalize();
-              cinematicPosition
-                .copy(leadBulletPos)
-                .addScaledVector(bulletDir, -0.15)
-                .addScaledVector(cinematicSide, singleShotFirearm ? 0.018 : 0.03);
-              cinematicPosition.addScaledVector(cameraWorldUp, singleShotFirearm ? 0.07 : 0.082);
-              cinematicTarget.copy(leadBulletPos).addScaledVector(bulletDir, 0.34);
-              setFirearmCinematicPose(cinematicPosition, cinematicTarget, 0.72);
+              const projectilePose = resolveLudoFirearmCameraPose({ muzzle: muzzleOrigin, target: muzzleTarget,
+                singleShot: singleShotFirearm, phase: 'projectile', projectile: leadBulletPos });
+              setFirearmCinematicPose(projectilePose.position, projectilePose.target, projectilePose.lerp);
               if (leadBulletMesh && Number(leadBulletMesh.userData?.shotIndex ?? -1) >= shots - 1) {
                 aerodynamicRings.visible = true;
                 aerodynamicRings.position.copy(leadBulletPos);
@@ -11338,13 +11026,8 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount, onlin
               cinematicSide.copy(cameraWorldUp).cross(impactDir);
               if (cinematicSide.lengthSq() < 1e-7) cinematicSide.set(1, 0, 0);
               cinematicSide.normalize();
-              cinematicPosition
-                .copy(muzzleTarget)
-                .addScaledVector(impactDir, -0.28)
-                .addScaledVector(cinematicSide, 0.08)
-                .addScaledVector(cameraWorldUp, 0.16);
-              cinematicTarget.copy(muzzleTarget).addScaledVector(cameraWorldUp, 0.018);
-              setFirearmCinematicPose(cinematicPosition, cinematicTarget, 0.62);
+              const impactPose = resolveLudoFirearmCameraPose({ muzzle: muzzleOrigin, target: muzzleTarget, phase: 'impact' });
+              setFirearmCinematicPose(impactPose.position, impactPose.target, impactPose.lerp);
             }
             if (elapsed < durationMs) {
               requestAnimationFrame(tickFirearm);
@@ -12202,10 +11885,8 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount, onlin
     anchor.getWorldPosition(seatWorld);
     const sideBlend =
       seatIndex === 1 || seatIndex === 3 ? CAMERA_SIDE_AVATAR_BLEND : CAMERA_BROADCAST_TARGET_BLEND;
-    const target = boardLookTarget
-      .clone()
-      .lerp(seatWorld, CAMERA_TURN_PLAYER_LERP * sideBlend);
-    target.y = (arena.tableInfo?.surfaceY ?? boardLookTarget.y) + offset;
+    const target = resolveLudoDiceCameraTarget(boardLookTarget, seatWorld, seatIndex,
+      arena.tableInfo?.surfaceY ?? boardLookTarget.y, offset);
     const direction = seatWorld.clone().sub(boardLookTarget).setY(0);
     if (direction.lengthSq() < 1e-6) return null;
     direction.normalize();
@@ -12393,14 +12074,7 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount, onlin
     const camera = cameraRef.current;
     if (!camera || !target?.isVector3) return CAMERA_BROADCAST_ANIMATION_MS;
     const distance = camera.position.distanceTo(target);
-    const dynamicMs =
-      CAMERA_BROADCAST_ANIMATION_MS +
-      (distance - 3.2) * CAMERA_BROADCAST_DYNAMIC_DURATION.distanceMultiplierMs;
-    return clamp(
-      dynamicMs,
-      CAMERA_BROADCAST_DYNAMIC_DURATION.minMs,
-      CAMERA_BROADCAST_DYNAMIC_DURATION.maxMs
-    );
+    return resolveLudoBroadcastDuration(distance);
   }, []);
 
   const setCameraFocus = useCallback(

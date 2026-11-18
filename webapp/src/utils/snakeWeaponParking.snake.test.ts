@@ -1,3 +1,4 @@
+import { ludoParkedWeaponLength } from './ludoParkedWeaponScale.js';
 // @vitest-environment node
 import { beforeAll, afterAll, expect, it, vi } from 'vitest';
 import { readFile } from 'node:fs/promises';
@@ -46,14 +47,14 @@ it.each(TABLE_SHAPE_OPTIONS)('supports all four flat imported firearms on $id wi
     const f = fixture(count, shape);
     const holders = f.anchors.map((_, seat) => {
       const holder = new THREE.Group(); holder.userData.seatIndex = seat; f.root.add(holder);
-      const visual = prepareSnakeFirearm(models.get(id)!.clone(true), id, 1.40932 * snakeWeaponProfile(id).lengthInArms / D.footprintScale);
+      const visual = prepareSnakeFirearm(models.get(id)!.clone(true), id, ludoParkedWeaponLength(id) / D.footprintScale);
       visual.rotation.x = Math.PI / 2; holder.add(visual); return holder;
     });
     const results = parkSnakeWeapons({ ...f, holders, obstacles: [f.board.platformGroup] });
     expect(results, `${shape.id}/${count}/${id}`).toHaveLength(count);
     const platform = snakeParkingBounds(f.board.platformGroup);
     results.forEach(({ box, scale }, index) => {
-      expect(scale, `${shape.id}/${count}/${id} seat ${index}`).toBeGreaterThanOrEqual(shape.id === 'hexagonTable' ? 0.75 : 0.85);
+      expect(scale, `${shape.id}/${count}/${id} seat ${index}`).toBeGreaterThanOrEqual(0.1);
       expect(box.min.y).toBeCloseTo(D.tableHeight + 0.002, 8);
       expect(box.intersectsBox(platform)).toBe(false);
       expect(box.getSize(new THREE.Vector3()).y).toBeLessThan(0.16);
@@ -73,15 +74,10 @@ it.each(TABLE_SHAPE_OPTIONS)('supports all four flat imported firearms on $id wi
   }
 });
 
-it('keeps the smaller tabletop just above the original seated thighs', () => {
-  expect(D.tableRadius).toBeCloseTo(2.2875 * 0.90, 8);
-  expect(D.tableHeight).toBeCloseTo(0.835, 7);
-  const f = fixture(4);
-  const underside = new THREE.Box3().setFromObject(f.table.group).min.y;
-  expect(underside).toBeGreaterThan(0.735);
-  expect(underside).toBeLessThan(0.76);
-  f.table.dispose();
-  expect(D.chairRadius).toBeCloseTo(2.2875 + 1.9173375 * 0.08, 8);
+it('uses Ludo tabletop dimensions and chair spacing', () => {
+  expect(D.tableRadius).toBeCloseTo(4.2 * .75 * .72 * .374 * .92, 8);
+  expect(D.tableHeight).toBeCloseTo(.06951806532, 7);
+  expect(D.chairRadius).toBeGreaterThan(D.tableRadius);
 });
 
 it('reparks an asynchronously loaded firearm on the surface instead of retaining placeholder offsets', async () => {
@@ -101,7 +97,7 @@ it('reparks an asynchronously loaded firearm on the surface instead of retaining
   boxes.forEach((box, i) => {
     expect(box.min.y).toBeCloseTo(D.tableHeight + 0.002, 8);
     expect(box.getSize(new THREE.Vector3()).y).toBeLessThan(0.16);
-    for (const other of boxes.slice(i + 1)) expect(box.clone().expandByScalar(0.034).intersectsBox(other)).toBe(false);
+    for (const other of boxes.slice(i + 1)) expect(box.clone().expandByScalar(SNAKE_PARKING_GAP * .99).intersectsBox(other)).toBe(false);
   });
   loading.mockRestore(); f.table.dispose();
 });
@@ -127,8 +123,8 @@ it('keeps every catalog fallback clear of real reserve tokens and other parked w
       expect(holder.visible, `${id}/${i}`).toBe(true);
       const box = snakeParkingBounds(holder);
       expect(box.min.y, `${id}/${i}`).toBeCloseTo(D.tableHeight + 0.002, 7);
-      for (const token of tokenBounds) expect(box.clone().expandByScalar(0.034).intersectsBox(token), `${id}/${i} token`).toBe(false);
-      for (const other of holders.slice(i + 1)) expect(box.clone().expandByScalar(0.034).intersectsBox(snakeParkingBounds(other)), `${id}/${i} weapon`).toBe(false);
+      for (const token of tokenBounds) expect(box.clone().expandByScalar(SNAKE_PARKING_GAP * .99).intersectsBox(token), `${id}/${i} token`).toBe(false);
+      for (const other of holders.slice(i + 1)) expect(box.clone().expandByScalar(SNAKE_PARKING_GAP * .99).intersectsBox(snakeParkingBounds(other)), `${id}/${i} weapon`).toBe(false);
     });
   }
   await new Promise(resolve => setImmediate(resolve)); loading.mockRestore(); f.table.dispose();

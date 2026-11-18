@@ -294,7 +294,7 @@ it.each([
   scene.clear();
 });
 
-it('keeps the full board in the seated local view at narrow portrait widths', async () => {
+it('keeps Ludo fixed lens and real eye anchor at narrow portrait widths', async () => {
   const loader = new GLTFLoader();
   loader.register(() => ({ name: 'PortraitTextures', loadTexture: () => Promise.resolve(null) }));
   const bytes = await readFile('public/assets/tirana-streets/players/turi.glb');
@@ -318,13 +318,10 @@ it('keeps the full board in the seated local view at narrow portrait widths', as
     camera.updateMatrixWorld(true);
     expect(eye.z).toBeLessThan(head.z);
     expect(eye.distanceTo(head)).toBeLessThan(0.18);
-    const half = 4 * D.tileSize;
-    for (const x of [-half, half]) {
-      for (const z of [-half, half]) {
-        const screen = boardRoot.localToWorld(new THREE.Vector3(x, board.baseLevelTop, z)).project(camera);
-        expect(Math.abs(screen.x)).toBeLessThan(0.95);
-        expect(Math.abs(screen.y)).toBeLessThan(0.95);
-      }
-    }
+    // Ludo does not enlarge the lens to fit every board corner on narrow phones.
+    expect(fov).toBe(78);
+    const screen = target.clone().project(camera);
+    expect(Math.abs(screen.x)).toBeLessThan(1e-7);
+    expect(Math.abs(screen.y)).toBeLessThan(1e-7);
   }
 });

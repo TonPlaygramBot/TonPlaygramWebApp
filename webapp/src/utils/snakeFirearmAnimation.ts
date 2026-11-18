@@ -1,3 +1,4 @@
+import { resolveLudoFirearmCameraPose, type LudoCinematicPose } from './ludoCameraPresentation';
 import * as THREE from 'three';
 import { type SnakeHuman, worldPoint } from './snakeHumanInteraction';
 import { readSnakeWeaponContacts, snakeAimQuaternion } from './snakeWeaponGrip';
@@ -94,6 +95,7 @@ export function createSnakeFirearmAnimation({
   const returnMs = human ? 480 : 0;
   const duration = timing.durationMs + returnMs + (human ? 240 : 0);
   const focus = origin.clone();
+  let cameraPose: LudoCinematicPose | null = null;
   const muzzle = new THREE.Vector3();
   const muzzleFx = createCaptureMuzzleFx();
   const reticle = createCaptureTargetReticleFx(0.09);
@@ -141,6 +143,7 @@ export function createSnakeFirearmAnimation({
   return {
     duration,
     focus,
+    cameraPose: () => cameraPose,
     overview: () => [origin, ready, target, ...(human ? [worldPoint(human.arms.right.upper)] : [])],
     dispose,
     update(now: number) {
@@ -197,6 +200,8 @@ export function createSnakeFirearmAnimation({
       }
       muzzle.copy(muzzleLocal); weapon.localToWorld(muzzle);
       focus.copy(elapsed < timing.preFireLeadMs ? weapon.position : target);
+      cameraPose = reducedMotion ? null : resolveLudoFirearmCameraPose({ muzzle, target,
+        singleShot: timing.shots === 1, elapsed, preFireLeadMs: timing.preFireLeadMs, pickupLeadMs: timing.pickupLeadMs });
       const firedIndex = elapsed < timing.preFireLeadMs ? -1 : Math.min(timing.shots - 1, state.shotIndex);
       if (firedIndex > lastShot) { lastShot = firedIndex; onShot?.(firedIndex); }
       muzzleFx.root.position.copy(muzzle);
@@ -222,6 +227,8 @@ export function createSnakeFirearmAnimation({
         if (!reducedMotion) mesh.rotateY(life * (final ? FIREARM_FINAL_BULLET_SPIN_RATE : 0.032));
         if (final && raw > 0.08 && raw < 0.998) {
           focus.copy(mesh.position); rings.position.copy(mesh.position);
+          if (!reducedMotion) cameraPose = resolveLudoFirearmCameraPose({ muzzle, target,
+            singleShot: timing.shots === 1, phase: 'projectile', projectile: mesh.position });
           rings.quaternion.setFromUnitVectors(UP, dir); rings.visible = !reducedMotion;
         }
       });
@@ -239,6 +246,7 @@ export function createSnakeFirearmAnimation({
       if (elapsed >= finalImpactMs) {
         if (impactAt === null) { impactAt = finalImpactMs; victims.forEach(v => { v.visible = false; }); onImpact?.(); }
         focus.copy(target);
+        if (!reducedMotion) cameraPose = resolveLudoFirearmCameraPose({ muzzle, target, phase: 'impact' });
         const age = (elapsed - impactAt) / 1000;
         fragments.forEach((fragment, index) => {
           fragment.visible = !reducedMotion;
