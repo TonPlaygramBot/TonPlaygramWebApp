@@ -35,3 +35,26 @@ Commands:
 
 The dependency is already present via bot's mongoose/mongodb-memory-server;
 no production packages or startup scripts changed. No testnet changes are used.
+
+## Reconstructed hardening checkpoint (18 November 2026)
+
+Strict scalar order/receipt IDs reject selector objects and coercion. Observations
+are permitted only for unverified order states with a matching BLOCKED outbox.
+Unsafe revisions and failed conditional updates throw, aborting the transaction.
+Injected payment/delivery flags are discarded. Delivery remains disabled.
+
+Eleven focused tests pass: four synthetic model tests, two preflight guards and
+five fake-driver contract tests. The fake models transaction rollback; it does
+not validate MongoDB rollback, concurrency or durable storage. The integration
+test's reconnect step keeps the server running and is now labeled accurately.
+Actual server crash/restart, disk durability and multi-process races remain
+unverified. No real database was accessed in this reconstruction.
+
+Database naming/purpose checks do not prove a connection is nonproduction.
+Use isolated credentials and environment. Buyer authorization and server-owned
+sale-policy validation remain caller responsibilities; never expose these
+repository methods directly to client requests. No route, payment, signing,
+broadcast, testnet or game-balance changes were introduced.
+
+Focused command:
+  node --test test/presaleOfflineOrder.node.mjs test/presaleMongoGuards.node.mjs test/presaleMongoContract.node.mjs

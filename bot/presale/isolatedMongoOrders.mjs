@@ -1,6 +1,8 @@
 import { createHash } from 'node:crypto';
 
 const key = v => typeof v === 'string' && /^[a-zA-Z0-9:_-]{1,120}$/.test(v);
+const scalarId = v => typeof v === 'string' && /^[a-f0-9]{64}$/.test(v);
+const observationStates = ['awaiting_verified_payment', 'payment_observed_unverified'];
 const amount = v => typeof v === 'string' && /^[1-9][0-9]{0,35}$/.test(v) && BigInt(v) < 2n ** 120n;
 const digest = v => createHash('sha256').update(JSON.stringify(v)).digest('hex');
 const options = { readConcern: { level: 'snapshot' }, writeConcern: { w: 'majority' }, readPreference: 'primary' };
@@ -8,7 +10,7 @@ const options = { readConcern: { level: 'snapshot' }, writeConcern: { w: 'majori
  * Caller owns connection; never pass a production client/database. All outbox rows blocked.
  */
 export async function openIsolatedPresaleOrders({ client, databaseName, purpose }) {
-  if (purpose !== 'isolated-presale-preparation' || !/^tpg_presale_isolated_[a-z0-9_]+$/.test(databaseName || '')) throw Error('isolated database required');
+  if (purpose !== 'isolated-presale-preparation' || (typeof databaseName !== 'string' || !/^tpg_presale_isolated_[a-z0-9_]+$/.test(databaseName))) throw Error('isolated database required');
   const hello = await client.db('admin').command({ hello: 1 });
   if (!hello.setName || !hello.logicalSessionTimeoutMinutes) throw Error('replica set with transactions required');
   const db = client.db(databaseName);
@@ -31,7 +33,7 @@ export async function openIsolatedPresaleOrders({ client, databaseName, purpose 
   return {
     async create(input) {
       const fields=['buyerId','idempotencyKey','offerVersion','recipientBindingId','paymentPolicyId','deliveryPolicyId'];
-      if(fields.some(k=>!key(input[k])) || !amount(input.paymentUnits) || !amount(input.tokenUnits)) throw Error('server-owned exact order required');
+      if(!input || typeof input !== 'object' || Array.isArray(input) || fields.some(k=>!key(input[k])) || !amount(input.paymentUnits) || !amount(input.tokenUnits)) throw Error('server-owned exact order required');
       const data=Object.fromEntries([...fields,'paymentUnits','tokenUnits'].map(k=>[k,input[k]]));
       const fingerprint=digest(data), id=digest([data.buyerId,data.idempotencyKey]);
       const create=()=>transaction(async session=>{
@@ -50,19 +52,23 @@ export async function openIsolatedPresaleOrders({ client, databaseName, purpose 
     },
     async recordObservation(orderId, observation) {
       // Store observation only. Even an injected finalized=true can never activate delivery.
-      if(!/^[a-f0-9]{64}$/.test(orderId) || observation?.network!=='mainnet' || !/^[a-f0-9]{64}$/.test(observation.receiptHash) || !key(observation.provider))throw Error('invalid observation');
+      if(!scalarId(orderId) || observation?.network!=='mainnet' || !scalarId(observation.receiptHash) || !key(observation.provider))throw Error('invalid observation');
       return transaction(async session=>{
         const row=await orders.findOne({_id:orderId},{session});if(!row)throw Error('unknown order');
+        if(!observationStates.includes(row.status) || !Number.isSafeInteger(row.revision) || row.revision < 0 || row.revision === Number.MAX_SAFE_INTEGER) throw Error('order state refuses observation');
+        const blocked = await outbox.findOne({_id:orderId},{session});
+        if(!blocked || blocked.orderId !== orderId || blocked.status !== 'blocked') throw Error('blocked outbox required');
         const receipt={network:'mainnet',receiptHash:observation.receiptHash};
         const prior=await receipts.findOne(receipt,{session});
         if(prior){if(prior.orderId!==orderId)throw Error('receipt assigned to another order');return row;}
         await receipts.insertOne({...receipt,orderId,provider:observation.provider,trust:'unverified-observation-only',createdAt:new Date()},{session});
-        const changed=await orders.findOneAndUpdate({_id:orderId,revision:row.revision},{$set:{status:'payment_observed_unverified'},$inc:{revision:1}},{session,returnDocument:'after',includeResultMetadata:true});
+        const changed=await orders.findOneAndUpdate({_id:orderId,revision:row.revision,status:row.status},{$set:{status:'payment_observed_unverified'},$inc:{revision:1}},{session,returnDocument:'after',includeResultMetadata:true});
+        if(!changed?.value) throw Error('order revision conflict');
         return changed.value;
       });
     },
-    async get(id){return orders.findOne({_id:id});},
-    async getOutbox(id){return outbox.findOne({_id:id});},
+    async get(id){if(!scalarId(id))throw Error('invalid order id');return orders.findOne({_id:id});},
+    async getOutbox(id){if(!scalarId(id))throw Error('invalid order id');return outbox.findOne({_id:id});},
     async claimForDelivery(){throw Error('delivery-disabled-no-approved-token-or-verifier');}
   };
 }

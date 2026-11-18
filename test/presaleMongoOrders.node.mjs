@@ -4,7 +4,7 @@ import {MongoMemoryReplSet} from 'mongodb-memory-server';
 import {MongoClient} from 'mongodb';
 import {openIsolatedPresaleOrders as open} from '../bot/presale/isolatedMongoOrders.mjs';
 const input={buyerId:'buyer',idempotencyKey:'one',offerVersion:'draft',recipientBindingId:'not-verified',paymentPolicyId:'disabled',deliveryPolicyId:'disabled',paymentUnits:'100',tokenUnits:'250'};
-test('real replica-set atomic idempotency, restart and permanently blocked outbox',async()=>{
+test('real replica-set atomic idempotency, client reconnect and permanently blocked outbox',async()=>{
  const repl=await MongoMemoryReplSet.create({replSet:{count:1},binary:{version:'7.0.14'}});
  let client;
  try{
@@ -21,6 +21,7 @@ test('real replica-set atomic idempotency, restart and permanently blocked outbo
   await assert.rejects(repo.claimForDelivery());
   const second=await repo.create({...input,idempotencyKey:'two'});
   await assert.rejects(repo.recordObservation(second._id,obs));
+  // Client reconnect only: MongoDB server remains running. Not a durability/restart test.
   await client.close();client=await MongoClient.connect(repl.getUri());
   const reopened=await open({...params,client});
   assert.equal((await reopened.get(rows[0]._id)).status,'payment_observed_unverified');
@@ -30,3 +31,7 @@ test('real replica-set atomic idempotency, restart and permanently blocked outbo
   await assert.rejects(open({...params,client,databaseName:'tpg_presale_isolated_unrelated'}));
  }finally{await client?.close();await repl.stop();}
 });
+
+
+// TODO: validate transaction rollback, multi-process races, actual server crash/restart
+// and disk durability in an isolated replica-set environment. Not validated here.
