@@ -228,7 +228,7 @@ function Fleet() {
           gap: 12
         }}
       >
-        <strong>RACING ROYAL</strong>
+        <strong>TIRANA RACING STREETS</strong>
         <span style={{ fontSize: 12, color: '#b5c4d4' }}>KART RIG PREVIEW</span>
       </div>
       <div

@@ -5,6 +5,7 @@ import {ROCK_REPLACEMENT_IDS} from '../tirana-landmarks/skanderbegBuilding.mjs';
 import {VisibilityIndex,selectVisibilityBands} from './shared/visibilityIndex.mjs';
 import {cutChannels, surfaceGeometry} from '../tirana-environment/riverGeometry';
 import {EnvironmentMaterials} from '../tirana-environment/EnvironmentMaterials';
+import {assignBuildingSurfaceGroups} from '../tirana-environment/buildingSurfaceGroups.mjs';
 import {buildingSurfaceUV} from '../tirana-environment/buildingSurfaceUV.mjs';
 import {UrbanRoadCells} from '../tirana-neighbourhood/UrbanRoadCells';
 import {AgedHousingLayer} from '../tirana-city-source/AgedHousingLayer';
@@ -110,7 +111,7 @@ export class FpsCity {
     const pos = geo.getAttribute('position'), uv = geo.getAttribute('uv'), normal = geo.getAttribute('normal');
     for (let i = 0; i < pos.count; i++) {
       const [u, v] = buildingSurfaceUV(pos.getX(i), pos.getY(i), pos.getZ(i),
-        normal.getX(i), normal.getY(i), normal.getZ(i), height ? 4 : 5);
+        normal.getX(i), normal.getY(i), normal.getZ(i), height ? (Math.abs(normal.getY(i)) > .5 ? 4 : 2.2) : 5);
       uv.setXY(i, u, v);
     }
     return geo;
@@ -199,6 +200,8 @@ export class FpsCity {
     return this.materials.get(key)!;
   }
   private buildings() {
+    // Existing CC0 rough concrete for caps; plaster belongs on vertical walls.
+    const roofMaterial = this.surfaceMaterials.create('rough_concrete', 0xb9b7af);
     const replaced = new Set(resolveNativeLandmarks(WORLD).landmarks.map(l => l.buildingId));
     const shells = new Map<string, { parts: T.BufferGeometry[]; material: T.Material; x: number; z: number }>();
     const glass = this.material(0x355560, true), dark = this.material(0x4e514b), shutters = this.material(0x64776a);
@@ -261,7 +264,10 @@ export class FpsCity {
       }
     }
     for (const b of shells.values()) {
-      const mesh = this.merge(b.parts, b.material);
+      const geometry = mergeGeometries(b.parts, false);
+      b.parts.forEach(part => part.dispose());
+      const mesh = geometry ? new T.Mesh(assignBuildingSurfaceGroups(geometry), [b.material, roofMaterial]) : undefined;
+      if (mesh) { mesh.receiveShadow = true; this.group.add(mesh); }
       if (mesh) { mesh.castShadow = true; this.cells.push({ object: mesh, x: b.x, z: b.z, detail: false }); }
     }
   }

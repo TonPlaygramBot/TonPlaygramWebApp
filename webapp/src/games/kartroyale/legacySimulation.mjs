@@ -1,3 +1,4 @@
+import { initializeRaceItems, shouldAIUseRaceItem, stepRaceItems } from './raceItems.mjs';
 import {KART_LENGTH, kartBodyWidth, kartPassingRoom} from './racingDimensions.mjs';
 import { stepDrift, stepBoostPads, stepSlipstream } from './arcadeRules.mjs';
 import {KARTS} from './vehicleCatalog.mjs';
@@ -15,7 +16,7 @@ import { surfaceGrip } from './racingSurface.mjs';
 export { damageRacer };
 export const STEP = 1 / 60,
   LAPS = 3;
-export const RACING_PACE = Object.freeze({cruise:33,turbo:44});
+export const RACING_PACE = Object.freeze({cruise:31,turbo:41});
 export const AI_PACE = Object.freeze({rookie:.9,street:1,pro:1.04});
 export const COLORS = [
   '#baff29',
@@ -234,6 +235,7 @@ export function createRacer(track, id, name, slot = 0, ai = false) {
     lastInput: 0,
     disconnected: false
   };
+  initializeRaceItems(racer);
   equipKart(racer,kart.id);
   resetSuspension(racer);
   resetJump(racer,track);
@@ -266,6 +268,7 @@ export function aiInput(r, track, time, difficulty = 'street', racers = []) {
   const braking = blocked || r.speed > safeSpeed || (Math.abs(turn) > .55 && r.speed > 8);
   const recovery=(r.aiStuckTime||0)>3 && time-(r.recoveryAt??-10)>6?aiRecoveryPose(r,n,track,racers):null;
   return {
+    useItem: shouldAIUseRaceItem(r, racers, track, time),
     aiLane, aiPassLane:tactics.aiPassLane, aiPassUntil:tactics.aiPassUntil,
     recover:!!recovery, aiRecovery:recovery,
     throttle: !blocked,
@@ -275,7 +278,7 @@ export function aiInput(r, track, time, difficulty = 'street', racers = []) {
       r.speed > 12 && r.speed < 27 && Math.abs(turn) > .06 && Math.abs(turn) < .16,
     boost:
       !braking && tactics.boostSafe && !(r.turbo > .2) && Math.abs(turn) < 0.11 &&
-      safeSpeed > 34 &&
+      safeSpeed > 31 &&
       r.boost > (difficulty === 'pro' ? 12 : 28) &&
       difficulty !== 'rookie'
   };
@@ -423,6 +426,7 @@ export function stepRacer(r, raw, track, dt, time, difficulty = 'street', drivin
     : Math.max(-1, r.lap - 1) + near.index / count;
 }
 export function stepRace(racers, track, dt, time, difficulty = 'street') {
+  const previousPositions = racers.map(r => ({x:r.x,z:r.z}));
   // Decide from one shared frame before any racer advances.
   const inputs = racers.map(r => r.ai ? aiInput(r, track, time, difficulty, racers) : r.input);
   for (let i = 0; i < racers.length; i++) {
@@ -437,6 +441,7 @@ export function stepRace(racers, track, dt, time, difficulty = 'street') {
       difficulty
     );
   }
+  stepRaceItems(racers, track, dt, time, previousPositions);
   stepSlipstream(racers, dt);
   // A second positional pass prevents multi-kart contacts from leaving bodies
   // interpenetrating or pushed through a track barrier.

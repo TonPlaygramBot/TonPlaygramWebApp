@@ -34,6 +34,15 @@ test('production touch controls preserve two-thumb chords and release every poin
     stick.getBoundingClientRect=()=>({left:0,top:544,width:112,height:112,right:112,bottom:656,x:0,y:544,toJSON(){}});
     assert.deepEqual([...document.querySelectorAll('.kart-pedal-controls button')].map(b=>b.textContent),['DRIFT','GAS']);
     assert.equal(document.querySelector('.kart-center-control').textContent,'BRAKE');
+    assert.equal(document.querySelector('.kart-item').disabled,true);
+    await render(false,{raceItem:'rocket'});
+    assert.equal(document.querySelector('.kart-item').getAttribute('aria-label'),'Use rocket pickup');
+    await event('.kart-item','pointerdown',19);assert.equal(held.read().useItem,true);
+    await event('.kart-item','pointercancel',19);assert.equal(held.read().useItem,false);
+    await event('.kart-item','pointerdown',20);assert.equal(held.read().useItem,true);
+    await act(()=>window.dispatchEvent(new dom.window.Event('blur')));assert.equal(held.read().useItem,false);
+    await event('.kart-item','pointerdown',21);
+    await render(false,{raceItem:null});assert.equal(held.read().useItem,false,'consumed item releases pointer ownership');
     await event('.kart-gas','pointerdown',1);await event('.kart-steering-stick','pointerdown',2,600,12);
     assert.equal(held.read().throttle,true);assert.ok(held.read().steer<-.7);
     await event('.kart-steering-stick','pointermove',2,550,56);assert.equal(held.read().drift,true);

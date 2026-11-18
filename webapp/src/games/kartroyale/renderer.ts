@@ -1,3 +1,4 @@
+import { RaceItemEffects } from './RaceItemEffects';
 import { KartExhaust } from './KartExhaust';
 import * as T from 'three';
 import {GhostRecorder,ghostKey,sampleGhost,type GhostLap} from './ghostLap.mjs';
@@ -98,6 +99,8 @@ export interface Frame {
   retired: boolean;
   turbo: number;
   boostEvent: number;
+  raceItem?: Racer['raceItem'];
+  itemShield?: number;
   slipstream: number;
 }
 export interface Result {
@@ -127,6 +130,7 @@ export interface ServerRace {
   serverNow: number;
 }
 const neutral = (): Input => ({
+  useItem: false,
   steer: 0,
   throttle: false,
   brake: false,
@@ -192,6 +196,7 @@ export class KartRenderer {
   private humanTemplates: T.Group[] = [];
   private driverModels: T.Group[] = [];
   private effects: RaceEffects | null = null;
+  private itemEffects: RaceItemEffects | null = null;
   private cameraMode: CameraMode = 'chase';
   private motionTime = 0;
   private reducedMotion = matchMedia('(prefers-reduced-motion: reduce)')
@@ -694,6 +699,7 @@ export class KartRenderer {
     this.scenery = null;
     this.supporters?.dispose();
     this.supporters = null;
+    this.itemEffects?.dispose();this.itemEffects=null;
     this.effects?.dispose();
     this.effects = null;
     this.motionTime = 0;
@@ -765,7 +771,7 @@ export class KartRenderer {
       ctx.fillStyle = '#172018';
       ctx.font = '900 78px sans-serif';
       ctx.textAlign = 'center';
-      ctx.fillText('TIRANA · RACING ROYAL', 512, 92);
+      ctx.fillText('TIRANA RACING STREETS', 512, 92);
       const tex = new T.CanvasTexture(canvas);
       tex.userData.ephemeral = true;
       tex.colorSpace = T.SRGBColorSpace;
@@ -789,6 +795,7 @@ export class KartRenderer {
       );
       this.world.add(this.supporters.group);
     }
+    this.itemEffects = new RaceItemEffects();this.world.add(this.itemEffects.group);
     this.effects = new RaceEffects(this.camera);
     this.world.add(this.effects.group);
     this.skidMesh = new T.InstancedMesh(
@@ -1365,6 +1372,10 @@ export class KartRenderer {
         }
         if(this.cityJob)this.jobGuide?.update(this.cityJob,this.track,me);
         const running = this.state === 'racing' && !this.paused;
+        if(this.itemEffects){
+          this.itemEffects.group.visible=!this.freeDriving&&!this.timeTrial&&!this.combat;
+          if(this.itemEffects.group.visible)this.itemEffects.update(this.racers,me,this.track,this.time,this.reducedMotion);
+        }
         if(this.combat)this.combatEffects?.update(this.combat,this.racers,this.track);
         if(this.actionCareer){
           this.actionWorld?.setFirstPerson(!!foot&&this.cameraMode==='driver');
@@ -1510,6 +1521,7 @@ export class KartRenderer {
             retired: me.retired ?? false,
             turbo: me.turbo,
             boostEvent: me.boostEvent || 0,
+            raceItem: me.raceItem, itemShield: me.itemShield,
             slipstream: me.slipstream || 0
           });
         }
@@ -1555,6 +1567,7 @@ export class KartRenderer {
       this.contextLost
     );
     this.supporters?.dispose();
+    this.itemEffects?.dispose();this.itemEffects=null;
     this.effects?.dispose();
     this.scenery?.dispose();
     this.release(this.scene, true);

@@ -118,3 +118,43 @@ test('paid matches force normal racing and reject combat/trial configuration and
   assert.equal(room.racers[0].input.fire, false);
   assert.equal(room.racers[0].combatInput?.fire, undefined);
 });
+
+test('race pickups are server-owned: boolean item use consumes only held supply and snapshots retain shield state', async (t) => {
+  const { connect, emit, tick, service } = await setup(t);
+  const host = await connect(), guest = await connect();
+  const created = await emit(host, 'create', { trackId: 'skanderbeg', public: true });
+  await emit(guest, 'quick', { trackId: 'skanderbeg' });
+  await emit(host, 'ready', { ready: true }); await emit(guest, 'ready', { ready: true });
+  await emit(host, 'start'); await tick(3600);
+  const room = service.rooms.get(created.code);
+  const racer = room.racers.find(r => r.id === created.playerId);
+  assert.equal(racer.raceItem, null);
+  host.emit('kart:input', { useItem: true, raceItem: 'rocket', itemShield: 100, health: 999, speed: 1000 });
+  await tick(100);
+  assert.equal(racer.input.useItem, true);
+  assert.equal(racer.raceItem, null);
+  assert.equal(racer.itemRocket, null);
+  assert.equal(racer.itemShield, 0);
+  assert.equal(racer.health, 100);
+  assert.ok(racer.speed < 1000);
+  // Arrange a legitimate authority-owned reward, then exercise the public input path.
+  racer.raceItem = 'shield';
+  host.emit('kart:input', { useItem: 'true', raceItem: 'boost' });
+  await tick(100);
+  assert.equal(racer.input.useItem, false);
+  assert.equal(racer.raceItem, 'shield');
+  host.emit('kart:input', { useItem: true });
+  await tick(100);
+  assert.equal(racer.raceItem, null);
+  assert.ok(racer.itemShield > 3.5 && racer.itemShield <= 4);
+  const activatedEvent = racer.itemEvent;
+  host.emit('kart:input', { useItem: true });
+  await tick(100);
+  assert.equal(racer.itemEvent, activatedEvent, 'held input does not repeatedly consume items');
+  const resumed = await emit(host, 'resume', { code: created.code, playerId: created.playerId, token: created.token });
+  const remote = resumed.state.racers.find(r => r.id === created.playerId);
+  assert.equal(remote.raceItem, null);
+  assert.ok(remote.itemShield > 0);
+  assert.equal(remote.itemEventKind, 'shield');
+  assert.deepEqual(remote.itemCooldowns, racer.itemCooldowns);
+});

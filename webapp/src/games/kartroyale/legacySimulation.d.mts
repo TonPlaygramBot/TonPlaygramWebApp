@@ -1,4 +1,5 @@
 export interface Input {
+  useItem?: boolean;
   aiRecovery?:{x:number;z:number;yaw:number;index:number}|null;
   aiLane?: number;
   aiPassLane?: number;
@@ -15,6 +16,14 @@ export interface Input {
   fire: boolean;
 }
 export interface Racer {
+  raceItem?:import('./raceItems.mjs').RaceItemKind|null;
+  itemRocket?:import('./raceItems.mjs').RaceItemRocket|null;
+  itemCooldowns?:Record<number,number>;
+  itemShield?:number;
+  itemUseHeld?:boolean;
+  itemEvent?:number;
+  itemEventKind?:string;
+  itemHitImmunity?:number;
   telemetry?:import('./raceTelemetry.mjs').RaceTelemetry;
   powertrain?:import('./raceTelemetry.mjs').Powertrain;
   waterRecovery?:number;

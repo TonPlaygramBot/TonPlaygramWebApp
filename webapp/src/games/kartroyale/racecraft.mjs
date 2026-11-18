@@ -33,22 +33,38 @@ export function planRacecraft(r,near,racers,time){
  }).filter(o=>o.ahead>-10&&o.ahead<55);
  const current=clamp(r.aiLane??near.lane,-room,room);
  const leader=traffic.filter(o=>o.ahead>0&&Math.abs(o.lane-current)<o.width).sort((a,b)=>a.ahead-b.ahead)[0];
+ // Evaluate the swept lane-change corridor, not only the destination lane.
+ // A fast rival can cover several metres while our steering rack blends over.
+ const laneCost=candidate=>{
+  let cost=Math.abs(candidate-current)*.25;
+  for(const o of traffic){
+   const low=Math.min(current,candidate)-o.width,high=Math.max(current,candidate)+o.width;
+   const crossing=o.lane>=low&&o.lane<=high;
+   const predictedCrossing=o.predictedLane>=low&&o.predictedLane<=high;
+   const relativeSpeed=o.other.speed-r.speed;
+   const predictedAhead=o.ahead+relativeSpeed*.7;
+   if(crossing&&Math.abs(o.ahead)<o.gap+2.5)cost+=100;
+   // Rear traffic is a lane-change hazard even when still farther than 8 m.
+   if(o.ahead<0&&(crossing||predictedCrossing)&&predictedAhead>-o.gap-2.5&&relativeSpeed>1)cost+=100;
+   if(Math.abs(o.lane-candidate)<o.width&&o.ahead>0)cost+=Math.max(0,32-o.ahead)*2;
+   if(Math.abs(o.predictedLane-candidate)<o.width&&o.ahead>o.gap+2.5&&o.ahead<20)cost+=12;
+  }
+  return cost;
+ };
  let lane=clamp((r.slot%2?1:-1)*Math.min(room,.65),-room,room),commit=r.aiPassUntil||0;
- if(commit>time)lane=clamp(r.aiPassLane??current,-room,room);
+ if(commit>time){
+  lane=clamp(r.aiPassLane??current,-room,room);
+  // Hysteresis must never make the AI insist on a pass after the gap closes.
+  if(Math.abs(lane-current)>.15&&laneCost(lane)>=80){lane=current;commit=time;}
+ }
  if(leader&&leader.other.speed<r.speed+2){
-  const choices=[-room,room,0].map(candidate=>{
-   let cost=Math.abs(candidate-current)*.25;
-   for(const o of traffic){
-    // Occupied sides include a fast rival coming up from behind.
-    const crossing=o.lane>=Math.min(current,candidate)-o.width&&o.lane<=Math.max(current,candidate)+o.width;
-    if(crossing&&Math.abs(o.ahead)<o.gap+2.5)cost+=100;
-    if(Math.abs(o.lane-candidate)<o.width&&o.ahead>0)cost+=Math.max(0,32-o.ahead)*2;
-    if(o.ahead<0&&o.ahead>-8&&o.other.speed>r.speed+2&&Math.abs(o.lane-candidate)<o.width)cost+=80;
-   }
-   return {lane:candidate,cost};
-  }).sort((a,b)=>a.cost-b.cost);
-  // Hysteresis prevents weaving when two gaps have nearly the same score.
-  if(commit<=time&&choices[0].cost<18){lane=choices[0].lane;commit=time+1.1;}
+  // Include a modest clearance lane: on wide roads a safe pass need not swerve
+  // all the way to the barrier. Stable sorting supplies deterministic ties.
+  const clearance=leader.width+.3;
+  const candidates=[clamp(leader.lane-clearance,-room,room),clamp(leader.lane+clearance,-room,room),-room,room,0];
+  const choices=[...new Set(candidates)].map(candidate=>({lane:candidate,cost:laneCost(candidate)}))
+   .sort((a,b)=>a.cost-b.cost);
+  if(commit<=time&&choices[0].cost<18){lane=choices[0].lane;commit=time+1.35;}
  }
  let speedLimit=Infinity,blocked=false,boostSafe=true;
  for(const o of traffic){

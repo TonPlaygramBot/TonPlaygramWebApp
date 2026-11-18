@@ -15,7 +15,7 @@ const gamesCatalog = [
     description: '3D tennis, career tournaments and same-stake online matches.'
   },
   {
-    name: 'Racing Royal',
+    name: 'Tirana Racing Streets',
     route: '/games/kartroyale/lobby',
     slug: 'kartroyale',
     image: '/assets/kart-royale/cover.webp',
@@ -23,7 +23,7 @@ const gamesCatalog = [
     modes: ['VS AI', 'TPG Multiplayer', 'Career'],
     launchLabel: 'Enter Racing Lobby',
     description:
-      'Enter your racing lobby for TPG matchmaking, private races, free AI practice and career cups.'
+      'Enter your racing lobby for TPG matchmaking, private races, free AI races and on-track pickups.'
   },
   {
     name: "Texas Hold'em",
