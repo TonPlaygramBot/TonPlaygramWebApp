@@ -80,9 +80,11 @@ import QuickMessagePopup from '../../components/QuickMessagePopup.jsx';
 import { socket } from '../../utils/socket.js';
 import {
   findExactUkrainianDroneRotor,
+  spinExactUkrainianDroneRotors,
   isExactUkrainianDroneObject,
   loadExactUkrainianDroneModel
 } from '../../utils/ukrainianDroneModel.js';
+import { DRONE_RELEASE_RATIO, DRONE_PAYLOAD_OFFSET, sampleDroneDelivery, samplePayloadDrop, sampleCaptureBlast } from '../../utils/chessCapturePresentation.js';
 import { giftSounds } from '../../utils/giftSounds.js';
 import { CAPTURE_ANIMATION_OPTIONS } from '../../config/ludoBattleOptions.js';
 import { LUDO_WEAPON_DIRECTOR_BRIDGE } from '../../config/ludoWeaponDirectorBridge.js';
@@ -172,20 +174,19 @@ const CAPTURE_DIRECT_STRIKE_INWARD_DISTANCE = 0.1; // straighter launch line tow
 const CAPTURE_DIRECT_STRIKE_TAKEOFF_RATIO = 0.34; // quicker lift for cleaner direct strike
 const CAPTURE_DIRECT_STRIKE_RETURN_RATIO = 0.54; // return earlier so fly-bys stay close to board
 const CAPTURE_VERTICAL_STRIKE_INWARD_DISTANCE = 0; // pawn/drone/truck missile rises straight up from launch point
-const CAPTURE_VERTICAL_STRIKE_ALTITUDE = CAPTURE_DRONE_REFERENCE_BOARD_ALTITUDE * 2.55; // keep ground-launched truck/pawn missiles on a lower lane than aircraft
+const CAPTURE_VERTICAL_STRIKE_ALTITUDE = CAPTURE_DRONE_REFERENCE_BOARD_ALTITUDE * 2.2; // modestly lower ground-launched missile presentation
 const CAPTURE_VERTICAL_STRIKE_TOP_OFFSET = 0.05; // shorter top point before vertical drop
 const CAPTURE_VERTICAL_STRIKE_HORIZONTAL_RATIO = 0.22; // shorter top-flight pass before vertical crash
 const CAPTURE_PRECISION_STRIKE_LIFT_RATIO = 0.36; // longer vertical launch for stricter precision strike alignment
 const CAPTURE_PRECISION_STRIKE_DROP_RATIO = 0.34; // longer vertical terminal drop for tighter target lock
 const CAPTURE_DRONE_PRECISION_LOCK_RATIO = 0.72; // lock horizontal coordinates earlier so drone impacts are extremely precise
-const CAPTURE_SHORT_STRIKE_ALTITUDE = CAPTURE_DRONE_REFERENCE_BOARD_ALTITUDE * 3.55; // raise shared missile lane to keep aerial/truck strikes at a higher altitude
+const CAPTURE_SHORT_STRIKE_ALTITUDE = CAPTURE_DRONE_REFERENCE_BOARD_ALTITUDE * 3.0; // lower the shared missile apex without changing impact timing
 const CAPTURE_AIRCRAFT_CRUISE_HEIGHT = CAPTURE_JET_ALTITUDE; // keep jet/helicopter on the same high lane as the jet missile apex reference altitude
 // Keep these three inventory attacks together on one portrait-friendly low lane,
 // independently of the much higher jet/helicopter flyover lane.
-const CAPTURE_LOW_ATTACK_FLIGHT_ALTITUDE = CAPTURE_DRONE_REFERENCE_BOARD_ALTITUDE * 1.25;
+const CAPTURE_LOW_ATTACK_FLIGHT_ALTITUDE = CAPTURE_DRONE_REFERENCE_BOARD_ALTITUDE * 1.05;
 const CAPTURE_SHAHAD_DRONE_STRIKE_ALTITUDE = CAPTURE_LOW_ATTACK_FLIGHT_ALTITUDE;
 const CAPTURE_UKRAINIAN_DRONE_CRUISE_HEIGHT = CAPTURE_LOW_ATTACK_FLIGHT_ALTITUDE;
-const CAPTURE_UKRAINIAN_DRONE_MISSILE_CLEARANCE = CAPTURE_DRONE_REFERENCE_BOARD_ALTITUDE * 1.35;
 const CAPTURE_SHORT_MISSILE_STRIKE_ALTITUDE = CAPTURE_LOW_ATTACK_FLIGHT_ALTITUDE;
 const CAPTURE_LOOP_TAKEOFF_RATIO = 0.24; // shorter lift so vehicles enter the orbit earlier
 const CAPTURE_AIR_APPROACH_RATIO = 0.96; // keep jet/helicopter on the long arc for a longer pass before strike
@@ -4074,24 +4075,6 @@ async function attachChessFirearmToRightHand(attackerEntry, captureAnimationId) 
       disposeObject3D(weapon);
     }
   };
-}
-
-function spinExactUkrainianDroneRotors(root, timeSeconds) {
-  if (!root) return;
-  const rotation = timeSeconds * 24;
-  const rotorNodes = root.userData?.quadRotorNodes;
-  if (Array.isArray(rotorNodes) && rotorNodes.length) {
-    rotorNodes.forEach((rotor, index) => {
-      if (rotor) rotor.rotation.y = rotation * (index % 2 === 0 ? 1 : -1);
-    });
-    return;
-  }
-  root.traverse?.((obj) => {
-    const name = `${obj.name || ''}`.toLowerCase();
-    if (name.includes('propeller') || name.includes('rotor')) {
-      obj.rotation.x = rotation;
-    }
-  });
 }
 
 function prepareChessCaptureWeaponClone(template, captureAnimationId, { flat = true, targetSize = null } = {}) {
@@ -10780,7 +10763,7 @@ function Chess3D({
           model.getObjectByName('propeller') ||
           model.getObjectByName('Propeller') ||
           model.getObjectByName('Rotor') ||
-          model;
+          null;
         const exactDronePropeller = isExactUkrainianDroneObject(model) ? findExactUkrainianDroneRotor(model) : null;
         if (!isExactUkrainianDroneObject(model)) applyMilitaryDroneLook(model, propeller, getCaptureToneSeed('drone'));
         return { root, propeller: exactDronePropeller || propeller, exhaustClouds: [] };
@@ -11335,7 +11318,7 @@ function Chess3D({
       const flash = addFxSphere(root, 0.18, [0, 0.25, 0], '#ffe59a', 0.08, 0, true, 1);
       const fire = [];
       const smoke = [];
-      const firePalette = ['#ffd166', '#ff8c1a', '#ff4d3d', '#d7263d', '#ff8fab', '#ffe45e'];
+      const firePalette = ['#fff0bc', '#ffc55d', '#ff981f', '#e65d13', '#b23c0c', '#8a2c0a'];
       for (let i = 0; i < 6; i += 1) {
         fire.push(
           addFxSphere(
@@ -11364,6 +11347,10 @@ function Chess3D({
           )
         );
       }
+      [flash, ...fire, ...smoke].forEach((mesh) => { mesh.material.depthWrite = false; });
+      flash.material.emissive?.set('#ffbf62');
+      flash.material.emissiveIntensity = 1.8;
+      fire.forEach((mesh) => { mesh.material.emissive?.copy(mesh.material.color); mesh.material.emissiveIntensity = 1.1; });
       return { root, flash, fire, smoke };
     };
     const launchTargetShatter = (targetMesh, impactPosition) => {
@@ -11457,18 +11444,6 @@ function Chess3D({
       const missileTravel = Math.max(0.24, (releaseWindow - 0.1) / CAPTURE_AIR_MISSILE_SPEED_MULTIPLIER);
       const secondMissileOffset = 0.14;
       return releaseStart + secondMissileOffset + missileTravel;
-    };
-    const getStraightDownMissilePose = ({ launchPos, targetPos, progress }) => {
-      const u = smoothEase(clamp01(progress));
-      const pos = launchPos.clone();
-      const next = launchPos.clone();
-      pos.x = targetPos.x;
-      pos.z = targetPos.z;
-      next.x = targetPos.x;
-      next.z = targetPos.z;
-      pos.y = THREE.MathUtils.lerp(launchPos.y, targetPos.y, u);
-      next.y = THREE.MathUtils.lerp(launchPos.y, targetPos.y, clamp01(u + 0.08));
-      return { pos, next };
     };
     const constrainInsideBoardPerimeter = (vector, marginTiles = 0.62) => {
       const margin = BOARD.tile * marginTiles;
@@ -12418,8 +12393,16 @@ function Chess3D({
         missileFx.root.visible = false;
         captureFxGroup.add(missileFx.root);
         playAudio(droneSoundRef, { maxDurationMs: CAPTURE_HELICOPTER_TOTAL * 1000 });
+        const droneBounds = new THREE.Box3().setFromObject(droneFx.root);
+        const payloadBounds = new THREE.Box3().setFromObject(missileFx.root);
+        const payloadTopOffset = payloadBounds.isEmpty() ? 0.03
+          : Math.max(0, -payloadBounds.min.x);
+        // Fitted models can have their underside ABOVE the root; keep this signed.
+        const payloadOffset = droneBounds.isEmpty() ? DRONE_PAYLOAD_OFFSET
+          : droneFx.root.position.y - droneBounds.min.y + payloadTopOffset + 0.012;
         activeCaptureFx.push({
           type: 'ukrainianDrone',
+          payloadOffset,
           t: 0,
           duration: CAPTURE_HELICOPTER_TOTAL,
           from: fromPos.clone(),
@@ -14775,24 +14758,18 @@ function Chess3D({
             }
           } else if (fx.type === 'ukrainianDrone') {
             const droneTimelineU = clamp01(fx.t / CAPTURE_HELICOPTER_TOTAL);
-            const droneU = THREE.MathUtils.lerp(CAPTURE_JET_TRIMMED_START_RATIO, 1, droneTimelineU);
             if (!fx.sourceUnit) fx.droneFx.root.scale.setScalar(CAPTURE_DRONE_SCALE);
             const liveTargetPos = getLiveTargetPosition(fx.to, fx.targetMesh, 0);
-            fx.to.copy(liveTargetPos);
-            const launchPos = fx.returnToOrigin
-              ? fx.launchPos.clone()
-              : getLiveLaunchPosition(fx.launchPos, fx.movingMesh, 0);
-            if (!fx.returnToOrigin) fx.launchPos.copy(launchPos);
-            const { pos: dronePos, next: droneNext } = getCaptureAirRunPose({
-              from: launchPos,
-              to: fx.flightTarget || fx.to,
-              progress: droneU,
-              cruiseHeight: CAPTURE_UKRAINIAN_DRONE_CRUISE_HEIGHT,
-              returnToOrigin: true,
-              constrainToBoard: false
+            // Lock the delivery square once the effect starts; the payload must not teleport
+            // horizontally if a piece is hidden/moved by capture resolution.
+            if (!fx.deliveryTarget) fx.deliveryTarget = liveTargetPos.clone();
+            const target = fx.deliveryTarget;
+            const pose = sampleDroneDelivery({
+              from: fx.launchPos, target, progress: droneTimelineU,
+              clearance: CAPTURE_UKRAINIAN_DRONE_CRUISE_HEIGHT
             });
-            fx.droneFx.root.position.copy(dronePos);
-            captureDir.copy(droneNext).sub(dronePos).normalize();
+            fx.droneFx.root.position.set(pose.x, pose.y, pose.z);
+            captureDir.set(pose.direction.x, 0, pose.direction.z);
             orientForwardKeepingUp(fx.droneFx.root, captureDir);
             if (isExactUkrainianDroneObject(fx.droneFx.root)) {
               spinExactUkrainianDroneRotors(fx.droneFx.root, now * 0.001);
@@ -14800,49 +14777,38 @@ function Chess3D({
               fx.droneFx.propeller.rotation.x += dt * 42;
             }
 
-            const releaseStart = CAPTURE_HELICOPTER_TOTAL * CAPTURE_AIR_MISSILE_RELEASE_START_RATIO;
-            const releaseEnd = CAPTURE_HELICOPTER_TOTAL * CAPTURE_AIR_MISSILE_RELEASE_END_RATIO;
-            const missileTravel = Math.max(0.24, (releaseEnd - releaseStart - 0.1) / CAPTURE_AIR_MISSILE_SPEED_MULTIPLIER);
+            const releaseStart = CAPTURE_HELICOPTER_TOTAL * DRONE_RELEASE_RATIO;
             const missileImpactTime = getAirMissileImpactTime(CAPTURE_HELICOPTER_TOTAL);
+            const missileTravel = missileImpactTime - releaseStart;
             const missile = fx.missileFx;
+            // Nose-down payload is visible below the airframe throughout approach.
+            orientForwardKeepingUp(missile.root, captureDir.set(0, -1, 0));
             if (fx.t < releaseStart) {
-              missile.root.visible = false;
-              missile.launchPos = null;
+              missile.root.visible = true;
+              missile.root.position.set(pose.x, pose.y - (fx.payloadOffset ?? DRONE_PAYLOAD_OFFSET), pose.z);
             } else {
               if (!missile.launchPos) {
-                missile.launchPos = liveTargetPos.clone();
-                missile.launchPos.y = Math.max(
-                  dronePos.y - 0.04,
-                  liveTargetPos.y + CAPTURE_UKRAINIAN_DRONE_MISSILE_CLEARANCE
-                );
-              }
-              const missileU = clamp01((fx.t - releaseStart) / missileTravel);
-              if (missileU <= 0 || missileU >= 1) {
-                missile.root.visible = false;
-              } else {
-                if (!missile.didPlayLaunchSound) {
-                  missile.didPlayLaunchSound = true;
-                  playAudio(missileLaunchSoundRef);
-                }
-                const { pos: missilePos, next: missileNext } = getStraightDownMissilePose({
-                  launchPos: missile.launchPos.clone(),
-                  targetPos: liveTargetPos,
-                  progress: missileU
+                // Sample the exact release pose even when a slow frame skips release time.
+                const release = sampleDroneDelivery({
+                  from: fx.launchPos, target, progress: DRONE_RELEASE_RATIO,
+                  clearance: CAPTURE_UKRAINIAN_DRONE_CRUISE_HEIGHT
                 });
-                captureDir.copy(missileNext).sub(missilePos).normalize();
-                missile.root.visible = true;
-                missile.root.position.copy(missilePos);
-                orientForwardKeepingUp(missile.root, captureDir);
+                missile.launchPos = new THREE.Vector3(release.x, release.y - (fx.payloadOffset ?? DRONE_PAYLOAD_OFFSET), release.z);
               }
+              const drop = samplePayloadDrop(missile.launchPos, target, (fx.t - releaseStart) / missileTravel);
+              missile.root.position.set(drop.x, drop.y, drop.z);
+              missile.root.visible = fx.t < missileImpactTime;
             }
             if (fx.t >= missileImpactTime && !fx.hasExploded) {
               fx.hasExploded = true;
               missile.root.visible = false;
-              launchExplosion(liveTargetPos, fx.targetMesh);
+              launchExplosion(target, fx.targetMesh);
             }
             if (droneTimelineU >= 1) {
               if (fx.sourceUnit) returnParkedAirUnit(fx.sourceUnit);
-              if (!fx.sourceUnit) captureFxGroup.remove(fx.droneFx.root);
+              if (!fx.sourceUnit) {
+                captureFxGroup.remove(fx.droneFx.root);
+              }
               captureFxGroup.remove(missile.root);
               activeCaptureFx.splice(i, 1);
             }
@@ -15485,34 +15451,33 @@ function Chess3D({
             }
           } else if (fx.type === 'explosion') {
             const lifeSec = fx.t;
-            const fireLife = clamp01(1 - lifeSec / 0.88);
-            const smokeLife = clamp01(1 - lifeSec / LUDO_CAPTURE_EXPLOSION_TIME);
-            const fireGrow = 0.72 + lifeSec * 1.55;
-            const smokeGrow = 0.72 + lifeSec * 0.88;
-            fx.explosion.flash.scale.setScalar(0.44 + lifeSec * 1.15);
-            fx.explosion.flash.material.opacity = fireLife;
+            const blast = sampleCaptureBlast(lifeSec, LUDO_CAPTURE_EXPLOSION_TIME);
+            fx.explosion.flash.scale.setScalar(0.6 + blast.spread * 2.2);
+            fx.explosion.flash.material.opacity = blast.flash;
             fx.explosion.fire.forEach((mesh, idx) => {
-              const angle = lifeSec * 5 + idx * 1.35;
+              const angle = idx * 2.39996;
               mesh.position.set(
-                Math.cos(angle) * (0.06 + lifeSec * 0.14),
-                0.11 + lifeSec * 0.24 + idx * 0.03,
-                Math.sin(angle) * (0.06 + lifeSec * 0.13)
+                Math.cos(angle) * blast.spread * (0.16 + idx * 0.025),
+                0.11 + blast.rise + idx * 0.03,
+                Math.sin(angle) * blast.spread * (0.16 + idx * 0.025)
               );
-              mesh.scale.setScalar(fireGrow * (0.78 + idx * 0.13));
-              mesh.material.opacity = fireLife * (0.98 - idx * 0.08);
+              mesh.scale.setScalar((0.65 + blast.spread * 1.2) * (0.78 + idx * 0.13));
+              mesh.material.opacity = blast.fire * (0.98 - idx * 0.08);
+              mesh.material.emissiveIntensity = 1.1 * (1 - blast.cooling);
             });
             fx.explosion.smoke?.forEach((mesh, idx) => {
-              const angle = idx * 1.1 + lifeSec * 1.8;
+              const angle = idx * 2.39996;
               mesh.position.set(
-                Math.cos(angle) * (0.06 + idx * 0.024),
+                Math.cos(angle) * blast.spread * (0.12 + idx * 0.03) + lifeSec * 0.035,
                 0.12 + lifeSec * (0.16 + idx * 0.036),
-                Math.sin(angle) * (0.06 + idx * 0.024)
+                Math.sin(angle) * blast.spread * (0.12 + idx * 0.03)
               );
-              mesh.scale.setScalar(smokeGrow * (0.66 + idx * 0.12));
-              mesh.material.opacity = smokeLife * (0.45 - idx * 0.04);
+              mesh.scale.setScalar((0.72 + lifeSec * 0.88) * (0.66 + idx * 0.12));
+              mesh.material.opacity = blast.smoke * (0.55 - idx * 0.04);
             });
             if (fx.t >= LUDO_CAPTURE_EXPLOSION_TIME) {
               captureFxGroup.remove(fx.explosion.root);
+              disposeObject3D(fx.explosion.root);
               activeCaptureFx.splice(i, 1);
             }
           }

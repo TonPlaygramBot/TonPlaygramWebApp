@@ -376,7 +376,6 @@ export function createExactUkrainianFallbackDrone () {
     group.add(arm)
   })
 
-  const rotorNodes = []
   const rotorPositions = [
     [-0.78, 1.86, -0.78],
     [0.78, 1.86, -0.78],
@@ -399,7 +398,6 @@ export function createExactUkrainianFallbackDrone () {
     bladeB.castShadow = true
     rotor.add(bladeA, bladeB)
     group.add(rotor)
-    rotorNodes.push(rotor)
   })
 
   const bluePanel = new THREE.Mesh(new THREE.BoxGeometry(0.48, 0.028, 0.5), accentBlue)
@@ -416,7 +414,7 @@ export function createExactUkrainianFallbackDrone () {
     }
   })
 
-  group.userData = { ...(group.userData || {}), exactUkrainianDroneFallback: true, exactUkrainianDroneModel: true, quadRotorNodes: rotorNodes }
+  group.userData = { ...(group.userData || {}), exactUkrainianDroneFallback: true, exactUkrainianDroneModel: true }
   return group
 }
 
@@ -471,11 +469,85 @@ export async function loadExactUkrainianDroneModel (renderer = null) {
   return model
 }
 
-export function findExactUkrainianDroneRotor (root) {
-  let fallback = null
+// Keep animation state out of userData: Object3D.clone serializes that field and
+// must never retain live rotor references from the template or another instance.
+const rotorAnimationCache = new WeakMap()
+const rotorName = /propell|rotor|blade/
+const staticPartName = /motor|housing|frame|body|arm|battery|camera|guard|mount/
+
+function collectDroneRotors (root) {
+  const candidates = []
+  const sourceRotors = []
   root?.traverse?.((node) => {
+    if (node === root) return
+    // The supplied srcejon GLB uses Blender primitive names, not "rotor".
+    // Its four propeller assemblies are Circle.002–005, each with one mesh.
+    if (/^Circle\.?00[2-5]$/.test(node.name || '') &&
+        node.children?.length === 1 && node.children[0].isMesh &&
+        node.children[0].name === `${node.name}_0`) sourceRotors.push(node)
     const name = `${node.name || ''}`.toLowerCase()
-    if (!fallback && /propell|rotor|blade|fan|motor/.test(name)) fallback = node
+    if (!rotorName.test(name) || staticPartName.test(name) || /drone|quadrotor/.test(name)) return
+    let staticChild = false
+    let meshCount = 0
+    node.traverse((child) => {
+      if (child.isMesh) meshCount++
+      if (child !== node && staticPartName.test(`${child.name || ''}`.toLowerCase())) staticChild = true
+    })
+    if (meshCount && !staticChild) candidates.push(node)
   })
-  return fallback
+  // Require the complete known source signature rather than guessing at one
+  // arbitrary Circle node. Generic models fall back to conservative names.
+  if (sourceRotors.length === 4) return sourceRotors.map(node => ({ node, axis: new THREE.Vector3(0, 0, 1) }))
+  // A container holding several rotor assemblies is not itself a rotor.
+  const assemblies = candidates.filter(node => !candidates.some(other => {
+    if (other === node || other.isMesh) return false
+    for (let parent = other.parent; parent && parent !== root; parent = parent.parent) {
+      if (parent === node) return true
+    }
+    return false
+  }))
+  const selected = new Set(assemblies)
+  return assemblies.filter(node => {
+    for (let parent = node.parent; parent && parent !== root; parent = parent.parent) {
+      if (selected.has(parent)) return false
+    }
+    return true
+  }).map(node => {
+    // Infer the normal to the blade plane in the assembly's local coordinates.
+    node.updateWorldMatrix(true, true)
+    const inverse = node.matrixWorld.clone().invert()
+    const bounds = new THREE.Box3()
+    node.traverse(child => {
+      if (!child.geometry) return
+      child.geometry.computeBoundingBox()
+      const local = inverse.clone().multiply(child.matrixWorld)
+      bounds.union(child.geometry.boundingBox.clone().applyMatrix4(local))
+    })
+    const size = bounds.getSize(new THREE.Vector3())
+    const axis = size.x < size.y && size.x < size.z ? new THREE.Vector3(1, 0, 0)
+      : size.z < size.y ? new THREE.Vector3(0, 0, 1) : new THREE.Vector3(0, 1, 0)
+    return { node, axis }
+  })
+}
+
+function droneRotorAnimation (root) {
+  if (!root) return []
+  if (!rotorAnimationCache.has(root)) {
+    rotorAnimationCache.set(root, collectDroneRotors(root).map(rotor => ({
+      ...rotor, rest: rotor.node.quaternion.clone(), spin: new THREE.Quaternion()
+    })))
+  }
+  return rotorAnimationCache.get(root)
+}
+
+export function findExactUkrainianDroneRotor (root) {
+  return droneRotorAnimation(root)[0]?.node || null
+}
+
+export function spinExactUkrainianDroneRotors (root, timeSeconds) {
+  if (!Number.isFinite(timeSeconds)) return
+  droneRotorAnimation(root).forEach(({ node, axis, rest, spin }, index) => {
+    spin.setFromAxisAngle(axis, timeSeconds * 24 * (index % 2 === 0 ? 1 : -1))
+    node.quaternion.copy(rest).multiply(spin)
+  })
 }
