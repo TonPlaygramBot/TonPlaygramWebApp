@@ -115,6 +115,7 @@ import { chatBeep } from '../../assets/coreSoundData.js';
 import {
   spinFromScreenPoint,
   MAX_CUE_TIP_OFFSET_RATIO,
+  MAX_SPIN_OFFSET,
   resolvePoolRoyalCueStrike,
   stepPoolRoyalClothSpin,
   hasPoolRoyalPlanarSlip,
