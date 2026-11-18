@@ -8,6 +8,7 @@ import { createSnakeHumanInteraction, worldPoint } from './snakeHumanInteraction
 import { createSnakeDiceInteraction, SNAKE_DICE_RELEASE_MS, SNAKE_DICE_PRESENTATION_MS } from './snakeDiceInteraction';
 import { createSnakeFirearmAnimation, createSnakeFirearmFallback } from './snakeFirearmAnimation';
 import { prepareSnakeFirearm, readSnakeWeaponContacts, snakeWeaponProfile } from './snakeWeaponGrip';
+import { resolveSeatedPlayerEyePosition } from './seatedPlayerView';
 import { attachSnakeSeatActor, createSnakeDiceRollAnimation, fitSnakeSeatedView, computeDiceThrowLayout, getDiceOrientationQuaternion, updateSnakeSeatWeapons, SNAKE_SCENE_DIMENSIONS as D } from '../components/SnakeBoard3D';
 import { LUDO_DICE_PRESENTATION_MS, LUDO_DICE_TIMING } from './ludoDiceMotion';
 import { getLudoFirearmTiming } from './ludoFirearmPresentation';
@@ -317,11 +318,37 @@ it('keeps Ludo fixed lens and real eye anchor at narrow portrait widths', async 
     camera.lookAt(target);
     camera.updateMatrixWorld(true);
     expect(eye.z).toBeLessThan(head.z);
-    expect(eye.distanceTo(head)).toBeLessThan(0.18);
+    const unlifted = new THREE.Vector3();
+    resolveSeatedPlayerEyePosition(actor.rig.head, target, unlifted);
+    expect(eye.distanceTo(unlifted)).toBeCloseTo(0.12, 12);
+    expect(eye.y).toBeCloseTo(unlifted.y + 0.12, 12);
     // Ludo does not enlarge the lens to fit every board corner on narrow phones.
     expect(fov).toBe(78);
     const screen = target.clone().project(camera);
     expect(Math.abs(screen.x)).toBeLessThan(1e-7);
     expect(Math.abs(screen.y)).toBeLessThan(1e-7);
+  }
+});
+
+it('raises the seated camera once and preserves fallback through repeated missing heads', () => {
+  const head = new THREE.Object3D(); head.position.set(0, 0.8, 1);
+  const target = new THREE.Vector3(0, 0.2, 0);
+  const eye = new THREE.Vector3();
+  fitSnakeSeatedView(head, {}, target, 1, eye);
+  const expected = new THREE.Vector3();
+  resolveSeatedPlayerEyePosition(head, target, expected);
+  expect(eye.y - expected.y).toBeCloseTo(0.12, 12);
+  expect(eye.x).toBe(expected.x); expect(eye.z).toBe(expected.z);
+  // Compare with the shared resolver rather than duplicating its eye offsets.
+  const stable = eye.clone();
+  for (let i = 0; i < 30; i++) {
+    fitSnakeSeatedView(head, {}, target, 1, eye);
+    expect(eye.distanceTo(stable)).toBeLessThan(1e-12);
+    fitSnakeSeatedView(null, {}, target, 1, eye);
+    expect(eye.distanceTo(stable)).toBeLessThan(1e-12);
+    head.position.x = NaN;
+    fitSnakeSeatedView(head, {}, target, 1, eye);
+    expect(eye.distanceTo(stable)).toBeLessThan(1e-12);
+    head.position.x = 0;
   }
 });

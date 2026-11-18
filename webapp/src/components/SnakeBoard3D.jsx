@@ -211,7 +211,9 @@ const LEVEL_TILE_COUNTS = (() => {
 const BASE_LEVEL_TILES = PYRAMID_LEVELS[0];
 const TOTAL_BOARD_TILES = LEVEL_TILE_COUNTS.reduce((sum, count) => sum + count, 0);
 const RAW_BOARD_SIZE = 1.125;
-const BOARD_SCALE = 3.22 * ARENA_SCALE; // Same world scale as the Ludo board; Snake geometry stays intact.
+// Keep the table, seats and lens at Ludo scale; only shrink the Snake pyramid.
+const BOARD_PRESENTATION_SCALE = 0.9;
+const BOARD_SCALE = 3.22 * ARENA_SCALE * BOARD_PRESENTATION_SCALE;
 const BOARD_FOOTPRINT_SCALE = BOARD_SCALE;
 const BOARD_DISPLAY_SIZE = RAW_BOARD_SIZE * BOARD_FOOTPRINT_SCALE;
 const BOARD_RADIUS = BOARD_DISPLAY_SIZE / 2;
@@ -220,7 +222,9 @@ const TILE_GAP = 0.015;
 const TILE_SIZE = RAW_BOARD_SIZE / BASE_LEVEL_TILES;
 const PYRAMID_HEIGHT_MULTIPLIER = 0.92; // portrait calibration: shorter, lower pyramid tiers
 const MAX_DICE = 1;
-const DICE_SIZE = 0.054;
+// Dice live under the board root. Compensate locally so their world size,
+// pips, grip bounds and landing layout stay unchanged when the board shrinks.
+const DICE_SIZE = 0.054 / BOARD_PRESENTATION_SCALE;
 const DICE_CORNER_RADIUS = DICE_SIZE * 0.18;
 const DICE_PIP_RADIUS = DICE_SIZE * 0.093;
 const DICE_PIP_DEPTH = DICE_SIZE * 0.018;
@@ -237,6 +241,7 @@ const BOARD_BASE_EXTRA = RAW_BOARD_SIZE * (0.36 / 3.4);
 const BOARD_BASE_HEIGHT = RAW_BOARD_SIZE * (0.24 / 3.4);
 const WORLD_UP = new THREE.Vector3(0, 1, 0);
 
+const SEATED_CAMERA_HEIGHT_LIFT = 0.12;
 const CAMERA_FOV = SEATED_PLAYER_VIEW.fov;
 const CAMERA_NEAR = ARENA_CAMERA_DEFAULTS.near;
 const CAMERA_FAR = ARENA_CAMERA_DEFAULTS.far;
@@ -2452,7 +2457,11 @@ function attachSnakeSeatActor(model, chair, seatIndex) {
 function fitSnakeSeatedView(head, _board, target, _aspect, eye) {
   // Ludo locks the viewpoint to the local player's eye and uses a fixed lens.
   // Do not widen the lens to fit Snake's board: that changes every asset's scale.
-  resolveSeatedPlayerEyePosition(head, target, eye);
+  // A failed resolution leaves the fallback untouched. Never accumulate lift
+  // across repeated resets while a player model is loading or has no head.
+  if (resolveSeatedPlayerEyePosition(head, target, eye)) {
+    eye.y += SEATED_CAMERA_HEIGHT_LIFT;
+  }
   return SEATED_PLAYER_VIEW.fov;
 }
 
