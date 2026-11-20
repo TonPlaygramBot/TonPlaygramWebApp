@@ -1,3 +1,4 @@
+import { loadChessBattleRoyalTokenPieces } from '../utils/ludoChessPieces.ts';
 import { resolveLudoDiceCameraTarget, LUDO_CAMERA_PRESENTATION } from '../utils/ludoCameraPresentation';
 import { ludoParkedWeaponLength } from '../utils/ludoParkedWeaponScale.js';
 import { applyLudoSeatedHumanPose, alignLudoHumanFeet, inferChairSupportsArmrest } from '../utils/ludoSeatedPose.js';
@@ -155,9 +156,6 @@ const SEATED_HUMAN_SEAT_Z_OFFSET = -SEAT_DEPTH * 0.42;
 const SEATED_HUMAN_SEAT_Y_OFFSET = -6.75 * MODEL_SCALE * STOOL_SCALE;
 const SEATED_HUMAN_FOOT_GROUND_CLEARANCE = -1.55 * MODEL_SCALE * STOOL_SCALE;
 const SELF_BOTTOM_HUMAN_EXTRA_Z_OFFSET = SEAT_DEPTH * 0.12;
-const SNAKE_TOKEN_MODEL_URLS = [
-  'https://cdn.jsdelivr.net/gh/KhronosGroup/glTF-Sample-Models@master/2.0/ABeautifulGame/glTF/ABeautifulGame.gltf'
-];
 const TARGET_CHAIR_SIZE = new THREE.Vector3(1.3162499970197679, 1.9173749900311232, 1.7001562547683715).multiplyScalar(
   CHAIR_SIZE_SCALE
 );
@@ -1138,83 +1136,27 @@ function spinCaptureRotors(rig, dtSeconds = 0) {
   });
 }
 
-function pickChessPieceTargets(scene) {
-  const targets = {
-    pawn: null,
-    knight: null,
-    bishop: null,
-    rook: null,
-    queen: null,
-    king: null
-  };
-  if (!scene) return targets;
-  scene.traverse((node) => {
-    if (!node.name) return;
-    const name = node.name.toLowerCase();
-    const maybeAssign = (key, regex) => {
-      if (!targets[key] && regex.test(name)) {
-        targets[key] = node;
-      }
-    };
-    maybeAssign('pawn', /pawn/);
-    maybeAssign('knight', /knight|horse/);
-    maybeAssign('bishop', /bishop/);
-    maybeAssign('rook', /rook|castle/);
-    maybeAssign('queen', /queen/);
-    maybeAssign('king', /king/);
-  });
-  return targets;
-}
-
-function findChessPieceRoot(node, key) {
-  if (!node) return null;
-  const keyRegex = new RegExp(key, 'i');
-  let current = node;
-  let candidate = node;
-  while (current.parent) {
-    if (current.parent.name && keyRegex.test(current.parent.name)) {
-      candidate = current.parent;
-    }
-    current = current.parent;
-  }
-  return candidate;
-}
-
-function buildChessPiecePrototypes(scene) {
-  const candidates = pickChessPieceTargets(scene);
-  const prototypes = {};
-  Object.entries(candidates).forEach(([key, node]) => {
-    if (!node) return;
-    const root = findChessPieceRoot(node, key) ?? node;
-    const clone = root.clone(true);
-    prepareLoadedModel(clone);
-    prototypes[key] = clone;
-  });
-  return prototypes;
-}
+const SNAKE_CHESS_TOKEN_KEYS = {
+  pawn: 'p', knight: 'n', bishop: 'b', rook: 'r', queen: 'q', king: 'k'
+};
 
 async function loadChessPiecePrototypes(renderer = null) {
   if (SNAKE_TOKEN_PROTOTYPE_CACHE.pieces) return SNAKE_TOKEN_PROTOTYPE_CACHE.pieces;
   if (!SNAKE_TOKEN_PROTOTYPE_CACHE.promise) {
-    const loader = createConfiguredGLTFLoader(renderer);
-    SNAKE_TOKEN_PROTOTYPE_CACHE.promise = (async () => {
-      let gltf = null;
-      for (const url of SNAKE_TOKEN_MODEL_URLS) {
-        try {
-          gltf = await loader.loadAsync(url);
-          break;
-        } catch (error) {
-          // try next
-        }
-      }
-      const scene = gltf?.scene || gltf?.scenes?.[0] || null;
-      if (!scene) return null;
-      const prototypes = buildChessPiecePrototypes(scene);
-      return prototypes;
-    })();
+    SNAKE_TOKEN_PROTOTYPE_CACHE.promise = loadChessBattleRoyalTokenPieces(createConfiguredGLTFLoader(renderer))
+      .then((pieces) => {
+        if (!pieces) return null;
+        return Object.fromEntries(Object.entries(SNAKE_CHESS_TOKEN_KEYS).map(([name, key]) => {
+          const piece = pieces[key];
+          prepareLoadedModel(piece);
+          return [name, piece];
+        }));
+      })
+      .finally(() => { SNAKE_TOKEN_PROTOTYPE_CACHE.promise = null; });
   }
-  SNAKE_TOKEN_PROTOTYPE_CACHE.pieces = await SNAKE_TOKEN_PROTOTYPE_CACHE.promise;
-  return SNAKE_TOKEN_PROTOTYPE_CACHE.pieces;
+  const pieces = await SNAKE_TOKEN_PROTOTYPE_CACHE.promise;
+  if (pieces) SNAKE_TOKEN_PROTOTYPE_CACHE.pieces = pieces;
+  return pieces;
 }
 
 function scaleChessPieceToToken(piece, targetHeight) {
@@ -3775,7 +3717,8 @@ function updateTokens(
       token.traverse((obj) => {
         if (obj.isMesh) {
           obj.geometry.dispose();
-          obj.material.dispose();
+          const tokenMaterials = Array.isArray(obj.material) ? obj.material : [obj.material];
+          tokenMaterials.forEach((material) => material?.dispose());
         }
       });
       token = null;
@@ -3794,6 +3737,8 @@ function updateTokens(
         pieceMaterials = [];
         piece.traverse((child) => {
           if (child.isMesh) {
+            // Disposing a token must not dispose its shared source geometry.
+            child.geometry = child.geometry.clone();
             if (Array.isArray(child.material)) {
               child.material = child.material.map((material) => material?.clone?.() ?? material);
             } else if (child.material?.clone) {
@@ -4026,7 +3971,8 @@ function updateTokens(
       group.traverse((obj) => {
         if (obj.isMesh) {
           obj.geometry.dispose();
-          obj.material.dispose();
+          const tokenMaterials = Array.isArray(obj.material) ? obj.material : [obj.material];
+          tokenMaterials.forEach((material) => material?.dispose());
         }
       });
     }
