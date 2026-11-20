@@ -1,7 +1,8 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import * as THREE from '../webapp/node_modules/three/build/three.module.js';
-import { loadLudoChessPieces } from '../webapp/src/utils/ludoChessPieces.ts';
+import { readFileSync } from 'node:fs';
+import { loadChessBattleRoyalTokenPieces } from '../webapp/src/utils/ludoChessPieces.ts';
 import { createFallbackLudoToken, hasVisibleLudoToken, withLudoTokenAssets, setLudoTileHighlight, updateLudoTileGlow, LUDO_TILE_GLOW_SECONDS } from '../webapp/src/utils/ludoTokenPresentation.ts';
 
 const colors = [0xef4444, 0x3b82f6, 0xfacc15, 0x22c55e];
@@ -58,10 +59,11 @@ test('the original ivory pawn loads with its glass top and an incomplete source 
   const scene = { nodes: [0, 1, 2, 3, 5, 6, 7, 8, 9] };
   const root = new THREE.Group();
   let plugin;
-  let attempts = 0;
+  const urls = [];
   const loader = {
     register: (callback) => { plugin = callback; },
-    async loadAsync() {
+    async loadAsync(url) {
+      urls.push(url);
       await plugin({ json: { nodes, scenes: [scene] } }).beforeRoot();
       assert.deepEqual(scene.nodes, [1, 2, 5, 7, 8, 9]);
       root.clear();
@@ -74,14 +76,16 @@ test('the original ivory pawn loads with its glass top and an incomplete source 
         for (const child of node.children ?? []) mesh.add(makePiece(child));
         return mesh;
       };
-      attempts += 1;
       root.add(...scene.nodes.map(makePiece));
-      if (attempts === 1) root.getObjectByName('Bishop_W1').material.map = null;
+      if (urls.length === 1) root.getObjectByName('Bishop_W1').material.map = null;
       return { scene: root };
     }
   };
-  const pieces = await loadLudoChessPieces(loader);
-  assert.equal(attempts, 2);
+  const pieces = await loadChessBattleRoyalTokenPieces(loader);
+  const chessSource = readFileSync(new URL('../webapp/src/pages/Games/ChessBattleRoyal.jsx', import.meta.url), 'utf8');
+  const primarySources = chessSource.match(/const BEAUTIFUL_GAME_URLS = \[([\s\S]*?)\];/)[1];
+  const chessUrls = [...primarySources.matchAll(/'(https:\/\/[^']+)'/g)].map((match) => match[1]);
+  assert.deepEqual(urls, chessUrls.slice(0, 2));
   assert.deepEqual(Object.keys(pieces).sort(), ['b', 'k', 'n', 'p', 'q', 'r']);
   assert.equal(pieces.p.name, 'Pawn_Body_W1');
   assert.equal(pieces.p.children[0].name, 'Pawn_Top_W1');

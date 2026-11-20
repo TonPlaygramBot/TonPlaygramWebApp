@@ -36,6 +36,19 @@ export default function LegalPage({ type }) {
     <h1 className="mt-2 text-3xl font-bold">{document.title}</h1>
     <p className="mt-2 text-sm text-subtext">Last updated: {document.updated}</p>
     <div className="mt-6 space-y-4">{document.items.map(([title, body]) => <section key={title} className="rounded-2xl border border-border bg-surface p-4 shadow-sm"><h2 className="text-lg font-semibold">{title}</h2><p className="mt-2 text-sm leading-6 text-subtext">{body}</p></section>)}</div>
+    {type === 'terms' && (
+      <aside aria-labelledby="asset-credits" className="mt-6 rounded-2xl border border-border bg-surface p-4">
+        <h2 id="asset-credits" className="text-lg font-semibold">Third-party asset credits</h2>
+        <p className="mt-2 text-sm leading-6 text-subtext">
+          <a className="underline" href="https://github.com/KhronosGroup/glTF-Sample-Assets/tree/main/Models/ABeautifulGame">A Beautiful Game</a>.
+          Original chess set by Moeen Sayed and Mujtaba Sayed for SideFX, shared by the MaterialX Project
+          (© 2020 Academy Software Foundation). Original GLB conversion by Chris Rydalch and Jonathan Stone;
+          glTF conversion by Ed Mackey (© 2022). Licensed under{' '}
+          <a className="underline" href="https://creativecommons.org/licenses/by/4.0/">Creative Commons Attribution 4.0 International</a>.
+          TonPlayGram adapts the pieces by selecting, resizing and recoloring them for gameplay.
+        </p>
+      </aside>
+    )}
     <div className="mt-6 flex flex-wrap gap-3 text-sm"><Link className="rounded-xl border border-border px-4 py-3" to={type === 'privacy' ? '/terms' : '/privacy'}>Read {type === 'privacy' ? 'Terms' : 'Privacy Policy'}</Link><Link className="rounded-xl bg-primary px-4 py-3 font-semibold text-background" to="/delete-account">Delete account</Link></div>
   </main>;
 }
