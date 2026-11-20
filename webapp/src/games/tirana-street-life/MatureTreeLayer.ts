@@ -1,3 +1,4 @@
+import {useMediumTree,importedTreeBudget} from './treeLodPolicy.mjs';
 import {ImportedTreeLayer} from './ImportedTreeLayer';
 import {pointInUrbanBounds} from '../tiranastreets/shared/urbanBounds.mjs';
 import {groundHeight} from '../tirana-east/terrainCore.mjs';
@@ -16,6 +17,8 @@ type Batch={shape:string;lod:number;wood:T.InstancedMesh;leaves:T.InstancedMesh}
 export class MatureTreeLayer {
  readonly group=new T.Group();private disposed=false;private dead=false;private last=-Infinity;
  private imported=new ImportedTreeLayer();private importedReady=false;
+ private mediumImported=new ImportedTreeLayer(undefined,'/assets/tirana-streets/city-realism/urban-tree-lod1.glb');
+ private mediumReady=false;private mediumIds=new Set<string>();
  private batches:Batch[]=[];private materials:T.Material[]=[];private texture:T.CanvasTexture;
  private near:(p:{x:number;z:number},r:number,n:number)=>Tree[];
  private dummy=new T.Object3D();private color=new T.Color();
@@ -23,7 +26,7 @@ export class MatureTreeLayer {
  private cameraMatrix=new T.Matrix4();private cameraProjection=new T.Matrix4();
  private frustum=new T.Frustum();private projection=new T.Matrix4();private treeBounds=new T.Sphere();
  constructor(trees:Tree[]=CANOPY_TREES,options:StreetDetailOptions={}){
-  this.group.name='Tirana:mature-boulevard-and-square-trees';this.group.add(this.imported.group);
+  this.group.name='Tirana:mature-boulevard-and-square-trees';this.group.add(this.imported.group,this.mediumImported.group);
   const blocked=options.track?ribbonExclusion(options.track):null;
   const eligible=trees.filter(t=>pointInUrbanBounds(t,Math.max(1,t.crown/2))&&(!blocked||!blocked(t.x,t.z,Math.max(.8,t.crown*.75))));this.near=nearbyIndex(eligible.map(t=>({...t,y:groundHeight(t.x,t.z)+.12})));
   this.group.userData={mappedTrunks:eligible.filter(t=>t.zone!=='estimated-area-canopy').length,estimatedAreaTrunks:eligible.filter(t=>t.zone==='estimated-area-canopy').length,accuracy:'Mapped trunks, interpolated rows and estimated canopy within mapped green spaces; not satellite verified'};
@@ -50,20 +53,20 @@ export class MatureTreeLayer {
   if(this.dead||!viewer)return;
   if(camera)camera.updateWorldMatrix(true,false);
   const cameraChanged=!!camera&&(!this.cameraMatrix.equals(camera.matrixWorld)||!this.cameraProjection.equals(camera.projectionMatrix));
-  if(!force&&this.importedReady===this.imported.ready&&this.battery===battery&&seconds>=this.last&&(seconds-this.last<.2||Math.hypot(viewer.x-this.viewer.x,viewer.z-this.viewer.z)<12&&!cameraChanged))return;
+  if(!force&&this.importedReady===this.imported.ready&&this.mediumReady===this.mediumImported.ready&&this.battery===battery&&seconds>=this.last&&(seconds-this.last<.2||Math.hypot(viewer.x-this.viewer.x,viewer.z-this.viewer.z)<12&&!cameraChanged))return;
   if(camera){
    this.cameraMatrix.copy(camera.matrixWorld);this.cameraProjection.copy(camera.projectionMatrix);
    this.projection.multiplyMatrices(camera.projectionMatrix,camera.matrixWorldInverse);this.frustum.setFromProjectionMatrix(this.projection);
    this.group.updateWorldMatrix(true,false);
   }
-  this.importedReady=this.imported.ready;this.imported.begin();
+  this.importedReady=this.imported.ready;this.mediumReady=this.mediumImported.ready;this.imported.begin();this.mediumImported.begin();
   this.last=seconds;this.viewer={x:viewer.x,z:viewer.z};this.battery=battery;
   const trees=this.near(viewer,2200,6000);let detailed=0,medium=0;
   this.batches.forEach(b=>{b.wood.count=0;b.leaves.count=0;});
   // Spend the existing original-model budget on what is visible on the phone.
   // Trees behind the camera must not force visible broadleaf trees to use the
   // generated canopy; cypress/upright profiles keep their existing proportions.
-  const originalIds=new Set<string>();
+  const originalIds=new Set<string>(),nextMediumIds=new Set<string>();
   for(const t of trees){
    if(Math.hypot(t.x-viewer.x,t.z-viewer.z)>=(battery?75:125)||!['garden','umbrella'].includes(t.shape))continue;
    if(camera){
@@ -71,7 +74,17 @@ export class MatureTreeLayer {
     this.treeBounds.applyMatrix4(this.group.matrixWorld);
     if(!this.frustum.intersectsSphere(this.treeBounds))continue;
    }
-   this.imported.request();if(this.imported.add(t,battery))originalIds.add(t.id);
+   // One combined budget across LODs, with a 10 m dead band to prevent
+   // rapid model swaps when the kart/camera hovers around a threshold.
+   if(originalIds.size>=importedTreeBudget(battery))break;
+   const distance=Math.hypot(t.x-viewer.x,t.z-viewer.z);
+   const useMedium=useMediumTree(distance,this.mediumIds.has(t.id),battery);
+   if(useMedium)this.mediumImported.request();
+   if(useMedium&&this.mediumImported.add(t,battery)){
+    originalIds.add(t.id);nextMediumIds.add(t.id);
+   }else{
+    this.imported.request();if(this.imported.add(t,battery))originalIds.add(t.id);
+   }
   }
   for(const t of trees){
    if(originalIds.has(t.id))continue;
@@ -84,14 +97,15 @@ export class MatureTreeLayer {
    b.wood.setMatrixAt(b.wood.count++,this.dummy.matrix);b.leaves.setMatrixAt(b.leaves.count,this.dummy.matrix);
    this.color.setHSL(.235+(t.seed%5)*.008,.2+(t.seed%4)*.02,.62+(t.seed%6)*.025);b.leaves.setColorAt(b.leaves.count++,this.color);
   }
-  this.imported.end();
-  this.group.userData.importedTrunks=this.imported.group.userData.visibleTrees;
+  this.imported.end();this.mediumImported.end();this.mediumIds=nextMediumIds;
+  this.group.userData.importedTrunks=originalIds.size;
+  this.group.userData.mediumImportedTrunks=nextMediumIds.size;
   this.group.userData.importedRadius=battery?75:125;
   this.group.userData.visibleTrunks=trees.length;this.group.userData.radius=2200;
   this.batches.forEach(b=>{b.wood.instanceMatrix.needsUpdate=true;b.leaves.instanceMatrix.needsUpdate=true;if(b.leaves.instanceColor)b.leaves.instanceColor.needsUpdate=true;});
  }
  retire(){this.dead=true;}
- dispose(){if(this.disposed)return;this.disposed=true;this.dead=true;this.imported.dispose();this.group.removeFromParent();this.batches.forEach(b=>{b.wood.dispose();b.leaves.dispose();b.wood.geometry.dispose();b.leaves.geometry.dispose();});this.materials.forEach(m=>m.dispose());this.texture.dispose();this.group.clear();}
+ dispose(){if(this.disposed)return;this.disposed=true;this.dead=true;this.imported.dispose();this.mediumImported.dispose();this.mediumIds.clear();this.group.removeFromParent();this.batches.forEach(b=>{b.wood.dispose();b.leaves.dispose();b.wood.geometry.dispose();b.leaves.geometry.dispose();});this.materials.forEach(m=>m.dispose());this.texture.dispose();this.group.clear();}
 }
 
 function treeGeometry(shape:string,detail:boolean){

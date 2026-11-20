@@ -4,7 +4,7 @@ import { createServer } from 'node:http';
 import { Server } from 'socket.io';
 import { io as client } from 'socket.io-client';
 import { attachKartRoyale } from '../bot/services/kartRoyale.js';
-import { CUPS, STEP, createRacer, makeTrack, stepRacer } from '../webapp/src/games/kartroyale/simulation.mjs';
+import { CUPS, STEP, createRacer, makeTrack, stepRacer, normalizeTrack } from '../webapp/src/games/kartroyale/simulation.mjs';
 import { createRaceCombat, stepRaceCombat } from '../webapp/src/games/kartroyale/raceCombat.mjs';
 import { recordTimingGate } from '../webapp/src/games/kartroyale/raceTelemetry.mjs';
 import { bestTrialLap, normalizeRaceFormat, trialStandings } from '../webapp/src/games/kartroyale/raceFormats.mjs';
@@ -79,14 +79,14 @@ for (const retired of ['combat', 'trial', 'championship']) {
     const created = await emit(host, 'create', { trackId: 'skanderbeg', public: true, raceFormat: retired, cupIndex: 1 });
     assert.equal(created.state.raceFormat, 'race');
     assert.equal(created.state.cupIndex, null);
-    assert.equal(created.state.trackId, 'skanderbeg');
+    assert.equal(created.state.trackId, normalizeTrack('skanderbeg'));
     const joined = await emit(guest, 'quick', { trackId: 'skanderbeg', raceFormat: 'race' });
     assert.equal(joined.code, created.code, 'retired format does not split matchmaking');
     assert.equal((await emit(guest, 'config', { raceFormat: retired })).ok, false);
     const configured = await emit(host, 'config', { raceFormat: retired, cupIndex: 2 });
     assert.equal(configured.state.raceFormat, 'race');
     assert.equal(configured.state.cupIndex, null);
-    assert.equal(configured.state.trackId, 'skanderbeg');
+    assert.equal(configured.state.trackId, normalizeTrack('skanderbeg'));
     await emit(host, 'ready', { ready: true }); await emit(guest, 'ready', { ready: true });
     await emit(host, 'start'); await tick(3600);
     const room = service.rooms.get(created.code);
@@ -128,9 +128,18 @@ test('race pickups are server-owned: boolean item use consumes only held supply 
   await emit(host, 'start'); await tick(3600);
   const room = service.rooms.get(created.code);
   const racer = room.racers.find(r => r.id === created.playerId);
+  const input = async data => {
+    host.emit('kart:input', data);
+    // Wait for socket receipt BEFORE advancing the injected simulation clock.
+    // Otherwise a loaded CI runner can tick first and process input afterwards.
+    const until=Date.now()+2000;
+    while(racer.input.useItem !== (data.useItem===true) && Date.now()<until)
+      await new Promise(resolve=>setTimeout(resolve,5));
+    assert.equal(racer.input.useItem,data.useItem===true);
+    await tick(100);
+  };
   assert.equal(racer.raceItem, null);
-  host.emit('kart:input', { useItem: true, raceItem: 'rocket', itemShield: 100, health: 999, speed: 1000 });
-  await tick(100);
+  await input({ useItem: true, raceItem: 'rocket', itemShield: 100, health: 999, speed: 1000 });
   assert.equal(racer.input.useItem, true);
   assert.equal(racer.raceItem, null);
   assert.equal(racer.itemRocket, null);
@@ -139,17 +148,14 @@ test('race pickups are server-owned: boolean item use consumes only held supply 
   assert.ok(racer.speed < 1000);
   // Arrange a legitimate authority-owned reward, then exercise the public input path.
   racer.raceItem = 'shield';
-  host.emit('kart:input', { useItem: 'true', raceItem: 'boost' });
-  await tick(100);
+  await input({ useItem: 'true', raceItem: 'boost' });
   assert.equal(racer.input.useItem, false);
   assert.equal(racer.raceItem, 'shield');
-  host.emit('kart:input', { useItem: true });
-  await tick(100);
+  await input({ useItem: true });
   assert.equal(racer.raceItem, null);
   assert.ok(racer.itemShield > 3.5 && racer.itemShield <= 4);
   const activatedEvent = racer.itemEvent;
-  host.emit('kart:input', { useItem: true });
-  await tick(100);
+  await input({ useItem: true });
   assert.equal(racer.itemEvent, activatedEvent, 'held input does not repeatedly consume items');
   const resumed = await emit(host, 'resume', { code: created.code, playerId: created.playerId, token: created.token });
   const remote = resumed.state.racers.find(r => r.id === created.playerId);

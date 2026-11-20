@@ -1,3 +1,4 @@
+import {makeArchivedTrack} from './fixtures/archivedRacingCatalog.mjs';
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { build } from '../webapp/node_modules/esbuild/lib/main.js';
@@ -10,10 +11,10 @@ import { resolveKartContact } from '../webapp/src/games/kartroyale/collisions.mj
 
 const edgeKey = (a,b) => [a.join(','),b.join(',')].sort().join('|');
 const streets = new Set(WORLD.roads.filter(r=>!r.walk).map(r=>edgeKey(r.a,r.b)));
-test('all six main-road circuits stay connected, near their landmarks, and clear of buildings',()=>{
+test('archived six main-road circuits stay connected, near their landmarks, and clear of buildings',()=>{
   assert.equal(MAIN_ROAD_ROUTES.length,6);
   for(const route of MAIN_ROAD_ROUTES){
-    const track=makeTrack(route.id);
+    const track=makeArchivedTrack(route.id);
     assert.ok(track.length >=1600 && track.length<=4200,route.id+' playable city length');
     assert.equal(new Set(route.points.map(p=>p.join(','))).size,route.points.length,'no repeated road nodes');
     route.points.forEach((p,i)=>assert.ok(streets.has(edgeKey(p,route.points[(i+1)%route.points.length])),route.id+' connected road'));

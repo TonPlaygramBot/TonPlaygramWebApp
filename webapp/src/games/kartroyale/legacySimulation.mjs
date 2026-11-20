@@ -42,7 +42,11 @@ export const TRACK_ALIASES = {
   neon: 'blloku',
   canyon: 'lana',
   alpine: 'pyramid',
-  coast: 'stadium'
+  coast: 'stadium',
+  // Retired selections migrate saves to explicit city circuits, not fake rural copies.
+  farke: 'pyramid',
+  surrel: 'skanderbeg',
+  liqeni: 'stadium'
 };
 export const normalizeTrack = (id) => TRACK_ALIASES[id] || id;
 export const TRACKS = [

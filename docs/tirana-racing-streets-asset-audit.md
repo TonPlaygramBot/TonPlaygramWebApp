@@ -1,6 +1,6 @@
 # Tirana Racing Streets: city asset audit
 
-Checked 2026-11-18. This audit adds no downloaded assets and does not change the
+Checked 2026-11-18. The initial audit was followed by the verified acquisition described below. It does not change the
 roads, collision footprints or production deployment. The bounded material pass below changes generic building surface appearance. Asset licences are
 not software open-source licences; use the specific terms below.
 
@@ -38,10 +38,15 @@ checked before promising a visible change.
 5. Check glTF parse and missing textures, imports, disposal during asynchronous load, error fallback, repeated mount/unmount and quality-mode limits.
 6. Compare matching before/after street and landmark views in the actual game, then profile mobile texture memory and frame time. Health checks and string-only tests cannot establish visual correctness.
 
-No newly investigated GLTF is integrated by this audit. City geometry remains unchanged. New third-party model integration remains a shortlist, not a completed model upgrade.
+The selected Poly Haven facade components have now been acquired and optimized as described below. City geometry remains unchanged. Runtime integration and visual review are tracked separately.
 
 ## Implemented bounded material pass
 
 Generic FpsCity shell caps now use the bundled CC0 `rough_concrete` material rather than facade-tinted plaster. Wall plaster tiles use the source-reported 2.2m width instead of 4m; ground and roof UV scale are unchanged. Triangle indices are partitioned after cell merging so wall/roof materials remain correct across multiple buildings. Vertex positions, triangle count, collision topology, landmark replacements and GLTF materials are untouched. Each existing generic shell cell gains at most one material draw group; textures are shared through the existing cache. This is not a photogrammetric city replacement.
 
 Regression tests exercise real concave extrusions, merged cells, indexed and non-indexed geometry, material assignment and unchanged vertices/triangle count. Actual in-game visual/mobile profiling remains a release gate.
+
+
+## Acquired modular glTF derivative
+
+The official 1K glTF and all dependencies were acquired successfully through the official API on 2026-11-18; each original file matched its published MD5. `webapp/public/assets/tirana-streets/facade-modules/` now contains four 3×3m bays with original PBR/glass, 563–1447 triangles per bay after coplanar wall tessellation reduction, 7.3 MB total. See its `sources.json` for SHA-256 records and `ATTRIBUTION.md` for CC0 author credit. No additional Sketchfab assets were acquired. Actual GLB structure, dimensions, material maps, triangle budget and checksums have executable regression coverage.

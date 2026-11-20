@@ -21,7 +21,8 @@ export class ImportedTreeLayer {
  private count=0;
  readonly capacity=8;
  constructor(private loadSource:SourceLoader=async()=>
-  (await new GLTFLoader().loadAsync('/assets/tirana-streets/city-realism/urban-tree.glb')).scene){
+  (await new GLTFLoader().loadAsync(this.sourcePath)).scene,
+  private sourcePath='/assets/tirana-streets/city-realism/urban-tree.glb'){
   this.group.name='Tirana:imported-close-canopy';
  }
  get ready(){return this.meshes.length>0&&!this.dead;}

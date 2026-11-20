@@ -1,4 +1,5 @@
 import * as THREE from 'three';
+import {landmarkNearDistance} from './landmarkVisibility.mjs';
 import {createMallBrand} from '../tirana-mall/MallBrand';
 import {buildNativeModel, MATERIALS} from './nativeModels.mjs';
 import type {NativeLandmark} from './nativeLocations.mjs';
@@ -9,6 +10,8 @@ export class NativeLandmarkLayer {
   readonly group = new THREE.Group();
   readonly lods: THREE.LOD[] = [];
   private disposed = false;
+  private racing = false;
+  private battery = false;
   constructor(readonly locations: readonly NativeLandmark[]) {
     this.group.name = 'Tirana:original-landmark-recreations';
     this.group.userData.provenance = 'Original approximate meshes; not Google Earth scans';
@@ -39,7 +42,7 @@ export class NativeLandmarkLayer {
         if (l.id === 'pyramid') {
           const brand = createMallBrand(14); brand.position.set(0, 19.1, 0); group.add(brand);
         }
-        lod.addLevel(group, detail === 'near' ? 0 : (l.id === 'skanderbeg' ? 90 : 190), .12);
+        lod.addLevel(group, detail === 'near' ? 0 : landmarkNearDistance(l.id), .12);
       }
       // Tall silhouettes survive farther than small monuments. LOD updates are
       // performed by THREE.WebGLRenderer for the active game camera.
@@ -49,7 +52,12 @@ export class NativeLandmarkLayer {
     }
   }
   setBatteryMode(enabled: boolean) {
-    for (const lod of this.lods) lod.levels[1].distance = enabled ? 35 : (lod.userData.id === 'skanderbeg' ? 90 : 190);
+    this.battery = enabled;
+    for (const lod of this.lods) lod.levels[1].distance = landmarkNearDistance(lod.userData.id,this.racing,enabled);
+  }
+  setRacingVisibility(enabled: boolean) {
+    this.racing = enabled;
+    this.setBatteryMode(this.battery);
   }
   /** Detach before the owning scene's disposal to avoid duplicate disposal. */
   dispose() {

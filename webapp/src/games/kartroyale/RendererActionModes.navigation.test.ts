@@ -9,6 +9,13 @@ import {ACTION_MISSIONS} from './actionCareer.mjs';
 // Exercise the production renderer's session lifecycle and fixed-step dispatch.
 // Only GPU drawing and asset-backed presentation are stubbed; driving, combat,
 // action mission progression, input and result payloads remain production code.
+const fixture = vi.hoisted(() => ({ useArchivedMission: false }));
+vi.mock('./simulation.mjs', async (importOriginal) => {
+ const sim=await importOriginal<typeof import('./simulation.mjs')>();
+ const legacy=await import('../../../../test/fixtures/archivedRacingCatalog.mjs');
+ return {...sim,makeTrack:(id: string)=>fixture.useArchivedMission
+   ? legacy.makeArchivedTrack(id) : sim.makeTrack(id)};
+});
 vi.mock('three',async()=>{
  const actual=await vi.importActual<typeof import('three')>('three');
  return {...actual,PMREMGenerator:class {
@@ -34,6 +41,7 @@ vi.mock('./ActionCareerWorld',async()=>{
 
 let game:any,host:HTMLDivElement,frame:ReturnType<typeof vi.fn>,finish:ReturnType<typeof vi.fn>;
 beforeEach(()=>{
+ fixture.useArchivedMission=false;
  vi.stubGlobal('matchMedia',()=>({matches:false,addEventListener(){},removeEventListener(){}}));
  vi.stubGlobal('requestAnimationFrame',vi.fn(()=>1));
  vi.stubGlobal('cancelAnimationFrame',vi.fn());
@@ -50,6 +58,11 @@ beforeEach(()=>{
  game.last=0;game.fpsAt=0;
 });
 afterEach(()=>{game.destroy();host.remove();vi.unstubAllGlobals();});
+function startArchivedMission(mission: typeof ACTION_MISSIONS[number]) {
+ fixture.useArchivedMission=true;
+ try { game.startActionCareer(mission.id,mission.track); }
+ finally { fixture.useArchivedMission=false; }
+}
 function advance(seconds=.1){
  const end=game.last+seconds*1000;
  while(game.last<end-.01)game.animate(Math.min(end,game.last+50));
@@ -79,7 +92,7 @@ it('runs combat only in its local session and pauses both projectiles and held c
 });
 
 it('moves the on-foot actor while leaving the parked kart unchanged, and publishes its own HUD',()=>{
- const mission=ACTION_MISSIONS[0];game.startActionCareer(mission.id,mission.track);
+ const mission=ACTION_MISSIONS[0];startArchivedMission(mission);
  expect(game.freeDriving).not.toBeNull();expect(game.combat).toBeNull();
  game.actionInput.interact=true;advance(.05);
  expect(game.actionCareer.mode).toBe('onfoot');
@@ -97,7 +110,7 @@ it('moves the on-foot actor while leaving the parked kart unchanged, and publish
 });
 
 it('buffers short interaction, jump and reload taps until a fixed step, and cancels them on pause',()=>{
- const mission=ACTION_MISSIONS[0];game.startActionCareer(mission.id,mission.track);
+ const mission=ACTION_MISSIONS[0];startArchivedMission(mission);
  game.queueAction('interact');game.actionInput.interact=false;advance(.05);
  expect(game.actionCareer.mode).toBe('onfoot');
  game.queueAction('jump');game.actionInput.jump=false;advance(.05);
@@ -105,14 +118,14 @@ it('buffers short interaction, jump and reload taps until a fixed step, and canc
  advance(1.2);expect(game.actionCareer.actor.jumpHeight).toBe(0);
  game.actionCareer.ammo=8;game.queueAction('reload');game.actionInput.reload=false;advance(.05);
  expect(game.actionCareer.reload).toBeGreaterThan(0);
- game.startActionCareer(mission.id,mission.track);
+ startArchivedMission(mission);
  game.queueAction('interact');game.pause(true);game.pause(false);advance(.1);
  expect(game.actionCareer.mode).toBe('driving');
  expect(game.actionPulses).toEqual({jump:false,interact:false,reload:false});
 });
 
 it('finishes a failed action mission once with no fictitious race/city/combat result',()=>{
- const mission=ACTION_MISSIONS[0];game.startActionCareer(mission.id,mission.track);
+ const mission=ACTION_MISSIONS[0];startArchivedMission(mission);
  game.actionCareer.actor.health=0;game.actionInput.fire=true;
  advance(.1);advance(.2);
  expect(game.state).toBe('finished');expect(finish).toHaveBeenCalledOnce();
@@ -121,7 +134,7 @@ it('finishes a failed action mission once with no fictitious race/city/combat re
 });
 
 it('drops local mission state and effects before receiving an online race, and cleans up on garage exit',()=>{
- const mission=ACTION_MISSIONS[0];game.startActionCareer(mission.id,mission.track);
+ const mission=ACTION_MISSIONS[0];startArchivedMission(mission);
  const world=game.actionWorld;
  game.actionInput.fire=true;
  game.networkState({trackId:mission.track,status:'racing',racers:game.racers.map((r:any)=>({...r})),elapsed:10,startsAt:0,serverNow:10000},'you');
@@ -147,6 +160,7 @@ it('renders online combat for the local viewer without predicting damage or losi
  expect(game.combat.player.ammo).toBe(9);
  expect(snapshot.combat.playerId).toBe('you');
  const effects=game.combatEffects,dispose=vi.spyOn(effects,'dispose');
+ const activeTrack=game.track;expect(activeTrack.id).not.toBe(snapshot.trackId);
  const authoritativeCombat=JSON.stringify(game.combat);
  game.input.fire=true;game.queueCombatReload();game.queueCombatPulse();
  advance(.3);
@@ -155,7 +169,7 @@ it('renders online combat for the local viewer without predicting damage or losi
  expect(packet).toMatchObject({fire:true,reload:true,pulse:true});
  expect(game.networkInput()).toMatchObject({fire:true,reload:false,pulse:false});
  game.networkState({...snapshot,elapsed:10.3},me);
- expect(game.combatEffects).toBe(effects);expect(dispose).not.toHaveBeenCalled();
+ expect(game.track).toBe(activeTrack);expect(game.combatEffects).toBe(effects);expect(dispose).not.toHaveBeenCalled();
  expect(game.input.fire).toBe(true);
  game.queueCombatPulse();game.pause(true);
  expect(game.networkInput()).toMatchObject({fire:false,reload:false,pulse:false});

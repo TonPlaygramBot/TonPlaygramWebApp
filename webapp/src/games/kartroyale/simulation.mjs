@@ -1,12 +1,12 @@
-// Browser and server share fixed-step physics and the five updated Tirana IDs.
+// Browser and server share fixed-step physics and the city circuit catalogue.
 // Long city routes are authored offline; no graph searches during module import.
 export * from './legacySimulation.mjs';
 import * as legacy from './legacySimulation.mjs';
-import {TIRANA_ROUTES} from './tirana-routes.mjs';
-import {MAIN_ROAD_ROUTES} from './main-road-routes.mjs';
-import {RURAL_ROUTES} from './rural-routes.mjs';
+import {URBAN_RACE_ROUTES} from './urban-race-routes.mjs';
 import {buildRaceCatalog} from './raceCatalog.mjs';
-const catalog=buildRaceCatalog(legacy,TIRANA_ROUTES,MAIN_ROAD_ROUTES,RURAL_ROUTES);
+import {normalizeTrack,TRACK_ALIASES} from './trackMigration.mjs';
+export {normalizeTrack,TRACK_ALIASES};
+const catalog=buildRaceCatalog({...legacy,TRACKS:[],CUPS:legacy.CUPS.map(c=>({...c,track:normalizeTrack(c.track)})),normalizeTrack},[],[],URBAN_RACE_ROUTES);
 export const TRACKS=catalog.tracks;
 export const CUPS=catalog.cups;
 export const GRAND_ROUTE_DIAGNOSTICS=catalog.diagnostics;

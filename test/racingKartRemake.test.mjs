@@ -1,3 +1,4 @@
+import {ARCHIVED_TRACKS,makeArchivedTrack} from './fixtures/archivedRacingCatalog.mjs';
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
@@ -56,12 +57,12 @@ test('bumper damage never retires a kart and stale fire input has no weapon effe
   const r=make();for(let i=0;i<100;i++)damageRacer(r,14);assert.equal(r.retired,false);assert.equal(r.health,50);
   r.input.fire=true;r.ammunition=3;stepRace([r],makeTrack('blloku'),STEP,1);assert.equal(r.ammunition,0);assert.equal(r.missileHits,0);
 });
-test('district and rural circuits retain mapped street or trail edges and share one city assembly',()=>{
+test('new compact city circuits retain mapped streets and share one city assembly',()=>{
   const key=(a,b)=>[a.join(','),b.join(',')].sort().join('|');
   const roads=new Set(WORLD.roads.filter(r=>!r.walk).map(r=>key(r.a,r.b)));
   const trails=new Set(WORLD.roads.map(r=>key(r.a,r.b)));
   for(const config of TRACKS){
-    assert.ok(makeTrack(config.id).length>1400&&makeTrack(config.id).length<4400);
+    assert.ok(makeTrack(config.id).length>500&&makeTrack(config.id).length<1800);
     const edges=config.terrainMode?trails:roads;
     for(let i=0;i<config.points.length;i++)assert.ok(edges.has(key(config.points[i],config.points[(i+1)%config.points.length])),config.id);
   }
@@ -75,4 +76,8 @@ test('track recovery preserves lap gates and progress; holding it cannot repeate
   assert.equal(r.lap,2);assert.equal(r.gates,6);assert.equal(r.nextGate,2);assert.equal(r.progress,1.4);
   assert.equal(r.speed,0);assert.equal(r.x,track.points[r.index].x);
   stepRacer(r,{...input,recover:true,throttle:true},track,STEP,10+STEP);assert.ok(r.speed>0);
+});
+
+test('archived boulevard geometry retains its original long-course bounds',()=>{
+ for(const config of ARCHIVED_TRACKS){const track=makeArchivedTrack(config.id);assert.ok(track.length>1400&&track.length<4400);}
 });

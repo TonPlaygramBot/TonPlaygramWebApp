@@ -1,0 +1,18 @@
+{
+  "source": "urban-tree.glb",
+  "sourceSha256": "6a0c68e89af9fb6f8ecbc6229fb1a26a84d3a9ab80444b306db3e4757371a73a",
+  "originalSource": "https://polyhaven.com/a/island_tree_02",
+  "license": "CC0-1.0",
+  "authors": [
+    "Rob Tuytel",
+    "Rico Cilliers"
+  ],
+  "originalProvenance": "provenance.json",
+  "file": "urban-tree-lod1.glb",
+  "sha256": "b82e54b393ec75a022be569da11851d9f9211894349413f8ce594239ce2cf3cb",
+  "bytes": 2100236,
+  "triangles": 17928,
+  "sourceTriangles": 35869,
+  "tool": "Blender4.3.2",
+  "changes": "Split material regions; collapse0.5 independently per region; preserved source UV/PBR, leaf MASK alpha0.45 and branch texture transforms. Medium-distance derivative only; do not substitute for near model. No species/locality accuracy claim."
+}

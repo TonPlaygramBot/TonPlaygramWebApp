@@ -13,6 +13,8 @@ vi.mock('./renderer',()=>({KartRenderer:class{
 }}));
 vi.mock('./audio',()=>({KartAudio:class{unlock(){}update(){}silence(){}beep(){}destroy(){}setMuted(){}}}));
 import BaseKartRoyale from './BaseKartRoyale';
+import {TRACKS} from './simulation.mjs';
+const firstTrack=TRACKS[0].id;
 globalThis.IS_REACT_ACT_ENVIRONMENT=true;
 
 it('imports the garage without eagerly constructing all circuit minimaps',()=>{
@@ -23,13 +25,13 @@ it('opens the real garage, prepares only the shown circuit and starts an AI race
  try{
   await act(async()=>root.render(<BaseKartRoyale/>));
   expect(host.querySelector('.kr-lobby')).not.toBeNull();
-  expect(new Set(harness.makeTrack.mock.calls.map(([id])=>id))).toEqual(new Set(['skanderbeg']));
+  expect(new Set(harness.makeTrack.mock.calls.map(([id])=>id))).toEqual(new Set([firstTrack]));
   expect(host.textContent).not.toContain('FREE ROAM');
   expect(host.querySelector('#kr-roam-start')).toBeNull();
   const launch=host.querySelector('button.kr-start');
   expect(launch).toBeTruthy();expect(launch.disabled).toBe(false);
   await act(async()=>launch.click());
-  expect(harness.game.startLocal).toHaveBeenCalledWith('skanderbeg','rookie',false);
+  expect(harness.game.startLocal).toHaveBeenCalledWith(firstTrack,'rookie',false);
  }finally{await act(async()=>root.unmount());host.remove();}
  expect(harness.game.destroy).toHaveBeenCalledOnce();
 });
@@ -62,7 +64,7 @@ it('offers only normal racing under AI and multiplayer with no retired entrypoin
   expect(host.querySelector('.kr-cups')).toBeNull();
   for(const label of ['Career', 'Combat race', 'Time trial', 'CITY JOBS & ACTION MISSIONS'])expect(host.textContent).not.toContain(label);
   await act(async()=>host.querySelector('.kr-start').click());
-  expect(harness.game.startLocal).toHaveBeenCalledWith('skanderbeg','rookie',false);
+  expect(harness.game.startLocal).toHaveBeenCalledWith(firstTrack,'rookie',false);
   expect(harness.game.startCombatRace).not.toHaveBeenCalled();
  }finally{await act(async()=>root.unmount());host.remove();}
 });
@@ -73,7 +75,7 @@ it('creates a standard free room and retains the selected circuit',async()=>{
   await act(async()=>root.render(<BaseKartRoyale getSocket={async()=>socket}/>));
   await act(async()=>[...host.querySelectorAll('.kr-mode')].find(b=>b.textContent.includes('MULTIPLAYER')).click());
   await clickText(host,'Create room');
-  expect(socket.emit).toHaveBeenCalledWith('kart:create',expect.objectContaining({raceFormat:'race',trackId:'skanderbeg'}),expect.any(Function));
+  expect(socket.emit).toHaveBeenCalledWith('kart:create',expect.objectContaining({raceFormat:'race',trackId:firstTrack}),expect.any(Function));
   expect(host.textContent).toContain('ABCDEF');
   expect(host.querySelector('[aria-label="Racing activity"]')).toBeNull();
  }finally{await act(async()=>root.unmount());host.remove();sessionStorage.clear();}
@@ -90,5 +92,30 @@ it('lets standard multiplayer select free rooms or the existing TPG lobby',async
   await clickText(host,'TPG RACES');
   expect(host.querySelector('[data-testid="paid-lobby"]')).not.toBeNull();
   expect(host.textContent).not.toContain('Create room');
+ }finally{await act(async()=>root.unmount());host.remove();sessionStorage.clear();}
+});
+
+it('blocks career while room creation is pending or a multiplayer seat is active',async()=>{
+ sessionStorage.clear();const socket=testSocket(),onCareer=vi.fn();let completeCreate;
+ const original=socket.emit.getMockImplementation();
+ socket.emit.mockImplementation((event,payload,ack)=>{
+  if(event==='kart:create'){completeCreate=()=>original(event,payload,ack);return;}
+  return original(event,payload,ack);
+ });
+ const host=document.createElement('div');document.body.append(host);const root=createRoot(host);
+ const career=()=>[...host.querySelectorAll('button')].find(b=>b.textContent.includes('CAREER ·'));
+ try{
+  await act(async()=>root.render(<BaseKartRoyale getSocket={async()=>socket} onCareer={onCareer}/>));
+  expect(career().disabled).toBe(false);
+  await act(async()=>[...host.querySelectorAll('.kr-mode')].find(b=>b.textContent.includes('MULTIPLAYER')).click());
+  await clickText(host,'Create room');
+  expect(completeCreate).toBeTypeOf('function');expect(career().disabled).toBe(true);
+  await act(async()=>career().click());expect(onCareer).not.toHaveBeenCalled();
+  await act(async()=>completeCreate());
+  expect(host.textContent).toContain('ABCDEF');expect(career().disabled).toBe(true);
+  await act(async()=>career().click());expect(onCareer).not.toHaveBeenCalled();
+  await clickText(host,'Leave');expect(career().disabled).toBe(false);
+  await act(async()=>career().click());expect(onCareer).toHaveBeenCalledOnce();
+  expect(sessionStorage.getItem('kartroyale.session')).toBeNull();
  }finally{await act(async()=>root.unmount());host.remove();sessionStorage.clear();}
 });

@@ -1,3 +1,4 @@
+import {makeArchivedTrack} from './fixtures/archivedRacingCatalog.mjs';
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {ACTION_MISSIONS,createActionCareer,stepActionCareer,neutralActionInput,finishActionCareer,freshActionCareer,actionCareerXP,loadActionCareer,saveActionCareer,actionLineClear,actionCameraDistance} from '../webapp/src/games/kartroyale/actionCareer.mjs';
@@ -36,9 +37,9 @@ test('all three missions complete through real drive, foot combat, collection, r
  for(const m of ACTION_MISSIONS){const f=fixture(m.id),state=complete(f),out=finishActionCareer(profile,state);assert.equal(out.xp,m.xp);profile=out.profile;assert.equal(finishActionCareer(profile,state).xp,0);assert.ok(state.footDistance>70);}
  assert.equal(actionCareerXP(profile),690);
 });
-test('all mission staging points, guards, objectives and extraction fit the current Tirana collision world',()=>{
+test('archived action missions retain collision-safe staging against the unchanged city world',()=>{
  const world=freeRoamWorld();
- for(const m of ACTION_MISSIONS){const track={...makeTrack(m.track),terrainMode:'regional'},r=createRacer(track,'you','You'),s=createActionCareer(m.id,track,r,world);
+ for(const m of ACTION_MISSIONS){const track={...makeArchivedTrack(m.track),terrainMode:'regional'},r=createRacer(track,'you','You'),s=createActionCareer(m.id,track,r,world);
   for(const target of [s.park,s.package,s.extraction,...s.enemies]){const p={...r,x:target.x,z:target.z,speed:0,bodyWidth:.56,bodyLength:.56,waterRecovery:0,impactCooldown:1};world.move(p,p.x,p.z,0);assert.equal(p.wallContact,false,`${m.id} ${target.id||'destination'} is obstructed`);assert.equal(p.waterRecovery,0);assert.ok(Math.hypot(p.x-target.x,p.z-target.z)<.08);}
  }
 });
