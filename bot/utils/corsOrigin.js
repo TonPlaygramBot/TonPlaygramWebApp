@@ -1,8 +1,10 @@
-// Capacitor serves installed applications from a local, non-HTTP origin. The
-// origin is still trustworthy: it can only be produced by the installed app,
-// while browser pages cannot claim a capacitor:// or ionic:// origin.
+// Exact origins used by the native WebViews. CORS permission is not proof of
+// application identity or authentication: non-browser clients can forge Origin.
+// Authentication and authorization must still be enforced on each API route.
 export const nativeAppOrigins = new Set([
   'capacitor://localhost',
+  // capacitor.config.ts uses this hostname and the default iOS capacitor scheme.
+  'capacitor://tonplaygram-bot.onrender.com',
   'ionic://localhost',
   'http://localhost'
 ]);

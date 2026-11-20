@@ -3,6 +3,7 @@ import { isAllowedApiOrigin } from '../bot/utils/corsOrigin.js';
 describe('API CORS origins', () => {
   test.each([
     'capacitor://localhost',
+    'capacitor://tonplaygram-bot.onrender.com',
     'ionic://localhost',
     'http://localhost'
   ])('allows the installed mobile app origin in production: %s', origin => {
@@ -22,5 +23,17 @@ describe('API CORS origins', () => {
   test('keeps loopback development servers available outside production', () => {
     expect(isAllowedApiOrigin('http://127.0.0.1:5173', [], false)).toBe(true);
     expect(isAllowedApiOrigin('http://localhost:4173', [], false)).toBe(true);
+  });
+
+  test.each([
+    'capacitor://example.com',
+    'capacitor://tonplaygram-bot.onrender.com.evil.example',
+    'capacitor://tonplaygram-bot.onrender.com:443',
+    'capacitor://tonplaygram-bot.onrender.com/',
+    'ionic://tonplaygram-bot.onrender.com',
+    'http://tonplaygram-bot.onrender.com',
+    'null'
+  ])('does not expand the native allowlist to lookalikes: %s', origin => {
+    expect(isAllowedApiOrigin(origin, [], true)).toBe(false);
   });
 });
