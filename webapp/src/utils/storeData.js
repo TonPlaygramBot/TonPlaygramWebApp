@@ -1,4 +1,5 @@
-export const STORE_ADDRESS = 'UQAPwsGyKzA4MuBnCflTVwEcTLcGS9yV6okJWQGzO5VxVYD1';
+// Unverified legacy treasury is disabled; no replacement is approved.
+export const STORE_ADDRESS = null;
 
 export const STORE_CATEGORIES = [
   'Bundles',

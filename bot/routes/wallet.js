@@ -15,19 +15,12 @@ import {
 } from '../utils/userUtils.js';
 
 import authenticate from '../middleware/auth.js';
-import tonClaim from '../utils/tonClaim.js';
 import { blockExternalValueInMobileStore } from '../config/mobileStorePolicy.js';
 
-const WITHDRAW_ENABLED = process.env.WITHDRAW_ENABLED === 'true';
 
 // Track USDT using the official jetton master address on TON
 const USDT_JETTON_HEX =
   '0:b113a994b5024a16719f69139328eb759596c38a25f59028b146fecdc3621dfe';
-
-// Token root address used when directing users to import TPG
-const TPC_JETTON_ADDRESS =
-  process.env.TPC_JETTON_ADDRESS ||
-  'EQDY3qbfGN6IMI5d4MsEoprhuMTz09OkqjyhPKX6DVtzbi6X';
 
 const router = Router();
 
@@ -428,134 +421,16 @@ router.post('/deposit', authenticate, blockExternalValueInMobileStore, async (re
 
 });
 
-// ✅ Request withdrawal to a TON wallet address
-
-router.post('/withdraw', authenticate, blockExternalValueInMobileStore, async (req, res) => {
-
-  if (!WITHDRAW_ENABLED) {
-    return res.status(403).json({ error: 'withdrawals disabled' });
-  }
-
-  const { telegramId, accountId, address, amount } = req.body;
-
-  if ((!telegramId && !accountId) || !address || typeof amount !== 'number' || amount <= 0) {
-
-    return res
-
-      .status(400)
-
-      .json({ error: 'telegramId or accountId, address and positive amount required' });
-
-  }
-  const user = await User.findOne(accountId ? { accountId } : { telegramId });
-  if (!user || !canAccessUser(req, user)) {
-    return res.status(403).json({ error: 'forbidden' });
-  }
-
-  if (!user || user.balance < amount) {
-
-    return res.status(400).json({ error: 'insufficient balance' });
-
-  }
-
-  ensureTransactionArray(user);
-
-  user.balance -= amount;
-
-  const tx = {
-    amount: -amount,
-    type: 'withdraw',
-    token: 'TPG',
-    status: 'pending',
-    date: new Date()
-  };
-
-  user.transactions.push(tx);
-
-  await user.save();
-
-  try {
-    await tonClaim(address, amount);
-    tx.status = 'delivered';
-    await user.save();
-    try {
-      await sendTPCNotification(
-        bot,
-        user.telegramId,
-        `\u{1FA99} Claim of ${amount} TPG sent to ${address}. If it doesn't appear, add TPG using ${TPC_JETTON_ADDRESS}`
-      );
-    } catch (err) {
-      console.error('Failed to send Telegram notification:', err.message);
-    }
-    return res.json({ balance: user.balance, transaction: tx });
-  } catch (err) {
-    console.error('Claim transaction failed:', err.message);
-    user.balance += amount;
-    tx.status = 'failed';
-    user.transactions.pop();
-    await user.save();
-    return res.status(500).json({ error: 'claim failed' });
-  }
-
-});
-
-// ✅ Claim TPG to an external TON wallet
-router.post('/claim-external', authenticate, blockExternalValueInMobileStore, async (req, res) => {
-  const { telegramId, accountId, address, amount } = req.body;
-
-  if ((!telegramId && !accountId) || !address || typeof amount !== 'number' || amount <= 0) {
-    return res
-      .status(400)
-      .json({ error: 'telegramId or accountId, address and positive amount required' });
-  }
-
-  const user = await User.findOne(accountId ? { accountId } : { telegramId });
-  if (!user || !canAccessUser(req, user)) {
-    return res.status(403).json({ error: 'forbidden' });
-  }
-
-  if (!user || user.balance < amount) {
-    return res.status(400).json({ error: 'insufficient balance' });
-  }
-
-  ensureTransactionArray(user);
-
-  user.balance -= amount;
-
-  const tx = {
-    amount: -amount,
-    type: 'withdraw',
-    token: 'TPG',
-    status: 'pending',
-    date: new Date(),
-    address,
-  };
-
-  user.transactions.push(tx);
-  await user.save();
-  try {
-    await tonClaim(address, amount);
-    tx.status = 'delivered';
-    await user.save();
-    try {
-      await sendTPCNotification(
-        bot,
-        user.telegramId,
-        `\u{1FA99} Claim of ${amount} TPG sent to ${address}. If it doesn't appear, add TPG using ${TPC_JETTON_ADDRESS}`
-      );
-    } catch (err) {
-      console.error('Failed to send Telegram notification:', err.message);
-    }
-    return res.json({ balance: user.balance, transaction: tx });
-  } catch (err) {
-    console.error('Claim transaction failed:', err.message);
-    user.balance += amount;
-    tx.status = 'failed';
-    user.transactions.pop();
-    await user.save();
-    return res.status(500).json({ error: 'claim failed' });
-  }
-});
+// Retired token: deny before any balance or history mutation. DB rewards are
+// separate and intentionally unchanged by this token-retirement patch.
+for (const path of ['/withdraw', '/claim-external']) {
+  router.post(path, authenticate, blockExternalValueInMobileStore, (_req, res) =>
+    res.status(403).json({
+      error: 'External token claims are unavailable: legacy token retired',
+      code: 'legacy_token_retired'
+    })
+  );
+}
 
 // ✅ Authenticated transaction history
 

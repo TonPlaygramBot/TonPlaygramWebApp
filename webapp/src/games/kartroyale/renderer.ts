@@ -35,6 +35,7 @@ import {
   equipKart,
   COLORS,
   makeTrack,
+  normalizeTrack,
   createRacer,
   stepRace,
   stepRacer,
@@ -1065,10 +1066,12 @@ export class KartRenderer {
   }
   networkState(next: ServerRace, id: string) {
     if (!next.racers.length) return;
+    // Migrated track IDs must not rebuild the world and clear held inputs on every snapshot.
+    const trackId = normalizeTrack(next.trackId);
     const fresh =
       !this.network ||
       this.me !== id ||
-      this.track.id !== next.trackId ||
+      this.track.id !== trackId ||
       this.state === 'garage' ||
       (this.state === 'finished' && next.status === 'countdown');
     if (fresh) this.resetActionModes();
@@ -1085,7 +1088,7 @@ export class KartRenderer {
       ? next.results.map((r) => ({ ...r }))
       : null;
     if (fresh) {
-      this.track = makeTrack(next.trackId);
+      this.track = makeTrack(trackId);
       this.createWorld(this.track);
       this.addRacers();
       this.accumulator = 0;

@@ -23,7 +23,7 @@
   - `STORE_DEPOSIT_ADDRESS` – TON address that receives payments for store bundles
   - `CLAIM_CONTRACT_ADDRESS` – address of the deployed `tpc_claim_wallet` contract
   - `CLAIM_WALLET_MNEMONIC` – seed phrase used to sign claim transactions
-  - `TPC_JETTON_ADDRESS` – token contract address shown after a claim
+  - Legacy `TPC_JETTON_ADDRESS` is retired and ignored; no replacement token is approved.
   - `RPC_URL` – (optional) TON RPC endpoint for claim messages. Defaults to `https://toncenter.com/api/v2/jsonRPC`
    - `PORT` – (optional) port for the bot API server (defaults to 3000)
 - `DEV_ACCOUNT_ID` – account ID that collects transfer fees
@@ -265,15 +265,17 @@ Telegram ID. When a profile is requested the server first tries to find the
 account by `accountId`. Missing details such as the name or avatar are
 automatically filled from Telegram when a `telegramId` is provided.
 
-### Claiming TPG on-chain
+### External token unavailable
 
-Withdrawals and `/claim-external` trigger a signed message to
-`CLAIM_CONTRACT_ADDRESS` using the mnemonic in `CLAIM_WALLET_MNEMONIC`.
-The `tpc_claim_wallet` contract forwards this call to the TPG Jetton root
-(`EQDY3qbfGN6IMI5d4MsEoprhuMTz09OkqjyhPKX6DVtzbi6X`) so the specified amount of
-TPG is transferred directly to the provided address. If the call succeeds the
-transaction status becomes `delivered`. Failed claims revert the user's balance
-and respond with HTTP 500 while the transaction is removed.
+The previous TPC token is retired and must not be represented as usable TPG.
+External token claims, balances, pricing and legacy treasury/pool defaults are
+unavailable. No new contract, treasury or liquidity pool has been selected.
+`tonClaim()` fails closed without reading signer credentials or accessing TON.
+App TPG balances remain database records; this change does not reset, migrate,
+redeem, or value them as a tradable asset. The wallet USD estimate covers TON only.
+Do not restore these paths via environment overrides or a replacement address
+without separate verification and approval.
+
 ### Common issues
 
 - **Balance always zero** – verify MongoDB is running and `MONGO_URI` points

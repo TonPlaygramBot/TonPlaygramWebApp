@@ -17,6 +17,7 @@ export function stageUnlocked (profile, stages, id) { const i = stages.findIndex
 export function finishStreetStage (profile, tracks, karts, id, result) {
   const p = normalizeStreetCareer(profile, tracks, karts); const stages = careerStages(tracks); const stage = stages.find(s => s.id === id)
   const previousXP = p.xp
+  if (!result || !Array.isArray(result.racers) || Array.from(result.racers).some(r => !r || typeof r !== 'object')) return { profile: p, bonus: 0, completed: false }
   const me = result?.racers?.find(r => r.id === result.playerId); const place = result?.racers?.indexOf(me) + 1
   if (!stage || !stageUnlocked(p, stages, id) || result.trackId !== id || result.online || !me?.finished || !Number.isFinite(me.finishTime) || me.finishTime <= 0 || place < 1) return { profile: p, bonus: 0, completed: false }
   const earned = ['finish', ...(place <= 3 ? ['podium'] : []), ...(me.health >= 90 ? ['clean'] : []), ...(place === 1 ? ['winner'] : [])]

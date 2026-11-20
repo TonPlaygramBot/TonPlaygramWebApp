@@ -233,7 +233,7 @@ describe('online game policy', () => {
   });
 
   test.each(['2048royale', 'hextrisbattle', 'underrunarena'])(
-    'accepts %s two-player score-race matchmaking',
+    'rejects retired %s matchmaking',
     (gameType) => {
       expect(
         validateSeatTableRequest({
@@ -247,17 +247,8 @@ describe('online game policy', () => {
             token: 'TPG'
           }
         })
-      ).toMatchObject({
-        ok: true,
-        normalizedGameType: gameType,
-        normalizedMaxPlayers: 2,
-        safeMatchMeta: {
-          format: 'score-race',
-          durationSeconds: '120',
-          mode: 'online',
-          token: 'TPG'
-        }
-      });
+      ).toEqual({ ok: false, error: 'unsupported_game_type' });
+      expect(buildReadinessSnapshot()[gameType]).toBeUndefined();
     }
   );
 

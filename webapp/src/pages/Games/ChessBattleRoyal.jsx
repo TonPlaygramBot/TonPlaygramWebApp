@@ -1,3 +1,4 @@
+import SceneStartupError from '../../components/SceneStartupError.jsx';
 import { TURI_CHARACTER_ID } from '../../config/playerCharacter.js';
 import { createFirstPersonArms } from '../../games/checkers/checkersHumanActors.ts';
 import { applyTuriSeatedPose } from '../../games/shared/turiSeatedPose.js';
@@ -7862,6 +7863,8 @@ function Chess3D({
   stakeAmount = 0,
   stakeToken = 'TPG'
 }) {
+  const navigate = useNavigate();
+  const [sceneFailed, setSceneFailed] = useState(false);
   const wrapRef = useRef(null);
   const normalizedInitialSide = initialSide === 'black' ? 'black' : 'white';
   const aiPlaysWhite = normalizedInitialSide === 'black';
@@ -15688,6 +15691,7 @@ function Chess3D({
 
     setup().catch((error) => {
       console.error('Chess Battle Royal: scene setup failed', error);
+      if (!cancelled) setSceneFailed(true);
     });
 
     return () => {
@@ -15791,6 +15795,7 @@ function Chess3D({
 
   return (
     <div ref={wrapRef} className="fixed inset-0 bg-[#0c1020] text-white touch-none select-none">
+      {sceneFailed && <SceneStartupError onReload={() => window.location.reload()} onLobby={() => navigate('/games/chessbattleroyal/lobby')} />}
       {ui.promoting && (
         <div className="absolute inset-0 z-50 flex items-center justify-center bg-black/70 p-4">
           <div role="dialog" aria-modal="true" aria-label="Promote pawn" className="w-full max-w-xs rounded-2xl bg-slate-900 p-5 shadow-xl">

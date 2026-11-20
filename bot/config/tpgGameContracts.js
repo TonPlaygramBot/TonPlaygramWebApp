@@ -6,9 +6,6 @@ const CONTRACTS = {
   chess: [],
   checkers: ['rules'],
   fourinrow: ['boardSize'],
-  '2048royale': ['format', 'durationSeconds'],
-  hextrisbattle: ['format', 'durationSeconds'],
-  underrunarena: ['format', 'durationSeconds'],
 
   'domino-royal': ['variant', 'targetPoints', 'players'],
   ludobattleroyal: ['players', 'rules'],

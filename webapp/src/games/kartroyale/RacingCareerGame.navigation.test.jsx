@@ -6,6 +6,13 @@ import {CITY_JOB_KEY,createCityJob} from './cityJobs.mjs';
 import {ACTION_CAREER_KEY,createActionCareer} from './actionCareer.mjs';
 import {makeTrack} from './simulation.mjs';
 const harness=vi.hoisted(()=>({game:null,finish:null,frame:null}));
+// This retired UI is exercised against archived geometry. The live lobby's
+// retired-link and current Career behaviour are tested independently.
+vi.mock('./simulation.mjs', async (importOriginal) => {
+ const sim=await importOriginal();
+ const legacy=await import('../../../../test/fixtures/archivedRacingCatalog.mjs');
+ return {...sim,TRACKS:[...legacy.ARCHIVED_TRACKS,...sim.TRACKS],makeTrack:legacy.makeArchivedTrack};
+});
 vi.mock('./renderer',()=>({KartRenderer:class{
  constructor(host,frame,finish){harness.game=this;harness.finish=finish;harness.frame=frame;this.input={};this.actionInput={};}
  load=vi.fn(async()=>{});setKart=vi.fn();setCameraMode=vi.fn();startLocal=vi.fn();startCityJob=vi.fn();startActionCareer=vi.fn();queueAction=vi.fn();clearInput=vi.fn(()=>{this.input={};this.actionInput={};});pause=vi.fn();showGarage=vi.fn();destroy=vi.fn();
