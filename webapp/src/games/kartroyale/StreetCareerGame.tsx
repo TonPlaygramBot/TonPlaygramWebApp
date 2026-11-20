@@ -14,6 +14,7 @@ import {
   CAREER_PAINTS
 } from './streetCareer.mjs';
 import { formatTime } from './career';
+import { Package, Pause } from 'lucide-react';
 import './kart-controls.css';
 import './streetCareer.css';
 const storage = () => {
@@ -39,6 +40,7 @@ export function StreetCareerGame({ onExit }: { onExit: () => void }) {
     [hud, setHud] = useState<Frame | null>(null);
   const [racing, setRacing] = useState(false),
     [paused, setPaused] = useState(false),
+    [suppliesOpen, setSuppliesOpen] = useState(false),
     [summary, setSummary] = useState(''),
     [muted, setMuted] = useState(false),
     [camera, setCamera] = useState<'driver' | 'chase'>('driver');
@@ -55,7 +57,10 @@ export function StreetCareerGame({ onExit }: { onExit: () => void }) {
     setPaused(value);
     clear();
     engine.current?.pause(value);
-    if (value) audio.current?.silence();
+    if (value) {
+      setSuppliesOpen(false);
+      audio.current?.silence();
+    }
   };
   const persist = (next: typeof profile) => {
     profileRef.current = next;
@@ -137,21 +142,15 @@ export function StreetCareerGame({ onExit }: { onExit: () => void }) {
       e: ['useItem', true]
     };
     const down = (e: KeyboardEvent) => {
-      if (
-        done.current ||
-        e.ctrlKey ||
-        e.altKey ||
-        e.metaKey ||
-        (e.target as HTMLElement)?.closest?.(
-          'input,select,textarea,button,[contenteditable="true"]'
-        )
-      )
-        return;
+      if (done.current || e.ctrlKey || e.altKey || e.metaKey) return;
       if (e.key === 'Escape') {
         e.preventDefault();
         pause(!pausedRef.current);
         return;
       }
+      const target = e.target as HTMLElement | null;
+      if (target?.closest?.('input,select,textarea,[contenteditable="true"]') ||
+          (e.key === ' ' && target?.closest?.('button'))) return;
       const value = keys[e.key.toLowerCase()];
       if (!value || pausedRef.current) return;
       e.preventDefault();
@@ -205,6 +204,7 @@ export function StreetCareerGame({ onExit }: { onExit: () => void }) {
     setError('');
     setSummary('');
     setHud(null);
+    setSuppliesOpen(false);
     pausedRef.current = false;
     setPaused(false);
     try {
@@ -245,27 +245,23 @@ export function StreetCareerGame({ onExit }: { onExit: () => void }) {
     if (engine.current)
       Object.assign(engine.current.input, held.current.read());
   };
+  const exit = () => {
+    board();
+    onExit();
+  };
+  const supplyCount = (hud?.careerSupplies?.rocket ?? 0) + (hud?.careerSupplies?.shield ?? 0);
   return (
     <main className="street-career" aria-label="Tirana Racing Streets career">
       <div className="sc-canvas" ref={host} />
-      <header>
-        <div>
-          <small>TIRANA RACING STREETS</small>
-          <h1>
-            {racing
-              ? stages.find((s) => s.id === active.current)?.name
-              : 'Career'}
-          </h1>
-        </div>
-        <button
-          onClick={() => {
-            board();
-            onExit();
-          }}
-        >
-          GARAGE
-        </button>
-      </header>
+      {!racing && (
+        <header>
+          <div>
+            <small>TIRANA RACING STREETS</small>
+            <h1>Career</h1>
+          </div>
+          <button onClick={exit}>GARAGE</button>
+        </header>
+      )}
       {error && (
         <p className="sc-alert" role="alert">
           {error}
@@ -390,53 +386,46 @@ export function StreetCareerGame({ onExit }: { onExit: () => void }) {
       ) : (
         <>
           <section className="sc-hud" aria-label="Career race status">
-            <b>
-              {hud?.countdown
+            <div className="sc-race-progress">
+              <strong>{hud?.countdown
                 ? `START ${hud.countdown}`
-                : `LAP ${hud?.lap || 1}/3 · P${hud?.position || 1}`}
-            </b>
-            <span>
-              {formatTime(hud?.time || 0)} · {Math.round(hud?.health ?? 100)}%
-              condition
-            </span>
-            <button onClick={() => pause(!paused)}>
-              {paused ? 'RESUME' : 'PAUSE'}
-            </button>
-            <button
-              onClick={() => {
-                const next = camera === 'driver' ? 'chase' : 'driver';
-                setCamera(next);
-                engine.current?.setCameraMode(next);
-              }}
-            >
-              {camera === 'driver' ? 'CHASE CAMERA' : 'DRIVER CAMERA'}
-            </button>
-            <button
-              onClick={() => {
-                setMuted(!muted);
-                audio.current?.setMuted(!muted);
-              }}
-            >
-              {muted ? 'UNMUTE' : 'MUTE'}
-            </button>
+                : `LAP ${hud?.lap || 1}/3 · P${hud?.position || 1}`}</strong>
+              <span>{formatTime(hud?.time || 0)} · <abbr title="Kart condition">{Math.round(hud?.health ?? 100)}%</abbr></span>
+            </div>
+            {!paused && (
+              <div className="sc-race-actions">
+                <button
+                  className="sc-icon-button"
+                  type="button"
+                  aria-label="Race supplies"
+                  title="Race supplies"
+                  aria-expanded={suppliesOpen}
+                  aria-controls="sc-race-supplies"
+                  onClick={() => setSuppliesOpen(!suppliesOpen)}
+                >
+                  <Package size={17} aria-hidden="true" /> <span>{supplyCount}</span>
+                </button>
+                <button className="sc-icon-button" type="button" aria-label="Pause race" title="Pause race" onClick={() => pause(true)}>
+                  <Pause size={18} aria-hidden="true" />
+                </button>
+              </div>
+            )}
+            <div id="sc-race-supplies" className="sc-supplies" hidden={!suppliesOpen || paused}>
+              <small>Load an empty pickup slot, then tap USE or E.</small>
+              {(['rocket', 'shield'] as const).map((kind) => (
+                <button
+                  key={kind}
+                  disabled={paused || !!hud?.countdown || !!hud?.raceItem || !hud?.careerSupplies?.[kind]}
+                  onClick={() => {
+                    engine.current?.equipStreetSupply(kind);
+                    setSuppliesOpen(false);
+                  }}
+                >
+                  LOAD {kind.toUpperCase()} · {hud?.careerSupplies?.[kind] ?? 0}
+                </button>
+              ))}
+            </div>
           </section>
-          <div className="sc-supplies">
-            <small>Load an empty pickup slot, then tap USE or E.</small>
-            {(['rocket', 'shield'] as const).map((kind) => (
-              <button
-                key={kind}
-                disabled={
-                  paused ||
-                  !!hud?.countdown ||
-                  !!hud?.raceItem ||
-                  !hud?.careerSupplies?.[kind]
-                }
-                onClick={() => engine.current?.equipStreetSupply(kind)}
-              >
-                LOAD {kind.toUpperCase()} · {hud?.careerSupplies?.[kind] ?? 0}
-              </button>
-            ))}
-          </div>
           <KartControls
             hold={hold}
             release={release}
@@ -451,9 +440,25 @@ export function StreetCareerGame({ onExit }: { onExit: () => void }) {
           />
           {paused && (
             <section className="sc-pause" aria-label="Career paused">
-              <h2>Paused</h2>
+              <h2>Paused · {stages.find((stage) => stage.id === active.current)?.name}</h2>
               <button onClick={() => pause(false)}>CONTINUE</button>
+              <div className="sc-pause-options">
+                <button onClick={() => {
+                  const next = camera === 'driver' ? 'chase' : 'driver';
+                  setCamera(next);
+                  engine.current?.setCameraMode(next);
+                }}>
+                  {camera === 'driver' ? 'CHASE CAMERA' : 'DRIVER CAMERA'}
+                </button>
+                <button onClick={() => {
+                  setMuted(!muted);
+                  audio.current?.setMuted(!muted);
+                }}>
+                  {muted ? 'UNMUTE' : 'MUTE'}
+                </button>
+              </div>
               <button onClick={board}>RETURN TO CAREER</button>
+              <button onClick={exit}>EXIT TO GARAGE</button>
               <p>Leaving an unfinished race earns no stage rewards.</p>
             </section>
           )}
