@@ -1,11 +1,14 @@
-import type { Mesh, MeshStandardMaterial, Object3D } from 'three';
+import type { Color, Mesh, MeshPhysicalMaterial, MeshStandardMaterial, Object3D } from 'three';
 import type { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js';
+import { CHESS_TOKEN_MODEL_PATH } from './chessTokenModelPath.js';
 import { hasVisibleLudoToken } from './ludoTokenPresentation.ts';
 
 // A Beautiful Game by ASWF and Ed Mackey (CC BY 4.0).
-// Same source priority as Chess Battle Royal; the existing asset resolver mirrors these URLs.
+// Start with the same-origin, texture-complete subset of the frozen Khronos model.
 // https://github.com/KhronosGroup/glTF-Sample-Assets/tree/main/Models/ABeautifulGame
 const ABG_MODEL_URLS = [
+  CHESS_TOKEN_MODEL_PATH,
+  'https://cdn.jsdelivr.net/gh/KhronosGroup/glTF-Sample-Assets@main/Models/ABeautifulGame/glTF-Binary/ABeautifulGame.glb',
   'https://raw.githubusercontent.com/KhronosGroup/glTF-Sample-Models/master/2.0/ABeautifulGame/glTF/ABeautifulGame.gltf',
   'https://cdn.jsdelivr.net/gh/KhronosGroup/glTF-Sample-Models@master/2.0/ABeautifulGame/glTF/ABeautifulGame.gltf',
   'https://raw.githubusercontent.com/KhronosGroup/glTF-Sample-Assets/main/Models/ABeautifulGame/glTF/ABeautifulGame.gltf',
@@ -20,6 +23,12 @@ const ABG_WHITE_PIECES = {
   q: 'Queen_W',
   k: 'King_W'
 };
+
+// Tint the opaque seat-colored body; keep the authored pawn glass unchanged.
+export function colorChessTokenMaterial(material: MeshPhysicalMaterial, color: Color) {
+  if (!material?.color || material.transmission > 0) return;
+  material.color.copy(color);
+}
 
 export async function loadChessBattleRoyalTokenPieces(loader: GLTFLoader) {
   const pieceNames = new Set(Object.values(ABG_WHITE_PIECES));
@@ -53,6 +62,7 @@ export async function loadChessBattleRoyalTokenPieces(loader: GLTFLoader) {
           }
         });
         if (!hasSourceTexture) break;
+        piece.userData.chessTokenAsset = { model: 'A Beautiful Game', root: name };
         pieces[type] = piece;
       }
       if (Object.keys(pieces).length === pieceNames.size) return pieces;
