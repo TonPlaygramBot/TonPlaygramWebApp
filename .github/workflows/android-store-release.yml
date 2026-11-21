@@ -11,6 +11,7 @@ jobs:
     runs-on: ubuntu-latest
     environment: mobile-store-release
     env:
+      GAME_PACK_CDN_BASE_URL: ${{ vars.GAME_PACK_CDN_BASE_URL }}
       VITE_API_BASE_URL: ${{ secrets.VITE_API_BASE_URL }}
       VITE_SOCKET_URL: ${{ secrets.VITE_SOCKET_URL }}
       VITE_SOCKET_PATH: ${{ secrets.VITE_SOCKET_PATH }}
@@ -32,7 +33,7 @@ jobs:
           java-version: 17
       - uses: android-actions/setup-android@v3
       - name: Install Android 16 SDK
-        run: sdkmanager "platforms;android-36" "build-tools;36.0.0"
+        run: sdkmanager "platforms;android-36" "build-tools;35.0.0" "build-tools;36.0.0"
       - name: Validate release secrets
         run: |
           test -n "$ANDROID_KEYSTORE_BASE64"
@@ -40,6 +41,8 @@ jobs:
           test -n "$ANDROID_KEY_ALIAS"
           test -n "$ANDROID_KEY_PASSWORD"
           node --input-type=module <<'NODE'
+          const {publicHttpsUrl}=await import('./webapp/scripts/audit-native-package.mjs');
+          if(!publicHttpsUrl(process.env.GAME_PACK_CDN_BASE_URL))throw new Error('Set GAME_PACK_CDN_BASE_URL to the public HTTPS asset origin before a native store build.');
           let api;
           try { api = new URL(process.env.VITE_API_BASE_URL); } catch {}
           if (!api || api.protocol !== 'https:' || api.username || api.password) {
@@ -50,7 +53,8 @@ jobs:
         run: |
           npm ci --prefix webapp
           npm --prefix webapp run generate:native-assets
-          npm --prefix webapp run build
+          npm --prefix webapp run fetch:gradle-wrapper
+          npm --prefix webapp run build:native-lite
       - name: Sync Capacitor Android
         working-directory: webapp
         run: npx --no-install cap sync android
