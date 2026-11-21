@@ -1,4 +1,4 @@
-import { loadChessBattleRoyalTokenPieces } from '../utils/ludoChessPieces.ts';
+import { colorChessTokenMaterial, loadChessBattleRoyalTokenPieces } from '../utils/ludoChessPieces.ts';
 import { resolveLudoDiceCameraTarget, LUDO_CAMERA_PRESENTATION } from '../utils/ludoCameraPresentation';
 import { ludoParkedWeaponLength } from '../utils/ludoParkedWeaponScale.js';
 import { applyLudoSeatedHumanPose, alignLudoHumanFeet, inferChairSupportsArmrest } from '../utils/ludoSeatedPose.js';
@@ -3864,7 +3864,7 @@ function updateTokens(
     }
     if (token.userData.pieceMaterials?.length) {
       token.userData.pieceMaterials.forEach((mat) => {
-        if (mat?.color?.set) mat.color.copy(targetColor);
+        colorChessTokenMaterial(mat, targetColor);
       });
     }
 

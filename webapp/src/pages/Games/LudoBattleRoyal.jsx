@@ -10,7 +10,7 @@ import { createLudoBlenderModel } from '../../utils/ludoBlenderMeshes';
 import { palmMarker, palmOrientation, solveArm, world as boneWorld } from '../../utils/ludoHumanMotion';
 import { createLudoDiceFlight, LUDO_DICE_FLIGHT_MS, createLudoDiceHand, createLudoDiceContact, createLudoDiceThrow, updateLudoDiceThrow, poseLudoDiceContact, LUDO_DICE_TIMING } from '../../utils/ludoDiceMotion.ts';
 import { createFallbackLudoToken, hasVisibleLudoToken, setLudoTileHighlight, updateLudoTileGlow } from '../../utils/ludoTokenPresentation.ts';
-import { loadLudoChessPieces } from '../../utils/ludoChessPieces.ts';
+import { colorChessTokenMaterial, loadLudoChessPieces } from '../../utils/ludoChessPieces.ts';
 import {
   FIREARM_CAPTURE_ANIMATION_IDS,
   FIREARM_MARKSMAN_IDS,
@@ -4170,9 +4170,7 @@ function tintGltfToken(node, tint) {
     const mats = Array.isArray(child.material) ? child.material : [child.material];
     mats.forEach((mat) => {
       if (!mat) return;
-      if (mat.color?.set) {
-        mat.color.set(target);
-      }
+      colorChessTokenMaterial(mat, target);
       if (mat.emissive?.set) {
         mat.emissive.set(0x000000);
       }

@@ -1,3 +1,4 @@
+import { CHESS_TOKEN_MODEL_PATH } from '../utils/chessTokenModelPath.js';
 import gamesCatalog from '../config/gamesCatalog.js';
 import { READY_PLAYER_ME_MODEL_URL, TURI_MODEL_URL } from '../config/playerCharacter.js';
 
@@ -79,6 +80,8 @@ const heavyPacks = [
 
 ];
 
+const chessTokenGameSlugs = new Set(['snake', 'ludobattleroyal']);
+
 const gamesWithoutPlayerCharacters = new Set([
   'poolroyale', 'snookerroyale', 'airhockey', 'murlanroyale', 'domino-royal', 'texasholdem'
 ]);
@@ -118,14 +121,22 @@ export const GAME_PACK_DEFINITIONS = Object.freeze([
       'assets/table-tennis/athlete-female.glb', 'assets/tirana-streets/living/human.glb'],
     dependencies: [], runtimeMedia: true, keepInNative: true
   },
+  {
+    id: 'shared-chess-tokens', title: 'A Beautiful Game chess tokens', hidden: true,
+    description: 'The original textured chess pieces shared by Ludo and Snake & Ladder.',
+    gameSlugs: [], roots: [], files: [CHESS_TOKEN_MODEL_PATH.slice(1)],
+    dependencies: [], keepInNative: true
+  },
   ...gamesCatalog.filter(game => !covered.has(game.slug)).map(game => ({
     id: game.slug, title: game.name, description: 'Game files for faster loading on this device.',
     gameSlugs: [game.slug], route: game.route, cover: game.image,
     roots: [`assets/${game.slug}`, `models/${game.slug}`],
     files: [decodeURIComponent(game.image).replace(/^\//, ''), ...(extraFiles[game.slug] || [])],
-    dependencies: gamesWithoutPlayerCharacters.has(game.slug)
-      ? ['shared-table-games']
-      : ['shared-table-games', 'shared-player-character'],
+    dependencies: [
+      'shared-table-games',
+      ...(!gamesWithoutPlayerCharacters.has(game.slug) ? ['shared-player-character'] : []),
+      ...(chessTokenGameSlugs.has(game.slug) ? ['shared-chess-tokens'] : [])
+    ],
     runtimeMedia: true, keepInNative: true
   }))
 ]);

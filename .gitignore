@@ -95,3 +95,6 @@ webapp/public/vendor/three/examples/jsm/libs/basis/
 
 # Generated public Google client ID, never a client secret.
 /webapp/public/creator-auth-config.json
+
+# Generated from the pinned A Beautiful Game binary during production builds.
+/webapp/public/assets/chess-tokens/a-beautiful-game-pieces-v1.glb
