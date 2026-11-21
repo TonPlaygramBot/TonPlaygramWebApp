@@ -247,9 +247,9 @@ export default function App() {
               <Route path="/games/snake/mp" element={<SnakeMultiplayer />} />
               <Route path="/games/snake/results" element={<SnakeResults />} />
               <Route path="/games/tabletennisroyal/lobby" element={<TableTennisRoyalLobby />} />
-              <Route path="/games/tabletennisroyal" element={<TableTennisRoyal />} />
+              <Route path="/games/tabletennisroyal" element={<GameLiveAvatarOverlay gameSlug="tabletennisroyal" onlineOnly><TableTennisRoyal /></GameLiveAvatarOverlay>} />
               <Route path="/games/tennisroyal/lobby" element={<TennisRoyalLobby />} />
-              <Route path="/games/tennisroyal" element={<TennisRoyal />} />
+              <Route path="/games/tennisroyal" element={<GameLiveAvatarOverlay gameSlug="tennisroyal" onlineOnly><TennisRoyal /></GameLiveAvatarOverlay>} />
               <Route
                 path="/games/airhockey/lobby"
                 element={<AirHockeyLobby />}

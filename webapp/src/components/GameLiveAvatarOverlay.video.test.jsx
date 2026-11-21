@@ -2,7 +2,7 @@ import React, { act } from 'react';
 import { createRoot } from 'react-dom/client';
 import { BrowserRouter, useNavigate } from 'react-router-dom';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import GameLiveAvatarOverlay from './GameLiveAvatarOverlay.jsx';
+import GameLiveAvatarOverlay, { RoomLiveAvatarOverlay } from './GameLiveAvatarOverlay.jsx';
 import AvatarTimer from './AvatarTimer.jsx';
 import PoolLiveAvatar from './PoolLiveAvatar.jsx';
 import { buildGameLiveChatRoomId } from '../utils/liveVideoRoom.js';
@@ -584,7 +584,30 @@ describe.each(['checkersbattleroyal', 'poolroyale'])('%s shared live video', (de
     });
   }
 
-  it.each(['chessbattleroyal', 'domino-royal', 'murlanroyale'])('preserves shared call start and cleanup in %s', async (slug) => {
+  it('standalone room binding needs no router, no auto permission, and leaves on room change', async () => {
+    await mount();
+    const standalone = async (sessionId) => {
+      await act(async () => root.render(<><GameplayControls /><RoomLiveAvatarOverlay gameSlug="kartroyale" sessionId={sessionId} /></>));
+      await frame();
+    };
+    await standalone(null);
+    expect(button('Turn on live avatar video')).toBeNull();
+    expect(getUserMedia).not.toHaveBeenCalled();
+    await standalone('race-one');
+    expect(getUserMedia).not.toHaveBeenCalled();
+    await click('Take shot');
+    await click('Turn on live avatar video');
+    expect(socket.emit).toHaveBeenCalledWith('liveChat:join', expect.objectContaining({roomId:'live-kartroyale-race-one'}));
+    await standalone('race-two');
+    expect(stream.getTracks().every(track=>track.stop.mock.calls.length===1)).toBe(true);
+    expect(socket.emit).toHaveBeenCalledWith('liveChat:leave',{roomId:'live-kartroyale-race-one'});
+    expect(getUserMedia).toHaveBeenCalledTimes(1);
+    expect(container.querySelector('[aria-label="Shots taken"]').textContent).toBe('1');
+    await standalone('invalid room');
+    expect(button('Turn on live avatar video')).toBeNull();
+  });
+
+  it.each(['chessbattleroyal', 'domino-royal', 'murlanroyale', 'tennisroyal', 'tabletennisroyal', 'kartroyale'])('preserves shared call start and cleanup in %s', async (slug) => {
     gameSlug = slug;
     await mount();
     if (slug === 'domino-royal') {
