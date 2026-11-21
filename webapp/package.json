@@ -11,7 +11,7 @@
     "vendor:external-assets": "node scripts/vendor-external-assets.mjs",
     "verify:external-assets": "node scripts/vendor-external-assets.mjs --verify",
     "predev": "npm run generate:tirana-assets && node scripts/import-tirana-originals.mjs && node scripts/verify-vehicle-collection.mjs && node scripts/prepare-game-decoders.mjs",
-    "prebuild": "npm run generate:tirana-assets && node scripts/import-tirana-originals.mjs && node scripts/verify-vehicle-collection.mjs && node scripts/prepare-game-decoders.mjs && npm run vendor:external-assets -- --frozen-lockfile && npm run verify:external-assets && npm run generate:game-packs",
+    "prebuild": "npm run generate:tirana-assets && node scripts/import-tirana-originals.mjs && node scripts/verify-vehicle-collection.mjs && node scripts/prepare-game-decoders.mjs && npm run vendor:external-assets -- --frozen-lockfile && npm run verify:external-assets && node scripts/build-chess-token-glb.mjs && npm run generate:game-packs",
     "dev": "vite",
     "lint": "eslint --no-ignore --no-warn-ignored",
     "build": "node scripts/write-build-metadata.mjs && node scripts/run-vite-build.mjs",
