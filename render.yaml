@@ -8,6 +8,23 @@ services:
     name: tonplaygram-bot
     branch: main
     rootDir: bot
+    # Paths are repo-relative even though build/start commands run in bot/.
+    # Include sibling frontend/runtime inputs; preserve every existing bot trigger.
+    # Do not merge only to force a deploy: Blueprint sync may start a rollout.
+    buildFilter:
+      paths:
+        - bot/**
+        - webapp/**
+        - chess-multiplayer-server/**
+        - shared/**
+        - src/**
+        - lib/**
+        - scripts/**
+        - assets-source/**
+        - package.json
+        - package-lock.json
+        - tsconfig*.json
+        - render.yaml
     # bot's postinstall also installs/builds the embedded chess module.
     # The complete game bundle now exceeds a 1.5 GB V8 heap while Rollup is
     # transforming the larger Three.js scenes. This is a build-time limit only;
