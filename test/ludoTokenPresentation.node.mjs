@@ -1,8 +1,8 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import * as THREE from '../webapp/node_modules/three/build/three.module.js';
-import { readFileSync } from 'node:fs';
-import { loadChessBattleRoyalTokenPieces } from '../webapp/src/utils/ludoChessPieces.ts';
+import { CHESS_TOKEN_MODEL_PATH } from '../webapp/src/utils/chessTokenModelPath.js';
+import { colorChessTokenMaterial, loadChessBattleRoyalTokenPieces } from '../webapp/src/utils/ludoChessPieces.ts';
 import { createFallbackLudoToken, hasVisibleLudoToken, withLudoTokenAssets, setLudoTileHighlight, updateLudoTileGlow, LUDO_TILE_GLOW_SECONDS } from '../webapp/src/utils/ludoTokenPresentation.ts';
 
 const colors = [0xef4444, 0x3b82f6, 0xfacc15, 0x22c55e];
@@ -82,13 +82,29 @@ test('the original ivory pawn loads with its glass top and an incomplete source 
     }
   };
   const pieces = await loadChessBattleRoyalTokenPieces(loader);
-  const chessSource = readFileSync(new URL('../webapp/src/pages/Games/ChessBattleRoyal.jsx', import.meta.url), 'utf8');
-  const primarySources = chessSource.match(/const BEAUTIFUL_GAME_URLS = \[([\s\S]*?)\];/)[1];
-  const chessUrls = [...primarySources.matchAll(/'(https:\/\/[^']+)'/g)].map((match) => match[1]);
-  assert.deepEqual(urls, chessUrls.slice(0, 2));
+  assert.equal(urls[0], CHESS_TOKEN_MODEL_PATH);
+  assert.match(urls[1], /glTF-Binary\/ABeautifulGame\.glb$/);
   assert.deepEqual(Object.keys(pieces).sort(), ['b', 'k', 'n', 'p', 'q', 'r']);
   assert.equal(pieces.p.name, 'Pawn_Body_W1');
+  assert.deepEqual(pieces.p.clone().userData.chessTokenAsset, {
+    model: 'A Beautiful Game', root: 'Pawn_Body_W1'
+  });
   assert.equal(pieces.p.children[0].name, 'Pawn_Top_W1');
+});
+
+test('seat tint preserves authored pawn glass and texture references', () => {
+  const texture = new THREE.Texture();
+  const body = new THREE.MeshStandardMaterial({ map: texture });
+  const glass = new THREE.MeshPhysicalMaterial({ color: 0x6d97ce, transmission: 1, thickness: .03 });
+  const original = glass.color.clone();
+  const player = new THREE.Color(colors[0]);
+  colorChessTokenMaterial(body, player);
+  colorChessTokenMaterial(glass, player);
+  assert.ok(body.color.equals(player));
+  assert.equal(body.map, texture);
+  assert.ok(glass.color.equals(original));
+  assert.equal(glass.transmission, 1);
+  assert.equal(glass.thickness, .03);
 });
 
 function tile() {
