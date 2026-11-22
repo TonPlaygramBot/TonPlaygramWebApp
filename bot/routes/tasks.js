@@ -9,6 +9,7 @@ import { similarityRatio, normalizeText } from '../utils/textSimilarity.js';
 import { withProxy } from '../utils/proxyAgent.js';
 import CustomTask from '../models/CustomTask.js';
 import authenticate from '../middleware/auth.js';
+import { requiresInstagramVerification } from '../utils/instagramTaskClaimPolicy.js';
 
 const router = Router();
 const twitterClient = process.env.TWITTER_BEARER_TOKEN
@@ -81,7 +82,7 @@ router.post('/list', authenticate, async (req, res) => {
         return { ...t, completed: false, cooldown: 0 };
       }
       const rec = await Task.findOne({ telegramId, taskId: t.id });
-      return { ...t, completed: !!rec, cooldown: 0 };
+      return { ...t, completed: !!rec, cooldown: 0, claimUnavailable: !rec && requiresInstagramVerification(t) };
     })
   );
 
@@ -97,7 +98,8 @@ router.post('/list', authenticate, async (req, res) => {
         icon: PLATFORM_ICONS[t.platform] || t.platform,
         link: t.link,
         completed: !!rec,
-        cooldown: 0
+        cooldown: 0,
+        claimUnavailable: !rec && requiresInstagramVerification(t)
       };
     })
   );
@@ -107,7 +109,7 @@ router.post('/list', authenticate, async (req, res) => {
 
 router.post('/complete', authenticate, async (req, res) => {
   const { telegramId, taskId } = req.body;
-  if (!telegramId || !taskId) return res.status(400).json({ error: 'telegramId and taskId required' });
+  if (!telegramId || typeof taskId !== 'string' || !taskId) return res.status(400).json({ error: 'telegramId and taskId required' });
   if (!req.auth?.telegramId || req.auth.telegramId !== telegramId) {
     return res.status(403).json({ error: 'forbidden' });
   }
@@ -116,9 +118,18 @@ router.post('/complete', authenticate, async (req, res) => {
   if (!config && taskId.startsWith('custom_')) {
     const id = taskId.replace('custom_', '');
     const custom = await CustomTask.findById(id);
-    if (custom) config = { reward: custom.reward };
+    if (custom) config = custom;
   }
   if (!config) return res.status(400).json({ error: 'unknown task' });
+
+  if (requiresInstagramVerification(config)) {
+    const existing = await Task.findOne({ telegramId, taskId });
+    if (existing) return res.json({ message: 'already completed' });
+    return res.status(503).json({
+      error: 'Instagram reward unavailable: activity cannot be verified.',
+      code: 'instagram_verification_unavailable'
+    });
+  }
 
   if (taskId === 'post_tweet') {
     return res.status(400).json({ error: 'use verify-post' });

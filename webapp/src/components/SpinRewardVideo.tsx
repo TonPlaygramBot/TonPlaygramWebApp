@@ -1,16 +1,12 @@
-import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { SOCIAL_CHANNELS } from '../config/socialChannels.js';
 import { API_BASE_URL } from '../utils/api.js';
 
-const REWARD_DELAY_MS = 15_000;
 const INSTAGRAM_REELS_URL = `${SOCIAL_CHANNELS.find(({ id }) => id === 'instagram')?.url}/reels/`;
 
 interface SpinRewardVideoProps {
   reelUrl: string | null;
-  rewardOpen: boolean;
-  onRewardComplete: () => void;
-  onRewardClose: () => void;
 }
 
 interface InstagramPlayback {
@@ -21,30 +17,19 @@ interface InstagramPlayback {
 
 export default function SpinRewardVideo({
   reelUrl,
-  rewardOpen,
-  onRewardComplete,
-  onRewardClose,
 }: SpinRewardVideoProps) {
   const [previewOpen, setPreviewOpen] = useState(false);
-  const [remaining, setRemaining] = useState(REWARD_DELAY_MS / 1000);
   const [playback, setPlayback] = useState<InstagramPlayback | null>(null);
   const [loading, setLoading] = useState(true);
   const [mediaFailed, setMediaFailed] = useState(false);
   const [needsPlay, setNeedsPlay] = useState(false);
-  const completeRef = useRef(onRewardComplete);
   const closeButtonRef = useRef<HTMLButtonElement>(null);
   const videoRef = useRef<HTMLVideoElement>(null);
-  const open = previewOpen || rewardOpen;
+  const open = previewOpen;
   const currentReelUrl = playback?.reelUrl || reelUrl;
   const mediaUrl = mediaFailed ? null : playback?.mediaUrl;
-  const title = rewardOpen ? 'Instagram Reel · Spin reward' : 'Latest Instagram Reel';
-  const close = rewardOpen ? onRewardClose : () => setPreviewOpen(false);
-  const closeRef = useRef(close);
-
-  useLayoutEffect(() => {
-    completeRef.current = onRewardComplete;
-    closeRef.current = close;
-  });
+  const title = 'Latest Instagram Reel';
+  const close = () => setPreviewOpen(false);
 
   useEffect(() => {
     setPlayback(null);
@@ -92,7 +77,7 @@ export default function SpinRewardVideo({
     const previousFocus = document.activeElement;
     closeButtonRef.current?.focus();
     const handleKey = (event: KeyboardEvent) => {
-      if (event.key === 'Escape') closeRef.current();
+      if (event.key === 'Escape') setPreviewOpen(false);
     };
     document.addEventListener('keydown', handleKey);
     return () => {
@@ -100,24 +85,6 @@ export default function SpinRewardVideo({
       if (previousFocus instanceof HTMLElement) previousFocus.focus();
     };
   }, [open]);
-
-  useEffect(() => {
-    if (!rewardOpen) {
-      setRemaining(REWARD_DELAY_MS / 1000);
-      return;
-    }
-
-    const deadline = Date.now() + REWARD_DELAY_MS;
-    const countdown = window.setInterval(() => {
-      setRemaining(Math.max(0, Math.ceil((deadline - Date.now()) / 1000)));
-    }, 250);
-    const finish = window.setTimeout(() => completeRef.current(), REWARD_DELAY_MS);
-
-    return () => {
-      window.clearInterval(countdown);
-      window.clearTimeout(finish);
-    };
-  }, [rewardOpen]);
 
   return (
     <>
@@ -147,11 +114,9 @@ export default function SpinRewardVideo({
                 Close
               </button>
             </div>
-            {rewardOpen && (
-              <p className="pb-2 text-xs text-subtext">
-                Spin unlocks in <strong>{remaining}s</strong>.
-              </p>
-            )}
+            <p className="pb-2 text-xs text-subtext">
+              Instagram playback is optional and does not unlock a reward.
+            </p>
             {loading ? (
               <p role="status" className="py-8 text-sm text-subtext">Loading Instagram video…</p>
             ) : mediaUrl ? (
