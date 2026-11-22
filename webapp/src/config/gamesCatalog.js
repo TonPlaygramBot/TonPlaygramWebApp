@@ -38,6 +38,19 @@ const gamesCatalog = [
     description: 'Explore four fictional 3D environments in a solo campaign.'
   },
   {
+    name: 'Optika: Tirana 3D',
+    route: '/assets/optika-tirana-v1/index.html',
+    slug: 'optika-tirana',
+    image: '/assets/optika-tirana-v1/assets/cover.svg',
+    badge: 'Single Player',
+    modes: ['Explore Tirana', 'Free drone flight'],
+    launchLabel: 'Play Optika: Tirana 3D',
+    multiplayer: false,
+    standalone: true,
+    description:
+      'Explore central Tirana as Turi, visit the city landmarks, or take an unarmed drone flight.'
+  },
+  {
     name: "Texas Hold'em",
     route: '/games/texasholdem/lobby',
     slug: 'texasholdem',

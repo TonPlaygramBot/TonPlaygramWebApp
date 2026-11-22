@@ -1,0 +1,7 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 600 360" role="img" aria-label="Optika: Tirana 3D">
+<defs><linearGradient id="sky" x2="0" y2="1"><stop stop-color="#173742"/><stop offset="1" stop-color="#a2a57f"/></linearGradient><linearGradient id="ground" x2="0" y2="1"><stop stop-color="#121f23"/><stop offset="1" stop-color="#33414a"/></linearGradient></defs>
+<rect width="600" height="360" fill="url(#sky)"/><path fill="#536f67" d="M0 169l119-83 56 34 61-48 99 68 106-48 159 79v189H0z"/><path fill="#182c33" d="M0 202h55v-38h63v32h45v-17h74v23h52v-20h53v16h79v-22h58v27h121v157H0z"/>
+<path fill="#485756" d="M0 327l238-115h128l234 125v23H0z"/><path fill="#738486" d="M110 295l94-108 41-25 128 9 86 109-122 43z"/><path fill="#b1b6a5" d="M110 295l129-104 97 132z"/><path fill="#526161" d="M239 191l134-20 86 109-123 43z"/>
+<path fill="#d9d0a4" d="M231 191l8 0-117 96h-9zM263 196l6 1 74 115-7 4z"/><path fill="#85918b" d="M375 178l10 12 59 81-11 5z"/>
+<g fill="#253e46" stroke="#7fd4ba" stroke-width="4" stroke-linecap="round"><path d="M415 106l47 20 38-21m-85 39 47-18 38 20"/><rect x="444" y="115" width="37" height="21" rx="7"/><path d="M401 106h29m56-1h28m-112 40h29m56 1h27"/></g>
+<rect x="22" y="22" width="236" height="65" rx="12" fill="#12212bee"/><text x="37" y="47" font-family="system-ui,sans-serif" fill="#8de1c4" font-size="15" letter-spacing="4" font-weight="700">OPTIKA</text><text x="35" y="73" font-family="system-ui,sans-serif" fill="#fffce3" font-size="30" font-weight="780">TIRANA 3D</text></svg>
