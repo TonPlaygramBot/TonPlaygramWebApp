@@ -13,6 +13,14 @@ const PACKABLE_EXTENSIONS = new Set([
   '.basis', '.bin', '.dds', '.exr', '.glb', '.gltf', '.hdr', '.json', '.ktx2', '.wasm'
 ]);
 
+// KartRenderer uses this local DRACOLoader path for every kart. Keep the
+// matched decoder and JS fallback available before any native pack download.
+const RACING_DRACO_URLS = new Set([
+  '/assets/tirana-streets/imported/draco/draco_decoder.js',
+  '/assets/tirana-streets/imported/draco/draco_decoder.wasm',
+  '/assets/tirana-streets/imported/draco/draco_wasm_wrapper.js'
+]);
+
 import { GAME_PACK_DEFINITIONS, RUNTIME_MEDIA_EXTENSIONS } from '../src/pwa/gamePackDefinitions.js';
 export { GAME_PACK_DEFINITIONS };
 
@@ -107,8 +115,9 @@ export async function generateGamePackManifests({
     for (const file of files) {
       // Core media/code stays readable inside Capacitor. A binary-only CDN
       // rollout must not suddenly require uploading the launcher and its images.
-      const asset = await buildAsset(publicDir, file, definition.keepInNative || !isEligible(file) ? '' : cdnBaseUrl);
-      asset.nativeRemovable = !definition.keepInNative && isEligible(file);
+      const nativeRemovable = !definition.keepInNative && isEligible(file) && !RACING_DRACO_URLS.has(publicUrl(file));
+      const asset = await buildAsset(publicDir, file, nativeRemovable ? cdnBaseUrl : '');
+      asset.nativeRemovable = nativeRemovable;
       assets.push(asset);
     }
     const version = packVersion(assets);
