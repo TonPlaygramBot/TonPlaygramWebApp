@@ -14,6 +14,7 @@ import {
 } from 'lucide-react';
 
 import { getGameThumbnail } from '../config/gameAssets.js';
+import gamesCatalog from '../config/gamesCatalog.js';
 import SocialChannels from './SocialChannels.jsx';
 
 const featuredGames = [
@@ -33,7 +34,7 @@ const ecosystem = [
 ];
 
 const deliveredHighlights = [
-  { value: '12+', label: 'Playable games', detail: 'Solo, AI & multiplayer' },
+  { value: String(gamesCatalog.length), label: 'Games in the catalogue', detail: 'Modes vary by game' },
   { value: '1', label: 'Connected profile', detail: 'Games, social & wallet' },
   { value: 'Live', label: 'Core platform', detail: 'Rewards, store & community' }
 ];
@@ -44,19 +45,19 @@ export default function HomeIntroduction() {
       <div className="home-intro__hero">
         <div className="home-intro__glow" aria-hidden="true" />
         <div className="home-intro__eyebrow"><ShieldCheck size={13} /> PLAYER-FIRST GAMING</div>
-        <h1 id="home-intro-title"><span>TonPlayGram</span> is built for players, <em>not the house.</em></h1>
-        <p className="home-intro__lede">A competitive gaming platform where skill, strategy and real players decide every match.</p>
+        <h1 id="home-intro-title"><span>TonPlayGram</span> brings <em>your next match</em> to one place.</h1>
+        <p className="home-intro__lede">From a quick board game to a 3D race, find a game to play on your own or with friends.</p>
         <div className="home-intro__principles" aria-label="Our player-first principles">
           <div className="home-intro__principle">
             <span><Users size={18} /></span>
-            <div><strong>Player vs player</strong><small>You compete with people—not against the platform.</small></div>
+            <div><strong>Play your way</strong><small>Practice against AI in supported games or challenge other players online.</small></div>
           </div>
           <div className="home-intro__principle">
             <span><Scale size={18} /></span>
-            <div><strong>No house advantage</strong><small>No algorithm chooses, influences or predetermines winners.</small></div>
+            <div><strong>Know the match rules</strong><small>Check each lobby for its modes and rules before you start.</small></div>
           </div>
         </div>
-        <p className="home-intro__fee"><Sparkles size={13} /><span>TonPlayGram powers the experience. A small service fee helps keep it running and growing.</span></p>
+        <p className="home-intro__fee"><Sparkles size={13} /><span>TPG rewards are in-app. The on-chain token has not launched.</span></p>
         <div className="home-intro__actions">
           <Link to="/games" className="home-intro__primary">Explore games <ArrowRight size={17} /></Link>
           <Link to="/ecosystem" className="home-intro__secondary">How it works</Link>
@@ -73,7 +74,7 @@ export default function HomeIntroduction() {
           </div>
           <span className="home-progress__status"><i /> LIVE</span>
         </div>
-        <p className="home-progress__lede">A growing platform already brings the essential player journey together—from the first match to rewards, friendships and digital ownership.</p>
+        <p className="home-progress__lede">A growing platform already brings the essential player journey together—from the first match to in-app rewards and playing with friends.</p>
         <div className="home-progress__grid">
           {deliveredHighlights.map((item) => (
             <div className="home-progress__metric" key={item.label}>
@@ -93,7 +94,7 @@ export default function HomeIntroduction() {
       <div className="home-featured-games">
         {featuredGames.map((game) => (
           <Link to={game.to} className="home-game-tile" key={game.key}>
-            <img src={getGameThumbnail(game.key)} alt={`${game.name} game thumbnail`} />
+            <img src={getGameThumbnail(game.key)} alt="" />
             <div className="home-game-tile__shade" />
             <div className="home-game-tile__copy"><strong>{game.name}</strong><span>{game.mode}</span></div>
             <span className="home-game-tile__play" aria-hidden="true">▶</span>
