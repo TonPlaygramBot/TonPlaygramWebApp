@@ -1,3 +1,4 @@
+import './messages.css';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   ArrowDownLeft, ArrowLeft, ArrowUpRight, Bell, Check, ChevronRight, Clock3, Download,
