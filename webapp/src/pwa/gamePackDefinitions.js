@@ -130,9 +130,12 @@ export const GAME_PACK_DEFINITIONS = Object.freeze([
   ...gamesCatalog.filter(game => !covered.has(game.slug)).map(game => ({
     id: game.slug, title: game.name, description: 'Game files for faster loading on this device.',
     gameSlugs: [game.slug], route: game.route, cover: game.image,
-    roots: [`assets/${game.slug}`, `models/${game.slug}`],
+    // The standalone URL and its entire asset directory are versioned together.
+    roots: game.slug === 'optika-3d'
+      ? [game.route.slice(1, -'/index.html'.length)]
+      : [`assets/${game.slug}`, `models/${game.slug}`],
     files: [decodeURIComponent(game.image).replace(/^\//, ''), ...(extraFiles[game.slug] || [])],
-    dependencies: [
+    dependencies: game.slug === 'optika-3d' ? [] : [
       'shared-table-games',
       ...(!gamesWithoutPlayerCharacters.has(game.slug) ? ['shared-player-character'] : []),
       ...(chessTokenGameSlugs.has(game.slug) ? ['shared-chess-tokens'] : [])
