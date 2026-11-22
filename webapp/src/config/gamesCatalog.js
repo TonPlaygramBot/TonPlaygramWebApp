@@ -26,6 +26,18 @@ const gamesCatalog = [
       'Enter your racing lobby for TPG matchmaking, private races, free AI races and a local circuit career with earned loadouts.'
   },
   {
+    name: 'Optika 3D',
+    route: '/assets/optika-3d-v1/index.html',
+    slug: 'optika-3d',
+    image: '/assets/optika-3d-v1/assets/optika.svg',
+    badge: 'Single Player',
+    modes: ['3D Campaign', '4 missions'],
+    launchLabel: 'Play Optika 3D',
+    multiplayer: false,
+    standalone: true,
+    description: 'Explore four fictional 3D environments in a solo campaign.'
+  },
+  {
     name: "Texas Hold'em",
     route: '/games/texasholdem/lobby',
     slug: 'texasholdem',
