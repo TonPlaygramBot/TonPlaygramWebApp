@@ -1,6 +1,0 @@
-Optika 3D asset provenance and credits
-
-- harbor.glb, airfield.glb, valley.glb and alpine.glb: original Optika project environments from the Optika 3D source archive (published source revision b2e41868e2d290737cdce0af2c6035904fd31182). The embedded asset generators identify the Optika environment workshops; alpine and valley explicitly identify original game artwork. All four are fictional settings.
-- hero.glb, guard.glb and rig-fpv.glb: original geometry, material and animation project artwork, reproducibly generated in build-optika-actors.mjs. They contain no photographic materials, private identity assets, logos, donor models, external buffers or images.
-- Display font: Open Sans, Apache-2.0. See font-license.txt.
-- Bundled libraries: React, React DOM, Scheduler and Three.js, MIT. See third-party-licenses.txt.
