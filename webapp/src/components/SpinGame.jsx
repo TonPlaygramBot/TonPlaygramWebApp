@@ -20,8 +20,6 @@ export default function SpinGame({ reelUrl = null }) {
   const [spinning, setSpinning] = useState(false);
   const [bonusMode, setBonusMode] = useState(false);
   const bonusResults = useRef([]);
-  const [showAd, setShowAd] = useState(false);
-  const ONE_HOUR = 60 * 60 * 1000;
   const [crediting, setCrediting] = useState(false);
   const [creditFailed, setCreditFailed] = useState(false);
   const [freeSpins, setFreeSpins] = useState(0);
@@ -172,43 +170,20 @@ export default function SpinGame({ reelUrl = null }) {
   const triggerSpin = () => {
     if (spinning || spinLock || bonusMode || crediting) return;
 
-    const storedLast = parseInt(localStorage.getItem('lastSpin') || '0', 10);
     const storedFree = parseInt(localStorage.getItem('freeSpins') || '0', 10);
 
-    if (storedFree === 0 && !canSpin(storedLast)) {
-      return;
-    }
+    // Opening/playing an Instagram Reel cannot verify a reward entitlement.
+    if (!(storedFree > 0)) return;
 
-    if (storedFree === 0) {
-      const ts = parseInt(localStorage.getItem('lastSpinAd') || '0', 10);
-      if (!(Date.now() - ts < ONE_HOUR)) {
-        setShowAd(true);
-        return;
-      }
-    }
-
-    if (storedFree > 0) {
-      const remaining = storedFree - 1;
-      setFreeSpins(remaining);
-      localStorage.setItem('freeSpins', String(remaining));
-    } else {
-      const now = Date.now();
-      localStorage.setItem('lastSpin', String(now));
-      setLastSpin(now);
-    }
+    const remaining = storedFree - 1;
+    setFreeSpins(remaining);
+    localStorage.setItem('freeSpins', String(remaining));
 
     localStorage.setItem('spinInProgress', '1');
     setSpinLock(true);
     setSpinning(true);
     setCreditFailed(false);
     wheelRef.current?.spin();
-  };
-
-  const handleAdComplete = () => {
-    const now = Date.now();
-    localStorage.setItem('lastSpinAd', String(now));
-    setShowAd(false);
-    triggerSpin();
   };
 
   const formatTime = (ms) => {
@@ -246,13 +221,8 @@ export default function SpinGame({ reelUrl = null }) {
         }}
       />
       <h3 className="text-lg font-bold text-white">Spin &amp; Win</h3>
-      <SpinRewardVideo
-        reelUrl={reelUrl}
-        rewardOpen={showAd}
-        onRewardComplete={handleAdComplete}
-        onRewardClose={() => setShowAd(false)}
-      />
-      <p className="text-sm text-subtext">Try your luck and win rewards!</p>
+      <SpinRewardVideo reelUrl={reelUrl} />
+      <p className="text-sm text-subtext">Instagram Reels are optional. Reel-based spin rewards are paused.</p>
       {!bonusMode ? (
         <div key="single-wheel" className="flex items-start justify-center">
           <SpinWheel
@@ -298,17 +268,17 @@ export default function SpinGame({ reelUrl = null }) {
       <button
         onClick={triggerSpin}
         className={`mt-2 px-6 py-2 ${ready ? 'bg-green-600' : 'bg-red-600'} text-white text-sm font-bold rounded disabled:bg-gray-500`}
-        disabled={spinning || spinLock || !ready || bonusMode || crediting}
+        disabled={spinning || spinLock || freeSpins <= 0 || bonusMode || crediting}
       >
-        Spin
+        Use free spin
       </button>
       {!ready && (
         <>
           <p className="text-sm font-semibold text-yellow-400 text-outline-black">
-            Next spin in {formatTime(timeLeft)}
+            Cooldown: {formatTime(timeLeft)}
           </p>
           <p className="text-sm text-yellow-400 text-outline-black">
-            Watch an ad every hour to get a free spin.
+            Reel views do not unlock new spins.
           </p>
         </>
       )}

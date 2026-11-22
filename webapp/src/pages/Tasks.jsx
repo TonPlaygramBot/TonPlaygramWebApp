@@ -138,6 +138,7 @@ export default function Tasks() {
   }, []);
 
   const handleClaim = async (task) => {
+    if (task.claimUnavailable) return;
     if (['join_twitter', 'engage_tweet'].includes(task.id) && !profile?.social?.twitter) {
       setShowTwitterInfo(true);
       return;
@@ -292,11 +293,13 @@ export default function Tasks() {
               <div className="grid grid-cols-[20px_1fr_auto_auto] items-center gap-2 w-full">
                 {ICONS[t.id] || ICONS[t.icon] || <FiLink className="w-5 h-5" />}
                 <span className="text-sm">{t.description}</span>
-                <span className="text-xs text-subtext flex items-center gap-1">{t.reward} <img src="/assets/icons/file_00000000362481f7978631c42572193f.png" alt="TPG" className="w-4 h-4" /></span>
+                {t.claimUnavailable ? <span /> : <span className="text-xs text-subtext flex items-center gap-1">{t.reward} <img src="/assets/icons/file_00000000362481f7978631c42572193f.png" alt="TPG" className="w-4 h-4" /></span>}
                 {t.completed && t.id === 'post_tweet' && t.cooldown > 0 ? (
                   <span className="text-sm text-subtext">{formatTime(t.cooldown)}</span>
                 ) : t.completed ? (
                   <span className="text-green-500 font-semibold text-sm">Completed</span>
+                ) : t.claimUnavailable ? (
+                  <span className="text-xs text-subtext">Reward paused</span>
                 ) : t.id === 'post_tweet' ? (
                   <div className="space-y-2 w-full">
                     <button
