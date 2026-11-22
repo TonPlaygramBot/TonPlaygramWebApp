@@ -3,6 +3,8 @@ import { mkdir, mkdtemp, readFile, rm, stat, writeFile } from 'node:fs/promises'
 import os from 'node:os';
 import path from 'node:path';
 import { test } from 'node:test';
+import { generateBuiltAppPack } from './generate-app-pack-manifest.mjs';
+import { generateGamePackManifests } from './generate-game-pack-manifests.mjs';
 import { pruneNativeGamePacks } from './prune-native-game-packs.mjs';
 
 const asset = (url, nativeRemovable = true) => ({
@@ -52,4 +54,43 @@ test('missing assets do not remove another retained sibling or inflate report to
   assert.equal(report.removedFiles, 0);
   assert.equal(report.removedBytes, 0);
   assert.equal(await readFile(diskPath(retained), 'utf8'), retained);
+});
+
+test('Racing Draco stays in native lite and in the full manifest, but sibling assets still defer', async t => {
+  const root = '/assets/tirana-streets/imported/draco/';
+  const bundled = ['draco_decoder.wasm', 'draco_decoder.js', 'draco_wasm_wrapper.js']
+    .map(file => root + file);
+  const deferred = [root + 'other.wasm', '/assets/tirana-streets/other/draco_decoder.wasm'];
+  const { distDir, diskPath } = await makeDist(t, [], [...bundled, ...deferred, '/assets/main.js']);
+  await writeFile(diskPath('/index.html'), '<script type="module" src="/assets/main.js"></script>');
+  await writeFile(diskPath('/version.json'), JSON.stringify({ build: 'decoder-fixture' }));
+
+  const outputDir = diskPath('/pwa/game-packs');
+  await generateGamePackManifests({
+    publicDir: distDir,
+    outputDir,
+    cdnBaseUrl: 'https://packs.example.invalid'
+  });
+  const cityPath = path.join(outputDir, 'shared-tirana-city.json');
+  const cityBytes = await readFile(cityPath, 'utf8');
+  const city = new Map(JSON.parse(cityBytes).assets.map(asset => [asset.url, asset]));
+  const { manifest } = await generateBuiltAppPack(distDir);
+  const full = new Map(manifest.assets.map(asset => [asset.url, asset]));
+  for (const url of [...bundled, ...deferred]) {
+    const expectedSource = bundled.includes(url) ? url : 'https://packs.example.invalid' + url;
+    assert.equal(city.get(url).nativeRemovable, deferred.includes(url), url);
+    assert.equal(city.get(url).sourceUrl, expectedSource, url);
+    assert.equal(full.get(url).sourceUrl, expectedSource, url);
+    assert.equal(full.get(url).size, city.get(url).size, url);
+    assert.equal(full.get(url).sha256, city.get(url).sha256, url);
+  }
+
+  const fullPath = path.join(outputDir, 'tonplaygram-app.json');
+  const fullBytes = await readFile(fullPath, 'utf8');
+  const report = await pruneNativeGamePacks({ distDir });
+  assert.equal(report.removedFiles, deferred.length);
+  for (const url of bundled) assert.equal(await readFile(diskPath(url), 'utf8'), url);
+  for (const url of deferred) await assert.rejects(stat(diskPath(url)), { code: 'ENOENT' });
+  assert.equal(await readFile(cityPath, 'utf8'), cityBytes);
+  assert.equal(await readFile(fullPath, 'utf8'), fullBytes);
 });
