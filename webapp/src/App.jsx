@@ -4,13 +4,10 @@ import { TonConnectUIProvider } from '@tonconnect/ui-react';
 
 import Home from './pages/Home.jsx';
 import Earn from './pages/Earn.jsx';
-import Social from './pages/Social.jsx';
 import Wallet from './pages/Wallet.jsx';
 import Referral from './pages/Referral.jsx';
 import MyAccount from './pages/MyAccount.jsx';
 import Store from './pages/Store.jsx';
-import Messages from './pages/Messages.jsx';
-import './pages/messages.css';
 import Notifications from './pages/Notifications.jsx';
 import InfluencerAdmin from './pages/InfluencerAdmin.jsx';
 import Nfts from './pages/Nfts.jsx';
@@ -38,6 +35,8 @@ import { applyAppTheme, getStoredTheme } from './utils/appTheme.js';
 
 applyAppTheme(getStoredTheme());
 
+const Social = React.lazy(() => import('./pages/Social.jsx'));
+const Messages = React.lazy(() => import('./pages/Messages.jsx'));
 const SnakeAndLadder = React.lazy(
   () => import('./pages/Games/SnakeAndLadder.jsx')
 );
