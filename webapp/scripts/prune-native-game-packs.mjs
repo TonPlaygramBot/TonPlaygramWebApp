@@ -1,4 +1,4 @@
-import { mkdir, readFile, readdir, rm, stat, writeFile } from 'node:fs/promises';
+import { mkdir, readFile, readdir, rm, rmdir, stat, writeFile } from 'node:fs/promises';
 import path from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 
@@ -24,7 +24,12 @@ async function removeEmptyParents(startDirectory, stopDirectory) {
   while (within(stopDirectory, current)) {
     const entries = await readdir(current).catch(() => null);
     if (!entries || entries.length) return;
-    await rm(current, { recursive: false, force: true });
+    try {
+      await rmdir(current);
+    } catch (error) {
+      if (error?.code === 'ENOTEMPTY' || error?.code === 'EEXIST') return;
+      if (error?.code !== 'ENOENT') throw error;
+    }
     current = path.dirname(current);
   }
 }
