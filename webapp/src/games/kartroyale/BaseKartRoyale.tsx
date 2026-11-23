@@ -1,3 +1,4 @@
+import { RoomLiveAvatarOverlay } from '../../components/GameLiveAvatarOverlay.jsx';
 import React, { useEffect, useRef, useState } from 'react';
 import type { Socket } from 'socket.io-client';
 import {
@@ -1399,6 +1400,7 @@ export default function KartRoyale({
           </section>
         </div>
       )}
+      <RoomLiveAvatarOverlay gameSlug="kartroyale" sessionId={mode === 'online' && session ? (room?.tableId || room?.code) : null} />
       {error && (
         <div className="kr-fatal" role="alert">
           <h2>Let’s get you racing.</h2>
