@@ -26,6 +26,18 @@ const gamesCatalog = [
       'Enter your racing lobby for TPG matchmaking, private races, free AI races and a local circuit career with earned loadouts.'
   },
   {
+    name: 'Tirana Streets',
+    route: '/games/tiranastreets/lobby',
+    slug: 'tiranastreets',
+    image: '/assets/tirana-city-game/cover.svg',
+    badge: 'Beta',
+    multiplayer: false,
+    offlinePack: false,
+    modes: ['Local 3D Free Roam'],
+    launchLabel: 'Explore Tirana',
+    description: 'Explore central Tirana in 3D, on foot or in a city car.'
+  },
+  {
     name: "Texas Hold'em",
     route: '/games/texasholdem/lobby',
     slug: 'texasholdem',

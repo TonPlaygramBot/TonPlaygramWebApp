@@ -127,7 +127,7 @@ export const GAME_PACK_DEFINITIONS = Object.freeze([
     gameSlugs: [], roots: [], files: [CHESS_TOKEN_MODEL_PATH.slice(1)],
     dependencies: [], keepInNative: true
   },
-  ...gamesCatalog.filter(game => !covered.has(game.slug)).map(game => ({
+  ...gamesCatalog.filter(game => game.offlinePack !== false && !covered.has(game.slug)).map(game => ({
     id: game.slug, title: game.name, description: 'Game files for faster loading on this device.',
     gameSlugs: [game.slug], route: game.route, cover: game.image,
     roots: [`assets/${game.slug}`, `models/${game.slug}`],
