@@ -1,0 +1,65 @@
+name: Tirana Streets WebGL validation
+on:
+  pull_request:
+    branches: ['codex/tirana-streets-validation-20261124']
+    paths:
+      - '.github/workflows/tirana-standalone-validation.yml'
+      - 'qa/tirana-standalone/**'
+      - 'webapp/.tirana-ci/**'
+
+permissions:
+  contents: read
+
+jobs:
+  standalone-webgl:
+    if: >-
+      github.head_ref == 'codex/tirana-streets-validation-webgl-20261124' &&
+      github.event.pull_request.head.repo.full_name == github.repository
+    runs-on: ubuntu-22.04
+    timeout-minutes: 12
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+          fetch-depth: 2
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Verify source boundary and lockfile
+        run: |
+          test "$(git rev-parse HEAD^)" = 0f9b883eeee196b76f603887b68a548e63b08296
+          test "$(node -p 'require("./package-lock.json").packages["node_modules/playwright"].version')" = 1.62.1
+          git diff --name-only HEAD^ HEAD | awk '
+            !(/^\.github\/workflows\/tirana-standalone-validation\.yml$/ || /^qa\/tirana-standalone\// || /^webapp\/\.tirana-ci\//) { print; bad=1 }
+            END { exit bad }'
+      - name: Install pinned test and build dependencies
+        run: |
+          npm ci --ignore-scripts --no-audit --no-fund
+          npm --prefix webapp ci --ignore-scripts --no-audit --no-fund
+          ./node_modules/.bin/playwright install --with-deps chromium
+      - name: Build loopback-only single-game preview
+        run: |
+          set -eu
+          cd webapp
+          mkdir -p .tirana-ci/public/assets
+          cp -R public/assets/tirana-city-game .tirana-ci/public/assets/
+          for file in assets/tirana-streets/players/turi.glb assets/tirana-streets/detail-kit/urban-fixtures.glb; do
+            mkdir -p ".tirana-ci/public/$(dirname "$file")"
+            cp "public/$file" ".tirana-ci/public/$file"
+          done
+          printf '%s  %s\n' 15aa91bb5206589087df60e47911f3b64ec1d95b4e380a685b3b025f21446f02 .tirana-ci/public/assets/tirana-streets/players/turi.glb | sha256sum --check --strict
+          ./node_modules/.bin/vite build --config .tirana-ci/vite.config.mjs
+          test -s .tirana-ci/dist/.tirana-ci/standalone-preview.html
+      - name: Observe real draw calls and touch controls
+        run: |
+          set -eu
+          python3 qa/tirana-standalone/serve.py &
+          server_pid=$!
+          trap 'kill "$server_pid" 2>/dev/null || true' EXIT
+          for attempt in $(seq 1 30); do
+            curl -fsS http://127.0.0.1:4183/games >/dev/null && break
+            sleep 1
+          done
+          curl -fsS http://127.0.0.1:4183/games >/dev/null
+          node qa/tirana-standalone/smoke.mjs
