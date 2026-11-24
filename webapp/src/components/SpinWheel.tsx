@@ -44,6 +44,7 @@ export default forwardRef<SpinWheelHandle, SpinWheelProps>(function SpinWheel(
 ) {
 
   const [offset, setOffset] = useState(0);
+  const [announcement, setAnnouncement] = useState('');
 
   const [winnerIndex, setWinnerIndex] = useState<number | null>(null);
 
@@ -149,6 +150,7 @@ export default forwardRef<SpinWheelHandle, SpinWheelProps>(function SpinWheel(
     setSpinning(true);
 
     setWinnerIndex(null);
+    setAnnouncement('Spinning…');
 
     finishRef.current = () => {
       if (!mountedRef.current) {
@@ -163,6 +165,9 @@ export default forwardRef<SpinWheelHandle, SpinWheelProps>(function SpinWheel(
 
       setSpinning(false);
       setWinnerIndex(finalIndex);
+      // Announce the visual result, not successful payment/credit settlement.
+      setAnnouncement(`Spin result: ${typeof reward === 'number' ? `${reward} TPG` :
+        reward === 'FREE_SPIN' ? '2 free spins' : reward === 'BONUS_X3' ? 'Bonus X3' : 'Bomb'}`);
 
       if (!disableSound) {
         if (reward === 'BONUS_X3') {
@@ -209,6 +214,9 @@ export default forwardRef<SpinWheelHandle, SpinWheelProps>(function SpinWheel(
         <div
 
           className="flex flex-col items-center w-28"
+          // This repeated, non-interactive strip is only an animation. Exposing
+          // its thousands of duplicate prizes drowns out the actual controls.
+          aria-hidden="true"
 
           style={{
 
@@ -274,6 +282,9 @@ export default forwardRef<SpinWheelHandle, SpinWheelProps>(function SpinWheel(
         </div>
 
       </div>
+      <span role="status" aria-live="polite" aria-atomic="true" className="sr-only">
+        {announcement}
+      </span>
       {showButton && (
         <button
           onClick={spin}

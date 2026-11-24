@@ -27,6 +27,15 @@ export default function Games() {
   const [readinessMap, setReadinessMap] = useState(ONLINE_READINESS_BY_GAME);
   const { status: downloadStatus } = useAppDownload();
   const appReady = ['installed', 'update-available'].includes(downloadStatus);
+  const packRequired = REQUIRE_GAME_PACKS && !appReady;
+  const downloadLink = (
+    <Link to="/#app-download" className="block rounded-2xl border border-primary/30 bg-primary/10 p-4 text-sm leading-5 text-subtext focus-visible:outline focus-visible:outline-2 focus-visible:outline-primary">
+      <span className="block font-semibold text-primary">
+        {appReady ? 'Manage saved game files' : packRequired ? 'Download required game files' : 'Check download options'}
+      </span>
+      <span>{packRequired ? 'This build needs the game files before you enter a lobby.' : 'See download availability and storage on Home.'}</span>
+    </Link>
+  );
 
   useEffect(() => {
     let active = true;
@@ -40,14 +49,11 @@ export default function Games() {
 
   return (
     <div className="games-page app-theme-page relative space-y-4 text-text">
-      <h2 className="text-2xl font-bold text-center mt-4">Games Lobby</h2>
+      <h1 className="text-2xl font-bold text-center mt-4">Games Lobby</h1>
       <p className="text-center text-sm text-subtext">
-        Jump straight into a lobby. Tap any game to start your next match.
+        Choose a game to see its modes and enter the lobby.
       </p>
-      <Link to="/#app-download" className="block rounded-2xl border border-primary/30 bg-primary/10 p-4 text-sm leading-5 text-subtext">
-        <span className="block font-semibold text-primary">{appReady ? 'TonPlayGram downloaded · Manage on Home' : 'Download TonPlayGram on Home'}</span>
-        <span>One download includes all bundled games and app assets.</span>
-      </Link>
+      {packRequired && downloadLink}
       <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
         {gamesCatalog.map((game) => {
           const thumbnail = getGameThumbnail(game.slug);
@@ -56,8 +62,11 @@ export default function Games() {
             : getOnlineReadiness(game.slug, readinessMap);
           const badgeTone =
             BADGE_STYLES[readiness.label] || BADGE_STYLES['Coming Soon'];
-          const packRequired = REQUIRE_GAME_PACKS && !appReady;
-          const cardClass = `group relative flex w-full flex-col overflow-hidden rounded-2xl border bg-surface/90 text-left shadow-lg transition hover:-translate-y-0.5 hover:border-primary/60 ${game.featured ? 'col-span-2 sm:col-span-1 border-lime-400/40' : 'border-border'}`;
+          const titleId = `game-title-${game.slug}`;
+          const descriptionId = `game-description-${game.slug}`;
+          const statusId = `game-status-${game.slug}`;
+          const readinessLabel = readiness.label === 'Online Ready' ? 'Online play' : readiness.label;
+          const cardClass = `group relative flex w-full flex-col overflow-hidden rounded-2xl border bg-surface/90 text-left shadow-lg motion-safe:transition motion-safe:hover:-translate-y-0.5 hover:border-primary/60 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary ${game.featured ? 'col-span-2 sm:col-span-1 border-lime-400/40' : 'border-border'}`;
           const cardContent = (
             <>
               <div
@@ -65,21 +74,24 @@ export default function Games() {
               >
                 <img
                   src={thumbnail || game.image}
-                  alt={game.name}
+                  alt=""
                   loading={game.featured ? 'eager' : 'lazy'}
-                  className="h-full w-full object-cover transition duration-300 group-hover:scale-105"
+                  decoding="async"
+                  className="h-full w-full object-cover motion-safe:transition motion-safe:duration-300 motion-safe:group-hover:scale-105"
                   onError={(event) => {
-                    event.currentTarget.src = game.image;
+                    if (event.currentTarget.getAttribute('src') !== game.image) {
+                      event.currentTarget.src = game.image;
+                    }
                   }}
                 />
                 <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/20 to-transparent" />
                 {game.attribution && <span className="absolute top-1 right-1 rounded bg-black/60 px-1 text-[9px] text-white">{game.attribution}</span>}
-                <span className="absolute bottom-1 left-1 right-1 text-center text-xs font-semibold text-white">
+                <span id={titleId} className="absolute bottom-1 left-1 right-1 text-center text-sm font-semibold leading-tight text-white">
                   {game.name}
                 </span>
               </div>
               <div className="flex flex-1 flex-col items-center px-2 py-2 text-center">
-                <p className="text-[10px] text-subtext line-clamp-2">
+                <p id={descriptionId} className="text-xs text-subtext line-clamp-2">
                   {game.description}
                 </p>
                 {game.modes && (
@@ -95,9 +107,10 @@ export default function Games() {
                   </div>
                 )}
                 <span
+                  id={statusId}
                   className={`mt-1 inline-flex items-center rounded-full border px-2 py-0.5 text-[9px] font-semibold uppercase tracking-[0.14em] ${badgeTone}`}
                 >
-                  {readiness.label}
+                  {readinessLabel}
                 </span>
                 <span className="mt-2 inline-flex items-center gap-1 rounded-full bg-primary/15 px-2 py-0.5 text-[10px] font-semibold text-primary">
                   {packRequired ? 'Download app on Home' : game.launchLabel || 'Enter Lobby'}
@@ -108,7 +121,9 @@ export default function Games() {
 
           return (
             <Link
-              key={game.name}
+              key={game.slug}
+              aria-labelledby={titleId}
+              aria-describedby={`${descriptionId} ${statusId}`}
               to={packRequired ? `/?returnTo=${encodeURIComponent(game.route)}#app-download` : game.route}
               reloadDocument={!packRequired && Boolean(game.standalone)}
               className={cardClass}
@@ -118,6 +133,7 @@ export default function Games() {
           );
         })}
       </div>
+      {!packRequired && downloadLink}
       <LeaderboardCard />
       <GameTransactionsCard />
     </div>
