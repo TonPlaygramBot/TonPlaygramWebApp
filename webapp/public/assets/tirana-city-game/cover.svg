@@ -1,0 +1,10 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 640 360" role="img" aria-labelledby="title">
+  <title id="title">Tirana Streets, central Tirana</title>
+  <defs><linearGradient id="sky" x2="0" y2="1" gradientUnits="objectBoundingBox"><stop stop-color="#092c3d"/><stop offset="1" stop-color="#d18a66"/></linearGradient></defs>
+  <path fill="url(#sky)" d="M0 0h640v360H0z"/><circle cx="510" cy="103" r="51" fill="#ffcf9c"/>
+  <path fill="#24505a" d="M0 213 134 137l87 28 125-38 103 58 111-10 80 30v155H0Z"/>
+  <path fill="#a4a9a2" d="m7 296 180-135 198 0 163 135Z"/>
+  <path fill="#63797a" d="m26 286 165-119 32 1-96 118Zm121 0 82-118h34l-18 118Zm118 0 3-118h34l59 118Zm115 0-69-118h36l144 118Z"/>
+  <path fill="#17343a" d="M0 293h640v67H0z"/><path stroke="#ffb582" stroke-width="2" d="M42 309h41"/>
+  <text x="42" y="342" font-size="26" font-weight="700" fill="#f9e6ce" font-family="sans-serif" letter-spacing="5">TIRANA STREETS</text>
+</svg>

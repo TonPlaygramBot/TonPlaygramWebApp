@@ -6,7 +6,8 @@ import gamesCatalog, { inviteGamesCatalog } from '../config/gamesCatalog.js';
 import { GAME_PACK_DEFINITIONS } from './gamePackDefinitions.js';
 import { generateGamePackManifests } from '../../scripts/generate-game-pack-manifests.mjs';
 
-const retiredSlugs = ['tiranastreets', 'jetskiroyal', 'blackwater'];
+const retiredSlugs = ['jetskiroyal', 'blackwater'];
+const LOCAL_TIRANA_SLUG = 'tiranastreets';
 
 afterEach(() => {
   vi.unstubAllEnvs();
@@ -22,6 +23,31 @@ describe('retired games and the retained Racing city', () => {
     expect(GAME_PACK_DEFINITIONS.some(pack => ['tirana-streets', 'jetski-royal'].includes(pack.id))).toBe(false);
     expect(GAME_PACK_DEFINITIONS.some(pack => pack.gameSlugs.some(slug => retiredSlugs.includes(slug)))).toBe(false);
   });
+
+  it('offers the restored Tirana Streets only as browser-local play, never as an invitation or package', () => {
+    expect(gamesCatalog.filter(game => game.slug === LOCAL_TIRANA_SLUG)).toEqual([
+      expect.objectContaining({
+        route: '/games/tiranastreets/lobby',
+        multiplayer: false,
+        offlinePack: false,
+        modes: ['Local 3D Free Roam']
+      })
+    ]);
+    expect(inviteGamesCatalog.some(game => game.slug === LOCAL_TIRANA_SLUG)).toBe(false);
+    expect(GAME_PACK_DEFINITIONS.some(pack => pack.gameSlugs.includes(LOCAL_TIRANA_SLUG))).toBe(false);
+  });
+
+  it.each(['/games/tiranastreets/lobby', '/games/tiranastreets'])(
+    'lets standalone %s load without installing the Racing pack',
+    async pathname => {
+      vi.stubEnv('VITE_REQUIRE_GAME_PACKS', 'true');
+      vi.resetModules();
+      const { enforceRequiredGamePackRoute } = await import('./gamePackRouteGuard.js');
+      window.history.replaceState({}, '', pathname);
+      expect(await enforceRequiredGamePackRoute()).toBe(false);
+      expect(window.location.pathname).toBe(pathname);
+    }
+  );
 
   it('keeps all shared city asset groups reachable through the Racing download', async () => {
     const directory = await mkdtemp(path.join(os.tmpdir(), 'racing-shared-city-'));

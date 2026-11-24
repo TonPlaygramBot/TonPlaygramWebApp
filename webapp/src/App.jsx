@@ -119,6 +119,7 @@ const ShootingRange = React.lazy(
 const ShootingRangeLobby = React.lazy(
   () => import('./pages/Games/ShootingRangeLobby.jsx')
 );
+const TiranaStreets = React.lazy(() => import('./pages/Games/TiranaStreets.jsx'));
 const KartRoyale = React.lazy(() => import('./pages/Games/KartRoyale.jsx'));
 const StoreThumbnailStudioPoolRoyale = React.lazy(
   () => import('./pages/Tools/StoreThumbnailStudioPoolRoyale.jsx')
@@ -231,8 +232,8 @@ export default function App() {
               <Route path="/games/jetskiroyal" element={<Navigate to="/games" replace />} />
               <Route path="/games/kartroyale/lobby" element={<KartRoyale />} />
               <Route path="/games/kartroyale" element={<KartRoyale />} />
-              <Route path="/games/tiranastreets/lobby" element={<Navigate to="/games" replace />} />
-              <Route path="/games/tiranastreets" element={<Navigate to="/games" replace />} />
+              <Route path="/games/tiranastreets/lobby" element={<TiranaStreets />} />
+              <Route path="/games/tiranastreets" element={<TiranaStreets />} />
               <Route path="/games/2048royale/*" element={<Navigate to="/games" replace />} />
               <Route path="/games/hextrisbattle/*" element={<Navigate to="/games" replace />} />
               <Route path="/games/underrunarena/*" element={<Navigate to="/games" replace />} />
