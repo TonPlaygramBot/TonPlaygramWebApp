@@ -1,6 +1,7 @@
 import React, {useEffect,useRef,useState} from 'react';
 import {Link,useLocation} from 'react-router-dom';
 import '../../games/tirana-standalone/city-roam.css';
+import {StandaloneCarRadio} from '../../games/tirana-standalone/radio/StandaloneCarRadio.jsx';
 import {MovementStick} from '../../games/tirana-standalone/MovementStick';
 import {DistrictMap} from '../../games/tirana-standalone/DistrictMap.jsx';
 import '../../games/tirana-street-detail/lobby.css';
@@ -103,6 +104,7 @@ function Roam({careerMode=false}){
       <button type="button" onClick={()=>client.current?.pause(false)}>Vazhdo</button>
     </div>}
     {mapOpen&&state.map&&!state.error&&<DistrictMap key={state.map.viewBox} map={state.map} player={state.player} destination={state.destination} careerMarker={state.career?.task?.marker} onClose={closeMap} onSelect={id=>{client.current?.setDestination(id);closeMap();}}/>}
+    <StandaloneCarRadio active={active && drive && !state.ridingBike && !mapOpen}/>
     {active&&<>
       <div className="tsc-location">
         {state.landmark?.name&&<p>{state.landmark.name} <span>{state.landmark.distance} m</span></p>}
