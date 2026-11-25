@@ -5,7 +5,7 @@ import {createWebGLRenderer} from '../tiranastreets/createWebGLRenderer';
 import {AutomaticGraphics, DynamicResolution, GRAPHICS_PROFILES} from '../tiranastreets/graphicsQuality';
 import {buildMobility, initialState, stepRoam, vehicleAction} from './walkDrive.mjs';
 
-import {FramePacer,renderPixelRatio} from '../tiranastreets/renderSettings';
+import {FramePacer,renderPixelRatio,targetFps} from './nov11/renderSettings';
 import {FollowCamera} from './FollowCamera';
 import {fixedStepBudget} from '../tiranastreets/shared/frameBudget.mjs';
 import {nextView,viewLabel,useAvatar,mapSvg,waypoint,TOUR_NAMES} from './roamPresentation.mjs';
@@ -121,7 +121,7 @@ export class CityRoamView{
   applyQuality(){
     const p=GRAPHICS_PROFILES[this.quality==='auto'?this.auto.preset:this.quality];
     this.radius=p.shadows?252:160;this.battery=!p.shadows;
-    this.targetFps=p.shadows?60:30;
+    this.targetFps=this.requestedFrameRate??(p.shadows?60:30);
     this.requestedRatio=p.pixelRatio*this.dpr.scale;
     this.renderer.shadowMap.enabled=p.shadows;
     if(this.sun.shadow.mapSize.width!==p.shadowSize){
@@ -134,6 +134,10 @@ export class CityRoamView{
     this.resize();
   }
   setQuality(q){if(!['auto','balanced','battery','high'].includes(q))return;this.quality=q;this.dpr.reset();this.auto.reset();this.applyQuality();if(this.paused)this.schedule(true);}
+  setFrameRate(rate){
+    this.requestedFrameRate=targetFps(rate);this.elapsed=0;this.frameCount=0;this.last=0;
+    this.applyQuality();if(this.paused)this.schedule(true);
+  }
   resize=()=>{
     const w=Math.max(1,this.root.clientWidth),h=Math.max(1,this.root.clientHeight);
     const ratio=renderPixelRatio(w,h,window.devicePixelRatio||1,this.requestedRatio);
