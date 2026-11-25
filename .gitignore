@@ -98,3 +98,6 @@ webapp/public/vendor/three/examples/jsm/libs/basis/
 
 # Generated from the pinned A Beautiful Game binary during production builds.
 /webapp/public/assets/chess-tokens/a-beautiful-game-pieces-v1.glb
+
+# Generated standalone historical map tiles (npm prebuild/predev).
+/webapp/public/assets/tirana-city-game/historic/

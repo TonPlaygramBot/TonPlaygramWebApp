@@ -1,4 +1,5 @@
 // All units are local metres. This module only supports peaceful free-roam.
+import {stepBicycle} from './cityBicycle.mjs';
 const CELL=40, WALK=.33;
 const clamp=(value,a,b)=>Math.min(b,Math.max(a,value));
 const moveToward=(value,target,step)=>value+clamp(target-value,-step,step);
@@ -7,6 +8,7 @@ export function edgeDistance(x,z,a,b){
   const t=len?clamp(((x-a[0])*dx+(z-a[1])*dz)/len,0,1):0;
   return Math.hypot(x-a[0]-dx*t,z-a[1]-dz*t);
 }
+const bikeClear=(bike,x,z,r)=>!bike||Math.hypot(x-bike.x,z-bike.z)>r+.86;
 function touches(x,z,pad,p){
   let inside=false;
   for(let i=0,j=p.length-1;i<p.length;j=i++){
@@ -48,8 +50,9 @@ export function buildMobility(city,priorSpawn){
   };
   const road=(x,z,r)=>roads(x,z).some(w=>edgeDistance(x,z,w.a,w.b)<=w.w/2-r);
   const validCar=(x,z,yaw)=>sedanSamples(x,z,yaw).every(([px,pz])=>!obstructed(px,pz,1.02)&&road(px,pz,.7));
-  if(priorSpawn)return {obstructed,validCar,spawn:priorSpawn};
-  const point=city.landmarks.find(p=>p.id==='square')||{x:0,z:0};
+  const validBike=(x,z,pad)=>!obstructed(x,z,pad)&&road(x,z,pad);
+  if(priorSpawn)return {obstructed,validCar,validBike,spawn:priorSpawn};
+  const point=city.spawnAnchor||city.landmarks.find(p=>p.id==='square')||{x:0,z:0};
   // Find a genuine nearby mapped road section with clear room for the parked car and a foot start.
   const spots=city.roads.filter(r=>!r.walk&&!r.bridge&&r.w>=4&&Math.hypot(r.a[0]-r.b[0],r.a[1]-r.b[1])>=7).flatMap(r=>{
     const [x,z]=[(r.a[0]+r.b[0])/2,(r.a[1]+r.b[1])/2],yaw=Math.atan2(r.b[0]-r.a[0],r.b[1]-r.a[1]);
@@ -59,7 +62,8 @@ export function buildMobility(city,priorSpawn){
   }).sort((a,b)=>a.distance-b.distance);
   if(!spots.length)throw new Error('No public starting area was found.');
   const spawn=spots[0];
-  return {obstructed,validCar,spawn};
+  if(city.spawnAnchor&&!obstructed(point.x,point.z,WALK)){spawn.footX=point.x;spawn.footZ=point.z;}
+  return {obstructed,validCar,validBike,spawn};
 }
 export function initialState(mobility){
   const {x,z,yaw,footX,footZ}=mobility.spawn;
@@ -67,6 +71,7 @@ export function initialState(mobility){
 }
 export function vehicleAction(state,mobility){
   const {car}=state;
+  if(state.ride==='bike')return 'Zbrit nga biçikleta së pari.';
   if(state.mode==='walk'){
     if(Math.hypot(state.x-car.x,state.z-car.z)>4)return 'Afrohu te makina.';
     state.walkY=0;state.walkVy=0;state.walkSpeed=0;state.mode='drive';state.x=car.x;state.z=car.z;state.yaw=car.yaw;return '';
@@ -74,7 +79,7 @@ export function vehicleAction(state,mobility){
   if(Math.abs(car.speed)>.44)return 'Ndal makinën para se të dalësh.';
   for(const dist of [2.2,-2.2,3,-3]){
     const x=car.x+Math.cos(car.yaw)*dist,z=car.z-Math.sin(car.yaw)*dist;
-    if(mobility.obstructed(x,z,WALK))continue;
+    if(mobility.obstructed(x,z,WALK)||!bikeClear(state.bike,x,z,WALK))continue;
     state.x=x;state.z=z;state.yaw=car.yaw;state.mode='walk';car.speed=0;return '';
   }
   return 'Nuk ka hapësirë të sigurt për të dalë.';
@@ -82,13 +87,14 @@ export function vehicleAction(state,mobility){
 export function stepRoam(state,mobility,input,seconds){
   const dt=clamp(seconds,0,1/30);
   const x=clamp(input.x||0,-1,1),y=clamp(input.y||0,-1,1),{car}=state;
+  if(state.ride==='bike'){stepBicycle(state,mobility,input,dt);return;}
   if(state.mode==='drive'){
     const target=input.brake?0:y>=0?y*11:y*3.3;
     car.speed=moveToward(car.speed,target,(input.brake?9:y?4.4:2.8)*dt);
     car.steer=moveToward(car.steer,x,dt*3.8);
     const yaw=car.yaw+car.steer*clamp(car.speed/4,-1,1)*1.18*dt;
     const nextX=car.x+Math.sin(yaw)*car.speed*dt,nextZ=car.z+Math.cos(yaw)*car.speed*dt;
-    if(mobility.validCar(nextX,nextZ,yaw)){car.x=nextX;car.z=nextZ;car.yaw=yaw;car.wheel+=car.speed*dt/.32;}
+    if(mobility.validCar(nextX,nextZ,yaw)&&sedanSamples(nextX,nextZ,yaw).every(([a,b])=>bikeClear(state.bike,a,b,1.02))){car.x=nextX;car.z=nextZ;car.yaw=yaw;car.wheel+=car.speed*dt/.32;}
     else car.speed=0;
     state.x=car.x;state.z=car.z;state.yaw=car.yaw;
   }else{
@@ -101,7 +107,7 @@ export function stepRoam(state,mobility,input,seconds){
     const speed=(input.brake?4.25:2.55)*dt/Math.max(1,Math.hypot(x,y));
     const dx=(Math.sin(state.yaw)*y+Math.cos(state.yaw)*x)*speed;
     const dz=(Math.cos(state.yaw)*y-Math.sin(state.yaw)*x)*speed;
-    const clear=(x,z)=>!mobility.obstructed(x,z,WALK)&&sedanSamples(car.x,car.z,car.yaw).every(([a,b])=>Math.hypot(x-a,z-b)>1.02+WALK);
+    const clear=(x,z)=>!mobility.obstructed(x,z,WALK)&&bikeClear(state.bike,x,z,WALK)&&sedanSamples(car.x,car.z,car.yaw).every(([a,b])=>Math.hypot(x-a,z-b)>1.02+WALK);
     if(clear(state.x+dx,state.z))state.x+=dx;
     if(clear(state.x,state.z+dz))state.z+=dz;
     state.walkSpeed=dt>0?Math.hypot(state.x-beforeX,state.z-beforeZ)/dt:0;

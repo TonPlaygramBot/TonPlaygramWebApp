@@ -1,0 +1,14 @@
+/* Civilian career: the original tsl-card lobby presentation is reused. */
+.tsc-career-card details{margin-top:12px;font-size:13px}
+.tsc-career-card summary{cursor:pointer;min-height:38px;padding-top:8px}
+.tsc-career-card ol{margin:0;padding-left:1.4em}
+.tsc-career-card li{margin:6px 0}
+.tsc-career-card li small{margin-top:0}
+.tsc-career-hud{position:absolute;left:max(12px,env(safe-area-inset-left));top:calc(max(12px,env(safe-area-inset-top)) + 146px);width:min(61vw,230px);background:#112c34ed;border:1px solid #fff4;border-radius:12px;padding:8px 10px;display:grid;gap:4px;font-size:12px}
+.tsc-career-hud p,.tsc-career-hud small{margin:0}
+.tsc-career-hud strong{color:var(--tsc-accent)}
+.tsc-career-hud button{justify-self:start;min-height:44px;border:1px solid #fff4;border-radius:8px;padding:5px 8px;background:#112c34;color:var(--tsc-ink);font-weight:700}
+.tsc-career-hud button:disabled{opacity:.68}
+@media(max-height:520px){.tsc-career-hud{top:calc(max(12px,env(safe-area-inset-top)) + 124px);width:min(52vw,215px)}}
+.tsc-career-bearing{display:flex;align-items:center;gap:4px}
+.tsc-career-bearing svg{flex:none;color:var(--tsc-accent)}

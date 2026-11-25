@@ -36,3 +36,31 @@ is dedicated under CC0-1.0; only two civilian props are placed here.
 Embedded PBR textures are resized to 256px and the leaf alpha container
 is retained; geometry, UVs and PBR options remain unchanged. This is a
 stylized urban broadleaf substitute, not a local species identification.
+
+## Historical city sectors
+
+This playable map uses the pre-removal Tirana Streets city geography from
+TonPlayGram source commit `871f3c38c512084c495eeaa0811b0788d62c751b`, with its
+original [OpenStreetMap-derived dataset](/assets/tirana-streets/DATA-LICENSE.md)
+and supplemental source hydrography. Browse or download
+[the editable ODbL sector index and first tile](historic/start.json) and each
+listed sector as `historic/<key>.json` (except the first tile, which is inside
+the index). Normal builds read the checked-in, pinned ODbL bundle and verify its digest;
+they do not import historical software modules or require downloading source.
+For source reproduction only, generation is reproducible with
+`node webapp/scripts/build-tirana-historical-sectors.mjs`. The complete sector
+collection, landmarks and original geographical grid remain derived works
+under the [ODbL 1.0](https://opendatacommons.org/licenses/odbl/1-0/).
+Road/footprint fragments may cross multiple cells; meters remain in the same
+historical local projection. Terrain heights and the visible buildings and
+road forms are not a surveyed digital twin. No added public-facility or
+security scenario data is part of this export.
+
+## Historical façade texture
+
+Optional wall finish: [Plastered Wall 02](https://polyhaven.com/a/plastered_wall_02)
+from Poly Haven, [CC0](https://polyhaven.com/license). Derived from the historical
+`webapp/public/assets/tirana-streets/materials/plastered_wall_02-diff.jpg`
+(Git blob `0bfd77d09edbe3c2420f5363817f18b8dd903699`), resized to 512² RGB
+and converted to WebP. The standalone asset is not a photograph of any specific
+building.
