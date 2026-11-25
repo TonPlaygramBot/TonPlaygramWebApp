@@ -15,7 +15,7 @@
 .tsc-note{position:absolute;bottom:calc(max(13px,env(safe-area-inset-bottom)) + 150px);left:12px;max-width:calc(100% - 24px);padding:7px 12px;font-size:12px;margin:0}
 .tsc-controls{pointer-events:none;position:absolute;inset:auto max(12px,env(safe-area-inset-right)) calc(max(12px,env(safe-area-inset-bottom)) + 39px) max(12px,env(safe-area-inset-left));display:flex;justify-content:space-between;align-items:end;gap:8px}
 .tsc-pad,.tsc-controls button{pointer-events:auto}.tsc-pad{width:clamp(80px,24vw,116px);aspect-ratio:1;flex:none;border:2px solid #f7e2c97d;border-radius:50%;background:#112c34cc;display:grid;place-items:center;user-select:none}
-.tsc-pad i{display:grid;place-items:center;border-radius:50%;width:53%;aspect-ratio:1;background:#ffcf97;color:#112c34;font-size:23px;font-style:normal}
+.tsc-pad > span{pointer-events:none;display:grid;place-items:center;border-radius:50%;width:53%;aspect-ratio:1;background:#ffcf97;color:#112c34;font-size:23px;font-style:normal}
 .tsc-drive{display:grid;gap:7px}.tsc-controls button{padding:6px 12px;min-height:44px;font-size:12px;font-weight:750;color:var(--tsc-ink)}.tsc-controls button:disabled{opacity:.68}.tsc-help{display:none}
 .tsc-credits{display:flex;flex-wrap:wrap;justify-content:center;gap:4px 12px;padding:7px 9px;text-align:center;font-size:10px}.tsc-credits a{text-decoration:underline}
 .tsc-play .tsc-credits{position:absolute;inset:auto max(12px,env(safe-area-inset-right)) max(8px,env(safe-area-inset-bottom)) max(12px,env(safe-area-inset-left))}
@@ -26,3 +26,12 @@
 .tsc-destination{position:absolute;top:calc(max(12px,env(safe-area-inset-top)) + 146px);left:12px;max-width:48%;padding:7px 9px;background:#112c34ed;border-radius:12px;display:flex;align-items:center;gap:7px;font-size:11px}.tsc-destination b{font-size:23px;color:var(--tsc-accent);line-height:1}
 .tsc-map{position:absolute;z-index:2;top:50%;left:50%;transform:translate(-50%,-50%);width:min(91vw,440px);max-height:76svh;overflow:auto;padding:14px;display:grid;gap:6px;border-radius:18px;border:1px solid #fff4;background:#112c34;color:var(--tsc-ink)}
 .tsc-map header{display:flex;justify-content:space-between;gap:9px}.tsc-map h2,.tsc-map p{margin:0}.tsc-map header small{color:var(--tsc-accent);font-size:10px;letter-spacing:.15em}.tsc-map svg{width:100%;height:min(41svh,300px);border-radius:12px;background:#172d35}.tsc-map button{text-align:left}.tsc-map button[aria-pressed=true]{background:var(--tsc-accent);color:#112c34}
+
+/* Constrain map-only touch gestures; the dialog itself still scrolls. */
+.tsc-map .tsc-map-surface{touch-action:none;overscroll-behavior:contain;cursor:grab}
+.tsc-map .tsc-map-surface:active{cursor:grabbing}
+.tsc-map .tsc-map-surface:focus-visible{outline:2px solid var(--tsc-accent);outline-offset:-3px}
+.tsc-map-controls{display:grid;grid-template-columns:44px 44px auto minmax(95px,1fr);gap:5px}
+.tsc-map-controls button{text-align:center}
+.tsc-map-place{display:grid;grid-template-columns:minmax(0,1fr) 44px;gap:6px}
+.tsc-map-place button:last-child{text-align:center;font-size:18px}

@@ -67,7 +67,7 @@ test('first-run asset budget and provenance: scoped map, safe exterior mesh allo
   assert.ok(!(monuments.images||[]).some(i=>i.uri));
   assert.deepEqual(gltf('sedan.glb').images.map(i=>i.uri),['Textures/colormap.png']);
   assert.ok(statSync(asset('Textures/colormap.png')).isFile());
-  assert.deepEqual(readdirSync(asset('')).sort(),['ATTRIBUTION.md','KENNEY-CARS-LICENSE.txt','Textures','asphalt-color.webp','asphalt-normal.webp','central-city.json','cover.svg','districts','public-landmarks.glb','sedan.glb'].sort());
+  assert.deepEqual(readdirSync(asset('')).filter(name=>name!=='historic').sort(),['ATTRIBUTION.md','KENNEY-CARS-LICENSE.txt','Textures','asphalt-color.webp','asphalt-normal.webp','central-city.json','cover.svg','districts','mobility','public-landmarks.glb','sedan.glb','wall-plaster-512.webp'].sort());
 });
 
 test('jump is grounded and does not allow walls, and drive cancels airborne state',()=>{

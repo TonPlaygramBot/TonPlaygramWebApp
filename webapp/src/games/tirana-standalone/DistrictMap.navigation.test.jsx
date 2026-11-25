@@ -1,0 +1,51 @@
+// @vitest-environment jsdom
+import React,{act} from 'react';
+import {createRoot} from 'react-dom/client';
+import {afterEach,beforeEach,expect,test,vi} from 'vitest';
+import {DistrictMap} from './DistrictMap.jsx';
+const map={viewBox:'0 0 1000 600',district:{x:0,z:0,width:1000,height:600},points:[{id:'pyramid',x:300,z:300,label:'untrusted label'},{id:'__proto__',x:10,z:10,label:'untrusted marker'}]};
+let dom,root;
+beforeEach(()=>{globalThis.IS_REACT_ACT_ENVIRONMENT=true;dom=document.createElement('div');document.body.append(dom);root=createRoot(dom);});
+afterEach(()=>{act(()=>root.unmount());dom.remove();localStorage.clear();delete globalThis.IS_REACT_ACT_ENVIRONMENT;});
+const render=element=>act(()=>root.render(element));
+const pick=text=>[...dom.querySelectorAll('button')].find(b=>b.textContent===text);
+const label=text=>dom.querySelector('[aria-label="'+text+'"]');
+const click=el=>act(()=>el.dispatchEvent(new MouseEvent('click',{bubbles:true,cancelable:true,button:0})));
+const key=(el,key)=>act(()=>el.dispatchEvent(new KeyboardEvent('keydown',{key,bubbles:true,cancelable:true})));
+const svgNode=()=>dom.querySelector('[role=img]');
+const event=(el,type,id,x,y)=>{
+ const e=new MouseEvent(type,{bubbles:true,clientX:x,clientY:y,button:0,cancelable:true});
+ Object.defineProperty(e,'pointerId',{value:id});act(()=>el.dispatchEvent(e));
+};
+test('two-finger pinch, first finger loss and rebased drag never select a marker',()=>{
+ const select=vi.fn(),close=vi.fn();render(<DistrictMap map={map} onSelect={select} onClose={close}/>);
+ const svg=svgNode();
+ svg.getBoundingClientRect=()=>({left:0,top:0,width:320,height:200});
+ event(svg,'pointerdown',1,70,90);event(svg,'pointerdown',2,170,110);
+ event(svg,'pointermove',1,40,70);event(svg,'pointermove',2,240,129);
+ const pinch=svg.getAttribute('viewBox');expect(pinch).not.toBe(map.viewBox);
+ event(svg,'lostpointercapture',1,40,70);
+ expect(svg.getAttribute('viewBox')).toBe(pinch);
+ event(svg,'pointermove',2,215,120);expect(svg.getAttribute('viewBox')).not.toBe(pinch);
+ event(svg,'pointercancel',2,215,120);event(svg,'pointermove',2,0,0);
+ expect(select).not.toHaveBeenCalled();
+ key(svg,'Escape');expect(close).toHaveBeenCalledOnce();
+});
+test('saved controls use canonical labels and survive reopen; reset and focus trap work',()=>{
+ const close=vi.fn(),select=vi.fn();
+ render(<DistrictMap map={map} onSelect={select} onClose={close}/>);
+ expect(document.activeElement).toBe(pick('Mbylle'));
+ expect(dom.textContent.match(/untrusted/i)).toBeNull();
+ click(label('Ruaj: Piramida'));
+ click(pick('Të preferuarat'));
+ click(pick('Piramida'));
+ expect(select).toHaveBeenCalledWith('pyramid');
+ click(label('Zmadho hartën'));
+ expect(svgNode().getAttribute('viewBox')).not.toBe(map.viewBox);
+ click(pick('Qendër'));
+ expect(svgNode().getAttribute('viewBox')).toBe(map.viewBox);
+ const save=label('Ruaj: Piramida');save.focus();
+ key(save,'Tab');expect(document.activeElement).toBe(pick('Mbylle'));
+ render(null);render(<DistrictMap map={map} onSelect={select} onClose={close}/>);
+ expect(label('Ruaj: Piramida').getAttribute('aria-pressed')).toBe('true');
+});

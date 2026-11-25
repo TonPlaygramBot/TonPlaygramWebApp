@@ -1,3 +1,4 @@
+import {readHistoricBundle} from '../../../scripts/materialize-tirana-historic.mjs';
 // @vitest-environment node
 
 import {readFileSync} from 'node:fs';
@@ -111,4 +112,119 @@ test('Auto can probe back from 30 FPS after measured recovery, but Battery ceili
  view.auto=new AutomaticGraphics('battery');view.targetFps=30;
  for(let i=0;i<20;i++)view.adaptToFrames(30);
  expect(view.auto.preset).toBe('battery');
+});
+
+const loadedHistoric=await readHistoricBundle();
+const historicFile=name=>JSON.parse(loadedHistoric.get(name+'.json').text);
+
+test('normal boot uses actual historic start, not old compact map or optional art; first loaded sector is playable',async()=>{
+ const view=syntheticView();
+ view.abort=new AbortController();view.schedule=vi.fn();
+ const first=historicFile('start');
+ vi.stubGlobal('fetch',vi.fn(async()=>({ok:true,json:async()=>first})));
+ try{
+  await view.load();
+  expect(fetch).toHaveBeenCalledTimes(1);
+  expect(fetch.mock.calls[0][0]).toBe('/assets/tirana-city-game/historic/start.json');
+  expect(view.state.x).toBe(-59.39);expect(view.state.z).toBe(126.25);
+  expect(view.sectors.size).toBe(1);expect(view.chunks.length).toBeGreaterThan(8);
+  expect(view.schedule).toHaveBeenCalledOnce();expect(view.loadDetail).not.toHaveBeenCalled();
+ }finally{vi.unstubAllGlobals();}
+});
+
+test('historic sector is activated atomically; stale movement rejects the response before geometry',async()=>{
+ const view=syntheticView();
+ view.abort=new AbortController();view.schedule=vi.fn();
+ const first=historicFile('start');
+ const tile=historicFile('1_0');
+ let response;
+ const deferred=new Promise(resolve=>response=resolve);
+ vi.stubGlobal('fetch',vi.fn().mockResolvedValueOnce({ok:true,json:async()=>first}).mockReturnValueOnce(deferred).mockResolvedValueOnce({ok:true,json:async()=>tile}));
+ view.yieldPaint=vi.fn(async()=>{expect(view.sectors.size).toBe(1);});
+ try{
+  await view.load();const sceneSize=view.chunks.length;
+  Object.assign(view.state,{x:120,z:80});
+  const job=view.loadHistoricSector('1_0');
+  expect(view.sectors.size).toBe(1);
+  Object.assign(view.state,{x:-60,z:140});response({ok:true,json:async()=>tile});
+  await job;expect(view.sectors.size).toBe(1);expect(view.chunks.length).toBe(sceneSize);
+  Object.assign(view.state,{x:120,z:80});
+  await view.loadHistoricSector('1_0');
+  expect(view.sectors.size).toBe(2);expect(view.chunks.length).toBeGreaterThan(sceneSize);
+  expect(view.state.x).toBe(120);expect(view.state.z).toBe(80);
+ }finally{vi.unstubAllGlobals();}
+});
+
+test('loading the tenth historic cell evicts a distant stage without dropping the asphalt material',async()=>{
+ const view=syntheticView();
+ view.abort=new AbortController();view.schedule=vi.fn();view.yieldPaint=vi.fn(async()=>{});
+ const first=historicFile('start');
+ const tile=historicFile('1_0');
+ vi.stubGlobal('fetch',vi.fn().mockResolvedValueOnce({ok:true,json:async()=>first}).mockResolvedValueOnce({ok:true,json:async()=>tile}));
+ try{
+  await view.load();
+  Object.assign(view.state,{x:120,z:80});
+  const disposals=[];
+  for(let i=2;i<10;i++){
+    const key=i+'_0',stage=new T.Group(),geom=new T.PlaneGeometry(1,1),discard=vi.spyOn(geom,'dispose');
+    stage.add(new T.Mesh(geom,view.pavement));view.scene.add(stage);
+    const data={...first.first,key,bounds:[i*384-256,-64,(i+1)*384-256,320],roads:[],buildings:[],areas:[],parks:[],water:[],neutralCivicMarks:[]};
+    view.sectors.set(key,{data,geometry:{stage,chunks:[]}});
+    disposals.push(discard);
+  }
+  const asphalt=vi.spyOn(view.pavement,'dispose');
+  expect(view.sectors.size).toBe(9);
+  await view.loadHistoricSector('1_0');
+  expect(view.sectors.size).toBe(9);expect(view.sectors.has('1_0')).toBe(true);expect(view.sectors.has('0_0')).toBe(true);expect(view.sectors.has('9_0')).toBe(false);
+  expect(disposals.reduce((n,call)=>n+call.mock.calls.length,0)).toBe(1);expect(asphalt).not.toHaveBeenCalled();
+ }finally{vi.unstubAllGlobals();}
+});
+
+test('real scene controller gates Career activity until first render and on pause, then keeps free roam independent',async()=>{
+ const {createCivilianCareer}=await import('./civilianCareer.mjs');
+ const values=new Map(),storage={getItem:k=>values.get(k),setItem:(k,v)=>values.set(k,v)};
+ const view=syntheticView();view.civilianCareer=createCivilianCareer(storage);
+ view.startCareer();
+ expect(values.size).toBe(0);
+ view.firstFrame=true;view.paused=true;view.startCareer();view.interactCareer();
+ expect(values.size).toBe(0);
+ view.paused=false;view.startCareer();
+ expect(values.size).toBe(1);
+ expect(view.civilianCareer.view(view.city,view.mobility,view.state).position).toBe(1);
+ view.interactCareer();
+ expect(view.civilianCareer.view(view.city,view.mobility,view.state).position).toBe(1);
+ const free=syntheticView();free.firstFrame=true;
+ free.startCareer();free.interactCareer();
+ expect(free.civilianCareer).toBeUndefined();
+});
+
+test('façade respects first frame, pause, renderer size cap, and schedules only once',()=>{
+  vi.useFakeTimers();
+  vi.stubGlobal('document',{hidden:false});
+  try {
+    const view=syntheticView();
+    view.renderer.capabilities={maxTextureSize:1024};
+    view.loadFacadeFinish=vi.fn(()=>{view.facadeRequested=true;});
+    view.tick(15);
+    vi.advanceTimersByTime(1000);
+    expect(view.loadFacadeFinish).not.toHaveBeenCalled();
+    view.renderer.capabilities.maxTextureSize=256;
+    view.tick(31);
+    vi.advanceTimersByTime(1000);
+    expect(view.loadFacadeFinish).not.toHaveBeenCalled();
+    view.renderer.capabilities.maxTextureSize=1024;
+    view.tick(47);
+    view.paused=true;
+    vi.advanceTimersByTime(1000);
+    expect(view.loadFacadeFinish).not.toHaveBeenCalled();
+    view.paused=false;
+    view.tick(63);view.tick(79);
+    vi.advanceTimersByTime(949);
+    expect(view.loadFacadeFinish).not.toHaveBeenCalled();
+    vi.advanceTimersByTime(1);
+    expect(view.loadFacadeFinish).toHaveBeenCalledOnce();
+    view.tick(95);
+    vi.advanceTimersByTime(1000);
+    expect(view.loadFacadeFinish).toHaveBeenCalledOnce();
+  } finally {vi.unstubAllGlobals();vi.useRealTimers();}
 });
