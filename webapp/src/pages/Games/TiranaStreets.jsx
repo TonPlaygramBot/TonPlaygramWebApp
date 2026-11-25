@@ -1,7 +1,9 @@
 import React, {useEffect,useRef,useState} from 'react';
-import {Link,useLocation} from 'react-router-dom';
+import {Link,useLocation,useNavigate} from 'react-router-dom';
 import '../../games/tirana-standalone/city-roam.css';
 import {StandaloneCarRadio} from '../../games/tirana-standalone/radio/StandaloneCarRadio.jsx';
+import {TiranaLoading} from '../../games/tirana-standalone/nov11/TiranaLoading';
+import {FrameRateControl} from '../../games/tirana-standalone/nov11/FrameRateControl';
 import {MovementStick} from '../../games/tirana-standalone/MovementStick';
 import {DistrictMap} from '../../games/tirana-standalone/DistrictMap.jsx';
 import '../../games/tirana-street-detail/lobby.css';
@@ -55,11 +57,13 @@ function CareerHud({career,onStart,onInteract}){
 }
 
 function Roam({careerMode=false}){
+  const navigate=useNavigate();
+  const [frameRate,setFrameRate]=useState(60);
   const surface=useRef(null),client=useRef(null),pan=useRef(null),mapButton=useRef(null),restoreMapFocus=useRef(false);
   const [state,setState]=useState({ready:false,paused:false});
   const [attempt,retry]=useState(0),[quality,setQuality]=useState('auto'),[mapOpen,setMapOpen]=useState(false);
   useEffect(()=>{
-    setState({ready:false,paused:false});setQuality('auto');setMapOpen(false);
+    setState({ready:false,paused:false});setQuality('auto');setFrameRate(60);setMapOpen(false);
     let alive=true;
     const update=next=>{if(alive)setState(prev=>({...prev,...next}));};
     import('../../games/tirana-standalone/CityRoamView.js').then(({CityRoamView})=>{
@@ -93,7 +97,7 @@ function Roam({careerMode=false}){
       <div className="tsc-title"><span>QYTETI I TIRANËS</span><h1>Tirana Streets</h1></div>
       <div className="tsc-top-actions"><Link to={root+'/lobby'}>‹ Menuja</Link><button type="button" disabled={!state.ready||!!state.error} onClick={()=>client.current?.pause(!state.paused)}>{state.paused?'Vazhdo':'Pauzë'}</button></div>
     </header>
-    {!state.ready&&!state.error&&<p className="tsc-status" role="status">Po hapet harta 3D…</p>}
+    {!state.ready&&!state.error&&<div className="tsc-nov11-loading"><TiranaLoading onBack={()=>navigate(root+'/lobby')}/></div>}
     {state.error&&<div className="tsc-status" role="alert"><p>{state.error}</p><button type="button" onClick={()=>retry(v=>v+1)}>Rifillo</button></div>}
     {state.paused&&state.ready&&!state.error&&!mapOpen&&<div className="tsc-status">
       <p>Loja është në pauzë.</p>
@@ -101,6 +105,7 @@ function Roam({careerMode=false}){
         <option value="auto">Automatike</option><option value="battery">Kursim baterie</option>
         <option value="balanced">E balancuar</option><option value="high">E lartë</option>
       </select></label>
+      <FrameRateControl value={frameRate} onChange={value=>{setFrameRate(value);client.current?.setFrameRate?.(value);}}/>
       <button type="button" onClick={()=>client.current?.pause(false)}>Vazhdo</button>
     </div>}
     {mapOpen&&state.map&&!state.error&&<DistrictMap key={state.map.viewBox} map={state.map} player={state.player} destination={state.destination} careerMarker={state.career?.task?.marker} onClose={closeMap} onSelect={id=>{client.current?.setDestination(id);closeMap();}}/>}

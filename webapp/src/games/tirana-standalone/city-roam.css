@@ -35,3 +35,5 @@
 .tsc-map-controls button{text-align:center}
 .tsc-map-place{display:grid;grid-template-columns:minmax(0,1fr) 44px;gap:6px}
 .tsc-map-place button:last-child{text-align:center;font-size:18px}
+
+.tsc-nov11-loading{position:absolute;inset:0;z-index:9;overflow:auto;}
