@@ -30,7 +30,7 @@ import {
 import { WEAPON_BY_ID } from '../shared/weapons.mjs';
 import { harm, reportCrime } from '../shared/cityLife.mjs';
 import { StreetWorld, direction3 } from './spatialCore.mjs';
-import { createBody, stepMotor, cancelActions, MOTOR } from './playerCore.mjs';
+import { createBody, stepMotor, cancelActions, jumpBlockedReason, MOTOR } from './playerCore.mjs';
 import {
   carPoint,
   exitPoint,
@@ -707,13 +707,7 @@ export class StreetSimulation {
           'jump',
           'JUMP',
           true,
-          b.crouched
-            ? 'Stand before jumping'
-            : !b.grounded &&
-                this.state.elapsed - b.groundAt > MOTOR.coyote &&
-                b.y - this.world.surface(p.x, p.z, b.y) > 0.32
-              ? 'In the air'
-              : ''
+          jumpBlockedReason(b, this.state.elapsed, b.grounded ? 0 : b.y - this.world.surface(p.x, p.z, b.y))
         ),
         a('crouch', b.crouched ? 'STAND' : 'CROUCH', true, '', 'toggle'),
         a(

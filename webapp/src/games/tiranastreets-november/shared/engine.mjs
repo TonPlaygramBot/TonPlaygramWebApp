@@ -2,7 +2,7 @@ import {parliamentGardenSolids} from '../../tirana-street-life/parliamentGarden.
 import {urbanMonumentSolids} from '../../tirana-landmarks/urbanMonuments.mjs';
 import {STREET_OPERATIONS} from './streetOperations.mjs';
 import {initPoliceDispatch} from './policeDispatch.mjs';
-import {vehiclePolygonContact,slideVehicle} from './vehicleContacts.mjs';
+import {nearbyVehicleContacts,vehiclePolygonContact,slideVehicle} from './vehicleContacts.mjs';
 import {driveVehicle} from './vehicleDynamics.mjs';
 import {importedFleet,IMPORTED_PLACEMENT_ORIGIN} from '../../blackwater-november/shared/importedPlacements.mjs';
 import {VEHICLE_COLLECTION} from './vehicleCollection.mjs';
@@ -820,9 +820,7 @@ export function movePlayer(state, p, dt, onCollision) {
     }
     // Broad-phase once per frame; exact contacts still run every physics step.
     const reach = Math.max(35, Math.abs(c.speed || 0) * Math.min(.1, dt) + 24);
-    const nearbyCars = [...state.cars, ...state.traffic, ...state.units].filter(
-      o => o.id !== c.id && Math.abs(o.x-c.x)<reach && Math.abs(o.z-c.z)<reach
-    );
+    const nearbyCars = nearbyVehicleContacts(state,c,reach);
     driveVehicle(c,input,dt,()=>{
       for(const contact of collideVehicle(c)){
         if(onCollision)onCollision(c,null,contact);

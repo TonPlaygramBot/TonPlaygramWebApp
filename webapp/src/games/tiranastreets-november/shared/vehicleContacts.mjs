@@ -65,3 +65,17 @@ export function slideVehicle(car,contact){
   if(closing<0){car.vx-=closing*nx;car.vz-=closing*nz;}
   car.speed=-Math.sin(car.heading)*car.vx-Math.cos(car.heading)*car.vz;
 }
+
+/** Same broad-phase box and source order as the prior concatenation/filter,
+ * without copying the whole population twice per driving step. */
+export function nearbyVehicleContacts(state, car, reach) {
+  const candidates=[];
+  for (const group of [state.cars, state.traffic, state.units]) {
+    for (let i=0; i<group.length; i++) {
+      const other=group[i];
+      if (other.id!==car.id && Math.abs(other.x-car.x)<reach && Math.abs(other.z-car.z)<reach)
+        candidates.push(other);
+    }
+  }
+  return candidates;
+}
