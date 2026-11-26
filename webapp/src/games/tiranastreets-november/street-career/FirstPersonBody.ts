@@ -17,6 +17,7 @@ import { direction3 } from './spatialCore.mjs';
 import { carPoint, vehicleAnchors, steeringWheelContacts, steeringWheelAngle, STEERING_WHEEL_AXIS } from './vehicleCore.mjs';
 import {driverUp,driverDirection} from '../shared/driverView.mjs';
 import {solveHumanoidGrip,poseHumanoidFist} from './humanoidHands.mjs';
+import {ClipTransitions} from './clipTransitions.mjs';
 import {canonicalHumanoidBone, humanoidBones, headBoneIndices, solveHumanoidLimb, HumanoidLegPose} from './humanoidRig.mjs';
 const v = new T.Vector3(),
   q = new T.Quaternion();
@@ -127,6 +128,7 @@ export class FirstPersonBody {
   private moving = false;
   private activeMotion?: T.AnimationAction;
   private motionActions: T.AnimationAction[] = [];
+  private clipTransitions = new ClipTransitions();
   private freeArmClips = new Set<T.AnimationAction>();
   private airBlend = 0;
   private ascentBlend = 0;
@@ -197,6 +199,7 @@ export class FirstPersonBody {
     }
     this.motionActions = [...new Set(Object.values(actor.clips || {Idle:actor.idle, Walk:actor.walk, Run:actor.run}))]
       .filter((action): action is T.AnimationAction => !!action);
+    this.clipTransitions.reset(this.motionActions);
     this.freeArmClips.clear();
     for (const action of this.motionActions) {
       const joints = new Set(action.getClip().tracks.flatMap(track => {
@@ -333,15 +336,10 @@ export class FirstPersonBody {
       const previous = this.activeMotion;
       const preserveStride = moving && /walk|run|sprint/i.test(previous?.getClip().name || '');
       const phase = preserveStride && previous ? previous.time / Math.max(.001, previous.getClip().duration) : 0;
-      for (const action of this.motionActions)
-        if (action !== next) action?.fadeOut(.18);
-      if (next) {
-        next.reset();
-        next.time = ((phase % 1 + 1) % 1) * next.getClip().duration;
-        next.fadeIn(.18).play();
-      }
+      this.clipTransitions.select(next, phase);
       this.activeMotion = next;
     }
+    this.clipTransitions.update(dt);
     this.motion = motion;
     // Scale the walk/run clip, not the mixer's clock: fading must take the same
     // real time at a slow walk as at a sprint. Keep unkeyed IK joints fresh.
