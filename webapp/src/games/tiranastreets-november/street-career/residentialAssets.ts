@@ -62,7 +62,14 @@ function sourceFor(kind: SourceKind): Source {
   if (cached) return cached;
   const entry = { users: 0 } as Source;
   const url = kind === 'facade-kit' ? '/assets/tirana-streets/residential/facade-kit.gltf' : RESIDENTIAL_MODELS[kind].url;
-  entry.promise = new GLTFLoader().loadAsync(url).then(gltf => {
+  const manager = new T.LoadingManager();
+  const joinedPrefix = '/assets/tirana-streets/residential//assets/external/';
+  // Three's GLTF loader joins the document directory to rooted resource URLs.
+  // Keep the vendored Poly Haven buffers and textures rooted in /assets/external.
+  manager.setURLModifier(request => request.startsWith(joinedPrefix)
+    ? '/assets/external/' + request.slice(joinedPrefix.length)
+    : request);
+  entry.promise = new GLTFLoader(manager).loadAsync(url).then(gltf => {
     const root = kind === 'facade-kit' ? gltf.scene : batchResidence(gltf.scene);
     entry.root = root;
     root.traverse(object => {
