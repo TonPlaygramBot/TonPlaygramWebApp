@@ -511,7 +511,7 @@ export class StreetCareerRuntime {
       if (!this.paused) {
         this.radio.setContext(!!p.carId && p.health>0, this.settings.volume);
         this.audio.update(p.speed, !!p.carId);
-        this.audio.city(this.state, p, dt, this.renderer.yaw, this.simulation.body.grounded, this.simulation.body.y);
+        this.audio.city(this.state, p, dt, this.renderer.yaw, this.simulation.body.grounded, this.simulation.body.y, this.simulation.body.locomotion);
       }
       if (now - this.routeAt > 750) {
         this.updateNavigation();

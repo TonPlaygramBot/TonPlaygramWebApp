@@ -1,10 +1,13 @@
 import type { State, Player } from './shared/engine.mjs';
 import { SceneSound } from './SceneSound';
+import {createCityFootsteps} from './cityFootsteps.mjs';
+import {onCarriageway,pavementHeight} from './shared/streetLayout.mjs';
 export class CityAudio {
   readonly sound = new SceneSound();
   private seen = 0;
 
   private footstep = 0;
+  private soloFootsteps = createCityFootsteps();
   private _enabled = true;
   private _volume = 1;
   get enabled() { return this._enabled; }
@@ -14,8 +17,8 @@ export class CityAudio {
   private sync() { this.sound.setVolume(this.enabled ? this.volume : 0); }
   async unlock() { await this.sound.unlock(); this.sync(); }
   update(speed: number, inCar: boolean) { this.sound.loop('car', 28 + Math.abs(speed) * 3, inCar ? .035 + Math.min(.08, Math.abs(speed) * .001) : 0, 240); }
-  city(state: State, p: Player, dt: number, cameraYaw = p.heading, grounded = true, eyeY = 0) {
-    if (state.effectSeq < this.seen) { this.seen = 0; this.footstep = 0; }
+  city(state: State, p: Player, dt: number, cameraYaw = p.heading, grounded = true, eyeY = 0, soloGait?: string) {
+    if (state.effectSeq < this.seen) { this.seen = 0; this.footstep = 0; this.soloFootsteps.reset(); }
     this.sound.setListener({ x: p.x, y: eyeY, z: p.z }, cameraYaw);
     for (const event of state.effects) {
       if (event.id <= this.seen) continue;
@@ -23,7 +26,14 @@ export class CityAudio {
       if ((event.kind === 'reload' || event.kind === 'purchase') && event.owner !== p.id) continue;
       this.sound.event(event.kind, event);
     }
-    if (Math.abs(p.speed) > .4 && !p.carId && !p.aircraftId && p.health > 0 && grounded) {
+    const walking = !p.carId && !p.aircraftId && p.health > 0 && grounded;
+    if (soloGait !== undefined) {
+      const contact = this.soloFootsteps.advance(p, dt, walking ? soloGait : '');
+      if (contact && this.enabled && this.volume > 0) {
+        const surface=onCarriageway(p.x,p.z) ? 'road' : pavementHeight(p.x,p.z)>.1 ? 'paving' : 'offroad';
+        this.sound.footstep(surface, contact.foot, contact.strength);
+      }
+    } else if (Math.abs(p.speed) > .4 && walking) {
       this.footstep += dt;
       if (this.footstep > (Math.abs(p.speed) > 5 ? .25 : .4)) { this.footstep = 0; this.sound.event('step'); }
     } else this.footstep = 0;
@@ -37,6 +47,6 @@ export class CityAudio {
   }
   street(kind: string) { if(['door','punch','kick','land','block','melee-hit','loot','objective'].includes(kind))this.sound.event(kind); }
   cue(success = true) { this.sound.tone(success ? 660 : 220, .25, .12, success ? 990 : 110); }
-  suspend() { this.sound.suspend(); this.footstep = 0; }
+  suspend() { this.sound.suspend(); this.footstep = 0; this.soloFootsteps.reset(); }
   destroy() { this.sound.dispose(); }
 }
