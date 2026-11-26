@@ -1,3 +1,5 @@
+import {SOLO_STREET_TREE_INFILL} from './soloStreetTreeInfill';
+import {aliDemiSurfaces} from './shared/aliDemiRecreation.mjs';
 import type {GraphicsSetting, GraphicsPreset} from './graphicsQuality';
 import {beginCityFrame} from './renderSettings';
 import {attachEnhancements} from '../tirana-expansion/WorldEnhancements';
@@ -43,7 +45,11 @@ export class CityRenderer extends BaseCityRenderer {
     this.airMobility=new AirMobilityVisuals(this.scene);
     this.weaponStore=new WeaponStoreInterior();
     this.scene.add(this.buses.group,this.cityStores.group);
-    this.cityDetails=attachEnhancements(this.scene);
+    const recreation = aliDemiSurfaces(WORLD.origin);
+    this.cityDetails=attachEnhancements(this.scene,undefined,{stableParkSurfaces:true, supplementalTrees:SOLO_STREET_TREE_INFILL},{
+      ...WORLD, parks:[...WORLD.parks, recreation.park],
+      areas:[...WORLD.areas, recreation.skate, ...recreation.pitches]
+    });
     this.cityDetails.bindBuildings(this.scene,[this.nativeLandmarks.group,this.referenceFacades.group]);
   }
   override render(state:State|null,playerId:string,dt:number,lobby:boolean) {

@@ -1,3 +1,5 @@
+import {AliDemiPitchLayer} from './AliDemiPitchLayer';
+import {WORLD} from '../shared/world.mjs';
 import {EquipmentVisuals} from './EquipmentVisuals';
 import {equipmentZoom} from '../shared/equipment.mjs';
 import {traceShot} from './shotCore.mjs';
@@ -36,6 +38,7 @@ export class StreetRenderer extends CityRenderer {
   private flightHeading?:number;
   private flightId?:string;
   readonly humans = new SharedHumans();
+  private readonly aliDemiPitches: AliDemiPitchLayer;
   readonly bodyRig: FirstPersonBody;
   readonly combatEffects: CombatEffects;
   private impactMarks=new SurfaceImpactMarks();
@@ -80,6 +83,7 @@ export class StreetRenderer extends CityRenderer {
   readonly details: ReturnType<typeof attachEnhancements>;
   constructor(root: HTMLDivElement) {
     super(root);
+    this.aliDemiPitches = new AliDemiPitchLayer(this.scene, WORLD.origin);
     this.preserveVehicleInterior = true;
     this.humans.configure(this.renderer);
     this.ownDetailUpdate=false;
@@ -359,6 +363,7 @@ export class StreetRenderer extends CityRenderer {
   }
   override destroy() {
     if (this.disposed) return;
+    this.aliDemiPitches.dispose();
     this.bodyRig.dispose();
     this.buildingAccess.dispose();
     this.clearWrecks();this.impactMarks.dispose();this.combatEffects.dispose();this.missileMeshes.dispose();this.pockets.dispose();this.equipmentVisuals.dispose();

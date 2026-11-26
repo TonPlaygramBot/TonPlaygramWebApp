@@ -1,6 +1,7 @@
 import * as T from 'three';
 import {mergeGeometries} from 'three/examples/jsm/utils/BufferGeometryUtils.js';
 import {QUARTER} from './quarterData.mjs';
+import {petroNiniFrontages} from './petroNiniFrontages.mjs';
 import {BRIDGE,bridgeDeckHeight,quarterFacadeParts} from './quarterCore.mjs';
 import {nearbyIndex} from '../tirana-street-life/streetModels.mjs';
 import {ribbonExclusion} from '../tirana-street-detail/roadDetailCore.mjs';
@@ -25,7 +26,49 @@ export class TabakeveQuarterLayer {
   for(const [key,geometry,capacity] of [['box',new T.BoxGeometry(1,1,1),2400],['tank',new T.CylinderGeometry(.5,.5,1,10),96]] as const){
    const mesh=new T.InstancedMesh(geometry,material,capacity);mesh.count=0;mesh.frustumCulled=false;mesh.receiveShadow=true;mesh.instanceMatrix.setUsage(T.DynamicDrawUsage);this.batches.set(key,mesh);this.group.add(mesh);
   }
-  this.buildBridge();this.buildSigns();this.group.add(this.bridge,this.signs);
+  this.buildBridge();const frontages=options.profile==='street'&&!options.track?petroNiniFrontages():null;
+  if(frontages)this.buildPetroFrontages(frontages);else this.buildSigns();this.group.add(this.bridge,this.signs);
+ }
+ private buildPetroFrontages(layout:NonNullable<ReturnType<typeof petroNiniFrontages>>){
+  const canvas=document.createElement('canvas');canvas.width=512;canvas.height=512;
+  const ctx=canvas.getContext('2d');if(!ctx){this.buildSigns();return;}
+  const ink=(text:string,x:number,y:number,color:string,weight:number,size:number)=>{
+   ctx.fillStyle=color;ctx.textAlign='center';ctx.textBaseline='middle';
+   ctx.font=`${weight} ${size}px system-ui,sans-serif`;ctx.fillText(text,x,y,455);
+  };
+  const fill=(c:string,x:number,y:number,w:number,h:number)=>{ctx.fillStyle=c;ctx.fillRect(x,y,w,h);};
+  // Authored sign, glazing and below-grade visual reveal. No street mesh,
+  // traversable stair or doorway collision changes in this art pass.
+  fill('#d3bc9d',0,0,512,256);fill('#5f4734',15,14,482,225);
+  fill('#453024',29,29,454,44);
+  ink('BYREKTORE',256,51,'#fff4d6',750,42);
+  fill('#a4805a',32,82,448,154);
+  fill('#4a574e',42,94,172,130);fill('#9caca1',56,104,151,39);
+  fill('#ac7147',42,186,172,37);
+  fill('#252b29',248,88,205,147);
+  for(let i=0;i<5;i++) {
+   const y=143+i*18,x=312-i*13,w=81+i*26;
+   fill(i%2?'#9b886e':'#7e6a55',x,y,w,15);
+   fill('#cbb89b',x,y,w,2);
+  }
+  fill('#cabeaa',0,256,512,256);fill('#242729',15,278,482,217);
+  fill('#343b3c',30,294,138,125);fill('#4d5756',187,294,138,125);fill('#343b3c',345,294,137,125);
+  fill('#242729',30,426,452,56);
+  ink('CENTURY 21 WEST',256,455,'#e4cd8e',590,35);
+  const texture=new T.CanvasTexture(canvas);texture.colorSpace=T.SRGBColorSpace;
+  texture.generateMipmaps=false;texture.minFilter=T.LinearFilter;
+  const material=new T.MeshStandardMaterial({map:texture,roughness:.82});
+  this.textures.push(texture);this.materials.push(material);
+  for(const [i,site] of [layout.bakery,layout.office].entries()){
+   const geometry=new T.PlaneGeometry(site.width,i?1.72:2.14);
+   const uv=geometry.getAttribute('uv');
+   // Half-texel inset prevents the other sign bleeding into this bay.
+   for(let j=0;j<uv.count;j++)uv.setY(j,(i?.002:.502)+uv.getY(j)*.496);
+   const mesh=new T.Mesh(geometry,material);
+   mesh.name=site.name;mesh.position.set(site.x,site.y,site.z);mesh.rotation.y=site.yaw;
+   mesh.userData={...site,visualOnly:true};
+   this.signs.add(mesh);
+  }
  }
  private buildSigns(){
   const canvas=document.createElement('canvas');canvas.width=1024;canvas.height=256;const ctx=canvas.getContext('2d')!;
