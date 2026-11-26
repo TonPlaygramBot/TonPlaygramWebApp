@@ -538,7 +538,11 @@ export class CityRenderer {
       cream = this.material(0xe7d9b9),
       glass = this.material(0x497a84, { metalness: 0.5, roughness: 0.18 });
     const get = (id: string) => WORLD.landmarks.find((p) => p.id === id)!;
-    const memorial = createGramenoMemorial();
+    const memorial = createGramenoMemorial(material => {
+      // Reuse the licensed paving maps already loaded by buildStreets.
+      this.surfaceMaterials.apply(material, 'concrete_pavement');
+      material.normalScale.set(.17,.17);
+    });
     if (memorial) this.scene.add(memorial);
     // Original meshes inspired by the named landmarks; footprints and positions come from OSM.
     const mosque = get("mosque");

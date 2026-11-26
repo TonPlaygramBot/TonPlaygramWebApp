@@ -6,7 +6,7 @@ import { QUARTER } from '../tirana-tabakeve/quarterData.mjs';
 import { CITY_PLACES } from '../tirana-city-source/registry.mjs';
 import { containsPoint } from '../tirana-landmarks/nativeLocations.mjs';
 import { segmentDistance } from '../tirana-city-source/sourceCore.mjs';
-import { createGramenoMemorial } from './GramenoMemorial';
+import { createGramenoMemorial, GRAMENO_PLAQUE_NAME } from './GramenoMemorial';
 import { balletSchoolMapPlace, BALLET_BUILDING_ID, BALLET_CAMPUS_ID, gramenoMemorial, GRAMENO_MAP_ID } from './soloCivilianLandmarks.mjs';
 
 describe('verified Tabakëve civilian landmarks',()=>{
@@ -34,17 +34,26 @@ describe('verified Tabakëve civilian landmarks',()=>{
     if(!p)throw new Error('Memorial missing');
     expect(WORLD.roads.filter(r=>!r.walk).every(r=>segmentDistance(p.x,p.z,r.a,r.b)>(r.w||0)/2+.45)).toBe(true);
   });
-  it('creates only a stone base and original bronze mesh with no copied image',()=>{
-    const statue=createGramenoMemorial();
-    expect(statue?.children).toHaveLength(2);
+  it('finishes the original bust without moving it or copying the original artwork',()=>{
+    const statue=createGramenoMemorial(material => { material.userData.reusedFinish = true; });
+    expect(statue?.children).toHaveLength(3);
     expect(statue?.userData.realWorkReplicated).toBe(false);
     if(!statue)throw new Error('Bust missing');
     const bounds=new T.Box3().setFromObject(statue);
     expect(bounds.getSize(new T.Vector3()).y).toBeCloseTo(1.927,2);
+    const [base,figure,plaque] = statue.children as T.Mesh<T.BufferGeometry,T.MeshStandardMaterial>[];
+    expect(base.material.userData.reusedFinish).toBe(true);
+    expect(figure.material.userData.reusedFinish).toBeUndefined();
+    expect(plaque.name).toBe(GRAMENO_PLAQUE_NAME);
+    expect(plaque.castShadow).toBe(false);
+    expect(plaque.position.z - .57/2).toBeCloseTo(.004,3);
+    const baseSize=new T.Box3().setFromObject(base).getSize(new T.Vector3());
+    expect(baseSize.y).toBeCloseTo(1,3);
+    expect(base.geometry.getAttribute('position').count).toBeLessThan(350);
     for(const o of statue.children){
       expect(o).toBeInstanceOf(T.Mesh);
       const {geometry,material}=o as T.Mesh<T.BufferGeometry,T.MeshStandardMaterial>;
-      expect(material.map).toBeNull();
+      material.map?.dispose();
       expect(geometry.getAttribute('position').count).toBeLessThan(10000);
       geometry.dispose();material.dispose();
     }
