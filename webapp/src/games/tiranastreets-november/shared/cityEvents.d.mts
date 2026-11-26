@@ -1,0 +1,14 @@
+import type {Point,State,NPC} from './engine.mjs';
+export type UnitOrder={sequence:number;kind:string;goal:Point;issuedAt:number;expiresAt:number};
+export type CityEvent={enabled:boolean;phase:string;startedAt:number|null;nextAt:number;sequence:number;center:Point&{name:string};radius:number;actors:string[];orders:Record<string,UnitOrder>;tension:number;orderAt?:number;nextPyro:number;pyro:{id:number;x:number;z:number;at:number}[];report:string};
+export const CITY_EVENT_SITE:Readonly<Point&{name:string}>;
+export const CITY_EVENT_PHASES:readonly {id:string;until:number;label:string;radio:string}[];
+export const UNIT_DUTIES:Readonly<Record<string,{label:string;order:string;speed:number}>>;
+export function createCityEvent(time?:number):CityEvent;
+export function stopCityEvent(state:State,enabled?:boolean):void;
+export function updateCityEvent(state:State,dt:number,env:{collide:(p:Point,r:number)=>unknown}):void;
+export function cityEventIntent(n:NPC,state:State):{goal:Point;speed:number;anim:string;heading?:number}|null;
+export function issueUnitOrder(event:CityEvent,role:string,kind:string,goal:Point,time:number,ttl?:number):UnitOrder|null;
+export function acceptUnitOrder(n:NPC,order:UnitOrder,time:number):boolean;
+export function cityEventRoadGap(car:Point&{heading:number;d?:number},event?:CityEvent):number;
+export function cityEventRoadBlocked(a:Point,b:Point,event?:CityEvent):boolean;

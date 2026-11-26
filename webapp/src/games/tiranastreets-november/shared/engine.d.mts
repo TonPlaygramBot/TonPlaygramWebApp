@@ -1,0 +1,266 @@
+export type Shop = {x:number;y?:number;z:number;id?:string;name:string};
+export type Pickup = {id:string;x:number;y:number;z:number;weapon:string;ammo:number;initialAmmo?:number;kind?:'ammo';source?:string;collected?:boolean;expiresAt?:number};
+export type Point = { x: number; z: number };
+export type Input = {
+  x: number;
+  y: number;
+  yaw: number;
+  fast: boolean;
+  brake: boolean;
+  fire: boolean;
+  seq: number;
+};
+export type Career = {
+  completed: string[];
+  best: Record<string, number>;
+  credits: number;
+};
+export type Member = { id: string; name: string };
+export type Car = Point & {
+  health?:number; destroyed?:boolean; burning?:boolean; exploded?:boolean; crashUntil?:number;
+  damageCause?:'collision'|'bullet'|'explosive'|'heat';
+  id: string;
+  heading: number;
+  speed: number;
+  vx: number;
+  vz: number;
+  steering: number;
+  steerAngle?:number;yawRate?:number;slip?:number;acceleration?:number;gear?:number;rpm?:number;handbraking?:boolean;
+  model: string;
+  passengers?:{seat:number;face:number;shirt:number}[];
+  routeName?:string;livery?:number;trailerHeading?:number;doorsUntil?:number;braking?:boolean;
+  bikeType?:string;
+  collectionVehicle?: string;
+  npcDriver?: boolean;
+  racingAsset?: string;
+  forceVehicle?: string;
+  forceCharacter?: string;
+  responding?: boolean;
+  service?:string;
+  responsePhase?:'patrol'|'responding'|'onscene'|'returning';
+  driver: string | null;
+};
+export type Player = Point &
+  Member & {
+    heading: number;
+    speed: number;
+    carId: string | null;
+    aircraftId?: string | null;
+    index: number;
+    finished: boolean;
+    failed: boolean;
+    finishTime: number | null;
+    heat: number;
+    health: number;
+    armor: number;
+    cash: number;
+    wanted: number;
+    searching?: boolean;
+    arrest?: {phase:string;at:number;started:number;officerId:string;reason:string};
+    lastCrime: number;
+    lastDamage: number;
+    respawnAt: number;
+    nextShot: number;
+    reloadAt: number;
+    weapon: string;
+    inventory: Record<string, { ammo: number; reserve: number }>;
+    kills: number;
+    shopMessage: string;
+    input: Input;
+    inputAt: number;
+    lastAction: number;
+  };
+export type Mission = {
+  id: string;
+  title: string;
+  district: string;
+  type: string;
+  description: string;
+  time: number;
+  reward: number;
+  stars?: number;
+  enemies?: number;
+  operation?:boolean;
+  soloOnly?:boolean;
+  combatZone?:Point & {name:string};
+  extractionHold?:number;
+  approach?:Point & {name:string};
+  aircraft?: 'helicopter' | 'jet';
+  stops: (Point & { name: string })[];
+};
+export type NPC = Point & {
+  cityEvent?:boolean;eventRole?:string;eventSlot?:number;eventHome?:Point;agitator?:boolean;cordon?:string;
+  defenseAttackerId?:string|null;defenseUntil?:number;defenseStartedAt?:number;nextCounterAt?:number;punchedAt?:number;
+  bikeType?:string;role?:string;behavior?:string;
+  firedAt?:number; reloadUntil?:number; rounds?:number; aimPitch?:number; aimSince?:number; splatteredUntil?:number; splatter?:string;
+  y?:number;hitUntil?:number;
+  id: string;
+  kind: string;
+  motion: string;
+  heading: number;
+  speed: number;
+  health: number;
+  weapon: string | null;
+  anim?: string;
+  unit?: string;
+  forceCharacter?: string;
+  squadId?: string;
+  seat?: number;
+  deployed?: boolean;
+  coverId?: string;
+  downUntil: number;
+};
+export type Effect = Point & {
+  targetId?:string;nx?:number;ny?:number;nz?:number;
+  radius?:number;objectId?:string;hitKind?:string;
+  y?:number;toY?:number;
+  id: number;
+  at: number;
+  kind: string;
+  toX: number;
+  toZ: number;
+  owner: string;
+  weapon: string;
+};
+export type Aircraft = Point & {id:string;kind?:'helicopter'|'jet';responseOnly?:boolean;civilian?:boolean;careerManaged?:boolean;verticalSpeed?:number;takeoffY?:number;roofAccess?:boolean;autoHover?:boolean;y:number;roofY:number;stairX:number;stairZ:number;heading:number;speed:number;pilot:string|null;airborne:boolean;nextMissile:number;autoLand?:boolean;homeX?:number;homeZ?:number;buildingId?:string;name?:string;health?:number;missiles?:number;roll?:number;pitch?:number};
+export type State = {
+  cityEvent?: import('./cityEvents.mjs').CityEvent;
+  worldVersion?:string;
+  helicopter?: Aircraft;
+  helicopters?: Aircraft[];
+  jet?: Aircraft;
+  lifeVersion:number;
+  difficulty: string;
+  shop: Shop;
+  shops?:Shop[];
+  pickups?:Pickup[];
+  populationVersion?:number;
+  npcs: NPC[];
+  units: Car[];
+  effects: Effect[];
+  effectSeq: number;
+  nextDispatch: number;
+  objectiveRemaining?: number;
+  elapsed: number;
+  missionStartedAt?:number;
+  phase: string;
+  missionId: string;
+  mode: string;
+  players: Record<string, Player>;
+  cars: Car[];
+  traffic: (Car & {
+    node: number;
+    next: number;
+    seed: number;
+    cruise: number;
+  })[];
+  rival:
+    | (Car & {
+        path: Point[];
+        pathIndex: number;
+        index: number;
+        finished: boolean;
+        delay: number;
+        nextRoute?: number;
+      })
+    | null;
+  winner: string | null;
+  message: string;
+  teamIndex: number;
+};
+export const WORLD: {
+  origin: number[];
+  bounds: number[];
+  roads: {
+    a: number[];
+    b: number[];
+    w: number;
+    walk: boolean;
+    name: string;
+    bridge: boolean;
+    neighbourhood?: boolean;
+    tunnel?: boolean;
+  }[];
+  buildings: {
+    id: string;
+    p: number[][];
+    h: number;
+    name: string;
+    special: string;
+    visualHeightSource?:string;
+    neighbourhood?: boolean;
+    holes?: number[][][];
+    minHeight?: number;
+  }[];
+  parks: number[][][];
+  water: (number[][] | { line: number[][]; width: number })[];
+  waterAreas?:{polygons:{outer:number[][];holes:number[][][]}[]}[];
+  regionalSource?:{sha256:string};
+  areas: number[][][];
+  landmarks: (Point & { id: string; name: string })[];
+  graph: { nodes: number[][]; edges: number[][]; directions?: number[] };
+  sourceNodeAliases?: Record<string,string>;
+  attribution: string;
+  source: string;
+  sourceSha256: string;
+};
+export const STEP: number;
+export const MAX_PLAYERS: number;
+export const MISSIONS: Mission[];
+export const SPAWN: Point;
+export const FREE_ROAM: Mission;
+export function clamp(v: number, a: number, b: number): number;
+export function emptyInput(): Input;
+export function freshCareer(): Career;
+export function nearestNode(x: number, z: number): number;
+export function roadPoint(x: number, z: number): Point;
+export function route(a: number, b: number): Point[];
+export function insidePolygon(x: number, z: number, poly: number[][]): boolean;
+export function collide(entity: Point, radius: number): boolean;
+export function cameraDistance(
+  x: number,
+  z: number,
+  y: number,
+  yaw: number,
+  wanted: number,
+  pitch: number,
+): number;
+export function sanitizeInput(raw?: Partial<Input>): Input;
+export function createState(
+  members: Member[],
+  missionId?: string,
+  mode?: string,
+  sport?: boolean,
+  difficulty?: string,
+): State;
+export function addPlayer(
+  state: State,
+  member: Member,
+  slot?: number,
+  sport?: boolean,
+): void;
+export function removePlayer(state: State, id: string): void;
+export function control(state: State, id: string, raw: Partial<Input>): void;
+export function interact(state: State, id: string, action: string): void;
+export function movePlayer(state: State, p: Player, dt: number, onCollision?:(a:Car,b:Car|null,normal:Point)=>void): void;
+export function stepState(state: State, dt?: number, systems?:SimulationSystems): void;
+export function advanceState(state: State, seconds: number, systems?:SimulationSystems): void;
+export function awardCareer(career: Career, state: State, id: string): Career;
+export function navigation(state: State, id: string): Point[];
+export function publicState(state: State): State;
+
+export function lineOfSight(a: Point, b: Point): boolean;
+
+export function upgradeState(state:State):State;
+
+/** Optional local systems; absent for every existing server/online mode. */
+export type SimulationSystems={
+ movePlayer?:(state:State,p:Player,dt:number)=>void;
+ afterLife?:(state:State,dt:number)=>void;
+ canAdvanceObjective?:(state:State,p:Player,mission:Mission,target:Point)=>boolean;
+ life?:Record<string,unknown>;
+};
+export const collisionSolids:{id:string;p:number[][];h:number;minHeight?:number;minY?:number;holes?:number[][][]}[];
+
+export function missionElapsed(state:State):number;
+export function startSessionMission(state:State,id:string,difficulty?:string):boolean;

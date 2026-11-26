@@ -1,0 +1,279 @@
+import {cityEventRoadGap,cityEventRoadBlocked} from './cityEvents.mjs';
+import {roundaboutGap} from './junctionControl.mjs';
+import {scheduledActorStep} from './actorSchedule.mjs';
+import {BUS_STOPS} from '../../tirana-street-life/transitData.mjs';
+import {bikeFor,BIKE_TYPES} from './bikeCatalog.mjs';
+import {cornerSpeed} from './drivingScale.mjs';
+import {updateTrafficPose} from './trafficPose.mjs';
+import { WORLD } from './world.mjs';
+import { VEHICLE_COLLECTION, roadVehicleFor } from './vehicleCollection.mjs';
+import { FORCE_VEHICLE_BOUNDS } from './albanianForces.mjs';
+import { CITY_POPULATION } from './cityPopulation.mjs';
+import { signalsNear, signalPhase } from './streetLayout.mjs';
+import {actorVelocity, crossingConflict, followingSpeed} from './trafficAwareness.mjs';
+const turn=a=>Math.atan2(Math.sin(a),Math.cos(a));
+const cellKey=(x,z)=>x>=-32768&&x<32768&&z>=-32768&&z<32768?x*65536+z:`${x},${z}`;
+const key=(x,z)=>cellKey(Math.floor(x/32),Math.floor(z/32));
+export class TrafficGrid {
+  cells=new Map();
+  queries=new Map();
+  cellPool=[];
+  queryPool=[];
+  constructor(actors=[],padding=0){this.padding=padding;this.reset(actors);}
+  reset(...groups){
+    for(const cell of this.cells.values())cell.length=0;
+    for(const query of this.queries.values()){query.length=0;this.queryPool.push(query);}
+    this.queries.clear();
+    for(const actors of groups)for(const a of actors){
+      if(!Number.isFinite(a.x)||!Number.isFinite(a.z))continue;
+      const k=key(a.x,a.z);let cell=this.cells.get(k);
+      if(!cell)this.cells.set(k,cell=this.cellPool.pop()||[]);
+      cell.push(a);
+    }
+    for(const [k,cell] of this.cells)if(!cell.length){this.cells.delete(k);this.cellPool.push(cell);}
+    // Bound idle capacity after a crowded district is left.
+    this.cellPool.length=Math.min(this.cellPool.length,512);
+    this.queryPool.length=Math.min(this.queryPool.length,512);
+    return this;
+  }
+  near(x,z,r=48){
+    r+=this.padding;
+    const minX=Math.floor((x-r)/32),maxX=Math.floor((x+r)/32),minZ=Math.floor((z-r)/32),maxZ=Math.floor((z+r)/32),query=`${minX}:${maxX}:${minZ}:${maxZ}`;
+    const cached=this.queries.get(query);if(cached)return cached;
+    const result=this.queryPool.pop()||[];for(let ix=minX;ix<=maxX;ix++)for(let iz=minZ;iz<=maxZ;iz++){const c=this.cells.get(cellKey(ix,iz));if(c)for(const a of c)result.push(a);}
+    this.queries.set(query,result);return result;
+  }
+}
+const trafficGrids=new WeakMap();
+/** Broad phase is refreshed at 20 Hz. Three metres of extra cell coverage
+ * covers 60 m/s between rebuilds; narrow-phase tests always use live poses.
+ * Population-count changes, actor-array replacements and time rewinds
+ * invalidate immediately. In-place replacements refresh on the next tick. */
+export function citySpatialGrids(state){
+  let grids=trafficGrids.get(state);
+  if(!grids){grids={vehicles:new TrafficGrid([],3),people:new TrafficGrid([],3),time:-Infinity,count:0};trafficGrids.set(state,grids);}
+  const count=state.cars.length+state.traffic.length+state.units.length+state.npcs.length+Object.keys(state.players).length;
+  if(state.elapsed-grids.time>=.05-1e-8||state.elapsed<grids.time||count!==grids.count||grids.cars!==state.cars||grids.traffic!==state.traffic||grids.npcs!==state.npcs||grids.units!==state.units){
+    grids.vehicles.reset(state.cars,state.traffic,state.units);
+    grids.people.reset(state.npcs,Object.values(state.players));
+    grids.time=state.elapsed;grids.count=count;grids.cars=state.cars;grids.traffic=state.traffic;grids.npcs=state.npcs;grids.units=state.units;
+  }
+  return grids;
+}
+const sizeCache=new WeakMap();
+export function vehicleSize(car){
+  let size=sizeCache.get(car);if(size)return size;size=measureVehicle(car);sizeCache.set(car,size);return size;
+}
+function measureVehicle(car){
+  const bike=bikeFor(car);if(bike)return {length:bike.length,width:bike.width};
+  if(car.w>0&&car.d>0)return {length:car.d,width:car.w};
+  if(car.model==='tirana-bus')return {length:18,width:2.55};
+  const collection=roadVehicleFor(car),force=FORCE_VEHICLE_BOUNDS.find(v=>v.id===car.forceVehicle);
+  if(collection)return {length:collection.length,width:collection.width};
+  if(force)return {length:force.d,width:force.w};
+  return /bike/.test(car.model)?{length:2.25,width:.85}:{length:4.5,width:1.9};
+}
+/** Minimum separation for oriented vehicle bodies, including the bus's full length. */
+export function vehicleSeparation(a,b){
+ const sa=vehicleSize(a),sb=vehicleSize(b),dx=a.x-b.x,dz=a.z-b.z;
+ if(Math.hypot(dx,dz)>Math.hypot(sa.length,sa.width)/2+Math.hypot(sb.length,sb.width)/2)return null;
+ const axes=c=>[{x:Math.cos(c.heading),z:-Math.sin(c.heading)},{x:Math.sin(c.heading),z:Math.cos(c.heading)}],aa=axes(a),bb=axes(b);
+ let depth=Infinity,normal;
+ for(const n of [...aa,...bb]){
+  const dot=(u,v)=>u.x*v.x+u.z*v.z,extent=(s,ax)=>(Math.abs(dot(n,ax[0]))*s.width+Math.abs(dot(n,ax[1]))*s.length)/2;
+  const projection=dx*n.x+dz*n.z,overlap=extent(sa,aa)+extent(sb,bb)-Math.abs(projection);
+  if(overlap<=0)return null;if(overlap<depth){depth=overlap;normal={x:n.x*(projection<0?-1:1),z:n.z*(projection<0?-1:1)};}
+ }
+ return {x:normal.x*(depth+.01),z:normal.z*(depth+.01)};
+}
+let graph;
+function roadGraph(){
+  if(graph)return graph;
+  const nodes=WORLD.graph.nodes,at=new Map(nodes.map((p,i)=>[`${p[0].toFixed(2)},${p[1].toFixed(2)}`,i]));
+  const widths=new Map();
+  for(const r of WORLD.roads){if(r.walk)continue;const a=at.get(`${r.a[0].toFixed(2)},${r.a[1].toFixed(2)}`),b=at.get(`${r.b[0].toFixed(2)},${r.b[1].toFixed(2)}`);if(a!=null&&b!=null)widths.set(a<b?`${a}:${b}`:`${b}:${a}`,r.w);}
+  const links=nodes.map(()=>[]),edges=[];
+  WORLD.graph.edges.forEach(([a,b],i)=>{
+    const w=widths.get(a<b?`${a}:${b}`:`${b}:${a}`)||5.5,len=Math.hypot(nodes[b][0]-nodes[a][0],nodes[b][1]-nodes[a][1]),direction=WORLD.graph.directions?.[i]||0;
+    if(len<.01)return;
+    const add=(from,to)=>{const e={from,to,w,len,lane:direction?0:Math.min(1.65,Math.max(.5,w*.24))};links[from].push(e);if(len>18&&w>=5.5)edges.push(e);};
+    if(direction!==-1)add(a,b);if(direction!==1)add(b,a);
+  });
+  return graph={nodes,links,edges,at};
+}
+export function lanePoint(e,t=1){const {nodes}=roadGraph(),a=nodes[e.from],b=nodes[e.to],dx=(b[0]-a[0])/e.len,dz=(b[1]-a[1])/e.len;return {x:a[0]+(b[0]-a[0])*t-dz*e.lane,z:a[1]+(b[1]-a[1])*t+dx*e.lane};}
+/** Emergency routes use the same right-hand lanes and one-way rules as traffic. */
+export function trafficLaneRoute(ids){
+ const g=roadGraph(),edges=ids.slice(1).map((to,i)=>g.links[ids[i]]?.find(e=>e.to===to));
+ return ids.map((id,i)=>{const a=edges[i-1]&&lanePoint(edges[i-1]),b=edges[i]&&lanePoint(edges[i],0);
+  return a&&b?{x:(a.x+b.x)/2,z:(a.z+b.z)/2}:a||b||{x:g.nodes[id][0],z:g.nodes[id][1]};});
+}
+export function trafficLanePoints(points){
+ const g=roadGraph();
+ const ids=points.map(p=>g.at.get(`${p.x.toFixed(2)},${p.z.toFixed(2)}`));
+ return ids.every(id=>id!==undefined)?trafficLaneRoute(ids):[];
+}
+const nextRandom=c=>c.seed=(Math.imul(c.seed,1664525)+1013904223)>>>0;
+/** Estimate only the entrance of a legal outgoing lane. Moving traffic is
+ * cheaper than a stationary queue; wrecks discourage repeatedly taking a
+ * blocked street. No global pathfinding or full-city scan is required. */
+export function trafficRouteCost(car,start,end,vehicles){
+  const dx=end.x-start.x,dz=end.z-start.z,length=Math.hypot(dx,dz);
+  if(length<.01)return Infinity;
+  const ux=dx/length,uz=dz/length;
+  let cost=0;
+  for(const other of vehicles){
+    if(other===car||other.id===car.id)continue;
+    const x=other.x-start.x,z=other.z-start.z,forward=x*ux+z*uz;
+    const size=vehicleSize(other);
+    if(forward<-.5||forward>Math.min(28,length)||Math.abs(x*uz-z*ux)>size.width*.5+1.1)continue;
+    cost+=(other.destroyed||other.burning?12:Math.abs(other.speed||0)<1?2.5:1)*(1-forward/40)*(size.length>10?2:1);
+  }
+  return cost;
+}
+export function populateTraffic(state,spawn){
+  const g=roadGraph(),occupied=new TrafficGrid([...state.cars,...state.traffic]);
+  const local=[...g.edges].sort((a,b)=>Math.hypot(g.nodes[a.from][0]-spawn.x,g.nodes[a.from][1]-spawn.z)-Math.hypot(g.nodes[b.from][0]-spawn.x,g.nodes[b.from][1]-spawn.z));
+  const ids=new Set([...state.traffic,...state.cars].map(c=>c.id));
+  const make=(i,bus)=>{
+    const id=bus?`tirana-bus-${i}`:`traffic-${i}`;
+    if(ids.has(id))return;
+    const pool=bus?local.filter(e=>e.w>=7&&e.len>=28):local;
+    if(!pool.length)throw Error(`No eligible traffic roads for ${id}`);
+    let edge,p;
+    for(let attempt=0;attempt<Math.max(600,bus?pool.length*3:0);attempt++){
+      p=null;
+      const n=i<96&&!bus?(i*9+attempt*17)%Math.min(pool.length,500):bus?(i*37+attempt)%pool.length:(i*7919+attempt*193)%pool.length;
+      edge=pool[n];
+      p=lanePoint(edge,.2+((i*37+attempt*13)%60)/100);
+      if(occupied.near(p.x,p.z,22).some(c=>Math.hypot(c.x-p.x,c.z-p.z)<(vehicleSize(c).length+(bus?18:4.5))*.5+2)){p=null;continue;}break;
+    }
+    if(!p)throw Error(`No safe traffic spawn for ${id}`);
+    const heading=Math.atan2(g.nodes[edge.from][0]-g.nodes[edge.to][0],g.nodes[edge.from][1]-g.nodes[edge.to][1]);
+    const model=bus?'tirana-bus':i%8===0?'motorbike':(i<96?i%19===0:i%211===0)?'police':i%5===0?'taxi':i%7===0?'sedan-sports':i%11===0?'city-car':'sedan';
+    const c={id,...p,heading,model,speed:0,vx:0,vz:0,steering:0,driver:null,npcDriver:true,node:edge.from,next:edge.to,seed:11+i*29,cruise:bus?7:5+(i%6),lane:edge.lane,edgeWidth:edge.w};
+    if(model==='motorbike'){const bike=BIKE_TYPES[Math.floor(i/8)%5];c.bikeType=bike.id;c.cruise=bike.speed;c.w=bike.width;c.d=bike.length;}
+    if(['sedan','sedan-sports','taxi'].includes(model)&&i%10===1)c.collectionVehicle=VEHICLE_COLLECTION[Math.floor(i/10)%VEHICLE_COLLECTION.length].id;
+    if(model==='police'){c.forceVehicle=i%2?'traffic_bike':'patrol_sedan';c.forceCharacter=i%2?'traffic_officer':'patrol_officer';}
+    if(bus){c.passengers=Array.from({length:12+i%9},(_,seat)=>({seat,face:(i+seat*3)%8,shirt:(i+seat)%6}));c.routeName=['UNAZA','KOMBINAT – KINOSTUDIO','TIRANË – KAMËZ'][i%3];c.livery=i%3;c.busStopAt=20+i*3;c.trailerHeading=heading;}
+    state.traffic.push(c);ids.add(id);const k=key(c.x,c.z);if(!occupied.cells.has(k))occupied.cells.set(k,[]);occupied.cells.get(k).push(c);occupied.queries.clear();
+  };
+  // Reserve articulated-bus clearance before filling ordinary traffic lanes.
+  for(let i=0;i<CITY_POPULATION.buses;i++)make(i,true);
+  for(let i=0;i<CITY_POPULATION.vehicles-3;i++)make(i,false);
+}
+export function redSignalGap(car,time){
+  const fx=-Math.sin(car.heading),fz=-Math.cos(car.heading),length=vehicleSize(car).length;
+  let gap=Infinity;const seen=new Set();
+  for(let ahead=0;ahead<=48;ahead+=16)for(const s of signalsNear(car.x+fx*ahead,car.z+fz*ahead)){
+    if(seen.has(s.id))continue;seen.add(s.id);if(signalPhase(s,time)==='green')continue;
+    const ux=Math.sin(s.yaw),uz=Math.cos(s.yaw);if(fx*ux+fz*uz>-.72)continue;
+    const dx=car.x-s.x,dz=car.z-s.z,forward=dx*ux+dz*uz,lateral=Math.abs(dx*uz-dz*ux);
+    // An axle already across the line must clear the intersection.
+    if(forward>length*.5-.3&&lateral<s.width*.5+.3)gap=Math.min(gap,forward-length*.5-.6);
+  }
+  return gap;
+}
+export function trafficDecision(car,vehicles,pedestrians,time,event){
+  const shape=vehicleSize(car),fx=-Math.sin(car.heading),fz=-Math.cos(car.heading);
+  let gap=redSignalGap(car,time),reason=Number.isFinite(gap)?'signal':'',leaderSpeed=0;
+  const closure=cityEventRoadGap(car,event);if(closure<gap){gap=closure;reason='city-event';}
+  const roundabout=roundaboutGap(car,time);if(roundabout<gap){gap=roundabout;reason='traffic-officer';}
+  for(const o of vehicles){if(o.id===car.id)continue;const dx=o.x-car.x,dz=o.z-car.z,f=dx*fx+dz*fz,side=Math.abs(dx*fz-dz*fx),other=vehicleSize(o);
+    const angle=car.heading-o.heading;
+    const lateral=(Math.abs(Math.cos(angle))*other.width+Math.abs(Math.sin(angle))*other.length)/2;
+    const longitudinal=(Math.abs(Math.cos(angle))*other.length+Math.abs(Math.sin(angle))*other.width)/2;
+    const inLane=side<shape.width/2+lateral+.15;
+    if(f>0&&(inLane||crossingConflict(car,o,shape.width/2+lateral+.2,shape.length/2+longitudinal+1.2))){
+      const d=f-shape.length/2-longitudinal-1.2;
+      if(d<gap){
+        gap=d;reason='vehicle';
+        const velocity=actorVelocity(o);
+        leaderSpeed=inLane&&Math.cos(angle)>.8?Math.max(0,velocity.x*fx+velocity.z*fz):0;
+      }
+    }
+  }
+  for(const n of pedestrians){if(n.health<=0||n.carId||n.aircraftId||n.motion==='drive')continue;const dx=n.x-car.x,dz=n.z-car.z,f=dx*fx+dz*fz;
+    if(f>0&&(Math.abs(dx*fz-dz*fx)<shape.width*.5+.7||crossingConflict(car,n,shape.width*.5+.7,shape.length*.5+.8))){const d=f-shape.length*.5-.8;if(d<gap){gap=d;reason='pedestrian';leaderSpeed=0;}}
+  }
+  return {gap,reason,target:followingSpeed(car.cruise,car.speed,gap,leaderSpeed)};
+}
+/** Staggered 20 Hz nearby / 5 Hz distant traffic. All actors persist. */
+export function updateTraffic(state,dt,onImpact){
+  const {vehicles,people}=citySpatialGrids(state),g=roadGraph();
+  const viewers=Object.values(state.players);
+  state.junctionReservations??={};
+  for(const [id,reservation] of Object.entries(state.junctionReservations))if(state.elapsed>reservation.until)delete state.junctionReservations[id];
+  for(const car of state.traffic){
+    const close=!viewers.length||viewers.some(p=>(p.x-car.x)**2+(p.z-car.z)**2<320**2);
+    const step=scheduledActorStep(car,state.elapsed,dt,close?.05:.2);
+    if(!step)continue;
+    if(car.destroyed||car.burning){car.speed=car.vx=car.vz=car.yawRate=car.steering=car.steerAngle=0;continue;}
+    if(state.elapsed<(car.impactUntil||0)){
+      car.x+=(car.vx||0)*step;car.z+=(car.vz||0)*step;
+      car.vx*=Math.exp(-step*4);car.vz*=Math.exp(-step*4);
+      car.speed=-Math.sin(car.heading)*car.vx-Math.cos(car.heading)*car.vz;
+      car.braking=true;car.awareness=null;continue;
+    }
+    if(car.service&&car.responsePhase&&car.responsePhase!=='patrol')continue;
+    let e=g.links[car.node]?.find(e=>e.to===car.next);
+    if(!e){e=g.links[car.node]?.[0];if(!e){car.speed=0;continue;}car.next=e.to;}
+    const goal=lanePoint(e),dx=goal.x-car.x,dz=goal.z-car.z,d=Math.hypot(dx,dz);
+    if(d<.35){
+      const reserved=state.junctionReservations[car.next];if(reserved?.id===car.id)delete state.junctionReservations[car.next];
+      const old=car.node;car.node=car.next;
+      let options=g.links[car.node].filter(e=>e.to!==old&&(car.model!=='tirana-bus'||e.w>=6.5));
+      if(!options.length)options=g.links[car.node].filter(e=>car.model!=='tirana-bus'||e.w>=6.5);
+      const offset=nextRandom(car)%Math.max(1,options.length),local=vehicles.near(car.x,car.z,36);
+      let next,cost=Infinity;
+      for(let i=0;i<options.length;i++){
+        const option=options[(offset+i)%options.length];
+        const candidate=trafficRouteCost(car,lanePoint(option,0),lanePoint(option),local)+i*.025+(cityEventRoadBlocked(car,lanePoint(option),state.cityEvent)?10000:0);
+        if(candidate<cost){next=option;cost=candidate;}
+      }
+      if(next){car.next=next.to;car.lane=next.lane;car.edgeWidth=next.w;}else{car.next=old;car.speed=0;}
+      continue;
+    }
+    const desired=Math.atan2(-dx,-dz);
+    const refresh=close||!car.awareness||state.elapsed>=car.awarenessAt;
+    const nearbyPeople=refresh?people.near(car.x,car.z,50):[];
+    if(refresh){car.awareness=trafficDecision(car,vehicles.near(car.x,car.z,55),nearbyPeople,state.elapsed,state.cityEvent);car.awarenessAt=state.elapsed+.25;}
+    const decision=car.awareness;
+    let target=cornerSpeed(turn(desired-car.heading),decision.target),junctionGap=Infinity;
+    if(d<16&&g.links[car.next]?.length>2){
+      let reservation=state.junctionReservations[car.next];
+      if(!reservation){reservation={id:car.id,until:state.elapsed+8};state.junctionReservations[car.next]=reservation;}
+      if(reservation.id!==car.id){junctionGap=Math.max(0,d-6);target=Math.min(target,Math.sqrt(junctionGap*4));}
+    }
+    // Slow before the current edge ends, so the next lane is reached without
+    // high-speed right-angle slides. Long buses need a gentler approach.
+    if(d<12)target=Math.min(target,Math.sqrt(2.4*d+4));
+    if(car.model==='tirana-bus'){
+      if(state.elapsed>=car.busStopAt&&!car.stopTarget)car.stopTarget=BUS_STOPS.find(s=>Math.hypot(s.x-car.x,s.z-car.z)<18&&Math.abs((s.x-car.x)*Math.cos(car.heading)-(s.z-car.z)*Math.sin(car.heading))<9);
+      if(car.stopTarget){const dx=car.stopTarget.x-car.x,dz=car.stopTarget.z-car.z,ahead=-dx*Math.sin(car.heading)-dz*Math.cos(car.heading);
+        if(ahead>0)target=Math.min(target,Math.sqrt(Math.max(0,ahead-2)*3));
+        if(Math.abs(ahead)<3&&car.speed<.5&&!car.doorsUntil){car.doorsUntil=state.elapsed+5;car.busStopAt=state.elapsed+45;car.stopTarget=null;}
+        else if(ahead<-4){car.stopTarget=null;car.busStopAt=state.elapsed+10;}
+      }
+      if(state.elapsed<(car.doorsUntil||0))target=0;else car.doorsUntil=0;
+      car.trailerHeading=(car.trailerHeading??car.heading)+turn(car.heading-(car.trailerHeading??car.heading))*Math.min(1,step*Math.max(.35,car.speed/7));
+    }
+    const before=car.speed||0,deceleration=decision.gap<before*before/6+2?8:3;
+    car.speed=Math.max(0,before+Math.max(-deceleration*step,Math.min(1.8*step,target-before)));
+    car.braking=car.speed<before-.01;car.trafficReason=target<.1?decision.reason:'';
+    // Cars cannot drive through a stopped queue or the red stop line.
+    // An incursion already inside the bumper envelope still uses the physical
+    // impact path below; anticipation must not grant instantaneous perfect brakes.
+    if((decision.reason!=='pedestrian'||decision.gap>=0)&&decision.gap<car.speed*step)car.speed=Math.max(0,decision.gap/step);
+    if(junctionGap<car.speed*step){car.speed=junctionGap/step;car.trafficReason='junction';}
+    const oldX=car.x,oldZ=car.z,move=Math.min(d,car.speed*step);
+    updateTrafficPose(car,desired,move,step);
+    decision.gap-=move;
+    car.x+=dx/d*move;car.z+=dz/d*move;car.vx=(car.x-oldX)/step;car.vz=(car.z-oldZ)/step;
+    if(car.speed>2)for(const n of nearbyPeople){
+      if(n.health<=0||n.carId||n.aircraftId||n.motion==='drive'||state.elapsed-(n.trafficHitAt??-10)<2)continue;
+      const fx=-Math.sin(car.heading),fz=-Math.cos(car.heading),nx=n.x-car.x,nz=n.z-car.z,shape=vehicleSize(car);
+      if(Math.abs(nx*fx+nz*fz)<shape.length*.5+.35&&Math.abs(nx*fz-nz*fx)<shape.width*.5+.25){n.trafficHitAt=state.elapsed;onImpact(n,Math.min(100,car.speed*7),car);car.speed*=.55;}
+    }
+  }
+}

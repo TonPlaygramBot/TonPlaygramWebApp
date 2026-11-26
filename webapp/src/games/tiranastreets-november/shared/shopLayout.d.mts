@@ -1,0 +1,2 @@
+export type ShopBox={id:string;x:number;z:number;w:number;d:number;minY:number;h:number;baseY:number};
+export function shopLayout(shop:{id?:string;x:number;z:number}):{baseY:number;entranceY:number;standingY:number;stairCount:number;stairRun:number;landingZ:number;extras:ShopBox[];solids:Array<{id:string;baseY:number;minY:number;h:number;minX:number;maxX:number;minZ:number;maxZ:number;p:number[][]}>};

@@ -1,0 +1,468 @@
+import {reserveCapacity} from './ammunition.mjs';
+import {UPLOADED_WEAPONS} from './uploadedWeapons.mjs';
+// Shared Ludo Battle Royal IDs. Values are fictional arcade balance.
+export const WEAPONS = Object.freeze([
+  {id:'punch',label:'Punch',category:'melee',model:'punch',magazine:1,damage:16,interval:.42,range:1.5,reload:0,price:0,radius:0},
+  {id:'egg',label:'Eggs',category:'throwable',model:'egg',magazine:12,damage:0,interval:.7,range:24,reload:.6,price:0,radius:0},
+  {id:'tomato',label:'Tomatoes',category:'throwable',model:'tomato',magazine:12,damage:0,interval:.75,range:22,reload:.6,price:0,radius:0},
+  ...UPLOADED_WEAPONS,
+  {id:'c4Charge',label:'C4 Remote Charge',category:'explosive',model:'polyDynamiteBomb01Attack',magazine:1,damage:95,interval:.9,range:4,reload:1.2,price:560,radius:7},
+  {id:'shahedDrone',label:'Shahed-style Arcade Drone',category:'drone',model:'shahed-game-drone',magazine:1,damage:100,interval:2,range:90,reload:3,price:800,radius:8},
+  {id:'scope4x',label:'4× Universal Scope',category:'equipment',model:'',magazine:1,damage:0,interval:0,range:0,reload:0,price:250,radius:0},
+  {id:'armorCarrier',label:'Heavy Body Armor Carrier',category:'equipment',model:'',magazine:1,damage:0,interval:0,range:0,reload:0,price:320,radius:0},
+  {id:'combatKnife',label:'Combat Knife',category:'melee',model:'combat-knife',magazine:1,damage:35,interval:.55,range:1.65,reload:0,price:0,radius:0},
+  {
+    "id": "fpsGunAttack",
+    "label": "FPS Gun",
+    "category": "shotgun",
+    "model": "shotgun",
+    "magazine": 6,
+    "damage": 48,
+    "interval": 0.82,
+    "range": 19,
+    "reload": 2.5,
+    "price": 270,
+    "radius": 0
+  },
+  {
+    "id": "glockSidearmAttack",
+    "label": "Glock Sidearm",
+    "category": "sidearm",
+    "model": "sigsauer",
+    "magazine": 16,
+    "damage": 24,
+    "interval": 0.32,
+    "range": 24,
+    "reload": 1.4,
+    "price": 80,
+    "radius": 0
+  },
+  {
+    "id": "assaultRifleAttack",
+    "label": "Assault Rifle",
+    "category": "rifle",
+    "model": "ak47",
+    "magazine": 30,
+    "damage": 19,
+    "interval": 0.13,
+    "range": 48,
+    "reload": 2.1,
+    "price": 305,
+    "radius": 0
+  },
+  {
+    "id": "uziSprayAttack",
+    "label": "Uzi Spray",
+    "category": "smg",
+    "model": "uzi",
+    "magazine": 28,
+    "damage": 13,
+    "interval": 0.085,
+    "range": 28,
+    "reload": 1.8,
+    "price": 240,
+    "radius": 0
+  },
+  {
+    "id": "ak47VolleyAttack",
+    "label": "AK-47 Volley",
+    "category": "rifle",
+    "model": "ak47",
+    "magazine": 30,
+    "damage": 19,
+    "interval": 0.13,
+    "range": 48,
+    "reload": 2.1,
+    "price": 280,
+    "radius": 0
+  },
+  {
+    "id": "krsvBurstAttack",
+    "label": "KRSV Burst",
+    "category": "rifle",
+    "model": "krsv",
+    "magazine": 30,
+    "damage": 19,
+    "interval": 0.13,
+    "range": 48,
+    "reload": 2.1,
+    "price": 305,
+    "radius": 0
+  },
+  {
+    "id": "smithSidearmAttack",
+    "label": "Smith Sidearm",
+    "category": "sidearm",
+    "model": "smith",
+    "magazine": 16,
+    "damage": 24,
+    "interval": 0.32,
+    "range": 24,
+    "reload": 1.4,
+    "price": 130,
+    "radius": 0
+  },
+  {
+    "id": "mosinMarksmanAttack",
+    "label": "Mosin Marksman",
+    "category": "marksman",
+    "model": "mosin",
+    "magazine": 5,
+    "damage": 62,
+    "interval": 1.1,
+    "range": 82,
+    "reload": 2.7,
+    "price": 380,
+    "radius": 0
+  },
+  {
+    "id": "sigsauerTacticalAttack",
+    "label": "SigSauer Tactical",
+    "category": "sidearm",
+    "model": "sigsauer",
+    "magazine": 16,
+    "damage": 24,
+    "interval": 0.32,
+    "range": 24,
+    "reload": 1.4,
+    "price": 105,
+    "radius": 0
+  },
+  {
+    "id": "grenadeBlastAttack",
+    "label": "Grenade Blast",
+    "category": "launcher",
+    "model": "polyHandGrenade01Attack",
+    "magazine": 1,
+    "damage": 85,
+    "interval": 1.8,
+    "range": 48,
+    "reload": 3.2,
+    "price": 610,
+    "radius": 6
+  },
+  {
+    "id": "shotgunBlastAttack",
+    "label": "Shotgun Blast",
+    "category": "shotgun",
+    "model": "shotgun",
+    "magazine": 6,
+    "damage": 48,
+    "interval": 0.82,
+    "range": 19,
+    "reload": 2.5,
+    "price": 220,
+    "radius": 0
+  },
+  {
+    "id": "sniperShotAttack",
+    "label": "Sniper Shot",
+    "category": "marksman",
+    "model": "mosin",
+    "magazine": 5,
+    "damage": 62,
+    "interval": 1.1,
+    "range": 82,
+    "reload": 2.7,
+    "price": 405,
+    "radius": 0
+  },
+  {
+    "id": "smgBurstAttack",
+    "label": "SMG Burst",
+    "category": "smg",
+    "model": "uzi",
+    "magazine": 28,
+    "damage": 13,
+    "interval": 0.085,
+    "range": 28,
+    "reload": 1.8,
+    "price": 240,
+    "radius": 0
+  },
+  {
+    "id": "compactCarbineAttack",
+    "label": "Compact Carbine",
+    "category": "rifle",
+    "model": "ak47",
+    "magazine": 30,
+    "damage": 19,
+    "interval": 0.13,
+    "range": 48,
+    "reload": 2.1,
+    "price": 280,
+    "radius": 0
+  },
+  {
+    "id": "marksmanDmrAttack",
+    "label": "Marksman DMR",
+    "category": "marksman",
+    "model": "mosin",
+    "magazine": 5,
+    "damage": 62,
+    "interval": 1.1,
+    "range": 82,
+    "reload": 2.7,
+    "price": 405,
+    "radius": 0
+  },
+  {
+    "id": "polyShotgun01Attack",
+    "label": "Quaternius Shotgun",
+    "category": "shotgun",
+    "model": "polyShotgun01Attack",
+    "magazine": 6,
+    "damage": 48,
+    "interval": 0.82,
+    "range": 19,
+    "reload": 2.5,
+    "price": 270,
+    "radius": 0
+  },
+  {
+    "id": "polyAssaultRifle01Attack",
+    "label": "Quaternius Assault Rifle",
+    "category": "rifle",
+    "model": "polyAssaultRifle01Attack",
+    "magazine": 30,
+    "damage": 19,
+    "interval": 0.13,
+    "range": 48,
+    "reload": 2.1,
+    "price": 280,
+    "radius": 0
+  },
+  {
+    "id": "polyPistol01Attack",
+    "label": "Quaternius Pistol",
+    "category": "sidearm",
+    "model": "polyPistol01Attack",
+    "magazine": 16,
+    "damage": 24,
+    "interval": 0.32,
+    "range": 24,
+    "reload": 1.4,
+    "price": 105,
+    "radius": 0
+  },
+  {
+    "id": "polyRevolver01Attack",
+    "label": "Quaternius Heavy Revolver",
+    "category": "sidearm",
+    "model": "polyRevolver01Attack",
+    "magazine": 16,
+    "damage": 24,
+    "interval": 0.32,
+    "range": 24,
+    "reload": 1.4,
+    "price": 130,
+    "radius": 0
+  },
+  {
+    "id": "polySawedOff01Attack",
+    "label": "Quaternius Sawed-Off Shotgun",
+    "category": "shotgun",
+    "model": "polySawedOff01Attack",
+    "magazine": 6,
+    "damage": 48,
+    "interval": 0.82,
+    "range": 19,
+    "reload": 2.5,
+    "price": 220,
+    "radius": 0
+  },
+  {
+    "id": "polyRevolver02Attack",
+    "label": "Quaternius Revolver Silver",
+    "category": "sidearm",
+    "model": "polyRevolver02Attack",
+    "magazine": 16,
+    "damage": 24,
+    "interval": 0.32,
+    "range": 24,
+    "reload": 1.4,
+    "price": 105,
+    "radius": 0
+  },
+  {
+    "id": "polyShotgun02Attack",
+    "label": "Quaternius Long Shotgun",
+    "category": "shotgun",
+    "model": "polyShotgun02Attack",
+    "magazine": 6,
+    "damage": 48,
+    "interval": 0.82,
+    "range": 19,
+    "reload": 2.5,
+    "price": 270,
+    "radius": 0
+  },
+  {
+    "id": "polyShotgun03Attack",
+    "label": "Quaternius Pump Shotgun",
+    "category": "shotgun",
+    "model": "polyShotgun03Attack",
+    "magazine": 6,
+    "damage": 48,
+    "interval": 0.82,
+    "range": 19,
+    "reload": 2.5,
+    "price": 220,
+    "radius": 0
+  },
+  {
+    "id": "polySmg01Attack",
+    "label": "Quaternius Submachine Gun",
+    "category": "smg",
+    "model": "polySmg01Attack",
+    "magazine": 28,
+    "damage": 13,
+    "interval": 0.085,
+    "range": 28,
+    "reload": 1.8,
+    "price": 215,
+    "radius": 0
+  },
+  {
+    "id": "polyRobotLargeGunAttack",
+    "label": "Quaternius Robot Large Gun",
+    "category": "rifle",
+    "model": "polyRobotLargeGunAttack",
+    "magazine": 30,
+    "damage": 19,
+    "interval": 0.13,
+    "range": 48,
+    "reload": 2.1,
+    "price": 330,
+    "radius": 0
+  },
+  {
+    "id": "polyRobotFlyingGunAttack",
+    "label": "Quaternius Robot Flying Gun",
+    "category": "smg",
+    "model": "polyRobotFlyingGunAttack",
+    "magazine": 28,
+    "damage": 13,
+    "interval": 0.085,
+    "range": 28,
+    "reload": 1.8,
+    "price": 190,
+    "radius": 0
+  },
+  {
+    "id": "polyBazooka01Attack",
+    "label": "CreativeTrio Bazooka",
+    "category": "launcher",
+    "model": "polyBazooka01Attack",
+    "magazine": 1,
+    "damage": 85,
+    "interval": 1.8,
+    "range": 48,
+    "reload": 3.2,
+    "price": 585,
+    "radius": 6
+  },
+  {
+    "id": "polyGrenadeLauncher01Attack",
+    "label": "CreativeTrio Grenade Launcher",
+    "category": "launcher",
+    "model": "polyGrenadeLauncher01Attack",
+    "magazine": 1,
+    "damage": 85,
+    "interval": 1.8,
+    "range": 48,
+    "reload": 3.2,
+    "price": 610,
+    "radius": 6
+  },
+  {
+    "id": "polyDynamiteBomb01Attack",
+    "label": "CreativeTrio Dynamite Bomb",
+    "category": "launcher",
+    "model": "polyDynamiteBomb01Attack",
+    "magazine": 1,
+    "damage": 85,
+    "interval": 1.8,
+    "range": 48,
+    "reload": 3.2,
+    "price": 560,
+    "radius": 6
+  },
+  {
+    "id": "polyMolotov01Attack",
+    "label": "CreativeTrio Molotov",
+    "category": "launcher",
+    "model": "polyMolotov01Attack",
+    "magazine": 1,
+    "damage": 85,
+    "interval": 1.8,
+    "range": 48,
+    "reload": 3.2,
+    "price": 585,
+    "radius": 6
+  },
+  {
+    "id": "polyGasTank01Attack",
+    "label": "Quaternius Gas Tank",
+    "category": "launcher",
+    "model": "polyGasTank01Attack",
+    "magazine": 1,
+    "damage": 85,
+    "interval": 1.8,
+    "range": 48,
+    "reload": 3.2,
+    "price": 610,
+    "radius": 6
+  },
+  {
+    "id": "polyHandGrenade01Attack",
+    "label": "CreativeTrio Hand Grenade",
+    "category": "launcher",
+    "model": "polyHandGrenade01Attack",
+    "magazine": 1,
+    "damage": 85,
+    "interval": 1.8,
+    "range": 48,
+    "reload": 3.2,
+    "price": 560,
+    "radius": 6
+  },
+  {
+    "id": "pistolSidearmAttack",
+    "label": "Pistol Sidearm",
+    "category": "sidearm",
+    "model": "smith",
+    "magazine": 16,
+    "damage": 24,
+    "interval": 0.32,
+    "range": 24,
+    "reload": 1.4,
+    "price": 130,
+    "radius": 0
+  }
+  ,{id:'awpSniperAttack',label:'AWP Sniper',category:'marksman',model:'awpSniperAttack',magazine:5,damage:76,interval:1.3,range:85,reload:2.8,price:420,radius:0},
+  {id:'mrtkGunAttack',label:'MRTK Gun',category:'rifle',model:'mrtkGunAttack',magazine:24,damage:20,interval:.16,range:42,reload:2.1,price:300,radius:0}
+].map(w=>Object.freeze({...w,model: ['fpsGunAttack','glockSidearmAttack','uziSprayAttack','ak47VolleyAttack','krsvBurstAttack','smithSidearmAttack','mosinMarksmanAttack'].includes(w.id)?w.id:w.model})));
+export const WEAPON_BY_ID = new Map(WEAPONS.map(w => [w.id, w]));
+export const STARTER_WEAPON = "ak47VolleyAttack";
+export const STARTER_WEAPONS = Object.freeze([STARTER_WEAPON, 'combatKnife', 'punch', 'egg', 'tomato']);
+/** Idempotent migration: preserve existing equipment and ammunition. */
+export function ensureStarterWeapons(player) {
+  player.inventory ||= {};
+  for (const id of STARTER_WEAPONS) {
+    // A chosen three-firearm kit already satisfies the starter migration.
+    if(id===STARTER_WEAPON&&!player.inventory.fpsGunAttack&&Object.keys(player.inventory).filter(key=>!['melee','throwable','equipment'].includes(WEAPON_BY_ID.get(key)?.category)&&WEAPON_BY_ID.has(key)).length>=3)continue;
+    const w = WEAPON_BY_ID.get(id);
+    player.inventory[id] ||= {ammo:w.magazine,reserve:w.category==='melee'?0:w.magazine*3};
+  }
+  // Keep old saves readable while retiring the generic FPS gun in Tirana.
+  const legacy = player.inventory.fpsGunAttack;
+  if (legacy) {
+    const w = WEAPON_BY_ID.get(STARTER_WEAPON), target = player.inventory[STARTER_WEAPON];
+    target.reserve = Math.min(reserveCapacity(w), target.reserve + Math.max(0, legacy.ammo || 0) + Math.max(0, legacy.reserve || 0));
+    delete player.inventory.fpsGunAttack;
+  }
+  if (player.weapon === 'fpsGunAttack') player.weapon = STARTER_WEAPON;
+}
+export const DIFFICULTIES = Object.freeze({ easy: {label:"Explorer", damage:0.55, time:1.35, rival:0.8, reward:0.8}, normal: {label:"Street", damage:1, time:1, rival:1, reward:1}, hard: {label:"Veteran", damage:1.45, time:0.85, rival:1.14, reward:1.25} });
+export const difficultyOf = id => DIFFICULTIES[id] || DIFFICULTIES.normal;

@@ -1,0 +1,435 @@
+export const IMPORTED_ASSETS = [
+  {
+    "id": "polyShotgun01Attack",
+    "name": "Quaternius Shotgun",
+    "kind": "weapon",
+    "urls": [
+      "https://static.poly.pizza/032e6589-3188-41bc-b92b-e25528344275.glb"
+    ],
+    "weapon": "polyShotgun01Attack",
+    "length": 1,
+    "localUrl": "/assets/tirana-streets/imported/polyShotgun01Attack.glb",
+    "sourceUrl": "https://static.poly.pizza/032e6589-3188-41bc-b92b-e25528344275.glb",
+    "bytes": 43684,
+    "status": "downloaded",
+    "sha256": "cc6e3dee173d845a032d6e12c9261caadaf47f7c56c34d4f780f472aa663f7f9"
+  },
+  {
+    "id": "polyAssaultRifle01Attack",
+    "name": "Quaternius Assault Rifle",
+    "kind": "weapon",
+    "urls": [
+      "https://static.poly.pizza/b3e6be61-0299-4866-a227-58f5f3fe610b.glb"
+    ],
+    "weapon": "polyAssaultRifle01Attack",
+    "length": 1,
+    "localUrl": "/assets/tirana-streets/imported/polyAssaultRifle01Attack.glb",
+    "sourceUrl": "https://static.poly.pizza/b3e6be61-0299-4866-a227-58f5f3fe610b.glb",
+    "bytes": 74028,
+    "status": "downloaded",
+    "sha256": "5cdb78109f81e2f31cd657bbd133c2c63c3bc0d55a4e7ba4264f09456452a5d7"
+  },
+  {
+    "id": "polyPistol01Attack",
+    "name": "Quaternius Pistol",
+    "kind": "weapon",
+    "urls": [
+      "https://static.poly.pizza/3b53f0fe-f86e-451c-816d-6ab9bd265cdc.glb"
+    ],
+    "weapon": "polyPistol01Attack",
+    "length": 1,
+    "localUrl": "/assets/tirana-streets/imported/polyPistol01Attack.glb",
+    "sourceUrl": "https://static.poly.pizza/3b53f0fe-f86e-451c-816d-6ab9bd265cdc.glb",
+    "bytes": 60144,
+    "status": "downloaded",
+    "sha256": "267c2dc0652798aeac335e89c739111ace0ba1090a361c1de16d7bf09ab1b472"
+  },
+  {
+    "id": "polyRevolver01Attack",
+    "name": "Heavy Revolver",
+    "kind": "weapon",
+    "urls": [
+      "https://static.poly.pizza/9e728565-67a3-44db-9567-982320abff09.glb"
+    ],
+    "weapon": "polyRevolver01Attack",
+    "length": 1,
+    "localUrl": "/assets/tirana-streets/imported/polyRevolver01Attack.glb",
+    "sourceUrl": "https://static.poly.pizza/9e728565-67a3-44db-9567-982320abff09.glb",
+    "bytes": 79988,
+    "status": "downloaded",
+    "sha256": "3e661102b0c277625559316b6d5b6762536e70ac2b071fb9ef0f5f96f4d22158"
+  },
+  {
+    "id": "polySawedOff01Attack",
+    "name": "Sawed-Off",
+    "kind": "weapon",
+    "urls": [
+      "https://static.poly.pizza/9a6ee0ee-068b-4774-8b0f-679c3cef0b6e.glb"
+    ],
+    "weapon": "polySawedOff01Attack",
+    "length": 1,
+    "localUrl": "/assets/tirana-streets/imported/polySawedOff01Attack.glb",
+    "sourceUrl": "https://static.poly.pizza/9a6ee0ee-068b-4774-8b0f-679c3cef0b6e.glb",
+    "bytes": 55864,
+    "status": "downloaded",
+    "sha256": "b5d9d6ef843eea412e6422cbed55ac5325e5bd1f8a688c702d51f5cd88dea190"
+  },
+  {
+    "id": "polyRevolver02Attack",
+    "name": "Silver Revolver",
+    "kind": "weapon",
+    "urls": [
+      "https://static.poly.pizza/7951b3b9-d3a5-4ec8-81b7-11111f1c8e88.glb"
+    ],
+    "weapon": "polyRevolver02Attack",
+    "length": 1,
+    "localUrl": "/assets/tirana-streets/imported/polyRevolver02Attack.glb",
+    "sourceUrl": "https://static.poly.pizza/7951b3b9-d3a5-4ec8-81b7-11111f1c8e88.glb",
+    "bytes": 73808,
+    "status": "downloaded",
+    "sha256": "3d24e4743b9043e3d2f932b15e9bc558ffb491c04bc63b0384853bf13da02ee9"
+  },
+  {
+    "id": "polyShotgun02Attack",
+    "name": "Long Shotgun",
+    "kind": "weapon",
+    "urls": [
+      "https://static.poly.pizza/f71d6771-f512-4374-bd23-ba00b564db68.glb"
+    ],
+    "weapon": "polyShotgun02Attack",
+    "length": 1,
+    "localUrl": "/assets/tirana-streets/imported/polyShotgun02Attack.glb",
+    "sourceUrl": "https://static.poly.pizza/f71d6771-f512-4374-bd23-ba00b564db68.glb",
+    "bytes": 55352,
+    "status": "downloaded",
+    "sha256": "128a0075192f82582e2e2acc363108cabcb32335086f16b1fa2f5e1186b2ff43"
+  },
+  {
+    "id": "polyShotgun03Attack",
+    "name": "Pump Shotgun",
+    "kind": "weapon",
+    "urls": [
+      "https://static.poly.pizza/08f27141-8e64-425a-9161-1bbd6956dfca.glb"
+    ],
+    "weapon": "polyShotgun03Attack",
+    "length": 1,
+    "localUrl": "/assets/tirana-streets/imported/polyShotgun03Attack.glb",
+    "sourceUrl": "https://static.poly.pizza/08f27141-8e64-425a-9161-1bbd6956dfca.glb",
+    "bytes": 86348,
+    "status": "downloaded",
+    "sha256": "3392d33d4a4df0821f52a87b83659e057a13b12973a23deffc200bb396a3fcb4"
+  },
+  {
+    "id": "polySmg01Attack",
+    "name": "SMG",
+    "kind": "weapon",
+    "urls": [
+      "https://static.poly.pizza/fb8ae707-d5b9-4eb8-ab8c-1c78d3c1f710.glb"
+    ],
+    "weapon": "polySmg01Attack",
+    "length": 1,
+    "localUrl": "/assets/tirana-streets/imported/polySmg01Attack.glb",
+    "sourceUrl": "https://static.poly.pizza/fb8ae707-d5b9-4eb8-ab8c-1c78d3c1f710.glb",
+    "bytes": 70976,
+    "status": "downloaded",
+    "sha256": "69df22d1aa8603d66366d20c46755cca2a19e1cabe8c1db1b72edb491ae48699"
+  },
+  {
+    "id": "ak47VolleyAttack",
+    "name": "AK47",
+    "kind": "weapon",
+    "urls": [
+      "https://cdn.jsdelivr.net/gh/KrishBharadwaj5678/Gunify@main/models/AK47/scene.gltf",
+      "https://raw.githubusercontent.com/KrishBharadwaj5678/Gunify/main/models/AK47/scene.gltf",
+      "https://cdn.jsdelivr.net/gh/KrishBharadwaj5678/Gunify@main/models2/AK47/scene.gltf",
+      "https://raw.githubusercontent.com/KrishBharadwaj5678/Gunify/main/models2/AK47/scene.gltf",
+      "https://cdn.jsdelivr.net/gh/KrishBharadwaj5678/Gunify@main/models3/AK47/scene.gltf",
+      "https://raw.githubusercontent.com/KrishBharadwaj5678/Gunify/main/models3/AK47/scene.gltf"
+    ],
+    "weapon": "ak47VolleyAttack",
+    "length": 1,
+    "localUrl": "/assets/tirana-streets/imported/ak47VolleyAttack.gltf",
+    "sourceUrl": "https://cdn.jsdelivr.net/gh/KrishBharadwaj5678/Gunify@main/models/AK47/scene.gltf",
+    "bytes": 64286635,
+    "status": "downloaded",
+    "sha256": "cf5d48b6712602703557c15a140a8acaa0e54d987e2f684a0f978a953a85a963"
+  },
+  {
+    "id": "krsvBurstAttack",
+    "name": "KRSV",
+    "kind": "weapon",
+    "urls": [
+      "https://cdn.jsdelivr.net/gh/KrishBharadwaj5678/Gunify@main/models/KRSV/scene.gltf",
+      "https://raw.githubusercontent.com/KrishBharadwaj5678/Gunify/main/models/KRSV/scene.gltf",
+      "https://cdn.jsdelivr.net/gh/KrishBharadwaj5678/Gunify@main/models2/KRSV/scene.gltf",
+      "https://raw.githubusercontent.com/KrishBharadwaj5678/Gunify/main/models2/KRSV/scene.gltf",
+      "https://cdn.jsdelivr.net/gh/KrishBharadwaj5678/Gunify@main/models3/KRSV/scene.gltf",
+      "https://raw.githubusercontent.com/KrishBharadwaj5678/Gunify/main/models3/KRSV/scene.gltf"
+    ],
+    "weapon": "krsvBurstAttack",
+    "length": 1,
+    "localUrl": "/assets/tirana-streets/imported/krsvBurstAttack.gltf",
+    "sourceUrl": "https://raw.githubusercontent.com/KrishBharadwaj5678/Gunify/main/models/KRSV/scene.gltf",
+    "bytes": 52968897,
+    "status": "downloaded",
+    "sha256": "dec376adbee32e486335cb597c884d205c9a525e6697cc63898e395c390d66ed"
+  },
+  {
+    "id": "smithSidearmAttack",
+    "name": "Smith",
+    "kind": "weapon",
+    "urls": [
+      "https://cdn.jsdelivr.net/gh/KrishBharadwaj5678/Gunify@main/models/Smith/scene.gltf",
+      "https://raw.githubusercontent.com/KrishBharadwaj5678/Gunify/main/models/Smith/scene.gltf",
+      "https://cdn.jsdelivr.net/gh/KrishBharadwaj5678/Gunify@main/models2/Smith/scene.gltf",
+      "https://raw.githubusercontent.com/KrishBharadwaj5678/Gunify/main/models2/Smith/scene.gltf",
+      "https://cdn.jsdelivr.net/gh/KrishBharadwaj5678/Gunify@main/models3/Smith/scene.gltf",
+      "https://raw.githubusercontent.com/KrishBharadwaj5678/Gunify/main/models3/Smith/scene.gltf"
+    ],
+    "weapon": "smithSidearmAttack",
+    "length": 1,
+    "localUrl": "/assets/tirana-streets/imported/smithSidearmAttack.gltf",
+    "sourceUrl": "https://cdn.jsdelivr.net/gh/KrishBharadwaj5678/Gunify@main/models/Smith/scene.gltf",
+    "bytes": 25887243,
+    "status": "downloaded",
+    "sha256": "17899abfa5a1d8c0592a28abbe6d817002940687304db66e63dc0ba20e146722"
+  },
+  {
+    "id": "mosinMarksmanAttack",
+    "name": "Mosin",
+    "kind": "weapon",
+    "urls": [
+      "https://cdn.jsdelivr.net/gh/KrishBharadwaj5678/Gunify@main/models/Mosin/scene.gltf",
+      "https://raw.githubusercontent.com/KrishBharadwaj5678/Gunify/main/models/Mosin/scene.gltf",
+      "https://cdn.jsdelivr.net/gh/KrishBharadwaj5678/Gunify@main/models2/Mosin/scene.gltf",
+      "https://raw.githubusercontent.com/KrishBharadwaj5678/Gunify/main/models2/Mosin/scene.gltf",
+      "https://cdn.jsdelivr.net/gh/KrishBharadwaj5678/Gunify@main/models3/Mosin/scene.gltf",
+      "https://raw.githubusercontent.com/KrishBharadwaj5678/Gunify/main/models3/Mosin/scene.gltf"
+    ],
+    "weapon": "mosinMarksmanAttack",
+    "length": 1,
+    "localUrl": "/assets/tirana-streets/imported/mosinMarksmanAttack.gltf",
+    "sourceUrl": "https://cdn.jsdelivr.net/gh/KrishBharadwaj5678/Gunify@main/models/Mosin/scene.gltf",
+    "bytes": 71881516,
+    "status": "downloaded",
+    "sha256": "7601a4b0bc5bd8c29cdf477210e75d9fc68c8f9aad7218bb4cae8b741e74276f"
+  },
+  {
+    "id": "uziSprayAttack",
+    "name": "Uzi",
+    "kind": "weapon",
+    "urls": [
+      "https://cdn.jsdelivr.net/gh/KrishBharadwaj5678/Gunify@main/models/Uzi/scene.gltf",
+      "https://raw.githubusercontent.com/KrishBharadwaj5678/Gunify/main/models/Uzi/scene.gltf",
+      "https://cdn.jsdelivr.net/gh/KrishBharadwaj5678/Gunify@main/models2/Uzi/scene.gltf",
+      "https://raw.githubusercontent.com/KrishBharadwaj5678/Gunify/main/models2/Uzi/scene.gltf",
+      "https://cdn.jsdelivr.net/gh/KrishBharadwaj5678/Gunify@main/models3/Uzi/scene.gltf",
+      "https://raw.githubusercontent.com/KrishBharadwaj5678/Gunify/main/models3/Uzi/scene.gltf"
+    ],
+    "weapon": "uziSprayAttack",
+    "length": 1,
+    "localUrl": "/assets/tirana-streets/imported/uziSprayAttack.gltf",
+    "sourceUrl": "https://cdn.jsdelivr.net/gh/KrishBharadwaj5678/Gunify@main/models/Uzi/scene.gltf",
+    "bytes": 16208324,
+    "status": "downloaded",
+    "sha256": "ecc61377991a9053437e49e8025f730dc58059d3b809e509cdb0e2ce39ae48fe"
+  },
+  {
+    "id": "glockSidearmAttack",
+    "name": "SigSauer",
+    "kind": "weapon",
+    "urls": [
+      "https://cdn.jsdelivr.net/gh/KrishBharadwaj5678/Gunify@main/models/SigSauer/scene.gltf",
+      "https://raw.githubusercontent.com/KrishBharadwaj5678/Gunify/main/models/SigSauer/scene.gltf",
+      "https://cdn.jsdelivr.net/gh/KrishBharadwaj5678/Gunify@main/models2/SigSauer/scene.gltf",
+      "https://raw.githubusercontent.com/KrishBharadwaj5678/Gunify/main/models2/SigSauer/scene.gltf",
+      "https://cdn.jsdelivr.net/gh/KrishBharadwaj5678/Gunify@main/models3/SigSauer/scene.gltf",
+      "https://raw.githubusercontent.com/KrishBharadwaj5678/Gunify/main/models3/SigSauer/scene.gltf"
+    ],
+    "weapon": "glockSidearmAttack",
+    "length": 1,
+    "localUrl": "/assets/tirana-streets/imported/glockSidearmAttack.gltf",
+    "sourceUrl": "https://cdn.jsdelivr.net/gh/KrishBharadwaj5678/Gunify@main/models/SigSauer/scene.gltf",
+    "bytes": 72545692,
+    "status": "downloaded",
+    "sha256": "5f1be25f04aa9a2d5bbd724b9d9ef1408f8377f5ec397e959649da459be59dd8"
+  },
+  {
+    "id": "awpSniperAttack",
+    "name": "AWP Sniper",
+    "kind": "weapon",
+    "urls": [
+      "https://cdn.jsdelivr.net/gh/GarbajYT/godot-sniper-rifle@master/AWP.glb",
+      "https://raw.githubusercontent.com/GarbajYT/godot-sniper-rifle/master/AWP.glb"
+    ],
+    "weapon": "awpSniperAttack",
+    "length": 1,
+    "localUrl": "/assets/tirana-streets/imported/awpSniperAttack.glb",
+    "sourceUrl": "https://cdn.jsdelivr.net/gh/GarbajYT/godot-sniper-rifle@master/AWP.glb",
+    "bytes": 75636,
+    "status": "downloaded",
+    "sha256": "621ad3c2eddca45bbe6b6a6fcc3ff596409ed9fb71e91ed0a8264445f89d69b6"
+  },
+  {
+    "id": "mrtkGunAttack",
+    "name": "MRTK Gun",
+    "kind": "weapon",
+    "urls": [
+      "https://cdn.jsdelivr.net/gh/microsoft/MixedRealityToolkit@main/SpatialInput/Samples/DemoRoom/Media/Models/Gun.glb",
+      "https://raw.githubusercontent.com/microsoft/MixedRealityToolkit/main/SpatialInput/Samples/DemoRoom/Media/Models/Gun.glb",
+      "https://cdn.jsdelivr.net/gh/microsoft/MixedRealityToolkit@master/SpatialInput/Samples/DemoRoom/Media/Models/Gun.glb",
+      "https://raw.githubusercontent.com/microsoft/MixedRealityToolkit/master/SpatialInput/Samples/DemoRoom/Media/Models/Gun.glb"
+    ],
+    "weapon": "mrtkGunAttack",
+    "length": 1,
+    "localUrl": "/assets/tirana-streets/imported/mrtkGunAttack.glb",
+    "sourceUrl": "https://cdn.jsdelivr.net/gh/microsoft/MixedRealityToolkit@main/SpatialInput/Samples/DemoRoom/Media/Models/Gun.glb",
+    "bytes": 4776896,
+    "status": "downloaded",
+    "sha256": "a73383fb33f78d3a2cbb7ea252f482f53e239d408dde729bf67d904bd60220e8"
+  },
+  {
+    "id": "fpsGunAttack",
+    "name": "FPS Shotgun",
+    "kind": "weapon",
+    "urls": [
+      "https://cdn.jsdelivr.net/gh/lando19/Guns-for-BJS-FPS-Game@main/main/scene.gltf",
+      "https://raw.githubusercontent.com/lando19/Guns-for-BJS-FPS-Game/main/main/scene.gltf"
+    ],
+    "weapon": "fpsGunAttack",
+    "length": 1,
+    "localUrl": "/assets/tirana-streets/imported/fpsGunAttack.gltf",
+    "sourceUrl": "https://cdn.jsdelivr.net/gh/lando19/Guns-for-BJS-FPS-Game@main/main/scene.gltf",
+    "bytes": 39618389,
+    "status": "downloaded",
+    "sha256": "4ce8dfa1a99757d5d322ef88facfcd49bf49f40528b64eaa2b2c951e511b3945"
+  },
+  {
+    "id": "ferrari",
+    "name": "Ferrari",
+    "kind": "vehicle",
+    "urls": [
+      "https://threejs.org/examples/models/gltf/ferrari.glb"
+    ],
+    "weapon": null,
+    "length": 4.5,
+    "localUrl": "/assets/tirana-streets/imported/ferrari.glb",
+    "sourceUrl": "https://threejs.org/examples/models/gltf/ferrari.glb",
+    "bytes": 1681572,
+    "status": "downloaded",
+    "sha256": "cafe3f48da6797aa9bde75ca768bc5b57db366575fd233e90df186ae988a876e"
+  },
+  {
+    "id": "buggy",
+    "name": "Go-Kart Buggy",
+    "kind": "vehicle",
+    "urls": [
+      "https://cdn.jsdelivr.net/gh/KhronosGroup/glTF-Sample-Models@master/2.0/Buggy/glTF-Binary/Buggy.glb",
+      "https://raw.githubusercontent.com/KhronosGroup/glTF-Sample-Models/master/2.0/Buggy/glTF-Binary/Buggy.glb"
+    ],
+    "weapon": null,
+    "length": 3.25,
+    "localUrl": "/assets/tirana-streets/imported/buggy.glb",
+    "sourceUrl": "https://cdn.jsdelivr.net/gh/KhronosGroup/glTF-Sample-Models@master/2.0/Buggy/glTF-Binary/Buggy.glb",
+    "bytes": 7885636,
+    "status": "downloaded",
+    "sha256": "bb21b65e1fa766271b12e2440ecb8243001478d7e5bd0b684c8c6b06069a53dc"
+  },
+  {
+    "id": "drone",
+    "name": "Military Drone",
+    "kind": "aircraft",
+    "urls": [
+      "https://cdn.jsdelivr.net/gh/srcejon/sdrangel-3d-models@main/drone.glb",
+      "https://raw.githubusercontent.com/srcejon/sdrangel-3d-models/main/drone.glb"
+    ],
+    "weapon": null,
+    "length": 5,
+    "localUrl": "/assets/tirana-streets/imported/drone.glb",
+    "sourceUrl": "https://cdn.jsdelivr.net/gh/srcejon/sdrangel-3d-models@main/drone.glb",
+    "bytes": 146392,
+    "status": "downloaded",
+    "sha256": "f3b1beb053185cb6b1fb8e4d55454e76fbf20ecbd1432e15056fa6e492171eb0"
+  },
+  {
+    "id": "helicopter",
+    "name": "Military Helicopter",
+    "kind": "aircraft",
+    "urls": [
+      "https://cdn.jsdelivr.net/gh/srcejon/sdrangel-3d-models@main/helicopter.glb",
+      "https://raw.githubusercontent.com/srcejon/sdrangel-3d-models/main/helicopter.glb"
+    ],
+    "weapon": null,
+    "length": 10,
+    "localUrl": "/assets/tirana-streets/imported/helicopter.glb",
+    "sourceUrl": "https://cdn.jsdelivr.net/gh/srcejon/sdrangel-3d-models@main/helicopter.glb",
+    "bytes": 2214424,
+    "status": "downloaded",
+    "sha256": "cf93bc4c874e6ead912456bbe64c108570aa300d37967a452388fbf217962e3f"
+  },
+  {
+    "id": "f15",
+    "name": "F-15 Fighter Jet",
+    "kind": "aircraft",
+    "urls": [
+      "https://cdn.jsdelivr.net/gh/srcejon/sdrangel-3d-models@main/f15.glb",
+      "https://raw.githubusercontent.com/srcejon/sdrangel-3d-models/main/f15.glb"
+    ],
+    "weapon": null,
+    "length": 15,
+    "localUrl": "/assets/tirana-streets/imported/f15.glb",
+    "sourceUrl": "https://cdn.jsdelivr.net/gh/srcejon/sdrangel-3d-models@main/f15.glb",
+    "bytes": 461800,
+    "status": "downloaded",
+    "sha256": "75e44900eb7c2cc6847c0572a139a95a44d499742bd5f048fd508f8e6047c6fa"
+  },
+  {
+    "id": "rocket",
+    "name": "Atlas V Rocket",
+    "kind": "equipment",
+    "urls": [
+      "https://cdn.jsdelivr.net/gh/srcejon/sdrangel-3d-models@main/atlas_v.glb",
+      "https://raw.githubusercontent.com/srcejon/sdrangel-3d-models/main/atlas_v.glb"
+    ],
+    "weapon": null,
+    "length": 18,
+    "localUrl": "/assets/tirana-streets/imported/rocket.glb",
+    "sourceUrl": "https://cdn.jsdelivr.net/gh/srcejon/sdrangel-3d-models@main/atlas_v.glb",
+    "bytes": 781328,
+    "status": "downloaded",
+    "sha256": "f01895d9b535486db2ce6e40f3a606be2bc8cc92145c394950c5894e4fc698d9"
+  },
+  {
+    "id": "antenna",
+    "name": "Antenna Tower",
+    "kind": "equipment",
+    "urls": [
+      "https://cdn.jsdelivr.net/gh/srcejon/sdrangel-3d-models@main/antenna.glb",
+      "https://raw.githubusercontent.com/srcejon/sdrangel-3d-models/main/antenna.glb"
+    ],
+    "weapon": null,
+    "length": 12,
+    "localUrl": "/assets/tirana-streets/imported/antenna.glb",
+    "sourceUrl": "https://cdn.jsdelivr.net/gh/srcejon/sdrangel-3d-models@main/antenna.glb",
+    "bytes": 11030160,
+    "status": "downloaded",
+    "sha256": "02713c2cc5e6ea1d2f051c2e24989081b4f6c987846f8701386579f62a99d4f6"
+  },
+  {
+    "id": "support-truck",
+    "name": "Support Truck",
+    "kind": "equipment",
+    "urls": [
+      "https://cdn.jsdelivr.net/gh/srcejon/sdrangel-3d-models@main/fire_truck.glb",
+      "https://raw.githubusercontent.com/srcejon/sdrangel-3d-models/main/fire_truck.glb"
+    ],
+    "weapon": null,
+    "length": 6,
+    "localUrl": "/assets/tirana-streets/imported/support-truck.glb",
+    "sourceUrl": "https://cdn.jsdelivr.net/gh/srcejon/sdrangel-3d-models@main/fire_truck.glb",
+    "bytes": 6669368,
+    "status": "downloaded",
+    "sha256": "7c93f3c9408ef0a2fc14a18e1a4029b30b8ff6987da81b73108d81bc2c994bb7"
+  }
+];
+export const IMPORTED_BY_ID = new Map(IMPORTED_ASSETS.map(a=>[a.id,a]));
