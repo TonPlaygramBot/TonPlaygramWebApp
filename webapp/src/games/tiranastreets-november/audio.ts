@@ -1,5 +1,6 @@
 import type { State, Player } from './shared/engine.mjs';
 import { SceneSound } from './SceneSound';
+import {cityVehicleVoice} from './cityVehicleAudio.mjs';
 export class CityAudio {
   readonly sound = new SceneSound();
   private seen = 0;
@@ -14,6 +15,10 @@ export class CityAudio {
   private sync() { this.sound.setVolume(this.enabled ? this.volume : 0); }
   async unlock() { await this.sound.unlock(); this.sync(); }
   update(speed: number, inCar: boolean) { this.sound.loop('car', 28 + Math.abs(speed) * 3, inCar ? .035 + Math.min(.08, Math.abs(speed) * .001) : 0, 240); }
+  updateSoloVehicle(car: State['cars'][number] | undefined) {
+    const {hz,gain,cutoff}=cityVehicleVoice(car);
+    this.sound.loop('car',hz,gain,cutoff);
+  }
   city(state: State, p: Player, dt: number, cameraYaw = p.heading, grounded = true, eyeY = 0) {
     if (state.effectSeq < this.seen) { this.seen = 0; this.footstep = 0; }
     this.sound.setListener({ x: p.x, y: eyeY, z: p.z }, cameraYaw);

@@ -510,7 +510,8 @@ export class StreetCareerRuntime {
       }
       if (!this.paused) {
         this.radio.setContext(!!p.carId && p.health>0, this.settings.volume);
-        this.audio.update(p.speed, !!p.carId);
+        const audibleCar=p.health>0&&p.carId ? this.state.cars.find(c=>c.id===p.carId) : undefined;
+        this.audio.updateSoloVehicle(audibleCar);
         this.audio.city(this.state, p, dt, this.renderer.yaw, this.simulation.body.grounded, this.simulation.body.y);
       }
       if (now - this.routeAt > 750) {
