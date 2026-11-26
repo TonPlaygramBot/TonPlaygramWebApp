@@ -7,6 +7,7 @@ import {SkanderbegBuildingLayer} from '../tirana-landmarks/SkanderbegBuildingLay
 import {ROCK_REPLACEMENT_IDS} from '../tirana-landmarks/skanderbegBuilding.mjs';
 import {AutomaticGraphics, DynamicResolution, GRAPHICS_PROFILES, graphicsSetting, type GraphicsPreset, type GraphicsSetting} from './graphicsQuality';
 import {BikeVisuals} from './BikeVisuals';
+import {createGramenoMemorial} from './GramenoMemorial';
 import {prepareModelWheels,prepareLegacyWheels,collectRollingWheels,rollWheels,type RollingWheel} from './rollingWheels';
 import {prepareVehicleMaterials} from './vehicleMaterials';
 import {selectedPlayerUrl} from './playerCatalog.mjs';
@@ -529,6 +530,8 @@ export class CityRenderer {
       cream = this.material(0xe7d9b9),
       glass = this.material(0x497a84, { metalness: 0.5, roughness: 0.18 });
     const get = (id: string) => WORLD.landmarks.find((p) => p.id === id)!;
+    const memorial = createGramenoMemorial();
+    if (memorial) this.scene.add(memorial);
     // Original meshes inspired by the named landmarks; footprints and positions come from OSM.
     const mosque = get("mosque");
     const g = new THREE.Group();

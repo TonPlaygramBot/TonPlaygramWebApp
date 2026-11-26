@@ -1,6 +1,8 @@
 import * as T from 'three';
 import {CHANNEL_RINGS} from './riverGeometry';
 import polygonClipping from 'polygon-clipping';
+import {mergeGeometries} from 'three/examples/jsm/utils/BufferGeometryUtils.js';
+import {clipParkSurfaces} from './parkClip.mjs';
 import {GLTFLoader} from 'three/examples/jsm/loaders/GLTFLoader.js';
 import {insideRing,seededParkPoints,roadCorridor,PAVING_REFERENCES} from './surfaceCore.mjs';
 import {ribbonExclusion} from '../tirana-street-detail/roadDetailCore.mjs';
@@ -15,17 +17,36 @@ export class GroundDetailLayer {
     this.group.name='Tirana:mapped-park-ground-and-stone-paving';this.group.userData={references:PAVING_REFERENCES,accuracy:'Existing OSM area boundaries; authored textures and vegetation infill'};
     const closed=(ring:number[][])=>[...ring,...(ring.length&&ring[0].join(',')!==ring.at(-1)!.join(',')?[ring[0]]:[])];
     const waterCuts=(world.water||[]).flatMap((w:any)=>Array.isArray(w)?[w]:(w.line||[]).slice(1).map((b:number[],i:number)=>roadCorridor({a:w.line[i],b,w:w.width},.5)).filter(Boolean));
-    const cuts=[...CHANNEL_RINGS,...waterCuts,...(world.areas||[]),...(world.buildings||[]).map((b:any)=>b.p),...(world.roads||[]).map((r:any)=>roadCorridor(r,r.walk?.2:2.5)).filter(Boolean)].map((p:number[][])=>[closed(p)]);
+    const cutRings=[...CHANNEL_RINGS,...waterCuts,...(world.areas||[]),...(world.buildings||[]).map((b:any)=>b.p),...(world.roads||[]).map((r:any)=>roadCorridor(r,r.walk?.2:2.5)).filter(Boolean)];
+    const stableParks=options.stableParkSurfaces&&!options.track;
     let parks:Polygon[]=[];
+    if(stableParks){
+      const result=clipParkSurfaces(world.parks||[],cutRings);
+      parks=result.polygons;
+      for(const failure of result.failures) errors.push(`Park ${failure.index+1} clipping failed: ${failure.message}`);
+    }else{
+      const cuts=cutRings.map((p:number[][])=>[closed(p)]);
     try{for(const p of world.parks||[]){if(p.length<3)continue;const box=[Math.min(...p.map((v:number[])=>v[0])),Math.min(...p.map((v:number[])=>v[1])),Math.max(...p.map((v:number[])=>v[0])),Math.max(...p.map((v:number[])=>v[1]))];const nearby=cuts.filter((poly:number[][][])=>Math.max(...poly[0].map(v=>v[0]))>=box[0]&&Math.min(...poly[0].map(v=>v[0]))<=box[2]&&Math.max(...poly[0].map(v=>v[1]))>=box[1]&&Math.min(...poly[0].map(v=>v[1]))<=box[3]);const result=nearby.length?polygonClipping.difference([closed(p)] as any,...nearby as any):[[closed(p)]];parks.push(...result as Polygon[]);}}
     catch(e){errors.push(`Park clipping failed: ${String(e)}`);parks=[];}
+    }
     const make=(polygon:Polygon,y:number)=>{const shape=new T.Shape(polygon[0].map(p=>new T.Vector2(p[0],-p[1])));for(const h of polygon.slice(1))shape.holes.push(new T.Path(h.map(p=>new T.Vector2(p[0],-p[1]))));const geo=new T.ShapeGeometry(shape).rotateX(-Math.PI/2).translate(0,y,0),pos=geo.getAttribute('position'),uv=geo.getAttribute('uv');for(let i=0;i<pos.count;i++)uv.setXY(i,pos.getX(i)/6,pos.getZ(i)/6);return geo;};
     const add=(polygons:Polygon[],y:number,material:T.Material)=>{for(const p of polygons){const geo=make(p,y),mesh=new T.Mesh(geo,material);mesh.receiveShadow=true;this.group.add(mesh);}};
     const grass=new T.MeshStandardMaterial({color:'#83916c',roughness:1,polygonOffset:true,polygonOffsetFactor:-1});
     const trackBlocked=options.track?ribbonExclusion(options.track):()=>false;
     // The racing ribbon must remain visually unobstructed as well as collision-free.
     if(options.track){const ribbon=options.track.points.map((p:any,i:number)=>roadCorridor({a:[p.x,p.z],b:[options.track!.points[(i+1)%options.track!.points.length].x,options.track!.points[(i+1)%options.track!.points.length].z],w:options.track!.width},1)).filter(Boolean).map(p=>[p!]);try{parks=parks.flatMap(p=>polygonClipping.difference(p as any,...ribbon as any) as Polygon[]);}catch{parks=[];}}
-    add(parks,options.profile==='racing'?.02:.061,grass);
+    if(stableParks&&parks.length){
+      // A numerically recovered park should not cost a draw per fragment.
+      const parts=parks.map(p=>make(p,.061));
+      const geometry=mergeGeometries(parts);
+      for(const part of parts)part.dispose();
+      if(geometry){
+        const mesh=new T.Mesh(geometry,grass);
+        mesh.name='Tirana:clipped-park-surfaces';
+        mesh.receiveShadow=true;
+        this.group.add(mesh);
+      }else{grass.dispose();errors.push('Park surface batch could not be merged');}
+    }else add(parks,options.profile==='racing'?.02:.061,grass);
     const loader=new T.TextureLoader();for(const [file,key] of [['grass_path_2-diff.jpg','map'],['grass_path_2-nor_gl.jpg','normalMap'],['grass_path_2-rough.jpg','roughnessMap']] as const){const t=loader.load('/assets/tirana-streets/materials/'+file,tex=>{if(this.dead){tex.dispose();return;}tex.wrapS=tex.wrapT=T.RepeatWrapping;if(key==='map')tex.colorSpace=T.SRGBColorSpace;grass[key]=tex;grass.normalScale.set(.22,.22);grass.needsUpdate=true;},undefined,()=>{if(!this.dead)errors.push(`Ground texture: ${file}`);});this.textures.add(t);}
     const square=world.landmarks?.find((p:any)=>p.id==='square');
     // Change only mapped pedestrian areas containing the documented square anchor.

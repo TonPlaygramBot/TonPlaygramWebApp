@@ -1,3 +1,4 @@
+import { CANOPY_TREES, type CanopyTree } from '../tirana-street-life/canopyRegistry.mjs';
 import {UrbanMonumentLayer} from '../tirana-landmarks/UrbanMonumentLayer';
 import {TabakeveQuarterLayer} from '../tirana-tabakeve/TabakeveQuarterLayer';
 import {DimensionalSigns} from '../tirana-street-life/DimensionalSigns';
@@ -38,6 +39,8 @@ export {
   DajtiLayer
 } from './BaseWorldEnhancements';
 /** One shared street-detail integration, using the unchanged city metre frame. */
+type EnhancementOptions = StreetDetailOptions & { supplementalTrees?: readonly CanopyTree[] };
+
 export class WorldEnhancements extends ExistingEnhancements {
   readonly monuments=new UrbanMonumentLayer();
   readonly dimensionalSigns=new DimensionalSigns();
@@ -65,7 +68,7 @@ export class WorldEnhancements extends ExistingEnhancements {
   readonly cityCompletion: CityCompletionLayer;
   readonly facadeCompletion: FacadeCompletionLayer;
   readonly tabakeve: TabakeveQuarterLayer;
-  constructor(options: StreetDetailOptions = {}) {
+  constructor(options: EnhancementOptions = {}, groundWorld: typeof WORLD = WORLD) {
     super(false);
     this.tradeDetails=new StreetLifeLayer({storefronts:NEIGHBOURHOOD.storefronts.filter(s=>['hairdresser','bakery','cafe','fast_food'].includes(s.shop||s.kind)||/barber|berber|hair/i.test(s.name)),stops:[],fuel:[],advertising:[]} as any,options,false,true);
     this.fuelBrands=new StreetLifeLayer({storefronts:LOCAL_FUEL,stops:[],fuel:[],advertising:[]} as any,options);
@@ -80,11 +83,12 @@ export class WorldEnhancements extends ExistingEnhancements {
     this.group.add(this.cityCompletion.group,this.facadeCompletion.group);
     this.neighbourhood=new NeighbourhoodLayer(options);
     this.streetLife=new StreetLifeLayer(undefined,options);
-    this.matureTrees=new MatureTreeLayer(undefined,options);
+    this.matureTrees=new MatureTreeLayer(
+      options.supplementalTrees?.length ? [...CANOPY_TREES, ...options.supplementalTrees] : undefined,options);
     // Photo-informed full façades now replace these three generic bay kits.
     this.civic.retire();
     this.civic.group.visible = false;
-    this.ground = new GroundDetailLayer(WORLD, options, this.civic.errors);
+    this.ground = new GroundDetailLayer(groundWorld, options, this.civic.errors);
     this.group.add(this.ground.group, this.panorama.group);
     this.streets = new StreetDetailLayer(
       WORLD,
@@ -195,14 +199,15 @@ const layers = new WeakMap<T.Scene, WorldEnhancements>();
 export function attachEnhancements(
   scene: T.Scene,
   origin = { x: 0, z: 0 },
-  options: StreetDetailOptions = {}
+  options: EnhancementOptions = {},
+  groundWorld: typeof WORLD = WORLD
 ) {
   const previous = layers.get(scene);
   if (previous) return previous;
   const layer = new WorldEnhancements({
     ...options,
     profile: options.profile || (origin.x || origin.z ? 'fps' : 'street')
-  });
+  }, groundWorld);
   layer.group.position.set(-origin.x, 0, -origin.z);
   scene.add(layer.group);
   layers.set(scene, layer);

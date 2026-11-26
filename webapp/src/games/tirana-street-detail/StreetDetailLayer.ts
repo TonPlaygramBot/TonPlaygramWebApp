@@ -2,7 +2,7 @@ import * as T from 'three';
 import {GLTFLoader} from 'three/examples/jsm/loaders/GLTFLoader.js';
 import {buildFinishGltf,finishSVG,bicycleSVG,surfaceUV} from './finishAssets.mjs';
 import {ribbonExclusion,streetDetailProfile,type RoadDetails,type Decal,type Post} from './roadDetailCore.mjs';
-export type StreetDetailOptions={profile?:'fps'|'street'|'racing';textureSize?:1024|2048;track?:{points:readonly any[];width:number}};
+export type StreetDetailOptions={profile?:'fps'|'street'|'racing';textureSize?:1024|2048; stableParkSurfaces?:boolean;track?:{points:readonly any[];width:number}};
 type Nearby<A>=(viewer:{x:number;z:number},radius:number,limit:number)=>A[];
 type Batch={kind:string;mesh:T.InstancedMesh;near:Nearby<Decal>};
 function nearbyIndex<A extends {x:number;z:number}>(items:readonly A[]):Nearby<A>{
