@@ -91,6 +91,20 @@ export class SceneSound {
     const voice:Voice={source,nodes:[source,gain,pan],clean:()=>{}};
     voice.clean=()=>{if(!this.voices.delete(voice))return;voice.nodes.forEach(n=>n.disconnect());};source.onended=voice.clean;this.voices.add(voice);source.start(c.currentTime+space.delay);return true;
   }
+  footstep(surface:'road'|'paving'|'offroad', foot:number, strength:number) {
+    const variation=foot ? 1.08 : .94;
+    const level=clamp(strength,0,1);
+    if(surface==='paving') {
+      this.burst(.072,575*variation,.079*level);
+      this.burst(.038,3200*variation,.023*level,'highpass');
+    } else if(surface==='road') {
+      this.burst(.086,490*variation,.077*level);
+      this.burst(.052,1850*variation,.027*level,'bandpass');
+    } else {
+      this.burst(.105,380*variation,.068*level);
+      this.burst(.083,1450*variation,.036*level,'bandpass');
+    }
+  }
   event(kind: string, at?: SoundPoint) {
     if(kind==='pepper-spray'){this.burst(.85,1600,.14,'bandpass',at);return;}
     if(kind==='egg-splat'||kind==='tomato-splat'){this.burst(.12,420,.12,'lowpass',at);return;}
