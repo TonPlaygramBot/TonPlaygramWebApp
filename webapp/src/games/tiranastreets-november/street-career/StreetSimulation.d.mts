@@ -30,6 +30,8 @@ export type BodyState = {
   vy: number;
   vx: number;
   vz: number;
+  travelX: number;
+  travelZ: number;
   yaw: number;
   pitch: number;
   height: number;

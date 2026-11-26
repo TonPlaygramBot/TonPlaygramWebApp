@@ -294,7 +294,7 @@ export class FirstPersonBody {
     root.position.set(p.x, b.y, p.z);
     const unarmed=!p.weapon||p.weapon==='punch';
     const travelYaw=!firstPerson&&unarmed&&!car&&b.grounded&&p.speed>.15
-      ? Math.atan2(-b.vx,-b.vz) : b.yaw;
+      ? Math.atan2(-b.travelX,-b.travelZ) : b.yaw;
     const targetYaw = travelYaw + Math.PI;
     const yaw = firstPerson || this.previousYaw === undefined ? targetYaw :
       this.previousYaw + Math.atan2(Math.sin(targetYaw-this.previousYaw), Math.cos(targetYaw-this.previousYaw))*(1-Math.exp(-dt*20));
@@ -334,9 +334,9 @@ export class FirstPersonBody {
     for (const [bone, rest] of this.rests) bone.quaternion.copy(rest);
     // The skeleton faces the camera/weapon while movement may be sideways or
     // backward. Redirect the lower-body stride in the actor's local frame.
-    const travelSpeed=Math.hypot(b.vx,b.vz);
-    const strideX=moving&&travelSpeed>.08?(Math.cos(yaw)*b.vx-Math.sin(yaw)*b.vz)/travelSpeed:0;
-    const strideZ=moving&&travelSpeed>.08?(Math.sin(yaw)*b.vx+Math.cos(yaw)*b.vz)/travelSpeed:1;
+    const travelSpeed=Math.hypot(b.travelX,b.travelZ);
+    const strideX=moving&&travelSpeed>.08?(Math.cos(yaw)*b.travelX-Math.sin(yaw)*b.travelZ)/travelSpeed:0;
+    const strideZ=moving&&travelSpeed>.08?(Math.sin(yaw)*b.travelX+Math.cos(yaw)*b.travelZ)/travelSpeed:1;
     for (const action of this.motionActions) {
       if (!action) continue;
       const name = action.getClip().name;
@@ -400,7 +400,7 @@ export class FirstPersonBody {
           point = new T.Vector3(p.x, b.y + 0.13, p.z)
             .addScaledVector(right, side === 'left' ? -0.14 : 0.14)
             .addScaledVector(
-              travelSpeed>.08?new T.Vector3(b.vx/travelSpeed,0,b.vz/travelSpeed):new T.Vector3(-Math.sin(b.yaw),0,-Math.cos(b.yaw)),
+              travelSpeed>.08?new T.Vector3(b.travelX/travelSpeed,0,b.travelZ/travelSpeed):new T.Vector3(-Math.sin(b.yaw),0,-Math.cos(b.yaw)),
               stride
             );
         armPose(root, this.bones, side, point, true);
