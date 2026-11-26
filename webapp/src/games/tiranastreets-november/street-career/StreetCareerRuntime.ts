@@ -330,6 +330,7 @@ export class StreetCareerRuntime {
     if (this.disposed) return;
     if (!this.paused) this.pausedRenderBudget.invalidate(performance.now());
     this.paused = true;
+    this.renderer.suspendGameplayTiming();
     this.input.setEnabled(false);
     this.simulation.pause();
     this.accumulator = 0;
@@ -555,7 +556,7 @@ export class StreetCareerRuntime {
       route: this.route,
       destination: this.destination,
       routeNotice: this.routeNotice,
-      fps: this.renderer.fps,
+      fps: this.renderer.observedFps,
       storageOK: this.storageOK,
       assetErrors: [
         ...this.renderer.residentialAssetErrors,

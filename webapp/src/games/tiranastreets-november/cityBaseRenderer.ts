@@ -1,3 +1,4 @@
+import {StreetBasketVisuals} from './streetBasketVisuals.mjs';
 import {aliDemiFurnitureVisible, buildAliDemiFurniture} from './aliDemiFurniture.mjs';
 import { addClockPortalPhoto } from './clockPortalPhoto';
 import { loadSoloFacadeTextures } from './soloFacadeTextures';
@@ -87,6 +88,7 @@ export class CityRenderer {
   protected get usesSoloSignalControls(): boolean { return false; }
   protected get usesAliDemiFurniture(): boolean { return false; }
   private aliDemiFurniture?: THREE.Group;
+  private streetBaskets?: StreetBasketVisuals;
   fps = 60;
   quality: GraphicsPreset = 'balanced';
   qualitySetting: GraphicsSetting = 'auto';
@@ -464,7 +466,8 @@ export class CityRenderer {
     prepareCityAssetTextures(gltf.scene,this.renderer.capabilities.getMaxAnisotropy());
     if (this.usesAliDemiFurniture) {
       this.aliDemiFurniture = buildAliDemiFurniture(gltf.scene);
-      this.scene.add(this.aliDemiFurniture);
+      this.streetBaskets = new StreetBasketVisuals(gltf.scene);
+      this.scene.add(this.aliDemiFurniture,this.streetBaskets.group);
     }
     const tree = template("tree");
     if (tree) {
@@ -802,7 +805,7 @@ export class CityRenderer {
         unattachedCity=undefined;
         return;
       }
-      prepareCityAssetTextures(city.scene,this.renderer.capabilities.getMaxAnisotropy());
+      prepareCityAssetTextures(city.scene,this.renderer.capabilities.getMaxAnisotropy(), {scalarMapLimit: 2});
       this.facades = new CityFacades(city.scene);
       this.scene.add(this.facades.group);
       const surfaces: THREE.MeshStandardMaterial[] = [];
@@ -1274,6 +1277,7 @@ export class CityRenderer {
     for (const cell of this.mappedTreeCells) cell.group.visible =
       Math.hypot(cell.x - this.camera.position.x, cell.z - this.camera.position.z) <
       (this.quality === "battery" ? 140 : 260);
+    this.streetBaskets?.update(this.camera.position.x,this.camera.position.z,this.quality === "battery");
     if (this.aliDemiFurniture) this.aliDemiFurniture.visible = aliDemiFurnitureVisible(
       this.camera.position.x, this.camera.position.z, this.quality === "battery",
     );
@@ -1395,6 +1399,7 @@ export class CityRenderer {
     this.aliDemiFurniture?.traverse(node => {
       if (node instanceof THREE.InstancedMesh) node.dispose();
     });
+    this.streetBaskets?.dispose();
     this.disposeObject(this.scene);
     this.models.forEach((m) => this.disposeObject(m));
     this.worldTextures.forEach((t) => t.dispose());

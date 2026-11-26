@@ -1136,8 +1136,10 @@ export class StreetSimulation {
     b.interaction = 'driving';
     b.yaw = c.heading;
     b.pitch = 0;
-    this.intent.yaw = c.heading;
-    this.intent.pitch = 0;
+    // A catch-up frame can run more physics steps before reading the driver
+    // controls again. Never reuse the walking joystick/held key as a pedal.
+    this.intent = { ...defaults, yaw:c.heading, pitch:0, seq:this.intent.seq };
+    control(this.state, 'local', { ...emptyInput(), yaw:c.heading, seq:p.input.seq + 1 });
     b.crouched = b.crouchWanted = false;
     b.height = MOTOR.standing;
     b.eye = MOTOR.eye;

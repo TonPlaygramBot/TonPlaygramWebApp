@@ -8,6 +8,7 @@ import {CANOPY_TREES} from './canopyRegistry.mjs';
 import {nearbyIndex} from './streetModels.mjs';
 import {ribbonExclusion} from '../tirana-street-detail/roadDetailCore.mjs';
 import type {StreetDetailOptions} from '../tirana-street-detail/StreetDetailLayer';
+export type TreeLayerOptions=StreetDetailOptions & {cullFarTrees?:boolean};
 type Tree={y?:number;id:string;x:number;z:number;shape:string;height:number;crown:number;seed:number;zone:string};
 const hash=(n:number)=>{const x=Math.sin(n*127.1+311.7)*43758.5453;return x-Math.floor(x);};
 type Batch={shape:string;lod:number;wood:T.InstancedMesh;leaves:T.InstancedMesh};
@@ -25,7 +26,9 @@ export class MatureTreeLayer {
  private viewer={x:Infinity,z:Infinity};private battery?:boolean;
  private cameraMatrix=new T.Matrix4();private cameraProjection=new T.Matrix4();
  private frustum=new T.Frustum();private projection=new T.Matrix4();private treeBounds=new T.Sphere();
- constructor(trees:Tree[]=CANOPY_TREES,options:StreetDetailOptions={}){
+ private cullFarTrees:boolean;
+ constructor(trees:Tree[]=CANOPY_TREES,options:TreeLayerOptions={}){
+  this.cullFarTrees=!!options.cullFarTrees;
   this.group.name='Tirana:mature-boulevard-and-square-trees';this.group.add(this.imported.group,this.mediumImported.group);
   const blocked=options.track?ribbonExclusion(options.track):null;
   const eligible=trees.filter(t=>pointInUrbanBounds(t,Math.max(1,t.crown/2))&&(!blocked||!blocked(t.x,t.z,Math.max(.8,t.crown*.75))));this.near=nearbyIndex(eligible.map(t=>({...t,y:groundHeight(t.x,t.z)+.12})));
@@ -53,7 +56,14 @@ export class MatureTreeLayer {
   if(this.dead||!viewer)return;
   if(camera)camera.updateWorldMatrix(true,false);
   const cameraChanged=!!camera&&(!this.cameraMatrix.equals(camera.matrixWorld)||!this.cameraProjection.equals(camera.projectionMatrix));
-  if(!force&&this.importedReady===this.imported.ready&&this.mediumReady===this.mediumImported.ready&&this.battery===battery&&seconds>=this.last&&(seconds-this.last<.2||Math.hypot(viewer.x-this.viewer.x,viewer.z-this.viewer.z)<12&&!cameraChanged))return;
+  // A rapid pan must refresh immediately rather than wait for the normal
+  // LOD cadence. A conservative fringe below covers smaller movements.
+  let largeTurn=false;
+  if(camera&&this.cullFarTrees){
+   const a=camera.matrixWorld.elements,b=this.cameraMatrix.elements;
+   largeTurn=!this.cameraProjection.equals(camera.projectionMatrix)||(a[8]*b[8]+a[9]*b[9]+a[10]*b[10])<.97;
+  }
+  if(!force&&!largeTurn&&this.importedReady===this.imported.ready&&this.mediumReady===this.mediumImported.ready&&this.battery===battery&&seconds>=this.last&&(seconds-this.last<.2||Math.hypot(viewer.x-this.viewer.x,viewer.z-this.viewer.z)<12&&!cameraChanged))return;
   if(camera){
    this.cameraMatrix.copy(camera.matrixWorld);this.cameraProjection.copy(camera.projectionMatrix);
    this.projection.multiplyMatrices(camera.projectionMatrix,camera.matrixWorldInverse);this.frustum.setFromProjectionMatrix(this.projection);
@@ -61,7 +71,7 @@ export class MatureTreeLayer {
   }
   this.importedReady=this.imported.ready;this.mediumReady=this.mediumImported.ready;this.imported.begin();this.mediumImported.begin();
   this.last=seconds;this.viewer={x:viewer.x,z:viewer.z};this.battery=battery;
-  const trees=this.near(viewer,2200,6000);let detailed=0,medium=0;
+  const trees=this.near(viewer,2200,6000);let detailed=0,medium=0,culled=0;
   this.batches.forEach(b=>{b.wood.count=0;b.leaves.count=0;});
   // Spend the existing original-model budget on what is visible on the phone.
   // Trees behind the camera must not force visible broadleaf trees to use the
@@ -89,6 +99,14 @@ export class MatureTreeLayer {
   for(const t of trees){
    if(originalIds.has(t.id))continue;
    const distance=Math.hypot(t.x-viewer.x,t.z-viewer.z);
+   // Only cull distant fallbacks; nearby offscreen meshes may still cast
+   // visible shadows. The radius expands enough to prefill the screen edge.
+   if(camera&&this.cullFarTrees&&distance>(battery?50:70)){
+    this.treeBounds.center.set(t.x,(t.y??.12)+t.height/2,t.z);
+    this.treeBounds.radius=Math.hypot(t.crown,t.height)/2+Math.max(10,distance*.26);
+    this.treeBounds.applyMatrix4(this.group.matrixWorld);
+    if(!this.frustum.intersectsSphere(this.treeBounds)){culled++;continue;}
+   }
    const lod=!battery&&distance<65&&detailed<64?0:distance<(battery?120:240)&&medium<384?1:2;
    if(lod===0)detailed++;if(lod===1)medium++;
    const b=this.batches.find(b=>b.shape===t.shape&&b.lod===lod)??this.batches.find(b=>b.shape==='upright'&&b.lod===lod)!;
@@ -101,7 +119,7 @@ export class MatureTreeLayer {
   this.group.userData.importedTrunks=originalIds.size;
   this.group.userData.mediumImportedTrunks=nextMediumIds.size;
   this.group.userData.importedRadius=battery?75:125;
-  this.group.userData.visibleTrunks=trees.length;this.group.userData.radius=2200;
+  this.group.userData.visibleTrunks=trees.length-culled;this.group.userData.frustumCulledTrunks=culled;this.group.userData.radius=2200;
   this.batches.forEach(b=>{b.wood.instanceMatrix.needsUpdate=true;b.leaves.instanceMatrix.needsUpdate=true;if(b.leaves.instanceColor)b.leaves.instanceColor.needsUpdate=true;});
  }
  retire(){this.dead=true;}
