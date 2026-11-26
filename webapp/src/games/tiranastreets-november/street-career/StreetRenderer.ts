@@ -135,6 +135,7 @@ export class StreetRenderer extends CityRenderer {
       b = sim.body,
       car = state.cars.find((c) => c.id === p.carId);
     this.camera.up.set(0,1,0);
+    const previousNear = this.camera.near;
     this.camera.near=car&&this.vehicleView==='cockpit'?.035:.15;
     const aircraft=sim.flight.current;
     this.airMobility.pilotAircraftId=aircraft&&sim.flight.view==='pilot'?aircraft.id:null;
@@ -215,12 +216,16 @@ export class StreetRenderer extends CityRenderer {
     const zoom=binoculars?5:b.aim&&!b.action&&b.wall>=.8?equipmentZoom(p):1;
     const baseFov=this.settings.fov-(b.aim&&zoom===1?17:0)+(car&&this.vehicleView!=='cockpit'?Math.min(5,Math.abs(car.speed)*.14):0);
     const fov=aircraft&&sim.flight.view==='pilot'?pilotView(aircraft,this.yaw,this.pitch,this.camera.aspect).fov:car&&this.vehicleView==='cockpit'?driverFov(this.camera.aspect):2*Math.atan(Math.tan(baseFov*Math.PI/360)/zoom)*180/Math.PI;
-    this.camera.fov = T.MathUtils.lerp(
-      this.camera.fov,
+    const previousFov = this.camera.fov;
+    this.camera.fov = Math.abs(fov - previousFov) < .01 ? fov : T.MathUtils.lerp(
+      previousFov,
       fov,
       dt ? 1-Math.exp(-dt * 12) : 1
     );
-    this.camera.updateProjectionMatrix();
+    // The base renderer applies aspect changes on resize. A steady view
+    // need not rebuild its projection matrix every rendered frame.
+    if (this.camera.fov !== previousFov || this.camera.near !== previousNear)
+      this.camera.updateProjectionMatrix();
     return true;
   }
   protected override presentVehicle(

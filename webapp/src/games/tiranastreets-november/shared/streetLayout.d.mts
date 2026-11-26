@@ -13,6 +13,9 @@ export type Signal = Point & {
   axis: number;
 };
 export const SIGNALS: Signal[];
+export const VERIFIED_SIGNALS: Signal[];
+export const SOLO_SIGNAL_FIXTURES: (import('../../tirana-city-completion/data.mjs').Fixture)[];
+export function phaseForSoloSignal(id:string,seconds:number): 'red'|'amber'|'green'|null;
 export function segmentDistance(
   x: number,
   z: number,

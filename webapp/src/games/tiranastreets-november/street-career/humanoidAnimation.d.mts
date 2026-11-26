@@ -1,7 +1,7 @@
 import * as T from 'three';
 import type {NPC} from '../shared/engine.mjs';
 export class HumanoidAnimation {
-  constructor(root:T.Object3D,model:T.Object3D,clips?:T.AnimationClip[]);
+  constructor(root:T.Object3D,model:T.Object3D,clips?:T.AnimationClip[],ambientSeed?:number);
   readonly mixer:T.AnimationMixer;
   update(n:Partial<NPC>,time:number,dt:number,speed?:number):void;
   reset():void;

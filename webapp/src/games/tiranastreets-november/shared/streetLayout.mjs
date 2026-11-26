@@ -1,4 +1,7 @@
 import { WORLD } from './world.mjs';
+import { CITY_COMPLETION } from '../../tirana-city-completion/data.mjs';
+import { OSM_SIGNAL_NODES } from './verifiedStreetFixtureData.mjs';
+import { resolveVerifiedSignals } from './verifiedSignalCore.mjs';
 
 // Shared, deterministic city fixtures. The server and the renderer use the same
 // doorway, stop lines and signal clock; none of these depend on camera axes.
@@ -137,6 +140,7 @@ export function pavementHeight(x, z) {
     return 0.08;
   let height = SIDEWALK_HEIGHT;
   for (const s of signalsNear(x, z)) {
+    if (s.crossing === false) continue;
     const ramp = Math.max(
       0,
       Math.min(1, (Math.hypot(x - s.x, z - s.z) - s.width / 2 - 2) / 0.9)
@@ -146,6 +150,10 @@ export function pavementHeight(x, z) {
   return height;
 }
 
+const poleClear = (x,z) => !onCarriageway(x,z,.28)
+  && Math.abs(x-SHOP.x)+Math.abs(z-SHOP.z)>13
+  && !footprint.some(b=>x>=b.minX-.2 && x<=b.maxX+.2 && z>=b.minZ-.2 && z<=b.maxZ+.2);
+export const VERIFIED_SIGNALS = resolveVerifiedSignals(OSM_SIGNAL_NODES,CITY_COMPLETION.fixtures,roadsNear,poleClear);
 const junctions = new Map();
 for (const road of WORLD.roads) {
   if (road.walk || road.w < 5.8 || road.bridge) continue;
@@ -175,6 +183,7 @@ for (const j of [...junctions.values()]
   .sort(
     (a, b) => Math.hypot(a.x + 59, a.z - 126) - Math.hypot(b.x + 59, b.z - 126)
   )) {
+  if (VERIFIED_SIGNALS.some(s=>Math.hypot(s.x-j.x,s.z-j.z)<34)) continue;
   if (SIGNALS.some((s) => Math.hypot(s.x - j.x, s.z - j.z) < 35)) continue;
   const junction = SIGNALS.length;
   for (const arm of j.arms) {
@@ -210,6 +219,19 @@ for (const j of [...junctions.values()]
   }
   if (SIGNALS.length >= 64) break;
 }
+SIGNALS.push(...VERIFIED_SIGNALS);
+const junctionLights=new Map(SIGNALS.map(s=>[s.id,s]));
+export const phaseForSoloSignal=(id,seconds)=>{
+  const signal=junctionLights.get(id);
+  return signal?signalPhase(signal,seconds):null;
+};
+export const SOLO_SIGNAL_FIXTURES=SIGNALS.map(s=>({
+  id:s.id,kind:'traffic_signals',road:s.name,point:[s.x,s.z],yaw:s.yaw,
+  x:s.poleX??s.x+Math.cos(s.yaw)*(s.width/2+.48),
+  z:s.poleZ??s.z-Math.sin(s.yaw)*(s.width/2+.48),
+  placement:s.source?'OSM tagged control; inferred roadside mount':'Legacy simulated control',
+  y:.1,
+}));
 const signalCells = new Map();
 for (const signal of SIGNALS) {
   const pad = signal.width / 2 + 12;

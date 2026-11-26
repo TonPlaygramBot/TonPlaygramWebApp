@@ -233,6 +233,9 @@ export class StreetCareerRuntime {
     }
   }
   private persist() {
+    // An attempt that has not loaded the playable renderer must not replace
+    // a checkpoint. WebGL loss explicitly flushes via pause() before clearing ready.
+    if (!this.ready) return;
     this.snapshot();
     this.storageOK = campaign.save(this.storage, this.profile);
   }
@@ -526,7 +529,9 @@ export class StreetCareerRuntime {
         this.renderDelta = 0;
       }
     }
-    if (now - this.saveAt > 5000) {
+    // Pause, pagehide, context loss and explicit actions already flush progress.
+    // Do not clone the checkpoint or write synchronous storage behind menus.
+    if (this.ready && !this.paused && !document.hidden && now - this.saveAt > 5000) {
       this.persist();
       this.saveAt = now;
     }

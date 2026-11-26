@@ -127,7 +127,7 @@ export class SharedHumans {
       const band=new T.Mesh(new T.BoxGeometry(.12,.11,.04),new T.MeshStandardMaterial({color,roughness:.8}));
       band.name='role-armband';band.position.set(.28,1.24,.03);root.add(band);
     }
-    const actor:Actor={root,model,asset:asset.id,role,animation:new HumanoidAnimation(root,model,g.animations),gaitSpeed:0,poseTime:0,placed:false,shadow:true,label};
+    const actor:Actor={root,model,asset:asset.id,role,animation:new HumanoidAnimation(root,model,g.animations,stableActorHash(n.id)),gaitSpeed:0,poseTime:0,placed:false,shadow:true,label};
     this.actors.set(n.id,actor);this.group.add(root);return actor;
   }
   private pose(a:Actor,n:NPC,time:number,dt:number){

@@ -1,12 +1,15 @@
+import {VERIFIED_RAIL_PIECES} from './shared/verifiedStreetDecorData.mjs';
 import {URBAN_DATUM_BOUNDS} from '../tirana-east/terrainCore.mjs';
 import * as T from 'three';
 import {mergeGeometries} from 'three/examples/jsm/utils/BufferGeometryUtils.js';
+import {LanaWatercraft} from './LanaWatercraft';
+import {LANA_SOLO_WATER_LEVEL} from './lanaWatercraftLayout.mjs';
 import {WORLD} from './shared/world.mjs';
 import {EnvironmentMaterials} from '../tirana-environment/EnvironmentMaterials';
 import {InfrastructureLayer} from '../tirana-environment/InfrastructureLayer';
 import {UrbanLighting} from '../tirana-environment/UrbanLighting';
 import {PavementAprons} from '../tirana-environment/PavementAprons';
-import {WATER_PATHS, WATER_LEVEL, BED_LEVEL, BANK_LEVEL, BANK_WIDTH, cutChannels, surfaceGeometry, bankGeometry, riverRing} from '../tirana-environment/riverGeometry';
+import {WATER_PATHS, BED_LEVEL, BANK_LEVEL, BANK_WIDTH, cutChannels, surfaceGeometry, bankGeometry, riverRing} from '../tirana-environment/riverGeometry';
 
 /** A continuous ground datum with actual openings, shared by all city views.
  * Source waterways control plan position; depth is explicit art direction. */
@@ -17,11 +20,12 @@ export class LandscapeVisuals {
   readonly lighting: UrbanLighting;
   readonly aprons: PavementAprons;
   private dead = false;
+  private readonly watercraft?:LanaWatercraft;
   private time = {value:0};
   private water: T.MeshPhysicalMaterial;
   constructor(loadTextures = true, blocked?: (x:number,z:number,pad:number)=>boolean) {
     this.group.name = 'Tirana:recessed-Lana-and-continuous-terrain';
-    this.group.userData.waterLevel = WATER_LEVEL;
+    this.group.userData.waterLevel = LANA_SOLO_WATER_LEVEL;
     this.materials = new EnvironmentMaterials(loadTextures);
     const grass=this.materials.create('grass_path_2',0xb2bc9e,true);
     const concrete=this.materials.create('rough_concrete',0x9c9f95);
@@ -45,7 +49,7 @@ export class LandscapeVisuals {
     };
     const surfaces:T.BufferGeometry[]=[],beds:T.BufferGeometry[]=[],slopes:T.BufferGeometry[]=[],banks:T.BufferGeometry[]=[];
     for(const path of WATER_PATHS){
-      const level=path.lana?WATER_LEVEL:-1.15, bottom=path.lana?BED_LEVEL:-1.55;
+      const level=path.lana?LANA_SOLO_WATER_LEVEL:-1.15, bottom=path.lana?BED_LEVEL:-1.55;
       surfaces.push(surfaceGeometry([riverRing(path,0)],level));
       beds.push(surfaceGeometry([riverRing(path,.2)],bottom));
       for(const side of [-1,1]){
@@ -57,9 +61,10 @@ export class LandscapeVisuals {
     this.addMerged(slopes,concrete,'Concrete channel slopes');
     this.addMerged(banks,grass,'Planted river embankments');
     this.addMerged(surfaces,this.water,'Recessed water');
-    this.infrastructure=new InfrastructureLayer(loadTextures,blocked);
+    this.infrastructure=new InfrastructureLayer(loadTextures,blocked,VERIFIED_RAIL_PIECES);
     this.lighting=new UrbanLighting(blocked);
     this.group.add(this.infrastructure.group,this.lighting.group);
+    if(loadTextures){this.watercraft=new LanaWatercraft();this.group.add(this.watercraft.group);}
   }
   private addMerged(parts:T.BufferGeometry[],material:T.Material,name:string){
     if(!parts.length)return;
@@ -69,10 +74,11 @@ export class LandscapeVisuals {
     const mesh=new T.Mesh(geometry,material);mesh.name=name;mesh.receiveShadow=true;this.group.add(mesh);
   }
   update(viewer:{x:number;z:number},seconds:number,battery:boolean){
-    if(this.dead)return;this.time.value=seconds;this.infrastructure.update(viewer,seconds,battery);this.lighting.update(viewer,seconds,battery);this.aprons.update(viewer,seconds,battery);
+    if(this.dead)return;this.time.value=seconds;this.infrastructure.update(viewer,seconds,battery);this.lighting.update(viewer,seconds,battery);this.aprons.update(viewer,seconds,battery);this.watercraft?.update(viewer,seconds,battery);
   }
   dispose(){
     if(this.dead)return;this.dead=true;
+    this.watercraft?.dispose();
     this.infrastructure.dispose();
     this.lighting.dispose();this.aprons.dispose();
     this.group.traverse(o=>{if(o instanceof T.Mesh)o.geometry.dispose();});

@@ -15,10 +15,16 @@ export class StreetInput extends CityInput {
   }
   private resetPointers = () => this.releaseAll();
   private hidden = () => { if (document.hidden) this.releaseAll(); };
+  protected override reservesSpaceForUi(e: KeyboardEvent) {
+    return (e.code === 'Space' || e.key === ' ') &&
+      e.target instanceof Element &&
+      !!e.target.closest('button, summary, [role="button"], [role="switch"], [role="checkbox"], [contenteditable="true"]');
+  }
   private extra = (e: KeyboardEvent) => {
     if (
       !this.active ||
       e.repeat ||
+      this.reservesSpaceForUi(e) ||
       e.target instanceof HTMLInputElement ||
       e.target instanceof HTMLSelectElement ||
       e.target instanceof HTMLTextAreaElement

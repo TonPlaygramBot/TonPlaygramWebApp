@@ -31,7 +31,7 @@ function fpsFixture(){
  }
  const shell=new T.Mesh(new T.BoxGeometry(40,80,40),new T.MeshBasicMaterial());shell.position.set(0,40,-2000);group.add(shell);cells.push({x:0,z:-2000,detail:false,object:shell});
  const noop={update(){},setBatteryMode(){}};
- Object.assign(layer,{group,cells,cellViewer:{x:Infinity,z:Infinity},detailIndex:new visibility.VisibilityIndex(cells.filter(c=>c.detail)),cellDirection:new T.Vector3(),lastCellDirection:new T.Vector3(),cellCameraPosition:new T.Vector3(Infinity,Infinity,Infinity),cellProjectionWidth:0,cellProjectionHeight:0,cellFrustum:new T.Frustum(),cellProjection:new T.Matrix4(),cellBounds:new T.Sphere(),landmarks:noop,skanderbegBuilding:noop,referenceFacades:noop,agedHousing:noop,urbanRoads:noop});
+ Object.assign(layer,{group,cells,cellViewer:{x:Infinity,z:Infinity},detailIndex:new visibility.VisibilityIndex(cells.filter(c=>c.detail)),cellDirection:new T.Vector3(),lastCellDirection:new T.Vector3(),cellCameraPosition:new T.Vector3(Infinity,Infinity,Infinity),cellProjectionWidth:0,cellProjectionHeight:0,cellFrustum:new T.Frustum(),cellProjection:new T.Matrix4(),cellBounds:new T.Sphere(),realisticFacades:noop,facadeShells:[],landmarks:noop,skanderbegBuilding:noop,referenceFacades:noop,agedHousing:noop,urbanRoads:noop});
  return {layer,shell,cells};
 }
 test('shared FPS city keeps a 2 km skyline with bounded distant detail and correct translated-origin frustum',()=>{

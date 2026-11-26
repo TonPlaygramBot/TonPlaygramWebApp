@@ -4,6 +4,10 @@ const distance=(a,b)=>Math.hypot(a.x-b.x,a.z-b.z);
 const identities=new WeakMap();
 const hash=n=>{let value=identities.get(n);if(value===undefined){value=0;for(const c of String(n.id))value=(Math.imul(value,31)+c.charCodeAt(0))>>>0;identities.set(n,value);}return value;};
 const junctions=new WeakMap();
+// A single clear traffic estimate does not release an ambient crossing stop.
+// Keep this per-instance and transient: no new fields in saves or snapshots.
+const crossingConflictAt=new WeakMap();
+const CLEAR_INTERVAL=.24;
 function walkJunctions(world){
   if(junctions.has(world))return junctions.get(world);
   const map=new Map(),key=p=>`${Math.round(p[0])}:${Math.round(p[1])}`;
@@ -73,6 +77,15 @@ export function pedestrianIntent(n,state,nearVehicles,nearPeople,world,neighbors
     if(parkedVehicleObstacle(c))continue;
     if(sweptVehicleConflict(c,n,velocity,(c.w||1.9)/2+.6,(c.d||(c.model==='tirana-bus'?18:4.5))/2+.8,horizon)){
       speed=0;n.behavior='yield';break;
+    }
+  }
+  if(!panic&&n.kind==='civilian'&&n.motion!=='cycle'){
+    if(n.behavior==='yield')crossingConflictAt.set(n,time);
+    else{
+      const last=crossingConflictAt.get(n);
+      if(last!==undefined&&time>=last&&time-last<CLEAR_INTERVAL){
+        speed=0;n.behavior='yield';
+      }else if(last!==undefined)crossingConflictAt.delete(n);
     }
   }
   return {goal,speed,anim:speed===0?'idle':n.motion==='cycle'?'ride':panic?'run':'walk'};
