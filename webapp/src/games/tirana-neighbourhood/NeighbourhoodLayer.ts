@@ -28,8 +28,8 @@ export class NeighbourhoodLayer {
  private pending=new Set<string>();
  private geometries=new Set<T.BufferGeometry>();private materials=new Set<T.Material>();private textures=new Map<string,T.Texture>();
  private last=-Infinity;private dead=false;private disposed=false;private dummy=new T.Object3D();
- constructor(options:StreetDetailOptions={}){
-  this.mapped=new MappedNeighbourhood(true);
+ constructor(options:StreetDetailOptions & {photoFacades?: boolean}={}){
+  this.mapped=new MappedNeighbourhood(true, options.photoFacades);
   this.group.name='Tirana:Blender-neighbourhood';this.group.userData.assetErrors=[];
   const blocked=options.track?ribbonExclusion(options.track):null;
   const sites=NEIGHBOURHOOD.storefronts.filter(s=>!blocked||!blocked(s.x,s.z,Math.max(4,s.width)));

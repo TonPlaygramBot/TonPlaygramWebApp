@@ -3,8 +3,9 @@ import {LudoImpactVisuals} from './LudoImpactVisuals';
 import {CombatTraceMarks} from './CombatTraceMarks';
 import * as T from 'three';
 import {tracerSpan} from './tracerCore.mjs';
+import {roadCrashVisuals} from './roadCrashVisuals.mjs';
 type Point = {x:number;y:number;z:number};
-type Event = {id:number;kind:string;x:number;y?:number;z:number;toX:number;toY?:number;toZ:number;radius?:number;ejectX?:number;ejectY?:number;ejectZ?:number;weapon?:string;hitKind?:string;nx?:number;ny?:number;nz?:number;floorY?:number};
+type Event = {id:number;kind:string;x:number;y?:number;z:number;toX:number;toY?:number;toZ:number;radius?:number;severity?:number;ejectX?:number;ejectY?:number;ejectZ?:number;weapon?:string;hitKind?:string;nx?:number;ny?:number;nz?:number;floorY?:number};
 type Particle = {p:T.Vector3;v:T.Vector3;age:number;life:number;size:number;spin:number;floor:number;kind:number;trace?:{from:T.Vector3;distance:number};rendered?:boolean;caseLength?:number};
 type Pool = {mesh:T.InstancedMesh;alpha:T.InstancedBufferAttribute;items:Particle[];free:Particle[];capacity:number};
 
@@ -140,7 +141,11 @@ export class CombatEffects {
       if(['vehicle-explosion','explosion'].includes(e.kind))this.explosion(p,e.radius||8,floor(e.x,e.z));
       if(e.kind==='hit'&&surfaceFeedback)this.surfaceHit(p,{x:e.nx??0,y:e.ny??1,z:e.nz??0},e.hitKind,floor(e.x,e.z));
       if(e.kind==='blood')this.blood(p,{x:e.toX,y:e.toY??.15,z:e.toZ},Number.isFinite(e.floorY)?e.floorY!:floor(e.x,e.z));
-      if(e.kind==='crash'){this.dust(p,e.radius||2,floor(e.x,e.z));for(let i=0;i<12;i++)this.particle(2,p,{x:(Math.random()-.5)*6,y:Math.random()*3,z:(Math.random()-.5)*6},.65,.03,floor(e.x,e.z));}
+      if(e.kind==='crash'){
+        const {debris,dustRadius,kick}=roadCrashVisuals(e.severity,e.radius),ground=floor(e.x,e.z);
+        if(dustRadius>0)this.dust(p,dustRadius,ground);
+        for(let i=0;i<debris;i++)this.particle(2,p,{x:(Math.random()-.5)*6*kick,y:Math.random()*3*kick,z:(Math.random()-.5)*6*kick},.65,.03,ground);
+      }
       if(e.kind==='fracture')this.demolition(p,e.radius||4,floor(e.x,e.z));
     }
   }

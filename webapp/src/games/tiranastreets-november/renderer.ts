@@ -1,3 +1,5 @@
+import {withVerifiedTreeMetadata} from './shared/verifiedStreetDecor.mjs';
+import {phaseForSoloSignal,SOLO_SIGNAL_FIXTURES} from './shared/streetLayout.mjs';
 import {SOLO_STREET_TREE_INFILL} from './soloStreetTreeInfill';
 import {aliDemiSurfaces} from './shared/aliDemiRecreation.mjs';
 import type {GraphicsSetting, GraphicsPreset} from './graphicsQuality';
@@ -25,6 +27,7 @@ const props=importedFleet.filter(v=>v.assetId&&!v.racingAsset&&!WEAPON_BY_ID.has
 /** Preserve input, loading, gameplay and camera implementation while replacing
  * the city's landmark layer. Base renderer also owns source-informed façades. */
 export class CityRenderer extends BaseCityRenderer {
+  protected override get usesSoloSignalControls(): boolean { return true; }
   protected override get usesAliDemiFurniture(): boolean { return true; }
   private detailQuality?:GraphicsPreset;
   private imported=new ImportedAssetVisuals();
@@ -49,7 +52,8 @@ export class CityRenderer extends BaseCityRenderer {
     this.weaponStore=new WeaponStoreInterior();
     this.scene.add(this.buses.group,this.cityStores.group);
     const recreation = aliDemiSurfaces(WORLD.origin);
-    this.cityDetails=attachEnhancements(this.scene,undefined,{stableParkSurfaces:true, supplementalTrees:SOLO_STREET_TREE_INFILL},{
+    this.cityDetails=attachEnhancements(this.scene,undefined,{stableParkSurfaces:true, supplementalTrees:SOLO_STREET_TREE_INFILL, photoFacades:true,
+      soloSignals:{fixtures:SOLO_SIGNAL_FIXTURES,phaseAt:phaseForSoloSignal},mapTree:withVerifiedTreeMetadata},{
       ...WORLD, parks:[...WORLD.parks, recreation.park],
       areas:[...WORLD.areas, recreation.skate, ...recreation.pitches]
     });

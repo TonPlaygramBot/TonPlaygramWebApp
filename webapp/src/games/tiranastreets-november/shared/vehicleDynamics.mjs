@@ -10,7 +10,9 @@ export function driveVehicle(car,input,delta,contact=()=>{}){
  const tune=drivingScale(car),steps=Math.ceil(dt*120),step=dt/steps;
  // A small radial-stick noise band avoids a drifting wheel after touch release.
  const rawSteer=clamp(finite(input.x),-1,1);
- const steer=Math.abs(rawSteer)<.035?0:Math.sign(rawSteer)*(Math.abs(rawSteer)-.035)/.965;
+ const stick=Math.abs(rawSteer)<.035?0:Math.sign(rawSteer)*(Math.abs(rawSteer)-.035)/.965;
+ // A finer center for portrait thumb control, with full parking lock preserved.
+ const steer=stick*(.68+.32*stick*stick);
  const pedal=clamp(finite(input.y),-1,1);
  if(!Number.isFinite(car.vx)||!Number.isFinite(car.vz)||(!car.vx&&!car.vz&&Math.abs(car.speed||0)>.01)){
   car.vx=-Math.sin(car.heading)*finite(car.speed);car.vz=-Math.cos(car.heading)*finite(car.speed);
@@ -39,10 +41,13 @@ export function driveVehicle(car,input,delta,contact=()=>{}){
   // cannot turn an emergency stop into reverse during the same substep.
   if(speed<.015&&!braking)forward=pedal*tune.acceleration*step;
   car.steering=approach(car.steering,steer,Math.abs(steer)<.02?10:7,step);
-  const sensitivity=1/(1+(speed/14)**1.45);
+  // A sliding car does not get parking-speed lock just because it has
+  // little longitudinal velocity. Signed forward still controls reversals.
+  const steeringSpeed=Math.hypot(speed,lateral);
+  const sensitivity=1/(1+(steeringSpeed/14)**1.45);
   car.steerAngle=car.steering*tune.steer*sensitivity;
   const requested=-Math.tan(car.steerAngle)*forward/tune.wheelbase;
-  const turnLimit=Math.min(1.35,(cornerGrip*(handbrake?1.15:1))/Math.max(speed,2));
+  const turnLimit=Math.min(1.35,(cornerGrip*(handbrake?1.15:1))/Math.max(steeringSpeed,2));
   car.yawRate=approach(car.yawRate,clamp(requested,-turnLimit,turnLimit),handbrake?5:8,step);
   // Steering can move the front wheels while parked, never rotate the body.
   // Bound residual yaw by the speed after braking, not the previous substep.

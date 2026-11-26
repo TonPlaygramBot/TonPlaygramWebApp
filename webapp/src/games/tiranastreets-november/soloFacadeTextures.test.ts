@@ -58,3 +58,53 @@ describe('solo city photographic shell materials', () => {
     expect(materials.every(m=>m.map===null)).toBe(true);
   });
 });
+
+describe('startup facade presentation barrier', () => {
+  it('starts early but never applies a partial palette or overwrites the core GLB setup', async () => {
+    const materials = Array.from({length:8}, () => new THREE.MeshStandardMaterial());
+    const worldTextures = new Set<THREE.Texture>();
+    let allow!: (b: boolean) => void;
+    const applyAfter = new Promise<boolean>(resolve => { allow=resolve; });
+    const pending = Array.from({length:4}, () => {
+      let finish!: (t: THREE.Texture) => void;
+      const p = new Promise<THREE.Texture>(r => { finish=r; });
+      return { p, finish };
+    });
+    let i=0;
+    const run=loadSoloFacadeTextures({materials,worldTextures,maxAnisotropy:2,isDisposed:()=>false,applyAfter,load:()=>pending[i++].p});
+    assertLoadedEarly();
+    pending[0].finish(new THREE.Texture());
+    await Promise.resolve();
+    expect(materials.every(m=>m.map===null)).toBe(true);
+    const fallback=new THREE.Texture();
+    materials.forEach(m=>m.map=fallback);
+    allow(true);
+    await Promise.resolve();
+    expect(materials.every(m=>m.map===fallback)).toBe(true);
+    pending.slice(1).forEach(next=>next.finish(new THREE.Texture()));
+    await run;
+    expect(materials.every(m=>m.map!==fallback)).toBe(true);
+    expect(worldTextures.size).toBe(4);
+    function assertLoadedEarly(){expect(i).toBe(4);}
+  });
+
+  it('keeps a stalled family on fallback and ignores late images after the budget', async () => {
+    vi.useFakeTimers();
+    try {
+      const materials = Array.from({length:8}, () => new THREE.MeshStandardMaterial());
+      const worldTextures = new Set<THREE.Texture>();
+      let late!: (t: THREE.Texture) => void;
+      const waiting=new Promise<THREE.Texture>(resolve=>{late=resolve;});
+      const lateImage=new THREE.Texture(), disposed=vi.spyOn(lateImage,'dispose');
+      const run=loadSoloFacadeTextures({materials,worldTextures,maxAnisotropy:2,isDisposed:()=>false,
+        budgetMs:200,load:url=>url.endsWith('light-stucco.jpg')?waiting:Promise.resolve(new THREE.Texture())});
+      await vi.advanceTimersByTimeAsync(200);
+      await run;
+      expect(worldTextures.size).toBe(3);
+      expect(materials[3].map).toBeNull();
+      late(lateImage); await Promise.resolve();
+      expect(disposed).toHaveBeenCalledOnce();
+      expect(materials[3].map).toBeNull();
+    } finally {vi.useRealTimers();}
+  });
+});

@@ -84,6 +84,7 @@ export class CityRenderer {
   firstPerson = false;
   protected get cockpitCamera(){return this.firstPerson;}
   protected preserveVehicleInterior = false;
+  protected get usesSoloSignalControls(): boolean { return false; }
   protected get usesAliDemiFurniture(): boolean { return false; }
   private aliDemiFurniture?: THREE.Group;
   fps = 60;
@@ -497,7 +498,8 @@ export class CityRenderer {
       const x = r.a[0] + (dz / d) * (r.w / 2 + 1.5), z = r.a[1] - (dx / d) * (r.w / 2 + 1.5);
       const sign = place("street_sign", x, z, Math.atan2(dx, dz));
       if (sign) this.streetLabel(r.name, sign);
-      if (i % 3 === 0) place("traffic_light", r.a[0], r.a[1], Math.atan2(dx, dz));
+      // Traffic lights are handled by the solo WorldEnhancements layer.
+      if (i % 3 === 0 && !this.usesSoloSignalControls) place("traffic_light", r.a[0], r.a[1], Math.atan2(dx, dz));
       if (i % 4 === 0) place("road_sign", x + dz / d * 2, z - dx / d * 2, Math.atan2(dx, dz));
       if (i % 2 === 0) place("park_bench", x + dz / d * 3.2, z - dx / d * 3.2, Math.atan2(dx, dz));
     });
@@ -690,6 +692,8 @@ export class CityRenderer {
     const humanLoader = new HumanModelLoader();humanLoader.configure(this.renderer);
     const playerAbort = new AbortController();this.playerAbort = playerAbort;
     const pending: Promise<unknown>[] = [];
+    let releaseFacadeStage: (apply: boolean) => void = () => {};
+    const facadeGate = new Promise<boolean>(resolve => { releaseFacadeStage = resolve; });
     let unattachedCity: THREE.Group | undefined;
     const vehicleSources = new Map<string, ReturnType<GLTFLoader['loadAsync']>>();
     try {
@@ -783,6 +787,15 @@ export class CityRenderer {
       onProgress?.("Adding textured city facades");
       const cityLoad = loader.loadAsync(ASSETS + "city.glb").then(city=>{unattachedCity=city.scene;return city;});
       pending.push(cityLoad);
+      // Start this small local image batch while the core GLB and character
+      // are in flight. Texture staging is optional and never blocks entry.
+      pending.push(loadSoloFacadeTextures({
+        materials: this.soloBackgroundMaterials,
+        worldTextures: this.worldTextures,
+        maxAnisotropy: this.renderer.capabilities.getMaxAnisotropy(),
+        isDisposed: () => this.disposed,
+        applyAfter: facadeGate,
+      }));
       const [, city] = await Promise.all([character, cityLoad]);
       if (this.disposed) {
         this.disposeObject(city.scene);
@@ -821,14 +834,8 @@ export class CityRenderer {
         material.roughness = 0.85;
         material.needsUpdate = true;
       });
-      // Photo scans are optional: fallback draws immediately, and a missing
-      // local file does not change loading, geometry, navigation or collisions.
-      void loadSoloFacadeTextures({
-        materials: this.soloBackgroundMaterials,
-        worldTextures: this.worldTextures,
-        maxAnisotropy: this.renderer.capabilities.getMaxAnisotropy(),
-        isDisposed: () => this.disposed,
-      });
+      // Commit staged images only after the base GLB fallback is installed.
+      releaseFacadeStage(true);
       // Keep the shared GLB source attached invisibly so all geometries/textures are disposed.
       city.scene.visible = false;
       this.scene.add(city.scene);
@@ -853,6 +860,9 @@ export class CityRenderer {
       };
       pending.push(stream(), stream());
     } finally {
+      // If core startup failed, release staged photo resources without ever
+      // making the optional batch delay an error screen or model disposal.
+      releaseFacadeStage(false);
       void Promise.allSettled(pending).then(() => {
         // A failed character load must not terminate an in-flight city decode
         // or leak the city scene when Promise.all rejects before attachment.

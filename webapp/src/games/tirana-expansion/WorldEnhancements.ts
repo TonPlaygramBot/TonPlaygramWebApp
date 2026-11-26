@@ -9,7 +9,7 @@ import {NEIGHBOURHOOD} from '../tirana-neighbourhood/data.mjs';
 import {STREET_LIFE} from '../tirana-street-life/registry.mjs';
 import {LOCAL_FUEL} from '../tirana-environment/mappedAmenitiesCore.mjs';
 import {RegionalPanorama} from '../tirana-region/RegionalPanorama';
-import {CityCompletionLayer} from '../tirana-city-completion/CityCompletionLayer';
+import {CityCompletionLayer,type SoloSignalPresentation} from '../tirana-city-completion/CityCompletionLayer';
 import {FacadeCompletionLayer} from '../tirana-city-completion/FacadeCompletionLayer';
 import {NeighbourhoodLayer} from '../tirana-neighbourhood/NeighbourhoodLayer';
 import * as T from 'three';
@@ -39,7 +39,7 @@ export {
   DajtiLayer
 } from './BaseWorldEnhancements';
 /** One shared street-detail integration, using the unchanged city metre frame. */
-type EnhancementOptions = StreetDetailOptions & { supplementalTrees?: readonly CanopyTree[] };
+type EnhancementOptions = StreetDetailOptions & { supplementalTrees?: readonly CanopyTree[]; photoFacades?: boolean; soloSignals?:SoloSignalPresentation; mapTree?:(tree:CanopyTree)=>CanopyTree };
 
 export class WorldEnhancements extends ExistingEnhancements {
   readonly monuments=new UrbanMonumentLayer();
@@ -76,15 +76,15 @@ export class WorldEnhancements extends ExistingEnhancements {
     this.urbanLife=new UrbanLifeLayer(options);
     this.dajti.retire();this.dajti.group.visible=false;
     this.group.add(this.dimensionalSigns.group,this.regionalArchitecture.group,this.housing.group,this.eastern.group);
-    this.cityCompletion=new CityCompletionLayer(options);
+    this.cityCompletion=new CityCompletionLayer(options, undefined, options.soloSignals, options.mapTree);
     this.facadeCompletion=new FacadeCompletionLayer();
     this.tabakeve=new TabakeveQuarterLayer(options);
     this.group.add(this.tabakeve.group,this.monuments.group);
     this.group.add(this.cityCompletion.group,this.facadeCompletion.group);
     this.neighbourhood=new NeighbourhoodLayer(options);
     this.streetLife=new StreetLifeLayer(undefined,options);
-    this.matureTrees=new MatureTreeLayer(
-      options.supplementalTrees?.length ? [...CANOPY_TREES, ...options.supplementalTrees] : undefined,options);
+    const matureTrees=options.supplementalTrees?.length ? [...CANOPY_TREES, ...options.supplementalTrees] : CANOPY_TREES;
+    this.matureTrees=new MatureTreeLayer(options.mapTree?matureTrees.map(options.mapTree):matureTrees,options);
     // Photo-informed full façades now replace these three generic bay kits.
     this.civic.retire();
     this.civic.group.visible = false;

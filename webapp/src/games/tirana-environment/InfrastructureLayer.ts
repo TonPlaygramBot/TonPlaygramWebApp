@@ -12,6 +12,7 @@ type Road = typeof WORLD.roads[number];
 type Cell = {x:number;z:number;roads:Road[];object?:T.Group;used:number};
 /** All mapped bridge segments are represented. Street simulation still uses its
  * flat datum: no unverified flyover elevation is applied to a driveable lane. */
+type RailPiece=(typeof RAILINGS)[number]&{y?:number};
 export class InfrastructureLayer {
   readonly group=new T.Group();
   private surfaces:EnvironmentMaterials;
@@ -26,8 +27,8 @@ export class InfrastructureLayer {
   private rails:T.InstancedMesh;
   private railGeometry:T.BufferGeometry;
   private dead=false;private last=-Infinity;private tick=0;
-  private railBins=new Map<string,typeof RAILINGS>();
-  constructor(loadAssets=true, private blocked?: (x:number,z:number,pad:number)=>boolean){
+  private railBins=new Map<string,RailPiece[]>();
+  constructor(loadAssets=true, private blocked?: (x:number,z:number,pad:number)=>boolean, supplementalRails:readonly RailPiece[]=[]){
     this.group.name='Tirana:mapped-bridges-and-roadside-ironwork';
     this.surfaces=new EnvironmentMaterials(loadAssets);
     this.concrete=this.surfaces.create('rough_concrete',0xb7b9b0);
@@ -49,7 +50,7 @@ export class InfrastructureLayer {
     }
     this.railGeometry=new T.BufferGeometry().setAttribute('position',new T.Float32BufferAttribute(positions,3));this.railGeometry.computeVertexNormals();
     this.rails=new T.InstancedMesh(this.railGeometry,this.steel,900);this.rails.count=0;this.rails.frustumCulled=false;this.rails.receiveShadow=true;this.rails.name='Roadside iron railings';this.group.add(this.rails);
-    for(const r of RAILINGS){if(blocked?.(r.x,r.z,r.length/2+.08))continue;const key=`${Math.floor(r.x/64)}:${Math.floor(r.z/64)}`;if(!this.railBins.has(key))this.railBins.set(key,[]);this.railBins.get(key)!.push(r);}
+    for(const r of [...RAILINGS,...supplementalRails]){if(blocked?.(r.x,r.z,r.length/2+.08))continue;const key=`${Math.floor(r.x/64)}:${Math.floor(r.z/64)}`;if(!this.railBins.has(key))this.railBins.set(key,[]);this.railBins.get(key)!.push(r);}
     if(loadAssets)new GLTFLoader().load('/assets/tirana-streets/environment/roadside-rail.glb',g=>{
       const mesh=g.scene.getObjectByName('roadside-rail') as T.Mesh|undefined;
       if(!this.dead&&mesh?.isMesh){this.railGeometry.dispose();this.railGeometry=mesh.geometry;this.rails.geometry=mesh.geometry;}
@@ -94,11 +95,11 @@ export class InfrastructureLayer {
     for(const c of selected){if(!c.object&&budget-->0){c.object=this.build(c);this.group.add(c.object);}c.used=this.tick;}
     for(const c of this.cells)if(c.object){c.object.visible=keep.has(c);c.object.traverse(o=>{if(o instanceof T.Mesh)o.castShadow=!battery&&distance(c)<200;});}
     const cached=this.cells.filter(c=>c.object).sort((a,b)=>a.used-b.used);while(cached.length>48){const c=cached.shift()!;this.release(c);}
-    const near:typeof RAILINGS=[];const radius=battery?80:160;
+    const near:RailPiece[]=[];const radius=battery?80:160;
     for(let x=Math.floor((viewer.x-radius)/64);x<=Math.floor((viewer.x+radius)/64);x++)for(let z=Math.floor((viewer.z-radius)/64);z<=Math.floor((viewer.z+radius)/64);z++)for(const r of this.railBins.get(`${x}:${z}`)||[])if(Math.hypot(r.x-viewer.x,r.z-viewer.z)<radius)near.push(r);
     near.sort((a,b)=>Math.hypot(a.x-viewer.x,a.z-viewer.z)-Math.hypot(b.x-viewer.x,b.z-viewer.z));
     this.rails.count=0;for(const r of near.slice(0,battery?320:900)){
-      this.dummy.position.set(r.x,.03,r.z);this.dummy.rotation.set(0,r.yaw-Math.PI/2,0);this.dummy.scale.set(r.length/2.6,1,1);this.dummy.updateMatrix();this.rails.setMatrixAt(this.rails.count++,this.dummy.matrix);
+      this.dummy.position.set(r.x,r.y??.03,r.z);this.dummy.rotation.set(0,r.yaw-Math.PI/2,0);this.dummy.scale.set(r.length/2.6,1,1);this.dummy.updateMatrix();this.rails.setMatrixAt(this.rails.count++,this.dummy.matrix);
     }
     this.rails.instanceMatrix.needsUpdate=true;this.rails.castShadow=!battery;
   }
