@@ -14,7 +14,7 @@ export const MOTOR = Object.freeze({
   radius: 0.34,
   step: 0.28,
   coyote: 0.09,
-  buffer: 0.12,
+  buffer: 0.18,
   fallSafe: 8,
   fallDamage: 5,
   sprintDrain: 12,
@@ -22,6 +22,17 @@ export const MOTOR = Object.freeze({
   kickCost: 20
 });
 const approach = (a, b, d) => (a < b ? Math.min(b, a + d) : Math.max(b, a - d));
+// Only the tail of a descent may queue a jump. Ground/coyote presses still
+// take precedence; rising or distant airborne presses cannot become jumps.
+export function jumpBlockedReason(body, now, floorGap) {
+  if (body.crouched) return 'Stand before jumping';
+  if (body.grounded || now - body.groundAt <= MOTOR.coyote) return '';
+  if (!Number.isFinite(floorGap) || !Number.isFinite(body.vy) || body.vy >= 0) return 'In the air';
+  const queueWindow = MOTOR.buffer - 0.04; // leave a fixed-step margin after landing
+  const reachableGap = -body.vy * queueWindow + MOTOR.gravity * queueWindow * queueWindow / 2;
+  return floorGap <= Math.min(0.85, reachableGap) ? '' : 'In the air';
+}
+
 export function createBody(yaw = 0) {
   return {
     y: 0.08,

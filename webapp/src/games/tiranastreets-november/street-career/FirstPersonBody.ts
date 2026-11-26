@@ -17,7 +17,7 @@ import { direction3 } from './spatialCore.mjs';
 import { carPoint, vehicleAnchors, steeringWheelContacts, steeringWheelAngle, STEERING_WHEEL_AXIS } from './vehicleCore.mjs';
 import {driverUp,driverDirection} from '../shared/driverView.mjs';
 import {solveHumanoidGrip,poseHumanoidFist} from './humanoidHands.mjs';
-import {humanoidBones, headBoneIndices, solveHumanoidLimb, HumanoidLegPose} from './humanoidRig.mjs';
+import {canonicalHumanoidBone, humanoidBones, headBoneIndices, solveHumanoidLimb, HumanoidLegPose} from './humanoidRig.mjs';
 const v = new T.Vector3(),
   q = new T.Quaternion();
 /** Rig-specific head masking, without scaling bones or hiding an entire skin.
@@ -127,6 +127,11 @@ export class FirstPersonBody {
   private moving = false;
   private activeMotion?: T.AnimationAction;
   private motionActions: T.AnimationAction[] = [];
+  private freeArmClips = new Set<T.AnimationAction>();
+  private airBlend = 0;
+  private ascentBlend = 0;
+  private legTarget = new T.Quaternion();
+  private legEuler = new T.Euler();
   private previousYaw?: number;
   private muzzle = new T.Mesh(
     new T.ConeGeometry(0.035, 0.12, 6),
@@ -171,6 +176,7 @@ export class FirstPersonBody {
     this.running = false;
     this.moving = false;
     this.previousYaw = undefined;
+    this.airBlend = this.ascentBlend = 0;
     // Remove horizontal root translation from private clips; physics owns all movement.
     for (const [key, action] of Object.entries(actor.clips || {Idle:actor.idle, Walk:actor.walk, Run:actor.run})) {
       if (!action) continue;
@@ -191,6 +197,14 @@ export class FirstPersonBody {
     }
     this.motionActions = [...new Set(Object.values(actor.clips || {Idle:actor.idle, Walk:actor.walk, Run:actor.run}))]
       .filter((action): action is T.AnimationAction => !!action);
+    this.freeArmClips.clear();
+    for (const action of this.motionActions) {
+      const joints = new Set(action.getClip().tracks.flatMap(track => {
+        if (!track.name.endsWith('.quaternion')) return [];
+        return [canonicalHumanoidBone(track.name.slice(0, -'.quaternion'.length))];
+      }));
+      if (joints.has('leftarm') && joints.has('rightarm')) this.freeArmClips.add(action);
+    }
   }
   private loadWeapon(id: string, model: string, priority=false) {
     if(isPocketWeapon(id)){if(!this.models.has(id))this.models.set(id,pocketWeapon(id));return Promise.resolve();}
@@ -377,11 +391,23 @@ export class FirstPersonBody {
         set('rightupleg', (-1.3 - wave * 0.4)*blend);
       }
     }
-    if (!b.grounded) {
-      set('leftupleg', -0.24);
-      set('rightupleg', 0.18);
-      set('leftleg', 0.55);
-      set('rightleg', 0.4);
+    // This is only a visual blend; the fixed-step body still owns takeoff,
+    // trajectory and landing. Ease into the tuck and out to the sampled stride.
+    const airborne = !car && !seated && !down && !b.grounded;
+    this.airBlend = T.MathUtils.damp(this.airBlend, Number(airborne), airborne ? 28 : 14, dt);
+    this.ascentBlend = T.MathUtils.damp(this.ascentBlend, Number(airborne && b.vy > 0), 16, dt);
+    if (!car && !seated && !down && this.airBlend > .002) {
+      const blendLeg = (name: string, angle: number) => {
+        const bone = this.bones.get(name);
+        if (!bone) return;
+        this.legTarget.copy(this.rests.get(bone)!).multiply(
+          q.setFromEuler(this.legEuler.set(angle, 0, 0)));
+        bone.quaternion.slerp(this.legTarget, this.airBlend);
+      };
+      blendLeg('leftupleg', -.12 - .16 * this.ascentBlend);
+      blendLeg('rightupleg', .11 + .08 * this.ascentBlend);
+      blendLeg('leftleg', .29 + .28 * this.ascentBlend);
+      blendLeg('rightleg', .24 + .21 * this.ascentBlend);
     }
     const a = b.action,
       phase = a ? T.MathUtils.clamp((time - a.start) / a.duration, 0, 1) : 0,
@@ -481,8 +507,23 @@ export class FirstPersonBody {
       r = socket(pose.anchors.rightGrip);
       if (!reload) left = socket(pose.anchors.leftSupport);
     }
-    // Arm bones return to rest before solving; the lower-body mixer stays intact.
-    for (const side of ['left', 'right'] as const) {
+    // With hands free, the supplied idle/walk/run clips already have a natural
+    // arm swing. Do not force their wrists into a fixed camera-space stance,
+    // which crosses them into the torso while the body turns toward travel.
+    const freeArms = !p.weapon && !car && !b.guard && !a && (!p.arrest || p.arrest.phase === 'pursuit') && !b.crouched;
+    const authoredArms = freeArms && !!this.activeMotion && this.freeArmClips.has(this.activeMotion);
+    if (freeArms && !authoredArms) {
+      // For a static skin, use the avatar's body-facing basis, independently
+      // of the camera. Two mirrored shoulder-side targets never cross its midline.
+      const stride = moving ? Math.sin(b.gait) * .10 : 0;
+      const handHeight = b.y + b.eye * .68;
+      const x = -Math.cos(yaw), z = Math.sin(yaw), fx = Math.sin(yaw), fz = Math.cos(yaw);
+      left.set(p.x - x * .24 + fx * stride, handHeight, p.z - z * .24 + fz * stride);
+      r.set(p.x + x * .24 - fx * stride, handHeight, p.z + z * .24 - fz * stride);
+    }
+    // An explicit interaction owns its own upper-body pose; otherwise leave
+    // the authored arm animation intact and only mix the lower body below.
+    if (!authoredArms) for (const side of ['left', 'right'] as const) {
       set(side + 'arm', 0);
       set(side + 'forearm', 0);
       set(side + 'hand', 0);
@@ -492,7 +533,7 @@ export class FirstPersonBody {
       if(a?.kind==='punch')r=local(.12,-.2,.3+.42*swing);
     }
     const configForGrip=WEAPON_BY_ID.get(p.weapon);
-    for(const side of ['left','right'] as const){
+    if (!authoredArms) for(const side of ['left','right'] as const){
       const target=side==='left'?left:r;
       let solved=false;
       if(car){

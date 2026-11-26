@@ -25,6 +25,7 @@ const props=importedFleet.filter(v=>v.assetId&&!v.racingAsset&&!WEAPON_BY_ID.has
 /** Preserve input, loading, gameplay and camera implementation while replacing
  * the city's landmark layer. Base renderer also owns source-informed façades. */
 export class CityRenderer extends BaseCityRenderer {
+  protected override get usesAliDemiFurniture(): boolean { return true; }
   private detailQuality?:GraphicsPreset;
   private imported=new ImportedAssetVisuals();
   protected cityDetails:ReturnType<typeof attachEnhancements>;

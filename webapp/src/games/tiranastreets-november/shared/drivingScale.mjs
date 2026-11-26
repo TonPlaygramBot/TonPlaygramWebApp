@@ -21,7 +21,7 @@ export function drivingScale(car) {
  if(/bike|motorcycle|^(apex|oobi|oodi|ooli|oopi)$/.test(id))return DRIVING_PROFILES.bike;
  if(/armored|shota|military/.test(id))return DRIVING_PROFILES.armored;
  if(/van|ambulance/.test(id)||car.service==='ambulance')return DRIVING_PROFILES.van;
- if(/range|landrover|defender|brabus-g|suv/.test(id))return DRIVING_PROFILES.suv;
+ if(/range|landrover|defender|brabus-g|suv|^jaguar$/.test(id))return DRIVING_PROFILES.suv;
  if(/ferrari|bugatti/.test(id))return DRIVING_PROFILES.supercar;
  if(/bmw|golf-gti|sport|race/.test(id)||car.model==='sport'||car.model==='sedan-sports')return DRIVING_PROFILES.sport;
  if(/ford|fiat|city-car|hatch/.test(id))return DRIVING_PROFILES.compact;
