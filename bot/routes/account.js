@@ -2,6 +2,7 @@ import { Router } from 'express';
 import { v4 as uuidv4 } from 'uuid';
 import User from '../models/User.js';
 import authenticate from '../middleware/auth.js';
+import { verifiedSelfBalanceFilter } from '../utils/selfBalanceIdentity.js';
 import { optionalAuthenticate } from '../middleware/auth.js';
 import { verifyRequestedIdentity, identityOwnsUser, sendIdentityError } from '../middleware/accountIdentity.js';
 import {
@@ -162,6 +163,22 @@ router.post('/create', optionalAuthenticate, async (req, res) => {
 });
 
 // Get balance by account id
+// Signed-in player's own wallet only. Do not query a caller-supplied account ID,
+// reconcile the stored balance, create a wallet, or change TPG on this read.
+router.get('/self-tpg-balance', async (req, res, next) => {
+  res.set('Cache-Control', 'private, no-store');
+  let claims;
+  try { claims = await verifyRequestedIdentity(req); }
+  catch (error) { return sendIdentityError(res, error); }
+  const filter = verifiedSelfBalanceFilter(claims);
+  if (!filter) return sendIdentityError(res);
+  try {
+    const user = await User.findOne(filter).select('balance transactions.amount').lean();
+    if (!user) return res.status(404).json({ error: 'account_not_found' });
+    return res.json({ balance: resolveAccountBalance(user) });
+  } catch (error) { return next(error); }
+});
+
 router.post('/balance', authenticate, async (req, res) => {
   const { accountId } = req.body;
   if (!accountId) return res.status(400).json({ error: 'accountId required' });
