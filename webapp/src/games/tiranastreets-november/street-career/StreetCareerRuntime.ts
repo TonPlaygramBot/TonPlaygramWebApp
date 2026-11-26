@@ -426,6 +426,9 @@ export class StreetCareerRuntime {
       return true;
     }
     if (this.paused) return false;
+    if(action==='food-charge')return this.simulation.throwables.begin();
+    if(action==='food-release')return this.simulation.throwables.release();
+    if(action==='food-cancel'){this.simulation.throwables.cancel();return true;}
     if(action==='camera'){this.cycleCamera();return true;}
     if(action==='flight-lock'){const result=this.simulation.flight.toggleLock();this.emit();return result;}
     if(action==='radio-next'||action==='radio-previous'||action==='radio-toggle'){this.radioAction(action.slice(6));return true;}

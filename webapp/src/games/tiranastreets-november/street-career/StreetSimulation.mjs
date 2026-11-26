@@ -2,6 +2,7 @@ import {createCityEvent,stopCityEvent} from '../shared/cityEvents.mjs';
 import {BuildingAccessSimulation} from './BuildingAccessSimulation.mjs';
 import {CityEconomySimulation} from './CityEconomySimulation.mjs';
 import {ReneaResponseSimulation} from './ReneaResponseSimulation.mjs';
+import {ArcadeResponse} from './arcadeResponse.mjs';
 import {ArrestSimulation} from './ArrestSimulation.mjs';
 import {createMissionDirector, extractionSeconds, updateMissionDirector} from './missionDirectorCore.mjs';
 import {operationTarget} from './operationRoute.mjs';
@@ -37,6 +38,7 @@ import {
   takeVehicle,
   vehicleAnchors
 } from './vehicleCore.mjs';
+const ARCADE_WARNING='Stand back';
 const dist = (a, b) => Math.hypot(a.x - b.x, a.z - b.z);
 const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
 const defaults = {
@@ -87,6 +89,7 @@ export class StreetSimulation {
     this.economy = new CityEconomySimulation(this);
     this.reneaResponse = new ReneaResponseSimulation(this);
     this.arrest = new ArrestSimulation(this);
+    this.arcadeResponse = new ArcadeResponse();
     this.throwables = new ThrowableSimulation(this);
     this.equipment = new EquipmentSimulation(this);
     this.body.combat = this.player.weapon ? 'ready' : 'unarmed';
@@ -129,7 +132,8 @@ export class StreetSimulation {
           ),
         firePlayer: () => this.fire(),
         fireNPC: (n,p,scale) => this.fireNPC(n,p,scale),
-        officerAction: (n,p,dt,env) => this.arrest.officer(n,p,dt,env),
+        officerAction: (n,p,dt,env) => this.arrest.officer(n,p,dt,env) ||
+          p === this.player && this.arcadeResponse.holdOfficer(this.state.elapsed,n),
         damageAmount: (target, amount, attacker) =>
           this.guardDamage(target, amount, attacker),
         onDamage: (target, attacker) => this.damaged(target, attacker),
@@ -161,6 +165,7 @@ export class StreetSimulation {
   beginMission(id,difficulty='normal') {
     if(this.player.health<=0 || this.player.arrest || !startSessionMission(this.state,id,difficulty))return false;
     this.mission=MISSIONS.find(m=>m.id===id)||FREE_ROAM;
+    this.arcadeResponse = new ArcadeResponse();
     this.placeMissionCrew();
     cancelActions(this.player,this.body);this.approved=-1;
     this.job={parcel:false,vehicleId:this.player.carId||null,defend:0,stage:0,tutorial:[...this.body.tutorial],director:createMissionDirector({lastHealth:this.player.health,lastDamageAt:this.player.lastDamage})};
@@ -211,6 +216,7 @@ export class StreetSimulation {
   pause() {
     this.paused = true;
     cancelActions(this.player, this.body);
+    this.throwables.cancel();
     this.intent = { ...defaults, yaw: this.body.yaw, pitch: this.body.pitch };
     control(this.state, 'local', {
       ...emptyInput(),
@@ -288,6 +294,8 @@ export class StreetSimulation {
     this.throwables.step(dt);
     this.equipment.step(dt);
     this.arrest.step(dt);
+    const warningActive=this.arcadeResponse.update(s.elapsed,s.npcs,this.player);
+    if(!warningActive&&this.body.notice===ARCADE_WARNING)this.body.notice='';
     this.economy.step(dt);
     this.reneaResponse.step(dt);
     if(this.arrest.locked)return;
@@ -945,6 +953,14 @@ export class StreetSimulation {
       target = n;
     }
     if (target) {
+      if(a.kind==='punch'&&p.weapon&&WEAPON_BY_ID.get(p.weapon)?.category==='melee'&&p.weapon!=='punch')
+        this.arcadeResponse.recordWeaponUse(this.state.elapsed);
+      else if(this.arcadeResponse.registerUnarmedHit(this.state.elapsed,target)){
+        // Keep the existing fictional nonlethal arrest presentation. The
+        // projectile gate is independent of heat and never opened by this.
+        if(target.kind==='police'&&target.health>(a.kind==='kick'?30:16))this.arrest.provoke(target,'unarmed');
+        this.body.notice=ARCADE_WARNING;
+      }
       this.damage(target, a.kind === 'kick' ? 30 : WEAPON_BY_ID.get(p.weapon)?.damage || 16, p);
       reportCrime(this.state, p, target.kind === 'gang' ? 4 : 55);
       this.event('melee-hit');
@@ -952,6 +968,7 @@ export class StreetSimulation {
   }
   fireNPC(n,p,scale=1) {
     const now=this.state.elapsed,w=WEAPON_BY_ID.get(n.weapon);
+    if(p===this.player&&!this.arcadeResponse.allowsNpcWeapon(now))return;
     if(this.paused||this.player.arrest||!w||w.category==='melee'||n.health<=0||p.health<=0||now<(n.nextShot||0)||now<(n.hitUntil||0))return;
     if(n.loadedWeapon!==w.id){n.loadedWeapon=w.id;n.rounds=w.magazine;n.reloadUntil=0;}
     if(n.reloadUntil){
@@ -1000,10 +1017,15 @@ export class StreetSimulation {
       !inv.ammo
     )
       return;
-    if(this.equipment.fire())return;
+    const beforeAmmo = inv.ammo;
+    if(this.equipment.fire()){
+      if(inv.ammo<beforeAmmo)this.arcadeResponse.recordWeaponUse(this.state.elapsed);
+      return;
+    }
     if(w.category==='melee'){this.startMelee('punch');p.nextShot=this.state.elapsed+w.interval;return;}
     if(w.category==='throwable'){this.throwables.throw(w);return;}
     inv.ammo--;
+    this.arcadeResponse.recordWeaponUse(this.state.elapsed);
     p.nextShot = this.state.elapsed + w.interval;
     b.combat = 'fire';
     b.recoil = 0.035;

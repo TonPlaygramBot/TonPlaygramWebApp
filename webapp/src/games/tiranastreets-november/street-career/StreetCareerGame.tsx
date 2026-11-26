@@ -15,6 +15,7 @@ import {
   useRef,
   useState,
   type PointerEvent as PE,
+  type MouseEvent as ME,
   type CSSProperties
 } from 'react';
 import {
@@ -49,7 +50,7 @@ type Panel = 'journal' | 'arsenal' | 'map' | 'economy' | null;
 export function StreetCareerGame({ onExit, initialOperation, initialDifficulty='normal' }: { onExit: () => void; initialOperation?:string; initialDifficulty?:string }) {
   const root = useRef<HTMLDivElement>(null),
     runtime = useRef<StreetCareerRuntime>(),
-    modal = useRef<HTMLDialogElement>(null);
+    modal = useRef<HTMLDialogElement>(null), foodPointer = useRef<number|null>(null);
   const [view, setView] = useState<StreetView | null>(null),
     [panel, setPanel] = useState<Panel>(null),
     [error, setError] = useState(''),
@@ -148,6 +149,32 @@ export function StreetCareerGame({ onExit, initialOperation, initialDifficulty='
     onLostPointerCapture: (e: PE<HTMLElement>) =>
       runtime.current?.input.pointerUp(e.pointerId)
   });
+  const endFood=(e:PE<HTMLButtonElement>,release:boolean)=>{
+    if(foodPointer.current!==e.pointerId)return;
+    foodPointer.current=null;
+    runtime.current?.input.pointerUp(e.pointerId);
+    runtime.current?.action(release?'food-release':'food-cancel');
+  };
+  const foodControl={
+    onPointerDown(e:PE<HTMLButtonElement>){
+      e.preventDefault();
+      if((e.pointerType==='mouse'&&e.button!==0)||foodPointer.current!==null)return;
+      if(!runtime.current?.action('food-charge'))return;
+      foodPointer.current=e.pointerId;
+      e.currentTarget.setPointerCapture(e.pointerId);
+      runtime.current.input.pointerDown(e.pointerId,'look',e.clientX,e.clientY);
+    },
+    onPointerMove(e:PE<HTMLButtonElement>){
+      if(foodPointer.current===e.pointerId)runtime.current?.input.pointerMove(e.pointerId,e.clientX,e.clientY);
+    },
+    onPointerUp:(e:PE<HTMLButtonElement>)=>endFood(e,true),
+    onPointerCancel:(e:PE<HTMLButtonElement>)=>endFood(e,false),
+    onLostPointerCapture:(e:PE<HTMLButtonElement>)=>endFood(e,false),
+    onClick(e:ME<HTMLButtonElement>){
+      if(e.detail===0&&foodPointer.current===null&&runtime.current?.action('food-charge'))
+        runtime.current.action('food-release');
+    }
+  };
   const context = view?.actions.find(a=>a.id==='interact'&&a.visible);
   const primary = view?.actions.find(
     (a) => a.id === 'fire' || a.id === 'punch'
@@ -171,6 +198,7 @@ export function StreetCareerGame({ onExit, initialOperation, initialDifficulty='
     ) : null;
   };
   const failure = error || view?.graphicsError;
+  const foodSelected=WEAPON_BY_ID.get(view?.state.players.local.weapon||'')?.category==='throwable';
   const p = view?.state.players.local,
     flying = !!p?.aircraftId,
     aircraft = flying ? (p?.aircraftId === view?.state.jet?.id ? view?.state.jet : view?.state.helicopters?.find(a=>a.id===p?.aircraftId)) : undefined,
@@ -305,11 +333,11 @@ export function StreetCareerGame({ onExit, initialOperation, initialDifficulty='
                     aria-disabled={!primary.enabled}
                     data-action={primary.id}
                     data-enabled={primary.enabled}
-                    {...pointer('fire')}
+                    {...(foodSelected?foodControl:pointer('fire'))}
                   >
                     {primary.label}
                     <small>
-                      {primary.enabled ? 'hold + drag' : primary.disabledReason}
+                      {primary.enabled ? foodSelected?'hold for distance':'hold + drag' : primary.disabledReason}
                     </small>
                   </button>
                 )}

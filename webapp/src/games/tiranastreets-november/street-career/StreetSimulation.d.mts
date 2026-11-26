@@ -44,6 +44,7 @@ export type BodyState = {
   crouchWanted: boolean;
   stamina: number;
   gait: number;
+  foodPose?: {load:number;reach:number;released:boolean};
   locomotion: string;
   combat: string;
   interaction: string;

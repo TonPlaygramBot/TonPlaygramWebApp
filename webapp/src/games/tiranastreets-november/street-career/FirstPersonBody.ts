@@ -581,9 +581,14 @@ export class FirstPersonBody {
     );
     if(isPocketWeapon(p.weapon)){
       const throwing=config?.category==='throwable';
-      const t=throwing?Math.max(0,Math.min(1,1-(p.nextShot-time)/(config?.interval||1))):1;
-      if(throwing){r=local(.19,-.3,.28+Math.sin(t*Math.PI)*.3);armPose(root,this.bones,'right',r);this.weapon.position.copy(r);}
-      this.weapon.visible=throwing&&!car&&p.health>0;
+      if(throwing){
+        const {load,reach,released}=b.foodPose||{load:0,reach:0,released:false};
+        r=local(.26+.07*load,-.33+.58*load+.22*reach,.23-.38*load+.26*reach);
+        armPose(root,this.bones,'right',r);
+        this.weapon.position.copy(r);
+        this.weapon.rotation.z=-.32*load+.28*reach;
+        this.weapon.visible=!car&&p.health>0&&!released;
+      }else this.weapon.visible=false;
     }
     if (config?.category === 'melee') {
       this.weapon.rotation.x += a?.kind === 'punch' ? -.75 * swing : .2;
