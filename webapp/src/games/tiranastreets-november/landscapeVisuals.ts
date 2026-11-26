@@ -1,3 +1,4 @@
+import {VERIFIED_RAIL_PIECES} from './shared/verifiedStreetDecorData.mjs';
 import {URBAN_DATUM_BOUNDS} from '../tirana-east/terrainCore.mjs';
 import * as T from 'three';
 import {mergeGeometries} from 'three/examples/jsm/utils/BufferGeometryUtils.js';
@@ -57,7 +58,7 @@ export class LandscapeVisuals {
     this.addMerged(slopes,concrete,'Concrete channel slopes');
     this.addMerged(banks,grass,'Planted river embankments');
     this.addMerged(surfaces,this.water,'Recessed water');
-    this.infrastructure=new InfrastructureLayer(loadTextures,blocked);
+    this.infrastructure=new InfrastructureLayer(loadTextures,blocked,VERIFIED_RAIL_PIECES);
     this.lighting=new UrbanLighting(blocked);
     this.group.add(this.infrastructure.group,this.lighting.group);
   }

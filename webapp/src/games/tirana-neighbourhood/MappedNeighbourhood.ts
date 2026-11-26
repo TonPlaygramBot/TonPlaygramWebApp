@@ -20,13 +20,13 @@ export class MappedNeighbourhood {
  private dead=false;
  private materials:T.Material[]=[];
  private wall:T.MeshStandardMaterial;
- constructor(agedHousing=false){
+ constructor(agedHousing=false,photoFacades=false){
   this.group.name='Tirana:urban-source-footprints';
   this.wall=new T.MeshStandardMaterial({vertexColors:true,roughness:.86});
   const glass=new T.MeshStandardMaterial({color:0x365761,roughness:.3,metalness:.3});
   glass.userData.environmentWindow=true;
   this.materials.push(this.wall,glass);
-  this.buildingCells=new MappedBuildingCells(NEIGHBOURHOOD.buildings.filter(b=>!HERO_IDS.has(b.id)&&!COMPLETED_BUILDING_IDS.has(b.id)&&!NEIGHBOURHOOD_REFERENCE_PROFILES[b.id]),this.wall,glass,agedHousing);
+  this.buildingCells=new MappedBuildingCells(NEIGHBOURHOOD.buildings.filter(b=>!HERO_IDS.has(b.id)&&!COMPLETED_BUILDING_IDS.has(b.id)&&!NEIGHBOURHOOD_REFERENCE_PROFILES[b.id]),this.wall,glass,agedHousing,true,photoFacades);
   this.group.add(this.buildingCells.group);
   for(const b of NEIGHBOURHOOD.buildings.filter(b=>HERO_IDS.has(b.id)||COMPLETED_BUILDING_IDS.has(b.id))){
    const fallback=this.buildingCells.build([b]);

@@ -19,16 +19,35 @@ type FacadeContext = {
   maxAnisotropy: number;
   isDisposed: () => boolean;
   load?: (url: string) => Promise<THREE.Texture>;
+  applyAfter?: Promise<boolean>;
+  budgetMs?: number;
 };
 
 export async function loadSoloFacadeTextures({
   materials, worldTextures, maxAnisotropy, isDisposed,
-  load = url => new THREE.TextureLoader().loadAsync(url)
+  load = url => new THREE.TextureLoader().loadAsync(url), applyAfter, budgetMs = 2200
 }: FacadeContext) {
   if (isDisposed() || !materials.length) return;
-  await Promise.allSettled(paints.map(async ({file, metres, slots}) => {
+  // All families start now. Commit the decoded set in one task, never one
+  // material family per frame; a slow or broken image leaves its fallback.
+  const decoded: (THREE.Texture | undefined)[] = new Array(paints.length);
+  let accepting = true, timer: ReturnType<typeof setTimeout> | undefined;
+  const downloads = Promise.allSettled(paints.map(async ({file}, index) => {
     const texture = await load(assetRoot + file);
-    if (isDisposed()) { texture.dispose(); return; }
+    if (accepting && !isDisposed()) decoded[index] = texture;
+    else texture.dispose();
+  }));
+  await Promise.race([downloads, new Promise<void>(resolve => { timer = setTimeout(resolve, budgetMs); })]);
+  clearTimeout(timer);
+  accepting = false;
+  const canApply = applyAfter ? await applyAfter.catch(() => false) : true;
+  if (!canApply || isDisposed()) {
+    decoded.forEach(texture => texture?.dispose());
+    return;
+  }
+  for (const [i, {metres, slots}] of paints.entries()) {
+    const texture = decoded[i];
+    if (!texture) continue;
     texture.colorSpace = THREE.SRGBColorSpace;
     texture.wrapS = texture.wrapT = typeof metres === 'number'
       ? THREE.RepeatWrapping : THREE.MirroredRepeatWrapping;
@@ -38,7 +57,7 @@ export async function loadSoloFacadeTextures({
     texture.anisotropy = Math.max(1, Math.min(4, maxAnisotropy));
 
     const applicable = slots.flatMap(i => materials[i] ? [materials[i]] : []);
-    if (!applicable.length) { texture.dispose(); return; }
+    if (!applicable.length) { texture.dispose(); continue; }
     worldTextures.add(texture);
     for (const material of applicable) {
       const replaced = new Set([material.map, material.normalMap, material.roughnessMap]);
@@ -56,5 +75,5 @@ export async function loadSoloFacadeTextures({
         ) && worldTextures.delete(previous)) previous.dispose();
       }
     }
-  }));
+  }
 }

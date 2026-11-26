@@ -1,12 +1,17 @@
 import {pointInUrbanBounds} from '../tiranastreets/shared/urbanBounds.mjs';
 import * as T from 'three';
 import {CITY_COMPLETION,type Fixture} from './data.mjs';
+import type {CanopyTree} from '../tirana-street-life/canopyRegistry.mjs';
 import {bakedParts,bakedMaterial} from './bakedGeometry';
 import {MatureTreeLayer} from '../tirana-street-life/MatureTreeLayer';
 import {nearbyIndex} from '../tirana-street-life/streetModels.mjs';
 import {ribbonExclusion} from '../tirana-street-detail/roadDetailCore.mjs';
 import type {StreetDetailOptions} from '../tirana-street-detail/StreetDetailLayer';
 type Point={x:number;z:number};
+export type SoloSignalPresentation = {
+ fixtures:readonly Fixture[];
+ phaseAt:(id:string,seconds:number)=>'red'|'amber'|'green'|null;
+};
 type Nearby<A>=(p:Point,radius:number,limit:number)=>A[];
 type Batch={meshes:T.InstancedMesh[];near:Nearby<Point&{y?:number;yaw?:number;scale?:number}>;capacity:number};
 
@@ -21,14 +26,17 @@ export class CityCompletionLayer {
  private lenses:T.InstancedMesh;private white:T.InstancedMesh;private arrows:T.InstancedMesh;
  private arrowTexture:T.CanvasTexture;
  private fixtures:Nearby<Fixture>;private bays:Nearby<Point&{yaw:number;w:number;d:number}>;private arrowPoints:Nearby<Point&{yaw:number}>;
+ private activeLenses:{id:string;index:number;lit:number}[]=[];
  private selected:Fixture[]=[];private rows=1;private color=new T.Color();
- constructor(options:StreetDetailOptions={},data=CITY_COMPLETION){
+ constructor(options:StreetDetailOptions={},data=CITY_COMPLETION,private readonly controls?:SoloSignalPresentation, readTree?:(tree:CanopyTree)=>CanopyTree){
   this.group.name='Tirana:mapped-city-completion';
   const trackExclusion=options.track?ribbonExclusion(options.track):()=>false;
   const exclusion=(x:number,z:number,r:number)=>!pointInUrbanBounds({x,z},r)||trackExclusion(x,z,r);
-  const fixtures=data.fixtures.filter(p=>!exclusion(p.x,p.z,p.kind==='waste_container'?1.2:.5));
+  const controlPoints=controls?.fixtures||[];
+  const fixtures=[...data.fixtures.filter(p=>!controls||p.kind!=='traffic_signals'||!controlPoints.some(s=>
+    s.id===p.id||Math.hypot(s.point[0]-p.point[0],s.point[1]-p.point[1])<9)),...controlPoints].filter(p=>!exclusion(p.x,p.z,p.kind==='waste_container'?1.2:.5));
   this.fixtures=nearbyIndex(fixtures);
-  this.trees=new MatureTreeLayer(data.trees,options);this.group.add(this.trees.group);
+  this.trees=new MatureTreeLayer(readTree?data.trees.map(readTree):data.trees,options);this.group.add(this.trees.group);
   this.bays=nearbyIndex(data.parking.flatMap(p=>p.bays).filter(p=>!exclusion(p.x,p.z,Math.hypot(p.w,p.d)/2)));
   this.arrowPoints=nearbyIndex(data.arrows.filter(p=>!exclusion(p.x,p.z,2)));
   const model=(kind:string)=>['speed','stop','give_way','parking'].includes(kind)?'sign_pole':kind==='direction'?'direction_pole':kind;
@@ -60,10 +68,22 @@ export class CityCompletionLayer {
  }
  private key(p:Fixture){return p.kind+'|'+(p.text||'');}
  private matrix(x:number,y:number,z:number,yaw=0,sx=1,sy=1,sz=1){this.dummy.position.set(x,y,z);this.dummy.rotation.set(0,yaw,0);this.dummy.scale.set(sx,sy,sz);this.dummy.updateMatrix();return this.dummy.matrix;}
+ private updateSignalLenses(seconds:number){
+  if(!this.controls)return;
+  let changed=false;
+  for(const lens of this.activeLenses){
+   const phase=this.controls.phaseAt(lens.id,seconds);
+   const lit=phase==='red'?0:phase==='amber'?1:phase==='green'?2:-1;
+   if(lit===lens.lit)continue;
+   lens.lit=lit;changed=true;
+   for(let k=0;k<3;k++)this.lenses.setColorAt(lens.index+k,this.color.setHex(k===lit?[0xff3628,0xffb62a,0x3ce486][k]:0x17231e));
+  }
+  if(changed&&this.lenses.instanceColor)this.lenses.instanceColor.needsUpdate=true;
+ }
  update(seconds:number,viewer?:Point,battery=false){
   if(this.dead||!viewer)return;
   this.trees.update(seconds,viewer,battery);
-  if(seconds>=this.last&&seconds-this.last<.25)return;this.last=seconds;
+  if(seconds>=this.last&&seconds-this.last<.25){this.updateSignalLenses(seconds);return;}this.last=seconds;
   const radius=battery?110:210;
   const mounted=new Set<string>();
   for(const [name,b] of this.batches){
@@ -71,7 +91,7 @@ export class CityCompletionLayer {
    for(const p of points){const scale=p.scale||1,m=this.matrix(p.x,p.y??.065,p.z,p.yaw||0,scale,scale,scale);for(const mesh of b.meshes)mesh.setMatrixAt(n,m);if(name!=='shrub')mounted.add((p as Fixture).id);n++;}
    for(const mesh of b.meshes){mesh.count=n;mesh.visible=n>0;mesh.castShadow=!battery&&name!=='shrub';mesh.instanceMatrix.needsUpdate=true;}
   }
-  this.selected=this.fixtures(viewer,radius,battery?64:128).filter(p=>mounted.has(p.id));this.signs.count=0;this.lenses.count=0;
+  this.selected=this.fixtures(viewer,radius,battery?64:128).filter(p=>mounted.has(p.id));this.signs.count=0;this.lenses.count=0;this.activeLenses.length=0;
   const uv=this.signs.geometry.getAttribute('instanceAtlas') as T.InstancedBufferAttribute;
   for(const p of this.selected){
    const glyph=this.glyphs.get(this.key(p));
@@ -79,13 +99,17 @@ export class CityCompletionLayer {
     const m=this.matrix(p.x+Math.sin(p.yaw)*.041,p.y+(large?3.23:2.43),p.z+Math.cos(p.yaw)*.041,p.yaw,sx,sy,1);this.signs.setMatrixAt(n,m);uv.setXYZW(n,(glyph%8+(large?.01:.25))/8,1-(Math.floor(glyph/8)+.99)/this.rows,(large?.98:.5)/8,.98/this.rows);
    }
    if(p.kind==='traffic_signals'){
+    if(this.controls)this.activeLenses.push({id:p.id,index:this.lenses.count,lit:-2});
     // Shared cardinal phases with two all-red intervals. Presentation only;
-    // existing gameplay SIGNALS retain their authoritative signal clock.
+    // legacy/racing visuals are unchanged. Solo lights use the same
+    // timer as braking; unbound mapped casings stay dark.
     const phase=((seconds%48)+48)%48,axis=Math.abs(Math.sin(p.yaw))>.707?1:0;
-    const green=axis===0?phase<19:phase>=24&&phase<43,amber=axis===0?phase>=19&&phase<22:phase>=43&&phase<46,lit=green?2:amber?1:0;
+    const green=axis===0?phase<19:phase>=24&&phase<43,amber=axis===0?phase>=19&&phase<22:phase>=43&&phase<46;
+    const lit=this.controls?-1:green?2:amber?1:0;
     for(let k=0;k<3;k++){const n=this.lenses.count++;this.lenses.setMatrixAt(n,this.matrix(p.x+Math.sin(p.yaw)*.307,p.y+3.8-k*.35,p.z+Math.cos(p.yaw)*.307,p.yaw));this.lenses.setColorAt(n,this.color.setHex(k===lit?[0xff3628,0xffb62a,0x3ce486][k]:0x17231e));}
    }
   }
+  this.updateSignalLenses(seconds);
   this.signs.instanceMatrix.needsUpdate=true;uv.needsUpdate=true;this.lenses.instanceMatrix.needsUpdate=true;if(this.lenses.instanceColor)this.lenses.instanceColor.needsUpdate=true;
   this.white.count=0;for(const p of this.bays(viewer,radius,battery?90:240)){
    const c=Math.cos(p.yaw),s=Math.sin(p.yaw);

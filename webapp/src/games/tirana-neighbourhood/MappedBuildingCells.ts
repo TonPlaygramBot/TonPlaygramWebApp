@@ -4,6 +4,7 @@ import {housingProfile} from '../tirana-east/housingCore.mjs';
 import {buildingGround} from '../tirana-east/terrainCore.mjs';
 import * as T from 'three';
 import {CellWorkQueue} from './cellWorkQueue.mjs';
+import {installFacadePhotomaterials} from './facadePhotomaterials';
 import {appendBuildingShell,shellGeometry} from './buildingShell';
 import {sourceBuildingColour,windowRows} from './buildingAppearance';
 import {EnvironmentMaterials} from '../tirana-environment/EnvironmentMaterials';
@@ -29,7 +30,9 @@ export class MappedBuildingCells {
  private jobs=new CellWorkQueue();private viewer={x:Infinity,z:Infinity};private battery?:boolean;private dead=false;
  private finish:EnvironmentMaterials;
  private roof:T.MeshStandardMaterial;
- constructor(buildings:any[],private wall:T.MeshStandardMaterial,private glass:T.MeshStandardMaterial,private aged:boolean,loadTextures=true){
+ private facadeAtlas?: ReturnType<typeof installFacadePhotomaterials>;
+ constructor(buildings:any[],private wall:T.MeshStandardMaterial,private glass:T.MeshStandardMaterial,private aged:boolean,loadTextures=true,private photoFacades=false){
+  if(photoFacades&&loadTextures)this.facadeAtlas=installFacadePhotomaterials(this.wall);
   this.finish=new EnvironmentMaterials(loadTextures);this.roof=this.finish.create('rough_concrete',0xa5a396);
   buildings=buildings.map(b=>{const estimate=ROOFTOP_HEIGHT_ESTIMATES[b.id as keyof typeof ROOFTOP_HEIGHT_ESTIMATES];return estimate?{...b,h:estimate.height,visualHeightSource:estimate.source,heightBasis:estimate.basis}:b;});
   const mapped=buildings.filter(b=>!DEDICATED_ACCESS_BUILDING_IDS.has(String(b.id)));
@@ -59,11 +62,11 @@ export class MappedBuildingCells {
    // Bound both source work and the final geometry allocation. Publish the
    // district atomically so a courtyard or straddling block is never cut off.
    for(let start=0;start<d.buildings.length;start+=128){
-    const positions:number[]=[],colors:number[]=[];
+    const positions:number[]=[],colors:number[]=[],facades=this.photoFacades?[]:undefined;
     for(let i=start;i<Math.min(start+128,d.buildings.length);i++){
-     appendBuildingShell(d.buildings[i],positions,colors);if((i-start)%8===7)yield;
+     appendBuildingShell(d.buildings[i],positions,colors,facades);if((i-start)%8===7)yield;
     }
-    const mesh=new T.Mesh(shellGeometry(positions,colors),this.wall);mesh.receiveShadow=true;root.add(mesh);yield;
+    const mesh=new T.Mesh(shellGeometry(positions,colors,facades),this.wall);mesh.receiveShadow=true;root.add(mesh);yield;
    }
    d.root=root;root.visible=this.selectedDistricts.has(d);this.group.add(root);this.districtCache.add(d);this.trimDistrictCache();
   }finally{if(d.root!==root)this.release(root);}
@@ -102,6 +105,7 @@ export class MappedBuildingCells {
     const shade=Math.abs(normal.getY(i))>.5?.72:.84+.16*Math.min(1,(pos.getY(i)-(b.minHeight||0))/2.2);
     colors[i*3]=color.r*shade;colors[i*3+1]=color.g*shade;colors[i*3+2]=color.b*shade;
    }
+   if(this.photoFacades)geo.setAttribute('cityFacadeClass',new T.Uint8BufferAttribute(new Uint8Array(pos.count),1));
    geo.setAttribute('color',new T.BufferAttribute(colors,3));shells.push(geo);
    }
    // Finish the existing authored shell height without changing source metadata.
@@ -183,5 +187,5 @@ export class MappedBuildingCells {
    ready:loadedDistricts===this.selectedDistricts.size,radius:SHELL_RADIUS};
  }
  private release(root:T.Group){root.traverse(o=>{if(o instanceof T.Mesh)o.geometry.dispose();});root.clear();root.removeFromParent();}
- dispose(){if(this.dead)return;this.dead=true;this.districtJobs.dispose();this.jobs.dispose();this.finish.dispose();for(const d of this.districtCache)this.releaseDistrict(d);this.districts=[];this.selectedDistricts.clear();for(const b of this.buckets)if(b.root)this.release(b.root);this.buckets=[];for(const root of this.dedicatedRoots)this.release(root);this.dedicatedRoots=[];this.group.removeFromParent();}
+ dispose(){if(this.dead)return;this.dead=true;this.facadeAtlas?.dispose();this.districtJobs.dispose();this.jobs.dispose();this.finish.dispose();for(const d of this.districtCache)this.releaseDistrict(d);this.districts=[];this.selectedDistricts.clear();for(const b of this.buckets)if(b.root)this.release(b.root);this.buckets=[];for(const root of this.dedicatedRoots)this.release(root);this.dedicatedRoots=[];this.group.removeFromParent();}
 }
