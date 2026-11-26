@@ -1,6 +1,7 @@
 import {aliDemiFurnitureVisible, buildAliDemiFurniture} from './aliDemiFurniture.mjs';
 import { addClockPortalPhoto } from './clockPortalPhoto';
 import { loadSoloFacadeTextures } from './soloFacadeTextures';
+import { installTheatrePlasterPhoto } from './theatrePlasterPhoto';
 import {LocalShadowBudget} from './LocalShadowBudget';
 import {updateNavigationLine,navigationLineEnd} from './NavigationLine';
 import {renderPixelRatio} from './renderSettings';
@@ -134,6 +135,7 @@ export class CityRenderer {
   private lastTarget = new THREE.Vector3(SPAWN.x, 0, SPAWN.z);
   private landmarkText: THREE.Sprite[] = [];
   readonly referenceFacades = new ReferenceFacades();
+  private releaseTheatrePlaster?: () => void;
   readonly agedHousing = new AgedHousingLayer();
   private treePoints: Point[] = [];
   private mappedTreeCells: {group: THREE.Group; x:number; z:number}[] = [];
@@ -829,6 +831,15 @@ export class CityRenderer {
         maxAnisotropy: this.renderer.capabilities.getMaxAnisotropy(),
         isDisposed: () => this.disposed,
       });
+      // Keep this optional material local to the solo model and independent of readiness.
+      void installTheatrePlasterPhoto({
+        root: this.referenceFacades.group,
+        isDisposed: () => this.disposed,
+        maxAnisotropy: this.renderer.capabilities.getMaxAnisotropy()
+      }).then(release => {
+        if (this.disposed) release?.();
+        else if (release) this.releaseTheatrePlaster = release;
+      }).catch(error => { if (!this.disposed) console.warn('Theatre plaster photo unavailable', error); });
       // Keep the shared GLB source attached invisibly so all geometries/textures are disposed.
       city.scene.visible = false;
       this.scene.add(city.scene);
@@ -1368,6 +1379,7 @@ export class CityRenderer {
     this.bikeFleet.dispose();
     this.disposed = true;
     this.playerAbort?.abort();
+    this.releaseTheatrePlaster?.();
     this.referenceFacades.dispose();
     this.skanderbegBuilding.dispose();
     this.agedHousing.dispose();
