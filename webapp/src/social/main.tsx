@@ -3,7 +3,6 @@ import ReactDOM from 'react-dom/client';
 import SocialApp from './SocialApp';
 import { initializeSocialInstall } from './install';
 import './social-base.css';
-import '../pages/messages.css';
 
 initializeSocialInstall();
 (window as any).Telegram?.WebApp?.ready?.();
