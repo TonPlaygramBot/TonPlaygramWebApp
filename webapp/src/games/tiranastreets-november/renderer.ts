@@ -52,7 +52,7 @@ export class CityRenderer extends BaseCityRenderer {
     this.weaponStore=new WeaponStoreInterior();
     this.scene.add(this.buses.group,this.cityStores.group);
     const recreation = aliDemiSurfaces(WORLD.origin);
-    this.cityDetails=attachEnhancements(this.scene,undefined,{stableParkSurfaces:true, supplementalTrees:SOLO_STREET_TREE_INFILL, photoFacades:true,
+    this.cityDetails=attachEnhancements(this.scene,undefined,{stableParkSurfaces:true, supplementalTrees:SOLO_STREET_TREE_INFILL, photoFacades:true, cullFarTrees:true,bridgeCloseTreeDetail:true,compactTreeTransfer:true,
       soloSignals:{fixtures:SOLO_SIGNAL_FIXTURES,phaseAt:phaseForSoloSignal},mapTree:withVerifiedTreeMetadata},{
       ...WORLD, parks:[...WORLD.parks, recreation.park],
       areas:[...WORLD.areas, recreation.skate, ...recreation.pitches]
