@@ -8,7 +8,7 @@ import {CANOPY_TREES} from './canopyRegistry.mjs';
 import {nearbyIndex} from './streetModels.mjs';
 import {ribbonExclusion} from '../tirana-street-detail/roadDetailCore.mjs';
 import type {StreetDetailOptions} from '../tirana-street-detail/StreetDetailLayer';
-export type TreeLayerOptions=StreetDetailOptions & {cullFarTrees?:boolean};
+export type TreeLayerOptions=StreetDetailOptions & {cullFarTrees?:boolean; bridgeCloseTreeDetail?:boolean};
 type Tree={y?:number;id:string;x:number;z:number;shape:string;height:number;crown:number;seed:number;zone:string};
 const hash=(n:number)=>{const x=Math.sin(n*127.1+311.7)*43758.5453;return x-Math.floor(x);};
 type Batch={shape:string;lod:number;wood:T.InstancedMesh;leaves:T.InstancedMesh};
@@ -26,9 +26,9 @@ export class MatureTreeLayer {
  private viewer={x:Infinity,z:Infinity};private battery?:boolean;
  private cameraMatrix=new T.Matrix4();private cameraProjection=new T.Matrix4();
  private frustum=new T.Frustum();private projection=new T.Matrix4();private treeBounds=new T.Sphere();
- private cullFarTrees:boolean;
+ private cullFarTrees:boolean;private bridgeCloseTreeDetail:boolean;
  constructor(trees:Tree[]=CANOPY_TREES,options:TreeLayerOptions={}){
-  this.cullFarTrees=!!options.cullFarTrees;
+  this.cullFarTrees=!!options.cullFarTrees;this.bridgeCloseTreeDetail=!!options.bridgeCloseTreeDetail;
   this.group.name='Tirana:mature-boulevard-and-square-trees';this.group.add(this.imported.group,this.mediumImported.group);
   const blocked=options.track?ribbonExclusion(options.track):null;
   const eligible=trees.filter(t=>pointInUrbanBounds(t,Math.max(1,t.crown/2))&&(!blocked||!blocked(t.x,t.z,Math.max(.8,t.crown*.75))));this.near=nearbyIndex(eligible.map(t=>({...t,y:groundHeight(t.x,t.z)+.12})));
@@ -76,7 +76,7 @@ export class MatureTreeLayer {
   // Spend the existing original-model budget on what is visible on the phone.
   // Trees behind the camera must not force visible broadleaf trees to use the
   // generated canopy; cypress/upright profiles keep their existing proportions.
-  const originalIds=new Set<string>(),nextMediumIds=new Set<string>();
+  const originalIds=new Set<string>(),nextMediumIds=new Set<string>();let bridged=0;
   for(const t of trees){
    if(Math.hypot(t.x-viewer.x,t.z-viewer.z)>=(battery?75:125)||!['garden','umbrella'].includes(t.shape))continue;
    if(camera){
@@ -93,7 +93,13 @@ export class MatureTreeLayer {
    if(useMedium&&this.mediumImported.add(t,battery)){
     originalIds.add(t.id);nextMediumIds.add(t.id);
    }else{
-    this.imported.request();if(this.imported.add(t,battery))originalIds.add(t.id);
+    this.imported.request();
+    if(this.imported.add(t,battery))originalIds.add(t.id);
+    // Reuse a medium canopy already in memory. Do not start another download
+    // or mark it as preferred medium: promote immediately when close is ready.
+    else if(this.bridgeCloseTreeDetail&&!useMedium&&!this.imported.ready&&this.mediumImported.add(t,battery)){
+     originalIds.add(t.id);bridged++;
+    }
    }
   }
   for(const t of trees){
@@ -118,6 +124,7 @@ export class MatureTreeLayer {
   this.imported.end();this.mediumImported.end();this.mediumIds=nextMediumIds;
   this.group.userData.importedTrunks=originalIds.size;
   this.group.userData.mediumImportedTrunks=nextMediumIds.size;
+   this.group.userData.bridgedCloseTrunks=bridged;
   this.group.userData.importedRadius=battery?75:125;
   this.group.userData.visibleTrunks=trees.length-culled;this.group.userData.frustumCulledTrunks=culled;this.group.userData.radius=2200;
   this.batches.forEach(b=>{b.wood.instanceMatrix.needsUpdate=true;b.leaves.instanceMatrix.needsUpdate=true;if(b.leaves.instanceColor)b.leaves.instanceColor.needsUpdate=true;});
