@@ -1,0 +1,170 @@
+{
+  "schemaVersion": 1,
+  "scope": "Source-linked Tirana development research only; does not create game assets or render geometry.",
+  "records": [
+    {
+      "id": "tirana-ali-demi-park",
+      "label": "Parku Ali Demi",
+      "stage": "built",
+      "stageDate": null,
+      "legalStatus": "not_assessed",
+      "location": {
+        "kind": "mapped_existing_feature",
+        "name": "Njësia Administrative Nr. 1, Tirana",
+        "featureRef": "https://www.openstreetmap.org/way/248993659",
+        "coordinates": null,
+        "crs": null
+      },
+      "sources": [
+        {
+          "authority": "Bashkia Tiranë",
+          "kind": "official_existing_feature",
+          "url": "https://tirana.al/njesia-administrative/njesia-nr-1/info",
+          "detail": "Lists the park as a public space in use, with playgrounds and benches."
+        },
+        {
+          "authority": "OpenStreetMap contributors",
+          "kind": "location_cross_reference",
+          "url": "https://www.openstreetmap.org/way/248993659",
+          "detail": "Existing park boundary, ODbL; use the retained mapped area, not a guessed centre point."
+        }
+      ],
+      "limitations": [
+        "Confirms existing park, not an opening date, date of renovation, or design of each fixture."
+      ]
+    },
+    {
+      "id": "tirana-dritan-hoxha-urbalb",
+      "label": "Dritan Hoxha residential and service development",
+      "stage": "observed_construction",
+      "stageDate": null,
+      "legalStatus": "approved_amendment",
+      "location": {
+        "kind": "cadastral_parcel_reference",
+        "name": "Rruga Dritan Hoxha, near Sheshi Rilindja",
+        "coordinates": null,
+        "crs": null,
+        "cadastralZone": "8310",
+        "parcels": [
+          "6/424",
+          "6/1229",
+          "6/1232",
+          "6/1273",
+          "6/1535",
+          "6/1536",
+          "6/1542",
+          "6/1553",
+          "6/1554"
+        ]
+      },
+      "approvedDesign": {
+        "aboveGroundStoreysMinimum": 2,
+        "aboveGroundStoreysMaximum": 34,
+        "basementStoreys": 4,
+        "maximumHeightM": 122,
+        "footprintM2": 2662
+      },
+      "sources": [
+        {
+          "authority": "KKTU / AZHT",
+          "kind": "signed_decision",
+          "date": "2025-01-28",
+          "url": "https://azht.gov.al/wp-content/uploads/2025/07/Vendimi-nr.22-date-28.01.2025.pdf",
+          "detail": "Decision No. 22 amended the earlier approved project; not a completion record."
+        },
+        {
+          "authority": "KKTU / AZHT",
+          "kind": "official_construction_documentation",
+          "url": "https://azht.gov.al/wp-content/uploads/2025/07/Dokumenti-i-rregullores-se-vecanteVendimi-nr.22-date-28.01.2025_compressed.pdf",
+          "detail": "Documents the organized construction site and site photographs, and cites original permit 215/17 Prot., 2023-11-03. Record date refers to the decision, not the photo capture date."
+        },
+        {
+          "authority": "KKTU / AZHT",
+          "kind": "official_site_plan",
+          "url": "https://azht.gov.al/wp-content/uploads/2025/07/HARTA-E-PLANVENDOSJESVendimi-nr.22-date-28.01.2025.pdf",
+          "detail": "Replacement site plan. Technical indicators identify nine cadastral parcels in zone 8310; neither a readable geographic XY table nor a coordinate reference system was verified."
+        }
+      ],
+      "limitations": [
+        "Construction was documented at the time of the regulatory file; no as-built proof or current progress date was verified.",
+        "Do not substitute Sheshi Rilindja’s centre or the street centreline for the development site.",
+        "Use cadastral matching for spatial reference; design quantities are not as-built measurements."
+      ]
+    },
+    {
+      "id": "tirana-hamdi-sina-mema",
+      "label": "Hamdi Sina residential and service development",
+      "stage": "conditionally_approved",
+      "stageDate": "2025-03-26",
+      "legalStatus": "conditional_approval",
+      "location": {
+        "kind": "cadastral_parcel_reference",
+        "name": "Rruga Hamdi Sina, near Liqeni i Thatë",
+        "cadastralZone": "3266",
+        "parcel": "105/16/2",
+        "coordinates": null,
+        "crs": null
+      },
+      "approvedDesign": {
+        "aboveGroundStoreyVolumes": [
+          3,
+          5,
+          6
+        ],
+        "basementStoreys": 2,
+        "maximumHeightM": 23.62,
+        "footprintM2": 330
+      },
+      "sources": [
+        {
+          "authority": "KKTU / AZHT",
+          "kind": "signed_decision",
+          "date": "2025-03-26",
+          "url": "https://azht.gov.al/wp-content/uploads/2026/01/VENDIM-NR-43-DATE-26.03.2025.pdf",
+          "detail": "Conditional approval, replacing prior decision 19 of 2024-10-04. The permit document is issued after paperwork and infrastructure tax conditions are met."
+        },
+        {
+          "authority": "KKTU / AZHT",
+          "kind": "official_site_plan",
+          "date": "2025-03-26",
+          "url": "https://azht.gov.al/wp-content/uploads/2026/01/HARTA-E-PLANVENDOSJES-VENDIM-NR-43-DATE-26.03.2025.pdf",
+          "detail": "Describes cadastral parcel, footprint, height and designed massing; project renders do not show existing construction."
+        }
+      ],
+      "limitations": [
+        "Official parcel reference is not a geographic coordinate; match parcel in an authorized cadastral export to derive geometry.",
+        "Issuance, start and completion were not verified."
+      ]
+    },
+    {
+      "id": "tirana-petro-nini-luarasi-msa",
+      "label": "Petro Nini Luarasi residential and service proposal",
+      "stage": "agenda_only",
+      "stageDate": "2026-03-30",
+      "legalStatus": "unverified_outcome",
+      "location": {
+        "kind": "street_only",
+        "name": "Rruga Petro Nini Luarasi",
+        "coordinates": null,
+        "crs": null
+      },
+      "proposedDesign": {
+        "aboveGroundStoreysMaximum": 21,
+        "basementStoreys": 3
+      },
+      "sources": [
+        {
+          "authority": "KKTU / AZHT",
+          "kind": "meeting_agenda",
+          "date": "2026-03-30",
+          "url": "https://azht.gov.al/wp-content/uploads/2026/05/Rend-Dite-KKTU.pdf",
+          "detail": "Item 70, MSA Konstruksion. The file URL month is not the meeting date."
+        }
+      ],
+      "limitations": [
+        "No signed outcome, exact parcel or construction evidence verified.",
+        "The project must not be treated as existing or assigned an invented map pin."
+      ]
+    }
+  ]
+}

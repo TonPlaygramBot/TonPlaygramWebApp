@@ -9,9 +9,10 @@ function load(file,deps={},globals={}){
 
 const settle=()=>new Promise(resolve=>setImmediate(resolve));
 
-test('portrait canopy spends original glTF slots on visible trees and refreshes when turning in place',()=>{
+test('portrait canopy spends original glTF slots on visible trees and refreshes when turning in place',async()=>{
+ const policy=await import('../webapp/src/games/tirana-street-life/treeLodPolicy.mjs');
  const {MatureTreeLayer}=load('../tirana-street-life/MatureTreeLayer.ts',{
-  three:T,'./ImportedTreeLayer':{},'../tiranastreets/shared/urbanBounds.mjs':{},'../tirana-east/terrainCore.mjs':{},
+  three:T,'./treeLodPolicy.mjs':policy,'./ImportedTreeLayer':{},'../tiranastreets/shared/urbanBounds.mjs':{},'../tirana-east/terrainCore.mjs':{},
   'three/examples/jsm/utils/BufferGeometryUtils.js':{},'./canopyRegistry.mjs':{},'./streetModels.mjs':{},'../tirana-street-detail/roadDetailCore.mjs':{}
  });
  const tree=(id,z,shape='garden')=>({id,x:0,y:.12,z,shape,height:10,crown:8,seed:1,zone:'test'});
@@ -20,7 +21,7 @@ test('portrait canopy spends original glTF slots on visible trees and refreshes 
  const imported={ready:true,group:new T.Group(),accepted:[],request(){},begin(){this.accepted=[];},add(t,battery){if(this.accepted.length>=(battery?3:8))return false;this.accepted.push(t.id);return true;},end(){this.group.userData.visibleTrees=this.accepted.length;}};
  const batches=[];
  for(const shape of ['garden','column'])for(const lod of [0,1,2])batches.push({shape,lod,wood:new T.InstancedMesh(new T.BoxGeometry(),new T.MeshStandardMaterial(),20),leaves:new T.InstancedMesh(new T.BoxGeometry(),new T.MeshStandardMaterial(),20)});
- const layer=Object.assign(Object.create(MatureTreeLayer.prototype),{group,dead:false,last:-Infinity,imported,importedReady:true,near:()=>trees,batches,dummy:new T.Object3D(),color:new T.Color(),viewer:{x:Infinity,z:Infinity},cameraMatrix:new T.Matrix4(),cameraProjection:new T.Matrix4(),frustum:new T.Frustum(),projection:new T.Matrix4(),treeBounds:new T.Sphere()});
+ const layer=Object.assign(Object.create(MatureTreeLayer.prototype),{group,dead:false,last:-Infinity,imported,importedReady:true,mediumReady:false,mediumIds:new Set(),mediumImported:{ready:false,request(){},begin(){},add(){return false},end(){}},near:()=>trees,batches,dummy:new T.Object3D(),color:new T.Color(),viewer:{x:Infinity,z:Infinity},cameraMatrix:new T.Matrix4(),cameraProjection:new T.Matrix4(),frustum:new T.Frustum(),projection:new T.Matrix4(),treeBounds:new T.Sphere()});
  const camera=new T.PerspectiveCamera(55,9/16,.1,2000);camera.position.set(-800,5,-400);camera.lookAt(-800,5,-500);
  layer.update(0,{x:0,z:0},false,false,camera);
  assert.deepEqual(imported.accepted,['front'],'behind-camera trees cannot consume the original-model budget');

@@ -4,6 +4,8 @@ export type WalkingView = 'shoulder' | 'wide' | 'eyes';
 export type DrivingView = 'chase' | 'wide' | 'cockpit';
 type Point = { x: number; y: number; z: number };
 type Cast = (origin: Point, direction: Point, distance: number) => number;
+const PROBE_OFFSETS = [[0, 0], [-1, -1], [-1, 1], [1, -1], [1, 1]] as const;
+const PROBE_PADDING = .12;
 
 /** A damped orbit with an immediate inward collision response. Rays cover the
  * near-plane edges, not just the eye, so portrait framing stays clear of walls.
@@ -48,10 +50,14 @@ export class FollowCamera {
     const requested = this.direction.length();
     this.direction.normalize();
     this.up.crossVectors(this.direction, this.right).normalize();
-    const halfHeight = Math.tan(camera.fov * Math.PI / 360) * camera.near + .12;
-    const halfWidth = halfHeight * Math.max(1, camera.aspect);
+    const projectionHalfHeight = Math.tan(camera.fov * Math.PI / 360) * camera.near;
+    const halfHeight = projectionHalfHeight + PROBE_PADDING;
+    // The near-plane is narrower in portrait, but clearance in metres is not.
+    // Reusing a square footprint snapped the chase view beside posts that
+    // never entered the mobile camera's frustum.
+    const halfWidth = projectionHalfHeight * camera.aspect + PROBE_PADDING;
     let safe = requested;
-    for (const [x, y] of [[0, 0], [-1, -1], [-1, 1], [1, -1], [1, 1]]) {
+    for (const [x, y] of PROBE_OFFSETS) {
       this.origin.copy(this.anchor).addScaledVector(this.right, x * halfWidth).addScaledVector(this.up, y * halfHeight);
       const hit = o.cast(this.origin, this.direction, requested);
       if (Number.isFinite(hit) && hit < requested) safe = Math.min(safe, Math.max(0, hit - .2));

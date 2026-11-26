@@ -11,9 +11,13 @@ export class CityInput {
     window.addEventListener("blur", this.clear);
     document.addEventListener("visibilitychange", this.visibility);
   }
+  /** Some hosts have focusable HUD controls with native Space activation. */
+  protected reservesSpaceForUi(_event: KeyboardEvent) { return false; }
+
   private down = (e: KeyboardEvent) => {
     if (
       !this.enabled ||
+      this.reservesSpaceForUi(e) ||
       e.target instanceof HTMLInputElement ||
       e.target instanceof HTMLSelectElement
     )

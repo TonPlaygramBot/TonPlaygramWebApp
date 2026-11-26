@@ -3,6 +3,7 @@ import {humanoidBoneGroups,solveHumanoidLimb} from './humanoidRig.mjs';
 import {npcWeaponPose} from '../shared/npcWeaponPose.mjs';
 import {sampleHumanoidMotion} from './humanoidMotions.mjs';
 import {poseHumanoidHandGrip} from './humanoidHands.mjs';
+import {ambientGlance,ambientIdlePhase,plainCivilianIdle} from './ambientIdle.mjs';
 
 const clamp=T.MathUtils.clamp;
 const alreadyReset=()=>{};
@@ -16,9 +17,11 @@ export function locomotionClips(clips){
 /** Keep authored clips on their own skeleton. Unanimated avatars use measured
  * limb lengths and world-space IK, never guessed local bone rotation axes. */
 export class HumanoidAnimation {
-  constructor(root,model,clips=[]) {
+  constructor(root,model,clips=[],ambientSeed=0) {
     this.root=root;this.model=model;this.clips=clips;this.mixer=new T.AnimationMixer(model);
     this.motion='';this.action=undefined;this.gait=0;this.locomotion=locomotionClips(clips);this.running=false;
+    this.ambientSeed=ambientSeed>>>0;this.ambientPhase=ambientIdlePhase(ambientSeed);
+    this.glanceYaw=0;this.glanceRotation=new T.Quaternion();
     this.rests=new Map();
     model.traverse(bone=>{if(bone.isBone)this.rests.set(bone,{q:bone.quaternion.clone(),p:bone.position.clone(),s:bone.scale.clone()});});
     root.updateMatrixWorld(true);
@@ -37,7 +40,9 @@ export class HumanoidAnimation {
           const bone=bones.get(`${side}hand${finger}${segment}`);if(bone)gripJoints.set(`finger${i+1}-${segment}.${letter}`,{bone});
         }
       }
-      return {bones,hips,feet,hands,handTargets:new Map(),footTarget:new T.Vector3(),handTarget:new T.Vector3(),offset:new T.Vector3(),hipTarget:new T.Vector3(),gripJoint:name=>gripJoints.get(name)};
+      const head=bones.get('head');
+      const glanceAxis=head?new T.Vector3(0,1,0).applyQuaternion(head.getWorldQuaternion(new T.Quaternion()).invert()):undefined;
+      return {bones,hips,feet,hands,head,glanceAxis,handTargets:new Map(),footTarget:new T.Vector3(),handTarget:new T.Vector3(),offset:new T.Vector3(),hipTarget:new T.Vector3(),gripJoint:name=>gripJoints.get(name)};
     });
   }
 
@@ -53,12 +58,14 @@ export class HumanoidAnimation {
     // Hysteresis avoids rapid walk/run restarts near the transition speed.
     this.running=moving&&(n.anim==='run'||speed>(this.running?2.6:3.2));
     const running=this.running,base=moving?(running?'run':'walk'):'idle';
+    const ambient=plainCivilianIdle(n);
+    this.glanceYaw=ambient?T.MathUtils.damp(this.glanceYaw,moving?0:ambientGlance(this.ambientSeed,time),10,dt):0;
     // Aim, reload and hit are upper-body layers; locomotion continues underneath.
     const clip=!cycle&&!cover&&(this.locomotion[base]||(running?this.locomotion.walk:undefined));
     const motion=clip?clip.name:'procedural';
     if(this.motion!==motion){
       if(clip){
-        const previous=this.action,phase=previous&&moving?previous.time/previous.getClip().duration:0;
+        const previous=this.action,phase=previous&&moving?previous.time/previous.getClip().duration:ambient&&!moving?this.ambientPhase:0;
         previous?.fadeOut(.2);
         this.action=this.mixer.clipAction(clip).reset();
         // Retain the planted foot through walk/run blends instead of resetting
@@ -82,6 +89,9 @@ export class HumanoidAnimation {
     const recoil=clamp(1-(time-(n.firedAt??-10))/.18,0,1),reload=n.anim==='reload';
     const grips=n.weapon?npcWeaponPose(n):undefined;
     for(const rig of this.rigs){
+      if(rig.head&&Math.abs(this.glanceYaw)>1e-5){
+        rig.head.quaternion.multiply(this.glanceRotation.setFromAxisAngle(rig.glanceAxis,this.glanceYaw));
+      }
       if(clip&&rig.hips){
         // Root motion belongs to the simulation, not to an imported walk track.
         const hips=rig.bones.get('hips'),at=this.root.worldToLocal(hips.getWorldPosition(rig.hipTarget));
@@ -107,7 +117,7 @@ export class HumanoidAnimation {
         const swing=this.gait+(side==='left'?Math.PI:0),hand=rig.handTarget.copy(arm.shoulder);
         hand.y-=arm.length*.92;hand.z+=.06+Math.sin(swing)*stride*.7;
         hand.x+=(side==='left'?1:-1)*.025;
-        sampleHumanoidMotion(authored,moving?phase:time/2.5,side+'hand',hand);
+        sampleHumanoidMotion(authored,moving?phase:time/2.5+(ambient?this.ambientPhase:0),side+'hand',hand);
         // Source jogging shoulders rotate with its torso. Retain that stride
         // without pushing narrower target forearms sideways away from the body.
         if(running&&!grips)hand.x=arm.shoulder.x+(side==='left'?1:-1)*.035;
