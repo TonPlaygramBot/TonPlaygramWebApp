@@ -29,6 +29,7 @@ import {
 import { captureCheckpoint, restoreCheckpoint, capturePickupState, restorePickupState, rollbackPickupState } from './checkpointCore.mjs';
 import { loadSettings, type StreetSettings } from './settings';
 import {FramePacer} from '../renderSettings';
+import {PausedRenderBudget} from './pausedRenderBudget.mjs';
 import {fixedStepBudget} from '../shared/frameBudget.mjs';
 import {WORLD} from '../shared/world.mjs';
 import {buildMapGraph,findMapRoute} from '../map/mapCore.mjs';
@@ -64,6 +65,7 @@ export type StreetView = {
  * its optional player adapter supplies this mode's full-body 3D rules. */
 export class StreetCareerRuntime {
   private renderPacer = new FramePacer();
+  private pausedRenderBudget = new PausedRenderBudget();
   private renderDelta = 0;
   readonly renderer: StreetRenderer;
   readonly input: StreetInput;
@@ -203,6 +205,7 @@ export class StreetCareerRuntime {
   };
   private visibility = () => {
     if (document.hidden) this.blur();
+    else this.pausedRenderBudget.invalidate(performance.now());
   };
   private contextLost = (e: Event) => {
     e.preventDefault();
@@ -322,6 +325,7 @@ export class StreetCareerRuntime {
   }
   pause() {
     if (this.disposed) return;
+    if (!this.paused) this.pausedRenderBudget.invalidate(performance.now());
     this.paused = true;
     this.input.setEnabled(false);
     this.simulation.pause();
@@ -332,6 +336,7 @@ export class StreetCareerRuntime {
     this.emit();
   }
   setSettings(patch: Partial<StreetSettings>) {
+    if (this.paused) this.pausedRenderBudget.invalidate(performance.now());
     this.settings = loadSettings({getItem:()=>JSON.stringify({...this.settings,...patch})});
     if (patch.quality) this.renderer.setQuality(this.settings.quality);
     this.renderer.targetFps = this.settings.targetFps;
@@ -409,6 +414,7 @@ export class StreetCareerRuntime {
       const item=action.startsWith('buy:')?action.slice(4):'';
       if(WEAPON_BY_ID.has(item)&&!this.state.players.local.inventory[item])return false;
       interact(this.state, 'local', action);
+      if (this.paused) this.pausedRenderBudget.invalidate(performance.now());
       this.simulation.body.combat = this.state.players.local.weapon
         ? 'ready'
         : 'unarmed';
@@ -510,11 +516,15 @@ export class StreetCareerRuntime {
       }
     }
     this.renderDelta = Math.min(.15, this.renderDelta + dt);
-    // The loading overlay covers the scene. Drawing it early starts optional NPC,
-    // vehicle and landmark work before the selected body/weapon can finish loading.
-    if (this.ready && !document.hidden && !this.graphicsError && this.renderPacer.shouldRender(now, this.paused ? 15 : this.settings.targetFps)) {
-      this.renderer.render(this.state, 'local', this.paused ? 0 : this.renderDelta, false);
-      this.renderDelta = 0;
+    if (this.ready && !document.hidden && !this.graphicsError) {
+      const canvas = this.renderer.renderer.domElement;
+      const fps = this.paused
+        ? this.pausedRenderBudget.rate(now, canvas.width, canvas.height)
+        : this.settings.targetFps;
+      if (this.renderPacer.shouldRender(now, fps)) {
+        this.renderer.render(this.state, 'local', this.paused ? 0 : this.renderDelta, false);
+        this.renderDelta = 0;
+      }
     }
     if (now - this.saveAt > 5000) {
       this.persist();
