@@ -1,0 +1,19 @@
+import type {StreetSimulation} from './StreetSimulation.mjs';
+import type {Aircraft,Point} from '../shared/engine.mjs';
+export const SQUARE_AIRCRAFT_PADS:Readonly<{jet:Point;helicopter:Point}>;
+export class FlightSimulation {
+ constructor(sim:StreetSimulation);
+ aircraft:Aircraft[];
+ view:'pilot'|'chase';
+ lock:{enabled:boolean;targetId:string|null;progress:number;label:string;distance:number};
+ readonly current:Aircraft|undefined;
+ access(a:Aircraft):Point&{y:number};
+ board(id:string):boolean;
+ canExit():boolean;
+ exit():boolean;
+ step(dt:number):void;
+ assist(action:string):boolean;
+ toggleLock():boolean;
+ clearLock():void;
+ objective():{title:string;detail:string;training:boolean}|null;
+}

@@ -1,0 +1,7 @@
+/* Optical view is the live scene, centered on the same camera ray as hit tests. */
+.optical-sight{position:absolute;inset:0;pointer-events:none;z-index:2;display:grid;place-items:center;overflow:hidden}
+.optical-sight-lens{width:min(80vw,68vh);aspect-ratio:1;border:5px solid #111a;box-shadow:0 0 0 120vmax #05080bea,inset 0 0 16px #111b;border-radius:50%;position:relative;overflow:hidden}
+.optical-sight-lens i,.optical-sight-lens b{position:absolute;background:#10131be6}
+.optical-sight-lens i{height:1px;left:0;right:0;top:50%}
+.optical-sight-lens b{width:1px;top:0;bottom:0;left:50%}
+.optical-sight>span{position:absolute;top:calc(50% + min(40vw,34vh) + 8px);color:white;font-size:12px}

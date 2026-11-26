@@ -1,0 +1,14 @@
+import type {Mission,Player,State} from '../shared/engine.mjs';
+export type Loadout={cash:number;weapon:string;inventory:Record<string,{ammo:number;reserve:number}>};
+export type StreetProfile={version:1;worldPickups:import('./checkpointCore.mjs').WorldPickups;economy:import('./CityEconomySimulation.mjs').CityEconomyData;completed:string[];best:Record<string,number>;records:Record<string,{grade:'gold'|'silver'|'bronze';runs:number;integrity:number}>;loadout:Loadout;explore:import('./checkpointCore.mjs').PhaseCheckpoint|null;active:null|{id:string;difficulty:string;checkpoint:Loadout;worldPickups:import('./checkpointCore.mjs').WorldPickups;phase?:import('./checkpointCore.mjs').PhaseCheckpoint}};
+export type StoragePort=Pick<Storage,'getItem'|'setItem'>;
+export const STREET_SAVE_KEY:string;
+export const CHAPTER_IDS:readonly string[];
+export const MISSION_REQUIREMENTS:Readonly<Record<string,readonly string[]>>;
+export function createCampaign(missions:readonly Mission[],weapons:readonly {id:string;magazine:number}[],starter:string):{
+ chapters:readonly Mission[];available(profile:StreetProfile,id:string):boolean;fresh():StreetProfile;normalize(raw:unknown):StreetProfile;
+ begin(raw:StreetProfile,id:string,difficulty?:string):StreetProfile|null;
+ resolve(raw:StreetProfile,state:State,playerId:string):StreetProfile|null;
+ abandon(raw:StreetProfile):StreetProfile;saveExplore(raw:StreetProfile,player:Player):StreetProfile;
+ apply(player:Player,raw:Loadout):void;load(storage?:StoragePort):StreetProfile;save(storage:StoragePort|undefined,p:StreetProfile):boolean;
+};
