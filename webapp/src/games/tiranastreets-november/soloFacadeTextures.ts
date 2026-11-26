@@ -3,11 +3,14 @@ import * as THREE from 'three';
 const assetRoot = '/assets/tirana-streets/environment/';
 
 // Palette order matches CityRenderer.buildBlocks. Existing colours supply
-// warm/cool variation independently of the three shared texture allocations.
+// warm/cool variation independently of the four shared texture allocations.
 const paints = [
   { file: 'solo-myslym-facade-concrete-diff.webp', metres: 4, slots: [0, 2, 5] },
-  { file: 'solo-racing-facade-modern-concrete.jpg', metres: 2.09, slots: [1, 4, 6] },
-  { file: 'solo-racing-facade-light-stucco.jpg', metres: 1.8, slots: [3, 7] }
+  { file: 'solo-racing-facade-modern-concrete.jpg', metres: 2.09, slots: [1, 6] },
+  { file: 'solo-racing-facade-light-stucco.jpg', metres: 1.8, slots: [3, 7] },
+  // Surface-only crop from JoraK's 2018 Durrës/Mihal Duri photo. This is
+  // a representative cool plaster, not a location-specific building wrap.
+  { file: 'solo-durres-photo-blue-plaster.webp', metres: [0.82, 1.75], slots: [4] }
 ] as const;
 
 type FacadeContext = {
@@ -27,9 +30,11 @@ export async function loadSoloFacadeTextures({
     const texture = await load(assetRoot + file);
     if (isDisposed()) { texture.dispose(); return; }
     texture.colorSpace = THREE.SRGBColorSpace;
-    texture.wrapS = texture.wrapT = THREE.RepeatWrapping;
+    texture.wrapS = texture.wrapT = typeof metres === 'number'
+      ? THREE.RepeatWrapping : THREE.MirroredRepeatWrapping;
     // The existing city mesh has one UV repeat per five world metres.
-    texture.repeat.setScalar(5 / metres);
+    if (typeof metres === 'number') texture.repeat.setScalar(5 / metres);
+    else texture.repeat.set(5 / metres[0], 5 / metres[1]);
     texture.anisotropy = Math.max(1, Math.min(4, maxAnisotropy));
 
     const applicable = slots.flatMap(i => materials[i] ? [materials[i]] : []);
