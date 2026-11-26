@@ -1,4 +1,4 @@
-import {lazy,Suspense,useCallback,useEffect,useState} from 'react';
+import {lazy,Suspense,useCallback,useEffect,useRef,useState} from 'react';
 import {PLAYER_CATALOG,playerAssetFor,selectPlayerAsset,selectedPlayerAsset} from './playerCatalog.mjs';
 import type {PreviewState} from './PlayerPreview';
 import {DEFAULT_LOADOUT,STARTING_WEAPON_CHOICES,validStartingLoadout,selectedStartingLoadout,selectStartingLoadout} from './startingLoadout.mjs';
@@ -9,6 +9,8 @@ const PlayerPreview=lazy(()=>import('./PlayerPreview').then(m=>({default:m.Playe
 type Manifest={players:Record<string,unknown>};
 export function PlayerPicker({onStart,onBack}:{onStart:()=>void;onBack:()=>void}) {
   const [step,setStep]=useState<'character'|'weapons'>('character');
+  const scrollArea=useRef<HTMLDivElement>(null);
+  useEffect(()=>{if(scrollArea.current)scrollArea.current.scrollTop=0;},[step]);
   const [loadout,setLoadout]=useState<string[]>(()=>[...(selectedStartingLoadout()||DEFAULT_LOADOUT)]);
   const [message,setMessage]=useState('');
   const [manifest,setManifest]=useState<Manifest>({players:{}});
@@ -32,7 +34,7 @@ export function PlayerPicker({onStart,onBack}:{onStart:()=>void;onBack:()=>void}
   const toggle=(id:string)=>{setMessage('');if(loadout.includes(id))setLoadout(loadout.filter(w=>w!==id));else if(loadout.length<3)setLoadout([...loadout,id]);else setMessage('Remove one selected weapon to choose another.');};
   const start=()=>{if(!ready||!asset||!validStartingLoadout(loadout))return;selectPlayerAsset(asset);selectStartingLoadout(loadout);onStart();};
   return <GameModeBoundary onBack={onBack}><main className="tirana-player-picker" aria-label="Choose your Tirana player">
-    <div className="player-picker-shell">
+    <div ref={scrollArea} className="player-picker-scroll"><div className="player-picker-shell">
       <button className="player-back" onClick={step==='weapons'?()=>setStep('character'):onBack}>← Back</button>
       <p className="player-eyebrow">TIRANA STREETS</p>
       <h1>{step==='character'?'Choose your player':'Choose three weapons'}</h1>
@@ -63,7 +65,9 @@ export function PlayerPicker({onStart,onBack}:{onStart:()=>void;onBack:()=>void}
         </button>;})}</div>
         <details className="player-credits"><summary>Weapon credits</summary><p>Original creator and license details are included with each weapon in the <a href="/assets/tirana-streets/weapons/manifest.json" target="_blank" rel="noreferrer">asset credits</a>.</p></details>
       </section>}
+    </div></div>
+    <footer className="player-picker-footer"><div className="player-picker-shell">
       <button className="player-continue" disabled={!ready||(step==='weapons'&&!validStartingLoadout(loadout))} onClick={step==='character'?()=>setStep('weapons'):start}>{step==='character'?'Next · Choose weapons':`Continue as ${character.label} · ${loadout.length}/3`}</button>
-    </div>
+    </div></footer>
   </main></GameModeBoundary>;
 }

@@ -22,13 +22,12 @@ import { WORLD } from '../tiranastreets/shared/world.mjs';
 import { CIVIC_SITES } from './geography.mjs';
 import {
   StreetDetailLayer,
-  type StreetDetailOptions
 } from '../tirana-street-detail/StreetDetailLayer';
 import { STREET_DETAILS } from '../tirana-street-detail/sharedRoadDetails.mjs';
 import { ParkAttractions } from '../tirana-environment/ParkAttractions';
 import { UrbanLifeLayer } from './UrbanLifeLayer';
 import {StreetLifeLayer} from '../tirana-street-life/StreetLifeLayer';
-import {MatureTreeLayer} from '../tirana-street-life/MatureTreeLayer';
+import {MatureTreeLayer,type TreeLayerOptions} from '../tirana-street-life/MatureTreeLayer';
 import {BuildingBrandLayer} from '../tirana-city-source/BuildingBrandLayer';
 import {BUSINESS_SIGN_BUILDING_IDS} from '../tirana-city-source/businessSignRegistry.mjs';
 import {REAL_STOREFRONT_BUILDING_IDS,FUEL_CANOPY_IDS} from '../tirana-street-life/registry.mjs';
@@ -39,9 +38,10 @@ export {
   DajtiLayer
 } from './BaseWorldEnhancements';
 /** One shared street-detail integration, using the unchanged city metre frame. */
-type EnhancementOptions = StreetDetailOptions & { supplementalTrees?: readonly CanopyTree[]; photoFacades?: boolean; soloSignals?:SoloSignalPresentation; mapTree?:(tree:CanopyTree)=>CanopyTree };
+type EnhancementOptions = TreeLayerOptions & { supplementalTrees?: readonly CanopyTree[]; photoFacades?: boolean; soloSignals?:SoloSignalPresentation; mapTree?:(tree:CanopyTree)=>CanopyTree };
 
 export class WorldEnhancements extends ExistingEnhancements {
+  private readonly cullFarTrees:boolean;
   readonly monuments=new UrbanMonumentLayer();
   readonly dimensionalSigns=new DimensionalSigns();
   readonly regionalArchitecture=new RegionalArchitecture();
@@ -70,6 +70,7 @@ export class WorldEnhancements extends ExistingEnhancements {
   readonly tabakeve: TabakeveQuarterLayer;
   constructor(options: EnhancementOptions = {}, groundWorld: typeof WORLD = WORLD) {
     super(false);
+    this.cullFarTrees=!!options.cullFarTrees;
     this.tradeDetails=new StreetLifeLayer({storefronts:NEIGHBOURHOOD.storefronts.filter(s=>['hairdresser','bakery','cafe','fast_food'].includes(s.shop||s.kind)||/barber|berber|hair/i.test(s.name)),stops:[],fuel:[],advertising:[]} as any,options,false,true);
     this.fuelBrands=new StreetLifeLayer({storefronts:LOCAL_FUEL,stops:[],fuel:[],advertising:[]} as any,options);
     this.attractions=new ParkAttractions(WORLD,options);
@@ -147,7 +148,7 @@ export class WorldEnhancements extends ExistingEnhancements {
     this.streetLife.update(seconds,viewer,battery);
     this.matureTrees.update(seconds,viewer,battery,false,camera);
     this.neighbourhood.update(seconds,viewer,battery);
-    this.cityCompletion.update(seconds,viewer,battery);
+    this.cityCompletion.update(seconds,viewer,battery,this.cullFarTrees?camera:undefined);
     this.facadeCompletion.update(seconds,viewer,battery);
     this.tabakeve.update(seconds,viewer,battery);
     this.monuments.update(viewer,battery);

@@ -31,3 +31,35 @@ test('portrait canopy spends original glTF slots on visible trees and refreshes 
  layer.update(.31,{x:0,z:0},true,false,camera);assert.equal(imported.accepted.length,3);assert.equal(layer.group.userData.importedRadius,75);
  for(const b of batches){b.wood.dispose();b.leaves.dispose();b.wood.geometry.dispose();b.leaves.geometry.dispose();b.wood.material.dispose();b.leaves.material.dispose();}
 });
+
+test('solo canopy culls only distant offscreen fallbacks and refreshes after a quick portrait pan',async()=>{
+ const policy=await import('../webapp/src/games/tirana-street-life/treeLodPolicy.mjs');
+ const {MatureTreeLayer}=load('../tirana-street-life/MatureTreeLayer.ts',{
+  three:T,'./treeLodPolicy.mjs':policy,'./ImportedTreeLayer':{},'../tiranastreets/shared/urbanBounds.mjs':{},'../tirana-east/terrainCore.mjs':{},
+  'three/examples/jsm/utils/BufferGeometryUtils.js':{},'./canopyRegistry.mjs':{},'./streetModels.mjs':{},'../tirana-street-detail/roadDetailCore.mjs':{}
+ });
+ const tree=(id,x,z)=>({id,x,z,y:.12,shape:'umbrella',height:10,crown:8,seed:1,zone:'test'});
+ const trees=[tree('near-behind',0,28),tree('near-front',0,-45),tree('far-front',0,-160),tree('far-behind',0,160),tree('edge',28,-160)];
+ const group=new T.Group();group.position.set(-800,0,-400);
+ const newImported=()=>({ready:false,request(){},begin(){},add(){return false},end(){}});
+ const batches=[0,1,2].map(lod=>({shape:'umbrella',lod,wood:new T.InstancedMesh(new T.BoxGeometry(),new T.MeshStandardMaterial(),10),leaves:new T.InstancedMesh(new T.BoxGeometry(),new T.MeshStandardMaterial(),10)}));
+ const layer=Object.assign(Object.create(MatureTreeLayer.prototype),{cullFarTrees:true,group,dead:false,last:-Infinity,imported:newImported(),mediumImported:newImported(),importedReady:false,mediumReady:false,mediumIds:new Set(),near:()=>trees,batches,dummy:new T.Object3D(),color:new T.Color(),viewer:{x:Infinity,z:Infinity},cameraMatrix:new T.Matrix4(),cameraProjection:new T.Matrix4(),frustum:new T.Frustum(),projection:new T.Matrix4(),treeBounds:new T.Sphere()});
+ const camera=new T.PerspectiveCamera(55,9/16,.1,2000);
+ camera.position.set(-800,5,-400);camera.lookAt(-800,5,-500);
+ layer.update(0,{x:0,z:0},false,false,camera);
+ assert.equal(batches[0].wood.count,2,'near offscreen silhouettes can still cast shadows');
+ const centres=batch=>Array.from({length:batch.wood.count},(_,i)=>{
+  const m=new T.Matrix4();batch.wood.getMatrixAt(i,m);return [m.elements[12],m.elements[14]];
+ });
+ assert.deepEqual(centres(batches[1]),[[0,-160],[28,-160]]);
+ assert.equal(group.userData.frustumCulledTrunks,1);
+ camera.lookAt(-800,5,-300);
+ layer.update(.05,{x:0,z:0},false,false,camera);
+ assert.deepEqual(centres(batches[1]),[[0,160]],'big pan bypasses 200 ms update cadence');
+ assert.equal(batches[0].wood.count,2);
+ assert.equal(group.userData.frustumCulledTrunks,2);
+ layer.cullFarTrees=false;
+ layer.update(.06,{x:0,z:0},false,true,camera);
+ assert.equal(batches[1].wood.count,3,'legacy modes are unchanged');
+ for(const b of batches){b.wood.dispose();b.leaves.dispose();b.wood.geometry.dispose();b.leaves.geometry.dispose();b.wood.material.dispose();b.leaves.material.dispose();}
+});

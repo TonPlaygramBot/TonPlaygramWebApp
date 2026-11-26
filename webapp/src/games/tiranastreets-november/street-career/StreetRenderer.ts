@@ -1,3 +1,4 @@
+import { GameplayFrameStats } from './gameplayFrameStats.mjs';
 import {AliDemiPitchLayer} from './AliDemiPitchLayer';
 import {WORLD} from '../shared/world.mjs';
 import {EquipmentVisuals} from './EquipmentVisuals';
@@ -75,9 +76,9 @@ export class StreetRenderer extends CityRenderer {
   }
   simulation?: StreetSimulation;
   settings: StreetSettings = { ...DEFAULT_SETTINGS };
-  private streetSampleStamp = performance.now();
-  private samples: number[] = [];
-  private metricFrames = 0;
+  private gameplayFrameStats = new GameplayFrameStats();
+  observedFps = 0;
+  suspendGameplayTiming() { this.gameplayFrameStats.suspend(); }
   private lootAt = -Infinity;
   metrics = { p95: 0, drawCalls: 0, triangles: 0, geometries: 0, textures: 0 };
   readonly details: ReturnType<typeof attachEnhancements>;
@@ -311,24 +312,6 @@ export class StreetRenderer extends CityRenderer {
       this.lootAt = refreshLoot;
       this.bodyRig.syncLoot(this.simulation.loot.filter(l=>!l.collected&&(l.x-this.simulation!.player.x)**2+(l.z-this.simulation!.player.z)**2<90**2).sort((a,b)=>((a.x-this.simulation!.player.x)**2+(a.z-this.simulation!.player.z)**2)-((b.x-this.simulation!.player.x)**2+(b.z-this.simulation!.player.z)**2)).slice(0,24), this.simulation.claimed);
     }
-    const stamp = performance.now();
-    const frameTime=stamp-this.streetSampleStamp;
-    if (dt > 0 && frameTime>0 && frameTime<250 && !document.hidden) {
-      this.samples.push(frameTime);
-      if (this.samples.length > 240) this.samples.shift();
-    }
-    this.streetSampleStamp = stamp;
-    const info = this.renderer.info;
-    if (++this.metricFrames % 30 === 0 && this.samples.length) {
-      const sorted = [...this.samples].sort((a, b) => a - b);
-      this.metrics = {
-        p95: Math.round(sorted[Math.floor(sorted.length * 0.95)]),
-        drawCalls: info.render.calls,
-        triangles: info.render.triangles,
-        geometries: info.memory.geometries,
-        textures: info.memory.textures
-      };
-    }
   }
   override render(state: State | null, id: string, dt: number, lobby: boolean) {
     if (this.disposed) return;
@@ -365,6 +348,22 @@ export class StreetRenderer extends CityRenderer {
       dt,
       lobby
     );
+    // Wall time between completed active render calls includes stalls that the
+    // clamped simulation step hides. Pause/lobby/hidden do not enter samples.
+    const sample = this.gameplayFrameStats.record(performance.now(),
+      !!state && dt > 0 && !lobby && !document.hidden && !this.renderer.getContext().isContextLost());
+    if (sample) {
+      this.observedFps = sample.fps;
+      const info = this.renderer.info;
+      this.metrics = {
+        p95: sample.p95,
+        drawCalls: info.render.calls,
+        triangles: info.render.triangles,
+        geometries: info.memory.geometries,
+        textures: info.memory.textures
+      };
+      this.scene.userData.soloFrameTiming = { ...sample, ...this.metrics };
+    }
   }
   override destroy() {
     if (this.disposed) return;
