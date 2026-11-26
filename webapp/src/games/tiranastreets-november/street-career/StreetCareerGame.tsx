@@ -383,6 +383,7 @@ export function StreetCareerGame({ onExit, initialOperation, initialDifficulty='
                       <button aria-pressed={journalPage === 'settings'} onClick={() => setJournalPage('settings')}>SETTINGS</button>
                     </nav>
                     {journalPage === 'settings' && <section aria-label="Graphics and performance">
+                      <a href="/assets/tirana-streets/environment/tirana-clock-portal-credits.html" target="_blank" rel="noopener noreferrer">Tirana photo credits</a>
                       <h3>Graphics & performance</h3>
                       <FrameRateControl value={view.settings.targetFps} onChange={targetFps => runtime.current?.setSettings({targetFps})}/>
                       <GraphicsControl value={view.settings.quality} resolved={runtime.current?.renderer.quality} onChange={quality=>runtime.current?.setSettings({quality})} />
