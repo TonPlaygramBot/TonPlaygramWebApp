@@ -3,10 +3,9 @@ import * as T from 'three';
 import {CITY_COMPLETION,type Fixture} from './data.mjs';
 import type {CanopyTree} from '../tirana-street-life/canopyRegistry.mjs';
 import {bakedParts,bakedMaterial} from './bakedGeometry';
-import {MatureTreeLayer} from '../tirana-street-life/MatureTreeLayer';
+import {MatureTreeLayer,type TreeLayerOptions} from '../tirana-street-life/MatureTreeLayer';
 import {nearbyIndex} from '../tirana-street-life/streetModels.mjs';
 import {ribbonExclusion} from '../tirana-street-detail/roadDetailCore.mjs';
-import type {StreetDetailOptions} from '../tirana-street-detail/StreetDetailLayer';
 type Point={x:number;z:number};
 export type SoloSignalPresentation = {
  fixtures:readonly Fixture[];
@@ -28,7 +27,7 @@ export class CityCompletionLayer {
  private fixtures:Nearby<Fixture>;private bays:Nearby<Point&{yaw:number;w:number;d:number}>;private arrowPoints:Nearby<Point&{yaw:number}>;
  private activeLenses:{id:string;index:number;lit:number}[]=[];
  private selected:Fixture[]=[];private rows=1;private color=new T.Color();
- constructor(options:StreetDetailOptions={},data=CITY_COMPLETION,private readonly controls?:SoloSignalPresentation, readTree?:(tree:CanopyTree)=>CanopyTree){
+ constructor(options:TreeLayerOptions={},data=CITY_COMPLETION,private readonly controls?:SoloSignalPresentation, readTree?:(tree:CanopyTree)=>CanopyTree){
   this.group.name='Tirana:mapped-city-completion';
   const trackExclusion=options.track?ribbonExclusion(options.track):()=>false;
   const exclusion=(x:number,z:number,r:number)=>!pointInUrbanBounds({x,z},r)||trackExclusion(x,z,r);
@@ -80,9 +79,9 @@ export class CityCompletionLayer {
   }
   if(changed&&this.lenses.instanceColor)this.lenses.instanceColor.needsUpdate=true;
  }
- update(seconds:number,viewer?:Point,battery=false){
+ update(seconds:number,viewer?:Point,battery=false,treeCamera?:T.Camera){
   if(this.dead||!viewer)return;
-  this.trees.update(seconds,viewer,battery);
+  this.trees.update(seconds,viewer,battery,false,treeCamera);
   if(seconds>=this.last&&seconds-this.last<.25){this.updateSignalLenses(seconds);return;}this.last=seconds;
   const radius=battery?110:210;
   const mounted=new Set<string>();
