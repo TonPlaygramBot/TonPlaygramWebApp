@@ -1,3 +1,5 @@
+import {balletSchoolMapPlace} from '../soloCivilianLandmarks.mjs';
+import {aliDemiPlaces,aliDemiSurfaces} from '../shared/aliDemiRecreation.mjs';
 import {EAST} from '../../tirana-east/data.mjs';
 import {memo, useEffect, useMemo, useRef, useState} from 'react';
 import type {PointerEvent as PE} from 'react';
@@ -18,6 +20,8 @@ type Props = {jobs?:MapJob[];onStartJob?:(id:string)=>void;task?:{name:string;de
 type View = {x:number;z:number;w:number;h:number};
 // The explorer, route targets and playable city share one urban boundary.
 const ATLAS_BOUNDS = WORLD.bounds;
+const ALI_DEMI_RECREATION = aliDemiSurfaces(WORLD.origin);
+const MAP_LANDMARKS = [...WORLD.landmarks, ...aliDemiPlaces(WORLD.origin)];
 const economyPlaces:Place[]=cityEconomySites(WORLD).map(site=>({id:site.id,name:site.name,x:site.entrance.x,z:site.entrance.z,available:true,category:site.kind==='bank'?'bank':'property'}));
 function storage() { try {return window.localStorage;} catch {return undefined;} }
 const path = (points:number[][]) => points.length ? `M${points.map(p=>p.join(',')).join('L')}Z` : '';
@@ -28,12 +32,13 @@ const ringDirection=(p:number[][],positive:boolean)=>{
 const Geometry = memo(function Geometry() {
   const paths=useMemo(()=>({
     buildings:WORLD.buildings.map(b=>path(ringDirection(b.p,true))+(b.holes??[]).map(h=>path(ringDirection(h,false))).join('')).join(''),
-    parks:WORLD.parks.map(p=>path(p)).join(''),
-    areas:WORLD.areas.map(p=>path(p)).join(''),
+    parks:[...WORLD.parks,ALI_DEMI_RECREATION.park].map(path).join(''),
+    areas:[...WORLD.areas,ALI_DEMI_RECREATION.skate].map(path).join(''),
+    sports:ALI_DEMI_RECREATION.pitches.map(path).join(''),
     water:WORLD.water.filter(p=>Array.isArray(p)).map(p=>path(p as number[][])).join('')+NEIGHBOURHOOD.water.flatMap(w=>w.polygons??[]).map(p=>path(p.outer)+p.holes.map(path).join('')).join(''),
     roads:WORLD.roads.reduce((out,r)=>{const key=`${r.walk?'walk':'road'}:${r.w}`;out[key]=(out[key]||'')+`M${r.a.join(',')}L${r.b.join(',')}`;return out;},{} as Record<string,string>)
   }),[]);
-  return <g aria-hidden="true"><path d={paths.parks} fill="#274b3d" fillRule="evenodd"/><path d={paths.areas} fill="#455351"/>
+  return <g aria-hidden="true"><path d={paths.parks} fill="#274b3d" fillRule="evenodd"/><path d={paths.areas} fill="#455351"/><path d={paths.sports} fill="#537950" stroke="#91b684" strokeWidth=".6"/>
     <path d={paths.water} fill="#246c84" fillRule="evenodd"/>
     {WORLD.water.filter(p=>!Array.isArray(p)).map((p:any,i)=><polyline key={i} points={p.line.map((a:number[])=>a.join(',')).join(' ')} fill="none" stroke="#246c84" strokeWidth={p.width}/>)}
     <path d={paths.buildings} fill="#465d66" fillRule="nonzero" stroke="#677b82" strokeWidth=".5"/>
@@ -74,11 +79,13 @@ function ExplorerMap(props:Props) {
     return()=>{observer.disconnect();el.removeEventListener('wheel',wheel);};
   },[]);
   const basePlaces=useMemo<Place[]>(()=>{
-    const list:Place[]=WORLD.landmarks.map(p=>({...p}));
+    const list:Place[]=MAP_LANDMARKS.map(p=>({...p}));
     for(const ref of [...NEIGHBOURHOOD.districts,...EAST.districts].filter((p:any)=>/^(Kinostudio|Ali Demi|Kombinat|Lapraka|Sauk|Astir|Shkozë|Fresku)$/.test(p.name)))list.push({id:ref.id,name:ref.name,x:ref.point[0],z:ref.point[1],available:true});
     for(const site of civicSites(WORLD))if(!list.some(p=>p.name===site.name))list.push({id:site.id,name:site.name,x:site.x,z:site.z});
     for(const b of WORLD.buildings)if(b.name?.trim()&&!list.some(p=>p.name===b.name))list.push({id:`building:${b.id}`,name:b.name,x:b.p.reduce((s,p)=>s+p[0],0)/b.p.length,z:b.p.reduce((s,p)=>s+p[1],0)/b.p.length});
     const ids=new Set(list.map(p=>p.id));
+    const ballet=balletSchoolMapPlace(WORLD,list);
+    if(ballet)list.push(ballet);
     for(const p of [...NEIGHBOURHOOD.places,...EAST.places])if(p.name?.trim()&&!ids.has(p.id)){list.push({id:p.id,name:p.name,x:p.point[0],z:p.point[1]});ids.add(p.id);}
     return list.filter(p=>inBounds(p,WORLD.bounds));
   },[]);
@@ -126,7 +133,7 @@ function ExplorerMap(props:Props) {
         onKeyDown={e=>{const delta=60;let next:View|undefined;if(e.key==='+'||e.key==='='){zoom(1.4);e.preventDefault();}else if(e.key==='-'){zoom(1/1.4);e.preventDefault();}else if(['ArrowLeft','ArrowRight','ArrowUp','ArrowDown'].includes(e.key)){const dx=e.key==='ArrowLeft'?-delta:e.key==='ArrowRight'?delta:0,dy=e.key==='ArrowUp'?-delta:e.key==='ArrowDown'?delta:0;next=panView(view,dx,dy,width,width*view.h/view.w,ATLAS_BOUNDS);change(next);e.preventDefault();}}}>
         <Geometry/>
         {layer==='satellite'&&!imageryError&&<SatelliteLayer view={view} width={width} onError={()=>setImageryError(true)}/>}
-        {WORLD.landmarks.map(p=><g key={p.id}><circle cx={p.x} cy={p.z} r={4*scale} fill="#f49268"/>{view.w<1100&&<text x={p.x+8*scale} y={p.z-7*scale} fontSize={11*scale} fill="#fff">{p.name}</text>}</g>)}
+        {MAP_LANDMARKS.map(p=><g key={p.id}><circle cx={p.x} cy={p.z} r={4*scale} fill="#f49268"/>{view.w<1100&&<text x={p.x+8*scale} y={p.z-7*scale} fontSize={11*scale} fill="#fff">{p.name}</text>}</g>)}
         {favorites.filter(p=>inBounds(p,ATLAS_BOUNDS)).map(p=><text key={p.id} x={p.x} y={p.z} textAnchor="middle" fontSize={17*scale} fill="#ffe19b">★</text>)}
         <Markers {...props} scale={scale}/>
         {selected&&inBounds(selected,ATLAS_BOUNDS)&&<circle cx={selected.x} cy={selected.z} r={11*scale} fill="none" stroke="#fff" strokeWidth={2*scale}/>}
