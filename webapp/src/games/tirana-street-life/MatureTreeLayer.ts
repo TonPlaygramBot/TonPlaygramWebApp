@@ -1,4 +1,5 @@
 import {useMediumTree,importedTreeBudget} from './treeLodPolicy.mjs';
+import {loadCompactTree} from './loadCompactTree';
 import {ImportedTreeLayer} from './ImportedTreeLayer';
 import {pointInUrbanBounds} from '../tiranastreets/shared/urbanBounds.mjs';
 import {groundHeight} from '../tirana-east/terrainCore.mjs';
@@ -8,7 +9,7 @@ import {CANOPY_TREES} from './canopyRegistry.mjs';
 import {nearbyIndex} from './streetModels.mjs';
 import {ribbonExclusion} from '../tirana-street-detail/roadDetailCore.mjs';
 import type {StreetDetailOptions} from '../tirana-street-detail/StreetDetailLayer';
-export type TreeLayerOptions=StreetDetailOptions & {cullFarTrees?:boolean; bridgeCloseTreeDetail?:boolean};
+export type TreeLayerOptions=StreetDetailOptions & {cullFarTrees?:boolean; bridgeCloseTreeDetail?:boolean; compactTreeTransfer?:boolean};
 type Tree={y?:number;id:string;x:number;z:number;shape:string;height:number;crown:number;seed:number;zone:string};
 const hash=(n:number)=>{const x=Math.sin(n*127.1+311.7)*43758.5453;return x-Math.floor(x);};
 type Batch={shape:string;lod:number;wood:T.InstancedMesh;leaves:T.InstancedMesh};
@@ -17,8 +18,8 @@ type Batch={shape:string;lod:number;wood:T.InstancedMesh;leaves:T.InstancedMesh}
  * become oversized spherical bushes. Every replaced source ID has one owner. */
 export class MatureTreeLayer {
  readonly group=new T.Group();private disposed=false;private dead=false;private last=-Infinity;
- private imported=new ImportedTreeLayer();private importedReady=false;
- private mediumImported=new ImportedTreeLayer(undefined,'/assets/tirana-streets/city-realism/urban-tree-lod1.glb');
+ private imported:ImportedTreeLayer;private importedReady=false;
+ private mediumImported:ImportedTreeLayer;
  private mediumReady=false;private mediumIds=new Set<string>();
  private batches:Batch[]=[];private materials:T.Material[]=[];private texture:T.CanvasTexture;
  private near:(p:{x:number;z:number},r:number,n:number)=>Tree[];
@@ -28,6 +29,11 @@ export class MatureTreeLayer {
  private frustum=new T.Frustum();private projection=new T.Matrix4();private treeBounds=new T.Sphere();
  private cullFarTrees:boolean;private bridgeCloseTreeDetail:boolean;
  constructor(trees:Tree[]=CANOPY_TREES,options:TreeLayerOptions={}){
+  const makeTree=(path:string)=>new ImportedTreeLayer(
+   options.compactTreeTransfer?()=>loadCompactTree(path):undefined,path
+  );
+  this.imported=makeTree('/assets/tirana-streets/city-realism/urban-tree.glb');
+  this.mediumImported=makeTree('/assets/tirana-streets/city-realism/urban-tree-lod1.glb');
   this.cullFarTrees=!!options.cullFarTrees;this.bridgeCloseTreeDetail=!!options.bridgeCloseTreeDetail;
   this.group.name='Tirana:mature-boulevard-and-square-trees';this.group.add(this.imported.group,this.mediumImported.group);
   const blocked=options.track?ribbonExclusion(options.track):null;
