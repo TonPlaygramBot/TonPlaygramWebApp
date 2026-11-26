@@ -1,3 +1,4 @@
+import { addClockPortalPhoto } from './clockPortalPhoto';
 import { loadSoloFacadeTextures } from './soloFacadeTextures';
 import {LocalShadowBudget} from './LocalShadowBudget';
 import {updateNavigationLine,navigationLineEnd} from './NavigationLine';
@@ -560,6 +561,7 @@ export class CityRenderer {
     cg.position.set(clock.x, 0, clock.z);
     this.scene.add(cg);
     this.box(6, 27, 6, 0, 13.5, 0, stone, cg);
+    void addClockPortalPhoto(cg, this.worldTextures, () => this.disposed);
     this.box(7.5, 4, 7.5, 0, 29, 0, cream, cg);
     const cap = new THREE.Mesh(new THREE.ConeGeometry(5.6, 5, 4), roof);
     cap.position.y = 33;

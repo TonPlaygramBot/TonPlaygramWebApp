@@ -43,7 +43,7 @@ export class CityRenderer extends BaseCityRenderer {
     this.airMobility=new AirMobilityVisuals(this.scene);
     this.weaponStore=new WeaponStoreInterior();
     this.scene.add(this.buses.group,this.cityStores.group);
-    this.cityDetails=attachEnhancements(this.scene);
+    this.cityDetails=attachEnhancements(this.scene,undefined,{stableParkSurfaces:true});
     this.cityDetails.bindBuildings(this.scene,[this.nativeLandmarks.group,this.referenceFacades.group]);
   }
   override render(state:State|null,playerId:string,dt:number,lobby:boolean) {
