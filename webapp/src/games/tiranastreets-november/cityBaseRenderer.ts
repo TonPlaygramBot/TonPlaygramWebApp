@@ -1,3 +1,4 @@
+import { loadSoloFacadeTextures } from './soloFacadeTextures';
 import {LocalShadowBudget} from './LocalShadowBudget';
 import {updateNavigationLine,navigationLineEnd} from './NavigationLine';
 import {renderPixelRatio} from './renderSettings';
@@ -112,6 +113,7 @@ export class CityRenderer {
   private routeLine: THREE.Line | null = null;
   private beacon = new THREE.Group();
   private shellMaterials: THREE.MeshStandardMaterial[] = [];
+  private soloBackgroundMaterials: THREE.MeshStandardMaterial[] = [];
   private facades: CityFacades | null = null;
   private skanderbegBuilding=new SkanderbegBuildingLayer();
   private living: LivingVisuals;
@@ -395,10 +397,11 @@ export class CityRenderer {
         }
       }
     }
-    for (const bucket of buckets.values()) {
+    for (const [key, bucket] of buckets) {
       bucket.geos.forEach((geos, i) => {
         const material = this.material(colors[i]);
         this.shellMaterials.push(material);
+        if (key === "city" && geos.length) this.soloBackgroundMaterials[i] = material;
         const mesh = this.merged(geos, material, bucket.group);
         if (mesh) mesh.castShadow = true;
       });
@@ -805,6 +808,14 @@ export class CityRenderer {
         material.normalScale.set(0.45, 0.45);
         material.roughness = 0.85;
         material.needsUpdate = true;
+      });
+      // Photo scans are optional: fallback draws immediately, and a missing
+      // local file does not change loading, geometry, navigation or collisions.
+      void loadSoloFacadeTextures({
+        materials: this.soloBackgroundMaterials,
+        worldTextures: this.worldTextures,
+        maxAnisotropy: this.renderer.capabilities.getMaxAnisotropy(),
+        isDisposed: () => this.disposed,
       });
       // Keep the shared GLB source attached invisibly so all geometries/textures are disposed.
       city.scene.visible = false;

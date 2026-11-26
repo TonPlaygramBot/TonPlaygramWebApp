@@ -11,10 +11,6 @@
 .tsc-header strong { flex:1; min-width:0; font-size:11px; letter-spacing:.06em; }
 .tsc-header small { display:block; color:#c5d4be; font-size:9px; letter-spacing:.1em; margin-top:2px; }
 .tsc-header button { min-width:48px; padding:8px; font-size:11px; }
-.tsc-street-status { position:absolute; z-index:2; top:calc(67px + env(safe-area-inset-top,0px)); right:12px; display:flex; align-items:flex-end; flex-direction:column; text-shadow:0 1px 4px #000; font-variant-numeric:tabular-nums; pointer-events:none; }
-.tsc-street-status strong { font-size:15px; }
-.tsc-street-status span { font-size:10px; letter-spacing:.04em; }
-.tsc-street-status .is-wanted { color:#ffbc8f; letter-spacing:.15em; }
 .tsc-overview { position:absolute; z-index:2; top:var(--hud-top); left:12px; right:12px; display:grid; gap:8px; pointer-events:none; max-width:440px; }
 .tsc-objective { padding:10px 12px; background:linear-gradient(110deg,#102933ef,#10293399); border:1px solid #8ea6a340; border-left:3px solid #d1e59c; border-radius:0 12px 12px 0; }
 .tsc-objective-heading,.tsc-objective-meta { display:flex; align-items:center; justify-content:space-between; gap:8px; }
@@ -154,7 +150,7 @@
 .tsc-result { border-left:3px solid #d1e59c; background:#d1e59c12; padding:12px; }
 .tsc-access-tools { bottom:calc(153px + var(--action-size)*3 + env(safe-area-inset-bottom,0px)); }
 @media(max-width:380px){.tsc-context-action {right:10px;}.tsc.is-left-handed .tsc-context-action {left:10px;right:auto;}.tsc-speedometer strong {font-size:23px;}}
-@media(max-height:520px) and (orientation:landscape){.tsc-overview {max-width:300px;top:calc(63px + env(safe-area-inset-top,0px));}.tsc-street-status {top:calc(62px + env(safe-area-inset-top,0px));}.tsc-actions {grid-template-columns:repeat(3,var(--action-size));grid-template-rows:repeat(2,var(--action-size));width:calc(var(--action-size)*3 + 20px);}.tsc-slot-aim {grid-area:1/1;}.tsc-slot-secondary {grid-area:1/2;}.tsc-slot-primary {grid-area:1/3;}.tsc-slot-jump {grid-area:2/1;}.tsc-slot-crouch {grid-area:2/2;}.tsc-slot-vault {grid-area:2/3;}.tsc-context-action {bottom:calc(80px + var(--action-size)*2 + env(safe-area-inset-bottom,0px));}.tsc.is-driving .tsc-actions {width:calc(var(--action-size)*2 + 10px);grid-template-columns:repeat(2,var(--action-size));}.tsc-access-tools {bottom:auto;top:calc(65px + env(safe-area-inset-top,0px));}}
+@media(max-height:520px) and (orientation:landscape){.tsc-overview {max-width:300px;top:calc(63px + env(safe-area-inset-top,0px));}.tsc-actions {grid-template-columns:repeat(3,var(--action-size));grid-template-rows:repeat(2,var(--action-size));width:calc(var(--action-size)*3 + 20px);}.tsc-slot-aim {grid-area:1/1;}.tsc-slot-secondary {grid-area:1/2;}.tsc-slot-primary {grid-area:1/3;}.tsc-slot-jump {grid-area:2/1;}.tsc-slot-crouch {grid-area:2/2;}.tsc-slot-vault {grid-area:2/3;}.tsc-context-action {bottom:calc(80px + var(--action-size)*2 + env(safe-area-inset-bottom,0px));}.tsc.is-driving .tsc-actions {width:calc(var(--action-size)*2 + 10px);grid-template-columns:repeat(2,var(--action-size));}.tsc-access-tools {bottom:auto;top:calc(65px + env(safe-area-inset-top,0px));}}
 
 /* Camera stays above the weapon selector, with the same visual placement in portrait. */
 .tsc.is-on-foot .tsc-tools {bottom:calc(270px + env(safe-area-inset-bottom,0px));}
@@ -172,3 +168,32 @@
 .tsc.is-flying .tsc-slot-vault {grid-area:3/2;}
 .tsc.is-flying .tsc-slot-vault[aria-pressed=true] {border-color:#e4e9a5;color:#f2f7bf;}
 @media(max-height:520px) and (orientation:landscape){.tsc-flight-instruments{top:55%;width:240px;}.tsc.is-flying .tsc-slot-crouch{grid-area:2/2;}.tsc.is-flying .tsc-slot-vault{grid-area:2/3;}}
+
+/* The solo HUD contains only local player information; controls keep their
+   existing hit targets and the scenery does not need a blur compositor layer. */
+.tsc { --hud-top:calc(115px + env(safe-area-inset-top,0px)); }
+.tsc-header { padding-inline:max(12px,env(safe-area-inset-left,0px)) max(12px,env(safe-area-inset-right,0px)); }
+.tsc-header button { display:inline-flex; gap:6px; align-items:center; justify-content:center; backdrop-filter:none; }
+.tsc-city-status {
+  position:absolute; z-index:2; top:calc(65px + env(safe-area-inset-top,0px));
+  left:max(12px,env(safe-area-inset-left,0px)); right:max(12px,env(safe-area-inset-right,0px));
+  display:flex; align-items:start; justify-content:space-between; gap:10px;
+  pointer-events:none; font-variant-numeric:tabular-nums;
+}
+.tsc-vitals,.tsc-city-wallet { background:#101a21e8; border:1px solid #879db04d; border-radius:8px; }
+.tsc-vitals { padding:5px 9px; width:142px; display:grid; gap:2px; }
+.tsc-vital { display:grid; grid-template-columns:13px minmax(0,1fr) 24px; align-items:center; gap:5px; color:#bce6b4; }
+.tsc-vital.is-critical { color:#ffab9d; }
+.tsc-vital.armor { color:#9fd4ff; }
+.tsc-vital span { text-align:right; font:700 10px/1.3 system-ui,sans-serif; }
+.tsc-vital meter { appearance:none; display:block; width:100%; height:4px; margin:0; background:#3a4953; border:none; border-radius:3px; color:inherit; }
+.tsc-vital meter::-webkit-meter-bar { background:#3a4953; border:0; border-radius:3px; }
+.tsc-vital meter::-webkit-meter-optimum-value { background:currentColor; border-radius:3px; }
+.tsc-vital meter::-moz-meter-bar { background:currentColor; border-radius:3px; }
+.tsc-city-wallet { display:grid; justify-items:end; padding:4px 9px; max-width:45%; }
+.tsc-city-wallet strong { font-size:13px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; max-width:100%; }
+.tsc-pursuit { font-size:11px; color:#ffbf91; letter-spacing:.07em; white-space:nowrap; }
+.tsc-pursuit i { font-style:normal; color:#a2aeb4; }
+@media(max-height:520px) and (orientation:landscape) {
+  .tsc-overview { top:calc(110px + env(safe-area-inset-top,0px)); max-width:min(260px,calc(50vw - 32px)); }
+}

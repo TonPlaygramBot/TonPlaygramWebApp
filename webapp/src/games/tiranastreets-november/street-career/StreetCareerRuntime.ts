@@ -1,5 +1,6 @@
 import {reserveCapacity} from '../shared/ammunition.mjs';
 import {operationTarget} from './operationRoute.mjs';
+import {StreetRouteRefresh} from './streetRouteRefresh.mjs';
 import {VehicleRadio, type RadioSnapshot} from '../radio/VehicleRadio';
 import {groundHeight} from '../../tirana-east/terrainCore.mjs';
 import {POLICE_STATION} from './ArrestSimulation.mjs';
@@ -79,36 +80,40 @@ export class StreetCareerRuntime {
   route: Point[] = [];
   destination: Destination | null = null;
   routeNotice = '';
-  private mapGraphs=new Map<string,ReturnType<typeof buildMapGraph>>();
+  private mapGraphs = new Map<string, ReturnType<typeof buildMapGraph>>();
+  private routeRefresh = new StreetRouteRefresh();
   setDestination(place: Destination | null) {
     this.destination = place;
-    this.routeAt = -Infinity;
+    this.routeRefresh.clear();
     this.updateNavigation();
+    this.routeAt = performance.now();
     this.emit();
   }
   private updateNavigation() {
     const p = this.state.players.local;
-    if(this.destination) {
-      const mode=p.carId?'drive':'walk';
-      let graph=this.mapGraphs.get(mode);if(!graph){graph=buildMapGraph(WORLD,mode);this.mapGraphs.set(mode,graph);}
-      const result = p.aircraftId?{points:[p,this.destination],message:'Direct flight to destination.'}:findMapRoute(graph,p,this.destination);
+    const mission = MISSIONS.find(m => m.id === this.state.missionId);
+    const target = this.destination || operationTarget(mission, this.simulation.job.director,
+      this.state.objectiveRemaining ?? mission?.enemies ?? 0);
+    if (this.destination && p.aircraftId) {
+      // Flight follows the current position rather than a mapped road graph.
+      this.routeRefresh.clear();
+      this.route = [p, this.destination];
+      this.routeNotice = 'Direct flight to destination.';
+    } else if (target) {
+      const mode = p.carId ? 'drive' : 'walk';
+      if (!this.routeRefresh.request(mode, p, target)) return;
+      let graph = this.mapGraphs.get(mode);
+      if (!graph) {
+        graph = buildMapGraph(WORLD, mode);
+        this.mapGraphs.set(mode, graph);
+      }
+      const result = findMapRoute(graph, p, target);
       this.route = result.points;
       this.routeNotice = result.message;
     } else {
-      const mission = MISSIONS.find(m=>m.id===this.state.missionId);
-      const operationPoint = operationTarget(mission, this.simulation.job.director, this.state.objectiveRemaining ?? mission?.enemies ?? 0);
-      if (operationPoint) {
-        const mode = p.carId ? 'drive' : 'walk';
-        let graph = this.mapGraphs.get(mode);
-        if (!graph) { graph = buildMapGraph(WORLD, mode); this.mapGraphs.set(mode, graph); }
-        const result = findMapRoute(graph, p, operationPoint);
-        this.route = result.points;
-        this.routeNotice = result.message;
-        this.renderer.setRoute(this.route);
-        return;
-      }
-      const aircraft = mission?.aircraft && this.simulation.flight.aircraft.find(a=>a.kind===mission.aircraft);
-      this.route = aircraft && !p.aircraftId ? [p,this.simulation.flight.access(aircraft)] : navigation(this.state,'local');
+      this.routeRefresh.clear();
+      const aircraft = mission?.aircraft && this.simulation.flight.aircraft.find(a => a.kind === mission.aircraft);
+      this.route = aircraft && !p.aircraftId ? [p, this.simulation.flight.access(aircraft)] : navigation(this.state, 'local');
       this.routeNotice = '';
     }
     this.renderer.setRoute(this.route);
@@ -263,13 +268,14 @@ export class StreetCareerRuntime {
     this.renderer.yaw = this.simulation.body.yaw;
     this.renderer.pitch = 0;
     this.routeAt = -Infinity;
+    this.routeRefresh.clear();
     this.eventAt = 0;
     this.accumulator = 0;
   }
   private switchMission(id:string,difficulty='normal') {
     if(!this.simulation.beginMission(id,difficulty))return false;
     this.route=[];this.destination=null;this.routeNotice='';this.renderer.setRoute([]);
-    this.routeAt=-Infinity;this.input.releaseAll();this.accumulator=0;
+    this.routeAt=-Infinity;this.routeRefresh.clear();this.input.releaseAll();this.accumulator=0;
     return true;
   }
   start(id: string, difficulty = 'normal') {

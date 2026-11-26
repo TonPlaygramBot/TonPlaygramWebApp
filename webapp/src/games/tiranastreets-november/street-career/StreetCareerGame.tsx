@@ -6,7 +6,8 @@ import {MissionReadout} from '../MissionReadout';
 import {GraphicsControl} from '../GraphicsControl';
 import {MovementStick} from '../MovementStick';
 import {DEFAULT_SETTINGS} from './settings';
-import {LiveHud} from '../LiveHud';
+import {CityStatusHud} from './CityStatusHud';
+import {Map as MapIcon, Menu as MenuIcon} from 'lucide-react';
 import {OpticalSight} from '../OpticalSight';
 import {touchAction} from '../touchActions';
 import {
@@ -196,10 +197,9 @@ export function StreetCareerGame({ onExit, initialOperation, initialDifficulty='
       />
       <header className="tsc-header">
         <strong>TIRANA STREETS<small>{mission?.operation?'CITY OPERATION':'CITY CAMPAIGN'}</small></strong>
-        <button className="tsc-map-button" aria-label="Open city map" onClick={() => open('map')}>MAP</button>
-        <button className="tsc-menu-button" onClick={() => open('journal')}>MENU</button>
+        <button className="tsc-map-button" aria-label="Open city map" onClick={() => open('map')}><MapIcon size={16} aria-hidden="true"/><span>MAP</span></button>
+        <button className="tsc-menu-button" onClick={() => open('journal')}><MenuIcon size={16} aria-hidden="true"/><span>MENU</span></button>
       </header>
-      {p && <LiveHud health={p.health} />}
       {failure && (
         <div className="tsc-error" role="alert">
           {failure}
@@ -210,11 +210,8 @@ export function StreetCareerGame({ onExit, initialOperation, initialDifficulty='
       {!view?.ready && !failure && <div className="tsc-loading" role="status">{loading}…</div>}
       {view?.ready && p && !panel && !failure && (
         <>
-          <div className="tsc-street-status" aria-label="Street cash and pursuit">
-            <strong>${p.cash.toLocaleString()}</strong>
-            <span aria-label="Body armor">ARMOR {Math.ceil(p.armor)}/{armorCapacity(p)}</span>
-            <span className={p.wanted > 0 ? 'is-wanted' : ''}>{'★'.repeat(wantedStars(p.wanted)) || 'NO PURSUIT'}</span>
-          </div>
+          <CityStatusHud health={p.health} armor={p.armor} maxArmor={armorCapacity(p)}
+            cash={p.cash} pursuit={wantedStars(p.wanted)} />
           <div className="tsc-overview">
             <NavigationGuidance route={view.route} player={p} destination={view.destination}
               onClear={() => runtime.current?.setDestination(null)}/>

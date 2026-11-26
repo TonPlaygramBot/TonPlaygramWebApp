@@ -28,6 +28,8 @@ export function createBody(yaw = 0) {
     vy: 0,
     vx: 0,
     vz: 0,
+    travelX: 0,
+    travelZ: 0,
     yaw,
     pitch: 0,
     height: MOTOR.standing,
@@ -65,6 +67,7 @@ export function cancelActions(p, b) {
   b.jumpUntil = -1;
   b.vx = 0;
   b.vz = 0;
+  b.travelX = b.travelZ = 0;
   p.reloadAt = 0;
   p.speed = 0;
   b.combat = p.weapon ? 'ready' : 'unarmed';
@@ -76,6 +79,7 @@ export function stepMotor(state, p, b, intent, dt, world, emit, damage) {
   p.heading = b.yaw;
   if (b.interaction !== 'free') {
     b.vx = b.vz = 0;
+    b.travelX = b.travelZ = 0;
     return;
   }
   const now = state.elapsed;
@@ -107,8 +111,20 @@ export function stepMotor(state, p, b, intent, dt, world, emit, damage) {
       ((Math.cos(b.yaw) * intent.x - Math.sin(b.yaw) * intent.y) * speed) / l,
     vz =
       ((-Math.sin(b.yaw) * intent.x - Math.cos(b.yaw) * intent.y) * speed) / l;
-  b.vx = approach(b.vx, vx, (m ? MOTOR.accel : MOTOR.brake) * dt);
-  b.vz = approach(b.vz, vz, (m ? MOTOR.accel : MOTOR.brake) * dt);
+  // Bound the planar velocity change, not each axis separately. The same
+  // thumb travel then accelerates and stops equally quickly at any heading.
+  const dx = vx - b.vx,
+    dz = vz - b.vz,
+    delta = Math.hypot(dx, dz),
+    maxDelta = (m ? MOTOR.accel : MOTOR.brake) * dt;
+  if (delta <= maxDelta) {
+    b.vx = vx;
+    b.vz = vz;
+  } else {
+    const t = maxDelta / delta;
+    b.vx += dx * t;
+    b.vz += dz * t;
+  }
   const oldX = p.x,
     oldZ = p.z,
     q = { x: p.x, y: b.y, z: p.z };
@@ -116,6 +132,10 @@ export function stepMotor(state, p, b, intent, dt, world, emit, damage) {
   p.x = q.x;
   p.z = q.z;
   b.y = q.y;
+  // Pose follows the displacement the collision solver actually allowed.
+  // Keep the motor velocity separate so collision does not alter input intent.
+  b.travelX = (p.x - oldX) / dt;
+  b.travelZ = (p.z - oldZ) / dt;
   p.speed = Math.hypot(p.x - oldX, p.z - oldZ) / dt;
   b.gait += p.speed * dt * 2.6;
   if (sprint && p.speed > 1) {
