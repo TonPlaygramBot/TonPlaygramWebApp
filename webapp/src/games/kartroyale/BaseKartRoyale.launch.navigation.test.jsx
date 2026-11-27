@@ -9,7 +9,7 @@ vi.mock('./simulation.mjs',async importOriginal=>{
 vi.mock('./renderer',()=>({KartRenderer:class{
  constructor(_host,onFrame,onFinish){harness.game=this;this.input={};this.combatInput={reload:false};this.onFrame=onFrame;this.onFinish=onFinish;}
  load=vi.fn(async()=>{});setColor=vi.fn();setKart=vi.fn();setQuality=vi.fn();setCameraMode=vi.fn();
- networkInput=vi.fn(()=>this.input);networkState=vi.fn();showGarage=vi.fn();startLocal=vi.fn();startCaptainDuel=vi.fn();startFirstBattleCareer=vi.fn();startCombatRace=vi.fn();queueCombatReload=vi.fn();queueCombatPulse=vi.fn();pause=vi.fn();clearInput=vi.fn(()=>{this.input={};this.combatInput={reload:false};});destroy=vi.fn();
+ networkInput=vi.fn(()=>this.input);networkState=vi.fn();showGarage=vi.fn();startLocal=vi.fn();startCaptainDuel=vi.fn();startFirstBattleCareer=vi.fn();startDriftBattleCareer=vi.fn();startCombatRace=vi.fn();queueCombatReload=vi.fn();queueCombatPulse=vi.fn();pause=vi.fn();clearInput=vi.fn(()=>{this.input={};this.combatInput={reload:false};});destroy=vi.fn();
 }}));
 vi.mock('./audio',()=>({KartAudio:class{unlock(){}update(){}silence(){}beep(){}destroy(){}setMuted(){}}}));
 import BaseKartRoyale from './BaseKartRoyale';
@@ -192,4 +192,39 @@ it('opens only the fixed Brryli Battle event and awards local XP once without al
   expect(localStorage.getItem(key)).toBe(battle);
   expect(sessionStorage.length).toBe(0);
  }finally{await act(async()=>root.unmount());host.remove();}
+});
+
+it('locks Kthesa te ura until Vija e parë, persists drift XP once, and replays the same event',async()=>{
+ localStorage.clear();sessionStorage.clear();
+ const key='tonplaygram.kartroyale.battle-career.v1';
+ const host=document.createElement('div');document.body.append(host);let root=createRoot(host);
+ try{
+  await act(async()=>root.render(<BaseKartRoyale/>));
+  expect(host.querySelector('.kr-battle-drift-launch').disabled).toBe(true);
+  await act(async()=>root.unmount());
+  localStorage.setItem(key,JSON.stringify({version:1,completedMissionIds:['ali-demi-01'],xp:350}));
+  root=createRoot(host);
+  await act(async()=>root.render(<BaseKartRoyale/>));
+  const snapshot={...localStorage};
+  const drift=host.querySelector('.kr-battle-drift-launch');
+  expect(drift.disabled).toBe(false);
+  await act(async()=>drift.click());
+  expect(harness.game.startDriftBattleCareer).toHaveBeenCalledWith('rookie');
+  expect(host.querySelector('.rr-place small').textContent).toContain('DRIFT 0/200');
+  const result={battleCareerMission:'ali-demi-02',battleDriftPoints:240,online:false,elapsed:157,trackId:'tirana-brryli',playerId:'you',
+    racers:[{id:'you',name:'You',finished:true,finishTime:156.9,lap:4,lapTimes:[54,52,50.9]}]};
+  await act(async()=>harness.game.onFinish({...result,battleDriftPoints:199}));
+  expect(localStorage.getItem(key)).toBe(snapshot[key]);
+  await clickText(host,'RETRY BATTLE');
+  await act(async()=>harness.game.onFinish(result));
+  expect(host.textContent).toContain('+375 Battle XP saved on this device.');
+  const {[key]:battle,...regular}={...localStorage};
+  const {[key]:_old,...oldRegular}=snapshot;
+  expect(regular).toEqual(oldRegular);
+  expect(JSON.parse(battle)).toMatchObject({completedMissionIds:['ali-demi-01','ali-demi-02'],xp:725});
+  await clickText(host,'RETRY BATTLE');
+  await act(async()=>harness.game.onFinish(result));
+  expect(localStorage.getItem(key)).toBe(battle);
+  expect(sessionStorage.length).toBe(0);
+ }finally{await act(async()=>root.unmount());host.remove();localStorage.clear();}
 });

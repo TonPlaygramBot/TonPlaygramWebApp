@@ -1,4 +1,4 @@
-import {firstBattleEvent,FIRST_BATTLE_COURSE_ID,FIRST_BATTLE_MISSION_ID} from './battleCareerClassic.mjs';
+import {firstBattleEvent,secondBattleEvent,createBattleDriftMeter,DRIFT_BATTLE_MISSION_ID,FIRST_BATTLE_COURSE_ID,FIRST_BATTLE_MISSION_ID} from './battleCareerClassic.mjs';
 import {careerSupplies,equipCareerSupply} from './streetCareer.mjs';
 import { RaceItemEffects } from './RaceItemEffects';
 import { KartExhaust } from './KartExhaust';
@@ -90,6 +90,7 @@ export interface Frame {
   time: number;
   countdown: number;
   drifting: boolean;
+  battleDriftPoints?: number;
   driftCharge: number;
   fps: number;
   racers: Racer[];
@@ -110,7 +111,8 @@ export interface Frame {
 }
 export interface Result {
   captainDuel?: boolean;
-  battleCareerMission?: typeof FIRST_BATTLE_MISSION_ID;
+  battleCareerMission?: typeof FIRST_BATTLE_MISSION_ID | typeof DRIFT_BATTLE_MISSION_ID;
+  battleDriftPoints?: number;
   online?:boolean;
   timeTrial?:boolean;
   personalBest?:number;
@@ -229,7 +231,8 @@ export class KartRenderer {
   private authoritativeResults: Racer[] | null = null;
   private timeTrial = false;
   private captainDuel = false;
-  private battleCareerMission?: typeof FIRST_BATTLE_MISSION_ID;
+  private battleCareerMission?: Result['battleCareerMission'];
+  private battleDriftMeter?: ReturnType<typeof createBattleDriftMeter>;
   private ghostRecorder:GhostRecorder|null = null;
   private ghostVisual:T.Group|null = null;
   private ghostMemory=new Map<string,{ghost:GhostLap;saved:boolean}>();
@@ -683,6 +686,7 @@ export class KartRenderer {
     this.state = 'garage';
     this.captainDuel = false;
     this.battleCareerMission = undefined;
+    this.battleDriftMeter = undefined;
     this.resetActionModes();
     this.cityJob=null;this.jobGuide=null;
     this.network = false;
@@ -990,17 +994,18 @@ export class KartRenderer {
       this.visuals.set(r.id, v);
     }
   }
-  startLocal(id: string, difficulty: string, freeRoam=false, timeTrial=false, careerLoadout?: {driver?:string;ammo?:string;shield?:string}, captainDuel=false, battleCareerMission?: typeof FIRST_BATTLE_MISSION_ID) {
+  startLocal(id: string, difficulty: string, freeRoam=false, timeTrial=false, careerLoadout?: {driver?:string;ammo?:string;shield?:string}, captainDuel=false, battleCareerMission?: Result['battleCareerMission']) {
     this.streetDriver = careerLoadout?.driver === "helmet";
     this.streetSupplies = careerLoadout ? careerSupplies(careerLoadout) : null;
     this.resetActionModes();
     this.timeTrial=timeTrial&&!freeRoam;
     this.captainDuel=captainDuel&&!freeRoam&&!this.timeTrial&&!careerLoadout;
     this.battleCareerMission=!freeRoam&&!this.timeTrial&&!careerLoadout&&!this.captainDuel
-      && firstBattleEvent(battleCareerMission,id) ? battleCareerMission : undefined;
+      && (firstBattleEvent(battleCareerMission,id)||secondBattleEvent(battleCareerMission,id)) ? battleCareerMission : undefined;
     this.ghostRecorder=null;
     this.cityJob=null;
     this.track = freeRoam?{...makeTrack(id),terrainMode:'regional'}:makeTrack(id);
+    this.battleDriftMeter=this.battleCareerMission===DRIFT_BATTLE_MISSION_ID?createBattleDriftMeter(this.track):undefined;
     this.freeDriving=freeRoam?freeRoamWorld():null;
     this.difficulty = difficulty;
     this.me = 'you';
@@ -1048,6 +1053,9 @@ export class KartRenderer {
   }
   startFirstBattleCareer(difficulty:string){
     this.startLocal(FIRST_BATTLE_COURSE_ID,difficulty,false,false,undefined,false,FIRST_BATTLE_MISSION_ID);
+  }
+  startDriftBattleCareer(difficulty:string){
+    this.startLocal(FIRST_BATTLE_COURSE_ID,difficulty,false,false,undefined,false,DRIFT_BATTLE_MISSION_ID);
   }
   startCaptainDuel(id:string,difficulty:string){
     this.startLocal(id,difficulty,false,false,undefined,true);
@@ -1098,6 +1106,7 @@ export class KartRenderer {
     if (fresh) this.resetActionModes();
     this.captainDuel = false;
     this.battleCareerMission = undefined;
+    this.battleDriftMeter = undefined;
     this.timeTrial = next.raceFormat === 'trial';
     this.ghostRecorder = null;
     this.cityJob = null;
@@ -1157,6 +1166,7 @@ export class KartRenderer {
       online:this.network,
       ...(this.battleCareerMission&&!this.network?{battleCareerMission:this.battleCareerMission}:{}),
       ...(this.captainDuel&&!this.network?{captainDuel:true}:{}),
+      battleDriftPoints:this.battleDriftMeter?.points,
       timeTrial:this.timeTrial,personalBest:this.ghostRecorder?.best?.time,
       newBest:this.ghostRecorder?.improved,ghostSaved:this.ghostRecorder?.saved,
       cityJob:this.cityJob?{...this.cityJob}:undefined,
@@ -1312,6 +1322,7 @@ export class KartRenderer {
                 this.time,
                 this.difficulty
               );
+            this.battleDriftMeter?.step(me);
             if(this.combat&&!this.network){
               stepRaceCombat(this.combat,this.racers,this.track,{...this.input,reload:this.combatInput.reload||this.combatReloadPulse,pulse:this.combatEmpPulse},STEP,this.time);
               this.combatReloadPulse=false;
@@ -1550,6 +1561,7 @@ export class KartRenderer {
             countdown:
               this.state === 'countdown' ? Math.ceil(this.countdown) : 0,
             drifting: me.drifting,
+            battleDriftPoints:this.battleDriftMeter?.points,
             driftCharge: me.driftCharge,
             fps: Math.round(this.fps),
             racers: this.racers.map((r) => ({ ...r })),
