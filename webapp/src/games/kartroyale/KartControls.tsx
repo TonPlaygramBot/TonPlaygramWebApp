@@ -1,6 +1,6 @@
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useEffect, useId, useRef, useState } from 'react';
 import { Zap } from 'lucide-react';
-import {driftTier} from './arcadeRules.mjs';
+import {DRIFT_TIERS, driftTier} from './arcadeRules.mjs';
 import {steeringStickInput} from './heldRaceInput.mjs';
 type Props = { hold: (id:string,key:string,value:number|boolean)=>void; release:(id:string)=>void; boost:number; drifting?:boolean; driftCharge?:number; turbo?:number; boostEvent?:number; reversing?:boolean; disabled?:boolean; raceItem?:'rocket'|'shield'|'boost'|null; itemShield?:number };
 
@@ -8,6 +8,7 @@ type Props = { hold: (id:string,key:string,value:number|boolean)=>void; release:
  * Screen movement maps directly to steering: visually left is left and right is
  * right. Sliding the stick visually upward also engages drift. */
 export function KartControls({hold,release,boost,drifting,driftCharge=0,turbo=0,boostEvent=0,reversing=false,disabled=false,raceItem=null,itemShield=0}:Props) {
+  const driftStatusId = useId();
   const pointers = useRef(new Map<number,{key:string;value:number|boolean;startY:number}>());
   const stickOwner=useRef<number|null>(null),stickKnob=useRef<HTMLSpanElement>(null);
   const callbacks = useRef({hold,release}); callbacks.current = {hold,release};
@@ -65,7 +66,11 @@ export function KartControls({hold,release,boost,drifting,driftCharge=0,turbo=0,
   });
   const active=(key:string,value:number|boolean=true)=>pressed.includes(key+':'+value)?' is-active':'';
   const energy=Math.round(Math.max(0,Math.min(100,boost)));
-  const label=turbo>0?'TURBO':drifting?['DRIFT','MINI','SUPER','ROYAL'][driftTier(driftCharge)]:'BOOST';
+  const label=turbo>0?'TURBO':'BOOST';
+  const charge=drifting && Number.isFinite(driftCharge)?Math.max(0,driftCharge):0;
+  const tier=driftTier(charge);
+  const tierLabel=['','MINI','SUPER','ROYAL'][tier];
+  const chargePercent=Math.round(Math.min(100,charge/DRIFT_TIERS[DRIFT_TIERS.length-1]*100));
   return <div className="kart-controls" aria-label="Kart driving controls">
     <div className="kart-steering-stick" role="group" aria-label="Steering joystick; slide up to drift"
       onPointerDown={e=>{if(disabled||stickOwner.current!==null||(e.pointerType==='mouse'&&e.button!==0))return;e.preventDefault();stickOwner.current=e.pointerId;e.currentTarget.setPointerCapture(e.pointerId);moveStick(e);}}
@@ -80,11 +85,16 @@ export function KartControls({hold,release,boost,drifting,driftCharge=0,turbo=0,
         {itemShield>0&&<small>SHIELD {Math.ceil(itemShield)}s</small>}
       </button>
       <button disabled={disabled} className={`kart-boost${active('boost')}${turbo>0?' is-turbo':''}${energy<1?' is-empty':''}`} {...touch('boost',true)} aria-label={`${label}; hold while accelerating; ${energy}% energy`}>
-        <Zap size={18}/><span aria-live="polite">{label}</span><i style={{width:`${drifting?Math.min(100,driftCharge/1.9*100):energy}%`}}/>
+        <Zap size={18}/><span aria-live="polite">{label}</span><i style={{width:`${energy}%`}}/>
         {boostEvent>0&&<em key={boostEvent} className="kart-boost-pickup" aria-hidden="true"/>}
       </button>
       <div className="kart-pedal-controls">
-        <button disabled={disabled} className={`kart-drift${drifting?' is-active':active('drift')}`} {...touch('drift',true)} aria-label="Hold drift while steering">DRIFT</button>
+        <button disabled={disabled} className={`kart-drift${drifting?' is-active':active('drift')}`} {...touch('drift',true)} data-drift-tier={drifting?tier:undefined} aria-label="Hold drift while steering; release to trigger a charged turbo" aria-describedby={driftStatusId}>
+          <span>{drifting?(tier?'RELEASE':'CHARGE'):'DRIFT'}</span>
+          {drifting && tier>0 && <small>{tierLabel}</small>}
+          {drifting && <i aria-hidden="true" style={{width:`${chargePercent}%`}}/>}
+        </button>
+        <span className="kart-drift-status" id={driftStatusId} role="status">{drifting?(tier?`${tierLabel} turbo ready. Release drift.`:'Charging drift.'):''}</span>
         <button disabled={disabled} className={`kart-gas${active('throttle')}`} {...touch('throttle',true,'boost')} aria-label="Hold gas to accelerate; slide up to boost">GAS</button>
       </div>
     </div>

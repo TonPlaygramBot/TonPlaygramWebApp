@@ -21,3 +21,13 @@
 .rr-remake .kr-mode-list{grid-template-columns:repeat(2,minmax(0,1fr))}
 .kart-controls .kart-item{min-height:46px;gap:6px;color:#f5fbd9;background:#283b20ed;border-color:#b5dd7255;position:relative;flex-wrap:wrap;padding:5px 8px}
 .kart-item span{font-size:19px}.kart-item b{font-size:11px;letter-spacing:.05em}.kart-item small{width:100%;font-size:9px;color:#78dfff}.kart-item:disabled{opacity:.5}
+
+/* Charge belongs on the drift pedal; the separate boost bar always shows energy. */
+.kart-controls .kart-drift{position:relative;overflow:hidden;flex-direction:column;gap:3px;--drift-tier-color:#fce7a6}
+.kart-controls .kart-drift[data-drift-tier]{font-size:clamp(8px,2.6vw,11px);line-height:1.1}
+.kart-controls .kart-drift[data-drift-tier="1"]{--drift-tier-color:#80eaff}
+.kart-controls .kart-drift[data-drift-tier="2"]{--drift-tier-color:#ffe189}
+.kart-controls .kart-drift[data-drift-tier="3"]{--drift-tier-color:#e3c3ff}
+.kart-drift small{color:var(--drift-tier-color);font-size:inherit}
+.kart-drift i{position:absolute;left:0;bottom:0;height:4px;background:var(--drift-tier-color);pointer-events:none}
+.kart-drift-status{position:absolute;width:1px;height:1px;padding:0;overflow:hidden;clip-path:inset(50%);white-space:nowrap}
