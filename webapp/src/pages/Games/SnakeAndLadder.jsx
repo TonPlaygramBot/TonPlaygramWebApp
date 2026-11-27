@@ -26,6 +26,7 @@ import {
   AiOutlineRollback,
   AiOutlineReload,
 } from "react-icons/ai";
+import { attachSnakeSoundBank } from '../../utils/snakeSoundBank.js';
 import { isGameMuted, getGameVolume, setGameMuted } from "../../utils/sound.js";
 import useTelegramBackButton from "../../hooks/useTelegramBackButton.js";
 import { useNavigate } from "react-router-dom";
@@ -1640,8 +1641,10 @@ export default function SnakeAndLadder() {
     if (saved) {
       setPhotoUrl(saved);
     }
+    let active = true;
     getProfileByAccount(id)
       .then((p) => {
+        if (!active) return;
         if (p?.photo) {
           setPhotoUrl((prev) => prev || p.photo);
           saveAvatar(p.photo);
@@ -1649,46 +1652,23 @@ export default function SnakeAndLadder() {
         setMyName(p?.nickname || `${p?.firstName || ''} ${p?.lastName || ''}`.trim());
       })
       .catch(() => {});
-    const vol = getGameVolume();
-    moveSoundRef.current = new Audio(SNAKE_SFX.move);
-    moveSoundRef.current.volume = vol;
-    snakeSoundRef.current = new Audio(SNAKE_SFX.snake);
-    snakeSoundRef.current.volume = vol;
-    oldSnakeSoundRef.current = new Audio(SNAKE_SFX.move);
-    oldSnakeSoundRef.current.volume = vol;
-    ladderSoundRef.current = new Audio(SNAKE_SFX.ladder);
-    ladderSoundRef.current.volume = vol;
-    winSoundRef.current = new Audio("/assets/sounds/successful.mp3");
-    winSoundRef.current.volume = vol;
-    diceRewardSoundRef.current = new Audio("/assets/sounds/successful.mp3");
-    diceRewardSoundRef.current.volume = vol;
-    yabbaSoundRef.current = new Audio("/assets/sounds/yabba-dabba-doo.mp3");
-    yabbaSoundRef.current.volume = vol;
-    hahaSoundRef.current = new Audio("/assets/sounds/Haha.mp3");
-    hahaSoundRef.current.volume = vol;
-    bombSoundRef.current = new Audio(SNAKE_SFX.bomb);
-    bombSoundRef.current.volume = vol;
-    badLuckSoundRef.current = new Audio(SNAKE_SFX.badLuck);
-    badLuckSoundRef.current.volume = vol;
-    cheerSoundRef.current = new Audio(SNAKE_SFX.cheer);
-    cheerSoundRef.current.volume = vol;
-    timerSoundRef.current = new Audio(SNAKE_SFX.timer);
-    timerSoundRef.current.volume = vol;
-    return () => {
-      moveSoundRef.current?.pause();
-      snakeSoundRef.current?.pause();
-      oldSnakeSoundRef.current?.pause();
-      ladderSoundRef.current?.pause();
-      winSoundRef.current?.pause();
-      diceRewardSoundRef.current?.pause();
-      yabbaSoundRef.current?.pause();
-      hahaSoundRef.current?.pause();
-      bombSoundRef.current?.pause();
-      badLuckSoundRef.current?.pause();
-      cheerSoundRef.current?.pause();
-      timerSoundRef.current?.pause();
-    };
-  }, [accountId, muted]);
+    return () => { active = false; };
+  }, [accountId]);
+
+  useEffect(() => attachSnakeSoundBank([
+    [moveSoundRef, SNAKE_SFX.move],
+    [snakeSoundRef, SNAKE_SFX.snake],
+    [oldSnakeSoundRef, SNAKE_SFX.move],
+    [ladderSoundRef, SNAKE_SFX.ladder],
+    [winSoundRef, '/assets/sounds/successful.mp3'],
+    [diceRewardSoundRef, '/assets/sounds/successful.mp3'],
+    [yabbaSoundRef, '/assets/sounds/yabba-dabba-doo.mp3'],
+    [hahaSoundRef, '/assets/sounds/Haha.mp3'],
+    [bombSoundRef, SNAKE_SFX.bomb],
+    [badLuckSoundRef, SNAKE_SFX.badLuck],
+    [cheerSoundRef, SNAKE_SFX.cheer],
+    [timerSoundRef, SNAKE_SFX.timer]
+  ], { volume: getGameVolume(), muted: isGameMuted() }), []);
 
   useEffect(() => {
     [

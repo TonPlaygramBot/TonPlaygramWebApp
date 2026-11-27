@@ -1341,3 +1341,22 @@
     padding: 10px;
   }
 }
+
+/* Reuse the existing HUD row so a short portrait court stays unobstructed. */
+.tr-game .tr-quick-hit {
+  min-height: 44px;
+  padding: 4px 9px;
+  white-space: nowrap;
+  border: 1px solid #b6de92;
+  border-radius: 8px;
+  background: #b6de92;
+  color: #102b23;
+  font: inherit;
+  font-size: 13px;
+  font-weight: 800;
+  pointer-events: auto;
+  touch-action: manipulation;
+}
+.tr-game .tr-quick-hit:disabled { opacity: .5; }
+.tr-game .tr-quick-hit:focus-visible { outline: 2px solid #fff; outline-offset: 2px; }
+.tr-game .tr-touch-state .tr-power-value small { display: block; font-size: .78em; }

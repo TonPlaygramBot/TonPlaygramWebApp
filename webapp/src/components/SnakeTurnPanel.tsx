@@ -35,7 +35,7 @@ export default function SnakeTurnPanel({ canRoll, rolling, moving, waiting, mess
   const hint = isFinished ? 'Finish reached' : offline ? 'Waiting for a connection'
     : waiting ? 'Waiting for the table to fill' : setup ? 'Highest opening roll starts'
       : position === 0 ? 'Roll a 6 to enter' : remaining <= count * 6
-        ? `Exact ${count > 1 ? 'total' : 'roll'}: ${remaining} to finish` : 'A 6 gives you another roll';
+        ? `Exact ${count > 1 ? 'total' : 'roll'}: ${remaining} to finish` : `Tile ${position}/${finalTile} · 6 rolls again`;
   const status = offline ? 'Reconnecting…' : isFinished ? 'You finished!' : waiting ? 'Waiting for players'
     : setup ? 'Choosing the first player' : rolling ? 'Rolling…'
       : moving ? message || 'Moving…' : active ? message || 'Your turn' : `${playerName}’s turn`;

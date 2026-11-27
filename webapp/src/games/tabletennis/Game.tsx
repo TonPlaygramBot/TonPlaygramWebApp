@@ -53,7 +53,9 @@ export default function TableTennisGame({
 }) {
   const characterChoices = appearanceChoices?.characters || CHARACTERS;
   const arenaChoices = appearanceChoices?.arenas || ARENAS;
-  const host = useRef<HTMLDivElement>(null),
+  const court = useRef<HTMLDivElement>(null),
+    resumeButton = useRef<HTMLButtonElement>(null),
+    host = useRef<HTMLDivElement>(null),
     renderer = useRef<TableTennisRenderer | null>(null),
     audio = useRef<TableTennisAudio | null>(null);
   const frame = useRef<MatchState>(createMatch()),
@@ -121,7 +123,11 @@ export default function TableTennisGame({
     cancelGesture();
     pauseRef.current = false;
     setPaused(false);
+    court.current?.focus({ preventScroll: true });
   }
+  useEffect(() => {
+    if (paused) resumeButton.current?.focus({ preventScroll: true });
+  }, [paused]);
   function canSwing() {
     const s = frame.current,
       n = room.current?.seat ?? 0;
@@ -569,13 +575,19 @@ export default function TableTennisGame({
     }
   };
   const keyDown = (e: React.KeyboardEvent<HTMLDivElement>) => {
-    if (view !== 'match' || (e.target as HTMLElement).closest('input,select'))
-      return;
+    const target = e.target;
+    if (
+      view !== 'match' || e.defaultPrevented || e.nativeEvent.isComposing ||
+      !(target instanceof Element) ||
+      target.closest('input,select,textarea,[contenteditable]:not([contenteditable="false"])')
+    ) return;
     if (e.key === 'Escape') {
       e.preventDefault();
       paused ? resume() : pause();
     }
-    if (e.code === 'Space' && !e.repeat) {
+    // The court's shortcut must not replace the native action of a focused
+    // menu button, result control or link.
+    if (e.code === 'Space' && !e.repeat && !target.closest('button,a,[role="button"]')) {
       e.preventDefault();
       if (paused) resume();
       else if (frame.current.phase === 'over')
@@ -591,6 +603,7 @@ export default function TableTennisGame({
     <div
       className={`tt-game ${inline ? 'tt-inline' : ''}`}
       data-view={view}
+      ref={court}
       tabIndex={view === 'match' ? 0 : undefined}
       aria-label="Table tennis touch court"
       aria-describedby="tt-touch-help"
@@ -668,7 +681,7 @@ export default function TableTennisGame({
                   else setView('online');
                 }}
               >
-                Online · TPC
+                Online · TPG
               </button>
             </div>
             <div className="tt-links">
@@ -711,7 +724,7 @@ export default function TableTennisGame({
             seat={seat}
             label={
               online
-                ? 'TPC MATCH'
+                ? 'TPG MATCH'
                 : modeRef.current === 'career'
                   ? 'ROYAL TOUR'
                   : 'EXHIBITION'
@@ -901,7 +914,7 @@ export default function TableTennisGame({
           </div>
           <small>
             {services.online
-              ? 'Career saves to your TPC account.'
+              ? 'Career saves to your TonPlayGram account.'
               : 'Preview career lasts for this session.'}{' '}
             Skill points are for training; no wallet stake.
           </small>
@@ -913,7 +926,7 @@ export default function TableTennisGame({
             ← Back
           </button>
           <span className="tt-eyebrow">HEAD TO HEAD</span>
-          <h2>Your TPC arena.</h2>
+          <h2>Your TPG arena.</h2>
           <p>
             Online opponents and stake matchmaking are available through the
             Table Tennis Royal lobby in TonPlaygram. This preview supports AI
@@ -989,8 +1002,8 @@ export default function TableTennisGame({
       )}
       {paused && (
         <div className="tt-modal">
-          <div>
-            <h2>{online ? 'Leave this match?' : 'Take a breather.'}</h2>
+          <div role="dialog" aria-labelledby="tt-pause-title">
+            <h2 id="tt-pause-title">{online ? 'Leave this match?' : 'Take a breather.'}</h2>
             {!online && (
               <div className="tt-pause-appearance">
                 <label>
@@ -1083,7 +1096,7 @@ export default function TableTennisGame({
               <br />
               Two-finger swipe: backspin.
             </p>
-            <button className="tt-primary" onClick={resume}>
+            <button className="tt-primary" ref={resumeButton} onClick={resume}>
               RESUME
             </button>
             <button className="tt-secondary" onClick={exit}>
@@ -1116,10 +1129,10 @@ export default function TableTennisGame({
             {online && (
               <p>
                 {room.current?.settlement?.status === 'finished'
-                  ? 'TPC settlement complete.'
+                  ? 'TPG settlement complete.'
                   : room.current?.settlement?.status === 'refunded'
                     ? 'Stakes refunded.'
-                    : 'TPC settlement pending.'}
+                    : 'TPG settlement pending.'}
               </p>
             )}
             {modeRef.current === 'career' && (

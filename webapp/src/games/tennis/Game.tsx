@@ -528,6 +528,17 @@ export default function TennisGame({
     !confirmExit &&
     (!roomRef.current || roomRef.current.joined) &&
     canQueueSwing(frame.current, own);
+  // Equivalent to a centre tap on the court, without requiring a gesture.
+  const quickHit = () => {
+    if (pointer.current !== null || !canHit()) return;
+    input.current.direction =
+      renderer.current?.shotDirection(0, 0, frame.current) ?? null;
+    chooseAim(0);
+    unlock();
+    release(TAP_POWER);
+  };
+  const canQuickHit = !paused && !confirmExit &&
+    (!room || room.joined) && canQueueSwing(hud, own);
   const tour = TOUR[career.tour];
   const finishCourtTouch = (e: React.PointerEvent<HTMLDivElement>) => {
     touches.current.delete(e.pointerId);
@@ -841,9 +852,22 @@ export default function TennisGame({
               >
                 {shot === 'flat' ? 'Drive' : shot} ▾
               </button>
-              <b>{aim < -0.15 ? 'Left' : aim > 0.15 ? 'Right' : 'Centre'}</b>
+              <button
+                type="button"
+                className="tr-quick-hit"
+                disabled={!canQuickHit}
+                aria-label={
+                  hud.phase === 'serve' && hud.score.server === own
+                    ? 'Quick serve toward the opposite box'
+                    : 'Quick hit toward centre court'
+                }
+                onClick={quickHit}
+              >
+                {hud.phase === 'serve' && hud.score.server === own ? 'Serve' : 'Quick hit'}
+              </button>
               <span className="tr-power-value">
-                {Math.round(charge * 100)}% power
+                {aim < -0.15 ? 'Left' : aim > 0.15 ? 'Right' : 'Centre'}
+                <small>{Math.round(charge * 100)}% power</small>
               </span>
             </div>
             <div
