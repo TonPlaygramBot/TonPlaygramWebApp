@@ -1,0 +1,10 @@
+export const STORY_RETURN_ID: 'ch01-return';
+export const RETURN_RADIUS: number;
+export type ReturnOutcome='call-back'|'read-note';
+export type ReturnState={stage:'call'|'drive'|'choice'|'complete';stop:0|1;outcome:ReturnOutcome|null};
+type StoragePort=Pick<Storage,'getItem'|'setItem'>;
+export function storyReturnEnabled(search:string):boolean;
+export function returnWorldStorage(storage?:StoragePort):StoragePort|undefined;
+export function readReturnPreview(storage?:StoragePort):ReturnState;
+export function saveReturnPreview(storage:StoragePort|undefined,state:ReturnState):boolean;
+export function stepReturnPreview(state:ReturnState,event:{type:'listen'}|{type:'position';x:number;z:number;driving:boolean}|{type:'choose';outcome:ReturnOutcome},stops:ReadonlyArray<{x:number;z:number}>):ReturnState;
