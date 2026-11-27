@@ -1,4 +1,3 @@
-import {VERIFIED_RAIL_PIECES} from './shared/verifiedStreetDecorData.mjs';
 import {URBAN_DATUM_BOUNDS} from '../tirana-east/terrainCore.mjs';
 import * as T from 'three';
 import {mergeGeometries} from 'three/examples/jsm/utils/BufferGeometryUtils.js';
@@ -10,6 +9,7 @@ import {InfrastructureLayer} from '../tirana-environment/InfrastructureLayer';
 import {UrbanLighting} from '../tirana-environment/UrbanLighting';
 import {CHANNEL_LINER_RUN, riverFlowOrigins} from '../tirana-environment/riverShapeCore.mjs';
 import {createRiverWater, flowSurface, styleRiverLiner} from '../tirana-environment/RiverSurface';
+import {MappedLakes} from "../tirana-environment/MappedLakes";
 import {PavementAprons} from '../tirana-environment/PavementAprons';
 import {WATER_PATHS, BED_LEVEL, BANK_LEVEL, BANK_WIDTH, cutChannels, surfaceGeometry, bankGeometry, riverRing} from '../tirana-environment/riverGeometry';
 
@@ -21,6 +21,7 @@ export class LandscapeVisuals {
   readonly infrastructure: InfrastructureLayer;
   readonly lighting: UrbanLighting;
   readonly aprons: PavementAprons;
+  readonly lakes: MappedLakes;
   private dead = false;
   private readonly watercraft?:LanaWatercraft;
   private time = {value:0};
@@ -55,7 +56,8 @@ export class LandscapeVisuals {
     this.addMerged(slopes,concrete,'Concrete channel slopes');
     this.addMerged(banks,grass,'Planted river embankments');
     this.addMerged(surfaces,this.water,'Recessed water');
-    this.infrastructure=new InfrastructureLayer(loadTextures,blocked,VERIFIED_RAIL_PIECES);
+    this.lakes=new MappedLakes(WORLD.waterAreas);this.group.add(this.lakes.group);
+    this.infrastructure=new InfrastructureLayer(loadTextures,blocked);
     this.lighting=new UrbanLighting(blocked);
     this.group.add(this.infrastructure.group,this.lighting.group);
     if(loadTextures){this.watercraft=new LanaWatercraft();this.group.add(this.watercraft.group);}
@@ -68,11 +70,12 @@ export class LandscapeVisuals {
     const mesh=new T.Mesh(geometry,material);mesh.name=name;mesh.receiveShadow=true;this.group.add(mesh);
   }
   update(viewer:{x:number;z:number},seconds:number,battery:boolean){
-    if(this.dead)return;this.time.value=seconds;this.infrastructure.update(viewer,seconds,battery);this.lighting.update(viewer,seconds,battery);this.aprons.update(viewer,seconds,battery);this.watercraft?.update(viewer,seconds,battery);
+    if(this.dead)return;this.time.value=seconds;this.lakes.update(viewer,seconds,battery);this.infrastructure.update(viewer,seconds,battery);this.lighting.update(viewer,seconds,battery);this.aprons.update(viewer,seconds,battery);this.watercraft?.update(viewer,seconds,battery);
   }
   dispose(){
     if(this.dead)return;this.dead=true;
     this.watercraft?.dispose();
+    this.lakes.dispose();
     this.infrastructure.dispose();
     this.lighting.dispose();this.aprons.dispose();
     this.group.traverse(o=>{if(o instanceof T.Mesh)o.geometry.dispose();});

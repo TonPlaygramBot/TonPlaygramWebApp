@@ -1,4 +1,5 @@
 import {keepSquareTree} from '../tirana-environment/publicRealmCore.mjs';
+import {withKavajeCanopy} from './kavajeCanopy.mjs';
 import {useMediumTree,importedTreeBudget} from './treeLodPolicy.mjs';
 import {loadCompactTree} from './loadCompactTree';
 import {distanceTreeMinDistance,distanceTreeProfiles,updateActiveTreeInstances,type DistantBroadleafLayer} from './DistantBroadleafLayer';
@@ -40,7 +41,7 @@ export class MatureTreeLayer {
   this.cullFarTrees=!!options.cullFarTrees;this.bridgeCloseTreeDetail=!!options.bridgeCloseTreeDetail;
   this.group.name='Tirana:mature-boulevard-and-square-trees';this.group.add(this.imported.group,this.mediumImported.group);
   const blocked=options.track?ribbonExclusion(options.track):null;
-  const eligible=trees.filter(t=>keepSquareTree(t)&&pointInUrbanBounds(t,Math.max(1,t.crown/2))&&(!blocked||!blocked(t.x,t.z,Math.max(.8,t.crown*.75))));this.near=nearbyIndex(eligible.map(t=>({...t,y:groundHeight(t.x,t.z)+.12})));
+  const eligible=trees.map(withKavajeCanopy).filter(t=>keepSquareTree(t)&&pointInUrbanBounds(t,Math.max(1,t.crown/2))&&(!blocked||!blocked(t.x,t.z,Math.max(.8,t.crown*.75))));this.near=nearbyIndex(eligible.map(t=>({...t,y:groundHeight(t.x,t.z)+.12})));
   if(options.sourceDistantBroadleaf){
    this.distanceLayers=distanceTreeProfiles(eligible);
    for(const layer of this.distanceLayers)this.group.add(layer.mesh);

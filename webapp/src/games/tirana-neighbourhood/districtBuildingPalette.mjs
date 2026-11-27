@@ -3,6 +3,8 @@
 // Built-in map references: Skënderbej origin, Era Blloku, Grand Pazar, Ali Demi
 // bust, Brryli bridge, Star Hotel (Astir), Kombinat fire station, Rruga Selita e
 // Vjetër, Rruga Alliasi, Bar Kinostudio and Rruga Sauku. No new imagery/data.
+import {KODRA_PRIFTIT_VIEW} from './kodraPriftit.mjs';
+
 export const PALETTES = Object.freeze([
  ['qendra',0,0,440,[0xd6c9b7,0xd1beaa,0xbcb8ad,0xdbd0bd,0xc8c6be]],
  ['blloku',-344,821,610,[0xe0d5c4,0xbfc5c1,0xc3af9f,0xd8cdc0,0xc6c1b6]],
@@ -15,6 +17,7 @@ export const PALETTES = Object.freeze([
  ['allias',998,-2272,920,[0xcfc2aa,0xc0bdb2,0xcbb29c,0xc7bead,0xc4b5a6]],
  ['kinostudio',2347,-2179,1100,[0xc8beac,0xc7b49f,0xbec1b6,0xccc5ad,0xc2b6ae]],
  ['sauk',3025,-667,950,[0xd6c9b0,0xcfc1b3,0xc3c4b5,0xcaba9e,0xcdc1af]],
+ ['kodra-priftit',KODRA_PRIFTIT_VIEW.x,KODRA_PRIFTIT_VIEW.z,KODRA_PRIFTIT_VIEW.radius,[0xe5dfd1,0xd9c1a7,0xd4d8c0,0xdad0bd,0xd2bfae]],
 ]);
 const GENERAL = [0xcbbfa8,0xcebea9,0xc3c4b9,0xd0bfa7,0xc2b7a8];
 const BACKDROP = {

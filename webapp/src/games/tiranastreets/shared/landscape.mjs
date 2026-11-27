@@ -1,10 +1,10 @@
+import {VERIFIED_RAIL_PIECES} from '../../tiranastreets-november/shared/verifiedStreetDecorData.mjs';
 import {clearRoadSegment} from './streetSafety.mjs';
 import { WORLD } from './world.mjs';
 import {footprintIndex} from '../../tirana-city-source/footprintIndex.mjs';
 import {spatialIndex} from '../../tirana-city-completion/placementCore.mjs';
 import {
   SHOP,
-  SIGNALS,
   onCarriageway,
   segmentDistance
 } from './streetLayout.mjs';
@@ -93,9 +93,11 @@ export const onFootpath = (x, z, margin = 0.7) =>
   (walkCells.get(`${Math.floor(x / 32)},${Math.floor(z / 32)}`) || []).some(
     (r) => segmentDistance(x, z, r.a, r.b) < r.w / 2 + margin
   );
+// Only the bank-safety runs are inferred. Ordinary street width is not
+// evidence of ironwork; real roadside guardrails come from the OSM archive.
 export const RAILINGS = [];
 const occupied = new Set();
-function addRail(a, b, river = false) {
+function addBankRail(a, b) {
   const x = (a[0] + b[0]) / 2,
     z = (a[1] + b[1]) / 2;
   const key = `${Math.round(x / 2)},${Math.round(z / 2)}`;
@@ -103,12 +105,6 @@ function addRail(a, b, river = false) {
     occupied.has(key) || !clearRoadSegment(a,b,.32) ||
     ![a, b, [x, z]].every((p) => freeLandscape(...p)) ||
     nearBridge(x, z, 2.8)
-  )
-    return;
-  if (
-    !river &&
-    (onFootpath(x, z, 1.2) ||
-      SIGNALS.some((s) => Math.hypot(s.x - x, s.z - z) < s.width / 2 + 6))
   )
     return;
   occupied.add(key);
@@ -119,17 +115,17 @@ function addRail(a, b, river = false) {
     z,
     yaw: Math.atan2(b[0] - a[0], b[1] - a[1]),
     length: Math.hypot(b[0] - a[0], b[1] - a[1]),
-    river
+    river:true
   });
 }
-function sections(line, river) {
+function bankSections(line) {
   for (let i = 1; i < line.length; i++) {
     const a = line[i - 1],
       b = line[i],
       len = Math.hypot(b[0] - a[0], b[1] - a[1]);
     const count = Math.max(1, Math.ceil(len / 2.6));
     for (let k = 0; k < count; k++)
-      addRail(
+      addBankRail(
         [
           a[0] + ((b[0] - a[0]) * k) / count,
           a[1] + ((b[1] - a[1]) * k) / count
@@ -137,28 +133,19 @@ function sections(line, river) {
         [
           a[0] + ((b[0] - a[0]) * (k + 1)) / count,
           a[1] + ((b[1] - a[1]) * (k + 1)) / count
-        ],
-        river
+        ]
       );
   }
 }
 for (const r of RIVER_PATHS.filter((r) => r.width >= 8))
   for (const side of [-1, 1])
-    sections(offsetPath(r.line, side * (r.width / 2 + 5.8)), true);
-for (const r of WORLD.roads) {
-  const len = Math.hypot(r.b[0] - r.a[0], r.b[1] - r.a[1]);
-  if (r.walk || r.bridge || r.w < 9 || len < 22) continue;
-  for (const side of [-1, 1]) {
-    const ux = (r.b[0] - r.a[0]) / len,
-      uz = (r.b[1] - r.a[1]) / len,
-      off = side * (r.w / 2 + 0.9);
-    const a = [r.a[0] + ux * 6 + uz * off, r.a[1] + uz * 6 - ux * off],
-      b = [r.b[0] - ux * 6 + uz * off, r.b[1] - uz * 6 - ux * off];
-    sections([a, b], false);
-  }
-}
+    bankSections(offsetPath(r.line, side * (r.width / 2 + 5.8)));
+// Read, don't regenerate, the archived guard_rail ways. Exclusion during
+// snapshot generation keeps them off bridge decks, roads and footpaths.
+export const MAPPED_ROADSIDE_GUARD_RAILS = VERIFIED_RAIL_PIECES;
+export const CITY_GROUND_RAILINGS = [...RAILINGS,...MAPPED_ROADSIDE_GUARD_RAILS];
 const railCells = new Map();
-for (const r of RAILINGS)
+for (const r of CITY_GROUND_RAILINGS)
   for (let x = Math.floor((r.x - 5) / 32); x <= Math.floor((r.x + 5) / 32); x++)
     for (
       let z = Math.floor((r.z - 5) / 32);

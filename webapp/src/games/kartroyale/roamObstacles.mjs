@@ -1,5 +1,5 @@
 import {WORLD} from './racingWorld.mjs';
-import {RAILINGS} from '../tiranastreets/shared/landscape.mjs';
+import {CITY_GROUND_RAILINGS} from '../tiranastreets/shared/landscape.mjs';
 import {clearRoadSegment} from '../tiranastreets/shared/streetSafety.mjs';
 import {HYDROGRAPHY} from '../tirana-environment/hydrography.mjs';
 import {riverRing} from '../tirana-environment/riverShapeCore.mjs';
@@ -20,7 +20,7 @@ export function drivingWorldData(){
       ...MAPPED_TREES.filter(t=>!MATURE_TREE_IDS.has(t.id)).map(t=>({...t,radius:.22*t.scale,height:7*t.scale}))],
     waterPolygons:[...HYDROGRAPHY.paths.map(p=>({outer:riverRing(p),holes:[]})),
       ...WORLD.water.filter(Array.isArray).map(outer=>({outer,holes:[]}))],
-    obstacles:[...RAILINGS.map(r=>({a:r.a,b:r.b,radius:.055,height:1.16,material:'metal'})),
+    obstacles:[...CITY_GROUND_RAILINGS.map(r=>({a:r.a,b:r.b,radius:r.river ? .055 : .105,height:r.river ? 1.16 : .87,material:'metal'})),
       ...STREET_SOLIDS.map(p=>{
         const [x0,z0,x1,z1]=p.box,c=Math.cos(p.yaw||0),s=Math.sin(p.yaw||0);
         return {outer:[[x0,z0],[x1,z0],[x1,z1],[x0,z1]].map(([x,z])=>[p.x+c*x+s*z,p.z-s*x+c*z]),

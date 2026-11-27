@@ -1,6 +1,8 @@
 import * as T from 'three';
 
 export const CITY_FACADE_ATLAS = '/assets/tirana-streets/environment/civilian-wall-atlas-v1.webp';
+// Location-constrained architectural treatment; shares the existing plaster atlas slot.
+export const CITY_FACADE_HILLSIDE_PLASTER = 7;
 
 type Tags = Record<string, string | undefined>;
 const homes = new Set(['apartments', 'residential', 'house', 'detached', 'terrace', 'semidetached_house']);
@@ -30,7 +32,7 @@ export function installFacadePhotomaterials(material: T.MeshStandardMaterial,
   const atlasReady = {value: 0};
   const oldCompile = material.onBeforeCompile;
   const oldKey = material.customProgramCacheKey;
-  material.customProgramCacheKey = () => oldKey.call(material) + ':civilian-facade-bays-v3';
+  material.customProgramCacheKey = () => oldKey.call(material) + ':civilian-facade-bays-v4';
   material.onBeforeCompile = (shader, renderer) => {
     oldCompile.call(material, shader, renderer);
     shader.uniforms.cityFacadeAtlas = atlas;
@@ -50,9 +52,13 @@ export function installFacadePhotomaterials(material: T.MeshStandardMaterial,
           vec2 tile = 1.0 - abs(mod(vCityFacade.xy * repeat, 2.0)-1.0);
           vec2 atlasUv = .5 * slot + (24.0 + tile * 208.0) / 512.0;
           vec3 photo = texture2D(cityFacadeAtlas, atlasUv).rgb;
-          float strength = c > 5.5 ? .22 : c > 3.5 ? .30 : .56;
+          float strength = c > 6.5 ? .43 : c > 5.5 ? .22 : c > 3.5 ? .30 : .56;
           diffuseColor.rgb *= mix(vec3(1.), min(photo * 2.15, vec3(1.30)), strength);
         }
+        // Low plaster skirt: ground-floor depth cue follows the existing
+        // wall projection only. Roof, silhouette, road and windows stay put.
+        if(vCityFacade.z > 6.5)
+          diffuseColor.rgb *= mix(vec3(.82,.79,.74),vec3(1.),smoothstep(.07,.21,vCityFacade.y));
         // Window lines soften before they become smaller than a pixel.
         vec2 aa = max(fwidth(vCityWindow.xy), vec2(.003));
         if (vCityWindow.z > .5 && vCityWindow.y > 0. && vCityWindow.y < vCityWindow.z) {

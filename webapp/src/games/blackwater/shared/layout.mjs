@@ -9,7 +9,7 @@ import { nativeLandmarkObstacles } from '../../tirana-landmarks/nativeCollision.
 import {FUEL_CANOPY_IDS,fuelCanopyObstacles} from '../../tirana-street-life/fuelCollision.mjs';
 import { buildingProfile, footprintDistance } from '../../tiranastreets/shared/architecture.mjs';
 import { STREET_SOLIDS } from '../../tiranastreets/shared/streetDressing.mjs';
-import { RAILINGS } from '../../tiranastreets/shared/landscape.mjs';
+import { CITY_GROUND_RAILINGS } from '../../tiranastreets/shared/landscape.mjs';
 import { CITY_BUILDING_DATA } from '../../tirana-city-source/cityBuildingData.mjs';
 import { WORLD } from '../../tiranastreets/shared/world.mjs';
 import {createNearestRoadIndex,createObstacleClearance,obstacleBlocks} from './layoutSpatial.mjs';
@@ -113,7 +113,7 @@ export const streetObstacles = STREET_SOLIDS.map(p => {
     z:p.z-ORIGIN.z-x*Math.sin(p.yaw)+z*Math.cos(p.yaw),
     w:x1-x0,d:z1-z0,h:p.name==='bus_shelter'?2.5:p.name==='utility_cabinet'?1.55:.8,rot:p.yaw};
 });
-export const railingObstacles = RAILINGS.map(r=>({x:r.x-ORIGIN.x,z:r.z-ORIGIN.z,w:.1,d:r.length,h:1.05,rot:r.yaw}));
+export const railingObstacles = CITY_GROUND_RAILINGS.map(r=>({x:r.x-ORIGIN.x,z:r.z-ORIGIN.z,w:r.river ? .1 : .21,d:r.length,h:r.river ? 1.05 : .87,rot:r.yaw}));
 const replaced = nativeReplacementIds(WORLD);
 export const landmarkObstacles = nativeLandmarkObstacles(WORLD, ORIGIN);
 const cityObstacles = [...buildings.filter(b=>!replaced.has(b.id)&&!FUEL_CANOPY_IDS.has(b.id)), ...fuelCanopyObstacles(ORIGIN), ...landmarkObstacles, ...streetObstacles, ...railingObstacles, ...detailPostObstacles(ORIGIN)];

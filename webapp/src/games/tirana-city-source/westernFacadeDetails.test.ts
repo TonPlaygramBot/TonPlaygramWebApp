@@ -7,7 +7,7 @@ import {WESTERN_FACADE_PROFILES as profiles} from './westernFacadeProfiles.mjs';
 import {NEIGHBOURHOOD_REFERENCE_PROFILES,OBSERVED_HEIGHTS} from './neighbourhoodProfiles.mjs';
 import {westernFacadeDetails} from './WesternFacadeDetails';
 describe('western mapped streetscape',()=>{
- for(const id of ['712391761','1162828946','256326439'])it('fits mapped exterior '+id,()=>{
+ for(const id of ['712391761','1162828946','256326439','659804576','1127816735'])it('fits mapped exterior '+id,()=>{
   const b=race.buildings.find(x=>x.id===id),s=streets.buildings.find(x=>x.id===id),p=profiles[id];
   expect(b).toBeTruthy();
   expect(s?.p).toEqual(b?.p);
@@ -33,9 +33,27 @@ describe('western mapped streetscape',()=>{
   })).toBe(true);
   expect(highest).toBeLessThanOrEqual(height+.03);
   expect(triangles).toBeGreaterThan(200);
-  expect(triangles).toBeLessThan(7000);
+  expect(triangles).toBeLessThan(10000);
   expect(layers.size).toBeLessThan(12);
   if(id==='712391761')expect(arrows).toBeGreaterThan(10);
   else expect(arrows).toBe(0);
  });
+});
+
+it('mounts original raised Marinaj lettering on the single photographed road-facing roofline',()=>{
+ const b=race.buildings.find(x=>x.id==='1162828946')!,p=profiles[b.id],edges=facadeEdges(b.p);
+ const front=edges.find(e=>e.length>=20&&e.nx>.5&&e.nz<-.5)!;
+ const details:T.Vector3[]=[];
+ westernFacadeDetails(p,edges,p.height!, (color,geo)=>{
+  if(color===0xf4f2e7){
+   const xyz=geo.getAttribute('position');
+   for(let i=0;i<xyz.count;i++)details.push(new T.Vector3(xyz.getX(i),xyz.getY(i),xyz.getZ(i)));
+  }
+  geo.dispose();
+ },()=>{});
+ expect(details.length).toBeGreaterThan(500);
+ expect(details.every(v=>v.y>p.height!-2&&v.y<p.height!)).toBe(true);
+ const depth=details.map(v=>(v.x-front.x)*front.nx+(v.z-front.z)*front.nz);
+ expect(Math.max(...depth)-Math.min(...depth)).toBeGreaterThan(.11);
+ expect(depth.every(x=>x>.22&&x<.44)).toBe(true);
 });

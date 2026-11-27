@@ -42,6 +42,7 @@ function applyStreetWeathering(material:T.MeshStandardMaterial,amount:number,pav
      float fade=1.0-smoothstep(.09,.3,max(aa.x,aa.y));
      return vec2(max(line.x,line.y),variation-.5)*fade;
     }`:''}
+    float urbanMottle(vec2 p);
     vec3 urbanCorridorTone(vec2 metres){
      ${pavement?`
      // Contrast and bonding are authored art; the existing pavement normal
@@ -61,7 +62,9 @@ function applyStreetWeathering(material:T.MeshStandardMaterial,amount:number,pav
      else if(vCorridorMaterial.x<10.5){palette=vec3(1.28,1.26,1.18);tile=vec2(.43,.23);stagger=.5;}
      else if(vCorridorMaterial.x<13.5){palette=vec3(1.46,1.41,1.32);tile=vec2(.52,.32);stagger=.0;}
      else if(vCorridorMaterial.x<14.5){palette=vec3(1.39,1.29,1.14);tile=vec2(.31,.31);stagger=.0;}
-     else {palette=vec3(1.36,1.30,1.23);tile=vec2(.46,.30);stagger=.5;}
+     else if(vCorridorMaterial.x<15.5){palette=vec3(1.36,1.30,1.23);tile=vec2(.46,.30);stagger=.5;}
+     else if(vCorridorMaterial.x<16.5){palette=vec3(1.25,1.19,1.09);tile=vec2(.39,.27);stagger=.5;}
+     else return vec3(1.26,1.12,.93);
      vec2 bond=stoneBond(metres,metresAA,tile,stagger);
      // Durrësit's light/dark paver pattern is visible at a glance; fade it
      // before a single block falls below pixel size to avoid shimmer in Racing.
@@ -101,7 +104,14 @@ function applyStreetWeathering(material:T.MeshStandardMaterial,amount:number,pav
      else if(vCorridorMaterial.x<12.5)tone=vec3(1.40,1.34,1.23);
      else if(vCorridorMaterial.x<13.5)tone=vec3(1.07,1.059,1.040);
      else if(vCorridorMaterial.x<14.5)tone=vec3(.91,.94,.95);
-     else tone=vec3(.969,.975,.98);
+     else if(vCorridorMaterial.x<15.5)tone=vec3(.969,.975,.98);
+     else if(vCorridorMaterial.x<16.5)tone=vec3(.932,.962,.977);
+     else {
+      // Compacted Disha approach: pale mineral aggregate and softer dusty
+      // edges, without lane paint or a new strip of elevated geometry.
+      float fine=urbanMottle(metres*2.7);
+      return vec3(1.58,1.37,1.105)*(1.0+.065*shoulder+.18*(fine-.5));
+     }
      return tone*(1.0-.18*shoulder);`}
     }
     // Three staggered triangular waves. No extra texture taps or trig.
@@ -116,7 +126,7 @@ function applyStreetWeathering(material:T.MeshStandardMaterial,amount:number,pav
     float weathering=urbanMottle(vUrbanSurface);
     diffuseColor.rgb*=(1.0+urbanWear*(weathering-.60))*urbanCorridorTone(vUrbanSurface);`);
  };
- material.customProgramCacheKey=()=> `tirana-shared-street-weathering-v6-${pavement?'pavement':'asphalt'}`;
+ material.customProgramCacheKey=()=> `tirana-shared-street-weathering-v7-${pavement?'pavement':'asphalt'}`;
 }
 
 /** One surface owner for the complete city. Cheap asphalt reaches the horizon;

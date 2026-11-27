@@ -1,6 +1,7 @@
 import {buildingGround} from '../tirana-east/terrainCore.mjs';
 import * as T from 'three';
-import {cityFacadeClass} from './facadePhotomaterials';
+import {CITY_FACADE_HILLSIDE_PLASTER,cityFacadeClass} from './facadePhotomaterials';
+import {kodraPlasterWall} from './kodraPriftit.mjs';
 import {sourceBuildingColour,windowRows} from './buildingAppearance';
 import {housingProfile} from '../tirana-east/housingCore.mjs';
 import {wallWindowProjection,windowVertex} from './wallWindows.mjs';
@@ -12,7 +13,7 @@ export function appendBuildingShell(b:any,positions:number[],colors:number[],fac
  const points=[...outer,...holes.flat()];
  const base=buildingGround(b),low=base+(b.minHeight||0),high=base+Math.max((b.minHeight||0)+.1,b.h);
  const wallColor=sourceBuildingColour(b),roofColor=sourceBuildingColour(b,false);
- const wallFacade=facades ? cityFacadeClass(b.tags) : 0;
+ const wallFacade=facades ? kodraPlasterWall(b)?CITY_FACADE_HILLSIDE_PLASTER:cityFacadeClass(b.tags) : 0;
  const rows=windows&&!housingProfile(b)?windowRows(b):[];
  const triangle=(a:number[],c:number[],d:number[],shade:number,facade=0,color=roofColor,bays=[0,0,0,0,0,0,0,0,0,0,0,0])=>{
   if(facades)facades.push(facade,facade,facade);

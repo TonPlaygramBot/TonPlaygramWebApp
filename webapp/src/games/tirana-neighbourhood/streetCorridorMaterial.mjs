@@ -1,5 +1,6 @@
 // These are authored visual treatments anchored to exact road names in WORLD,
 // not surveyed material claims. See docs/tirana-corridor-appearance.md.
+import {kodraRoadFinish} from './kodraPriftit.mjs';
 const keys=new Map([
  ['bulevardi deshmoret e kombit',1],
  ['bulevardi bajram curri',2],['bulevardi gjergj fishta',2],
@@ -25,6 +26,8 @@ export function corridorMaterialId(name){
 
 /** Select source-confirmed surface subtypes without changing road geometry. */
 export function corridorRoadMaterialId(road,sidewalk=false){
+ const kodra=kodraRoadFinish(road);
+ if(kodra)return kodra;
  const family=corridorMaterialId(road?.name);
  if(!family&&typeof road?.name==='string'&&bllokuRoutes.has(cleanName(road.name))&&road.a&&road.b){
   const x=(road.a[0]+road.b[0])*.5,z=(road.a[1]+road.b[1])*.5;

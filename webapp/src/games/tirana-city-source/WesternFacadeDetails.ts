@@ -20,10 +20,42 @@ function arrow(add:Add,e:FacadeEdge,u:number,y:number,len:number,angle:number) {
  add(ARROW,new T.ShapeGeometry(outline).rotateZ(angle).rotateY(e.yaw)
   .translate(e.a[0]+e.ux*u+e.nx*.083,y,e.a[1]+e.uz*u+e.nz*.083));
 }
+type GlyphStroke=[number,number,number,number];
+const LINES:Readonly<Record<string,readonly GlyphStroke[]>>={
+ M:[[0,0,0,1],[0,1,.5,.46],[.5,.46,1,1],[1,1,1,0]],
+ A:[[0,0,.5,1],[.5,1,1,0],[.22,.43,.78,.43]],
+ R:[[0,0,0,1],[0,1,.89,1],[.89,1,.89,.51],[.89,.51,0,.51],[.40,.51,1,0]],
+ I:[[.5,0,.5,1],[.16,1,.84,1],[.16,0,.84,0]],
+ N:[[0,0,0,1],[0,1,1,0],[1,0,1,1]],
+ J:[[.14,1,1,1],[.84,1,.84,.22],[.84,.22,.60,0],[.60,0,.21,0],[.21,0,0,.24]],
+ H:[[0,0,0,1],[1,0,1,1],[0,.49,1,.49]],
+ O:[[.19,0,.81,0],[.81,0,1,.21],[1,.21,1,.79],[1,.79,.81,1],[.81,1,.19,1],[.19,1,0,.79],[0,.79,0,.21],[0,.21,.19,0]],
+ T:[[0,1,1,1],[.5,1,.5,0]],
+ E:[[0,0,0,1],[0,1,1,1],[0,.51,.78,.51],[0,0,1,0]],
+ L:[[0,1,0,0],[0,0,1,0]]
+};
+function marinajRoofSign(edges:FacadeEdge[],height:number,add:Add){
+ // Exact Keko-facing long side of OSM way 1162828946. Operator and project
+ // photographs show raised, pale roofline lettering. Use original plain
+ // strokes, not the business logo, typeface, or image pixels.
+ const edge=edges.find(e=>e.length>=20&&e.nx>.5&&e.nz<-.5);
+ if(!edge)return;
+ const words='MARINAJ HOTEL',hh=1.08,ww=.67,spacing=.91;
+ for(const [i,letter] of [...words].entries())for(const [ax,ay,bx,by] of LINES[letter]??[]){
+  const dx=(bx-ax)*ww,dy=(by-ay)*hh,
+    u=(i-(words.length-1)/2)*spacing+((ax+bx)/2-.5)*ww,
+    y=height-1.14+((ay+by)/2-.5)*hh;
+  add(0xf4f2e7,new T.BoxGeometry(Math.hypot(dx,dy)+.035,.105,.12)
+    .rotateZ(Math.atan2(dy,dx)).rotateY(edge.yaw)
+    .translate(edge.x+edge.nz*u+edge.nx*.324,y,edge.z-edge.nx*u+edge.nz*.324));
+ }
+}
 /** Returns true when the authored model owns all facade layers for this shell.
  * Geometry is simple and batched by the existing reference facade renderer. */
 export function westernFacadeDetails(p:ReferenceProfile,edges:FacadeEdge[],height:number,add:Add,wall:Wall){
+ if(p.style==='western-square-21')return square21(p,edges,height,wall);
  if(!['western-arrows','western-marinaj','western-kristal'].includes(p.style))return false;
+ if(p.style==='western-marinaj')marinajRoofSign(edges,height,add);
  for(const e of edges){
   if(e.length<(p.style==='western-arrows'?6.5:2.5))continue;
   const main=e.length>=7, roof=height-.18;
@@ -88,6 +120,38 @@ export function westernFacadeDetails(p:ReferenceProfile,edges:FacadeEdge[],heigh
      wall(e,p.trim,u,y-floor*.36,pitch*.91,.18,.55,.3);
      wall(e,p.trim,u,y-floor*.18,pitch*.91,.065,.09,.6);
     }
+   }
+  }
+ }
+ return true;
+}
+
+
+// A small material palette and batched facade geometry preserve the two
+// mapped courtyard outlines. No external photo surfaces or collisions.
+function square21(p:ReferenceProfile,edges:FacadeEdge[],height:number,wall:Wall){
+ const floors=Math.max(4,Math.round(height/p.floor)),floor=height/floors;
+ for(const e of edges){
+  if(e.length<6)continue;
+  const bays=Math.max(1,Math.min(12,Math.floor(e.length/3.6))),pitch=e.length/bays;
+  const street=e.nz<-.7, base=floor*1.6;
+  wall(e,DARK_GLASS,e.length/2,base*.5,e.length-.15,base-.15,.07,.1);
+  wall(e,p.trim,e.length/2,base,e.length,.24,.26,.17);
+  wall(e,p.trim,e.length/2,height-.22,e.length,.24,.23,.12);
+  for(let j=0;j<bays;j++){
+   const u=(j+.5)*pitch,leader=(j+Math.round(e.x))%5===0;
+   const wing=(Math.floor(j/3)+Math.round(Math.abs(e.z)))%3;
+   const pigment=[0xd8d0c1,0xa38a73,0xb0b0a4][wing];
+   wall(e,pigment,u,(height+base)/2,pitch-.04,height-base-.11,.052,.078);
+   wall(e,p.trim,u,base*.47,.07,base*.9,.04,.21);
+   if(leader&&street) {
+    for(let r=3;r<floors;r+=2)wall(e,0x53644a,u-pitch*.36,(r+.27)*floor,.36,.54,.22,.28);
+   }
+   for(let r=2;r<floors;r++){
+    const y=(r+.51)*floor;
+    wall(e,j%4?GLASS:DARK_GLASS,u,y,pitch*.66,floor*.62,.05,.17);
+    wall(e,p.trim,u,y,.068,floor*.62,.045,.22);
+    if(j%3===1&&r%2===0)wall(e,p.trim,u,y-floor*.34,pitch*.81,.13,.31,.22);
    }
   }
  }

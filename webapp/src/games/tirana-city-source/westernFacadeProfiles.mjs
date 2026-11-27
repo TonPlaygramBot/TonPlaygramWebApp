@@ -1,6 +1,14 @@
 /** Exterior reading, never a height source for collision or a redistribution of photos. */
 const credit='Reference only; no source imagery redistributed';
+const square21=Object.freeze({
+ name:'Kompleksi Square 21',style:'western-square-21',site:'square-21',category:'residential',
+ color:0xc1b3a1,trim:0xdad4c8,floor:3.2,window:1.8,photo:null,credit,
+ source:'https://fab.al/en/square-21/',date:'FAB architect project; XPLAN published in the 2025 awards',
+ features:'Mapped 11-level wings with varied light and warm cladding, vertically emphasized green accents and a glazed service base. Not a dimensional survey.'
+});
 export const WESTERN_FACADE_PROFILES=Object.freeze({
+ '659804576':square21,
+ '1127816735':square21,
  '712391761':Object.freeze({
   name:'Pallati me Shigjeta',style:'western-arrows',site:'pallati-me-shigjeta',category:'residential',
   color:0x607262,trim:0xa0a19c,floor:3.2,window:1.6,photo:null,credit,

@@ -17,7 +17,8 @@ test.before(async()=>{
  roadCore=await import('../webapp/src/games/tirana-environment/roadSurfaceCore.mjs');
  corridorMaterials=await import('../webapp/src/games/tirana-neighbourhood/streetCorridorMaterial.mjs');
  wallWindows=await import('../webapp/src/games/tirana-neighbourhood/wallWindows.mjs');
- shell=load('tirana-neighbourhood/buildingShell.ts',{three:T,'../tirana-east/terrainCore.mjs':terrain,'./buildingAppearance':appearance,'../tirana-east/housingCore.mjs':{housingProfile:()=>null},'../tirana-city-source/housingRegistry.mjs':{AGED_HOUSING_IDS:new Set()},'./wallWindows.mjs':wallWindows,'./facadePhotomaterials':{cityFacadeClass:()=>0}});
+ const kodra=await import('../webapp/src/games/tirana-neighbourhood/kodraPriftit.mjs');
+ shell=load('tirana-neighbourhood/buildingShell.ts',{three:T,'../tirana-east/terrainCore.mjs':terrain,'./buildingAppearance':appearance,'../tirana-east/housingCore.mjs':{housingProfile:()=>null},'../tirana-city-source/housingRegistry.mjs':{AGED_HOUSING_IDS:new Set()},'./wallWindows.mjs':wallWindows,'./kodraPriftit.mjs':kodra,'./facadePhotomaterials':{cityFacadeClass:()=>0,CITY_FACADE_HILLSIDE_PLASTER:7}});
 });
 // One actual generator step per frame makes cooperative progress observable.
 const settings={CITY_RADIUS:{battery:2200,high:3200},CITY_CACHE:{battery:320,high:700},runCityWork:q=>q.run(1,1,()=>0)};
