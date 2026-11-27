@@ -18,6 +18,7 @@ import { carPoint, vehicleAnchors, steeringWheelContacts, steeringWheelAngle, ST
 import {driverUp,driverDirection} from '../shared/driverView.mjs';
 import {solveHumanoidGrip,poseHumanoidFist} from './humanoidHands.mjs';
 import {canonicalHumanoidBone, humanoidBones, headBoneIndices, solveHumanoidLimb, HumanoidLegPose} from './humanoidRig.mjs';
+import {groundMotion,groundCadence,stridePhase,type GroundMotion} from './groundMotion.mjs';
 const v = new T.Vector3(),
   q = new T.Quaternion();
 /** Rig-specific head masking, without scaling bones or hiding an entire skin.
@@ -125,6 +126,7 @@ export class FirstPersonBody {
   private motion = '';
   private running = false;
   private moving = false;
+  private groundPose?: GroundMotion;
   private activeMotion?: T.AnimationAction;
   private motionActions: T.AnimationAction[] = [];
   private freeArmClips = new Set<T.AnimationAction>();
@@ -175,6 +177,7 @@ export class FirstPersonBody {
     this.activeMotion = undefined;
     this.running = false;
     this.moving = false;
+    this.groundPose = undefined;
     this.previousYaw = undefined;
     this.airBlend = this.ascentBlend = 0;
     // Remove horizontal root translation from private clips; physics owns all movement.
@@ -307,7 +310,9 @@ export class FirstPersonBody {
     root.visible = p.health > 0;
     root.position.set(p.x, b.y, p.z);
     const unarmed=!p.weapon||p.weapon==='punch';
-    const travelYaw=!firstPerson&&unarmed&&!car&&b.grounded&&p.speed>.15
+    const measuredGround=unarmed&&b.grounded&&!car&&b.interaction==='free'&&!b.action;
+    this.groundPose=groundMotion(this.groundPose,{speed:p.speed,travelX:b.travelX,travelZ:b.travelZ,free:measuredGround,dt});
+    const travelYaw=!firstPerson&&this.groundPose.moving
       ? Math.atan2(-b.travelX,-b.travelZ) : b.yaw;
     const targetYaw = travelYaw + Math.PI;
     const yaw = firstPerson || this.previousYaw === undefined ? targetYaw :
@@ -323,21 +328,24 @@ export class FirstPersonBody {
       root.position.z-=Math.cos(b.yaw)*1.6*this.custodyDown;
       root.position.y+=.22*this.custodyDown;
     }
-    const speed = T.MathUtils.clamp(Number.isFinite(p.speed) ? Math.abs(p.speed) : 0, 0, 12);
-    this.moving = speed > (this.moving ? .08 : .18) && !car && b.grounded;
-    this.running = this.moving && speed > (this.running ? 2.7 : 3.25);
+    const speed = unarmed ? this.groundPose.speed :
+      T.MathUtils.clamp(Number.isFinite(p.speed) ? Math.abs(p.speed) : 0, 0, 12);
+    this.moving = unarmed ? this.groundPose.moving :
+      speed > (this.moving ? .08 : .18) && !car && b.grounded;
+    this.running = unarmed ? this.groundPose.running :
+      this.moving && speed > (this.running ? 2.7 : 3.25);
     const moving = this.moving,
       motion = moving ? (this.running ? (p.weapon && p.weapon!=='punch' ? 'Run_Shoot' : 'Run') : 'Walk') : p.weapon && p.weapon!=='punch' ? (b.aim ? 'Idle_Gun_Pointing' : 'Idle_Gun') : 'Idle';
     const next = actor.clips?.[motion] || (moving ? (this.running ? actor.run || actor.walk : actor.walk || actor.run) : actor.idle);
     if (next !== this.activeMotion) {
       const previous = this.activeMotion;
       const preserveStride = moving && /walk|run|sprint/i.test(previous?.getClip().name || '');
-      const phase = preserveStride && previous ? previous.time / Math.max(.001, previous.getClip().duration) : 0;
+      const phase = preserveStride && previous ? stridePhase(previous.time,previous.getClip().duration) : 0;
       for (const action of this.motionActions)
         if (action !== next) action?.fadeOut(.18);
       if (next) {
         next.reset();
-        next.time = ((phase % 1 + 1) % 1) * next.getClip().duration;
+        next.time = phase * next.getClip().duration;
         next.fadeIn(.18).play();
       }
       this.activeMotion = next;
@@ -355,7 +363,9 @@ export class FirstPersonBody {
       if (!action) continue;
       const name = action.getClip().name;
       const locomotion = /walk|run|sprint/i.test(name);
-      action.setEffectiveTimeScale(moving && locomotion ? T.MathUtils.clamp(speed / (/run|sprint/i.test(name) ? 5.4 : 1.45), .15, 2.3) : 1);
+      const runningClip=/run|sprint/i.test(name);
+      action.setEffectiveTimeScale(moving && locomotion ? (unarmed ? groundCadence(speed,runningClip) :
+        T.MathUtils.clamp(speed / (runningClip ? 5.4 : 1.45), .15, 2.3)) : 1);
     }
     actor.mixer?.update(dt);
     // Imported player skins may ship only a static pose: use their own bind

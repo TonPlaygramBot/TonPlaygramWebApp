@@ -701,6 +701,12 @@ export function startSessionMission(state, missionId, difficulty='normal') {
   }
   return true;
 }
+// Solo's previous starter parking point at the square let contact resolution
+// move the GTI into a mapped mature trunk. Use a checked public-street verge
+// on Rruga Myslym Shyri [-121.51,204.04] → [7.36,177.09], not a moved tree.
+const SOLO_STARTER_PARKING = Object.freeze({
+  x: -24.346699713865448, z: 189.9015567509559, heading: -1.3646418668536968
+});
 export function addPlayer(
   state,
   member,
@@ -711,11 +717,14 @@ export function addPlayer(
   if (Object.keys(state.players).length >= MAX_PLAYERS)
     throw Error('This city room is full.');
   // Put each parked car along the road; resolve its collision before placing the driver.
+  const parking = state.mode === 'solo' && state.missionId === FREE_ROAM.id && slot === 0
+    ? SOLO_STARTER_PARKING : null;
+  const heading = parking?.heading ?? initialHeading;
   const c = vehicle(
     `car-${member.id}`,
-    SPAWN.x - Math.sin(initialHeading) * slot * 6,
-    SPAWN.z - Math.cos(initialHeading) * slot * 6,
-    initialHeading,
+    parking?.x ?? (SPAWN.x - Math.sin(heading) * slot * 6),
+    parking?.z ?? (SPAWN.z - Math.cos(heading) * slot * 6),
+    heading,
     sport ? 'sedan-sports' : 'sedan'
   );
   if(slot===0){c.collectionVehicle='golf-gti';c.npcDriver=false;}
@@ -724,9 +733,10 @@ export function addPlayer(
   const p = {
     id: member.id,
     name: String(member.name || 'Driver').slice(0, 18),
-    x: c.x + Math.cos(initialHeading) * 2.8,
-    z: c.z - Math.sin(initialHeading) * 2.8,
-    heading: initialHeading,
+    x: c.x + Math.cos(heading) * 2.8,
+    z: c.z - Math.sin(heading) * 2.8,
+    // Walk starts facing the parked car; its own driving heading stays on the curb.
+    heading: parking ? heading + Math.PI / 2 : heading,
     speed: 0,
     carId: null,
     index: 0,

@@ -1,16 +1,39 @@
 import {armorCapacity} from '../shared/equipment.mjs';
 import {ammunitionQuote, reserveCapacity} from '../shared/ammunition.mjs';
-import {useEffect,useRef,useState} from 'react';
+import {useCallback,useEffect,useRef,useState} from 'react';
 import {nearestShop} from '../shared/cityPopulation.mjs';
 import {WEAPONS,WEAPON_BY_ID} from '../shared/weapons.mjs';
 import {wantedStars} from '../shared/cityLife.mjs';
 import {WEAPON_STORE_CATALOG} from '../weaponStoreCatalog.mjs';
-import {loadWeaponStoreAccount,purchaseWeapon,type WeaponStoreAccount} from '../weaponStoreApi';
+import {loadPlatformTpgBalance,PlatformBalanceChanged,loadWeaponStoreAccount,purchaseWeapon,type WeaponStoreAccount} from '../weaponStoreApi';
 import type {State,Player} from '../shared/engine.mjs';
 import {UPLOADED_WEAPONS} from '../shared/uploadedWeapons.mjs';
 
 export function StreetArsenal({player:p,state,onAction,onOwned}:{player:Player;state:State;onAction:(a:string)=>void;onOwned:(ids:string[])=>void}) {
  const [filter,setFilter]=useState('all'),[account,setAccount]=useState<WeaponStoreAccount|null>(null),[message,setMessage]=useState('Loading your TPG account…'),[busy,setBusy]=useState('');
+ const [platform,setPlatform]=useState<{balance:number|null;message:string}>({balance:null,message:''});
+ const balanceRequest=useRef(0);
+ const refreshPlatform=useCallback(async()=>{
+  const seq=++balanceRequest.current;
+  setPlatform({balance:null,message:'Loading TonPlayGram balance…'});
+  try{
+   const balance=await loadPlatformTpgBalance();
+   if(balanceRequest.current===seq)setPlatform({balance,message:''});
+  }catch(e){
+   if(balanceRequest.current!==seq)return;
+   setPlatform({balance:null,message:e instanceof PlatformBalanceChanged?'Account changed. Refresh the wallet balance.':'TonPlayGram balance unavailable. Sign in again or open Wallet.'});
+  }
+ },[]);
+ useEffect(()=>{
+  void refreshPlatform();
+  const refresh=()=>{void refreshPlatform();};
+  const storage=(event:StorageEvent)=>{
+   if(!event.key||['accountId','googleId','googleProfile','telegramId'].includes(event.key))refresh();
+  };
+  window.addEventListener('accountUpdated',refresh);
+  window.addEventListener('storage',storage);
+  return()=>{balanceRequest.current++;window.removeEventListener('accountUpdated',refresh);window.removeEventListener('storage',storage);};
+ },[refreshPlatform]);
  const locked=useRef(false),mounted=useRef(true),grant=useRef(onOwned);grant.current=onOwned;
  useEffect(()=>{mounted.current=true;void refresh();return()=>{mounted.current=false;};},[]);
  async function refresh(){try{const a=await loadWeaponStoreAccount();if(mounted.current){setAccount(a);grant.current(a.ownedWeaponIds);setMessage('TPG equipment is saved to your account.');}}catch(e){if(mounted.current)setMessage((e as Error).message);}}
@@ -27,10 +50,11 @@ export function StreetArsenal({player:p,state,onAction,onOwned}:{player:Player;s
  const catalog=new Map(WEAPON_STORE_CATALOG.map(w=>[w.weaponId,w]));
  return <section>
   <p>{near?`${shop.name} · Shop from the open entrance`:'Choose a pistol marker on the city map, then walk to its open entrance.'}</p>
-  <p><strong>{account?account.balanceTPG.toLocaleString():'—'} TPG</strong> · <strong>${p.cash}</strong> street cash for ammunition, healing and armor.</p>
+  <p><strong>{platform.balance===null?'—':platform.balance.toLocaleString()} TPG</strong> · TonPlayGram wallet <span role="status">{platform.message}</span> <button onClick={()=>void refreshPlatform()}>REFRESH WALLET BALANCE</button></p>
+  <p>{account&&<><strong>{account.balanceTPG.toLocaleString()} TPG</strong> available to spend here · </>}<strong>${p.cash}</strong> street cash for ammunition, healing and armor.</p>
   <p role="status">{message}</p>{p.shopMessage&&<p role="status">{p.shopMessage}</p>}
   {equipped&&p.inventory[p.weapon]&&!['melee','equipment'].includes(equipped.category)&&<p><button disabled={!canBuy||!quick.rounds||p.cash<quick.price} onClick={()=>onAction(`buy:ammo:max:${p.weapon}`)}>FILL {equipped.label.toUpperCase()} · +{quick.rounds} · ${quick.price}</button></p>}
-  <p>Firearm reserves hold up to 40 magazines; explosives hold 16. Hidden ammunition stashes refill matching weapons without switching your loadout.</p>{<button disabled={!!busy} onClick={()=>void refresh()}>{account?'REFRESH TPG BALANCE':'RETRY ACCOUNT'}</button>}
+  <p>Firearm reserves hold up to 40 magazines; explosives hold 16. Hidden ammunition stashes refill matching weapons without switching your loadout.</p>{account&&<button disabled={!!busy} onClick={()=>void refresh()}>REFRESH SHOP BALANCE</button>}
   {!near&&<p>Owned weapons can be equipped anywhere.</p>}{wantedStars(p.wanted)>0&&<p>Lose your wanted stars before shopping.</p>}
   <label>Category <select value={filter} onChange={e=>setFilter(e.target.value)}>{['all',...new Set(WEAPONS.map(w=>w.category))].map(c=><option key={c} value={c}>{c}</option>)}</select></label>
   <div className="tsc-chapters">{WEAPONS.filter(w=>w.id!=='fpsGunAttack'&&(p.inventory[w.id]||catalog.has(w.id))&&(filter==='all'||w.category===filter)).map(w=>{

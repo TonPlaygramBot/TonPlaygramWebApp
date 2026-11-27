@@ -1,3 +1,4 @@
+import {createQuarterCassetteSample} from './shutterCassetteSample';
 import * as T from 'three';
 import {mergeGeometries} from 'three/examples/jsm/utils/BufferGeometryUtils.js';
 import {QUARTER} from './quarterData.mjs';
@@ -17,6 +18,7 @@ export class TabakeveQuarterLayer {
  private cache=new Map<string,ReturnType<typeof quarterFacadeParts>>();
  private last=-Infinity;private dead=false;private disposed=false;
  private dummy=new T.Object3D();private color=new T.Color();
+ private shutterCassettes?:ReturnType<typeof createQuarterCassetteSample>;
  private blocked:ReturnType<typeof ribbonExclusion>|null;
  constructor(options:StreetDetailOptions={}){
   this.group.name='Tirana:Tabakeve-Petro-Nini-Ali-Demi';
@@ -28,6 +30,9 @@ export class TabakeveQuarterLayer {
   }
   this.buildBridge();const frontages=options.profile==='street'&&!options.track?petroNiniFrontages():null;
   if(frontages)this.buildPetroFrontages(frontages);else this.buildSigns();this.group.add(this.bridge,this.signs);
+  if(options.stableParkSurfaces&&options.profile==='street'&&!options.track){
+   this.shutterCassettes=createQuarterCassetteSample();this.group.add(this.shutterCassettes.group);
+  }
  }
  private buildPetroFrontages(layout:NonNullable<ReturnType<typeof petroNiniFrontages>>){
   const canvas=document.createElement('canvas');canvas.width=512;canvas.height=512;
@@ -130,13 +135,14 @@ export class TabakeveQuarterLayer {
   for(const b of nearby){if(!this.cache.has(b.id))this.cache.set(b.id,quarterFacadeParts(b));parts.push(...this.cache.get(b.id)!);}
   parts.sort((a,b)=>Math.hypot(a.x-viewer.x,a.z-viewer.z)-Math.hypot(b.x-viewer.x,b.z-viewer.z));
   this.batches.forEach(mesh=>mesh.count=0);
-  for(const p of parts){const mesh=this.batches.get(p.model)!;if(mesh.count>=Math.min(mesh.instanceMatrix.count,battery?650:Infinity))continue;
+  const replaced=this.shutterCassettes?.update(viewer,parts);
+  for(const p of parts){if(replaced?.has(p))continue;const mesh=this.batches.get(p.model)!;if(mesh.count>=Math.min(mesh.instanceMatrix.count,battery?650:Infinity))continue;
    this.dummy.position.set(p.x,p.y,p.z);this.dummy.rotation.set(0,p.yaw,0);this.dummy.scale.set(p.w,p.h,p.d);this.dummy.updateMatrix();mesh.setMatrixAt(mesh.count,this.dummy.matrix);mesh.setColorAt(mesh.count++,this.color.setHex(p.color));
   }
   this.batches.forEach(mesh=>{mesh.visible=mesh.count>0;mesh.instanceMatrix.needsUpdate=true;if(mesh.instanceColor)mesh.instanceColor.needsUpdate=true;});
   const keep=new Set(nearby.map(b=>b.id));for(const id of this.cache.keys())if(this.cache.size>64&&!keep.has(id))this.cache.delete(id);
   this.group.userData.visibleBuildings=nearby.length;
  }
- retire(){this.dead=true;}
+ retire(){this.dead=true;this.shutterCassettes?.dispose();}
  dispose(){if(this.disposed)return;this.disposed=true;this.retire();this.group.traverse(o=>{if(o instanceof T.InstancedMesh)o.dispose();if(o instanceof T.Mesh)o.geometry.dispose();});this.materials.forEach(m=>m.dispose());this.textures.forEach(t=>t.dispose());this.cache.clear();this.group.clear();this.group.removeFromParent();}
 }

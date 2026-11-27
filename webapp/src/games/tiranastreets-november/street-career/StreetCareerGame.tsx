@@ -2,6 +2,7 @@ import {equipmentZoom,armorCapacity} from '../shared/equipment.mjs';
 import {operationTarget} from './operationRoute.mjs';
 import {RadioControls} from '../radio/RadioControls';
 import {CITY_EVENT_SITE,CITY_EVENT_PHASES} from '../shared/cityEvents.mjs';
+import {firstShiftPrompt} from './firstShiftPrompt.mjs';
 import {MissionReadout} from '../MissionReadout';
 import {GraphicsControl} from '../GraphicsControl';
 import {MovementStick} from '../MovementStick';
@@ -177,6 +178,13 @@ export function StreetCareerGame({ onExit, initialOperation, initialDifficulty='
     driving = !!p?.carId,
     mission = campaign.chapters.find((m) => m.id === view?.state.missionId),
     target = operationTarget(mission, runtime.current?.simulation.job.director, view?.state.objectiveRemaining ?? mission?.enemies ?? 0) || mission?.stops[p?.index || 0];
+  const objective = view && firstShiftPrompt({
+    missionId: mission?.id,
+    finished: view.state.phase === 'finished',
+    objective: view.objective,
+    mode: driving ? 'driving' : flying ? 'flying' : 'walking',
+    learned: view.body.tutorial
+  });
   return (
     <main
       className={`tsc ${driving?'is-driving':flying?'is-flying':'is-on-foot'}${view?.settings.leftHanded?' is-left-handed':''}${mission?' has-mission':''}`}
@@ -208,7 +216,7 @@ export function StreetCareerGame({ onExit, initialOperation, initialDifficulty='
         </div>
       )}
       {!view?.ready && !failure && <div className="tsc-loading" role="status">{loading}…</div>}
-      {view?.ready && p && !panel && !failure && (
+      {view?.ready && p && objective && !panel && !failure && (
         <>
           <CityStatusHud health={p.health} armor={p.armor} maxArmor={armorCapacity(p)}
             cash={p.cash} pursuit={wantedStars(p.wanted)} />
@@ -216,18 +224,21 @@ export function StreetCareerGame({ onExit, initialOperation, initialDifficulty='
             <NavigationGuidance route={view.route} player={p} destination={view.destination}
               onClear={() => runtime.current?.setDestination(null)}/>
             {view.economy.robbery && <section className="tsc-objective" aria-label="Bank job">
-              <strong>{view.objective.title}</strong><span>{view.objective.detail}</span>
+              <strong>{objective.title}</strong><span>{objective.detail}</span>
             </section>}
-            {mission && <section className="tsc-objective">
+            {mission && objective.training && view.state.phase !== 'finished' ? <section className="tsc-objective tsc-training" aria-label="First shift controls" role="status">
+              <span>FIRST SHIFT · CONTROLS</span>
+              <strong>{objective.title}</strong><span>{objective.detail}</span>
+            </section> : mission && <section className="tsc-objective">
               <MissionReadout label="Current mission" eyebrow={mission.title}
-                title={view.state.phase === 'finished' ? view.state.message : view.objective.title}
-                detail={view.objective.detail}
+                title={view.state.phase === 'finished' ? view.state.message : objective.title}
+                detail={objective.detail}
                 remaining={Math.max(0, mission.time * difficultyOf(view.state.difficulty).time - missionElapsed(view.state))}
-                progress={view.objective.progress ?? p.index / Math.max(1, mission.stops.length)}
-                meta={[`Stage ${view.objective.stage ?? Math.min(p.index + 1, mission.stops.length)} / ${view.objective.stages ?? mission.stops.length}`,
-                  ...(view.objective.integrity !== undefined ? [`Condition ${Math.ceil(view.objective.integrity)}%`] : []),
+                progress={objective.progress ?? p.index / Math.max(1, mission.stops.length)}
+                meta={[`Stage ${objective.stage ?? Math.min(p.index + 1, mission.stops.length)} / ${objective.stages ?? mission.stops.length}`,
+                  ...(objective.integrity !== undefined ? [`Condition ${Math.ceil(objective.integrity)}%`] : []),
                   ...(view.state.objectiveRemaining !== undefined && mission.type === 'combat' ? [`${view.state.objectiveRemaining} opponents`] : []),
-                  ...(view.objective.remaining !== undefined ? [`${view.objective.phase === 'recover' ? 'Recover in' : 'Hold'} ${Math.ceil(view.objective.remaining)}s`] : [])]}/>
+                  ...(objective.remaining !== undefined ? [`${objective.phase === 'recover' ? 'Recover in' : 'Hold'} ${Math.ceil(objective.remaining)}s`] : [])]}/>
             </section>}
             {(view.body.notice || view.actions.find(a => a.visible && !a.enabled && a.id === 'interact')?.disabledReason) && <p className="tsc-notice" role="status">
               {view.body.notice || view.actions.find(a => a.id === 'interact')?.disabledReason}
@@ -369,7 +380,7 @@ export function StreetCareerGame({ onExit, initialOperation, initialDifficulty='
               RESUME
             </button>
           </header>
-          {!view?.ready ? (
+          {!view?.ready || !objective ? (
             <p role="status">{loading}…</p>
           ) : (
             view &&
@@ -395,10 +406,10 @@ export function StreetCareerGame({ onExit, initialOperation, initialDifficulty='
                     {journalPage !== 'settings' && <>
                     {mission && <section className="tsc-briefing" aria-label="Mission briefing">
                       <small>CURRENT JOB · {mission.title}</small>
-                      <h3>{view.objective.title}</h3>
-                      <p>{view.objective.detail}</p>
-                      {view.objective.optionalObjective && <p className="tsc-bonus">Optional: {view.objective.optionalObjective}</p>}
-                      <progress aria-label="Job completion" max={1} value={view.objective.progress ?? p.index / Math.max(1, mission.stops.length)}/>
+                      <h3>{objective.title}</h3>
+                      <p>{objective.detail}</p>
+                      {objective.optionalObjective && <p className="tsc-bonus">Optional: {objective.optionalObjective}</p>}
+                      <progress aria-label="Job completion" max={1} value={objective.progress ?? p.index / Math.max(1, mission.stops.length)}/>
                       <button onClick={() => setPanel('map')}>SHOW ROUTE</button>
                     </section>}
                     <p>{journalPage==='operations'?'District operations bring combat, recovered weapons and extraction into your city campaign. Travel to each target with your existing vehicle and equipment.':'Walk, drive, fly and build your story. Jobs and district operations share one character, inventory and city.'}</p>
@@ -611,7 +622,7 @@ export function StreetCareerGame({ onExit, initialOperation, initialDifficulty='
                     routeNotice={view.routeNotice}
                     jobs={campaign.chapters.map(m => ({id:m.id,name:m.title,detail:m.description,available:campaign.available(view.profile,m.id),completed:view.profile.completed.includes(m.id),active:view.state.phase!=='finished'&&m.id===view.state.missionId,point:m.stops[0]}))}
                     onStartJob={start}
-                    task={mission ? {name:view.objective.title,detail:view.objective.detail,point:target} : undefined}
+                    task={mission ? {name:objective.title,detail:objective.detail,point:target} : undefined}
                   />
                 )}
                 {!view.storageOK && (

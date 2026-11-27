@@ -29,18 +29,43 @@ export class CityAssetLoader extends GLTFLoader {
   dispose() { this.draco.dispose(); this.basis.dispose(); }
 }
 
-/** Improve oblique road/facade sampling without recolouring original materials,
- * changing alpha cutouts, or treating packed PBR data as colour images. */
-export function prepareCityAssetTextures(root: T.Object3D, maxAnisotropy = 1) {
-  const anisotropy = Math.max(1, Math.min(8, Number.isFinite(maxAnisotropy) ? maxAnisotropy : 1));
+/** Improve oblique sampling without modifying authored glTF texture data.
+ * The static city can opt into fewer taps on scalar PBR maps while keeping
+ * facade colour and normal detail sharp; other streaming owners are unchanged. */
+export function prepareCityAssetTextures(
+  root: T.Object3D,
+  maxAnisotropy = 1,
+  { scalarMapLimit }: { scalarMapLimit?: number } = {},
+) {
+  const full = Math.max(1, Math.min(8, Number.isFinite(maxAnisotropy) ? maxAnisotropy : 1));
+  const scalar = scalarMapLimit === undefined || !Number.isFinite(scalarMapLimit)
+    ? full : Math.max(1, Math.min(full, scalarMapLimit));
+  const bySource = new Map<T.Source, number>();
   const textures = new Set<T.Texture>();
+  const materials = new Set<T.Material>();
   root.traverse(object => {
     if (!(object instanceof T.Mesh)) return;
     for (const material of Array.isArray(object.material) ? object.material : [object.material]) {
-      for (const value of Object.values(material)) if (value instanceof T.Texture) textures.add(value);
+      if (materials.has(material)) continue;
+      materials.add(material);
+      for (const [slot, texture] of Object.entries(material)) {
+        if (!(texture instanceof T.Texture)) continue;
+        if (scalarMapLimit !== undefined && (
+          texture.magFilter === T.NearestFilter ||
+          (texture.minFilter !== T.NearestMipmapLinearFilter && texture.minFilter !== T.LinearMipmapLinearFilter) ||
+          (!texture.generateMipmaps && texture.mipmaps.length < 2)
+        )) continue;
+        textures.add(texture);
+        if (scalar === full) continue;
+        const scalarSlot = slot === 'roughnessMap' || slot === 'metalnessMap' || slot === 'aoMap';
+        // A texture or UV-transform clone shared with a visible-detail slot
+        // takes the higher value to avoid a second GPU sampler/cache key.
+        bySource.set(texture.source, Math.max(bySource.get(texture.source) ?? 1, scalarSlot ? scalar : full));
+      }
     }
   });
   for (const texture of textures) {
+    const anisotropy = bySource.get(texture.source) ?? full;
     if (texture.anisotropy === anisotropy) continue;
     texture.anisotropy = anisotropy;
     texture.needsUpdate = true;
