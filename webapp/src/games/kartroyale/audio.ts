@@ -1,4 +1,5 @@
 import type { Frame } from './renderer';
+import {kartArcadeCueFrame,kartTrackMix,type CueFrame} from './kartSoundMix.mjs';
 /** Lightweight local Web Audio synthesis: no stream, asset download or autoplay. */
 export class KartAudio {
   private context: AudioContext | null = null;
@@ -10,6 +11,11 @@ export class KartAudio {
   private engineFilter: BiquadFilterNode | null = null;
   private intake: GainNode | null = null;
   private road: GainNode | null = null;
+  private grit: GainNode | null = null;
+  private roadFilter:BiquadFilterNode|null=null;
+  private tireFilter:BiquadFilterNode|null=null;
+  private gritFilter:BiquadFilterNode|null=null;
+  private cueFrame:CueFrame|null=null;
   private rivals: {osc:OscillatorNode;gain:GainNode;pan:StereoPannerNode}[] = [];
   private transients = new Set<AudioScheduledSourceNode>();
   private lastShift = 0;
@@ -85,12 +91,13 @@ export class KartAudio {
           g.connect(master);
           source.start();
           this.sources.push(source);
-          return g;
+          return {g,filter};
         };
-        this.tire = loop(1750, 2.8);
-        this.air = loop(380, 0.7);
-        this.intake = loop(210, .8);
-        this.road = loop(620, .45);
+        ({g:this.tire,filter:this.tireFilter}=loop(1750,2.8));
+        this.air=loop(380,.7).g;
+        this.intake=loop(210,.8).g;
+        ({g:this.road,filter:this.roadFilter}=loop(620,.45));
+        ({g:this.grit,filter:this.gritFilter}=loop(1600,1.25));
       } catch {
         return;
       }
@@ -121,11 +128,21 @@ export class KartAudio {
     this.engineGain?.gain.setTargetAtTime(running?(.035+throttle*.08)*load:0,now,.045);
     this.harmonicGain?.gain.setTargetAtTime(running?(.009+throttle*.025)*load:0,now,.05);
     this.intake?.gain.setTargetAtTime(running?throttle*.055*load:0,now,.06);
-    const scrub=frame.airborne?0:Math.max(frame.tireSlip||0,frame.drifting?.14:0);
-    this.tire?.gain.setTargetAtTime(running?Math.min(.17,scrub*speed*.025):0,now,.07);
-    const rough=frame.track.surface==='gravel'||frame.track.surface==='dirt';
-    this.road?.gain.setTargetAtTime(running&&!frame.airborne?Math.min(.085,speed*(rough?.002:.00045)):0,now,.1);
-    this.air?.gain.setTargetAtTime(running?Math.min(.085,speed*.0015):0,now,.1);
+    const bed=kartTrackMix(frame,running);
+    this.tire?.gain.setTargetAtTime(bed.tire,now,.07);
+    this.tireFilter?.frequency.setTargetAtTime(bed.tireHz,now,.12);
+    this.tireFilter?.Q.setTargetAtTime(bed.tireQ,now,.12);
+    this.road?.gain.setTargetAtTime(bed.rolling,now,.1);
+    this.roadFilter?.frequency.setTargetAtTime(bed.roadHz,now,.12);
+    this.grit?.gain.setTargetAtTime(bed.grit,now,.10);
+    this.gritFilter?.frequency.setTargetAtTime(bed.gritHz,now,.12);
+    this.air?.gain.setTargetAtTime(bed.air,now,.1);
+    const arcade=kartArcadeCueFrame(this.cueFrame,frame,running&&!frame.freeRoam);
+    this.cueFrame=arcade.current;
+    for(const cue of arcade.cues){
+      if(cue.kind==='charge')this.beep([530,670,824][cue.tier-1]??530,.11,.064);
+      else this.beep(738,.14,.063);
+    }
     const player=frame.racers.find(r=>r.id===frame.playerId)||frame.racers.find(r=>!r.ai);
     const nearby=player?frame.racers.filter(r=>r!==player&&!r.disconnected&&!r.retired&&!r.finished)
       .map(r=>({r,d:Math.hypot(r.x-player.x,r.z-player.z)})).filter(n=>n.d<38).sort((a,b)=>a.d-b.d).slice(0,2):[];
@@ -152,7 +169,10 @@ export class KartAudio {
       this.lastImpact=frame.impactId;
     }
     if(frame.boostEvent!==this.lastBoost){
-      if(running&&frame.boostEvent>this.lastBoost)this.burst(.28,.11,1900);
+      if(running&&frame.boostEvent>this.lastBoost){
+        this.burst(.28,.11,1900);
+        if(!frame.freeRoam)this.beep(926,.16,.053);
+      }
       this.lastBoost=frame.boostEvent;
     }
     const laps=frame.telemetry?.completed||0;
@@ -172,9 +192,10 @@ export class KartAudio {
     }else this.lastFootstep=action?.elapsed||0;
   }
   silence() {
+    this.cueFrame=null;
     if (!this.context) return;
     const now = this.context.currentTime;
-    [this.engineGain, this.harmonicGain, this.intake, this.road, this.tire, this.air,...this.rivals.map(r=>r.gain)].forEach((g) =>
+    [this.engineGain, this.harmonicGain, this.intake, this.road, this.grit, this.tire, this.air,...this.rivals.map(r=>r.gain)].forEach((g) =>
       g?.gain.setTargetAtTime(0, now, 0.025)
     );
     for(const source of this.transients){try{source.stop();}catch{}}
@@ -215,14 +236,14 @@ export class KartAudio {
     );
     this.beep(material==='metal'?180+strength*160:62+strength*30,material==='metal'?.18:.1);
   }
-  beep(f = 550, d = 0.13) {
+  beep(f = 550, d = 0.13, volume = .12) {
     if (this.muted || !this.context || !this.master) return;
     const c = this.context,
       o = c.createOscillator(),
       g = c.createGain(),
       now = c.currentTime;
     o.frequency.value = f;
-    g.gain.setValueAtTime(0.12, now);
+    g.gain.setValueAtTime(volume, now);
     g.gain.exponentialRampToValueAtTime(0.001, now + d);
     o.connect(g);
     g.connect(this.master);
