@@ -7,8 +7,8 @@ export function createBoostPadLayer(track:Track){
   const group=new T.Group();group.name='Race boost strips';
   const pads=boostPads(track),geometry=new T.BoxGeometry(1,.025,1);
   // All road pads cost two draw calls, even on the longer circuits.
-  const floors=new T.InstancedMesh(geometry,new T.MeshStandardMaterial({color:'#0b597c',emissive:'#09507d',emissiveIntensity:.8,roughness:.5}),pads.length);
-  const arrows=new T.InstancedMesh(geometry,new T.MeshBasicMaterial({color:'#72edff',toneMapped:false}),pads.length*6);
+  const floors=new T.InstancedMesh(geometry,new T.MeshStandardMaterial({color:'#142d18',emissive:'#184824',emissiveIntensity:.45,roughness:.8}),pads.length);
+  const arrows=new T.InstancedMesh(geometry,new T.MeshBasicMaterial({color:'#bcf75c',toneMapped:false}),pads.length*6);
   const frame=new T.Object3D(),piece=new T.Object3D(),matrix=new T.Matrix4();
   pads.forEach((pad,i)=>{
     const s=Math.sin(pad.yaw),c=Math.cos(pad.yaw);
@@ -18,8 +18,8 @@ export function createBoostPadLayer(track:Track){
     floors.setMatrixAt(i,matrix.multiplyMatrices(frame.matrix,piece.matrix));
     for(let row=0;row<3;row++)for(let side=0;side<2;side++){
       const sign=side?1:-1;
-      piece.scale.set(pad.width*.42,1,.24);piece.rotation.y=sign*.38;
-      piece.position.set(sign*pad.width*.19,.018,-1.7+row*1.6);piece.updateMatrix();
+      piece.scale.set(pad.width*.46,1,.28);piece.rotation.y=sign*.48;
+      piece.position.set(sign*pad.width*.198,.024,(row-1)*pad.length*.27);piece.updateMatrix();
       arrows.setMatrixAt(i*6+row*2+side,matrix.multiplyMatrices(frame.matrix,piece.matrix));
     }
   });

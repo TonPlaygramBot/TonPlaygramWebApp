@@ -32,9 +32,9 @@ const DEFINITIONS = [
   },
   {
     "id": "tirana-sulejman-delvina",
-    "name": "Sulejman Delvina",
+    "name": "Lana · Fishta–Bajram Curri",
     "faces": [
-      "0393f2285180fbc3"
+      "0393f2285180fbc3", "85769e2d3219a835"
     ]
   },
   {

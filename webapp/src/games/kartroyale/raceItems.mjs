@@ -13,7 +13,19 @@ export function raceItemPickups(track) {
   const kinds = ['rocket', 'shield', 'boost'];
   const result = Array.from({ length: count }, (_, id) => {
     const p = sampleCircuitDistance(track, track.length * (id + .42) / count);
-    return { ...p, id, kind: kinds[id % kinds.length] };
+    const kind=kinds[id%kinds.length];
+    if(kind==='rocket')return {...p,id,kind};
+    // Keep the fastest line separate from optional boost and shield supplies.
+    // Only offer that choice well inside a wide, straight racing ribbon.
+    const nearby=[-16,0,16].map(offset=>sampleCircuitDistance(track,p.distance+offset));
+    const width=Math.min(...nearby.flatMap(q=>[
+      track.points[q.index].width??track.width,
+      track.points[(q.index+1)%track.points.length].width??track.width
+    ]));
+    const straight=nearby.every(q=>Math.cos(q.yaw-p.yaw)>.985);
+    if(!(width>=9.2)||!straight)return {...p,id,kind};
+    const lateral=(id%2?1:-1)*Math.min(3.15,width*.28);
+    return {...p,x:p.x+Math.cos(p.yaw)*lateral,z:p.z-Math.sin(p.yaw)*lateral,id,kind};
   });
   layouts.set(track, result);
   return result;
