@@ -20,8 +20,12 @@ export class TiranaCityScene {
   readonly enhancements: WorldEnhancements;
   readonly details: UrbanDetailLayer;
   private disposed = false;
-  constructor(loadAssets = true, track?: StreetDetailOptions['track']) {
-    this.enhancements = new WorldEnhancements({ profile: 'fps', track });
+  constructor(loadAssets = true, track?: StreetDetailOptions['track'], racingFoliage = false) {
+    this.enhancements = new WorldEnhancements({ profile: 'fps', track,
+      ...(racingFoliage ? { matureTreeFoliage: {
+        cullFarTrees:true, bridgeCloseTreeDetail:true, compactTreeTransfer:true, sourceDistantBroadleaf:true,
+      } } : {}),
+    });
     this.city = new FpsCity(loadAssets, track ? ribbonExclusion(track) : undefined);
     this.city.landmarks.setRacingVisibility(Boolean(track));
     const excluded = new Set([...nativeReplacementIds(WORLD), ...Object.keys(BUILDING_PROFILES), ...INSTITUTION_BUILDING_IDS, ...FUEL_CANOPY_IDS, ...ROCK_REPLACEMENT_IDS]);

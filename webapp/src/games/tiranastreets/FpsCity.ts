@@ -1,3 +1,4 @@
+import {colorCentralFacade} from '../tirana-neighbourhood/districtFacadeTint';
 import * as T from 'three';
 import {RealisticFacadeLayer,updateFacadeFallback,updateFacadeShell,type FacadeShellRange} from '../tirana-environment/RealisticFacadeLayer';
 import {CITY_RADIUS} from './renderSettings';
@@ -204,6 +205,7 @@ export class FpsCity {
       // Keep trim/glass materials separate and retain mapped palette/footprints.
       const material = this.surfaceMaterials.create('plastered_wall_02', color, true);
       material.normalScale.set(.18, .18);
+      material.vertexColors = true;
       this.materials.set(key, material);
     }
     return this.materials.get(key)!;
@@ -222,7 +224,9 @@ export class FpsCity {
       const cx = b.p.reduce((s, v) => s + v[0], 0) / b.p.length, cz = b.p.reduce((s, v) => s + v[1], 0) / b.p.length;
       const key = `${Math.floor(cx / 140)}:${Math.floor(cz / 140)}:${p.color}`;
       if (!shells.has(key)) shells.set(key, { parts: [], ids:[], material: this.facadeMaterial(p.color), x: cx, z: cz });
-      shells.get(key)!.parts.push(this.polygon(b.p, height, 0));
+      const shell = this.polygon(b.p, height, 0);
+      colorCentralFacade(shell, b, p.color);
+      shells.get(key)!.parts.push(shell);
       shells.get(key)!.ids.push(String(b.id));
       if(AGED_HOUSING_IDS.has(String(b.id)))continue;
       this.facadeId=this.realisticFacades.eligibleIds.has(String(b.id))?String(b.id):undefined;

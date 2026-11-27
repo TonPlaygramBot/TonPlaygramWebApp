@@ -1,3 +1,4 @@
+import {colorCentralFacade} from '../tirana-neighbourhood/districtFacadeTint';
 import {StreetBasketVisuals} from './streetBasketVisuals.mjs';
 import {aliDemiFurnitureVisible, buildAliDemiFurniture} from './aliDemiFurniture.mjs';
 import { addClockPortalPhoto } from './clockPortalPhoto';
@@ -386,7 +387,9 @@ export class CityRenderer {
           (Math.abs(normal.getX(i)) > 0.5 ? pos.getZ(i) : pos.getX(i)) / 5,
           Math.abs(normal.getY(i)) > 0.5 ? pos.getZ(i) / 5 : pos.getY(i) / 5,
         );
-      buckets.get(key)!.geos[Number(b.id) % colors.length].push(geo);
+      const paletteIndex = Number(b.id) % colors.length;
+      colorCentralFacade(geo, b, colors[paletteIndex]);
+      buckets.get(key)!.geos[paletteIndex].push(geo);
       if (DETAIL_IDS.has(b.id)) continue;
       if (AGED_HOUSING_IDS.has(String(b.id))) continue;
       // Window ribbons follow actual facades; geometry is merged, not thousands of draw calls.
@@ -407,7 +410,7 @@ export class CityRenderer {
     }
     for (const [key, bucket] of buckets) {
       bucket.geos.forEach((geos, i) => {
-        const material = this.material(colors[i]);
+        const material = this.material(colors[i], {vertexColors: true});
         this.shellMaterials.push(material);
         if (key === "city" && geos.length) this.soloBackgroundMaterials[i] = material;
         const mesh = this.merged(geos, material, bucket.group);
