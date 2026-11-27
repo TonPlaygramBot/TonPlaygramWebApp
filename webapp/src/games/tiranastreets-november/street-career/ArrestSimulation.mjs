@@ -20,7 +20,8 @@ export class ArrestSimulation {
   provoke(officer,kind){
     if(!['police','soldier','military'].includes(officer.kind)||officer.health<=0||this.current)return false;
     const p=this.sim.player;
-    p.arrest={phase:'pursuit',at:this.sim.state.elapsed,started:this.sim.state.elapsed,officerId:officer.id,reason:kind};
+    p.arrest={phase:'pursuit',at:this.sim.state.elapsed,started:this.sim.state.elapsed,officerId:officer.id,reason:kind,
+      ...(kind==='unarmed'?{wantedBefore:p.wanted}:{} )};
     p.wanted=Math.max(p.wanted,65);p.lastCrime=this.sim.state.elapsed;
     officer.lastSeen={x:p.x,z:p.z};officer.lastSeenAt=this.sim.state.elapsed;
     this.sim.body.notice=notices.pursuit;return true;
@@ -28,6 +29,24 @@ export class ArrestSimulation {
   phase(phase){
     const c=this.current;if(!c)return;c.phase=phase;c.at=this.sim.state.elapsed;
     this.sim.body.notice=notices[phase];this.sim.event(`arrest-${phase}`);
+  }
+  surrenderOfficer(){
+    const sim=this.sim,p=sim.player,c=this.current;
+    if(c?.reason!=='unarmed'||c.phase!=='pursuit'||p.carId||p.aircraftId||p.health<=0)return null;
+    return sim.state.npcs.find(n=>['police','soldier','military'].includes(n.kind)&&n.health>0&&
+      (n.motion!=='drive'||n.deployed)&&distance(n,p)<5&&sim.hooks.life.clear(n,p))||null;
+  }
+  canSurrender(){return !!this.surrenderOfficer();}
+  accept(n,phase){
+    const sim=this.sim,c=this.current,p=sim.player;
+    c.officerId=n.id;this.escort=n;cancelActions(p,sim.body);p.weapon='';p.input=emptyInput();
+    this.phase(phase);
+  }
+  surrender(){
+    const n=this.surrenderOfficer();
+    if(!n)return false;
+    this.accept(n,'down');
+    return true;
   }
   officer(n,p,dt,env){
     if(!this.current||p!==this.sim.player||!['police','soldier','military'].includes(n.kind))return false;
@@ -38,9 +57,11 @@ export class ArrestSimulation {
       const goal=n.lastSeen;
       if(goal&&now-(n.lastSeenAt||0)<15){
         const path=steerNPC(n,goal,env.clear,now);env.along(n,path,3.8,dt);env.collide(n,.45);n.anim='run';
-        if(distance(n,p)<2.3&&env.clear(n,p)&&Math.abs(sim.body.y-groundHeight(n.x,n.z))<1.8&&!p.carId&&!p.aircraftId){
-          c.officerId=n.id;this.escort=n;cancelActions(p,sim.body);p.weapon='';p.input=emptyInput();
-          this.phase('spray');sim.combat.emit('pepper-spray',{x:n.x,y:groundHeight(n.x,n.z)+1.35,z:n.z},{toX:p.x,toY:sim.eye().y,toZ:p.z});
+        // Leave a readable warning window and a way to surrender without the
+        // effect. The game never switches an unarmed custody scene to shooting.
+        if((c.reason!=='unarmed'||now-c.started>=4)&&distance(n,p)<2.3&&env.clear(n,p)&&Math.abs(sim.body.y-groundHeight(n.x,n.z))<1.8&&!p.carId&&!p.aircraftId){
+          this.accept(n,'spray');
+          sim.combat.emit('pepper-spray',{x:n.x,y:groundHeight(n.x,n.z)+1.35,z:n.z},{toX:p.x,toY:sim.eye().y,toZ:p.z});
         }
       }else{n.speed=0;n.anim='idle';}
     }else{
@@ -88,6 +109,9 @@ export class ArrestSimulation {
 
   release(message){
     const sim=this.sim,p=sim.player;
+    // Do not leave the unarmed-only incident in the ordinary armed-response
+    // path if arrest is interrupted by unavailable backup or an ended chase.
+    if(p.arrest?.reason==='unarmed')p.wanted=Math.min(p.wanted,p.arrest.wantedBefore??0);
     delete p.arrest;sim.body.interaction='free';sim.body.notice=message;sim.body.eye=MOTOR.eye;
     if(this.van)Object.assign(this.van,{driver:'npc',duty:'returning',target:null,responding:false,custody:false,regroup:true,path:[],pathIndex:0,nextRoute:0});
     for(const n of sim.state.npcs)if(n.custody)n.custody=false;

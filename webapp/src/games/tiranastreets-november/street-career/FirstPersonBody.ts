@@ -19,6 +19,7 @@ import {driverUp,driverDirection} from '../shared/driverView.mjs';
 import {solveHumanoidGrip,poseHumanoidFist} from './humanoidHands.mjs';
 import {canonicalHumanoidBone, humanoidBones, headBoneIndices, solveHumanoidLimb, HumanoidLegPose} from './humanoidRig.mjs';
 import {groundMotion,groundCadence,stridePhase,type GroundMotion} from './groundMotion.mjs';
+import {TuriLookImpact,usesTuriLookImpact} from './turiLookImpact.mjs';
 const v = new T.Vector3(),
   q = new T.Quaternion();
 /** Rig-specific head masking, without scaling bones or hiding an entire skin.
@@ -110,6 +111,7 @@ export class FirstPersonBody {
   private bones = new Map<string, T.Bone>();
   private rests = new Map<T.Bone, T.Quaternion>();
   private legPose?: HumanoidLegPose;
+  private turiLookImpact?: TuriLookImpact;
   private hasLocomotion = false;
   private release?: () => void;
   private aborts = new Set<AbortController>();
@@ -169,6 +171,8 @@ export class FirstPersonBody {
       }
     });
     this.legPose = new HumanoidLegPose(actor.group, this.bones);
+    this.turiLookImpact = actor.model === 'local-player' && usesTuriLookImpact(actor.group)
+      ? new TuriLookImpact(actor.group, this.bones) : undefined;
     this.hasLocomotion = Object.values(actor.clips || {Walk:actor.walk, Run:actor.run})
       .some(action => action && /walk|run|sprint/i.test(action.getClip().name));
     this.firstPerson = firstPerson;
@@ -479,9 +483,13 @@ export class FirstPersonBody {
       left = local(-0.13, -0.08, 0.3);
       r = local(0.13, -0.08, 0.3);
     } else if (a?.kind === 'punch') {
-      const reach = 0.32 + 0.39 * swing;
-      if (a.hand) r = local(0.06, -0.17, reach);
-      else left = local(-0.06, -0.17, reach);
+      // Turi's existing visible hand motion eases in and settles back in both
+      // camera views. The action's actual state and timing remain untouched.
+      const accent = this.turiLookImpact ? T.MathUtils.smoothstep(swing, 0, 1) : swing;
+      const rise = this.turiLookImpact ? Math.sin(phase * Math.PI * 2) * .026 : 0;
+      const reach = 0.32 + 0.39 * accent;
+      if (a.hand) r = local(0.06, -0.17 + rise, reach);
+      else left = local(-0.06, -0.17 + rise, reach);
     } else if(p.weapon==='punch') {
       left=local(-.18,-.18,.3);r=local(.18,-.18,.3);
     } else if(p.arrest&&p.arrest.phase!=='pursuit') {
@@ -568,6 +576,18 @@ export class FirstPersonBody {
     // Keep the relaxed reload hand open instead of leaving a clenched fist.
     if(reload&&!car)for(const [name,bone] of this.bones)
       if(/^lefthand(index|middle|ring|pinky|thumb)/.test(name))bone.quaternion.copy(this.rests.get(bone)!);
+    this.turiLookImpact?.update({
+      enabled: !firstPerson && !car && !p.aircraftId && p.health > 0 && !down && !seated &&
+        !b.aim && (!a || (unarmed && a.kind === 'punch')) && !b.guard &&
+        b.grounded && b.interaction === 'free' && (!p.arrest || p.arrest.phase === 'pursuit'),
+      glanceOnly: !unarmed,
+      bodyYaw: yaw,
+      lookYaw: b.yaw + Math.PI,
+      time,
+      lastDamage: p.lastDamage,
+      gesture: a?.kind === 'punch' ? { right: !!a.hand, phase } : undefined,
+      dt
+    });
     const config = WEAPON_BY_ID.get(p.weapon);
     if (config) void this.loadWeapon(p.weapon, config.model,true);
     if (

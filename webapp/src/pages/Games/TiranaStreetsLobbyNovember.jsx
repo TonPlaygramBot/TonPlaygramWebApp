@@ -1,10 +1,26 @@
-import {useState} from 'react';
+import {useEffect,useState} from 'react';
 import {PlayerPicker} from '../../games/tiranastreets-november/PlayerPicker';
 import {Link,useNavigate} from 'react-router-dom';
 import '../../games/tirana-street-detail/lobby.css';
+import {canWarmCareer} from '../../games/blackwater-november/careerWarmupPolicy.mjs';
+import {loadStreetCareer} from '../../games/blackwater-november/streetCareerEntry';
 export default function TiranaStreetsLobby(){
   const navigate=useNavigate();
   const [playerReady,setPlayerReady]=useState(false);
+  useEffect(()=>{
+    if(!playerReady||!canWarmCareer(navigator.connection,document.visibilityState))return;
+    let cancelled=false;
+    const warm=()=>{
+      if(!cancelled&&canWarmCareer(navigator.connection,document.visibilityState))
+        void loadStreetCareer().catch(()=>{});
+    };
+    const idle=typeof window.requestIdleCallback==='function';
+    const ticket=idle?window.requestIdleCallback(warm,{timeout:450}):window.setTimeout(warm,180);
+    return ()=>{
+      cancelled=true;
+      if(idle)window.cancelIdleCallback(ticket);else window.clearTimeout(ticket);
+    };
+  },[playerReady]);
   if(!playerReady)return <PlayerPicker onStart={()=>setPlayerReady(true)} onBack={()=>navigate('/games')}/>;
   return <main className="tsl-root">
     <section className="tsl-careers">
