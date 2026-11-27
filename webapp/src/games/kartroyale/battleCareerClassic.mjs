@@ -29,3 +29,44 @@ export function recordFirstBattleFinish(progress,result) {
     return {accepted:false,xpAward:0,progress};
   return recordBattleCareerResult(progress,mission.id,{finished:me.finished===true,courseId:result.trackId,format:'classic',place,opponents:opponents.length},verified);
 }
+
+export const DRIFT_BATTLE_MISSION_ID = 'ali-demi-02';
+export function secondBattleEvent(missionId,courseId) {
+  const mission=getBattleMission(missionId);
+  return missionId===DRIFT_BATTLE_MISSION_ID && courseId===FIRST_BATTLE_COURSE_ID
+    && mission?.courseId===courseId && mission.kind==='drift' && mission.format==='drift'
+    && mission.prerequisite===FIRST_BATTLE_MISSION_ID && Number.isFinite(mission.criteria.minDriftPoints)
+    && mission.criteria.minDriftPoints>0 ? mission : null;
+}
+
+/** Read stock physics after each fixed tick. Only new forward track distance can score. */
+export function createBattleDriftMeter(track) {
+  let highWater=0, points=0;
+  return {
+    get points(){return Math.floor(points);},
+    step(racer) {
+      const progress=racer?.progress;
+      if (!Number.isFinite(progress)||racer.finished||racer.retired||racer.disconnected||progress<=highWater) return;
+      const distance=(progress-highWater)*track.length;
+      highWater=progress;
+      // Large jumps (e.g. recovery) consume the distance without scoring it.
+      if (racer.drifting && !racer.airborne && !racer.reversing && racer.speed>8 && distance<=track.length*.012)
+        points+=distance*2;
+    }
+  };
+}
+
+export function recordSecondBattleFinish(progress,result) {
+  const mission=secondBattleEvent(result?.battleCareerMission,result?.trackId);
+  if (!mission || result.online!==false || result.captainDuel || result.timeTrial || result.combat
+    || result.cityJob || result.actionCareer || result.playerId!=='you'
+    || !Number.isSafeInteger(result.battleDriftPoints) || result.battleDriftPoints<0)
+    return {accepted:false,xpAward:0,progress};
+  const me=result.racers?.find(r=>r.id==='you');
+  if (!me || me.ai || me.retired || me.disconnected || me.finished!==true || me.lap!==LAPS+1
+    || me.lapTimes?.length!==LAPS || !me.lapTimes.every(t=>Number.isFinite(t)&&t>0)
+    || !Number.isFinite(me.finishTime) || me.finishTime<=0 || !Number.isFinite(result.elapsed) || me.finishTime>result.elapsed)
+    return {accepted:false,xpAward:0,progress};
+  return recordBattleCareerResult(progress,mission.id,{finished:true,courseId:result.trackId,
+    format:'drift',driftPoints:result.battleDriftPoints},[DRIFT_BATTLE_MISSION_ID]);
+}

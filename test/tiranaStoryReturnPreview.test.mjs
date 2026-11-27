@@ -54,7 +54,7 @@ test('live Career is unchanged unless opt-in and account preload is skipped',()=
  const runtime=fs.readFileSync(new URL('StreetCareerRuntime.ts',url),'utf8');
  assert.match(ui,/storyPreview\?returnWorldStorage\(storage\(\)\):storage\(\)/);
  assert.match(ui,/!storyPreview && initialOperation/);
- assert.ok(ui.indexOf("const [session, setSession]")<ui.indexOf("story.stop,friend?.stage,session]"));
+ assert.ok(ui.indexOf("const [session, setSession]")<ui.indexOf("story.stop,friend?.stage,phone?.stage,session]"));
  assert.match(ui,/setDestination\(stop\?/);
  assert.match(runtime,/if \(!this.storyPreview\) void loadWeaponStoreAccount\(\)/);
  assert.match(runtime,/economyAction\([^]*?if \(this.storyPreview\) return false/);

@@ -38,10 +38,12 @@ import {AccessEquipmentControls} from './AccessEquipmentControls';
 import {FlightControls,FlightInstruments} from './FlightControls';
 import { readReturnPreview, returnWorldStorage, saveReturnPreview, stepReturnPreview } from './storyReturnPreview.mjs';
 import { readMissingFriendPreview, saveMissingFriendPreview, stepMissingFriendPreview } from './storyMissingFriendPreview.mjs';
+import { readSilentPhonePreview, saveSilentPhonePreview, stepSilentPhonePreview } from './storySilentPhonePreview.mjs';
 import { MISSIONS } from '../shared/engine.mjs';
 const previewCourierStops = MISSIONS.find(m=>m.id==='first-shift')?.stops ?? [];
 const returnStops = previewCourierStops.slice(1,3);
 const friendStop = previewCourierStops[0] ?? null;
+const phoneStop = returnStops[0] ?? null;
 import '../city.css';
 import './street-career.css';
 const storage = () => {
@@ -66,7 +68,16 @@ export function StreetCareerGame({ onExit, initialOperation, initialDifficulty='
   const [storySaved,setStorySaved]=useState(true);
   const [friend,setFriend]=useState(()=>storyPreview?readMissingFriendPreview(storage(),story):null);
   const [friendSaved,setFriendSaved]=useState(true);
-  const storyRouteLocked=storyPreview&&(friend?.stage==='drive'||(!friend&&story.stage==='drive'));
+  const [phone,setPhone]=useState(()=>storyPreview?readSilentPhonePreview(storage(),friend):null);
+  const [phoneSaved,setPhoneSaved]=useState<boolean|null>(null);
+  const [phoneHint,setPhoneHint]=useState(false);
+  const storyRouteLocked=storyPreview&&(phone?phone.stage==='travel':friend?.stage==='drive'||(!friend&&story.stage==='drive'));
+  useEffect(()=>{
+    if(storyPreview&&phone){
+      const saved=saveSilentPhonePreview(storage(),phone);
+      if(phone.stage==='complete')setPhoneSaved(saved);
+    }
+  },[storyPreview,phone]);
   useEffect(()=>{
     if(storyPreview&&friend)setFriendSaved(saveMissingFriendPreview(storage(),friend));
   },[storyPreview,friend]);
@@ -77,18 +88,23 @@ export function StreetCareerGame({ onExit, initialOperation, initialDifficulty='
   useEffect(()=>{
     if(!storyPreview||!view?.ready)return;
     const player=view.state.players.local;
+    if(phone?.stage==='travel'){
+      setPhone(previous=>stepSilentPhonePreview(previous,{type:'position',x:player.x,z:player.z,grounded:!!player.carId||view.body.grounded,flying:!!player.aircraftId},friend,phoneStop));
+      return;
+    }
+    if(phone)return;
     if(friend?.stage==='drive'){
       setFriend(previous=>stepMissingFriendPreview(previous,{type:'position',x:player.x,z:player.z,driving:!!player.carId},story,friendStop));
       return;
     }
     if(friend)return;
     setStory(previous=>stepReturnPreview(previous,{type:'position',x:player.x,z:player.z,driving:!!player.carId},returnStops));
-  },[storyPreview,view,friend?.stage,story]);
+  },[storyPreview,view,phone?.stage,friend,story]);
   useEffect(()=>{
     if(!storyPreview||!view?.ready)return;
-    const stop=friend?friend.stage==='drive'?friendStop:null:story.stage==='drive'?returnStops[story.stop]:null;
-    runtime.current?.setDestination(stop?{...stop,name:friend?'Pika e kujtimeve':story.stop===0?'Pika e takimit':'Pika e shënimit'}:null);
-  },[storyPreview,view?.ready,story.stage,story.stop,friend?.stage,session]);
+    const stop=phone?phone.stage==='travel'?phoneStop:null:friend?friend.stage==='drive'?friendStop:null:story.stage==='drive'?returnStops[story.stop]:null;
+    runtime.current?.setDestination(stop?{...stop,name:phone?'Pika e zarfit':friend?'Pika e kujtimeve':story.stop===0?'Pika e takimit':'Pika e shënimit'}:null);
+  },[storyPreview,view?.ready,story.stage,story.stop,friend?.stage,phone?.stage,session]);
   const [journalPage, setJournalPage] = useState<'jobs' | 'operations' | 'settings'>('jobs');
   useEffect(() => {
     setError('');
@@ -275,7 +291,7 @@ export function StreetCareerGame({ onExit, initialOperation, initialDifficulty='
                 <button disabled={!friendStop} style={{pointerEvents:'auto',minHeight:44}} onClick={()=>setFriend(s=>stepMissingFriendPreview(s,{type:'continue'},story,friendStop))}>Vazhdo: Miku i zhdukur</button>
               </>}
             </section>}
-            {storyPreview && friend && <section className="tsc-objective" aria-label="Miku i zhdukur, preview i historisë">
+            {storyPreview && friend && !phone && <section className="tsc-objective" aria-label="Miku i zhdukur, preview i historisë">
               <small>BLOOD, LOYALTY &amp; POWER · 02</small>
               <strong>Miku i zhdukur</strong>
               <p style={{fontSize:12,margin:'4px 0',lineHeight:1.3}}>
@@ -287,6 +303,24 @@ export function StreetCareerGame({ onExit, initialOperation, initialDifficulty='
               </p>
               {friend.stage==='briefing'&&<button style={{pointerEvents:'auto',minHeight:44}} onClick={()=>setFriend(s=>stepMissingFriendPreview(s,{type:'accept'},story,friendStop))}>Ndiq kujtimin</button>}
               {friend.stage==='arrival'&&<button style={{pointerEvents:'auto',minHeight:44}} onClick={()=>setFriend(s=>stepMissingFriendPreview(s,{type:'inspect'},story,friendStop))}>{friend.branch==='call-back'?'Hap regjistrimin':'Lexo kartolinën'}</button>}
+              {friend.stage==='complete'&&<button disabled={!phoneStop} style={{pointerEvents:'auto',minHeight:44}} onClick={()=>setPhone(old=>stepSilentPhonePreview(old,{type:'continue'},friend,phoneStop))}>Vazhdo: Telefoni i heshtur</button>}
+            </section>}
+            {storyPreview && phone && <section className="tsc-objective" aria-label="Telefoni i heshtur, preview i historisë">
+              <small>BLOOD, LOYALTY &amp; POWER · 03</small>
+              <strong>Telefoni i heshtur</strong>
+              <p style={{fontSize:12,margin:'4px 0',lineHeight:1.3}}>
+                {phone.stage==='briefing'?(phone.clue==='recording'?'Në transkript, Dreni përmendte fillimisht orën, pastaj vendin. Te pika e takimit ka lënë një zarf.':'Kartolina e Drenit shënon fillimisht vendin, pastaj orën. Te pika e takimit ka lënë një zarf.'):
+                 phone.stage==='travel'?'Ndiq shenjën në hartë. Afrohu te pika e zarfit në këmbë ose me makinë.':
+                 phone.stage==='review'?'Në zarf, Turi gjen dy fletë. Cila ishte renditja në kujtimin e Drenit?':
+                 'Fletët përputhen: Dreni ka lënë një shënim nga takimi i tyre i fundit. Turi e fut në dosje.'}
+                {phone.stage==='complete' && (phoneSaved===true?' Shënimi u ruajt në këtë pajisje.':phoneSaved===false?' Shënimi nuk mundi të ruhej.':'')}
+              </p>
+              {phone.stage==='briefing'&&<button style={{pointerEvents:'auto',minHeight:44}} onClick={()=>setPhone(old=>stepSilentPhonePreview(old,{type:'accept'},friend,phoneStop))}>Gjej zarfin</button>}
+              {phone.stage==='review'&&<>
+                <button style={{pointerEvents:'auto',minHeight:44}} onClick={()=>{setPhoneHint(phone.clue!=='recording');setPhone(old=>stepSilentPhonePreview(old,{type:'match',order:'time-place'},friend,phoneStop));}}>Ora, pastaj vendi</button>
+                <button style={{pointerEvents:'auto',minHeight:44}} onClick={()=>{setPhoneHint(phone.clue!=='postcard');setPhone(old=>stepSilentPhonePreview(old,{type:'match',order:'place-time'},friend,phoneStop));}}>Vendi, pastaj ora</button>
+                {phoneHint&&<p role="status">{phone.clue==='recording'?'Kontrollo transkriptin: ora përmendej e para.':'Kontrollo kartolinën: vendi ishte i pari.'}</p>}
+              </>}
             </section>}
             {view.economy.robbery && <section className="tsc-objective" aria-label="Bank job">
               <strong>{objective.title}</strong><span>{objective.detail}</span>
@@ -455,7 +489,7 @@ export function StreetCareerGame({ onExit, initialOperation, initialDifficulty='
               <>
                 {storyPreview && panel==='journal' ? (
                   <section className="tsc-briefing" aria-label="Rikthimi, preview">
-                    <strong>{friend?'MIKU I ZHDUKUR':'RIKTHIMI'} · STORY PREVIEW</strong>
+                    <strong>{phone?'TELEFONI I HESHTUR':friend?'MIKU I ZHDUKUR':'RIKTHIMI'} · STORY PREVIEW</strong>
                     <p>Progresi ruhet veçmas. Punët e Career, dyqanet dhe portofoli nuk janë pjesë e këtij versioni.</p>
                     <button onClick={onExit}>KTHEHU NË LOBBY</button>
                   </section>
