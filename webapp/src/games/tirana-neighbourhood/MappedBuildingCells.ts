@@ -98,11 +98,13 @@ export class MappedBuildingCells {
    for(const h of b.holes??[])shape.holes.push(new T.Path(h.map((p:number[])=>new T.Vector2(p[0],-p[1]))));
    const geo=new T.ExtrudeGeometry(shape,{depth:Math.max(.1,b.h-(b.minHeight||0)),bevelEnabled:false,steps:1}).rotateX(-Math.PI/2).translate(0,b.minHeight||0,0);
    const pos=geo.getAttribute('position'),normal=geo.getAttribute('normal'),uv=geo.getAttribute('uv');
-   const color=sourceBuildingColour(b);
+   const wallColor=sourceBuildingColour(b),roofColor=sourceBuildingColour(b,false);
    const colors=new Float32Array(pos.count*3);
    for(let i=0;i<pos.count;i++){
     uv.setXY(i,(Math.abs(normal.getX(i))>.5?pos.getZ(i):pos.getX(i))/4,Math.abs(normal.getY(i))>.5?pos.getZ(i)/4:pos.getY(i)/4);
-    const shade=Math.abs(normal.getY(i))>.5?.72:.84+.16*Math.min(1,(pos.getY(i)-(b.minHeight||0))/2.2);
+    const horizontal=Math.abs(normal.getY(i))>.5;
+    const shade=horizontal?.72:.84+.16*Math.min(1,(pos.getY(i)-(b.minHeight||0))/2.2);
+    const color=horizontal?roofColor:wallColor;
     colors[i*3]=color.r*shade;colors[i*3+1]=color.g*shade;colors[i*3+2]=color.b*shade;
    }
    if(this.photoFacades)geo.setAttribute('cityFacadeClass',new T.Uint8BufferAttribute(new Uint8Array(pos.count),1));

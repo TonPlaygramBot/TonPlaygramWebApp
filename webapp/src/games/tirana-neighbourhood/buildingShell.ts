@@ -9,9 +9,9 @@ export function appendBuildingShell(b:any,positions:number[],colors:number[],fac
  const faces=T.ShapeUtils.triangulateShape(outer,holes);
  const points=[...outer,...holes.flat()];
  const base=buildingGround(b),low=base+(b.minHeight||0),high=base+Math.max((b.minHeight||0)+.1,b.h);
- const color=sourceBuildingColour(b);
+ const wallColor=sourceBuildingColour(b),roofColor=sourceBuildingColour(b,false);
  const wallFacade=facades ? cityFacadeClass(b.tags) : 0;
- const triangle=(a:number[],c:number[],d:number[],shade:number,facade=0)=>{
+ const triangle=(a:number[],c:number[],d:number[],shade:number,facade=0,color=roofColor)=>{
   if(facades)facades.push(facade,facade,facade);
   positions.push(...a,...c,...d);for(let i=0;i<3;i++)colors.push(color.r*shade,color.g*shade,color.b*shade);
  };
@@ -25,7 +25,7 @@ export function appendBuildingShell(b:any,positions:number[],colors:number[],fac
   const reverse=(area>0)===(index===0);
   for(let i=0;i<ring.length;i++){
    const a=ring[i],c=ring[(i+1)%ring.length],v=[[a[0],low,a[1]],[c[0],low,c[1]],[c[0],high,c[1]],[a[0],high,a[1]]];
-   for(const face of reverse?[[0,2,1],[0,3,2]]:[[0,1,2],[0,2,3]])triangle(v[face[0]],v[face[1]],v[face[2]],.95,wallFacade);
+   for(const face of reverse?[[0,2,1],[0,3,2]]:[[0,1,2],[0,2,3]])triangle(v[face[0]],v[face[1]],v[face[2]],.95,wallFacade,wallColor);
   }
  }
 }
