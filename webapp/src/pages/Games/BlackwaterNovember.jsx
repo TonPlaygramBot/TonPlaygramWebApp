@@ -5,14 +5,11 @@ import { TiranaLoading } from '../../games/blackwater-november/TiranaLoading';
 import { GameModeBoundary } from '../../games/shared/GameModeBoundary';
 import { PlayerPicker } from '../../games/tiranastreets-november/PlayerPicker';
 import { selectedPlayerAsset } from '../../games/tiranastreets-november/playerCatalog.mjs';
-import { loadGameMode } from '../../games/blackwater-november/loadGameMode';
+import { loadStreetCareer } from '../../games/blackwater-november/streetCareerEntry';
 import { useEffect, useState } from 'react';
 import { warmSoloCity } from '../../games/tiranastreets-november/soloCityWarmup.mjs';
 
-const StreetCareer = lazy(() => loadGameMode('street-career', () =>
-  import('../../games/tiranastreets-november/street-career/StreetCareerGame')
-    .then(m => ({ default: m.StreetCareerGame }))
-));
+const StreetCareer = lazy(loadStreetCareer);
 
 export default function BlackwaterNovember() {
   const { search } = useLocation();
