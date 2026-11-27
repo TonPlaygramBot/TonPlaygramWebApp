@@ -14,7 +14,7 @@ export function appendBuildingShell(b:any,positions:number[],colors:number[],fac
  const wallColor=sourceBuildingColour(b),roofColor=sourceBuildingColour(b,false);
  const wallFacade=facades ? cityFacadeClass(b.tags) : 0;
  const rows=windows&&!housingProfile(b)?windowRows(b):[];
- const triangle=(a:number[],c:number[],d:number[],shade:number,facade=0,color=roofColor,bays=[0,0,0,0,0,0,0,0,0])=>{
+ const triangle=(a:number[],c:number[],d:number[],shade:number,facade=0,color=roofColor,bays=[0,0,0,0,0,0,0,0,0,0,0,0])=>{
   if(facades)facades.push(facade,facade,facade);
   if(windows)windows.push(...bays);
   positions.push(...a,...c,...d);for(let i=0;i<3;i++)colors.push(color.r*shade,color.g*shade,color.b*shade);
@@ -38,7 +38,7 @@ export function appendBuildingShell(b:any,positions:number[],colors:number[],fac
 export function shellGeometry(positions:number[],colors:number[],facades?:number[],windows?:number[]){
  const geo=new T.BufferGeometry().setAttribute('position',new T.Float32BufferAttribute(positions,3)).setAttribute('color',new T.Float32BufferAttribute(colors,3));
  if(facades)geo.setAttribute('cityFacadeClass',new T.Uint8BufferAttribute(facades,1));
- if(windows)geo.setAttribute('cityWindow',new T.Uint16BufferAttribute(windows,3,true));
+ if(windows)geo.setAttribute('cityWindow',new T.Uint16BufferAttribute(windows,4,true));
  geo.computeVertexNormals();const p=geo.getAttribute('position'),n=geo.getAttribute('normal'),uv=new Float32Array(p.count*2);
  for(let i=0;i<p.count;i++){uv[i*2]=(Math.abs(n.getX(i))>.5?p.getZ(i):p.getX(i))/4;uv[i*2+1]=(Math.abs(n.getY(i))>.5?p.getZ(i):p.getY(i))/4;}
  geo.setAttribute('uv',new T.BufferAttribute(uv,2));geo.computeBoundingSphere();return geo;

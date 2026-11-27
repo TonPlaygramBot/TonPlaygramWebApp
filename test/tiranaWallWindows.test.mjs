@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import {test} from 'node:test';
-import {wallWindowProjection,windowVertex} from '../webapp/src/games/tirana-neighbourhood/wallWindows.mjs';
+import {wallWindowProjection,windowVertex,windowGlassWidth} from '../webapp/src/games/tirana-neighbourhood/wallWindows.mjs';
 
 const apt={h:19,tags:{building:'apartments'}};
 const rows=[{y:4.7,height:1.65},{y:8,height:1.65},{y:11.3,height:1.65}];
@@ -23,9 +23,19 @@ test('mapped but unspecified civilian shells work; protected, tiny and windowles
  }
  assert.equal(wallWindowProjection(apt,[],12),null);
  assert.equal(wallWindowProjection(apt,rows,3.99),null);
- assert.deepEqual(windowVertex(null,0,0),[0,0,0]);
+ assert.deepEqual(windowVertex(null,0,0),[0,0,0,0]);
 });
 test('single-storey placeholders retain one row and dense buildings respect the modeled 24-bay cap',()=>{
  const p=wallWindowProjection({h:7,tags:{building:'house'}},[rows[0]],150);
  assert.equal(p.columns,24);assert.equal(p.max,1);assert.ok(p.spacing>7);
+});
+
+test('fallback apertures match near mesh size on short retail and long capped walls',()=>{
+ for(const [width,building,windows] of [[16.7,{h:7,tags:{building:'retail'}},[rows[0]]],[150,apt,rows]]){
+  const projection=wallWindowProjection(building,windows,width);
+  const packed=windowVertex(projection,0,0)[3];
+  const bay=width/projection.columns;
+  assert.ok(Math.abs(Math.floor(packed/256)*bay/255-windowGlassWidth(bay))<.014);
+  assert.ok(Math.abs((packed%256)*projection.spacing/255-windows[0].height)<.02);
+ }
 });

@@ -30,16 +30,16 @@ export function installFacadePhotomaterials(material: T.MeshStandardMaterial,
   const atlasReady = {value: 0};
   const oldCompile = material.onBeforeCompile;
   const oldKey = material.customProgramCacheKey;
-  material.customProgramCacheKey = () => oldKey.call(material) + ':civilian-facade-bays-v2';
+  material.customProgramCacheKey = () => oldKey.call(material) + ':civilian-facade-bays-v3';
   material.onBeforeCompile = (shader, renderer) => {
     oldCompile.call(material, shader, renderer);
     shader.uniforms.cityFacadeAtlas = atlas;
     shader.uniforms.cityFacadeAtlasReady = atlasReady;
     shader.vertexShader = shader.vertexShader
-      .replace('#include <common>', '#include <common>\nattribute float cityFacadeClass;\nattribute vec3 cityWindow;\nvarying vec3 vCityFacade;\nvarying vec3 vCityWindow;')
-      .replace('#include <uv_vertex>', '#include <uv_vertex>\nvCityFacade = vec3(uv, cityFacadeClass);\nvCityWindow = cityWindow * vec3(24.,128.,128.) - vec3(0.,2.,0.);');
+      .replace('#include <common>', '#include <common>\nattribute float cityFacadeClass;\nattribute vec4 cityWindow;\nvarying vec3 vCityFacade;\nvarying vec3 vCityWindow;\nvarying vec2 vCityWindowSize;')
+      .replace('#include <uv_vertex>', '#include <uv_vertex>\nvCityFacade = vec3(uv, cityFacadeClass);\nvCityWindow = cityWindow.xyz * vec3(24.,128.,128.) - vec3(0.,2.,0.);\nfloat baySize = floor(cityWindow.w * 65535. + .5);\nvCityWindowSize = vec2(floor(baySize / 256.), mod(baySize, 256.)) / 510.;');
     shader.fragmentShader = shader.fragmentShader
-      .replace('#include <common>', '#include <common>\nuniform sampler2D cityFacadeAtlas;\nuniform float cityFacadeAtlasReady;\nvarying vec3 vCityFacade;\nvarying vec3 vCityWindow;')
+      .replace('#include <common>', '#include <common>\nuniform sampler2D cityFacadeAtlas;\nuniform float cityFacadeAtlasReady;\nvarying vec3 vCityFacade;\nvarying vec3 vCityWindow;\nvarying vec2 vCityWindowSize;')
       .replace('#include <map_fragment>', `
         #include <map_fragment>
         if (vCityFacade.z > 0.5 && cityFacadeAtlasReady > 0.5) {
@@ -58,7 +58,8 @@ export function installFacadePhotomaterials(material: T.MeshStandardMaterial,
         if (vCityWindow.z > .5 && vCityWindow.y > 0. && vCityWindow.y < vCityWindow.z) {
           vec2 cell = fract(vCityWindow.xy);
           vec2 d = abs(cell - .5);
-          vec2 aperture = 1. - smoothstep(vec2(.17,.22)-min(aa,.075),vec2(.17,.22)+min(aa,.075),d);
+          vec2 edgeAA = min(aa, max(vCityWindowSize * .5, vec2(.0001)));
+          vec2 aperture = 1. - smoothstep(vCityWindowSize-edgeAA,vCityWindowSize+edgeAA,d);
           float coverage = aperture.x * aperture.y * (1. - smoothstep(.08,.32,max(aa.x,aa.y)));
           float topGlint = .84 + .16*smoothstep(.44,.67,cell.y);
           vec3 glazing = diffuseColor.rgb*vec3(.30,.41,.48)*topGlint + vec3(.022,.038,.050);

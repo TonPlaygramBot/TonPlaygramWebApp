@@ -9,14 +9,14 @@ function load(file,deps){
 class Finish{create(){return new T.MeshStandardMaterial();}apply(){}dispose(){}}
 const terrain={buildingGround:()=>0,groundHeight:()=>0,urbanDistance:()=>0};
 const appearance={sourceBuildingColour:()=>new T.Color(.7,.7,.7),windowRows:()=>[]};
-let shell;
+let shell, wallWindows;
 const drape=load('tirana-east/drapeGeometry.ts',{three:T,'./terrainCore.mjs':terrain});
 let CellWorkQueue,roadCore,corridorMaterials;
 test.before(async()=>{
  ({CellWorkQueue}=await import('../webapp/src/games/tirana-neighbourhood/cellWorkQueue.mjs'));
  roadCore=await import('../webapp/src/games/tirana-environment/roadSurfaceCore.mjs');
  corridorMaterials=await import('../webapp/src/games/tirana-neighbourhood/streetCorridorMaterial.mjs');
- const wallWindows=await import('../webapp/src/games/tirana-neighbourhood/wallWindows.mjs');
+ wallWindows=await import('../webapp/src/games/tirana-neighbourhood/wallWindows.mjs');
  shell=load('tirana-neighbourhood/buildingShell.ts',{three:T,'../tirana-east/terrainCore.mjs':terrain,'./buildingAppearance':appearance,'../tirana-east/housingCore.mjs':{housingProfile:()=>null},'../tirana-city-source/housingRegistry.mjs':{AGED_HOUSING_IDS:new Set()},'./wallWindows.mjs':wallWindows,'./facadePhotomaterials':{cityFacadeClass:()=>0}});
 });
 // One actual generator step per frame makes cooperative progress observable.
@@ -24,7 +24,7 @@ const settings={CITY_RADIUS:{battery:2200,high:3200},CITY_CACHE:{battery:320,hig
 function buildings(rows){
  const {MappedBuildingCells}=load('tirana-neighbourhood/MappedBuildingCells.ts',{
   three:T,'../tiranastreets/renderSettings':settings,'../tirana-east/housingCore.mjs':{housingProfile:()=>null},
-  '../tirana-east/terrainCore.mjs':terrain,'./cellWorkQueue.mjs':{CellWorkQueue},'./buildingShell':shell,'./buildingAppearance':appearance,'./facadePhotomaterials':load('tirana-neighbourhood/facadePhotomaterials.ts',{three:T}),
+  '../tirana-east/terrainCore.mjs':terrain,'./cellWorkQueue.mjs':{CellWorkQueue},'./buildingShell':shell,'./buildingAppearance':appearance,'./wallWindows.mjs':wallWindows,'./facadePhotomaterials':load('tirana-neighbourhood/facadePhotomaterials.ts',{three:T}),
   '../tiranastreets/shared/rooftopSiteConfig.mjs':{DEDICATED_ACCESS_BUILDING_IDS:new Set(),ROOFTOP_HEIGHT_ESTIMATES:{}},
   '../tirana-environment/EnvironmentMaterials':{EnvironmentMaterials:Finish},'../tirana-environment/riverGeometry':{},
   'three/examples/jsm/utils/BufferGeometryUtils.js':{},'../tirana-city-source/sourceCore.mjs':{},'../tirana-city-source/housingRegistry.mjs':{AGED_HOUSING_IDS:new Set()}

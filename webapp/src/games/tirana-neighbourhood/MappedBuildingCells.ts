@@ -7,6 +7,7 @@ import {CellWorkQueue} from './cellWorkQueue.mjs';
 import {installFacadePhotomaterials} from './facadePhotomaterials';
 import {appendBuildingShell,shellGeometry} from './buildingShell';
 import {sourceBuildingColour,windowRows} from './buildingAppearance';
+import {windowGlassWidth} from './wallWindows.mjs';
 import {EnvironmentMaterials} from '../tirana-environment/EnvironmentMaterials';
 import {surfaceGeometry} from '../tirana-environment/riverGeometry';
 import {mergeGeometries} from 'three/examples/jsm/utils/BufferGeometryUtils.js';
@@ -109,7 +110,7 @@ export class MappedBuildingCells {
    }
    if(this.photoFacades){
     geo.setAttribute('cityFacadeClass',new T.Uint8BufferAttribute(new Uint8Array(pos.count),1));
-    geo.setAttribute('cityWindow',new T.Uint16BufferAttribute(new Uint16Array(pos.count*3),3,true));
+    geo.setAttribute('cityWindow',new T.Uint16BufferAttribute(new Uint16Array(pos.count*4),4,true));
    }
    geo.setAttribute('color',new T.BufferAttribute(colors,3));shells.push(geo);
    }
@@ -127,7 +128,7 @@ export class MappedBuildingCells {
     const columns=Math.min(24,Math.floor(edge.length/4));if(!columns)continue;
     for(const row of windowRows(original))for(let j=0;j<columns;j++){
      const u=(j+.5)*edge.length/columns;
-     const x=edge.a[0]+edge.ux*u+edge.nx*.055,z=edge.a[1]+edge.uz*u+edge.nz*.055,y=base+row.y,halfW=Math.min(1.45,edge.length/columns-.8)/2,halfH=row.height/2;
+     const x=edge.a[0]+edge.ux*u+edge.nx*.055,z=edge.a[1]+edge.uz*u+edge.nz*.055,y=base+row.y,halfW=windowGlassWidth(edge.length/columns)/2,halfH=row.height/2;
      // One buffer for the cell, instead of a geometry and merge per window.
      for(const [sx,sy,tu,tv] of [[-1,1,0,1],[-1,-1,0,0],[1,1,1,1],[-1,-1,0,0],[1,-1,1,0],[1,1,1,1]]){
        windowPositions.push(x+edge.nz*sx*halfW,y+sy*halfH,z-edge.nx*sx*halfW);
