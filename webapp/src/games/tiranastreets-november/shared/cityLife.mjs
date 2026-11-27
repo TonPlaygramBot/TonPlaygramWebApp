@@ -1,7 +1,6 @@
 import {armorCapacity} from './equipment.mjs';
 import {ammunitionQuote, reserveCapacity} from './ammunition.mjs';
 import {WEAPON_STORE_CATALOG} from '../weaponStoreCatalog.mjs';
-import {updateCityEvent,cityEventIntent} from './cityEvents.mjs';
 import {createInstitutionGuards} from './institutionGuards.mjs';
 import {scheduledActorStep} from './actorSchedule.mjs';
 import {createTrafficOfficers,directTraffic} from './junctionControl.mjs';
@@ -413,7 +412,6 @@ function fire(state, p, env) {
       rememberPedestrianThreat(n,p,state.elapsed);
 }
 export function updateCityLife(state, dt, env, mission) {
-  updateCityEvent(state,dt,env);
   if(state.pickups)state.pickups=state.pickups.filter(l=>!l.expiresAt||l.expiresAt>state.elapsed);
   // Retain a short, bounded event window so polling clients receive audiovisual events.
   state.effects = state.effects.filter((e) => state.elapsed - e.at < 0.7);
@@ -474,7 +472,7 @@ export function updateCityLife(state, dt, env, mission) {
     if(!npcDt)continue;
     if (n.health <= 0) {
       n.speed = 0;
-      if (n.kind === "civilian" && !n.cityEvent && state.elapsed > n.downUntil) {
+      if (n.kind === "civilian" && state.elapsed > n.downUntil) {
         n.health = 100;
         n.weaponDropped=false;
         n.panicUntil = 0;
@@ -513,17 +511,6 @@ export function updateCityLife(state, dt, env, mission) {
       n.speed=Number.isFinite(measured)?Math.min(speed,measured):0;
       return arrived;
     };
-    const eventIntent=cityEventIntent(n,state);
-    if(eventIntent){
-      n.speed=0;
-      if(eventIntent.speed>0)walkTo(eventIntent.goal,eventIntent.speed,.4);
-      if(eventIntent.heading!==undefined&&n.speed<.12)n.heading+=Math.atan2(Math.sin(eventIntent.heading-n.heading),Math.cos(eventIntent.heading-n.heading))*Math.min(1,npcDt*5);
-      n.anim=eventIntent.anim;
-      if(n.kind==='civilian'){
-        separateCrowd(n,crowdNeighbors(n,peopleGrid.near(n.x,n.z,6)),npcDt);env.collide(n,.4);
-      }
-      continue;
-    }
     if (n.kind === "civilian") {
       const defense=pedestrianDefenseIntent(n,state,env.clear);
       if(defense){
