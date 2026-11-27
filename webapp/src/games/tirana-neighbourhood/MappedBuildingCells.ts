@@ -31,8 +31,8 @@ export class MappedBuildingCells {
  private finish:EnvironmentMaterials;
  private roof:T.MeshStandardMaterial;
  private facadeAtlas?: ReturnType<typeof installFacadePhotomaterials>;
- constructor(buildings:any[],private wall:T.MeshStandardMaterial,private glass:T.MeshStandardMaterial,private aged:boolean,loadTextures=true,private photoFacades=false){
-  if(photoFacades&&loadTextures)this.facadeAtlas=installFacadePhotomaterials(this.wall);
+ constructor(buildings:any[],private wall:T.MeshStandardMaterial,private glass:T.MeshStandardMaterial,private aged:boolean,loadTextures=true,private photoFacades=true){
+  if(photoFacades)this.facadeAtlas=installFacadePhotomaterials(this.wall,undefined,loadTextures);
   this.finish=new EnvironmentMaterials(loadTextures);this.roof=this.finish.create('rough_concrete',0xa5a396);
   buildings=buildings.map(b=>{const estimate=ROOFTOP_HEIGHT_ESTIMATES[b.id as keyof typeof ROOFTOP_HEIGHT_ESTIMATES];return estimate?{...b,h:estimate.height,visualHeightSource:estimate.source,heightBasis:estimate.basis}:b;});
   const mapped=buildings.filter(b=>!DEDICATED_ACCESS_BUILDING_IDS.has(String(b.id)));
@@ -62,11 +62,11 @@ export class MappedBuildingCells {
    // Bound both source work and the final geometry allocation. Publish the
    // district atomically so a courtyard or straddling block is never cut off.
    for(let start=0;start<d.buildings.length;start+=128){
-    const positions:number[]=[],colors:number[]=[],facades=this.photoFacades?[]:undefined;
+    const positions:number[]=[],colors:number[]=[],facades=this.photoFacades?[]:undefined,windows=this.photoFacades?[]:undefined;
     for(let i=start;i<Math.min(start+128,d.buildings.length);i++){
-     appendBuildingShell(d.buildings[i],positions,colors,facades);if((i-start)%8===7)yield;
+     appendBuildingShell(d.buildings[i],positions,colors,facades,windows);if((i-start)%8===7)yield;
     }
-    const mesh=new T.Mesh(shellGeometry(positions,colors,facades),this.wall);mesh.receiveShadow=true;root.add(mesh);yield;
+    const mesh=new T.Mesh(shellGeometry(positions,colors,facades,windows),this.wall);mesh.receiveShadow=true;root.add(mesh);yield;
    }
    d.root=root;root.visible=this.selectedDistricts.has(d);this.group.add(root);this.districtCache.add(d);this.trimDistrictCache();
   }finally{if(d.root!==root)this.release(root);}
@@ -107,7 +107,10 @@ export class MappedBuildingCells {
     const color=horizontal?roofColor:wallColor;
     colors[i*3]=color.r*shade;colors[i*3+1]=color.g*shade;colors[i*3+2]=color.b*shade;
    }
-   if(this.photoFacades)geo.setAttribute('cityFacadeClass',new T.Uint8BufferAttribute(new Uint8Array(pos.count),1));
+   if(this.photoFacades){
+    geo.setAttribute('cityFacadeClass',new T.Uint8BufferAttribute(new Uint8Array(pos.count),1));
+    geo.setAttribute('cityWindow',new T.Uint16BufferAttribute(new Uint16Array(pos.count*3),3,true));
+   }
    geo.setAttribute('color',new T.BufferAttribute(colors,3));shells.push(geo);
    }
    // Finish the existing authored shell height without changing source metadata.

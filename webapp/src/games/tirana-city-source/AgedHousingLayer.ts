@@ -30,13 +30,13 @@ export class AgedHousingLayer {
         float wear=housingNoise(housingUV*2.3)+.25*housingNoise(housingUV*13.0);
         float exposed=smoothstep(.78,.88,wear);
         vec2 panel=floor(housingUV*vec2(1.0,1.25));float repair=housingHash(panel);
-        vec3 patch=repair>.78?vec3(.77,.73,.65):repair>.64?vec3(.94,.86,.72):vec3(1.);
+        vec3 repairedPlaster=repair>.78?vec3(.77,.73,.65):repair>.64?vec3(.94,.86,.72):vec3(1.);
         float streak=pow(max(0.,sin(housingUV.x*14.)),18.)*smoothstep(.12,.8,fract(housingUV.y*1.25))*.13;
-        diffuseColor.rgb*=patch*(1.-streak);
+        diffuseColor.rgb*=repairedPlaster*(1.-streak);
         diffuseColor.rgb=mix(diffuseColor.rgb*(.76+.24*housingNoise(housingUV*8.0)),brick,exposed);
       `);
     };
-    plaster.customProgramCacheKey=()=> 'tirana-aged-plaster-v2';
+    plaster.customProgramCacheKey=()=> 'tirana-aged-plaster-v3';
     this.materials=[plaster,new T.MeshStandardMaterial({color:0xe0dacc,roughness:.88}),new T.MeshStandardMaterial({color:0x314851,roughness:.35,metalness:.15}),new T.MeshStandardMaterial({color:0x9ba2a0,roughness:.55,metalness:.55}),new T.MeshStandardMaterial({color:0x292d2c,roughness:.83})];
     this.materials[2].userData.environmentWindow=true;
     if(loadTextures)for(const [file,key] of [['plastered_wall_02-diff.jpg','map'],['plastered_wall_02-nor_gl.jpg','normalMap']] as const){

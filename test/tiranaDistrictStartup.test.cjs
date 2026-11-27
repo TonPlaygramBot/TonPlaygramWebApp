@@ -9,19 +9,23 @@ function load(file,deps){
 class Finish{create(){return new T.MeshStandardMaterial();}apply(){}dispose(){}}
 const terrain={buildingGround:()=>0,groundHeight:()=>0,urbanDistance:()=>0};
 const appearance={sourceBuildingColour:()=>new T.Color(.7,.7,.7),windowRows:()=>[]};
-const shell=load('tirana-neighbourhood/buildingShell.ts',{three:T,'../tirana-east/terrainCore.mjs':terrain,'./buildingAppearance':appearance});
+let shell;
 const drape=load('tirana-east/drapeGeometry.ts',{three:T,'./terrainCore.mjs':terrain});
-let CellWorkQueue,roadCore;
+let CellWorkQueue,roadCore,corridorMaterials;
 test.before(async()=>{
  ({CellWorkQueue}=await import('../webapp/src/games/tirana-neighbourhood/cellWorkQueue.mjs'));
  roadCore=await import('../webapp/src/games/tirana-environment/roadSurfaceCore.mjs');
+ corridorMaterials=await import('../webapp/src/games/tirana-neighbourhood/streetCorridorMaterial.mjs');
+ const wallWindows=await import('../webapp/src/games/tirana-neighbourhood/wallWindows.mjs');
+ shell=load('tirana-neighbourhood/buildingShell.ts',{three:T,'../tirana-east/terrainCore.mjs':terrain,'./buildingAppearance':appearance,'../tirana-east/housingCore.mjs':{housingProfile:()=>null},'../tirana-city-source/housingRegistry.mjs':{AGED_HOUSING_IDS:new Set()},'./wallWindows.mjs':wallWindows,'./facadePhotomaterials':{cityFacadeClass:()=>0}});
 });
 // One actual generator step per frame makes cooperative progress observable.
 const settings={CITY_RADIUS:{battery:2200,high:3200},CITY_CACHE:{battery:320,high:700},runCityWork:q=>q.run(1,1,()=>0)};
 function buildings(rows){
  const {MappedBuildingCells}=load('tirana-neighbourhood/MappedBuildingCells.ts',{
   three:T,'../tiranastreets/renderSettings':settings,'../tirana-east/housingCore.mjs':{housingProfile:()=>null},
-  '../tirana-east/terrainCore.mjs':terrain,'./cellWorkQueue.mjs':{CellWorkQueue},'./buildingShell':shell,'./buildingAppearance':appearance,
+  '../tirana-east/terrainCore.mjs':terrain,'./cellWorkQueue.mjs':{CellWorkQueue},'./buildingShell':shell,'./buildingAppearance':appearance,'./facadePhotomaterials':load('tirana-neighbourhood/facadePhotomaterials.ts',{three:T}),
+  '../tiranastreets/shared/rooftopSiteConfig.mjs':{DEDICATED_ACCESS_BUILDING_IDS:new Set(),ROOFTOP_HEIGHT_ESTIMATES:{}},
   '../tirana-environment/EnvironmentMaterials':{EnvironmentMaterials:Finish},'../tirana-environment/riverGeometry':{},
   'three/examples/jsm/utils/BufferGeometryUtils.js':{},'../tirana-city-source/sourceCore.mjs':{},'../tirana-city-source/housingRegistry.mjs':{AGED_HOUSING_IDS:new Set()}
  });
@@ -29,7 +33,7 @@ function buildings(rows){
 }
 function roads(rows){
  const {UrbanRoadCells}=load('tirana-neighbourhood/UrbanRoadCells.ts',{
-  three:T,'../tiranastreets/renderSettings':settings,'../tirana-east/drapeGeometry':drape,'./cellWorkQueue.mjs':{CellWorkQueue},
+  three:T,'./streetCorridorMaterial.mjs':corridorMaterials,'../tiranastreets/renderSettings':settings,'../tirana-east/drapeGeometry':drape,'./cellWorkQueue.mjs':{CellWorkQueue},
   '../tirana-east/terrainCore.mjs':terrain,
   '../tirana-environment/EnvironmentMaterials':{EnvironmentMaterials:Finish},'../tiranastreets/shared/world.mjs':{WORLD:{roads:rows}},
   '../tirana-environment/riverGeometry':{},'../tirana-environment/roadSurfaceCore.mjs':roadCore,

@@ -20,7 +20,7 @@ export class MappedNeighbourhood {
  private dead=false;
  private materials:T.Material[]=[];
  private wall:T.MeshStandardMaterial;
- constructor(agedHousing=false,photoFacades=false){
+ constructor(agedHousing=false,photoFacades=true){
   this.group.name='Tirana:urban-source-footprints';
   this.wall=new T.MeshStandardMaterial({vertexColors:true,roughness:.86});
   const glass=new T.MeshStandardMaterial({color:0x365761,roughness:.3,metalness:.3});
