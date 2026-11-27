@@ -23,6 +23,8 @@ import { SharedHumans } from './SharedHumans';
 import { forceCharacterFor } from '../shared/albanianForces.mjs';
 import { CombatEffects } from '../CombatEffects';
 import { SurfaceImpactMarks } from '../SurfaceImpactMarks';
+import { applyCompactPanelDent, supportsCompactPanelDent } from './compactPanelDent';
+import { CollisionWearVisuals } from './CollisionWearVisuals';
 import { vehicleDamageAppearance } from './vehicleDamageAppearance.mjs';
 import { MissileVisuals } from '../MissileVisuals';
 import { BuildingAccessVisuals } from './BuildingAccessVisuals';
@@ -50,8 +52,9 @@ export class StreetRenderer extends CityRenderer {
   private equipmentVisuals:EquipmentVisuals;
   private buildingAccess:BuildingAccessVisuals;
   get residentialAssetErrors(){return this.buildingAccess.assetErrors;}
+  private collisionWear=new CollisionWearVisuals();
   private wreckAt=-Infinity;
-  private wreckMaterials=new Map<T.Mesh,{original:T.Material|T.Material[];copies:T.Material[]}>();
+  private wreckMaterials=new Map<T.Mesh,{original:T.Material|T.Material[];copies:T.Material[];dent:((strength:number)=>void)[]}>();
   private clearWrecks(){for(const [mesh,saved] of this.wreckMaterials){mesh.material=saved.original;saved.copies.forEach(m=>m.dispose());}this.wreckMaterials.clear();this.wreckAt=-Infinity;}
   private showWrecks(sim:StreetSimulation){
     if(sim.state.elapsed>=this.wreckAt && sim.state.elapsed-this.wreckAt<.1)return;
@@ -59,16 +62,32 @@ export class StreetRenderer extends CityRenderer {
     const active=new Set<T.Mesh>();
     for(const car of sim.cars())if(car.destroyed||(car.health??140)<110){
       const damage=vehicleDamageAppearance(car);
-      this.vehicleVisual(car.id)?.traverse(o=>{
-        if(!(o instanceof T.Mesh))return;active.add(o);const existing=this.wreckMaterials.get(o);if(existing){
+      const root=this.vehicleVisual(car.id);
+      if(!root)continue;
+      const deflection=T.MathUtils.clamp((110-(car.health??(car.destroyed?0:110)))/75,0,1);
+      root.traverse(o=>{
+        if(!(o instanceof T.Mesh))return;
+        active.add(o);
+        const existing=this.wreckMaterials.get(o);
+        if(existing){
           const originals=Array.isArray(existing.original)?existing.original:[existing.original];
-          existing.copies.forEach((copy,i)=>{const original=originals[i];if(copy instanceof T.MeshStandardMaterial&&original instanceof T.MeshStandardMaterial){copy.color.copy(original.color).multiplyScalar(damage.brightness);copy.roughness=Math.max(original.roughness,damage.roughness);copy.metalness=damage.charred?.15:original.metalness;copy.emissive.copy(original.emissive);if(damage.charred)copy.emissive.set(0);}});return;
+          existing.copies.forEach((copy,i)=>{const original=originals[i];if(copy instanceof T.MeshStandardMaterial&&original instanceof T.MeshStandardMaterial){copy.color.copy(original.color).multiplyScalar(damage.brightness);copy.roughness=Math.max(original.roughness,damage.roughness);copy.metalness=damage.charred?.15:original.metalness;copy.emissive.copy(original.emissive);if(damage.charred)copy.emissive.set(0);}});
+          existing.dent.forEach(set=>set(deflection));
+          return;
         }
+        const dent:((strength:number)=>void)[]=[];
         const original=o.material,copies=(Array.isArray(original)?original:[original]).map(m=>{
-          const copy=m.clone();if(copy instanceof T.MeshStandardMaterial){copy.color.multiplyScalar(damage.brightness);copy.roughness=Math.max(copy.roughness,damage.roughness);if(damage.charred){copy.metalness=.15;copy.emissive.set(0);}}
+          const copy=m.clone();
+          if(copy instanceof T.MeshStandardMaterial){
+            copy.color.multiplyScalar(damage.brightness);copy.roughness=Math.max(copy.roughness,damage.roughness);
+            if(damage.charred){copy.metalness=.15;copy.emissive.set(0);}
+            if(supportsCompactPanelDent(root,o,m)){
+              const set=applyCompactPanelDent(copy);set(deflection);dent.push(set);
+            }
+          }
           return copy;
         });
-        this.wreckMaterials.set(o,{original,copies});o.material=Array.isArray(original)?copies:copies[0];
+        this.wreckMaterials.set(o,{original,copies,dent});o.material=Array.isArray(original)?copies:copies[0];
       });
     }
     for(const [mesh,saved] of this.wreckMaterials)if(!active.has(mesh)){mesh.material=saved.original;saved.copies.forEach(m=>m.dispose());this.wreckMaterials.delete(mesh);}
@@ -286,9 +305,13 @@ export class StreetRenderer extends CityRenderer {
     const sim=this.simulation;
     if(sim){
       this.buildingAccess.update(sim.state.elapsed,sim,this.quality==='battery'?120:320);
-      if(this.effectState!==sim.state){this.combatEffects.reset();this.impactMarks.reset();this.clearWrecks();this.effectState=sim.state;this.cutCount=0;this.pyroSequence=0;}
+      if(this.effectState!==sim.state){this.combatEffects.reset();this.impactMarks.reset();this.collisionWear.reset();this.clearWrecks();this.effectState=sim.state;this.cutCount=0;this.pyroSequence=0;}
       this.combatEffects.setBloodEnabled(this.settings.bloodEffects);
-      this.combatEffects.consume(sim.state.effects,groundHeight,false);this.showWrecks(sim);
+      this.combatEffects.consume(sim.state.effects,groundHeight,false);
+      this.collisionWear.update(sim.state.effects,sim.state.elapsed,
+        id=>sim.state.cars.find(c=>c.id===id) ?? sim.state.traffic.find(c=>c.id===id) ?? sim.state.units.find(c=>c.id===id),
+        id=>this.vehicleVisual(id), mesh=>this.wreckMaterials.has(mesh));
+      this.showWrecks(sim);
       this.impactMarks.update(sim.state.effects,sim.state.elapsed,id=>this.vehicleVisual(id),this.vehicleView==='cockpit'?sim.player.carId||undefined:undefined,this.camera.position,this.quality==='battery');
       if(this.cutCount!==sim.world.fractures.length){
         this.cutCount=sim.world.fractures.length;
@@ -371,7 +394,7 @@ export class StreetRenderer extends CityRenderer {
     this.aliDemiPitches.dispose();
     this.bodyRig.dispose();
     this.buildingAccess.dispose();
-    this.clearWrecks();this.impactMarks.dispose();this.combatEffects.dispose();this.missileMeshes.dispose();this.pockets.dispose();this.equipmentVisuals.dispose();
+    this.collisionWear.reset();this.clearWrecks();this.impactMarks.dispose();this.combatEffects.dispose();this.missileMeshes.dispose();this.pockets.dispose();this.equipmentVisuals.dispose();
     this.humans.dispose();
     super.destroy();
   }

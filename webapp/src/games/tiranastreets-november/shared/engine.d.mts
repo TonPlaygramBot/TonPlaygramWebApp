@@ -111,6 +111,7 @@ export type NPC = Point & {
   downUntil: number;
 };
 export type Effect = Point & {
+  roadWear?: readonly { id:string; delta:number }[];
   targetId?:string;nx?:number;ny?:number;nz?:number;
   radius?:number;objectId?:string;hitKind?:string;
   y?:number;toY?:number;

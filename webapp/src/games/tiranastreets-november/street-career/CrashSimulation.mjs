@@ -36,7 +36,10 @@ export class CrashSimulation{
     this.sim.combat.damageVehicle(a,response.damageA,this.sim.player,'collision');
     if(b&&!b.destroyed)this.sim.combat.damageVehicle(b,response.damageB,this.sim.player,'collision');
     const point={x:normal.point?.x??a.x,y:groundHeight(a.x,a.z)+.65,z:normal.point?.z??a.z};
-    this.sim.combat.emit('crash',point,{radius:Math.min(6,response.closing/5),severity:response.closing});
+    // Read-only presentation data for the same already-debounced road contact.
+    const roadWear=[{id:a.id,delta:response.deltaA}];
+    if(b&&response.deltaB>0)roadWear.push({id:b.id,delta:response.deltaB});
+    this.sim.combat.emit('crash',point,{radius:Math.min(6,response.closing/5),severity:response.closing,roadWear});
     for(const [car,delta,occupant]of [[a,response.deltaA,occupants[0]],[b,response.deltaB,occupants[1]]])if(car){
       car.crashUntil=now+Math.min(.6,delta*.035);
       if(occupant&&delta>10)this.sim.damage(occupant,Math.min(60,(delta-10)*2),this.sim.player);
