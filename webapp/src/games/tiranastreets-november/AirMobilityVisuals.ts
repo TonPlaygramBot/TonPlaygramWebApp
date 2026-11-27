@@ -3,6 +3,7 @@ import * as THREE from "three";
 import { GLTFLoader } from "three/examples/jsm/loaders/GLTFLoader.js";
 import type { State } from "./shared/engine.mjs";
 import { MissileVisuals } from "./MissileVisuals";
+import {fitImportedFlightVisual} from './flightVisualHeading.mjs';
 import { groundHeight } from "../tirana-east/terrainCore.mjs";
 
 /** Recenter spinning geometry without moving the authored model. */
@@ -65,11 +66,7 @@ export class AirMobilityVisuals {
     try {
       const gltf=await loader.loadAsync('/assets/tirana-streets/imported/f15.glb');
       if(this.disposed){this.release(gltf.scene);return;}
-      const bounds=new THREE.Box3().setFromObject(gltf.scene),size=bounds.getSize(new THREE.Vector3());
-      gltf.scene.scale.setScalar(15/Math.max(size.x,size.y,size.z));
-      gltf.scene.updateMatrixWorld(true);
-      const center=new THREE.Box3().setFromObject(gltf.scene).getCenter(new THREE.Vector3());
-      gltf.scene.position.sub(center);this.jet.add(gltf.scene);
+      this.jet.add(fitImportedFlightVisual(gltf.scene,15));
     } catch { /* Visible fallback until the original local asset is available. */
       if(this.disposed)return;
       const material=new THREE.MeshStandardMaterial({color:0x77838a,metalness:.65,roughness:.4});
@@ -144,16 +141,10 @@ export class AirMobilityVisuals {
         const gltf = await loader.loadAsync(url);
         const model = gltf.scene;
         if(this.disposed){this.release(model);return;}
-        const bounds = new THREE.Box3().setFromObject(model);
-        const size = bounds.getSize(new THREE.Vector3());
-        model.scale.setScalar(8 / Math.max(size.x, size.y, size.z, .01));
-        model.updateMatrixWorld(true);
-        const fitted = new THREE.Box3().setFromObject(model);
-        const c = fitted.getCenter(new THREE.Vector3());
-        model.position.sub(c);
+        const visual = fitImportedFlightVisual(model,8);
         this.blur.removeFromParent();this.release(this.helicopter);this.helicopter.clear();
         this.clearExtraHelicopters();
-        this.helicopter.add(model);
+        this.helicopter.add(visual);
         const parts:THREE.Mesh[]=[];
         model.traverse(o=>{if(o instanceof THREE.Mesh && /rotor|propell?ar|propeller/i.test(o.name))parts.push(o);});
         parts.sort((a,b)=>Number(/back|tail/i.test(a.name))-Number(/back|tail/i.test(b.name)));

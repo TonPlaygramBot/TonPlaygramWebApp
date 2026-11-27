@@ -695,6 +695,9 @@ export class StreetSimulation {
       mode
     });
     const list = [];
+    if(this.arrest.current?.reason==='unarmed'&&this.arrest.current.phase==='pursuit'){
+      list.push(a('surrender','DORËZOHU',!driving,this.arrest.canSurrender()?'':'Afrohu te një polic', 'tap',90));
+    }
     if (!driving) {
       list.push(
         a(
@@ -780,6 +783,7 @@ export class StreetSimulation {
       now = this.state.elapsed;
     b.notice = '';
     if(id==='detonate')return this.equipment.detonate();
+    if(id==='surrender')return this.arrest.surrender();
     if (descriptor.kind === 'economy') return this.economy.execute(descriptor);
     if (descriptor.kind?.startsWith('access-')) return this.access.execute(descriptor);
     if (descriptor.kind === 'aircraft') return this.flight.board(descriptor.targetId);
@@ -939,6 +943,10 @@ export class StreetSimulation {
       target = n;
     }
     if (target) {
+      // A valid unarmed contact opens the existing non-lethal custody flow
+      // before ordinary wanted-state reactions run. Merely carrying another
+      // inventory item is not the same as using it.
+      if(!p.weapon||p.weapon==='punch')this.arrest.provoke(target,'unarmed');
       this.damage(target, a.kind === 'kick' ? 30 : WEAPON_BY_ID.get(p.weapon)?.damage || 16, p);
       reportCrime(this.state, p, target.kind === 'gang' ? 4 : 55);
       this.event('melee-hit');

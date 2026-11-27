@@ -285,7 +285,9 @@ export function StreetCareerGame({ onExit, initialOperation, initialDifficulty='
             <strong>{view.body.notice}</strong><span>Drejtoria e Policisë Tiranë · pranë Myslym Shyrit</span>
             <progress aria-label="Arrest sequence" max="5" value={['spray','down','backup','escort','transport'].indexOf(p.arrest.phase)+1}/>
           </div>}
-          {context && <div className="tsc-context-action">{actionButton('interact','context')}</div>}
+          {p.arrest?.phase==='pursuit' && p.arrest.reason==='unarmed' && !driving && !flying
+            ? <div className="tsc-context-action">{actionButton('surrender','context')}</div>
+            : context && <div className="tsc-context-action">{actionButton('interact','context')}</div>}
           <div className="tsc-actions" aria-label={driving?'Driving pedals':flying?'Flight controls':'Combat and movement controls'}>
             {flying ? (
               aircraft&&runtime.current&&<FlightControls aircraft={aircraft} lock={runtime.current.simulation.flight.lock}
