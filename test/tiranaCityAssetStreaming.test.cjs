@@ -12,7 +12,7 @@ const settle=()=>new Promise(resolve=>setImmediate(resolve));
 test('portrait canopy spends original glTF slots on visible trees and refreshes when turning in place',async()=>{
  const policy=await import('../webapp/src/games/tirana-street-life/treeLodPolicy.mjs');
  const {MatureTreeLayer}=load('../tirana-street-life/MatureTreeLayer.ts',{
-  three:T,'./treeLodPolicy.mjs':policy,'./ImportedTreeLayer':{},'./DistantBroadleafLayer':{},'./loadCompactTree':{},'../tiranastreets/shared/urbanBounds.mjs':{},'../tirana-east/terrainCore.mjs':{},
+  three:T,'./treeLodPolicy.mjs':policy,'./ImportedTreeLayer':{},'./loadCompactTree':{},'./DistantBroadleafLayer':{distanceTreeMinDistance:(_s,b)=>b?50:65},'../tiranastreets/shared/urbanBounds.mjs':{},'../tirana-east/terrainCore.mjs':{},
   'three/examples/jsm/utils/BufferGeometryUtils.js':{},'./canopyRegistry.mjs':{},'./streetModels.mjs':{},'../tirana-street-detail/roadDetailCore.mjs':{}
  });
  const tree=(id,z,shape='garden')=>({id,x:0,y:.12,z,shape,height:10,crown:8,seed:1,zone:'test'});
@@ -35,7 +35,7 @@ test('portrait canopy spends original glTF slots on visible trees and refreshes 
 test('solo canopy culls only distant offscreen fallbacks and refreshes after a quick portrait pan',async()=>{
  const policy=await import('../webapp/src/games/tirana-street-life/treeLodPolicy.mjs');
  const {MatureTreeLayer}=load('../tirana-street-life/MatureTreeLayer.ts',{
-  three:T,'./treeLodPolicy.mjs':policy,'./ImportedTreeLayer':{},'./DistantBroadleafLayer':{},'./loadCompactTree':{},'../tiranastreets/shared/urbanBounds.mjs':{},'../tirana-east/terrainCore.mjs':{},
+  three:T,'./treeLodPolicy.mjs':policy,'./ImportedTreeLayer':{},'./loadCompactTree':{},'./DistantBroadleafLayer':{distanceTreeMinDistance:(_s,b)=>b?50:65},'../tiranastreets/shared/urbanBounds.mjs':{},'../tirana-east/terrainCore.mjs':{},
   'three/examples/jsm/utils/BufferGeometryUtils.js':{},'./canopyRegistry.mjs':{},'./streetModels.mjs':{},'../tirana-street-detail/roadDetailCore.mjs':{}
  });
  const tree=(id,x,z)=>({id,x,z,y:.12,shape:'umbrella',height:10,crown:8,seed:1,zone:'test'});
@@ -64,77 +64,47 @@ test('solo canopy culls only distant offscreen fallbacks and refreshes after a q
  for(const b of batches){b.wood.dispose();b.leaves.dispose();b.wood.geometry.dispose();b.leaves.geometry.dispose();b.wood.material.dispose();b.leaves.material.dispose();}
 });
 
-test('original broadleaf cutout falls back while loading or failed, preserves tree scale and never replaces cypress',async()=>{
- const {DistantBroadleafLayer}=load('../tirana-street-life/DistantBroadleafLayer.ts',{three:T});
- const tree={shape:'umbrella',x:17,z:-61,y:.2,height:9,crown:7,seed:0};
- const eye={x:17,z:0};
- let done,requests=0;
- const layer=new DistantBroadleafLayer(()=>{requests++;return new Promise(resolve=>{done=resolve;});});
- layer.request();layer.request();assert.equal(requests,1);
- assert.equal(layer.add(tree,eye),false);assert.equal(layer.mesh.count,0);
- const texture=new T.Texture();
- done(texture);await settle();
- assert.equal(layer.ready,true);
- assert.equal(texture.colorSpace,T.SRGBColorSpace);
- assert.equal(layer.add({...tree,shape:'column'},eye),false);
- assert.equal(layer.add(tree,eye),true);
- const matrix=new T.Matrix4();
- layer.mesh.getMatrixAt(0,matrix);
- assert.ok(Math.abs(matrix.elements[12]-17)<1e-5);
- assert.ok(Math.abs(matrix.elements[13]-(.2+9/2))<1e-5);
- assert.ok(Math.abs(matrix.elements[14]+61)<1e-5);
- assert.ok(Math.abs(matrix.elements[0]-7*219/211)<1e-5);
- layer.end();assert.equal(layer.mesh.instanceMatrix.version,1);
- layer.begin();assert.equal(layer.mesh.count,0);
- layer.dispose();assert.equal(layer.ready,false);
- const failed=new DistantBroadleafLayer(async()=>{throw Error('offline')});
- failed.request();await settle();
- assert.equal(failed.ready,false);assert.equal(failed.add(tree,eye),false);
- failed.dispose();
+test('source cutouts allocate existing profiles only and retain high-quality shadow distance', async()=>{
+ const textureLoads=[];
+ class FakeTreeTextureLoader {loadAsync(url){textureLoads.push(url);return Promise.resolve(new T.Texture());}}
+ const three={...T,TextureLoader:FakeTreeTextureLoader};
+ const {distanceTreeProfiles,distanceTreeMinDistance}=load('../tirana-street-life/DistantBroadleafLayer.ts',{three});
+ const profiles=distanceTreeProfiles([{shape:'garden'},{shape:'upright'},{shape:'upright'}]);
+ assert.deepEqual(Array.from(profiles.map(p=>[p.profileId,p.mesh.instanceMatrix.count])),[['broadleaf',1],['upright',2]]);
+ profiles.forEach(p=>p.request());await settle();
+ assert.equal(textureLoads.length,2);assert.ok(textureLoads.every(url=>!/cypress/.test(url)));
+ const colour=profiles[0].mesh.material.color;
+ profiles[0].setSkyLight(.22);assert.equal(colour.r,.43);
+ profiles[0].setSkyLight(.8);assert.ok(Math.abs(colour.r-2.65)<1e-6);
+ assert.equal(profiles[0].mesh.material.fog,true);
+ profiles.forEach(p=>p.dispose());
+ assert.equal(distanceTreeMinDistance('upright',false),65);
+ assert.equal(distanceTreeMinDistance('column',false),65);
+ assert.equal(distanceTreeMinDistance('garden',false),65);
+ assert.equal(distanceTreeMinDistance('upright',true),36);
+ assert.equal(distanceTreeMinDistance('column',true),36);
+ assert.equal(distanceTreeMinDistance('garden',true),50);
 });
 
-test('late distant canopy response releases its texture without reviving a disposed scene',async()=>{
- const {DistantBroadleafLayer}=load('../tirana-street-life/DistantBroadleafLayer.ts',{three:T});
- const texture=new T.Texture();let complete,released=0;
- texture.addEventListener('dispose',()=>released++);
- const layer=new DistantBroadleafLayer(()=>new Promise(resolve=>{complete=resolve;}));
- layer.request();layer.dispose();complete(texture);await settle();
- assert.equal(layer.ready,false);assert.equal(released,1);
-});
-
-test('solo LOD refreshes when the cutout arrives without movement and preserves a single owner',async()=>{
- const policy=await import('../webapp/src/games/tirana-street-life/treeLodPolicy.mjs');
- const {MatureTreeLayer}=load('../tirana-street-life/MatureTreeLayer.ts',{
-  three:T,'./treeLodPolicy.mjs':policy,'./ImportedTreeLayer':{},'./DistantBroadleafLayer':{},'./loadCompactTree':{},'../tiranastreets/shared/urbanBounds.mjs':{},'../tirana-east/terrainCore.mjs':{},
-  'three/examples/jsm/utils/BufferGeometryUtils.js':{},'./canopyRegistry.mjs':{},'./streetModels.mjs':{},'../tirana-street-detail/roadDetailCore.mjs':{}
- });
- const {DistantBroadleafLayer}=load('../tirana-street-life/DistantBroadleafLayer.ts',{three:T});
- const tree=(id,z,shape='garden')=>({id,x:0,y:.12,z,shape,height:10,crown:8,seed:1,zone:'test'});
- const trees=[tree('close',-32),tree('medium',-92),tree('far',-170),tree('cypress',-180,'column')];
- const group=new T.Group();group.position.set(100,0,200);
- const closeAsset={ready:false,request(){},begin(){},add(t){return this.ready&&t.id==='close';},end(){}};
- const mediumAsset={ready:false,request(){},begin(){},add(t){return this.ready&&t.id==='medium';},end(){}};
- const sharedGeom=new T.BoxGeometry(),sharedMat=new T.MeshStandardMaterial();
- const batches=['garden','column'].flatMap(shape=>[0,1,2].map(lod=>({shape,lod,wood:new T.InstancedMesh(sharedGeom,sharedMat,10),leaves:new T.InstancedMesh(sharedGeom,sharedMat,10)})));
- let finish;
- const distanceLayer=new DistantBroadleafLayer(()=>new Promise(resolve=>{finish=resolve;}));
- const layer=Object.assign(Object.create(MatureTreeLayer.prototype),{group,dead:false,last:-Infinity,imported:closeAsset,importedReady:false,mediumReady:false,mediumIds:new Set(),mediumImported:mediumAsset,near:()=>trees,batches,dummy:new T.Object3D(),color:new T.Color(),viewer:{x:Infinity,z:Infinity},cameraMatrix:new T.Matrix4(),cameraProjection:new T.Matrix4(),frustum:new T.Frustum(),projection:new T.Matrix4(),treeBounds:new T.Sphere(),distanceLayer,eye:new T.Vector3()});
- const camera=new T.PerspectiveCamera(55,9/16,.1,2000);camera.position.set(104,5,200);camera.lookAt(100,5,100);
- const viewer={x:0,z:0};
- const procedural=()=>batches.reduce((sum,b)=>sum+b.wood.count,0);
- try{
-  layer.update(0,viewer,false,false,camera);
-  assert.equal(procedural(),4);assert.equal(distanceLayer.mesh.count,0);
-  finish(new T.Texture());await settle();
-  layer.update(.01,viewer,false,false,camera);
-  assert.equal(procedural(),2,'keep close 3D placeholder and cypress');
-  assert.equal(distanceLayer.mesh.count,2,'intermediate and distant broadleaf have one representation');
-  const m=new T.Matrix4();distanceLayer.mesh.getMatrixAt(0,m);
-  assert.ok(Math.abs(m.elements[8]-Math.sin(Math.atan2(4,92)))<1e-5,'faces the camera in tree-local coordinates');
-  closeAsset.ready=true;mediumAsset.ready=true;
-  layer.update(.02,viewer,false,false,camera);
-  assert.equal(group.userData.importedTrunks,2);
-  assert.equal(distanceLayer.mesh.count,1,'medium glTF promotion removes its cutout');
-  assert.equal(procedural(),1,'cypress stays procedural');
- }finally{distanceLayer.dispose();for(const b of batches){b.wood.dispose();b.leaves.dispose();}sharedGeom.dispose();sharedMat.dispose();}
+test('column cutout remains grounded, preserves authored thin crown and updates only active instances',async()=>{
+ class FakeTreeTextureLoader {loadAsync(){return Promise.resolve(new T.Texture());}}
+ const {distanceTreeProfiles}=load('../tirana-street-life/DistantBroadleafLayer.ts',{three:{...T,TextureLoader:FakeTreeTextureLoader}});
+ const [column]=distanceTreeProfiles([{shape:'column'},{shape:'column'}]);
+ const eye={x:0,z:0}, tree={shape:'column',x:6,y:1.2,z:-74,height:12,crown:2.4,seed:8};
+ assert.equal(column.add(tree,eye),false,'retain old tree while its image is unavailable');
+ column.request();await settle();
+ assert.equal(column.add({...tree,shape:'garden'},eye),false);
+ assert.ok(column.add(tree,eye));
+ const m=new T.Matrix4(), p=new T.Vector3(),q=new T.Quaternion(),s=new T.Vector3();
+ column.mesh.getMatrixAt(0,m);m.decompose(p,q,s);
+ assert.ok(Math.abs(s.x*37/45-tree.crown)<1e-5);
+ assert.ok(Math.abs(s.y*207/215-tree.height)<1e-5);
+ assert.ok(Math.abs(p.y-s.y/2+tree.height*4/207-tree.y)<1e-5);
+ assert.equal(p.x,tree.x);assert.equal(p.z,tree.z);
+ assert.equal(column.mesh.geometry.index.count,6);
+ column.end();
+ assert.equal(column.mesh.instanceMatrix.updateRanges.at(-1).count,16);
+ column.begin();column.end();
+ assert.equal(column.mesh.count,0);
+ column.dispose();
 });

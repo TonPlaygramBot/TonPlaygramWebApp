@@ -1,6 +1,6 @@
 import {useMediumTree,importedTreeBudget} from './treeLodPolicy.mjs';
 import {loadCompactTree} from './loadCompactTree';
-import {DistantBroadleafLayer} from './DistantBroadleafLayer';
+import {distanceTreeMinDistance,distanceTreeProfiles,type DistantBroadleafLayer} from './DistantBroadleafLayer';
 import {ImportedTreeLayer} from './ImportedTreeLayer';
 import {pointInUrbanBounds} from '../tiranastreets/shared/urbanBounds.mjs';
 import {groundHeight} from '../tirana-east/terrainCore.mjs';
@@ -19,7 +19,7 @@ type Batch={shape:string;lod:number;wood:T.InstancedMesh;leaves:T.InstancedMesh}
  * become oversized spherical bushes. Every replaced source ID has one owner. */
 export class MatureTreeLayer {
  readonly group=new T.Group();private disposed=false;private dead=false;private last=-Infinity;
- private distanceLayer?:DistantBroadleafLayer;private distanceReady?:boolean;private eye=new T.Vector3();
+ private distanceLayers?:DistantBroadleafLayer[];private distanceReady?:number;private eye=new T.Vector3();
  private imported:ImportedTreeLayer;private importedReady=false;
  private mediumImported:ImportedTreeLayer;
  private mediumReady=false;private mediumIds=new Set<string>();
@@ -38,11 +38,12 @@ export class MatureTreeLayer {
   this.mediumImported=makeTree('/assets/tirana-streets/city-realism/urban-tree-lod1.glb');
   this.cullFarTrees=!!options.cullFarTrees;this.bridgeCloseTreeDetail=!!options.bridgeCloseTreeDetail;
   this.group.name='Tirana:mature-boulevard-and-square-trees';this.group.add(this.imported.group,this.mediumImported.group);
-  if(options.sourceDistantBroadleaf){
-   this.distanceLayer=new DistantBroadleafLayer();this.group.add(this.distanceLayer.mesh);
-  }
   const blocked=options.track?ribbonExclusion(options.track):null;
   const eligible=trees.filter(t=>pointInUrbanBounds(t,Math.max(1,t.crown/2))&&(!blocked||!blocked(t.x,t.z,Math.max(.8,t.crown*.75))));this.near=nearbyIndex(eligible.map(t=>({...t,y:groundHeight(t.x,t.z)+.12})));
+  if(options.sourceDistantBroadleaf){
+   this.distanceLayers=distanceTreeProfiles(eligible);
+   for(const layer of this.distanceLayers)this.group.add(layer.mesh);
+  }
   this.group.userData={mappedTrunks:eligible.filter(t=>t.zone!=='estimated-area-canopy').length,estimatedAreaTrunks:eligible.filter(t=>t.zone==='estimated-area-canopy').length,accuracy:'Mapped trunks, interpolated rows and estimated canopy within mapped green spaces; not satellite verified'};
   // Original clustered leaf cutout. Repeated small cards leave daylight gaps;
   // opacity is tested instead of sorted transparency on mobile.
@@ -65,6 +66,11 @@ export class MatureTreeLayer {
  }
  update(seconds:number,viewer?:{x:number;z:number},battery=false,force=false,camera?:T.Camera){
   if(this.dead||!viewer)return;
+  if(this.distanceLayers?.length){
+   let scene:T.Object3D|null=this.group;
+   while(scene&&!(scene instanceof T.Scene))scene=scene.parent;
+   if(scene instanceof T.Scene)for(const layer of this.distanceLayers)layer.setSkyLight(scene.environmentIntensity);
+  }
   if(camera)camera.updateWorldMatrix(true,false);
   const cameraChanged=!!camera&&(!this.cameraMatrix.equals(camera.matrixWorld)||!this.cameraProjection.equals(camera.projectionMatrix));
   // A rapid pan must refresh immediately rather than wait for the normal
@@ -74,14 +80,15 @@ export class MatureTreeLayer {
    const a=camera.matrixWorld.elements,b=this.cameraMatrix.elements;
    largeTurn=!this.cameraProjection.equals(camera.projectionMatrix)||(a[8]*b[8]+a[9]*b[9]+a[10]*b[10])<.97;
   }
-  if(!force&&!largeTurn&&this.distanceReady===this.distanceLayer?.ready&&this.importedReady===this.imported.ready&&this.mediumReady===this.mediumImported.ready&&this.battery===battery&&seconds>=this.last&&(seconds-this.last<.2||Math.hypot(viewer.x-this.viewer.x,viewer.z-this.viewer.z)<12&&!cameraChanged))return;
+  const distanceReady=this.distanceLayers?.reduce((mask,layer,i)=>mask|(layer.ready?1<<i:0),0);
+  if(!force&&!largeTurn&&this.distanceReady===distanceReady&&this.importedReady===this.imported.ready&&this.mediumReady===this.mediumImported.ready&&this.battery===battery&&seconds>=this.last&&(seconds-this.last<.2||Math.hypot(viewer.x-this.viewer.x,viewer.z-this.viewer.z)<12&&!cameraChanged))return;
   if(camera){
    this.cameraMatrix.copy(camera.matrixWorld);this.cameraProjection.copy(camera.projectionMatrix);
    this.projection.multiplyMatrices(camera.projectionMatrix,camera.matrixWorldInverse);this.frustum.setFromProjectionMatrix(this.projection);
    this.group.updateWorldMatrix(true,false);
-   if(this.distanceLayer)this.group.worldToLocal(this.eye.setFromMatrixPosition(camera.matrixWorld));
+   if(this.distanceLayers)this.group.worldToLocal(this.eye.setFromMatrixPosition(camera.matrixWorld));
   }
-  this.distanceReady=this.distanceLayer?.ready;this.distanceLayer?.request();this.distanceLayer?.begin();
+  this.distanceReady=distanceReady;this.distanceLayers?.forEach(layer=>{layer.request();layer.begin();});
   this.importedReady=this.imported.ready;this.mediumReady=this.mediumImported.ready;this.imported.begin();this.mediumImported.begin();
   this.last=seconds;this.viewer={x:viewer.x,z:viewer.z};this.battery=battery;
   const trees=this.near(viewer,2200,6000);let detailed=0,medium=0,culled=0;
@@ -126,9 +133,10 @@ export class MatureTreeLayer {
     this.treeBounds.applyMatrix4(this.group.matrixWorld);
     if(!this.frustum.intersectsSphere(this.treeBounds)){culled++;continue;}
    }
-   // Keep 3D trees for the near field and low-angle approach; do not plate
-   // cypress profiles with a broadleaf image. If the image fails, keep all trees.
-   if(camera&&distance>=(battery?50:65)&&this.distanceLayer?.add(t,this.eye))continue;
+   // Profile-specific cutouts keep mapped sizes and silhouettes. Keep the
+   // original models and nearby shadow casters ahead of the far appearance.
+   const cardDistance=distanceTreeMinDistance(t.shape,battery);
+   if(camera&&distance>=cardDistance&&this.distanceLayers?.some(layer=>layer.add(t,this.eye)))continue;
    const lod=!battery&&distance<65&&detailed<64?0:distance<(battery?120:240)&&medium<384?1:2;
    if(lod===0)detailed++;if(lod===1)medium++;
    const b=this.batches.find(b=>b.shape===t.shape&&b.lod===lod)??this.batches.find(b=>b.shape==='upright'&&b.lod===lod)!;
@@ -137,8 +145,10 @@ export class MatureTreeLayer {
    b.wood.setMatrixAt(b.wood.count++,this.dummy.matrix);b.leaves.setMatrixAt(b.leaves.count,this.dummy.matrix);
    this.color.setHSL(.235+(t.seed%5)*.008,.2+(t.seed%4)*.02,.62+(t.seed%6)*.025);b.leaves.setColorAt(b.leaves.count++,this.color);
   }
-  this.distanceLayer?.end();
-  this.group.userData.sourceDistantBroadleafTrunks=this.distanceLayer?.mesh.count??0;
+  this.distanceLayers?.forEach(layer=>layer.end());
+  this.group.userData.sourceDistantBroadleafTrunks=this.distanceLayers?.reduce((count,layer)=>count+layer.mesh.count,0)??0;
+  if(this.distanceLayers)this.group.userData.sourceDistantProfiles=Object.fromEntries(
+    this.distanceLayers.map(layer=>[layer.profileId,layer.mesh.count]));
   this.imported.end();this.mediumImported.end();this.mediumIds=nextMediumIds;
   this.group.userData.importedTrunks=originalIds.size;
   this.group.userData.mediumImportedTrunks=nextMediumIds.size;
@@ -148,7 +158,7 @@ export class MatureTreeLayer {
   this.batches.forEach(b=>{b.wood.instanceMatrix.needsUpdate=true;b.leaves.instanceMatrix.needsUpdate=true;if(b.leaves.instanceColor)b.leaves.instanceColor.needsUpdate=true;});
  }
  retire(){this.dead=true;}
- dispose(){if(this.disposed)return;this.disposed=true;this.dead=true;this.distanceLayer?.dispose();this.imported.dispose();this.mediumImported.dispose();this.mediumIds.clear();this.group.removeFromParent();this.batches.forEach(b=>{b.wood.dispose();b.leaves.dispose();b.wood.geometry.dispose();b.leaves.geometry.dispose();});this.materials.forEach(m=>m.dispose());this.texture.dispose();this.group.clear();}
+ dispose(){if(this.disposed)return;this.disposed=true;this.dead=true;this.distanceLayers?.forEach(layer=>layer.dispose());this.imported.dispose();this.mediumImported.dispose();this.mediumIds.clear();this.group.removeFromParent();this.batches.forEach(b=>{b.wood.dispose();b.leaves.dispose();b.wood.geometry.dispose();b.leaves.geometry.dispose();});this.materials.forEach(m=>m.dispose());this.texture.dispose();this.group.clear();}
 }
 
 function treeGeometry(shape:string,detail:boolean){

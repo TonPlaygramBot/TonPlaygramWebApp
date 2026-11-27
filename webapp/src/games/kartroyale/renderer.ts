@@ -781,12 +781,16 @@ export class KartRenderer {
       const tex = new T.CanvasTexture(canvas);
       tex.userData.ephemeral = true;
       tex.colorSpace = T.SRGBColorSpace;
-      const sign = new T.Mesh(
-        new T.PlaneGeometry(startWidth, 1),
-        new T.MeshBasicMaterial({ map: tex, side: T.DoubleSide })
-      );
-      sign.position.set(0, 5.65, -0.36);
-      arch.add(sign);
+      // Each face points out of the metal beam. A double-sided single
+      // plane shows the reverse (mirrored) texture to the starting grid.
+      const signGeometry=new T.PlaneGeometry(startWidth,1);
+      const signMaterial=new T.MeshBasicMaterial({map:tex});
+      for(const side of [-1,1]){
+        const sign=new T.Mesh(signGeometry,signMaterial);
+        sign.position.set(0,5.65,side*.36);
+        sign.rotation.y=side<0?Math.PI:0;
+        arch.add(sign);
+      }
     }
     this.world.add(arch);
     }

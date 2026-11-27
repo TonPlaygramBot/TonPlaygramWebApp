@@ -168,7 +168,7 @@ export default function TableTennisRoyalLobby() {
         {mode === 'career' && (
           <section className="rounded-2xl border border-white/10 bg-white/5 p-4 text-sm text-white/70">
             Play quarter-finals, semi-finals and finals across five tournaments.
-            Train footwork, power and reach. Career progress saves to your TPC
+            Train footwork, power and reach. Career progress saves to your TonPlayGram
             account; solo play has no stake.
           </section>
         )}
@@ -183,7 +183,7 @@ export default function TableTennisRoyalLobby() {
               />
             </fieldset>
             <p className="text-xs text-white/60">
-              Matches use your TPC account and pair the same stake, arena and
+              Matches use your TonPlayGram account and pair the same stake, arena and
               match length. Stakes lock when both players are ready. The winner
               receives the two-player pot. Leaving an active match counts as
               retirement.
@@ -231,8 +231,8 @@ export default function TableTennisRoyalLobby() {
           </button>
         )}
         <p className="text-center text-xs text-white/50">
-          Tap SERVE · drag the table to aim · switch spin · assisted or manual
-          returns
+          Tap for a soft shot · swipe toward your target · use two fingers for
+          backspin · turn on automatic hitting in settings
         </p>
       </div>
     </main>
