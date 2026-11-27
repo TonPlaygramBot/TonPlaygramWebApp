@@ -2,9 +2,32 @@
  * ornament depth are authored interpretations; source footprints are preserved. */
 import { LANDMARK_PROFILES } from './landmarkCatalog.mjs';
 import {NEIGHBOURHOOD_REFERENCE_PROFILES} from './neighbourhoodProfiles.mjs';
+import {MARKET_ID,NINE_STOREY_IDS} from './oldTownExterior.mjs';
+import {VILA_31_PROFILE,VILA_31_WAY} from './vila31Profile.mjs';
 export const REFERENCE_BUILDINGS = Object.freeze({
   ...LANDMARK_PROFILES,
   ...NEIGHBOURHOOD_REFERENCE_PROFILES,
+  ...Object.fromEntries(NINE_STOREY_IDS.map((id,i)=>[id,{
+    name:`Nëntë katëshi nr. ${i+1}`,style:'nine-storey-dibra',category:'residential',streetLifeCompatible:true,site:'nine-storey-dibra',
+    color:[0xd2b997,0xd6c1a3,0xcbb69a,0xd8c7aa][i],trim:0xe2d6bb,floor:3.2,window:1.35,photo:null,
+    date:'Undated street photographs; mapped nine-storey footprints',
+    source:'https://wikimapia.org/11636672/Pallatet-9-kat%C3%ABshe',
+    credit:'Visual reference only; no photographs redistributed',
+    features:'Beige pale plaster, repeated recessed balconies and narrow dark railings with occasional awnings. Authored composition; dates and per-bay details not surveyed.'
+  }])),
+  [MARKET_ID]:{name:'Pazari i Ri · Tregu i fruta-perimeve',style:'pazari-pavilion',category:'market',streetLifeCompatible:true,site:'pazari-pavilion',
+    color:0x40494b,trim:0x657170,floor:4.7,window:0,photo:null,
+    date:'2017 realised project, checked 2026-11-27',
+    source:'https://www.aadf.org/sq/project/tid-tirana/',
+    credit:'AADF/TID Tirana · visual reference only; no photographs redistributed',
+    features:'Open-sided market, angular blue glass roofs on dark steel and warm setts. Authored panel pitch and produce displays inside mapped pavilion outline.'
+  },
+  '1111613943': {name:'Laguna · Bulevardi',style:'laguna-kiosk',category:'storefront',site:'laguna-boulevard',color:0x292c2b,trim:0x444a48,
+    // The cached 18-m value is a generic building estimate. Keep the physical
+    // footprint/collider; only the model becomes the single-level kiosk.
+    floor:3.25,window:0,height:3.25,shellHeight:3.25,photo:null,date:'Operator location page, checked 2026-11-27',
+    source:'https://laguna.al/laguna-1-bulevardi/',credit:'Laguna · reference only; no source artwork redistributed',
+    features:'Single-storey detached kiosk, charcoal frame, teal sign band and counter glazing. Unmeasured height.'},
   '885643062': {name:'InterContinental Hotel Tower',style:'intercontinental',site:'intercontinental',color:0x3c4143,trim:0xb58e45,
     floor:135/33,window:1.7,photo:null,date:'Primary engineer and contractor references checked 2026-09-14',
     source:'https://ales.al/construction/projects/new-hotel-tirana-international/',
@@ -42,14 +65,16 @@ export const REFERENCE_BUILDINGS = Object.freeze({
     floor:3.1,window:1.8,photo:'tirana-international-2015.jpg',date:'2015-12-06',
     source:'https://commons.wikimedia.org/wiki/File:Tirana_International_Hotel_(front).JPG',
     credit:'Leeturtle / Andis Rado · CC0 1.0',features:'Cream horizontal spandrels, blue glazing, roof nameboard and entrance canopy.'},
-  '249185545': {name:'Rogner Hotel Tirana',style:'rogner',color:0xe0d9c9,trim:0xede8dc,
-    floor:3.2,window:1.35,photo:'rogner-2019.jpg',date:'2019-08-19',
-    source:'https://commons.wikimedia.org/wiki/File:Rogner_Hotel,_Tirana_(49600188791).jpg',
-    credit:'Andrew Milligan sumo · CC BY 2.0',features:'Curved frontage, repeated framed windows, narrow balcony rails. Color remains estimated (monochrome reference).'},
+  '249185545': {name:'Rogner Hotel Tirana',style:'rogner',color:0xe9e7df,trim:0xf0eee6,
+    floor:3.2,window:1.35,photo:'rogner-2019.jpg',date:'Operator exterior gallery checked 2026-11-27; archived B&W reference 2019-08-19',
+    source:'https://www.hotel-europapark.com/en/overview/gallery/hotel.html',
+    credit:'Rogner Hotel exterior gallery · reference only; archived reference Andrew Milligan sumo · CC BY 2.0',
+    features:'Curved pale frontage, repeated framed windows and narrow dark balcony rails. Glazed entrance canopy; dimensions not surveyed.'},
   '361451879': {name:'Drejtoria e Policisë Tiranë',style:'police',color:0x9ca9af,trim:0xeff0e9,
     floor:3.2,window:1.45,photo:null,date:'2019-03-12 (article; capture unknown)',
     source:'https://joq-albania.com/artikull/533518.html',
     credit:'Reference only; photograph not redistributed',features:'Gray walls, white quoins and cornices, blue police lettering. Connecting bridge is not surveyed.'},
+  [VILA_31_WAY]: VILA_31_PROFILE,
   '236569963': {name:'Taivani · Regency Casino',style:'taivani',color:0xd8d9cf,trim:0xf1eee3,
     floor:3.2,window:2.1,photo:'taivani-2014.jpg',date:'2014-07-12',
     source:'https://commons.wikimedia.org/wiki/File:Taiwan_center_in_Tirana.JPG',

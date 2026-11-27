@@ -1,4 +1,3 @@
-import {VERIFIED_RAIL_PIECES} from './shared/verifiedStreetDecorData.mjs';
 import {URBAN_DATUM_BOUNDS} from '../tirana-east/terrainCore.mjs';
 import * as T from 'three';
 import {mergeGeometries} from 'three/examples/jsm/utils/BufferGeometryUtils.js';
@@ -8,6 +7,9 @@ import {WORLD} from './shared/world.mjs';
 import {EnvironmentMaterials} from '../tirana-environment/EnvironmentMaterials';
 import {InfrastructureLayer} from '../tirana-environment/InfrastructureLayer';
 import {UrbanLighting} from '../tirana-environment/UrbanLighting';
+import {CHANNEL_LINER_RUN, riverFlowOrigins} from '../tirana-environment/riverShapeCore.mjs';
+import {createRiverWater, flowSurface, styleRiverLiner} from '../tirana-environment/RiverSurface';
+import {MappedLakes} from "../tirana-environment/MappedLakes";
 import {PavementAprons} from '../tirana-environment/PavementAprons';
 import {WATER_PATHS, BED_LEVEL, BANK_LEVEL, BANK_WIDTH, cutChannels, surfaceGeometry, bankGeometry, riverRing} from '../tirana-environment/riverGeometry';
 
@@ -19,6 +21,7 @@ export class LandscapeVisuals {
   readonly infrastructure: InfrastructureLayer;
   readonly lighting: UrbanLighting;
   readonly aprons: PavementAprons;
+  readonly lakes: MappedLakes;
   private dead = false;
   private readonly watercraft?:LanaWatercraft;
   private time = {value:0};
@@ -35,33 +38,26 @@ export class LandscapeVisuals {
       .map(p=>surfaceGeometry(p,-.045)),grass,'Terrain with open watercourses');
     const paving=this.materials.create('concrete_pavement',0xd7d2c6);
     this.aprons=new PavementAprons(WORLD,paving);this.group.add(this.aprons.group);
-    this.water=new T.MeshPhysicalMaterial({color:0x536b60,roughness:.2,metalness:.05,clearcoat:.8,clearcoatRoughness:.16,envMapIntensity:1.1});
-    this.water.name='Lana flowing water';
-    this.water.onBeforeCompile=shader=>{
-      shader.uniforms.riverTime=this.time;
-      shader.vertexShader=shader.vertexShader.replace('#include <common>','#include <common>\nvarying vec3 riverPosition;')
-        .replace('#include <begin_vertex>','#include <begin_vertex>\nriverPosition=position;');
-      shader.fragmentShader=shader.fragmentShader.replace('#include <common>','#include <common>\nuniform float riverTime; varying vec3 riverPosition;')
-        .replace('#include <normal_fragment_maps>',`#include <normal_fragment_maps>
-          float a=sin(riverPosition.x*2.7+riverPosition.z*1.3-riverTime*1.7);
-          float b=cos(riverPosition.x*1.1-riverPosition.z*3.8+riverTime*1.2);
-          normal=normalize(normal+vec3(a*.04,b*.04,0.));`);
-    };
+    this.water=createRiverWater(this.time);
+    styleRiverLiner(concrete);
+    const flowOrigins=riverFlowOrigins(WATER_PATHS);
     const surfaces:T.BufferGeometry[]=[],beds:T.BufferGeometry[]=[],slopes:T.BufferGeometry[]=[],banks:T.BufferGeometry[]=[];
     for(const path of WATER_PATHS){
       const level=path.lana?LANA_SOLO_WATER_LEVEL:-1.15, bottom=path.lana?BED_LEVEL:-1.55;
-      surfaces.push(surfaceGeometry([riverRing(path,0)],level));
+      const shoulder=path.lana?-1.6:-.65;
+      surfaces.push(flowSurface(path,level,bottom,shoulder,flowOrigins.get(path.id)??0));
       beds.push(surfaceGeometry([riverRing(path,.2)],bottom));
       for(const side of [-1,1]){
-        slopes.push(bankGeometry(path,side*path.width/2,bottom,side*(path.width/2+2.6),path.lana?-1.6:-.65));
-        banks.push(bankGeometry(path,side*(path.width/2+2.6),path.lana?-1.6:-.65,side*(path.width/2+BANK_WIDTH),BANK_LEVEL));
+        slopes.push(bankGeometry(path,side*path.width/2,bottom,side*(path.width/2+CHANNEL_LINER_RUN),shoulder,level));
+        banks.push(bankGeometry(path,side*(path.width/2+CHANNEL_LINER_RUN),shoulder,side*(path.width/2+BANK_WIDTH),BANK_LEVEL));
       }
     }
     this.addMerged(beds,bed,'River bed');
     this.addMerged(slopes,concrete,'Concrete channel slopes');
     this.addMerged(banks,grass,'Planted river embankments');
     this.addMerged(surfaces,this.water,'Recessed water');
-    this.infrastructure=new InfrastructureLayer(loadTextures,blocked,VERIFIED_RAIL_PIECES);
+    this.lakes=new MappedLakes(WORLD.waterAreas);this.group.add(this.lakes.group);
+    this.infrastructure=new InfrastructureLayer(loadTextures,blocked);
     this.lighting=new UrbanLighting(blocked);
     this.group.add(this.infrastructure.group,this.lighting.group);
     if(loadTextures){this.watercraft=new LanaWatercraft();this.group.add(this.watercraft.group);}
@@ -74,11 +70,12 @@ export class LandscapeVisuals {
     const mesh=new T.Mesh(geometry,material);mesh.name=name;mesh.receiveShadow=true;this.group.add(mesh);
   }
   update(viewer:{x:number;z:number},seconds:number,battery:boolean){
-    if(this.dead)return;this.time.value=seconds;this.infrastructure.update(viewer,seconds,battery);this.lighting.update(viewer,seconds,battery);this.aprons.update(viewer,seconds,battery);this.watercraft?.update(viewer,seconds,battery);
+    if(this.dead)return;this.time.value=seconds;this.lakes.update(viewer,seconds,battery);this.infrastructure.update(viewer,seconds,battery);this.lighting.update(viewer,seconds,battery);this.aprons.update(viewer,seconds,battery);this.watercraft?.update(viewer,seconds,battery);
   }
   dispose(){
     if(this.dead)return;this.dead=true;
     this.watercraft?.dispose();
+    this.lakes.dispose();
     this.infrastructure.dispose();
     this.lighting.dispose();this.aprons.dispose();
     this.group.traverse(o=>{if(o instanceof T.Mesh)o.geometry.dispose();});

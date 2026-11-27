@@ -1,4 +1,8 @@
 import * as T from 'three';
+import {curateMappedBenches} from '../tirana-environment/publicRealmCore.mjs';
+import {RIVER_PATHS} from '../tiranastreets/shared/landscape.mjs';
+import {ribbonExclusion} from '../tirana-street-detail/roadDetailCore.mjs';
+import type {StreetDetailOptions} from '../tirana-street-detail/StreetDetailLayer';
 import {GLTFLoader} from 'three/examples/jsm/loaders/GLTFLoader.js';
 import {mergeGeometries} from 'three/examples/jsm/utils/BufferGeometryUtils.js';
 import {NEIGHBOURHOOD} from './data.mjs';
@@ -6,15 +10,22 @@ import {nearbyIndex} from '../tirana-street-life/streetModels.mjs';
 import {disposeWeaponResources} from '../tiranastreets/weaponModelResources';
 
 /** Benches use mapped OSM points. No invented bust likeness or monument name. */
+const mappedBenches=curateMappedBenches(NEIGHBOURHOOD.places
+ .filter(p=>p.point&&p.tags.amenity==='bench')
+ .map(p=>({id:p.id,x:p.point[0],z:p.point[1],heading:Number(p.tags.direction)||0})),RIVER_PATHS[0]?.line??[]);
 export class ParkFurniture {
  readonly group=new T.Group();
- private near=nearbyIndex(NEIGHBOURHOOD.places.filter(p=>p.point&&p.tags.amenity==='bench').map(p=>({id:p.id,x:p.point[0],z:p.point[1],heading:Number(p.tags.direction)||0})));
+ private near:ReturnType<typeof nearbyIndex<(typeof mappedBenches)[number]>>;
  private meshes:T.InstancedMesh[]=[];
  private source?:T.Group;
  private dead=false;
  private requested=false;
  private dummy=new T.Object3D();
- constructor(){this.group.name='Tirana:OSM-park-benches';}
+ constructor(options:StreetDetailOptions={}){
+  this.group.name='Tirana:OSM-park-benches';
+  const blocked=options.track?ribbonExclusion(options.track):null;
+  this.near=nearbyIndex(blocked?mappedBenches.filter(p=>!blocked(p.x,p.z,1.1)):mappedBenches);
+ }
  update(viewer:{x:number;z:number},battery:boolean){
   const points=this.near(viewer,battery?110:200,battery?24:48);
   if(points.length&&!this.requested){this.requested=true;void this.load();}

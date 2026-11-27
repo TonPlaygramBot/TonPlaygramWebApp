@@ -3,7 +3,7 @@ import * as T from 'three';
 import {clearRoadSegment} from '../tiranastreets/shared/streetSafety.mjs';
 import {GLTFLoader} from 'three/examples/jsm/loaders/GLTFLoader.js';
 import {WORLD} from '../tiranastreets/shared/world.mjs';
-import {RAILINGS} from '../tiranastreets/shared/landscape.mjs';
+import {RAILINGS,MAPPED_ROADSIDE_GUARD_RAILS} from '../tiranastreets/shared/landscape.mjs';
 import {EnvironmentMaterials} from './EnvironmentMaterials';
 import {WATER_PATHS, BED_LEVEL} from './riverGeometry';
 import {segmentDistance} from '../tiranastreets/shared/streetLayout.mjs';
@@ -26,9 +26,12 @@ export class InfrastructureLayer {
   private cells:Cell[]=[];
   private rails:T.InstancedMesh;
   private railGeometry:T.BufferGeometry;
+  private mappedGuards:T.InstancedMesh;
+  private guardGeometry:T.BufferGeometry;
+  private guardSteel=new T.MeshStandardMaterial({color:0x8a9292,metalness:.55,roughness:.47});
   private dead=false;private last=-Infinity;private tick=0;
   private railBins=new Map<string,RailPiece[]>();
-  constructor(loadAssets=true, private blocked?: (x:number,z:number,pad:number)=>boolean, supplementalRails:readonly RailPiece[]=[]){
+  constructor(loadAssets=true, private blocked?: (x:number,z:number,pad:number)=>boolean){
     this.group.name='Tirana:mapped-bridges-and-roadside-ironwork';
     this.surfaces=new EnvironmentMaterials(loadAssets);
     this.concrete=this.surfaces.create('rough_concrete',0xb7b9b0);
@@ -50,7 +53,26 @@ export class InfrastructureLayer {
     }
     this.railGeometry=new T.BufferGeometry().setAttribute('position',new T.Float32BufferAttribute(positions,3));this.railGeometry.computeVertexNormals();
     this.rails=new T.InstancedMesh(this.railGeometry,this.steel,900);this.rails.count=0;this.rails.frustumCulled=false;this.rails.receiveShadow=true;this.rails.name='Roadside iron railings';this.group.add(this.rails);
-    for(const r of [...RAILINGS,...supplementalRails]){if(blocked?.(r.x,r.z,r.length/2+.08))continue;const key=`${Math.floor(r.x/64)}:${Math.floor(r.z/64)}`;if(!this.railBins.has(key))this.railBins.set(key,[]);this.railBins.get(key)!.push(r);}
+    // A low folded steel beam and a support post, not a pedestrian fence.
+    // OSM identifies the barrier type/coordinates; the beam dimensions are a visual estimate.
+    const profile=new T.Shape();
+    const fold=[[.054,.83],[.081,.77],[.013,.70],[.081,.62],[.054,.56],[.039,.58],[.059,.62],[-.009,.70],[.059,.77],[.039,.81]];
+    fold.forEach(([z,y],i)=>i?profile.lineTo(z,y):profile.moveTo(z,y));profile.closePath();
+    const beam=new T.ExtrudeGeometry(profile,{depth:2.6,bevelEnabled:false,steps:1}).rotateY(-Math.PI/2).translate(1.3,0,0);
+    const post=this.unit.clone().scale(.09,.69,.12).translate(0,.345,-.045);
+    const unindexed=post.toNonIndexed();
+    const guardPositions=new Float32Array(beam.getAttribute('position').count*3+unindexed.getAttribute('position').count*3);
+    const beamPositions=beam.getAttribute('position').array;
+    guardPositions.set(beamPositions,0);guardPositions.set(unindexed.getAttribute('position').array,beamPositions.length);
+    beam.dispose();post.dispose();unindexed.dispose();
+    this.guardGeometry=new T.BufferGeometry().setAttribute('position',new T.BufferAttribute(guardPositions,3));
+    this.guardGeometry.computeVertexNormals();
+    this.mappedGuards=new T.InstancedMesh(this.guardGeometry,this.guardSteel,500);
+    this.mappedGuards.count=0;this.mappedGuards.frustumCulled=false;this.mappedGuards.receiveShadow=true;
+    this.mappedGuards.name='OSM mapped steel guardrails';this.group.add(this.mappedGuards);
+    this.rails.name='Lana bank safety railings';
+    this.group.userData.mappedGuardRailPieces=MAPPED_ROADSIDE_GUARD_RAILS.length;
+    for(const r of [...RAILINGS,...MAPPED_ROADSIDE_GUARD_RAILS]){if(blocked?.(r.x,r.z,r.length/2+.08))continue;const key=`${Math.floor(r.x/64)}:${Math.floor(r.z/64)}`;if(!this.railBins.has(key))this.railBins.set(key,[]);this.railBins.get(key)!.push(r);}
     if(loadAssets)new GLTFLoader().load('/assets/tirana-streets/environment/roadside-rail.glb',g=>{
       const mesh=g.scene.getObjectByName('roadside-rail') as T.Mesh|undefined;
       if(!this.dead&&mesh?.isMesh){this.railGeometry.dispose();this.railGeometry=mesh.geometry;this.rails.geometry=mesh.geometry;}
@@ -98,11 +120,14 @@ export class InfrastructureLayer {
     const near:RailPiece[]=[];const radius=battery?80:160;
     for(let x=Math.floor((viewer.x-radius)/64);x<=Math.floor((viewer.x+radius)/64);x++)for(let z=Math.floor((viewer.z-radius)/64);z<=Math.floor((viewer.z+radius)/64);z++)for(const r of this.railBins.get(`${x}:${z}`)||[])if(Math.hypot(r.x-viewer.x,r.z-viewer.z)<radius)near.push(r);
     near.sort((a,b)=>Math.hypot(a.x-viewer.x,a.z-viewer.z)-Math.hypot(b.x-viewer.x,b.z-viewer.z));
-    this.rails.count=0;for(const r of near.slice(0,battery?320:900)){
-      this.dummy.position.set(r.x,r.y??.03,r.z);this.dummy.rotation.set(0,r.yaw-Math.PI/2,0);this.dummy.scale.set(r.length/2.6,1,1);this.dummy.updateMatrix();this.rails.setMatrixAt(this.rails.count++,this.dummy.matrix);
+    this.rails.count=this.mappedGuards.count=0;
+    for(const r of near.slice(0,battery?320:900)){
+      const target=r.river?this.rails:this.mappedGuards;
+      if(target.count>=target.instanceMatrix.count)continue;
+      this.dummy.position.set(r.x,r.y??.03,r.z);this.dummy.rotation.set(0,r.yaw-Math.PI/2,0);this.dummy.scale.set(r.length/2.6,1,1);this.dummy.updateMatrix();target.setMatrixAt(target.count++,this.dummy.matrix);
     }
-    this.rails.instanceMatrix.needsUpdate=true;this.rails.castShadow=!battery;
+    for(const target of [this.rails,this.mappedGuards]){target.instanceMatrix.needsUpdate=true;target.castShadow=!battery;}
   }
   private release(cell:Cell){cell.object?.traverse(o=>{if(o instanceof T.InstancedMesh)o.dispose();});cell.object?.removeFromParent();cell.object?.clear();cell.object=undefined;}
-  dispose(){if(this.dead)return;this.dead=true;this.cells.forEach(c=>this.release(c));this.rails.dispose();this.group.clear();this.group.removeFromParent();this.railGeometry.dispose();this.unit.dispose();this.steel.dispose();this.reflectors.dispose();this.surfaces.dispose();this.cells=[];this.railBins.clear();}
+  dispose(){if(this.dead)return;this.dead=true;this.cells.forEach(c=>this.release(c));this.rails.dispose();this.mappedGuards.dispose();this.guardGeometry.dispose();this.guardSteel.dispose();this.group.clear();this.group.removeFromParent();this.railGeometry.dispose();this.unit.dispose();this.steel.dispose();this.reflectors.dispose();this.surfaces.dispose();this.cells=[];this.railBins.clear();}
 }

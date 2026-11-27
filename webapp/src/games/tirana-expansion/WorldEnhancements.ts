@@ -1,5 +1,6 @@
 import { CANOPY_TREES, type CanopyTree } from '../tirana-street-life/canopyRegistry.mjs';
 import {UrbanMonumentLayer} from '../tirana-landmarks/UrbanMonumentLayer';
+import {UrbanJunctionDetails} from '../tirana-landmarks/UrbanJunctionDetails';
 import {TabakeveQuarterLayer} from '../tirana-tabakeve/TabakeveQuarterLayer';
 import {DimensionalSigns} from '../tirana-street-life/DimensionalSigns';
 import {RegionalArchitecture} from '../tirana-regional-detail/RegionalArchitecture';
@@ -44,6 +45,7 @@ type EnhancementOptions = TreeLayerOptions & { matureTreeFoliage?: MatureTreeFol
 export class WorldEnhancements extends ExistingEnhancements {
   private readonly cullFarTrees:boolean;
   readonly monuments=new UrbanMonumentLayer();
+  readonly junctionDetails:UrbanJunctionDetails;
   readonly dimensionalSigns=new DimensionalSigns();
   readonly regionalArchitecture=new RegionalArchitecture();
   readonly housing=new HousingDetails();
@@ -81,7 +83,8 @@ export class WorldEnhancements extends ExistingEnhancements {
     this.cityCompletion=new CityCompletionLayer(options, undefined, options.soloSignals, options.mapTree);
     this.facadeCompletion=new FacadeCompletionLayer();
     this.tabakeve=new TabakeveQuarterLayer(options);
-    this.group.add(this.tabakeve.group,this.monuments.group);
+    this.junctionDetails=new UrbanJunctionDetails(options.track);
+    this.group.add(this.tabakeve.group,this.monuments.group,this.junctionDetails.group);
     this.group.add(this.cityCompletion.group,this.facadeCompletion.group);
     this.neighbourhood=new NeighbourhoodLayer(options);
     this.streetLife=new StreetLifeLayer(undefined,options);
@@ -153,6 +156,7 @@ export class WorldEnhancements extends ExistingEnhancements {
     this.facadeCompletion.update(seconds,viewer,battery);
     this.tabakeve.update(seconds,viewer,battery);
     this.monuments.update(viewer,battery);
+    this.junctionDetails.update(viewer,battery);
   }
   override retire() {
     this.regionalArchitecture.retire();
@@ -194,6 +198,7 @@ export class WorldEnhancements extends ExistingEnhancements {
     this.facadeCompletion.dispose();
     this.tabakeve.dispose();
     this.monuments.dispose();
+    this.junctionDetails.dispose();
     super.dispose();
   }
 }

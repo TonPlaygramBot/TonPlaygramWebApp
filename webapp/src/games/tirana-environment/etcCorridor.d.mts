@@ -1,0 +1,11 @@
+type Road = { a: number[]; b: number[]; bridge?: boolean; walk?: boolean; tunnel?: boolean; w: number };
+type Building = { id: string; h: number; p: number[][] };
+type Place = { id: string; category: string; x: number; z: number };
+export const ETC_BUILDING: string;
+export const DOWNTOWN_BUILDING: string;
+export const DOWNTOWN_PLAYGROUND: string;
+export const PLAY_RADIUS: number;
+export function findEtcWalkBridge<T extends Road>(roads: readonly T[]): T | undefined;
+export function bridgeRibOffsets(road: Road, excluded: (x: number,z: number,radius: number) => boolean): number[];
+export function etcRoofText(buildings: readonly Building[]): { x: number; z: number; roof: number; yaw: number } | undefined;
+export function downtownPlayPoint<T extends Place>(places: readonly T[], buildings: readonly Building[], clear: (x: number,z: number,radius: number) => boolean): T | undefined;

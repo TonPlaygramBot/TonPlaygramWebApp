@@ -139,17 +139,42 @@ function pyramid(b,detail){
     b.quad('glass',...[[sign*14-4,.22,29.04],[sign*14+4,.22,29.04],[sign*3.38+.97,18.22,7.04],[sign*3.38-.97,18.22,7.04]].map(p=>turn(p,yaw)));
   }
   b.box('pale',15,.6,15,0,18.5,0);
-  // Eight stair/rib runs; no arbitrary pavilions outside the landmark envelope.
+  // MVRDV's public renovation retains one uninterrupted slide slope and
+  // places separate coloured rooms in/above the concrete shell. Approximate
+  // local composition, not a claim of a measured pavilion plan.
   for(let side=0;side<8;side++){
-    const yaw=side*Math.PI/4,steps=detail?46:12;
+    const yaw=side*Math.PI/4,diagonal=Math.max(Math.abs(Math.sin(yaw)),Math.abs(Math.cos(yaw)));
+    if(side===2){
+      const slope=(x,y,z)=>turn([x,y,z],yaw);
+      b.quad('pale',slope(-1.9,.30,29.2),slope(1.9,.30,29.2),slope(1.9,18.30,7.1),slope(-1.9,18.30,7.1));
+      continue;
+    }
+    const steps=detail?46:12;
     for(let n=0;n<steps;n++){
-      const t=n/steps, diagonal=Math.max(Math.abs(Math.sin(yaw)),Math.abs(Math.cos(yaw)));
+      const t=n/steps;
       const p=turn([0,.3+18*t+(18/steps)/2,(29-22*t)/diagonal+.17],yaw);
       b.box('pale',side%2?3.1:5.7,18/steps+.03,22/(steps*diagonal)+.1,...p,yaw);
     }
   }
-  for(const [x,z,m] of [[-22,30,'coral'],[22,30,'blue'],[-30,-18,'gold']]){
-    b.box(m,6.8,4.8,6.2,x,2.5,z);b.box('glass',4.8,3.5,.08,x,2.35,z+3.15);
+  // Cool shaded glass inside the upper deck replaces the blank roof top.
+  b.box('glass',5.1,.09,4.1,0,18.86,1.2);
+  // Keep the broad crown/silhouette in both LODs. Frames are near-only.
+  for(const [x,y,z,w,h,d,m,yaw] of [
+    [-22,.11,30,6.8,4.8,6.2,'coral',.08],
+    [22,.11,30,6.8,4.6,6.2,'blue',-.08],
+    [-30,.11,-18,6.4,4.2,5.7,'gold',-.12],
+    [-5,18.80,-3.4,5.6,4.1,5.1,'coral',.06],
+    [4.1,18.80,-4.7,4.7,3.4,4.5,'blue',.08],
+    [7.5,15.80,8.5,5.2,4.0,4.6,'gold',.06]
+  ]){
+    b.box(m,w,h,d,x,y+h/2,z,yaw);
+    const face=(u,v,q)=>add(turn([u,v,q],yaw),[x,y,z]);
+    const depth=d/2+.065;
+    b.box('glass',w*.73,h*.68,.08,...face(0,h*.48,depth),yaw);
+    if(detail){
+      for(const offset of [-.23,0,.23])b.box(m,.065,h*.68,.075,...face(w*offset,h*.48,depth+.042),yaw);
+      b.box(m,w*.74,.08,.10,...face(0,h*.145,depth+.042),yaw);
+    }
   }
 }
 function museum(b,detail){

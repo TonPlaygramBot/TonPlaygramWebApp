@@ -1,4 +1,6 @@
 import * as T from 'three';
+import {publicRealmSeatingZone} from './publicRealmCore.mjs';
+import {RIVER_PATHS} from '../tiranastreets/shared/landscape.mjs';
 import {ribbonExclusion} from '../tirana-street-detail/roadDetailCore.mjs';
 import type {StreetDetailOptions} from '../tirana-street-detail/StreetDetailLayer';
 import {mergeGeometries} from 'three/examples/jsm/utils/BufferGeometryUtils.js';
@@ -14,7 +16,8 @@ export class MappedParkLife {
  constructor(options:StreetDetailOptions={}){
   const exclude=options.track?ribbonExclusion(options.track):()=>false;
   // Filter before indexing: streamed-in benches cannot re-enter the course.
-  this.sites=MAPPED_PARKS.filter(s=>s.furnishingAnchor).map(s=>({...s,...s.furnishingAnchor!})).filter(s=>!exclude(s.x,s.z,s.category==='playground'?3.2:1.1));
+  this.sites=MAPPED_PARKS.filter(s=>s.furnishingAnchor).map(s=>({...s,...s.furnishingAnchor!})).filter(s=>!exclude(s.x,s.z,s.category==='playground'?3.2:1.1)
+    && (s.category==='playground'||!publicRealmSeatingZone(s.x,s.z,RIVER_PATHS[0]?.line??[])));
   this.near=nearbyIndex(this.sites);
 this.group.name='Tirana:mapped-parks-and-playgrounds';this.group.userData={source:'OpenStreetMap',municipalReference:'https://tirana.al/artikull/kende-lojerash-ne-cdo-lagje',equipment:'Estimated arrangement within mapped boundaries',sites:this.sites.length};}
  private build(s:any){

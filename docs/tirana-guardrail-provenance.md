@@ -1,0 +1,5 @@
+# Tirana bridge approaches and roadside guardrails
+
+Road width alone is no evidence of a roadside fence. The two city renderers now share the 493 existing OSM `barrier=guard_rail` segments from the checked-in source archive and use a low folded-steel profile. The 1,103 strips previously fabricated from wide-road geometry are removed, including corresponding free-roam collision strips. Existing Lana bank-safety segments and the separately modeled bridge railings stay intact. Footbridge entrances and the track-ribbon exclusions remain open.
+
+The [bridge designer's photographs](https://51n4e.com/projects/lana-bridge/) and [ARRSH's opening documentation](https://www.arrsh.gov.al/hapet-unaza-e-madhe-e-tiranes.html) show distinct bridge balustrades and road infrastructure. The geographic locations for this release come from the saved OSM inventory (© OpenStreetMap contributors, ODbL); not from inferred lane width or measurements of every railing in photos. The bank-safety segments still represent the game's established protection, not a survey of every real fence.

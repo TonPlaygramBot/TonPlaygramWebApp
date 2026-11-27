@@ -19,7 +19,7 @@ type Site=typeof NEIGHBOURHOOD.storefronts[number];
 export class NeighbourhoodLayer {
  readonly group=new T.Group();
  readonly mapped:MappedNeighbourhood;
- private parkFurniture=new ParkFurniture();
+ private parkFurniture:ParkFurniture;
  private labels:StreetLifeLayer;
  private loader=new GLTFLoader();
  private near:(p:{x:number;z:number},r:number,n:number)=>Site[];
@@ -29,6 +29,7 @@ export class NeighbourhoodLayer {
  private geometries=new Set<T.BufferGeometry>();private materials=new Set<T.Material>();private textures=new Map<string,T.Texture>();
  private last=-Infinity;private dead=false;private disposed=false;private dummy=new T.Object3D();
  constructor(options:StreetDetailOptions & {photoFacades?: boolean}={}){
+  this.parkFurniture=new ParkFurniture(options);
   this.mapped=new MappedNeighbourhood(true, options.photoFacades);
   this.group.name='Tirana:Blender-neighbourhood';this.group.userData.assetErrors=[];
   const blocked=options.track?ribbonExclusion(options.track):null;

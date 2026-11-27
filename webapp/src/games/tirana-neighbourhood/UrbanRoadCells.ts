@@ -2,6 +2,7 @@ import {CITY_RADIUS, CITY_CACHE, runCityWork} from '../tiranastreets/renderSetti
 import {appendGroundTriangle,drapeGeometry} from '../tirana-east/drapeGeometry';
 import {urbanDistance} from '../tirana-east/terrainCore.mjs';
 import * as T from 'three';
+import {corridorRoadMaterialId} from './streetCorridorMaterial.mjs';
 import {CellWorkQueue} from './cellWorkQueue.mjs';
 import {EnvironmentMaterials} from '../tirana-environment/EnvironmentMaterials';
 import {WORLD} from '../tiranastreets/shared/world.mjs';
@@ -20,16 +21,99 @@ const distanceToBounds=(viewer:{x:number;z:number},b:number[])=>Math.hypot(Math.
  * from the existing surface geometry (metres), not UVs or camera position, so
  * adjacent cells and district reloads produce exactly the same surface tone.
  * No added texture, draw call, geometry or CPU-side render updates. */
-function applyStreetWeathering(material:T.MeshStandardMaterial,amount:number){
+function applyStreetWeathering(material:T.MeshStandardMaterial,amount:number,pavement=false){
  material.onBeforeCompile=shader=>{
   shader.uniforms.urbanWear={value:amount};
   shader.vertexShader=shader.vertexShader
-   .replace('#include <common>','#include <common>\nvarying vec2 vUrbanSurface;')
-   .replace('#include <begin_vertex>','#include <begin_vertex>\nvUrbanSurface=position.xz;');
+   .replace('#include <common>','#include <common>\nvarying vec2 vUrbanSurface;\nattribute vec2 corridorMaterial;\nvarying vec2 vCorridorMaterial;')
+   .replace('#include <begin_vertex>','#include <begin_vertex>\nvUrbanSurface=position.xz;vCorridorMaterial=corridorMaterial;');
   shader.fragmentShader=shader.fragmentShader
    .replace('#include <common>',`#include <common>
     varying vec2 vUrbanSurface;
     uniform float urbanWear;
+    varying vec2 vCorridorMaterial;
+    ${pavement?`
+    vec2 stoneBond(vec2 metres,vec2 metresAA,vec2 tile,float stagger){
+     vec2 uv=metres/tile;
+     vec2 aa=clamp(metresAA/tile,.001,.45);
+     uv.x+=stagger*mod(floor(uv.y),2.0);
+     vec2 line=1.0-smoothstep(vec2(.012),vec2(.012)+aa,abs(fract(uv+.5)-.5));
+     float variation=fract(dot(floor(uv),vec2(.2187,.3413)));
+     float fade=1.0-smoothstep(.09,.3,max(aa.x,aa.y));
+     return vec2(max(line.x,line.y),variation-.5)*fade;
+    }`:''}
+    float urbanMottle(vec2 p);
+    vec3 urbanCorridorTone(vec2 metres){
+     ${pavement?`
+     // Contrast and bonding are authored art; the existing pavement normal
+     // and roughness maps still set the fine relief.
+     vec2 metresAA=fwidth(metres);
+     vec3 palette; vec2 tile; float stagger;
+     if(vCorridorMaterial.x<.5)return vec3(1.0);
+     if(vCorridorMaterial.x<1.5){palette=vec3(1.72,1.49,1.20);tile=vec2(.94,.65);stagger=.5;}
+     else if(vCorridorMaterial.x<2.5){palette=vec3(.70,.93,1.28);tile=vec2(.72,.48);stagger=.0;}
+     else if(vCorridorMaterial.x<3.5){palette=vec3(1.33,1.26,1.09);tile=vec2(.48,.28);stagger=.5;}
+     else if(vCorridorMaterial.x<4.5){palette=vec3(1.34,1.30,1.25);tile=vec2(.36,.36);stagger=.0;}
+     else if(vCorridorMaterial.x<5.5){palette=vec3(1.32,1.05,.76);tile=vec2(.57,.46);stagger=.0;}
+     else if(vCorridorMaterial.x<6.5){palette=vec3(1.59,1.27,1.02);tile=vec2(.76,.44);stagger=.5;}
+     else if(vCorridorMaterial.x<7.5){palette=vec3(1.24,1.43,1.62);tile=vec2(1.09,.76);stagger=.0;}
+     else if(vCorridorMaterial.x<8.5){palette=vec3(1.20,1.09,.99);tile=vec2(.29,.19);stagger=.5;}
+     else if(vCorridorMaterial.x<9.5){palette=vec3(1.19,1.15,1.10);tile=vec2(.27,.19);stagger=.5;}
+     else if(vCorridorMaterial.x<10.5){palette=vec3(1.28,1.26,1.18);tile=vec2(.43,.23);stagger=.5;}
+     else if(vCorridorMaterial.x<13.5){palette=vec3(1.46,1.41,1.32);tile=vec2(.52,.32);stagger=.0;}
+     else if(vCorridorMaterial.x<14.5){palette=vec3(1.39,1.29,1.14);tile=vec2(.31,.31);stagger=.0;}
+     else if(vCorridorMaterial.x<15.5){palette=vec3(1.36,1.30,1.23);tile=vec2(.46,.30);stagger=.5;}
+     else if(vCorridorMaterial.x<16.5){palette=vec3(1.25,1.19,1.09);tile=vec2(.39,.27);stagger=.5;}
+     else return vec3(1.26,1.12,.93);
+     vec2 bond=stoneBond(metres,metresAA,tile,stagger);
+     // Durrësit's light/dark paver pattern is visible at a glance; fade it
+     // before a single block falls below pixel size to avoid shimmer in Racing.
+     float alternating=0.0;
+     if(vCorridorMaterial.x>3.5&&vCorridorMaterial.x<4.5){
+      vec2 block=floor(metres/(tile*2.0));
+      alternating=(mod(block.x+block.y,2.0)-.5)*.30*
+       (1.0-smoothstep(.14,.46,max(metresAA.x,metresAA.y)/tile.x));
+     }
+     // Original concentric paver motif inspired by the photographed retail
+     // sidewalk. Never project it onto asphalt, buildings or grass.
+     float medallion=0.0;
+     if(vCorridorMaterial.x>13.5&&vCorridorMaterial.x<14.5){
+      float radius=length(fract(metres*.59)-.5);
+      float aa=clamp(max(metresAA.x,metresAA.y)*.59,.005,.4);
+      float outer=1.0-smoothstep(.034,.034+aa,abs(radius-.31));
+      float inner=1.0-smoothstep(.020,.020+aa,abs(radius-.225));
+      medallion=(outer*.21+inner*.14)*(1.0-smoothstep(.08,.23,aa));
+     }
+     return palette*(1.0-.34*bond.x+.30*bond.y+alternating-medallion);`:`
+     // Signed across-road coordinate is interpolated from the source ring.
+     // Soft darker shoulders are surface weathering, not paint or lanes.
+     if(vCorridorMaterial.x<.5)return vec3(1.0);
+     float shoulder=smoothstep(.73,1.0,abs((vCorridorMaterial.y-127.0)/127.0));
+     vec3 tone;
+     if(vCorridorMaterial.x<1.5)tone=vec3(1.065,1.05,1.025);
+     else if(vCorridorMaterial.x<2.5)tone=vec3(.950,.975,1.01);
+     else if(vCorridorMaterial.x<3.5)tone=vec3(.96,.975,.99);
+     else if(vCorridorMaterial.x<4.5)tone=vec3(1.025,1.035,1.07);
+     else if(vCorridorMaterial.x<5.5)tone=vec3(1.065,1.024,.985);
+     else if(vCorridorMaterial.x<6.5)tone=vec3(1.02,1.016,1.004);
+     else if(vCorridorMaterial.x<7.5)tone=vec3(.965,.997,1.04);
+     else if(vCorridorMaterial.x<8.5)tone=vec3(.975,.962,.941);
+     else if(vCorridorMaterial.x<9.5)tone=vec3(.935,.948,.967);
+     else if(vCorridorMaterial.x<10.5)tone=vec3(.985,1.002,1.022);
+     else if(vCorridorMaterial.x<11.5)tone=vec3(1.024,1.019,1.009);
+     else if(vCorridorMaterial.x<12.5)tone=vec3(1.40,1.34,1.23);
+     else if(vCorridorMaterial.x<13.5)tone=vec3(1.07,1.059,1.040);
+     else if(vCorridorMaterial.x<14.5)tone=vec3(.91,.94,.95);
+     else if(vCorridorMaterial.x<15.5)tone=vec3(.969,.975,.98);
+     else if(vCorridorMaterial.x<16.5)tone=vec3(.932,.962,.977);
+     else {
+      // Compacted Disha approach: pale mineral aggregate and softer dusty
+      // edges, without lane paint or a new strip of elevated geometry.
+      float fine=urbanMottle(metres*2.7);
+      return vec3(1.58,1.37,1.105)*(1.0+.065*shoulder+.18*(fine-.5));
+     }
+     return tone*(1.0-.18*shoulder);`}
+    }
     // Three staggered triangular waves. No extra texture taps or trig.
     float urbanMottle(vec2 p) {
      vec3 v=abs(fract(vec3(dot(p,vec2(.034,.011)),
@@ -40,9 +124,9 @@ function applyStreetWeathering(material:T.MeshStandardMaterial,amount:number){
     }`)
    .replace('#include <color_fragment>',`#include <color_fragment>
     float weathering=urbanMottle(vUrbanSurface);
-    diffuseColor.rgb*=1.0+urbanWear*(weathering-.60);`);
+    diffuseColor.rgb*=(1.0+urbanWear*(weathering-.60))*urbanCorridorTone(vUrbanSurface);`);
  };
- material.customProgramCacheKey=()=> 'tirana-shared-street-weathering-v1';
+ material.customProgramCacheKey=()=> `tirana-shared-street-weathering-v7-${pavement?'pavement':'asphalt'}`;
 }
 
 /** One surface owner for the complete city. Cheap asphalt reaches the horizon;
@@ -62,7 +146,7 @@ export class UrbanRoadCells {
  private textures=new Set<T.Texture>();
  constructor(loadTextures=true){
   this.materials=new EnvironmentMaterials(loadTextures);this.materials.apply(this.pavement,'concrete_pavement');this.asphalt.userData.environmentSurface=true;
-  applyStreetWeathering(this.asphalt,.31);applyStreetWeathering(this.pavement,.22);
+  applyStreetWeathering(this.asphalt,.31);applyStreetWeathering(this.pavement,.22,true);
   this.cells=splitRoadCells(WORLD.roads);this.group.name='Tirana:streamed-road-cells';
   // Index source records only. Tessellating every road in the region here used
   // hundreds of MB before the loading UI could paint on a phone.
@@ -85,14 +169,15 @@ export class UrbanRoadCells {
   });
   }
  }
- private surfaceMesh(positions:number[],walk:boolean){
+ private surfaceMesh(positions:number[],walk:boolean,styles:number[]){
   const g=new T.BufferGeometry(),uv=new Float32Array(positions.length/3*2);
   const metres=walk?PAVEMENT_REPEAT_METRES:ASPHALT_REPEAT_METRES;
   for(let i=0;i<positions.length/3;i++){uv[i*2]=positions[i*3]/metres;uv[i*2+1]=positions[i*3+2]/metres;}
+  g.setAttribute('corridorMaterial',new T.Uint8BufferAttribute(styles,2));
   g.setAttribute('position',new T.Float32BufferAttribute(positions,3));g.setAttribute('uv',new T.BufferAttribute(uv,2));g.computeVertexNormals();g.computeBoundingSphere();
   const mesh=new T.Mesh(g,walk?this.pavement:this.asphalt);mesh.receiveShadow=true;return mesh;
  }
- private *appendSurface(root:T.Group,positions:number[],walk:boolean,a:number[],b:number[],c:number[],offset:number):Generator<void,void>{
+ private *appendSurface(root:T.Group,positions:number[],walk:boolean,a:number[],b:number[],c:number[],offset:number,styles:number[],style:number,lateral?:{x:number;z:number;bias:number}):Generator<void,void>{
   const pending=[{a,b,c,depth:0}];
   while(pending.length){
    const triangle=pending.pop()!,{a,b,c,depth}=triangle;
@@ -104,8 +189,12 @@ export class UrbanRoadCells {
     pending.push({a:ab,b:bc,c:ca,depth:depth+1},{a:ca,b:bc,c,depth:depth+1},{a:ab,b,c:bc,depth:depth+1},{a,b:ab,c:ca,depth:depth+1});
     continue;
    }
-   if(positions.length>SURFACE_FLOATS-TRIANGLE_CHUNK_FLOATS){root.add(this.surfaceMesh(positions,walk));positions.length=0;yield;}
-   appendGroundTriangle(positions,a,b,c,offset,depth);
+   if(positions.length>SURFACE_FLOATS-TRIANGLE_CHUNK_FLOATS){root.add(this.surfaceMesh(positions,walk,styles));positions.length=0;styles.length=0;yield;}
+   const before=positions.length/3;appendGroundTriangle(positions,a,b,c,offset,depth);
+   for(let j=before;j<positions.length/3;j++){
+    const edge=lateral?Math.max(-1,Math.min(1,positions[j*3]*lateral.x+positions[j*3+2]*lateral.z+lateral.bias)):0;
+    styles.push(style,Math.round(127+edge*127));
+   }
    if(depth>0)yield;
   }
  }
@@ -113,18 +202,23 @@ export class UrbanRoadCells {
   const root=new T.Group();root.name=`Complete road surfaces ${d.key}`;
   try{
    for(let start=0;start<d.roads.length;start+=256){
-    const drive:number[]=[],walk:number[]=[];
+    const drive:number[]=[],walk:number[]=[],driveStyles:number[]=[],walkStyles:number[]=[];
     for(let index=start;index<Math.min(start+256,d.roads.length);index++){
-     const r=d.roads[index],ring=roadRing(r);
+     const r=d.roads[index],ring=roadRing(r),style=corridorRoadMaterialId(r);
      if(ring){const positions=r.walk?walk:drive,y=r.bridge?.16:r.walk?.071:.09;
+      let lateral:{x:number;z:number;bias:number}|undefined;
+      if(style&&!r.walk&&!r.bridge){
+       const dx=r.b[0]-r.a[0],dz=r.b[1]-r.a[1],scale=2/(r.w*Math.hypot(dx,dz));
+       const x=-dz*scale,z=dx*scale;lateral={x,z,bias:-x*r.a[0]-z*r.a[1]};
+      }
       for(let i=1;i<ring.length-1;i++){
        const [a,b,c]=[ring[0],ring[i],ring[i+1]],face=(b[0]-a[0])*(c[1]-a[1])-(b[1]-a[1])*(c[0]-a[0])>0?[a,c,b]:[a,b,c];
-       yield* this.appendSurface(root,positions,!!r.walk,face[0],face[1],face[2],y);
+       yield* this.appendSurface(root,positions,!!r.walk,face[0],face[1],face[2],y,r.walk?walkStyles:driveStyles,style,lateral);
       }
      }
      if((index-start)%8===7)yield;
     }
-    if(drive.length){root.add(this.surfaceMesh(drive,false));yield;}if(walk.length){root.add(this.surfaceMesh(walk,true));yield;}
+    if(drive.length){root.add(this.surfaceMesh(drive,false,driveStyles));yield;}if(walk.length){root.add(this.surfaceMesh(walk,true,walkStyles));yield;}
    }
    d.root=root;root.visible=this.selectedDistricts.has(d);this.group.add(root);this.districtCache.add(d);this.trimDistrictCache();
   }finally{if(d.root!==root)this.releaseDistrictRoot(root);}
@@ -158,7 +252,12 @@ export class UrbanRoadCells {
     // InfrastructureLayer owns elevated bridge sidewalks and pedestrian decks.
     if(!r.bridge){const ring=roadRing(r,r.w+(r.walk?0:3.8));if(ring)
      for(const polygon of this.clip(ring,cell))for(const dry of cutChannels(polygon[0],polygon.slice(1)))
-      for(const cleared of cutRoads(dry))parts.push(drapeGeometry(surfaceGeometry(cleared,.075,PAVEMENT_REPEAT_METRES),PAVEMENT_REPEAT_METRES));
+      for(const cleared of cutRoads(dry)){
+       const geometry=drapeGeometry(surfaceGeometry(cleared,.075,PAVEMENT_REPEAT_METRES),PAVEMENT_REPEAT_METRES);
+       const styles=new Uint8Array(geometry.getAttribute('position').count*2),style=corridorRoadMaterialId(r,true);
+       for(let v=0;v<styles.length;v+=2){styles[v]=style;styles[v+1]=127;}
+       geometry.setAttribute('corridorMaterial',new T.BufferAttribute(styles,2));parts.push(geometry);
+      }
     }
     yield;
    }

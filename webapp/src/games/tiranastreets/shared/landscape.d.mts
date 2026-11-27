@@ -9,6 +9,8 @@ export const RAILINGS: {
   length: number;
   river: boolean;
 }[];
+export const MAPPED_ROADSIDE_GUARD_RAILS: readonly ((typeof RAILINGS)[number]&{id:string})[];
+export const CITY_GROUND_RAILINGS: (typeof RAILINGS)[number][];
 export const RIVER_TREES: { x: number; z: number }[];
 export function offsetPath(line: number[][], offset: number): number[][];
 export function riverOutline(line: number[][], halfWidth: number): number[][];
