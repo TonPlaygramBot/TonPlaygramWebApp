@@ -444,7 +444,7 @@ export default function App() {
               <Route
                 path="/games/snookerroyale"
                 element={
-                  <GameLiveAvatarOverlay gameSlug="snookerroyale">
+                  <GameLiveAvatarOverlay gameSlug="snookerroyale" onlineOnly>
                     <SnookerRoyal />
                   </GameLiveAvatarOverlay>
                 }

@@ -126,7 +126,7 @@ export default function GameLiveAvatarOverlay({ gameSlug, children, onlineOnly =
   const { search } = useLocation();
   const params = useMemo(() => new URLSearchParams(search), [search]);
   const isOnline = params.get('mode') === 'online';
-  const previewOnly = gameSlug === 'poolroyale' && !isOnline;
+  const previewOnly = ['poolroyale', 'snookerroyale'].includes(gameSlug) && !isOnline;
   // An incomplete online link must never share a default call.
   if (onlineOnly && !previewOnly && (!isOnline || !params.get('tableId')?.trim())) {
     return children;
@@ -135,7 +135,7 @@ export default function GameLiveAvatarOverlay({ gameSlug, children, onlineOnly =
   // Leaving or changing matches releases media and requires a fresh opt-in.
   return (
     <LiveAvatarSession
-      key={previewOnly ? `pool-preview:${search}` : roomId}
+      key={previewOnly ? `${gameSlug}-preview:${search}` : roomId}
       gameSlug={gameSlug}
       roomId={roomId}
       previewOnly={previewOnly}
@@ -148,12 +148,12 @@ export default function GameLiveAvatarOverlay({ gameSlug, children, onlineOnly =
 function LiveAvatarSession({ gameSlug, roomId, previewOnly, children }) {
   const { search } = useLocation();
   const isCheckers = gameSlug === 'checkersbattleroyal';
-  const isPool = gameSlug === 'poolroyale';
-  const compactCall = isCheckers || isPool;
+  const isRoyalCue = gameSlug === 'poolroyale' || gameSlug === 'snookerroyale';
+  const compactCall = isCheckers || isRoyalCue;
   const usesOpponentAvatar = gameSlug === 'domino-royal' || compactCall;
   const [callMode, setCallMode] = useState(null);
   const liveMode = callMode !== null;
-  const audioOnly = isPool && callMode === 'audio';
+  const audioOnly = isRoyalCue && callMode === 'audio';
   const [anchorElement, setAnchorElement] = useState(null);
   const [opponentAnchorElement, setOpponentAnchorElement] = useState(null);
   const localVideoRef = useRef(null);
@@ -253,13 +253,13 @@ function LiveAvatarSession({ gameSlug, roomId, previewOnly, children }) {
       const contexts = getIframeContexts();
       for (const context of contexts) {
         // Target only the photo: keep the Checkers name and turn ring visible.
-        const selectors = isPool ? ['[data-pool-avatar="self"]'] : isCheckers ? ['[data-self-player="true"] img'] : AVATAR_ANCHOR_SELECTORS;
+        const selectors = isRoyalCue ? ['[data-pool-avatar="self"]'] : isCheckers ? ['[data-self-player="true"] img'] : AVATAR_ANCHOR_SELECTORS;
         for (const selector of selectors) {
           const nodes = context.doc.querySelectorAll(selector);
           for (const candidate of nodes) {
             if (seen.has(candidate)) continue;
             seen.add(candidate);
-            if (isPool && candidate.closest('[data-pool-avatar-hud][aria-hidden="true"]')) continue;
+            if (isRoyalCue && candidate.closest('[data-pool-avatar-hud][aria-hidden="true"]')) continue;
             const localRect = candidate.getBoundingClientRect();
             if (localRect.width <= 8 || localRect.height <= 8) continue;
             const rect = {
@@ -281,15 +281,15 @@ function LiveAvatarSession({ gameSlug, roomId, previewOnly, children }) {
     };
 
     const applyRect = () => {
-      const pixel = value => isPool ? value : Math.round(value);
-      const tolerance = isPool ? 0.01 : 1;
+      const pixel = value => isRoyalCue ? value : Math.round(value);
+      const tolerance = isRoyalCue ? 0.01 : 1;
       const { rect, node } = findAvatarAnchor();
       if (!rect) {
-        if (isPool) { setAnchorElement(null); setOpponentAnchorElement(null); setOpponentRect(null); }
+        if (isRoyalCue) { setAnchorElement(null); setOpponentAnchorElement(null); setOpponentRect(null); }
         return;
       }
       const avatarDiameter = Math.min(rect.width, rect.height);
-      const frameDiameter = isPool ? avatarDiameter : Math.max(pixel(avatarDiameter * FRAME_SCALE), 32);
+      const frameDiameter = isRoyalCue ? avatarDiameter : Math.max(pixel(avatarDiameter * FRAME_SCALE), 32);
       const width = frameDiameter;
       const height = frameDiameter;
       const left = Math.max(
@@ -314,7 +314,7 @@ function LiveAvatarSession({ gameSlug, roomId, previewOnly, children }) {
         const opponentNodes = [];
         const opponentBoundsList = [];
         for (const context of getIframeContexts()) {
-          const selector = isPool ? '[data-pool-avatar="opponent"]' : isCheckers
+          const selector = isRoyalCue ? '[data-pool-avatar="opponent"]' : isCheckers
             ? '[data-self-player="false"] img'
             : gameSlug === 'domino-royal'
             ? '[data-player-index]:not([data-self-player="true"]) .seat-badge-core'
@@ -428,7 +428,7 @@ function LiveAvatarSession({ gameSlug, roomId, previewOnly, children }) {
       window.removeEventListener('orientationchange', scheduleApply);
       window.removeEventListener('scroll', scheduleApply, true);
     };
-  }, [gameSlug, isCheckers, isPool, previewOnly, usesOpponentAvatar, search]);
+  }, [gameSlug, isCheckers, isRoyalCue, previewOnly, usesOpponentAvatar, search]);
 
   useEffect(() => {
     if (typeof window === 'undefined') return undefined;
@@ -508,7 +508,7 @@ function LiveAvatarSession({ gameSlug, roomId, previewOnly, children }) {
     };
   }, [gameSlug, previewOnly]);
 
-  const poolAvatarCall = isPool ? {
+  const poolAvatarCall = isRoyalCue ? {
     previewOnly,
     canStart: !liveMode && !hasBlockingOverlay,
     startVideo: () => {
@@ -527,10 +527,10 @@ function LiveAvatarSession({ gameSlug, roomId, previewOnly, children }) {
       <PoolLiveAvatarContext.Provider value={poolAvatarCall}>
         {children}
       </PoolLiveAvatarContext.Provider>
-      {isPool && !previewOnly && !liveMode && anchorElement ? (
+      {isRoyalCue && !previewOnly && !liveMode && anchorElement ? (
         <div
           role="group"
-          aria-label="Pool Royal calls"
+          aria-label={gameSlug === 'snookerroyale' ? 'Snooker Royal calls' : 'Pool Royal calls'}
           className="fixed z-[55] flex gap-2"
           style={{
             top: 'calc(env(safe-area-inset-top, 0px) + 4.75rem)',
@@ -562,10 +562,10 @@ function LiveAvatarSession({ gameSlug, roomId, previewOnly, children }) {
       ) : null}
       {/* Keep Pool audio mounted even when a game transition removes its avatar
           anchors. The matching video is muted so the opponent plays only once. */}
-      {isPool && liveMode && liveChat.remotePeers[0] ? (
+      {isRoyalCue && liveMode && liveChat.remotePeers[0] ? (
         <RemoteVideo key={liveChat.remotePeers[0].socketId} peer={liveChat.remotePeers[0]} audioOnly />
       ) : null}
-      {!isPool && !liveMode && anchorElement ? (
+      {!isRoyalCue && !liveMode && anchorElement ? (
         <button
           type="button"
           aria-label="Turn on live avatar video"
@@ -591,7 +591,7 @@ function LiveAvatarSession({ gameSlug, roomId, previewOnly, children }) {
           type="button"
           aria-label={previewOnly ? 'End camera preview' : 'Turn off live avatar video'}
           onClick={() => setCallMode(null)}
-          className={`fixed ${isPool ? "z-[55]" : "z-[18]"} overflow-hidden touch-manipulation`}
+          className={`fixed ${isRoyalCue ? "z-[55]" : "z-[18]"} overflow-hidden touch-manipulation`}
           style={{
             top: `${overlayRect.top}px`,
             left: `${overlayRect.left}px`,
@@ -608,7 +608,7 @@ function LiveAvatarSession({ gameSlug, roomId, previewOnly, children }) {
                   background: 'rgb(0 0 0 / 0.3)'
                 }
               : {}),
-            ...(isPool ? POOL_AVATAR_FRAME_STYLES : {})
+            ...(isRoyalCue ? POOL_AVATAR_FRAME_STYLES : {})
           }}
         >
           <video
@@ -625,18 +625,18 @@ function LiveAvatarSession({ gameSlug, roomId, previewOnly, children }) {
       ) : null}
       {liveMode && !previewOnly && !audioOnly && usesOpponentAvatar && opponentRect ? (
         <div
-          className={`fixed ${isPool ? "z-[55]" : "z-[18]"} overflow-hidden pointer-events-none`}
+          className={`fixed ${isRoyalCue ? "z-[55]" : "z-[18]"} overflow-hidden pointer-events-none`}
           style={{
             top: `${opponentRect.top}px`,
             left: `${opponentRect.left}px`,
             width: `${opponentRect.width}px`,
             height: `${opponentRect.height}px`,
             opacity: hasBlockingOverlay ? 0 : 1,
-            ...(isPool ? POOL_AVATAR_FRAME_STYLES : AVATAR_FRAME_STYLES)
+            ...(isRoyalCue ? POOL_AVATAR_FRAME_STYLES : AVATAR_FRAME_STYLES)
           }}
         >
           {liveChat.remotePeers[0] ? (
-            <RemoteVideo peer={liveChat.remotePeers[0]} muted={isPool} avatarOnly={isPool} />
+            <RemoteVideo peer={liveChat.remotePeers[0]} muted={isRoyalCue} avatarOnly={isRoyalCue} />
           ) : (
             <div className="flex h-full items-center justify-center bg-slate-950 text-center text-[8px] font-semibold text-white/70">
               {compactCall && liveChat.error ? 'Camera unavailable' : 'Waiting…'}
@@ -668,12 +668,12 @@ function LiveAvatarSession({ gameSlug, roomId, previewOnly, children }) {
             </div>
           ))
         : null}
-      {liveMode && (!isPool || !previewOnly || liveChat.error) ? (
+      {liveMode && (!isRoyalCue || !previewOnly || liveChat.error) ? (
         <div
-          className={`fixed right-3 ${isPool ? "z-[55]" : "z-[18]"} flex flex-col gap-2 pointer-events-auto ${usesOpponentAvatar ? 'w-auto' : 'w-28'}`}
+          className={`fixed right-3 ${isRoyalCue ? "z-[55]" : "z-[18]"} flex flex-col gap-2 pointer-events-auto ${usesOpponentAvatar ? 'w-auto' : 'w-28'}`}
           style={{
             top: 'max(4.75rem, env(safe-area-inset-top))',
-            ...(isPool ? {
+            ...(isRoyalCue ? {
               top: 'auto', bottom: 'max(12px, env(safe-area-inset-bottom))',
               left: '50%', right: 'auto', transform: 'translateX(-50%)'
             } : isCheckers ? {
@@ -699,21 +699,21 @@ function LiveAvatarSession({ gameSlug, roomId, previewOnly, children }) {
           </div> : null}
           {compactCall && liveChat.error ? (
             <p role="alert" className="max-w-[min(16rem,calc(100vw-24px))] rounded-xl bg-slate-950/95 p-3 text-xs text-white">
-              {liveChat.error} {previewOnly ? 'Close the camera preview and tap your avatar to retry.' : isPool
+              {liveChat.error} {previewOnly ? 'Close the camera preview and tap your avatar to retry.' : isRoyalCue
                 ? 'End the call, then choose Voice or Video to retry.'
                 : 'Turn off live video and tap your avatar to retry.'}
             </p>
           ) : null}
-          {isPool && !liveChat.error ? (
+          {isRoyalCue && !liveChat.error ? (
             <p role="status" className="max-w-[min(16rem,calc(100vw-24px))] rounded-full bg-slate-950/90 px-3 py-1 text-center text-[10px] text-white">
               {previewOnly ? (liveChat.localStream ? 'Camera preview' : 'Starting camera…') : callStatus}
             </p>
           ) : null}
-          {!(isPool && previewOnly) && <div className={`flex justify-center gap-2 ${isCheckers ? 'flex-col items-start' : ''}`}>
+          {!(isRoyalCue && previewOnly) && <div className={`flex justify-center gap-2 ${isCheckers ? 'flex-col items-start' : ''}`}>
             {!previewOnly && <button
               type="button"
               onClick={liveChat.toggleMicrophone}
-              disabled={isPool && !liveChat.isConnected}
+              disabled={isRoyalCue && !liveChat.isConnected}
               className={`flex ${compactCall ? 'h-11 w-11' : 'h-9 w-9'} items-center justify-center rounded-full text-sm text-white shadow-lg ${liveChat.mediaState.microphone ? 'bg-emerald-600' : 'bg-rose-600'}`}
               aria-label={liveChat.mediaState.microphone ? 'Turn microphone off' : 'Turn microphone on'}
             >
@@ -722,7 +722,7 @@ function LiveAvatarSession({ gameSlug, roomId, previewOnly, children }) {
             {!audioOnly ? <button
               type="button"
               onClick={liveChat.toggleCamera}
-              disabled={isPool && !liveChat.isConnected}
+              disabled={isRoyalCue && !liveChat.isConnected}
               className={`flex ${compactCall ? 'h-11 w-11' : 'h-9 w-9'} items-center justify-center rounded-full text-sm text-white shadow-lg ${liveChat.mediaState.camera ? 'bg-emerald-600' : 'bg-rose-600'}`}
               aria-label={liveChat.mediaState.camera ? 'Turn camera off' : 'Turn camera on'}
             >
