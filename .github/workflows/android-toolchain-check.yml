@@ -1,0 +1,47 @@
+name: Android toolchain validation (not a release)
+on:
+  workflow_dispatch:
+  pull_request:
+    paths:
+      - 'webapp/android/**'
+      - 'webapp/capacitor.config.ts'
+      - 'webapp/package*.json'
+      - 'webapp/scripts/*native*'
+      - 'webapp/scripts/fetch-gradle-wrapper.mjs'
+      - '.github/workflows/android-toolchain-check.yml'
+permissions:
+  contents: read
+jobs:
+  android-native-compile:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: webapp/package-lock.json
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: 17
+      - uses: android-actions/setup-android@v3
+      - name: Install pinned platform and compatible build tools
+        run: sdkmanager "platforms;android-36" "build-tools;35.0.0" "build-tools;36.0.0"
+      - name: Install locked dependencies without optional download scripts
+        run: npm ci --prefix webapp --ignore-scripts
+      - name: Validate package safety and fetch checksum-pinned wrapper
+        run: |
+          npm --prefix webapp run test:native-release
+          npm --prefix webapp run fetch:gradle-wrapper
+      - name: Sync native bridge with compile-only web fixture
+        working-directory: webapp
+        run: |
+          mkdir -p dist
+          printf '<!doctype html><html><body>Native compile validation only. Not a release build.</body></html>' > dist/index.html
+          npx --no-install cap sync android
+      - name: Compile plugins, run unit tests and lint
+        working-directory: webapp/android
+        run: sh ./gradlew --no-daemon testDebugUnitTest lintDebug assembleDebug
+      # Deliberately no artifact upload/signing/release: this APK contains only a fixture.
