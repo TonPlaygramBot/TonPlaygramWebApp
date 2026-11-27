@@ -1,6 +1,5 @@
 import * as THREE from 'three';
 import {landmarkNearDistance} from './landmarkVisibility.mjs';
-import {createMallBrand} from '../tirana-mall/MallBrand';
 import {buildNativeModel, MATERIALS} from './nativeModels.mjs';
 import type {NativeLandmark} from './nativeLocations.mjs';
 
@@ -39,9 +38,8 @@ export class NativeLandmarkLayer {
           mesh.receiveShadow = true;
           group.add(mesh);
         }
-        if (l.id === 'pyramid') {
-          const brand = createMallBrand(14); brand.position.set(0, 19.1, 0); group.add(brand);
-        }
+        // The virtual mall remains a gameplay/UI destination. Its oversized
+        // rooftop advertisement is not part of the real Tirana silhouette.
         lod.addLevel(group, detail === 'near' ? 0 : landmarkNearDistance(l.id), .12);
       }
       // Tall silhouettes survive farther than small monuments. LOD updates are

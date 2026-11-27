@@ -5,6 +5,7 @@ import {signReferenceFor,referencedAdvertising,SIGN_REFERENCES} from './signRefe
 import {loadBrandArtwork} from './brandArtworkCache';
 import {STREET_LIFE,type StreetLifeData} from './registry.mjs';
 import {buildStreetModel,nearbyIndex} from './streetModels.mjs';
+import {boulevardStorefronts} from './boulevardBusinesses.mjs';
 import {ribbonExclusion} from '../tirana-street-detail/roadDetailCore.mjs';
 import type {StreetDetailOptions} from '../tirana-street-detail/StreetDetailLayer';
 type Point={x:number;z:number};
@@ -13,7 +14,7 @@ type Sign={text:string;p:number[];s:number[];bg:string;fg:string;yaw:number;atla
 type Model=Point&{id:string;yaw:number;type:string;parts:Part[];signs:Sign[]};
 type Data=Pick<StreetLifeData,'storefronts'|'stops'|'fuel'|'advertising'>;
 
-/** Three geometry draws + one shared sign-atlas draw. Packaged brand artwork
+/** Three standard geometry draws, one optional parasol batch and a sign-atlas draw. Packaged brand artwork
  * updates the shared atlas asynchronously. Nearest objects win. */
 export class StreetLifeLayer {
  readonly group=new T.Group();
@@ -29,8 +30,11 @@ export class StreetLifeLayer {
   this.group.name='Tirana:mapped-storefronts-stops-and-fuel';
   const blocked=options.track?ribbonExclusion(options.track):null;
   const models:Model[]=[];
+  // Keep the source registry immutable; only the one shared full renderer
+  // mounts the reviewed public façade/terrace interpretations.
+  const stores=data===STREET_LIFE?boulevardStorefronts(data.storefronts):data.storefronts;
   for(const [key,type] of [['storefronts','storefront'],['stops','stop'],['fuel','fuel'],['advertising','advertising']] as const)
-   for(const s of data[key])if(pointInUrbanBounds(s,4)&&(!blocked||!blocked(s.x,s.z,Math.max(4,'width' in s?Number(s.width):0))))models.push(buildStreetModel(type==='advertising'?referencedAdvertising(s,data.storefronts):s,tradesOnly&&type==='storefront'?'store-detail':type));
+   for(const s of key==='storefronts'?stores:data[key])if(pointInUrbanBounds(s,4)&&(!blocked||!blocked(s.x,s.z,Math.max(4,'width' in s?Number(s.width):0))))models.push(buildStreetModel(type==='advertising'?referencedAdvertising(s,data.storefronts):s,tradesOnly&&type==='storefront'?'store-detail':type));
   if(this.labelsOnly)for(const model of models)for(const sign of model.signs)sign.p[2]=Math.max(.238,sign.p[2]);
   const signs:Sign[]=[],signIndex=new Map<string,number>();
   for(const sign of models.flatMap(m=>m.signs)){sign.brand=signReferenceFor(sign.text)?.id;const key=JSON.stringify([sign.text,sign.bg,sign.fg,Math.round(sign.s[0]/sign.s[1]*10)]);if(!signIndex.has(key)){signIndex.set(key,signs.length);signs.push(sign);}sign.atlas=signIndex.get(key)!;}
@@ -71,8 +75,8 @@ export class StreetLifeLayer {
   this.glassMaterial.userData.environmentLight='business';
   this.glassMaterial.userData.nightIntensity=.42;
   // 96 selected models x a tested maximum of 70 parts, with independent budgets.
-  for(const shape of this.labelsOnly?[]:['box','glass','cylinder']){
-   const geo=shape==='cylinder'?new T.CylinderGeometry(1,1,1,8):new T.BoxGeometry(1,1,1);
+  for(const shape of this.labelsOnly?[]:['box','glass','cylinder',...(models.some(model=>model.parts.some(p=>p.shape==='cone'))?['cone']:[])]){
+   const geo=shape==='cylinder'?new T.CylinderGeometry(1,1,1,8):shape==='cone'?new T.ConeGeometry(1,1,8):new T.BoxGeometry(1,1,1);
    const mesh=new T.InstancedMesh(geo,shape==='glass'?this.glassMaterial:this.material,6720);mesh.count=0;mesh.frustumCulled=false;mesh.receiveShadow=true;mesh.castShadow=true;mesh.instanceMatrix.setUsage(T.DynamicDrawUsage);this.meshes.set(shape,mesh);this.group.add(mesh);
   }
   this.signMaterial=new T.MeshStandardMaterial({map:this.atlas,roughness:.7,emissiveMap:this.atlas,emissive:0xffffff,emissiveIntensity:.18,polygonOffset:true,polygonOffsetFactor:-1,polygonOffsetUnits:-1});
@@ -85,7 +89,7 @@ export class StreetLifeLayer {
   this.signMaterial.customProgramCacheKey=()=> 'tirana-street-atlas-v1';
   const geometry=new T.PlaneGeometry(1,1);geometry.setAttribute('instanceAtlas',new T.InstancedBufferAttribute(new Float32Array(384*4),4).setUsage(T.DynamicDrawUsage));
   this.labels=new T.InstancedMesh(geometry,this.signMaterial,384);this.labels.count=0;this.labels.frustumCulled=false;this.labels.instanceMatrix.setUsage(T.DynamicDrawUsage);this.group.add(this.labels);
-  this.near=nearbyIndex(models);this.group.userData={storefronts:data.storefronts.length,stops:data.stops.length,fuel:data.fuel.length,accuracy:'OSM locations and names; original approximate exteriors. Advertising locations authored.'};
+  this.near=nearbyIndex(models);this.group.userData={storefronts:stores.length,stops:data.stops.length,fuel:data.fuel.length,accuracy:'OSM locations and names; original approximate exteriors. Advertising locations authored.'};
  }
  update(seconds:number,viewer?:Point,battery=false,force=false){
   if(this.dead||!viewer||(!force&&seconds-this.last<.2))return;this.last=seconds;
@@ -106,7 +110,7 @@ export class StreetLifeLayer {
     this.labels.setMatrixAt(n,this.dummy.matrix.premultiply(this.parent.matrix));uv.setXYZW(n,(a%this.columns+.025)/this.columns,1-(Math.floor(a/this.columns)+.97)/this.rows,.95/this.columns,.94/this.rows);
    }
   }
-  this.meshes.forEach(m=>{m.instanceMatrix.needsUpdate=true;if(m.instanceColor)m.instanceColor.needsUpdate=true;});this.labels.instanceMatrix.needsUpdate=true;uv.needsUpdate=true;
+  this.meshes.forEach(m=>{m.visible=m.count>0;m.instanceMatrix.needsUpdate=true;if(m.instanceColor)m.instanceColor.needsUpdate=true;});this.labels.instanceMatrix.needsUpdate=true;uv.needsUpdate=true;
  }
  retire(){this.dead=true;}
  dispose(){if(this.disposed)return;this.disposed=true;this.dead=true;this.brandRequests.clear();this.requestedBrands.clear();this.group.removeFromParent();this.meshes.forEach(m=>m.geometry.dispose());this.labels.geometry.dispose();this.material.dispose();this.glassMaterial.dispose();this.signMaterial.dispose();this.atlas.dispose();this.group.clear();}

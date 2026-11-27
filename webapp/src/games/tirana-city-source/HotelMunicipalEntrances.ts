@@ -20,9 +20,13 @@ export function hotelMunicipalEntrances(profile:ReferenceProfile,edges:FacadeEdg
   if(hotel){
     wall(e,trim,u,2,4.5,3.9,.16,.14);wall(e,glass,u,1.9,3.9,3.6,.12,.27);
     for(const d of [-1.25,0,1.25])wall(e,0xa9aba3,u+d,1.9,.06,3.6,.08,.38);
-    wall(e,trim,u,4.05,6,.24,3.8,1.8);
-    for(const d of [-2.6,2.6])wall(e,0x8b9089,u+d,1.95,.14,3.9,.14,3.35);
-    wall(e,0x637674,u,4.2,5.75,.10,3.65,1.8);
+    // Retain the existing 6 m x 3.8 m canopy envelope. The operator
+    // photos show dark steel mullions and separate glass roof panels.
+    for(const d of [-2.92,2.92])wall(e,0x485857,u+d,4.08,.15,.17,3.8,1.8);
+    for(const o of [.12,1.26,2.51,3.58])wall(e,0x485857,u,4.08,5.8,.14,.10,o);
+    for(const d of [-1.95,0,1.95])wall(e,0x485857,u+d,4.11,.08,.09,3.58,1.8);
+    for(const d of [-1.46,-.49,.49,1.46])wall(e,0x637674,u+d*1.45,4.13,1.33,.055,3.46,1.8);
+    for(const d of [-2.6,2.6])wall(e,0x87908e,u+d,1.95,.14,3.9,.14,3.35);
     wall(e,0xb8b1a0,u,.1,6,.2,4.3,1.75);
   }else{
     wall(e,0xa45e43,u,3.6,5.6,7,.08,.11);

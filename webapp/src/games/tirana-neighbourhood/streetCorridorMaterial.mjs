@@ -6,7 +6,7 @@ const keys=new Map([
  ['rruga e kavajes',3],
  ['rruga e durresit',4],
  ['rruga ali demi',5],['rruga petro nini luarasi',5],
- ['bulevardi zogu i pare',6],['bulevardi i ri',7],
+ ['bulevardi zogu i pare',6],['bulevardi i ri',7],['rruga todi shkurti',8],
 ]);
 const memo=new Map();
 export function corridorMaterialId(name){

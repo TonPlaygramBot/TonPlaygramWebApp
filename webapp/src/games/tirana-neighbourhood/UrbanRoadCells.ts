@@ -55,7 +55,8 @@ function applyStreetWeathering(material:T.MeshStandardMaterial,amount:number,pav
      else if(vCorridorMaterial.x<4.5){palette=vec3(.79,.91,1.16);tile=vec2(.64,.34);stagger=.5;}
      else if(vCorridorMaterial.x<5.5){palette=vec3(1.32,1.05,.76);tile=vec2(.57,.46);stagger=.0;}
      else if(vCorridorMaterial.x<6.5){palette=vec3(1.59,1.27,1.02);tile=vec2(.76,.44);stagger=.5;}
-     else {palette=vec3(1.24,1.43,1.62);tile=vec2(1.09,.76);stagger=.0;}
+     else if(vCorridorMaterial.x<7.5){palette=vec3(1.24,1.43,1.62);tile=vec2(1.09,.76);stagger=.0;}
+     else {palette=vec3(1.20,1.09,.99);tile=vec2(.29,.19);stagger=.5;}
      vec2 bond=stoneBond(metres,metresAA,tile,stagger);
      return palette*(1.0-.34*bond.x+.30*bond.y);`:`
      // Signed across-road coordinate is interpolated from the source ring.
@@ -69,7 +70,8 @@ function applyStreetWeathering(material:T.MeshStandardMaterial,amount:number,pav
      else if(vCorridorMaterial.x<4.5)tone=vec3(1.025,1.035,1.07);
      else if(vCorridorMaterial.x<5.5)tone=vec3(1.065,1.024,.985);
      else if(vCorridorMaterial.x<6.5)tone=vec3(1.02,1.016,1.004);
-     else tone=vec3(.965,.997,1.04);
+     else if(vCorridorMaterial.x<7.5)tone=vec3(.965,.997,1.04);
+     else tone=vec3(.975,.962,.941);
      return tone*(1.0-.18*shoulder);`}
     }
     // Three staggered triangular waves. No extra texture taps or trig.
@@ -84,7 +86,7 @@ function applyStreetWeathering(material:T.MeshStandardMaterial,amount:number,pav
     float weathering=urbanMottle(vUrbanSurface);
     diffuseColor.rgb*=(1.0+urbanWear*(weathering-.60))*urbanCorridorTone(vUrbanSurface);`);
  };
- material.customProgramCacheKey=()=> `tirana-shared-street-weathering-v3-${pavement?'pavement':'asphalt'}`;
+ material.customProgramCacheKey=()=> `tirana-shared-street-weathering-v4-${pavement?'pavement':'asphalt'}`;
 }
 
 /** One surface owner for the complete city. Cheap asphalt reaches the horizon;

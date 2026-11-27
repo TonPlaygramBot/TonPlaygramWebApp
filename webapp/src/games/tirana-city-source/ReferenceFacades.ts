@@ -71,7 +71,9 @@ export class ReferenceFacades {
         box(0xe8e9d5,x,.1,z,68,.025,.12);
         add(0xe8e9d5,new T.TorusGeometry(9.15,.08,4,48).rotateX(-Math.PI/2).translate(x,.12,z));
       }
-      for(const e of detailed?[]:edges){
+      if(profile.style==='laguna-kiosk')for(const e of edges)
+        wall(e,profile.trim,e.length/2,shellHeight-.085,e.length+.04,.17,.15,.09);
+      for(const e of detailed||profile.style==='laguna-kiosk'?[]:edges){
         // Segment-by-segment cornices preserve rounded and irregular corners.
         wall(e,profile.trim,e.length/2,height-.12,e.length+.02,.24,.32,.06);
         wall(e,profile.trim,e.length/2,height-.48,e.length+.02,.12,.24,.07);

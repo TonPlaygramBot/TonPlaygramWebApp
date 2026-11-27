@@ -11,7 +11,34 @@ export function buildStreetModel(site,type){
   for(let i=0;i<3;i++)box(C.wood,x,.74+i*.13,z-.065,width,.085,.055);
   for(const side of [-1,1]){pole(x+side*width*.36,.05,z+.18,.4,.045);pole(x+side*width*.36,.1,z-.06,.99,.035);}
  };
- if(type==='storefront'&&['building-sign','fuel-sign'].includes(site.kind)){
+ if(type==='storefront'&&site.visualStyle==='laguna-kiosk'){
+  // Low corner kiosk, dark aluminium, a bright service window and a teal fascia.
+  const w=site.width;
+  box(0x242728,0,1.38,.045,w,2.70,.10);
+  box(0xdadcd2,0,1.43,.12,w-.43,1.72,.09);
+  box(C.glass,0,1.45,.203,w-.55,1.58,.032);
+  for(const x of [-w*.44,-w*.19,w*.13,w*.44])box(0x272c2c,x,1.45,.233,.055,1.75,.048);
+  box(0xb3b2a8,0,.92,.29,w-.36,.10,.43);
+  for(let i=0;i<5;i++)box(i%2?0xa6d1c2:0xd4ab7f,-1.6+i*.48,1.045,.304,.36,.08,.15);
+  box(0x285859,0,2.69,.24,w,.56,.21);
+  sign('Laguna  ·  PIZZA & ICE CREAM',0,2.69,.351,w-.1,.43,'#285859','#f4f3e9');
+ }else if(type==='storefront'&&site.visualStyle==='bar-west-terrace'){
+  // Reference shows cream parasols, dark seats and rustic small tables.
+  // Public exterior only: no new building, interior or invented monument.
+  box(0x212b2b,0,2.46,.10,4.6,.47,.11);
+  sign('BAR WEST',0,2.46,.167,4.48,.35,'#212b2b','#faf0d9');
+  for(const x of [-1.24,1.24]){
+   const z=1.88;
+   box(0x795641,x,.76,z,.59,.07,.56);pole(x,.08,z,.65,.045);
+   for(const side of [-1,1]){
+    const zz=z+side*.63;box(0x2b3232,x,.46,zz,.46,.06,.43);
+    box(0x2b3232,x,.73,zz+side*.16,.45,.29,.035);
+    for(const dx of [-.17,.17])pole(x+dx,.05,zz,.41,.025);
+   }
+   pole(x,.03,z,2.29,.03,0xb5a994);
+   parts.push({shape:'cone',color:0xddd0ad,p:[x,2.35,z],s:[1.06,.27,1.06]});
+  }
+ }else if(type==='storefront'&&['building-sign','fuel-sign'].includes(site.kind)){
   if(site.kind==='fuel-sign'){
    for(const x of [-site.width*.36,site.width*.36])pole(x,.03,.75,site.mountHeight,.055);
    box(C.metal,0,site.mountHeight,.76,site.width+.12,site.signHeight+.10,.06);

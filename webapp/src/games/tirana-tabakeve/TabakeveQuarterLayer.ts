@@ -4,12 +4,16 @@ import * as T from 'three';
 import {mergeGeometries} from 'three/examples/jsm/utils/BufferGeometryUtils.js';
 import {QUARTER} from './quarterData.mjs';
 import {petroNiniFrontages} from './petroNiniFrontages.mjs';
+import {petroTodiBlockFacades,petroTodiBlockParts} from './petroTodiBlocks.mjs';
+import {NEIGHBOURHOOD} from '../tirana-neighbourhood/data.mjs';
 import {BRIDGE,bridgeDeckHeight,quarterFacadeParts} from './quarterCore.mjs';
 import {nearbyIndex} from '../tirana-street-life/streetModels.mjs';
 import {ribbonExclusion} from '../tirana-street-detail/roadDetailCore.mjs';
 import type {StreetDetailOptions} from '../tirana-street-detail/StreetDetailLayer';
 /** Additional local architecture, not another set of building shells. Static
  * street identities retain their existing owner. Repeated details are instanced. */
+const PETRO_TODI=petroTodiBlockFacades(NEIGHBOURHOOD.buildings).map(b=>({...b,parts:petroTodiBlockParts(b)}));
+const TREATMENT_IDS=new Set(PETRO_TODI.map(b=>b.id));
 export class TabakeveQuarterLayer {
  readonly group=new T.Group();
  readonly bridge=new T.Group();
@@ -30,8 +34,12 @@ export class TabakeveQuarterLayer {
   for(const [key,geometry,capacity] of [['box',new T.BoxGeometry(1,1,1),2400],['tank',new T.CylinderGeometry(.5,.5,1,10),96]] as const){
    const mesh=new T.InstancedMesh(geometry,material,capacity);mesh.count=0;mesh.frustumCulled=false;mesh.receiveShadow=true;mesh.instanceMatrix.setUsage(T.DynamicDrawUsage);this.batches.set(key,mesh);this.group.add(mesh);
   }
-  this.buildBridge();const frontages=options.profile==='street'&&!options.track?petroNiniFrontages():null;
+  this.buildBridge();const frontages=petroNiniFrontages();
   if(frontages)this.buildPetroFrontages(frontages);else this.buildSigns();this.group.add(this.bridge,this.signs);
+  for(const sign of this.signs.children){
+   const p=sign.position;
+   if(this.blocked?.(p.x,p.z,Math.max(4,Number(sign.userData.width)||0)))sign.visible=false;
+  }
   if(options.stableParkSurfaces&&options.profile==='street'&&!options.track){
    this.shutterCassettes=createQuarterCassetteSample();this.group.add(this.shutterCassettes.group);
   }
@@ -136,7 +144,8 @@ export class TabakeveQuarterLayer {
   if(this.bridge.visible&&!this.masonry)this.masonry=mountTabakeveMasonry(this.bridge);
   this.signs.visible=Math.hypot(viewer.x-936,viewer.z-237)<(battery?140:320);
   const nearby=this.near(viewer,battery?90:170,battery?14:36),parts=[];
-  for(const b of nearby){if(!this.cache.has(b.id))this.cache.set(b.id,quarterFacadeParts(b));parts.push(...this.cache.get(b.id)!);}
+  for(const b of nearby){if(TREATMENT_IDS.has(b.id))continue;if(!this.cache.has(b.id))this.cache.set(b.id,quarterFacadeParts(b));parts.push(...this.cache.get(b.id)!);}
+  for(const b of PETRO_TODI)if(Math.hypot(viewer.x-b.x,viewer.z-b.z)<(battery?100:180))parts.push(...b.parts.filter(p=>!this.blocked?.(p.x,p.z,Math.max(2,p.w/2))));
   parts.sort((a,b)=>Math.hypot(a.x-viewer.x,a.z-viewer.z)-Math.hypot(b.x-viewer.x,b.z-viewer.z));
   this.batches.forEach(mesh=>mesh.count=0);
   const replaced=this.shutterCassettes?.update(viewer,parts);

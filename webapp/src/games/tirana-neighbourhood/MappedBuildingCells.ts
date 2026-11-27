@@ -14,11 +14,12 @@ import {mergeGeometries} from 'three/examples/jsm/utils/BufferGeometryUtils.js';
 import {facadeEdges} from '../tirana-city-source/sourceCore.mjs';
 import {AGED_HOUSING_IDS} from '../tirana-city-source/housingRegistry.mjs';
 type Bucket={x:number;z:number;buildings:any[];root?:T.Group;detail?:T.Group;used:number};
-type District={key:string;buildings:any[];bounds:number[];root?:T.Group;used:number};
+type Footprint={building:any;bounds:number[]};
+type District={key:string;buildings:Footprint[];bounds:number[];root?:T.Group;ready?:boolean;used:number};
 const SHELL_RADIUS=2200, RETAIN_RADIUS=2700, DISTRICT_CACHE=64;
 const distanceToBounds=(viewer:{x:number;z:number},b:number[])=>Math.hypot(Math.max(b[0]-viewer.x,0,viewer.x-b[2]),Math.max(b[1]-viewer.z,0,viewer.z-b[3]));
 
-/** Complete nearby districts stream before their ornament. Indexing the map
+/** Render nearby, complete footprints before their ornament. Indexing the map
  * must not allocate/triangulate the whole region before the first frame. */
 export class MappedBuildingCells {
  readonly group=new T.Group();
@@ -50,34 +51,45 @@ export class MappedBuildingCells {
    const key=`${Math.floor(x/960)}:${Math.floor(z/960)}`;
    if(!districts.has(key))districts.set(key,{key,buildings:[],used:0,bounds:[Infinity,Infinity,-Infinity,-Infinity]});
    const d=districts.get(key)!;
-   for(const p of b.p){d.bounds[0]=Math.min(d.bounds[0],p[0]);d.bounds[1]=Math.min(d.bounds[1],p[1]);d.bounds[2]=Math.max(d.bounds[2],p[0]);d.bounds[3]=Math.max(d.bounds[3],p[1]);}
-   d.buildings.push(b);
+   const bounds=[Infinity,Infinity,-Infinity,-Infinity];
+   for(const p of b.p){bounds[0]=Math.min(bounds[0],p[0]);bounds[1]=Math.min(bounds[1],p[1]);bounds[2]=Math.max(bounds[2],p[0]);bounds[3]=Math.max(bounds[3],p[1]);}
+   d.bounds[0]=Math.min(d.bounds[0],bounds[0]);d.bounds[1]=Math.min(d.bounds[1],bounds[1]);
+   d.bounds[2]=Math.max(d.bounds[2],bounds[2]);d.bounds[3]=Math.max(d.bounds[3],bounds[3]);
+   d.buildings.push({building:b,bounds});
   }
   this.districts=[...districts.values()];
   this.lookup=map;this.buckets=[...map.values()];this.group.name='Tirana:streamed-building-cells';
   this.group.userData={ready:false,pendingDistricts:0,loadedDistricts:0,radius:SHELL_RADIUS};
  }
  private *buildDistrict(d:District):Generator<void,void>{
-  const root=new T.Group();root.name=`Complete block silhouettes ${d.key}`;
+  const root=new T.Group();root.name=`Mapped block silhouettes ${d.key}`;
+  // Freeze the anchor per job: changing camera position must not reorder or
+  // duplicate an in-progress batch. Never split the polygon or its courtyard.
+  const viewer=this.viewer;
+  const footprints=d.buildings.map(({building,bounds})=>({building,distance:distanceToBounds(viewer,bounds)}))
+   .sort((a,b)=>a.distance-b.distance);
   try{
-   // Bound both source work and the final geometry allocation. Publish the
-   // district atomically so a courtyard or straddling block is never cut off.
-   for(let start=0;start<d.buildings.length;start+=128){
+   // Same maximum geometry size and completed draw count as before. Publish
+   // each finished batch now, rather than leaving the whole district empty
+   // until its farthest buildings finish generating.
+   for(let start=0;start<footprints.length;start+=128){
     const positions:number[]=[],colors:number[]=[],facades=this.photoFacades?[]:undefined,windows=this.photoFacades?[]:undefined;
-    for(let i=start;i<Math.min(start+128,d.buildings.length);i++){
-     appendBuildingShell(d.buildings[i],positions,colors,facades,windows);if((i-start)%8===7)yield;
+    for(let i=start;i<Math.min(start+128,footprints.length);i++){
+     appendBuildingShell(footprints[i].building,positions,colors,facades,windows);if((i-start)%8===7)yield;
     }
-    const mesh=new T.Mesh(shellGeometry(positions,colors,facades,windows),this.wall);mesh.receiveShadow=true;root.add(mesh);yield;
+    const mesh=new T.Mesh(shellGeometry(positions,colors,facades,windows),this.wall);mesh.receiveShadow=true;root.add(mesh);
+    if(!d.root){d.root=root;root.visible=this.selectedDistricts.has(d);this.group.add(root);this.districtCache.add(d);}
+    yield;
    }
-   d.root=root;root.visible=this.selectedDistricts.has(d);this.group.add(root);this.districtCache.add(d);this.trimDistrictCache();
-  }finally{if(d.root!==root)this.release(root);}
+   d.ready=true;this.trimDistrictCache();
+  }finally{if(!d.ready){if(d.root===root)this.releaseDistrict(d);else this.release(root);}}
  }
  private selectDistricts(viewer:{x:number;z:number}){
   const selected=this.districts.filter(d=>distanceToBounds(viewer,d.bounds)<=SHELL_RADIUS)
    .sort((a,b)=>distanceToBounds(viewer,a.bounds)-distanceToBounds(viewer,b.bounds));
   this.selectedDistricts=new Set(selected);
   for(const d of selected)d.used=this.frame;
-  this.districtJobs.sync(selected.filter(d=>!d.root).map(d=>({key:d.key,create:()=>this.buildDistrict(d)})));
+  this.districtJobs.sync(selected.filter(d=>!d.ready).map(d=>({key:d.key,create:()=>this.buildDistrict(d)})));
   for(const d of this.districtCache){
    d.root!.visible=this.selectedDistricts.has(d);
    if(!d.root!.visible&&distanceToBounds(viewer,d.bounds)>RETAIN_RADIUS)this.releaseDistrict(d);
@@ -88,7 +100,7 @@ export class MappedBuildingCells {
   const stale=[...this.districtCache].filter(d=>!this.selectedDistricts.has(d)).sort((a,b)=>a.used-b.used);
   while(this.districtCache.size>DISTRICT_CACHE&&stale.length)this.releaseDistrict(stale.shift()!);
  }
- private releaseDistrict(d:District){if(d.root)this.release(d.root);d.root=undefined;this.districtCache.delete(d);}
+ private releaseDistrict(d:District){if(d.root)this.release(d.root);d.root=undefined;d.ready=false;this.districtCache.delete(d);}
  build(buildings:any[],detailOnly=false){
   const group=new T.Group(),shells:T.BufferGeometry[]=[],windows:T.BufferGeometry[]=[],roofs:T.BufferGeometry[]=[];
   const windowPositions:number[]=[],windowNormals:number[]=[],windowUvs:number[]=[];
@@ -187,7 +199,7 @@ export class MappedBuildingCells {
    const stale=[...this.cached].filter(b=>!this.selected.has(b)).sort((a,b)=>a.used-b.used);
    while(this.cached.size>(battery?CITY_CACHE.battery:CITY_CACHE.high)&&stale.length){const b=stale.shift()!;this.release(b.root!);b.root=undefined;b.detail=undefined;this.cached.delete(b);}
   }
-  const loadedDistricts=[...this.selectedDistricts].filter(d=>d.root).length;
+  const loadedDistricts=[...this.selectedDistricts].filter(d=>d.ready).length;
   this.group.userData={cachedCells:this.cached.size,pendingJobs:this.jobs.length,
    cachedDistricts:this.districtCache.size,loadedDistricts,pendingDistricts:this.selectedDistricts.size-loadedDistricts,
    ready:loadedDistricts===this.selectedDistricts.size,radius:SHELL_RADIUS};

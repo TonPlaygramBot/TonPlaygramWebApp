@@ -1,3 +1,5 @@
+import {publicRealmSeatingZone} from '../tirana-environment/publicRealmCore.mjs';
+import {RIVER_PATHS} from './shared/landscape.mjs';
 import {StreetSignFaces, type StreetSign} from './StreetSignFaces';
 import {groundHeight} from '../tirana-east/terrainCore.mjs';
 import {footprintIndex} from '../tirana-city-source/footprintIndex.mjs';
@@ -97,12 +99,9 @@ export class StreetVisuals {
       occupied.add({x,z});
       // Landscape's shared UrbanLighting owns lamps in every city mode.
       if (i % 3 === 0) {
-        add(
-          'park_bench',
-          x + (dx / length) * 3,
-          z + (dz / length) * 3,
-          yaw - Math.PI / 2
-        );
+        const bx=x+(dx/length)*3,bz=z+(dz/length)*3;
+        if (!publicRealmSeatingZone(bx,bz,RIVER_PATHS[0]?.line??[]))
+          add('park_bench',bx,bz,yaw-Math.PI/2);
         add('litter_bin', x + (dx / length) * 5, z + (dz / length) * 5);
       }
       if (i % 3 === 0) {

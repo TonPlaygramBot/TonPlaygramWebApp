@@ -1,0 +1,9 @@
+# Tirana: ETC / Downtown One public-space detail
+
+This shared scenic layer leaves all existing road, pedestrian navigation, collision, and race data unchanged.
+
+- **Ura e Vodafone-it:** joins the two existing Lana pedestrian-deck endpoints near ETC and St Paul's Cathedral. The repeated red steel ribs take general visual cues from [Franck Guiziou’s photograph, p. 16](https://www.hemis.fr/reportages/8504/HEMIS-tirana-l-attirante-capitale-albanaise-par-franck-guiziou.pdf) and the crossing relationship was recorded in [this first-hand 2024 trip report](https://themonthofbulgogiandsushi.com/2024/12/28/tirana-albania/). The authored red steel geometry is neither a traced logo nor a dimensional survey. It depicts the documented decorated crossing, not a verified post-repair status.
+- **Galeria ETC:** [Bashkia Tiranë](https://tirana.al/pika-interesi/etc-galeria) identifies the building on Bajram Curri, OSM way [535208028](https://www.openstreetmap.org/way/535208028). The game adds freestanding plain ETC initials requested by the director, with no copied logo. This is an in-game landmark identifier, not a verified claim about current signage: [the sign contractor](https://fmreklama.com/portfolio/tring/) documents Tring signage on the tower roof.
+- **Kënd lojërash by Downtown One:** [the developer](https://www.dt1.al/rreth-downtown-one/sherbime/?lang=en) lists an outdoor children's ground-floor playground. The separate mapped playground point [9381914388](https://www.openstreetmap.org/node/9381914388) is beside the tower. Pad extent, colors and equipment are original compact approximations, not a measured plan or a claim that the point is the operator’s facility. The feature checks walking/carriageway, footprint, and race clearance; it does not generate new assigned land or move along the street.
+
+No third-party photographs or sponsor graphics are included in this source change. Geographic anchor data © OpenStreetMap contributors (ODbL).

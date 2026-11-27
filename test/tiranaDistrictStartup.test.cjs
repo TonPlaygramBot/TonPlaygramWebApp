@@ -48,7 +48,7 @@ test('constructor indexes distant buildings without triangulating; queued bounda
  const far={id:'far',p:[[8000,0],[8010,0],[8010,10],[8000,10]],get h(){throw Error('Distant height must not be evaluated');}};
  const near={id:'boundary',p:[[1990,-15],[2450,-15],[2450,15],[1990,15]],holes:[[[2100,-5],[2200,-5],[2200,5],[2100,5]]],h:12};
  const layer=buildings([near,far]);assert.equal(layer.group.children.length,0);assert.equal(layer.group.userData.ready,false);
- layer.update({x:0,z:0},true);assert.equal(layer.group.userData.pendingDistricts,1);assert.equal(layer.group.children.length,0);
+ layer.update({x:0,z:0},true);assert.equal(layer.group.userData.pendingDistricts,1);assert.ok(roofAt(layer,2445,0).length,"a complete small boundary block appears on its first budgeted step");
  drain(layer,()=>layer.update({x:0,z:0},true));assert.equal(layer.group.userData.loadedDistricts,1);
  assert.ok(roofAt(layer,1995,0).length);assert.ok(roofAt(layer,2445,0).length,'whole block extends beyond 2 km');
  assert.equal(roofAt(layer,2150,0).length,0,'courtyard remains open');
@@ -66,14 +66,20 @@ test('roads stream through 2 km with complete boundary surfaces and report progr
  let disposed=0;layer.group.traverse(o=>o.geometry?.addEventListener('dispose',()=>disposed++));
  layer.update(1,{x:12000,z:0},true);assert.ok(disposed>0);assert.equal(layer.group.userData.cachedDistricts,0);layer.dispose();
 });
-test('teleport cancels staged district geometry and disposes it before publication',()=>{
- const rows=Array.from({length:256},(_,i)=>({id:String(i),p:[[2000,i],[2010,i],[2010,i+.5],[2000,i+.5]],h:10}));
+test('nearby complete footprints render before the whole district, and teleport disposes partial coverage',()=>{
+ const rows=Array.from({length:256},(_,i)=>({id:String(i),p:[[2000,i],[2010,i],[2010,i+.5],[2000,i+.5]],h:10})).reverse();
  const layer=buildings(rows),dispose=T.BufferGeometry.prototype.dispose;let released=0;
  T.BufferGeometry.prototype.dispose=function(){released++;return dispose.call(this);};
  try{
   for(let i=0;i<18;i++)layer.update({x:0,z:0},true);
-  assert.equal(layer.group.children.length,0,'no incomplete district published');assert.equal(layer.group.userData.ready,false);
+  assert.ok(roofAt(layer,2005,.25).length,'nearest buildings are visible despite reversed source order');
+  assert.equal(roofAt(layer,2005,255.25).length,0,'distant half is still streaming');
+  assert.equal(layer.group.userData.ready,false);assert.equal(layer.group.userData.pendingDistricts,1);
   layer.update({x:12000,z:0},true);assert.ok(released>0,'staged mesh released');assert.equal(layer.group.userData.pendingDistricts,0);
-  assert.equal(layer.group.children.length,0);layer.dispose();
+  assert.equal(layer.group.children.length,0);
+  drain(layer,()=>layer.update({x:0,z:0},true));
+  assert.ok(roofAt(layer,2005,255.25).length,'re-entry completes the canceled district');
+  const district=layer.group.children.find(child=>child.name.startsWith('Mapped block'));
+  assert.equal(district.children.length,2,'same two batches and draw budget after settling');layer.dispose();
  }finally{T.BufferGeometry.prototype.dispose=dispose;}
 });

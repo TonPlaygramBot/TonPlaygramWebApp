@@ -34,6 +34,8 @@ import {AGED_HOUSING_IDS} from '../tirana-city-source/housingRegistry.mjs';
 import {ECONOMY_BUILDING_IDS} from './street-career/cityEconomyDefinitions.mjs';
 import {collectionVehicleFor,CIVILIAN_VEHICLE_MODELS} from './shared/vehicleCollection.mjs';
 import {ImportedAssetVisuals} from './ImportedAssetVisuals';
+import {publicRealmSeatingZone} from '../tirana-environment/publicRealmCore.mjs';
+import {RIVER_PATHS} from '../tiranastreets/shared/landscape.mjs';
 import * as THREE from "three";
 import {OutdoorEnvironment} from "../tirana-environment/OutdoorEnvironment";
 import { CityFacades, DETAIL_IDS } from "./cityVisuals";
@@ -507,7 +509,9 @@ export class CityRenderer {
       // Traffic lights are handled by the solo WorldEnhancements layer.
       if (i % 3 === 0 && !this.usesSoloSignalControls) place("traffic_light", r.a[0], r.a[1], Math.atan2(dx, dz));
       if (i % 4 === 0) place("road_sign", x + dz / d * 2, z - dx / d * 2, Math.atan2(dx, dz));
-      if (i % 2 === 0) place("park_bench", x + dz / d * 3.2, z - dx / d * 3.2, Math.atan2(dx, dz));
+      const bx=x+dz/d*3.2,bz=z-dx/d*3.2;
+      if (i % 2 === 0 && !publicRealmSeatingZone(bx,bz,RIVER_PATHS[0]?.line??[]))
+        place("park_bench",bx,bz,Math.atan2(dx,dz));
     });
     // Pavement tiles had fixed world-X offsets and crossed angled roads.
     // The shared clipped road cells now own every sidewalk.

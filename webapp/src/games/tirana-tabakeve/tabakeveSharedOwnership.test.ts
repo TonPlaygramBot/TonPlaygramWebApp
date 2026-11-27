@@ -26,3 +26,19 @@ it('shares one visible-only masonry mount and keeps the race ribbon exclusion',a
   expect(photo.length).toBe(2);
  }finally{clear.dispose();blocked.dispose();context.mockRestore();load.mockRestore();}
 });
+
+it('shows the same detailed bakery in both render profiles and excludes a crossing race ribbon',()=>{
+ const context=vi.spyOn(HTMLCanvasElement.prototype,'getContext').mockImplementation(
+  (()=>new Proxy({}, {get:(o,key)=>Reflect.has(o,key)?Reflect.get(o,key):()=>{}})) as typeof HTMLCanvasElement.prototype.getContext);
+ const street=new TabakeveQuarterLayer({profile:'street'});
+ const clear=new TabakeveQuarterLayer({profile:'fps',track:{width:9,points:[{x:850,z:310},{x:1080,z:310}]}});
+ const covered=new TabakeveQuarterLayer({profile:'fps',track:{width:9,points:[{x:850,z:237},{x:1080,z:237}]}});
+ try{
+  const bakery=street.group.getObjectByName('BYREKTORE')!;
+  for(const layer of [street,clear,covered])layer.update(0,{x:940,z:229});
+  expect(bakery.userData.elevation).toBe('basement');
+  expect(clear.group.getObjectByName('BYREKTORE')?.position.toArray()).toEqual(bakery.position.toArray());
+  expect(clear.group.getObjectByName('BYREKTORE')?.visible).toBe(true);
+  expect(covered.group.getObjectByName('BYREKTORE')?.visible).toBe(false);
+ }finally{street.dispose();clear.dispose();covered.dispose();context.mockRestore();}
+});
