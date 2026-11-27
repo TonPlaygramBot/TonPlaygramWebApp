@@ -1,0 +1,7 @@
+.tso-opening{min-height:100dvh;padding:max(12px,env(safe-area-inset-top)) 16px max(18px,env(safe-area-inset-bottom));box-sizing:border-box;display:flex;flex-direction:column;align-items:center;gap:8px;background:#0c1118;color:#f7f2e8;font:initial;font-family:system-ui,sans-serif}
+.tso-opening header{display:flex;align-items:center;justify-content:space-between;width:min(100%,480px);gap:10px;font-size:.72rem;letter-spacing:.09em;color:#e3bd84}
+.tso-opening h1{margin:3px 0 0;font-size:1.55rem}.tso-opening p{margin:0;color:#d4d9dc;text-align:center;font-size:.9rem}
+.tso-opening video{width:auto;max-width:100%;height:clamp(185px,62dvh,580px);aspect-ratio:9 / 16;object-fit:contain;background:#04070a;border-radius:10px}
+.tso-opening button{cursor:pointer;min-height:44px;padding:8px 12px;line-height:1.2;border-radius:8px;border:1px solid #9f8661;color:inherit;background:#151b24}
+.tso-opening button:focus-visible{outline:3px solid #fff;outline-offset:2px}
+.tso-opening .tso-continue{background:#e9c58b;font-weight:700;color:#16110b}

@@ -9,7 +9,7 @@ vi.mock('./simulation.mjs',async importOriginal=>{
 vi.mock('./renderer',()=>({KartRenderer:class{
  constructor(_host,onFrame,onFinish){harness.game=this;this.input={};this.combatInput={reload:false};this.onFrame=onFrame;this.onFinish=onFinish;}
  load=vi.fn(async()=>{});setColor=vi.fn();setKart=vi.fn();setQuality=vi.fn();setCameraMode=vi.fn();
- networkInput=vi.fn(()=>this.input);networkState=vi.fn();showGarage=vi.fn();startLocal=vi.fn();startCaptainDuel=vi.fn();startCombatRace=vi.fn();queueCombatReload=vi.fn();queueCombatPulse=vi.fn();pause=vi.fn();clearInput=vi.fn(()=>{this.input={};this.combatInput={reload:false};});destroy=vi.fn();
+ networkInput=vi.fn(()=>this.input);networkState=vi.fn();showGarage=vi.fn();startLocal=vi.fn();startCaptainDuel=vi.fn();startFirstBattleCareer=vi.fn();startCombatRace=vi.fn();queueCombatReload=vi.fn();queueCombatPulse=vi.fn();pause=vi.fn();clearInput=vi.fn(()=>{this.input={};this.combatInput={reload:false};});destroy=vi.fn();
 }}));
 vi.mock('./audio',()=>({KartAudio:class{unlock(){}update(){}silence(){}beep(){}destroy(){}setMuted(){}}}));
 import BaseKartRoyale from './BaseKartRoyale';
@@ -161,4 +161,35 @@ it('hides Captain practice while the multiplayer garage is selected',async()=>{
   await clickText(host,'Create room');
   expect(harness.game.startCaptainDuel).not.toHaveBeenCalled();
  }finally{await act(async()=>root.unmount());host.remove();sessionStorage.clear();}
+});
+
+it('opens only the fixed Brryli Battle event and awards local XP once without altering regular or online progress',async()=>{
+ localStorage.clear();sessionStorage.clear();
+ const host=document.createElement('div');document.body.append(host);const root=createRoot(host);
+ const key='tonplaygram.kartroyale.battle-career.v1';
+ const result={battleCareerMission:'ali-demi-01',online:false,elapsed:95,trackId:'tirana-brryli',playerId:'you',racers:[
+  {id:'you',name:'You',finished:true,finishTime:95,lap:4,lapTimes:[32,31,32]},
+  ...Array.from({length:5},(_,i)=>({id:`ai-${i+1}`,name:`Rival ${i+1}`,ai:true,finished:false,lap:3}))
+ ]};
+ try{
+  await act(async()=>root.render(<BaseKartRoyale/>));
+  const before={...localStorage};
+  await act(async()=>host.querySelector('.kr-battle-launch').click());
+  expect(harness.game.startFirstBattleCareer).toHaveBeenCalledWith('rookie');
+  expect(harness.game.startLocal).not.toHaveBeenCalled();
+  expect(host.querySelector('.rr-place small').textContent).toBe('BATTLE CAREER');
+  await act(async()=>harness.game.onFinish({...result,trackId:firstTrack}));
+  expect({...localStorage}).toEqual(before);
+  await clickText(host,'RETRY BATTLE');
+  await act(async()=>harness.game.onFinish(result));
+  expect(host.textContent).toContain('+350 Battle XP saved on this device.');
+  const {[key]:battle,...ordinary}={...localStorage};
+  expect(JSON.parse(battle)).toMatchObject({completedMissionIds:['ali-demi-01'],xp:350});
+  expect(ordinary).toEqual(before);
+  await clickText(host,'RETRY BATTLE');
+  await act(async()=>harness.game.onFinish(result));
+  expect(host.textContent).toContain('Replays do not award extra XP.');
+  expect(localStorage.getItem(key)).toBe(battle);
+  expect(sessionStorage.length).toBe(0);
+ }finally{await act(async()=>root.unmount());host.remove();}
 });

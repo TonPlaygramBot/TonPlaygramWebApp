@@ -1,3 +1,4 @@
+import {mountTabakeveMasonry} from './tabakeveMasonry';
 import {createQuarterCassetteSample} from './shutterCassetteSample';
 import * as T from 'three';
 import {mergeGeometries} from 'three/examples/jsm/utils/BufferGeometryUtils.js';
@@ -12,6 +13,7 @@ import type {StreetDetailOptions} from '../tirana-street-detail/StreetDetailLaye
 export class TabakeveQuarterLayer {
  readonly group=new T.Group();
  readonly bridge=new T.Group();
+ private masonry?: ReturnType<typeof mountTabakeveMasonry>;
  private batches=new Map<string,T.InstancedMesh>();
  private signs=new T.Group();private materials:T.Material[]=[];private textures:T.Texture[]=[];
  private near=nearbyIndex(QUARTER.buildings);
@@ -130,6 +132,8 @@ export class TabakeveQuarterLayer {
  update(seconds:number,viewer?:{x:number;z:number},battery=false){
   if(this.dead||!viewer||seconds>=this.last&&seconds-this.last<.25)return;this.last=seconds;
   this.bridge.visible=Math.hypot(viewer.x-BRIDGE.x,viewer.z-BRIDGE.z)<(battery?180:420)&&!this.blocked?.(BRIDGE.x,BRIDGE.z,13);
+  // Single shared owner; never request the photo when the track excludes the bridge.
+  if(this.bridge.visible&&!this.masonry)this.masonry=mountTabakeveMasonry(this.bridge);
   this.signs.visible=Math.hypot(viewer.x-936,viewer.z-237)<(battery?140:320);
   const nearby=this.near(viewer,battery?90:170,battery?14:36),parts=[];
   for(const b of nearby){if(!this.cache.has(b.id))this.cache.set(b.id,quarterFacadeParts(b));parts.push(...this.cache.get(b.id)!);}
@@ -143,6 +147,6 @@ export class TabakeveQuarterLayer {
   const keep=new Set(nearby.map(b=>b.id));for(const id of this.cache.keys())if(this.cache.size>64&&!keep.has(id))this.cache.delete(id);
   this.group.userData.visibleBuildings=nearby.length;
  }
- retire(){this.dead=true;this.shutterCassettes?.dispose();}
+ retire(){this.dead=true;this.masonry?.dispose();this.shutterCassettes?.dispose();}
  dispose(){if(this.disposed)return;this.disposed=true;this.retire();this.group.traverse(o=>{if(o instanceof T.InstancedMesh)o.dispose();if(o instanceof T.Mesh)o.geometry.dispose();});this.materials.forEach(m=>m.dispose());this.textures.forEach(t=>t.dispose());this.cache.clear();this.group.clear();this.group.removeFromParent();}
 }

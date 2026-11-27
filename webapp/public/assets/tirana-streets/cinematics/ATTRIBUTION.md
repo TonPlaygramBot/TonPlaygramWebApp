@@ -1,0 +1,4 @@
+# Rikthimi in-engine opening
+TonPlayGram, 2026-11-27. Rendered specifically for the fictional Tirana Streets Career, not video footage or a borrowed game trailer. Original TonPlayGram Turi model and animations, original stylized Clock Tower and Et'hem Bey Mosque. The city stage uses project geometry derived from © [OpenStreetMap contributors](https://www.openstreetmap.org/copyright), ODbL 1.0, credited in the video; wall/asphalt materials adapt existing Poly Haven CC0 textures. City ambience, steps and phone cue are original synthesis. Dreni's message is fictional and burned into the clip. No voice track or third-party music.
+- Original Library master, SHA-256: e97aa065f6a434fc418f80b9b26b38c2dc6cd678302af3a025f0a5d05590979e.
+- Mobile game encode, SHA-256: 7a32c207a016379336d6d4fae6122aac705c2bbef0465992376d7cb86abf413f. H.264/AAC, 486×864, 24 fps, 9 seconds, optimized for progressive playback; no autoplay.

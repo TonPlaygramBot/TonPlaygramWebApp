@@ -39,6 +39,9 @@ import {
 } from './simulation.mjs';
 import { loadCareer, recordRace, formatTime } from './career';
 import {CAPTAIN_ID,CAPTAIN_NAME,captainDuelOutcome} from './captainDuel.mjs';
+import {firstBattleEvent,recordFirstBattleFinish,FIRST_BATTLE_COURSE_ID,FIRST_BATTLE_MISSION_ID} from './battleCareerClassic.mjs';
+import {readBattleCareer,saveBattleCareer} from './kartBattleCareer.mjs';
+
 import { KartAudio } from './audio';
 import {RaceTelemetryHud,RaceRevBar,RaceDebrief} from './RaceTelemetryHud';
 import { request, saveSession, loadSession } from './network';
@@ -47,6 +50,12 @@ import type { Room, Session } from './network';
 import './kart-royale.css';
 import './kart-mobile.css';
 import './kart-controls.css';
+
+function readLocalBattleCareer() {
+  try { return readBattleCareer(localStorage); }
+  catch { return readBattleCareer({getItem:()=>null}); }
+}
+
 type Mode = 'ai' | 'online';
 interface Props {
   getSocket?: () => Promise<Socket>;
@@ -143,6 +152,10 @@ export default function KartRoyale({
     [hud, setHud] = useState<Frame | null>(null),
     [result, setResult] = useState<Result | null>(null),
     [captainDuel,setCaptainDuel]=useState(false),
+    [battleEvent,setBattleEvent]=useState(false),
+    [battleProgress,setBattleProgress]=useState(readLocalBattleCareer),
+    [battleXp,setBattleXp]=useState(0),
+    [battlePassed,setBattlePassed]=useState(false),
     [career, setCareer] = useState(loadCareer),
     [reward, setReward] = useState(0),
     [saved, setSaved] = useState(true);
@@ -177,6 +190,7 @@ export default function KartRoyale({
     screenRef = useRef(screen),
     careerRef = useRef(career),
     raceCup = useRef<number | null>(null),
+    pendingBattle = useRef(false),
     done = useRef(false),
     cleanupSocket = useRef<(() => void) | null>(null),
     mounted = useRef(false),
@@ -202,6 +216,22 @@ export default function KartRoyale({
     engine.current?.clearInput();
     audio.current?.silence();
     audio.current?.beep(880, 0.3);
+    if (pendingBattle.current || r.battleCareerMission) {
+      const launched = pendingBattle.current;
+      pendingBattle.current = false;
+      if (!launched || sessionRef.current || roomRef.current) return;
+      const prior = readLocalBattleCareer();
+      const report = recordFirstBattleFinish(prior,r);
+      const persisted = !report.accepted || (() => {
+        try { return saveBattleCareer(localStorage,report.progress); }
+        catch { return false; }
+      })();
+      setBattleProgress(persisted?report.progress:prior);
+      setBattleXp(persisted?report.xpAward:0);
+      setBattlePassed(report.accepted);
+      setSaved(persisted);
+      return;
+    }
     // A solo challenge never records a career cup, shared time or TPG result.
     if(r.captainDuel&&!r.online){setSaved(true);return;}
     if(r.combat){setSaved(true);return;}
@@ -601,9 +631,13 @@ export default function KartRoyale({
     setModal(null);
     setResult(null);
     setCaptainDuel(false);
+    setBattleEvent(false);
+    pendingBattle.current = false;
   };
-  const start = (duel=false) => {
-    if (!loaded || !engine.current || sessionRef.current || (duel&&(mode!=='ai'||roomRef.current||busy))) return;
+  const start = (duel=false,battle=false) => {
+    if (!loaded || !engine.current || sessionRef.current || ((duel||battle)&&(mode!=='ai'||roomRef.current||busy||!!error))) return;
+    if (battle && (!firstBattleEvent(FIRST_BATTLE_MISSION_ID,FIRST_BATTLE_COURSE_ID)
+      || !TRACKS.some(t=>t.id===FIRST_BATTLE_COURSE_ID))) return;
     heldInput.current.clear();combatHeld.current.clear();
     audio.current?.unlock();
     done.current = false;
@@ -613,8 +647,13 @@ export default function KartRoyale({
     setHud(null);
     setModal(null);
     setCaptainDuel(duel);
+    setBattleEvent(battle);
+    setBattleXp(0);
+    setBattlePassed(false);
+    pendingBattle.current = battle;
     setScreen('race');
-    if(duel)engine.current.startCaptainDuel(trackId,difficulty);
+    if(battle)engine.current.startFirstBattleCareer(difficulty);
+    else if(duel)engine.current.startCaptainDuel(trackId,difficulty);
     else engine.current.startLocal(trackId,difficulty,false);
   };
   const touch = (key: 'steer'|'drift'|'boost'|'brake'|'reverse'|'recover', value: number|boolean) => {
@@ -661,6 +700,8 @@ export default function KartRoyale({
     place = result
       ? result.racers.findIndex((r) => r.id === result.playerId) + 1
       : 0;
+  const firstMission=firstBattleEvent(FIRST_BATTLE_MISSION_ID,FIRST_BATTLE_COURSE_ID);
+  const battleComplete=battleProgress.completedMissionIds.includes(FIRST_BATTLE_MISSION_ID);
   const duelResult=result?.captainDuel&&!result.online;
   const duelOutcome=duelResult?captainDuelOutcome(finishedMe,result?.racers.find(r=>r.id===CAPTAIN_ID)):null;
   const rankedTrial = !!(session && result?.timeTrial && finishedMe && Number.isFinite(bestTrialLap(finishedMe)));
@@ -1070,6 +1111,13 @@ export default function KartRoyale({
                 <Trophy size={18} aria-hidden="true"/><span><b>ALI DEMI CAPTAIN DUEL</b>
                 <small>1 vs 1 · Selected circuit · No credits or records</small></span><ArrowRight size={17} aria-hidden="true"/>
               </button>}
+              {mode==='ai'&&selectedFormat==='race'&&firstMission&&TRACKS.some(t=>t.id===FIRST_BATTLE_COURSE_ID)&&
+                <button className="kr-secondary kr-captain-launch kr-battle-launch"
+                  disabled={!loaded||!!error||!!room||!!session||busy} onClick={()=>start(false,true)}>
+                  <Flag size={18} aria-hidden="true"/><span><b>BATTLE CAREER · VIJA E PARË</b>
+                  <small>Brryli · Top 3 of 6 · {battleComplete?`Completed · ${battleProgress.xp} XP`:`${firstMission.xpAward} local XP · No entry fee`}</small></span>
+                  <ArrowRight size={17} aria-hidden="true"/>
+                </button>}
               <div className="kr-panel-footer">
                 <span>
                   {selectedFormat === 'championship'
@@ -1095,7 +1143,7 @@ export default function KartRoyale({
       {screen === 'race' && (
         <div className="rr-race-ui">
           <div className="rr-race-top">
-            <div className="rr-place"><b>{hud?.position || 1}</b><span>/{hud?.racers.length || (captainDuel?2:6)}<small>{captainDuel?'CAPTAIN DUEL':hud?.timeTrial?'TIME TRIAL':'POSITION'}</small></span></div>
+            <div className="rr-place"><b>{hud?.position || 1}</b><span>/{hud?.racers.length || (captainDuel?2:6)}<small>{battleEvent?'BATTLE CAREER':captainDuel?'CAPTAIN DUEL':hud?.timeTrial?'TIME TRIAL':'POSITION'}</small></span></div>
             <div className="rr-lap"><span>LAP <b>{hud?.lap || 1}</b> / 3</span><time aria-label="Current lap time">{formatTime(hud?.lapTime || 0)}</time>{!!hud?.bestLap && <small>BEST {formatTime(hud.bestLap)}</small>}</div>
             <button className="kr-icon" aria-label="Pause menu" onClick={()=>setModal('pause')}><Pause size={22}/></button>
           </div>
@@ -1127,7 +1175,7 @@ export default function KartRoyale({
             <div className="kr-finish-place">
               {duelOutcome==='tie'?'TIE':result.timeTrial && !session?'TT':finishedMe?.finished || rankedTrial ? String(place).padStart(2, '0') : 'DNF'}
               <span>
-                {duelOutcome?(duelOutcome==='win'?'VICTORY':duelOutcome==='loss'?'CAPTAIN WINS':duelOutcome==='tie'?'DEAD HEAT':'DUEL UNFINISHED'):result.timeTrial?(session?'FASTEST LAP CHALLENGE':'PERSONAL BEST CHALLENGE'):finishedMe?.finished
+                {battleEvent?(battlePassed?'VIJA E PARË COMPLETE.':battleComplete?'VIJA E PARË REPLAY.':'REACH THE PODIUM.'):duelOutcome?(duelOutcome==='win'?'VICTORY':duelOutcome==='loss'?'CAPTAIN WINS':duelOutcome==='tie'?'DEAD HEAT':'DUEL UNFINISHED'):result.timeTrial?(session?'FASTEST LAP CHALLENGE':'PERSONAL BEST CHALLENGE'):finishedMe?.finished
                   ? place === 1
                     ? 'VICTORY'
                     : 'FINISH POSITION'
@@ -1146,6 +1194,9 @@ export default function KartRoyale({
               {formatTime(finishedMe?.finishTime || result.elapsed)}
             </p>
             {duelResult&&<p className="kr-notice">Solo practice against {CAPTAIN_NAME}. No credits, stakes or career record.</p>}
+            {battleEvent&&<p className="kr-notice" role="status">
+              {battleXp>0?`+${battleXp} Battle XP saved on this device.`:!saved?'Battle XP could not be saved.':battleComplete?'Already completed. Replays do not award extra XP.':'Finish in the top three at Brryli to earn Battle XP.'}
+            </p>}
             <RaceDebrief result={result}/>
             {result.combat&&<div className="rr-action-summary"><b>{result.combat.player.kills} rival karts disabled · {result.combat.player.hits} hits · {result.combat.player.score||0} points</b><p>{result.combat.player.supplies||0} supply pickups collected. Combat races do not award championship credits or TPG.</p></div>}
             <div className="kr-result-table">
@@ -1216,8 +1267,8 @@ export default function KartRoyale({
               </>
             ) : (
               <>
-                <button className="kr-start" onClick={()=>start(!!duelResult)}>
-                  <RotateCcw size={20} /> {duelResult?'REMATCH CAPTAIN':'RACE AGAIN'} <ArrowRight size={20} />
+                <button className="kr-start" onClick={()=>start(!!duelResult,battleEvent)}>
+                  <RotateCcw size={20} /> {battleEvent?'RETRY BATTLE':duelResult?'REMATCH CAPTAIN':'RACE AGAIN'} <ArrowRight size={20} />
                 </button>
                 <button className="kr-secondary kr-full" onClick={garage}>
                   <ArrowLeft size={17} /> BACK TO GARAGE
