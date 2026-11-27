@@ -7,7 +7,6 @@ import {beginCityFrame} from './renderSettings';
 import {attachEnhancements} from '../tirana-expansion/WorldEnhancements';
 import {BusVisuals} from './population/BusVisuals';
 import {CityStores} from './population/CityStores';
-import {mountTabakeveMasonry} from './tabakeveMasonry';
 import {ImportedAssetVisuals} from './ImportedAssetVisuals';
 import {importedFleet,IMPORTED_PLACEMENT_ORIGIN as ORIGIN} from '../blackwater-november/shared/importedPlacements.mjs';
 import {WEAPON_BY_ID} from './shared/weapons.mjs';
@@ -33,7 +32,6 @@ export class CityRenderer extends BaseCityRenderer {
   private imported=new ImportedAssetVisuals();
   protected cityDetails:ReturnType<typeof attachEnhancements>;
   protected ownDetailUpdate=true;
-  private tabakeveMasonry?: ReturnType<typeof mountTabakeveMasonry>;
   readonly nativeLandmarks: NativeLandmarkLayer;
   readonly airMobility: AirMobilityVisuals;
   readonly weaponStore: WeaponStoreInterior;
@@ -58,7 +56,6 @@ export class CityRenderer extends BaseCityRenderer {
       areas:[...WORLD.areas, recreation.skate, ...recreation.pitches]
     });
     this.cityDetails.bindBuildings(this.scene,[this.nativeLandmarks.group,this.referenceFacades.group]);
-    this.tabakeveMasonry=mountTabakeveMasonry(this.cityDetails.tabakeve.bridge);
   }
   override render(state:State|null,playerId:string,dt:number,lobby:boolean) {
     if(this.ownDetailUpdate)beginCityFrame(this.targetFps);
@@ -81,7 +78,6 @@ export class CityRenderer extends BaseCityRenderer {
   }
   override destroy() {
     if(this.disposed)return;
-    this.tabakeveMasonry?.dispose();
     this.cityDetails.dispose();
     this.imported.dispose();
     this.airMobility.dispose();

@@ -37,8 +37,11 @@ import {loadLegacyStoryHistory} from './legacyStoryHistory.mjs';
 import {AccessEquipmentControls} from './AccessEquipmentControls';
 import {FlightControls,FlightInstruments} from './FlightControls';
 import { readReturnPreview, returnWorldStorage, saveReturnPreview, stepReturnPreview } from './storyReturnPreview.mjs';
+import { readMissingFriendPreview, saveMissingFriendPreview, stepMissingFriendPreview } from './storyMissingFriendPreview.mjs';
 import { MISSIONS } from '../shared/engine.mjs';
-const returnStops = (MISSIONS.find(m=>m.id==='first-shift')?.stops ?? []).slice(1,3);
+const previewCourierStops = MISSIONS.find(m=>m.id==='first-shift')?.stops ?? [];
+const returnStops = previewCourierStops.slice(1,3);
+const friendStop = previewCourierStops[0] ?? null;
 import '../city.css';
 import './street-career.css';
 const storage = () => {
@@ -61,6 +64,12 @@ export function StreetCareerGame({ onExit, initialOperation, initialDifficulty='
   const [session, setSession] = useState(0);
   const [story,setStory]=useState(()=>storyPreview?readReturnPreview(storage()):readReturnPreview());
   const [storySaved,setStorySaved]=useState(true);
+  const [friend,setFriend]=useState(()=>storyPreview?readMissingFriendPreview(storage(),story):null);
+  const [friendSaved,setFriendSaved]=useState(true);
+  const storyRouteLocked=storyPreview&&(friend?.stage==='drive'||(!friend&&story.stage==='drive'));
+  useEffect(()=>{
+    if(storyPreview&&friend)setFriendSaved(saveMissingFriendPreview(storage(),friend));
+  },[storyPreview,friend]);
   const [legacyHistory]=useState(()=>loadLegacyStoryHistory(storyPreview?undefined:storage()));
   useEffect(()=>{
     if(storyPreview)setStorySaved(saveReturnPreview(storage(),story));
@@ -68,13 +77,18 @@ export function StreetCareerGame({ onExit, initialOperation, initialDifficulty='
   useEffect(()=>{
     if(!storyPreview||!view?.ready)return;
     const player=view.state.players.local;
+    if(friend?.stage==='drive'){
+      setFriend(previous=>stepMissingFriendPreview(previous,{type:'position',x:player.x,z:player.z,driving:!!player.carId},story,friendStop));
+      return;
+    }
+    if(friend)return;
     setStory(previous=>stepReturnPreview(previous,{type:'position',x:player.x,z:player.z,driving:!!player.carId},returnStops));
-  },[storyPreview,view]);
+  },[storyPreview,view,friend?.stage,story]);
   useEffect(()=>{
     if(!storyPreview||!view?.ready)return;
-    const stop=story.stage==='drive'?returnStops[story.stop]:null;
-    runtime.current?.setDestination(stop?{...stop,name:story.stop===0?'Pika e takimit':'Pika e shënimit'}:null);
-  },[storyPreview,view?.ready,story.stage,story.stop,session]);
+    const stop=friend?friend.stage==='drive'?friendStop:null:story.stage==='drive'?returnStops[story.stop]:null;
+    runtime.current?.setDestination(stop?{...stop,name:friend?'Pika e kujtimeve':story.stop===0?'Pika e takimit':'Pika e shënimit'}:null);
+  },[storyPreview,view?.ready,story.stage,story.stop,friend?.stage,session]);
   const [journalPage, setJournalPage] = useState<'jobs' | 'operations' | 'settings'>('jobs');
   useEffect(() => {
     setError('');
@@ -241,8 +255,8 @@ export function StreetCareerGame({ onExit, initialOperation, initialDifficulty='
             cash={p.cash} pursuit={wantedStars(p.wanted)} />
           <div className="tsc-overview">
             <NavigationGuidance route={view.route} player={p} destination={view.destination}
-              onClear={storyPreview && story.stage==='drive'?undefined:() => runtime.current?.setDestination(null)}/>
-            {storyPreview && <section className="tsc-objective" aria-label="Rikthimi, preview i historisë">
+              onClear={storyRouteLocked?undefined:() => runtime.current?.setDestination(null)}/>
+            {storyPreview && !friend && <section className="tsc-objective" aria-label="Rikthimi, preview i historisë">
               <small>BLOOD, LOYALTY &amp; POWER · 01</small>
               <strong>Rikthimi</strong>
               {story.stage==='call'&&<>
@@ -257,7 +271,22 @@ export function StreetCareerGame({ onExit, initialOperation, initialDifficulty='
                 <button style={{pointerEvents:'auto',minHeight:44}} onClick={()=>setStory(s=>stepReturnPreview(s,{type:'choose',outcome:'call-back'},returnStops))}>Telefono Drenin</button>
                 <button style={{pointerEvents:'auto',minHeight:44}} onClick={()=>setStory(s=>stepReturnPreview(s,{type:'choose',outcome:'read-note'},returnStops))}>Lexo shënimin</button>
               </>}
-              {story.stage==='complete'&&<p style={{fontSize:12,margin:'4px 0',lineHeight:1.3}}>{story.outcome==='call-back'?'Asnjë përgjigje. Turi vendos ta kërkojë Drenin.':'“Mos prit te vendi i parë.” Turi mban shënimin e Drenit.'} {storySaved?'Zgjedhja u ruajt në këtë pajisje.':'Zgjedhja nuk mundi të ruhej.'}</p>}
+              {story.stage==='complete'&&<><p style={{fontSize:12,margin:'4px 0',lineHeight:1.3}}>{story.outcome==='call-back'?'Asnjë përgjigje. Turi vendos ta kërkojë Drenin.':'“Mos prit te vendi i parë.” Turi mban shënimin e Drenit.'} {storySaved?'Zgjedhja u ruajt në këtë pajisje.':'Zgjedhja nuk mundi të ruhej.'}</p>
+                <button disabled={!friendStop} style={{pointerEvents:'auto',minHeight:44}} onClick={()=>setFriend(s=>stepMissingFriendPreview(s,{type:'continue'},story,friendStop))}>Vazhdo: Miku i zhdukur</button>
+              </>}
+            </section>}
+            {storyPreview && friend && <section className="tsc-objective" aria-label="Miku i zhdukur, preview i historisë">
+              <small>BLOOD, LOYALTY &amp; POWER · 02</small>
+              <strong>Miku i zhdukur</strong>
+              <p style={{fontSize:12,margin:'4px 0',lineHeight:1.3}}>
+                {friend.stage==='briefing'?(friend.branch==='call-back'?'Dreni nuk u përgjigj, por la një kujtim në vendin ku takoheshit si fëmijë.':'Në anën tjetër të shënimit, Turi njeh shenjën e vendit ku takoheshin si fëmijë.'):
+                 friend.stage==='drive'?'Hip në makinë dhe ndiq itinerarin deri te pika e kujtimeve.':
+                 friend.stage==='arrival'?'Turi mbërrin te vendi i takimit. Kujtimi i lënë aty mund të tregojë pse Dreni është larguar.':
+                 friend.clue==='recording'?'Turi lexon transkriptin e një regjistrimi të shkurtër: “Mos u shqetëso. Kërko kujtimin tonë të fundit.”':'Turi gjen një kartolinë me datën e takimit të tyre të fundit.'}
+                {friend.stage==='complete'&&(friendSaved?' Prova u ruajt në këtë pajisje.':' Prova nuk mundi të ruhej.')}
+              </p>
+              {friend.stage==='briefing'&&<button style={{pointerEvents:'auto',minHeight:44}} onClick={()=>setFriend(s=>stepMissingFriendPreview(s,{type:'accept'},story,friendStop))}>Ndiq kujtimin</button>}
+              {friend.stage==='arrival'&&<button style={{pointerEvents:'auto',minHeight:44}} onClick={()=>setFriend(s=>stepMissingFriendPreview(s,{type:'inspect'},story,friendStop))}>{friend.branch==='call-back'?'Hap regjistrimin':'Lexo kartolinën'}</button>}
             </section>}
             {view.economy.robbery && <section className="tsc-objective" aria-label="Bank job">
               <strong>{objective.title}</strong><span>{objective.detail}</span>
@@ -426,7 +455,7 @@ export function StreetCareerGame({ onExit, initialOperation, initialDifficulty='
               <>
                 {storyPreview && panel==='journal' ? (
                   <section className="tsc-briefing" aria-label="Rikthimi, preview">
-                    <strong>RIKTHIMI · STORY PREVIEW</strong>
+                    <strong>{friend?'MIKU I ZHDUKUR':'RIKTHIMI'} · STORY PREVIEW</strong>
                     <p>Progresi ruhet veçmas. Punët e Career, dyqanet dhe portofoli nuk janë pjesë e këtij versioni.</p>
                     <button onClick={onExit}>KTHEHU NË LOBBY</button>
                   </section>
@@ -654,7 +683,7 @@ export function StreetCareerGame({ onExit, initialOperation, initialDifficulty='
                     route={view.route}
                     large
                     destination={view.destination}
-                    onDestination={storyPreview && story.stage==='drive'?undefined:place => runtime.current?.setDestination(place)}
+                    onDestination={storyRouteLocked?undefined:place => runtime.current?.setDestination(place)}
                     routeNotice={view.routeNotice}
                     jobs={storyPreview?[]:campaign.chapters.map(m => ({id:m.id,name:m.title,detail:m.description,available:campaign.available(view.profile,m.id),completed:view.profile.completed.includes(m.id),active:view.state.phase!=='finished'&&m.id===view.state.missionId,point:m.stops[0]}))}
                     onStartJob={start}

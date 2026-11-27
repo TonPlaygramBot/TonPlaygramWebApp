@@ -1,3 +1,4 @@
+import {firstBattleEvent,FIRST_BATTLE_COURSE_ID,FIRST_BATTLE_MISSION_ID} from './battleCareerClassic.mjs';
 import {careerSupplies,equipCareerSupply} from './streetCareer.mjs';
 import { RaceItemEffects } from './RaceItemEffects';
 import { KartExhaust } from './KartExhaust';
@@ -109,6 +110,7 @@ export interface Frame {
 }
 export interface Result {
   captainDuel?: boolean;
+  battleCareerMission?: typeof FIRST_BATTLE_MISSION_ID;
   online?:boolean;
   timeTrial?:boolean;
   personalBest?:number;
@@ -227,6 +229,7 @@ export class KartRenderer {
   private authoritativeResults: Racer[] | null = null;
   private timeTrial = false;
   private captainDuel = false;
+  private battleCareerMission?: typeof FIRST_BATTLE_MISSION_ID;
   private ghostRecorder:GhostRecorder|null = null;
   private ghostVisual:T.Group|null = null;
   private ghostMemory=new Map<string,{ghost:GhostLap;saved:boolean}>();
@@ -679,6 +682,7 @@ export class KartRenderer {
   showGarage() {
     this.state = 'garage';
     this.captainDuel = false;
+    this.battleCareerMission = undefined;
     this.resetActionModes();
     this.cityJob=null;this.jobGuide=null;
     this.network = false;
@@ -986,12 +990,14 @@ export class KartRenderer {
       this.visuals.set(r.id, v);
     }
   }
-  startLocal(id: string, difficulty: string, freeRoam=false, timeTrial=false, careerLoadout?: {driver?:string;ammo?:string;shield?:string}, captainDuel=false) {
+  startLocal(id: string, difficulty: string, freeRoam=false, timeTrial=false, careerLoadout?: {driver?:string;ammo?:string;shield?:string}, captainDuel=false, battleCareerMission?: typeof FIRST_BATTLE_MISSION_ID) {
     this.streetDriver = careerLoadout?.driver === "helmet";
     this.streetSupplies = careerLoadout ? careerSupplies(careerLoadout) : null;
     this.resetActionModes();
     this.timeTrial=timeTrial&&!freeRoam;
     this.captainDuel=captainDuel&&!freeRoam&&!this.timeTrial&&!careerLoadout;
+    this.battleCareerMission=!freeRoam&&!this.timeTrial&&!careerLoadout&&!this.captainDuel
+      && firstBattleEvent(battleCareerMission,id) ? battleCareerMission : undefined;
     this.ghostRecorder=null;
     this.cityJob=null;
     this.track = freeRoam?{...makeTrack(id),terrainMode:'regional'}:makeTrack(id);
@@ -1039,6 +1045,9 @@ export class KartRenderer {
     this.state = freeRoam?'racing':'countdown';
     this.clearInput();
     this.snapCamera();
+  }
+  startFirstBattleCareer(difficulty:string){
+    this.startLocal(FIRST_BATTLE_COURSE_ID,difficulty,false,false,undefined,false,FIRST_BATTLE_MISSION_ID);
   }
   startCaptainDuel(id:string,difficulty:string){
     this.startLocal(id,difficulty,false,false,undefined,true);
@@ -1088,6 +1097,7 @@ export class KartRenderer {
       (this.state === 'finished' && next.status === 'countdown');
     if (fresh) this.resetActionModes();
     this.captainDuel = false;
+    this.battleCareerMission = undefined;
     this.timeTrial = next.raceFormat === 'trial';
     this.ghostRecorder = null;
     this.cityJob = null;
@@ -1145,6 +1155,7 @@ export class KartRenderer {
   private finish() {
     this.onFinish({
       online:this.network,
+      ...(this.battleCareerMission&&!this.network?{battleCareerMission:this.battleCareerMission}:{}),
       ...(this.captainDuel&&!this.network?{captainDuel:true}:{}),
       timeTrial:this.timeTrial,personalBest:this.ghostRecorder?.best?.time,
       newBest:this.ghostRecorder?.improved,ghostSaved:this.ghostRecorder?.saved,
@@ -1514,7 +1525,8 @@ export class KartRenderer {
         if (now - this.uiAt > 90) {
           this.uiAt = now;
           this.onFrame({
-            online:this.network,playerId:this.me,timeTrial:this.timeTrial,
+            online:this.network,
+            playerId:this.me,timeTrial:this.timeTrial,
             telemetry:me.telemetry?{...me.telemetry,sectors:[...me.telemetry.sectors]}:undefined,
             powertrain:me.powertrain?{...me.powertrain}:undefined,
             rivals:rivalIntervals(this.racers,this.me,this.track.length),

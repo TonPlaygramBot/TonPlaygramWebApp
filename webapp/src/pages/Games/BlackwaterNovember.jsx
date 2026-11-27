@@ -1,5 +1,6 @@
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { lazy, Suspense } from 'react';
+import { StoryCareerGate } from '../../games/blackwater-november/StoryOpeningVideo';
 import { storyReturnEnabled } from '../../games/tiranastreets-november/street-career/storyReturnPreview.mjs';
 import { unifiedEntry } from '../../games/blackwater-november/unifiedEntry.mjs';
 import { TiranaLoading } from '../../games/blackwater-november/TiranaLoading';
@@ -21,18 +22,19 @@ export default function BlackwaterNovember() {
   const storyPreview = storyReturnEnabled(search);
   const online = new URLSearchParams(search).get('mode') === 'online';
   useEffect(() => {
-    if (!playerReady || online) return;
+    if (!playerReady || online || storyPreview) return;
     const controller = new AbortController();
     void warmSoloCity({signal: controller.signal, connection: navigator.connection});
     return () => controller.abort();
-  }, [playerReady, online]);
+  }, [playerReady, online, storyPreview]);
   if (online) {
     return <main><p role="status">Online matches are unavailable in this restored version.</p>
       <Link to="/games/tiranastreets/lobby">Return to Tirana Streets lobby</Link>
     </main>;
   }
   if (!playerReady) return <PlayerPicker onStart={() => setPlayerReady(true)} onBack={onExit} />;
-  return <GameModeBoundary onBack={onExit}><Suspense fallback={<TiranaLoading onBack={onExit} />}>
+  const game = <GameModeBoundary onBack={onExit}><Suspense fallback={<TiranaLoading onBack={onExit} />}>
     <StreetCareer key={storyPreview?'ch01-return-preview':operation ?? 'city'} onExit={onExit} initialOperation={operation} initialDifficulty={difficulty} storyPreview={storyPreview} />
   </Suspense></GameModeBoundary>;
+  return storyPreview ? <StoryCareerGate onExit={onExit}>{game}</StoryCareerGate> : game;
 }

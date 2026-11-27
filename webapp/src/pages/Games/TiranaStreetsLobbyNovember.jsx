@@ -32,6 +32,7 @@ export default function TiranaStreetsLobby(){
         <span className="tsl-tag">OPEN CITY · DRIVING · COMBAT · EXTRACTION</span>
         <h2>Continue in Tirana</h2>
         <p>Story jobs, district operations and free exploration share your character, vehicles and equipment. Choose your next objective inside the city.</p>
+        <Link className="tsl-launch" to="/games/tiranastreets?storyPreview=ch01-return">RIKTHIMI · HYRJA FILMIKE</Link>
         <Link className="tsl-launch" to="/games/tiranastreets?mode=ai&activity=street-career">PLAY / CONTINUE</Link>
         <div className="tsl-feature-grid"><span><strong>DRIVE</strong>Street races & pursuits</span><span><strong>EXPLORE</strong>Urban neighborhoods & rooftops</span><span><strong>OPERATE</strong>Combat, loot & extraction</span></div>
         <small>Campaign progress saves on this device.</small>
