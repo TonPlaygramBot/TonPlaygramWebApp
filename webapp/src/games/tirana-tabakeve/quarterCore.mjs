@@ -4,9 +4,42 @@ export const QUARTER_BOUNDS=Object.freeze([535,-155,1700,625]);
 export const QUARTER_ROADS=/Petro Nini Luarasi|Ali Demi|Bajram Curri|Zhan d.Ark|Mihal Grameno|Bajram Allaraj|Shyqyri Ishmi|Dalip Zavalani/;
 export const inQuarter=(x,z)=>x>=QUARTER_BOUNDS[0]&&x<=QUARTER_BOUNDS[2]&&z>=QUARTER_BOUNDS[1]&&z<=QUARTER_BOUNDS[3];
 export const BRIDGE=Object.freeze({x:606.035,z:119.75,yaw:Math.atan2(11.54,-19.01),length:22.24,width:2.5,rise:4.1,source:'https://tirana.al/pika-interesi/ura-e-tabakeve-6924'});
-export function bridgeDeckHeight(along){return .13+BRIDGE.rise*Math.pow(Math.max(0,1-Math.abs(along)/(BRIDGE.length/2)),.74);}
-/** Same hump profile as the visible cobbled deck; undefined away from bridge. */
-export function tabakeveBridgeHeight(x,z){const dx=x-BRIDGE.x,dz=z-BRIDGE.z,c=Math.cos(BRIDGE.yaw),s=Math.sin(BRIDGE.yaw),u=dx*c+dz*s,v=-dx*s+dz*c;return Math.abs(u)<=BRIDGE.length/2&&Math.abs(v)<=BRIDGE.width/2?bridgeDeckHeight(u):undefined;}
+export const BRIDGE_DECK_SEGMENTS=64;
+export const BRIDGE_ENTRY=1.35;
+export const BRIDGE_CURB=Object.freeze({inset:.10,width:.17,height:.28,endGap:.65});
+const half=BRIDGE.length/2, segment=BRIDGE.length/BRIDGE_DECK_SEGMENTS;
+const archHeight=along=>.13+BRIDGE.rise*Math.pow(Math.max(0,1-Math.abs(along)/half),.74);
+export function bridgeDeckHeight(along){
+ if(Math.abs(along)>=half) return .08+.05*Math.max(0,1-(Math.abs(along)-half)/BRIDGE_ENTRY);
+ const scaled=(along+half)/segment,index=Math.floor(scaled),left=-half+index*segment;
+ const y=archHeight(left);
+ return y+(archHeight(left+segment)-y)*(scaled-index);
+}
+export const bridgeDeckSections=()=>[-half-BRIDGE_ENTRY,...Array.from({length:BRIDGE_DECK_SEGMENTS+1},(_,i)=>-half+i*segment),half+BRIDGE_ENTRY];
+function tabakeveLocal(x,z){
+ const dx=x-BRIDGE.x,dz=z-BRIDGE.z,c=Math.cos(BRIDGE.yaw),s=Math.sin(BRIDGE.yaw);
+ return [dx*c+dz*s,-dx*s+dz*c];
+}
+/** Same section profile as the continuous visual deck, including approaches. */
+export function tabakeveBridgeHeight(x,z){
+ if(Math.abs(x-BRIDGE.x)>14||Math.abs(z-BRIDGE.z)>14)return;
+ const [u,v]=tabakeveLocal(x,z);
+ return Math.abs(u)<=half+BRIDGE_ENTRY+1e-8&&Math.abs(v)<=BRIDGE.width/2+1e-8?bridgeDeckHeight(u):undefined;
+}
+export function tabakeveCurbBlocks(from,to,height,radius=.34){
+ if(Math.abs(to.x-BRIDGE.x)>14||Math.abs(to.z-BRIDGE.z)>14)return false;
+ const [u,v]=tabakeveLocal(to.x,to.z),rail=BRIDGE.width/2-BRIDGE_CURB.inset;
+ if(Math.abs(u)>half-BRIDGE_CURB.endGap) return false;
+ const base=bridgeDeckHeight(u);
+ if(to.y>=base+BRIDGE_CURB.height-.01||to.y+height<=base-.02)return false;
+ const gap=radius+BRIDGE_CURB.width/2;
+ const [beforeU,beforeV]=tabakeveLocal(from.x,from.z);
+ for(const side of [-1,1]){
+  const after=Math.abs(v-side*rail);
+  if(after<gap&&(Math.abs(beforeU)>half-BRIDGE_CURB.endGap||after<Math.abs(beforeV-side*rail)-1e-7))return true;
+ }
+ return false;
+}
 export function selectQuarterBuildings(world,excluded=new Set(),institutions=[]){
  const roads=world.roads.filter(r=>!r.walk&&QUARTER_ROADS.test(r.name||'')&&[r.a,r.b].some(p=>inQuarter(...p)));
  const identities=new Map(institutions.map(s=>[s.buildingId,s]));

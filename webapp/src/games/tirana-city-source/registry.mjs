@@ -37,7 +37,7 @@ for (const b of landmarkBuildings(WORLD)) {
 }
 // A source-informed storefront still belongs to street life, not the civic layer.
 export const INSTITUTION_BUILDING_IDS = new Set([...CITY_PLACES.sites.map(p=>p.buildingId),
-  ...Object.keys(REFERENCE_BUILDINGS).filter(id=>REFERENCE_BUILDINGS[id].category!=='storefront'),...LANDMARK_REPLACED_IDS]);
+  ...Object.keys(REFERENCE_BUILDINGS).filter(id=>REFERENCE_BUILDINGS[id].category!=='storefront'&&!REFERENCE_BUILDINGS[id].streetLifeCompatible),...LANDMARK_REPLACED_IDS]);
 export const MAPPED_CYCLING = mappedCycling(WORLD,CITY_SOURCE);
 export const MAPPED_TREES = mappedTrees(WORLD,CITY_SOURCE);
 export const BUILDING_SOURCE_TAGS = new Map(CITY_SOURCE.buildings.map(b=>[b.id.slice(4),b.tags]));

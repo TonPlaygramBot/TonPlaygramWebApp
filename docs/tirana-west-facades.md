@@ -1,0 +1,11 @@
+# Western Tirana: public exterior facade references
+
+The shared reference facade layer replaces the generic visual shell only on confirmed source footprints. Both game routes keep the same road meshes, checkpoint layouts, building outlines, and collision data. This pass is not a survey or a replica of every street in these neighborhoods.
+
+| Place | Map anchor | Public reference | Model reading |
+| --- | --- | --- | --- |
+| Pallati me Shigjeta | [OSM way 712391761](https://www.openstreetmap.org/way/712391761) | [October 2013 street photographs](https://photofromtirana.wordpress.com/2013/10/05/kavaja-street/pallati-me-shigjeta-7/), [2016 resident interviews and facade photographs](https://tesheshi.com/lindja-e-pallatit-me-shigjeta-banoret-jemi-dashuruar-me-to-i-duam-serish-kur-te-rilyhet/) | Nine mapped levels, subdued green, small pale directional motifs on visible front elevations, glazed podium and contrasting balcony stack bands. Paint positions are interpreted and current paint condition is not confirmed. |
+| Marinaj Hotel, Astir | [OSM way 1162828946](https://www.openstreetmap.org/way/1162828946) | [2024 BIG SEE Architecture Award gallery](https://bigsee.eu/marinaj-hotel/), [hotel gallery and street address](https://marinajhotel.al/gallery.html) | Warm modular facade, pale metal spine and dark glass, with a visual-only 38.4 m estimate based on floor rhythm. OSM currently provides no height; gameplay collision remains the existing 3.2 m value. No rooftop access is introduced. |
+| Kristal Center, Komuna e Parisit | [OSM way 256326439](https://www.openstreetmap.org/way/256326439) | [ITE 2025 brochure, page 19](https://itegroup.al/wp-content/uploads/2026/04/broshura-ite_-2025.pdf), [Tirana municipal listing](https://tirana.al/pika-interesi/kristal-center), [KONE installer Geco](https://geco.al/portfolio-item/kristal-center/) | Cream balcony ribbons, warm inset bays, and continuous dark/blue glazed podium. Main eight-storey mapped volume only; adjacent annexes remain untouched. |
+
+All visuals are original polygon geometry; photos, business logos, and source drawings are not redistributed. Captures confirm the appearance classes, not exact distances, color values, or dated as-built conditions. Geographic attribution: © OpenStreetMap contributors, ODbL.

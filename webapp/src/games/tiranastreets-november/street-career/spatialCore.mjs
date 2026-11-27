@@ -3,7 +3,7 @@ import { detailPostObstacles } from '../../tirana-street-detail/sharedRoadDetail
 import {shopObstacles} from '../shared/cityPopulation.mjs';
 import {vehicleSize} from '../shared/trafficSimulation.mjs';
 import {accessCollisionSolids} from '../shared/buildingAccess.mjs';
-import {tabakeveBridgeHeight} from '../../tirana-tabakeve/quarterCore.mjs';
+import {tabakeveBridgeHeight,tabakeveCurbBlocks} from '../../tirana-tabakeve/quarterCore.mjs';
 /** Headless 3D queries over the SAME city footprints as the shared simulation.
  * No scene objects or renderer callbacks can affect a hit or clearance result. */
 import {
@@ -161,6 +161,7 @@ export class StreetWorld {
         const floor=Math.max(groundHeight(q.x,q.z)+.08,bridge!==undefined&&bridge<=p.y+Math.max(step,.14)?bridge:-Infinity);
         if(floor>p.y){if(floor-p.y>Math.max(step,.14)){hit=true;continue;}q.y=floor;}
         else if(step>0&&p.y-floor<.3)q.y=floor;
+        if(tabakeveCurbBlocks(p,q,height)){hit=true;continue;}
         if (!this.clearance(q, height)) {
           const top = this.surface(q.x, q.z, p.y + step);
           if (

@@ -1,6 +1,11 @@
 export const QUARTER_BOUNDS:readonly number[];
 export const QUARTER_ROADS:RegExp;
 export const BRIDGE:{x:number;z:number;yaw:number;length:number;width:number;rise:number;source:string};
+export const BRIDGE_DECK_SEGMENTS:number;
+export const BRIDGE_ENTRY:number;
+export const BRIDGE_CURB:Readonly<{inset:number;width:number;height:number;endGap:number}>;
+export function bridgeDeckSections():number[];
+export function tabakeveCurbBlocks(from:{x:number;y:number;z:number},to:{x:number;y:number;z:number},height:number,radius?:number):boolean;
 export function bridgeDeckHeight(along:number):number;
 export function tabakeveBridgeHeight(x:number,z:number):number|undefined;
 export function inQuarter(x:number,z:number):boolean;

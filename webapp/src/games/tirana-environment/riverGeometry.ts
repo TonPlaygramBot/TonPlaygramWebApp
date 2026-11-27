@@ -37,7 +37,7 @@ export function surfaceGeometry(rings: number[][][], y: number, metres = 3) {
   for(let i=0;i<p.count;i++)uv.setXY(i,p.getX(i)/metres,p.getZ(i)/metres);
   return geometry;
 }
-export function bankGeometry(path: WaterPath, inner: number, y0: number, outer: number, y1: number) {
+export function bankGeometry(path: WaterPath, inner: number, y0: number, outer: number, y1: number, waterLevel?: number) {
   const a=offsetRiver(path.line,inner),b=offsetRiver(path.line,outer),positions:number[]=[],uv:number[]=[];
   let distance=0;
   for(let i=1;i<a.length;i++){
@@ -49,6 +49,7 @@ export function bankGeometry(path: WaterPath, inner: number, y0: number, outer: 
     distance+=length;
   }
   const geometry=new T.BufferGeometry();
+  if(waterLevel!==undefined) geometry.setAttribute('linerWaterLevel',new T.Float32BufferAttribute(new Float32Array(positions.length/3).fill(waterLevel),1));
   geometry.setAttribute('position',new T.Float32BufferAttribute(positions,3));
   geometry.setAttribute('uv',new T.Float32BufferAttribute(uv,2));geometry.computeVertexNormals();
   return geometry;

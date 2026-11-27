@@ -5,6 +5,8 @@ import {WORLD} from './shared/world.mjs';
 import {EnvironmentMaterials} from '../tirana-environment/EnvironmentMaterials';
 import {InfrastructureLayer} from '../tirana-environment/InfrastructureLayer';
 import {UrbanLighting} from '../tirana-environment/UrbanLighting';
+import {CHANNEL_LINER_RUN, riverFlowOrigins} from '../tirana-environment/riverShapeCore.mjs';
+import {createRiverWater, flowSurface, styleRiverLiner} from '../tirana-environment/RiverSurface';
 import {PavementAprons} from '../tirana-environment/PavementAprons';
 import {WATER_PATHS, WATER_LEVEL, BED_LEVEL, BANK_LEVEL, BANK_WIDTH, cutChannels, surfaceGeometry, bankGeometry, riverRing} from '../tirana-environment/riverGeometry';
 
@@ -31,26 +33,18 @@ export class LandscapeVisuals {
       .map(p=>surfaceGeometry(p,-.045)),grass,'Terrain with open watercourses');
     const paving=this.materials.create('concrete_pavement',0xd7d2c6);
     this.aprons=new PavementAprons(WORLD,paving);this.group.add(this.aprons.group);
-    this.water=new T.MeshPhysicalMaterial({color:0x536b60,roughness:.2,metalness:.05,clearcoat:.8,clearcoatRoughness:.16,envMapIntensity:1.1});
-    this.water.name='Lana flowing water';
-    this.water.onBeforeCompile=shader=>{
-      shader.uniforms.riverTime=this.time;
-      shader.vertexShader=shader.vertexShader.replace('#include <common>','#include <common>\nvarying vec3 riverPosition;')
-        .replace('#include <begin_vertex>','#include <begin_vertex>\nriverPosition=position;');
-      shader.fragmentShader=shader.fragmentShader.replace('#include <common>','#include <common>\nuniform float riverTime; varying vec3 riverPosition;')
-        .replace('#include <normal_fragment_maps>',`#include <normal_fragment_maps>
-          float a=sin(riverPosition.x*2.7+riverPosition.z*1.3-riverTime*1.7);
-          float b=cos(riverPosition.x*1.1-riverPosition.z*3.8+riverTime*1.2);
-          normal=normalize(normal+vec3(a*.04,b*.04,0.));`);
-    };
+    this.water=createRiverWater(this.time);
+    styleRiverLiner(concrete);
+    const flowOrigins=riverFlowOrigins(WATER_PATHS);
     const surfaces:T.BufferGeometry[]=[],beds:T.BufferGeometry[]=[],slopes:T.BufferGeometry[]=[],banks:T.BufferGeometry[]=[];
     for(const path of WATER_PATHS){
       const level=path.lana?WATER_LEVEL:-1.15, bottom=path.lana?BED_LEVEL:-1.55;
-      surfaces.push(surfaceGeometry([riverRing(path,0)],level));
+      const shoulder=path.lana?-1.6:-.65;
+      surfaces.push(flowSurface(path,level,bottom,shoulder,flowOrigins.get(path.id)??0));
       beds.push(surfaceGeometry([riverRing(path,.2)],bottom));
       for(const side of [-1,1]){
-        slopes.push(bankGeometry(path,side*path.width/2,bottom,side*(path.width/2+2.6),path.lana?-1.6:-.65));
-        banks.push(bankGeometry(path,side*(path.width/2+2.6),path.lana?-1.6:-.65,side*(path.width/2+BANK_WIDTH),BANK_LEVEL));
+        slopes.push(bankGeometry(path,side*path.width/2,bottom,side*(path.width/2+CHANNEL_LINER_RUN),shoulder,level));
+        banks.push(bankGeometry(path,side*(path.width/2+CHANNEL_LINER_RUN),shoulder,side*(path.width/2+BANK_WIDTH),BANK_LEVEL));
       }
     }
     this.addMerged(beds,bed,'River bed');

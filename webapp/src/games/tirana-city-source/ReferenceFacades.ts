@@ -1,3 +1,5 @@
+import {vila31Details} from './Vila31Details';
+import {westernFacadeDetails} from './WesternFacadeDetails';
 import {BlenderMosque} from './BlenderMosque';
 import {ParliamentEntrance} from './ParliamentEntrance';
 import * as T from 'three';
@@ -12,6 +14,7 @@ import {hotelMunicipalEntrances} from './HotelMunicipalEntrances';
 import {NEIGHBOURHOOD_REFERENCE_PROFILES} from './neighbourhoodProfiles.mjs';
 import {neighbourhoodBuildingDetails} from './NeighbourhoodBuildingDetails';
 import {businessBuildingDetails} from './BusinessBuildingDetails';
+import {MARKET_GLAZING,marketExterior,NINE_STOREY_IDS,nineStoreyBays} from './oldTownExterior.mjs';
 import {cityBusinessDetails} from './CityBusinessDetails';
 
 /** Recognizable, photo-informed details fitted to existing footprints. Dimensions
@@ -47,7 +50,24 @@ export class ReferenceFacades {
       const shape=new T.Shape(b.p.map(p=>new T.Vector2(p[0],-p[1])));
       for(const hole of b.holes??[])shape.holes.push(new T.Path(hole.map(p=>new T.Vector2(p[0],-p[1]))));
       const shellHeight=profile.shellHeight??(profile.style==='sky'?height-12:height);
-      add(profile.color,new T.ExtrudeGeometry(shape,{depth:shellHeight,bevelEnabled:false,steps:1}).rotateX(-Math.PI/2));
+      const market=profile.style==='pazari-pavilion'?marketExterior(b.p):null;
+      if(market){
+        const quad=(c:number,p:number[][])=>{
+          const g=new T.BufferGeometry();
+          const order=[0,1,2,0,2,3];
+          g.setAttribute('position',new T.Float32BufferAttribute(order.flatMap(i=>p[i]),3));
+          g.computeVertexNormals();add(c,g);
+        };
+        for(const panel of market.roof)quad(MARKET_GLAZING,panel);
+        for(const [c,tile] of market.floor)quad(c,tile);
+        for(const [c,p,size,yaw] of market.boxes)box(c,...p,...size,yaw);
+        for(const [a,b,w] of market.beams){
+          const from=new T.Vector3(...a),to=new T.Vector3(...b),delta=to.clone().sub(from);
+          const rotation=new T.Quaternion().setFromUnitVectors(new T.Vector3(0,1,0),delta.clone().normalize());
+          add(0x40494b,new T.BoxGeometry(w,delta.length(),w)
+            .applyQuaternion(rotation).translate(...from.lerp(to,.5).toArray()));
+        }
+      }else add(profile.color,new T.ExtrudeGeometry(shape,{depth:shellHeight,bevelEnabled:false,steps:1}).rotateX(-Math.PI/2));
       const edges=facadeEdges(b.p);
       const wall=(e:FacadeEdge,color:number,u:number,y:number,w:number,h:number,d:number,offset=.04)=>{
         // Thin cladding and window fronts need two triangles, not six hidden
@@ -59,7 +79,7 @@ export class ReferenceFacades {
         box(color,e.a[0]+e.ux*u+e.nx*offset,y,e.a[1]+e.uz*u+e.nz*offset,w,h,d,-Math.atan2(e.uz,e.ux));
       };
       const centre={x:b.p.reduce((s,p)=>s+p[0],0)/b.p.length,z:b.p.reduce((s,p)=>s+p[1],0)/b.p.length};
-      const detailed=cityBusinessDetails(profile,edges,height,add,wall)||businessBuildingDetails(profile,edges,height,add,wall)||neighbourhoodBuildingDetails(profile,edges,height,add,wall)||civicBuildingDetails(profile,edges,height,b.p,b.holes??[],add,box,wall)||landmarkDetails(profile,edges,height,add,box,wall,centre);
+      const detailed=vila31Details(profile,edges,height,wall)||westernFacadeDetails(profile,edges,height,add,wall)||cityBusinessDetails(profile,edges,height,add,wall)||businessBuildingDetails(profile,edges,height,add,wall)||neighbourhoodBuildingDetails(profile,edges,height,add,wall)||civicBuildingDetails(profile,edges,height,b.p,b.holes??[],add,box,wall)||landmarkDetails(profile,edges,height,add,box,wall,centre);
       hotelMunicipalEntrances(profile,edges,add,wall);
       if(profile.style==='stadium'&&b.holes?.length){
         const hole=b.holes[0],pitch=new T.Shape(hole.map(p=>new T.Vector2(p[0],-p[1])));
@@ -73,7 +93,28 @@ export class ReferenceFacades {
       }
       if(profile.style==='laguna-kiosk')for(const e of edges)
         wall(e,profile.trim,e.length/2,shellHeight-.085,e.length+.04,.17,.15,.09);
-      for(const e of detailed||profile.style==='laguna-kiosk'?[]:edges){
+      for(const e of detailed||profile.style==='laguna-kiosk'||market?[]:edges){
+        if(profile.style==='nine-storey-dibra'){
+          wall(e,profile.trim,e.length/2,height-.16,e.length,.29,.29);
+          wall(e,0x92816b,e.length/2,.38,e.length,.72,.13);
+          const level=nineStoreyBays(e.length,height,NINE_STOREY_IDS.indexOf(b.id));
+          for(const bay of level){
+            const {u,n,y,width,story,balcony,awning}=bay;
+            const h=n===0?2.3:balcony?1.86:1.52;
+            wall(e,profile.trim,u,y,width+.22,h+.19,.075,.08);
+            wall(e,0x425864,u,y,width,h,.055,.14);
+            wall(e,profile.trim,u,y,.055,h,.055,.177);
+            if(!balcony){wall(e,profile.trim,u,y-h/2-.09,width+.18,.12,.13,.11);continue;}
+            const base=n*story+.40;
+            wall(e,profile.trim,u,base,width+.51,.16,.52,.28);
+            // Slatted balcony appearance is a single slim solid band with
+            // recessed panel faces, not many railing bars per visible bay.
+            wall(e,0x696963,u,base+.52,width+.42,.075,.12,.55);
+            wall(e,0x8b8373,u,base+.26,width+.38,.40,.065,.515);
+            if(awning)wall(e,0xa17d61,u,y+h*.54,width+.20,.14,.44,.26);
+          }
+          continue;
+        }
         // Segment-by-segment cornices preserve rounded and irregular corners.
         wall(e,profile.trim,e.length/2,height-.12,e.length+.02,.24,.32,.06);
         wall(e,profile.trim,e.length/2,height-.48,e.length+.02,.12,.24,.07);
@@ -202,10 +243,14 @@ export class ReferenceFacades {
       }
       for(const [color,geometries] of parts){
         const geometry=mergeGeometries(geometries,false);geometries.forEach(g=>g.dispose());if(!geometry)continue;
-        const glass=[0x28434a,0x345663,0x354349,0x48605f,0x435c68,0x425864].includes(color);
+        const glass=[MARKET_GLAZING,0x28434a,0x345663,0x354349,0x48605f,0x435c68,0x425864].includes(color);
         if(!this.materials.has(color))this.materials.set(color,new T.MeshStandardMaterial({color,roughness:glass?.33:.88,metalness:glass?.22:0}));
         const material=this.materials.get(color)!;
-        if(glass)material.userData.environmentWindow=true;
+        if(color===MARKET_GLAZING){
+          // Separate material from generic facade glazing: double-sided panes
+          // also read from the real market's sheltered ground-level aisle.
+          material.side=T.DoubleSide;material.roughness=.25;material.metalness=.41;
+        }else if(glass)material.userData.environmentWindow=true;
         const mesh=new T.Mesh(geometry,material);mesh.castShadow=true;mesh.receiveShadow=true;group.add(mesh);
       }
       if(profile.style==='parliament'){

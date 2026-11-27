@@ -6,7 +6,7 @@ import {QUARTER} from './quarterData.mjs';
 import {petroNiniFrontages} from './petroNiniFrontages.mjs';
 import {petroTodiBlockFacades,petroTodiBlockParts} from './petroTodiBlocks.mjs';
 import {NEIGHBOURHOOD} from '../tirana-neighbourhood/data.mjs';
-import {BRIDGE,bridgeDeckHeight,quarterFacadeParts} from './quarterCore.mjs';
+import {BRIDGE,BRIDGE_CURB,bridgeDeckHeight,bridgeDeckSections,quarterFacadeParts} from './quarterCore.mjs';
 import {nearbyIndex} from '../tirana-street-life/streetModels.mjs';
 import {ribbonExclusion} from '../tirana-street-detail/roadDetailCore.mjs';
 import type {StreetDetailOptions} from '../tirana-street-detail/StreetDetailLayer';
@@ -110,9 +110,20 @@ export class TabakeveQuarterLayer {
   this.bridge.name='Ura e Tabakëve:authored-stone-pedestrian-bridge';
   this.bridge.position.set(BRIDGE.x,0,BRIDGE.z);this.bridge.rotation.y=-BRIDGE.yaw;
   this.bridge.userData={source:BRIDGE.source,accuracy:'2.5 m walkway and 8 m main arch follow municipal reference; remaining dimensions and stonework authored'};
-  const canvas=document.createElement('canvas');canvas.width=256;canvas.height=256;const ctx=canvas.getContext('2d')!;ctx.fillStyle='#71654d';ctx.fillRect(0,0,256,256);
-  for(let row=0;row<16;row++)for(let col=-1;col<9;col++){
-   const n=(row*37+col*19+400)%9,x=col*32+(row%2)*16,y=row*16;ctx.fillStyle=['#a09475','#817354','#b2a283','#766e5b','#c1b28d'][n%5];ctx.beginPath();ctx.roundRect(x+1,y+1,29,13,3);ctx.fill();
+  const canvas=document.createElement('canvas');canvas.width=512;canvas.height=512;
+  const ctx=canvas.getContext('2d')!;ctx.fillStyle='#686457';ctx.fillRect(0,0,512,512);
+  const palette=['#9c9686','#ada694','#898577','#968b78','#b0aa96','#9e9b8e'];
+  for(let row=-1;row<=16;row++)for(let col=-1;col<=16;col++){
+   // Periodic seed wraps with the UV tile; irregular river stones, not brick courses.
+   const i=((row+16)%16)*16+(col+16)%16,r=(n:number)=>(Math.imul((i*149+n*29)^141,48271)>>>9)%101/100;
+   const x=col*32+(row&1)*15+r(1)*7,y=row*32+r(2)*8,rx=11+r(3)*4,ry=11+r(4)*4;
+   const rim: [number,number][]=[];
+   for(let k=0;k<7;k++){const a=k*2*Math.PI/7,rr=.79+r(k+11)*.25;rim.push([x+Math.cos(a)*rx*rr,y+Math.sin(a)*ry*rr]);}
+   ctx.fillStyle=palette[(i*19+(i>>2))%palette.length];ctx.beginPath();
+   const last=rim.at(-1)!,first=rim[0];ctx.moveTo((last[0]+first[0])/2,(last[1]+first[1])/2);
+   rim.forEach((a,k)=>{const b=rim[(k+1)%rim.length];ctx.quadraticCurveTo(a[0],a[1],(a[0]+b[0])/2,(a[1]+b[1])/2);});
+   ctx.closePath();ctx.fill();
+   if(r(8)>.42){ctx.fillStyle='rgba(240,230,207,0.15)';ctx.fillRect(x-1.4,y-2,3+r(7)*4,1);}
   }
   const texture=new T.CanvasTexture(canvas);texture.wrapS=texture.wrapT=T.RepeatWrapping;texture.colorSpace=T.SRGBColorSpace;this.textures.push(texture);
   const stone=new T.MeshStandardMaterial({map:texture,color:0xcbbaa0,roughness:1}),rim=new T.MeshStandardMaterial({color:0xb9a181,roughness:1});this.materials.push(stone,rim);
@@ -124,12 +135,46 @@ export class TabakeveQuarterLayer {
   }
   const sideGeometry=new T.ShapeGeometry(shape,24);const position=sideGeometry.getAttribute('position'),uv=sideGeometry.getAttribute('uv');for(let i=0;i<uv.count;i++)uv.setXY(i,position.getX(i)/4,position.getY(i)/3);
   const left=new T.Mesh(sideGeometry,stone);left.position.z=BRIDGE.width/2;const right=new T.Mesh(sideGeometry.clone(),stone);right.position.z=-BRIDGE.width/2;right.rotation.y=Math.PI;this.bridge.add(left,right);
-  const deck:T.BufferGeometry[]=[],arch:T.BufferGeometry[]=[];
-  for(let i=0;i<64;i++){
-   const x=-BRIDGE.length/2+(i+.5)*BRIDGE.length/64,y=bridgeDeckHeight(x),step=BRIDGE.length/64;
-   const slope=(bridgeDeckHeight(x+step/2)-bridgeDeckHeight(x-step/2))/step;
-   deck.push(new T.BoxGeometry(step*1.025,.13,BRIDGE.width).rotateZ(Math.atan(slope)).translate(x,y-.015,0));
+  const arch:T.BufferGeometry[]=[];
+  const deckSections=bridgeDeckSections();
+  // One top ribbon; physical support interpolates the exact same section heights.
+  const ribbon=(xs:number[],z0:number,z1:number,height=0,normalUp=true)=>{
+   const xyz:number[]=[],uv:number[]=[],index:number[]=[];
+   for(const x of xs){
+    xyz.push(x,bridgeDeckHeight(x)+height,z0,x,bridgeDeckHeight(x)+height,z1);
+    uv.push(x/2.8,z0/2.8,x/2.8,z1/2.8);
+   }
+   for(let i=0;i+1<xs.length;i++){
+    const l=i*2,r=l+1,n=l+2,m=l+3;
+    if(normalUp)index.push(l,r,n,n,r,m);else index.push(l,n,r,n,m,r);
+   }
+   const g=new T.BufferGeometry();g.setAttribute('position',new T.Float32BufferAttribute(xyz,3));
+   g.setAttribute('uv',new T.Float32BufferAttribute(uv,2));g.setIndex(index);g.computeVertexNormals();return g;
+  };
+  const deck=[ribbon(deckSections,-BRIDGE.width/2,BRIDGE.width/2)];
+  const curbEnd=BRIDGE.length/2-BRIDGE_CURB.endGap;
+  const curbSections=[-curbEnd,...deckSections.filter(x=>Math.abs(x)<curbEnd),curbEnd];
+  const flank=(zs:number)=>{
+   const pts:number[]=[],axes:number[]=[],ix:number[]=[];
+   for(const [i,x] of curbSections.entries()){
+    const y=bridgeDeckHeight(x);
+    pts.push(x,y-.01,zs,x,y+BRIDGE_CURB.height,zs);
+    axes.push(x/2.8,0,x/2.8,BRIDGE_CURB.height/2.8);
+    if(i){const a=(i-1)*2,b=i*2;ix.push(a,b,a+1,a+1,b,b+1);}
+   }
+   const g=new T.BufferGeometry();g.setAttribute('position',new T.Float32BufferAttribute(pts,3));g.setAttribute('uv',new T.Float32BufferAttribute(axes,2));
+   g.setIndex(ix);g.computeVertexNormals();return g;
+  };
+  // Low rock edges flank the real walkway; both ends remain open.
+  const curbMaterial=new T.MeshStandardMaterial({map:texture,color:0xad9f7d,roughness:1,side:T.DoubleSide});
+  this.materials.push(curbMaterial);
+  const curbParts=[];
+  for(const side of [-1,1]){
+   const centre=side*(BRIDGE.width/2-BRIDGE_CURB.inset),a=centre-BRIDGE_CURB.width/2,b=centre+BRIDGE_CURB.width/2;
+   curbParts.push(ribbon(curbSections,a,b,BRIDGE_CURB.height),flank(a),flank(b));
   }
+  const curb=mergeGeometries(curbParts)!;curbParts.forEach(g=>g.dispose());
+  const curbMesh=new T.Mesh(curb,curbMaterial);curbMesh.castShadow=true;curbMesh.receiveShadow=true;this.bridge.add(curbMesh);
   for(const [centre,radius,height] of [[0,4,3.5],[-7.1,1.15,1.5],[7.1,1.15,1.5]])for(let i=0;i<32;i++){
    const a=Math.PI*(i+.5)/32,x=centre+Math.cos(a)*radius,y=.09+Math.sin(a)*height,rotation=Math.atan2(Math.cos(a)*height,-Math.sin(a)*radius);
    const step=Math.hypot(Math.sin(a)*radius,Math.cos(a)*height)*Math.PI/32;

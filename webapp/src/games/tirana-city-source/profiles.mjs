@@ -2,9 +2,26 @@
  * ornament depth are authored interpretations; source footprints are preserved. */
 import { LANDMARK_PROFILES } from './landmarkCatalog.mjs';
 import {NEIGHBOURHOOD_REFERENCE_PROFILES} from './neighbourhoodProfiles.mjs';
+import {MARKET_ID,NINE_STOREY_IDS} from './oldTownExterior.mjs';
+import {VILA_31_PROFILE,VILA_31_WAY} from './vila31Profile.mjs';
 export const REFERENCE_BUILDINGS = Object.freeze({
   ...LANDMARK_PROFILES,
   ...NEIGHBOURHOOD_REFERENCE_PROFILES,
+  ...Object.fromEntries(NINE_STOREY_IDS.map((id,i)=>[id,{
+    name:`Nëntë katëshi nr. ${i+1}`,style:'nine-storey-dibra',category:'residential',streetLifeCompatible:true,site:'nine-storey-dibra',
+    color:[0xd2b997,0xd6c1a3,0xcbb69a,0xd8c7aa][i],trim:0xe2d6bb,floor:3.2,window:1.35,photo:null,
+    date:'Undated street photographs; mapped nine-storey footprints',
+    source:'https://wikimapia.org/11636672/Pallatet-9-kat%C3%ABshe',
+    credit:'Visual reference only; no photographs redistributed',
+    features:'Beige pale plaster, repeated recessed balconies and narrow dark railings with occasional awnings. Authored composition; dates and per-bay details not surveyed.'
+  }])),
+  [MARKET_ID]:{name:'Pazari i Ri · Tregu i fruta-perimeve',style:'pazari-pavilion',category:'market',streetLifeCompatible:true,site:'pazari-pavilion',
+    color:0x40494b,trim:0x657170,floor:4.7,window:0,photo:null,
+    date:'2017 realised project, checked 2026-11-27',
+    source:'https://www.aadf.org/sq/project/tid-tirana/',
+    credit:'AADF/TID Tirana · visual reference only; no photographs redistributed',
+    features:'Open-sided market, angular blue glass roofs on dark steel and warm setts. Authored panel pitch and produce displays inside mapped pavilion outline.'
+  },
   '1111613943': {name:'Laguna · Bulevardi',style:'laguna-kiosk',category:'storefront',site:'laguna-boulevard',color:0x292c2b,trim:0x444a48,
     // The cached 18-m value is a generic building estimate. Keep the physical
     // footprint/collider; only the model becomes the single-level kiosk.
@@ -57,6 +74,7 @@ export const REFERENCE_BUILDINGS = Object.freeze({
     floor:3.2,window:1.45,photo:null,date:'2019-03-12 (article; capture unknown)',
     source:'https://joq-albania.com/artikull/533518.html',
     credit:'Reference only; photograph not redistributed',features:'Gray walls, white quoins and cornices, blue police lettering. Connecting bridge is not surveyed.'},
+  [VILA_31_WAY]: VILA_31_PROFILE,
   '236569963': {name:'Taivani · Regency Casino',style:'taivani',color:0xd8d9cf,trim:0xf1eee3,
     floor:3.2,window:2.1,photo:'taivani-2014.jpg',date:'2014-07-12',
     source:'https://commons.wikimedia.org/wiki/File:Taiwan_center_in_Tirana.JPG',

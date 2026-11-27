@@ -2,7 +2,7 @@ import {CITY_RADIUS, CITY_CACHE, runCityWork} from '../tiranastreets/renderSetti
 import {appendGroundTriangle,drapeGeometry} from '../tirana-east/drapeGeometry';
 import {urbanDistance} from '../tirana-east/terrainCore.mjs';
 import * as T from 'three';
-import {corridorMaterialId} from './streetCorridorMaterial.mjs';
+import {corridorRoadMaterialId} from './streetCorridorMaterial.mjs';
 import {CellWorkQueue} from './cellWorkQueue.mjs';
 import {EnvironmentMaterials} from '../tirana-environment/EnvironmentMaterials';
 import {WORLD} from '../tiranastreets/shared/world.mjs';
@@ -52,13 +52,36 @@ function applyStreetWeathering(material:T.MeshStandardMaterial,amount:number,pav
      if(vCorridorMaterial.x<1.5){palette=vec3(1.72,1.49,1.20);tile=vec2(.94,.65);stagger=.5;}
      else if(vCorridorMaterial.x<2.5){palette=vec3(.70,.93,1.28);tile=vec2(.72,.48);stagger=.0;}
      else if(vCorridorMaterial.x<3.5){palette=vec3(1.33,1.26,1.09);tile=vec2(.48,.28);stagger=.5;}
-     else if(vCorridorMaterial.x<4.5){palette=vec3(.79,.91,1.16);tile=vec2(.64,.34);stagger=.5;}
+     else if(vCorridorMaterial.x<4.5){palette=vec3(1.34,1.30,1.25);tile=vec2(.36,.36);stagger=.0;}
      else if(vCorridorMaterial.x<5.5){palette=vec3(1.32,1.05,.76);tile=vec2(.57,.46);stagger=.0;}
      else if(vCorridorMaterial.x<6.5){palette=vec3(1.59,1.27,1.02);tile=vec2(.76,.44);stagger=.5;}
      else if(vCorridorMaterial.x<7.5){palette=vec3(1.24,1.43,1.62);tile=vec2(1.09,.76);stagger=.0;}
-     else {palette=vec3(1.20,1.09,.99);tile=vec2(.29,.19);stagger=.5;}
+     else if(vCorridorMaterial.x<8.5){palette=vec3(1.20,1.09,.99);tile=vec2(.29,.19);stagger=.5;}
+     else if(vCorridorMaterial.x<9.5){palette=vec3(1.19,1.15,1.10);tile=vec2(.27,.19);stagger=.5;}
+     else if(vCorridorMaterial.x<10.5){palette=vec3(1.28,1.26,1.18);tile=vec2(.43,.23);stagger=.5;}
+     else if(vCorridorMaterial.x<13.5){palette=vec3(1.46,1.41,1.32);tile=vec2(.52,.32);stagger=.0;}
+     else if(vCorridorMaterial.x<14.5){palette=vec3(1.39,1.29,1.14);tile=vec2(.31,.31);stagger=.0;}
+     else {palette=vec3(1.36,1.30,1.23);tile=vec2(.46,.30);stagger=.5;}
      vec2 bond=stoneBond(metres,metresAA,tile,stagger);
-     return palette*(1.0-.34*bond.x+.30*bond.y);`:`
+     // Durrësit's light/dark paver pattern is visible at a glance; fade it
+     // before a single block falls below pixel size to avoid shimmer in Racing.
+     float alternating=0.0;
+     if(vCorridorMaterial.x>3.5&&vCorridorMaterial.x<4.5){
+      vec2 block=floor(metres/(tile*2.0));
+      alternating=(mod(block.x+block.y,2.0)-.5)*.30*
+       (1.0-smoothstep(.14,.46,max(metresAA.x,metresAA.y)/tile.x));
+     }
+     // Original concentric paver motif inspired by the photographed retail
+     // sidewalk. Never project it onto asphalt, buildings or grass.
+     float medallion=0.0;
+     if(vCorridorMaterial.x>13.5&&vCorridorMaterial.x<14.5){
+      float radius=length(fract(metres*.59)-.5);
+      float aa=clamp(max(metresAA.x,metresAA.y)*.59,.005,.4);
+      float outer=1.0-smoothstep(.034,.034+aa,abs(radius-.31));
+      float inner=1.0-smoothstep(.020,.020+aa,abs(radius-.225));
+      medallion=(outer*.21+inner*.14)*(1.0-smoothstep(.08,.23,aa));
+     }
+     return palette*(1.0-.34*bond.x+.30*bond.y+alternating-medallion);`:`
      // Signed across-road coordinate is interpolated from the source ring.
      // Soft darker shoulders are surface weathering, not paint or lanes.
      if(vCorridorMaterial.x<.5)return vec3(1.0);
@@ -71,7 +94,14 @@ function applyStreetWeathering(material:T.MeshStandardMaterial,amount:number,pav
      else if(vCorridorMaterial.x<5.5)tone=vec3(1.065,1.024,.985);
      else if(vCorridorMaterial.x<6.5)tone=vec3(1.02,1.016,1.004);
      else if(vCorridorMaterial.x<7.5)tone=vec3(.965,.997,1.04);
-     else tone=vec3(.975,.962,.941);
+     else if(vCorridorMaterial.x<8.5)tone=vec3(.975,.962,.941);
+     else if(vCorridorMaterial.x<9.5)tone=vec3(.935,.948,.967);
+     else if(vCorridorMaterial.x<10.5)tone=vec3(.985,1.002,1.022);
+     else if(vCorridorMaterial.x<11.5)tone=vec3(1.024,1.019,1.009);
+     else if(vCorridorMaterial.x<12.5)tone=vec3(1.40,1.34,1.23);
+     else if(vCorridorMaterial.x<13.5)tone=vec3(1.07,1.059,1.040);
+     else if(vCorridorMaterial.x<14.5)tone=vec3(.91,.94,.95);
+     else tone=vec3(.969,.975,.98);
      return tone*(1.0-.18*shoulder);`}
     }
     // Three staggered triangular waves. No extra texture taps or trig.
@@ -86,7 +116,7 @@ function applyStreetWeathering(material:T.MeshStandardMaterial,amount:number,pav
     float weathering=urbanMottle(vUrbanSurface);
     diffuseColor.rgb*=(1.0+urbanWear*(weathering-.60))*urbanCorridorTone(vUrbanSurface);`);
  };
- material.customProgramCacheKey=()=> `tirana-shared-street-weathering-v4-${pavement?'pavement':'asphalt'}`;
+ material.customProgramCacheKey=()=> `tirana-shared-street-weathering-v6-${pavement?'pavement':'asphalt'}`;
 }
 
 /** One surface owner for the complete city. Cheap asphalt reaches the horizon;
@@ -164,7 +194,7 @@ export class UrbanRoadCells {
    for(let start=0;start<d.roads.length;start+=256){
     const drive:number[]=[],walk:number[]=[],driveStyles:number[]=[],walkStyles:number[]=[];
     for(let index=start;index<Math.min(start+256,d.roads.length);index++){
-     const r=d.roads[index],ring=roadRing(r),style=corridorMaterialId(r.name);
+     const r=d.roads[index],ring=roadRing(r),style=corridorRoadMaterialId(r);
      if(ring){const positions=r.walk?walk:drive,y=r.bridge?.16:r.walk?.071:.09;
       let lateral:{x:number;z:number;bias:number}|undefined;
       if(style&&!r.walk&&!r.bridge){
@@ -214,7 +244,7 @@ export class UrbanRoadCells {
      for(const polygon of this.clip(ring,cell))for(const dry of cutChannels(polygon[0],polygon.slice(1)))
       for(const cleared of cutRoads(dry)){
        const geometry=drapeGeometry(surfaceGeometry(cleared,.075,PAVEMENT_REPEAT_METRES),PAVEMENT_REPEAT_METRES);
-       const styles=new Uint8Array(geometry.getAttribute('position').count*2),style=corridorMaterialId(r.name);
+       const styles=new Uint8Array(geometry.getAttribute('position').count*2),style=corridorRoadMaterialId(r,true);
        for(let v=0;v<styles.length;v+=2){styles[v]=style;styles[v+1]=127;}
        geometry.setAttribute('corridorMaterial',new T.BufferAttribute(styles,2));parts.push(geometry);
       }
