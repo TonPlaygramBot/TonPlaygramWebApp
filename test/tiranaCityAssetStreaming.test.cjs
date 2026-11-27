@@ -12,7 +12,7 @@ const settle=()=>new Promise(resolve=>setImmediate(resolve));
 test('portrait canopy spends original glTF slots on visible trees and refreshes when turning in place',async()=>{
  const policy=await import('../webapp/src/games/tirana-street-life/treeLodPolicy.mjs');
  const {MatureTreeLayer}=load('../tirana-street-life/MatureTreeLayer.ts',{
-  three:T,'./treeLodPolicy.mjs':policy,'./ImportedTreeLayer':{},'./loadCompactTree':{},'./DistantBroadleafLayer':{distanceTreeMinDistance:(_s,b)=>b?50:65},'../tiranastreets/shared/urbanBounds.mjs':{},'../tirana-east/terrainCore.mjs':{},
+  three:T,'./treeLodPolicy.mjs':policy,'./ImportedTreeLayer':{},'./loadCompactTree':{},'./DistantBroadleafLayer':{distanceTreeMinDistance:(_s,b)=>b?50:65,updateActiveTreeInstances:()=>{}},'../tiranastreets/shared/urbanBounds.mjs':{},'../tirana-east/terrainCore.mjs':{},
   'three/examples/jsm/utils/BufferGeometryUtils.js':{},'./canopyRegistry.mjs':{},'./streetModels.mjs':{},'../tirana-street-detail/roadDetailCore.mjs':{}
  });
  const tree=(id,z,shape='garden')=>({id,x:0,y:.12,z,shape,height:10,crown:8,seed:1,zone:'test'});
@@ -35,7 +35,7 @@ test('portrait canopy spends original glTF slots on visible trees and refreshes 
 test('solo canopy culls only distant offscreen fallbacks and refreshes after a quick portrait pan',async()=>{
  const policy=await import('../webapp/src/games/tirana-street-life/treeLodPolicy.mjs');
  const {MatureTreeLayer}=load('../tirana-street-life/MatureTreeLayer.ts',{
-  three:T,'./treeLodPolicy.mjs':policy,'./ImportedTreeLayer':{},'./loadCompactTree':{},'./DistantBroadleafLayer':{distanceTreeMinDistance:(_s,b)=>b?50:65},'../tiranastreets/shared/urbanBounds.mjs':{},'../tirana-east/terrainCore.mjs':{},
+  three:T,'./treeLodPolicy.mjs':policy,'./ImportedTreeLayer':{},'./loadCompactTree':{},'./DistantBroadleafLayer':{distanceTreeMinDistance:(_s,b)=>b?50:65,updateActiveTreeInstances:()=>{}},'../tiranastreets/shared/urbanBounds.mjs':{},'../tirana-east/terrainCore.mjs':{},
   'three/examples/jsm/utils/BufferGeometryUtils.js':{},'./canopyRegistry.mjs':{},'./streetModels.mjs':{},'../tirana-street-detail/roadDetailCore.mjs':{}
  });
  const tree=(id,x,z)=>({id,x,z,y:.12,shape:'umbrella',height:10,crown:8,seed:1,zone:'test'});

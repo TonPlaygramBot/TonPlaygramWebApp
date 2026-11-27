@@ -38,7 +38,8 @@ export {
   DajtiLayer
 } from './BaseWorldEnhancements';
 /** One shared street-detail integration, using the unchanged city metre frame. */
-type EnhancementOptions = TreeLayerOptions & { supplementalTrees?: readonly CanopyTree[]; photoFacades?: boolean; soloSignals?:SoloSignalPresentation; mapTree?:(tree:CanopyTree)=>CanopyTree };
+type MatureTreeFoliageOptions = Pick<TreeLayerOptions, 'cullFarTrees' | 'bridgeCloseTreeDetail' | 'compactTreeTransfer' | 'sourceDistantBroadleaf'>;
+type EnhancementOptions = TreeLayerOptions & { matureTreeFoliage?: MatureTreeFoliageOptions; supplementalTrees?: readonly CanopyTree[]; photoFacades?: boolean; soloSignals?:SoloSignalPresentation; mapTree?:(tree:CanopyTree)=>CanopyTree };
 
 export class WorldEnhancements extends ExistingEnhancements {
   private readonly cullFarTrees:boolean;
@@ -85,7 +86,7 @@ export class WorldEnhancements extends ExistingEnhancements {
     this.neighbourhood=new NeighbourhoodLayer(options);
     this.streetLife=new StreetLifeLayer(undefined,options);
     const matureTrees=options.supplementalTrees?.length ? [...CANOPY_TREES, ...options.supplementalTrees] : CANOPY_TREES;
-    this.matureTrees=new MatureTreeLayer(options.mapTree?matureTrees.map(options.mapTree):matureTrees,options);
+    this.matureTrees=new MatureTreeLayer(options.mapTree?matureTrees.map(options.mapTree):matureTrees,options.matureTreeFoliage?{...options,...options.matureTreeFoliage}:options);
     // Photo-informed full façades now replace these three generic bay kits.
     this.civic.retire();
     this.civic.group.visible = false;

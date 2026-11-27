@@ -12,7 +12,7 @@ export class TiranaScenery {
   private viewer = new T.Vector3();
   private guide: T.Group;
   constructor(private track: Track,private freeRoam=false) {
-    this.shared = new TiranaCityScene(true, freeRoam?undefined:track);
+    this.shared = new TiranaCityScene(true, freeRoam?undefined:track, true);
     this.group = this.shared.group;
     this.guide = freeRoam?new T.Group():new TurnGuideLayer(track).group;
     this.group.add(this.guide);

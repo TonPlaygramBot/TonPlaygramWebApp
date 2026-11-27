@@ -11,9 +11,39 @@ import {cutRoads,prepareRoadSurfaceIndex} from '../tirana-environment/roadSurfac
 import {mergeGeometries} from 'three/examples/jsm/utils/BufferGeometryUtils.js';
 type Cell={key:string;x:number;z:number;roads:Road[];bounds:number[];root?:T.Group;paving?:T.Mesh;used?:number};
 type District={key:string;roads:Road[];bounds:number[];root?:T.Group;used:number};
+const ASPHALT_REPEAT_METRES=5, PAVEMENT_REPEAT_METRES=3;
 const SURFACE_RADIUS=2200, RETAIN_RADIUS=2700, DISTRICT_CACHE=64;
 const SURFACE_FLOATS=3072*3, TRIANGLE_CHUNK_FLOATS=64*9;
 const distanceToBounds=(viewer:{x:number;z:number},b:number[])=>Math.hypot(Math.max(b[0]-viewer.x,0,viewer.x-b[2]),Math.max(b[1]-viewer.z,0,viewer.z-b[3]));
+
+/** Break up repeated micro textures at street/block scale. Coordinates come
+ * from the existing surface geometry (metres), not UVs or camera position, so
+ * adjacent cells and district reloads produce exactly the same surface tone.
+ * No added texture, draw call, geometry or CPU-side render updates. */
+function applyStreetWeathering(material:T.MeshStandardMaterial,amount:number){
+ material.onBeforeCompile=shader=>{
+  shader.uniforms.urbanWear={value:amount};
+  shader.vertexShader=shader.vertexShader
+   .replace('#include <common>','#include <common>\nvarying vec2 vUrbanSurface;')
+   .replace('#include <begin_vertex>','#include <begin_vertex>\nvUrbanSurface=position.xz;');
+  shader.fragmentShader=shader.fragmentShader
+   .replace('#include <common>',`#include <common>
+    varying vec2 vUrbanSurface;
+    uniform float urbanWear;
+    // Three staggered triangular waves. No extra texture taps or trig.
+    float urbanMottle(vec2 p) {
+     vec3 v=abs(fract(vec3(dot(p,vec2(.034,.011)),
+                          dot(p,vec2(-.014,.083)),
+                          dot(p,vec2(.132,-.061)))+vec3(.31,.47,.73))*2.0-1.0);
+     v=v*v*(3.0-2.0*v);
+     return dot(v,vec3(.54,.30,.16));
+    }`)
+   .replace('#include <color_fragment>',`#include <color_fragment>
+    float weathering=urbanMottle(vUrbanSurface);
+    diffuseColor.rgb*=1.0+urbanWear*(weathering-.60);`);
+ };
+ material.customProgramCacheKey=()=> 'tirana-shared-street-weathering-v1';
+}
 
 /** One surface owner for the complete city. Cheap asphalt reaches the horizon;
  * clipped pavements stream nearby within a CPU time budget. */
@@ -32,6 +62,7 @@ export class UrbanRoadCells {
  private textures=new Set<T.Texture>();
  constructor(loadTextures=true){
   this.materials=new EnvironmentMaterials(loadTextures);this.materials.apply(this.pavement,'concrete_pavement');this.asphalt.userData.environmentSurface=true;
+  applyStreetWeathering(this.asphalt,.31);applyStreetWeathering(this.pavement,.22);
   this.cells=splitRoadCells(WORLD.roads);this.group.name='Tirana:streamed-road-cells';
   // Index source records only. Tessellating every road in the region here used
   // hundreds of MB before the loading UI could paint on a phone.
@@ -56,7 +87,8 @@ export class UrbanRoadCells {
  }
  private surfaceMesh(positions:number[],walk:boolean){
   const g=new T.BufferGeometry(),uv=new Float32Array(positions.length/3*2);
-  for(let i=0;i<positions.length/3;i++){uv[i*2]=positions[i*3]/5;uv[i*2+1]=positions[i*3+2]/5;}
+  const metres=walk?PAVEMENT_REPEAT_METRES:ASPHALT_REPEAT_METRES;
+  for(let i=0;i<positions.length/3;i++){uv[i*2]=positions[i*3]/metres;uv[i*2+1]=positions[i*3+2]/metres;}
   g.setAttribute('position',new T.Float32BufferAttribute(positions,3));g.setAttribute('uv',new T.BufferAttribute(uv,2));g.computeVertexNormals();g.computeBoundingSphere();
   const mesh=new T.Mesh(g,walk?this.pavement:this.asphalt);mesh.receiveShadow=true;return mesh;
  }
@@ -126,7 +158,7 @@ export class UrbanRoadCells {
     // InfrastructureLayer owns elevated bridge sidewalks and pedestrian decks.
     if(!r.bridge){const ring=roadRing(r,r.w+(r.walk?0:3.8));if(ring)
      for(const polygon of this.clip(ring,cell))for(const dry of cutChannels(polygon[0],polygon.slice(1)))
-      for(const cleared of cutRoads(dry))parts.push(drapeGeometry(surfaceGeometry(cleared,.075)));
+      for(const cleared of cutRoads(dry))parts.push(drapeGeometry(surfaceGeometry(cleared,.075,PAVEMENT_REPEAT_METRES),PAVEMENT_REPEAT_METRES));
     }
     yield;
    }

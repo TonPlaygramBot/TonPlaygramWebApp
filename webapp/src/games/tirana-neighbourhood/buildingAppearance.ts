@@ -1,3 +1,4 @@
+import {canStyleBuilding,districtFinish} from './districtBuildingPalette.mjs';
 import {housingProfile} from '../tirana-east/housingCore.mjs';
 import * as T from 'three';
 /** Use explicit source finishes before the neutral, estimated game palette. */
@@ -9,7 +10,10 @@ export function sourceBuildingColour(b:any){
  if(finishes[material])return new T.Color(finishes[material]);
  const housing=housingProfile(b);if(housing)return new T.Color(housing.colour);
  const seed=Array.from(String(b.id)).reduce((n,c)=>n+c.charCodeAt(0),0);
- return new T.Color([0xcbbfa8,0xcebea9,0xc3c4b9,0xd0bfa7,0xc2b7a8][seed%5]);
+ const base=new T.Color([0xcbbfa8,0xcebea9,0xc3c4b9,0xd0bfa7,0xc2b7a8][seed%5]);
+ if(!canStyleBuilding(b))return base;
+ const finish=districtFinish(b.p,b.id);
+ return finish.strength ? base.lerp(new T.Color(finish.color),finish.strength*.84) : base;
 }
 export function firstWindowHeight(b:any){
  const t=b.tags||{};

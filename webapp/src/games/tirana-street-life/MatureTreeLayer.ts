@@ -1,6 +1,6 @@
 import {useMediumTree,importedTreeBudget} from './treeLodPolicy.mjs';
 import {loadCompactTree} from './loadCompactTree';
-import {distanceTreeMinDistance,distanceTreeProfiles,type DistantBroadleafLayer} from './DistantBroadleafLayer';
+import {distanceTreeMinDistance,distanceTreeProfiles,updateActiveTreeInstances,type DistantBroadleafLayer} from './DistantBroadleafLayer';
 import {ImportedTreeLayer} from './ImportedTreeLayer';
 import {pointInUrbanBounds} from '../tiranastreets/shared/urbanBounds.mjs';
 import {groundHeight} from '../tirana-east/terrainCore.mjs';
@@ -155,7 +155,9 @@ export class MatureTreeLayer {
    this.group.userData.bridgedCloseTrunks=bridged;
   this.group.userData.importedRadius=battery?75:125;
   this.group.userData.visibleTrunks=trees.length-culled;this.group.userData.frustumCulledTrunks=culled;this.group.userData.radius=2200;
-  this.batches.forEach(b=>{b.wood.instanceMatrix.needsUpdate=true;b.leaves.instanceMatrix.needsUpdate=true;if(b.leaves.instanceColor)b.leaves.instanceColor.needsUpdate=true;});
+  for(const {wood,leaves} of this.batches){
+   updateActiveTreeInstances(wood);updateActiveTreeInstances(leaves);
+  }
  }
  retire(){this.dead=true;}
  dispose(){if(this.disposed)return;this.disposed=true;this.dead=true;this.distanceLayers?.forEach(layer=>layer.dispose());this.imported.dispose();this.mediumImported.dispose();this.mediumIds.clear();this.group.removeFromParent();this.batches.forEach(b=>{b.wood.dispose();b.leaves.dispose();b.wood.geometry.dispose();b.leaves.geometry.dispose();});this.materials.forEach(m=>m.dispose());this.texture.dispose();this.group.clear();}
