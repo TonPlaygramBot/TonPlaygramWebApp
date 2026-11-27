@@ -134,7 +134,8 @@ export class StreetCareerRuntime {
     root: HTMLDivElement,
     private publish: (view: StreetView) => void,
     private storage?: StoragePort,
-    private openPanel: (panel: 'journal' | 'arsenal' | 'economy') => void = () => {}
+    private openPanel: (panel: 'journal' | 'arsenal' | 'economy') => void = () => {},
+    private storyPreview = false
   ) {
     this.radio = new VehicleRadio(storage);
     this.profile = campaign.load(storage);
@@ -165,7 +166,7 @@ export class StreetCareerRuntime {
     this.profile.loadout.inventory={...this.state.players.local.inventory};
     this.profile.loadout.weapon=this.state.players.local.weapon;
     this.simulation.body.combat = 'ready';
-    if (this.profile.active)
+    if (this.profile.active && !this.storyPreview)
       this.newRun(this.profile.active.id, this.profile.active.difficulty, true);
     else {
       this.simulation.economy.restore(this.profile.economy);
@@ -186,7 +187,7 @@ export class StreetCareerRuntime {
     this.raf = requestAnimationFrame(this.loop);
   }
   async load(progress: (message: string) => void) {
-    void loadWeaponStoreAccount().then(a=>{
+    if (!this.storyPreview) void loadWeaponStoreAccount().then(a=>{
       const chosen=selectedStartingLoadout();
       // The account API includes the legacy free AK for everyone. Do not turn
       // a new three-gun kit into four; an AK already carried in a save survives.
@@ -284,6 +285,7 @@ export class StreetCareerRuntime {
     return true;
   }
   start(id: string, difficulty = 'normal') {
+    if (this.storyPreview) return false;
     if (!this.ready || this.disposed) return false;
     this.snapshot();
     const next = campaign.begin(this.profile, id, difficulty);
@@ -295,6 +297,7 @@ export class StreetCareerRuntime {
     return true;
   }
   retry() {
+    if (this.storyPreview) return false;
     const active = this.profile.active;
     if (!active || !this.ready) return false;
     this.profile.economy = this.simulation.economy.snapshot();
@@ -381,6 +384,7 @@ export class StreetCareerRuntime {
     this.emit();
   }
   economyAction(action: EconomyAction, id: string, amount?: number, weapon?: string) {
+    if (this.storyPreview) return false;
     if (this.disposed || !this.ready) return false;
     const success = this.simulation.economy.transact(action,id,amount,weapon);
     this.persist();
@@ -388,6 +392,7 @@ export class StreetCareerRuntime {
     return success;
   }
   openWallet() {
+    if (this.storyPreview) return;
     this.pause();
     window.location.assign('/wallet');
   }
@@ -406,6 +411,7 @@ export class StreetCareerRuntime {
     }
   }
   action(action: string, targetId?: string | null) {
+    if (this.storyPreview && /^(buy:|equip:)/.test(action)) return false;
     if (this.disposed || !this.ready) return false;
     if (
       /^(buy:|equip:)/.test(action) ||

@@ -1,5 +1,6 @@
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { lazy, Suspense } from 'react';
+import { storyReturnEnabled } from '../../games/tiranastreets-november/street-career/storyReturnPreview.mjs';
 import { unifiedEntry } from '../../games/blackwater-november/unifiedEntry.mjs';
 import { TiranaLoading } from '../../games/blackwater-november/TiranaLoading';
 import { GameModeBoundary } from '../../games/shared/GameModeBoundary';
@@ -17,6 +18,7 @@ export default function BlackwaterNovember() {
   const [playerReady, setPlayerReady] = useState(() => !!selectedPlayerAsset());
   const onExit = () => navigate('/games/tiranastreets/lobby');
   const { operation, difficulty } = unifiedEntry(search);
+  const storyPreview = storyReturnEnabled(search);
   const online = new URLSearchParams(search).get('mode') === 'online';
   useEffect(() => {
     if (!playerReady || online) return;
@@ -31,6 +33,6 @@ export default function BlackwaterNovember() {
   }
   if (!playerReady) return <PlayerPicker onStart={() => setPlayerReady(true)} onBack={onExit} />;
   return <GameModeBoundary onBack={onExit}><Suspense fallback={<TiranaLoading onBack={onExit} />}>
-    <StreetCareer key={operation ?? 'city'} onExit={onExit} initialOperation={operation} initialDifficulty={difficulty} />
+    <StreetCareer key={storyPreview?'ch01-return-preview':operation ?? 'city'} onExit={onExit} initialOperation={operation} initialDifficulty={difficulty} storyPreview={storyPreview} />
   </Suspense></GameModeBoundary>;
 }

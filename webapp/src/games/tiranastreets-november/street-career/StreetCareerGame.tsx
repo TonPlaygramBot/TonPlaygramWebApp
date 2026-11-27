@@ -36,6 +36,9 @@ import {LegacyStoryHistory} from './LegacyStoryHistory';
 import {loadLegacyStoryHistory} from './legacyStoryHistory.mjs';
 import {AccessEquipmentControls} from './AccessEquipmentControls';
 import {FlightControls,FlightInstruments} from './FlightControls';
+import { readReturnPreview, returnWorldStorage, saveReturnPreview, stepReturnPreview } from './storyReturnPreview.mjs';
+import { MISSIONS } from '../shared/engine.mjs';
+const returnStops = (MISSIONS.find(m=>m.id==='first-shift')?.stops ?? []).slice(1,3);
 import '../city.css';
 import './street-career.css';
 const storage = () => {
@@ -46,7 +49,7 @@ const storage = () => {
   }
 };
 type Panel = 'journal' | 'arsenal' | 'map' | 'economy' | null;
-export function StreetCareerGame({ onExit, initialOperation, initialDifficulty='normal' }: { onExit: () => void; initialOperation?:string; initialDifficulty?:string }) {
+export function StreetCareerGame({ onExit, initialOperation, initialDifficulty='normal', storyPreview=false }: { onExit: () => void; initialOperation?:string; initialDifficulty?:string; storyPreview?:boolean }) {
   const root = useRef<HTMLDivElement>(null),
     runtime = useRef<StreetCareerRuntime>(),
     modal = useRef<HTMLDialogElement>(null);
@@ -55,8 +58,23 @@ export function StreetCareerGame({ onExit, initialOperation, initialDifficulty='
     [error, setError] = useState(''),
     [loading, setLoading] = useState('Loading Tirana'),
     [difficulty, setDifficulty] = useState(initialDifficulty);
-  const [legacyHistory]=useState(()=>loadLegacyStoryHistory(storage()));
   const [session, setSession] = useState(0);
+  const [story,setStory]=useState(()=>storyPreview?readReturnPreview(storage()):readReturnPreview());
+  const [storySaved,setStorySaved]=useState(true);
+  const [legacyHistory]=useState(()=>loadLegacyStoryHistory(storyPreview?undefined:storage()));
+  useEffect(()=>{
+    if(storyPreview)setStorySaved(saveReturnPreview(storage(),story));
+  },[storyPreview,story]);
+  useEffect(()=>{
+    if(!storyPreview||!view?.ready)return;
+    const player=view.state.players.local;
+    setStory(previous=>stepReturnPreview(previous,{type:'position',x:player.x,z:player.z,driving:!!player.carId},returnStops));
+  },[storyPreview,view]);
+  useEffect(()=>{
+    if(!storyPreview||!view?.ready)return;
+    const stop=story.stage==='drive'?returnStops[story.stop]:null;
+    runtime.current?.setDestination(stop?{...stop,name:story.stop===0?'Pika e takimit':'Pika e shënimit'}:null);
+  },[storyPreview,view?.ready,story.stage,story.stop,session]);
   const [journalPage, setJournalPage] = useState<'jobs' | 'operations' | 'settings'>('jobs');
   useEffect(() => {
     setError('');
@@ -72,10 +90,11 @@ export function StreetCareerGame({ onExit, initialOperation, initialDifficulty='
           (v) => {
             if (!cancelled) setView({ ...v });
           },
-          storage(),
+          storyPreview?returnWorldStorage(storage()):storage(),
           (p) => {
-            if (!cancelled) setPanel(p);
-          }
+            if (!cancelled) setPanel(storyPreview?'journal':p);
+          },
+          storyPreview
         );
         runtime.current = g;
         void g
@@ -85,7 +104,7 @@ export function StreetCareerGame({ onExit, initialOperation, initialDifficulty='
           .then(() => {
             if (!cancelled) {
               if (document.hidden) setPanel('journal');
-              else { if(initialOperation && !g?.profile.active)g?.start(initialOperation,initialDifficulty);g?.resume();setPanel(null); }
+              else { if(!storyPreview && initialOperation && !g?.profile.active)g?.start(initialOperation,initialDifficulty);g?.resume();setPanel(null); }
             }
           })
           .catch((e) => {
@@ -100,7 +119,7 @@ export function StreetCareerGame({ onExit, initialOperation, initialDifficulty='
       g?.dispose();
       runtime.current = undefined;
     };
-  }, [session,initialOperation,initialDifficulty]);
+  }, [session,initialOperation,initialDifficulty,storyPreview]);
   useEffect(() => {
     const d = modal.current;
     if (panel && d && !d.open) d.showModal();
@@ -123,6 +142,7 @@ export function StreetCareerGame({ onExit, initialOperation, initialDifficulty='
     g.resume();
   };
   const start = (id: string) => {
+    if (storyPreview) return;
     if (runtime.current?.start(id, difficulty)) setPanel(null);
   };
   const pointer = (kind: string) => ({
@@ -203,7 +223,7 @@ export function StreetCareerGame({ onExit, initialOperation, initialDifficulty='
         onContextMenu={(e) => e.preventDefault()}
       />
       <header className="tsc-header">
-        <strong>TIRANA STREETS<small>{mission?.operation?'CITY OPERATION':'CITY CAMPAIGN'}</small></strong>
+        <strong>TIRANA STREETS<small>{storyPreview?'STORY PREVIEW':mission?.operation?'CITY OPERATION':'CITY CAMPAIGN'}</small></strong>
         <button className="tsc-map-button" aria-label="Open city map" onClick={() => open('map')}><MapIcon size={16} aria-hidden="true"/><span>MAP</span></button>
         <button className="tsc-menu-button" onClick={() => open('journal')}><MenuIcon size={16} aria-hidden="true"/><span>MENU</span></button>
       </header>
@@ -221,7 +241,24 @@ export function StreetCareerGame({ onExit, initialOperation, initialDifficulty='
             cash={p.cash} pursuit={wantedStars(p.wanted)} />
           <div className="tsc-overview">
             <NavigationGuidance route={view.route} player={p} destination={view.destination}
-              onClear={() => runtime.current?.setDestination(null)}/>
+              onClear={storyPreview && story.stage==='drive'?undefined:() => runtime.current?.setDestination(null)}/>
+            {storyPreview && <section className="tsc-objective" aria-label="Rikthimi, preview i historisë">
+              <small>BLOOD, LOYALTY &amp; POWER · 01</small>
+              <strong>Rikthimi</strong>
+              {story.stage==='call'&&<>
+                <p style={{fontSize:12,margin:'4px 0',lineHeight:1.3}}>Turi sapo është kthyer nga Rinasi. Ka një mesazh nga miku i tij i fëmijërisë, Dreni.</p>
+                <button style={{pointerEvents:'auto',minHeight:44}} onClick={()=>setStory(s=>stepReturnPreview(s,{type:'listen'},returnStops))}>Hap mesazhin</button>
+              </>}
+              {story.stage==='drive'&&<p style={{fontSize:12,margin:'4px 0',lineHeight:1.3}}>
+                {story.stop===0?'“Turi, duhet të flasim. Takohemi në qytet.” Hip në makinë dhe ndiq itinerarin.':'Dreni nuk është këtu. Makina ka një shënim: ndiq pikën tjetër.'} · {story.stop+1}/2
+              </p>}
+              {story.stage==='choice'&&<>
+                <p style={{fontSize:12,margin:'4px 0',lineHeight:1.3}}>Mesazhi i dytë mbeti pa përgjigje. Në pikën e takimit është një shënim me emrin e Drenit.</p>
+                <button style={{pointerEvents:'auto',minHeight:44}} onClick={()=>setStory(s=>stepReturnPreview(s,{type:'choose',outcome:'call-back'},returnStops))}>Telefono Drenin</button>
+                <button style={{pointerEvents:'auto',minHeight:44}} onClick={()=>setStory(s=>stepReturnPreview(s,{type:'choose',outcome:'read-note'},returnStops))}>Lexo shënimin</button>
+              </>}
+              {story.stage==='complete'&&<p style={{fontSize:12,margin:'4px 0',lineHeight:1.3}}>{story.outcome==='call-back'?'Asnjë përgjigje. Turi vendos ta kërkojë Drenin.':'“Mos prit te vendi i parë.” Turi mban shënimin e Drenit.'} {storySaved?'Zgjedhja u ruajt në këtë pajisje.':'Zgjedhja nuk mundi të ruhej.'}</p>}
+            </section>}
             {view.economy.robbery && <section className="tsc-objective" aria-label="Bank job">
               <strong>{objective.title}</strong><span>{objective.detail}</span>
             </section>}
@@ -387,7 +424,13 @@ export function StreetCareerGame({ onExit, initialOperation, initialDifficulty='
             view &&
             p && (
               <>
-                {panel === 'journal' ? (
+                {storyPreview && panel==='journal' ? (
+                  <section className="tsc-briefing" aria-label="Rikthimi, preview">
+                    <strong>RIKTHIMI · STORY PREVIEW</strong>
+                    <p>Progresi ruhet veçmas. Punët e Career, dyqanet dhe portofoli nuk janë pjesë e këtij versioni.</p>
+                    <button onClick={onExit}>KTHEHU NË LOBBY</button>
+                  </section>
+                ) : panel === 'journal' ? (
                   <>
                     <nav className="tsc-journal-tabs" aria-label="Career menu">
                       <button aria-pressed={journalPage === 'jobs'} onClick={() => setJournalPage('jobs')}>JOBS & PROGRESS</button>
@@ -593,14 +636,14 @@ export function StreetCareerGame({ onExit, initialOperation, initialDifficulty='
                       </label>
                     </section>}
                   </>
-                ) : panel === 'arsenal' ? (
+                ) : !storyPreview && panel === 'arsenal' ? (
                   <StreetArsenal
                     player={p}
                     state={view.state}
                     onAction={(a) => runtime.current?.action(a)}
                     onOwned={(ids) => runtime.current?.grantWeapons(ids)}
                   />
-                ) : panel === 'economy' ? (
+                ) : !storyPreview && panel === 'economy' ? (
                   <PropertyBankPanel economy={view.economy}
                     onAction={(action,id,amount,weapon) => runtime.current?.economyAction(action,id,amount,weapon) || false}
                     onWallet={() => runtime.current?.openWallet()} onClose={resume}/>
@@ -611,9 +654,9 @@ export function StreetCareerGame({ onExit, initialOperation, initialDifficulty='
                     route={view.route}
                     large
                     destination={view.destination}
-                    onDestination={place => runtime.current?.setDestination(place)}
+                    onDestination={storyPreview && story.stage==='drive'?undefined:place => runtime.current?.setDestination(place)}
                     routeNotice={view.routeNotice}
-                    jobs={campaign.chapters.map(m => ({id:m.id,name:m.title,detail:m.description,available:campaign.available(view.profile,m.id),completed:view.profile.completed.includes(m.id),active:view.state.phase!=='finished'&&m.id===view.state.missionId,point:m.stops[0]}))}
+                    jobs={storyPreview?[]:campaign.chapters.map(m => ({id:m.id,name:m.title,detail:m.description,available:campaign.available(view.profile,m.id),completed:view.profile.completed.includes(m.id),active:view.state.phase!=='finished'&&m.id===view.state.missionId,point:m.stops[0]}))}
                     onStartJob={start}
                     task={mission ? {name:objective.title,detail:objective.detail,point:target} : undefined}
                   />
