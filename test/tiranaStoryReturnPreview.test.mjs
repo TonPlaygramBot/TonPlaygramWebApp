@@ -63,3 +63,20 @@ test('live Career is unchanged unless opt-in and account preload is skipped',()=
  assert.match(ui,/onDestination=\{storyPreview && story.stage==='drive'\?undefined/);
  assert.match(ui,/jobs=\{storyPreview\?\[\]/);
 });
+
+test('Rikthimi uses two reachable checkpoints in the current driving graph', async () => {
+ const { MISSIONS, SPAWN, nearestNode, route } = await import('../webapp/src/games/tiranastreets-november/shared/engine.mjs');
+ const checkpoints = MISSIONS.find(m => m.id === 'first-shift').stops.slice(1, 3);
+ assert.equal(checkpoints.length, 2);
+ let from = SPAWN;
+ let current = stepReturnPreview(readReturnPreview(), { type: 'listen' }, checkpoints);
+ for (const to of checkpoints) {
+  const road = route(nearestNode(from.x, from.z), nearestNode(to.x, to.z));
+  assert.ok(road.length > 1, 'The road graph must connect both points');
+  assert.ok(road.every(({ x, z }) => Number.isFinite(x) && Number.isFinite(z)));
+  const {x, z} = road.at(-1);
+  current = stepReturnPreview(current, { type: 'position', x, z, driving: true }, checkpoints);
+  from = to;
+ }
+ assert.equal(current.stage, 'choice');
+});
