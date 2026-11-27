@@ -12,7 +12,7 @@ const settle=()=>new Promise(resolve=>setImmediate(resolve));
 test('portrait canopy spends original glTF slots on visible trees and refreshes when turning in place',async()=>{
  const policy=await import('../webapp/src/games/tirana-street-life/treeLodPolicy.mjs');
  const {MatureTreeLayer}=load('../tirana-street-life/MatureTreeLayer.ts',{
-  three:T,'./treeLodPolicy.mjs':policy,'./ImportedTreeLayer':{},'./loadCompactTree':{},'../tiranastreets/shared/urbanBounds.mjs':{},'../tirana-east/terrainCore.mjs':{},
+  three:T,'./treeLodPolicy.mjs':policy,'./ImportedTreeLayer':{},'./loadCompactTree':{},'./DistantBroadleafLayer':{distanceTreeMinDistance:(_s,b)=>b?50:65},'../tiranastreets/shared/urbanBounds.mjs':{},'../tirana-east/terrainCore.mjs':{},
   'three/examples/jsm/utils/BufferGeometryUtils.js':{},'./canopyRegistry.mjs':{},'./streetModels.mjs':{},'../tirana-street-detail/roadDetailCore.mjs':{}
  });
  const tree=(id,z,shape='garden')=>({id,x:0,y:.12,z,shape,height:10,crown:8,seed:1,zone:'test'});
@@ -35,7 +35,7 @@ test('portrait canopy spends original glTF slots on visible trees and refreshes 
 test('solo canopy culls only distant offscreen fallbacks and refreshes after a quick portrait pan',async()=>{
  const policy=await import('../webapp/src/games/tirana-street-life/treeLodPolicy.mjs');
  const {MatureTreeLayer}=load('../tirana-street-life/MatureTreeLayer.ts',{
-  three:T,'./treeLodPolicy.mjs':policy,'./ImportedTreeLayer':{},'./loadCompactTree':{},'../tiranastreets/shared/urbanBounds.mjs':{},'../tirana-east/terrainCore.mjs':{},
+  three:T,'./treeLodPolicy.mjs':policy,'./ImportedTreeLayer':{},'./loadCompactTree':{},'./DistantBroadleafLayer':{distanceTreeMinDistance:(_s,b)=>b?50:65},'../tiranastreets/shared/urbanBounds.mjs':{},'../tirana-east/terrainCore.mjs':{},
   'three/examples/jsm/utils/BufferGeometryUtils.js':{},'./canopyRegistry.mjs':{},'./streetModels.mjs':{},'../tirana-street-detail/roadDetailCore.mjs':{}
  });
  const tree=(id,x,z)=>({id,x,z,y:.12,shape:'umbrella',height:10,crown:8,seed:1,zone:'test'});
@@ -62,4 +62,49 @@ test('solo canopy culls only distant offscreen fallbacks and refreshes after a q
  layer.update(.06,{x:0,z:0},false,true,camera);
  assert.equal(batches[1].wood.count,3,'legacy modes are unchanged');
  for(const b of batches){b.wood.dispose();b.leaves.dispose();b.wood.geometry.dispose();b.leaves.geometry.dispose();b.wood.material.dispose();b.leaves.material.dispose();}
+});
+
+test('source cutouts allocate existing profiles only and retain high-quality shadow distance', async()=>{
+ const textureLoads=[];
+ class FakeTreeTextureLoader {loadAsync(url){textureLoads.push(url);return Promise.resolve(new T.Texture());}}
+ const three={...T,TextureLoader:FakeTreeTextureLoader};
+ const {distanceTreeProfiles,distanceTreeMinDistance}=load('../tirana-street-life/DistantBroadleafLayer.ts',{three});
+ const profiles=distanceTreeProfiles([{shape:'garden'},{shape:'upright'},{shape:'upright'}]);
+ assert.deepEqual(Array.from(profiles.map(p=>[p.profileId,p.mesh.instanceMatrix.count])),[['broadleaf',1],['upright',2]]);
+ profiles.forEach(p=>p.request());await settle();
+ assert.equal(textureLoads.length,2);assert.ok(textureLoads.every(url=>!/cypress/.test(url)));
+ const colour=profiles[0].mesh.material.color;
+ profiles[0].setSkyLight(.22);assert.equal(colour.r,.43);
+ profiles[0].setSkyLight(.8);assert.ok(Math.abs(colour.r-2.65)<1e-6);
+ assert.equal(profiles[0].mesh.material.fog,true);
+ profiles.forEach(p=>p.dispose());
+ assert.equal(distanceTreeMinDistance('upright',false),65);
+ assert.equal(distanceTreeMinDistance('column',false),65);
+ assert.equal(distanceTreeMinDistance('garden',false),65);
+ assert.equal(distanceTreeMinDistance('upright',true),36);
+ assert.equal(distanceTreeMinDistance('column',true),36);
+ assert.equal(distanceTreeMinDistance('garden',true),50);
+});
+
+test('column cutout remains grounded, preserves authored thin crown and updates only active instances',async()=>{
+ class FakeTreeTextureLoader {loadAsync(){return Promise.resolve(new T.Texture());}}
+ const {distanceTreeProfiles}=load('../tirana-street-life/DistantBroadleafLayer.ts',{three:{...T,TextureLoader:FakeTreeTextureLoader}});
+ const [column]=distanceTreeProfiles([{shape:'column'},{shape:'column'}]);
+ const eye={x:0,z:0}, tree={shape:'column',x:6,y:1.2,z:-74,height:12,crown:2.4,seed:8};
+ assert.equal(column.add(tree,eye),false,'retain old tree while its image is unavailable');
+ column.request();await settle();
+ assert.equal(column.add({...tree,shape:'garden'},eye),false);
+ assert.ok(column.add(tree,eye));
+ const m=new T.Matrix4(), p=new T.Vector3(),q=new T.Quaternion(),s=new T.Vector3();
+ column.mesh.getMatrixAt(0,m);m.decompose(p,q,s);
+ assert.ok(Math.abs(s.x*37/45-tree.crown)<1e-5);
+ assert.ok(Math.abs(s.y*207/215-tree.height)<1e-5);
+ assert.ok(Math.abs(p.y-s.y/2+tree.height*4/207-tree.y)<1e-5);
+ assert.equal(p.x,tree.x);assert.equal(p.z,tree.z);
+ assert.equal(column.mesh.geometry.index.count,6);
+ column.end();
+ assert.equal(column.mesh.instanceMatrix.updateRanges.at(-1).count,16);
+ column.begin();column.end();
+ assert.equal(column.mesh.count,0);
+ column.dispose();
 });
