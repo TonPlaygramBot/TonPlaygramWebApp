@@ -73,3 +73,11 @@ it('invokes the existing roll handler once for an actionable turn', () => {
   act(() => host.querySelector('.snake-roll-button').click());
   expect(onRoll).toHaveBeenCalledOnce();
 });
+
+it('shows compact progress on a normal turn without replacing the exact finish hint', () => {
+  render({ position: 24 });
+  expect(host.textContent).toContain('Tile 24/100 · 6 rolls again');
+  render({ position: 98 });
+  expect(host.textContent).toContain('Exact roll: 2 to finish');
+  expect(host.textContent).not.toContain('Tile 98/100');
+});

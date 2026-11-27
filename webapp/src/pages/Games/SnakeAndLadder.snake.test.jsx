@@ -38,7 +38,7 @@ async function emit(name, payload) { await act(async () => { for (const handler 
 beforeEach(() => {
   vi.useFakeTimers();
   vi.stubGlobal('IS_REACT_ACT_ENVIRONMENT', true);
-  vi.stubGlobal('Audio', class { volume = 1; currentTime = 0; play() { return Promise.resolve(); } pause() {} addEventListener() {} removeEventListener() {} });
+  vi.stubGlobal('Audio', class { volume = 1; currentTime = 0; play() { return Promise.resolve(); } pause() {} removeAttribute() {} addEventListener() {} removeEventListener() {} });
   localStorage.clear(); testState.handlers.clear(); testState.events = [];
   testState.deposits = []; testState.boardPositions = [];
   setGameMuted(false);

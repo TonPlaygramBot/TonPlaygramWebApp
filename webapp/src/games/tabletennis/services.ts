@@ -46,7 +46,7 @@ export function createAppTableTennisServices(
     if (registration) return registration;
     registration = (async () => {
       accountId = String((await ensureAccountId()) || '');
-      if (!accountId) throw Error('Sign in to your TPC account to continue.');
+      if (!accountId) throw Error('Sign in to your TonPlayGram account to continue.');
       refreshSocketAuthIdentity(
         { accountId },
         { reconnect: !socket.connected }
