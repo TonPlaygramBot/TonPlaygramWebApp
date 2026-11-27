@@ -2,6 +2,7 @@ import {careerSupplies,equipCareerSupply} from './streetCareer.mjs';
 import { RaceItemEffects } from './RaceItemEffects';
 import { KartExhaust } from './KartExhaust';
 import * as T from 'three';
+import {createCaptainGrid} from './captainDuel.mjs';
 import {GhostRecorder,ghostKey,sampleGhost,type GhostLap} from './ghostLap.mjs';
 import {trialStandings} from './raceFormats.mjs';
 import {rivalIntervals,type RivalInterval,type RaceTelemetry,type Powertrain} from './raceTelemetry.mjs';
@@ -107,6 +108,7 @@ export interface Frame {
   slipstream: number;
 }
 export interface Result {
+  captainDuel?: boolean;
   online?:boolean;
   timeTrial?:boolean;
   personalBest?:number;
@@ -224,6 +226,7 @@ export class KartRenderer {
   private network = false;
   private authoritativeResults: Racer[] | null = null;
   private timeTrial = false;
+  private captainDuel = false;
   private ghostRecorder:GhostRecorder|null = null;
   private ghostVisual:T.Group|null = null;
   private ghostMemory=new Map<string,{ghost:GhostLap;saved:boolean}>();
@@ -675,6 +678,7 @@ export class KartRenderer {
   }
   showGarage() {
     this.state = 'garage';
+    this.captainDuel = false;
     this.resetActionModes();
     this.cityJob=null;this.jobGuide=null;
     this.network = false;
@@ -982,11 +986,12 @@ export class KartRenderer {
       this.visuals.set(r.id, v);
     }
   }
-  startLocal(id: string, difficulty: string, freeRoam=false, timeTrial=false, careerLoadout?: {driver?:string;ammo?:string;shield?:string}) {
+  startLocal(id: string, difficulty: string, freeRoam=false, timeTrial=false, careerLoadout?: {driver?:string;ammo?:string;shield?:string}, captainDuel=false) {
     this.streetDriver = careerLoadout?.driver === "helmet";
     this.streetSupplies = careerLoadout ? careerSupplies(careerLoadout) : null;
     this.resetActionModes();
     this.timeTrial=timeTrial&&!freeRoam;
+    this.captainDuel=captainDuel&&!freeRoam&&!this.timeTrial&&!careerLoadout;
     this.ghostRecorder=null;
     this.cityJob=null;
     this.track = freeRoam?{...makeTrack(id),terrainMode:'regional'}:makeTrack(id);
@@ -999,7 +1004,7 @@ export class KartRenderer {
     this.countdown = freeRoam?0:3;
     this.accumulator = 0;
     this.paused = false;
-    this.racers = Array.from({ length: freeRoam||this.timeTrial?1:6 }, (_, i) =>
+    this.racers = this.captainDuel ? createCaptainGrid(this.track,this.kartId) : Array.from({ length: freeRoam||this.timeTrial?1:6 }, (_, i) =>
       createRacer(
         this.track,
         i === 0 ? 'you' : `ai-${i}`,
@@ -1034,6 +1039,9 @@ export class KartRenderer {
     this.state = freeRoam?'racing':'countdown';
     this.clearInput();
     this.snapCamera();
+  }
+  startCaptainDuel(id:string,difficulty:string){
+    this.startLocal(id,difficulty,false,false,undefined,true);
   }
   startStreetCareer(id:string,difficulty:string,loadout:{driver?:string;ammo?:string;shield?:string}){
     this.startLocal(id,difficulty,false,false,loadout);
@@ -1079,6 +1087,7 @@ export class KartRenderer {
       this.state === 'garage' ||
       (this.state === 'finished' && next.status === 'countdown');
     if (fresh) this.resetActionModes();
+    this.captainDuel = false;
     this.timeTrial = next.raceFormat === 'trial';
     this.ghostRecorder = null;
     this.cityJob = null;
@@ -1136,6 +1145,7 @@ export class KartRenderer {
   private finish() {
     this.onFinish({
       online:this.network,
+      ...(this.captainDuel&&!this.network?{captainDuel:true}:{}),
       timeTrial:this.timeTrial,personalBest:this.ghostRecorder?.best?.time,
       newBest:this.ghostRecorder?.improved,ghostSaved:this.ghostRecorder?.saved,
       cityJob:this.cityJob?{...this.cityJob}:undefined,

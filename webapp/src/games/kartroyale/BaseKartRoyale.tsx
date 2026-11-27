@@ -38,6 +38,7 @@ import {
   normalizeTrack
 } from './simulation.mjs';
 import { loadCareer, recordRace, formatTime } from './career';
+import {CAPTAIN_ID,CAPTAIN_NAME,captainDuelOutcome} from './captainDuel.mjs';
 import { KartAudio } from './audio';
 import {RaceTelemetryHud,RaceRevBar,RaceDebrief} from './RaceTelemetryHud';
 import { request, saveSession, loadSession } from './network';
@@ -141,6 +142,7 @@ export default function KartRoyale({
   const [screen, setScreen] = useState<'lobby' | 'race' | 'results'>('lobby'),
     [hud, setHud] = useState<Frame | null>(null),
     [result, setResult] = useState<Result | null>(null),
+    [captainDuel,setCaptainDuel]=useState(false),
     [career, setCareer] = useState(loadCareer),
     [reward, setReward] = useState(0),
     [saved, setSaved] = useState(true);
@@ -200,6 +202,8 @@ export default function KartRoyale({
     engine.current?.clearInput();
     audio.current?.silence();
     audio.current?.beep(880, 0.3);
+    // A solo challenge never records a career cup, shared time or TPG result.
+    if(r.captainDuel&&!r.online){setSaved(true);return;}
     if(r.combat){setSaved(true);return;}
     if(r.timeTrial){setSaved(r.ghostSaved!==false);return;}
     if (!sessionRef.current || (!sessionRef.current.tableId && roomRef.current?.raceFormat === 'championship')) {
@@ -596,10 +600,11 @@ export default function KartRoyale({
     setScreen('lobby');
     setModal(null);
     setResult(null);
+    setCaptainDuel(false);
   };
-  const start = () => {
+  const start = (duel=false) => {
+    if (!loaded || !engine.current || sessionRef.current || (duel&&(mode!=='ai'||roomRef.current||busy))) return;
     heldInput.current.clear();combatHeld.current.clear();
-    if (!loaded || sessionRef.current) return;
     audio.current?.unlock();
     done.current = false;
     raceCup.current = null;
@@ -607,8 +612,10 @@ export default function KartRoyale({
     setResult(null);
     setHud(null);
     setModal(null);
+    setCaptainDuel(duel);
     setScreen('race');
-    engine.current?.startLocal(trackId, difficulty, false);
+    if(duel)engine.current.startCaptainDuel(trackId,difficulty);
+    else engine.current.startLocal(trackId,difficulty,false);
   };
   const touch = (key: 'steer'|'drift'|'boost'|'brake'|'reverse'|'recover', value: number|boolean) => {
     const release = (e: React.PointerEvent<HTMLButtonElement>) => {
@@ -654,6 +661,8 @@ export default function KartRoyale({
     place = result
       ? result.racers.findIndex((r) => r.id === result.playerId) + 1
       : 0;
+  const duelResult=result?.captainDuel&&!result.online;
+  const duelOutcome=duelResult?captainDuelOutcome(finishedMe,result?.racers.find(r=>r.id===CAPTAIN_ID)):null;
   const rankedTrial = !!(session && result?.timeTrial && finishedMe && Number.isFinite(bestTrialLap(finishedMe)));
   return (
     <div
@@ -1019,7 +1028,7 @@ export default function KartRoyale({
                 <button
                   className="kr-start"
                   disabled={!loaded || !!error}
-                  onClick={start}
+                  onClick={()=>start()}
                 >
                   <Flag size={23} />
                   <span>
@@ -1056,6 +1065,11 @@ export default function KartRoyale({
                   </button>
                 )
               )}
+              {mode==='ai'&&selectedFormat==='race'&&<button className="kr-secondary kr-captain-launch"
+                disabled={!loaded||!!error||!!room||!!session||busy} onClick={()=>start(true)}>
+                <Trophy size={18} aria-hidden="true"/><span><b>ALI DEMI CAPTAIN DUEL</b>
+                <small>1 vs 1 · Selected circuit · No credits or records</small></span><ArrowRight size={17} aria-hidden="true"/>
+              </button>}
               <div className="kr-panel-footer">
                 <span>
                   {selectedFormat === 'championship'
@@ -1081,7 +1095,7 @@ export default function KartRoyale({
       {screen === 'race' && (
         <div className="rr-race-ui">
           <div className="rr-race-top">
-            <div className="rr-place"><b>{hud?.position || 1}</b><span>/{hud?.racers.length || 6}<small>{hud?.timeTrial?'TIME TRIAL':'POSITION'}</small></span></div>
+            <div className="rr-place"><b>{hud?.position || 1}</b><span>/{hud?.racers.length || (captainDuel?2:6)}<small>{captainDuel?'CAPTAIN DUEL':hud?.timeTrial?'TIME TRIAL':'POSITION'}</small></span></div>
             <div className="rr-lap"><span>LAP <b>{hud?.lap || 1}</b> / 3</span><time aria-label="Current lap time">{formatTime(hud?.lapTime || 0)}</time>{!!hud?.bestLap && <small>BEST {formatTime(hud.bestLap)}</small>}</div>
             <button className="kr-icon" aria-label="Pause menu" onClick={()=>setModal('pause')}><Pause size={22}/></button>
           </div>
@@ -1108,12 +1122,12 @@ export default function KartRoyale({
         <div className="kr-results-backdrop">
           <section className="kr-results">
             <div className="kr-eyebrow">
-              <Flag size={16} /> {result.combat?'COMBAT RACE COMPLETE':result.timeTrial?'TIME TRIAL COMPLETE':'RACE COMPLETE'}
+              <Flag size={16} /> {duelResult?'ALI DEMI CAPTAIN DUEL':result.combat?'COMBAT RACE COMPLETE':result.timeTrial?'TIME TRIAL COMPLETE':'RACE COMPLETE'}
             </div>
             <div className="kr-finish-place">
-              {result.timeTrial && !session?'TT':finishedMe?.finished || rankedTrial ? String(place).padStart(2, '0') : 'DNF'}
+              {duelOutcome==='tie'?'TIE':result.timeTrial && !session?'TT':finishedMe?.finished || rankedTrial ? String(place).padStart(2, '0') : 'DNF'}
               <span>
-                {result.timeTrial?(session?'FASTEST LAP CHALLENGE':'PERSONAL BEST CHALLENGE'):finishedMe?.finished
+                {duelOutcome?(duelOutcome==='win'?'VICTORY':duelOutcome==='loss'?'CAPTAIN WINS':duelOutcome==='tie'?'DEAD HEAT':'DUEL UNFINISHED'):result.timeTrial?(session?'FASTEST LAP CHALLENGE':'PERSONAL BEST CHALLENGE'):finishedMe?.finished
                   ? place === 1
                     ? 'VICTORY'
                     : 'FINISH POSITION'
@@ -1123,7 +1137,7 @@ export default function KartRoyale({
               </span>
             </div>
             <h2>
-              {result.timeTrial?(session ? (finishedMe && Number.isFinite(bestTrialLap(finishedMe)) ? (place===1?'FASTEST LAP.':'YOUR NEXT LAP AWAITS.') : 'NO VALID LAP RECORDED.') : result.newBest?'A NEW BENCHMARK.':'FIND YOUR NEXT TENTH.') : place === 1 && finishedMe?.finished
+              {duelOutcome?(duelOutcome==='win'?'CAPTAIN BEATEN.':duelOutcome==='tie'?'SIDE BY SIDE.':duelOutcome==='loss'?'THE CAPTAIN TAKES IT.':'TRY THE DUEL AGAIN.'):result.timeTrial?(session ? (finishedMe && Number.isFinite(bestTrialLap(finishedMe)) ? (place===1?'FASTEST LAP.':'YOUR NEXT LAP AWAITS.') : 'NO VALID LAP RECORDED.') : result.newBest?'A NEW BENCHMARK.':'FIND YOUR NEXT TENTH.') : place === 1 && finishedMe?.finished
                 ? 'THE STREETS ARE YOURS.'
                 : 'ONE MORE LAP? ONE MORE RACE.'}
             </h2>
@@ -1131,6 +1145,7 @@ export default function KartRoyale({
               {TRACKS.find((t) => t.id === normalizeTrack(result.trackId))?.name} ·{' '}
               {formatTime(finishedMe?.finishTime || result.elapsed)}
             </p>
+            {duelResult&&<p className="kr-notice">Solo practice against {CAPTAIN_NAME}. No credits, stakes or career record.</p>}
             <RaceDebrief result={result}/>
             {result.combat&&<div className="rr-action-summary"><b>{result.combat.player.kills} rival karts disabled · {result.combat.player.hits} hits · {result.combat.player.score||0} points</b><p>{result.combat.player.supplies||0} supply pickups collected. Combat races do not award championship credits or TPG.</p></div>}
             <div className="kr-result-table">
@@ -1139,7 +1154,7 @@ export default function KartRoyale({
                   key={r.id}
                   className={r.id === result.playerId ? 'you' : ''}
                 >
-                  <span>{String(i + 1).padStart(2, '0')}</span>
+                  <span>{duelOutcome==='tie'?'T-1':String(i + 1).padStart(2, '0')}</span>
                   <b>{r.name}</b>
                   <small>
                     {r.ai ? 'AI' : r.id === result.playerId ? 'YOU' : 'PLAYER'}
@@ -1201,8 +1216,8 @@ export default function KartRoyale({
               </>
             ) : (
               <>
-                <button className="kr-start" onClick={start}>
-                  <RotateCcw size={20} /> RACE AGAIN <ArrowRight size={20} />
+                <button className="kr-start" onClick={()=>start(!!duelResult)}>
+                  <RotateCcw size={20} /> {duelResult?'REMATCH CAPTAIN':'RACE AGAIN'} <ArrowRight size={20} />
                 </button>
                 <button className="kr-secondary kr-full" onClick={garage}>
                   <ArrowLeft size={17} /> BACK TO GARAGE

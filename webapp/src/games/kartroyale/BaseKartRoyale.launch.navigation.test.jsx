@@ -9,7 +9,7 @@ vi.mock('./simulation.mjs',async importOriginal=>{
 vi.mock('./renderer',()=>({KartRenderer:class{
  constructor(_host,onFrame,onFinish){harness.game=this;this.input={};this.combatInput={reload:false};this.onFrame=onFrame;this.onFinish=onFinish;}
  load=vi.fn(async()=>{});setColor=vi.fn();setKart=vi.fn();setQuality=vi.fn();setCameraMode=vi.fn();
- networkInput=vi.fn(()=>this.input);networkState=vi.fn();showGarage=vi.fn();startLocal=vi.fn();startCombatRace=vi.fn();queueCombatReload=vi.fn();queueCombatPulse=vi.fn();pause=vi.fn();clearInput=vi.fn(()=>{this.input={};this.combatInput={reload:false};});destroy=vi.fn();
+ networkInput=vi.fn(()=>this.input);networkState=vi.fn();showGarage=vi.fn();startLocal=vi.fn();startCaptainDuel=vi.fn();startCombatRace=vi.fn();queueCombatReload=vi.fn();queueCombatPulse=vi.fn();pause=vi.fn();clearInput=vi.fn(()=>{this.input={};this.combatInput={reload:false};});destroy=vi.fn();
 }}));
 vi.mock('./audio',()=>({KartAudio:class{unlock(){}update(){}silence(){}beep(){}destroy(){}setMuted(){}}}));
 import BaseKartRoyale from './BaseKartRoyale';
@@ -117,5 +117,48 @@ it('blocks career while room creation is pending or a multiplayer seat is active
   await clickText(host,'Leave');expect(career().disabled).toBe(false);
   await act(async()=>career().click());expect(onCareer).toHaveBeenCalledOnce();
   expect(sessionStorage.getItem('kartroyale.session')).toBeNull();
+ }finally{await act(async()=>root.unmount());host.remove();sessionStorage.clear();}
+});
+
+
+it('launches and rematches an opt-in Captain duel without overwriting existing progress',async()=>{
+ localStorage.clear();sessionStorage.clear();
+ const host=document.createElement('div');document.body.append(host);const root=createRoot(host);
+ try{
+  await act(async()=>root.render(<BaseKartRoyale/>));
+  await clickText(host,'street');
+  const route=host.querySelector('.kr-track-selector h3').textContent;
+  const snapshot=()=>({...localStorage});
+  const before=snapshot();
+  const duel=host.querySelector('.kr-captain-launch');
+  expect(duel).not.toBeNull();expect(duel.disabled).toBe(false);
+  await act(async()=>duel.click());
+  expect(harness.game.startCaptainDuel).toHaveBeenCalledWith(firstTrack,'street');
+  expect(host.querySelector('.rr-place small').textContent).toBe('CAPTAIN DUEL');
+  expect(host.querySelector('.rr-place span').textContent).toContain('/2');
+  await act(async()=>harness.game.onFinish({
+    captainDuel:true,online:false,elapsed:95,trackId:firstTrack,playerId:'you',
+    racers:[{id:'you',name:'You',finished:true,finishTime:95},{id:'captain-ali-demi',name:'Ali Demi Captain',ai:true,finished:false,lap:3}]
+  }));
+  expect(host.textContent).toContain('CAPTAIN BEATEN.');
+  expect(host.textContent).toContain(route);
+  expect(host.textContent).toContain('No credits, stakes or career record.');
+  expect(snapshot()).toEqual(before);
+  await clickText(host,'REMATCH CAPTAIN');
+  expect(harness.game.startCaptainDuel).toHaveBeenCalledTimes(2);
+  expect(harness.game.startCaptainDuel).toHaveBeenLastCalledWith(firstTrack,'street');
+  expect(sessionStorage.length).toBe(0);
+ }finally{await act(async()=>root.unmount());host.remove();}
+});
+
+it('hides Captain practice while the multiplayer garage is selected',async()=>{
+ const host=document.createElement('div');document.body.append(host);const root=createRoot(host);
+ try{
+  await act(async()=>root.render(<BaseKartRoyale getSocket={async()=>testSocket()}/>));
+  expect(host.querySelector('.kr-captain-launch')).not.toBeNull();
+  await act(async()=>[...host.querySelectorAll('.kr-mode')].find(b=>b.textContent.includes('MULTIPLAYER')).click());
+  expect(host.querySelector('.kr-captain-launch')).toBeNull();
+  await clickText(host,'Create room');
+  expect(harness.game.startCaptainDuel).not.toHaveBeenCalled();
  }finally{await act(async()=>root.unmount());host.remove();sessionStorage.clear();}
 });
