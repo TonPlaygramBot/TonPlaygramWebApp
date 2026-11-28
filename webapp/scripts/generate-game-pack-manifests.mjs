@@ -1,3 +1,4 @@
+import { keepModernKartBundled } from './keep-modern-karts-native.mjs';
 import { createHash } from 'node:crypto';
 import { mkdir, readdir, readFile, stat, writeFile } from 'node:fs/promises';
 import path from 'node:path';
@@ -107,8 +108,9 @@ export async function generateGamePackManifests({
     for (const file of files) {
       // Core media/code stays readable inside Capacitor. A binary-only CDN
       // rollout must not suddenly require uploading the launcher and its images.
-      const asset = await buildAsset(publicDir, file, definition.keepInNative || !isEligible(file) ? '' : cdnBaseUrl);
-      asset.nativeRemovable = !definition.keepInNative && isEligible(file);
+      const nativeRemovable = !definition.keepInNative && isEligible(file) && !keepModernKartBundled(file);
+      const asset = await buildAsset(publicDir, file, nativeRemovable ? cdnBaseUrl : '');
+      asset.nativeRemovable = nativeRemovable;
       assets.push(asset);
     }
     const version = packVersion(assets);

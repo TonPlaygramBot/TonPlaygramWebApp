@@ -1,3 +1,4 @@
+import { keepModernKartBundled } from './keep-modern-karts-native.mjs';
 import { mkdir, readFile, readdir, rm, stat, writeFile } from 'node:fs/promises';
 import path from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
@@ -54,10 +55,11 @@ export async function pruneNativeGamePacks({ distDir = DEFAULT_DIST_DIR } = {}) 
     for (const asset of manifest.assets || []) {
       if (!asset?.url || asset.nativeRemovable === false || seenUrls.has(asset.url) || preservedUrls.has(asset.url)) continue;
       seenUrls.add(asset.url);
+      const filePath = localPathForUrl(distDir, asset.url);
+      if (filePath && keepModernKartBundled(path.relative(distDir, filePath).split(path.sep).join('/'))) continue;
       if (!/^https:\/\//i.test(String(asset.sourceUrl || '')) && catalog.source === 'cdn') {
         throw new Error(`Pack asset is missing an HTTPS CDN source: ${asset.url}`);
       }
-      const filePath = localPathForUrl(distDir, asset.url);
       if (!filePath) continue;
       const info = await stat(filePath).catch(() => null);
       if (!info?.isFile()) continue;
