@@ -112,8 +112,12 @@ export class DistantBroadleafLayer {
 }
 
 /** Preserve all potential nearby fallback shadow casters outside Battery. */
-export const distanceTreeMinDistance=(shape:string,battery:boolean)=>!battery?65:
- shape==='upright'||shape==='column'?36:50;
+export const distanceTreeMinDistance=(shape:string,battery:boolean,wasCard?:boolean)=>{
+ const nearThreshold=!battery?65:shape==='upright'||shape==='column'?36:50;
+ // Never keep a card within the original 3D shadow/detail range. Delay
+ // demotion by six metres only for a previously rendered 3D fallback.
+ return nearThreshold+(wasCard===false?6:0);
+};
 
 // Each registered tree belongs to at most one profile. A scene without column
 // trees does not allocate an unused instance buffer or request the cypress art.

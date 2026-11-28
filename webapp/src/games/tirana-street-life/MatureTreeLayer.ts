@@ -21,6 +21,7 @@ type Batch={shape:string;lod:number;wood:T.InstancedMesh;leaves:T.InstancedMesh}
  * become oversized spherical bushes. Every replaced source ID has one owner. */
 export class MatureTreeLayer {
  readonly group=new T.Group();private disposed=false;private dead=false;private last=-Infinity;
+ private distanceIds?:Set<string>;
  private distanceLayers?:DistantBroadleafLayer[];private distanceReady?:number;private eye=new T.Vector3();
  private imported:ImportedTreeLayer;private importedReady=false;
  private mediumImported:ImportedTreeLayer;
@@ -124,6 +125,7 @@ export class MatureTreeLayer {
     }
    }
   }
+  const nextDistanceIds=this.distanceLayers?.length?new Set<string>():undefined;
   for(const t of trees){
    if(originalIds.has(t.id))continue;
    const distance=Math.hypot(t.x-viewer.x,t.z-viewer.z);
@@ -137,8 +139,12 @@ export class MatureTreeLayer {
    }
    // Profile-specific cutouts keep mapped sizes and silhouettes. Keep the
    // original models and nearby shadow casters ahead of the far appearance.
-   const cardDistance=distanceTreeMinDistance(t.shape,battery);
-   if(camera&&distance>=cardDistance&&this.distanceLayers?.some(layer=>layer.add(t,this.eye)))continue;
+   if(camera&&nextDistanceIds){
+    const cardDistance=distanceTreeMinDistance(t.shape,battery,this.distanceIds?.has(t.id));
+    if(distance>=cardDistance&&this.distanceLayers?.some(layer=>layer.add(t,this.eye))){
+     nextDistanceIds.add(t.id);continue;
+    }
+   }
    const lod=!battery&&distance<65&&detailed<64?0:distance<(battery?120:240)&&medium<384?1:2;
    if(lod===0)detailed++;if(lod===1)medium++;
    const b=this.batches.find(b=>b.shape===t.shape&&b.lod===lod)??this.batches.find(b=>b.shape==='upright'&&b.lod===lod)!;
@@ -147,6 +153,7 @@ export class MatureTreeLayer {
    b.wood.setMatrixAt(b.wood.count++,this.dummy.matrix);b.leaves.setMatrixAt(b.leaves.count,this.dummy.matrix);
    this.color.setHSL(.235+(t.seed%5)*.008,.2+(t.seed%4)*.02,.62+(t.seed%6)*.025);b.leaves.setColorAt(b.leaves.count++,this.color);
   }
+  this.distanceIds=nextDistanceIds;
   this.distanceLayers?.forEach(layer=>layer.end());
   this.group.userData.sourceDistantBroadleafTrunks=this.distanceLayers?.reduce((count,layer)=>count+layer.mesh.count,0)??0;
   if(this.distanceLayers)this.group.userData.sourceDistantProfiles=Object.fromEntries(
