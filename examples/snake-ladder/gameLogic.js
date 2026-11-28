@@ -1,4 +1,9 @@
 export const BOARD_SIZE = 100;
+export const DEFAULT_OPTIONS = {
+  boardTheme: 'classic',
+  moveSpeed: 'normal'
+};
+export const WEAPONS = ['Pistol', 'Shotgun', 'Rifle', 'SMG'];
 
 export const DEFAULT_SNAKES = {
   16: 6,
@@ -28,19 +33,37 @@ export const DEFAULT_LADDERS = {
 export class Game {
   constructor(roomId) {
     this.roomId = roomId;
+    this.options = { ...DEFAULT_OPTIONS };
+    this.resetBoard();
+  }
+
+  resetBoard() {
     this.players = [];
     this.currentPlayer = 0;
     this.diceRoll = null;
     this.snakes = { ...DEFAULT_SNAKES };
     this.ladders = { ...DEFAULT_LADDERS };
     this.winner = null;
+    this.ai = {
+      id: 'AI_BOT',
+      name: 'AI Bot',
+      position: 0,
+      inventory: [...WEAPONS],
+      equippedWeapon: WEAPONS[Math.floor(Math.random() * WEAPONS.length)]
+    };
   }
 
   addPlayer(id, name) {
     if (this.players.length >= 4) return null;
     const existing = this.players.find((p) => p.id === id);
     if (existing) return existing;
-    const player = { id, name, position: 0 };
+    const player = {
+      id,
+      name,
+      position: 0,
+      inventory: ['Pistol'],
+      equippedWeapon: 'Pistol'
+    };
     this.players.push(player);
     return player;
   }
@@ -80,15 +103,32 @@ export class Game {
     }
   }
 
+  setOption(key, value) {
+    if (!(key in this.options)) return false;
+    this.options[key] = value;
+    return true;
+  }
+
+  swapWeapon(playerId, weapon) {
+    const player = this.players.find((p) => p.id === playerId);
+    if (!player) return false;
+    if (!player.inventory.includes(weapon)) return false;
+    player.equippedWeapon = weapon;
+    return true;
+  }
+
   getState() {
     return {
       roomId: this.roomId,
       players: this.players,
+      ai: this.ai,
       currentPlayer: this.currentPlayer,
       diceRoll: this.diceRoll,
       snakes: this.snakes,
       ladders: this.ladders,
-      winner: this.winner
+      winner: this.winner,
+      options: this.options,
+      weapons: WEAPONS
     };
   }
 }
